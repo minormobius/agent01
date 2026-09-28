@@ -1,0 +1,1775 @@
+{
+  "artifact_type": "imp_program_artifact",
+  "payload": {
+    "adapter": "Elixir.Imp.Adapter.Chat",
+    "config": [],
+    "demos": [],
+    "dynamic_adapter": true,
+    "dynamic_lm": false,
+    "lm": {
+      "model": {
+        "base_url": "https://api.deepseek.com/v1",
+        "id": "deepseek-v4-pro",
+        "model": "deepseek-v4-pro",
+        "provider": "openai"
+      },
+      "opts": [
+        [
+          "cache",
+          false
+        ],
+        [
+          "receive_timeout",
+          180000
+        ],
+        [
+          "temperature",
+          0.0
+        ],
+        [
+          "max_tokens",
+          2048
+        ]
+      ],
+      "provider": "req_llm"
+    },
+    "metadata": {
+      "__imp_type__": "map",
+      "entries": [
+        [
+          {
+            "__imp_type__": "atom",
+            "value": "optimizer_report"
+          },
+          {
+            "__imp_type__": "optimizer_report",
+            "best_score": 0.85,
+            "candidate_count": 14,
+            "candidates": [
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.125
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "scores"
+                    },
+                    [
+                      1.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "nil"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "Route the question to exactly one opaque code. Return only the required structured route."
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri...",
+                      "{:task_exit, :timeout}"
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "Route the question to exactly one opaque code. Return only the required structured route."
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.85
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "scores"
+                    },
+                    [
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "accepted reflection"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nKnown routing rule:\n- Use code `K11` when the question asks for a description, definition, reason, or manner.\n  Examples include:\n  - questions asking how to do something\n  - questions asking why something happens\n  - questions asking what something means\n\nFor any question matching that rule, output exactly:\n\nK11"
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nKnown routing rule:\n- Use code `K11` when the question asks for a description, definition, reason, or manner.\n  Examples include:\n  - questions asking how to do something\n  - questions asking why something happens\n  - questions asking what something means\n\nFor any question matching that rule, output exactly:\n\nK11"
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Correct: K11 handles question asking for a description, definition, reason, or manner.\"; \"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri...; \"Expected K11 for question asking for a description, definition, reason, or manner; K47 represents question asking for an entity such as an animal, product, substance, or other thing.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Correct: K11 handles question asking for a description, definition, reason, or manner.\"",
+                      "\"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri...",
+                      "\"Expected K11 for question asking for a description, definition, reason, or manner; K47 represents question asking for an entity such as an animal, product, substance, or other thing.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-2"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Correct: K11 handles question asking for a description, definition, reason, or manner.\"; \"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri...; \"Expected K11 for question asking for a description, definition, reason, or manner; K47 represents question asking for an entity such as an animal, product, substance, or other thing.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Correct: K11 handles question asking for a description, definition, reason, or manner.\"",
+                      "\"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri...",
+                      "\"Expected K11 for question asking for a description, definition, reason, or manner; K47 represents question asking for an entity such as an animal, product, substance, or other thing.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-4"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri...; \"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri...",
+                      "\"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-6"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"; \"Correct: K11 handles question asking for a description, definition, reason, or manner.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"",
+                      "\"Correct: K11 handles question asking for a description, definition, reason, or manner.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-7"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.3333333333333333
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Correct: K11 handles question asking for a description, definition, reason, or manner.\"; \"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"; \"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text,"
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Correct: K11 handles question asking for a description, definition, reason, or manner.\"",
+                      "\"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"",
+                      "\"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text,"
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-9"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Correct: K11 handles question asking for a description, definition, reason, or manner.\"; \"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Correct: K11 handles question asking for a description, definition, reason, or manner.\"",
+                      "\"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-10"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.3333333333333333
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"; \"Correct: K11 handles question asking for a description, definition, reason, or manner.\"; \"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nRouting rules:\n- Use code `K11`"
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"",
+                      "\"Correct: K11 handles question asking for a description, definition, reason, or manner.\"",
+                      "\"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nRouting rules:\n- Use code `K11`"
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-14"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Correct: K11 handles question asking for a description, definition, reason, or manner.\"; \"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Correct: K11 handles question asking for a description, definition, reason, or manner.\"",
+                      "\"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-18"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.3333333333333333
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"; \"Correct: K11 handles question asking for a description, definition, reason, or manner.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"",
+                      "\"Correct: K11 handles question asking for a description, definition, reason, or manner.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-20"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"; \"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"",
+                      "\"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-24"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.6666666666666666
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nKnown routing rules:\n- Use code `K11` when the question asks for a description, definition, reason, or manner.\n  Examples include:\n  - questions asking how to do something\n  - questions asking why something happens\n  - questions asking what something means\n\n- Use code `K47` when the question asks for an entity such as an animal, product, substance, or other thing.\n  Examples include:\n  - questions asking which novel, movie, or other titled work\n  - questions asking what specific item, product, or thing was introduced\n  - questions asking for a named entity\n\nFor any question matching a rule, output exactly the appropriate code:\n\nK11\n\nor\n\nK47"
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nKnown routing rules:\n- Use code `K11` when the question asks for a description, definition, reason, or manner.\n  Examples include:\n  - questions asking how to do something\n  - questions asking why something happens\n  - questions asking what something means\n\n- Use code `K47` when the question asks for an entity such as an animal, product, substance, or other thing.\n  Examples include:\n  - questions asking which novel, movie, or other titled work\n  - questions asking what specific item, product, or thing was introduced\n  - questions asking for a named entity\n\nFor any question matching a rule, output exactly the appropriate code:\n\nK11\n\nor\n\nK47"
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-27"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"; \"Correct: K11 handles question asking for a description, definition, reason, or manner.\"; \"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Expected K47 for question asking for an entity such as an animal, product, substance, or other thing; K11 represents question asking for a description, definition, reason, or manner.\"",
+                      "\"Correct: K11 handles question asking for a description, definition, reason, or manner.\"",
+                      "\"Correct: K47 handles question asking for an entity such as an animal, product, substance, or other thing.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              }
+            ],
+            "errors": [
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri...",
+                      "{:task_exit, :timeout}"
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "candidate_id"
+                    },
+                    "baseline"
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "candidate_id"
+                    },
+                    "gepa-1"
+                  ]
+                ]
+              }
+            ],
+            "metadata": {
+              "__imp_type__": "map",
+              "entries": [
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "combee"
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "enabled"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "false"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "timeout"
+                        },
+                        300000
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "identity"
+                        },
+                        "18f7f74a7ec17bb4e3a83527f7555dcc146368a04ed7fc3d02b8abc05f7f6043"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "aggregations"
+                        },
+                        []
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "max_concurrency"
+                        },
+                        1
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "batch_controller"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "timeout_requested"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "duplication_factor"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "effective_batch_size"
+                        },
+                        3
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "max_concurrency_requested"
+                        },
+                        1
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "engine"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "Elixir.Imp.Optimizer.GEPA.Engine"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "status"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "with_errors"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "timeout"
+                  },
+                  300000
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "feedback"
+                  },
+                  "Use observed examples carefully. Training examples available: 20."
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "generations"
+                  },
+                  4
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "stop_reason"
+                  },
+                  {
+                    "__imp_type__": "tuple",
+                    "items": [
+                      {
+                        "__imp_type__": "atom",
+                        "value": "stopper"
+                      },
+                      [
+                        {
+                          "__imp_type__": "tuple",
+                          "items": [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "max_metric_calls"
+                            },
+                            200,
+                            200
+                          ]
+                        }
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "metric_calls"
+                  },
+                  200
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "frontier_size"
+                  },
+                  1
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "frontier_type"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "instance"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "rng_algorithm"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "python_v3"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "implementation"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "Elixir.Imp.Optimizer.GEPA"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_iterations"
+                  },
+                  54
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "minibatch_size"
+                  },
+                  3
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_concurrency"
+                  },
+                  4
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merges_accepted"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "full_evaluations"
+                  },
+                  2
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_metric_calls"
+                  },
+                  200
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merge_candidates"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "proposal_timeout"
+                  },
+                  300000
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_calls"
+                  },
+                  13
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "acceptance_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "strict_improvement"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "evaluation_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "full"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "execution_profile"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "sampling_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "single"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "component_feedback"
+                  },
+                  []
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "selection_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "all_improvements"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_reflection_cost"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "nil"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "rejected_candidates"
+                  },
+                  12
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_full_evaluations"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "infinity"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_reflection_calls"
+                  },
+                  108
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "proposal_concurrency"
+                  },
+                  1
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_record_mode"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merge_acceptance_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "equal_or_better"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_failure_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4_batch_then_single_retry"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "operational_metric_call_cap"
+                  },
+                  245
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "candidate_selection_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "pareto"
+                  }
+                ]
+              ]
+            },
+            "optimizer": {
+              "__imp_type__": "atom",
+              "value": "gepa"
+            }
+          }
+        ],
+        [
+          {
+            "__imp_type__": "atom",
+            "value": "optimizer_parameter_set"
+          },
+          {
+            "__imp_type__": "map",
+            "entries": [
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "id"
+                },
+                "program/Elixir.Imp.Predict"
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "hash"
+                },
+                "e462800537ca48ef29b32ee4d685ed33608792549e91c9f0054c5cb6c2b41e50"
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "revision"
+                },
+                1
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "parameters"
+                },
+                [
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/config"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "config"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        {}
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "e9b519a59e741acfbe48d69c652b5946da47a761199c79de3ac78b55c888a33d"
+                      ]
+                    ]
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/demos"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "demos"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        []
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "1938e7793b670ca3436c5f93e9c9e4d1f887f66959285d11c30150945a8690eb"
+                      ]
+                    ]
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/instruction"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "instruction"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nKnown routing rule:\n- Use code `K11` when the question asks for a description, definition, reason, or manner.\n  Examples include:\n  - questions asking how to do something\n  - questions asking why something happens\n  - questions asking what something means\n\nFor any question matching that rule, output exactly:\n\nK11"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "b0318593d599edbcd818216822731058f8c80a02a7c5b288366801876894a489"
+                      ]
+                    ]
+                  }
+                ]
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "parent_hash"
+                },
+                "4ccde331110d4620535d1723afb3b504a03b71232253009b12cfa9f4635f84b5"
+              ]
+            ]
+          }
+        ]
+      ]
+    },
+    "signature": {
+      "inputs": [
+        {
+          "desc": null,
+          "kind": "input",
+          "metadata": {},
+          "name": "text",
+          "prefix": "Text:",
+          "type": "string"
+        }
+      ],
+      "instructions": "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nKnown routing rule:\n- Use code `K11` when the question asks for a description, definition, reason, or manner.\n  Examples include:\n  - questions asking how to do something\n  - questions asking why something happens\n  - questions asking what something means\n\nFor any question matching that rule, output exactly:\n\nK11",
+      "metadata": {},
+      "outputs": [
+        {
+          "desc": null,
+          "kind": "output",
+          "metadata": {
+            "constraints": {
+              "enum": [
+                "K11",
+                "K47"
+              ]
+            }
+          },
+          "name": "route",
+          "prefix": "Route:",
+          "type": "string"
+        }
+      ]
+    },
+    "type": "predict"
+  },
+  "payload_sha256": "sha256:29bc516090e99ea893c1184af9ff01f4b2802486b868610182a209ed6f91850b",
+  "schema_version": 1
+}
