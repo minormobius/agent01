@@ -539,5 +539,23 @@ console.log('\nNobody Drew It (nobody/)');
   ok(c.every(Number.isFinite) && dB(92, 118) > dB(1, 9) + 5, `the choir: finite, and Quul's world (${dB(92, 118).toFixed(1)} dB) sings over the title's bass alone (${dB(1, 9).toFixed(1)} dB)`);
 }
 
+// 17 — And Still It Grew (No. 9): the major-key companion; the same machinery, its own music ---------
+console.log('\nAnd Still It Grew (grew/)');
+{
+  const S = await import('../grew/score.js');
+  const { LEXICON } = await import('../grew/lexicon.js');
+  const { sing } = await import('../lib/chipsing.js');
+  const lead = sing(S.song, LEXICON, { rate: 12000 }), second = sing(S.harmonySong, LEXICON, { rate: 12000 });
+  ok(lead.notes.length > 300 && second.notes.length > 100 && S.duration > 170 && S.duration < 190, `two voices sing: the lead ${lead.notes.length} notes, the second ${second.notes.length}; ${S.duration.toFixed(0)} s`);
+  // the harmony, bar by bar: the choruses walk the bass down D C# B; the bridge is Bb C D; the last choruses are in E; the coda borrows A minor
+  const at = (bar) => S.chordAt(bar).sym;
+  ok([13, 14, 15].map(at).join(' ') === 'D A/C# Bm' && [53, 54, 55].map(at).join(' ') === 'Bb C D' && at(61) === 'E' && [77, 78, 79].map(at).join(' ') === 'A Am E' && S.harmony(0) === S.harmony(1), 'the harmony: the walking bass, the Aeolian lift, the key change, the borrowed iv; one chord object while it lasts');
+  const { choir, CHAPTERS, commonest } = await import('../grew/world.js');
+  ok(CHAPTERS.length === 4 && commonest(0) === 'grazer' && commonest(3) === 'Quul', `four chapters: from the founders (${commonest(0)} …) to ${commonest(3)}'s world`);
+  const c = choir(8000), dB = (t0, t1) => { let e = 0; for (let i = Math.floor(t0 * 8000); i < t1 * 8000; i++) e += c[i] * c[i]; return 10 * Math.log10(e / ((t1 - t0) * 8000) + 1e-12); };
+  const bar = (k) => (k - 1) * 240 / S.BPM;
+  ok(c.every(Number.isFinite) && dB(bar(61), bar(77)) > dB(bar(1), bar(5)) + 5, `the choir: finite, and the choruses in E (${dB(bar(61), bar(77)).toFixed(1)} dB) over the intro (${dB(bar(1), bar(5)).toFixed(1)} dB)`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

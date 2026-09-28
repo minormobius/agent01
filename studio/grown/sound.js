@@ -43,12 +43,19 @@ class Biquad {                                   // a band-pass (constant peak g
   run(x) { const y = this.b0 * x + this.z1; this.z1 = -this.a1 * y + this.z2; this.z2 = this.b2 * x - this.a2 * y; return y; }
 }
 
-export function makeEngine(sr = 44100, { bpm = 96 } = {}) {
+/**
+ * The engine. Options, for a piece that brings its own music (the defaults are the world's own: Grown's
+ * page and "Nobody Drew It"): `bpm`; `harmony(t)` → the chord at second t, { root, tones: [4 semitones
+ * above D3] } (the same object while the chord lasts; voices move when it changes); `drive(t)` → 0..1,
+ * a beat (a kick on one and three, a snare on two and four, hats, and bells bursting over the chord) as
+ * strong as it; `voices`, how many species the choir holds.
+ */
+export function makeEngine(sr = 44100, { bpm = 96, harmony = null, drive = null, voices = 6 } = {}) {
   const sixteenth = (60 / bpm / 4) * sr, barLen = sixteenth * 16;
   let t = 0, nextTick = 0, tick = 0, seed = 12345;
   const rnd = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
   // the choir: six voice slots, each gliding to its target pitch and gain
-  const slots = Array.from({ length: 6 }, () => ({ key: null, f: 220, tf: 220, g: 0, tg: 0, ph: 0, vib: rnd() * TAU, vowel: 'a', F: [new Biquad(), new Biquad(), new Biquad()], pan: 0.5 }));
+  const slots = Array.from({ length: voices }, () => ({ key: null, f: 220, tf: 220, g: 0, tg: 0, ph: 0, vib: rnd() * TAU, vowel: 'a', F: [new Biquad(), new Biquad(), new Biquad()], pan: 0.5 }));
   let state = { species: [], swim: 0, rich: 0.5 }, queue = [], bites = 0;
   const hits = [];                               // sounding one-shots: { kind, age, f, g, pan, ph }
   // reverb (Freeverb's shape): eight damped combs in parallel, then two all-passes; its send is high-passed,
@@ -57,11 +64,12 @@ export function makeEngine(sr = 44100, { bpm = 96 } = {}) {
   const aps = [556, 441].map((n) => ({ buf: new Float32Array(Math.round(n * sr / 44100)), i: 0 }));
   let hpX = 0, hpY = 0;
   let bassPh = 0, bassG = 0;
-  const chord = () => CHORDS[Math.floor(t / (barLen * 2)) % CHORDS.length];
+  const chord = () => (harmony ? harmony(t / sr) : CHORDS[Math.floor(t / (barLen * 2)) % CHORDS.length]);
+  let lastChord = null;
 
   function setVoices() {
     // the commonest six species take the slots; a slot keeps its species while it lives
-    const want = state.species.slice(0, 6), c = chord();
+    const want = state.species.slice(0, voices), c = chord();
     for (const s of slots) if (s.key && !want.some((w) => w.sig === s.key)) { s.key = null; s.tg = 0; }
     for (const w of want) {
       let s = slots.find((x) => x.key === w.sig) || slots.find((x) => !x.key && x.g < 0.002) || slots.find((x) => !x.key);
@@ -92,7 +100,15 @@ export function makeEngine(sr = 44100, { bpm = 96 } = {}) {
       for (let i = 0; i < n; i++, t++) {
         if (t >= nextTick) {                                   // a sixteenth
           nextTick += sixteenth; tick++;
-          if (tick % 32 === 1) setVoices();                    // a new chord: every voice moves to its tone in it
+          if (harmony) { const c = chord(); if (c !== lastChord) { lastChord = c; setVoices(); } }   // a new chord: every voice moves to its tone in it
+          else if (tick % 32 === 1) setVoices();
+          if (drive) {                                         // the beat, and bells bursting over the chord
+            const d = drive(t / sr), pos = (tick - 1) % 16, c = chord();
+            if (d > 0.25 && (pos === 0 || pos === 8 || (d > 0.8 && pos === 10))) hits.push({ kind: 'thud', age: 0, f: 52, g: 0.42 * d, pan: 0.5, ph: 0 });
+            if (d > 0.55 && (pos === 4 || pos === 12)) hits.push({ kind: 'snare', age: 0, f: 190, g: 0.14 * d, pan: 0.5, ph: 0 });
+            if (d > 0.4 && pos % 2 === 0) hits.push({ kind: 'tick', age: 0, f: 0, g: 0.035 * d * (pos % 4 === 2 ? 1.4 : 1), pan: 0.62, ph: 0 });
+            if (d > 0.5 && rnd() < 0.32 * d) hits.push({ kind: 'pluck', age: 0, f: hz(c.tones[tick % 4] + 24 + (rnd() < 0.3 ? 12 : 0)), g: 0.06 * d, pan: 0.15 + 0.7 * rnd(), ph: 0 });
+          }
           const q = queue.splice(0, 4); for (const e of q) fire(e);
           for (let k = Math.min(2, bites); k > 0; k--) { fire({ type: 'bite' }); bites--; }   // bites: at most two a sixteenth
           // the fins' pulse: ticks as dense as the swimming (always on the beat, more off it)
@@ -124,6 +140,7 @@ export function makeEngine(sr = 44100, { bpm = 96 } = {}) {
           if (h.kind === 'pluck') { h.ph += h.f / sr; y = (Math.sin(TAU * h.ph) + 0.35 * Math.sin(TAU * h.ph * 3.98) * Math.exp(-a * 18)) * Math.exp(-a * 5) * h.g; done = a > 1.4; }
           else if (h.kind === 'tick') { y = white() * Math.exp(-a * 400) * h.g; y = y - (h.last || 0) * 0.9; h.last = y; done = a > 0.03; }
           else if (h.kind === 'snap') { if (!h.bp.b0 || h.age === 1) h.bp.set(4200 + 2000 * h.pan, 3, sr); y = h.bp.run(white()) * Math.exp(-a * 180) * h.g * 3; done = a > 0.05; }
+          else if (h.kind === 'snare') { h.ph += h.f / sr; y = (white() * 0.75 + Math.sin(TAU * h.ph) * 0.45 * Math.exp(-a * 30)) * Math.exp(-a * 22) * h.g; done = a > 0.3; }
           else if (h.kind === 'thud') { h.ph += (h.f * (1 + 2 * Math.exp(-a * 30))) / sr; y = Math.sin(TAU * h.ph) * Math.exp(-a * 9) * h.g; done = a > 0.6; }
           l += y * (1 - h.pan) * 2 * 0.5 + y * 0.25; r += y * h.pan * 2 * 0.5 + y * 0.25;
           if (done) hits.splice(k, 1);

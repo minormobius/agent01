@@ -9,7 +9,7 @@ export const seedOf = (g) => { if (!gseed.has(g)) { let h = 7; for (const ch of 
 export function point(buf, p, col, b, size) { buf.need(7); buf.a.set([p[0], p[1], p[2], col[0] * b, col[1] * b, col[2] * b, size], buf.n); buf.n += 7; }
 
 /** Fill R's buffers with world W, a fraction f past its last step, at time tau (s: the orbits' clock). */
-export function scene(R, W, f, tau, { haze = true, glow = 1 } = {}) {
+export function scene(R, W, f, tau, { haze = true, glow = 1, hazeColour = [0.25, 0.55, 0.6] } = {}) {
   const P = R.points, C = R.crystals; P.n = 0; C.n = 0;
   for (const B of W.bodies) {
     const pose = B.pose(f), flows = flowsFor(B.genome), hungry = Math.max(0, Math.min(1, 1 - B.E / (B.capacity() * 0.3)));
@@ -38,6 +38,6 @@ export function scene(R, W, f, tau, { haze = true, glow = 1 } = {}) {
   if (R.reefOf !== W || R.reefLen !== W.reef.length) { R.reef.n = 0; for (const c of W.reef) prism(R.reef, c.p, c.dir, c.len, 0.1 + 0.08 * c.len, c.spin, 3000, (c.lineage % 7) / 7); R.uploadReef(); R.reefLen = W.reef.length; R.reefOf = W; }
   if (haze) {                                              // the medium: a mote per cell, as bright as its mineral
     const M = W.medium, MX = WX / 4, MZ = WZ / 4, hz = typeof haze === 'number' ? haze : 1;
-    for (let i = 0; i < M.length; i++) { const m = M[i]; if (m < 0.12) continue; const x = i % MX, z = Math.floor(i / MX) % MZ, y = Math.floor(i / (MX * MZ)), h = ((i * 2654435761) >>> 0) / 4294967296, h2 = ((i * 40503 + 7) * 2246822519 >>> 0) / 4294967296, h3 = ((i * 97 + 3) * 3266489917 >>> 0) / 4294967296; point(P, [(x + h) * 4, (y + h2) * 4, (z + h3) * 4], [0.25, 0.55, 0.6], 0.14 * hz * Math.min(1.2, m), 2.2); }
+    for (let i = 0; i < M.length; i++) { const m = M[i]; if (m < 0.12) continue; const x = i % MX, z = Math.floor(i / MX) % MZ, y = Math.floor(i / (MX * MZ)), h = ((i * 2654435761) >>> 0) / 4294967296, h2 = ((i * 40503 + 7) * 2246822519 >>> 0) / 4294967296, h3 = ((i * 97 + 3) * 3266489917 >>> 0) / 4294967296; point(P, [(x + h) * 4, (y + h2) * 4, (z + h3) * 4], hazeColour, 0.14 * hz * Math.min(1.2, m), 2.2); }
   }
 }
