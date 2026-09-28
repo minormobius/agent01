@@ -1,6 +1,7 @@
 {
-  "runId": "imp-07",
+  "runId": "imp-08",
   "models": ["ds4-flash", "ds4-pro"],
   "tasks": ["build"],
-  "note": "build: eight of minormobius's build-a-bot requests, each built from scratch by an Imp ReAct agent with the lab factory's file tools and constraints, scored by the factory's own smoke test and content gate plus Jev as judge. Baseline only — this run measures what a build costs in tokens and minutes before any optimizer is pointed at it."
+  "maxTokens": 8192,
+  "note": "build again, with an 8,192-token reply budget (imp-07 capped every reply at 2,048 and seven of eight builds died writing their first file). Eight of minormobius's build-a-bot requests, each built from scratch by an Imp ReAct agent with the lab factory's file tools and constraints, scored by the factory's own smoke test and content gate plus Jev as judge. Baseline only."
 }
