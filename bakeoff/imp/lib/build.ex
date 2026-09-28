@@ -52,6 +52,10 @@ defmodule ImpBench.Build do
   - No wallets or crypto providers, no service workers, no notification prompts, no
     credential collection.
   - At most #{@max_files} files, each under #{div(@max_file, 1000)} KB.
+  - Each reply you write is limited in length, so never put a whole large page in one
+    call: keep `site/index.html` short and put scripts and styles in their own files
+    (`site/app.js`, `site/style.css`), each written by its own `write_file` call. Grow a
+    file with `edit_file` rather than rewriting it.
 
   Call `check_site` after writing: it loads the page in a real headless browser
   and runs the content gate, and tells you exactly what fails. Fix what it reports.
@@ -147,7 +151,12 @@ defmodule ImpBench.Build do
             |> Enum.map(fn m -> length((m[:tool_calls] || %{})[:tool_calls] || []) end)
             |> Enum.sum()
 
-          {n, to_string(pred.metadata[:termination_reason]), nil}
+          cause = pred.metadata[:termination_cause]
+
+          {n,
+           to_string(pred.metadata[:termination_reason]) <>
+             if(cause, do: " (#{inspect(cause, limit: 6) |> String.slice(0, 200)})", else: ""),
+           nil}
 
         {:error, e} ->
           {0, "error", inspect(e, limit: 12) |> String.slice(0, 400)}

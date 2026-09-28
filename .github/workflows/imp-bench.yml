@@ -38,6 +38,7 @@ jobs:
       run_id: ${{ steps.plan.outputs.run_id }}
       tasks: ${{ steps.plan.outputs.tasks }}
       gepa: ${{ steps.plan.outputs.gepa }}
+      max_tokens: ${{ steps.plan.outputs.max_tokens }}
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
@@ -80,6 +81,9 @@ jobs:
             const out = process.env.GITHUB_OUTPUT;
             fs.appendFileSync(out, `run_id=${runId}\ntasks=${tasks.join(",")}\nmatrix=${JSON.stringify({ model: models })}\n`);
             fs.appendFileSync(out, `gepa=${JSON.stringify({ models: (gepa.models || []).join(","), reflection: gepa.reflection || "", calls })}\n`);
+            const maxTokens = Number(cfg.maxTokens ?? 2048);
+            if (!(maxTokens >= 256 && maxTokens <= 32768)) { console.error(`::error::maxTokens ${maxTokens} is outside 256..32768`); process.exit(1); }
+            fs.appendFileSync(out, `max_tokens=${maxTokens}\n`);
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
               `## Imp bench \`${runId}\`\n\n${cfg.note || ""}\n\nmodels: ${models.join(", ")} · tasks: ${tasks.join(", ")}\n`);
           '
@@ -145,6 +149,7 @@ jobs:
           IMP_BENCH_GEPA: ${{ fromJSON(needs.plan.outputs.gepa).models }}
           IMP_BENCH_REFLECTION: ${{ fromJSON(needs.plan.outputs.gepa).reflection }}
           IMP_BENCH_GEPA_CALLS: ${{ fromJSON(needs.plan.outputs.gepa).calls }}
+          IMP_BENCH_MAX_TOKENS: ${{ needs.plan.outputs.max_tokens }}
           BAKEOFF_OUT: ${{ github.workspace }}/cellout/${{ matrix.model }}
         run: mix run -e 'ImpBench.main()'
       - uses: actions/upload-artifact@v4

@@ -143,8 +143,13 @@ defmodule ImpBench do
           _ -> %{}
         end
 
+      # IMP_BENCH_MAX_TOKENS is the run's (RUN "maxTokens"); a build writes whole
+      # files in one tool call and needs far more than a classifier's answer.
       opts =
-        [temperature: 0.0, max_tokens: 2048]
+        [
+          temperature: 0.0,
+          max_tokens: String.to_integer(System.get_env("IMP_BENCH_MAX_TOKENS") || "2048")
+        ]
         |> Keyword.merge(
           for {k, v} <- overrides, k != "$comment", do: {String.to_existing_atom(k), v}
         )
