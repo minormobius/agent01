@@ -1,7 +1,7 @@
 {
-  "runId": "imp-11",
-  "models": ["ds4-flash", "ds4-pro"],
-  "tasks": ["build"],
-  "maxTokens": 8192,
-  "note": "build with append_file and a ~250-line limit per call. imp-09 (the first clean baseline: Flash 0.34, Pro 0.63) lost five Flash builds and one Pro build to replies cut off while writing a whole file at once; this run measures how much of that the harness change recovers. Same eight requests, same scoring."
+  "runId": "imp-12",
+  "models": ["jev"],
+  "tasks": ["trec", "route"],
+  "gepa": { "models": [], "reflection": "ds4-pro", "maxMetricCalls": 300 },
+  "note": "Jev (TypeSafe's decision model, ~200 ms a call) on the classifier tasks the LLMs ran. trec: bare codes; the instruction GEPA wrote for Kimi K3 in imp-04, transplanted; Jev's own instructions and option descriptions rewritten by Imp's Optimize Anything with Jev scoring (DeepSeek V4 Pro reflecting); and a cascade that keeps Jev's answer at confidence ≥ 0.9 and sends the rest to DeepSeek Flash's saved imp-04 GEPA program. route: the task as the LLMs got it."
 }
