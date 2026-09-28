@@ -58,11 +58,11 @@ flatten them:
 | pick / shovel / axe / sword / hoe in wood → netherite | pick, shovel, axe, sword in wood → diamond; wooden hoe only | have (no gold, netherite; one hoe) | — |
 | durability, repair (anvil, crafting two together), mending | durability, spares, a reserve rule; no repair | partial | repair is the durability sink a long run needs. **S** |
 | enchanting (XP, lapis), books | none | missing | a spend-now-or-save decision (XP) that Jev reads. **M** |
-| bow, arrows, crossbow, trident; shield | melee only; armor as one abstract piece | missing | ranged threats need ranged answers or cover; a shield is a timing choice. **M** |
+| bow, arrows, crossbow, trident; shield | bow, arrows, shield (no crossbow, trident) | **have** (phase 2) | — |
 | armor slots (helmet … boots) | one "armor" item, 40 / 60% | partial | fine as is |
 | flint & steel, fishing rod, compass, clock, map | torch lights portals; none of the others | missing | a map is what a human uses to navigate; our planners use the seen set. **S** each |
-| boats, minecarts, horses, elytra | walking, ladders, drops, portals | partial | transport is the long-run cost the mining experiments keep circling. **M–L** |
-| death drops items where you fell, recoverable for 5 min | death wipes the inventory | partial | "go back for your stuff" is a classic risk decision. **S** |
+| boats, minecarts, horses, elytra | boats (swimming costs 3, a boat 1), ladders, drops, portals | partial (boats done) | minecarts are the long-run transport the mining experiments keep circling. **M–L** |
+| death drops items where you fell, recoverable for 5 min | the same: items on the ground, `recover`, `collect` | **have** (phase 1) | — |
 | XP, levels | none | missing | feeds enchanting and repair. **S** |
 
 ### Mobs
@@ -70,12 +70,12 @@ flatten them:
 | Minecraft | here | status | what it would test |
 |---|---|---|---|
 | zombie | zombie: chases on the graph, blocked by doors, burns in daylight | have | — |
-| skeleton (ranged) | none | **missing** | a threat you can't answer by closing a door: cover, shields, reach. **M** |
-| creeper (explodes blocks) | none | **missing** | breaks the sealed-house invariant: houses need repair, and "stay inside" stops being safe. Survival finally separates policies. **M** |
-| spider (climbs walls) | none | missing | walls aren't enough; overhangs and lit ground are. **S** |
+| skeleton (ranged) | shoots from 7 with sight, backs off, burns by day; doors block its sight | **have** (phase 2) | — |
+| creeper (explodes blocks) | hisses, blows holes in houses; `flee`, `repair_house` | **have** (phase 2) | survival spread less than hoped: see jev/CLAUDE.md |
+| spider (climbs walls) | climbs 3, neutral by day | **have** (phase 2) | — |
 | enderman, drowned, witch, slime, phantom | none | missing | enderman gates the End (pearls); phantom punishes not sleeping. **S–M** each |
-| cows, chickens (leather, beef, eggs, feathers → arrows) | pigs, sheep (wool, mutton, shearing) | partial | — |
-| **breeding** (wheat, carrots…), baby animals | none | **missing** | renewable food and wool without roaming; pens on a graph. **S** |
+| cows, chickens (leather, beef, eggs, feathers → arrows) | pigs, sheep, cows, chickens (no eggs) | **have** (phase 1) | — |
+| **breeding** (wheat, carrots…), baby animals | feed two, a young one grows up; no fences | **have** (phase 1, no pens) | fences and pens on a graph. **S** |
 | wolves (tame), cats, horses | none | missing | allies change survival maths. **M** |
 | villagers, trading, iron golems, raids | none | missing | an economy: a second currency (emeralds) and a planning horizon. **L** |
 | blaze | blaze: nether spawns, hits harder | have (no ranged fireballs, no blaze rods) | blaze rods → brewing, eyes of ender. **S** |
@@ -86,7 +86,7 @@ flatten them:
 
 | Minecraft | here | status | what it would test |
 |---|---|---|---|
-| health, hunger, saturation, regen when fed | health, hunger, regen at food ≥ 18; no saturation | partial | saturation separates good food from bad. **S** |
+| health, hunger, saturation, regen when fed | all four | **have** (phase 1) | — |
 | drowning, fall damage, lava, fire | all but fire | partial | fire spread from lava and lightning, wooden houses burn. **M** |
 | status effects, potions | none | missing | brewing is a long, branching recipe tree: a good project. **M** |
 | sprint, jump, knockback, crits, attack cooldown | one tick per step, flat attacks | partial | **the movement cost model decides the transport experiments** (below). **S** |
@@ -96,7 +96,7 @@ flatten them:
 | Minecraft | here | status | what it would test |
 |---|---|---|---|
 | shaped recipes in a 3×3 grid | bags (a grid means nothing on a Penrose floor) | deliberate | keep |
-| furnace fuel: coal smelts 8, a log 1.5, lava bucket 100 | one fuel per item | partial | fuel planning, charcoal loops. **S** |
+| furnace fuel: coal smelts 8, a log 1.5, lava bucket 100 | coal and charcoal 8, planks 1, lava bucket 100, fuel credit | **have** (phase 1) | — |
 | smoker, blast furnace, stonecutter, loom, anvil, grindstone, smithing, brewing stand, enchanting table | crafting table, furnace | missing | each is a station that turns a resource into a choice. **S–M** each |
 
 ### Farming
@@ -172,12 +172,12 @@ a movement-cost decision (flat steps 1, climbing 2, falls free?) re-measured
 against the life sweep; one planner-loop round on one goal (iron armor from
 scratch).
 
-**Phase 1: a world that renews.** Saplings and regrowing trees, leaf decay,
+**Phase 1: a world that renews. DONE (2026-09-28, no fences).** Saplings and regrowing trees, leaf decay,
 cows and chickens, **breeding** and fences, fuel values (coal smelts 8), items
 dropped on death and recoverable, saturation. *Unlocks: 10-day runs that don't
 starve. Measure: a 10-day life sweep.*
 
-**Phase 2: threats that need different answers.** Skeletons (ranged), creepers
+**Phase 2: threats that need different answers. DONE (2026-09-28), boats with it.** Skeletons (ranged), creepers
 (blocks destroyed, houses need repair), spiders (climb walls); bow and arrows,
 shield. *Unlocks: survival that separates policies, the gap open since round two.
 Measure: deaths and damage across deciders at the same difficulty.*
@@ -202,6 +202,10 @@ blaze rods and powder, eyes of ender, the End, the dragon as a team fight.
 the pentagrid for Penrose; the nether at 8 : 1; structures scattered to find.
 *Unlocks: exploration that never saturates, and transport that matters.*
 
-Phases 1 and 2 are the next ones worth doing. Both are cheap, and each closes a
-gap that has shaped the measurements so far: things run out on long runs, and
-the scripted player doesn't die.
+Phases 1 and 2 are built, and the results are in jev/CLAUDE.md (§ A world
+that renews, boats, and threats). Long runs no longer depend on finite stock,
+but the baseline wasn't running out in 10 days anyway. Survival spreads a
+little (random's deaths 13 → 24 at hard) and the sensible deciders still
+barely die: a door now stops arrows too. So separating policies on survival
+still needs a harder setting, or threats that get past a house. The next
+phase worth doing is phase 0's held-out scoreboard on current code.

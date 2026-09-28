@@ -303,7 +303,7 @@ model only decides.
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
 | `craft/segment.mjs` | reads a recorded game back as episodes named in the palette's terms, whoever played it (§ Reading a human's game) |
 | `test/craft-segment.mjs` | the CLI for it: `run.jsonl`, `--score`, `--json` |
-| `test/craft.selftest.mjs` | 416 checks, ~75 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter) |
+| `test/craft.selftest.mjs` | 434 checks, a few minutes, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter, tools, access shafts, renewal, boats, threats) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -1507,13 +1507,123 @@ built. It spends model budget and waits for the go-ahead.
 on 17 of 20 worlds. snub/1 still ends stuck on day 3 in a sea-walled pit (older
 than all of this).
 
+### A world that renews, boats, and threats that need different answers (2026-09-28)
+
+Roadmap phases 1 and 2, plus boats (the operator: *"I don't see boats on the
+list but that should be simple to add"*).
+
+**Phase 1: a world that renews.**
+- **Things on the ground.** Mined drops still go straight to the pocket, but
+  a death now drops the whole inventory where you fell, as an `item` entity
+  that despawns after `ITEM_DESPAWN` (1200 ticks). Anything adjacent picks it
+  up. `recover` goes back for your own things (`e.lastDrop`), and `collect`
+  gathers items in sight. Jev sees `lost_things` and gets a `recover` option
+  while the drop still exists.
+- **Trees regrow.** Leaves left with no log within reach decay (`decayQ`),
+  and a decaying leaf drops a sapling (1 in 12) or an apple (1 in 30) on the
+  ground below; mining a leaf gives a sapling 1 time in 10. `plant_trees`
+  plants saplings near home, on grass or dirt. A sapling under open sky or
+  near a torch grows into a tree in about `TREE_TICKS` (1600): a trunk and a
+  graph-ball crown, like the generator's.
+- **Animals renew.** Cows (beef, leather) and chickens (meat, feathers) join
+  pigs and sheep. Breeding works like Minecraft's: feed two adults their food
+  (`BREED_FOOD`: wheat, seeds, an apple for pigs). They pair within 3 tiles,
+  and the young grow up in `GROW_UP` (1200) ticks. Animals follow a player
+  holding their food only while that player is breeding: lured herds crowded
+  the miners otherwise.
+- **Fuel has values** (coal and charcoal 8, planks 1, a lava bucket 100), and
+  a player carries fuel credit between smelts. **Food has saturation**, which
+  is drained before the food bar, so cooked meat beats bread.
+- Their own rng stream (`rngLife`), so pigs, sheep, zombies and world gen keep
+  their old sequences.
+
+**Measured** (baseline, 10-day runs): 0 deaths, 3–14 trees regrown per run,
+and standing wood holds level. The honest part: **the baseline never ran out
+of wood in 10 days even before renewal**, so this makes long runs possible
+rather than rescuing ones that were failing. Life sweep 30/30.
+
+**Boats.** Swimming now costs `SWIM` (3) ticks a tile instead of 1, and the
+planners price it. A `boat` (5 planks) is boarded when you step onto water
+carrying one and stowed when you land: 1 tick a tile. The baseline makes one
+on a water world (`sim.noBoat` is the control). On archipelagos, the share of
+the world explored in 2 days went 69 / 97 / 95 / 100% (swimming) → 71 / 100 /
+100 / 95% (boat) over 4 worlds. **That's a wash**: the boat changes the
+trajectory more than it speeds it, and the islets are small enough to swim.
+It matters where water is wide, which these worlds aren't.
+
+**Phase 2: threats that need different answers.** Zombies can be answered by
+a door. The new three can't:
+
+| mob | what it does | the answer |
+|---|---|---|
+| **skeleton** | shoots from up to 7 tiles with line of sight (75% hit, 3–4 damage, every 12 ticks), backs off if you close within 3, burns in daylight | cover, a shield (halves arrows), a bow, or close in and fight |
+| **spider** | climbs 3 layers (walls don't stop it), neutral in daylight unless hit | lit ground and roofs, not walls |
+| **creeper** | hisses within 1.5 tiles with sight, blows 6 ticks later unless you get beyond 2.5; the blast removes blocks (house walls too) and hurts by distance | step away (`flee`), then `repair_house` |
+
+Spawn mix: zombie 45%, skeleton 25%, spider 18%, creeper 12% (`SPAWN_MIX`, own
+rng `rngMob`). `HOSTILE` includes all of them, so every threat check reads
+them. Line of sight (`sim.los`) samples the segment between two eyes through
+`columnLocator`.
+
+New things to carry: a **bow** (3 sticks, 3 string from spiders), **arrows**
+(stick, feather, cobblestone → 4), a **shield** (6 planks + iron, 336 uses).
+New macros: `flee` (the nearest safe column away from a hissing creeper),
+`shoot` (a visible target, with the bow), `repair_house` (fills blast
+holes from the ground up, re-protects and re-proves `sealed`). New
+interrupts: *a creeper is hissing* and *a skeleton is shooting* (acknowledged
+once, like nightfall). Jev's `threats` gain `creeper`, `skeleton` and
+`breach`, each with its relief options. `stats.killedBy` records what killed
+whom.
+
+**Four faults the survival measurement found, each fixed:**
+- **The `hard` row had no `arrowDmg`**, so every arrow did `NaN` damage, which
+  zeroes health outright. The first after-table (baseline 10 deaths, offline
+  140, random 119) was mostly that. Every difficulty now sets every knob, and
+  a selftest pins it.
+- **A shut door didn't block a skeleton's sight.** One offline run died 160
+  times, every one a skeleton outside a sealed house shooting through the
+  doorway at the respawn point. Doors and trapdoors now block line of sight.
+- **Respawn at spawn climbed up from the generated height.** The spawn column
+  had become the player's staircase, nothing above it was standable, and the
+  player hung at the top of the world, failing every macro for the rest of
+  the day. It now lands on the current surface within 3 tiles.
+- **`flee` was cut off by *zombie adjacent* at 0 ticks**, 2955 times in a
+  row. Fleeing is now exempt, as fighting already was.
+
+**Measured, survival at hard** (4 worlds × 2 days, `lab/craft-threats.json`):
+
+| decider | deaths before | after | rungs before | after |
+|---|---|---|---|---|
+| baseline | 0 | 1 | 36/36 | 36/36 |
+| offline stand-in | 1 | 4 | 35/36 | 36/36 |
+| random | 13 | 24 | 26/36 | 23/36 |
+
+**Survival spreads more, but not much.** Random's deaths nearly doubled, and
+the two sensible deciders still barely die. A house with a door, now a real
+shield against arrows, plus a sword, still carries the day at this
+difficulty. Life sweep (normal, 3 seeds × 10 tilings × 2 days): 30/30 iron,
+30/30 houses, 0 deaths, 0 stuck. The commonest failure in it is
+`repair_house: could not reach a hole`: a blast hole in a roof can't be
+reached from the ground on the planner's terms. It's recorded, not fixed.
+
+Nether sweep after all of it (baseline solo, 10 tilings × 2 seeds, 5 days, normal):
+14 / 20 reach the nether and bring back glowstone, 11 finish the 16-step ladder,
+median crossing tick 6065, **0 deaths, 0 stuck** (snub/1's sea-walled pit no longer
+traps it). Before this round: 15 / 20 and 13. One or two worlds either way is
+inside the trajectory noise this file keeps finding, so read it as *unchanged*,
+not as a cost.
+
+Not measured: Jev with any of this. Its options exist (`flee`, `shoot`,
+`repair_house`, `recover`, `breed_<kind>`, `plant_trees`, the bow and shield
+crafts) and the selftest checks what it is offered.
+
 ### What is next
 
 **The Minecraft gap audit and the phased roadmap live in
 [`craft/ROADMAP.md`](craft/ROADMAP.md)** (2026-09-28). It covers every system,
-what building it here would test, and phases 0–7. Next up: phase 1 (a world
-that renews: saplings, breeding, fuel, items dropped on death) and phase 2
-(threats that need different answers: skeletons, creepers, spiders). The list
+what building it here would test, and phases 0–7. Phases 1 and 2 and boats
+are built (above). Next up: phase 0's held-out scoreboard on current code,
+and phase 3 (gold, XP, repair, enchanting). The list
 below is older.
 
 
