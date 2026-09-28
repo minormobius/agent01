@@ -52,10 +52,10 @@ defmodule ImpBench.Build do
   - No wallets or crypto providers, no service workers, no notification prompts, no
     credential collection.
   - At most #{@max_files} files, each under #{div(@max_file, 1000)} KB.
-  - Each reply you write is limited in length, so never put a whole large page in one
-    call: keep `site/index.html` short and put scripts and styles in their own files
-    (`site/app.js`, `site/style.css`), each written by its own `write_file` call. Grow a
-    file with `edit_file` rather than rewriting it.
+  - Each reply you write is limited in length, and a reply cut off mid-file is lost
+    entirely. So no single tool call may carry more than about 250 lines: keep
+    `site/index.html` short, put scripts and styles in their own files, and write any
+    long file in pieces — `write_file` for the first piece, `append_file` for each next.
 
   Call `check_site` after writing: it loads the page in a real headless browser
   and runs the content gate, and tells you exactly what fails. Fix what it reports.
@@ -206,7 +206,7 @@ defmodule ImpBench.Build do
         do: %{
           request:
             task <>
-              "\n\n(Continue the build. Your last reply called no tool: reply only with tool calls — write_file, edit_file, check_site — until you submit.)",
+              "\n\n(Continue the build. Your last reply arrived with no tool call — most likely it was cut off because it tried to write too much at once. Write in pieces of at most ~250 lines: write_file for the first, append_file for the rest. Reply only with tool calls until you submit.)",
           history: history
         },
         else: %{request: task}
@@ -407,6 +407,40 @@ defmodule ImpBench.Build do
 
             {:kit, _} ->
               %{"error" => "kit/ is read-only; link it from ../_kit/ instead"}
+
+            {:error, e} ->
+              %{"error" => e}
+          end
+        end,
+        schema:
+          obj(%{"path" => %{"type" => "string"}, "content" => %{"type" => "string"}}, [
+            "path",
+            "content"
+          ])
+      ),
+      Imp.tool(
+        :append_file,
+        "Append content to the end of a file under site/ (creating it if missing). Use it to write a long file across several replies.",
+        fn %{"path" => p, "content" => c} ->
+          case resolve.(p) do
+            {:site, f} ->
+              size = if File.exists?(f), do: File.stat!(f).size, else: 0
+
+              cond do
+                size + byte_size(c) > @max_file ->
+                  %{"error" => "file would exceed #{@max_file} bytes"}
+
+                not File.exists?(f) and count_files(site) >= @max_files ->
+                  %{"error" => "at most #{@max_files} files"}
+
+                true ->
+                  File.mkdir_p!(Path.dirname(f))
+                  File.write!(f, c, [:append])
+                  %{"ok" => true, "bytes" => size + byte_size(c)}
+              end
+
+            {:kit, _} ->
+              %{"error" => "kit/ is read-only"}
 
             {:error, e} ->
               %{"error" => e}
