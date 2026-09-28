@@ -53,6 +53,8 @@ B.chest = 36; B.bed = 37;
 B.obsidian = 38; B.diamond_ore = 39; B.beacon = 40;
 // the nether
 B.netherrack = 41; B.glowstone = 42; B.quartz_ore = 43; B.soul_sand = 44; B.portal = 45; B.quartz_block = 46;
+// getting to a mine and back: ladders, and a door in the floor
+B.ladder = 47; B.trapdoor = 48;
 // hostile mobs: zombies above, blazes below
 export const HOSTILE = new Set(['zombie', 'blaze']);
 export const BLOCKS = [];
@@ -102,12 +104,18 @@ def('soul_sand',      { by: 'shovel', hard: 3, color: '#56443a' });
 // a lit portal: step in and travel. It cannot be mined; break the frame.
 def('portal',         { solid: false, hard: Infinity, drop: null, color: '#8e3fd6', top: '#b06cf0', clear: true });
 def('quartz_block',   { hard: 8, tool: 1, color: '#efe8df' });
+// a ladder: climb it, up or down, a layer a tick. You can stand in one.
+def('ladder',         { by: 'axe', solid: false, climb: true, hard: 2, color: '#9c7a45', top: '#b8945a' });
+// a trapdoor: a door in the floor. Open to the player (step on it and you drop
+// through), shut to every mob (they walk over it). Over a shaft, it keeps the
+// shaft yours.
+def('trapdoor',       { by: 'axe', solid: false, mobSolid: true, hard: 3, color: '#8f6a3a', top: '#a47a45' });
 def('lava',           { solid: false, hazard: true, mobSolid: true, hard: Infinity, drop: null, color: '#ff6a1a', top: '#ffb13d' });
 
 export const blockName = (id) => BLOCKS[id]?.name ?? '?';
 
 // Items that place as a block. Everything else is inventory-only.
-export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed', 'obsidian', 'beacon', 'netherrack', 'glowstone', 'quartz_block']);
+export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed', 'obsidian', 'beacon', 'netherrack', 'glowstone', 'quartz_block', 'ladder', 'trapdoor']);
 // Chests: 27 stacks, as Minecraft's. A stack is 64 of most things; a tool,
 // a sword or a bed is a stack of one. That is the whole limit on the pool.
 export const CHEST_SLOTS = 27;
@@ -159,6 +167,8 @@ export const RECIPES = {
   diamond_axe:     { n: 1, need: { diamond: 3, stick: 2 }, at: 'crafting_table' },
   // shears: wool from a sheep without killing it; it grows back
   shears:          { n: 1, need: { iron_ingot: 2 } },
+  ladder:          { n: 3, need: { stick: 7 }, at: 'crafting_table' },
+  trapdoor:        { n: 2, need: { planks: 6 }, at: 'crafting_table' },
   chest:           { n: 1, need: { planks: 8 }, at: 'crafting_table' },
   bed:             { n: 1, need: { wool: 3, planks: 3 }, at: 'crafting_table' },
   diamond_pickaxe: { n: 1, need: { diamond: 3, stick: 2 }, at: 'crafting_table' },

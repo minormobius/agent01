@@ -113,14 +113,15 @@ function buildChunk(key) {
     const col = cols[c], poly = col.poly, nb = col.nb;
     for (let y = 0; y < H; y++) {
       const id = r.b[c * H + y];
-      if (id === B.air || id === B.torch || id === B.lantern) continue;
-      if (id === B.bed) {
-        const hgt = y + 0.45, rgb = RGB[id];
+      if (id === B.air || id === B.torch || id === B.lantern || id === B.ladder) continue;   // drawn with the torches
+      if (id === B.bed || id === B.trapdoor) {
+        // a bed is a low slab; a trapdoor a thin one at the top of its voxel (a door in the floor)
+        const hgt = id === B.bed ? y + 0.45 : y + 1, base = id === B.bed ? y : y + 0.82, rgb = RGB[id];
         face(poly.map(([x, z]) => [x, hgt, z]), [0, 1, 0], rgb.side, 1);
         for (let e = 0; e < poly.length; e++) {
           const a = poly[e], b2 = poly[(e + 1) % poly.length];
           const mx = (a[0] + b2[0]) / 2 - col.x, mz = (a[1] + b2[1]) / 2 - col.z, L = Math.hypot(mx, mz) || 1;
-          face([[a[0], y, a[1]], [b2[0], y, b2[1]], [b2[0], hgt, b2[1]], [a[0], hgt, a[1]]], [mx / L, 0, mz / L], rgb.top, 0.9);
+          face([[a[0], base, a[1]], [b2[0], base, b2[1]], [b2[0], hgt, b2[1]], [a[0], hgt, a[1]]], [mx / L, 0, mz / L], rgb.top, 0.9);
         }
         continue;
       }
@@ -276,9 +277,16 @@ function rebuildTorches() {
   const cols = replay.world.tiling.cols, b = replay.b;
   const geo = new THREE.BoxGeometry(0.12, 0.6, 0.12), lgeo = new THREE.BoxGeometry(0.3, 0.36, 0.3);
   const mat = new THREE.MeshBasicMaterial({ color: 0xffd35a }), lmat = new THREE.MeshBasicMaterial({ color: 0x7fe3d0 });
+  const railGeo = new THREE.BoxGeometry(0.06, 1, 0.06), rungGeo = new THREE.BoxGeometry(0.5, 0.05, 0.05), ladMat = new THREE.MeshLambertMaterial({ color: 0x9c7a45 });
   for (let c = 0; c < cols.length; c++) for (let y = 0; y < H; y++) {
     const id = b[c * H + y];
-    if (id !== B.torch && id !== B.lantern) continue;
+    if (id !== B.torch && id !== B.lantern && id !== B.ladder) continue;
+    if (id === B.ladder) {
+      // a ladder: two rails and three rungs up the middle of its tile
+      for (const dx of [-0.22, 0.22]) { const r = new THREE.Mesh(railGeo, ladMat); r.position.set(cols[c].x + dx, y + 0.5, cols[c].z); torchGroup.add(r); }
+      for (const dy of [0.2, 0.5, 0.8]) { const r = new THREE.Mesh(rungGeo, ladMat); r.position.set(cols[c].x, y + dy, cols[c].z); torchGroup.add(r); }
+      continue;
+    }
     const m = new THREE.Mesh(id === B.torch ? geo : lgeo, id === B.torch ? mat : lmat);
     m.position.set(cols[c].x, y + (id === B.torch ? 0.3 : 0.18), cols[c].z);
     torchGroup.add(m);
@@ -323,7 +331,8 @@ const ITEM_COLOR = {
   stick: '#9c7a45', coal: '#222', charcoal: '#3a2e25', iron_ingot: '#d8d8d8', apple: '#d33', porkchop: '#f0a3b4', cooked_porkchop: '#b5653d',
   wooden_pickaxe: '#b8945a', stone_pickaxe: '#8a8a8a', iron_pickaxe: '#d8d8d8', wooden_sword: '#b8945a', stone_sword: '#8a8a8a', iron_sword: '#d8d8d8',
   diamond: '#5ff2e6', diamond_pickaxe: '#5ff2e6', diamond_sword: '#5ff2e6', iron_armor: '#c9c9c9', diamond_armor: '#5ff2e6', bucket: '#b0b0b0', water_bucket: '#3f76e4', wool: '#f2efe6', mutton: '#d9828a', cooked_mutton: '#a0563a',
-  glowstone_dust: '#f6d77a', quartz: '#efe8df',
+  glowstone_dust: '#f6d77a', quartz: '#efe8df', shears: '#c9c9c9', wooden_axe: '#b8945a', stone_axe: '#8a8a8a', iron_axe: '#d8d8d8', diamond_axe: '#5ff2e6',
+  wooden_shovel: '#b8945a', stone_shovel: '#8a8a8a', iron_shovel: '#d8d8d8', diamond_shovel: '#5ff2e6',
 };
 function hud() {
   const t = replay.tick, day = Math.floor(t / DAY) + 1, ph = t % DAY;
@@ -428,7 +437,7 @@ const ARGS = {
   gather_wood: { n: 5 }, mine_stone: { n: 11 }, mine_coal: { n: 4 }, mine_iron: { iron: 3, coal: 3 },
   branch_mine: { length: 16 }, explore: { steps: 40 }, light_area: { n: 4 },
 };
-const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern', 'chest', 'bed', 'iron_armor', 'diamond_pickaxe', 'diamond_sword', 'diamond_armor', 'bucket', 'beacon', 'glowstone', 'quartz_block'];
+const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern', 'chest', 'bed', 'iron_armor', 'diamond_pickaxe', 'diamond_sword', 'diamond_armor', 'bucket', 'beacon', 'glowstone', 'quartz_block', 'stone_axe', 'stone_shovel', 'iron_axe', 'iron_shovel', 'diamond_axe', 'diamond_shovel', 'shears', 'ladder', 'trapdoor'];
 function argsFor(name) {
   if (name === 'craft') { const item = $('craft-item').value; return { item, n: item === 'torch' ? 4 : 1 }; }
   if (name === 'scout') return { what: $('scout-what').value };
@@ -724,7 +733,10 @@ function startFile(text) {
   try { head = JSON.parse(lines[0]); } catch { alert('not a craft stream: the first line is not JSON'); return; }
   if (head.t !== 'craft') { alert('not a craft stream: no craft header'); return; }
   try { replay = new Replay(lines[0]); } catch (e) { alert(e.message); return; }
-  sim = null; driver = null;
+  sim = null; driver = null; party = null;
+  outbox = [];                          // the live game's unshown lines belong to that world, not this one
+  for (const m of entMesh.values()) entGroup.remove(m);
+  entMesh.clear();
   fileLines = lines; fileCursor = 1; allLines = [];
   initMeshes();
   macroLog = []; $('log').innerHTML = ''; $('tail').textContent = ''; homeAt = null;
@@ -978,6 +990,9 @@ document.addEventListener('keydown', (e) => {
     const food = EAT_ORDER.find((k) => replay.inv[k]);
     if (food) hands.queue.push({ op: 'eat', item: food }); else toast('no food');
   } else if (e.code === 'KeyC') toggleCrafting();
+  // on a ladder: Space climbs, Shift goes down
+  else if (e.code === 'Space') { hands.queue.push({ op: 'climb', dir: 1 }); e.preventDefault(); }
+  else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') hands.queue.push({ op: 'climb', dir: -1 });
 });
 document.addEventListener('keyup', (e) => hands.keys.delete(e.code));
 window.addEventListener('blur', () => hands.keys.clear());
@@ -1073,6 +1088,8 @@ $('t-eat').addEventListener('click', () => {
   if (food) hands.queue.push({ op: 'eat', item: food }); else toast('no food');
 });
 $('t-craft').addEventListener('click', () => toggleCrafting());
+$('t-up').addEventListener('click', () => hands.queue.push({ op: 'climb', dir: 1 }));
+$('t-down').addEventListener('click', () => hands.queue.push({ op: 'climb', dir: -1 }));
 $('t-view').addEventListener('click', () => { hands.third = !hands.third; });
 
 // the phone dock: each panel is a drawer. "play" is the controls' own tab:

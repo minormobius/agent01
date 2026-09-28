@@ -66,6 +66,9 @@ export function* goTo(sim, goal, maxNodes = 30000) {
       if (st.c !== p.c) {
         const r = yield { op: 'move', to: st.c };
         if (!r.ok) { blocked = true; break; }
+      } else if (st.y !== p.y && !st.mine.length) {
+        const r = yield { op: 'climb', dir: st.y > p.y ? 1 : -1 };     // a ladder
+        if (!r.ok) { blocked = true; break; }
       }
       if (p.c !== st.c || p.y !== st.y) { blocked = true; break; }   // the world disagreed with the plan
     }
@@ -74,6 +77,9 @@ export function* goTo(sim, goal, maxNodes = 30000) {
   }
   return { ok: false, why: 'kept getting blocked' };
 }
+
+// one step of a walking path: to a neighbour, or up/down a ladder in this column
+export const stepOp = (sim, c, y) => c === sim.player.c ? { op: 'climb', dir: y > sim.player.y ? 1 : -1 } : { op: 'move', to: c };
 
 // Place a carried block against a wall at foot level and step up onto it,
 // up to `max` layers, while that gains height. Returns the layers climbed.
@@ -496,7 +502,7 @@ export function* swimUp(sim) {
   if (!underwater(sim)) return { ok: true };
   const path = sim.path(p, (c, y) => sim.get(c, y + 1) !== B.water, 6000, 2, false, true);
   if (!path) return { ok: false, why: 'no way up out of the water' };
-  for (const [c] of path) { const r = yield { op: 'move', to: c }; if (!r.ok) return { ok: false, why: r.why }; }
+  for (const [c, y] of path) { const r = yield stepOp(sim, c, y); if (!r.ok) return { ok: false, why: r.why }; }
   return underwater(sim) ? { ok: false, why: 'still under water' } : { ok: true };
 }
 export function* surface(sim) {
@@ -776,6 +782,10 @@ export function* gridMine(sim, { ore = 'iron', n = 3, returnDig = false, R = 18 
       // a new layer: from the last hub, stairs up or down to it
       const go = yield* goTo(sim, (c, y) => c === prev.hub[0] && y === prev.hub[1], 60000);
       if (go.ok) yield* goTo(sim, (c, y) => y === level && sim.dist(c, prev.hub[0]) <= 4, 30000);
+    } else if (sim.team.access && sim.team.access.level === level) {
+      // shafts beside the house reach this layer: the mine starts at their foot
+      const acc = sim.team.access;
+      yield* goTo(sim, (c, y) => c === acc.ladder[0] && y === level, 30000);
     } else {
       if (sim._house) { const out = new Set(sim._house.outside); const ex = yield* goTo(sim, (c) => out.has(c) && sim.dist(c, sim._house.door) <= 2, 20000); if (!ex.ok) return { ok: false, why: `could not get out to dig (${ex.why})` }; }
       yield* staircase(sim, { floor: level, until: () => p.y <= level });
@@ -830,12 +840,114 @@ export function* gridMine(sim, { ore = 'iron', n = 3, returnDig = false, R = 18 
   return enough() ? { ok: true } : (sim.inv[item] || 0) > want - n ? { ok: true, partial: true } : { ok: false, why: g.done ? 'the layout is all dug' : `the mine turned up no ${ore}` };
 }
 
+// ----------------------------------------------------------- the mine's access --
+// How people shorten the trip to a mine: a shaft straight down to a pool deep
+// enough to break the fall (a bucket of water in a sump), with a trapdoor
+// over it (a door in the floor: you drop through, mobs walk over), and a
+// ladder shaft beside it for the way back up. Built beside the house, joined
+// to the mine by a tunnel at its layer. After that nothing special happens:
+// the planners know that a fall into water is safe and that ladders climb, so
+// they take the shafts whenever the shafts are cheaper.
+const shaftOk = (sim, c, lo, hi) => {
+  const tier = Math.max(1, sim.pickTier());
+  for (let y = lo; y <= hi; y++) {
+    const id = sim.get(c, y);
+    if (id === B.air) continue;
+    if (sim.protect.has(c * H + y) || sim.clearCost(c, y, tier) === Infinity) return false;
+  }
+  return true;
+};
+export function accessSite(sim, level) {
+  const h = sim._house;
+  if (!h) return null;
+  const keep = new Set([...h.interior, ...h.ring]);
+  let best = null;
+  for (const [L, hop] of ball(sim, h.door, 6)) {
+    if (keep.has(L) || hop < 2 || !sim.seen[L] || sim.cols[L].nb.includes(-1)) continue;
+    const gL = groundTop(sim, L) + 1;
+    if (gL - level < 4 || !shaftOk(sim, L, level, gL - 1) || !sim.solid(L, level - 1)) continue;
+    for (const D of sim.cols[L].adj) {
+      if (keep.has(D) || !sim.seen[D] || sim.cols[D].nb.includes(-1)) continue;
+      const gD = groundTop(sim, D) + 1;
+      if (Math.abs(gD - gL) > 1 || !shaftOk(sim, D, level - 1, gD - 1) || !sim.solid(D, level - 2)) continue;
+      const cost = hop + (gL - level);
+      if (!best || cost < best.cost) best = { L, gL, D, gD, cost };
+    }
+  }
+  return best;
+}
+export function* buildAccess(sim, { ore = 'iron' } = {}) {
+  const p = sim.player;
+  if (sim.team.access) return { ok: false, why: 'the mine already has its shafts' };
+  const g = Object.values(sim.team.grids || {}).find((x) => x.plan && !x.abandoned);
+  const level = g ? g.hub[1] : MINE_LEVEL[ore];
+  if (!sim._house) return { ok: false, why: 'needs a house to build beside' };
+  const site = accessSite(sim, level);
+  if (!site) return { ok: false, why: 'nowhere beside the house for the shafts' };
+  const { L, gL, D, gD } = site;
+  // what it takes: a rung per layer, a trapdoor, and water
+  const rungs = gL - level;
+  if ((sim.inv.ladder || 0) < rungs) { const c = yield* craft(sim, 'ladder', rungs); if (!c.ok) return { ok: false, why: `short of ladders (${c.why})` }; }
+  if ((sim.inv.trapdoor || 0) < 2) { const c = yield* craft(sim, 'trapdoor', 2); if (!c.ok) return { ok: false, why: `short of trapdoors (${c.why})` }; }
+  if (!sim.has('water_bucket')) { const f = yield* fillBucket(sim); if (!f.ok) return { ok: false, why: `needs a bucket of water (${f.why})` }; }
+  // 1. the ladder shaft, dug from the top: mine below, drop a layer, set the rung above
+  const top = yield* goTo(sim, (c, y) => c === L && y === gL, 20000);
+  if (!top.ok) return { ok: false, why: `could not reach the site (${top.why})` };
+  for (let k = 0; k < H && p.y > level; k++) {
+    const y0 = p.y;
+    const r = yield { op: 'mine', c: L, y: p.y - 1 };
+    if (!r.ok || p.y !== y0 - 1) return { ok: false, why: `the ladder shaft stopped at layer ${p.y} (${r.why || 'did not drop'})` };
+    const pl = yield { op: 'place', c: L, y: p.y + 1, item: 'ladder' };
+    if (!pl.ok) return { ok: false, why: `could not set a rung (${pl.why})` };
+  }
+  yield { op: 'place', c: L, y: p.y, item: 'ladder' };
+  // a light at the foot: dark shafts spawn zombies
+  if (sim.has('torch')) { const at = sim.cols[L].adj.find((c) => c !== D && sim.get(c, level) === B.air && sim.solid(c, level - 1)); if (at != null) yield { op: 'place', c: at, y: level, item: 'torch' }; }
+  // 2. the sump beside it, and the water in it
+  for (const y of [level + 1, level, level - 1]) if (sim.solid(D, y)) { const r = yield { op: 'mine', c: D, y }; if (!r.ok) return { ok: false, why: `could not dig the sump (${r.why})` }; }
+  const w = yield { op: 'pour', c: D, y: level - 1 };
+  if (!w.ok) return { ok: false, why: `could not pour the water (${w.why})` };
+  // 3. join the bottom to the mine (a tunnel at its layer), if there is one
+  if (g) { const j = yield* goTo(sim, (c, y) => c === g.hub[0] && y === g.hub[1], 40000); if (!j.ok) return { ok: false, why: `could not join the shafts to the mine (${j.why})` }; }
+  // 4. back up the ladder, and the drop shaft dug from the top: the last block
+  // drops you into your own sump (the first test of it)
+  const up = yield* goTo(sim, (c, y) => c === D ? false : sim.cols[c].adj.includes(D) && y === gD, 40000);
+  if (!up.ok) return { ok: false, why: `could not climb out (${up.why})` };
+  const hp0 = p.hp;
+  const e = yield { op: 'move', to: D };
+  if (!e.ok) return { ok: false, why: e.why };
+  for (let k = 0; k < H && p.y > level - 1; k++) {
+    const y0 = p.y;
+    if (!sim.solid(D, p.y - 1)) break;                                   // open below: we already fell
+    const r = yield { op: 'mine', c: D, y: p.y - 1 };
+    if (!r.ok) return { ok: false, why: `the drop shaft stopped at layer ${p.y} (${r.why})` };
+    if (p.y === y0) break;
+  }
+  if (p.y > level || p.hp < hp0) return { ok: false, why: `the drop did not land in the water (layer ${p.y}, health ${hp0} → ${p.hp})` };
+  // 5. up the ladder again, and the trapdoor over the drop
+  const out = yield* goTo(sim, (c, y) => sim.cols[c].adj.includes(D) && y === gD, 40000);
+  if (!out.ok) return { ok: false, why: `could not climb out (${out.why})` };
+  const t = yield { op: 'place', c: D, y: gD - 1, item: 'trapdoor' };
+  if (!t.ok) return { ok: false, why: `could not set the trapdoor (${t.why})` };
+  // and one at the ladder's head, in place of its top rung: a wall to a mob at
+  // ground level (without it the shaft was an open hole at night), and the
+  // player climbs from the last rung straight through it
+  const lt = yield* goTo(sim, (c, y) => sim.cols[c].adj.includes(L) && y === gL, 20000);
+  if (lt.ok) {
+    if (sim.get(L, gL) === B.ladder) yield { op: 'mine', c: L, y: gL };
+    yield { op: 'place', c: L, y: gL, item: 'trapdoor' };
+  }
+  sim.team.access = { drop: [D, gD], ladder: [L, gL], level, rungs };
+  sim.note('access', { drop: D, ladder: L, level, by: p.id });
+  return { ok: true };
+}
+
 // -------------------------------------------------------------- explore ------
 
 // Walk to the edge of what has been seen and look past it. Keeps a heading
 // across calls, so repeated exploring sweeps outward instead of dithering.
 export function* explore(sim, steps = 40) {
-  const p = sim.player, before = sim.seenCount;
+  const p = sim.player, before = sim.seenCount, start = p.c;
   if (sim._heading == null) sim._heading = sim.rng() * Math.PI * 2;
   let best = -1, bs = -Infinity;
   const here = sim.cols[p.c];
@@ -852,11 +964,17 @@ export function* explore(sim, steps = 40) {
   if (best < 0) return { ok: false, why: 'all the land in reach has been seen' };
   const walk = sim.path(p, (c) => c === best, 15000);
   if (walk) {
-    for (const [c] of walk.slice(0, steps)) { const r = yield { op: 'move', to: c }; if (!r.ok) break; }
+    for (const [c, y] of walk.slice(0, steps)) {
+      const r = yield stepOp(sim, c, y);
+      // refused (a mob in the way: the walking planner does not see mobs):
+      // hand over to the digging planner, which routes around them
+      if (!r.ok) { yield* goTo(sim, (cc) => cc === best, 15000); break; }
+    }
   } else {
     const go = yield* goTo(sim, (c) => c === best, 15000);
     if (!go.ok) { sim._heading += Math.PI * 0.6; return { ok: false, why: `frontier unreachable (${go.why})` }; }
   }
+  if (sim.seenCount === before && p.c === start) return { ok: false, why: 'could not get anywhere new' };
   return { ok: true, seen: sim.seenCount - before };
 }
 
@@ -1533,6 +1651,7 @@ export const PALETTE = {
   mine_coal:    { mode: 'mine', doc: 'take coal in sight, or dig for it', needs: (s) => hasPick(s), run: (s, a) => mineCoal(s, a?.n) },
   mine_iron:    { mode: 'mine', doc: 'down to the iron band and along it', needs: (s) => hasPick(s, 2), run: (s, a) => mineIron(s, a) },
   mine_home:    { mode: 'mine', doc: 'the team\'s mine near home: dig it once (a staircase to the ore layer, a lit hub), then walk down it and extend a branch', needs: (s, a) => hasPick(s, MINE_ORE[a?.ore || 'iron']?.[2] || 2), run: (s, a) => homeMine(s, a || {}) },
+  build_access: { mode: 'homestead', doc: 'shafts beside the house to the mine: a trapdoor over a drop into water, and a ladder back up', needs: (s) => s.team.access ? 'the mine already has its shafts' : !s._house ? 'needs a house' : !s.has('bucket') && !s.has('water_bucket') ? 'needs a bucket (3 iron ingots)' : null, run: (s, a) => buildAccess(s, a || {}) },
   mine_grid:    { mode: 'mine', doc: 'a mine laid out to see every stone: tunnels every other tile on the layer, from a permanent staircase', needs: (s, a) => hasPick(s, MINE_ORE[a?.ore || 'iron']?.[2] || 2), run: (s, a) => gridMine(s, a || {}) },
   branch_mine:  { mode: 'mine', doc: 'a straight tunnel on this layer, torch-lit', needs: (s) => hasPick(s), run: (s, a) => branchMine(s, a?.length) },
   surface:      { mode: 'mine', doc: 'climb (or swim) back up to open sky', needs: (s) => underwater(s) ? null : s.skyOpen(s.player.c, s.player.y + 2) ? 'already under open sky' : atHome(s) ? 'in the house — any outdoor activity walks out the door' : null, run: (s) => surface(s) },
@@ -1587,7 +1706,7 @@ export const PALETTE = {
 export const MODES = ['mine', 'explore', 'homestead', 'team'];
 // Which world each macro works in. The overworld's are about its sky, soil,
 // sea, ore bands, the house and the chest; the nether has none of those.
-const OVERWORLD_ONLY = new Set(['mine_home', 'mine_grid', 'shear', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
+const OVERWORLD_ONLY = new Set(['mine_home', 'mine_grid', 'shear', 'build_access', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
   'farm', 'harvest', 'set_home', 'sleep_until_dawn', 'mine_diamond', 'make_obsidian', 'dig_sand', 'place_beacon', 'build_portal', 'set_up_chest', 'store', 'take', 'sleep_in_bed']);
 const NETHER_ONLY = new Set(['mine_glowstone', 'mine_quartz']);
 for (const [name, m] of Object.entries(PALETTE)) {

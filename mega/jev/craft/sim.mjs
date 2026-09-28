@@ -200,11 +200,16 @@ export class Sim {
     return false;
   }
   skyOpen(c, y) { for (let yy = y; yy < H; yy++) { const id = this.get(c, yy); if (id !== B.air && !BLOCKS[id].light && !BLOCKS[id].plant) return false; } return true; }
-  supported(c, y) { return this.solid(c, y - 1) || this.get(c, y - 1) === B.water || this.get(c, y) === B.water; }
+  // standing: on something solid, in water, on a ladder (you cling to it); a
+  // mob also stands on what shuts it out (a trapdoor), the player drops through
+  supported(c, y, mob = false) {
+    const below = this.get(c, y - 1), here = this.get(c, y);
+    return BLOCKS[below].solid || below === B.water || here === B.water || here === B.ladder || (mob && BLOCKS[below].mobSolid);
+  }
   canStand(c, y, tall = 2, mob = false) {
     if (y < 1 || y + tall > H) return false;
     for (let k = 0; k < tall; k++) if (!this.passable(c, y + k, mob)) return false;
-    return this.supported(c, y);
+    return this.supported(c, y, mob);
   }
   // where a body at (c, y) ends up stepping into neighbour n, or null.
   // Climbs one layer (needs headroom above its own head), drops up to maxDrop.
@@ -213,8 +218,9 @@ export class Sim {
     if (this.canStand(n, y + 1, tall, mob) && this.passable(c, y + tall, mob)) return y + 1;
     for (let k = 0; k < tall; k++) if (!this.passable(n, y + k, mob)) return null;
     let yy = y;
-    while (yy > 1 && !this.supported(n, yy)) yy--;
-    return y - yy <= maxDrop && this.canStand(n, yy, tall, mob) ? yy : null;
+    while (yy > 1 && !this.supported(n, yy, mob)) yy--;
+    // any drop into water is safe: it breaks the fall
+    return (y - yy <= maxDrop || this.wet(n, yy)) && this.canStand(n, yy, tall, mob) ? yy : null;
   }
 
   // ---------------------------------------------------------- entities -----
@@ -437,8 +443,14 @@ export class Sim {
           this.emit(['do', 'move', a.to]);
           const fall = p.y - y;
           this.moveEnt(p, a.to, y);
-          if (fall > 3) this.hurt(p, fall - 3, null);
+          if (fall > 3 && !this.wet(a.to, y)) this.hurt(p, fall - 3, null);
         } };
+      }
+      case 'climb': {
+        const up = (a.dir ?? 1) > 0, ny = p.y + (up ? 1 : -1);
+        if (!this.ladderSteps(p.c, p.y).includes(ny)) return no(up ? 'no ladder here to climb' : 'no ladder below');
+        if (this.occupied(p.c, ny + (up ? 1 : 0)) && this.occupied(p.c, ny + (up ? 1 : 0)) !== p) return no('occupied');
+        return { ok: true, ticks: 1, pre: () => { this.emit(['do', 'climb', up ? 1 : -1]); this.moveEnt(p, p.c, ny); } };
       }
       case 'mine': {
         const { c, y } = a;
@@ -470,11 +482,12 @@ export class Sim {
         const { c, y, item } = a;
         if (!PLACEABLE.has(item)) return no(`${item} does not place`);
         if (!this.has(item)) return no(`no ${item}`);
-        if (!this.reachable(p.c, p.y, c, y)) return no('out of reach');
+        // (a ladder also goes in your own column, at your feet or head: that is how a shaft gets its rungs)
+        if (!this.reachable(p.c, p.y, c, y) && !(item === 'ladder' && c === p.c && (y === p.y || y === p.y + 1))) return no('out of reach');
         const cur = this.get(c, y);
         // a plant is in the way of nothing: placing a block on it picks it first
         if (cur !== B.air && cur !== B.water && !BLOCKS[cur].plant) return no(`occupied by ${blockName(cur)}`);
-        if (this.occupied(c, y)) return no('an entity is there');
+        if (this.occupied(c, y) && !(item === 'ladder' && this.occupied(c, y) === p)) return no('an entity is there');   // a ladder goes where you stand
         return { ok: true, ticks: 1, pre: () => {
           this.emit(['do', 'place', c, y, item]);
           const was = BLOCKS[this.get(c, y)];
@@ -704,11 +717,11 @@ export class Sim {
   settle() {
     for (const e of this.ents.values()) {
       let y = e.y;
-      while (y > 1 && !this.supported(e.c, y)) y--;
+      while (y > 1 && !this.supported(e.c, y, e.kind !== 'player')) y--;   // a mob stands on a trapdoor, the player drops through
       if (y !== e.y) {
         const fall = e.y - y;
         this.moveEnt(e, e.c, y);
-        if (fall > 3) this.hurt(e, fall - 3, null);
+        if (fall > 3 && !this.wet(e.c, y)) this.hurt(e, fall - 3, null);
       }
     }
   }
@@ -994,6 +1007,8 @@ export class Sim {
         for (let v = u; v !== start; v = prev.get(v)) out.push([Math.floor(v / H), v % H]);
         return out.reverse();
       }
+      // up or down a ladder, a layer a step
+      if (!mob) for (const ny of this.ladderSteps(c, y, tall)) { const k = key(c, ny); if (!prev.has(k)) { prev.set(k, u); q.push(k); } }
       for (const n of this.cols[c].adj) {
         if (!mob && !this.seen[n]) continue;              // the player plans only over ground it has seen
         const yy = this.stepTarget(c, y, n, tall, 3, mob);
@@ -1092,7 +1107,7 @@ export class Sim {
           if (solidUnder(n, y) || this.get(n, y - 1) === B.water) relax(n, y, [[n, y], [n, y + 1]], 0);
           else if (this.passable(n, y) && this.passable(n, y + 1)) {
             let yy = y; while (yy > 1 && !this.supported(n, yy)) yy--;
-            if (y - yy <= 3 && this.canStand(n, yy)) relax(n, yy, [], 0);
+            if ((y - yy <= 3 || this.wet(n, yy)) && this.canStand(n, yy)) relax(n, yy, [], 0);
           }
         }
         // climb one
@@ -1102,10 +1117,22 @@ export class Sim {
       }
       // straight down
       if (y > 2 && solidUnder(c, y - 1) && this.get(c, y - 1) !== B.bedrock) relax(c, y - 1, [[c, y - 1]], 0);
+      // a ladder: up or down it, a layer a step, nothing to mine
+      for (const ny of this.ladderSteps(c, y)) relax(c, ny, [], 0);
     }
     return null;
   }
 
+  // a fall that ends here lands in water (in it, or on it): no damage
+  wet(c, y) { return this.get(c, y) === B.water || this.get(c, y - 1) === B.water; }
+  // where a body at (c, y) can climb to in its own column: up from a ladder
+  // (with headroom), down onto a ladder below
+  ladderSteps(c, y, tall = 2) {
+    const out = [];
+    if (this.get(c, y) === B.ladder && y + tall < H && this.passable(c, y + tall) && this.passable(c, y + 1)) out.push(y + 1);
+    if (y > 1 && this.get(c, y - 1) === B.ladder) out.push(y - 1);
+    return out;
+  }
   firstStep(e, goal, maxNodes) { const p = this.path(e, goal, maxNodes, this.tallOf(e), e.kind !== 'player'); return p && p.length ? p[0] : null; }
 
   // --------------------------------------------------------------- stream --

@@ -20,7 +20,7 @@ import { habitat, STAGE_TICKS, speciesHere } from '../craft/plants.mjs';
 import { projectState, projectFact, projectQuestion, PROJECT_NAMES, projectScore } from '../craft/projects.mjs';
 import { Sim, Replay, MAX_AIR } from '../craft/sim.mjs';
 import { SEA } from '../craft/world.mjs';
-import { play, runMacro } from '../craft/runner.mjs';
+import { play, runMacro, Driver, baselinePolicy } from '../craft/runner.mjs';
 import { PALETTE, MODES, legalMacros, shortfall, visible, sealed, planHouse } from '../craft/macros.mjs';
 import { threats, perceive, options, buildQuestions, resolve, playMind, DECIDERS, GATE, GOALS, Party, playParty, batchRequest, fulfil, applyAsk, offlineAsk, askQuestion, REQUESTS, BAIL } from '../craft/mind.mjs';
 import { segment, score as segScore, actions as segActions } from '../craft/segment.mjs';
@@ -669,7 +669,7 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   s.removeEnt(z, 'test');
   // water poured from a bucket onto lava makes obsidian, and does not flow
   s.give('diamond_pickaxe', 1); s.give('bucket', 1); s.give('cobblestone', 40); s.give('torch', 10);
-  for (let k = 0; k < 10; k++) runMacro(s, 'explore');
+  for (let k = 0; k < 40 && !visible(s, [B.lava], 40).length; k++) runMacro(s, 'explore');   // until some lava is in sight
   const water0 = s.b.filter((v) => v === B.water).length;
   const r = runMacro(s, 'make_obsidian', { n: 1 });
   ok(r.ok && s.inv.obsidian >= 1, `make_obsidian: bucket to the sea, pour on lava, mine it (${r.why || 'ok'})`);
@@ -847,6 +847,51 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   ok(!sh.act({ op: 'shear', id: sheep.id }).ok, 'a shorn sheep has no wool to give');
   for (let k = 0; k < 1300; k++) sh.step();
   ok(!sheep.shorn || !sh.ents.has(sheep.id), 'the wool grows back');
+}
+
+// ------------------------------------------- ladders, water landings, trapdoors
+{
+  const s = new Sim({ seed: 3, shape: 'truncsq' });
+  const p = s.player, c = p.c, y0 = p.y;
+  // a shaft of air with a ladder up it: climb up, climb down
+  for (let y = y0; y < y0 + 5; y++) s.set(c, y, B.ladder);
+  for (let y = y0 + 5; y < y0 + 8; y++) s.set(c, y, B.air);
+  ok(s.act({ op: 'climb', dir: 1 }).ok && p.y === y0 + 1, 'a ladder climbs a layer a tick');
+  s.act({ op: 'climb', dir: 1 }); s.act({ op: 'climb', dir: 1 });
+  ok(p.y === y0 + 3 && s.supported(c, p.y), 'and you can stand on one');
+  ok(s.act({ op: 'climb', dir: -1 }).ok && p.y === y0 + 2, 'and go down it');
+  // the planner uses ladders
+  const pth = s.path(p, (cc, yy) => cc === c && yy === y0 + 4, 2000);
+  ok(pth && pth.every(([cc]) => cc === c), 'the walking planner climbs a ladder to reach a layer above');
+  // a fall into water does no harm; the same fall onto stone does
+  const w = new Sim({ seed: 3, shape: 'truncsq' });
+  const q = w.player, n = w.cols[q.c].adj[0], top = q.y;
+  for (let y = 2; y < top + 2; y++) w.set(n, y, B.air);
+  w.set(n, 1, B.stone); w.set(n, 2, B.water); w.still.add(n * H + 2);
+  const r1 = w.act({ op: 'move', to: n });
+  ok(r1.ok && q.y <= 3 && q.hp === 20, `a ${top - q.y}-layer drop into water: no damage`);
+  const d = new Sim({ seed: 3, shape: 'truncsq' });
+  const q2 = d.player, n2 = d.cols[q2.c].adj[0], top2 = q2.y;
+  for (let y = 2; y < top2 + 2; y++) d.set(n2, y, B.air);
+  d.set(n2, 1, B.stone);
+  d.act({ op: 'move', to: n2 });
+  ok(q2.hp < 20, `the same drop onto stone hurts (${20 - q2.hp})`);
+  // a trapdoor: the player drops through, a mob stands on it
+  const t = new Sim({ seed: 3, shape: 'truncsq' });
+  const tp = t.player, tn = t.cols[tp.c].adj[0], g = tp.y;
+  t.set(tn, g - 1, B.trapdoor); t.set(tn, g - 2, B.air); t.set(tn, g - 3, B.air);
+  ok(t.canStand(tn, g, 2, true) && !t.canStand(tn, g, 2, false), 'a trapdoor is a floor to a mob and a hole to the player');
+  // build_access: shafts beside the house, and the drop lands in its own water
+  const a = new Sim({ seed: 3, shape: 'penrose' });
+  const dd = new Driver(a, { policy: baselinePolicy });
+  while (a.tick < 4800 * 3) { dd.step(); if (!dd.gen && a._house && a.pickTier() >= 2 && !a.isNight()) break; }
+  a.give('stick', 64); a.give('planks', 32); a.give('bucket', 1); a.give('stone_pickaxe', 2);
+  const acc = runMacro(a, 'build_access');
+  ok(acc.ok && a.team.access && a.player.hp === 20, `build_access: a ladder shaft, a drop into a sump of water, a trapdoor over it (${acc.why || 'ok'})`);
+  if (a.team.access) {
+    const [D, gD] = a.team.access.drop;
+    ok(a.get(D, gD - 1) === B.trapdoor && a.get(a.team.access.ladder[0], a.team.access.level) === B.ladder, 'the trapdoor is over the drop and the ladder reaches the bottom');
+  }
 }
 
 // ---------------------------------------------------------------- text ------

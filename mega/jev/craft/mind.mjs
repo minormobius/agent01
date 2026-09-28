@@ -320,6 +320,10 @@ export function options(sim) {
     add('mine_grid_iron', 'mine_grid', { ore: 'iron', n: 3 }, { yields: 'iron ore (and coal) from the team\'s grid mine, laid out to show every stone on its layers', takes: g ? `a walk down (${g.dug.size} of ${g.plan.size} tunnel tiles dug on this layer), then 100–300 ticks` : 'digs the staircase first, then 100–300 ticks',
       advances: 'iron for the long run: slower than a fresh dig at first, and still finding ore when fresh digs near home have run dry' }, ['iron_ore', 'coal']);
   }
+  // shafts to the mine: measured to shorten the way home by 19-45%, and to
+  // matter less than where the ore is (2026-09-28)
+  if (legal.has('build_access') && sim.team.grids && Object.keys(sim.team.grids).length) add('build_access', 'build_access', null, { yields: 'shafts beside the house: a trapdoor over a drop into water, a ladder back up', takes: 'about 100–200 ticks, once',
+    uses: `a rung per layer (~${Math.max(4, sim.surface(sim.home ? sim.home[0] : p.c) - 7)} ladders, 7 sticks make 3), 2 trapdoors, a bucket of water`, advances: 'a shorter way to and from the mine for every later trip' }, ['build_access', 'ladder']);
   if (legal.has('branch_mine')) add('branch_mine', 'branch_mine', { length: 14 }, { yields: 'ore along a tunnel', takes: 'about 60–150 ticks', advances: 'resources, no rung' }, ['coal', 'iron_ore', 'cobblestone']);
   if (legal.has('surface')) add('surface', 'surface', null, { takes: `about ${Math.max(5, (sim.surface(p.c) - p.y) * 4)} ticks`, advances: 'back to open ground' });
   const seenPct = Math.round(100 * sim.seenCount / sim.N);

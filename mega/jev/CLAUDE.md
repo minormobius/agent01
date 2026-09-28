@@ -303,7 +303,7 @@ model only decides.
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
 | `craft/segment.mjs` | reads a recorded game back as episodes named in the palette's terms, whoever played it (§ Reading a human's game) |
 | `test/craft-segment.mjs` | the CLI for it: `run.jsonl`, `--score`, `--json` |
-| `test/craft.selftest.mjs` | 407 checks, ~75 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter) |
+| `test/craft.selftest.mjs` | 416 checks, ~75 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -1387,6 +1387,62 @@ wear: **wear costs about two worlds and ~1100 ticks to the crossing**, a real
 price rather than a bug. Life sweep 30 / 30, 0 deaths, 0 stuck. Jev sees
 `tools_uses_left`, and a worn tool's craft option reads *a replacement: yours
 has 12 uses left*.
+
+**Getting to the mine: ladders, drops into water, trapdoors (2026-09-28).**
+The operator's point: people shorten the trip to a mine with a ladder shaft up
+and a drop shaft down into water deep enough to break the fall. What that
+took:
+- **Ladders** (7 sticks → 3): stand in one, `climb` up or down a layer a tick.
+  Both planners (`path`, `digPath`, via `ladderSteps`) know ladders, so every
+  macro uses one when it is shorter. A ladder may be placed where you stand:
+  that's how a shaft gets its rungs.
+- **Water breaks a fall**: a drop of any height that lands in water, or on it
+  (`wet`), does no damage, and the planners plan such drops.
+- **Trapdoors** (6 planks → 2): a door in the floor, open to the player and
+  shut to mobs. You drop through one; a mob stands on it (`supported(…, mob)`).
+- **`build_access`**: beside the house (never on it), a ladder shaft dug from
+  the top (mine below, drop a layer, set the rung above), a one-deep sump at
+  its foot filled from a bucket, a drop shaft beside it dug from the top last,
+  so its final block drops the builder into its own water (the first test).
+  Then a trapdoor over the drop, **and one at the ladder's head in place of its
+  top rung** (a wall to a mob at ground level; the player climbs through it
+  from the last rung), and a torch at the foot. When shafts exist, a new grid mine starts
+  at their foot, under the house.
+
+**Measured** (`lab/craft-mine-access.json`, 30 trips, medium worlds, 40
+spare picks, the loop fights what interrupts it):
+
+| world | grid from a staircase | grid from the shafts | way home per trip |
+|---|---|---|---|
+| truncsq | 140 ticks per ore | **122** | 45 → 36 |
+| hex | 192 | **164**, but it ran out of layers sooner (53 ore vs 76) | 44 → 24 |
+| penrose | **261** | 322 (more trips found no iron) | 53 → 43 |
+| kagome | 182 | 176 (the shaft build failed partway) | 54 → 43 |
+
+**The way home is shorter everywhere (19–45%). The cost per ore is not
+reliably better**, because moving the mine under the house moves it to
+different rock, and where the ore is outweighs the walk. The arithmetic
+explains why the walk is small here:
+- A staircase step moves one layer and one tile in a single tick.
+- A rung is also a tick.
+- A fall of any depth is instant.
+- The world is ~15 layers deep.
+
+So the whole walk down the staircase is ~14 ticks of a 300–400-tick trip.
+The shafts save most of the way down and some of the way up, and that's all
+there is to save. What would make them decisive: a deeper world (Minecraft's
+~120 layers), stairs that cost more than a flat step, or many trips an
+hour (hauling). The option is on Jev's menu with that fact.
+
+Three things this round found:
+- `explore` quietly "succeeded" with 0 ticks when a mob stood in its first
+  step (the walking planner doesn't see mobs), forever. A refused step now
+  hands over to the digging planner, and a walk that gets nowhere fails.
+- The first long-run runs died to durability: 12 spare picks wear out in 30
+  grid trips, and a death empties your pockets.
+- A loop that never fights let one zombie kill the player. Both are
+  experiment faults, fixed in the harness and recorded here, not in the
+  results.
 
 **Reading a human's game (`craft/segment.mjs`).** A human plays in
 primitives, and nothing in the stream says *now I am mining for iron*. The
