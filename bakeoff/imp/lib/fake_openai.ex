@@ -107,6 +107,23 @@ defmodule ImpBench.FakeOpenAI do
     conn |> put_resp_content_type("application/json") |> send_resp(200, Jason.encode!(resp))
   end
 
+  # A Jev-shaped endpoint: picks the first option, confident on every other call.
+  post "/v1/systemone" do
+    q = conn.body_params["questions"]["pick"]
+    options = Map.keys(q["criteria"]) |> Enum.sort()
+    conf = if rem(System.unique_integer([:positive]), 2) == 0, do: 0.95, else: 0.6
+
+    body = %{
+      "model" => "jev-fake",
+      "answers" => %{
+        "pick" => %{"choice" => hd(options), "confidence" => conf, "probabilities" => %{}}
+      },
+      "usage" => %{"input_tokens" => 120, "output_tokens" => 4}
+    }
+
+    conn |> put_resp_content_type("application/json") |> send_resp(200, Jason.encode!(body))
+  end
+
   match _ do
     send_resp(conn, 404, "not found")
   end

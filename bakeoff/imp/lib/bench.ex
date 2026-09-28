@@ -102,6 +102,21 @@ defmodule ImpBench do
 
   def lm_for("static"), do: {:ok, ImpBench.Scripted.lm(), %{model: "scripted", base_url: nil}}
 
+  # Jev is not an LLM: its tasks go to ImpBench.JevTasks, which calls it directly.
+  def lm_for("jev") do
+    if ImpBench.Jev.key() in [nil, ""] and is_nil(System.get_env("IMP_BENCH_JEV_URL")),
+      do: {:skip, "TYPESAFE_API_KEY is not set"},
+      else: {:ok, :jev, %{model: "jev-latest", base_url: ImpBench.Jev.base_url()}}
+  end
+
+  # Jev's fake twin, served by FakeOpenAI on localhost: the rig's own test.
+  def lm_for("jev-fake") do
+    base = ImpBench.FakeOpenAI.start(4077)
+    System.put_env("IMP_BENCH_JEV_URL", String.replace_suffix(base, "/v1", ""))
+    System.put_env("TYPESAFE_API_KEY", "fake")
+    {:ok, :jev, %{model: "jev-fake", base_url: ImpBench.Jev.base_url()}}
+  end
+
   def lm_for("fake") do
     base = ImpBench.FakeOpenAI.start(4077)
     spec = %{provider: :openai, id: "fake", model: "fake", base_url: base}
@@ -143,6 +158,16 @@ defmodule ImpBench do
 
   # One plain typed call, so a model that cannot answer at all says why in the
   # log before twenty identical failures hide the reason.
+  defp probe(:jev) do
+    case ImpBench.Jev.choose(%{sky: "clear, daytime"}, "What colour is the sky?", %{
+           "blue" => "blue",
+           "green" => "green"
+         }) do
+      %{error: e} -> "error: " <> e
+      r -> "ok: #{r.choice} (confidence #{r.confidence}, #{r.ms} ms)"
+    end
+  end
+
   defp probe(lm) do
     program = "question -> answer" |> Imp.signature("Answer in one word.") |> Imp.predict(lm: lm)
 
@@ -164,6 +189,8 @@ defmodule ImpBench do
   # four teams). Zero-shot, then LabeledFewShot(k: 8) from the train split —
   # the configuration behind rows R1/R2 of Imp's research/RESULTS.md, so these
   # numbers sit next to a published gpt-5.4-mini result.
+  defp run(task, :jev, out), do: ImpBench.JevTasks.run(task, out)
+
   defp run("route", lm, out) do
     data =
       Application.app_dir(:imp, "priv/tutorial/support_tickets.json")
@@ -726,7 +753,7 @@ defmodule ImpBench do
   defp summary(%{model: m, tasks: tasks}) do
     lines =
       for {task, r} <- tasks, {arm, a} <- r.arms do
-        "  #{task}/#{arm}: #{fmt(a.score)} on #{r.n_test} held out (#{a.errors} errors, #{a.seconds}s)"
+        "  #{task}/#{arm}: #{fmt(a[:score])} on #{r.n_test} held out (#{a[:errors] || 0} errors#{if a[:seconds], do: ", #{a.seconds}s", else: ""})"
       end
 
     "#{m}\n" <> Enum.join(lines, "\n")

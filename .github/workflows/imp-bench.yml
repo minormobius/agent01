@@ -64,7 +64,8 @@ jobs:
             const cells = JSON.parse(fs.readFileSync("bakeoff/cells.json", "utf8"));
             const cfg = JSON.parse(fs.readFileSync("bakeoff/imp/RUN", "utf8"));
             const models = cfg.models?.length ? cfg.models : Object.keys(cells.models);
-            for (const m of models) if (!cells.models[m]) { console.error(`::error::unknown model ${m}`); process.exit(1); }
+            // "jev" is TypeSafe's decision model, not an LLM: the rig calls it directly.
+            for (const m of models) if (!cells.models[m] && m !== "jev") { console.error(`::error::unknown model ${m}`); process.exit(1); }
             const tasks = (cfg.tasks?.length ? cfg.tasks : ["route", "desk"]);
             for (const t of tasks) if (!["route", "desk", "desk_hard", "trec", "era"].includes(t)) { console.error(`::error::unknown task ${t}`); process.exit(1); }
             // GEPA: {"models": [...], "reflection": "<model>", "maxMetricCalls": N}. It spends
@@ -126,10 +127,16 @@ jobs:
           # the same through Imp's real HTTP/ReqLLM path, against a local fake endpoint
           IMP_BENCH_MODEL=fake IMP_BENCH_TASKS=trec,desk_hard IMP_BENCH_GEPA=fake \
             IMP_BENCH_GEPA_CALLS=30 BAKEOFF_OUT=/tmp/fake mix run -e 'ImpBench.main()'
+          # and Jev's arms against a fake Jev, escalating to a real saved GEPA program on the fake LLM
+          IMP_BENCH_MODEL=jev-fake IMP_BENCH_TASKS=trec,route IMP_BENCH_REFLECTION=fake \
+            IMP_BENCH_GEPA_CALLS=30 IMP_BENCH_JEV_ESCALATE=ds4-flash IMP_BENCH_JEV_ESCALATE_LM=fake \
+            BAKEOFF_OUT=/tmp/jevfake mix run -e 'ImpBench.main()'
       - name: Run cell
         env:
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
+          # Jev (TypeSafe): the repo secret is jev_key, as in deploy-mega.yml.
+          TYPESAFE_API_KEY: ${{ secrets.JEV_KEY || secrets.TYPESAFE_API_KEY }}
           IMP_BENCH_MODEL: ${{ matrix.model }}
           IMP_BENCH_TASKS: ${{ needs.plan.outputs.tasks }}
           IMP_BENCH_GEPA: ${{ fromJSON(needs.plan.outputs.gepa).models }}
