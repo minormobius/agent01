@@ -1,0 +1,443 @@
+{
+ "runs": [
+  {
+   "id": "imp-01",
+   "note": "First live Imp run: does a typed router lift with 8 examples on these models the way it did on gpt-5.4-mini (Imp R1/R2), and how well does a ReAct agent use six Elixir tools to answer refund-desk questions with exact answers? Baseline only; GEPA on desk comes next.",
+   "files": [
+    "ds4-flash.route.program.json",
+    "ds4-flash.traces.md",
+    "ds4-pro.route.program.json",
+    "ds4-pro.traces.md",
+    "kimi3.route.program.json",
+    "kimi3.traces.md",
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-flash",
+     "model_id": "deepseek-v4-flash",
+     "status": "ran",
+     "seconds": 40,
+     "tasks": {
+      "desk": {
+       "n_test": 16,
+       "arms": {
+        "react": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 23
+        }
+       },
+       "tool_calls": 107,
+       "usage": {
+        "output_tokens": 8126,
+        "input_tokens": 102985,
+        "total_tokens": 111111
+       }
+      },
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "few_shot_k8": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 7
+        },
+        "zero_shot": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 9
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 88,
+     "tasks": {
+      "desk": {
+       "n_test": 16,
+       "arms": {
+        "react": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 58
+        }
+       },
+       "tool_calls": 107,
+       "usage": {
+        "output_tokens": 11438,
+        "input_tokens": 113775,
+        "total_tokens": 125213
+       }
+      },
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "few_shot_k8": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 15
+        },
+        "zero_shot": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 13
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "kimi3",
+     "model_id": "kimi-k3",
+     "status": "ran",
+     "seconds": 5,
+     "tasks": {
+      "desk": {
+       "n_test": 16,
+       "arms": {
+        "react": {
+         "score": 0,
+         "errors": 0,
+         "seconds": 2
+        }
+       },
+       "tool_calls": 0,
+       "usage": {}
+      },
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "few_shot_k8": {
+         "score": 0,
+         "errors": 20,
+         "seconds": 1
+        },
+        "zero_shot": {
+         "score": 0,
+         "errors": 20,
+         "seconds": 2
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-02",
+   "note": "desk_hard baseline on all three models, then GEPA on ds4-flash with ds4-pro as the reflection model: can a rewritten instruction teach the cheap model the policy-version and delivery-window rules it gets wrong? kimi3 retried without temperature and with 16k max_tokens; route re-run for kimi3's sake.",
+   "files": [
+    "ds4-pro.hard.traces.md",
+    "ds4-pro.route.program.json",
+    "kimi3.hard.traces.md",
+    "kimi3.route.program.json",
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 117,
+     "probe": "ok: \"blue\"",
+     "tasks": {
+      "desk_hard": {
+       "n_test": 18,
+       "arms": {
+        "react": {
+         "score": 0.8888888888888888,
+         "errors": 0,
+         "seconds": 89,
+         "tool_calls": 155
+        }
+       },
+       "tool_calls": 155,
+       "usage": {
+        "output_tokens": 19134,
+        "input_tokens": 149978,
+        "total_tokens": 169112
+       }
+      },
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "few_shot_k8": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 13
+        },
+        "zero_shot": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 12
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "kimi3",
+     "model_id": "kimi-k3",
+     "status": "ran",
+     "seconds": 453,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "desk_hard": {
+       "n_test": 18,
+       "arms": {
+        "react": {
+         "score": 0.8888888888888888,
+         "errors": 0,
+         "seconds": 357,
+         "tool_calls": 164
+        }
+       },
+       "tool_calls": 164,
+       "usage": {
+        "output_tokens": 23183,
+        "input_tokens": 129719,
+        "total_tokens": 152902
+       }
+      },
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "few_shot_k8": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 35
+        },
+        "zero_shot": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 57
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-03",
+   "note": "imp-02 again with its two faults fixed: desk_hard now states that returned orders are not eligible, and GEPA gets 5-minute row/reflection timeouts. Baselines for all three models; GEPA on ds4-flash with ds4-pro reflecting.",
+   "files": [
+    "ds4-flash.hard.traces.md",
+    "ds4-pro.hard.traces.md",
+    "kimi3.hard.traces.md",
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-flash",
+     "model_id": "deepseek-v4-flash",
+     "status": "ran",
+     "seconds": 99,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "desk_hard": {
+       "n_test": 18,
+       "arms": {
+        "react": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 39,
+         "tool_calls": 150
+        }
+       },
+       "tool_calls": 150,
+       "usage": {
+        "output_tokens": 14207,
+        "input_tokens": 131595,
+        "total_tokens": 145802
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 150,
+        "error": "Imp.optimize!/4 failed: {:optimizer_failed, Imp.Optimizer.GEPA, %FunctionClauseError{module: Enum, function: :find_value_list, arity: 3, kind: nil, args: nil, clauses: nil}}"
+       }
+      }
+     }
+    },
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 83,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "desk_hard": {
+       "n_test": 18,
+       "arms": {
+        "react": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 81,
+         "tool_calls": 160
+        }
+       },
+       "tool_calls": 160,
+       "usage": {
+        "output_tokens": 16273,
+        "input_tokens": 143288,
+        "total_tokens": 159561
+       }
+      }
+     }
+    },
+    {
+     "model": "kimi3",
+     "model_id": "kimi-k3",
+     "status": "ran",
+     "seconds": 265,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "desk_hard": {
+       "n_test": 18,
+       "arms": {
+        "react": {
+         "score": 1,
+         "errors": 0,
+         "seconds": 261,
+         "tool_calls": 156
+        }
+       },
+       "tool_calls": 156,
+       "usage": {
+        "output_tokens": 19744,
+        "input_tokens": 127246,
+        "total_tokens": 146990
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-04",
+   "note": "The optimizer test the tool tasks could not give: Imp's matched TREC experiment (two opaque codes, meanings only in train feedback) on all three models, GEPA on each with ds4-pro reflecting, Imp's GEPA improper-list crash patched. Imp's own result for comparison: +0.40 held-out on gpt-5.4-mini.",
+   "files": [
+    "ds4-flash.trec.gepa.program.json",
+    "ds4-pro.trec.gepa.program.json",
+    "kimi3.trec.gepa.program.json",
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-flash",
+     "model_id": "deepseek-v4-flash",
+     "status": "ran",
+     "seconds": 1487,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "baseline": {
+         "score": 0.0625,
+         "errors": 64,
+         "seconds": 426
+        },
+        "gepa": {
+         "score": 0.9375,
+         "errors": 0,
+         "seconds": 46,
+         "optimize_seconds": 1013
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {
+         "\"predictor/main/instruction\"": {
+          "after": "Classify the input question into exactly one opaque route code.\n\nInput format:\n### text\n<question>\n\nOutput format:\n### route\n<opaque code>\n\nRules:\n- Return only the structured route shown above. Do not answer the question, explain the classification, or add any extra text.\n- Choose the route code based on the type of information requested by the question.\n\nKnown route code mapping:\n- K11: Use for questions that ask for a description, definition, reason, cause, explanation, or manner.\n- K47: Use for questions that ask for an entity or thing, such as an animal, product, substance, person, group, object, or other named entity. This includes questions of the form “What are X and Y known as ?” when the expected answer is a name or entity, not a description or explanation.\n\nDisambiguation strategy:\n- If the expected answer is a definition, explanation, cause, reason, or manner, classify as K11.\n- If the expected answer is a name, entity, object, animal, product, substance, person, or group, classify as K47.\n- Do not classify an entity-seeking question as K11 even if it begins with “What is” or “What are”.\n\nExamples:\nInput:\n### text\nWhat is the secret of the universe ?\n\nOutput:\n### route\nK11\n\nInput:\n### text\nWhat caused the division between the Anglicans and the Vatican ?\n\nOutput:\n### route\nK11\n\nInput:\n### text\nWhat are John C. Calhoun and Henry Clay known as ?\n\nOutput:\n### route\nK47",
+          "before": "Route the question to exactly one opaque code. Return only the required structured route."
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 2736,
+     "probe": "ok: \"blue\"",
+     "tasks": {
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "baseline": {
+         "score": 0.2875,
+         "errors": 31,
+         "seconds": 665
+        },
+        "gepa": {
+         "score": 0.8875,
+         "errors": 2,
+         "seconds": 83,
+         "optimize_seconds": 1982
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {
+         "\"predictor/main/instruction\"": {
+          "after": "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nKnown routing rule:\n- Use code `K11` when the question asks for a description, definition, reason, or manner.\n  Examples include:\n  - questions asking how to do something\n  - questions asking why something happens\n  - questions asking what something means\n\nFor any question matching that rule, output exactly:\n\nK11",
+          "before": "Route the question to exactly one opaque code. Return only the required structured route."
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "kimi3",
+     "model_id": "kimi-k3",
+     "status": "ran",
+     "seconds": 3714,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "baseline": {
+         "score": 0.5,
+         "errors": 7,
+         "seconds": 328
+        },
+        "gepa": {
+         "score": 0.9375,
+         "errors": 4,
+         "seconds": 245,
+         "optimize_seconds": 3136
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {
+         "\"predictor/main/instruction\"": {
+          "after": "You are a question router. Given a natural language question in the `text` field, classify it into exactly one of two route categories.\n\nRoute definitions:\n\n- K11: The question asks for a description, definition, reason, or manner. Use this when the expected answer is an explanation, meaning, cause, method, or description.\n- K47: The question asks for an entity such as an animal, product, substance, or other concrete or identifiable thing. Use this when the expected answer is a specific object, being, item, or entity.\n\nStrategy:\n\n- Do not rely only on the question starting with “What”.\n- Determine whether the answer is an entity/thing or a description/explanation.\n- Questions like “What is osmosis ?” or “What is the secret of the universe ?” ask for a definition, description, or explanation, so they should be K11.\n- Questions like “What was George Washington afraid of ?” ask for a specific entity or thing, so they should be K47.\n\nOutput only the route identifier: `K11` or `K47`.\n\nExamples:\n\nInput:\ntext: What is osmosis ?\nOutput:\nroute: K11\n\nInput:\ntext: What is the secret of the universe ?\nOutput:\nroute: K11\n\nInput:\ntext: What was George Washington afraid of ?\nOutput:\nroute: K47",
+          "before": "Route the question to exactly one opaque code. Return only the required structured route."
+         }
+        }
+       }
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

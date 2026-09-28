@@ -1,0 +1,815 @@
+{
+  "runId": "imp-01",
+  "note": "First live Imp run: does a typed router lift with 8 examples on these models the way it did on gpt-5.4-mini (Imp R1/R2), and how well does a ReAct agent use six Elixir tools to answer refund-desk questions with exact answers? Baseline only; GEPA on desk comes next.",
+  "cells": [
+    {
+      "seconds": 40,
+      "status": "ran",
+      "model": "ds4-flash",
+      "model_id": "deepseek-v4-flash",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "desk": {
+          "usage": {
+            "output_tokens": 8126,
+            "input_tokens": 102985,
+            "total_tokens": 111111
+          },
+          "rows": [
+            {
+              "id": "d01",
+              "usage": {
+                "output_tokens": 441,
+                "input_tokens": 5890,
+                "total_tokens": 6331
+              },
+              "expected": "0.00 EUR",
+              "question": "How much would ana@example.com be refunded for order O-101, in their local currency?",
+              "work": "Used customer C1 (gold, Spain/EUR), order O-101 (electronics, $240, delivered 2026-08-02), refund_policy(electronics, gold) window 30 days / 100%, and days_since=56. 56 > 30, so not eligible; refund is 0.00 EUR.",
+              "score": 1,
+              "got": "0.00 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "d02",
+              "usage": {
+                "output_tokens": 388,
+                "input_tokens": 5890,
+                "total_tokens": 6278
+              },
+              "expected": "73.60 EUR",
+              "question": "How much would ana@example.com be refunded for order O-102, in their local currency?",
+              "work": "Ana Ruiz (C1, gold, ES); O-102 apparel, $80, delivered, 17 days since order (window 60 → eligible); apparel/gold refund 100% → $80 → EUR 73.60 at rate 0.92.",
+              "score": 1,
+              "got": "73.60 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "d04",
+              "usage": {
+                "output_tokens": 405,
+                "input_tokens": 5896,
+                "total_tokens": 6301
+              },
+              "expected": "23.70 GBP",
+              "question": "How much would ben@example.com be refunded for order O-104, in their local currency?",
+              "work": "C2 Ben Okafor, standard tier, GB; order O-104 books $30.00, status shipped, 7 days since 2026-09-20 (window 14, eligible); books/standard refund 100% → $30.00 → converted at 0.79 = 23.70 GBP.",
+              "score": 1,
+              "got": "23.70 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "d05",
+              "usage": {
+                "output_tokens": 382,
+                "input_tokens": 4224,
+                "total_tokens": 4606
+              },
+              "expected": "0.00 USD",
+              "question": "How much would chen@example.com be refunded for order O-105, in their local currency?",
+              "work": "Order O-105 (apparel, $120, delivered, 2026-07-15, customer C3 standard/US); days_since=74 > apparel window_days=60 for standard tier, so order not eligible → refund 0.00 in local currency USD.",
+              "score": 1,
+              "got": "0.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "d07",
+              "usage": {
+                "output_tokens": 451,
+                "input_tokens": 5957,
+                "total_tokens": 6408
+              },
+              "expected": "810.00 USD",
+              "question": "How much would dara@example.com be refunded for order O-107, in their local currency?",
+              "work": "Dara Kim (C4, gold, US); order O-107 furniture, $900, delivered, 22 days since 2026-09-05 (window 30, eligible); gold furniture refund 90% → 900*0.90 = 810 USD (local currency USD).",
+              "score": 1,
+              "got": "810.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "d08",
+              "usage": {
+                "output_tokens": 428,
+                "input_tokens": 5965,
+                "total_tokens": 6393
+              },
+              "expected": "45.00 USD",
+              "question": "How much would dara@example.com be refunded for order O-108, in their local currency?",
+              "work": "Dara Kim (C4, gold, US); order O-108 books $45, delivered, 5 days since order (≤14 window); gold books refund 100% → $45.00 USD.",
+              "score": 1,
+              "got": "45.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "d10",
+              "usage": {
+                "output_tokens": 930,
+                "input_tokens": 6365,
+                "total_tokens": 7295
+              },
+              "expected": "yes",
+              "question": "Is order O-103 still eligible for a refund? Answer yes or no.",
+              "work": "O-103: electronics, status delivered, date 2026-09-01 -> days_since=26; electronics window_days=30 for both standard and gold, 26<=30 and not returned, so eligible.",
+              "score": 1,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "d11",
+              "usage": {
+                "output_tokens": 346,
+                "input_tokens": 4132,
+                "total_tokens": 4478
+              },
+              "expected": "yes",
+              "question": "Is order O-104 still eligible for a refund? Answer yes or no.",
+              "work": "O-104: status shipped (not returned), days_since(2026-09-20)=7, books window_days=14 → 7 ≤ 14, so eligible.",
+              "score": 1,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "d13",
+              "usage": {
+                "output_tokens": 450,
+                "input_tokens": 5728,
+                "total_tokens": 6178
+              },
+              "expected": "yes",
+              "question": "Is order O-107 still eligible for a refund? Answer yes or no.",
+              "work": "O-107: status delivered (not returned), furniture, order date 2026-09-05, days_since = 22, policy window_days = 30 for furniture (both tiers) → 22 ≤ 30, so eligible.",
+              "score": 1,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "d14",
+              "usage": {
+                "output_tokens": 721,
+                "input_tokens": 5982,
+                "total_tokens": 6703
+              },
+              "expected": "yes",
+              "question": "Is order O-108 still eligible for a refund? Answer yes or no.",
+              "work": "O-108: category books, status delivered, date 2026-09-22 (days_since=5); refund_policy books window_days=14 for both standard and gold tiers, so 5<=14 and not returned → eligible.",
+              "score": 1,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "d16",
+              "usage": {
+                "output_tokens": 327,
+                "input_tokens": 5506,
+                "total_tokens": 5833
+              },
+              "expected": "O-103",
+              "question": "Which of ben@example.com's orders cost the most?",
+              "work": "Looked up customer C2 (Ben Okafor), listed orders O-103 (electronics, $500) and O-104 (books, $30); O-103 is the most expensive.",
+              "score": 1,
+              "got": "O-103",
+              "termination": "submit"
+            },
+            {
+              "id": "d17",
+              "usage": {
+                "output_tokens": 348,
+                "input_tokens": 5517,
+                "total_tokens": 5865
+              },
+              "expected": "O-105",
+              "question": "Which of chen@example.com's orders cost the most?",
+              "work": "Used customer C3 orders O-105 ($120.00) and O-106 ($60.00); O-105 cost the most.",
+              "score": 1,
+              "got": "O-105",
+              "termination": "submit"
+            },
+            {
+              "id": "d19",
+              "usage": {
+                "output_tokens": 664,
+                "input_tokens": 9481,
+                "total_tokens": 10145
+              },
+              "expected": "73.60 EUR",
+              "question": "What is the total refund ana@example.com could get right now across all their orders, in their local currency?",
+              "work": "Ana (C1, gold, ES/EUR): O-101 electronics $240, 56 days > 30-day window → ineligible (0); O-102 apparel $80, 17 days ≤ 60-day window, 100% gold refund = $80 → 73.60 EUR at 0.92 rate. Total 73.60 EUR.",
+              "score": 1,
+              "got": "73.60 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "d20",
+              "usage": {
+                "output_tokens": 713,
+                "input_tokens": 9572,
+                "total_tokens": 10285
+              },
+              "expected": "379.20 GBP",
+              "question": "What is the total refund ben@example.com could get right now across all their orders, in their local currency?",
+              "work": "Ben Okafor (C2, standard, GB); orders O-103 (electronics, $500, 26 days, window 30, 90%) and O-104 (books, $30, 7 days, window 14, 100%) both eligible: 450 + 30 = 480 USD; convert at 0.79 → 379.20 GBP.",
+              "score": 1,
+              "got": "379.20 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "d22",
+              "usage": {
+                "output_tokens": 632,
+                "input_tokens": 9507,
+                "total_tokens": 10139
+              },
+              "expected": "855.00 USD",
+              "question": "What is the total refund dara@example.com could get right now across all their orders, in their local currency?",
+              "work": "C4 gold, US; O-107 furniture $900, 22 days ≤ 30, 90% = 810.00; O-108 books $45, 5 days ≤ 14, 100% = 45.00; total 855.00 USD (rate 1.0).",
+              "score": 1,
+              "got": "855.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "d23",
+              "usage": {
+                "output_tokens": 500,
+                "input_tokens": 7373,
+                "total_tokens": 7873
+              },
+              "expected": "2",
+              "question": "How many of ben@example.com's orders are eligible for a refund today?",
+              "work": "O-103 electronics delivered 26 days ago, window 30 → eligible; O-104 books 7 days ago, window 14 → eligible. Count = 2.",
+              "score": 1,
+              "got": "2",
+              "termination": "submit"
+            }
+          ],
+          "tool_calls": 107,
+          "arms": {
+            "react": {
+              "seconds": 23,
+              "errors": 0,
+              "score": 1
+            }
+          },
+          "n_test": 16,
+          "terminations": {
+            "submit": 16
+          },
+          "tool_calls_by_name": {
+            "convert": 8,
+            "days_since": 18,
+            "find_customer": 15,
+            "get_order": 22,
+            "list_orders": 6,
+            "refund_policy": 22,
+            "submit": 16
+          }
+        },
+        "route": {
+          "misses": {},
+          "arms": {
+            "few_shot_k8": {
+              "seconds": 7,
+              "errors": 0,
+              "score": 1
+            },
+            "zero_shot": {
+              "seconds": 9,
+              "errors": 0,
+              "score": 1
+            }
+          },
+          "misses_few_shot": {},
+          "n_test": 20
+        }
+      }
+    },
+    {
+      "seconds": 88,
+      "status": "ran",
+      "model": "ds4-pro",
+      "model_id": "deepseek-v4-pro",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "desk": {
+          "usage": {
+            "output_tokens": 11438,
+            "input_tokens": 113775,
+            "total_tokens": 125213
+          },
+          "rows": [
+            {
+              "id": "d01",
+              "usage": {
+                "output_tokens": 682,
+                "input_tokens": 6601,
+                "total_tokens": 7283
+              },
+              "expected": "0.00 EUR",
+              "question": "How much would ana@example.com be refunded for order O-101, in their local currency?",
+              "work": "Order O-101 was delivered, category electronics, price 240.00 USD, date 2026-08-02 (56 days ago); electronics gold policy window is 30 days, so not eligible; converted 0 USD to EUR (Spain) = 0.00.",
+              "score": 1,
+              "got": "0.00 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "d02",
+              "usage": {
+                "output_tokens": 572,
+                "input_tokens": 6543,
+                "total_tokens": 7115
+              },
+              "expected": "73.60 EUR",
+              "question": "How much would ana@example.com be refunded for order O-102, in their local currency?",
+              "work": "Customer C1 (gold, ES); order O-102 apparel $80, 17 days since, policy 100% within 60 days; converted $80 to 73.60 EUR.",
+              "score": 1,
+              "got": "73.60 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "d04",
+              "usage": {
+                "output_tokens": 728,
+                "input_tokens": 6712,
+                "total_tokens": 7440
+              },
+              "expected": "23.70 GBP",
+              "question": "How much would ben@example.com be refunded for order O-104, in their local currency?",
+              "work": "Used customer C2 (GB, standard tier), order O-104 (books, $30, shipped, 2026-09-20), days_since=7 <= 14-day window, 100% policy, converted $30 to GBP.",
+              "score": 1,
+              "got": "23.70 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "d05",
+              "usage": {
+                "output_tokens": 455,
+                "input_tokens": 4603,
+                "total_tokens": 5058
+              },
+              "expected": "0.00 USD",
+              "question": "How much would chen@example.com be refunded for order O-105, in their local currency?",
+              "work": "Customer C3 (US, standard); order O-105 apparel $120, days_since 74 vs window 60, so not eligible.",
+              "score": 1,
+              "got": "0.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "d07",
+              "usage": {
+                "output_tokens": 651,
+                "input_tokens": 6632,
+                "total_tokens": 7283
+              },
+              "expected": "810.00 USD",
+              "question": "How much would dara@example.com be refunded for order O-107, in their local currency?",
+              "work": "Customer C4 (gold, US), order O-107 furniture $900 delivered; policy for gold furniture 90% within 30 days; 22 days since order, so eligible; 900*0.90 = 810.00 USD via convert to US.",
+              "score": 1,
+              "got": "810.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "d08",
+              "usage": {
+                "output_tokens": 530,
+                "input_tokens": 6438,
+                "total_tokens": 6968
+              },
+              "expected": "45.00 USD",
+              "question": "How much would dara@example.com be refunded for order O-108, in their local currency?",
+              "work": "Customer C4 (gold, US), order O-108 books delivered 2026-09-22, 5 days <= 14-day window, policy 100%, refund 45.00 USD.",
+              "score": 1,
+              "got": "45.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "d10",
+              "usage": {
+                "output_tokens": 947,
+                "input_tokens": 6544,
+                "total_tokens": 7491
+              },
+              "expected": "yes",
+              "question": "Is order O-103 still eligible for a refund? Answer yes or no.",
+              "work": "Order O-103 is electronics, status delivered, 26 days since 2026-09-01, and electronics window_days is 30 for both standard and gold tiers.",
+              "score": 1,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "d11",
+              "usage": {
+                "output_tokens": 875,
+                "input_tokens": 6515,
+                "total_tokens": 7390
+              },
+              "expected": "yes",
+              "question": "Is order O-104 still eligible for a refund? Answer yes or no.",
+              "work": "Order O-104 is shipped (not returned), days_since=7, books refund window=14 days, so eligible.",
+              "score": 1,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "d13",
+              "usage": {
+                "output_tokens": 1270,
+                "input_tokens": 6881,
+                "total_tokens": 8151
+              },
+              "expected": "yes",
+              "question": "Is order O-107 still eligible for a refund? Answer yes or no.",
+              "work": "Order O-107 is delivered (not returned), dated 2026-09-05; days_since=22, and furniture refund window is 30 days for both tiers, so it is eligible.",
+              "score": 1,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "d14",
+              "usage": {
+                "output_tokens": 696,
+                "input_tokens": 4682,
+                "total_tokens": 5378
+              },
+              "expected": "yes",
+              "question": "Is order O-108 still eligible for a refund? Answer yes or no.",
+              "work": "Order O-108 is delivered (not returned), days_since(2026-09-22)=5, and books refund window is 14 days for both standard and gold tiers.",
+              "score": 1,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "d16",
+              "usage": {
+                "output_tokens": 353,
+                "input_tokens": 5884,
+                "total_tokens": 6237
+              },
+              "expected": "O-103",
+              "question": "Which of ben@example.com's orders cost the most?",
+              "work": "Found C2 for ben@example.com, listed orders O-103 ($500 electronics) and O-104 ($30 books); O-103 costs the most.",
+              "score": 1,
+              "got": "O-103",
+              "termination": "submit"
+            },
+            {
+              "id": "d17",
+              "usage": {
+                "output_tokens": 364,
+                "input_tokens": 5886,
+                "total_tokens": 6250
+              },
+              "expected": "O-105",
+              "question": "Which of chen@example.com's orders cost the most?",
+              "work": "Looked up Chen Wei (C3), listed orders O-105 and O-106, and compared order prices: O-105 $120 vs O-106 $60.",
+              "score": 1,
+              "got": "O-105",
+              "termination": "submit"
+            },
+            {
+              "id": "d19",
+              "usage": {
+                "output_tokens": 829,
+                "input_tokens": 10500,
+                "total_tokens": 11329
+              },
+              "expected": "73.60 EUR",
+              "question": "What is the total refund ana@example.com could get right now across all their orders, in their local currency?",
+              "work": "Customer C1 (gold, ES); O-101 electronics 56 days > 30 window => 0; O-102 apparel 17 days <= 60 window, 100% of 80 USD = 80 USD, converted at 0.92 to 73.60 EUR.",
+              "score": 1,
+              "got": "73.60 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "d20",
+              "usage": {
+                "output_tokens": 873,
+                "input_tokens": 10444,
+                "total_tokens": 11317
+              },
+              "expected": "379.20 GBP",
+              "question": "What is the total refund ben@example.com could get right now across all their orders, in their local currency?",
+              "work": "Customer C2 (standard, GB); O-103 electronics 500 USD, 26 days <=30, 90% = 450 USD; O-104 books 30 USD, 7 days <=14, 100% = 30 USD; total 480 USD converted at 0.79 = 379.20 GBP.",
+              "score": 1,
+              "got": "379.20 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "d22",
+              "usage": {
+                "output_tokens": 972,
+                "input_tokens": 10848,
+                "total_tokens": 11820
+              },
+              "expected": "855.00 USD",
+              "question": "What is the total refund dara@example.com could get right now across all their orders, in their local currency?",
+              "work": "Customer C4 (gold, US); orders O-107 (furniture, 900 USD, 22 days, 30-day window, 90%) and O-108 (books, 45 USD, 5 days, 14-day window, 100%); total 810+45=855 USD, converted at 1.0.",
+              "score": 1,
+              "got": "855.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "d23",
+              "usage": {
+                "output_tokens": 641,
+                "input_tokens": 8062,
+                "total_tokens": 8703
+              },
+              "expected": "2",
+              "question": "How many of ben@example.com's orders are eligible for a refund today?",
+              "work": "Used customer C2 (standard tier), orders O-103 (electronics, 26 days, window 30) and O-104 (books, 7 days, window 14); neither returned, so both eligible.",
+              "score": 1,
+              "got": "2",
+              "termination": "submit"
+            }
+          ],
+          "tool_calls": 107,
+          "arms": {
+            "react": {
+              "seconds": 58,
+              "errors": 0,
+              "score": 1
+            }
+          },
+          "n_test": 16,
+          "terminations": {
+            "submit": 16
+          },
+          "tool_calls_by_name": {
+            "convert": 8,
+            "days_since": 18,
+            "find_customer": 15,
+            "get_order": 22,
+            "list_orders": 6,
+            "refund_policy": 22,
+            "submit": 16
+          }
+        },
+        "route": {
+          "misses": {},
+          "arms": {
+            "few_shot_k8": {
+              "seconds": 15,
+              "errors": 0,
+              "score": 1
+            },
+            "zero_shot": {
+              "seconds": 13,
+              "errors": 0,
+              "score": 1
+            }
+          },
+          "misses_few_shot": {},
+          "n_test": 20
+        }
+      }
+    },
+    {
+      "seconds": 5,
+      "status": "ran",
+      "model": "kimi3",
+      "model_id": "kimi-k3",
+      "endpoint": "https://api.moonshot.ai/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "desk": {
+          "usage": {},
+          "rows": [
+            {
+              "id": "d01",
+              "usage": {},
+              "expected": "0.00 EUR",
+              "question": "How much would ana@example.com be refunded for order O-101, in their local currency?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d02",
+              "usage": {},
+              "expected": "73.60 EUR",
+              "question": "How much would ana@example.com be refunded for order O-102, in their local currency?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d04",
+              "usage": {},
+              "expected": "23.70 GBP",
+              "question": "How much would ben@example.com be refunded for order O-104, in their local currency?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d05",
+              "usage": {},
+              "expected": "0.00 USD",
+              "question": "How much would chen@example.com be refunded for order O-105, in their local currency?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d07",
+              "usage": {},
+              "expected": "810.00 USD",
+              "question": "How much would dara@example.com be refunded for order O-107, in their local currency?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d08",
+              "usage": {},
+              "expected": "45.00 USD",
+              "question": "How much would dara@example.com be refunded for order O-108, in their local currency?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d10",
+              "usage": {},
+              "expected": "yes",
+              "question": "Is order O-103 still eligible for a refund? Answer yes or no.",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d11",
+              "usage": {},
+              "expected": "yes",
+              "question": "Is order O-104 still eligible for a refund? Answer yes or no.",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d13",
+              "usage": {},
+              "expected": "yes",
+              "question": "Is order O-107 still eligible for a refund? Answer yes or no.",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d14",
+              "usage": {},
+              "expected": "yes",
+              "question": "Is order O-108 still eligible for a refund? Answer yes or no.",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d16",
+              "usage": {},
+              "expected": "O-103",
+              "question": "Which of ben@example.com's orders cost the most?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d17",
+              "usage": {},
+              "expected": "O-105",
+              "question": "Which of chen@example.com's orders cost the most?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d19",
+              "usage": {},
+              "expected": "73.60 EUR",
+              "question": "What is the total refund ana@example.com could get right now across all their orders, in their local currency?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d20",
+              "usage": {},
+              "expected": "379.20 GBP",
+              "question": "What is the total refund ben@example.com could get right now across all their orders, in their local currency?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d22",
+              "usage": {},
+              "expected": "855.00 USD",
+              "question": "What is the total refund dara@example.com could get right now across all their orders, in their local currency?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            },
+            {
+              "id": "d23",
+              "usage": {},
+              "expected": "2",
+              "question": "How many of ben@example.com's orders are eligible for a refund today?",
+              "work": null,
+              "score": 0,
+              "got": null,
+              "termination": "incomplete"
+            }
+          ],
+          "tool_calls": 0,
+          "arms": {
+            "react": {
+              "seconds": 2,
+              "errors": 0,
+              "score": 0
+            }
+          },
+          "n_test": 16,
+          "terminations": {
+            "incomplete": 16
+          },
+          "tool_calls_by_name": {}
+        },
+        "route": {
+          "misses": {
+            "A phishing email is impersonating your billing notifications.": null,
+            "Can I merge two workspaces into one?": null,
+            "Can the weekly digest email be customized with our logo?": null,
+            "Can you confirm whether our data was in the reported breach?": null,
+            "Do you offer nonprofit discounts on the team plan?": null,
+            "Downgrade our plan to the starter tier at the end of the term.": null,
+            "Is there an on-prem version of the product?": null,
+            "Our purchase order number is missing from the invoice.": null,
+            "Please enable IP allowlisting for our admin accounts.": null,
+            "Please support markdown in comments.": null,
+            "Refund attempts fail with a gateway timeout error.": null,
+            "Scheduled reports did not run last night.": null,
+            "Session stays active after logout on shared computers.": null,
+            "The currency on our invoice should be EUR, not USD.": null,
+            "The mobile app can't sync; requests fail with DNS errors.": null,
+            "The mobile app is missing the reports tab.": null,
+            "The proration on our upgrade looks wrong by about $40.": null,
+            "The search index seems stale; new records don't appear.": null,
+            "We want to restrict API tokens to read-only scopes.": null,
+            "We're seeing elevated latency from the eu-west region.": null
+          },
+          "arms": {
+            "few_shot_k8": {
+              "seconds": 1,
+              "errors": 20,
+              "score": 0
+            },
+            "zero_shot": {
+              "seconds": 2,
+              "errors": 20,
+              "score": 0
+            }
+          },
+          "misses_few_shot": {
+            "A phishing email is impersonating your billing notifications.": null,
+            "Can I merge two workspaces into one?": null,
+            "Can the weekly digest email be customized with our logo?": null,
+            "Can you confirm whether our data was in the reported breach?": null,
+            "Do you offer nonprofit discounts on the team plan?": null,
+            "Downgrade our plan to the starter tier at the end of the term.": null,
+            "Is there an on-prem version of the product?": null,
+            "Our purchase order number is missing from the invoice.": null,
+            "Please enable IP allowlisting for our admin accounts.": null,
+            "Please support markdown in comments.": null,
+            "Refund attempts fail with a gateway timeout error.": null,
+            "Scheduled reports did not run last night.": null,
+            "Session stays active after logout on shared computers.": null,
+            "The currency on our invoice should be EUR, not USD.": null,
+            "The mobile app can't sync; requests fail with DNS errors.": null,
+            "The mobile app is missing the reports tab.": null,
+            "The proration on our upgrade looks wrong by about $40.": null,
+            "The search index seems stale; new records don't appear.": null,
+            "We want to restrict API tokens to read-only scopes.": null,
+            "We're seeing elevated latency from the eu-west region.": null
+          },
+          "n_test": 20
+        }
+      }
+    }
+  ]
+}

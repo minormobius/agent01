@@ -4416,6 +4416,23 @@
         "math",
         "3d"
       ]
+    },
+    {
+      "n": "imp",
+      "u": "https://imp.mino.mobi",
+      "c": "tools",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-09-28",
+      "b": "2026-09-28",
+      "p": "os",
+      "surface": "imp",
+      "d": "Imp — deepfates’ port of DSPy to Elixir — measured from outside: GEPA teaching three models (DeepSeek V4 Flash, V4 Pro, Kimi K3) what two opaque codes mean from feedback alone (50% → 94% for Kimi), ReAct agents answering refund-desk questions through Elixir tools, every run’s traces and compiled programs, and a crash in Imp’s GEPA with a two-clause fix.",
+      "tags": [
+        "elixir",
+        "llm",
+        "eval"
+      ]
     }
   ],
   "notListed": [

@@ -1759,6 +1759,21 @@
         ".github/workflows/deploy-henderhead.yml"
       ],
       "note": "An unofficial fan site rebuilding Matt Henderson's mathematical demos as interactive toys (worker `henderhead`, custom_domain henderhead.mino.mobi). Thin header/JSON worker in front of static assets — no build step to serve, no D1, no AI, no secrets. Five demos, each on its own Rust→WASM engine under <dir>/engine, gated by cargo test plus a node selftest — the workflow rebuilds every .wasm rather than trusting the committed copies: /cf/ continued-fraction Fourier curves, /craft/ a crafting-recipe automaton, /wheel/ a waterwheel that is the Lorenz system, /ball/ bouncing-ball chaos, /sand/ conic sections out of sand at the angle of repose. The follow-the-feed pipeline the site describes is deliberately NOT built — see the consent gate at henderhead.mino.mobi/#consent and henderhead/CLAUDE.md."
+    },
+    {
+      "surface": "imp",
+      "dir": "imp",
+      "endpoint": "imp.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/friends-project-planning-cags5l",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "imp/**",
+        ".github/workflows/deploy-imp.yml"
+      ],
+      "note": "An independent evaluation of Imp (deepfates' port of DSPy to Elixir/BEAM), published from the bakeoff/imp rig: GEPA on Imp's opaque-code TREC task, ReAct agents over Elixir tools, the runs and their evidence, and a bug found in Imp's GEPA with its fix. Thin assets Worker (worker `imp`, plain route imp.mino.mobi/*) — no build, no bindings, no secrets. (full description: imp/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-28) — plain route imp.mino.mobi/*, no custom-domain slot. deploy-imp.yml runs scripts/route-dns.mjs, then fails unless the host serves. Owned by claude/friends-project-planning-cags5l."
     }
   ],
   "unmanaged": {

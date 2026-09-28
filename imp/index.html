@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>imp — measured</title>
+<meta name="description" content="An independent evaluation of Imp, deepfates' port of DSPy to Elixir: typed LM programs, ReAct agents with Elixir tools, and GEPA optimization, measured on DeepSeek V4 Flash, DeepSeek V4 Pro and Kimi K3.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="imp.css">
+<script>
+  try { const t = localStorage.getItem('imp-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</head>
+<body>
+
+<header class="top">
+  <button class="theme-toggle" id="theme" type="button" aria-label="Toggle colour theme">theme</button>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a><a class="crumb" href="https://github.com/deepfates/imp">deepfates/imp</a>
+  <h1>imp <span class="thin">— measured</span></h1>
+  <p class="subtitle">an independent evaluation · imp 0.5.0 · deepseek v4 flash · deepseek v4 pro · kimi k3</p>
+</header>
+
+<main>
+
+<p class="lede">
+  <a href="https://github.com/deepfates/imp">Imp</a> is a port of
+  <a href="https://dspy.ai">DSPy</a> to Elixir and the BEAM: you declare what a language-model call takes
+  and returns, Imp writes the prompt and checks the reply, and an optimizer rewrites the program against
+  examples of what good looks like. This site is one outside look at it — four runs, three models,
+  every number reproducible from a committed rig, and everything that went wrong along the way.
+</p>
+
+<div class="tiles" id="tiles" aria-live="polite"></div>
+
+<h2>GEPA teaches a model what it was never told</h2>
+<p>
+  The task is Imp's own matched experiment (<code>research/matched_instruction_optimizers_trec</code>):
+  route a TREC question to one of two <b>opaque</b> codes, <code>K11</code> or <code>K47</code>.
+  The program is never told what the codes mean. During optimization the metric's feedback on 20 training
+  questions names the meanings; 40 selection questions return a score and nothing else; 80 held-out
+  questions are scored at the end. A model that does not know the codes is at a coin flip, however strong
+  it is — so whatever it gains is what <b>GEPA</b> taught it. GEPA runs the program, reads the failed runs,
+  and has a second model (here DeepSeek V4 Pro) rewrite the instruction.
+</p>
+
+<figure class="chart" id="trec-chart">
+  <div class="legend" aria-hidden="true">
+    <span><i style="background:var(--before)"></i>before (baseline)</span>
+    <span><i style="background:var(--after)"></i>after GEPA</span>
+    <span><i style="background:none;border:1px dashed var(--muted);border-radius:0;width:14px;height:0;vertical-align:3px"></i>chance (50%)</span>
+  </div>
+  <svg id="trec-svg" role="img" aria-labelledby="trec-cap"></svg>
+  <div class="tip" id="tip"></div>
+  <figcaption id="trec-cap">Held-out accuracy on 80 TREC questions, before and after GEPA, per model (run imp-04). One question is 1.25 points; these are single runs.</figcaption>
+</figure>
+<details><summary>The same numbers as a table</summary><div class="tbl-wrap" id="trec-table"></div></details>
+
+<div class="note">
+  <p><b>Read the low baselines carefully.</b> Most of the DeepSeek baseline misses were not wrong codes but
+  replies with no <code>route</code> field at all — Imp rejects those as parse errors and they score 0.
+  Of Flash's 16 baseline answers that did parse, 5 were right. So for the DeepSeek models the lift is two
+  lessons at once: what the codes mean, and how to answer in the required shape. <b>Kimi K3</b> is the clean
+  comparison: few parse errors, a baseline of exactly 50%, and +44 points after GEPA — in line with the
+  +40 Imp itself reports for gpt-5.4-mini on this task (Imp <code>RESULTS.md</code>, R3).</p>
+</div>
+
+<h3>What the optimizer wrote</h3>
+<p>The whole of what changed, per model: the instruction before, and the instruction GEPA selected. Nothing else in the program moved — no examples were added.</p>
+<div class="tabs" id="instr-tabs" role="tablist"></div>
+<div class="pair" id="instr-pair"></div>
+
+<h2>Tools: the part that already works</h2>
+<p>
+  <code>Imp.react/3</code> builds an agent from a signature and a list of tools. A tool is an ordinary Elixir
+  function with a JSON schema; Imp checks the model's arguments against the schema <em>before</em> the
+  function runs, and a failed check goes back to the model as an error it can correct:
+</p>
+<pre><code>Imp.tool(:refund_policy,
+  "Refund window (days) and percent refunded for a product category and customer tier.",
+  fn %{"category" =&gt; cat, "tier" =&gt; tier} -&gt;
+    %{"window_days" =&gt; window(cat), "percent" =&gt; percent(cat, tier)}
+  end,
+  schema: %{"type" =&gt; "object",
+            "properties" =&gt; %{"category" =&gt; %{"type" =&gt; "string", "enum" =&gt; ~w(electronics apparel books furniture)},
+                              "tier" =&gt; %{"type" =&gt; "string", "enum" =&gt; ~w(standard gold)}},
+            "required" =&gt; ["category", "tier"]})
+
+agent =
+  "question -&gt; answer: string, work: string"
+  |&gt; Imp.signature(instructions)
+  |&gt; Imp.react(tools, lm: lm, max_iters: 12)</code></pre>
+<p>
+  We built two refund desks the agent can only see through such tools — customers, orders, a refund policy,
+  dates, currency — and asked questions with exactly one right answer, computed by a reference solver from
+  the same data the tools read. <code>desk</code> has six tools and 16 held-out questions;
+  <code>desk_hard</code> has seven and adds the traps a real policy has: the policy <em>version</em> follows the
+  order date, windows run from delivery, undelivered orders cancel for 100%, opened electronics pay a
+  restocking fee, some questions scan every customer, and five currencies including yen.
+</p>
+<div class="tbl-wrap" id="tools-table"></div>
+<p>
+  Every model answered every question once the rules were stated (see <a href="#findings">findings</a> for the
+  one that wasn't). That is a result in itself — tool use over a well-specified policy is solved for these
+  models — and the reason the optimizer test above had to find a task with something to <em>learn</em>.
+  Here is one agent turn, as recorded: DeepSeek V4 Flash, asked for a customer's total refund. Steps with two
+  calls are parallel tool calls the model made in one step.
+</p>
+<pre><code>1. find_customer({"email":"ben@example.com"})        → tier standard, country GB
+2. list_orders({"customer_id":"C2"})                  → ["O-103","O-104"]
+3. get_order(O-103)  ‖  get_order(O-104)              → $500 electronics · $30 books
+4. days_since ×2  ‖  refund_policy ×2                 → 26 d, 7 d · 30 d / 90% · 14 d / 100%
+5. convert({"amount_usd":480,"to":"GBP"})             → 379.20
+6. submit({"answer":"379.20 GBP", "work":"…"})        ✓ expected 379.20 GBP</code></pre>
+<p>Every turn of every run: <span id="trace-links"></span></p>
+
+<h2 id="findings">Findings</h2>
+
+<div class="finding">
+  <span class="who">in imp · reported upstream-ready</span>
+  <h3>GEPA crashes on an improper list anywhere in a trajectory</h3>
+  <p>
+    Against real providers, GEPA died a minute in with <code>FunctionClauseError</code> in
+    <code>Enum.find_value_list/3</code> — twice, with and without generous timeouts. After every batch, GEPA
+    walks all trajectories looking for an <code>Imp.OperationalSafetyError</code>.
+    <code>find_operational_safety/1</code> (in <code>gepa/engine.ex</code> and <code>gepa/program_adapter.ex</code>)
+    recurses into anything <code>is_list/1</code> accepts with <code>Enum.find_value/2</code> — and
+    <code>is_list/1</code> is true for an improper list, which <code>Enum.find_value/2</code> cannot walk. Real
+    provider data carries one; a scripted model never does, which is why it passes offline.
+  </p>
+  <p>It reproduces deterministically with no model at all — put an improper list in a metric's metadata:</p>
+<pre><code>metric = fn ex, pred -&gt; base.(ex, pred) |&gt; Map.put(:metadata, %{iodata: ["a" | "b"]}) end
+Imp.optimize!(agent, Imp.Optimizer.GEPA.new(metric, reflection_lm: lm, max_metric_calls: 30), train, val)
+#=&gt; ** (Imp.Error) {:optimizer_failed, Imp.Optimizer.GEPA, %FunctionClauseError{module: Enum, function: :find_value_list, arity: 3}}</code></pre>
+  <p>The fix is to walk cons cells, so an improper tail falls through to the catch-all clause:</p>
+<pre><code>-  defp find_operational_safety(list) when is_list(list),
+-    do: Enum.find_value(list, &amp;find_operational_safety/1)
++  defp find_operational_safety([head | tail]),
++    do: find_operational_safety(head) || find_operational_safety(tail)
++
++  defp find_operational_safety([]), do: nil</code></pre>
+  <p>
+    Every GEPA number on this site ran with that patch applied, and with the reproduction as a check that must pass
+    first. Both are in the rig (<code>bakeoff/imp/patch_imp.exs</code>, <code>checks/gepa_improper_list.exs</code>).
+    Worth knowing too: GEPA's default per-row and per-reflection time budgets are 30 seconds each, short for an
+    agent whose run makes a dozen tool calls; we used five minutes.
+  </p>
+</div>
+
+<div class="finding">
+  <span class="who">in our rubric · fixed</span>
+  <h3>A rule the answer key used and nobody was told</h3>
+  <p>
+    On its first run, <code>desk_hard</code> scored a returned order against "returned orders are not eligible" —
+    a rule stated in <code>desk</code>'s instructions and dropped from <code>desk_hard</code>'s. Both models that
+    ran lost that point. The rule now sits in the <code>refund_policy</code> tool's description, and the run
+    that followed put all three models at 18/18. The lesson the bake-off already teaches: every rule the key
+    applies must be written down where the agent can read it.
+  </p>
+</div>
+
+<div class="finding">
+  <span class="who">in configuration · fixed</span>
+  <h3>Kimi K3 thinks, always</h3>
+  <p>
+    On the first run every Kimi call failed within seconds. Kimi K3 has thinking always on; sent
+    <code>temperature: 0</code> and a 2,048-token budget, it answered nothing. Without a temperature and with
+    16k tokens it scored 20/20 on routing and 18/18 on the hard desk — at roughly six times DeepSeek Flash's
+    wall-clock time. Per-model options live in <code>bakeoff/imp/models.json</code>.
+  </p>
+</div>
+
+<h2>Runs</h2>
+<p>Each run is one commit of a sentinel file; one GitHub Actions runner per model; the evidence lands on a results branch and is imported here unedited.</p>
+<div class="tbl-wrap" id="runs-table"></div>
+
+<h2>How it's measured</h2>
+<ul>
+  <li><b>Where it runs.</b> <code>.github/workflows/imp-bench.yml</code> in
+    <a href="https://github.com/minormobius/agent01">minormobius/agent01</a>: one runner per model, OTP 28 and
+    Elixir 1.19, Imp <code>~&gt; 0.5.0</code> from Hex. Nothing deploys from a run.</li>
+  <li><b>Models.</b> DeepSeek V4 Flash and V4 Pro at <code>api.deepseek.com</code>, Kimi K3 at
+    <code>api.moonshot.ai</code>, all through their OpenAI-compatible endpoints — the same ids the repo's
+    agent-harness bake-off uses.</li>
+  <li><b>Before any live call</b>, every cell runs the whole rig against a scripted model and against a local
+    fake OpenAI endpoint (Imp's real HTTP path, no key), and the GEPA patch's reproduction.</li>
+  <li><b>Answer keys</b> are computed, never typed: the tool tasks' reference solver reads the same data the
+    tools do; TREC's rows come from Imp's repository at a pinned commit and are sha256-checked.</li>
+  <li><b>Not in this repository:</b> the TREC rows themselves. Imp records the corpus license as unknown, so
+    they are fetched at run time, not republished. The three sample questions inside GEPA's rewritten
+    instructions are the model's quotation.</li>
+  <li><b>Limits.</b> Single runs; 16–80 held-out questions each; <code>temperature: 0</code> is requested, not
+    guaranteed; token counts come from the providers and cover the tool tasks only.</li>
+</ul>
+
+<h2>Next</h2>
+<p>
+  The tasks that moved were the ones with something private to learn — a code's meaning, a convention.
+  The next one is built from a single person's forty-odd thousand Bluesky posts.
+</p>
+
+</main>
+
+<footer>
+  Built in <a href="https://github.com/minormobius/agent01/tree/claude/friends-project-planning-cags5l/bakeoff/imp">bakeoff/imp</a>.
+  Imp is by <a href="https://github.com/deepfates">deepfates</a>, MIT licensed. Numbers here are ours, not Imp's.
+</footer>
+
+<script src="imp.js" type="module"></script>
+</body>
+</html>
