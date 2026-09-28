@@ -17,7 +17,7 @@
 // stream says so. Nothing here pretends: every decision is stamped with the
 // source that produced it — typesafe, offline stand-in, random, or baseline.
 
-import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots, chestItems, surplus, houseCapacity, portalsHere, inNether, PORTAL_OBSIDIAN, homeMineAt, lostThings, itemsInSight, treeSpots } from './macros.mjs';
+import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots, chestItems, surplus, houseCapacity, portalsHere, inNether, PORTAL_OBSIDIAN, homeMineAt, lostThings, itemsInSight, treeSpots, houseHoles, targetsInSight, creeperNear } from './macros.mjs';
 import { projectState, projectFact, projectDue, projectQuestion, setProject, baselineProject, PROJECT_NAMES, PROJECTS } from './projects.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 import { baselinePolicy, Driver, MILESTONES } from './runner.mjs';
@@ -125,7 +125,12 @@ export function threats(sim) {
   const adjacent = [...sim.ents.values()].some((e) => HOSTILE.has(e.kind) && sim.adjacentTo(p, e));
   const foodHeld = Object.keys(FOOD).some((k) => sim.has(k));
   if (sim.get(p.c, p.y + 1) === B.water) out.push({ id: 'air', text: `under water: air ${p.air}/60, drowning at 0`, relief: (o) => o.name === 'surface' });
-  if (adjacent) out.push({ id: 'zombie', text: 'something hostile is hitting you', relief: (o) => o.name === 'fight' || o.name === 'dig_in' });
+  const creeper = [...sim.ents.values()].find((e) => e.kind === 'creeper' && sim.dist(e.c, p.c) <= 3);
+  const skel = [...sim.ents.values()].find((e) => e.kind === 'skeleton' && sim.dist(e.c, p.c) <= 7 && sim.los(p, e));
+  if (creeper) out.push({ id: 'creeper', text: creeper.fuse ? 'a creeper is hissing beside you: it explodes in moments' : `a creeper ${Math.round(sim.dist(creeper.c, p.c))} tiles away: it explodes when it reaches you`, relief: (o) => o.name === 'flee', worse: (o) => o.name === 'fight' });
+  if (skel) out.push({ id: 'skeleton', text: `a skeleton ${Math.round(sim.dist(skel.c, p.c))} tiles away is shooting at you`, relief: (o) => o.name === 'shoot' || o.name === 'fight' || SHELTER.has(o.name) });
+  if (adjacent && !creeper) out.push({ id: 'zombie', text: 'something hostile is hitting you', relief: (o) => o.name === 'fight' || o.name === 'dig_in' });
+  if (sim._house && houseHoles(sim).length) out.push({ id: 'breach', text: `the house has ${houseHoles(sim).length} holes: it is no shelter until patched`, relief: (o) => o.name === 'repair_house' });
   if (night && !inside) out.push({ id: 'night', text: `night, out in the open (${zNear} zombies within 6)`, relief: (o) => SHELTER.has(o.name) || (o.name === 'sleep_until_dawn' && inside), worse: (o) => o.leaves });
   if (p.food <= 6) out.push({ id: 'hunger', text: `food ${p.food}/20${p.food === 0 ? ': starving, losing health' : ''}`,
     relief: (o) => (o.name === 'eat' && foodHeld) || o.name === 'hunt' || (o.name === 'harvest') || (o.name === 'craft' && ['bread', 'cooked_porkchop'].includes(o.args?.item)) || (o.name === 'forage' && o.args?.sp === 'sunfruit') });
@@ -400,7 +405,7 @@ export function options(sim) {
     ...(!sim.has('diamond_sword') ? ['diamond_sword'] : []), ...(!sim.has('bucket') && !sim.has('water_bucket') ? ['bucket'] : []), ...(!sim.ow('beacons').size && !sim.has('beacon') ? ['beacon'] : []), ...(!sim.has('diamond_armor') ? ['diamond_armor'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : []), ...(sim.has('beef') ? ['cooked_beef'] : []), ...(sim.has('chicken') ? ['cooked_chicken'] : []),
     ...(sim.has('glowstone_dust', 4) && !sim.has('glowstone') ? ['glowstone'] : []), ...(sim.has('quartz', 4) ? ['quartz_block'] : []),
     // axes and shovels one tier above what is held, shears once
-    ...['axe', 'shovel'].map((k) => ['stone', 'iron', 'diamond'][Math.max(0, sim.toolTier(k) - 1)] + '_' + k).filter((it) => TOOLS[it]), ...(!sim.has('shears') ? ['shears'] : []), ...(!sim.has('boat') && !p.boat ? ['boat'] : [])];
+    ...['axe', 'shovel'].map((k) => ['stone', 'iron', 'diamond'][Math.max(0, sim.toolTier(k) - 1)] + '_' + k).filter((it) => TOOLS[it]), ...(!sim.has('shears') ? ['shears'] : []), ...(!sim.has('boat') && !p.boat ? ['boat'] : []), ...(!sim.has('bow') ? ['bow'] : []), ...(sim.has('bow') ? ['arrow'] : []), ...(!sim.has('shield') ? ['shield'] : [])];
   // a tool nearly worn out may be made again (a spare), and the option says how worn it is
   const usesLeft = (item) => (p.wear && p.wear[item]) ?? durability(item);
   const worn = (item) => sim.inv[item] === 1 && durability(item) && usesLeft(item) <= 0.2 * durability(item);
@@ -417,6 +422,9 @@ export function options(sim) {
         : TOOLS[item]?.kind === 'axe' ? `chops logs and wood faster: a log in ${Math.ceil(6 / PICK_SPEED[TOOLS[item].tier])} ticks instead of ${Math.ceil(6 / PICK_SPEED[sim.toolTier('axe')])}`
         : TOOLS[item]?.kind === 'shovel' ? `digs dirt, sand and grass faster: ${Math.ceil(3 / PICK_SPEED[TOOLS[item].tier])} ticks a block instead of ${Math.ceil(3 / PICK_SPEED[sim.toolTier('shovel')])}`
         : item === 'shears' ? 'wool from a sheep without killing it; it grows back'
+        : item === 'bow' ? 'shoots what you can see at up to 8 tiles: the answer to a skeleton, and to a creeper before it reaches you'
+        : item === 'arrow' ? `4 arrows (holding ${sim.inv.arrow || 0})`
+        : item === 'shield' ? 'halves the damage of arrows and blasts'
         : item === 'boat' ? 'crosses water at a tick a tile (swimming takes 3); got into at the water\'s edge, picked up on the far shore'
         : goal === nextGoal ? `completes the next rung: ${goal}` : goalsOpen.includes(goal) ? `a rung: ${goal}` : item === 'door' && !sim._house ? 'the house needs 2 doors' : item === 'wooden_hoe' ? 'farmland for crops' : 'not on the ladder',
     }, [`craft:${item}`, item]);
@@ -428,7 +436,10 @@ export function options(sim) {
   if (legal.has('dig_in')) add('dig_in', 'dig_in', null, { yields: 'a one-block emergency shelter', takes: 'about 10 ticks', advances: 'safety, right here' });
   if (legal.has('sleep_until_dawn')) add('sleep_until_dawn', 'sleep_until_dawn', null, { takes: `until dawn (${DAY - (sim.tick % DAY)} ticks)`, advances: inside ? 'safe: you are covered' : 'NOT safe: you are in the open' });
   if (legal.has('eat')) add('eat', 'eat', null, { takes: '4 ticks', advances: `food ${p.food}/20` });
-  if (legal.has('fight')) add('fight', 'fight', null, { takes: 'a few ticks per hit', advances: 'something hostile is touching you' });
+  if (legal.has('fight')) add('fight', 'fight', null, { takes: 'a few ticks per hit', advances: [...sim.ents.values()].some((e) => HOSTILE.has(e.kind) && e.kind !== 'creeper' && sim.adjacentTo(p, e)) ? 'something hostile is touching you' : 'charges the skeleton shooting at you' });
+  if (legal.has('flee')) add('flee', 'flee', null, { takes: 'a few ticks', advances: creeperNear(sim) ? `4 tiles from the creeper${creeperNear(sim).fuse ? ' (it is hissing: it blows in moments)' : ''}` : 'away from what is closest' });
+  if (legal.has('shoot')) add('shoot', 'shoot', null, { takes: '3 ticks a shot', uses: `arrows (holding ${sim.inv.arrow})`, advances: `6 damage a hit at up to 8 tiles: ${targetsInSight(sim).map((e) => e.kind).slice(0, 3).join(', ')} in sight` });
+  if (legal.has('repair_house')) add('repair_house', 'repair_house', null, { takes: `about ${10 + 3 * houseHoles(sim).length} ticks`, uses: `${houseHoles(sim).length} blocks (holding ${blocksHeld(sim)})`, advances: 'the house a shelter again' }, ['repair_house']);
   // the team: one option per teammate per way of helping
   for (const e of sim.players) {
     if (e === p) continue;

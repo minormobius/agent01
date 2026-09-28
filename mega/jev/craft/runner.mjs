@@ -11,7 +11,7 @@
 // "Jev played for a day" has a number to be compared against, and so the
 // engine can be shown climbing the tech ladder with no model in the loop.
 
-import { itemsInSight, lostThings, pickLow, PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants, visiblePigs, chestItems, surplus, inNether, portalsHere, PORTAL_OBSIDIAN } from './macros.mjs';
+import { creeperNear, targetsInSight, houseHoles, itemsInSight, lostThings, pickLow, PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants, visiblePigs, chestItems, surplus, inNether, portalsHere, PORTAL_OBSIDIAN } from './macros.mjs';
 import { EAT_ORDER, B, HOSTILE, durability } from './world.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 
@@ -71,8 +71,14 @@ const inNetherNow = (sim) => sim.dim === 'nether';
 // Interrupts are facts, not judgements: each names a thing that changed and
 // that the current macro was not written to handle.
 export function standardInterrupt(sim, running = null) {
+  // a creeper hissing beside you: whatever you were doing, step away (not if that is what you are doing)
+  if (running !== 'flee' && [...sim.ents.values()].some((e) => e.kind === 'creeper' && e.fuse && sim.dist(e.c, sim.player.c) <= 2.5)) return 'a creeper is hissing';
+  // a skeleton shooting at you, the first time it is seen (acknowledged like nightfall)
+  const sk = [...sim.ents.values()].find((e) => e.kind === 'skeleton' && sim.dist(e.c, sim.player.c) <= 7);
+  if (sk && !sim._skAck && !['fight', 'shoot', 'flee', 'go_home', 'dig_in'].includes(running) && sim.los(sim.player, sk)) { sim._skAck = true; return 'a skeleton is shooting'; }
+  if (!sk) sim._skAck = false;
   // (not while fighting it or digging away from it: that is the answer to it)
-  if (zombieAdjacent(sim) && !['fight', 'dig_in', 'guard'].includes(running)) return inNetherNow(sim) ? 'blaze adjacent' : 'zombie adjacent';
+  if (zombieAdjacent(sim) && !['fight', 'dig_in', 'guard', 'flee'].includes(running)) return inNetherNow(sim) ? 'blaze adjacent' : 'zombie adjacent';
   // under water with breath running low: whatever the macro was doing, stop
   const p = sim.player;
   if (running !== 'surface' && sim.get(p.c, p.y + 1) === B.water && p.air <= 40 && !sim._airAck) { sim._airAck = true; return 'running out of air'; }
@@ -95,10 +101,21 @@ export function baselinePolicy(sim) {
   // coal torches had just used, and the craft failed ~980 times in two days)
   const craftIt = (item, q = 1) => { const sh = shortfall(sim, item, q); return sh.log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : sh.coal ? { name: 'mine_coal', args: { n: n('coal') + sh.coal + 2 } } : sh.cobblestone ? { name: 'mine_stone', args: { n: n('cobblestone') + sh.cobblestone + 2 } } : { name: 'craft', args: { item, ...(q > 1 ? { n: q } : {}) } }; };
   const blocks = n('cobblestone') + n('dirt') + n('planks') + n('sand');
-  if (zombieAdjacent(sim)) return { name: 'fight' };
-  if (sim.get(p.c, p.y + 1) === B.water) return { name: 'surface' };
   const tries = (k) => (sim.me._ageTries ||= {})[k] || 0;
   const tried = (k) => { sim.me._ageTries[k] = tries(k) + 1; };
+  // the new threats: a creeper close means get away; a skeleton in sight means
+  // shoot back if armed, close in if healthy, take cover if not
+  if (creeperNear(sim) && sim.dist(creeperNear(sim).c, p.c) <= 2) return { name: 'flee' };
+  if (zombieAdjacent(sim)) return { name: 'fight' };
+  const skel = [...sim.ents.values()].find((e) => e.kind === 'skeleton' && sim.dist(e.c, p.c) <= 7 && sim.los(p, e));
+  if (skel) {
+    if (n('bow') && n('arrow')) return { name: 'shoot' };
+    if (p.hp > 8) return { name: 'fight' };
+    if (sim.home && !atHome(sim)) return { name: 'go_home' };
+  }
+  // a blast opened the house: patch it before anything else there
+  if (sim._house && houseHoles(sim).length && tries('repair@' + Math.floor(sim.tick / 600)) < 2) { tried('repair@' + Math.floor(sim.tick / 600)); return { name: 'repair_house' }; }
+  if (sim.get(p.c, p.y + 1) === B.water) return { name: 'surface' };
   // died: everything carried is lying where it fell, for 5 minutes. Go back
   // for it (unless it is night and it lies out in the open)
   const lost = lostThings(sim);
@@ -196,6 +213,11 @@ export function baselinePolicy(sim) {
   }
   // a boat, where the world is mostly water: swimming is 3 ticks a tile, a boat 1
   if (!sim.noBoat && !n('boat') && !p.boat && waterWorld(sim) && tries('boat') < 2) { tried('boat'); return craftIt('boat'); }
+  // arms against the new threats: a bow (spider string), arrows (chicken
+  // feathers and a stone point), a shield (an iron ingot)
+  if (n('string') >= 3 && !n('bow') && tries('bow') < 2) { tried('bow'); return craftIt('bow'); }
+  if (n('bow') && n('arrow') < 8 && n('feather') && n('cobblestone') && tries('arrows@' + Math.floor(sim.tick / 1200)) < 1) { tried('arrows@' + Math.floor(sim.tick / 1200)); return craftIt('arrow', n('arrow') + 4); }
+  if (!n('shield') && (n('iron_armor') || n('diamond_armor')) && n('iron_ingot') + n('iron_ore') >= 1 && tries('shield') < 2) { tried('shield'); return craftIt('shield'); }
   // renewing: plant the saplings carried (wood runs out otherwise), pick up
   // what lies about, breed animals near home when we have their food
   const day = Math.floor(sim.tick / 4800);

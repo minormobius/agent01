@@ -58,7 +58,9 @@ B.ladder = 47; B.trapdoor = 48;
 // a world that renews: saplings grow into trees
 B.sapling = 49;
 // hostile mobs: zombies above, blazes below
-export const HOSTILE = new Set(['zombie', 'blaze']);
+export const HOSTILE = new Set(['zombie', 'blaze', 'skeleton', 'spider', 'creeper']);
+// what spawns in the overworld's dark, and how often (a zombie is still the common case)
+export const SPAWN_MIX = [['zombie', 0.45], ['skeleton', 0.25], ['spider', 0.18], ['creeper', 0.12]];
 export const BLOCKS = [];
 const def = (name, o) => { BLOCKS[B[name]] = { id: B[name], name, solid: true, hard: 3, tool: 0, drop: name, color: '#888', ...o }; };
 def('air',            { solid: false, hard: Infinity, drop: null, color: null });
@@ -123,7 +125,7 @@ export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone'
 // Chests: 27 stacks, as Minecraft's. A stack is 64 of most things; a tool,
 // a sword or a bed is a stack of one. That is the whole limit on the pool.
 export const CHEST_SLOTS = 27;
-export const stackSize = (item) => /_(pickaxe|shovel|axe|sword|hoe|armor)$/.test(item) || item === 'shears' || item === 'bed' || item === 'bucket' || item === 'water_bucket' ? 1 : item === 'door' ? 16 : 64;
+export const stackSize = (item) => /_(pickaxe|shovel|axe|sword|hoe|armor)$/.test(item) || item === 'shears' || item === 'bow' || item === 'shield' || item === 'bed' || item === 'bucket' || item === 'water_bucket' ? 1 : item === 'door' ? 16 : 64;
 export const slotsUsed = (items) => Object.entries(items).reduce((n, [k, v]) => n + Math.ceil(v / stackSize(k)), 0);
 // how many of `item` still fit in a chest holding `items`
 export function roomFor(items, item) {
@@ -173,6 +175,11 @@ export const RECIPES = {
   shears:          { n: 1, need: { iron_ingot: 2 } },
   ladder:          { n: 3, need: { stick: 7 }, at: 'crafting_table' },
   boat:            { n: 1, need: { planks: 5 }, at: 'crafting_table' },
+  // ranged: a bow of string (spiders), arrows of feather (chickens) and a stone
+  // point (Minecraft's is flint, from gravel, which this world does not have)
+  bow:             { n: 1, need: { stick: 3, string: 3 }, at: 'crafting_table' },
+  arrow:           { n: 4, need: { stick: 1, feather: 1, cobblestone: 1 }, at: 'crafting_table' },
+  shield:          { n: 1, need: { planks: 6, iron_ingot: 1 }, at: 'crafting_table' },
   trapdoor:        { n: 2, need: { planks: 6 }, at: 'crafting_table' },
   chest:           { n: 1, need: { planks: 8 }, at: 'crafting_table' },
   bed:             { n: 1, need: { wool: 3, planks: 3 }, at: 'crafting_table' },
@@ -213,7 +220,7 @@ export const toolClass = (blk) => (blk.tool ? 'pick' : blk.by || null);
 // mined with it (only blocks of its class), a hit with a sword, a till with a
 // hoe, a sheep shorn. The stack's top item wears; a spare is a second item.
 export const DURABILITY = { wooden: 60, stone: 132, iron: 251, diamond: 1562, shears: 238 };
-export const durability = (item) => item === 'shears' ? DURABILITY.shears : /_(pickaxe|shovel|axe|sword|hoe)$/.test(item) ? DURABILITY[item.split('_')[0]] ?? null : null;
+export const durability = (item) => item === 'shears' ? DURABILITY.shears : item === 'bow' ? 384 : item === 'shield' ? 336 : /_(pickaxe|shovel|axe|sword|hoe)$/.test(item) ? DURABILITY[item.split('_')[0]] ?? null : null;
 export const SWORD_DMG = { none: 1, wooden_sword: 4, stone_sword: 5, iron_sword: 6, diamond_sword: 7 };
 // armor is worn by carrying it: the share of every hit it takes
 export const ARMOR = { iron_armor: 0.4, diamond_armor: 0.6 };

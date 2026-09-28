@@ -31,10 +31,11 @@
 // nothing new to show a farm.
 
 import {
-  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, FUEL, fuelKey, SATURATION, BREED_FOOD, ANIMALS, PICK_TIER, PICK_SPEED, SWORD_DMG, TOOLS, toolClass, durability, FOOD, HEAL, SEEDS, roomFor, ARMOR, BEACON_RADIUS,
+  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, FUEL, fuelKey, SATURATION, BREED_FOOD, ANIMALS, SPAWN_MIX, PICK_TIER, PICK_SPEED, SWORD_DMG, TOOLS, toolClass, durability, FOOD, HEAL, SEEDS, roomFor, ARMOR, BEACON_RADIUS,
   generateWorld, generateNether, worldSignature, mulberry, hash32, blockName, HOSTILE, NETHER_LAVA,
 } from './world.mjs';
 import { habitat, growCrops, harvestDrop, GROW_EVERY } from './plants.mjs';
+import { columnLocator } from './tiling.mjs';
 
 export const DAY = 4800;            // ticks per day (~20 min at 4 ticks/s, as Minecraft's)
 export const NIGHT_START = 3000;    // [3000, 4800) is night
@@ -43,8 +44,8 @@ export const MAX_ZOMBIES = 6;
 // with a house, a sword and torches does not die, and a scoreboard where
 // every policy scores zero deaths cannot tell policies apart.
 export const DIFFICULTY = {
-  normal: { maxZombies: 6, spawn: 0.03, darkSpawn: 0.004, zombieDmg: 3, hungerEvery: 480, zombieStep: 2 },
-  hard:   { maxZombies: 14, spawn: 0.1, darkSpawn: 0.012, zombieDmg: 4, hungerEvery: 240, zombieStep: 1 },
+  normal: { maxZombies: 6, spawn: 0.03, darkSpawn: 0.004, zombieDmg: 3, hungerEvery: 480, zombieStep: 2, arrowDmg: 3, blast: 12 },
+  hard:   { maxZombies: 14, spawn: 0.1, darkSpawn: 0.012, zombieDmg: 4, hungerEvery: 240, zombieStep: 1, arrowDmg: 4, blast: 16 },
 };
 export const SIGHT = 10;
 export const WOOL_REGROW = 1200;
@@ -112,6 +113,7 @@ export class Sim {
     this.rngSheep = mulberry(hash32(w.seed, 0x5EE9));
     // saplings, leaf decay, new animals, breeding: their own rng, so older sequences are as they were
     this.rngLife = mulberry(hash32(w.seed, 0x11FE));
+    this.rngMob = mulberry(hash32(w.seed, 0x40B5));   // which hostile spawns, and how it acts
     const sheep = Math.round(this.N / 320);
     for (let k = 0, tries = 0; k < sheep && tries < sheep * 20; tries++) {
       const c = Math.floor(this.rngSheep() * this.N);
@@ -234,9 +236,15 @@ export class Sim {
   }
   // where a body at (c, y) ends up stepping into neighbour n, or null.
   // Climbs one layer (needs headroom above its own head), drops up to maxDrop.
-  stepTarget(c, y, n, tall = 2, maxDrop = 3, mob = false) {
+  stepTarget(c, y, n, tall = 2, maxDrop = 3, mob = false, climb = 1) {
     if (this.canStand(n, y, tall, mob)) return y;
-    if (this.canStand(n, y + 1, tall, mob) && this.passable(c, y + tall, mob)) return y + 1;
+    // up: one layer (a spider: up to `climb`, the headroom above it clear)
+    for (let k = 1; k <= climb; k++) {
+      let clear = true;
+      for (let j = 0; j < k; j++) if (!this.passable(c, y + tall + j, mob)) { clear = false; break; }
+      if (!clear) break;
+      if (this.canStand(n, y + k, tall, mob)) return y + k;
+    }
     for (let k = 0; k < tall; k++) if (!this.passable(n, y + k, mob)) return null;
     let yy = y;
     while (yy > 1 && !this.supported(n, yy, mob)) yy--;
@@ -273,7 +281,7 @@ export class Sim {
       }
     }
   }
-  tallOf(e) { return e.kind === 'item' ? 0 : e.kind === 'pig' || e.kind === 'sheep' || e.kind === 'chicken' ? 1 : 2; }   // an item on the ground blocks nobody
+  tallOf(e) { return e.kind === 'item' ? 0 : e.kind === 'pig' || e.kind === 'sheep' || e.kind === 'chicken' || e.kind === 'spider' ? 1 : 2; }   // an item on the ground blocks nobody
   occupied(c, y) {
     for (const e of this.ents.values()) if (e.c === c && y >= e.y && y < e.y + this.tallOf(e)) return e;
     return null;
@@ -318,6 +326,7 @@ export class Sim {
     return e.c === t.c || this.cols[e.c].adj.includes(t.c);
   }
   hurt(e, dmg, from) {
+    if (e.kind === 'spider' && from && from.kind === 'player') e.angry = true;
     // armor (carried is worn) takes its share of a blow from a mob
     if (e.kind === 'player' && from) { let a = 0; for (const k in ARMOR) if ((e.inv[k] || 0) > 0) a = Math.max(a, ARMOR[k]); dmg = Math.max(1, Math.round(dmg * (1 - a))); }
     e.hp = Math.max(0, e.hp - dmg);
@@ -329,6 +338,8 @@ export class Sim {
     if (e.kind === 'player') {
       this.stats.deaths++;
       e.deaths = (e.deaths || 0) + 1;
+      const by = from ? from.kind : this.get(e.c, e.y + 1) === B.water ? 'drowning' : e.food === 0 ? 'starving' : 'a fall or lava';
+      (this.stats.killedBy ||= {})[by] = (this.stats.killedBy[by] || 0) + 1;
       // everything carried falls where you died, and lasts ITEM_DESPAWN ticks: go back for it
       const drop = this.dropItems(e.c, e.y, e.inv, { owner: e.id });
       e.lastDrop = drop ? { id: drop.id, dim: this.dim, c: e.c, y: e.y, until: drop.until, n: Object.values(drop.items).reduce((a, b) => a + b, 0) } : null;
@@ -345,6 +356,13 @@ export class Sim {
       this.emit(['inv', {}, e.id]); this.emit(['hp', e.id, 20]); this.emit(['food', 20, e.id]);
       // respawn at their own home if there is one (the house is the bed), else at spawn
       if (e.home && this.canStand(e.home[0], e.home[1])) { this.moveEnt(e, e.home[0], e.home[1]); return; }
+      // on the ground as it is now, not as it was generated: the spawn column
+      // may be somebody's staircase by now, and climbing up from its old
+      // height found nothing to stand on and left the player hanging at the sky
+      for (const [c] of this.ballCols(this.world.spawn, 3)) {
+        const y = this.surface(c);
+        if (this.canStand(c, y) && !this.occupied(c, y)) { this.moveEnt(e, c, y); return; }
+      }
       const s = this.world.spawn;
       let sy = this.world.height[s] + 1;
       while (sy < H - 2 && !this.canStand(s, sy)) sy++;
@@ -352,6 +370,11 @@ export class Sim {
       return;
     }
     this.stats.kills[e.kind] = (this.stats.kills[e.kind] || 0) + 1;
+    if (from && from.kind === 'player') {
+      if (e.kind === 'spider') { const n = Math.floor(this.rngMob() * 3); if (n) this.giveTo(from, 'string', n); }
+      if (e.kind === 'skeleton') { this.giveTo(from, 'bone', 1 + Math.floor(this.rngMob() * 2)); const a = Math.floor(this.rngMob() * 3); if (a) this.giveTo(from, 'arrow', a); }
+      if (e.kind === 'creeper') { const g = Math.floor(this.rngMob() * 3); if (g) this.giveTo(from, 'gunpowder', g); }
+    }
     if (e.kind === 'pig' && from && from.kind === 'player') this.giveTo(from, 'porkchop', 1 + Math.floor(this.rng() * 2));
     if (e.kind === 'sheep' && from && from.kind === 'player' && !e.young) { this.giveTo(from, 'wool', 1 + Math.floor(this.rngSheep() * 2)); this.giveTo(from, 'mutton', 1); }
     if (e.kind === 'cow' && from && from.kind === 'player' && !e.young) { this.giveTo(from, 'beef', 1 + Math.floor(this.rngLife() * 3)); const l = Math.floor(this.rngLife() * 3); if (l) this.giveTo(from, 'leather', l); }
@@ -714,6 +737,21 @@ export class Sim {
         if (!this.adjacentTo(p, t)) return no('not adjacent');
         return { ok: true, ticks: 2, pre: () => { this.emit(['do', 'attack', t.id]); const sw = this.swordItem(); this.hurt(t, this.swordDmg(), p); this.wear(sw); } };
       }
+      case 'shoot': {
+        // a bow: 6 damage at up to 8 tiles, if you can see it; an arrow each
+        const t = this.ents.get(a.id);
+        if (!this.has('bow')) return no('needs a bow (3 sticks, 3 string)');
+        if (!this.has('arrow')) return no('no arrows');
+        if (!t || t === p || t.kind === 'player' || t.kind === 'item') return no('no such target');
+        if (this.dist(p.c, t.c) > 8) return no('out of range');
+        if (!this.los(p, t)) return no('cannot see it');
+        return { ok: true, ticks: 3, pre: () => {
+          this.emit(['do', 'shoot', t.id]);
+          this.take('arrow', 1);
+          if (this.ents.has(t.id)) this.hurt(t, 6, p);
+          this.wear('bow');
+        } };
+      }
       case 'feed': {
         // an animal's food, by hand: it is ready to breed for LOVE ticks
         const t = this.ents.get(a.id);
@@ -888,7 +926,7 @@ export class Sim {
         const y = this.surface(c);
         const d = this.dist(c, p.c);
         if (d >= 10 && d <= 24 && this.get(c, y - 1) !== B.water && this.skyOpen(c, y) && !this.torchNear(c, 5) && !this.beaconNear(c)
-            && this.canStand(c, y) && !this.occupied(c, y)) this.spawnEnt('zombie', c, y);
+            && this.canStand(c, y) && !this.occupied(c, y)) this.spawnHostile(c, y);
       }
       // ...and in the dark, at any hour: caves and unlit tunnels near the player.
       // Candidates come from what the player can see (this._near), so the cost
@@ -901,7 +939,7 @@ export class Sim {
             // every dark standing spot in that column (cave floors, tunnels)
             const top = this.surface(c), spots = [];
             for (let y = 1; y < top - 2; y++) if (this.canStand(c, y, 2, true) && this.dark(c, y) && !this.occupied(c, y)) spots.push(y);
-            if (spots.length) this.spawnEnt('zombie', c, spots[Math.floor(this.rng() * spots.length)]);
+            if (spots.length) this.spawnHostile(c, spots[Math.floor(this.rng() * spots.length)]);
           }
         }
       }
@@ -1101,27 +1139,94 @@ export class Sim {
     for (const k of this.torches) if (this.dist(Math.floor(k / H), c) <= r) return true;
     return false;
   }
+  // --------------------------------------------------------- the hostiles ---
+  // which kind: zombie, skeleton (ranged), spider (climbs), creeper (explodes)
+  spawnHostile(c, y) {
+    let r = this.rngMob(), kind = 'zombie';
+    for (const [k, p] of SPAWN_MIX) { if (r < p) { kind = k; break; } r -= p; }
+    return this.spawnEnt(kind, c, y, kind === 'spider' ? { hp: 16 } : {});
+  }
+  // Line of sight between two bodies: sample the segment between their eyes
+  // (tile centres, a layer and a half up) and look for anything solid.
+  los(a, b) {
+    const W = this.world;
+    if (!W._locate) W._locate = columnLocator(W.tiling);
+    const A = this.cols[a.c], Bc = this.cols[b.c], ya = a.y + 1.5, yb = b.y + 1.5;
+    const n = Math.ceil(Math.hypot(Bc.x - A.x, Bc.z - A.z, yb - ya) / 0.4);
+    for (let i = 1; i < n; i++) {
+      const f = i / n, c = W._locate(A.x + (Bc.x - A.x) * f, A.z + (Bc.z - A.z) * f), y = Math.floor(ya + (yb - ya) * f);
+      if (c < 0) continue;
+      const id = this.get(c, y);
+      if (BLOCKS[id].solid || id === B.door || id === B.trapdoor) return false;   // a shut door hides you from an archer
+    }
+    return true;
+  }
+  // A creeper's blast: every block in reach of it that is not bedrock,
+  // obsidian, a portal, a beacon or a chest is gone (house walls too — they
+  // are protected from the planner, not from this), and it hurts by distance.
+  explode(e) {
+    this.removeEnt(e, 'exploded');
+    for (const [u] of this.ballCols(e.c, 1)) for (let y = Math.max(1, e.y - 1); y <= Math.min(H - 1, e.y + 2); y++) {
+      const id = this.get(u, y);
+      if (id === B.air || id === B.water || id === B.lava || id === B.bedrock || id === B.obsidian || id === B.portal || id === B.beacon || id === B.chest) continue;
+      this.set(u, y, B.air);
+      this.protect.delete(u * H + y);
+    }
+    this.emit(['note', 'explode', { c: e.c, y: e.y }]);
+    for (const q of this.players) {
+      if ((q.dim || 'overworld') !== this.dim) continue;
+      const d = this.dist(q.c, e.c) + Math.abs(q.y - e.y) * 0.5;
+      if (d > 3.5) continue;
+      this.as(q, () => this.hurt(q, Math.max(1, Math.round(this.cfg.blast * (1 - d / 4) * (this.has('shield') ? 0.5 : 1))), e));
+      if (this.has('shield')) this.as(q, () => this.wear('shield'));
+    }
+    this.settle();
+  }
   zombieTick(z) {
     const p = this.nearestPlayer(z.c);        // zombies go for whoever is closest
     if (!p) return;
     const d = this.dist(z.c, p.c);
     if (d > 40) return this.removeEnt(z, 'despawn');
-    if (z.kind === 'zombie' && this.dim === 'overworld' && !this.isNight() && this.skyOpen(z.c, z.y + 2) && this.tick % 10 === 0) this.hurt(z, 2, null);
+    if ((z.kind === 'zombie' || z.kind === 'skeleton') && this.dim === 'overworld' && !this.isNight() && this.skyOpen(z.c, z.y + 2) && this.tick % 10 === 0) this.hurt(z, 2, null);
     if (!this.ents.has(z.id)) return;
-    if (this.adjacentTo(z, p)) {
-      if (z.cd <= 0) { this.hurt(p, this.cfg.zombieDmg + (z.kind === 'blaze' ? 2 : 0), z); z.cd = 10; }
+    // a spider in daylight minds its own business, unless something hit it
+    if (z.kind === 'spider' && !this.isNight() && !z.angry && !this.dark(z.c, z.y)) return this.pigTick(z, this.rngMob);
+    // a creeper beside you hisses; step away and it stops, stay and it blows
+    if (z.kind === 'creeper') {
+      if (z.fuse) {
+        if (d > 2.5) { z.fuse = 0; this.emit(['note', 'fizzle', { id: z.id }]); }
+        else if (this.tick >= z.fuse) return this.explode(z);
+        else return;
+      } else if (d <= 1.5 && Math.abs(z.y - p.y) <= 1 && this.los(z, p)) { z.fuse = this.tick + 6; this.emit(['note', 'hiss', { id: z.id, at: p.id }]); return; }
+    }
+    // a skeleton shoots from up to 7 tiles when it can see you, and keeps its distance
+    if (z.kind === 'skeleton' && d <= 7 && this.los(z, p)) {
+      if (z.cd <= 0) {
+        z.cd = 12;
+        this.emit(['shoot', z.id, p.id]);
+        if (this.rngMob() < 0.75) {
+          const dmg = Math.max(1, Math.round(this.cfg.arrowDmg * (p.inv.shield ? 0.5 : 1)));
+          this.as(p, () => { this.hurt(p, dmg, z); if (p.inv.shield) this.wear('shield'); });
+        }
+      }
+      if (d >= 3) return;                                          // in range: hold and shoot
+    }
+    if (this.adjacentTo(z, p) && z.kind !== 'skeleton' && z.kind !== 'creeper') {
+      if (z.cd <= 0) { this.hurt(p, this.cfg.zombieDmg + (z.kind === 'blaze' ? 2 : 0) - (z.kind === 'spider' ? 1 : 0), z); z.cd = 10; }
       return;
     }
     if (this.tick % this.cfg.zombieStep || d > 20) return;   // normal: half the player's speed; loses interest past 20
     // a route, reused for up to 10 ticks: re-searching every tick for every
     // zombie was most of the cost of a night on hard
     if (!z.route || !z.route.length || this.tick - z.routeAt >= 10) {
-      z.route = this.path(z, (c, y) => this.cols[c].adj.includes(p.c) && Math.abs(y - p.y) <= 1, 300, 2, true) || [];
+      z.route = z.kind === 'skeleton' && d < 3
+        ? this.path(z, (c) => this.dist(c, p.c) >= 4, 200, 2, true) || []                                   // too close: back off
+        : this.path(z, (c, y) => this.cols[c].adj.includes(p.c) && Math.abs(y - p.y) <= 1, 300, z.kind === 'spider' ? 1 : 2, true, false, z.kind === 'spider' ? 3 : 1) || [];
       z.routeAt = this.tick;
     }
     const step = z.route[0];
     if (!step) return;
-    const y = this.stepTarget(z.c, z.y, step[0], 2, 3, true);
+    const y = this.stepTarget(z.c, z.y, step[0], this.tallOf(z), 3, true, z.kind === 'spider' ? 3 : 1);
     if (y === step[1] && !this.occupied(step[0], step[1]) && !this.occupied(step[0], step[1] + 1)) { this.moveEnt(z, step[0], step[1]); z.route.shift(); }
     else z.route = null;
   }
@@ -1164,7 +1269,7 @@ export class Sim {
   // ---------------------------------------------------------- pathfinding ---
   // BFS over standing states from a body, walking only (no digging). Returns
   // the path of [c, y] steps to the first state satisfying goal, or null.
-  path(from, goal, maxNodes = 20000, tall = 2, mob = false, dive = false) {
+  path(from, goal, maxNodes = 20000, tall = 2, mob = false, dive = false, climb = 1) {
     const key = (c, y) => c * H + y;
     const start = key(from.c, from.y);
     const prev = new Map([[start, -1]]);
@@ -1180,7 +1285,7 @@ export class Sim {
       if (!mob) for (const ny of this.ladderSteps(c, y, tall)) { const k = key(c, ny); if (!prev.has(k)) { prev.set(k, u); q.push(k); } }
       for (const n of this.cols[c].adj) {
         if (!mob && !this.seen[n]) continue;              // the player plans only over ground it has seen
-        const yy = this.stepTarget(c, y, n, tall, 3, mob);
+        const yy = this.stepTarget(c, y, n, tall, 3, mob, climb);
         if (yy == null) continue;
         if (!mob && !dive && this.get(n, yy + tall - 1) === B.water) continue;   // a player does not plan to hold its breath
         const k = key(n, yy);

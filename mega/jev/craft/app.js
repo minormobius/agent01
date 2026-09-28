@@ -313,6 +313,9 @@ function makeEnt(kind, id = 0) {
   if (kind === 'item') { box(0.3, 0.3, 0.3, 0xf2d15c, 0.2); box(0.18, 0.18, 0.18, 0xffffff, 0.45); }   // something on the ground
   else if (kind === 'pig') { box(0.8, 0.55, 0.5, 0xf0a3b4, 0.4); box(0.36, 0.36, 0.36, 0xf5b7c5, 0.55).position.x = 0.5; }
   else if (kind === 'sheep') { box(0.8, 0.6, 0.55, 0xf2efe6, 0.45); box(0.3, 0.32, 0.3, 0x3a3530, 0.55).position.x = 0.5; }
+  else if (kind === 'spider') { box(0.9, 0.35, 0.8, 0x231d1b, 0.3); box(0.4, 0.3, 0.4, 0x2e2522, 0.35).position.x = 0.55; for (const s of [-0.45, 0.45]) { const l = box(0.08, 0.08, 1.4, 0x231d1b, 0.2); l.position.x = s * 0.6; } }
+  else if (kind === 'creeper') { box(0.45, 1.2, 0.35, 0x4fae45, 0.8); box(0.5, 0.45, 0.45, 0x5cc24f, 1.6); box(0.5, 0.35, 0.5, 0x3f8f37, 0.18); }
+  else if (kind === 'skeleton') { box(0.35, 0.75, 0.22, 0xd9d6cc, 0.375); box(0.45, 0.65, 0.25, 0xe6e3da, 1.07); box(0.42, 0.42, 0.42, 0xf0ede4, 1.62); }
   else if (kind === 'cow') { box(0.9, 0.65, 0.55, 0x5a3e2b, 0.5); box(0.3, 0.2, 0.56, 0xf2efe6, 0.55).position.x = -0.1; box(0.34, 0.34, 0.34, 0x3a2a1e, 0.62).position.x = 0.55; }
   else if (kind === 'chicken') { box(0.35, 0.35, 0.3, 0xf5f5f0, 0.28); box(0.18, 0.2, 0.18, 0xf5f5f0, 0.52).position.x = 0.15; box(0.08, 0.06, 0.1, 0xe89a2a, 0.5).position.x = 0.27; }
   else {

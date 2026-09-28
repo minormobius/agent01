@@ -1,0 +1,972 @@
+{
+ "what": "survival at hard, 4 worlds x 2 days, the three local arms; before = the commit before phase 2 (threats), after = with skeletons, spiders, creepers, bow, shield",
+ "before": {
+  "ran": "2026-09-28T06:04:28.008Z",
+  "ticks": 9600,
+  "difficulty": "hard",
+  "rungs": [
+   "wooden_pickaxe",
+   "stone_pickaxe",
+   "stone_sword",
+   "torches",
+   "iron_pickaxe",
+   "house",
+   "lit_grounds",
+   "iron_sword",
+   "explored"
+  ],
+  "worlds": [
+   {
+    "kind": "island",
+    "shape": "penrose",
+    "seed": 3
+   },
+   {
+    "kind": "island",
+    "shape": "hex",
+    "seed": 2
+   },
+   {
+    "kind": "island",
+    "shape": "truncsq",
+    "seed": 2
+   },
+   {
+    "kind": "island",
+    "shape": "kagome",
+    "seed": 4
+   }
+  ],
+  "summary": {
+   "baseline": {
+    "mean_score": 790,
+    "rungs_reached": "36/36",
+    "deaths": 0
+   },
+   "offline": {
+    "mean_score": 1373,
+    "rungs_reached": "35/36",
+    "deaths": 1
+   },
+   "random": {
+    "mean_score": 4651,
+    "rungs_reached": "26/36",
+    "deaths": 13
+   }
+  },
+  "results": [
+   {
+    "kind": "island",
+    "shape": "penrose",
+    "seed": 3,
+    "arm": "baseline",
+    "rungs": {
+     "wooden_pickaxe": 58,
+     "stone_pickaxe": 198,
+     "stone_sword": 200,
+     "torches": 365,
+     "iron_pickaxe": 377,
+     "house": 726,
+     "lit_grounds": 736,
+     "iron_sword": 1341,
+     "explored": 4212
+    },
+    "reached": 9,
+    "score": 912.5555555555555,
+    "deaths": 0,
+    "decisions": 122,
+    "projects": {
+     "tech": "16/16",
+     "grow": "15/16",
+     "explore": "8/8",
+     "grown": 4,
+     "species_here": 5
+    },
+    "project_done": {
+     "grow": 5303,
+     "tech": 5324,
+     "explore": 5760
+    },
+    "project_picks": {
+     "tech": 3,
+     "explore": 1,
+     "grow": 1
+    },
+    "wall_s": 11
+   },
+   {
+    "kind": "island",
+    "shape": "penrose",
+    "seed": 3,
+    "arm": "offline",
+    "rungs": {
+     "wooden_pickaxe": 64,
+     "stone_pickaxe": 463,
+     "stone_sword": 465,
+     "torches": 987,
+     "iron_pickaxe": 994,
+     "house": 1211,
+     "lit_grounds": 1221,
+     "iron_sword": 2154,
+     "explored": null
+    },
+    "reached": 8,
+    "score": 1906.5555555555557,
+    "deaths": 1,
+    "decisions": 132,
+    "projects": {
+     "tech": "9/16",
+     "grow": "0/16",
+     "explore": "6/8",
+     "grown": 0,
+     "species_here": 5
+    },
+    "project_done": {},
+    "project_picks": {
+     "tech": 4
+    },
+    "wall_s": 11
+   },
+   {
+    "kind": "island",
+    "shape": "penrose",
+    "seed": 3,
+    "arm": "random",
+    "rungs": {
+     "wooden_pickaxe": 621,
+     "stone_pickaxe": null,
+     "stone_sword": null,
+     "torches": 1284,
+     "iron_pickaxe": null,
+     "house": null,
+     "lit_grounds": null,
+     "iron_sword": null,
+     "explored": 451
+    },
+    "reached": 3,
+    "score": 6661.777777777777,
+    "deaths": 0,
+    "decisions": 265,
+    "projects": {
+     "tech": "2/16",
+     "grow": "8/16",
+     "explore": "8/8",
+     "grown": 1,
+     "species_here": 5
+    },
+    "project_done": {
+     "explore": 601
+    },
+    "project_picks": {
+     "grow": 3,
+     "tech": 1
+    },
+    "wall_s": 17
+   },
+   {
+    "kind": "island",
+    "shape": "hex",
+    "seed": 2,
+    "arm": "baseline",
+    "rungs": {
+     "wooden_pickaxe": 45,
+     "stone_pickaxe": 221,
+     "stone_sword": 223,
+     "torches": 229,
+     "iron_pickaxe": 462,
+     "house": 604,
+     "lit_grounds": 612,
+     "iron_sword": 1317,
+     "explored": 3477
+    },
+    "reached": 9,
+    "score": 798.8888888888889,
+    "deaths": 0,
+    "decisions": 109,
+    "projects": {
+     "tech": "16/16",
+     "grow": "11/13",
+     "explore": "7/7",
+     "grown": 2,
+     "species_here": 4
+    },
+    "project_done": {
+     "explore": 3477,
+     "grow": 6255,
+     "tech": 6284
+    },
+    "project_picks": {
+     "tech": 3,
+     "grow": 1
+    },
+    "wall_s": 9
+   },
+   {
+    "kind": "island",
+    "shape": "hex",
+    "seed": 2,
+    "arm": "offline",
+    "rungs": {
+     "wooden_pickaxe": 61,
+     "stone_pickaxe": 484,
+     "stone_sword": 486,
+     "torches": 1062,
+     "iron_pickaxe": 1069,
+     "house": 1202,
+     "lit_grounds": 1235,
+     "iron_sword": 1502,
+     "explored": 2673
+    },
+    "reached": 9,
+    "score": 1086,
+    "deaths": 0,
+    "decisions": 125,
+    "projects": {
+     "tech": "11/16",
+     "grow": "0/13",
+     "explore": "6/7",
+     "grown": 0,
+     "species_here": 4
+    },
+    "project_done": {},
+    "project_picks": {
+     "tech": 4
+    },
+    "wall_s": 17
+   },
+   {
+    "kind": "island",
+    "shape": "hex",
+    "seed": 2,
+    "arm": "random",
+    "rungs": {
+     "wooden_pickaxe": 1977,
+     "stone_pickaxe": 3092,
+     "stone_sword": 2893,
+     "torches": 2939,
+     "iron_pickaxe": 7121,
+     "house": 2129,
+     "lit_grounds": null,
+     "iron_sword": null,
+     "explored": 381
+    },
+    "reached": 7,
+    "score": 4414.666666666667,
+    "deaths": 5,
+    "decisions": 400,
+    "projects": {
+     "tech": "1/16",
+     "grow": "9/13",
+     "explore": "7/7",
+     "grown": 3,
+     "species_here": 4
+    },
+    "project_done": {
+     "explore": 381
+    },
+    "project_picks": {
+     "explore": 4,
+     "grow": 3,
+     "tech": 1
+    },
+    "wall_s": 53
+   },
+   {
+    "kind": "island",
+    "shape": "truncsq",
+    "seed": 2,
+    "arm": "baseline",
+    "rungs": {
+     "wooden_pickaxe": 48,
+     "stone_pickaxe": 212,
+     "stone_sword": 214,
+     "torches": 300,
+     "iron_pickaxe": 673,
+     "house": 799,
+     "lit_grounds": 832,
+     "iron_sword": 1062,
+     "explored": 2313
+    },
+    "reached": 9,
+    "score": 717,
+    "deaths": 0,
+    "decisions": 171,
+    "projects": {
+     "tech": "16/16",
+     "grow": "13/16",
+     "explore": "8/8",
+     "grown": 2,
+     "species_here": 5
+    },
+    "project_done": {
+     "grow": 2971,
+     "tech": 2979,
+     "explore": 4925
+    },
+    "project_picks": {
+     "tech": 2,
+     "explore": 1,
+     "grow": 2
+    },
+    "wall_s": 17
+   },
+   {
+    "kind": "island",
+    "shape": "truncsq",
+    "seed": 2,
+    "arm": "offline",
+    "rungs": {
+     "wooden_pickaxe": 48,
+     "stone_pickaxe": 476,
+     "stone_sword": 478,
+     "torches": 1168,
+     "iron_pickaxe": 1232,
+     "house": 1369,
+     "lit_grounds": 1394,
+     "iron_sword": 1643,
+     "explored": 1570
+    },
+    "reached": 9,
+    "score": 1042,
+    "deaths": 0,
+    "decisions": 135,
+    "projects": {
+     "tech": "12/16",
+     "grow": "0/16",
+     "explore": "8/8",
+     "grown": 0,
+     "species_here": 5
+    },
+    "project_done": {
+     "explore": 3237
+    },
+    "project_picks": {
+     "tech": 3
+    },
+    "wall_s": 17
+   },
+   {
+    "kind": "island",
+    "shape": "truncsq",
+    "seed": 2,
+    "arm": "random",
+    "rungs": {
+     "wooden_pickaxe": 602,
+     "stone_pickaxe": 1082,
+     "stone_sword": 2813,
+     "torches": 1080,
+     "iron_pickaxe": 2908,
+     "house": 1191,
+     "lit_grounds": 1284,
+     "iron_sword": 7718,
+     "explored": 411
+    },
+    "reached": 9,
+    "score": 2121,
+    "deaths": 6,
+    "decisions": 328,
+    "projects": {
+     "tech": "8/16",
+     "grow": "15/16",
+     "explore": "8/8",
+     "grown": 5,
+     "species_here": 5
+    },
+    "project_done": {
+     "explore": 411
+    },
+    "project_picks": {
+     "tech": 2,
+     "explore": 1,
+     "grow": 2
+    },
+    "wall_s": 34
+   },
+   {
+    "kind": "island",
+    "shape": "kagome",
+    "seed": 4,
+    "arm": "baseline",
+    "rungs": {
+     "wooden_pickaxe": 38,
+     "stone_pickaxe": 185,
+     "stone_sword": 187,
+     "torches": 223,
+     "iron_pickaxe": 305,
+     "house": 779,
+     "lit_grounds": 799,
+     "iron_sword": 1021,
+     "explored": 3048
+    },
+    "reached": 9,
+    "score": 731.6666666666666,
+    "deaths": 0,
+    "decisions": 111,
+    "projects": {
+     "tech": "15/16",
+     "grow": "11/16",
+     "explore": "8/8",
+     "grown": 0,
+     "species_here": 5
+    },
+    "project_done": {
+     "grow": 6510,
+     "explore": 6721
+    },
+    "project_picks": {
+     "tech": 4
+    },
+    "wall_s": 15
+   },
+   {
+    "kind": "island",
+    "shape": "kagome",
+    "seed": 4,
+    "arm": "offline",
+    "rungs": {
+     "wooden_pickaxe": 59,
+     "stone_pickaxe": 470,
+     "stone_sword": 472,
+     "torches": 1016,
+     "iron_pickaxe": 1023,
+     "house": 1183,
+     "lit_grounds": 1216,
+     "iron_sword": 1545,
+     "explored": 6123
+    },
+    "reached": 9,
+    "score": 1456.3333333333333,
+    "deaths": 0,
+    "decisions": 130,
+    "projects": {
+     "tech": "12/16",
+     "grow": "0/16",
+     "explore": "7/8",
+     "grown": 0,
+     "species_here": 5
+    },
+    "project_done": {},
+    "project_picks": {
+     "tech": 4
+    },
+    "wall_s": 6
+   },
+   {
+    "kind": "island",
+    "shape": "kagome",
+    "seed": 4,
+    "arm": "random",
+    "rungs": {
+     "wooden_pickaxe": 2188,
+     "stone_pickaxe": 6889,
+     "stone_sword": 7971,
+     "torches": 3065,
+     "iron_pickaxe": null,
+     "house": 2583,
+     "lit_grounds": 6349,
+     "iron_sword": null,
+     "explored": 400
+    },
+    "reached": 7,
+    "score": 5405,
+    "deaths": 2,
+    "decisions": 359,
+    "projects": {
+     "tech": "7/16",
+     "grow": "14/16",
+     "explore": "8/8",
+     "grown": 3,
+     "species_here": 5
+    },
+    "project_done": {
+     "explore": 400
+    },
+    "project_picks": {
+     "grow": 2,
+     "tech": 2,
+     "explore": 1
+    },
+    "wall_s": 21
+   }
+  ]
+ },
+ "after": {
+  "ran": "2026-09-28T06:47:07.795Z",
+  "ticks": 9600,
+  "difficulty": "hard",
+  "rungs": [
+   "wooden_pickaxe",
+   "stone_pickaxe",
+   "stone_sword",
+   "torches",
+   "iron_pickaxe",
+   "house",
+   "lit_grounds",
+   "iron_sword",
+   "explored"
+  ],
+  "worlds": [
+   {
+    "kind": "island",
+    "shape": "penrose",
+    "seed": 3
+   },
+   {
+    "kind": "island",
+    "shape": "hex",
+    "seed": 2
+   },
+   {
+    "kind": "island",
+    "shape": "truncsq",
+    "seed": 2
+   },
+   {
+    "kind": "island",
+    "shape": "kagome",
+    "seed": 4
+   }
+  ],
+  "summary": {
+   "baseline": {
+    "mean_score": 802,
+    "rungs_reached": "36/36",
+    "deaths": 1
+   },
+   "offline": {
+    "mean_score": 1152,
+    "rungs_reached": "36/36",
+    "deaths": 4
+   },
+   "random": {
+    "mean_score": 4872,
+    "rungs_reached": "23/36",
+    "deaths": 24
+   }
+  },
+  "results": [
+   {
+    "kind": "island",
+    "shape": "penrose",
+    "seed": 3,
+    "arm": "baseline",
+    "rungs": {
+     "wooden_pickaxe": 58,
+     "stone_pickaxe": 198,
+     "stone_sword": 200,
+     "torches": 365,
+     "iron_pickaxe": 377,
+     "house": 726,
+     "lit_grounds": 736,
+     "iron_sword": 1341,
+     "explored": 5070
+    },
+    "reached": 9,
+    "score": 1007.8888888888889,
+    "deaths": 0,
+    "decisions": 176,
+    "projects": {
+     "tech": "10/16",
+     "grow": "0/16",
+     "explore": "7/8",
+     "grown": 0,
+     "species_here": 5
+    },
+    "project_done": {},
+    "project_picks": {
+     "tech": 4
+    },
+    "wall_s": 97
+   },
+   {
+    "kind": "island",
+    "shape": "penrose",
+    "seed": 3,
+    "arm": "offline",
+    "rungs": {
+     "wooden_pickaxe": 64,
+     "stone_pickaxe": 463,
+     "stone_sword": 465,
+     "torches": 987,
+     "iron_pickaxe": 994,
+     "house": 1249,
+     "lit_grounds": 1259,
+     "iron_sword": 2064,
+     "explored": 1662
+    },
+    "reached": 9,
+    "score": 1023,
+    "deaths": 2,
+    "decisions": 130,
+    "projects": {
+     "tech": "4/16",
+     "grow": "0/16",
+     "explore": "8/8",
+     "grown": 0,
+     "species_here": 5
+    },
+    "project_done": {
+     "explore": 7270
+    },
+    "project_picks": {
+     "tech": 4
+    },
+    "wall_s": 10
+   },
+   {
+    "kind": "island",
+    "shape": "penrose",
+    "seed": 3,
+    "arm": "random",
+    "rungs": {
+     "wooden_pickaxe": 621,
+     "stone_pickaxe": null,
+     "stone_sword": null,
+     "torches": 1284,
+     "iron_pickaxe": null,
+     "house": null,
+     "lit_grounds": null,
+     "iron_sword": null,
+     "explored": 451
+    },
+    "reached": 3,
+    "score": 6661.777777777777,
+    "deaths": 0,
+    "decisions": 250,
+    "projects": {
+     "tech": "2/16",
+     "grow": "8/16",
+     "explore": "8/8",
+     "grown": 1,
+     "species_here": 5
+    },
+    "project_done": {
+     "explore": 601
+    },
+    "project_picks": {
+     "grow": 3,
+     "tech": 1
+    },
+    "wall_s": 25
+   },
+   {
+    "kind": "island",
+    "shape": "hex",
+    "seed": 2,
+    "arm": "baseline",
+    "rungs": {
+     "wooden_pickaxe": 45,
+     "stone_pickaxe": 221,
+     "stone_sword": 223,
+     "torches": 229,
+     "iron_pickaxe": 704,
+     "house": 816,
+     "lit_grounds": 844,
+     "iron_sword": 942,
+     "explored": 2935
+    },
+    "reached": 9,
+    "score": 773.2222222222222,
+    "deaths": 1,
+    "decisions": 83,
+    "projects": {
+     "tech": "11/16",
+     "grow": "0/13",
+     "explore": "7/7",
+     "grown": 0,
+     "species_here": 4
+    },
+    "project_done": {
+     "explore": 7624
+    },
+    "project_picks": {
+     "tech": 3
+    },
+    "wall_s": 19
+   },
+   {
+    "kind": "island",
+    "shape": "hex",
+    "seed": 2,
+    "arm": "offline",
+    "rungs": {
+     "wooden_pickaxe": 61,
+     "stone_pickaxe": 484,
+     "stone_sword": 486,
+     "torches": 1062,
+     "iron_pickaxe": 1069,
+     "house": 1202,
+     "lit_grounds": 1235,
+     "iron_sword": 1502,
+     "explored": 2673
+    },
+    "reached": 9,
+    "score": 1086,
+    "deaths": 2,
+    "decisions": 128,
+    "projects": {
+     "tech": "7/16",
+     "grow": "0/13",
+     "explore": "6/7",
+     "grown": 0,
+     "species_here": 4
+    },
+    "project_done": {},
+    "project_picks": {
+     "tech": 4
+    },
+    "wall_s": 26
+   },
+   {
+    "kind": "island",
+    "shape": "hex",
+    "seed": 2,
+    "arm": "random",
+    "rungs": {
+     "wooden_pickaxe": 1977,
+     "stone_pickaxe": 3092,
+     "stone_sword": 2893,
+     "torches": 2939,
+     "iron_pickaxe": null,
+     "house": 2129,
+     "lit_grounds": 5785,
+     "iron_sword": null,
+     "explored": 381
+    },
+    "reached": 7,
+    "score": 4266.222222222223,
+    "deaths": 6,
+    "decisions": 400,
+    "projects": {
+     "tech": "5/16",
+     "grow": "13/13",
+     "explore": "7/7",
+     "grown": 4,
+     "species_here": 4
+    },
+    "project_done": {
+     "explore": 381,
+     "grow": 5596
+    },
+    "project_picks": {
+     "explore": 5,
+     "grow": 2,
+     "tech": 2
+    },
+    "wall_s": 36
+   },
+   {
+    "kind": "island",
+    "shape": "truncsq",
+    "seed": 2,
+    "arm": "baseline",
+    "rungs": {
+     "wooden_pickaxe": 48,
+     "stone_pickaxe": 212,
+     "stone_sword": 214,
+     "torches": 300,
+     "iron_pickaxe": 585,
+     "house": 733,
+     "lit_grounds": 753,
+     "iron_sword": 921,
+     "explored": 2509
+    },
+    "reached": 9,
+    "score": 697.2222222222222,
+    "deaths": 0,
+    "decisions": 208,
+    "projects": {
+     "tech": "15/16",
+     "grow": "15/16",
+     "explore": "8/8",
+     "grown": 4,
+     "species_here": 5
+    },
+    "project_done": {
+     "grow": 2346,
+     "explore": 4970
+    },
+    "project_picks": {
+     "tech": 4
+    },
+    "wall_s": 63
+   },
+   {
+    "kind": "island",
+    "shape": "truncsq",
+    "seed": 2,
+    "arm": "offline",
+    "rungs": {
+     "wooden_pickaxe": 48,
+     "stone_pickaxe": 476,
+     "stone_sword": 478,
+     "torches": 1168,
+     "iron_pickaxe": 1232,
+     "house": 1369,
+     "lit_grounds": 1394,
+     "iron_sword": 1643,
+     "explored": 1570
+    },
+    "reached": 9,
+    "score": 1042,
+    "deaths": 0,
+    "decisions": 400,
+    "projects": {
+     "tech": "9/16",
+     "grow": "0/16",
+     "explore": "8/8",
+     "grown": 0,
+     "species_here": 5
+    },
+    "project_done": {
+     "explore": 3237
+    },
+    "project_picks": {
+     "tech": 3
+    },
+    "wall_s": 34
+   },
+   {
+    "kind": "island",
+    "shape": "truncsq",
+    "seed": 2,
+    "arm": "random",
+    "rungs": {
+     "wooden_pickaxe": 602,
+     "stone_pickaxe": 1082,
+     "stone_sword": 2026,
+     "torches": 1080,
+     "iron_pickaxe": null,
+     "house": 1191,
+     "lit_grounds": 1284,
+     "iron_sword": null,
+     "explored": 411
+    },
+    "reached": 7,
+    "score": 2986.222222222222,
+    "deaths": 17,
+    "decisions": 400,
+    "projects": {
+     "tech": "3/16",
+     "grow": "5/16",
+     "explore": "8/8",
+     "grown": 1,
+     "species_here": 5
+    },
+    "project_done": {
+     "explore": 411
+    },
+    "project_picks": {
+     "tech": 1,
+     "grow": 2
+    },
+    "wall_s": 39
+   },
+   {
+    "kind": "island",
+    "shape": "kagome",
+    "seed": 4,
+    "arm": "baseline",
+    "rungs": {
+     "wooden_pickaxe": 38,
+     "stone_pickaxe": 185,
+     "stone_sword": 187,
+     "torches": 223,
+     "iron_pickaxe": 305,
+     "house": 779,
+     "lit_grounds": 799,
+     "iron_sword": 1021,
+     "explored": 3048
+    },
+    "reached": 9,
+    "score": 731.6666666666666,
+    "deaths": 0,
+    "decisions": 143,
+    "projects": {
+     "tech": "15/16",
+     "grow": "12/16",
+     "explore": "8/8",
+     "grown": 3,
+     "species_here": 5
+    },
+    "project_done": {
+     "explore": 6106,
+     "grow": 6172
+    },
+    "project_picks": {
+     "tech": 4
+    },
+    "wall_s": 46
+   },
+   {
+    "kind": "island",
+    "shape": "kagome",
+    "seed": 4,
+    "arm": "offline",
+    "rungs": {
+     "wooden_pickaxe": 59,
+     "stone_pickaxe": 470,
+     "stone_sword": 472,
+     "torches": 1016,
+     "iron_pickaxe": 1023,
+     "house": 1183,
+     "lit_grounds": 1216,
+     "iron_sword": 1545,
+     "explored": 6123
+    },
+    "reached": 9,
+    "score": 1456.3333333333333,
+    "deaths": 0,
+    "decisions": 143,
+    "projects": {
+     "tech": "12/16",
+     "grow": "0/16",
+     "explore": "7/8",
+     "grown": 0,
+     "species_here": 5
+    },
+    "project_done": {},
+    "project_picks": {
+     "tech": 4
+    },
+    "wall_s": 18
+   },
+   {
+    "kind": "island",
+    "shape": "kagome",
+    "seed": 4,
+    "arm": "random",
+    "rungs": {
+     "wooden_pickaxe": 2188,
+     "stone_pickaxe": null,
+     "stone_sword": 6243,
+     "torches": 3065,
+     "iron_pickaxe": null,
+     "house": 2583,
+     "lit_grounds": 6869,
+     "iron_sword": null,
+     "explored": 400
+    },
+    "reached": 6,
+    "score": 5572,
+    "deaths": 1,
+    "decisions": 400,
+    "projects": {
+     "tech": "6/16",
+     "grow": "15/16",
+     "explore": "8/8",
+     "grown": 4,
+     "species_here": 5
+    },
+    "project_done": {
+     "explore": 400
+    },
+    "project_picks": {
+     "grow": 3,
+     "tech": 1
+    },
+    "wall_s": 30
+   }
+  ]
+ }
+}

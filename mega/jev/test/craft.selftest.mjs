@@ -18,10 +18,10 @@ import { SHAPES, buildTiling, rawTiles } from '../craft/tiling.mjs';
 import { generateWorld, generateNether, worldSignature, B, H, CRAFT_VERSION, KINDS, BLOCKS, tileKinds, SPECIES_NAMES, NETHER_LAVA } from '../craft/world.mjs';
 import { habitat, STAGE_TICKS, speciesHere } from '../craft/plants.mjs';
 import { projectState, projectFact, projectQuestion, PROJECT_NAMES, projectScore } from '../craft/projects.mjs';
-import { Sim, Replay, MAX_AIR } from '../craft/sim.mjs';
+import { Sim, Replay, MAX_AIR, DIFFICULTY } from '../craft/sim.mjs';
 import { SEA } from '../craft/world.mjs';
 import { play, runMacro, Driver, baselinePolicy } from '../craft/runner.mjs';
-import { PALETTE, MODES, legalMacros, shortfall, visible, sealed, planHouse } from '../craft/macros.mjs';
+import { PALETTE, MODES, legalMacros, shortfall, visible, sealed, planHouse, houseHoles } from '../craft/macros.mjs';
 import { threats, perceive, options, buildQuestions, resolve, playMind, DECIDERS, GATE, GOALS, Party, playParty, batchRequest, fulfil, applyAsk, offlineAsk, askQuestion, REQUESTS, BAIL } from '../craft/mind.mjs';
 import { segment, score as segScore, actions as segActions } from '../craft/segment.mjs';
 import { renderAscii } from '../craft/ascii.mjs';
@@ -131,7 +131,7 @@ for (const [shape, seed] of [['penrose', 3], ['hex', 2], ['truncsq', 2]]) {
   const head = JSON.parse(a.lines[0]);
   ok(head.t === 'craft' && head.shape === shape && head.seed === seed && head.sig, `${shape}/${seed}: header names the world`);
   let mono = true, kinds = true, last = -1;
-  const KINDS = new Set(['wear', 'shorn', 'young', 'grown', 'boat', 'b', 'p', '+', '-', 'hp', 'food', 'inv', 'do', 'hit', 'die', 'note']);
+  const KINDS = new Set(['wear', 'shorn', 'young', 'grown', 'boat', 'shoot', 'b', 'p', '+', '-', 'hp', 'food', 'inv', 'do', 'hit', 'die', 'note']);
   for (const l of a.lines.slice(1)) {
     const L = JSON.parse(l);
     if (!(L.k >= last) || !Array.isArray(L.e) || !L.e.length) mono = false;
@@ -943,6 +943,83 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   w.give('boat', 1);
   const row = w.plan({ op: 'move', to: sea });
   ok(swim.ok && swim.ticks === 3 && row.ok && row.ticks === 1, `swimming a tile takes ${swim.ticks} ticks, a boat ${row.ticks}`);
+}
+
+// ------------------------------------------------ threats that need answers
+// every difficulty sets every knob: a missing arrowDmg on hard made each arrow
+// NaN damage, i.e. instantly lethal, and the survival table read that as skeletons
+{
+  const keys = (o) => Object.keys(o).sort().join(',');
+  ok(Object.values(DIFFICULTY).every((d) => keys(d) === keys(DIFFICULTY.normal) && Object.values(d).every(Number.isFinite)), 'every difficulty sets every knob to a number');
+}
+{
+  // a skeleton shoots from a distance when it can see you, not through rock
+  const s = new Sim({ seed: 3, shape: 'truncsq', difficulty: 'hard' });
+  const p = s.player;
+  const far = [...s.ballCols(p.c, 4)].find(([c, d]) => d === 4 && s.canStand(c, s.surface(c)) && Math.abs(s.surface(c) - p.y) <= 1);
+  const sk = s.spawnEnt('skeleton', far[0], s.surface(far[0]), {});
+  s.tick = 4800 + 3200;                      // night, so it does not burn
+  const hp0 = p.hp;
+  for (let k = 0; k < 60; k++) s.step();
+  const seen = s.los(p, sk) || s.los(sk, p);
+  ok(!seen || p.hp < hp0, `a skeleton in sight shoots (health ${hp0} → ${p.hp})`);
+  // …and a shut door hides you: the house is cover again (a respawn loop of 160
+  // deaths was a skeleton shooting in through the doorway)
+  {
+    const d = new Sim({ seed: 3, shape: 'truncsq' }), dp = d.player;
+    let tested = false;
+    for (const n of d.cols[dp.c].adj) {
+      for (const m of d.cols[n].adj) {
+        if (m === dp.c || d.cols[dp.c].adj.includes(m)) continue;
+        const a = { c: dp.c, y: dp.y }, b = { c: m, y: dp.y };
+        for (let y = dp.y; y <= dp.y + 2; y++) { d.set(n, y, B.air); d.set(m, y, B.air); d.set(dp.c, y, B.air); }
+        if (!d.los(a, b)) continue;
+        d.set(n, dp.y + 1, B.door); d.set(n, dp.y, B.door);
+        ok(!d.los(a, b) && !d.los(b, a), 'a shut door blocks a skeleton\'s line of sight');
+        tested = true; break;
+      }
+      if (tested) break;
+    }
+    ok(tested, 'found a clear line to test the door against');
+  }
+  // a creeper beside you hisses and blows a hole in the ground
+  const c = new Sim({ seed: 3, shape: 'truncsq' });
+  const cp = c.player, n = c.cols[cp.c].adj[0];
+  const cr = c.spawnEnt('creeper', n, c.surface(n), {});
+  const before = c.b.filter((v) => v !== B.air && v !== B.water).length;
+  for (let k = 0; k < 20 && c.ents.has(cr.id); k++) c.step();
+  ok(!c.ents.has(cr.id) && c.b.filter((v) => v !== B.air && v !== B.water).length < before && cp.hp < 20, `a creeper that reaches you explodes: blocks gone, health ${cp.hp}`);
+  // stepping away cancels the fuse
+  const f = new Sim({ seed: 3, shape: 'truncsq' });
+  const fp = f.player, fn = f.cols[fp.c].adj[0];
+  const cr2 = f.spawnEnt('creeper', fn, f.surface(fn), {});
+  f.step(); f.step();
+  const fled = runMacro(f, 'flee');
+  ok(fled.ok && fp.hp === 20 && f.ents.has(cr2.id) && !cr2.fuse, 'fleeing a hissing creeper cancels its fuse (it will come again: fleeing buys time)');
+  // a spider climbs a wall a zombie cannot
+  const w = new Sim({ seed: 3, shape: 'truncsq' });
+  const wc = w.player.c, wy = w.player.y, wn = w.cols[wc].adj[0];
+  for (let y = wy; y < wy + 3; y++) w.set(wn, y, B.cobblestone);
+  for (let y = wy + 3; y < wy + 6; y++) { w.set(wn, y, B.air); w.set(wc, y, B.air); }
+  ok(w.stepTarget(wc, wy, wn, 1, 3, true, 3) === wy + 3 && w.stepTarget(wc, wy, wn, 2, 3, true, 1) == null, 'a spider climbs a 3-high wall; a zombie does not');
+  // a bow: 6 damage at range, an arrow each shot
+  const b = new Sim({ seed: 3, shape: 'truncsq' });
+  const bp = b.player, bt = [...b.ballCols(bp.c, 3)].find(([cc, d]) => d === 3 && Math.abs(b.surface(cc) - bp.y) <= 0);
+  const z = b.spawnEnt('zombie', bt[0], b.surface(bt[0]), {});
+  b.give('bow', 1); b.give('arrow', 2);
+  const shot = b.act({ op: 'shoot', id: z.id });
+  ok(!b.los(bp, z) || (shot.ok && z.hp === 14 && b.inv.arrow === 1), `a bow hits from 3 tiles (${shot.why || 'hit'})`);
+  // a blasted house is repaired back to sealed
+  const h = new Sim({ seed: 3, shape: 'penrose' });
+  const hd = new Driver(h, { policy: baselinePolicy });
+  while (h.tick < 4800 * 3) { hd.step(); if (!hd.gen && h._house && !h.isNight()) break; }
+  if (h._house) {
+    const wall = h._house.ring.find((cc) => cc !== h._house.door);
+    h.set(wall, h._house.g, B.air); h.set(wall, h._house.g + 1, B.air);
+    h.give('cobblestone', 10);
+    const holes = houseHoles(h).length, rr = runMacro(h, 'repair_house');
+    ok(holes >= 2 && rr.ok && !houseHoles(h).length && sealed(h, h._house), `repair_house patches ${holes} holes and the house is sealed again (${rr.why || 'ok'})`);
+  } else ok(false, 'no house to test repair on');
 }
 
 // ---------------------------------------------------------------- text ------

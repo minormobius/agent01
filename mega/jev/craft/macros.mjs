@@ -577,14 +577,88 @@ export function* surface(sim) {
 }
 
 // Hit the nearest adjacent hostile until it dies or we must stop.
+// (not a creeper: stepping away is the answer to one. A skeleton that is
+// shooting from a few tiles off is charged: closing in stops the arrows)
 export function* fight(sim, kind = null) {
   for (let k = 0; k < 20; k++) {
-    const t = [...sim.ents.values()].find((e) => (kind ? e.kind === kind : HOSTILE.has(e.kind)) && sim.adjacentTo(sim.player, e));
-    if (!t) return { ok: true };
+    const t = [...sim.ents.values()].find((e) => (kind ? e.kind === kind : HOSTILE.has(e.kind) && e.kind !== 'creeper') && sim.adjacentTo(sim.player, e));
+    if (!t) {
+      const sk = !kind && [...sim.ents.values()].find((e) => e.kind === 'skeleton' && sim.dist(e.c, sim.player.c) <= 7 && sim.los(sim.player, e));
+      if (!sk) return { ok: true };
+      const go = yield* goTo(sim, (c, y) => sim.cols[c].adj.includes(sk.c) && Math.abs(y - sk.y) <= 1, 3000);
+      if (!go.ok) return { ok: false, why: `could not close in on the skeleton (${go.why})` };
+      continue;
+    }
     const r = yield { op: 'attack', id: t.id };
     if (!r.ok) return { ok: false, why: r.why };
   }
   return { ok: false, why: 'fight dragged on' };
+}
+// Step away from a creeper (or whatever is nearest and hostile) until 4 tiles off.
+export const creeperNear = (sim) => [...sim.ents.values()].find((e) => e.kind === 'creeper' && sim.dist(e.c, sim.player.c) <= 3);
+export function* flee(sim) {
+  const p = sim.player;
+  const t = creeperNear(sim) || [...sim.ents.values()].filter((e) => HOSTILE.has(e.kind)).sort((a, b) => sim.dist(a.c, p.c) - sim.dist(b.c, p.c))[0];
+  if (!t) return { ok: true };
+  const go = yield* goTo(sim, (c) => sim.dist(c, t.c) >= 4, 3000);
+  return go.ok ? { ok: true } : { ok: false, why: `nowhere to run (${go.why})` };
+}
+// Shoot the nearest hostile in sight and in range until it falls or the arrows run out.
+export const targetsInSight = (sim) => [...sim.ents.values()].filter((e) => HOSTILE.has(e.kind) && sim.dist(e.c, sim.player.c) <= 8 && sim.los(sim.player, e))
+  .sort((a, b) => sim.dist(a.c, sim.player.c) - sim.dist(b.c, sim.player.c));
+export function* shootAt(sim) {
+  for (let k = 0; k < 10; k++) {
+    const t = targetsInSight(sim)[0];
+    if (!t) return k ? { ok: true } : { ok: false, why: 'nothing hostile in sight and range' };
+    const r = yield { op: 'shoot', id: t.id };
+    if (!r.ok) return { ok: false, why: r.why };
+  }
+  return { ok: true };
+}
+// A house a creeper has blown open: every wall, roof and floor voxel of its
+// plan put back (and the door), then protected and proven sealed again.
+export function houseHoles(sim) {
+  const h = sim._house;
+  if (!h) return [];
+  const out = [];
+  for (const c of h.ring) for (const y of [h.g, h.g + 1, h.g + 2]) {
+    if (c === h.door && y < h.g + 2) { if (sim.get(c, y) !== B.door) out.push([c, y, 'door']); }
+    else if (!sim.solid(c, y)) out.push([c, y, 'block']);
+  }
+  for (const c of h.interior) { if (!sim.solid(c, h.g + 2)) out.push([c, h.g + 2, 'block']); if (!sim.solid(c, h.g - 1)) out.push([c, h.g - 1, 'block']); }
+  return out;
+}
+// the ground a blast took from beside the house: what you stand on to reach the wall
+function craterAround(sim, h) {
+  const out = [];
+  for (const c of h.outside) for (const y of [h.g - 2, h.g - 1]) if (!sim.solid(c, y) && sim.get(c, y) !== B.water && !sim.cols[c].nb.includes(-1)) out.push([c, y, 'block']);
+  return out;
+}
+export function* repairHouse(sim) {
+  const h = sim._house;
+  if (!h) return { ok: false, why: 'no house' };
+  let holes = houseHoles(sim);
+  if (!holes.length) return { ok: false, why: 'the house is whole' };
+  // ground first (somewhere to stand), then bottom-up
+  const todo = () => [...craterAround(sim, h), ...houseHoles(sim)].sort((a, b) => a[1] - b[1]);
+  holes = todo();
+  if (holes.some(([, , k]) => k === 'door') && !sim.has('door')) { const d = yield* craft(sim, 'door', 1); if (!d.ok) return { ok: false, why: `no door: ${d.why}` }; }
+  for (let k = 0; k < 40 && holes.length; k++) {
+    const [c, y, kind] = holes[0];
+    const item = kind === 'door' ? 'door' : nextBlock(sim);
+    if (!item) return { ok: false, why: `out of blocks with ${holes.length} holes left` };
+    if (!sim.reachable(sim.player.c, sim.player.y, c, y)) {
+      const go = yield* goTo(sim, (pc, py) => pc !== c && sim.reachable(pc, py, c, y), 6000);
+      if (!go.ok) return { ok: false, why: `could not reach a hole (${go.why})` };
+    }
+    const r = yield { op: 'place', c, y, item };
+    if (!r.ok && !/occupied/.test(r.why)) return { ok: false, why: r.why };
+    holes = todo();
+  }
+  holes = houseHoles(sim);
+  for (const c of h.ring) for (let yy = h.g; yy <= h.g + 2; yy++) sim.protect.add(c * H + yy);
+  for (const c of h.interior) { sim.protect.add(c * H + h.g + 2); sim.protect.add(c * H + h.g - 1); }
+  return holes.length ? { ok: false, why: `${holes.length} holes left` } : sealed(sim, h) ? { ok: true } : { ok: false, why: 'patched, but a mob could still walk in' };
 }
 
 // Go back for what you dropped when you died: it lies where you fell for
@@ -1814,7 +1888,10 @@ export const PALETTE = {
   follow:       { mode: 'team', doc: 'go to a teammate', needs: (s, a) => mateNeeds(s, a), run: (s, a) => follow(s, a.to) },
   guard:        { mode: 'team', doc: 'stay by a teammate and fight what comes at them', needs: (s, a) => mateNeeds(s, a), run: (s, a) => guard(s, a.to, a.ticks) },
   give:         { mode: 'team', doc: 'walk over and hand a teammate wood, food, stone or torches', needs: (s, a) => mateNeeds(s, a) || ((GIFTS[a?.what || 'wood'] || []).some((k) => s.has(k)) ? null : `holding no ${a?.what || 'wood'}`), run: (s, a) => giveItems(s, a.to, a.what) },
-  fight:        { mode: 'homestead', doc: 'hit whatever hostile is adjacent', needs: (s) => [...s.ents.values()].some((e) => HOSTILE.has(e.kind) && s.adjacentTo(s.player, e)) ? null : 'nothing adjacent to fight', run: (s) => fight(s) },
+  flee:         { mode: 'explore', doc: 'get away from a creeper (it blows up beside you) or whatever is closest', needs: (s) => creeperNear(s) || [...s.ents.values()].some((e) => HOSTILE.has(e.kind) && s.dist(e.c, s.player.c) <= 3) ? null : 'nothing to run from', run: (s) => flee(s) },
+  shoot:        { mode: 'homestead', doc: 'shoot the nearest hostile in sight with the bow (6 damage, up to 8 tiles)', needs: (s) => !s.has('bow') ? 'no bow (3 sticks, 3 string)' : !s.has('arrow') ? 'no arrows' : targetsInSight(s).length ? null : 'nothing in sight and range', run: (s) => shootAt(s) },
+  repair_house: { mode: 'homestead', doc: 'put back the walls, roof and door a blast took out', needs: (s) => !s._house ? 'no house' : !houseHoles(s).length ? 'the house is whole' : null, run: (s) => repairHouse(s) },
+  fight:        { mode: 'homestead', doc: 'hit whatever hostile is adjacent (and charge a skeleton shooting at you)', needs: (s) => [...s.ents.values()].some((e) => HOSTILE.has(e.kind) && e.kind !== 'creeper' && s.adjacentTo(s.player, e)) || [...s.ents.values()].some((e) => e.kind === 'skeleton' && s.dist(e.c, s.player.c) <= 7 && s.los(s.player, e)) ? null : 'nothing to fight', run: (s) => fight(s) },
 };
 export const MODES = ['mine', 'explore', 'homestead', 'team'];
 // Which world each macro works in. The overworld's are about its sky, soil,
