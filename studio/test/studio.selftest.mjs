@@ -471,5 +471,17 @@ console.log('\nGrown (packages/attractor/lib/organism.js)');
   ok(born > 20 && A.dead.length > 0 && A.bodies.length === B2.bodies.length && A.bodies.every((b, i) => b.p.every((v, q) => v === B2.bodies[i].p[q])), `together they bud (${born} born) and some starve (${A.dead.length} dead), the same every time`);
 }
 
+// 14 — Grown, evolving: mutation makes new body plans, deterministically; nothing lives forever --------
+console.log('\nGrown, evolving');
+{
+  const { World, GENOMES, signature, mutate, speciesName } = await import('../vendor/attractor/lib/organism.js');
+  ok(JSON.stringify(mutate(GENOMES.grazer, 42)) === JSON.stringify(mutate(GENOMES.grazer, 42)) && signature(GENOMES.reef) === 'm(g(bh)hhh)' && speciesName('m(b)') === speciesName('m(b)'), 'a mutation is a function of its seed; a plan\'s signature tells shell (h) from sense (s); a plan\'s name is fixed');
+  const run = () => { const W = new World(1, { cap: 60, mutate: 0.3 }); ['grazer', 'reef', 'swimmer'].forEach((n, i) => { for (let k = 0; k < 3; k++) { const a = (i * 3 + k) / 9 * 6.283; W.add(GENOMES[n], [80 + Math.cos(a) * 45, 32, 80 + Math.sin(a) * 45], a, 4); } }); for (let k = 0; k < 40; k++) { W.run(1000); W.census(); } return W; };
+  const A = run(), B = run(), plans = Object.keys(A.book).length, old = A.dead.filter((d) => d.cause === 'old').length;
+  ok(plans > 8 && A.mutants > 50 && old > 0 && JSON.stringify(Object.keys(A.book).sort()) === JSON.stringify(Object.keys(B.book).sort()), `in 40,000 steps: ${A.mutants} mutants, ${plans} body plans, ${old} died of age, the same every time`);
+  const { EVOLVED } = await import('../vendor/attractor/lib/evolved.js');
+  ok(EVOLVED.length >= 8 && EVOLVED.every((e) => signature(e.genome) === e.sig), `the evolved bestiary: ${EVOLVED.length} plans, each program still grows its plan`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

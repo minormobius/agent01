@@ -3,9 +3,13 @@
 // packages/attractor/lib/organism.js (copied to ../vendor/attractor) is the world: a medium of mineral
 // in veins and the bodies in it. This page steps it, draws each organ as its attractor, the bonds as
 // threads, armour and reef as crystal and the medium as a haze, and tells you who is alive.
-// The hash carries the world: #seed=42&with=all (or grazer, reef, swimmer).
+// The hash carries the world: #seed=42&with=all (or grazer, reef, swimmer, evolved)&evolve=1.
+// With evolve on, every child has a 30% chance of a mutated program; a mutation that changes the organ
+// tree is a new species, named from its plan. `evolved` seeds the world from the bestiary that
+// packages/attractor/tools/evolve.mjs kept from a long headless run (lib/evolved.js).
 
-import { World, GENOMES, ORGANS, flowsFor, WX, WY, WZ } from '../vendor/attractor/lib/organism.js';
+import { World, GENOMES, ORGANS, LETTER, flowsFor, signature, WX, WY, WZ } from '../vendor/attractor/lib/organism.js';
+import { EVOLVED, RUN } from '../vendor/attractor/lib/evolved.js';
 import { makeRenderer, prism } from './gl.js';
 
 const $ = (id) => document.getElementById(id);
@@ -13,23 +17,25 @@ const canvas = $('c'), host = $('stage');
 let R;
 try { R = makeRenderer(canvas); } catch (e) { $('phase').textContent = 'this page needs WebGL'; throw e; }
 
-const NAMES = Object.keys(GENOMES), FOUNDERS = ['all', ...NAMES];
-const state = { seed: 1, with: 'all', speed: 1, follow: null, haze: true };
+const NAMES = Object.keys(GENOMES), FOUNDERS = ['all', ...NAMES, 'evolved'];
+const state = { seed: 1, with: 'all', speed: 1, follow: null, haze: true, evolve: true };
 const SPEEDS = [[0, 'hold'], [1, '1×'], [4, '4×'], [16, '16×']];
 let W = null, carry = 0, tau = 0, reefLen = -1;
-const nameOf = (g) => NAMES.find((n) => GENOMES[n] === g) || 'mutant';
+const nameOf = (g) => g.name || 'unnamed';
 
 function readHash() {
   const q = new URLSearchParams(location.hash.slice(1));
   state.seed = Number(q.get('seed')) || 1 + Math.floor(Math.random() * 1e6);
   state.with = FOUNDERS.includes(q.get('with')) ? q.get('with') : 'all';
+  state.evolve = q.get('evolve') !== '0';
 }
-function writeHash() { history.replaceState(null, '', `#seed=${state.seed}&with=${state.with}`); }
+function writeHash() { history.replaceState(null, '', `#seed=${state.seed}&with=${state.with}&evolve=${state.evolve ? 1 : 0}`); }
 
 function start() {
-  W = new World(state.seed, { cap: 60 });
-  const kinds = state.with === 'all' ? NAMES : [state.with], per = state.with === 'all' ? 3 : 6;
-  kinds.forEach((n, i) => { for (let k = 0; k < per; k++) { const a = ((i * per + k) / (kinds.length * per)) * Math.PI * 2; W.add(GENOMES[n], [WX / 2 + Math.cos(a) * 45, WY / 2, WZ / 2 + Math.sin(a) * 45], a, 4); } });
+  W = new World(state.seed, { cap: 60, mutate: state.evolve ? 0.3 : 0 });
+  const genomes = state.with === 'all' ? NAMES.map((n) => GENOMES[n]) : state.with === 'evolved' ? EVOLVED.slice(0, 9).map((e) => e.genome) : [GENOMES[state.with]];
+  const per = Math.max(1, Math.round(9 / genomes.length));
+  genomes.forEach((g, i) => { for (let k = 0; k < per; k++) { const a = ((i * per + k) / (genomes.length * per)) * Math.PI * 2; W.add(JSON.parse(JSON.stringify(g)), [WX / 2 + Math.cos(a) * 45, WY / 2, WZ / 2 + Math.sin(a) * 45], a, 4); } });
   state.follow = null; reefLen = -1; carry = 0; cam.target = null;
   writeHash(); buttons();
 }
@@ -60,7 +66,7 @@ function point(buf, p, col, b, size) { buf.need(7); buf.a.set([p[0], p[1], p[2],
 function scene(f) {
   const P = R.points, C = R.crystals; P.n = 0; C.n = 0;
   for (const B of W.bodies) {
-    const pose = B.pose(f), flows = flowsFor(seedOf(B.genome)), hungry = Math.max(0, Math.min(1, 1 - B.E / (B.capacity() * 0.3)));
+    const pose = B.pose(f), flows = flowsFor(B.genome), hungry = Math.max(0, Math.min(1, 1 - B.E / (B.capacity() * 0.3)));
     for (const o of pose.organs) {
       const cl = flows[o.type], n = Math.round(40 + 70 * o.size), r = 0.45 + 0.6 * o.size, d = o.axis;
       let e1 = Math.abs(d[1]) < 0.9 ? [d[2], 0, -d[0]] : [0, -d[2], d[1]]; const l1 = Math.hypot(...e1); e1 = e1.map((v) => v / l1);
@@ -78,7 +84,7 @@ function scene(f) {
     for (const c of B.crystals) {
       const o = pose.organs[c.organ]; if (!o) continue;
       const F = o.frame, d = [F.r[0] * c.dir[0] + F.u[0] * c.dir[1] + F.f[0] * c.dir[2], F.r[1] * c.dir[0] + F.u[1] * c.dir[1] + F.f[1] * c.dir[2], F.r[2] * c.dir[0] + F.u[2] * c.dir[1] + F.f[2] * c.dir[2]];
-      prism(C, [o.p[0] + d[0] * 0.2 * o.size, o.p[1] + d[1] * 0.2 * o.size, o.p[2] + d[2] * 0.2 * o.size], d, c.len, 0.1 + 0.08 * c.len, c.spin, W.s - c.born, (B.lineage % 7) / 7);
+      prism(C, [o.p[0] + d[0] * 0.2 * o.size, o.p[1] + d[1] * 0.2 * o.size, o.p[2] + d[2] * 0.2 * o.size], d, c.len, 0.1 + 0.08 * c.len, c.spin, W.s - c.born, (seedOf(B.genome) % 7) / 7);
     }
   }
   if (W.reef.length !== reefLen) { R.reef.n = 0; for (const c of W.reef) prism(R.reef, c.p, c.dir, c.len, 0.1 + 0.08 * c.len, c.spin, 3000, (c.lineage % 7) / 7); R.uploadReef(); reefLen = W.reef.length; }
@@ -107,26 +113,35 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
+// a plan's signature in organ colours: m(g(bff)s) is a mouth growing a gut (which grows a bud and two fins) and a sense
+const hex = (c) => '#' + c.map((v) => Math.round(Math.min(1, v) * 255).toString(16).padStart(2, '0')).join('');
+function glyphs(sig) { return sig.replace(/[a-z]/g, (ch) => { const t = Object.keys(LETTER).find((k) => LETTER[k] === ch); return `<span style="color:${hex(ORGANS[t].colour)}">${ch}</span>`; }); }
 function info() {
-  const by = {}; for (const B of W.bodies) { const n = nameOf(B.genome); by[n] = (by[n] || 0) + 1; }
-  $('phase').textContent = `step ${W.s} · ${W.bodies.length} alive (${Object.entries(by).map(([k, v]) => `${v} ${k}${v > 1 ? 's' : ''}`).join(', ') || 'none'}) · ${W.dead.length} dead · ${W.reef.length} reef crystals`;
+  const census = Object.entries(W.census()).sort((a, b) => b[1].count - a[1].count);
+  $('phase').textContent = `step ${W.s} · ${W.bodies.length} alive in ${census.length} body plan${census.length === 1 ? '' : 's'} · ${Object.keys(W.book).length} plans ever · ${W.mutants} mutants · ${W.dead.length} dead`;
   const B = state.follow != null && W.bodies.find((b) => b.id === state.follow);
-  const lines = [`<b>world</b>  seed ${state.seed}, founders: ${state.with === 'all' ? 'three of each' : 'six ' + state.with + 's'}`];
+  const lines = [`<b>world</b>  seed ${state.seed}, founders: ${state.with === 'all' ? 'three of each' : state.with === 'evolved' ? 'nine evolved plans' : state.with + 's'}, evolution ${state.evolve ? 'on' : 'off'}`];
   if (B) {
     const counts = {}; for (const o of B.organs) counts[o.type] = (counts[o.type] || 0) + 1;
-    lines.push(`<b>this one</b>  a ${nameOf(B.genome)}, #${B.id}${B.parent != null ? ', child of #' + B.parent : ''}`,
+    lines.push(`<b>this one</b>  ${nameOf(B.genome)} #${B.id}${B.parent != null ? ', child of #' + B.parent : ''}${B.genome.from ? ', a new plan from ' + B.genome.from : ''}`,
+      `<b>plan</b>  ${glyphs(signature(B.genome))}`,
       `<b>organs</b>  ${B.grown} of ${B.plan.length} grown: ${Object.entries(counts).map(([k, v]) => v + ' ' + k).join(', ')}`,
       `<b>energy</b>  ${B.E.toFixed(1)} of ${B.capacity().toFixed(1)}   <b>age</b> ${B.age}   <b>children</b> ${B.children}   <b>armour</b> ${B.crystals.length}`);
-  } else lines.push('Tap "follow one" to ride along with a body and read it.');
+  }
+  lines.push('<b>alive now, by body plan</b>   (<span style="color:#ff8c38">m</span>outh <span style="color:#ffcc59">g</span>ut <span style="color:#4dd9ff">f</span>in <span style="color:#d9b3ff">s</span>ense s<span style="color:#bfcce6">h</span>ell <span style="color:#ff73b3">b</span>ud; brackets hold what grows from it)');
+  for (const [sig, c] of census.slice(0, 7)) lines.push(`${String(c.count).padStart(3)}  ${c.name.padEnd(10)} ${glyphs(sig)}`);
+  if (!B) lines.push('Tap "follow one" to ride along with a body and read it.');
+  if (state.with === 'evolved' && RUN) lines.push(`<b>the bestiary</b>  from a headless run of ${RUN.steps.toLocaleString()} steps: ${RUN.plans} body plans lived, ${RUN.mutants} mutants`);
   $('info').innerHTML = lines.join('\n');
 }
 
 // ---- controls ------------------------------------------------------------------------------------
 function buttons() {
   $('founders').innerHTML = ''; $('speeds').innerHTML = '';
-  for (const k of FOUNDERS) { const b = document.createElement('button'); b.type = 'button'; b.textContent = k === 'all' ? 'all three' : k + 's'; b.className = k === state.with ? 'on' : ''; b.onclick = () => { state.with = k; start(); }; $('founders').append(b); }
+  for (const k of FOUNDERS) { const b = document.createElement('button'); b.type = 'button'; b.textContent = k === 'all' ? 'all three' : k === 'evolved' ? 'evolved' : k + 's'; b.className = k === state.with ? 'on' : ''; b.onclick = () => { state.with = k; start(); }; $('founders').append(b); }
   for (const [v, label] of SPEEDS) { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = v === state.speed ? 'on' : ''; b.onclick = () => { state.speed = v; buttons(); }; $('speeds').append(b); }
   $('world').classList.toggle('on', state.follow == null);
+  $('evolve').classList.toggle('on', state.evolve);
   $('follow').classList.toggle('on', state.follow != null);
 }
 $('follow').addEventListener('click', () => {
@@ -135,6 +150,7 @@ $('follow').addEventListener('click', () => {
   const B = order[(i + 1) % order.length]; state.follow = B ? B.id : null; buttons(); info();
 });
 $('world').addEventListener('click', () => { state.follow = null; buttons(); info(); });
+$('evolve').addEventListener('click', () => { state.evolve = !state.evolve; W.mutate = state.evolve ? 0.3 : 0; writeHash(); buttons(); info(); });
 $('haze').addEventListener('click', (e) => { state.haze = !state.haze; e.target.classList.toggle('on', state.haze); });
 $('turn').addEventListener('click', (e) => { cam.turn = !cam.turn; e.target.classList.toggle('on', cam.turn); });
 $('lucky').addEventListener('click', () => { state.seed = 1 + Math.floor(Math.random() * 1e6); start(); });

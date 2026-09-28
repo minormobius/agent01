@@ -51,6 +51,7 @@ export const TYPES = Object.keys(ORGANS);
 export const GENOMES = {
   // a grazer: a mouth with a gut behind, one pair of fins, a sense up front, a bud at the back
   grazer: {
+    name: 'grazer',
     root: { type: 'mouth', size: 1 },
     rules: [
       { p: 'mouth', c: 'sense', az: 0, el: 0.3, len: 1.3, size: 0.5 },
@@ -62,6 +63,7 @@ export const GENOMES = {
   },
   // a reef-builder: a big mouth armoured all round, a big gut, no fins: it sits where it lands
   reef: {
+    name: 'reef',
     root: { type: 'mouth', size: 1.5 },
     rules: [
       { p: 'mouth', c: 'gut', az: Math.PI, el: -0.3, len: 1.4, size: 1.2 },
@@ -74,6 +76,7 @@ export const GENOMES = {
   },
   // a swimmer: a small mouth, a long sense, two pairs of fins each with a second joint, a bud
   swimmer: {
+    name: 'swimmer',
     root: { type: 'mouth', size: 0.7 },
     rules: [
       { p: 'mouth', c: 'sense', az: 0, el: 0.1, len: 1.6, size: 0.6 },
@@ -112,6 +115,22 @@ export function develop(genome, max = 18, depth = 4) {
   }
   return plan;
 }
+
+/**
+ * A body plan's signature: its organ tree, canonically (each organ's type and its children's
+ * signatures, sorted). Two programs that grow the same tree share a plan, whatever their numbers.
+ */
+/** One letter an organ in a signature: m mouth, g gut, f fin, s sense, h shell (the hard part), b bud. */
+export const LETTER = { mouth: 'm', gut: 'g', fin: 'f', sense: 's', shell: 'h', bud: 'b' };
+export function signature(genome) {
+  const plan = develop(genome), kids = plan.map(() => []);
+  plan.forEach((o, i) => { if (o.parent >= 0) kids[o.parent].push(i); });
+  const sig = (i) => LETTER[plan[i].type] + (kids[i].length ? '(' + kids[i].map(sig).sort().join('') + ')' : '');
+  return sig(0);
+}
+const SYL = ['ka', 'lo', 'mi', 'ru', 'te', 'sa', 'no', 'vi', 'po', 'da', 'wy', 'ne', 'or', 'ul', 'ae', 'zo', 'fe', 'ith', 'qu', 'bra'];
+/** A name for a new body plan, from its signature (the same plan always gets the same name). */
+export function speciesName(sig) { let h = 2166136261; for (const ch of sig) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); const a = h >>> 0; return (SYL[a % 20] + SYL[(a >>> 5) % 20] + (a & 1024 ? SYL[(a >>> 11) % 20] : '')).replace(/^./, (c) => c.toUpperCase()); }
 
 /** An attractor for each organ type, chosen for a lineage by fit (round mouths and guts, long fins). */
 function organFlows(seed) {
@@ -238,6 +257,8 @@ export class Body {
       if (bud && W.bodies.length < W.cap) { this.E *= 0.5; this.children++; W.birth(this, bud.p, this.E * 0.8); }
     }
     if (this.E < 0) this.die(s, 'starved');
+    // old age: every body dies in the end (without it a bud-less body lived forever on a vein)
+    else if (this.age > this.world.lifespan * (0.75 + 0.5 * hash(this.id, 99))) this.die(s, 'old');
   }
   die(s, cause) {
     this.alive = false; this.cause = cause;
@@ -249,8 +270,8 @@ export class Body {
 
 /** A world: the medium in veins, the bodies, their reef. */
 export class World {
-  constructor(seed, { cap = 60, mutate = 0, hard = 3, regrow = 0.0015 } = {}) {
-    this.hard = hard; this.regrow = regrow; this.seed = seed; this.s = 0; this.cap = cap; this.mutate = mutate; this.next = 0;
+  constructor(seed, { cap = 60, mutate = 0, hard = 3, regrow = 0.0015, lifespan = 5000 } = {}) {
+    this.lifespan = lifespan; this.hard = hard; this.regrow = regrow; this.seed = seed; this.book = {}; this.mutants = 0; this.s = 0; this.cap = cap; this.mutate = mutate; this.next = 0;
     this.bodies = []; this.dead = []; this.reef = []; this.version = 0;
     const rnd = mulberry32((seed >>> 0) * 747796405 + 11);
     this.veins = Array.from({ length: 7 }, () => ({ x: 20 + rnd() * (WX - 40), y: WY * (0.35 + 0.3 * rnd()), z: 20 + rnd() * (WZ - 40), r: 10 + rnd() * 18, a: 0.6 + rnd() * 0.6 }));
@@ -284,10 +305,25 @@ export class World {
   }
   /** Put a body in the world. `energy` defaults to enough to grow a little. */
   add(genome, at, yaw = 0, energy = 3) { const B = new Body(this, this.next++, genome, at, yaw, energy); this.bodies.push(B); return B; }
+  /** A child from a bud: the parent's program, mutated with probability `mutate`. A mutation that
+   *  changes the organ tree is a new body plan: a new species, named from its plan. */
   birth(parent, at, energy) {
-    const g = this.mutate ? mutate(parent.genome, this.mutate, parent.id * 7919 + this.s) : parent.genome;
+    let g = parent.genome;
+    if (this.mutate && hash(parent.id * 7919 + 3, this.s) < this.mutate) {
+      g = mutate(parent.genome, parent.id * 7919 + this.s * 31);
+      const sig = signature(g);
+      if (sig !== signature(parent.genome)) { g.name = speciesName(sig); g.from = parent.genome.name; }
+      this.mutants++;
+    }
     const B = new Body(this, this.next++, g, at, parent.yaw + Math.PI + (hash(parent.id, this.s) - 0.5), energy, g === parent.genome ? parent.lineage : this.next - 1);
     B.parent = parent.id; this.bodies.push(B);
+  }
+  /** Who is alive, by body plan: { sig: { name, count, genome, organs } }, and the running book of plans. */
+  census() {
+    const out = {};
+    for (const B of this.bodies) { const sig = B.sig ||= signature(B.genome); const c = (out[sig] ||= { name: B.genome.name, count: 0, genome: B.genome, grown: 0 }); c.count++; c.grown = Math.max(c.grown, B.grown); }
+    for (const [sig, c] of Object.entries(out)) { const r = (this.book[sig] ||= { sig, name: c.name, first: this.s, peak: 0, lives: 0, genome: c.genome }); r.peak = Math.max(r.peak, c.count); r.lives += c.count; r.last = this.s; if (c.count >= r.peak) r.genome = c.genome; }
+    return out;
   }
   step() {
     const s = ++this.s;
@@ -302,24 +338,36 @@ export class World {
   richest() { let best = 0, bi = 0; for (let i = 0; i < this.base0.length; i++) if (this.base0[i] > best) { best = this.base0[i]; bi = i; } const x = bi % MX, k = Math.floor(bi / MX) % MZ, j = Math.floor(bi / (MX * MZ)); return [(x + 0.5) * MC, (j + 0.5) * MC, (k + 0.5) * MC]; }
 }
 
-/** A genome, mutated: a rule's numbers nudged, a rule copied, dropped or retyped, the beat retuned. */
-export function mutate(g, rate, seed) {
+/**
+ * A genome, mutated once (sometimes twice): a rule's numbers nudged, a rule copied (a new organ, often
+ * a new branch), dropped, or retyped (what grows, or what it grows from), a mirror toggled, the beat
+ * retuned, or one organ's attractor swapped for a neighbour in the bestiary (its look).
+ */
+export function mutate(g, seed) {
   const rnd = mulberry32(seed >>> 0), G = JSON.parse(JSON.stringify(g)), pick = (a) => a[Math.floor(rnd() * a.length)];
-  const n = 1 + Math.floor(rnd() * 2 * rate);
-  for (let k = 0; k < n; k++) {
+  looks(G);
+  for (let k = rnd() < 0.3 ? 2 : 1; k > 0; k--) {
     const r = rnd();
-    if (r < 0.45 && G.rules.length) { const R = pick(G.rules), key = pick(['az', 'el', 'len', 'size', 'phase']); R[key] = (R[key] || 0) + (rnd() - 0.5) * (key === 'size' ? 0.3 : 0.6); R.size = Math.max(0.2, Math.min(2, R.size)); R.len = Math.max(0.6, Math.min(3, R.len)); }
-    else if (r < 0.6 && G.rules.length < 10) G.rules.push({ ...pick(G.rules), az: rnd() * TAU - Math.PI });
-    else if (r < 0.7 && G.rules.length > 1) G.rules.splice(Math.floor(rnd() * G.rules.length), 1);
-    else if (r < 0.85 && G.rules.length) pick(G.rules)[rnd() < 0.5 ? 'c' : 'p'] = pick(TYPES);
-    else { const k2 = pick(['amp', 'period', 'steer', 'rest']); G.beat[k2] = (G.beat[k2] ?? 0.7) * (0.8 + rnd() * 0.4); }
+    if (r < 0.4 && G.rules.length) { const R = pick(G.rules), key = pick(['az', 'el', 'len', 'size', 'phase']); R[key] = (R[key] || 0) + (rnd() - 0.5) * (key === 'size' ? 0.3 : 0.6); R.size = Math.max(0.2, Math.min(2, R.size)); R.len = Math.max(0.6, Math.min(3, R.len)); }
+    else if (r < 0.52 && G.rules.length < 10) G.rules.push({ ...pick(G.rules), az: rnd() * TAU - Math.PI, el: (rnd() - 0.5) * 1.2 });
+    else if (r < 0.62 && G.rules.length > 1) G.rules.splice(Math.floor(rnd() * G.rules.length), 1);
+    else if (r < 0.74 && G.rules.length) pick(G.rules)[rnd() < 0.6 ? 'c' : 'p'] = pick(TYPES);
+    else if (r < 0.8 && G.rules.length) { const R = pick(G.rules); R.mirror = !R.mirror; }
+    else if (r < 0.92) { const k2 = pick(['amp', 'period', 'steer', 'rest']); G.beat[k2] = Math.max(0, (G.beat[k2] ?? 0.7) * (0.75 + rnd() * 0.5) + (G.beat[k2] ? 0 : 0.05)); G.beat.period = Math.max(10, Math.min(80, G.beat.period)); }
+    else { const t = pick(TYPES), pool = BESTIARY.filter((b) => b.fill > 0.06 && b.dim > 1.5); G.flows[t] = pick(pool).key; }
   }
   return G;
 }
 
-/** The attractors a lineage's organs are drawn with, realised once and shared. */
+/** The attractor keys a genome's organs are drawn with (inherited; a founder's come from its name). */
+export function looks(genome) {
+  if (!genome.flows) { let h = 7; for (const ch of genome.name || 'x') h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0; genome.flows = organFlows(h >>> 0); }
+  return genome.flows;
+}
+/** Those attractors, realised once and shared. */
 const flowCache = new Map();
-export function flowsFor(lineageSeed) {
-  if (!flowCache.has(lineageSeed)) { const keys = organFlows(lineageSeed), out = {}; for (const t of TYPES) out[t] = realise(keys[t], 6000); flowCache.set(lineageSeed, out); }
-  return flowCache.get(lineageSeed);
+export function flowsFor(genome) {
+  const keys = looks(genome), out = {};
+  for (const t of TYPES) { if (!flowCache.has(keys[t])) flowCache.set(keys[t], realise(keys[t], 6000)); out[t] = flowCache.get(keys[t]); }
+  return out;
 }

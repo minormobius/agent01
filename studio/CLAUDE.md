@@ -544,6 +544,29 @@ lineages. No fitness function, ever: what feeds buds, what doesn't starves.
   (big mouth, gut, four shells, bud: never moves, grows ~55 armour crystals), swimmer (small mouth, long
   sense, gut, four fins, bud: twice the grazer's top speed). The first swimmer had a fin→fin rule that
   recursed into 12 fins it could not feed: exactly what evolution should prune.
+- **Evolution** (owner: "turn on mutation"). `World({ mutate })`: each child has that chance (the page
+  and the tool use 0.3) of `mutate(genome)`: one change (sometimes two): a rule's numbers nudged, a rule
+  copied (a new organ, often a new branch), dropped, retyped, mirrored or unmirrored, the beat retuned,
+  or one organ's attractor swapped (its look; looks are inherited, `genome.flows`). A child whose ORGAN
+  TREE differs is a new species: `signature()` is the tree, canonically (m mouth, g gut, f fin, s sense,
+  h shell, b bud; brackets hold what grows from an organ), and `speciesName(sig)` names it. Every body
+  dies of age (`lifespan` 5000 ± 25%): without that a mutant that lost its bud lived forever on a vein,
+  and a full world (cap 60) had no births. `census()` counts the living by plan and keeps `book`.
+- **The headless run** (`node packages/attractor/tools/evolve.mjs [steps] [seed] --write`, 1M steps ≈ 7
+  min): founders put back if all die (counted), a census every 2000 steps, the top 16 evolved plans
+  (founders left out) with their programs to `lib/evolved.js` (GENERATED), which the page's "evolved"
+  founders button seeds from. What happened in the first runs: the reef-builders and swimmers died
+  out early (armour has no use yet: nothing attacks; fins are dear); a finless grazer (m(g(b)s)) and
+  then the cheapest replicator possible, a mouth and a bud (m(b)), rose, as feared, but did not sweep:
+  grazers with one fin, two buds, doubled gut branches and a fin growing from a bud coexisted with it.
+  **The 1M-step run behind lib/evolved.js** (seed 1, 441 s): 306 plans, ~3600 mutants, no reseeds. The
+  gut was lost (every late plan is gutless; the grazer went extinct at 404k after leading for 400k). Then
+  SEGMENTATION evolved: a bud that grows a fin and a new mouth, which grows another bud… (Noqusa,
+  m(b(fm(b(fm)))), the most common plan at the end; Tekaor m(b(m(b(m)))); Dawy branching). A body plan
+  of repeated units, which no rule wrote: the `develop()` recursion (depth 4) made it possible, selection
+  found it. The top of the book by lives: Minoul m(b(f)) (a bud with a fin), the grazer, Ulzo m(b).
+  Next pressures, if diversity collapses: predation (a current or mouth that eats armourless bodies),
+  patchier or moving veins.
 - **The page**: organs as their attractors in their colours, bonds as threads, armour and reef as
   crystals, the medium as dim motes; follow one body to read its organs, energy, age and children.
   30 steps a second at 1×. ~0.4 ms a step for ~60 bodies in node. Real-device frame rate unverified.
