@@ -1,7 +1,8 @@
 {
-  "runId": "imp-09",
+  "runId": "imp-10",
   "models": ["ds4-flash", "ds4-pro"],
-  "tasks": ["build"],
+  "tasks": ["trec", "era"],
   "maxTokens": 8192,
-  "note": "build, third attempt and the first clean one: random scratch dirs (imp-08's builders were scored on the self-test's leftover pages — only Jev's fit score noticed), stalled turns resumed from their history (every imp-08 build ended :empty_tool_calls), a trace per build. Eight of minormobius's build-a-bot requests, scored by the lab factory's smoke test and content gate plus Jev as judge. Baseline only."
+  "gepa": { "models": ["ds4-flash", "ds4-pro"], "reflection": "ds4-pro", "maxMetricCalls": 200 },
+  "note": "trec and era again with an 8,192-token reply budget. Hypothesis under test: the DeepSeek 'parse errors' (trec baseline 64/80 and 31/80 in imp-04; era 95/120 in imp-06) are not format failures but replies whose whole 2,048-token budget went to hidden reasoning, leaving no answer — the failure mega/jev recorded for Kimi. If errors collapse here, the imp-04 and imp-06 baselines were measuring the budget, not the models."
 }
