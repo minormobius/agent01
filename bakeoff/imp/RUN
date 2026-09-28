@@ -1,7 +1,6 @@
 {
-  "runId": "imp-06",
-  "models": ["ds4-flash", "ds4-pro", "kimi3"],
-  "tasks": ["era"],
-  "gepa": { "models": ["ds4-flash", "ds4-pro"], "reflection": "ds4-pro", "maxMetricCalls": 200 },
-  "note": "era: from one of minormobius.bsky.social's posts alone, guess the year (2023–2026). Zero-shot and 16 labelled examples on all three models; GEPA (true year as train feedback) on the DeepSeek models — Kimi K3 reasons too long per post to fit GEPA in the job. imp-05 is this run's failed first attempt: rows killed on time crashed the summary."
+  "runId": "imp-07",
+  "models": ["ds4-flash", "ds4-pro"],
+  "tasks": ["build"],
+  "note": "build: eight of minormobius's build-a-bot requests, each built from scratch by an Imp ReAct agent with the lab factory's file tools and constraints, scored by the factory's own smoke test and content gate plus Jev as judge. Baseline only — this run measures what a build costs in tokens and minutes before any optimizer is pointed at it."
 }
