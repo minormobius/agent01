@@ -17,6 +17,7 @@ beside: [`../CLAUDE.md`](../CLAUDE.md).
 | `route` | `Imp.predict`, `ticket -> team: enum[atlas,harbor,beacon,quill]` | Imp's own `priv/tutorial/support_tickets.json`, 20 train / 20 test | zero-shot; `LabeledFewShot(k: 8)` |
 | `desk` | `Imp.react` over six Elixir tools (`lib/desk.ex`) | 24 generated questions, 8 train / 16 test | ReAct zero-shot |
 | `desk_hard` | `Imp.react` over seven tools (`lib/desk_hard.ex`) | 36 generated questions, 9 train / 9 validation / 18 test | ReAct zero-shot; + GEPA |
+| `era` | `Imp.predict`, `post -> year: enum[2023,2024,2025,2026]` (`lib/era.ex`) | minormobius.bsky.social's own posts, 32 train / 48 selection / 120 test, **fetched at run time** | zero-shot; 16 examples; + GEPA |
 | `trec` | `Imp.predict`, `text -> route: enum[K11,K47]` (`lib/trec.ex`) | Imp's matched-GEPA TREC splits, 20 train / 40 selection / 80 held out, **fetched at run time** | baseline; + GEPA |
 
 `trec` is Imp's own `research/matched_instruction_optimizers_trec` re-run on
@@ -94,6 +95,14 @@ One runner per model. Results land on a `bakeoff/<run-id>` branch as
 `<model>.traces.md` (every tool call, its arguments, what it returned) and
 `<model>.route.program.json` (the compiled router, as Imp saves it — instructions
 and demos you can read and diff).
+
+`era` asks, of one post, which year its author wrote it (chance 25%). Labels
+are the posts' own `createdAt`; only drift in one person's topics and phrasing
+can beat chance. Top-level posts only, ≥60 characters, no @-mentions (traces
+are published, other people's handles stay out) and no four-digit year in the
+text. Sampling is by sha256 of the record key, and the chosen keys are written
+into the result. Train rows' feedback names the true year; selection rows get
+a score only. The report adds within-one-year accuracy and a confusion matrix.
 
 ## The Imp patch
 

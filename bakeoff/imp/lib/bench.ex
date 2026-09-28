@@ -18,7 +18,7 @@ defmodule ImpBench do
 
   alias ImpBench.Desk
 
-  @tasks ~w(route desk desk_hard trec)
+  @tasks ~w(route desk desk_hard trec era)
 
   def main do
     model_key = System.get_env("IMP_BENCH_MODEL") || raise "IMP_BENCH_MODEL is required"
@@ -387,6 +387,120 @@ defmodule ImpBench do
             seconds: t1,
             optimize_seconds: gepa_secs
           })
+          |> Map.put(:gepa, %{
+            reflection: reflection_key,
+            max_metric_calls: max_calls,
+            changed: changed
+          })
+        rescue
+          e ->
+            msg = Exception.message(e) |> String.slice(0, 2000)
+            IO.puts("   GEPA failed: " <> msg)
+
+            Map.put(result, :gepa, %{
+              reflection: reflection_key,
+              max_metric_calls: max_calls,
+              error: msg
+            })
+        end
+    end
+  end
+
+  # era: from one post alone, guess the year minormobius wrote it (see
+  # ImpBench.Era). Zero-shot, LabeledFewShot(k: 16, four per year), and — for
+  # models named in IMP_BENCH_GEPA — GEPA on train (feedback) / selection.
+  defp run("era", lm, out) do
+    alias ImpBench.Era
+    %{train: train, selection: selection, test: test_rows} = Era.split()
+    program = Era.program(lm)
+    test = Era.examples(test_rows, false)
+    metric = Era.metric()
+    eval = fn prog -> Imp.evaluate(prog, test, metric, num_threads: 8, timeout: 180_000) end
+
+    arm = fn res, secs ->
+      s = Era.summarize(res, test_rows)
+
+      {%{
+         score: res.score,
+         errors: length(res.errors),
+         seconds: secs,
+         within_one: s.within_one,
+         confusion: s.confusion,
+         error_samples: error_samples(res)
+       }, s.outcomes}
+    end
+
+    {base_res, t0} = timed(fn -> eval.(program) end)
+    {base, base_rows} = arm.(base_res, t0)
+
+    few_prog =
+      Imp.optimize!(
+        program,
+        Imp.Optimizer.LabeledFewShot.new(k: 16, sample: false),
+        Era.examples(train, false)
+      )
+
+    {few_res, t1} = timed(fn -> eval.(few_prog) end)
+    {few, few_rows} = arm.(few_res, t1)
+    save_program(few_prog, Path.join(out, "era.few_shot.program.json"))
+
+    result = %{
+      n_test: length(test),
+      handle: Era.handle(),
+      split: %{
+        train: Enum.map(train, & &1.rkey),
+        selection: Enum.map(selection, & &1.rkey),
+        test: Enum.map(test_rows, & &1.rkey)
+      },
+      arms: %{"baseline" => base, "few_shot_k16" => few},
+      rows: %{"baseline" => base_rows, "few_shot_k16" => few_rows}
+    }
+
+    case gepa_for(lm) do
+      nil ->
+        result
+
+      {reflection_lm, reflection_key, max_calls} ->
+        checkpoint(Map.put(Process.get(:imp_bench_done, %{}), current_task(), result))
+        IO.puts("   GEPA: reflection #{reflection_key}, max_metric_calls #{max_calls}")
+
+        gepa =
+          Imp.Optimizer.GEPA.new(metric,
+            reflection_lm: reflection_lm,
+            max_metric_calls: max_calls,
+            use_merge: false,
+            num_threads: 4,
+            seed: 20_260_928,
+            timeout: 300_000,
+            proposal_timeout: 300_000
+          )
+
+        try do
+          {optimized, gepa_secs} =
+            timed(fn ->
+              Imp.optimize!(
+                program,
+                gepa,
+                Era.examples(train, true),
+                Era.examples(selection, false)
+              )
+            end)
+
+          {opt_res, t2} = timed(fn -> eval.(optimized) end)
+          {opt, opt_rows} = arm.(opt_res, t2)
+          save_program(optimized, Path.join(out, "era.gepa.program.json"))
+
+          before = Imp.ProgramParameters.values(program)
+          after_ = Imp.ProgramParameters.values(optimized)
+
+          changed =
+            for {id, v} <- after_, before[id] != v, into: %{} do
+              {inspect(id), %{before: text(before[id]), after: text(v)}}
+            end
+
+          result
+          |> put_in([:arms, "gepa"], Map.put(opt, :optimize_seconds, gepa_secs))
+          |> put_in([:rows, "gepa"], opt_rows)
           |> Map.put(:gepa, %{
             reflection: reflection_key,
             max_metric_calls: max_calls,

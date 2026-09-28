@@ -133,6 +133,23 @@ for (const { dir, cell } of cells) {
       if (fs.existsSync(p)) fs.copyFileSync(p, path.join(outDir, `${slug}.trec.gepa.program.json`));
     }
   }
+  const er = cell.tasks.era;
+  if (er) {
+    const a = er.arms;
+    lines.push('', `**era** — ${er.n_test} held-out posts by ${er.handle}, four years (chance 25%):`, '',
+      '| arm | exact | within one year | errors |', '|---|---|---|---|',
+      ...Object.entries(a).map(([k, v]) => `| ${k} | ${pct(v.score)} | ${pct(v.within_one)} | ${v.errors} |`));
+    if (er.gepa) {
+      const changed = Object.entries(er.gepa.changed || {});
+      lines.push('', `GEPA (reflection \`${er.gepa.reflection}\`, max_metric_calls ${er.gepa.max_metric_calls}): ` +
+        (er.gepa.error ? `**failed**: \`${er.gepa.error.slice(0, 400)}\`` : changed.length ? `rewrote ${changed.length} parameter(s).` : 'kept the original program.'));
+      for (const [id, c] of changed) lines.push('', `<details><summary>${id}</summary>`, '', '```', c.after, '```', '', '</details>');
+    }
+    for (const f of ['era.few_shot.program.json', 'era.gepa.program.json']) {
+      const p = path.join(dir, f);
+      if (fs.existsSync(p)) fs.copyFileSync(p, path.join(outDir, `${slug}.${f}`));
+    }
+  }
   const r = cell.tasks.route;
   if (r) {
     const m = Object.entries(r.misses || {});
