@@ -1,0 +1,402 @@
+{
+  "runId": "imp-11",
+  "note": "build with append_file and a ~250-line limit per call. imp-09 (the first clean baseline: Flash 0.34, Pro 0.63) lost five Flash builds and one Pro build to replies cut off while writing a whole file at once; this run measures how much of that the harness change recovers. Same eight requests, same scoring.",
+  "cells": [
+    {
+      "seconds": 961,
+      "status": "ran",
+      "probe": "ok: \"Blue\"",
+      "model": "ds4-flash",
+      "model_id": "deepseek-v4-flash",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "build": {
+          "rows": [
+            {
+              "error": null,
+              "seconds": 201,
+              "usage": {
+                "output_tokens": 32929,
+                "input_tokens": 52579,
+                "total_tokens": 85508
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 4,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "train-game",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 579,
+              "usage": {
+                "output_tokens": 60294,
+                "input_tokens": 1210035,
+                "total_tokens": 1270329
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.79,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 31,
+              "score": 0.937,
+              "termination": "submit",
+              "slug": "odyssey-trail",
+              "feedback": "Clean build.",
+              "episodes": 2
+            },
+            {
+              "error": null,
+              "seconds": 691,
+              "usage": {
+                "output_tokens": 75503,
+                "input_tokens": 1601256,
+                "total_tokens": 1676759
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.28,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 38,
+              "score": 0.7840000000000001,
+              "termination": "submit",
+              "slug": "domain-availability",
+              "feedback": "A judge doubts the page does what the request asked (0.28).",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 412,
+              "usage": {
+                "output_tokens": 25634,
+                "input_tokens": 243412,
+                "total_tokens": 269046
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.88,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 17,
+              "score": 0.9640000000000002,
+              "termination": "submit",
+              "slug": "sketch-out",
+              "feedback": "Clean build.",
+              "episodes": 2
+            },
+            {
+              "error": null,
+              "seconds": 318,
+              "usage": {
+                "output_tokens": 33270,
+                "input_tokens": 56952,
+                "total_tokens": 90222
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 4,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "testing-this",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 215,
+              "usage": {
+                "output_tokens": 32942,
+                "input_tokens": 52304,
+                "total_tokens": 85246
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 4,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "yes-that",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 439,
+              "usage": {
+                "output_tokens": 69754,
+                "input_tokens": 2150675,
+                "total_tokens": 2220429
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.74,
+                "gate": 1,
+                "smoke": 0.75
+              },
+              "tool_calls": 64,
+              "score": 0.8345000000000001,
+              "termination": "incomplete (:max_iters)",
+              "slug": "daily-digital",
+              "feedback": "The smoke test found problems:\n\n::error::smoke [error] Uncaught Error: SELFTEST: hit test found cell null, wanted 9 @http://127.0.0.1:43769/selftest.js:9\n\n::error::1 problem(s) loading /tmp/imp-build-daily-digital-tsu-PyCGdvNe/site/index.html\n",
+              "episodes": 2
+            },
+            {
+              "error": null,
+              "seconds": 201,
+              "usage": {
+                "output_tokens": 27458,
+                "input_tokens": 448532,
+                "total_tokens": 475990
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.86,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 21,
+              "score": 0.9580000000000002,
+              "termination": "submit",
+              "slug": "mutuals-combined",
+              "feedback": "Clean build.",
+              "episodes": 1
+            }
+          ],
+          "arms": {
+            "react": {
+              "usage": {
+                "output_tokens": 357784,
+                "input_tokens": 5815745,
+                "total_tokens": 6173529
+              },
+              "errors": 0,
+              "score": 0.5596875000000001,
+              "median_seconds": 412
+            }
+          },
+          "n_test": 8,
+          "max_iters": 40,
+          "judge": "jev"
+        }
+      }
+    },
+    {
+      "seconds": 1308,
+      "status": "ran",
+      "probe": "ok: \"blue\"",
+      "model": "ds4-pro",
+      "model_id": "deepseek-v4-pro",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "build": {
+          "rows": [
+            {
+              "error": null,
+              "seconds": 1209,
+              "usage": {
+                "output_tokens": 33006,
+                "input_tokens": 53317,
+                "total_tokens": 86323
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 4,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "train-game",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 906,
+              "usage": {
+                "output_tokens": 47182,
+                "input_tokens": 403663,
+                "total_tokens": 450845
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.33,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 16,
+              "score": 0.799,
+              "termination": "submit",
+              "slug": "odyssey-trail",
+              "feedback": "A judge doubts the page does what the request asked (0.33).",
+              "episodes": 3
+            },
+            {
+              "error": null,
+              "seconds": 445,
+              "usage": {
+                "output_tokens": 17908,
+                "input_tokens": 349231,
+                "total_tokens": 367139
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.28,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 25,
+              "score": 0.7840000000000001,
+              "termination": "submit",
+              "slug": "domain-availability",
+              "feedback": "A judge doubts the page does what the request asked (0.28).",
+              "episodes": 1
+            },
+            {
+              "error": null,
+              "seconds": 125,
+              "usage": {
+                "output_tokens": 7308,
+                "input_tokens": 91112,
+                "total_tokens": 98420
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.88,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 9,
+              "score": 0.9640000000000002,
+              "termination": "submit",
+              "slug": "sketch-out",
+              "feedback": "Clean build.",
+              "episodes": 1
+            },
+            {
+              "error": null,
+              "seconds": 190,
+              "usage": {
+                "output_tokens": 658,
+                "input_tokens": 1887,
+                "total_tokens": 2545
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 3,
+              "score": 0,
+              "termination": "incomplete (:prediction_error)",
+              "slug": "testing-this",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 1
+            },
+            {
+              "error": null,
+              "seconds": 418,
+              "usage": {
+                "output_tokens": 4684,
+                "input_tokens": 34250,
+                "total_tokens": 38934
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.41,
+                "gate": 1,
+                "smoke": 0.75
+              },
+              "tool_calls": 7,
+              "score": 0.7355,
+              "termination": "incomplete (:prediction_error)",
+              "slug": "yes-that",
+              "feedback": "The smoke test found problems:\n\n::error::smoke [resource] failed to load http://127.0.0.1:33183/app.js\n\n::error::1 problem(s) loading /tmp/imp-build-yes-that-gOaCL1fTrXel/site/index.html\n\n\nA judge doubts the page does what the request asked (0.41).",
+              "episodes": 1
+            },
+            {
+              "error": null,
+              "seconds": 207,
+              "usage": {
+                "output_tokens": 415,
+                "input_tokens": 1596,
+                "total_tokens": 2011
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 2,
+              "score": 0,
+              "termination": "incomplete (:prediction_error)",
+              "slug": "daily-digital",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 1
+            },
+            {
+              "error": null,
+              "seconds": 651,
+              "usage": {
+                "output_tokens": 36017,
+                "input_tokens": 100696,
+                "total_tokens": 136713
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 8,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "mutuals-combined",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            }
+          ],
+          "arms": {
+            "react": {
+              "usage": {
+                "output_tokens": 147178,
+                "input_tokens": 1035752,
+                "total_tokens": 1182930
+              },
+              "errors": 0,
+              "score": 0.4103125000000001,
+              "median_seconds": 445
+            }
+          },
+          "n_test": 8,
+          "max_iters": 40,
+          "judge": "jev"
+        }
+      }
+    }
+  ]
+}
