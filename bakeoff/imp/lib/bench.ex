@@ -185,7 +185,26 @@ defmodule ImpBench do
   end
 
   defp error_samples(%Imp.Evaluate.Result{errors: errors}) do
-    errors |> Enum.take(3) |> Enum.map(&inspect(&1, limit: 12, printable_limit: 600))
+    errors |> Enum.take(3) |> Enum.map(&error_sample/1)
+  end
+
+  # The start of an error names its kind; the model's raw reply, which says
+  # WHY (an empty answer after long reasoning looks exactly like a format
+  # failure from the kind alone), sits at the end, past any sensible slice.
+  defp error_sample(err) do
+    head = inspect(err, limit: 8, printable_limit: 300) |> String.slice(0, 300)
+
+    raw =
+      case err do
+        %{reason: %{trace: %{raw: raw}}} -> raw
+        _ -> nil
+      end
+
+    if raw,
+      do:
+        head <>
+          " … raw: " <> (inspect(raw, limit: 8, printable_limit: 500) |> String.slice(0, 500)),
+      else: head
   end
 
   # ─── task: route ────────────────────────────────────────────────────
