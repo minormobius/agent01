@@ -1,0 +1,1650 @@
+{
+  "artifact_type": "imp_program_artifact",
+  "payload": {
+    "adapter": "Elixir.Imp.Adapter.Chat",
+    "config": [],
+    "demos": [],
+    "dynamic_adapter": true,
+    "dynamic_lm": false,
+    "lm": {
+      "model": {
+        "base_url": "https://api.deepseek.com/v1",
+        "id": "deepseek-v4-flash",
+        "model": "deepseek-v4-flash",
+        "provider": "openai"
+      },
+      "opts": [
+        [
+          "cache",
+          false
+        ],
+        [
+          "receive_timeout",
+          180000
+        ],
+        [
+          "temperature",
+          0.0
+        ],
+        [
+          "max_tokens",
+          2048
+        ]
+      ],
+      "provider": "req_llm"
+    },
+    "metadata": {
+      "__imp_type__": "map",
+      "entries": [
+        [
+          {
+            "__imp_type__": "atom",
+            "value": "optimizer_report"
+          },
+          {
+            "__imp_type__": "optimizer_report",
+            "best_score": 0.020833333333333332,
+            "candidate_count": 12,
+            "candidates": [
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.020833333333333332
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "scores"
+                    },
+                    [
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "nil"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "A post by one Bluesky user. Guess the year they wrote it."
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "{:task_exit, :timeout}"
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "A post by one Bluesky user. Guess the year they wrote it."
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "scores"
+                    },
+                    [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "accepted reflection"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "You are estimating the year a post was written on Bluesky.\n\nInput format:\npost: <exact text of the Bluesky post>\n\nOutput format:\nyear: <four-digit year>\n\nTask details and calibration:\n- The post is from Bluesky, so the year must be no earlier than 2023, when Bluesky began as an invite-only beta.\n- Use textual cues, cultural references, slang, meme conventions, technology mentions, current events, and Bluesky-specific posting style to infer the year.\n- Bluesky posts are often absurd, ironic, speculative, or intentionally futuristic. A post that describes an advanced or surreal concept is not necessarily from the future; it may simply be a joke or creative observation posted in a recent year.\n- Do not default to 2024. For example, a surreal futuristic post about a sushi service carousel restocked by drones was actually written in 2025, not 2024.\n-"
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "{:task_exit, :timeout}"
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "You are estimating the year a post was written on Bluesky.\n\nInput format:\npost: <exact text of the Bluesky post>\n\nOutput format:\nyear: <four-digit year>\n\nTask details and calibration:\n- The post is from Bluesky, so the year must be no earlier than 2023, when Bluesky began as an invite-only beta.\n- Use textual cues, cultural references, slang, meme conventions, technology mentions, current events, and Bluesky-specific posting style to infer the year.\n- Bluesky posts are often absurd, ironic, speculative, or intentionally futuristic. A post that describes an advanced or surreal concept is not necessarily from the future; it may simply be a joke or creative observation posted in a recent year.\n- Do not default to 2024. For example, a surreal futuristic post about a sushi service carousel restocked by drones was actually written in 2025, not 2024.\n-"
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...; \"This post was written in 2023; you guessed 2024.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "\"This post was written in 2023; you guessed 2024.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-4"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Correct: this post is from 2024.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...; \"This post was written in 2024; you guessed 2023.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Correct: this post is from 2024.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "\"This post was written in 2024; you guessed 2023.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-6"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...; \"This post was written in 2026; you guessed 2023.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "\"This post was written in 2026; you guessed 2023.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-7"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"This post was written in 2023; you guessed 2024.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string..."
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"This post was written in 2023; you guessed 2024.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-10"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"This post was written in 2025; you guessed 2023.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string..."
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"This post was written in 2025; you guessed 2023.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-11"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...; \"This post was written in 2024; you guessed 2023.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "\"This post was written in 2024; you guessed 2023.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-16"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"Correct: this post is from 2024.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...; \"This post was written in 2025; you guessed 2024.\"; \"This post was written in 2024; you guessed 2023.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"Correct: this post is from 2024.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "\"This post was written in 2025; you guessed 2024.\"",
+                      "\"This post was written in 2024; you guessed 2023.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-17"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...; \"This post was written in 2026; you guessed 2023.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "\"This post was written in 2026; you guessed 2023.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-18"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"This post was written in 2025; you guessed 2024.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string..."
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"This post was written in 2025; you guessed 2024.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-23"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "Program call failed: \"This post was written in 2025; you guessed 2024.\"; %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...; \"This post was written in 2026; you guessed 2023.\""
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          ""
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "\"This post was written in 2025; you guessed 2024.\"",
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "\"This post was written in 2026; you guessed 2023.\""
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    ""
+                  ]
+                ]
+              }
+            ],
+            "errors": [
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "{:task_exit, :timeout}"
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "candidate_id"
+                    },
+                    "baseline"
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: year.\", reason: [:year], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `post` (string...",
+                      "{:task_exit, :timeout}"
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "candidate_id"
+                    },
+                    "gepa-1"
+                  ]
+                ]
+              }
+            ],
+            "metadata": {
+              "__imp_type__": "map",
+              "entries": [
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "combee"
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "enabled"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "false"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "timeout"
+                        },
+                        300000
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "identity"
+                        },
+                        "18f7f74a7ec17bb4e3a83527f7555dcc146368a04ed7fc3d02b8abc05f7f6043"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "aggregations"
+                        },
+                        []
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "max_concurrency"
+                        },
+                        1
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "batch_controller"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "timeout_requested"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "duplication_factor"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "effective_batch_size"
+                        },
+                        3
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "max_concurrency_requested"
+                        },
+                        1
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "engine"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "Elixir.Imp.Optimizer.GEPA.Engine"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "status"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "with_errors"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "timeout"
+                  },
+                  300000
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "feedback"
+                  },
+                  "Use observed examples carefully. Training examples available: 32."
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "generations"
+                  },
+                  4
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "stop_reason"
+                  },
+                  {
+                    "__imp_type__": "tuple",
+                    "items": [
+                      {
+                        "__imp_type__": "atom",
+                        "value": "stopper"
+                      },
+                      [
+                        {
+                          "__imp_type__": "tuple",
+                          "items": [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "max_metric_calls"
+                            },
+                            201,
+                            200
+                          ]
+                        }
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "metric_calls"
+                  },
+                  201
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "frontier_size"
+                  },
+                  1
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "frontier_type"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "instance"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "rng_algorithm"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "python_v3"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "implementation"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "Elixir.Imp.Optimizer.GEPA"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_iterations"
+                  },
+                  51
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "minibatch_size"
+                  },
+                  3
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_concurrency"
+                  },
+                  4
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merges_accepted"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "full_evaluations"
+                  },
+                  2
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_metric_calls"
+                  },
+                  200
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merge_candidates"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "proposal_timeout"
+                  },
+                  300000
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_calls"
+                  },
+                  11
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "acceptance_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "strict_improvement"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "evaluation_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "full"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "execution_profile"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "sampling_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "single"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "component_feedback"
+                  },
+                  []
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "selection_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "all_improvements"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_reflection_cost"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "nil"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "rejected_candidates"
+                  },
+                  10
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_full_evaluations"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "infinity"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_reflection_calls"
+                  },
+                  102
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "proposal_concurrency"
+                  },
+                  1
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_record_mode"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merge_acceptance_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "equal_or_better"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_failure_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4_batch_then_single_retry"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "operational_metric_call_cap"
+                  },
+                  252
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "candidate_selection_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "pareto"
+                  }
+                ]
+              ]
+            },
+            "optimizer": {
+              "__imp_type__": "atom",
+              "value": "gepa"
+            }
+          }
+        ],
+        [
+          {
+            "__imp_type__": "atom",
+            "value": "optimizer_parameter_set"
+          },
+          {
+            "__imp_type__": "map",
+            "entries": [
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "id"
+                },
+                "program/Elixir.Imp.Predict"
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "hash"
+                },
+                "02e19a3dab5d21365e684335a2450496d1a6dab4f661eeebc4efd04564d2f461"
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "revision"
+                },
+                1
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "parameters"
+                },
+                [
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/config"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "config"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        {}
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "e9b519a59e741acfbe48d69c652b5946da47a761199c79de3ac78b55c888a33d"
+                      ]
+                    ]
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/demos"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "demos"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        []
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "1938e7793b670ca3436c5f93e9c9e4d1f887f66959285d11c30150945a8690eb"
+                      ]
+                    ]
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/instruction"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "instruction"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        "A post by one Bluesky user. Guess the year they wrote it."
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "f463fd5834b8c16bdf36fbfe06a16882084561fbc044c27be024b8b87f4513d8"
+                      ]
+                    ]
+                  }
+                ]
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "parent_hash"
+                },
+                "77588c0e42e448d68b49b9e5d94a42d3b5d8b79627dc744d3622cc35dec2fa02"
+              ]
+            ]
+          }
+        ]
+      ]
+    },
+    "signature": {
+      "inputs": [
+        {
+          "desc": null,
+          "kind": "input",
+          "metadata": {},
+          "name": "post",
+          "prefix": "Post:",
+          "type": "string"
+        }
+      ],
+      "instructions": "A post by one Bluesky user. Guess the year they wrote it.",
+      "metadata": {},
+      "outputs": [
+        {
+          "desc": null,
+          "kind": "output",
+          "metadata": {
+            "constraints": {
+              "enum": [
+                "2023",
+                "2024",
+                "2025",
+                "2026"
+              ]
+            }
+          },
+          "name": "year",
+          "prefix": "Year:",
+          "type": "string"
+        }
+      ]
+    },
+    "type": "predict"
+  },
+  "payload_sha256": "sha256:2c39f2e76e7989803da3f5f1e1f41f98865965ea7fd4c0d230a1fc0146069301",
+  "schema_version": 1
+}
