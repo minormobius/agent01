@@ -127,9 +127,18 @@ defmodule ImpBench.Build do
   end
 
   defp build_one(req, lm, out, jev?, max_iters) do
+    # A RANDOM scratch dir, emptied first and removed after. imp-08 named these
+    # with System.unique_integer, which restarts in every VM: the pre-flight
+    # self-test and the real cell chose the same paths, and the real builders
+    # were scored on the fake model's leftover pages. (Jev's fit score, 0.01,
+    # was the only part that noticed.)
     dir =
-      Path.join(System.tmp_dir!(), "imp-build-#{req.slug}-#{System.unique_integer([:positive])}")
+      Path.join(
+        System.tmp_dir!(),
+        "imp-build-#{req.slug}-#{Base.url_encode64(:crypto.strong_rand_bytes(9))}"
+      )
 
+    File.rm_rf!(dir)
     site = Path.join(dir, "site")
 
     agent =
@@ -138,34 +147,39 @@ defmodule ImpBench.Build do
       |> Imp.react(tools(dir), lm: lm, max_iters: max_iters)
 
     t0 = System.monotonic_time(:second)
-    {result, usage} = Imp.Usage.track(fn -> Imp.call(agent, %{request: req.task}) end)
+    {preds, usage} = Imp.Usage.track(fn -> converse(agent, req.task, nil, 0, max_iters, []) end)
     secs = System.monotonic_time(:second) - t0
 
-    {calls, termination, err} =
-      case result do
+    last = List.first(preds)
+    # a resumed turn's history already holds every earlier episode
+    steps = history_steps(last)
+    calls = steps |> Enum.map(&length(&1.calls)) |> Enum.sum()
+
+    {termination, err} =
+      case last do
         {:ok, pred} ->
-          steps = (pred.metadata[:history] && pred.metadata.history.messages) || []
-
-          n =
-            steps
-            |> Enum.map(fn m -> length((m[:tool_calls] || %{})[:tool_calls] || []) end)
-            |> Enum.sum()
-
           cause = pred.metadata[:termination_cause]
 
-          {n,
-           to_string(pred.metadata[:termination_reason]) <>
+          {to_string(pred.metadata[:termination_reason]) <>
              if(cause, do: " (#{inspect(cause, limit: 6) |> String.slice(0, 200)})", else: ""),
            nil}
 
         {:error, e} ->
-          {0, "error", inspect(e, limit: 12) |> String.slice(0, 400)}
+          {"error", inspect(e, limit: 12) |> String.slice(0, 400)}
       end
 
     s = score(req.task, site, jev?)
     dest = Path.join([out, "build", req.slug])
     File.mkdir_p!(dest)
     if File.dir?(site), do: File.cp_r!(site, dest)
+    File.mkdir_p!(Path.join(out, "build-traces"))
+
+    File.write!(
+      Path.join([out, "build-traces", req.slug <> ".md"]),
+      trace_md(req, steps, s, termination, length(preds))
+    )
+
+    File.rm_rf!(dir)
 
     %{
       slug: req.slug,
@@ -174,10 +188,123 @@ defmodule ImpBench.Build do
       feedback: String.slice(s.feedback, 0, 1500),
       seconds: secs,
       tool_calls: calls,
+      episodes: length(preds),
       termination: termination,
       error: err,
       usage: usage |> Map.values() |> Enum.reduce(%{}, &merge_usage/2)
     }
+  end
+
+  # A reply with no tool call and no answer ends an Imp ReAct turn
+  # (:empty_tool_calls). Over a 40-step build that is too brittle, so the turn
+  # is resumed from its own history, with a nudge, while steps remain — at most
+  # three times. Returns every episode's result, newest first.
+  @continuations 3
+  defp converse(agent, task, history, used, max_iters, acc) do
+    inputs =
+      if history,
+        do: %{
+          request:
+            task <>
+              "\n\n(Continue the build. Your last reply called no tool: reply only with tool calls — write_file, edit_file, check_site — until you submit.)",
+          history: history
+        },
+        else: %{request: task}
+
+    result = Imp.call(agent, inputs)
+    acc = [result | acc]
+
+    # The turn's END can be :incomplete, :forced_submit or :extracted (Imp's
+    # last-request fallbacks fill the outputs from the history); what marks a
+    # stall is the CAUSE.
+    with {:ok, pred} <- result,
+         :empty_tool_calls <- cause_kind(pred.metadata[:termination_cause]),
+         steps = length(history_steps(result)),
+         true <- length(acc) <= @continuations and used + steps < max_iters do
+      converse(agent, task, pred.metadata.history, used + steps, max_iters, acc)
+    else
+      _ -> acc
+    end
+  end
+
+  defp cause_kind(c) when is_atom(c), do: c
+  defp cause_kind({c, _}) when is_atom(c), do: c
+  defp cause_kind(%{kind: c}), do: c
+  defp cause_kind(_), do: nil
+
+  defp history_steps({:ok, pred}) do
+    for m <- (pred.metadata[:history] && pred.metadata.history.messages) || [] do
+      calls = (m[:tool_calls] || %{})[:tool_calls] || []
+      results = (m[:tool_call_results] || %{})[:results] || m[:tool_call_results] || []
+
+      rmap =
+        for r <- List.wrap(results),
+            is_map(r),
+            into: %{},
+            do: {r[:id] || r[:call_id], r[:result] || r[:content]}
+
+      %{
+        thought: m[:next_thought],
+        calls:
+          for(
+            c <- calls,
+            do: %{
+              name: to_string(c[:name] || c["name"]),
+              args: c[:arguments] || c["arguments"],
+              result: rmap[c[:id] || c["id"]]
+            }
+          )
+      }
+    end
+  end
+
+  defp history_steps(_), do: []
+
+  defp trace_md(req, steps, s, termination, episodes) do
+    body =
+      steps
+      |> Enum.with_index(1)
+      |> Enum.map_join("\n", fn {st, i} ->
+        thought =
+          if st.thought,
+            do: "   _#{st.thought |> to_string() |> String.slice(0, 300)}_\n",
+            else: ""
+
+        calls =
+          Enum.map_join(st.calls, "\n", fn c ->
+            "   #{i}. #{c.name}(#{short(c.args)}) → #{short(c.result)}"
+          end)
+
+        thought <> calls
+      end)
+
+    """
+    # #{req.slug} — score #{Float.round(s.score, 3)} #{inspect(s.parts)}
+
+    ended: #{termination} · episodes: #{episodes}
+
+    ## request
+
+    #{String.slice(req.task, 0, 2000)}
+
+    ## steps
+
+    #{body}
+
+    ## checks
+
+    #{s.feedback}
+    """
+  end
+
+  defp short(nil), do: "∅"
+
+  defp short(v) do
+    if(is_binary(v), do: v, else: Jason.encode!(v))
+    |> String.replace("\n", "⏎")
+    |> String.slice(0, 220)
+  rescue
+    _ -> inspect(v, limit: 6) |> String.slice(0, 220)
   end
 
   defp merge_usage(a, b) do

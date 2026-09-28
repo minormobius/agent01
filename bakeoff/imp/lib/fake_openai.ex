@@ -40,7 +40,12 @@ defmodule ImpBench.FakeOpenAI do
 
     message =
       cond do
-        # a builder: write a page, check it, submit
+        # a builder: first says what it will do instead of doing it (the
+        # :empty_tool_calls shape DeepSeek produced), so the rig must resume
+        # the turn; then writes a page, checks it, submits
+        "write_file" in tool_names and tool_turns == 0 and not (text =~ "Continue the build") ->
+          %{"role" => "assistant", "content" => "I will now write the page."}
+
         "write_file" in tool_names and tool_turns == 0 ->
           tool_call("write_file", %{"path" => "site/index.html", "content" => fake_page()})
 
