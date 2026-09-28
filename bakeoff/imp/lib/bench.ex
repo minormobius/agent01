@@ -46,11 +46,30 @@ defmodule ImpBench do
         probe = probe(lm)
         IO.puts("probe: " <> probe)
 
+        # A cell that outlives its job's time limit is killed with no chance to
+        # write anything, so every finished stage checkpoints a `cell.json`
+        # (status "partial") that the final write replaces.
+        Process.put(:imp_bench_checkpoint, fn done ->
+          write_json(Path.join(out, "cell.json"), %{
+            model: model_key,
+            model_id: meta.model,
+            endpoint: meta.base_url,
+            status: "partial",
+            probe: probe,
+            seconds: div(System.monotonic_time(:millisecond) - started, 1000),
+            tasks: done
+          })
+        end)
+
         results =
-          for task <- tasks, into: %{} do
+          Enum.reduce(tasks, %{}, fn task, done ->
             IO.puts("== #{model_key} · #{task}")
-            {task, run(task, lm, out)}
-          end
+            Process.put(:imp_bench_done, done)
+            Process.put(:imp_bench_task, task)
+            done = Map.put(done, task, run(task, lm, out))
+            checkpoint(done)
+            done
+          end)
 
         cell = %{
           model: model_key,
@@ -233,6 +252,7 @@ defmodule ImpBench do
         result
 
       {reflection_lm, reflection_key, max_calls} ->
+        checkpoint(Map.put(Process.get(:imp_bench_done, %{}), current_task(), result))
         IO.puts("   GEPA: reflection #{reflection_key}, max_metric_calls #{max_calls}")
 
         # Imp's defaults give each row and each reflection 30 s. A whole
@@ -320,6 +340,7 @@ defmodule ImpBench do
         result
 
       {reflection_lm, reflection_key, max_calls} ->
+        checkpoint(Map.put(Process.get(:imp_bench_done, %{}), current_task(), result))
         IO.puts("   GEPA: reflection #{reflection_key}, max_metric_calls #{max_calls}")
 
         gepa =
@@ -384,6 +405,15 @@ defmodule ImpBench do
         end
     end
   end
+
+  defp checkpoint(done) do
+    case Process.get(:imp_bench_checkpoint) do
+      nil -> :ok
+      write -> write.(done)
+    end
+  end
+
+  defp current_task, do: Process.get(:imp_bench_task)
 
   defp gepa_for(_lm) do
     targets = "IMP_BENCH_GEPA" |> System.get_env("") |> String.split(",", trim: true)

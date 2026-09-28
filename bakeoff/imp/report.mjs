@@ -55,17 +55,18 @@ lines.push(
 );
 
 for (const { cell } of cells) {
-  if (cell.status !== 'ran') {
+  if (cell.status !== 'ran' && cell.status !== 'partial') {
     lines.push(`| ${cell.model} | skipped: ${cell.reason} | | | | | | | |`);
     continue;
   }
   const r = cell.tasks.route, d = cell.tasks.desk, h = cell.tasks.desk_hard, tr = cell.tasks.trec;
   const cellPct = (t, arm) => (t?.arms?.[arm] ? pct(t.arms[arm].score) : '—');
-  lines.push(`| ${cell.model} (\`${cell.model_id}\`) | ${cellPct(r, 'zero_shot')} | ${cellPct(r, 'few_shot_k8')} | ${cellPct(d, 'react')} | ${cellPct(h, 'react')} | ${cellPct(h, 'react_gepa')} | ${cellPct(tr, 'baseline')} | ${cellPct(tr, 'gepa')} | ${cell.seconds}s |`);
+  const partial = cell.status === 'partial' ? ' — **partial: the job ended before the cell finished**' : '';
+  lines.push(`| ${cell.model} (\`${cell.model_id}\`)${partial} | ${cellPct(r, 'zero_shot')} | ${cellPct(r, 'few_shot_k8')} | ${cellPct(d, 'react')} | ${cellPct(h, 'react')} | ${cellPct(h, 'react_gepa')} | ${cellPct(tr, 'baseline')} | ${cellPct(tr, 'gepa')} | ${cell.seconds}s |`);
 }
 
 for (const { dir, cell } of cells) {
-  if (cell.status !== 'ran') continue;
+  if (cell.status !== 'ran' && cell.status !== 'partial') continue;
   const slug = cell.model;
   lines.push('', `## ${cell.model}`, '');
   const d = cell.tasks.desk;
