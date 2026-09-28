@@ -196,7 +196,8 @@ defmodule ImpBench.Build do
   end
 
   # A reply with no tool call and no answer ends an Imp ReAct turn
-  # (:empty_tool_calls). Over a 40-step build that is too brittle, so the turn
+  # (:empty_tool_calls), and so does one that cannot be parsed
+  # (:prediction_error — imp-11 lost three DeepSeek Pro builds to it). Over a 40-step build that is too brittle, so the turn
   # is resumed from its own history, with a nudge, while steps remain — at most
   # three times. Returns every episode's result, newest first.
   @continuations 3
@@ -218,7 +219,8 @@ defmodule ImpBench.Build do
     # last-request fallbacks fill the outputs from the history); what marks a
     # stall is the CAUSE.
     with {:ok, pred} <- result,
-         :empty_tool_calls <- cause_kind(pred.metadata[:termination_cause]),
+         kind when kind in [:empty_tool_calls, :prediction_error] <-
+           cause_kind(pred.metadata[:termination_cause]),
          steps = length(history_steps(result)),
          true <- length(acc) <= @continuations and used + steps < max_iters do
       converse(agent, task, pred.metadata.history, used + steps, max_iters, acc)
