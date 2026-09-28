@@ -583,6 +583,20 @@ lineages. No fitness function, ever: what feeds buds, what doesn't starves.
   (mouth chains in seed 1, bud-mouth repeats in seeds 1–3) but only dominated the no-predation run.
   Eaten was ~10% of deaths, old age ~85%. Next, if wanted: a bigger world or cap (diversity is capped
   by 60 bodies), bites that need a bigger mouth than the prey organ, a second resource.
+- **The sound** (`grown/sound.js`, pure-JS DSP; the page runs it in an AudioWorklet, `sound-worklet.js`,
+  or a ScriptProcessor where there is none; "listen" starts it, from a tap). The population is the
+  score. The engine keeps its own time (96 bpm, a chord every 2 bars: Dm, Bb, F, C, each with its 9th);
+  the conductor (`makeConductor`, called after every world step and ~5× a second) tells it who is alive
+  and what happened. Each of the six commonest species sings a sustained vowel (a softened saw through
+  three formant band-passes and a little breath): its chord tone and vowel from its signature, an
+  octave by its organ count, as loud as √count. Fins: sixteenth ticks, as dense as the world is
+  swimming. A bud plucks its species' tone; a new plan, a three-note rise; bites snap (at most two a
+  sixteenth); a kill thuds; the bass is the chord's root, as warm as the water is rich. Freeverb-shaped
+  reverb with the bass kept out of its send: an earlier four-delay network rang at some pitches and the
+  level jumped 9 dB a chord; the formants were Q 9–14 at first and a lone voice's level swung 6 dB with
+  its pitch (Q 3.5/5/7 now). Selftest: a full choir ~10 dB over one voice and steady (±1.6 dB) across
+  the progression; 10 s of an evolved world heard through the conductor. 30 s of a world renders in
+  ~2.5 s in node, simulation included.
 - **The page**: organs as their attractors in their colours, bonds as threads, armour and reef as
   crystals, the medium as dim motes; follow one body to read its organs, energy, age and children.
   30 steps a second at 1×. ~0.4 ms a step for ~60 bodies in node. Real-device frame rate unverified.

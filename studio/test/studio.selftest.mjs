@@ -498,5 +498,27 @@ console.log('\nGrown, evolving');
   ok(EVOLVED.length >= 8 && EVOLVED.every((e) => signature(e.genome) === e.sig), `the evolved bestiary: ${EVOLVED.length} plans, each program still grows its plan`);
 }
 
+// 15 — Grown's sound: the population is the score --------------------------------------------------
+console.log('\nGrown, the sound (grown/sound.js)');
+{
+  const { makeEngine, makeConductor } = await import('../grown/sound.js');
+  const { World, signature } = await import('../vendor/attractor/lib/organism.js');
+  const { EVOLVED } = await import('../vendor/attractor/lib/evolved.js');
+  const sr = 22050, dB = (a, i0, i1) => { let e = 0; for (let i = i0; i < i1; i++) e += a[i] * a[i]; return 10 * Math.log10(e / (i1 - i0) + 1e-12); };
+  const play = (species, secs, events = []) => { const E = makeEngine(sr); E.state({ species, swim: 0, rich: 0.5 }); events.forEach((e) => E.event(e)); const L = new Float32Array(sr * secs), R = new Float32Array(sr * secs); E.render(L, R, L.length); return L; };
+  const choir = Array.from({ length: 6 }, (_, k) => ({ sig: 'm(' + 'b'.repeat(k + 1) + ')', count: 9, organs: 3 })), one = [{ sig: 'm(b)', count: 2, organs: 2 }];
+  const full = play(choir, 21), thin = play(one, 21);
+  // level per chord (5 s each at 96 bpm): steady across the progression
+  const per = [0, 1, 2, 3].map((k) => dB(full, sr * (k * 5 + 1.5), sr * (k * 5 + 4.5))), spread = Math.max(...per) - Math.min(...per);
+  ok(full.every(Number.isFinite) && dB(full, sr * 2, sr * 20) > dB(thin, sr * 2, sr * 20) + 6 && spread < 4, `a full choir is louder than one voice (${(dB(full, sr * 2, sr * 20) - dB(thin, sr * 2, sr * 20)).toFixed(1)} dB), and steady across the chords (${spread.toFixed(1)} dB)`);
+  // a world, heard: 10 s of an evolved world through the conductor, every step's events
+  const W = new World(2, { cap: 60, mutate: 0.3 }); EVOLVED.slice(0, 9).forEach((e, i) => W.add(JSON.parse(JSON.stringify(e.genome)), [80 + Math.cos(i) * 45, 32, 80 + Math.sin(i) * 45], i, 4)); W.run(1500);
+  const E = makeEngine(sr), got = { bite: 0, bud: 0, new: 0, eaten: 0 };
+  const C = makeConductor((m) => { E.state(m.state); for (const e of m.events) { got[e.type]++; E.event(e); } }, { signature });
+  const L = new Float32Array(sr * 10), R = new Float32Array(sr * 10), f = sr / 30;
+  for (let k = 0; k < 300; k++) { W.step(); C.listen(W); if (k % 6 === 0) C.tell(W); E.render(L.subarray(k * f, (k + 1) * f), R.subarray(k * f, (k + 1) * f), f); }
+  ok(L.every(Number.isFinite) && dB(L, sr * 2, sr * 10) > -40 && got.bite + got.bud > 0, `a world heard for 10 s: ${dB(L, sr * 2, sr * 10).toFixed(1)} dB, ${got.bud} buds, ${got.bite} bites, ${got.new} new plans, ${got.eaten} kills`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

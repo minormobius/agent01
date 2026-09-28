@@ -11,6 +11,7 @@
 import { World, GENOMES, ORGANS, LETTER, flowsFor, signature, WX, WY, WZ } from '../vendor/attractor/lib/organism.js';
 import { EVOLVED, RUNS } from '../vendor/attractor/lib/evolved.js';
 import { makeRenderer, prism } from './gl.js';
+import { makeEngine, makeConductor } from './sound.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('c'), host = $('stage');
@@ -37,6 +38,7 @@ function start() {
   const per = Math.max(1, Math.round(9 / genomes.length));
   genomes.forEach((g, i) => { for (let k = 0; k < per; k++) { const a = ((i * per + k) / (genomes.length * per)) * Math.PI * 2; W.add(JSON.parse(JSON.stringify(g)), [WX / 2 + Math.cos(a) * 45, WY / 2, WZ / 2 + Math.sin(a) * 45], a, 4); } });
   state.follow = null; reefLen = -1; carry = 0; cam.target = null;
+  conductor = audio ? makeConductor(audio.send, { signature }) : null;
   writeHash(); buttons();
 }
 
@@ -107,7 +109,8 @@ function frame(now) {
   carry += dt * 30 * state.speed;
   let n = Math.min(Math.floor(carry), state.speed > 4 ? 40 : 10); carry -= Math.floor(carry);
   const t0 = performance.now();
-  while (n-- > 0 && performance.now() - t0 < 22) W.step();
+  while (n-- > 0 && performance.now() - t0 < 22) { W.step(); if (conductor) conductor.listen(W); }
+  if (conductor && now - (frame.told || 0) > 200) { conductor.tell(W); frame.told = now; }
   if (cam.turn && now / 1000 - lastTouch > 4) cam.yaw += dt * 0.08;
   const f = Math.min(1, carry);
   scene(f); R.draw(viewAt(f));
@@ -139,6 +142,26 @@ function info() {
   $('info').innerHTML = lines.join('\n');
 }
 
+// ---- the sound: the world as music (sound.js), in an AudioWorklet (or on the main thread, where there is none)
+let audio = null, conductor = null;
+async function listen() {
+  if (audio) { const on = audio.ctx.state === 'running'; await (on ? audio.ctx.suspend() : audio.ctx.resume()); $('listen').classList.toggle('on', !on); return; }
+  const ctx = new (window.AudioContext || window.webkitAudioContext)(), out = ctx.createGain(); out.gain.value = 0.9; out.connect(ctx.destination);
+  let send;
+  try {
+    await ctx.audioWorklet.addModule(new URL('./sound-worklet.js', import.meta.url));
+    const node = new AudioWorkletNode(ctx, 'grown-sound', { outputChannelCount: [2] }); node.connect(out);
+    send = (m) => node.port.postMessage(m);
+  } catch {
+    const E = makeEngine(ctx.sampleRate), sp = ctx.createScriptProcessor(4096, 0, 2);
+    sp.onaudioprocess = (e) => E.render(e.outputBuffer.getChannelData(0), e.outputBuffer.getChannelData(1), e.outputBuffer.length);
+    sp.connect(out); send = (m) => { if (m.state) E.state(m.state); for (const ev of m.events || []) E.event(ev); };
+  }
+  await ctx.resume();
+  audio = { ctx, send }; conductor = makeConductor(send, { signature }); conductor.tell(W);
+  $('listen').classList.add('on');
+}
+
 // ---- controls ------------------------------------------------------------------------------------
 function buttons() {
   $('founders').innerHTML = ''; $('speeds').innerHTML = '';
@@ -154,6 +177,7 @@ $('follow').addEventListener('click', () => {
   const B = order[(i + 1) % order.length]; state.follow = B ? B.id : null; buttons(); info();
 });
 $('world').addEventListener('click', () => { state.follow = null; buttons(); info(); });
+$('listen').addEventListener('click', () => { listen(); });
 $('evolve').addEventListener('click', () => { state.evolve = !state.evolve; W.mutate = state.evolve ? 0.3 : 0; writeHash(); buttons(); info(); });
 $('haze').addEventListener('click', (e) => { state.haze = !state.haze; e.target.classList.toggle('on', state.haze); });
 $('turn').addEventListener('click', (e) => { cam.turn = !cam.turn; e.target.classList.toggle('on', cam.turn); });
