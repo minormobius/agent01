@@ -1485,6 +1485,14 @@ than all of this).
 
 ### What is next
 
+**The Minecraft gap audit and the phased roadmap live in
+[`craft/ROADMAP.md`](craft/ROADMAP.md)** (2026-09-28). It covers every system,
+what building it here would test, and phases 0–7. Next up: phase 1 (a world
+that renews: saplings, breeding, fuel, items dropped on death) and phase 2
+(threats that need different answers: skeletons, creepers, spiders). The list
+below is older.
+
+
 1. **Held-out worlds** for the scoreboard: 6–8 tilings and seeds the harness
    was never debugged on. It is the only honest next number.
 2. **Why confidence sits at 0.40.** Rewrite `advances` as the gap it closes
