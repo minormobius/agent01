@@ -116,6 +116,25 @@ for (const { dir, cell } of cells) {
       if (fs.existsSync(p)) fs.copyFileSync(p, path.join(outDir, `${slug}.hard.gepa.program.json`));
     }
   }
+  // Jev cells answer the classifier tasks with their own arms (jev_bare,
+  // jev_learned, jev_optimized, cascade): one generic table per task.
+  if (cell.model === 'jev' || cell.model === 'jev-fake') {
+    for (const [t, v] of Object.entries(cell.tasks || {})) {
+      if (v.error || !v.arms) continue;
+      lines.push('', `**${t} — Jev** (${v.n_test} held out; confidence gate ${v.gate ?? 0.9}):`, '',
+        '| arm | accuracy | confident (≥ gate) | accuracy when confident | median ms | notes |', '|---|---|---|---|---|---|');
+      for (const [a, x] of Object.entries(v.arms)) {
+        if (x.skipped || x.error) { lines.push(`| ${a} | — | | | | ${x.skipped || 'error: ' + String(x.error).slice(0, 120)} |`); continue; }
+        const note = a === 'cascade'
+          ? `kept ${x.kept_by_jev} (${pct(x.kept_accuracy)}), escalated ${x.escalated} to ${x.escalate_to} (${pct(x.escalated_accuracy)})`
+          : x.from ? `instruction from ${x.from}` : x.reflection ? `optimized in ${x.optimize_seconds}s, reflection ${x.reflection}` : '';
+        lines.push(`| ${a} | ${pct(x.score)} | ${x.confident ?? ''} | ${x.confident_accuracy == null ? '' : pct(x.confident_accuracy)} | ${x.median_ms ?? ''} | ${note} |`);
+      }
+      const opt = v.arms.jev_optimized?.program;
+      if (opt) lines.push('', '<details><summary>Jev program after Optimize Anything</summary>', '', '```json', JSON.stringify(opt, null, 2), '```', '', '</details>');
+    }
+    continue;
+  }
   const tr = cell.tasks.trec;
   if (tr) {
     const a = tr.arms;

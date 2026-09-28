@@ -69,6 +69,21 @@
 <div class="tabs" id="instr-tabs" role="tablist"></div>
 <div class="pair" id="instr-pair"></div>
 
+<section id="jev" hidden>
+<h2>The same task, on a model that only decides</h2>
+<p>
+  <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">Jev</a> (TypeSafe AI) generates no
+  text. It takes a JSON state and a typed question — here a <code>choice</code> between <code>K11</code> and
+  <code>K47</code> — and returns the pick with a confidence, in about 150 ms. Its whole program is two
+  strings: the question's instructions and each option's description. So the question worth asking is
+  whether the program GEPA wrote for an LLM <em>transfers</em>.
+</p>
+<div class="tbl-wrap" id="jev-table"></div>
+<div class="note" id="jev-note"></div>
+<details><summary>Jev's program after Optimize Anything</summary><pre id="jev-program"></pre></details>
+<p class="row-sub" id="jev-foot"></p>
+</section>
+
 <h2>Tools: the part that already works</h2>
 <p>
   <code>Imp.react/3</code> builds an agent from a signature and a list of tools. A tool is an ordinary Elixir

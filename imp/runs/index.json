@@ -24,9 +24,9 @@
        "n_test": 16,
        "arms": {
         "react": {
-         "score": 1,
+         "seconds": 23,
          "errors": 0,
-         "seconds": 23
+         "score": 1
         }
        },
        "tool_calls": 107,
@@ -40,14 +40,14 @@
        "n_test": 20,
        "arms": {
         "few_shot_k8": {
-         "score": 1,
+         "seconds": 7,
          "errors": 0,
-         "seconds": 7
+         "score": 1
         },
         "zero_shot": {
-         "score": 1,
+         "seconds": 9,
          "errors": 0,
-         "seconds": 9
+         "score": 1
         }
        }
       }
@@ -63,9 +63,9 @@
        "n_test": 16,
        "arms": {
         "react": {
-         "score": 1,
+         "seconds": 58,
          "errors": 0,
-         "seconds": 58
+         "score": 1
         }
        },
        "tool_calls": 107,
@@ -79,14 +79,14 @@
        "n_test": 20,
        "arms": {
         "few_shot_k8": {
-         "score": 1,
+         "seconds": 15,
          "errors": 0,
-         "seconds": 15
+         "score": 1
         },
         "zero_shot": {
-         "score": 1,
+         "seconds": 13,
          "errors": 0,
-         "seconds": 13
+         "score": 1
         }
        }
       }
@@ -102,9 +102,9 @@
        "n_test": 16,
        "arms": {
         "react": {
-         "score": 0,
+         "seconds": 2,
          "errors": 0,
-         "seconds": 2
+         "score": 0
         }
        },
        "tool_calls": 0,
@@ -114,14 +114,14 @@
        "n_test": 20,
        "arms": {
         "few_shot_k8": {
-         "score": 0,
+         "seconds": 1,
          "errors": 20,
-         "seconds": 1
+         "score": 0
         },
         "zero_shot": {
-         "score": 0,
+         "seconds": 2,
          "errors": 20,
-         "seconds": 2
+         "score": 0
         }
        }
       }
@@ -152,10 +152,15 @@
        "n_test": 18,
        "arms": {
         "react": {
-         "score": 0.8888888888888888,
-         "errors": 0,
          "seconds": 89,
-         "tool_calls": 155
+         "usage": {
+          "output_tokens": 19134,
+          "input_tokens": 149978,
+          "total_tokens": 169112
+         },
+         "errors": 0,
+         "tool_calls": 155,
+         "score": 0.8888888888888888
         }
        },
        "tool_calls": 155,
@@ -169,14 +174,14 @@
        "n_test": 20,
        "arms": {
         "few_shot_k8": {
-         "score": 1,
+         "seconds": 13,
          "errors": 0,
-         "seconds": 13
+         "score": 1
         },
         "zero_shot": {
-         "score": 1,
+         "seconds": 12,
          "errors": 0,
-         "seconds": 12
+         "score": 1
         }
        }
       }
@@ -193,10 +198,15 @@
        "n_test": 18,
        "arms": {
         "react": {
-         "score": 0.8888888888888888,
-         "errors": 0,
          "seconds": 357,
-         "tool_calls": 164
+         "usage": {
+          "output_tokens": 23183,
+          "input_tokens": 129719,
+          "total_tokens": 152902
+         },
+         "errors": 0,
+         "tool_calls": 164,
+         "score": 0.8888888888888888
         }
        },
        "tool_calls": 164,
@@ -210,14 +220,14 @@
        "n_test": 20,
        "arms": {
         "few_shot_k8": {
-         "score": 1,
+         "seconds": 35,
          "errors": 0,
-         "seconds": 35
+         "score": 1
         },
         "zero_shot": {
-         "score": 1,
+         "seconds": 57,
          "errors": 0,
-         "seconds": 57
+         "score": 1
         }
        }
       }
@@ -247,10 +257,15 @@
        "n_test": 18,
        "arms": {
         "react": {
-         "score": 1,
-         "errors": 0,
          "seconds": 39,
-         "tool_calls": 150
+         "usage": {
+          "output_tokens": 14207,
+          "input_tokens": 131595,
+          "total_tokens": 145802
+         },
+         "errors": 0,
+         "tool_calls": 150,
+         "score": 1
         }
        },
        "tool_calls": 150,
@@ -278,10 +293,15 @@
        "n_test": 18,
        "arms": {
         "react": {
-         "score": 1,
-         "errors": 0,
          "seconds": 81,
-         "tool_calls": 160
+         "usage": {
+          "output_tokens": 16273,
+          "input_tokens": 143288,
+          "total_tokens": 159561
+         },
+         "errors": 0,
+         "tool_calls": 160,
+         "score": 1
         }
        },
        "tool_calls": 160,
@@ -304,10 +324,15 @@
        "n_test": 18,
        "arms": {
         "react": {
-         "score": 1,
-         "errors": 0,
          "seconds": 261,
-         "tool_calls": 156
+         "usage": {
+          "output_tokens": 19744,
+          "input_tokens": 127246,
+          "total_tokens": 146990
+         },
+         "errors": 0,
+         "tool_calls": 156,
+         "score": 1
         }
        },
        "tool_calls": 156,
@@ -343,14 +368,14 @@
        "n_test": 80,
        "arms": {
         "baseline": {
-         "score": 0.0625,
+         "seconds": 426,
          "errors": 64,
-         "seconds": 426
+         "score": 0.0625
         },
         "gepa": {
-         "score": 0.9375,
-         "errors": 0,
          "seconds": 46,
+         "errors": 0,
+         "score": 0.9375,
          "optimize_seconds": 1013
         }
        },
@@ -378,14 +403,14 @@
        "n_test": 80,
        "arms": {
         "baseline": {
-         "score": 0.2875,
+         "seconds": 665,
          "errors": 31,
-         "seconds": 665
+         "score": 0.2875
         },
         "gepa": {
-         "score": 0.8875,
-         "errors": 2,
          "seconds": 83,
+         "errors": 2,
+         "score": 0.8875,
          "optimize_seconds": 1982
         }
        },
@@ -413,14 +438,14 @@
        "n_test": 80,
        "arms": {
         "baseline": {
-         "score": 0.5,
+         "seconds": 328,
          "errors": 7,
-         "seconds": 328
+         "score": 0.5
         },
         "gepa": {
-         "score": 0.9375,
-         "errors": 4,
          "seconds": 245,
+         "errors": 4,
+         "score": 0.9375,
          "optimize_seconds": 3136
         }
        },
@@ -432,6 +457,84 @@
           "after": "You are a question router. Given a natural language question in the `text` field, classify it into exactly one of two route categories.\n\nRoute definitions:\n\n- K11: The question asks for a description, definition, reason, or manner. Use this when the expected answer is an explanation, meaning, cause, method, or description.\n- K47: The question asks for an entity such as an animal, product, substance, or other concrete or identifiable thing. Use this when the expected answer is a specific object, being, item, or entity.\n\nStrategy:\n\n- Do not rely only on the question starting with “What”.\n- Determine whether the answer is an entity/thing or a description/explanation.\n- Questions like “What is osmosis ?” or “What is the secret of the universe ?” ask for a definition, description, or explanation, so they should be K11.\n- Questions like “What was George Washington afraid of ?” ask for a specific entity or thing, so they should be K47.\n\nOutput only the route identifier: `K11` or `K47`.\n\nExamples:\n\nInput:\ntext: What is osmosis ?\nOutput:\nroute: K11\n\nInput:\ntext: What is the secret of the universe ?\nOutput:\nroute: K11\n\nInput:\ntext: What was George Washington afraid of ?\nOutput:\nroute: K47",
           "before": "Route the question to exactly one opaque code. Return only the required structured route."
          }
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-12",
+   "note": "",
+   "files": [
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "jev",
+     "model_id": "jev-latest",
+     "status": "ran",
+     "seconds": 704,
+     "probe": "ok: blue (confidence 1.0, 411 ms)",
+     "tasks": {
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "jev_bare": {
+         "errors": 0,
+         "input_tokens": 8898,
+         "score": 1,
+         "confident": 19,
+         "confident_accuracy": 1,
+         "median_ms": 171
+        }
+       }
+      },
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "cascade": {
+         "score": 0.975,
+         "escalated": 22,
+         "escalated_accuracy": 0.9545454545454546,
+         "kept_accuracy": 0.9827586206896551,
+         "kept_by_jev": 58,
+         "llm_calls_saved": 58,
+         "escalate_to": "imp-04/ds4-flash"
+        },
+        "jev_bare": {
+         "errors": 0,
+         "input_tokens": 27023,
+         "score": 0.5,
+         "confident": 0,
+         "confident_accuracy": null,
+         "median_ms": 149
+        },
+        "jev_learned": {
+         "errors": 0,
+         "from": "imp-04/kimi3",
+         "input_tokens": 49503,
+         "score": 0.9875,
+         "confident": 64,
+         "confident_accuracy": 0.984375,
+         "median_ms": 147
+        },
+        "jev_optimized": {
+         "errors": 0,
+         "input_tokens": 30623,
+         "score": 0.9375,
+         "program": {
+          "instructions": "Route the question to exactly one opaque code.\n\nUse K47 when the question asks for an entity such as an animal, product, substance, or other thing.\nUse K11 when the question asks for a description, definition, reason, or manner.\n\nReturn only the required structured route.",
+          "option K11": "K11",
+          "option K47": "K47"
+         },
+         "optimize_seconds": 647,
+         "reflection": "ds4-pro",
+         "confident": 58,
+         "confident_accuracy": 0.9827586206896551,
+         "median_ms": 158
         }
        }
       }

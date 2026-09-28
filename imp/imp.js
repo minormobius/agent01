@@ -320,3 +320,43 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.base
     });
   }
 }
+
+// ─── Jev on the classifier tasks ──────────────────────────────────────
+{
+  const jevRun = [...runs].reverse().find((r) => r.cells.some((c) => c.model === 'jev' && c.tasks.trec?.arms?.jev_bare));
+  if (jevRun) {
+    document.getElementById('jev').hidden = false;
+    const t = jevRun.cells.find((c) => c.model === 'jev').tasks.trec;
+    const a = t.arms;
+    const llmBest = Math.max(...trec.map((c) => c.tasks.trec.arms.gepa?.score ?? 0));
+    const rows = [
+      ['Jev, bare codes', 'the task as the LLM baselines got it', a.jev_bare],
+      ['Jev + GEPA\u2019s instruction for Kimi K3', 'transplanted unchanged from run imp-04', a.jev_learned],
+      ['Jev + its own program, tuned', 'instructions and option text rewritten by Imp\u2019s Optimize Anything, scored by Jev', a.jev_optimized],
+      ['cascade', `Jev when confident \u2265 0.9, otherwise ${a.cascade?.escalate_to ?? 'an LLM'}\u2019s GEPA program`, a.cascade],
+    ];
+    const tbl = el('table');
+    tbl.innerHTML = '<thead><tr><th>arm</th><th>how</th><th class="num">accuracy</th><th class="num">confident</th><th class="num">median ms</th></tr></thead>';
+    const tb = el('tbody');
+    for (const [name, how, x] of rows) {
+      if (!x || x.skipped || x.error) continue;
+      const conf = x.kept_by_jev != null ? `${x.kept_by_jev} kept \u00b7 ${x.escalated} escalated` : `${x.confident ?? ''}${x.confident_accuracy != null ? ` (${pct(x.confident_accuracy)} right)` : ''}`;
+      tb.append(el('tr', {}, el('td', { text: name }), el('td', { text: how }), el('td', { class: 'num', text: pct(x.score) }), el('td', { class: 'num', text: conf }), el('td', { class: 'num', text: x.median_ms ?? '' })));
+    }
+    tb.append(el('tr', {}, el('td', { text: 'best LLM after GEPA' }), el('td', { text: 'for comparison (imp-04, above)' }), el('td', { class: 'num', text: pct(llmBest) }), el('td'), el('td')));
+    tbl.append(tb);
+    document.getElementById('jev-table').append(tbl);
+
+    const note = document.getElementById('jev-note');
+    note.append(
+      el('p', {}, el('b', { text: `The program GEPA wrote for an LLM made a 150 ms decision model score ${pct(a.jev_learned?.score)} — above every LLM that program was written for. ` }),
+        `Bare, Jev is at a coin flip, exactly like the LLM baselines: nothing in the codes says what they mean. Given the instruction GEPA distilled from Kimi K3's failures, it is confident on ${a.jev_learned?.confident} of 80 and right on ${pct(a.jev_learned?.confident_accuracy)} of those. Tuned directly — Optimize Anything rewriting Jev's own strings, with DeepSeek V4 Pro reading the misses — it rediscovered the same mapping on its own.`),
+      el('p', {}, `One run each on 80 questions: ${pct(a.jev_learned?.score)} against ${pct(llmBest)} is a gap of ${Math.round((a.jev_learned?.score - llmBest) * 80)} answers, so read it as "at least as good", not "better". The cascade is the production shape: Jev keeps what it is sure of (${a.cascade?.kept_by_jev} of 80, ${pct(a.cascade?.kept_accuracy)} right) and hands the rest to an LLM, saving ${a.cascade?.llm_calls_saved} LLM calls for ${pct(a.cascade?.score)} overall.`),
+    );
+    document.getElementById('jev-program').textContent = JSON.stringify(a.jev_optimized?.program ?? {}, null, 2);
+    const route = jevRun.cells.find((c) => c.model === 'jev').tasks.route?.arms?.jev_bare;
+    document.getElementById('jev-foot').textContent =
+      `run ${jevRun.id} · 80 held-out TREC questions · Jev input tokens for the transplanted arm: ${(a.jev_learned?.input_tokens ?? 0).toLocaleString()} (about $${((a.jev_learned?.input_tokens ?? 0) * 0.042 / 1e6).toFixed(4)} at $0.042 per million)` +
+      (route ? ` · on the support-ticket router Jev scored ${pct(route.score)} with the same instructions the LLMs had` : '');
+  }
+}

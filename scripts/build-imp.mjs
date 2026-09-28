@@ -52,11 +52,13 @@ for (const id of fromDir ? [] : ids) {
 
 if (fromDir) {
   const [id] = ids;
+  // validate the source BEFORE touching the destination
+  if (!fs.existsSync(fromDir) || !fs.statSync(fromDir).isDirectory()) throw new Error(`${fromDir} is not a directory`);
+  const files = fs.readdirSync(fromDir).filter((f) => fs.statSync(path.join(fromDir, f)).isFile());
+  if (!files.includes('results.json')) throw new Error(`${fromDir} has no results.json`);
   const dir = path.join(OUT, id);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  const files = fs.readdirSync(fromDir).filter((f) => fs.statSync(path.join(fromDir, f)).isFile());
-  if (!files.includes('results.json')) throw new Error(`${fromDir} has no results.json`);
   for (const f of files) fs.writeFileSync(path.join(dir, f), scrubText(fs.readFileSync(path.join(fromDir, f), 'utf8')));
   console.log(`${id}: ${files.length} files from ${fromDir}`);
 }
@@ -84,11 +86,14 @@ const runs = fs
             t,
             {
               n_test: v.n_test,
+              // every arm field the page may render (confidence splits, cascade
+              // counts, confusion matrices, a tuned Jev program) — only the
+              // bulky, page-irrelevant error samples are dropped
               arms: Object.fromEntries(
-                Object.entries(v.arms || {}).map(([a, x]) => [
-                  a,
-                  { score: x.score, errors: x.errors, seconds: x.seconds, optimize_seconds: x.optimize_seconds, tool_calls: x.tool_calls },
-                ]),
+                Object.entries(v.arms || {}).map(([a, x]) => {
+                  const { error_samples, ...rest } = x || {};
+                  return [a, rest];
+                }),
               ),
               tool_calls: v.tool_calls,
               usage: v.usage,
