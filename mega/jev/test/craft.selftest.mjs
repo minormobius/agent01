@@ -131,7 +131,7 @@ for (const [shape, seed] of [['penrose', 3], ['hex', 2], ['truncsq', 2]]) {
   const head = JSON.parse(a.lines[0]);
   ok(head.t === 'craft' && head.shape === shape && head.seed === seed && head.sig, `${shape}/${seed}: header names the world`);
   let mono = true, kinds = true, last = -1;
-  const KINDS = new Set(['wear', 'shorn', 'young', 'grown', 'b', 'p', '+', '-', 'hp', 'food', 'inv', 'do', 'hit', 'die', 'note']);
+  const KINDS = new Set(['wear', 'shorn', 'young', 'grown', 'boat', 'b', 'p', '+', '-', 'hp', 'food', 'inv', 'do', 'hit', 'die', 'note']);
   for (const l of a.lines.slice(1)) {
     const L = JSON.parse(l);
     if (!(L.k >= last) || !Array.isArray(L.e) || !L.e.length) mono = false;
@@ -144,6 +144,7 @@ for (const [shape, seed] of [['penrose', 3], ['hex', 2], ['truncsq', 2]]) {
   // replay from the stream alone
   const rp = new Replay(a.lines[0]);
   for (const l of a.lines.slice(1)) rp.apply(l);
+  rp.view = a.sim.dim;                      // the world the player is in (a fast run reaches the nether)
   let same = rp.b.length === a.sim.b.length;
   for (let i = 0; same && i < rp.b.length; i++) if (rp.b[i] !== a.sim.b[i]) same = false;
   ok(same, `${shape}/${seed}: replayed blocks equal the simulation's`);
@@ -893,6 +894,55 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
     const [D, gD] = a.team.access.drop;
     ok(a.get(D, gD - 1) === B.trapdoor && a.get(a.team.access.ladder[0], a.team.access.level) === B.ladder, 'the trapdoor is over the drop and the ladder reaches the bottom');
   }
+}
+
+// ------------------------------------------------- renewal, drops, boats
+{
+  // death drops everything where you fell; recover picks it up
+  const s = new Sim({ seed: 3, shape: 'truncsq' });
+  const p = s.player;
+  s.give('cobblestone', 20); s.give('stone_pickaxe', 1);
+  runMacro(s, 'explore'); runMacro(s, 'explore');
+  s.hurt(p, 40, null);
+  ok(!p.inv.cobblestone && p.lastDrop && p.lastDrop.n === 21, 'death drops the whole inventory where you fell');
+  const r = runMacro(s, 'recover');
+  ok(r.ok && p.inv.cobblestone === 20 && p.inv.stone_pickaxe === 1, `recover walks back and picks it all up (${r.why || 'ok'})`);
+  // items despawn
+  const far = s.dropItems(s.cols[p.c].adj[0], 40 - 3, { apple: 1 });   // out of reach, high up: nobody picks it up
+  for (let k = 0; k < 1210 && s.ents.has(far.id); k++) s.step();
+  ok(!s.ents.has(far.id), 'an item on the ground despawns after 1200 ticks');
+  // saplings grow into trees; a felled crown decays
+  const t = new Sim({ seed: 3, shape: 'truncsq' });
+  const q = t.player, spot = t.cols[q.c].adj.find((c) => t.get(c, q.y - 1) === B.grass && t.skyOpen(c, q.y));
+  t.give('sapling', 1);
+  ok(!!spot && t.act({ op: 'place', c: spot, y: q.y, item: 'sapling' }).ok && t.get(spot, q.y) === B.sapling, 'a sapling goes on grass');
+  let grew = false;
+  for (let k = 0; k < 12000 && !grew; k++) { t.step(); grew = t.get(spot, q.y) === B.log; }
+  ok(grew, 'and grows into a tree');
+  // fuel: a coal smelts 8
+  const f = new Sim({ seed: 3, shape: 'truncsq' });
+  f.give('iron_ore', 8); f.give('coal', 1); f.give('cobblestone', 10); f.give('planks', 8);
+  ok(runMacro(f, 'craft', { item: 'iron_ingot', n: 8 }).ok && f.inv.iron_ingot === 8 && !f.inv.coal, 'one coal smelts 8 ingots');
+  // saturation: cooked meat keeps the food bar full longer than an apple
+  const h = new Sim({ seed: 3, shape: 'truncsq' });
+  h.player.food = 10; h.give('cooked_porkchop', 1); h.act({ op: 'eat', item: 'cooked_porkchop' });
+  ok(h.player.sat > 8, `eating cooked meat fills saturation too (${h.player.sat})`);
+  // breeding: two cows fed wheat, a young cow
+  const b = new Sim({ seed: 4, shape: 'kagome' });
+  const bp = b.player, c1 = b.cols[bp.c].adj[0], c2 = b.cols[bp.c].adj[1];
+  const cowA = b.spawnEnt('cow', c1, bp.y, { hp: 10 }), cowB = b.spawnEnt('cow', c2, bp.y, { hp: 10 });
+  b.give('wheat', 2);
+  b.act({ op: 'feed', id: cowA.id }); b.act({ op: 'feed', id: cowB.id });
+  for (let k = 0; k < 40; k++) b.step();
+  ok([...b.ents.values()].some((e) => e.kind === 'cow' && e.young), 'two cows fed wheat make a young cow');
+  // boats: swimming costs 3 ticks a tile, a boat 1
+  const w = new Sim({ seed: 3, shape: 'truncsq' });
+  const wp = w.player, sea = w.cols[wp.c].adj[0];
+  for (let y = 1; y < wp.y; y++) w.set(sea, y, B.water); for (const y of [wp.y, wp.y + 1, wp.y + 2]) w.set(sea, y, B.air);
+  const swim = w.plan({ op: 'move', to: sea });
+  w.give('boat', 1);
+  const row = w.plan({ op: 'move', to: sea });
+  ok(swim.ok && swim.ticks === 3 && row.ok && row.ticks === 1, `swimming a tile takes ${swim.ticks} ticks, a boat ${row.ticks}`);
 }
 
 // ---------------------------------------------------------------- text ------

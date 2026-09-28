@@ -172,6 +172,7 @@ export const RECIPES = {
   // shears: wool from a sheep without killing it; it grows back
   shears:          { n: 1, need: { iron_ingot: 2 } },
   ladder:          { n: 3, need: { stick: 7 }, at: 'crafting_table' },
+  boat:            { n: 1, need: { planks: 5 }, at: 'crafting_table' },
   trapdoor:        { n: 2, need: { planks: 6 }, at: 'crafting_table' },
   chest:           { n: 1, need: { planks: 8 }, at: 'crafting_table' },
   bed:             { n: 1, need: { wool: 3, planks: 3 }, at: 'crafting_table' },

@@ -194,6 +194,8 @@ export function baselinePolicy(sim) {
     if (visiblePigs(sim, 24, 'sheep').length) return { name: 'hunt', args: { kind: 'sheep' } };
     if ((sim.me._bedTries || 0) < 4) { sim.me._bedTries = (sim.me._bedTries || 0) + 1; return { name: 'scout', args: { what: 'sheep' } }; }
   }
+  // a boat, where the world is mostly water: swimming is 3 ticks a tile, a boat 1
+  if (!sim.noBoat && !n('boat') && !p.boat && waterWorld(sim) && tries('boat') < 2) { tried('boat'); return craftIt('boat'); }
   // renewing: plant the saplings carried (wood runs out otherwise), pick up
   // what lies about, breed animals near home when we have their food
   const day = Math.floor(sim.tick / 4800);
@@ -293,6 +295,15 @@ export function baselinePolicy(sim) {
   return { name: pick };
 }
 const DAYLEN = 4800, NIGHT_AT = 3000;
+// share of the seen ground that is water, cached for a while
+function waterWorld(sim) {
+  const me = sim.me;
+  if (me._waterAt != null && sim.tick - me._waterAt < 600) return me._water;
+  let w = 0, n = 0;
+  for (let c = 0; c < sim.N; c += 3) if (sim.seen[c]) { n++; if (sim.get(c, sim.surface(c) - 1) === B.water) w++; }
+  me._waterAt = sim.tick; me._water = n > 30 && w / n > 0.35;
+  return me._water;
+}
 
 // Play a policy until it returns null or the tick budget runs out.
 // Returns the per-macro log and the milestones reached, with their tick.

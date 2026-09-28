@@ -331,6 +331,8 @@ function syncEntities(dt) {
     const tx = cols[e.c].x, tz = cols[e.c].z, ty = e.y;
     if (!m) { m = makeEnt(e.kind, e.id); m.position.set(tx, ty, tz); entGroup.add(m); entMesh.set(e.id, m); }
     m.scale.setScalar(e.young ? 0.55 : 1);
+    // a player in a boat: a hull under them
+    if (e.kind === 'player') { let hull = m.userData.hull; if (e.boat && !hull) { hull = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.25, 0.6), new THREE.MeshLambertMaterial({ color: 0x8f6a3a })); hull.position.y = -0.05; m.add(hull); m.userData.hull = hull; } if (hull) hull.visible = !!e.boat; }
     const k = Math.min(1, dt * 10);
     const dx = tx - m.position.x, dz = tz - m.position.z;
     if (Math.abs(dx) + Math.abs(dz) > 1e-3 && !(e.id === focusId && playing())) m.rotation.y = Math.atan2(-dz, dx);
@@ -451,7 +453,7 @@ const ARGS = {
   gather_wood: { n: 5 }, mine_stone: { n: 11 }, mine_coal: { n: 4 }, mine_iron: { iron: 3, coal: 3 },
   branch_mine: { length: 16 }, explore: { steps: 40 }, light_area: { n: 4 },
 };
-const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern', 'chest', 'bed', 'iron_armor', 'diamond_pickaxe', 'diamond_sword', 'diamond_armor', 'bucket', 'beacon', 'glowstone', 'quartz_block', 'stone_axe', 'stone_shovel', 'iron_axe', 'iron_shovel', 'diamond_axe', 'diamond_shovel', 'shears', 'ladder', 'trapdoor'];
+const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern', 'chest', 'bed', 'iron_armor', 'diamond_pickaxe', 'diamond_sword', 'diamond_armor', 'bucket', 'beacon', 'glowstone', 'quartz_block', 'stone_axe', 'stone_shovel', 'iron_axe', 'iron_shovel', 'diamond_axe', 'diamond_shovel', 'shears', 'ladder', 'trapdoor', 'boat', 'cooked_beef', 'cooked_chicken'];
 function argsFor(name) {
   if (name === 'craft') { const item = $('craft-item').value; return { item, n: item === 'torch' ? 4 : 1 }; }
   if (name === 'scout') return { what: $('scout-what').value };

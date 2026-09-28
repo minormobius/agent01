@@ -400,7 +400,7 @@ export function options(sim) {
     ...(!sim.has('diamond_sword') ? ['diamond_sword'] : []), ...(!sim.has('bucket') && !sim.has('water_bucket') ? ['bucket'] : []), ...(!sim.ow('beacons').size && !sim.has('beacon') ? ['beacon'] : []), ...(!sim.has('diamond_armor') ? ['diamond_armor'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : []), ...(sim.has('beef') ? ['cooked_beef'] : []), ...(sim.has('chicken') ? ['cooked_chicken'] : []),
     ...(sim.has('glowstone_dust', 4) && !sim.has('glowstone') ? ['glowstone'] : []), ...(sim.has('quartz', 4) ? ['quartz_block'] : []),
     // axes and shovels one tier above what is held, shears once
-    ...['axe', 'shovel'].map((k) => ['stone', 'iron', 'diamond'][Math.max(0, sim.toolTier(k) - 1)] + '_' + k).filter((it) => TOOLS[it]), ...(!sim.has('shears') ? ['shears'] : [])];
+    ...['axe', 'shovel'].map((k) => ['stone', 'iron', 'diamond'][Math.max(0, sim.toolTier(k) - 1)] + '_' + k).filter((it) => TOOLS[it]), ...(!sim.has('shears') ? ['shears'] : []), ...(!sim.has('boat') && !p.boat ? ['boat'] : [])];
   // a tool nearly worn out may be made again (a spare), and the option says how worn it is
   const usesLeft = (item) => (p.wear && p.wear[item]) ?? durability(item);
   const worn = (item) => sim.inv[item] === 1 && durability(item) && usesLeft(item) <= 0.2 * durability(item);
@@ -417,6 +417,7 @@ export function options(sim) {
         : TOOLS[item]?.kind === 'axe' ? `chops logs and wood faster: a log in ${Math.ceil(6 / PICK_SPEED[TOOLS[item].tier])} ticks instead of ${Math.ceil(6 / PICK_SPEED[sim.toolTier('axe')])}`
         : TOOLS[item]?.kind === 'shovel' ? `digs dirt, sand and grass faster: ${Math.ceil(3 / PICK_SPEED[TOOLS[item].tier])} ticks a block instead of ${Math.ceil(3 / PICK_SPEED[sim.toolTier('shovel')])}`
         : item === 'shears' ? 'wool from a sheep without killing it; it grows back'
+        : item === 'boat' ? 'crosses water at a tick a tile (swimming takes 3); got into at the water\'s edge, picked up on the far shore'
         : goal === nextGoal ? `completes the next rung: ${goal}` : goalsOpen.includes(goal) ? `a rung: ${goal}` : item === 'door' && !sim._house ? 'the house needs 2 doors' : item === 'wooden_hoe' ? 'farmland for crops' : 'not on the ladder',
     }, [`craft:${item}`, item]);
   }

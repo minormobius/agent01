@@ -50,6 +50,7 @@ export const SIGHT = 10;
 export const WOOL_REGROW = 1200;
 export const ITEM_DESPAWN = 1200;
 export const TREE_TICKS = 1600;
+export const SWIM = 3;               // ticks to swim a tile (a boat: 1, walking: 1)
 export const GROW_UP = 1200;         // ticks for a young animal to grow up
 export const LOVE = 600;             // ticks an animal stays ready to breed after being fed      // a sapling in the light becomes a tree in about this many ticks   // ticks an item on the ground lasts (5 minutes, as Minecraft's)    // ticks until a shorn sheep has wool again
 export const MAX_AIR = 60;          // ticks of breath with the head under water (~15 s, as Minecraft's)
@@ -331,7 +332,7 @@ export class Sim {
       // everything carried falls where you died, and lasts ITEM_DESPAWN ticks: go back for it
       const drop = this.dropItems(e.c, e.y, e.inv, { owner: e.id });
       e.lastDrop = drop ? { id: drop.id, dim: this.dim, c: e.c, y: e.y, until: drop.until, n: Object.values(drop.items).reduce((a, b) => a + b, 0) } : null;
-      e.wear = {};
+      e.wear = {}; e.boat = false;
       e.inv = {}; e.hp = 20; e.food = 20; e.air = MAX_AIR;
       // death in the nether: you wake up in the overworld
       if ((e.dim || 'overworld') !== 'overworld') {
@@ -486,8 +487,13 @@ export class Sim {
         const y = this.stepTarget(p.c, p.y, a.to, 2, 20);
         if (y == null) return no('blocked');
         if (this.occupied(a.to, y) || this.occupied(a.to, y + 1)) return no('occupied');
-        return { ok: true, ticks: 1, pre: () => {
+        // water: swimming is slow; a boat carried is got into at the water's
+        // edge and picked up again on the far shore
+        const wetTo = this.wet(a.to, y), boat = wetTo && (p.boat || this.has('boat'));
+        return { ok: true, ticks: wetTo && !boat ? SWIM : 1, pre: () => {
           this.emit(['do', 'move', a.to]);
+          if (wetTo && !p.boat && this.has('boat')) { this.take('boat', 1); p.boat = true; this.emit(['boat', p.id, 1]); }
+          if (!wetTo && p.boat) { p.boat = false; this.give('boat', 1); this.emit(['boat', p.id, 0]); }
           const fall = p.y - y;
           this.moveEnt(p, a.to, y);
           if (fall > 3 && !this.wet(a.to, y)) this.hurt(p, fall - 3, null);
@@ -850,7 +856,7 @@ export class Sim {
     // breath: the head under water uses it up, then drowning hurts
     for (const q of here) {
       const before = q.air;
-      if (this.get(q.c, q.y + 1) === B.water) {
+      if (this.get(q.c, q.y + 1) === B.water && !q.boat) {
         q.air = Math.max(0, q.air - 1);
         if (q.air === 0 && t % 8 === 0) { this.stats.drowning = (this.stats.drowning || 0) + 1; this.hurt(q, 2, null); }
       } else if (q.air < MAX_AIR) q.air = Math.min(MAX_AIR, q.air + 4);
@@ -1216,6 +1222,7 @@ export class Sim {
   // [{ c, y, mine: [[c, y]…] }] or null. Never digs into water.
   digPath(from, goal, maxNodes = 30000) {
     const tier = this.pickTier();
+    const boat = !!(from.boat || (from.inv && from.inv.boat));     // water costs a boat's tick, not a swimmer's three
     const key = (c, y) => c * H + y;
     const start = key(from.c, from.y);
     const dist = new Map([[start, 0]]), prev = new Map(), how = new Map();
@@ -1252,7 +1259,7 @@ export class Sim {
         return out.reverse();
       }
       const relax = (nc, ny, mine, extra) => {
-        let cost = 1 + extra;
+        let cost = 1 + extra + (this.wet(nc, ny) && !boat ? SWIM - 1 : 0);
         const list = [];
         for (const [mc, my] of mine) {
           const t = this.clearCost(mc, my, tier);
@@ -1383,6 +1390,7 @@ export class Replay {
         case 'air': this.person(ev[1]).air = ev[2]; break;
         case 'wear': { const w = (this.person(ev[1]).wear ||= {}); if (ev[3] == null) delete w[ev[2]]; else w[ev[2]] = ev[3]; break; }
         case 'shorn': { const e = D.ents.get(ev[1]); if (e) e.shorn = !!ev[2]; break; }
+        case 'boat': { const e = D.ents.get(ev[1]); if (e) e.boat = !!ev[2]; break; }
         case 'young': { const e = D.ents.get(ev[1]); if (e) e.young = true; break; }
         case 'grown': { const e = D.ents.get(ev[1]); if (e) e.young = false; break; }
         case 'chest': if (ev[3]) D.chests.set(ev[1] * H + ev[2], ev[3]); else D.chests.delete(ev[1] * H + ev[2]); break;
