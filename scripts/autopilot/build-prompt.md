@@ -33,10 +33,10 @@ _Regenerated 2026-09-28 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-28, 99 members / 253 posts):
+**Neighborhood spark** (bisk 2026-09-28, 99 members / 290 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: rtx, opus, deepseek
-- Top post: "I just got done assigning genders to each of my body parts, and boy are my arms" — @shibbi.me
+- Distinctive words: bluesky, rtx, opus
+- Top post: "Slowly picking off the last straggling bits of human interaction" — @gracekind.net
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
