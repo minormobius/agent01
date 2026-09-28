@@ -1,7 +1,21 @@
 {
   "runId": "imp-05",
-  "models": ["ds4-flash", "ds4-pro", "kimi3"],
-  "tasks": ["era"],
-  "gepa": { "models": ["ds4-flash", "ds4-pro", "kimi3"], "reflection": "ds4-pro", "maxMetricCalls": 250 },
-  "note": "era: from one of minormobius.bsky.social's posts alone, guess the year (2023–2026). Zero-shot, 16 labelled examples, and GEPA with the true year as train feedback — can an optimizer write down one person's eras?"
+  "models": [
+    "ds4-flash",
+    "ds4-pro",
+    "kimi3"
+  ],
+  "tasks": [
+    "era"
+  ],
+  "gepa": {
+    "models": [
+      "ds4-flash",
+      "ds4-pro",
+      "kimi3"
+    ],
+    "reflection": "ds4-pro",
+    "maxMetricCalls": 250
+  },
+  "note": "era: from one of minormobius.bsky.social's posts alone, guess the year (2023–2026). Zero-shot, 16 labelled examples, and GEPA with the true year as train feedback — can an optimizer write down one person's eras? (Re-run: the first attempt failed in every cell on an undecoded plc.directory response.)"
 }
