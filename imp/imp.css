@@ -104,3 +104,12 @@ details { margin: 0.5rem 0; }
 summary { cursor: pointer; font-weight: 600; }
 footer { color: var(--muted); font-size: 0.8rem; padding-top: 2rem; padding-bottom: 3rem; border-top: 1px solid var(--rule); margin-top: 3rem; }
 .theme-toggle { float: right; background: none; border: 1px solid var(--rule); color: var(--ink-2); border-radius: 999px; font: 0.72rem var(--mono); padding: 0.2rem 0.6rem; cursor: pointer; }
+
+/* confusion matrix */
+.cm { border-collapse: separate; border-spacing: 3px; width: auto; margin: 0.8rem 0; }
+.cm th, .cm td { border: 0; text-align: center; padding: 0; }
+.cm td.cell { width: 56px; height: 44px; border-radius: 4px; font-variant-numeric: tabular-nums; font-size: 0.85rem; }
+.cm th.r { text-align: right; padding-right: 0.5rem; }
+.cm .axis-t { font: 0.62rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+blockquote.post { margin: 0; font-size: 0.9rem; color: var(--fg); }
+p.row-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }

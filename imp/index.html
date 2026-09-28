@@ -192,10 +192,32 @@ Imp.optimize!(agent, Imp.Optimizer.GEPA.new(metric, reflection_lm: lm, max_metri
     guaranteed; token counts come from the providers and cover the tool tasks only.</li>
 </ul>
 
+<section id="era" hidden>
+<h2>Which year did I write this?</h2>
+<p>
+  The tasks that moved were the ones with something private to learn. So the last one is as private as it
+  gets: <a href="https://bsky.app/profile/minormobius.bsky.social">minormobius</a>'s own Bluesky posts —
+  51,120 of them, 2023 to 2026 — and a model is shown <b>one post</b> and asked which year it was written.
+  Chance is 25%. The labels are the posts' own timestamps; nothing is hand-labelled. The only way to beat
+  chance is to know how one person's topics, jokes, projects and phrasing drift — which is exactly what
+  GEPA gets the chance to write down, from 32 posts whose years it is told.
+</p>
+<p class="row-sub">Top-level posts only, at least 60 characters, no @-mentions, and none that state a year. 120 held-out posts, 30 per year, chosen by hash.</p>
+<div class="tbl-wrap" id="era-table"></div>
+<h3>Where the guesses land</h3>
+<p>Rows are the year a post was written, columns the year guessed; darker is more posts. A good dater lights the diagonal.</p>
+<div class="tabs" id="era-tabs" role="tablist"></div>
+<div id="era-matrix"></div>
+<h3>The eras, as GEPA wrote them down</h3>
+<div class="tabs" id="era-itabs" role="tablist"></div>
+<div class="pair" id="era-instr"></div>
+<h3>Some held-out posts, and what the optimized program said</h3>
+<div class="tbl-wrap" id="era-samples"></div>
+</section>
+
 <h2>Next</h2>
 <p>
-  The tasks that moved were the ones with something private to learn — a code's meaning, a convention.
-  The next one is built from a single person's forty-odd thousand Bluesky posts.
+  More runs of the same tasks to put error bars on single-run numbers, and other models as the bake-off adds them.
 </p>
 
 </main>

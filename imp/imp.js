@@ -3,6 +3,7 @@
 
 const NAMES = { 'ds4-flash': 'DeepSeek V4 Flash', 'ds4-pro': 'DeepSeek V4 Pro', kimi3: 'Kimi K3' };
 const ORDER = ['ds4-flash', 'ds4-pro', 'kimi3'];
+const modelName = (m) => NAMES[m] || m;
 const pct = (x) => (x == null ? '—' : `${Math.round(x * 1000) / 10}%`);
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
@@ -90,7 +91,7 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec);
       const a = c.tasks.trec.arms;
       const y = top + rowH * i + (narrow ? rowH - 22 : rowH / 2);
       const name = svgEl('text', { class: 'row-lab', x: 0, y: narrow ? y - 34 : y - 2 });
-      name.textContent = NAMES[c.model] || c.model;
+      name.textContent = modelName(c.model);
       const sub = svgEl('text', { class: 'row-sub', x: narrow ? W : 0, y: narrow ? y - 34 : y + 14, 'text-anchor': narrow ? 'end' : 'start' });
       sub.textContent = `${a.baseline.errors} → ${a.gepa.errors} parse errors`;
       svg.append(name, sub);
@@ -104,7 +105,7 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec);
         svg.append(val);
         const hit = svgEl('circle', { class: 'hit', cx: x(v), cy: y, r: 16 });
         const extra = arm === 'gepa' ? `<br>optimizing took ${Math.round(a.gepa.optimize_seconds / 60)} min` : '';
-        const html = `<b>${NAMES[c.model]}</b> · ${label}<br>${pct(v)} of 80 held out · ${a[arm].errors} parse errors${extra}`;
+        const html = `<b>${modelName(c.model)}</b> · ${label}<br>${pct(v)} of 80 held out · ${a[arm].errors} parse errors${extra}`;
         hit.addEventListener('mousemove', (e) => show(e, html));
         hit.addEventListener('mouseleave', hide);
         svg.append(hit);
@@ -123,7 +124,7 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec);
     const a = c.tasks.trec.arms;
     const tr = el('tr');
     for (const [v, num] of [
-      [NAMES[c.model], false],
+      [modelName(c.model), false],
       [pct(a.baseline.score), true],
       [pct(a.gepa.score), true],
       [`+${Math.round((a.gepa.score - a.baseline.score) * 1000) / 10} pts`, true],
@@ -147,12 +148,12 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec);
     const a = changed[0]?.after ?? '(GEPA kept the original)';
     pair.append(
       el('div', {}, el('div', { class: 'k', text: 'before' }), el('pre', { text: b })),
-      el('div', { class: 'after' }, el('div', { class: 'k', text: `after GEPA — ${NAMES[c.model]}` }), el('pre', { text: a })),
+      el('div', { class: 'after' }, el('div', { class: 'k', text: `after GEPA — ${modelName(c.model)}` }), el('pre', { text: a })),
     );
     for (const btn of tabs.children) btn.setAttribute('aria-selected', String(btn.dataset.model === c.model));
   };
   for (const c of trec) {
-    const btn = el('button', { type: 'button', role: 'tab', 'data-model': c.model, text: NAMES[c.model] });
+    const btn = el('button', { type: 'button', role: 'tab', 'data-model': c.model, text: modelName(c.model) });
     btn.addEventListener('click', () => render(c));
     tabs.append(btn);
   }
@@ -174,7 +175,7 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec);
     const deskCell = desk && desk.arms.react.score > 0 ? frac(desk, 'react') : '—';
     const tr = el('tr');
     for (const [v, num] of [
-      [NAMES[m], false],
+      [modelName(m), false],
       [frac(route, 'zero_shot'), true],
       [frac(route, 'few_shot_k8'), true],
       [deskCell, true],
@@ -217,4 +218,105 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec);
   }
   tbl.append(tb);
   document.getElementById('runs-table').append(tbl);
+}
+
+// ─── era: minormobius's posts ─────────────────────────────────────────
+{
+  const eraRun = [...runs].reverse().find((r) => r.cells.some((c) => c.tasks.era));
+  if (eraRun) {
+    document.getElementById('era').hidden = false;
+    const cells = byModel(eraRun.cells).filter((c) => c.tasks.era);
+    const ARMS = [['baseline', 'zero-shot'], ['few_shot_k16', '16 examples'], ['gepa', 'GEPA']];
+
+    const tbl = el('table');
+    tbl.innerHTML = '<thead><tr><th>model</th>' + ARMS.map(([, l]) => `<th class="num">${l}</th>`).join('') + '<th class="num">GEPA, within a year</th></tr></thead>';
+    const tb = el('tbody');
+    for (const c of cells) {
+      const a = c.tasks.era.arms;
+      const tr = el('tr', {}, el('td', { text: modelName(c.model) }));
+      for (const [k] of ARMS) tr.append(el('td', { class: 'num', text: a[k] ? pct(a[k].score) + (a[k].errors ? ` (${a[k].errors} err)` : '') : '—' }));
+      tr.append(el('td', { class: 'num', text: a.gepa ? pct(a.gepa.within_one) : '—' }));
+      tb.append(tr);
+    }
+    tbl.append(tb);
+    document.getElementById('era-table').append(tbl, el('p', { class: 'row-sub', text: `run ${eraRun.id} · 120 held-out posts · chance 25% exact, 62.5% within a year for a uniform guesser` }));
+
+    // confusion matrix, per model and arm
+    const years = ['2023', '2024', '2025', '2026'];
+    const mBox = document.getElementById('era-matrix');
+    const mTabs = document.getElementById('era-tabs');
+    const drawMatrix = (c, arm) => {
+      const conf = c.tasks.era.arms[arm]?.confusion;
+      mBox.replaceChildren();
+      if (!conf) return;
+      const t = el('table', { class: 'cm' });
+      const head = el('tr', {}, el('th', { class: 'axis-t', text: 'written ↓  guessed →' }));
+      for (const y of years) head.append(el('th', { class: 'axis-t', text: y }));
+      t.append(head);
+      for (const y of years) {
+        const row = el('tr', {}, el('th', { class: 'r axis-t', text: y }));
+        const total = Object.values(conf[y]).reduce((s, n) => s + n, 0) || 1;
+        for (const g of years) {
+          const n = conf[y][g] || 0;
+          const a = n / total;
+          const td = el('td', { class: 'cell', text: String(n), title: `written ${y}, guessed ${g}: ${n} of ${total}` });
+          td.style.background = `color-mix(in oklab, var(--after) ${Math.round(a * 100)}%, var(--surface))`;
+          td.style.color = a > 0.45 ? '#fff' : 'var(--fg)';
+          if (y === g) td.style.outline = '1px solid var(--after)';
+          row.append(td);
+        }
+        t.append(row);
+      }
+      mBox.append(t);
+    };
+    const armBtns = [];
+    for (const c of cells) for (const [k, l] of ARMS) {
+      if (!c.tasks.era.arms[k]) continue;
+      const b = el('button', { type: 'button', role: 'tab', text: `${modelName(c.model)} · ${l}` });
+      b.addEventListener('click', () => { drawMatrix(c, k); for (const x of armBtns) x.setAttribute('aria-selected', String(x === b)); });
+      armBtns.push(b); mTabs.append(b);
+    }
+    const best = cells.map((c) => [c, c.tasks.era.arms.gepa?.score ?? 0]).sort((a, b) => b[1] - a[1])[0]?.[0] || cells[0];
+    const first = armBtns.find((b) => b.textContent === `${modelName(best.model)} · GEPA`) || armBtns[0];
+    first?.click();
+
+    // instructions
+    const iTabs = document.getElementById('era-itabs');
+    const iBox = document.getElementById('era-instr');
+    const withGepa = cells.filter((c) => c.tasks.era.gepa && !c.tasks.era.gepa.error);
+    const drawInstr = (c) => {
+      const ch = Object.values(c.tasks.era.gepa.changed || {})[0];
+      iBox.replaceChildren(
+        el('div', {}, el('div', { class: 'k', text: 'before' }), el('pre', { text: ch?.before ?? 'A post by one Bluesky user. Guess the year they wrote it.' })),
+        el('div', { class: 'after' }, el('div', { class: 'k', text: `after GEPA — ${modelName(c.model)}` }), el('pre', { text: ch?.after ?? '(GEPA kept the original instruction)' })),
+      );
+      for (const b of iTabs.children) b.setAttribute('aria-selected', String(b.dataset.model === c.model));
+    };
+    for (const c of withGepa) {
+      const b = el('button', { type: 'button', role: 'tab', 'data-model': c.model, text: modelName(c.model) });
+      b.addEventListener('click', () => drawInstr(c));
+      iTabs.append(b);
+    }
+    if (withGepa.length) drawInstr(withGepa.find((c) => c.model === best.model) || withGepa[0]);
+
+    // samples: from runs/<id>/results.json (rows are not in index.json)
+    fetch(`runs/${eraRun.id}/results.json`).then((r) => r.json()).then((full) => {
+      const cell = full.cells.find((c) => c.model === best.model);
+      const rows = cell?.tasks?.era?.rows?.gepa || cell?.tasks?.era?.rows?.baseline || [];
+      const pick = [...rows.filter((r) => r.predicted === r.year).slice(0, 4), ...rows.filter((r) => r.predicted !== r.year).slice(0, 4)];
+      const t = el('table');
+      t.innerHTML = '<thead><tr><th>post</th><th>written</th><th>guessed</th></tr></thead>';
+      const b = el('tbody');
+      for (const r of pick) {
+        const ok = r.predicted === r.year;
+        const link = el('a', { href: `https://bsky.app/profile/minormobius.bsky.social/post/${r.rkey}`, text: r.created || r.year });
+        b.append(el('tr', {},
+          el('td', {}, el('blockquote', { class: 'post', text: r.text })),
+          el('td', {}, link),
+          el('td', {}, el('span', { class: ok ? 'ok' : 'no', text: `${r.predicted ?? 'error'} ${ok ? '✓' : '✗'}` }))));
+      }
+      t.append(b);
+      document.getElementById('era-samples').append(t, el('p', { class: 'row-sub', text: `${modelName(best.model)}, ${cell?.tasks?.era?.rows?.gepa ? 'after GEPA' : 'zero-shot'} — four right, four wrong, in held-out order.` }));
+    });
+  }
 }
