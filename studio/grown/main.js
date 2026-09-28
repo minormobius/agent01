@@ -9,7 +9,7 @@
 // packages/attractor/tools/evolve.mjs kept from a long headless run (lib/evolved.js).
 
 import { World, GENOMES, ORGANS, LETTER, flowsFor, signature, WX, WY, WZ } from '../vendor/attractor/lib/organism.js';
-import { EVOLVED, RUN } from '../vendor/attractor/lib/evolved.js';
+import { EVOLVED, RUNS } from '../vendor/attractor/lib/evolved.js';
 import { makeRenderer, prism } from './gl.js';
 
 const $ = (id) => document.getElementById(id);
@@ -87,6 +87,8 @@ function scene(f) {
       prism(C, [o.p[0] + d[0] * 0.2 * o.size, o.p[1] + d[1] * 0.2 * o.size, o.p[2] + d[2] * 0.2 * o.size], d, c.len, 0.1 + 0.08 * c.len, c.spin, W.s - c.born, (seedOf(B.genome) % 7) / 7);
     }
   }
+  // bites: a hot thread from the biting mouth to the organ it bites
+  for (const [a, b] of W.bites) for (let k = 0; k <= 12; k++) point(P, [a[0] + (b[0] - a[0]) * k / 12, a[1] + (b[1] - a[1]) * k / 12, a[2] + (b[2] - a[2]) * k / 12], [1, 0.3, 0.2], 0.9, 1.6);
   if (W.reef.length !== reefLen) { R.reef.n = 0; for (const c of W.reef) prism(R.reef, c.p, c.dir, c.len, 0.1 + 0.08 * c.len, c.spin, 3000, (c.lineage % 7) / 7); R.uploadReef(); reefLen = W.reef.length; }
   if (state.haze) {                                        // the medium: a mote per cell, as bright as its mineral
     const M = W.medium, MX = WX / 4, MZ = WZ / 4;
@@ -118,7 +120,8 @@ const hex = (c) => '#' + c.map((v) => Math.round(Math.min(1, v) * 255).toString(
 function glyphs(sig) { return sig.replace(/[a-z]/g, (ch) => { const t = Object.keys(LETTER).find((k) => LETTER[k] === ch); return `<span style="color:${hex(ORGANS[t].colour)}">${ch}</span>`; }); }
 function info() {
   const census = Object.entries(W.census()).sort((a, b) => b[1].count - a[1].count);
-  $('phase').textContent = `step ${W.s} · ${W.bodies.length} alive in ${census.length} body plan${census.length === 1 ? '' : 's'} · ${Object.keys(W.book).length} plans ever · ${W.mutants} mutants · ${W.dead.length} dead`;
+  const causes = {}; for (const d of W.dead) causes[d.cause] = (causes[d.cause] || 0) + 1;
+  $('phase').textContent = `step ${W.s} · ${W.bodies.length} alive in ${census.length} body plan${census.length === 1 ? '' : 's'} · ${Object.keys(W.book).length} plans ever · ${W.mutants} mutants · died: ${Object.entries(causes).map(([k, v]) => v + ' ' + k).join(', ') || 'none yet'}`;
   const B = state.follow != null && W.bodies.find((b) => b.id === state.follow);
   const lines = [`<b>world</b>  seed ${state.seed}, founders: ${state.with === 'all' ? 'three of each' : state.with === 'evolved' ? 'nine evolved plans' : state.with + 's'}, evolution ${state.evolve ? 'on' : 'off'}`];
   if (B) {
@@ -126,12 +129,13 @@ function info() {
     lines.push(`<b>this one</b>  ${nameOf(B.genome)} #${B.id}${B.parent != null ? ', child of #' + B.parent : ''}${B.genome.from ? ', a new plan from ' + B.genome.from : ''}`,
       `<b>plan</b>  ${glyphs(signature(B.genome))}`,
       `<b>organs</b>  ${B.grown} of ${B.plan.length} grown: ${Object.entries(counts).map(([k, v]) => v + ' ' + k).join(', ')}`,
-      `<b>energy</b>  ${B.E.toFixed(1)} of ${B.capacity().toFixed(1)}   <b>age</b> ${B.age}   <b>children</b> ${B.children}   <b>armour</b> ${B.crystals.length}`);
+      `<b>energy</b>  ${B.E.toFixed(1)} of ${B.capacity().toFixed(1)}   <b>age</b> ${B.age}   <b>children</b> ${B.children}   <b>armour</b> ${B.crystals.length}`,
+      `<b>instinct</b>  ${(() => { const h = B.genome.beat.hunt || 0; return !B.size('sense') ? 'none (no sense)' : h > 0.15 ? 'hunts other species (' + h.toFixed(2) + ')' : h < -0.15 ? 'flees other species (' + h.toFixed(2) + ')' : 'ignores other species'; })()}${B.preyed ? ', has eaten ' + B.preyed.toFixed(1) + ' from others' : ''}`);
   }
   lines.push('<b>alive now, by body plan</b>   (<span style="color:#ff8c38">m</span>outh <span style="color:#ffcc59">g</span>ut <span style="color:#4dd9ff">f</span>in <span style="color:#d9b3ff">s</span>ense s<span style="color:#bfcce6">h</span>ell <span style="color:#ff73b3">b</span>ud; brackets hold what grows from it)');
   for (const [sig, c] of census.slice(0, 7)) lines.push(`${String(c.count).padStart(3)}  ${c.name.padEnd(10)} ${glyphs(sig)}`);
   if (!B) lines.push('Tap "follow one" to ride along with a body and read it.');
-  if (state.with === 'evolved' && RUN) lines.push(`<b>the bestiary</b>  from a headless run of ${RUN.steps.toLocaleString()} steps: ${RUN.plans} body plans lived, ${RUN.mutants} mutants`);
+  if (state.with === 'evolved' && RUNS) lines.push(`<b>the bestiary</b>  from ${RUNS.length} headless run${RUNS.length > 1 ? 's' : ''} of ${RUNS[0].steps.toLocaleString()} steps: ${RUNS.reduce((a, r) => a + r.plans, 0)} body plans lived, ${RUNS.reduce((a, r) => a + r.mutants, 0)} mutants`);
   $('info').innerHTML = lines.join('\n');
 }
 

@@ -11,6 +11,9 @@
 //          harder, which turns the body toward richer water
 //   shell  grows crystal armour round itself out of spent energy: mass, drag, and (later) protection
 //          (and a full body idles its fins: `rest`)
+//   (and a mouth that touches another species' organ BITES it: energy out of the prey, blunted by the
+//   prey's armour and shells: predation. A sense can also smell other bodies: the `hunt` gene steers
+//   toward them (a predator) or away (prey))
 //   bud    when the gut is full, pinches off an offspring with the same program (mutated a little
 //          if the world says so) and half the energy
 //
@@ -198,13 +201,21 @@ export class Body {
     this.age++;
     let upkeep = 0;
     for (const o of P.organs) upkeep += ORGANS[o.type].upkeep * o.size * W.hard;
-    // mouths graze; senses read the gradient
+    // mouths graze, and bite; senses read the gradient, and smell other bodies
     let turn = 0, climb = 0, senses = 0;
     for (const o of P.organs) {
-      if (o.type === 'mouth') { const got = W.graze(o.p, 0.012 * o.size); this.E += got; this.eaten += got; }
-      else if (o.type === 'sense') {
+      if (o.type === 'mouth') {
+        const got = W.graze(o.p, 0.012 * o.size); this.E += got; this.eaten += got;
+        if (W.predation) this.bite(o, s);
+      } else if (o.type === 'sense') {
         const r = 3 + 6 * o.size, g = [0, 1, 2].map((q) => { const a = o.p.slice(), b = o.p.slice(); a[q] += r; b[q] -= r; return W.at(a) - W.at(b); }), gl = Math.hypot(...g);
         if (gl > 1e-6) { turn += (g[0] * F.r[0] + g[1] * F.r[1] + g[2] * F.r[2]) / gl; climb += g[1] / gl; senses++; }
+        const h = B.hunt || 0;
+        if (h && W.predation) {                                // the nearest other species within twice its reach
+          let best = null, bd = (2 * r) ** 2;
+          for (const Q of W.bodies) { if (Q === this || !Q.alive || Q.genome.name === G.name) continue; const d2 = (Q.p[0] - o.p[0]) ** 2 + (Q.p[1] - o.p[1]) ** 2 + (Q.p[2] - o.p[2]) ** 2; if (d2 < bd) { bd = d2; best = Q; } }
+          if (best) { const d = unit([best.p[0] - o.p[0], best.p[1] - o.p[1], best.p[2] - o.p[2]]); turn += h * 2 * (d[0] * F.r[0] + d[1] * F.r[1] + d[2] * F.r[2]); climb += h * d[1]; }
+        }
       }
     }
     if (senses) { turn /= senses; climb /= senses; }
@@ -256,9 +267,25 @@ export class Body {
       const bud = P.organs.find((o) => o.type === 'bud');
       if (bud && W.bodies.length < W.cap) { this.E *= 0.5; this.children++; W.birth(this, bud.p, this.E * 0.8); }
     }
-    if (this.E < 0) this.die(s, 'starved');
+    if (this.E < 0) this.die(s, this.bitten > s - 30 ? 'eaten' : 'starved');
     // old age: every body dies in the end (without it a bud-less body lived forever on a vein)
     else if (this.age > this.world.lifespan * (0.75 + 0.5 * hash(this.id, 99))) this.die(s, 'old');
+  }
+  /** A mouth bites the nearest organ of another species it touches: energy out of the prey (blunted by
+   *  its armour and its shells), 70% of it into this body. */
+  bite(o, s) {
+    const W = this.world, reach = 0.7 + 0.7 * o.size;
+    for (const Q of W.bodies) {
+      if (Q === this || !Q.alive || Q.genome.name === this.genome.name || Q.E <= 0) continue;
+      if (Math.abs(Q.p[0] - o.p[0]) > 12 || Math.abs(Q.p[1] - o.p[1]) > 12 || Math.abs(Q.p[2] - o.p[2]) > 12) continue;
+      const QP = Q.cur || Q.pose(1, s);
+      const hit = QP.organs.find((q) => Math.hypot(q.p[0] - o.p[0], q.p[1] - o.p[1], q.p[2] - o.p[2]) < reach + 0.4 * q.size);
+      if (!hit) continue;
+      const guard = 1 + Q.crystals.length * 0.08 + Q.size('shell') * 0.6, take = Math.min(Q.E + 0.01, (0.06 * o.size) / guard);
+      Q.E -= take; this.E += 0.7 * take; this.preyed = (this.preyed || 0) + take; Q.bitten = s;
+      W.bites.push([o.p.slice(), hit.p.slice()]);
+      return;
+    }
   }
   die(s, cause) {
     this.alive = false; this.cause = cause;
@@ -270,18 +297,25 @@ export class Body {
 
 /** A world: the medium in veins, the bodies, their reef. */
 export class World {
-  constructor(seed, { cap = 60, mutate = 0, hard = 3, regrow = 0.0015, lifespan = 5000 } = {}) {
-    this.lifespan = lifespan; this.hard = hard; this.regrow = regrow; this.seed = seed; this.book = {}; this.mutants = 0; this.s = 0; this.cap = cap; this.mutate = mutate; this.next = 0;
+  constructor(seed, { cap = 60, mutate = 0, hard = 3, regrow = 0.0015, lifespan = 5000, predation = true, drift = true } = {}) {
+    this.predation = predation; this.drift = drift; this.bites = []; this.lifespan = lifespan; this.hard = hard; this.regrow = regrow; this.seed = seed; this.book = {}; this.mutants = 0; this.s = 0; this.cap = cap; this.mutate = mutate; this.next = 0;
     this.bodies = []; this.dead = []; this.reef = []; this.version = 0;
     const rnd = mulberry32((seed >>> 0) * 747796405 + 11);
-    this.veins = Array.from({ length: 7 }, () => ({ x: 20 + rnd() * (WX - 40), y: WY * (0.35 + 0.3 * rnd()), z: 20 + rnd() * (WZ - 40), r: 10 + rnd() * 18, a: 0.6 + rnd() * 0.6 }));
+    // veins, each wandering a slow loop round its home (if the world drifts): the food moves
+    this.veins = Array.from({ length: 7 }, () => ({ hx: 30 + rnd() * (WX - 60), y: WY * (0.35 + 0.3 * rnd()), hz: 30 + rnd() * (WZ - 60), r: 10 + rnd() * 18, a: 0.6 + rnd() * 0.6, ph: rnd() * TAU, w: (0.6 + 0.8 * rnd()) * (rnd() < 0.5 ? -1 : 1), wr: 14 + rnd() * 16 }));
     this.base0 = new Float32Array(MX * MY * MZ); this.medium = new Float32Array(MX * MY * MZ);
+    this.lay(0);
+    this.medium.set(this.base0);
+  }
+  /** Where the veins are at step s, laid into the medium's baseline (what it seeps back toward). */
+  lay(s) {
+    const t = this.drift ? s * TAU / 40000 : 0;
+    for (const b of this.veins) { b.x = b.hx + Math.cos(t * b.w + b.ph) * b.wr; b.z = b.hz + Math.sin(t * b.w + b.ph) * b.wr; }
     for (let j = 0; j < MY; j++) for (let k = 0; k < MZ; k++) for (let i = 0; i < MX; i++) {
       const x = (i + 0.5) * MC, y = (j + 0.5) * MC, z = (k + 0.5) * MC; let v = 0.05;
       for (const b of this.veins) v += b.a * Math.exp(-((x - b.x) ** 2 + ((y - b.y) * 1.5) ** 2 + (z - b.z) ** 2) / (b.r * b.r));
       this.base0[(j * MZ + k) * MX + i] = Math.min(1.2, v);
     }
-    this.medium.set(this.base0);
   }
   cell(p) { const i = Math.floor(p[0] / MC), j = Math.floor(p[1] / MC), k = Math.floor(p[2] / MC); return i >= 0 && j >= 0 && k >= 0 && i < MX && j < MY && k < MZ ? (j * MZ + k) * MX + i : -1; }
   at(p) { const c = this.cell(p); return c < 0 ? 0 : this.medium[c]; }
@@ -327,7 +361,10 @@ export class World {
   }
   step() {
     const s = ++this.s;
+    this.bites.length = 0;
+    if (this.predation) for (const B of this.bodies) B.cur = B.pose(1, s);   // where everyone is, for bites
     for (const B of this.bodies.slice()) if (B.alive) B.step(s);
+    if (this.drift && s % 100 === 0) this.lay(s);
     const gone = this.bodies.filter((B) => !B.alive); if (gone.length) { this.dead.push(...gone.map((B) => ({ id: B.id, lineage: B.lineage, age: B.age, cause: B.cause, s }))); this.bodies = this.bodies.filter((B) => B.alive); }
     if (s % 2 === 0) this.seep();
     // reef erodes, very slowly, back into the medium
@@ -353,6 +390,7 @@ export function mutate(g, seed) {
     else if (r < 0.62 && G.rules.length > 1) G.rules.splice(Math.floor(rnd() * G.rules.length), 1);
     else if (r < 0.74 && G.rules.length) pick(G.rules)[rnd() < 0.6 ? 'c' : 'p'] = pick(TYPES);
     else if (r < 0.8 && G.rules.length) { const R = pick(G.rules); R.mirror = !R.mirror; }
+    else if (r < 0.86) G.beat.hunt = Math.max(-1, Math.min(1, (G.beat.hunt || 0) + (rnd() - 0.5) * 0.8));
     else if (r < 0.92) { const k2 = pick(['amp', 'period', 'steer', 'rest']); G.beat[k2] = Math.max(0, (G.beat[k2] ?? 0.7) * (0.75 + rnd() * 0.5) + (G.beat[k2] ? 0 : 0.05)); G.beat.period = Math.max(10, Math.min(80, G.beat.period)); }
     else { const t = pick(TYPES), pool = BESTIARY.filter((b) => b.fill > 0.06 && b.dim > 1.5); G.flows[t] = pick(pool).key; }
   }

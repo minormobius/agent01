@@ -479,6 +479,21 @@ console.log('\nGrown, evolving');
   const run = () => { const W = new World(1, { cap: 60, mutate: 0.3 }); ['grazer', 'reef', 'swimmer'].forEach((n, i) => { for (let k = 0; k < 3; k++) { const a = (i * 3 + k) / 9 * 6.283; W.add(GENOMES[n], [80 + Math.cos(a) * 45, 32, 80 + Math.sin(a) * 45], a, 4); } }); for (let k = 0; k < 40; k++) { W.run(1000); W.census(); } return W; };
   const A = run(), B = run(), plans = Object.keys(A.book).length, old = A.dead.filter((d) => d.cause === 'old').length;
   ok(plans > 8 && A.mutants > 50 && old > 0 && JSON.stringify(Object.keys(A.book).sort()) === JSON.stringify(Object.keys(B.book).sort()), `in 40,000 steps: ${A.mutants} mutants, ${plans} body plans, ${old} died of age, the same every time`);
+  // predation: mouths bite other species (some die eaten), armour blunts a bite; the veins drift
+  const P = run(), eaten = P.dead.filter((d) => d.cause === 'eaten').length;
+  const W0 = new World(5), r0 = W0.richest(); W0.lay(20000); const r1 = W0.richest();
+  ok(eaten > 0 && Math.hypot(r0[0] - r1[0], r0[2] - r1[2]) > 5, `some are eaten (${eaten} in 40,000 steps), and the richest water moves (${Math.hypot(r0[0] - r1[0], r0[2] - r1[2]).toFixed(0)} units in 20,000 steps)`);
+  {
+    // one bite, by the same mouth, on a bare grazer and on a reef-builder in 30 armour crystals
+    const taken = (genome, armour) => {
+      const W = new World(9, { cap: 4 }), hunter = W.add({ name: 'h', root: { type: 'mouth', size: 1.5 }, rules: [], beat: { amp: 0, period: 30, steer: 0 } }, [80, 32, 80], 0, 5);
+      const prey = W.add(genome, [80, 32, 80.8], 0, 8); prey.grown = prey.plan.length;
+      prey.crystals = Array.from({ length: armour }, () => ({ organ: 0, dir: [0, 1, 0], len: 1, born: 0, spin: 0 }));
+      prey.cur = prey.pose(1, 1); const E0 = prey.E; hunter.bite(hunter.pose(1, 1).organs[0], 1); return E0 - prey.E;
+    };
+    const soft = taken(GENOMES.grazer, 0), hard = taken(GENOMES.reef, 30);
+    ok(soft > 0 && hard > 0 && soft > 3 * hard, `a bite lands, and armour blunts it: ${soft.toFixed(3)} from a bare grazer, ${hard.toFixed(3)} from an armoured reef-builder`);
+  }
   const { EVOLVED } = await import('../vendor/attractor/lib/evolved.js');
   ok(EVOLVED.length >= 8 && EVOLVED.every((e) => signature(e.genome) === e.sig), `the evolved bestiary: ${EVOLVED.length} plans, each program still grows its plan`);
 }

@@ -565,8 +565,24 @@ lineages. No fitness function, ever: what feeds buds, what doesn't starves.
   m(b(fm(b(fm)))), the most common plan at the end; Tekaor m(b(m(b(m)))); Dawy branching). A body plan
   of repeated units, which no rule wrote: the `develop()` recursion (depth 4) made it possible, selection
   found it. The top of the book by lives: Minoul m(b(f)) (a bud with a fin), the grazer, Ulzo m(b).
-  Next pressures, if diversity collapses: predation (a current or mouth that eats armourless bodies),
-  patchier or moving veins.
+  Next pressures (done below): predation, drifting veins, more seeds.
+- **Predation, hunting, drifting veins** (owner: "all of those"). A mouth that touches another species'
+  organ bites it: 0.06×size energy out, divided by the prey's guard (1 + 0.08 × armour crystals + 0.6 ×
+  shell size), 70% to the biter; a body bitten in the last 30 steps that runs out of energy died
+  'eaten'. Kin (the same species) are never bitten. The `hunt` gene (beat.hunt, −1…1, founders 0,
+  mutated additively) turns a sense toward (+) or away from (−) the nearest other species. Veins wander
+  slow loops round their homes (a turn in ~40000 steps; `lay(s)` every 100 steps rebuilds the baseline
+  the medium seeps to). Predation makes a step ~0.7 ms (1M steps ≈ 7–17 min).
+- **Four 1M-step runs with all three pressures** (seeds 1–4, merged into lib/evolved.js; `evolve.mjs
+  --json` per run, `--merge` to combine). Each world found its own answer; no plan won everywhere:
+  seed 1, Quul m(g(bf)m(m(m(m)))), a gut body trailing a chain of four mouths, a hunter (+0.29), 50 of
+  60 at the end; seed 2, Ithithpo m(g(bf)), minimal; seed 3 collapsed to two tiny plans (m(bf), m(b));
+  seed 4, a clade built on a new motif, a sense that grows a fin that grows a bud (Milo m(s(f(b))),
+  Wyzone, Vibrazo, Aeith, Kawyith), mostly with fleeing instincts. Shells came back once armour had a
+  use (Lofeno m(g(bf)h) led seed 4 for a while) but did not win. Chained segments recurred as a motif
+  (mouth chains in seed 1, bud-mouth repeats in seeds 1–3) but only dominated the no-predation run.
+  Eaten was ~10% of deaths, old age ~85%. Next, if wanted: a bigger world or cap (diversity is capped
+  by 60 bodies), bites that need a bigger mouth than the prey organ, a second resource.
 - **The page**: organs as their attractors in their colours, bonds as threads, armour and reef as
   crystals, the medium as dim motes; follow one body to read its organs, energy, age and children.
   30 steps a second at 1×. ~0.4 ms a step for ~60 bodies in node. Real-device frame rate unverified.
