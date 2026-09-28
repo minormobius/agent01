@@ -187,8 +187,15 @@ jobs:
           git config user.name "mino bakeoff"
           git config user.email "bakeoff@mino.mobi"
           BRANCH="bakeoff/$RUN_ID"
-          git checkout -b "$BRANCH"
-          git add bakeoff/results
+          # AN ORPHAN BRANCH HOLDING ONLY THE RESULTS. A branch cut from this
+          # commit carries .github/workflows/, and the job's token may not create
+          # a ref that changes a workflow file ("refusing to allow a GitHub App
+          # to create or update workflow ... without workflows permission") —
+          # which is how imp-07 lost its push. Nothing that reads a results branch
+          # (scripts/build-imp.mjs) needs the rest of the tree.
+          git checkout --orphan "$BRANCH"
+          git rm -rq --cached .
+          git add "bakeoff/results/$RUN_ID"
           git diff --cached --quiet && { echo "no results"; exit 0; }
           git commit -m "imp bench: results for $RUN_ID"
           for i in 1 2 3 4; do

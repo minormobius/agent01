@@ -19,15 +19,23 @@ import { scrubText } from './lib/landing.mjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const OUT = path.join(ROOT, 'imp', 'runs');
-const ids = process.argv.slice(2);
-if (!ids.length) {
-  console.error('usage: build-imp.mjs <run-id> ...   (reads origin/bakeoff/<run-id>)');
+//   node scripts/build-imp.mjs --from-dir <dir> <run-id>     # a report.mjs output dir instead
+//
+// --from-dir is for a run whose results branch never landed (its collect job
+// could not push): download the run's cell artifacts, run
+// `node bakeoff/imp/report.mjs <id> --from <cells>`, and import that directory.
+const args = process.argv.slice(2);
+const fromDirAt = args.indexOf('--from-dir');
+const fromDir = fromDirAt >= 0 ? path.resolve(args[fromDirAt + 1]) : null;
+const ids = args.filter((a, i) => a !== '--from-dir' && i !== fromDirAt + 1);
+if (!ids.length || (fromDir && ids.length !== 1)) {
+  console.error('usage: build-imp.mjs <run-id> ...   (reads origin/bakeoff/<run-id>)\n       build-imp.mjs --from-dir <dir> <run-id>');
   process.exit(2);
 }
 
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 });
 
-for (const id of ids) {
+for (const id of fromDir ? [] : ids) {
   const ref = `origin/bakeoff/${id}`;
   git('fetch', '-q', 'origin', `bakeoff/${id}`);
   const files = git('ls-tree', '-r', '--name-only', ref, `bakeoff/results/${id}/`).split('\n').filter(Boolean);
@@ -40,6 +48,17 @@ for (const id of ids) {
     fs.writeFileSync(path.join(dir, path.basename(f)), scrubText(body));
   }
   console.log(`${id}: ${files.length} files`);
+}
+
+if (fromDir) {
+  const [id] = ids;
+  const dir = path.join(OUT, id);
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const files = fs.readdirSync(fromDir).filter((f) => fs.statSync(path.join(fromDir, f)).isFile());
+  if (!files.includes('results.json')) throw new Error(`${fromDir} has no results.json`);
+  for (const f of files) fs.writeFileSync(path.join(dir, f), scrubText(fs.readFileSync(path.join(fromDir, f), 'utf8')));
+  console.log(`${id}: ${files.length} files from ${fromDir}`);
 }
 
 // index.json: every run on disk, with its note and the per-cell headline numbers.
