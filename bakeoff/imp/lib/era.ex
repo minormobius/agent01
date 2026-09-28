@@ -170,22 +170,23 @@ defmodule ImpBench.Era do
 
   @doc "Per-row outcomes, a 4x4 confusion matrix and within-one-year accuracy from an evaluation."
   def summarize(%Imp.Evaluate.Result{rows: rows}, test) do
-    by_rkey = Map.new(test, &{&1.rkey, &1})
+    # Rows are matched to posts by `index` (the position in `test`), which every
+    # row carries. A row Imp.Evaluate killed on its time budget has no example
+    # at all, only an index and a nil prediction; it counts as an error.
+    by_index = test |> Enum.with_index() |> Map.new(fn {post, i} -> {i, post} end)
 
     outcomes =
-      for row <- rows do
-        ex = row[:example]
-        rkey = Imp.Example.get(ex, :rkey)
-        expected = Imp.Example.get(ex, :year)
+      for row <- Enum.sort_by(rows, & &1[:index]) do
+        post = by_index[row[:index]]
         predicted = row[:prediction] && safe_year(row[:prediction])
-        post = by_rkey[rkey]
 
         %{
-          rkey: rkey,
+          rkey: post && post.rkey,
           created: post && post.created,
-          year: expected,
+          year: post && post.year,
           predicted: predicted,
-          text: post && post.text
+          text: post && post.text,
+          killed: is_nil(row[:example])
         }
       end
 

@@ -426,7 +426,8 @@ defmodule ImpBench do
     program = Era.program(lm)
     test = Era.examples(test_rows, false)
     metric = Era.metric()
-    eval = fn prog -> Imp.evaluate(prog, test, metric, num_threads: 8, timeout: 180_000) end
+    # 5 minutes a call: imp-05's first scored attempt had 4 of 120 killed at 3.
+    eval = fn prog -> Imp.evaluate(prog, test, metric, num_threads: 8, timeout: 300_000) end
 
     arm = fn res, secs ->
       s = Era.summarize(res, test_rows)
