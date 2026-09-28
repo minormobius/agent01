@@ -11,7 +11,7 @@
 // "Jev played for a day" has a number to be compared against, and so the
 // engine can be shown climbing the tech ladder with no model in the loop.
 
-import { pickLow, PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants, visiblePigs, chestItems, surplus, inNether, portalsHere, PORTAL_OBSIDIAN } from './macros.mjs';
+import { itemsInSight, lostThings, pickLow, PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants, visiblePigs, chestItems, surplus, inNether, portalsHere, PORTAL_OBSIDIAN } from './macros.mjs';
 import { EAT_ORDER, B, HOSTILE, durability } from './world.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 
@@ -93,12 +93,16 @@ export function baselinePolicy(sim) {
   // every craft goes through here: short of wood → fetch wood first
   // (and short of coal → dig coal: smelting iron for a bucket once spent the
   // coal torches had just used, and the craft failed ~980 times in two days)
-  const craftIt = (item, q = 1) => { const sh = shortfall(sim, item, q); return sh.log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : sh.coal ? { name: 'mine_coal', args: { n: n('coal') + sh.coal + 2 } } : { name: 'craft', args: { item, ...(q > 1 ? { n: q } : {}) } }; };
+  const craftIt = (item, q = 1) => { const sh = shortfall(sim, item, q); return sh.log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : sh.coal ? { name: 'mine_coal', args: { n: n('coal') + sh.coal + 2 } } : sh.cobblestone ? { name: 'mine_stone', args: { n: n('cobblestone') + sh.cobblestone + 2 } } : { name: 'craft', args: { item, ...(q > 1 ? { n: q } : {}) } }; };
   const blocks = n('cobblestone') + n('dirt') + n('planks') + n('sand');
   if (zombieAdjacent(sim)) return { name: 'fight' };
   if (sim.get(p.c, p.y + 1) === B.water) return { name: 'surface' };
   const tries = (k) => (sim.me._ageTries ||= {})[k] || 0;
   const tried = (k) => { sim.me._ageTries[k] = tries(k) + 1; };
+  // died: everything carried is lying where it fell, for 5 minutes. Go back
+  // for it (unless it is night and it lies out in the open)
+  const lost = lostThings(sim);
+  if (lost && !(sim.isNight() && sim.skyOpen(lost.c, lost.y + 2)) && tries('recover@' + lost.id) < 2) { tried('recover@' + lost.id); return { name: 'recover' }; }
   // in the nether: glowstone, a lamp, and back through the portal
   if (inNether(sim)) {
     if (p.food < 12 && EAT_ORDER.some((k) => inv[k])) return { name: 'eat' };
@@ -189,6 +193,15 @@ export function baselinePolicy(sim) {
     if (n('shears') && visiblePigs(sim, 24, 'sheep').some((e) => !e.shorn)) return { name: 'shear', args: { n: 3 - n('wool') } };
     if (visiblePigs(sim, 24, 'sheep').length) return { name: 'hunt', args: { kind: 'sheep' } };
     if ((sim.me._bedTries || 0) < 4) { sim.me._bedTries = (sim.me._bedTries || 0) + 1; return { name: 'scout', args: { what: 'sheep' } }; }
+  }
+  // renewing: plant the saplings carried (wood runs out otherwise), pick up
+  // what lies about, breed animals near home when we have their food
+  const day = Math.floor(sim.tick / 4800);
+  if (sim._house && n('sapling') && !sim.isNight() && tries('trees@' + day) < 1) { tried('trees@' + day); return { name: 'plant_trees', args: { n: Math.min(4, n('sapling')) } }; }
+  if (itemsInSight(sim, 8).length && tries('collect@' + Math.floor(sim.tick / 600)) < 1) { tried('collect@' + Math.floor(sim.tick / 600)); return { name: 'collect' }; }
+  if (sim._house && !sim.isNight() && tries('breed@' + day) < 2) {
+    const k = ['cow', 'sheep', 'chicken', 'pig'].find((kind) => !PALETTE.breed.needs(sim, { kind }));
+    if (k) { tried('breed@' + day); return { name: 'breed', args: { kind: k } }; }
   }
   // surplus goes in the pool when we are home anyway
   if (team && sim.team.chest != null && atHome(sim) && Object.values(surplus(sim)).reduce((a, b) => a + b, 0) >= 32) return { name: 'store' };

@@ -12,7 +12,7 @@
 // can also abort any macro between two actions (an interrupt), so a macro
 // holds no state that is only valid mid-sequence.
 
-import { durability, B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags, SPECIES, SPECIES_NAMES, EAT_ORDER, roomFor, slotsUsed, CHEST_SLOTS, HOSTILE, blockName } from './world.mjs';
+import { durability, B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags, FUEL, fuelKey, SPECIES, SPECIES_NAMES, EAT_ORDER, roomFor, slotsUsed, CHEST_SLOTS, HOSTILE, blockName, BREED_FOOD } from './world.mjs';
 import { habitat, needsFarmland, wet } from './plants.mjs';
 
 const MAX_STEPS = 400;
@@ -143,7 +143,55 @@ export function* gatherWood(sim, n = 6) {
     const got = yield* mineInReach(sim, [B.log]);
     if (!got && ++dry > 3) return { ok: false, why: 'trees out of reach' };
   }
+  yield* collectItems(sim, 6);           // what the felled crowns let fall (saplings, apples)
   return { ok: true };
+}
+
+// ------------------------------------------------------------- the ground --
+// Items lying about (a decaying crown's saplings, what someone dropped), in
+// sight and near: walk over and pick them up.
+export const itemsInSight = (sim, r = 10) => [...sim.ents.values()].filter((e) => e.kind === 'item' && sim.seen[e.c] && sim.dist(e.c, sim.player.c) <= r)
+  .sort((a, b) => sim.dist(a.c, sim.player.c) - sim.dist(b.c, sim.player.c));
+export function* collectItems(sim, r = 10, max = 8) {
+  let n = 0;
+  for (let k = 0; k < max; k++) {
+    const e = itemsInSight(sim, r)[0];
+    if (!e) break;
+    const go = yield* goTo(sim, (c, y) => (c === e.c || sim.cols[c].adj.includes(e.c)) && Math.abs(y - e.y) <= 1, 4000);
+    if (!go.ok) break;
+    yield { op: 'wait', ticks: 1 };
+    if (!sim.ents.has(e.id)) n++; else break;
+  }
+  return { ok: n > 0, got: n, ...(n ? {} : { why: 'nothing picked up' }) };
+}
+// Plant saplings near home: renewable wood. Spots on grass under open sky,
+// kept clear of the house, and far enough apart for crowns to fit.
+export function treeSpots(sim, c0, r = 9) {
+  const h = sim._house, keep = new Set(h ? [...h.interior, ...h.ring, ...h.outside] : []);
+  const out = [];
+  for (const [c, d] of ball(sim, c0, r)) {
+    if (d < 2 || keep.has(c) || !sim.seen[c] || sim.cols[c].nb.includes(-1)) continue;
+    const y = groundTop(sim, c) + 1;
+    if (![B.grass, B.dirt].includes(sim.get(c, y - 1)) || !sim.skyOpen(c, y) || y + 7 >= H) continue;
+    if ([...ball(sim, c, 2).keys()].some((u) => [0, 1, 2, 3, 4, 5, 6].some((dy) => [B.log, B.sapling].includes(sim.get(u, y + dy - 1))))) continue;
+    out.push([c, y]);
+  }
+  return out;
+}
+export function* plantTrees(sim, n = 3) {
+  if (!sim.has('sapling')) return { ok: false, why: 'no saplings' };
+  let planted = 0;
+  const c0 = sim.home ? sim.home[0] : sim.player.c;
+  for (let k = 0; k < n * 2 && planted < n && sim.has('sapling'); k++) {
+    const spot = treeSpots(sim, c0)[0];
+    if (!spot) break;
+    const [c, y] = spot;
+    const go = yield* goTo(sim, (pc, py) => pc !== c && sim.reachable(pc, py, c, y), 12000);
+    if (!go.ok) break;
+    const r = yield { op: 'place', c, y, item: 'sapling' };
+    if (r.ok) planted++;
+  }
+  return planted ? { ok: true, planted } : { ok: false, why: 'nowhere to plant a tree near home' };
 }
 
 // What raw materials we are short of to end up HOLDING `q` of `item` (what is
@@ -173,7 +221,19 @@ export function shortfall(sim, item, q = 1, have = null, depth = 0) {
     for (const bag of recipeBags(r)) {
       const trial = { ...have };
       const sub = {};
-      for (const [bk, bn] of Object.entries(bag)) Object.entries(shortfall(sim, bk, bn * batches, trial, depth + 1)).forEach(([sk, sn]) => { sub[sk] = (sub[sk] || 0) + sn; });
+      const fk = fuelKey(r, bag);
+      for (const [bk, bn] of Object.entries(bag)) {
+        let need = bn * batches;
+        if (bk === fk) {
+          // fuel: what is still burning first, then items at FUEL[bk] smelts each
+          const credit = trial['@fuel'] ?? (sim.player.fuel || 0);
+          const units = Math.max(0, batches - credit);
+          trial['@fuel'] = Math.max(0, credit - batches) + (units ? Math.ceil(units / FUEL[bk]) * FUEL[bk] - units : 0);
+          need = Math.ceil(units / FUEL[bk]);
+          if (!need) continue;
+        }
+        Object.entries(shortfall(sim, bk, need, trial, depth + 1)).forEach(([sk, sn]) => { sub[sk] = (sub[sk] || 0) + sn; });
+      }
       const miss = Object.values(sub).reduce((a, b) => a + b, 0);
       if (!best || miss < best.miss) best = { miss, sub, trial };
     }
@@ -204,17 +264,20 @@ export function* craft(sim, item, n = 1) {
     // so re-check the whole list until a pass finds nothing missing
     // several bags may make it (a torch from coal or charcoal): take the one
     // whose missing pieces we can actually make, fewest missing first
+    // (a furnace's fuel is not needed while something is still burning)
+    const burning = (sim.player.fuel || 0) > 0;
+    const need = (g) => Object.entries(g).filter(([k]) => !(burning && k === fuelKey(r, g)));
     const bags = recipeBags(r).map((g) => {
-      const miss = Object.entries(g).filter(([k, q]) => (sim.inv[k] || 0) < q);
+      const miss = need(g).filter(([k, q]) => (sim.inv[k] || 0) < q);
       // joint: the ingredients of one bag draw on the same inventory
       const trial = { ...sim.inv }, sh = {};
-      for (const [k, q] of Object.entries(g)) for (const [sk, sn] of Object.entries(shortfall(sim, k, q, trial))) sh[sk] = (sh[sk] || 0) + sn;
+      for (const [k, q] of need(g)) for (const [sk, sn] of Object.entries(shortfall(sim, k, q, trial))) sh[sk] = (sh[sk] || 0) + sn;
       return { g, miss, sh, raw: Object.values(sh).reduce((a, b) => a + b, 0) };
     }).sort((a, b) => a.raw - b.raw || a.miss.length - b.miss.length);
     if (bags[0].raw > 0) return { ok: false, why: `short of ${describeShort(bags[0].sh)}` };
     const bag = bags[0].g;
     for (let pass = 0; pass < 4; pass++) {
-      const missing = Object.entries(bag).filter(([k, q]) => (sim.inv[k] || 0) < q);
+      const missing = need(bag).filter(([k, q]) => (sim.inv[k] || 0) < q);
       if (!missing.length) break;
       for (const [k, q] of missing) {
         if (!RECIPES[k] || k === 'iron_ore') return { ok: false, why: `needs ${q} ${k}, holding ${sim.inv[k] || 0}` };
@@ -522,6 +585,50 @@ export function* fight(sim, kind = null) {
     if (!r.ok) return { ok: false, why: r.why };
   }
   return { ok: false, why: 'fight dragged on' };
+}
+
+// Go back for what you dropped when you died: it lies where you fell for
+// ITEM_DESPAWN ticks, and anyone who walks beside it picks it up.
+export const lostThings = (sim) => {
+  const d = sim.player.lastDrop;
+  if (!d || sim.tick >= d.until || d.dim !== sim.dim) return null;
+  const e = sim.ents.get(d.id);
+  return e && e.kind === 'item' ? { ...d, c: e.c, y: e.y, items: e.items, left: d.until - sim.tick } : null;
+};
+export function* recover(sim) {
+  const d = lostThings(sim);
+  if (!d) return { ok: false, why: 'nothing left to go back for' };
+  const go = yield* goTo(sim, (c, y) => (c === d.c || sim.cols[c].adj.includes(d.c)) && Math.abs(y - d.y) <= 1, 60000);
+  if (!go.ok) return { ok: false, why: `could not get back to it (${go.why})` };
+  yield { op: 'wait', ticks: 1 };                                  // picked up on the next tick
+  if (sim.ents.has(d.id)) return { ok: false, why: 'it was not there' };
+  sim.player.lastDrop = null;
+  return { ok: true };
+}
+
+// Breed two animals of a kind in sight: feed each its food, and a young one appears.
+export function* breed(sim, kind = 'cow') {
+  const food = BREED_FOOD[kind];
+  if (!sim.has(food, 2)) return { ok: false, why: `needs 2 ${food.replace(/_/g, ' ')} to breed ${kind}s` };
+  const ready = () => visiblePigs(sim, 24, kind).filter((e) => !e.young && !e.love && !(e.breedAt && sim.tick < e.breedAt));
+  // a pair close together (they have to find each other), nearest first
+  const r = ready();
+  let pair = null;
+  for (const a of r) for (const b of r) if (a !== b && sim.dist(a.c, b.c) <= 3) { const d = sim.dist(a.c, sim.player.c); if (!pair || d < pair.d) pair = { a, b, d }; }
+  if (!pair) return { ok: false, why: `no two ${kind}s ready to breed close together` };
+  sim.player.luring = true;                          // they follow the food held out
+  let fed = 0;
+  try {
+    for (const e of [pair.a, pair.b]) {
+      if (!sim.ents.has(e.id)) continue;
+      if (!sim.adjacentTo(sim.player, e)) { const go = yield* goTo(sim, (c, y) => sim.cols[c].adj.includes(e.c) && Math.abs(y - e.y) <= 1, 8000); if (!go.ok) continue; }
+      if (!sim.adjacentTo(sim.player, e)) continue;
+      const res = yield { op: 'feed', id: e.id };
+      if (res.ok) fed++;
+    }
+    if (fed === 2) yield { op: 'wait', ticks: 12 };   // they find each other
+  } finally { sim.player.luring = false; }
+  return fed === 2 ? { ok: true } : { ok: false, why: fed ? `fed one ${kind}; the other got away` : `could not reach the ${kind}s` };
 }
 
 // Shear a sheep in sight: wool, and the sheep lives (it grows back).
@@ -984,6 +1091,8 @@ const SCOUT = {
   tree: (sim) => visible(sim, [B.log], 20).length > 0,
   pig: (sim) => visiblePigs(sim, 20).length > 0,
   sheep: (sim) => visiblePigs(sim, 20, 'sheep').length > 0,
+  cow: (sim) => visiblePigs(sim, 20, 'cow').length > 0,
+  chicken: (sim) => visiblePigs(sim, 20, 'chicken').length > 0,
   coal: (sim) => visible(sim, [B.coal_ore], 20).length > 0,
   iron: (sim) => visible(sim, [B.iron_ore], 20).length > 0,
   sand: (sim) => visible(sim, [B.sand], 20).length > 0,
@@ -1660,6 +1769,10 @@ export const PALETTE = {
   scout:        { mode: 'explore', doc: 'explore until a tree / pig / coal / iron / sand is in sight', needs: () => null, run: (s, a) => scout(s, a?.what) },
   gather_wood:  { mode: 'explore', doc: 'chop the nearest trees', needs: () => null, run: (s, a) => gatherWood(s, a?.n) },
   hunt:         { mode: 'explore', doc: 'chase down a pig (meat) or a sheep (wool, mutton) in sight', needs: (s, a) => visiblePigs(s, 24, a?.kind || 'pig').length ? null : `no ${a?.kind || 'pig'} in sight (scout for one)`, run: (s, a) => hunt(s, a?.kind || 'pig') },
+  collect:      { mode: 'explore', doc: 'pick up the items lying on the ground nearby (saplings, apples, drops)', needs: (s) => itemsInSight(s).length ? null : 'nothing lying about', run: (s) => collectItems(s) },
+  plant_trees:  { mode: 'homestead', doc: 'plant saplings near home: a tree grows in about 1600 ticks (renewable wood)', needs: (s) => !s.has('sapling') ? 'no saplings (leaves drop them)' : null, run: (s, a) => plantTrees(s, a?.n) },
+  recover:      { mode: 'explore', doc: 'go back to where you died and pick up everything you dropped (it lasts 5 minutes)', needs: (s) => lostThings(s) ? null : 'nothing dropped to go back for', run: (s) => recover(s) },
+  breed:        { mode: 'homestead', doc: 'feed two animals of a kind their food: a young one appears (cows, sheep: wheat; chickens: seeds; pigs: apples)', needs: (s, a) => { const k = a?.kind || 'cow', f = BREED_FOOD[k]; return !s.has(f, 2) ? `needs 2 ${f.replace(/_/g, ' ')}` : visiblePigs(s, 24, k).filter((e) => !e.young).length < 2 ? `fewer than two ${k}s in sight` : null; }, run: (s, a) => breed(s, a?.kind || 'cow') },
   shear:        { mode: 'explore', doc: 'shear a sheep in sight: wool without killing it, and it grows back', needs: (s) => !s.has('shears') ? 'needs shears (2 iron ingots)' : visiblePigs(s, 24, 'sheep').some((e) => !e.shorn) ? null : 'no sheep with wool in sight', run: (s, a) => shear(s, a?.n) },
   forage:       { mode: 'explore', doc: 'take a wild plant in sight for its seeds (and fruit)', needs: (s, a) => visiblePlants(s, a?.sp).filter(([c, y]) => !a?.sp ? !s.has(`${BLOCKS[s.get(c, y)].plant}_seeds`) : true).length ? null : `no wild ${a?.sp || 'plant you lack seeds for'} in sight`, run: (s, a) => forage(s, a || {}) },
   go_home:      { mode: 'explore', doc: 'walk back to the house', needs: (s) => s.home ? (atHome(s) ? 'already home' : null) : 'no home yet', run: (s) => goHome(s) },
@@ -1706,7 +1819,7 @@ export const PALETTE = {
 export const MODES = ['mine', 'explore', 'homestead', 'team'];
 // Which world each macro works in. The overworld's are about its sky, soil,
 // sea, ore bands, the house and the chest; the nether has none of those.
-const OVERWORLD_ONLY = new Set(['mine_home', 'mine_grid', 'shear', 'build_access', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
+const OVERWORLD_ONLY = new Set(['mine_home', 'mine_grid', 'shear', 'build_access', 'plant_trees', 'breed', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
   'farm', 'harvest', 'set_home', 'sleep_until_dawn', 'mine_diamond', 'make_obsidian', 'dig_sand', 'place_beacon', 'build_portal', 'set_up_chest', 'store', 'take', 'sleep_in_bed']);
 const NETHER_ONLY = new Set(['mine_glowstone', 'mine_quartz']);
 for (const [name, m] of Object.entries(PALETTE)) {

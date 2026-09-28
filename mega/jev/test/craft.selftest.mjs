@@ -131,7 +131,7 @@ for (const [shape, seed] of [['penrose', 3], ['hex', 2], ['truncsq', 2]]) {
   const head = JSON.parse(a.lines[0]);
   ok(head.t === 'craft' && head.shape === shape && head.seed === seed && head.sig, `${shape}/${seed}: header names the world`);
   let mono = true, kinds = true, last = -1;
-  const KINDS = new Set(['wear', 'shorn', 'b', 'p', '+', '-', 'hp', 'food', 'inv', 'do', 'hit', 'die', 'note']);
+  const KINDS = new Set(['wear', 'shorn', 'young', 'grown', 'b', 'p', '+', '-', 'hp', 'food', 'inv', 'do', 'hit', 'die', 'note']);
   for (const l of a.lines.slice(1)) {
     const L = JSON.parse(l);
     if (!(L.k >= last) || !Array.isArray(L.e) || !L.e.length) mono = false;
@@ -509,6 +509,7 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   // placing a block on a plant picks it first
   sim.act({ op: 'plant', c, y: y + 1, item: 'wheat_seeds' });
   sim.give('dirt', 1);
+  for (const e of [...sim.ents.values()]) if (e.kind !== 'player' && e.c === c) sim.removeEnt(e, 'test');   // a chicken lured by the seeds may stand there
   ok(sim.act({ op: 'place', c, y: y + 1, item: 'dirt' }).ok && sim.get(c, y + 1) === B.dirt && sim.has('wheat_seeds'), 'a block placed on a sprout replaces it and hands the seed back');
   // moonpetal waits for night
   const mp = new Sim({ seed: 3, shape: 'truncsq' });

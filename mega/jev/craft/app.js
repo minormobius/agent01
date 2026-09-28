@@ -125,6 +125,16 @@ function buildChunk(key) {
         }
         continue;
       }
+      if (id === B.sapling) {
+        // a sapling: two small crossed quads, green
+        const rgb = RGB[id].top, cx = col.x, cz = col.z, h = 0.6, w = 0.25;
+        for (const ang of [0.4, 0.4 + Math.PI / 2]) {
+          const dx = Math.cos(ang) * w, dz = Math.sin(ang) * w, q = [[cx - dx, y, cz - dz], [cx + dx, y, cz + dz], [cx + dx, y + h, cz + dz], [cx - dx, y + h, cz - dz]];
+          tri(FP, FN, q[0], q[1], q[2], [-dz / w, 0, dx / w]); tri(FP, FN, q[0], q[2], q[3], [-dz / w, 0, dx / w]);
+          for (let i = 0; i < 6; i++) FC.push(...rgb);
+        }
+        continue;
+      }
       if (BLOCKS[id].plant) {
         // a plant: two crossed quads at the tile centre, taller as it grows
         // (their own double-sided mesh: the solid mesh's back-face cap would
@@ -300,8 +310,11 @@ const TEAM_SHIRTS = [0x2f7fd0, 0x1fa39a, 0xd9822b, 0x8e5bd0, 0xc94f6d];
 function makeEnt(kind, id = 0) {
   const g = new THREE.Group();
   const box = (w, h, d, color, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color })); m.position.y = y; g.add(m); return m; };
-  if (kind === 'pig') { box(0.8, 0.55, 0.5, 0xf0a3b4, 0.4); box(0.36, 0.36, 0.36, 0xf5b7c5, 0.55).position.x = 0.5; }
+  if (kind === 'item') { box(0.3, 0.3, 0.3, 0xf2d15c, 0.2); box(0.18, 0.18, 0.18, 0xffffff, 0.45); }   // something on the ground
+  else if (kind === 'pig') { box(0.8, 0.55, 0.5, 0xf0a3b4, 0.4); box(0.36, 0.36, 0.36, 0xf5b7c5, 0.55).position.x = 0.5; }
   else if (kind === 'sheep') { box(0.8, 0.6, 0.55, 0xf2efe6, 0.45); box(0.3, 0.32, 0.3, 0x3a3530, 0.55).position.x = 0.5; }
+  else if (kind === 'cow') { box(0.9, 0.65, 0.55, 0x5a3e2b, 0.5); box(0.3, 0.2, 0.56, 0xf2efe6, 0.55).position.x = -0.1; box(0.34, 0.34, 0.34, 0x3a2a1e, 0.62).position.x = 0.55; }
+  else if (kind === 'chicken') { box(0.35, 0.35, 0.3, 0xf5f5f0, 0.28); box(0.18, 0.2, 0.18, 0xf5f5f0, 0.52).position.x = 0.15; box(0.08, 0.06, 0.1, 0xe89a2a, 0.5).position.x = 0.27; }
   else {
     const shirt = kind === 'player' ? TEAM_SHIRTS[(sim ? Math.max(0, sim.players.findIndex((e) => e.id === id)) : 0) % TEAM_SHIRTS.length] : 0x3b8a4a, skin = kind === 'player' ? 0xd9a57c : 0x6ea35a;
     box(0.5, 0.75, 0.3, kind === 'player' ? 0x3a3f8f : 0x3a3f8f, 0.375);
@@ -317,6 +330,7 @@ function syncEntities(dt) {
     let m = entMesh.get(e.id);
     const tx = cols[e.c].x, tz = cols[e.c].z, ty = e.y;
     if (!m) { m = makeEnt(e.kind, e.id); m.position.set(tx, ty, tz); entGroup.add(m); entMesh.set(e.id, m); }
+    m.scale.setScalar(e.young ? 0.55 : 1);
     const k = Math.min(1, dt * 10);
     const dx = tx - m.position.x, dz = tz - m.position.z;
     if (Math.abs(dx) + Math.abs(dz) > 1e-3 && !(e.id === focusId && playing())) m.rotation.y = Math.atan2(-dz, dx);

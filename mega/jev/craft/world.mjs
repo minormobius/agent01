@@ -55,6 +55,8 @@ B.obsidian = 38; B.diamond_ore = 39; B.beacon = 40;
 B.netherrack = 41; B.glowstone = 42; B.quartz_ore = 43; B.soul_sand = 44; B.portal = 45; B.quartz_block = 46;
 // getting to a mine and back: ladders, and a door in the floor
 B.ladder = 47; B.trapdoor = 48;
+// a world that renews: saplings grow into trees
+B.sapling = 49;
 // hostile mobs: zombies above, blazes below
 export const HOSTILE = new Set(['zombie', 'blaze']);
 export const BLOCKS = [];
@@ -110,12 +112,14 @@ def('ladder',         { by: 'axe', solid: false, climb: true, hard: 2, color: '#
 // through), shut to every mob (they walk over it). Over a shaft, it keeps the
 // shaft yours.
 def('trapdoor',       { by: 'axe', solid: false, mobSolid: true, hard: 3, color: '#8f6a3a', top: '#a47a45' });
+// a sapling: plant it on grass or dirt under the sky and it grows into a tree
+def('sapling',        { solid: false, hard: 1, drop: 'sapling', sapling: true, color: '#4f9a36', top: '#6fbf4a' });
 def('lava',           { solid: false, hazard: true, mobSolid: true, hard: Infinity, drop: null, color: '#ff6a1a', top: '#ffb13d' });
 
 export const blockName = (id) => BLOCKS[id]?.name ?? '?';
 
 // Items that place as a block. Everything else is inventory-only.
-export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed', 'obsidian', 'beacon', 'netherrack', 'glowstone', 'quartz_block', 'ladder', 'trapdoor']);
+export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed', 'obsidian', 'beacon', 'netherrack', 'glowstone', 'quartz_block', 'ladder', 'trapdoor', 'sapling']);
 // Chests: 27 stacks, as Minecraft's. A stack is 64 of most things; a tool,
 // a sword or a bed is a stack of one. That is the whole limit on the pool.
 export const CHEST_SLOTS = 27;
@@ -180,11 +184,20 @@ export const RECIPES = {
   glowstone:       { n: 1, need: { glowstone_dust: 4 } },
   quartz_block:    { n: 1, need: { quartz: 4 } },
   cooked_mutton:   { n: 1, need: { mutton: 1, coal: 1 }, alt: [{ mutton: 1, charcoal: 1 }, { mutton: 1, planks: 1 }], at: 'furnace' },
+  cooked_beef:     { n: 1, need: { beef: 1, coal: 1 }, alt: [{ beef: 1, charcoal: 1 }, { beef: 1, planks: 1 }], at: 'furnace' },
+  cooked_chicken:  { n: 1, need: { chicken: 1, coal: 1 }, alt: [{ chicken: 1, charcoal: 1 }, { chicken: 1, planks: 1 }], at: 'furnace' },
   bread:           { n: 1, need: { wheat: 3 } },
   lantern:         { n: 2, need: { glowcap: 2, stick: 1 } },
 };
 
 export const recipeBags = (r) => [r.need, ...(r.alt || [])];
+// Furnace fuel, in smelts: one coal or charcoal smelts 8 batches, a log 2,
+// planks 1, a bucket of lava 100 (Minecraft's values, a log rounded up). In a
+// furnace recipe the fuel ingredient is the one listed here (a log in the
+// charcoal recipe is what gets smelted, not fuel); the player keeps a credit
+// of what is still burning.
+export const FUEL = { coal: 8, charcoal: 8, planks: 1, lava_bucket: 100 };
+export const fuelKey = (r, bag) => r.at === 'furnace' ? Object.keys(bag).find((k) => FUEL[k]) : null;
 
 export const PICK_TIER = { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3, diamond_pickaxe: 4 };
 export const PICK_SPEED = { 0: 1, 1: 2, 2: 4, 3: 6, 4: 8 };
@@ -204,10 +217,16 @@ export const SWORD_DMG = { none: 1, wooden_sword: 4, stone_sword: 5, iron_sword:
 // armor is worn by carrying it: the share of every hit it takes
 export const ARMOR = { iron_armor: 0.4, diamond_armor: 0.6 };
 export const BEACON_RADIUS = 16;
-export const FOOD = { apple: 4, porkchop: 3, cooked_porkchop: 8, bread: 5, sunfruit: 6, moonpetal: 2, mutton: 3, cooked_mutton: 6 };
+export const FOOD = { apple: 4, porkchop: 3, cooked_porkchop: 8, bread: 5, sunfruit: 6, moonpetal: 2, mutton: 3, cooked_mutton: 6, beef: 3, cooked_beef: 8, chicken: 2, cooked_chicken: 6 };
+// saturation: hidden food that hunger drains first (Minecraft's values, rounded).
+// Cooked meat keeps you fed far longer than an apple.
+export const SATURATION = { apple: 2, porkchop: 2, cooked_porkchop: 13, bread: 6, sunfruit: 4, moonpetal: 1, mutton: 1, cooked_mutton: 10, beef: 2, cooked_beef: 13, chicken: 1, cooked_chicken: 7 };
 export const HEAL = { moonpetal: 6 };        // eating it also restores health
 // what to eat first (the best meal carried); moonpetal is saved for healing
-export const EAT_ORDER = ['cooked_porkchop', 'cooked_mutton', 'bread', 'sunfruit', 'apple', 'porkchop', 'mutton', 'moonpetal'];
+export const EAT_ORDER = ['cooked_porkchop', 'cooked_beef', 'cooked_mutton', 'cooked_chicken', 'bread', 'sunfruit', 'apple', 'porkchop', 'beef', 'mutton', 'chicken', 'moonpetal'];
+// what each animal is bred with (two adults fed, a young one appears); pigs take apples here, having no carrots
+export const BREED_FOOD = { cow: 'wheat', sheep: 'wheat', chicken: 'wheat_seeds', pig: 'apple' };
+export const ANIMALS = ['pig', 'sheep', 'cow', 'chicken'];
 
 // ---------------------------------------------------------------- noise -----
 export function hash32(...xs) {

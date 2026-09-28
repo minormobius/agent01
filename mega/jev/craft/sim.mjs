@@ -31,7 +31,7 @@
 // nothing new to show a farm.
 
 import {
-  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, TOOLS, toolClass, durability, FOOD, HEAL, SEEDS, roomFor, ARMOR, BEACON_RADIUS,
+  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, FUEL, fuelKey, SATURATION, BREED_FOOD, ANIMALS, PICK_TIER, PICK_SPEED, SWORD_DMG, TOOLS, toolClass, durability, FOOD, HEAL, SEEDS, roomFor, ARMOR, BEACON_RADIUS,
   generateWorld, generateNether, worldSignature, mulberry, hash32, blockName, HOSTILE, NETHER_LAVA,
 } from './world.mjs';
 import { habitat, growCrops, harvestDrop, GROW_EVERY } from './plants.mjs';
@@ -47,7 +47,11 @@ export const DIFFICULTY = {
   hard:   { maxZombies: 14, spawn: 0.1, darkSpawn: 0.012, zombieDmg: 4, hungerEvery: 240, zombieStep: 1 },
 };
 export const SIGHT = 10;
-export const WOOL_REGROW = 1200;    // ticks until a shorn sheep has wool again
+export const WOOL_REGROW = 1200;
+export const ITEM_DESPAWN = 1200;
+export const TREE_TICKS = 1600;
+export const GROW_UP = 1200;         // ticks for a young animal to grow up
+export const LOVE = 600;             // ticks an animal stays ready to breed after being fed      // a sapling in the light becomes a tree in about this many ticks   // ticks an item on the ground lasts (5 minutes, as Minecraft's)    // ticks until a shorn sheep has wool again
 export const MAX_AIR = 60;          // ticks of breath with the head under water (~15 s, as Minecraft's)
 export const FLOW_EVERY = 3;        // water spreads one voxel every this many ticks
 // what water may flow into (and wash away): open air, torches, lanterns, plants
@@ -55,7 +59,7 @@ const floodable = (id) => id === B.air || (!BLOCKS[id].solid && !BLOCKS[id].haza
 export const REACH = 2.2;           // how far the player reaches, in tile edges (centre to centre)
 
 // what each dimension has of its own (swapped by useDim)
-const DIM_FIELDS = ['world', 'b', 'ents', 'torches', 'crops', 'cultivated', 'flowQ', 'still', 'beacons', 'chests', 'protect', 'portals', 'ev'];
+const DIM_FIELDS = ['world', 'b', 'ents', 'torches', 'crops', 'cultivated', 'flowQ', 'still', 'beacons', 'chests', 'protect', 'portals', 'saplings', 'decayQ', 'ev'];
 
 export class Sim {
   constructor(opts = {}) {
@@ -83,6 +87,8 @@ export class Sim {
     this.stats = { deaths: 0, mined: {}, crafted: {}, kills: {}, damageTaken: 0, placed: {}, planted: {}, harvested: {}, grown: {} };
     this.protect = new Set();     // voxels the planners must not dig (house walls, roof)
     this.portals = new Set();     // lit portal voxels
+    this.saplings = new Set();    // planted saplings, growing
+    this.decayQ = new Set();      // leaves to check: a tree felled leaves its crown to decay
     this.dim = 'overworld';
     this.dims = { overworld: {} };
     this.players = [];            // every player entity; this.me is the one acting now
@@ -103,6 +109,8 @@ export class Sim {
     }
     // sheep: their own rng, so every world's pigs, zombies and drops are as they were
     this.rngSheep = mulberry(hash32(w.seed, 0x5EE9));
+    // saplings, leaf decay, new animals, breeding: their own rng, so older sequences are as they were
+    this.rngLife = mulberry(hash32(w.seed, 0x11FE));
     const sheep = Math.round(this.N / 320);
     for (let k = 0, tries = 0; k < sheep && tries < sheep * 20; tries++) {
       const c = Math.floor(this.rngSheep() * this.N);
@@ -110,6 +118,17 @@ export class Sim {
       if (this.get(c, y - 1) !== B.grass || this.occupied(c, y)) continue;
       this.spawnEnt('sheep', c, y, { hp: 8 });
       k++;
+    }
+    // cows and chickens, on rngLife: every older world's sequence is as it was
+    for (const [kind, per, hp] of [['cow', 300, 10], ['chicken', 260, 4]]) {
+      const want = Math.round(this.N / per);
+      for (let k = 0, tries = 0; k < want && tries < want * 20; tries++) {
+        const c = Math.floor(this.rngLife() * this.N);
+        const y = this.surface(c);
+        if (this.get(c, y - 1) !== B.grass || this.occupied(c, y)) continue;
+        this.spawnEnt(kind, c, y, { hp });
+        k++;
+      }
     }
     this.flush();
   }
@@ -183,6 +202,7 @@ export class Sim {
     if (old === B.water) this.still.delete(k);
     if (id === B.beacon) this.beacons.add(k); else if (old === B.beacon) this.beacons.delete(k);
     if (id === B.portal) this.portals.add(k); else if (old === B.portal) this.portals.delete(k);
+    if (id === B.sapling) this.saplings.add(k); else if (old === B.sapling) this.saplings.delete(k);
     this.b[c * H + y] = id;
     this.emit(['b', c, y, id]);
   }
@@ -231,7 +251,28 @@ export class Sim {
     return e;
   }
   removeEnt(e, why) { this.ents.delete(e.id); this.emit(['-', e.id, why]); }
-  tallOf(e) { return e.kind === 'pig' || e.kind === 'sheep' ? 1 : 2; }
+  // Items on the ground: an entity holding a bag of items, picked up by any
+  // player who comes beside it, gone after ITEM_DESPAWN ticks (or in lava).
+  dropItems(c, y, items, extra = {}) {
+    const bag = Object.fromEntries(Object.entries(items).filter(([, n]) => n > 0));
+    if (!Object.keys(bag).length) return null;
+    const e = this.spawnEnt('item', c, y, { items: bag, until: this.tick + ITEM_DESPAWN, ...extra });
+    this.emit(['note', 'drop', { id: e.id, c, y, items: bag, until: e.until }]);
+    return e;
+  }
+  itemTick(e, t) {
+    if (t >= e.until) return this.removeEnt(e, 'despawn');
+    for (const q of this.players) {
+      if ((q.dim || 'overworld') !== this.dim || q.hp <= 0) continue;
+      if ((q.c === e.c || this.cols[q.c].adj.includes(e.c)) && Math.abs(q.y - e.y) <= 1) {
+        for (const [k, n] of Object.entries(e.items)) q.inv[k] = (q.inv[k] || 0) + n;
+        this.emit(['inv', { ...q.inv }, q.id]);
+        this.emit(['note', 'pickup', { who: q.id, id: e.id, items: e.items }]);
+        return this.removeEnt(e, 'picked');
+      }
+    }
+  }
+  tallOf(e) { return e.kind === 'item' ? 0 : e.kind === 'pig' || e.kind === 'sheep' || e.kind === 'chicken' ? 1 : 2; }   // an item on the ground blocks nobody
   occupied(c, y) {
     for (const e of this.ents.values()) if (e.c === c && y >= e.y && y < e.y + this.tallOf(e)) return e;
     return null;
@@ -287,6 +328,10 @@ export class Sim {
     if (e.kind === 'player') {
       this.stats.deaths++;
       e.deaths = (e.deaths || 0) + 1;
+      // everything carried falls where you died, and lasts ITEM_DESPAWN ticks: go back for it
+      const drop = this.dropItems(e.c, e.y, e.inv, { owner: e.id });
+      e.lastDrop = drop ? { id: drop.id, dim: this.dim, c: e.c, y: e.y, until: drop.until, n: Object.values(drop.items).reduce((a, b) => a + b, 0) } : null;
+      e.wear = {};
       e.inv = {}; e.hp = 20; e.food = 20; e.air = MAX_AIR;
       // death in the nether: you wake up in the overworld
       if ((e.dim || 'overworld') !== 'overworld') {
@@ -307,7 +352,9 @@ export class Sim {
     }
     this.stats.kills[e.kind] = (this.stats.kills[e.kind] || 0) + 1;
     if (e.kind === 'pig' && from && from.kind === 'player') this.giveTo(from, 'porkchop', 1 + Math.floor(this.rng() * 2));
-    if (e.kind === 'sheep' && from && from.kind === 'player') { this.giveTo(from, 'wool', 1 + Math.floor(this.rngSheep() * 2)); this.giveTo(from, 'mutton', 1); }
+    if (e.kind === 'sheep' && from && from.kind === 'player' && !e.young) { this.giveTo(from, 'wool', 1 + Math.floor(this.rngSheep() * 2)); this.giveTo(from, 'mutton', 1); }
+    if (e.kind === 'cow' && from && from.kind === 'player' && !e.young) { this.giveTo(from, 'beef', 1 + Math.floor(this.rngLife() * 3)); const l = Math.floor(this.rngLife() * 3); if (l) this.giveTo(from, 'leather', l); }
+    if (e.kind === 'chicken' && from && from.kind === 'player' && !e.young) { this.giveTo(from, 'chicken', 1); const f = Math.floor(this.rngLife() * 3); if (f) this.giveTo(from, 'feather', f); }
     this.removeEnt(e, 'killed');
   }
 
@@ -474,6 +521,8 @@ export class Sim {
           // a plant standing on what was just mined falls with it
           if (BLOCKS[this.get(c, y + 1)].plant) this.set(c, y + 1, B.air);
           if (blk.id === B.leaves && this.rng() < 1 / 6) this.give('apple', 1);
+          if (blk.id === B.leaves && this.rngLife() < 1 / 10) this.give('sapling', 1);
+          if (blk.id === B.log) this.queueDecay(c, y);
           this.settle();
           return { ok: true };
         } };
@@ -488,6 +537,7 @@ export class Sim {
         // a plant is in the way of nothing: placing a block on it picks it first
         if (cur !== B.air && cur !== B.water && !BLOCKS[cur].plant) return no(`occupied by ${blockName(cur)}`);
         if (this.occupied(c, y) && !(item === 'ladder' && this.occupied(c, y) === p)) return no('an entity is there');   // a ladder goes where you stand
+        if (item === 'sapling' && ![B.grass, B.dirt].includes(this.get(c, y - 1))) return no('a sapling needs grass or dirt under it');
         return { ok: true, ticks: 1, pre: () => {
           this.emit(['do', 'place', c, y, item]);
           const was = BLOCKS[this.get(c, y)];
@@ -616,14 +666,24 @@ export class Sim {
         const r = RECIPES[a.item];
         if (!r) return no(`no recipe for ${a.item}`);
         if (r.at && !this.near(B[r.at])) return no(`needs a ${r.at} nearby`);
-        const bag = recipeBags(r).find((g) => Object.entries(g).every(([k, n]) => this.has(k, n)));
+        // a furnace's fuel may come from what is still burning (p.fuel)
+        const bag = recipeBags(r).find((g) => { const fk = fuelKey(r, g); return Object.entries(g).every(([k, n]) => (k === fk && (p.fuel || 0) > 0) || this.has(k, n)); });
         if (!bag) {
           const [k, n] = Object.entries(r.need).find(([k2, n2]) => !this.has(k2, n2));
           return no(`needs ${n} ${k}` + (r.alt ? ' (or an alternative)' : ''));
         }
         return { ok: true, ticks: 1, pre: () => {
           this.emit(['do', 'craft', a.item]);
-          for (const [k, n] of Object.entries(bag)) this.take(k, n);
+          const fk = fuelKey(r, bag);
+          for (const [k, n] of Object.entries(bag)) {
+            if (k === fk) {
+              if ((p.fuel || 0) > 0) { p.fuel--; continue; }
+              this.take(k, 1); p.fuel = FUEL[k] - 1;
+              if (k === 'lava_bucket') this.give('bucket', 1);
+              continue;
+            }
+            this.take(k, n);
+          }
           this.give(a.item, r.n);
           this.stats.crafted[a.item] = (this.stats.crafted[a.item] || 0) + r.n;
         } };
@@ -636,6 +696,7 @@ export class Sim {
           this.emit(['do', 'eat', a.item]);
           this.take(a.item, 1);
           p.food = Math.min(20, p.food + FOOD[a.item]);
+          p.sat = Math.min(p.food, (p.sat || 0) + (SATURATION[a.item] || 0));
           this.emit(['food', p.food, p.id]);
           if (HEAL[a.item] && p.hp < 20) { p.hp = Math.min(20, p.hp + HEAL[a.item]); this.emit(['hp', p.id, p.hp]); }
         } };
@@ -646,6 +707,23 @@ export class Sim {
         if (t.kind === 'player') return no('not attacking a teammate');
         if (!this.adjacentTo(p, t)) return no('not adjacent');
         return { ok: true, ticks: 2, pre: () => { this.emit(['do', 'attack', t.id]); const sw = this.swordItem(); this.hurt(t, this.swordDmg(), p); this.wear(sw); } };
+      }
+      case 'feed': {
+        // an animal's food, by hand: it is ready to breed for LOVE ticks
+        const t = this.ents.get(a.id);
+        if (!t || !BREED_FOOD[t.kind]) return no('not an animal that breeds');
+        const food = BREED_FOOD[t.kind];
+        if (!this.has(food)) return no(`needs ${food} to feed a ${t.kind}`);
+        if (!this.adjacentTo(p, t)) return no('not adjacent');
+        if (t.young) return no('too young to breed');
+        if (t.love) return no('already fed');
+        if (t.breedAt && this.tick < t.breedAt) return no('it bred not long ago');
+        return { ok: true, ticks: 2, pre: () => this.emit(['do', 'feed', t.id]), post: () => {
+          if (!this.ents.has(t.id)) return no('it got away');
+          this.take(food, 1);
+          t.love = this.tick + LOVE;
+          return { ok: true };
+        } };
       }
       case 'shear': {
         // shears on a sheep beside you: 1-3 wool, and the sheep lives; it grows back
@@ -743,7 +821,8 @@ export class Sim {
     const t = this.tick;
     // hunger, for everyone, wherever they are
     for (const q of this.players) {
-      if (t % this.cfg.hungerEvery === 0 && q.food > 0) { q.food--; this.emit(['food', q.food, q.id]); }
+      // hunger drains saturation first, then the food bar
+      if (t % this.cfg.hungerEvery === 0 && q.food > 0) { if ((q.sat || 0) > 0) q.sat--; else { q.food--; this.emit(['food', q.food, q.id]); } }
       if (t % 80 === 0) {
         if (q.food === 0) this.as(q, () => this.hurt(q, 1, null));
         else if (q.food >= 18 && q.hp < 20) { q.hp++; this.emit(['hp', q.id, q.hp]); }
@@ -780,6 +859,8 @@ export class Sim {
     }
     if (t % FLOW_EVERY === 0 && this.flowQ.size) this.flow();
     if (t % GROW_EVERY === 0 && this.crops.size) growCrops(this);
+    if (t % GROW_EVERY === 0 && this.saplings.size) this.growSaplings();
+    if (t % 10 === 0 && this.decayQ.size) this.decayLeaves();
     const zs = [...this.ents.values()].filter((e) => HOSTILE.has(e.kind));
     if (this.dim === 'nether') {
       // the nether is always dark: blazes come out of it near whoever is there
@@ -821,14 +902,16 @@ export class Sim {
     }
     // lava burns whatever is in it
     if (t % 5 === 0) for (const e of [...this.ents.values()]) {
-      if (this.get(e.c, e.y) === B.lava || this.get(e.c, e.y + 1) === B.lava) this.hurt(e, 4, null);
+      if (this.get(e.c, e.y) === B.lava || this.get(e.c, e.y + 1) === B.lava) { if (e.kind === 'item') this.removeEnt(e, 'burnt'); else this.hurt(e, 4, null); }
     }
     for (const e of [...this.ents.values()]) {
       if (e.kind === 'player' || !this.ents.has(e.id)) continue;
+      if (e.kind === 'item') { this.itemTick(e, t); continue; }
       if (e.cd > 0) e.cd--;
       if (HOSTILE.has(e.kind)) this.zombieTick(e);
-      else if (e.kind === 'pig') this.pigTick(e);
-      else if (e.kind === 'sheep') { if (e.shorn && t >= e.shorn) { e.shorn = 0; this.emit(['shorn', e.id, 0]); } this.pigTick(e, this.rngSheep); }
+      else if (e.kind === 'pig') this.animalTick(e, this.rng);
+      else if (e.kind === 'sheep') { if (e.shorn && t >= e.shorn) { e.shorn = 0; this.emit(['shorn', e.id, 0]); } this.animalTick(e, this.rngSheep); }
+      else if (e.kind === 'cow' || e.kind === 'chicken') this.animalTick(e, this.rngLife);
     }
   }
 
@@ -854,7 +937,7 @@ export class Sim {
     const ow = this.dims.overworld.world || this.world;
     const w = generateNether({ seed: ow.seed, shape: ow.shape, tiling: ow.tiling, radius: ow.radius, version: ow.version });
     const d = { world: w, b: w.blocks, ents: new Map(), torches: new Set(), crops: new Set(), cultivated: new Map(), flowQ: new Set(), still: new Set(),
-      beacons: new Set(), chests: new Map(), protect: new Set(), portals: new Set(), ev: [] };
+      beacons: new Set(), chests: new Map(), protect: new Set(), portals: new Set(), saplings: new Set(), decayQ: new Set(), ev: [] };
     for (let k = 0; k < w.blocks.length; k++) if (BLOCKS[w.blocks[k]].light) d.torches.add(k);
     // announced in the overworld's stream, with its fingerprint, so a replay can build and check it
     this.dims.overworld.ev.push(['note', 'dim', { name, sig: worldSignature(w) }]);
@@ -951,6 +1034,59 @@ export class Sim {
       this.set(c, y, B.water);      // set() wakes what is below and beside it
     }
   }
+  // --------------------------------------------------------- trees renew ---
+  // A sapling in the light grows into a tree like the generator's: a trunk of
+  // 4-5 logs and a crown that is a ball in the tile graph. Expected ~1600 ticks.
+  growSaplings() {
+    for (const k of [...this.saplings]) {
+      const c = Math.floor(k / H), y = k % H;
+      if (this.get(c, y) !== B.sapling) { this.saplings.delete(k); continue; }
+      if (!this.skyOpen(c, y + 1) && !this.torchNear(c, 3)) continue;
+      if (this.rngLife() >= GROW_EVERY / TREE_TICKS) continue;
+      this.growTree(c, y);
+    }
+  }
+  ballCols(c, r) {
+    const d = new Map([[c, 0]]), q = [c];
+    while (q.length) { const u = q.shift(); if (d.get(u) === r) continue; for (const w of this.cols[u].adj) if (!d.has(w)) { d.set(w, d.get(u) + 1); q.push(w); } }
+    return d;
+  }
+  growTree(c, y) {
+    const tall = 4 + (this.rngLife() < 0.5 ? 1 : 0);
+    if (y + tall + 2 >= H) return false;
+    for (let yy = y + 1; yy <= y + tall + 1; yy++) if (this.get(c, yy) !== B.air && this.get(c, yy) !== B.leaves) return false;   // no room
+    for (let yy = y; yy < y + tall; yy++) this.set(c, yy, B.log);
+    for (const [u, d] of this.ballCols(c, 2)) for (let yy = y + tall - 2; yy <= y + tall; yy++) {
+      if (yy === y + tall && d > 1) continue;
+      if (this.get(u, yy) === B.air) this.set(u, yy, B.leaves);
+    }
+    if (this.get(c, y + tall) === B.air) this.set(c, y + tall, B.leaves);
+    this.emit(['note', 'tree', { c, y }]);
+    return true;
+  }
+  // a log is gone: the leaves around it check whether any log still holds them
+  queueDecay(c, y) {
+    for (const [u] of this.ballCols(c, 3)) for (let yy = Math.max(1, y - 3); yy <= Math.min(H - 1, y + 5); yy++) if (this.get(u, yy) === B.leaves) this.decayQ.add(u * H + yy);
+  }
+  decayLeaves() {
+    let n = 0;
+    for (const k of [...this.decayQ]) {
+      if (n++ >= 12) break;
+      this.decayQ.delete(k);
+      const c = Math.floor(k / H), y = k % H;
+      if (this.get(c, y) !== B.leaves) continue;
+      let held = false;
+      for (const [u] of this.ballCols(c, 2)) { for (let yy = Math.max(1, y - 4); yy <= Math.min(H - 1, y + 1) && !held; yy++) if (this.get(u, yy) === B.log) held = true; if (held) break; }
+      if (held) continue;
+      this.set(c, y, B.air);
+      // what a decaying leaf lets fall, to the ground below it
+      const roll = this.rngLife();
+      if (roll < 1 / 12 || roll > 1 - 1 / 30) {
+        let g = y; while (g > 1 && !this.supported(c, g)) g--;
+        this.dropItems(c, g, roll < 1 / 12 ? { sapling: 1 } : { apple: 1 });
+      }
+    }
+  }
   beaconNear(c) {
     for (const k of this.beacons) if (this.dist(Math.floor(k / H), c) <= BEACON_RADIUS) return true;
     return false;
@@ -982,6 +1118,33 @@ export class Sim {
     const y = this.stepTarget(z.c, z.y, step[0], 2, 3, true);
     if (y === step[1] && !this.occupied(step[0], step[1]) && !this.occupied(step[0], step[1] + 1)) { this.moveEnt(z, step[0], step[1]); z.route.shift(); }
     else z.route = null;
+  }
+  // Animals: grow up, breed when two nearby are fed, follow a player holding
+  // their food (as Minecraft's do), otherwise wander as before.
+  animalTick(g, rng) {
+    const t = this.tick;
+    if (g.young && t >= g.young) { g.young = 0; this.emit(['grown', g.id]); }
+    if (g.love && t >= g.love) g.love = 0;
+    if (g.love) {
+      const mate = [...this.ents.values()].find((o) => o !== g && o.kind === g.kind && o.love && !o.young && this.dist(o.c, g.c) <= 2);
+      if (mate) {
+        g.love = 0; mate.love = 0; g.breedAt = mate.breedAt = t + GROW_UP;
+        const baby = this.spawnEnt(g.kind, g.c, g.y, { hp: g.kind === 'chicken' ? 4 : 8, young: t + GROW_UP });
+        this.emit(['young', baby.id]);
+        this.stats.bred = (this.stats.bred || 0) + 1;
+        this.emit(['note', 'bred', { kind: g.kind, id: baby.id }]);
+        return;
+      }
+    }
+    // lured: a player within 6 holding out what this animal eats
+    const food = BREED_FOOD[g.kind];
+    // (only while the player is breeding: carrying wheat about is not holding it out)
+    const lure = t % 3 === 0 && this.players.find((q) => q.luring && (q.dim || 'overworld') === this.dim && q.inv[food] && this.dist(q.c, g.c) <= 6 && this.dist(q.c, g.c) > 1.5);
+    if (lure) {
+      const n = this.cols[g.c].adj.filter((m) => this.dist(m, lure.c) < this.dist(g.c, lure.c)).sort((a, b) => this.dist(a, lure.c) - this.dist(b, lure.c))[0];
+      if (n != null) { const y = this.stepTarget(g.c, g.y, n, this.tallOf(g), 1, true); if (y != null && this.get(n, y - 1) !== B.water && !this.occupied(n, y)) { this.moveEnt(g, n, y); return; } }
+    }
+    return this.pigTick(g, rng);
   }
   pigTick(g, rng = this.rng) {
     if (this.tick % 6 || rng() < 0.5) return;
@@ -1220,6 +1383,8 @@ export class Replay {
         case 'air': this.person(ev[1]).air = ev[2]; break;
         case 'wear': { const w = (this.person(ev[1]).wear ||= {}); if (ev[3] == null) delete w[ev[2]]; else w[ev[2]] = ev[3]; break; }
         case 'shorn': { const e = D.ents.get(ev[1]); if (e) e.shorn = !!ev[2]; break; }
+        case 'young': { const e = D.ents.get(ev[1]); if (e) e.young = true; break; }
+        case 'grown': { const e = D.ents.get(ev[1]); if (e) e.young = false; break; }
         case 'chest': if (ev[3]) D.chests.set(ev[1] * H + ev[2], ev[3]); else D.chests.delete(ev[1] * H + ev[2]); break;
         case 'inv': this.person(ev[2] ?? 0).inv = ev[1]; break;
         case 'note': this.notes.push({ k: L.k, kind: ev[1], data: ev[2], d: L.d || 'overworld' }); break;

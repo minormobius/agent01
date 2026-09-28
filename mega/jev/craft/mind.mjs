@@ -17,12 +17,12 @@
 // stream says so. Nothing here pretends: every decision is stamped with the
 // source that produced it — typesafe, offline stand-in, random, or baseline.
 
-import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots, chestItems, surplus, houseCapacity, portalsHere, inNether, PORTAL_OBSIDIAN, homeMineAt } from './macros.mjs';
+import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots, chestItems, surplus, houseCapacity, portalsHere, inNether, PORTAL_OBSIDIAN, homeMineAt, lostThings, itemsInSight, treeSpots } from './macros.mjs';
 import { projectState, projectFact, projectDue, projectQuestion, setProject, baselineProject, PROJECT_NAMES, PROJECTS } from './projects.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 import { baselinePolicy, Driver, MILESTONES } from './runner.mjs';
 import { DAY, NIGHT_START } from './sim.mjs';
-import { B, H, BUILDING, RECIPES, FOOD, SPECIES, slotsUsed, CHEST_SLOTS, HOSTILE, TOOLS, PICK_SPEED, durability } from './world.mjs';
+import { B, H, BUILDING, RECIPES, FOOD, SPECIES, slotsUsed, CHEST_SLOTS, HOSTILE, TOOLS, PICK_SPEED, durability, BREED_FOOD, ANIMALS } from './world.mjs';
 
 export const GATE = 0.45;
 
@@ -324,6 +324,18 @@ export function options(sim) {
   // matter less than where the ore is (2026-09-28)
   if (legal.has('build_access') && sim.team.grids && Object.keys(sim.team.grids).length) add('build_access', 'build_access', null, { yields: 'shafts beside the house: a trapdoor over a drop into water, a ladder back up', takes: 'about 100–200 ticks, once',
     uses: `a rung per layer (~${Math.max(4, sim.surface(sim.home ? sim.home[0] : p.c) - 7)} ladders, 7 sticks make 3), 2 trapdoors, a bucket of water`, advances: 'a shorter way to and from the mine for every later trip' }, ['build_access', 'ladder']);
+  // a world that renews: trees, animals, what lies on the ground
+  if (legal.has('plant_trees')) add('plant_trees', 'plant_trees', { n: Math.min(3, sim.inv.sapling) }, { yields: `${Math.min(3, sim.inv.sapling)} saplings planted near home; each a tree in about 1600 ticks`, takes: 'about 20–60 ticks',
+    advances: 'renewable wood: trees near home that grow back where you plant them' }, ['plant_trees', 'log']);
+  if (legal.has('collect')) { const it = itemsInSight(sim); add('collect', 'collect', null, { yields: `${it.length} thing${it.length > 1 ? 's' : ''} lying on the ground near you (${[...new Set(it.flatMap((e) => Object.keys(e.items)))].slice(0, 4).join(', ')})`, takes: 'about 10–30 ticks', advances: 'free items (they vanish after 5 minutes)' }, ['collect', ...new Set(it.flatMap((e) => Object.keys(e.items)))]); }
+  for (const kind of ANIMALS) {
+    const food = BREED_FOOD[kind], seen = visiblePigs(sim, 24, kind).filter((e) => !e.young);
+    if (seen.length >= 2 && sim.has(food, 2)) add(`breed_${kind}`, 'breed', { kind }, { yields: `a young ${kind} (grown in 1200 ticks)`, takes: 'about 20–60 ticks', uses: `2 ${food.replace(/_/g, ' ')}`, advances: `more ${kind}s near home: food${kind === 'sheep' ? ' and wool' : kind === 'cow' ? ' and leather' : kind === 'chicken' ? ' and feathers' : ''} without roaming` }, ['breed', kind]);
+    if ((kind === 'cow' || kind === 'chicken') && seen.length) add(`hunt_${kind}`, 'hunt', { kind }, { yields: kind === 'cow' ? 'beef (food) and leather' : 'chicken (food) and feathers (arrows)', takes: 'about 20–60 ticks, one is in sight', advances: `food ${p.food}/20` }, [kind === 'cow' ? 'beef' : 'chicken', kind === 'cow' ? 'leather' : 'feather']);
+  }
+  if (legal.has('recover')) { const d = lostThings(sim); const n = Object.values(d.items).reduce((x, y) => x + y, 0);
+    add('recover', 'recover', null, { yields: `what you dropped when you died: ${n} items (${describeShort(d.items)})`, takes: `about ${about(sim.dist(d.c, p.c))} ticks`, deadline: `it vanishes in ${d.left} ticks`,
+      ...(sim.isNight() && sim.skyOpen(d.c, d.y + 2) ? { risk: 'it lies out in the open at night' } : {}) }, ['recover', ...Object.keys(d.items)]); }
   if (legal.has('branch_mine')) add('branch_mine', 'branch_mine', { length: 14 }, { yields: 'ore along a tunnel', takes: 'about 60–150 ticks', advances: 'resources, no rung' }, ['coal', 'iron_ore', 'cobblestone']);
   if (legal.has('surface')) add('surface', 'surface', null, { takes: `about ${Math.max(5, (sim.surface(p.c) - p.y) * 4)} ticks`, advances: 'back to open ground' });
   const seenPct = Math.round(100 * sim.seenCount / sim.N);
@@ -385,7 +397,7 @@ export function options(sim) {
   }
   const crafts = [...USEFUL_CRAFTS, ...(here.some(needsFarmland) && !sim.has('wooden_hoe') ? ['wooden_hoe'] : []), ...(sim.has('wheat', 3) ? ['bread'] : []), ...(sim.has('glowcap', 2) ? ['lantern'] : []),
     ...(sim.team.chest == null && !sim.has('chest') ? ['chest'] : []), ...(!sim.has('iron_armor') && !sim.has('diamond_armor') ? ['iron_armor'] : []), ...(sim.pickTier() < 4 ? ['diamond_pickaxe'] : []),
-    ...(!sim.has('diamond_sword') ? ['diamond_sword'] : []), ...(!sim.has('bucket') && !sim.has('water_bucket') ? ['bucket'] : []), ...(!sim.ow('beacons').size && !sim.has('beacon') ? ['beacon'] : []), ...(!sim.has('diamond_armor') ? ['diamond_armor'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : []),
+    ...(!sim.has('diamond_sword') ? ['diamond_sword'] : []), ...(!sim.has('bucket') && !sim.has('water_bucket') ? ['bucket'] : []), ...(!sim.ow('beacons').size && !sim.has('beacon') ? ['beacon'] : []), ...(!sim.has('diamond_armor') ? ['diamond_armor'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : []), ...(sim.has('beef') ? ['cooked_beef'] : []), ...(sim.has('chicken') ? ['cooked_chicken'] : []),
     ...(sim.has('glowstone_dust', 4) && !sim.has('glowstone') ? ['glowstone'] : []), ...(sim.has('quartz', 4) ? ['quartz_block'] : []),
     // axes and shovels one tier above what is held, shears once
     ...['axe', 'shovel'].map((k) => ['stone', 'iron', 'diamond'][Math.max(0, sim.toolTier(k) - 1)] + '_' + k).filter((it) => TOOLS[it]), ...(!sim.has('shears') ? ['shears'] : [])];
