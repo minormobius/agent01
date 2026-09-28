@@ -48,11 +48,13 @@ class Biquad {                                   // a band-pass (constant peak g
  * page and "Nobody Drew It"): `bpm`; `harmony(t)` → the chord at second t, { root, tones: [4 semitones
  * above D3] } (the same object while the chord lasts; voices move when it changes); `drive(t)` → 0..1,
  * a beat (a kick on one and three, a snare on two and four, hats, and bells bursting over the chord) as
- * strong as it; `voices`, how many species the choir holds.
+ * strong as it; `voices`, how many species the choir holds; `startAt`, the second its clock starts at (on
+ * the same sixteenth grid, for a piece rendered in parts); `bass: false` for one without the drone.
  */
-export function makeEngine(sr = 44100, { bpm = 96, harmony = null, drive = null, voices = 6 } = {}) {
+export function makeEngine(sr = 44100, { bpm = 96, harmony = null, drive = null, voices = 6, startAt = 0, bass = true } = {}) {
   const sixteenth = (60 / bpm / 4) * sr, barLen = sixteenth * 16;
   let t = 0, nextTick = 0, tick = 0, seed = 12345;
+  if (startAt) { t = Math.round(startAt * sr); tick = Math.ceil(t / sixteenth); nextTick = tick * sixteenth; }
   const rnd = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
   // the choir: six voice slots, each gliding to its target pitch and gain
   const slots = Array.from({ length: voices }, () => ({ key: null, f: 220, tf: 220, g: 0, tg: 0, ph: 0, vib: rnd() * TAU, vowel: 'a', F: [new Biquad(), new Biquad(), new Biquad()], pan: 0.5 }));
@@ -129,7 +131,7 @@ export function makeEngine(sr = 44100, { bpm = 96, harmony = null, drive = null,
           l += y * (1 - s.pan); r += y * s.pan;
         }
         // the bass: the chord's root, as warm as the water is rich
-        const c = chord(); bassG += ((0.025 + 0.05 * state.rich) - bassG) * 0.00005;
+        const c = chord(); bassG += ((bass ? 0.025 + 0.05 * state.rich : 0) - bassG) * 0.00005;
         bassPh += hz(c.root) / 2 / sr; if (bassPh >= 1) bassPh -= 1;
         const b = (Math.sin(TAU * bassPh) + 0.25 * Math.sin(2 * TAU * bassPh)) * bassG; l += b; r += b;
         // one-shots

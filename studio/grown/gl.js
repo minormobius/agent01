@@ -6,9 +6,15 @@
 
 const PVS = `
 attribute vec3 aPos; attribute vec4 aCol;
-uniform mat4 uPV; uniform float uSize;
+uniform mat4 uPV; uniform float uSize; uniform float uMax;
 varying vec4 vCol;
-void main() { gl_Position = uPV * vec4(aPos, 1.0); gl_PointSize = uSize * aCol.a / gl_Position.w; vCol = aCol; }`;
+// a point grows as it nears the camera, but only to uMax: past that a close-up went soft (a few huge
+// blurred discs). The light it would have spread is given back as brightness, partly, so it stays lit.
+void main() {
+  gl_Position = uPV * vec4(aPos, 1.0);
+  float s = uSize * aCol.a / gl_Position.w, c = min(s, uMax);
+  gl_PointSize = c; vCol = vec4(aCol.rgb * min(3.0, sqrt(s / c)), aCol.a);
+}`;
 const PFS = `
 precision mediump float;
 varying vec4 vCol;
@@ -89,7 +95,7 @@ export function makeRenderer(canvas) {
       }
       for (const name of ['aPos', 'aNrm', 'aAge']) gl.disableVertexAttribArray(C.loc[name]);
       // light: organs, bonds, the medium (additive; hidden behind crystal)
-      gl.useProgram(P.p); gl.uniformMatrix4fv(P.loc.uPV, false, PV); gl.uniform1f(P.loc.uSize, h * 0.3);
+      gl.useProgram(P.p); gl.uniformMatrix4fv(P.loc.uPV, false, PV); gl.uniform1f(P.loc.uSize, h * 0.3); gl.uniform1f(P.loc.uMax, Math.max(2.5, h / 200));
       gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.depthMask(false);
       gl.bindBuffer(gl.ARRAY_BUFFER, pb); gl.bufferData(gl.ARRAY_BUFFER, this.points.a.subarray(0, this.points.n), gl.STREAM_DRAW);
       gl.enableVertexAttribArray(P.loc.aPos); gl.vertexAttribPointer(P.loc.aPos, 3, gl.FLOAT, false, 28, 0);
