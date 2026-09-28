@@ -1388,6 +1388,30 @@ price rather than a bug. Life sweep 30 / 30, 0 deaths, 0 stuck. Jev sees
 `tools_uses_left`, and a worn tool's craft option reads *a replacement: yours
 has 12 uses left*.
 
+**Better picks, and does the loop pay with them? (2026-09-28)**
+40 trips, the grid mine and its loop, each with a stone, iron or diamond pick
+used for everything (`pickChoice: 'best'`), 3 medium worlds
+(`lab/craft-mining-picks.json`). Ticks per iron ore:
+
+| world | stone: grid / loop | iron: grid / loop | diamond: grid / loop |
+|---|---|---|---|
+| penrose | 232 / 237 | 183 / **159** | **146** / 157 |
+| kagome | 211 / 203 | 182 / **169** | **132** / 139 |
+| truncsq | 151 / 149 | 124 / **117** | 105 / **99** |
+
+- **The pick matters far more than the pattern.** Stone → diamond cuts the
+  cost per ore by 30–37% on every world, because stone costs 4 ticks a block
+  with a stone pick and 2 with a diamond one.
+- **The loop pays with an iron pick** (3 of 3 worlds, 4–13% cheaper per ore),
+  and not reliably with stone (even) or diamond (1 of 3). The prediction
+  was that cheaper digging makes digging a new way home worth it, and it
+  holds only in the middle. With a diamond pick the whole trip is short
+  enough that the return is a smaller share again. n = 1 world per cell, so a
+  5–10% difference is inside run-to-run noise. Read it as *the loop is never
+  much worse, and sometimes a bit better*.
+- Ore found is the same across arms (94–118 in 40 trips): the layout sees the
+  same stone either way.
+
 **Getting to the mine: ladders, drops into water, trapdoors (2026-09-28).**
 The operator's point: people shorten the trip to a mine with a ladder shaft up
 and a drop shaft down into water deep enough to break the fall. What that
