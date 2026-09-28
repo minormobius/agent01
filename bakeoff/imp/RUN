@@ -1,7 +1,7 @@
 {
-  "runId": "imp-04",
+  "runId": "imp-05",
   "models": ["ds4-flash", "ds4-pro", "kimi3"],
-  "tasks": ["trec"],
-  "gepa": { "models": ["ds4-flash", "ds4-pro", "kimi3"], "reflection": "ds4-pro", "maxMetricCalls": 200 },
-  "note": "The optimizer test the tool tasks could not give: Imp's matched TREC experiment (two opaque codes, meanings only in train feedback) on all three models, GEPA on each with ds4-pro reflecting, Imp's GEPA improper-list crash patched. Imp's own result for comparison: +0.40 held-out on gpt-5.4-mini."
+  "tasks": ["era"],
+  "gepa": { "models": ["ds4-flash", "ds4-pro", "kimi3"], "reflection": "ds4-pro", "maxMetricCalls": 250 },
+  "note": "era: from one of minormobius.bsky.social's posts alone, guess the year (2023–2026). Zero-shot, 16 labelled examples, and GEPA with the true year as train feedback — can an optimizer write down one person's eras?"
 }
