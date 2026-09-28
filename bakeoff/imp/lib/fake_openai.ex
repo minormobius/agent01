@@ -35,8 +35,21 @@ defmodule ImpBench.FakeOpenAI do
     tools? = (body["tools"] || []) != []
     last = List.last(messages) || %{}
 
+    tool_names = Enum.map(body["tools"] || [], &get_in(&1, ["function", "name"]))
+    tool_turns = Enum.count(messages, &(&1["role"] == "tool"))
+
     message =
       cond do
+        # a builder: write a page, check it, submit
+        "write_file" in tool_names and tool_turns == 0 ->
+          tool_call("write_file", %{"path" => "site/index.html", "content" => fake_page()})
+
+        "write_file" in tool_names and tool_turns == 1 ->
+          tool_call("check_site", %{})
+
+        "write_file" in tool_names ->
+          tool_call("submit", %{"summary" => "A fake page.", "files" => "site/index.html"})
+
         tools? and last["role"] == "tool" ->
           tool_call("submit", %{"answer" => "no", "work" => "fake"})
 
@@ -126,6 +139,15 @@ defmodule ImpBench.FakeOpenAI do
 
   match _ do
     send_resp(conn, 404, "not found")
+  end
+
+  defp fake_page do
+    """
+    <!doctype html><html><head><meta charset="utf-8"><title>Fake build</title>
+    <meta property="og:title" content="Fake build"><meta property="og:description" content="Written by the fake model.">
+    <link rel="stylesheet" href="../_kit/tokens.css"><script src="../_kit/kit.js"></script></head>
+    <body><h1>Fake build</h1><p>#{String.duplicate("A page the fake model writes so the rig's success path runs. ", 12)}</p></body></html>
+    """
   end
 
   defp tool_call(name, args) do

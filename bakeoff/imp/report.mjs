@@ -137,6 +137,13 @@ for (const { dir, cell } of cells) {
   for (const [t, v] of Object.entries(cell.tasks || {})) {
     if (v.error) lines.push('', `**${t} raised** — no result: \`${String(v.error).split('\n')[0].slice(0, 300)}\``);
   }
+  const bu = cell.tasks.build?.error ? null : cell.tasks.build;
+  if (bu) {
+    const a = bu.arms.react, u = a.usage || {};
+    lines.push('', `**build** — ${bu.n_test} of minormobius's build-a-bot requests, built by an Imp ReAct agent (max ${bu.max_iters} steps), scored by lab-smoke, lab-content-gate and ${bu.judge === 'jev' ? 'Jev as judge' : 'no judge'}: mean ${pct(a.score)} · median ${a.median_seconds}s a build · ${(u.total_tokens ?? ((u.input_tokens || 0) + (u.output_tokens || 0))).toLocaleString()} tokens in all`, '',
+      '| request | score | exists | gate | smoke | fit | tool calls | seconds | ended |', '|---|---|---|---|---|---|---|---|---|',
+      ...bu.rows.map((r) => `| ${r.slug} | ${pct(r.score)} | ${r.parts?.exists ?? ''} | ${r.parts?.gate ?? ''} | ${r.parts?.smoke ?? ''} | ${r.parts?.fit == null ? '—' : Math.round(r.parts.fit * 100) / 100} | ${r.tool_calls ?? ''} | ${r.seconds ?? ''} | ${r.error ? 'error' : r.termination} |`));
+  }
   const er = cell.tasks.era?.error ? null : cell.tasks.era;
   if (er) {
     const a = er.arms;

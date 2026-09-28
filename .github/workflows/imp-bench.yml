@@ -67,7 +67,7 @@ jobs:
             // "jev" is the TypeSafe decision model, not an LLM: the rig calls it directly.
             for (const m of models) if (!cells.models[m] && m !== "jev") { console.error(`::error::unknown model ${m}`); process.exit(1); }
             const tasks = (cfg.tasks?.length ? cfg.tasks : ["route", "desk"]);
-            for (const t of tasks) if (!["route", "desk", "desk_hard", "trec", "era"].includes(t)) { console.error(`::error::unknown task ${t}`); process.exit(1); }
+            for (const t of tasks) if (!["route", "desk", "desk_hard", "trec", "era", "build"].includes(t)) { console.error(`::error::unknown task ${t}`); process.exit(1); }
             // GEPA: {"models": [...], "reflection": "<model>", "maxMetricCalls": N}. It spends
             // far more than a baseline, so it runs only for the models named here.
             const gepa = cfg.gepa || {};
@@ -131,6 +131,9 @@ jobs:
           IMP_BENCH_MODEL=jev-fake IMP_BENCH_TASKS=trec,route IMP_BENCH_REFLECTION=fake \
             IMP_BENCH_GEPA_CALLS=30 IMP_BENCH_JEV_ESCALATE=ds4-flash IMP_BENCH_JEV_ESCALATE_LM=fake \
             BAKEOFF_OUT=/tmp/jevfake mix run -e 'ImpBench.main()'
+          # and the build task: the fake writes a page, checks it with the real smoke test and gate, submits
+          IMP_BENCH_MODEL=fake IMP_BENCH_TASKS=build IMP_BENCH_BUILD_ITERS=6 \
+            BAKEOFF_OUT=/tmp/buildfake mix run -e 'ImpBench.main()'
       - name: Run cell
         env:
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}

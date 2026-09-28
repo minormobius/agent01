@@ -18,7 +18,7 @@ defmodule ImpBench do
 
   alias ImpBench.Desk
 
-  @tasks ~w(route desk desk_hard trec era)
+  @tasks ~w(route desk desk_hard trec era build)
 
   def main do
     model_key = System.get_env("IMP_BENCH_MODEL") || raise "IMP_BENCH_MODEL is required"
@@ -190,6 +190,8 @@ defmodule ImpBench do
   # the configuration behind rows R1/R2 of Imp's research/RESULTS.md, so these
   # numbers sit next to a published gpt-5.4-mini result.
   defp run(task, :jev, out), do: ImpBench.JevTasks.run(task, out)
+
+  defp run("build", lm, out), do: ImpBench.Build.run(lm, out)
 
   defp run("route", lm, out) do
     data =
