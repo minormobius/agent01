@@ -1,7 +1,7 @@
 {
-  "runId": "imp-12",
-  "models": ["jev"],
-  "tasks": ["trec", "route"],
-  "gepa": { "models": [], "reflection": "ds4-pro", "maxMetricCalls": 300 },
-  "note": "Jev (TypeSafe's decision model, ~200 ms a call) on the classifier tasks the LLMs ran. trec: bare codes; the instruction GEPA wrote for Kimi K3 in imp-04, transplanted; Jev's own instructions and option descriptions rewritten by Imp's Optimize Anything with Jev scoring (DeepSeek V4 Pro reflecting); and a cascade that keeps Jev's answer at confidence ≥ 0.9 and sends the rest to DeepSeek Flash's saved imp-04 GEPA program. route: the task as the LLMs got it."
+  "runId": "imp-13",
+  "models": ["sonnet"],
+  "tasks": ["trec"],
+  "gepa": { "models": ["sonnet"], "reflection": "sonnet", "maxMetricCalls": 150 },
+  "note": "Claude Sonnet through the Claude Code CLI on the build-a-bot's subscription credential — the first run of Imp's new claude -p model. trec zero-shot, then GEPA with Sonnet reflecting on its own failures. Proves the adapter live and puts the build-a-bot's own model on the headline task."
 }
