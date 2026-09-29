@@ -1,0 +1,44 @@
+{
+  "runId": "imp-13",
+  "note": "Claude Sonnet through the Claude Code CLI on the build-a-bot's subscription credential — the first run of Imp's new claude -p model. trec zero-shot, then GEPA with Sonnet reflecting on its own failures. Proves the adapter live and puts the build-a-bot's own model on the headline task. (retry: the plan step now accepts sonnet as a GEPA model)",
+  "cells": [
+    {
+      "seconds": 74,
+      "status": "ran",
+      "probe": "error: {\"claude exited 1\", {:claude_code, %{\"api_error_status\" => nil, \"result\" => \"Not logged in · Please run /login\", \"subtype\" => \"success\", \"terminal_reason\" => \"api_error\"}}}",
+      "model": "sonnet",
+      "model_id": "claude-sonnet-5",
+      "endpoint": "claude -p",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "trec": {
+          "source": "49a635d361226c67d8c7ad5b2d90085176e0d519",
+          "arms": {
+            "baseline": {
+              "seconds": 19,
+              "errors": 80,
+              "score": 0,
+              "error_samples": [
+                "%{index: 0, reason: {\"claude exited 1\", {:claude_code, %{\"api_error_status\" => nil, \"result\" => \"Not logged in · Please run /login\", ...}}}}",
+                "%{index: 1, reason: {\"claude exited 1\", {:claude_code, %{\"api_error_status\" => nil, \"result\" => \"Not logged in · Please run /login\", ...}}}}",
+                "%{index: 2, reason: {\"claude exited 1\", {:claude_code, %{\"api_error_status\" => nil, \"result\" => \"Not logged in · Please run /login\", ...}}}}"
+              ]
+            },
+            "gepa": {
+              "seconds": 19,
+              "errors": 80,
+              "score": 0,
+              "optimize_seconds": 35
+            }
+          },
+          "n_test": 80,
+          "gepa": {
+            "changed": {},
+            "max_metric_calls": 150,
+            "reflection": "sonnet"
+          }
+        }
+      }
+    }
+  ]
+}
