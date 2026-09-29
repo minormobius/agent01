@@ -36,13 +36,25 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const ab = url.pathname === '/ab' || url.pathname.startsWith('/ab/');
+    if (url.hostname === TENANT_HOST && url.pathname.startsWith('/_kit/')) {
+      return withLabHeaders(await env.ASSETS.fetch(new Request(new URL(`/ab${url.pathname}`, url), request)));
+    }
     if (url.hostname === TENANT_HOST && !ab) return Response.redirect(`https://${HOME_HOST}${url.pathname}${url.search}`, 302);
     if (url.hostname !== TENANT_HOST && ab) return Response.redirect(`https://${TENANT_HOST}${url.pathname}${url.search}`, 302);
-    const res = await env.ASSETS.fetch(request);
+    // Tenant pages link the factory kit as ../_kit/ (from /ab/<run>/<pair>/) or
+    // /_kit/ (production's root). One copy lives at /ab/_kit/.
+    let res;
+    const kit = url.pathname.match(/^\/ab\/[^/]+\/_kit\/(.*)$/);
+    if (kit && url.hostname === TENANT_HOST) res = await env.ASSETS.fetch(new Request(new URL(`/ab/_kit/${kit[1]}`, url), request));
+    else res = await env.ASSETS.fetch(request);
     if (!ab) return res;
-    const headers = new Headers(res.headers);
-    headers.set('Content-Security-Policy', LAB_CSP);
-    headers.set('X-Robots-Tag', 'noindex');
-    return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+    return withLabHeaders(res);
   },
 };
+
+function withLabHeaders(res) {
+  const headers = new Headers(res.headers);
+  headers.set('Content-Security-Policy', LAB_CSP);
+  headers.set('X-Robots-Tag', 'noindex');
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
