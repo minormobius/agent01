@@ -528,8 +528,11 @@ artifact page); this is its build.
   clone): his public repo as a CAR (`com.atproto.sync.getRepo`, no auth; ~93 MB, 51k posts, 182k likes),
   reduced to posts per month, the twelve accounts he paid most attention to per era (replies 3, mentions and
   quotes 2, reposts 1, likes 0.3) with their profile pictures saved to `faces/` (a canvas that draws another
-  host's image cannot be exported), 90 of his own plain top-level posts per era for the orb, the quoted posts
-  exactly, commits per month, and each served directory's first commit. **Only his posts are quoted**; other
+  host's image cannot be exported), 16 of his own top-level posts per era WITH their pictures for the orb
+  (owner: "all shown posts gotta contain the images… fewer posts is ok as long as they're intelligible"),
+  the quoted posts exactly with their pictures (images, a video's poster frame, a link card's thumb; blob
+  CIDs re-encoded base32 for the AppView CDN), all shrunk to 420 px into `posts/` (python3 + Pillow),
+  commits per month, and each served directory's first commit. **Only his posts are quoted**; other
   people appear by handle, name and face (the owner asked for that). The corpus itself never enters the repo.
 - **The eras** are hand-read (script.js `ERAS`), from posting volume, how much the circle turned over
   quarter to quarter, and distinctive words: the invite era (2023-04–09: hellthreads, beamposting), the
@@ -542,12 +545,17 @@ artifact page); this is its build.
   written against the same seconds (60 bpm, a beat a second): F major under the voice, D minor for the quiet,
   broken chords for the return, the call on each title card, a rolled chord at "Class dismissed". `vocal()`
   speaks every line at 16 kHz, reads it up to the output rate, and puts it in a small hall.
-- **The picture** (`render.js`, 2D canvas, pure in t): the cylinder seen along its axis from the rind (the sun
-  line end-on as a point; the inner surface a tunnel of voronoi-foam cells; the wild ecosystem drifting
-  round the axis). The 146 sites are cells in the foam, never the nearest rings (lit, those swamped the
-  frame), dark until lecture 7 lights each in the month it was born. The lecturer is an attractor body
+- **The picture** (`render.js`, 2D canvas, pure in t): the cylinder as hoop's home screen sees it (owner:
+  "view from the surface, sun rail moves all the way through… passing overhead"): a perspective camera
+  standing on the floor, tipped up, walking slowly down a bore 7 radii long; the rind a foam of jittered
+  hexagons up both walls and over the roof; the sun rail the whole axis, from over our heads to the far
+  cap, with a day's light travelling along it; the wild ecosystem drifting round the axis. (The first
+  version looked along the axis from its end, the sun a point: the owner wanted to stand on the ground.)
+  The 146 sites are cells on the walls and far roof, dark until lecture 7 lights each in the month it was
+  born, named as they light. The lecturer is an attractor body
   (vendor/attractor), three poses solved once and eased between line by line, brighter and further into its
-  orbits while speaking. Boards per lecture: the orb (his posts on a sphere), faces (a ring per era,
+  orbits while speaking. Boards per lecture: the orb (his posts, picture above text, on a turning sphere; only
+  the ones facing us carry their words), faces (a ring per era,
   crossfading), words, quotes, the chart (posts, and commits under them), the sites, the tools. Subtitles
   always. Vertical frames put the board above and the lecturer below.
 - Not verified here: the audio in a browser (the vocal and piano ran in node only) and an export.

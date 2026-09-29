@@ -4,7 +4,8 @@
 // reduced to counts per month, the closest accounts per era with their profile pictures, a sample of his
 // own top-level posts per era for the orb, the quoted posts exactly, and this repository's history
 // (commits per month; the month each served directory first appeared). Needs the network and a full
-// clone (`git fetch --unshallow`). Only his own posts are quoted; other accounts appear by handle and face.
+// clone (`git fetch --unshallow`), and python3 with Pillow (to shrink the pictures). Only his own posts are
+// quoted, with their own pictures; other accounts appear by handle and face.
 //
 //   node studio/tools/lecture-record.mjs [--car path/to/repo.car]
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
@@ -84,16 +85,44 @@ for (const [e] of ERAS) {
   PEOPLE[e] = top[e].map(([d, w]) => prof[d] ? { h: prof[d].handle, n: (prof[d].displayName || '').trim() || prof[d].handle, f: face[d] || null, w: +(w / max).toFixed(3) } : { h: null, w: +(w / max).toFixed(3) });
 }
 
-// ---- his own words: the orb's sample per era (top-level posts, no links or mentions), and the quotes --
-const plain = (p) => !p.reply && !p.embed && !(p.facets || []).length && p.text && p.text.length >= 24 && p.text.length <= 150 && !/https?:|@|\n/.test(p.text);
+// ---- his own words: the orb's posts per era (top-level posts WITH their images, few enough to read), and
+// the quotes (with an image where the post has one). The images are his posts' own, fetched as the
+// AppView's thumbnails and shrunk to 420 px (python3 + Pillow), saved beside the piece in posts/.
+const B32 = 'abcdefghijklmnopqrstuvwxyz234567';
+const cidStr = (h) => { const b = Buffer.from(h, 'hex'); let bits = 0, v = 0, out = 'b'; for (const x of b) { v = (v << 8) | x; bits += 8; while (bits >= 5) { out += B32[(v >>> (bits - 5)) & 31]; bits -= 5; } } if (bits) out += B32[(v << (5 - bits)) & 31]; return out; };
+const link = (blob) => blob?.ref?.$link ? cidStr(blob.ref.$link) : null;
+/** A post's pictures: its images (or a quote-with-media's), a video's poster frame, a link card's thumb. */
+function pictures(p) {
+  const e = p.embed || {}, m = e.media || e, out = [];
+  for (const im of m.images || []) { const c = link(im.image); if (c) out.push({ url: `https://cdn.bsky.app/img/feed_thumbnail/plain/${ME}/${c}@jpeg`, alt: im.alt || '' }); }
+  if (m.video) { const c = link(m.video); if (c) out.push({ url: `https://video.bsky.app/watch/${ME}/${c}/thumbnail.jpg`, alt: m.alt || '' }); }
+  if (m.external?.thumb) { const c = link(m.external.thumb); if (c) out.push({ url: `https://cdn.bsky.app/img/feed_thumbnail/plain/${ME}/${c}@jpeg`, alt: m.external.title || '' }); }
+  return out;
+}
+const PICS = join(OUT, 'posts');
+if (existsSync(PICS)) rmSync(PICS, { recursive: true });
+mkdirSync(PICS, { recursive: true });
+const saved = [];
+async function keep(p) {
+  const pics = pictures(p).slice(0, 2), files = [];
+  for (const [i, pic] of pics.entries()) {
+    const r = await fetch(pic.url); if (!r.ok) continue;
+    const name = `${p.rkey}-${i}.jpg`; writeFileSync(join(PICS, name), Buffer.from(await r.arrayBuffer())); files.push(['posts/' + name, pic.alt]); saved.push(join(PICS, name));
+  }
+  return files;
+}
+const readable = (p) => !p.reply && pictures(p).length && p.text && p.text.length >= 12 && p.text.length <= 180 && !/https?:|@/.test(p.text) && !(p.embed?.record && !p.embed?.media);
 const ORB = {};
 for (const [e, , a, b] of ERAS) {
-  const pool = posts.filter((p) => plain(p) && mo(p.createdAt) >= a && mo(p.createdAt) <= b);
-  const n = 90, step = pool.length / n;
-  ORB[e] = Array.from({ length: Math.min(n, pool.length) }, (_, i) => { const p = pool[Math.floor(i * step)]; return [String(p.createdAt).slice(0, 10), p.text]; });
+  const pool = posts.filter((p) => readable(p) && mo(p.createdAt) >= a && mo(p.createdAt) <= b);
+  const n = 16, step = pool.length / n, pick = Array.from({ length: Math.min(n, pool.length) }, (_, i) => pool[Math.floor((i + 0.5) * step)]);
+  ORB[e] = [];
+  for (const p of pick) { const files = await keep(p); if (files.length) ORB[e].push([String(p.createdAt).slice(0, 10), p.text.replace(/\s*\n\s*/g, ' '), files]); }
 }
 const QUOTES = {};
-for (const k of QUOTED) { const p = posts.find((x) => x.rkey === k); if (!p) throw new Error('quoted post gone: ' + k); QUOTES[k] = [String(p.createdAt).slice(0, 10), p.text.replace(/\s*\n\s*/g, ' ')]; }
+for (const k of QUOTED) { const p = posts.find((x) => x.rkey === k); if (!p) throw new Error('quoted post gone: ' + k); QUOTES[k] = [String(p.createdAt).slice(0, 10), p.text.replace(/\s*\n\s*/g, ' '), await keep(p)]; }
+// shrink every picture to 420 px on its long side
+execSync(`python3 -c "import sys\nfrom PIL import Image\nfor f in sys.argv[1:]:\n  im=Image.open(f).convert('RGB'); im.thumbnail((420,420)); im.save(f,quality=74)" ${saved.map((f) => JSON.stringify(f)).join(' ')}`);
 
 // ---- the repository -------------------------------------------------------------------------------
 const log = execSync('git log --all --format=@%ad --date=format:%Y-%m-%d --name-only', { cwd: ROOT, maxBuffer: 1 << 28 }).toString().split('\n');
@@ -121,4 +150,4 @@ export const ORB = ${JSON.stringify(ORB, null, 0)};
 export const BIRTHS = ${JSON.stringify(BIRTHS)};
 `;
 writeFileSync(join(OUT, 'record.js'), js);
-console.log(`record.js ${(js.length / 1024).toFixed(0)} KB · ${Object.keys(face).length} faces · ${BIRTHS.length} sites · ${TOTALS.posts} posts`);
+console.log(`record.js ${(js.length / 1024).toFixed(0)} KB · ${saved.length} pictures · ${Object.keys(face).length} faces · ${BIRTHS.length} sites · ${TOTALS.posts} posts`);
