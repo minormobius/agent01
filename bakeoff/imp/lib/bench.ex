@@ -102,6 +102,17 @@ defmodule ImpBench do
 
   def lm_for("static"), do: {:ok, ImpBench.Scripted.lm(), %{model: "scripted", base_url: nil}}
 
+  # Claude Sonnet through the Claude Code CLI on the build-a-bot's own
+  # subscription credential (see ImpBench.ClaudeCode). Text calls only.
+  def lm_for("sonnet") do
+    if System.get_env("CLAUDE_CODE_OAUTH_TOKEN") in [nil, ""] and
+         is_nil(System.get_env("IMP_BENCH_CLAUDE_CLI")),
+       do: {:skip, "CLAUDE_CODE_OAUTH_TOKEN is not set"},
+       else:
+         {:ok, ImpBench.ClaudeCode.new(model: "claude-sonnet-5"),
+          %{model: "claude-sonnet-5", base_url: "claude -p"}}
+  end
+
   # Jev is not an LLM: its tasks go to ImpBench.JevTasks, which calls it directly.
   def lm_for("jev") do
     if ImpBench.Jev.key() in [nil, ""] and is_nil(System.get_env("IMP_BENCH_JEV_URL")),
