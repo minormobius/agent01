@@ -1,0 +1,12 @@
+{
+  "slug": "create-vizualization",
+  "task": "create a vizualization explorer for the following system: z_{n+1} = (r + \\cos\\theta) e^{i\\theta} - c where: \\item $r = |z_n|$ is the magnitude of $z_n$ \\item $\\theta = \\arg(z_n)$ is the angle of $z_n$ \\item $c \\in \\mathbb{R}$ is a constant; provide multiple forms of vizualization",
+  "requester": "ponder.ooo",
+  "requestedAt": "2026-07-28T22:20:39.190Z",
+  "_source": {
+    "commit": "f50fe5433f0be1a868d401e28ae1e325f7c1cfb9",
+    "path": ".github/lab-requests/create-vizualization.json",
+    "reconstructed": true,
+    "why": "the only surviving version of this file is a later turn; task is the first-turn text as recovered from its thread banner, thread fields dropped"
+  }
+}

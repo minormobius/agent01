@@ -1,0 +1,12 @@
+{
+  "slug": "take-escher",
+  "task": "take Escher woodcut circle limit III and make it an interactive explorer. Let the user pick a row of fish to “swim” or translate n The direction of their nose and let the other fish follow as they must to preserve tiling. Effectively, use tiling to play with a Poincaré disk hyperbolic",
+  "requester": "minormobius.bsky.social",
+  "requestedAt": "2026-07-29T01:30:38.860Z",
+  "_source": {
+    "commit": "f50fe5433f0be1a868d401e28ae1e325f7c1cfb9",
+    "path": ".github/lab-requests/take-escher.json",
+    "reconstructed": true,
+    "why": "the only surviving version of this file is a later turn; task is the first-turn text as recovered from its thread banner, thread fields dropped"
+  }
+}

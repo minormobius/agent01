@@ -1,0 +1,12 @@
+{
+  "slug": "chladni-sim",
+  "task": "chladni sim written in rust and rendered in 3js. a few preset frequencies on a default plate is fine for now. The point is explaining vibration modes, get a little didactic with it",
+  "requester": "minormobius.bsky.social",
+  "requestedAt": "2026-07-29T19:05:39.106Z",
+  "_source": {
+    "commit": "f50fe5433f0be1a868d401e28ae1e325f7c1cfb9",
+    "path": ".github/lab-requests/chladni-sim.json",
+    "reconstructed": true,
+    "why": "the only surviving version of this file is a later turn; task is the first-turn text as recovered from its thread banner, thread fields dropped"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "runId": "ab-01",
+  "requests": ["atlink", "tube-stacker"],
+  "note": "Pilot: one precise no-network tool (atlink) and one 3D game with controls (tube-stacker), both arms. Proves the pipeline — factory checkout, byte-identical baseline, eyes over MCP on a runner, critic/revise, gates, blinding — before the 20-pair run."
+}

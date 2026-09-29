@@ -1,0 +1,128 @@
+name: Build-a-bot A/B (production replica vs challenger)
+
+# Builds held-out build-a-bot requests twice — once exactly as lab-build.yml
+# would (baseline), once with the challenger (eyes + critique loop, no turn cap)
+# — and blinds the pairs for a human vote. See bakeoff/buildabot/CLAUDE.md.
+#
+# Fires only on a change to bakeoff/buildabot/RUN on the owning branch, so no
+# ordinary push can start a token-spending matrix. Publishes nothing: results
+# go to an orphan `buildabot/<run-id>` branch, which no deploy trigger matches.
+on:
+  push:
+    branches: [claude/friends-project-planning-cags5l]
+    paths: [bakeoff/buildabot/RUN]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: buildabot-ab
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      run_id: ${{ steps.plan.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: |
+          node -e '
+            const fs = require("fs");
+            const cfg = JSON.parse(fs.readFileSync("bakeoff/buildabot/RUN", "utf8"));
+            const runId = cfg.runId;
+            if (!/^ab-[a-z0-9-]+$/.test(runId || "")) { console.error(`::error::runId must look like ab-01`); process.exit(1); }
+            const all = fs.readdirSync("bakeoff/buildabot/requests").filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5)).sort();
+            const reqs = cfg.requests || all;
+            for (const r of reqs) if (!all.includes(r)) { console.error(`::error::no request ${r}`); process.exit(1); }
+            const arms = cfg.arms || ["baseline", "challenger"];
+            for (const a of arms) if (!["baseline", "challenger"].includes(a)) { console.error(`::error::unknown arm ${a}`); process.exit(1); }
+            const include = reqs.flatMap((req) => arms.map((arm) => ({ req, arm })));
+            if (include.length > 48) { console.error(`::error::${include.length} builds; the cap is 48`); process.exit(1); }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify({ include })}\nrun_id=${runId}\n`);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Build-a-bot A/B \`${runId}\`\n\n${cfg.note || ""}\n\n${reqs.length} requests × ${arms.join(", ")}\n`);
+          '
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: ${{ matrix.req }} · ${{ matrix.arm }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: rig }
+      # The factory branch, whole, with no token in .git/config — as lab-build.yml checks it out.
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/minomobi-landing-page-vg37b8
+          path: factory
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Install Claude Code (unpinned, as production) and playwright-core (eyes)
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          if [ "${{ matrix.arm }}" = challenger ]; then npm install -g playwright-core@1.56.1; fi
+          claude --version
+      # lab-www as it stood when the request came in: no published copy of this
+      # site, and the requester's profile without what later builds taught it.
+      - name: Prepare the factory tree
+        working-directory: factory
+        run: |
+          REQ=../rig/bakeoff/buildabot/requests/${{ matrix.req }}.json
+          AT=$(node -p "require('$REQ').requestedAt")
+          SLUG=$(node -p "require('$REQ').slug")
+          git config user.name bakeoff; git config user.email bakeoff@localhost
+          LW=$(git rev-list -1 --before="$AT" origin/claude/lab-www || true)
+          if [ -n "$LW" ]; then git merge -q --no-edit "$LW"; echo "lab-www as of $AT: $LW"; else echo "::notice::lab-www has no commit before $AT"; fi
+          rm -rf "lab/www/$SLUG"
+          git add -A && git commit -q -m "held-out: remove $SLUG" --allow-empty
+      - name: Build (${{ matrix.arm }})
+        working-directory: factory
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          RIG: ${{ github.workspace }}/rig
+        run: |
+          bash ../rig/bakeoff/buildabot/run-arm.sh "${{ matrix.arm }}" \
+            "../rig/bakeoff/buildabot/requests/${{ matrix.req }}.json" \
+            "$RUNNER_TEMP/out/${{ matrix.req }}--${{ matrix.arm }}"
+          cat "$RUNNER_TEMP/out/${{ matrix.req }}--${{ matrix.arm }}/meta.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ab-${{ matrix.req }}--${{ matrix.arm }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: warn
+
+  collect:
+    needs: [plan, build]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/arts
+          pattern: ab-*
+          merge-multiple: true
+      - name: Blind the pairs
+        run: node bakeoff/buildabot/assemble.mjs "${{ needs.plan.outputs.run_id }}" --from "$RUNNER_TEMP/arts" --out "$RUNNER_TEMP/results"
+      - name: Push results to an orphan results branch
+        run: |
+          ID=${{ needs.plan.outputs.run_id }}
+          cd "$RUNNER_TEMP/results"
+          git init -q && git checkout -q --orphan "buildabot/$ID"
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -q -m "buildabot A/B $ID"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "buildabot/$ID"
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
