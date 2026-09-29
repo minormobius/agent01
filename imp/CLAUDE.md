@@ -15,10 +15,10 @@ only **publishes** what that rig produced.
 | Surface | `imp` |
 | Dir | `imp/` |
 | Endpoint | `imp.mino.mobi` (plain route — no custom-domain slot); `imp.minomobi.com` serves only `/ab/` (second plain route, minomobi.com zone) |
-| Type | frontend (assets + a ~40-line `worker.js`, worker name `imp`) |
+| Type | frontend + a small `worker.js` (host rules, the ballot API) and one Durable Object (`Ballot`, SQLite), worker name `imp` |
 | Owning branch | `claude/friends-project-planning-cags5l` |
 | Deploy | `.github/workflows/deploy-imp.yml` (route-dns, deploy, then fails unless the host serves) |
-| Uses | — |
+| Uses | `mino-auth` (service binding `AUTH`, identity for the ballot) |
 
 ## How it works
 
@@ -62,6 +62,26 @@ signed-in user. `worker.js` therefore serves `/ab/` only on `imp.minomobi.com` (
 domain, as production serves tenants from minomobi.com) under production's lab CSP, redirects
 `imp.mino.mobi/ab/*` there, and redirects everything else on `imp.minomobi.com` back. `deploy-imp.yml`
 checks all three. Import pairs only after reading them; `mapping.json` (the key) is never copied here.
+
+## /vote/ — the ballot
+
+`vote/index.html` is the blind ballot for the A/B runs, on imp.mino.mobi (a normal `*.mino.mobi` page: it
+signs in with the shared client, `vote/auth.js`, a synced copy of `packages/oauth-client/auth.js`,
+identity scope only). It reads `vote/runs.json` and `vote/runs/<run>.json` (written by
+`bakeoff/buildabot/publish-pairs.mjs`: the public fields of each pair, never the key) and talks to
+`worker.js`:
+
+| route | who | what |
+|---|---|---|
+| `GET /api/ballot/me` | anyone | `{signedIn, voter, did, handle}` — asks `mino-auth` `/api/me` with the caller's cookie/Bearer |
+| `GET /api/ballot/votes?run=` | a voter | their votes and whether the run is sealed |
+| `POST /api/ballot/vote` `{run, pair, pick, note}` | a voter, Origin imp.mino.mobi | upsert one vote (`pick`: a, b, tie or null) |
+| `POST /api/ballot/seal` `{run}` | a voter, Origin imp.mino.mobi | freeze the run |
+| `GET /api/ballot/results?run=` | anyone | the votes, **only once sealed** — how the reveal is read |
+
+Voters are the DIDs in `wrangler.jsonc` `vars.VOTERS` (minormobius, majormobius). Votes live in the `Ballot`
+Durable Object (one instance, SQLite; migration tag `v1`). **The Durable Object holds the only copy of the
+votes**: deleting the worker or the class deletes them (`docs/DEPLOYS.md` §7).
 
 ## What must stay true
 

@@ -3,6 +3,7 @@
 //
 //   node bakeoff/buildabot/publish-pairs.mjs <run-id>            # from origin/buildabot/<run-id>
 //   node bakeoff/buildabot/publish-pairs.mjs <run-id> --from <dir>
+//   … --label "practice"      the run's label on the ballot (kept from last time if omitted)
 //
 // Copies sites/<pair>-<side>/ and pairs.json. NEVER mapping.json, report.md or
 // builds/ — those say which builder made which site, and imp/ is public.
@@ -20,6 +21,7 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../.
 const args = process.argv.slice(2);
 const runId = args[0];
 const fromAt = args.indexOf('--from');
+// (--label's value is read below)
 if (!/^ab-[a-z0-9-]+$/.test(runId || '')) { console.error('usage: publish-pairs.mjs <ab-run-id> [--from <dir>]'); process.exit(2); }
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'buffer', maxBuffer: 256 << 20 });
 
@@ -69,5 +71,18 @@ for (const f of git('ls-tree', '-r', '--name-only', KREF, 'lab/_kit/').toString(
   fs.writeFileSync(dst, git('show', `${KREF}:${f}`));
 }
 const pairs = JSON.parse(fs.readFileSync(path.join(out, 'pairs.json'), 'utf8')).pairs;
+
+// The ballot (imp.mino.mobi/vote/) reads the pair list from its own host: the
+// same public fields as pairs.json, plus a run index with a label.
+const labelAt = args.indexOf('--label');
+const voteDir = path.join(ROOT, 'imp', 'vote', 'runs');
+fs.mkdirSync(voteDir, { recursive: true });
+fs.writeFileSync(path.join(voteDir, `${runId}.json`), JSON.stringify({ run: runId, pairs }, null, 1) + '\n');
+const idxPath = path.join(ROOT, 'imp', 'vote', 'runs.json');
+const idx = fs.existsSync(idxPath) ? JSON.parse(fs.readFileSync(idxPath, 'utf8')) : { runs: [] };
+const prev = idx.runs.find((r) => r.id === runId);
+const label = labelAt >= 0 ? args[labelAt + 1] : prev?.label || '';
+idx.runs = [...idx.runs.filter((r) => r.id !== runId), { id: runId, label, pairs: pairs.length }].sort((a, b) => b.id.localeCompare(a.id));
+fs.writeFileSync(idxPath, JSON.stringify(idx, null, 1) + '\n');
 console.log(`imp/ab/${runId}: ${pairs.length} pairs, ${keep.length - 1} site files; kit refreshed`);
 for (const p of pairs) console.log(`  ${p.id}  https://imp.minomobi.com/ab/${runId}/${p.id}-a/  |  ${p.id}-b/   ${p.slug}`);

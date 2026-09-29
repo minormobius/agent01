@@ -59,3 +59,12 @@ jobs:
           loc=$(curl -sSI https://imp.mino.mobi/ab/ | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}')
           [ "$loc" = "https://imp.minomobi.com/ab/" ] || { echo "✗ imp.mino.mobi/ab/ does not redirect off-site (got '$loc')"; exit 1; }
           echo "✓ imp.minomobi.com/ab/ serves with the lab CSP; imp.mino.mobi/ab/ redirects there"
+      # The ballot: the page serves, and the API answers (signed out) through the auth binding.
+      - name: Verify the ballot (imp.mino.mobi/vote/ and /api/ballot/me)
+        run: |
+          curl -fsS https://imp.mino.mobi/vote/ | grep -q "Blind Ballot" || { echo "✗ /vote/ does not serve"; exit 1; }
+          me=$(curl -fsS https://imp.mino.mobi/api/ballot/me) || { echo "✗ /api/ballot/me failed"; exit 1; }
+          echo "$me" | grep -q '"signedIn":false' || { echo "✗ unexpected /api/ballot/me: $me"; exit 1; }
+          r=$(curl -fsS "https://imp.mino.mobi/api/ballot/results?run=ab-01")
+          echo "$r" | grep -q '"run":"ab-01"' || { echo "✗ /api/ballot/results: $r"; exit 1; }
+          echo "✓ ballot page and API answer"

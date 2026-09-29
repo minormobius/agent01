@@ -7493,6 +7493,16 @@
    "age": "hot",
    "parent": "imp",
    "discovered": true
+  },
+  {
+   "id": "imp/vote",
+   "name": "vote",
+   "url": "https://imp.mino.mobi/vote/",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "imp",
+   "discovered": true
   }
  ]
 }

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Build-a-bot Blind Ballot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap">
+<style>
+:root {
+  --bg: #f4f1ea; --card: #fbfaf6; --ink: #1f1d1a; --muted: #6b665c; --rule: #d9d3c6;
+  --mark: #1f1d1a; --mark-ink: #fbfaf6; --pick: #2f5d50; --pick-soft: #dfe9e4; --tie: #7a6a3d; --tie-soft: #efe8d4;
+  --warn: #8a3b12; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #161513; --card: #1f1d1a; --ink: #ece7dc; --muted: #a39d90; --rule: #3a3731;
+  --mark: #ece7dc; --mark-ink: #1f1d1a; --pick: #8cc4b1; --pick-soft: #22332d; --tie: #d6c38e; --tie-soft: #332e20;
+  --warn: #f0a57c; color-scheme: dark } }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 "IBM Plex Sans", system-ui, sans-serif; }
+.wrap { max-width: 46rem; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; }
+h1 { font: 600 clamp(1.6rem, 4vw, 2.2rem)/1.15 "Newsreader", Georgia, serif; margin: 0 0 6px; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0 0 18px; max-width: 62ch; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 12px 0; border-block: 1px solid var(--rule); margin-bottom: 18px; }
+.bar label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+select, input[type=text] { font: inherit; background: var(--card); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 9px; }
+.tally { font: 600 13px "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+.meter { flex: 1 1 160px; height: 6px; background: var(--rule); border-radius: 3px; overflow: hidden; min-width: 120px; }
+.meter i { display: block; height: 100%; background: var(--pick); width: 0; transition: width .3s; }
+.runlabel { width: 100%; font-size: 13px; color: var(--muted); margin: -4px 0 0; }
+.how { font-size: 14px; color: var(--muted); margin: 0 0 22px; }
+.how b { color: var(--ink); font-weight: 600; }
+.signin { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; margin-bottom: 18px; display: grid; gap: 10px; }
+.signin form { display: flex; flex-wrap: wrap; gap: 8px; }
+.signin input { flex: 1 1 14rem; min-width: 0; }
+.who-bar { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+.btn { font: 600 14px "IBM Plex Sans", sans-serif; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--ink); background: var(--ink); color: var(--bg); cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--rule); }
+.pairs { display: grid; gap: 16px; }
+.pair { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.pair.done { border-color: var(--pick); }
+.head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.pid { font: 600 12px "IBM Plex Mono", monospace; letter-spacing: .04em; color: var(--muted); }
+.slug { font: 600 17px "Newsreader", Georgia, serif; }
+.who { font-size: 13px; color: var(--muted); }
+.status { margin-left: auto; font: 600 11px "IBM Plex Mono", monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.pair.done .status { color: var(--pick); }
+.task { white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.5 "IBM Plex Mono", monospace; background: var(--bg); border-radius: 6px; padding: 10px 12px; max-height: 7.5em; overflow: hidden; margin: 0; }
+.task.open { max-height: none; }
+.more { font: inherit; font-size: 13px; background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 0; justify-self: start; }
+.sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.site { white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 8px; border: 1px solid var(--rule); text-decoration: none; color: var(--ink); font-weight: 600; }
+.site:hover { border-color: var(--ink); }
+.site .l { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--mark); color: var(--mark-ink); font: 600 14px "IBM Plex Mono", monospace; }
+.vote { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; }
+.vote button { font: 600 14px "IBM Plex Sans", sans-serif; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--rule); background: transparent; color: var(--ink); cursor: pointer; user-select: none; -webkit-user-select: none; }
+.vote button:hover:not(:disabled) { border-color: var(--ink); }
+.vote button[aria-pressed="true"] { background: var(--pick-soft); border-color: var(--pick); }
+.vote button.tie[aria-pressed="true"] { background: var(--tie-soft); border-color: var(--tie); }
+.vote button:disabled { opacity: .5; cursor: default; }
+textarea { font: inherit; font-size: 14px; line-height: 1.45; width: 100%; min-height: 3.2em; resize: vertical; background: var(--bg); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; }
+.saved { font-size: 12px; color: var(--muted); min-height: 1em; }
+.empty, .err { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--rule); border-radius: 10px; }
+.err { color: var(--warn); }
+.seal { margin-top: 24px; padding: 16px; border: 1px solid var(--rule); border-radius: 10px; display: grid; gap: 10px; }
+.seal p { margin: 0; font-size: 14px; color: var(--muted); }
+.seal .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.foot { margin-top: 28px; font-size: 13px; color: var(--muted); }
+.foot a { color: inherit; }
+@media (max-width: 460px) { .vote { grid-template-columns: 1fr 1fr; } .vote .tie { grid-column: 1 / -1; grid-row: 2; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Which one would you rather have been sent?</h1>
+  <p class="lede">Each pair is one real Bluesky request to the build-a-bot, built twice by the same model with two different harnesses. The letters are shuffled per pair. Nothing on this page knows which builder is which.</p>
+
+  <div id="signin" class="signin" hidden>
+    <div>Sign in with the Bluesky account this ballot belongs to. Identity only: the page asks for no permission to post.</div>
+    <form id="login"><input id="handle" type="text" placeholder="you.bsky.social" autocomplete="username" aria-label="Bluesky handle"><button class="btn" type="submit">Sign in</button></form>
+    <div class="saved" id="signin-msg"></div>
+  </div>
+  <p class="who-bar" id="whobar" hidden></p>
+
+  <div class="bar">
+    <label for="run">Run</label>
+    <select id="run"></select>
+    <span class="tally" id="tally">—</span>
+    <span class="meter" aria-hidden="true"><i id="meter"></i></span>
+    <p class="runlabel" id="runlabel"></p>
+  </div>
+
+  <p class="how">Open <b>both</b> sites, ideally on the device the requester would have used. Try what the request asked for. Then pick the one you'd rather have received, or <b>tie</b> if you genuinely can't choose. A note on why helps more than anything.</p>
+
+  <div class="pairs" id="pairs"><div class="empty">Loading pairs…</div></div>
+
+  <div class="seal" id="seal" hidden>
+    <p id="seal-text">When every pair is judged, seal the run. Sealing freezes your votes and makes them readable for the reveal; nothing can be changed after.</p>
+    <div class="row"><button class="btn ghost" id="seal-btn" type="button">Seal this run…</button></div>
+  </div>
+
+  <p class="foot">Pairs are served from imp.minomobi.com, off the mino.mobi sign-in's site, under the factory's own content policy. Votes save as you go. <a href="/">The Imp evaluation</a>.</p>
+</div>
+
+<script type="module">
+import { AuthClient } from './auth.js';
+
+const $ = (s, r = document) => r.querySelector(s);
+const HOST = 'https://imp.minomobi.com/ab/';
+const auth = new AuthClient();
+let me = null, runs = [], run = null, pairs = [], votes = {}, sealed = false;
+const noteTimers = {};
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else e.setAttribute(k, v);
+  }
+  for (const k of kids) if (k) e.append(k);
+  return e;
+}
+
+async function api(path, body) {
+  const headers = {};
+  const token = auth.getToken?.();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body) headers['Content-Type'] = 'application/json';
+  const r = await fetch(`/api/ballot/${path}`, { method: body ? 'POST' : 'GET', headers, credentials: 'include', body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || `HTTP ${r.status}`), { status: r.status });
+  return j;
+}
+
+const canVote = () => !!me?.voter && !sealed;
+
+function render() {
+  const box = $('#pairs');
+  const done = pairs.filter((p) => votes[p.id]?.pick).length;
+  $('#tally').textContent = pairs.length ? `${done} of ${pairs.length} judged` : '—';
+  $('#meter').style.width = pairs.length ? `${(100 * done) / pairs.length}%` : '0';
+  const r = runs.find((x) => x.id === run);
+  $('#runlabel').textContent = r?.label || '';
+  $('#seal').hidden = !me?.voter || !pairs.length;
+  if (sealed) { $('#seal-text').textContent = 'This run is sealed. Your votes are frozen and ready for the reveal.'; $('#seal-btn').hidden = true; }
+  else { $('#seal-text').textContent = `When every pair is judged, seal the run. Sealing freezes your votes and makes them readable for the reveal; nothing can be changed after.${done < pairs.length ? ` (${pairs.length - done} still open.)` : ''}`; $('#seal-btn').hidden = false; }
+  if (!pairs.length) { box.replaceChildren(el('div', { class: 'empty', text: run ? 'No pairs in this run yet.' : 'No runs yet.' })); return; }
+  const keep = new Set();
+  for (const p of pairs) {
+    keep.add(p.id);
+    let card = box.querySelector(`[data-id="${p.id}"]`);
+    if (!card) { card = buildCard(p); box.append(card); }
+    const v = votes[p.id] || {};
+    card.classList.toggle('done', !!v.pick);
+    card.querySelector('.status').textContent = v.pick ? (v.pick === 'tie' ? 'tie' : `picked ${v.pick.toUpperCase()}`) : 'open';
+    for (const b of card.querySelectorAll('.vote button')) { b.setAttribute('aria-pressed', String(v.pick === b.dataset.pick)); b.disabled = !canVote(); }
+    const ta = card.querySelector('textarea');
+    if (document.activeElement !== ta && ta.value !== (v.note || '')) ta.value = v.note || '';
+    ta.disabled = !canVote();
+  }
+  for (const c of [...box.children]) if (!keep.has(c.dataset?.id)) c.remove();
+}
+
+function buildCard(p) {
+  const card = el('article', { class: 'pair', 'data-id': p.id });
+  const task = el('pre', { class: 'task', text: p.task || '' });
+  const more = el('button', { class: 'more', type: 'button', text: 'show the whole request' });
+  more.onclick = () => { const o = task.classList.toggle('open'); more.textContent = o ? 'show less' : 'show the whole request'; };
+  const link = (s) => el('a', { class: 'site', href: `${HOST}${run}/${p.id}-${s}/`, target: '_blank', rel: 'noopener' },
+    el('span', { class: 'l', text: s.toUpperCase() }), el('span', { text: 'Open ↗' }));
+  const btn = (pick, label, cls = '') => {
+    const b = el('button', { type: 'button', 'data-pick': pick, class: cls, 'aria-pressed': 'false', text: label });
+    b.onclick = () => castVote(p.id, pick);
+    return b;
+  };
+  const note = el('textarea', { placeholder: 'Why? (optional — what made one better, or what both got wrong)', 'aria-label': `Note on ${p.id}` });
+  const saved = el('div', { class: 'saved' });
+  note.oninput = () => { clearTimeout(noteTimers[p.id]); saved.textContent = '…'; noteTimers[p.id] = setTimeout(() => saveNote(p.id, note.value, saved), 700); };
+  card.append(...[
+    el('div', { class: 'head' }, el('span', { class: 'pid', text: p.id }), el('span', { class: 'slug', text: p.slug }),
+      p.requester ? el('span', { class: 'who', text: `asked by @${p.requester}` }) : null, el('span', { class: 'status', text: 'open' })),
+    task,
+    (p.task || '').length > 160 ? more : null,
+    el('div', { class: 'sides' }, link('a'), link('b')),
+    el('div', { class: 'vote' }, btn('a', 'A is better'), btn('tie', 'Tie', 'tie'), btn('b', 'B is better')),
+    note, saved,
+  ].filter(Boolean));
+  return card;
+}
+
+async function castVote(id, pick) {
+  if (!canVote()) return;
+  const prev = votes[id]?.pick || null;
+  const next = prev === pick ? null : pick; // tapping your pick again clears it
+  votes[id] = { ...(votes[id] || {}), pick: next };
+  render();
+  try { await api('vote', { run, pair: id, pick: next, note: votes[id].note || '' }); }
+  catch (e) { votes[id].pick = prev; render(); alertBar(`Vote not saved: ${e.message}`); }
+}
+
+async function saveNote(id, text, saved) {
+  if (!canVote()) return;
+  votes[id] = { ...(votes[id] || {}), note: text };
+  try { await api('vote', { run, pair: id, pick: votes[id].pick || null, note: text }); saved.textContent = 'saved'; }
+  catch (e) { saved.textContent = `not saved: ${e.message}`; }
+}
+
+function alertBar(msg) { const w = $('#whobar'); w.hidden = false; w.textContent = msg; }
+
+async function loadRun(id) {
+  run = id; pairs = []; votes = {}; sealed = false;
+  $('#pairs').replaceChildren(el('div', { class: 'empty', text: 'Loading pairs…' }));
+  try {
+    pairs = (await (await fetch(`runs/${id}.json`, { cache: 'no-store' })).json()).pairs.sort((a, b) => a.id.localeCompare(b.id));
+  } catch { $('#pairs').replaceChildren(el('div', { class: 'err', text: 'Could not load this run.' })); return; }
+  if (me?.voter) {
+    try { const v = await api(`votes?run=${id}`); votes = v.votes || {}; sealed = (v.sealed || []).length > 0; }
+    catch (e) { alertBar(`Could not load your votes: ${e.message}`); }
+  }
+  render();
+}
+
+$('#seal-btn').onclick = async (ev) => {
+  const b = ev.currentTarget;
+  if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Really seal? Votes cannot change after. Tap again.'; setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Seal this run…'; }, 6000); return; }
+  try { await api('seal', { run }); sealed = true; render(); }
+  catch (e) { alertBar(`Not sealed: ${e.message}`); }
+};
+
+$('#login').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const h = $('#handle').value.trim();
+  if (!h) return;
+  $('#signin-msg').textContent = 'Taking you to Bluesky…';
+  try { await auth.login(h, { scope: 'atproto' }); } catch (e) { $('#signin-msg').textContent = `Sign-in failed: ${e.message}`; }
+};
+
+(async () => {
+  try { await auth.init(); } catch {}
+  try { me = await api('me'); } catch { me = null; }
+  if (!me?.signedIn) $('#signin').hidden = false;
+  else {
+    const w = $('#whobar'); w.hidden = false;
+    w.textContent = me.voter ? `Voting as @${me.handle}.` : `Signed in as @${me.handle}, which is not this ballot's voter — you can look, not vote.`;
+  }
+  try { runs = (await (await fetch('runs.json', { cache: 'no-store' })).json()).runs; } catch { runs = []; }
+  const sel = $('#run');
+  sel.replaceChildren(...runs.map((r) => el('option', { value: r.id, text: `${r.id} · ${r.pairs} pairs` })));
+  sel.onchange = () => loadRun(sel.value);
+  if (runs.length) loadRun(runs[0].id); else render();
+})();
+</script>
+</body>
+</html>

@@ -16,6 +16,13 @@
   // A PLAIN ROUTE, not a custom domain: it costs none of the zone's 100
   // custom-domain slots (routes cap at 1000). A route makes no DNS, so
   // deploy-imp.yml runs scripts/route-dns.mjs before wrangler deploy.
+  // The A/B ballot (imp.mino.mobi/vote/): votes in one SQLite Durable Object,
+  // identity from the shared sign-in via a service binding to the auth worker,
+  // and only these DIDs may vote (minormobius, majormobius).
+  "durable_objects": { "bindings": [{ "name": "BALLOT", "class_name": "Ballot" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Ballot"] }],
+  "services": [{ "binding": "AUTH", "service": "mino-auth" }],
+  "vars": { "VOTERS": "did:plc:7zre4plmd5jllccww575j6sb,did:plc:kwfkqhkzs3olbqfam3mqcmkv" },
   //
   // imp.minomobi.com is a second plain route on the minomobi.com zone (the
   // build-a-bot's own domain) — also no custom-domain slot.
