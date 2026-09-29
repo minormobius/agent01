@@ -33,9 +33,9 @@ _Regenerated 2026-09-29 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-29, 99 members / 297 posts):
+**Neighborhood spark** (bisk 2026-09-29, 99 members / 274 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: bluesky, llm, opus
+- Distinctive words: jev, llm, personhood
 - Top post: "sometimes he just wants to be held like this" — @hailey.at
 <!-- BRIEF_END -->
 
