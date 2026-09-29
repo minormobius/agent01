@@ -4442,6 +4442,11 @@
       "reason": "the served asset root of the parts surface (parts.mino.mobi); parts/ itself is the worker and the index library"
     },
     {
+      "glob": "imp/ab/**",
+      "kind": "content",
+      "reason": "one blinded build-a-bot site per A/B pair side (imp/ab/<run>/<pair>-a|b) plus the factory kit they link; served only on imp.minomobi.com"
+    },
+    {
       "glob": "imp/ab",
       "kind": "content",
       "reason": "blinded build-a-bot A/B pairs inside the imp evaluation; served only on imp.minomobi.com, voted on privately"

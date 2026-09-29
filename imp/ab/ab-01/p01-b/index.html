@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atlink — bsky.app ⇄ at:// converter</title>
+<meta property="og:title" content="atlink — bsky.app ⇄ at:// converter">
+<meta property="og:description" content="Paste a Bluesky post link or an at:// URI and get the other one back, with the authority, collection and record key broken out. Pure string parsing, no network calls.">
+<meta property="og:type" content="website">
+<meta name="description" content="Two-way converter between bsky.app permalinks and AT Protocol at:// URIs — local string parsing only, and an explainer for how the URI is structured.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js" defer></script>
+<style>
+  :root { --accent: #55c9b8; --accent-dim: #123531; }
+  .sub { max-width: 38rem; }
+  label.field-label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .35rem; }
+  input#in { font-size: 1rem; }
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: .75rem; }
+  .row button { flex: none; }
+  .examples { margin: 1rem 0 2rem; font-size: .85rem; }
+  .examples .label { color: var(--muted); display: block; margin-bottom: .4rem; }
+  .examples button {
+    display: block; width: 100%; text-align: left; background: var(--bg-raised);
+    border: 1px solid var(--border); color: var(--fg); font-size: .8rem;
+    padding: .6rem .75rem; margin-bottom: .5rem; word-break: break-all;
+    min-height: 44px;
+  }
+  .examples button:hover { border-color: var(--accent); background: var(--bg-raised); color: var(--fg); }
+  .examples button .tag { color: var(--accent); font-weight: 600; margin-right: .4rem; }
+
+  #err, #note { margin: 1rem 0; }
+  #note { background: var(--accent-dim); border: 1px solid var(--accent);
+    color: var(--fg); padding: .75rem 1rem; border-radius: var(--radius); font-size: .85rem; }
+
+  #result { display: none; margin-top: 1.5rem; }
+  #result.show { display: block; }
+  .out-label { font-size: .8rem; color: var(--muted); margin-bottom: .4rem; }
+  .out-row { display: flex; gap: .6rem; align-items: stretch; flex-wrap: wrap; }
+  .out-row code {
+    flex: 1 1 16rem; min-width: 0; word-break: break-all; background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: .8rem 1rem;
+    display: block; color: var(--fg); font-size: .9rem;
+  }
+  .out-row button { flex: none; min-height: 44px; }
+
+  table.parts { width: 100%; border-collapse: collapse; margin-top: 1.5rem; font-size: .85rem; table-layout: fixed; }
+  table.parts th { text-align: left; color: var(--muted); font-weight: 400; padding: .5rem .5rem .5rem 0;
+    width: 8rem; vertical-align: top; }
+  table.parts td { padding: .5rem 0; color: var(--fg); word-break: break-all; border-top: 1px solid var(--border); }
+  table.parts th { border-top: 1px solid var(--border); }
+  table.parts tr:first-child th, table.parts tr:first-child td { border-top: none; }
+  table.parts td.dim { color: var(--muted); }
+  table.parts code { color: var(--accent); background: none; padding: 0; }
+
+  h2 { font-size: .95rem; margin: 2.5rem 0 .5rem; color: var(--fg); }
+  footer.explain p { font-size: .82rem; }
+  footer.explain code { font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / atlink</div>
+  <h1>atlink</h1>
+  <p class="sub">Paste a Bluesky post link (<code>bsky.app/profile/…/post/…</code>) or an
+    AT Protocol <code>at://</code> URI. The direction is detected from what you paste —
+    there's nothing to choose. Everything below runs by parsing the text you typed;
+    this page makes no network requests at all.</p>
+
+  <label class="field-label" for="in">bsky.app URL or at:// URI</label>
+  <input type="text" id="in" autocomplete="off" autocapitalize="none" autocorrect="off"
+    spellcheck="false" inputmode="url"
+    placeholder="https://bsky.app/profile/… or at://…">
+
+  <div class="examples">
+    <span class="label">Try one:</span>
+    <button type="button" data-ex="0"><span class="tag">bsky.app → at://</span>https://bsky.app/profile/atproto.bsky.social/post/3k7fjnk3z6b2x</button>
+    <button type="button" data-ex="1"><span class="tag">at:// → bsky.app (did:)</span>at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3k7fjnk3z6b2x</button>
+    <button type="button" data-ex="2"><span class="tag">at:// → bsky.app (handle)</span>at://atproto.bsky.social/app.bsky.feed.post/3k7fjnk3z6b2x</button>
+  </div>
+
+  <div id="err" class="err" role="alert" hidden></div>
+  <div id="note" hidden></div>
+
+  <div id="result">
+    <div class="out-label" id="outLabel">Converted</div>
+    <div class="out-row">
+      <code id="outValue"></code>
+      <button type="button" id="copyBtn">Copy</button>
+    </div>
+
+    <table class="parts">
+      <tr><th>Authority</th><td id="pAuthority"></td></tr>
+      <tr><th>Collection</th><td id="pCollection"></td></tr>
+      <tr><th>Rkey</th><td id="pRkey"></td></tr>
+    </table>
+  </div>
+
+  <h2>How an AT URI is structured</h2>
+  <footer class="explain">
+    <p><code>at://&lt;authority&gt;/&lt;collection&gt;/&lt;rkey&gt;</code> —
+      the <b>authority</b> names the repo (a DID, or a handle that still needs resolving),
+      the <b>collection</b> is the record's NSID (<code>app.bsky.feed.post</code> for an
+      ordinary post), and the <b>rkey</b> is that record's key inside the collection.
+      A bsky.app permalink is the same three things spelled out as a web path instead.</p>
+    <p><b>A handle authority is not canonical.</b> <code>at://alice.bsky.social/…</code>
+      and <code>at://did:plc:xyz…/…</code> can name the very same record, but only the
+      DID form is canonical — a handle can be repointed to a different account later,
+      a DID never changes. Turning one into the other means resolving the handle
+      (<code>com.atproto.identity.resolveHandle</code>), which is a network lookup this
+      page deliberately does not make. If you paste a handle authority, the conversion
+      still works — it's just not the canonical form.</p>
+    <p>Recognised collections here: <code>app.bsky.feed.post</code> (post),
+      <code>app.bsky.feed.generator</code> (feed), <code>app.bsky.graph.list</code> (lists),
+      <code>app.bsky.graph.starterpack</code> (starter-pack). Anything else parses fine —
+      you'll just get the breakdown, not a bsky.app link, since this tool doesn't know
+      that collection's URL shape.</p>
+  </footer>
+</main>
+<script>
+(function () {
+  'use strict';
+
+  var SEG_TO_COL = {
+    post: 'app.bsky.feed.post',
+    feed: 'app.bsky.feed.generator',
+    lists: 'app.bsky.graph.list',
+    'starter-pack': 'app.bsky.graph.starterpack'
+  };
+  var COL_TO_SEG = {};
+  Object.keys(SEG_TO_COL).forEach(function (seg) { COL_TO_SEG[SEG_TO_COL[seg]] = seg; });
+
+  var input = document.getElementById('in');
+  var errEl = document.getElementById('err');
+  var noteEl = document.getElementById('note');
+  var result = document.getElementById('result');
+  var outLabel = document.getElementById('outLabel');
+  var outValue = document.getElementById('outValue');
+  var copyBtn = document.getElementById('copyBtn');
+  var pAuthority = document.getElementById('pAuthority');
+  var pCollection = document.getElementById('pCollection');
+  var pRkey = document.getElementById('pRkey');
+
+  var notes = [];
+  function reset() {
+    kit.clear(errEl);
+    notes = []; noteEl.textContent = ''; noteEl.hidden = true;
+    result.classList.remove('show');
+    copyBtn.onclick = null;
+  }
+
+  function note(msg) { notes.push(msg); }
+  function flushNotes() {
+    if (!notes.length) { noteEl.hidden = true; noteEl.textContent = ''; return; }
+    noteEl.textContent = notes.join(' ');
+    noteEl.hidden = false;
+  }
+
+  function showParts(authority, collection, rkey) {
+    pAuthority.textContent = authority || '—';
+    pCollection.innerHTML = collection ? '<code>' + escapeHtml(collection) + '</code>' : '<span class="dim">—</span>';
+    pRkey.textContent = rkey || '—';
+    pCollection.className = collection ? '' : 'dim';
+    pRkey.className = rkey ? '' : 'dim';
+    result.classList.add('show');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function showOutput(label, value) {
+    outLabel.textContent = label;
+    outValue.textContent = value;
+    document.querySelector('.out-row').style.display = '';
+    copyBtn.onclick = function () { kit.copy(value, copyBtn); };
+  }
+
+  function hideOutput() {
+    document.querySelector('.out-row').style.display = 'none';
+  }
+
+  function canonicalNote(authority) {
+    if (authority && authority.indexOf('did:') !== 0) {
+      note('Authority "' + authority + '" is a handle, not a DID — this at:// form is not ' +
+        'canonical. Resolving it to the canonical did: form needs a network lookup, which ' +
+        'this page deliberately doesn’t make.');
+    }
+  }
+
+  // ---- at:// -> bsky.app --------------------------------------------------
+  function parseAtUri(s) {
+    var rest = s.replace(/^at:\/\//i, '').replace(/\/+$/, '');
+    if (!rest) return { error: 'Missing the authority — an at:// URI needs a DID or handle right after the scheme.' };
+    var segs = rest.split('/');
+    if (segs.length > 3) return { error: 'Too many path segments for a record URI — expected at://authority/collection/rkey.' };
+    var authority = segs[0], collection = segs[1], rkey = segs[2];
+    if (!authority) return { error: 'Missing the authority — an at:// URI needs a DID or handle right after the scheme.' };
+    if (!collection) return { authority: authority, repoRoot: true };
+    if (!rkey) return { error: 'Missing rkey — "' + collection + '" names a whole collection, not one record.' };
+    return { authority: authority, collection: collection, rkey: rkey };
+  }
+
+  function convertAtUri(s) {
+    var p = parseAtUri(s);
+    if (p.error) { kit.showError(errEl, p.error); return; }
+    if (p.repoRoot) {
+      showParts(p.authority, null, null);
+      note('This names a whole repo, not a record — there’s no collection or rkey to ' +
+        'build a permalink from. The nearest bsky.app equivalent is a profile page.');
+      showOutput('bsky.app URL (profile)', 'https://bsky.app/profile/' + p.authority);
+      canonicalNote(p.authority);
+      return;
+    }
+    var segment = COL_TO_SEG[p.collection];
+    showParts(p.authority, p.collection, p.rkey);
+    if (!segment) {
+      hideOutput();
+      note('Unrecognised collection — "' + p.collection + '" doesn’t have a known bsky.app ' +
+        'URL shape, so there’s no link to build. The breakdown above is still accurate.');
+      canonicalNote(p.authority);
+      return;
+    }
+    showOutput('bsky.app URL', 'https://bsky.app/profile/' + p.authority + '/' + segment + '/' + p.rkey);
+    canonicalNote(p.authority);
+  }
+
+  // ---- bsky.app -> at:// --------------------------------------------------
+  function parseBskyUrl(raw) {
+    var s = raw.trim();
+    if (!/^https?:\/\//i.test(s)) s = 'https://' + s.replace(/^\/\//, '');
+    var url;
+    try { url = new URL(s); } catch (e) { return { error: 'Not a valid URL.' }; }
+    var host = url.hostname.toLowerCase();
+    if (host !== 'bsky.app' && host !== 'www.bsky.app') {
+      return { error: 'Not a bsky.app URL — the host here is "' + url.hostname + '".' };
+    }
+    var parts = url.pathname.split('/').filter(Boolean).map(function (p) {
+      try { return decodeURIComponent(p); } catch (e) { return p; }
+    });
+    if (parts[0] !== 'profile') {
+      return { error: 'Not a recognised bsky.app permalink — expected /profile/<handle-or-did>/post/<rkey>.' };
+    }
+    if (!parts[1]) return { error: 'Missing the handle or DID in the URL.' };
+    var authority = parts[1];
+    if (parts.length === 2) return { authority: authority, repoRoot: true };
+    var segment = parts[2];
+    var rkey = parts[3];
+    if (!rkey) return { error: 'Missing rkey — the URL names a "' + segment + '" but not a specific record.' };
+    return { authority: authority, segment: segment, rkey: rkey };
+  }
+
+  function convertBskyUrl(s) {
+    var p = parseBskyUrl(s);
+    if (p.error) { kit.showError(errEl, p.error); return; }
+    if (p.repoRoot) {
+      showParts(p.authority, null, null);
+      note('This is a profile link, not a post — there’s no collection or rkey. The ' +
+        'nearest at:// equivalent is just the repo.');
+      showOutput('at:// URI (repo)', 'at://' + p.authority);
+      canonicalNote(p.authority);
+      return;
+    }
+    var collection = SEG_TO_COL[p.segment];
+    if (!collection) {
+      showParts(p.authority, null, p.rkey);
+      hideOutput();
+      note('Unrecognised collection — the path segment "' + p.segment + '" isn’t one this ' +
+        'tool knows how to map to an NSID (expected post, feed, lists, or starter-pack).');
+      canonicalNote(p.authority);
+      return;
+    }
+    showParts(p.authority, collection, p.rkey);
+    showOutput('at:// URI', 'at://' + p.authority + '/' + collection + '/' + p.rkey);
+    canonicalNote(p.authority);
+  }
+
+  function convert() {
+    var raw = input.value;
+    var s = raw.trim();
+    reset();
+    if (!s) return;
+    if (/^at:\/\//i.test(s)) { convertAtUri(s); flushNotes(); return; }
+    if (/bsky\.app/i.test(s)) { convertBskyUrl(s); flushNotes(); return; }
+    kit.showError(errEl, 'That’s neither an at:// URI nor a bsky.app URL — paste something ' +
+      'like https://bsky.app/profile/alice.bsky.social/post/3k… or at://did:plc:…/app.bsky.feed.post/3k…');
+  }
+
+  input.addEventListener('input', convert);
+
+  Array.prototype.forEach.call(document.querySelectorAll('.examples button'), function (btn) {
+    btn.addEventListener('click', function () {
+      var full = btn.textContent.replace(btn.querySelector('.tag').textContent, '').trim();
+      input.value = full;
+      convert();
+      input.focus();
+    });
+  });
+})();
+</script>
+</body>
+</html>
