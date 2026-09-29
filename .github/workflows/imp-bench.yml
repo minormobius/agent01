@@ -73,7 +73,7 @@ jobs:
             // far more than a baseline, so it runs only for the models named here.
             const gepa = cfg.gepa || {};
             for (const m of [...(gepa.models || []), ...(gepa.reflection ? [gepa.reflection] : [])])
-              if (!cells.models[m]) { console.error(`::error::unknown GEPA model ${m}`); process.exit(1); }
+              if (!cells.models[m] && m !== "sonnet") { console.error(`::error::unknown GEPA model ${m}`); process.exit(1); }
             const calls = Number(gepa.maxMetricCalls ?? 150);
             if (!(calls > 0 && calls <= 400)) { console.error(`::error::maxMetricCalls ${calls} is outside 1..400`); process.exit(1); }
             if (models.length > 8) { console.error("::error::more than 8 models looks like a mistake"); process.exit(1); }
@@ -140,8 +140,8 @@ jobs:
             BAKEOFF_OUT=/tmp/buildfake mix run -e 'ImpBench.main()'
       # sonnet runs through the Claude Code CLI on the subscription credential,
       # exactly as lab-build.yml's builder does (bakeoff/imp/lib/claude_code.ex)
-      - name: Install Claude Code (sonnet cells)
-        if: matrix.model == 'sonnet'
+      - name: Install Claude Code (sonnet cells, or sonnet reflection)
+        if: matrix.model == 'sonnet' || fromJSON(needs.plan.outputs.gepa).reflection == 'sonnet'
         run: npm install -g @anthropic-ai/claude-code
       - name: Run cell
         env:

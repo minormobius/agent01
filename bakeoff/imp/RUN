@@ -1,7 +1,17 @@
 {
   "runId": "imp-13",
-  "models": ["sonnet"],
-  "tasks": ["trec"],
-  "gepa": { "models": ["sonnet"], "reflection": "sonnet", "maxMetricCalls": 150 },
-  "note": "Claude Sonnet through the Claude Code CLI on the build-a-bot's subscription credential — the first run of Imp's new claude -p model. trec zero-shot, then GEPA with Sonnet reflecting on its own failures. Proves the adapter live and puts the build-a-bot's own model on the headline task."
+  "models": [
+    "sonnet"
+  ],
+  "tasks": [
+    "trec"
+  ],
+  "gepa": {
+    "models": [
+      "sonnet"
+    ],
+    "reflection": "sonnet",
+    "maxMetricCalls": 150
+  },
+  "note": "Claude Sonnet through the Claude Code CLI on the build-a-bot's subscription credential — the first run of Imp's new claude -p model. trec zero-shot, then GEPA with Sonnet reflecting on its own failures. Proves the adapter live and puts the build-a-bot's own model on the headline task. (retry: the plan step now accepts sonnet as a GEPA model)"
 }
