@@ -1,5 +1,4 @@
 {
-  "runId": "ab-01",
-  "requests": ["atlink", "tube-stacker"],
-  "note": "Pilot: one precise no-network tool (atlink) and one 3D game with controls (tube-stacker), both arms. Proves the pipeline — factory checkout, byte-identical baseline, eyes over MCP on a runner, critic/revise, gates, blinding — before the 20-pair run."
+  "runId": "ab-02",
+  "note": "All 20 held-out requests, both arms. The first clean run: prepare.sh rebuilds tenants, profiles and request files as of each request's time (ab-01 leaked a published copy and a later turn). The preregistered bar: the challenger wins 15 of 20 pairs, ties counting half."
 }

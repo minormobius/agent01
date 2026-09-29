@@ -72,19 +72,13 @@ jobs:
           npm install -g @anthropic-ai/claude-code
           if [ "${{ matrix.arm }}" = challenger ]; then npm install -g playwright-core@1.56.1; fi
           claude --version
-      # lab-www as it stood when the request came in: no published copy of this
-      # site, and the requester's profile without what later builds taught it.
+      # The tenants, profiles and request files as they stood when the request came in:
+      # no published copy of this site, no later turn of its thread (prepare.sh says why).
       - name: Prepare the factory tree
         working-directory: factory
         run: |
-          REQ=../rig/bakeoff/buildabot/requests/${{ matrix.req }}.json
-          AT=$(node -p "require('$REQ').requestedAt")
-          SLUG=$(node -p "require('$REQ').slug")
           git config user.name bakeoff; git config user.email bakeoff@localhost
-          LW=$(git rev-list -1 --before="$AT" origin/claude/lab-www || true)
-          if [ -n "$LW" ]; then git merge -q --no-edit "$LW"; echo "lab-www as of $AT: $LW"; else echo "::notice::lab-www has no commit before $AT"; fi
-          rm -rf "lab/www/$SLUG"
-          git add -A && git commit -q -m "held-out: remove $SLUG" --allow-empty
+          bash ../rig/bakeoff/buildabot/prepare.sh ../rig/bakeoff/buildabot/requests/${{ matrix.req }}.json
       - name: Build (${{ matrix.arm }})
         working-directory: factory
         env:

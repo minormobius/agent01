@@ -45,10 +45,16 @@ recovered from the thread banner (`_source.reconstructed`). `tube-tetris` runs a
 `tube-stacker`: today's content gate refuses the trademark in the slug, and
 production renamed it the same way.
 
-The build job merges `claude/lab-www` **as it stood at the request's time** and
-deletes the site's own directory, so neither arm sees the published answer or a
-profile that learned from later builds. The factory branch itself is today's:
-this measures a change against the pipeline as it is now.
+`prepare.sh` rebuilds the factory checkout's `lab/www/`, `lab/_profiles/` and
+`.github/lab-requests/` **as they stood at the request's time** (the factory
+branch, then lab-www over it), removes the site's own directory, and leaves this
+request as the only file for its slug. The factory branch tracks tenant copies
+and every request's *latest* turn, so without this a builder can Grep its slug
+and read the published answer and the requester's later complaints — the ab-01
+pilot did (both arms read a renamed published copy; the challenger read "pan is
+inverted x" from a follow-up). ab-01 is kept as a practice run and says so;
+ab-02 onwards are clean. Tooling, kit and pipeline stay today's: this measures a
+change against the pipeline as it is now.
 
 ## Running
 
