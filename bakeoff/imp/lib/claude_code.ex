@@ -6,12 +6,15 @@ defmodule ImpBench.ClaudeCode do
 
   Each call is one headless, tool-less turn:
 
-      claude -p --bare --model <model> --tools "" --output-format json \\
-        --max-turns 1 --no-session-persistence --strict-mcp-config \\
-        [--system-prompt <system>]   < prompt
+      cd <empty temp dir> && claude -p --model <model> --tools "" \\
+        --output-format json --max-turns 1 --no-session-persistence \\
+        --strict-mcp-config [--system-prompt <system>]   < prompt
 
-  `--bare` skips hooks and plugins — this repo's `.claude/settings.json` has
-  session hooks that must not fire on a CI runner. System messages become
+  Not `--bare`: bare mode reads only `ANTHROPIC_API_KEY` and never the OAuth
+  token (imp-13 lost every call to "Not logged in"). Running from an empty
+  temp dir gives the isolation instead — no project `.claude/settings.json`
+  hooks and no `CLAUDE.md` are discovered there, and a CI runner has no
+  `~/.claude`. System messages become
   `--system-prompt`; the rest of the conversation (the Chat adapter's
   few-shot demos arrive as user/assistant pairs) is rendered as a labelled
   transcript ending on the last user turn. The reply is the `result` field
@@ -68,7 +71,6 @@ defmodule ImpBench.ClaudeCode do
     args =
       [
         "-p",
-        "--bare",
         "--model",
         lm.model,
         "--tools",
@@ -83,7 +85,9 @@ defmodule ImpBench.ClaudeCode do
         if(system_text == "", do: [], else: ["--system-prompt", system_text])
 
     # stdin from a file: prompts can be long, and System.cmd has no stdin.
-    cmd = Enum.map_join([lm.cli | args], " ", &shell_quote/1) <> " < " <> shell_quote(prompt_file)
+    cmd =
+      "cd " <> shell_quote(dir) <> " && " <>
+        Enum.map_join([lm.cli | args], " ", &shell_quote/1) <> " < prompt.txt"
 
     task = Task.async(fn -> System.cmd("sh", ["-c", cmd], stderr_to_stdout: false) end)
 

@@ -46,6 +46,22 @@ defmodule ImpBench do
         probe = probe(lm)
         IO.puts("probe: " <> probe)
 
+        # A model that cannot answer one question will not answer 80: imp-13
+        # ran green with every call "Not logged in". Record why, fail the job.
+        if String.starts_with?(probe, "error") do
+          write_json(Path.join(out, "cell.json"), %{
+            model: model_key,
+            model_id: meta.model,
+            endpoint: meta.base_url,
+            status: "probe_failed",
+            probe: probe,
+            tasks: %{}
+          })
+
+          IO.puts("::error::#{model_key}: the probe failed, so no task ran — #{String.slice(probe, 0, 300)}")
+          System.halt(1)
+        end
+
         # A cell that outlives its job's time limit is killed with no chance to
         # write anything, so every finished stage checkpoints a `cell.json`
         # (status "partial") that the final write replaces.

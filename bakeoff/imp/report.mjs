@@ -57,7 +57,7 @@ lines.push(
 
 for (const { cell } of cells) {
   if (cell.status !== 'ran' && cell.status !== 'partial') {
-    lines.push(`| ${cell.model} | skipped: ${cell.reason} | | | | | | | |`);
+    lines.push(`| ${cell.model} | ${cell.status === "probe_failed" ? "probe failed: " + String(cell.probe).slice(0, 160).replace(/\|/g, "/") : "skipped: " + cell.reason} | | | | | | | |`);
     continue;
   }
   const r = cell.tasks.route, d = cell.tasks.desk, h = cell.tasks.desk_hard, tr = cell.tasks.trec;
