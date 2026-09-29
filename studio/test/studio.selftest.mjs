@@ -557,5 +557,24 @@ console.log('\nAnd Still It Grew (grew/)');
   ok(c.every(Number.isFinite) && dB(bar(61), bar(77)) > dB(bar(1), bar(5)) + 5, `the choir: finite, and the choruses in E (${dB(bar(61), bar(77)).toFixed(1)} dB) over the intro (${dB(bar(1), bar(5)).toFixed(1)} dB)`);
 }
 
+// 18 — The Minormobius Lectures (No. 10): a documentary from a public record --------------------------
+console.log('\nThe Minormobius Lectures (lecture/)');
+{
+  const S = await import('../lecture/score.js');
+  const { OPENING, LECTURES, QUOTED } = await import('../lecture/script.js');
+  const { DUR, LEXICON } = await import('../lecture/narration.js');
+  const R = await import('../lecture/record.js');
+  const { existsSync } = await import('node:fs');
+  const lines = [OPENING, ...LECTURES].flatMap((l) => l.lines);
+  const words = lines.flatMap((l) => l.say.toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g));
+  ok(LECTURES.length === 10 && DUR.length === lines.length && words.every((w) => LEXICON[w]), `the script: ten lectures, ${lines.length} lines, every word in narration.js (else: node studio/tools/lecture-narration.mjs)`);
+  const T = S.TIMELINE;
+  ok(T.every((l, i) => l.to > l.from && (i === 0 || l.from >= T[i - 1].to)) && S.duration > 400 && S.duration < 540, `the clock: lines in order, never overlapping, ${S.duration.toFixed(0)} s`);
+  ok(QUOTED.every((q) => R.QUOTES[q]) && Object.values(R.PEOPLE).flat().every((p) => !p.f || existsSync(new URL('../lecture/' + p.f, import.meta.url))), `the record: all ${QUOTED.length} quoted posts, and every face on disk`);
+  const v = await S.vocal(8000), dB = (t0, t1) => { let e = 0; for (let i = Math.floor(t0 * 8000); i < t1 * 8000; i++) e += v.audio[i] * v.audio[i]; return 10 * Math.log10(e / ((t1 - t0) * 8000) + 1e-12); };
+  const l0 = T[0];
+  ok(v.audio.every(Number.isFinite) && dB(l0.from, l0.to) > dB(0.5, 6) + 20, `the voice: finite, and speaking (${dB(l0.from, l0.to).toFixed(1)} dB) over the title's silence`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

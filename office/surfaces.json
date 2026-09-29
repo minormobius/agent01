@@ -3029,6 +3029,15 @@
    "parent": "studio"
   },
   {
+   "id": "the minormobius lectures",
+   "name": "the minormobius lectures",
+   "url": "https://studio.mino.mobi/lecture/",
+   "cat": "games",
+   "commits": 1,
+   "age": "hot",
+   "parent": "studio"
+  },
+  {
    "id": "nobody drew it",
    "name": "nobody drew it",
    "url": "https://studio.mino.mobi/nobody/",
