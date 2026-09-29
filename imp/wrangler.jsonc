@@ -3,15 +3,24 @@
   "name": "imp",
   "compatibility_date": "2026-09-20",
   // An independent evaluation of Imp (deepfates' DSPy port to Elixir), published
-  // from the bakeoff/imp rig. No build, no worker script, no bindings: the
-  // directory IS the site. CLAUDE.md is kept out of the upload by .assetsignore.
+  // from the bakeoff/imp rig. No build: the directory IS the site, and
+  // .assetsignore keeps CLAUDE.md, this file and worker.js out of the upload.
+  // worker.js runs first on every request for one rule — /ab/ (model-written
+  // A/B sites) is served only from imp.minomobi.com, off the mino.mobi site.
+  "main": "worker.js",
   "assets": {
-    "directory": "."
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": true
   },
   // A PLAIN ROUTE, not a custom domain: it costs none of the zone's 100
   // custom-domain slots (routes cap at 1000). A route makes no DNS, so
   // deploy-imp.yml runs scripts/route-dns.mjs before wrangler deploy.
+  //
+  // imp.minomobi.com is a second plain route on the minomobi.com zone (the
+  // build-a-bot's own domain) — also no custom-domain slot.
   "routes": [
-    { "pattern": "imp.mino.mobi/*", "zone_name": "mino.mobi" }
+    { "pattern": "imp.mino.mobi/*", "zone_name": "mino.mobi" },
+    { "pattern": "imp.minomobi.com/*", "zone_name": "minomobi.com" }
   ]
 }

@@ -45,3 +45,17 @@ jobs:
             echo "  attempt $attempt: not yet, sleeping…"; sleep 8
           done
           echo "✗ imp.mino.mobi did not serve within ~60s"; exit 1
+      # The A/B pairs host: must serve /ab/ with the lab CSP, and imp.mino.mobi/ab/ must send
+      # people there rather than run tenant code on the sign-in's site.
+      - name: Verify imp.minomobi.com serves /ab/ (route) and imp.mino.mobi does not
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if curl -fsS https://imp.minomobi.com/ab/ | grep -q "Blind pairs"; then ok=1; break; fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 8
+          done
+          [ -n "${ok:-}" ] || { echo "✗ imp.minomobi.com/ab/ did not serve within ~60s"; exit 1; }
+          curl -sSI https://imp.minomobi.com/ab/ | grep -qi "^content-security-policy: default-src 'none'" \
+            || { echo "✗ /ab/ is served without the lab CSP"; exit 1; }
+          loc=$(curl -sSI https://imp.mino.mobi/ab/ | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}')
+          [ "$loc" = "https://imp.minomobi.com/ab/" ] || { echo "✗ imp.mino.mobi/ab/ does not redirect off-site (got '$loc')"; exit 1; }
+          echo "✓ imp.minomobi.com/ab/ serves with the lab CSP; imp.mino.mobi/ab/ redirects there"

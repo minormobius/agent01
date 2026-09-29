@@ -14,8 +14,8 @@ only **publishes** what that rig produced.
 |---|---|
 | Surface | `imp` |
 | Dir | `imp/` |
-| Endpoint | `imp.mino.mobi` (plain route — no custom-domain slot) |
-| Type | frontend (thin assets Worker, worker name `imp`) |
+| Endpoint | `imp.mino.mobi` (plain route — no custom-domain slot); `imp.minomobi.com` serves only `/ab/` (second plain route, minomobi.com zone) |
+| Type | frontend (assets + a ~40-line `worker.js`, worker name `imp`) |
 | Owning branch | `claude/friends-project-planning-cags5l` |
 | Deploy | `.github/workflows/deploy-imp.yml` (route-dns, deploy, then fails unless the host serves) |
 | Uses | — |
@@ -42,7 +42,7 @@ after each new bench run, review the diff, commit. Every text file passes throug
 
 | section | runs | why |
 |---|---|---|
-| TREC chart | DeepSeek from imp-10, Kimi from imp-04 (`TREC_RUN`) | imp-04's 2,048-token replies starved the DeepSeek models: their hidden reasoning used the budget and ~64/80 calls returned no answer. imp-10 re-ran at 8,192. The page says so, as a correction. |
+| TREC chart | DeepSeek from imp-10, Kimi from imp-04, Sonnet from imp-14 (`TREC_RUN`) | imp-04's 2,048-token replies starved the DeepSeek models: their hidden reasoning used the budget and ~64/80 calls returned no answer. imp-10 re-ran at 8,192. The page says so, as a correction. |
 | Jev | latest run with a `jev` cell (imp-12) | |
 | era | per model, the latest run whose baseline mostly answered | DeepSeek Pro is left out: starved in imp-06, out of provider credit (HTTP 402) in imp-10 |
 | builds | every run with a `build` task (imp-09, imp-11) | imp-07/08 were harness failures (a 2,048 cap; scratch dirs shared with the self-test) and are not imported |
@@ -51,6 +51,17 @@ after each new bench run, review the diff, commit. Every text file passes throug
 A new run does not update the prose — re-read the numbers in `index.html` and `imp.js` when you import one.
 `build-imp.mjs --from-dir` imports a run whose results branch never landed (build it with
 `bakeoff/imp/report.mjs` from the downloaded cell artifacts).
+
+## /ab/ — the build-a-bot A/B pairs
+
+`ab/<run>/pNN-a|b/` holds blinded sites from [`../bakeoff/buildabot/`](../bakeoff/buildabot/CLAUDE.md):
+HTML a model wrote for a stranger's request. **It never runs on a `*.mino.mobi` origin.** That site is
+same-site with `auth.mino.mobi`, so the SSO cookie (`Domain=.mino.mobi`, `SameSite=Lax`) rides on its
+fetches, and the auth worker trusts every `*.mino.mobi` origin — a tenant page there could act as the
+signed-in user. `worker.js` therefore serves `/ab/` only on `imp.minomobi.com` (another registrable
+domain, as production serves tenants from minomobi.com) under production's lab CSP, redirects
+`imp.mino.mobi/ab/*` there, and redirects everything else on `imp.minomobi.com` back. `deploy-imp.yml`
+checks all three. Import pairs only after reading them; `mapping.json` (the key) is never copied here.
 
 ## What must stay true
 

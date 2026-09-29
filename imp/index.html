@@ -26,7 +26,7 @@
   <a href="https://github.com/deepfates/imp">Imp</a> is a port of
   <a href="https://dspy.ai">DSPy</a> to Elixir and the BEAM: you declare what a language-model call takes
   and returns, Imp writes the prompt and checks the reply, and an optimizer rewrites the program against
-  examples of what good looks like. This site is one outside look at it — four runs, three models,
+  examples of what good looks like. This site is one outside look at it — a series of runs across four models,
   every number reproducible from a committed rig, and everything that went wrong along the way.
 </p>
 
@@ -51,7 +51,7 @@
   </div>
   <svg id="trec-svg" role="img" aria-labelledby="trec-cap"></svg>
   <div class="tip" id="tip"></div>
-  <figcaption id="trec-cap">Held-out accuracy on 80 TREC questions, before and after GEPA, per model (DeepSeek from run imp-10, Kimi K3 from imp-04). One question is 1.25 points; these are single runs.</figcaption>
+  <figcaption id="trec-cap">Held-out accuracy on 80 TREC questions, before and after GEPA, per model (DeepSeek from run imp-10, Kimi K3 from imp-04, Claude Sonnet from imp-14). One question is 1.25 points; these are single runs.</figcaption>
 </figure>
 <details><summary>The same numbers as a table</summary><div class="tbl-wrap" id="trec-table"></div></details>
 
@@ -68,6 +68,10 @@
   reports for gpt-5.4-mini (Imp <code>RESULTS.md</code>, R3). <b>DeepSeek Pro</b> reached 80 of 80; its
   baseline still lost 26 calls to time-outs and a crowded connection pool, so its starting point is
   understated.</p>
+  <p><b>Claude Sonnet 5</b> (47.5% → 96.3%, run imp-14) ran with no API key at all. Imp's language-model
+  interface is one callback, so the rig gives it a model that shells out to the Claude Code CLI on the same
+  subscription credential the build-a-bot runs on (<code>bakeoff/imp/lib/claude_code.ex</code>, about a
+  hundred lines). Sonnet answered the questions and also wrote the reflections GEPA learned from.</p>
 </div>
 
 <h3>What the optimizer wrote</h3>

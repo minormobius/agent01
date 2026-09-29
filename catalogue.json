@@ -4442,6 +4442,11 @@
       "reason": "the served asset root of the parts surface (parts.mino.mobi); parts/ itself is the worker and the index library"
     },
     {
+      "glob": "imp/ab",
+      "kind": "content",
+      "reason": "blinded build-a-bot A/B pairs inside the imp evaluation; served only on imp.minomobi.com, voted on privately"
+    },
+    {
       "glob": "packages/cad/docs",
       "kind": "content",
       "reason": "the system page inside the cad surface (cad.mino.mobi/docs/): spec, data model, backend, kernels, tests, agent access; served, mirrored and versioned with the package"

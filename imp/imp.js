@@ -1,8 +1,8 @@
 // imp.mino.mobi — renders the evaluation from runs/index.json (written by
 // scripts/build-imp.mjs from the bakeoff/<run-id> results branches).
 
-const NAMES = { 'ds4-flash': 'DeepSeek V4 Flash', 'ds4-pro': 'DeepSeek V4 Pro', kimi3: 'Kimi K3' };
-const ORDER = ['ds4-flash', 'ds4-pro', 'kimi3'];
+const NAMES = { 'ds4-flash': 'DeepSeek V4 Flash', 'ds4-pro': 'DeepSeek V4 Pro', kimi3: 'Kimi K3', sonnet: 'Claude Sonnet 5' };
+const ORDER = ['ds4-flash', 'ds4-pro', 'kimi3', 'sonnet'];
 const modelName = (m) => NAMES[m] || m;
 const pct = (x) => (x == null ? '—' : `${Math.round(x * 1000) / 10}%`);
 const el = (tag, attrs = {}, ...kids) => {
@@ -35,7 +35,7 @@ const run = (id) => runs.find((r) => r.id === id);
 // with an 8,192-token reply budget after imp-04's 2,048 starved them (their
 // "parse errors" were hidden reasoning that used the whole budget); Kimi K3's
 // imp-04 run was clean.
-const TREC_RUN = { 'ds4-flash': 'imp-10', 'ds4-pro': 'imp-10', kimi3: 'imp-04' };
+const TREC_RUN = { 'ds4-flash': 'imp-10', 'ds4-pro': 'imp-10', kimi3: 'imp-04', sonnet: 'imp-14' };
 const trec = ORDER.map((m) => {
   const c = run(TREC_RUN[m])?.cells.find((x) => x.model === m && x.tasks.trec?.arms?.baseline);
   return c && { ...c, run: TREC_RUN[m] };
@@ -176,7 +176,7 @@ const trec = ORDER.map((m) => {
   const tbl = el('table');
   tbl.innerHTML = '<thead><tr><th>model</th><th class="num">route, zero-shot</th><th class="num">route, 8 examples</th><th class="num">desk</th><th class="num">desk_hard</th><th class="num">desk_hard tool calls</th><th class="num">desk_hard wall</th></tr></thead>';
   const tb = el('tbody');
-  for (const m of ORDER) {
+  for (const m of ORDER.filter((x) => x !== 'sonnet')) { // Sonnet has not run the tool tasks
     // Kimi's imp-01 cell failed on configuration; its routing numbers are from imp-02.
     const route = find(m === 'kimi3' ? 'imp-02' : 'imp-01', m, 'route');
     const desk = find('imp-01', m, 'desk');

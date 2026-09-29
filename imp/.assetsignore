@@ -3,3 +3,4 @@
 # served at the surface's public URL.
 CLAUDE.md
 wrangler.jsonc
+worker.js

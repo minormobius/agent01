@@ -6,12 +6,12 @@
 
 | tier | meaning | workers |
 |---|---|---|
-| **static** | no code: Static Assets hands out files | 32 |
-| **thin** | code that only forwards to the assets (a fallback, a redirect) | 25 |
+| **static** | no code: Static Assets hands out files | 31 |
+| **thin** | code that only forwards to the assets (a fallback, a redirect) | 26 |
 | **api** | real request handlers, no storage of its own | 23 |
 | **stateful** | binds D1 / KV / R2 / Durable Objects / queues / containers — holds data | 26 |
 
-Scheduled (cron): **10** workers. Reading secrets: **24**. Calling third-party hosts: **32**.
+Scheduled (cron): **10** workers. Reading secrets: **24**. Calling third-party hosts: **33**.
 
 ## Shared state — the blast radius
 
@@ -85,6 +85,7 @@ Scheduled (cron): **10** workers. Reading secrets: **24**. Calling third-party h
 | `fable` | fable | thin | — | — | — | — |
 | `fix` | fix | thin | — | — | — | — |
 | `fold` | fold | thin | — | — | — | — |
+| `imp` | imp | thin | — | — | — | cdn.bsky.app, plc.directory, public.api.bsky.app |
 | `ink` | ink | thin | — | — | — | — |
 | `iris` | iris | thin | — | — | — | — |
 | `jurassic` | jurassic | thin | — | — | — | — |
@@ -104,7 +105,7 @@ Scheduled (cron): **10** workers. Reading secrets: **24**. Calling third-party h
 
 ## Static workers (no code)
 
-`ai-edu` · `ask` · `aub` · `bakery` · `board` · `canvas` · `cards` · `crm` · `empathy` · `farm` · `fipo` · `g` · `glass` · `golem` · `harvestople-next` · `imp` · `j-minomobi` · `mappa` · `math` · `minomobi` · `neuro` · `ns` · `org` · `os` · `poke` · `polis` · `sci` · `time` · `tjs` · `torus` · `war` · `zoom`
+`ai-edu` · `ask` · `aub` · `bakery` · `board` · `canvas` · `cards` · `crm` · `empathy` · `farm` · `fipo` · `g` · `glass` · `golem` · `harvestople-next` · `j-minomobi` · `mappa` · `math` · `minomobi` · `neuro` · `ns` · `org` · `os` · `poke` · `polis` · `sci` · `time` · `tjs` · `torus` · `war` · `zoom`
 
 ## Pages Functions
 
