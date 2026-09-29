@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tube Stacker — falling blocks on a spinning drum</title>
+<meta name="description" content="Blocks fall down the inside of a rotating drum instead of a flat well. A full ring around the tube clears, not a full row. Drag to orbit the camera, arrows to move the piece.">
+<meta property="og:title" content="Tube Stacker — falling blocks on a spinning drum">
+<meta property="og:description" content="Blocks fall down the inside of a rotating drum instead of a flat well. A full ring around the tube clears, not a full row. Drag to orbit the camera, arrows to move the piece.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --col: 60rem; }
+  #wrap { position: relative; width: 100%; height: min(68vh, 620px); min-height: 360px;
+          border: 1px solid var(--border); border-radius: var(--radius);
+          overflow: hidden; background: #050507; touch-action: none; }
+  #wrap > canvas { display: block; width: 100%; height: 100%; }
+  #hud { position: absolute; top: .6rem; left: .6rem; font-size: .8rem; color: var(--fg);
+         background: rgba(14,14,17,.72); padding: .5rem .7rem; border-radius: var(--radius);
+         pointer-events: none; line-height: 1.5; }
+  #hud b { color: var(--accent); }
+  #nextWrap { position: absolute; top: .6rem; right: .6rem; background: rgba(14,14,17,.72);
+              padding: .4rem; border-radius: var(--radius); text-align: center; pointer-events: none; }
+  #nextWrap div { font-size: .65rem; color: var(--muted); margin-bottom: .25rem; }
+  #nextCanvas { display: block; width: 64px; height: 64px; }
+  #overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+             flex-direction: column; gap: .8rem; background: rgba(5,5,7,.86); text-align: center; padding: 1rem; }
+  #overlay.show { display: flex; }
+  #overlay h2 { margin: 0; color: var(--accent); }
+  #touch { position: absolute; left: 0; right: 0; bottom: .6rem; display: flex; justify-content: center;
+           gap: .5rem; flex-wrap: wrap; padding: 0 .5rem; }
+  #touch button { width: 56px; height: 56px; min-width: 56px; min-height: 56px; border-radius: 50%;
+                  font-size: 1.2rem; line-height: 1; touch-action: none; user-select: none; }
+  .panel { border: 1px solid var(--border); border-radius: var(--radius);
+           background: var(--bg-raised); padding: 1rem 1.1rem; margin: 1rem 0; }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  button.small { padding: .6rem 1rem; font-size: .85rem; min-height: 44px; }
+  #hint { font-size: .75rem; color: var(--muted); margin-top: .5rem; }
+  kbd { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 3px;
+        padding: .05rem .4rem; font-size: .8rem; }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Tube Stacker</h1>
+  <p class="sub">Pieces fall down the inside wall of a drum, not a flat well — the board has no
+    left or right edge, just a way round. Fill a whole ring around the tube and it clears.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div id="wrap">
+    <div id="hud">score <b id="score">0</b><br>lines <b id="lines">0</b> · level <b id="level">1</b><br>best <b id="best">0</b></div>
+    <div id="nextWrap"><div>next</div><canvas id="nextCanvas" width="64" height="64"></canvas></div>
+    <div id="overlay" class="show">
+      <h2 id="overlayTitle">Tube Stacker</h2>
+      <p id="overlayMsg" style="color:var(--muted);max-width:22rem">Drag to look around the drum. Arrow keys move and rotate the falling piece.</p>
+      <button id="startBtn">Start</button>
+    </div>
+    <div id="touch" aria-hidden="false">
+      <button id="btnLeft" aria-label="move left">◀</button>
+      <button id="btnRotate" aria-label="rotate">⟳</button>
+      <button id="btnRight" aria-label="move right">▶</button>
+      <button id="btnDown" aria-label="soft drop">▼</button>
+      <button id="btnDrop" aria-label="hard drop">⤓</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <button id="pauseBtn" class="small">Pause</button>
+      <button id="restartBtn" class="small">New game</button>
+    </div>
+    <p id="hint">Mouse: drag to orbit, wheel to zoom, right-drag (or shift-drag) to pan.
+      Keyboard: <kbd>←</kbd><kbd>→</kbd> move round the tube, <kbd>↑</kbd> rotate,
+      <kbd>↓</kbd> soft drop, <kbd>space</kbd> hard drop, <kbd>p</kbd> pause.</p>
+  </div>
+
+  <footer class="foot">A full ring, not a full row — the same idea as the falling-block classics,
+    expressed on a cylinder instead of in a flat well. Score is kept in this browser only.</footer>
+</main>
+
+<script type="module">
+import * as THREE from '../_kit/three.module.min.js';
+
+document.getElementById('crumb').innerHTML = kit.crumb('tube stacker');
+
+const errEl = document.getElementById('err');
+function fail(msg) { kit.showError(errEl, msg); }
+
+try {
+  runGame();
+} catch (e) {
+  fail('Could not start: ' + e.message);
+  console.error(e);
+}
+
+function runGame() {
+  // ---------------------------------------------------------------- board
+  const COLS = 10, ROWS = 16, CELL = 1;
+  const RADIUS = (COLS * CELL) / (2 * Math.PI);
+
+  const SHAPES = {
+    I: { N: 4, cells: [[0,1],[1,1],[2,1],[3,1]], hue: 0x4fd6e8 },
+    O: { N: 2, cells: [[0,0],[1,0],[0,1],[1,1]], hue: 0xe8d34f },
+    T: { N: 3, cells: [[0,1],[1,1],[2,1],[1,0]], hue: 0xb44fe8 },
+    S: { N: 3, cells: [[1,0],[2,0],[0,1],[1,1]], hue: 0x63e87c },
+    Z: { N: 3, cells: [[0,0],[1,0],[1,1],[2,1]], hue: 0xe85c5c },
+    J: { N: 3, cells: [[0,0],[0,1],[1,1],[2,1]], hue: 0x4f7fe8 },
+    L: { N: 3, cells: [[2,0],[0,1],[1,1],[2,1]], hue: 0xe8934f },
+  };
+  const TYPES = Object.keys(SHAPES);
+
+  let grid, current, nextType, score, totalLines, level, dropTimer, dropInterval,
+      gameOver, paused, started;
+
+  function randType() { return TYPES[(Math.random() * TYPES.length) | 0]; }
+
+  function newPiece(type) {
+    const def = SHAPES[type];
+    return {
+      type, N: def.N, hue: def.hue,
+      cells: def.cells.map((c) => c.slice()),
+      originRow: ROWS - 1,
+      originCol: (COLS >> 1) - (def.N >> 1),
+    };
+  }
+
+  function rotateCells(cells, N) { return cells.map(([x, y]) => [N - 1 - y, x]); }
+
+  function worldCells(originRow, originCol, cells) {
+    return cells.map(([x, y]) => ({
+      row: originRow - y,
+      col: ((originCol + x) % COLS + COLS) % COLS,
+    }));
+  }
+
+  function collides(originRow, originCol, cells) {
+    for (const { row, col } of worldCells(originRow, originCol, cells)) {
+      if (row < 0) return true;
+      if (row < ROWS && grid[row][col]) return true;
+    }
+    return false;
+  }
+
+  function reset() {
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    score = 0; totalLines = 0; level = 1; dropInterval = 800;
+    gameOver = false; paused = false;
+    nextType = randType();
+    spawn();
+    updateHud();
+    rebuildLocked();
+  }
+
+  function spawn() {
+    current = newPiece(nextType);
+    nextType = randType();
+    drawNextPreview();
+    rebuildActive();
+    if (collides(current.originRow, current.originCol, current.cells)) {
+      endGame();
+    }
+  }
+
+  function tryMove(dRow, dCol) {
+    const nr = current.originRow + dRow, nc = current.originCol + dCol;
+    if (collides(nr, nc, current.cells)) return false;
+    current.originRow = nr; current.originCol = nc;
+    updateActivePositions();
+    return true;
+  }
+
+  function tryRotate() {
+    const rotated = rotateCells(current.cells, current.N);
+    for (const kick of [0, 1, -1, 2, -2]) {
+      if (!collides(current.originRow, current.originCol + kick, rotated)) {
+        current.cells = rotated;
+        current.originCol += kick;
+        updateActivePositions();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function lockPiece() {
+    for (const { row, col } of worldCells(current.originRow, current.originCol, current.cells)) {
+      if (row >= 0 && row < ROWS) grid[row][col] = current.hue;
+    }
+    const cleared = clearLines();
+    rebuildLocked();
+    if (cleared) addScore(cleared);
+    if (!gameOver) spawn();
+  }
+
+  function clearLines() {
+    let cleared = 0;
+    for (let row = 0; row < ROWS; row++) {
+      if (grid[row].every((c) => c)) {
+        grid.splice(row, 1);
+        grid.push(Array(COLS).fill(null));
+        cleared++; row--;
+      }
+    }
+    return cleared;
+  }
+
+  function addScore(cleared) {
+    const table = [0, 100, 300, 500, 800];
+    score += table[cleared] * level;
+    totalLines += cleared;
+    level = Math.floor(totalLines / 10) + 1;
+    dropInterval = Math.max(140, 800 - (level - 1) * 55);
+    restartDropTimer();
+    updateHud();
+  }
+
+  function hardDrop() {
+    let moved = 0;
+    while (tryMove(-1, 0)) moved++;
+    score += moved * 2;
+    lockPiece();
+    updateHud();
+  }
+
+  function softDrop() {
+    if (tryMove(-1, 0)) { score += 1; updateHud(); }
+    else lockPiece();
+  }
+
+  function endGame() {
+    gameOver = true;
+    clearInterval(dropTimer);
+    const best = Math.max(score, parseInt(localStorage.getItem('tube-stacker-best') || '0', 10));
+    localStorage.setItem('tube-stacker-best', String(best));
+    updateHud();
+    document.getElementById('overlayTitle').textContent = 'Game over';
+    document.getElementById('overlayMsg').textContent = 'Score ' + score + '. Lines cleared ' + totalLines + '.';
+    document.getElementById('startBtn').textContent = 'Play again';
+    document.getElementById('overlay').classList.add('show');
+  }
+
+  function updateHud() {
+    document.getElementById('score').textContent = score;
+    document.getElementById('lines').textContent = totalLines;
+    document.getElementById('level').textContent = level;
+    document.getElementById('best').textContent = Math.max(score, parseInt(localStorage.getItem('tube-stacker-best') || '0', 10));
+  }
+
+  function restartDropTimer() {
+    clearInterval(dropTimer);
+    dropTimer = setInterval(() => { if (!paused && !gameOver && started) tick(); }, dropInterval);
+  }
+
+  function tick() {
+    if (!tryMove(-1, 0)) lockPiece();
+  }
+
+  // ---------------------------------------------------------------- next preview
+  const nextCtx = document.getElementById('nextCanvas').getContext('2d');
+  function drawNextPreview() {
+    const def = SHAPES[nextType];
+    const w = 64, cell = w / 4, pad = 2;
+    nextCtx.clearRect(0, 0, w, w);
+    const offset = (4 - def.N) / 2;
+    nextCtx.fillStyle = '#' + def.hue.toString(16).padStart(6, '0');
+    for (const [x, y] of def.cells) {
+      nextCtx.fillRect((x + offset) * cell + pad, (y + offset) * cell + pad, cell - pad * 2, cell - pad * 2);
+    }
+  }
+
+  // ---------------------------------------------------------------- three.js
+  const wrap = document.getElementById('wrap');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x050507);
+
+  const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 200);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  wrap.insertBefore(renderer.domElement, wrap.firstChild);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const key = new THREE.DirectionalLight(0xffffff, 0.9);
+  key.position.set(6, 12, 8);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+  fill.position.set(-8, -4, -6);
+  scene.add(fill);
+
+  const tubeHeight = ROWS * CELL;
+  const guide = new THREE.Mesh(
+    new THREE.CylinderGeometry(RADIUS + 0.02, RADIUS + 0.02, tubeHeight, COLS, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0x3a3c44, wireframe: true, transparent: true, opacity: 0.5 })
+  );
+  guide.position.y = tubeHeight / 2;
+  scene.add(guide);
+
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(RADIUS + 0.4, 32),
+    new THREE.MeshStandardMaterial({ color: 0x111116, side: THREE.DoubleSide })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
+
+  const cubeGeo = new THREE.BoxGeometry(CELL * 0.86, CELL * 0.86, CELL * 0.86);
+  const matCache = new Map();
+  function materialFor(hue) {
+    if (!matCache.has(hue)) {
+      matCache.set(hue, new THREE.MeshStandardMaterial({ color: hue, roughness: 0.45, metalness: 0.1 }));
+    }
+    return matCache.get(hue);
+  }
+
+  function placeMesh(mesh, row, col) {
+    const angle = col * (2 * Math.PI / COLS);
+    mesh.position.set(RADIUS * Math.sin(angle), row * CELL + CELL / 2, RADIUS * Math.cos(angle));
+    mesh.rotation.y = angle;
+  }
+
+  const lockedGroup = new THREE.Group();
+  scene.add(lockedGroup);
+  function rebuildLocked() {
+    while (lockedGroup.children.length) {
+      const m = lockedGroup.children.pop();
+      lockedGroup.remove(m);
+    }
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        const hue = grid[row][col];
+        if (!hue) continue;
+        const mesh = new THREE.Mesh(cubeGeo, materialFor(hue));
+        placeMesh(mesh, row, col);
+        lockedGroup.add(mesh);
+      }
+    }
+  }
+
+  const activeGroup = new THREE.Group();
+  scene.add(activeGroup);
+  function rebuildActive() {
+    while (activeGroup.children.length) activeGroup.remove(activeGroup.children.pop());
+    for (let i = 0; i < current.cells.length; i++) {
+      activeGroup.add(new THREE.Mesh(cubeGeo, materialFor(current.hue)));
+    }
+    updateActivePositions();
+  }
+  function updateActivePositions() {
+    const cells = worldCells(current.originRow, current.originCol, current.cells);
+    cells.forEach((c, i) => placeMesh(activeGroup.children[i], c.row, c.col));
+  }
+
+  function resize() {
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------------------------------------------------------------- camera orbit (mouse: rotate/zoom/pan)
+  const target = new THREE.Vector3(0, tubeHeight / 2, 0);
+  let azimuth = 0.6, polar = 1.15, dist = RADIUS * 3.4 + 5;
+  const MIN_DIST = RADIUS + 2, MAX_DIST = RADIUS * 8 + 20;
+
+  function updateCamera() {
+    const p = Math.max(0.15, Math.min(Math.PI - 0.15, polar));
+    camera.position.set(
+      target.x + dist * Math.sin(p) * Math.sin(azimuth),
+      target.y + dist * Math.cos(p),
+      target.z + dist * Math.sin(p) * Math.cos(azimuth)
+    );
+    camera.lookAt(target);
+  }
+  updateCamera();
+
+  const pointers = new Map();
+  let panMode = false, pinchStart = null;
+
+  function panBy(dx, dy) {
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    const scale = dist * 0.0015;
+    target.addScaledVector(right, -dx * scale);
+    target.addScaledVector(up, dy * scale);
+  }
+  function pinchDist() {
+    const pts = Array.from(pointers.values());
+    return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  }
+
+  const canvas = renderer.domElement;
+  canvas.style.cursor = 'grab';
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    panMode = e.button === 2 || e.shiftKey;
+    canvas.style.cursor = 'grabbing';
+    if (pointers.size === 2) pinchStart = { d: pinchDist(), dist };
+  });
+  canvas.addEventListener('pointerup', (e) => { pointers.delete(e.pointerId); pinchStart = null; canvas.style.cursor = 'grab'; });
+  canvas.addEventListener('pointercancel', (e) => { pointers.delete(e.pointerId); pinchStart = null; });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    const prev = pointers.get(e.pointerId);
+    const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.size >= 2) {
+      panBy(dx * 0.5, dy * 0.5);
+      if (pinchStart && pinchStart.d > 10) {
+        dist = Math.min(MAX_DIST, Math.max(MIN_DIST, pinchStart.dist * (pinchStart.d / pinchDist())));
+      }
+    } else if (panMode) panBy(dx, dy);
+    else {
+      azimuth -= dx * 0.006;
+      polar -= dy * 0.006;
+    }
+    updateCamera();
+  });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    dist = Math.min(MAX_DIST, Math.max(MIN_DIST, dist * (1 + e.deltaY * 0.001)));
+    updateCamera();
+  }, { passive: false });
+
+  // ---------------------------------------------------------------- input: game
+  const ACTION_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Spacebar'];
+  window.addEventListener('keydown', (e) => {
+    if (ACTION_KEYS.indexOf(e.key) !== -1) e.preventDefault();
+    if (!started || gameOver || paused) {
+      if (e.key === 'p' || e.key === 'P') togglePause();
+      return;
+    }
+    switch (e.key) {
+      case 'ArrowLeft': tryMove(0, -1); break;
+      case 'ArrowRight': tryMove(0, 1); break;
+      case 'ArrowUp': tryRotate(); break;
+      case 'ArrowDown': softDrop(); break;
+      case ' ': case 'Spacebar': hardDrop(); break;
+      case 'p': case 'P': togglePause(); break;
+    }
+  });
+
+  function bindRepeat(el, fn) {
+    let timer = null;
+    const start = (e) => { e.preventDefault(); if (!started || gameOver || paused) return; fn(); timer = setInterval(fn, 140); };
+    const stop = () => { clearInterval(timer); timer = null; };
+    el.addEventListener('pointerdown', start);
+    el.addEventListener('pointerup', stop);
+    el.addEventListener('pointercancel', stop);
+    el.addEventListener('pointerleave', stop);
+  }
+  bindRepeat(document.getElementById('btnLeft'), () => tryMove(0, -1));
+  bindRepeat(document.getElementById('btnRight'), () => tryMove(0, 1));
+  document.getElementById('btnRotate').addEventListener('pointerdown', (e) => { e.preventDefault(); if (started && !gameOver && !paused) tryRotate(); });
+  bindRepeat(document.getElementById('btnDown'), () => softDrop());
+  document.getElementById('btnDrop').addEventListener('pointerdown', (e) => { e.preventDefault(); if (started && !gameOver && !paused) hardDrop(); });
+
+  function togglePause() {
+    if (!started || gameOver) return;
+    paused = !paused;
+    document.getElementById('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
+    document.getElementById('overlayTitle').textContent = paused ? 'Paused' : '';
+    document.getElementById('overlayMsg').textContent = paused ? 'Score ' + score + '.' : '';
+    document.getElementById('startBtn').textContent = 'Resume';
+    document.getElementById('overlay').classList.toggle('show', paused);
+  }
+  document.getElementById('pauseBtn').addEventListener('click', togglePause);
+  document.getElementById('restartBtn').addEventListener('click', () => beginNewGame());
+  document.getElementById('startBtn').addEventListener('click', () => {
+    if (gameOver || !started) beginNewGame();
+    else { paused = false; document.getElementById('overlay').classList.remove('show'); document.getElementById('pauseBtn').textContent = 'Pause'; }
+  });
+
+  function beginNewGame() {
+    reset();
+    started = true;
+    paused = false;
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('pauseBtn').textContent = 'Pause';
+    restartDropTimer();
+  }
+
+  // ---------------------------------------------------------------- boot
+  reset();
+  started = false;
+  resize();
+
+  function render() {
+    requestAnimationFrame(render);
+    renderer.render(scene, camera);
+  }
+  render();
+}
+</script>
+</body>
+</html>

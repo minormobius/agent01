@@ -1,0 +1,16 @@
+{
+  "run": "ab-01",
+  "note": "THE KEY. Do not read before voting.",
+  "mapping": {
+    "p01": {
+      "request": "atlink",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p02": {
+      "request": "tube-stacker",
+      "a": "baseline",
+      "b": "challenger"
+    }
+  }
+}

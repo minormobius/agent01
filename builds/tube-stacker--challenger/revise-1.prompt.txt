@@ -1,0 +1,21 @@
+You built the site in lab/www/tube-stacker/ for this request:
+
+tube tetris. The tetronimos fall on a 3js rendered cylinder, full circles clear, and all the normal features: see the next dropping block, score presented. For controls I think mouse manipulates the cylinder in rotate zoom pan, arrow keys manipulate the blocks
+
+A reviewer loaded it in a real browser, played it, and reported these defects:
+
+VERDICT: FIX
+
+1. **Locked pieces never render — the entire stacking mechanic is invisible.** Evidence: in a single `eyes.drive` session I hard-dropped pieces into four different columns, then read back the WebGL canvas pixels (via `drawImage`+`getImageData`) across the band of the tube where landed blocks would sit — zero non-background pixels, only the wireframe guide. I then hard-dropped 15 times in a row; the game correctly ended with "ring collapse — the stack reached the top" (proving the internal board array really does fill up), but the share-image screenshot taken at that exact moment shows an almost completely empty tube — only the current falling piece is visible, no trace of the 15 locked pieces that must be sitting in the board array. So blocks lock internally but are never drawn. Fixed looks like: after `hardDrop()`/gravity locks a piece, the locked cells visibly appear and accumulate on the tube for the rest of the game (confirm by hard-dropping a few pieces and seeing a growing pile, not an empty tube).
+
+2. **"Full circles clear" is unverifiable/unusable in real play as a direct consequence of #1.** Since the stack is never rendered, a player has no way to see which columns are filled, aim a piece to complete a ring, or see a ring clear when it happens — the feature the requester explicitly asked for is not observable through normal play at all (score and rings stayed 0 through every play-test here). Fixed looks like: with rendering fixed, filling every column in a row visibly removes that ring and the score/rings HUD updates in response to real play, not just a manually-patched debug hook (per the build's own BRIEF.md admission that this was never exercised end-to-end).
+
+Fix them, most important first. Read BRIEF.md and the code before you change
+anything. You have the same eyes as before (`mcp__eyes__look`, `watch`,
+`drive`): after each fix, prove it with a tool call, and check you have not
+broken something that worked. If you think a reported defect is wrong, check
+it yourself and say why in BRIEF.md rather than changing working code.
+
+Write only inside lab/www/tube-stacker/ (and the requester's profile, if a durable
+preference was learned). Write files in pieces of at most ~250 lines. Add a
+short "Review round" note to BRIEF.md: what was reported, what you fixed.

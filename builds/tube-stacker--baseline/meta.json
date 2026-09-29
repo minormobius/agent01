@@ -1,0 +1,32 @@
+{
+  "arm": "baseline",
+  "slug": "tube-stacker",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 20,
+  "cost_usd": 1.0107,
+  "seconds": 340,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 334,
+      "exit": 0,
+      "turns": 18,
+      "cost_usd": 0.9585779999999999,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "visual",
+      "seconds": 6,
+      "exit": 0,
+      "turns": 2,
+      "cost_usd": 0.0521306,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

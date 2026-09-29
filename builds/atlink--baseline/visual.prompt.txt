@@ -1,0 +1,29 @@
+Here is a screenshot of the page you just built, taken in a real browser at
+1200x800 under the production Content-Security-Policy: /tmp/shot.png
+
+READ THAT IMAGE FIRST. It is the only look at your own work you get, and it is
+what a visitor sees. The page already loads without console errors — this pass
+is about whether it is RIGHT, which no check before now could tell you.
+
+What it was asked for:
+Build a two-way permalink converter for AT Protocol.
+
+Paste a Bluesky web URL (https://bsky.app/profile/<handle-or-did>/post/<rkey>) and get back the canonical at:// URI (at://<authority>/app.bsky.feed.post/<rkey>). Paste an at:// URI and get back the bsky.app URL. Detect which direction the input implies and convert accordingly — do not make the user choose a direction.
+
+This is pure string parsing. Make NO network calls of any kind; everything is local computation on the input.
+
+Alongside the converted output, break out the parsed components (authority, collection, rkey) in a small labelled table, so the page doubles as an explainer for how AT URIs are structured. Note in the copy that an at:// URI with a handle authority is not canonical — the canonical form uses the DID — and that resolving one to the other needs a network lookup this page deliberately doesn't do.
+
+Handle malformed input with a clear inline message naming what was wrong (missing rkey, unrecognised collection, not a bsky.app URL) rather than failing silently or showing a stale result. Add a copy-to-clipboard button on the output, and three clickable examples covering both directions including one with a did: authority.
+
+Fix only things that are VISIBLY BROKEN: nothing rendered, content off-screen or
+overlapping, text unreadable against its background, a canvas that is blank or
+the wrong size, controls with no visible label, a layout obviously collapsed.
+
+CHANGING NOTHING IS A GOOD OUTCOME AND USUALLY THE RIGHT ONE. Do not restyle, do
+not refactor, do not add features, do not 'polish'. You cannot see hover states,
+animation or anything below the fold, so do not guess at them. If the picture
+looks like the request, say so and stop.
+
+Write only inside lab/www/atlink/. If you changed something, add a line to BRIEF.md saying
+what the screenshot showed.

@@ -1,0 +1,19 @@
+You built the site in lab/www/tube-stacker/ for this request:
+
+tube tetris. The tetronimos fall on a 3js rendered cylinder, full circles clear, and all the normal features: see the next dropping block, score presented. For controls I think mouse manipulates the cylinder in rotate zoom pan, arrow keys manipulate the blocks
+
+A reviewer loaded it in a real browser, played it, and reported these defects:
+
+VERDICT: FIX
+
+1. Mouse pan on the Y-axis is inverted, contradicting the explicit request that "pan is inverted x (normal y)". Evidence: via `mcp__eyes__drive` I dispatched a real right-button pointer drag (button 2, single valid pointer, no synthetic-event errors) straight down on the canvas; the tube visibly moved *up* off the top of the frame in response (screenshot before/after: piece at y≈115–172 moved to fully off-screen above). Content moving opposite to the drag direction is the same "inverted" behavior the requester asked to be removed for one axis only — X correctly follows this same inverted convention (verified separately, and that's what was asked for), but Y should have been the "normal"/content-follows-cursor behavior (drag down → content moves down, as in every standard orbit/pan tool) and instead is inverted too. Fixed looks like: flipping `PAN_Y_SIGN` in `index.html` so a downward right-drag moves the visible tube downward on screen, matching "normal y", while leaving X's inversion as-is.
+
+Fix them, most important first. Read BRIEF.md and the code before you change
+anything. You have the same eyes as before (`mcp__eyes__look`, `watch`,
+`drive`): after each fix, prove it with a tool call, and check you have not
+broken something that worked. If you think a reported defect is wrong, check
+it yourself and say why in BRIEF.md rather than changing working code.
+
+Write only inside lab/www/tube-stacker/ (and the requester's profile, if a durable
+preference was learned). Write files in pieces of at most ~250 lines. Add a
+short "Review round" note to BRIEF.md: what was reported, what you fixed.

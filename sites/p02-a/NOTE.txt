@@ -1,0 +1,1 @@
+No OrbitControls addon exists in the kit, so camera drag/zoom/pan is hand-rolled from camera.quaternion basis vectors. The game logic is ordinary tetromino collision with the column taken mod 10, so left/right wrap seamlessly around the drum — that's the whole "cylinder" trick.

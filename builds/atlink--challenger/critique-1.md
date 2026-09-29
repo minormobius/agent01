@@ -1,0 +1,3 @@
+Third example (feed generator, non-canonical handle) converts correctly on mobile — the segType maps to `feed` path and `app.bsky.feed.generator` NSID correctly. All three examples, both directions, copy button, malformed-input messages (missing rkey, unrecognised collection, not-bsky.app), clearing behavior, and mobile layout all check out with no network calls (page uses pure string parsing, confirmed by reading the JS). This matches the request precisely and I found no defects.
+
+VERDICT: SHIP

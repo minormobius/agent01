@@ -1,0 +1,1 @@
+Also handles feed and list links (not just posts) since bsky.app uses the same URL shape for all three — figured a converter that only worked on posts would feel broken the first time someone pasted a feed link.

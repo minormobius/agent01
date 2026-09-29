@@ -1,0 +1,33 @@
+diff --git a/lab/_profiles/minormobius.bsky.social.md b/lab/_profiles/minormobius.bsky.social.md
+index 4674c584..0f3028b9 100644
+--- a/lab/_profiles/minormobius.bsky.social.md
++++ b/lab/_profiles/minormobius.bsky.social.md
+@@ -269,6 +269,28 @@ structural requirement on the underlying model, and check whether the
+ current implementation can actually represent each named class as a first-
+ class thing before assuming a cosmetic pass will do.
+ 
++## `tube-stacker` (2026-09-29): "copy image" preference extends past charts to a game's result screen
++The `tube-tetris`/`tube-stacker` thread's iteration 2 asked for a graph copy-
++image button (already recorded above); a later message in the same thread
++asked separately for "a generated results image to be copied and shared" on
++the game itself — i.e. a game-over screen, not a chart. Read together: this
++requester's "always give us a big shiny copy image button" preference isn't
++scoped to charts/diagrams specifically, it's **any page that produces a
++result worth sharing** (a score, a finished game, a generated artifact).
++Built here as a canvas snapshot of the live 3D view composited with score
++text, with the same prominent gradient-button treatment as the Venn-diagram
++copy button. Durable: default to a shareable copy-image affordance on any
++future build with a "you're done, here's your result" moment, not only ones
++with a literal chart.
++
++Also reconfirms two already-recorded rules held on a from-scratch rebuild:
++"block manipulation" keys (arrows/WASD) stayed conceptually separate from
++camera drag controls without needing a fresh correction, and "all the
++normal features" for a named genre was read as the full expected set
++(pause button included, reasoning from the kit's own "a site whose whole
++point is movement should offer its own pause" guidance, not from anything
++this requester said directly — worth watching whether they comment on it).
++
+ ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
+ "full train game experience, make sure it feels like a train game" — same
+ shape as the tube-tetris request above: name the genre, trust the build

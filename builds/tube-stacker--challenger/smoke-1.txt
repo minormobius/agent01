@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 127 colours, top 81%
+  ✓ smoke: lab/www/tube-stacker/index.html loads clean under the production CSP

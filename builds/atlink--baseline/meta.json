@@ -1,0 +1,32 @@
+{
+  "arm": "baseline",
+  "slug": "atlink",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 31,
+  "cost_usd": 1.1849,
+  "seconds": 344,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 333,
+      "exit": 0,
+      "turns": 28,
+      "cost_usd": 1.0600284,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "visual",
+      "seconds": 11,
+      "exit": 0,
+      "turns": 3,
+      "cost_usd": 0.1248402,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}
