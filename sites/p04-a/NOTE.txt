@@ -1,0 +1,1 @@
+The hard part was the log-time axis: on a true Big Bang-to-heat-death scale, all of life so far is a hairline. I kept it that way by default (that's the honest picture) and added zoom presets + a drag scrubber so it's still explorable, not just a wall.

@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gibson Jackpot — pick a country, pick a life</title>
+<meta property="og:title" content="Gibson Jackpot — pick a country, pick a life">
+<meta property="og:description" content="A toy proportional-hazards mortality model: pick a country on the grid, enter your age and income, get a survival curve. Plus a real cohort simulation of the century's slow-motion population 'jackpot' — an 80% decline by 2099.">
+<meta property="og:type" content="website">
+<meta name="description" content="Pick a country, enter age and SES, get a modelled survival curve — plus a simulated 80%-by-2099 world population decline.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  :root { --accent: #ff5c33; --accent-dim: #3a1c10; }
+  /* tokens.css only styles input[type=text] / input:not([type]) — number
+     inputs (age, income, percentile) fall through to the browser default,
+     which is a 13.3px white box and would trigger iOS's zoom-on-focus. */
+  input[type=number] {
+    width: 100%; padding: .8rem 1rem; font: 16px/1.6 var(--mono);
+    background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  input[type=number]:focus { outline: none; border-color: var(--accent); }
+  main { max-width: 52rem; }
+  h1 { font-size: 2.1rem; }
+  .sub { font-size: .95rem; }
+  section { margin: 2.5rem 0; }
+  label { display: block; font-size: .75rem; color: var(--muted); text-transform: uppercase;
+          letter-spacing: .06em; margin: 1rem 0 .35rem; }
+  label:first-child { margin-top: 0; }
+  .toggle { display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; max-width: 20rem; }
+  .toggle button { flex: 1; border: none; border-radius: 0; background: var(--bg-raised); color: var(--muted);
+                    min-height: 44px; font-size: .8rem; }
+  .toggle button.on { background: var(--accent-dim); color: var(--accent); }
+  .toggle button:hover { background: var(--accent-dim); color: var(--fg); }
+
+  #map-wrap { position: relative; background: #0a0a0d; border: 1px solid var(--border); border-radius: var(--radius);
+              overflow: hidden; touch-action: manipulation; }
+  #map { display: block; width: 100%; height: auto; cursor: crosshair; }
+  #map-tip { position: absolute; pointer-events: none; background: var(--bg-raised); border: 1px solid var(--accent);
+             color: var(--fg); font-size: .72rem; padding: .3rem .5rem; border-radius: 3px; transform: translate(-50%, -120%);
+             white-space: nowrap; display: none; z-index: 5; }
+  #country-filter { margin-top: .6rem; }
+  #country-picks { display: none; }
+  #country-picks.show { display: block; position: relative; margin-top: .3rem; }
+  #country-picks .opt { display: block; width: 100%; text-align: left; border: 1px solid var(--border);
+                        border-top: none; background: var(--bg-raised); color: var(--fg); font: inherit;
+                        font-size: .8rem; padding: .55rem .7rem; min-height: 44px; cursor: pointer; }
+  #country-picks .opt:first-child { border-top: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
+  #country-picks .opt:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+  #country-picks .opt:hover, #country-picks .opt:focus { background: var(--accent-dim); color: var(--accent); }
+
+  #selected-line { margin-top: .75rem; font-size: .85rem; color: var(--fg); min-height: 1.4em; }
+  #selected-line b { color: var(--accent); }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.25rem 0; }
+  .stat { flex: 1; min-width: 8rem; background: var(--bg-raised); border: 1px solid var(--border);
+          border-radius: var(--radius); padding: .8rem 1rem; }
+  .stat .n { font-size: 1.6rem; color: var(--accent); line-height: 1.1; }
+  .stat .l { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: .25rem; }
+
+  svg.chart { width: 100%; height: auto; display: block; background: #0a0a0d; border: 1px solid var(--border);
+              border-radius: var(--radius); }
+  svg.chart text { font-family: var(--mono); fill: var(--muted); font-size: 11px; }
+  svg.chart .axis { stroke: var(--border); stroke-width: 1; }
+  svg.chart .grid { stroke: var(--border); stroke-width: .5; opacity: .5; }
+
+  .cap { font-size: .72rem; color: var(--muted); margin-top: .5rem; }
+  .warn { font-size: .78rem; color: var(--accent); }
+  button.go { width: 100%; margin-top: 1.25rem; min-height: 46px; font-size: .95rem; }
+  #err { margin-top: 1rem; }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 1.6rem; }
+    .stat-row { gap: .6rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / gibson-jackpot</div>
+  <h1>Gibson Jackpot</h1>
+  <p class="sub">A toy age-based hazard model. Pick a country, tell it your age and
+    where you sit on the income ladder, and it draws a survival curve — country
+    risk, state resilience and personal SES stacked as multipliers on a baseline
+    mortality curve. Underneath, the same machinery runs a slow-motion world
+    population "jackpot": a simulated multi-decade collapse, calibrated to land
+    on an 80% decline by 2099. <b>None of this is a forecast</b> — it's a working
+    toy with made-up-but-monotonic numbers, built to make the shape of the idea
+    visible.</p>
+
+  <section id="picker">
+    <h2>1 — pick a country</h2>
+    <div id="map-wrap">
+      <canvas id="map"></canvas>
+      <div id="map-tip"></div>
+    </div>
+    <input id="country-filter" type="text" placeholder="or type a country name…"
+           autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div id="country-picks"></div>
+    <div id="selected-line">No country selected yet — tap a point on the grid, or type above.</div>
+  </section>
+
+  <section id="person">
+    <h2>2 — you</h2>
+    <label for="age">Current age</label>
+    <input id="age" type="number" min="0" max="99" step="1" value="30" inputmode="numeric">
+
+    <label>Measure SES by</label>
+    <div class="toggle" role="group" aria-label="SES input mode">
+      <button type="button" id="mode-income" class="on">income</button>
+      <button type="button" id="mode-pct">percentile</button>
+    </div>
+    <div id="income-field">
+      <label for="income">Annual income (USD, household-equivalent)</label>
+      <input id="income" type="number" min="0" step="100" value="18000" inputmode="numeric">
+    </div>
+    <div id="pct-field" style="display:none">
+      <label for="pct">SES percentile (0 = poorest, 100 = richest)</label>
+      <input id="pct" type="number" min="0" max="100" step="1" value="50" inputmode="numeric">
+    </div>
+    <button class="go" id="compute" type="button">compute survival curve</button>
+    <div id="err" class="err" hidden></div>
+  </section>
+
+  <section id="result" hidden>
+    <h2>3 — the model's answer</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="n" id="s-life">—</div><div class="l">expected lifespan (yrs)</div></div>
+      <div class="stat"><div class="n" id="s-remain">—</div><div class="l">years remaining (mean)</div></div>
+      <div class="stat"><div class="n" id="s-pct">—</div><div class="l">SES percentile used</div></div>
+      <div class="stat"><div class="n" id="s-hazard">—</div><div class="l">hazard vs. global baseline, today</div></div>
+    </div>
+    <svg id="survival-chart" class="chart" viewBox="0 0 640 300" preserveAspectRatio="xMidYMid meet"></svg>
+    <p class="cap">Survival probability from your current age to 100, under this
+      model's hazard: baseline age curve × country risk × state resilience ×
+      your SES × the world's rising "jackpot" intensity in whatever calendar
+      year each future age lands in. The dashed line marks the age where
+      survival probability crosses 50%.</p>
+  </section>
+
+  <section id="scatter-section">
+    <h2>4 — expected lifespan vs. population</h2>
+    <svg id="scatter-chart" class="chart" viewBox="0 0 640 340" preserveAspectRatio="xMidYMid meet"></svg>
+    <p class="cap">Every modelled country, baseline life expectancy (no SES
+      adjustment) against population. Your selected country is the larger,
+      lit-up point. Population and life-expectancy figures here are
+      approximate reference values for illustration, not a live feed.</p>
+  </section>
+
+  <section id="jackpot-section">
+    <h2>5 — the jackpot: world population, 2024→2099</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="n" id="j-2024">—</div><div class="l">population 2024 (bn)</div></div>
+      <div class="stat"><div class="n" id="j-2099">—</div><div class="l">population 2099 (bn)</div></div>
+      <div class="stat"><div class="n" id="j-intensity">—</div><div class="l">peak hazard multiplier solved for</div></div>
+    </div>
+    <svg id="jackpot-chart" class="chart" viewBox="0 0 640 300" preserveAspectRatio="xMidYMid meet"></svg>
+    <p class="cap">A real single-year-age cohort simulation — annual births and
+      deaths, not a drawn curve — where a single "shock intensity" knob is
+      <em>solved by bisection</em> so the simulated world ends 2099 at 20% of
+      its 2024 population, the requested 80% decline. The shock multiplies the
+      same baseline hazard curve used above, rising over the century and
+      landing harder on low-resilience places — which is also why your
+      individual curve above bends up sooner if you're older today, since more
+      of your remaining years fall inside the worst decades. Named for the
+      "everything-at-once, most-people-don't-notice-a-single-cause" collapse
+      that turns up in climate/futures writing (Gibson's <em>The
+      Peripheral</em> coined the word for it) — used here only as the shape of
+      the idea, not a citation of real demographic research.</p>
+  </section>
+
+</main>
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+  /* ===== DATA ===== */
+  // Approximate, illustrative reference figures (roughly early-2020s), not a
+  // live feed and not claimed to be precise: [name, lon, lat, population in
+  // millions, life expectancy at birth in years, a hand-judged 0-100 "state
+  // resilience" score standing in for health-system + governance capacity to
+  // absorb future shocks. This is a toy, not a dataset anyone should cite.
+  var COUNTRIES = [
+    ['United States', -98, 39, 335, 77.0, 80],
+    ['Canada', -106, 56, 39, 82.0, 88],
+    ['Mexico', -102, 23, 128, 75.0, 55],
+    ['Brazil', -51, -10, 216, 75.0, 55],
+    ['Argentina', -64, -34, 46, 77.0, 58],
+    ['Colombia', -74, 4, 52, 77.0, 50],
+    ['Peru', -76, -10, 34, 76.0, 48],
+    ['Chile', -71, -30, 19.5, 80.0, 68],
+    ['United Kingdom', -2, 54, 67, 81.0, 78],
+    ['Ireland', -8, 53, 5.1, 82.0, 82],
+    ['France', 2, 47, 68, 82.5, 80],
+    ['Germany', 10, 51, 84, 81.0, 84],
+    ['Spain', -4, 40, 47, 83.5, 78],
+    ['Italy', 12.5, 43, 59, 83.0, 72],
+    ['Portugal', -8, 39.5, 10.3, 81.5, 74],
+    ['Netherlands', 5.5, 52, 17.8, 82.0, 86],
+    ['Belgium', 4.5, 50.5, 11.7, 82.0, 80],
+    ['Sweden', 15, 62, 10.5, 83.0, 90],
+    ['Norway', 8.5, 61, 5.5, 83.5, 92],
+    ['Denmark', 10, 56, 5.9, 81.5, 88],
+    ['Finland', 26, 64, 5.5, 82.0, 90],
+    ['Poland', 19.5, 52, 37.7, 78.0, 66],
+    ['Ukraine', 31.5, 49, 36, 68.0, 35],
+    ['Russia', 90, 61, 144, 73.0, 45],
+    ['Turkey', 35, 39, 85, 78.0, 55],
+    ['Greece', 22, 39, 10.4, 81.0, 66],
+    ['Egypt', 30, 27, 112, 72.0, 42],
+    ['Nigeria', 8, 9.5, 223, 53.0, 25],
+    ['South Africa', 24, -29, 60, 65.0, 45],
+    ['Kenya', 38, 0.5, 55, 64.0, 38],
+    ['Ethiopia', 40, 9, 126, 65.0, 30],
+    ['DR Congo', 23, -3, 102, 60.0, 18],
+    ['Morocco', -6, 32, 37.5, 77.0, 52],
+    ['Saudi Arabia', 45, 24, 36, 77.0, 60],
+    ['Israel', 35, 31, 9.4, 82.5, 75],
+    ['Iran', 53, 32, 89, 75.0, 45],
+    ['India', 79, 22, 1429, 70.0, 45],
+    ['Pakistan', 69, 30, 240, 67.0, 32],
+    ['Bangladesh', 90, 24, 172, 73.0, 40],
+    ['China', 104, 35, 1411, 78.0, 62],
+    ['Japan', 138, 36, 124, 84.5, 85],
+    ['South Korea', 128, 36, 51.7, 83.5, 80],
+    ['Indonesia', 113, -2, 277, 71.0, 45],
+    ['Philippines', 122, 13, 117, 71.0, 42],
+    ['Vietnam', 106, 16, 98, 74.0, 50],
+    ['Thailand', 101, 15, 71.6, 79.0, 55],
+    ['Australia', 134, -25, 26, 83.5, 88],
+    ['New Zealand', 174, -41, 5.2, 82.5, 86],
+    ['Afghanistan', 66, 33, 42, 63.0, 15],
+    ['Haiti', -72, 19, 11.5, 64.0, 12]
+  ].map(function (r) {
+    return { name: r[0], lon: r[1], lat: r[2], pop: r[3], le: r[4], res: r[5] };
+  });
+
+  /* ===== MODEL ===== */
+  // Baseline age-specific hazard: Gompertz-Makeham, tuned so a "risk multiplier
+  // of 1" life spans out to roughly the high 70s/low 80s at age 0 — the shape
+  // real actuarial tables use (near-flat in youth, doubling roughly every
+  // decade past 40). This is the one curve everything else multiplies.
+  var GK_A = 0.0006, GK_B = 0.00003, GK_C = 1.099;
+  function baseHazard(age) { return GK_A + GK_B * Math.pow(GK_C, Math.max(0, age)); }
+
+  // Rather than guess a formula mapping life expectancy to a hazard
+  // multiplier, SOLVE for it: bisect the multiplier that makes the baseline
+  // curve's own integrated life expectancy equal this country's stated figure
+  // exactly (at neutral resilience). Without this the exponential-in-LE
+  // guess undershot low-LE countries by years — Nigeria's stated 53 came back
+  // as a modelled 62 — because the true hazard→LE relationship isn't linear
+  // in log-multiplier space across a 30-year spread. Calibrated once per
+  // country at startup, in COUNTRIES.forEach below.
+  function calibrateRiskMult(targetLE) {
+    var lo = 0.03, hi = 80;
+    for (var i = 0; i < 30; i++) {
+      var mid = (lo + hi) / 2;
+      var le = expectedRemaining(survivalCurve(function (age) { return baseHazard(age) * mid; }, 0, 105, 0.5));
+      if (le > targetLE) lo = mid; else hi = mid; // higher multiplier -> lower LE, monotonic
+    }
+    return (lo + hi) / 2;
+  }
+  function countryRiskMult(c) { return c.riskMult; }
+  function resilienceNowMult(c) { return Math.exp(-(c.res - 50) * 0.004); }
+  function sesMult(pct) { return Math.exp(-(pct - 50) * 0.006); }
+
+  // Income -> SES percentile via a log-logistic curve against a rough global
+  // household-equivalent median. Nobody's real income distribution is this
+  // smooth; it is monotonic and roughly the right shape, no more.
+  var GLOBAL_MEDIAN_INCOME = 6000, INCOME_SCALE = 0.9;
+  function incomeToPercentile(income) {
+    var x = Math.log(Math.max(1, income));
+    var z = (x - Math.log(GLOBAL_MEDIAN_INCOME)) / INCOME_SCALE;
+    var s = 1 / (1 + Math.exp(-z));
+    return Math.max(0.1, Math.min(99.9, s * 100));
+  }
+
+  // ---- the world "jackpot" cohort simulation ----
+  var JACKPOT_START = 2024, JACKPOT_END = 2099, WORLD_POP_2024 = 8.1e9;
+  var AGE_MAX = 100;
+  var DECADE_SHARE = [17, 16, 15, 14, 12, 10, 8, 5, 2.5, 0.5]; // sums to 100, ages 0-99
+  function initAgeFrac(age) {
+    if (age >= 100) return 0;
+    return (DECADE_SHARE[Math.floor(age / 10)] / 10) / 100;
+  }
+  function jackpotCurve(year, intensity) {
+    var t = Math.max(0, Math.min(1, (year - JACKPOT_START) / (JACKPOT_END - JACKPOT_START)));
+    return 1 + (intensity - 1) * Math.pow(t, 1.6);
+  }
+  var BASE_BIRTH_RATE = 0.018; // crude births per capita per year, roughly today's global rate
+
+  /** Runs the cohort forward one year at a time. Returns the full year-by-year
+   *  series so it can be charted, plus the array of J(year) actually used —
+   *  the same trajectory individual hazards read from, so the two charts are
+   *  one model, not two. */
+  function simulateWorld(intensity) {
+    var cohort = new Array(AGE_MAX + 1);
+    for (var a = 0; a <= AGE_MAX; a++) cohort[a] = initAgeFrac(a) * WORLD_POP_2024;
+    var series = [{ year: JACKPOT_START, pop: WORLD_POP_2024 }];
+    var jByYear = {};
+    for (var y = JACKPOT_START; y < JACKPOT_END; y++) {
+      var J = jackpotCurve(y, intensity);
+      jByYear[y] = J;
+      var totalBefore = 0;
+      for (a = 0; a <= AGE_MAX; a++) totalBefore += cohort[a];
+      var next = new Array(AGE_MAX + 1).fill(0);
+      for (a = AGE_MAX; a >= 0; a--) {
+        var h = baseHazard(a) * J;
+        var deathProb = 1 - Math.exp(-h);
+        var survivors = cohort[a] * (1 - deathProb);
+        if (a === AGE_MAX) next[AGE_MAX] += survivors; else next[a + 1] += survivors;
+      }
+      var birthDamp = 1 - 0.5 * (J - 1) / Math.max(0.001, intensity - 1);
+      birthDamp = Math.max(0.3, birthDamp);
+      next[0] = BASE_BIRTH_RATE * birthDamp * totalBefore;
+      cohort = next;
+      var total = 0;
+      for (a = 0; a <= AGE_MAX; a++) total += cohort[a];
+      series.push({ year: y + 1, pop: total });
+    }
+    jByYear[JACKPOT_END] = jackpotCurve(JACKPOT_END, intensity);
+    return { series: series, jByYear: jByYear };
+  }
+
+  /** Solve for the shock intensity that makes the simulated world land on an
+   *  80% decline by 2099 — bisection on a monotonic function, not a fitted
+   *  curve pretending to be a simulation. */
+  function solveJackpotIntensity(targetRatio) {
+    var lo = 1, hi = 60, best = null;
+    for (var i = 0; i < 40; i++) {
+      var mid = (lo + hi) / 2;
+      var r = simulateWorld(mid);
+      var ratio = r.series[r.series.length - 1].pop / WORLD_POP_2024;
+      best = r;
+      if (ratio > targetRatio) lo = mid; else hi = mid;
+    }
+    return { intensity: (lo + hi) / 2, result: best };
+  }
+
+  /** Individual hazard at a given age, reading the calendar year that age
+   *  falls in from the shared jackpot trajectory so a 20-year-old's curve and
+   *  the world chart are the same model, not two unrelated ones. */
+  function makeIndividualModel(country, currentAge, currentYear, pct, jByYear, jackpotEnd) {
+    var cMult = countryRiskMult(country);
+    var rMult = resilienceNowMult(country);
+    var sMult = sesMult(pct);
+    var ampFactor = (100 - country.res) / 50;
+    function jAt(year) {
+      var y = Math.round(year);
+      if (y <= JACKPOT_START) return 1;
+      if (y >= JACKPOT_END) y = JACKPOT_END;
+      return jByYear[y] !== undefined ? jByYear[y] : jackpotEnd;
+    }
+    function hazardAt(age) {
+      var year = currentYear + (age - currentAge);
+      var J = jAt(year);
+      var countryJ = Math.max(0.6, 1 + (J - 1) * ampFactor);
+      return baseHazard(age) * cMult * rMult * sMult * countryJ;
+    }
+    return { hazardAt: hazardAt, cMult: cMult, rMult: rMult, sMult: sMult };
+  }
+
+  /** Numeric survival curve from startAge to MAX, trapezoid rule on the hazard,
+   *  step 0.5y for smoothness without real cost (a couple hundred steps). */
+  function survivalCurve(hazardAt, startAge, maxAge, step) {
+    step = step || 0.5;
+    var pts = [{ age: startAge, s: 1 }];
+    var cum = 0, prevH = hazardAt(startAge);
+    for (var a = startAge + step; a <= maxAge + 1e-9; a += step) {
+      var h = hazardAt(a);
+      cum += (h + prevH) / 2 * step;
+      prevH = h;
+      pts.push({ age: a, s: Math.exp(-cum) });
+    }
+    return pts;
+  }
+
+  function expectedRemaining(pts) {
+    var area = 0;
+    for (var i = 1; i < pts.length; i++) {
+      area += (pts[i].s + pts[i - 1].s) / 2 * (pts[i].age - pts[i - 1].age);
+    }
+    return area;
+  }
+
+  /** Static (no-jackpot) life expectancy at birth for a country, used only for
+   *  the cross-country scatter so it is one clean number per country. */
+  function baselineLifeExpectancy(country) {
+    var cMult = countryRiskMult(country), rMult = resilienceNowMult(country);
+    function h(age) { return baseHazard(age) * cMult * rMult; }
+    var pts = survivalCurve(h, 0, 105, 0.5);
+    return expectedRemaining(pts);
+  }
+
+  /* ===== APP ===== */
+  function $(id) { return document.getElementById(id); }
+  function reduceMotion() { return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  function fmtPop(m) { return m >= 1000 ? (m / 1000).toFixed(2) + 'bn' : m.toFixed(1) + 'm'; }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  var mapCanvas = $('map'), mapTip = $('map-tip'), mapWrap = $('map-wrap');
+  var filterInput = $('country-filter'), picksBox = $('country-picks');
+  var selectedLine = $('selected-line'), errBox = $('err');
+
+  var selected = null;
+  var hitPoints = [];
+  var GEO = { lonMin: -170, lonMax: 180, latMin: -50, latMax: 75 };
+  var MAP_W = 700, MAP_H = Math.round(700 * (GEO.latMax - GEO.latMin) / (GEO.lonMax - GEO.lonMin));
+  var dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  function project(lon, lat) {
+    return {
+      x: (lon - GEO.lonMin) / (GEO.lonMax - GEO.lonMin) * MAP_W,
+      y: (GEO.latMax - lat) / (GEO.latMax - GEO.latMin) * MAP_H
+    };
+  }
+
+  // Green (safe) through amber to red (high combined risk), driven by the same
+  // country-risk × resilience terms the hazard model uses — the colour is a
+  // readout of the model, not a separate judgement.
+  function riskColor(c) {
+    var score = countryRiskMult(c) * resilienceNowMult(c);
+    var t = clamp((score - 0.6) / (4 - 0.6), 0, 1);
+    var r = Math.round(70 + t * 175), g = Math.round(185 - t * 145), b = Math.round(95 - t * 60);
+    return 'rgb(' + r + ',' + Math.max(20, g) + ',' + Math.max(20, b) + ')';
+  }
+
+  function resizeMap() {
+    var cssW = mapWrap.clientWidth || 320;
+    var cssH = Math.round(cssW * MAP_H / MAP_W);
+    mapCanvas.style.width = cssW + 'px';
+    mapCanvas.style.height = cssH + 'px';
+    mapCanvas.width = Math.round(MAP_W * dpr);
+    mapCanvas.height = Math.round(MAP_H * dpr);
+    drawMap();
+  }
+
+  function drawMap() {
+    var ctx = mapCanvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#0a0a0d';
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+    ctx.strokeStyle = '#212127';
+    ctx.lineWidth = 1;
+    var lon, lat, p1, p2;
+    for (lon = -160; lon <= 180; lon += 20) {
+      p1 = project(lon, GEO.latMin); p2 = project(lon, GEO.latMax);
+      ctx.beginPath(); ctx.moveTo(p1.x + 0.5, p1.y); ctx.lineTo(p2.x + 0.5, p2.y); ctx.stroke();
+    }
+    for (lat = -40; lat <= 70; lat += 20) {
+      p1 = project(GEO.lonMin, lat); p2 = project(GEO.lonMax, lat);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y + 0.5); ctx.lineTo(p2.x, p2.y + 0.5); ctx.stroke();
+    }
+    ctx.strokeStyle = '#34343e';
+    p1 = project(GEO.lonMin, 0); p2 = project(GEO.lonMax, 0);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    p1 = project(0, GEO.latMin); p2 = project(0, GEO.latMax);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+
+    hitPoints = [];
+    COUNTRIES.forEach(function (c) {
+      var p = project(c.lon, c.lat);
+      var r = clamp(2.5 + Math.sqrt(c.pop) * 0.32, 3, 13);
+      var isSel = selected === c;
+      ctx.globalAlpha = isSel ? 1 : 0.85;
+      ctx.fillStyle = riskColor(c);
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      if (isSel) {
+        ctx.strokeStyle = '#ff5c33'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2); ctx.stroke();
+      }
+      hitPoints.push({ x: p.x, y: p.y, c: c });
+    });
+  }
+
+  function pointFromEvent(evt) {
+    var rect = mapCanvas.getBoundingClientRect();
+    var t = (evt.touches && evt.touches[0]) || evt;
+    return { x: (t.clientX - rect.left) / rect.width * MAP_W, y: (t.clientY - rect.top) / rect.height * MAP_H, rect: rect };
+  }
+  function nearestCountry(pt) {
+    var best = null, bestD = 20 * 20;
+    hitPoints.forEach(function (h) {
+      var dx = h.x - pt.x, dy = h.y - pt.y, d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = h.c; }
+    });
+    return best;
+  }
+  mapCanvas.addEventListener('pointerdown', function (evt) {
+    var c = nearestCountry(pointFromEvent(evt));
+    if (c) selectCountry(c);
+  });
+  mapCanvas.addEventListener('pointermove', function (evt) {
+    var pt = pointFromEvent(evt);
+    var c = nearestCountry(pt);
+    if (c) {
+      var p = project(c.lon, c.lat);
+      mapTip.style.left = (p.x / MAP_W * pt.rect.width) + 'px';
+      mapTip.style.top = (p.y / MAP_H * pt.rect.height) + 'px';
+      mapTip.textContent = c.name;
+      mapTip.style.display = 'block';
+    } else { mapTip.style.display = 'none'; }
+  });
+  mapCanvas.addEventListener('pointerleave', function () { mapTip.style.display = 'none'; });
+
+  function selectCountry(c) {
+    selected = c;
+    filterInput.value = c.name;
+    picksBox.classList.remove('show'); picksBox.innerHTML = '';
+    selectedLine.innerHTML = 'Selected: <b>' + c.name + '</b> — population ' + fmtPop(c.pop) +
+      ', life expectancy ~' + c.le.toFixed(1) + ' yrs, state resilience ' + c.res + '/100.';
+    kit.clear(errBox);
+    drawMap();
+    drawScatterChart();
+  }
+
+  filterInput.addEventListener('input', function () {
+    var q = filterInput.value.trim().toLowerCase();
+    picksBox.innerHTML = '';
+    if (!q) { picksBox.classList.remove('show'); return; }
+    var matches = COUNTRIES.filter(function (c) { return c.name.toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
+    if (!matches.length) { picksBox.classList.remove('show'); return; }
+    matches.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'opt'; b.textContent = c.name;
+      b.addEventListener('pointerdown', function (e) { e.preventDefault(); selectCountry(c); });
+      b.addEventListener('click', function () { selectCountry(c); }); // keyboard activation (Enter/Space) fires click, not pointerdown
+      picksBox.appendChild(b);
+    });
+    picksBox.classList.add('show');
+  });
+  filterInput.addEventListener('keydown', function (evt) {
+    if (evt.key === 'Enter') {
+      var q = filterInput.value.trim().toLowerCase();
+      var m = COUNTRIES.find(function (c) { return c.name.toLowerCase().indexOf(q) !== -1; });
+      if (m) { evt.preventDefault(); selectCountry(m); }
+    }
+  });
+  // Close on focus leaving both the input and the list — not a plain blur
+  // timeout, which would close the list before a Tab+Enter keyboard user
+  // ever reaches a row.
+  document.addEventListener('focusin', function (e) {
+    if (e.target !== filterInput && !picksBox.contains(e.target)) picksBox.classList.remove('show');
+  });
+
+  var modeIncomeBtn = $('mode-income'), modePctBtn = $('mode-pct');
+  var incomeField = $('income-field'), pctField = $('pct-field');
+  var sesMode = 'income';
+  modeIncomeBtn.addEventListener('click', function () {
+    sesMode = 'income'; modeIncomeBtn.classList.add('on'); modePctBtn.classList.remove('on');
+    incomeField.style.display = ''; pctField.style.display = 'none';
+  });
+  modePctBtn.addEventListener('click', function () {
+    sesMode = 'pct'; modePctBtn.classList.add('on'); modeIncomeBtn.classList.remove('on');
+    pctField.style.display = ''; incomeField.style.display = 'none';
+  });
+
+  // ---- charts: plain SVG DOM, no library ----
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function se(tag, attrs) {
+    var el = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+  function clearSvg(svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+  function niceStep(range, count) {
+    var raw = range / count;
+    var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    var norm = raw / mag;
+    var step = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+    return step * mag;
+  }
+
+  function drawSurvivalChart(pts, startAge) {
+    var svg = $('survival-chart'); clearSvg(svg);
+    var W = 640, H = 300, L = 40, R = 14, T = 14, B = 28;
+    var maxAge = pts[pts.length - 1].age;
+    var xw = W - L - R, yh = H - T - B;
+    function X(a) { return L + (a - startAge) / (maxAge - startAge) * xw; }
+    function Y(s) { return T + (1 - s) * yh; }
+
+    [0, .25, .5, .75, 1].forEach(function (s) {
+      svg.appendChild(se('line', { class: 'grid', x1: L, x2: L + xw, y1: Y(s), y2: Y(s) }));
+      svg.appendChild(se('text', { x: L - 6, y: Y(s) + 3, 'text-anchor': 'end' })).textContent = Math.round(s * 100) + '%';
+    });
+    var ageStep = niceStep(maxAge - startAge, 5);
+    for (var a = Math.ceil(startAge / ageStep) * ageStep; a <= maxAge; a += ageStep) {
+      svg.appendChild(se('line', { class: 'grid', x1: X(a), x2: X(a), y1: T, y2: T + yh }));
+      svg.appendChild(se('text', { x: X(a), y: T + yh + 16, 'text-anchor': 'middle' })).textContent = Math.round(a);
+    }
+    svg.appendChild(se('line', { class: 'axis', x1: L, x2: L, y1: T, y2: T + yh }));
+    svg.appendChild(se('line', { class: 'axis', x1: L, x2: L + xw, y1: T + yh, y2: T + yh }));
+
+    var d = 'M ' + X(pts[0].age) + ' ' + Y(pts[0].s);
+    for (var i = 1; i < pts.length; i++) d += ' L ' + X(pts[i].age) + ' ' + Y(pts[i].s);
+    var area = d + ' L ' + X(maxAge) + ' ' + Y(0) + ' L ' + X(startAge) + ' ' + Y(0) + ' Z';
+    svg.appendChild(se('path', { d: area, fill: 'var(--accent-dim)', opacity: '.5', stroke: 'none' }));
+    svg.appendChild(se('path', { d: d, fill: 'none', stroke: 'var(--accent)', 'stroke-width': '2' }));
+
+    var half = null;
+    for (i = 1; i < pts.length; i++) {
+      if (pts[i - 1].s >= 0.5 && pts[i].s < 0.5) {
+        var f = (0.5 - pts[i - 1].s) / (pts[i].s - pts[i - 1].s);
+        half = pts[i - 1].age + f * (pts[i].age - pts[i - 1].age);
+        break;
+      }
+    }
+    if (half != null) {
+      svg.appendChild(se('line', { x1: X(half), x2: X(half), y1: T, y2: T + yh, stroke: 'var(--fg)', 'stroke-width': '1', 'stroke-dasharray': '3,3' }));
+      var lbl = se('text', { x: X(half) + 4, y: T + 11, fill: 'var(--fg)' });
+      lbl.textContent = '50% at ' + half.toFixed(0);
+      svg.appendChild(lbl);
+    }
+  }
+
+  function drawScatterChart() {
+    var svg = $('scatter-chart'); clearSvg(svg);
+    var W = 640, H = 340, L = 46, R = 14, T = 14, B = 30;
+    var xw = W - L - R, yh = H - T - B;
+    var pops = COUNTRIES.map(function (c) { return c.pop; });
+    var les = COUNTRIES.map(function (c) { return c.leBase; });
+    var lo = Math.log10(Math.min.apply(null, pops) * 0.8), hi = Math.log10(Math.max.apply(null, pops) * 1.3);
+    var leLo = Math.floor(Math.min.apply(null, les) / 5) * 5 - 5, leHi = Math.ceil(Math.max.apply(null, les) / 5) * 5 + 2;
+    function X(pop) { return L + (Math.log10(pop) - lo) / (hi - lo) * xw; }
+    function Y(le) { return T + (leHi - le) / (leHi - leLo) * yh; }
+
+    [10, 100, 1000].forEach(function (p) {
+      if (p < Math.pow(10, lo) || p > Math.pow(10, hi)) return;
+      svg.appendChild(se('line', { class: 'grid', x1: X(p), x2: X(p), y1: T, y2: T + yh }));
+      var t = svg.appendChild(se('text', { x: X(p), y: T + yh + 16, 'text-anchor': 'middle' }));
+      t.textContent = p >= 1000 ? (p / 1000) + 'bn' : p + 'm';
+    });
+    var leStep = niceStep(leHi - leLo, 5);
+    for (var le = Math.ceil(leLo / leStep) * leStep; le <= leHi; le += leStep) {
+      svg.appendChild(se('line', { class: 'grid', x1: L, x2: L + xw, y1: Y(le), y2: Y(le) }));
+      svg.appendChild(se('text', { x: L - 6, y: Y(le) + 3, 'text-anchor': 'end' })).textContent = Math.round(le);
+    }
+    svg.appendChild(se('line', { class: 'axis', x1: L, x2: L, y1: T, y2: T + yh }));
+    svg.appendChild(se('line', { class: 'axis', x1: L, x2: L + xw, y1: T + yh, y2: T + yh }));
+
+    COUNTRIES.forEach(function (c) {
+      var isSel = c === selected;
+      var circ = se('circle', {
+        cx: X(c.pop), cy: Y(c.leBase), r: isSel ? 7 : 3.5,
+        fill: isSel ? 'var(--accent)' : riskColor(c), opacity: isSel ? 1 : .75,
+        stroke: isSel ? 'var(--fg)' : 'none', 'stroke-width': isSel ? 1.5 : 0
+      });
+      svg.appendChild(circ);
+      if (isSel) {
+        var t = se('text', { x: X(c.pop) + 10, y: Y(c.leBase) - 8, fill: 'var(--fg)' });
+        t.textContent = c.name + ' · ' + c.leBase.toFixed(0) + 'y · ' + fmtPop(c.pop);
+        svg.appendChild(t);
+      }
+    });
+  }
+
+  function drawJackpotChart(series) {
+    var svg = $('jackpot-chart'); clearSvg(svg);
+    var W = 640, H = 300, L = 40, R = 14, T = 14, B = 28;
+    var xw = W - L - R, yh = H - T - B;
+    var maxPop = WORLD_POP_2024 / 1e9;
+    function X(year) { return L + (year - JACKPOT_START) / (JACKPOT_END - JACKPOT_START) * xw; }
+    function Y(bn) { return T + (maxPop - bn) / maxPop * yh; }
+
+    for (var b = 0; b <= maxPop; b += 2) {
+      svg.appendChild(se('line', { class: 'grid', x1: L, x2: L + xw, y1: Y(b), y2: Y(b) }));
+      svg.appendChild(se('text', { x: L - 6, y: Y(b) + 3, 'text-anchor': 'end' })).textContent = b.toFixed(0);
+    }
+    for (var y = JACKPOT_START; y <= JACKPOT_END; y += 25) {
+      svg.appendChild(se('line', { class: 'grid', x1: X(y), x2: X(y), y1: T, y2: T + yh }));
+      svg.appendChild(se('text', { x: X(y), y: T + yh + 16, 'text-anchor': 'middle' })).textContent = y;
+    }
+    svg.appendChild(se('line', { class: 'axis', x1: L, x2: L, y1: T, y2: T + yh }));
+    svg.appendChild(se('line', { class: 'axis', x1: L, x2: L + xw, y1: T + yh, y2: T + yh }));
+
+    var d = 'M ' + X(series[0].year) + ' ' + Y(series[0].pop / 1e9);
+    for (var i = 1; i < series.length; i++) d += ' L ' + X(series[i].year) + ' ' + Y(series[i].pop / 1e9);
+    var last = series[series.length - 1];
+    var area = d + ' L ' + X(last.year) + ' ' + Y(0) + ' L ' + X(series[0].year) + ' ' + Y(0) + ' Z';
+    svg.appendChild(se('path', { d: area, fill: 'var(--accent-dim)', opacity: '.5', stroke: 'none' }));
+    svg.appendChild(se('path', { d: d, fill: 'none', stroke: 'var(--accent)', 'stroke-width': '2' }));
+    svg.appendChild(se('circle', { cx: X(last.year), cy: Y(last.pop / 1e9), r: 4, fill: 'var(--accent)' }));
+    var lt = se('text', { x: X(last.year) - 6, y: Y(last.pop / 1e9) - 10, 'text-anchor': 'end', fill: 'var(--fg)' });
+    lt.textContent = '2099: ' + (last.pop / 1e9).toFixed(2) + 'bn';
+    svg.appendChild(lt);
+  }
+
+  COUNTRIES.forEach(function (c) { c.riskMult = calibrateRiskMult(c.le); });
+  var JACKPOT = solveJackpotIntensity(0.2);
+  COUNTRIES.forEach(function (c) { c.leBase = baselineLifeExpectancy(c); });
+
+  $('compute').addEventListener('click', function () {
+    kit.clear(errBox);
+    if (!selected) { kit.showError(errBox, 'Pick a country first — tap a point on the grid above, or type its name.'); return; }
+    var age = parseInt($('age').value, 10);
+    if (!isFinite(age) || age < 0 || age > 99) { kit.showError(errBox, 'Age must be a whole number from 0 to 99.'); return; }
+    var pct;
+    if (sesMode === 'income') {
+      var income = parseFloat($('income').value);
+      if (!isFinite(income) || income < 0) { kit.showError(errBox, 'Enter a non-negative annual income.'); return; }
+      pct = incomeToPercentile(income);
+    } else {
+      pct = parseFloat($('pct').value);
+      if (!isFinite(pct) || pct < 0 || pct > 100) { kit.showError(errBox, 'Percentile must be between 0 and 100.'); return; }
+    }
+    var currentYear = Math.max(JACKPOT_START, new Date().getFullYear());
+    var model = makeIndividualModel(selected, age, currentYear, pct, JACKPOT.result.jByYear, JACKPOT.result.jByYear[JACKPOT_END]);
+    var pts = survivalCurve(model.hazardAt, age, 105, 0.5);
+    var remaining = expectedRemaining(pts);
+    var lifespan = age + remaining;
+    var hazardRatio = model.hazardAt(age) / baseHazard(age);
+
+    $('s-life').textContent = lifespan.toFixed(1);
+    $('s-remain').textContent = remaining.toFixed(1);
+    $('s-pct').textContent = pct.toFixed(0);
+    $('s-hazard').textContent = hazardRatio.toFixed(2) + '×';
+    $('result').hidden = false;
+    drawSurvivalChart(pts, age);
+    drawScatterChart();
+    $('result').scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
+  });
+
+  $('j-2024').textContent = (WORLD_POP_2024 / 1e9).toFixed(2);
+  $('j-2099').textContent = (JACKPOT.result.series[JACKPOT.result.series.length - 1].pop / 1e9).toFixed(2);
+  $('j-intensity').textContent = JACKPOT.intensity.toFixed(1) + '×';
+  drawJackpotChart(JACKPOT.result.series);
+  drawScatterChart();
+
+  resizeMap();
+  window.addEventListener('resize', resizeMap);
+  window.addEventListener('orientationchange', resizeMap);
+})();
+</script>
+</body>
+</html>

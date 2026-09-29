@@ -1,0 +1,21 @@
+You built the site in lab/www/create-space/ for this request:
+
+Please create a space colony simulator. The camera is on the inside of the cylindrical vessel, rotating so that you can only see part of the colony at any given time. It’s pastoral. You get to hover over (or tap on mobile) colonists to see their thoughts while they work and play.
+
+A reviewer loaded it in a real browser, played it, and reported these defects:
+
+VERDICT: FIX
+
+1. **Ground scenery still renders as huge, flat, sharp-edged abstract shapes rather than recognizable pastoral scenery — the same defect the project's own last review round reported and claimed to fix.** Evidence: `mcp__eyes__look` (1280×800) and two `mcp__eyes__watch` runs (5 frames/20s, then 4 frames/15s, covering >1 radian of camera rotation and a large chunk of the drum's length) all show the same character: a giant blue "river" as wide, hard-edged sweeping ribbons covering 30-50% of frame width, "tree clumps" rendered as ~150-250px flat dark ellipses that read as puddles/cow-patches rather than canopies, and a sharp tan/khaki wedge (a window-strip patch) that grows to cover over half the frame as the camera rotates toward it. In no capture across ~55 seconds of observation did a cottage, tilled field, or hedge read as such — only oversized, texture-less color blocks dominated by grazing-angle magnification of near ground. Fixed looks like: grass/river/tree/cottage detail that is recognizable as such at typical viewing distance, not blown-up flat polygons, at every point in the rotation, not just cherry-picked frames.
+
+2. **Tooltip text clips off-screen when a colonist is hovered near the right (or left) edge on desktop.** Evidence: `mcp__eyes__drive` click at (1254, 165) on a colonist near the right edge produced a tooltip box extending past the 1280px viewport, cutting off words mid-sentence ("if…", "straight…" trimmed). `showTooltip()` positions the box centered on the cursor (`transform: translate(-50%,-100%)`) with no clamping to viewport bounds. Fixed looks like: the tooltip stays fully on-screen (clamped/flipped) regardless of where on screen the colonist is hovered.
+
+Fix them, most important first. Read BRIEF.md and the code before you change
+anything. You have the same eyes as before (`mcp__eyes__look`, `watch`,
+`drive`): after each fix, prove it with a tool call, and check you have not
+broken something that worked. If you think a reported defect is wrong, check
+it yourself and say why in BRIEF.md rather than changing working code.
+
+Write only inside lab/www/create-space/ (and the requester's profile, if a durable
+preference was learned). Write files in pieces of at most ~250 lines. Add a
+short "Review round" note to BRIEF.md: what was reported, what you fixed.

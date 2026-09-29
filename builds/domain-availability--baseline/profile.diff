@@ -1,0 +1,34 @@
+diff --git a/lab/_profiles/minormobius.bsky.social.md b/lab/_profiles/minormobius.bsky.social.md
+index 4674c584..22e025a2 100644
+--- a/lab/_profiles/minormobius.bsky.social.md
++++ b/lab/_profiles/minormobius.bsky.social.md
+@@ -269,6 +269,29 @@ structural requirement on the underlying model, and check whether the
+ current implementation can actually represent each named class as a first-
+ class thing before assuming a cosmetic pass will do.
+ 
++## `domain-availability` (2026-09-29): a request can name a feature the sandbox structurally cannot deliver, without knowing it
++Asked for a domain-availability checker that "checks domain available" across
++many TLDs. The lab CSP's `connect-src` only reaches Bluesky's API and
++`plc.directory` — no registry/registrar/WHOIS host is reachable from a tenant
++page, so a *live* check is not a scoping choice, it's structurally impossible
++here (same shape as the `chladni-sim` Rust-in-sandbox case above, but a
++platform-imposed ceiling rather than a missing toolchain). Built a curated
++reference tool instead (real per-TLD facts, general demand reputation, no
++live signal) and said so plainly on the page itself, not just in BRIEF.md.
++Durable: when a request's core mechanic needs a network host outside the
++CSP allowlist, that's worth naming as a hard platform boundary up front
++(on-page, not just in the handoff doc) rather than quietly downgrading to
++"as close as possible" and hoping it reads as the real thing.
++
++## Said no to (2026-09-29 addition)
++Declined to add outbound links to registrar/WHOIS sites (e.g. guessing at a
++`whois.com/whois/<domain>` or a Namecheap search URL) even though such a
++plain `<a href>` would not have been blocked by the CSP — wasn't confident
++those exact URL shapes are current, and the system-level instruction not to
++guess URLs took precedence over making the page feel more complete. Worth
++knowing this requester hasn't reacted to that tradeoff yet; if they ask for
++the outbound links anyway, that's the signal to revisit it.
++
+ ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
+ "full train game experience, make sure it feels like a train game" — same
+ shape as the tube-tetris request above: name the genre, trust the build

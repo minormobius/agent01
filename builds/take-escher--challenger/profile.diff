@@ -1,0 +1,14 @@
+diff --git a/lab/_profiles/minormobius.bsky.social.md b/lab/_profiles/minormobius.bsky.social.md
+index f474751e..084b5ed4 100644
+--- a/lab/_profiles/minormobius.bsky.social.md
++++ b/lab/_profiles/minormobius.bsky.social.md
+@@ -159,6 +159,9 @@ When a game has both a camera control scheme and a piece/object control
+ scheme and an ask is ambiguous about which, default to reading it as the
+ piece controls unless the request names the camera/view/drag explicitly.
+ 
++## `take-escher` (2026-09-29): names a specific real-world reference, expects genuinely computed mechanics under it
++"take Escher woodcut circle limit III and make it an interactive explorer... use tiling to play with a Poincaré disk hyperbolic" — another terse, one-paragraph request naming a specific well-known work/format and trusting the build to work out the underlying mechanic in full (same shape as the tube-tetris/train-game pattern below, but for a named artwork rather than a game genre). Built as a real generated hyperbolic tiling (Möbius transforms, not a static image or faked repeating raster) with genuine interaction (drag/swim applies an actual rigid isometry to the whole tiling). Durable: when this requester names a specific real thing (an artwork, a genre, a well-known object), the bar is a working computed version of its actual underlying structure — a decorative approximation that merely looks right would undershoot what they're asking for.
++
+ ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
+ "full train game experience, make sure it feels like a train game" — same
+ shape as the tube-tetris request above: name the genre, trust the build

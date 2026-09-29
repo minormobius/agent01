@@ -1,0 +1,1 @@
+Real Mobius-transform tiling, not a picture. Rows are straight geodesics, not Escher's curved fish lines — said on the page. Drag is clamped to the pre-built patch; true infinite panning needs a recentering step, noted in BRIEF.

@@ -1,0 +1,32 @@
+{
+  "arm": "baseline",
+  "slug": "create-space",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 39,
+  "cost_usd": 1.4187,
+  "seconds": 582,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 445,
+      "exit": 0,
+      "turns": 27,
+      "cost_usd": 1.0961695999999999,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "visual",
+      "seconds": 137,
+      "exit": 0,
+      "turns": 12,
+      "cost_usd": 0.32250019999999996,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

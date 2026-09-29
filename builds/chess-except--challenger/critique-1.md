@@ -1,0 +1,3 @@
+Works correctly on mobile touch — knight hopping, tap targets fine, no layout issues, no text selection on tap-hold. Everything checks out: it's chess, selecting a piece triggers an uncontrolled random walk through legal moves (verified with knight and pawn walks, captures, promotions), check/checkmate/stalemate all fire correctly, no crashes across 15 automated games, animation is a legible pace, and mobile/desktop layouts are both clean with proper tap targets. Deviations from strict literal interpretation (no castling/en passant, anti-immediate-backtrack, 60-hop cap) are minor, disclosed on-page, and don't undermine the core ask.
+
+VERDICT: SHIP

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pip Cascade — a domino-toppling cellular automaton</title>
+<meta name="description" content="A cellular automaton where each cell is a domino standing in one of four projective orientations. Topple one and watch which neighbors it can knock down, live in the grid.">
+<meta property="og:title" content="Pip Cascade — a domino-toppling cellular automaton">
+<meta property="og:description" content="Each cell stands in one of 4 axes. A fall reaches a neighbor only along a non-orthogonal line, and opposite pushes cancel out. Tap the grid to start a cascade.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 44rem; }
+  #stage {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+    display: block;
+  }
+  .bar {
+    display: flex; flex-wrap: wrap; gap: .6rem;
+    align-items: center; margin: 1rem 0;
+  }
+  .bar button {
+    min-height: 44px; min-width: 44px;
+  }
+  .bar label {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .8rem; color: var(--muted);
+  }
+  input[type=range] { width: 8rem; height: 44px; }
+  #legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .4rem .9rem; }
+  #legend div { display: flex; align-items: center; gap: .5rem; font-size: .78rem; color: var(--muted); }
+  #legend .swatch { width: 1.1rem; height: 1.1rem; border-radius: 3px; flex: none; }
+  details summary { cursor: pointer; color: var(--accent); font-size: .85rem; margin: 1.5rem 0 .5rem; }
+  #hint { font-size: .8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Pip Cascade</h1>
+  <p class="sub">A domino-toppling cellular automaton. Every cell stands upright along one of
+  four axes; tap one to start it falling and watch which neighbors it can reach.</p>
+
+  <canvas id="stage" aria-label="domino grid, tap a cell to topple it"></canvas>
+
+  <div class="bar">
+    <button id="playBtn">Play</button>
+    <button id="stepBtn">Step</button>
+    <button id="scrambleBtn">Scramble</button>
+    <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+    <label>grid <input id="size" type="range" min="16" max="64" value="36"></label>
+  </div>
+  <p id="hint">Tap a standing domino to topple it toward where you tapped. Tap a
+  fallen or falling one to stand it back up, on a fresh random axis.</p>
+
+  <details>
+    <summary>the rule</summary>
+    <p>Each upright cell has an axis — one of 4 lines through the projectivized
+    Moore neighborhood: vertical, horizontal, or either diagonal. A falling cell
+    has one of 8 compass directions, and decays to <em>fallen</em> (flat, inert)
+    the step after it falls.</p>
+    <p>An upright cell topples when a falling neighbor is falling <em>toward</em>
+    it, in a direction that is <strong>not orthogonal</strong> to the cell's own
+    axis — a push square-on to the axis has no leverage and is ignored. If two
+    such pushes arrive from exactly opposite directions at once, they cancel and
+    the cell stays standing. Otherwise it falls, in whichever of its two
+    perpendicular directions the surviving push leans toward.</p>
+    <div id="legend"></div>
+  </details>
+</main>
+
+<script>
+document.getElementById('crumb').innerHTML = kit.crumb('domino-upright');
+
+// ---- direction geometry -----------------------------------------------
+// 8 compass directions, index k, each 45deg apart: N,NE,E,SE,S,SW,W,NW.
+// An upright axis reuses indices 0-3 of the same table (N/NE/E/SE), since an
+// axis is just an unordered line through two opposite directions (k, k+4).
+var DIRVEC = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];
+var DIRNAME = ['N','NE','E','SE','S','SW','W','NW'];
+var AXISNAME = ['vertical','diagonal ⁄','horizontal','diagonal ⁃'];
+function angleOf(k) { return Math.atan2(DIRVEC[k][1], DIRVEC[k][0]); }
+function opposite(k) { return (k + 4) % 8; }
+function circDist(a, b) { var d = Math.abs(a - b) % 8; return Math.min(d, 8 - d); }
+
+// which of an axis's two perpendicular fall-directions a surviving push
+// leans toward; ties (a push square along the cell's own axis) fall to the
+// lower-indexed perpendicular direction, an arbitrary but fixed choice.
+function mapToFallDir(pushDir, orthoAxis) {
+  var a = orthoAxis, b = orthoAxis + 4;
+  return circDist(pushDir, a) <= circDist(pushDir, b) ? a : b;
+}
+
+// ---- state --------------------------------------------------------------
+// type: 0 = upright, 1 = falling, 2 = fallen
+// data: axis (0-3) when upright, direction (0-7) when falling or fallen
+var GRID = 36, type, data;
+function alloc(n) { type = new Uint8Array(n * n); data = new Uint8Array(n * n); }
+function idx(x, y) { return y * GRID + x; }
+function wrap(v, n) { return ((v % n) + n) % n; }
+
+function scramble() {
+  alloc(GRID);
+  for (var i = 0; i < type.length; i++) {
+    type[i] = 0;
+    data[i] = (Math.random() * 4) | 0;
+  }
+  draw();
+}
+
+function step() {
+  var n = GRID, newType = new Uint8Array(type.length), newData = new Uint8Array(data.length);
+  for (var y = 0; y < n; y++) {
+    for (var x = 0; x < n; x++) {
+      var i = idx(x, y);
+      if (type[i] === 0) {
+        var axis = data[i], orthoAxis = (axis + 2) % 4;
+        var active = {};
+        for (var k = 0; k < 8; k++) {
+          var nx = wrap(x + DIRVEC[k][0], n), ny = wrap(y + DIRVEC[k][1], n);
+          var j = idx(nx, ny);
+          if (type[j] === 1 && data[j] === opposite(k)) {
+            var pushDir = data[j]; // direction the neighbor's fall points, i.e. into me
+            if (pushDir % 4 !== orthoAxis) active[pushDir] = true; // orthogonal push has no leverage
+          }
+        }
+        for (var d = 0; d < 4; d++) {
+          if (active[d] && active[d + 4]) { delete active[d]; delete active[d + 4]; } // opposite pushes cancel
+        }
+        var keys = Object.keys(active).map(Number);
+        if (keys.length) {
+          var chosen = Math.min.apply(null, keys);
+          newType[i] = 1;
+          newData[i] = mapToFallDir(chosen, orthoAxis);
+        } else {
+          newType[i] = 0; newData[i] = axis;
+        }
+      } else if (type[i] === 1) {
+        newType[i] = 2; newData[i] = data[i];
+      } else {
+        newType[i] = 2; newData[i] = data[i];
+      }
+    }
+  }
+  type = newType; data = newData;
+  draw();
+}
+
+// ---- rendering ------------------------------------------------------------
+var canvas = document.getElementById('stage'), ctx = canvas.getContext('2d');
+var AXIS_COLOR = ['#e8a33d', '#7ac387', '#5fb8e8', '#e8735f'];
+var FALLEN_COLOR = '#3a3842';
+function dirColor(k) { return 'hsl(' + (k * 45) + ' 70% 62%)'; }
+
+function fitCanvas() {
+  var rect = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  draw();
+}
+
+function draw() {
+  if (!type) return;
+  var n = GRID, cell = canvas.width / n;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bg-raised') || '#16161b';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (var y = 0; y < n; y++) {
+    for (var x = 0; x < n; x++) {
+      var i = idx(x, y);
+      var cx = (x + 0.5) * cell, cy = (y + 0.5) * cell;
+      ctx.save();
+      ctx.translate(cx, cy);
+      // every shape below is drawn pointing along +x (east) by default, then
+      // rotated by angleOf(k) — which is also measured from +x — to face k.
+      if (type[i] === 0) {
+        ctx.rotate(angleOf(data[i]));
+        ctx.fillStyle = AXIS_COLOR[data[i]];
+        ctx.fillRect(-cell * 0.38, -cell * 0.09, cell * 0.76, cell * 0.18);
+      } else if (type[i] === 1) {
+        ctx.rotate(angleOf(data[i]));
+        ctx.fillStyle = dirColor(data[i]);
+        ctx.fillRect(-cell * 0.3, -cell * 0.11, cell * 0.6, cell * 0.22);
+        ctx.beginPath();
+        ctx.moveTo(cell * 0.42, 0);
+        ctx.lineTo(cell * 0.22, -cell * 0.16);
+        ctx.lineTo(cell * 0.22, cell * 0.16);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.rotate(angleOf(data[i]));
+        ctx.fillStyle = FALLEN_COLOR;
+        ctx.fillRect(-cell * 0.36, -cell * 0.1, cell * 0.72, cell * 0.2);
+      }
+      ctx.restore();
+    }
+  }
+}
+
+// ---- interaction ------------------------------------------------------------
+function cellAt(clientX, clientY) {
+  var rect = canvas.getBoundingClientRect();
+  var px = (clientX - rect.left) / rect.width, py = (clientY - rect.top) / rect.height;
+  var x = Math.min(GRID - 1, Math.max(0, (px * GRID) | 0));
+  var y = Math.min(GRID - 1, Math.max(0, (py * GRID) | 0));
+  return { x: x, y: y, fx: px * GRID - x, fy: py * GRID - y };
+}
+
+canvas.addEventListener('pointerdown', function (e) {
+  var c = cellAt(e.clientX, e.clientY), i = idx(c.x, c.y);
+  if (type[i] === 0) {
+    var vx = c.fx - 0.5, vy = c.fy - 0.5;
+    var ang = Math.atan2(vy, vx);
+    var best = 0, bestDiff = Infinity;
+    for (var k = 0; k < 8; k++) {
+      var diff = Math.abs(angleOf(k) - ang);
+      if (diff > Math.PI) diff = 2 * Math.PI - diff;
+      if (diff < bestDiff) { bestDiff = diff; best = k; }
+    }
+    type[i] = 1; data[i] = best;
+  } else {
+    type[i] = 0; data[i] = (Math.random() * 4) | 0;
+  }
+  draw();
+});
+
+// ---- controls ------------------------------------------------------------
+var playing = false, timer = null;
+var playBtn = document.getElementById('playBtn');
+function setPlaying(v) {
+  playing = v;
+  playBtn.textContent = playing ? 'Pause' : 'Play';
+  clearInterval(timer);
+  if (playing) timer = setInterval(step, 1000 / Number(document.getElementById('speed').value));
+}
+playBtn.addEventListener('click', function () { setPlaying(!playing); });
+document.getElementById('stepBtn').addEventListener('click', step);
+document.getElementById('scrambleBtn').addEventListener('click', scramble);
+document.getElementById('speed').addEventListener('input', function () { if (playing) setPlaying(true); });
+document.getElementById('size').addEventListener('input', function () {
+  GRID = Number(this.value);
+  scramble();
+});
+
+window.addEventListener('resize', fitCanvas);
+
+var legend = document.getElementById('legend');
+AXISNAME.forEach(function (name, k) {
+  legend.insertAdjacentHTML('beforeend',
+    '<div><span class="swatch" style="background:' + AXIS_COLOR[k] + '"></span>upright — ' + name + '</div>');
+});
+legend.insertAdjacentHTML('beforeend',
+  '<div><span class="swatch" style="background:' + FALLEN_COLOR + '"></span>fallen</div>');
+legend.insertAdjacentHTML('beforeend',
+  '<div><span class="swatch" style="background:linear-gradient(90deg,hsl(0 70% 62%),hsl(315 70% 62%))"></span>falling (hue = direction)</div>');
+
+fitCanvas();
+scramble();
+</script>
+</body>
+</html>

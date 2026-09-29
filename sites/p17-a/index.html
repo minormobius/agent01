@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>drag &amp; correlate — a scatter you can bend</title>
+<meta name="description" content="Drag points on a scatter plot and watch the correlation coefficient move in real time. See why r only measures linear association, and why one outlier can flip it.">
+<meta property="og:title" content="drag &amp; correlate — a scatter you can bend">
+<meta property="og:description" content="Drag points on a scatter plot and watch the correlation coefficient move in real time. See why r only measures linear association, and why one outlier can flip it.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  .panel {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.1rem; margin: 1.25rem 0;
+  }
+  .stage {
+    display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-start;
+  }
+  .canvas-wrap {
+    position: relative; width: 100%; max-width: 22rem; aspect-ratio: 1 / 1;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    touch-action: none; flex: 1 1 18rem;
+  }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .side { flex: 1 1 14rem; min-width: 0; }
+  .stat-row { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+  .rbig { font-size: 2.2rem; font-weight: 600; color: var(--fg); letter-spacing: -.02em; }
+  .rlabel { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .rtarget { font-size: .85rem; color: var(--muted); }
+  .rscale {
+    position: relative; height: .55rem; border-radius: 999px; margin: .6rem 0 .3rem;
+    background: linear-gradient(90deg, var(--error) 0%, var(--border) 50%, var(--ok) 100%);
+  }
+  .rscale-dot {
+    position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--bg); transform: translate(-50%, -50%);
+    transition: left .12s linear;
+  }
+  .rscale-ticks { display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted); }
+  .controls { margin-top: 1rem; }
+  .controls label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .3rem; }
+  .slider-row { display: flex; align-items: center; gap: .6rem; }
+  input[type=range] { flex: 1; accent-color: var(--accent); height: 2rem; }
+  .slider-row output { font-size: .85rem; min-width: 3.2rem; text-align: right; }
+  .btn-row { display: flex; gap: .6rem; margin-top: .8rem; flex-wrap: wrap; }
+  .btn-row button { flex: 1 1 auto; min-height: 44px; }
+  .hint { font-size: .78rem; color: var(--muted); margin-top: .7rem; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1rem; margin-top: 1rem; }
+  .gcard { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem; }
+  .gcard canvas { width: 100%; aspect-ratio: 1/1; display: block; background: var(--bg); }
+  .gcard .gcap { font-size: .75rem; color: var(--muted); margin-top: .4rem; line-height: 1.4; }
+  .gcard .gr { color: var(--fg); font-weight: 600; }
+  .formula { font-size: .85rem; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .8rem 1rem; overflow-x: auto; }
+  @media (max-width: 480px) {
+    .rbig { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / drag &amp; correlate</div>
+  <h1>drag &amp; correlate</h1>
+  <p class="sub">Pearson's r, in your hands. Move a point, watch the number move.</p>
+
+  <section class="panel" aria-label="interactive scatter plot">
+    <div class="stage">
+      <div class="canvas-wrap">
+        <canvas id="scatter" aria-label="Draggable scatter plot"></canvas>
+      </div>
+      <div class="side">
+        <div class="stat-row">
+          <span class="rlabel">measured r</span>
+        </div>
+        <div class="rbig" id="rval">0.00</div>
+        <div class="rtarget" id="rtarget">target r: 0.70 (this sample's actual r will differ a little)</div>
+        <div class="rscale" aria-hidden="true">
+          <div class="rscale-dot" id="rdot"></div>
+        </div>
+        <div class="rscale-ticks"><span>−1</span><span>0</span><span>+1</span></div>
+
+        <div class="controls">
+          <label for="targetR">target correlation when generating a new set</label>
+          <div class="slider-row">
+            <input type="range" id="targetR" min="-1" max="1" step="0.05" value="0.7"
+                   aria-describedby="rtarget">
+            <output id="targetROut">0.70</output>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button id="shuffle" type="button">new random set</button>
+          <button id="resetView" type="button">reset points</button>
+        </div>
+        <p class="hint">Drag any point to move it. Tap empty space to add a point.
+          Double-tap (or double-click) a point to remove it — at least 3 stay.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>what the number means</h2>
+    <p>The <strong>Pearson correlation coefficient</strong> r summarises how tightly
+      two variables move together in a straight line. It always sits between
+      −1 and +1.</p>
+    <div class="formula">r&nbsp;=&nbsp;Σ(x−x̄)(y−ȳ)&nbsp;/&nbsp;√[&nbsp;Σ(x−x̄)²&nbsp;·&nbsp;Σ(y−ȳ)²&nbsp;]</div>
+    <p><strong>Sign</strong> is direction: positive means as x rises, y tends to rise
+      too; negative means as x rises, y tends to fall. <strong>Magnitude</strong> is
+      strength: near ±1 means the points sit close to a single line; near 0 means
+      there's little straight-line pattern at all. Drag a point far off the line
+      above and watch |r| drop — one point can move it a lot, especially with a
+      small sample like this one.</p>
+  </section>
+
+  <section>
+    <h2>r only sees straight lines</h2>
+    <p>Two things r cannot tell you, shown with fixed examples below (not
+      regenerated — these are the same three datasets every time, so the point
+      holds still long enough to see):</p>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <script src="../_kit/kit.js"></script>
+  <script>
+/* drag & correlate — interactive Pearson r scatter plot. No dependencies,
+ * no network. Data space is [-1,1] x [-1,1]; canvas pixels are derived from
+ * it fresh on every draw, so resize just re-reads clientWidth. */
+(function () {
+  'use strict';
+
+  var canvas = document.getElementById('scatter');
+  var ctx = canvas.getContext('2d');
+  var size = 0; // CSS pixels, square
+  var dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  var points = [];
+  var dragIdx = -1;
+  var edited = false;      // true once the user has dragged/added/deleted a point since the last generate/reset
+  var lastTargetR = 0;     // target r at the last generate/reset, for the "target r" line
+  var lastActualR = 0;     // measured r of that generated sample, ditto
+  var dragPointerId = null;
+  var lastTap = { time: 0, idx: -1 };
+
+  var rvalEl = document.getElementById('rval');
+  var rtargetEl = document.getElementById('rtarget');
+  var rdotEl = document.getElementById('rdot');
+  var targetSlider = document.getElementById('targetR');
+  var targetOut = document.getElementById('targetROut');
+  var shuffleBtn = document.getElementById('shuffle');
+  var resetBtn = document.getElementById('resetView');
+
+  var accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e8a33d';
+  var okColor = getComputedStyle(document.documentElement).getPropertyValue('--ok').trim() || '#7ac387';
+  var errColor = getComputedStyle(document.documentElement).getPropertyValue('--error').trim() || '#f2777a';
+
+  // ---- stats --------------------------------------------------------------
+
+  function pearson(pts) {
+    var n = pts.length;
+    if (n < 2) return 0;
+    var mx = 0, my = 0, i;
+    for (i = 0; i < n; i++) { mx += pts[i].x; my += pts[i].y; }
+    mx /= n; my /= n;
+    var sxy = 0, sxx = 0, syy = 0, dx, dy;
+    for (i = 0; i < n; i++) {
+      dx = pts[i].x - mx; dy = pts[i].y - my;
+      sxy += dx * dy; sxx += dx * dx; syy += dy * dy;
+    }
+    if (sxx === 0 || syy === 0) return 0;
+    return sxy / Math.sqrt(sxx * syy);
+  }
+
+  function regression(pts) {
+    var n = pts.length;
+    var mx = 0, my = 0, i;
+    for (i = 0; i < n; i++) { mx += pts[i].x; my += pts[i].y; }
+    mx /= n; my /= n;
+    var sxy = 0, sxx = 0, dx;
+    for (i = 0; i < n; i++) {
+      dx = pts[i].x - mx;
+      sxy += dx * (pts[i].y - my);
+      sxx += dx * dx;
+    }
+    var slope = sxx === 0 ? 0 : sxy / sxx;
+    return { slope: slope, intercept: my - slope * mx };
+  }
+
+  function gaussianPair() {
+    var u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    var mag = Math.sqrt(-2 * Math.log(u));
+    return [mag * Math.cos(2 * Math.PI * v), mag * Math.sin(2 * Math.PI * v)];
+  }
+
+  function genPoints(r, n) {
+    var pts = [], i, pair, x, y, maxAbs = 0;
+    for (i = 0; i < n; i++) {
+      pair = gaussianPair();
+      x = pair[0];
+      y = r * pair[0] + Math.sqrt(Math.max(0, 1 - r * r)) * pair[1];
+      pts.push({ x: x, y: y });
+      maxAbs = Math.max(maxAbs, Math.abs(x), Math.abs(y));
+    }
+    var s = maxAbs > 0 ? 0.88 / maxAbs : 1;
+    for (i = 0; i < pts.length; i++) { pts[i].x *= s; pts[i].y *= s; }
+    return pts;
+  }
+
+  // ---- coordinate mapping (CSS pixels, data space [-1,1]) ------------------
+
+  function toCanvas(p) {
+    var pad = size * 0.1;
+    var usable = size - pad * 2;
+    return {
+      cx: pad + (p.x + 1) / 2 * usable,
+      cy: pad + (1 - (p.y + 1) / 2) * usable
+    };
+  }
+  function toData(cx, cy) {
+    var pad = size * 0.1;
+    var usable = size - pad * 2;
+    return {
+      x: ((cx - pad) / usable) * 2 - 1,
+      y: (1 - ((cy - pad) / usable)) * 2 - 1
+    };
+  }
+
+  // ---- drawing --------------------------------------------------------------
+
+  function draw() {
+    ctx.clearRect(0, 0, size, size);
+
+    ctx.strokeStyle = 'rgba(139,135,146,0.25)';
+    ctx.lineWidth = 1;
+    var origin = toCanvas({ x: 0, y: 0 });
+    ctx.beginPath(); ctx.moveTo(0, origin.cy); ctx.lineTo(size, origin.cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(origin.cx, 0); ctx.lineTo(origin.cx, size); ctx.stroke();
+
+    if (points.length >= 2) {
+      var reg = regression(points);
+      var x0 = -1.4, x1 = 1.4;
+      var p0 = toCanvas({ x: x0, y: reg.slope * x0 + reg.intercept });
+      var p1 = toCanvas({ x: x1, y: reg.slope * x1 + reg.intercept });
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(p0.cx, p0.cy); ctx.lineTo(p1.cx, p1.cy); ctx.stroke();
+    }
+
+    for (var i = 0; i < points.length; i++) {
+      var c = toCanvas(points[i]);
+      var r = i === dragIdx ? 9 : 6;
+      ctx.beginPath();
+      ctx.arc(c.cx, c.cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = i === dragIdx ? '#ffffff' : 'rgba(232,230,227,0.9)';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(14,14,17,0.7)';
+      ctx.stroke();
+    }
+  }
+
+  function updateStats() {
+    var r = pearson(points);
+    rvalEl.textContent = r.toFixed(2);
+    rvalEl.style.color = points.length < 2 ? 'var(--fg)' : (r >= 0 ? okColor : errColor);
+    var pct = (Math.max(-1, Math.min(1, r)) + 1) / 2 * 100;
+    rdotEl.style.left = pct + '%';
+
+    // The "target r" line must never show a number that no longer matches the
+    // points on screen — recompute it here, every time, from the current
+    // `edited` state rather than leaving whatever regen() last wrote.
+    if (edited) {
+      rtargetEl.textContent = 'target r: ' + lastTargetR.toFixed(2) +
+        ' — edited since generation; measured r above is the current value';
+    } else {
+      rtargetEl.textContent = 'target r: ' + lastTargetR.toFixed(2) +
+        ' — this sample landed at ' + lastActualR.toFixed(2) + ' (finite samples wobble)';
+    }
+  }
+
+  function redraw() { draw(); updateStats(); }
+
+  // ---- sizing -----------------------------------------------------------
+
+  function resize() {
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    size = Math.round(canvas.clientWidth);
+    if (size <= 0) return;
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    redraw();
+  }
+
+  window.addEventListener('resize', debounce(resize, 100));
+
+  function debounce(fn, ms) {
+    var t = null;
+    return function () {
+      clearTimeout(t);
+      var args = arguments;
+      t = setTimeout(function () { fn.apply(null, args); }, ms);
+    };
+  }
+
+  // ---- pointer interaction ------------------------------------------------
+
+  function localXY(e) {
+    var rect = canvas.getBoundingClientRect();
+    return { cx: e.clientX - rect.left, cy: e.clientY - rect.top };
+  }
+
+  function nearestPoint(cx, cy) {
+    var best = -1, bestD = 24 * 24; // hit radius in CSS px, generous for touch
+    for (var i = 0; i < points.length; i++) {
+      var c = toCanvas(points[i]);
+      var d = (c.cx - cx) * (c.cx - cx) + (c.cy - cy) * (c.cy - cy);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  canvas.addEventListener('pointerdown', function (e) {
+    var xy = localXY(e);
+    var idx = nearestPoint(xy.cx, xy.cy);
+
+    if (idx >= 0) {
+      var now = Date.now();
+      if (now - lastTap.time < 400 && lastTap.idx === idx) {
+        if (points.length > 3) { points.splice(idx, 1); edited = true; }
+        lastTap.time = 0; lastTap.idx = -1;
+        redraw();
+        e.preventDefault();
+        return;
+      }
+      lastTap = { time: now, idx: idx };
+      dragIdx = idx;
+      dragPointerId = e.pointerId;
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      redraw();
+      e.preventDefault();
+      return;
+    }
+
+    var d = toData(xy.cx, xy.cy);
+    if (Math.abs(d.x) <= 1.4 && Math.abs(d.y) <= 1.4) {
+      points.push(d);
+      edited = true;
+      redraw();
+    }
+    e.preventDefault();
+  });
+
+  canvas.addEventListener('pointermove', function (e) {
+    if (dragIdx < 0 || e.pointerId !== dragPointerId) return;
+    var xy = localXY(e);
+    var d = toData(xy.cx, xy.cy);
+    d.x = Math.max(-1.4, Math.min(1.4, d.x));
+    d.y = Math.max(-1.4, Math.min(1.4, d.y));
+    points[dragIdx] = d;
+    edited = true;
+    redraw();
+    e.preventDefault();
+  });
+
+  function endDrag(e) {
+    if (dragIdx < 0) return;
+    if (dragPointerId != null) {
+      try { canvas.releasePointerCapture(dragPointerId); } catch (err) {}
+    }
+    dragIdx = -1;
+    dragPointerId = null;
+    redraw();
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  // ---- controls -----------------------------------------------------------
+
+  function currentTarget() { return parseFloat(targetSlider.value); }
+
+  var lastGenerated = []; // snapshot of the set regen() last produced, for resetBtn to restore
+
+  function clonePoints(pts) {
+    var out = [];
+    for (var i = 0; i < pts.length; i++) out.push({ x: pts[i].x, y: pts[i].y });
+    return out;
+  }
+
+  function regen() {
+    var r = currentTarget();
+    points = genPoints(r, 40);
+    lastGenerated = clonePoints(points);
+    lastTargetR = r;
+    lastActualR = pearson(points);
+    edited = false;
+    redraw();
+  }
+
+  function resetPoints() {
+    // Restore the last-generated set as-is, undoing any drag/add/delete edits
+    // since then — does not generate a new sample (that's what "shuffle" is for).
+    points = clonePoints(lastGenerated);
+    dragIdx = -1;
+    dragPointerId = null;
+    edited = false;
+    redraw();
+  }
+
+  targetSlider.addEventListener('input', function () {
+    targetOut.textContent = currentTarget().toFixed(2);
+    regen();
+  });
+  shuffleBtn.addEventListener('click', regen);
+  resetBtn.addEventListener('click', resetPoints);
+
+  // ---- gallery: fixed, non-interactive teaching examples --------------------
+
+  function buildGallery() {
+    var wrap = document.getElementById('gallery');
+
+    function fixedPoints(fn, n) {
+      var pts = [];
+      for (var i = 0; i < n; i++) pts.push(fn(i, n));
+      return pts;
+    }
+
+    var sets = [
+      {
+        cap: 'A clean straight-line relationship.',
+        pts: fixedPoints(function (i, n) {
+          var x = (i / (n - 1)) * 1.8 - 0.9;
+          var jitter = (seeded(i) - 0.5) * 0.4;
+          return { x: x, y: x * 0.85 + jitter };
+        }, 24)
+      },
+      {
+        cap: 'A clear curve (y = x²) — strongly related, but r is near zero because the relationship is not a straight line.',
+        pts: fixedPoints(function (i, n) {
+          var x = (i / (n - 1)) * 1.8 - 0.9;
+          var jitter = (seeded(i + 50) - 0.5) * 0.06;
+          return { x: x, y: x * x * 1.9 - 0.85 + jitter };
+        }, 24)
+      },
+      {
+        cap: 'Same 12 points, one moved far off. Watch the caption below — one outlier drags r a long way.',
+        pts: null // handled specially, two-state
+      }
+    ];
+
+    for (var s = 0; s < sets.length; s++) {
+      var card = document.createElement('div');
+      card.className = 'gcard';
+      var c = document.createElement('canvas');
+      card.appendChild(c);
+      var cap = document.createElement('div');
+      cap.className = 'gcap';
+      card.appendChild(cap);
+      wrap.appendChild(card);
+
+      if (sets[s].pts) {
+        drawStatic(c, sets[s].pts);
+        var r = pearson(sets[s].pts);
+        cap.innerHTML = sets[s].cap + ' <span class="gr">r = ' + r.toFixed(2) + '</span>';
+      } else {
+        renderOutlierCard(c, cap, sets[s].cap);
+      }
+    }
+  }
+
+  function seeded(i) {
+    var x = Math.sin(i * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  function drawStatic(c, pts) {
+    var rect = c.getBoundingClientRect();
+    var w = rect.width || 150;
+    var d = Math.max(1, window.devicePixelRatio || 1);
+    c.width = Math.round(w * d);
+    c.height = Math.round(w * d);
+    var gctx = c.getContext('2d');
+    gctx.setTransform(d, 0, 0, d, 0, 0);
+    var pad = w * 0.1, usable = w - pad * 2;
+    function tc(p) {
+      return { cx: pad + (p.x + 1) / 2 * usable, cy: pad + (1 - (p.y + 1) / 2) * usable };
+    }
+    gctx.clearRect(0, 0, w, w);
+    gctx.strokeStyle = 'rgba(139,135,146,0.25)';
+    gctx.lineWidth = 1;
+    var o = tc({ x: 0, y: 0 });
+    gctx.beginPath(); gctx.moveTo(0, o.cy); gctx.lineTo(w, o.cy); gctx.stroke();
+    gctx.beginPath(); gctx.moveTo(o.cx, 0); gctx.lineTo(o.cx, w); gctx.stroke();
+    for (var i = 0; i < pts.length; i++) {
+      var p = tc(pts[i]);
+      gctx.beginPath();
+      gctx.arc(p.cx, p.cy, 4, 0, Math.PI * 2);
+      gctx.fillStyle = accentColor;
+      gctx.fill();
+    }
+  }
+
+  function renderOutlierCard(c, cap, baseCap) {
+    var base = [];
+    for (var i = 0; i < 12; i++) {
+      var x = (i / 11) * 1.6 - 0.8;
+      base.push({ x: x, y: -x * 0.8 + (seeded(i + 100) - 0.5) * 0.15 });
+    }
+    var withOutlier = base.slice();
+    withOutlier[6] = { x: 0.95, y: 0.95 };
+    var rBefore = pearson(base);
+    var rAfter = pearson(withOutlier);
+    drawStatic(c, withOutlier);
+    cap.innerHTML = baseCap + '<br>without the outlier: <span class="gr">r = ' +
+      rBefore.toFixed(2) + '</span> → with it: <span class="gr">r = ' + rAfter.toFixed(2) + '</span>';
+  }
+
+  // ---- init -----------------------------------------------------------------
+
+  resize(); // sets `size` from layout; points are still empty, draw() is a no-op for them
+  regen();  // generates the first random set now that `size` is known
+  buildGallery();
+})();
+  </script>
+</main>
+</body>
+</html>

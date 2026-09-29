@@ -1,0 +1,16 @@
+The site you just wrote does not work. It was loaded in a real browser under the
+production Content-Security-Policy, and it reported these problems:
+
+smoke [resource] failed to load http://127.0.0.1:44469/
+
+A SCREENSHOT OF THE BROKEN PAGE IS AT /tmp/shot.png — open it with
+Read before you change anything. It is what a visitor sees. If it is blank or
+the layout is wrong, that is the real problem and the console errors are
+downstream of it.
+
+You have no network tools, so you could not have seen this — that is why it is
+being handed to you now. Fix ONLY these problems, in lab/www/want-pairwise/, keeping everything
+else as it is. Real response shapes for every endpoint you are allowed to call
+are checked in at lab/_kit/fixtures/ — read them rather than guessing field
+names, which is the usual cause of this. Update BRIEF.md if the fix changed a
+decision worth remembering.

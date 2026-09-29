@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mutual — who two Bluesky accounts both lean on</title>
+<meta property="og:title" content="mutual — a Bluesky pairwise interaction circle">
+<meta property="og:description" content="Type two Bluesky handles and see who each one reposts, quotes, replies to and mentions most — laid out as two overlapping circles, with the accounts they share in the middle.">
+<meta property="og:type" content="website">
+<meta name="description" content="Two Bluesky handles in, their top interaction accounts out — overlapping circles, shared accounts in the middle.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --a-color: #e8a33d;
+    --b-color: #5fb3f5;
+  }
+  h1 { font-size: 2rem; }
+  .sub { font-size: .9rem; }
+
+  form.pair { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: .6rem; }
+  .field { min-width: 0; }
+  .field label { display: block; font-size: .72rem; color: var(--muted); margin-bottom: .3rem; }
+  .field.a label { color: var(--a-color); }
+  .field.b label { color: var(--b-color); }
+  .field input { font-size: 1rem; }
+
+  .actions { display: flex; gap: .6rem; align-items: center; margin-bottom: .5rem; flex-wrap: wrap; }
+  .actions button { min-height: 44px; }
+  .n-picker { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: .4rem; }
+  .n-picker select { font: inherit; font-size: .85rem; background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: .4rem .5rem; min-height: 44px; }
+
+  .examples { font-size: .78rem; color: var(--muted); margin-bottom: 1.25rem; }
+  .examples button { background: none; border: none; padding: 0; color: var(--accent);
+    text-decoration: underline; cursor: pointer; font: inherit; font-size: inherit; min-height: auto; }
+  .examples button:hover { color: var(--fg); background: none; }
+
+  .status { font-size: .8rem; color: var(--muted); margin: 0 0 1rem; min-height: 1.2em; }
+
+  .venn { position: relative; margin: 1.5rem 0 1rem; }
+  .venn[hidden] { display: none; }
+  .venn-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; border-radius: var(--radius); }
+  .venn-bg .circle { position: absolute; top: 8%; width: 52%; height: 84%; border-radius: 50%;
+    opacity: .22; mix-blend-mode: screen; filter: blur(2px); }
+  .venn-bg .circle.a { left: 4%; background: var(--a-color); }
+  .venn-bg .circle.b { right: 4%; background: var(--b-color); }
+
+  .cols { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 1.2fr 1fr;
+    gap: .4rem; padding: 1.1rem 0 .5rem; }
+  .col { min-width: 0; }
+  .col-head { display: flex; flex-direction: column; align-items: center; gap: .3rem; text-align: center;
+    font-size: .78rem; color: var(--fg); margin-bottom: .7rem; min-height: 2.2rem; justify-content: center; }
+  .col-head img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--bg-raised);
+    border: 1px solid var(--border); }
+  .col.a .col-head { color: var(--a-color); }
+  .col.b .col-head { color: var(--b-color); }
+  .col.mid .col-head { color: var(--fg); font-weight: 600; }
+
+  .chips { display: flex; flex-direction: column; align-items: center; gap: .55rem; min-height: 2rem; }
+  .chip { display: flex; flex-direction: column; align-items: center; gap: .2rem; width: 100%;
+    max-width: 100%; text-decoration: none; padding: .3rem .15rem; border-radius: var(--radius); min-height: 44px; }
+  .chip:hover { background: var(--bg-raised); }
+  .chip img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--bg-raised);
+    border: 1px solid var(--border); flex: none; }
+  .chip .h { font-size: .66rem; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; text-align: center; }
+  .col.mid .chip img { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+  .col.mid .chip .h { color: var(--fg); font-weight: 600; }
+  .empty { font-size: .72rem; color: var(--muted); text-align: center; opacity: .6; margin: .3rem 0 0; }
+
+  .summary { font-size: .82rem; color: var(--fg); margin: .5rem 0 1.5rem; text-align: center; }
+  .same-account { display: none; }
+  .same-account.show { display: block; }
+
+  @media (max-width: 460px) {
+    .col-head { font-size: .7rem; }
+    .chip .h { font-size: .62rem; }
+    .venn-bg .circle { width: 58%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / mutual</div>
+  <h1>mutual</h1>
+  <p class="sub">Two handles in. The accounts each one leans on most, laid out as two overlapping
+    circles — whoever shows up for both sits in the middle.</p>
+
+  <form class="pair" id="pairForm" autocomplete="off">
+    <div class="field a">
+      <label for="handleA">first handle</label>
+      <input type="text" id="handleA" placeholder="e.g. bsky.app" spellcheck="false" autocapitalize="off">
+    </div>
+    <div class="field b">
+      <label for="handleB">second handle</label>
+      <input type="text" id="handleB" placeholder="e.g. jay.bsky.team" spellcheck="false" autocapitalize="off">
+    </div>
+  </form>
+
+  <div class="actions">
+    <button type="button" id="go">Compare</button>
+    <span class="n-picker">
+      <label for="topN">top</label>
+      <select id="topN">
+        <option value="6">6</option>
+        <option value="10" selected>10</option>
+        <option value="15">15</option>
+      </select>
+      <span>each</span>
+    </span>
+  </div>
+
+  <p class="examples">
+    Try:
+    <button type="button" data-a="bsky.app" data-b="jay.bsky.team">bsky.app / jay.bsky.team</button>
+  </p>
+
+  <p class="status" id="status" aria-live="polite"></p>
+  <div class="err" id="error" hidden></div>
+  <p class="summary same-account" id="sameAccount">That's the same account both times — there's nothing to compare it against.</p>
+  <p class="summary" id="summary" hidden></p>
+
+  <div class="venn" id="venn" hidden>
+    <div class="venn-bg" aria-hidden="true"><div class="circle a"></div><div class="circle b"></div></div>
+    <div class="cols">
+      <div class="col a">
+        <div class="col-head"><img id="avatarA" alt=""><span id="labelA"></span></div>
+        <div class="chips" id="chipsA"></div>
+      </div>
+      <div class="col mid">
+        <div class="col-head">both</div>
+        <div class="chips" id="chipsMid"></div>
+      </div>
+      <div class="col b">
+        <div class="col-head"><img id="avatarB" alt=""><span id="labelB"></span></div>
+        <div class="chips" id="chipsB"></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>How this reads "interaction"</h2>
+  <p>There is no interaction-graph endpoint to ask, so this is a proxy built from each account's
+    last 100 posts (<code>app.bsky.feed.getAuthorFeed</code>): a repost or a quote of someone counts
+    for 3, a reply counts for 2, an @-mention counts for 1, added up per account and ranked. It is a
+    read of recent public behaviour, not a lifetime total, and a quiet account will show a thin or
+    empty circle rather than a guess.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+
+  var TOP_CANDIDATES = 25; // app.bsky.actor.getProfiles caps at 25 actors per call
+
+  var inputA = document.getElementById('handleA');
+  var inputB = document.getElementById('handleB');
+  var goBtn = document.getElementById('go');
+  var topNSel = document.getElementById('topN');
+  var statusEl = document.getElementById('status');
+  var errorEl = document.getElementById('error');
+  var sameAccountEl = document.getElementById('sameAccount');
+  var summaryEl = document.getElementById('summary');
+  var venn = document.getElementById('venn');
+
+  kit.handleInput(inputA, {});
+  kit.handleInput(inputB, {});
+
+  function setStatus(msg) { statusEl.textContent = msg || ''; }
+
+  function isHandleLike(v) {
+    v = (v || '').trim().replace(/^@/, '');
+    return /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v);
+  }
+
+  async function getProfilesBatch(dids) {
+    if (!dids.length) return {};
+    var qs = dids.map(function (d) { return 'actors=' + encodeURIComponent(d); }).join('&');
+    var data = await kit.fetchJson('https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles?' + qs);
+    var out = {};
+    (data.profiles || []).forEach(function (p) { out[p.did] = p; });
+    return out;
+  }
+
+  function shortDid(did) { return did.slice(0, 14) + '…'; }
+
+  async function interactionsFor(profile, topN) {
+    var ownDid = profile.did;
+    var feed = await kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: ownDid, limit: 100 });
+    var items = kit.visible(feed.feed || []);
+    var map = new Map();
+
+    function bump(did, info, weight) {
+      if (!did || did === ownDid) return;
+      var e = map.get(did);
+      if (!e) { e = { did: did, weight: 0 }; map.set(did, e); }
+      e.weight += weight;
+      if (info) {
+        if (info.handle && !e.handle) e.handle = info.handle;
+        if (info.displayName && !e.displayName) e.displayName = info.displayName;
+        if (info.avatar && !e.avatar) e.avatar = info.avatar;
+      }
+    }
+
+    items.forEach(function (item) {
+      var post = item.post;
+      if (!post) return;
+      if (item.reason && item.reason.$type === 'app.bsky.feed.defs#reasonRepost' && post.author) {
+        bump(post.author.did, post.author, 3);
+      }
+      var embed = post.embed;
+      if (embed && embed.$type === 'app.bsky.embed.record#view' && embed.record && embed.record.author) {
+        bump(embed.record.author.did, embed.record.author, 3);
+      }
+      var rec = post.record || {};
+      if (rec.reply && rec.reply.parent && typeof rec.reply.parent.uri === 'string') {
+        // at://<did>/<collection>/<rkey> — the DID is right there, no extra fetch needed.
+        bump(rec.reply.parent.uri.slice(5).split('/')[0], null, 2);
+      }
+      if (Array.isArray(rec.facets)) {
+        rec.facets.forEach(function (f) {
+          (f.features || []).forEach(function (feat) {
+            if (feat.$type === 'app.bsky.richtext.facet#mention' && feat.did) bump(feat.did, null, 1);
+          });
+        });
+      }
+    });
+
+    var candidates = Array.from(map.values()).sort(function (x, y) { return y.weight - x.weight; }).slice(0, TOP_CANDIDATES);
+    var pending = candidates.filter(function (e) { return !e.handle; }).map(function (e) { return e.did; });
+    if (pending.length) {
+      var resolved = await getProfilesBatch(pending);
+      candidates.forEach(function (e) {
+        var p = resolved[e.did];
+        if (!e.handle && p) { e.handle = p.handle; e.displayName = p.displayName; e.avatar = p.avatar; }
+      });
+    }
+    return candidates.slice(0, topN);
+  }
+
+  function renderChips(elId, list) {
+    var el = document.getElementById(elId);
+    el.textContent = '';
+    if (!list.length) {
+      var p = document.createElement('p');
+      p.className = 'empty';
+      p.textContent = 'none';
+      el.appendChild(p);
+      return;
+    }
+    list.forEach(function (entry) {
+      var a = document.createElement('a');
+      a.className = 'chip';
+      a.href = 'https://bsky.app/profile/' + (entry.handle || entry.did);
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      var img = document.createElement('img');
+      setAvatarSrc(img, entry.avatar);
+      img.alt = '';
+      img.loading = 'lazy';
+      var h = document.createElement('span');
+      h.className = 'h';
+      h.textContent = entry.handle ? '@' + entry.handle : shortDid(entry.did);
+      a.appendChild(img);
+      a.appendChild(h);
+      el.appendChild(a);
+    });
+  }
+
+  function setAvatarSrc(img, url) {
+    // An empty src makes the browser re-request the current document as an
+    // image (it resolves against location.href) — omit the attribute instead.
+    if (url) img.src = url; else img.removeAttribute('src');
+  }
+
+  function render(profA, profB, topA, topB) {
+    setAvatarSrc(document.getElementById('avatarA'), profA.avatar);
+    setAvatarSrc(document.getElementById('avatarB'), profB.avatar);
+    document.getElementById('labelA').textContent = '@' + profA.handle;
+    document.getElementById('labelB').textContent = '@' + profB.handle;
+
+    var bDids = new Set(topB.map(function (x) { return x.did; }));
+    var aDids = new Set(topA.map(function (x) { return x.did; }));
+    var overlap = topA.filter(function (x) { return bDids.has(x.did); });
+    var onlyA = topA.filter(function (x) { return !bDids.has(x.did); });
+    var onlyB = topB.filter(function (x) { return !aDids.has(x.did); });
+
+    renderChips('chipsA', onlyA);
+    renderChips('chipsMid', overlap);
+    renderChips('chipsB', onlyB);
+
+    summaryEl.hidden = false;
+    summaryEl.textContent = overlap.length
+      ? overlap.length + ' account' + (overlap.length === 1 ? '' : 's') + ' show up near the top for both.'
+      : 'No overlap in their top accounts — based on recent posts, they lean on different people.';
+    venn.hidden = false;
+  }
+
+  async function run() {
+    var hA = (inputA.value || '').trim().replace(/^@/, '');
+    var hB = (inputB.value || '').trim().replace(/^@/, '');
+    kit.clear(errorEl);
+    sameAccountEl.classList.remove('show');
+    summaryEl.hidden = true;
+    venn.hidden = true;
+
+    if (!hA || !hB) { kit.showError(errorEl, 'Enter both handles.'); return; }
+    if (!isHandleLike(hA) || !isHandleLike(hB)) {
+      kit.showError(errorEl, 'That doesn’t look like a valid handle — try something like alice.bsky.social.');
+      return;
+    }
+
+    var topN = parseInt(topNSel.value, 10) || 10;
+    goBtn.disabled = true;
+    try {
+      setStatus('Looking up both accounts …');
+      var profs = await Promise.all([
+        kit.bskyGet('app.bsky.actor.getProfile', { actor: hA }),
+        kit.bskyGet('app.bsky.actor.getProfile', { actor: hB }),
+      ]);
+      var profA = profs[0], profB = profs[1];
+
+      if (profA.did === profB.did) {
+        sameAccountEl.classList.add('show');
+        setStatus('');
+        return;
+      }
+
+      setStatus('Reading recent posts for both …');
+      var results = await Promise.all([
+        interactionsFor(profA, topN),
+        interactionsFor(profB, topN),
+      ]);
+
+      render(profA, profB, results[0], results[1]);
+      setStatus('Done.');
+    } catch (e) {
+      var msg = e && e.message ? e.message : String(e);
+      kit.showError(errorEl, 'Could not compare those two: ' + msg);
+      setStatus('');
+    } finally {
+      goBtn.disabled = false;
+    }
+  }
+
+  goBtn.addEventListener('click', run);
+  document.getElementById('pairForm').addEventListener('submit', function (ev) { ev.preventDefault(); run(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.examples button'), function (btn) {
+    btn.addEventListener('click', function () {
+      inputA.value = btn.getAttribute('data-a');
+      inputB.value = btn.getAttribute('data-b');
+      run();
+    });
+  });
+})();
+</script>
+</body>
+</html>

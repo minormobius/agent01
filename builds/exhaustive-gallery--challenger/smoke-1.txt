@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 233 colours, top 82%
+  ✓ smoke: lab/www/exhaustive-gallery/index.html loads clean under the production CSP

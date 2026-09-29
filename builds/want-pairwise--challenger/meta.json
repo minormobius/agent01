@@ -1,0 +1,72 @@
+{
+  "arm": "challenger",
+  "slug": "want-pairwise",
+  "status": "failed",
+  "failed_at": "smoke (still broken after repair)",
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 71,
+  "cost_usd": 2.4765,
+  "seconds": 819,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 701,
+      "exit": 0,
+      "turns": 51,
+      "cost_usd": 2.1387148000000007,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 113,
+      "exit": 1,
+      "turns": 16,
+      "cost_usd": 0.3378284000000001,
+      "subtype": "success",
+      "is_error": true,
+      "terminal_reason": "api_error"
+    },
+    {
+      "name": "revise-1",
+      "seconds": 2,
+      "exit": 1,
+      "turns": 1,
+      "cost_usd": 0,
+      "subtype": "success",
+      "is_error": true,
+      "terminal_reason": "api_error"
+    },
+    {
+      "name": "critic-2",
+      "seconds": 1,
+      "exit": 1,
+      "turns": 1,
+      "cost_usd": 0,
+      "subtype": "success",
+      "is_error": true,
+      "terminal_reason": "api_error"
+    },
+    {
+      "name": "revise-2",
+      "seconds": 1,
+      "exit": 1,
+      "turns": 1,
+      "cost_usd": 0,
+      "subtype": "success",
+      "is_error": true,
+      "terminal_reason": "api_error"
+    },
+    {
+      "name": "repair",
+      "seconds": 1,
+      "exit": 1,
+      "turns": 1,
+      "cost_usd": 0,
+      "subtype": "success",
+      "is_error": true,
+      "terminal_reason": "api_error"
+    }
+  ]
+}

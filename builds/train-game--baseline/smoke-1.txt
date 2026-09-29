@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 203 colours, top 35%
+  ✓ smoke: lab/www/train-game/index.html loads clean under the production CSP

@@ -1,0 +1,4 @@
+
+::error::smoke [resource] failed to load http://127.0.0.1:42039/
+
+::error::1 problem(s) loading lab/www/want-pairwise/index.html

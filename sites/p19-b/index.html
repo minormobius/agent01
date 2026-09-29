@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spur &amp; Siding — a railbuilding game</title>
+<meta property="og:title" content="Spur &amp; Siding">
+<meta property="og:description" content="Procedurally generated terrain, a fixed budget, and a pencil. Lay track between towns at the cost the ground demands, throw the points at your junctions, and watch whether your trains earn back what the rails cost you.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  :root{ --rail-bed:#211d18; --rail-top:#cfc7b8; --water:#1c3f52; --plains:#3c4d2c; --forest:#2b3d24; --mountain:#5a5248; }
+  body{ padding:1.25rem .9rem 3rem; }
+  main{ max-width: 64rem; }
+  h1{ font-size: 1.9rem; }
+  .sub{ margin-bottom: 1.25rem; }
+  .stats{
+    display:flex; flex-wrap:wrap; gap:.5rem .9rem;
+    background: var(--bg-raised); border:1px solid var(--border); border-radius: var(--radius);
+    padding:.75rem 1rem; margin-bottom:.75rem; font-size:.85rem;
+  }
+  .stats .stat{ color: var(--muted); white-space:nowrap; }
+  .stats .stat b{ color: var(--fg); font-weight:600; }
+  .stats .stat.money b{ color: var(--accent); }
+  .stats .stat.money.neg b{ color: var(--error); }
+  .board{
+    position:relative; width:100%; aspect-ratio: 900/560;
+    background: var(--water); border:1px solid var(--border); border-radius: var(--radius);
+    overflow:hidden; touch-action:none;
+  }
+  canvas#stage{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .controls{ display:flex; flex-wrap:wrap; gap:.6rem; margin:.85rem 0; }
+  .controls button{ min-height:44px; }
+  #msg{ margin:.5rem 0; min-height: 1.6rem; }
+  #msg.err{ }
+  #msg:empty{ display:none; }
+  .legend{ font-size:.8rem; color: var(--muted); margin-top:1.5rem; }
+  .legend b{ color: var(--fg); }
+  .legend ul{ padding-left: 1.1rem; margin:.4rem 0; }
+  .legend li{ margin: .25rem 0; }
+  kbd{ background:var(--bg-raised); border:1px solid var(--border); border-radius:3px; padding:0 .3em; color:var(--fg); font-size:.9em; }
+  .swatch{ display:inline-block; width:.7em; height:.7em; border-radius:2px; margin-right:.35em; vertical-align:-1px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="/">minomobi.com</a> / train-game</div>
+  <h1>Spur &amp; Siding</h1>
+  <p class="sub">A patch of country, a handful of towns, and a budget that does not renew. Draw the track, throw the switches, keep the trains earning more than the rails cost you.</p>
+
+  <div class="stats" id="stats">
+    <span class="stat money" id="statMoney">Budget: <b>$0</b></span>
+    <span class="stat" id="statTrack">Track laid: <b>0</b></span>
+    <span class="stat" id="statTrains">Trains running: <b>0</b></span>
+    <span class="stat" id="statRevenue">Revenue earned: <b>$0</b></span>
+  </div>
+
+  <div class="board">
+    <canvas id="stage"></canvas>
+  </div>
+  <div id="msg" class="err hidden" role="status"></div>
+
+  <div class="controls">
+    <button id="btnTrain">Buy a train — $<span id="trainCost">0</span></button>
+    <button id="btnPause">Pause</button>
+    <button id="btnNew">New map</button>
+  </div>
+
+  <div class="legend">
+    <p><b>How to lay track:</b> tap a town to select it, then tap a second town to build the
+    straight line between them — the cost depends on distance and what the line crosses.
+    Tap the first town again to cancel. Water needs a bridge, high ground needs grading, and
+    both cost more per mile than open plains.</p>
+    <p><b>Switches:</b> a town with three or more lines gets a small diamond marker beside it —
+    that is the points lever. Tap the diamond to throw it. A through train takes whichever line
+    the points are set for; get it wrong and your train heads somewhere you didn't intend, same
+    as the real thing. A dead-end town just backs the train up.</p>
+    <p><b>Trains</b> earn a fare for every stretch of line they finish running, but the network
+    itself has upkeep — track costs a small amount every few seconds whether a train is on it or
+    not. If revenue can't keep up with upkeep, the budget bleeds out.</p>
+    <ul>
+      <li><span class="swatch" style="background:#3c4d2c"></span>plains — cheap to lay</li>
+      <li><span class="swatch" style="background:#2b3d24"></span>forest — a bit dearer</li>
+      <li><span class="swatch" style="background:#5a5248"></span>high ground — needs grading</li>
+      <li><span class="swatch" style="background:#1c3f52"></span>water — needs a bridge, priciest of all</li>
+    </ul>
+    <p>Costs and fares are this page's own estimate, not a real engineering model — treat the
+    numbers as relative, not literal.</p>
+  </div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- constants ----------
+  var LW = 900, LH = 560;
+  var COLS = 45, ROWS = 28, CW = LW/COLS, CH = LH/ROWS;
+  var START_BUDGET = 6000;
+  var BASE_COST = 3.1;
+  var REVENUE_RATE = 0.85;
+  var UPKEEP_RATE = 0.045;       // $ per track-unit per upkeep tick
+  var UPKEEP_INTERVAL = 5;       // seconds
+  var TRAIN_BASE_COST = 400;
+  var TRAIN_STEP_COST = 220;
+  var TRAIN_SPEED = 58;          // logical px / sec
+  var MIN_CITY_DIST = 122;
+  var TERRAIN = {
+    water:    { mult: 5.5, color: '#1c3f52' },
+    plains:   { mult: 1.0, color: '#3c4d2c' },
+    forest:   { mult: 1.6, color: '#2b3d24' },
+    mountain: { mult: 3.3, color: '#5a5248' }
+  };
+  var TRAIN_COLORS = ['#e8a33d','#7ac387','#f2777a','#7aa8f2','#e0d27a','#c98af2'];
+  var NAME_POOL = ['Ashford','Bellmoor','Carrow','Dunhelm','Elderby','Fenwick','Greymouth',
+    'Harrow','Ingleton','Judbury','Kestrel','Larchmoor','Millbrook','Norwick','Oldbeck',
+    'Pemberton','Quarrow','Rowanvale','Stonemere','Thistlecote'];
+
+  // ---------- dom ----------
+  var canvas = document.getElementById('stage');
+  var ctx = canvas.getContext('2d');
+  var boardEl = canvas.parentElement;
+  var msgEl = document.getElementById('msg');
+  var statMoney = document.getElementById('statMoney').querySelector('b');
+  var statMoneyWrap = document.getElementById('statMoney');
+  var statTrack = document.getElementById('statTrack').querySelector('b');
+  var statTrains = document.getElementById('statTrains').querySelector('b');
+  var statRevenue = document.getElementById('statRevenue').querySelector('b');
+  var btnTrain = document.getElementById('btnTrain');
+  var trainCostEl = document.getElementById('trainCost');
+  var btnPause = document.getElementById('btnPause');
+  var btnNew = document.getElementById('btnNew');
+
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- rng ----------
+  function mulberry32(seed){
+    return function(){
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function smooth(t){ return t*t*(3-2*t); }
+
+  function noiseGrid(gw, gh, rand){
+    var g = new Float32Array(gw*gh);
+    for (var i=0;i<gw*gh;i++) g[i] = rand();
+    return { g:g, w:gw, h:gh };
+  }
+  function sampleNoise(n, x, y){
+    // x,y in [0,1)
+    var fx = x*(n.w-1), fy = y*(n.h-1);
+    var x0 = Math.floor(fx), y0 = Math.floor(fy);
+    var x1 = Math.min(x0+1, n.w-1), y1 = Math.min(y0+1, n.h-1);
+    var tx = smooth(fx-x0), ty = smooth(fy-y0);
+    var v00 = n.g[y0*n.w+x0], v10 = n.g[y0*n.w+x1];
+    var v01 = n.g[y1*n.w+x0], v11 = n.g[y1*n.w+x1];
+    var a = v00 + (v10-v00)*tx, b = v01 + (v11-v01)*tx;
+    return a + (b-a)*ty;
+  }
+
+  // ---------- state ----------
+  var rand, terrain, terrainCanvas, cities, edges, switchState;
+  var money, revenueEarned, totalLength, selectedCity, trains, paused;
+  var elapsedSinceUpkeep;
+
+  function classify(v){
+    if (v < 0.30) return 'water';
+    if (v < 0.58) return 'plains';
+    if (v < 0.76) return 'forest';
+    return 'mountain';
+  }
+
+  function cellAt(px, py){
+    var c = Math.max(0, Math.min(COLS-1, Math.floor(px/CW)));
+    var r = Math.max(0, Math.min(ROWS-1, Math.floor(py/CH)));
+    return terrain[r*COLS+c];
+  }
+
+  function buildTerrain(){
+    var nA = noiseGrid(6,4, rand);
+    var nB = noiseGrid(13,9, rand);
+    terrain = new Array(COLS*ROWS);
+    for (var r=0;r<ROWS;r++){
+      for (var c=0;c<COLS;c++){
+        var x = c/(COLS-1), y = r/(ROWS-1);
+        var v = sampleNoise(nA,x,y)*0.65 + sampleNoise(nB,x,y)*0.35;
+        terrain[r*COLS+c] = classify(v);
+      }
+    }
+    terrainCanvas = document.createElement('canvas');
+    terrainCanvas.width = LW; terrainCanvas.height = LH;
+    var tctx = terrainCanvas.getContext('2d');
+    for (var r2=0;r2<ROWS;r2++){
+      for (var c2=0;c2<COLS;c2++){
+        var t = terrain[r2*COLS+c2];
+        var jitter = (rand()-0.5)*14;
+        tctx.fillStyle = shade(TERRAIN[t].color, jitter);
+        tctx.fillRect(c2*CW, r2*CH, CW+0.6, CH+0.6);
+      }
+    }
+  }
+
+  function shade(hex, amt){
+    var n = parseInt(hex.slice(1),16);
+    var r = Math.max(0,Math.min(255,(n>>16)+amt));
+    var g = Math.max(0,Math.min(255,((n>>8)&255)+amt));
+    var b = Math.max(0,Math.min(255,(n&255)+amt));
+    return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';
+  }
+
+  function placeCities(){
+    cities = [];
+    var pool = NAME_POOL.slice();
+    for (var i=pool.length-1;i>0;i--){ var j=Math.floor(rand()*(i+1)); var tmp=pool[i]; pool[i]=pool[j]; pool[j]=tmp; }
+    var target = 6 + Math.floor(rand()*3); // 6-8
+    var attempts = 0;
+    while (cities.length < target && attempts < 2000){
+      attempts++;
+      var x = 40 + rand()*(LW-80);
+      var y = 40 + rand()*(LH-80);
+      var t = cellAt(x,y);
+      if (t === 'water' || t === 'mountain') continue;
+      var ok = true;
+      for (var k=0;k<cities.length;k++){
+        var dx = cities[k].x-x, dy = cities[k].y-y;
+        if (Math.sqrt(dx*dx+dy*dy) < MIN_CITY_DIST){ ok=false; break; }
+      }
+      if (!ok) continue;
+      cities.push({ x:x, y:y, name: pool[cities.length % pool.length] });
+    }
+  }
+
+  function distance(a,b){ var dx=a.x-b.x, dy=a.y-b.y; return Math.sqrt(dx*dx+dy*dy); }
+
+  function lineCost(a, b){
+    var steps = 16, sumMult = 0;
+    for (var i=0;i<=steps;i++){
+      var t = i/steps;
+      var px = a.x + (b.x-a.x)*t, py = a.y + (b.y-a.y)*t;
+      sumMult += TERRAIN[cellAt(px,py)].mult;
+    }
+    var avgMult = sumMult/(steps+1);
+    var len = distance(a,b);
+    return { cost: Math.round(len*BASE_COST*avgMult), length: len };
+  }
+
+  function edgeExists(a,b){
+    for (var i=0;i<edges.length;i++){
+      var e = edges[i];
+      if ((e.a===a && e.b===b) || (e.a===b && e.b===a)) return true;
+    }
+    return false;
+  }
+
+  function neighborsOf(nodeId, excludeEdgeIdx){
+    var out = [];
+    for (var i=0;i<edges.length;i++){
+      if (i===excludeEdgeIdx) continue;
+      var e = edges[i];
+      if (e.a===nodeId || e.b===nodeId) out.push(i);
+    }
+    // stable order: by angle from node, so switch cycling is predictable
+    out.sort(function(i1,i2){
+      return angleFromNode(nodeId, edges[i1]) - angleFromNode(nodeId, edges[i2]);
+    });
+    return out;
+  }
+  function angleFromNode(nodeId, e){
+    var other = (e.a===nodeId) ? cities[e.b] : cities[e.a];
+    var self = cities[nodeId];
+    return Math.atan2(other.y-self.y, other.x-self.x);
+  }
+  function degree(nodeId){
+    var n = 0;
+    for (var i=0;i<edges.length;i++){ if (edges[i].a===nodeId || edges[i].b===nodeId) n++; }
+    return n;
+  }
+
+  function switchTargetEdge(nodeId, excludeEdgeIdx){
+    var opts = neighborsOf(nodeId, excludeEdgeIdx);
+    if (opts.length === 0) return -1;
+    if (opts.length === 1) return opts[0];
+    var idx = (switchState[nodeId]||0) % opts.length;
+    return opts[idx];
+  }
+
+  function trainCost(){ return TRAIN_BASE_COST + TRAIN_STEP_COST*trains.length; }
+
+  function newGame(){
+    rand = mulberry32((Math.random()*4294967296)>>>0);
+    buildTerrain();
+    placeCities();
+    edges = [];
+    switchState = {};
+    trains = [];
+    money = START_BUDGET;
+    revenueEarned = 0;
+    totalLength = 0;
+    selectedCity = -1;
+    elapsedSinceUpkeep = 0;
+    paused = !!reduceMotion;
+    btnPause.textContent = paused ? 'Resume' : 'Pause';
+    setMessage('');
+    updateStats();
+  }
+
+  function setMessage(text){
+    msgEl.textContent = text || '';
+    msgEl.classList.toggle('hidden', !text);
+  }
+
+  function updateStats(){
+    statMoney.textContent = '$' + Math.round(money).toLocaleString();
+    statMoneyWrap.classList.toggle('neg', money < 0);
+    statTrack.textContent = Math.round(totalLength) + ' mi';
+    statTrains.textContent = trains.length;
+    statRevenue.textContent = '$' + Math.round(revenueEarned).toLocaleString();
+    trainCostEl.textContent = trainCost();
+  }
+
+  // ---------- input ----------
+  var hoverPt = null;
+
+  function logicalPoint(evt){
+    var rect = boardEl.getBoundingClientRect();
+    var x = (evt.clientX - rect.left) * (LW/rect.width);
+    var y = (evt.clientY - rect.top) * (LH/rect.height);
+    return { x:x, y:y };
+  }
+
+  function hitCity(p){
+    for (var i=0;i<cities.length;i++){
+      var c = cities[i];
+      if (distance(c,p) <= 26) return i;
+    }
+    return -1;
+  }
+  function switchIconPos(c){ return { x: c.x+16, y: c.y-16 }; }
+  function hitSwitch(p){
+    for (var i=0;i<cities.length;i++){
+      if (degree(i) < 3) continue;
+      var pos = switchIconPos(cities[i]);
+      if (distance(pos,p) <= 13) return i;
+    }
+    return -1;
+  }
+
+  function onPointerDown(evt){
+    evt.preventDefault();
+    var p = logicalPoint(evt);
+    var sw = hitSwitch(p);
+    if (sw !== -1){
+      switchState[sw] = (switchState[sw]||0) + 1;
+      return;
+    }
+    var hit = hitCity(p);
+    if (hit === -1){
+      selectedCity = -1;
+      setMessage('');
+      return;
+    }
+    if (selectedCity === -1){
+      selectedCity = hit;
+      setMessage('');
+      return;
+    }
+    if (hit === selectedCity){
+      selectedCity = -1;
+      return;
+    }
+    if (edgeExists(selectedCity, hit)){
+      setMessage(cities[selectedCity].name + ' and ' + cities[hit].name + ' are already connected.');
+      selectedCity = -1;
+      return;
+    }
+    var r = lineCost(cities[selectedCity], cities[hit]);
+    if (r.cost > money){
+      setMessage('Not enough budget — that line would cost $' + r.cost.toLocaleString() + '.');
+      selectedCity = -1;
+      return;
+    }
+    money -= r.cost;
+    edges.push({ a: selectedCity, b: hit, length: r.length, cost: r.cost });
+    totalLength += r.length;
+    setMessage('Laid ' + Math.round(r.length) + ' miles of track, ' + cities[selectedCity].name + ' → ' + cities[hit].name + ', for $' + r.cost.toLocaleString() + '.');
+    selectedCity = -1;
+    updateStats();
+  }
+
+  function onPointerMove(evt){
+    hoverPt = logicalPoint(evt);
+  }
+
+  canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerleave', function(){ hoverPt = null; });
+
+  btnTrain.addEventListener('click', function(){
+    var withTrack = [];
+    for (var i=0;i<cities.length;i++){ if (degree(i) > 0) withTrack.push(i); }
+    if (withTrack.length === 0){
+      setMessage('Lay at least one line before buying a train.');
+      return;
+    }
+    var cost = trainCost();
+    if (cost > money){
+      setMessage('Not enough budget for a train — need $' + cost.toLocaleString() + '.');
+      return;
+    }
+    money -= cost;
+    var home = withTrack[Math.floor(rand()*withTrack.length)];
+    var firstEdge = neighborsOf(home, -1)[0];
+    var e = edges[firstEdge];
+    var dir = (e.a === home) ? 1 : -1;
+    trains.push({
+      edgeIdx: firstEdge, dir: dir, t: (dir===1)?0:1,
+      speed: TRAIN_SPEED * (0.9 + rand()*0.2),
+      color: TRAIN_COLORS[trains.length % TRAIN_COLORS.length]
+    });
+    setMessage('New train out of ' + cities[home].name + '.');
+    updateStats();
+  });
+
+  btnPause.addEventListener('click', function(){
+    paused = !paused;
+    btnPause.textContent = paused ? 'Resume' : 'Pause';
+  });
+
+  btnNew.addEventListener('click', function(){
+    if (edges.length > 0 && !confirm('Start a new map? This abandons the current network.')) return;
+    newGame();
+  });
+
+  // ---------- simulation ----------
+  function arriveTrain(train){
+    var e = edges[train.edgeIdx];
+    var arrivedAt = (train.dir === 1) ? e.b : e.a;
+    revenueEarned += e.length * REVENUE_RATE;
+    money += e.length * REVENUE_RATE;
+    var nextIdx = switchTargetEdge(arrivedAt, train.edgeIdx);
+    if (nextIdx === -1){
+      // dead end: bounce back on the same line
+      train.dir = -train.dir;
+      train.t = (train.dir===1) ? 0 : 1;
+      return;
+    }
+    var ne = edges[nextIdx];
+    train.edgeIdx = nextIdx;
+    if (ne.a === arrivedAt){ train.dir = 1; train.t = 0; }
+    else { train.dir = -1; train.t = 1; }
+  }
+
+  function step(dt){
+    if (paused) return;
+    for (var i=0;i<trains.length;i++){
+      var tr = trains[i];
+      var e = edges[tr.edgeIdx];
+      if (!e) continue;
+      tr.t += tr.dir * (tr.speed*dt) / Math.max(1,e.length);
+      if (tr.dir === 1 && tr.t >= 1){ tr.t = 1; arriveTrain(tr); }
+      else if (tr.dir === -1 && tr.t <= 0){ tr.t = 0; arriveTrain(tr); }
+    }
+    elapsedSinceUpkeep += dt;
+    if (elapsedSinceUpkeep >= UPKEEP_INTERVAL){
+      elapsedSinceUpkeep -= UPKEEP_INTERVAL;
+      money -= totalLength * UPKEEP_RATE;
+    }
+    updateStats();
+  }
+
+  // ---------- render ----------
+  function draw(){
+    ctx.clearRect(0,0,LW,LH);
+    ctx.drawImage(terrainCanvas,0,0);
+
+    // edges
+    for (var i=0;i<edges.length;i++){
+      var e = edges[i];
+      var a = cities[e.a], b = cities[e.b];
+      ctx.strokeStyle = 'rgba(20,17,13,0.85)';
+      ctx.lineWidth = 4.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+      ctx.strokeStyle = 'rgba(207,199,184,0.85)';
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([7,5]);
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // junction points indicators
+    for (var j=0;j<cities.length;j++){
+      var deg = degree(j);
+      if (deg < 3) continue;
+      var active = switchTargetEdge(j, -1);
+      if (active === -1) continue;
+      var ae = edges[active];
+      var other = (ae.a===j) ? cities[ae.b] : cities[ae.a];
+      var self = cities[j];
+      var ang = Math.atan2(other.y-self.y, other.x-self.x);
+      ctx.strokeStyle = '#e8a33d';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(self.x, self.y);
+      ctx.lineTo(self.x+Math.cos(ang)*20, self.y+Math.sin(ang)*20);
+      ctx.stroke();
+    }
+
+    // preview line while a city is selected
+    if (selectedCity !== -1 && hoverPt){
+      var sc = cities[selectedCity];
+      ctx.strokeStyle = 'rgba(232,163,61,0.65)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5,5]);
+      ctx.beginPath(); ctx.moveTo(sc.x,sc.y); ctx.lineTo(hoverPt.x,hoverPt.y); ctx.stroke();
+      ctx.setLineDash([]);
+      var est = lineCost(sc, { x:hoverPt.x, y:hoverPt.y });
+      ctx.fillStyle = '#e8e6e3';
+      ctx.font = '11px ui-monospace, monospace';
+      ctx.fillText('~$'+est.cost.toLocaleString(), hoverPt.x+8, hoverPt.y-8);
+    }
+
+    // trains
+    for (var k=0;k<trains.length;k++){
+      var tr2 = trains[k];
+      var e2 = edges[tr2.edgeIdx];
+      if (!e2) continue;
+      var a2 = cities[e2.a], b2 = cities[e2.b];
+      var px = a2.x + (b2.x-a2.x)*tr2.t;
+      var py = a2.y + (b2.y-a2.y)*tr2.t;
+      var ang2 = Math.atan2(b2.y-a2.y, b2.x-a2.x);
+      ctx.save();
+      ctx.translate(px,py);
+      ctx.rotate(ang2);
+      ctx.fillStyle = tr2.color;
+      ctx.fillRect(-6,-3,12,6);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(-6,-3,3,6);
+      ctx.restore();
+    }
+
+    // cities
+    for (var m=0;m<cities.length;m++){
+      var c = cities[m];
+      ctx.beginPath();
+      ctx.arc(c.x,c.y,12,0,Math.PI*2);
+      ctx.fillStyle = '#16161b';
+      ctx.fill();
+      ctx.lineWidth = m===selectedCity ? 3 : 2;
+      ctx.strokeStyle = m===selectedCity ? '#fff' : '#e8a33d';
+      ctx.stroke();
+
+      if (degree(m) >= 3){
+        var ip = switchIconPos(c);
+        ctx.save();
+        ctx.translate(ip.x, ip.y);
+        ctx.rotate(Math.PI/4);
+        ctx.fillStyle = '#e8a33d';
+        ctx.fillRect(-5,-5,10,10);
+        ctx.restore();
+      }
+
+      ctx.fillStyle = '#e8e6e3';
+      ctx.font = '12px ui-monospace, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(c.name, c.x, c.y+24);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  var lastTime = null;
+  function frame(ts){
+    if (lastTime === null) lastTime = ts;
+    var dt = Math.min(0.05, (ts-lastTime)/1000);
+    lastTime = ts;
+    step(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  function resize(){
+    var dpr = window.devicePixelRatio || 1;
+    var rect = boardEl.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.round(rect.width*dpr));
+    canvas.height = Math.max(1, Math.round(rect.height*dpr));
+    var sx = canvas.width/LW, sy = canvas.height/LH;
+    ctx.setTransform(sx,0,0,sy,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  newGame();
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

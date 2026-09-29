@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic ATProto — a sketch deck</title>
+<meta name="description" content="A sketch pitch deck: where agentic ATProto captures value, and why it lands on users instead of the platform in between.">
+<meta property="og:title" content="Agentic ATProto — a sketch deck">
+<meta property="og:description" content="Where agents-that-act-for-you capture value, and why ATProto puts it in the user's own hands. Seven slides, one live demo: resolve your own handle to its DID and PDS.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  html, body { height: 100%; }
+  body { margin: 0; padding: 0; overflow: hidden; }
+  .deck {
+    height: 100dvh; max-width: none; margin: 0;
+    overflow-y: auto; scroll-snap-type: y mandatory; scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  .slide {
+    min-height: 100dvh; scroll-snap-align: start; scroll-snap-stop: always;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4rem 1.5rem 3rem; box-sizing: border-box;
+  }
+  .slide-inner { max-width: 42rem; width: 100%; }
+  .kicker { color: var(--accent); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; margin: 0 0 .75rem; }
+  h1 { font-size: clamp(2rem, 9vw, 3.2rem); line-height: 1.05; }
+  .lede { color: var(--fg); font-size: clamp(1rem, 3vw, 1.15rem); max-width: 34rem; }
+  h2 { font-size: clamp(1.15rem, 4.5vw, 1.5rem); color: var(--fg); margin: 0 0 1rem; }
+  .slide p, .slide li { font-size: .95rem; line-height: 1.6; }
+  .slide ul { padding-left: 1.15rem; margin: 1rem 0; }
+  .slide li { margin: .5rem 0; }
+  .note { color: var(--muted); font-size: .8rem; border-left: 2px solid var(--border); padding-left: .9rem; margin-top: 1.5rem; }
+  .scrolldown { color: var(--muted); font-size: .8rem; margin-top: 3rem; }
+  @media (prefers-reduced-motion: no-preference) {
+    .scrolldown { animation: bob 1.6s ease-in-out infinite; }
+    @keyframes bob { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(6px); } }
+  }
+
+  /* nav dots — bottom bar, safe on phones, no hover dependency */
+  .dots {
+    position: fixed; left: 0; right: 0; bottom: max(.6rem, env(safe-area-inset-bottom));
+    display: flex; justify-content: center; gap: .35rem; z-index: 20; pointer-events: none;
+  }
+  .dots a {
+    pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center;
+    justify-content: center; text-decoration: none;
+  }
+  .dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--border); display: block; transition: none; }
+  .dots a.on span { background: var(--accent); width: 9px; height: 9px; }
+
+  /* diagram — one flat raster image is the artefact; canvas stays offscreen */
+  .diagram-wrap { max-width: 100%; aspect-ratio: 900 / 520; margin: 1.25rem 0; }
+  .diagram-wrap img { width: 100%; height: 100%; display: block; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-raised); }
+  #diagram-canvas { position: absolute; left: -9999px; top: -9999px; }
+  .copy-img-btn {
+    display: inline-flex; align-items: center; gap: .5rem; min-height: 44px;
+    background: linear-gradient(135deg, var(--accent), #ffcf7a); color: #1a1200;
+    border: none; font-weight: 700; box-shadow: 0 0 0 1px var(--accent), 0 4px 18px -4px var(--accent);
+  }
+  .copy-img-btn:hover { filter: brightness(1.08); background: linear-gradient(135deg, var(--accent), #ffcf7a); color: #1a1200; }
+
+  /* demo slide */
+  .demo-row { display: flex; gap: .6rem; flex-wrap: wrap; }
+  .demo-row input { flex: 1 1 12rem; min-width: 0; font-size: 1rem; }
+  .demo-row button { min-height: 44px; flex: none; }
+  .result { margin-top: 1.25rem; background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem 1.1rem; font-size: .85rem; display: none; }
+  .result.on { display: block; }
+  .result dt { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; margin-top: .7rem; }
+  .result dt:first-child { margin-top: 0; }
+  .result dd { margin: .15rem 0 0; color: var(--fg); word-break: break-all; }
+  .result .verdict { color: var(--ok); margin-top: .9rem; padding-top: .8rem; border-top: 1px solid var(--border); word-break: normal; }
+</style>
+</head>
+<body>
+
+<nav class="dots" aria-label="slides">
+  <a href="#s-title" data-i="0" aria-label="Slide 1, title"><span></span></a>
+  <a href="#s-old" data-i="1" aria-label="Slide 2, the old shape"><span></span></a>
+  <a href="#s-new" data-i="2" aria-label="Slide 3, what ATProto changes"><span></span></a>
+  <a href="#s-compose" data-i="3" aria-label="Slide 4, composability"><span></span></a>
+  <a href="#s-demo" data-i="4" aria-label="Slide 5, live demo"><span></span></a>
+  <a href="#s-why" data-i="5" aria-label="Slide 6, why users"><span></span></a>
+  <a href="#s-close" data-i="6" aria-label="Slide 7, closing"><span></span></a>
+</nav>
+
+<main class="deck">
+
+  <section class="slide" id="s-title">
+    <div class="slide-inner">
+      <p class="kicker">a sketch, not a pitch</p>
+      <h1>Agentic ATProto</h1>
+      <p class="lede">Agents are about to act on our behalf, constantly. This is a rough deck about one question: when they do, where does the value get captured — and why does an ATProto-shaped agent put it in <em>your</em> hands instead of a platform's?</p>
+      <p class="scrolldown">scroll ↓</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-old">
+    <div class="slide-inner">
+      <h2>The old shape</h2>
+      <p>"An AI agent for X" has always meant the same trade: it asks a platform for access to your account, on the platform's terms, through a door the platform can close.</p>
+      <ul>
+        <li>Identity is issued by the platform, and dies with the account</li>
+        <li>Your data lives in their database, readable however they allow</li>
+        <li>Access is an API key or a scraped session — theirs to price, throttle, or revoke</li>
+        <li>The agent answers to the platform's rules first, and you second</li>
+      </ul>
+      <p class="note">Every agent built this way is a guest in someone else's house. The house can change the terms at any time, and often does.</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-new">
+    <div class="slide-inner">
+      <h2>What ATProto changes</h2>
+      <p>Two things stop belonging to the platform: your identity (a DID) and your data (a repo, on a PDS you can move without asking). An agent that wants to act for you asks <em>you</em> for one narrow OAuth scope — not the platform for a master key.</p>
+      <div class="diagram-wrap">
+        <img id="diagram-img" alt="Comparison diagram: the old shape has identity, data, access and the agent's loyalty all controlled by the platform; the ATProto shape has identity as your own DID, data in your own repo, access scoped narrowly by OAuth, and the agent answering to you.">
+      </div>
+      <canvas id="diagram-canvas" width="900" height="520"></canvas>
+      <button id="copy-diagram" class="copy-img-btn" type="button">⧉ copy this diagram as an image</button>
+      <p class="note">The seam just moved. It used to sit between you and the platform; now it sits between you and the agent, and you own both sides of it.</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-compose">
+    <div class="slide-inner">
+      <h2>Composability is the actual pitch</h2>
+      <p>Because identity and data are already portable and public by default, small focused tools plug into the same rails without an integration meeting: a domain registrar, a static-hosting tool, a poll, a small factory that builds tenant sites like this one — same DID, same repo, no API key traded between two companies.</p>
+      <p class="note">marque.at and wisp.place are two live examples: neither had to build the other's account system to talk to it. That is the whole trick, and it is why "smaller, targeted, does-one-thing-well" is a viable shape again instead of a disadvantage against a platform with a bigger moat.</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-demo">
+    <div class="slide-inner">
+      <h2>Prove it, with your own handle</h2>
+      <p>Type a Bluesky handle. This page will resolve its DID and find the PDS host that already holds the data behind it — real infrastructure, nobody had to build anything for this page to read it.</p>
+      <form class="demo-row" id="demo-form" autocomplete="off">
+        <input id="handle-in" type="text" placeholder="you.bsky.social" aria-label="Bluesky handle">
+        <button type="submit">resolve</button>
+      </form>
+      <div id="demo-err" class="err" hidden></div>
+      <dl class="result" id="demo-out">
+        <dt>handle</dt><dd id="out-handle">—</dd>
+        <dt>DID</dt><dd id="out-did">—</dd>
+        <dt>PDS host</dt><dd id="out-pds">—</dd>
+        <div class="verdict" id="out-verdict"></div>
+      </dl>
+      <p class="note">Read-only. Nothing here signs you in or writes anything — it's the same public lookup any agent would do before it could act for you at all.</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-why">
+    <div class="slide-inner">
+      <h2>Why the value lands on users</h2>
+      <p>Once identity and data can't be owned by the tool, the tool can't hold you hostage to keep you around — it has to keep being worth using on its own merits. The old moat was "we have your graph and your posts." That moat is gone by construction, not by policy.</p>
+      <ul>
+        <li>Switching cost drops — a new agent reads the same repo, day one</li>
+        <li>Competition moves to who solves the problem best, not who has the most lock-in</li>
+        <li>Small, targeted tools can thrive without needing to become platforms themselves</li>
+      </ul>
+      <p class="note">This lab is a small proof of the same idea: most of its sites need no login at all, and the few that save anything write into the visitor's own repo — never into a database this factory owns.</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-close">
+    <div class="slide-inner">
+      <h2>What this deck isn't</h2>
+      <p>No TAM slide, no funding ask, no logo soup — because "where's the value captured" isn't a valuation question here, it's an architecture question, and the architecture already answers it: value sits wherever the seam is, and ATProto puts the seam at your own repo, not a platform's database.</p>
+      <p class="scrolldown">sketched in one sitting · minomobi.com/sketch-out/</p>
+    </div>
+  </section>
+
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---- dot nav: highlight current slide, no scroll math beyond IO ----
+  var dots = Array.prototype.slice.call(document.querySelectorAll('.dots a'));
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting && e.intersectionRatio > 0.5) {
+          var idx = slides.indexOf(e.target);
+          dots.forEach(function (d, i) { d.classList.toggle('on', i === idx); });
+        }
+      });
+    }, { threshold: [0.5], root: document.querySelector('.deck') });
+    slides.forEach(function (s) { io.observe(s); });
+  } else {
+    dots[0] && dots[0].classList.add('on');
+  }
+
+  // ---- keyboard: arrow up/down move a slide, mirrors the dot order ----
+  document.addEventListener('keydown', function (e) {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'PageDown' && e.key !== 'PageUp') return;
+    var onIdx = dots.findIndex(function (d) { return d.classList.contains('on'); });
+    if (onIdx === -1) onIdx = 0;
+    var dir = (e.key === 'ArrowDown' || e.key === 'PageDown') ? 1 : -1;
+    var next = Math.max(0, Math.min(slides.length - 1, onIdx + dir));
+    if (next !== onIdx) { e.preventDefault(); slides[next].scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  });
+
+  // ---- diagram: draw once to an offscreen canvas, ship the raster <img> ----
+  var COL = {
+    bg: '#16161b', border: '#26242c', fg: '#e8e6e3', muted: '#8b8792', accent: '#e8a33d'
+  };
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function drawPanel(ctx, x, y, w, h, title, lines) {
+    roundRect(ctx, x, y, w, h, 14);
+    ctx.fillStyle = COL.bg; ctx.fill();
+    ctx.strokeStyle = COL.border; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = COL.accent;
+    ctx.font = '700 22px ui-monospace, Menlo, monospace';
+    ctx.fillText(title, x + 26, y + 46);
+    ctx.strokeStyle = COL.border; ctx.beginPath();
+    ctx.moveTo(x + 26, y + 62); ctx.lineTo(x + w - 26, y + 62); ctx.stroke();
+    ctx.font = '400 16px ui-monospace, Menlo, monospace';
+    lines.forEach(function (line, i) {
+      ctx.fillStyle = COL.muted;
+      ctx.fillText('· ' + line.k, x + 26, y + 100 + i * 42);
+      ctx.fillStyle = COL.fg;
+      ctx.fillText(line.v, x + 26, y + 100 + i * 42 + 20);
+    });
+  }
+  function renderDiagram() {
+    var canvas = document.getElementById('diagram-canvas');
+    var ctx = canvas.getContext('2d');
+    var W = 900, H = 520;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#0e0e11'; ctx.fillRect(0, 0, W, H);
+
+    var panelW = 380, panelH = 400, gap = 60;
+    var leftX = (W - panelW * 2 - gap) / 2, rightX = leftX + panelW + gap, topY = 40;
+
+    drawPanel(ctx, leftX, topY, panelW, panelH, 'the old shape', [
+      { k: 'identity', v: 'issued by the platform' },
+      { k: 'data', v: "lives in their database" },
+      { k: 'access', v: 'an API key — theirs to revoke' },
+      { k: 'agent answers to', v: 'the platform first' }
+    ]);
+    drawPanel(ctx, rightX, topY, panelW, panelH, 'the atproto shape', [
+      { k: 'identity', v: 'a DID you hold' },
+      { k: 'data', v: 'your own repo, on a PDS' },
+      { k: 'access', v: 'OAuth, scoped to one thing' },
+      { k: 'agent answers to', v: 'you' }
+    ]);
+
+    var midX = leftX + panelW + gap / 2, midY = topY + panelH / 2;
+    ctx.strokeStyle = COL.accent; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(midX - 22, midY); ctx.lineTo(midX + 22, midY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(midX + 14, midY - 8); ctx.lineTo(midX + 22, midY); ctx.lineTo(midX + 14, midY + 8); ctx.stroke();
+    ctx.fillStyle = COL.accent; ctx.font = '700 13px ui-monospace, Menlo, monospace'; ctx.textAlign = 'center';
+    ctx.fillText('ATPROTO', midX, midY - 26);
+    ctx.textAlign = 'left';
+
+    ctx.fillStyle = COL.muted; ctx.font = '400 13px ui-monospace, Menlo, monospace';
+    ctx.fillText('sketch — illustrative, not to scale', 26, H - 22);
+
+    document.getElementById('diagram-img').src = canvas.toDataURL('image/png');
+  }
+  renderDiagram();
+
+  var copyBtn = document.getElementById('copy-diagram');
+  copyBtn.addEventListener('click', function () {
+    var canvas = document.getElementById('diagram-canvas');
+    var was = copyBtn.textContent;
+    canvas.toBlob(function (blob) {
+      if (!blob) { copyBtn.textContent = 'copy failed'; setTimeout(function () { copyBtn.textContent = was; }, 1400); return; }
+      if (navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+          copyBtn.textContent = '✓ copied';
+          setTimeout(function () { copyBtn.textContent = was; }, 1400);
+        }).catch(function () { fallbackDownload(blob); });
+      } else {
+        fallbackDownload(blob);
+      }
+    }, 'image/png');
+  });
+  function fallbackDownload(blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'agentic-atproto-diagram.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    copyBtn.textContent = '↓ downloaded'; setTimeout(function () { copyBtn.textContent = '⧉ copy this diagram as an image'; }, 1400);
+  }
+
+  // ---- demo: handle -> DID (typeahead or resolveHandle) -> PDS (plc.directory) ----
+  var handleIn = document.getElementById('handle-in');
+  var form = document.getElementById('demo-form');
+  var errEl = document.getElementById('demo-err');
+  var outEl = document.getElementById('demo-out');
+  var known = null; // { handle, did } from a typeahead pick, so submit can skip resolveHandle
+
+  kit.handleInput(handleIn, {
+    onPick: function (handle, actor) {
+      known = { handle: handle, did: actor && actor.did };
+      runDemo(handle, known.did);
+    }
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var typed = handleIn.value.trim().replace(/^@/, '');
+    if (!typed) return;
+    var did = (known && known.handle === typed) ? known.did : null;
+    runDemo(typed, did);
+  });
+
+  function setOut(id, text) { document.getElementById(id).textContent = text; }
+
+  function runDemo(handle, did) {
+    kit.clear(errEl);
+    outEl.classList.remove('on');
+    setOut('out-handle', handle);
+    setOut('out-did', '…');
+    setOut('out-pds', '…');
+    document.getElementById('out-verdict').textContent = '';
+
+    var didP = did ? Promise.resolve({ did: did }) : kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handle });
+
+    didP.then(function (r) {
+      var d = r.did;
+      setOut('out-did', d);
+      outEl.classList.add('on');
+      if (d.indexOf('did:plc:') !== 0) {
+        setOut('out-pds', 'not a did:plc — can\'t look it up from here');
+        document.getElementById('out-verdict').textContent = 'Still true: it\'s a document you control, just hosted on your own domain instead of plc.directory.';
+        return;
+      }
+      return kit.fetchJson('https://plc.directory/' + d).then(function (doc) {
+        var services = (doc && doc.service) || [];
+        var pds = services.find(function (s) { return s.type === 'AtprotoPersonalDataServer'; });
+        if (pds && pds.serviceEndpoint) {
+          setOut('out-pds', pds.serviceEndpoint);
+          document.getElementById('out-verdict').textContent =
+            'That endpoint was not issued by minomobi.com, and this page can\'t revoke it. It was already yours before you opened this tab.';
+        } else {
+          setOut('out-pds', 'no PDS service listed in the DID document');
+        }
+      });
+    }).catch(function (err) {
+      kit.showError(errEl, "couldn't resolve that: " + err.message);
+      outEl.classList.remove('on');
+    });
+  }
+})();
+</script>
+</body>
+</html>

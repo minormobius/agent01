@@ -1,0 +1,1 @@
+Built end to end: Gompertz hazard x country x resilience x income-percentile, plotted against an 80%-by-2099 population curve on the same year axis. Map is a 45-country dot plot, not real borders. No PDS save yet - see BRIEF.md.

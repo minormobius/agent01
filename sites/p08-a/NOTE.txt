@@ -1,0 +1,1 @@
+Pure client-side parsing, both directions, done in one pass — no fixtures or network needed since it never resolves handles to DIDs. It deliberately says so on the page rather than faking a lookup it can't make.

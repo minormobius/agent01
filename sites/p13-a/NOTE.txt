@@ -1,0 +1,1 @@
+Four views: orbit trace, an escape-time map over the whole z0 plane (capped at 60 iters for speed), r/theta vs n, and a bifurcation diagram swept across c. Skipped login and 3D on purpose — this is pure math, nothing to save yet.

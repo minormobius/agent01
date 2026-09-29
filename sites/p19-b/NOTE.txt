@@ -1,0 +1,1 @@
+Built the full loop: procedural terrain, priced track laying, real switches that reroute trains (get one wrong and a train goes astray), and income vs track upkeep. No save/leaderboard yet. Economy numbers are a first guess, not tuned.

@@ -1,0 +1,1 @@
+  ✓ content gate: 4 file(s) in lab/www/that-visualizes, no unbounded-stream access

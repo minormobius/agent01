@@ -1,0 +1,1 @@
+Rows are straight diameters, not Escher's slanted arcs — simplest true geodesic, exact drag math. Rows only truly share the centre, so "others follow" is a decaying wobble there, not a full rigid-tiling solve.

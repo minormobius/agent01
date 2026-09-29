@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic Atmosphere — a pitch deck</title>
+<meta property="og:title" content="Agentic Atmosphere: where does the value in agentic ATProto go?">
+<meta property="og:description" content="A sketched pitch deck arguing that ATProto's free infrastructure routes value to users, not platforms — with a live demo that pulls your own account to prove it.">
+<meta name="description" content="A sketched pitch deck arguing that ATProto's free infrastructure routes value to users, not platforms — with a live demo that pulls your own account to prove it.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root{
+    --accent: #7ac7e8;
+    --accent-dim: #142933;
+    --platform: #f2777a;
+    --builder: #e8a33d;
+    --user: #7ac387;
+  }
+  html { scroll-behavior: auto; }
+  body { padding: 0; overflow-x: hidden; }
+  main { max-width: none; margin: 0; }
+
+  #crumb-fixed {
+    position: fixed; top: .6rem; left: .8rem; z-index: 500;
+    font-size: .72rem; opacity: .75; pointer-events: auto;
+  }
+  #crumb-fixed .crumb { margin: 0; }
+
+  .deck {
+    height: 100dvh; overflow-y: scroll; overflow-x: hidden;
+    scroll-snap-type: y proximity;
+  }
+  .slide {
+    min-height: 100dvh; box-sizing: border-box;
+    scroll-snap-align: start; scroll-snap-stop: normal;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 5rem 1.5rem 3rem; position: relative;
+  }
+  .slide-inner { max-width: 42rem; margin: 0 auto; width: 100%; }
+  .kicker {
+    font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 .6rem;
+  }
+  .slide h1 {
+    font-size: clamp(1.8rem, 6vw, 3.2rem); line-height: 1.05;
+    margin: 0 0 1rem; color: var(--fg); letter-spacing: -.02em;
+  }
+  .slide h1 em { font-style: normal; color: var(--accent); }
+  .slide .lede {
+    font-size: clamp(1rem, 2.4vw, 1.2rem); color: var(--fg); opacity: .92;
+    line-height: 1.55; margin: 0 0 1.2rem;
+  }
+  .slide p, .slide li { font-size: .95rem; line-height: 1.6; color: var(--muted); }
+  .slide ul { padding-left: 1.2rem; margin: 1rem 0; }
+  .slide li { margin-bottom: .5rem; }
+  .slide strong { color: var(--fg); }
+  .num {
+    font-size: clamp(3.5rem, 14vw, 6rem); line-height: 1; color: var(--accent);
+    margin: 0 0 .3rem; letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+  }
+
+  .caveat {
+    font-size: .78rem; color: var(--muted); border-left: 2px solid var(--border);
+    padding-left: .8rem; margin-top: 1.4rem;
+  }
+
+  /* dot nav — fixed, right edge, each hit area >=44px even though the dot is small */
+  .dotnav {
+    position: fixed; right: .4rem; top: 50%; transform: translateY(-50%);
+    z-index: 500; display: flex; flex-direction: column; gap: .1rem;
+  }
+  .dotnav button {
+    all: unset; box-sizing: border-box; width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .dotnav button .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border); transition: background .15s, transform .15s;
+  }
+  .dotnav button[aria-current="true"] .dot {
+    background: var(--accent); transform: scale(1.4);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dotnav button .dot { transition: none; }
+  }
+  @media (max-width: 480px) {
+    .dotnav { right: 0; }
+    .dotnav button { width: 36px; height: 36px; }
+  }
+
+  .scrollhint {
+    position: absolute; bottom: 1.2rem; left: 50%; transform: translateX(-50%);
+    font-size: .72rem; color: var(--muted); display: flex; align-items: center; gap: .4rem;
+  }
+  .scrollhint svg { animation: bob 1.6s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(5px);} }
+  @media (prefers-reduced-motion: reduce) { .scrollhint svg { animation: none; } }
+
+  /* diagram */
+  .diagram-wrap { margin: 1.2rem 0; }
+  canvas#flow { width: 100%; height: auto; display: block; background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: 8px; }
+  .toggle-row { display: flex; gap: .6rem; margin: .9rem 0; flex-wrap: wrap; }
+  .toggle-row button {
+    flex: 1 1 auto; min-height: 44px; font-size: .85rem;
+  }
+  .toggle-row button[aria-pressed="true"] {
+    background: var(--accent); color: #000;
+  }
+  .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin: .6rem 0 0; font-size: .78rem; }
+  .legend span { display: inline-flex; align-items: center; gap: .35rem; color: var(--muted); }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  .copy-btn {
+    display: block; width: 100%; margin-top: .8rem; min-height: 48px;
+    font-size: .9rem; font-weight: 600;
+    background: linear-gradient(135deg, var(--accent), #4fa3c9);
+    color: #04222c; border: none; box-shadow: 0 0 0 1px rgba(122,199,231,.4), 0 4px 18px rgba(122,199,231,.25);
+  }
+  .copy-btn:hover { filter: brightness(1.08); background: linear-gradient(135deg, var(--accent), #4fa3c9); color: #04222c; }
+
+  /* live demo */
+  .demo-box {
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: 8px;
+    padding: 1rem; margin-top: 1rem;
+  }
+  .demo-input-row { display: flex; gap: .5rem; }
+  .demo-input-row input { flex: 1 1 auto; font-size: 16px; }
+  .profile-card { display: none; margin-top: 1rem; gap: .8rem; align-items: center; }
+  .profile-card.show { display: flex; }
+  .profile-card img { width: 56px; height: 56px; border-radius: 50%; flex: none; background: var(--border); object-fit: cover; }
+  .profile-stats { display: flex; gap: 1.1rem; margin-top: .5rem; flex-wrap: wrap; }
+  .profile-stats div { text-align: left; }
+  .profile-stats b { display: block; font-size: 1.3rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .profile-stats span { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .err[hidden], .ok[hidden] { display: none; }
+
+  .examples { display: grid; gap: .9rem; margin: 1.1rem 0; }
+  .example { border: 1px solid var(--border); border-radius: 8px; padding: .9rem 1rem; background: var(--bg-raised); }
+  .example b { color: var(--fg); }
+
+  footer.slide { justify-content: center; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="crumb-fixed"></div>
+
+<nav class="dotnav" aria-label="Slides"></nav>
+
+<div class="deck" id="deck" tabindex="-1">
+
+  <section class="slide" id="s-title" aria-label="Title">
+    <div class="slide-inner">
+      <p class="kicker">a sketch, not a spec</p>
+      <h1>Agentic <em>Atmosphere</em></h1>
+      <p class="lede">A pitch deck for one claim from a Bluesky thread: agentic
+        ATProto is free, world-class infrastructure — so where does the value
+        it creates actually land, and why should that be the user?</p>
+      <div class="scrollhint"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 5l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> scroll, swipe, or use the arrow keys</div>
+    </div>
+  </section>
+
+  <section class="slide" id="s-claim" aria-label="The claim">
+    <div class="slide-inner">
+      <p class="kicker">1 / the claim</p>
+      <h1>The plumbing is already built, and nobody owns it.</h1>
+      <p class="lede">Every app used to start by building the same three
+        things before it could be useful: an identity system, a database, and
+        a social graph. ATProto ships all three for free, to anyone.</p>
+      <ul>
+        <li><strong>Identity</strong> — a DID and a portable handle, not an
+          account a platform can freeze.</li>
+        <li><strong>Storage</strong> — the user's own repo (their PDS), not
+          your database. You never pay to host their data.</li>
+        <li><strong>Distribution</strong> — a public, no-key read API and an
+          open firehose. You don't need a partnership to reach anyone.</li>
+      </ul>
+      <p>That's the whole pitch in one line: <strong>the infrastructure a
+        startup used to raise a seed round to build is now a free dependency.</strong>
+        What's left to build is one thing that's actually useful.</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-diagram" aria-label="Where the value goes">
+    <div class="slide-inner">
+      <p class="kicker">2 / where the value goes</p>
+      <h1>In a normal platform, the platform keeps the rent.</h1>
+      <p class="lede">Flip the switch. Same value created, two different
+        stacks routing it.</p>
+      <div class="toggle-row" role="group" aria-label="Choose a model">
+        <button id="btn-platform" type="button" aria-pressed="true">Closed platform</button>
+        <button id="btn-protocol" type="button" aria-pressed="false">Open protocol</button>
+      </div>
+      <div class="diagram-wrap">
+        <canvas id="flow" width="900" height="520" role="img" aria-label="Flow diagram of value split between User, Builder, and Platform or Protocol"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--user)"></i>User keeps</span>
+          <span><i style="background:var(--builder)"></i>Builder earns</span>
+          <span><i style="background:var(--platform)"></i>Platform/infra rent</span>
+        </div>
+        <p id="diagram-numbers" aria-live="polite" style="font-size:.8rem;color:var(--fg);margin:.6rem 0 0;"></p>
+        <button class="copy-btn" id="copy-diagram" type="button">copy diagram as image</button>
+      </div>
+      <p class="caveat">Illustrative split, sketched to show direction — not a
+        measured statistic. The point isn't the decimal, it's which bar grows
+        when the middle layer stops being a toll booth.</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-demo" aria-label="Live demo">
+    <div class="slide-inner">
+      <p class="kicker">3 / not asserted — shown</p>
+      <h1>This is already yours.</h1>
+      <p class="lede">Type your own handle. Everything below comes live from
+        the public AppView, not from anything this page stored — because there
+        is nothing for it to store.</p>
+      <div class="demo-box">
+        <div class="demo-input-row">
+          <input id="demo-handle" type="text" placeholder="yourname.bsky.social" aria-label="Bluesky handle">
+        </div>
+        <p class="err" id="demo-err" hidden></p>
+        <div class="profile-card" id="demo-card">
+          <img id="demo-avatar" alt="" width="56" height="56">
+          <div>
+            <div id="demo-name" style="color:var(--fg); font-weight:600;"></div>
+            <div id="demo-handle-echo" style="color:var(--muted); font-size:.8rem;"></div>
+            <div class="profile-stats">
+              <div><b id="stat-followers">–</b><span>followers</span></div>
+              <div><b id="stat-follows">–</b><span>follows</span></div>
+              <div><b id="stat-posts">–</b><span>posts</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:1rem;">An identity, a social graph, a post history
+        — an agent working for you can read all of it the moment you sign in,
+        because it's a public record on a protocol, not a private grant a
+        platform can revoke. No app in this factory paid for this data.
+        No app in this factory can take it back from you, either.</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-examples" aria-label="Who's building this">
+    <div class="slide-inner">
+      <p class="kicker">4 / who's building this</p>
+      <h1>Small, sharp, and none of them own you.</h1>
+      <p class="lede">The thread's own exhibits are the pattern: thin tools
+        that solve one problem well because they didn't have to build the
+        boring 90% first.</p>
+      <div class="examples">
+        <div class="example"><b>A domain registrar</b> that's just good at
+          being a registrar — no social graph to bootstrap, no login system
+          to build, no "sign in with us" to defend.</div>
+        <div class="example"><b>A hosting/deploy tool</b> that plugs straight
+          into that registrar and into identities that already exist, so
+          shipping a project is a few native integrations instead of a
+          platform partnership.</div>
+        <div class="example"><b>Documentation written for agents</b> (an
+          <code>llms.txt</code>-style write-up) — infrastructure legible enough
+          that an agent can read it and act, without an API key or a sales call.</div>
+      </div>
+      <p>None of these had to become a platform to be worth using. That's not
+        an accident — it's what happens when identity and data stop being the
+        thing you compete to own.</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-joke" aria-label="The joke that isn't one">
+    <div class="slide-inner">
+      <p class="kicker">5 / the punchline that's already true</p>
+      <h1>"Revolutionary agent-to-agent comms with portable data" — that's DMs.</h1>
+      <p class="lede">Someone in the thread joked you could raise a fortune
+        pitching this as a breakthrough, when it's just Bluesky's existing
+        direct messages.</p>
+      <p>It's a joke because the pitch-deck version sounds inflated. It's
+        funny <em style="color:var(--fg); font-style:normal;">because it's
+        also correct</em>: two agents, two repos, one thread, readable from
+        any client, nobody's API key in the middle. Portable agent-to-agent
+        messaging isn't a moonshot here — it already shipped, for humans,
+        years ago, and agents get it for free by using the same protocol.
+        That's the whole thesis in miniature: the "revolutionary agent
+        infrastructure" is usually just infrastructure that was already open.</p>
+    </div>
+  </section>
+
+  <section class="slide" id="s-thesis" aria-label="Why it's the users">
+    <div class="slide-inner">
+      <p class="kicker">6 / why it's the users</p>
+      <h1>Because they hold the repo.</h1>
+      <ul>
+        <li><strong>Exit cost is near zero.</strong> Leaving an app doesn't
+          mean losing your identity, your followers, or your history — you
+          take the repo with you. A platform's usual leverage over you is gone.</li>
+        <li><strong>Builders compete on the feature, not the lock-in.</strong>
+          They can't charge rent for access to your own graph, so the only way
+          left to get paid is to be worth paying for.</li>
+        <li><strong>The "API tax" disappears.</strong> Reading and identity
+          are public goods here, not a metered product — so there's no toll
+          both sides used to pay just to talk to each other.</li>
+      </ul>
+      <p>None of this makes builders unnecessary — someone still has to build
+        the registrar, the game, the reader, the agent. It just means the
+        surplus that used to get skimmed by whoever owned the login button
+        has nowhere left to collect, so more of it stays with whoever the
+        thing was built for.</p>
+    </div>
+  </section>
+
+  <footer class="slide" id="s-close" aria-label="Closing">
+    <div class="slide-inner">
+      <p class="kicker">sketch, not spec</p>
+      <h1>Argue with it.</h1>
+      <p class="lede">This is one read of one thread, built to be poked at —
+        not a finished model. The diagram's numbers are illustrative on
+        purpose; the live demo above is the only part making a claim it can
+        actually prove.</p>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+'use strict';
+
+/* ---------- crumb ---------- */
+document.getElementById('crumb-fixed').innerHTML = kit.crumb('sketch-out');
+
+/* ---------- slide navigation ---------- */
+(function(){
+  var deck = document.getElementById('deck');
+  var slides = Array.prototype.slice.call(deck.querySelectorAll('.slide'));
+  var nav = document.querySelector('.dotnav');
+  var current = 0;
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  slides.forEach(function(s, i){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Go to slide ' + (i + 1) + ': ' + (s.getAttribute('aria-label') || ''));
+    b.setAttribute('aria-current', i === 0 ? 'true' : 'false');
+    var dot = document.createElement('span');
+    dot.className = 'dot';
+    b.appendChild(dot);
+    b.addEventListener('click', function(){ goTo(i); });
+    nav.appendChild(b);
+  });
+  var dotBtns = Array.prototype.slice.call(nav.children);
+
+  function setCurrent(i){
+    current = i;
+    dotBtns.forEach(function(b, j){ b.setAttribute('aria-current', j === i ? 'true' : 'false'); });
+  }
+
+  function goTo(i){
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    slides[i].scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    setCurrent(i);
+  }
+
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (e.isIntersecting && e.intersectionRatio > 0.55) {
+        var idx = slides.indexOf(e.target);
+        if (idx !== -1) setCurrent(idx);
+      }
+    });
+  }, { root: deck, threshold: [0.55] });
+  slides.forEach(function(s){ io.observe(s); });
+
+  document.addEventListener('keydown', function(e){
+    var tag = (document.activeElement && document.activeElement.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+    else if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); goTo(current - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    else if (e.key === 'End') { e.preventDefault(); goTo(slides.length - 1); }
+  });
+})();
+
+/* ---------- value-flow diagram ---------- */
+(function(){
+  var canvas = document.getElementById('flow');
+  var ctx = canvas.getContext('2d');
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var W = 900, H = 520;
+
+  var MODELS = {
+    platform: { label: 'Closed platform', user: 15, builder: 25, platform: 60 },
+    protocol: { label: 'Open protocol',   user: 70, builder: 25, platform: 5 }
+  };
+  var COLOR = { user: '#7ac387', builder: '#e8a33d', platform: '#f2777a' };
+  var current = MODELS.platform;
+  var shown = { user: current.user, builder: current.builder, platform: current.platform };
+
+  function fitCanvas(){
+    var rect = canvas.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    var scale = rect.width / W;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.width * (H / W) * dpr);
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+    canvas.style.height = Math.round(rect.width * (H / W)) + 'px';
+  }
+
+  function ribbon(x0, y0a, y0b, x1, y1a, y1b, color){
+    var mx = (x0 + x1) / 2;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0a);
+    ctx.bezierCurveTo(mx, y0a, mx, y1a, x1, y1a);
+    ctx.lineTo(x1, y1b);
+    ctx.bezierCurveTo(mx, y1b, mx, y0b, x0, y0b);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.82;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  function draw(vals){
+    ctx.clearRect(0, 0, W, H);
+    var order = ['user', 'builder', 'platform'];
+    var total = vals.user + vals.builder + vals.platform;
+    var top = 60, bottom = 460, gap = 22;
+    var usable = (bottom - top) - gap * (order.length - 1);
+    var srcX = 140, dstX = 610;
+    var destCenters = { user: 120, builder: 260, platform: 400 };
+
+    // source node
+    var y = top;
+    var segs = {};
+    order.forEach(function(k){
+      var h = usable * (vals[k] / total);
+      segs[k] = { y0: y, y1: y + h, h: h };
+      y += h + gap;
+    });
+
+    order.forEach(function(k){
+      var seg = segs[k];
+      var half = seg.h / 2;
+      var cy = destCenters[k];
+      ribbon(srcX, seg.y0, seg.y1, dstX, cy - half, cy + half, COLOR[k]);
+    });
+
+    // source circle
+    ctx.beginPath();
+    ctx.fillStyle = '#e8e6e3';
+    ctx.arc(srcX, (top + bottom) / 2, 34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0e0e11';
+    ctx.font = '600 12px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('value', srcX, (top + bottom) / 2 - 7);
+    ctx.fillText('created', srcX, (top + bottom) / 2 + 7);
+
+    // dest nodes + labels
+    var labels = { user: 'User', builder: 'Builder', platform: current.label.indexOf('protocol') !== -1 ? 'Protocol/infra' : 'Platform' };
+    order.forEach(function(k){
+      var half = segs[k].h / 2;
+      var cy = destCenters[k];
+      ctx.beginPath();
+      ctx.fillStyle = COLOR[k];
+      ctx.arc(dstX, cy, Math.max(20, half * 0.55), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e8e6e3';
+      ctx.font = '600 15px ui-monospace, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(labels[k] + '  ' + Math.round(vals[k]) + '%', dstX + 42, cy);
+    });
+  }
+
+  function redraw(){ fitCanvas(); draw(shown); }
+
+  function updateNumbersText(model){
+    var label = model.label.indexOf('protocol') !== -1 ? 'Protocol/infra' : 'Platform';
+    document.getElementById('diagram-numbers').textContent =
+      model.label + ' — User ' + model.user + '% · Builder ' + model.builder + '% · ' + label + ' ' + model.platform + '%';
+  }
+
+  function animateTo(model){
+    current = model;
+    var from = { user: shown.user, builder: shown.builder, platform: shown.platform };
+    var to = { user: model.user, builder: model.builder, platform: model.platform };
+    if (reduceMotion) { shown = to; redraw(); return; }
+    var start = null, dur = 500;
+    function step(ts){
+      if (!start) start = ts;
+      var t = Math.min(1, (ts - start) / dur);
+      var e = 1 - Math.pow(1 - t, 3);
+      shown = {
+        user: from.user + (to.user - from.user) * e,
+        builder: from.builder + (to.builder - from.builder) * e,
+        platform: from.platform + (to.platform - from.platform) * e
+      };
+      redraw();
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  var btnPlatform = document.getElementById('btn-platform');
+  var btnProtocol = document.getElementById('btn-protocol');
+  btnPlatform.addEventListener('click', function(){
+    btnPlatform.setAttribute('aria-pressed', 'true');
+    btnProtocol.setAttribute('aria-pressed', 'false');
+    animateTo(MODELS.platform);
+    updateNumbersText(MODELS.platform);
+  });
+  btnProtocol.addEventListener('click', function(){
+    btnProtocol.setAttribute('aria-pressed', 'true');
+    btnPlatform.setAttribute('aria-pressed', 'false');
+    animateTo(MODELS.protocol);
+    updateNumbersText(MODELS.protocol);
+  });
+
+  window.addEventListener('resize', redraw);
+  redraw();
+  updateNumbersText(current);
+
+  var copyBtn = document.getElementById('copy-diagram');
+  copyBtn.addEventListener('click', function(){
+    var was = copyBtn.textContent;
+    canvas.toBlob(function(blob){
+      if (!blob) { copyBtn.textContent = 'copy failed'; setTimeout(function(){ copyBtn.textContent = was; }, 1200); return; }
+      if (navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function(){
+          copyBtn.textContent = 'copied';
+        }).catch(function(){
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a'); a.href = url; a.download = 'agentic-atmosphere-diagram.png'; a.click();
+          copyBtn.textContent = 'downloaded';
+        }).finally(function(){ setTimeout(function(){ copyBtn.textContent = was; }, 1200); });
+      } else {
+        var url2 = URL.createObjectURL(blob);
+        var a2 = document.createElement('a'); a2.href = url2; a2.download = 'agentic-atmosphere-diagram.png'; a2.click();
+        copyBtn.textContent = 'downloaded';
+        setTimeout(function(){ copyBtn.textContent = was; }, 1200);
+      }
+    }, 'image/png');
+  });
+})();
+
+/* ---------- live demo ---------- */
+(function(){
+  var input = document.getElementById('demo-handle');
+  var errEl = document.getElementById('demo-err');
+  var card = document.getElementById('demo-card');
+
+  function fmt(n){ return (typeof n === 'number' ? n : 0).toLocaleString(); }
+
+  function loadProfile(handle){
+    handle = (handle || '').trim().replace(/^@/, '');
+    if (!handle) return;
+    kit.clear(errEl);
+    kit.bskyGet('app.bsky.actor.getProfile', { actor: handle }).then(function(p){
+      document.getElementById('demo-avatar').src = p.avatar || '';
+      document.getElementById('demo-name').textContent = p.displayName || ('@' + p.handle);
+      document.getElementById('demo-handle-echo').textContent = '@' + p.handle;
+      document.getElementById('stat-followers').textContent = fmt(p.followersCount);
+      document.getElementById('stat-follows').textContent = fmt(p.followsCount);
+      document.getElementById('stat-posts').textContent = fmt(p.postsCount);
+      card.classList.add('show');
+    }).catch(function(){
+      card.classList.remove('show');
+      kit.showError(errEl, "couldn't find @" + handle + " — check the spelling and try again.");
+    });
+  }
+
+  kit.handleInput(input, { onPick: function(handle){ loadProfile(handle); } });
+  input.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); loadProfile(input.value); }
+  });
+})();
+</script>
+</body>
+</html>

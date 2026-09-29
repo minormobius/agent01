@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 277 colours, top 63%
+  ✓ smoke: lab/www/daily-digital/index.html loads clean under the production CSP

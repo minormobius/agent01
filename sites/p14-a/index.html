@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Digital — calendar, almanac &amp; word puzzle</title>
+<meta name="description" content="A daily desk calendar with a compact almanac and a new five-letter word puzzle every day.">
+<meta property="og:title" content="Daily Digital">
+<meta property="og:description" content="A daily desk calendar: today at a glance, a compact almanac (moon phase, sunrise/sunset for your location, day-of-year stats), and a new five-letter word puzzle every day.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  section { margin-top: 2.5rem; }
+  .cal-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .75rem; }
+  .cal-head h2 { margin: 0; font-size: 1.1rem; color: var(--fg); }
+  .cal-head button { min-width: 44px; min-height: 44px; font-size: 1.1rem; line-height: 1; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
+  .cal-dow { text-align: center; color: var(--muted); font-size: .7rem; padding-bottom: .25rem; }
+  .cal-day, .cal-pad { min-height: 44px; display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius); background: var(--bg-raised); border: 1px solid var(--border); font-size: .9rem; }
+  .cal-pad { background: transparent; border-color: transparent; }
+  .cal-day.today { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+  .almanac-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .6rem; margin-bottom: 1rem; }
+  .fact { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); padding: .7rem .8rem; }
+  .fact .label { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
+  .fact .value { color: var(--fg); font-size: 1.05rem; margin-top: .2rem; }
+  .fact .value.accent { color: var(--accent); }
+  #locBtn { min-height: 44px; width: auto; }
+  #sunInfo { margin-top: .75rem; }
+  #sunInfo .fact { display: inline-block; margin-right: .6rem; margin-top: .6rem; }
+
+  #puzzleGrid { display: grid; grid-template-rows: repeat(6, 1fr); gap: .4rem; max-width: 320px; margin: 1rem 0; }
+  .prow { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; }
+  .ptile { aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--border); border-radius: var(--radius); background: var(--bg-raised);
+    font-size: 1.3rem; font-weight: 700; text-transform: uppercase; color: var(--fg); }
+  .ptile.correct { background: var(--accent); border-color: var(--accent); color: #000; }
+  .ptile.present { background: var(--ok); border-color: var(--ok); color: #000; }
+  .ptile.absent { background: var(--border); border-color: var(--border); color: var(--muted); }
+  #puzzleMsg { min-height: 1.4rem; font-size: .85rem; }
+  #puzzleMsg.win { color: var(--ok); }
+  #keyboard { display: flex; flex-direction: column; gap: .35rem; margin-top: .75rem; max-width: 480px; }
+  .krow { display: flex; gap: .3rem; }
+  .key { flex: 1; min-height: 46px; padding: 0; font-size: .8rem; border-radius: var(--radius);
+    background: var(--bg-raised); color: var(--fg); border: 1px solid var(--border); cursor: pointer;
+    text-transform: uppercase; }
+  .key.wide { flex: 1.6; font-size: .7rem; }
+  .key.correct { background: var(--accent); border-color: var(--accent); color: #000; }
+  .key.present { background: var(--ok); border-color: var(--ok); color: #000; }
+  .key.absent { background: var(--border); border-color: var(--border); color: var(--muted); }
+  .streakline { color: var(--muted); font-size: .8rem; margin-top: .5rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Daily Digital</h1>
+  <p class="sub">A calendar, an almanac, and a new five-letter word puzzle — all for today.</p>
+
+  <section id="calendar">
+    <div class="cal-head">
+      <button id="prevMonth" aria-label="Previous month">‹</button>
+      <h2 id="calTitle">Month Year</h2>
+      <button id="nextMonth" aria-label="Next month">›</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </section>
+
+  <section id="almanac">
+    <h2>Almanac</h2>
+    <div class="almanac-grid" id="almanacFacts"></div>
+    <button id="locBtn">Enable location for sunrise / sunset</button>
+    <div id="sunInfo"></div>
+    <div id="almErr" class="err hidden"></div>
+    <p class="sub">Moon illumination and season are approximate (season assumes the Northern
+      Hemisphere — flip it if you're south of the equator). Sunrise/sunset use your device's own
+      location, computed locally; nothing is sent anywhere.</p>
+  </section>
+
+  <section id="puzzle">
+    <h2>Five-Letter Puzzle</h2>
+    <p class="sub" id="puzzleSub">One word a day, six guesses. The word changes at 00:00 UTC, so
+      "today" here may not match your local midnight.</p>
+    <div id="puzzleGrid"></div>
+    <div id="puzzleMsg" class="err hidden"></div>
+    <div id="keyboard"></div>
+    <div class="streakline" id="streakLine"></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').outerHTML = kit.crumb('daily digital');
+
+  // ---------------------------------------------------------------------
+  // Calendar
+  // ---------------------------------------------------------------------
+  var viewDate = new Date();
+  function renderCalendar() {
+    var y = viewDate.getFullYear(), m = viewDate.getMonth();
+    document.getElementById('calTitle').textContent =
+      viewDate.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+    var grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+    ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(function (d) {
+      var el = document.createElement('div');
+      el.className = 'cal-dow'; el.textContent = d;
+      grid.appendChild(el);
+    });
+    var first = new Date(y, m, 1);
+    var startDow = first.getDay();
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    var today = new Date();
+    var isCurrentMonth = today.getFullYear() === y && today.getMonth() === m;
+    for (var i = 0; i < startDow; i++) {
+      var pad = document.createElement('div'); pad.className = 'cal-pad';
+      grid.appendChild(pad);
+    }
+    for (var d = 1; d <= daysInMonth; d++) {
+      var cell = document.createElement('div');
+      cell.className = 'cal-day' + (isCurrentMonth && d === today.getDate() ? ' today' : '');
+      cell.textContent = d;
+      grid.appendChild(cell);
+    }
+  }
+  document.getElementById('prevMonth').addEventListener('click', function () {
+    viewDate.setMonth(viewDate.getMonth() - 1); renderCalendar();
+  });
+  document.getElementById('nextMonth').addEventListener('click', function () {
+    viewDate.setMonth(viewDate.getMonth() + 1); renderCalendar();
+  });
+  renderCalendar();
+
+  // ---------------------------------------------------------------------
+  // Almanac — date maths, moon phase, sunrise/sunset. All computed locally;
+  // no network call, so nothing here can 400 or hang.
+  // ---------------------------------------------------------------------
+  var rad = Math.PI / 180;
+
+  function isLeap(y) { return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; }
+  function dayOfYear(d) {
+    var start = new Date(d.getFullYear(), 0, 0);
+    return Math.floor((d - start) / 86400000);
+  }
+  function isoWeek(d) {
+    var date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var dayNum = (date.getUTCDay() + 6) % 7;
+    date.setUTCDate(date.getUTCDate() - dayNum + 3);
+    var firstThursday = date.getTime();
+    date.setUTCMonth(0, 1);
+    if (date.getUTCDay() !== 4) date.setUTCMonth(0, 1 + ((4 - date.getUTCDay() + 7) % 7));
+    return 1 + Math.round((firstThursday - date.getTime()) / (7 * 86400000));
+  }
+  var ZODIAC_CUTOFF = [20, 19, 21, 20, 21, 21, 23, 23, 23, 23, 22, 22];
+  var ZODIAC_SIGN = ['Capricorn', 'Aquarius', 'Pisces', 'Aries', 'Taurus', 'Gemini',
+    'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn'];
+  function zodiac(month, day) {
+    return day < ZODIAC_CUTOFF[month - 1] ? ZODIAC_SIGN[month - 1] : ZODIAC_SIGN[month];
+  }
+  function season(month) {
+    if (month >= 3 && month <= 5) return 'Spring';
+    if (month >= 6 && month <= 8) return 'Summer';
+    if (month >= 9 && month <= 11) return 'Autumn';
+    return 'Winter';
+  }
+
+  var SYNODIC_MONTH = 29.530588853;
+  var KNOWN_NEW_MOON = Date.UTC(2000, 0, 6, 18, 14, 0);
+  function moonPhaseFraction(date) {
+    var days = (date.getTime() - KNOWN_NEW_MOON) / 86400000;
+    var p = (days % SYNODIC_MONTH) / SYNODIC_MONTH;
+    if (p < 0) p += 1;
+    return p;
+  }
+  function moonPhaseName(p) {
+    if (p < 0.03 || p > 0.97) return 'New Moon';
+    if (p < 0.22) return 'Waxing Crescent';
+    if (p < 0.28) return 'First Quarter';
+    if (p < 0.47) return 'Waxing Gibbous';
+    if (p < 0.53) return 'Full Moon';
+    if (p < 0.72) return 'Waning Gibbous';
+    if (p < 0.78) return 'Last Quarter';
+    return 'Waning Crescent';
+  }
+  function moonEmoji(p) {
+    var i = Math.round(p * 8) % 8;
+    return ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'][i];
+  }
+
+  function fact(label, value, accent) {
+    var el = document.createElement('div');
+    el.className = 'fact';
+    el.innerHTML = '<div class="label"></div><div class="value' + (accent ? ' accent' : '') + '"></div>';
+    el.querySelector('.label').textContent = label;
+    el.querySelector('.value').textContent = value;
+    return el;
+  }
+
+  (function renderAlmanacFacts() {
+    var now = new Date();
+    var doy = dayOfYear(now);
+    var totalDays = isLeap(now.getFullYear()) ? 366 : 365;
+    var container = document.getElementById('almanacFacts');
+    var moonP = moonPhaseFraction(now);
+    var illum = Math.round((1 - Math.cos(2 * Math.PI * moonP)) / 2 * 100);
+    container.appendChild(fact('Today', now.toLocaleDateString(undefined,
+      { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }), true));
+    container.appendChild(fact('Day of year', doy + ' of ' + totalDays));
+    container.appendChild(fact('Days remaining', totalDays - doy));
+    container.appendChild(fact('ISO week', 'Week ' + isoWeek(now)));
+    container.appendChild(fact('Season (N. Hemisphere)', season(now.getMonth() + 1)));
+    container.appendChild(fact('Zodiac sign', zodiac(now.getMonth() + 1, now.getDate())));
+    container.appendChild(fact('Moon phase', moonEmoji(moonP) + ' ' + moonPhaseName(moonP) +
+      ' (~' + illum + '% lit)', true));
+  })();
+
+  // Sunrise/sunset — standard solar-position formulas (Jean Meeus / NOAA),
+  // computed from the device's own coordinates. No API, no network.
+  var dayMs = 86400000, J1970 = 2440588, J2000 = 2451545;
+  function toJulian(date) { return date.valueOf() / dayMs - 0.5 + J1970; }
+  function fromJulian(j) { return new Date((j + 0.5 - J1970) * dayMs); }
+  function toDays(date) { return toJulian(date) - J2000; }
+  var OBLIQUITY = rad * 23.4397;
+  function declination(l, b) {
+    return Math.asin(Math.sin(b) * Math.cos(OBLIQUITY) + Math.cos(b) * Math.sin(OBLIQUITY) * Math.sin(l));
+  }
+  function solarMeanAnomaly(d) { return rad * (357.5291 + 0.98560028 * d); }
+  function eclipticLongitude(M) {
+    var C = rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+    var P = rad * 102.9372;
+    return M + C + P + Math.PI;
+  }
+  function julianCycle(d, lw) { return Math.round(d - 0.0009 - lw / (2 * Math.PI)); }
+  function approxTransit(Ht, lw, n) { return 0.0009 + (Ht + lw) / (2 * Math.PI) + n; }
+  function solarTransitJ(ds, M, L) { return J2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L); }
+  function hourAngle(h, phi, d) {
+    return Math.acos((Math.sin(h) - Math.sin(phi) * Math.sin(d)) / (Math.cos(phi) * Math.cos(d)));
+  }
+  function getSetJ(h, lw, phi, dec, n, M, L) {
+    var w = hourAngle(h, phi, dec);
+    var a = approxTransit(w, lw, n);
+    return solarTransitJ(a, M, L);
+  }
+  function getSunTimes(date, lat, lng) {
+    var lw = rad * -lng, phi = rad * lat, d = toDays(date);
+    var n = julianCycle(d, lw), ds = approxTransit(0, lw, n);
+    var M = solarMeanAnomaly(ds), L = eclipticLongitude(M), dec = declination(L, 0);
+    var Jnoon = solarTransitJ(ds, M, L);
+    var h0 = -0.833 * rad;
+    var Jset = getSetJ(h0, lw, phi, dec, n, M, L);
+    var Jrise = Jnoon - (Jset - Jnoon);
+    return { sunrise: fromJulian(Jrise), sunset: fromJulian(Jset) };
+  }
+
+  var locBtn = document.getElementById('locBtn');
+  var almErr = document.getElementById('almErr');
+  locBtn.addEventListener('click', function () {
+    kit.clear(almErr);
+    if (!navigator.geolocation) {
+      kit.showError(almErr, 'This browser does not support geolocation.');
+      return;
+    }
+    locBtn.disabled = true;
+    locBtn.textContent = 'Locating…';
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      var times = getSunTimes(new Date(), pos.coords.latitude, pos.coords.longitude);
+      var out = document.getElementById('sunInfo');
+      out.innerHTML = '';
+      if (isNaN(times.sunrise.getTime()) || isNaN(times.sunset.getTime())) {
+        out.appendChild(fact('Sun', 'No sunrise/sunset today — you may be near the poles ' +
+          'in a period of continuous day or night.'));
+      } else {
+        var fmt = { hour: 'numeric', minute: '2-digit' };
+        out.appendChild(fact('Sunrise', times.sunrise.toLocaleTimeString(undefined, fmt), true));
+        out.appendChild(fact('Sunset', times.sunset.toLocaleTimeString(undefined, fmt), true));
+        var lenMin = Math.round((times.sunset - times.sunrise) / 60000);
+        out.appendChild(fact('Day length', Math.floor(lenMin / 60) + 'h ' + (lenMin % 60) + 'm'));
+      }
+      locBtn.textContent = 'Refresh sunrise / sunset';
+      locBtn.disabled = false;
+    }, function (err) {
+      kit.showError(almErr, 'Could not get your location (' + err.message + '). ' +
+        'The rest of the almanac still works without it.');
+      locBtn.textContent = 'Enable location for sunrise / sunset';
+      locBtn.disabled = false;
+    }, { timeout: 8000 });
+  });
+
+  // ---------------------------------------------------------------------
+  // Daily word puzzle. The answer is picked deterministically from the UTC
+  // day, so every visitor gets the same word on the same day — no server,
+  // no fetch, so nothing here can hang or 400.
+  // ---------------------------------------------------------------------
+  var WORDS = ['about','above','actor','adopt','aisle','alarm','album','alert','alike','alive',
+    'allow','alone','among','angel','anger','angle','apple','apply','arena','argue',
+    'arise','armor','aside','audio','audit','avoid','awake','award','basic','beach',
+    'begin','being','below','bench','birth','blade','blank','blast','bloom','board',
+    'boost','booth','bound','brain','brand','brave','bread','break','brick','bride',
+    'brief','bring','broad','brown','build','burst','cabin','cable','candy','canoe',
+    'carry','catch','cause','chain','chair','chalk','charm','chart','chase','cheap',
+    'check','cheer','chess','chest','chief','child','choir','chose','civic','claim',
+    'class','clean','clear','climb','clock','close','cloud','coach','coast','cover',
+    'crack','craft','crane','crash','cream','crime','cross','crowd','crown','curve',
+    'dance','dealt','debut','delay','depth','diary','dirty','ditch','dodge','doubt',
+    'draft','drain','drama','dream','dress','drift','drink','drive','dwell','eager',
+    'early','earth','eight','elbow','elite','empty','enjoy','enter','equal','error',
+    'exact','exist','extra','fable','faith','fancy','feast','fence','fiber','field',
+    'fifth','fight','final','first','flame','flash','fleet','flock','floor','flour',
+    'focus','force','forge','frame','fresh','front','frost','fruit','gaze','ghost',
+    'giant','given','glass','glide','globe','glory','grace','grade','grain','grand',
+    'grant','grape','graph','grasp','grass','great','green','greet','grief','grill',
+    'grind','group','grove','guard','guess','guest','guide','habit','happy','harsh',
+    'heart','heavy','hinge','honey','honor','horse','house','human','humor','hurry',
+    'ideal','image','index','inner','input','issue','ivory','jelly','joint','judge',
+    'juice','known','label','labor','laser','layer','learn','lemon','level','light',
+    'limit','local','logic','loose','lucky','lunar','lyric','magic','major','maker',
+    'march','match','maybe','media','merit','metal','meter','might','minor','model',
+    'money','month','moral','motor','mount','mouse','mouth','music','naval','nerve',
+    'never','noble','noise','north','novel','nurse','ocean','offer','often','olive',
+    'onion','opera','orbit','order','organ','other','outer','owner','ozone','paint',
+    'panel','paper','party','pause','peace','pearl','phase','photo','piano','pilot',
+    'pitch','pixel','place','plain','plane','plant','plate','point','pound','power',
+    'press','price','pride','prime','print','prior','prize','proof','proud','pulse',
+    'quart','queen','quest','quick','quiet','quilt','quote','radio','raise','ranch',
+    'range','rapid','reach','ready','realm','rebel','refer','reign','relax','reply',
+    'right','rival','river','roast','robot','round','route','royal','rural','sauce',
+    'scale','scarf','scene','scope','score','sense','shade','shape','share','sharp',
+    'shift','shine','shirt','shock','shore','short','sight','skill','sleep','slide',
+    'smart','smile','smoke','solid','solve','sound','space','spark','speak','speed',
+    'spice','spike','spine','spoon','sport','stack','stage','stain','stamp','stand',
+    'stare','start','state','steam','steel','stick','stock','stone','store','storm',
+    'story','stove','study','style','sugar','suite','super','swift','sword','table',
+    'taste','teach','their','theme','thick','thing','think','third','those','three',
+    'throw','tiger','tight','timer','title','today','token','tonic','torch','touch',
+    'tower','trace','track','trade','trail','train','trait','trend','trial','tribe',
+    'trick','truck','trust','truth','tuber','tulip','tutor','twist','uncle','under',
+    'union','unity','until','upper','urban','usual','valid','value','vapor','vault',
+    'venue','verse','video','vigor','vinyl','viral','virus','visit','vital','vivid',
+    'vocal','voice','waste','watch','water','weave','wheat','wheel','where','which',
+    'while','white','whole','witch','world','worry','worth','would','wound','wrist',
+    'write','wrong','yield','young','zebra'];
+
+  var ROWS = 6, COLS = 5;
+  var dayIndex = Math.floor(Date.now() / dayMs);
+  var ANSWER = WORDS[dayIndex % WORDS.length];
+  var dateKey = new Date().toISOString().slice(0, 10);
+  var storeKey = 'dd-puzzle-' + dateKey;
+  var streakKey = 'dd-streak';
+
+  var current = '';
+  var rowIdx = 0;
+  var locked = false;
+  var keyState = {};
+
+  var puzzleGrid = document.getElementById('puzzleGrid');
+  var puzzleMsg = document.getElementById('puzzleMsg');
+  var streakLine = document.getElementById('streakLine');
+  var rowsEl = [];
+  for (var r = 0; r < ROWS; r++) {
+    var row = document.createElement('div');
+    row.className = 'prow';
+    var tiles = [];
+    for (var c = 0; c < COLS; c++) {
+      var tile = document.createElement('div');
+      tile.className = 'ptile';
+      row.appendChild(tile);
+      tiles.push(tile);
+    }
+    puzzleGrid.appendChild(row);
+    rowsEl.push(tiles);
+  }
+
+  function evaluateGuess(guess, answer) {
+    var res = new Array(COLS).fill('absent');
+    var answerArr = answer.split('');
+    var guessArr = guess.split('');
+    var used = new Array(COLS).fill(false);
+    for (var i = 0; i < COLS; i++) {
+      if (guessArr[i] === answerArr[i]) { res[i] = 'correct'; used[i] = true; }
+    }
+    for (var j = 0; j < COLS; j++) {
+      if (res[j] === 'correct') continue;
+      var idx = -1;
+      for (var k = 0; k < COLS; k++) { if (!used[k] && answerArr[k] === guessArr[j]) { idx = k; break; } }
+      if (idx !== -1) { res[j] = 'present'; used[idx] = true; }
+    }
+    return res;
+  }
+
+  var RANK = { absent: 0, present: 1, correct: 2 };
+  function paintRow(idx, guess, statuses) {
+    for (var i = 0; i < COLS; i++) {
+      var t = rowsEl[idx][i];
+      t.textContent = guess[i];
+      t.className = 'ptile ' + statuses[i];
+      var letter = guess[i];
+      if (!keyState[letter] || RANK[statuses[i]] > RANK[keyState[letter]]) {
+        keyState[letter] = statuses[i];
+      }
+    }
+    paintKeyboard();
+  }
+
+  function paintTyping() {
+    var tiles = rowsEl[rowIdx];
+    for (var i = 0; i < COLS; i++) tiles[i].textContent = current[i] || '';
+  }
+
+  function loadState() {
+    var raw = localStorage.getItem(storeKey);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch (e) { return null; }
+  }
+  function saveState(state) { localStorage.setItem(storeKey, JSON.stringify(state)); }
+
+  function bumpStreak(won) {
+    var s;
+    try { s = JSON.parse(localStorage.getItem(streakKey) || '{}'); } catch (e) { s = {}; }
+    if (typeof s.count !== 'number') s.count = 0;
+    var yesterday = new Date(Date.now() - dayMs).toISOString().slice(0, 10);
+    if (won) {
+      s.count = (s.lastWin === yesterday) ? s.count + 1 : 1;
+      s.lastWin = dateKey;
+    } else {
+      s.count = 0;
+    }
+    localStorage.setItem(streakKey, JSON.stringify(s));
+    return s.count;
+  }
+  function renderStreak() {
+    var s;
+    try { s = JSON.parse(localStorage.getItem(streakKey) || '{}'); } catch (e) { s = {}; }
+    var n = s.count || 0;
+    streakLine.textContent = n > 0
+      ? 'Current streak: ' + n + ' day' + (n === 1 ? '' : 's') + '.'
+      : 'No active streak yet — win today’s puzzle to start one.';
+  }
+
+  function finish(won) {
+    locked = true;
+    kit.clear(puzzleMsg);
+    puzzleMsg.hidden = false;
+    puzzleMsg.className = won ? 'ok win' : 'err';
+    puzzleMsg.textContent = won
+      ? 'Solved in ' + rowIdx + '/' + ROWS + '. Come back tomorrow for a new word.'
+      : 'Out of guesses. Today’s word was ' + ANSWER.toUpperCase() + '.';
+  }
+
+  function submitGuess() {
+    if (locked) return;
+    if (current.length !== COLS) {
+      kit.showError(puzzleMsg, 'Not enough letters.');
+      return;
+    }
+    var guess = current.toLowerCase();
+    if (WORDS.indexOf(guess) === -1) {
+      kit.showError(puzzleMsg, 'Not in the word list.');
+      return;
+    }
+    kit.clear(puzzleMsg);
+    var statuses = evaluateGuess(guess, ANSWER);
+    paintRow(rowIdx, guess, statuses);
+    var state = loadState() || { guesses: [] };
+    state.guesses.push(guess);
+    var won = guess === ANSWER;
+    rowIdx++;
+    if (won || rowIdx >= ROWS) {
+      state.done = true;
+      state.won = won;
+      saveState(state);
+      if (!state.streakCounted) {
+        bumpStreak(won);
+        state.streakCounted = true;
+        saveState(state);
+      }
+      renderStreak();
+      finish(won);
+    } else {
+      saveState(state);
+    }
+    current = '';
+  }
+
+  function handleKey(key) {
+    if (locked) return;
+    if (key === 'ENTER') { submitGuess(); return; }
+    if (key === 'BACK') { current = current.slice(0, -1); paintTyping(); return; }
+    if (/^[a-z]$/.test(key) && current.length < COLS) {
+      current += key; paintTyping();
+    }
+  }
+
+  var KB_ROWS = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['ENTER','z','x','c','v','b','n','m','BACK']
+  ];
+  var keyboardEl = document.getElementById('keyboard');
+  var keyButtons = {};
+  KB_ROWS.forEach(function (row) {
+    var krow = document.createElement('div');
+    krow.className = 'krow';
+    row.forEach(function (k) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'key' + (k === 'ENTER' || k === 'BACK' ? ' wide' : '');
+      btn.textContent = k === 'ENTER' ? 'enter' : (k === 'BACK' ? '⌫' : k);
+      btn.addEventListener('click', function () { handleKey(k); });
+      krow.appendChild(btn);
+      if (k.length === 1) keyButtons[k] = btn;
+    });
+    keyboardEl.appendChild(krow);
+  });
+  function paintKeyboard() {
+    Object.keys(keyState).forEach(function (letter) {
+      var btn = keyButtons[letter];
+      if (btn) btn.className = 'key ' + keyState[letter];
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (locked) return;
+    if (e.key === 'Enter') { handleKey('ENTER'); return; }
+    if (e.key === 'Backspace') { handleKey('BACK'); return; }
+    if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key.toLowerCase());
+  });
+
+  // Replay any guesses already made today, so a reload doesn't reset progress.
+  (function restore() {
+    var state = loadState();
+    if (state && Array.isArray(state.guesses)) {
+      state.guesses.forEach(function (g) {
+        paintRow(rowIdx, g, evaluateGuess(g, ANSWER));
+        rowIdx++;
+      });
+      if (state.done) finish(state.won);
+    }
+    renderStreak();
+  })();
+})();
+</script>
+</body>
+</html>

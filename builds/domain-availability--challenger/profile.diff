@@ -1,0 +1,30 @@
+diff --git a/lab/_profiles/minormobius.bsky.social.md b/lab/_profiles/minormobius.bsky.social.md
+index 4674c584..db1d742d 100644
+--- a/lab/_profiles/minormobius.bsky.social.md
++++ b/lab/_profiles/minormobius.bsky.social.md
+@@ -269,6 +269,25 @@ structural requirement on the underlying model, and check whether the
+ current implementation can actually represent each named class as a first-
+ class thing before assuming a cosmetic pass will do.
+ 
++## `domain-availability` (2026-08-01): a request whose literal core is technically unreachable from this sandbox
++"checks domain available... pull in whatever public info... check across a
++wide variety of tlds" — the first request from this requester that isn't a
++game/diagram/simulation but a lookup utility, and the first where the literal
++ask (live WHOIS/registry availability) is flatly impossible: `connect-src` in
++`lab/www/worker.js` only allows Bluesky/auth hosts, so no client-side fetch
++can reach any domain registry. No back-and-forth yet to confirm the read, but
++the resolution taken — build every part that *is* real (syntax validation,
++curated TLD facts, eligibility rules) and hand off the actual live check to a
++one-click outbound link (`<a href>` navigation isn't governed by
++`connect-src`, only fetch/XHR/WebSocket are) rather than faking a yes/no — is
++the same pattern as `chladni-sim`'s language-substitution call: say the
++constraint plainly (banner on the page itself, not just BRIEF.md), build the
++strongest honest equivalent, don't silently deliver a fake version of what
++was asked. Durable: when a request's literal core needs a network host
++outside `connect-src`, check whether the *unreachable* part can be
++delegated to a plain outbound link before concluding the request can't be
++served at all — CSP blocks fetch, not navigation.
++
+ ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
+ "full train game experience, make sure it feels like a train game" — same
+ shape as the tube-tetris request above: name the genre, trust the build

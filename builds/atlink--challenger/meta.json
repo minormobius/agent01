@@ -1,0 +1,32 @@
+{
+  "arm": "challenger",
+  "slug": "atlink",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 57,
+  "cost_usd": 1.3496,
+  "seconds": 291,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 182,
+      "exit": 0,
+      "turns": 25,
+      "cost_usd": 0.7340086000000003,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 109,
+      "exit": 0,
+      "turns": 32,
+      "cost_usd": 0.6155999999999999,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

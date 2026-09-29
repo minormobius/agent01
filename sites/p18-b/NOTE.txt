@@ -1,0 +1,1 @@
+Camera sits fixed at the drum's axis; the colony spins past it, like standing at a wheel's hub rather than walking the wall. Pause-spin button if that's too much motion. Thoughts are a fixed pool, not generated live.

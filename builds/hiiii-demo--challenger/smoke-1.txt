@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 129 colours, top 44%
+  ✓ smoke: lab/www/hiiii-demo/index.html loads clean under the production CSP

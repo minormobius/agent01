@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All 256 Elementary Cellular Automata</title>
+<meta name="description" content="Paint one starting row and watch every one of Wolfram's 256 elementary cellular automaton rules evolve it at once, 50 generations deep, computed live in the browser.">
+<meta property="og:title" content="All 256 Elementary Cellular Automata">
+<meta property="og:description" content="Paint one starting row and watch every one of Wolfram's 256 elementary cellular automaton rules evolve it at once, 50 generations deep, computed live in the browser.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 72rem; }
+  .ic-strip {
+    width: 100%; height: 44px; display: block;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); touch-action: none; cursor: crosshair;
+  }
+  .ic-strip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ic-buttons { display: flex; gap: .5rem; flex-wrap: wrap; margin: .75rem 0; }
+  .ic-params {
+    display: flex; gap: 1.25rem; flex-wrap: wrap; align-items: center;
+    font-size: .85rem; color: var(--muted); margin-bottom: 1rem;
+  }
+  .ic-params label { display: inline-flex; align-items: center; gap: .4rem; }
+  .ic-params input[type=number] { width: 5rem; padding: .5rem .6rem; }
+  .ic-params input[type=checkbox] { width: 20px; height: 20px; }
+  .gallery {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: .75rem; margin-top: 1.5rem;
+  }
+  .rule-card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .5rem; cursor: pointer;
+    text-align: center; font: inherit; color: inherit; display: block; width: 100%;
+  }
+  .rule-card:hover, .rule-card:focus-visible { border-color: var(--accent); outline: none; }
+  .rule-card canvas {
+    width: 100%; display: block; image-rendering: pixelated;
+    image-rendering: crisp-edges; background: var(--bg); border-radius: 2px;
+  }
+  .rule-card .rule-label { font-size: .75rem; color: var(--fg); margin-top: .5rem; }
+  .rule-card .rule-note { font-size: .65rem; color: var(--accent); margin-top: .15rem; }
+  .modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.8);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem; z-index: 1000;
+  }
+  .modal.hidden { display: none; }
+  .modal-inner {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.5rem 1.5rem 1.75rem;
+    max-width: min(92vw, 640px); max-height: 90vh; overflow: auto; position: relative;
+  }
+  #modalClose {
+    position: absolute; top: .5rem; right: .5rem;
+    min-width: 44px; min-height: 44px; padding: 0; font-size: 1.3rem; line-height: 1;
+  }
+  #modalCanvas { width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; background: var(--bg); margin: 1rem 0; display: block; }
+  button { min-height: 44px; }
+  .rule-table { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem .4rem; font-size: .68rem; margin-top: .5rem; }
+  .rt-cell { text-align: center; color: var(--muted); }
+  .rt-pat { display: flex; gap: 2px; justify-content: center; margin-bottom: 3px; }
+  .rt-pat span { width: 13px; height: 13px; border: 1px solid var(--border); display: inline-block; }
+  .rt-out { width: 13px; height: 13px; margin: 0 auto; border: 1px solid var(--border); }
+  .err { margin-top: .5rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>All 256 Elementary Cellular Automata</h1>
+  <p class="sub">One starting row, painted by you, run through every one of
+    Wolfram's 256 elementary rules at once — 50 generations by default,
+    computed for real in your browser, not looked up from a table.</p>
+
+  <section aria-label="initial condition">
+    <h2>Initial condition</h2>
+    <p>Click or drag across the strip to paint the starting row (focus it and
+      use the arrow keys plus space to edit by keyboard). Every rule below
+      regenerates from exactly this row, together, the moment it changes.</p>
+    <canvas id="icStrip" tabindex="0" role="img"
+      aria-label="starting row editor, arrow keys move, space toggles"
+      class="ic-strip"></canvas>
+    <div class="ic-buttons">
+      <button type="button" id="presetSingle">single cell</button>
+      <button type="button" id="presetRandom">random</button>
+      <button type="button" id="presetClear">clear</button>
+    </div>
+    <div class="ic-params">
+      <label>width <input type="number" id="widthInput" min="11" max="151" step="2" value="63" inputmode="numeric"></label>
+      <label>steps <input type="number" id="stepsInput" min="10" max="200" step="1" value="50" inputmode="numeric"></label>
+      <label><input type="checkbox" id="wrapInput" checked> wrap edges</label>
+    </div>
+    <div id="err" class="err" hidden></div>
+  </section>
+
+  <section aria-label="all 256 rules">
+    <h2>All 256 rules</h2>
+    <div class="gallery" id="gallery"></div>
+  </section>
+</main>
+
+<div id="modal" class="modal hidden" aria-hidden="true" role="dialog" aria-labelledby="modalTitle">
+  <div class="modal-inner">
+    <button type="button" id="modalClose" aria-label="close">&times;</button>
+    <h2 id="modalTitle" style="margin-top:0;"></h2>
+    <p id="modalNote" class="sub" style="margin:.25rem 0 0;"></p>
+    <canvas id="modalCanvas"></canvas>
+    <p style="font-size:.75rem;color:var(--muted);margin:0 0 .25rem;">left-centre-right &rarr; new centre, for all 8 possible triples:</p>
+    <div id="modalRuleTable" class="rule-table"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var errEl = document.getElementById('err');
+  function fail(msg) { kit.showError(errEl, msg); }
+  function okAgain() { kit.clear(errEl); }
+
+  document.getElementById('crumb').innerHTML = kit.crumb('exhaustive gallery');
+
+  var W = 63, STEPS = 50, WRAP = true;
+  var initial = new Uint8Array(W);
+  initial[Math.floor(W / 2)] = 1;
+
+  var NOTES = {
+    30: 'chaotic — used as Mathematica’s default PRNG',
+    54: 'complex, structured but irregular',
+    60: 'Pascal’s triangle mod 2, one side',
+    90: 'Sierpinski triangle from a single cell',
+    110: 'proven Turing‑complete',
+    150: 'XOR of all three neighbours',
+    184: 'a simple traffic‑flow model',
+    250: 'trivial additive stripes'
+  };
+
+  function hexToRgb(hex) {
+    hex = (hex || '').trim().replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(function (c) { return c + c; }).join('');
+    var n = parseInt(hex, 16) || 0;
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  var cs = getComputedStyle(document.documentElement);
+  var LIVE = hexToRgb(cs.getPropertyValue('--accent') || '#e8a33d');
+  var DEAD = hexToRgb(cs.getPropertyValue('--bg') || '#0e0e11');
+
+  function resizeInitial(newW) {
+    var old = initial, oldW = old.length;
+    var next = new Uint8Array(newW);
+    if (newW <= oldW) {
+      var start = Math.floor((oldW - newW) / 2);
+      for (var i = 0; i < newW; i++) next[i] = old[start + i];
+    } else {
+      var start2 = Math.floor((newW - oldW) / 2);
+      for (var j = 0; j < oldW; j++) next[start2 + j] = old[j];
+    }
+    return next;
+  }
+
+  function simulateRule(rule, steps) {
+    var h = steps + 1;
+    var grid = new Uint8Array(W * h);
+    grid.set(initial, 0);
+    for (var r = 1; r < h; r++) {
+      var prevOff = (r - 1) * W, curOff = r * W;
+      for (var i = 0; i < W; i++) {
+        var l, c, rt;
+        c = grid[prevOff + i];
+        if (WRAP) {
+          l = grid[prevOff + ((i - 1 + W) % W)];
+          rt = grid[prevOff + ((i + 1) % W)];
+        } else {
+          l = i > 0 ? grid[prevOff + i - 1] : 0;
+          rt = i < W - 1 ? grid[prevOff + i + 1] : 0;
+        }
+        var pattern = (l << 2) | (c << 1) | rt;
+        grid[curOff + i] = (rule >> pattern) & 1;
+      }
+    }
+    return grid;
+  }
+
+  function paintGrid(canvas, grid, w, h) {
+    canvas.width = w; canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    var img = ctx.createImageData(w, h);
+    for (var idx = 0; idx < w * h; idx++) {
+      var c = grid[idx] ? LIVE : DEAD;
+      var o = idx * 4;
+      img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // ---- initial-condition strip ------------------------------------------
+  var icCanvas = document.getElementById('icStrip');
+  var icCtx = icCanvas.getContext('2d');
+
+  function drawIC() {
+    icCanvas.width = W; icCanvas.height = 1;
+    var img = icCtx.createImageData(W, 1);
+    for (var i = 0; i < W; i++) {
+      var c = initial[i] ? LIVE : DEAD;
+      img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255;
+    }
+    icCtx.putImageData(img, 0, 0);
+  }
+
+  function cellIndexFromEvent(e) {
+    var rect = icCanvas.getBoundingClientRect();
+    var x = (e.clientX - rect.left) / rect.width;
+    var idx = Math.floor(x * W);
+    if (idx < 0) idx = 0; if (idx >= W) idx = W - 1;
+    return idx;
+  }
+
+  var regenScheduled = false;
+  function scheduleRegen() {
+    drawIC();
+    if (regenScheduled) return;
+    regenScheduled = true;
+    requestAnimationFrame(function () { regenScheduled = false; renderGallery(); });
+  }
+
+  var painting = false, paintValue = 1;
+  icCanvas.addEventListener('pointerdown', function (e) {
+    painting = true;
+    var idx = cellIndexFromEvent(e);
+    paintValue = initial[idx] ? 0 : 1;
+    initial[idx] = paintValue;
+    try { icCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+    scheduleRegen();
+  });
+  icCanvas.addEventListener('pointermove', function (e) {
+    if (!painting) return;
+    var idx = cellIndexFromEvent(e);
+    if (initial[idx] !== paintValue) { initial[idx] = paintValue; scheduleRegen(); }
+  });
+  window.addEventListener('pointerup', function () { painting = false; });
+  window.addEventListener('pointercancel', function () { painting = false; });
+
+  var focusIdx = Math.floor(W / 2);
+  icCanvas.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') { focusIdx = Math.max(0, focusIdx - 1); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { focusIdx = Math.min(W - 1, focusIdx + 1); e.preventDefault(); }
+    else if (e.key === ' ' || e.key === 'Enter') {
+      initial[focusIdx] = initial[focusIdx] ? 0 : 1;
+      scheduleRegen();
+      e.preventDefault();
+    }
+  });
+
+  document.getElementById('presetSingle').addEventListener('click', function () {
+    initial.fill(0); initial[Math.floor(W / 2)] = 1; drawIC(); renderGallery();
+  });
+  document.getElementById('presetRandom').addEventListener('click', function () {
+    for (var i = 0; i < W; i++) initial[i] = Math.random() < 0.5 ? 1 : 0;
+    drawIC(); renderGallery();
+  });
+  document.getElementById('presetClear').addEventListener('click', function () {
+    initial.fill(0); drawIC(); renderGallery();
+  });
+
+  // ---- width / steps / wrap ----------------------------------------------
+  var widthInput = document.getElementById('widthInput');
+  var stepsInput = document.getElementById('stepsInput');
+  var wrapInput = document.getElementById('wrapInput');
+
+  widthInput.addEventListener('change', function () {
+    var v = parseInt(widthInput.value, 10);
+    if (isNaN(v)) { fail('width must be a number'); widthInput.value = W; return; }
+    v = Math.max(11, Math.min(151, v));
+    if (v % 2 === 0) v += 1;
+    widthInput.value = v;
+    initial = resizeInitial(v);
+    W = v;
+    focusIdx = Math.min(focusIdx, W - 1);
+    okAgain();
+    drawIC(); renderGallery();
+  });
+
+  stepsInput.addEventListener('change', function () {
+    var v = parseInt(stepsInput.value, 10);
+    if (isNaN(v)) { fail('steps must be a number'); stepsInput.value = STEPS; return; }
+    v = Math.max(10, Math.min(200, v));
+    stepsInput.value = v;
+    STEPS = v;
+    okAgain();
+    renderGallery();
+  });
+
+  wrapInput.addEventListener('change', function () {
+    WRAP = wrapInput.checked;
+    renderGallery();
+  });
+
+  // ---- the 256-card gallery ----------------------------------------------
+  var gallery = document.getElementById('gallery');
+  var cards = [];
+  for (var ruleNum = 0; ruleNum < 256; ruleNum++) {
+    (function (rule) {
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'rule-card';
+      card.setAttribute('aria-label', 'rule ' + rule + (NOTES[rule] ? ', ' + NOTES[rule] : '') + ' — open enlarged view');
+      var canvas = document.createElement('canvas');
+      var label = document.createElement('div');
+      label.className = 'rule-label';
+      label.textContent = 'rule ' + rule;
+      card.appendChild(canvas);
+      card.appendChild(label);
+      if (NOTES[rule]) {
+        var note = document.createElement('div');
+        note.className = 'rule-note';
+        note.textContent = NOTES[rule];
+        card.appendChild(note);
+      }
+      card.addEventListener('click', function () { openModal(rule); });
+      gallery.appendChild(card);
+      cards.push({ rule: rule, canvas: canvas });
+    })(ruleNum);
+  }
+
+  function renderGallery() {
+    for (var i = 0; i < cards.length; i++) {
+      var grid = simulateRule(cards[i].rule, STEPS);
+      paintGrid(cards[i].canvas, grid, W, STEPS + 1);
+    }
+  }
+
+  // ---- modal --------------------------------------------------------------
+  var modal = document.getElementById('modal');
+  var modalCanvas = document.getElementById('modalCanvas');
+  var modalTitle = document.getElementById('modalTitle');
+  var modalNote = document.getElementById('modalNote');
+  var modalRuleTable = document.getElementById('modalRuleTable');
+  var lastFocused = null;
+
+  function buildRuleTable(rule) {
+    modalRuleTable.innerHTML = '';
+    for (var p = 7; p >= 0; p--) {
+      var l = (p >> 2) & 1, c = (p >> 1) & 1, r = p & 1;
+      var out = (rule >> p) & 1;
+      var cell = document.createElement('div');
+      cell.className = 'rt-cell';
+      var pat = document.createElement('div');
+      pat.className = 'rt-pat';
+      [l, c, r].forEach(function (v) {
+        var sp = document.createElement('span');
+        sp.style.background = v ? 'var(--fg)' : 'var(--bg)';
+        pat.appendChild(sp);
+      });
+      cell.appendChild(pat);
+      var o = document.createElement('div');
+      o.className = 'rt-out';
+      o.style.background = out ? 'var(--accent)' : 'var(--bg)';
+      cell.appendChild(o);
+      modalRuleTable.appendChild(cell);
+    }
+  }
+
+  function openModal(rule) {
+    lastFocused = document.activeElement;
+    modalTitle.textContent = 'Rule ' + rule;
+    modalNote.textContent = NOTES[rule] || '';
+    var grid = simulateRule(rule, STEPS);
+    paintGrid(modalCanvas, grid, W, STEPS + 1);
+    buildRuleTable(rule);
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.getElementById('modalClose').focus();
+    document.addEventListener('keydown', modalKeydown);
+  }
+  function closeModal() {
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    document.removeEventListener('keydown', modalKeydown);
+    if (lastFocused && lastFocused.focus) lastFocused.focus();
+  }
+  function modalKeydown(e) { if (e.key === 'Escape') closeModal(); }
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+
+  drawIC();
+  renderGallery();
+})();
+</script>
+</body>
+</html>

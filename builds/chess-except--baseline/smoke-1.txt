@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 71 colours, top 95%
+  ✓ smoke: lab/www/chess-except/index.html loads clean under the production CSP

@@ -1,0 +1,5 @@
+  · screenshot /tmp/shot.png — 188 colours, top 60%
+
+::warning::smoke [network] Failed to fetch — https://auth.mino.mobi/api/me — production allows this origin; this sandbox has no route to it, so it is not a verdict on the page
+
+  ✓ smoke: lab/www/train-game/index.html loads clean under the production CSP (1 unreachable-from-here call to allowed origins)

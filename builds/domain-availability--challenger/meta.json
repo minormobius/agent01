@@ -1,0 +1,32 @@
+{
+  "arm": "challenger",
+  "slug": "domain-availability",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 55,
+  "cost_usd": 2.1259,
+  "seconds": 593,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 548,
+      "exit": 0,
+      "turns": 37,
+      "cost_usd": 1.7164118,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 45,
+      "exit": 0,
+      "turns": 18,
+      "cost_usd": 0.4094935999999999,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

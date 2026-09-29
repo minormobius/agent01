@@ -1,0 +1,1 @@
+This sandbox can't reach WHOIS/RDAP/DNS, so a live availability check was impossible without faking it. Built real syntax/eligibility checks across ~164 TLDs instead, each linking to a genuine live WHOIS lookup.

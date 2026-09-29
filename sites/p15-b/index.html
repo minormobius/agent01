@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOSTOS — a terminal voyage home</title>
+<meta name="description" content="A text-adventure across the Aegean: keep the old guest-laws, dodge monsters and gods, and try to get home to Ithaca. Almost nobody makes it back to deal with the suitors.">
+<meta property="og:title" content="NOSTOS — a terminal voyage home">
+<meta property="og:description" content="A text-adventure across the Aegean: keep the old guest-laws, dodge monsters and gods, and try to get home to Ithaca. Almost nobody makes it back to deal with the suitors.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --accent: #5fb8ab; --accent-dim: #123330; }
+  body { padding-bottom: 3rem; }
+  h1 { letter-spacing: .1em; }
+  .sub { font-size: .8rem; }
+
+  .stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: .3rem .9rem;
+    font-size: .72rem; color: var(--muted); margin: 0 0 1rem;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: .7rem .9rem;
+  }
+  .stats .row { display: flex; justify-content: space-between; gap: .5rem; white-space: nowrap; }
+  .stats .lbl { color: var(--fg); }
+  .stats .bar { color: var(--accent); letter-spacing: -1px; }
+  .stats .bar.warn { color: var(--error); }
+  .stats .wrath { color: var(--error); }
+
+  .term {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: #0a0a0d; padding: .9rem 1rem; margin-bottom: .9rem;
+    max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    font-size: .82rem; line-height: 1.65;
+  }
+  .term p { margin: 0 0 .55rem; color: var(--fg); }
+  .term p:last-child { margin-bottom: 0; }
+  .term .narr { color: var(--fg); }
+  .term .flavor { color: var(--muted); font-style: italic; }
+  .term .good { color: var(--ok); }
+  .term .bad { color: var(--error); }
+  .term .stage { color: var(--accent); font-weight: 600; margin-top: .3rem; }
+  .term .cursor { color: var(--accent); }
+  @media (prefers-reduced-motion: no-preference) {
+    .term .cursor { animation: blink 1s steps(1) infinite; }
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .choices { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.2rem; }
+  .choices button {
+    text-align: left; width: 100%; min-height: 44px;
+    display: flex; gap: .6rem; align-items: flex-start;
+    background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border);
+  }
+  .choices button:hover, .choices button:focus-visible { border-color: var(--accent); background: var(--accent-dim); }
+  .choices button .num { color: var(--accent); flex: none; }
+  .choices button:disabled { opacity: .5; cursor: default; }
+
+  .end {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem 1.1rem; margin-bottom: 1.2rem;
+  }
+  .end.win { border-color: var(--ok); background: #10261a; }
+  .end.death { border-color: var(--error); background: var(--error-bg); }
+  .end h2 { margin-top: 0; font-size: 1.1rem; }
+  .end.win h2 { color: var(--ok); }
+  .end.death h2 { color: var(--error); }
+
+  .history { font-size: .75rem; color: var(--muted); margin-bottom: 1.2rem; }
+
+  details.rivals { border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .7rem .9rem; margin-bottom: 1.2rem; }
+  details.rivals summary { cursor: pointer; color: var(--fg); font-size: .85rem; }
+  #rivalRow { display: flex; gap: .5rem; margin-top: .7rem; }
+  #rivalRow input { flex: 1; }
+  #rivalOut { margin-top: .6rem; font-size: .8rem; }
+  #rivalOut .r { padding: .3rem 0; border-bottom: 1px solid var(--border); }
+
+  footer.note { font-size: .72rem; color: var(--muted); margin-top: 2rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <header>
+    <h1>NOSTOS</h1>
+    <p class="sub">a terminal voyage across the wine-dark sea — keep the guest-laws, or die by them</p>
+  </header>
+
+  <div id="stats" class="stats" aria-label="ship status" hidden></div>
+  <div id="term" class="term" role="log" aria-live="polite"></div>
+  <div id="choices" class="choices"></div>
+  <div id="endWrap"></div>
+  <div id="history" class="history"></div>
+
+  <details class="rivals" id="rivalsBox" hidden>
+    <summary>compare a voyage — check a friend's handle</summary>
+    <div id="rivalRow">
+      <input id="rivalInput" type="text" placeholder="a friend's handle" aria-label="handle">
+    </div>
+    <div id="rivalOut"></div>
+  </details>
+
+  <footer class="note">
+    <p>Every landfall is a test of <em>xenia</em> — the old law that host and guest owe each
+    other safety, food and no lies. Break it and the gods notice. Runs are recorded to your
+    own Bluesky repo only if you choose to sign in; nothing is stored anywhere else.</p>
+  </footer>
+</main>
+<script>
+document.getElementById('crumb').innerHTML = kit.crumb('odyssey-trail');
+</script>
+<script>
+/* ============================== ENGINE ================================= */
+const $term = document.getElementById('term');
+const $choices = document.getElementById('choices');
+const $stats = document.getElementById('stats');
+const $end = document.getElementById('endWrap');
+const $history = document.getElementById('history');
+
+function newState() {
+  return {
+    day: 0, crew: 45, maxCrew: 45, supplies: 60, ship: 100,
+    favor: 0, wrath: 0, guile: 2, alone: false,
+    landfallIdx: 0, phase: 'transit', ended: false,
+  };
+}
+let S = newState();
+
+function bar(v, max, warnBelow) {
+  const w = Math.max(0, Math.min(10, Math.round((v / max) * 10)));
+  const s = '█'.repeat(w) + '░'.repeat(10 - w);
+  return { s, warn: v <= warnBelow };
+}
+
+function renderStats() {
+  if (S.ended && S.phase !== 'finale') { $stats.hidden = true; return; }
+  $stats.hidden = false;
+  const sup = bar(S.supplies, 100, 15);
+  const shp = bar(S.ship, 100, 25);
+  $stats.innerHTML = `
+    <div class="row"><span class="lbl">day</span><span>${S.day}</span></div>
+    <div class="row"><span class="lbl">crew</span><span>${S.alone ? 'alone' : S.crew}</span></div>
+    <div class="row"><span class="lbl">supplies</span><span class="bar${sup.warn ? ' warn' : ''}">${sup.s}</span></div>
+    <div class="row"><span class="lbl">ship</span><span class="bar${shp.warn ? ' warn' : ''}">${shp.s}</span></div>
+    <div class="row"><span class="lbl">favor of the gods</span><span>${S.favor >= 0 ? '+' : ''}${S.favor}</span></div>
+    <div class="row"><span class="lbl">poseidon's wrath</span><span class="wrath">${'!'.repeat(Math.min(S.wrath, 6)) || '—'}</span></div>
+  `;
+}
+
+function say(html, cls) {
+  const p = document.createElement('p');
+  p.className = cls || 'narr';
+  p.innerHTML = html;
+  $term.appendChild(p);
+  $term.scrollTop = $term.scrollHeight;
+}
+function stageHeader(name) { say('— ' + name + ' —', 'stage'); }
+
+function setChoices(list) {
+  $choices.innerHTML = '';
+  list.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="num">${i + 1}</span><span>${c.label}</span>`;
+    b.addEventListener('click', () => {
+      Array.from($choices.children).forEach((x) => (x.disabled = true));
+      c.run();
+    });
+    $choices.appendChild(b);
+  });
+}
+function clearChoices() { $choices.innerHTML = ''; }
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function apply(d) {
+  if (!d) return;
+  if (d.crew) S.crew = clamp(S.crew + d.crew, 0, S.maxCrew);
+  if (d.supplies) S.supplies = clamp(S.supplies + d.supplies, 0, 100);
+  if (d.ship) S.ship = clamp(S.ship + d.ship, 0, 100);
+  if (d.favor) S.favor = clamp(S.favor + d.favor, -10, 10);
+  if (d.wrath) S.wrath = Math.max(0, S.wrath + d.wrath);
+  if (d.guile) S.guile = clamp(S.guile + d.guile, 0, 12);
+}
+function rand(p) { return Math.random() < p; }
+
+/* ============================== THE STOPS ================================
+   Each landfall is one test of xenia — the guest-law that host and guest owe
+   each other safety, food, and truth. Good-faith choices raise favor/guile;
+   violations raise wrath or cost crew/ship outright. Transit legs between
+   landfalls roll a random calamity, weighted by the state you arrive with. */
+const LANDFALLS = [
+{ key: 'troy', name: 'The Smoking Walls of Troy', intro: [
+  'Ten years of siege end in one wooden horse. Troy burns behind you, and the ' +
+  'fleet turns for home — Ithaca, if the gods allow it.',
+  'A herald from a neighbouring camp offers you a place at his fire before you sail.',
+], choices: [
+  { label: 'Accept — a guest does not refuse a host\'s bread.', run: () => {
+    say('You eat as a guest should. He asks nothing but your name, and gives you a ' +
+        'fair wind for the telling of it.', 'good');
+    apply({ favor: 1, supplies: 5 }); afterChoice();
+  }},
+  { label: 'Decline. There is no time to waste on courtesies.', run: () => {
+    say('You take the wind you have and leave his fire untouched. No offence is meant, ' +
+        'but none not-taken either — the old law keeps no ledger of good intentions.', 'flavor');
+    afterChoice();
+  }},
+]},
+{ key: 'ismarus', name: 'The Cicones of Ismarus', intro: [
+  'Land, and a city that never wronged you. Your men smell plunder.',
+], choices: [
+  { label: 'Sack it. Take the wine, the herds, the gold.', run: () => {
+    say('You take a guest\'s welcome by force and call it a host\'s obligation. The ' +
+        'city\'s kin return before dawn in numbers you did not count.', 'bad');
+    apply({ crew: -6, supplies: 12, favor: -2 });
+    say('You keep the plunder. You do not keep the men who fell taking it.', 'bad');
+    afterChoice();
+  }},
+  { label: 'Trade fairly and move on before nightfall.', run: () => {
+    say('You buy what you need and leave the rest. Your helmsman mutters that a ' +
+        'crew this hungry for spoils will not thank you for restraint — but the god ' +
+        'of guests and hosts is watching a longer game than theirs.', 'good');
+    apply({ supplies: 6, favor: 1 }); afterChoice();
+  }},
+]},
+{ key: 'lotus', name: 'The Lotus-Eaters\' Shore', intro: [
+  'A gentle people offer your scouts a strange, honeyed fruit. Those who eat it ' +
+  'stop asking to go home.',
+], choices: [
+  { label: 'Let the scouts eat — they\'ve earned some peace.', run: () => {
+    const lost = 3 + Math.floor(Math.random() * 5);
+    say('They eat, and smile, and sit down in the sand for good. You drag what few ' +
+        'you can back to the ships; the rest simply will not rise.', 'bad');
+    apply({ crew: -lost }); afterChoice();
+  }},
+  { label: 'Forbid it, and drag the curious back by force.', run: () => {
+    say('You bind the ones already smiling and row for open water before more can taste ' +
+        'it. A joyless choice. A living one.', 'good');
+    apply({ guile: 1 }); afterChoice();
+  }},
+]},
+{ key: 'cyclops', name: 'The Cave of the Cyclops', intro: [
+  'A one-eyed giant, Poseidon\'s own son, keeps a cave full of cheese and a door ' +
+  'you cannot move. He asks who you are, and whether you brought him a gift, the ' +
+  'way a guest should.',
+], choices: [
+  { label: 'Invoke guest-right — ask for hospitality in Zeus\'s name.', run: () => {
+    say('He laughs at the old law and eats two of your men where you stand, gift ' +
+        'or none. Zeus Xenios keeps no army on this coast. You get the giant drunk on ' +
+        'the wine you brought, drive a stake into his one eye, and cling to the ' +
+        'undersides of his sheep to slip past him at dawn.', 'bad');
+    apply({ crew: -2, guile: 2 });
+    nameChoice();
+  }},
+  { label: 'Attack the moment he wakes, no words wasted.', run: () => {
+    say('He crushes two men before you land a blow, and the fight in the dark costs ' +
+        'you more than the plan would have. You blind him all the same and slip out ' +
+        'under his flock.', 'bad');
+    apply({ crew: -5 });
+    nameChoice();
+  }},
+]},
+{ key: 'aeolia', name: 'The Floating Island of Aeolus', intro: [
+  'The keeper of the winds hosts you for a month, then hands you a leather bag ' +
+  'holding every wind but the one you need, and sends you off with his blessing.',
+], choices: [
+  { label: 'Thank him plainly and guard the bag yourself.', run: () => {
+    say('You keep it under your own foot the whole voyage. Ithaca is a day\'s sail away ' +
+        'when you finally sleep.', 'good');
+    S._aeolusSafe = true; apply({ favor: 1 }); afterChoice();
+  }},
+  { label: 'Let the crew take turns minding the bag — you need the rest.', run: () => {
+    say('Within sight of home, your men decide the bag must hold gold their captain ' +
+        'won\'t share, and open it. Every wind in the world roars out at once and ' +
+        'blows you straight back to Aeolus\'s door — who now wants nothing more to do ' +
+        'with a house the gods have clearly turned against.', 'bad');
+    apply({ ship: -10, favor: -1, wrath: 1 }); afterChoice();
+  }},
+]},
+{ key: 'laestrygonians', name: 'The Harbour of the Laestrygonians', intro: [
+  'A deep, still harbour, ringed with cliffs. Giants live here, and giants ' +
+  'are not obligated by any law you know.',
+], choices: [
+  { label: 'Bring the whole fleet in to the sheltered water.', run: () => {
+    say('The giants drop boulders from the cliffs into a harbour with only one way ' +
+        'out. Ship after ship is smashed like crockery. You were not the only vessel ' +
+        'that trusted the shelter.', 'bad');
+    apply({ crew: -10, ship: -20 }); afterChoice();
+  }},
+  { label: 'Keep your own ship outside, and send one boat in to look first.', run: () => {
+    say('The scouting boat does not come back whole, but your own hull was never in ' +
+        'the trap. You cut the mooring line and row for open sea while the giants are ' +
+        'still busy with the rest.', 'bad');
+    apply({ crew: -4, guile: 1 }); afterChoice();
+  }},
+]},
+{ key: 'circe', name: 'Circe\'s House on Aeaea', intro: [
+  'Smoke over a cedar house, and a woman\'s voice singing. Every animal in the ' +
+  'yard watches you with eyes too knowing for a beast.',
+], choices: [
+  { label: 'Send an advance party to ask for hospitality, weapons sheathed.', run: () => {
+    if (rand(0.5)) {
+      say('She feeds your men well, then taps each one with a wand and watches them ' +
+          'grow bristles and a curl to their tail. Pigs make poor envoys.', 'bad');
+      apply({ crew: -3 });
+      say('You go yourself, and a stranger on the road presses an herb into your hand ' +
+          'that turns her drug to water in your mouth. Ashamed, or amused, she turns ' +
+          'your men back and keeps you a year as her honoured, well-fed guest.', 'good');
+      apply({ favor: 1, supplies: 15, guile: 1 });
+    } else {
+      say('Something about their manner gives her pause; she feeds them as guests, ' +
+          'plainly, and asks after your voyage rather than testing it. The old law, ' +
+          'kept by a witch when giants and cyclopes would not keep it.', 'good');
+      apply({ favor: 1, supplies: 10 });
+    }
+    afterChoice();
+  }},
+  { label: 'Storm the house before she can offer anything.', run: () => {
+    say('You get no wand-tap, and no year of rest either — only a wary, unfed crew and ' +
+        'a witch who now has every reason to wish you gone rather than helped.', 'flavor');
+    afterChoice();
+  }},
+]},
+{ key: 'underworld', name: 'The Land of the Dead', intro: [
+  'Circe sends you to the edge of the world to ask the blind prophet Tiresias the ' +
+  'way home. The dead crowd the trench of blood you dug for them, thirsty for a ' +
+  'word with the living.',
+], choices: [
+  { label: 'Share the libation with the shade of your own mother first.', run: () => {
+    say('You let a guest of the dead speak before asking your question of them. ' +
+        'Tiresias, watching you keep the courtesy even here, gives you the clearest ' +
+        'warning he has: leave the Sun God\'s cattle alone, whatever hunger says.', 'good');
+    apply({ favor: 1, guile: 1 }); S._warnedThrinacia = true; afterChoice();
+  }},
+  { label: 'Push straight to Tiresias — you didn\'t come here for reunions.', run: () => {
+    say('He answers your question and nothing more. Something about the warning ' +
+        'that follows it feels half-given, like a guest-gift handed over with one ' +
+        'hand still in a pocket.', 'flavor');
+    afterChoice();
+  }},
+]},
+{ key: 'sirens', name: 'The Rocks of the Sirens', intro: [
+  'A song drifts over the water promising every sailor the one thing he most ' +
+  'wants to hear. The rocks beneath it are white with old bones.',
+], choices: [
+  { label: 'Wax in the crew\'s ears, and have yourself lashed to the mast to listen.', run: () => {
+    say('You hear the song and strain at the ropes until your wrists bleed, ' +
+        'shouting to be let go. Your men, deaf and rowing, do not stop for a captain\'s ' +
+        'screaming. It is, on reflection, exactly the plan you asked for.', 'good');
+    apply({ guile: 1 }); afterChoice();
+  }},
+  { label: 'Trust the crew to keep rowing without the wax. You\'ll all listen.', run: () => {
+    if (rand(0.7)) {
+      say('The song finds the one weak oar-arm in forty, and that is all it needs. ' +
+          'Half the benches turn the ship toward the rocks before the rest wake from it.', 'bad');
+      apply({ crew: -8, ship: -15 });
+    } else {
+      say('By luck more than discipline, the wind carries the worst of it past you ' +
+          'before anyone\'s hand leaves the oar.', 'flavor');
+    }
+    afterChoice();
+  }},
+]},
+{ key: 'scylla', name: 'Scylla and Charybdis', intro: [
+  'A strait too narrow for choice: on one cliff a six-headed thing that eats ' +
+  'exactly six men and no more; on the other a whirlpool that swallows the whole ship ' +
+  'if it swallows anything.',
+], choices: [
+  { label: 'Hug Scylla\'s cliff. Lose a few. Keep the ship.', run: () => {
+    say('Six heads, six men, snatched from the deck as you pass beneath — quick, and ' +
+        'no slower for your grieving. The rest of the hull clears the strait whole.', 'bad');
+    apply({ crew: -6 }); afterChoice();
+  }},
+  { label: 'Try to thread the middle and risk Charybdis instead.', run: () => {
+    if (rand(0.6)) {
+      say('The whirlpool takes the whole ship down to the keel-boards. What comes back ' +
+          'up is wreckage, and you are clinging to a single mast-beam among the rest of it.', 'bad');
+      apply({ ship: -70, crew: -20 });
+    } else {
+      say('You slip the gap by a length of oar and lose only the ship\'s nerve, not its ' +
+          'timbers. Nobody on board believes it will work twice.', 'good');
+      apply({ ship: -10 });
+    }
+    afterChoice();
+  }},
+]},
+{ key: 'thrinacia', name: 'Thrinacia, Pasture of the Sun', intro: [
+  'Fat cattle graze a green island, and everyone knows whose they are. Supplies ' +
+  'are thin, and the crew has started looking at the herd the way starving men look ' +
+  'at anything.',
+], choices: [
+  { label: 'Forbid it absolutely. We starve honest before we eat a god\'s herd.', run: () => {
+    const hungry = S.supplies <= 20;
+    if (hungry && rand(0.6 + (S._warnedThrinacia ? -0.15 : 0))) {
+      say('You sleep, once, against your own order. Your men slaughter the fattest ' +
+          'cattle before you wake and feast like it is already forgiven. It is not.', 'bad');
+      thrinaciaPunishment();
+    } else {
+      say('The herd stands untouched, the crew half-fed and sullen, and the Sun God, ' +
+          'for once, has nothing to avenge. You sail on hungry but whole.', 'good');
+      apply({ favor: 1 }); afterChoice();
+    }
+  }},
+  { label: 'Allow it. A hungry crew is no crew at all.', run: () => {
+    say('You eat well for the first time in a week. The cattle low all night, though ' +
+        'they are dead and should not — the Sun God has been told exactly which ship to ' +
+        'watch for.', 'bad');
+    apply({ supplies: 30 }); thrinaciaPunishment();
+  }},
+]},
+{ key: 'ogygia', name: 'Calypso\'s Island of Ogygia', intro: () => [
+  S.alone
+    ? 'A wave sets what is left of the raft on a green shore. A nymph finds you ' +
+      'half-drowned and takes you in — as a very well-kept guest who is somehow never ' +
+      'quite free to leave.'
+    : 'Fair winds carry you to a hidden island where the nymph Calypso offers every ' +
+      'comfort of home except the part where you get to go there.',
+], choices: [
+  { label: 'Accept her hospitality, quietly, for as long as it lasts.', run: () => {
+    say('Seven years pass in one soft sentence. Immortality was on the table the ' +
+        'whole time, and you never once asked what Ithaca would look like without you.', 'bad');
+    endGame('softloss', 'You Stayed', [
+      'The gods eventually pity you enough to send Hermes with an order Calypso cannot ' +
+      'refuse. But by the time you leave, "home" is a word you have to relearn how to want.',
+      'No suitors ever answer for anything, because you never went back to ask them to.',
+    ]);
+  }},
+  { label: 'Ask, respectfully but plainly, to be let go.', run: () => {
+    say('A guest who never asks to leave becomes a fixture, not a guest — you know ' +
+        'that law better than she wants you to. She builds you a raft herself, ' +
+        'grudgingly, and the old rule holds even over a goddess\'s objections.', 'good');
+    apply({ favor: 1, ship: S.alone ? 20 : 0 }); afterChoice();
+  }},
+]},
+{ key: 'scheria', name: 'The Phaeacian Court of Scheria', intro: [
+  'The sea finally does you a kindness: a soft shore, and a princess who does not ' +
+  'flinch at a shipwrecked stranger. Her father the king offers a feast before he ' +
+  'asks your name.',
+], choices: [
+  { label: 'Tell them exactly who you are and everything that has happened.', run: () => {
+    say('A guest owes his host the truth eventually, and a king who feeds a stranger ' +
+        'before questioning him has earned it early. Moved by the whole terrible ' +
+        'story, he gives you a ship and crew of his own to finish the voyage.', 'good');
+    apply({ favor: 1, ship: 40, guile: 1 });
+    if (S.alone) { S.alone = false; S.crew = 8; }
+    afterChoice();
+  }},
+  { label: 'Stay nameless and guarded. You\'ve trusted hosts before.', run: () => {
+    say('Caution costs you here: a host owed the truth and given silence instead ' +
+        'sends you off with less than he would have. You leave with a smaller boat ' +
+        'and a colder farewell than the story deserved.', 'flavor');
+    if (S.alone) { S.alone = false; S.crew = 3; S.ship = 15; }
+    afterChoice();
+  }},
+]},
+];
+
+function nameChoice() {
+  stageHeader('Clear of the Cyclops\'s Shore');
+  say('Polyphemus roars for his father Poseidon in the water behind you. The wind is ' +
+      'already carrying you out of range.', 'narr');
+  setChoices([
+    { label: 'Shout your true name back at him — let him know who blinded him.', run: () => {
+      say('"ODYSSEUS, SACKER OF CITIES, DID THIS." The boast feels magnificent leaving ' +
+          'your mouth. Poseidon hears his son\'s name for his enemy and takes it personally ' +
+          'for the rest of the voyage.', 'bad');
+      apply({ wrath: 3, guile: 1 }); afterChoice();
+    }},
+    { label: 'Stay silent. Let him think "Nobody" did this to him.', run: () => {
+      say('You keep the name to yourself. It costs you the song that would have been ' +
+          'sung about this moment, and buys you a sea that is merely dangerous instead of ' +
+          'personally furious.', 'good');
+      apply({ guile: 1 }); afterChoice();
+    }},
+  ]);
+}
+
+function thrinaciaPunishment() {
+  say('You put to sea anyway, and the Sun God asks Zeus for the only justice that ' +
+      'satisfies him: a bolt out of a clear sky, splitting the ship to kindling.', 'bad');
+  apply({ ship: -100, crew: -S.crew });
+  S.alone = true; S.ship = 25; S._skipDeathThisTurn = true;
+  say('Every oar and every man goes down with the hull. You alone catch the mast as ' +
+      'it floats clear, and the current — not you — decides where you go next.', 'bad');
+  afterChoice();
+}
+
+/* ============================ TRANSIT LEGS ================================
+   Between landfalls: a random calamity (or, sometimes, none), weighted by the
+   state you arrive in. Wrath makes storms worse and more frequent; a thin
+   crew makes mutiny-grumble more likely; good favor occasionally pays out. */
+const TRANSIT_EVENTS = [
+  { weight: () => 3, apply: () => say('A clean wind and an easy sea. Nothing hunts you today.', 'good') },
+  { weight: (s) => 2 + s.wrath * 1.6, apply: () => {
+    const dmg = 8 + Math.floor(Math.random() * 10) + S.wrath * 2;
+    say('Poseidon\'s sea rises without warning, out of a clear sky. The ship takes a beating.', 'bad');
+    apply({ ship: -dmg });
+  }},
+  { weight: (s) => (s.alone ? 0 : 1.6), apply: () => {
+    const c = 1 + Math.floor(Math.random() * 3);
+    say('A sudden squall washes a man over the side before anyone can catch a rope.', 'bad');
+    apply({ crew: -c });
+  }},
+  { weight: () => 1, apply: () => {
+    say('Not a breath of wind all day. The oars do the work the sail won\'t.', 'flavor');
+    apply({ supplies: -4 });
+  }},
+  { weight: (s) => (s.favor > 0 ? 1.6 : 0.3), apply: () => {
+    say('A gull crosses the bow three times — sailors call it a good omen, and for once ' +
+        'a god agrees with them.', 'good');
+    apply({ supplies: 6 });
+  }},
+  { weight: (s) => (s.alone ? 0 : (s.crew < s.maxCrew * 0.4 ? 2 : 0.2)), apply: () => {
+    say('The thinned-out crew mutters about turning back. You talk them down. This time.', 'flavor');
+  }},
+];
+function pickTransitEvent() {
+  const weighted = TRANSIT_EVENTS.map((e) => ({ e, w: Math.max(0, e.weight(S)) }));
+  const total = weighted.reduce((a, x) => a + x.w, 0) || 1;
+  let r = Math.random() * total;
+  for (const x of weighted) { if ((r -= x.w) <= 0) return x.e; }
+  return weighted[0].e;
+}
+
+function transitLeg(next) {
+  S.day += 1;
+  if (S.supplies > 0) {
+    apply({ supplies: -(5 + Math.floor(Math.random() * 4)) });
+  } else {
+    apply({ crew: S.alone ? 0 : -3 });
+    say('No food aboard. Men grow gaunt, and fewer of them.', 'bad');
+  }
+  stageHeader('Open Water — Day ' + S.day);
+  pickTransitEvent().apply();
+  renderStats();
+  if (checkGameOver()) return;
+  setChoices([{ label: 'Sail on.', run: () => { clearChoices(); next(); } }]);
+}
+
+/* ========================== FLOW CONTROL ================================= */
+function checkGameOver() {
+  if (S.ended) return true;
+  if (S._skipDeathThisTurn) { S._skipDeathThisTurn = false; return false; }
+  if (!S.alone && S.crew <= 0) {
+    endGame('death', 'No One Left to Row', [
+      'The benches empty out one calamity at a time until there is no one left to pull ' +
+      'an oar, patch a hull or bail a hold. A ship is a thing rowed by people; without ' +
+      'them it is only cargo, going nowhere in particular.',
+    ]); return true;
+  }
+  if (S.ship <= 0) {
+    endGame('death', S.alone ? 'Lost at Sea, Alone' : 'The Sea Keeps the Ship', [
+      S.alone
+        ? 'The last of the wreckage finally gives out somewhere with no name on any ' +
+          'chart. There is no one left even to grieve which island it was near.'
+        : 'The hull finally fails at once, all at once, the way hulls do. There is no ' +
+          'homecoming from the bottom of the Aegean.',
+    ]); return true;
+  }
+  return false;
+}
+
+function showLandfall(idx) {
+  S.landfallIdx = idx; S.day += 1;
+  const stop = LANDFALLS[idx];
+  stageHeader(stop.name);
+  const lines = typeof stop.intro === 'function' ? stop.intro() : stop.intro;
+  lines.forEach((l) => say(l));
+  renderStats();
+  setChoices(stop.choices.map((c) => ({
+    label: c.label,
+    run: () => { say('&gt; ' + c.label, 'cursor'); c.run(); },
+  })));
+}
+
+function afterChoice() {
+  clearChoices();
+  if (checkGameOver()) return;
+  const idx = S.landfallIdx;
+  transitLeg(() => {
+    if (idx + 1 < LANDFALLS.length) showLandfall(idx + 1);
+    else finale();
+  });
+}
+
+/* =============================== FINALE ==================================
+   Reaching Ithaca is not the win condition — the suitors are. Your odds are
+   built from what the voyage actually earned: guile from clever choices,
+   favor from kept guest-laws, and whether you still have anyone at your back. */
+function finale() {
+  S.landfallIdx = LANDFALLS.length;
+  stageHeader('Ithaca, At Last');
+  say('Twenty years since Troy. The harbour looks smaller than memory swore it was. ' +
+      'Inside your own house: a crowd of suitors has been eating your stores, courting ' +
+      'your wife and running your hall as though its owner were already dead — the ' +
+      'guest-law broken from the inside, by men nobody asked to stay this long.', 'narr');
+  say('Athena disguises you as a beggar so you can see the house before it sees you.', 'flavor');
+  renderStats();
+  setChoices([
+    { label: 'Test them first — ask the suitors for a beggar\'s scrap, as guest-law demands.', run: () => {
+      say('&gt; You ask.', 'cursor');
+      if (rand(0.5)) {
+        say('Antinous throws a stool at your head rather than give a beggar bread. Whatever ' +
+            'doubt you had about doing this cleanly is gone now.', 'bad');
+        apply({ guile: 1 });
+      } else {
+        say('A few give, grudgingly; most don\'t. It\'s answer enough about what this house ' +
+            'has become.', 'flavor');
+      }
+      stringTheBow();
+    }},
+    { label: 'Skip the theatre. Go straight for the bow.', run: () => {
+      say('&gt; No patience left in you for the beggar\'s act.', 'cursor');
+      stringTheBow();
+    }},
+  ]);
+}
+
+function stringTheBow() {
+  clearChoices();
+  say('Your own bow — the one none of the suitors could even bend to string — is brought ' +
+      'out as a contest for Penelope\'s hand. You ask, still in rags, to try.', 'narr');
+  const score = S.guile * 3 + Math.max(0, S.favor) * 2 + (S.alone ? 0 : 5) + Math.floor(Math.random() * 12);
+  resolveFinale(score);
+}
+
+function resolveFinale(score) {
+  if (score >= 24) {
+    endGame('win', 'The Suitors Answer For It', [
+      'The string sings a note none of them have heard from that bow before. The first ' +
+      'arrow takes Antinous through the throat mid-swallow. The rest scramble for a wall ' +
+      'of weapons you had moved out of reach that morning, and find none of it there.',
+      'By the time the hall is quiet, twenty years of "guest" is finished being anyone\'s ' +
+      'problem but the men who overstayed it. Penelope, cautious even now, tests you with ' +
+      'a secret only her husband would know — and you answer it correctly.',
+      'Nostos: the return, completed. Ithaca is yours again, under the only law that was ' +
+      'ever going to settle this.',
+    ]);
+  } else if (score >= 14) {
+    endGame('win', 'A Bloody, Narrow Homecoming', [
+      'The bow bends. The first arrows fly true. It is not the clean, god-favoured ' +
+      'slaughter the old songs would prefer — you take a spear-graze doing it, and one ' +
+      'loyal man you\'d hoped to bring home does not see the end of it either — but when ' +
+      'the hall finally empties, you are the one still standing in it.',
+      'Ithaca is yours again. Nobody will call this homecoming graceful. Nobody will call ' +
+      'it undeserved, either.',
+    ]);
+  } else {
+    endGame('death', 'The Bow Was Never the Problem', [
+      'Twenty years of guest-right broken in your own hall does not undo itself just ' +
+      'because you finally made it home to say so. Too few favors kept, too little craft ' +
+      'left in you after everything the sea took — Antinous\'s men close in before the ' +
+      'second arrow leaves the string.',
+      'You made it all the way back to Ithaca. It turns out that was only ever the easier ' +
+      'half of this.',
+    ]);
+  }
+}
+
+/* ========================== ENDINGS & HISTORY ============================= */
+function endGame(kind, title, paragraphs) {
+  S.ended = true;
+  clearChoices();
+  paragraphs.forEach((p) => say(p, kind === 'win' ? 'good' : (kind === 'softloss' ? 'flavor' : 'bad')));
+  const reached = LANDFALLS[Math.min(S.landfallIdx, LANDFALLS.length - 1)];
+  const icon = kind === 'win' ? '⚑ NOSTOS — ' : (kind === 'softloss' ? '⌛ ' : '☠ ');
+  const box = document.createElement('div');
+  box.className = 'end ' + (kind === 'win' ? 'win' : (kind === 'softloss' ? '' : 'death'));
+  box.innerHTML = '<h2>' + icon + title + '</h2>' +
+    '<p>Reached: ' + (S.landfallIdx >= LANDFALLS.length ? 'Ithaca' : reached.name) +
+    ' &middot; day ' + S.day + ' &middot; guile ' + S.guile + ' &middot; favor ' + S.favor + '</p>';
+  $end.innerHTML = ''; $end.appendChild(box);
+  recordRun(kind, title);
+  renderRestart(box, S.day, kind, title);
+  document.getElementById('rivalsBox').hidden = false;
+}
+
+function renderRestart(box, day, kind, title) {
+  const b = document.createElement('button');
+  b.textContent = 'Sail again';
+  b.style.cssText = 'width:100%;min-height:44px;margin-top:.7rem;';
+  b.addEventListener('click', begin);
+  box.appendChild(b);
+  const s = document.createElement('button');
+  s.textContent = 'save this voyage to your Bluesky repo';
+  s.style.cssText = 'width:100%;min-height:44px;margin-top:.5rem;';
+  s.addEventListener('click', () => startSave(box, s, day, kind, title));
+  box.appendChild(s);
+}
+
+const HKEY = 'nostos-history-v1';
+function loadHistory() { try { return JSON.parse(localStorage.getItem(HKEY) || '{}'); } catch (e) { return {}; } }
+function recordRun(kind, title) {
+  const h = loadHistory();
+  h.attempts = (h.attempts || 0) + 1;
+  if (kind === 'win') h.wins = (h.wins || 0) + 1;
+  h.bestDay = Math.max(h.bestDay || 0, S.day);
+  h.lastTitle = title;
+  localStorage.setItem(HKEY, JSON.stringify(h));
+  renderHistory(h);
+}
+function renderHistory(h) {
+  h = h || loadHistory();
+  if (!h.attempts) { $history.textContent = ''; return; }
+  $history.textContent = 'you have sailed this route ' + h.attempts + ' time' + (h.attempts === 1 ? '' : 's') +
+    ' — ' + (h.wins || 0) + ' homecoming' + ((h.wins || 0) === 1 ? '' : 's') + ' won, best reached day ' + h.bestDay + '.';
+}
+
+/* ====================== OPTIONAL: THE VISITOR'S OWN REPO ===================
+   Saving a voyage is entirely optional and never blocks play. postScore()
+   needs sign-in; sign-in redirects away from the page, so the pending save is
+   parked in localStorage and completed on the return trip once ready()
+   reports a signed-in user. scoresOf() is a public read and needs no
+   sign-in at all — that's what powers the rivals lookup below. */
+const PENDING_KEY = 'nostos-pending-save-v1';
+let storePromise = null;
+function getStore() {
+  if (!storePromise) {
+    storePromise = import('../_kit/pds.js').then(async (m) => {
+      const s = m.labPds();
+      await s.ready();
+      return s;
+    });
+  }
+  return storePromise;
+}
+
+async function startSave(box, btn, day, kind, title) {
+  btn.disabled = true; btn.textContent = 'connecting…';
+  try {
+    const s = await getStore();
+    if (s.user()) {
+      await s.postScore(day, { unit: 'day', detail: kind + ': ' + title, game: 'nostos', higherIsBetter: true });
+      btn.textContent = 'saved — day ' + day + ' to your repo';
+    } else {
+      showHandlePrompt(box, btn, day, kind, title);
+    }
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'could not save — try again';
+  }
+}
+
+function showHandlePrompt(box, btn, day, kind, title) {
+  btn.remove();
+  const p = document.createElement('p');
+  p.style.cssText = 'font-size:.75rem;color:var(--muted);margin:.6rem 0 .3rem;';
+  p.textContent = 'sign in to save this voyage — pick your handle:';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.placeholder = 'you.bsky.social';
+  inp.setAttribute('aria-label', 'your Bluesky handle');
+  box.appendChild(p); box.appendChild(inp);
+  kit.handleInput(inp, { onPick: (handle) => {
+    inp.disabled = true;
+    localStorage.setItem(PENDING_KEY, JSON.stringify({ value: day, unit: 'day', detail: kind + ': ' + title }));
+    getStore().then((s) => s.signIn(handle, { scores: true })).catch(() => { inp.disabled = false; });
+  }});
+}
+
+async function checkPendingSave() {
+  const raw = localStorage.getItem(PENDING_KEY);
+  if (!raw) return;
+  try {
+    const s = await getStore();
+    if (!s.user()) return;
+    const pending = JSON.parse(raw);
+    await s.postScore(pending.value, { unit: pending.unit, detail: pending.detail, game: 'nostos', higherIsBetter: true });
+    localStorage.removeItem(PENDING_KEY);
+    document.getElementById('rivalsBox').hidden = false;
+    const note = document.createElement('p');
+    note.style.cssText = 'font-size:.75rem;color:var(--ok);';
+    note.textContent = 'Your last voyage (day ' + pending.value + ') was saved to your Bluesky repo.';
+    $history.after(note);
+  } catch (e) { /* saving is optional; a failure here should never block the page */ }
+}
+
+async function lookupRival(handle) {
+  const out = document.getElementById('rivalOut');
+  out.textContent = 'reading ' + handle + '’s voyages…';
+  try {
+    const s = await getStore();
+    const scores = s.rank(await s.scoresOf(handle));
+    if (!scores.length) { out.textContent = handle + ' has not saved a voyage here yet.'; return; }
+    out.innerHTML = scores.slice(0, 5).map((r) =>
+      '<div class="r">day ' + r.value + ' — ' + (r.detail || '').replace(/</g, '&lt;') + '</div>',
+    ).join('');
+  } catch (e) { out.textContent = 'could not reach that repo right now.'; }
+}
+
+/* ================================ BOOT ==================================== */
+function begin() {
+  S = newState();
+  $term.innerHTML = ''; $end.innerHTML = '';
+  say('The war at Troy is over. Twelve ships and a company of men turn west, toward ' +
+      'a home none of you have seen in ten years. Every shore between here and there ' +
+      'keeps its own law about how a stranger is to be treated — and whether you keep ' +
+      'that law back is the whole of the voyage.', 'flavor');
+  renderStats();
+  showLandfall(0);
+}
+
+kit.handleInput(document.getElementById('rivalInput'), { onPick: (h) => lookupRival(h) });
+renderHistory();
+begin();
+checkPendingSave();
+</script>
+</body>
+</html>
+

@@ -1,0 +1,1 @@
+Played it live and found a real bug: restart left the old stack drawn on screen even though it was clear underneath (fixed). Couldn't confirm a live full-ring clear — no way to steer random piece order — but traced the logic by hand.

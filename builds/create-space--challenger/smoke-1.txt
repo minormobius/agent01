@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 138 colours, top 27%
+  ✓ smoke: lab/www/create-space/index.html loads clean under the production CSP

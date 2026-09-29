@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 283 colours, top 66%
+  ✓ smoke: lab/www/gibson-jackpot/index.html loads clean under the production CSP

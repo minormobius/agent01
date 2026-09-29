@@ -1,0 +1,1 @@
+Legality is checked after every hop, not just the last — so a king already in check is forced to escape on its first hop, for free. No castling/en passant (don't fit "one piece wanders"); pawns auto-promote to queen mid-walk.

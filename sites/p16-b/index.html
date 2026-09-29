@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>256 Rules, One Seed — Elementary Cellular Automata</title>
+<meta property="og:title" content="256 Rules, One Seed — Elementary Cellular Automata">
+<meta property="og:description" content="Set one initial row, and watch all 256 possible elementary cellular-automaton rules unfold 50 steps from it, side by side. Draw the seed, tap any tile for its rule table.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 74rem; }
+  .controls {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem; margin-bottom: 1.5rem;
+    display: flex; flex-direction: column; gap: .9rem;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  .row label { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: .4rem; }
+  .row select, .row input[type=number] {
+    width: auto; padding: .5rem .6rem; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); font: inherit;
+  }
+  .row input[type=number] { width: 5rem; }
+  button.small {
+    padding: .55rem .9rem; min-height: 44px; font-size: .85rem;
+  }
+  #initStrip {
+    width: 100%; height: 44px; display: block; touch-action: none;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg); cursor: crosshair;
+    image-rendering: pixelated;
+  }
+  .hint { font-size: .75rem; color: var(--muted); margin: 0; }
+  .gallery {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: .5rem;
+  }
+  .card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .4rem; display: flex;
+    flex-direction: column; align-items: stretch; gap: .3rem;
+    cursor: pointer; font: inherit; color: inherit; min-height: 44px;
+  }
+  .card:hover, .card:focus-visible { border-color: var(--accent); }
+  .card .rulelabel {
+    font-size: .7rem; color: var(--muted); display: flex; justify-content: space-between;
+  }
+  .card .rulelabel .star { color: var(--accent); }
+  .card canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; background: var(--bg); }
+  .card.dim { display: none; }
+  #status { font-size: .8rem; color: var(--muted); margin: 0 0 1rem; }
+
+  #modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 1000;
+    display: flex; align-items: center; justify-content: center; padding: 1rem;
+  }
+  #modal.hidden { display: none; }
+  #modal .box {
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.2rem; max-width: 34rem; width: 100%; max-height: 90vh; overflow: auto;
+  }
+  #modal canvas { width: 100%; height: auto; image-rendering: pixelated; background: var(--bg); border: 1px solid var(--border); margin: .6rem 0; }
+  #modal h3 { color: var(--accent); margin: 0 0 .3rem; font-size: 1.3rem; }
+  #modal table { width: 100%; border-collapse: collapse; font-size: .75rem; margin-top: .6rem; }
+  #modal td, #modal th { border: 1px solid var(--border); padding: .3rem .4rem; text-align: center; color: var(--muted); }
+  #modal th { color: var(--fg); }
+  #modal .closebtn { float: right; min-height: 44px; min-width: 44px; }
+  #modal .note { color: var(--ok); font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>256 Rules, One Seed</h1>
+  <p class="sub">Every elementary cellular automaton rule, run from the same starting row, 50 steps deep.</p>
+
+  <div class="controls">
+    <div class="row">
+      <label for="width">width
+        <select id="width">
+          <option value="41">41</option>
+          <option value="61">61</option>
+          <option value="81" selected>81</option>
+          <option value="101">101</option>
+          <option value="121">121</option>
+          <option value="161">161</option>
+        </select>
+      </label>
+      <label for="steps">steps
+        <input type="number" id="steps" value="50" min="5" max="200">
+      </label>
+      <label for="filter">filter rule #
+        <input type="number" id="filter" min="0" max="255" placeholder="all">
+      </label>
+    </div>
+    <div class="row">
+      <button class="small" id="btnSingle" type="button">single cell</button>
+      <button class="small" id="btnRandom" type="button">random</button>
+      <button class="small" id="btnAllOn" type="button">all on</button>
+      <button class="small" id="btnInvert" type="button">invert</button>
+      <button class="small" id="btnClear" type="button">clear</button>
+    </div>
+    <canvas id="initStrip" aria-label="initial row editor — click or drag to toggle cells"></canvas>
+    <p class="hint">That row is the one initial condition — click or drag to paint it. Every automaton below regenerates from it, wrapped at the edges. Tap any tile to see its full rule table.</p>
+  </div>
+
+  <p id="status"></p>
+  <div class="gallery" id="gallery"></div>
+
+  <div id="modal" class="hidden">
+    <div class="box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="closebtn" id="modalClose" type="button" aria-label="close">×</button>
+      <h3 id="modalTitle">Rule</h3>
+      <canvas id="modalCanvas"></canvas>
+      <div id="modalNote" class="note"></div>
+      <table id="modalTable"></table>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('exhaustive-gallery');
+
+  var NOTES = {
+    30: 'chaotic — Wolfram used this as a PRNG',
+    54: 'complex, borderline class IV behaviour',
+    60: "Pascal's triangle mod 2",
+    90: 'Sierpinski-triangle fractal',
+    94: 'complex localized structures',
+    110: 'proven Turing-complete (class IV)',
+    118: 'complex, closely related to rule 110',
+    122: 'complex, glider-like structures',
+    126: 'chaotic — mirror image of rule 30',
+    150: 'chaotic, XOR-based',
+    170: 'pure left shift',
+    184: 'models one-lane traffic flow',
+    204: 'the identity rule — copies itself forever'
+  };
+
+  var WIDTH = 81, STEPS = 50;
+  var initArr = null;
+  var cache = new Array(256); // rows per rule, recomputed on any change
+  var cards = new Array(256);
+  var canvases = new Array(256);
+
+  function hexToRgb(hex) {
+    var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
+    if (!m) return [255, 255, 255];
+    return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+  }
+  var css = getComputedStyle(document.documentElement);
+  var LIVE = hexToRgb(css.getPropertyValue('--accent') || '#e8a33d');
+  var DEAD = hexToRgb(css.getPropertyValue('--bg') || '#0e0e11');
+
+  function singleInit(w) {
+    var a = new Uint8Array(w);
+    a[Math.floor(w / 2)] = 1;
+    return a;
+  }
+  function randomInit(w) {
+    var a = new Uint8Array(w);
+    for (var i = 0; i < w; i++) a[i] = Math.random() < 0.5 ? 1 : 0;
+    return a;
+  }
+  function resizeInit(oldArr, newW) {
+    var a = new Uint8Array(newW);
+    var oldW = oldArr.length;
+    var off = Math.floor((newW - oldW) / 2);
+    for (var i = 0; i < oldW; i++) {
+      var j = i + off;
+      if (j >= 0 && j < newW) a[j] = oldArr[i];
+    }
+    return a;
+  }
+
+  function simulateRule(rule, init, steps) {
+    var w = init.length;
+    var rows = new Array(steps + 1);
+    rows[0] = init;
+    var cur = init;
+    for (var s = 1; s <= steps; s++) {
+      var next = new Uint8Array(w);
+      for (var i = 0; i < w; i++) {
+        var l = cur[(i - 1 + w) % w], c = cur[i], r = cur[(i + 1) % w];
+        var idx = l * 4 + c * 2 + r;
+        next[i] = (rule >> idx) & 1;
+      }
+      rows[s] = next;
+      cur = next;
+    }
+    return rows;
+  }
+
+  function drawRows(canvas, rows) {
+    var w = rows[0].length, h = rows.length;
+    canvas.width = w; canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    var img = ctx.createImageData(w, h);
+    var d = img.data;
+    for (var y = 0; y < h; y++) {
+      var row = rows[y];
+      for (var x = 0; x < w; x++) {
+        var p = (y * w + x) * 4;
+        var c = row[x] ? LIVE : DEAD;
+        d[p] = c[0]; d[p + 1] = c[1]; d[p + 2] = c[2]; d[p + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function drawInitStrip() {
+    var canvas = document.getElementById('initStrip');
+    var w = initArr.length;
+    canvas.width = w; canvas.height = 1;
+    var ctx = canvas.getContext('2d');
+    var img = ctx.createImageData(w, 1);
+    var d = img.data;
+    for (var x = 0; x < w; x++) {
+      var p = x * 4;
+      var c = initArr[x] ? LIVE : DEAD;
+      d[p] = c[0]; d[p + 1] = c[1]; d[p + 2] = c[2]; d[p + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function buildGallery() {
+    var gallery = document.getElementById('gallery');
+    gallery.textContent = '';
+    for (var r = 0; r < 256; r++) {
+      (function (rule) {
+        var card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'card';
+        card.dataset.rule = String(rule);
+
+        var label = document.createElement('div');
+        label.className = 'rulelabel';
+        var num = document.createElement('span');
+        num.textContent = rule;
+        label.appendChild(num);
+        if (NOTES[rule]) {
+          var star = document.createElement('span');
+          star.className = 'star';
+          star.textContent = '★';
+          star.title = NOTES[rule];
+          label.appendChild(star);
+        }
+        card.appendChild(label);
+
+        var canvas = document.createElement('canvas');
+        card.appendChild(canvas);
+        canvases[rule] = canvas;
+
+        card.addEventListener('click', function () { openModal(rule); });
+        gallery.appendChild(card);
+        cards[rule] = card;
+      })(r);
+    }
+  }
+
+  function regenerate() {
+    for (var r = 0; r < 256; r++) {
+      var rows = simulateRule(r, initArr, STEPS);
+      cache[r] = rows;
+      drawRows(canvases[r], rows);
+    }
+    drawInitStrip();
+    applyFilter();
+    var status = document.getElementById('status');
+    status.textContent = 'width ' + WIDTH + ' · ' + STEPS + ' steps · wraps at the edges · showing all 256 rules from the same row above';
+  }
+
+  function applyFilter() {
+    var raw = document.getElementById('filter').value;
+    var status = document.getElementById('status');
+    var shown = 0;
+    for (var r = 0; r < 256; r++) {
+      var show = raw === '' || Number(raw) === r;
+      cards[r].classList.toggle('dim', !show);
+      if (show) shown++;
+    }
+    if (raw !== '') {
+      status.textContent = shown + ' of 256 rules match — clear the filter to see the rest.';
+    }
+  }
+
+  // --- initial-row editor: click or drag to paint ---
+  var painting = false, paintValue = 1;
+  function cellFromEvent(e) {
+    var canvas = document.getElementById('initStrip');
+    var rect = canvas.getBoundingClientRect();
+    var x = e.clientX - rect.left;
+    var i = Math.floor((x / rect.width) * initArr.length);
+    return Math.max(0, Math.min(initArr.length - 1, i));
+  }
+  var regenTimer = null;
+  function scheduleRegen() {
+    clearTimeout(regenTimer);
+    regenTimer = setTimeout(regenerate, 40);
+  }
+  function initStripHandlers() {
+    var canvas = document.getElementById('initStrip');
+    canvas.addEventListener('pointerdown', function (e) {
+      painting = true;
+      var i = cellFromEvent(e);
+      paintValue = initArr[i] ? 0 : 1;
+      initArr[i] = paintValue;
+      drawInitStrip();
+      scheduleRegen();
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', function (e) {
+      if (!painting) return;
+      var i = cellFromEvent(e);
+      if (initArr[i] !== paintValue) {
+        initArr[i] = paintValue;
+        drawInitStrip();
+        scheduleRegen();
+      }
+    });
+    window.addEventListener('pointerup', function () { painting = false; });
+  }
+
+  function openModal(rule) {
+    var rows = cache[rule];
+    document.getElementById('modalTitle').textContent = 'Rule ' + rule + '  (' + rule.toString(2).padStart(8, '0') + ')';
+    document.getElementById('modalNote').textContent = NOTES[rule] || '';
+    drawRows(document.getElementById('modalCanvas'), rows);
+    var tbl = document.getElementById('modalTable');
+    var html = '<tr><th colspan="8">neighbourhood → next state (111 down to 000)</th></tr><tr>';
+    for (var idx = 7; idx >= 0; idx--) html += '<td>' + idx.toString(2).padStart(3, '0') + '</td>';
+    html += '</tr><tr>';
+    for (idx = 7; idx >= 0; idx--) html += '<td>' + ((rule >> idx) & 1) + '</td>';
+    html += '</tr>';
+    tbl.innerHTML = html;
+    document.getElementById('modal').classList.remove('hidden');
+    document.getElementById('modalClose').focus();
+  }
+  function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  document.getElementById('modal').addEventListener('click', function (e) {
+    if (e.target.id === 'modal') closeModal();
+  });
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  document.getElementById('width').addEventListener('change', function (e) {
+    WIDTH = Number(e.target.value);
+    initArr = resizeInit(initArr, WIDTH);
+    regenerate();
+  });
+  document.getElementById('steps').addEventListener('input', function (e) {
+    var n = Number(e.target.value);
+    var v = Math.max(5, Math.min(200, isNaN(n) ? 50 : n));
+    STEPS = v;
+    scheduleRegen();
+  });
+  document.getElementById('filter').addEventListener('input', applyFilter);
+
+  document.getElementById('btnSingle').addEventListener('click', function () {
+    initArr = singleInit(WIDTH); regenerate();
+  });
+  document.getElementById('btnRandom').addEventListener('click', function () {
+    initArr = randomInit(WIDTH); regenerate();
+  });
+  document.getElementById('btnAllOn').addEventListener('click', function () {
+    initArr = new Uint8Array(WIDTH).fill(1); regenerate();
+  });
+  document.getElementById('btnClear').addEventListener('click', function () {
+    initArr = new Uint8Array(WIDTH); regenerate();
+  });
+  document.getElementById('btnInvert').addEventListener('click', function () {
+    for (var i = 0; i < initArr.length; i++) initArr[i] = initArr[i] ? 0 : 1;
+    regenerate();
+  });
+
+  initArr = singleInit(WIDTH);
+  buildGallery();
+  initStripHandlers();
+  regenerate();
+})();
+</script>
+</body>
+</html>

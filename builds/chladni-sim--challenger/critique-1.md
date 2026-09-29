@@ -1,0 +1,3 @@
+No text selection issue, pause worked. Everything requested is present and works correctly: real Rust-substitute JS eigenmode physics (transparently disclosed), true 3D three.js rendering, five distinct presets plus custom sliders, live settling animation at a reasonable pace, working pause/reset/overlay controls, n=m dead-state clamp, camera orbit/zoom on both desktop and mobile, no horizontal overflow, no text-selection bug, and substantial didactic content explaining nodes/antinodes/history/the formula's limitations. No console errors on any load.
+
+VERDICT: SHIP

@@ -1,0 +1,1 @@
+Route follows the real water path — Oakland Estuary, open bay, Redwood Shores lagoon — and speed/battery/chop are computed live from those coordinates, not scripted. Coastline shape is stylized; no map data is available offline.

@@ -1,0 +1,1 @@
+Pure math, no Bluesky data needed. Try "curved" (obvious relationship, r near zero) and "one outlier" — drag that lone point back into its cluster and watch r collapse.

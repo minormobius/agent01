@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hyperbolic Fish — a swimmable Poincaré-disk tiling</title>
+<meta name="description" content="Grab a fish and swim its row through a real hyperbolic tiling — every other fish is forced to follow. A tribute to M. C. Escher's Circle Limit III, hand-computed rather than drawn.">
+<meta property="og:title" content="Hyperbolic Fish">
+<meta property="og:description" content="Grab a fish and swim its row through a real hyperbolic tiling — every other fish is forced to follow. A tribute to M. C. Escher's Circle Limit III, hand-computed rather than drawn.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --col: 56rem; --accent: #d98a3d; --accent-dim: #3a2712; }
+  #stage {
+    position: relative;
+    width: min(100%, 74vh, 640px);
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+    background: radial-gradient(circle at 50% 50%, #17141a 0%, #0b0a0d 72%, #0b0a0d 100%);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    touch-action: none;
+    overflow: hidden;
+    cursor: grab;
+  }
+  #stage.dragging { cursor: grabbing; }
+  #disk { display: block; width: 100%; height: 100%; }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .4rem 0; }
+  #swimControls.hidden { display: none; }
+  button.small { padding: .6rem 1rem; font-size: .85rem; min-height: 44px; }
+  button.swim { min-width: 64px; font-size: 1.1rem; min-height: 48px; }
+  button[disabled] { opacity: .4; cursor: not-allowed; }
+  button[disabled]:hover { background: var(--accent-dim); color: var(--accent); }
+  #rowState { font-size: .85rem; color: var(--muted); }
+  #rowState b { color: var(--accent); }
+  .hint { font-size: .8rem; color: var(--muted); margin: .5rem 0 0; }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+  @media (max-width: 420px) {
+    button.swim { min-width: 56px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Hyperbolic Fish</h1>
+  <p class="sub">A hyperbolic tiling of fish in a Poincaré disk, after M. C. Escher's
+    <em>Circle Limit III</em>. Grab any fish and drag — the whole tiling swims with it,
+    because a rigid tiling has no other way to move.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div id="stage">
+    <canvas id="disk"></canvas>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <button id="resetBtn" class="small">Reset</button>
+      <span id="rowState">Tap a fish to pick its row.</span>
+    </div>
+    <div class="row hidden" id="swimControls">
+      <button id="swimBack" class="swim" aria-label="Swim this row backward">◄</button>
+      <span id="rowLabel">row selected</span>
+      <button id="swimFwd" class="swim" aria-label="Swim this row forward">►</button>
+    </div>
+    <p class="hint">Drag anywhere to pan the whole tiling. Tap one fish to select the
+      geodesic row running through it (its nose-to-tail line), then use the arrows —
+      or drag along that line — to swim just that direction; the rest of the pattern
+      is dragged along with it, tile for tile, to stay tiled.</p>
+  </div>
+
+  <footer class="foot">
+    <p>Approximate, on purpose: this tiles regular octagons (three meeting at every
+      corner, the {8,3} tessellation Circle Limit III's fish are built on) with
+      straight hyperbolic "rows." Escher's actual fish swim along gently curved
+      lines for visual flow — a real difference, not a bug. The pre-built patch of
+      tiling is finite, so dragging far enough eventually reaches its edge.</p>
+  </footer>
+</main>
+<script>
+window.addEventListener('error', function (e) {
+  kit.showError(document.getElementById('err'), 'Something broke: ' + e.message);
+});
+document.getElementById('crumb').innerHTML = kit.crumb('take-escher');
+</script>
+<script>
+// ---- complex numbers as {x,y} ----
+function C(x, y) { return { x: x, y: y }; }
+function cAdd(a, b) { return C(a.x + b.x, a.y + b.y); }
+function cSub(a, b) { return C(a.x - b.x, a.y - b.y); }
+function cMul(a, b) { return C(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x); }
+function cConj(a) { return C(a.x, -a.y); }
+function cScale(a, s) { return C(a.x * s, a.y * s); }
+function cNeg(a) { return C(-a.x, -a.y); }
+function cAbs2(a) { return a.x * a.x + a.y * a.y; }
+function cAbs(a) { return Math.sqrt(cAbs2(a)); }
+function cDiv(a, b) {
+  var d = cAbs2(b);
+  return C((a.x * b.x + a.y * b.y) / d, (a.y * b.x - a.x * b.y) / d);
+}
+
+// ---- Mobius disk automorphisms as SU(1,1) matrices {a,b}:
+//      z -> (a*z + b) / (conj(b)*z + conj(a)) ----
+var MOB_ID = { a: C(1, 0), b: C(0, 0) };
+
+function mobApply(m, z) {
+  var num = cAdd(cMul(m.a, z), m.b);
+  var den = cAdd(cMul(cConj(m.b), z), cConj(m.a));
+  return cDiv(num, den);
+}
+
+// compose(outer, inner) = outer ∘ inner (apply inner first)
+function mobCompose(o, i) {
+  return {
+    a: cAdd(cMul(o.a, i.a), cMul(o.b, cConj(i.b))),
+    b: cAdd(cMul(o.a, i.b), cMul(o.b, cConj(i.a))),
+  };
+}
+function mobInverse(m) { return { a: cConj(m.a), b: cNeg(m.b) }; }
+
+// translation taking 0 -> w
+function mobTranslate(w) {
+  var r2 = cAbs2(w);
+  if (r2 >= 0.999999) { var s = Math.sqrt(0.999999 / r2); w = cScale(w, s); r2 = 0.999999; }
+  var a = 1 / Math.sqrt(1 - r2);
+  return { a: C(a, 0), b: cScale(w, a) };
+}
+// rotation about the origin by angle phi
+function mobRotate(phi) { return { a: C(Math.cos(phi / 2), Math.sin(phi / 2)), b: C(0, 0) }; }
+// rotation by pi about origin, used to build half-turns
+var MOB_HALFPI = mobRotate(Math.PI);
+
+// rotation by pi about an arbitrary point m
+function mobHalfTurn(m) {
+  var tm = mobTranslate(m), tmInv = mobTranslate(cNeg(m));
+  return mobCompose(tm, mobCompose(MOB_HALFPI, tmInv));
+}
+
+// hyperbolic distance from 0 to z, and the inverse
+function hypDist0(z) { var r = Math.min(cAbs(z), 0.999999); return 2 * Math.atanh(r); }
+function hypRadiusFor(d) { return Math.tanh(d / 2); }
+
+// hyperbolic midpoint of the geodesic segment between z0 and z1
+function hypMidpoint(z0, z1) {
+  var toOrigin = mobTranslate(cNeg(z0)); // sends z0 -> 0
+  var w1 = mobApply(toOrigin, z1);
+  var r = cAbs(w1);
+  if (r < 1e-9) return z0;
+  var rMid = Math.tanh(Math.atanh(Math.min(r, 0.999999)) / 2);
+  var wMid = cScale(w1, rMid / r);
+  var back = mobTranslate(z0); // inverse of toOrigin
+  return mobApply(back, wMid);
+}
+
+// translate along a straight geodesic through the origin at angle phi, by
+// signed hyperbolic distance t
+function mobAxisTranslate(phi, t) {
+  var r = hypRadiusFor(Math.abs(t));
+  var w = C(r * Math.cos(phi), r * Math.sin(phi));
+  if (t < 0) w = cNeg(w);
+  return mobTranslate(w);
+}
+</script>
+<script>
+// ---- the {8,3} tiling: regular octagons, three per vertex ----
+var P = 8, Q = 3;
+var R_HYP = Math.acosh(1 / Math.tan(Math.PI / P) / Math.tan(Math.PI / Q));
+var RHO = Math.tanh(R_HYP / 2);
+
+var baseVerts = [];
+for (var vi = 0; vi < P; vi++) {
+  baseVerts.push(C(RHO * Math.cos(2 * Math.PI * vi / P), RHO * Math.sin(2 * Math.PI * vi / P)));
+}
+var APOTHEM = cAbs(hypMidpoint(baseVerts[0], baseVerts[1]));
+
+var edgeHalfTurn = [];
+for (var ei = 0; ei < P; ei++) {
+  var mid = hypMidpoint(baseVerts[ei], baseVerts[(ei + 1) % P]);
+  edgeHalfTurn.push(mobHalfTurn(mid));
+}
+
+var TILE_CAP = 650;
+var MAX_HYP_RADIUS = 3.4;
+
+function buildTiling() {
+  var tiles = [];
+  var visited = Object.create(null);
+  var queue = [{ g: MOB_ID, branch: -1 }];
+  var head = 0;
+  while (head < queue.length && tiles.length < TILE_CAP) {
+    var cur = queue[head++];
+    var center = mobApply(cur.g, C(0, 0));
+    var key = Math.round(center.x * 500) + ',' + Math.round(center.y * 500);
+    if (visited[key]) continue;
+    visited[key] = true;
+    tiles.push(cur);
+    if (hypDist0(center) > MAX_HYP_RADIUS) continue;
+    for (var k = 0; k < P; k++) {
+      var g2 = mobCompose(cur.g, edgeHalfTurn[k]);
+      queue.push({ g: g2, branch: cur.branch === -1 ? k : cur.branch });
+    }
+  }
+  return tiles;
+}
+
+// ---- a stylized fish, nose pointing along local +x ----
+var FISH = [
+  [1.00, 0.00], [0.78, 0.16], [0.55, 0.30], [0.30, 0.52], [0.05, 0.68],
+  [-0.18, 0.48], [-0.42, 0.34], [-0.55, 0.30], [-0.95, 0.55], [-0.68, 0.10],
+  [-0.95, -0.55], [-0.55, -0.30], [-0.42, -0.34], [-0.18, -0.48],
+  [0.05, -0.66], [0.30, -0.48], [0.55, -0.28], [0.78, -0.14]
+];
+var EYE_LOCAL = [0.62, 0.14];
+var FISH_SCALE = APOTHEM * 0.92;
+var PALETTE = ['#d98a3d', '#b3453f', '#3f7a86', '#5c8a4a', '#c9a227', '#7a5c9e', '#4a7a5c', '#a85a3f'];
+var ROOT_COLOR = '#e8d9b8';
+
+function colorForBranch(branch) { return branch === -1 ? ROOT_COLOR : PALETTE[branch % PALETTE.length]; }
+
+var canvas = document.getElementById('disk');
+var stage = document.getElementById('stage');
+var ctx = canvas.getContext('2d');
+var errEl = document.getElementById('err');
+var rowStateEl = document.getElementById('rowState');
+var swimControls = document.getElementById('swimControls');
+
+var tiles = [];
+var globalTransform = MOB_ID;
+var selectedTile = null;   // one of `tiles`
+var selectedK = 0;         // 0..3, which of the 4 row axes
+var DRAG_LIMIT = 0.965;
+var cssW = 0, cssH = 0, cx = 0, cy = 0, diskR = 0;
+
+function resize() {
+  var rect = stage.getBoundingClientRect();
+  cssW = rect.width; cssH = rect.height;
+  var dpr = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.width = Math.max(1, Math.round(cssW * dpr));
+  canvas.height = Math.max(1, Math.round(cssH * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cx = cssW / 2; cy = cssH / 2;
+  diskR = Math.min(cssW, cssH) / 2 * 0.985;
+  draw();
+}
+
+function toCanvas(z) { return { x: cx + z.x * diskR, y: cy - z.y * diskR }; }
+function toDisk(px, py) { return C((px - cx) / diskR, -(py - cy) / diskR); }
+
+function withinBounds(m) {
+  var o = mobApply(m, C(0, 0));
+  return cAbs(o) <= DRAG_LIMIT;
+}
+
+function drawFishPath(full) {
+  var pts = new Array(FISH.length);
+  for (var i = 0; i < FISH.length; i++) {
+    var local = C(FISH[i][0] * FISH_SCALE, FISH[i][1] * FISH_SCALE);
+    pts[i] = toCanvas(mobApply(full, local));
+  }
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (var j = 1; j < pts.length; j++) ctx.lineTo(pts[j].x, pts[j].y);
+  ctx.closePath();
+  return pts;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, cssW, cssH);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, diskR, 0, Math.PI * 2);
+  ctx.clip();
+
+  for (var t = 0; t < tiles.length; t++) {
+    var tile = tiles[t];
+    var full = mobCompose(globalTransform, tile.g);
+    drawFishPath(full);
+    ctx.fillStyle = colorForBranch(tile.branch);
+    ctx.globalAlpha = 0.92;
+    ctx.fill();
+    var isSel = tile === selectedTile;
+    ctx.lineWidth = isSel ? 2.4 : 0.8;
+    ctx.strokeStyle = isSel ? '#fff6e0' : 'rgba(10,9,11,0.55)';
+    ctx.globalAlpha = 1;
+    ctx.stroke();
+
+    // eye + local scale estimate, so it shrinks the same way the fish does
+    var eyeLocal = C(EYE_LOCAL[0] * FISH_SCALE, EYE_LOCAL[1] * FISH_SCALE);
+    var eyeEdgeLocal = C((EYE_LOCAL[0] + 0.07) * FISH_SCALE, EYE_LOCAL[1] * FISH_SCALE);
+    var eyeC = toCanvas(mobApply(full, eyeLocal));
+    var eyeE = toCanvas(mobApply(full, eyeEdgeLocal));
+    var eyeR = Math.max(0.4, Math.hypot(eyeE.x - eyeC.x, eyeE.y - eyeC.y));
+    ctx.beginPath();
+    ctx.arc(eyeC.x, eyeC.y, eyeR, 0, Math.PI * 2);
+    ctx.fillStyle = '#151318';
+    ctx.fill();
+  }
+
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(cx, cy, diskR, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(232,217,184,0.35)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function nearestTile(diskPoint) {
+  var best = null, bestD = Infinity;
+  for (var t = 0; t < tiles.length; t++) {
+    var c = mobApply(mobCompose(globalTransform, tiles[t].g), C(0, 0));
+    var d = cAbs2(cSub(c, diskPoint));
+    if (d < bestD) { bestD = d; best = tiles[t]; }
+  }
+  return best;
+}
+
+function selectTileAt(diskPoint) {
+  var tile = nearestTile(diskPoint);
+  if (!tile) return;
+  var full = mobCompose(globalTransform, tile.g);
+  var localTap = mobApply(mobInverse(full), diskPoint);
+  var angle = Math.atan2(localTap.y, localTap.x);
+  var aMod = ((angle % Math.PI) + Math.PI) % Math.PI;
+  var bestK = 0, bestDiff = Infinity;
+  for (var k = 0; k < 4; k++) {
+    var theta = (2 * k + 1) * Math.PI / P;
+    var diff = Math.abs(aMod - theta);
+    diff = Math.min(diff, Math.PI - diff);
+    if (diff < bestDiff) { bestDiff = diff; bestK = k; }
+  }
+  selectedTile = tile;
+  selectedK = bestK;
+  swimControls.classList.remove('hidden');
+  rowStateEl.innerHTML = 'Row selected — <b>swim it</b> with the arrows, or drag.';
+  draw();
+}
+
+function swim(dir, step) {
+  if (!selectedTile) return;
+  var full = mobCompose(globalTransform, selectedTile.g);
+  var theta = (2 * selectedK + 1) * Math.PI / P;
+  var localStep = mobAxisTranslate(theta, dir * step);
+  var wholePlane = mobCompose(full, mobCompose(localStep, mobInverse(full)));
+  var candidate = mobCompose(wholePlane, globalTransform);
+  if (withinBounds(candidate)) { globalTransform = candidate; draw(); }
+}
+
+// ---- pointer interaction: tap to select a row, drag to pan everything ----
+var pointerDown = false, dragging = false, lastDisk = null, downX = 0, downY = 0, downT = 0;
+
+stage.addEventListener('pointerdown', function (e) {
+  pointerDown = true; dragging = false;
+  downX = e.clientX; downY = e.clientY; downT = performance.now();
+  var rect = stage.getBoundingClientRect();
+  lastDisk = toDisk(e.clientX - rect.left, e.clientY - rect.top);
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', function (e) {
+  if (!pointerDown) return;
+  var rect = stage.getBoundingClientRect();
+  var here = toDisk(e.clientX - rect.left, e.clientY - rect.top);
+  var moved = Math.hypot(e.clientX - downX, e.clientY - downY);
+  if (moved > 6) {
+    dragging = true;
+    stage.classList.add('dragging');
+    var dM = mobCompose(mobTranslate(here), mobTranslate(cNeg(lastDisk)));
+    var candidate = mobCompose(dM, globalTransform);
+    if (withinBounds(candidate)) globalTransform = candidate;
+    lastDisk = here;
+    draw();
+  }
+});
+function endPointer(e) {
+  if (!pointerDown) return;
+  pointerDown = false;
+  stage.classList.remove('dragging');
+  if (!dragging) {
+    var rect = stage.getBoundingClientRect();
+    var here = toDisk(e.clientX - rect.left, e.clientY - rect.top);
+    selectTileAt(here);
+  }
+  dragging = false;
+}
+stage.addEventListener('pointerup', endPointer);
+stage.addEventListener('pointercancel', endPointer);
+
+// swim buttons: one tap = one step, holding repeats smoothly
+function bindSwim(btn, dir) {
+  var timer = null;
+  function start() { swim(dir, 0.35); timer = setInterval(function () { swim(dir, 0.09); }, 45); }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } }
+  btn.addEventListener('pointerdown', function (e) { e.preventDefault(); start(); });
+  btn.addEventListener('pointerup', stop);
+  btn.addEventListener('pointercancel', stop);
+  btn.addEventListener('pointerleave', stop);
+}
+bindSwim(document.getElementById('swimFwd'), 1);
+bindSwim(document.getElementById('swimBack'), -1);
+
+document.getElementById('resetBtn').addEventListener('click', function () {
+  globalTransform = MOB_ID;
+  selectedTile = null;
+  swimControls.classList.add('hidden');
+  rowStateEl.textContent = 'Tap a fish to pick its row.';
+  draw();
+});
+
+function init() {
+  try {
+    tiles = buildTiling();
+    resize();
+  } catch (e) {
+    kit.showError(errEl, 'Could not build the tiling: ' + e.message);
+  }
+}
+
+new ResizeObserver(resize).observe(stage);
+window.addEventListener('resize', resize);
+init();
+</script>
+</body>
+</html>

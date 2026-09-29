@@ -1,0 +1,5 @@
+Confirmed in code: both buttons call the identical `regen()` function.
+
+VERDICT: FIX
+
+1. **"reset points" button is functionally identical to "new random set" — it does not reset anything.** Both `#shuffle` and `#resetView` are wired to the same `regen()` handler (index.html:380-381), which always generates a brand-new random 40-point sample at the current slider target. Evidence: dragged a point to change measured r from 0.40→0.58 wait, actually observed r go 0.40 → click "reset points" → 0.58, a completely different scatter (screenshot from `mcp__eyes__drive` test), not a reversion of the drag. A user who drags points around expecting "reset points" to undo their edits and restore the original set instead gets an unrelated fresh random sample — indistinguishable from clicking "new random set." Fixed looks like: "reset points" restores the exact point set that was on screen before the user's edits (store the last-generated set and restore it), or the duplicate button is removed/relabeled so it isn't presented as a different, more conservative action than shuffling.

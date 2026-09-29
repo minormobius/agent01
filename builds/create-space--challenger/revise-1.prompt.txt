@@ -1,0 +1,21 @@
+You built the site in lab/www/create-space/ for this request:
+
+Please create a space colony simulator. The camera is on the inside of the cylindrical vessel, rotating so that you can only see part of the colony at any given time. It’s pastoral. You get to hover over (or tap on mobile) colonists to see their thoughts while they work and play.
+
+A reviewer loaded it in a real browser, played it, and reported these defects:
+
+VERDICT: FIX
+
+1. Colonists — the thing you're meant to watch "work and play" and hover/tap — render as unrecognizable ~10×15px ovals squeezed onto a thin strip near the horizon; there is no way to see what any colonist is doing, or that the blob is a person at all, without already knowing where to point. Evidence: every `look`/`watch` capture (desktop 1280×800 and mobile 390×844, across 6 frames spanning 20s of drift, plus a fresh page load) shows colonists as tiny indistinct dots; only after dispatching a pointermove/click at their exact pixel and getting the tooltip text ("Cass, fisher — the pond's stocked...") is it confirmed a colonist was there. Fixed = colonists render large/clear enough somewhere in frame to visually register as a person doing something, not purely discoverable by blind hovering.
+
+2. The "pastoral" scenery is imperceptible in the actual rendered view — the camera sits so close to the ground (radius R−EYE, only 1.7 units off the 55-unit wall) that the coarse ground texture magnifies into large flat color blocks instead of showing detail. Evidence: every capture shows the same huge, sharp-edged green/tan/dark-blue triangles filling 60–100% of the screen with no visible grass blades, furrows, hedges, trees, or cottages anywhere near the camera; the only place that content could exist (a thin sliver at the horizon) is too small to read. First-load impression (the default `look` screenshot) is dominated by one giant flat blue triangle that reads as a rendering glitch, not a river. Fixed = recognizable pastoral texture (grass, furrows, hedgerows, trees, cottages) visible over a meaningful portion of the frame, not compressed to an unreadable horizon line.
+
+Fix them, most important first. Read BRIEF.md and the code before you change
+anything. You have the same eyes as before (`mcp__eyes__look`, `watch`,
+`drive`): after each fix, prove it with a tool call, and check you have not
+broken something that worked. If you think a reported defect is wrong, check
+it yourself and say why in BRIEF.md rather than changing working code.
+
+Write only inside lab/www/create-space/ (and the requester's profile, if a durable
+preference was learned). Write files in pieces of at most ~250 lines. Add a
+short "Review round" note to BRIEF.md: what was reported, what you fixed.

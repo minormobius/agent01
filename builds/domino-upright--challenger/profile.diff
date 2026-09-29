@@ -1,0 +1,25 @@
+diff --git a/lab/_profiles/ponder.ooo.md b/lab/_profiles/ponder.ooo.md
+index a146b15b..2e7d7bae 100644
+--- a/lab/_profiles/ponder.ooo.md
++++ b/lab/_profiles/ponder.ooo.md
+@@ -71,6 +71,20 @@ complaint) and ask for the version that doesn't have an escape hatch. Worth
+ flagging the shortcut explicitly in the copy/BRIEF *before* they have to ask
+ — they clearly read that level of detail.
+ 
++Seventh request: a one-line cellular-automaton rule spec ("domino CA. 4
++upright orientations... falling transitions to a single fallen state...")
++with no reference link and, notably, genuine ambiguity in the transition
++condition itself (several self-consistent readings of "not orthogonal &
++not pushing in opposite directions" produce different automata). Consistent
++with the established pattern of calling out mathematically-valid shortcuts
++rather than silently picking one: this build picked one reading, worked it
++through by hand to confirm it was coherent (straight hits topple, diagonal/
++orthogonal/opposite hits don't), and stated the interpretation explicitly
++on-page and in NOTE.txt/BRIEF.md rather than presenting it as the only
++possible reading. Untested against a reaction yet, but the expectation this
++profile already tracks — flag the ambiguity before being asked — applied
++here to a CA rule rather than a polynomial family.
++
+ ## Said no to
+ Nothing yet — no request has been declined or walked back.
+ 

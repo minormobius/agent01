@@ -1,0 +1,32 @@
+{
+  "arm": "challenger",
+  "slug": "chladni-sim",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 53,
+  "cost_usd": 2.0562,
+  "seconds": 553,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 466,
+      "exit": 0,
+      "turns": 36,
+      "cost_usd": 1.5664682000000003,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 87,
+      "exit": 0,
+      "turns": 17,
+      "cost_usd": 0.4896824,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

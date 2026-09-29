@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Much Life? — a stack chart from the Big Bang to heat death</title>
+<meta property="og:title" content="How Much Life? — Big Bang to heat death">
+<meta property="og:description" content="A stacked chart estimating the total amount of life in the universe over all time — microbes to hypothetical galactic descendants — where 'amount' means quality of experience times quantity. Zoom in: nearly the whole chart is empty, and the part with life on it is a sliver.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .viz-root {
+    --series-microbial:    #3987e5;
+    --series-complex:      #d95926;
+    --series-sentient:     #199e70;
+    --series-human:        #c98500;
+    --series-speculative:  #d55181;
+    --rainbow: linear-gradient(90deg, #ff5f6d, #ffc371, #5eea86, #38b6ff, #a86bff, #ff5f6d);
+  }
+  @keyframes rainbow-shift { to { background-position: 300% 0; } }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232,163,61,.45); }
+    50%      { box-shadow: 0 0 0 6px rgba(232,163,61,0); }
+  }
+
+  h1.title {
+    background: var(--rainbow); background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: rainbow-shift 10s linear infinite;
+    font-size: 2rem;
+    line-height: 1.15;
+  }
+  @media (min-width: 640px) { h1.title { font-size: 2.6rem; } }
+
+  .panel {
+    position: relative;
+    border-radius: 10px;
+    padding: 1.1rem 1.1rem 1.3rem;
+    margin: 1.4rem 0;
+    background:
+      linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box,
+      var(--rainbow) border-box;
+    background-size: 100% 100%, 300% 100%;
+    border: 2px solid transparent;
+    animation: rainbow-shift 12s linear infinite;
+  }
+
+  .presets { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; }
+  .presets button {
+    min-height: 44px; font-size: .85rem;
+  }
+  .presets button[aria-pressed="true"] {
+    background: var(--accent); color: #000;
+  }
+
+  svg#chart {
+    width: 100%; height: auto; display: block; touch-action: pan-y; cursor: crosshair;
+    user-select: none; -webkit-user-select: none;
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: .6rem 1.2rem; margin: .9rem 0; font-size: .8rem; }
+  .legend .item { display: flex; align-items: center; gap: .45rem; color: var(--fg); }
+  .legend .sw { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+  .legend .sw.hatched { background-image: repeating-linear-gradient(45deg, currentColor 0 2px, transparent 2px 5px); }
+
+  .scrub-wrap { margin: 1.1rem 0; }
+  .scrub-wrap input[type=range] {
+    width: 100%; height: 44px; margin: 0;
+    background: transparent; -webkit-appearance: none; appearance: none;
+  }
+  .scrub-wrap input[type=range]::-webkit-slider-runnable-track {
+    height: 8px; border-radius: 4px; background: var(--border);
+  }
+  .scrub-wrap input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 26px; height: 26px; margin-top: -9px;
+    border-radius: 50%; background: var(--accent); border: 2px solid #000;
+  }
+  .scrub-wrap input[type=range]::-moz-range-track {
+    height: 8px; border-radius: 4px; background: var(--border);
+  }
+  .scrub-wrap input[type=range]::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 2px solid #000;
+  }
+
+  .readout {
+    font-size: .85rem; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .85rem 1rem;
+  }
+  .readout .era { color: var(--fg); font-weight: 600; font-size: .95rem; }
+  .readout .when { color: var(--muted); margin-bottom: .5rem; }
+  .readout ul { list-style: none; margin: .3rem 0 0; padding: 0; }
+  .readout li { display: flex; align-items: center; gap: .5rem; padding: .15rem 0; }
+  .readout .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .readout .amt { color: var(--fg); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .readout .name { color: var(--muted); }
+
+  .weighted-toggle {
+    display: inline-flex; align-items: center; gap: .6rem;
+    min-height: 44px; padding: .5rem 1rem;
+    background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 999px;
+    color: var(--fg); font-size: .85rem; cursor: pointer;
+    animation: pulse-glow 2.6s ease-in-out infinite;
+  }
+  .weighted-toggle input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
+
+  .reveal-btn {
+    display: inline-block; min-height: 44px; padding: .7rem 1.1rem;
+    background: var(--rainbow); background-size: 300% 100%;
+    animation: rainbow-shift 8s linear infinite;
+    color: #000; font-weight: 700; border: none; border-radius: var(--radius);
+    cursor: pointer; font: inherit; font-size: .85rem;
+  }
+  .reveal { margin-top: 1rem; }
+  .reveal table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  .reveal th, .reveal td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .reveal th { color: var(--muted); font-weight: 600; }
+  .table-scroll { overflow-x: auto; }
+  .caveat { font-size: .82rem; color: var(--muted); border-left: 2px solid var(--accent); padding-left: .8rem; margin: 1rem 0; }
+</style>
+</head>
+<body class="viz-root">
+<main>
+  <div id="crumb"></div>
+
+  <h1 class="title">How much life?</h1>
+  <p class="sub">
+    A stack chart of every kind of life in the universe, Big Bang to heat death.
+    Each layer is one form of life; a layer's height is a rough estimate of
+    <strong>quality of experience × quantity</strong> — its "amount of life" — plotted
+    on a log scale, because linear would make bacteria alone a thousand pixels tall
+    and everything else invisible.
+  </p>
+  <p class="caveat">
+    This is an estimate built from very rough numbers, not a measurement — nobody
+    can count subjective experience. Treat the shapes as "roughly this order of
+    magnitude, in roughly this proportion," not as data. See "how these numbers
+    were guessed" below for the actual assumptions, and disagree with them freely.
+  </p>
+
+  <div class="panel">
+    <div class="presets" id="presets" role="group" aria-label="Zoom to a part of the timeline"></div>
+
+    <svg id="chart" viewBox="0 0 900 460" role="img" aria-label="Stacked area chart of estimated amount of life across cosmic time"></svg>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="scrub-wrap">
+      <label for="scrub" style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:.3rem;">
+        Drag to move through time (or tap/drag the chart itself)
+      </label>
+      <input type="range" id="scrub" step="0.001">
+    </div>
+
+    <div class="readout" id="readout" aria-live="polite"></div>
+
+    <label class="weighted-toggle" style="margin-top:1rem;">
+      <input type="checkbox" id="specToggle" checked>
+      include speculative future life (interstellar / post-human descendants — a guess, could just as easily be zero)
+    </label>
+  </div>
+
+  <button class="reveal-btn" id="revealBtn" aria-expanded="false" aria-controls="reveal">how were these numbers guessed?</button>
+  <div class="reveal hidden" id="reveal">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>layer</th><th>typical quantity</th><th>quality (0–10, guessed)</th><th>why</th></tr></thead>
+        <tbody>
+          <tr><td>Microbial life</td><td>~10³⁰ organisms</td><td>~0.01</td><td>Global bacteria/archaea estimate is genuinely ~10³⁰. Quality set near zero because there's no strong reason to think a bacterium has subjective experience at all — this could reasonably be 0.</td></tr>
+          <tr><td>Complex multicellular life</td><td>~10²¹ organisms</td><td>~0.3</td><td>Insects alone are estimated in the ~10¹⁸–10¹⁹ range; folding in plants, fungi and other invertebrates lands around 10²¹. Quality averages in a lot of organisms (plants) usually assumed to have none.</td></tr>
+          <tr><td>Sentient animals</td><td>~10¹² individuals</td><td>~2</td><td>Wild vertebrates with centralized nervous systems, order-of-magnitude only. Quality assumes real but narrow subjective range compared to humans.</td></tr>
+          <tr><td>Humans</td><td>~8×10⁹ people</td><td>~6</td><td>Current population. Quality is the least defensible number on this whole page — it tries to average unimaginable variance (joy, suffering, everything between) into one figure, which is a real distortion, not just a rounding error.</td></tr>
+          <tr><td>Speculative future life</td><td>unknown</td><td>unknown</td><td>Modeled as one optimistic scenario — descendants spreading through the galaxy while stars still burn, then a long fade through the degenerate and black-hole eras. Toggle it off to see the alternative: we could just as easily be the whole story.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caveat" style="margin-top:.8rem;">
+      The chart plots <code>log10(quantity × quality)</code> per layer, stacked. That
+      means total stack height tracks orders of magnitude and is dominated by
+      whichever layer is largest — it is <em>not</em> a literal sum of experience,
+      and "can quality be compared this way across species" is an open, contested
+      question that this page just picks an answer to. The point of the chart is
+      the shape of the guess, not a number to cite.
+    </p>
+  </div>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('how much life?');
+
+  // x = log10(years since the Big Bang + 1). y-values below are
+  // log10(quantity × quality) per layer, authored directly at each keyframe
+  // (see the reveal panel for the quantity/quality reasoning).
+  var X_TODAY = Math.log10(13.8e9 + 1); // ~10.1399
+
+  var LAYERS = [
+    { key: 'microbial',   label: 'Microbial life',              color: 'var(--series-microbial)' },
+    { key: 'complex',     label: 'Complex multicellular life',  color: 'var(--series-complex)' },
+    { key: 'sentient',    label: 'Sentient animals',             color: 'var(--series-sentient)' },
+    { key: 'human',       label: 'Humans',                       color: 'var(--series-human)' },
+    { key: 'speculative', label: 'Speculative future life',      color: 'var(--series-speculative)', speculative: true }
+  ];
+
+  // [x, microbial, complex, sentient, human, speculative]
+  var KEYFRAMES = [
+    [0,      0,   0,    0,    0,    0],
+    [8,      0,   0,    0,    0,    0],
+    [9.9,    0,   0,    0,    0,    0],
+    [9.97,   7,   0,    0,    0,    0],
+    [10.02,  20,  0,    0,    0,    0],
+    [10.08,  27,  4,    0,    0,    0],
+    [10.115, 28,  15,   3,    0,    0],
+    [10.135, 28,  20,   11,   0,    0],
+    [10.1396,28,  20.5, 12,   2,    0],
+    [10.1399,28,  20.5, 12.3, 10.7, 0.5],
+    [10.16,  27,  20,   11,   10.5, 3],
+    [10.3,   26,  19,   10,   9,    15],
+    [11,     23,  17,   8.5,  7.5,  22],
+    [12,     20,  15,   7,    6,    25],
+    [13,     12,  8,    4,    3,    23],
+    [13.7,   5,   3,    2,    1,    20],
+    [14,     0,   0,    0,    0,    15],
+    [16,     0,   0,    0,    0,    11],
+    [20,     0,   0,    0,    0,    8],
+    [30,     0,   0,    0,    0,    4],
+    [40,     0,   0,    0,    0,    2],
+    [55,     0,   0,    0,    0,    0],
+    [100,    0,   0,    0,    0,    0]
+  ];
+
+  var ERAS = [
+    [0, 'the Big Bang'],
+    [8, 'the first stars ignite'],
+    [9.9, 'Earth has formed — no life yet'],
+    [9.97, 'the first microbes'],
+    [10.08, 'the first multicellular life'],
+    [10.115, 'the Cambrian explosion'],
+    [10.135, 'age of dinosaurs and early mammals'],
+    [10.1396, 'Homo sapiens appears'],
+    [10.1399, 'today'],
+    [10.16, 'the near future'],
+    [10.3, 'an interstellar civilization, maybe'],
+    [11, 'still the stelliferous era'],
+    [12, 'peak of a speculative galactic civilization'],
+    [13, 'stars becoming scarce'],
+    [13.7, 'the last stars are dying'],
+    [14, 'the stelliferous era ends'],
+    [20, 'the degenerate era'],
+    [40, 'black holes evaporating'],
+    [60, 'heat death']
+  ];
+
+  var PRESETS = [
+    { label: 'Whole universe', min: 0, max: 100 },
+    { label: 'Life on Earth', min: 9.85, max: 10.16 },
+    { label: 'The deep future', min: 10.13, max: 45 }
+  ];
+
+  function interpolate(x) {
+    if (x <= KEYFRAMES[0][0]) return KEYFRAMES[0].slice(1);
+    for (var i = 1; i < KEYFRAMES.length; i++) {
+      if (x <= KEYFRAMES[i][0]) {
+        var a = KEYFRAMES[i - 1], b = KEYFRAMES[i];
+        var t = (x - a[0]) / (b[0] - a[0]);
+        var out = [];
+        for (var j = 1; j < a.length; j++) out.push(a[j] + t * (b[j] - a[j]));
+        return out;
+      }
+    }
+    return KEYFRAMES[KEYFRAMES.length - 1].slice(1);
+  }
+
+  function findEra(x) {
+    var label = ERAS[0][1];
+    for (var i = 0; i < ERAS.length; i++) {
+      if (ERAS[i][0] <= x) label = ERAS[i][1]; else break;
+    }
+    return label;
+  }
+
+  function formatYears(y) {
+    if (y < 1) y = 1;
+    if (y < 1e3) return Math.round(y) + ' yr';
+    if (y < 1e6) return (y / 1e3).toFixed(1) + ' kyr';
+    if (y < 1e9) return (y / 1e6).toFixed(1) + ' Myr';
+    if (y < 1e12) return (y / 1e9).toFixed(2) + ' Gyr';
+    if (y < 1e15) return (y / 1e12).toFixed(1) + ' Tyr';
+    return '10^' + Math.round(Math.log10(y)) + ' yr';
+  }
+
+  function formatX(x) { return formatYears(Math.pow(10, x) - 1); }
+
+  // ---- layout ----
+  var VB_W = 900, VB_H = 460;
+  var PL = 16, PR = 884, PT = 28, PB = 372, AXIS_Y = 372, TICK_LABEL_Y = 396;
+
+  var state = { min: 0, max: 100, specIncluded: true, scrub: X_TODAY };
+
+  var svg = document.getElementById('chart');
+  var scrub = document.getElementById('scrub');
+  var readout = document.getElementById('readout');
+  var specToggle = document.getElementById('specToggle');
+
+  function sampleLayers(x) {
+    var vals = interpolate(x);
+    if (!state.specIncluded) vals[4] = 0;
+    return vals;
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  }); }
+
+  function render() {
+    var N = 260;
+    var xs = [], stacks = [];
+    for (var i = 0; i < N; i++) {
+      var x = state.min + (state.max - state.min) * i / (N - 1);
+      xs.push(x);
+      var vals = sampleLayers(x);
+      var cum = [0, 0, 0, 0, 0];
+      var run = 0;
+      for (var L = 0; L < vals.length; L++) { run += vals[L]; cum[L] = run; }
+      stacks.push(cum);
+    }
+    var yMax = 5;
+    for (i = 0; i < N; i++) yMax = Math.max(yMax, stacks[i][4]);
+    yMax *= 1.12;
+
+    function mapX(x) { return PL + (x - state.min) / (state.max - state.min) * (PR - PL); }
+    function mapY(v) { return AXIS_Y - (v / yMax) * (AXIS_Y - PT); }
+
+    var parts = [];
+
+    // stacked bands, back to front so later layers sit visually above via fill order
+    for (var li = 0; li < LAYERS.length; li++) {
+      var top = [], bot = [];
+      for (i = 0; i < N; i++) {
+        top.push([mapX(xs[i]), mapY(stacks[i][li])]);
+        bot.push([mapX(xs[i]), mapY(li === 0 ? 0 : stacks[i][li - 1])]);
+      }
+      var d = 'M ' + top[0][0].toFixed(1) + ',' + top[0][1].toFixed(1);
+      for (i = 1; i < N; i++) d += ' L ' + top[i][0].toFixed(1) + ',' + top[i][1].toFixed(1);
+      for (i = N - 1; i >= 0; i--) d += ' L ' + bot[i][0].toFixed(1) + ',' + bot[i][1].toFixed(1);
+      d += ' Z';
+      var opacity = LAYERS[li].speculative ? '0.55' : '1';
+      var dash = LAYERS[li].speculative ? ' stroke-dasharray="4 3"' : '';
+      parts.push('<path d="' + d + '" fill="' + LAYERS[li].color + '" opacity="' + opacity + '"' +
+        ' stroke="var(--bg-raised)" stroke-width="2"' + dash + '></path>');
+    }
+
+    // baseline
+    parts.push('<line x1="' + PL + '" y1="' + AXIS_Y + '" x2="' + PR + '" y2="' + AXIS_Y +
+      '" stroke="var(--border)" stroke-width="1"></line>');
+
+    // ticks
+    var TICKS = 6;
+    for (i = 0; i < TICKS; i++) {
+      var tx = state.min + (state.max - state.min) * i / (TICKS - 1);
+      var px = mapX(tx);
+      var anchor = i === 0 ? 'start' : (i === TICKS - 1 ? 'end' : 'middle');
+      parts.push('<line x1="' + px.toFixed(1) + '" y1="' + AXIS_Y + '" x2="' + px.toFixed(1) + '" y2="' + (AXIS_Y + 6) +
+        '" stroke="var(--muted)" stroke-width="1"></line>');
+      parts.push('<text x="' + px.toFixed(1) + '" y="' + TICK_LABEL_Y + '" fill="var(--muted)" font-size="12" text-anchor="' + anchor + '">' +
+        esc(formatX(tx)) + '</text>');
+    }
+
+    // today marker
+    if (X_TODAY >= state.min && X_TODAY <= state.max) {
+      var tpx = mapX(X_TODAY);
+      parts.push('<line x1="' + tpx.toFixed(1) + '" y1="' + PT + '" x2="' + tpx.toFixed(1) + '" y2="' + AXIS_Y +
+        '" stroke="var(--fg)" stroke-width="1" stroke-dasharray="2 3" opacity="0.6"></line>');
+      parts.push('<text x="' + tpx.toFixed(1) + '" y="' + (PT - 8) + '" fill="var(--fg)" font-size="11" text-anchor="middle" opacity="0.8">today</text>');
+    }
+
+    // playhead
+    var spx = mapX(state.scrub);
+    parts.push('<line id="playhead" x1="' + spx.toFixed(1) + '" y1="' + PT + '" x2="' + spx.toFixed(1) + '" y2="' + AXIS_Y +
+      '" stroke="var(--accent)" stroke-width="2"></line>');
+
+    svg.innerHTML = parts.join('');
+    updateReadout();
+  }
+
+  function updateReadout() {
+    var x = state.scrub;
+    var vals = sampleLayers(x);
+    var html = '<div class="era">' + esc(findEra(x)) + '</div>' +
+      '<div class="when">T ≈ ' + esc(formatX(x)) + ' after the Big Bang</div><ul>';
+    for (var i = 0; i < LAYERS.length; i++) {
+      var v = vals[i];
+      var amt = v < 1 ? 'negligible' : ('~10<sup>' + v.toFixed(1) + '</sup>');
+      html += '<li><span class="dot" style="background:' + LAYERS[i].color + '"></span>' +
+        '<span class="name">' + esc(LAYERS[i].label) + '</span>' +
+        '<span class="amt">' + amt + '</span></li>';
+    }
+    html += '</ul>';
+    readout.innerHTML = html;
+  }
+
+  function setDomain(preset) {
+    state.min = preset.min; state.max = preset.max;
+    var clamped = Math.min(Math.max(state.scrub, state.min), state.max);
+    if (X_TODAY >= state.min && X_TODAY <= state.max) clamped = X_TODAY;
+    else clamped = state.min;
+    state.scrub = clamped;
+    scrub.min = state.min; scrub.max = state.max;
+    scrub.step = (state.max - state.min) / 500;
+    scrub.value = state.scrub;
+    render();
+  }
+
+  // presets UI
+  var presetsEl = document.getElementById('presets');
+  PRESETS.forEach(function (p, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = p.label;
+    b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+    b.addEventListener('click', function () {
+      Array.prototype.forEach.call(presetsEl.children, function (c) { c.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      setDomain(p);
+    });
+    presetsEl.appendChild(b);
+  });
+
+  // legend
+  var legendEl = document.getElementById('legend');
+  LAYERS.forEach(function (l) {
+    var item = document.createElement('div');
+    item.className = 'item';
+    item.innerHTML = '<span class="sw' + (l.speculative ? ' hatched' : '') + '" style="background:' + l.color + ';color:' + l.color + '"></span>' +
+      '<span>' + esc(l.label) + (l.speculative ? ' (speculative)' : '') + '</span>';
+    legendEl.appendChild(item);
+  });
+
+  scrub.addEventListener('input', function () {
+    state.scrub = parseFloat(scrub.value);
+    render();
+  });
+
+  specToggle.addEventListener('change', function () {
+    state.specIncluded = specToggle.checked;
+    render();
+  });
+
+  // tap/drag directly on the chart
+  var dragging = false;
+  function xFromClientX(clientX) {
+    var rect = svg.getBoundingClientRect();
+    var fx = (clientX - rect.left) / rect.width; // 0..1 across viewBox width
+    var px = fx * VB_W;
+    var frac = (px - PL) / (PR - PL);
+    frac = Math.min(Math.max(frac, 0), 1);
+    return state.min + frac * (state.max - state.min);
+  }
+  svg.addEventListener('pointerdown', function (e) {
+    dragging = true;
+    state.scrub = xFromClientX(e.clientX);
+    scrub.value = state.scrub;
+    render();
+  });
+  window.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    state.scrub = xFromClientX(e.clientX);
+    scrub.value = state.scrub;
+    render();
+  });
+  window.addEventListener('pointerup', function () { dragging = false; });
+
+  // reveal panel
+  var revealBtn = document.getElementById('revealBtn');
+  var reveal = document.getElementById('reveal');
+  revealBtn.addEventListener('click', function () {
+    var open = reveal.classList.toggle('hidden') === false;
+    revealBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  setDomain(PRESETS[0]);
+})();
+</script>
+</body>
+</html>

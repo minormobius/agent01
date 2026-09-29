@@ -1,0 +1,40 @@
+diff --git a/lab/_profiles/ponder.ooo.md b/lab/_profiles/ponder.ooo.md
+index 58c980a9..c9c7cdab 100644
+--- a/lab/_profiles/ponder.ooo.md
++++ b/lab/_profiles/ponder.ooo.md
+@@ -524,6 +524,35 @@ can turn "guess some interesting numbers" into "derive the numbers and prove
+ what they do on paper" — this requester's whole profile rewards that over a
+ plausible-looking guess.
+ 
++Thirty-second request (2026-09-29), "place-line": another bare-formula
++construction with no reference link — place a unit segment, place a second
++unit segment at a random angle touching an endpoint of the first somewhere
++along its own length, then grow indefinitely by having every later unit
++segment touch two untouched endpoints of two other segments, with no other
++intersections. Consistent with the standing literal-math pattern, but this
++one had a real interpretive fork worth recording: whether segments after the
++second keep the unit-length constraint (with a random "overhang" split
++beyond the two touch points) or are simply the literal straight connector
++between the two chosen points (whatever length results). Resolved it by
++proving the second reading is a structural dead end, not just less
++faithful: a literal connector's own two endpoints ARE the two points just
++consumed, so it creates zero fresh untouched endpoints and the whole
++construction can never continue past one such segment — incompatible with
++the request's own "every additional segment" phrasing implying an ongoing
++process. Built the unit-length reading, then discovered by running the exact
++(non-sampled) solver that even the correct reading jams almost immediately —
++median run ~7 segments, longest seen in the low-to-mid 20s across thousands
++of seeds. Treated that surprising result the way this requester has
++consistently rewarded surprising derived facts (Pentacell's mean-field
++presets, the domino/chess rule clarifications): stated it plainly, verified
++it wasn't a solver bug via a separate brute-force crossing check, and built
++the page around it — a live seed-sweep panel with a histogram — rather than
++cherry-picking one lucky long run to make the demo look more impressive than
++the math actually is. Worth reusing: when an exact/literal construction
++turns out to have a much smaller reachable state space than the request's
++phrasing implies, the honest move is a statistical view (sweep + histogram)
++of the real distribution, not a single best-looking instance.
++
+ Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
+ phrased with pre-emptive, joking defiance ("chess but its modular forms...
+ don't you dare tell me this doesn't make sense just make modular group

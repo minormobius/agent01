@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>the amount of life</title>
+<meta property="og:title" content="the amount of life">
+<meta property="og:description" content="A stacked chart of every form of life, Big Bang to heat death — bacteria to hypothetical post-humans — sized by quantity times quality of experience. Scrub the timeline; the numbers behind each band are all shown.">
+<meta property="og:type" content="website">
+<meta name="description" content="A stacked chart estimating the amount of life in the universe, Big Bang to heat death, one band per form of life, sized by quantity × quality of experience.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  @keyframes rainbow-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(168,107,250,.55); }
+    50%      { box-shadow: 0 0 0 7px rgba(168,107,250,0); }
+  }
+  body {
+    background: linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 400% 400%;
+    animation: rainbow-shift 26s ease infinite;
+  }
+  main {
+    background: var(--bg);
+    border-radius: 16px;
+    padding: 1.75rem 1.25rem 2.5rem;
+    border: 3px solid transparent;
+    background-image:
+      linear-gradient(var(--bg), var(--bg)),
+      linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+  h1 {
+    background: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: rainbow-shift 9s linear infinite;
+    font-size: 2.1rem;
+  }
+  @media (prefers-reduced-motion: reduce) { body, h1 { animation: none; } }
+
+  .sub { max-width: 42rem; }
+
+  .caveat {
+    font-size: .82rem; color: var(--fg); background: var(--bg-raised);
+    border: 1px solid var(--border); border-left: 3px solid #ffc371;
+    border-radius: var(--radius); padding: .8rem 1rem; margin: 1rem 0 1.5rem;
+  }
+  .caveat b { color: #ffc371; }
+  .caveat p { color: var(--fg); font-size: .82rem; margin: .4rem 0 0; }
+
+  .formula {
+    text-align: center; font-size: .95rem; color: var(--fg);
+    border: 2px solid transparent; border-radius: var(--radius);
+    background-image:
+      linear-gradient(var(--bg-raised), var(--bg-raised)),
+      linear-gradient(100deg, #6dd5ed, #a26bfa, #ff5f6d, #ffc371);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    padding: .8rem 1rem; margin: 0 0 1.5rem;
+  }
+  .formula code { font-size: 1rem; }
+
+  .chartcard {
+    border: 3px solid transparent; border-radius: var(--radius);
+    background-image:
+      linear-gradient(var(--bg-raised), var(--bg-raised)),
+      linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    padding: .75rem .5rem 1rem;
+    margin-bottom: 1rem;
+  }
+  #chart {
+    display: block; width: 100%; height: 340px;
+    touch-action: pan-y;
+    cursor: crosshair;
+  }
+  .axislabels {
+    position: relative; height: 4.2em; font-size: .62rem;
+    color: var(--muted); margin: .3rem .35rem 0;
+  }
+  .axislabels span {
+    position: absolute; top: 0; white-space: nowrap;
+  }
+
+  .panel {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .8rem 1rem; margin-bottom: 1.25rem;
+    min-height: 4.4rem;
+  }
+  .panel .era { font-size: .9rem; color: var(--fg); margin: 0 0 .5rem; }
+  .panel .era b { color: #a26bfa; }
+  .panel .rows { display: flex; flex-direction: column; gap: .3rem; }
+  .panel .row { display: flex; align-items: baseline; gap: .5rem; font-size: .78rem; }
+  .panel .swatch { width: .7rem; height: .7rem; border-radius: 2px; flex: none; }
+  .panel .rname { color: var(--fg); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .panel .rval { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+  .panel .hint { color: var(--muted); font-size: .75rem; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: .4rem .6rem; margin: 0 0 1.5rem;
+    font-size: .72rem;
+  }
+  .legend button {
+    display: flex; align-items: center; gap: .35rem;
+    padding: .35rem .65rem; min-height: 44px;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: 999px; color: var(--muted); font: inherit; font-size: .72rem;
+    cursor: pointer;
+  }
+  .legend button.on { color: var(--fg); border-color: var(--fg); }
+  .legend button .sw { width: .65rem; height: .65rem; border-radius: 50%; flex: none; }
+  .legend button.spec .sw { outline: 1px dashed var(--muted); outline-offset: 2px; }
+
+  .revealbtn {
+    display: block; width: 100%; margin: .5rem 0 1rem;
+    padding: .9rem 1rem; font: inherit; font-size: .85rem; font-weight: 700;
+    color: #0e0e11; border: none; border-radius: var(--radius); cursor: pointer;
+    background: linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa);
+    background-size: 220% 220%;
+    animation: pulse-glow 2.6s ease-in-out infinite;
+  }
+  .revealbtn:hover { filter: brightness(1.1); }
+  @media (prefers-reduced-motion: reduce) { .revealbtn { animation: none; } }
+
+  .mech { display: none; }
+  .mech.show { display: block; }
+  .mech h2 { font-size: 1rem; color: var(--fg); margin: 1.5rem 0 .5rem; }
+  .mechtable { width: 100%; border-collapse: collapse; font-size: .72rem; margin-bottom: 1rem; }
+  .mechtable th, .mechtable td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .mechtable th { color: var(--muted); font-weight: 600; }
+  .mechtable td.num { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--fg); }
+  .mechtable td.name { color: var(--fg); white-space: nowrap; }
+  .mechtable td.why { color: var(--muted); }
+  .mechtable .dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .35rem; }
+
+  footer.credits { margin-top: 2rem; font-size: .72rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>the amount of life</h1>
+  <p class="sub">Every form of life the universe has held or might ever hold, stacked
+    from the Big Bang to heat death — one band per kind, sized by how many of them
+    there were times how rich their experience probably was. Scrub the chart.</p>
+
+  <div class="caveat">
+    <b>Read this before the numbers below.</b> Every value here is an order-of-magnitude
+    guess, not a measurement — population figures for extinct species and anything
+    past roughly 2100 CE are estimates or outright speculation, clearly marked where
+    they get speculative. "Quality of experience" is a number I assigned on a scale I
+    made up; a different reasonable person would place it differently. Treat this as
+    one way of thinking about the shape of the question, not a result.
+    <p>The horizontal axis is <b>not</b> drawn to a single scale — see "how this is
+    calculated" below for why, and what that trades away.</p>
+  </div>
+
+  <div class="formula">
+    amount of life = <code>quantity</code> (how many, at once) × <code>quality</code>
+    (how rich the experience, 0–20 scale) &nbsp;→&nbsp; stacked as <code>log₁₀(amount)</code>
+  </div>
+
+  <div class="chartcard">
+    <canvas id="chart" role="img" aria-label="Stacked chart of estimated amount of life from the Big Bang to heat death, one band per form of life"></canvas>
+    <div class="axislabels" id="axislabels"></div>
+  </div>
+
+  <div class="panel" id="panel">
+    <p class="era">Move over the chart, or drag on a phone, to read a moment in time.</p>
+    <div class="rows" id="panelRows"></div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <button class="revealbtn" id="mechBtn" type="button" aria-expanded="false" aria-controls="mech">how is this calculated? (tap to see every number)</button>
+
+  <div class="mech" id="mech">
+    <h2>the axis is bent, deliberately</h2>
+    <p>A true straight scale, seconds since the Big Bang all the way to heat death, would
+      put every band on this chart — bacteria through humans — inside about 0.1% of the
+      width. On that scale the whole of biology is a single pixel and the rest of the
+      chart is future speculation. So the axis is drawn in <b>three log-scaled pieces</b>,
+      each given a fixed share of the width regardless of its real duration: Big Bang →
+      first life (~18%), first life → now (~42%, where every real band lives), and now →
+      heat death (~40%). The tick labels say what's really being compressed at each
+      point — the honest reading is still "life is a rounding error against cosmic time,"
+      it's just a rounding error you can actually see the shape of.</p>
+    <h2>why the stack is log-scaled too</h2>
+    <p>Bacteria alone (~5×10³⁰ cells) outnumber humans (~8×10⁹) by twenty orders of
+      magnitude. Stack the raw numbers and every band except bacteria draws as a flat
+      line at zero. So each band's height is <code>log₁₀(quantity × quality)</code>, not
+      the product itself — which keeps every band visible, but means the chart is <b>not</b>
+      a literal sum you could read a total off. The real, un-logged numbers for every band
+      are in the table below.</p>
+    <h2>every number, and why</h2>
+    <table class="mechtable" id="mechTable">
+      <thead><tr><th>form of life</th><th>peak quantity</th><th>quality</th><th>peak amount</th><th>reasoning</th></tr></thead>
+      <tbody id="mechBody"></tbody>
+    </table>
+    <p class="hint">Colour: 14 hues spread evenly around the wheel in the order the bands
+      appear, alternating lightness so neighbours don't blend. This build's sandbox had no
+      shell to run the project's colour-blindness validator script, so identity here leans
+      on the legend and this table, never on colour alone.</p>
+  </div>
+
+  <footer class="credits">Built for a Bluesky thread about a stack chart of life in the
+    universe. Every figure above is a rough estimate — see the reasoning column for
+    where each one comes from.</footer>
+</main>
+<script>
+kit && (document.getElementById('crumb').innerHTML = kit.crumb('the amount of life'));
+</script>
+<script>
+'use strict';
+/* ---------------------------------------------------------------------
+   Time model. "age" = years since the Big Bang throughout.
+   T_NOW ~ 13.8 Gyr. T_FIRST_LIFE ~ 10.0 Gyr (first life ~3.8 Gya).
+   The x-axis is three independently log-scaled segments, each given a
+   FIXED share of screen width (SEGB), because a single log(age) axis
+   compresses all of biological history into ~0.1% of the width — see
+   the "how is this calculated" panel on the page for the full reasoning.
+--------------------------------------------------------------------- */
+var GY = 1e9;
+var T_NOW = 13.8 * GY;
+var T_FIRST_LIFE = T_NOW - 3.8 * GY;
+/* Every earthbound biological layer's keyframes end within the same ~0.5 Gyr
+   window (~1.0-1.5 Gyr from now, the Sun-swells extinction) — a span less than
+   one order of magnitude wide, which a log(yearsFromNow) axis compresses to a
+   near-invisible sliver no matter how much width the segment gets, because log
+   only spreads out events that differ by orders of magnitude. So "now to heat
+   death" is three segments, not one: T_APPEAR_END keeps the appearance of the
+   later speculative layers (post-human ~75yr, galaxy-spanning ~1e6yr, both
+   genuinely spanning decades to a billion years) on a log scale, where it
+   already read fine; LIFE_DECLINE_END then gets its own fixed, LINEARLY
+   -scaled segment (SEGB[3]-SEGB[4]) so the extinction cluster — all within one
+   order of magnitude of each other — reads as a slope instead of a spike;
+   then the axis returns to log for the deep future. */
+var T_APPEAR_END = 1 * GY;
+var LIFE_DECLINE_END = 2 * GY;
+var SEGB = [0, 0.14, 0.54, 0.64, 0.78, 1.0];
+function AGE(yearsAgo) { return T_NOW - yearsAgo; }
+function FUT(yearsFromNow) { return T_NOW + yearsFromNow; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function lerp(a, b, u) { return a + (b - a) * u; }
+
+function xFrac(age) {
+  if (age <= T_FIRST_LIFE) {
+    var f = clamp(Math.log10(Math.max(age, 1)) / Math.log10(T_FIRST_LIFE), 0, 1);
+    return lerp(SEGB[0], SEGB[1], f);
+  } else if (age <= T_NOW) {
+    var yearsAgo = T_NOW - age;
+    var hi = Math.log10(T_NOW - T_FIRST_LIFE + 1);
+    var f2 = 1 - clamp(Math.log10(yearsAgo + 1) / hi, 0, 1);
+    return lerp(SEGB[1], SEGB[2], f2);
+  } else if (age <= FUT(T_APPEAR_END)) {
+    var yearsFromNow = age - T_NOW;
+    var f3 = clamp(Math.log10(Math.max(yearsFromNow, 1)) / Math.log10(T_APPEAR_END), 0, 1);
+    return lerp(SEGB[2], SEGB[3], f3);
+  } else if (age <= FUT(LIFE_DECLINE_END)) {
+    var yearsFromNow2 = age - T_NOW;
+    var f4 = clamp((yearsFromNow2 - T_APPEAR_END) / (LIFE_DECLINE_END - T_APPEAR_END), 0, 1);
+    return lerp(SEGB[3], SEGB[4], f4);
+  } else {
+    var yearsFromNow3 = age - T_NOW;
+    var lo = Math.log10(LIFE_DECLINE_END);
+    var f5 = clamp((Math.log10(Math.max(yearsFromNow3, 1)) - lo) / (100 - lo), 0, 1);
+    return lerp(SEGB[4], SEGB[5], f5);
+  }
+}
+function ageAtFrac(f) {
+  if (f <= SEGB[1]) {
+    var local = (f - SEGB[0]) / (SEGB[1] - SEGB[0]);
+    return Math.pow(10, local * Math.log10(T_FIRST_LIFE));
+  } else if (f <= SEGB[2]) {
+    var local2 = (f - SEGB[1]) / (SEGB[2] - SEGB[1]);
+    var hi = Math.log10(T_NOW - T_FIRST_LIFE + 1);
+    var yearsAgo = Math.pow(10, (1 - local2) * hi) - 1;
+    return T_NOW - yearsAgo;
+  } else if (f <= SEGB[3]) {
+    var local3 = (f - SEGB[2]) / (SEGB[3] - SEGB[2]);
+    var yearsFromNow = Math.pow(10, local3 * Math.log10(T_APPEAR_END));
+    return T_NOW + yearsFromNow;
+  } else if (f <= SEGB[4]) {
+    var local4 = (f - SEGB[3]) / (SEGB[4] - SEGB[3]);
+    return T_NOW + T_APPEAR_END + local4 * (LIFE_DECLINE_END - T_APPEAR_END);
+  } else {
+    var local5 = (f - SEGB[4]) / (SEGB[5] - SEGB[4]);
+    var lo2 = Math.log10(LIFE_DECLINE_END);
+    var yearsFromNow2 = Math.pow(10, lo2 + local5 * (100 - lo2));
+    return T_NOW + yearsFromNow2;
+  }
+}
+
+/* Ticks shown under the axis. label + age (years since Big Bang). */
+var TICKS = [
+  { label: 'Big Bang', age: 1 },
+  { label: 'first stars', age: 2e8 },
+  { label: 'Earth forms', age: T_NOW - 4.6e9 },
+  { label: 'first life', age: T_FIRST_LIFE },
+  { label: 'Cambrian', age: AGE(5.41e8) },
+  { label: 'dinosaurs die', age: AGE(6.6e7) },
+  { label: 'now', age: T_NOW },
+  { label: 'Sun swells', age: FUT(1e9) },
+  { label: 'life ends', age: FUT(1.45e9) },
+  { label: 'last stars fade', age: FUT(1e14) },
+  { label: 'black holes evaporate', age: FUT(1e67) },
+  { label: 'heat death', age: FUT(1e100) },
+];
+
+/* ---------------------------------------------------------------------
+   Layers, bottom to top, oldest-appearing first. Each keyframe is
+   {t: age in years since Big Bang, quantity: individuals alive at once
+   (order of magnitude), quality: 0-20ish subjective-richness scale}.
+   Between keyframes, log10(quantity) and quality are interpolated
+   linearly; outside the first/last keyframe a layer is absent (0).
+   `reasoning` is shown verbatim in the mechanism table on the page.
+--------------------------------------------------------------------- */
+var LAYERS = [
+  { name: 'bacteria & archaea', spec: false,
+    reasoning: 'Whitman et al. (1998) estimate ~5×10³⁰ prokaryotic cells alive at once. Quality kept just above zero: no nervous system, but a bare functionalist minimum (homeostatic response) rather than defining it as literally nil. Decline follows the standard runaway-greenhouse forecast for Earth’s biosphere, ~1–1.5 Gyr from now as the Sun brightens.',
+    keyframes: [
+      { t: AGE(3.8e9), quantity: 1, quality: 0.02 },
+      { t: AGE(3.0e9), quantity: 1e28, quality: 0.02 },
+      { t: T_NOW, quantity: 5e30, quality: 0.02 },
+      { t: FUT(1e9), quantity: 2e30, quality: 0.02 },
+      { t: FUT(1.5e9), quantity: 1, quality: 0.02 },
+    ] },
+  { name: 'early eukaryotes', spec: false,
+    reasoning: 'Eukaryotic cells appear ~1.6 Gya. Quantity scaled down from the prokaryote estimate for larger cell size and lower density; quality nudged above bacteria for organelle-level complexity, still far below anything with a nervous system.',
+    keyframes: [
+      { t: AGE(1.6e9), quantity: 1, quality: 0.05 },
+      { t: AGE(1.0e9), quantity: 1e23, quality: 0.05 },
+      { t: T_NOW, quantity: 1e25, quality: 0.05 },
+      { t: FUT(1.3e9), quantity: 1e20, quality: 0.05 },
+      { t: FUT(1.5e9), quantity: 1, quality: 0.05 },
+    ] },
+  { name: 'marine invertebrates', spec: false,
+    reasoning: 'Ediacaran biota onward: jellyfish, worms, molluscs, corals. Quality reflects diffuse nerve nets or simple ganglia — basic responses, no centralized brain in most of this group.',
+    keyframes: [
+      { t: AGE(6.0e8), quantity: 1, quality: 0.3 },
+      { t: AGE(5.0e8), quantity: 1e20, quality: 0.3 },
+      { t: T_NOW, quantity: 1e21, quality: 0.3 },
+      { t: FUT(1.4e9), quantity: 1e17, quality: 0.3 },
+      { t: FUT(1.5e9), quantity: 1, quality: 0.3 },
+    ] },
+  { name: 'insects & arthropods', spec: false,
+    reasoning: '~10¹⁸–10¹⁹ insects alive at any moment is a commonly cited entomology order-of-magnitude. Quality reflects a centralized-ish ganglion brain and limited demonstrated learning, well below vertebrates.',
+    keyframes: [
+      { t: AGE(4.8e8), quantity: 1, quality: 1.2 },
+      { t: AGE(3.5e8), quantity: 1e15, quality: 1.2 },
+      { t: T_NOW, quantity: 1e18, quality: 1.2 },
+      { t: FUT(1.4e9), quantity: 1e14, quality: 1.2 },
+      { t: FUT(1.5e9), quantity: 1, quality: 1.2 },
+    ] },
+  { name: 'fish', spec: false,
+    reasoning: 'Wild + farmed fish population estimates cluster around 10¹³–10¹⁴. Quality: a true brain and documented nociception, below tetrapods with more complex social behaviour.',
+    keyframes: [
+      { t: AGE(5.2e8), quantity: 1, quality: 2 },
+      { t: AGE(4.0e8), quantity: 1e12, quality: 2 },
+      { t: T_NOW, quantity: 1e14, quality: 2 },
+      { t: FUT(1.4e9), quantity: 1e10, quality: 2 },
+      { t: FUT(1.5e9), quantity: 1, quality: 2 },
+    ] },
+  { name: 'amphibians & reptiles', spec: false,
+    reasoning: 'Order-of-magnitude population guess for extant amphibians plus non-avian, non-dinosaur reptiles (lizards, snakes, turtles, crocodilians). Similar tier to fish, nudged up for more complex terrestrial behaviour.',
+    keyframes: [
+      { t: AGE(3.6e8), quantity: 1, quality: 2.5 },
+      { t: AGE(3.0e8), quantity: 1e10, quality: 2.5 },
+      { t: T_NOW, quantity: 1e11, quality: 2.5 },
+      { t: FUT(1.4e9), quantity: 1e8, quality: 2.5 },
+      { t: FUT(1.5e9), quantity: 1, quality: 2.5 },
+    ] },
+  { name: 'non-avian dinosaurs', spec: false,
+    reasoning: 'A standing (simultaneous) population estimate — distinct from cumulative species-lifetime totals like the popular "how many T. rexes ever lived" figure. Quality set slightly above reptiles for likely social behaviour in some lineages. Ends abruptly: the K–Pg extinction, 66 Mya.',
+    keyframes: [
+      { t: AGE(2.3e8), quantity: 1, quality: 3 },
+      { t: AGE(1.8e8), quantity: 1e8, quality: 3 },
+      { t: AGE(1.0e8), quantity: 1e9, quality: 3.2 },
+      { t: AGE(6.7e7), quantity: 1e9, quality: 3.2 },
+      { t: AGE(6.6e7), quantity: 1, quality: 3.2 },
+    ] },
+  { name: 'birds', spec: false,
+    reasoning: '~50 billion individual birds alive today is a widely cited estimate (Callaghan et al. 2021). Quality bumped for the post-K–Pg cognitive diversification of the group (corvids, parrots).',
+    keyframes: [
+      { t: AGE(1.5e8), quantity: 1, quality: 3.5 },
+      { t: AGE(6.6e7), quantity: 1e9, quality: 3.5 },
+      { t: AGE(2.0e7), quantity: 1e11, quality: 3.8 },
+      { t: T_NOW, quantity: 5e11, quality: 4 },
+      { t: FUT(1.4e9), quantity: 1e9, quality: 4 },
+      { t: FUT(1.5e9), quantity: 1, quality: 4 },
+    ] },
+  { name: 'mammals', spec: false,
+    reasoning: 'Dominated numerically by wild rodents and bats plus livestock (poultry counted under birds). ~1.1×10¹¹ combines rough wild + livestock estimates. Quality reflects typical warm-blooded, socially complex behaviour, excluding the small high-cognition subset broken out next.',
+    keyframes: [
+      { t: AGE(2.0e8), quantity: 1, quality: 3 },
+      { t: AGE(6.6e7), quantity: 1e9, quality: 3.5 },
+      { t: AGE(1.0e7), quantity: 1e10, quality: 4.5 },
+      { t: T_NOW, quantity: 1.1e11, quality: 5 },
+      { t: FUT(1.4e9), quantity: 1e9, quality: 5 },
+      { t: FUT(1.5e9), quantity: 1, quality: 5 },
+    ] },
+  { name: 'great apes, cetaceans, elephants', spec: false,
+    reasoning: 'Carved out of the mammal band above as a small illustrative subset — the quantity overlap with that band is a rounding error (well under 0.01%) and is not separately subtracted. Quality reflects documented self-recognition, tool use and complex social structure.',
+    keyframes: [
+      { t: AGE(2.0e7), quantity: 1, quality: 6 },
+      { t: AGE(5.0e6), quantity: 1e5, quality: 6 },
+      { t: T_NOW, quantity: 5e6, quality: 6.5 },
+      { t: FUT(1.4e9), quantity: 1e3, quality: 6.5 },
+      { t: FUT(1.5e9), quantity: 1, quality: 6.5 },
+    ] },
+  { name: 'humans', spec: false,
+    reasoning: 'Population figures are historical estimates (US Census Bureau / UN). Quality rises modestly across the timeline for life expectancy, literacy and connectivity — an explicit value judgement, not a measurement. This band stays Earth-bound; humans who leave Earth or merge with AI are counted in the next band instead, to avoid double-counting the same people twice.',
+    keyframes: [
+      { t: AGE(3.0e5), quantity: 1, quality: 6 },
+      { t: AGE(1.0e4), quantity: 4e6, quality: 6.2 },
+      { t: AGE(2.0e3), quantity: 2e8, quality: 6.5 },
+      { t: AGE(2.0e2), quantity: 1e9, quality: 7 },
+      { t: T_NOW, quantity: 8.2e9, quality: 8 },
+      { t: FUT(2.0e2), quantity: 1e10, quality: 8.5 },
+      { t: FUT(1e9), quantity: 5e9, quality: 8.5 },
+      { t: FUT(1.5e9), quantity: 1, quality: 8.5 },
+    ] },
+  { name: 'post-human / AI minds', spec: true,
+    reasoning: 'Entirely speculative. Assumes some fraction of technological civilization transitions to substrate-independent or heavily augmented minds with far denser subjective bandwidth — the higher quality is itself an unverifiable assumption. Quantity assumes an eventual solar-system-scale computing substrate. Fades with the last stars (~10¹⁴ yr), a disclosed choice about where this speculation stops, not a physical law.',
+    keyframes: [
+      { t: FUT(75), quantity: 1, quality: 12 },
+      { t: FUT(3e4), quantity: 1e9, quality: 13 },
+      { t: FUT(1e6), quantity: 1e13, quality: 14 },
+      { t: FUT(1e8), quantity: 1e16, quality: 15 },
+      { t: FUT(1e11), quantity: 1e16, quality: 15 },
+      { t: FUT(1e14), quantity: 1, quality: 15 },
+    ] },
+  { name: 'galaxy-spanning civilization', spec: true,
+    reasoning: 'The "if a technological civilization spreads across the galaxy during the stelliferous era" scenario from long-termist and SETI literature (e.g. Bostrom’s astronomical-waste argument). Included because the request asks for the timeline through heat death; the numbers are a placeholder for "unimaginably large if it happens," not a forecast — this is the chart’s single biggest disclosed guess.',
+    keyframes: [
+      { t: FUT(1e6), quantity: 1, quality: 18 },
+      { t: FUT(1e7), quantity: 1e10, quality: 19 },
+      { t: FUT(1e9), quantity: 1e20, quality: 20 },
+      { t: FUT(1e11), quantity: 1e26, quality: 20 },
+      { t: FUT(1e13), quantity: 1e20, quality: 18 },
+      { t: FUT(1e14), quantity: 1, quality: 18 },
+    ] },
+  { name: 'degenerate-era exotic life', spec: true,
+    reasoning: 'Freeman Dyson’s 1979 "Time Without End" speculated that life could persist by slowing its own metabolism as available energy drops toward zero; Krauss & Starkman (2000) later argued thermodynamic limits make this implausible past some point. Included as the chart’s most speculative band on purpose — drawn small and faint: "maybe, if physics allows it, and it wouldn’t amount to much."',
+    keyframes: [
+      { t: FUT(1e15), quantity: 1, quality: 4 },
+      { t: FUT(1e25), quantity: 1e4, quality: 5 },
+      { t: FUT(1e38), quantity: 1e4, quality: 5 },
+      { t: FUT(1e39), quantity: 1, quality: 5 },
+    ] },
+];
+
+/* Fixed hue per layer, in array order — never reassigned or re-cycled.
+   Evenly spaced around the wheel (chronological = a full rainbow sweep,
+   which is also this chart's decorative theme) with alternating
+   lightness so adjacent bands separate by more than hue alone. */
+LAYERS.forEach(function (layer, i) {
+  var hue = Math.round(i * (360 / LAYERS.length));
+  var light = i % 2 ? 64 : 53;
+  layer.color = 'hsl(' + hue + ', 68%, ' + light + '%)';
+});
+
+function layerValueAt(layer, age) {
+  var kf = layer.keyframes;
+  if (age <= kf[0].t || age >= kf[kf.length - 1].t) return null;
+  for (var i = 0; i < kf.length - 1; i++) {
+    var a = kf[i], b = kf[i + 1];
+    if (age >= a.t && age <= b.t) {
+      var u = (b.t === a.t) ? 0 : (age - a.t) / (b.t - a.t);
+      var logq = lerp(Math.log10(a.quantity), Math.log10(b.quantity), u);
+      var quality = lerp(a.quality, b.quality, u);
+      var quantity = Math.pow(10, logq);
+      return { quantity: quantity, quality: quality, amount: quantity * quality };
+    }
+  }
+  return null;
+}
+</script>
+<script>
+'use strict';
+var SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³',
+  '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+function sup(n) { return String(n).split('').map(function (c) { return SUP[c] || c; }).join(''); }
+function fmtSci(n) {
+  if (n <= 0) return '0';
+  if (n < 10) {
+    var plain = n.toFixed(n < 2 ? 2 : 1);
+    if (parseFloat(plain) < 10) return plain;
+    // rounded up to the next order of magnitude (e.g. 9.96 -> "10.0"): fall through to sci notation
+  }
+  var e = Math.floor(Math.log10(n));
+  var m = n / Math.pow(10, e);
+  var mStr = m.toFixed(1);
+  if (parseFloat(mStr) >= 10) { e += 1; mStr = '1.0'; }
+  return mStr + '×10' + sup(e);
+}
+function fmtDuration(y) {
+  y = Math.abs(y);
+  if (y >= 1e15) return '10' + sup(Math.round(Math.log10(y))) + ' yr';
+  if (y >= 1e9) return (y / 1e9).toPrecision(2) + ' Gyr';
+  if (y >= 1e6) return (y / 1e6).toPrecision(2) + ' Myr';
+  if (y >= 1e3) return (y / 1e3).toPrecision(2) + ' kyr';
+  if (y >= 1) return Math.round(y) + ' yr';
+  return '~0 yr';
+}
+function fmtEra(age) {
+  if (age <= T_FIRST_LIFE) return fmtDuration(age) + ' after the Big Bang';
+  if (age >= T_NOW - 200 && age <= T_NOW + 200) return 'now (≈13.8 Gyr after the Big Bang)';
+  if (age < T_NOW) return fmtDuration(T_NOW - age) + ' ago';
+  return fmtDuration(age - T_NOW) + ' from now';
+}
+
+/* ---------------------------------------------------------------------
+   Rendering
+--------------------------------------------------------------------- */
+var canvas = document.getElementById('chart');
+var ctx = canvas.getContext('2d');
+var samples = null, cumMax = 1;
+var focusIndex = -1;
+var TOP_PAD = 12, BOT_PAD = 4;
+
+function computeSamples() {
+  var rect = canvas.getBoundingClientRect();
+  var n = Math.max(120, Math.round(rect.width));
+  var out = [];
+  var localMax = 0;
+  for (var i = 0; i <= n; i++) {
+    var f = i / n;
+    var age = ageAtFrac(f);
+    var cum = 0;
+    var vals = new Array(LAYERS.length);
+    for (var li = 0; li < LAYERS.length; li++) {
+      var v = layerValueAt(LAYERS[li], age);
+      var sv = v ? Math.log10(v.amount + 1) : 0;
+      cum += sv;
+      vals[li] = { raw: v, stack: sv, top: cum, bottom: cum - sv };
+    }
+    if (cum > localMax) localMax = cum;
+    out.push({ f: f, age: age, vals: vals, cum: cum });
+  }
+  samples = out;
+  cumMax = Math.max(localMax, 1);
+}
+
+function draw() {
+  var rect = canvas.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  var w = Math.max(1, Math.round(rect.width));
+  var h = Math.max(1, Math.round(rect.height));
+  if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (!samples || samples.length < 2) return;
+
+  var chartH = h - TOP_PAD - BOT_PAD;
+  var yOf = function (c) { return TOP_PAD + chartH - (c / cumMax) * chartH; };
+  var xOf = function (f) { return f * w; };
+
+  var bg = getComputedStyle(document.body).getPropertyValue('--bg-raised').trim() || '#16161b';
+
+  for (var li = 0; li < LAYERS.length; li++) {
+    var layer = LAYERS[li];
+    var dim = focusIndex !== -1 && focusIndex !== li;
+    ctx.beginPath();
+    var started = false;
+    for (var i = 0; i < samples.length; i++) {
+      var s = samples[i];
+      if (s.vals[li].stack <= 0) { started = false; continue; }
+      var x = xOf(s.f), yTop = yOf(s.vals[li].top);
+      if (!started) { ctx.moveTo(x, yOf(s.vals[li].bottom)); ctx.lineTo(x, yTop); started = true; }
+      else ctx.lineTo(x, yTop);
+    }
+    // walk back along the bottom edge to close the shape
+    for (i = samples.length - 1; i >= 0; i--) {
+      var s2 = samples[i];
+      if (s2.vals[li].stack <= 0) continue;
+      ctx.lineTo(xOf(s2.f), yOf(s2.vals[li].bottom));
+    }
+    ctx.closePath();
+    ctx.globalAlpha = dim ? 0.18 : 0.94;
+    ctx.fillStyle = layer.color;
+    ctx.fill();
+    if (layer.spec) {
+      ctx.globalAlpha = dim ? 0.15 : 0.55;
+      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = layer.color;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // thin surface-colour separators between bands, so neighbours read as
+  // distinct even when two adjacent hues are close.
+  ctx.strokeStyle = bg;
+  ctx.lineWidth = 1;
+  for (li = 0; li < LAYERS.length; li++) {
+    ctx.beginPath();
+    var any = false;
+    for (i = 0; i < samples.length; i++) {
+      var sv3 = samples[i].vals[li];
+      if (sv3.stack <= 0) { any = false; continue; }
+      var xx = xOf(samples[i].f), yy = yOf(sv3.top);
+      if (!any) { ctx.moveTo(xx, yy); any = true; } else ctx.lineTo(xx, yy);
+    }
+    ctx.stroke();
+  }
+
+  if (crosshairF != null) {
+    var cx = xOf(crosshairF);
+    ctx.strokeStyle = 'rgba(255,255,255,.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, TOP_PAD); ctx.lineTo(cx, h - BOT_PAD); ctx.stroke();
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Axis tick labels (HTML, not canvas — real text, easy to wrap/measure)
+--------------------------------------------------------------------- */
+function buildAxisLabels() {
+  var box = document.getElementById('axislabels');
+  box.innerHTML = '';
+  var width = box.getBoundingClientRect().width || canvas.getBoundingClientRect().width;
+  var rowRight = [-Infinity, -Infinity, -Infinity, -Infinity, -Infinity, -Infinity];
+  var used = 0;
+  TICKS.forEach(function (t, i) {
+    var leftPx = xFrac(t.age) * width;
+    var span = document.createElement('span');
+    span.textContent = t.label;
+    box.appendChild(span);
+    var w = span.getBoundingClientRect().width;
+    var left, cssLeft, transform;
+    if (leftPx - w / 2 < 0) { left = 0; cssLeft = 0; transform = 'none'; }
+    else if (leftPx + w / 2 > width) { left = width - w; cssLeft = width; transform = 'translateX(-100%)'; }
+    else { left = leftPx - w / 2; cssLeft = leftPx; transform = 'translateX(-50%)'; }
+    var right = left + w;
+    var row = 0;
+    while (row < rowRight.length && left < rowRight[row] + 6) row++;
+    if (row >= rowRight.length) { span.remove(); return; }
+    rowRight[row] = right;
+    used = Math.max(used, row + 1);
+    span.style.left = cssLeft + 'px';
+    span.style.transform = transform;
+    span.style.top = (row * 1.3) + 'em';
+  });
+  box.style.height = (Math.max(1, used) * 1.3 + 0.2) + 'em';
+}
+
+/* ---------------------------------------------------------------------
+   Legend — fixed order, click/tap to isolate one band
+--------------------------------------------------------------------- */
+function buildLegend() {
+  var box = document.getElementById('legend');
+  box.innerHTML = '';
+  LAYERS.forEach(function (layer, i) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = layer.spec ? 'spec' : '';
+    btn.setAttribute('aria-pressed', 'false');
+    var sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = layer.color;
+    btn.appendChild(sw);
+    var label = document.createElement('span');
+    label.textContent = layer.name + (layer.spec ? ' (speculative)' : '');
+    btn.appendChild(label);
+    btn.addEventListener('click', function () {
+      focusIndex = focusIndex === i ? -1 : i;
+      Array.prototype.forEach.call(box.children, function (b, bi) {
+        var on = bi === focusIndex;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      draw();
+    });
+    box.appendChild(btn);
+  });
+}
+
+/* ---------------------------------------------------------------------
+   Mechanism table
+--------------------------------------------------------------------- */
+function buildMechTable() {
+  var tbody = document.getElementById('mechBody');
+  tbody.innerHTML = '';
+  LAYERS.forEach(function (layer) {
+    var peak = null;
+    layer.keyframes.forEach(function (k) {
+      var amount = k.quantity * k.quality;
+      if (!peak || amount > peak.amount) peak = { quantity: k.quantity, quality: k.quality, amount: amount };
+    });
+    var tr = document.createElement('tr');
+    var tdName = document.createElement('td'); tdName.className = 'name';
+    var dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = layer.color;
+    tdName.appendChild(dot);
+    tdName.appendChild(document.createTextNode(layer.name + (layer.spec ? ' †' : '')));
+    var tdQ = document.createElement('td'); tdQ.className = 'num'; tdQ.textContent = fmtSci(peak.quantity);
+    var tdK = document.createElement('td'); tdK.className = 'num'; tdK.textContent = peak.quality.toFixed(2);
+    var tdA = document.createElement('td'); tdA.className = 'num'; tdA.textContent = fmtSci(peak.amount);
+    var tdWhy = document.createElement('td'); tdWhy.className = 'why'; tdWhy.textContent = layer.reasoning;
+    tr.appendChild(tdName); tr.appendChild(tdQ); tr.appendChild(tdK); tr.appendChild(tdA); tr.appendChild(tdWhy);
+    tbody.appendChild(tr);
+  });
+  var foot = document.createElement('tr');
+  var td = document.createElement('td'); td.colSpan = 5; td.className = 'why';
+  td.style.paddingTop = '.6rem';
+  td.textContent = '† marked speculative — everything past roughly 2100 CE is a scenario, not a prediction.';
+  foot.appendChild(td);
+  tbody.appendChild(foot);
+}
+
+/* ---------------------------------------------------------------------
+   Reading panel — updates on hover (mouse) or drag (touch)
+--------------------------------------------------------------------- */
+var crosshairF = null;
+var panelEra = document.querySelector('#panel .era');
+var panelRows = document.getElementById('panelRows');
+var LIFE_START = Math.min.apply(null, LAYERS.map(function (l) { return l.keyframes[0].t; }));
+var LIFE_END = Math.max.apply(null, LAYERS.map(function (l) { return l.keyframes[l.keyframes.length - 1].t; }));
+
+function updatePanel(f) {
+  var age = ageAtFrac(f);
+  panelEra.innerHTML = '<b>' + fmtEra(age) + '</b>';
+  var rows = [];
+  LAYERS.forEach(function (layer, i) {
+    var v = layerValueAt(layer, age);
+    if (!v) return;
+    rows.push({ i: i, layer: layer, v: v });
+  });
+  rows.sort(function (a, b) { return b.v.amount - a.v.amount; });
+  panelRows.innerHTML = '';
+  if (!rows.length) {
+    var none = document.createElement('div');
+    none.className = 'hint';
+    none.textContent = age > LIFE_END
+      ? 'No life modeled at this point — every band on this chart has already gone extinct.'
+      : 'No life yet at this point in cosmic history.';
+    panelRows.appendChild(none);
+  }
+  rows.forEach(function (r) {
+    var row = document.createElement('div');
+    row.className = 'row';
+    var sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = r.layer.color;
+    var name = document.createElement('span'); name.className = 'rname';
+    name.textContent = r.layer.name + (r.layer.spec ? ' †' : '');
+    var val = document.createElement('span'); val.className = 'rval';
+    val.textContent = fmtSci(r.v.quantity) + ' × ' + r.v.quality.toFixed(2) + ' q ≈ ' + fmtSci(r.v.amount);
+    row.appendChild(sw); row.appendChild(name); row.appendChild(val);
+    panelRows.appendChild(row);
+  });
+}
+
+function pointerToF(clientX) {
+  var rect = canvas.getBoundingClientRect();
+  return clamp((clientX - rect.left) / rect.width, 0, 1);
+}
+canvas.addEventListener('pointermove', function (e) {
+  crosshairF = pointerToF(e.clientX);
+  updatePanel(crosshairF);
+  draw();
+});
+canvas.addEventListener('pointerleave', function (e) {
+  if (e.pointerType === 'mouse') { crosshairF = null; draw(); }
+});
+canvas.addEventListener('pointerdown', function (e) {
+  crosshairF = pointerToF(e.clientX);
+  updatePanel(crosshairF);
+  draw();
+});
+
+/* ---------------------------------------------------------------------
+   Resize / init
+--------------------------------------------------------------------- */
+var resizeTimer = null;
+function onResize() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function () {
+    computeSamples();
+    buildAxisLabels();
+    draw();
+  }, 120);
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', onResize);
+
+buildLegend();
+buildMechTable();
+computeSamples();
+buildAxisLabels();
+draw();
+
+document.getElementById('mechBtn').addEventListener('click', function () {
+  var mech = document.getElementById('mech');
+  var show = !mech.classList.contains('show');
+  mech.classList.toggle('show', show);
+  this.setAttribute('aria-expanded', show ? 'true' : 'false');
+  this.textContent = show ? 'hide the numbers behind this chart' : 'how is this calculated? (tap to see every number)';
+});
+</script>
+</body>
+</html>

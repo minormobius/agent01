@@ -1,0 +1,32 @@
+{
+  "arm": "challenger",
+  "slug": "place-line",
+  "status": "failed",
+  "failed_at": "content gate",
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 87,
+  "cost_usd": 4.4384,
+  "seconds": 1135,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 1004,
+      "exit": 0,
+      "turns": 63,
+      "cost_usd": 3.6960670000000015,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 131,
+      "exit": 0,
+      "turns": 24,
+      "cost_usd": 0.7422829999999999,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

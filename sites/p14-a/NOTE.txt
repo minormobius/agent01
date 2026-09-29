@@ -1,0 +1,1 @@
+Word puzzle resets at UTC midnight, not your local midnight, so "today's word" can flip mid-afternoon depending on timezone — said so on the page. Sunrise/sunset math is real (no API), gated behind a location button since it's optional. No on-this-day trivia yet — needs a real dataset, noted in BRIEF.

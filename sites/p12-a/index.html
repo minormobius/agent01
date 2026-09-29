@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess, Except — the piece picks its own path</title>
+<meta property="og:title" content="Chess, Except — the piece picks its own path">
+<meta property="og:description" content="Normal chess rules, one twist: you pick the piece, not the square. It then takes a random walk through its own legal moves, hop after hop, until it's stuck — could be one move, could be ten.">
+<meta name="description" content="Normal chess rules, one twist: you pick the piece, not the square. It then takes a random walk through its own legal moves until it's stuck.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  :root {
+    --sq-light: #38343f;
+    --sq-dark:  #201e26;
+    --sq-select: var(--accent);
+    --sq-path:  #5c4a20;
+  }
+  main { max-width: 34rem; }
+  .top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem;
+  }
+  .turn {
+    font-size: .95rem; padding: .5rem .8rem; border-radius: var(--radius);
+    background: var(--bg-raised); border: 1px solid var(--border);
+  }
+  .turn.white-turn { border-color: #d8d4cc; }
+  .turn.black-turn { border-color: #444; }
+  .turn b { color: var(--fg); }
+  .controls { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .controls label {
+    font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: .35rem;
+    min-height: 44px;
+  }
+  .controls input[type=checkbox] { width: 20px; height: 20px; }
+  button.small { padding: .6rem .9rem; font-size: .85rem; min-height: 44px; }
+
+  #board {
+    display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+    width: min(94vw, 30rem); aspect-ratio: 1 / 1; margin: 0 auto;
+    border: 2px solid var(--border); border-radius: var(--radius); overflow: hidden;
+    touch-action: manipulation; user-select: none;
+  }
+  .sq {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.4rem, 6.5vw, 2.4rem); line-height: 1;
+    cursor: default;
+  }
+  .sq.light { background: var(--sq-light); }
+  .sq.dark  { background: var(--sq-dark); }
+  .sq.selectable { cursor: pointer; }
+  .sq.selectable::after {
+    content: ''; position: absolute; inset: 4px; border-radius: 3px;
+    border: 2px dashed var(--sq-select); opacity: .55; pointer-events: none;
+  }
+  .sq.active::after {
+    content: ''; position: absolute; inset: 4px; border-radius: 3px;
+    border: 3px solid var(--sq-select); opacity: 1; pointer-events: none;
+  }
+  .sq.justmoved { background: var(--sq-path); }
+  .sq.king-check { box-shadow: inset 0 0 0 3px var(--error); }
+  .piece-w { color: #f2efe9; text-shadow: 0 1px 1px rgba(0,0,0,.6), 0 0 3px rgba(0,0,0,.4); }
+  .piece-b { color: #131217; text-shadow: 0 1px 0 rgba(255,255,255,.15); }
+
+  .status { margin: 1rem 0; min-height: 1.2rem; font-size: .9rem; }
+  .status.check { color: var(--error); }
+  .status.over { color: var(--ok); font-weight: bold; }
+
+  #log {
+    margin-top: 1.5rem; max-height: 11rem; overflow-y: auto;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .6rem .8rem; font-size: .78rem;
+  }
+  #log div { padding: .2rem 0; border-bottom: 1px solid var(--border); }
+  #log div:last-child { border-bottom: none; }
+  #log .cap { color: var(--accent); }
+  .stat { font-size: .8rem; color: var(--muted); margin-top: .5rem; }
+  .rules { font-size: .8rem; }
+  .rules summary { cursor: pointer; color: var(--muted); min-height: 44px; display: flex; align-items: center; }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / chess, except</div>
+  <h1>Chess, Except</h1>
+  <p class="sub">Same rules as chess. You pick the piece — not where it goes. It walks on its own.</p>
+
+  <div class="top">
+    <div id="turnIndicator" class="turn white-turn">Turn: <b>White</b></div>
+    <div class="controls">
+      <label><input type="checkbox" id="instant"> skip animation</label>
+      <button class="small" id="newGame">new game</button>
+    </div>
+  </div>
+
+  <div id="board" role="group" aria-label="Chess board"></div>
+
+  <p id="status" class="status" aria-live="polite">&nbsp;</p>
+  <p id="stat" class="stat"></p>
+
+  <div id="log" aria-label="Move log"></div>
+
+  <details class="rules">
+    <summary>the rules, exactly</summary>
+    <ul>
+      <li>Tap any piece with a dashed outline — that's your only choice this turn.</li>
+      <li>It then hops to a random legal destination, checked fresh each hop
+          (your own king can never end a hop in check) — then hops again from
+          there, same piece, until it has no legal hop left.</li>
+      <li>A pawn that reaches the back rank promotes to a queen mid-walk and
+          keeps going.</li>
+      <li>No castling and no en passant — both need a second piece or a
+          specific prior move to make sense, and neither fits "one piece
+          wanders until it's stuck."</li>
+      <li>A piece won't immediately reverse into the square it just left if
+          another legal hop exists, and any walk is capped at 60 hops (an
+          open rook or bishop can otherwise shuffle back and forth forever).</li>
+    </ul>
+  </details>
+</main>
+<script src="../_kit/kit.js"></script>
+<script>
+'use strict';
+
+// ---------------------------------------------------------------------------
+// Board: 8x8 array, r=0 is rank 1 (white's back rank), f=0 is file a.
+// Piece = { color: 'w'|'b', type: 'p'|'n'|'b'|'r'|'q'|'k' }
+// ---------------------------------------------------------------------------
+const FILES = 'abcdefgh';
+const GLYPH = {
+  p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚',
+};
+const MAX_HOPS = 60;
+const STEP_DELAY = 380;
+
+function freshBoard() {
+  const b = Array.from({ length: 8 }, () => Array(8).fill(null));
+  const back = ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'];
+  for (let f = 0; f < 8; f++) {
+    b[0][f] = { color: 'w', type: back[f] };
+    b[1][f] = { color: 'w', type: 'p' };
+    b[6][f] = { color: 'b', type: 'p' };
+    b[7][f] = { color: 'b', type: back[f] };
+  }
+  return b;
+}
+
+function onBoard(r, f) { return r >= 0 && r < 8 && f >= 0 && f < 8; }
+function sqName(r, f) { return FILES[f] + (r + 1); }
+function cloneBoard(b) { return b.map((row) => row.map((p) => (p ? { color: p.color, type: p.type } : null))); }
+
+const ROOK_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const BISHOP_DIRS = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+const KNIGHT_OFFS = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
+const KING_OFFS = ROOK_DIRS.concat(BISHOP_DIRS);
+
+/** Is (r,f) attacked by any piece of `byColor` on this board? */
+function isAttacked(board, r, f, byColor) {
+  // Knights
+  for (const [dr, df] of KNIGHT_OFFS) {
+    const rr = r + dr, ff = f + df;
+    if (onBoard(rr, ff)) {
+      const p = board[rr][ff];
+      if (p && p.color === byColor && p.type === 'n') return true;
+    }
+  }
+  // King (adjacency counts as attacked even though kings are never captured)
+  for (const [dr, df] of KING_OFFS) {
+    const rr = r + dr, ff = f + df;
+    if (onBoard(rr, ff)) {
+      const p = board[rr][ff];
+      if (p && p.color === byColor && p.type === 'k') return true;
+    }
+  }
+  // Pawns: a pawn of byColor attacks diagonally "forward" from its own side.
+  const pawnDr = byColor === 'w' ? -1 : 1; // where the attacking pawn would sit relative to (r,f)
+  for (const df of [-1, 1]) {
+    const rr = r + pawnDr, ff = f + df;
+    if (onBoard(rr, ff)) {
+      const p = board[rr][ff];
+      if (p && p.color === byColor && p.type === 'p') return true;
+    }
+  }
+  // Sliding: rook/queen orthogonal
+  for (const [dr, df] of ROOK_DIRS) {
+    let rr = r + dr, ff = f + df;
+    while (onBoard(rr, ff)) {
+      const p = board[rr][ff];
+      if (p) {
+        if (p.color === byColor && (p.type === 'r' || p.type === 'q')) return true;
+        break;
+      }
+      rr += dr; ff += df;
+    }
+  }
+  // Sliding: bishop/queen diagonal
+  for (const [dr, df] of BISHOP_DIRS) {
+    let rr = r + dr, ff = f + df;
+    while (onBoard(rr, ff)) {
+      const p = board[rr][ff];
+      if (p) {
+        if (p.color === byColor && (p.type === 'b' || p.type === 'q')) return true;
+        break;
+      }
+      rr += dr; ff += df;
+    }
+  }
+  return false;
+}
+
+function findKing(board, color) {
+  for (let r = 0; r < 8; r++)
+    for (let f = 0; f < 8; f++) {
+      const p = board[r][f];
+      if (p && p.color === color && p.type === 'k') return { r, f };
+    }
+  return null;
+}
+
+/** Pseudo-legal destinations for the piece at (r,f) — no own-king-safety check yet. */
+function pseudoMoves(board, r, f) {
+  const piece = board[r][f];
+  if (!piece) return [];
+  const out = [];
+  const enemy = piece.color === 'w' ? 'b' : 'w';
+
+  // A king is never a legal capture target — real chess never lets the game
+  // reach that point (checkmate ends it first), but this generator has no
+  // other guard against it, so it has to be explicit here. A king still
+  // BLOCKS a sliding piece exactly like any other piece does.
+  function tryStep(rr, ff) {
+    if (!onBoard(rr, ff)) return;
+    const target = board[rr][ff];
+    if (!target) out.push({ r: rr, f: ff });
+    else if (target.color === enemy && target.type !== 'k') out.push({ r: rr, f: ff });
+  }
+  function slide(dirs) {
+    for (const [dr, df] of dirs) {
+      let rr = r + dr, ff = f + df;
+      while (onBoard(rr, ff)) {
+        const target = board[rr][ff];
+        if (!target) { out.push({ r: rr, f: ff }); }
+        else { if (target.color === enemy && target.type !== 'k') out.push({ r: rr, f: ff }); break; }
+        rr += dr; ff += df;
+      }
+    }
+  }
+
+  if (piece.type === 'n') { for (const [dr, df] of KNIGHT_OFFS) tryStep(r + dr, f + df); }
+  else if (piece.type === 'k') { for (const [dr, df] of KING_OFFS) tryStep(r + dr, f + df); }
+  else if (piece.type === 'r') { slide(ROOK_DIRS); }
+  else if (piece.type === 'b') { slide(BISHOP_DIRS); }
+  else if (piece.type === 'q') { slide(ROOK_DIRS.concat(BISHOP_DIRS)); }
+  else if (piece.type === 'p') {
+    const dr = piece.color === 'w' ? 1 : -1;
+    const startRank = piece.color === 'w' ? 1 : 6;
+    if (onBoard(r + dr, f) && !board[r + dr][f]) {
+      out.push({ r: r + dr, f });
+      if (r === startRank && !board[r + 2 * dr][f]) out.push({ r: r + 2 * dr, f });
+    }
+    for (const df of [-1, 1]) {
+      const rr = r + dr, ff = f + df;
+      if (onBoard(rr, ff) && board[rr][ff] && board[rr][ff].color === enemy && board[rr][ff].type !== 'k') {
+        out.push({ r: rr, f: ff });
+      }
+    }
+  }
+  return out;
+}
+
+/** Legal destinations: pseudo-legal, filtered so the mover's own king is
+ *  never left in check. This is the ONLY legality filter — it runs after
+ *  every hop of the walk, not just at the end, which is what makes an
+ *  in-check king's first hop automatically a check-escaping one. */
+function legalSteps(board, r, f) {
+  const piece = board[r][f];
+  if (!piece) return [];
+  const color = piece.color;
+  const enemy = color === 'w' ? 'b' : 'w';
+  const pseudo = pseudoMoves(board, r, f);
+  return pseudo.filter((m) => {
+    const test = cloneBoard(board);
+    test[r][f] = null;
+    test[m.r][m.f] = piece;
+    const kingPos = piece.type === 'k' ? { r: m.r, f: m.f } : findKing(test, color);
+    if (!kingPos) return true;
+    return !isAttacked(test, kingPos.r, kingPos.f, enemy);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Game state
+// ---------------------------------------------------------------------------
+let board = freshBoard();
+let turn = 'w';
+let walking = false;         // true while a piece is mid-random-walk
+let gameOver = false;
+let longestWalk = { hops: 0, desc: '' };
+let turnNumber = 1;
+let highlight = { active: null, justMoved: null }; // squares to paint
+
+const boardEl = document.getElementById('board');
+const turnEl = document.getElementById('turnIndicator');
+const statusEl = document.getElementById('status');
+const statEl = document.getElementById('stat');
+const logEl = document.getElementById('log');
+const instantBox = document.getElementById('instant');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function pieceOfColorHasMove(color) {
+  for (let r = 0; r < 8; r++)
+    for (let f = 0; f < 8; f++) {
+      const p = board[r][f];
+      if (p && p.color === color && legalSteps(board, r, f).length > 0) return true;
+    }
+  return false;
+}
+
+function render() {
+  boardEl.textContent = '';
+  const kingInCheck = { w: null, b: null };
+  for (const c of ['w', 'b']) {
+    const kp = findKing(board, c);
+    if (kp && isAttacked(board, kp.r, kp.f, c === 'w' ? 'b' : 'w')) kingInCheck[c] = kp;
+  }
+  for (let rank = 7; rank >= 0; rank--) {
+    for (let f = 0; f < 8; f++) {
+      const r = rank;
+      const cell = document.createElement('div');
+      cell.className = 'sq ' + (((r + f) % 2 === 0) ? 'dark' : 'light');
+      const piece = board[r][f];
+      if (piece) {
+        cell.textContent = GLYPH[piece.type];
+        cell.classList.add(piece.color === 'w' ? 'piece-w' : 'piece-b');
+      }
+      if (highlight.justMoved && highlight.justMoved.r === r && highlight.justMoved.f === f) {
+        cell.classList.add('justmoved');
+      }
+      if (highlight.active && highlight.active.r === r && highlight.active.f === f) {
+        cell.classList.add('active');
+      }
+      if (kingInCheck[turn] && kingInCheck[turn].r === r && kingInCheck[turn].f === f) {
+        cell.classList.add('king-check');
+      }
+      if (!walking && !gameOver && piece && piece.color === turn && legalSteps(board, r, f).length > 0) {
+        cell.classList.add('selectable');
+        cell.setAttribute('role', 'button');
+        cell.setAttribute('aria-label', sqName(r, f) + ', ' + piece.color + ' ' + piece.type + ', tap to let it walk');
+        cell.tabIndex = 0;
+        cell.addEventListener('click', () => selectPiece(r, f));
+        cell.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectPiece(r, f); }
+        });
+      }
+      boardEl.appendChild(cell);
+    }
+  }
+  turnEl.textContent = 'Turn: ';
+  const b = document.createElement('b');
+  b.textContent = turn === 'w' ? 'White' : 'Black';
+  turnEl.appendChild(b);
+  turnEl.className = 'turn ' + (turn === 'w' ? 'white-turn' : 'black-turn');
+  statEl.textContent = longestWalk.hops > 0
+    ? 'Longest walk so far: ' + longestWalk.hops + ' hop' + (longestWalk.hops === 1 ? '' : 's') + ' — ' + longestWalk.desc
+    : '';
+}
+
+// ---------------------------------------------------------------------------
+// The walk itself
+// ---------------------------------------------------------------------------
+function selectPiece(r, f) {
+  if (walking || gameOver) return;
+  const piece = board[r][f];
+  if (!piece || piece.color !== turn) return;
+  const steps = legalSteps(board, r, f);
+  if (steps.length === 0) return;
+  walking = true;
+  statusEl.textContent = 'Walking…';
+  statusEl.className = 'status';
+  const startName = sqName(r, f);
+  const pieceLabel = piece.type;
+  const hops = [];
+  hop(r, f, piece.color, null, hops, startName, pieceLabel);
+}
+
+function hop(r, f, color, prevSq, hops, startName, pieceLabel) {
+  let steps = legalSteps(board, r, f);
+  if (prevSq) {
+    const withoutBacktrack = steps.filter((s) => !(s.r === prevSq.r && s.f === prevSq.f));
+    if (withoutBacktrack.length > 0) steps = withoutBacktrack;
+  }
+  if (steps.length === 0 || hops.length >= MAX_HOPS) {
+    finishWalk(hops, startName, pieceLabel, hops.length >= MAX_HOPS);
+    return;
+  }
+  const choice = steps[Math.floor(Math.random() * steps.length)];
+  const piece = board[r][f];
+  const captured = board[choice.r][choice.f];
+  board[r][f] = null;
+  let promoted = false;
+  if (piece.type === 'p' && (choice.r === 7 || choice.r === 0)) { piece.type = 'q'; promoted = true; }
+  board[choice.r][choice.f] = piece;
+  hops.push({ from: { r, f }, to: choice, captured, promoted });
+  highlight = { active: choice, justMoved: { r, f } };
+  render();
+  const go = () => hop(choice.r, choice.f, color, { r, f }, hops, startName, pieceLabel);
+  if (reduceMotion || instantBox.checked) go();
+  else setTimeout(go, STEP_DELAY);
+}
+
+function finishWalk(hops, startName, pieceLabel, capped) {
+  walking = false;
+  highlight = { active: null, justMoved: hops.length ? hops[hops.length - 1].to : null };
+  logWalk(hops, startName, pieceLabel, capped);
+  if (hops.length > longestWalk.hops) {
+    longestWalk = {
+      hops: hops.length,
+      desc: (turn === 'w' ? 'White' : 'Black') + ' ' + pieceLabel + ' from ' + startName + ', turn ' + turnNumber,
+    };
+  }
+  turn = turn === 'w' ? 'b' : 'w';
+  turnNumber++;
+  checkGameEnd();
+  render();
+}
+
+function logWalk(hops, startName, pieceLabel, capped) {
+  const entry = document.createElement('div');
+  if (hops.length === 0) {
+    entry.textContent = turnNumber + '. ' + (turn === 'w' ? 'White' : 'Black') + ' ' + pieceLabel + ' at ' + startName + ' had no legal hop (shouldn’t happen — file a bug).';
+  } else {
+    const path = [startName].concat(hops.map((h) => sqName(h.to.r, h.to.f)));
+    const caps = hops.filter((h) => h.captured).length;
+    const promos = hops.some((h) => h.promoted);
+    let text = turnNumber + '. ' + (turn === 'w' ? 'White' : 'Black') + ' ' + pieceLabel.toUpperCase() +
+      ': ' + path.join('→') + ' (' + hops.length + ' hop' + (hops.length === 1 ? '' : 's') + ')';
+    if (caps > 0) text += ' — captured ' + caps;
+    if (promos) text += ' — promoted';
+    if (capped) text += ' — stopped at the ' + MAX_HOPS + '-hop cap';
+    entry.textContent = text;
+    if (caps > 0) entry.classList.add('cap');
+  }
+  logEl.insertBefore(entry, logEl.firstChild);
+}
+
+function checkGameEnd() {
+  const inCheck = (() => {
+    const kp = findKing(board, turn);
+    return kp && isAttacked(board, kp.r, kp.f, turn === 'w' ? 'b' : 'w');
+  })();
+  const hasMove = pieceOfColorHasMove(turn);
+  if (!hasMove) {
+    gameOver = true;
+    const side = turn === 'w' ? 'White' : 'Black';
+    const winner = turn === 'w' ? 'Black' : 'White';
+    statusEl.className = 'status over';
+    statusEl.textContent = inCheck
+      ? 'Checkmate — ' + side + ' has no piece that can legally move. ' + winner + ' wins.'
+      : 'Stalemate — ' + side + ' has no legal move. Draw.';
+  } else if (inCheck) {
+    statusEl.className = 'status check';
+    statusEl.textContent = (turn === 'w' ? 'White' : 'Black') + ' is in check.';
+  } else {
+    statusEl.className = 'status';
+    statusEl.textContent = ' ';
+  }
+}
+
+function newGame() {
+  board = freshBoard();
+  turn = 'w';
+  walking = false;
+  gameOver = false;
+  longestWalk = { hops: 0, desc: '' };
+  turnNumber = 1;
+  highlight = { active: null, justMoved: null };
+  logEl.textContent = '';
+  statusEl.className = 'status';
+  statusEl.textContent = ' ';
+  render();
+}
+
+document.getElementById('newGame').addEventListener('click', newGame);
+render();
+</script>
+</body>
+</html>

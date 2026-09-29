@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>scatter/r — a mino.mobi lab site</title>
+<meta property="og:title" content="scatter/r — feel what a correlation coefficient actually measures">
+<meta property="og:description" content="Drag dots on a scatter plot and watch Pearson's r move with them — including the two ways it lies to you: curves and outliers.">
+<meta property="og:type" content="website">
+<meta name="description" content="An interactive scatter plot: drag points and watch the correlation coefficient update live, with presets showing where it breaks down.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .presets { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.25rem; }
+  .presets button { font-size: .8rem; padding: .6rem .9rem; min-height: 44px; }
+  .presets button.on { background: var(--accent); color: #000; }
+
+  .plotwrap { max-width: 26rem; margin: 0 auto 1.25rem; }
+  #plot {
+    width: 100%; aspect-ratio: 1 / 1; display: block; touch-action: none;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .hint { text-align: center; font-size: .8rem; color: var(--muted); margin: 0 0 1.5rem; }
+
+  .readout { text-align: center; margin-bottom: 1.5rem; }
+  .rbig { font-size: 3.2rem; font-weight: 600; color: var(--accent); line-height: 1; letter-spacing: -.02em; }
+  .rlabel { color: var(--muted); font-size: .85rem; margin-top: .25rem; min-height: 1.2em; }
+
+  .controls { display: flex; justify-content: center; gap: .6rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .controls button { font-size: .8rem; min-height: 44px; }
+
+  h2 { color: var(--fg); }
+  .try { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>scatter/r</h1>
+  <p class="sub">Drag the dots. Watch the number.</p>
+
+  <div class="presets" id="presets">
+    <button data-preset="pos">strong positive</button>
+    <button data-preset="neg">strong negative</button>
+    <button data-preset="none">no correlation</button>
+    <button data-preset="curve">curved</button>
+    <button data-preset="outlier">one outlier</button>
+  </div>
+
+  <div class="plotwrap">
+    <canvas id="plot" aria-label="Scatter plot. Tap or click empty space to add a point, drag any point to move it."></canvas>
+  </div>
+  <p class="hint">tap empty space to add a point &middot; drag a point to move it</p>
+
+  <div class="readout">
+    <div class="rbig" id="rval">—</div>
+    <div class="rlabel" id="rlabel">pick a preset, or start from scratch</div>
+  </div>
+
+  <div class="controls">
+    <button id="removelast">remove last point</button>
+    <button id="clearall">clear</button>
+  </div>
+
+  <h2>what r means</h2>
+  <p>Pearson's <code>r</code> measures how tightly two variables move together
+  in a <em>straight line</em>. It runs from <code>+1</code> (perfectly
+  positive: as one goes up, the other goes up exactly proportionally) through
+  <code>0</code> (no linear trend) to <code>−1</code> (perfectly negative). It
+  says nothing about which variable causes which, or whether either causes the
+  other at all.</p>
+
+  <h2>where it lies to you</h2>
+  <p>Try <span class="try">curved</span>: those points sit exactly on a
+  parabola — as clean a relationship as the straight-line ones — and <code>r</code>
+  reports near zero anyway, because the trend bends and the two halves cancel
+  each other out. <code>r</code> only sees straight lines.</p>
+  <p>Try <span class="try">one outlier</span>: nine points with no relationship
+  to each other, plus one point far in the corner. Drag that lone point back
+  into the cluster and watch <code>r</code> collapse. A single point, far
+  enough out, can carry the whole statistic.</p>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('scatter/r');
+
+  var canvas = document.getElementById('plot');
+  var ctx = canvas.getContext('2d');
+  var rvalEl = document.getElementById('rval');
+  var rlabelEl = document.getElementById('rlabel');
+  var presetsEl = document.getElementById('presets');
+
+  var PAD = 22;       // px, room for axis lines
+  var MAX_PTS = 40;
+  var HIT_R = 16;      // px, generous for touch
+  var W = 0, H = 0;
+
+  var cssVars = getComputedStyle(document.documentElement);
+  var COLOR_ACCENT = cssVars.getPropertyValue('--accent').trim() || '#e8a33d';
+  var COLOR_BORDER = cssVars.getPropertyValue('--border').trim() || '#26242c';
+  var COLOR_LINE = cssVars.getPropertyValue('--fg').trim() || '#e8e6e3';
+
+  var PRESETS = {
+    pos: [
+      {x:.08,y:.10},{x:.15,y:.18},{x:.22,y:.20},{x:.30,y:.35},{x:.38,y:.40},
+      {x:.45,y:.48},{x:.52,y:.50},{x:.60,y:.62},{x:.68,y:.66},{x:.75,y:.78},
+      {x:.82,y:.80},{x:.90,y:.92}
+    ],
+    neg: [
+      {x:.08,y:.90},{x:.15,y:.82},{x:.22,y:.80},{x:.30,y:.65},{x:.38,y:.60},
+      {x:.45,y:.52},{x:.52,y:.50},{x:.60,y:.38},{x:.68,y:.34},{x:.75,y:.22},
+      {x:.82,y:.20},{x:.90,y:.08}
+    ],
+    none: [
+      {x:.10,y:.62},{x:.18,y:.30},{x:.25,y:.80},{x:.33,y:.45},{x:.40,y:.20},
+      {x:.48,y:.70},{x:.55,y:.55},{x:.62,y:.15},{x:.68,y:.85},{x:.75,y:.40},
+      {x:.82,y:.65},{x:.90,y:.28}
+    ],
+    curve: [
+      {x:.10,y:.39},{x:.20,y:.61},{x:.30,y:.77},{x:.40,y:.86},{x:.50,y:.90},
+      {x:.60,y:.86},{x:.70,y:.77},{x:.80,y:.61},{x:.90,y:.39}
+    ],
+    outlier: [
+      {x:.10,y:.15},{x:.14,y:.25},{x:.18,y:.12},{x:.22,y:.28},{x:.12,y:.22},
+      {x:.20,y:.18},{x:.25,y:.20},{x:.16,y:.30},{x:.28,y:.14},{x:.92,y:.95}
+    ]
+  };
+
+  var points = [];
+  var dragging = -1;
+
+  function toPx(p) {
+    return { x: PAD + p.x * (W - 2 * PAD), y: H - PAD - p.y * (H - 2 * PAD) };
+  }
+  function toNorm(px, py) {
+    var x = (px - PAD) / (W - 2 * PAD);
+    var y = (H - PAD - py) / (H - 2 * PAD);
+    return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
+  }
+
+  function pearson(pts) {
+    var n = pts.length;
+    if (n < 2) return null;
+    var sx = 0, sy = 0, i;
+    for (i = 0; i < n; i++) { sx += pts[i].x; sy += pts[i].y; }
+    var mx = sx / n, my = sy / n;
+    var sxy = 0, sxx = 0, syy = 0, dx, dy;
+    for (i = 0; i < n; i++) {
+      dx = pts[i].x - mx; dy = pts[i].y - my;
+      sxy += dx * dy; sxx += dx * dx; syy += dy * dy;
+    }
+    if (sxx === 0 || syy === 0) return null;
+    return { r: sxy / Math.sqrt(sxx * syy), b: sxy / sxx, a: my - (sxy / sxx) * mx };
+  }
+
+  function fmtR(r) {
+    if (r === null) return '—';
+    var sign = r < 0 ? '−' : '+';
+    return sign + Math.abs(r).toFixed(2);
+  }
+
+  function describe(fit, n) {
+    if (n < 2) return 'add at least two points';
+    if (fit === null) return 'no spread on one axis — r is undefined';
+    var a = Math.abs(fit.r);
+    var strength = a < 0.1 ? 'no linear relationship'
+      : a < 0.3 ? 'a weak' : a < 0.5 ? 'a moderate' : a < 0.7 ? 'a strong'
+      : a < 0.9 ? 'a very strong' : 'a near-perfect';
+    if (a < 0.1) return strength;
+    return strength + ' ' + (fit.r > 0 ? 'positive' : 'negative') + ' linear relationship';
+  }
+
+  function updateReadout() {
+    var fit = pearson(points);
+    rvalEl.textContent = fit ? fmtR(fit.r) : (points.length < 2 ? '—' : fmtR(null));
+    rlabelEl.textContent = describe(fit, points.length);
+    return fit;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // axes
+    ctx.strokeStyle = COLOR_BORDER;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD, PAD); ctx.lineTo(PAD, H - PAD); ctx.lineTo(W - PAD, H - PAD);
+    ctx.stroke();
+
+    var fit = pearson(points);
+
+    // regression line, clipped to the unit square
+    if (fit) {
+      var y0 = fit.a, y1 = fit.a + fit.b;
+      var p0 = toPx({ x: 0, y: Math.min(1, Math.max(0, y0)) });
+      var p1 = toPx({ x: 1, y: Math.min(1, Math.max(0, y1)) });
+      ctx.save();
+      ctx.strokeStyle = COLOR_LINE;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+      ctx.restore();
+    }
+
+    // points
+    for (var i = 0; i < points.length; i++) {
+      var px = toPx(points[i]);
+      ctx.beginPath();
+      ctx.fillStyle = i === dragging ? '#fff' : COLOR_ACCENT;
+      ctx.arc(px.x, px.y, i === dragging ? 8 : 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function sizeCanvas() {
+    var rect = canvas.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function nearestPoint(px, py) {
+    var best = -1, bestD = HIT_R * HIT_R;
+    for (var i = 0; i < points.length; i++) {
+      var p = toPx(points[i]);
+      var d = (p.x - px) * (p.x - px) + (p.y - py) * (p.y - py);
+      if (d <= bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  function setActivePreset(name) {
+    var btns = presetsEl.querySelectorAll('button');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('on', btns[i].getAttribute('data-preset') === name);
+    }
+  }
+
+  function loadPreset(name) {
+    var src = PRESETS[name];
+    if (!src) return;
+    points = src.map(function (p) { return { x: p.x, y: p.y }; });
+    dragging = -1;
+    setActivePreset(name);
+    draw(); updateReadout();
+  }
+
+  canvas.addEventListener('pointerdown', function (e) {
+    var rect = canvas.getBoundingClientRect();
+    var px = e.clientX - rect.left, py = e.clientY - rect.top;
+    var hit = nearestPoint(px, py);
+    if (hit !== -1) {
+      dragging = hit;
+    } else if (points.length < MAX_PTS) {
+      points.push(toNorm(px, py));
+      dragging = points.length - 1;
+      setActivePreset(null);
+    } else {
+      return;
+    }
+    canvas.setPointerCapture(e.pointerId);
+    draw(); updateReadout();
+  });
+
+  canvas.addEventListener('pointermove', function (e) {
+    if (dragging === -1) return;
+    var rect = canvas.getBoundingClientRect();
+    var px = e.clientX - rect.left, py = e.clientY - rect.top;
+    points[dragging] = toNorm(px, py);
+    setActivePreset(null);
+    draw(); updateReadout();
+  });
+
+  function endDrag(e) {
+    if (dragging === -1) return;
+    dragging = -1;
+    draw(); updateReadout();
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  presetsEl.addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-preset]');
+    if (btn) loadPreset(btn.getAttribute('data-preset'));
+  });
+
+  document.getElementById('removelast').addEventListener('click', function () {
+    points.pop();
+    setActivePreset(null);
+    draw(); updateReadout();
+  });
+  document.getElementById('clearall').addEventListener('click', function () {
+    points = [];
+    setActivePreset(null);
+    draw(); updateReadout();
+  });
+
+  window.addEventListener('resize', sizeCanvas);
+  sizeCanvas();
+  loadPreset('pos');
+})();
+</script>
+</body>
+</html>

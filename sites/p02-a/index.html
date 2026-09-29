@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Commute</title>
+<meta name="description" content="A simulated electric foilboard commute across San Francisco Bay, Lake Merritt to Oracle's Redwood Shores campus — real coordinates, real physics.">
+<meta property="og:title" content="My Commute">
+<meta property="og:description" content="A tiny one-person electric foilboard, simulated all the way from Lake Merritt to Oracle's Redwood Shores campus — real bay coordinates, live battery and chop physics, drivable throttle.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    margin: 0; padding: 0; background: #06131c; color: var(--fg);
+    font: 16px/1.5 var(--mono);
+  }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  .hud { position: fixed; z-index: 2; pointer-events: none; }
+  .panel {
+    pointer-events: auto;
+    background: rgba(14, 14, 17, .78);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .7rem .85rem;
+    backdrop-filter: blur(2px);
+  }
+
+  #title-panel { top: 0; left: 0; right: 0; padding: .85rem 1rem .6rem; }
+  #title-panel h1 {
+    margin: 0; font-size: clamp(1.15rem, 4vw, 1.6rem); letter-spacing: -.02em;
+    color: var(--accent); font-family: var(--mono);
+  }
+  #title-panel .sub { margin: .2rem 0 0; font-size: .78rem; color: var(--muted); max-width: 34rem; }
+
+  #stats-panel.panel {
+    top: auto; bottom: .75rem; left: .75rem; right: .75rem;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+    gap: .5rem .9rem;
+  }
+  .stat { display: flex; flex-direction: column; gap: .1rem; }
+  .stat .k { font-size: .62rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .stat .v { font-size: 1rem; color: var(--fg); font-variant-numeric: tabular-nums; }
+  .stat .v.warn { color: var(--error); }
+  .stat .v.ok { color: var(--ok); }
+
+  #battery-bar { grid-column: 1 / -1; height: .55rem; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; background: var(--bg-raised); margin-top: .1rem; }
+  #battery-fill { height: 100%; width: 100%; background: var(--ok); transition: width .2s linear, background .3s linear; }
+
+  #controls-panel {
+    top: 4.6rem; right: .75rem; width: min(16rem, 44vw);
+    display: flex; flex-direction: column; gap: .65rem;
+  }
+  .ctrl label { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin-bottom: .25rem; }
+  .ctrl label b { color: var(--fg); font-weight: normal; }
+  input[type=range] {
+    width: 100%; height: 2.2rem; -webkit-appearance: none; appearance: none;
+    background: transparent; margin: 0; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 6px; background: var(--border); border-radius: 3px; }
+  input[type=range]::-moz-range-track { height: 6px; background: var(--border); border-radius: 3px; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; margin-top: -9px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); border: 2px solid #06131c;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); border: 2px solid #06131c;
+  }
+
+  .btnrow { display: flex; gap: .5rem; }
+  .btnrow button {
+    flex: 1; min-height: 44px; padding: .5rem .6rem; font-size: .85rem;
+    background: var(--accent-dim); color: var(--accent);
+    border: 1px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+  }
+  .btnrow button:hover { background: var(--accent); color: #000; }
+  .btnrow button:active { transform: translateY(1px); }
+
+  #arrival {
+    position: fixed; inset: 0; z-index: 3; display: none;
+    align-items: center; justify-content: center; padding: 1.5rem;
+    background: rgba(6, 19, 28, .78);
+  }
+  #arrival.show { display: flex; }
+  #arrival .card {
+    max-width: 26rem; text-align: center;
+  }
+  #arrival h2 { color: var(--accent); margin: 0 0 .5rem; font-size: 1.3rem; }
+  #arrival p { color: var(--muted); font-size: .85rem; margin: .3rem 0; }
+  #arrival button { margin-top: 1rem; }
+
+  #legend {
+    top: auto; bottom: .75rem; left: .75rem; max-width: 20rem;
+    font-size: .68rem; color: var(--muted); display: none;
+  }
+
+  @media (max-width: 560px) {
+    #controls-panel { top: auto; bottom: 8.5rem; right: .5rem; left: .5rem; width: auto; }
+    #stats-panel.panel { bottom: .5rem; left: .5rem; right: .5rem; grid-template-columns: repeat(3, 1fr); }
+    #title-panel { padding: .65rem .75rem .5rem; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div class="hud" id="title-panel">
+  <div class="panel">
+    <h1>My Commute</h1>
+    <p class="sub">A one-person electric foilboard, simulated from Lake Merritt to Oracle's Redwood Shores campus — real bay coordinates, computed drag and battery. Coastline is stylized; the route and physics are not.</p>
+  </div>
+</div>
+
+<div class="hud" id="controls-panel">
+  <div class="panel">
+    <div class="ctrl">
+      <label for="throttle">Throttle <b id="throttle-val">60%</b></label>
+      <input type="range" id="throttle" min="0" max="100" value="60" step="1" aria-label="Throttle percent">
+    </div>
+    <div class="ctrl">
+      <label for="warp">Playback speed <b id="warp-val">40×</b></label>
+      <input type="range" id="warp" min="1" max="200" value="40" step="1" aria-label="Playback speed multiplier">
+    </div>
+    <div class="btnrow">
+      <button id="playpause" type="button">Pause</button>
+      <button id="reset" type="button">Reset</button>
+    </div>
+  </div>
+</div>
+
+<div class="hud panel" id="stats-panel">
+  <div class="stat"><span class="k">Speed</span><span class="v" id="v-speed">—</span></div>
+  <div class="stat"><span class="k">Distance</span><span class="v" id="v-dist">—</span></div>
+  <div class="stat"><span class="k">Elapsed</span><span class="v" id="v-elapsed">—</span></div>
+  <div class="stat"><span class="k">ETA</span><span class="v" id="v-eta">—</span></div>
+  <div class="stat"><span class="k">Sea state</span><span class="v" id="v-chop">—</span></div>
+  <div class="stat"><span class="k">Battery</span><span class="v" id="v-batt">—</span></div>
+  <div id="battery-bar"><div id="battery-fill"></div></div>
+</div>
+
+<div id="arrival">
+  <div class="card">
+    <h2 id="arrival-title">Arrived</h2>
+    <p id="arrival-body"></p>
+    <button id="arrival-close" type="button">Watch again</button>
+  </div>
+</div>
+
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---- Real waypoints (approximate) tracing the water route a small
+  // craft would actually take: out the Lake Merritt channel, down the
+  // Oakland Estuary, south across the open bay, then into the Redwood
+  // Shores lagoon system. Not a straight line over land. ----
+  var ROUTE = [
+    { lat: 37.8078, lon: -122.2496, name: 'Lake Merritt',        exposure: 0.10 },
+    { lat: 37.7935, lon: -122.2605, name: null,                   exposure: 0.20 },
+    { lat: 37.7460, lon: -122.2340, name: 'Estuary mouth',        exposure: 0.55 },
+    { lat: 37.7130, lon: -122.2130, name: 'San Leandro Bay',      exposure: 0.85 },
+    { lat: 37.6150, lon: -122.2480, name: 'mid-South Bay',        exposure: 0.95 },
+    { lat: 37.5470, lon: -122.2080, name: 'off Port Redwood City',exposure: 0.70 },
+    { lat: 37.5330, lon: -122.2380, name: 'Westpoint Slough',     exposure: 0.30 },
+    { lat: 37.5297, lon: -122.2666, name: 'Oracle · Redwood Shores', exposure: 0.10 }
+  ];
+
+  function haversine(a, b) {
+    var R = 6371000;
+    var toRad = Math.PI / 180;
+    var dLat = (b.lat - a.lat) * toRad;
+    var dLon = (b.lon - a.lon) * toRad;
+    var lat1 = a.lat * toRad, lat2 = b.lat * toRad;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+
+  // Cumulative arc length at each waypoint, and total route distance —
+  // computed here at runtime from real coordinates, not hard-coded.
+  var cum = [0];
+  for (var i = 1; i < ROUTE.length; i++) {
+    cum.push(cum[i - 1] + haversine(ROUTE[i - 1], ROUTE[i]));
+  }
+  var TOTAL_M = cum[cum.length - 1];
+
+  // Position + bearing at a given arc-length distance along the route.
+  function pointAt(distM) {
+    distM = Math.max(0, Math.min(TOTAL_M, distM));
+    var seg = 0;
+    while (seg < cum.length - 2 && cum[seg + 1] < distM) seg++;
+    var a = ROUTE[seg], b = ROUTE[seg + 1];
+    var segLen = cum[seg + 1] - cum[seg];
+    var t = segLen > 0 ? (distM - cum[seg]) / segLen : 0;
+    return {
+      lat: a.lat + (b.lat - a.lat) * t,
+      lon: a.lon + (b.lon - a.lon) * t,
+      seg: seg,
+      exposure: a.exposure + (b.exposure - a.exposure) * t,
+      bearing: Math.atan2(
+        (b.lon - a.lon) * Math.cos((a.lat + b.lat) / 2 * Math.PI / 180),
+        (b.lat - a.lat)
+      )
+    };
+  }
+
+  // ---- Equirectangular projection of the route's own bounding box into
+  // canvas space, scaled by cos(midLat) so longitude degrees aren't
+  // stretched at this latitude. Fit-with-letterbox so it holds at any
+  // aspect ratio, including a narrow phone. ----
+  var lats = ROUTE.map(function (p) { return p.lat; });
+  var lons = ROUTE.map(function (p) { return p.lon; });
+  var midLat = (Math.min.apply(null, lats) + Math.max.apply(null, lats)) / 2;
+  var cosMid = Math.cos(midLat * Math.PI / 180);
+  var lonSpan = (Math.max.apply(null, lons) - Math.min.apply(null, lons)) * cosMid;
+  var latSpan = Math.max.apply(null, lats) - Math.min.apply(null, lats);
+  var lonMid = (Math.min.apply(null, lons) + Math.max.apply(null, lons)) / 2;
+  var latMinV = Math.min.apply(null, lats), latMaxV = Math.max.apply(null, lats);
+
+  function worldXY(lat, lon) {
+    return { x: (lon - lonMid) * cosMid, y: lat };
+  }
+
+  var canvas = document.getElementById('scene');
+  var ctx = canvas.getContext('2d');
+  var W = 0, H = 0, DPR = 1;
+  var fit = { scale: 1, ox: 0, oy: 0 };
+
+  var controlsPanelEl = document.getElementById('controls-panel');
+  var statsPanelEl = document.getElementById('stats-panel');
+
+  // On a narrow phone the controls panel stacks above the stats panel with
+  // a CSS `bottom` guessed at a fixed rem value — but the stats panel's own
+  // height depends on its content (it wraps to 2 rows at 3 columns), so a
+  // guessed gap either overlaps it (buttons become untappable, covered by
+  // the stats panel) or leaves too much dead space. Measure the stats
+  // panel's real rendered height each resize and place the controls panel
+  // that far above it, the same "measure, don't guess" approach already
+  // used for the canvas's own bottom padding below.
+  var lastStatsH = -1;
+  function layoutMobileHud() {
+    var mobile = window.matchMedia('(max-width: 560px)').matches;
+    if (!mobile) { controlsPanelEl.style.bottom = ''; lastStatsH = -1; return; }
+    var statsBox = statsPanelEl.getBoundingClientRect();
+    lastStatsH = statsBox.height;
+    controlsPanelEl.style.bottom = (window.innerHeight - statsBox.top + 8) + 'px';
+  }
+
+  // The stats panel's height is content-driven, not just viewport-driven:
+  // its readouts start as em-dashes and grow once real numbers land (e.g.
+  // "0.1 / 23.0 mi" wraps to a second line where "—" didn't), which changes
+  // the panel's height *after* the one `resize` event on load already ran
+  // `layoutMobileHud`. Re-check every frame and only redo the (cheap, two
+  // elements) layout when the height actually moved, so the controls panel
+  // never drifts back down onto a stats panel that grew taller underneath it.
+  function watchMobileHudHeight() {
+    if (!window.matchMedia('(max-width: 560px)').matches) return;
+    if (statsPanelEl.getBoundingClientRect().height !== lastStatsH) resize();
+  }
+
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    layoutMobileHud();
+
+    // Vertical padding is asymmetric and measured from the real HUD panels
+    // (not guessed percentages) because on a narrow phone the controls
+    // panel stacks above the stats panel and eats much more of the
+    // viewport than it does on desktop, where they sit side by side.
+    var titleBox = document.getElementById('title-panel').getBoundingClientRect();
+    var controlsBox = document.getElementById('controls-panel').getBoundingClientRect();
+    var statsBox = document.getElementById('stats-panel').getBoundingClientRect();
+    var padX = W * 0.28;
+    var padTop = Math.max(titleBox.bottom + 14, 90);
+    var bottomTops = [controlsBox.top, statsBox.top].filter(function (v) { return v >= H * 0.5; });
+    // +34 rather than a bare gap: waypoint labels are drawn a few px below
+    // their dot, and the last two waypoints cluster right at the route's
+    // southern end — they need headroom above the panel, not just the dot.
+    var padBottom = bottomTops.length ? Math.max(H - Math.min.apply(null, bottomTops) + 34, 90) : 90;
+    var left = padX, right = W - padX, top = padTop, bottom = H - padBottom;
+    var availW = Math.max(40, right - left), availH = Math.max(40, bottom - top);
+    var sx = lonSpan > 0 ? availW / lonSpan : availW;
+    var sy = latSpan > 0 ? availH / latSpan : availH;
+    fit.scale = Math.min(sx, sy);
+    fit.ox = (left + right) / 2;
+    fit.oy = (top + bottom) / 2;
+  }
+
+  function project(lat, lon) {
+    var w = worldXY(lat, lon);
+    var midW = worldXY(midLat, lonMid);
+    return {
+      x: fit.ox + (w.x - midW.x) * fit.scale,
+      // screen y grows downward; latitude grows northward (upward)
+      y: fit.oy - (lat - midLat) * fit.scale
+    };
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---- Stylized coastline. Decorative only — a sine-sum silhouette
+  // around the real route's bounding box, not map data (none is available
+  // offline). The route line and boat physics below use real coordinates;
+  // this is just scenery. ----
+  function edgeOffset(vNorm, phaseSet) {
+    var s = 0;
+    for (var k = 0; k < phaseSet.length; k++) {
+      var f = phaseSet[k];
+      s += Math.sin(vNorm * f[0] + f[1]) * f[2];
+    }
+    return s;
+  }
+  var LEFT_PHASES = [[6.3, 0.6, 0.5], [13.1, 2.1, 0.3], [21.7, 4.0, 0.18]];
+  var RIGHT_PHASES = [[5.1, 1.9, 0.45], [11.4, 0.2, 0.32], [19.3, 3.1, 0.2]];
+
+  function drawScene(state) {
+    ctx.clearRect(0, 0, W, H);
+
+    // sky
+    var sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#0a2233');
+    sky.addColorStop(1, '#06131c');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    var laneHalf = Math.max(W * 0.16, 60);
+    var cx = fit.ox;
+
+    // land (left + right), wavy edge toward the water lane
+    ctx.fillStyle = '#1c2b1e';
+    var steps = 40;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    for (var i = 0; i <= steps; i++) {
+      var v = i / steps, y = v * H;
+      var off = edgeOffset(v, LEFT_PHASES) * (W * 0.10);
+      ctx.lineTo(cx - laneHalf + off, y);
+    }
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(W, 0);
+    for (var j = 0; j <= steps; j++) {
+      var v2 = j / steps, y2 = v2 * H;
+      var off2 = edgeOffset(v2, RIGHT_PHASES) * (W * 0.10);
+      ctx.lineTo(cx + laneHalf + off2, y2);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+
+    // water lane
+    var water = ctx.createLinearGradient(cx - laneHalf, 0, cx + laneHalf, 0);
+    water.addColorStop(0, '#0e3450');
+    water.addColorStop(0.5, '#134a6e');
+    water.addColorStop(1, '#0e3450');
+    ctx.fillStyle = water;
+    ctx.fillRect(cx - laneHalf, 0, laneHalf * 2, H);
+
+    // chop ripples near the boat's current exposure level
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.05 + 0.10 * state.chop) + ')';
+    ctx.lineWidth = 1;
+    var rippleCount = Math.round(6 + state.chop * 18);
+    for (var r = 0; r < rippleCount; r++) {
+      var ry = ((r * 97 + state.simTime * 40) % (H + 40)) - 20;
+      var rx = cx - laneHalf + 10 + (r * 53) % (laneHalf * 2 - 20);
+      ctx.beginPath();
+      ctx.moveTo(rx - 10, ry);
+      ctx.lineTo(rx + 10, ry);
+      ctx.stroke();
+    }
+
+    // route line
+    ctx.setLineDash([6, 6]);
+    ctx.strokeStyle = 'rgba(232,163,61,.55)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var p = 0; p < ROUTE.length; p++) {
+      var pr = project(ROUTE[p].lat, ROUTE[p].lon);
+      if (p === 0) ctx.moveTo(pr.x, pr.y); else ctx.lineTo(pr.x, pr.y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // waypoint dots + labels. On a narrow phone only the two named
+    // endpoints get text — the mid-route labels crowd and overlap when
+    // there isn't much vertical room between them.
+    ctx.font = '12px ' + getComputedStyle(document.body).fontFamily;
+    var showAllLabels = W > 700;
+    for (var q = 0; q < ROUTE.length; q++) {
+      var wp = ROUTE[q];
+      var pt = project(wp.lat, wp.lon);
+      var isTerminus = q === 0 || q === ROUTE.length - 1;
+      ctx.fillStyle = wp.name ? '#e8a33d' : 'rgba(232,163,61,.5)';
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, wp.name ? 4 : 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      if (wp.name && (isTerminus || showAllLabels)) {
+        ctx.fillStyle = '#e8e6e3';
+        var isEnd = q === ROUTE.length - 1;
+        var textW = ctx.measureText(wp.name).width;
+        var lx = isEnd ? pt.x - 9 - textW : pt.x + 9;
+        // clamp so a long label near a screen edge never runs off-canvas
+        lx = Math.max(4, Math.min(W - textW - 4, lx));
+        ctx.textAlign = 'left';
+        ctx.fillText(wp.name, lx, pt.y + 4);
+      }
+    }
+
+    // wake trail
+    for (var wI = 0; wI < state.wake.length; wI++) {
+      var wpt = state.wake[wI];
+      var age = state.simTime - wpt.t;
+      var alpha = Math.max(0, 0.35 - age * 0.03);
+      if (alpha <= 0) continue;
+      ctx.fillStyle = 'rgba(220,235,245,' + alpha + ')';
+      ctx.beginPath();
+      ctx.arc(wpt.x, wpt.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // boat
+    var here = pointAt(state.distance);
+    var ahead = pointAt(state.distance + 2);
+    var pHere = project(here.lat, here.lon);
+    var pAhead = project(ahead.lat, ahead.lon);
+    var heading = Math.atan2(pAhead.y - pHere.y, pAhead.x - pHere.x);
+    ctx.save();
+    ctx.translate(pHere.x, pHere.y);
+    ctx.rotate(heading);
+    ctx.fillStyle = '#e8e6e3';
+    ctx.beginPath();
+    ctx.moveTo(11, 0);
+    ctx.lineTo(-8, 5.5);
+    ctx.lineTo(-4, 0);
+    ctx.lineTo(-8, -5.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    return { boatScreen: pHere };
+  }
+
+  // ---- Physics constants for a light single-person electric foilboard ----
+  var MAX_SPEED_MS = 11.3;       // ~25 mph / ~22 kt top speed
+  var ACCEL_TAU = 3.5;           // seconds to settle toward a new throttle target
+  var CHOP_DRAG_MAX = 0.4;       // top speed cut in the roughest open-bay chop
+  var BATTERY_KWH = 2.4;         // small single-rider pack
+  var DRAG_K = 3.1 / Math.pow(MAX_SPEED_MS, 3); // so top speed draws ~3.1 kW
+  var HOTEL_KW = 0.05;
+
+  var MS_TO_MPH = 2.23694;
+
+  var state = {
+    throttle: 0.60,
+    warp: 40,
+    playing: true,
+    distance: 0,
+    simTime: 0,
+    speed: 0,
+    chop: 0,
+    energyUsedKWh: 0,
+    wake: [],
+    arrived: false,
+    lastWakeT: -999
+  };
+
+  var els = {
+    throttle: document.getElementById('throttle'),
+    throttleVal: document.getElementById('throttle-val'),
+    warp: document.getElementById('warp'),
+    warpVal: document.getElementById('warp-val'),
+    playpause: document.getElementById('playpause'),
+    reset: document.getElementById('reset'),
+    speed: document.getElementById('v-speed'),
+    dist: document.getElementById('v-dist'),
+    elapsed: document.getElementById('v-elapsed'),
+    eta: document.getElementById('v-eta'),
+    chop: document.getElementById('v-chop'),
+    batt: document.getElementById('v-batt'),
+    battFill: document.getElementById('battery-fill'),
+    arrival: document.getElementById('arrival'),
+    arrivalTitle: document.getElementById('arrival-title'),
+    arrivalBody: document.getElementById('arrival-body'),
+    arrivalClose: document.getElementById('arrival-close')
+  };
+
+  function fmtTime(sec) {
+    if (!isFinite(sec)) return '—';
+    sec = Math.max(0, Math.round(sec));
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function fmtMiles(m) { return (m / 1609.34).toFixed(1); }
+
+  function chopLabel(c) {
+    if (c < 0.28) return 'calm';
+    if (c < 0.6) return 'moderate';
+    return 'rough';
+  }
+
+  function reset() {
+    state.distance = 0;
+    state.simTime = 0;
+    state.speed = 0;
+    state.energyUsedKWh = 0;
+    state.wake = [];
+    state.arrived = false;
+    state.lastWakeT = -999;
+    els.arrival.classList.remove('show');
+    state.playing = true;
+    els.playpause.textContent = 'Pause';
+  }
+
+  els.throttle.addEventListener('input', function () {
+    state.throttle = Number(els.throttle.value) / 100;
+    els.throttleVal.textContent = els.throttle.value + '%';
+  });
+  els.warp.addEventListener('input', function () {
+    state.warp = Number(els.warp.value);
+    els.warpVal.textContent = state.warp + '×';
+  });
+  els.playpause.addEventListener('click', function () {
+    if (state.arrived) return;
+    state.playing = !state.playing;
+    els.playpause.textContent = state.playing ? 'Pause' : 'Play';
+  });
+  els.reset.addEventListener('click', reset);
+  els.arrivalClose.addEventListener('click', reset);
+
+  var battPct = 100;
+
+  function step(dtRealMs) {
+    if (!state.playing || state.arrived) return;
+    var dtReal = Math.min(100, dtRealMs) / 1000;      // clamp: a backgrounded
+    var dtSim = dtReal * state.warp;                   // tab must not dump a
+    state.simTime += dtSim;                             // giant dt on refocus
+
+    var here = pointAt(state.distance);
+    var chopBase = here.exposure;
+    var chopWave = 0.75 + 0.25 * Math.sin(state.simTime * 0.35 + here.seg * 1.7);
+    state.chop = Math.max(0, Math.min(1, chopBase * chopWave));
+
+    var batteryFrac = Math.max(0, 1 - state.energyUsedKWh / BATTERY_KWH);
+    var throttleEff = batteryFrac > 0 ? state.throttle : 0;
+    var targetSpeed = throttleEff * MAX_SPEED_MS * (1 - CHOP_DRAG_MAX * state.chop);
+
+    var alpha = Math.min(1, dtSim / ACCEL_TAU);
+    state.speed += (targetSpeed - state.speed) * alpha;
+    if (state.speed < 0.02 && targetSpeed === 0) state.speed = 0;
+
+    var powerKW = DRAG_K * Math.pow(Math.max(0, state.speed), 3) + HOTEL_KW;
+    state.energyUsedKWh += powerKW * dtSim / 3600;
+    battPct = Math.max(0, 100 * (1 - state.energyUsedKWh / BATTERY_KWH));
+
+    state.distance = Math.min(TOTAL_M, state.distance + state.speed * dtSim);
+
+    if (state.simTime - state.lastWakeT > 0.9 && state.speed > 0.3) {
+      var pB = project(here.lat, here.lon);
+      state.wake.push({ x: pB.x, y: pB.y, t: state.simTime });
+      state.lastWakeT = state.simTime;
+      if (state.wake.length > 40) state.wake.shift();
+    }
+
+    if (state.distance >= TOTAL_M && !state.arrived) {
+      state.arrived = true;
+      state.playing = false;
+      state.speed = 0;
+      var avgMph = (TOTAL_M / 1609.34) / (state.simTime / 3600);
+      els.arrivalTitle.textContent = 'Arrived at Oracle · Redwood Shores';
+      els.arrivalBody.textContent =
+        fmtMiles(TOTAL_M) + ' miles in ' + fmtTime(state.simTime) +
+        ', averaging ' + avgMph.toFixed(1) + ' mph.' +
+        (battPct <= 0.5 ? ' Rolled in on fumes.' : ' Battery at ' + Math.round(battPct) + '%.');
+      els.arrival.classList.add('show');
+    } else if (battPct <= 0 && state.speed === 0 && !state.arrived) {
+      els.eta.textContent = 'stalled';
+    }
+  }
+
+  function updateStats() {
+    els.speed.textContent = (state.speed * MS_TO_MPH).toFixed(1) + ' mph';
+    els.dist.textContent = fmtMiles(state.distance) + ' / ' + fmtMiles(TOTAL_M) + ' mi';
+    els.elapsed.textContent = fmtTime(state.simTime);
+    var remaining = TOTAL_M - state.distance;
+    if (state.arrived) {
+      els.eta.textContent = 'arrived';
+    } else if (state.speed > 0.15) {
+      els.eta.textContent = fmtTime(remaining / state.speed);
+    } else if (battPct <= 0) {
+      els.eta.textContent = 'stalled';
+    } else {
+      els.eta.textContent = '—';
+    }
+    var cl = chopLabel(state.chop);
+    els.chop.textContent = cl;
+    els.chop.className = 'v' + (cl === 'rough' ? ' warn' : '');
+    els.batt.textContent = Math.round(battPct) + '%';
+    els.batt.className = 'v' + (battPct < 20 ? ' warn' : battPct > 60 ? ' ok' : '');
+    els.battFill.style.width = Math.max(0, battPct) + '%';
+    els.battFill.style.background = battPct < 20 ? 'var(--error)' : battPct < 50 ? 'var(--accent)' : 'var(--ok)';
+  }
+
+  var lastT = null;
+  function frame(t) {
+    if (lastT == null) lastT = t;
+    var dt = t - lastT;
+    lastT = t;
+    step(dt);
+    drawScene(state);
+    updateStats();
+    watchMobileHudHeight();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

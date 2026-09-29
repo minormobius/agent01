@@ -1,0 +1,23 @@
+diff --git a/lab/_profiles/ponder.ooo.md b/lab/_profiles/ponder.ooo.md
+index a146b15b..7c8beb29 100644
+--- a/lab/_profiles/ponder.ooo.md
++++ b/lab/_profiles/ponder.ooo.md
+@@ -71,6 +71,18 @@ complaint) and ask for the version that doesn't have an escape hatch. Worth
+ flagging the shortcut explicitly in the copy/BRIEF *before* they have to ask
+ — they clearly read that level of detail.
+ 
++Seventh request, a new site: "exhaustive gallery of elementary cellular
++automata... let the user set the initial condition in one place & generate
++the whole gallery in parallel from that." Read "exhaustive" the same literal
++way as the Newman-polynomial degree bound: all 256 rules, not a curated
++sample of "interesting" ones. Read "in parallel" as side-by-side/simultaneous
++rather than literally multi-threaded, since the actual compute is trivial —
++worth stating that reading explicitly in the handoff note given the pattern
++of noticing when an implementation quietly took a shortcut. Added one thing
++not explicitly asked for: clicking a rendered automaton opens its actual
++rule truth table, not just a bigger picture — consistent with the standing
++preference for exposing the real mechanism, not just a picture of the output.
++
+ ## Said no to
+ Nothing yet — no request has been declined or walked back.
+ 

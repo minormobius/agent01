@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drumlight — a rotating space colony you can watch from inside</title>
+<meta property="og:title" content="Drumlight — a rotating space colony you can watch from inside">
+<meta property="og:description" content="You're inside the spinning drum of a space colony. Farms, orchards and rooftops sweep past as the hull turns. Hover or tap a colonist to hear what they're thinking.">
+<meta property="og:type" content="website">
+<meta name="description" content="A pastoral space colony simulator. Sit at the axis of a rotating cylindrical habitat and watch it turn around you; hover or tap colonists to read their thoughts.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  html, body { height: 100%; }
+  body { margin: 0; padding: 0; overflow: hidden; background: #05060a; }
+  main { max-width: none; margin: 0; padding: 0; }
+  .crumb { position: fixed; top: .6rem; left: .75rem; z-index: 20; margin: 0;
+           font-size: .72rem; background: rgba(14,14,17,.55); padding: .2rem .5rem;
+           border-radius: var(--radius); backdrop-filter: blur(2px); }
+
+  #stage { position: fixed; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  .hud {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+    display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+    padding: .6rem .75rem calc(.6rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, rgba(5,6,10,.92), rgba(5,6,10,0));
+    font-size: .78rem; color: var(--muted);
+  }
+  .hud b { color: var(--fg); }
+  .hud button {
+    padding: .55rem .9rem; font: inherit; font-size: .78rem; cursor: pointer;
+    background: var(--accent-dim); color: var(--accent);
+    border: 1px solid var(--accent); border-radius: var(--radius);
+    min-height: 44px; min-width: 44px;
+  }
+  .hud button:hover { background: var(--accent); color: #000; }
+  .hud .hint { flex: 1 1 auto; min-width: 12rem; }
+
+  #thought {
+    position: fixed; z-index: 30; max-width: min(78vw, 20rem);
+    background: rgba(16,16,20,.94); border: 1px solid var(--accent);
+    border-radius: var(--radius); padding: .6rem .75rem;
+    font-size: .8rem; line-height: 1.45; color: var(--fg);
+    pointer-events: none; transform: translate(-50%, -115%);
+    box-shadow: 0 6px 22px rgba(0,0,0,.45);
+  }
+  #thought b { display: block; color: var(--accent); font-size: .74rem;
+               text-transform: uppercase; letter-spacing: .04em; margin-bottom: .25rem; }
+  #thought.hidden, .hidden { display: none !important; }
+
+  #loading {
+    position: fixed; inset: 0; z-index: 40; display: flex; align-items: center;
+    justify-content: center; color: var(--muted); font-size: .85rem; background: #05060a;
+  }
+  #fail { position: fixed; inset: 1rem auto auto 1rem; z-index: 40; max-width: 26rem; }
+
+  @media (max-width: 480px) {
+    .hud .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi" style="color:var(--muted)">mino.mobi</a> / <a href="../" style="color:var(--muted)">lab</a> / drumlight</div>
+
+<div id="stage">
+  <div id="loading">spinning up the drum…</div>
+  <div id="fail" class="err hidden"></div>
+</div>
+
+<div id="thought" class="hidden" role="status" aria-live="polite">
+  <b id="thoughtName"></b>
+  <div id="thoughtText"></div>
+</div>
+
+<div class="hud">
+  <button id="spinBtn" type="button">pause spin</button>
+  <span class="hint">You're floating at the axis of a rotating habitat drum — the colony turns past you. <b>Hover</b> a colonist (or <b>tap</b> on mobile) to hear their thoughts.</span>
+</div>
+
+<script type="module">
+import * as THREE from '../_kit/three.module.min.js';
+
+const stage = document.getElementById('stage');
+const loading = document.getElementById('loading');
+const failEl = document.getElementById('fail');
+const thoughtEl = document.getElementById('thought');
+const thoughtName = document.getElementById('thoughtName');
+const thoughtText = document.getElementById('thoughtText');
+const spinBtn = document.getElementById('spinBtn');
+
+function fail(msg) {
+  loading.classList.add('hidden');
+  kit.showError(failEl, msg);
+}
+
+try {
+  // --- geometry of the drum -------------------------------------------------
+  const R = 26;        // hull radius
+  const LEN = 64;       // hull length, running along Z (the spin axis)
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x05060a);
+
+  const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 300);
+  camera.position.set(0, 0.6, 2);          // near the axis, a little off-centre
+  camera.lookAt(new THREE.Vector3(R * 0.55, -R * 0.15, -6));
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  stage.appendChild(renderer.domElement);
+  loading.remove();
+
+  // Everything that spins with the hull lives in one group. The camera does
+  // NOT belong to it — the camera is a fixed observer near the axis, and the
+  // colony turns past. That's the whole trick: from the axis, points at a
+  // fixed radius keep their distance as they rotate, they just sweep sideways
+  // through the view, exactly like standing at the hub of a spinning wheel.
+  const drum = new THREE.Group();
+  scene.add(drum);
+
+  // Places an object so its local origin (treated as its *base*) sits flush
+  // on the inner hull at angle theta, length z — with local +Y pointing
+  // toward the axis, which is "up" for anything standing on a centrifuge.
+  function placeOnHull(obj, theta, z) {
+    const outward = new THREE.Vector3(Math.cos(theta), Math.sin(theta), 0);
+    obj.position.set(outward.x * R, outward.y * R, z);
+    obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), outward.clone().negate());
+  }
+
+  // --- the hull itself -------------------------------------------------------
+  const groundGeo = new THREE.CylinderGeometry(R, R, LEN, 72, 1, true);
+  groundGeo.rotateX(Math.PI / 2); // cylinder's default axis is Y; we want Z
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x5c8a4a, side: THREE.BackSide, roughness: 0.95 });
+  drum.add(new THREE.Mesh(groundGeo, groundMat));
+
+  // two bright longitudinal strips, riding the hull like skylights letting
+  // mirrored sunlight in — glowing, not casting real shadows, just legible.
+  const stripMat = new THREE.MeshBasicMaterial({ color: 0xffe9b0 });
+  for (const theta of [Math.PI * 0.28, Math.PI * 1.28]) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.15, LEN * 0.96), stripMat);
+    placeOnHull(strip, theta, 0);
+    strip.translateY(0.08); // nudge inward off the hull to avoid z-fighting
+    drum.add(strip);
+  }
+
+  // bulkhead caps at each end so the tube doesn't look like it dissolves into void
+  const capMat = new THREE.MeshStandardMaterial({ color: 0x4b4f57, emissive: 0x14151a, roughness: 0.6, side: THREE.DoubleSide });
+  for (const z of [-LEN / 2, LEN / 2]) {
+    const cap = new THREE.Mesh(new THREE.CircleGeometry(R, 48), capMat);
+    cap.position.set(0, 0, z);
+    drum.add(cap);
+  }
+
+  // --- buildings, low and pastoral --------------------------------------------
+  const roofColors = [0xb5601f, 0x8d3b2c, 0xc78b2d, 0x6b7a3f];
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0xe9dfc6, roughness: 0.9 });
+  const buildingCount = 26;
+  for (let i = 0; i < buildingCount; i++) {
+    const theta = (i / buildingCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+    const z = (Math.random() - 0.5) * (LEN * 0.7);
+    const w = 1.6 + Math.random() * 1.4, d = 1.6 + Math.random() * 1.4, h = 1.4 + Math.random() * 1.6;
+
+    const group = new THREE.Object3D();
+    const wallGeo = new THREE.BoxGeometry(w, h, d);
+    wallGeo.translate(0, h / 2, 0);
+    const walls = new THREE.Mesh(wallGeo, wallMat);
+    group.add(walls);
+
+    const roofMat = new THREE.MeshStandardMaterial({ color: roofColors[i % roofColors.length], roughness: 0.7 });
+    const roofGeo = new THREE.ConeGeometry(Math.max(w, d) * 0.8, h * 0.55, 4);
+    roofGeo.translate(0, h + (h * 0.55) / 2, 0);
+    roofGeo.rotateY(Math.PI / 4);
+    group.add(new THREE.Mesh(roofGeo, roofMat));
+
+    placeOnHull(group, theta, z);
+    drum.add(group);
+  }
+
+  // --- trees -------------------------------------------------------------------
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a4330, roughness: 1 });
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x3f7a3a, roughness: 0.9 });
+  for (let i = 0; i < 40; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const z = (Math.random() - 0.5) * LEN * 0.9;
+    const th = 0.6 + Math.random() * 0.6;
+    const group = new THREE.Object3D();
+    const trunkGeo = new THREE.CylinderGeometry(0.08, 0.1, th, 6);
+    trunkGeo.translate(0, th / 2, 0);
+    group.add(new THREE.Mesh(trunkGeo, trunkMat));
+    const leafGeo = new THREE.ConeGeometry(0.55, 1.1, 7);
+    leafGeo.translate(0, th + 0.4, 0);
+    group.add(new THREE.Mesh(leafGeo, leafMat));
+    placeOnHull(group, theta, z);
+    drum.add(group);
+  }
+
+  // --- colonists, each with a thought ------------------------------------------
+  const NAMES = ['Suri', 'Devan', 'Oksana', 'Petra', 'Milo', 'Anouk', 'Basit', 'Loro',
+    'Kestrel', 'Ines', 'Yusuf', 'Tamsin', 'Robin', 'Achebe', 'Vela', 'Ossian',
+    'Marisol', 'Haruki', 'Enid', 'Temperance', 'Godwin', 'Niamh'];
+  const THOUGHTS = [
+    'The wheat on ring three is early this cycle — I should tell the granary.',
+    'I keep forgetting which way is "up" until I stop moving.',
+    'My grandmother remembers real weather. I only have the sprinklers.',
+    "Coriolis makes running downhill feel wrong, and I've never gotten used to it.",
+    'If I look straight up long enough I can watch the orchard three streets over, upside down.',
+    'The strip lights dim on schedule but I still call it evening.',
+    'Someone left the goat gate open again. Third time this week.',
+    'I wonder if Earth still smells like rain after it falls.',
+    'The far end of the drum always looks closer than it is.',
+    "I'm not homesick. I just miss a horizon that stays still.",
+    'Tomatoes taste different at 0.9g. Sweeter, somehow.',
+    'You can hear the whole colony hum if you put your ear to the hull at night.',
+    'I traded my shift for a window seat on the transit car. Worth it.',
+    'The kids think the stars painted on the endcap are real. I never correct them.',
+    'Every harvest here is the same harvest as last year and I love that about it.',
+    'I keep a jar of actual dirt from home. Just to remember the smell.',
+    'The spin makes clouds impossible, so we just pretend the mist machines are weather.',
+    'Somebody plays a fiddle after the lights dim. I never find out who.',
+    'I measure my life in rotations now, not days.',
+    'The bees don’t care that they’re in space. Neither do I, most mornings.',
+    'If this drum ever stopped turning I don’t think any of us would know how to stand.',
+    'I like it here. I did not expect to.',
+  ];
+
+  const bodyColors = [0x3a5f8a, 0x6b7a3f, 0x8a4a3a, 0xc78b2d, 0x5c4a6b, 0x2e6b5e];
+  const skinTones = [0xe0b088, 0xc98a5b, 0x8d5a3c, 0xf2d0a4, 0x6b4530];
+  const pickables = [];
+
+  for (let i = 0; i < 22; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const z = (Math.random() - 0.5) * LEN * 0.85;
+
+    const group = new THREE.Object3D();
+    const bodyGeo = new THREE.CapsuleGeometry(0.28, 0.6, 4, 8);
+    bodyGeo.translate(0, 0.28 + 0.3, 0); // base of capsule flush with y=0
+    const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColors[i % bodyColors.length], roughness: 0.85 });
+    group.add(new THREE.Mesh(bodyGeo, bodyMat));
+
+    const headGeo = new THREE.SphereGeometry(0.22, 12, 10);
+    headGeo.translate(0, 0.28 * 2 + 0.6 + 0.18, 0);
+    const headMat = new THREE.MeshStandardMaterial({ color: skinTones[i % skinTones.length], roughness: 0.8 });
+    group.add(new THREE.Mesh(headGeo, headMat));
+
+    // generous invisible hit target — a real body silhouette is a hard thing
+    // to hit precisely with a fingertip on a phone.
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.6, 1.1), new THREE.MeshBasicMaterial());
+    hit.visible = false; // Object3D.visible, not a material flag — still raycastable, just unseen
+    hit.geometry.translate(0, 0.8, 0);
+    hit.userData.name = NAMES[i % NAMES.length];
+    hit.userData.thought = THOUGHTS[i % THOUGHTS.length];
+    group.add(hit);
+    pickables.push(hit);
+
+    placeOnHull(group, theta, z);
+    drum.add(group);
+  }
+
+  // --- lighting ------------------------------------------------------------
+  scene.add(new THREE.HemisphereLight(0xffeecb, 0x1a2412, 0.9));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+  const sun = new THREE.PointLight(0xfff2d6, 1.4, 0, 1.2);
+  sun.position.set(0, 0, 0);
+  scene.add(sun);
+
+  // --- interaction: hover (desktop) or tap (mobile) reveals a colonist's thought
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  let hideTimer = null;
+
+  function showThought(name, text, x, y) {
+    clearTimeout(hideTimer);
+    thoughtName.textContent = name;
+    thoughtText.textContent = text;
+    const pad = 12;
+    const cx = Math.min(Math.max(x, 90), innerWidth - 90);
+    const cy = Math.max(y, 70);
+    thoughtEl.style.left = cx + 'px';
+    thoughtEl.style.top = cy - pad + 'px';
+    thoughtEl.classList.remove('hidden');
+  }
+  function hideThought(delay) {
+    clearTimeout(hideTimer);
+    if (delay) hideTimer = setTimeout(() => thoughtEl.classList.add('hidden'), delay);
+    else thoughtEl.classList.add('hidden');
+  }
+
+  function pickAt(clientX, clientY) {
+    ndc.x = (clientX / innerWidth) * 2 - 1;
+    ndc.y = -(clientY / innerHeight) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects(pickables, false);
+    return hits.length ? hits[0].object : null;
+  }
+
+  renderer.domElement.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    const obj = pickAt(e.clientX, e.clientY);
+    if (obj) showThought(obj.userData.name, obj.userData.thought, e.clientX, e.clientY);
+    else hideThought(0);
+  });
+  renderer.domElement.addEventListener('pointerleave', () => hideThought(0));
+  renderer.domElement.addEventListener('pointerdown', (e) => {
+    const obj = pickAt(e.clientX, e.clientY);
+    if (obj) showThought(obj.userData.name, obj.userData.thought, e.clientX, e.clientY);
+    else hideThought(0);
+    if (e.pointerType !== 'mouse' && obj) hideThought(4200);
+  });
+
+  // --- spin, with an honest pause control ------------------------------------
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let spinning = !reduceMotion;
+  let spinSpeed = 0.045; // rad/s
+  spinBtn.textContent = spinning ? 'pause spin' : 'resume spin';
+  spinBtn.addEventListener('click', () => {
+    spinning = !spinning;
+    spinBtn.textContent = spinning ? 'pause spin' : 'resume spin';
+  });
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  let last = performance.now();
+  function tick(now) {
+    const dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    if (spinning) drum.rotation.z += spinSpeed * dt;
+
+    // gentle camera drift so the view isn't perfectly static
+    camera.position.y = 0.6 + Math.sin(now * 0.00015) * 0.15;
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+} catch (err) {
+  fail('The colony failed to spin up: ' + (err && err.message ? err.message : err));
+  console.error(err);
+}
+</script>
+</body>
+</html>

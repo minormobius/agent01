@@ -1,0 +1,32 @@
+{
+  "arm": "baseline",
+  "slug": "gibson-jackpot",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 26,
+  "cost_usd": 0.8426,
+  "seconds": 321,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 310,
+      "exit": 0,
+      "turns": 24,
+      "cost_usd": 0.7870479999999997,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "visual",
+      "seconds": 11,
+      "exit": 0,
+      "turns": 2,
+      "cost_usd": 0.0555948,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

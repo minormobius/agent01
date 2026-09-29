@@ -1,0 +1,29 @@
+diff --git a/lab/_profiles/anthonybecker.bsky.social.md b/lab/_profiles/anthonybecker.bsky.social.md
+index 0c4d2b9d..765cb720 100644
+--- a/lab/_profiles/anthonybecker.bsky.social.md
++++ b/lab/_profiles/anthonybecker.bsky.social.md
+@@ -23,7 +23,23 @@ unchallenged so far.
+ ## Layout
+ No stated preference yet — first site was full-bleed canvas (chrome kept to
+ minimal corner HUD panels), not a document-style page. Worth noting for any
+-future full-screen/interactive request from them.
++future full-screen/interactive request from them. Second site (`My Commute`,
++a watercraft-commute simulator) got the same full-bleed-canvas-plus-corner-HUD
++treatment even though nothing in that request said so — applied as a
++carried-over house style for this requester's demos, not something they
++asked for again. Held up fine; no complaint, but it was an inference, not a
++confirmed preference across two sites of different genres yet.
++
++## Requests so far
++1. `create-space` — space colony simulator (3D, three.js).
++2. `My Commute` — a light single-person electric watercraft simulated from
++   Lake Merritt to Oracle's Redwood Shores campus (2D canvas, real
++   lat/lon-derived route and distance, computed speed/battery/chop
++   physics). Terse one-line ask, no follow-up yet in-thread. Notable: they
++   like *real*, specific, checkable premises (an actual named start point
++   and a real destination) even for a small demo — worth defaulting to real
++   coordinates/data over invented placeholders when a request names real
++   places.
+ 
+ ## Features they reach for
+ First turn wanted hover/tap-for-detail. Second turn (follow-up on the same

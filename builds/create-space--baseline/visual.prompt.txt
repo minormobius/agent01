@@ -1,0 +1,21 @@
+Here is a screenshot of the page you just built, taken in a real browser at
+1200x800 under the production Content-Security-Policy: /tmp/shot.png
+
+READ THAT IMAGE FIRST. It is the only look at your own work you get, and it is
+what a visitor sees. The page already loads without console errors — this pass
+is about whether it is RIGHT, which no check before now could tell you.
+
+What it was asked for:
+Please create a space colony simulator. The camera is on the inside of the cylindrical vessel, rotating so that you can only see part of the colony at any given time. It’s pastoral. You get to hover over (or tap on mobile) colonists to see their thoughts while they work and play.
+
+Fix only things that are VISIBLY BROKEN: nothing rendered, content off-screen or
+overlapping, text unreadable against its background, a canvas that is blank or
+the wrong size, controls with no visible label, a layout obviously collapsed.
+
+CHANGING NOTHING IS A GOOD OUTCOME AND USUALLY THE RIGHT ONE. Do not restyle, do
+not refactor, do not add features, do not 'polish'. You cannot see hover states,
+animation or anything below the fold, so do not guess at them. If the picture
+looks like the request, say so and stop.
+
+Write only inside lab/www/create-space/. If you changed something, add a line to BRIEF.md saying
+what the screenshot showed.

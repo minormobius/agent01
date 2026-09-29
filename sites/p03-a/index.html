@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landrush — a name across 90 domain endings</title>
+<meta property="og:title" content="Landrush — a name across 90 domain endings">
+<meta property="og:description" content="Type a name once, see it laid out across ~90 TLDs — classic, country-code, repurposed, restricted, new — with real facts about each and no live availability check pretending to be one.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .note {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .9rem 1rem; margin: 1rem 0 1.5rem; font-size: .82rem; color: var(--muted);
+  }
+  .note strong { color: var(--fg); }
+
+  form.search { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1rem; }
+  form.search input { flex: 1 1 14rem; min-width: 0; }
+  form.search button { flex: none; }
+
+  #err { margin-bottom: 1rem; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
+  .chip {
+    padding: .5rem .85rem; min-height: 44px; display: inline-flex; align-items: center;
+    font-size: .78rem; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--bg-raised); color: var(--muted); cursor: pointer; user-select: none;
+  }
+  .chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .75rem;
+    margin: 1rem 0; padding-top: 1rem; border-top: 1px solid var(--border);
+  }
+  .toolbar select { font: inherit; background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: .55rem .6rem; min-height: 44px; }
+  #count { font-size: .78rem; color: var(--muted); margin-right: auto; }
+
+  #copyBtn { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  #copyBtn:hover { background: var(--accent); filter: brightness(1.1); }
+
+  #results {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: .75rem; margin-top: 1rem;
+  }
+  .card {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-raised);
+    padding: .9rem 1rem; min-width: 0;
+  }
+  .card .dn { font-size: 1.05rem; color: var(--fg); word-break: break-all; }
+  .card .dn b { color: var(--accent); }
+  .tags { display: flex; flex-wrap: wrap; gap: .35rem; margin: .45rem 0; }
+  .tag { font-size: .68rem; padding: .15rem .5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+  .tag.demand-crowded { border-color: var(--error); color: var(--error); }
+  .tag.demand-moderate { border-color: var(--accent); color: var(--accent); }
+  .tag.demand-roomier { border-color: var(--ok); color: var(--ok); }
+  .tag.demand-restricted { border-color: var(--muted); color: var(--muted); }
+  .card p { margin: .4rem 0 0; font-size: .78rem; line-height: 1.45; }
+
+  #empty { color: var(--muted); font-size: .85rem; padding: 2rem 0; text-align: center; }
+
+  footer.foot { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);
+    font-size: .78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Landrush</h1>
+  <p class="sub">one name, laid out across roughly ninety domain endings — with what's actually true about each</p>
+
+  <div class="note">
+    <strong>What this can't do:</strong> check whether any of these are actually free. This page
+    is served under a Content-Security-Policy that only permits network requests to Bluesky's own
+    API — nothing here can reach a registry, a registrar, or a WHOIS server, so there is no honest
+    way to fetch live availability from inside it. What it <em>can</em> do: show your name against
+    every ending with real, curated facts about that ending — who runs it, what it's usually used
+    for, and a rough, general read on how crowded that space tends to be. Take the shortlist to
+    a registrar of your choice to find out what's actually free.
+  </div>
+
+  <form class="search" id="searchForm">
+    <label for="name" style="display:none">domain name, no dots or spaces</label>
+    <input type="text" id="name" placeholder="e.g. driftwood — no dots, no tld"
+           autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="63">
+    <button type="submit">lay it out</button>
+  </form>
+  <div id="err" class="err" hidden></div>
+
+  <div class="chips" id="catChips" role="group" aria-label="filter by kind of ending"></div>
+
+  <div class="toolbar">
+    <span id="count"></span>
+    <label for="sort" style="font-size:.78rem;color:var(--muted)">sort</label>
+    <select id="sort">
+      <option value="cat">by kind</option>
+      <option value="demand">roomier first</option>
+      <option value="alpha">alphabetical</option>
+    </select>
+    <button id="copyBtn" type="button">copy list</button>
+  </div>
+
+  <div id="results"></div>
+  <div id="empty" hidden>type a name above to lay it out across every ending</div>
+
+  <footer class="foot">
+    "Usually crowded / roomier" is a general reputation read on each ending, not a measurement of
+    your specific name — a two-letter word is contested everywhere and a fourteen-letter compound
+    is probably free even on .com. Prices are not quoted because they move and vary by registrar;
+    where an ending is notably cheap or notably expensive that's said in its own note. Restricted
+    endings (.edu, .gov, .museum, …) are shown for reference — most visitors are not eligible to
+    register them regardless of whether the exact name is taken.
+  </footer>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('landrush');
+
+  // [tld, category, demand, note]
+  // category: classic | cc | hack | sponsored | modern
+  // demand: crowded | moderate | roomier | restricted  (general reputation, not a live signal)
+  var TLDS = [
+    ['com','classic','crowded',"The default since 1985. Nearly every short dictionary word and common brand was claimed years ago."],
+    ['net','classic','crowded',"Originally for network-infrastructure operators; now mostly a fallback when .com is gone."],
+    ['org','classic','crowded',"Meant for non-profits, unrestricted in practice — anyone can register one."],
+    ['info','classic','moderate',"Unrestricted, launched 2001; picked up a spam-adjacent reputation early on that has softened."],
+    ['biz','classic','moderate',"Meant for businesses; a business-use declaration is asked for but loosely enforced."],
+    ['name','classic','moderate',"Aimed at individuals; supports third-level registration like first.last.name."],
+    ['pro','classic','moderate',"Once restricted to licensed professionals (law, medicine, accounting); now open generally."],
+    ['mobi','classic','roomier',"Marketed for mobile-optimised sites around 2006; responsive design mostly made the pitch moot."],
+
+    ['us','cc','moderate',"United States."],
+    ['uk','cc','crowded',".co.uk is the conventional commercial form, registered through Nominet."],
+    ['de','cc','crowded',"Germany — one of the largest ccTLDs in the world by registration count."],
+    ['fr','cc','moderate',"France, via AFNIC."],
+    ['jp','cc','moderate',"Japan; .co.jp traditionally required a registered Japanese company."],
+    ['cn','cc','moderate',"China; registration involves extra identity-verification steps."],
+    ['in','cc','moderate',"India; open to general international registration."],
+    ['br','cc','moderate',"Brazil; requires a Brazilian taxpayer ID (CPF/CNPJ) via registro.br."],
+    ['ca','cc','moderate',"Canada; historically required a Canadian-presence connection."],
+    ['au','cc','moderate',"Australia; requires an Australian connection under auDA's rules."],
+    ['nl','cc','moderate',"Netherlands — one of the more heavily registered European ccTLDs."],
+    ['es','cc','moderate',"Spain, run by Red.es."],
+    ['it','cc','moderate',"Italy; requires an EU-country connection to register."],
+    ['ru','cc','moderate',"Russia."],
+    ['kr','cc','moderate',"South Korea."],
+    ['mx','cc','moderate',"Mexico."],
+    ['ch','cc','moderate',"Switzerland, run by SWITCH."],
+    ['se','cc','moderate',"Sweden."],
+    ['no','cc','roomier',"Norway; historically required a Norwegian organisation number, later relaxed."],
+    ['dk','cc','moderate',"Denmark."],
+    ['fi','cc','moderate',"Finland."],
+    ['pl','cc','moderate',"Poland."],
+    ['gr','cc','roomier',"Greece."],
+    ['ie','cc','roomier',"Ireland, via IEDR."],
+    ['nz','cc','roomier',"New Zealand."],
+    ['za','cc','roomier',"South Africa."],
+    ['sg','cc','roomier',"Singapore."],
+    ['hk','cc','roomier',"Hong Kong."],
+    ['tw','cc','roomier',"Taiwan."],
+
+    ['io','hack','crowded',"British Indian Ocean Territory. Adopted by tech/startups for the input/output pun; renewals run well above .com."],
+    ['ai','hack','crowded',"Anguilla. Became the default TLD for AI-branded products from 2023 on, which pushed demand and price up sharply."],
+    ['co','hack','crowded',"Colombia. Marketed globally since 2010 as a short 'company' stand-in for .com."],
+    ['me','hack','moderate',"Montenegro. Marketed for personal branding ('about.me')."],
+    ['tv','hack','moderate',"Tuvalu. Popular with streaming and video brands for the obvious pun."],
+    ['to','hack','roomier',"Tonga. Used informally for 'go-to'/link-style names."],
+    ['gg','hack','moderate',"Guernsey. Adopted by gaming and esports brands ('gg')."],
+    ['fm','hack','roomier',"Federated States of Micronesia. Used by radio and music-streaming brands."],
+    ['ly','hack','roomier',"Libya. Popularised by URL shorteners like bit.ly."],
+    ['sh','hack','roomier',"Saint Helena. Sometimes used for shell/command-line-themed projects."],
+    ['im','hack','roomier',"Isle of Man."],
+    ['la','hack','moderate',"Laos. Widely read as 'Los Angeles' or the Spanish/French article 'la'."],
+    ['cc','hack','moderate',"Cocos (Keeling) Islands. Marketed generically since the 2000s, no real restriction."],
+    ['ws','hack','roomier',"Samoa. Marketed as short for 'website'."],
+    ['gd','hack','roomier',"Grenada. Sometimes read as 'good'."],
+    ['nu','hack','roomier',"Niue. Means 'now' in Swedish and Dutch, so it's marketed in Scandinavia."],
+    ['vc','hack','roomier',"Saint Vincent and the Grenadines."],
+    ['bz','hack','roomier',"Belize. Sometimes read as 'biz'."],
+    ['st','hack','roomier',"São Tomé and Príncipe."],
+
+    ['edu','sponsored','restricted',"US higher-education institutions only, administered by EDUCAUSE."],
+    ['gov','sponsored','restricted',"US government entities only."],
+    ['mil','sponsored','restricted',"US military only."],
+    ['int','sponsored','restricted',"Reserved for organisations established by international treaty."],
+    ['aero','sponsored','restricted',"Air-transport industry only, sponsored by SITA."],
+    ['coop','sponsored','restricted',"Cooperative organisations only."],
+    ['museum','sponsored','restricted',"Museums only — one of the strictest sponsored endings."],
+    ['jobs','sponsored','moderate',"Aimed at HR/job-related sites; eligibility rules loosened over time."],
+    ['travel','sponsored','moderate',"Travel-industry focused historically, open registration in practice."],
+    ['cat','sponsored','moderate',"Reserved for the Catalan language and culture community."],
+
+    ['dev','modern','moderate',"Google-operated; every .dev site is forced onto HTTPS via browser preload, plain HTTP never works."],
+    ['app','modern','moderate',"Also Google-operated, also mandatory HTTPS; popular with software products."],
+    ['page','modern','moderate',"Google-operated, same forced-HTTPS behaviour as .dev/.app."],
+    ['xyz','modern','roomier',"One of the most-registered new gTLDs; cheap enough to have picked up a spam-adjacent reputation in places."],
+    ['tech','modern','roomier',"Marketed at technology companies and products."],
+    ['online','modern','roomier',"Generic, high registration volume from aggressive promotional pricing."],
+    ['site','modern','roomier',"Generic, similar promotional-pricing pattern to .online."],
+    ['store','modern','roomier',"Marketed at e-commerce."],
+    ['shop','modern','roomier',"Marketed at e-commerce, competes directly with .store."],
+    ['cloud','modern','roomier',"Marketed at software and infrastructure products."],
+    ['live','modern','roomier',"Marketed at events, streaming, personal branding."],
+    ['world','modern','roomier',"Generic, broad marketing angle."],
+    ['club','modern','roomier',"Marketed at communities and membership sites."],
+    ['design','modern','moderate',"Marketed at designers and creative studios."],
+    ['studio','modern','roomier',"Marketed at creative and production studios."],
+    ['agency','modern','roomier',"Marketed at service businesses."],
+    ['digital','modern','roomier',"Generic, marketed at agencies and consultants."],
+    ['network','modern','roomier',"Generic, marketed at community and infrastructure sites."],
+    ['systems','modern','roomier',"Generic, marketed at technical products."],
+    ['solutions','modern','roomier',"Generic, marketed at B2B and consultancy branding."],
+    ['media','modern','roomier',"Marketed at publishers and content brands."],
+    ['tools','modern','roomier',"Generic, marketed at software and utility products."],
+    ['works','modern','roomier',"Generic, marketed at portfolios and small businesses."],
+    ['email','modern','roomier',"Marketed at email-related services."],
+    ['run','modern','roomier',"Generic, short and action-oriented."],
+    ['wiki','modern','roomier',"Marketed at knowledge-base and reference sites."],
+    ['guide','modern','roomier',"Marketed at how-to and reference content."],
+    ['community','modern','roomier',"Marketed at forums and membership sites."],
+    ['group','modern','roomier',"Generic, marketed at organisations and teams."],
+    ['team','modern','roomier',"Generic, marketed at collaborative projects."],
+    ['zone','modern','roomier',"Generic, broad marketing angle."],
+    ['space','modern','roomier',"Generic, broad marketing angle."],
+    ['website','modern','roomier',"About as literal as an ending gets."],
+    ['link','modern','roomier',"Marketed at link-sharing and redirect services."],
+    ['click','modern','roomier',"Generic and cheap; sometimes associated with ad/spam use."],
+    ['top','modern','roomier',"One of the highest-volume new gTLDs by raw count, largely registered in China."],
+    ['fun','modern','roomier',"Generic, marketed at entertainment and hobby sites."],
+    ['guru','modern','roomier',"Marketed at consultants and personal-brand experts."],
+    ['ninja','modern','roomier',"Generic, playful branding, popular with individual developers."],
+    ['rocks','modern','roomier',"Generic, playful personal-branding ending."],
+    ['lol','modern','roomier',"Generic, playful branding."],
+    ['wtf','modern','roomier',"Generic, irreverent branding."],
+    ['sucks','modern','roomier',"Marketed partly at brand-criticism sites; historically one of the most expensive endings to register."],
+    ['icu','modern','roomier',"Cheap and high-volume; picked up a strong spam/phishing reputation in abuse reports."],
+    ['monster','modern','roomier',"Generic, unrelated to the jobs site Monster.com."],
+    ['blog','modern','moderate',"Marketed specifically at blogging platforms and personal sites."]
+  ];
+
+  var CAT_LABEL = { classic: 'classic', cc: 'country code', hack: 'repurposed cc', sponsored: 'restricted use', modern: 'new gTLD' };
+  var DEMAND_LABEL = { crowded: 'usually crowded', moderate: 'often available', roomier: 'usually roomier', restricted: 'restricted eligibility' };
+  var DEMAND_RANK = { roomier: 0, moderate: 1, crowded: 2, restricted: 3 };
+
+  var activeCats = {}; // empty = all
+  Object.keys(CAT_LABEL).forEach(function (c) { activeCats[c] = true; });
+
+  var nameInput = document.getElementById('name');
+  var errEl = document.getElementById('err');
+  var resultsEl = document.getElementById('results');
+  var emptyEl = document.getElementById('empty');
+  var countEl = document.getElementById('count');
+  var sortEl = document.getElementById('sort');
+  var chipsEl = document.getElementById('catChips');
+
+  Object.keys(CAT_LABEL).forEach(function (cat) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = CAT_LABEL[cat];
+    b.setAttribute('aria-pressed', 'true');
+    b.addEventListener('click', function () {
+      activeCats[cat] = !activeCats[cat];
+      b.setAttribute('aria-pressed', String(activeCats[cat]));
+      render();
+    });
+    chipsEl.appendChild(b);
+  });
+
+  var LABEL_RE = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+
+  function currentName() {
+    return nameInput.value.trim().toLowerCase();
+  }
+
+  function validate(name) {
+    if (!name) return null;
+    if (name.indexOf('.') !== -1) return 'no dots — this is just the name, the ending gets added for you';
+    if (/\s/.test(name)) return 'no spaces';
+    if (!LABEL_RE.test(name)) return 'domain names use only letters, digits and hyphens, and can\'t start or end with a hyphen';
+    return null;
+  }
+
+  function render() {
+    var name = currentName();
+    var problem = validate(name);
+    if (problem) {
+      kit.showError(errEl, problem);
+      resultsEl.innerHTML = '';
+      emptyEl.hidden = true;
+      countEl.textContent = '';
+      return;
+    }
+    kit.clear(errEl);
+
+    if (!name) {
+      resultsEl.innerHTML = '';
+      emptyEl.hidden = false;
+      countEl.textContent = '';
+      return;
+    }
+    emptyEl.hidden = true;
+
+    var rows = TLDS.filter(function (r) { return activeCats[r[1]]; });
+
+    var sort = sortEl.value;
+    if (sort === 'alpha') {
+      rows = rows.slice().sort(function (a, b) { return a[0].localeCompare(b[0]); });
+    } else if (sort === 'demand') {
+      rows = rows.slice().sort(function (a, b) { return DEMAND_RANK[a[2]] - DEMAND_RANK[b[2]]; });
+    } else {
+      rows = rows.slice().sort(function (a, b) {
+        if (a[1] === b[1]) return a[0].localeCompare(b[0]);
+        return a[1].localeCompare(b[1]);
+      });
+    }
+
+    countEl.textContent = rows.length + ' ending' + (rows.length === 1 ? '' : 's') + ' shown';
+
+    var html = rows.map(function (r) {
+      var tld = r[0], cat = r[1], demand = r[2], note = r[3];
+      return '<article class="card">' +
+        '<div class="dn">' + escapeHtml(name) + '<b>.' + tld + '</b></div>' +
+        '<div class="tags">' +
+          '<span class="tag">' + CAT_LABEL[cat] + '</span>' +
+          '<span class="tag demand-' + demand + '">' + DEMAND_LABEL[demand] + '</span>' +
+        '</div>' +
+        '<p>' + note + '</p>' +
+      '</article>';
+    }).join('');
+    resultsEl.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  document.getElementById('searchForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    render();
+  });
+  nameInput.addEventListener('input', render);
+  sortEl.addEventListener('change', render);
+
+  document.getElementById('copyBtn').addEventListener('click', function (e) {
+    var name = currentName();
+    if (!name || validate(name)) { render(); return; }
+    var rows = TLDS.filter(function (r) { return activeCats[r[1]]; });
+    var sort = sortEl.value;
+    if (sort === 'alpha') rows = rows.slice().sort(function (a, b) { return a[0].localeCompare(b[0]); });
+    else if (sort === 'demand') rows = rows.slice().sort(function (a, b) { return DEMAND_RANK[a[2]] - DEMAND_RANK[b[2]]; });
+    var text = rows.map(function (r) { return name + '.' + r[0]; }).join('\n');
+    kit.copy(text, e.currentTarget);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

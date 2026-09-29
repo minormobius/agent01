@@ -1,0 +1,52 @@
+{
+  "arm": "challenger",
+  "slug": "hiiii-demo",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 115,
+  "cost_usd": 3.5553,
+  "seconds": 1339,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 636,
+      "exit": 0,
+      "turns": 47,
+      "cost_usd": 1.7132229999999995,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 304,
+      "exit": 0,
+      "turns": 26,
+      "cost_usd": 0.7755918000000002,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "revise-1",
+      "seconds": 252,
+      "exit": 0,
+      "turns": 26,
+      "cost_usd": 0.7165056000000001,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-2",
+      "seconds": 147,
+      "exit": 0,
+      "turns": 16,
+      "cost_usd": 0.3499506,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

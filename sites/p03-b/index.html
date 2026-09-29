@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vacancy — sweep a name across the TLDs</title>
+<meta name="description" content="Type a name and check it against ~140 top-level domains: real syntax and eligibility rules, real facts about each registry, and a one-tap link to a live WHOIS lookup for the exact name you typed.">
+<meta property="og:title" content="Vacancy — sweep a name across the TLDs">
+<meta property="og:description" content="Type a name and check it against ~140 top-level domains: real syntax and eligibility rules, real facts about each registry, and a one-tap link to a live WHOIS lookup for the exact name you typed.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  .notice {
+    padding: 1rem 1.1rem; margin: 1.25rem 0 2rem;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: var(--radius);
+    font-size: .85rem; color: var(--muted); line-height: 1.55;
+  }
+  .notice strong { color: var(--fg); }
+
+  form.sweep { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  form.sweep input { flex: 1 1 12rem; min-width: 0; }
+  form.sweep button { flex: 0 0 auto; min-height: 44px; }
+
+  .controls {
+    display: flex; gap: .6rem; flex-wrap: wrap; align-items: center;
+    margin-bottom: 1rem; font-size: .8rem; color: var(--muted);
+  }
+  .controls label { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; min-height: 32px; }
+  .controls input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
+  .controls input[type=search] { flex: 1 1 9rem; min-width: 0; width: auto; padding: .5rem .7rem; font-size: .8rem; }
+  .controls button.copyall { min-height: 40px; margin-left: auto; }
+
+  .summary { font-size: .8rem; color: var(--muted); margin-bottom: 1rem; }
+  .summary strong { color: var(--fg); }
+
+  .row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
+    padding: .75rem .1rem; border-bottom: 1px solid var(--border);
+  }
+  .row.bad { opacity: .55; }
+  .row .dom { font-family: var(--mono); font-size: .95rem; color: var(--fg); flex: 1 1 11rem; min-width: 0; word-break: break-all; }
+  .row .dom .tld { color: var(--accent); }
+  .badge {
+    font-size: .65rem; text-transform: uppercase; letter-spacing: .04em;
+    padding: .2rem .5rem; border-radius: 999px; border: 1px solid var(--border);
+    color: var(--muted); flex: 0 0 auto; white-space: nowrap;
+  }
+  .badge.k-legacy   { border-color: #7ac387; color: #7ac387; }
+  .badge.k-sponsored{ border-color: #f2777a; color: #f2777a; }
+  .badge.k-new      { border-color: var(--accent); color: var(--accent); }
+  .badge.k-cc       { border-color: #6fa8dc; color: #6fa8dc; }
+  .row .note { flex: 1 1 100%; font-size: .78rem; color: var(--muted); line-height: 1.45; }
+  .row .note .flag { color: #f2777a; }
+  .row .note .ok { color: var(--ok); }
+  .links { display: flex; gap: .5rem; flex: 0 0 auto; }
+  .links a {
+    font-size: .72rem; padding: .4rem .6rem; border: 1px solid var(--border);
+    border-radius: var(--radius); text-decoration: none; color: var(--muted);
+    min-height: 32px; display: inline-flex; align-items: center;
+  }
+  .links a:hover, .links a:focus { border-color: var(--accent); color: var(--accent); }
+
+  h2.group { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em;
+             color: var(--muted); margin: 1.75rem 0 .25rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+  h2.group:first-of-type { border-top: none; padding-top: 0; }
+
+  footer.foot { margin-top: 3rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / vacancy</div>
+<main>
+  <h1>Vacancy</h1>
+  <p class="sub">Sweep one name across a wide spread of top-level domains — legacy, restricted, modern gTLD, and country-code — and jump straight to a live lookup for each one.</p>
+
+  <div class="notice">
+    <strong>This page cannot check live registry availability itself.</strong>
+    It runs under a content policy that only allows it to talk to Bluesky's
+    servers — no WHOIS, no RDAP, no DNS lookup host is reachable from here,
+    so there is no honest way for this page's own code to tell you a name is
+    taken or free. Rather than fake that answer, it does the parts it
+    <em>can</em> do for real — check the name's syntax and each TLD's
+    registration rules, and show what's actually known about the registry —
+    and hands you a one-tap link to a real, live WHOIS lookup for the exact
+    name you typed. The check itself happens on the other side of that link.
+  </div>
+
+  <form class="sweep" id="sweepForm">
+    <input id="name" type="text" placeholder="yourname" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url" maxlength="63" aria-label="name to sweep">
+    <button type="submit">sweep</button>
+  </form>
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="controls">
+    <label><input type="checkbox" class="kf" value="legacy" checked> legacy</label>
+    <label><input type="checkbox" class="kf" value="sponsored" checked> sponsored</label>
+    <label><input type="checkbox" class="kf" value="new" checked> modern</label>
+    <label><input type="checkbox" class="kf" value="cc" checked> country-code</label>
+    <input type="search" id="tldFilter" placeholder="filter TLDs, e.g. co" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <button type="button" class="copyall" id="copyAll">copy valid list</button>
+  </div>
+
+  <div class="summary" id="summary">Type a name above to begin.</div>
+
+  <div id="results"></div>
+
+  <footer class="foot">
+    Reference facts here are static and curated at build time — not a live
+    query. Eligibility rules especially can change; the linked lookup is the
+    source of truth, this page is the shortcut to it.
+  </footer>
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script>
+/* Curated, static reference data — not a live registry query. See BRIEF.md
+ * for why: this page has no reachable WHOIS/RDAP host under the site CSP.
+ * k: legacy | sponsored | new | cc. restricted: a one-line eligibility rule,
+ * or omitted for open registration. */
+window.TLDS = [
+  {t:'com',k:'legacy',note:'The original generic TLD; open registration.'},
+  {t:'net',k:'legacy',note:'Originally for network infrastructure providers; open registration today.'},
+  {t:'org',k:'legacy',note:'Originally for non-profits; open registration, still popular with non-profits and open-source projects.'},
+  {t:'info',k:'legacy',note:'Unrestricted; positioned for informational sites.'},
+  {t:'biz',k:'legacy',note:'Unrestricted; positioned for business use.'},
+  {t:'name',k:'legacy',note:'Positioned for registering personal names; open registration.'},
+  {t:'pro',k:'legacy',note:'Originally restricted to licensed professionals; open registration today.'},
+
+  {t:'edu',k:'sponsored',restricted:'US-accredited postsecondary institutions only.'},
+  {t:'gov',k:'sponsored',restricted:'US federal, state, local, and tribal government entities only.'},
+  {t:'mil',k:'sponsored',restricted:'US Department of Defense entities only.'},
+  {t:'int',k:'sponsored',restricted:'International treaty organizations only.'},
+  {t:'aero',k:'sponsored',restricted:'Aviation industry only.'},
+  {t:'coop',k:'sponsored',restricted:'Cooperatives only.'},
+  {t:'museum',k:'sponsored',restricted:'Museums only.'},
+  {t:'post',k:'sponsored',restricted:'Postal-sector entities (Universal Postal Union members) only.'},
+  {t:'asia',k:'sponsored',restricted:'Requires a demonstrable connection to the Asia-Pacific region.'},
+  {t:'cat',k:'sponsored',restricted:'Reserved for the Catalan language and culture community.'},
+  {t:'eu',k:'sponsored',region:'European Union',restricted:'Requires residency or establishment in the EU/EEA.'},
+  {t:'jobs',k:'sponsored',note:'Positioned for HR/recruiting use; eligibility has loosened over time.'},
+  {t:'travel',k:'sponsored',note:'Positioned for the travel industry.'},
+  {t:'xxx',k:'sponsored',restricted:'Sponsored community TLD for adult entertainment; registry-specific policies apply.'},
+
+  {t:'app',k:'new',note:'Google-operated; every hosted site must be served over HTTPS (HSTS preloaded).'},
+  {t:'dev',k:'new',note:'Google-operated; same enforced-HTTPS policy as .app.'},
+  {t:'page',k:'new',note:'Google-operated.'},
+  {t:'new',k:'new',note:'Google-operated.'},
+  {t:'tech',k:'new'},{t:'xyz',k:'new',note:'One of the highest-volume new gTLDs by registration count.'},
+  {t:'online',k:'new'},{t:'site',k:'new'},{t:'website',k:'new'},{t:'space',k:'new'},
+  {t:'store',k:'new'},{t:'shop',k:'new'},{t:'blog',k:'new'},{t:'wiki',k:'new'},
+  {t:'guide',k:'new'},{t:'tips',k:'new'},{t:'coach',k:'new'},{t:'expert',k:'new'},
+  {t:'agency',k:'new'},{t:'ventures',k:'new'},{t:'solutions',k:'new'},{t:'digital',k:'new'},
+  {t:'design',k:'new'},{t:'studio',k:'new'},{t:'cloud',k:'new'},{t:'email',k:'new'},
+  {t:'click',k:'new'},{t:'live',k:'new'},{t:'world',k:'new'},{t:'today',k:'new'},
+  {t:'life',k:'new'},{t:'work',k:'new'},{t:'team',k:'new'},{t:'run',k:'new'},
+  {t:'fun',k:'new'},{t:'zone',k:'new'},{t:'top',k:'new',note:'Very high registration volume, largely outside English-speaking markets.'},
+  {t:'vip',k:'new'},{t:'icu',k:'new'},{t:'club',k:'new'},{t:'pub',k:'new'},
+  {t:'cafe',k:'new'},{t:'bar',k:'new'},{t:'menu',k:'new'},{t:'pizza',k:'new'},
+  {t:'wine',k:'new'},{t:'coffee',k:'new'},{t:'gallery',k:'new'},{t:'photography',k:'new'},
+  {t:'photos',k:'new'},{t:'graphics',k:'new'},{t:'media',k:'new'},{t:'news',k:'new'},
+  {t:'tours',k:'new'},{t:'rentals',k:'new'},{t:'properties',k:'new'},{t:'realty',k:'new'},
+  {t:'tools',k:'new'},{t:'systems',k:'new'},{t:'software',k:'new'},{t:'network',k:'new'},
+  {t:'hosting',k:'new'},{t:'domains',k:'new'},{t:'link',k:'new'},{t:'group',k:'new'},
+  {t:'company',k:'new'},{t:'center',k:'new'},
+
+  {t:'uk',k:'cc',region:'United Kingdom',note:'Sits alongside .co.uk/.org.uk; direct .uk registration opened in 2014.'},
+  {t:'us',k:'cc',region:'United States',restricted:'Requires a US nexus (citizen, resident, or organization with a US presence).'},
+  {t:'ca',k:'cc',region:'Canada',restricted:'Requires Canadian presence (citizen, permanent resident, or business).'},
+  {t:'de',k:'cc',region:'Germany',restricted:'Registry (DENIC) requires an administrative contact reachable in Germany.'},
+  {t:'fr',k:'cc',region:'France',restricted:'Open to EU/EEA residents and organizations, plus a short list of other eligible countries.'},
+  {t:'es',k:'cc',region:'Spain'},{t:'it',k:'cc',region:'Italy',restricted:'Generally requires a registrant located in the EU/EEA.'},
+  {t:'nl',k:'cc',region:'Netherlands'},{t:'be',k:'cc',region:'Belgium'},
+  {t:'ch',k:'cc',region:'Switzerland'},{t:'at',k:'cc',region:'Austria'},
+  {t:'se',k:'cc',region:'Sweden'},{t:'no',k:'cc',region:'Norway',note:'Historically required a registered Norwegian organization; rules have loosened for individuals.'},
+  {t:'dk',k:'cc',region:'Denmark'},{t:'fi',k:'cc',region:'Finland'},
+  {t:'pl',k:'cc',region:'Poland'},{t:'pt',k:'cc',region:'Portugal'},
+  {t:'gr',k:'cc',region:'Greece'},{t:'ie',k:'cc',region:'Ireland'},
+  {t:'ru',k:'cc',region:'Russia'},{t:'ua',k:'cc',region:'Ukraine'},
+  {t:'cn',k:'cc',region:'China',restricted:'Registrant identity verification is required; some sub-categories are reserved for Chinese entities.'},
+  {t:'jp',k:'cc',region:'Japan',restricted:'Some registration types require a Japanese presence.'},
+  {t:'kr',k:'cc',region:'South Korea'},{t:'in',k:'cc',region:'India'},
+  {t:'br',k:'cc',region:'Brazil',restricted:'Generally requires a Brazilian tax ID (CPF/CNPJ).'},
+  {t:'mx',k:'cc',region:'Mexico'},{t:'ar',k:'cc',region:'Argentina'},
+  {t:'cl',k:'cc',region:'Chile'},{t:'au',k:'cc',region:'Australia',restricted:'Requires an eligible Australian connection (e.g. ABN) for most categories.'},
+  {t:'nz',k:'cc',region:'New Zealand'},{t:'za',k:'cc',region:'South Africa'},
+  {t:'eg',k:'cc',region:'Egypt'},{t:'ng',k:'cc',region:'Nigeria'},
+  {t:'ke',k:'cc',region:'Kenya'},{t:'il',k:'cc',region:'Israel'},
+  {t:'tr',k:'cc',region:'Turkey'},{t:'sg',k:'cc',region:'Singapore'},
+  {t:'hk',k:'cc',region:'Hong Kong'},{t:'tw',k:'cc',region:'Taiwan'},
+  {t:'th',k:'cc',region:'Thailand'},{t:'vn',k:'cc',region:'Vietnam'},
+  {t:'id',k:'cc',region:'Indonesia'},{t:'my',k:'cc',region:'Malaysia'},
+  {t:'ph',k:'cc',region:'Philippines'},
+
+  {t:'io',k:'cc',region:'British Indian Ocean Territory',note:'Adopted widely by the tech industry ("input/output"); the territory’s status has drawn scrutiny after a 2019 sovereignty ruling.'},
+  {t:'ai',k:'cc',region:'Anguilla',note:'Adopted heavily by AI-related startups since 2022–23; the code predates and is unrelated to that meaning.'},
+  {t:'co',k:'cc',region:'Colombia',note:'Marketed and widely used as a generic-feeling alternative to .com.'},
+  {t:'me',k:'cc',region:'Montenegro',note:'Marketed as a personal-branding domain ("about me").'},
+  {t:'tv',k:'cc',region:'Tuvalu',note:'Marketed to broadcasters and streamers; licensing it is a meaningful source of national revenue.'},
+  {t:'cc',k:'cc',region:'Cocos (Keeling) Islands',note:'Marketed as a short, generic-feeling alternative TLD.'},
+  {t:'gg',k:'cc',region:'Guernsey',note:'Adopted by gaming/esports sites ("gg" = "good game").'},
+  {t:'fm',k:'cc',region:'Federated States of Micronesia',note:'Adopted by radio/streaming/media branding ("FM").'},
+  {t:'am',k:'cc',region:'Armenia',note:'Adopted for music/radio branding ("AM").'},
+  {t:'to',k:'cc',region:'Tonga',note:'Short; adopted for "go to"/link-style branding.'},
+  {t:'sh',k:'cc',region:'Saint Helena',note:'Adopted for short "sh" wordplay branding.'},
+  {t:'ws',k:'cc',region:'Samoa',note:'Marketed as short for "website".'},
+  {t:'nu',k:'cc',region:'Niue',note:'Marketed in Scandinavia, where "nu" means "now".'},
+  {t:'la',k:'cc',region:'Laos',note:'Also adopted for Los-Angeles-themed branding.'},
+  {t:'is',k:'cc',region:'Iceland'},
+  {t:'st',k:'cc',region:'São Tomé and Príncipe',note:'Short; sometimes marketed generically.'},
+  {t:'ly',k:'cc',region:'Libya',note:'Adopted for "-ly" wordplay branding (e.g. link shorteners).'},
+  {t:'gd',k:'cc',region:'Grenada',note:'Sometimes used for "good" wordplay branding.'},
+  {t:'im',k:'cc',region:'Isle of Man'},
+  {t:'gs',k:'cc',region:'South Georgia and the South Sandwich Islands'},
+  {t:'vc',k:'cc',region:'Saint Vincent and the Grenadines'},
+  {t:'bz',k:'cc',region:'Belize'},
+  {t:'tk',k:'cc',region:'Tokelau',note:'Once offered mass free registrations, which drew large-scale abuse; policy has tightened since.'},
+  {t:'li',k:'cc',region:'Liechtenstein'},
+  {t:'mc',k:'cc',region:'Monaco'},
+  {t:'sm',k:'cc',region:'San Marino'},
+  {t:'va',k:'cc',region:'Vatican City',restricted:'Reserved for Holy See institutions.'},
+  {t:'ad',k:'cc',region:'Andorra'},
+  {t:'mt',k:'cc',region:'Malta'},
+  {t:'cy',k:'cc',region:'Cyprus'},
+  {t:'lu',k:'cc',region:'Luxembourg'},
+];
+</script>
+<script>
+(function () {
+  'use strict';
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* Real, computed syntax validation — RFC 1035 label rules plus the
+   * reserved punycode prefix. Not a live check; a live check is exactly
+   * what this page cannot reach (see the notice at the top of the page). */
+  function syntaxCheck(name) {
+    if (!name) return { ok: false, problems: ['type a name above'] };
+    var problems = [];
+    if (name.length > 63) problems.push('longer than the 63-character label limit');
+    if (/^-|-$/.test(name)) problems.push("can't start or end with a hyphen");
+    if (/^xn--/i.test(name)) {
+      problems.push('starts with "xn--", the prefix reserved for punycode-encoded IDNs — plain registration will likely be rejected');
+    }
+    if (/[^\x00-\x7f]/.test(name)) {
+      problems.push('contains non-ASCII characters — would need IDN/punycode conversion, not computed here');
+    } else if (!/^[a-z0-9-]+$/i.test(name)) {
+      problems.push('contains characters outside a–z, 0–9, and hyphen');
+    }
+    return { ok: problems.length === 0, problems: problems };
+  }
+
+  var GROUPS = { legacy: 'Legacy', sponsored: 'Sponsored / restricted', new: 'Modern gTLD', cc: 'Country-code' };
+  var ORDER = ['legacy', 'sponsored', 'new', 'cc'];
+
+  function activeCats() {
+    return Array.prototype.map.call(document.querySelectorAll('.kf:checked'), function (c) { return c.value; });
+  }
+  function matchesFilter(entry, activeK, filterText) {
+    if (activeK.indexOf(entry.k) === -1) return false;
+    if (filterText && entry.t.indexOf(filterText) === -1) return false;
+    return true;
+  }
+
+  function render() {
+    var name = document.getElementById('name').value.trim().toLowerCase();
+    var results = document.getElementById('results');
+    var summary = document.getElementById('summary');
+    if (!name) {
+      results.innerHTML = '';
+      summary.textContent = 'Type a name above to begin.';
+      return;
+    }
+    var sc = syntaxCheck(name);
+    var activeK = activeCats();
+    var filterText = document.getElementById('tldFilter').value.trim().toLowerCase();
+    var shown = 0, restrictedCount = 0, html = '';
+
+    ORDER.forEach(function (k) {
+      var items = window.TLDS.filter(function (e) { return matchesFilter(e, activeK, filterText); }).filter(function (e) { return e.k === k; });
+      if (!items.length) return;
+      html += '<h2 class="group">' + esc(GROUPS[k]) + ' <span style="opacity:.6">(' + items.length + ')</span></h2>';
+      items.forEach(function (e) {
+        shown++;
+        if (e.restricted) restrictedCount++;
+        var domain = name + '.' + e.t;
+        var noteParts = [];
+        noteParts.push(sc.ok
+          ? '<span class="ok">✓ syntax OK</span>'
+          : '<span class="flag">✗ ' + esc(sc.problems.join('; ')) + '</span>');
+        if (e.restricted) noteParts.push('<span class="flag">restricted</span>: ' + esc(e.restricted));
+        if (e.region) noteParts.push(esc(e.region));
+        if (e.note) noteParts.push(esc(e.note));
+        html += '<div class="row' + (sc.ok ? '' : ' bad') + '">' +
+          '<span class="dom">' + esc(name) + '<span class="tld">.' + esc(e.t) + '</span></span>' +
+          '<span class="badge k-' + e.k + '">' + e.k + '</span>' +
+          '<span class="links">' +
+            '<a href="https://who.is/whois/' + encodeURIComponent(domain) + '" target="_blank" rel="noopener">look up →</a>' +
+            '<a href="https://www.iana.org/domains/root/db/' + esc(e.t) + '.html" target="_blank" rel="noopener">registry →</a>' +
+          '</span>' +
+          '<div class="note">' + noteParts.join(' — ') + '</div>' +
+        '</div>';
+      });
+    });
+
+    results.innerHTML = html || '<p>No TLDs match the current filters.</p>';
+    summary.innerHTML = shown + ' TLD' + (shown === 1 ? '' : 's') + ' shown for <strong>' + esc(name) + '</strong> — ' +
+      (sc.ok ? '<span class="ok">syntax OK</span>' : '<span class="flag">syntax problem</span>') +
+      (restrictedCount ? ', ' + restrictedCount + ' with an eligibility restriction' : '') + '.';
+  }
+
+  function copyList() {
+    var err = document.getElementById('err');
+    var name = document.getElementById('name').value.trim().toLowerCase();
+    if (!name) { kit.showError(err, 'type a name first'); return; }
+    var sc = syntaxCheck(name);
+    if (!sc.ok) { kit.showError(err, 'fix the name before copying a list: ' + sc.problems.join('; ')); return; }
+    var activeK = activeCats();
+    var filterText = document.getElementById('tldFilter').value.trim().toLowerCase();
+    var list = window.TLDS
+      .filter(function (e) { return matchesFilter(e, activeK, filterText) && !e.restricted; })
+      .map(function (e) { return name + '.' + e.t; });
+    if (!list.length) { kit.showError(err, 'no open-registration TLDs match the current filters'); return; }
+    kit.clear(err);
+    kit.copy(list.join('\n'), document.getElementById('copyAll'));
+  }
+
+  document.getElementById('sweepForm').addEventListener('submit', function (e) { e.preventDefault(); render(); });
+  document.getElementById('name').addEventListener('input', render);
+  document.getElementById('tldFilter').addEventListener('input', render);
+  Array.prototype.forEach.call(document.querySelectorAll('.kf'), function (cb) { cb.addEventListener('change', render); });
+  document.getElementById('copyAll').addEventListener('click', copyList);
+
+  render();
+})();
+</script>
+</body>
+</html>

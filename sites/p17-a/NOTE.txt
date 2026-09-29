@@ -1,0 +1,1 @@
+The slider sets a *target* r; the sample often lands a bit off that on purpose — real sampling wobble, not rounding, both numbers shown. Try dragging one point far off the line to feel how much a single outlier moves r.

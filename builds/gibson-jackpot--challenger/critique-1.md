@@ -1,0 +1,3 @@
+No horizontal scroll, no text selection, toggles fit cleanly. Everything the brief and request called for checks out: map picker, age/income/percentile toggle with validation, real PH model with monotonic SES effect, survival curve chart, lifespan-vs-population scatter, and the 2024→2099 jackpot simulation landing exactly on an 80% decline — all verified live in a browser on desktop and mobile.
+
+VERDICT: SHIP

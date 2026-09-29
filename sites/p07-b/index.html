@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gibson Jackpot — a mortality model for the slow apocalypse</title>
+<meta property="og:title" content="Gibson Jackpot — a mortality model for the slow apocalypse">
+<meta property="og:description" content="Pick a country, your age and your income. Get a survival curve built from country risk, local resilience and socioeconomic gradient, plotted against a world losing 80% of its population by 2099. A model, not a prophecy.">
+<meta property="og:type" content="website">
+<meta name="description" content="An age-based proportional-hazards mortality calculator: country risk × local resilience × socioeconomic status, plotted against a modelled 80% world population decline by 2099.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --accent: #d94f4f; --accent-dim: #331616; }
+  main { max-width: 52rem; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+  @media (min-width: 720px) { .grid.two { grid-template-columns: 1.1fr .9fr; } }
+
+  #mapwrap { position: relative; background: var(--bg-raised); border: 1px solid var(--border);
+             border-radius: var(--radius); overflow: hidden; }
+  #map { display: block; width: 100%; height: auto; touch-action: manipulation; }
+  #map .dot { fill: var(--muted); cursor: pointer; }
+  #map .dot:hover { fill: var(--fg); }
+  #map .dot.sel { fill: var(--accent); }
+  #map .hit { fill: transparent; cursor: pointer; }
+  #map .ocean { fill: #101014; }
+
+  .field { margin-bottom: 1.1rem; }
+  .field label, .field-label { font-size: .75rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .06em; margin-bottom: .4rem; display: block; }
+  input[type=number] { width: 100%; padding: .8rem 1rem; background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); font: inherit; font-size: 1rem; min-height: 44px; }
+  input[type=number]:focus { outline: none; border-color: var(--accent); }
+  input[type=range] { width: 100%; height: 44px; accent-color: var(--accent); background: transparent; }
+  .toggle { display: flex; gap: .5rem; margin-bottom: .6rem; }
+  .toggle button { flex: 1; padding: .6rem .5rem; font-size: .8rem; min-height: 44px; }
+  .toggle button.on { background: var(--accent); color: #000; }
+  select { width: 100%; padding: .8rem 1rem; background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); font: inherit; font-size: 1rem; min-height: 44px; }
+  select:focus { outline: none; border-color: var(--accent); }
+  .hint { font-size: .75rem; color: var(--muted); margin-top: .3rem; }
+  .val { color: var(--accent); font-size: .85rem; }
+
+  #calc { width: 100%; min-height: 48px; font-size: 1rem; margin-top: .5rem; }
+
+  #results { margin-top: 2rem; }
+  .headline { font-size: 1rem; color: var(--fg); margin-bottom: .2rem; }
+  .headline b { color: var(--accent); font-size: 1.6rem; }
+  #chartwrap { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .75rem; margin-top: 1rem; }
+  #chart { display: block; width: 100%; height: auto; }
+  .legend { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: .75rem; color: var(--muted); margin-top: .5rem; }
+  .legend span { display: inline-flex; align-items: center; gap: .4rem; }
+  .swatch { width: 12px; height: 3px; display: inline-block; }
+
+  .factors { font-size: .78rem; color: var(--muted); margin-top: 1rem; border-top: 1px solid var(--border);
+    padding-top: .8rem; }
+  .factors div { display: flex; justify-content: space-between; padding: .15rem 0; }
+  .factors b { color: var(--fg); font-weight: normal; }
+
+  .disclaimer { font-size: .75rem; color: var(--muted); margin-top: 2.5rem; padding: .8rem 1rem;
+    border-left: 2px solid var(--accent); background: var(--bg-raised); }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / gibson jackpot</div>
+  <h1>Gibson Jackpot</h1>
+  <p class="sub">The Jackpot isn't a war. It's everything, slowly, unevenly — William Gibson's name for the
+    hundred-year die-off in <em>The Peripheral</em>. This models where you'd sit in it: your odds against the
+    world's, on the same timeline.</p>
+
+  <div class="grid two">
+    <div>
+      <div class="field">
+        <span class="field-label">Country</span>
+        <div id="mapwrap">
+          <svg id="map" viewBox="0 0 360 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="World map, click a dot to pick a country"></svg>
+        </div>
+        <select id="country" aria-label="Country"></select>
+      </div>
+
+      <div class="field">
+        <label for="age">Age</label>
+        <input type="number" id="age" min="0" max="100" value="30" inputmode="numeric">
+      </div>
+
+      <div class="field">
+        <span class="field-label">Socioeconomic input</span>
+        <div class="toggle" role="tablist">
+          <button type="button" id="tab-income" class="on" role="tab" aria-selected="true">Income (USD/yr)</button>
+          <button type="button" id="tab-pct" role="tab" aria-selected="false">SES percentile</button>
+        </div>
+        <input type="number" id="income" min="0" value="15000" inputmode="numeric" placeholder="annual income, USD">
+        <input type="range" id="pct" min="1" max="99" value="50" class="hidden">
+        <div class="hint" id="ses-hint">World median household income ≈ $9,700/yr (PPP-ish, rough). Converted to a percentile via a lognormal approximation — not a real income distribution lookup.</div>
+      </div>
+
+      <div class="field">
+        <label for="resilience">Local resilience <span class="val" id="resilience-val">50</span>/100</label>
+        <input type="range" id="resilience" min="0" max="100" value="50">
+        <div class="hint">Your read on local healthcare, infrastructure and governance — not the national average.</div>
+      </div>
+
+      <button id="calc">Calculate</button>
+      <div id="err" class="err hidden" role="alert"></div>
+    </div>
+
+    <div>
+      <div id="results" class="hidden">
+        <div class="headline">Expected lifespan: <b id="life-years">—</b></div>
+        <div class="headline">Years from now: <b id="life-remaining">—</b></div>
+        <div id="chartwrap">
+          <canvas id="chart" width="600" height="380"></canvas>
+          <div class="legend">
+            <span><i class="swatch" style="background:var(--accent)"></i>your survival probability</span>
+            <span><i class="swatch" style="background:#5a8fd6"></i>world population remaining (Jackpot scenario)</span>
+          </div>
+        </div>
+        <div class="factors" id="factors"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    This is a toy model: a Gompertz–Makeham baseline hazard, scaled by three
+    illustrative multipliers (country, self-rated local resilience, and an
+    income→percentile→hazard gradient loosely modelled on real income–longevity
+    studies). The 80%-by-2099 population line is a fictional-scenario curve, not
+    a demographic forecast — nobody knows that number. Do not make decisions
+    from this page.
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // name, lat, lon, risk multiplier (illustrative — climate/conflict/health-system exposure, 1.0 = world average)
+  var COUNTRIES = [
+    ['United States', 38, -97, 1.05], ['Canada', 56, -106, 0.75],
+    ['Mexico', 23, -102, 1.15], ['Brazil', -10, -55, 1.25],
+    ['Argentina', -34, -64, 1.0], ['Colombia', 4, -72, 1.2],
+    ['Peru', -10, -76, 1.15], ['Chile', -30, -71, 0.9],
+    ['United Kingdom', 54, -2, 0.75], ['Ireland', 53, -8, 0.75],
+    ['France', 47, 2, 0.75], ['Germany', 51, 9, 0.7],
+    ['Spain', 40, -4, 0.8], ['Portugal', 39, -8, 0.8],
+    ['Italy', 43, 12, 0.85], ['Netherlands', 52, 5, 0.65],
+    ['Norway', 61, 9, 0.55], ['Sweden', 62, 15, 0.55],
+    ['Finland', 64, 26, 0.55], ['Denmark', 56, 10, 0.55],
+    ['Poland', 52, 19, 0.85], ['Ukraine', 49, 32, 1.6],
+    ['Russia', 62, 94, 1.4], ['Turkey', 39, 35, 1.1],
+    ['Greece', 39, 22, 0.9], ['Egypt', 27, 30, 1.3],
+    ['Nigeria', 9, 8, 1.7], ['Ethiopia', 9, 40, 1.75],
+    ['Kenya', 0, 38, 1.4], ['South Africa', -29, 24, 1.45],
+    ['DR Congo', -3, 23, 2.0], ['Sudan', 13, 30, 1.9],
+    ['Saudi Arabia', 24, 45, 1.1], ['Iran', 32, 53, 1.2],
+    ['Iraq', 33, 44, 1.6], ['Pakistan', 30, 70, 1.5],
+    ['India', 21, 78, 1.25], ['Bangladesh', 24, 90, 1.35],
+    ['China', 35, 105, 0.95], ['Japan', 36, 138, 0.6],
+    ['South Korea', 36, 128, 0.7], ['Indonesia', -2, 118, 1.15],
+    ['Philippines', 13, 122, 1.2], ['Vietnam', 16, 108, 1.0],
+    ['Thailand', 15, 101, 0.95], ['Australia', -25, 133, 0.7],
+    ['New Zealand', -41, 174, 0.65]
+  ];
+
+  var svg = document.getElementById('map');
+  var sel = document.getElementById('country');
+  var W = 360, H = 180;
+
+  function project(lat, lon) {
+    return { x: (lon + 180) / 360 * W, y: (90 - lat) / 180 * H };
+  }
+
+  svg.insertAdjacentHTML('afterbegin', '<rect class="ocean" x="0" y="0" width="' + W + '" height="' + H + '"/>');
+
+  COUNTRIES.forEach(function (c, i) {
+    var p = project(c[1], c[2]);
+    var opt = document.createElement('option');
+    opt.value = i; opt.textContent = c[0];
+    sel.appendChild(opt);
+
+    var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.innerHTML =
+      '<circle class="hit" data-i="' + i + '" cx="' + p.x + '" cy="' + p.y + '" r="9"></circle>' +
+      '<circle class="dot" data-i="' + i + '" cx="' + p.x + '" cy="' + p.y + '" r="2"></circle>';
+    svg.appendChild(g);
+  });
+
+  function selectCountry(i) {
+    sel.value = i;
+    document.querySelectorAll('#map .dot').forEach(function (d) {
+      d.classList.toggle('sel', d.getAttribute('data-i') === String(i));
+    });
+  }
+
+  svg.addEventListener('click', function (e) {
+    var i = e.target.getAttribute('data-i');
+    if (i !== null) selectCountry(i);
+  });
+  sel.addEventListener('change', function () { selectCountry(sel.value); });
+  selectCountry(0);
+
+  // --- SES toggle ---
+  var tabIncome = document.getElementById('tab-income');
+  var tabPct = document.getElementById('tab-pct');
+  var incomeInput = document.getElementById('income');
+  var pctInput = document.getElementById('pct');
+  var sesHint = document.getElementById('ses-hint');
+  var mode = 'income';
+
+  function setMode(m) {
+    mode = m;
+    tabIncome.classList.toggle('on', m === 'income');
+    tabPct.classList.toggle('on', m === 'pct');
+    tabIncome.setAttribute('aria-selected', m === 'income');
+    tabPct.setAttribute('aria-selected', m === 'pct');
+    incomeInput.classList.toggle('hidden', m !== 'income');
+    pctInput.classList.toggle('hidden', m !== 'pct');
+    sesHint.textContent = m === 'income'
+      ? 'World median household income ≈ $9,700/yr (rough). Converted to a percentile via a lognormal approximation — not a real income distribution lookup.'
+      : 'Where you sit in the global income distribution, 1 (poorest) to 99 (richest) — your own estimate.';
+  }
+  tabIncome.addEventListener('click', function () { setMode('income'); });
+  tabPct.addEventListener('click', function () { setMode('pct'); });
+
+  var resilience = document.getElementById('resilience');
+  var resilienceVal = document.getElementById('resilience-val');
+  resilience.addEventListener('input', function () { resilienceVal.textContent = resilience.value; });
+
+  // standard normal CDF via erf approximation (Abramowitz & Stegun 7.1.26)
+  function erf(x) {
+    var sign = x < 0 ? -1 : 1; x = Math.abs(x);
+    var a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+    var t = 1 / (1 + p * x);
+    var y = 1 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+    return sign * y;
+  }
+  function normalCdf(z) { return 0.5 * (1 + erf(z / Math.SQRT2)); }
+
+  function incomeToPercentile(income) {
+    var medianIncome = 9700, sigma = 1.15;
+    if (income <= 0) return 1;
+    var z = Math.log(income / medianIncome) / sigma;
+    return Math.min(99, Math.max(1, normalCdf(z) * 100));
+  }
+
+  // percentile -> hazard multiplier: bottom percentile ~1.55x, top ~0.55x, modelled after
+  // the real (if debated) income-longevity gradient literature, not any single study's numbers.
+  function sesMultiplier(pct) {
+    var t = pct / 100; // 0..1
+    return 1.55 - t * 1.0;
+  }
+
+  function resilienceMultiplier(r) {
+    var t = r / 100;
+    return 1.6 - t * 1.0; // 0 -> 1.6x hazard, 100 -> 0.6x hazard
+  }
+
+  function baselineHazard(age) {
+    var A = 0.0006, B = 0.00004, C = 0.085;
+    return A + B * Math.exp(C * Math.max(age, 0));
+  }
+
+  var CURRENT_YEAR = 2026;
+
+  function computeSurvival(age, totalMult, endAge) {
+    var years = [], survival = [], S = 1;
+    for (var a = age; a <= endAge; a++) {
+      years.push(CURRENT_YEAR + (a - age));
+      survival.push(S);
+      var h = baselineHazard(a) * totalMult;
+      S *= Math.exp(-h);
+    }
+    return { years: years, survival: survival };
+  }
+
+  function popRemaining(year) {
+    var t = Math.min(1, Math.max(0, (year - CURRENT_YEAR) / (2099 - CURRENT_YEAR)));
+    return 1 - 0.8 * Math.pow(t, 1.8);
+  }
+
+  function drawChart(years, survival) {
+    var canvas = document.getElementById('chart');
+    var ctx = canvas.getContext('2d');
+    var w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    var padL = 46, padB = 30, padT = 12, padR = 12;
+    var plotW = w - padL - padR, plotH = h - padT - padB;
+
+    var y0 = years[0], y1 = years[years.length - 1];
+    function xOf(y) { return padL + (y - y0) / (y1 - y0) * plotW; }
+    function yOf(p) { return padT + (1 - p) * plotH; }
+
+    ctx.strokeStyle = '#26242c'; ctx.fillStyle = '#8b8792';
+    ctx.font = '11px ui-monospace, monospace';
+    ctx.lineWidth = 1;
+    for (var g = 0; g <= 4; g++) {
+      var yy = padT + g / 4 * plotH;
+      ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(w - padR, yy); ctx.stroke();
+      ctx.fillText(Math.round((1 - g / 4) * 100) + '%', 4, yy + 4);
+    }
+    var yearStep = Math.ceil((y1 - y0) / 6 / 5) * 5 || 5;
+    for (var yr = y0; yr <= y1; yr += yearStep) {
+      ctx.fillText(String(yr), xOf(yr) - 12, h - 8);
+    }
+
+    // population line
+    ctx.strokeStyle = '#5a8fd6'; ctx.lineWidth = 2; ctx.beginPath();
+    for (var i = 0; i < years.length; i++) {
+      var px = xOf(years[i]), py = yOf(popRemaining(years[i]));
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // survival line
+    ctx.strokeStyle = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '').trim() || '#d94f4f';
+    ctx.lineWidth = 2.5; ctx.beginPath();
+    for (var j = 0; j < years.length; j++) {
+      var sx = xOf(years[j]), sy = yOf(survival[j]);
+      if (j === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+  }
+
+  function expectedLifespan(age, totalMult) {
+    var S = 1, sum = 0;
+    for (var a = age; a < age + 90; a++) {
+      sum += S;
+      var h = baselineHazard(a) * totalMult;
+      S *= Math.exp(-h);
+      if (S < 0.0005) break;
+    }
+    return age + sum;
+  }
+
+  var errEl = document.getElementById('err');
+
+  document.getElementById('calc').addEventListener('click', function () {
+    kit.clear(errEl);
+    var age = parseFloat(document.getElementById('age').value);
+    if (!(age >= 0 && age <= 100)) { kit.showError(errEl, 'Age must be between 0 and 100.'); return; }
+
+    var pct;
+    if (mode === 'income') {
+      var income = parseFloat(incomeInput.value);
+      if (!(income >= 0)) { kit.showError(errEl, 'Enter a non-negative annual income.'); return; }
+      pct = incomeToPercentile(income);
+    } else {
+      pct = parseFloat(pctInput.value);
+    }
+
+    var ci = parseInt(sel.value, 10);
+    var country = COUNTRIES[ci];
+    var countryMult = country[3];
+    var resMult = resilienceMultiplier(parseFloat(resilience.value));
+    var sesMult = sesMultiplier(pct);
+    var totalMult = countryMult * resMult * sesMult;
+
+    var endAge = Math.max(100, age + (2099 - CURRENT_YEAR));
+    var curve = computeSurvival(age, totalMult, endAge);
+    var life = expectedLifespan(age, totalMult);
+
+    document.getElementById('life-years').textContent = life.toFixed(1) + ' yrs old';
+    document.getElementById('life-remaining').textContent = Math.max(0, life - age).toFixed(1) + ' more years';
+
+    drawChart(curve.years, curve.survival);
+
+    document.getElementById('factors').innerHTML =
+      '<div><span>Country (' + country[0] + ')</span><b>' + countryMult.toFixed(2) + '×</b></div>' +
+      '<div><span>Local resilience</span><b>' + resMult.toFixed(2) + '×</b></div>' +
+      '<div><span>SES (≈p' + Math.round(pct) + ')</span><b>' + sesMult.toFixed(2) + '×</b></div>' +
+      '<div><span>Combined hazard multiplier</span><b>' + totalMult.toFixed(2) + '×</b></div>';
+
+    document.getElementById('results').classList.remove('hidden');
+  });
+
+  document.getElementById('calc').click();
+})();
+</script>
+</body>
+</html>

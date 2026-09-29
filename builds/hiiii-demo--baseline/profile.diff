@@ -1,0 +1,24 @@
+diff --git a/lab/_profiles/anthonybecker.bsky.social.md b/lab/_profiles/anthonybecker.bsky.social.md
+index 0c4d2b9d..1dc294f7 100644
+--- a/lab/_profiles/anthonybecker.bsky.social.md
++++ b/lab/_profiles/anthonybecker.bsky.social.md
+@@ -1,6 +1,19 @@
+ # @anthonybecker.bsky.social
+ 
+ ## What they've asked for
++Second distinct site: "My Commute" (`hiiii-demo`) — a super-light single-person
++hydrofoil crossing San Francisco Bay from Lake Merritt (Oakland) to Oracle's
++Redwood Shores campus. Read together with `create-space` below, a pattern:
++both are 3D vehicle/environment simulations grounded in a real or
++personally-resonant place (a real Bay Area commute; an O'Neill cylinder as a
++lived-in world), controlled by a single slider (throttle / spin speed) plus
++drag-to-look and pinch/scroll-zoom, rather than active multi-key piloting or
++driving controls. Reinforces the ambient-over-manual preference noted below —
++across two different mechanics now (proximity-reveal vs. an autopilot route),
++the throughline is: light, low-effort input: (one slider) driving something
++that unfolds mostly on its own, watched via free-look camera rather than
++steered by hand.
++
+ First build: a space colony simulator (`create-space`) — camera inside a
+ rotating O'Neill cylinder, pastoral tone, hover/tap on colonists to read
+ their thoughts while they work and play. Wants atmosphere and a real 3D

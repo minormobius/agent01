@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 201 colours, top 98%
+  ✓ smoke: lab/www/sketch-out/index.html loads clean under the production CSP

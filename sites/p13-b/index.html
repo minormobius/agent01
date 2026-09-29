@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>polar shift — z(n+1) = (r + cos θ)e^iθ − c explorer</title>
+<meta name="description" content="Interactive explorer for the discrete complex map z(n+1) = (r + cos θ)e^iθ − c: orbits, an escape-time map, a bifurcation diagram, and time series, all computed live as you move the c slider.">
+<meta property="og:title" content="polar shift — a complex-map explorer">
+<meta property="og:description" content="z(n+1) = (r + cos θ)e^iθ − c, r=|z|, θ=arg(z), c real. Drag c, click to seed an orbit, watch the escape-time map, the bifurcation diagram, and the time series update live.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root{ --accent:#7ac3e8; --accent-dim:#12303d; }
+  main{ max-width: 64rem; }
+  h1{ font-size: 1.7rem; }
+  .formula{ font-size: 1.1rem; color: var(--fg); background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: .9rem 1.1rem;
+    margin: .5rem 0 1.5rem; overflow-x: auto; }
+  .formula .lbl{ color: var(--muted); font-size: .75rem; display:block; margin-top:.5rem; }
+
+  .controls{ display:flex; flex-wrap:wrap; gap: 1rem 1.5rem; align-items:flex-end;
+    background: var(--bg-raised); border:1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem; margin-bottom: 1.5rem; }
+  .ctrl{ display:flex; flex-direction:column; gap:.35rem; flex: 1 1 12rem; min-width: 10rem; }
+  .ctrl label{ font-size:.75rem; color: var(--muted); display:flex; justify-content:space-between; }
+  .ctrl output{ color: var(--accent); font-weight:600; }
+  input[type=range]{ width:100%; height: 44px; accent-color: var(--accent); background:transparent; }
+  input[type=checkbox]{ width:22px; height:22px; accent-color: var(--accent); margin-right:.4rem; vertical-align:-5px; }
+  .ctrl.row{ flex-direction:row; align-items:center; flex: 0 0 auto; }
+  .ctrl.row label{ display:flex; align-items:center; gap:.5rem; min-height:44px; padding:.4rem 0; }
+  button{ min-height:44px; }
+  .btnrow{ display:flex; gap:.6rem; flex-wrap:wrap; }
+
+  .views{ display:flex; flex-direction:column; gap:2rem; }
+  .view{ background: var(--bg-raised); border:1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem; }
+  .view h2{ margin-top:0; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;}
+  .view .note{ font-size:.75rem; color:var(--muted); margin:.25rem 0 .75rem; }
+  .canvaswrap{ position:relative; width:100%; max-width: 480px; margin: 0 auto; }
+  canvas{ display:block; width:100%; height:auto; background:#000; border-radius: 2px;
+    touch-action: none; cursor: crosshair; }
+  .twocol{ display:flex; gap:1.25rem; flex-wrap:wrap; }
+  .twocol > div{ flex:1 1 260px; min-width: 0; }
+  svg.chart{ width:100%; height:auto; display:block; background: var(--bg); border-radius:2px; }
+  .legend{ font-size:.7rem; color:var(--muted); display:flex; gap:1rem; flex-wrap:wrap; margin-top:.4rem; }
+  .legend span{ display:inline-flex; align-items:center; gap:.3rem; }
+  .swatch{ width:.7rem; height:.7rem; border-radius:1px; display:inline-block; }
+  .readout{ font-size:.75rem; color: var(--muted); margin-top:.5rem; }
+  .readout b{ color: var(--fg); }
+  footer{ margin-top:3rem; font-size:.75rem; color:var(--muted); }
+  @media (max-width: 480px){
+    .canvaswrap{ max-width: none; }
+    .ctrl{ flex-basis: 100%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>polar shift</h1>
+  <p class="sub">an explorer for a discrete complex map with one real knob</p>
+
+  <div class="formula">
+    z<sub>n+1</sub> = (r + cos&nbsp;θ)&nbsp;e<sup>iθ</sup> − c
+    <span class="lbl">r = |z<sub>n</sub>| &nbsp;·&nbsp; θ = arg(z<sub>n</sub>) &nbsp;·&nbsp; c ∈ ℝ is the slider below</span>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl">
+      <label for="c">c <output id="cval">0.50</output></label>
+      <input type="range" id="c" min="-3" max="3" step="0.001" value="0.5">
+    </div>
+    <div class="ctrl">
+      <label for="iter">max iterations <output id="iterval">60</output></label>
+      <input type="range" id="iter" min="10" max="200" step="1" value="60">
+    </div>
+    <div class="ctrl row">
+      <label><input type="checkbox" id="animate"> animate orbit</label>
+    </div>
+    <div class="btnrow">
+      <button id="reset">reset z₀</button>
+      <button id="randomc">random c</button>
+    </div>
+  </div>
+
+  <div class="views">
+
+    <section class="view">
+      <h2>1 · escape-time map <span class="note" style="margin:0">click anywhere to seed an orbit there</span></h2>
+      <p class="note">Every pixel is its own starting point z₀. Color = how many iterations before |z| exceeds 6 (bright = fast escape); the darkest fill means it stayed under that radius for all <span id="iterlabel1">60</span> steps. Growth here is additive (driven by ±cos θ per step), not multiplicative like z²+c, so the escape radius is an empirical choice tuned to show structure, not a theorem — treat the boundary as approximate.</p>
+      <div class="canvaswrap">
+        <canvas id="escape" width="220" height="220"></canvas>
+      </div>
+      <div class="readout" id="escreadout">z₀ = 0.000 + 0.000i</div>
+    </section>
+
+    <section class="view">
+      <h2>2 · orbit in the plane</h2>
+      <p class="note">The path z₀ → z₁ → z₂ → … for the seeded point above, drawn over the same window as the map. Dot brightens with step number.</p>
+      <div class="canvaswrap">
+        <canvas id="orbit" width="220" height="220"></canvas>
+      </div>
+    </section>
+
+    <section class="view">
+      <h2>3 · orbit over time</h2>
+      <p class="note">The same orbit, unrolled: |z<sub>n</sub>| (radius) and Re/Im(z<sub>n</sub>) against step n.</p>
+      <div class="twocol">
+        <div>
+          <svg class="chart" id="chartR" viewBox="0 0 320 180" preserveAspectRatio="none"></svg>
+          <div class="legend"><span><span class="swatch" style="background:#7ac3e8"></span>|z_n|</span></div>
+        </div>
+        <div>
+          <svg class="chart" id="chartXY" viewBox="0 0 320 180" preserveAspectRatio="none"></svg>
+          <div class="legend">
+            <span><span class="swatch" style="background:#e8a33d"></span>Re(z_n)</span>
+            <span><span class="swatch" style="background:#c17ae8"></span>Im(z_n)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view">
+      <h2>4 · bifurcation diagram</h2>
+      <p class="note">For each c on the x-axis, iterate from a fixed off-axis z₀=0.3+0.4i for 250 steps, discard the first 150 as transient, and plot the remaining |z<sub>n</sub>| values (capped for display — this map's orbits drift rather than settle for most c, so large values pile at the ceiling instead of a clean line). Vertical spread at a given c means the orbit is still moving, not settled to a fixed point. Drag on the chart to jump the c slider.</p>
+      <svg class="chart" id="chartBif" viewBox="0 0 320 180" preserveAspectRatio="none"></svg>
+      <div class="readout" id="bifreadout"></div>
+    </section>
+
+  </div>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <footer>
+    Pure math, computed in your browser — no network calls, no accounts, nothing saved.
+  </footer>
+</main>
+<script>
+document.getElementById('crumb').innerHTML = kit.crumb('polar shift');
+</script>
+<script>
+(function(){
+  'use strict';
+
+  // ---------------------------------------------------------------
+  // the map itself
+  // ---------------------------------------------------------------
+  function step(re, im, c){
+    var r = Math.hypot(re, im);
+    var theta = Math.atan2(im, re); // atan2(0,0) = 0, matches r=0 => theta=0
+    var rp = r + Math.cos(theta);
+    return [ rp * Math.cos(theta) - c, rp * Math.sin(theta) ];
+  }
+
+  var ESCAPE_R = 6;
+  var VIEW = 4; // window is [-VIEW, VIEW] in both re and im
+
+  // ---------------------------------------------------------------
+  // state
+  // ---------------------------------------------------------------
+  var state = {
+    c: 0.5,
+    maxIter: 60,
+    z0: [1.3, 0.9],
+    animating: false,
+    animFrame: 0,
+  };
+
+  var els = {
+    c: document.getElementById('c'),
+    cval: document.getElementById('cval'),
+    iter: document.getElementById('iter'),
+    iterval: document.getElementById('iterval'),
+    iterlabel1: document.getElementById('iterlabel1'),
+    animate: document.getElementById('animate'),
+    reset: document.getElementById('reset'),
+    randomc: document.getElementById('randomc'),
+    escape: document.getElementById('escape'),
+    orbit: document.getElementById('orbit'),
+    escreadout: document.getElementById('escreadout'),
+    chartR: document.getElementById('chartR'),
+    chartXY: document.getElementById('chartXY'),
+    chartBif: document.getElementById('chartBif'),
+    bifreadout: document.getElementById('bifreadout'),
+    err: document.getElementById('err'),
+  };
+
+  function fail(msg, e){
+    kit.showError(els.err, msg);
+    if (e) console.error(e);
+  }
+
+  // ---------------------------------------------------------------
+  // escape-time map (canvas #1)
+  // ---------------------------------------------------------------
+  var ectx = els.escape.getContext('2d', { willReadFrequently: true });
+
+  function pxToPlane(px, py, w, h){
+    return [ (px / w) * 2 * VIEW - VIEW, VIEW - (py / h) * 2 * VIEW ];
+  }
+  function planeToPx(re, im, w, h){
+    return [ (re + VIEW) / (2 * VIEW) * w, (VIEW - im) / (2 * VIEW) * h ];
+  }
+
+  function escapeColor(iters, maxIter){
+    if (iters >= maxIter) return [10, 10, 14];
+    var t = iters / maxIter;
+    // dark blue -> cyan -> warm gold as escape gets faster
+    var r = Math.round(20 + 235 * Math.pow(t, 0.55));
+    var g = Math.round(30 + 190 * Math.pow(t, 0.85));
+    var b = Math.round(90 + 140 * (1 - t));
+    return [r, g, b];
+  }
+
+  function renderEscape(res){
+    res = res || 220;
+    var w = els.escape.width, h = els.escape.height;
+    var img = ectx.createImageData(w, h);
+    var maxIter = state.maxIter, c = state.c;
+    var stepX = Math.max(1, Math.round(w / res));
+    var stepY = Math.max(1, Math.round(h / res));
+    for (var py = 0; py < h; py += stepY) {
+      for (var px = 0; px < w; px += stepX) {
+        var p0 = pxToPlane(px + stepX / 2, py + stepY / 2, w, h);
+        var re = p0[0], im = p0[1];
+        var n = 0;
+        while (n < maxIter) {
+          var nx = step(re, im, c);
+          re = nx[0]; im = nx[1];
+          if ((re * re + im * im) > ESCAPE_R * ESCAPE_R) break;
+          n++;
+        }
+        var col = escapeColor(n, maxIter);
+        for (var by = 0; by < stepY && py + by < h; by++) {
+          for (var bx = 0; bx < stepX && px + bx < w; bx++) {
+            var idx = ((py + by) * w + (px + bx)) * 4;
+            img.data[idx] = col[0]; img.data[idx+1] = col[1]; img.data[idx+2] = col[2]; img.data[idx+3] = 255;
+          }
+        }
+      }
+    }
+    ectx.putImageData(img, 0, 0);
+    drawSeedMarker();
+  }
+
+  function drawSeedMarker(){
+    var w = els.escape.width, h = els.escape.height;
+    var p = planeToPx(state.z0[0], state.z0[1], w, h);
+    ectx.beginPath();
+    ectx.arc(p[0], p[1], 4, 0, Math.PI * 2);
+    ectx.fillStyle = '#fff';
+    ectx.fill();
+    ectx.lineWidth = 1.5;
+    ectx.strokeStyle = '#000';
+    ectx.stroke();
+  }
+
+  var escRenderTimer = null;
+  function scheduleEscapeRender(live){
+    if (escRenderTimer) { clearTimeout(escRenderTimer); escRenderTimer = null; }
+    renderEscape(live ? 60 : 220);
+    if (live) escRenderTimer = setTimeout(function(){ renderEscape(220); }, 160);
+  }
+
+  els.escape.addEventListener('pointerdown', function(e){
+    var rect = els.escape.getBoundingClientRect();
+    var px = (e.clientX - rect.left) / rect.width * els.escape.width;
+    var py = (e.clientY - rect.top) / rect.height * els.escape.height;
+    var p = pxToPlane(px, py, els.escape.width, els.escape.height);
+    state.z0 = p;
+    state.animFrame = 0;
+    renderEscape(220);
+    renderOrbitAll();
+  });
+
+  // ---------------------------------------------------------------
+  // orbit plane (canvas #2) + time series (charts) share one orbit array
+  // ---------------------------------------------------------------
+  var octx = els.orbit.getContext('2d');
+
+  function computeOrbit(){
+    var pts = [ state.z0.slice() ];
+    var re = state.z0[0], im = state.z0[1];
+    for (var n = 0; n < state.maxIter; n++) {
+      var nx = step(re, im, state.c);
+      re = nx[0]; im = nx[1];
+      pts.push([re, im]);
+      if ((re*re + im*im) > 1e6) break; // stop drawing once wildly diverged
+    }
+    return pts;
+  }
+
+  function renderOrbitPlane(pts, upTo){
+    var w = els.orbit.width, h = els.orbit.height;
+    octx.fillStyle = '#000';
+    octx.fillRect(0, 0, w, h);
+    // axes
+    octx.strokeStyle = '#222';
+    octx.lineWidth = 1;
+    var origin = planeToPx(0, 0, w, h);
+    octx.beginPath(); octx.moveTo(0, origin[1]); octx.lineTo(w, origin[1]); octx.stroke();
+    octx.beginPath(); octx.moveTo(origin[0], 0); octx.lineTo(origin[0], h); octx.stroke();
+
+    var n = (upTo === undefined) ? pts.length : Math.min(upTo, pts.length);
+    octx.lineWidth = 1.5;
+    for (var i = 1; i < n; i++) {
+      var a = planeToPx(pts[i-1][0], pts[i-1][1], w, h);
+      var b = planeToPx(pts[i][0], pts[i][1], w, h);
+      var t = i / pts.length;
+      octx.strokeStyle = 'rgba(122,195,232,' + (0.25 + 0.65 * t) + ')';
+      octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke();
+    }
+    for (var j = 0; j < n; j++) {
+      var p = planeToPx(pts[j][0], pts[j][1], w, h);
+      var tt = j / Math.max(1, pts.length - 1);
+      octx.beginPath();
+      octx.arc(p[0], p[1], j === n - 1 ? 3.5 : 2, 0, Math.PI * 2);
+      octx.fillStyle = j === 0 ? '#fff' : ('rgba(232,163,61,' + (0.35 + 0.65*tt) + ')');
+      octx.fill();
+    }
+  }
+
+  function svgPolyline(svgEl, series, colors, yDomain){
+    var w = 320, h = 180, pad = 8;
+    var n = series[0].length;
+    var lo = yDomain[0], hi = yDomain[1];
+    if (hi - lo < 1e-9) { hi = lo + 1; }
+    function X(i){ return pad + (i / Math.max(1, n - 1)) * (w - 2*pad); }
+    function Y(v){ return h - pad - ((v - lo) / (hi - lo)) * (h - 2*pad); }
+    var parts = [];
+    // zero line if in range
+    if (lo < 0 && hi > 0) {
+      parts.push('<line x1="' + pad + '" x2="' + (w-pad) + '" y1="' + Y(0) + '" y2="' + Y(0) + '" stroke="#333" stroke-width="1"/>');
+    }
+    series.forEach(function(s, si){
+      var d = s.map(function(v, i){ return (i === 0 ? 'M' : 'L') + X(i).toFixed(1) + ',' + Y(v).toFixed(1); }).join(' ');
+      parts.push('<path d="' + d + '" fill="none" stroke="' + colors[si] + '" stroke-width="1.6"/>');
+    });
+    svgEl.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    svgEl.innerHTML = parts.join('');
+  }
+
+  function renderTimeSeries(pts){
+    var rs = pts.map(function(p){ return Math.hypot(p[0], p[1]); });
+    var xs = pts.map(function(p){ return p[0]; });
+    var ys = pts.map(function(p){ return p[1]; });
+    var rMax = Math.max.apply(null, rs);
+    svgPolyline(els.chartR, [rs], ['#7ac3e8'], [0, rMax * 1.05 || 1]);
+    var lo = Math.min.apply(null, xs.concat(ys));
+    var hi = Math.max.apply(null, xs.concat(ys));
+    var pad = (hi - lo) * 0.08 || 1;
+    svgPolyline(els.chartXY, [xs, ys], ['#e8a33d', '#c17ae8'], [lo - pad, hi + pad]);
+  }
+
+  function renderOrbitAll(){
+    var pts = computeOrbit();
+    state._orbit = pts;
+    var upTo = state.animating ? state.animFrame : pts.length;
+    renderOrbitPlane(pts, upTo);
+    renderTimeSeries(pts.slice(0, Math.max(2, upTo)));
+    els.escreadout.textContent = 'z₀ = ' + state.z0[0].toFixed(3) + (state.z0[1] >= 0 ? ' + ' : ' − ') + Math.abs(state.z0[1]).toFixed(3) + 'i    orbit shown: ' + Math.max(0, upTo - 1) + ' / ' + (pts.length - 1) + ' steps';
+  }
+
+  // ---------------------------------------------------------------
+  // bifurcation diagram (chart #4)
+  // ---------------------------------------------------------------
+  function renderBifurcation(){
+    var w = 320, h = 180, pad = 8;
+    var cMin = -3, cMax = 3;
+    var cols = 160;
+    var iters = 250, transient = 150;
+    var dots = [];
+    var rMaxSeen = 0;
+    for (var col = 0; col < cols; col++) {
+      var c = cMin + (col / (cols - 1)) * (cMax - cMin);
+      // NOT a real-axis seed: theta stays exactly 0 forever there, collapsing the
+      // whole map to a trivial linear recursion re' = re + 1 - c. An off-axis
+      // start actually explores the 2D dynamics.
+      var re = 0.3, im = 0.4;
+      for (var n = 0; n < iters; n++) {
+        var nx = step(re, im, c);
+        re = nx[0]; im = nx[1];
+        if (!isFinite(re) || !isFinite(im) || (re*re+im*im) > 1e8) break;
+        if (n >= transient) {
+          var r = Math.hypot(re, im);
+          if (r > rMaxSeen && isFinite(r)) rMaxSeen = r;
+          dots.push([c, r]);
+        }
+      }
+    }
+    rMaxSeen = Math.min(rMaxSeen, 12) || 1; // clamp so one runaway c doesn't flatten everything
+    function X(c){ return pad + ((c - cMin) / (cMax - cMin)) * (w - 2*pad); }
+    function Y(r){ return h - pad - (Math.min(r, rMaxSeen) / rMaxSeen) * (h - 2*pad); }
+    var circles = [];
+    for (var i = 0; i < dots.length; i++) {
+      circles.push('<circle cx="' + X(dots[i][0]).toFixed(1) + '" cy="' + Y(dots[i][1]).toFixed(1) + '" r="0.6" fill="#7ac3e8" fill-opacity="0.45"/>');
+    }
+    var curC = X(state.c);
+    circles.push('<line x1="' + curC.toFixed(1) + '" x2="' + curC.toFixed(1) + '" y1="0" y2="' + h + '" stroke="#e8a33d" stroke-width="1.4"/>');
+    els.chartBif.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    els.chartBif.innerHTML = circles.join('');
+    els.bifreadout.innerHTML = 'x-axis: c from ' + cMin + ' to ' + cMax + ' &nbsp;·&nbsp; y-axis: |z<sub>n</sub>|, 0 to ' + rMaxSeen.toFixed(2) + ' (clamped) &nbsp;·&nbsp; orange line = current c = <b>' + state.c.toFixed(3) + '</b>';
+  }
+
+  function bifPointerToC(e){
+    var rect = els.chartBif.getBoundingClientRect();
+    var frac = (e.clientX - rect.left) / rect.width;
+    frac = Math.max(0, Math.min(1, frac));
+    return -3 + frac * 6;
+  }
+  els.chartBif.addEventListener('pointerdown', function(e){
+    setC(bifPointerToC(e));
+    els.chartBif.setPointerCapture(e.pointerId);
+  });
+  els.chartBif.addEventListener('pointermove', function(e){
+    if (e.buttons & 1) setC(bifPointerToC(e));
+  });
+
+  // ---------------------------------------------------------------
+  // wiring
+  // ---------------------------------------------------------------
+  function setC(c){
+    c = Math.max(-3, Math.min(3, c));
+    state.c = c;
+    els.c.value = String(c);
+    els.cval.textContent = c.toFixed(3);
+    redrawAll(true);
+  }
+
+  function redrawAll(live){
+    try {
+      scheduleEscapeRender(!!live);
+      renderOrbitAll();
+      renderBifurcation();
+      kit.clear(els.err);
+    } catch (e) {
+      fail('rendering failed: ' + e.message, e);
+    }
+  }
+
+  els.c.addEventListener('input', function(){
+    state.c = parseFloat(els.c.value);
+    els.cval.textContent = state.c.toFixed(3);
+    redrawAll(true);
+  });
+  els.c.addEventListener('change', function(){ redrawAll(false); });
+
+  els.iter.addEventListener('input', function(){
+    state.maxIter = parseInt(els.iter.value, 10);
+    els.iterval.textContent = String(state.maxIter);
+    els.iterlabel1.textContent = String(state.maxIter);
+    redrawAll(true);
+  });
+  els.iter.addEventListener('change', function(){ redrawAll(false); });
+
+  els.reset.addEventListener('click', function(){
+    state.z0 = [1.3, 0.9];
+    state.animFrame = 0;
+    renderEscape(220);
+    renderOrbitAll();
+  });
+
+  els.randomc.addEventListener('click', function(){
+    setC(Math.round((Math.random() * 6 - 3) * 1000) / 1000);
+  });
+
+  var rafId = null;
+  function stopAnim(){ if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
+  function tickAnim(){
+    if (!state.animating) return;
+    var pts = state._orbit || computeOrbit();
+    state.animFrame++;
+    if (state.animFrame > pts.length + 5) { state.animFrame = 0; }
+    renderOrbitPlane(pts, Math.min(state.animFrame, pts.length));
+    renderTimeSeries(pts.slice(0, Math.max(2, Math.min(state.animFrame, pts.length))));
+    rafId = requestAnimationFrame(function(){ setTimeout(tickAnim, 90); });
+  }
+  els.animate.addEventListener('change', function(){
+    state.animating = els.animate.checked;
+    if (state.animating) {
+      state.animFrame = 0;
+      state._orbit = computeOrbit();
+      tickAnim();
+    } else {
+      stopAnim();
+      renderOrbitAll();
+    }
+  });
+
+  // initial paint
+  els.cval.textContent = state.c.toFixed(2);
+  redrawAll(false);
+})();
+</script>
+</body>
+</html>

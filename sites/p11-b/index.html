@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chladni Plate — mino.mobi lab</title>
+<meta name="description" content="A vibrating plate, simulated and rendered in 3D. Pick a mode and watch sand drift to the lines where the plate isn't moving.">
+<meta property="og:title" content="Chladni Plate — vibration modes, visualized">
+<meta property="og:description" content="A vibrating square plate in three.js. Pick a mode, watch scattered sand drift to the nodal lines — the curves where the plate stands still while everything around them shakes.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  main { max-width: 52rem; }
+  #stage {
+    position: relative; width: 100%; aspect-ratio: 4 / 3;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  #stage canvas { display: block; width: 100%; height: 100%; }
+  #hud {
+    position: absolute; top: .6rem; left: .6rem; right: .6rem;
+    display: flex; justify-content: space-between; gap: .5rem;
+    font-size: .8rem; color: var(--fg); pointer-events: none; text-shadow: 0 1px 3px #000;
+  }
+  #hud .badge { background: rgba(14,14,17,.65); padding: .25rem .55rem; border-radius: var(--radius); }
+  #controls { margin-top: 1rem; display: flex; flex-direction: column; gap: .75rem; }
+  #presets { display: flex; flex-wrap: wrap; gap: .5rem; }
+  #presets button { min-height: 44px; font-size: .8rem; }
+  #presets button.on { background: var(--accent); color: #000; }
+  .row { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+  .row label { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+  input[type=range] { flex: 1; min-width: 8rem; height: 44px; accent-color: var(--accent); background: transparent; }
+  #transport { display: flex; gap: .5rem; }
+  #transport button { min-height: 44px; min-width: 44px; }
+  section#explain h2 { color: var(--fg); }
+  section#explain code { display: block; margin: .5rem 0; white-space: pre-wrap; }
+  .approx { border-left: 2px solid var(--accent); padding-left: .75rem; margin: 1rem 0; }
+  noscript { color: var(--error); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb-slot"></div>
+  <h1>Chladni Plate</h1>
+  <p class="sub">A square plate, forced to vibrate. Sand can't sit still where the plate is moving — so it collects exactly where the plate isn't.</p>
+
+  <div id="stage">
+    <canvas id="canvas" aria-label="3D simulation of a vibrating plate with sand collecting on its nodal lines"></canvas>
+    <div id="hud">
+      <span class="badge" id="hud-mode">mode (1, 2)</span>
+      <span class="badge" id="hud-freq">≈50 Hz (illustrative)</span>
+    </div>
+  </div>
+
+  <div id="controls">
+    <div id="presets" role="group" aria-label="Vibration mode presets"></div>
+    <div class="row">
+      <label for="amp">amplitude</label>
+      <input type="range" id="amp" min="0" max="100" value="70">
+      <label for="grains">sand</label>
+      <input type="range" id="grains" min="80" max="700" value="400">
+    </div>
+    <div id="transport">
+      <button id="play" type="button" aria-pressed="true">pause</button>
+      <button id="scatter" type="button">scatter sand</button>
+    </div>
+  </div>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <section id="explain">
+    <h2>What you're looking at</h2>
+    <p>The plate is forced to vibrate at one of its natural shapes — a <strong>mode</strong>.
+    Most of the surface swings up and down, but a network of lines sits still no matter
+    how hard the plate shakes: the <strong>nodal lines</strong>. Scatter grains on a real
+    plate bowed at the right pitch and they bounce away from the moving regions
+    (the <strong>antinodes</strong>) and pile up along the nodes — tracing the mode shape
+    in sand. That is the actual 1787 demonstration; this page reproduces it with numbers
+    instead of a violin bow.</p>
+
+    <h2>Mode numbers (n, m)</h2>
+    <p>Each preset is a pair of integers. The height of the plate at position (x, y) is
+    modeled as the difference of two simple standing-wave grids:</p>
+    <code>f(x, y) = cos(nπx)·cos(mπy) − cos(mπx)·cos(nπy)</code>
+    <p>Swapping n and m gives the same two grids in the other order, and subtracting them
+    is what breaks the plate's symmetry into the curved, looping shapes Chladni patterns
+    are known for — a plain cos·cos grid alone just gives a checkerboard. Where f(x,y) is
+    zero, the plate is flat for every instant of the oscillation: that's a node. The colour
+    on the plate is how far it currently sits from zero, brightest at the antinodes.</p>
+
+    <h2>Watching the sand settle</h2>
+    <p>Each grain nudges itself away from wherever the plate is moving hardest right now
+    (down the slope of |f|) and jitters slightly in proportion to how much the plate under
+    it is shaking — a rough stand-in for grains actually being thrown by the vibration.
+    Drop the amplitude to zero and the plate goes still: nothing pushes the sand anywhere,
+    same as a plate that was never bowed.</p>
+
+    <div class="approx">
+      <p><strong>This is illustrative, not a measurement.</strong> Real Chladni
+      demonstrations use a specific plate (usually clamped or bowed at one point, often
+      circular, not square with free edges), and the pattern depends on where it's held.
+      The two-term formula above is the standard teaching approximation for a square plate,
+      not a solved elasticity equation for any particular sheet of metal. The "Hz" shown
+      for each preset scales with √(n²+m²), which is the right shape for how mode
+      frequencies climb — it is not a frequency measured off a real plate.</p>
+    </div>
+
+    <h2>A note on how this was built</h2>
+    <p>The brief asked for the simulation in Rust, compiled to WebAssembly. That needs a
+    Rust toolchain to produce a <code>.wasm</code> file, and this build had no compiler and
+    no network — only a vendored, pre-built module could have been used, and none existed
+    for this. The physics here runs in plain JavaScript instead; the rendering is
+    three.js.</p>
+  </section>
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script>
+  document.getElementById('crumb-slot').innerHTML = kit.crumb('chladni-sim');
+</script>
+<script type="module">
+import * as THREE from '../_kit/three.module.min.js';
+
+const err = document.getElementById('err');
+function fail(msg) { kit.showError(err, msg); }
+
+const PRESETS = [
+  { n: 1, m: 2, name: 'four lobes' },
+  { n: 1, m: 4, name: 'ringed cross' },
+  { n: 2, m: 3, name: 'woven grid' },
+  { n: 2, m: 5, name: 'fine lattice' },
+  { n: 3, m: 4, name: 'nested loops' },
+  { n: 4, m: 5, name: 'dense mesh' },
+];
+
+const REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const state = {
+  n: PRESETS[0].n, m: PRESETS[0].m,
+  amp: 0.7,
+  playing: !REDUCED_MOTION,
+  phase: 0,
+  grainCount: 400,
+};
+
+function chladni(x, y, n, m) {
+  return Math.cos(n * Math.PI * x) * Math.cos(m * Math.PI * y)
+       - Math.cos(m * Math.PI * x) * Math.cos(n * Math.PI * y);
+}
+function absF(x, y) { return Math.abs(chladni(x, y, state.n, state.m)); }
+
+// ---------------------------------------------------------------- scene ----
+let scene, camera, renderer, plate;
+let plateGeo, posAttr, colorAttr;
+const SEG = 56;
+const STRIDE = SEG + 1;
+const MAX_HEIGHT = 0.3;
+
+const accent = new THREE.Color(0xe8a33d);
+const dark = new THREE.Color(0x16161b);
+
+function buildPlate() {
+  const count = STRIDE * STRIDE;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  for (let i = 0; i <= SEG; i++) {
+    for (let j = 0; j <= SEG; j++) {
+      const idx = i * STRIDE + j;
+      const x = -1 + (2 * i) / SEG;
+      const y = -1 + (2 * j) / SEG;
+      positions[idx * 3] = x;
+      positions[idx * 3 + 1] = y;
+      positions[idx * 3 + 2] = 0;
+    }
+  }
+
+  const triIndex = [];
+  for (let i = 0; i < SEG; i++) {
+    for (let j = 0; j < SEG; j++) {
+      const a = i * STRIDE + j;
+      const b = a + 1;
+      const c = a + STRIDE;
+      const d = c + 1;
+      triIndex.push(a, c, b, b, c, d);
+    }
+  }
+
+  const lineIndex = [];
+  for (let i = 0; i <= SEG; i++) {
+    for (let j = 0; j <= SEG; j++) {
+      const a = i * STRIDE + j;
+      if (j < SEG) lineIndex.push(a, a + 1);
+      if (i < SEG) lineIndex.push(a, a + STRIDE);
+    }
+  }
+
+  plateGeo = new THREE.BufferGeometry();
+  posAttr = new THREE.BufferAttribute(positions, 3);
+  colorAttr = new THREE.BufferAttribute(colors, 3);
+  plateGeo.setAttribute('position', posAttr);
+  plateGeo.setAttribute('color', colorAttr);
+  plateGeo.setIndex(triIndex);
+
+  const solid = new THREE.Mesh(
+    plateGeo,
+    new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })
+  );
+  solid.frustumCulled = false;
+
+  const lineGeo = new THREE.BufferGeometry();
+  lineGeo.setAttribute('position', posAttr); // shared buffer: updates once, draws twice
+  lineGeo.setIndex(lineIndex);
+  const wire = new THREE.LineSegments(
+    lineGeo,
+    new THREE.LineBasicMaterial({ color: 0x26242c, transparent: true, opacity: 0.5 })
+  );
+  wire.frustumCulled = false;
+
+  const group = new THREE.Group();
+  group.add(solid, wire);
+  group.rotation.x = -Math.PI / 2;
+  return group;
+}
+
+function updatePlateHeights(dt) {
+  if (state.playing) state.phase += dt * (0.5 + 0.12 * (state.n + state.m));
+  const t = Math.cos(state.phase);
+  const arr = posAttr.array;
+  const col = colorAttr.array;
+  for (let i = 0; i <= SEG; i++) {
+    for (let j = 0; j <= SEG; j++) {
+      const idx = i * STRIDE + j;
+      const x = arr[idx * 3];
+      const y = arr[idx * 3 + 1];
+      const f = chladni(x, y, state.n, state.m);
+      const h = MAX_HEIGHT * state.amp * f * t;
+      arr[idx * 3 + 2] = h;
+      const mix = Math.min(1, Math.abs(f));
+      col[idx * 3] = dark.r + (accent.r - dark.r) * mix;
+      col[idx * 3 + 1] = dark.g + (accent.g - dark.g) * mix;
+      col[idx * 3 + 2] = dark.b + (accent.b - dark.b) * mix;
+    }
+  }
+  posAttr.needsUpdate = true;
+  colorAttr.needsUpdate = true;
+}
+
+// --------------------------------------------------------------- grains ----
+let grains, grainGeo, grainPos, gvx, gvy, gu, gv;
+
+function buildGrains(n) {
+  gu = new Float32Array(n);
+  gv = new Float32Array(n);
+  gvx = new Float32Array(n);
+  gvy = new Float32Array(n);
+  grainPos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    gu[i] = Math.random() * 2 - 1;
+    gv[i] = Math.random() * 2 - 1;
+  }
+  grainGeo = new THREE.BufferGeometry();
+  grainGeo.setAttribute('position', new THREE.BufferAttribute(grainPos, 3));
+  const mat = new THREE.PointsMaterial({ color: 0xe8e6e3, size: 5, sizeAttenuation: false });
+  const pts = new THREE.Points(grainGeo, mat);
+  pts.frustumCulled = false;
+  return pts;
+}
+
+function scatterGrains() {
+  const n = gu.length;
+  for (let i = 0; i < n; i++) {
+    gu[i] = Math.random() * 2 - 1;
+    gv[i] = Math.random() * 2 - 1;
+    gvx[i] = 0; gvy[i] = 0;
+  }
+}
+
+function setGrainCount(n) {
+  const group = grains.parent;
+  group.remove(grains);
+  grains.geometry.dispose();
+  grains = buildGrains(n);
+  group.add(grains);
+}
+
+function updateGrains(dt) {
+  const eps = 0.02;
+  const force = 3.2 * state.amp;
+  const jitter = 1.4 * state.amp;
+  const damping = Math.pow(0.86, dt * 60);
+  const n = gu.length;
+  for (let i = 0; i < n; i++) {
+    let x = gu[i], y = gv[i];
+    const fx = (absF(Math.min(1, x + eps), y) - absF(Math.max(-1, x - eps), y)) / (2 * eps);
+    const fy = (absF(x, Math.min(1, y + eps)) - absF(x, Math.max(-1, y - eps))) / (2 * eps);
+    const here = absF(x, y);
+    gvx[i] = (gvx[i] - fx * force * dt + (Math.random() - 0.5) * jitter * here * dt) * damping;
+    gvy[i] = (gvy[i] - fy * force * dt + (Math.random() - 0.5) * jitter * here * dt) * damping;
+    x += gvx[i] * dt;
+    y += gvy[i] * dt;
+    if (x < -1) { x = -1; gvx[i] *= -0.4; } else if (x > 1) { x = 1; gvx[i] *= -0.4; }
+    if (y < -1) { y = -1; gvy[i] *= -0.4; } else if (y > 1) { y = 1; gvy[i] *= -0.4; }
+    gu[i] = x; gv[i] = y;
+    grainPos[i * 3] = x;
+    grainPos[i * 3 + 1] = y;
+    grainPos[i * 3 + 2] = MAX_HEIGHT * state.amp * chladni(x, y, state.n, state.m) * Math.cos(state.phase) + 0.012;
+  }
+  grains.geometry.attributes.position.needsUpdate = true;
+}
+
+// ---------------------------------------------------------------- setup ----
+let group;
+function init() {
+  const canvas = document.getElementById('canvas');
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e0e11);
+  camera = new THREE.PerspectiveCamera(45, 4 / 3, 0.1, 20);
+  camera.position.set(0, 2.3, 2.0);
+  camera.lookAt(0, 0, 0);
+
+  group = buildPlate();
+  grains = buildGrains(state.grainCount);
+  group.add(grains);
+  scene.add(group);
+
+  resize();
+  new ResizeObserver(resize).observe(document.getElementById('stage'));
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    updatePlateHeights(dt);
+    if (state.playing) updateGrains(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+function resize() {
+  const stage = document.getElementById('stage');
+  const w = stage.clientWidth, h = stage.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+// ---------------------------------------------------------------- UI ------
+function freqLabel(n, m) { return Math.round(38 * Math.sqrt(n * n + m * m)) + ' Hz (illustrative)'; }
+
+function renderPresets() {
+  const wrap = document.getElementById('presets');
+  wrap.innerHTML = '';
+  PRESETS.forEach((p) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = `(${p.n}, ${p.m}) ${p.name}`;
+    if (p.n === state.n && p.m === state.m) b.classList.add('on');
+    b.addEventListener('click', () => {
+      state.n = p.n; state.m = p.m;
+      document.getElementById('hud-mode').textContent = `mode (${p.n}, ${p.m})`;
+      document.getElementById('hud-freq').textContent = freqLabel(p.n, p.m);
+      scatterGrains();
+      renderPresets();
+    });
+    wrap.appendChild(b);
+  });
+}
+
+function wireControls() {
+  document.getElementById('amp').addEventListener('input', (e) => {
+    state.amp = Number(e.target.value) / 100;
+  });
+  document.getElementById('grains').addEventListener('change', (e) => {
+    setGrainCount(Number(e.target.value));
+  });
+  document.getElementById('scatter').addEventListener('click', scatterGrains);
+  const play = document.getElementById('play');
+  play.textContent = state.playing ? 'pause' : 'play';
+  play.setAttribute('aria-pressed', String(state.playing));
+  play.addEventListener('click', () => {
+    state.playing = !state.playing;
+    play.textContent = state.playing ? 'pause' : 'play';
+    play.setAttribute('aria-pressed', String(state.playing));
+  });
+}
+
+try {
+  document.getElementById('hud-mode').textContent = `mode (${state.n}, ${state.m})`;
+  document.getElementById('hud-freq').textContent = freqLabel(state.n, state.m);
+  renderPresets();
+  wireControls();
+  init();
+} catch (e) {
+  fail('This simulation needs WebGL, and something went wrong starting it: ' + (e && e.message ? e.message : e));
+}
+</script>
+</body>
+</html>

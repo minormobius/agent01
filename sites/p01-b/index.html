@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tube Stacker</title>
+<meta name="description" content="A tetromino-stacking game played on a spinning cylinder — full rings clear instead of rows.">
+<meta property="og:title" content="Tube Stacker">
+<meta property="og:description" content="A tetromino-stacking game inspired by Tetris, played on a rotating 3D cylinder — full rings around the tube clear instead of flat rows. Mouse orbits the camera, arrow keys drop the pieces.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  :root { --accent: #7fd8c9; --accent-dim: #163330; --col: 60rem; }
+
+  #stage {
+    position: relative; width: 100%; height: min(60vh, 600px); min-height: 340px;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; touch-action: none;
+    margin: 1rem 0;
+  }
+  @media (max-width: 480px) {
+    body { padding-top: 1.1rem; }
+    h1 { font-size: 1.7rem; }
+    .sub { margin-bottom: 1rem; }
+    #stage { height: min(56vh, 560px); min-height: 320px; }
+  }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  #hud {
+    position: absolute; top: .6rem; left: .6rem; display: flex; gap: 1rem;
+    background: rgba(14,14,17,.6); padding: .5rem .7rem; border-radius: var(--radius);
+    pointer-events: none;
+  }
+  #hud .stat { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  #hud .stat b { display: block; color: var(--accent); font-size: 1.15rem; font-weight: 600; }
+
+  #next {
+    position: absolute; top: .6rem; right: .6rem; background: rgba(14,14,17,.6);
+    padding: .5rem; border-radius: var(--radius); text-align: center;
+    pointer-events: none;
+  }
+  #next .label { font-size: .65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  #nextGrid {
+    display: grid; grid-template-columns: repeat(4, 14px); grid-template-rows: repeat(4, 14px);
+    gap: 2px; margin-top: .35rem;
+  }
+  #nextGrid div { border-radius: 2px; background: transparent; }
+
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: .9rem;
+    background: rgba(10,10,13,.88); text-align: center; padding: 1.5rem;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h2 { margin: 0; color: var(--accent); font-size: 1.4rem; }
+  .overlay p { max-width: 26rem; }
+
+  #touch {
+    position: absolute; bottom: .6rem; left: 50%; transform: translateX(-50%);
+    display: flex; gap: .5rem;
+  }
+  #touch button {
+    width: 48px; height: 48px; min-width: 48px; min-height: 48px;
+    font-size: 1.25rem; line-height: 1; padding: 0;
+    background: rgba(22,22,27,.78); color: var(--accent);
+    border: 1px solid var(--border); border-radius: 8px;
+  }
+  #touch button:active { background: var(--accent-dim); }
+
+  #pauseBtn {
+    position: absolute; bottom: .6rem; right: .6rem;
+    width: 44px; height: 44px; padding: 0; font-size: 1.1rem;
+    background: rgba(22,22,27,.78); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 8px;
+  }
+
+  .hint { font-size: .8rem; color: var(--muted); }
+  .hint b { color: var(--fg); }
+  #err { margin: 1rem 0; }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / tube-stacker</div>
+  <h1>Tube Stacker</h1>
+  <p class="sub">Tetromino pieces fall down the inside of a cylinder. A full ring
+    around the tube clears — not a flat row. Orbit the camera with the mouse;
+    the pieces answer to the arrow keys.</p>
+
+  <div id="err" class="err hidden"></div>
+
+  <div id="stage">
+    <canvas id="c"></canvas>
+
+    <div id="hud">
+      <div class="stat">score<b id="score">0</b></div>
+      <div class="stat">lines<b id="lines">0</b></div>
+      <div class="stat">level<b id="level">1</b></div>
+    </div>
+
+    <div id="next">
+      <div class="label">next</div>
+      <div id="nextGrid"></div>
+    </div>
+
+    <div id="touch">
+      <button data-act="left" aria-label="move left">&#9664;</button>
+      <button data-act="rotate" aria-label="rotate">&#8635;</button>
+      <button data-act="right" aria-label="move right">&#9654;</button>
+      <button data-act="down" aria-label="soft drop">&#9660;</button>
+      <button data-act="drop" aria-label="hard drop">&#10515;</button>
+    </div>
+
+    <button id="pauseBtn" aria-label="pause">&#10074;&#10074;</button>
+
+    <div id="startOverlay" class="overlay">
+      <h2>Tube Stacker</h2>
+      <p>Pieces fall around a cylinder. Fill a whole ring to clear it.
+         <b>Arrow keys</b> move and rotate the falling piece, <b>space</b>
+         hard-drops it. Drag the tube with the <b>mouse</b> to orbit,
+         <b>scroll</b> to zoom, right-drag (or two fingers) to pan.
+         On a phone, use the on-screen buttons and drag/pinch the tube itself.</p>
+      <button id="startBtn">Start</button>
+    </div>
+
+    <div id="pauseOverlay" class="overlay hidden">
+      <h2>Paused</h2>
+      <button id="resumeBtn">Resume</button>
+    </div>
+
+    <div id="overOverlay" class="overlay hidden">
+      <h2>Ring collapsed</h2>
+      <p id="finalScore"></p>
+      <button id="restartBtn">Play again</button>
+    </div>
+  </div>
+
+  <p class="hint">A tetromino-stacking game inspired by Tetris, reshaped for a
+    cylindrical well: pieces wrap around the tube instead of hitting a wall, so
+    a full <em>ring</em> — not a row — is what clears.</p>
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script type="module">
+import * as THREE from '../_kit/three.module.min.js';
+
+// ---------------------------------------------------------------------------
+// Board geometry. COLS wraps modulo COLS — that wraparound IS the cylinder;
+// a piece walking off column COLS-1 reappears at column 0, and nothing below
+// ever special-cases the seam.
+// ---------------------------------------------------------------------------
+const COLS = 9;
+const ROWS = 15;
+const CELL = 1;
+const RADIUS = COLS * CELL / (2 * Math.PI);
+const wrapCol = (c) => ((c % COLS) + COLS) % COLS;
+
+// Deliberately NOT the standard Tetris colour mapping (cyan-I/yellow-O/etc) —
+// that specific assignment is part of what a court found protectable as
+// Tetris's expression, distinct from the unprotectable rules. See BRIEF.md.
+const COLORS = { I: 0xb388ff, O: 0xffd54f, T: 0x4dd0c4, S: 0xff8a65, Z: 0xf06292, J: 0x64b5f6, L: 0xaed581 };
+
+const SHAPES = {
+  I: ['0000', '1111', '0000', '0000'],
+  O: ['11', '11'],
+  T: ['010', '111', '000'],
+  S: ['011', '110', '000'],
+  Z: ['110', '011', '000'],
+  J: ['100', '111', '000'],
+  L: ['001', '111', '000'],
+};
+function matrixOf(type) {
+  return SHAPES[type].map((row) => row.split('').map((ch) => ch === '1'));
+}
+// Generic NxN clockwise rotation — works for the 4x4 I, 2x2 O and every 3x3
+// piece without a hand-written rotation-state table per shape.
+function rotateCW(m) {
+  const n = m.length;
+  const out = Array.from({ length: n }, () => Array(n).fill(false));
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) out[c][n - 1 - r] = m[r][c];
+  return out;
+}
+
+// grid[row][col] is null or a piece-type letter. row 0 is the TOP of the
+// array (where pieces spawn) and maps to the HIGHEST y in the scene —
+// getting that backwards makes pieces fall upward.
+let grid = makeEmptyGrid();
+function makeEmptyGrid() { return Array.from({ length: ROWS }, () => Array(COLS).fill(null)); }
+
+function collide(matrix, row, col) {
+  for (let r = 0; r < matrix.length; r++) {
+    for (let c = 0; c < matrix.length; c++) {
+      if (!matrix[r][c]) continue;
+      const gr = row + r;
+      if (gr >= ROWS) return true;
+      if (gr < 0) continue;
+      const gc = wrapCol(col + c);
+      if (grid[gr][gc]) return true;
+    }
+  }
+  return false;
+}
+
+// 7-bag randomizer: every shape appears once per shuffled bag of 7, so there
+// is no infinite I-piece drought or flood.
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function makeBag() {
+  let bag = [];
+  return () => {
+    if (bag.length === 0) bag = shuffled(['I', 'O', 'T', 'S', 'Z', 'J', 'L']);
+    return bag.pop();
+  };
+}
+const nextFromBag = makeBag();
+
+let piece = null;      // { type, matrix, row, col }
+let nextType = nextFromBag();
+
+function spawnPiece(type) {
+  const matrix = matrixOf(type);
+  const size = matrix.length;
+  return { type, matrix, row: 0, col: Math.floor(COLS / 2) - Math.floor(size / 2) };
+}
+
+let score = 0, lines = 0, level = 1, dropInterval = 800;
+function computeDropInterval(lv) { return Math.max(120, 800 - (lv - 1) * 60); }
+const LINE_SCORE = { 1: 100, 2: 300, 3: 500, 4: 800 };
+
+let running = false, paused = false, gameOver = false;
+
+function clearFullRings() {
+  const full = [];
+  for (let r = 0; r < ROWS; r++) if (grid[r].every((v) => v !== null)) full.push(r);
+  if (full.length === 0) return 0;
+  const kept = grid.filter((_, r) => !full.includes(r));
+  while (kept.length < ROWS) kept.unshift(Array(COLS).fill(null));
+  grid = kept;
+  return full.length;
+}
+
+function lockPiece() {
+  for (let r = 0; r < piece.matrix.length; r++) {
+    for (let c = 0; c < piece.matrix.length; c++) {
+      if (!piece.matrix[r][c]) continue;
+      const gr = piece.row + r;
+      if (gr < 0 || gr >= ROWS) continue;
+      grid[gr][wrapCol(piece.col + c)] = piece.type;
+    }
+  }
+  rebuildStack();
+  const cleared = clearFullRings();
+  if (cleared > 0) {
+    score += (LINE_SCORE[cleared] || cleared * 200) * level;
+    lines += cleared;
+    level = Math.floor(lines / 10) + 1;
+    dropInterval = computeDropInterval(level);
+    rebuildStack();
+  }
+  spawnNext();
+  updateHUD();
+}
+
+function spawnNext() {
+  const type = nextType;
+  nextType = nextFromBag();
+  piece = spawnPiece(type);
+  updateNextPreview();
+  if (collide(piece.matrix, piece.row, piece.col)) {
+    endGame();
+    return;
+  }
+  rebuildPiece();
+}
+
+function tryShift(dc) {
+  if (!piece || gameOver) return;
+  const newCol = piece.col + dc;
+  if (!collide(piece.matrix, piece.row, newCol)) { piece.col = newCol; rebuildPiece(); }
+}
+
+function tryRotate() {
+  if (!piece || gameOver) return;
+  const rotated = rotateCW(piece.matrix);
+  const kicks = [[0, 0], [0, -1], [0, 1], [-1, 0], [0, -2], [0, 2]];
+  for (const [dr, dc] of kicks) {
+    if (!collide(rotated, piece.row + dr, piece.col + dc)) {
+      piece.matrix = rotated; piece.row += dr; piece.col += dc;
+      rebuildPiece();
+      return;
+    }
+  }
+}
+
+function attemptMoveDown(manual) {
+  if (!piece || gameOver) return;
+  if (!collide(piece.matrix, piece.row + 1, piece.col)) {
+    piece.row += 1;
+    if (manual) { score += 1; updateHUD(); }
+    rebuildPiece();
+  } else {
+    lockPiece();
+  }
+}
+
+function hardDrop() {
+  if (!piece || gameOver) return;
+  let dist = 0;
+  while (!collide(piece.matrix, piece.row + 1, piece.col)) { piece.row += 1; dist += 1; }
+  score += dist * 2;
+  lockPiece();
+}
+
+function endGame() {
+  gameOver = true; running = false;
+  pieceGroup.clear();
+  document.getElementById('finalScore').textContent = `Score ${score} — ${lines} rings cleared, level ${level}.`;
+  document.getElementById('overOverlay').classList.remove('hidden');
+}
+
+function resetGame() {
+  grid = makeEmptyGrid();
+  rebuildStack();
+  score = 0; lines = 0; level = 1; dropInterval = computeDropInterval(1);
+  gameOver = false; paused = false;
+  document.getElementById('overOverlay').classList.add('hidden');
+  document.getElementById('pauseOverlay').classList.add('hidden');
+  nextType = nextFromBag();
+  spawnNext();
+  updateHUD();
+  running = true;
+}
+
+function updateHUD() {
+  document.getElementById('score').textContent = String(score);
+  document.getElementById('lines').textContent = String(lines);
+  document.getElementById('level').textContent = String(level);
+}
+
+function updateNextPreview() {
+  const el = document.getElementById('nextGrid');
+  el.innerHTML = '';
+  const m = matrixOf(nextType);
+  const n = m.length;
+  const pad = Math.floor((4 - n) / 2);
+  const cells = Array.from({ length: 16 }, () => false);
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    if (m[r][c]) cells[(r + pad) * 4 + (c + pad)] = true;
+  }
+  const hex = '#' + COLORS[nextType].toString(16).padStart(6, '0');
+  for (const on of cells) {
+    const d = document.createElement('div');
+    if (on) d.style.background = hex;
+    el.appendChild(d);
+  }
+}
+// ---------------------------------------------------------------------------
+// Rendering. Two groups rebuilt from state on change (not per-frame geometry
+// rebuilding): stackGroup for locked cells, pieceGroup for the falling one.
+// ---------------------------------------------------------------------------
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('c');
+let renderer, scene, camera;
+let stackGroup, pieceGroup;
+const MATS = {};
+let CELL_GEO;
+
+function initScene() {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e0e11);
+
+  camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.85);
+  dir.position.set(6, 12, 8);
+  scene.add(dir);
+
+  const guideGeo = new THREE.CylinderGeometry(RADIUS, RADIUS, ROWS * CELL, COLS, ROWS, true);
+  guideGeo.translate(0, (ROWS * CELL) / 2, 0);
+  scene.add(new THREE.LineSegments(
+    new THREE.WireframeGeometry(guideGeo),
+    new THREE.LineBasicMaterial({ color: 0x35333d, transparent: true, opacity: 0.55 }),
+  ));
+
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(RADIUS, COLS),
+    new THREE.MeshStandardMaterial({ color: 0x1a1a20, side: THREE.DoubleSide }),
+  );
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
+
+  for (const type of Object.keys(COLORS)) {
+    MATS[type] = new THREE.MeshStandardMaterial({ color: COLORS[type] });
+  }
+  CELL_GEO = new THREE.BoxGeometry(CELL * 0.86, CELL * 0.82, CELL * 0.4);
+
+  stackGroup = new THREE.Group(); scene.add(stackGroup);
+  pieceGroup = new THREE.Group(); scene.add(pieceGroup);
+
+  resize();
+  window.addEventListener('resize', resize);
+}
+
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+}
+
+// A box's default face normal points along local +Z. To make it face
+// radially outward at angle theta around the cylinder, rotation.y is
+// PI/2 - theta — verified by hand at theta=0 and theta=PI/2 before trusting
+// it for every column (see BRIEF.md).
+function placeMesh(mesh, row, col) {
+  const theta = (col / COLS) * Math.PI * 2;
+  const y = (ROWS - 1 - row) * CELL + CELL / 2;
+  mesh.position.set(RADIUS * Math.cos(theta), y, RADIUS * Math.sin(theta));
+  mesh.rotation.y = Math.PI / 2 - theta;
+}
+
+function rebuildStack() {
+  stackGroup.clear();
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const type = grid[r][c];
+      if (!type) continue;
+      const mesh = new THREE.Mesh(CELL_GEO, MATS[type]);
+      placeMesh(mesh, r, c);
+      stackGroup.add(mesh);
+    }
+  }
+}
+
+function rebuildPiece() {
+  pieceGroup.clear();
+  if (!piece) return;
+  const m = piece.matrix;
+  for (let r = 0; r < m.length; r++) {
+    for (let c = 0; c < m.length; c++) {
+      if (!m[r][c]) continue;
+      const gr = piece.row + r;
+      if (gr < 0) continue;
+      const mesh = new THREE.Mesh(CELL_GEO, MATS[piece.type]);
+      placeMesh(mesh, gr, wrapCol(piece.col + c));
+      pieceGroup.add(mesh);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Camera: hand-rolled orbit/pan/zoom (OrbitControls isn't vendored in the
+// kit). Spherical coordinates around a target point.
+// ---------------------------------------------------------------------------
+let camTheta = 0.7, camPhi = 1.15;
+let camRadius = Math.max(RADIUS * 6, ROWS * 1.1);
+const camTarget = new THREE.Vector3(0, (ROWS * CELL) / 2, 0);
+const MIN_R = RADIUS * 2, MAX_R = ROWS * 3.2;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+function updateCamera() {
+  camPhi = clamp(camPhi, 0.15, Math.PI - 0.15);
+  camRadius = clamp(camRadius, MIN_R, MAX_R);
+  camera.position.set(
+    camTarget.x + camRadius * Math.sin(camPhi) * Math.cos(camTheta),
+    camTarget.y + camRadius * Math.cos(camPhi),
+    camTarget.z + camRadius * Math.sin(camPhi) * Math.sin(camTheta),
+  );
+  camera.lookAt(camTarget);
+}
+
+function doOrbit(dx, dy) { camTheta -= dx * 0.006; camPhi -= dy * 0.006; }
+function doZoom(factor) { camRadius *= factor; }
+function doPan(dx, dy, scale) {
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+  const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+  const k = camRadius * 0.0016 * (scale || 1);
+  camTarget.addScaledVector(right, -dx * k);
+  camTarget.addScaledVector(up, dy * k);
+  camTarget.y = clamp(camTarget.y, -CELL * 3, ROWS * CELL + CELL * 3);
+  camTarget.x = clamp(camTarget.x, -RADIUS * 2, RADIUS * 2);
+  camTarget.z = clamp(camTarget.z, -RADIUS * 2, RADIUS * 2);
+}
+
+const pointers = new Map(); // pointerId -> {x,y,button}
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('pointerdown', (e) => {
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, button: e.button });
+});
+canvas.addEventListener('pointermove', (e) => {
+  const prevSelf = pointers.get(e.pointerId);
+  if (!prevSelf) return;
+  const others = [...pointers.entries()].filter(([id]) => id !== e.pointerId).map(([, v]) => v);
+  const curSelf = { x: e.clientX, y: e.clientY, button: prevSelf.button };
+  if (others.length === 0) {
+    const dx = curSelf.x - prevSelf.x, dy = curSelf.y - prevSelf.y;
+    if (curSelf.button === 2 || e.shiftKey) doPan(dx, dy, 1); else doOrbit(dx, dy);
+  } else {
+    const other = others[0];
+    const prevMid = { x: (prevSelf.x + other.x) / 2, y: (prevSelf.y + other.y) / 2 };
+    const curMid = { x: (curSelf.x + other.x) / 2, y: (curSelf.y + other.y) / 2 };
+    doPan(curMid.x - prevMid.x, curMid.y - prevMid.y, 0.6);
+    const prevDist = Math.hypot(prevSelf.x - other.x, prevSelf.y - other.y);
+    const curDist = Math.hypot(curSelf.x - other.x, curSelf.y - other.y);
+    if (prevDist > 1) doZoom(prevDist / curDist);
+  }
+  pointers.set(e.pointerId, curSelf);
+  updateCamera();
+});
+function releasePointer(e) { pointers.delete(e.pointerId); }
+canvas.addEventListener('pointerup', releasePointer);
+canvas.addEventListener('pointercancel', releasePointer);
+canvas.addEventListener('pointerleave', releasePointer);
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  doZoom(1 + e.deltaY * 0.0015);
+  updateCamera();
+}, { passive: false });
+// ---------------------------------------------------------------------------
+// Piece input: arrow keys + on-screen touch buttons. Left/right/down repeat
+// while held (delayed auto-shift, then a fast repeat rate); rotate/hard-drop
+// fire once per press.
+// ---------------------------------------------------------------------------
+const DAS = 170, ARR = 55;
+const heldActions = {}; // name -> { pressedAt, lastAt }
+
+function pressAction(name) {
+  if (heldActions[name]) return;
+  heldActions[name] = { pressedAt: performance.now(), lastAt: 0 };
+  fireAction(name);
+}
+function releaseAction(name) { delete heldActions[name]; }
+function fireAction(name) {
+  if (!running || paused || gameOver) return;
+  if (name === 'left') tryShift(-1);
+  else if (name === 'right') tryShift(1);
+  else if (name === 'down') attemptMoveDown(true);
+}
+
+const KEY_ACTION = { ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'down' };
+window.addEventListener('keydown', (e) => {
+  if (e.repeat && KEY_ACTION[e.key]) { e.preventDefault(); return; }
+  if (KEY_ACTION[e.key]) { e.preventDefault(); pressAction(KEY_ACTION[e.key]); return; }
+  if (e.key === 'ArrowUp') { e.preventDefault(); if (!e.repeat) tryRotate(); return; }
+  if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); if (!e.repeat) hardDrop(); return; }
+  if (e.key === 'p' || e.key === 'P') { togglePause(); }
+});
+window.addEventListener('keyup', (e) => {
+  if (KEY_ACTION[e.key]) releaseAction(KEY_ACTION[e.key]);
+});
+
+for (const btn of document.querySelectorAll('#touch button')) {
+  const act = btn.dataset.act;
+  const start = (e) => {
+    e.preventDefault();
+    if (act === 'rotate') tryRotate();
+    else if (act === 'drop') hardDrop();
+    else pressAction(act);
+  };
+  const end = (e) => { e.preventDefault(); if (act === 'left' || act === 'right' || act === 'down') releaseAction(act); };
+  btn.addEventListener('pointerdown', start);
+  btn.addEventListener('pointerup', end);
+  btn.addEventListener('pointercancel', end);
+  btn.addEventListener('pointerleave', end);
+}
+
+function togglePause() {
+  if (!running || gameOver) return;
+  paused = !paused;
+  document.getElementById('pauseOverlay').classList.toggle('hidden', !paused);
+}
+document.getElementById('pauseBtn').addEventListener('click', togglePause);
+document.getElementById('resumeBtn').addEventListener('click', togglePause);
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('startOverlay').classList.add('hidden');
+  resetGame();
+});
+document.getElementById('restartBtn').addEventListener('click', resetGame);
+
+// ---------------------------------------------------------------------------
+// Main loop: rAF drives rendering + held-key repeat; gravity is a separate
+// accumulator so drop speed is frame-rate independent.
+// ---------------------------------------------------------------------------
+let lastTime = 0, gravityAcc = 0;
+function animate(t) {
+  requestAnimationFrame(animate);
+  const dt = lastTime ? t - lastTime : 0;
+  lastTime = t;
+
+  if (running && !paused && !gameOver) {
+    for (const name of Object.keys(heldActions)) {
+      const st = heldActions[name];
+      const since = t - st.pressedAt;
+      const due = st.lastAt === 0 ? DAS : ARR;
+      if (since >= DAS && t - st.lastAt >= due) { fireAction(name); st.lastAt = t; }
+    }
+    gravityAcc += dt;
+    if (gravityAcc >= dropInterval) { gravityAcc = 0; attemptMoveDown(false); }
+  }
+
+  updateCamera();
+  renderer.render(scene, camera);
+}
+
+try {
+  initScene();
+  updateCamera();
+  updateNextPreview();
+  updateHUD();
+  requestAnimationFrame(animate);
+} catch (err) {
+  const el = document.getElementById('err');
+  el.textContent = 'Could not start the 3D scene: ' + (err && err.message ? err.message : err);
+  el.classList.remove('hidden');
+}
+</script>
+</body>
+</html>

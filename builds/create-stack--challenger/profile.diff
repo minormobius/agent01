@@ -1,0 +1,23 @@
+diff --git a/lab/_profiles/ezba.bsky.social.md b/lab/_profiles/ezba.bsky.social.md
+index bfe125a0..614c1b82 100644
+--- a/lab/_profiles/ezba.bsky.social.md
++++ b/lab/_profiles/ezba.bsky.social.md
+@@ -105,3 +105,18 @@ subtly-pulsing gradient button on the one action that matters. No direct
+ feedback yet on this one since it wasn't a request from this requester
+ specifically, but worth treating the maximalist-chrome-on-utility-pages
+ pairing as the safe default until told otherwise.
++
++## Science/estimate-flavoured data viz
++Requested `create-stack`: a stacked chart of "amount of life in the universe"
++from the Big Bang to heat death, explicitly asking for the metric to be
++defined (quantity × quality of experience) and for it to be an "estimate" —
++another instance of the mechanism-over-magic preference (see above), this
++time applied to a speculative/order-of-magnitude domain rather than a clean
++formula. Built with real cited order-of-magnitude figures where they exist
++(population estimates, standard extinction dates) and clearly flagged
++speculation where they don't, rather than presenting invented future numbers
++with the same confidence as sourced ones — worth keeping as the default for
++any future "estimate X" request: show the real number where one exists, mark
++the guess where it doesn't, don't blend the two. Rainbow chrome + plain dark
++reading surface applied again without being asked, consistent with the
++established default. No direct feedback yet since this is a first turn.

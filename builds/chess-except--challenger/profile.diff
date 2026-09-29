@@ -1,0 +1,22 @@
+diff --git a/lab/_profiles/ponder.ooo.md b/lab/_profiles/ponder.ooo.md
+index a146b15b..09943d4c 100644
+--- a/lab/_profiles/ponder.ooo.md
++++ b/lab/_profiles/ponder.ooo.md
+@@ -71,6 +71,17 @@ complaint) and ask for the version that doesn't have an escape hatch. Worth
+ flagging the shortcut explicitly in the copy/BRIEF *before* they have to ask
+ — they clearly read that level of detail.
+ 
++Seventh request was a plain rules-tweak on a classic game rather than a
++mathematical object: "chess except when you select a piece you dont decide
++where it moves, it just does a whole random walk of legal moves until it
++cannot make another move" — no reference link, no explicit ask for extra
++views. Consistent with the standing pattern even outside pure maths: built
++the actual rule engine for real (full legal-move generation, check/checkmate
++detection applied after every single hop of the walk, not an approximation),
++rather than a scripted-looking demo. Kept the UI to exactly two controls
++(new game, skip-animation) — matches the "fewer knobs" preference from
++request five even though nothing here asked for it explicitly.
++
+ ## Said no to
+ Nothing yet — no request has been declined or walked back.
+ 

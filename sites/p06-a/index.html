@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Domino Field — a cellular automaton of toppling dominoes</title>
+<meta name="description" content="Four upright orientations, eight falling directions, one fallen state: a real cellular automaton where each domino topples sideways off its own axis and can knock its neighbors over in turn. Tap to place, drag to push.">
+<meta property="og:title" content="Domino Field">
+<meta property="og:description" content="Four upright orientations, eight falling directions, one fallen state: a real cellular automaton where each domino topples sideways off its own axis and can knock its neighbors over in turn. Tap to place, drag to push.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  #stage {
+    width: 100%;
+    aspect-ratio: var(--cols) / var(--rows);
+    background: #0b0b0e;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: block;
+    touch-action: none;
+    cursor: crosshair;
+  }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .5rem 0; }
+  .row label { font-size: .8rem; color: var(--muted); min-width: 5.5rem; }
+  .row input[type=range] { flex: 1 1 140px; min-width: 120px; accent-color: var(--accent); height: 44px; }
+  .row .val { font-size: .85rem; color: var(--accent); min-width: 3.5rem; text-align: right; }
+  .btnrow { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .btnrow button { min-height: 44px; }
+  button[aria-pressed="true"] { background: var(--accent); color: #000; }
+  .legend { display: flex; flex-wrap: wrap; gap: .9rem; margin: .6rem 0 0; }
+  .legend .item { display: flex; align-items: center; gap: .4rem; font-size: .78rem; color: var(--muted); }
+  .legend .swatch { width: 1.4em; height: 1.4em; border-radius: 3px; flex: none; }
+  .stat { font-size: .85rem; color: var(--fg); margin: 0; }
+  .stat b { color: var(--accent); }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+  code { font-size: .82em; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Domino Field</h1>
+  <p class="sub">A grid of dominoes, each standing on one of four axes. Push
+    one over and it may knock its neighbors down in turn — a cellular
+    automaton, not an animation: every topple is computed from the actual
+    state of the eight cells around it, each tick.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <canvas id="stage" role="img" aria-label="Grid of dominoes, some upright, some falling, some fallen flat"></canvas>
+
+  <div class="panel">
+    <div class="btnrow">
+      <button id="playBtn" aria-pressed="false">▶ Play</button>
+      <button id="stepBtn">Step</button>
+      <button id="randomBtn">Randomize</button>
+      <button id="clearBtn">Clear</button>
+    </div>
+    <div class="row">
+      <label for="speedRange">speed</label>
+      <input type="range" id="speedRange" min="60" max="1200" step="10" value="350">
+      <span class="val" id="speedOut">350 ms</span>
+    </div>
+    <div class="row">
+      <label for="densityRange">density</label>
+      <input type="range" id="densityRange" min="10" max="95" step="1" value="55">
+      <span class="val" id="densityOut">55%</span>
+    </div>
+    <p class="stat" id="genOut">generation 0 &middot; <span id="countOut"></span></p>
+  </div>
+
+  <div class="panel">
+    <p class="stat" style="margin:0 0 .5rem"><b>Tap</b> an empty or upright
+      cell to cycle its orientation (and clear it). <b>Drag</b> from an
+      upright domino in the direction you want it to fall — it will pick
+      whichever of its two legal directions your drag is closer to.</p>
+    <div class="legend">
+      <div class="item"><span class="swatch" style="background:#e8a33d"></span>upright — east/west axis</div>
+      <div class="item"><span class="swatch" style="background:#3d7ce8"></span>upright — NE/SW axis</div>
+      <div class="item"><span class="swatch" style="background:#7ac387"></span>upright — north/south axis</div>
+      <div class="item"><span class="swatch" style="background:#f2777a"></span>upright — NW/SE axis</div>
+      <div class="item"><span class="swatch" style="background:#8b8792"></span>fallen</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">The rule, precisely</h2>
+    <p style="margin:.2rem 0">Every cell is <b>empty</b>, <b>upright</b> on
+      one of 4 axes, <b>falling</b> in one of 8 directions, or <b>fallen</b>
+      (one terminal state — direction is kept only so it renders lying the
+      right way). The 4 axes are the four lines through the 8-direction
+      Moore neighborhood: E&ndash;W, NE&ndash;SW, N&ndash;S, NW&ndash;SE.</p>
+    <p style="margin:.2rem 0"><b>Falling always becomes fallen</b> on the
+      next tick, no exceptions.</p>
+    <p style="margin:.2rem 0"><b>Upright becomes falling</b> in one of its
+      two directions perpendicular to its own axis &mdash; a domino topples
+      sideways off its long edge, never off the end. It falls direction
+      <code>F</code> if some neighbor is falling <em>straight at it</em> in
+      a direction that is neither orthogonal (&plusmn;90&deg;) nor opposite
+      (180&deg;) to <code>F</code>. If a push qualifies for <em>both</em> of
+      its two directions at once &mdash; which happens for any diagonal
+      push, since a diagonal is at 45&deg;/135&deg; to both &mdash; that
+      counts as being pushed in opposite directions at once, and it stays
+      upright. Net result: a straight-on hit topples it cleanly; a
+      diagonal, orthogonal, or opposing hit does not. That's one honest
+      reading of a genuinely terse rule, spelled out rather than left to
+      guesswork &mdash; see <code>BRIEF.md</code> for the alternative
+      readings that were considered and rejected.</p>
+  </div>
+
+  <footer class="foot">
+    Runs entirely in your browser on a plain 2D canvas: nothing here is
+    sent anywhere, and nothing about the physics is faked — every frame
+    redraws from the grid's actual current state.
+  </footer>
+</main>
+
+<script>
+(function () {
+'use strict';
+try {
+  document.getElementById('crumb').innerHTML = kit.crumb('domino field');
+} catch (e) { /* crumb is cosmetic */ }
+
+function main() {
+  const reducedMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------- directions
+  // 8 Moore directions, 45° apart: 0=E,1=NE,2=N,3=NW,4=W,5=SW,6=S,7=SE.
+  const DX = [1, 1, 0, -1, -1, -1, 0, 1];
+  const DY = [0, -1, -1, -1, 0, 1, 1, 1];
+  // atan2(dy,dx) for each direction, in degrees — used for rotation, not d*45,
+  // because atan2's sign convention doesn't march evenly with the index order.
+  const ANGLE_DEG = [0, -45, -90, -135, 180, 135, 90, 45];
+
+  function normDeg(a) { return ((a + 180) % 360 + 360) % 360 - 180; }
+
+  // Axis k (0..3) owns Moore directions {k, k+4} — E/W, NE/SW, N/S, NW/SE.
+  // Its two legal falling directions are the perpendicular axis's directions.
+  function fallCandidates(axis) {
+    const f1 = (axis + 2) % 4;
+    return [f1, f1 + 4];
+  }
+
+  const AXIS_COLOR = ['#e8a33d', '#3d7ce8', '#7ac387', '#f2777a'];
+  const FALLEN_COLOR = { r: 0x8b, g: 0x87, b: 0x92 };
+
+  function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+  const AXIS_RGB = AXIS_COLOR.map(hexToRgb);
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function lerpColor(rgb, t) {
+    const r = Math.round(lerp(rgb.r, FALLEN_COLOR.r, t));
+    const g = Math.round(lerp(rgb.g, FALLEN_COLOR.g, t));
+    const b = Math.round(lerp(rgb.b, FALLEN_COLOR.b, t));
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  // ---------------------------------------------------------------- grid
+  const w0 = window.innerWidth;
+  const COLS = w0 < 480 ? 16 : (w0 < 820 ? 26 : 36);
+  const ROWS = w0 < 480 ? 22 : 20;
+
+  const EMPTY = 0, UPRIGHT = 1, FALLING = 2, FALLEN = 3;
+  function idx(x, y) { return y * COLS + x; }
+  function mkEmpty() { return { s: EMPTY, a: 0, d: 0 }; }
+
+  let grid = new Array(COLS * ROWS);
+  for (let i = 0; i < grid.length; i++) grid[i] = mkEmpty();
+
+  // Every push a falling neighbor lands on this cell this tick, as a bitmask
+  // over the 8 directions.
+  function pushMaskAt(x, y) {
+    let mask = 0;
+    for (let f = 0; f < 8; f++) {
+      const offset = (f + 4) % 8;
+      const nx = x + DX[offset], ny = y + DY[offset];
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      const nb = grid[idx(nx, ny)];
+      if (nb.s === FALLING && nb.d === f) mask |= (1 << f);
+    }
+    return mask;
+  }
+
+  // "Not orthogonal (±90°) and not opposite (180°) to Fi" — literally: every
+  // push direction except those three counts as support for Fi.
+  function supports(mask, fi) {
+    const excl = (1 << ((fi + 2) % 8)) | (1 << ((fi + 4) % 8)) | (1 << ((fi + 6) % 8));
+    return (mask & ~excl) !== 0;
+  }
+
+  function computeNext() {
+    const next = new Array(COLS * ROWS);
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const i = idx(x, y);
+        const c = grid[i];
+        if (c.s === FALLING) {
+          next[i] = { s: FALLEN, a: c.a, d: c.d };
+        } else if (c.s === UPRIGHT) {
+          const mask = pushMaskAt(x, y);
+          if (mask === 0) { next[i] = c; continue; }
+          const [f1, f2] = fallCandidates(c.a);
+          const s1 = supports(mask, f1), s2 = supports(mask, f2);
+          if (s1 && !s2) next[i] = { s: FALLING, a: c.a, d: f1 };
+          else if (s2 && !s1) next[i] = { s: FALLING, a: c.a, d: f2 };
+          else next[i] = c; // neither, or both (opposing pushes cancel)
+        } else {
+          next[i] = c;
+        }
+      }
+    }
+    return next;
+  }
+
+  // ---------------------------------------------------------------- canvas
+
+  const canvas = document.getElementById('stage');
+  canvas.style.aspectRatio = COLS + ' / ' + ROWS;
+  const ctx = canvas.getContext('2d');
+  let cellSize = 20;
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cellSize = rect.width / COLS;
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  function roundRectPath(x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function drawDomino(cx, cy, angleDeg, len, wid, color) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angleDeg * Math.PI / 180);
+    ctx.fillStyle = color;
+    roundRectPath(-len / 2, -wid / 2, len, wid, Math.min(wid, len) * 0.22);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.28)';
+    ctx.lineWidth = Math.max(1, wid * 0.07);
+    ctx.beginPath();
+    ctx.moveTo(0, -wid / 2 + wid * 0.14);
+    ctx.lineTo(0, wid / 2 - wid * 0.14);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    const pr = Math.max(0.6, wid * 0.1);
+    ctx.beginPath(); ctx.arc(-len * 0.22, 0, pr, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(len * 0.22, 0, pr, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function draw(now) {
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    const liveT = tickMs > 0 ? Math.min(1, (now - lastStepTime) / tickMs) : 1;
+    const t = reducedMotion ? 0.6 : liveT;
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const c = grid[idx(x, y)];
+        if (c.s === EMPTY) continue;
+        const cx = (x + 0.5) * cellSize, cy = (y + 0.5) * cellSize;
+        if (c.s === UPRIGHT) {
+          drawDomino(cx, cy, ANGLE_DEG[c.a], cellSize * 0.8, cellSize * 0.26, AXIS_COLOR[c.a]);
+        } else if (c.s === FALLING) {
+          const axisAngle = ANGLE_DEG[c.a], fallAngle = ANGLE_DEG[c.d];
+          const delta = normDeg(fallAngle - axisAngle);
+          const ang = axisAngle + delta * t;
+          const len = lerp(cellSize * 0.8, cellSize * 1.45, t);
+          const wid = lerp(cellSize * 0.26, cellSize * 0.5, t);
+          const color = lerpColor(AXIS_RGB[c.a], t);
+          drawDomino(cx, cy, ang, len, wid, color);
+        } else if (c.s === FALLEN) {
+          drawDomino(cx, cy, ANGLE_DEG[c.d], cellSize * 1.45, cellSize * 0.5,
+            'rgb(' + FALLEN_COLOR.r + ',' + FALLEN_COLOR.g + ',' + FALLEN_COLOR.b + ')');
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------- editing & pushing
+
+  let dragStart = null;
+  const DRAG_THRESHOLD = 10;
+
+  function clientToCell(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const x = Math.floor((clientX - rect.left) / rect.width * COLS);
+    const y = Math.floor((clientY - rect.top) / rect.height * ROWS);
+    if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return null;
+    return { x, y };
+  }
+
+  function handleInteraction(cellX, cellY, dx, dy, dist) {
+    const i = idx(cellX, cellY);
+    const c = grid[i];
+    if (c.s === UPRIGHT && dist > DRAG_THRESHOLD) {
+      const [f1, f2] = fallCandidates(c.a);
+      const d1 = DX[f1] * dx + DY[f1] * dy;
+      const d2 = DX[f2] * dx + DY[f2] * dy;
+      const f = d1 >= d2 ? f1 : f2;
+      grid[i] = { s: FALLING, a: c.a, d: f };
+      lastStepTime = performance.now();
+    } else if (c.s === EMPTY) {
+      grid[i] = { s: UPRIGHT, a: 0, d: 0 };
+    } else if (c.s === UPRIGHT) {
+      const na = c.a + 1;
+      grid[i] = na > 3 ? mkEmpty() : { s: UPRIGHT, a: na, d: 0 };
+    } else if (c.s === FALLEN) {
+      grid[i] = mkEmpty();
+    }
+    updateStats();
+  }
+
+  canvas.addEventListener('pointerdown', function (e) {
+    const cell = clientToCell(e.clientX, e.clientY);
+    if (!cell) return;
+    dragStart = { x: e.clientX, y: e.clientY, cell };
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointerup', function (e) {
+    if (!dragStart) return;
+    const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+    handleInteraction(dragStart.cell.x, dragStart.cell.y, dx, dy, Math.hypot(dx, dy));
+    dragStart = null;
+  });
+  canvas.addEventListener('pointercancel', function () { dragStart = null; });
+
+  // ---------------------------------------------------------------- controls
+
+  let running = true, tickMs = 350, generation = 0;
+  let lastStepTime = performance.now();
+
+  const playBtn = document.getElementById('playBtn');
+  const stepBtn = document.getElementById('stepBtn');
+  const randomBtn = document.getElementById('randomBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const speedRange = document.getElementById('speedRange');
+  const speedOut = document.getElementById('speedOut');
+  const densityRange = document.getElementById('densityRange');
+  const densityOut = document.getElementById('densityOut');
+  const genOut = document.getElementById('genOut');
+  const countOut = document.getElementById('countOut');
+
+  function setRunning(v) {
+    running = v;
+    playBtn.textContent = running ? '⏸ Pause' : '▶ Play';
+    playBtn.setAttribute('aria-pressed', running ? 'true' : 'false');
+  }
+  playBtn.addEventListener('click', function () { setRunning(!running); });
+  setRunning(running);
+
+  function doStep() {
+    grid = computeNext();
+    generation++;
+    lastStepTime = performance.now();
+    updateStats();
+  }
+  stepBtn.addEventListener('click', doStep);
+
+  function randomize() {
+    const density = Number(densityRange.value) / 100;
+    for (let i = 0; i < grid.length; i++) {
+      grid[i] = Math.random() < density
+        ? { s: UPRIGHT, a: Math.floor(Math.random() * 4), d: 0 }
+        : mkEmpty();
+    }
+    // A random field rarely lines up into a long cascade on its own — that's
+    // physically honest, but a poor first impression. Lay two deliberately
+    // aligned chains over it (axis 2 dominoes topple E/W, axis 0 topple N/S)
+    // so the default view actually shows the mechanic working end to end.
+    const rowY = Math.floor(ROWS * 0.35);
+    for (let x = 1; x < COLS - 1; x++) grid[idx(x, rowY)] = { s: UPRIGHT, a: 2, d: 0 };
+    const colX = Math.floor(COLS * 0.72);
+    for (let y = 1; y < ROWS - 1; y++) grid[idx(colX, y)] = { s: UPRIGHT, a: 0, d: 0 };
+
+    generation = 0;
+    lastStepTime = performance.now();
+    grid[idx(1, rowY)] = { s: FALLING, a: 2, d: 0 };      // kicks the row eastward
+    grid[idx(colX, 1)] = { s: FALLING, a: 0, d: 6 };      // kicks the column south
+    updateStats();
+  }
+  randomBtn.addEventListener('click', randomize);
+
+  clearBtn.addEventListener('click', function () {
+    for (let i = 0; i < grid.length; i++) grid[i] = mkEmpty();
+    generation = 0;
+    lastStepTime = performance.now();
+    updateStats();
+  });
+
+  speedRange.addEventListener('input', function () {
+    tickMs = Number(speedRange.value);
+    speedOut.textContent = tickMs + ' ms';
+  });
+  densityRange.addEventListener('input', function () {
+    densityOut.textContent = densityRange.value + '%';
+  });
+
+  function updateStats() {
+    let up = 0, fa = 0, fl = 0;
+    for (let i = 0; i < grid.length; i++) {
+      if (grid[i].s === UPRIGHT) up++;
+      else if (grid[i].s === FALLING) fa++;
+      else if (grid[i].s === FALLEN) fl++;
+    }
+    genOut.innerHTML = 'generation ' + generation + ' &middot; ' +
+      '<span id="countOut">' + up + ' upright, ' + fa + ' falling, ' + fl + ' fallen</span>';
+  }
+
+  // ---------------------------------------------------------------- loop
+
+  function loop(now) {
+    requestAnimationFrame(loop);
+    if (running && now - lastStepTime >= tickMs) doStep();
+    draw(now);
+  }
+
+  resizeCanvas();
+  randomize();
+  requestAnimationFrame(loop);
+}
+
+try { main(); } catch (e) {
+  kit.showError(document.getElementById('err'), 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+})();
+</script>
+</body>
+</html>

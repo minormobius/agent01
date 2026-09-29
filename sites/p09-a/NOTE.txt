@@ -1,0 +1,1 @@
+Built as real slides (arrows/dots/swipe), not a scroll of prose. The value-split diagram is a labeled sketch, not data — the one thing on the page that actually proves anything is the live demo, which pulls your own real follower/post counts.

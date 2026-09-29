@@ -1,0 +1,1 @@
+Made every segment unit length, not just the first one you named — the only reading that pins down "touch two free endpoints" without an extra hidden parameter. Growth is a randomized search, so "add" can honestly fail to find room; that's not a bug.

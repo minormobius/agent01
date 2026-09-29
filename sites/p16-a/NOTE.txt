@@ -1,0 +1,1 @@
+All 256 rules, computed live. One paintable row drives every rule at once — that's the "parallel" part; the math's tiny enough it never needed workers. Width, steps and wrap-edges are adjustable; width snaps odd so "single cell" has a centre.

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atlink — Bluesky permalink ⇄ at:// URI converter</title>
+<meta name="description" content="Paste a bsky.app post link or an at:// URI and get the other one back, instantly, with the parts explained. No network calls, nothing leaves your browser.">
+<meta property="og:title" content="atlink — Bluesky permalink ⇄ at:// URI converter">
+<meta property="og:description" content="Paste a bsky.app post URL or an at:// URI and get the other one back, plus a breakdown of the authority, collection and rkey inside it. Pure client-side string parsing — no network lookups, nothing leaves your browser.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .row input { flex: 1 1 16rem; }
+  #dir { margin-top: .6rem; font-size: .8rem; color: var(--muted); min-height: 1.2em; }
+  .outbox {
+    margin-top: 1rem; display: none;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .9rem 1rem;
+  }
+  .outbox.show { display: block; }
+  .outbox code {
+    display: block; word-break: break-all; font-size: .95rem; margin-bottom: .7rem; color: var(--fg);
+  }
+  table.parts { width: 100%; border-collapse: collapse; margin-top: 1.5rem; display: none; }
+  table.parts.show { display: table; }
+  table.parts { table-layout: fixed; }
+  table.parts th, table.parts td {
+    text-align: left; padding: .5rem .6rem .5rem 0; border-bottom: 1px solid var(--border);
+    font-size: .85rem; vertical-align: top;
+  }
+  table.parts th { color: var(--muted); font-weight: 600; white-space: nowrap; width: 6rem; }
+  table.parts td { color: var(--fg); word-break: break-all; }
+  .canon-note {
+    margin-top: .8rem; font-size: .8rem; color: var(--muted); display: none;
+    border-left: 2px solid var(--accent); padding-left: .7rem;
+  }
+  .canon-note.show { display: block; }
+  .examples { margin-top: 1.75rem; }
+  .examples ul { list-style: none; margin: .5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
+  .examples button.ex {
+    width: 100%; text-align: left; background: var(--bg-raised); color: var(--muted);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: .7rem .8rem;
+    font: inherit; font-size: .8rem; cursor: pointer; word-break: break-all; min-height: 44px;
+  }
+  .examples button.ex:hover, .examples button.ex:focus-visible { border-color: var(--accent); color: var(--fg); }
+  .explain { font-size: .85rem; color: var(--muted); }
+  .explain code { color: var(--accent); }
+  #copyBtn { min-width: 5.5rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>atlink</h1>
+  <p class="sub">Bluesky post permalink ⇄ <code>at://</code> URI, converted right here in your browser. Nothing you paste is sent anywhere.</p>
+
+  <label for="in" style="display:block; font-size:.8rem; color:var(--muted); margin-bottom:.4rem;">
+    Paste a bsky.app post URL or an at:// URI
+  </label>
+  <div class="row">
+    <input id="in" type="text" inputmode="url" autocomplete="off" autocapitalize="none"
+           autocorrect="off" spellcheck="false"
+           placeholder="https://bsky.app/profile/handle.bsky.social/post/3l7… or at://did:plc:…/app.bsky.feed.post/3l7…">
+  </div>
+  <div id="dir" aria-live="polite"></div>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div id="out" class="outbox" aria-live="polite">
+    <code id="outCode"></code>
+    <button id="copyBtn" type="button">copy</button>
+  </div>
+
+  <table class="parts" id="parts">
+    <tbody>
+      <tr><th>authority</th><td id="t-authority"></td></tr>
+      <tr><th>collection</th><td id="t-collection"></td></tr>
+      <tr><th>rkey</th><td id="t-rkey"></td></tr>
+    </tbody>
+  </table>
+  <div class="canon-note" id="canonNote"></div>
+
+  <div class="explain" style="margin-top:2rem;">
+    <h2>how an AT URI is shaped</h2>
+    <p><code>at://&lt;authority&gt;/&lt;collection&gt;/&lt;rkey&gt;</code> — the authority names a repo
+    (a handle like <code>alice.bsky.social</code>, or a DID like <code>did:plc:…</code>), the collection
+    is the record type's NSID (a Bluesky post is <code>app.bsky.feed.post</code>), and the rkey picks
+    one record out of that collection. A bsky.app post link is just a friendlier spelling of the same
+    three parts, with the collection implied by the word "post" in the path.</p>
+    <p>An at:// URI with a <strong>handle</strong> authority is not the canonical form — the canonical
+    form always uses the <strong>DID</strong>, because a handle can be repointed to a different DID later
+    and a permalink shouldn't move when that happens. Turning a handle into its DID (or back) needs a
+    directory lookup, and this page deliberately makes no network calls, so it leaves the authority
+    exactly as you gave it.</p>
+  </div>
+
+  <div class="examples">
+    <h2>try one</h2>
+    <ul>
+      <li><button class="ex" type="button" data-v="https://bsky.app/profile/jay.bsky.team/post/3l7wxxkjixc2p">https://bsky.app/profile/jay.bsky.team/post/3l7wxxkjixc2p</button></li>
+      <li><button class="ex" type="button" data-v="at://jay.bsky.team/app.bsky.feed.post/3l7wxxkjixc2p">at://jay.bsky.team/app.bsky.feed.post/3l7wxxkjixc2p</button></li>
+      <li><button class="ex" type="button" data-v="at://did:plc:44ybard66vv44zksje25o7dz/app.bsky.feed.post/3l7wxxkjixc2p">at://did:plc:44ybard66vv44zksje25o7dz/app.bsky.feed.post/3l7wxxkjixc2p</button></li>
+    </ul>
+  </div>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('atlink');
+
+  var POST_COLLECTION = 'app.bsky.feed.post';
+
+  var $in = document.getElementById('in');
+  var $dir = document.getElementById('dir');
+  var $err = document.getElementById('err');
+  var $out = document.getElementById('out');
+  var $outCode = document.getElementById('outCode');
+  var $copyBtn = document.getElementById('copyBtn');
+  var $parts = document.getElementById('parts');
+  var $canon = document.getElementById('canonNote');
+
+  function parseAtUri(s) {
+    var m = s.match(/^at:\/\/([^\/]+)(?:\/([^\/]+)(?:\/(.*))?)?$/i);
+    if (!m) return { error: 'not a valid at:// URI — expected at://<authority>/<collection>/<rkey>' };
+    var authority = m[1], collection = m[2], rkey = m[3];
+    if (!collection) return { error: 'missing collection — an at:// URI needs a collection NSID (like app.bsky.feed.post) after the authority' };
+    if (!rkey) return { error: 'missing rkey — an at:// URI needs a record key after the collection' };
+    return { authority: authority, collection: collection, rkey: rkey };
+  }
+
+  function parseBskyUrl(s) {
+    var u;
+    try { u = new URL(s); }
+    catch (e) {
+      try { u = new URL('https://' + s); }
+      catch (e2) { return { error: 'not a valid URL' }; }
+    }
+    if (u.hostname.toLowerCase() !== 'bsky.app') {
+      return { error: 'not a bsky.app URL — got host "' + u.hostname + '"' };
+    }
+    var parts = u.pathname.split('/').filter(Boolean);
+    if (parts[0] !== 'profile' || !parts[1]) {
+      return { error: 'not a post permalink — expected /profile/<handle-or-did>/post/<rkey>' };
+    }
+    var authority = decodeURIComponent(parts[1]);
+    if (parts[2] !== 'post') {
+      return { error: 'missing /post/ segment — this looks like a profile link, not a post link' };
+    }
+    if (!parts[3]) return { error: 'missing rkey — no record key after /post/' };
+    return { authority: authority, rkey: decodeURIComponent(parts[3]) };
+  }
+
+  function isDid(authority) { return /^did:/i.test(authority); }
+
+  function convert(raw) {
+    var s = raw.trim();
+    if (!s) return {};
+    if (/^at:\/\//i.test(s)) {
+      var p = parseAtUri(s);
+      if (p.error) return { direction: 'at', error: p.error };
+      if (p.collection !== POST_COLLECTION) {
+        return {
+          direction: 'at', parsed: p,
+          error: 'unrecognised collection "' + p.collection + '" — this page only converts ' +
+                 POST_COLLECTION + ' records (bsky.app post links)'
+        };
+      }
+      return {
+        direction: 'at', parsed: p,
+        output: 'https://bsky.app/profile/' + p.authority + '/post/' + p.rkey
+      };
+    }
+    var q = parseBskyUrl(s);
+    if (q.error) return { direction: 'url', error: q.error };
+    var parsed = { authority: q.authority, collection: POST_COLLECTION, rkey: q.rkey };
+    return {
+      direction: 'url', parsed: parsed,
+      output: 'at://' + q.authority + '/' + POST_COLLECTION + '/' + q.rkey
+    };
+  }
+
+  function render() {
+    var raw = $in.value;
+    var r = convert(raw);
+
+    kit.clear($err);
+    $out.classList.remove('show');
+    $parts.classList.remove('show');
+    $canon.classList.remove('show');
+    $dir.textContent = '';
+
+    if (!raw.trim()) return;
+
+    $dir.textContent = r.direction === 'at' ? 'detected: at:// URI → converting to a bsky.app URL'
+                      : r.direction === 'url' ? 'detected: bsky.app URL → converting to an at:// URI'
+                      : '';
+
+    if (r.error) kit.showError($err, r.error);
+
+    if (r.parsed) {
+      document.getElementById('t-authority').textContent = r.parsed.authority;
+      document.getElementById('t-collection').textContent = r.parsed.collection;
+      document.getElementById('t-rkey').textContent = r.parsed.rkey;
+      $parts.classList.add('show');
+      if (!isDid(r.parsed.authority)) {
+        $canon.textContent = 'authority "' + r.parsed.authority + '" is a handle, not a DID — not the ' +
+          'canonical form. Resolving it to a DID needs a network lookup this page deliberately doesn\'t make.';
+        $canon.classList.add('show');
+      }
+    }
+
+    if (r.output) {
+      $outCode.textContent = r.output;
+      $out.classList.add('show');
+    }
+  }
+
+  $in.addEventListener('input', render);
+  $copyBtn.addEventListener('click', function () { kit.copy($outCode.textContent, $copyBtn); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('button.ex'), function (btn) {
+    btn.addEventListener('click', function () {
+      $in.value = btn.getAttribute('data-v');
+      $in.focus();
+      render();
+    });
+  });
+})();
+</script>
+</body>
+</html>

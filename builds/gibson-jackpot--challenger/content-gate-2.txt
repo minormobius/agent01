@@ -1,0 +1,1 @@
+  ✓ content gate: 3 file(s) in lab/www/gibson-jackpot, no unbounded-stream access

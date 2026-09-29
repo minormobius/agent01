@@ -1,0 +1,33 @@
+diff --git a/lab/_profiles/ponder.ooo.md b/lab/_profiles/ponder.ooo.md
+index 58c980a9..b0f4e5f6 100644
+--- a/lab/_profiles/ponder.ooo.md
++++ b/lab/_profiles/ponder.ooo.md
+@@ -524,6 +524,28 @@ can turn "guess some interesting numbers" into "derive the numbers and prove
+ what they do on paper" — this requester's whole profile rewards that over a
+ plausible-looking guess.
+ 
++Thirty-second request (2026-09-29), "place-line": a bare geometric-construction
++spec, no reference link — place a unit segment, then a second at a random angle
++touching an endpoint of the first *along its own length*, then require every
++further segment to touch the untouched endpoints of two other segments with no
++other intersections. The spec left the later segments' length completely open
++(only segment 1 was explicitly "unit length"). Consistent with the standing
++literal-math pattern, but the move here was picking the one length convention
++that makes the rule well-posed rather than leaving it a free parameter: made
++every segment unit length, since that is what turns "touch two free endpoints
++along its length" into a fully determined construction (and gives the process a
++non-arbitrary halting condition — two points over 1 unit apart in a line simply
++can't be joined). Flagged the convention explicitly on-page, not just in
++NOTE.txt/BRIEF — matches the domino-upright/Pentacell habit of putting a
++resolved ambiguity where it's checkable against what the requester had in mind,
++for a spec whose ambiguity was geometric rather than purely terminological.
++Also used randomized rejection sampling (up to 500 tries per new segment)
++rather than exhaustive search for finding a legal placement, and said plainly
++in BRIEF that a single "no room found" result isn't proof the configuration is
++actually full — worth watching whether a future follow-up pushes for the
++exhaustive/backtracking version once they've played with it, same shape as the
++quartic-solver and imaginary-Littlewood shortcuts being called out later.
++
+ Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
+ phrased with pre-emptive, joking defiance ("chess but its modular forms...
+ don't you dare tell me this doesn't make sense just make modular group

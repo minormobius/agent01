@@ -1,0 +1,5 @@
+  · screenshot /tmp/shot.png — 226 colours, top 92%
+
+::error::smoke [resource] failed to load http://127.0.0.1:44469/
+
+::error::1 problem(s) loading lab/www/want-pairwise/index.html

@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumen Almanac — daily calendar, almanac &amp; word puzzle</title>
+<meta name="description" content="A daily digital calendar: a browsable month grid, a computed almanac (moon phase, sunrise/sunset, season, zodiac) for any date, and a new word puzzle every day.">
+<meta property="og:title" content="Lumen Almanac — daily calendar, almanac &amp; word puzzle">
+<meta property="og:description" content="Pick a date and see its real moon phase, sunrise and season — then solve today's 6-guess word puzzle, same word for everyone, new every day.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --accent: #7fc7ff; --accent-dim: #142735; }
+  main { max-width: 52rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+  @media (min-width: 760px) { .grid2 { grid-template-columns: 1fr 1fr; align-items: start; } }
+  section.card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.1rem 1.2rem;
+  }
+  h2 { display: flex; align-items: center; gap: .5rem; color: var(--fg); }
+  h2 .tag { font-size: .65rem; color: var(--muted); font-weight: normal; text-transform: uppercase; letter-spacing: .08em; }
+
+  /* ---- calendar ---- */
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .6rem; }
+  .cal-head button { padding: .55rem .8rem; min-width: 44px; min-height: 44px; }
+  .cal-title { font-weight: 600; color: var(--fg); font-size: 1rem; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-dow { font-size: .65rem; color: var(--muted); text-align: center; padding: .25rem 0; }
+  .cal-day {
+    aspect-ratio: 1; min-height: 40px; display: flex; align-items: center; justify-content: center;
+    border-radius: 6px; border: 1px solid transparent; background: var(--bg);
+    color: var(--fg); font-size: .85rem; cursor: pointer; position: relative;
+  }
+  .cal-day:hover, .cal-day:focus-visible { border-color: var(--accent); outline: none; }
+  .cal-day.muted { color: var(--muted); opacity: .45; }
+  .cal-day.today { border-color: var(--ok); color: var(--ok); font-weight: 700; }
+  .cal-day.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+  /* ---- almanac ---- */
+  #moonCanvas { display: block; margin: 0 auto; }
+  .almanac-date { text-align: center; color: var(--fg); font-size: 1.05rem; margin: .2rem 0 .8rem; }
+  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .9rem; font-size: .82rem; }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0 0 .4rem; color: var(--fg); }
+  .loc-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem; align-items: center; }
+  .loc-row input { width: 6.5rem; flex: none; }
+  .loc-row button { flex: none; }
+  .approx-note { font-size: .72rem; color: var(--muted); margin-top: .5rem; }
+
+  /* ---- puzzle ---- */
+  #puzzleBoard { display: grid; gap: 6px; margin: 0 auto 1rem; width: min(100%, 21rem); }
+  .prow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .ptile {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; font-weight: 700; text-transform: uppercase;
+    border: 2px solid var(--border); border-radius: 6px; color: var(--fg);
+    background: var(--bg); user-select: none;
+  }
+  .ptile.filled { border-color: var(--muted); }
+  .ptile.correct { background: #3a6b3f; border-color: #3a6b3f; color: #fff; }
+  .ptile.present { background: #8a7a2c; border-color: #8a7a2c; color: #fff; }
+  .ptile.absent  { background: #2a2a2e; border-color: #2a2a2e; color: var(--muted); }
+  #keyboard { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .krow { display: flex; gap: 5px; justify-content: center; }
+  .key {
+    min-height: 46px; min-width: 30px; flex: 1; max-width: 42px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-raised); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 5px; font-size: .8rem; font-weight: 600; cursor: pointer; padding: 0 .3rem;
+  }
+  .key.wide { max-width: 62px; font-size: .65rem; }
+  .key.correct { background: #3a6b3f; border-color: #3a6b3f; color: #fff; }
+  .key.present { background: #8a7a2c; border-color: #8a7a2c; color: #fff; }
+  .key.absent  { background: #1c1c20; border-color: #1c1c20; color: var(--muted); }
+  #puzzleMsg { min-height: 1.4rem; text-align: center; font-size: .85rem; margin-bottom: .6rem; }
+  #puzzleMsg.win { color: var(--ok); }
+  #puzzleMsg.lose { color: var(--error); }
+  .stats-row { display: flex; gap: 1.2rem; justify-content: center; margin-top: 1rem; font-size: .78rem; color: var(--muted); flex-wrap: wrap; }
+  .stats-row b { color: var(--fg); font-size: 1.1rem; display: block; }
+  .stats-row div { text-align: center; }
+  footer.note { text-align: center; font-size: .72rem; color: var(--muted); margin-top: 2.5rem; }
+</style>
+</head>
+<body>
+<main>
+  <script>document.write(kit.crumb('daily-digital'));</script>
+  <h1>Lumen Almanac</h1>
+  <p class="sub">A calendar you can browse, real numbers for whatever day you pick, and one word puzzle a day — same word for everyone, new at midnight.</p>
+
+  <div class="grid2">
+    <section class="card" id="calSection">
+      <h2>Calendar</h2>
+      <div class="cal-head">
+        <button id="prevMonth" aria-label="previous month">&larr;</button>
+        <span class="cal-title" id="calTitle"></span>
+        <button id="nextMonth" aria-label="next month">&rarr;</button>
+      </div>
+      <div class="cal-grid" id="calDow"></div>
+      <div class="cal-grid" id="calGrid"></div>
+    </section>
+
+    <section class="card" id="almanacSection">
+      <h2>Almanac <span class="tag" id="almTag">computed, not looked up</span></h2>
+      <div class="almanac-date" id="almDate"></div>
+      <canvas id="moonCanvas" width="140" height="140"></canvas>
+      <dl class="facts" id="almFacts"></dl>
+      <div class="loc-row">
+        <button id="useLoc">use my location</button>
+        <input type="text" inputmode="decimal" id="latIn" aria-label="latitude" placeholder="lat">
+        <input type="text" inputmode="decimal" id="lonIn" aria-label="longitude" placeholder="lon">
+        <button id="setLoc">set</button>
+        <label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.3rem;">
+          <input type="checkbox" id="hemiSouth" style="width:auto;padding:0;min-width:18px;"> southern hemisphere
+        </label>
+      </div>
+      <p class="approx-note" id="locNote"></p>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top: 1.5rem;">
+    <h2>Word of the day <span class="tag" id="puzzleTag"></span></h2>
+    <div id="puzzleMsg"></div>
+    <div id="puzzleBoard"></div>
+    <div id="keyboard"></div>
+    <div class="stats-row" id="statsRow"></div>
+    <p class="approx-note">Guesses are checked against a curated list of about 300 common five-letter words — not a full dictionary, so a real word can still be rejected. Letters go green for right spot, yellow for right letter wrong spot, gray for not in the word.</p>
+  </section>
+
+  <footer class="note">Moon phase, sunrise/sunset and season are computed client-side from standard formulas and are approximate, especially near the poles. Nothing here is saved anywhere but this browser.</footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================== dates ============================== */
+  function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function dayOfYear(d) {
+    const start = new Date(d.getFullYear(), 0, 1);
+    return Math.floor((startOfDay(d) - start) / 86400000) + 1;
+  }
+  function daysInYear(y) { return ((y % 4 === 0 && y % 100 !== 0) || y % 400 === 0) ? 366 : 365; }
+
+  // ISO-8601 week number.
+  function isoWeek(d) {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = (t.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+    t.setUTCDate(t.getUTCDate() - dayNum + 3); // nearest Thursday
+    const firstThursday = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+    const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+    firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+    const week = 1 + Math.round((t - firstThursday) / (7 * 86400000));
+    return { week: week, isoYear: t.getUTCFullYear() };
+  }
+
+  function zodiacOf(d) {
+    const m = d.getMonth(); // 0-11
+    const day = d.getDate();
+    const ranges = [
+      [0,19,'Capricorn'],[0,31,'Aquarius'],
+      [1,18,'Aquarius'],[1,29,'Pisces'],
+      [2,20,'Pisces'],[2,31,'Aries'],
+      [3,19,'Aries'],[3,30,'Taurus'],
+      [4,20,'Taurus'],[4,31,'Gemini'],
+      [5,20,'Gemini'],[5,30,'Cancer'],
+      [6,22,'Cancer'],[6,31,'Leo'],
+      [7,22,'Leo'],[7,31,'Virgo'],
+      [8,22,'Virgo'],[8,30,'Libra'],
+      [9,22,'Libra'],[9,31,'Scorpio'],
+      [10,21,'Scorpio'],[10,30,'Sagittarius'],
+      [11,21,'Sagittarius'],[11,31,'Capricorn'],
+    ];
+    for (const [mo, cutoff, sign] of ranges) if (m === mo && day <= cutoff) return sign;
+    return 'Capricorn';
+  }
+
+  function seasonOf(d, south) {
+    const m = d.getMonth(), day = d.getDate();
+    // approximate NH boundaries: spring Mar20, summer Jun21, autumn Sep22, winter Dec21
+    const md = (m + 1) * 100 + day;
+    let nh;
+    if (md >= 320 && md < 621) nh = 'Spring';
+    else if (md >= 621 && md < 922) nh = 'Summer';
+    else if (md >= 922 && md < 1221) nh = 'Autumn';
+    else nh = 'Winter';
+    if (!south) return nh;
+    return { Spring: 'Autumn', Summer: 'Winter', Autumn: 'Spring', Winter: 'Summer' }[nh];
+  }
+
+  /* ============================== moon phase ============================== */
+  // Known new moon: 2000-01-06 18:14 UTC. Synodic month 29.530588853 days.
+  const KNOWN_NEW_MOON = Date.UTC(2000, 0, 6, 18, 14, 0);
+  const SYNODIC = 29.530588853;
+  function moonPhase(d) {
+    const days = (d.getTime() - KNOWN_NEW_MOON) / 86400000;
+    let phase = (days % SYNODIC) / SYNODIC;
+    if (phase < 0) phase += 1;
+    return phase; // 0 = new, 0.5 = full
+  }
+  function moonPhaseName(phase) {
+    const p = phase;
+    if (p < 0.02 || p > 0.98) return 'New Moon';
+    if (p < 0.23) return 'Waxing Crescent';
+    if (p < 0.27) return 'First Quarter';
+    if (p < 0.48) return 'Waxing Gibbous';
+    if (p < 0.52) return 'Full Moon';
+    if (p < 0.73) return 'Waning Gibbous';
+    if (p < 0.77) return 'Last Quarter';
+    return 'Waning Crescent';
+  }
+  function moonIllumination(phase) { return (1 - Math.cos(2 * Math.PI * phase)) / 2; }
+
+  // Waxing (phase<0.5, lit on the right) is the one shape this needs: a right
+  // semicircle limb unioned/intersected with a terminator ellipse, filled with
+  // the canvas default nonzero winding rule so the two subpaths combine into
+  // exactly a crescent or a gibbous lune depending on the ellipse's winding
+  // direction. Waning (phase>0.5) is that same right-lit shape for the
+  // complementary phase (1-phase), mirrored horizontally — illumination is
+  // symmetric (k(phase) === k(1-phase)), so this is exact, not an approximation.
+  function drawMoon(ctx, cx, cy, r, phase) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.save();
+    ctx.translate(cx, cy);
+    const dark = '#0b1020', light = '#f4e9c8';
+
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fillStyle = dark;
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.stroke();
+
+    let p = phase;
+    if (p > 0.5) { p = 1 - p; ctx.scale(-1, 1); }
+    const theta = p * 2 * Math.PI;
+    const rx = Math.abs(r * Math.cos(theta));
+
+    ctx.beginPath();
+    ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+    ctx.ellipse(0, 0, rx, r, 0, Math.PI / 2, -Math.PI / 2, theta < Math.PI / 2);
+    ctx.closePath();
+    ctx.fillStyle = light;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /* ============================== sunrise/sunset ============================== */
+  // Classic "Sunrise Equation" (Almanac for Computers, 1990). Returns UTC decimal hours or null.
+  function sunTimeUTC(date, lat, lng, rising) {
+    const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+    const zenith = 90.833;
+    const N = dayOfYear(date);
+    const lngHour = lng / 15;
+    const t = rising ? N + ((6 - lngHour) / 24) : N + ((18 - lngHour) / 24);
+    const M = (0.9856 * t) - 3.289;
+    let L = M + (1.916 * Math.sin(M * D2R)) + (0.020 * Math.sin(2 * M * D2R)) + 282.634;
+    L = ((L % 360) + 360) % 360;
+    let RA = R2D * Math.atan(0.91764 * Math.tan(L * D2R));
+    RA = ((RA % 360) + 360) % 360;
+    const Lquadrant = Math.floor(L / 90) * 90;
+    const RAquadrant = Math.floor(RA / 90) * 90;
+    RA = (RA + (Lquadrant - RAquadrant)) / 15;
+    const sinDec = 0.39782 * Math.sin(L * D2R);
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const cosH = (Math.cos(zenith * D2R) - (sinDec * Math.sin(lat * D2R))) / (cosDec * Math.cos(lat * D2R));
+    if (cosH > 1 || cosH < -1) return null; // never rises / never sets
+    let H = rising ? 360 - R2D * Math.acos(cosH) : R2D * Math.acos(cosH);
+    H = H / 15;
+    const T = H + RA - (0.06571 * t) - 6.622;
+    let UT = T - lngHour;
+    UT = ((UT % 24) + 24) % 24;
+    return UT;
+  }
+  function fmtUTCHours(h, tzOffsetMin) {
+    if (h == null) return null;
+    // Convert a UTC decimal-hour time on `date` into the browser's local time-of-day.
+    let local = h - tzOffsetMin / 60;
+    local = ((local % 24) + 24) % 24;
+    const hh = Math.floor(local);
+    const mm = Math.round((local - hh) * 60);
+    const hh2 = mm === 60 ? (hh + 1) % 24 : hh;
+    const mm2 = mm === 60 ? 0 : mm;
+    const ap = hh2 < 12 ? 'am' : 'pm';
+    const h12 = ((hh2 + 11) % 12) + 1;
+    return h12 + ':' + String(mm2).padStart(2, '0') + ap;
+  }
+
+  /* ============================== word list ============================== */
+  // ~300 common, unambiguous five-letter words. Doubles as the valid-guess
+  // dictionary (see BRIEF.md) — a real word not on this list is still rejected.
+  const WORDS = ("ABOUT ABOVE ABUSE ACTOR ACUTE ADMIT ADOPT ADULT AFTER AGAIN AGENT AGREE AHEAD "+
+  "ALARM ALBUM ALERT ALIKE ALIVE ALLOW ALONE ALONG ALTER AMONG ANGER ANGLE ANGRY APPLE APPLY "+
+  "ARENA ARGUE ARISE ARRAY ASIDE ASSET AUDIO AUDIT AVOID AWAKE AWARD AWARE BADLY BAKER BASIC "+
+  "BEACH BEGAN BEGIN BEING BELOW BENCH BIRTH BLACK BLAME BLANK BLAST BLIND BLOCK BLOOD BOARD "+
+  "BOOST BOUND BRAIN BRAND BREAD BREAK BREED BRIEF BRING BROAD BROKE BROWN BUILD BUILT BUYER "+
+  "CABLE CARRY CATCH CAUSE CHAIN CHAIR CHAOS CHARM CHART CHASE CHEAP CHECK CHEST CHIEF CHILD "+
+  "CHINA CHOSE CIVIL CLAIM CLASS CLEAN CLEAR CLICK CLIMB CLOCK CLOSE CLOUD COACH COAST COULD "+
+  "COUNT COURT COVER CRAFT CRASH CRAZY CREAM CRIME CROSS CROWD CROWN CRUDE CURVE CYCLE DAILY "+
+  "DANCE DEATH DEBUT DELAY DEPTH DOING DOUBT DOZEN DRAFT DRAMA DRANK DRAWN DREAM DRESS DRIED "+
+  "DRIFT DRINK DRIVE DROVE DYING EAGER EARLY EARTH EIGHT ELITE EMPTY ENEMY ENJOY ENTER ENTRY "+
+  "EQUAL ERROR EVENT EVERY EXACT EXIST EXTRA FAITH FALSE FAULT FAVOR FENCE FEWER FIBER FIELD "+
+  "FIFTH FIFTY FIGHT FINAL FIRST FIXED FLAME FLASH FLEET FLOOR FLUID FOCUS FORCE FORTH FORTY "+
+  "FORUM FOUND FRAME FRANK FRAUD FRESH FRONT FROST FRUIT FULLY FUNNY GIANT GIVEN GLASS GLOBE "+
+  "GOING GRACE GRADE GRAIN GRAND GRANT GRASS GRAVE GREAT GREEN GREET GROSS GROUP GROWN GUARD "+
+  "GUESS GUEST GUIDE HAPPY HARSH HEART HEAVY HENCE HORSE HOTEL HOUSE HUMAN IDEAL IMAGE INDEX "+
+  "INNER INPUT ISSUE IVORY JAPAN JOINT JUDGE KNOWN LABEL LARGE LASER LATER LAUGH LAYER LEARN "+
+  "LEAST LEAVE LEGAL LEVEL LIGHT LIMIT LOCAL LOGIC LOOSE LOWER LOYAL LUCKY LUNCH LYING MAGIC "+
+  "MAJOR MAKER MARCH MATCH MAYOR MEANT MEDAL MEDIA METAL MIGHT MINOR MINUS MIXED MODEL MONEY "+
+  "MONTH MORAL MOTOR MOUNT MOUSE MOUTH MOVED MOVIE MUSIC NERVE NEVER NEWLY NIGHT NOBLE NOISE "+
+  "NORTH NOTED NOVEL NURSE OCCUR OCEAN OFFER OFTEN ORDER OTHER OUGHT OUTER PAINT PANEL PAPER "+
+  "PARTY PEACE PHASE PHONE PHOTO PIANO PIECE PILOT PITCH PLACE PLAIN PLANE PLANT PLATE POINT "+
+  "POUND POWER PRESS PRICE PRIDE PRIME PRINT PRIOR PRIZE PROOF PROUD PROVE QUEEN QUERY QUICK "+
+  "QUIET QUITE RADIO RAISE RANGE RAPID RATIO REACH READY REALM REBEL REFER RELAX REPLY RIDGE "+
+  "RIGHT RIVAL RIVER ROBOT ROMAN ROUGH ROUND ROUTE ROYAL RURAL SCALE SCENE SCOPE SCORE SENSE "+
+  "SERVE SEVEN SHADE SHAKE SHALL SHAPE SHARE SHARP SHEET SHELF SHELL SHIFT SHINE SHIRT SHOCK "+
+  "SHOOT SHORT SHOWN SIGHT SINCE SIXTH SIXTY SKILL SLEEP SLIDE SMALL SMART SMILE SMOKE SOLID "+
+  "SOLVE SORRY SOUND SOUTH SPACE SPARE SPEAK SPEED SPEND SPENT SPLIT SPOKE SPORT STAFF STAGE "+
+  "STAKE STAND START STATE STEAM STEEL STEEP STEER STICK STILL STOCK STONE STOOD STORE STORM "+
+  "STORY STRIP STUCK STUDY STUFF STYLE SUGAR SUPER SWEET TABLE TAKEN TASTE TEACH THANK THEFT "+
+  "THEME THERE THESE THICK THING THINK THIRD THOSE THREE THREW THROW TIGHT TIMES TIRED TITLE "+
+  "TODAY TOPIC TOTAL TOUCH TOUGH TOWER TRACK TRADE TRAIL TRAIN TREAT TREND TRIAL TRIBE TRICK "+
+  "TRIED TRUCK TRULY TRUNK TRUST TRUTH TWICE UNDER UNION UNITY UNTIL UPPER UPSET URBAN USAGE "+
+  "USUAL VALID VALUE VIDEO VIRUS VISIT VITAL VOCAL VOICE WASTE WATCH WATER WHEEL WHERE WHICH "+
+  "WHILE WHITE WHOLE WHOSE WOMAN WOMEN WORLD WORRY WORSE WORST WORTH WOULD WOUND WRITE WRONG "+
+  "WROTE YIELD YOUNG YOUTH").split(/\s+/);
+  const WORD_SET = new Set(WORDS);
+
+  const DAY_EPOCH = new Date(2024, 0, 1); // local-time epoch for puzzle numbering
+  function puzzleNumberFor(d) { return Math.floor((startOfDay(d) - DAY_EPOCH) / 86400000); }
+  function targetWordFor(d) {
+    const n = puzzleNumberFor(d);
+    const idx = ((n % WORDS.length) + WORDS.length) % WORDS.length;
+    return WORDS[idx];
+  }
+
+  /* ============================== calendar ============================== */
+  const today = startOfDay(new Date());
+  let viewYear = today.getFullYear(), viewMonth = today.getMonth();
+  let selected = today;
+  let southHemi = false;
+  let loc = { lat: 51.5074, lon: -0.1278, label: 'London (default — set yours below)' };
+
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DOW = ['S','M','T','W','T','F','S'];
+
+  function renderDow() {
+    const el = document.getElementById('calDow');
+    el.innerHTML = DOW.map(d => '<div class="cal-dow">' + d + '</div>').join('');
+  }
+
+  function renderCalendar() {
+    document.getElementById('calTitle').textContent = MONTH_NAMES[viewMonth] + ' ' + viewYear;
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+    const first = new Date(viewYear, viewMonth, 1);
+    const startDow = first.getDay();
+    const daysThisMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const daysPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
+    const cells = [];
+    for (let i = startDow - 1; i >= 0; i--) cells.push({ d: daysPrevMonth - i, muted: true, date: new Date(viewYear, viewMonth - 1, daysPrevMonth - i) });
+    for (let d = 1; d <= daysThisMonth; d++) cells.push({ d, muted: false, date: new Date(viewYear, viewMonth, d) });
+    let next = 1;
+    while (cells.length % 7 !== 0) cells.push({ d: next, muted: true, date: new Date(viewYear, viewMonth + 1, next++) });
+    cells.forEach(c => {
+      const btn = document.createElement('div');
+      btn.className = 'cal-day' + (c.muted ? ' muted' : '');
+      btn.setAttribute('role', 'button');
+      btn.setAttribute('tabindex', '0');
+      if (sameDay(c.date, today)) btn.classList.add('today');
+      if (sameDay(c.date, selected)) btn.classList.add('selected');
+      btn.textContent = c.d;
+      btn.addEventListener('click', () => { selected = startOfDay(c.date); if (c.muted) { viewYear = c.date.getFullYear(); viewMonth = c.date.getMonth(); renderCalendar(); } else { renderCalendar(); } renderAlmanac(); });
+      grid.appendChild(btn);
+    });
+  }
+  function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+
+  document.getElementById('prevMonth').addEventListener('click', () => {
+    viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } renderCalendar();
+  });
+  document.getElementById('nextMonth').addEventListener('click', () => {
+    viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } renderCalendar();
+  });
+
+  /* ============================== almanac wiring ============================== */
+  function renderAlmanac() {
+    const d = selected;
+    document.getElementById('almDate').textContent = d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const phase = moonPhase(d);
+    const canvas = document.getElementById('moonCanvas');
+    drawMoon(canvas.getContext('2d'), 70, 70, 60, phase);
+
+    const doy = dayOfYear(d);
+    const totalDays = daysInYear(d.getFullYear());
+    const { week } = isoWeek(d);
+    const zodiac = zodiacOf(d);
+    const season = seasonOf(d, southHemi);
+    const illum = Math.round(moonIllumination(phase) * 100);
+
+    const tzOff = d.getTimezoneOffset();
+    const rise = sunTimeUTC(d, loc.lat, loc.lon, true);
+    const set = sunTimeUTC(d, loc.lat, loc.lon, false);
+    let dayLenStr = '—';
+    if (rise != null && set != null) {
+      let hrs = set - rise; if (hrs < 0) hrs += 24;
+      const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
+      dayLenStr = h + 'h ' + m + 'm';
+    } else if (rise == null && set == null) {
+      dayLenStr = 'sun never rises or never sets here today';
+    }
+
+    const facts = document.getElementById('almFacts');
+    facts.innerHTML =
+      '<dt>Moon phase</dt><dd>' + moonPhaseName(phase) + ' (' + illum + '% lit)</dd>' +
+      '<dt>Season</dt><dd>' + season + (southHemi ? ' (S. hemisphere)' : ' (N. hemisphere)') + '</dd>' +
+      '<dt>Zodiac sign</dt><dd>' + zodiac + '</dd>' +
+      '<dt>ISO week</dt><dd>Week ' + week + '</dd>' +
+      '<dt>Day of year</dt><dd>' + doy + ' of ' + totalDays + ' (' + (totalDays - doy) + ' left)</dd>' +
+      '<dt>Sunrise</dt><dd>' + (rise == null ? '—' : fmtUTCHours(rise, tzOff)) + '</dd>' +
+      '<dt>Sunset</dt><dd>' + (set == null ? '—' : fmtUTCHours(set, tzOff)) + '</dd>' +
+      '<dt>Day length</dt><dd>' + dayLenStr + '</dd>';
+
+    const noteEl = document.getElementById('locNote');
+    noteEl.className = 'approx-note';
+    noteEl.hidden = false;
+    noteEl.textContent =
+      'Sunrise/sunset approximate for ' + loc.label + ' (' + loc.lat.toFixed(2) + ', ' + loc.lon.toFixed(2) + '), using the local time of your device.';
+  }
+
+  document.getElementById('useLoc').addEventListener('click', () => {
+    const note = document.getElementById('locNote');
+    if (!navigator.geolocation) { kit.showError(note, 'geolocation is not available in this browser'); return; }
+    note.className = 'approx-note';
+    note.hidden = false;
+    note.textContent = 'locating…';
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        loc = { lat: pos.coords.latitude, lon: pos.coords.longitude, label: 'your location' };
+        document.getElementById('latIn').value = loc.lat.toFixed(3);
+        document.getElementById('lonIn').value = loc.lon.toFixed(3);
+        renderAlmanac();
+      },
+      () => { kit.showError(note, 'location permission denied — using ' + loc.label + '. Enter lat/lon manually instead.'); },
+      { timeout: 8000 }
+    );
+  });
+  document.getElementById('setLoc').addEventListener('click', () => {
+    const lat = parseFloat(document.getElementById('latIn').value);
+    const lon = parseFloat(document.getElementById('lonIn').value);
+    const note = document.getElementById('locNote');
+    if (!isFinite(lat) || !isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      kit.showError(note, 'enter a latitude between -90 and 90, and a longitude between -180 and 180');
+      return;
+    }
+    loc = { lat, lon, label: 'your entered location' };
+    renderAlmanac();
+  });
+  document.getElementById('hemiSouth').addEventListener('change', (e) => { southHemi = e.target.checked; renderAlmanac(); });
+
+  /* ============================== word puzzle ============================== */
+  const PUZZLE_KEY = 'daily-digital.puzzle.v1';
+  const STATS_KEY = 'daily-digital.stats.v1';
+  const target = targetWordFor(today);
+  const puzzleId = ymd(today);
+
+  function loadJSON(key, fallback) {
+    try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; } catch (e) { return fallback; }
+  }
+  function saveJSON(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* storage unavailable — game still works in-memory */ } }
+
+  let state = loadJSON(PUZZLE_KEY, null);
+  if (!state || state.id !== puzzleId) {
+    state = { id: puzzleId, guesses: [], done: false, won: false };
+  }
+  let stats = loadJSON(STATS_KEY, { played: 0, won: 0, currentStreak: 0, maxStreak: 0 });
+
+  let curGuess = '';
+
+  function scoreGuess(guess) {
+    const res = new Array(5).fill('absent');
+    const targetArr = target.split('');
+    const used = new Array(5).fill(false);
+    for (let i = 0; i < 5; i++) {
+      if (guess[i] === targetArr[i]) { res[i] = 'correct'; used[i] = true; }
+    }
+    for (let i = 0; i < 5; i++) {
+      if (res[i] === 'correct') continue;
+      const idx = targetArr.findIndex((ch, j) => !used[j] && ch === guess[i]);
+      if (idx !== -1) { res[i] = 'present'; used[idx] = true; }
+    }
+    return res;
+  }
+
+  const KEY_ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+  let keyState = {}; // letter -> best status
+
+  function buildBoard() {
+    const board = document.getElementById('puzzleBoard');
+    board.innerHTML = '';
+    for (let r = 0; r < 6; r++) {
+      const row = document.createElement('div');
+      row.className = 'prow';
+      for (let c = 0; c < 5; c++) {
+        const t = document.createElement('div');
+        t.className = 'ptile';
+        t.id = 'tile-' + r + '-' + c;
+        row.appendChild(t);
+      }
+      board.appendChild(row);
+    }
+  }
+  function buildKeyboard() {
+    const kb = document.getElementById('keyboard');
+    kb.innerHTML = '';
+    KEY_ROWS.forEach((row, ri) => {
+      const krow = document.createElement('div');
+      krow.className = 'krow';
+      if (ri === 2) krow.appendChild(makeKey('ENTER', true));
+      row.split('').forEach(ch => krow.appendChild(makeKey(ch, false)));
+      if (ri === 2) krow.appendChild(makeKey('⌫', true, 'BACK'));
+      kb.appendChild(krow);
+    });
+  }
+  function makeKey(label, wide, value) {
+    const b = document.createElement('div');
+    b.className = 'key' + (wide ? ' wide' : '');
+    b.textContent = label;
+    b.dataset.key = value || label;
+    b.addEventListener('click', () => handleKey(b.dataset.key));
+    return b;
+  }
+
+  function paintKnownGuesses() {
+    keyState = {};
+    state.guesses.forEach((g, r) => {
+      const res = scoreGuess(g);
+      paintRow(r, g, res);
+      res.forEach((s, i) => upgradeKey(g[i], s));
+    });
+    refreshKeyboardPaint();
+  }
+  function paintRow(r, guess, res) {
+    for (let c = 0; c < 5; c++) {
+      const t = document.getElementById('tile-' + r + '-' + c);
+      t.textContent = guess[c];
+      t.classList.add('filled', res[c]);
+    }
+  }
+  function upgradeKey(letter, status) {
+    const rank = { absent: 0, present: 1, correct: 2 };
+    if (!(letter in keyState) || rank[status] > rank[keyState[letter]]) keyState[letter] = status;
+  }
+  function refreshKeyboardPaint() {
+    document.querySelectorAll('.key').forEach(k => {
+      const key = k.dataset.key;
+      k.classList.remove('correct', 'present', 'absent');
+      if (keyState[key]) k.classList.add(keyState[key]);
+    });
+  }
+
+  function setMsg(text, cls) {
+    const m = document.getElementById('puzzleMsg');
+    m.textContent = text || '';
+    m.className = cls || '';
+  }
+
+  function renderStats() {
+    const winPct = stats.played ? Math.round((stats.won / stats.played) * 100) : 0;
+    document.getElementById('statsRow').innerHTML =
+      '<div><b>' + stats.played + '</b>played</div>' +
+      '<div><b>' + winPct + '%</b>win rate</div>' +
+      '<div><b>' + stats.currentStreak + '</b>streak</div>' +
+      '<div><b>' + stats.maxStreak + '</b>best streak</div>';
+  }
+
+  function typeLetter(ch) {
+    if (state.done || curGuess.length >= 5) return;
+    curGuess += ch;
+    paintCurrentGuess();
+  }
+  function backspace() {
+    if (state.done) return;
+    curGuess = curGuess.slice(0, -1);
+    paintCurrentGuess();
+  }
+  function paintCurrentGuess() {
+    const r = state.guesses.length;
+    for (let c = 0; c < 5; c++) {
+      const t = document.getElementById('tile-' + r + '-' + c);
+      if (!t) continue;
+      t.textContent = curGuess[c] || '';
+      t.classList.toggle('filled', !!curGuess[c]);
+    }
+  }
+  function submitGuess() {
+    if (state.done) return;
+    if (curGuess.length !== 5) { setMsg('needs 5 letters'); return; }
+    if (!WORD_SET.has(curGuess)) { setMsg(curGuess + ' is not on the word list'); return; }
+    const res = scoreGuess(curGuess);
+    paintRow(state.guesses.length, curGuess, res);
+    res.forEach((s, i) => upgradeKey(curGuess[i], s));
+    refreshKeyboardPaint();
+    state.guesses.push(curGuess);
+    const won = curGuess === target;
+    curGuess = '';
+    if (won || state.guesses.length >= 6) {
+      state.done = true;
+      state.won = won;
+      finishPuzzle(won);
+    } else {
+      setMsg('');
+    }
+    saveJSON(PUZZLE_KEY, state);
+  }
+  function finishPuzzle(won) {
+    if (!state.statsCounted) {
+      stats.played++;
+      if (won) {
+        stats.won++;
+        stats.currentStreak++;
+        stats.maxStreak = Math.max(stats.maxStreak, stats.currentStreak);
+      } else {
+        stats.currentStreak = 0;
+      }
+      state.statsCounted = true;
+      saveJSON(STATS_KEY, stats);
+    }
+    setMsg(won ? 'solved in ' + state.guesses.length + '/6!' : 'the word was ' + target, won ? 'win' : 'lose');
+    renderStats();
+  }
+  function handleKey(k) {
+    if (k === 'ENTER') submitGuess();
+    else if (k === 'BACK') backspace();
+    else if (/^[A-Z]$/.test(k)) typeLetter(k);
+  }
+  window.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'Enter') { handleKey('ENTER'); return; }
+    if (e.key === 'Backspace') { handleKey('BACK'); return; }
+    const k = e.key.toUpperCase();
+    if (/^[A-Z]$/.test(k)) handleKey(k);
+  });
+
+  function initPuzzle() {
+    document.getElementById('puzzleTag').textContent = 'puzzle #' + puzzleNumberFor(today) + ' — today, your time';
+    buildBoard();
+    buildKeyboard();
+    paintKnownGuesses();
+    paintCurrentGuess();
+    renderStats();
+    if (state.done) {
+      finishPuzzle(state.won);
+    }
+  }
+
+  /* ============================== init ============================== */
+  renderDow();
+  renderCalendar();
+  renderAlmanac();
+  initPuzzle();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+No interaction-graph API exists, so I scored each account's last 100 posts (repost/quote=3, reply=2, mention=1) and intersected the top lists. It's a recent-behaviour proxy, not a lifetime total — said so on the page itself.

@@ -1,0 +1,22 @@
+diff --git a/lab/_profiles/ponder.ooo.md b/lab/_profiles/ponder.ooo.md
+index a146b15b..2c7d9c51 100644
+--- a/lab/_profiles/ponder.ooo.md
++++ b/lab/_profiles/ponder.ooo.md
+@@ -71,6 +71,17 @@ complaint) and ask for the version that doesn't have an escape hatch. Worth
+ flagging the shortcut explicitly in the copy/BRIEF *before* they have to ask
+ — they clearly read that level of detail.
+ 
++Seventh request: "exhaustive gallery of elementary cellular automata... let
++the user set the initial condition in one place & generate the whole gallery
++in parallel from that. simulate like 50 steps for each automaton." Another
++literal-completeness ask (all 256 Wolfram rules, not a curated subset) paired
++with a single shared control fanning out to every instance — consistent with
++the standing pattern of wanting the real, full object rather than a sampled
++or capped one. Read "in parallel" as "one shared source, all instances update
++together" rather than literal multithreading, since the actual compute here
++was trivially small; worth watching whether a future ask makes clear they
++meant literal concurrency (e.g. Web Workers) instead.
++
+ ## Said no to
+ Nothing yet — no request has been declined or walked back.
+ 

@@ -1,0 +1,1 @@
+No real checker was possible — this sandbox's CSP only reaches Bluesky's API, never a registrar. Built ~90 TLDs with real facts and honest demand notes instead of a guessed-at live result. BRIEF.md names what real checking would need.

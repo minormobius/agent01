@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trackwright — build a rail network on procedural terrain</title>
+<meta property="og:title" content="Trackwright — draw track, throw switches, run trains">
+<meta property="og:description" content="A procedurally generated map of hills, forest and water dotted with towns. Lay track within budget, set your own switches at every junction, and watch trains run the line you built — misroute one and it goes to the wrong town.">
+<meta property="og:type" content="website">
+<meta name="description" content="A small rail-building game: procedural terrain, a budget, hand-drawn track, and switches you set yourself.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --col: 68rem; }
+  main { padding-bottom: 3rem; }
+  .stats { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin: 1rem 0; }
+  .stat { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+          padding: .5rem .8rem; font-size: .8rem; color: var(--muted); min-width: 7rem; }
+  .stat b { display: block; color: var(--fg); font-size: 1.15rem; font-weight: 600; }
+  .stat.warn b { color: var(--error); }
+
+  .modes { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 .75rem; }
+  .modes button, .toolbar button {
+    min-height: 44px; padding: .5rem 1rem; font: inherit; font-size: .85rem; cursor: pointer;
+    background: var(--bg-raised); color: var(--muted); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .modes button.on { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+  .modes button:hover, .toolbar button:hover { color: var(--fg); border-color: var(--accent); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; }
+  .toolbar button.pause-on { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+  .board-wrap { position: relative; width: 100%; max-width: 56rem; margin: 0 auto 1rem;
+                border: 1px solid var(--border); border-radius: var(--radius); background: #0a1410;
+                touch-action: none; }
+  canvas#board { display: block; width: 100%; height: auto; }
+  .hint { font-size: .78rem; color: var(--muted); margin: 0 0 1rem; min-height: 1.1em; }
+  .hint.bad { color: var(--error); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem 1.1rem; font-size: .74rem; color: var(--muted);
+             margin: 0 0 1.5rem; }
+  .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+  .swatch { width: .8rem; height: .8rem; border-radius: 2px; display: inline-block; flex: none; }
+
+  .log { list-style: none; margin: 0 0 1.5rem; padding: 0; border: 1px solid var(--border);
+         border-radius: var(--radius); background: var(--bg-raised); max-height: 9rem; overflow-y: auto; }
+  .log li { padding: .4rem .7rem; font-size: .78rem; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .log li:last-child { border-bottom: none; }
+  .log li.pay { color: var(--ok); }
+  .log li.mis { color: var(--accent); }
+  .log li.lost { color: var(--error); }
+  .log .empty { font-style: italic; }
+
+  .panel { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; margin: 0 0 1.5rem; }
+  .panel h2 { margin: 0 0 .5rem; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+  .row input[type=text] { flex: 1; min-width: 10rem; }
+  .score-list { list-style: none; margin: .75rem 0 0; padding: 0; font-size: .82rem; }
+  .score-list li { display: flex; justify-content: space-between; padding: .25rem 0; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .score-list b { color: var(--fg); }
+  .muted-btn { background: none; border: none; color: var(--accent); text-decoration: underline; cursor: pointer;
+               font: inherit; font-size: .8rem; padding: 0; min-height: auto; }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / trackwright</div>
+  <h1>Trackwright</h1>
+  <p class="sub">A procedurally generated valley, a handful of towns, and a budget. Lay track,
+    throw the switches yourself, and run trains between the towns you connect.</p>
+
+  <div class="stats" id="stats">
+    <div class="stat"><b id="statBudget">$0</b>budget</div>
+    <div class="stat"><b id="statConnected">0 / 0</b>towns connected</div>
+    <div class="stat"><b id="statTrains">0</b>trains running</div>
+    <div class="stat"><b id="statRevenue">$0</b>total revenue</div>
+  </div>
+
+  <div class="modes" role="group" aria-label="Build mode">
+    <button type="button" id="modeBuild" class="on">Build track</button>
+    <button type="button" id="modeSwitch">Set switches</button>
+    <button type="button" id="modeErase">Erase (50% refund)</button>
+  </div>
+  <div class="toolbar">
+    <button type="button" id="btnUndo">Undo last segment</button>
+    <button type="button" id="btnPause">Pause trains</button>
+    <button type="button" id="btnNewMap">New map</button>
+  </div>
+
+  <p class="hint" id="hint" aria-live="polite">Drag from a town to start laying track.</p>
+
+  <div class="board-wrap">
+    <canvas id="board" width="900" height="600" role="img" aria-label="The rail map"></canvas>
+  </div>
+
+  <p class="legend" id="legend"></p>
+
+  <h2>Dispatch log</h2>
+  <ul class="log" id="log"><li class="empty">Nothing has run yet — connect two towns to start seeing trains.</li></ul>
+
+  <div class="panel">
+    <h2>Save your network</h2>
+    <p>Sign in with Bluesky to keep this map's total revenue on your own repository — nothing is
+      stored here. Optional; the game plays the same either way.</p>
+    <div class="row" id="signInRow">
+      <input type="text" id="signInHandle" placeholder="your handle, e.g. alice.bsky.social">
+      <button type="button" id="btnSignIn">Sign in</button>
+    </div>
+    <div class="row">
+      <button type="button" id="btnSaveScore" hidden>Save current revenue</button>
+      <span class="hint" id="authHint"></span>
+    </div>
+    <div class="row" style="margin-top:.75rem">
+      <input type="text" id="rivalHandle" placeholder="compare with a handle, e.g. bsky.app">
+    </div>
+    <ul class="score-list" id="rivalScores"></ul>
+  </div>
+
+  <h2>How it works</h2>
+  <p>The terrain is generated fresh each map: plains and forest are cheap to build through, hills
+    and mountains are expensive, and a river crossing needs a bridge. Drag from a town to lay
+    track cell by cell — the cost comes off your budget as you go, so you'll run dry before you
+    can blanket the map. Any junction with three or more lines meeting is a switch: tap it (in
+    "Set switches" mode) to change which two lines it currently connects. A train arriving on the
+    third line, unmatched, just sits there until you throw the switch its way — that's the whole
+    game. Trains spawn from towns with track leaving them, follow whatever the switches are set
+    to, and pay out on arrival at any town — full fare if it's the one they were headed for, a
+    fraction if a wrong switch sent them somewhere else. Revenue goes back into the budget.</p>
+</main>
+<script type="module">
+import { labPds } from '../_kit/pds.js';
+'use strict';
+
+/* ---------------------------------------------------------------------
+ * RNG + terrain
+ * ------------------------------------------------------------------- */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const COLS = 15, ROWS = 10;
+const TERRAIN = {
+  water:    { cost: 3000, color: '#1c3a4a', line: '#264a5c' },
+  plains:   { cost: 350,  color: '#2a3a22', line: '#33461f' },
+  forest:   { cost: 600,  color: '#1f3320', line: '#28401f' },
+  hills:    { cost: 1300, color: '#40391f', line: '#4a4022' },
+  mountain: { cost: 2400, color: '#3a3238', line: '#463c44' },
+};
+
+function key(x, y) { return x + ',' + y; }
+function parseKey(k) { const p = k.split(','); return [Number(p[0]), Number(p[1])]; }
+
+/* Two-octave value noise over the grid, sampled from a coarse lattice so
+ * neighbouring cells are correlated instead of pure static. */
+function makeHeightmap(rng, cols, rows) {
+  function lattice(cw, ch) {
+    const g = [];
+    for (let y = 0; y <= ch; y++) { const row = []; for (let x = 0; x <= cw; x++) row.push(rng()); g.push(row); }
+    return g;
+  }
+  function sample(g, cw, ch, u, v) {
+    const fx = u * cw, fy = v * ch;
+    const x0 = Math.floor(fx), y0 = Math.floor(fy);
+    const x1 = Math.min(x0 + 1, cw), y1 = Math.min(y0 + 1, ch);
+    const tx = fx - x0, ty = fy - y0;
+    const a = g[y0][x0], b = g[y0][x1], c = g[y1][x0], d = g[y1][x1];
+    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+  }
+  const coarse = lattice(4, 3), fine = lattice(9, 6);
+  const h = [];
+  for (let y = 0; y < rows; y++) {
+    const row = [];
+    for (let x = 0; x < cols; x++) {
+      const u = x / (cols - 1), v = y / (rows - 1);
+      let e = sample(coarse, 4, 3, u, v) * 0.68 + sample(fine, 9, 6, u, v) * 0.32;
+      // pull edges down a touch so water tends to pool away from the very
+      // centre — purely cosmetic, keeps towns buildable in the middle
+      const edge = Math.min(u, 1 - u, v, 1 - v) * 2.4;
+      e = e * 0.85 + Math.min(edge, 1) * 0.15;
+      row.push(e);
+    }
+    h.push(row);
+  }
+  return h;
+}
+function terrainAt(e) {
+  if (e < 0.30) return 'water';
+  if (e < 0.55) return 'plains';
+  if (e < 0.70) return 'forest';
+  if (e < 0.85) return 'hills';
+  return 'mountain';
+}
+
+const NAME_A = ['Ash', 'Bram', 'Cole', 'Dun', 'Elm', 'Farn', 'Gray', 'Holt', 'Iron', 'Kess',
+  'Lark', 'Marsh', 'North', 'Oster', 'Pell', 'Quill', 'Reed', 'Stone', 'Thorn', 'Wren'];
+const NAME_B = ['bury', 'ford', 'ham', 'holm', 'ton', 'wick', 'field', 'mere', 'ridge', 'well'];
+function townName(rng) {
+  return NAME_A[Math.floor(rng() * NAME_A.length)] + NAME_B[Math.floor(rng() * NAME_B.length)];
+}
+
+function placeCities(rng, height, cols, rows, count) {
+  const cities = [];
+  let tries = 0;
+  while (cities.length < count && tries < 4000) {
+    tries++;
+    const x = 1 + Math.floor(rng() * (cols - 2));
+    const y = 1 + Math.floor(rng() * (rows - 2));
+    const t = terrainAt(height[y][x]);
+    if (t !== 'plains' && t !== 'forest') continue;
+    let tooClose = false;
+    for (const c of cities) {
+      const d = Math.hypot(c.x - x, c.y - y);
+      if (d < 3.1) { tooClose = true; break; }
+    }
+    if (tooClose) continue;
+    const roll = rng();
+    const size = roll < 0.45 ? 1 : roll < 0.8 ? 2 : 3;
+    cities.push({ x, y, key: key(x, y), name: townName(rng), size });
+  }
+  return cities;
+}
+
+/* ---------------------------------------------------------------------
+ * Game state
+ * ------------------------------------------------------------------- */
+const START_BUDGET = 50000;
+
+const state = {
+  seed: 0, rng: null, height: null, cities: [], cityByKey: new Map(),
+  edges: new Map(),       // "x,y|x,y" (sorted) -> cost paid
+  adj: new Map(),         // "x,y" -> Set of neighbour keys
+  switches: new Map(),    // junction cell key -> active combo index
+  budget: START_BUDGET, revenue: 0,
+  trains: [], nextTrainId: 1,
+  mode: 'build', paused: false,
+  history: [],            // stack of { a, b, cost } for undo
+  floaters: [],           // {x,y,text,life,cls}
+  spawnClock: 0,
+};
+
+function edgeKey(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
+function isCityKey(k) { return state.cityByKey.has(k); }
+function terrainCostAt(k) {
+  const [x, y] = parseKey(k);
+  return TERRAIN[terrainAt(state.height[y][x])].cost;
+}
+function segmentCost(a, b) { return Math.round((terrainCostAt(a) + terrainCostAt(b)) / 2 / 10) * 10; }
+
+function getAdj(k) { return state.adj.get(k) || new Set(); }
+function ensureAdj(k) { if (!state.adj.has(k)) state.adj.set(k, new Set()); return state.adj.get(k); }
+
+function addEdge(a, b, cost, record) {
+  ensureAdj(a).add(b); ensureAdj(b).add(a);
+  state.edges.set(edgeKey(a, b), cost);
+  if (record) state.history.push({ a, b, cost });
+}
+function removeEdge(a, b) {
+  const cost = state.edges.get(edgeKey(a, b)) || 0;
+  state.edges.delete(edgeKey(a, b));
+  const sa = state.adj.get(a); if (sa) { sa.delete(b); if (!sa.size) state.adj.delete(a); }
+  const sb = state.adj.get(b); if (sb) { sb.delete(a); if (!sb.size) state.adj.delete(b); }
+  state.switches.delete(a); state.switches.delete(b);
+  return cost;
+}
+
+/* A junction's combos are every pair chosen from its full neighbour list,
+ * ordered deterministically (sorted keys) so the same cell always offers the
+ * same cycle. Cities never get switches — they hand a departing train to a
+ * random line instead, so only non-city cells of degree >=3 show here. */
+function junctionCombos(k) {
+  const nbrs = [...getAdj(k)].sort();
+  const combos = [];
+  for (let i = 0; i < nbrs.length; i++)
+    for (let j = i + 1; j < nbrs.length; j++) combos.push([nbrs[i], nbrs[j]]);
+  return combos;
+}
+function isJunction(k) { return !isCityKey(k) && getAdj(k).size >= 3; }
+function activePair(k) {
+  const combos = junctionCombos(k);
+  if (!combos.length) return null;
+  const idx = ((state.switches.get(k) || 0) % combos.length + combos.length) % combos.length;
+  return combos[idx];
+}
+function cycleSwitch(k) {
+  const combos = junctionCombos(k);
+  if (combos.length < 2) return false;
+  const idx = ((state.switches.get(k) || 0) + 1) % combos.length;
+  state.switches.set(k, idx);
+  return true;
+}
+
+/* ---------------------------------------------------------------------
+ * Map lifecycle
+ * ------------------------------------------------------------------- */
+function newMap(seedOverride) {
+  const seed = seedOverride != null ? seedOverride : (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
+  state.seed = seed;
+  state.rng = mulberry32(seed);
+  state.height = makeHeightmap(state.rng, COLS, ROWS);
+  state.cities = placeCities(state.rng, state.height, COLS, ROWS, 7);
+  state.cityByKey = new Map(state.cities.map((c) => [c.key, c]));
+  state.edges.clear(); state.adj.clear(); state.switches.clear(); state.history.length = 0;
+  state.budget = START_BUDGET; state.revenue = 0;
+  state.trains.length = 0; state.floaters.length = 0; state.spawnClock = 0;
+  clearLog();
+  log('New map: seed ' + seed + '. ' + state.cities.length + ' towns, $' + START_BUDGET.toLocaleString() + ' to spend.', '');
+  const u = new URL(location.href); u.searchParams.set('seed', seed); history.replaceState(null, '', u);
+}
+
+/* ---------------------------------------------------------------------
+ * Trains
+ * ------------------------------------------------------------------- */
+const SEG_MS = 850;
+
+function connectedCityCount() {
+  let n = 0;
+  for (const c of state.cities) if (getAdj(c.key).size > 0) n++;
+  return n;
+}
+
+function trySpawn() {
+  const pool = state.cities.filter((c) => getAdj(c.key).size > 0);
+  if (pool.length < 2 || state.trains.length >= 6) return;
+  const origin = pool[Math.floor(state.rng() * pool.length)];
+  const others = state.cities.filter((c) => c.key !== origin.key);
+  const dest = others[Math.floor(state.rng() * others.length)];
+  const nbrs = [...getAdj(origin.key)];
+  const first = nbrs[Math.floor(state.rng() * nbrs.length)];
+  state.trains.push({
+    id: state.nextTrainId++, pos: origin.key, prev: null, next: first, progress: 0,
+    origin: origin.key, dest: dest.key, hops: 0, status: 'moving',
+  });
+}
+
+function resolveTrain(t) {
+  if (t.prev != null && isCityKey(t.pos)) { deliver(t); return; }
+  const nbrs = [...getAdj(t.pos)];
+  const candidates = t.prev == null ? nbrs : nbrs.filter((n) => n !== t.prev);
+  if (!candidates.length) { loseTrain(t); return; }
+  if (t.prev == null || candidates.length === 1) {
+    const choice = t.prev == null ? candidates[Math.floor(state.rng() * candidates.length)] : candidates[0];
+    t.next = choice; t.status = 'moving'; t.progress = 0;
+    return;
+  }
+  // degree >=3 with a known prev and not a city: a real switch
+  const pair = activePair(t.pos);
+  if (pair && pair.includes(t.prev)) {
+    const other = pair[0] === t.prev ? pair[1] : pair[0];
+    t.next = other; t.status = 'moving'; t.progress = 0;
+  } else {
+    t.next = null; t.status = 'blocked';
+  }
+}
+
+function deliver(t) {
+  const dest = state.cityByKey.get(t.dest);
+  const arrived = state.cityByKey.get(t.pos);
+  const correct = t.pos === t.dest;
+  const sizeFactor = (dest.size + state.cityByKey.get(t.origin).size) / 2;
+  let revenue = Math.round(t.hops * 130 * sizeFactor * (correct ? 1 : 0.3));
+  revenue = Math.max(revenue, correct ? 60 : 20);
+  state.budget += revenue; state.revenue += revenue;
+  addFloater(t.pos, '+$' + revenue.toLocaleString(), correct ? 'pay' : 'mis');
+  if (correct) {
+    log(nameOf(t.origin) + ' → ' + nameOf(t.dest) + ': delivered, +$' + revenue.toLocaleString() + '.', 'pay');
+  } else {
+    log(nameOf(t.origin) + ' train meant for ' + nameOf(t.dest) + ' ended up in ' + nameOf(arrived.key) +
+      ' — misrouted, +$' + revenue.toLocaleString() + '.', 'mis');
+  }
+  removeTrain(t);
+}
+function loseTrain(t) {
+  addFloater(t.pos, 'lost', 'lost');
+  log('Train from ' + nameOf(t.origin) + ' ran out of track near a dead end and was lost.', 'lost');
+  removeTrain(t);
+}
+function removeTrain(t) { const i = state.trains.indexOf(t); if (i >= 0) state.trains.splice(i, 1); }
+function nameOf(k) { const c = state.cityByKey.get(k); return c ? c.name : k; }
+
+function tryUnblock(cellKey) {
+  for (const t of state.trains) if (t.status === 'blocked' && t.pos === cellKey) resolveTrain(t);
+}
+
+function stepTrains(dtMs) {
+  if (state.paused) return;
+  state.spawnClock -= dtMs;
+  if (state.spawnClock <= 0) { trySpawn(); state.spawnClock = 5000 + state.rng() * 4000; }
+  for (const t of [...state.trains]) {
+    if (t.status !== 'moving' || t.next == null) continue;
+    t.progress += dtMs / SEG_MS;
+    if (t.progress >= 1) {
+      t.hops++; t.prev = t.pos; t.pos = t.next; t.next = null; t.progress = 0;
+      resolveTrain(t);
+    }
+  }
+  for (const f of state.floaters) f.life -= dtMs;
+  state.floaters = state.floaters.filter((f) => f.life > 0);
+}
+function addFloater(cellKey, text, cls) {
+  const [x, y] = parseKey(cellKey);
+  state.floaters.push({ x, y, text, cls, life: 1400, born: 1400 });
+}
+
+/* ---------------------------------------------------------------------
+ * Rendering
+ * ------------------------------------------------------------------- */
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+let CELL = 40;
+
+function fitCanvas() {
+  const wrap = canvas.parentElement;
+  const w = wrap.clientWidth;
+  CELL = w / COLS;
+  const h = CELL * ROWS;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function cellCenter(x, y) { return [x * CELL + CELL / 2, y * CELL + CELL / 2]; }
+
+function drawTerrain() {
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      const t = TERRAIN[terrainAt(state.height[y][x])];
+      ctx.fillStyle = t.color;
+      ctx.fillRect(x * CELL, y * CELL, CELL + 0.5, CELL + 0.5);
+    }
+  }
+}
+
+function drawTrack() {
+  ctx.lineCap = 'round';
+  for (const [ek] of state.edges) {
+    const [a, b] = ek.split('|');
+    const [ax, ay] = parseKey(a), [bx, by] = parseKey(b);
+    const [pax, pay] = cellCenter(ax, ay), [pbx, pby] = cellCenter(bx, by);
+    ctx.strokeStyle = '#c9c2a8';
+    ctx.lineWidth = Math.max(3, CELL * 0.14);
+    ctx.beginPath(); ctx.moveTo(pax, pay); ctx.lineTo(pbx, pby); ctx.stroke();
+    ctx.strokeStyle = '#0e0e11';
+    ctx.lineWidth = Math.max(1, CELL * 0.04);
+    ctx.setLineDash([Math.max(3, CELL * 0.12), Math.max(3, CELL * 0.12)]);
+    ctx.beginPath(); ctx.moveTo(pax, pay); ctx.lineTo(pbx, pby); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawSwitches() {
+  for (const [k, nbrs] of state.adj) {
+    if (!isJunction(k)) continue;
+    const [x, y] = parseKey(k);
+    const [cx, cy] = cellCenter(x, y);
+    const pair = activePair(k);
+    // dim every leg, then highlight the two currently active
+    for (const nk of nbrs) {
+      const [nx, ny] = parseKey(nk);
+      const [px, py] = cellCenter(nx, ny);
+      const active = pair && pair.includes(nk);
+      ctx.strokeStyle = active ? '#ffd479' : 'rgba(255,255,255,.08)';
+      ctx.lineWidth = Math.max(2, CELL * 0.09);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy); ctx.lineTo(cx + (px - cx) * 0.42, cy + (py - cy) * 0.42);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#ffd479';
+    ctx.beginPath(); ctx.arc(cx, cy, Math.max(4, CELL * 0.13), 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3a2c0a';
+    ctx.font = (CELL * 0.16) + 'px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  }
+}
+
+const SIZE_R = [0, 0.16, 0.22, 0.29];
+function drawCities() {
+  for (const c of state.cities) {
+    const [cx, cy] = cellCenter(c.x, c.y);
+    const r = CELL * SIZE_R[c.size];
+    const connected = getAdj(c.key).size > 0;
+    ctx.fillStyle = connected ? '#e8a33d' : '#8b8792';
+    ctx.strokeStyle = '#0e0e11'; ctx.lineWidth = Math.max(1, CELL * 0.05);
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#e8e6e3';
+    ctx.font = '600 ' + Math.max(10, CELL * 0.24) + 'px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(c.name, cx, cy + r + 2);
+  }
+}
+
+function drawTrains() {
+  for (const t of state.trains) {
+    const [ax, ay] = parseKey(t.pos);
+    let px, py;
+    if (t.next) {
+      const [bx, by] = parseKey(t.next);
+      const [pax, pay] = cellCenter(ax, ay), [pbx, pby] = cellCenter(bx, by);
+      const e = t.progress < 0.5 ? 2 * t.progress * t.progress : 1 - Math.pow(-2 * t.progress + 2, 2) / 2;
+      px = pax + (pbx - pax) * e; py = pay + (pby - pay) * e;
+    } else {
+      [px, py] = cellCenter(ax, ay);
+    }
+    ctx.save();
+    ctx.translate(px, py);
+    const r = Math.max(5, CELL * 0.17);
+    if (t.status === 'blocked') {
+      const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 180);
+      ctx.fillStyle = 'rgba(242,119,122,' + pulse + ')';
+    } else {
+      ctx.fillStyle = '#7ac387';
+    }
+    ctx.strokeStyle = '#0e0e11'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-r, -r * 0.65, r * 2, r * 1.3, r * 0.3) : ctx.rect(-r, -r * 0.65, r * 2, r * 1.3);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawFloaters() {
+  for (const f of state.floaters) {
+    const [cx, cy] = cellCenter(f.x, f.y);
+    const t = 1 - f.life / f.born;
+    const alpha = f.life < 300 ? f.life / 300 : 1;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = f.cls === 'lost' ? '#f2777a' : f.cls === 'mis' ? '#e8a33d' : '#7ac387';
+    ctx.font = '600 ' + Math.max(10, CELL * 0.22) + 'px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(f.text, cx, cy - CELL * 0.3 - t * 18);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawTerrain();
+  drawTrack();
+  drawSwitches();
+  drawCities();
+  drawTrains();
+  drawFloaters();
+}
+
+/* ---------------------------------------------------------------------
+ * UI plumbing
+ * ------------------------------------------------------------------- */
+const $ = (id) => document.getElementById(id);
+const hintEl = $('hint'), logEl = $('log');
+
+function log(msg, cls) {
+  if (logEl.querySelector('.empty')) logEl.textContent = '';
+  const li = document.createElement('li');
+  li.textContent = msg;
+  if (cls) li.className = cls;
+  logEl.insertBefore(li, logEl.firstChild);
+  while (logEl.children.length > 40) logEl.removeChild(logEl.lastChild);
+}
+function clearLog() { logEl.textContent = ''; const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Nothing has run yet — connect two towns to start seeing trains.'; logEl.appendChild(li); }
+function hint(msg, bad) { hintEl.textContent = msg; hintEl.className = 'hint' + (bad ? ' bad' : ''); }
+
+function fmtMoney(n) { return '$' + Math.round(n).toLocaleString(); }
+function updateStats() {
+  $('statBudget').textContent = fmtMoney(state.budget);
+  $('statConnected').textContent = connectedCityCount() + ' / ' + state.cities.length;
+  $('statTrains').textContent = String(state.trains.length);
+  $('statRevenue').textContent = fmtMoney(state.revenue);
+}
+
+function setMode(m) {
+  state.mode = m;
+  $('modeBuild').classList.toggle('on', m === 'build');
+  $('modeSwitch').classList.toggle('on', m === 'switch');
+  $('modeErase').classList.toggle('on', m === 'erase');
+  if (m === 'build') hint('Drag from a town or existing track to lay new track.');
+  else if (m === 'switch') hint('Tap a junction (a bright dot where 3+ lines meet) to change which two it connects.');
+  else hint('Drag over track to remove it — you get half the cost back.');
+}
+
+function cellFromEvent(ev) {
+  const r = canvas.getBoundingClientRect();
+  const x = Math.floor((ev.clientX - r.left) / (r.width / COLS));
+  const y = Math.floor((ev.clientY - r.top) / (r.height / ROWS));
+  if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return null;
+  return key(x, y);
+}
+
+function walkPath(fromKey, toKey) {
+  // 4-directional Bresenham-ish walk so a fast drag doesn't skip cells.
+  let [x, y] = parseKey(fromKey);
+  const [tx, ty] = parseKey(toKey);
+  const path = [];
+  let guard = 0;
+  while ((x !== tx || y !== ty) && guard++ < 60) {
+    if (x !== tx) x += x < tx ? 1 : -1;
+    else if (y !== ty) y += y < ty ? 1 : -1;
+    path.push(key(x, y));
+  }
+  return path;
+}
+
+function tryBuildStep(fromKey, toKey) {
+  if (state.edges.has(edgeKey(fromKey, toKey))) return true; // already built, just continue
+  const cost = segmentCost(fromKey, toKey);
+  if (cost > state.budget) { hint("Can't afford the next segment — $" + cost.toLocaleString() + ' needed.', true); return false; }
+  addEdge(fromKey, toKey, cost, true);
+  state.budget -= cost;
+  return true;
+}
+function tryEraseStep(fromKey, toKey) {
+  if (!state.edges.has(edgeKey(fromKey, toKey))) return;
+  const cost = removeEdge(fromKey, toKey);
+  state.budget += Math.round(cost / 2);
+  state.history = state.history.filter((h) => !(h.a === fromKey && h.b === toKey) && !(h.a === toKey && h.b === fromKey));
+}
+
+function isBuildStart(k) { return isCityKey(k) || getAdj(k).size > 0; }
+
+let dragging = false, dragAnchor = null, dragMoved = false;
+canvas.addEventListener('pointerdown', (ev) => {
+  const k = cellFromEvent(ev);
+  if (!k) return;
+  canvas.setPointerCapture(ev.pointerId);
+  dragging = true; dragMoved = false;
+  if (state.mode === 'switch') { dragAnchor = k; return; }
+  if (state.mode === 'build') {
+    if (!isBuildStart(k)) { hint('Start dragging from a town or existing track.', true); dragging = false; return; }
+    dragAnchor = k;
+  } else if (state.mode === 'erase') {
+    dragAnchor = k;
+  }
+});
+canvas.addEventListener('pointermove', (ev) => {
+  if (!dragging || !dragAnchor) return;
+  const k = cellFromEvent(ev);
+  if (!k || k === dragAnchor) return;
+  dragMoved = true;
+  if (state.mode === 'build') {
+    const path = walkPath(dragAnchor, k);
+    let cur = dragAnchor;
+    for (const step of path) { if (!tryBuildStep(cur, step)) break; cur = step; dragAnchor = cur; }
+    updateStats();
+  } else if (state.mode === 'erase') {
+    const path = walkPath(dragAnchor, k);
+    let cur = dragAnchor;
+    for (const step of path) { tryEraseStep(cur, step); cur = step; }
+    dragAnchor = cur;
+    updateStats();
+  }
+});
+function endDrag(ev) {
+  if (!dragging) return;
+  dragging = false;
+  if (state.mode === 'switch' && !dragMoved && dragAnchor) {
+    if (isJunction(dragAnchor)) {
+      cycleSwitch(dragAnchor);
+      tryUnblock(dragAnchor);
+      hint('Switch set. Lines matching the highlighted pair will pass through.');
+    } else if (isCityKey(dragAnchor)) {
+      hint('Towns hand trains to a random outgoing line — no switch to set there.');
+    } else if (getAdj(dragAnchor).size >= 1) {
+      hint('That cell only has one or two lines — nothing to switch until a third joins.');
+    } else {
+      hint('No track there yet.');
+    }
+  }
+  dragAnchor = null;
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+$('modeBuild').addEventListener('click', () => setMode('build'));
+$('modeSwitch').addEventListener('click', () => setMode('switch'));
+$('modeErase').addEventListener('click', () => setMode('erase'));
+
+$('btnUndo').addEventListener('click', () => {
+  const last = state.history.pop();
+  if (!last) { hint('Nothing to undo.'); return; }
+  removeEdge(last.a, last.b);
+  state.budget += last.cost;
+  updateStats();
+  hint('Undid the last segment (+$' + last.cost.toLocaleString() + ' back).');
+});
+
+$('btnPause').addEventListener('click', () => {
+  state.paused = !state.paused;
+  $('btnPause').textContent = state.paused ? 'Resume trains' : 'Pause trains';
+  $('btnPause').classList.toggle('pause-on', state.paused);
+});
+
+$('btnNewMap').addEventListener('click', () => { newMap(); setMode('build'); updateStats(); });
+
+function buildLegend() {
+  const el = $('legend');
+  el.textContent = '';
+  const items = [
+    ['plains', 'plains — cheap'], ['forest', 'forest — moderate'], ['hills', 'hills — costly'],
+    ['mountain', 'mountains — very costly'], ['water', 'water — bridge, priciest'],
+  ];
+  for (const [k, label] of items) {
+    const span = document.createElement('span');
+    const sw = document.createElement('span');
+    sw.className = 'swatch'; sw.style.background = TERRAIN[k].color;
+    span.appendChild(sw);
+    span.appendChild(document.createTextNode(label));
+    el.appendChild(span);
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Main loop
+ * ------------------------------------------------------------------- */
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(now - lastT, 100);
+  lastT = now;
+  stepTrains(dt);
+  render();
+  updateStats();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize', fitCanvas);
+
+/* ---------------------------------------------------------------------
+ * Score save / compare — optional, via the visitor's own repo
+ * ------------------------------------------------------------------- */
+const store = labPds();
+const authHint = $('authHint'), btnSignIn = $('btnSignIn'), btnSaveScore = $('btnSaveScore');
+
+async function boot() {
+  const params = new URL(location.href).searchParams;
+  const seedParam = params.get('seed');
+  newMap(seedParam ? Number(seedParam) : null);
+  fitCanvas();
+  setMode('build');
+  buildLegend();
+  updateStats();
+  requestAnimationFrame(loop);
+
+  try {
+    await store.ready();
+    const u = store.user();
+    if (u) {
+      $('signInRow').hidden = true; btnSaveScore.hidden = false;
+      authHint.textContent = 'Signed in as @' + u.handle + '.';
+    }
+  } catch (e) { /* not signed in yet — fine, sign-in is optional */ }
+}
+
+const signInHandle = $('signInHandle');
+if (window.kit && kit.handleInput) kit.handleInput(signInHandle, { onPick: (h) => { signInHandle.value = h; } });
+
+btnSignIn.addEventListener('click', async () => {
+  const handle = signInHandle.value.trim().replace(/^@/, '');
+  if (!handle) { authHint.textContent = 'Type a handle first.'; return; }
+  authHint.textContent = 'Redirecting to Bluesky…';
+  try { await store.signIn(handle, { scores: true }); }
+  catch (e) { authHint.textContent = 'Sign-in failed: ' + (e && e.message ? e.message : e); }
+});
+
+btnSaveScore.addEventListener('click', async () => {
+  authHint.textContent = 'Saving…';
+  try {
+    const value = Math.max(0, Math.round(state.revenue));
+    await store.postScore(value, { unit: 'credits', detail: connectedCityCount() + ' of ' + state.cities.length + ' towns connected' });
+    authHint.textContent = 'Saved ' + fmtMoney(value) + ' revenue to your repository.';
+  } catch (e) { authHint.textContent = 'Could not save: ' + (e && e.message ? e.message : e); }
+});
+
+const rivalInput = $('rivalHandle');
+if (window.kit && kit.handleInput) {
+  kit.handleInput(rivalInput, { onPick: (handle) => loadRival(handle) });
+}
+rivalInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') loadRival(rivalInput.value.trim().replace(/^@/, '')); });
+
+async function loadRival(handle) {
+  if (!handle) return;
+  const listEl = $('rivalScores');
+  listEl.textContent = '';
+  const li = document.createElement('li'); li.textContent = 'Looking up @' + handle + '…';
+  listEl.appendChild(li);
+  try {
+    const scores = store.rank(await store.scoresOf(handle));
+    listEl.textContent = '';
+    if (!scores.length) {
+      const e = document.createElement('li'); e.textContent = '@' + handle + ' has no saved Trackwright revenue yet.';
+      listEl.appendChild(e);
+      return;
+    }
+    for (const s of scores.slice(0, 5)) {
+      const row = document.createElement('li');
+      const b = document.createElement('b'); b.textContent = fmtMoney(s.value);
+      row.appendChild(b);
+      row.appendChild(document.createTextNode(' ' + (s.detail || '')));
+      listEl.appendChild(row);
+    }
+  } catch (e) {
+    listEl.textContent = '';
+    const err = document.createElement('li'); err.textContent = 'Could not look up @' + handle + '.';
+    listEl.appendChild(err);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 204 colours, top 58%
+  ✓ smoke: lab/www/domino-upright/index.html loads clean under the production CSP

@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tumbleweed drum — a pastoral space colony</title>
+<meta name="description" content="A rotating O'Neill-cylinder colony you ride inside of. Hover or tap a colonist to hear what they're thinking while they farm, fish, and putter around.">
+<meta property="og:title" content="tumbleweed drum — a pastoral space colony">
+<meta property="og:description" content="Ride inside a slowly spinning cylindrical space colony — farmland curving overhead into the sky on the far side of the tube. Hover or tap any colonist to hear their thoughts.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  html, body { height: 100%; }
+  body {
+    margin: 0; padding: 0; overflow: hidden;
+    background: #05060a;
+    font: 16px/1.5 var(--mono);
+  }
+  main { max-width: none; margin: 0; }
+
+  #stage { position: fixed; inset: 0; }
+  #stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  .overlay {
+    position: fixed; z-index: 10; pointer-events: none;
+  }
+  .overlay a, .overlay button { pointer-events: auto; }
+
+  #hud-top {
+    top: 0; left: 0; right: 0;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: .75rem; padding: .75rem .9rem;
+    background: linear-gradient(to bottom, rgba(5,6,10,.75), transparent);
+  }
+  #hud-top .crumb { margin: 0 0 .15rem; font-size: .72rem; }
+  #hud-top h1 {
+    font-size: 1.05rem; margin: 0; letter-spacing: -.02em;
+    color: var(--accent); text-shadow: 0 1px 6px rgba(0,0,0,.6);
+  }
+  #hud-top .sub {
+    margin: .15rem 0 0; font-size: .72rem; color: var(--fg); opacity: .8;
+    text-shadow: 0 1px 6px rgba(0,0,0,.7);
+    max-width: 34ch;
+  }
+
+  #motion-toggle {
+    flex: none; min-height: 44px; min-width: 44px;
+    padding: .5rem .8rem; font-size: .72rem; line-height: 1.2;
+    background: rgba(22,22,27,.75); backdrop-filter: blur(2px);
+    color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius);
+    cursor: pointer; white-space: nowrap;
+  }
+  #motion-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  #motion-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+
+  #hint {
+    bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: center;
+    padding: 0 .9rem .8rem;
+  }
+  #hint span {
+    background: rgba(14,14,17,.72); backdrop-filter: blur(2px);
+    color: var(--muted); font-size: .72rem;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .45rem .8rem;
+    text-align: center;
+  }
+
+  #tooltip {
+    position: fixed; z-index: 20; pointer-events: none;
+    max-width: min(78vw, 22rem);
+    background: rgba(16,16,20,.94);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: .65rem .8rem;
+    box-shadow: 0 10px 28px rgba(0,0,0,.5);
+    transform: translate(-50%, -100%);
+    display: none;
+  }
+  #tooltip.on { display: block; }
+  #tooltip .name { color: var(--accent); font-size: .82rem; font-weight: 600; }
+  #tooltip .role { color: var(--muted); font-size: .68rem; margin: 0 0 .35rem; }
+  #tooltip .thought { color: var(--fg); font-size: .8rem; font-style: italic; }
+  #tooltip .close {
+    display: none;
+  }
+
+  /* Mobile: tap opens a bottom sheet instead of a floating bubble — a
+     transform-anchored tooltip near a fat thumb is a bad target. */
+  @media (pointer: coarse), (max-width: 640px) {
+    #tooltip {
+      left: 0 !important; right: 0; bottom: 0; top: auto !important;
+      max-width: none; transform: none;
+      border-radius: var(--radius) var(--radius) 0 0;
+      border: 1px solid var(--accent); border-bottom: none;
+      padding: .9rem 1rem calc(.9rem + env(safe-area-inset-bottom, 0px));
+      pointer-events: auto;
+    }
+    #tooltip .close {
+      display: block; margin-top: .5rem;
+      min-height: 44px; width: 100%;
+      background: var(--accent-dim); color: var(--accent);
+      border: 1px solid var(--accent); border-radius: var(--radius);
+      font: inherit; font-size: .78rem; cursor: pointer;
+    }
+  }
+
+  #fallback {
+    position: fixed; inset: 0; z-index: 30;
+    display: none; align-items: center; justify-content: center;
+    padding: 2rem; text-align: center;
+  }
+  #fallback.on { display: flex; }
+  #fallback .err { max-width: 30rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #hint span::after { content: " Motion is reduced automatically on this device."; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div id="stage" aria-hidden="true"></div>
+
+  <div id="hud-top" class="overlay">
+    <div>
+      <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / tumbleweed drum</div>
+      <h1>tumbleweed drum</h1>
+      <p class="sub">A pastoral space colony, seen from inside its own spin. Hover a colonist &mdash; on mobile, tap.</p>
+    </div>
+    <button id="motion-toggle" type="button" aria-pressed="false">pause drift</button>
+  </div>
+
+  <div id="hint" class="overlay">
+    <span id="hint-text">the colony spins slowly around you — you're only ever seeing a slice of it</span>
+  </div>
+
+  <div id="tooltip" role="status" aria-live="polite">
+    <div class="name" id="tt-name"></div>
+    <div class="role" id="tt-role"></div>
+    <div class="thought" id="tt-thought"></div>
+    <button class="close" id="tt-close" type="button">close</button>
+  </div>
+
+  <div id="fallback">
+    <div class="err" id="fallback-msg">Loading the colony&hellip;</div>
+  </div>
+</main>
+
+<script type="module">
+import * as THREE from '../_kit/three.module.min.js';
+
+/* ---------------------------------------------------------------------
+ * tumbleweed drum — a pastoral O'Neill-cylinder colony.
+ *
+ * Coordinate convention, chosen to match THREE.CylinderGeometry's own
+ * vertex formula exactly (so the ground mesh needs no extra rotation):
+ *   the drum's spin axis is WORLD Y. A point on the inner wall at
+ *   angle theta and length-position y is (R*sin(theta), y, R*cos(theta)).
+ *   "Up" for someone standing on that wall (i.e. the direction opposite
+ *   spin-gravity) points from the wall TOWARD the axis: -(sin,0,cos).
+ * ------------------------------------------------------------------- */
+
+const R = 55;           // drum radius
+const L = 150;          // drum length (along world Y)
+const EYE = 24;          // camera height above the wall
+
+function seeded(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+const rand = seeded(20260929);
+
+function cylPoint(theta, y, radius) {
+  return new THREE.Vector3(radius * Math.sin(theta), y, radius * Math.cos(theta));
+}
+function towardAxis(theta) {
+  return new THREE.Vector3(-Math.sin(theta), 0, -Math.cos(theta));
+}
+
+// Three land strips (farmland) alternate with three sunlight-window strips.
+const LAND_CENTERS = [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3];
+const STRIP_HALF = Math.PI / 6 * 0.92;
+function angDist(a, b) {
+  let d = Math.abs(a - b) % (Math.PI * 2);
+  if (d > Math.PI) d = Math.PI * 2 - d;
+  return d;
+}
+function nearestLand(theta) {
+  let best = LAND_CENTERS[0], bestD = Infinity;
+  for (const c of LAND_CENTERS) {
+    const d = angDist(theta, c);
+    if (d < bestD) { bestD = d; best = c; }
+  }
+  return { center: best, dist: bestD };
+}
+function isLand(theta) { return nearestLand(theta).dist < STRIP_HALF; }
+
+const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+let reduceMotion = reduceMotionQuery.matches;
+let userPaused = false;
+
+// -------------------------------------------------------------------
+// Renderer / scene / camera
+// -------------------------------------------------------------------
+const stage = document.getElementById('stage');
+const fallback = document.getElementById('fallback');
+const fallbackMsg = document.getElementById('fallback-msg');
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+} catch (e) {
+  renderer = null;
+}
+if (!renderer || !renderer.getContext()) {
+  fallback.classList.add('on');
+  kit.showError(fallbackMsg, "Your browser can't run WebGL, so the drum can't spin here. Try a recent Chrome, Firefox, or Safari.");
+  throw new Error('no webgl');
+}
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const fogColor = 0x8fae7a;
+scene.fog = new THREE.Fog(fogColor, 45, 130);
+scene.background = new THREE.Color(0xcfe3b8);
+
+// Base FOV is really a target HORIZONTAL field of view. On a tall phone
+// viewport (aspect < 1), using it as a vertical FOV directly (three.js's
+// default) starves the horizontal view — exactly the axis colonists need
+// to be visible in. Widen the vertical FOV to compensate, so the visible
+// horizontal slice stays roughly constant across viewport shapes.
+//
+// The compensation is clamped (effAspect floors at CLAMP_ASPECT) rather than
+// following the real aspect all the way down: on a 390x844 phone
+// (aspect ~0.46) the uncapped formula demanded an ~82 degree vertical FOV,
+// which shrank every colonist vertically to a dot — trading the "colonists
+// off-screen sideways" bug this was written for, for "colonists
+// microscopic", which is worse. The clamp gives up a little horizontal
+// coverage on very narrow phones in exchange for keeping colonists a
+// readable size, which is the one thing the interaction depends on.
+const BASE_FOV = 30;
+const CLAMP_ASPECT = 0.7;
+const camera = new THREE.PerspectiveCamera(BASE_FOV, window.innerWidth / window.innerHeight, 0.1, 400);
+function fitFov() {
+  const aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = aspect;
+  const baseRad = THREE.MathUtils.degToRad(BASE_FOV);
+  camera.fov = aspect < 1
+    ? THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(baseRad / 2) / Math.max(aspect, CLAMP_ASPECT)))
+    : BASE_FOV;
+  camera.updateProjectionMatrix();
+}
+fitFov();
+
+window.addEventListener('resize', () => {
+  fitFov();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// -------------------------------------------------------------------
+// Ground: one canvas-textured cylinder. Canvas X = theta (wraps, so it
+// must be seamless at the left/right edge). Canvas Y = position along
+// the drum's length (stretched once over the whole length, not tiled).
+// -------------------------------------------------------------------
+const TW = 2048, TH = 1536;
+function buildGroundTexture() {
+  const cv = document.createElement('canvas');
+  cv.width = TW; cv.height = TH;
+  const ctx = cv.getContext('2d');
+
+  function thetaToX(theta) {
+    let t = theta % (Math.PI * 2);
+    if (t < 0) t += Math.PI * 2;
+    return (t / (Math.PI * 2)) * TW;
+  }
+
+  // Base fill per column band: grass (land) or sunlit haze (window).
+  const bands = 240;
+  for (let i = 0; i < bands; i++) {
+    const theta = (i / bands) * Math.PI * 2;
+    const x0 = thetaToX(theta - Math.PI / bands);
+    const x1 = thetaToX(theta + Math.PI / bands) || TW;
+    const w = Math.max(1, x1 - x0);
+    if (isLand(theta)) {
+      const g = ctx.createLinearGradient(0, 0, 0, TH);
+      g.addColorStop(0, '#6f9a4a');
+      g.addColorStop(0.5, '#79a852');
+      g.addColorStop(1, '#6a934a');
+      ctx.fillStyle = g;
+    } else {
+      const g = ctx.createLinearGradient(0, 0, 0, TH);
+      g.addColorStop(0, '#fdf3d0');
+      g.addColorStop(0.5, '#fef8e4');
+      g.addColorStop(1, '#fdf3d0');
+      ctx.fillStyle = g;
+    }
+    ctx.fillRect(x0 - 1, 0, w + 2, TH);
+  }
+
+  // Grass speckle, land bands only.
+  for (let i = 0; i < 9000; i++) {
+    const theta = rand() * Math.PI * 2;
+    if (!isLand(theta)) continue;
+    const x = thetaToX(theta);
+    const y = rand() * TH;
+    const shade = rand() < 0.5 ? '#5d8a42' : '#8fbb63';
+    ctx.fillStyle = shade;
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 2 + rand() * 4, 1 + rand() * 2, rand() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Tilled fields — a handful of rectangular plots with furrow lines.
+  for (const c of LAND_CENTERS) {
+    for (let f = 0; f < 2; f++) {
+      const theta = c + (rand() - 0.5) * STRIP_HALF * 1.4;
+      const y = rand() * TH * 0.8 + TH * 0.1;
+      const w = 90 + rand() * 90, h = 140 + rand() * 160;
+      const x = thetaToX(theta);
+      ctx.fillStyle = rand() < 0.5 ? '#b99856' : '#a98a5a';
+      ctx.fillRect(x - w / 2, y - h / 2, w, h);
+      ctx.strokeStyle = 'rgba(90,68,36,.35)';
+      ctx.lineWidth = 2;
+      for (let r = -h / 2 + 8; r < h / 2; r += 12) {
+        ctx.beginPath();
+        ctx.moveTo(x - w / 2 + 4, y + r);
+        ctx.lineTo(x + w / 2 - 4, y + r);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // River — a wandering ribbon down one land strip.
+  const riverCenter = LAND_CENTERS[0];
+  ctx.strokeStyle = '#4f84a8';
+  ctx.lineCap = 'round';
+  for (let pass = 0; pass < 2; pass++) {
+    ctx.lineWidth = pass === 0 ? 26 : 14;
+    ctx.strokeStyle = pass === 0 ? '#3f7396' : '#63a2c4';
+    ctx.beginPath();
+    let theta = riverCenter + (rand() - 0.5) * STRIP_HALF * 0.6;
+    let x = thetaToX(theta);
+    ctx.moveTo(x, -20);
+    for (let y = 0; y <= TH + 20; y += 60) {
+      theta = riverCenter + Math.sin(y * 0.02 + pass) * STRIP_HALF * 0.55;
+      x = thetaToX(theta);
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Paths — thin brown tracks linking fields.
+  ctx.strokeStyle = 'rgba(120,96,60,.55)';
+  ctx.lineWidth = 6;
+  for (const c of LAND_CENTERS) {
+    ctx.beginPath();
+    const x = thetaToX(c);
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, TH);
+    ctx.stroke();
+  }
+
+  // Tree clumps.
+  for (const c of LAND_CENTERS) {
+    for (let t = 0; t < 46; t++) {
+      const theta = c + (rand() - 0.5) * STRIP_HALF * 1.7;
+      if (!isLand(theta)) continue;
+      const y = rand() * TH;
+      const x = thetaToX(theta);
+      const rr = 6 + rand() * 9;
+      ctx.fillStyle = '#2f5a2e';
+      ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3d6e37';
+      ctx.beginPath(); ctx.arc(x - rr * 0.3, y - rr * 0.3, rr * 0.7, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // Cottages — a little roof + wall per house.
+  for (const c of LAND_CENTERS) {
+    for (let h = 0; h < 4; h++) {
+      const theta = c + (rand() - 0.5) * STRIP_HALF * 1.3;
+      const y = rand() * TH * 0.85 + TH * 0.075;
+      const x = thetaToX(theta);
+      const w = 34, hh = 22;
+      ctx.fillStyle = '#c9a876';
+      ctx.fillRect(x - w / 2, y - hh / 2, w, hh);
+      ctx.fillStyle = '#8a4a3c';
+      ctx.beginPath();
+      ctx.moveTo(x - w / 2 - 4, y - hh / 2);
+      ctx.lineTo(x + w / 2 + 4, y - hh / 2);
+      ctx.lineTo(x, y - hh / 2 - 16);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // Window strips: soft structural mullions + a hazy far-off glow.
+  for (let i = 0; i < 26; i++) {
+    const theta = LAND_CENTERS[i % 3] + Math.PI / 3;
+    const x = thetaToX(theta + (rand() - 0.5) * STRIP_HALF * 1.4);
+    ctx.strokeStyle = 'rgba(180,150,90,.4)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, TH); ctx.stroke();
+  }
+
+  // Hedge borders between land and window strips.
+  for (const c of LAND_CENTERS) {
+    for (const edge of [c - STRIP_HALF, c + STRIP_HALF]) {
+      const x = thetaToX(edge);
+      ctx.strokeStyle = 'rgba(40,70,30,.55)';
+      ctx.lineWidth = 10;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, TH); ctx.stroke();
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+const groundTex = buildGroundTexture();
+const groundGeo = new THREE.CylinderGeometry(R, R, L, 128, 4, true);
+const groundMat = new THREE.MeshLambertMaterial({ map: groundTex, side: THREE.BackSide });
+const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+scene.add(groundMesh);
+
+// End caps — soft haze discs so the drum doesn't look hollow-ended.
+const capMat = new THREE.MeshBasicMaterial({ color: 0xcfe3b8, fog: true });
+for (const sign of [1, -1]) {
+  const cap = new THREE.Mesh(new THREE.CircleGeometry(R, 48), capMat);
+  cap.position.set(0, sign * L / 2, 0);
+  cap.rotation.x = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+  scene.add(cap);
+}
+
+// -------------------------------------------------------------------
+// Central sun-line — the drum's light source, running the length of
+// the axis. Stylised, not a physical mirror simulation (see BRIEF.md).
+// -------------------------------------------------------------------
+const sunGeo = new THREE.CylinderGeometry(0.5, 0.5, L * 0.98, 16);
+const sunMat = new THREE.MeshBasicMaterial({ color: 0xfff3c2 });
+const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+scene.add(sunMesh);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+scene.add(new THREE.HemisphereLight(0xfff6e0, 0x3a5a2e, 0.4));
+const SUN_LIGHTS = 4;
+for (let i = 0; i < SUN_LIGHTS; i++) {
+  const y = -L / 2 + (i + 0.5) * (L / SUN_LIGHTS);
+  const pl = new THREE.PointLight(0xfff0c0, 0.35, R * 1.6, 2);
+  pl.position.set(0, y, 0);
+  scene.add(pl);
+}
+
+// -------------------------------------------------------------------
+// Colonists — the only real 3D actors, and the interactive part.
+// -------------------------------------------------------------------
+const NAMES = ['Isha', 'Rowen', 'Petra', 'Julo', 'Mira', 'Tobias', 'Sena', 'Kade',
+  'Yusra', 'Bren', 'Coen', 'Adaeze', 'Finn', 'Lior', 'Wren', 'Otis', 'Nadia',
+  'Sable', 'Idris', 'Elowen', 'Corin', 'Maja', 'Teo', 'Priya', 'Bexley', 'Soren',
+  'Hanae', 'Ludo', 'Ines', 'Cass', 'Amara', 'Dov', 'Yara', 'Milo', 'Thandi', 'Esben'];
+
+const THOUGHTS = {
+  farmer: [
+    'The wheat on the third field is finally ready.',
+    'Spin makes the furrows curve just slightly — you stop noticing after a while.',
+    'Another good harvest. My mother would have liked this life.',
+    'Rain would be nice, just once, for the novelty of it.',
+  ],
+  gardener: [
+    'These tomatoes have never seen real weather and don’t seem to mind.',
+    'I talk to the beds. Nobody’s proven it doesn’t help.',
+    'Something is eating the lettuce and it isn’t supposed to exist here.',
+  ],
+  shepherd: [
+    'The flock doesn’t care this is a spacecraft. Neither do I, most days.',
+    'Counting heads is easier when there’s nowhere for them to actually go.',
+  ],
+  baker: [
+    'Bread rises differently at this humidity. Still adjusting the recipe.',
+    'The whole strip smells like the ovens by mid-morning. I like that.',
+  ],
+  fisher: [
+    'The pond’s stocked with three generations of the same carp family now.',
+    'Caught nothing again. Told everyone I wasn’t really trying.',
+  ],
+  carpenter: [
+    'A roof that only needs to keep out condensation still feels like cheating.',
+    'Measuring twice matters more when the wood came up on a cargo run.',
+  ],
+  teacher: [
+    'Explaining the Coriolis effect to eight-year-olds never gets easier.',
+    'One of the kids asked if the sky ever "runs out." Fair question, honestly.',
+  ],
+  musician: [
+    'This tune sounds different with the hum of the drum under it.',
+    'Everyone claims the rotation hums a different note for them.',
+  ],
+  elder: [
+    'Sixty years spinning and I still love the light at "dawn."',
+    'We built this so nobody would have to leave everything behind.',
+    'I miss weather. Real, unscheduled weather.',
+  ],
+  child: [
+    'I dropped my ball and it hung there a second before it fell weird.',
+    'Is it true Grandma remembers actual rain landing on her face?',
+    'Race you to the window strip!',
+  ],
+  beekeeper: [
+    'The bees adjusted to the spin faster than the committee did.',
+    'Lost a hive to the cold near the end-cap. Trying a warmer row this year.',
+  ],
+  stargazer: [
+    'From here, Earth is just another point of light.',
+    'The far side of the drum looks like a green ceiling tonight.',
+    'I map the same six stars every night out of habit, not need.',
+  ],
+};
+const GENERIC = [
+  'I can see three villages from here if I look straight up.',
+  'It’s strange to call a machine "home," but here we are.',
+  'Someone should really fix the bell by the north locks.',
+  'The rotation makes a low hum you stop hearing after the first year.',
+  'Sometimes I forget we’re moving at all.',
+];
+const ROLES = Object.keys(THOUGHTS);
+
+function pickThought(role) {
+  const pool = (rand() < 0.72 ? THOUGHTS[role] : GENERIC) || GENERIC;
+  return pool[Math.floor(rand() * pool.length)];
+}
+
+function bodyColor() {
+  const hues = [0xd9895b, 0x7c9fc4, 0xbf7bb0, 0x8fb06a, 0xd0b04a, 0xc4694f, 0x6ea89a];
+  return hues[Math.floor(rand() * hues.length)];
+}
+
+// Sized (and limbed) to read as a person at the 15-40 world-unit range the
+// camera actually views them from — the original torso+head-only blob at
+// ~1.6 units tall rendered as an unrecognizable ~10x15px dot at that
+// distance (reviewer-reported). ~2.3 units tall with arms/legs for a
+// visible silhouette, not just an oval.
+function buildColonistMesh(color) {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const skinMat = new THREE.MeshLambertMaterial({ color: 0xe3b892 });
+  const legMat = new THREE.MeshLambertMaterial({ color: 0x3a3226 });
+
+  for (const side of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.9, 6), legMat);
+    leg.position.set(side * 0.17, 0.45, 0);
+    g.add(leg);
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.55, 2, 6), bodyMat);
+    arm.position.set(side * 0.47, 1.05, 0);
+    arm.rotation.z = side * 0.3;
+    g.add(arm);
+  }
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.75, 3, 8), bodyMat);
+  torso.position.y = 1.28;
+  g.add(torso);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), skinMat);
+  head.position.y = 2.05;
+  g.add(head);
+  return g;
+}
+
+const COLONIST_COUNT = 42;
+const colonists = [];
+const colonistGroup = new THREE.Group();
+scene.add(colonistGroup);
+
+for (let i = 0; i < COLONIST_COUNT; i++) {
+  const center = LAND_CENTERS[i % LAND_CENTERS.length];
+  const homeTheta = center + (rand() - 0.5) * STRIP_HALF * 1.5;
+  const homeY = (rand() - 0.5) * L * 0.82;
+  const role = ROLES[Math.floor(rand() * ROLES.length)];
+  const name = NAMES[Math.floor(rand() * NAMES.length)];
+  const color = bodyColor();
+  const mesh = buildColonistMesh(color);
+  colonistGroup.add(mesh);
+
+  const hit = new THREE.Mesh(
+    new THREE.SphereGeometry(2.8, 6, 6),
+    new THREE.MeshBasicMaterial()
+  );
+  hit.visible = false;
+  colonistGroup.add(hit);
+
+  const data = {
+    name, role, homeTheta, homeY, mesh, hit,
+    theta: homeTheta, y: homeY,
+    targetTheta: homeTheta, targetY: homeY,
+    speed: 0.15 + rand() * 0.15,
+    pauseUntil: rand() * 8,
+    bobPhase: rand() * Math.PI * 2,
+    faceAngle: rand() * Math.PI * 2,
+    thought: pickThought(role),
+    thoughtChangeAt: 8 + rand() * 8,
+    t: 0,
+  };
+  colonists.push(data);
+  hit.userData.colonist = data;
+  placeColonist(data);
+}
+
+function placeColonist(c) {
+  const feet = cylPoint(c.theta, c.y, R);
+  const up = towardAxis(c.theta);
+  const bob = reduceMotion ? 0 : Math.max(0, Math.sin(c.t * 2.2 + c.bobPhase)) * 0.05;
+  c.mesh.position.copy(feet).addScaledVector(up, bob);
+  c.hit.position.copy(feet).addScaledVector(up, 1.3);
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+  const spin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), c.faceAngle);
+  c.mesh.quaternion.copy(q).multiply(spin);
+}
+
+function updateColonist(c, dt) {
+  c.t += dt;
+  const dTheta = ((c.targetTheta - c.theta + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+  const dY = c.targetY - c.y;
+  const dist = Math.hypot(dTheta * R, dY);
+  if (dist < 0.08) {
+    if (c.t > c.pauseUntil) {
+      const patchHalf = STRIP_HALF * 1.3;
+      c.targetTheta = c.homeTheta + (rand() - 0.5) * patchHalf * 0.6;
+      c.targetY = c.homeY + (rand() - 0.5) * 10;
+      c.pauseUntil = c.t + 3 + rand() * 9;
+      c.faceAngle = Math.atan2(dTheta, dY) || c.faceAngle;
+    }
+  } else {
+    const step = Math.min(1, (c.speed * dt) / dist);
+    c.theta += dTheta * step;
+    c.y += dY * step;
+  }
+  if (c.t > c.thoughtChangeAt) {
+    c.thought = pickThought(c.role);
+    c.thoughtChangeAt = c.t + 10 + rand() * 10;
+  }
+  placeColonist(c);
+}
+
+// -------------------------------------------------------------------
+// Camera: orbits the axis (theta) with a slow drift along the length
+// (y), always re-oriented so "up" points toward the axis. This — plus
+// fog and a finite far plane — is what keeps only a slice of the
+// colony visible at any moment, as asked for.
+// -------------------------------------------------------------------
+let camTheta = 0.15;
+let camY = -L * 0.4;
+let camDir = 1;
+const camRadius = R - EYE;
+const ROT_SPEED = 0.05;    // rad/s around the axis
+const DRIFT_SPEED = 2.1;    // world units/s along the length
+
+// Forward looks purely ALONG the drum's length (a walk down one strip) —
+// no sideways lean folded in. camTheta already rotates the camera around
+// the axis every frame, which is what brings a new strip into view over
+// time; an earlier version also leaned the forward vector itself toward
+// the next strip, which kept the *neighbouring* land/window strip
+// perpetually in frame at a steep side-on angle — reviewer: a "sharp
+// tan/khaki wedge" that "grows to cover over half the frame". Centring the
+// view on whichever strip the camera currently orbits past, and letting
+// only rotation (not a baked-in squint) bring the next one in, keeps that
+// neighbour at the frame's edge instead of dominating it. A view that looks
+// mostly TANGENTIALLY (around the ring) sees almost the whole circumference
+// in one frame, which is the opposite of "only part of the colony visible".
+//
+// PITCH_DOWN is an explicit angle rather than folding a small "-up" term
+// into the forward-vector sum (the previous approach): with EYE this small,
+// a blended-vector tilt put the camera almost parallel to the wall, so the
+// ground a few units away filled the whole frame at a near-grazing angle
+// (reviewer: "huge, sharp-edged... flat color blocks") while everything
+// past it — including every colonist, since they stand on that same wall —
+// got compressed into a thin sliver at the horizon. A real downward angle
+// off a real height means the ground reads as ground within a few dozen
+// units, not as one edge-on plane.
+//
+// The FLOOR of the frame, not the look-at centre, is what decides whether
+// ground reads as scenery or as a magnified blob: the bottom screen row
+// looks down at (PITCH_DOWN + half the vertical FOV), and that steeper ray
+// is what hits ground closest to the camera. At EYE=9 / PITCH_DOWN=24° the
+// bottom ray hit the wall only ~9 world units out — well inside fog's clear
+// zone — which is what blew up one tree clump or one river bend into a
+// frame-filling flat shape (reviewer, second round). Raising EYE to 24 and
+// shallowing PITCH_DOWN to 12° pushes that nearest visible point out past
+// 30 units at every aspect ratio this site supports, so no single ground
+// feature is ever close enough to the lens to dominate a frame.
+const PITCH_DOWN = THREE.MathUtils.degToRad(12);
+function updateCamera(dt) {
+  if (!userPaused) {
+    const speedScale = reduceMotion ? 0.12 : 1;
+    camTheta += ROT_SPEED * dt * speedScale;
+    camY += camDir * DRIFT_SPEED * dt * speedScale;
+    if (camY > L * 0.46) { camY = L * 0.46; camDir = -1; }
+    else if (camY < -L * 0.46) { camY = -L * 0.46; camDir = 1; }
+  }
+  const pos = cylPoint(camTheta, camY, camRadius);
+  const up = towardAxis(camTheta);
+  const axisDir = new THREE.Vector3(0, camDir, 0);
+  const horiz = axisDir.normalize();
+  const fwd = horiz.multiplyScalar(Math.cos(PITCH_DOWN)).addScaledVector(up, -Math.sin(PITCH_DOWN));
+  camera.up.copy(up);
+  camera.position.copy(pos);
+  camera.lookAt(pos.clone().add(fwd));
+}
+
+// -------------------------------------------------------------------
+// Hover (desktop) / tap (mobile) — one invisible hit-sphere per
+// colonist, raycast against that array only.
+// -------------------------------------------------------------------
+const raycaster = new THREE.Raycaster();
+const pointerNDC = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+const ttName = document.getElementById('tt-name');
+const ttRole = document.getElementById('tt-role');
+const ttThought = document.getElementById('tt-thought');
+const ttClose = document.getElementById('tt-close');
+const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+let activeColonist = null;
+
+// The box is anchored at (left, top) with CSS transform: translate(-50%,
+// -100%) — centred horizontally on the cursor, sitting just above it. That
+// puts half its width to each side of clientX with no regard for viewport
+// edges, so a colonist hovered near the left/right edge produced a box
+// that ran off-screen and clipped text mid-sentence (reviewer). Rather
+// than replicate the transform's math, place it at the naive anchor first,
+// measure where it actually landed, and nudge left/top by whatever pushes
+// it back inside a margin — the shift is a plain offset, so it composes
+// with the CSS transform exactly.
+function showTooltip(c, clientX, clientY) {
+  activeColonist = c;
+  ttName.textContent = c.name;
+  ttRole.textContent = c.role;
+  ttThought.textContent = '“' + c.thought + '”';
+  tooltip.classList.add('on');
+  if (!isCoarse) {
+    const top = Math.max(70, clientY - 14);
+    tooltip.style.left = clientX + 'px';
+    tooltip.style.top = top + 'px';
+    const margin = 10;
+    const rect = tooltip.getBoundingClientRect();
+    let dx = 0, dy = 0;
+    if (rect.left < margin) dx = margin - rect.left;
+    else if (rect.right > window.innerWidth - margin) dx = (window.innerWidth - margin) - rect.right;
+    if (rect.top < margin) dy = margin - rect.top;
+    else if (rect.bottom > window.innerHeight - margin) dy = (window.innerHeight - margin) - rect.bottom;
+    if (dx) tooltip.style.left = (clientX + dx) + 'px';
+    if (dy) tooltip.style.top = (top + dy) + 'px';
+  }
+}
+function hideTooltip() {
+  activeColonist = null;
+  tooltip.classList.remove('on');
+}
+
+function pickAt(clientX, clientY) {
+  pointerNDC.x = (clientX / window.innerWidth) * 2 - 1;
+  pointerNDC.y = -(clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointerNDC, camera);
+  const hits = raycaster.intersectObjects(colonists.map((c) => c.hit), false);
+  return hits.length ? hits[0].object.userData.colonist : null;
+}
+
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'touch') return;
+  const c = pickAt(e.clientX, e.clientY);
+  if (c) showTooltip(c, e.clientX, e.clientY); else hideTooltip();
+});
+renderer.domElement.addEventListener('pointerleave', () => { if (!isCoarse) hideTooltip(); });
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch') return;
+  const c = pickAt(e.clientX, e.clientY);
+  if (c) showTooltip(c, e.clientX, e.clientY); else hideTooltip();
+});
+ttClose.addEventListener('click', hideTooltip);
+
+// Update the tooltip text live if the shown colonist's thought changes
+// or they drift out from under a hover.
+function refreshTooltip() {
+  if (!activeColonist) return;
+  ttThought.textContent = '“' + activeColonist.thought + '”';
+}
+
+// -------------------------------------------------------------------
+// Reduced motion / pause control
+// -------------------------------------------------------------------
+const motionBtn = document.getElementById('motion-toggle');
+function syncMotionButton() {
+  motionBtn.setAttribute('aria-pressed', String(userPaused));
+  motionBtn.textContent = userPaused ? 'resume drift' : 'pause drift';
+}
+motionBtn.addEventListener('click', () => { userPaused = !userPaused; syncMotionButton(); });
+reduceMotionQuery.addEventListener('change', (e) => { reduceMotion = e.matches; });
+syncMotionButton();
+
+// -------------------------------------------------------------------
+// Animate
+// -------------------------------------------------------------------
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  sunMesh.rotation.y += dt * 0.02;
+  const motionScale = reduceMotion ? 0.15 : 1;
+  for (const c of colonists) updateColonist(c, dt * motionScale);
+  updateCamera(dt);
+  refreshTooltip();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

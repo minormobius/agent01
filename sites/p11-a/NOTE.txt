@@ -1,0 +1,1 @@
+No Rust — no compiler here and no vendored wasm module does plate physics, so this is live JS math: real eigenmode field, force+jitter integrator, not a canned animation. Watched every preset settle before shipping.

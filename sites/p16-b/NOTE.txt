@@ -1,0 +1,1 @@
+Read "in parallel" as side-by-side, not literal threads — 256 rules from one row is cheap enough to compute inline, instantly, no workers needed. Click any tile for that rule's actual truth table, not just its picture.

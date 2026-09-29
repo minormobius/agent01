@@ -1,0 +1,1 @@
+Switches are the real mechanic: a junction only passes its currently-paired lines, and I watched a train sit pulsing red until I re-threw it. No pathfinding anywhere — deliberate. Revenue refills the budget, so it's a loop, not a one-shot puzzle.

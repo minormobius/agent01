@@ -1,0 +1,3 @@
+::error::lab/www/place-line/index.html:87 — a field that collects key material. Never.
+
+::error::content gate: 1 violation(s) in lab/www/place-line — refusing to publish

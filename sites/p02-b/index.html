@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>my commute — a hydrofoil across the bay</title>
+<meta name="description" content="A tiny electric hydrofoil crosses the bay from Lake Merritt in Oakland to the Oracle campus in Redwood Shores. Adjust the throttle to bring it up onto the foil and watch the ETA fall.">
+<meta property="og:title" content="my commute">
+<meta property="og:description" content="A tiny electric hydrofoil crosses San Francisco Bay from Lake Merritt to the Oracle campus in Redwood Shores. Throttle up to rise onto the foil.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  html, body { height: 100%; }
+  body { padding: 0; overflow: hidden; }
+  main { max-width: none; margin: 0; height: 100%; display: flex; flex-direction: column; }
+  #crumb-wrap { padding: .6rem 1rem 0; flex: none; position: relative; z-index: 5; }
+  #crumb-wrap .crumb { margin-bottom: 0; }
+  #stage { position: relative; flex: 1 1 auto; min-height: 0; }
+  #stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #stage canvas:active { cursor: grabbing; }
+
+  .panel {
+    background: rgba(14,14,17,.82); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .55rem .75rem; backdrop-filter: blur(2px);
+  }
+  .hud { position: absolute; z-index: 4; }
+
+  #hud-title { top: .7rem; left: .8rem; max-width: min(62vw, 22rem); pointer-events: none; }
+  #hud-title h1 { font-size: 1.05rem; margin: 0; color: var(--accent); letter-spacing: -.02em; }
+  #hud-title p { margin: .2rem 0 0; color: var(--muted); font-size: .72rem; line-height: 1.4; }
+
+  #hud-right {
+    top: .7rem; right: .8rem; display: flex; flex-direction: column; gap: .5rem;
+    width: min(46vw, 12.5rem);
+  }
+  #throttle-wrap label { display: block; font-size: .68rem; color: var(--muted); margin-bottom: .3rem; }
+  #throttle-row { display: flex; align-items: center; gap: .5rem; }
+  #throttle-row input[type=range] { flex: 1 1 auto; accent-color: var(--accent); height: 2.75rem; }
+  #throttle-pct { font-size: .72rem; color: var(--fg); min-width: 2.6em; text-align: right; }
+
+  #trip-panel { font-size: .72rem; color: var(--muted); }
+  .trip-row { display: flex; justify-content: space-between; gap: .6rem; padding: .12rem 0; }
+  .trip-row b { color: var(--fg); font-weight: normal; text-align: right; }
+  .trip-row b.foiling { color: var(--accent); }
+
+  #hud-bottom {
+    left: .8rem; right: .8rem; bottom: .7rem; display: flex; flex-direction: column; gap: .45rem;
+  }
+  #progress-panel { pointer-events: none; }
+  .progress-track {
+    height: .4rem; border-radius: .3rem; background: var(--bg-raised); border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width .15s linear; }
+  .progress-labels { display: flex; justify-content: space-between; font-size: .64rem; color: var(--muted); margin-top: .3rem; }
+
+  #hud-help {
+    color: var(--muted); font-size: .72rem; line-height: 1.5; text-align: center; pointer-events: none;
+  }
+  #hud-help b { color: var(--fg); }
+
+  #arrival {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 7; max-width: min(84vw, 24rem); text-align: center; display: none;
+  }
+  #arrival h2 { margin: 0 0 .4rem; font-size: 1rem; color: var(--accent); }
+  #arrival p { margin: 0 0 .8rem; font-size: .78rem; color: var(--muted); }
+  #arrival button { width: 100%; min-height: 44px; }
+
+  #loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: .6rem; background: var(--bg); z-index: 10; text-align: center;
+  }
+  #loading.hidden { display: none; }
+  #loading .spin {
+    width: 2rem; height: 2rem; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    animation: spin 1s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { #loading .spin { animation-duration: 2.4s; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #fatal { position: absolute; inset: 0; z-index: 11; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+  #fatal.hidden { display: none; }
+  #fatal .err { max-width: 28rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb-wrap"></div>
+
+  <div id="stage">
+    <div id="loading">
+      <div class="spin" aria-hidden="true"></div>
+      <div>casting off…</div>
+    </div>
+
+    <div id="fatal" class="hidden">
+      <div class="err" role="alert" id="fatal-msg"></div>
+    </div>
+
+    <div class="hud panel" id="hud-title">
+      <h1>my commute</h1>
+      <p>Lake Merritt to the Oracle campus in Redwood Shores, on a super-light
+        single-person hydrofoil. A stylized simulation, not a literal route.</p>
+    </div>
+
+    <div class="hud" id="hud-right">
+      <div class="panel" id="throttle-wrap">
+        <label for="throttle">throttle</label>
+        <div id="throttle-row">
+          <input type="range" id="throttle" min="0" max="100" step="1" value="50" aria-label="throttle">
+          <span id="throttle-pct">50%</span>
+        </div>
+      </div>
+      <div class="panel" id="trip-panel">
+        <div class="trip-row"><span>state</span><b id="trip-state">hull-borne</b></div>
+        <div class="trip-row"><span>speed</span><b id="trip-speed">0 km/h</b></div>
+        <div class="trip-row"><span>remaining</span><b id="trip-dist">—</b></div>
+        <div class="trip-row"><span>ETA</span><b id="trip-eta">—</b></div>
+      </div>
+    </div>
+
+    <div class="hud" id="hud-bottom">
+      <div class="panel" id="progress-panel">
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-labels"><span>Lake Merritt</span><span>Oracle · Redwood Shores</span></div>
+      </div>
+      <div class="hud-help" id="hud-help">
+        Drag / swipe to look around · scroll or pinch to zoom · throttle sets speed
+        <b>and</b> when you rise onto the foil. Distances shown are real straight-line
+        bay distances — the crossing itself is time-lapsed to stay watchable.
+      </div>
+    </div>
+
+    <div class="panel" id="arrival" role="alert">
+      <h2>docked at Oracle, Redwood Shores</h2>
+      <p><span id="arrival-dist"></span> of open bay behind you.</p>
+      <button id="restart-btn">cast off again</button>
+    </div>
+  </div>
+</main>
+
+<script>
+  document.getElementById('crumb-wrap').innerHTML = kit.crumb('my commute');
+</script>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+const stage = document.getElementById('stage');
+const loading = document.getElementById('loading');
+const fatalEl = document.getElementById('fatal');
+const fatalMsg = document.getElementById('fatal-msg');
+const throttleSlider = document.getElementById('throttle');
+const throttlePct = document.getElementById('throttle-pct');
+const tripState = document.getElementById('trip-state');
+const tripSpeed = document.getElementById('trip-speed');
+const tripDist = document.getElementById('trip-dist');
+const tripEta = document.getElementById('trip-eta');
+const progressFill = document.getElementById('progress-fill');
+const arrivalEl = document.getElementById('arrival');
+const arrivalDist = document.getElementById('arrival-dist');
+const restartBtn = document.getElementById('restart-btn');
+
+function fatal(msg) {
+  loading.classList.add('hidden');
+  fatalEl.classList.remove('hidden');
+  kit.showError(fatalMsg, msg);
+}
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+try {
+  main();
+} catch (e) {
+  console.error(e);
+  fatal('The crossing failed to launch: ' + e.message);
+}
+
+function smoothstep(e0, e1, x) {
+  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+}
+
+// Same formula lives twice, deliberately: once here for the CPU (so the craft
+// can sample the surface height under it) and once as GLSL below for the
+// water mesh's own vertex shader. Keep them in lockstep if you tune either.
+function waveHeight(x, z, t) {
+  return 0.35 * Math.sin(x * 0.018 + t * 0.85 + z * 0.007)
+       + 0.18 * Math.sin(x * 0.05 - t * 1.3 + z * 0.033)
+       + 0.09 * Math.sin(x * 0.11 + z * 0.09 + t * 2.0);
+}
+
+function haversineKm(a, b) {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLon = (b.lon - a.lon) * Math.PI / 180;
+  const s = Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+function main() {
+  const LAKE_MERRITT = { lat: 37.8065, lon: -122.2601 };
+  const ORACLE_RWS = { lat: 37.5297, lon: -122.2669 };
+  const TOTAL_KM = haversineKm(LAKE_MERRITT, ORACLE_RWS);
+  const TOTAL_MI = TOTAL_KM * 0.621371;
+  const TOP_SPEED_KMH = 40; // a light single-person hydrofoil's realistic top speed
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const SKY = 0xbfe3ee;
+  scene.background = new THREE.Color(SKY);
+  scene.fog = new THREE.Fog(SKY, 260, 950);
+
+  const BASE_FOV = 58;
+  function clampFov(v) { return Math.max(30, Math.min(80, v)); }
+  const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 1400);
+
+  const sun = new THREE.DirectionalLight(0xfff3d6, 1.7);
+  sun.position.set(180, 260, 90);
+  scene.add(sun);
+  scene.add(new THREE.AmbientLight(0x9fc9dd, 0.5));
+  scene.add(new THREE.HemisphereLight(0xe8f6ff, 0x2f6f7a, 0.55));
+
+  // ---- the route: Lake Merritt's mouth out across the bay to Redwood Shores --
+  const routePoints = [
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(55, 0, -140),
+    new THREE.Vector3(-35, 0, -360),
+    new THREE.Vector3(25, 0, -620),
+    new THREE.Vector3(-15, 0, -900),
+    new THREE.Vector3(10, 0, -1120),
+    new THREE.Vector3(0, 0, -1220),
+  ];
+  const curve = new THREE.CatmullRomCurve3(routePoints, false, 'catmullrom', 0.5);
+  const curveLength = curve.getLength();
+  const UNITS_PER_SEC_FULL = curveLength / 100; // full throttle crosses in ~100s, watchable
+
+  // ---- water: one plane, wave motion + normals entirely in the vertex shader ---
+  const waterUniforms = { uTime: { value: 0 } };
+  const waveGLSL = `
+    float waveHeight(float x, float z, float t) {
+      return 0.35*sin(x*0.018 + t*0.85 + z*0.007)
+           + 0.18*sin(x*0.05 - t*1.3 + z*0.033)
+           + 0.09*sin(x*0.11 + z*0.09 + t*2.0);
+    }
+  `;
+  const waterMat = new THREE.MeshStandardMaterial({ color: 0x2f6f7a, roughness: 0.4, metalness: 0.05 });
+  waterMat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = waterUniforms.uTime;
+    shader.vertexShader = 'uniform float uTime;\n' + waveGLSL + shader.vertexShader
+      .replace('#include <begin_vertex>', `
+        vec3 transformed = vec3( position );
+        transformed.z = waveHeight(transformed.x, -transformed.y, uTime);
+      `)
+      .replace('#include <beginnormal_vertex>', `
+        float weps = 2.0;
+        float hL = waveHeight(position.x - weps, -position.y, uTime);
+        float hR = waveHeight(position.x + weps, -position.y, uTime);
+        float hD = waveHeight(position.x, -(position.y - weps), uTime);
+        float hUp = waveHeight(position.x, -(position.y + weps), uTime);
+        vec3 wtX = normalize(vec3(2.0*weps, 0.0, hR - hL));
+        vec3 wtY = normalize(vec3(0.0, 2.0*weps, hUp - hD));
+        vec3 objectNormal = normalize(cross(wtX, wtY));
+      `);
+  };
+  const PLANE_Z_CENTER = -625, PLANE_LENGTH = 1450, PLANE_WIDTH = 700;
+  const waterGeo = new THREE.PlaneGeometry(PLANE_WIDTH, PLANE_LENGTH, 50, 110);
+  const water = new THREE.Mesh(waterGeo, waterMat);
+  water.rotation.x = -Math.PI / 2;
+  water.position.z = PLANE_Z_CENTER;
+  scene.add(water);
+
+  // ---- shorelines: land beyond each end of the route, not under the crossing --
+  const landMat = new THREE.MeshStandardMaterial({ color: 0x6f8f5a, roughness: 1 });
+  const startLand = new THREE.Mesh(new THREE.CircleGeometry(55, 32), landMat);
+  startLand.rotation.x = -Math.PI / 2; startLand.position.set(0, 0.02, 70);
+  scene.add(startLand);
+  const endLand = new THREE.Mesh(new THREE.CircleGeometry(100, 32), landMat.clone());
+  endLand.rotation.x = -Math.PI / 2; endLand.position.set(0, 0.02, -1310);
+  scene.add(endLand);
+
+  // Lake Merritt's necklace of lights, sitting on the start shore.
+  const lakeWater = new THREE.Mesh(new THREE.CircleGeometry(18, 24),
+    new THREE.MeshStandardMaterial({ color: 0x2f5f7a, roughness: 0.5 }));
+  lakeWater.rotation.x = -Math.PI / 2; lakeWater.position.set(0, 0.04, 90);
+  scene.add(lakeWater);
+  const lightMat = new THREE.MeshStandardMaterial({ color: 0xffdd88, emissive: 0xffb347, emissiveIntensity: 1.4 });
+  const necklace = new THREE.Group();
+  const NECKLACE_N = 20;
+  for (let i = 0; i < NECKLACE_N; i++) {
+    const a = (i / NECKLACE_N) * Math.PI * 2;
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.6, 6, 6), lightMat);
+    bulb.position.set(Math.cos(a) * 19, 0.6, 90 + Math.sin(a) * 19);
+    necklace.add(bulb);
+  }
+  scene.add(necklace);
+
+  // Oracle's cluster of cylindrical towers on the far shore.
+  const towerMat = new THREE.MeshStandardMaterial({ color: 0x4fae9a, roughness: 0.25, metalness: 0.5 });
+  const towers = [
+    { x: -12, z: -1195, r: 6, h: 38 },
+    { x: 4, z: -1210, r: 7, h: 50 },
+    { x: 16, z: -1190, r: 5.5, h: 32 },
+  ];
+  for (const spec of towers) {
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(spec.r, spec.r, spec.h, 16), towerMat);
+    tower.position.set(spec.x, spec.h / 2 + 0.05, spec.z);
+    scene.add(tower);
+  }
+
+  // Distant hills on both banks, purely atmospheric — fog does the rest.
+  const hillMat = new THREE.MeshStandardMaterial({ color: 0x7fa0ac, roughness: 1 });
+  let hseed = 7;
+  function hrnd() { hseed = (hseed * 9301 + 49297) % 233280; return hseed / 233280; }
+  for (let i = 0; i < 14; i++) {
+    const side = i % 2 === 0 ? 1 : -1;
+    const hill = new THREE.Mesh(new THREE.IcosahedronGeometry(40 + hrnd() * 60, 0), hillMat);
+    hill.scale.y = 0.35;
+    hill.position.set(side * (280 + hrnd() * 220), -10, -hrnd() * 1350);
+    scene.add(hill);
+  }
+
+  // ---- the craft: board, mast, hydrofoil wing, rider ------------------------
+  const craftGroup = new THREE.Group();
+  const boardMat = new THREE.MeshStandardMaterial({ color: 0xf2f0e6, roughness: 0.5 });
+  const board = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.09, 2.5), boardMat);
+  craftGroup.add(board);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.31, 0.55, 4), boardMat);
+  // rotation.x = +PI/2 (not -PI/2) is deliberate: with this mesh's later rotation.y=yaw,
+  // local (x,y,z) -> world (x,-z,y) under +PI/2, which puts the cone's apex (local +Y)
+  // at local z=+h/2 — i.e. pointing further along local +Z, the craft's forward axis.
+  // -PI/2 would put the apex toward the board instead, nose-backwards.
+  nose.rotation.x = Math.PI / 2; nose.rotation.y = Math.PI / 4; nose.position.set(0, 0, 1.5);
+  craftGroup.add(nose);
+
+  const strutMat = new THREE.MeshStandardMaterial({ color: 0x3a3f46, roughness: 0.55, metalness: 0.35 });
+  const mast = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.05, 0.14), strutMat);
+  mast.position.set(0, -0.58, 0.1);
+  craftGroup.add(mast);
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.28), strutMat);
+  wing.position.set(0, -1.12, 0.1);
+  craftGroup.add(wing);
+  const stabilizer = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.14), strutMat);
+  stabilizer.position.set(0, -1.0, -0.9);
+  craftGroup.add(stabilizer);
+
+  const clothMat = new THREE.MeshStandardMaterial({ color: 0x2f6f7a, roughness: 0.8 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd9b48f, roughness: 0.9 });
+  const riderBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.55, 4, 8), clothMat);
+  riderBody.position.set(0, 0.42, 0.02);
+  riderBody.rotation.x = 0.1;
+  craftGroup.add(riderBody);
+  const riderHead = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), skinMat);
+  riderHead.position.set(0, 0.82, 0.05);
+  craftGroup.add(riderHead);
+
+  scene.add(craftGroup);
+
+  // ---- wake: a small fixed pool of fading foam patches, recycled round-robin --
+  const WAKE_COUNT = 40;
+  const wakeGeo = new THREE.PlaneGeometry(1, 1);
+  const wakeParticles = [];
+  for (let i = 0; i < WAKE_COUNT; i++) {
+    const mesh = new THREE.Mesh(wakeGeo, new THREE.MeshBasicMaterial({
+      color: 0xeaf5f2, transparent: true, opacity: 0, depthWrite: false,
+    }));
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.visible = false;
+    scene.add(mesh);
+    wakeParticles.push({ mesh, age: 0, life: 1 });
+  }
+  let wakeCursor = 0, wakeSpawnTimer = 0;
+  function spawnWake(x, z, scale) {
+    const p = wakeParticles[wakeCursor];
+    wakeCursor = (wakeCursor + 1) % WAKE_COUNT;
+    p.age = 0; p.life = 1.4 + Math.random() * 0.6;
+    p.mesh.position.set(x, 0.03, z);
+    p.mesh.scale.set(scale, scale, 1);
+    p.mesh.visible = true;
+    p.mesh.material.opacity = 0.5;
+  }
+
+  // ---- state -----------------------------------------------------------------
+  let u = 0;              // progress along the route, 0..1
+  let currentSpeedFrac = 0; // eased toward the throttle target
+  let arrived = false;
+  let hudTimer = 0;
+
+  throttleSlider.addEventListener('input', () => {
+    throttlePct.textContent = throttleSlider.value + '%';
+  });
+
+  restartBtn.addEventListener('click', () => {
+    u = 0; currentSpeedFrac = 0; arrived = false;
+    arrivalEl.style.display = 'none';
+  });
+
+  // ---- camera rig: chases the craft, drag to look around, pinch/scroll zoom --
+  let lookYaw = 0, lookPitch = 0;
+  let dragging = false, lastX = 0, lastY = 0;
+  const camPos = new THREE.Vector3(0, 5, 8);
+
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / Math.max(h, 1);
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  const dom = renderer.domElement;
+  dom.addEventListener('pointerdown', (e) => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    dom.setPointerCapture(e.pointerId);
+  });
+  dom.addEventListener('pointerup', () => { dragging = false; });
+  dom.addEventListener('pointercancel', () => { dragging = false; });
+  dom.addEventListener('pointermove', (e) => {
+    if (dragging) {
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      const sens = 0.0055 * (camera.fov / BASE_FOV);
+      lookYaw -= dx * sens;
+      lookPitch = Math.max(-1.1, Math.min(1.1, lookPitch - dy * sens));
+    }
+  });
+  dom.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    let dy = e.deltaY;
+    if (e.deltaMode === 1) dy *= 16;
+    else if (e.deltaMode === 2) dy *= 320;
+    dy = Math.max(-80, Math.min(80, dy));
+    camera.fov = clampFov(camera.fov * Math.exp(dy * 0.0016));
+    camera.updateProjectionMatrix();
+  }, { passive: false });
+
+  let pinchDist = null;
+  dom.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) pinchDist = touchDist(e);
+  }, { passive: true });
+  dom.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && pinchDist) {
+      const d = touchDist(e);
+      const delta = Math.max(-80, Math.min(80, pinchDist - d));
+      camera.fov = clampFov(camera.fov * Math.exp(delta * 0.006));
+      camera.updateProjectionMatrix();
+      pinchDist = d;
+    }
+  }, { passive: true });
+  function touchDist(e) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function fmtMinutes(min) {
+    if (!isFinite(min) || min > 999) return '—';
+    if (min < 1) return '<1 min';
+    if (min < 60) return Math.round(min) + ' min';
+    return (min / 60).toFixed(1) + ' hr';
+  }
+
+  // ---- animation loop ---------------------------------------------------------
+  const clock = new THREE.Clock();
+  let simTime = 0;
+  const motionScale = reducedMotion ? 0.4 : 1;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    simTime += dt * motionScale;
+    waterUniforms.uTime.value = simTime;
+
+    if (!arrived) {
+      const target = throttleSlider.value / 100;
+      const ease = 1 - Math.exp(-dt * 1.4);
+      currentSpeedFrac += (target - currentSpeedFrac) * ease;
+      u += dt * currentSpeedFrac * UNITS_PER_SEC_FULL / curveLength;
+      if (u >= 1) {
+        u = 1; arrived = true;
+        arrivalDist.textContent = TOTAL_KM.toFixed(1) + ' km / ' + TOTAL_MI.toFixed(1) + ' mi';
+        arrivalEl.style.display = 'block';
+      }
+    }
+
+    const foilFrac = smoothstep(0.3, 0.68, currentSpeedFrac);
+    const sampleU = Math.min(u, 0.999);
+    const craftPos = curve.getPointAt(sampleU);
+    const tangent = curve.getTangentAt(sampleU).normalize();
+
+    const bobAmp = 1 - foilFrac * 0.85;
+    const baseY = waveHeight(craftPos.x, craftPos.z, simTime) * bobAmp;
+    const foilRise = foilFrac * 1.15;
+    craftGroup.position.set(craftPos.x, baseY + foilRise, craftPos.z);
+
+    const yaw = Math.atan2(tangent.x, tangent.z);
+    const d = 1.3;
+    const hFront = waveHeight(craftPos.x + tangent.x * d, craftPos.z + tangent.z * d, simTime);
+    const hBack = waveHeight(craftPos.x - tangent.x * d, craftPos.z - tangent.z * d, simTime);
+    const right = new THREE.Vector3(tangent.z, 0, -tangent.x);
+    const hRight = waveHeight(craftPos.x + right.x * d, craftPos.z + right.z * d, simTime);
+    const hLeft = waveHeight(craftPos.x - right.x * d, craftPos.z - right.z * d, simTime);
+    const pitch = Math.atan2(hBack - hFront, 2 * d) * (1 - foilFrac * 0.9) * motionScale;
+    const roll = Math.atan2(hLeft - hRight, 2 * d) * (1 - foilFrac * 0.9) * motionScale;
+    craftGroup.rotation.set(pitch, yaw, roll);
+
+    // wake, spawned from the stern, faster and wider once foiling
+    wakeSpawnTimer -= dt;
+    if (!arrived && currentSpeedFrac > 0.06 && wakeSpawnTimer <= 0 && !reducedMotion) {
+      wakeSpawnTimer = 0.12 / (0.2 + currentSpeedFrac);
+      spawnWake(craftPos.x - tangent.x * 1.3, craftPos.z - tangent.z * 1.3, 0.5 + foilFrac * 0.15);
+    }
+    for (const p of wakeParticles) {
+      if (!p.mesh.visible) continue;
+      p.age += dt;
+      if (p.age >= p.life) { p.mesh.visible = false; continue; }
+      const f = p.age / p.life;
+      p.mesh.material.opacity = 0.5 * (1 - f);
+      const sc = 0.5 + f * 1.6;
+      p.mesh.scale.set(sc, sc, 1);
+    }
+
+    // camera: chase from behind and above, smoothed, then user look offset
+    const behind = craftPos.clone().addScaledVector(tangent, -7);
+    behind.y = craftPos.y + 3.4;
+    const followLerp = 1 - Math.exp(-dt * 3.2);
+    camPos.lerp(behind, followLerp);
+    camera.position.copy(camPos);
+    const lookTarget = craftPos.clone().addScaledVector(tangent, 5);
+    lookTarget.y += 1.0;
+    camera.up.set(0, 1, 0);
+    camera.lookAt(lookTarget);
+    camera.rotateY(lookYaw);
+    camera.rotateX(lookPitch);
+
+    // HUD, throttled — a few DOM writes don't need to happen every frame
+    hudTimer -= dt;
+    if (hudTimer <= 0) {
+      hudTimer = 0.2;
+      const remainingKm = TOTAL_KM * (1 - u);
+      const remainingMi = TOTAL_MI * (1 - u);
+      const speedKmh = currentSpeedFrac * TOP_SPEED_KMH;
+      tripState.textContent = arrived ? 'docked'
+        : foilFrac > 0.85 ? 'foiling' : foilFrac > 0.05 ? 'lifting onto the foil' : 'hull-borne';
+      tripState.className = foilFrac > 0.5 ? 'foiling' : '';
+      tripSpeed.textContent = speedKmh.toFixed(0) + ' km/h';
+      tripDist.textContent = remainingKm.toFixed(1) + ' km / ' + remainingMi.toFixed(1) + ' mi';
+      tripEta.textContent = speedKmh > 0.5 ? fmtMinutes(remainingKm / speedKmh * 60) : '—';
+      progressFill.style.width = (u * 100).toFixed(1) + '%';
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  loading.classList.add('hidden');
+  animate();
+}
+</script>
+</body>
+</html>

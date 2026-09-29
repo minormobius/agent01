@@ -1,0 +1,19 @@
+You built the site in lab/www/hiiii-demo/ for this request:
+
+Hiiii please build me a demo called “My Commute” which simulates a super light single person watercraft that goes from Lake Merritt to Oracle in Redwood Shores
+
+A reviewer loaded it in a real browser, played it, and reported these defects:
+
+VERDICT: FIX
+
+1. **Pause and Reset buttons are completely dead on phone-width screens.** At 390×844 (and 360×740), `document.elementFromPoint()` on both buttons' exact on-screen coordinates returns `stats-panel`, not the buttons — the stats panel is painted on top of them. A scripted click on `#playpause` timed out (Playwright: "element not actionable/covered"), which is the same failure a real fingertip tap would hit. Root cause, verified via `getBoundingClientRect()`: the controls panel's bottom edge sits at y=708 while the stats panel's top edge sits at y=651.8 — a 56px overlap. That overlap exists because the mobile media query's `#stats-panel { grid-template-columns: repeat(3, 1fr) }` never applies (it's beaten in specificity by the base rule `#stats-panel.panel { grid-template-columns: repeat(auto-fit, minmax(6.5rem,1fr)) }`, ID+class > ID), so the stats grid falls back to 2 columns / 3 rows instead of the intended 3 columns / 2 rows, making the panel taller than the `8.5rem` gap the controls panel was given room for. Visually this also produces a garbled double-text smear under "SPEED"/"DISTANCE" (the "Pause"/"Reset" labels bleeding through the semi-opaque panel on top of them). "Fixed" looks like: fix the `#stats-panel` mobile selector's specificity (or make it `#stats-panel.panel` to match) so the 3-column layout actually applies, and confirm via `getBoundingClientRect` that the two panels no longer overlap and `elementFromPoint` on Pause/Reset returns the button, at both 390×844 and 360×740.
+
+Fix them, most important first. Read BRIEF.md and the code before you change
+anything. You have the same eyes as before (`mcp__eyes__look`, `watch`,
+`drive`): after each fix, prove it with a tool call, and check you have not
+broken something that worked. If you think a reported defect is wrong, check
+it yourself and say why in BRIEF.md rather than changing working code.
+
+Write only inside lab/www/hiiii-demo/ (and the requester's profile, if a durable
+preference was learned). Write files in pieces of at most ~250 lines. Add a
+short "Review round" note to BRIEF.md: what was reported, what you fixed.

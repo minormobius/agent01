@@ -1,0 +1,3 @@
+Touch drag works, Undo correctly refunds and removes the track segment, budget updates correctly. All the acceptance criteria check out: terrain, cities, budget, track drawing, switches (visually confirmed cycling and highlighting), trains running and delivering with revenue closing the loop, undo, mobile touch controls. This matches the request well and the BRIEF documents the blocked-switch scenario was verified in the original build.
+
+VERDICT: SHIP

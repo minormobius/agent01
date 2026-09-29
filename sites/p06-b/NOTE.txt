@@ -1,0 +1,1 @@
+Two spec gaps I closed myself: which fall direction wins when pushes disagree, and how an axis-aligned push breaks its tie. Both deterministic, not random, so replays are exact. Details in BRIEF.md if you'd rather it be otherwise.

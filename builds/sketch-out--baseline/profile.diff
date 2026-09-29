@@ -1,0 +1,25 @@
+diff --git a/lab/_profiles/minormobius.bsky.social.md b/lab/_profiles/minormobius.bsky.social.md
+index 4674c584..68470a87 100644
+--- a/lab/_profiles/minormobius.bsky.social.md
++++ b/lab/_profiles/minormobius.bsky.social.md
+@@ -269,6 +269,20 @@ structural requirement on the underlying model, and check whether the
+ current implementation can actually represent each named class as a first-
+ class thing before assuming a cosmetic pass will do.
+ 
++## `sketch-out` (2026-09-29): "sketch out a pitch deck" is another arch-brainstorm-shaped ask
++Pointed at a thread ("agentic atmosphere", "who's building this") with a
++one-line ask to sketch a pitch deck's argument, not a finished product deck.
++Same shape as `arch-brainstorm`: built a scroll-snap slide deck (the
++"skeleton") plus one real interactive proof of the hardest claim — a live
++handle → DID → PDS resolver on the slide making "this is already yours" —
++rather than only prose slides. Also reused the standing diagram rule
++(flat-raster `<canvas>`→`<img>`, prominent gradient copy-image button)
++without being asked again. No correction yet to confirm the read, but worth
++keeping as the default: **when a thread-tag/concept ask names an abstract
++argument ("pitch deck", "explain why X"), ship the argument as an
++interactive artifact with at least one live, checkable proof embedded in
++it, not a static wall of slide text.**
++
+ ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
+ "full train game experience, make sure it feels like a train game" — same
+ shape as the tube-tetris request above: name the genre, trust the build

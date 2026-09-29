@@ -1,0 +1,32 @@
+{
+  "arm": "baseline",
+  "slug": "create-stack",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 22,
+  "cost_usd": 1.1808,
+  "seconds": 519,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 509,
+      "exit": 0,
+      "turns": 20,
+      "cost_usd": 1.1227274,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "visual",
+      "seconds": 10,
+      "exit": 0,
+      "turns": 2,
+      "cost_usd": 0.058086399999999996,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

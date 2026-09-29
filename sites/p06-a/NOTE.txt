@@ -1,0 +1,1 @@
+Your rule text supports a few honest readings; I picked the one where a push excludes only exactly ±90°/opposite to each candidate direction — straight hits topple cleanly, diagonals cancel out. Alternatives I rejected are in BRIEF.md.

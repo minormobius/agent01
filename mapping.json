@@ -1,0 +1,106 @@
+{
+  "run": "ab-02",
+  "note": "THE KEY. Do not read before voting.",
+  "mapping": {
+    "p01": {
+      "request": "tube-stacker",
+      "a": "baseline",
+      "b": "challenger"
+    },
+    "p02": {
+      "request": "hiiii-demo",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p03": {
+      "request": "domain-availability",
+      "a": "baseline",
+      "b": "challenger"
+    },
+    "p04": {
+      "request": "create-stack",
+      "a": "baseline",
+      "b": "challenger"
+    },
+    "p05": {
+      "request": "place-line",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p06": {
+      "request": "domino-upright",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p07": {
+      "request": "gibson-jackpot",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p08": {
+      "request": "atlink",
+      "a": "baseline",
+      "b": "challenger"
+    },
+    "p09": {
+      "request": "sketch-out",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p10": {
+      "request": "want-pairwise",
+      "a": "baseline",
+      "b": "challenger"
+    },
+    "p11": {
+      "request": "chladni-sim",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p12": {
+      "request": "chess-except",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p13": {
+      "request": "create-vizualization",
+      "a": "baseline",
+      "b": "challenger"
+    },
+    "p14": {
+      "request": "daily-digital",
+      "a": "baseline",
+      "b": "challenger"
+    },
+    "p15": {
+      "request": "odyssey-trail",
+      "a": "baseline",
+      "b": "challenger"
+    },
+    "p16": {
+      "request": "exhaustive-gallery",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p17": {
+      "request": "that-visualizes",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p18": {
+      "request": "create-space",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p19": {
+      "request": "train-game",
+      "a": "challenger",
+      "b": "baseline"
+    },
+    "p20": {
+      "request": "take-escher",
+      "a": "baseline",
+      "b": "challenger"
+    }
+  }
+}

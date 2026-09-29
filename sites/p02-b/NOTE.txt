@@ -1,0 +1,1 @@
+Built as an autopilot crossing: throttle sets speed and foil lift. Distances are real straight-line bay distances; the crossing is time-lapsed to ~100s. No save/leaderboard yet — noted as next step.

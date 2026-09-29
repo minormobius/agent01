@@ -1,0 +1,1 @@
+Tuned the escape radius numerically: 64 (the z^2+c default) left the map solid black, since growth here is additive, not multiplicative. Settled on 6. Rich dynamics live only near c=1; elsewhere it just drifts — shown honestly, not hidden.

@@ -1,0 +1,1 @@
+Rust->wasm wasn't buildable here (no compiler, nothing vendored), so the physics is plain JS instead — three.js just renders it. Sand migration is a gradient hack on |mode function|, not a real particle sim, but it settles onto the right lines.

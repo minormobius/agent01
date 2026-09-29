@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiss Chain — a growing tangle of unit segments</title>
+<meta property="og:title" content="Kiss Chain">
+<meta property="og:description" content="A unit-length segment touches the next along its own length, never crossing anything else — a randomized growth process, one segment at a time, that eventually runs out of room.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  #crumbHost {}
+  #stageWrap {
+    width: 100%; aspect-ratio: 4 / 3; max-height: 70vh;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; touch-action: none;
+  }
+  svg#stage { width: 100%; height: 100%; display: block; }
+  .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: 1rem 0; }
+  .controls button { min-height: 44px; }
+  .zoomrow { display: flex; gap: .4rem; }
+  .zoomrow button { min-width: 44px; padding: .8rem; }
+  .speedlabel { display: flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .85rem; }
+  input[type=range] { flex: 1 1 120px; min-width: 110px; height: 44px; accent-color: var(--accent); background: transparent; }
+  input[type=number] {
+    width: 4.5rem; padding: .5rem .6rem; background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); font: inherit; font-size: 1rem;
+  }
+  input[type=number]:focus { outline: none; border-color: var(--accent); }
+  #counts { color: var(--fg); font-size: .9rem; margin: .5rem 0; }
+  .legend { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin: .5rem 0 1rem; }
+  .legend span { display: inline-flex; align-items: center; gap: .4rem; }
+  .dot { width: .7rem; height: .7rem; border-radius: 50%; display: inline-block; }
+  .dot.free { background: var(--ok); }
+  .dot.touched { background: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumbHost"></div>
+  <h1>Kiss Chain</h1>
+  <p class="sub">Segments that only ever touch tip-to-body, never cross.</p>
+
+  <div id="stageWrap">
+    <svg id="stage" viewBox="-0.8 -0.8 3.6 3.6" preserveAspectRatio="xMidYMid meet" aria-label="Diagram of the growing segment chain"></svg>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot free"></i> free endpoint — can still be built from</span>
+    <span><i class="dot touched"></i> touched — used up</span>
+  </div>
+
+  <p id="counts" aria-live="polite">1 segment · 2 free endpoints</p>
+  <div id="err" role="alert" hidden></div>
+
+  <div class="controls">
+    <button id="addBtn" type="button">Add segment</button>
+    <button id="autoBtn" type="button">Auto-grow: off</button>
+    <button id="resetBtn" type="button">Reset</button>
+  </div>
+  <div class="controls">
+    <div class="zoomrow">
+      <button id="zoomOut" type="button" aria-label="Zoom out">−</button>
+      <button id="fitBtn" type="button">Fit</button>
+      <button id="zoomIn" type="button" aria-label="Zoom in">+</button>
+    </div>
+    <div class="speedlabel">
+      auto speed
+      <input type="range" id="speedRange" min="80" max="1000" step="20" value="220" aria-label="Auto-grow interval in milliseconds">
+      <input type="number" id="speedNum" min="80" max="1000" step="10" value="220" aria-label="Auto-grow interval in milliseconds, exact value">
+      ms
+    </div>
+  </div>
+
+  <h2>The rule</h2>
+  <p>
+    The first segment is unit length, fixed, horizontal. The second is unit
+    length too, dropped at a random angle so that it <em>passes through</em> —
+    not ends at — one endpoint of the first: that endpoint is now
+    <strong>touched</strong>, and the second segment's own two ends start out
+    free. From there, every new segment is also unit length, and is built
+    along the exact straight line through two <strong>free</strong> endpoints
+    that belong to two different existing segments, extended past both of
+    them so each becomes an interior touch point on the new segment rather
+    than a shared corner. It is checked against every other segment for
+    intersections and thrown away if it crosses anything, so the whole
+    picture stays a tangle of touches with no true crossings anywhere.
+  </p>
+  <p>
+    Two points can only be joined this way if they are within one unit of
+    each other in a straight line with nothing in between — so the process
+    is finite by construction, and pressing "add" can legitimately fail to
+    find room.
+  </p>
+  <p>
+    <strong>One reading, stated plainly:</strong> the prompt only specified
+    unit length for the very first segment. Every later segment is unit
+    length too here, because that's the one choice that makes "touch two free
+    endpoints along its length" fully determined rather than leaving the new
+    segment's own length as a free extra parameter.
+  </p>
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumbHost').innerHTML = kit.crumb('kiss chain');
+
+  // ---- geometry helpers ------------------------------------------------
+  function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+  function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
+  function addv(a, b) { return { x: a.x + b.x, y: a.y + b.y }; }
+  function scale(a, k) { return { x: a.x * k, y: a.y * k }; }
+  function norm(a) { const l = Math.hypot(a.x, a.y) || 1; return { x: a.x / l, y: a.y / l }; }
+
+  /** Segment/segment intersection. Returns null (no intersection), an
+   *  {x,y} point, or {collinear:true} for an overlapping collinear pair. */
+  function segIntersect(p1, p2, p3, p4) {
+    const d1 = sub(p2, p1), d2 = sub(p4, p3);
+    const denom = d1.x * d2.y - d1.y * d2.x;
+    if (Math.abs(denom) < 1e-12) {
+      const cross = (p3.x - p1.x) * d1.y - (p3.y - p1.y) * d1.x;
+      if (Math.abs(cross) > 1e-9) return null; // parallel, not collinear
+      const dd = d1.x * d1.x + d1.y * d1.y;
+      if (dd < 1e-18) return null;
+      const t3 = ((p3.x - p1.x) * d1.x + (p3.y - p1.y) * d1.y) / dd;
+      const t4 = ((p4.x - p1.x) * d1.x + (p4.y - p1.y) * d1.y) / dd;
+      const lo = Math.min(t3, t4), hi = Math.max(t3, t4);
+      if (hi < -1e-9 || lo > 1 + 1e-9) return null;
+      return { collinear: true };
+    }
+    const t = ((p3.x - p1.x) * d2.y - (p3.y - p1.y) * d2.x) / denom;
+    const u = ((p3.x - p1.x) * d1.y - (p3.y - p1.y) * d1.x) / denom;
+    if (t < -1e-9 || t > 1 + 1e-9 || u < -1e-9 || u > 1 + 1e-9) return null;
+    return { x: p1.x + t * d1.x, y: p1.y + t * d1.y };
+  }
+
+  // ---- state -------------------------------------------------------------
+  const MIN_EXT = 0.08;      // shortest a new segment may overhang a touch point by
+  const SEED_ATTEMPTS = 80;
+  const GROW_ATTEMPTS = 500;
+
+  let segments = [];
+  function freshSeg1() {
+    return { p1: { x: 0, y: 0, touched: false }, p2: { x: 1, y: 0, touched: false } };
+  }
+
+  /** Check a candidate unit segment against every existing segment. `touches`
+   *  lists which existing segments the candidate is allowed to meet, and at
+   *  which point — any other intersection invalidates it. */
+  function checkCandidate(c1, c2, touches) {
+    for (const seg of segments) {
+      const entry = touches.find((t) => t.seg === seg);
+      const res = segIntersect(c1, c2, seg.p1, seg.p2);
+      if (!res) continue;
+      if (res.collinear) return false;
+      if (!entry) return false;
+      if (dist(res, entry.point) > 1e-6) return false;
+    }
+    return true;
+  }
+
+  function seedSecond() {
+    const seg1 = segments[0];
+    for (let i = 0; i < SEED_ATTEMPTS; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      if (Math.abs(Math.sin(theta)) < 0.09) continue; // too close to collinear with seg1
+      const dir = { x: Math.cos(theta), y: Math.sin(theta) };
+      const touchEnd = Math.random() < 0.5 ? seg1.p1 : seg1.p2;
+      const t = 0.15 + Math.random() * 0.7;
+      const p1 = sub(touchEnd, scale(dir, t));
+      const p2 = addv(touchEnd, scale(dir, 1 - t));
+      if (!checkCandidate(p1, p2, [{ point: touchEnd, seg: seg1 }])) continue;
+      touchEnd.touched = true;
+      segments.push({ p1: { x: p1.x, y: p1.y, touched: false }, p2: { x: p2.x, y: p2.y, touched: false } });
+      return { ok: true };
+    }
+    return { ok: false, reason: 'could not place the second segment without lying flat on the first — try again.' };
+  }
+
+  function freeEndpoints() {
+    const out = [];
+    for (const seg of segments) {
+      if (!seg.p1.touched) out.push({ point: seg.p1, seg });
+      if (!seg.p2.touched) out.push({ point: seg.p2, seg });
+    }
+    return out;
+  }
+
+  function growOne() {
+    const free = freeEndpoints();
+    if (free.length < 2) return { ok: false, reason: 'only one free endpoint left — nothing to connect it to.' };
+    for (let i = 0; i < GROW_ATTEMPTS; i++) {
+      const a = free[Math.floor(Math.random() * free.length)];
+      const b = free[Math.floor(Math.random() * free.length)];
+      if (a.seg === b.seg) continue;
+      const P = a.point, Q = b.point;
+      const d = dist(P, Q);
+      if (!(d > 1e-6 && d < 1 - 2 * MIN_EXT)) continue;
+      const dir = norm(sub(Q, P));
+      const slack = 1 - d;
+      const r = MIN_EXT + Math.random() * (slack - 2 * MIN_EXT);
+      const eP = r, eQ = slack - r;
+      const np1 = sub(P, scale(dir, eP));
+      const np2 = addv(Q, scale(dir, eQ));
+      if (!checkCandidate(np1, np2, [{ point: P, seg: a.seg }, { point: Q, seg: b.seg }])) continue;
+      P.touched = true; Q.touched = true;
+      segments.push({ p1: { x: np1.x, y: np1.y, touched: false }, p2: { x: np2.x, y: np2.y, touched: false } });
+      return { ok: true };
+    }
+    return { ok: false, reason: 'no valid placement found in ' + GROW_ATTEMPTS + ' random tries — press again, or this shape may be full.' };
+  }
+
+  // ---- rendering + view ---------------------------------------------------
+  const svg = document.getElementById('stage');
+  const NS = 'http://www.w3.org/2000/svg';
+  let vx = -0.8, vy = -0.8, vw = 3.6, vh = 3.6;
+
+  function applyView() { svg.setAttribute('viewBox', vx + ' ' + vy + ' ' + vw + ' ' + vh); }
+
+  function fitView() {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const seg of segments) {
+      for (const p of [seg.p1, seg.p2]) {
+        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+      }
+    }
+    const pad = 0.4;
+    minX -= pad; maxX += pad; minY -= pad; maxY += pad;
+    let w = maxX - minX, h = maxY - minY;
+    if (w < 1.6) { const d = (1.6 - w) / 2; minX -= d; maxX += d; w = 1.6; }
+    if (h < 1.6) { const d = (1.6 - h) / 2; minY -= d; maxY += d; h = 1.6; }
+    vx = minX; vy = minY; vw = w; vh = h;
+    applyView();
+  }
+
+  function render() {
+    svg.textContent = '';
+    for (const seg of segments) {
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', seg.p1.x); line.setAttribute('y1', seg.p1.y);
+      line.setAttribute('x2', seg.p2.x); line.setAttribute('y2', seg.p2.y);
+      line.setAttribute('stroke', 'var(--accent)');
+      line.setAttribute('stroke-width', '0.02');
+      line.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(line);
+    }
+    for (const seg of segments) {
+      for (const p of [seg.p1, seg.p2]) {
+        const c = document.createElementNS(NS, 'circle');
+        c.setAttribute('cx', p.x); c.setAttribute('cy', p.y);
+        c.setAttribute('r', p.touched ? '0.024' : '0.05');
+        c.setAttribute('fill', p.touched ? 'var(--muted)' : 'var(--ok)');
+        svg.appendChild(c);
+      }
+    }
+    const free = freeEndpoints().length;
+    countsEl.textContent = segments.length + ' segment' + (segments.length === 1 ? '' : 's') +
+      ' · ' + free + ' free endpoint' + (free === 1 ? '' : 's');
+  }
+
+  // ---- UI wiring -----------------------------------------------------------
+  const addBtn = document.getElementById('addBtn');
+  const autoBtn = document.getElementById('autoBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const fitBtn = document.getElementById('fitBtn');
+  const zoomIn = document.getElementById('zoomIn');
+  const zoomOut = document.getElementById('zoomOut');
+  const speedRange = document.getElementById('speedRange');
+  const speedNum = document.getElementById('speedNum');
+  const countsEl = document.getElementById('counts');
+  const errEl = document.getElementById('err');
+
+  function report(r) {
+    if (r && r.ok === false) kit.showError(errEl, r.reason);
+    else kit.clear(errEl);
+  }
+
+  function addStep() {
+    const r = segments.length === 1 ? seedSecond() : growOne();
+    render();
+    report(r);
+  }
+  addBtn.addEventListener('click', addStep);
+
+  let autoTimer = null, failStreak = 0;
+  function setAuto(on) {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    if (on) {
+      failStreak = 0;
+      autoBtn.textContent = 'Auto-grow: on';
+      autoTimer = setInterval(() => {
+        const r = segments.length === 1 ? seedSecond() : growOne();
+        render();
+        report(r);
+        if (r.ok) failStreak = 0;
+        else if (++failStreak >= 6) setAuto(false);
+      }, Number(speedRange.value));
+    } else {
+      autoBtn.textContent = 'Auto-grow: off';
+    }
+  }
+  autoBtn.addEventListener('click', () => setAuto(!autoTimer));
+
+  resetBtn.addEventListener('click', () => {
+    setAuto(false);
+    segments = [freshSeg1()];
+    fitView();
+    render();
+    kit.clear(errEl);
+  });
+
+  function syncSpeed(from) {
+    if (from === 'range') speedNum.value = speedRange.value;
+    else {
+      speedRange.value = Math.min(1000, Math.max(80, Number(speedNum.value) || 220));
+      speedNum.value = speedRange.value;
+    }
+    if (autoTimer) setAuto(true);
+  }
+  speedRange.addEventListener('input', () => syncSpeed('range'));
+  speedNum.addEventListener('input', () => syncSpeed('num'));
+
+  fitBtn.addEventListener('click', fitView);
+  function zoomBy(factor) {
+    const cx = vx + vw / 2, cy = vy + vh / 2;
+    vw *= factor; vh *= factor;
+    vx = cx - vw / 2; vy = cy - vh / 2;
+    applyView();
+  }
+  zoomIn.addEventListener('click', () => zoomBy(0.8));
+  zoomOut.addEventListener('click', () => zoomBy(1.25));
+
+  svg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / rect.width;
+    const my = (e.clientY - rect.top) / rect.height;
+    const wx = vx + mx * vw, wy = vy + my * vh;
+    const factor = e.deltaY > 0 ? 1.1 : 0.9;
+    vw *= factor; vh *= factor;
+    vx = wx - mx * vw; vy = wy - my * vh;
+    applyView();
+  }, { passive: false });
+
+  let dragging = false, lastX = 0, lastY = 0;
+  svg.addEventListener('pointerdown', (e) => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const rect = svg.getBoundingClientRect();
+    vx -= (e.clientX - lastX) / rect.width * vw;
+    vy -= (e.clientY - lastY) / rect.height * vh;
+    lastX = e.clientX; lastY = e.clientY;
+    applyView();
+  });
+  svg.addEventListener('pointerup', () => { dragging = false; });
+  svg.addEventListener('pointercancel', () => { dragging = false; });
+
+  // ---- go ------------------------------------------------------------------
+  segments = [freshSeg1()];
+  fitView();
+  render();
+})();
+</script>
+</body>
+</html>

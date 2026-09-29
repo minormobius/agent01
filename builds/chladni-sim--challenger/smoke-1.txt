@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 167 colours, top 47%
+  ✓ smoke: lab/www/chladni-sim/index.html loads clean under the production CSP

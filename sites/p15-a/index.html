@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOSTOS — a terminal voyage home</title>
+<meta name="description" content="A text-adventure voyage as Odysseus. Every landfall tests the old guest-law; get it wrong and the sea collects. A rare few reach Ithaca and settle accounts with the suitors.">
+<meta property="og:title" content="NOSTOS — a terminal voyage home">
+<meta property="og:description" content="Sail the wine-dark sea as Odysseus. Every stop tests xenia — the old law of host and guest — and getting it wrong is what actually sinks you, not the monsters. Most voyages end in shipwreck. A few end with the suitors getting exactly what's coming.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  h1 { font-size: 2.1rem; }
+  .sub { font-size: .85rem; }
+  #term {
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem 1.1rem; min-height: 8rem; max-height: 46vh; overflow-y: auto;
+    margin: 1rem 0;
+  }
+  #term h3 { color: var(--accent); font-size: 1rem; margin: 0 0 .4rem; }
+  #term p { color: var(--fg); font-size: .9rem; margin: 0 0 .6rem; line-height: 1.55; }
+  #term p.result { color: var(--muted); border-left: 2px solid var(--accent-dim); padding-left: .7rem; }
+  #term p.death { color: var(--error); }
+  #term p.win { color: var(--ok); }
+  #term::after { content: '▮'; color: var(--accent); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .stats {
+    display: flex; flex-wrap: wrap; gap: .5rem; font-size: .75rem; margin-bottom: .25rem;
+  }
+  .stats span {
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .35rem .6rem; color: var(--muted); white-space: nowrap;
+  }
+  .stats b { color: var(--fg); }
+  .fav-pos b { color: var(--ok); }
+  .fav-neg b { color: var(--error); }
+
+  .choices { display: flex; flex-direction: column; gap: .6rem; }
+  .choices button {
+    width: 100%; text-align: left; min-height: 44px; padding: .75rem 1rem;
+    font-size: .9rem; line-height: 1.4; white-space: normal;
+  }
+  .choices button .k { color: var(--muted); margin-right: .5rem; }
+
+  #startWrap { text-align: center; margin: 2rem 0; }
+  #startWrap button { min-height: 48px; padding: .9rem 1.6rem; font-size: 1rem; }
+  #record { font-size: .8rem; color: var(--muted); margin-top: .5rem; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <header>
+    <h1>NOSTOS</h1>
+    <p class="sub">Terminal voyage of a man trying to get home. Every landfall tests the guest-law — get it right and the gods look elsewhere; get it wrong and everything after gets harder. Most voyages end in shipwreck. A few end with the suitors getting exactly what's coming.</p>
+  </header>
+
+  <div id="stats" class="stats hidden"></div>
+  <div id="term" aria-live="polite"></div>
+  <div id="choices" class="choices"></div>
+
+  <div id="startWrap">
+    <button id="startBtn">Begin the Voyage</button>
+    <div id="record"></div>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('odyssey-trail');
+
+  var LS_KEY = 'nostos-record-v1';
+  function loadRecord() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY)) || { attempts: 0, wins: 0, bestDays: null }; }
+    catch (e) { return { attempts: 0, wins: 0, bestDays: null }; }
+  }
+  function saveRecord(r) { try { localStorage.setItem(LS_KEY, JSON.stringify(r)); } catch (e) {} }
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function freshState() {
+    return { hull: 100, supplies: 100, crew: 12, favor: 0, day: 0, over: false };
+  }
+  var state = freshState();
+
+  // ---- content -------------------------------------------------------
+
+  var ISLANDS = [
+    {
+      title: 'The Lotus-Eaters',
+      text: "You put in for water. Three men wander inland and come back grinning, mouths stained purple with lotus fruit, already forgetting the ship's name.",
+      choices: [
+        { label: 'Drag them back to the ship, chained to the benches if they fight it.',
+          effect: function () { return { delta: { supplies: -5, favor: 5 }, text: "Correct instinct: a host does not let a guest overstay a welcome that will unmake him, and neither should you let your own men. You lose a day arguing with three weeping sailors, not a man." }; } },
+        { label: "Let them finish eating — they'll catch up.",
+          effect: function () { return { delta: { crew: -3, favor: -10 }, text: 'Two never come back at all. The third has to be carried, and does not stop smiling the whole way. Overstaying a welcome is its own kind of shipwreck.' }; } }
+      ]
+    },
+    {
+      title: 'The Cave of Polyphemus',
+      text: "He has already eaten two of your men and blocked the only door with a boulder no ten men could shift. He does not ask your name, your business, or your need — the first three things any host owes a stranger. He simply asks what's for dinner, and you are the menu.",
+      choices: [
+        { label: 'Offer the strong wine as a guest-gift, wait for him to drink himself blind, then blind him with the fire-hardened stake.',
+          effect: function () { return { delta: { favor: 5 }, text: "It costs nothing further tonight. He roars the mountain down, but the boulder still blocks the door — you cling to the wool of his own sheep to walk out past his groping hands at dawn. Ugly, but it works." }; } },
+        { label: 'Rush him together while he sleeps.',
+          effect: function () { return { delta: { crew: -3, favor: -5 }, text: 'You kill him — and remember, too late, that only he was strong enough to move the boulder from the door. Three more men die of thirst and bad air before the rest of you dig a gap wide enough to squeeze through.' }; } }
+      ]
+    },
+    {
+      title: 'Clear of the Cave',
+      text: "The ship pulls into open water. Behind you on the cliff, Polyphemus is throwing boulders blind at the sound of oars. Your men are laughing. It would be so easy to let him know exactly who beat him.",
+      choices: [
+        { label: 'Say nothing. Row.',
+          effect: function () { return { delta: { favor: 10 }, text: 'You hold your tongue. The old law says a guest does not humiliate a host on the way out the door, even one who ate two of your men. Wisdom, for once, beats pride.' }; } },
+        { label: 'Shout your name and your father’s name across the water.',
+          effect: function () { return { delta: { favor: -30, hull: -5 }, text: '"ODYSSEUS, SACKER OF CITIES, SON OF LAERTES!" — because some men cannot leave a room without being remembered in it. The Cyclops goes still, then prays out loud, to his father, by name. Poseidon is listening. He always was.' }; } }
+      ]
+    },
+    {
+      title: 'The Bag of Aeolus',
+      text: "Aeolus, keeper of the winds, is everything a host should be: a month at his table, and a parting gift — every contrary wind bound in a silver-tied hide, so only the one fair wind is left to push you home. Ithaca is in sight before anyone but you knows what's in the bag.",
+      choices: [
+        { label: 'Tell the crew exactly what it is and why it stays shut.',
+          effect: function () { return { delta: { supplies: 15, favor: 8 }, text: "Told plainly, the bag is just cargo. No one opens another man's sealed gift once they understand it. Home doesn't leave your sight again until you can see smoke from your own hearth." }; } },
+        { label: 'Say nothing and guard it yourself, in silence.',
+          effect: function () { return { delta: { supplies: -15, hull: -15, favor: -4, day: 5 }, text: "Secrecy reads as treasure. While you finally sleep, they cut it open hunting gold and loose every wind at once. The storm throws you clear back to Aeolus's harbor — who decides a man the gods hate twice isn't a guest he wants a third time." }; } }
+      ]
+    },
+    {
+      title: 'Harbor of the Laestrygonians',
+      text: 'The bay looks like the safest anchorage in a week — narrow mouth, flat water. Then boulders start coming off the cliffs onto the ships still entering, and you understand the harbor was built as a trap, not a welcome.',
+      choices: [
+        { label: 'Cut the line now and row for open water, gift-giving be damned.',
+          effect: function () { return { delta: { hull: -10, favor: 4 }, text: "You lose skin off the hull on a rock you didn't have time for, but clear the mouth before the second volley lands. A host who greets arrivals with boulders was never going to keep the rest of the guest-law either." }; } },
+        { label: 'Send a shore party ahead to test their welcome properly.',
+          effect: function () { return { delta: { crew: -4, hull: -15, favor: -2 }, text: 'They eat your envoy in full view of the ship — the clearest answer to a diplomatic question you have ever received. You escape, but three benches are empty, and a fourth man never really recovers from watching.' }; } }
+      ]
+    },
+    {
+      title: "Circe's Hall",
+      text: "The witch-queen's house smells of roast pork and something underneath it that is not pork. Half your landing party is already swine. Hermes, unasked, gave you an herb that makes her magic slide off you like rain.",
+      choices: [
+        { label: 'Drink what she offers, let the spell fail, and hold your blade at her throat only long enough to make her swear the guest-oath.',
+          effect: function () { return { delta: { supplies: 20, crew: 3, favor: 8 }, text: "She's a better host once she knows the guest-law still binds her too — your men come back human, and what follows is a year at her table that leaves the ship's stores fuller than since Troy." }; } },
+        { label: 'Charge the hall with drawn swords the moment you see the sty.',
+          effect: function () { return { delta: { hull: -5, crew: 1, favor: -6 }, text: "You get your men back at spearpoint, but you've told the most powerful witch on this sea that guests arrive as invaders. She lets you leave. She doesn't forget it, and neither, you suspect, does anyone she talks to." }; } }
+      ]
+    },
+    {
+      title: "The Sirens' Strait",
+      text: "You can already hear it under the wind — a song built from exactly what each man aboard wants most to hear. Circe warned this stretch is a field of bones for a reason.",
+      choices: [
+        { label: "Wax in every ear but your own; have them lash you to the mast, whatever you beg once it starts.",
+          effect: function () { return { delta: { favor: 6 }, text: 'You hear the whole thing, screaming to be freed the entire way past, and not one oar breaks stroke because not one other man can hear a word of it. Wanting something badly enough to need restraining — and getting restrained anyway.' }; } },
+        { label: 'Trust everyone to keep rowing through it unprotected.',
+          effect: function () { return { delta: { crew: -5, favor: -6 }, text: "Three men go over the side before you're halfway past, swimming for a song that isn't a place. You pull the ship the rest of the way through short two hands and everyone else's nerve." }; } }
+      ]
+    },
+    {
+      title: 'Scylla and Charybdis',
+      text: 'The strait narrows to a single choice: the whirlpool that can pull the whole ship under, or the six-headed thing in the cliff that only ever takes six men at a time. Circe told you plainly which loss is survivable. Whether you can make yourself choose it is a different question.',
+      choices: [
+        { label: "Hug Scylla's cliff, close enough to count her teeth.",
+          effect: function () { return { delta: { crew: -6, favor: 2 }, text: 'She takes exactly six, screaming, snatched off the deck before a blade can be raised. It is the price you were told to expect. Knowing it in advance does not make it easier to watch. The ship sails on whole.' }; } },
+        { label: 'Run for the middle, betting on speed.',
+          effect: function () {
+            if (Math.random() < 0.35) return { delta: { hull: -55 }, text: "Charybdis catches the stern before you're clear. The ship claws free half-swamped, timbers sprung, everyone bailing instead of rowing." };
+            return { delta: { hull: -15, crew: -1 }, text: 'You thread it closer than anyone should attempt twice — the wash nearly rolls you, and one man goes over the rail in the chaos, but the ship comes out the far side in one piece.' };
+          } }
+      ]
+    },
+    {
+      title: 'The Cattle of the Sun',
+      text: "The last of the salt meat ran out four days ago. Now there's an island with fat, unguarded cattle grazing on it, and Circe's warning ringing in your ears: these belong to Helios, and Helios sees everything that happens under his own sun.",
+      choices: [
+        { label: 'Forbid it. Ration what little is left, even if what’s left is nothing.',
+          effect: function () { return { delta: { supplies: -10, favor: 12 }, text: 'You post a watch on your own crew instead of the coastline, which is its own misery. Bellies stay empty. No one touches an animal on that hillside — for once you leave a host, even one who never came out to greet you, with everything he had.' }; } },
+        { label: "Let them eat. A starving crew is a mutinous one.",
+          effect: function () { return { delta: { supplies: 40, favor: -40, hull: -45, crew: -8 }, text: 'They eat for three days straight — the best any of you have felt since Troy. Then the harbor clears into flat calm and a sky that was blue an hour ago turns the color of a bruise. The storm that follows splits the mast, drowns eight men before dawn, and leaves the rest of you bailing a ship that shouldn’t still be floating.' }; } }
+      ]
+    },
+    {
+      title: 'The Phaeacians',
+      text: "Last landfall before home. Nausicaä finds you washed up half-drowned on the beach and doesn’t ask what you did to end up there before she feeds you — the guest-law working exactly as written, for once. Her father's hall asks only one thing before they'll ferry you the rest of the way: your name, honestly given, and the story that goes with it.",
+      choices: [
+        { label: 'Tell them everything, truthfully, name first.',
+          effect: function () { return { delta: { supplies: 25, favor: 10 }, text: "A guest who repays hospitality with an honest account of himself is the easiest guest in the world to host. They load a ship with more than you could carry yourselves and set you toward home before you've finished the wine." }; } },
+        { label: 'Give a shortened version and ask to leave as soon as possible.',
+          effect: function () { return { delta: { supplies: 10, favor: -4 }, text: "They still take you home — that much of the law they hold to regardless — but the parting gifts are thinner, and the silence on the dock is not nothing." }; } }
+      ]
+    }
+  ];
+
+  var SEA_POOL = [
+    { title: 'A Hard Blow', text: 'Wind out of the northwest, building all afternoon into something that tears at the sail.',
+      effect: function () { return { delta: { hull: -10, supplies: -5, day: 1 }, text: 'You ride it out under a reefed sail. The hull complains but holds.' }; } },
+    { title: 'Becalmed', text: 'Three days of glass-flat water and a sail that hasn’t moved since sunrise.',
+      effect: function () { return { delta: { supplies: -10, day: 2 }, text: 'You row until your hands blister, and the water casks go down faster with nothing but sweat to show for it.' }; } },
+    { title: 'A Fair Wind', text: 'For once, the wind is exactly where you want it and the sea is easy.',
+      effect: function () { return { delta: { supplies: -3, favor: 1, day: 1 }, text: "You make better time than the charts have any right to expect. Nobody asks why; you don't either." }; } },
+    { title: 'Restless Crew', text: 'The rowing benches are quiet in the wrong way — men counting supplies with their eyes instead of their mouths.',
+      effect: function (s) {
+        if (s.supplies < 35) return { delta: { crew: -1, day: 1 }, text: 'One man slips over the side in the night rather than starve slowly. No one mentions it at dawn.' };
+        return { delta: { day: 1 }, text: 'You share out an extra ration and the grumbling settles. For tonight.' };
+      } },
+    { title: 'An Omen', text: 'A hawk crosses the bow from the wrong side, and half the crew has an opinion about what that means.',
+      effect: function () { var f = Math.random() < 0.5 ? 3 : -3; return { delta: { favor: f, day: 1 }, text: f > 0 ? 'Whatever it meant, the wind holds fair through the night.' : 'Nobody sleeps well. The wind turns foul before morning.' }; } }
+  ];
+
+  var BEATS = [];
+  ISLANDS.forEach(function (isl, i) {
+    if (i > 0) BEATS.push({ type: 'sea' });
+    BEATS.push({ type: 'island', data: isl });
+  });
+  BEATS.push({ type: 'sea' });
+  BEATS.push({ type: 'finale' });
+
+  var idx = 0;
+  var lastSea = -1;
+
+  // ---- rendering -------------------------------------------------------
+
+  var termEl = document.getElementById('term');
+  var choicesEl = document.getElementById('choices');
+  var statsEl = document.getElementById('stats');
+
+  function appendLog(html, cls) {
+    var p = document.createElement('div');
+    p.innerHTML = html;
+    if (cls) p.className = cls;
+    termEl.appendChild(p);
+    termEl.scrollTop = termEl.scrollHeight;
+  }
+
+  function renderStats() {
+    statsEl.classList.remove('hidden');
+    var favClass = state.favor > 0 ? 'fav-pos' : (state.favor < 0 ? 'fav-neg' : '');
+    statsEl.innerHTML =
+      '<span>Day <b>' + state.day + '</b></span>' +
+      '<span>Hull <b>' + Math.round(state.hull) + '%</b></span>' +
+      '<span>Supplies <b>' + Math.round(state.supplies) + '%</b></span>' +
+      '<span>Crew <b>' + Math.max(0, state.crew) + '</b></span>' +
+      '<span class="' + favClass + '">Favor <b>' + (state.favor > 0 ? '+' : '') + state.favor + '</b></span>';
+  }
+
+  function applyDelta(d) {
+    if (d.hull) state.hull = clamp(state.hull + d.hull, 0, 100);
+    if (d.supplies) state.supplies = clamp(state.supplies + d.supplies, 0, 100);
+    if (d.crew) state.crew = clamp(state.crew + d.crew, 0, 99);
+    if (d.favor) state.favor = clamp(state.favor + d.favor, -100, 100);
+    state.day += (d.day || 1);
+  }
+
+  function clearChoices() { choicesEl.innerHTML = ''; }
+
+  function renderChoices(list) {
+    clearChoices();
+    list.forEach(function (c, i) {
+      var b = document.createElement('button');
+      b.innerHTML = '<span class="k">' + (i + 1) + '.</span>' + c.label;
+      b.addEventListener('click', function () { resolveChoice(c); });
+      choicesEl.appendChild(b);
+    });
+  }
+
+  function keyHandler(e) {
+    var n = parseInt(e.key, 10);
+    if (!n) return;
+    var btns = choicesEl.querySelectorAll('button');
+    if (btns[n - 1]) btns[n - 1].click();
+  }
+  document.addEventListener('keydown', keyHandler);
+
+  function checkGameOver() {
+    if (state.hull <= 0) { gameOver('wreck', "The hull staves in on rocks that were never on any chart. The wine-dark sea closes over the ship without ceremony."); return true; }
+    if (state.supplies <= 0) { gameOver('starve', "The last of the stores ran out days ago. There is no wind that fixes an empty hold."); return true; }
+    if (state.favor <= -100) { gameOver('wrath', "Poseidon does not forgive a boast. A wave taller than the mast finds you by name."); return true; }
+    return false;
+  }
+
+  function gameOver(kind, text) {
+    state.over = true;
+    appendLog('<p class="death">' + text + '</p><p class="result">The voyage ends here, ' + state.day + ' days out. THE END.</p>', 'death');
+    clearChoices();
+    var rec = loadRecord();
+    rec.attempts++;
+    saveRecord(rec);
+    showRestart();
+  }
+
+  function showRestart() {
+    var b = document.createElement('button');
+    b.textContent = 'New Voyage';
+    b.addEventListener('click', function () { restart(); });
+    choicesEl.appendChild(b);
+  }
+
+  function resolveChoice(choice) {
+    var res = choice.effect(state);
+    applyDelta(res.delta || {});
+    appendLog('<p class="result">' + res.text + '</p>');
+    renderStats();
+    if (checkGameOver()) return;
+    idx++;
+    setTimeout(showBeat, 50);
+  }
+
+  function showBeat() {
+    if (idx >= BEATS.length) return;
+    var beat = BEATS[idx];
+    if (beat.type === 'island') {
+      appendLog('<h3>' + beat.data.title + '</h3><p>' + beat.data.text + '</p>');
+      renderChoices(beat.data.choices);
+    } else if (beat.type === 'sea') {
+      var pool = SEA_POOL.filter(function (_, i) { return i !== lastSea; });
+      var pick = pool[Math.floor(Math.random() * pool.length)];
+      lastSea = SEA_POOL.indexOf(pick);
+      appendLog('<h3>' + pick.title + '</h3><p>' + pick.text + '</p>');
+      renderChoices([{ label: 'Sail on →', effect: pick.effect }]);
+    } else if (beat.type === 'finale') {
+      showFinale();
+    }
+  }
+
+  function showFinale() {
+    appendLog('<h3>Ithaca</h3><p>Twenty years, by any honest count. The harbor looks exactly like it did in every dream that kept you rowing. Your own hall is full of other men’s boots under your own table — more than a hundred suitors who have spent three years eating your herds and courting your wife on the strength of a household law they never once observed. Athena drapes you in a beggar’s rags at your own front door.</p>');
+    clearChoices();
+    var b = document.createElement('button');
+    b.innerHTML = '<span class="k">1.</span>Sit at your own table, say nothing, and watch.';
+    b.addEventListener('click', function () {
+      applyDelta({ favor: 4, day: 1 });
+      appendLog('<p class="result">One of them throws a stool at the beggar wearing your face, and the hall laughs. You count doors, exits, and men, and say nothing at all — exactly the last thing anyone expects from a guest here.</p>');
+      renderStats();
+      if (checkGameOver()) return;
+      showBow();
+    });
+    choicesEl.appendChild(b);
+  }
+
+  function showBow() {
+    appendLog('<h3>The Bow</h3><p>Your own bow, the one no other man in the hall can even string, is carried out as a contest the suitors proposed themselves, laughing, sure a beggar has no better chance at it than they did. They are wrong about that, and about several other things.</p>');
+    clearChoices();
+    var b = document.createElement('button');
+    b.textContent = 'String the bow';
+    b.addEventListener('click', function () {
+      clearChoices();
+      var chance = clamp(0.4 + state.favor / 150 + (state.hull > 40 ? 0.05 : 0), 0.05, 0.92);
+      var win = Math.random() < chance;
+      var rec = loadRecord();
+      rec.attempts++;
+      if (win) {
+        rec.wins++;
+        if (rec.bestDays === null || state.day < rec.bestDays) rec.bestDays = state.day;
+        appendLog('<p class="win">The string sings taut on the first pull, and an arrow goes clean through twelve axe-heads the way it did twenty years ago. Before anyone in the hall finishes laughing, the second arrow finds the loudest of them. The doors were bolted before you sat down to eat.</p><p class="win">They courted your wife, ate your herds, and never once behaved like men owed hospitality rather than owed nothing. The guest-law cuts both ways, and today it finally does. Telemachus stands at your shoulder with a spear he’s waited three years to use.</p><p class="win">HOME, after ' + state.day + ' days. VOYAGE COMPLETE.</p>');
+      } else {
+        appendLog('<p class="death">The string catches. Your hands are twenty years older than they remember being, and the beggar’s disguise buys exactly one second more than it needed to — not enough. A hall of men who were never taught to fear consequences finds out, a moment too late for you, that there were none coming after all.</p><p class="death">THE VOYAGE ENDS HERE, ' + state.day + ' days from a harbor you could already see.</p>');
+      }
+      saveRecord(rec);
+      showRestart();
+    });
+    choicesEl.appendChild(b);
+  }
+
+  function restart() {
+    state = freshState();
+    idx = 0;
+    lastSea = -1;
+    termEl.innerHTML = '';
+    statsEl.classList.add('hidden');
+    clearChoices();
+    document.getElementById('startWrap').classList.remove('hidden');
+    renderRecord();
+  }
+
+  function renderRecord() {
+    var r = loadRecord();
+    var el = document.getElementById('record');
+    if (!r.attempts) { el.textContent = ''; return; }
+    el.textContent = 'Voyages so far: ' + r.attempts + '. Home reached: ' + r.wins +
+      (r.bestDays !== null ? '. Fastest homecoming: ' + r.bestDays + ' days.' : '.');
+  }
+
+  document.getElementById('startBtn').addEventListener('click', function () {
+    document.getElementById('startWrap').classList.add('hidden');
+    renderStats();
+    appendLog('<p>The gods have looked away. Troy is ash behind you. Ithaca is a fortnight east, if the wind holds and you hold your tongue.</p>');
+    showBeat();
+  });
+
+  renderRecord();
+})();
+</script>
+</body>
+</html>

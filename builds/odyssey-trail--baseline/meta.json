@@ -1,0 +1,32 @@
+{
+  "arm": "baseline",
+  "slug": "odyssey-trail",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 23,
+  "cost_usd": 1.1567,
+  "seconds": 538,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 533,
+      "exit": 0,
+      "turns": 21,
+      "cost_usd": 1.1045213999999999,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "visual",
+      "seconds": 5,
+      "exit": 0,
+      "turns": 2,
+      "cost_usd": 0.052209399999999996,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

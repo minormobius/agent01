@@ -1,0 +1,62 @@
+{
+  "arm": "challenger",
+  "slug": "tube-stacker",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 69,
+  "cost_usd": 3.0415,
+  "seconds": 925,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 809,
+      "exit": 0,
+      "turns": 53,
+      "cost_usd": 2.6522868000000006,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 112,
+      "exit": 1,
+      "turns": 13,
+      "cost_usd": 0.38924220000000004,
+      "subtype": "success",
+      "is_error": true,
+      "terminal_reason": "api_error"
+    },
+    {
+      "name": "revise-1",
+      "seconds": 1,
+      "exit": 1,
+      "turns": 1,
+      "cost_usd": 0,
+      "subtype": "success",
+      "is_error": true,
+      "terminal_reason": "api_error"
+    },
+    {
+      "name": "critic-2",
+      "seconds": 2,
+      "exit": 1,
+      "turns": 1,
+      "cost_usd": 0,
+      "subtype": "success",
+      "is_error": true,
+      "terminal_reason": "api_error"
+    },
+    {
+      "name": "revise-2",
+      "seconds": 1,
+      "exit": 1,
+      "turns": 1,
+      "cost_usd": 0,
+      "subtype": "success",
+      "is_error": true,
+      "terminal_reason": "api_error"
+    }
+  ]
+}

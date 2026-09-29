@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 289 colours, top 71%
+  ✓ smoke: lab/www/take-escher/index.html loads clean under the production CSP

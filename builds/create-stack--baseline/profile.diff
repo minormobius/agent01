@@ -1,0 +1,22 @@
+diff --git a/lab/_profiles/ezba.bsky.social.md b/lab/_profiles/ezba.bsky.social.md
+index bfe125a0..6f745644 100644
+--- a/lab/_profiles/ezba.bsky.social.md
++++ b/lab/_profiles/ezba.bsky.social.md
+@@ -105,3 +105,17 @@ subtly-pulsing gradient button on the one action that matters. No direct
+ feedback yet on this one since it wasn't a request from this requester
+ specifically, but worth treating the maximalist-chrome-on-utility-pages
+ pairing as the safe default until told otherwise.
++
++## Wild-estimate / speculative quantification requests
++Asked for `create-stack`: a stack chart estimating "the amount of life in the
++universe" (quality × quantity) across the entire Big Bang→heat death timeline
++— a request with no real data behind it at all, just an invitation to guess.
++Handled by making the guessing itself the transparent, inspectable part: a
++reveal-panel table of the actual quantity/quality numbers used per layer with
++one-line justifications, explicit "this could reasonably be zero/disagree
++with this" caveats on the shakiest ones, and a toggle to remove the most
++speculative layer entirely and see the alternative. No direct feedback yet
++(first turn), but this fits the existing "mechanism as opt-in reveal" and
++"concrete over abstract" preferences extended to a case with no ground truth
++— worth confirming whether the exposed-assumptions-table approach is what
++lands, versus e.g. wanting adjustable sliders instead of a static table.

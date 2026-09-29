@@ -1,0 +1,1 @@
+7-slide deck: value lands on users once identity+data leave the platform. Slide 5 is load-bearing — type your handle, it live-resolves your real DID and PDS host, so the claim isn't just asserted. Skipped the funding/market slide on purpose.

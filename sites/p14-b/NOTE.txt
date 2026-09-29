@@ -1,0 +1,1 @@
+Calendar + almanac (moon phase, sunrise/sunset, season, zodiac — all real math) + a daily word-guess puzzle, same word for everyone. Skipped "on this day" history trivia deliberately — no verified dataset, didn't want to guess dates from memory.

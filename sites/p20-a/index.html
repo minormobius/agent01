@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hyperbolic Shoal — an interactive Circle Limit III explorer</title>
+<meta name="description" content="Drag a row of fish along its own hyperbolic geodesic, Poincaré-disk style — a playable riff on Escher's Circle Limit III.">
+<meta property="og:title" content="Hyperbolic Shoal — an interactive Circle Limit III explorer">
+<meta property="og:description" content="Pick a row of fish swimming nose-to-tail across a Poincaré disk and drag them along their own curved track. Release and the row snaps back into perfect hyperbolic alignment — a playable riff on Escher's Circle Limit III.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root{ --accent:#e8a33d; }
+  #crumb-slot{}
+  main{ max-width: 52rem; }
+  .stage{
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto 1rem;
+    touch-action: none;
+    user-select: none;
+  }
+  canvas{
+    width: 100%; height: 100%;
+    display: block;
+    background: radial-gradient(circle at 50% 45%, #1a1a20, var(--bg) 72%);
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    cursor: grab;
+  }
+  canvas.dragging{ cursor: grabbing; }
+  .rows{
+    display: flex; flex-wrap: wrap; gap: .5rem;
+    justify-content: center; margin: 1rem 0;
+  }
+  .rowbtn{
+    min-width: 44px; min-height: 44px;
+    border-radius: 999px;
+    padding: 0 .9rem;
+    font-size: .8rem;
+    display: flex; align-items: center; gap: .5rem;
+    background: var(--bg-raised);
+    border: 2px solid var(--border);
+    color: var(--fg);
+  }
+  .rowbtn .sw{ width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .rowbtn.on{ border-color: var(--rowcolor, var(--accent)); background: color-mix(in srgb, var(--rowcolor, var(--accent)) 18%, var(--bg-raised)); }
+  .nudge{
+    display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem; margin-bottom: 1.5rem;
+  }
+  .nudge button{ min-height: 44px; min-width: 84px; font-size: .85rem; }
+  .status{ text-align: center; color: var(--muted); font-size: .8rem; min-height: 1.4em; margin-top: -.5rem; }
+  .hint{ text-align: center; font-size: .85rem; }
+  footer.note{ margin-top: 2.5rem; font-size: .78rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb-slot"></div>
+  <h1>Hyperbolic Shoal</h1>
+  <p class="sub">A playable riff on Escher's <em>Circle Limit III</em>. Every row of fish swims nose‑to‑tail
+    along its own straight line through the centre — a genuine geodesic of the Poincaré disk. Pick a row,
+    drag it along its track, and watch it shrink smoothly toward the rim: that shrinking is not a style
+    choice, it's the disk model telling the truth about a hyperbolic plane packed into a finite circle.</p>
+
+  <div class="stage">
+    <canvas id="disk" width="640" height="640" aria-label="Poincaré disk of fish rows, draggable"></canvas>
+  </div>
+
+  <p class="hint">Tap a row below, or drag directly on its fish in the disk. Release and the row snaps back
+    into exact nose‑to‑tail alignment — the tiling always resets to a valid one.</p>
+
+  <div class="rows" id="rowButtons" role="group" aria-label="Choose a row of fish"></div>
+
+  <div class="nudge">
+    <button id="back" type="button">◀ swim back</button>
+    <button id="fwd" type="button">swim forward ▶</button>
+  </div>
+
+  <p class="status" id="status">Row 1 selected.</p>
+
+  <h2>What's real here, what's stylised</h2>
+  <p>The geometry is real: positions come from an actual Möbius translation of the Poincaré disk, and fish
+    size is scaled by the disk's own conformal factor, so a row genuinely tiles head‑to‑tail at every step,
+    not just at the one frame you see. What's stylised: Escher's rows are gently curved arcs meeting the rim
+    at a slant, tuned so three colours meet nose‑to‑nose‑to‑nose; these rows are straight diameters, the
+    simplest true hyperbolic geodesic, and neighbouring rows only truly interact at the centre point they
+    share. Rows near your dragged one wobble a little as you pass through the middle — a visual nod to
+    "everything must move together," not a full rigid‑tiling solve.</p>
+
+  <footer class="note">
+    <a href="../">← back to the lab</a>
+  </footer>
+</main>
+
+<script>
+(function(){
+  'use strict';
+  document.getElementById('crumb-slot').innerHTML = kit.crumb('take-escher');
+
+  var canvas = document.getElementById('disk');
+  var ctx = canvas.getContext('2d');
+  var statusEl = document.getElementById('status');
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- hyperbolic geometry -------------------------------------------------
+  // Poincaré disk, unit radius. A point at hyperbolic distance t from the
+  // centre along direction theta sits at Euclidean radius r = tanh(t/2).
+  // That single formula is also the translation-along-a-diameter law: moving
+  // the origin by hyperbolic distance t along theta lands it at tanh(t/2).
+  function diskRadius(t){ return Math.tanh(t / 2); }
+  // d/dt of tanh(t/2) — the local Euclidean/hyperbolic scale factor, i.e. how
+  // fast Euclidean distance grows per unit of true hyperbolic distance here.
+  // Fish drawn with a fixed HYPERBOLIC length use this to shrink correctly.
+  function conformal(t){ var s = 1 / Math.cosh(t / 2); return 0.5 * s * s; }
+
+  var N_ROWS = 5;
+  var STEP = 1.55;      // hyperbolic spacing between fish noses along a row
+  var K_RANGE = 9;       // fish drawn each side of centre per row
+  var T_MAX = K_RANGE * STEP + STEP;
+
+  var COLORS = ['#e8a33d', '#5fb3d9', '#d9698f', '#7ac387', '#b892e0'];
+
+  var rows = [];
+  for (var j = 0; j < N_ROWS; j++) {
+    rows.push({
+      theta: j * Math.PI / N_ROWS,
+      offset: 0,          // current hyperbolic drag offset (0 = perfectly tiled)
+      color: COLORS[j % COLORS.length],
+      wobble: 0
+    });
+  }
+  var active = 0;
+
+  // ---- fish shape, drawn nose toward +x in a unit-ish local frame ----------
+  function drawFish(g, color){
+    g.beginPath();
+    g.moveTo(0.5, 0);
+    g.quadraticCurveTo(0.15, -0.30, -0.35, -0.16);
+    g.quadraticCurveTo(-0.55, -0.30, -0.62, -0.05);
+    g.lineTo(-0.40, 0);
+    g.lineTo(-0.62, 0.05);
+    g.quadraticCurveTo(-0.55, 0.30, -0.35, 0.16);
+    g.quadraticCurveTo(0.15, 0.30, 0.5, 0);
+    g.closePath();
+    g.fillStyle = color;
+    g.fill();
+    g.beginPath();
+    g.arc(0.30, -0.04, 0.045, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(0,0,0,.55)';
+    g.fill();
+  }
+
+  function resize(){
+    var box = canvas.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    var side = Math.round(box.width * dpr);
+    if (canvas.width !== side){ canvas.width = side; canvas.height = side; }
+  }
+
+  function render(){
+    resize();
+    var W = canvas.width, H = canvas.height;
+    var R = W / 2 * 0.94;
+    var cx = W / 2, cy = H / 2;
+    ctx.clearRect(0, 0, W, H);
+
+    // boundary circle (the ideal rim — never quite reached)
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(232,230,227,.25)';
+    ctx.lineWidth = Math.max(1, W * 0.0025);
+    ctx.stroke();
+
+    // draw far-from-centre fish first so nearer ones overlap correctly
+    var draws = [];
+    rows.forEach(function(row, ri){
+      for (var k = -K_RANGE; k <= K_RANGE; k++){
+        var t = row.offset + k * STEP;
+        if (t <= -T_MAX || t >= T_MAX) continue;
+        var r = diskRadius(t);
+        var x = cx + Math.cos(row.theta) * r * R;
+        var y = cy + Math.sin(row.theta) * r * R;
+        var scale = conformal(t) * STEP * R * 1.05;
+        if (scale < 0.6) continue;
+        // sympathetic wobble: rows other than the active one nod slightly as
+        // the dragged row's fish pass the shared centre point.
+        var wob = 0;
+        if (ri !== active){
+          var decay = 1 / Math.cosh(t);
+          wob = rows[active].wobble * decay * 0.35;
+        }
+        draws.push({ x: x, y: y, r: Math.abs(r), scale: scale, angle: row.theta + wob, color: row.color, active: ri === active });
+      }
+    });
+    draws.sort(function(a, b){ return a.r - b.r; });
+    draws.forEach(function(d){
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      ctx.rotate(d.angle);
+      ctx.scale(d.scale, d.scale);
+      ctx.globalAlpha = d.active ? 1 : 0.88;
+      drawFish(ctx, d.color);
+      ctx.restore();
+    });
+    ctx.globalAlpha = 1;
+
+    // faint centre mark — every row's shared hinge point
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.max(2, W * 0.004), 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(232,230,227,.35)';
+    ctx.fill();
+  }
+
+  function snap(row, animate){
+    var target = Math.round(row.offset / STEP) * STEP;
+    if (!animate || reduceMotion){
+      row.offset = target;
+      row.wobble = 0;
+      render();
+      return;
+    }
+    var start = row.offset;
+    var t0 = performance.now();
+    var dur = 260;
+    function step(now){
+      var p = Math.min(1, (now - t0) / dur);
+      var ease = 1 - Math.pow(1 - p, 3);
+      row.offset = start + (target - start) * ease;
+      row.wobble = (1 - ease) * (target - start) * 0.5;
+      render();
+      if (p < 1) requestAnimationFrame(step);
+      else { row.offset = target; row.wobble = 0; render(); }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ---- row picking / buttons -----------------------------------------------
+  var rowButtons = document.getElementById('rowButtons');
+  rows.forEach(function(row, i){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rowbtn';
+    b.style.setProperty('--rowcolor', row.color);
+    b.innerHTML = '<span class="sw" style="background:' + row.color + '"></span> Row ' + (i + 1);
+    b.addEventListener('click', function(){ setActive(i); });
+    rowButtons.appendChild(b);
+  });
+  function refreshButtons(){
+    Array.prototype.forEach.call(rowButtons.children, function(b, i){
+      b.classList.toggle('on', i === active);
+    });
+    statusEl.textContent = 'Row ' + (active + 1) + ' selected — drag it, or use the swim buttons.';
+  }
+  function setActive(i){ active = i; refreshButtons(); render(); }
+  refreshButtons();
+
+  document.getElementById('back').addEventListener('click', function(){
+    rows[active].offset -= STEP;
+    snap(rows[active], true);
+  });
+  document.getElementById('fwd').addEventListener('click', function(){
+    rows[active].offset += STEP;
+    snap(rows[active], true);
+  });
+
+  // ---- dragging directly on the disk ---------------------------------------
+  var dragging = false, dragRow = null, dragStart = null, dragStartOffset = 0;
+  var SENS = 6.5; // hyperbolic units of travel per canvas-radius of drag
+
+  function pointerPos(e){
+    var box = canvas.getBoundingClientRect();
+    var x = (e.clientX - box.left) / box.width * canvas.width;
+    var y = (e.clientY - box.top) / box.height * canvas.height;
+    return { x: x, y: y };
+  }
+
+  function nearestRow(x, y){
+    var W = canvas.width, cx = W / 2, cy = W / 2;
+    var a = Math.atan2(y - cy, x - cx);
+    var aMod = ((a % Math.PI) + Math.PI) % Math.PI;
+    var best = 0, bestD = Infinity;
+    rows.forEach(function(row, i){
+      var d = Math.abs(row.theta - aMod);
+      d = Math.min(d, Math.PI - d);
+      if (d < bestD){ bestD = d; best = i; }
+    });
+    return best;
+  }
+
+  canvas.addEventListener('pointerdown', function(e){
+    var p = pointerPos(e);
+    var ri = nearestRow(p.x, p.y);
+    setActive(ri);
+    dragging = true;
+    dragRow = rows[ri];
+    dragStart = p;
+    dragStartOffset = dragRow.offset;
+    canvas.classList.add('dragging');
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', function(e){
+    if (!dragging || !dragRow) return;
+    var p = pointerPos(e);
+    var dx = p.x - dragStart.x, dy = p.y - dragStart.y;
+    var W = canvas.width;
+    var tangent = { x: Math.cos(dragRow.theta), y: Math.sin(dragRow.theta) };
+    var proj = (dx * tangent.x + dy * tangent.y) / (W / 2);
+    dragRow.offset = dragStartOffset + proj * SENS;
+    dragRow.wobble = proj * SENS * 0.5;
+    render();
+  });
+  function endDrag(e){
+    if (!dragging) return;
+    dragging = false;
+    canvas.classList.remove('dragging');
+    if (dragRow) snap(dragRow, true);
+    dragRow = null;
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  window.addEventListener('resize', render);
+  render();
+})();
+</script>
+</body>
+</html>

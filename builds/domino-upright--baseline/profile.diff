@@ -1,0 +1,22 @@
+diff --git a/lab/_profiles/ponder.ooo.md b/lab/_profiles/ponder.ooo.md
+index a146b15b..93893e28 100644
+--- a/lab/_profiles/ponder.ooo.md
++++ b/lab/_profiles/ponder.ooo.md
+@@ -71,6 +71,17 @@ complaint) and ask for the version that doesn't have an escape hatch. Worth
+ flagging the shortcut explicitly in the copy/BRIEF *before* they have to ask
+ — they clearly read that level of detail.
+ 
++Seventh request specified a cellular automaton rule in dense, precise
++mathematical/technical shorthand ("4 upright orientations (projectivized moore
++neighborhood), 8 directional falling states... 2 fallings it can transition to
++if... not orthogonal... not pushing in opposite directions") with real
++ambiguity left in it (tie-breaking when pushes disagree isn't specified).
++Consistent with the standing pattern: implement the actual stated mechanism in
++full rather than a simplified stand-in, but this time the honest move was to
++pick deterministic tie-breaks for the genuine gaps and say so explicitly
++(NOTE.txt + BRIEF.md) rather than guess silently or ask before building —
++matches "call out the shortcut/gap explicitly in the copy" from request six.
++
+ ## Said no to
+ Nothing yet — no request has been declined or walked back.
+ 

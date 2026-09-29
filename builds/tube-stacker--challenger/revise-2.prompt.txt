@@ -1,0 +1,17 @@
+You built the site in lab/www/tube-stacker/ for this request:
+
+tube tetris. The tetronimos fall on a 3js rendered cylinder, full circles clear, and all the normal features: see the next dropping block, score presented. For controls I think mouse manipulates the cylinder in rotate zoom pan, arrow keys manipulate the blocks
+
+A reviewer loaded it in a real browser, played it, and reported these defects:
+
+You've hit your session limit · resets 9:10am (UTC)
+
+Fix them, most important first. Read BRIEF.md and the code before you change
+anything. You have the same eyes as before (`mcp__eyes__look`, `watch`,
+`drive`): after each fix, prove it with a tool call, and check you have not
+broken something that worked. If you think a reported defect is wrong, check
+it yourself and say why in BRIEF.md rather than changing working code.
+
+Write only inside lab/www/tube-stacker/ (and the requester's profile, if a durable
+preference was learned). Write files in pieces of at most ~250 lines. Add a
+short "Review round" note to BRIEF.md: what was reported, what you fixed.

@@ -1,0 +1,32 @@
+{
+  "arm": "challenger",
+  "slug": "chess-except",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 48,
+  "cost_usd": 1.9637,
+  "seconds": 596,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 487,
+      "exit": 0,
+      "turns": 31,
+      "cost_usd": 1.4525996000000003,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 109,
+      "exit": 0,
+      "turns": 17,
+      "cost_usd": 0.5110977999999999,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

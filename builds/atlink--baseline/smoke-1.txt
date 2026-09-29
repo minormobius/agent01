@@ -1,0 +1,2 @@
+  · screenshot /tmp/shot.png — 201 colours, top 85%
+  ✓ smoke: lab/www/atlink/index.html loads clean under the production CSP

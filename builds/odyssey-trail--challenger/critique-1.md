@@ -1,0 +1,3 @@
+No unwanted animation/motion — static as expected for a text-based game (only the cursor blink, appropriately gated by `prefers-reduced-motion`). Everything checks out: terminal aesthetic, Aegean setting, scripted and random calamities, xenia-based choices driving stats, death-heavy outcomes, and a separate suitors finale that can be lost even after reaching Ithaca — exactly matching the request.
+
+VERDICT: SHIP

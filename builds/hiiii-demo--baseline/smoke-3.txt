@@ -1,0 +1,1 @@
+  ✓ smoke: lab/www/hiiii-demo/index.html loads clean under the production CSP

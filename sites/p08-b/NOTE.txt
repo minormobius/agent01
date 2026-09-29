@@ -1,0 +1,1 @@
+Scoped to app.bsky.feed.post only — other collections get a named "unrecognised collection" error instead of a guess. Extending to feed/list/like permalinks is the natural next step (see BRIEF.md).

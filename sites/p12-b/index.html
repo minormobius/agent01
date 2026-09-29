@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderchess — chess where the piece decides</title>
+<meta property="og:title" content="Wanderchess — chess where the piece decides">
+<meta property="og:description" content="Tap a piece. It doesn't go where you point — it stumbles randomly through every legal move it can find, one hop after another, until it's stuck. Then the other side goes. First king captured loses.">
+<meta name="description" content="Tap a piece. It doesn't go where you point — it stumbles randomly through every legal move it can find, one hop after another, until it's stuck. Then the other side goes. First king captured loses.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  h1 { font-size: 1.9rem; }
+  main { max-width: 40rem; }
+  .crumb { margin-bottom: 1rem; }
+
+  #turnbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .75rem; margin-bottom: .75rem; flex-wrap: wrap;
+  }
+  #turnbar .who { font-size: 1.05rem; }
+  #turnbar .who.w { color: var(--fg); }
+  #turnbar .who.b { color: var(--muted); }
+  #turnbar .who.active { color: var(--accent); font-weight: bold; }
+
+  #status { min-height: 1.4em; font-size: .85rem; color: var(--muted); margin-bottom: .75rem; }
+  #status.err { color: var(--error); }
+
+  #boardwrap { margin-bottom: 1rem; }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: min(100%, 520px);
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .sq {
+    display: flex; align-items: center; justify-content: center;
+    font-size: min(6vw, 32px);
+    cursor: pointer;
+    position: relative;
+    transition: background-color .15s;
+  }
+  .sq.light { background: #2a2830; }
+  .sq.dark  { background: #1b1a1f; }
+  .sq.pickable { box-shadow: inset 0 0 0 2px var(--ok); }
+  .sq.current { box-shadow: inset 0 0 0 3px var(--accent); background: var(--accent-dim); }
+  .sq.visited::after {
+    content: ''; position: absolute; width: 22%; height: 22%;
+    border-radius: 50%; background: var(--accent); opacity: .45;
+  }
+  .piece.w { color: #f2efe9; text-shadow: 0 1px 0 #000; }
+  .piece.b { color: #171519; text-shadow: 0 1px 0 #55535c; }
+
+  #log {
+    font-size: .8rem; color: var(--muted); background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .75rem 1rem; max-height: 9rem; overflow-y: auto;
+    margin-bottom: 1rem;
+  }
+  #log div { margin-bottom: .35rem; }
+  #log div:last-child { margin-bottom: 0; }
+
+  #overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.75);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  #overlay.hidden { display: none; }
+  #overlay .card {
+    background: var(--bg-raised); border: 1px solid var(--accent);
+    border-radius: var(--radius); padding: 2rem; text-align: center;
+    max-width: 22rem; margin: 0 1rem;
+  }
+  #overlay h2 { font-size: 1.5rem; color: var(--accent); margin: 0 0 1rem; }
+  #overlay button { min-height: 44px; margin-top: .5rem; }
+
+  button#restart { min-height: 44px; }
+
+  .rules { font-size: .8rem; color: var(--muted); }
+  .rules summary { cursor: pointer; color: var(--fg); padding: .4rem 0; }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="/">minomobi lab</a> / chess-except</div>
+  <h1>Wanderchess</h1>
+  <p class="sub">Tap a piece of your colour. You don't choose where it goes —
+    it takes a random legal move, then another, then another, hopping on its
+    own until it has no move left. Then it's the other side's turn. Capture
+    the enemy king to win.</p>
+
+  <div id="turnbar">
+    <span class="who w" id="who-w">White</span>
+    <span id="turn-label" style="color: var(--muted);">to move</span>
+    <span class="who b" id="who-b">Black</span>
+  </div>
+
+  <div id="status"></div>
+
+  <div id="boardwrap"><div id="board"></div></div>
+
+  <div id="log"><div id="log-empty">No moves yet. Tap any white piece to start.</div></div>
+
+  <button id="restart">New game</button>
+
+  <details class="rules">
+    <summary>What's actually enforced</summary>
+    <ul>
+      <li>Standard piece movement, captures, board edges, blocking pieces.</li>
+      <li>Pawns: single/double first step, diagonal capture, auto-promote to
+        queen on the back rank (and the walk keeps going as the new queen).</li>
+      <li>No check, no checkmate, no castling, no en passant. Since you never
+        pick the destination, "check" doesn't mean much here — instead the
+        game just ends the instant a king is actually captured.</li>
+      <li>A single walk is capped at 40 hops so a piece bouncing between two
+        empty squares forever can't happen.</li>
+    </ul>
+  </details>
+</main>
+
+<div id="overlay" class="hidden">
+  <div class="card">
+    <h2 id="overlay-title">Game over</h2>
+    <p id="overlay-text" style="color: var(--muted); margin: 0 0 .5rem;"></p>
+    <button id="overlay-restart">New game</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const FILES = ['a','b','c','d','e','f','g','h'];
+  const KNIGHT_D = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+  const BISHOP_D = [[-1,-1],[-1,1],[1,-1],[1,1]];
+  const ROOK_D   = [[-1,0],[1,0],[0,-1],[0,1]];
+  const QUEEN_D  = BISHOP_D.concat(ROOK_D);
+  const GLYPH = {
+    w: { p:'♙', n:'♘', b:'♗', r:'♖', q:'♕', k:'♔' },
+    b: { p:'♟', n:'♞', b:'♝', r:'♜', q:'♛', k:'♚' },
+  };
+  const NAME = { p:'pawn', n:'knight', b:'bishop', r:'rook', q:'queen', k:'king' };
+  const MAX_HOPS = 40;
+  const HOP_DELAY = 260;
+
+  let board, turn, walking, over;
+  const boardEl = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+  const logEl = document.getElementById('log');
+  const overlayEl = document.getElementById('overlay');
+  const whoW = document.getElementById('who-w');
+  const whoB = document.getElementById('who-b');
+
+  function initialBoard() {
+    const back = ['r','n','b','q','k','b','n','r'];
+    const b = Array.from({length:8}, () => Array(8).fill(null));
+    for (let c = 0; c < 8; c++) {
+      b[0][c] = { type: back[c], color: 'b' };
+      b[1][c] = { type: 'p', color: 'b' };
+      b[6][c] = { type: 'p', color: 'w' };
+      b[7][c] = { type: back[c], color: 'w' };
+    }
+    return b;
+  }
+
+  function newGame() {
+    board = initialBoard();
+    turn = 'w';
+    walking = false;
+    over = false;
+    logEl.innerHTML = '<div id="log-empty">No moves yet. Tap any white piece to start.</div>';
+    setStatus('');
+    overlayEl.classList.add('hidden');
+    render();
+  }
+
+  function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+  function algebraic(r, c) { return FILES[c] + (8 - r); }
+
+  function legalMoves(b, r, c) {
+    const p = b[r][c];
+    if (!p) return [];
+    const opp = p.color === 'w' ? 'b' : 'w';
+    const moves = [];
+    if (p.type === 'p') {
+      const dir = p.color === 'w' ? -1 : 1;
+      const startRank = p.color === 'w' ? 6 : 1;
+      if (inBounds(r + dir, c) && !b[r + dir][c]) {
+        moves.push({ r: r + dir, c });
+        if (r === startRank && !b[r + 2 * dir][c]) moves.push({ r: r + 2 * dir, c });
+      }
+      for (const dc of [-1, 1]) {
+        const rr = r + dir, cc = c + dc;
+        if (inBounds(rr, cc) && b[rr][cc] && b[rr][cc].color === opp) moves.push({ r: rr, c: cc });
+      }
+    } else if (p.type === 'n') {
+      for (const [dr, dc] of KNIGHT_D) {
+        const rr = r + dr, cc = c + dc;
+        if (inBounds(rr, cc) && (!b[rr][cc] || b[rr][cc].color === opp)) moves.push({ r: rr, c: cc });
+      }
+    } else if (p.type === 'k') {
+      for (const [dr, dc] of QUEEN_D) {
+        const rr = r + dr, cc = c + dc;
+        if (inBounds(rr, cc) && (!b[rr][cc] || b[rr][cc].color === opp)) moves.push({ r: rr, c: cc });
+      }
+    } else {
+      const dirs = p.type === 'b' ? BISHOP_D : p.type === 'r' ? ROOK_D : QUEEN_D;
+      for (const [dr, dc] of dirs) {
+        let rr = r + dr, cc = c + dc;
+        while (inBounds(rr, cc)) {
+          if (!b[rr][cc]) { moves.push({ r: rr, c: cc }); }
+          else { if (b[rr][cc].color === opp) moves.push({ r: rr, c: cc }); break; }
+          rr += dr; cc += dc;
+        }
+      }
+    }
+    return moves;
+  }
+
+  function setStatus(msg, isErr) {
+    statusEl.textContent = msg || '';
+    statusEl.classList.toggle('err', !!isErr);
+  }
+
+  function updateTurnbar() {
+    whoW.classList.toggle('active', turn === 'w' && !over);
+    whoB.classList.toggle('active', turn === 'b' && !over);
+    document.getElementById('turn-label').textContent = over ? '— game over' : 'to move';
+  }
+
+  function render(highlight, visitedSet) {
+    updateTurnbar();
+    boardEl.innerHTML = '';
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const sq = document.createElement('div');
+        sq.className = 'sq ' + ((r + c) % 2 === 0 ? 'light' : 'dark');
+        const p = board[r][c];
+        if (p) {
+          const span = document.createElement('span');
+          span.className = 'piece ' + p.color;
+          span.textContent = GLYPH[p.color][p.type];
+          sq.appendChild(span);
+        }
+        if (visitedSet && visitedSet.has(r + ',' + c)) sq.classList.add('visited');
+        if (highlight && highlight.r === r && highlight.c === c) sq.classList.add('current');
+        if (!walking && !over && p && p.color === turn && legalMoves(board, r, c).length > 0) {
+          sq.classList.add('pickable');
+        }
+        sq.addEventListener('click', () => onSquareClick(r, c));
+        boardEl.appendChild(sq);
+      }
+    }
+  }
+
+  function logLine(text) {
+    const empty = document.getElementById('log-empty');
+    if (empty) empty.remove();
+    const div = document.createElement('div');
+    div.textContent = text;
+    logEl.insertBefore(div, logEl.firstChild);
+  }
+
+  function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+  async function runWalk(r0, c0) {
+    walking = true;
+    setStatus('');
+    const mover = board[r0][c0];
+    const moverColor = mover.color;
+    const path = [algebraic(r0, c0)];
+    const captures = [];
+    const visited = new Set([r0 + ',' + c0]);
+    let r = r0, c = c0;
+    let hops = 0;
+    let kingCaptured = null;
+    let promoted = false;
+
+    render({ r, c }, visited);
+    await sleep(HOP_DELAY);
+
+    while (hops < MAX_HOPS) {
+      const moves = legalMoves(board, r, c);
+      if (moves.length === 0) break;
+      const m = moves[Math.floor(Math.random() * moves.length)];
+      const target = board[m.r][m.c];
+      if (target) {
+        captures.push(target.type);
+        if (target.type === 'k') kingCaptured = target.color;
+      }
+      const piece = board[r][c];
+      board[r][c] = null;
+      board[m.r][m.c] = piece;
+      if (piece.type === 'p' && (m.r === 0 || m.r === 7)) {
+        piece.type = 'q';
+        promoted = true;
+      }
+      r = m.r; c = m.c;
+      visited.add(r + ',' + c);
+      path.push(algebraic(r, c));
+      hops++;
+      render({ r, c }, visited);
+      if (kingCaptured) break;
+      await sleep(HOP_DELAY);
+    }
+
+    walking = false;
+    const pieceLabel = NAME[mover.type];
+    let line = (moverColor === 'w' ? 'White' : 'Black') + ' ' + pieceLabel + ': ' + path.join(' → ');
+    if (captures.length) line += '  (took ' + captures.map(t => NAME[t]).join(', ') + ')';
+    if (promoted) line += '  (promoted)';
+    if (hops >= MAX_HOPS) line += '  [capped at ' + MAX_HOPS + ' hops]';
+    logLine(line);
+
+    if (kingCaptured) {
+      over = true;
+      const winner = kingCaptured === 'w' ? 'Black' : 'White';
+      render();
+      showOverlay(winner + ' wins', 'The ' + (kingCaptured === 'w' ? 'white' : 'black') + ' king was captured.');
+      return;
+    }
+
+    turn = turn === 'w' ? 'b' : 'w';
+    render();
+  }
+
+  function showOverlay(title, text) {
+    document.getElementById('overlay-title').textContent = title;
+    document.getElementById('overlay-text').textContent = text;
+    overlayEl.classList.remove('hidden');
+  }
+
+  function onSquareClick(r, c) {
+    if (walking || over) return;
+    const p = board[r][c];
+    if (!p || p.color !== turn) return;
+    const moves = legalMoves(board, r, c);
+    if (moves.length === 0) {
+      setStatus('That ' + NAME[p.type] + ' has no legal moves — tap another piece.', true);
+      return;
+    }
+    runWalk(r, c);
+  }
+
+  document.getElementById('restart').addEventListener('click', newGame);
+  document.getElementById('overlay-restart').addEventListener('click', newGame);
+
+  newGame();
+})();
+</script>
+</body>
+</html>

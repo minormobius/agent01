@@ -1,0 +1,32 @@
+{
+  "arm": "challenger",
+  "slug": "sketch-out",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 78,
+  "cost_usd": 2.7286,
+  "seconds": 681,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 557,
+      "exit": 0,
+      "turns": 57,
+      "cost_usd": 2.1699862,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 124,
+      "exit": 0,
+      "turns": 21,
+      "cost_usd": 0.5586483999999999,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

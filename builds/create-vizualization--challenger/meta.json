@@ -1,0 +1,32 @@
+{
+  "arm": "challenger",
+  "slug": "create-vizualization",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 84,
+  "cost_usd": 2.9367,
+  "seconds": 815,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 688,
+      "exit": 0,
+      "turns": 64,
+      "cost_usd": 2.4277225999999996,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 127,
+      "exit": 0,
+      "turns": 20,
+      "cost_usd": 0.5090104,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

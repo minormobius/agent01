@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tube Stacker — a mino.mobi lab site</title>
+<meta property="og:title" content="Tube Stacker — falling blocks on a cylinder">
+<meta property="og:description" content="A falling-block stacking puzzle wrapped around a rotating cylinder instead of a flat well — clear a full ring to score. Drag to orbit, scroll to zoom, arrow keys to play.">
+<meta property="og:type" content="website">
+<meta name="description" content="A falling-block stacking puzzle on a 3D cylinder, built with three.js.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  html, body { height: 100%; }
+  body { margin: 0; padding: 0; overflow: hidden; background: var(--bg); color: var(--fg);
+         font: 16px/1.5 var(--mono); display: flex; flex-direction: column; height: 100dvh; }
+
+  header { flex: none; display: flex; align-items: baseline; justify-content: space-between;
+           gap: .75rem; padding: .6rem 1rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  header h1 { font-size: 1.15rem; margin: 0; color: var(--accent); letter-spacing: -.02em; }
+  header .sub { color: var(--muted); font-size: .75rem; }
+  .crumb { font-size: .7rem; color: var(--muted); }
+  .crumb a { color: var(--muted); }
+
+  #stage { position: relative; flex: 1 1 auto; min-height: 0; }
+  #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  #hud { position: absolute; top: .75rem; right: .75rem; display: flex; flex-direction: column;
+         align-items: flex-end; gap: .5rem; pointer-events: none; }
+  .panel { pointer-events: auto; background: rgba(14,14,17,.82); border: 1px solid var(--border);
+           border-radius: var(--radius); padding: .6rem .8rem; font-size: .8rem; backdrop-filter: blur(2px); }
+  .stat { display: flex; justify-content: space-between; gap: 1rem; min-width: 8rem; }
+  .stat b { color: var(--fg); }
+  .stat span { color: var(--muted); }
+  #next canvas { display: block; image-rendering: pixelalpha; }
+  #next .label { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: .35rem; }
+
+  #hint { position: absolute; top: .75rem; left: .75rem; max-width: 15rem; pointer-events: none; }
+  #hint .panel { font-size: .72rem; color: var(--muted); line-height: 1.5; }
+  #hint b { color: var(--fg); }
+
+  #overlay { position: absolute; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center;
+             background: rgba(10,10,12,.72); flex-direction: column; gap: 1rem; text-align: center; padding: 1rem; }
+  #overlay.show { display: flex; }
+  #overlay h2 { margin: 0; color: var(--accent); font-size: 1.4rem; }
+  #overlay p { margin: 0; color: var(--muted); font-size: .85rem; max-width: 22rem; }
+  #overlay button { font-size: 1rem; padding: .7rem 1.4rem; }
+
+  #touchpad { position: absolute; left: 0; right: 0; bottom: 0; display: none;
+              justify-content: center; gap: .5rem; padding: .5rem .5rem calc(.5rem + env(safe-area-inset-bottom)); }
+  #touchpad button { flex: none; width: 3.1rem; height: 3.1rem; font-size: 1.3rem; line-height: 1;
+                      border-radius: 999px; display: flex; align-items: center; justify-content: center; }
+  #touchpad button:active { background: var(--accent); color: #000; }
+  @media (pointer: coarse) { #touchpad { display: flex; } #hint { display: none; } }
+  @media (max-width: 420px) { #hint { max-width: 9.5rem; } #hint .panel { font-size: .64rem; padding: .45rem .55rem; } }
+
+  #paused-note { position: absolute; bottom: .75rem; left: .75rem; font-size: .7rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Tube Stacker</h1>
+    <div class="sub">falling blocks, wrapped around a cylinder</div>
+  </div>
+  <div class="crumb"><a href="../../">mino.mobi lab</a></div>
+</header>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+
+  <div id="hint"><div class="panel">
+    <b>Mouse:</b> drag to orbit, scroll to zoom, shift-drag to pan.<br>
+    <b>Keys:</b> ← → move · ↑ rotate · ↓ drop · space hard drop.
+  </div></div>
+
+  <div id="hud">
+    <div class="panel" id="next"><div class="label">next</div><canvas width="72" height="72"></canvas></div>
+    <div class="panel">
+      <div class="stat"><span>score</span><b id="score">0</b></div>
+      <div class="stat"><span>rings</span><b id="lines">0</b></div>
+      <div class="stat"><span>level</span><b id="level">1</b></div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <h2 id="overlay-title">Tube full</h2>
+    <p id="overlay-msg">The stack reached the rim. Final score shown above.</p>
+    <button id="restart">play again</button>
+  </div>
+
+  <div id="touchpad">
+    <button id="t-left" aria-label="move left">◄</button>
+    <button id="t-rot" aria-label="rotate">⟳</button>
+    <button id="t-right" aria-label="move right">►</button>
+    <button id="t-down" aria-label="soft drop">▼</button>
+    <button id="t-drop" aria-label="hard drop">⤓</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from '../_kit/three.module.min.js';
+
+/* ---------- board geometry ---------- */
+const SEGMENTS = 9;          // angular columns, wraps
+const ROWS = 15;             // playfield height
+const CELL_H = 1;            // world height of one row
+const RADIUS = 3.1;
+
+const PIECES = {
+  I: { N: 4, cells: [[1,0],[1,1],[1,2],[1,3]], color: 0x4dd0e1 },
+  O: { N: 2, cells: [[0,0],[0,1],[1,0],[1,1]], color: 0xf2c14e },
+  T: { N: 3, cells: [[0,1],[1,0],[1,1],[1,2]], color: 0xb388ff },
+  S: { N: 3, cells: [[0,1],[0,2],[1,0],[1,1]], color: 0x8bd17c },
+  Z: { N: 3, cells: [[0,0],[0,1],[1,1],[1,2]], color: 0xe0594b },
+  J: { N: 3, cells: [[0,0],[1,0],[1,1],[1,2]], color: 0x5b8def },
+  L: { N: 3, cells: [[0,2],[1,0],[1,1],[1,2]], color: 0xf29a4c },
+};
+const TYPES = Object.keys(PIECES);
+
+function rotateCells(cells, N) {
+  return cells.map(([r, c]) => [c, N - 1 - r]);
+}
+function wrap(c) { return ((c % SEGMENTS) + SEGMENTS) % SEGMENTS; }
+
+/* ---------- game state ---------- */
+let grid;          // grid[row][col] = color int or 0
+let active;         // { type, N, cells, col, row, color }
+let nextType;
+let score, linesCleared, level, dropInterval, dropAcc, gameOver, paused;
+
+function emptyGrid() {
+  return Array.from({ length: ROWS }, () => new Array(SEGMENTS).fill(0));
+}
+
+function randomType() { return TYPES[Math.floor(Math.random() * TYPES.length)]; }
+
+function spawn(type) {
+  const def = PIECES[type];
+  const startCol = Math.floor(SEGMENTS / 2) - Math.ceil(def.N / 2);
+  return { type, N: def.N, cells: def.cells.slice(), col: startCol, row: ROWS - 1, color: def.color };
+}
+
+function collides(piece, col, row, cells) {
+  for (const [dr, dc] of cells) {
+    const r = row - dr;
+    const c = wrap(col + dc);
+    if (r < 0) return true;
+    if (r < ROWS && grid[r][c]) return true;
+  }
+  return false;
+}
+
+function lockPiece() {
+  for (const [dr, dc] of active.cells) {
+    const r = active.row - dr;
+    const c = wrap(active.col + dc);
+    if (r >= 0 && r < ROWS) grid[r][c] = active.color;
+  }
+  clearFullRings();
+  advancePiece();
+}
+
+function clearFullRings() {
+  let cleared = 0;
+  let r = ROWS - 1;
+  while (r >= 0) {
+    if (grid[r].every(v => v !== 0)) {
+      grid.splice(r, 1);
+      grid.push(new Array(SEGMENTS).fill(0));
+      cleared++;
+      // a row from above just slid down into this same index — recheck it,
+      // don't decrement, or a second stacked full ring gets skipped.
+    } else {
+      r--;
+    }
+  }
+  if (cleared) {
+    const table = [0, 100, 300, 500, 800];
+    score += (table[cleared] || 800) * level;
+    linesCleared += cleared;
+    level = Math.floor(linesCleared / 10) + 1;
+    dropInterval = Math.max(140, 800 - (level - 1) * 55);
+    updateHud();
+  }
+  refreshBoardMesh();
+}
+
+function advancePiece() {
+  active = spawn(nextType);
+  nextType = randomType();
+  drawNextPreview();
+  if (collides(active, active.col, active.row, active.cells)) {
+    endGame();
+  }
+  updateActiveMeshes();
+}
+
+function endGame() {
+  gameOver = true;
+  document.getElementById('overlay-title').textContent = 'Tube full';
+  document.getElementById('overlay-msg').textContent = `Final score ${score} · ${linesCleared} ring${linesCleared === 1 ? '' : 's'} cleared.`;
+  document.getElementById('overlay').classList.add('show');
+}
+
+function tryMove(dcol, drow) {
+  if (gameOver || paused) return false;
+  const col = active.col + dcol;
+  const row = active.row + drow;
+  if (collides(active, col, row, active.cells)) return false;
+  active.col = col; active.row = row;
+  updateActiveMeshes();
+  return true;
+}
+
+function tryRotate() {
+  if (gameOver || paused) return;
+  const rotated = rotateCells(active.cells, active.N);
+  for (const kick of [0, -1, 1, -2, 2]) {
+    if (!collides(active, active.col + kick, active.row, rotated)) {
+      active.cells = rotated;
+      active.col += kick;
+      updateActiveMeshes();
+      return;
+    }
+  }
+}
+
+function softDrop() {
+  if (gameOver || paused) return;
+  if (tryMove(0, -1)) { score += 1; updateHud(); }
+}
+
+function hardDrop() {
+  if (gameOver || paused) return;
+  let n = 0;
+  while (!collides(active, active.col, active.row - 1, active.cells)) { active.row -= 1; n++; }
+  score += n * 2;
+  updateHud();
+  lockPiece();
+}
+
+function updateHud() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('lines').textContent = linesCleared;
+  document.getElementById('level').textContent = level;
+}
+
+/* ---------- three.js scene ---------- */
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e0e11);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+const target = new THREE.Vector3(0, ROWS * CELL_H * 0.5, 0);
+let azimuth = 0.6, polar = 1.1, camRadius = 13;
+
+function updateCamera() {
+  const x = target.x + camRadius * Math.sin(polar) * Math.sin(azimuth);
+  const z = target.z + camRadius * Math.sin(polar) * Math.cos(azimuth);
+  const y = target.y + camRadius * Math.cos(polar);
+  camera.position.set(x, y, z);
+  camera.lookAt(target);
+}
+updateCamera();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const dir1 = new THREE.DirectionalLight(0xffffff, 0.9); dir1.position.set(6, 10, 4); scene.add(dir1);
+const dir2 = new THREE.DirectionalLight(0x8fb8ff, 0.35); dir2.position.set(-5, -3, -6); scene.add(dir2);
+
+const tube = new THREE.Mesh(
+  new THREE.CylinderGeometry(RADIUS + 0.35, RADIUS + 0.35, ROWS * CELL_H, SEGMENTS, ROWS, true),
+  new THREE.MeshBasicMaterial({ color: 0x3a3a44, wireframe: true, transparent: true, opacity: 0.35 })
+);
+tube.position.y = ROWS * CELL_H / 2;
+scene.add(tube);
+
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(RADIUS + 0.35, SEGMENTS),
+  new THREE.MeshStandardMaterial({ color: 0x1c1c22, side: THREE.DoubleSide })
+);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+const MAX_CELLS = SEGMENTS * ROWS;
+const boardGeo = new THREE.BoxGeometry(1, 1, 1);
+const boardMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.05 });
+const boardMesh = new THREE.InstancedMesh(boardGeo, boardMat, MAX_CELLS);
+boardMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CELLS * 3), 3);
+boardMesh.count = 0;
+scene.add(boardMesh);
+
+function cellTransform(row, col, scaleFactor = 1) {
+  const angle = col * (2 * Math.PI / SEGMENTS);
+  const tangentW = (2 * Math.PI * RADIUS / SEGMENTS) * 0.82 * scaleFactor;
+  const x = RADIUS * Math.sin(angle);
+  const z = RADIUS * Math.cos(angle);
+  const y = row * CELL_H + CELL_H / 2;
+  const pos = new THREE.Vector3(x, y, z);
+  const quat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+  const scale = new THREE.Vector3(tangentW, CELL_H * 0.82 * scaleFactor, 0.55 * scaleFactor);
+  return new THREE.Matrix4().compose(pos, quat, scale);
+}
+
+function refreshBoardMesh() {
+  let i = 0;
+  const m = new THREE.Matrix4();
+  const c = new THREE.Color();
+  for (let r = 0; r < ROWS; r++) {
+    for (let col = 0; col < SEGMENTS; col++) {
+      const val = grid[r][col];
+      if (!val) continue;
+      boardMesh.setMatrixAt(i, cellTransform(r, col));
+      c.setHex(val);
+      boardMesh.setColorAt(i, c);
+      i++;
+    }
+  }
+  boardMesh.count = i;
+  boardMesh.instanceMatrix.needsUpdate = true;
+  if (boardMesh.instanceColor) boardMesh.instanceColor.needsUpdate = true;
+}
+
+const activeGroup = new THREE.Group();
+scene.add(activeGroup);
+const activeMeshes = [];
+for (let i = 0; i < 4; i++) {
+  const mesh = new THREE.Mesh(boardGeo, new THREE.MeshStandardMaterial({ roughness: 0.4, emissive: 0x000000 }));
+  activeGroup.add(mesh);
+  activeMeshes.push(mesh);
+}
+
+function updateActiveMeshes() {
+  if (!active) return;
+  active.cells.forEach((cellOff, i) => {
+    const [dr, dc] = cellOff;
+    const r = active.row - dr;
+    const c = wrap(active.col + dc);
+    const mesh = activeMeshes[i];
+    const t = cellTransform(Math.max(r, 0), c, 1.02);
+    t.decompose(mesh.position, mesh.quaternion, mesh.scale);
+    mesh.material.color.setHex(active.color);
+    mesh.material.emissive.setHex(active.color);
+    mesh.material.emissiveIntensity = 0.25;
+    mesh.visible = r < ROWS + 4;
+  });
+}
+
+/* ---------- next-piece preview (2D canvas) ---------- */
+const nextCanvas = document.querySelector('#next canvas');
+const nctx = nextCanvas.getContext('2d');
+function drawNextPreview() {
+  const def = PIECES[nextType];
+  const N = def.N;
+  const cell = 72 / 4;
+  nctx.clearRect(0, 0, 72, 72);
+  const offset = (4 - N) / 2 * cell;
+  nctx.fillStyle = '#' + def.color.toString(16).padStart(6, '0');
+  for (const [r, c] of def.cells) {
+    nctx.fillRect(offset + c * cell + 2, offset + r * cell + 2, cell - 4, cell - 4);
+  }
+}
+
+/* ---------- input ---------- */
+window.addEventListener('keydown', (e) => {
+  switch (e.key) {
+    case 'ArrowLeft': tryMove(-1, 0); e.preventDefault(); break;
+    case 'ArrowRight': tryMove(1, 0); e.preventDefault(); break;
+    case 'ArrowUp': tryRotate(); e.preventDefault(); break;
+    case 'ArrowDown': softDrop(); e.preventDefault(); break;
+    case ' ': hardDrop(); e.preventDefault(); break;
+    case 'p': case 'P': togglePause(); break;
+  }
+});
+
+function togglePause() {
+  if (gameOver) return;
+  paused = !paused;
+}
+
+document.getElementById('t-left').addEventListener('click', () => tryMove(-1, 0));
+document.getElementById('t-right').addEventListener('click', () => tryMove(1, 0));
+document.getElementById('t-rot').addEventListener('click', () => tryRotate());
+document.getElementById('t-down').addEventListener('click', () => softDrop());
+document.getElementById('t-drop').addEventListener('click', () => hardDrop());
+document.getElementById('restart').addEventListener('click', () => { resetGame(); document.getElementById('overlay').classList.remove('show'); });
+
+/* ---------- camera controls: drag orbit, wheel zoom, shift-drag pan ---------- */
+let dragging = false, panning = false, lastX = 0, lastY = 0;
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  panning = e.shiftKey || e.button === 2;
+  lastX = e.clientX; lastY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  if (panning) {
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    target.addScaledVector(right, -dx * 0.015);
+    target.addScaledVector(up, dy * 0.015);
+  } else {
+    azimuth -= dx * 0.007;
+    polar = Math.min(Math.max(polar - dy * 0.007, 0.15), Math.PI - 0.15);
+  }
+  updateCamera();
+});
+window.addEventListener('pointerup', () => { dragging = false; });
+canvas.addEventListener('wheel', (e) => {
+  camRadius = Math.min(Math.max(camRadius * (1 + e.deltaY * 0.001), 5), 30);
+  updateCamera();
+  e.preventDefault();
+}, { passive: false });
+
+/* ---------- resize ---------- */
+function resize() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  renderer.setSize(rect.width, rect.height, false);
+  camera.aspect = rect.width / Math.max(rect.height, 1);
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+
+/* ---------- game loop ---------- */
+function resetGame() {
+  grid = emptyGrid();
+  score = 0; linesCleared = 0; level = 1; dropInterval = 800; dropAcc = 0;
+  gameOver = false; paused = false;
+  nextType = randomType();
+  advancePiece();
+  refreshBoardMesh();
+  updateHud();
+}
+
+let lastT = performance.now();
+function tick(now) {
+  const dt = now - lastT; lastT = now;
+  if (!gameOver && !paused) {
+    dropAcc += dt;
+    if (dropAcc >= dropInterval) {
+      dropAcc = 0;
+      if (!tryMove(0, -1)) lockPiece();
+    }
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+resize();
+resetGame();
+drawNextPreview();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

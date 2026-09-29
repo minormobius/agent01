@@ -1,0 +1,1 @@
+Kept it single-player, purely local — no handle typed, so it makes zero Bluesky calls. Balance (Cattle of Helios, bow odds) is a guess; tune it from real playtesting, not more lore.

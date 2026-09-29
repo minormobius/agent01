@@ -1,0 +1,62 @@
+{
+  "arm": "challenger",
+  "slug": "create-space",
+  "status": "built",
+  "failed_at": null,
+  "claude_version": "2.1.284 (Claude Code)",
+  "turns": 176,
+  "cost_usd": 7.8603,
+  "seconds": 3031,
+  "passes": [
+    {
+      "name": "main",
+      "seconds": 902,
+      "exit": 0,
+      "turns": 68,
+      "cost_usd": 3.157430199999999,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-1",
+      "seconds": 249,
+      "exit": 0,
+      "turns": 15,
+      "cost_usd": 0.5580417999999999,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "revise-1",
+      "seconds": 664,
+      "exit": 0,
+      "turns": 32,
+      "cost_usd": 1.3955429999999998,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "critic-2",
+      "seconds": 221,
+      "exit": 0,
+      "turns": 14,
+      "cost_usd": 0.45081,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    },
+    {
+      "name": "revise-2",
+      "seconds": 995,
+      "exit": 0,
+      "turns": 47,
+      "cost_usd": 2.2984973999999987,
+      "subtype": "success",
+      "is_error": false,
+      "terminal_reason": "completed"
+    }
+  ]
+}

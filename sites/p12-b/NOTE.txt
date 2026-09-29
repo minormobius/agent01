@@ -1,0 +1,1 @@
+Built it: tap a piece, it random-walks its legal moves (with captures + pawn promotion) until stuck, then turn passes. Skipped check/checkmate since you can't aim anyway — win by capturing the enemy king. Walks cap at 40 hops.

@@ -1,0 +1,1 @@
+Board wraps 9 cols x 15 rows; rotation is simplified (column-nudge kicks, no full SRS). Phone gets on-screen buttons since there's no arrow keys there — drag still orbits the camera, but only the wheel zooms; pinch isn't wired up yet.

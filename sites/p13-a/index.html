@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Driftmap — orbit explorer for z → (r + cos θ)e^{iθ} − c</title>
+<meta property="og:title" content="Driftmap — orbit explorer for z → (r + cos θ)e^{iθ} − c">
+<meta property="og:description" content="A four-view explorer for the iterated map z → (r + cosθ)e^(iθ) − c: trace an orbit, sweep the whole starting plane into an escape-time map, watch r and θ over time, and scan a bifurcation diagram across c.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  :root{ --accent2:#5fb3b3; --accent2-dim:#173030; }
+  h1{ font-size: 1.9rem; }
+  .formula{
+    margin: 1rem 0 1.5rem; padding: 1rem 1.1rem; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--bg-raised);
+  }
+  .formula .eq{ color: var(--fg); font-size: 1.05rem; }
+  .formula ul{ margin: .6rem 0 0; padding-left: 1.1rem; }
+  .formula li{ margin: .15rem 0; }
+
+  .controls{
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem 1rem;
+    margin-bottom: 1.25rem;
+  }
+  @media (max-width: 560px){ .controls{ grid-template-columns: 1fr 1fr; } }
+  .field{ display:flex; flex-direction:column; gap:.3rem; min-height: 44px; }
+  .field span{ font-size:.75rem; color: var(--muted); }
+  .field .row{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .field input[type=range]{ flex: 1 1 10rem; min-width: 0; height:44px; accent-color: var(--accent); }
+  .field input[type=number]{ width:100%; }
+  .field.wide{ grid-column: 1 / -1; }
+  .btnrow{ display:flex; gap:.6rem; flex-wrap:wrap; }
+  .btnrow button{ min-height:44px; }
+
+  .tabs{ display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom: 1rem; }
+  .tabs button{ min-height:44px; background: var(--bg-raised); color: var(--muted); border-color: var(--border); }
+  .tabs button.active{ background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+  .view{ }
+  .view.hidden{ display:none; }
+  .stagewrap{ position:relative; width:100%; border:1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); touch-action: none; overflow:hidden; }
+  canvas{ display:block; width:100%; height:auto; cursor: crosshair; }
+  .caption{ font-size:.78rem; color: var(--muted); margin: .6rem 0 0; }
+  .readout{ font-size:.8rem; color: var(--fg); margin: .8rem 0; display:flex; flex-wrap:wrap; gap:.4rem 1.2rem; }
+  .readout b{ color: var(--accent); }
+  .subctl{ display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end; margin-bottom: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Driftmap</h1>
+  <p class="sub">an orbit explorer for z<sub>n+1</sub> = (r + cos&theta;)e<sup>i&theta;</sup> &minus; c</p>
+
+  <section class="formula">
+    <div class="eq">z<sub>n+1</sub> = (r + cos&theta;) e<sup>i&theta;</sup> &minus; c</div>
+    <ul>
+      <li><code>r = |z<sub>n</sub>|</code> &mdash; the magnitude of z<sub>n</sub></li>
+      <li><code>&theta; = arg(z<sub>n</sub>)</code> &mdash; the angle of z<sub>n</sub></li>
+      <li><code>c &isin; &#8477;</code> &mdash; a real constant, fixed per run</li>
+    </ul>
+  </section>
+
+  <section class="controls">
+    <label class="field wide">
+      <span>c = <span id="cVal">0.500</span></span>
+      <div class="row">
+        <input type="range" id="cSlider" min="-3" max="3" step="0.001" value="0.5">
+        <input type="number" id="cNum" min="-3" max="3" step="0.001" value="0.5" style="width:6.5em">
+      </div>
+    </label>
+    <label class="field">
+      <span>z&#8320; real part</span>
+      <input type="number" id="z0re" step="0.01" value="1">
+    </label>
+    <label class="field">
+      <span>z&#8320; imaginary part</span>
+      <input type="number" id="z0im" step="0.01" value="0">
+    </label>
+    <label class="field">
+      <span>iterations (orbit / series)</span>
+      <input type="number" id="nIter" min="10" max="5000" step="1" value="300">
+    </label>
+    <label class="field">
+      <span>escape radius</span>
+      <input type="number" id="escR" min="2" max="1000" step="1" value="8">
+    </label>
+    <label class="field">
+      <span>plane range (&plusmn;)</span>
+      <input type="number" id="planeR" min="0.5" max="10" step="0.5" value="3">
+    </label>
+  </section>
+
+  <div class="btnrow" style="margin-bottom:1.25rem">
+    <button id="btnRandomC">randomize c</button>
+    <button id="btnResetZ0">reset z&#8320;</button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button data-view="orbit" class="active">orbit</button>
+    <button data-view="fractal">escape-time map</button>
+    <button data-view="series">r, &theta; over time</button>
+    <button data-view="bifurcation">bifurcation vs c</button>
+  </div>
+
+  <section class="view" id="view-orbit">
+    <div class="stagewrap"><canvas id="cvOrbit" width="640" height="640"></canvas></div>
+    <p class="caption">Plots z&#8320; through z<sub>N</sub> in the complex plane, coloured early→late. Tap or click the plane to set a new z&#8320; there. The path stops early if it exceeds the escape radius many times over &mdash; that point is diverging, not a bug.</p>
+  </section>
+
+  <section class="view hidden" id="view-fractal">
+    <div class="stagewrap"><canvas id="cvFractal" width="640" height="640"></canvas></div>
+    <p class="caption">Every pixel is its own z&#8320; on this plane, iterated at the current c. Colour = iterations until |z| passes the escape radius; the dark interior never escaped within a <b>fixed cap of 60 iterations</b> &mdash; a boundary drawn to that depth for speed, not a proof of boundedness. Tap or click to jump the orbit view to that point.</p>
+  </section>
+
+  <section class="view hidden" id="view-series">
+    <div class="stagewrap"><canvas id="cvSeries" width="640" height="400"></canvas></div>
+    <p class="caption">r<sub>n</sub> = |z<sub>n</sub>| (top) and &theta;<sub>n</sub> = arg(z<sub>n</sub>) (bottom, wrapped to [&minus;&pi;, &pi;]) against iteration n, for the same orbit as the orbit view.</p>
+  </section>
+
+  <section class="view hidden" id="view-bifurcation">
+    <div class="subctl">
+      <label class="field"><span>c min</span><input type="number" id="biMin" step="0.1" value="-3"></label>
+      <label class="field"><span>c max</span><input type="number" id="biMax" step="0.1" value="3"></label>
+    </div>
+    <div class="stagewrap"><canvas id="cvBif" width="640" height="400"></canvas></div>
+    <p class="caption">For each c across the range, z&#8320; is iterated 200 times to clear transients, then the next 60 values of Re(z) are plotted as a column at that c. The vertical accent line marks the c set above. Fixed depth of 260 iterations per column, chosen for responsiveness &mdash; deep periodic windows narrower than one pixel column can be missed.</p>
+  </section>
+
+  <div class="readout" id="readout"></div>
+  <div id="err" class="err hidden"></div>
+</main>
+<script src="../_kit/kit.js"></script>
+<script>
+(function(){
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('driftmap');
+
+  // ---- the map -------------------------------------------------------
+  function step(re, im, c){
+    var r = Math.hypot(re, im);
+    var theta = Math.atan2(im, re);
+    var k = r + Math.cos(theta);
+    return [k * Math.cos(theta) - c, k * Math.sin(theta)];
+  }
+
+  function computeOrbit(re0, im0, c, n, escR){
+    var pts = [[re0, im0]];
+    var re = re0, im = im0;
+    for (var i = 0; i < n; i++){
+      var p = step(re, im, c);
+      re = p[0]; im = p[1];
+      pts.push([re, im]);
+      if (!isFinite(re) || !isFinite(im) || Math.hypot(re, im) > Math.max(escR * 50, 1e4)) break;
+    }
+    return pts;
+  }
+
+  // ---- state -----------------------------------------------------------
+  var state = { c: 0.5, z0re: 1, z0im: 0, n: 300, escR: 8, range: 3 };
+  var activeView = 'orbit';
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var orbitCache = null;
+  var fractalTimer = null;
+
+  var el = {
+    cSlider: document.getElementById('cSlider'),
+    cNum: document.getElementById('cNum'),
+    cVal: document.getElementById('cVal'),
+    z0re: document.getElementById('z0re'),
+    z0im: document.getElementById('z0im'),
+    nIter: document.getElementById('nIter'),
+    escR: document.getElementById('escR'),
+    planeR: document.getElementById('planeR'),
+    biMin: document.getElementById('biMin'),
+    biMax: document.getElementById('biMax'),
+    readout: document.getElementById('readout'),
+    err: document.getElementById('err')
+  };
+
+  function syncFromInputs(){
+    state.c = clampNum(parseFloat(el.cNum.value), -1e6, 1e6, state.c);
+    state.z0re = clampNum(parseFloat(el.z0re.value), -1e6, 1e6, state.z0re);
+    state.z0im = clampNum(parseFloat(el.z0im.value), -1e6, 1e6, state.z0im);
+    state.n = Math.round(clampNum(parseFloat(el.nIter.value), 10, 5000, state.n));
+    state.escR = clampNum(parseFloat(el.escR.value), 2, 1000, state.escR);
+    state.range = clampNum(parseFloat(el.planeR.value), 0.5, 10, state.range);
+  }
+  function clampNum(v, lo, hi, fallback){
+    if (!isFinite(v)) return fallback;
+    return Math.min(hi, Math.max(lo, v));
+  }
+
+  function setC(v){
+    state.c = v;
+    el.cSlider.value = v;
+    el.cNum.value = v.toFixed(3);
+    el.cVal.textContent = v.toFixed(3);
+  }
+  setC(state.c);
+
+  el.cSlider.addEventListener('input', function(){ setC(parseFloat(el.cSlider.value)); onChange(true); });
+  el.cNum.addEventListener('input', function(){
+    var v = parseFloat(el.cNum.value);
+    if (isFinite(v)) { el.cSlider.value = Math.min(3, Math.max(-3, v)); el.cVal.textContent = v.toFixed(3); }
+    onChange(true);
+  });
+  [el.z0re, el.z0im, el.nIter, el.escR, el.planeR].forEach(function(inp){
+    inp.addEventListener('input', function(){ onChange(false); });
+  });
+  [el.biMin, el.biMax].forEach(function(inp){ inp.addEventListener('input', function(){ renderIfActive('bifurcation'); }); });
+
+  document.getElementById('btnRandomC').addEventListener('click', function(){
+    setC(Math.round((Math.random() * 6 - 3) * 1000) / 1000);
+    onChange(true);
+  });
+  document.getElementById('btnResetZ0').addEventListener('click', function(){
+    el.z0re.value = 1; el.z0im.value = 0; onChange(false);
+  });
+
+  function onChange(liveC){
+    syncFromInputs();
+    orbitCache = null;
+    renderActive(liveC);
+  }
+
+  // ---- tabs --------------------------------------------------------
+  var tabButtons = Array.prototype.slice.call(document.querySelectorAll('.tabs button'));
+  var views = {
+    orbit: document.getElementById('view-orbit'),
+    fractal: document.getElementById('view-fractal'),
+    series: document.getElementById('view-series'),
+    bifurcation: document.getElementById('view-bifurcation')
+  };
+  tabButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      tabButtons.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      Object.keys(views).forEach(function(k){ views[k].classList.toggle('hidden', k !== btn.dataset.view); });
+      activeView = btn.dataset.view;
+      sizeActiveCanvas();
+      renderActive(false);
+    });
+  });
+
+  function renderIfActive(name){ if (activeView === name) renderActive(false); }
+
+  // ---- canvas sizing (DPR-aware, CSS-driven width) ------------------
+  var canvases = {
+    orbit: document.getElementById('cvOrbit'),
+    fractal: document.getElementById('cvFractal'),
+    series: document.getElementById('cvSeries'),
+    bifurcation: document.getElementById('cvBif')
+  };
+  var aspect = { orbit: 1, fractal: 1, series: 400 / 640, bifurcation: 400 / 640 };
+
+  function sizeCanvas(cv, asp){
+    var w = cv.parentElement.clientWidth;
+    var h = w * asp;
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+    cv.style.height = h + 'px';
+    cv._logicalW = w; cv._logicalH = h;
+    var ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+  }
+  function sizeActiveCanvas(){ sizeCanvas(canvases[activeView], aspect[activeView]); }
+
+  window.addEventListener('resize', function(){
+    Object.keys(canvases).forEach(function(k){ sizeCanvas(canvases[k], aspect[k]); });
+    renderActive(false);
+  });
+
+  // ---- coordinate mapping (complex plane <-> css px) ------------------
+  function toXY(re, im, w, h, range){
+    return [ w / 2 + (re / range) * (w / 2), h / 2 - (im / range) * (h / 2) ];
+  }
+  function fromXY(x, y, w, h, range){
+    return [ (x - w / 2) / (w / 2) * range, (h / 2 - y) / (h / 2) * range ];
+  }
+  function drawAxes(ctx, w, h, range){
+    ctx.save();
+    ctx.strokeStyle = getVar('--border');
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2);
+    ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h);
+    ctx.stroke();
+    ctx.restore();
+  }
+  var cssVarCache = {};
+  function getVar(name){
+    if (cssVarCache[name]) return cssVarCache[name];
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    cssVarCache[name] = v || '#888';
+    return cssVarCache[name];
+  }
+
+  // ---- orbit view ----------------------------------------------------
+  function getOrbit(){
+    if (!orbitCache) orbitCache = computeOrbit(state.z0re, state.z0im, state.c, state.n, state.escR);
+    return orbitCache;
+  }
+
+  function renderOrbit(){
+    var cv = canvases.orbit, ctx = cv.getContext('2d');
+    var w = cv._logicalW, h = cv._logicalH;
+    ctx.clearRect(0, 0, w, h);
+    drawAxes(ctx, w, h, state.range);
+    var pts = getOrbit();
+    var total = pts.length - 1;
+    for (var i = 1; i < pts.length; i++){
+      var a = toXY(pts[i - 1][0], pts[i - 1][1], w, h, state.range);
+      var b = toXY(pts[i][0], pts[i][1], w, h, state.range);
+      var t = total ? (i - 1) / total : 0;
+      var hue = 210 - t * 190;
+      ctx.strokeStyle = 'hsl(' + hue + ', 75%, 60%)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    }
+    var start = toXY(pts[0][0], pts[0][1], w, h, state.range);
+    ctx.fillStyle = getVar('--accent2');
+    ctx.beginPath(); ctx.arc(start[0], start[1], 5, 0, 7); ctx.fill();
+    var last = pts[pts.length - 1];
+    var end = toXY(last[0], last[1], w, h, state.range);
+    ctx.fillStyle = getVar('--accent');
+    ctx.beginPath(); ctx.arc(end[0], end[1], 5, 0, 7); ctx.fill();
+  }
+
+  function bindClick(cv, handler){
+    function onPointer(ev){
+      var rect = cv.getBoundingClientRect();
+      var x = (ev.clientX - rect.left) * (cv._logicalW / rect.width);
+      var y = (ev.clientY - rect.top) * (cv._logicalH / rect.height);
+      handler(x, y, cv._logicalW, cv._logicalH);
+    }
+    cv.addEventListener('pointerdown', onPointer);
+  }
+  bindClick(canvases.orbit, function(x, y, w, h){
+    var re_im = fromXY(x, y, w, h, state.range);
+    el.z0re.value = re_im[0].toFixed(4); el.z0im.value = re_im[1].toFixed(4);
+    onChange(false);
+  });
+  bindClick(canvases.fractal, function(x, y, w, h){
+    var re_im = fromXY(x, y, w, h, state.range);
+    el.z0re.value = re_im[0].toFixed(4); el.z0im.value = re_im[1].toFixed(4);
+    onChange(false);
+    tabButtons.forEach(function(b){ b.classList.toggle('active', b.dataset.view === 'orbit'); });
+    Object.keys(views).forEach(function(k){ views[k].classList.toggle('hidden', k !== 'orbit'); });
+    activeView = 'orbit';
+    sizeActiveCanvas();
+    renderActive(false);
+  });
+
+  // ---- series view ----------------------------------------------------
+  function renderSeries(){
+    var cv = canvases.series, ctx = cv.getContext('2d');
+    var w = cv._logicalW, h = cv._logicalH;
+    ctx.clearRect(0, 0, w, h);
+    var pts = getOrbit();
+    var rs = pts.map(function(p){ return Math.hypot(p[0], p[1]); });
+    var thetas = pts.map(function(p){ return Math.atan2(p[1], p[0]); });
+    var maxR = Math.max.apply(null, rs.filter(isFinite));
+    if (!isFinite(maxR) || maxR <= 0) maxR = 1;
+    var midTop = h * 0.28, midBot = h * 0.78;
+    ctx.strokeStyle = getVar('--border'); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, midTop); ctx.lineTo(w, midTop);
+    ctx.moveTo(0, midBot); ctx.lineTo(w, midBot); ctx.stroke();
+
+    function plot(vals, mid, scale, color){
+      ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.beginPath();
+      for (var i = 0; i < vals.length; i++){
+        if (!isFinite(vals[i])) break;
+        var x = (i / Math.max(1, vals.length - 1)) * w;
+        var y = mid - vals[i] * scale;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    plot(rs, midTop, midTop * 0.9 / maxR, getVar('--accent'));
+    plot(thetas, midBot, (midBot - h * 0.02) * 0.9 / Math.PI, getVar('--accent2'));
+
+    ctx.fillStyle = getVar('--muted'); ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+    ctx.fillText('r(n)', 6, 14);
+    ctx.fillText('θ(n)', 6, midTop + (midBot - midTop) * 0.5 + 14);
+  }
+
+  // ---- fractal (escape-time) view -------------------------------------
+  var FRACTAL_RES = 260;
+  var FRACTAL_ITER = 60;
+  var fractalOff = document.createElement('canvas');
+  fractalOff.width = FRACTAL_RES; fractalOff.height = FRACTAL_RES;
+
+  function computeFractal(){
+    var octx = fractalOff.getContext('2d');
+    var img = octx.createImageData(FRACTAL_RES, FRACTAL_RES);
+    var data = img.data;
+    var range = state.range, escR = state.escR, c = state.c, maxIter = FRACTAL_ITER;
+    for (var py = 0; py < FRACTAL_RES; py++){
+      var im0 = range - (py / (FRACTAL_RES - 1)) * (2 * range);
+      for (var px = 0; px < FRACTAL_RES; px++){
+        var re0 = -range + (px / (FRACTAL_RES - 1)) * (2 * range);
+        var re = re0, im = im0, escaped = -1;
+        for (var i = 0; i < maxIter; i++){
+          var r = Math.hypot(re, im);
+          if (r > escR){ escaped = i; break; }
+          var theta = Math.atan2(im, re);
+          var k = r + Math.cos(theta);
+          re = k * Math.cos(theta) - c; im = k * Math.sin(theta);
+          if (!isFinite(re) || !isFinite(im)){ escaped = i; break; }
+        }
+        var idx = (py * FRACTAL_RES + px) * 4;
+        if (escaped < 0){
+          data[idx] = 14; data[idx + 1] = 14; data[idx + 2] = 17; data[idx + 3] = 255;
+        } else {
+          var t = escaped / maxIter;
+          var hsl = hslToRgb((0.62 - t * 0.62) * 360, 0.7, 0.32 + t * 0.35);
+          data[idx] = hsl[0]; data[idx + 1] = hsl[1]; data[idx + 2] = hsl[2]; data[idx + 3] = 255;
+        }
+      }
+    }
+    octx.putImageData(img, 0, 0);
+  }
+  function hslToRgb(h, s, l){
+    h = ((h % 360) + 360) % 360;
+    var c = (1 - Math.abs(2 * l - 1)) * s;
+    var x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    var m = l - c / 2, r, g, b;
+    if (h < 60){ r = c; g = x; b = 0; }
+    else if (h < 120){ r = x; g = c; b = 0; }
+    else if (h < 180){ r = 0; g = c; b = x; }
+    else if (h < 240){ r = 0; g = x; b = c; }
+    else if (h < 300){ r = x; g = 0; b = c; }
+    else { r = c; g = 0; b = x; }
+    return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+  }
+
+  function renderFractal(){
+    computeFractal();
+    var cv = canvases.fractal, ctx = cv.getContext('2d');
+    var w = cv._logicalW, h = cv._logicalH;
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(fractalOff, 0, 0, w, h);
+    var m = toXY(state.z0re, state.z0im, w, h, state.range);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(m[0], m[1], 6, 0, 7); ctx.stroke();
+  }
+  function renderFractalDebounced(){
+    clearTimeout(fractalTimer);
+    fractalTimer = setTimeout(renderFractal, 90);
+  }
+
+  // ---- bifurcation view -------------------------------------------------
+  function renderBifurcation(){
+    var cv = canvases.bifurcation, ctx = cv.getContext('2d');
+    var w = cv._logicalW, h = cv._logicalH;
+    ctx.clearRect(0, 0, w, h);
+    var cMin = clampNum(parseFloat(el.biMin.value), -1e6, 1e6, -3);
+    var cMax = clampNum(parseFloat(el.biMax.value), -1e6, 1e6, 3);
+    if (cMax <= cMin) cMax = cMin + 0.001;
+    var range = state.range;
+    var cols = Math.max(100, Math.min(700, Math.round(w)));
+    var transient = 200, sample = 60;
+    ctx.fillStyle = getVar('--fg');
+    for (var col = 0; col < cols; col++){
+      var cc = cMin + (col / (cols - 1)) * (cMax - cMin);
+      var re = state.z0re, im = state.z0im;
+      var ok = true;
+      for (var i = 0; i < transient; i++){
+        var r = Math.hypot(re, im), theta = Math.atan2(im, re), k = r + Math.cos(theta);
+        re = k * Math.cos(theta) - cc; im = k * Math.sin(theta);
+        if (!isFinite(re) || !isFinite(im) || Math.hypot(re, im) > Math.max(state.escR * 50, 1e4)){ ok = false; break; }
+      }
+      var x = (col / (cols - 1)) * w;
+      if (!ok) continue;
+      for (var j = 0; j < sample; j++){
+        var r2 = Math.hypot(re, im), theta2 = Math.atan2(im, re), k2 = r2 + Math.cos(theta2);
+        re = k2 * Math.cos(theta2) - cc; im = k2 * Math.sin(theta2);
+        if (!isFinite(re) || !isFinite(im)) break;
+        if (Math.abs(re) > range) continue;
+        var y = h / 2 - (re / range) * (h / 2);
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+    ctx.strokeStyle = getVar('--border'); ctx.beginPath();
+    ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+    if (state.c >= cMin && state.c <= cMax){
+      var lx = ((state.c - cMin) / (cMax - cMin)) * w;
+      ctx.strokeStyle = getVar('--accent'); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, h); ctx.stroke();
+    }
+  }
+
+  // ---- readout -----------------------------------------------------------
+  function updateReadout(){
+    var pts = getOrbit();
+    var last = pts[pts.length - 1];
+    var r0 = Math.hypot(state.z0re, state.z0im);
+    var th0 = Math.atan2(state.z0im, state.z0re);
+    var lastR = Math.hypot(last[0], last[1]);
+    var fate;
+    if (pts.length - 1 < state.n){
+      fate = 'diverged around n=' + (pts.length - 1);
+    } else if (lastR > state.escR){
+      fate = 'beyond escape radius at n=' + (pts.length - 1);
+    } else {
+      fate = 'within escape radius through n=' + (pts.length - 1) + ' (not proof of long-run boundedness)';
+    }
+    el.readout.innerHTML =
+      'c = <b>' + state.c.toFixed(3) + '</b>' +
+      ' &middot; r&#8320; = <b>' + r0.toFixed(3) + '</b>, &theta;&#8320; = <b>' + th0.toFixed(3) + '</b> rad' +
+      ' &middot; z<sub>' + (pts.length - 1) + '</sub> = <b>' + last[0].toFixed(3) + (last[1] >= 0 ? '+' : '') + last[1].toFixed(3) + 'i</b>' +
+      ' &middot; ' + fate;
+  }
+
+  function renderActive(liveDrag){
+    try {
+      el.err.classList.add('hidden');
+      if (activeView === 'orbit') renderOrbit();
+      else if (activeView === 'series') renderSeries();
+      else if (activeView === 'fractal') { if (liveDrag) renderFractalDebounced(); else renderFractal(); }
+      else if (activeView === 'bifurcation') renderBifurcation();
+      updateReadout();
+    } catch (e){
+      kit.showError(el.err, 'render error: ' + e.message);
+    }
+  }
+
+  // ---- init ------------------------------------------------------------
+  Object.keys(canvases).forEach(function(k){ sizeCanvas(canvases[k], aspect[k]); });
+  syncFromInputs();
+  renderActive(false);
+})();
+</script>
+</body>
+</html>

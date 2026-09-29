@@ -1,0 +1,29 @@
+diff --git a/lab/_profiles/minormobius.bsky.social.md b/lab/_profiles/minormobius.bsky.social.md
+index 4674c584..760a247f 100644
+--- a/lab/_profiles/minormobius.bsky.social.md
++++ b/lab/_profiles/minormobius.bsky.social.md
+@@ -269,6 +269,24 @@ structural requirement on the underlying model, and check whether the
+ current implementation can actually represent each named class as a first-
+ class thing before assuming a cosmetic pass will do.
+ 
++## `sketch-out` (2026-09-29): "pitch deck" implies real slide navigation, and an argument-y request still wants something provable, not just asserted
++Asked to "sketch out a pitch deck of agentic atproto, where's the value
++captured and why is it the users" — another bare genre name with no format
++detail. Read "pitch deck" the same way "tube-tetris"/"train-game" read their
++genre names below: built actual discrete slides (arrow keys, dot nav, swipe/
++scroll-snap) rather than one long scrolling essay, which fits this
++requester's established pattern of expecting the named format's normal
++mechanics by default. New data point beyond genre-inference, though: for an
++argument/thesis-shaped request (not a game or tool), this requester's taste
++for "shown, not asserted" diagrams extended naturally to wanting the central
++claim demonstrated live where possible — added a live AppView lookup of the
++visitor's own account (real follower/follow/post counts) as evidence for the
++page's "this is already yours" claim, rather than leaving the whole pitch as
++prose assertion. No correction received yet on this one; recording the
++pattern for future "brainstorm"/"pitch"/"sketch out an argument" asks from
++this requester: pair the abstract claim with one real, live, checkable thing
++if the domain allows it, don't just illustrate it.
++
+ ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
+ "full train game experience, make sure it feels like a train game" — same
+ shape as the tube-tetris request above: name the genre, trust the build
