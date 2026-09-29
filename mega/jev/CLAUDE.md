@@ -305,8 +305,12 @@ model only decides.
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
 | `craft/segment.mjs` | reads a recorded game back as episodes named in the palette's terms, whoever played it (§ Reading a human's game) |
 | `test/craft-segment.mjs` | the CLI for it: `run.jsonl`, `--score`, `--json` |
-| `test/craft.selftest.mjs` | 491 checks, a few minutes, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter, tools, access shafts, renewal, boats, threats, pens, experience and enchanting, the anvil, furnaces, redstone, pistons, observers, hoppers, cane, the machines, rails) |
+| `test/craft.selftest.mjs` | 518 checks, a few minutes, gates the deploy (the arena, multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter, tools, access shafts, renewal, boats, threats, pens, experience and enchanting, the anvil, furnaces, redstone, pistons, observers, hoppers, cane, the machines, rails) |
 | `eval/craft-machines.mjs` | headless: does each build lay out and work on every tiling, and what it buys; writes `lab/craft-machines.json` |
+| `craft/arena.mjs` | player against player: Bed Wars on a tiling. The rules (`ArenaRules`, hooked into the sim at death, mining, attacking, buying and the tick), the arena's own palette, the scripted policies and the match runner (`playMatch`, `playMatchAsync`) (§ The arena) |
+| `craft/arena-mind.mjs` | what Jev sees in the arena: `arenaState`, `arenaOptions` (each option's facts computed), `arenaQuestions`, and `jevArena`, the decider |
+| `eval/craft-arena.mjs` | the league: every policy against every other on every tiling, both sides, Wilson intervals, Bradley–Terry ratings, the mirror-match side check; writes `lab/craft-arena.json` |
+| `eval/craft-arena-jev.mjs` | Jev against the scripts, both sides of every world; **spends real budget** (`--stub` doesn't); writes `lab/craft-arena-jev.json` |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -1782,13 +1786,119 @@ Life sweep after all of it (baseline, 3 seeds × 10 tilings × 3 days): iron pic
 
 **Not measured:** Jev with any of this, and the planner loop that would design a machine rather than choose a hand-written one.
 
+### The arena: head to head (2026-09-29)
+
+The operator: *"we could build PvP games to sharpen the algorithm testing
+environment. If there's head to head you could get direct measurement …
+it's building the cybernetic system, the Jev reaction with the LLM
+strategizing. I don't know how we can do that without a competition."*
+
+That was right, for three reasons the solo scoreboards had run into:
+- **The solo scoreboards saturate.** The baseline reaches every rung and barely dies, so all that's left to compare is speed.
+- **The benchmark was mine.** The baseline, the worlds and the scoring were all written by the hand that wrote the script.
+- **One run per world is one draw.** Two identical live runs diverged at tick 1457.
+
+Head to head fixes all three. There is always a winner, so the scale has no ceiling. The opponent is the benchmark, so a brittle plan gets punished instead of just being slow. And many short matches with the sides swapped turn trajectory noise into an error bar.
+
+It also splits the credit, which is the question the whole programme asks:
+- **Same palette, different decider** measures System 1 (Jev against the script).
+- **Same decider, different palette** measures what System 2's strategizing added. That comparison isn't built yet; it's the next step, and it spends model budget.
+
+**The game** (`craft/arena.mjs`, world kind `arena` in `world.mjs`). Bed Wars on a tiling:
+- Two sides. Each has a bed, an iron-and-gold generator and a shop on a floating island.
+- A centre island has a diamond generator.
+- Between the islands is a fall to the bottom of the world. Anyone more than 3 layers under the floor dies, and the kill goes to whoever hit them last.
+- While your bed stands you come back after `RESPAWN_TICKS` (20). Break theirs, then kill them, and you win. A match nobody has won by `MAX_TICKS` (6,000) is a draw unless exactly one bed stands.
+- Everything the generator laid is locked; only placed blocks can be mined.
+- A death keeps armor and tools, loses blocks and resources (the resources go to the killer), and the sword goes back to wood.
+- Difficulty `arena`: no mobs, no hunger, health back every 20 ticks.
+
+| | |
+|---|---|
+| generators | iron every 6 ticks, gold every 32, diamonds every 120 (centre) |
+| shop (`SHOP`) | wool 16 for 4 iron, planks 16 for 12, cobblestone 12 for 24 (needs a pick to break), obsidian 4 for 4 diamonds, swords, armor, picks, an axe, a bow and arrows, golden apples |
+| bridging | a block laid over the void takes `BRIDGE_TICKS` (3), not 1 |
+| combat | player to player: the next tile, two layers up or down (`canHit`); a blow knocks a player 1 tile, off the edge if that's where they stand |
+| bed cover | the top, and every neighbour three high (`coverOf`) |
+
+**Fairness is geometric, then statistical.** Side B is side A under a symmetry of the tiling, found by testing rather than assumed (`arenaSymmetry`):
+- **Exact half-turn:** grid, hex, rhombille, snub, kagome, rhombitri, truncsq. Ammann has an exact mirror at 45°.
+- **None in the patch:** Penrose and the sevenfold tiling. There side B is laid out afresh at the mirrored spot by the same rules, and `exact: false` says so.
+- **Two diamond pads** where the centre tile isn't a fixed point of the symmetry, so neither side is nearer the diamonds.
+- **Every pairing plays both sides of every map**, so a map's lean cancels.
+- **The scheduler serves the two sides alternately**, tick by tick. Serving side 0 first every tick handed it every race.
+
+Measured: side 0 won **0.453 of 300 mirror matches**. Single maps lean (penrose 14/18 for side 0, kagome and ammann 6/18 in one run), which is what the side swap is for.
+
+**The palette** (`ARENA_PALETTE`, the arena's own):
+- Resources and gear: `gather` (iron or gold at your generator), `buy {item}`, `gather_mid` (diamonds), `heal`.
+- Beds: `fortify` (cover your bed, the hardest blocks first, never walling yourself in: `wouldTrap`), `rush` (bridge to their bed and break it; it says when their cover needs a pick you lack).
+- Moving: `bridge_mid`, `go_base`.
+- Combat: `fight`, `hunt` (bridging to them if it must), `defend` (guard the bed while anyone is within `WARN_RANGE` 7), `shoot`.
+
+Interrupts: *an enemy is on you*, *an enemy is coming for your bed*, *your bed is gone*.
+
+**It had to be its own palette.** Merging it into `PALETTE` overwrote the island game's `fight`, `hunt` and `shoot` for every world, and the selftest's first life run crashed on it. A sim now carries `sim.palette`, which `Party` and `Driver` look in first.
+
+**The policies** are deliberately different styles, so ratings have something to separate:
+- `baseline`: cover, arm, then attack, and punish the window.
+- `rusher`: sixteen wool and go.
+- `turtle`: stone cover, armor, defend, attack only late.
+- `counter`: wool cover, then attack at once, racing a rusher to an uncovered bed.
+- `random`
+
+**The window** (`window()`) is the first thing that makes timing a decision. When every enemy is dead and their bed stands, it gives:
+- the ticks until the first enemy is back;
+- the cost of the way across. A bridge already built costs a tick a tile, so the rusher's own bridge leads straight back to its uncovered bed.
+
+**What the first leagues found, each one a fault and not a result** (the lesson this file keeps relearning):
+1. **The square grid couldn't be fortified.** A radius-2 island falls apart once the bed's ring is covered, because its corners touch only the ring. The builder walled itself into a pocket, and `fortify` failed 11,395 times in one league. Islands now grow until the rest of the base stays connected, and `fortify` refuses any block that would cut its builder off from its generator.
+2. **Bridging cost 2 ticks a tile,** so a rush crossed 23 tiles and broke a bed by tick 118. Void blocks now cost 3 ticks.
+3. **Knockback of 2 tiles made the first blow near an edge a kill.** Whoever stepped up to fight lost to whoever waited: the turtle lost 60 of 60 that way. Players are now knocked 1 tile.
+4. **The cover was one block deep.** An attacker mined the upper block, stood on the lower, and reached down to the bed: 3 ticks through wool. The cover is now three high.
+5. **A defender couldn't hit someone standing on its own bed cover.** The attacker was 2 layers up and attack reach was 1. Reach is now 2, as in Minecraft.
+6. **The defender's walk to an attacker ran through its own cover,** which its planner rightly won't dig, so it stood waiting for 12 ticks. `defend` now steps up and over.
+7. **The first warning came at 3.5 tiles, 5 ticks before the bed broke.** It now comes at 7.
+8. The single diamond pad and the approximate mirror were both unfair (above).
+
+**The league** (`eval/craft-arena.mjs`, `lab/craft-arena.json`; 10 tilings × 6 seeds × every pairing × both sides = 1,500 games, no model calls, 194 s). Scores are wins plus half the draws, with 95% Wilson intervals. There were 0 draws.
+
+| | rusher | counter | baseline | turtle | random |
+|---|---|---|---|---|---|
+| **rusher** | — | 0.54 [0.45, 0.63] | 0.58 | 0.99 | 0.99 |
+| **counter** | 0.46 | — | **0.65** [0.56, 0.73] | 0.97 | 1.00 |
+| **baseline** | 0.42 [0.33, 0.51] | 0.35 | — | 0.95 | 1.00 |
+| **turtle** | 0.01 | 0.03 | 0.05 | — | 0.62 |
+
+Bradley–Terry ratings on the Elo scale (random = 0): rusher 816, counter 808, baseline 727, turtle 104.
+
+**Read it carefully.**
+- **The top three are close, and nobody dominates.** The rusher beats the baseline, the counter beats the baseline, and rusher against counter is a coin flip within the interval. The ranking is what a decider has to navigate, and the one that wins depends on who it faces.
+- **Pure defense loses to everything but random,** and that is Bed Wars' own lesson: a defender must win every rush, an attacker only once. The turtle beat the rusher 0 times in 120 even after faults 3–7 were fixed.
+- **Matches are short** (median 278 ticks, about 70 seconds of game time), which is what makes the n cheap.
+
+**Jev in the seat** (`craft/arena-mind.mjs`, `eval/craft-arena-jev.mjs`, `lab/craft-arena-jev.json`). The same palette as the scripts:
+- **The state:** your gear, carried resources and blocks; where you and the enemy are; both beds' cover (how many places filled, with what, and whether you can break theirs); the threat; the window; kills; and a journal of your last six choices.
+- **The options:** one per legal concrete move, each carrying computed facts. A purchase says what it does to your sword. A rush gives the route's tiles, how many to bridge against the blocks you carry, the ETA, whether their cover needs a pick, and whether it leaves your bed open. A fight compares health, swords and armor.
+- **The questions:** a `next` choice, plus the `have` self-check.
+- **Failures:** a failed call falls back to the baseline for that one decision and is stamped in the stream (`jev` notes). The `--stub` arm plays the same loop with the baseline's pick projected onto the options.
+
+JEV_RESULTS
+
+**In the viewer**, *who decides → arena: …* plays a scripted match headlessly in milliseconds, then plays it back from its stream like a loaded `.jsonl`, with the red side and the blue side in their colours. Checked in Playwright: the islands, the centre's pad, the bridges and a covered bed all draw, with no console errors. **Jev is not in the viewer's arena yet.** That needs the page's live loop to await an arena decision.
+
+**What's next:**
+1. **The loop itself (research gap 1, now scoreable).** System 2 reads the lost games (the stream, the journal, the `jev` notes), writes palette v2 (a new macro, or better facts on an option), and v2 plays v1 with Jev deciding for both, scored by win rate. It spends model budget and waits for the go-ahead.
+2. **More n for Jev.** 24 matches is enough to see a direction, not to rank it against the scripts.
+3. **2v2** (`perSide: 2` works in the rules and the runner, and is untested in the league): where a teammate's state starts to matter.
+
 ### What is next
 
 **The Minecraft gap audit and the phased roadmap live in
 [`craft/ROADMAP.md`](craft/ROADMAP.md)** (2026-09-28). It covers every system,
-what building it here would test, and phases 0–7. Phases 1 to 4, boats and
-pens are built (above). Next up: phase 0's held-out scoreboard on current code,
-and a live Jev run with the late game on the menu. The list
+what building it here would test, and phases 0–7. Phases 1 to 4, boats,
+pens and the arena (phase A) are built (above). Next up: the planner loop,
+scored in the arena by win rate. The list
 below is older.
 
 

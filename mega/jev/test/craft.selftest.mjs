@@ -27,6 +27,8 @@ import { segment, score as segScore, actions as segActions } from '../craft/segm
 import { renderAscii } from '../craft/ascii.mjs';
 import { penned, inPen, caneFarmHolds, smelterState, enchantQuote, repairQuote, tablePower } from '../craft/builds.mjs';
 import { xpToNext, SMELT, FURNACES } from '../craft/world.mjs';
+import { newArena, playMatch, coverOf, coverLeft, wouldTrap, ARENA_PALETTE } from '../craft/arena.mjs';
+import { arenaState, arenaOptions, arenaQuestions } from '../craft/arena-mind.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 let passed = 0;
@@ -1259,6 +1261,112 @@ function platform(seed = 3) {
   s.give('iron_pickaxe', 1); s.give('lapis', 5); s.giveXp(p, 300);
   const st = perceive(s), ids = options(s).map((o) => o.id);
   ok(st.player.experience.level === p.level && st.works.enchanting_table && ids.includes('enchant_iron_pickaxe'), `Jev sees its level and the table, and is offered the enchant (${ids.filter((i) => i.startsWith('enchant')).join(',')})`);
+}
+
+// --------------------------------------------------------------- arena ------
+{
+  // the world: every tiling, both bases, mirrored where the tiling allows it
+  let allOk = true, exactOk = true, connected = true;
+  for (const shape of SHAPES) {
+    const w = generateWorld({ seed: 4, shape, kind: 'arena' }), a = w.arena, [A0, A1] = a.bases;
+    if (w.blocks[A0.bed[0] * H + A0.bed[1]] !== B.bed || w.blocks[A1.bed[0] * H + A1.bed[1]] !== B.bed || w.blocks[A0.shop[0] * H + A0.shop[1]] !== B.shop) allOk = false;
+    if (worldSignature(w) !== worldSignature(generateWorld({ seed: 4, shape, kind: 'arena' }))) allOk = false;
+    if (a.exact) for (let c = 0; c < w.tiling.cols.length; c++) { const m = a.map[c]; if (m < 0) continue; for (let y = 0; y < H; y++) if (w.blocks[c * H + y] !== w.blocks[m * H + y]) { exactOk = false; break; } }
+    // with the bed and its ring gone, the rest of each base is still one piece
+    for (const b of a.bases) {
+      const rest = b.island.filter((c) => c !== b.bed[0] && !w.tiling.cols[b.bed[0]].adj.includes(c)), set = new Set(rest), seen = new Set([rest[0]]), q = [rest[0]];
+      for (let i = 0; i < q.length; i++) for (const n of w.tiling.cols[q[i]].adj) if (set.has(n) && !seen.has(n)) { seen.add(n); q.push(n); }
+      if (seen.size !== rest.length || !set.has(b.gen)) connected = false;
+    }
+  }
+  ok(allOk, 'an arena generates, deterministically, with both beds and a shop, on every tiling');
+  ok(exactOk, 'on a tiling with a half-turn or a mirror, side B is side A under it, voxel for voxel');
+  ok(connected, 'every base stays in one piece round a covered bed (a covered bed never walls its side in)');
+  ok(generateWorld({ seed: 4, shape: 'grid', kind: 'arena' }).arena.exact && !generateWorld({ seed: 4, shape: 'penrose', kind: 'arena' }).arena.exact, 'the grid is exactly symmetric; Penrose is mirrored to the nearest tile, and says so');
+}
+{
+  // the rules: locks, the shop, beds, deaths, respawns, the fall
+  const s = newArena({ seed: 3, shape: 'hex' }), [p0, p1] = s.players, a = s.arena, L = a.L;
+  ok(p0.side === 0 && p1.side === 1 && p0.inv.wooden_sword === 1 && s.cfg === DIFFICULTY.arena, 'two sides, a wooden sword each, the arena difficulty (no mobs, no hunger)');
+  const floor = a.sides[0].island.find((c) => c !== p0.c && s.cols[p0.c].adj.includes(c));
+  s.as(p0, () => { ok(!s.act({ op: 'mine', c: floor, y: a.g }).ok, 'the arena itself cannot be mined'); });
+  ok(!s.as(p0, () => s.plan({ op: 'buy', item: 'wool' })).ok, 'buying needs your shop and the price');
+  // stand beside the shop with iron
+  const [sc] = a.sides[0].shop, by = s.cols[sc].adj.find((n) => a.sides[0].island.includes(n) && s.canStand(n, L) && !s.occupied(n, L));
+  s.moveEnt(p0, by, L); p0.inv.iron_ingot = 8;
+  s.as(p0, () => s.act({ op: 'buy', item: 'wool' }));
+  ok(p0.inv.wool === 16 && p0.inv.iron_ingot === 4, `four iron buys sixteen wool at your own shop (${p0.inv.wool} wool, ${p0.inv.iron_ingot} iron left)`);
+  // the generator piles iron on its pad
+  const iron0 = p1.inv.iron_ingot || 0;
+  for (let k = 0; k < 40; k++) s.step();
+  const pile = [...s.ents.values()].find((e) => e.kind === 'item' && e.c === a.sides[1].gen);
+  const made = (pile ? pile.items.iron_ingot : 0) + (p1.inv.iron_ingot || 0) - iron0;
+  ok(made >= 6, `the generator makes an iron every ${40 / 6 | 0}-odd ticks, piled on its pad or picked up by whoever stands by it (${made} in 40 ticks)`);
+  // p1 is killed by p0 while its bed stands: out, then back at its base; the killer takes its resources
+  p1.inv.iron_ingot = 9; p1.inv.stone_sword = 1; p1.inv.wool = 5;
+  s.as(p1, () => s.hurt(p1, 99, p0));
+  ok(p1.out && !s.ents.has(p1.id) && p0.inv.iron_ingot === 13 && !p1.inv.stone_sword && p1.inv.wooden_sword === 1 && !p1.inv.wool, 'a death: out of the world for a while, resources to the killer, the sword back to wood, blocks lost');
+  for (let k = 0; k < 25; k++) s.step();
+  ok(!p1.out && s.ents.has(p1.id) && a.sides[1].island.includes(p1.c) && p1.hp === 20, 'with its bed standing, the dead player is back at its own base');
+  // your own bed is not yours to break; theirs is
+  const [b1, y1] = a.sides[1].bed, nb = s.cols[b1].adj.find((n) => s.canStand(n, L) && !s.occupied(n, L));
+  ok(s.as(p1, () => s.plan({ op: 'mine', c: b1, y: y1 })).why === 'that is your own bed' || !s.as(p1, () => s.plan({ op: 'mine', c: b1, y: y1 })).ok, 'your own bed cannot be broken');
+  s.moveEnt(p0, nb, L);
+  s.as(p0, () => s.act({ op: 'mine', c: b1, y: y1 }));
+  ok(!a.sides[1].bedAlive && s.get(b1, y1) === B.air, 'the other bed breaks');
+  // now a fall is final, and the knock that caused it is the knocker's kill
+  s.moveEnt(p1, a.sides[1].island[0], L); p1.lastHit = { by: p0.id, t: s.tick };
+  s.moveEnt(p1, p1.c, 2); s.step();
+  ok(p1.eliminated && a.result && a.result.winner === 0 && p0.kills === 2, `a fall with no bed is final, credited to the last hit, and the match is over (${JSON.stringify(a.result)})`);
+}
+{
+  // combat reach and knockback between players
+  const s = newArena({ seed: 3, shape: 'grid' }), [p0, p1] = s.players, a = s.arena, L = a.L;
+  // a pair of tiles well inside the island, so the knock lands on floor, not over the edge
+  const isl = new Set(a.sides[0].island), inner = (c) => s.cols[c].adj.every((n) => isl.has(n) && s.canStand(n, L));
+  const c1 = a.sides[0].island.find((c) => inner(c) && c !== a.sides[0].bed[0] && s.canStand(c, L) && s.cols[c].adj.some((n) => inner(n)));
+  const c0 = s.cols[c1].adj.find((n) => s.canStand(n, L) && isl.has(n));
+  s.moveEnt(p0, c0, L); s.moveEnt(p1, c1, L + 2);
+  ok(a.canHit(p0, p1) && !s.adjacentTo(p0, p1), 'a player reaches another two layers up (a defender can hit someone on its own bed cover)');
+  s.moveEnt(p1, c1, L);
+  const before = p1.c; s.as(p0, () => s.act({ op: 'attack', id: p1.id }));
+  ok(p1.hp === 16 && p1.c !== before && s.dist(p1.c, c0) > s.dist(before, c0), `a blow does the sword's damage and knocks a player one tile away (hp ${p1.hp})`);
+}
+{
+  // fortify covers the bed three high, never walls its builder in, and rush says when it needs a pick
+  const s = newArena({ seed: 5, shape: 'kagome' }), [p0, p1] = s.players, a = s.arena;
+  p0.inv.wool = 64;
+  const r = s.as(p0, () => runMacro(s, 'fortify'));
+  const left = coverLeft(s, a.sides[0]), all = coverOf(s, a.sides[0]).length;
+  ok(r.ok && left === 0 && all >= 10, `fortify covers the bed (${all - left} of ${all} places) (${r.why || 'ok'})`);
+  ok(!wouldTrap(s, a.sides[0], p0.c, -1, -1) && s.path(p0, (c) => c === a.sides[0].gen, 4000), 'and its builder can still walk to its generator');
+  for (const [c, y] of coverOf(s, a.sides[1])) s.set(c, y, B.cobblestone);
+  ok(/pickaxe/.test(s.as(p0, () => ARENA_PALETTE.rush.needs(s, {})) || ''), 'rush says so when their cover is stone and you have no pick');
+  ok(PALETTE.fight !== ARENA_PALETTE.fight && PALETTE.hunt !== ARENA_PALETTE.hunt && !PALETTE.fortify, "the arena's macros live in its own palette: the island game's fight, hunt and shoot are untouched");
+}
+{
+  // a whole match: deterministic, replayable, and random loses to the script from either side
+  const m1 = playMatch({ seed: 2, shape: 'truncsq', policies: ['baseline', 'rusher'] });
+  const m2 = playMatch({ seed: 2, shape: 'truncsq', policies: ['baseline', 'rusher'] });
+  ok(JSON.stringify(m1.result) === JSON.stringify(m2.result) && m1.sim.lines.length === m2.sim.lines.length, 'the same match plays the same way twice');
+  const rp = new Replay(m1.sim.lines[0]);
+  for (const l of m1.sim.lines.slice(1)) rp.apply(l);
+  let same = true;
+  for (let k = 0; k < m1.sim.b.length; k++) if (rp.b[k] !== m1.sim.b[k]) { same = false; break; }
+  ok(same && m1.sim.lines.some((l) => l.includes('"match"')), 'an arena match replays from its stream, block for block, and the stream says who won');
+  const w = [0, 1].map((side) => playMatch({ seed: 3, shape: 'hex', policies: side ? ['random', 'baseline'] : ['baseline', 'random'] }).result.winner);
+  ok(w[0] === 0 && w[1] === 1, `the baseline beats random from either side (${w})`);
+  ok(Object.values(m1.fails).every((n) => n < 40), 'no macro fails over and over in a match (the loops the first leagues found)');
+}
+{
+  // what Jev sees in the arena
+  const s = newArena({ seed: 3, shape: 'hex' }), [p0] = s.players;
+  p0.inv.iron_ingot = 12;
+  const st = s.as(p0, () => arenaState(s)), opts = s.as(p0, () => arenaOptions(s)), q = arenaQuestions(opts);
+  const keys = Object.keys(q.next.criteria);
+  ok(q.next.type === 'choice' && q.have.type === 'noul' && keys.length === opts.length && keys.includes('buy_wool') && keys.includes('gather_iron'), `Jev gets a choice over the legal options (${keys.length}: ${keys.slice(0, 6).join(', ')}…)`);
+  ok(!keys.includes('buy_iron_sword') && st.your_bed.startsWith('open') && st.their_bed.startsWith('open'), 'nothing it cannot afford is offered, and the state says both beds are open');
+  ok(JSON.stringify({ state: st, questions: q }).length < 12000, 'an arena request stays small');
 }
 
 // ---------------------------------------------------------------- text ------

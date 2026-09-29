@@ -40,7 +40,7 @@ export class Party {
       m.macro = { name, args, tick: sim.tick };
       m.e.doing = name;
       sim.note('macro', { name, ...(args ? { args } : {}), who: m.e.id });
-      m.gen = PALETTE[name].run(sim, args);
+      m.gen = ((sim.palette && sim.palette[name]) || PALETTE[name]).run(sim, args);   // an arena brings its own palette
       m.y = m.gen.next();
       if (m.y.done) this.endMacro(m, m.y.value || { ok: true });
     });
@@ -70,7 +70,7 @@ export class Party {
       if (a) m.e.doing = a.op;
       return a || null;
     }
-    if (!m.thinking) m.wantsDecision = true;
+    if (!m.thinking && !m.e.out) m.wantsDecision = true;
     return null;
   }
   // feed a finished (or refused) action's result back to its source
@@ -84,6 +84,7 @@ export class Party {
   }
   serve(m) {
     const sim = this.sim;
+    if (m.e.out) return;                         // dead in the arena, waiting to respawn (or out of the game)
     for (let guard = 0; guard < 8 && !m.pending; guard++) {
       const a = this.nextAction(m);
       if (!a) return;

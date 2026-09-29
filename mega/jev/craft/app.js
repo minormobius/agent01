@@ -11,6 +11,7 @@ import { Sim, Replay, DAY, NIGHT_START } from './sim.mjs';
 import { Driver, baselinePolicy } from './runner.mjs';
 import { options, buildQuestions, perceive, resolve, journal, remember, DECIDERS, jevDecider, GATE, reuseRanking, Party, batchRequest, fulfil, REQUESTS, applyAsk, offlineAsk } from './mind.mjs';
 import { PALETTE, MODES } from './macros.mjs';
+import { playMatch } from './arena.mjs';
 import { projectState } from './projects.mjs';
 import { BLOCKS, B, H, hash01, RECIPES, PLACEABLE, FOOD, recipeBags, KINDS, EAT_ORDER, SEEDS, SPECIES, SPECIES_NAMES } from './world.mjs';
 import { SHAPES, columnLocator } from './tiling.mjs';
@@ -358,6 +359,8 @@ function rebuildTorches() {
 // ------------------------------------------------------------ entities -----
 const entMesh = new Map();
 const TEAM_SHIRTS = [0x2f7fd0, 0x1fa39a, 0xd9822b, 0x8e5bd0, 0xc94f6d];
+const SIDE_SHIRTS = [0xc0392b, 0x2f7fd0];          // the arena: red side, blue side
+let arenaSides = new Map();                         // player id → side, while an arena match plays back
 function makeEnt(kind, id = 0) {
   const g = new THREE.Group();
   const box = (w, h, d, color, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color })); m.position.y = y; g.add(m); return m; };
@@ -370,7 +373,7 @@ function makeEnt(kind, id = 0) {
   else if (kind === 'cow') { box(0.9, 0.65, 0.55, 0x5a3e2b, 0.5); box(0.3, 0.2, 0.56, 0xf2efe6, 0.55).position.x = -0.1; box(0.34, 0.34, 0.34, 0x3a2a1e, 0.62).position.x = 0.55; }
   else if (kind === 'chicken') { box(0.35, 0.35, 0.3, 0xf5f5f0, 0.28); box(0.18, 0.2, 0.18, 0xf5f5f0, 0.52).position.x = 0.15; box(0.08, 0.06, 0.1, 0xe89a2a, 0.5).position.x = 0.27; }
   else {
-    const shirt = kind === 'player' ? TEAM_SHIRTS[(sim ? Math.max(0, sim.players.findIndex((e) => e.id === id)) : 0) % TEAM_SHIRTS.length] : 0x3b8a4a, skin = kind === 'player' ? 0xd9a57c : 0x6ea35a;
+    const shirt = kind === 'player' ? (arenaSides.has(id) ? SIDE_SHIRTS[arenaSides.get(id)] : TEAM_SHIRTS[(sim ? Math.max(0, sim.players.findIndex((e) => e.id === id)) : 0) % TEAM_SHIRTS.length]) : 0x3b8a4a, skin = kind === 'player' ? 0xd9a57c : 0x6ea35a;
     box(0.5, 0.75, 0.3, kind === 'player' ? 0x3a3f8f : 0x3a3f8f, 0.375);
     box(0.55, 0.65, 0.32, shirt, 1.07);
     box(0.45, 0.45, 0.45, skin, 1.62);
@@ -526,6 +529,7 @@ function buildMacroButtons() {
   const box = $('macros');
   box.innerHTML = '';
   for (const mode of MODES) {
+    if (mode === 'arena') continue;
     const h = document.createElement('div');
     h.className = 'mode'; h.textContent = mode;
     box.appendChild(h);
@@ -578,7 +582,9 @@ let pending = null, keyConfigured = null, liveSeen = false;
 const askLive = jevDecider('../api/ask');
 let lastMode = null, partyWaiting = [], partySince = 0;
 const isParty = (w) => w === 'coop' || w === 'swarm';
+const isArena = (w) => typeof w === 'string' && w.startsWith('arena:');
 function setAuto() {
+  if (isArena($('who').value) || isArena(lastMode)) { if ($('who').value !== lastMode) startLive(); return; }
   if (!driver) return;
   if (lastMode && isParty($('who').value) !== isParty(lastMode) || (isParty($('who').value) && $('who').value !== lastMode)) { startLive(); return; }
   driver.policy = () => null;             // decisions are made in the frame loop, below
@@ -767,6 +773,22 @@ function startLive() {
   const shape = $('shape').value, seed = Math.max(1, parseInt($('seed').value, 10) || 1);
   location.hash = `kind=${$('kind').value}&size=${$('size').value}&shape=${shape}&seed=${seed}&who=${$('who').value}&difficulty=${$('difficulty').value}`;
   fileLines = null;
+  arenaSides = new Map();
+  if (isArena($('who').value)) {
+    // Player against player: the whole match is played headlessly (the
+    // policies are local and it takes milliseconds), then watched from its
+    // stream, the same way a saved .jsonl is
+    const [, a, b] = $('who').value.split(':');
+    const r = playMatch({ seed, shape, policies: [a, b] });
+    for (const sd of r.sim.arena.sides) for (const e of sd.players) arenaSides.set(e.id, sd.id);
+    lastMode = $('who').value;
+    focusId = r.sim.players[0].id;
+    startFile(r.sim.lines.join('\n'));
+    const w = r.result.winner, names = [a, b];
+    $('mode').textContent = `arena · ${a} (red) v ${b} (blue) · ${w == null ? 'a draw' : `${names[w]} wins`} at tick ${r.result.tick} (${r.result.reason})`;
+    toast(`${a} (red) against ${b} (blue): watch it play out`);
+    return;
+  }
   sim = new Sim({ shape, seed, difficulty: $('difficulty').value, kind: $('kind').value, size: $('size').value });
   lastLive = null;
   outbox = [];
@@ -1307,7 +1329,7 @@ if (KINDS.includes(hp.get('kind'))) $('kind').value = hp.get('kind');
 if (['s', 'm', 'l'].includes(hp.get('size'))) $('size').value = hp.get('size');
 $('who').addEventListener('change', setAuto);
 $('difficulty').addEventListener('change', startLive);
-if (['jev', 'baseline', 'offline', 'random', 'you', 'coop', 'swarm'].includes(hp.get('who'))) $('who').value = hp.get('who');
+if (['jev', 'baseline', 'offline', 'random', 'you', 'coop', 'swarm'].includes(hp.get('who')) || [...$('who').options].some((o) => o.value === hp.get('who'))) $('who').value = hp.get('who');
 if (['normal', 'hard'].includes(hp.get('difficulty'))) $('difficulty').value = hp.get('difficulty');
 fetch('../api/health').then((r) => r.json()).then((h) => { keyConfigured = !!(h.key_configured ?? h.keyConfigured ?? h.configured ?? true); }).catch(() => { keyConfigured = false; });
 $('speed').addEventListener('input', () => { $('speed-out').textContent = $('speed').value + '×'; });
@@ -1337,7 +1359,7 @@ window.addEventListener('hashchange', () => {
   if (['s', 'm', 'l'].includes(q.get('size'))) $('size').value = q.get('size');
   if (SHAPES.includes(q.get('shape'))) $('shape').value = q.get('shape');
   if (q.get('seed')) $('seed').value = q.get('seed');
-  if (['jev', 'baseline', 'offline', 'random', 'you', 'coop', 'swarm'].includes(q.get('who'))) $('who').value = q.get('who');
+  if ([...$('who').options].some((o) => o.value === q.get('who'))) $('who').value = q.get('who');
   startLive();
 });
 startLive();

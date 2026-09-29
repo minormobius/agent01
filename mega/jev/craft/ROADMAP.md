@@ -140,6 +140,7 @@ flatten them:
 | multiplayer | co-op (you + Jev), a 3-Jev swarm, a shared chest, requests, sleeping together | have | — |
 | advancements (~120 goals) | 3 projects: tech (16–17 steps), grow, explore | partial | advancements as a long, branching project tree: the project fact at scale. **S** |
 | chat | typed asks between agents | have (typed, by design) | — |
+| PvP (Bed Wars, SkyWars) | the arena: Bed Wars on a tiling, two sides, beds, generators, a shop, bridges over the void | **have** (2026-09-29) | head-to-head measurement: a win rate with an error bar, no ceiling, an opponent as the benchmark |
 
 ## The research gaps (not Minecraft, but what this game is for)
 
@@ -155,7 +156,8 @@ These matter more than any single feature:
    the nether, the team, tools and durability.
 4. **Survival that separates deciders.** It hasn't, since round two: the
    scripted baseline doesn't die. Creepers, skeletons and item-drop-on-death are
-   the cheapest fixes.
+   the cheapest fixes. **Superseded by the arena (2026-09-29)**: head to head
+   there is always a winner, so the scoreboard has no ceiling.
 5. **Movement costs.** Every step costs one tick, a staircase step included, so
    stairs are as fast as ladders here (see the access experiment). Minecraft's
    costs (sprinting on the flat, slower climbing, instant falls) would change
@@ -190,6 +192,8 @@ and a spend-or-save currency. Measure: Jev's choices with XP on the menu.*
 adjacency; levers, buttons, plates; hoppers between chests; pistons; rails and
 minecarts. *Unlocks: machines that outlast the player, the physical form of a
 macro. Measure: can System 2 design an auto-farm on Penrose?*
+
+**Phase A: the arena. DONE (2026-09-29).** Bed Wars on a tiling (`arena.mjs`): mirrored islands, beds, generators, a shop, bridging, player combat with knockback into the void, respawn while the bed stands. A league runner with Wilson intervals and Bradley–Terry ratings, and Jev in the seat (`arena-mind.mjs`). *Unlocks: the planner loop scored by win rate, palette v2 against v1.*
 
 **Phase 5: the End.** Strongholds (the first structure), endermen and pearls,
 blaze rods and powder, eyes of ender, the End, the dragon as a team fight.

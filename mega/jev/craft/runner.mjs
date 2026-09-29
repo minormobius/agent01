@@ -28,7 +28,7 @@ export class Driver {
     if (this.gen) this.end({ ok: false, why: 'replaced' });
     this.cur = { name, ...(args ? { args } : {}), tick: this.sim.tick };
     this.sim.note('macro', { name, ...(args ? { args } : {}) });
-    this.gen = PALETTE[name].run(this.sim, args);
+    this.gen = ((this.sim.palette && this.sim.palette[name]) || PALETTE[name]).run(this.sim, args);   // an arena brings its own palette
     this.last = this.gen.next(); this.n = 0;
   }
   end(res) {
@@ -72,6 +72,7 @@ const inNetherNow = (sim) => sim.dim === 'nether';
 // Interrupts are facts, not judgements: each names a thing that changed and
 // that the current macro was not written to handle.
 export function standardInterrupt(sim, running = null) {
+  if (sim.arena) return sim.arena.interrupt(running);
   // a creeper hissing beside you: whatever you were doing, step away (not if that is what you are doing)
   if (running !== 'flee' && running !== 'fight' && [...sim.ents.values()].some((e) => e.kind === 'creeper' && e.fuse && sim.dist(e.c, sim.player.c) <= 2.5)) return 'a creeper is hissing';
   // a skeleton shooting at you, the first time it is seen (acknowledged like nightfall)

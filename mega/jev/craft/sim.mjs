@@ -47,8 +47,10 @@ export const MAX_ZOMBIES = 6;
 // with a house, a sword and torches does not die, and a scoreboard where
 // every policy scores zero deaths cannot tell policies apart.
 export const DIFFICULTY = {
-  normal: { maxZombies: 6, spawn: 0.03, darkSpawn: 0.004, zombieDmg: 3, hungerEvery: 480, zombieStep: 2, arrowDmg: 3, blast: 12 },
-  hard:   { maxZombies: 14, spawn: 0.1, darkSpawn: 0.012, zombieDmg: 4, hungerEvery: 240, zombieStep: 1, arrowDmg: 4, blast: 16 },
+  normal: { maxZombies: 6, spawn: 0.03, darkSpawn: 0.004, zombieDmg: 3, hungerEvery: 480, zombieStep: 2, arrowDmg: 3, blast: 12, regenEvery: 80 },
+  hard:   { maxZombies: 14, spawn: 0.1, darkSpawn: 0.012, zombieDmg: 4, hungerEvery: 240, zombieStep: 1, arrowDmg: 4, blast: 16, regenEvery: 80 },
+  // the arena: no mobs, no hunger, health back quickly (players are the only threat)
+  arena:  { maxZombies: 0, spawn: 0, darkSpawn: 0, zombieDmg: 3, hungerEvery: 1e9, zombieStep: 2, arrowDmg: 3, blast: 12, regenEvery: 20 },
 };
 export const SIGHT = 10;
 export const WOOL_REGROW = 1200;
@@ -387,6 +389,7 @@ export class Sim {
       dmg = Math.max(1, Math.round(dmg * (1 - a) * (1 - 0.04 * prot)));
     }
     e.hp = Math.max(0, e.hp - dmg);
+    if (from && e.kind === 'player' && from.kind === 'player') e.lastHit = { by: from.id, t: this.tick };
     this.emit(['hit', from ? from.id : -1, e.id, dmg]);
     this.emit(['hp', e.id, e.hp]);
     if (e.kind === 'player') this.stats.damageTaken += dmg;
@@ -397,6 +400,7 @@ export class Sim {
       e.deaths = (e.deaths || 0) + 1;
       const by = from ? from.kind : this.get(e.c, e.y + 1) === B.water ? 'drowning' : e.food === 0 ? 'starving' : 'a fall or lava';
       (this.stats.killedBy ||= {})[by] = (this.stats.killedBy[by] || 0) + 1;
+      if (this.arena) return this.arena.death(e, from);
       // everything carried falls where you died, and lasts ITEM_DESPAWN ticks: go back for it
       // (a tool's wear and enchantments go with it; so does some experience, 7 a level up to 100)
       const orb = Math.min(100, 7 * (e.level || 0));
@@ -683,6 +687,7 @@ export class Sim {
         if (!this.reachable(p.c, p.y, c, y)) return no('out of reach');
         const blk = BLOCKS[this.get(c, y)];
         if (blk.hard === Infinity) return no(`${blk.name} cannot be mined`);
+        if (this.arena) { const why = this.arena.canMine(p, c, y); if (why) return no(why); }
         const tier = this.pickTier();
         if (blk.tool > tier) return no(`${blk.name} needs a ${['', 'wooden', 'stone', 'iron', 'diamond'][blk.tool]} pickaxe or better`);
         const ticks = this.mineTicks(blk, tier);
@@ -699,6 +704,7 @@ export class Sim {
           if (blk.id === B.piston_head) for (const m of this.besides(k0)) if (this.b[m] === B.piston_on && this.facing.get(m) === k0) { this.set(Math.floor(m / H), m % H, B.air); this.give('piston', 1); }
           this.set(c, y, B.air);        // if it touched water, the flow fills it (and whatever it opens onto)
           this.stats.mined[blk.name] = (this.stats.mined[blk.name] || 0) + 1;
+          if (this.arena && blk.id === B.bed) { this.arena.bedBroken(p, c, y); return { ok: true }; }
           this.wear(used);
           let n = blk.dropN || 1;
           // fortune: sometimes two, three or four times the ore
@@ -740,7 +746,7 @@ export class Sim {
         if (cur !== B.air && cur !== B.water && !BLOCKS[cur].plant) return no(`occupied by ${blockName(cur)}`);
         if (this.occupied(c, y) && !(item === 'ladder' && this.occupied(c, y) === p)) return no('an entity is there');   // a ladder goes where you stand
         if (item === 'sapling' && ![B.grass, B.dirt].includes(this.get(c, y - 1))) return no('a sapling needs grass or dirt under it');
-        return { ok: true, ticks: 1, pre: () => {
+        return { ok: true, ticks: this.arena ? this.arena.placeTicks(c, y) : 1, pre: () => {
           this.emit(['do', 'place', c, y, item]);
           const was = BLOCKS[this.get(c, y)];
           if (was.plant) this.reap(was, this.cultivated.get(c * H + y));
@@ -925,10 +931,11 @@ export class Sim {
           if (r.at === 'furnace' && XP_SMELT[a.item]) this.giveXp(p, XP_SMELT[a.item] * r.n);
         } };
       }
+      case 'buy': return this.arena ? this.arena.buy(p, a, no) : no('there is no shop here');
       case 'eat': {
         if (!FOOD[a.item]) return no(`${a.item} is not food`);
         if (!this.has(a.item)) return no(`no ${a.item}`);
-        if (p.food >= 20) return no('not hungry');
+        if (p.food >= 20 && !(HEAL[a.item] && p.hp < 20)) return no('not hungry');
         return { ok: true, ticks: 4, pre: () => {
           this.emit(['do', 'eat', a.item]);
           this.take(a.item, 1);
@@ -941,8 +948,9 @@ export class Sim {
       case 'attack': {
         const t = this.ents.get(a.id);
         if (!t || t === p) return no('no such target');
-        if (t.kind === 'player') return no('not attacking a teammate');
-        if (!this.adjacentTo(p, t)) return no('not adjacent');
+        if (t.kind === 'player' && !(this.arena && this.arena.foes(p, t))) return no('not attacking a teammate');
+        if (t.kind === 'item') return no('no such target');
+        if (!(this.arena && t.kind === 'player' ? this.arena.canHit(p, t) : this.adjacentTo(p, t))) return no('not adjacent');
         return { ok: true, ticks: 2, pre: () => {
           this.emit(['do', 'attack', t.id]);
           const sw = this.swordItem(); const sh = this.enchOf(sw, 'sharpness');
@@ -950,7 +958,7 @@ export class Sim {
           this.wear(sw);
           // (not a skeleton: knocked back, an archer just shoots again — measured, one killed a player
           // on day 1 who had to close the gap after every blow)
-          if (this.ents.has(t.id) && HOSTILE.has(t.kind) && t.kind !== 'skeleton') this.knockBack(t, p);
+          if (this.ents.has(t.id) && ((HOSTILE.has(t.kind) && t.kind !== 'skeleton') || (t.kind === 'player' && !t.out))) this.knockBack(t, p);
         } };
       }
       case 'shoot': {
@@ -958,7 +966,7 @@ export class Sim {
         const t = this.ents.get(a.id);
         if (!this.has('bow')) return no('needs a bow (3 sticks, 3 string)');
         if (!this.has('arrow')) return no('no arrows');
-        if (!t || t === p || t.kind === 'player' || t.kind === 'item') return no('no such target');
+        if (!t || t === p || (t.kind === 'player' && !(this.arena && this.arena.foes(p, t))) || t.kind === 'item') return no('no such target');
         if (this.dist(p.c, t.c) > 8) return no('out of range');
         if (!this.los(p, t)) return no('cannot see it');
         return { ok: true, ticks: 3, pre: () => {
@@ -1154,9 +1162,13 @@ export class Sim {
   // (Minecraft's knockback: it is how a sword answers a creeper — pushed out of
   // reach, its fuse goes out). It stops at anything it cannot step to.
   knockBack(t, from) {
-    for (let k = 0; k < 2; k++) {
+    const drop = this.arena && t.kind === 'player' ? H : 3;   // off the edge of an arena island: a fall to the bottom of the world
+    // a player is knocked one tile, not two: at two, a blow anywhere near an
+    // island's edge was a kill, and whoever stepped up to fight lost to
+    // whoever waited for them (measured: the turtle lost 60 of 60 that way)
+    for (let k = 0, n = t.kind === 'player' ? 1 : 2; k < n; k++) {
       const away = this.cols[t.c].adj.filter((n) => this.dist(n, from.c) > this.dist(t.c, from.c))
-        .map((n) => [n, this.stepTarget(t.c, t.y, n, this.tallOf(t), 3, true)])
+        .map((n) => [n, this.stepTarget(t.c, t.y, n, this.tallOf(t), drop, t.kind !== 'player')])
         .filter(([n, y]) => y != null && !this.occupied(n, y) && !this.occupied(n, y + 1) && !BLOCKS[this.get(n, y)].hazard && !BLOCKS[this.get(n, y - 1)].hazard)
         .sort((a, b) => this.dist(b[0], from.c) - this.dist(a[0], from.c))[0];
       if (!away) break;
@@ -1194,10 +1206,12 @@ export class Sim {
     }
     const t = this.tick;
     // hunger, for everyone, wherever they are
+    if (this.arena) this.arena.tick();
     for (const q of this.players) {
+      if (q.out) continue;                      // (dead in the arena, waiting to respawn)
       // hunger drains saturation first, then the food bar
       if (t % this.cfg.hungerEvery === 0 && q.food > 0) { if ((q.sat || 0) > 0) q.sat--; else { q.food--; this.emit(['food', q.food, q.id]); } }
-      if (t % 80 === 0) {
+      if (t % this.cfg.regenEvery === 0) {
         if (q.food === 0) this.as(q, () => this.hurt(q, 1, null));
         else if (q.food >= 18 && q.hp < 20) { q.hp++; this.emit(['hp', q.id, q.hp]); }
       }
@@ -1664,6 +1678,7 @@ export class Sim {
     // stations are mineable like anything else: mining one hands it back, so
     // nothing is lost — and a furnace in a doorway must not seal a house
     if (this.protect.has(c * H + y)) return Infinity;   // a house wall: never a shortcut
+    if (this.arena && this.arena.guards(this.me, c * H + y)) return Infinity;   // your own side's bed cover (the other side digs it)
     if (id === B.chest) return Infinity;                 // nor the team's pool: digging through it empties it into one pocket
     if (id === B.beacon) return Infinity;                // nor a lit beacon (it guards everyone at home)
     if (this.bordersWater(c, y)) return Infinity;      // opening it would flood the dig

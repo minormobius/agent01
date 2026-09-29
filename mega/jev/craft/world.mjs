@@ -73,6 +73,9 @@ B.wire = 63; B.lever = 64; B.lever_on = 65; B.button = 66; B.button_on = 67; B.p
 B.redstone_torch = 70; B.repeater = 71; B.repeater_on = 72; B.redstone_lamp = 73; B.redstone_lamp_on = 74;
 B.observer = 75; B.observer_on = 76; B.piston = 77; B.piston_on = 78; B.piston_head = 79; B.hopper = 80;
 B.rail = 81; B.powered_rail = 82; B.powered_rail_on = 83; B.redstone_block = 84; B.iron_block = 85;
+// the arena (PvP): a team's shop, the pad under the centre's diamond generator,
+// and wool, the cheap block bridges are made of
+B.shop = 86; B.diamond_block = 87; B.wool = 88;
 // hostile mobs: zombies above, blazes below
 export const HOSTILE = new Set(['zombie', 'blaze', 'skeleton', 'spider', 'creeper']);
 // what spawns in the overworld's dark, and how often (a zombie is still the common case)
@@ -185,11 +188,14 @@ def('powered_rail',   { solid: false, hard: 2, rail: true, redstone: 'consumer',
 def('powered_rail_on',{ solid: false, hard: 2, drop: 'powered_rail', rail: true, redstone: 'consumer', on: true, color: '#8a8a8a', top: '#f2c14a' });
 def('redstone_block', { hard: 15, tool: 1, redstone: 'source', on: true, color: '#b3261e' });
 def('iron_block',     { hard: 15, tool: 2, color: '#d8d8d8' });
+def('shop',           { hard: Infinity, drop: null, color: '#6b4f8a', top: '#c9a227' });
+def('diamond_block',  { hard: Infinity, drop: null, color: '#5fd3d0' });
+def('wool',           { hard: 3, color: '#ece8df' });
 
 export const blockName = (id) => BLOCKS[id]?.name ?? '?';
 
 // Items that place as a block. Everything else is inventory-only.
-export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed', 'obsidian', 'beacon', 'netherrack', 'glowstone', 'quartz_block', 'ladder', 'trapdoor', 'sapling',
+export const PLACEABLE = new Set(['wool', 'dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed', 'obsidian', 'beacon', 'netherrack', 'glowstone', 'quartz_block', 'ladder', 'trapdoor', 'sapling',
   'fence', 'fence_gate', 'sugar_cane', 'bookshelf', 'enchanting_table', 'anvil', 'smoker', 'blast_furnace', 'stone', 'smooth_stone', 'iron_block',
   'redstone', 'lever', 'button', 'plate', 'redstone_torch', 'repeater', 'redstone_lamp', 'observer', 'piston', 'hopper', 'rail', 'powered_rail', 'redstone_block']);
 // an item that places as a differently named block (redstone dust is 'wire' once laid)
@@ -439,6 +445,7 @@ export function generateWorld(opts = {}) {
   const { seed, shape, kind } = o;
   const version = o.version || CRAFT_VERSION;
   const radius = o.size && SIZES[o.size] ? SIZES[o.size] : o.radius;
+  if (kind === 'arena') return generateArena({ ...o, radius });
   if (!KINDS.includes(kind)) throw new Error(`unknown world kind '${kind}' — one of ${KINDS.join(', ')}`);
   const tiling = buildTiling(shape, radius);
   const cols = tiling.cols, N = cols.length;
@@ -764,4 +771,126 @@ export function worldSignature(world) {
   const b = world.blocks;
   for (let i = 0; i < b.length; i++) { h ^= b[i]; h = Math.imul(h, 16777619) >>> 0; }
   return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+// ---------------------------------------------------------------- arena ----
+// A Bed Wars arena on a tiling: two bases (a bed, an iron and gold generator,
+// a shop) on floating islands, a centre island with a diamond generator, and
+// nothing between them but a fall to the bottom of the world. Everything the
+// generator lays is locked (only what players place can be mined), so a game
+// is about bridging, defending a bed and breaking the other one.
+//
+// Fairness is geometric: side B is side A under a symmetry of the tiling
+// (a half-turn, or a mirror), found by testing, not assumed. Penrose and the
+// sevenfold tiling have none in this patch; there the map is mirrored to the
+// nearest tile, and `exact` says so. Matches swap sides either way.
+export const ARENA_G = 20;                 // the floor layer: players stand at ARENA_G + 1
+export const ARENA_RADIUS = 20;
+const ARENA_TRANSFORMS = [
+  ['half-turn', (x, z) => [-x, -z], [1, 0]],
+  ['mirror x', (x, z) => [-x, z], [1, 0]],
+  ['mirror z', (x, z) => [x, -z], [0, 1]],
+  ['mirror 45', (x, z) => [z, x], [Math.SQRT1_2, -Math.SQRT1_2]],
+];
+export function arenaSymmetry(tiling, within) {
+  const cols = tiling.cols, key = (x, z) => Math.round(x * 100) + ',' + Math.round(z * 100);
+  const idx = new Map(cols.map((c, i) => [key(c.x, c.z), i]));
+  const nearest = (x, z) => { let j = idx.get(key(x, z)); if (j != null) return [j, 0]; let bd = Infinity; for (let k = 0; k < cols.length; k++) { const d = Math.hypot(cols[k].x - x, cols[k].z - z); if (d < bd) { bd = d; j = k; } } return [j, bd]; };
+  let fallback = null;
+  for (const [name, f, dir] of ARENA_TRANSFORMS) {
+    const map = new Int32Array(cols.length).fill(-1);
+    let miss = 0;
+    for (let c = 0; c < cols.length; c++) {
+      if (Math.hypot(cols[c].x, cols[c].z) > within) continue;
+      const [j, d] = nearest(...f(cols[c].x, cols[c].z));
+      map[c] = j; if (d > 0.02) miss++;
+    }
+    const res = { name, map, dir, exact: miss === 0 };
+    if (res.exact) return res;
+    if (!fallback) fallback = res;
+  }
+  return fallback;
+}
+export function generateArena(o) {
+  const { seed, shape } = o;
+  const radius = o.radius && o.radius !== DEFAULTS.radius ? o.radius : ARENA_RADIUS;
+  const tiling = buildTiling(shape, radius);
+  const cols = tiling.cols, N = cols.length, g = ARENA_G;
+  const blocks = new Uint8Array(N * H), height = new Int16Array(N), biome = new Uint8Array(N);
+  for (let c = 0; c < N; c++) blocks[c * H] = B.bedrock;
+  // the variety a seed buys: how far apart the bases are, and how big the islands
+  const r = (k) => hash01(seed, k, 0xA7E4A);
+  const D = radius * (0.55 + 0.12 * r(1));
+  let baseR = 2 + (r(2) < 0.5 ? 1 : 0);
+  const midR = 1 + (r(3) < 0.6 ? 1 : 0);
+  const sym = arenaSymmetry(tiling, radius - 1);
+  const near = (x, z) => { let j = 0, bd = Infinity; for (let k = 0; k < N; k++) { const d = Math.hypot(cols[k].x - x, cols[k].z - z); if (d < bd) { bd = d; j = k; } } return j; };
+  const ballOf = (c0, R) => { const d = new Map([[c0, 0]]), q = [c0]; for (let i = 0; i < q.length; i++) { const u = q[i]; if (d.get(u) >= R) continue; for (const n of cols[u].adj) if (!d.has(n)) { d.set(n, d.get(u) + 1); q.push(n); } } return d; };
+  const lay = (c, top) => { for (let y = g - 3; y <= g; y++) blocks[c * H + y] = y === g ? top : B.stone; height[c] = g; };
+  const both = (c, fn) => { fn(c); const m = sym.map[c]; if (m >= 0 && m !== c) fn(m); };
+  // side A's base, then its image. The island must stay in one piece with the
+  // bed and its ring covered, or a covered bed walls its own side in: a
+  // radius-2 island on the square grid falls apart that way (its corners touch
+  // only the ring), so the base grows until what is left is connected.
+  const bA = near(D * sym.dir[0], D * sym.dir[1]);
+  const outerConnected = (ball) => {
+    const rest = [...ball.keys()].filter((c) => c !== bA && !cols[bA].adj.includes(c));
+    const set = new Set(rest), seen = new Set([rest[0]]), q = [rest[0]];
+    for (let i = 0; i < q.length; i++) for (const n of cols[q[i]].adj) if (set.has(n) && !seen.has(n)) { seen.add(n); q.push(n); }
+    return seen.size === rest.length && rest.length >= 6;
+  };
+  while (baseR < 5 && !outerConnected(ballOf(bA, baseR))) baseR++;
+  // one base's layout, by rules that read the same from either side: the
+  // generator behind the bed (farthest from the centre), the shop on the rim
+  // off to one side, the respawn two hops out nearest the generator
+  const R0 = (c) => Math.hypot(cols[c].x, cols[c].z);
+  const plan = (b, dir) => {
+    const ball = ballOf(b, baseR);
+    const rim = [...ball].filter(([, d]) => d === baseR).map(([c]) => c);
+    const gen = rim.reduce((a, c) => (R0(c) > R0(a) ? c : a), rim[0]);
+    const side = (c) => Math.abs((cols[c].x - cols[b].x) * dir[1] - (cols[c].z - cols[b].z) * dir[0]);
+    const shop = rim.filter((c) => c !== gen && !cols[gen].adj.includes(c)).reduce((a, c) => (side(c) > side(a) ? c : a), rim.find((c) => c !== gen));
+    const two = [...ball].filter(([c, d]) => d === 2 && c !== shop && c !== gen).map(([c]) => c);
+    const dg = (c) => Math.hypot(cols[c].x - cols[gen].x, cols[c].z - cols[gen].z);
+    const spawn = two.reduce((a, c) => (dg(c) < dg(a) ? c : a), two[0]);
+    return { b, ball, gen, shop, spawn };
+  };
+  const layBase = (P, map) => {
+    for (const c of P.ball.keys()) map(c, (u) => lay(u, B.smooth_stone));
+    map(P.gen, (u) => { blocks[u * H + g] = B.iron_block; });
+    map(P.shop, (u) => { blocks[u * H + g + 1] = B.shop; height[u] = g + 1; });
+    map(P.b, (u) => { blocks[u * H + g + 1] = B.bed; });
+  };
+  const img = (c) => (sym.map[c] >= 0 ? sym.map[c] : c);
+  const PA = plan(bA, sym.dir);
+  let PB;
+  if (sym.exact) {
+    // exact: side B is side A under the symmetry, voxel for voxel
+    layBase(PA, both);
+    PB = { b: img(PA.b), gen: img(PA.gen), shop: img(PA.shop), spawn: img(PA.spawn), ball: new Map([...PA.ball].map(([c, d]) => [img(c), d])) };
+  } else {
+    // approximate (Penrose, the sevenfold tiling): the nearest-tile image of a
+    // base is not a base (penrose lost its generator from the island that
+    // way), so side B is laid out afresh at the mirrored spot, by the same rules
+    const one = (c, fn) => fn(c);
+    layBase(PA, one);
+    PB = plan(img(bA), [-sym.dir[0], -sym.dir[1]]);
+    layBase(PB, one);
+  }
+  // the centre. Where the middle tile is not a fixed point of the symmetry,
+  // one diamond pad would sit on one side's half: then there are two, mirrored
+  const mid = near(0, 0);
+  const mids = img(mid) !== mid ? [mid, img(mid)] : [mid];
+  const midIsland = new Set();
+  for (const m of mids) for (const c of ballOf(m, midR).keys()) midIsland.add(c);
+  for (const c of midIsland) both(c, (u) => { lay(u, B.stone); midIsland.add(u); });
+  for (const m of mids) blocks[m * H + g] = B.diamond_block;
+  const base = (P) => ({ bed: [P.b, g + 1], gen: P.gen, shop: [P.shop, g + 1], spawn: [P.spawn, g + 1], island: [...P.ball.keys()] });
+  const arena = {
+    version: 1, g, symmetry: sym.name, exact: sym.exact, baseR, midR,
+    bases: [base(PA), base(PB)],
+    mid, mids, midIsland: [...midIsland], map: sym.map,
+  };
+  const spawnA = PA.spawn;
+  return { version: CRAFT_VERSION, seed, shape, radius, kind: 'arena', H, tiling, blocks, height, biome, spawn: spawnA, trees: [], wild: {}, arena };
 }
