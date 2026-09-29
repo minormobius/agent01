@@ -1,0 +1,148 @@
+{
+ "note": "v2 facts, first attempt, stopped after 11 matches when the 12th (kagome/11, jev side 1 v counter) looped past 700 calls; results parsed from the run log. The per-match picks were not kept by that version of the runner.",
+ "games": [
+  {
+   "shape": "hex",
+   "seed": 11,
+   "jevSide": 0,
+   "opponent": "baseline",
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 257,
+   "decisions": [
+    24,
+    15
+   ]
+  },
+  {
+   "shape": "hex",
+   "seed": 11,
+   "jevSide": 1,
+   "opponent": "baseline",
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 315,
+   "decisions": [
+    22,
+    18
+   ]
+  },
+  {
+   "shape": "hex",
+   "seed": 11,
+   "jevSide": 0,
+   "opponent": "rusher",
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 315,
+   "decisions": [
+    41,
+    20
+   ]
+  },
+  {
+   "shape": "hex",
+   "seed": 11,
+   "jevSide": 1,
+   "opponent": "rusher",
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 267,
+   "decisions": [
+    15,
+    43
+   ]
+  },
+  {
+   "shape": "hex",
+   "seed": 11,
+   "jevSide": 0,
+   "opponent": "counter",
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 419,
+   "decisions": [
+    57,
+    31
+   ]
+  },
+  {
+   "shape": "hex",
+   "seed": 11,
+   "jevSide": 1,
+   "opponent": "counter",
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 307,
+   "decisions": [
+    14,
+    53
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "jevSide": 0,
+   "opponent": "baseline",
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 373,
+   "decisions": [
+    57,
+    22
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "jevSide": 1,
+   "opponent": "baseline",
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 419,
+   "decisions": [
+    27,
+    65
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "jevSide": 0,
+   "opponent": "rusher",
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 295,
+   "decisions": [
+    27,
+    19
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "jevSide": 1,
+   "opponent": "rusher",
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 224,
+   "decisions": [
+    13,
+    17
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "jevSide": 0,
+   "opponent": "counter",
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 322,
+   "decisions": [
+    22,
+    21
+   ]
+  }
+ ]
+}

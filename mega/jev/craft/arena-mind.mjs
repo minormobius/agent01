@@ -49,6 +49,20 @@ export function arenaState(sim) {
   };
 }
 
+// what a purse buys: the useful purchases affordable with `have`, that are not
+// already owned (a better sword, armor, a pick their cover needs, blocks)
+function affordable(sim, have) {
+  const p = sim.player, foe = sim.arena.foeSide(p), out = [];
+  for (const [item, o] of Object.entries(SHOP)) {
+    if (!Object.entries(o.cost).every(([k, n]) => (have[k] || 0) >= n)) continue;
+    if (SWORD_DMG[item] && SWORD_DMG[item] <= (SWORD_DMG[swordOf(p)] || 1)) continue;
+    if (ARMOR[item] && armorOf(p) !== 'none') continue;
+    if (/pickaxe/.test(item) && !(coverNeeds(sim, foe) > sim.pickTier())) continue;
+    if (['wooden_axe', 'arrow', 'bow', 'planks', 'obsidian'].includes(item)) continue;
+    out.push(`${o.n > 1 ? o.n + ' ' : ''}${short(item)}`);
+  }
+  return out;
+}
 // ----------------------------------------------------------- the options ---
 // Each option: a key, the macro it runs, and its facts.
 export function arenaOptions(sim) {
@@ -70,8 +84,13 @@ export function arenaOptions(sim) {
     add(`buy_${item}`, 'buy', { item }, { costs: cost, gives });
   }
   // gathering
-  add('gather_iron', 'gather', { res: 'iron' }, { yields: `~12 iron in ~${12 * GENS.iron.every} ticks at your generator`, where: 'your base' });
-  add('gather_gold', 'gather', { res: 'gold' }, { yields: `~3 gold in ~${3 * GENS.gold.every} ticks at your generator`, where: 'your base' });
+  // gathering says what it would let you buy that you cannot now (the first
+  // live run never gathered: 610 decisions, 0 gathers, a wooden sword to the end)
+  const purse = { iron_ingot: held(sim, 'iron_ingot'), gold_ingot: held(sim, 'gold_ingot'), diamond: held(sim, 'diamond') };
+  const now = affordable(sim, purse);
+  const after = (extra) => { const more = affordable(sim, Object.fromEntries(Object.entries(purse).map(([k, n]) => [k, n + (extra[k] || 0)]))).filter((x) => !now.includes(x)); return more.length ? more.join(', ') : 'nothing new'; };
+  add('gather_iron', 'gather', { res: 'iron' }, { yields: `~12 iron in ~${12 * GENS.iron.every} ticks at your generator (and gold meanwhile)`, then_affordable: after({ iron_ingot: 12, gold_ingot: 2 }), affordable_now: now.length ? now.join(', ') : 'nothing useful', where: 'your base' });
+  add('gather_gold', 'gather', { res: 'gold' }, { yields: `~3 gold in ~${3 * GENS.gold.every} ticks at your generator (and ~16 iron meanwhile)`, then_affordable: after({ gold_ingot: 3, iron_ingot: 16 }), where: 'your base' });
   add('gather_mid', 'gather_mid', {}, { yields: `1 diamond every ${GENS.diamond.every} ticks at the centre`, ...leaves('mid') });
   // building
   if (side.bedAlive) add('fortify', 'fortify', {}, { covers: coverText(sim, side), with: `the hardest of your ${blocksHeld(sim)} blocks first` });
@@ -82,7 +101,7 @@ export function arenaOptions(sim) {
     const w = window(sim);
     add('rush', 'rush', {}, {
       their_bed: coverText(sim, foe),
-      route: route ? `${route.length} tiles, ${gaps} to bridge (you carry ${blocksHeld(sim)} blocks)` : 'none',
+      route: route ? `${route.length} tiles, ${gaps} to bridge: you carry ${blocksHeld(sim)} blocks${blocksHeld(sim) < gaps ? ` (${gaps - blocksHeld(sim)} short)` : ''}` : 'none',
       ...(route ? { eta_ticks: route.length + gaps * BRIDGE_TICKS } : {}),
       enemy: f ? (f.out ? `dead, back in ${f.out === Infinity ? 'never' : f.out - sim.tick} ticks` : where(sim, f)) : 'none',
       ...(w ? { WINDOW: `every enemy is dead: the first is back in ${w.back} ticks` } : {}),
@@ -93,12 +112,12 @@ export function arenaOptions(sim) {
   add('go_base', 'go_base', {}, { gives: 'back to your own base', ...(threat ? { answers: 'the threat to your bed' } : {}) });
   // fighting
   if (f && !f.out) {
-    const vs = { enemy_tiles_away: +sim.dist(f.c, p.c).toFixed(1), health: `yours ${p.hp}, theirs ${f.hp}`, swords: `yours ${SWORD_DMG[swordOf(p)] || 1}, theirs ${SWORD_DMG[swordOf(f)] || 1} a hit`, armor: `yours ${short(armorOf(p))}, theirs ${short(armorOf(f))}` };
+    const vs = { enemy_tiles_away: +sim.dist(f.c, p.c).toFixed(1), health: `yours ${p.hp}, theirs ${f.hp}`, swords: `yours ${SWORD_DMG[swordOf(p)] || 1}, theirs ${SWORD_DMG[swordOf(f)] || 1} a hit`, armor: `yours ${short(armorOf(p))}, theirs ${short(armorOf(f))}`, a_kill: foe.bedAlive ? `their bed stands: a kill sends them back to their base in ${20} ticks, and opens the window` : 'their bed is gone: a kill is final' };
     add('fight', 'fight', {}, vs);
     add('hunt', 'hunt', {}, { ...vs, note: 'bridges to them if it must' });
     add('shoot', 'shoot', {}, { enemy_tiles_away: vs.enemy_tiles_away, arrows: held(sim, 'arrow') });
   }
-  if (side.bedAlive) add('defend', 'defend', {}, { enemy: f ? (f.out ? 'dead' : `${sim.dist(f.c, side.bed[0]).toFixed(1)} tiles from your bed`) : 'none', ...(threat ? { answers: 'the threat to your bed' } : {}) });
+  if (side.bedAlive) add('defend', 'defend', {}, { threat: threat ? `the enemy is ${sim.dist(f.c, side.bed[0]).toFixed(1)} tiles from your bed` : `none: no enemy within ${WARN_RANGE} tiles of your bed (the nearest is ${f ? (f.out ? 'dead' : sim.dist(f.c, side.bed[0]).toFixed(1) + ' tiles away') : 'gone'})`, ...(threat ? { answers: 'the threat to your bed' } : { note: 'standing guard with no one coming earns nothing' }) });
   add('heal', 'heal', {}, { heals: `10 (you are at ${p.hp}/20)` });
   return opts;
 }

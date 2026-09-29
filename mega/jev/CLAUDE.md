@@ -1883,14 +1883,38 @@ Bradley–Terry ratings on the Elo scale (random = 0): rusher 816, counter 808, 
 - **The questions:** a `next` choice, plus the `have` self-check.
 - **Failures:** a failed call falls back to the baseline for that one decision and is stamped in the stream (`jev` notes). The `--stub` arm plays the same loop with the baseline's pick projected onto the options.
 
-JEV_RESULTS
+**Measured, live** (4 tilings, seed 11 × 3 opponents × both sides = 24 matches per run; hard cap of 150 decisions a side a match):
+
+| | vs baseline | vs rusher | vs counter | all 24 | calls |
+|---|---|---|---|---|---|
+| stand-in (the baseline's own picks through the menu, no calls) | 3–5 | 2–6 | 5–3 | **0.42** | 0 |
+| **Jev, facts v1** (`lab/craft-arena-jev-v1.json`) | 1–7 | 0–8 | 0–8 | **0.04** | 610 |
+| **Jev, facts v2**, run B (`lab/craft-arena-jev.json`) | 1–7 | 3–5 | 0–5, 3 cut | **0.23** | 1019 |
+| Jev, facts v2, run A (stopped at 11; `lab/craft-arena-jev-v2a.json`) | 1–2 | 3–1 | 1–3 | 5 of 11 | 424 |
+
+**v1 lost 23 of 24, and it was the harness again.**
+- **What it picked:** defend 194, hunt 188, rush 106, and **not one `gather` in 610 decisions**. It never worked its generator, so it fought with a wooden sword and whatever iron it happened to pick up. Mean confidence was 0.42, with 375 of 610 picks below the gate.
+- **What the options failed to say:**
+  - `gather_iron` said what it yields, not what that buys.
+  - `defend` was offered with no one coming, and said nothing about there being no threat.
+  - `hunt` and `fight` didn't say that a kill while their bed stands only sends the enemy home for 20 ticks.
+- **v2 fixed the facts, not the choices.** Gathering now says what becomes affordable, `defend` names the threat or says "none", a kill's worth is on `fight` and `hunt`, and `rush` says how many blocks short the route is. `defend` picks fell from 194 to 20, and `gather` appeared.
+- **The stand-in's 0.42 is the proof that the menu wasn't the ceiling.** The baseline's own choices, pushed through the same options, win 10 of 24.
+
+**v2 is better, and it is not yet good.** It went from 0.04 to 0.23 over the full run, and one earlier attempt was 5 of 11 before it was stopped. **Two runs of the same configuration disagreed**: run A was 4 of 6 on hex, run B 1 of 6. That is the non-reproducibility this file recorded before, so every live number here is one draw at n = 24.
+
+What run B also shows:
+- **Three matches were cut at the decision cap**, all against the counter on kagome and truncsq, in endgame stalemates where neither player could reach the other. In two of the three the counter used its 150 decisions as well (146 and 123 in the third), so this is a loop in the endgame macros (`hunt` and `fight` failing quickly, again and again), not Jev's alone. The scripted league never met it (0 draws in 1,500), so it takes a trajectory only Jev produces. The cap is the budget guard: the first v2 attempt ran one such match past 700 calls.
+- **92 of 1019 decisions fell back to the baseline** after failed calls, each one stamped in the stream.
+- Its picks are dominated by those stalemates: hunt 577, fight 256.
 
 **In the viewer**, *who decides → arena: …* plays a scripted match headlessly in milliseconds, then plays it back from its stream like a loaded `.jsonl`, with the red side and the blue side in their colours. Checked in Playwright: the islands, the centre's pad, the bridges and a covered bed all draw, with no console errors. **Jev is not in the viewer's arena yet.** That needs the page's live loop to await an arena decision.
 
 **What's next:**
 1. **The loop itself (research gap 1, now scoreable).** System 2 reads the lost games (the stream, the journal, the `jev` notes), writes palette v2 (a new macro, or better facts on an option), and v2 plays v1 with Jev deciding for both, scored by win rate. It spends model budget and waits for the go-ahead.
-2. **More n for Jev.** 24 matches is enough to see a direction, not to rank it against the scripts.
-3. **2v2** (`perSide: 2` works in the rules and the runner, and is untested in the league): where a teammate's state starts to matter.
+2. **The endgame stalemate:** `hunt` should dig or bridge toward a target it cannot walk to, or the game needs Bed Wars' sudden death. Until then, the decision cap bounds a live match.
+3. **More n for Jev,** on held-out seeds. 24 matches per run shows a direction, and two runs of the same configuration disagreed.
+4. **2v2** (`perSide: 2` works in the rules and the runner, and is untested in the league): where a teammate's state starts to matter.
 
 ### What is next
 

@@ -8,7 +8,7 @@
 // ungated; a failed call falls back to the baseline for that decision and is
 // counted. SPENDS REAL BUDGET without --stub: one call per decision, paced
 // under the proxy's 30/min (~15–30 decisions a side per match).
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, appendFileSync } from 'node:fs';
 import { playMatchAsync, baselineArena } from '../craft/arena.mjs';
 import { jevArena, arenaOptions } from '../craft/arena-mind.mjs';
 
@@ -16,6 +16,7 @@ const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ?
 const vs = arg('vs', 'baseline,rusher,counter').split(',');
 const shapes = arg('shapes', 'hex,kagome,penrose,truncsq').split(',');
 const seeds = arg('seeds', '11').split(',').map(Number);
+const maxDecisions = +arg('max-decisions', 150);
 const out = arg('out', null), stub = process.argv.includes('--stub') ? {} : null;
 const wilson = (k, n, z = 1.96) => { if (!n) return [0, 1]; const p = k / n, d = 1 + z * z / n, c = p + z * z / (2 * n), h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)); return [+((c - h) / d).toFixed(3), +((c + h) / d).toFixed(3)]; };
 const ENDPOINT = process.env.JEV_ENDPOINT || 'https://mega.mino.mobi/jev/api/ask';
@@ -63,10 +64,15 @@ const jevOrStub = stub ? async (sim, m) => {
 const t0 = Date.now();
 for (const shape of shapes) for (const seed of seeds) for (const opp of vs) for (const jevSide of [0, 1]) {
   const policies = jevSide === 0 ? [jevOrStub, opp] : [opp, jevOrStub];
-  const r = await playMatchAsync({ seed, shape, policies });
+  const mark = { calls, picks: { ...picks }, nconf: confs.length };
+  const r = await playMatchAsync({ seed, shape, policies, maxDecisions });
   const w = r.result.winner;
   const g = { shape, seed, opponent: opp, jevSide, result: w == null ? 'draw' : w === jevSide ? 'win' : 'loss', reason: r.result.reason, ticks: r.result.tick, kills: r.result.kills, decisions: r.decisions };
+  // this match's own picks and confidence, so a run stopped midway keeps what it measured
+  g.picks = Object.fromEntries(Object.entries(picks).map(([k, n]) => [k, n - (mark.picks[k] || 0)]).filter(([, n]) => n));
+  g.calls = calls - mark.calls; const cs = confs.slice(mark.nconf); g.mean_conf = cs.length ? +(cs.reduce((a, b) => a + b, 0) / cs.length).toFixed(3) : null;
   games.push(g);
+  if (out) appendFileSync(out.replace(/\.json$/, '.jsonl'), JSON.stringify(g) + '\n');
   console.log(`${shape.padEnd(9)} ${seed} jev(side ${jevSide}) v ${opp.padEnd(8)} -> ${g.result} (${g.reason}, ${g.ticks} ticks, decisions ${g.decisions.join('/')}) ${((Date.now() - t0) / 60000).toFixed(1)} min, ${calls} calls`);
 }
 const byOpp = {};

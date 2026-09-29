@@ -640,13 +640,16 @@ export const ARENA_POLICIES = { baseline: baselineArena, rusher: rusherArena, tu
 // needs and takes the answer back. playMatch answers synchronously (the
 // scripts); playMatchAsync awaits (Jev), with the world paused meanwhile, so
 // a live match is as reproducible as the model is.
-function* matchLoop({ seed = 1, shape = 'hex', perSide = 1, maxTicks = MAX_TICKS, onDecision } = {}) {
+function* matchLoop({ seed = 1, shape = 'hex', perSide = 1, maxTicks = MAX_TICKS, maxDecisions = Infinity, onDecision } = {}) {
   const sim = newArena({ seed, shape, perSide });
   const party = new Party(sim);
   const members = sim.players.map((e) => party.join(e, 'mind'));
   const decisions = [0, 0], fails = {};
   for (const m of members) m.onEnded = (out) => { if (!out.ok) { const k = `${out.name}: ${(out.why || '').slice(0, 60)}`; fails[k] = (fails[k] || 0) + 1; } };
-  while (!sim.arena.result && sim.tick < maxTicks) {
+  // maxDecisions caps a side's decisions in one match: a live decider pays per
+  // decision, and a stalemate of quick failures (two players who cannot reach
+  // each other) made one live match run 700 calls before it was stopped
+  while (!sim.arena.result && sim.tick < maxTicks && Math.max(...decisions) < maxDecisions) {
     // who acts first alternates, tick by tick: serving side 0 first every tick
     // handed it every race (a mirror match was always won by side 0)
     party.members.reverse();
@@ -671,7 +674,7 @@ function* matchLoop({ seed = 1, shape = 'hex', perSide = 1, maxTicks = MAX_TICKS
   if (!sim.arena.result) {
     // time: a draw, unless exactly one bed still stands
     const beds = sim.arena.sides.map((s) => s.bedAlive);
-    sim.arena.finish(beds[0] !== beds[1] ? (beds[0] ? 0 : 1) : null, 'time');
+    sim.arena.finish(beds[0] !== beds[1] ? (beds[0] ? 0 : 1) : null, sim.tick >= maxTicks ? 'time' : 'cut: decision budget');
   }
   sim.flush();
   return { sim, result: sim.arena.result, decisions, fails, events: sim.arena.events };
