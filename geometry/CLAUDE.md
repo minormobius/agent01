@@ -32,7 +32,7 @@ MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain ma
 
 ## The geometry pack (`/geometry/` + siblings) — interactive math explainers
 
-Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`, `csaszar`, `equivelar`, `chair44`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
+Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`, `csaszar`, `equivelar`, `chair44`, `grad`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
 
 ## `/cohomology/` — the one page with its own engine module
 
@@ -233,6 +233,23 @@ eighths of a cube edge. The selftest recomputes the preprint's **finite** census
 from the recipe and checks the 44 legal contacts against the paper's Figure 7
 pose by pose. It does **not** check the continuous-geometry registration
 lemmas, and the page says so. Full notes in [`../chair44/CLAUDE.md`](../chair44/CLAUDE.md).
+
+## `/grad/` — Grad's conjecture, disproved in closed form
+
+`grad/` shows Landreman's two explicit families of smooth, non-symmetric MHD
+equilibria with nested flux surfaces (arXiv:2609.26742, Sept 2026). They are
+counterexamples to Grad's 1967 conjecture, after Gómez-Serrano et al.'s
+existence proof earlier the same year.
+
+```bash
+node grad/field.selftest.mjs   # ~5 s, 128 checks
+```
+
+Same architecture as the siblings: `field.js` is the only copy of the maths.
+Nothing in it solves an equilibrium. B, ψ and the surfaces are closed forms,
+and the numerics are all *checks*: finite-difference force balance, field lines
+traced through B alone, and the rotational-transform ODE. Full notes in
+[`../grad/CLAUDE.md`](../grad/CLAUDE.md).
 
 ## Deploying
 

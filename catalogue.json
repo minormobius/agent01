@@ -4433,6 +4433,24 @@
         "math",
         "3d"
       ]
+    },
+    {
+      "n": "grad",
+      "u": "https://math.mino.mobi/grad/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-30",
+      "b": "2026-09-30",
+      "p": "geometry",
+      "surface": "math",
+      "d": "In 1967 Harold Grad doubted that a confined plasma could balance its own pressure unless it was symmetric like a tokamak. In 2026 Matt Landreman wrote down twisted ones exactly, in square roots, trig and hyperbolic functions, with no solver anywhere. Spin the nested pressure surfaces coloured by field strength, or press a button and watch the shape relax into an ordinary tokamak and twist back out. Then open the slices. The curves come from the formulas; the dots come from field lines followed step by step through the magnetic field alone. They land on each other. Force balance is re-measured on every shape you make.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d",
+        "physics"
+      ]
     }
   ],
   "notListed": [
@@ -4815,6 +4833,11 @@
       "glob": "chair44",
       "kind": "pending",
       "reason": "catalogued at math.mino.mobi/chair44/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
+    },
+    {
+      "glob": "grad",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/grad/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
     },
     {
       "glob": "ising",

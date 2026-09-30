@@ -1133,6 +1133,12 @@
           "note": "the first 3D einstein: a seven-cube chair whose 192 tiny pyramids force it to tile space only aperiodically"
         },
         {
+          "u": "math.mino.mobi/grad",
+          "action": "keep",
+          "group": "tilings and loops",
+          "note": "Grad's 1967 conjecture, disproved in closed form: twisted plasma equilibria you can spin and slide back to a tokamak"
+        },
+        {
           "u": "mino.mobi/markov",
           "action": "keep",
           "group": "dynamics"

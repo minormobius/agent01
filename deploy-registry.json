@@ -896,7 +896,8 @@
         "szilassi",
         "csaszar",
         "equivelar",
-        "chair44"
+        "chair44",
+        "grad"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
@@ -927,7 +928,8 @@
         "szilassi/**",
         "csaszar/**",
         "equivelar/**",
-        "chair44/**"
+        "chair44/**",
+        "grad/**"
       ]
     },
     {

@@ -2975,6 +2975,15 @@
    "parent": "geometry"
   },
   {
+   "id": "grad",
+   "name": "grad",
+   "url": "https://math.mino.mobi/grad/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "geometry"
+  },
+  {
    "id": "poll/evaluation.html",
    "name": "evaluation",
    "url": "https://poll.mino.mobi/evaluation.html",
