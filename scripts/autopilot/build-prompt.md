@@ -33,10 +33,10 @@ _Regenerated 2026-09-30 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-30, 99 members / 245 posts):
+**Neighborhood spark** (bisk 2026-09-30, 99 members / 279 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: openai, anthropic, glm
-- Top post: "Thinking about this old quote in the context of certain people - professors, nyt contributors, etc - who see casual misg" — @hikikomorphism.bsky.social
+- Distinctive words: glm, anthropic, idk
+- Top post: "" — @hailey.at
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
