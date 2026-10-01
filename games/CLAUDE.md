@@ -15,7 +15,7 @@ Multiplayer party games for Bluesky, with real-time rooms orchestrated by Durabl
 | Dir | `games/` |
 | Endpoint | `games.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/tempest-procgen-game-vwj0f1` |
+| Owning branch | `claude/minesweeper-voronoi-mesh-4hc4ir` |
 | Deploy | `.github/workflows/deploy-games.yml` |
 | Uses | `auth.mino.mobi` |
 | Provides | — |
@@ -70,13 +70,19 @@ Three things live here:
   slack), not a set of knobs. Its readout is the family's newest shape of
   correctness: a *direction*, priced in ticks. See
   [`tempest/README.md`](tempest/README.md).
+- **Orb at `/orb/`**: Minesweeper on a sphere of Voronoi cells (convex hull =
+  spherical Delaunay; Lloyd-relaxed). An irregular mesh is measurably *less*
+  guess-free than a regular one, so every board is proved solvable by an exact
+  solver from the first tap before it ships. The readout counts the moves that
+  weren't certain when you made them. Canvas 2D, no build. See
+  [`orb/README.md`](orb/README.md).
 - **Pressure at `/pressure/`** — the hub for the whole family: the thesis behind
   them, what each one can measure about a decision, and briefs for the two still
   unbuilt. A single hand-written page. Start here before adding another game
   to this family: [`pressure/README.md`](pressure/README.md).
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -110,6 +116,8 @@ node games/outbound/test/outbound.selftest.mjs   # invariants; preflight runs th
 node games/outbound/test/analysis.mjs 25         # difficulty + foresight report
 node games/outbound/test/sweep.mjs 12            # parameter sweep — slow (~15 min)
 node games/tempest/test/tempest.selftest.mjs      # invariants + the wasm drift gate; preflight runs this
+node games/orb/test/orb.selftest.mjs             # mesh, solver vs brute force, generator; preflight runs this
+node games/orb/test/analysis.mjs 300             # guess-free rate: Voronoi orb vs square/hex grids (~3 s)
 node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
 ```
 
@@ -149,11 +157,13 @@ different game from the one its certificates describe.
 
 ## Deploying
 
-Pushes to `claude/tempest-procgen-game-vwj0f1` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-games.yml`](../.github/workflows/deploy-games.yml).
+Pushes to `claude/minesweeper-voronoi-mesh-4hc4ir` that touch this surface's paths trigger [`.github/workflows/deploy-games.yml`](../.github/workflows/deploy-games.yml).
 
 Ownership moved here from `claude/procedural-board-games-iFAiZ` when /horde/ was
-added, and again to `claude/tempest-procgen-game-vwj0f1` when /tempest/ was — a
-surface has exactly one owning branch plus `main`, so whichever branch is
+added, again to `claude/tempest-procgen-game-vwj0f1` when /tempest/ was, and
+to `claude/minesweeper-voronoi-mesh-4hc4ir` when /orb/ was (checked with
+`scripts/take-ownership.mjs`: every file the old owner shipped had landed) — a
+surface has exactly one owning branch (`main` deploys nothing), so whichever branch is
 actively shipping this surface holds it. Change it in
 [`deploy-registry.json`](../deploy-registry.json), never in the YAML, then
 `node scripts/preflight.mjs --fix` to rewrite the trigger.

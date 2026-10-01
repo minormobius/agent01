@@ -3,7 +3,7 @@ name: Deploy Games
 on:
   push:
     branches:
-      - 'claude/tempest-procgen-game-vwj0f1'
+      - 'claude/minesweeper-voronoi-mesh-4hc4ir'
     paths:
       - 'games/**'
       - 'packages/oauth-client/**'

@@ -3646,6 +3646,22 @@
       ]
     },
     {
+      "n": "orb",
+      "u": "https://games.mino.mobi/orb/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "p": "games",
+      "surface": "games",
+      "d": "Minesweeper on a sphere of Voronoi cells you turn with a finger. Every board is proved solvable by pure deduction before you see it, and the game counts every move you made that wasn't certain.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
       "n": "outbound",
       "u": "https://games.mino.mobi/outbound/",
       "c": "games",

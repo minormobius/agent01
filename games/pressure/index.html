@@ -194,6 +194,11 @@
     <span class="what">Two ways round, and one of them is the wrong one.</span>
     <span class="who">Tempest</span>
   </button>
+  <button class="tax" data-tax="hidden" data-built="yes" aria-pressed="false" type="button">
+    <span class="name">HIDDEN INFORMATION</span>
+    <span class="what">Most of the board is dark, and the dark is a proof you have to read.</span>
+    <span class="who">Orb</span>
+  </button>
   <button class="tax" data-tax="knowing" data-built="no" aria-pressed="false" type="button">
     <span class="name">THE COST OF KNOWING</span>
     <span class="what">Certainty is purchasable, and you cannot afford all of it.</span>
@@ -401,6 +406,38 @@
       <span class="chip">slack curve <b>143 → 9</b> ticks</span>
       <span class="chip">wrong way costs <b>42 ticks</b> (median)</span>
       <span class="chip">exact solver, <b>64 KB</b> of wasm</span>
+    </div>
+    <span class="go">play →</span>
+  </a>
+
+  <a class="card shipped" href="/orb/" data-tax="hidden">
+    <div class="card-top">
+      <h3>Orb</h3>
+      <span class="badge live">live</span>
+    </div>
+    <p class="pitch">
+      Minesweeper on a sphere of Voronoi cells: fives, sixes, sevens, no edge
+      of the world. Turn it with a finger. Every board is played out by an
+      exact solver from your first tap before you see it, and ships only if it
+      clears by <b>pure deduction</b>.
+    </p>
+    <p class="detail">
+      It has to be. Measured, an irregular mesh makes Minesweeper markedly
+      <em>less</em> fair than a hex grid with the same neighbour count: at 20%
+      mines, 85% of random hex boards clear without a guess and only 64% of
+      orbs do. And because knowledge only grows, a guess-free board keeps some
+      cell certain at every moment, however you got there.
+    </p>
+    <div class="measures">
+      <span class="k">what it measures about your decision</span>
+      A <em>certainty</em>: <em>"that was a guess, and this board never needed
+      one: 3 cells were certain when you clicked."</em> A clear with zero
+      guesses is the real one.
+    </div>
+    <div class="meta">
+      <span class="chip">solver checked against <b>brute force</b></span>
+      <span class="chip">guess-free orbs at 20%: <b>64%</b> random, <b>100%</b> shipped</span>
+      <span class="chip">~<b>1 ms</b> to prove a board</span>
     </div>
     <span class="go">play →</span>
   </a>

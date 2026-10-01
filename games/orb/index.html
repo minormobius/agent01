@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#08080c" />
+<meta name="description" content="Orb — Minesweeper on a sphere of Voronoi cells. Every board is proved guess-free before you see it, and the game counts every move you made that wasn't certain." />
+<title>Orb — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/orb.css" />
+</head>
+<body>
+
+<div id="app">
+  <div id="hud">
+    <div class="cell-hud"><span class="hud-label">mines</span><span class="hud-value" id="mines">—</span></div>
+    <div class="cell-hud"><span class="hud-label">time</span><span class="hud-value" id="time">0:00</span></div>
+    <div class="cell-hud"><span class="hud-label">guesses</span><span class="hud-value" id="guesses">0</span></div>
+    <div class="cell-hud right">
+      <select id="size" aria-label="Board size">
+        <option value="s">small · 160</option>
+        <option value="m">medium · 320</option>
+        <option value="l">large · 600</option>
+      </select>
+    </div>
+  </div>
+
+  <canvas id="orb" aria-label="The orb: drag to turn, tap to dig, hold to flag"></canvas>
+
+  <div id="note"></div>
+
+  <div id="actions">
+    <button class="primary" id="mode" type="button">⛏ dig</button>
+    <button class="ghost" id="hint" type="button" title="Show a cell that is certain (h)">? hint</button>
+    <button class="ghost" id="new" type="button" title="New orb (n)">↻ new</button>
+  </div>
+  <p class="seed-line">seed <code id="seed">—</code> · drag to turn · tap to dig · hold or right-click to flag · press a number to see what it counts</p>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>ORB</h1>
+  <p>
+    Minesweeper with the grid taken away. The world is a sphere of
+    <b>Voronoi cells</b> — fives, sixes, sevens, the odd four — and a number
+    counts the mines in every cell that shares an edge with it. No edges of
+    the world, no corners. Turn it with a finger.
+  </p>
+  <p>
+    An irregular mesh makes Minesweeper <b>worse</b> at being fair, not better:
+    measured, a random orb needs a coin-flip far more often than a hex grid
+    with the same neighbour count. So nothing here is random in that way.
+    Every orb is played out by an exact solver from your first tap before you
+    see it, and only boards that clear by <b>pure deduction</b> ship.
+  </p>
+  <p class="accent">
+    Which means at every moment, some cell is certain. The game checks each
+    move you make against that and counts the ones that weren't.
+    <b>Zero guesses</b> is the real clear.
+  </p>
+  <button class="primary" id="start-btn" type="button" style="flex:none">TURN THE ORB</button>
+  <p class="seed-line">one of the <a href="../pressure/">/pressure/</a> games · <a href="./README.md">how it works</a></p>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <h1 id="over-title">—</h1>
+  <p id="over-body"></p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button class="primary" id="again" type="button" style="flex:none">NEW ORB</button>
+    <button class="ghost" id="replay" type="button" style="flex:none">SAME SEED</button>
+    <button class="ghost" id="look" type="button" style="flex:none">LOOK</button>
+  </div>
+  <p class="seed-line">the seed is in the URL — same seed and same first tap, same board</p>
+</div>
+
+<script src="js/prng.js"></script>
+<script src="js/sphere.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/solve.js"></script>
+<script src="js/view.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

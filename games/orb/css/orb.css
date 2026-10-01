@@ -1,0 +1,90 @@
+/* Orb — layout and chrome.
+ *
+ * One canvas, as large as the screen allows: the orb is the whole interface,
+ * and you turn it with the same finger you play with. Same palette family as
+ * the rest of games.mino.mobi. */
+
+:root {
+  --bg: #08080c;
+  --surface: #15151f;
+  --border: #262633;
+  --text: #e6e6ee;
+  --dim: #8888a0;
+  --accent: #ff6a3d;
+  --accent2: #5ee8c1;
+  --blood: #ff2e4d;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg); color: var(--text);
+  font-family: var(--sans);
+  overscroll-behavior: none;
+}
+
+#app {
+  height: 100vh; height: 100dvh;
+  display: flex; flex-direction: column; align-items: center;
+  padding: max(10px, env(safe-area-inset-top)) 16px max(10px, env(safe-area-inset-bottom));
+  gap: 8px; max-width: 760px; margin: 0 auto;
+}
+
+#hud {
+  width: 100%; display: flex; gap: 18px; align-items: flex-end;
+  font-family: var(--mono);
+}
+.cell-hud { display: flex; flex-direction: column; gap: 3px; }
+.cell-hud.right { margin-left: auto; }
+.hud-label { font-size: 9px; letter-spacing: 0.14em; color: var(--dim); text-transform: uppercase; }
+.hud-value { font-size: 19px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+#guesses { color: var(--accent2); }
+
+select {
+  font-family: var(--mono); font-size: 12px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 8px;
+}
+
+#orb {
+  flex: 1; width: 100%; min-height: 0;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  cursor: grab; display: block;
+}
+#orb:active { cursor: grabbing; }
+
+#note {
+  font-family: var(--mono); font-size: 12px; color: var(--dim);
+  min-height: 1.4em; text-align: center;
+}
+
+#actions { width: 100%; display: flex; gap: 8px; }
+button.primary, button.ghost {
+  font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer;
+}
+button.primary { background: var(--accent); color: #1a0a06; border-color: var(--accent); flex: 2; }
+button.primary.on { background: var(--accent2); border-color: var(--accent2); }
+button.ghost { background: transparent; color: var(--dim); flex: 1; }
+button.ghost:hover { color: var(--text); border-color: var(--accent); }
+
+.seed-line { font-family: var(--mono); font-size: 11px; color: var(--dim); margin: 0; text-align: center; line-height: 1.6; }
+.seed-line code { color: var(--accent2); }
+.seed-line a { color: var(--accent2); }
+
+.overlay {
+  position: fixed; inset: 0; z-index: 20;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px 16px; text-align: center;
+  background: rgba(8,8,12,0.88); backdrop-filter: blur(3px);
+  overflow-y: auto;
+}
+.overlay[hidden] { display: none; }
+.overlay h1 { font-family: var(--mono); font-size: clamp(26px, 8vw, 40px); margin: 0; color: var(--accent); }
+.overlay h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin: 0; }
+.overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.65; max-width: 32em; }
+.overlay p b { color: var(--text); }
+.overlay .accent { color: var(--accent2); }

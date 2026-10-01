@@ -599,7 +599,7 @@
       "dir": "games",
       "endpoint": "games.mino.mobi",
       "type": "frontend",
-      "branch": "claude/tempest-procgen-game-vwj0f1",
+      "branch": "claude/minesweeper-voronoi-mesh-4hc4ir",
       "uses": [
         "auth.mino.mobi"
       ],
@@ -608,7 +608,8 @@
       "paths": [
         "games/**",
         "packages/oauth-client/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-10-01): taken by claude/minesweeper-voronoi-mesh-4hc4ir from claude/tempest-procgen-game-vwj0f1 with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "ink",

@@ -8,3 +8,6 @@ CLAUDE.md
 # every deploy — the built artefact and levels.json are what the page needs.
 tempest/core/
 tempest/test/
+
+# /orb/ test harness and measurements: node-only, not part of the site.
+orb/test/
