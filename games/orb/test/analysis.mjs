@@ -51,15 +51,19 @@ for (const [name, m] of Object.entries(meshes)) {
   console.log(row);
 }
 
-console.log("\nthe game's own sizes (no-guess generator: deals and repairs per board, time)");
-for (const [n, M] of [[160, 22], [320, 52], [600, 105]]) {
+console.log("\nthe game's own tiers: what the no-guess generator costs, and how hard its boards are");
+console.log("(a 'hard moment' is a point in the solve where no single number settles anything:");
+console.log(" it takes two overlapping numbers, or the exact solver. Easy rounds are not counted.)");
+for (const [n, M] of Object.values(O.SIZES).map((c) => [c.n, c.m])) {
   const mesh = O.buildMesh("gen", n, 2);
-  let deals = 0, repairs = 0, ms = 0, lv3 = 0;
+  let deals = 0, repairs = 0, ms = 0, h2 = 0, h3 = 0; const times = [];
   const T = Math.min(trials, 30);
   for (let t = 0; t < T; t++) {
     const t0 = performance.now();
     const g = O.generate(mesh, M, t % n, "g" + t);
-    ms += performance.now() - t0; deals += g.deals; repairs += g.repairs; if (g.hardest === 3) lv3++;
+    const dt = performance.now() - t0; ms += dt; times.push(dt); deals += g.deals; repairs += g.repairs;
+    const r = O.solveFrom(mesh, g.mines, t % n); h2 += r.levels[2]; h3 += r.levels[3];
   }
-  console.log(`  ${n} cells / ${M} mines: ${(deals / T).toFixed(2)} deals, ${(repairs / T).toFixed(1)} repairs, ${(ms / T).toFixed(0)} ms, ${Math.round(100 * lv3 / T)}% need exact reasoning`);
+  times.sort((a, b) => a - b);
+  console.log(`  ${String(n).padStart(4)} cells / ${String(M).padStart(3)} mines (${(100 * M / n).toFixed(1)}%): ${(deals / T).toFixed(2)} deals, ${(repairs / T).toFixed(1)} repairs, median ${times[T >> 1].toFixed(0)} ms, worst ${times[T - 1].toFixed(0)} ms | hard moments per board: ${(h2 / T).toFixed(1)} two-number, ${(h3 / T).toFixed(1)} exact`);
 }

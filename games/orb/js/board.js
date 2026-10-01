@@ -1,7 +1,7 @@
 /* Orb — the leaderboard: fastest PURE clears per size, read live off ATProto.
 
    A score is a com.minomobi.lab.score record in the player's OWN repo:
-     { site: "orb", game: "pure-<s|m|l>", value: ms, unit: "ms",
+     { site: "orb", game: "pure-<cells>-<mines>", value: ms, unit: "ms",
        higherIsBetter: false, detail: "seed=… first=… guesses=0", createdAt }
    Nobody hosts the board. js/corpus.js rebuilds it in every browser: a
    backfill from the relay and each player's PDS, then Jetstream for live
@@ -41,7 +41,7 @@ const canPost = () => auth.isLoggedIn() && auth.hasScope(SCOPE);
 
 async function post(r) {
   const record = {
-    $type: COLLECTION, site: "orb", game: "pure-" + r.size, value: Math.round(r.ms), unit: "ms",
+    $type: COLLECTION, site: "orb", game: O.gameId(r.size), value: Math.round(r.ms), unit: "ms",
     higherIsBetter: false, detail: "seed=" + r.seed + " first=" + r.first + " guesses=0",
     createdAt: new Date(r.at || Date.now()).toISOString(),
   };
@@ -77,7 +77,7 @@ function render() {
   renderLive();
   const list = $("board-list"), me = auth.getUser();
   const since = PERIOD_MS[view.period] ? Date.now() - PERIOD_MS[view.period] : 0;
-  const rows = corpus.top("pure-" + view.size, since, 10);
+  const rows = corpus.top(O.gameId(view.size), since, 10);
   list.innerHTML = "";
   if (!rows.length) {
     list.innerHTML = corpus.state === "backfill" ? "<li class='dim'>loading…</li>" : "<li class='dim'>no pure clears yet. Be the first</li>";

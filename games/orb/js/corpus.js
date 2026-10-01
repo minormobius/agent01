@@ -26,9 +26,9 @@ export const COLLECTION = "com.minomobi.lab.score";
 
 /* What counts as an Orb score. Anyone can write anything into this
    collection (other sites share it), so the board reads only well-formed
-   Orb records: site "orb", game pure-<s|m|l>, an integer time in ms. */
+   Orb records: site "orb", game pure-<cells>-<mines>, an integer time in ms. */
 export function accept(v) {
-  return !!v && v.site === "orb" && /^pure-[sml]$/.test(v.game) && v.unit === "ms" &&
+  return !!v && v.site === "orb" && /^pure-\d{2,5}-\d{1,5}$/.test(v.game) && v.unit === "ms" &&
     v.higherIsBetter === false && Number.isInteger(v.value) && v.value >= 1000 && v.value <= 86400e3 &&
     typeof v.createdAt === "string" && !isNaN(Date.parse(v.createdAt));
 }

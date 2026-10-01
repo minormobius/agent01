@@ -13,7 +13,7 @@
 (function () {
   "use strict";
   var O = window.ORB;
-  var SIZES = { s: { n: 160, m: 22, label: "small" }, m: { n: 320, m: 50, label: "medium" }, l: { n: 600, m: 100, label: "large" } };
+  var SIZES = O.SIZES;
 
   var $ = function (id) { return document.getElementById(id); };
   var cv = $("orb"), view = new O.View(cv);
@@ -158,7 +158,7 @@
           "</b> certain when you clicked. They're pulsing.";
       end();
     } else if (s.phase === "won") {
-      var key = "orb-best-" + game.size, best = null, ms = s.t1 - s.t0, clean = game.guesses === 0;
+      var key = "orb-best-" + O.gameId(game.size), best = null, ms = s.t1 - s.t0, clean = game.guesses === 0;
       try { best = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { /* private mode */ }
       var isBest = clean && (!best || ms < best);
       if (isBest) try { localStorage.setItem(key, JSON.stringify(ms)); } catch (e) { /* ignore */ }

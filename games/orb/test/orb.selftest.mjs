@@ -83,7 +83,7 @@ ck(incomplete === 0, `exact solver complete — found every certain cell (${inco
 ck(partialUnsound === 0, `levels 1–2 sound (${partialUnsound} wrong calls)`);
 
 console.log("generator");
-for (const [n, M] of [[160, 22], [320, 52], [600, 105]]) {
+for (const [n, M] of Object.values(O.SIZES).map((c) => [c.n, c.m])) {
   const mesh = O.buildMesh("gen-st", n, 2);
   let all = true, clear = true, det = true;
   for (let t = 0; t < 12; t++) {
@@ -151,8 +151,8 @@ console.log("score corpus (fake network)");
   const now = Date.now(), iso = (dt) => new Date(now - dt).toISOString();
   const rec = (game, value, dt = 0, extra = {}) => ({ $type: "com.minomobi.lab.score", site: "orb", game, value, unit: "ms", higherIsBetter: false, createdAt: iso(dt), ...extra });
   const repos = {
-    "did:plc:aaa": [rec("pure-m", 90000), rec("pure-m", 80000, 9 * 86400e3), rec("pure-s", 40000)],
-    "did:plc:bbb": [rec("pure-m", 85000), { site: "ponderbrot", game: "ponderbrot", value: 667, unit: "x", createdAt: iso(0) }, rec("pure-m", 500)],
+    "did:plc:aaa": [rec("pure-320-62", 90000), rec("pure-320-62", 80000, 9 * 86400e3), rec("pure-160-28", 40000)],
+    "did:plc:bbb": [rec("pure-320-62", 85000), { site: "ponderbrot", game: "ponderbrot", value: 667, unit: "x", createdAt: iso(0) }, rec("pure-320-62", 500)],
     "did:plc:gone": null,                                    // relay lists it, PDS doesn't have it
   };
   const page = (list, cursor) => {                         // two-page listRecords to exercise cursors
@@ -182,26 +182,26 @@ console.log("score corpus (fake network)");
   const c = new Corpus(accept);
   await c.start();
   await new Promise((r) => setTimeout(r, 5));
-  const m = c.top("pure-m");
+  const m = c.top("pure-320-62");
   ck(c.repos === 3 && c.records.size === 4, `backfill: 3 repos listed (two pages of records each), dead one skipped, 4 Orb records kept (${c.records.size}); other sites' and malformed ones dropped`);
   ck(m.length === 2 && m[0].did === "did:plc:aaa" && m[0].value === 80000 && m[1].value === 85000,
     `ranking: best time per player, lowest first (${m.map((r) => r.value).join(", ")}); the 0.5 s record is rejected`);
-  ck(c.top("pure-m", now - 7 * 86400e3)[0].value === 85000, "period filter: this week drops the 9-day-old best");
+  ck(c.top("pure-320-62", now - 7 * 86400e3)[0].value === 85000, "period filter: this week drops the 9-day-old best");
   ck(m[0].handle === "aaa.test" && m[1].handle === null, "names: verified handle shown; unverified gets none, never the DID doc's claim");
   ck(m[0].avatar === "https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:aaa/x@jpeg", "avatars: from the appview, as the thumbnail size");
   ck(c.state === "live" && /wantedCollections=com\.minomobi\.lab\.score&cursor=\d+/.test(sock.url), "Jetstream: filtered to the collection, with a cursor from before the backfill");
   sock.onmessage({ data: JSON.stringify({ did: "did:plc:ccc", time_us: 1, kind: "identity" }) });
-  sock.onmessage({ data: JSON.stringify({ did: "did:plc:ccc", time_us: 2, kind: "commit", commit: { operation: "create", collection: "com.minomobi.lab.score", rkey: "r1", record: rec("pure-m", 70000) } }) });
-  ck(c.top("pure-m")[0].did === "did:plc:ccc", "live create from a new player tops the board");
+  sock.onmessage({ data: JSON.stringify({ did: "did:plc:ccc", time_us: 2, kind: "commit", commit: { operation: "create", collection: "com.minomobi.lab.score", rkey: "r1", record: rec("pure-320-62", 70000) } }) });
+  ck(c.top("pure-320-62")[0].did === "did:plc:ccc", "live create from a new player tops the board");
   flaky = 1; // a new live player whose first name lookup fails
-  sock.onmessage({ data: JSON.stringify({ did: "did:plc:ddd", time_us: 2, kind: "commit", commit: { operation: "create", collection: "com.minomobi.lab.score", rkey: "r2", record: rec("pure-s", 30000) } }) });
+  sock.onmessage({ data: JSON.stringify({ did: "did:plc:ddd", time_us: 2, kind: "commit", commit: { operation: "create", collection: "com.minomobi.lab.score", rkey: "r2", record: rec("pure-160-28", 30000) } }) });
   await new Promise((r) => setTimeout(r, 5));
-  const before = c.top("pure-s")[0].handle;
+  const before = c.top("pure-160-28")[0].handle;
   c._asked.set("did:plc:ddd", { n: 1, at: 0 });      // fast-forward the backoff
-  c.top("pure-s"); await new Promise((r) => setTimeout(r, 5));
-  ck(before === null && c.top("pure-s")[0].handle === "ddd.test", "a failed name lookup is retried: the row heals from no name to its handle");
+  c.top("pure-160-28"); await new Promise((r) => setTimeout(r, 5));
+  ck(before === null && c.top("pure-160-28")[0].handle === "ddd.test", "a failed name lookup is retried: the row heals from no name to its handle");
   sock.onmessage({ data: JSON.stringify({ did: "did:plc:ccc", time_us: 3, kind: "commit", commit: { operation: "delete", collection: "com.minomobi.lab.score", rkey: "r1" } }) });
-  ck(c.top("pure-m")[0].did === "did:plc:aaa" && c._cursor === 3, "live delete removes it; cursor tracks the stream for reconnects");
+  ck(c.top("pure-320-62")[0].did === "did:plc:aaa" && c._cursor === 3, "live delete removes it; cursor tracks the stream for reconnects");
   c.stop();
 }
 

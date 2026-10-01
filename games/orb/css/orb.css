@@ -71,6 +71,7 @@ button.primary, button.ghost {
   padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer;
 }
 button.primary { background: var(--accent); color: #1a0a06; border-color: var(--accent); flex: 2; }
+#actions button { white-space: nowrap; padding-left: 8px; padding-right: 8px; min-width: 0; }
 button.primary.on { background: var(--accent2); border-color: var(--accent2); }
 button.ghost { background: transparent; color: var(--dim); flex: 1; }
 button.ghost:hover { color: var(--text); border-color: var(--accent); }

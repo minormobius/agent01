@@ -87,7 +87,7 @@ row per player, all-time / week / today.
 (`repo:com.minomobi.lab.score`):
 
 ```json
-{ "site": "orb", "game": "pure-m", "value": 83412, "unit": "ms",
+{ "site": "orb", "game": "pure-320-62", "value": 83412, "unit": "ms",
   "higherIsBetter": false, "detail": "seed=kor-lith-26 first=60 guesses=0",
   "createdAt": "…" }
 ```
@@ -139,8 +139,33 @@ without changing the format.
 | `js/corpus.js` | the score corpus: relay + PDS backfill, Jetstream live, per-player ranking (ES module, no DOM) |
 | `js/board.js` | the leaderboard UI and the write path (ES module; imports `../../lib/auth.js`, which the deploy vendors) |
 
-A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l`
+A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l|x`
 is a permalink.
+
+## Tiers
+
+| tier | cells | mines | density | to prove a board (median / worst) | hard moments per board |
+|---|---|---|---|---|---|
+| small | 160 | 28 | 17.5% | <1 ms | ~0 |
+| medium | 320 | 62 | 19.4% | <1 ms | 0.3 |
+| large | 600 | 132 | 22% | 5 / 13 ms | 0.9 |
+| huge | 1000 | 250 | 25% | 83 / 325 ms | 1.3 |
+
+They're defined in `O.SIZES` (`js/rules.js`). The generator's cost climbs
+steeply past a quarter mined: 1000 cells at 28% takes ~0.25 s median, and
+1500 cells at 28% takes 5 s median, 11 s worst. The ceiling is the repair
+loop, not the solver.
+
+A **hard moment** is a point in the solve where no single number settles
+anything anywhere on the board: it takes two overlapping numbers or the
+exact solver. Even the densest tier has barely one per board, so more mines
+makes a board longer and denser to read, but not deeper. Selecting for hard
+moments, rather than adding mines, is the lever for real logical
+difficulty.
+
+A tier's cells and mines are its leaderboard game id (`pure-1000-250`).
+Retune a tier and its old times drop off instead of being ranked against a
+different board.
 
 ## Tests
 

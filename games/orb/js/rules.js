@@ -80,6 +80,21 @@
     return out;
   }
 
+  /* The tiers. Densities were chosen by measurement (test/analysis.mjs prints
+     the generator's cost per tier): the no-guess oracle holds up to about a
+     quarter of the cells mined on 1000 cells (~0.1 s median, ~0.3 s worst to
+     prove a board) and starts to strain past that.
+     A board's difficulty is its cell and mine count, so that pair IS the
+     leaderboard's game id: retune a tier and its old times stop being
+     compared with the new ones, instead of quietly mixing. */
+  O.SIZES = {
+    s: { n: 160, m: 28, label: "small" },
+    m: { n: 320, m: 62, label: "medium" },
+    l: { n: 600, m: 132, label: "large" },
+    x: { n: 1000, m: 250, label: "huge" },
+  };
+  O.gameId = function (size) { var c = O.SIZES[size]; return "pure-" + c.n + "-" + c.m; };
+
   O.newState = newState;
   O.plant = plant;
   O.reveal = reveal;
