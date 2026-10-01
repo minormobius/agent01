@@ -1,7 +1,9 @@
-a0fe953f202af420d590f81604c71e856b4920ce
-# The commit core/ was taken from.
+87ff06e966dc0f45d664a6c32737077e8536964a
+# The commit core/ and host/ were taken from (2026-10-01: "Merge pull request #1 from
+# olaugh/guitar").
 #
-# Re-checked 2026-09-06 against upstream bb520d9 ("full keyboard, bass onset,
-# per-key body, ear-tuned onset, 10x faster envelopes"): all six vendored files
-# are byte-identical, so there is nothing to pull. That work lands in
-# pf_partial and pf_attack — the modal voice, which we do not vendor.
+# The guitar arrived here: core/pf_pluck.{c,h}, host/pf_guitar.{c,h}, host/pf_instrument.h and
+# host/pf_score.h are byte-identical to that commit. The piano's six files were re-checked against
+# it and are byte-identical too (unchanged since a0fe953, the commit they were first taken from;
+# upstream bb520d9's piano work landed in pf_partial and pf_attack, which we do not vendor), so
+# pfsynth.wasm rebuilds to the same bytes.

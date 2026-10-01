@@ -12,9 +12,12 @@ import { parseLily, pitchToLilyRelative, pitchToLily, durationToLily } from './l
 import { engrave } from './engrave.js';
 import { PATCHES, Player, scoreToNotes, performance as buildPerformance, renderWav, silentSwitchMayMute, patchForInstrument, wavBlobInterleaved } from './audio.js';
 import * as pfsynth from './pfsynth.js';
+import * as pfguitar from './pfguitar.js';
 
 /** The voice-picker value that selects the physical model. */
 const MODEL_PATCH = 'pfsynth';
+/** The voice-picker value that selects the physical guitar (pfsynth's, rendered the same way). */
+const GUITAR_PATCH = 'pfguitar';
 import { writeMidi } from './midi.js';
 import { LIBRARY, byId, DEFAULT_PIECE } from './library.js';
 import { WHOLE, ticksOf, keyAlterations, clefDef, pitchFromDiatonic, spell } from './model.js';
@@ -480,7 +483,7 @@ function deleteSelected() {
  * in the page has to know which one is running.
  */
 function activeEngine() {
-  return el.patch.value === MODEL_PATCH ? modelPlayer : player;
+  return el.patch.value === MODEL_PATCH ? modelPlayer : el.patch.value === GUITAR_PATCH ? guitarPlayer : player;
 }
 
 function togglePlay() {
@@ -510,6 +513,19 @@ function togglePlay() {
     });
     return;
   }
+  if (engine === guitarPlayer) {
+    guitarPlayer.load(state.perf);
+    setPlayingUI(true);
+    // Said once per score: what fitting it to six strings changed, so a missing note is explained.
+    const fit = pfguitar.packGuitar(state.perf);
+    if (fit.folded || fit.dropped) toast(guitarFitNote(fit), 5000);
+    guitarPlayer.play(from).catch((err) => {
+      showRenderProgress(false);
+      setPlayingUI(false);
+      if (!err?.cancelled) toast(`could not render the guitar: ${err.message}`);
+    });
+    return;
+  }
 
   player.patch = PATCHES[el.patch.value] ?? PATCHES.piano;
   player.play(from);
@@ -522,7 +538,7 @@ function showRenderProgress(on, value = 0) {
   const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
   el.renderFill.style.width = `${pct}%`;
   el.renderProgress.setAttribute('aria-valuenow', String(pct));
-  el.renderLabel.textContent = pct >= 99 ? 'almost there…' : `rendering piano… ${pct}%`;
+  el.renderLabel.textContent = pct >= 99 ? 'almost there…' : `rendering ${el.patch.value === GUITAR_PATCH ? 'guitar' : 'piano'}… ${pct}%`;
 }
 
 let silentSwitchWarned = false;
@@ -603,6 +619,11 @@ modelPlayer.onRenderProgress = (v) => {
   if (v >= 1) { showRenderProgress(false); return; }
   showRenderProgress(true, v);
 };
+// The guitar: the same player, a different instrument behind it.
+const guitarPlayer = new pfsynth.ModelPlayer(pfguitar.render);
+guitarPlayer.onTick = modelPlayer.onTick;
+guitarPlayer.onEnd = modelPlayer.onEnd;
+guitarPlayer.onRenderProgress = modelPlayer.onRenderProgress;
 
 // ---------------------------------------------------------------- pieces --
 
@@ -616,6 +637,7 @@ function loadPiece(piece, { push = true } = {}) {
   el.source.setSelectionRange(0, 0);
   player.stop();
   modelPlayer.stop();
+  guitarPlayer.stop();
   setPlayingUI(false);
   showRenderProgress(false);
   scheduleRender(true);
@@ -693,11 +715,28 @@ function exportMidi() {
   download(new Blob([bytes], { type: 'audio/midi' }), `${slug(state.title)}.mid`);
 }
 
+/** What fitting a score to six strings changed, for the toast. */
+function guitarFitNote(r) {
+  const parts = [];
+  if (r.folded) parts.push(`${r.folded} note${r.folded === 1 ? '' : 's'} moved by octaves into the guitar's range`);
+  if (r.dropped) parts.push(`${r.dropped} doubled or seventh-string note${r.dropped === 1 ? '' : 's'} left out`);
+  return `guitar: ${parts.join('; ')}`;
+}
+
 async function exportWav() {
   if (!state.perf?.events.length) { toast('nothing to render'); return; }
   const modelled = el.patch.value === MODEL_PATCH;
   try {
-    if (modelled) {
+    if (el.patch.value === GUITAR_PATCH) {
+      // A guitar has six strings and a range of E2 to B5, so a piano score is fitted to it: notes
+      // outside fold in by octaves, and a chord of more than six keeps six. The toast says so.
+      toast('rendering the guitar…', 600000);
+      showRenderProgress(true, 0);
+      const r = await pfguitar.render(state.perf, { onProgress: (v) => showRenderProgress(true, v) });
+      showRenderProgress(false);
+      download(wavBlobInterleaved(r.interleaved, r.sampleRate), `${slug(state.title)}.wav`);
+      if (r.folded || r.dropped) { toast(guitarFitNote(r)); return; }
+    } else if (modelled) {
       // The model is a PIANO, so an ensemble score exported this way gets a
       // piano playing the violin's part. Said out loud: quietly ignoring the
       // instruments a score asks for looks like the ensemble support breaking.
@@ -905,6 +944,7 @@ function openExport() {
     item('.svg', 'the engraving as vector art, for a document or a poster', exportSvg);
     item('.wav', el.patch.value === MODEL_PATCH
       ? 'rendered through the physical piano model — slower, and worth it'
+      : el.patch.value === GUITAR_PATCH ? 'rendered through the physical guitar model, in a measured body'
       : 'the preview rendered to audio', exportWav);
     item('print', 'the score alone, at page width', () => window.print());
     body.appendChild(menu);
@@ -1224,6 +1264,16 @@ function openAbout() {
       rather than hidden — an engraving that quietly disagrees with its source
       is worse than one that says so.</p>
 
+      <h3>The physical voices</h3>
+      <p><b>Piano — physical model</b> and <b>Guitar — physical model</b> are
+      John O'Laughlin's <a href="https://github.com/olaugh/pfsynth">pfsynth</a> (MIT),
+      run in your browser: strings modelled as they vibrate, rendered once before
+      they play, so there is a wait. The guitar is six modelled nylon strings that
+      choose their own frets; its body is Robert Mores's measurement of a 1971
+      Manuel Contreras guitar (<a href="https://zenodo.org/records/4604577">Zenodo
+      4604577</a>, CC BY 4.0). A score not written for guitar is fitted to it: notes
+      outside E2–B5 move by octaves, and a chord keeps at most six notes.</p>
+
       <h3>The empty staff</h3>
       <p>A one-staff score is drawn on a grand staff, with an empty partner
       below, because that is what piano paper looks like whether or not the left
@@ -1272,6 +1322,7 @@ function wire() {
     // both at once.
     player.stop();
     modelPlayer.stop();
+    guitarPlayer.stop();
     setPlayingUI(false);
     showRenderProgress(false);
     player.patch = PATCHES[el.patch.value] ?? PATCHES.piano;
@@ -1413,6 +1464,16 @@ function boot() {
     el.patch.appendChild(o);
     const prefs = loadPrefs();
     if (prefs.patch === MODEL_PATCH) el.patch.value = MODEL_PATCH;
+  });
+  // The guitar (pfsynth's too): offered only where its module loads and the browser can
+  // convolve offline, since the body and the room are what make the strings a guitar.
+  pfguitar.available().then((ok) => {
+    if (!ok) return;
+    const o = document.createElement('option');
+    o.value = GUITAR_PATCH;
+    o.textContent = 'Guitar — physical model';
+    el.patch.appendChild(o);
+    if (loadPrefs().patch === GUITAR_PATCH) el.patch.value = GUITAR_PATCH;
   });
   fillPieceSelect();
 

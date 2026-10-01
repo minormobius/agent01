@@ -1,0 +1,231 @@
+// pfguitar.js — the physical-modelling classical guitar: render it, then play it.
+//
+// John O'Laughlin's pfsynth guitar (MIT, vendored under vendor/pfsynth/: core/pf_pluck and
+// host/pf_guitar, unmodified), compiled to its own module, pfguitar.wasm, behind our host
+// pf_guitar_web.c. Six modelled nylon strings: each note is a pluck at a point on a string, the
+// guitar chooses strings and frets itself (a search over hand positions), and a string rings
+// until a hand would stop it — played again, its finger needed elsewhere, or a clash.
+//
+// It renders the strings' BRIDGE FORCE, which is not yet a guitar sound. Upstream's own demo
+// gets the instrument by convolving that with a measured guitar body and then a room, and so do
+// we (`dress` below): Manuel Contreras's 1971 guitar, measured by Robert Mores (Zenodo 4604577,
+// CC BY 4.0, vendor/pfsynth/bodies/), and upstream's statistical "small studio" room.
+//
+// A score here was usually not written for a guitar, so `packGuitar` makes it playable rather
+// than refusing it, and says what it did: notes outside E2–B5 fold in by octaves, and a chord of
+// more than six notes keeps six (the outer two and an even spread between), because a guitar
+// has six strings. Rendering, caching and playback are pfsynth.js's ModelPlayer: same wait, same
+// progress bar, same cancel.
+
+const LOW = 40, HIGH = 83, STRINGS = 6, RING = 3.5;
+const NOTE_BYTES = 48;
+const BODY_URL = new URL('../vendor/pfsynth/bodies/g34.wav', import.meta.url);
+
+/**
+ * A performance as the guitar will play it: [start s, end s, MIDI, velocity 1–127] per note,
+ * sorted by start, plus how much was changed to fit the instrument.
+ */
+export function packGuitar(perf) {
+  const events = [...perf.events].sort((a, b) => a.at - b.at || a.midi - b.midi);
+  let folded = 0, dropped = 0;
+  const groups = [];
+  for (const e of events) {
+    let p = e.midi;
+    while (p < LOW) p += 12;
+    while (p > HIGH) p -= 12;
+    if (p !== e.midi) folded++;
+    const g = groups.at(-1);
+    const note = { at: e.at, end: Math.max(e.at + 0.05, e.at + e.dur), midi: p, vel: 20 + 107 * Math.min(1, Math.max(0, e.velocity)) };
+    if (g && Math.abs(g[0].at - e.at) < 0.004) {
+      const same = g.find((n) => n.midi === p);
+      if (same) { same.end = Math.max(same.end, note.end); same.vel = Math.max(same.vel, note.vel); dropped++; }
+      else g.push(note);
+    } else groups.push([note]);
+  }
+  const notes = [];
+  for (const g of groups) {
+    g.sort((a, b) => a.midi - b.midi);
+    let keep = g;
+    if (g.length > STRINGS) {
+      const idx = new Set(Array.from({ length: STRINGS }, (_, i) => Math.round((i * (g.length - 1)) / (STRINGS - 1))));
+      keep = g.filter((_, i) => idx.has(i));
+      dropped += g.length - keep.length;
+    }
+    for (const n of keep) notes.push(n);
+  }
+  const flat = new Float64Array(notes.length * 4);
+  let last = 0;
+  notes.forEach((n, i) => { flat[i * 4] = n.at; flat[i * 4 + 1] = n.end; flat[i * 4 + 2] = n.midi; flat[i * 4 + 3] = n.vel; last = Math.max(last, n.end); });
+  return { notes: flat, count: notes.length, duration: last + RING, folded, dropped };
+}
+
+/** Write packed notes into the module and render the dry bridge force, mono. Node and worker share it. */
+export async function renderDry(X, packed, sampleRate, { onProgress, cancelled, yieldEvery = 8 } = {}) {
+  const n = packed.count;
+  if (n > X.pgw_max_notes()) throw new Error(`too many notes for the guitar (${n} > ${X.pgw_max_notes()})`);
+  const base = X.pgw_notes_ptr();
+  new Uint8Array(X.memory.buffer, base, n * NOTE_BYTES).fill(0);
+  const dv = new DataView(X.memory.buffer);
+  for (let i = 0; i < n; i++) {
+    const o = base + i * NOTE_BYTES;
+    dv.setFloat64(o, packed.notes[i * 4], true);
+    dv.setFloat64(o + 8, packed.notes[i * 4 + 1], true);
+    dv.setFloat32(o + 16, packed.notes[i * 4 + 2], true);
+    dv.setFloat32(o + 20, packed.notes[i * 4 + 3], true);
+    dv.setInt8(o + 40, -1); dv.setInt8(o + 41, -1); dv.setInt8(o + 42, -1);   // string, fret, finger: the guitar chooses
+  }
+  const err = X.pgw_begin(sampleRate, n, packed.duration);
+  if (err) throw new Error(`the guitar refused the score (${err})`);
+  const total = Math.round(packed.duration * sampleRate), out = new Float32Array(total), ptr = X.pgw_out_ptr();
+  let at = 0, k = 0, got;
+  while ((got = X.pgw_render(X.pgw_block())) > 0) {
+    out.set(new Float32Array(X.memory.buffer, ptr, got), at);
+    at += got;
+    if (++k % yieldEvery === 0) {
+      onProgress?.(Math.min(0.99, at / total));
+      await new Promise((r) => setTimeout(r, 0));
+      if (cancelled?.()) return null;
+    }
+  }
+  return out.subarray(0, at);
+}
+
+// ------------------------------------------------------------- body and room --
+
+/** The body's measured response: a 32-bit float (or 16-bit) mono WAV, read without decodeAudioData. */
+async function loadBody() {
+  const buf = await (await fetch(BODY_URL)).arrayBuffer(), dv = new DataView(buf);
+  let p = 12, fmt = 3, bits = 32, rate = 44100;
+  while (p + 8 <= buf.byteLength) {
+    const id = String.fromCharCode(dv.getUint8(p), dv.getUint8(p + 1), dv.getUint8(p + 2), dv.getUint8(p + 3)), size = dv.getUint32(p + 4, true);
+    if (id === 'fmt ') { fmt = dv.getUint16(p + 8, true); rate = dv.getUint32(p + 12, true); bits = dv.getUint16(p + 22, true); }
+    if (id === 'data') {
+      const n = size / (bits / 8), x = new Float32Array(n);
+      for (let i = 0; i < n; i++) x[i] = fmt === 3 ? dv.getFloat32(p + 8 + i * 4, true) : dv.getInt16(p + 8 + i * 2, true) / 32768;
+      return { x, rate };
+    }
+    p += 8 + size + (size & 1);
+  }
+  throw new Error('guitar body: no audio in the file');
+}
+
+/**
+ * A statistical room, stereo: upstream's roomImpulse (docs/guitar/guitar.js, after
+ * tools/guitar_room_fit.room_impulse), unchanged but for taking the buffer to fill.
+ * Band-limited noise in octave bands, each decaying at its own reverberation time.
+ */
+function roomImpulse(ctx, rtLow, rtHigh, ratio, sr) {
+  const rt = (f) => Math.exp(Math.log(rtLow) + (Math.log(rtHigh) - Math.log(rtLow)) * (Math.log(f) - Math.log(200)) / (Math.log(4000) - Math.log(200)));
+  const n = Math.round(1.3 * Math.max(rtLow, rtHigh) * sr), pre = Math.round(.012 * sr), buf = ctx.createBuffer(2, n + pre, sr);
+  const edges = [44, 88, 177, 355, 710, 1420, 2840, 5680, 11360, 20000];
+  for (let ch = 0; ch < 2; ch++) {
+    const out = buf.getChannelData(ch); out[0] = 1; let seed = 1 + ch * 7919;
+    const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff * 2 - 1; };
+    for (let b = 0; b + 1 < edges.length; b++) {
+      const lo = edges[b], hi = Math.min(edges[b + 1], sr * .49), fc = Math.sqrt(lo * hi), q = fc / (hi - lo), w = 2 * Math.PI * fc / sr, al = Math.sin(w) / (2 * q);
+      const b0 = al / (1 + al), b2 = -b0, a1 = -2 * Math.cos(w) / (1 + al), a2 = (1 - al) / (1 + al), T = rt(fc), band = new Float32Array(n);
+      let x1 = 0, x2 = 0, y1 = 0, y2 = 0, u1 = 0, u2 = 0, v1 = 0, v2 = 0;
+      for (let i = 0; i < n; i++) {
+        const x = rand(); let y = b0 * x + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x; y2 = y1; y1 = y;
+        const z = b0 * y + b2 * u2 - a1 * v1 - a2 * v2; u2 = u1; u1 = y; v2 = v1; v1 = z;
+        band[i] = z * Math.exp(-6.9078 * i / sr / T);
+      }
+      let e = 0; for (const v of band) e += v * v; const g = Math.sqrt(ratio * 2 * (hi - lo) / sr / (e || 1));
+      for (let i = 0; i < n; i++) out[pre + i] += g * band[i];
+    }
+  }
+  return buf;
+}
+
+/**
+ * Bridge force → a guitar in a room: the body by convolution (normalised to unit energy, as
+ * upstream's demo does), then the room, in an OfflineAudioContext so it is the browser's own
+ * fast convolver and not a JS loop. Peak-normalised to −1 dBFS: the bridge force has no
+ * natural loudness, and a whole piece is rendered before it is heard, so the level can be set
+ * from the piece itself. Returns interleaved stereo.
+ */
+export async function dress(dry, sampleRate) {
+  const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
+  const tail = Math.round(1.2 * sampleRate), length = dry.length + tail;
+  const ctx = new OAC(2, length, sampleRate);
+  const body = await loadBody();
+  let e = 0; for (const v of body.x) e += v * v;
+  const bodyBuf = ctx.createBuffer(1, body.x.length, body.rate);
+  bodyBuf.copyToChannel(body.x, 0);
+  const src = ctx.createBufferSource(), srcBuf = ctx.createBuffer(1, dry.length, sampleRate);
+  srcBuf.copyToChannel(dry, 0); src.buffer = srcBuf;
+  const conv = ctx.createConvolver(); conv.normalize = false; conv.buffer = bodyBuf;
+  const bodyGain = ctx.createGain(); bodyGain.gain.value = 1 / Math.sqrt(e || 1);
+  const room = ctx.createConvolver(); room.normalize = false; room.buffer = roomImpulse(ctx, 0.5, 0.3, 0.25, sampleRate);
+  const roomGain = ctx.createGain(); roomGain.gain.value = 1 / Math.sqrt(1.25);
+  src.connect(conv); conv.connect(bodyGain); bodyGain.connect(room); room.connect(roomGain); roomGain.connect(ctx.destination);
+  src.start();
+  const done = await ctx.startRendering(), L = done.getChannelData(0), R = done.getChannelData(1);
+  let peak = 0; for (let i = 0; i < length; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
+  const k = peak > 0 ? 0.89 / peak : 1, out = new Float32Array(length * 2);
+  for (let i = 0; i < length; i++) { out[i * 2] = L[i] * k; out[i * 2 + 1] = R[i] * k; }
+  return out;
+}
+
+// ---------------------------------------------------------------- the render --
+
+let worker = null, workerBroken = false, nextId = 1;
+const pending = new Map();
+function ensureWorker() {
+  if (worker || workerBroken) return worker;
+  try {
+    worker = new Worker(new URL('./pfsynth-worker.js', import.meta.url), { type: 'module' });
+    worker.onmessage = (ev) => {
+      const m = ev.data, job = pending.get(m.id);
+      if (!job) return;
+      if (m.type === 'progress') { job.onProgress?.(m.value * 0.92); return; }
+      pending.delete(m.id);
+      if (m.type === 'done-guitar') job.resolve(new Float32Array(m.mono));
+      else if (m.type === 'cancelled') job.reject(Object.assign(new Error('cancelled'), { cancelled: true }));
+      else job.reject(new Error(m.message || 'render failed'));
+    };
+    worker.onerror = () => { workerBroken = true; worker = null; };
+  } catch { workerBroken = true; worker = null; }
+  return worker;
+}
+
+let direct = null;
+async function loadDirect() {
+  if (!direct) {
+    const res = await fetch(new URL('../vendor/pfsynth/pfguitar.wasm', import.meta.url));
+    if (!res.ok) throw new Error(`pfguitar.wasm: HTTP ${res.status}`);
+    direct = (await WebAssembly.instantiate(await res.arrayBuffer(), {})).instance.exports;
+  }
+  return direct;
+}
+
+/** True if the guitar can be offered at all: the module loads and the browser can convolve offline. */
+export async function available() {
+  if (!(globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext)) return false;
+  try { await loadDirect(); return true; } catch { return false; }
+}
+
+/**
+ * Render a performance on the guitar: the strings in the worker (or here, if there is none),
+ * then the body and the room. Same shape as pfsynth.js's render, so ModelPlayer can drive it.
+ */
+export async function render(perf, { sampleRate = 44100, onProgress, signal, noWorker = false } = {}) {
+  const packed = packGuitar(perf);
+  const w = noWorker ? null : ensureWorker();
+  let dry;
+  if (w) {
+    const id = nextId++;
+    dry = await new Promise((resolve, reject) => {
+      pending.set(id, { resolve, reject, onProgress });
+      signal?.addEventListener('abort', () => { if (pending.has(id)) w.postMessage({ type: 'cancel', id }); }, { once: true });
+      const notes = packed.notes.slice();
+      w.postMessage({ type: 'render-guitar', id, notes: notes.buffer, count: packed.count, duration: packed.duration, sampleRate }, [notes.buffer]);
+    });
+  } else {
+    dry = await renderDry(await loadDirect(), packed, sampleRate, { onProgress: (v) => onProgress?.(v * 0.92), cancelled: () => signal?.aborted });
+    if (!dry) throw Object.assign(new Error('cancelled'), { cancelled: true });
+  }
+  const interleaved = await dress(dry, sampleRate);
+  onProgress?.(1);
+  return { interleaved, sampleRate, frames: interleaved.length / 2, folded: packed.folded, dropped: packed.dropped };
+}

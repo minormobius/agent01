@@ -285,6 +285,30 @@ The `.wasm` is committed because the deploy job has no C toolchain. Rebuild with
 `vendor/pfsynth/build.sh`; the selftests load the committed binary and render
 through it, so a stale or truncated one fails there rather than in a browser.
 
+## The physical guitar
+
+pfsynth grew a classical guitar upstream (2026-10-01, John's post: "merged!"), and it is a voice
+here: **Guitar — physical model** in the picker, for Play and `.wav`. The model is upstream's
+(`core/pf_pluck`, `host/pf_guitar`, unmodified); ours are `vendor/pfsynth/pf_guitar_web.c` (the
+host), `src/pfguitar.js` and a `render-guitar` message in `pfsynth-worker.js`. It is a separate
+module, `pfguitar.wasm`, so the piano's binary never changed. `ModelPlayer` takes the render
+function, so the guitar is the piano's player with a different instrument behind it.
+
+What is load-bearing:
+
+- **The model renders bridge force, not a guitar sound.** The body (a measured 1971 Contreras,
+  `vendor/pfsynth/bodies/`, CC BY 4.0, credited in the help sheet) and a small room are applied
+  by an `OfflineAudioContext` after the strings render, as upstream's demo does with WebAudio.
+  That is also why the voice is offered only where `OfflineAudioContext` exists.
+- **Piano scores are fitted, and the page says so** (`packGuitar`): outside E2–B5 folds by
+  octaves; a chord keeps six notes (the outer two and an even spread); doubled notes merge.
+  The toast names the counts. Strings and frets are left to the guitar's own hand-position
+  search.
+- **Peak-normalised to −1 dBFS.** Bridge force has no natural loudness and the whole piece is
+  rendered before it plays, so the level comes from the piece.
+- Verified as in `vendor/pfsynth/README.md` (bit-exact wasm/native; all nine library pieces; a
+  real browser). Not listened to here.
+
 ## Auth
 
 Reading, writing, playing and exporting need no account. Signing in only adds

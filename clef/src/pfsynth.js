@@ -215,7 +215,9 @@ function cacheKey(perf, sampleRate, gain) {
  * wait and the page has to say so.
  */
 export class ModelPlayer {
-  constructor() {
+  /** `renderFn` is the instrument: this module's piano by default, or pfguitar.js's render. */
+  constructor(renderFn = render) {
+    this.renderFn = renderFn;
     this.ctx = null;
     this.perf = null;
     this.playing = false;
@@ -267,7 +269,7 @@ export class ModelPlayer {
       this.rendering = true;
       this.abort = new AbortController();
       try {
-        const { interleaved, frames } = await render(this.perf, {
+        const { interleaved, frames } = await this.renderFn(this.perf, {
           sampleRate: ctx.sampleRate,
           gain: this.gain,
           onProgress: (v) => this.onRenderProgress?.(v),

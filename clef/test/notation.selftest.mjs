@@ -676,6 +676,42 @@ const midiList = (score, staff = 0, voice = 0) =>
   }
 }
 
+// ------------------------------------------- 10b. the physical guitar --
+//
+// pfguitar.wasm is pfsynth's classical guitar (core/pf_pluck + host/pf_guitar, vendored
+// unmodified) behind our host. Like the piano's it is a committed binary, so it is loaded and
+// run here; and the step that fits a piano score to six strings is checked, because a score
+// silently losing notes would sound exactly like the model being broken.
+{
+  const { packGuitar, renderDry } = await import('../src/pfguitar.js');
+  let G = null;
+  try {
+    const mod = new WebAssembly.Module(readFileSync(new URL('../vendor/pfsynth/pfguitar.wasm', import.meta.url)));
+    eq(WebAssembly.Module.imports(mod).length, 0, 'pfguitar: the module imports nothing, so it loads in a plain browser');
+    G = new WebAssembly.Instance(mod, {}).exports;
+  } catch (err) {
+    ok(false, `pfguitar: the committed module loads — ${err.message}`);
+  }
+  if (G) {
+    eq(G.pgw_note_bytes(), 48, 'pfguitar: a note is upstream\'s 48-byte pf_note');
+    // an E minor arpeggio, then a seven-note chord with a doubled C and a note below the low E
+    const ev = [40, 47, 52, 55, 59, 64].map((m, i) => ({ at: i * 0.25, dur: 0.5, midi: m, velocity: 0.7 }))
+      .concat([36, 48, 52, 55, 60, 60, 64, 67].map((m) => ({ at: 2, dur: 1, midi: m, velocity: 0.8 })));
+    const pk = packGuitar({ events: ev });
+    const chord = [];
+    for (let i = 0; i < pk.count; i++) if (pk.notes[i * 4] === 2) chord.push(pk.notes[i * 4 + 2]);
+    ok(chord.length === 6 && Math.min(...chord) >= 40 && pk.folded === 1 && pk.dropped === 2,
+      `pfguitar: a chord is fitted to six strings in range (${chord.join(' ')}; folded ${pk.folded}, left out ${pk.dropped})`);
+    const dry = await renderDry(G, pk, 22050, { yieldEvery: 1e9 });
+    let peak = 0, finite = true, first = 0;
+    for (let i = 0; i < dry.length; i++) { const a = Math.abs(dry[i]); if (!Number.isFinite(dry[i])) finite = false; if (a > peak) peak = a; if (i < 2205 && a > first) first = a; }
+    const rms = (a, b) => { let e = 0; for (let i = Math.round(a * 22050); i < b * 22050; i++) e += dry[i] * dry[i]; return Math.sqrt(e / ((b - a) * 22050)); };
+    ok(finite && dry.length === Math.round(pk.duration * 22050), `pfguitar: renders the whole score, every sample finite (${(dry.length / 22050).toFixed(1)} s)`);
+    ok(first > 0.001 && rms(2, 2.5) > 2 * rms(1.9, 1.99), `pfguitar: the first pluck sounds at once, and the chord sounds when it is played (peak ${peak.toFixed(3)})`);
+    ok(rms(pk.duration - 0.5, pk.duration) < rms(2, 2.5) / 10, 'pfguitar: and the strings ring down by the end');
+  }
+}
+
 // -------------------------------------------- 11. scaled durations --
 //
 // `\scaleDurations` / `\compressMusic` stretch or squeeze durations WITHOUT

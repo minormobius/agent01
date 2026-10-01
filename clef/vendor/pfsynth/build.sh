@@ -17,3 +17,14 @@ $CC --target=wasm32-wasi --sysroot="$SYSROOT" -O2 -DNDEBUG \
   -o pfsynth.wasm -lm
 
 echo "pfsynth.wasm: $(wc -c < pfsynth.wasm) bytes, $(gzip -c pfsynth.wasm | wc -c) gzipped"
+
+# The classical guitar (core/pf_pluck + host/pf_guitar, vendored unmodified) behind our own
+# host, pf_guitar_web.c. A separate module so the piano's stays byte-for-byte what it was.
+$CC --target=wasm32-wasi --sysroot="$SYSROOT" -O2 -DNDEBUG \
+  -Wl,--no-entry -Wl,--export-dynamic -Wl,--strip-all \
+  -Wl,--initial-memory=16777216 -Wl,--max-memory=268435456 \
+  -nostartfiles \
+  pf_guitar_web.c host/pf_guitar.c core/pf_pluck.c \
+  -o pfguitar.wasm -lm
+
+echo "pfguitar.wasm: $(wc -c < pfguitar.wasm) bytes, $(gzip -c pfguitar.wasm | wc -c) gzipped"

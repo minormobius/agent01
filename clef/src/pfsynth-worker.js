@@ -11,7 +11,10 @@
 // a stale render that the page has already given up on cannot deliver its
 // buffer over a newer one.
 
+import { renderDry } from './pfguitar.js';
+
 const WASM_URL = new URL('../vendor/pfsynth/pfsynth.wasm', import.meta.url);
+const GUITAR_URL = new URL('../vendor/pfsynth/pfguitar.wasm', import.meta.url);
 const NOTE_BYTES = 16;      // pfw_note: two int32, two float32
 
 // How often to hand control back to the event loop. A worker cannot receive a
@@ -34,6 +37,17 @@ async function load() {
 }
 
 const idle = () => new Promise((r) => setTimeout(r, 0));
+
+// The guitar is its own module (pfguitar.wasm): the piano's is left exactly as it was.
+let G = null;
+async function loadGuitar() {
+  if (!G) {
+    const res = await fetch(GUITAR_URL);
+    if (!res.ok) throw new Error(`pfguitar.wasm: HTTP ${res.status}`);
+    G = (await WebAssembly.instantiate(await res.arrayBuffer(), {})).instance.exports;
+  }
+  return G;
+}
 
 /**
  * `notes` is a flat Float64Array of [start, end, midi, velocity] per note, in
@@ -102,6 +116,20 @@ async function render(id, notes, sampleRate, gain) {
 onmessage = async (ev) => {
   const msg = ev.data;
   if (msg.type === 'cancel') { cancelled.add(msg.id); return; }
+  if (msg.type === 'render-guitar') {
+    try {
+      const mono = await renderDry(await loadGuitar(), { notes: new Float64Array(msg.notes), count: msg.count, duration: msg.duration }, msg.sampleRate, {
+        onProgress: (v) => postMessage({ type: 'progress', id: msg.id, value: v }),
+        cancelled: () => { if (!cancelled.has(msg.id)) return false; cancelled.delete(msg.id); return true; },
+      });
+      if (!mono) { postMessage({ type: 'cancelled', id: msg.id }); return; }
+      const copy = mono.slice();
+      postMessage({ type: 'done-guitar', id: msg.id, mono: copy.buffer }, [copy.buffer]);
+    } catch (err) {
+      postMessage({ type: 'error', id: msg.id, message: String(err && err.message || err) });
+    }
+    return;
+  }
   if (msg.type !== 'render') return;
 
   try {
