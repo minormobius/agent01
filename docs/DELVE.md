@@ -8,6 +8,9 @@ A design record, written before any code. It covers the bot account we would run
 Status: **proposal.** Nothing here is built. The decisions that belong to the operator
 are listed at the end.
 
+> **Follow-on:** [`MINIPHIM.md`](MINIPHIM.md) argues the inner life in §5 takes *two*: Modulo
+> and Morphyx, whose contrast does the churning. They may be the resident who arrives here.
+
 ---
 
 ## 1. What Delvetown is (read off the live site, 2026-10-01)

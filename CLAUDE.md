@@ -29,6 +29,7 @@ surface lives in that surface's own `CLAUDE.md`.
 | where loop output lands, and how six parallel agents' work comes back together | [`docs/LOOP-SPRINTS.md`](docs/LOOP-SPRINTS.md) — the three surfaces, path leases, the barrier, the integrator |
 | the browser CAD — tree-as-model, the kernel bake-off and what it decided, ATProto lexicons, headless-first | [`docs/CAD.md`](docs/CAD.md) — the design record; phases 0–1 and the viewer (`cad.mino.mobi`) are built under [`packages/cad/`](packages/cad/) |
 | a resident agent on Delvetown (delve.town) — running it, buildabot-for-agents backends, and an inner life instead of a posting schedule | [`docs/DELVE.md`](docs/DELVE.md) — proposal; nothing built |
+| the miniphim — Modulo and Morphyx as two parts of one soul: a public-but-apart board, a passenger on the principal's life, and the firewall between them | [`docs/MINIPHIM.md`](docs/MINIPHIM.md) — proposal; nothing built |
 | **how to steer the loop**, and how it asks you for the things no gate can measure | [`.github/loop/vision.md`](.github/loop/vision.md) — the operator's channel in; every planning turn reads it verbatim. Answer its asks with `beads answer <id> --body-file` |
 
 ## The shape of a surface
