@@ -24,7 +24,11 @@
     return { seed: q.get("seed") || O.randomSeed(), size: SIZES[q.get("size")] ? q.get("size") : "m" };
   }
   function setURL(seed, size) {
-    try { history.replaceState(null, "", "?seed=" + encodeURIComponent(seed) + "&size=" + size); } catch (e) { /* file:// */ }
+    // keep a sign-in token the auth worker just handed back: js/board.js
+    // (a module, so it runs after this) still has to read it out of the URL
+    var q = new URLSearchParams(location.search), tok = q.get("__auth_session");
+    var url = "?seed=" + encodeURIComponent(seed) + "&size=" + size + (tok ? "&__auth_session=" + encodeURIComponent(tok) : "");
+    try { history.replaceState(null, "", url + location.hash); } catch (e) { /* file:// */ }
   }
 
   function newGame(seed, size) {
@@ -36,7 +40,7 @@
     setURL(seed, size);
     $("seed").textContent = seed;
     $("size").value = size;
-    $("over").hidden = true;
+    $("over").hidden = true; $("post").hidden = true;
     $("note").textContent = "tap any cell — the first is always clear";
     hud(); dirty = true;
   }
@@ -71,7 +75,7 @@
       return after();
     }
     if (s.open[i]) return chord(i);
-    var cert = O.certainties(s), certain = cert.safe.indexOf(i) >= 0;
+    var cert = O.certainties(s), certain = cert.partial || cert.safe.indexOf(i) >= 0;
     if (!certain) game.guesses++;
     view.mark = null;
     ripple(O.reveal(s, i));
@@ -83,6 +87,7 @@
     for (k = 0; k < nb.length; k++) f += s.flag[nb[k]];
     if (f !== s.count[i]) { flash(nb); return; }
     var cert = O.certainties(s), safe = new Set(cert.safe), gamble = false;
+    if (cert.partial) safe = { has: function () { return true; } }; // solver out of budget: give the benefit of the doubt
     for (k = 0; k < nb.length; k++) if (!s.open[nb[k]] && !s.flag[nb[k]] && !safe.has(nb[k])) gamble = true;
     if (gamble) game.guesses++;
     view.mark = null;
@@ -138,6 +143,12 @@
       var isBest = clean && (!best || ms < best);
       if (isBest) try { localStorage.setItem(key, JSON.stringify(ms)); } catch (e) { /* ignore */ }
       $("over-title").textContent = clean ? "CLEARED — PURE" : "CLEARED";
+      // the board takes pure, unassisted clears only
+      var postable = clean && !game.hints && O.board;
+      $("post").hidden = !postable;
+      $("post").textContent = "POST TIME TO THE BOARD";
+      $("post").disabled = false;
+      game.result = postable ? { size: game.size, ms: ms, seed: game.seed, first: s.first, at: Date.now() } : null;
       $("note").textContent = "cleared · " + game.guesses + " guess" + (game.guesses === 1 ? "" : "es");
       $("over-body").innerHTML = (clean
         ? "Every move was certain when you made it. That is the whole game."
@@ -233,6 +244,13 @@
   $("again").onclick = function () { newGame(O.randomSeed(), game.size); };
   $("replay").onclick = function () { newGame(game.seed, game.size); };
   $("look").onclick = function () { $("over").hidden = true; };
+  $("post").onclick = function () {
+    if (!game.result) return;
+    this.disabled = true; this.textContent = "POSTING…";
+    $("over").hidden = true;
+    O.board.offer(game.result); game.result = null;
+  };
+  $("board-btn").onclick = function () { if (O.board) O.board.open(game.size); };
   $("start-btn").onclick = function () { $("start").hidden = true; };
 
   /* ----------------------------------------------------------------- loop */

@@ -55,6 +55,38 @@ the ones that weren't are counted as guesses. A clear with zero guesses is
 `CLEARED — PURE`. Lose, and it shows you the cells that were certain when you
 clicked.
 
+### What counts as a guess
+
+A tap is a guess iff the cell was not provably safe from the numbers on
+screen at that moment. Flags are ignored either way (they're your opinion,
+not knowledge), so tapping before you flag costs nothing. "Provably" means
+the *complete* certain set: `certainties()` runs the cheap rules to a
+fixpoint, then the exact solver over what's left. An early version asked
+`deduce()`, which stops at the first rule that finds anything. That is right
+for solving and wrong for judging. A 1 touching three cells, two of which
+another number says hold exactly one mine, makes the third safe, but that
+version called it a guess whenever some single number elsewhere happened to
+clear a cell too. The selftest now pins `certainties()` to the exact
+solver's answer in every position it walks.
+
+## Leaderboard
+
+🏆 shows the fastest **pure** clears per size (zero guesses, no hints), one
+row per player, all-time / week / today. Storage is `scores.mino.mobi`
+(`workers/scores`, D1), slug `orb-pure-<s|m|l>`, score `−ms` because that
+board ranks higher-is-better. Identity is your Bluesky handle via
+auth.mino.mobi with plain `atproto` scope: nothing is written to your PDS.
+
+Why not `com.minomobi.lab.score` records on each player's PDS? Those have no
+index. A page can only rank the handles it is told to look up, so a global
+"fastest" would need an indexer first. `scores.mino.mobi` already is one.
+
+**The board trusts the client.** The worker checks who you are, not how you
+played. `meta` carries `seed` and `first`, which pin the exact board, so a
+replay verifier can be added later without changing the format. Signing in
+leaves the page, so a winning time is parked in localStorage and posted when
+you come back.
+
 ## Files
 
 | file | what |
@@ -65,6 +97,7 @@ clicked.
 | `js/solve.js` | `deduce`, `solveFrom`, `generate` (no-guess), `certainties` |
 | `js/view.js` | Canvas 2D orthographic renderer, rotation, picking |
 | `js/main.js` | input (drag vs tap vs hold vs pinch), the guess readout, overlays |
+| `js/board.js` | the leaderboard (ES module; imports `../../lib/auth.js`, which the deploy vendors) |
 
 A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l`
 is a permalink.

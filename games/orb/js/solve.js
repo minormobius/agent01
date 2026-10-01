@@ -25,7 +25,7 @@
 
   var NODE_BUDGET = 400000;
 
-  /* view = { n, nbrs, open, count, known (1 = known mine), total } */
+  /* view = { n, nbrs, open, count, known (1 = known mine, 2 = known safe), total } */
   function deduce(v, opts) {
     var maxLevel = (opts && opts.maxLevel) || 3;
     var n = v.n, nb = v.nbrs, open = v.open, known = v.known;
@@ -36,7 +36,7 @@
       var vars = [], r = v.count[i];
       for (k = 0; k < nb[i].length; k++) {
         var j = nb[i][k];
-        if (known[j]) r--; else if (!open[j]) vars.push(j);
+        if (known[j] === 1) r--; else if (!open[j] && !known[j]) vars.push(j);
       }
       if (vars.length) cons.push({ vars: vars, r: r });
     }
@@ -102,7 +102,7 @@
       isFront[x] = 1; (consOf[x] = consOf[x] || []).push(k);
     }
     var R = v.total, L = 0;
-    for (i = 0; i < n; i++) { if (known[i]) R--; else if (!open[i] && !isFront[i]) L++; }
+    for (i = 0; i < n; i++) { if (known[i] === 1) R--; else if (!open[i] && !known[i] && !isFront[i]) L++; }
 
     // components: connect cells through shared constraints
     var comp = new Int32Array(n).fill(-1), comps = [];
@@ -284,20 +284,35 @@
     return true;
   }
 
-  /* For the autopsy: what could the player have known when they clicked? */
+  /* Everything a player could know for certain right now — ALL of it.
+     This is what the guess counter checks taps against, so it must be the
+     complete set. deduce() is not: it stops at the first level that finds
+     anything, which is right for solving (take the cheap wins, then look
+     again) and wrong here. A tap on a cell cleared by two overlapping numbers
+     would be called a guess whenever some single number elsewhere happened
+     to clear something too. So: the exact solver, which the selftest proves
+     complete against brute force. If it ever runs out of budget on a huge
+     frontier, the answer is marked `partial` and callers must not call a tap
+     a guess on its strength. Flags are ignored: they are the player's
+     opinion, not knowledge. */
   function certainties(s) {
-    var known = new Uint8Array(s.n); // flags are the player's opinion, not knowledge
     var open = s.open;
     if (s.phase === "lost") { open = s.open.slice(); open[s.boom] = 0; }
+    var known = new Uint8Array(s.n);
     var view = { n: s.n, nbrs: s.mesh.nbrs, open: open, count: s.count, known: known, total: s.nMines };
-    for (var guard = 0; guard < s.n; guard++) { // chase forced mines so their consequences count too
-      var d = deduce(view);
-      d.mine.forEach(function (x) { known[x] = 1; });
-      if (d.safe.length || !d.mine.length) break;
+    // cheap rules to a fixpoint first: every cell they settle is one fewer
+    // variable for the exact search (the difference between ms and a blown
+    // budget on a frontier left ragged by lucky taps)
+    for (var guard = 0; guard < s.n; guard++) {
+      var d = deduce(view, { maxLevel: 2 }), grew = false;
+      d.safe.forEach(function (x) { if (!known[x]) { known[x] = 2; grew = true; } });
+      d.mine.forEach(function (x) { if (!known[x]) { known[x] = 1; grew = true; } });
+      if (!grew) break;
     }
-    var mines = [];
-    for (var i = 0; i < s.n; i++) if (known[i]) mines.push(i);
-    return { safe: d.safe, mine: mines, level: d.level };
+    var ex = deduce(view, { exactOnly: true }), safe = [], mine = [], i;
+    for (i = 0; i < s.n; i++) { if (known[i] === 2) safe.push(i); else if (known[i] === 1) mine.push(i); }
+    if (ex.exhausted) return { safe: safe, mine: mine, partial: true };
+    return { safe: safe.concat(ex.safe), mine: mine.concat(ex.mine), partial: false };
   }
 
   O.deduce = deduce;

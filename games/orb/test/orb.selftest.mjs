@@ -105,7 +105,7 @@ console.log("always a certain cell");
   // however lucky, the solver's proof still applies, so some cell stays
   // certain until the board is cleared. The game's "guesses" readout depends
   // on this. Check it with a player who opens random safe cells (pure luck).
-  let states = 0, empty = 0;
+  let states = 0, empty = 0, short = 0, richer = 0, partial = 0;
   for (let t = 0; t < 8; t++) {
     const mesh = O.buildMesh("cert" + t, 200, 2), first = t * 11;
     const g = O.generate(mesh, 32, first, "c" + t);
@@ -114,12 +114,20 @@ console.log("always a certain cell");
     const rng = O.rngFor("lucky", t);
     while (s.phase === "play") {
       states++;
-      if (!O.certainties(s).safe.length) empty++;
+      const cert = O.certainties(s);
+      if (!cert.safe.length) empty++;
+      // the guess counter's input must be the COMPLETE certain set, not just
+      // whatever the cheapest rule found first
+      const full = O.deduce({ n: s.n, nbrs: mesh.nbrs, open: s.open, count: s.count, known: new Uint8Array(s.n), total: 32 }, { exactOnly: true });
+      if (cert.partial) partial++; else if (!full.exhausted && cert.safe.length !== full.safe.length) short++;
+      const quick = O.deduce({ n: s.n, nbrs: mesh.nbrs, open: s.open, count: s.count, known: new Uint8Array(s.n), total: 32 });
+      if (quick.safe.length < full.safe.length) richer++;
       const closed = []; for (let i = 0; i < s.n; i++) if (!s.open[i] && !s.mine[i]) closed.push(i);
       O.reveal(s, rng.pick(closed));
     }
   }
   ck(empty === 0, `${states} positions reached by a lucky player: every one has a certain cell (${empty} without)`);
+  ck(short === 0 && partial === 0 && richer > 0, `certainties() is the complete set in every position (${short} short, ${partial} out of budget; ${richer} positions where the first-level answer alone would have miscalled a safe tap as a guess)`);
 }
 
 console.log("rules");

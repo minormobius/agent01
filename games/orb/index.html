@@ -33,6 +33,7 @@
     <button class="primary" id="mode" type="button">⛏ dig</button>
     <button class="ghost" id="hint" type="button" title="Show a cell that is certain (h)">? hint</button>
     <button class="ghost" id="new" type="button" title="New orb (n)">↻ new</button>
+    <button class="ghost" id="board-btn" type="button" title="Fastest pure clears">🏆</button>
   </div>
   <p class="seed-line">seed <code id="seed">—</code> · drag to turn · tap to dig · hold or right-click to flag · press a number to see what it counts</p>
 </div>
@@ -70,7 +71,31 @@
     <button class="ghost" id="replay" type="button" style="flex:none">SAME SEED</button>
     <button class="ghost" id="look" type="button" style="flex:none">LOOK</button>
   </div>
+  <button class="primary" id="post" type="button" style="flex:none" hidden>POST TIME TO THE BOARD</button>
   <p class="seed-line">the seed is in the URL — same seed and same first tap, same board</p>
+</div>
+
+<div class="overlay" id="board" hidden>
+  <h2>pure clears only · no guesses, no hints</h2>
+  <h1>FASTEST</h1>
+  <div class="tabs">
+    <button type="button" data-board-size="s">small</button>
+    <button type="button" data-board-size="m">medium</button>
+    <button type="button" data-board-size="l">large</button>
+  </div>
+  <div class="tabs">
+    <button type="button" data-board-period="all">all time</button>
+    <button type="button" data-board-period="week">week</button>
+    <button type="button" data-board-period="today">today</button>
+  </div>
+  <ol id="board-list"></ol>
+  <p id="board-status" class="seed-line"></p>
+  <div id="board-signin" class="signin">
+    <input id="board-handle" type="text" placeholder="you.bsky.social" autocomplete="username" autocapitalize="off" spellcheck="false" aria-label="Bluesky handle" />
+    <button class="primary" id="board-go" type="button">SIGN IN</button>
+  </div>
+  <p class="seed-line"><span id="board-who"></span> <a href="#" id="board-signout" hidden>sign out</a></p>
+  <button class="ghost" id="board-close" type="button" style="flex:none">CLOSE</button>
 </div>
 
 <script src="js/prng.js"></script>
@@ -79,5 +104,6 @@
 <script src="js/solve.js"></script>
 <script src="js/view.js"></script>
 <script src="js/main.js"></script>
+<script type="module" src="js/board.js"></script>
 </body>
 </html>

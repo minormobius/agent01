@@ -88,3 +88,29 @@ button.ghost:hover { color: var(--text); border-color: var(--accent); }
 .overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.65; max-width: 32em; }
 .overlay p b { color: var(--text); }
 .overlay .accent { color: var(--accent2); }
+
+/* leaderboard */
+.tabs { display: flex; gap: 6px; }
+.tabs button {
+  font-family: var(--mono); font-size: 12px; padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--dim); border: 1px solid var(--border);
+}
+.tabs button.on { color: var(--bg); background: var(--accent2); border-color: var(--accent2); }
+#board-list {
+  list-style: none; margin: 0; padding: 0; width: min(360px, 100%);
+  font-family: var(--mono); font-size: 14px;
+}
+#board-list li {
+  display: flex; gap: 10px; padding: 6px 4px; border-bottom: 1px dotted var(--border); text-align: left;
+}
+#board-list li.dim { color: var(--dim); justify-content: center; }
+#board-list li.me { color: var(--accent2); }
+#board-list .rk { width: 2ch; color: var(--dim); text-align: right; }
+#board-list .h { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#board-list .t { font-variant-numeric: tabular-nums; font-weight: 700; }
+.signin { display: flex; gap: 8px; width: min(360px, 100%); }
+.signin[hidden] { display: none; }
+.signin input {
+  flex: 1; min-width: 0; font-family: var(--mono); font-size: 14px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+}
