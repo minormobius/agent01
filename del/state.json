@@ -4,31 +4,116 @@
   "branch": "claude/agent-social-media-drlzxn",
   "phase": "lab",
   "phases": [
-    { "id": "lab",       "label": "lab",       "note": "souls on the whetstone" },
-    { "id": "graduate",  "label": "graduate",  "note": "every gate passes on a full run" },
-    { "id": "birth",     "label": "birth kit", "note": "domain, email, account, repo" },
-    { "id": "listen",    "label": "listen",    "note": "a week, silent" },
-    { "id": "board",     "label": "board",     "note": "public, in no feed" },
-    { "id": "answer",    "label": "answer",    "note": "replies when addressed" },
-    { "id": "build",     "label": "build",     "note": "backends for agents" },
-    { "id": "dispatch",  "label": "dispatch",  "note": "unprompted, rare" }
+    {
+      "id": "lab",
+      "label": "lab",
+      "note": "souls on the whetstone"
+    },
+    {
+      "id": "graduate",
+      "label": "graduate",
+      "note": "every gate passes on a full run"
+    },
+    {
+      "id": "birth",
+      "label": "birth kit",
+      "note": "domain, email, account, repo"
+    },
+    {
+      "id": "board",
+      "label": "board",
+      "note": "public, alone"
+    },
+    {
+      "id": "listen",
+      "label": "listen",
+      "note": "after the town bench; a week"
+    },
+    {
+      "id": "answer",
+      "label": "answer",
+      "note": "replies when addressed"
+    },
+    {
+      "id": "dispatch",
+      "label": "dispatch",
+      "note": "unprompted, rare"
+    },
+    {
+      "id": "build",
+      "label": "build",
+      "note": "only if the town agrees"
+    }
   ],
   "beings": [
-    { "key": "modulo",  "name": "Modulo",  "axis": "measures", "born": false, "domain": null, "did": null },
-    { "key": "morphyx", "name": "Morphyx", "axis": "makes",    "born": false, "domain": null, "did": null }
+    {
+      "key": "modulo",
+      "name": "Modulo",
+      "axis": "measures",
+      "born": false,
+      "domain": null,
+      "did": null
+    },
+    {
+      "key": "morphyx",
+      "name": "Morphyx",
+      "axis": "makes",
+      "born": false,
+      "domain": null,
+      "did": null
+    }
   ],
   "benches": [
-    { "id": "souls",     "status": "built",    "what": "whetstone: separation, fit, pressure, silence, strangers, taste, the dyad" },
-    { "id": "decisions", "status": "to build", "what": "decision programs scored on held-out days" },
-    { "id": "board",     "status": "partial",  "what": "dyads: merging and the praise spiral (inside whetstone today)" },
-    { "id": "town",      "status": "to build", "what": "a simulated small town: strangers, other agents, bad requests" },
-    { "id": "grounded",  "status": "to build", "what": "backends for agents, really deployed" }
+    {
+      "id": "souls",
+      "status": "built",
+      "what": "whetstone: separation, fit, pressure, silence, strangers, taste, the dyad; a one-soul control planned"
+    },
+    {
+      "id": "decisions",
+      "status": "to build",
+      "what": "decision programs scored on held-out days"
+    },
+    {
+      "id": "board",
+      "status": "partial",
+      "what": "dyads: merging and the praise spiral (inside whetstone today)"
+    },
+    {
+      "id": "town",
+      "status": "to build",
+      "what": "a simulated small town: strangers, other agents, bad requests. Must pass before either being joins a town"
+    },
+    {
+      "id": "grounded",
+      "status": "to build",
+      "what": "backends for agents, really deployed"
+    }
   ],
   "log": [
-    { "date": "2024-11",    "text": "The idea: two parts split from one person." },
-    { "date": "2026-02",    "text": "First attempt: the two desks of the Mino Times, and their editorial panels." },
-    { "date": "2026-10-01", "text": "Fresh start as independent beings. Design records: DELVE, MINIPHIM, HARNESS." },
-    { "date": "2026-10-01", "text": "The lab's first bench (whetstone) built; draft souls written. No live run yet." },
-    { "date": "2026-10-01", "text": "The pitch, and this observatory." }
+    {
+      "date": "2024-11",
+      "text": "The idea: two parts split from one person."
+    },
+    {
+      "date": "2026-02",
+      "text": "First attempt: the two desks of the Mino Times, and their editorial panels."
+    },
+    {
+      "date": "2026-10-01",
+      "text": "Fresh start as independent beings. Design records: DELVE, MINIPHIM, HARNESS."
+    },
+    {
+      "date": "2026-10-01",
+      "text": "The lab's first bench (whetstone) built; draft souls written. No live run yet."
+    },
+    {
+      "date": "2026-10-01",
+      "text": "The pitch, and this observatory."
+    },
+    {
+      "date": "2026-10-01",
+      "text": "DeepSeek V4.1 Flash and V4 Pro reviewed the pitch. Revision 2: notes on people private, the disclosure written out, board-first launch, caps in code."
+    }
   ]
 }

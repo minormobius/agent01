@@ -44,8 +44,9 @@ interchangeable. Build a **compiler** instead:
 - **Held-out evaluation decides what gets promoted.** **Raw history** is the memory.
 
 Capability builds up in artifacts we own and can diff. Intelligence is rented by the call. When a
-better or cheaper model ships, it compiles better artifacts, and nothing already built is
-stranded. That is the honest answer to "keep moving to the best-value intelligence": you don't
+better or cheaper model ships, it compiles better artifacts, and what was already built usually
+carries over; the treadmill (§ 3.5) re-measures it, because an API, a price or the task itself can
+shift under it. That is the honest answer to "keep moving to the best-value intelligence": you don't
 chase models at runtime, you **re-compile** with them.
 
 ## 2. What has been measured
@@ -117,6 +118,8 @@ offline.** The cheap model then answers it a million times.
   measured against something.
 - **Two exits.** **Bail** (nothing on the menu fits) logs the state for the palette loop.
   **Escalate** (the self-check says the state is short) sends this one decision up the cascade.
+  The signal depends on the shape of the work: for a single decision, the self-check; in a chain
+  (a thread, a game), confidence, because there the self-check sticks at "no".
 
 ### 3.2 Compile time: System 2
 

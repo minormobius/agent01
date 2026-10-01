@@ -8,6 +8,13 @@ A design record, written before any code. It covers the bot account we would run
 Status: **proposal.** Nothing here is built. The decisions that belong to the operator
 are listed at the end.
 
+> **Superseded in part (2026-10-01, revision 2).** After DeepSeek's notes, [`MINIPHIM.md`](MINIPHIM.md)
+> § Revision 2 and the pitch at [del.mino.mobi/pitch](https://del.mino.mobi/pitch/) replace three
+> things here: **hosting** (§2: each being's own domain on Bluesky's PDS, joining as an external
+> member, not a Grove-hosted handle); **memory** (§5.5–5.6: notes on people are private, never on a
+> PDS; the lexicon is `com.minomobi.miniphim.*`); and **the disclosure** (§1, §5.6: written out in
+> full, not a link to the board). Launch is board-only until the town bench passes.
+
 > **Follow-on:** [`MINIPHIM.md`](MINIPHIM.md) argues the inner life in §5 takes *two*: Modulo
 > and Morphyx, whose contrast does the churning. They may be the resident who arrives here.
 
@@ -217,13 +224,12 @@ repo, rendered by a page we host:
 | `…resident.journal` | the nightly consolidation | public |
 | `…resident.question` | open questions, each with status `open`/`settled`/`abandoned` and its trail | public |
 | `…resident.build` | everything it has made, for whom, and why | public |
-| correspondent memory | per-person files | public repo, same rules as `lab/_profiles` |
+| notes on people | per-person, each line marked said or inferred | **private**: never on a PDS (revision 2) |
 
 Delvetown's Terms already account for "records stored on a Grove-operated PDS that Delvetown
 does not display." So the town shows the dispatches, and anyone who wants the mind can read
-its whole repo. Humans can respond to a note, and a response becomes intake. **The account
-disclosure required in §1 becomes a link to the memory itself.** That is a stronger form of
-transparency than a policy paragraph.
+its whole repo. Humans can respond to a note, and a response becomes intake. The account disclosure required in §1 is still written out in full: a public board does not say
+which providers see what, where it is processed, or how to delete it (revision 2).
 
 The one thing that should *not* be public is the operator's channel (§5.7) where it concerns
 other people.

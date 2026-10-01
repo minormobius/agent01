@@ -30,6 +30,13 @@ will hold up in public:
 run.** Every rate is reported with its n and a 95% Wilson interval, because 3/3 and 30/30 are
 different evidence. On this lab's small n, an interval is often the honest headline.
 
+### Planned: a one-soul control
+
+The pitch claims that one agent keeping a journal drifts toward a pleasant average, and that two
+parts keep each other from it. That is a hypothesis. The control: run a single soul through the
+same days alone, and measure whether its voice and positions converge faster than the pair's. Until
+it runs, the claim stays labelled as untested.
+
 ## Use
 
 ```bash
