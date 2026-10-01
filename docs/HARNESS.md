@@ -13,6 +13,14 @@ and the Imp line is still being tested, so its numbers are provisional:
 | Imp | `bakeoff/imp/`, `imp/` on `claude/friends-project-planning-cags5l` (`imp.mino.mobi`) | deepfates' port of DSPy to Elixir/BEAM: typed programs and the optimizers that rewrite them, scored across models, and Jev |
 | The rigs | `bakeoff/`, `bakeoff/buildabot/`, [`packages/whetstone/`](../packages/whetstone/) | harness × model grids, a blinded human A/B with a bar fixed in advance, a soul lab with gates |
 
+**Neighbours, not dependencies (2026-10-01).** Jevcraft and the Imp bench continue on their own
+branches as their own projects. This system reads their findings and never writes to their work:
+no commits to their branches, no runs on their rigs, no steps in their roadmaps. It has its own lab
+and its own tests (§ 3.4), and where a lane below has a precedent in their work, that precedent is
+cited as the reason for the design, not used as our measurement. The launch this architecture
+serves is pitched, diagrams first, at
+[claude.ai/artifact/4UAit5hPXJtsMMqL3kwyeZ](https://claude.ai/artifact/4UAit5hPXJtsMMqL3kwyeZ).
+
 Credit where it belongs: **Jev** is TypeSafe AI's System One model. **Imp** is deepfates'
 ([github.com/deepfates/imp](https://github.com/deepfates/imp)), who also built Delvetown
 ([`DELVE.md`](DELVE.md)). Everything below that is a *number* is ours, measured here; none of it is
@@ -141,19 +149,21 @@ one HTTP request. So:
   Cloudflare. That is a later decision, and it shouldn't be made just because the toolchain is
   Elixir.
 
-### 3.4 Evaluation: four lanes, each where it fits
+### 3.4 Evaluation: our lab, four lanes
 
-| Lane | Answers | Here |
-|---|---|---|
-| **scored** | is it right? (one answer per item) | imp-bench (route, desk, trec, era), whetstone's gates |
-| **head to head** | is it better than the alternative? (never saturates) | the jevcraft arena: Wilson intervals, Bradley–Terry, side swaps |
-| **taste** | would a person choose it? | the build-a-bot ballot: blinded, the bar fixed before any pair was seen |
-| **grounded** | did it work in the world? | preflight, smoke, the host answers, deploy-drift says `same` |
+Every lane is ours, run in our lab. The neighbours' rigs are where each lane's method was proven.
+
+| Lane | Answers | Our bench | Method borrowed from |
+|---|---|---|---|
+| **scored** | is it right? (one answer per item) | whetstone's gates; the decision bench (programs on held-out days) | the Imp bench's tasks with computed answer keys |
+| **head to head** | is it better than the alternative? (never saturates) | the board bench (dyads); later, program v2 against v1 on the same days | the jevcraft arena: Wilson intervals, Bradley–Terry, side swaps |
+| **taste** | would a person choose it? | the principal reading transcripts, blind where it can be | the build-a-bot ballot: the bar fixed before any pair is seen |
+| **grounded** | did it work in the world? | the grounded bench: backends really deployed, the host answers | preflight, smoke, deploy-drift |
 
 The program loop optimises against the scored lane. **Promotion is judged on a different lane,
-or at least on held-out items and a different judge.** That is the Goodhart guard, and jevcraft
+or at least on held-out items and a different judge.** That is the Goodhart guard. Jevcraft
 learned it the hard way: v3's harness was fixed on the same four worlds it was scored on, which is
-why the held-out run exists.
+why its held-out run exists.
 
 ### 3.5 The ledger and the treadmill
 
@@ -240,8 +250,9 @@ Each step is useful alone:
 3. **One program loop end to end, on a real decision.** Build-a-bot intake or the ideas review:
    compile with GEPA on an LLM, transplant to Jev, promote only on held-out items, and serve the
    program from a Worker.
-4. **Palette v2 against v1 in the arena.** jevcraft's next step: S2 reads lost games and writes an
-   op, scored by win rate. This is the palette loop measured where it can't flatter itself.
+4. **The palette loop in our own lab.** A run of bails becomes a new op with its own selftest,
+   scored head to head against the menu without it on held-out days. (Jevcraft's arena is running the
+   same experiment in a game; we read its result, we don't run it.)
 5. **The treadmill.** Re-run steps 3–4 per new model, and write the price × pass table the router
    reads.
 6. **Only then, persistent agents.** The miniphim on this architecture, after whetstone graduates

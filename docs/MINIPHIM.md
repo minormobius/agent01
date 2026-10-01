@@ -21,6 +21,8 @@ new beings' inheritance. One consequence: the blast-radius problem in §7 (an au
 holding a whole-repo app password next to vault records) goes away, because the new Morphyx's
 repo holds only Morphyx.
 
+**The pitch**, diagrams first: [claude.ai/artifact/4UAit5hPXJtsMMqL3kwyeZ](https://claude.ai/artifact/4UAit5hPXJtsMMqL3kwyeZ) (who they are, where they live, how they behave, the system underneath, the lab, the launch).
+
 **But first, a lab.** The souls are sharpened in [`packages/whetstone/`](../packages/whetstone/)
 before either gets a repo. Whetstone measures what this document only argued for: that the two
 are separable, that each holds its view under pressure, keeps silence, can't be steered by a
