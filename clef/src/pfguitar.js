@@ -59,6 +59,30 @@ export function packGuitar(perf) {
   return { notes: flat, count: notes.length, duration: last + RING, folded, dropped };
 }
 
+/**
+ * Notes written FOR the guitar, already playable: [{ at, end, string (1 = high E … 6), fret,
+ * velocity (MIDI, up to 4×127 of headroom), art?: 'hammer'|'pull'|'slide'|'harmonic'|'muted'|'tie',
+ * artParam?, slideTo? }]. Pitch comes from the string and fret (a harmonic sounds over the open
+ * string: artParam is the touched fret, 12 by default). Nothing is fitted: the shape is the
+ * guitarist's. Returns the packed form `renderDry` takes, with each note's technique in `tech`.
+ */
+export const ARTS = { normal: 0, hammer: 1, pull: 2, slide: 3, harmonic: 4, muted: 5, tie: 6 };
+const OPEN = [64, 59, 55, 50, 45, 40];
+const HARMONIC_UP = { 12: 12, 7: 19, 5: 24, 4: 28 };
+export function packTab(tab, ring = RING) {
+  const ns = [...tab].sort((a, b) => a.at - b.at || b.string - a.string);
+  const notes = new Float64Array(ns.length * 4), tech = new Float64Array(ns.length * 5);
+  let last = 0;
+  ns.forEach((n, i) => {
+    const art = ARTS[n.art || 'normal'], open = OPEN[n.string - 1];
+    const pitch = art === ARTS.harmonic ? open + (HARMONIC_UP[n.artParam || 12] ?? 12) : open + n.fret;
+    notes.set([n.at, Math.max(n.at + 0.03, n.end), pitch, n.velocity], i * 4);
+    tech.set([n.string, art === ARTS.harmonic ? 0 : n.fret, art, n.artParam || (art === ARTS.harmonic ? 12 : 0), n.slideTo ? OPEN[n.string - 1] + n.slideTo : 0], i * 5);
+    last = Math.max(last, n.end);
+  });
+  return { notes, tech, count: ns.length, duration: last + ring, folded: 0, dropped: 0 };
+}
+
 /** Write packed notes into the module and render the dry bridge force, mono. Node and worker share it. */
 export async function renderDry(X, packed, sampleRate, { onProgress, cancelled, yieldEvery = 8 } = {}) {
   const n = packed.count;
@@ -73,6 +97,11 @@ export async function renderDry(X, packed, sampleRate, { onProgress, cancelled, 
     dv.setFloat32(o + 16, packed.notes[i * 4 + 2], true);
     dv.setFloat32(o + 20, packed.notes[i * 4 + 3], true);
     dv.setInt8(o + 40, -1); dv.setInt8(o + 41, -1); dv.setInt8(o + 42, -1);   // string, fret, finger: the guitar chooses
+    if (packed.tech) {                                                            // …unless the part says (packTab)
+      const t = packed.tech;
+      dv.setInt8(o + 40, t[i * 5]); dv.setInt8(o + 41, t[i * 5 + 1]); dv.setUint8(o + 43, t[i * 5 + 2]);
+      dv.setFloat32(o + 24, t[i * 5 + 3], true); dv.setFloat32(o + 28, t[i * 5 + 4], true);
+    }
   }
   const err = X.pgw_begin(sampleRate, n, packed.duration);
   if (err) throw new Error(`the guitar refused the score (${err})`);
@@ -209,8 +238,12 @@ export async function available() {
  * Render a performance on the guitar: the strings in the worker (or here, if there is none),
  * then the body and the room. Same shape as pfsynth.js's render, so ModelPlayer can drive it.
  */
-export async function render(perf, { sampleRate = 44100, onProgress, signal, noWorker = false } = {}) {
-  const packed = packGuitar(perf);
+export async function render(perf, opts = {}) {
+  return renderPacked(packGuitar(perf), opts);
+}
+
+/** Render packed notes (packGuitar's, or packTab's for a part written for the guitar). */
+export async function renderPacked(packed, { sampleRate = 44100, onProgress, signal, noWorker = false } = {}) {
   const w = noWorker ? null : ensureWorker();
   let dry;
   if (w) {
@@ -218,8 +251,8 @@ export async function render(perf, { sampleRate = 44100, onProgress, signal, noW
     dry = await new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject, onProgress });
       signal?.addEventListener('abort', () => { if (pending.has(id)) w.postMessage({ type: 'cancel', id }); }, { once: true });
-      const notes = packed.notes.slice();
-      w.postMessage({ type: 'render-guitar', id, notes: notes.buffer, count: packed.count, duration: packed.duration, sampleRate }, [notes.buffer]);
+      const notes = packed.notes.slice(), tech = packed.tech ? packed.tech.slice() : null;
+      w.postMessage({ type: 'render-guitar', id, notes: notes.buffer, tech: tech?.buffer ?? null, count: packed.count, duration: packed.duration, sampleRate }, tech ? [notes.buffer, tech.buffer] : [notes.buffer]);
     });
   } else {
     dry = await renderDry(await loadDirect(), packed, sampleRate, { onProgress: (v) => onProgress?.(v * 0.92), cancelled: () => signal?.aborted });

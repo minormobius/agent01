@@ -118,7 +118,7 @@ onmessage = async (ev) => {
   if (msg.type === 'cancel') { cancelled.add(msg.id); return; }
   if (msg.type === 'render-guitar') {
     try {
-      const mono = await renderDry(await loadGuitar(), { notes: new Float64Array(msg.notes), count: msg.count, duration: msg.duration }, msg.sampleRate, {
+      const mono = await renderDry(await loadGuitar(), { notes: new Float64Array(msg.notes), tech: msg.tech ? new Float64Array(msg.tech) : null, count: msg.count, duration: msg.duration }, msg.sampleRate, {
         onProgress: (v) => postMessage({ type: 'progress', id: msg.id, value: v }),
         cancelled: () => { if (!cancelled.has(msg.id)) return false; cancelled.delete(msg.id); return true; },
       });

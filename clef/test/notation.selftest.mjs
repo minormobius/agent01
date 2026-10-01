@@ -709,6 +709,14 @@ const midiList = (score, staff = 0, voice = 0) =>
     ok(finite && dry.length === Math.round(pk.duration * 22050), `pfguitar: renders the whole score, every sample finite (${(dry.length / 22050).toFixed(1)} s)`);
     ok(first > 0.001 && rms(2, 2.5) > 2 * rms(1.9, 1.99), `pfguitar: the first pluck sounds at once, and the chord sounds when it is played (peak ${peak.toFixed(3)})`);
     ok(rms(pk.duration - 0.5, pk.duration) < rms(2, 2.5) / 10, 'pfguitar: and the strings ring down by the end');
+    // a part written FOR the guitar keeps its strings, frets and techniques (packTab)
+    const { packTab } = await import('../src/pfguitar.js');
+    const tab = packTab([{ at: 0, end: 1, string: 6, fret: 3, velocity: 100 }, { at: 0.5, end: 1, string: 3, fret: 0, velocity: 90, art: 'harmonic', artParam: 7 },
+      { at: 0.6, end: 1, string: 3, fret: 2, velocity: 80, art: 'hammer' }]);
+    ok([...tab.notes.filter((_, i) => i % 4 === 2)].join(' ') === '43 74 57' && tab.tech[2] === 0 && tab.tech[7] === 4 && tab.tech[8] === 7 && tab.tech[12] === 1,
+      'pfguitar: tab keeps string and fret (G2 on the 6th), a 7th-fret harmonic sounds a twelfth up, a hammer-on stays a hammer-on');
+    const tdry = await renderDry(G, tab, 22050, { yieldEvery: 1e9 });
+    ok(tdry.every(Number.isFinite) && Math.max(...tdry.subarray(0, 4410).map(Math.abs)) > 0.001, 'pfguitar: and it renders');
   }
 }
 

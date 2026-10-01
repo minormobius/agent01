@@ -304,6 +304,13 @@ What is load-bearing:
   octaves; a chord keeps six notes (the outer two and an even spread); doubled notes merge.
   The toast names the counts. Strings and frets are left to the guitar's own hand-position
   search.
+- **A part written FOR the guitar** skips the fitting: `packTab([{ at, end, string, fret, velocity,
+  art, artParam, slideTo }])` → `renderPacked` keeps every string and fret and passes the techniques
+  through (hammer, pull, slide, harmonic, muted, tie: upstream's `PF_ART_*`). Velocity is MIDI with
+  headroom to 4×127 (strums ~110–185 sound right). `compositions/open-strings.guitar.mjs` is the
+  worked example (owner: "compose… the typical chords of guitar play, rich and full"): harmonics,
+  Travis picking with held top strings, strumming, a barre, hammer-ons, pull-offs, a slide. The
+  page itself cannot open it: LilyPond's tab markings are not read yet.
 - **Peak-normalised to −1 dBFS.** Bridge force has no natural loudness and the whole piece is
   rendered before it plays, so the level comes from the piece.
 - Verified as in `vendor/pfsynth/README.md` (bit-exact wasm/native; all nine library pieces; a
