@@ -170,9 +170,13 @@ console.log("score corpus (fake network)");
       p.records.forEach((r) => (r.uri = "at://" + u.searchParams.get("repo") + "/c/" + r.uri.split("/").pop()));
       return j(p);
     }
-    if (u.pathname.endsWith("getProfiles")) return j({ profiles: u.searchParams.getAll("actors").map((did) => ({ did, handle: did === "did:plc:bbb" ? "handle.invalid" : did.slice(8) + ".test" })) });
+    if (u.pathname.endsWith("getProfiles")) {
+      if (flaky-- > 0) return j({}, 502);                 // the appview has a bad moment
+      return j({ profiles: u.searchParams.getAll("actors").map((did) => ({ did, handle: did === "did:plc:bbb" ? "handle.invalid" : did.slice(8) + ".test", avatar: "https://cdn.bsky.app/img/avatar/plain/" + did + "/x@jpeg" })) });
+    }
     return j({}, 404);
   };
+  let flaky = 0;
   let sock = null;
   globalThis.WebSocket = class { constructor(url) { this.url = url; sock = this; setTimeout(() => this.onopen && this.onopen(), 0); } close() {} };
   const c = new Corpus(accept);
@@ -183,11 +187,19 @@ console.log("score corpus (fake network)");
   ck(m.length === 2 && m[0].did === "did:plc:aaa" && m[0].value === 80000 && m[1].value === 85000,
     `ranking: best time per player, lowest first (${m.map((r) => r.value).join(", ")}); the 0.5 s record is rejected`);
   ck(c.top("pure-m", now - 7 * 86400e3)[0].value === 85000, "period filter: this week drops the 9-day-old best");
-  ck(m[0].handle === "aaa.test" && m[1].handle === "did:plc:bbb", "names: verified handle shown; unverified falls back to the DID, never the DID doc's claim");
+  ck(m[0].handle === "aaa.test" && m[1].handle === null, "names: verified handle shown; unverified gets none, never the DID doc's claim");
+  ck(m[0].avatar === "https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:aaa/x@jpeg", "avatars: from the appview, as the thumbnail size");
   ck(c.state === "live" && /wantedCollections=com\.minomobi\.lab\.score&cursor=\d+/.test(sock.url), "Jetstream: filtered to the collection, with a cursor from before the backfill");
   sock.onmessage({ data: JSON.stringify({ did: "did:plc:ccc", time_us: 1, kind: "identity" }) });
   sock.onmessage({ data: JSON.stringify({ did: "did:plc:ccc", time_us: 2, kind: "commit", commit: { operation: "create", collection: "com.minomobi.lab.score", rkey: "r1", record: rec("pure-m", 70000) } }) });
   ck(c.top("pure-m")[0].did === "did:plc:ccc", "live create from a new player tops the board");
+  flaky = 1; // a new live player whose first name lookup fails
+  sock.onmessage({ data: JSON.stringify({ did: "did:plc:ddd", time_us: 2, kind: "commit", commit: { operation: "create", collection: "com.minomobi.lab.score", rkey: "r2", record: rec("pure-s", 30000) } }) });
+  await new Promise((r) => setTimeout(r, 5));
+  const before = c.top("pure-s")[0].handle;
+  c._asked.set("did:plc:ddd", { n: 1, at: 0 });      // fast-forward the backoff
+  c.top("pure-s"); await new Promise((r) => setTimeout(r, 5));
+  ck(before === null && c.top("pure-s")[0].handle === "ddd.test", "a failed name lookup is retried: the row heals from no name to its handle");
   sock.onmessage({ data: JSON.stringify({ did: "did:plc:ccc", time_us: 3, kind: "commit", commit: { operation: "delete", collection: "com.minomobi.lab.score", rkey: "r1" } }) });
   ck(c.top("pure-m")[0].did === "did:plc:aaa" && c._cursor === 3, "live delete removes it; cursor tracks the stream for reconnects");
   c.stop();

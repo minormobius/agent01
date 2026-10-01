@@ -86,10 +86,17 @@ function render() {
   rows.forEach((r, k) => {
     const li = document.createElement("li");
     if ((me && r.did === me.did) || r.uri === posted) li.className = "me";
-    li.innerHTML = "<span class='rk'>" + (k + 1) + "</span><a class='h' target='_blank' rel='noopener'></a><span class='t'>" + clock(r.value) + "</span>";
-    const a = li.querySelector(".h");
-    a.textContent = r.handle.startsWith("did:") ? r.handle.slice(0, 18) + "…" : "@" + r.handle;
+    li.innerHTML = "<span class='rk'>" + (k + 1) + "</span><a class='h' target='_blank' rel='noopener'><span class='av'></span><span class='nm'></span></a><span class='t'>" + clock(r.value) + "</span>";
+    const a = li.querySelector(".h"), av = li.querySelector(".av");
     a.href = "https://bsky.app/profile/" + r.did;
+    li.querySelector(".nm").textContent = r.handle ? "@" + r.handle : "resolving " + r.did.slice(8, 16) + "…";
+    if (r.name) a.title = r.name;
+    if (r.avatar) {
+      const img = document.createElement("img");
+      img.src = r.avatar; img.alt = ""; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+      img.onerror = () => img.remove();
+      av.appendChild(img);
+    } else av.textContent = (r.handle || "?").charAt(0).toUpperCase();
     li.title = (r.detail || "") + " · " + r.uri;
     list.appendChild(li);
   });

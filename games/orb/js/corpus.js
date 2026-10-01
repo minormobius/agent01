@@ -41,7 +41,8 @@ export class Corpus {
   constructor(accept, opts = {}) {
     this.accept = accept;
     this.records = new Map();   // at-uri → { uri, did, ...value }
-    this.handles = new Map();   // did → handle
+    this.profiles = new Map();  // did → { handle, avatar, name } — verified, from the appview
+    this._asked = new Map();    // did → { n: attempts, at: last attempt ms }
     this.listeners = new Set();
     this.state = "idle";        // idle | backfill | live | offline
     this.repos = 0;
@@ -71,7 +72,7 @@ export class Corpus {
 
   /* Put a record we just wrote in now, without waiting for Jetstream. */
   upsert(uri, did, value, handle) {
-    if (handle) this.handles.set(did, handle);
+    if (handle && !this.profiles.has(did)) this.profiles.set(did, { handle, avatar: null, name: null, provisional: true });
     if (!this.accept(value)) return false;
     this.records.set(uri, { uri, did, ...value });
     this._emit();
@@ -91,17 +92,35 @@ export class Corpus {
     return out;
   }
 
-  /* Display names come from the appview, which only reports a handle that
-     verifies both ways (else "handle.invalid"). A DID document's
-     alsoKnownAs is a bare claim, so it is never shown. */
+  /* Names and avatars come from the appview's getProfiles, which only
+     reports a handle that verifies both ways (else "handle.invalid"). A DID
+     document's alsoKnownAs is a bare claim, so it is never shown. A failed or
+     partial lookup is retried (top() asks again for anyone still nameless,
+     backing off), so a row never stays stuck on a raw DID. */
   async _names(dids) {
-    for (let i = 0; i < dids.length; i += 25) {
-      const q = dids.slice(i, i + 25).map((d) => "actors=" + encodeURIComponent(d)).join("&");
+    const now = Date.now(), todo = [];
+    for (const d of dids) {
+      const a = this._asked.get(d) || { n: 0, at: 0 };
+      if (a.n >= 5 || now - a.at < 2000 * 2 ** a.n) continue;
+      this._asked.set(d, { n: a.n + 1, at: now });
+      todo.push(d);
+    }
+    let changed = false;
+    for (let i = 0; i < todo.length; i += 25) {
+      const q = todo.slice(i, i + 25).map((d) => "actors=" + encodeURIComponent(d)).join("&");
       try {
         const body = await getJSON(this.appview + "/xrpc/app.bsky.actor.getProfiles?" + q);
-        for (const p of body.profiles || []) if (p.handle && p.handle !== "handle.invalid") this.handles.set(p.did, p.handle);
-      } catch (e) { /* names are cosmetic: fall back to the DID */ }
+        for (const p of body.profiles || []) {
+          if (!p.handle || p.handle === "handle.invalid") continue;
+          this.profiles.set(p.did, {
+            handle: p.handle, name: p.displayName || null,
+            avatar: p.avatar ? p.avatar.replace("/img/avatar/", "/img/avatar_thumbnail/") : null,
+          });
+          changed = true;
+        }
+      } catch (e) { /* retried on a later top() */ }
     }
+    return changed;
   }
 
   async _loadRepo(did) {
@@ -147,10 +166,7 @@ export class Corpus {
     }
     if (!this.accept(c.record)) return;
     this.records.set(uri, { uri, did: ev.did, ...c.record });
-    if (!this.handles.has(ev.did)) {
-      this.handles.set(ev.did, ev.did); // placeholder until the appview answers
-      this._names([ev.did]).then(() => this._emit());
-    }
+    if (!this.profiles.has(ev.did)) this._names([ev.did]).then((ok) => ok && this._emit());
     this._emit();
   }
 
@@ -163,10 +179,16 @@ export class Corpus {
       const b = best.get(r.did);
       if (!b || r.value < b.value || (r.value === b.value && r.createdAt < b.createdAt)) best.set(r.did, r);
     }
-    return Array.from(best.values())
+    const rows = Array.from(best.values())
       .sort((a, b) => a.value - b.value || (a.createdAt < b.createdAt ? -1 : 1))
       .slice(0, n)
-      .map((r) => ({ ...r, handle: this.handles.get(r.did) || r.did }));
+      .map((r) => {
+        const p = this.profiles.get(r.did);
+        return { ...r, handle: p ? p.handle : null, avatar: p ? p.avatar : null, name: p ? p.name : null };
+      });
+    const need = rows.filter((r) => { const p = this.profiles.get(r.did); return !p || p.provisional; }).map((r) => r.did);
+    if (need.length) this._names(need).then((ok) => ok && this._emit());
+    return rows;
   }
 }
 

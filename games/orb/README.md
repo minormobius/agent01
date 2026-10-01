@@ -109,9 +109,11 @@ All of these are CORS-open public endpoints. A score posted anywhere
 reaches every open board within about a second, and deleting the record
 takes it off. Against the real network: cold start to live in ~2 s.
 
-Names come from the appview's `getProfiles`, which only reports handles that
-verify both ways. A DID document's `alsoKnownAs` is a bare claim and is
-never shown. The collection is shared with other lab sites, so `accept()`
+Names and avatars come from the appview's `getProfiles`, which only reports
+handles that verify both ways. A DID document's `alsoKnownAs` is a bare
+claim and is never shown. A failed lookup (the appview does hiccup) is
+retried with backoff whenever the board redraws, so a row can't get stuck
+showing a raw DID. Avatars use the CDN's thumbnail size. The collection is shared with other lab sites, so `accept()`
 keeps only well-formed Orb records.
 
 **Cost and limits.** One PDS request per player per page load. That's
