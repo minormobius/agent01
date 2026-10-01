@@ -199,6 +199,13 @@ A tier's cells and mines are its leaderboard game id (`pure-1000-250`).
 Retune a tier and its old times drop off instead of being ranked against a
 different board.
 
+## Shared with Strand
+
+`/strand/` loads `js/prng.js` and `js/sphere.js` from here for its Voronoi
+boards. Its levels are data on these meshes, so a change to either file must
+keep `games/strand/test/strand.selftest.mjs` green: it re-proves every
+shipped Strand level against the current mesh.
+
 ## Tests
 
 ```bash

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07070b" />
+<meta name="description" content="Strand — Flow on a sphere. Join each pair of colours with strands that never cross and together paint every cell, on a buckyball and beyond. Every level is proved to have exactly one answer." />
+<title>Strand — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/strand.css" />
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="title"><span id="lvl">—</span><span id="kind" class="dim"></span></div>
+    <div class="stats">
+      <div><span class="lab">joined</span><span id="joined" class="val">0/0</span></div>
+      <div><span class="lab">painted</span><span id="painted" class="val">0%</span></div>
+    </div>
+  </div>
+  <canvas id="orb" aria-label="The sphere: drag from a coloured end to draw, drag elsewhere to turn"></canvas>
+  <div id="actions">
+    <button class="ghost" id="prev" type="button" aria-label="Previous level">◀</button>
+    <button class="ghost" id="reset" type="button">reset</button>
+    <button class="primary" id="levels-btn" type="button">levels</button>
+    <button class="ghost" id="next" type="button" aria-label="Next level">▶</button>
+  </div>
+  <p class="foot">drag from a coloured end to draw · drag anywhere else to turn · hold near the rim to carry a strand round · one of the <a href="../pressure/">games</a> beside <a href="../orb/">orb</a></p>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>STRAND</h1>
+  <p>
+    Join each pair of coloured ends with a strand. Strands never share a cell,
+    and between them they must <b>paint the whole sphere</b>.
+  </p>
+  <p>
+    It starts on a buckyball. First its <b>60 carbon atoms</b>: three bonds
+    each, and every atom a strand passes through uses exactly two. Then its
+    <b>32 panels</b>, which are too open to have one answer on their own, so
+    they come carved: <b>walls</b> you can't cross, and <b>bridges</b>, where
+    two strands must pass straight through one cell, one each way.
+  </p>
+  <p class="accent">
+    Every wall is load-bearing. Each level was carved by a solver until
+    exactly one answer was left, then every wall that didn't matter was
+    taken out again.
+  </p>
+  <button class="primary" id="start-btn" type="button" style="flex:none">BEGIN</button>
+</div>
+
+<div class="overlay" id="won" hidden>
+  <h2>solved</h2>
+  <h1>PAINTED</h1>
+  <p id="won-body"></p>
+  <div class="row">
+    <button class="primary" id="won-next" type="button">NEXT</button>
+    <button class="ghost" id="won-stay" type="button">LOOK</button>
+  </div>
+</div>
+
+<div class="overlay" id="levels" hidden>
+  <h1>LEVELS</h1>
+  <div id="level-list"></div>
+  <button class="ghost" id="levels-close" type="button" style="flex:none">CLOSE</button>
+</div>
+
+<script src="../orb/js/prng.js"></script>
+<script src="../orb/js/sphere.js"></script>
+<script src="js/boards.js"></script>
+<script src="js/solve.js"></script>
+<script src="js/play.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/view.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

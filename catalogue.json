@@ -759,6 +759,22 @@
       ]
     },
     {
+      "n": "strand",
+      "u": "https://games.mino.mobi/strand/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "p": "games",
+      "surface": "games",
+      "d": "Flow on a sphere: join each pair of colours with strands that never cross and paint every cell, on a buckyball's atoms and panels and beyond. Every level was carved by a solver until exactly one answer was left.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
       "n": "orb",
       "u": "https://photo.mino.mobi/orb/",
       "c": "bluesky",

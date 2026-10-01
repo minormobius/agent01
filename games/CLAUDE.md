@@ -76,13 +76,19 @@ Three things live here:
   solver from the first tap before it ships. The readout counts the moves that
   weren't certain when you made them. Canvas 2D, no build. See
   [`orb/README.md`](orb/README.md).
+- **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
+  on Voronoi spheres. Panel levels are carved with walls and bridges by a
+  solver until exactly one answer is left; levels are baked
+  (`tools/bake.mjs`) into a committed `js/levels.js`, and the selftest
+  re-proves each one unique. Borrows `../orb/js/sphere.js`, so a change there
+  is checked by Strand's selftest too. See [`strand/README.md`](strand/README.md).
 - **Pressure at `/pressure/`** — the hub for the whole family: the thesis behind
   them, what each one can measure about a decision, and briefs for the two still
   unbuilt. A single hand-written page. Start here before adding another game
   to this family: [`pressure/README.md`](pressure/README.md).
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/strand/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -118,6 +124,8 @@ node games/outbound/test/sweep.mjs 12            # parameter sweep — slow (~15
 node games/tempest/test/tempest.selftest.mjs      # invariants + the wasm drift gate; preflight runs this
 node games/orb/test/orb.selftest.mjs             # mesh, solver vs brute force, generator; preflight runs this
 node games/orb/test/analysis.mjs 300             # guess-free rate: Voronoi orb vs square/hex grids (~3 s)
+node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
+node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
 ```
 
