@@ -82,13 +82,21 @@ Three things live here:
   (`tools/bake.mjs`) into a committed `js/levels.js`, and the selftest
   re-proves each one unique. Borrows `../orb/js/sphere.js`, so a change there
   is checked by Strand's selftest too. See [`strand/README.md`](strand/README.md).
+- **One Coast at `/onecoast/`**: a tile-laying world builder on the icosahedral
+  Goldberg spheres (C60–C240). Land/sea sides, free placement with cliffs,
+  scored by coastlines (one continent + one ocean = exactly one coast). The bag
+  is a generated perfect world, which the selftest proves reachable through the
+  rules. The atelier paints worlds freely and exports a token that mappa grows
+  into a planet (`mappa/lib/coast-mask.js`; `mappa/lib/onecoast/` holds
+  byte-identical copies of `geo.js` and `world.js`, which our selftest checks).
+  See [`onecoast/README.md`](onecoast/README.md).
 - **Pressure at `/pressure/`** — the hub for the whole family: the thesis behind
   them, what each one can measure about a decision, and briefs for the two still
   unbuilt. A single hand-written page. Start here before adding another game
   to this family: [`pressure/README.md`](pressure/README.md).
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/strand/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/strand/`, `/onecoast/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -126,6 +134,7 @@ node games/orb/test/orb.selftest.mjs             # mesh, solver vs brute force, 
 node games/orb/test/analysis.mjs 300             # guess-free rate: Voronoi orb vs square/hex grids (~3 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
+node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies
 node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
 ```
 

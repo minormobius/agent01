@@ -759,6 +759,22 @@
       ]
     },
     {
+      "n": "one coast",
+      "u": "https://games.mino.mobi/onecoast/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "p": "games",
+      "surface": "games",
+      "d": "Build a world on a buckyball, Buckminster Fuller style, tile by tile until it closes: finish with one continent and one ocean, exactly one coastline. A perfect world is always in the bag. Or paint one freely in the atelier.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
       "n": "strand",
       "u": "https://games.mino.mobi/strand/",
       "c": "games",

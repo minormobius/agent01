@@ -15,3 +15,7 @@ orb/test/
 # /strand/ test harness and level baker: node-only, not part of the site.
 strand/test/
 strand/tools/
+
+# /onecoast/ test harness and tools: node-only, not part of the site.
+onecoast/test/
+onecoast/tools/

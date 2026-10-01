@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#070a10" />
+<meta name="description" content="One Coast — build a world on a buckyball, tile by tile, until it closes. One continent, one ocean: exactly one coastline. A perfect world is always in the bag." />
+<title>One Coast — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/onecoast.css" />
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="tabs">
+      <button type="button" id="tab-ex" class="tab on">expedition</button>
+      <button type="button" id="tab-at" class="tab">atelier</button>
+    </div>
+    <div class="right">
+      <select id="sphere" aria-label="World size">
+        <option value="c60">C60 · 20</option>
+        <option value="c80">C80 · 30</option>
+        <option value="c180">C180 · 80</option>
+        <option value="c240">C240 · 110</option>
+      </select>
+      <button type="button" id="viewmode" class="tog">◐ globe</button>
+    </div>
+  </div>
+  <div id="stat"></div>
+  <canvas id="orb" aria-label="The world: drag to turn"></canvas>
+  <div id="note">pick a tile, tap a cell beside the map</div>
+
+  <div id="tray-ex" class="tray">
+    <div id="hand"></div>
+    <div class="col">
+      <button class="primary" id="lay" type="button" disabled>LAY</button>
+      <button class="ghost" id="new" type="button">new world</button>
+      <button class="ghost" id="reveal" type="button" hidden>Fuller's world</button>
+    </div>
+  </div>
+  <div id="tray-at" class="tray" hidden>
+    <button class="brush on" id="brush-land" type="button">▲ land</button>
+    <button class="brush" id="brush-sea" type="button">≈ sea</button>
+    <button class="ghost" id="fresh" type="button">new</button>
+    <a class="ghost btn" id="mappa" href="#" target="_blank" rel="noopener">open in mappa ↗</a>
+    <button class="primary" id="play" type="button" title="Play this world as an expedition (needs exactly one coastline)">play it</button>
+  </div>
+  <p class="foot">one finger turns (paints, in the atelier) · two fingers turn and zoom · tap the corner map to look there</p>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>ONE COAST</h1>
+  <p>
+    In 1943 Buckminster Fuller unfolded the Earth onto an icosahedron and
+    found a way to cut it so the continents became <b>one island in one
+    ocean</b>. The molecule named after him, C60, is the same shape.
+  </p>
+  <p>
+    Build a world on one. Its <b>twelve pentagons</b> are laid already, each
+    a mountain massif or an ocean deep. You hold three hexagons; lay them
+    anywhere beside the map, turned any way. Where sides disagree you make a
+    <b>cliff</b>: allowed, but a cliff joins nothing.
+  </p>
+  <p class="accent">
+    The world closes as you build it. Finish with <b>one continent and one
+    ocean</b> (exactly one coastline) and no cliffs. A perfect world was in
+    the bag from the start.
+  </p>
+  <button class="primary" id="start-btn" type="button" style="flex:none">BUILD</button>
+  <p class="foot">or try the <b>atelier</b>: paint a world freely and open it in <a href="https://mappa.mino.mobi/">mappa</a></p>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <h1 id="over-title">—</h1>
+  <p id="over-body"></p>
+  <div class="row">
+    <button class="primary" id="again" type="button">NEW WORLD</button>
+    <button class="ghost" id="look" type="button">LOOK</button>
+  </div>
+</div>
+
+<script src="js/geo.js"></script>
+<script src="js/world.js"></script>
+<script src="js/coastart.js"></script>
+<script src="js/game.js"></script>
+<script src="js/view.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

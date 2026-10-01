@@ -115,9 +115,12 @@ function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visi
   if(proj==='orb'){const q=orbV(v);if(q[2]<=0.035)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
   const m=mxy(v),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(x<-60||x>W+60||y<-40||y>H+40)return null;return{x,y}}
 
-function genJS(g){return generateWorld(seed,{N:rustGen?9000:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,rotationRate:g.rotationRate??undefined})}
+// ?coast=<token>: a One Coast world (games.mino.mobi/onecoast/) shapes the continents.
+// The Rust engine has no mask, so a coast world always takes the JS path.
+let landmask=null;
+function genJS(g){return generateWorld(seed,{landmask,N:rustGen?9000:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,rotationRate:g.rotationRate??undefined})}
 function build(){const g=genome;let w=null;
-  if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,g.rotationRate??0,EMPTY))}catch(e){console.warn('mappa: Rust engine failed, JS fallback',e);w=null}}
+  if(rustGen&&!landmask){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,g.rotationRate??0,EMPTY))}catch(e){console.warn('mappa: Rust engine failed, JS fallback',e);w=null}}
   world=w||genJS(g);driftT=(world.meta&&world.meta.ageSpan)||0.5;climHist=null;climField=null;
   atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
   MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw()}
@@ -137,8 +140,8 @@ function refineDetail(){if(!world)return;const cp=featurePointsOf(world);if(!cp.
   // the new budget right on the feature borders.
   const RN=Math.min(60000,Math.max(GEN_N(),world.N||0));
   setTimeout(()=>{const g=genome;let w=null;
-    if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,RN,g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,g.rotationRate??0,cp))}catch(e){console.warn('refine failed',e);w=null}}
-    if(!w)w=generateWorld(seed,{N:RN,oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,rotationRate:g.rotationRate??undefined,refinePoints:cp,refinePer:6});
+    if(rustGen&&!landmask){try{w=unpackRust(rustMod.generate_world(seed>>>0,RN,g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,g.rotationRate??0,cp))}catch(e){console.warn('refine failed',e);w=null}}
+    if(!w)w=generateWorld(seed,{landmask,N:RN,oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,rotationRate:g.rotationRate??undefined,refinePoints:cp,refinePer:6});
     world=w;driftT=(world.meta&&world.meta.ageSpan)||0.5;climHist=null;climField=null;atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5));
     MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw();
     if(statusEl)statusEl.style.opacity=0;},20)}
@@ -642,7 +645,7 @@ document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;clearS
 // ---- share: this exact world as a permalink (and optionally a PDS record) -----
 function currentConfig(){return{seed,genome}} // shape is resolution-stable, so n is omitted from shares
 function _shareBase(){return location.origin+location.pathname.replace(/[^/]*$/,'')} // → …/mappa/
-function cardURL(){return _shareBase()+'card?w='+encodeConfig(currentConfig())}        // the unfurlable share link (OG card → bounces to the app)
+function cardURL(){return landmask?_shareBase()+'?coast='+landmask.token+'&seed='+(seed>>>0):_shareBase()+'card?w='+encodeConfig(currentConfig())}        // the unfurlable share link (OG card → bounces to the app)
 function clearShareURL(){loadedRecord=null;try{history.replaceState(null,'',location.origin+location.pathname)}catch(e){}}
 function parseShareURL(){try{const p=new URLSearchParams(location.search),w=p.get('w');
   if(w){const c=decodeConfig(w);if(c){seed=c.seed;pinned.clear();for(const k in genome)genome[k]=null;
@@ -674,7 +677,8 @@ function openShare(){if(!world)return;
   if(loadedRecord&&loadedRecord.record&&loadedRecord.record.note)d+=' · “'+loadedRecord.record.note+'”';
   _sp('spDesc').textContent=d;
   _sp('spLink').value=cardURL();_sp('spMsg').textContent='paste it anywhere — it unfurls into a card of this world';_sp('spMsg').className='';
-  try{history.replaceState(null,'','?w='+encodeConfig(currentConfig()))}catch(e){} // keep the address bar on the live world
+  try{history.replaceState(null,'',landmask?'?coast='+landmask.token+'&seed='+(seed>>>0):'?w='+encodeConfig(currentConfig()))}catch(e){} // keep the address bar on the live world
+  _sp('spPub').disabled=!!landmask; if(landmask){_sp('spMsg').textContent='a One Coast world: share the link (publishing to a PDS can’t store a coast yet)'}
   _sp('sharePop').classList.add('show');_sp('spLink').focus();_sp('spLink').select()}
 _sp('share').onclick=()=>{const pop=_sp('sharePop');if(pop.classList.contains('show'))pop.classList.remove('show');else openShare()};
 _sp('shareClose').onclick=()=>_sp('sharePop').classList.remove('show');
@@ -781,6 +785,8 @@ $('builderClose').onclick=()=>$('builder').classList.remove('show');
 function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';orbR=Math.min(W,H)*0.42;if(world){fit();draw()}}
 addEventListener('resize',resize);resize();
 const _pdsRef=pdsRefFromURL();parseShareURL();
-initEngine().finally(()=>{if(_pdsRef)openWorldFromPDS(_pdsRef);else regen()});
+const _coast=(()=>{try{return new URLSearchParams(location.search).get('coast')}catch(e){return null}})();
+const _maskReady=_coast?import('./lib/coast-mask.js').then(m=>{landmask=m.coastMask(_coast)}).catch(e=>{console.warn('mappa: bad coast token',e);landmask=null}):Promise.resolve();
+initEngine().finally(()=>_maskReady.finally(()=>{if(_pdsRef)openWorldFromPDS(_pdsRef);else regen()}));
 
 // kernel: mappa/pkg built by build-mappa-engine.yml (fast Delaunay, 15k cells)

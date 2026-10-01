@@ -572,6 +572,15 @@
    "parent": null
   },
   {
+   "id": "one coast",
+   "name": "one coast",
+   "url": "https://games.mino.mobi/onecoast/",
+   "cat": "games",
+   "commits": 3,
+   "age": "hot",
+   "parent": "games"
+  },
+  {
    "id": "strand",
    "name": "strand",
    "url": "https://games.mino.mobi/strand/",
