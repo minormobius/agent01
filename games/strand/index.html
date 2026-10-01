@@ -13,6 +13,10 @@
 <div id="app">
   <div id="hud">
     <div class="title"><span id="lvl">—</span><span id="kind" class="dim"></span></div>
+    <div class="toggles">
+      <button class="tog" id="lock" type="button" aria-pressed="false" title="View lock: one finger only draws; two fingers turn (l)">🔓 free</button>
+      <button class="tog" id="viewmode" type="button" title="Globe, or the whole sphere at once (v)">◐ globe</button>
+    </div>
     <div class="stats">
       <div><span class="lab">joined</span><span id="joined" class="val">0/0</span></div>
       <div><span class="lab">painted</span><span id="painted" class="val">0%</span></div>
@@ -25,7 +29,7 @@
     <button class="primary" id="levels-btn" type="button">levels</button>
     <button class="ghost" id="next" type="button" aria-label="Next level">▶</button>
   </div>
-  <p class="foot">drag from a coloured end to draw · drag anywhere else to turn · hold near the rim to carry a strand round · one of the <a href="../pressure/">games</a> beside <a href="../orb/">orb</a></p>
+  <p class="foot">drag from a coloured end to draw · two fingers turn and zoom · tap the corner map to look there · tap an end to clear its half · one of the <a href="../pressure/">games</a> beside <a href="../orb/">orb</a></p>
 </div>
 
 <div class="overlay" id="start">
@@ -41,6 +45,12 @@
     <b>32 panels</b>, which are too open to have one answer on their own, so
     they come carved: <b>walls</b> you can't cross, and <b>bridges</b>, where
     two strands must pass straight through one cell, one each way.
+  </p>
+  <p>
+    Draw from <b>either end</b>: each colour's two halves grow independently
+    and join when they meet. Cutting through another colour takes only the
+    cell you cross. The corner map shows the <b>whole sphere</b> at once;
+    the lock keeps one finger for drawing, with two fingers to turn.
   </p>
   <p class="accent">
     Every wall is load-bearing. Each level was carved by a solver until

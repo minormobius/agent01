@@ -13,7 +13,13 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   padding: max(10px, env(safe-area-inset-top)) 16px max(10px, env(safe-area-inset-bottom));
 }
-#hud { width: 100%; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; font-family: var(--mono); }
+#hud { width: 100%; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; font-family: var(--mono); flex-wrap: wrap; }
+.toggles { display: flex; gap: 6px; margin-left: auto; }
+.tog {
+  font-family: var(--mono); font-size: 11px; padding: 7px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;
+  background: transparent; color: var(--dim); border: 1px solid var(--border);
+}
+.tog.on { color: var(--bg); background: var(--accent2); border-color: var(--accent2); }
 .title { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 #lvl { font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dim { color: var(--dim); font-size: 11px; }

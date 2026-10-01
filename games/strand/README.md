@@ -1,11 +1,54 @@
 # Strand — `/strand/`
 
 Flow on a sphere. Join each pair of coloured ends with a strand. Strands
-never share a cell, and together they must paint every cell. Drag from an
-end to draw; drag anywhere else to turn the sphere; hold near the rim while
-drawing to carry a strand round to the far side. Pure static, like the rest
-of `games/`: script tags, no build. It borrows `/orb/`'s mesh code
-(`../orb/js/sphere.js`) for the Voronoi boards.
+never share a cell, and together they must paint every cell. Pure static,
+like the rest of `games/`: script tags, no build. It borrows `/orb/`'s mesh
+code (`../orb/js/sphere.js`) for the Voronoi boards.
+
+## Controls, and why they're shaped this way
+
+A sphere hides half of itself and the finger that draws is also the finger
+that turns, so the controls separate those jobs:
+
+- **One finger on an end or a strand draws.** Anywhere else it turns the
+  sphere, unless the **view lock** (🔒, or `l`) is on, in which case one
+  finger only ever draws.
+- **Two fingers always turn (drag) and zoom (pinch)**, locked or not, so the
+  lock costs nothing.
+- **Seeing the whole sphere.** The inset (top right) shows the whole sphere
+  in a Lambert azimuthal equal-area projection, centred where you're
+  looking. Areas are true and there's no seam except the single point
+  directly behind; the ring marks the half the globe shows. Tap the inset
+  to turn there. The **whole** view (`v`) puts that projection on the main
+  canvas, where you can play on all of it at once. A small cap directly
+  behind is left blank rather than smeared round the rim, and any link the
+  projection stretches past a few cell widths isn't drawn, since that's
+  back-of-sphere wrap-around.
+- Drawing near the globe's rim (unlocked) turns the sphere under your
+  finger, so a strand can be carried round the back.
+- A fast swipe that skips cells still lands: the gap is filled along the
+  shortest free route, up to 3 cells.
+
+## Strands are stable from both ends
+
+A colour isn't one directed path but a set of **fragments** (`js/play.js`):
+
+- Each end owns a half. Drawing from end B grows B's half and never touches
+  A's.
+- The halves join when one steps onto the other, anywhere along it.
+- Driving through another colour takes **only the cell you cross**. The
+  pieces either side stay painted; one that is no longer attached to an end
+  is drawn dashed as a **loose piece**. Step onto it to rejoin it, or tap it
+  to delete it.
+- Within one drag every cut is provisional: back off and the cell is given
+  back.
+- Touching an end restarts that end's half. On a strand that's already
+  joined, only that end lets go, and the painted cells stay as the other
+  end's half.
+- A tap with no drag on an end clears its half.
+
+A level is solved when every colour is one end-to-end strand, every cell is
+painted, and no loose pieces are left.
 
 ## Does it solve? The boundary conditions
 
@@ -102,10 +145,10 @@ shortest bond is at least half the mean (it's 86%).
 |---|---|
 | `js/boards.js` | C60 atoms/panels, Voronoi atoms/panels, `playGraph` (walls + bridges), atom relaxation |
 | `js/solve.js` | exact solver, random Hamiltonian paths, `carve` |
-| `js/play.js` | the rules: begin / extend / reach (gap-filling for fast swipes) / Flow-style cut-and-restore |
+| `js/play.js` | the rules: fragments per colour, halves from both ends, single-cell cuts, provisional within a drag, tap to clear |
 | `js/levels.js` | generated ladder |
-| `js/view.js` | Canvas 2D sphere renderer, both looks |
-| `js/main.js` | input, auto-turn at the rim, level menu, progress |
+| `js/view.js` | Canvas 2D renderer: globe (orthographic) and whole (equal-area) projections, the inset, both board looks |
+| `js/main.js` | input (draw / turn / two-finger turn+zoom / lock / inset tap), auto-turn at the rim, level menu, progress |
 
 ```bash
 node games/strand/test/strand.selftest.mjs   # boards, solver vs brute force, every level unique and winnable

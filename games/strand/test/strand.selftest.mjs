@@ -117,32 +117,66 @@ console.log("shipped levels");
 
 console.log("rules");
 {
-  const lv = S.LEVELS.find((l) => l.bridges.length);
-  const G = new S.Game(lv), [a, z] = lv.pairs[0], [b1] = lv.pairs[1];
-  G.begin(G.cellOf[a]);
-  const before = G.strands[0].length;
-  ck(!G.extend(G.cellOf[b1]) || !G.g.nbrs[a].includes(b1), "a strand can't enter another colour's end");
-  const wall = lv.walls.find((w) => w.includes(G.cellOf[a]));
-  if (wall) { const other = wall[0] === G.cellOf[a] ? wall[1] : wall[0]; ck(!G.extend(other) && G.strands[0].length === before, "a strand can't cross a wall"); }
-  // bridge: entering from a closed side is refused; through a lane is fine
-  const br = lv.bridges[0], c = br.cell, closed = G.board.nbrs[c].find((j) => !br.lanes[0].includes(j) && !br.lanes[1].includes(j));
-  if (closed !== undefined) {
-    const H = new S.Game({ ...lv, pairs: [[closed, lv.pairs[0][1]], ...lv.pairs.slice(1).filter((p) => !p.includes(closed))] });
-    H.begin(closed);
-    ck(!H.extend(c), "a bridge refuses a strand from a closed side");
+  // a level and its answer, to stage situations on
+  const L = S.LEVELS[0], sol = S.solve(S.playGraph(S.board(L.board), L.walls, L.bridges), L.pairs, 1).sols[0];
+  const draw = (G, nodes) => { G.begin(G.cellOf[nodes[0]]); for (let k = 1; k < nodes.length; k++) G.extend(G.cellOf[nodes[k]]); G.end(); };
+  const fragsOf = (G, k) => G.frags[k].map((f) => f.slice());
+  const longest = sol.reduce((m, p, i) => (p.length > sol[m].length ? i : m), 0), P = sol[longest];
+
+  // halves from both ends are independent, and meet
+  {
+    const G = new S.Game(L), mid = Math.floor(P.length / 2);
+    draw(G, P.slice(0, mid));                       // A's half
+    const aHalf = fragsOf(G, longest);
+    draw(G, P.slice(mid).reverse());                // B's half, drawn toward A, stops one short
+    ck(JSON.stringify(fragsOf(G, longest)[0]) === JSON.stringify(aHalf[0]), "drawing from the other end leaves the first half untouched");
+    ck(G.done[longest] === 1 || G.frags[longest].length === 2, "the two halves meet when one steps onto the other");
   }
-  // cut and restore within one drag
-  const L = S.LEVELS[0], K = new S.Game(L), sol = S.solve(S.playGraph(K.board, L.walls, L.bridges), L.pairs, 1).sols[0];
-  const p0 = sol[0], p1 = sol[1];
-  K.begin(K.cellOf[p1[0]]); for (let k = 1; k < p1.length - 1; k++) K.extend(K.cellOf[p1[k]]); K.end();
-  const full = K.strands[1].length;
-  // drag strand 0 across one of strand 1's cells, if they touch
-  const mid = K.strands[1].slice(1).find((v) => K.g.nbrs[p0[0]].includes(v));
-  if (mid !== undefined) {
-    K.begin(K.cellOf[p0[0]]); K.extend(K.cellOf[mid]);
-    const cut = K.strands[1].length;
-    K.extend(K.cellOf[p0[0]]); K.end();
-    ck(cut < full && K.strands[1].length === full, "cutting another strand is undone by backing off in the same drag");
+  // full answer by halves: every strand drawn as two halves from its two ends
+  {
+    const G = new S.Game(L);
+    sol.forEach((p) => { const m = Math.ceil(p.length / 2); draw(G, p.slice(0, m)); draw(G, p.slice(m - 1).reverse()); });
+    ck(G.solved(), "every strand drawn as two halves from its two ends solves the level");
+  }
+  // cutting through another colour takes only the touched cell, and is provisional within the drag
+  {
+    const G = new S.Game(L);
+    let victim = -1, at = -1, attacker = -1, from = -1;
+    for (let j = 0; j < sol.length && victim < 0; j++) for (let i = 1; i < sol[j].length - 3 && victim < 0; i++) {
+      const v = sol[j][i];
+      for (let k = 0; k < sol.length; k++) if (k !== j) for (const e of L.pairs[k]) if (G.g.nbrs[e].includes(v)) { victim = j; at = i; attacker = k; from = e; }
+    }
+    draw(G, sol[victim].slice(0, -1));              // a half that hasn't reached its far end yet
+    const before = G.frags[victim].map((f) => f.length).reduce((x, y) => x + y, 0);
+    G.begin(G.cellOf[from]);
+    G.extend(G.cellOf[sol[victim][at]]);
+    const during = G.frags[victim].map((f) => f.length).reduce((x, y) => x + y, 0);
+    ck(during === before - 1 && G.frags[victim].length === 2, `driving through another strand takes only the touched cell (${before} → ${during} cells, in ${G.frags[victim].length} pieces)`);
+    G.extend(G.cellOf[from]);
+    ck(G.frags[victim].length === 1 && G.frags[victim][0].length === before, "backing off in the same drag gives the cell back and rejoins it");
+    G.extend(G.cellOf[sol[victim][at]]); G.end();
+    const loose = G.frags[victim].find((f) => !G.isEnd(f[0], victim) && !G.isEnd(f[f.length - 1], victim));
+    ck(!!loose && loose.length >= 1, "after the drag, the cut-off side stays painted as a loose piece");
+    ck(G.tap(G.cellOf[loose[0]]) && !G.frags[victim].includes(loose), "a tap on a loose piece deletes it");
+  }
+  // walls and other colours' ends are refused
+  {
+    const lv = S.LEVELS.find((l) => l.walls.length && l.board.type.endsWith("panels"));
+    const G = new S.Game(lv), [a] = lv.pairs[0];
+    G.begin(G.cellOf[a]);
+    const blocked = G.board.nbrs[G.cellOf[a]].find((j) => !G.g.nbrs[a].some((v) => G.cellOf[v] === j));
+    if (blocked !== undefined) ck(!G.extend(blocked), "a strand can't cross a wall or a bridge's closed side");
+    const other = lv.pairs.slice(1).flat().find((e) => G.g.nbrs[a].includes(e));
+    if (other !== undefined) ck(!G.extend(G.cellOf[other]), "a strand can't enter another colour's end");
+    G.end();
+  }
+  // touching an end of a joined strand: only that end lets go
+  {
+    const G = new S.Game(L);
+    draw(G, P);
+    G.begin(G.cellOf[P[0]]); G.end();
+    const f = G.frags[longest];
+    ck(G.done[longest] === 0 && f.length === 2 && f.some((x) => x.length === P.length - 1), "touching an end of a joined strand detaches just that end; the rest stays painted");
   }
 }
 
