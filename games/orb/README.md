@@ -1,8 +1,16 @@
 # Orb — `/orb/`
 
-Minesweeper on a sphere of Voronoi cells. Drag to turn it, tap to dig, hold
-(or right-click, or flag mode) to flag, press an open number to light up the
-cells it counts.
+Minesweeper on a sphere of Voronoi cells. Drag to turn it. **Tap flags, hold
+digs**: digging is the move that can end the game, so it gets the deliberate
+gesture (right-click digs on desktop; the mode button or `f` swaps them).
+Tapping an open number clears around it once its flags are placed. The first
+tap of a game digs, since there is nothing to flag yet.
+
+The **reticle** rings the cell facing you (the orb's nearest point) in white
+and the cells it counts in teal, drawn above everything else. A readout
+underneath gives its number, flags and hidden neighbours. On an irregular
+mesh, counting the far side of a cell by eye is the chore; turn the cell you
+care about to the middle instead.
 
 Pure static, like the rest of the `/pressure/` family: six script tags, no
 build, served by the assets fallback in `games/worker.js`.

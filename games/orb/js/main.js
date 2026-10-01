@@ -17,7 +17,11 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var cv = $("orb"), view = new O.View(cv);
-  var game = null, flagMode = false, dirty = true, spin = { x: 0, y: 0 }, idle = 0;
+  // Controls: TAP FLAGS, HOLD DIGS. Digging is the move that can end the game,
+  // so it gets the deliberate gesture; a stray tap costs a flag you can take
+  // back. Tapping an open number still chords. The mode button swaps the two.
+  // The first tap of a game always digs: there is nothing to flag yet.
+  var game = null, tapDigs = false, dirty = true, spin = { x: 0, y: 0 }, idle = 0;
 
   function params() {
     var q = new URLSearchParams(location.search);
@@ -50,8 +54,8 @@
     $("mines").textContent = String(s.nMines - s.flags);
     $("guesses").textContent = String(game.guesses);
     $("time").textContent = clock(s.phase === "play" ? Date.now() - s.t0 : s.t1 ? s.t1 - s.t0 : 0);
-    $("mode").textContent = flagMode ? "⚑ flag" : "⛏ dig";
-    $("mode").classList.toggle("on", flagMode);
+    $("mode").textContent = tapDigs ? "tap: ⛏ dig" : "tap: ⚑ flag";
+    $("mode").classList.toggle("on", tapDigs);
   }
   function clock(ms) { var t = Math.floor(ms / 1000); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
 
@@ -98,7 +102,7 @@
   }
 
   function flag(i) {
-    if (O.toggleFlag(game.s, i)) { if (navigator.vibrate) navigator.vibrate(12); hud(); dirty = true; }
+    if (O.toggleFlag(game.s, i)) { hud(); dirty = true; }
   }
 
   function hint() {
@@ -120,6 +124,22 @@
   function turnTo(c) {
     var P = game.s.mesh.sites;
     turning = { p: [P[3 * c], P[3 * c + 1], P[3 * c + 2]], left: 18 };
+  }
+
+  /* Say what the reticle's cell sees: its number, flags around it, and how
+     many neighbours are still hidden. Counting those by eye on an irregular
+     mesh is the chore the reticle exists to remove. */
+  var lastFocus = -2, focusMsg = "";
+  function focusNote() {
+    var s = game && game.s, c = view.focusCell;
+    if (!s || s.phase !== "play" || c < 0) { lastFocus = c; return; }
+    var nb = s.mesh.nbrs[c], f = 0, hid = 0;
+    for (var k = 0; k < nb.length; k++) { if (s.flag[nb[k]]) f++; else if (!s.open[nb[k]]) hid++; }
+    var msg = !s.open[c] ? (s.flag[c] ? "⊕ flagged" : "⊕ hidden") + " · " + nb.length + " neighbours"
+      : "⊕ " + s.count[c] + " · ⚑ " + f + " · " + hid + " hidden" + (s.count[c] === f && hid ? " · tap to clear" : s.count[c] - f === hid && hid ? " · all mines" : "");
+    if (c === lastFocus && msg === focusMsg) return;
+    lastFocus = c; focusMsg = msg;
+    $("focus").textContent = msg;
   }
 
   function flash(cells) { view.hl = new Set(cells); dirty = true; setTimeout(function () { view.hl = null; dirty = true; }, 450); }
@@ -180,9 +200,12 @@
     last = { x: e.clientX, y: e.clientY, t: performance.now() };
     if (cell >= 0 && game.s.open[cell] && game.s.count[cell] > 0) { view.hl = new Set(game.s.mesh.nbrs[cell]); dirty = true; }
     clearTimeout(holdTimer);
-    if (cell >= 0 && !press.right) holdTimer = setTimeout(function () {
-      if (press && !press.moved && !game.s.open[cell]) { press.held = true; flag(cell); }
-    }, 380);
+    if (cell >= 0 && !press.right && game.s.phase === "play" && !game.s.open[cell]) holdTimer = setTimeout(function () {
+      if (!press || press.moved) return;
+      press.held = true;
+      if (navigator.vibrate) navigator.vibrate(tapDigs ? 12 : 25);
+      if (tapDigs) flag(cell); else dig(cell);
+    }, 360);
   });
   var holdTimer = 0;
   cv.addEventListener("pointermove", function (e) {
@@ -214,8 +237,9 @@
     spin.x = spin.y = 0;
     if (pr.held || pr.cell < 0 || e.type === "pointercancel") return;
     var s = game.s;
-    if (pr.right || (flagMode && !s.open[pr.cell])) { if (s.phase === "play") flag(pr.cell); return; }
-    dig(pr.cell);
+    if (s.phase === "ready" || s.open[pr.cell]) return dig(pr.cell); // first move / chord
+    var digs = pr.right ? !tapDigs : tapDigs; // right-click is the other action
+    if (digs) dig(pr.cell); else flag(pr.cell);
   }
   cv.addEventListener("pointerup", up);
   cv.addEventListener("pointercancel", up);
@@ -228,7 +252,7 @@
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
   document.addEventListener("keydown", function (e) {
-    if (e.key === "f" || e.key === " ") { flagMode = !flagMode; hud(); e.preventDefault(); }
+    if (e.key === "f" || e.key === " ") { tapDigs = !tapDigs; hud(); e.preventDefault(); }
     else if (e.key === "h" || e.key === "?") hint();
     else if (e.key === "n") newGame(O.randomSeed(), game.size);
     else if (e.key.indexOf("Arrow") === 0) {
@@ -237,7 +261,7 @@
     }
   });
 
-  $("mode").onclick = function () { flagMode = !flagMode; hud(); };
+  $("mode").onclick = function () { tapDigs = !tapDigs; hud(); };
   $("hint").onclick = hint;
   $("new").onclick = function () { newGame(O.randomSeed(), game.size); };
   $("size").onchange = function () { newGame(O.randomSeed(), this.value); };
@@ -264,7 +288,7 @@
     } else if (!press && game && game.s.phase === "ready" && $("start").hidden) {
       if (++idle > 90) { view.drag(0.25, 0.04); dirty = true; } // a slow drift until the first move
     }
-    if (dirty) { dirty = !!view.draw(now) || false; }
+    if (dirty) { dirty = !!view.draw(now) || false; focusNote(); }
     requestAnimationFrame(frame);
   }
   setInterval(function () { if (game && game.s.phase === "play") hud(); }, 500);

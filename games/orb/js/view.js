@@ -21,7 +21,7 @@
     this.cv = canvas; this.ctx = canvas.getContext("2d");
     this.R = [1, 0, 0, 0, 1, 0, 0, 0, 1];
     this.zoom = 1; this.w = 0; this.h = 0; this.dpr = 1;
-    this.state = null; this.anim = null; this.mark = null; this.hl = null;
+    this.state = null; this.anim = null; this.mark = null; this.hl = null; this.reticle = true; this.focusCell = -1;
   }
 
   View.prototype.resize = function () {
@@ -148,6 +148,27 @@
       } else if (showMines && s.mine[i]) {
         drawMine(ctx, hx, hy, fs * 0.36, s.open[i]);
       }
+    }
+
+    // the reticle: the cell facing you (the orb's nearest point) and the
+    // cells it counts. Drawn after every fill so no neighbour paints over the
+    // outlines, which is the whole point on a mesh where "which cells touch
+    // this one" is not obvious at a glance.
+    this.focusCell = -1;
+    if (this.reticle && (s.phase === "play" || s.phase === "ready")) {
+      var fc = O.cellAt(m, R[6], R[7], R[8]);
+      this.focusCell = fc;
+      var ring2 = function (c) {
+        var rr = m.polys[c];
+        ctx.beginPath();
+        for (var q = 0; q < rr.length; q++) { var w = rr[q], qx = cx + r * VX[w], qy = cy - r * VY[w]; if (q) ctx.lineTo(qx, qy); else ctx.moveTo(qx, qy); }
+        ctx.closePath();
+      };
+      if (s.phase === "play") {
+        ctx.strokeStyle = "rgba(94,232,193,0.9)"; ctx.lineWidth = Math.max(1.5, cellR * 0.1);
+        for (k = 0; k < m.nbrs[fc].length; k++) { ring2(m.nbrs[fc][k]); ctx.stroke(); }
+      }
+      ring2(fc); ctx.strokeStyle = "rgba(255,255,255,0.95)"; ctx.lineWidth = Math.max(2, cellR * 0.14); ctx.stroke();
     }
 
     // specular sheen over the whole orb

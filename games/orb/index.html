@@ -25,17 +25,18 @@
     </div>
   </div>
 
-  <canvas id="orb" aria-label="The orb: drag to turn, tap to dig, hold to flag"></canvas>
+  <canvas id="orb" aria-label="The orb: drag to turn, tap to flag, hold to dig"></canvas>
 
+  <div id="focus"></div>
   <div id="note"></div>
 
   <div id="actions">
-    <button class="primary" id="mode" type="button">⛏ dig</button>
+    <button class="primary" id="mode" type="button" title="Swap tap and hold (f)">tap: ⚑ flag</button>
     <button class="ghost" id="hint" type="button" title="Show a cell that is certain (h)">? hint</button>
     <button class="ghost" id="new" type="button" title="New orb (n)">↻ new</button>
     <button class="ghost" id="board-btn" type="button" title="Fastest pure clears">🏆</button>
   </div>
-  <p class="seed-line">seed <code id="seed">—</code> · drag to turn · tap to dig · hold or right-click to flag · press a number to see what it counts</p>
+  <p class="seed-line">seed <code id="seed">—</code> · drag to turn · <b>tap flags · hold digs</b> · tap a number to clear around it · the ring marks what the facing cell counts</p>
 </div>
 
 <div class="overlay" id="start">

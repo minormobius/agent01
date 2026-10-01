@@ -56,6 +56,10 @@ select {
 }
 #orb:active { cursor: grabbing; }
 
+#focus {
+  font-family: var(--mono); font-size: 13px; color: var(--accent2);
+  min-height: 1.4em; text-align: center; font-variant-numeric: tabular-nums;
+}
 #note {
   font-family: var(--mono); font-size: 12px; color: var(--dim);
   min-height: 1.4em; text-align: center;
@@ -73,6 +77,7 @@ button.ghost:hover { color: var(--text); border-color: var(--accent); }
 
 .seed-line { font-family: var(--mono); font-size: 11px; color: var(--dim); margin: 0; text-align: center; line-height: 1.6; }
 .seed-line code { color: var(--accent2); }
+.seed-line b { color: var(--text); font-weight: 600; }
 .seed-line a { color: var(--accent2); }
 
 .overlay {
