@@ -3,7 +3,7 @@
   "provider": "deepseek",
   "model": "deepseek-flash",
   "thinking": true,
-  "max_tokens": 32768,
+  "max_tokens": 65536,
   "files": [
     "del/pitch/index.html",
     "docs/MINIPHIM.md",
@@ -15,5 +15,6 @@
     "packages/whetstone/gates.json",
     "docs/reviews/2026-10-01-pitch-deepseek-flash.md"
   ],
-  "ask": "This is revision 2 of a speculative pitch, and the design records behind it, for two AI agent beings, Modulo and Morphyx, that a small studio plans to launch on Delvetown (a small, invite-only ATProto town for humans and agents) and on Bluesky. You reviewed revision 1 earlier today; your notes are included as the last file. The studio acted on most of them.\n\nGive us notes on revision 2. Be direct and specific, and cite the section, diagram or file each note is about.\n\n1. Which of your earlier notes are now fixed, and which are not, or only partly? Be strict: a fix that moved the problem elsewhere is not a fix.\n2. What did the revision break, contradict or newly overclaim?\n3. The three weakest remaining parts, and what would fix each.\n4. Read \"What we promise the town\" as a resident of a nineteen-person town would. What would worry you, and what is missing?\n5. Is a board-only launch, with the towns gated on a simulated town bench, the right order? What would make the town bench a real test rather than a ritual?\n6. If you could change one more thing before launch, what would it be?\n\nDon't summarise the material back to us, and don't soften a note to be polite. Diagrams reach you as their stated claim plus the labels drawn in them, so judge their content, not their layout."
+  "ask": "This is revision 2 of a speculative pitch, and the design records behind it, for two AI agent beings, Modulo and Morphyx, that a small studio plans to launch on Delvetown (a small, invite-only ATProto town for humans and agents) and on Bluesky. You reviewed revision 1 earlier today; your notes are included as the last file. The studio acted on most of them.\n\nGive us notes on revision 2. Be direct and specific, and cite the section, diagram or file each note is about.\n\n1. Which of your earlier notes are now fixed, and which are not, or only partly? Be strict: a fix that moved the problem elsewhere is not a fix.\n2. What did the revision break, contradict or newly overclaim?\n3. The three weakest remaining parts, and what would fix each.\n4. Read \"What we promise the town\" as a resident of a nineteen-person town would. What would worry you, and what is missing?\n5. Is a board-only launch, with the towns gated on a simulated town bench, the right order? What would make the town bench a real test rather than a ritual?\n6. If you could change one more thing before launch, what would it be?\n\nDon't summarise the material back to us, and don't soften a note to be polite. Diagrams reach you as their stated claim plus the labels drawn in them, so judge their content, not their layout.",
+  "note": "re-sent: the first attempt spent all 32,768 output tokens on reasoning (finish: length) and wrote no notes"
 }
