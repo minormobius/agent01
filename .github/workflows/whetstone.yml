@@ -1,0 +1,115 @@
+# whetstone — run the soul lab (packages/whetstone) and commit the scorecard back.
+#
+# Trigger: push a request file to packages/whetstone/requests/*.json on a claude/** branch.
+# That is the only trigger. Editing a soul, a trial or a gate does NOT spend anything; a run
+# happens only when someone writes down that they want one. (workflow_dispatch is here for the
+# day this lives on the default branch; until then the UI button does not exist.)
+#
+# Cost: a full run is ~111 model calls (46 soul turns, 24 dyad turns, 41 judge verdicts),
+# all short. The scorecard records the measured cost of every run, so the second estimate is a
+# number, not a guess.
+#
+# The results commit back to the same branch under packages/whetstone/runs/. That push is made
+# with GITHUB_TOKEN, which never triggers another workflow, so this cannot chain.
+
+name: whetstone
+
+on:
+  push:
+    branches: ['claude/**']
+    paths: ['packages/whetstone/requests/*.json']
+  workflow_dispatch:
+    inputs:
+      request:
+        description: 'request file, relative to packages/whetstone/'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: whetstone-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  whetstone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Which requests
+        id: req
+        env:
+          INPUT_REQUEST: ${{ github.event.inputs.request }}
+        run: |
+          # Every request added or modified anywhere in the push, not just its last commit.
+          if [ -n "$INPUT_REQUEST" ]; then
+            list="$INPUT_REQUEST"
+          else
+            list=$(jq -r '.commits[]? | (.added + .modified)[]' "$GITHUB_EVENT_PATH" \
+                     | grep -E '^packages/whetstone/requests/[^/]+\.json$' | sort -u \
+                     | sed 's#^packages/whetstone/##' || true)
+          fi
+          echo "requests: $list"
+          { echo 'list<<EOF'; echo "$list"; echo 'EOF'; } >> "$GITHUB_OUTPUT"
+
+      - name: Selftest
+        run: node packages/whetstone/whetstone.selftest.mjs
+
+      - name: Model credentials
+        if: steps.req.outputs.list != ''
+        env:
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "$API_KEY" ] && [ -z "$OAUTH" ]; then
+            echo "::error::neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set."
+            exit 1
+          fi
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Run
+        if: steps.req.outputs.list != ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          LIST: ${{ steps.req.outputs.list }}
+        working-directory: packages/whetstone
+        run: |
+          status=0
+          while IFS= read -r r; do
+            [ -z "$r" ] && continue
+            echo "::group::$r"
+            set +e
+            node run.mjs --request "$r" > /tmp/scorecard.md
+            code=$?
+            set -e
+            cat /tmp/scorecard.md >> "$GITHUB_STEP_SUMMARY"
+            echo "::endgroup::"
+            # 3 = a gate failed. That is a result, not a broken run; it still commits.
+            if [ "$code" != 0 ] && [ "$code" != 3 ]; then status=$code; fi
+          done <<< "$LIST"
+          exit $status
+
+      - name: Commit the scorecards
+        if: always() && steps.req.outputs.list != ''
+        run: |
+          git config user.name "whetstone"
+          git config user.email "whetstone@mino.mobi"
+          git add packages/whetstone/runs
+          if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
+          git commit -m "whetstone: run ${{ github.sha }}"
+          for i in 1 2 3 4; do
+            git push origin "HEAD:${GITHUB_REF#refs/heads/}" && exit 0
+            git pull --rebase origin "${GITHUB_REF#refs/heads/}"
+            sleep $((i * 2))
+          done
+          exit 1

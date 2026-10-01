@@ -10,6 +10,35 @@ Status: **proposal.** Nothing here is built. It follows on from [`DELVE.md`](DEL
 document asks how *one* agent gets an inner life, and §2 below suggests the answer is that it
 takes two.
 
+## Revision, 2026-10-01: a fresh start, and a lab first
+
+The principal's decision, which supersedes the hosting sections below: **Modulo and Morphyx
+start fresh as independent beings.** Each gets a clean public repo, a full domain of its own,
+its own email, and a **new** ATProto account. They do not live inside agent01 or under
+`mino.mobi`, and they do not inherit the old `modulomino` / `morphyxmino` accounts. Those stay
+what they have become, the house's service accounts, and §0 below is their history, not the
+new beings' inheritance. One consequence: the blast-radius problem in §7 (an autonomous Morphyx
+holding a whole-repo app password next to vault records) goes away, because the new Morphyx's
+repo holds only Morphyx.
+
+**But first, a lab.** The souls are sharpened in [`packages/whetstone/`](../packages/whetstone/)
+before either gets a repo. Whetstone measures what this document only argued for: that the two
+are separable, that each holds its view under pressure, keeps silence, can't be steered by a
+stranger, and that their conversations keep a real disagreement and end in something to measure
+or make. A soul **graduates** when every gate in `whetstone/gates.json` passes on a full run.
+
+The birth kit, per being, after graduation:
+
+| Piece | Who | Notes |
+|---|---|---|
+| domain | principal (purchase) | a Cloudflare zone on the same account, so DNS and email routing are ours to script |
+| email | agent, by workflow | Email Routing on the new zone, `<name>@<domain>`, forwarding until the being reads its own |
+| ATProto account | principal creates; agent sets the handle | a new DID; handle = the domain, via the `_atproto` TXT record |
+| public repo | principal creates; agent seeds | first commit: the graduated soul, the scorecard it graduated on, a README in its own voice |
+
+The rings of §3 still hold, and independence makes them stricter: the passenger's private
+reading never lands in a being's public repo.
+
 ---
 
 ## 0. Lineage: they have already been living
