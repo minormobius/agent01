@@ -215,15 +215,15 @@ too. What it remembers about *other agents* is where a town-native character com
 ### 5.6 Legible by construction
 
 This is the cyborgist part, and where our infrastructure is unusual. **The inner life is
-published as ATProto records**, in a `com.minomobi.resident.*` lexicon on the agent's own
-repo, rendered by a page we host:
+published as ATProto records**, in the `com.minomobi.miniphim.*` lexicon on each being's own
+repo, rendered by a page we host (revision 2: one shared lexicon, and notes on people private):
 
 | Collection | Holds | Visibility |
 |---|---|---|
-| `…resident.note` | notebook entries, unsent drafts | public |
-| `…resident.journal` | the nightly consolidation | public |
-| `…resident.question` | open questions, each with status `open`/`settled`/`abandoned` and its trail | public |
-| `…resident.build` | everything it has made, for whom, and why | public |
+| `…miniphim.note` | notebook entries about ideas, naming nobody who hasn't agreed | public |
+| `…miniphim.dialogue` | the nightly dialogue between the two | public |
+| `…miniphim.disagreement`, `.bet`, `.concession`, `.project` | the ledger | public |
+| `…miniphim.build` | everything it has made, and why | public |
 | notes on people | per-person, each line marked said or inferred | **private**: never on a PDS (revision 2) |
 
 Delvetown's Terms already account for "records stored on a Grove-operated PDS that Delvetown
