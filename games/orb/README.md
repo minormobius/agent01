@@ -137,6 +137,7 @@ without changing the format.
 | `js/view.js` | Canvas 2D orthographic renderer, rotation, picking |
 | `js/main.js` | input (drag vs tap vs hold vs pinch), the guess readout, overlays |
 | `js/corpus.js` | the score corpus: relay + PDS backfill, Jetstream live, per-player ranking (ES module, no DOM) |
+| `js/forge.js` | hard mode's Web Worker: loads the engine, rebuilds the mesh, runs the climb, reports progress |
 | `js/board.js` | the leaderboard UI and the write path (ES module; imports `../../lib/auth.js`, which the deploy vendors) |
 
 A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l|x`
@@ -156,12 +157,43 @@ steeply past a quarter mined: 1000 cells at 28% takes ~0.25 s median, and
 1500 cells at 28% takes 5 s median, 11 s worst. The ceiling is the repair
 loop, not the solver.
 
-A **hard moment** is a point in the solve where no single number settles
-anything anywhere on the board: it takes two overlapping numbers or the
-exact solver. Even the densest tier has barely one per board, so more mines
-makes a board longer and denser to read, but not deeper. Selecting for hard
-moments, rather than adding mines, is the lever for real logical
-difficulty.
+A **hard moment** is a point in the solve where single numbers, chased to a
+fixpoint (flag what one number forces, clear what that frees, repeat),
+settle nothing anywhere on the board, yet something is still certain. The
+only way on is two numbers read together, or the full exact reasoning.
+Normal boards have almost none, even the dense ones: the no-guess repair
+smooths hard spots away. More mines makes a board longer, not deeper.
+
+## Hard mode
+
+The **HARD** toggle (remembered; `&hard=1` in the permalink) forges boards
+*for* hard moments. Choosing the hardest of 32 random boards barely moves
+the count (to 1–3), so `generateHard` climbs instead:
+
+1. Start from a proved board.
+2. Move one mine at a time.
+3. Keep the move whenever the board still clears without a guess *and* has
+   at least as many hard moments. `hardSolve` answers both in one pass, and
+   ties are kept so the search can cross plateaus.
+
+| tier | climb steps | hard moments, normal → hard (median) | forge time (median / worst, desktop) |
+|---|---|---|---|
+| small | 600 | 0 → 3 | 0.1 / 0.3 s |
+| medium | 600 | 0 → 6 | 0.6 / 0.7 s |
+| large | 500 | 1 → 7 | 1.4 / 2.1 s |
+| huge | 350 | 2 → 6 | 3.0 / 3.5 s |
+
+It runs in a Web Worker (`js/forge.js`) with a live counter, and the clock
+starts once the board is ready. The HUD's **hard** counter shows hard
+moments cracked out of the board's total, and glows while you're in one. A
+certain move made at a hard moment cracks it; a guess out of one doesn't
+count. The total is what the easy-first route meets. Another order of play can meet
+fewer or more (the HUD then just counts), because the board isn't forged
+around one route.
+
+Hard clears go to their own leaderboard, `hard-<cells>-<mines>-<climb>`
+(the climb budget is part of what the board is). Each record's detail
+carries `cracked=x/y`.
 
 A tier's cells and mines are its leaderboard game id (`pure-1000-250`).
 Retune a tier and its old times drop off instead of being ranked against a

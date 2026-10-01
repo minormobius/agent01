@@ -145,6 +145,39 @@ console.log("rules");
   ck(s.phase === "lost" && s.boom === boom, "opening a mine loses");
 }
 
+console.log("hard mode");
+{
+  // hardSolve's count must match what the game sees: replay a careful player
+  // (easy cells first) and ask hardNow() at every step, as main.js does.
+  let agree = true, forged = true, det = true, clear = true, climbed = 0, boards = 0;
+  for (const [n, M, steps] of [[160, 28, 150], [320, 62, 150]]) {
+    const mesh = O.buildMesh("hard-st" + n, n, 2);
+    for (let t = 0; t < 4; t++) {
+      const first = (t * 41) % n;
+      const g = O.generateHard(mesh, M, first, "h" + t, steps);
+      boards++;
+      if (g.hard > g.start) climbed++;
+      const set = new Set(g.mines);
+      if (set.size !== M || set.has(first) || mesh.nbrs[first].some((j) => set.has(j))) clear = false;
+      if (!O.solveFrom(mesh, g.mines, first).solved) forged = false;
+      if (O.generateHard(mesh, M, first, "h" + t, steps).mines.join() !== g.mines.join()) det = false;
+      const s = O.newState(mesh, M); O.plant(s, g.mines); s.phase = "play"; O.reveal(s, first);
+      let seen = 0;
+      while (s.phase === "play") {
+        let e = O.easySafe(s);
+        if (!e.length) { if (!O.hardNow(s)) { agree = false; break; } seen++; e = O.certainties(s).safe; }
+        else if (O.hardNow(s)) { agree = false; break; }
+        e.forEach((x) => O.reveal(s, x));
+      }
+      if (seen !== g.hard || s.phase !== "won") agree = false;
+    }
+  }
+  ck(forged && clear, `${boards} forged boards: every one still clears without a guess, first cell and neighbours clear`);
+  ck(det, "forging is deterministic: same seed and first tap, same hard board");
+  ck(agree, "hardNow() during play agrees with hardSolve()'s count on every board");
+  ck(climbed >= boards / 2, `the climb adds hard moments (${climbed} of ${boards} boards ended harder than they started)`);
+}
+
 console.log("score corpus (fake network)");
 {
   const { Corpus, accept } = await import(new URL("../js/corpus.js", import.meta.url));

@@ -65,5 +65,8 @@ for (const [n, M] of Object.values(O.SIZES).map((c) => [c.n, c.m])) {
     const r = O.solveFrom(mesh, g.mines, t % n); h2 += r.levels[2]; h3 += r.levels[3];
   }
   times.sort((a, b) => a - b);
-  console.log(`  ${String(n).padStart(4)} cells / ${String(M).padStart(3)} mines (${(100 * M / n).toFixed(1)}%): ${(deals / T).toFixed(2)} deals, ${(repairs / T).toFixed(1)} repairs, median ${times[T >> 1].toFixed(0)} ms, worst ${times[T - 1].toFixed(0)} ms | hard moments per board: ${(h2 / T).toFixed(1)} two-number, ${(h3 / T).toFixed(1)} exact`);
+  const hh = [];
+  for (let t = 0; t < Math.min(T, 6); t++) hh.push(O.generateHard(mesh, M, t % n, "hh" + t, Object.values(O.SIZES).find((c) => c.n === n).climb).hard);
+  hh.sort((a, b) => a - b);
+  console.log(`  ${String(n).padStart(4)} cells / ${String(M).padStart(3)} mines (${(100 * M / n).toFixed(1)}%): ${(deals / T).toFixed(2)} deals, ${(repairs / T).toFixed(1)} repairs, median ${times[T >> 1].toFixed(0)} ms, worst ${times[T - 1].toFixed(0)} ms | hard moments per board: ${(h2 / T).toFixed(1)} two-number, ${(h3 / T).toFixed(1)} exact | hard mode: median ${hh[hh.length >> 1]} (${hh[0]}–${hh[hh.length - 1]})`);
 }

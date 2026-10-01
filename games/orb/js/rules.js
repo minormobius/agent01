@@ -88,12 +88,18 @@
      leaderboard's game id: retune a tier and its old times stop being
      compared with the new ones, instead of quietly mixing. */
   O.SIZES = {
-    s: { n: 160, m: 28, label: "small" },
-    m: { n: 320, m: 62, label: "medium" },
-    l: { n: 600, m: 132, label: "large" },
-    x: { n: 1000, m: 250, label: "huge" },
+    s: { n: 160, m: 28, label: "small", climb: 600 },
+    m: { n: 320, m: 62, label: "medium", climb: 600 },
+    l: { n: 600, m: 132, label: "large", climb: 500 },
+    x: { n: 1000, m: 250, label: "huge", climb: 350 },
   };
-  O.gameId = function (size) { var c = O.SIZES[size]; return "pure-" + c.n + "-" + c.m; };
+  /* `climb` is hard mode's search budget: mine moves tried while forging a
+     board for hard moments (solve.js generateHard). Part of the board's
+     identity, like the mine count, so it is in the hard-mode game id. */
+  O.gameId = function (size, hard) {
+    var c = O.SIZES[size];
+    return hard ? "hard-" + c.n + "-" + c.m + "-" + c.climb : "pure-" + c.n + "-" + c.m;
+  };
 
   O.newState = newState;
   O.plant = plant;

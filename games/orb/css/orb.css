@@ -133,3 +133,18 @@ button.ghost:hover { color: var(--text); border-color: var(--accent); }
 .live.is-live::before { content: "● "; color: var(--accent2); animation: pulse 2s infinite; }
 .live.is-offline::before { content: "● "; color: var(--accent); }
 @keyframes pulse { 50% { opacity: 0.3; } }
+
+/* hard mode */
+.cell-hud.row { flex-direction: row; align-items: center; gap: 6px; }
+button.toggle {
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 7px 8px; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--dim); border: 1px solid var(--border);
+}
+button.toggle.on { background: var(--blood); border-color: var(--blood); color: #fff; }
+#hardc.hot { color: var(--warn, #ffc857); animation: pulse 1.2s infinite; }
+@media (max-width: 440px) {
+  #hud { gap: 12px; }
+  .hud-value { font-size: 17px; }
+  select { padding: 6px 4px; }
+}

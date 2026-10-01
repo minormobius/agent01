@@ -315,6 +315,86 @@
     return { safe: safe.concat(ex.safe), mine: mine.concat(ex.mine), partial: false };
   }
 
+  /* ---------------------------------------------------------- hard moments
+     "Easy" is what single numbers reach, chased to a fixpoint: flag the
+     mines a number forces, clear what that frees, repeat. A HARD MOMENT is a
+     position where that chase frees no safe cell anywhere on the board, yet
+     something is still certain: the only way forward is two numbers read
+     together, or the exact solver. Each one is a moment the board asks you
+     to actually think. */
+  function easySafe(s) {
+    var known = new Uint8Array(s.n);
+    var view = { n: s.n, nbrs: s.mesh.nbrs, open: s.open, count: s.count, known: known, total: s.nMines };
+    for (var guard = 0; guard < s.n; guard++) {
+      var d = deduce(view, { maxLevel: 1 }), grew = false;
+      d.safe.forEach(function (x) { if (!known[x]) { known[x] = 2; grew = true; } });
+      d.mine.forEach(function (x) { if (!known[x]) { known[x] = 1; grew = true; } });
+      if (!grew) break;
+    }
+    var out = [];
+    for (var i = 0; i < s.n; i++) if (known[i] === 2 && !s.open[i]) out.push(i);
+    return out;
+  }
+
+  /* Is the player standing at a hard moment right now? */
+  function hardNow(s) {
+    if (s.phase !== "play" || easySafe(s).length) return false;
+    return certainties(s).safe.length > 0;
+  }
+
+  /* Solve a board the way a careful human would (always take the easy cells
+     first) and count the hard moments on the way. */
+  function hardSolve(mesh, mineArr, first) {
+    var s = O.newState(mesh, mineArr.length);
+    O.plant(s, mineArr); s.phase = "play";
+    O.reveal(s, first);
+    var hard = 0;
+    while (s.phase === "play") {
+      var e = easySafe(s);
+      if (!e.length) {
+        e = certainties(s).safe;
+        if (!e.length) return { solved: false, hard: hard };
+        hard++;
+      }
+      for (var k = 0; k < e.length; k++) O.reveal(s, e[k]);
+    }
+    return { solved: s.phase === "won", hard: hard };
+  }
+
+  /* Hard mode's generator. Picking the hardest of several random boards
+     barely moves the count (the no-guess repair smooths hard spots away),
+     so climb instead: start from a proved board, move one mine at a time,
+     and keep the move whenever the board still clears without a guess AND
+     has at least as many hard moments (ties are kept, so the search can
+     drift across plateaus). hardSolve answers both questions in one pass.
+     Deterministic in (seed, mesh, mines, first, steps): a hard seed is still
+     a permalink. */
+  function generateHard(mesh, nMines, first, seed, steps, onStep) {
+    var rng = O.rngFor(seed, "hard", mesh.n, nMines, first);
+    var mines = generate(mesh, nMines, first, seed).mines.slice();
+    var cur = hardSolve(mesh, mines, first).hard, start = cur, kept = 0;
+    var banned = new Set(mesh.nbrs[first]); banned.add(first);
+    var isMine = new Uint8Array(mesh.n);
+    mines.forEach(function (x) { isMine[x] = 1; });
+    for (var it = 0; it < steps; it++) {
+      var k = rng.int(0, nMines - 1), to = rng.int(0, mesh.n - 1);
+      if (isMine[to] || banned.has(to)) continue;
+      var from = mines[k];
+      mines[k] = to;
+      var r = hardSolve(mesh, mines, first);
+      if (r.solved && r.hard >= cur) {
+        isMine[from] = 0; isMine[to] = 1; kept++;
+        cur = r.hard;
+      } else mines[k] = from;
+      if (onStep && it % 20 === 19) onStep(it + 1, cur);
+    }
+    return { mines: mines, hard: cur, start: start, steps: steps, kept: kept };
+  }
+
+  O.easySafe = easySafe;
+  O.hardNow = hardNow;
+  O.hardSolve = hardSolve;
+  O.generateHard = generateHard;
   O.deduce = deduce;
   O.solveFrom = solveFrom;
   O.generate = generate;

@@ -31,7 +31,7 @@ const $ = (id) => document.getElementById(id);
 const auth = new AuthClient();
 const ready = auth.init().catch(() => {});
 const corpus = new Corpus(accept);
-let started = false, view = { size: "m", period: "all" }, posted = null;
+let started = false, view = { size: "m", period: "all", hard: false }, posted = null;
 
 function clock(ms) {
   const t = ms / 1000, m = Math.floor(t / 60), s = t - m * 60;
@@ -41,8 +41,8 @@ const canPost = () => auth.isLoggedIn() && auth.hasScope(SCOPE);
 
 async function post(r) {
   const record = {
-    $type: COLLECTION, site: "orb", game: O.gameId(r.size), value: Math.round(r.ms), unit: "ms",
-    higherIsBetter: false, detail: "seed=" + r.seed + " first=" + r.first + " guesses=0",
+    $type: COLLECTION, site: "orb", game: O.gameId(r.size, r.hard), value: Math.round(r.ms), unit: "ms",
+    higherIsBetter: false, detail: "seed=" + r.seed + " first=" + r.first + " guesses=0" + (r.hard ? " cracked=" + r.cracked + "/" + r.hardTotal : ""),
     createdAt: new Date(r.at || Date.now()).toISOString(),
   };
   const res = await auth.pds.createRecord(COLLECTION, record);
@@ -74,10 +74,11 @@ function renderAccount() {
 function render() {
   for (const b of document.querySelectorAll("[data-board-size]")) b.classList.toggle("on", b.dataset.boardSize === view.size);
   for (const b of document.querySelectorAll("[data-board-period]")) b.classList.toggle("on", b.dataset.boardPeriod === view.period);
+  for (const b of document.querySelectorAll("[data-board-hard]")) b.classList.toggle("on", (b.dataset.boardHard === "1") === view.hard);
   renderLive();
   const list = $("board-list"), me = auth.getUser();
   const since = PERIOD_MS[view.period] ? Date.now() - PERIOD_MS[view.period] : 0;
-  const rows = corpus.top(O.gameId(view.size), since, 10);
+  const rows = corpus.top(O.gameId(view.size, view.hard), since, 10);
   list.innerHTML = "";
   if (!rows.length) {
     list.innerHTML = corpus.state === "backfill" ? "<li class='dim'>loading…</li>" : "<li class='dim'>no pure clears yet. Be the first</li>";
@@ -105,8 +106,9 @@ function render() {
 let frame = 0;
 corpus.on(() => { if (!frame && !$("board").hidden) frame = requestAnimationFrame(() => { frame = 0; render(); }); });
 
-function open(size) {
+function open(size, hard) {
   view.size = size || view.size;
+  if (hard != null) view.hard = !!hard;
   $("start").hidden = true;
   $("board").hidden = false;
   if (!started) { started = true; corpus.start(); }
@@ -119,7 +121,7 @@ function park(r) { try { localStorage.setItem(PENDING, JSON.stringify(r)); } cat
 /* Called by main.js on a pure clear. */
 async function offer(r) {
   await ready;
-  open(r.size);
+  open(r.size, r.hard);
   if (canPost()) {
     try { await post(r); status("posted " + clock(r.ms) + " to your repo"); }
     catch (e) { status("couldn't post: " + e.message); }
@@ -151,13 +153,14 @@ async function resume() {
   if (!r || !canPost()) return;
   try { localStorage.removeItem(PENDING); } catch (e) { /* ignore */ }
   if (Date.now() - (r.at || 0) > 3600e3) return; // stale: don't post an hour-old run silently
-  open(r.size);
+  open(r.size, r.hard);
   try { await post(r); status("posted " + clock(r.ms) + " to your repo"); }
   catch (e) { status("couldn't post: " + e.message); }
   render();
 }
 
 for (const b of document.querySelectorAll("[data-board-size]")) b.onclick = () => { view.size = b.dataset.boardSize; render(); };
+for (const b of document.querySelectorAll("[data-board-hard]")) b.onclick = () => { view.hard = b.dataset.boardHard === "1"; render(); };
 for (const b of document.querySelectorAll("[data-board-period]")) b.onclick = () => { view.period = b.dataset.boardPeriod; render(); };
 $("board-go").onclick = signIn;
 $("board-handle").onkeydown = (e) => { if (e.key === "Enter") signIn(); };

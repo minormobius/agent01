@@ -22,16 +22,22 @@
   // back. Tapping an open number still chords. The mode button swaps the two.
   // The first tap of a game always digs: there is nothing to flag yet.
   var game = null, tapDigs = false, dirty = true, spin = { x: 0, y: 0 }, idle = 0;
+  // Hard mode: boards forged for hard moments (solve.js generateHard), and a
+  // HUD count of the ones you crack. Remembered per browser; in the URL so a
+  // hard seed is a permalink.
+  var hardMode = false, forge = null;
+  try { hardMode = localStorage.getItem("orb-hard") === "1"; } catch (e) { /* private mode */ }
 
   function params() {
     var q = new URLSearchParams(location.search);
+    if (q.has("hard")) hardMode = q.get("hard") === "1";
     return { seed: q.get("seed") || O.randomSeed(), size: SIZES[q.get("size")] ? q.get("size") : "m" };
   }
   function setURL(seed, size) {
     // keep a sign-in token the auth worker just handed back: js/board.js
     // (a module, so it runs after this) still has to read it out of the URL
     var q = new URLSearchParams(location.search), tok = q.get("__auth_session");
-    var url = "?seed=" + encodeURIComponent(seed) + "&size=" + size + (tok ? "&__auth_session=" + encodeURIComponent(tok) : "");
+    var url = "?seed=" + encodeURIComponent(seed) + "&size=" + size + (hardMode ? "&hard=1" : "") + (tok ? "&__auth_session=" + encodeURIComponent(tok) : "");
     try { history.replaceState(null, "", url + location.hash); } catch (e) { /* file:// */ }
   }
 
@@ -39,13 +45,16 @@
     var cfg = SIZES[size];
     var mesh = O.buildMesh(seed, cfg.n, 2);
     var s = O.newState(mesh, cfg.m);
-    game = { seed: seed, size: size, s: s, guesses: 0, hints: 0, gen: null };
+    if (forge) { forge.terminate(); forge = null; }
+    game = { seed: seed, size: size, s: s, guesses: 0, hints: 0, gen: null, hard: hardMode, hardTotal: 0, cracked: 0, inHard: false };
     view.state = s; view.anim = {}; view.mark = null; view.hl = null;
     setURL(seed, size);
     $("seed").textContent = seed;
     $("size").value = size;
     $("over").hidden = true; $("post").hidden = true;
-    $("note").textContent = "tap any cell — the first is always clear";
+    $("note").textContent = hardMode ? "hard mode: your first tap forges a board full of hard moments" : "tap any cell — the first is always clear";
+    $("hardbtn").classList.toggle("on", hardMode);
+    $("hardbtn").setAttribute("aria-pressed", hardMode ? "true" : "false");
     hud(); dirty = true;
   }
 
@@ -54,6 +63,10 @@
     $("mines").textContent = String(s.nMines - s.flags);
     $("guesses").textContent = String(game.guesses);
     $("time").textContent = clock(s.phase === "play" ? Date.now() - s.t0 : s.t1 ? s.t1 - s.t0 : 0);
+    // the forge's total is what the easy-first route meets; another route can
+    // meet more, so past it the HUD just counts
+    $("hardc").textContent = game.cracked + (game.hard && game.cracked <= game.hardTotal ? "/" + (game.hardTotal || "–") : "");
+    $("hardc").classList.toggle("hot", game.inHard);
     $("mode").textContent = tapDigs ? "tap: ⛏ dig" : "tap: ⚑ flag";
     $("mode").classList.toggle("on", tapDigs);
   }
@@ -68,7 +81,9 @@
   function dig(i) {
     var s = game.s;
     if (s.phase === "won" || s.phase === "lost" || s.flag[i]) return;
+    if (s.phase === "forging") return;
     if (s.phase === "ready") {
+      if (game.hard) return forgeHard(i);
       var t = performance.now();
       game.gen = O.generate(s.mesh, s.nMines, i, game.seed);
       game.genMs = performance.now() - t;
@@ -84,6 +99,38 @@
     view.mark = null;
     ripple(O.reveal(s, i));
     after(cert, i, certain);
+  }
+
+  /* Hard mode's first tap: forge the board in a worker (seconds on the big
+     tiers), showing the climb, and start the clock only once it's playable.
+     Without workers (file://, old browsers) it forges on the main thread. */
+  function forgeHard(i) {
+    var s = game.s, g0 = game, cfg = SIZES[game.size], t = performance.now();
+    s.phase = "forging"; s.first = i;
+    $("note").textContent = "forging a hard board…";
+    function land(res) {
+      if (game !== g0) return; // a new game started meanwhile
+      forge = null;
+      game.hardTotal = res.hard; game.genMs = performance.now() - t;
+      O.plant(s, res.mines); s.phase = "play"; s.t0 = Date.now();
+      ripple(O.reveal(s, i));
+      after();
+      $("note").textContent = "forged: " + res.hard + " hard moment" + (res.hard === 1 ? "" : "s") + " on this board (" + (game.genMs / 1000).toFixed(1) + " s)";
+    }
+    var msg = { seed: game.seed, n: cfg.n, m: cfg.m, first: i, steps: cfg.climb };
+    try {
+      forge = new Worker("js/forge.js");
+      forge.onmessage = function (e) {
+        if (e.data.progress) {
+          if (game === g0) $("note").textContent = "forging a hard board… " + e.data.hard + " hard moment" + (e.data.hard === 1 ? "" : "s") + " · " + Math.round(100 * e.data.step / cfg.climb) + "%";
+        } else land(e.data);
+      };
+      forge.onerror = function () { forge = null; land(O.generateHard(s.mesh, cfg.m, i, game.seed, cfg.climb)); };
+      forge.postMessage(msg);
+    } catch (e) {
+      land(O.generateHard(s.mesh, cfg.m, i, game.seed, cfg.climb));
+    }
+    hud(); dirty = true;
   }
 
   function chord(i) {
@@ -146,6 +193,11 @@
 
   function after(cert, cell, certain) {
     var s = game.s;
+    // hard moments: a certain move made while nothing easy existed anywhere
+    // cracks one. A guess out of a hard moment doesn't count.
+    var wasHard = game.inHard;
+    if (wasHard && certain && s.phase !== "lost") game.cracked++;
+    game.inHard = s.phase === "play" && O.hardNow(s);
     if (s.phase === "lost") {
       var proof = new Set(cert ? cert.safe : []);
       view.mark = proof;
@@ -158,7 +210,7 @@
           "</b> certain when you clicked. They're pulsing.";
       end();
     } else if (s.phase === "won") {
-      var key = "orb-best-" + O.gameId(game.size), best = null, ms = s.t1 - s.t0, clean = game.guesses === 0;
+      var key = "orb-best-" + O.gameId(game.size, game.hard), best = null, ms = s.t1 - s.t0, clean = game.guesses === 0;
       try { best = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { /* private mode */ }
       var isBest = clean && (!best || ms < best);
       if (isBest) try { localStorage.setItem(key, JSON.stringify(ms)); } catch (e) { /* ignore */ }
@@ -168,17 +220,22 @@
       $("post").hidden = !postable;
       $("post").textContent = "POST TIME TO THE BOARD";
       $("post").disabled = false;
-      game.result = postable ? { size: game.size, ms: ms, seed: game.seed, first: s.first, at: Date.now() } : null;
+      game.result = postable ? { size: game.size, hard: game.hard, cracked: game.cracked, hardTotal: game.hardTotal, ms: ms, seed: game.seed, first: s.first, at: Date.now() } : null;
       $("note").textContent = "cleared · " + game.guesses + " guess" + (game.guesses === 1 ? "" : "es");
       $("over-body").innerHTML = (clean
         ? "Every move was certain when you made it. That is the whole game."
         : "<b>" + game.guesses + "</b> of your moves " + (game.guesses === 1 ? "was a guess" : "were guesses") +
           " — each time, something else was certain. A pure clear has none.") +
-        "<br>" + clock(ms) + (game.hints ? " · " + game.hints + " hint" + (game.hints > 1 ? "s" : "") : "") +
+        "<br>" + (game.cracked || game.hard ? "hard moments cracked: <b>" + game.cracked + "</b>" + (game.hard ? " (the forge counted " + game.hardTotal + " on the easy-first route)" : "") + "<br>" : "") +
+        clock(ms) + (game.hints ? " · " + game.hints + " hint" + (game.hints > 1 ? "s" : "") : "") +
         (isBest ? " · <b>best pure clear</b>" : best ? " · best pure " + clock(best) : "");
       end();
     } else if (cert && !certain) {
       $("note").textContent = "lucky — that wasn't certain (guesses: " + game.guesses + ")";
+    } else if (game.inHard) {
+      $("note").textContent = "hard moment: nothing is easy anywhere. Read two numbers together";
+    } else if (wasHard && certain) {
+      $("note").textContent = "cracked it · " + game.cracked + " hard moment" + (game.cracked === 1 ? "" : "s");
     } else {
       $("note").textContent = s.nMines - s.flags + " mines left";
     }
@@ -265,8 +322,13 @@
   $("hint").onclick = hint;
   $("new").onclick = function () { newGame(O.randomSeed(), game.size); };
   $("size").onchange = function () { newGame(O.randomSeed(), this.value); };
+  $("hardbtn").onclick = function () {
+    hardMode = !hardMode;
+    try { localStorage.setItem("orb-hard", hardMode ? "1" : "0"); } catch (e) { /* ignore */ }
+    newGame(O.randomSeed(), game.size);
+  };
   $("again").onclick = function () { newGame(O.randomSeed(), game.size); };
-  $("replay").onclick = function () { newGame(game.seed, game.size); };
+  $("replay").onclick = function () { hardMode = game.hard; newGame(game.seed, game.size); };
   $("look").onclick = function () { $("over").hidden = true; };
   $("post").onclick = function () {
     if (!game.result) return;
@@ -274,7 +336,7 @@
     $("over").hidden = true;
     O.board.offer(game.result); game.result = null;
   };
-  $("board-btn").onclick = function () { if (O.board) O.board.open(game.size); };
+  $("board-btn").onclick = function () { if (O.board) O.board.open(game.size, game.hard); };
   $("start-btn").onclick = function () { $("start").hidden = true; };
 
   /* ----------------------------------------------------------------- loop */

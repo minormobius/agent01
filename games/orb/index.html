@@ -16,12 +16,14 @@
     <div class="cell-hud"><span class="hud-label">mines</span><span class="hud-value" id="mines">—</span></div>
     <div class="cell-hud"><span class="hud-label">time</span><span class="hud-value" id="time">0:00</span></div>
     <div class="cell-hud"><span class="hud-label">guesses</span><span class="hud-value" id="guesses">0</span></div>
-    <div class="cell-hud right">
+    <div class="cell-hud" title="hard moments cracked: points where nothing easy existed anywhere and you found the certain move anyway"><span class="hud-label">hard</span><span class="hud-value" id="hardc">0</span></div>
+    <div class="cell-hud right row">
+      <button type="button" id="hardbtn" class="toggle" aria-pressed="false" title="Hard mode: boards forged for hard moments">HARD</button>
       <select id="size" aria-label="Board size">
-        <option value="s">small · 160</option>
-        <option value="m">medium · 320</option>
-        <option value="l">large · 600</option>
-        <option value="x">huge · 1000</option>
+        <option value="s">small</option>
+        <option value="m">medium</option>
+        <option value="l">large</option>
+        <option value="x">huge</option>
       </select>
     </div>
   </div>
@@ -86,6 +88,10 @@
     <button type="button" data-board-size="m">medium</button>
     <button type="button" data-board-size="l">large</button>
     <button type="button" data-board-size="x">huge</button>
+  </div>
+  <div class="tabs">
+    <button type="button" data-board-hard="0">normal</button>
+    <button type="button" data-board-hard="1">hard</button>
   </div>
   <div class="tabs">
     <button type="button" data-board-period="all">all time</button>
