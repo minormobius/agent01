@@ -48,14 +48,21 @@ jobs:
         id: req
         env:
           INPUT_REQUEST: ${{ github.event.inputs.request }}
+          BEFORE: ${{ github.event.before }}
         run: |
           # Every request added or modified anywhere in the push, not just its last commit.
           if [ -n "$INPUT_REQUEST" ]; then
             list="$INPUT_REQUEST"
           else
-            list=$(jq -r '.commits[]? | (.added + .modified)[]' "$GITHUB_EVENT_PATH" \
-                     | grep -E '^packages/whetstone/requests/[^/]+\.json$' | sort -u \
-                     | sed 's#^packages/whetstone/##' || true)
+            # The push payload's commits carry no file lists here, so ask git: everything added or
+            # modified between the push's before and after commits (or in HEAD, on a new branch).
+            if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+               && git fetch -q --depth=1 origin "$BEFORE"; then
+              changed=$(git diff --name-only --diff-filter=AM "$BEFORE" HEAD)
+            else
+              changed=$(git diff-tree --no-commit-id --name-only --diff-filter=AM -r HEAD)
+            fi
+            list=$(printf '%s\n' "$changed" | grep -E '^packages/whetstone/requests/[^/]+\.json$' | sort -u | sed 's#^packages/whetstone/##' || true)
           fi
           echo "requests: $list"
           { echo 'list<<EOF'; echo "$list"; echo 'EOF'; } >> "$GITHUB_OUTPUT"
