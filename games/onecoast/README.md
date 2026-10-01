@@ -29,6 +29,14 @@ shore between them is a single closed loop. In general, L land masses and S
 seas make L + S − 1 coastlines. (On a torus this fails, which is a reason to
 build one later.)
 
+**Coast-heavy decks.** A smooth random field makes blob continents: mostly
+all-land and all-sea tiles, which makes for a dull hand. So the generator
+climbs. It flips a side shared by two hexagons, or turns a shore tile's bay
+into a cape, and keeps the change whenever the world still has exactly one
+coastline and its share of shore tiles is no further from 85%. The coast
+grows long and winding but stays one loop. Shore tiles went from 22–58% of
+the bag to 85%, and every one of the 26 tile kinds appears.
+
 **A perfect world is always in the bag.** The bag is the hexagons of a
 generated world with exactly one coastline, so a perfect finish (one coast,
 no cliffs) exists when the game starts. At the end, "Fuller's world" shows
@@ -50,9 +58,13 @@ coastlines at the end):
 
 | sphere | random placement | matching edges | careful about topology |
 |---|---|---|---|
-| C60 | 9 | 2 | 2, perfect in 33% of games |
-| C80 | 11 | 3 | 2, perfect in 17% |
-| C180 | 15 | 4 | 3 |
+| C60 | 18 | 3 | 3, perfect in ~10% of games |
+| C80 | 27 | 5 | 3, perfect in ~10% |
+| C180 | 69 | 10 | 4–5 |
+
+(With coast-heavy decks. The blob-continent decks before them were easier:
+9 / 2 / 2 on C60. The coast-heavy ones punish careless play much harder and
+widen the gap between matching edges and thinking about topology.)
 
 ## Coastlines
 
@@ -69,8 +81,10 @@ shores get shallows and a beach line.
 
 The **atelier** is free play: paint tiles land or sea and the coasts follow
 (a shore side goes land or sea by a fixed per-side coin, so coasts wander
-across tiles). A world with exactly one coastline can be played as an
-expedition.
+across tiles). The status line says what each stroke did: one coastline, or
+which islands and lakes it made. Any painted world can be played as an
+expedition, and its coastline count becomes the **par** (one is still the
+perfect world).
 
 Any world is a short token (`c240.` + its land/sea bits, about 80
 characters). **mappa** can grow a full planet from it: `?coast=<token>` on

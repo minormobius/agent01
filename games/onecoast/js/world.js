@@ -153,10 +153,58 @@
       var cs = census(s, w);
       var pentLand = 0; for (i = 0; i < s.n; i++) if (s.pent[i]) pentLand += centre[i];
       // perfect, and the twelve pentagons not all one kind (they're a mix of massifs and deeps)
-      if (cs.land === 1 && cs.sea === 1 && pentLand > 1 && pentLand < 11) { w.attempts = attempt + 1; w.seed = seed; return w; }
+      if (cs.land === 1 && cs.sea === 1 && pentLand > 1 && pentLand < 11) {
+        w.attempts = attempt + 1; w.seed = seed;
+        if (opts.coast !== false) coastify(s, w, seed, opts.climb, opts.shore == null ? 0.85 : opts.shore);
+        return w;
+      }
     }
     throw new Error("no perfect world for seed " + seed);
   }
+
+  /* COAST-HEAVY worlds. A smooth field makes blob continents: mostly
+     all-land or all-sea tiles, a dull hand. So the generator then climbs:
+     flip one shared side between two hexagons, or turn one shore tile's bay
+     into a cape, and keep the change whenever the world still has exactly one
+     coastline and at least as many shore tiles (ties kept, so it drifts
+     across plateaus). The coast grows long and winding but stays ONE loop, so
+     the perfect world is still perfect. Pentagons and their sides are never
+     touched. It aims at a share of shore tiles (85% by default), not all of
+     them. Deterministic in the seed. */
+  function shoreTiles(s, w) {
+    var c = 0;
+    for (var i = 0; i < s.n; i++) if (!s.pent[i] && !w.edges[i].every(function (e) { return e === w.edges[i][0]; })) c++;
+    return c;
+  }
+  function coastify(s, w, seed, steps, target) {
+    var rnd = rngFrom("coastify:" + seed), hexSides = [];
+    for (var i = 0; i < s.n; i++) s.nbrs[i].forEach(function (j, side) { if (j > i && !s.pent[i] && !s.pent[j]) hexSides.push([i, side, j]); });
+    var hexes = []; for (i = 0; i < s.n; i++) if (!s.pent[i]) hexes.push(i);
+    // aim for a share of shore tiles, not all of them: a few plain land and
+    // sea tiles give a hand some relief
+    var goal = Math.round((target == null ? 1 : target) * hexes.length), gap = function (x) { return Math.abs(goal - x); };
+    var cur = shoreTiles(s, w), N = steps == null ? 30 * s.n : steps;
+    for (var it = 0; it < N; it++) {
+      var undo;
+      if (rnd() < 0.7) { // flip a shared side
+        var hs = hexSides[Math.floor(rnd() * hexSides.length)], a = hs[0], side = hs[1], b = hs[2], bs = sideTo(s, b, a);
+        var ca = w.centre[a], cb = w.centre[b], old = w.edges[a][side];
+        w.edges[a][side] = w.edges[b][bs] = 1 - old;
+        w.centre[a] = normCentre(w.edges[a], w.centre[a] ^ (rnd() < 0.5 ? 1 : 0));
+        w.centre[b] = normCentre(w.edges[b], w.centre[b] ^ (rnd() < 0.5 ? 1 : 0));
+        undo = function () { w.edges[a][side] = w.edges[b][bs] = old; w.centre[a] = ca; w.centre[b] = cb; };
+      } else { // bay ↔ cape on one shore tile
+        var h = hexes[Math.floor(rnd() * hexes.length)], ch = w.centre[h];
+        if (w.edges[h].every(function (e) { return e === w.edges[h][0]; })) continue;
+        w.centre[h] = 1 - ch;
+        undo = function () { w.centre[h] = ch; };
+      }
+      var cs = census(s, w), sh = shoreTiles(s, w);
+      if (cs.land === 1 && cs.sea === 1 && gap(sh) <= gap(cur)) cur = sh; else undo();
+    }
+    return cur;
+  }
+  C.shoreTiles = shoreTiles; C.coastify = coastify;
 
   /* The bag: every hexagon of the world as a tile kind. */
   function bag(s, world) {

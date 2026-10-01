@@ -7,8 +7,9 @@
    cliffs at all.
 
    ATELIER: one finger paints (land or sea brush), two fingers turn and
-   zoom. "mappa" opens the world in the mappa engine; "play" turns a
-   one-coastline world into an expedition. */
+   zoom. "mappa" opens the world in the mappa engine; "play" turns any
+   painted world into an expedition, with that world's coastline count as
+   the par to match (one coastline is the perfect world, as ever). */
 (function () {
   "use strict";
   var C = window.COAST, $ = function (id) { return document.getElementById(id); };
@@ -60,9 +61,11 @@
   }
 
   /* ---------------------------------------------------------- expedition */
-  function newExpedition(sphere, seed, world) {
+  var par = null; // set when an expedition comes from a painted world
+  function newExpedition(sphere, seed, world, parCoasts) {
     mode = "expedition"; revealed = false; ghost = null; sel = 0;
     ex = new C.Expedition(sphere, seed, world ? { world: world } : null);
+    par = parCoasts == null ? null : parCoasts;
     try { history.replaceState(null, "", "?mode=expedition&s=" + sphere + "&seed=" + encodeURIComponent(seed)); } catch (e) { /* file:// */ }
     store("coast-sphere", sphere);
     var P = ex.s.pos, p0 = 0; for (var i = 0; i < ex.s.n; i++) if (ex.s.pent[i]) { p0 = i; break; }
@@ -106,11 +109,12 @@
   }
   function finish() {
     var st = ex.status(), perfect = st.coasts === 1 && st.cliffs === 0;
+    var parLine = par == null ? "" : "<br>par for this painted world: <b>" + par + "</b> coastline" + (par > 1 ? "s" : "") + (st.coasts < par ? " — you beat it" : st.coasts === par && !st.cliffs ? " — matched, no cliffs" : st.coasts === par ? " — matched" : "");
     var key = "coast-best-" + ex.s.name, best = recall(key, null), score = st.coasts * 100 + st.cliffs;
     var isBest = !best || score < best; if (isBest) store(key, score);
     $("over-title").textContent = perfect ? "ONE COAST" : st.coasts === 1 ? "ONE COAST, SCARRED" : st.coasts + " COASTLINES";
     $("over-body").innerHTML = (perfect ? "One continent, one ocean, not a cliff on it. The world Fuller would have drawn."
-      : "<b>" + st.land + "</b> land mass" + (st.land > 1 ? "es" : "") + ", <b>" + st.sea + "</b> sea" + (st.sea > 1 ? "s" : "") + " — so <b>" + st.coasts + "</b> coastline" + (st.coasts > 1 ? "s" : "") + ", and <b>" + st.cliffs + "</b> cliff" + (st.cliffs === 1 ? "" : "s") + ". A perfect world was in the bag from the start.") +
+      : "<b>" + st.land + "</b> land mass" + (st.land > 1 ? "es" : "") + ", <b>" + st.sea + "</b> sea" + (st.sea > 1 ? "s" : "") + " — so <b>" + st.coasts + "</b> coastline" + (st.coasts > 1 ? "s" : "") + ", and <b>" + st.cliffs + "</b> cliff" + (st.cliffs === 1 ? "" : "s") + "." + (par == null ? " A perfect world was in the bag from the start." : "")) + parLine +
       (isBest ? "<br><b>best on " + ex.s.name.toUpperCase() + "</b>" : "");
     setTimeout(function () { $("over").hidden = false; }, 600);
   }
@@ -131,7 +135,11 @@
   }
   function paintAt(px, py) {
     var c = view.pick(px, py);
-    if (c >= 0 && at.paint(c, brush)) { saveAtelier(); ui(); scene(); }
+    if (c >= 0 && at.paint(c, brush)) {
+      saveAtelier(); ui(); scene();
+      var cs = at.census(); // say what the stroke did to the world's topology
+      $("note").textContent = cs.coasts === 1 ? "one coastline — a perfect world" : cs.coasts + " coastlines: " + (cs.land > 1 ? (cs.land - 1) + " extra island" + (cs.land > 2 ? "s" : "") : "") + (cs.land > 1 && cs.sea > 1 ? ", " : "") + (cs.sea > 1 ? (cs.sea - 1) + " lake" + (cs.sea > 2 ? "s" : "") : "") + " · play it anyway: that's the par";
+    }
   }
 
   /* ------------------------------------------------------------------ hud */
@@ -152,7 +160,8 @@
       var cs = at.census();
       $("stat").innerHTML = "<span><b>" + cs.land + "</b> land</span><span><b>" + cs.sea + "</b> sea</span><span><b>" + cs.coasts + "</b> coast" + (cs.coasts === 1 ? "" : "s") + "</span>";
       $("brush-land").classList.toggle("on", brush === 1); $("brush-sea").classList.toggle("on", brush === 0);
-      $("play").disabled = cs.coasts !== 1;
+      $("play").disabled = false;
+      $("play").textContent = cs.coasts === 1 ? "play it" : "play it · par " + cs.coasts;
       $("mappa").href = "https://mappa.mino.mobi/?coast=" + at.token();
       $("mappa").hidden = !MAPPA_READY;
     }
@@ -210,7 +219,7 @@
   $("brush-land").onclick = function () { brush = 1; ui(); };
   $("brush-sea").onclick = function () { brush = 0; ui(); };
   $("fresh").onclick = function () { newAtelier(at.s.name, randomSeed()); };
-  $("play").onclick = function () { newExpedition(at.s.name, "atelier-" + at.token().slice(-8), JSON.parse(JSON.stringify(at.world))); };
+  $("play").onclick = function () { newExpedition(at.s.name, "atelier-" + at.token().slice(-8), JSON.parse(JSON.stringify(at.world)), at.census().coasts); };
   $("start-btn").onclick = function () { $("start").hidden = true; };
 
   function frame() {

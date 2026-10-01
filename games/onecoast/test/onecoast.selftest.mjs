@@ -62,6 +62,13 @@ for (const name of C.SPHERES) {
   ck(laidPerfect === T, `${name}: laying each world's own tiles through the rules finishes with 1 coastline, 0 cliffs (${laidPerfect}/${T})`);
 }
 
+console.log("coast-heavy decks");
+for (const name of ["c80", "c240"]) {
+  const s = C.sphere(name), hexes = s.n - 12, shares = [];
+  for (let t = 0; t < 4; t++) shares.push(C.shoreTiles(s, C.generate(s, { seed: "deck" + name + t })) / hexes);
+  ck(shares.every((x) => x > 0.75), `${name}: shore tiles ${shares.map((x) => Math.round(100 * x) + "%").join(", ")} of each bag (aiming at 85%)`);
+}
+
 console.log("coasts are continuous");
 for (const name of ["c80", "c240"]) {
   const s = C.sphere(name), w = C.generate(s, { seed: "cont" + name }), ends = [];
