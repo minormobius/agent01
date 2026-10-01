@@ -40,6 +40,7 @@ export const ACTOR_BY_EMAIL = new Map([
   ['autopilot@minomobi.com', 'bot'],
   ['bakeoff@mino.mobi', 'bot'],
   ['whetstone@mino.mobi', 'bot'],      // packages/whetstone scorecards
+  ['notes@mino.mobi', 'bot'],          // scripts/model-notes.mjs
 ]);
 
 export const ACTORS = ['agent', 'loop', 'bot', 'human'];

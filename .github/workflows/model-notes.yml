@@ -1,0 +1,75 @@
+# model-notes — ask a model for notes on files in this repo, and commit the answer.
+#
+# Trigger: push a request to docs/reviews/requests/*.json on a claude/** branch. That is the
+# only trigger; nothing is spent unless someone writes down that they want notes.
+# The script (scripts/model-notes.mjs) sends only files from this public repo and refuses paths
+# that may hold private material. The notes commit back under docs/reviews/ with GITHUB_TOKEN,
+# which never triggers another workflow, so this cannot chain.
+
+name: model-notes
+
+on:
+  push:
+    branches: ['claude/**']
+    paths: ['docs/reviews/requests/*.json']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: model-notes-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Which requests
+        id: req
+        run: |
+          list=$(jq -r '.commits[]? | (.added + .modified)[]' "$GITHUB_EVENT_PATH" \
+                   | grep -E '^docs/reviews/requests/[^/]+\.json$' | sort -u || true)
+          echo "requests: $list"
+          { echo 'list<<EOF'; echo "$list"; echo 'EOF'; } >> "$GITHUB_OUTPUT"
+
+      - name: Ask
+        if: steps.req.outputs.list != ''
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
+          LIST: ${{ steps.req.outputs.list }}
+        run: |
+          status=0
+          while IFS= read -r r; do
+            [ -z "$r" ] && continue
+            echo "::group::$r"
+            node scripts/model-notes.mjs "$r" || status=1
+            echo "::endgroup::"
+          done <<< "$LIST"
+          for f in docs/reviews/*.md; do
+            [ -f "$f" ] && { echo "## $f"; cat "$f"; } >> "$GITHUB_STEP_SUMMARY" || true
+          done
+          exit $status
+
+      - name: Commit the notes
+        if: always() && steps.req.outputs.list != ''
+        run: |
+          git config user.name "model-notes"
+          git config user.email "notes@mino.mobi"
+          git add docs/reviews/*.md 2>/dev/null || true
+          if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
+          git commit -m "model-notes: notes for ${{ github.sha }}"
+          for i in 1 2 3 4; do
+            git push origin "HEAD:${GITHUB_REF#refs/heads/}" && exit 0
+            git pull --rebase origin "${GITHUB_REF#refs/heads/}"
+            sleep $((i * 2))
+          done
+          exit 1
