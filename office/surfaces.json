@@ -347,6 +347,15 @@
    "parent": "rite"
   },
   {
+   "id": "spooky",
+   "name": "spooky",
+   "url": "https://rite.mino.mobi/spooky/",
+   "cat": "bluesky",
+   "commits": 2,
+   "age": "hot",
+   "parent": "rite"
+  },
+  {
    "id": "atmosphere",
    "name": "atmosphere",
    "url": "https://b.mino.mobi",

@@ -473,6 +473,17 @@
       "surface": "rite"
     },
     {
+      "n": "spooky",
+      "u": "https://rite.mino.mobi/spooky/",
+      "c": "bluesky",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "p": "rite",
+      "surface": "rite"
+    },
+    {
       "n": "atmosphere",
       "u": "https://b.mino.mobi",
       "c": "bluesky",
