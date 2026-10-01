@@ -33,9 +33,9 @@ _Regenerated 2026-10-01 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-01, 99 members / 282 posts):
+**Neighborhood spark** (bisk 2026-10-01, 99 members / 256 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llm, bluesky, idk
+- Distinctive words: bluesky, llm, conservatism
 - Top post: "hot take: software people are going to regret not unionizing when we could" — @thebadcode.com
 <!-- BRIEF_END -->
 
