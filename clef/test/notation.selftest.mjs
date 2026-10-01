@@ -709,6 +709,13 @@ const midiList = (score, staff = 0, voice = 0) =>
     ok(finite && dry.length === Math.round(pk.duration * 22050), `pfguitar: renders the whole score, every sample finite (${(dry.length / 22050).toFixed(1)} s)`);
     ok(first > 0.001 && rms(2, 2.5) > 2 * rms(1.9, 1.99), `pfguitar: the first pluck sounds at once, and the chord sounds when it is played (peak ${peak.toFixed(3)})`);
     ok(rms(pk.duration - 0.5, pk.duration) < rms(2, 2.5) / 10, 'pfguitar: and the strings ring down by the end');
+    // Safari refuses a convolver buffer at another rate than its context (a phone runs at
+    // 48 kHz; the measured body is 44.1): the body is resampled, and must stay in tune
+    const { resample } = await import('../src/pfguitar.js');
+    const sine = Float32Array.from({ length: 4410 }, (_, i) => Math.sin(2 * Math.PI * 1000 * i / 44100));
+    const up = resample(sine, 44100, 48000);
+    let rerr = 0; for (let i = 200; i < up.length - 200; i++) rerr = Math.max(rerr, Math.abs(up[i] - Math.sin(2 * Math.PI * 1000 * i / 48000)));
+    ok(up.length === 4800 && rerr < 2e-3 && resample(sine, 44100, 44100) === sine, `pfguitar: the body is resampled to the device's rate (44.1 → 48 kHz, error ${rerr.toExponential(1)})`);
     // a part written FOR the guitar keeps its strings, frets and techniques (packTab)
     const { packTab } = await import('../src/pfguitar.js');
     const tab = packTab([{ at: 0, end: 1, string: 6, fret: 3, velocity: 100 }, { at: 0.5, end: 1, string: 3, fret: 0, velocity: 90, art: 'harmonic', artParam: 7 },

@@ -312,6 +312,12 @@ What is load-bearing:
   worked example (owner: "compose… the typical chords of guitar play, rich and full"): harmonics,
   Travis picking with held top strings, strumming, a barre, hammer-ons, pull-offs, a slide. A
   LilyPond version is in the library (`guitar`, below).
+- **Safari refuses a convolver buffer at another sample rate** ("Buffer sample rate does not match
+  the context's sample rate"); Chrome resamples silently, which is why every Chromium test passed
+  and the owner's iPhone (48 kHz) failed on first play. The body (measured at 44.1 kHz) is
+  resampled to the context's rate by windowed sinc (`resample`) before it goes in a buffer. To
+  check a change here, make Chromium as strict as Safari: patch `ConvolverNode.prototype.buffer`'s
+  setter to throw on a mismatch and render at 48000 (the live code reproduced the error that way).
 - **Peak-normalised to −1 dBFS.** Bridge force has no natural loudness and the whole piece is
   rendered before it plays, so the level comes from the piece.
 - Verified as in `vendor/pfsynth/README.md` (bit-exact wasm/native; all nine library pieces; a

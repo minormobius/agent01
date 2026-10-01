@@ -139,6 +139,27 @@ async function loadBody() {
 }
 
 /**
+ * Resample a short signal (an impulse response) from one rate to another by windowed sinc
+ * (Lanczos, 8 lobes), band-limited to the lower rate's Nyquist. Exact at equal rates.
+ */
+export function resample(x, from, to) {
+  if (from === to) return x;
+  const ratio = to / from, n = Math.max(1, Math.round(x.length * ratio)), out = new Float32Array(n);
+  const cut = Math.min(1, ratio), A = 8, half = Math.ceil(A / cut);
+  const sinc = (t) => (t === 0 ? 1 : Math.sin(Math.PI * t) / (Math.PI * t));
+  for (let i = 0; i < n; i++) {
+    const c = i / ratio, k0 = Math.floor(c) - half, k1 = Math.floor(c) + half;
+    let acc = 0;
+    for (let k = Math.max(0, k0); k <= Math.min(x.length - 1, k1); k++) {
+      const t = (c - k) * cut;
+      if (Math.abs(t) < A) acc += x[k] * cut * sinc(t) * sinc(t / A);
+    }
+    out[i] = acc;
+  }
+  return out;
+}
+
+/**
  * A statistical room, stereo: upstream's roomImpulse (docs/guitar/guitar.js, after
  * tools/guitar_room_fit.room_impulse), unchanged but for taking the buffer to fill.
  * Band-limited noise in octave bands, each decaying at its own reverberation time.
@@ -177,10 +198,13 @@ export async function dress(dry, sampleRate) {
   const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
   const tail = Math.round(1.2 * sampleRate), length = dry.length + tail;
   const ctx = new OAC(2, length, sampleRate);
-  const body = await loadBody();
-  let e = 0; for (const v of body.x) e += v * v;
-  const bodyBuf = ctx.createBuffer(1, body.x.length, body.rate);
-  bodyBuf.copyToChannel(body.x, 0);
+  // The body was measured at 44.1 kHz; a phone's audio runs at 48. Chrome resamples a
+  // convolver's buffer silently, Safari REFUSES one at another rate ("Buffer sample rate does
+  // not match the context's sample rate"), so the response is resampled to the context's rate.
+  const raw = await loadBody(), x = resample(raw.x, raw.rate, sampleRate);
+  let e = 0; for (const v of x) e += v * v;
+  const bodyBuf = ctx.createBuffer(1, x.length, sampleRate);
+  bodyBuf.copyToChannel(x, 0);
   const src = ctx.createBufferSource(), srcBuf = ctx.createBuffer(1, dry.length, sampleRate);
   srcBuf.copyToChannel(dry, 0); src.buffer = srcBuf;
   const conv = ctx.createConvolver(); conv.normalize = false; conv.buffer = bodyBuf;
