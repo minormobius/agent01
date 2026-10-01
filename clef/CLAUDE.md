@@ -299,8 +299,11 @@ What is load-bearing:
 
 - **The model renders bridge force, not a guitar sound.** The body (a measured 1971 Contreras,
   `vendor/pfsynth/bodies/`, CC BY 4.0, credited in the help sheet) and a small room are applied
-  by an `OfflineAudioContext` after the strings render, as upstream's demo does with WebAudio.
-  That is also why the voice is offered only where `OfflineAudioContext` exists.
+  after the strings render, by FFT convolution in plain JavaScript (`convolve`, `dress`). It was
+  an `OfflineAudioContext` at first, as upstream's demo does; on the owner's iPhone that first
+  refused the body (below) and then, fixed, played silence while the notes lit up. JS arithmetic
+  is identical everywhere and testable in node: measured against the WebAudio version in Chromium
+  it agrees to 133 dB below the signal, in the same time (the strings dominate).
 - **Piano scores are fitted, and the page says so** (`packGuitar`): outside E2–B5 folds by
   octaves; a chord keeps six notes (the outer two and an even spread); doubled notes merge.
   The toast names the counts. Strings and frets are left to the guitar's own hand-position
@@ -315,9 +318,12 @@ What is load-bearing:
 - **Safari refuses a convolver buffer at another sample rate** ("Buffer sample rate does not match
   the context's sample rate"); Chrome resamples silently, which is why every Chromium test passed
   and the owner's iPhone (48 kHz) failed on first play. The body (measured at 44.1 kHz) is
-  resampled to the context's rate by windowed sinc (`resample`) before it goes in a buffer. To
+  resampled to the device's rate by windowed sinc (`resample`). (No browser convolver is used now.) To
   check a change here, make Chromium as strict as Safari: patch `ConvolverNode.prototype.buffer`'s
   setter to throw on a mismatch and render at 48000 (the live code reproduced the error that way).
+- **iOS and a long wait**: an AudioContext is unlocked only by sound started inside the tap, and
+  the render takes seconds. `ModelPlayer.ensure` plays one silent sample in the tap, and `play`
+  resumes a context left suspended or 'interrupted' before starting the buffer (piano and guitar).
 - **Peak-normalised to −1 dBFS.** Bridge force has no natural loudness and the whole piece is
   rendered before it plays, so the level comes from the piece.
 - Verified as in `vendor/pfsynth/README.md` (bit-exact wasm/native; all nine library pieces; a

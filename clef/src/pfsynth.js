@@ -256,6 +256,14 @@ export class ModelPlayer {
       this.gainNode.connect(this.ctx.destination);
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
+    // iOS unlocks a context only for sound started INSIDE the tap. The render takes seconds,
+    // so the real buffer starts long after the gesture: play one silent sample now, while it
+    // still counts, so the context is unlocked when the music arrives.
+    try {
+      const blip = this.ctx.createBufferSource();
+      blip.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+      blip.connect(this.ctx.destination); blip.start(0);
+    } catch { /* an unlock is a courtesy; never fail Play over it */ }
     return this.ctx;
   }
 
@@ -290,6 +298,9 @@ export class ModelPlayer {
 
     // The page may have pressed stop while we were rendering.
     if (this.stopRequested) { this.stopRequested = false; return; }
+
+    // A context can be left suspended (or 'interrupted', on iOS) across the long render.
+    if (ctx.state !== 'running') { try { await ctx.resume(); } catch { /* try to play anyway */ } }
 
     this.startOffset = Math.max(0, Math.min(fromSeconds, this.buffer.duration));
     this.source = ctx.createBufferSource();

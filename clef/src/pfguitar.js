@@ -122,8 +122,10 @@ export async function renderDry(X, packed, sampleRate, { onProgress, cancelled, 
 // ------------------------------------------------------------- body and room --
 
 /** The body's measured response: a 32-bit float (or 16-bit) mono WAV, read without decodeAudioData. */
-async function loadBody() {
-  const buf = await (await fetch(BODY_URL)).arrayBuffer(), dv = new DataView(buf);
+async function loadBody() { return parseWav(await (await fetch(BODY_URL)).arrayBuffer()); }
+/** A mono WAV's samples and rate (32-bit float or 16-bit PCM). */
+export function parseWav(buf) {
+  const dv = new DataView(buf);
   let p = 12, fmt = 3, bits = 32, rate = 44100;
   while (p + 8 <= buf.byteLength) {
     const id = String.fromCharCode(dv.getUint8(p), dv.getUint8(p + 1), dv.getUint8(p + 2), dv.getUint8(p + 3)), size = dv.getUint32(p + 4, true);
@@ -161,18 +163,20 @@ export function resample(x, from, to) {
 
 /**
  * A statistical room, stereo: upstream's roomImpulse (docs/guitar/guitar.js, after
- * tools/guitar_room_fit.room_impulse), unchanged but for taking the buffer to fill.
+ * tools/guitar_room_fit.room_impulse), unchanged but for returning two arrays, not an AudioBuffer.
  * Band-limited noise in octave bands, each decaying at its own reverberation time.
  */
-function roomImpulse(ctx, rtLow, rtHigh, ratio, sr) {
+function roomImpulse(rtLow, rtHigh, ratio, sr) {
   const rt = (f) => Math.exp(Math.log(rtLow) + (Math.log(rtHigh) - Math.log(rtLow)) * (Math.log(f) - Math.log(200)) / (Math.log(4000) - Math.log(200)));
-  const n = Math.round(1.3 * Math.max(rtLow, rtHigh) * sr), pre = Math.round(.012 * sr), buf = ctx.createBuffer(2, n + pre, sr);
+  const n = Math.round(1.3 * Math.max(rtLow, rtHigh) * sr), pre = Math.round(.012 * sr), chans = [new Float32Array(n + pre), new Float32Array(n + pre)];
   const edges = [44, 88, 177, 355, 710, 1420, 2840, 5680, 11360, 20000];
   for (let ch = 0; ch < 2; ch++) {
-    const out = buf.getChannelData(ch); out[0] = 1; let seed = 1 + ch * 7919;
+    const out = chans[ch]; out[0] = 1; let seed = 1 + ch * 7919;
     const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff * 2 - 1; };
     for (let b = 0; b + 1 < edges.length; b++) {
-      const lo = edges[b], hi = Math.min(edges[b + 1], sr * .49), fc = Math.sqrt(lo * hi), q = fc / (hi - lo), w = 2 * Math.PI * fc / sr, al = Math.sin(w) / (2 * q);
+      const lo = edges[b], hi = Math.min(edges[b + 1], sr * .49);
+      if (hi <= lo * 1.05) continue;   // a band above this rate's Nyquist (upstream assumed ≥ 44.1 kHz)
+      const fc = Math.sqrt(lo * hi), q = fc / (hi - lo), w = 2 * Math.PI * fc / sr, al = Math.sin(w) / (2 * q);
       const b0 = al / (1 + al), b2 = -b0, a1 = -2 * Math.cos(w) / (1 + al), a2 = (1 - al) / (1 + al), T = rt(fc), band = new Float32Array(n);
       let x1 = 0, x2 = 0, y1 = 0, y2 = 0, u1 = 0, u2 = 0, v1 = 0, v2 = 0;
       for (let i = 0; i < n; i++) {
@@ -184,38 +188,78 @@ function roomImpulse(ctx, rtLow, rtHigh, ratio, sr) {
       for (let i = 0; i < n; i++) out[pre + i] += g * band[i];
     }
   }
-  return buf;
+  return chans;
+}
+
+/** In-place iterative radix-2 FFT (re, im of length a power of two); inverse when `inv`. */
+function fft(re, im, inv) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (inv ? 2 : -2) * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang), h = len >> 1;
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < h; k++) {
+        const a = i + k, b = a + h, xr = re[b] * cr - im[b] * ci, xi = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi;
+        const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t;
+      }
+    }
+  }
+  if (inv) for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; }
+}
+
+/**
+ * Convolve a long signal with an impulse response, by FFT overlap-add, into `length` samples.
+ * Two real blocks ride one complex FFT (one in the real part, one in the imaginary), so the
+ * cost is about one transform per block of input.
+ */
+export function convolve(x, h, length = x.length + h.length - 1) {
+  let N = 1; while (N < 2 * h.length) N <<= 1;
+  const B = N - h.length + 1, Hr = new Float64Array(N), Hi = new Float64Array(N);
+  Hr.set(h); fft(Hr, Hi, false);
+  const out = new Float32Array(length), re = new Float64Array(N), im = new Float64Array(N);
+  for (let at = 0; at < x.length; at += 2 * B) {
+    re.fill(0); im.fill(0);
+    re.set(x.subarray(at, Math.min(x.length, at + B)));
+    if (at + B < x.length) im.set(x.subarray(at + B, Math.min(x.length, at + 2 * B)));
+    fft(re, im, false);
+    for (let k = 0; k < N; k++) { const a = re[k], b = im[k]; re[k] = a * Hr[k] - b * Hi[k]; im[k] = a * Hi[k] + b * Hr[k]; }
+    fft(re, im, true);
+    for (let i = 0; i < N; i++) {
+      const p = at + i, q = at + B + i;
+      if (p < length) out[p] += re[i];
+      if (q < length && at + B < x.length) out[q] += im[i];
+    }
+  }
+  return out;
 }
 
 /**
  * Bridge force → a guitar in a room: the body by convolution (normalised to unit energy, as
- * upstream's demo does), then the room, in an OfflineAudioContext so it is the browser's own
- * fast convolver and not a JS loop. Peak-normalised to −1 dBFS: the bridge force has no
- * natural loudness, and a whole piece is rendered before it is heard, so the level can be set
- * from the piece itself. Returns interleaved stereo.
+ * upstream's demo does), then the room, stereo. Done here, in JavaScript, by FFT, not by the
+ * browser's convolver: Safari's OfflineAudioContext first refused the body (a sample-rate rule
+ * Chrome does not enforce) and then, fixed, still played silence on an iPhone. Plain arithmetic
+ * is the same on every browser and is checked in node. Peak-normalised to −1 dBFS: the bridge
+ * force has no natural loudness, and a whole piece is rendered before it plays. Returns
+ * interleaved stereo. `body` may be passed in (the node selftest has no fetch).
  */
-export async function dress(dry, sampleRate) {
-  const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
-  const tail = Math.round(1.2 * sampleRate), length = dry.length + tail;
-  const ctx = new OAC(2, length, sampleRate);
-  // The body was measured at 44.1 kHz; a phone's audio runs at 48. Chrome resamples a
-  // convolver's buffer silently, Safari REFUSES one at another rate ("Buffer sample rate does
-  // not match the context's sample rate"), so the response is resampled to the context's rate.
-  const raw = await loadBody(), x = resample(raw.x, raw.rate, sampleRate);
+export async function dress(dry, sampleRate, { body = null } = {}) {
+  const raw = body ?? await loadBody(), x = resample(raw.x, raw.rate, sampleRate);
   let e = 0; for (const v of x) e += v * v;
-  const bodyBuf = ctx.createBuffer(1, x.length, sampleRate);
-  bodyBuf.copyToChannel(x, 0);
-  const src = ctx.createBufferSource(), srcBuf = ctx.createBuffer(1, dry.length, sampleRate);
-  srcBuf.copyToChannel(dry, 0); src.buffer = srcBuf;
-  const conv = ctx.createConvolver(); conv.normalize = false; conv.buffer = bodyBuf;
-  const bodyGain = ctx.createGain(); bodyGain.gain.value = 1 / Math.sqrt(e || 1);
-  const room = ctx.createConvolver(); room.normalize = false; room.buffer = roomImpulse(ctx, 0.5, 0.3, 0.25, sampleRate);
-  const roomGain = ctx.createGain(); roomGain.gain.value = 1 / Math.sqrt(1.25);
-  src.connect(conv); conv.connect(bodyGain); bodyGain.connect(room); room.connect(roomGain); roomGain.connect(ctx.destination);
-  src.start();
-  const done = await ctx.startRendering(), L = done.getChannelData(0), R = done.getChannelData(1);
+  const length = dry.length + Math.round(1.2 * sampleRate);
+  const shaped = convolve(dry, x, length), g = 1 / Math.sqrt(e || 1);
+  for (let i = 0; i < length; i++) shaped[i] *= g;
+  const [rl, rr] = roomImpulse(0.5, 0.3, 0.25, sampleRate);
+  const L = convolve(shaped, rl, length), R = convolve(shaped, rr, length);
   let peak = 0; for (let i = 0; i < length; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
-  const k = peak > 0 ? 0.89 / peak : 1, out = new Float32Array(length * 2);
+  if (!(peak > 0)) throw new Error('the guitar rendered silence');
+  const k = 0.89 / peak, out = new Float32Array(length * 2);
   for (let i = 0; i < length; i++) { out[i * 2] = L[i] * k; out[i * 2 + 1] = R[i] * k; }
   return out;
 }
@@ -252,9 +296,8 @@ async function loadDirect() {
   return direct;
 }
 
-/** True if the guitar can be offered at all: the module loads and the browser can convolve offline. */
+/** True if the guitar can be offered at all: the module loads. */
 export async function available() {
-  if (!(globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext)) return false;
   try { await loadDirect(); return true; } catch { return false; }
 }
 

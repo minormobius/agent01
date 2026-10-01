@@ -716,6 +716,17 @@ const midiList = (score, staff = 0, voice = 0) =>
     const up = resample(sine, 44100, 48000);
     let rerr = 0; for (let i = 200; i < up.length - 200; i++) rerr = Math.max(rerr, Math.abs(up[i] - Math.sin(2 * Math.PI * 1000 * i / 48000)));
     ok(up.length === 4800 && rerr < 2e-3 && resample(sine, 44100, 44100) === sine, `pfguitar: the body is resampled to the device's rate (44.1 → 48 kHz, error ${rerr.toExponential(1)})`);
+    // the body and room are plain arithmetic (FFT convolution), the same on every browser:
+    // Safari's own convolver played silence on an iPhone
+    const { dress, parseWav, convolve } = await import('../src/pfguitar.js');
+    const bodyBytes = readFileSync(new URL('../vendor/pfsynth/bodies/g34.wav', import.meta.url));
+    const body = parseWav(bodyBytes.buffer.slice(bodyBytes.byteOffset, bodyBytes.byteOffset + bodyBytes.byteLength));
+    const cx = Float32Array.from({ length: 5000 }, (_, i) => Math.sin(i * 0.37) * Math.exp(-i / 900)), chk = convolve(cx, body.x.subarray(0, 300));
+    let direct = 0; for (let k = 0; k < 300; k++) direct += cx[2000 - k] * body.x[k];
+    const wet = await dress(dry.subarray(0, 22050), 22050, { body });
+    let wpk = 0, wfin = true, side = 0; for (let i = 0; i < wet.length; i += 2) { wpk = Math.max(wpk, Math.abs(wet[i]), Math.abs(wet[i + 1])); wfin = wfin && Number.isFinite(wet[i]) && Number.isFinite(wet[i + 1]); side += Math.abs(wet[i] - wet[i + 1]); }
+    ok(Math.abs(chk[2000] - direct) < 1e-5 && wfin && Math.abs(wpk - 0.89) < 1e-3 && side > 0,
+      `pfguitar: body and room by FFT convolution: exact, finite, stereo, peak at −1 dBFS (${wpk.toFixed(3)})`);
     // a part written FOR the guitar keeps its strings, frets and techniques (packTab)
     const { packTab } = await import('../src/pfguitar.js');
     const tab = packTab([{ at: 0, end: 1, string: 6, fret: 3, velocity: 100 }, { at: 0.5, end: 1, string: 3, fret: 0, velocity: 90, art: 'harmonic', artParam: 7 },
