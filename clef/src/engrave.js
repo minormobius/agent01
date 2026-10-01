@@ -326,6 +326,7 @@ export function engrave(score, options = {}) {
       name: st.name,
       shortName: st.shortName || '',
       midi: st.midi || '',
+      tab: !!st.tab,
       voices,
       marks: voices.flatMap((v) => v.marks),
       items: voices.map((v) => v.items),
@@ -602,6 +603,9 @@ export function engrave(score, options = {}) {
 
   // ---- vertical layout ----
   const staffCount = staffData.length;
+  // A staff's height in staff spaces: five lines span 4, a guitar's six-line tab
+  // staff spans 5 × TAB_GAP (its lines sit wider apart, room for fret numbers).
+  const H = (i) => (staffData[i]?.tab ? 5 * TAB_GAP : 4);
 
   // Gaps are PER PAIR, not uniform. Two staves a player reads as one instrument
   // sit closer together than two players do; with one global step a piano trio
@@ -619,11 +623,11 @@ export function engrave(score, options = {}) {
     // cellist, and the page says the opposite of what is true.
     const bound = groups.some((g) => g.brace && i >= g.from && i < g.to);
     const crosses = covering(i) !== covering(i + 1);
-    gapAfter.push((bound ? o.braceGap : crosses ? o.groupGap : o.staffGap) + 4);
+    gapAfter.push((bound ? o.braceGap : crosses ? o.groupGap : o.staffGap) + H(i));
   }
   const staffOffset = [0];
   for (let i = 0; i < staffCount - 1; i++) staffOffset.push(staffOffset[i] + gapAfter[i]);
-  const systemHeight = (staffOffset[staffCount - 1] || 0) * sp + 4 * sp;
+  const systemHeight = (staffOffset[staffCount - 1] || 0) * sp + H(staffCount - 1) * sp;
 
   const titleH = (score.title ? o.titleSize * sp + sp * 1.2 : 0)
     + (score.composer ? sp * 1.9 : 0) + (score.title || score.composer ? sp * 1.6 : 0);
@@ -675,7 +679,7 @@ export function engrave(score, options = {}) {
     let from = 0;
     for (let i = 0; i < staffCount; i++) {
       if (i === staffCount - 1 || !joined(i)) {
-        spans.push({ top: staffY(from, systemTop), bottom: staffY(i, systemTop) + 4 * sp });
+        spans.push({ top: staffY(from, systemTop), bottom: staffY(i, systemTop) + H(i) * sp });
         from = i + 1;
       }
     }
@@ -700,16 +704,19 @@ export function engrave(score, options = {}) {
         hitTop: top - 4 * sp, hitBottom: top + 8 * sp,
         clef: state.clef, fifths: state.fifths, sp,
         lastTick: measureLayout[mis[mis.length - 1]].measure.end,
+        // A tab staff is not a place to write a pitch by clicking: its lines are strings.
+        tab: staffData[st].tab || undefined,
       });
-      for (let l = 0; l < 5; l++) {
-        out.push(`<line class="cf-staffline" x1="${r2(left)}" y1="${r2(top + l * sp)}" x2="${r2(right)}"`
-          + ` y2="${r2(top + l * sp)}" stroke-width="${r2(STAFF_LINE * sp)}"/>`);
+      const tab = staffData[st].tab, lines = tab ? 6 : 5, gap = tab ? TAB_GAP : 1;
+      for (let l = 0; l < lines; l++) {
+        out.push(`<line class="cf-staffline" x1="${r2(left)}" y1="${r2(top + l * gap * sp)}" x2="${r2(right)}"`
+          + ` y2="${r2(top + l * gap * sp)}" stroke-width="${r2(STAFF_LINE * sp)}"/>`);
       }
     }
     // the system's left edge, and whatever binds each group of staves
     if (staffCount > 1) {
       const top = staffY(0, systemTop);
-      const bot = staffY(staffCount - 1, systemTop) + 4 * sp;
+      const bot = staffY(staffCount - 1, systemTop) + H(staffCount - 1) * sp;
       out.push(`<line class="cf-barline" x1="${r2(left)}" y1="${r2(top)}" x2="${r2(left)}" y2="${r2(bot)}"`
         + ` stroke-width="${r2(0.16 * sp)}"/>`);
       // Outward from the staves, one step per level of nesting, so a piano
@@ -718,7 +725,7 @@ export function engrave(score, options = {}) {
       // staves" rather than "there are four unrelated staves".
       for (const g of groups) {
         const gTop = staffY(g.from, systemTop);
-        const gBot = staffY(g.to, systemTop) + 4 * sp;
+        const gBot = staffY(g.to, systemTop) + H(g.to) * sp;
         // The INNERMOST group sits closest to the staves. Reading depth
         // straight off puts the piano's brace outside the ensemble's bracket,
         // which says the bracket is inside the piano — the nesting backwards.
@@ -745,7 +752,7 @@ export function engrave(score, options = {}) {
         + ` text-anchor="end" font-size="${r2(nameFont)}">${esc(text)}</text>`);
       for (let st = 0; st < staffCount; st++) {
         const text = si === 0 ? staffData[st].name : (staffData[st].shortName || '');
-        if (text) label(text, staffY(st, systemTop) + 2 * sp);
+        if (text) label(text, staffY(st, systemTop) + H(st) / 2 * sp);
       }
       // A name on the GROUP belongs to the whole group — "Piano" labels a
       // pianist's two staves, not either one of them — so it is centred on the
@@ -753,7 +760,7 @@ export function engrave(score, options = {}) {
       for (const g of groups) {
         const text = si === 0 ? g.name : (g.shortName || '');
         if (!text) continue;
-        label(text, (staffY(g.from, systemTop) + staffY(g.to, systemTop) + 4 * sp) / 2);
+        label(text, (staffY(g.from, systemTop) + staffY(g.to, systemTop) + H(g.to) * sp) / 2);
       }
     }
 
@@ -768,10 +775,24 @@ export function engrave(score, options = {}) {
         const need = ml.need[st];
         let x = ml.x;
 
+        if (staffData[st].tab) {
+          // A tab staff's clef is the word TAB, stacked; it has no key and no metre
+          // of its own (the staff above it carries both).
+          if (atStart) {
+            const fs = sp * 1.55;
+            ['T', 'A', 'B'].forEach((ch, i) => out.push(`<text class="cf-tabclef" x="${r2(x + sp * 1.2)}"`
+              + ` y="${r2(top + (5 * TAB_GAP * sp) / 2 + (i - 1) * fs * 1.02 + fs * 0.36)}" text-anchor="middle"`
+              + ` font-size="${r2(fs)}" font-weight="700">${ch}</text>`));
+          }
+          continue;
+        }
         if (need.clef || atStart) {
           const cd = clefDef(state.clef);
           const linePos = (cd.line - 3) * 2; // staff line 1..5 -> position
           out.push(glyphSVG(cd.glyph, x + sp * 0.35, posY(top, linePos), sp, { class: 'cf-clef' }));
+          // an octave clef (guitar, tenor) carries a small 8 under it
+          if (cd.ottava) out.push(`<text class="cf-clef8" x="${r2(x + sp * 1.55)}" y="${r2(top + sp * 6.1)}"`
+            + ` text-anchor="middle" font-size="${r2(sp * 1.25)}" font-style="italic">8</text>`);
           x += (GLYPHS[cd.glyph]?.w ?? 2.6) * sp + sp * 0.4;
         }
         if ((need.key || atStart) && state.fifths !== 0) {
@@ -799,6 +820,7 @@ export function engrave(score, options = {}) {
           const voice = staffData[st].items[vi];
           const inBar = voice.filter((e) => e.tick >= ml.measure.start && e.tick < ml.measure.end);
           if (!inBar.length) continue;
+          if (staffData[st].tab) { drawTabVoice({ out, events, inBar, ml, top, sp }); continue; }
           drawVoice({
             out, events, inBar, ml, top, sp, o, nVoices, vi, st,
             measure: ml.measure, staffCount, voice, systemTop,
@@ -835,6 +857,31 @@ export function engrave(score, options = {}) {
     svg, width: o.width, height, events, regions, warnings,
     measures: measures.length, systems: systems.length, staffSpace: sp,
   };
+}
+
+// ------------------------------------------------------------ tablature ---
+//
+// One number per note, on its string's line, in the note's own column, so a tab staff under a
+// staff reads straight down. Strings and frets come from guitar.js (the same answer the guitar
+// model plays). A harmonic is <12>, a dead note x, a note no string could reach ? (it still
+// plays: the model places it). No stems, beams or rests: the staff above carries the rhythm.
+const TAB_GAP = 1.3;
+function drawTabVoice({ out, events, inBar, ml, top, sp }) {
+  const colX = new Map(ml.columns.map((c) => [c.tick, c.x]));
+  for (const e of inBar) {
+    if (e.kind !== 'note') continue;
+    const x = (colX.get(e.tick) ?? ml.musicStart) + sp * 0.55;
+    for (const h of e.heads) {
+      const s = h.string ?? 1, y = top + (s - 1) * TAB_GAP * sp;
+      const text = h.fret == null ? '?' : e.muted === 'dead' ? 'x' : h.art === 'harmonic' ? `<${h.fret}>` : String(h.fret);
+      const fs = sp * (e.grace ? 0.95 : 1.15), w = fs * 0.62 * text.length + sp * 0.3;
+      const idx = events.length;
+      events.push({ src: e.src, tick: e.tick, ticks: e.ticks, midi: e.heads.map((q) => q.midi), x, y, tab: true, spelled: h });
+      out.push(`<rect class="cf-tabknock" x="${r2(x - w / 2)}" y="${r2(y - fs * 0.5)}" width="${r2(w)}" height="${r2(fs)}"/>`);
+      out.push(`<text class="cf-tabfret cf-note" data-ev="${idx}" x="${r2(x)}" y="${r2(y + fs * 0.36)}" text-anchor="middle"`
+        + ` font-size="${r2(fs)}">${esc(text)}</text>`);
+    }
+  }
 }
 
 function headGlyph(val) {

@@ -38,8 +38,9 @@ src/audio.js        playback patches, the lookahead scheduler, WAV export
 src/pfsynth.js      the physical-modelling piano: render, cache, play
 src/pfsynth-worker.js  that render, off the main thread
 vendor/pfsynth/     John O'Laughlin's pfsynth (MIT) + our wasm host
+src/guitar.js       a guitar's reading of a score: strings, frets, techniques (tab + playback)
 src/midi.js         Standard MIDI File writer
-src/library.js      the eight bundled pieces
+src/library.js      the ten bundled pieces
 src/mutopia.js      browsing the Mutopia archive (fetch + parse, no HTML injected)
 src/app.js          the page's behaviour
 src/auth.js         byte copy of packages/oauth-client/auth.js (see below)
@@ -309,12 +310,51 @@ What is load-bearing:
   through (hammer, pull, slide, harmonic, muted, tie: upstream's `PF_ART_*`). Velocity is MIDI with
   headroom to 4×127 (strums ~110–185 sound right). `compositions/open-strings.guitar.mjs` is the
   worked example (owner: "compose… the typical chords of guitar play, rich and full"): harmonics,
-  Travis picking with held top strings, strumming, a barre, hammer-ons, pull-offs, a slide. The
-  page itself cannot open it: LilyPond's tab markings are not read yet.
+  Travis picking with held top strings, strumming, a barre, hammer-ons, pull-offs, a slide. A
+  LilyPond version is in the library (`guitar`, below).
 - **Peak-normalised to −1 dBFS.** Bridge force has no natural loudness and the whole piece is
   rendered before it plays, so the level comes from the piece.
 - Verified as in `vendor/pfsynth/README.md` (bit-exact wasm/native; all nine library pieces; a
   real browser). Not listened to here.
+
+## Reading guitar
+
+Owner: "teach clef to read guitar". LilyPond writes guitar music as ordinary notes plus marks,
+and draws tablature from the same notes; clef now reads both and plays them on the guitar model.
+
+- **The marks** (lily.js): a string number `c4\3` (and inside a chord, `<g\3 d'\2>`),
+  `\harmonic` (on a note or a chord member; the pitch written is the TOUCHED one, as LilyPond's),
+  `\glissando`, `\arpeggio`, `\deadNote` / `\palmMute` on one note and `\deadNotesOn/Off`,
+  `\palmMuteOn/Off` until switched. A staff knows it is a `TabStaff`.
+- **One answer for the eye and the hand** (`guitar.js`, run at the end of every parse): each note
+  of a guitar staff (a TabStaff, a staff named for a guitar, or one with string numbers) gets a
+  string and fret. A string number wins; otherwise, per moment across the staff's voices, the
+  highest note first takes the free string with the LOWEST fret, LilyPond's own TabStaff rule,
+  which is why a G chord written as notes is 320033 and C x32010. A slurred or slid note moves
+  to the previous note's string when it can reach (a guitarist slurs on one string), and then a
+  slur up is a hammer-on, down a pull-off; a glissando slides fret to fret. The tab staff draws
+  these frets and the guitar model plays them: what you see is what is played.
+- **The tab staff** (engrave.js `drawTabVoice`): six lines 1.3 spaces apart (a staff's height is
+  per staff now, `H(i)`), TAB stacked at its head, no key or metre (the staff above has them),
+  one number per note in the note's own column, knocking the line out behind it; `<12>` for a
+  harmonic, `x` a dead note. A click on it writes nothing: its lines are strings, not pitches.
+- **Playback** (audio.js, pfguitar.js `packScore`): notes carry their string, fret and technique
+  to the guitar model, strummed low to high (8 ms a string, 45 under `\arpeggio`). The common
+  `<< \new Staff \music \new TabStaff \music >>` would play everything twice; a tab note that
+  another staff already plays is dropped and its string goes to the note that stays. On the
+  patch-bank preview a guitar staff sounds as a harpsichord (plucked); the physical voice is
+  the real one.
+- **The octave clef was backwards, and is fixed.** In LilyPond a note's name IS its sounding pitch
+  and `\clef "treble_8"` only draws it an octave higher. clef drew it as if on a plain treble
+  staff and PLAYED it an octave low, so every guitar or tenor part from the archive sounded an
+  octave down. `treble_8`, `G_8`, `tenorG`, `bass_8` now draw an octave up (with a small 8 under
+  the clef) and sound as named.
+- **The library piece**, `Open Strings` (`#guitar`): notation over tab, two voices (fingers and
+  thumb), harmonics at the 12th and 7th frets, Travis picking with the top strings held, a
+  hammer-on and a pull-off in the thumb, strummed Am7, Cadd9, G, D, a rolled G and harmonics.
+  229 notes, every one played from its tab, nothing fitted.
+- Not read yet: `\set TabStaff.stringTunings` (standard tuning only), `\bendAfter`, fret-diagram
+  markups, `\harmonicByFret`. Harmonics are drawn with ordinary noteheads, not diamonds.
 
 ## Auth
 

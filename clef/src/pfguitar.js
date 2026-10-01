@@ -239,7 +239,43 @@ export async function available() {
  * then the body and the room. Same shape as pfsynth.js's render, so ModelPlayer can drive it.
  */
 export async function render(perf, opts = {}) {
-  return renderPacked(packGuitar(perf), opts);
+  return renderPacked(packScore(perf), opts);
+}
+
+/**
+ * A performance as the guitar plays it. Notes the score placed on the guitar (guitar.js: a
+ * guitar staff or a TabStaff, with strings, frets and techniques) go as tab, exactly as the tab
+ * staff draws them; a chord of three or more is strummed low to high, 8 ms a string (45 ms
+ * under `\arpeggio`). Anything else (a piano part, a note no string could reach) is fitted
+ * by packGuitar, and the two are played together.
+ */
+export function packScore(perf) {
+  const onGuitar = (e) => e.string && e.fret != null;
+  const tabbed = perf.events.filter(onGuitar);
+  if (!tabbed.length) return packGuitar(perf);
+  const byAt = new Map();
+  for (const e of tabbed) { const k = Math.round(e.at * 1000); if (!byAt.has(k)) byAt.set(k, []); byAt.get(k).push(e); }
+  const tab = [];
+  for (const group of byAt.values()) {
+    group.sort((a, b) => b.string - a.string);
+    const roll = group.length >= 3 ? (group.some((e) => e.arpeggio) ? 0.045 : 0.008) : 0;
+    group.forEach((e, i) => tab.push({
+      at: e.at + i * roll, end: e.at + e.dur, string: e.string, fret: e.fret,
+      velocity: 20 + 107 * Math.min(1, Math.max(0, e.velocity ?? 0.7)),
+      art: e.art, artParam: e.artParam, slideTo: e.slideTo,
+    }));
+  }
+  const packed = packTab(tab);
+  const rest = perf.events.filter((e) => !onGuitar(e));
+  if (!rest.length) return packed;
+  // the rest, fitted, merged in time order (their strings left to the guitar: -1)
+  const fit = packGuitar({ events: rest }), rows = [];
+  for (let i = 0; i < packed.count; i++) rows.push([...packed.notes.subarray(i * 4, i * 4 + 4), ...packed.tech.subarray(i * 5, i * 5 + 5)]);
+  for (let i = 0; i < fit.count; i++) rows.push([...fit.notes.subarray(i * 4, i * 4 + 4), -1, -1, 0, 0, 0]);
+  rows.sort((a, b) => a[0] - b[0]);
+  const notes = new Float64Array(rows.length * 4), tech = new Float64Array(rows.length * 5);
+  rows.forEach((r, i) => { notes.set(r.slice(0, 4), i * 4); tech.set(r.slice(4), i * 5); });
+  return { notes, tech, count: rows.length, duration: Math.max(packed.duration, fit.duration), folded: fit.folded, dropped: fit.dropped };
 }
 
 /** Render packed notes (packGuitar's, or packTab's for a part written for the guitar). */

@@ -44,6 +44,8 @@ const MIDI_INSTRUMENT_PATCHES = [
   ['sax', 'flute'], ['trumpet', 'flute'], ['trombone', 'flute'], ['horn', 'flute'],
   ['tuba', 'flute'], ['brass', 'flute'],
   ['piano', 'piano'], ['fortepiano', 'piano'],
+  // a plucked string decays like a harpsichord's; the guitar MODEL is the real voice
+  ['guitar', 'harpsichord'], ['lute', 'harpsichord'], ['banjo', 'harpsichord'], ['mandolin', 'harpsichord'],
 ].sort((a, b) => b[0].length - a[0].length);
 
 /** The patch name for a GM instrument name, or null when we cannot tell. */
@@ -152,16 +154,13 @@ export function scoreToNotes(score, opts = {}) {
   for (let si = 0; si < score.staves.length; si++) {
     for (let vi = 0; vi < score.staves[si].voices.length; vi++) {
       const events = score.staves[si].voices[vi];
-      let clefShift = 0;
+      // No clef shifts the sound: a LilyPond pitch is what is heard (model.js CLEFS).
       const pending = new Map(); // midi -> index of a note waiting to be extended
+      const tab = !!score.staves[si].tab;
       for (const e of events) {
-        if (e.kind === 'clef') {
-          clefShift = ({ treble_8: -12, tenorG: -12, bass_8: -12 })[e.value] ?? 0;
-          continue;
-        }
         if (e.kind !== 'note') continue;
         for (const p of e.pitches) {
-          const midi = 12 * (p.octave + 1) + [0, 2, 4, 5, 7, 9, 11][p.step] + p.alter + clefShift;
+          const midi = 12 * (p.octave + 1) + [0, 2, 4, 5, 7, 9, 11][p.step] + p.alter;
           const held = pending.get(midi);
           if (held !== undefined && notes[held].tick + notes[held].ticks === e.tick) {
             notes[held].ticks += e.ticks;
@@ -172,6 +171,10 @@ export function scoreToNotes(score, opts = {}) {
           notes.push({
             tick: e.tick, ticks: e.ticks, midi, staff: si, voice: vi,
             velocity: dynamicToVelocity(e.dynamic), src: e.src,
+            // a guitar's reading of the note (guitar.js), for the guitar model
+            ...(p.string ? { string: p.string, fret: p.fret, art: p.art, artParam: p.artParam, slideTo: p.slideTo } : {}),
+            ...(e.arpeggio ? { arpeggio: true } : {}),
+            ...(tab ? { tab: true } : {}),
           });
           if (e.tie || p.tie) pending.set(midi, idx); else pending.delete(midi);
         }
@@ -179,6 +182,23 @@ export function scoreToNotes(score, opts = {}) {
     }
   }
   notes.sort((a, b) => a.tick - b.tick || a.midi - b.midi);
+
+  // A TabStaff usually shows the SAME music as the staff above it (LilyPond's
+  // `<< \new Staff \music \new TabStaff \music >>`). Played as written that
+  // doubles every note. So a tab note that another staff already plays is
+  // dropped, and its string, fret and technique go to the note that stays.
+  if (notes.some((n) => n.tab) && notes.some((n) => !n.tab)) {
+    const plain = new Map();
+    for (const n of notes) if (!n.tab) plain.set(`${n.tick}/${n.midi}`, n);
+    for (let i = notes.length - 1; i >= 0; i--) {
+      const n = notes[i];
+      if (!n.tab) continue;
+      const twin = plain.get(`${n.tick}/${n.midi}`);
+      if (!twin) continue;
+      if (!twin.string && n.string) Object.assign(twin, { string: n.string, fret: n.fret, art: n.art, artParam: n.artParam, slideTo: n.slideTo });
+      notes.splice(i, 1);
+    }
+  }
 
   // Dynamics are written once and hold until the next one, per voice.
   const lastDyn = new Map();

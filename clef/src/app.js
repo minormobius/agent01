@@ -274,7 +274,8 @@ function onScoreClick(event) {
   const region = state.layout.regions.find(
     (r) => y >= r.hitTop && y <= r.hitBottom && x >= r.left - 6 && x <= r.right + 6,
   );
-  if (!region) return;
+  // A click on a tab staff writes nothing: its lines are strings, not pitches.
+  if (!region || region.tab) return;
 
   const sp = region.sp;
   // pos 0 is the middle line; +1 per half space, upward.
@@ -517,7 +518,7 @@ function togglePlay() {
     guitarPlayer.load(state.perf);
     setPlayingUI(true);
     // Said once per score: what fitting it to six strings changed, so a missing note is explained.
-    const fit = pfguitar.packGuitar(state.perf);
+    const fit = pfguitar.packScore(state.perf);
     if (fit.folded || fit.dropped) toast(guitarFitNote(fit), 5000);
     guitarPlayer.play(from).catch((err) => {
       showRenderProgress(false);

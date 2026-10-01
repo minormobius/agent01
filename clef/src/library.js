@@ -282,6 +282,70 @@ export const LIBRARY = [
     source: "\\version \"2.24.0\"\n\n\\header {\n  title = \"Rondo in G major\"\n  composer = \"modulo\"\n  copyright = \"CC0 1.0 \u2014 dedicated to the public domain\"\n}\n\n%% ---------------------------------------------------------------- A ------\n%% The rondo theme. A period: four bars asking, four answering.\nthemeR = {\n  d''8.( e''16 d''8) g''8       |\n  b''8 a''8 g''8 fis''8         |\n  e''8.( fis''16 e''8) a''8     |\n  a''8 g''8 fis''4              |\n  d''8.( e''16 d''8) g''8       |\n  b''8 a''8 g''8 fis''8         |\n  e''8 d''8 c''8 a'8            |\n  g'2                           |\n}\n\nthemeL = {\n  g,16 d16 b,16 d16 g,16 d16 b,16 d16   |\n  g,16 d16 b,16 d16 g,16 d16 b,16 d16   |\n  c16 a16 e16 a16 c16 a16 e16 a16       |\n  d16 a16 fis16 a16 d16 a16 fis16 a16   |\n  g,16 d16 b,16 d16 g,16 d16 b,16 d16   |\n  g,16 d16 b,16 d16 g,16 d16 b,16 d16   |\n  c16 a16 e16 a16 d16 c'16 fis16 a16    |\n  g,16 d16 b,16 d16 g,4                 |\n}\n\n%% ------------------------------------------------------- A, decorated ----\n%% The middle return. Same skeleton, same harmony, same bass \u2014 every beat still\n%% lands on the note the plain theme lands on. What changes is the surface:\n%% neighbour notes fill the dotted figure, and the descent in bar 2 picks up an\n%% upper neighbour that touches the top C. A rondo whose returns are literal\n%% repeats is an outline of a piece rather than a piece.\nthemeRvar = {\n  d''16 e''16 d''16 c''16 d''8 g''8                    |\n  b''16 c'''16 b''16 a''16 g''16 a''16 g''16 fis''16   |\n  e''16 fis''16 e''16 d''16 e''8 a''8                  |\n  a''16 g''16 fis''16 g''16 fis''4                     |\n  d''16 e''16 d''16 c''16 d''8 g''8                    |\n  b''16 c'''16 b''16 a''16 g''16 a''16 g''16 fis''16   |\n  e''16 fis''16 e''16 d''16 c''16 d''16 c''16 a'16     |\n  g'2                                                  |\n}\n\n%% ---------------------------------------------------------------- B ------\n%% The dominant episode: long notes against the theme's running figures.\nepiBR = {\n  a'4 d''4                      |\n  g''8 e''8 cis''4              |\n  d''4 fis''4                   |\n  e''8 d''8 cis''4              |\n  fis''4 a''4                   |\n  b''8 a''8 g''4                |\n  g''8 fis''8 e''8 cis''8       |\n  d''2                          |\n}\n\nepiBL = {\n  d8 <fis a>8 d8 <fis a>8       |\n  a,8 <cis g>8 a,8 <cis g>8     |\n  d8 <fis a>8 d8 <fis a>8       |\n  a,8 <cis e>8 a,8 <cis e>8     |\n  d8 <fis a>8 d8 <fis a>8       |\n  g,8 <b, d>8 g,8 <b, d>8       |\n  a,8 <cis g>8 a,8 <cis g>8     |\n  d16 a16 fis16 a16 d4          |\n}\n\n%% ---------------------------------------------------------------- C ------\n%% The minor centre, and the two bars that lean back toward home.\nepiCR = {\n  b'8 e''8 g''8 fis''8          |\n  e''8 dis''8 e''8 fis''8       |\n  g''8 fis''8 e''8 dis''8       |\n  e''4 b'4                      |\n  b'8 e''8 g''8 b''8            |\n  a''8 g''8 fis''8 e''8         |\n  dis''8 e''8 fis''8 dis''8     |\n  e''2                          |\n  a''8 g''8 fis''8 e''8         |\n  d''8 c''8 b'8 a'8             |\n}\n\nepiCL = {\n  e,8 b,8 e8 g8                 |\n  b,8 fis8 b8 dis8              |\n  e,8 b,8 e8 g8                 |\n  b,8 fis8 dis8 fis8            |\n  e,8 b,8 e8 g8                 |\n  a,8 e8 a8 c'8                 |\n  b,8 fis8 dis8 fis8            |\n  e,8 b,8 e8 b,8                |\n  d16 a16 fis16 c'16 d16 a16 fis16 c'16 |\n  d16 a16 fis16 c'16 d16 a16 fis16 c'16 |\n}\n\n%% ------------------------------------------------------------- coda ------\ncodaR = {\n  g'16 a'16 b'16 c''16 d''16 e''16 fis''16 g''16       |\n  a''16 b''16 c'''16 b''16 a''16 g''16 fis''16 e''16   |\n  d''8 g''8 b''8 g''8           |\n  <g' b' d'' g''>2              |\n}\n\ncodaL = {\n  g,16 d16 b,16 d16 g,16 d16 b,16 d16   |\n  %% The dominant seventh in FIRST INVERSION, not root position. In root\n  %% position the outer voices ran G-D-G against D-A-D \u2014 bare parallel fifths\n  %% straight through the coda's flourish. With F sharp in the bass the two\n  %% lines move in contrary motion instead, and the bass rises a step into the\n  %% tonic, which is the better cadence anyway.\n  fis,16 d16 a16 c'16 fis,16 d16 a16 c'16 |\n  g,16 d16 b,16 d16 g,16 d16 b,16 d16   |\n  <g, g>2                     |\n}\n\n\\score {\n  \\new PianoStaff <<\n    \\new Staff {\n      \\clef treble\n      \\key g \\major\n      \\time 2/4\n      \\tempo \"Allegretto grazioso\" 4 = 108\n      \\themeR \\epiBR \\themeRvar \\epiCR \\themeR \\codaR\n      \\bar \"|.\"\n    }\n    \\new Staff {\n      \\clef bass\n      \\key g \\major\n      \\time 2/4\n      \\themeL \\epiBL \\themeL \\epiCL \\themeL \\codaL\n    }\n  >>\n}\n",
   },
   {
+    id: 'guitar',
+    title: 'Open Strings',
+    composer: 'for guitar',
+    blurb: 'Notation over tablature: harmonics, Travis picking, a hammer-on and a pull-off, strummed chords, a rolled G. Play it on the physical guitar.',
+    source: `\\header {
+  title = "Open Strings"
+  composer = "for guitar"
+}
+
+global = { \\key g \\major \\time 4/4 \\tempo 4 = 84 }
+
+% the fingers: harmonics, then off-beats over the thumb, then strums
+upper = {
+  % natural harmonics: the 12th fret on the four low strings, the 7th on three
+  e4\\6\\harmonic a\\5\\harmonic d'\\4\\harmonic g'\\3\\harmonic |
+  a4\\4\\harmonic d'\\3\\harmonic fis'\\2\\harmonic e''\\1\\harmonic |
+  % open strings ringing into each other
+  e,8 b, fis g b e' b g |
+  c8 e g d' g' d' g e |
+  % Travis picking: the top two strings held at the third fret through every chord
+  g'8 d' s g' s g s d' |
+  fis'8 d' s fis' s a s d' |
+  g'8 d' s g' s g s d' |
+  g'8 d' s g' s g s d' |
+  % again, with a hammer-on on the G string
+  g'8 d' s g' s g16( a) s8 d' |
+  fis'8 d' s fis' s a s d' |
+  g'8 d' s g' s g s d' |
+  g'8 d' s g' s g s d' |
+  % strummed: down, down-up, up-down-up
+  \\f <a, e g c' e'>4 q8 q r q q q |
+  <c e g d' g'>4 q8 q r q q q |
+  <g, b, d g d' g'>4 q8 q r q q q |
+  <d a d' fis'>4 q8 q r q q q |
+  % a rolled G, and harmonics over the top
+  \\mf <g, b, d g d' g'>1\\arpeggio |
+  g'4\\3\\harmonic b'\\2\\harmonic e''\\1\\harmonic s4 \\bar "|."
+}
+
+% the thumb: alternating bass, with a hammer-on and a pull-off the second time
+lower = {
+  s1*4 |
+  g,4 d g, d |
+  fis,4 d fis, d |
+  e,4 e e, e |
+  c4 e c e |
+  g,4 d g, d |
+  fis,4 d fis, d |
+  e,4 e b,8( a,) e4 |
+  c4 d16( e8.) c4 e |
+  s1*5 |
+  s2. g,4\\6 |
+}
+
+\\score {
+  \\new StaffGroup <<
+    \\new Staff \\with { instrumentName = "Guitar" midiInstrument = "acoustic guitar (nylon)" }
+      << \\global \\clef "treble_8" \\upper \\\\ \\lower >>
+    \\new TabStaff << \\global \\upper \\\\ \\lower >>
+  >>
+}`,
+  },
+
+  {
     id: 'scales',
     title: 'Scales & key signatures',
     composer: 'reference',

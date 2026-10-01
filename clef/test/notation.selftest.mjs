@@ -25,7 +25,7 @@ import { scoreToNotes, performance as buildPerformance, patchForInstrument } fro
 import { writeMidi } from '../src/midi.js';
 import { LIBRARY } from '../src/library.js';
 import {
-  WHOLE, PPQ, ticksOf, noteValue, midiOf, staffPos, fifthsOf,
+  WHOLE, PPQ, ticksOf, noteValue, midiOf, staffPos, fifthsOf, clefDef,
   keySignaturePositions, beatGroups, pitchFromDiatonic,
 } from '../src/model.js';
 
@@ -431,7 +431,7 @@ const midiList = (score, staff = 0, voice = 0) =>
 // bar checks — a transcription whose bars do not add up is a bug in the
 // transcription, and `|` is what finds it.
 {
-  eq(LIBRARY.length, 9, 'the library has nine pieces');
+  eq(LIBRARY.length, 10, 'the library has ten pieces');
   for (const piece of LIBRARY) {
     const score = parseLily(piece.source);
     eq(score.diagnostics.length, 0,
@@ -718,6 +718,45 @@ const midiList = (score, staff = 0, voice = 0) =>
     const tdry = await renderDry(G, tab, 22050, { yieldEvery: 1e9 });
     ok(tdry.every(Number.isFinite) && Math.max(...tdry.subarray(0, 4410).map(Math.abs)) > 0.001, 'pfguitar: and it renders');
   }
+}
+
+// ------------------------------------------- 10c. reading guitar --
+//
+// LilyPond's guitar marks (string numbers, \harmonic, slurs, \glissando, \deadNote), the
+// TabStaff drawn from them, the octave clef read LilyPond's way, and the one answer the tab
+// and the guitar model share (guitar.js).
+{
+  const { scoreToNotes: toNotes, performance: perfOf } = await import('../src/audio.js');
+  const { packScore } = await import('../src/pfguitar.js');
+  const frets = (src, staff = 0) => parseLily(src).staves[staff].voices[0].filter((e) => e.kind === 'note')
+    .map((e) => e.pitches.map((p) => `${p.string}:${p.fret}${p.art ? '/' + p.art : ''}${p.slideTo != null ? '>' + p.slideTo : ''}`).join(','));
+  // chords written as notes come out in the open-position shapes a chord book draws
+  eq(frets("\\new TabStaff { <g, b, d g d' g'>4 <c e g c' e'> }").join(' '), '6:3,5:2,4:0,3:0,2:3,1:3 5:3,4:2,3:0,2:1,1:0',
+    'guitar: a G chord is 320033 and a C chord x32010, from the lowest-fret rule');
+  eq(frets("\\new TabStaff { d'4\\3 e''\\1\\harmonic <a\\4 e'\\2>4 }").join(' '), '3:7 1:12/harmonic 4:7,2:5',
+    'guitar: a string number places the note, on a single note and inside a chord; a harmonic shows its touched fret');
+  eq(frets("\\new TabStaff { a8( b) c'4\\glissando e' a8( g) }").join(' '), '3:2 3:4/hammer 2:1>5 2:5/slide 3:2 3:0/pull',
+    'guitar: a slur stays on one string (a hammer-on up, a pull-off down), a glissando slides along it');
+  eq(frets("\\new TabStaff { \\deadNote e,4 \\palmMuteOn a,4 \\palmMuteOff a,4 }").join(' '), '6:0/muted 5:0/muted 5:0',
+    'guitar: \\deadNote mutes one note, \\palmMuteOn every note until \\palmMuteOff');
+  // the octave clef: a LilyPond pitch is what sounds; treble_8 only draws it an octave higher
+  const c8 = parseLily("{ \\clef \"treble_8\" c'4 }");
+  eq(toNotes(c8).notes[0].midi, 60, "treble_8: c' sounds as middle C (it was played an octave low)");
+  eq(clefDef('treble_8').middleDia - clefDef('treble').middleDia, -7, 'treble_8: and is drawn an octave higher than on a treble staff');
+  // a staff and a tab staff showing the same music play it once, with the tab's strings
+  const pair = parseLily("m = { <g, b, d g d' g'>4 a8( b) }\n\\score { << \\new Staff { \\clef \"treble_8\" \\m } \\new TabStaff \\m >> }");
+  const played = toNotes(pair).notes;
+  ok(played.length === 8 && played.every((n) => n.string), `guitar: notation plus tab plays once, with strings (${played.length} notes)`);
+  // the tab staff is drawn: six lines, TAB, fret numbers; a click on it writes nothing
+  const lay = engrave(pair);
+  const tabRegion = lay.regions.find((r) => r.tab);
+  ok(tabRegion && /cf-tabclef/.test(lay.svg) && (lay.svg.match(/class="cf-tabfret/g) || []).length === 8,
+    'guitar: the tab staff is engraved with TAB and one fret number per note, and is not a click target');
+  // the library piece: written for guitar, played as written, nothing fitted
+  const gp = LIBRARY.find((p) => p.id === 'guitar');
+  const gs = parseLily(gp.source), gperf = perfOf(toNotes(gs), gs.tempo), gpk = packScore(gperf);
+  ok(gs.diagnostics.length === 0 && gs.staves.some((s) => s.tab) && gpk.count === gperf.events.length && gpk.folded === 0 && gpk.dropped === 0,
+    `guitar: Open Strings parses clean, ${gpk.count} notes all played from their tab`);
 }
 
 // -------------------------------------------- 11. scaled durations --

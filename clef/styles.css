@@ -383,6 +383,10 @@ body {
   fill: color-mix(in srgb, currentColor 72%, transparent);
 }
 .cf-staffline { stroke: color-mix(in srgb, currentColor 78%, transparent); }
+/* tablature: fret numbers knock the string line out behind them */
+.cf-tabknock { fill: var(--paper); pointer-events: none; }
+.cf-tabfret { fill: currentColor; font-family: "Helvetica Neue", Arial, sans-serif; cursor: pointer; }
+.cf-tabclef, .cf-clef8 { fill: currentColor; font-family: "Helvetica Neue", Arial, sans-serif; pointer-events: none; }
 .cf-title { font-weight: 600; letter-spacing: 0.01em; }
 .cf-subtitle, .cf-composer { fill: var(--ink-soft); font-style: italic; }
 .cf-timesig { font-weight: 600; }
