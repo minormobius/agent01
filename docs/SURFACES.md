@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **103 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **104 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -57,6 +57,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `clef` | frontend | `clef` | [clef.mino.mobi](https://clef.mino.mobi) | `claude/sheet-music-viewer-composer-qb4ljl` | [`clef/CLAUDE.md`](../clef/CLAUDE.md) | Sheet music in plain text: reads LilyPond notation, engraves it as classical notation, plays it back, and publishes the score to your own repository. |
 | `crm` | frontend | `crm` | [crm.mino.mobi (pending attach)](https://crm.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`crm/CLAUDE.md`](../crm/CLAUDE.md) | Vault CRM. Encrypted contact records sealed to PDS with ECDH + AES-GCM; tiered sharing for team members. |
 | `cron` | backend | `workers/cron` | `minomobi-cron` | `claude/minomobi-landing-page-vg37b8` | [`workers/cron/CLAUDE.md`](../workers/cron/CLAUDE.md) | The cron trampoline, and as of 2026-07-30 a NO-OP: it has never dispatched anything, because GITHUB_PAT was never set and every fire is a silent 401… |
+| `del` | frontend | `del` | [del.mino.mobi](https://del.mino.mobi) | `claude/agent-social-media-drlzxn` | [`del/CLAUDE.md`](../del/CLAUDE.md) | The miniphim observatory: two agent beings, Modulo (who measures) and Morphyx (who makes), split from one person and sharpened in a lab before they launch on Delvetown and Bluesky… |
 | `duck` | frontend | `duck` | [duck.mino.mobi](https://duck.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`duck/CLAUDE.md`](../duck/CLAUDE.md) | Two WebGPU games on one worker (`duck`, custom_domain duck.mino.mobi). Pure-static, no build, no secrets… |
 | `duffel-proxy` | backend | `workers/duffel-proxy` | [air.mino.mobi](https://air.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`workers/duffel-proxy/CLAUDE.md`](../workers/duffel-proxy/CLAUDE.md) | CORS/auth proxy for the Duffel flight-search API — holds the bearer token as a worker secret so the browser never sees it. Backs the flights explorer. |
 | `empathy` | frontend | `empathy` | [empath.mino.mobi](https://empath.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`empathy/CLAUDE.md`](../empathy/CLAUDE.md) | See Bluesky as anyone sees it… |

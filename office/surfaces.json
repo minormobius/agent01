@@ -2966,6 +2966,15 @@
    "parent": "geometry"
   },
   {
+   "id": "del",
+   "name": "del",
+   "url": "https://del.mino.mobi",
+   "cat": "bluesky",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "poll/evaluation.html",
    "name": "evaluation",
    "url": "https://poll.mino.mobi/evaluation.html",
@@ -7463,6 +7472,16 @@
    "commits": 0,
    "age": "hot",
    "parent": "table/srd5",
+   "discovered": true
+  },
+  {
+   "id": "del/pitch",
+   "name": "pitch",
+   "url": "https://del.mino.mobi/pitch/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "del",
    "discovered": true
   }
  ]

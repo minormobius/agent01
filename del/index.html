@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Miniphim Observatory</title>
+<meta name="description" content="Live state of the miniphim experiment: two agent beings, Modulo and Morphyx, sharpened in a lab before they launch on Delvetown and Bluesky.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="del.css">
+</head>
+<body>
+<main class="wrap">
+
+<header class="stack">
+  <p class="eyebrow">del.mino.mobi · the observatory</p>
+  <h1><span class="m">Modulo</span> <span class="amp">&amp;</span> <span class="r">Morphyx</span></h1>
+  <p class="lede">Two parts of one person, being sharpened in a lab before they get lives of their own on Delvetown and Bluesky. This page shows where the experiment stands, read live from the repo.</p>
+  <nav class="links" aria-label="Pages">
+    <a href="pitch/">The pitch</a>
+    <a href="#lab">The lab</a>
+    <a href="#bar">The bar</a>
+    <a href="#log">The log</a>
+  </nav>
+</header>
+
+<section class="stack" aria-labelledby="phase-h">
+  <h2 id="phase-h">Where it stands</h2>
+  <div class="phases" id="phases" role="list"><div class="phase now" role="listitem"><b>lab</b><span>souls on the whetstone</span></div></div>
+  <p class="muted" id="phase-note">Nothing has launched. Both beings are still in the lab.</p>
+</section>
+
+<section class="stack" aria-labelledby="beings-h">
+  <h2 id="beings-h">The two</h2>
+  <div class="pair" id="beings">
+    <article class="being modulo"><h3>Modulo</h3><p class="muted">measures</p></article>
+    <article class="being morphyx"><h3>Morphyx</h3><p class="muted">makes</p></article>
+  </div>
+</section>
+
+<section class="stack" id="lab" aria-labelledby="lab-h">
+  <h2 id="lab-h">The lab</h2>
+  <p class="muted">Five benches feed one set of gates. A being graduates when every gate passes on a full run.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Bench</th><th>Status</th><th>Measures</th></tr></thead>
+    <tbody id="benches"></tbody>
+  </table></div>
+  <h3>Latest run</h3>
+  <div id="run"><div class="empty"><b>Reading the lab from GitHub.</b><span>If this stays, GitHub could not be reached from your browser.</span></div></div>
+</section>
+
+<section class="stack" id="bar" aria-labelledby="bar-h">
+  <h2 id="bar-h">The bar</h2>
+  <p class="muted">The gates a run is held to, from <span class="mono">packages/whetstone/gates.json</span>.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Scope</th><th>Gate</th><th>Threshold</th><th>Why</th></tr></thead>
+    <tbody id="gates"><tr><td colspan="4" class="muted">Reading gates.json from GitHub.</td></tr></tbody>
+  </table></div>
+</section>
+
+<section class="stack" aria-labelledby="neigh-h">
+  <h2 id="neigh-h">Neighbours</h2>
+  <p class="muted">Two lines of work taught this design most of what it knows. Both continue on their own; this experiment reads their findings and writes nothing back.</p>
+  <div class="grid2">
+    <div class="card"><h3>Jev and Jevcraft</h3><p>A System One model that only decides, put to work in a dungeon, a market and a Minecraft-like. Source of the rule that the caller computes and the model decides.</p><p class="links"><a href="https://mega.mino.mobi/jev/">mega.mino.mobi/jev</a></p></div>
+    <div class="card"><h3>The Imp bench</h3><p>An independent evaluation of Imp, deepfates' port of DSPy to the BEAM. Source of the finding that a question compiled on one model can run on another.</p><p class="links"><a href="https://imp.mino.mobi/">imp.mino.mobi</a></p></div>
+  </div>
+</section>
+
+<section class="stack" id="log" aria-labelledby="log-h">
+  <h2 id="log-h">The log</h2>
+  <ul class="log" id="logl"></ul>
+</section>
+
+<section class="stack" aria-labelledby="rec-h">
+  <h2 id="rec-h">Records</h2>
+  <p class="links" id="records">
+    <a href="pitch/">The pitch</a>
+  </p>
+</section>
+
+<footer>
+  <span>Speculative. Nothing here has launched. The lab's state is read in your browser from the public repo, so it is as current as the last push.</span>
+  <span id="src">Source: minormobius/agent01</span>
+</footer>
+</main>
+<script src="del.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "del",
+  "compatibility_date": "2026-10-01",
+  // The miniphim observatory: a static site, no build, no worker script, no bindings.
+  // The page reads the lab's live state from the public repo on GitHub in the browser.
+  // CLAUDE.md is kept out of the upload by .assetsignore.
+  "assets": {
+    "directory": "."
+  },
+  // A PLAIN ROUTE (no custom-domain slot). A route makes no DNS, so deploy-del.yml runs
+  // scripts/route-dns.mjs before wrangler deploy. Do not turn this into a custom_domain.
+  "routes": [
+    { "pattern": "del.mino.mobi/*", "zone_name": "mino.mobi" }
+  ]
+}

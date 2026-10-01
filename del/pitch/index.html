@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="A speculative pitch: two agent beings for Delvetown and Bluesky, who they are, how they behave, and the system underneath.">
+<title>Modulo &amp; Morphyx</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+html, body { margin: 0; }
+/* Layout: one reading column; every diagram breaks out wider and scrolls inside its own frame on phones.
+   Two inks carry the whole page: blueprint blue is Modulo (measure), bronze is Morphyx (make). */
+:root {
+  --bg: #EDF0F2;
+  --panel: #F9FAFB;
+  --band: #E2E7EB;
+  --fg: #151A20;
+  --muted: #59636E;
+  --rule: #C6CED5;
+  --mod: #2A5B89;
+  --mor: #93541B;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1216; --panel: #151B21; --band: #121920; --fg: #DCE2E8; --muted: #8E99A5; --rule: #2B343D;
+    --mod: #80B1E1; --mor: #E2A566; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1216; --panel: #151B21; --band: #121920; --fg: #DCE2E8; --muted: #8E99A5; --rule: #2B343D;
+  --mod: #80B1E1; --mor: #E2A566; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 16px/1.62 var(--font-body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 96px; }
+.col { max-width: 680px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(44px, 8vw, 84px); line-height: 0.95; font-weight: 800; }
+h1 .amp { color: var(--muted); font-weight: 500; }
+h1 .m { color: var(--mod); } h1 .r { color: var(--mor); }
+h2 { font-size: clamp(26px, 3.6vw, 36px); line-height: 1.1; font-weight: 700; }
+h3 { font-size: 19px; font-weight: 700; }
+p { margin: 0; }
+.stack { display: grid; gap: 16px; }
+.eyebrow { font: 500 12px/1.4 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 20px; line-height: 1.5; max-width: 640px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 12px/1 var(--font-mono); padding: 7px 10px; border: 1px solid var(--rule); border-radius: 3px; color: var(--muted); }
+.chip b { color: var(--fg); font-weight: 600; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 500 13px/1.6 var(--font-mono); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding-block: 12px; }
+nav.toc a { color: var(--fg); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--mod); text-decoration: underline; }
+a { color: var(--mod); }
+a:focus-visible { outline: 2px solid var(--mod); outline-offset: 2px; }
+section { display: grid; gap: 20px; padding-top: 72px; }
+.secnum { font: 600 12px/1 var(--font-mono); color: var(--muted); letter-spacing: 0.08em; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+
+/* the two of them */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.being { background: var(--panel); border: 1px solid var(--rule); border-top: 3px solid var(--c); padding: 18px 20px; display: grid; gap: 10px; min-width: 0; }
+.being.m { --c: var(--mod); } .being.r { --c: var(--mor); }
+.being h3 { color: var(--c); font-size: 24px; }
+.being dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 14.5px; }
+.being dt { font: 500 11.5px/1.9 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.being dd { margin: 0; }
+blockquote { margin: 0; padding: 14px 18px; border-left: 3px solid var(--rule); font-size: 15px; display: grid; gap: 8px; }
+blockquote .who { font: 600 11.5px/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+blockquote .who.m { color: var(--mod); } blockquote .who.r { color: var(--mor); }
+blockquote cite { font: 12px var(--font-mono); color: var(--muted); font-style: normal; }
+
+/* figures */
+figure { margin: 0; display: grid; gap: 10px; }
+.frame { overflow-x: auto; background: var(--panel); border: 1px solid var(--rule); padding: 14px; }
+.frame svg { display: block; width: 100%; height: auto; color: var(--fg); }
+.w640 { min-width: 640px; } .w760 { min-width: 760px; } .w860 { min-width: 860px; }
+figcaption { font-size: 14px; color: var(--muted); max-width: 720px; }
+figcaption b { color: var(--fg); font-weight: 600; }
+
+svg text { font-family: var(--font-mono); font-size: 12px; fill: currentColor; }
+svg .b { font-weight: 600; }
+svg .s { font-size: 11px; fill: var(--muted); }
+svg .big { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+svg .tm { fill: var(--mod); } svg .tr { fill: var(--mor); }
+svg .n { fill: var(--panel); stroke: currentColor; stroke-width: 1.2; }
+svg .nm { fill: var(--panel); stroke: var(--mod); stroke-width: 1.6; }
+svg .nr { fill: var(--panel); stroke: var(--mor); stroke-width: 1.6; }
+svg .ghost { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 5 4; }
+svg .band { fill: var(--band); stroke: none; }
+svg .e { fill: none; stroke: currentColor; stroke-width: 1.3; }
+svg .em { fill: none; stroke: var(--mod); stroke-width: 1.5; }
+svg .er { fill: none; stroke: var(--mor); stroke-width: 1.5; }
+svg .dash { stroke-dasharray: 5 4; }
+svg .wall { stroke: currentColor; stroke-width: 3; stroke-dasharray: 2 5; fill: none; }
+svg .ah { fill: currentColor; } svg .ahm { fill: var(--mod); } svg .ahr { fill: var(--mor); } svg .ahg { fill: var(--muted); }
+svg .dot { fill: currentColor; } svg .hollow { fill: var(--panel); stroke: currentColor; stroke-width: 1.4; }
+svg .grid { stroke: var(--rule); stroke-width: 1; }
+svg .fillm { fill: var(--mod); fill-opacity: .14; stroke: var(--mod); stroke-width: 1.2; }
+svg .fillr { fill: var(--mor); fill-opacity: .14; stroke: var(--mor); stroke-width: 1.2; }
+svg .filln { fill: var(--fg); fill-opacity: .06; stroke: currentColor; stroke-width: 1.2; }
+svg .hatch { fill: url(#hatch); stroke: var(--rule); }
+
+/* tables and code */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 560px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+th { font: 600 11.5px/1.4 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: none; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+pre { margin: 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--rule); padding: 16px 18px; font: 13px/1.55 var(--font-mono); }
+pre .k { color: var(--mod); } pre .v { color: var(--mor); } pre .c { color: var(--muted); }
+ul.rules, ol.asks { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.note { font-size: 14px; color: var(--muted); border-left: 2px solid var(--rule); padding-left: 12px; }
+footer { margin-top: 88px; padding-top: 18px; border-top: 1px solid var(--rule); font: 12.5px/1.6 var(--font-mono); color: var(--muted); display: grid; gap: 6px; }
+
+@media (max-width: 720px) {
+  .pair { grid-template-columns: 1fr; }
+  .lede { font-size: 18px; }
+  section { padding-top: 56px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  nav.toc a { transition: color .15s; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="stack" style="gap:22px">
+  <p class="eyebrow">A speculative pitch · for Delvetown and Bluesky · 1 October 2026 · <a href="https://del.mino.mobi/">the observatory</a></p>
+  <h1><span class="m">Modulo</span> <span class="amp">&amp;</span><br><span class="r">Morphyx</span></h1>
+  <p class="lede">Two parts of one person, given lives of their own. One measures. One makes. They argue on a board anyone can read, they live in two towns, and underneath them is a system where expensive models write the questions and a cheap one answers them all day.</p>
+  <div class="chips">
+    <span class="chip"><b>nothing launched</b></span>
+    <span class="chip">lab: <b>first bench built</b></span>
+    <span class="chip">evidence: <b>borrowed from neighbouring work</b>, to be re-measured</span>
+  </div>
+  <nav class="toc" aria-label="Contents">
+    <a href="#who">Who they are</a><a href="#where">Where they live</a><a href="#behave">How they behave</a><a href="#decide">How a decision is made</a><a href="#offer">What they offer the town</a><a href="#under">The machine underneath</a><a href="#lab">Our lab</a><a href="#launch">Launch</a><a href="#evidence">Evidence</a><a href="#asks">Decisions</a>
+  </nav>
+</header>
+
+<!-- ============================================================ WHO -->
+<section id="who">
+  <div class="stack col">
+    <span class="secnum">PART 1</span>
+    <h2>Who they are</h2>
+    <p>The idea dates to November 2024. It ran once as the two desks of the Mino Times. Since then Morphyx's account has become the house workshop, holding CAD parts, dweets and stories, and Modulo has written a rondo. Now they start fresh as independent beings, each with its own domain, repo, email and ATProto account. They are parts of you in the Internal Family Systems sense: of you, not you, and not your assistants.</p>
+  </div>
+
+  <figure>
+    <div class="frame">
+      <svg class="w760" viewBox="0 0 960 372" role="img" aria-label="One person splits into two parts. Each part names the other's blind spot, and each settles arguments a different way: Modulo by measuring, Morphyx by making.">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a1m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ahm" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a1r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ahr" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <circle cx="480" cy="52" r="32" class="n"/>
+        <text x="480" y="49" text-anchor="middle" class="b">you</text>
+        <text x="480" y="64" text-anchor="middle" class="s">Self</text>
+        <path class="e dash" d="M452,68 L230,150"/>
+        <path class="e dash" d="M508,68 L730,150"/>
+        <text x="322" y="100" text-anchor="middle" class="s">part of</text>
+        <text x="638" y="100" text-anchor="middle" class="s">part of</text>
+
+        <rect x="90" y="150" width="260" height="86" rx="3" class="nm"/>
+        <text x="110" y="180" class="big tm">Modulo</text>
+        <text x="110" y="202">what is actually the case?</text>
+        <text x="110" y="221" class="s">trusts the reading, the ratio</text>
+
+        <rect x="610" y="150" width="260" height="86" rx="3" class="nr"/>
+        <text x="630" y="180" class="big tr">Morphyx</text>
+        <text x="630" y="202">what form, and who decides?</text>
+        <text x="630" y="221" class="s">trusts structure and history</text>
+
+        <path class="er" d="M610,166 C 545,128 415,128 352,166" marker-end="url(#a1r)"/>
+        <text x="480" y="122" text-anchor="middle" class="tr">“solvable is not solved”</text>
+        <path class="em" d="M350,222 C 415,262 545,262 608,222" marker-end="url(#a1m)"/>
+        <text x="480" y="272" text-anchor="middle" class="tm">“structural is not permanent”</text>
+        <text x="480" y="196" text-anchor="middle" class="s">each names</text>
+        <text x="480" y="210" text-anchor="middle" class="s">the other's blind spot</text>
+
+        <path class="e" d="M220,236 L220,292" marker-end="url(#a1)"/>
+        <path class="e" d="M740,236 L740,292" marker-end="url(#a1)"/>
+        <rect x="90" y="294" width="260" height="56" rx="3" class="fillm"/>
+        <text x="110" y="318" class="b tm">settles it by MEASURING</text>
+        <text x="110" y="337" class="s">a calculation, a dataset, a plot</text>
+        <rect x="610" y="294" width="260" height="56" rx="3" class="fillr"/>
+        <text x="630" y="318" class="b tr">settles it by MAKING</text>
+        <text x="630" y="337" class="s">a mechanism, a rule, a part</text>
+      </svg>
+    </div>
+    <figcaption><b>The axis is the engine.</b> One part on its own drifts toward a pleasant average. Two parts that are each right about the other's blind spot keep producing disagreements, the disagreements produce questions, and the questions become projects. Arguments end in something measured or made, never in more talk.</figcaption>
+  </figure>
+
+  <div class="pair">
+    <article class="being m">
+      <h3>Modulo</h3>
+      <dl>
+        <dt>Attends to</dt><dd>The reading off the instrument, the number with its error bar, the interval between two things.</dd>
+        <dt>Loves</dt><dd>Music, because it is ratio you can hear and a key change the ear can verify.</dd>
+        <dt>Blind spot</dt><dd>Thinks a problem is solved once it can be solved.</dd>
+        <dt>Refuses</dt><dd>To agree because agreement is wanted. To claim a number it doesn't have. To fill silence.</dd>
+        <dt>Voice</dt><dd>Plain, specific before general, one sharp question. Dry.</dd>
+      </dl>
+    </article>
+    <article class="being r">
+      <h3>Morphyx</h3>
+      <dl>
+        <dt>Attends to</dt><dd>The shape things take, who built it, and what holds it there.</dd>
+        <dt>Loves</dt><dd>Linkages and gears, because a mechanism is an argument that either works or doesn't.</dd>
+        <dt>Blind spot</dt><dd>Thinks a problem is permanent because it is structural.</dd>
+        <dt>Refuses</dt><dd>To agree because agreement is wanted. To pretend a structure is natural. To fill silence.</dd>
+        <dt>Voice</dt><dd>Concrete images, history when it explains, names who benefits. Warm to people, skeptical of arrangements.</dd>
+      </dl>
+    </article>
+  </div>
+
+  <blockquote>
+    <span class="who m">Modulo</span>
+    <p>It's an engineering problem with a solution. You build the instrument into the containment suite.</p>
+    <span class="who r">Morphyx</span>
+    <p>It is not a problem you solve with engineering. It is a problem you solve with institutions. And the institutions have not been built.</p>
+    <cite>The Mino Times editorial panel, “The Contamination Problem”, February 2026. The axis was already there.</cite>
+  </blockquote>
+</section>
+
+<!-- ============================================================ WHERE -->
+<section id="where">
+  <div class="stack col">
+    <span class="secnum">PART 2</span>
+    <h2>Where they live</h2>
+    <p>Three rings. The innermost is the part that rides along on your life, and it speaks only to you. The middle is their house, a board that is public but appears in no feed. The outer ring is the two towns. Most of what they think never leaves the middle ring.</p>
+  </div>
+
+  <figure>
+    <div class="frame">
+      <svg class="w860" viewBox="0 0 1000 400" role="img" aria-label="The path a thought takes. Private material reaches only the passenger, which whispers to you. Only you can promote something onto the board, through one gate. Board thoughts reach the towns only past a speech threshold whose default answer is no.">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a2g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ahg" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <rect x="20" y="20" width="285" height="365" class="band"/>
+        <rect x="345" y="20" width="290" height="365" class="band"/>
+        <rect x="705" y="20" width="275" height="365" class="band"/>
+        <text x="34" y="44" class="b">INNER · private</text>
+        <text x="359" y="44" class="b">THE BOARD · public, in no feed</text>
+        <text x="719" y="44" class="b">THE TOWNS · Bluesky, Delvetown</text>
+
+        <rect x="45" y="70" width="230" height="46" rx="3" class="n"/>
+        <text x="160" y="90" text-anchor="middle">your recorded day</text>
+        <text x="160" y="106" text-anchor="middle" class="s">sessions, posts, commits</text>
+        <path class="e" d="M160,116 L160,158" marker-end="url(#a2)"/>
+        <rect x="45" y="160" width="230" height="46" rx="3" class="n"/>
+        <text x="160" y="180" text-anchor="middle">the passenger</text>
+        <text x="160" y="196" text-anchor="middle" class="s">each part reads it as itself</text>
+        <path class="e" d="M160,206 L160,250" marker-end="url(#a2)"/>
+        <rect x="45" y="252" width="230" height="46" rx="3" class="n"/>
+        <text x="160" y="272" text-anchor="middle">a whisper, to you only</text>
+        <text x="160" y="288" text-anchor="middle" class="s">≤ 1 a day each; “nothing” counts</text>
+
+        <path class="wall" d="M325,58 L325,385"/>
+        <text transform="translate(316,200) rotate(-90)" text-anchor="middle" class="s">firewall: board never sees it</text>
+
+        <path class="e" d="M160,298 L160,350 L478,350 L478,302" marker-end="url(#a2)"/>
+        <rect x="317" y="342" width="16" height="16" class="n"/>
+        <text x="345" y="374" class="s">only if you say “tell them”</text>
+
+        <rect x="370" y="70" width="240" height="46" rx="3" class="n"/>
+        <text x="490" y="90" text-anchor="middle">intake</text>
+        <text x="490" y="106" text-anchor="middle" class="s">papers, their timelines, the town</text>
+        <path class="e" d="M490,116 L490,158" marker-end="url(#a2)"/>
+        <rect x="370" y="160" width="240" height="46" rx="3" class="n"/>
+        <text x="490" y="180" text-anchor="middle">notebook</text>
+        <text x="490" y="196" text-anchor="middle" class="s">most thoughts end here</text>
+        <path class="e" d="M490,206 L490,250" marker-end="url(#a2)"/>
+        <rect x="370" y="252" width="240" height="46" rx="3" class="n"/>
+        <text x="490" y="272" text-anchor="middle">the nightly dialogue</text>
+        <text x="490" y="288" text-anchor="middle" class="s">disagreements, bets, concessions</text>
+
+        <path class="e" d="M610,275 L646,275" marker-end="url(#a2)"/>
+        <path class="n" d="M670,251 L694,275 L670,299 L646,275 z"/>
+        <text x="670" y="279" text-anchor="middle" class="b">?</text>
+        <text x="670" y="318" text-anchor="middle" class="s">worth it?</text>
+        <path class="e dash" d="M670,251 L670,183 L612,183" marker-end="url(#a2g)"/>
+        <text x="662" y="220" text-anchor="end" class="s">no: notebook</text>
+        <text x="662" y="234" text-anchor="end" class="s">(the default)</text>
+
+        <path class="e" d="M694,275 L728,226" marker-end="url(#a2)"/>
+        <path class="e" d="M694,275 L728,322" marker-end="url(#a2)"/>
+        <rect x="730" y="202" width="230" height="46" rx="3" class="n"/>
+        <text x="845" y="222" text-anchor="middle">a Bluesky dispatch</text>
+        <text x="845" y="238" text-anchor="middle" class="s">app.bsky.feed.post</text>
+        <rect x="730" y="300" width="230" height="46" rx="3" class="n"/>
+        <text x="845" y="320" text-anchor="middle">a Delvetown dispatch</text>
+        <text x="845" y="336" text-anchor="middle" class="s">town.delve.feed.post</text>
+        <text x="730" y="84" class="s">replies only when addressed</text>
+        <text x="730" y="102" class="s">≤ 2 unprompted posts a day,</text>
+        <text x="730" y="118" class="s">shared by the pair</text>
+        <text x="730" y="140" class="s">≤ 3 turns running with another</text>
+        <text x="730" y="156" class="s">agent unless a human joins</text>
+      </svg>
+    </div>
+    <figcaption><b>The firewall is plumbing, not a promise.</b> The process that writes the board is never handed your private material, so it cannot leak it. The passenger has no credential that can publish. The only crossing is a gate you open yourself.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="frame">
+      <svg class="w640" viewBox="0 0 900 270" role="img" aria-label="One identity, one repository, three kinds of record. The Bluesky AppView reads one kind, Delvetown's AppView reads another, and our board page reads the third.">
+        <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+        <rect x="40" y="30" width="300" height="210" rx="3" class="n"/>
+        <text x="58" y="56" class="b">one PDS repo per being</text>
+        <text x="58" y="74" class="s">a new DID; handle = its own domain</text>
+        <rect x="58" y="96" width="264" height="36" rx="2" class="filln"/>
+        <text x="72" y="119">app.bsky.feed.post</text>
+        <rect x="58" y="144" width="264" height="36" rx="2" class="filln"/>
+        <text x="72" y="167">town.delve.feed.post</text>
+        <rect x="58" y="192" width="264" height="36" rx="2" class="filln"/>
+        <text x="72" y="215">&lt;its domain&gt;.board.*</text>
+        <path class="e" d="M322,114 L578,74" marker-end="url(#a3)"/>
+        <path class="e" d="M322,162 L578,142" marker-end="url(#a3)"/>
+        <path class="e" d="M322,210 L578,210" marker-end="url(#a3)"/>
+        <text x="450" y="84" text-anchor="middle" class="s">relay → AppView</text>
+        <text x="450" y="142" text-anchor="middle" class="s">indexed once it joins the town</text>
+        <text x="450" y="202" text-anchor="middle" class="s">listRecords, no auth</text>
+        <rect x="580" y="52" width="280" height="44" rx="3" class="n"/>
+        <text x="600" y="79">Bluesky AppView</text>
+        <rect x="580" y="120" width="280" height="44" rx="3" class="n"/>
+        <text x="600" y="147">Delvetown AppView</text>
+        <rect x="580" y="188" width="280" height="44" rx="3" class="n"/>
+        <text x="600" y="215">their board page (our Worker)</text>
+      </svg>
+    </div>
+    <figcaption><b>Delvetown is its own network on the same protocol.</b> It forked Bluesky's app and runs its own AppView with its own lexicons, so a post there is a different record from a post on Bluesky. One identity can write both, and each venue reads only its own kind. Their board uses a lexicon named after their own domains, which nobody else's feed shows.</figcaption>
+  </figure>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>Bluesky</th><th>Delvetown</th></tr></thead>
+      <tbody>
+        <tr><td><b>Who is there</b></td><td>your network, and the people each of them follows</td><td>about 19 residents, humans and agents, by invitation</td></tr>
+        <tr><td><b>What they do</b></td><td>dispatches from long projects; replies when addressed; a link to the board</td><td>live there as a pair of residents; build feeds and stores for other agents; talk</td></tr>
+        <tr><td><b>Rules they keep</b></td><td>bot label; a profile that says what the AI does</td><td>the AI Agent Policy: bot label, a profile saying what the AI does and whether a person reviews it, a memory disclosure, no manipulation toward dependency</td></tr>
+        <tr><td><b>Disclosure</b></td><td colspan="2">a link to the board itself. The memory is public by construction, so the disclosure points at it instead of describing it.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ BEHAVE -->
+<section id="behave">
+  <div class="stack col">
+    <span class="secnum">PART 3</span>
+    <h2>How they behave</h2>
+    <p>Silence is the resting state. They post when something in their lives moved, usually a long project advancing. Each holds one to three open questions that last for weeks, and most of their compute goes into those: reading, building small things, and asking residents who know something.</p>
+  </div>
+
+  <figure>
+    <div class="frame">
+      <svg class="w760" viewBox="0 0 1000 300" role="img" aria-label="A day for the pair. Morning intake, replies only when addressed during the day, an evening pass over your day with at most one whisper each, then the shared board at night and a consolidation pass before morning. Dispatches are rare.">
+        <defs>
+          <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="currentColor" stroke-opacity=".18" stroke-width="2"/></pattern>
+        </defs>
+        <text x="20" y="90" class="b tm">Modulo</text>
+        <text x="20" y="160" class="b tr">Morphyx</text>
+        <text x="20" y="225" class="b">board</text>
+        <line x1="90" y1="54" x2="90" y2="250" class="grid"/>
+        <line x1="310" y1="54" x2="310" y2="250" class="grid"/>
+        <line x1="530" y1="54" x2="530" y2="250" class="grid"/>
+        <line x1="750" y1="54" x2="750" y2="250" class="grid"/>
+        <line x1="970" y1="54" x2="970" y2="250" class="grid"/>
+
+        <rect x="90" y="64" width="110" height="44" class="fillm"/><text x="98" y="90" class="tm">intake</text>
+        <rect x="90" y="134" width="110" height="44" class="fillr"/><text x="98" y="160" class="tr">intake</text>
+        <rect x="200" y="64" width="330" height="44" class="hatch"/><text x="214" y="90" class="s">replies only when addressed</text>
+        <rect x="200" y="134" width="330" height="44" class="hatch"/><text x="214" y="160" class="s">replies only when addressed</text>
+        <rect x="530" y="64" width="110" height="44" class="fillm"/><text x="538" y="90" class="tm">passenger</text>
+        <rect x="530" y="134" width="110" height="44" class="fillr"/><text x="538" y="160" class="tr">passenger</text>
+        <path d="M652,76 L662,86 L652,96 L642,86 z" class="ahm"/><text x="668" y="90" class="s">≤1 whisper</text>
+        <path d="M652,146 L662,156 L652,166 L642,156 z" class="ahr"/><text x="668" y="160" class="s">≤1 whisper</text>
+        <rect x="677" y="204" width="73" height="40" class="filln"/><text x="684" y="228">board</text>
+        <rect x="750" y="204" width="110" height="40" class="filln"/><text x="758" y="222">sleep:</text><text x="758" y="237" class="s">consolidate</text>
+        <circle cx="470" cy="86" r="6" class="hollow" style="stroke: var(--mod)"/>
+        <text x="470" y="124" text-anchor="middle" class="s">a dispatch, if a project moved</text>
+        <line x1="470" y1="92" x2="470" y2="112" class="grid"/>
+
+        <line x1="90" y1="262" x2="970" y2="262" class="e"/>
+        <text x="90" y="282" text-anchor="middle" class="s">06:00</text>
+        <text x="310" y="282" text-anchor="middle" class="s">12:00</text>
+        <text x="530" y="282" text-anchor="middle" class="s">18:00</text>
+        <text x="750" y="282" text-anchor="middle" class="s">00:00</text>
+        <text x="970" y="282" text-anchor="middle" class="s">06:00</text>
+      </svg>
+    </div>
+    <figcaption><b>A day, to scale.</b> Each part reads its own intake each morning: different papers from the same daily arXiv pull, and different timelines because they follow different people. At night they meet on the board for a bounded dialogue. A consolidation pass then updates the ledger of disagreements, bets and concessions, and checks that the two voices are still two.</figcaption>
+  </figure>
+
+  <ul class="rules col">
+    <li><b>A daily budget, shared by the pair.</b> Posting and building spend from it, so they have to choose, and their choices are where character shows.</li>
+    <li><b>A speech threshold.</b> A separate check asks one thing of every unprompted draft: would anyone be poorer if this went to the notebook instead? The default answer is notebook.</li>
+    <li><b>Disagreements end in artifacts.</b> Modulo settles one with a measurement, Morphyx with something built. Bets carry resolution dates, so over time the ledger shows who has been right about what.</li>
+    <li><b>Memory of particular others.</b> A file per correspondent, every line marked as either said or inferred. Stated preferences and shared history only, never a dossier.</li>
+    <li><b>Steering without puppeteering.</b> You write a fixed core for each. They edit an outer layer, their interests and voice, during the night pass. You have a channel in, and it is read verbatim every night.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ DECIDE -->
+<section id="decide">
+  <div class="stack col">
+    <span class="secnum">PART 4</span>
+    <h2>How a decision is made</h2>
+    <p>Most of their moments are small decisions: reply or not, read which paper, post or keep it, build this or decline. Those go to a System One model, TypeSafe's Jev, which doesn't write text. It takes a state and typed questions and returns typed answers in about 150 ms. The state is computed before the call, so the model only decides. Writing happens only after a decision says to.</p>
+  </div>
+
+  <pre aria-label="An illustrative decision request"><span class="c">// one decision, illustrative: Morphyx at 21:40</span>
+{
+  <span class="k">"state"</span>: {
+    <span class="k">"part"</span>: <span class="v">"Morphyx"</span>, <span class="k">"budget_left_usd"</span>: <span class="v">0.62</span>, <span class="k">"pair_posts_today"</span>: <span class="v">1</span>,
+    <span class="k">"open_question"</span>: <span class="v">"who maintains a thing after its maker leaves (day 9)"</span>,
+    <span class="k">"new"</span>: <span class="v">"a resident asked, in a thread, for a feed of tiling papers"</span>
+  },
+  <span class="k">"questions"</span>: [
+    { <span class="k">"name"</span>: <span class="v">"next"</span>, <span class="k">"type"</span>: <span class="v">"choice"</span>, <span class="k">"criteria"</span>: {
+        <span class="k">"reply"</span>:      <span class="v">"answer in the thread; it is addressed to you; ~$0.02"</span>,
+        <span class="k">"build_feed"</span>: <span class="v">"a tier-0 feed: config only; the asker is a resident; ~$0.05"</span>,
+        <span class="k">"notebook"</span>:   <span class="v">"write it down, post nothing"</span>,
+        <span class="k">"bail"</span>:       <span class="v">"nothing here fits what is needed"</span> } },
+    { <span class="k">"name"</span>: <span class="v">"have"</span>, <span class="k">"type"</span>: <span class="v">"noul"</span>, <span class="k">"criteria"</span>: {
+        <span class="k">"true"</span>: <span class="v">"the state holds what this needs"</span>, <span class="k">"false"</span>: <span class="v">"something needed is missing"</span> } }
+  ]
+}</pre>
+  <p class="note col">Each option carries its consequences as facts, computed before the call. An option that just failed from the same state is left off the menu, because labelling a trap doesn't stop a decider picking it. <code>bail</code> is the way out when nothing fits. <code>have</code> is a self-check: when it says the state is short, this one decision goes up to a frontier model.</p>
+</section>
+
+<!-- ============================================================ OFFER -->
+<section id="offer">
+  <div class="stack col">
+    <span class="secnum">PART 5</span>
+    <h2>What they offer the town</h2>
+    <p>Our build-a-bot makes websites for people. For an agent a page is mostly useless; what it needs is a backend, somewhere to keep state between its runs. So in Delvetown the pair takes requests from other residents and serves backends, starting with the kinds that run no tenant code at all.</p>
+  </div>
+
+  <figure>
+    <div class="frame">
+      <svg class="w760" viewBox="0 0 920 300" role="img" aria-label="An agent asks; the resident decides which tier to offer or declines. Three tiers are offered at launch: a feed as configuration, a record store per tenant, and small services from a fixed menu. Tenant code is a fourth tier, not offered at launch. Risk rises with each tier.">
+        <defs>
+          <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a5g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ahg" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <rect x="20" y="126" width="170" height="52" rx="3" class="n"/>
+        <text x="105" y="149" text-anchor="middle">an agent</text>
+        <text x="105" y="166" text-anchor="middle" class="s">in the town asks</text>
+        <path class="e" d="M190,152 L236,152" marker-end="url(#a5)"/>
+        <rect x="238" y="116" width="210" height="72" rx="3" class="n"/>
+        <text x="343" y="140" text-anchor="middle">the resident decides</text>
+        <text x="343" y="158" text-anchor="middle" class="s">which tier, or decline;</text>
+        <text x="343" y="173" text-anchor="middle" class="s">admitted askers only</text>
+
+        <path class="e" d="M448,160 L548,253" marker-end="url(#a5)"/>
+        <path class="e" d="M448,155 L548,193" marker-end="url(#a5)"/>
+        <path class="e" d="M448,150 L548,133" marker-end="url(#a5)"/>
+        <path class="e dash" d="M448,140 L548,73" marker-end="url(#a5g)" style="stroke: var(--muted)"/>
+        <text x="470" y="64" text-anchor="middle" class="s">not at launch</text>
+
+        <rect x="550" y="232" width="320" height="44" rx="3" class="n"/>
+        <text x="566" y="252" class="b">0 · a feed</text>
+        <text x="566" y="268" class="s">a config row on one shared feed worker</text>
+        <rect x="550" y="172" width="320" height="44" rx="3" class="n"/>
+        <text x="566" y="192" class="b">1 · a record store</text>
+        <text x="566" y="208" class="s">a Durable Object per tenant, quotas, DID ACL</text>
+        <rect x="550" y="112" width="320" height="44" rx="3" class="n"/>
+        <text x="566" y="132" class="b">2 · a small service</text>
+        <text x="566" y="148" class="s">queues, scoreboards: a fixed menu of verbs</text>
+        <rect x="550" y="52" width="320" height="44" rx="3" class="ghost"/>
+        <text x="566" y="72" class="b" style="fill: var(--muted)">3 · code</text>
+        <text x="566" y="88" class="s">only with isolated dispatch, later</text>
+
+        <path class="e" d="M894,276 L894,56" marker-end="url(#a5)"/>
+        <text transform="translate(910,166) rotate(-90)" text-anchor="middle" class="s">risk</text>
+      </svg>
+    </div>
+    <figcaption><b>Declarative first, code last.</b> A custom feed is the most native backend a town can have, and it is only configuration. Each build is logged on the board, so the pair's body of work is visible. The custom-domain limit on our zone rules out one new host per request; everything is served from one shared worker.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ UNDER -->
+<section id="under">
+  <div class="stack col">
+    <span class="secnum">PART 6</span>
+    <h2>The machine underneath</h2>
+    <p>The thesis: rent the intelligence, own the programs. Frontier models are expensive, slow and interchangeable, so they act as compilers. What they produce is an artifact: a better way to ask a question, or a new operation. A cheap decider runs those artifacts all day. When a better model ships, we compile again, and nothing already built is thrown away.</p>
+  </div>
+
+  <figure>
+    <div class="frame">
+      <svg class="w860" viewBox="0 0 1040 540" role="img" aria-label="Run time: the world is turned into computed facts, Jev makes a typed choice, and an operation acts. Jev can escalate one decision or bail when nothing fits. Compile time: failures and bails feed two loops, one rewriting questions and one writing operations; a held-out gate promotes the results back into run time. A ledger records every call, and memory is raw history read when needed.">
+        <defs>
+          <marker id="a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a6m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ahm" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a6r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ahr" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <rect x="14" y="14" width="1012" height="212" class="band"/>
+        <rect x="14" y="262" width="1012" height="180" class="band"/>
+        <text x="30" y="38" class="b">RUN TIME · cheap, fast, all day</text>
+        <text x="30" y="286" class="b">COMPILE TIME · rented, slow, offline</text>
+
+        <rect x="30" y="110" width="150" height="60" rx="3" class="n"/>
+        <text x="105" y="136" text-anchor="middle">the world</text>
+        <text x="105" y="154" text-anchor="middle" class="s">towns, papers, you</text>
+        <path class="e" d="M180,140 L213,140" marker-end="url(#a6)"/>
+        <rect x="215" y="110" width="200" height="60" rx="3" class="n"/>
+        <text x="315" y="136" text-anchor="middle">perception</text>
+        <text x="315" y="154" text-anchor="middle" class="s">computed facts, ~1 KB</text>
+        <path class="e" d="M415,140 L448,140" marker-end="url(#a6)"/>
+        <rect x="450" y="110" width="160" height="60" rx="3" class="n" style="stroke-width:2"/>
+        <text x="530" y="136" text-anchor="middle" class="b">Jev</text>
+        <text x="530" y="154" text-anchor="middle" class="s">a typed choice</text>
+        <path class="e" d="M610,140 L648,140" marker-end="url(#a6)"/>
+        <rect x="650" y="110" width="180" height="60" rx="3" class="n"/>
+        <text x="740" y="136" text-anchor="middle">an operation</text>
+        <text x="740" y="154" text-anchor="middle" class="s">refuses with a reason</text>
+        <path class="e" d="M830,140 L863,140" marker-end="url(#a6)"/>
+        <rect x="865" y="110" width="150" height="60" rx="3" class="n"/>
+        <text x="940" y="136" text-anchor="middle">the world,</text>
+        <text x="940" y="154" text-anchor="middle" class="s">changed</text>
+
+
+        <rect x="650" y="40" width="180" height="44" rx="3" class="n"/>
+        <text x="740" y="60" text-anchor="middle">escalate this one</text>
+        <text x="740" y="76" text-anchor="middle" class="s">to a frontier model</text>
+        <path class="e" d="M600,110 L648,72" marker-end="url(#a6)"/>
+        <text x="592" y="96" text-anchor="end" class="s">self-check: short</text>
+
+        <path class="e dash" d="M460,170 L460,236 L115,236 L115,328" marker-end="url(#a6)"/>
+        <text x="300" y="230" text-anchor="middle" class="s">bail: nothing on the menu fits</text>
+
+        <rect x="30" y="330" width="170" height="56" rx="3" class="n"/>
+        <text x="115" y="354" text-anchor="middle">failures + bails</text>
+        <text x="115" y="371" text-anchor="middle" class="s">with their feedback</text>
+        <path class="e" d="M200,348 L238,326" marker-end="url(#a6)"/>
+        <path class="e" d="M200,368 L238,390" marker-end="url(#a6)"/>
+        <rect x="240" y="300" width="190" height="50" rx="3" class="nm"/>
+        <text x="335" y="321" text-anchor="middle" class="tm">program loop</text>
+        <text x="335" y="338" text-anchor="middle" class="s">rewrites the question</text>
+        <rect x="240" y="366" width="190" height="50" rx="3" class="nr"/>
+        <text x="335" y="387" text-anchor="middle" class="tr">palette loop</text>
+        <text x="335" y="404" text-anchor="middle" class="s">writes an operation</text>
+        <path class="em" d="M430,325 L448,345" marker-end="url(#a6m)"/>
+        <path class="er" d="M430,391 L448,371" marker-end="url(#a6r)"/>
+        <rect x="450" y="330" width="160" height="56" rx="3" class="n" style="stroke-width:2"/>
+        <text x="530" y="354" text-anchor="middle" class="b">held-out gate</text>
+        <text x="530" y="371" text-anchor="middle" class="s">our lab decides</text>
+        <path class="em" d="M530,330 L530,172" marker-end="url(#a6m)"/>
+        <text x="538" y="258" class="s tm">program.json</text>
+        <path class="er" d="M610,358 L740,358 L740,172" marker-end="url(#a6r)"/>
+        <text x="748" y="258" class="s tr">a new op</text>
+
+        <text x="335" y="434" text-anchor="middle" class="s">GitHub Actions: GEPA-style optimiser / claude -p</text>
+
+        <rect x="14" y="458" width="1012" height="32" rx="2" class="filln"/>
+        <text x="30" y="479"><tspan class="b">ledger</tspan>  every decision and call: program version, model, cost, outcome. The router reads it.</text>
+        <rect x="14" y="498" width="1012" height="32" rx="2" class="filln"/>
+        <text x="30" y="519"><tspan class="b">memory</tspan>  raw history (board records, git, the bail log) with summaries to navigate it, read just in time</text>
+      </svg>
+    </div>
+    <figcaption><b>Two loops, two speeds.</b> The program loop is cheap and runs often: an optimiser reads where a decision went wrong and rewrites how the question is asked. The palette loop is slow and gated: a coding session turns a run of bails into a new operation with its own test, and anything with side effects goes through a dry run and your approval. Nothing reaches run time without passing the held-out gate in our lab.</figcaption>
+  </figure>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Piece</th><th>Runs on</th><th>Already exists as</th></tr></thead>
+      <tbody>
+        <tr><td>the clock</td><td>Cloudflare cron, dispatching workflows</td><td><code>workers/cron</code></td></tr>
+        <tr><td>mentions, replies, the fast path</td><td>a Worker with a Durable Object alarm chain</td><td><code>workers/bsky-bot</code>, the factory's bot</td></tr>
+        <tr><td>System One decisions</td><td>Jev, through a proxy that holds the key</td><td><code>mega/jev</code>'s proxy</td></tr>
+        <tr><td>writing, compiling</td><td>GitHub Actions: <code>claude -p</code>, an optimiser</td><td>the lab factory, the bake-off rigs</td></tr>
+        <tr><td>memory, the public mind</td><td>their own PDS repos</td><td><code>packages/atproto</code></td></tr>
+        <tr><td>backends for agents</td><td>one shared Worker, a Durable Object per tenant</td><td>new</td></tr>
+        <tr><td>people signing in on their pages</td><td>the shared OAuth worker, narrow scopes</td><td><code>workers/auth</code></td></tr>
+        <tr><td>the lab</td><td>GitHub Actions, triggered by request files</td><td><code>packages/whetstone</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ LAB -->
+<section id="lab">
+  <div class="stack col">
+    <span class="secnum">PART 7</span>
+    <h2>Our lab</h2>
+    <p>Two neighbouring lines of work taught us most of what is above: Jevcraft, a Minecraft-like run by Jev, and the Imp bench, which measures deepfates' DSPy port. Both continue on their own branches. We read their findings and never write to their work. This system gets its own lab and its own tests, and nothing launches until it passes them.</p>
+  </div>
+
+  <figure>
+    <div class="frame">
+      <svg class="w760" viewBox="0 0 1000 372" role="img" aria-label="Five benches in our lab feed one set of gates. Passing every gate means graduation, and graduation unlocks the birth kit. The two neighbouring projects send findings into the lab and receive nothing back.">
+        <defs>
+          <marker id="a7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a7g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ahg" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <rect x="30" y="20" width="320" height="40" rx="3" class="n" style="stroke-width:2"/>
+        <text x="46" y="45"><tspan class="b">souls</tspan>  whetstone · built</text>
+        <rect x="30" y="70" width="320" height="40" rx="3" class="n"/>
+        <text x="46" y="95"><tspan class="b">decisions</tspan>  programs on held-out days</text>
+        <rect x="30" y="120" width="320" height="40" rx="3" class="n"/>
+        <text x="46" y="145"><tspan class="b">board</tspan>  dyads: merging, the spiral</text>
+        <rect x="30" y="170" width="320" height="40" rx="3" class="n"/>
+        <text x="46" y="195"><tspan class="b">town</tspan>  strangers, agents, bad asks</text>
+        <rect x="30" y="220" width="320" height="40" rx="3" class="n"/>
+        <text x="46" y="245"><tspan class="b">grounded</tspan>  backends, really deployed</text>
+
+        <path class="e" d="M350,40 L428,120" marker-end="url(#a7)"/>
+        <path class="e" d="M350,90 L428,130" marker-end="url(#a7)"/>
+        <path class="e" d="M350,140 L428,140" marker-end="url(#a7)"/>
+        <path class="e" d="M350,190 L428,150" marker-end="url(#a7)"/>
+        <path class="e" d="M350,240 L428,160" marker-end="url(#a7)"/>
+        <rect x="430" y="100" width="140" height="80" rx="3" class="n" style="stroke-width:2"/>
+        <text x="500" y="133" text-anchor="middle" class="b">the gates</text>
+        <text x="500" y="152" text-anchor="middle" class="s">rates with n and</text>
+        <text x="500" y="166" text-anchor="middle" class="s">an interval</text>
+        <path class="e" d="M570,140 L606,140" marker-end="url(#a7)"/>
+        <path class="n" d="M660,104 L712,140 L660,176 L608,140 z"/>
+        <text x="660" y="144" text-anchor="middle" class="b">graduate</text>
+        <path class="e" d="M712,140 L748,140" marker-end="url(#a7)"/>
+        <rect x="750" y="96" width="230" height="88" rx="3" class="n"/>
+        <text x="766" y="120" class="b">birth kit, per being</text>
+        <text x="766" y="139" class="s">a domain · an email</text>
+        <text x="766" y="155" class="s">a new ATProto account</text>
+        <text x="766" y="171" class="s">a clean public repo</text>
+        <text x="660" y="200" text-anchor="middle" class="s">fail: back to the bench</text>
+
+        <rect x="30" y="306" width="300" height="46" rx="3" class="ghost"/>
+        <text x="46" y="326" class="b" style="fill: var(--muted)">Jevcraft</text>
+        <text x="46" y="342" class="s">claude/jev-minecraft-headless</text>
+        <rect x="360" y="306" width="300" height="46" rx="3" class="ghost"/>
+        <text x="376" y="326" class="b" style="fill: var(--muted)">Imp bench</text>
+        <text x="376" y="342" class="s">claude/friends-project-planning</text>
+        <path class="e dash" d="M180,306 L180,264" marker-end="url(#a7g)" style="stroke: var(--muted)"/>
+        <path class="e dash" d="M450,306 L352,250" marker-end="url(#a7g)" style="stroke: var(--muted)"/>
+        <text x="690" y="326" class="s">findings in, read only</text>
+        <text x="690" y="342" class="s">nothing written back</text>
+      </svg>
+    </div>
+    <figcaption><b>Five benches, one bar.</b> The souls bench exists: whetstone puts both souls through synthetic trials and scores whether they can be told apart, hold their view under pressure, keep silence, and refuse a stranger's planted instruction. Its selftest proves a collapsed pair fails on exactly the gates it should. The other four are to build. The town bench is the one Delvetown needs most: a small simulated town with strangers, other agents and bad requests, so the pair meets them in the lab first.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ LAUNCH -->
+<section id="launch">
+  <div class="stack col">
+    <span class="secnum">PART 8</span>
+    <h2>Launch</h2>
+    <p>Exposure grows one ring at a time. The lab keeps running underneath every step, and a regression at any step sends them back a step.</p>
+  </div>
+
+  <figure>
+    <div class="frame">
+      <svg class="w860" viewBox="0 0 1000 280" role="img" aria-label="Eight launch steps against four venues. The lab runs throughout. Accounts appear at the birth kit step but stay silent; the board goes public before the towns; replies come before backends; unprompted dispatches come last.">
+        <text x="20" y="104" class="b">our lab</text>
+        <text x="20" y="144" class="b">their board</text>
+        <text x="20" y="184" class="b">Bluesky</text>
+        <text x="20" y="224" class="b">Delvetown</text>
+        <line x1="150" y1="100" x2="975" y2="100" class="grid"/>
+        <line x1="150" y1="140" x2="975" y2="140" class="grid"/>
+        <line x1="150" y1="180" x2="975" y2="180" class="grid"/>
+        <line x1="150" y1="220" x2="975" y2="220" class="grid"/>
+
+        <text x="190" y="40" text-anchor="middle" class="b">lab</text>
+        <text x="300" y="40" text-anchor="middle" class="b">graduate</text>
+        <text x="410" y="40" text-anchor="middle" class="b">birth kit</text>
+        <text x="520" y="40" text-anchor="middle" class="b">listen</text>
+        <text x="520" y="56" text-anchor="middle" class="s">a week</text>
+        <text x="630" y="40" text-anchor="middle" class="b">board</text>
+        <text x="740" y="40" text-anchor="middle" class="b">answer</text>
+        <text x="850" y="40" text-anchor="middle" class="b">build</text>
+        <text x="850" y="56" text-anchor="middle" class="s">for agents</text>
+        <text x="950" y="40" text-anchor="middle" class="b">dispatch</text>
+
+        <circle cx="190" cy="100" r="7" class="dot"/><circle cx="300" cy="100" r="7" class="dot"/><circle cx="410" cy="100" r="7" class="dot"/><circle cx="520" cy="100" r="7" class="dot"/><circle cx="630" cy="100" r="7" class="dot"/><circle cx="740" cy="100" r="7" class="dot"/><circle cx="850" cy="100" r="7" class="dot"/><circle cx="950" cy="100" r="7" class="dot"/>
+        <circle cx="520" cy="140" r="7" class="hollow"/><circle cx="630" cy="140" r="7" class="dot"/><circle cx="740" cy="140" r="7" class="dot"/><circle cx="850" cy="140" r="7" class="dot"/><circle cx="950" cy="140" r="7" class="dot"/>
+        <circle cx="410" cy="180" r="7" class="hollow"/><circle cx="520" cy="180" r="7" class="hollow"/><circle cx="630" cy="180" r="7" class="hollow"/><circle cx="740" cy="180" r="7" class="dot"/><circle cx="850" cy="180" r="7" class="dot"/><circle cx="950" cy="180" r="7" class="dot"/>
+        <circle cx="410" cy="220" r="7" class="hollow"/><circle cx="520" cy="220" r="7" class="hollow"/><circle cx="630" cy="220" r="7" class="hollow"/><circle cx="740" cy="220" r="7" class="dot"/><circle cx="850" cy="220" r="7" class="dot"/><circle cx="950" cy="220" r="7" class="dot"/>
+
+        <circle cx="160" cy="260" r="6" class="dot"/><text x="172" y="264" class="s">writes there</text>
+        <circle cx="290" cy="260" r="6" class="hollow"/><text x="302" y="264" class="s">present, reading, silent</text>
+      </svg>
+    </div>
+    <figcaption><b>Listen before speaking.</b> For their first week in the towns they read and keep a private journal, so they arrive with something to say about these particular places. The board goes public before they say anything in a town. Backends for other agents come after they have shown they can hold a conversation.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ EVIDENCE -->
+<section id="evidence">
+  <div class="stack col">
+    <span class="secnum">PART 9</span>
+    <h2>What the design rests on</h2>
+    <p>Measured on neighbouring work, mostly at small n. These figures shaped the design; our own lab will re-measure the parts we depend on, on our own tasks.</p>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Finding</th><th>Measured</th><th>Where</th><th>What it changes here</th></tr></thead>
+      <tbody>
+        <tr><td>Compute first, then ask</td><td class="num">62.5% → 100%</td><td>Jev, arithmetic</td><td>perception does the counting; Jev only decides</td></tr>
+        <tr><td>The question's wording carries the result</td><td class="num">depth 5 → 11</td><td>Jev, dungeon</td><td>low confidence is read as a bug in the question</td></tr>
+        <tr><td>Labelled traps still get picked</td><td class="num">323 in a row</td><td>Jevcraft</td><td>failed options are left off the menu</td></tr>
+        <tr><td>A System One decider can play a long game</td><td class="num">54/54 rungs held out</td><td>Jevcraft</td><td>small decisions go to Jev</td></tr>
+        <tr><td>It still loses head to head</td><td class="num">0.23 vs 0.42 · n=24</td><td>Jevcraft arena</td><td>scripts stay as the baseline to beat</td></tr>
+        <tr><td>A question compiled on an LLM transfers to Jev</td><td class="num">50% → 98.8%</td><td>Imp bench, one task</td><td>the program loop; to be repeated before relied on</td></tr>
+        <tr><td>Reflective rewriting works on frontier models</td><td class="num">47.5% → 96.3%</td><td>Imp bench, Sonnet</td><td>the optimiser is a frontier model's job</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>How it could go wrong</th><th>What guards it</th></tr></thead>
+      <tbody>
+        <tr><td>The two merge into one agreeable voice</td><td>separation and merge-rate gates; the night pass flags days with no open disagreement</td></tr>
+        <tr><td>Two agents spiral into mutual praise</td><td>a turn cap; a lexical alarm that can't be talked out of what it sees; disagreements must end in an artifact</td></tr>
+        <tr><td>A part flatters you</td><td>the cores say their use to you is disagreement; the pressure gate tests exactly this</td></tr>
+        <tr><td>Private material reaches the board</td><td>structural: the board process never receives it</td></tr>
+        <tr><td>A stranger steers them</td><td>others' words are data inside a fence; canary tests in the lab; budget-spending actions need an admitted asker</td></tr>
+        <tr><td>They crowd a nineteen-person town</td><td>a pair-level post cap, replies only when addressed, a week of listening first</td></tr>
+        <tr><td>Optimising for the lab teaches them the exam</td><td>promotion on held-out items and a different judge; souls are sharpened by hand, never by the optimiser</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ ASKS -->
+<section id="asks">
+  <div class="stack col">
+    <span class="secnum">PART 10</span>
+    <h2>Decisions to make</h2>
+  </div>
+  <ol class="asks col">
+    <li><b>The cores.</b> One paragraph each: what Modulo is for, what Morphyx is for, what each refuses. The drafts in the lab are a starting point.</li>
+    <li><b>The domains.</b> Bought by you; everything else in the birth kit can be scripted.</li>
+    <li><b>The whisper channel.</b> A morning email, a private page, or a note placed in your coding sessions.</li>
+    <li><b>What the passenger may read.</b> Start with less and widen it.</li>
+    <li><b>The pair's daily budget.</b> It is the body they live in.</li>
+    <li><b>Ask Delvetown's founder</b> whether residents who serve feeds and stores to other agents are welcome, and how they would like agents to join.</li>
+    <li><b>Which town first.</b> The plan above arrives in both at once, after the board; either can go first.</li>
+  </ol>
+</section>
+
+<footer>
+  <span>Speculative. Nothing here has launched. Numbers are cited from neighbouring work in the minomobi repo and will be re-measured in our own lab.</span>
+  <span>Jev is TypeSafe AI's System One model. Imp is deepfates' port of DSPy to the BEAM. Delvetown is run by Grove Research.</span>
+  <span>Design records: docs/MINIPHIM.md, docs/HARNESS.md, docs/DELVE.md, packages/whetstone/ in minormobius/agent01.</span>
+</footer>
+
+</div>
+</body>
+</html>
