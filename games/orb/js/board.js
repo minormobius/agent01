@@ -1,157 +1,160 @@
-/* Orb — the leaderboard: fastest PURE clears, per size.
+/* Orb — the leaderboard: fastest PURE clears per size, read live off ATProto.
 
-   Storage is scores.mino.mobi (workers/scores): one global board per game
-   slug, identity from the shared auth worker, so a player is their Bluesky
-   handle. It ranks higher-is-better, so a time goes in negated (−ms).
+   A score is a com.minomobi.lab.score record in the player's OWN repo:
+     { site: "orb", game: "pure-<s|m|l>", value: ms, unit: "ms",
+       higherIsBetter: false, detail: "seed=… first=… guesses=0", createdAt }
+   Nobody hosts the board. js/corpus.js rebuilds it in every browser: a
+   backfill from the relay and each player's PDS, then Jetstream for live
+   updates. A score posted anywhere shows up on every open board within a
+   second or so; delete the record and it leaves.
 
-   Why not com.minomobi.lab.score records on each player's PDS? Those have no
-   index: a page can only rank the handles it is told to look up, so there is
-   no global "fastest" without building an indexer. scores.mino.mobi already
-   is one.
+   Writing needs one narrow permission, repo:com.minomobi.lab.score, through
+   the shared auth worker. Sign-in (or the permission upgrade) leaves the
+   page, so a winning time waiting to be posted is parked in localStorage
+   and posted on return.
 
-   Only a pure clear (zero guesses, per solve.js certainties) is offered for
-   posting. The board takes the client's word for that — the worker verifies
-   identity, not play. `meta` carries seed + first cell, which pins the exact
-   board, so a replay verifier could be added later without a format change.
+   The board trusts the record. A player can write any number into their
+   own repo, which is the nature of user-owned data. `detail` carries seed +
+   first cell, which pin the exact board, so a replay check can come later.
 
-   Signing in leaves the page, so a result waiting to be posted is parked in
-   localStorage and posted on return. Module script: needs ../lib/auth.js,
-   which deploy-games.yml vendors from packages/oauth-client/ at deploy time. */
+   Module script: needs ../../lib/auth.js, which deploy-games.yml vendors from
+   packages/oauth-client/ at deploy time. */
 import { AuthClient } from "../../lib/auth.js";
+import { Corpus, COLLECTION, accept } from "./corpus.js";
 
 const O = window.ORB;
-const API = "https://scores.mino.mobi";
+const SCOPE = "repo:" + COLLECTION;
 const PENDING = "orb-pending-post";
-const slug = (size) => "orb-pure-" + size;
-const SIZE_NAME = { s: "small", m: "medium", l: "large" };
+const PERIOD_MS = { all: 0, week: 7 * 86400e3, today: 86400e3 };
 const $ = (id) => document.getElementById(id);
 
 const auth = new AuthClient();
-let ready = auth.init().catch(() => {});
-let view = { size: "m", period: "all" };
+const ready = auth.init().catch(() => {});
+const corpus = new Corpus(accept);
+let started = false, view = { size: "m", period: "all" }, posted = null;
 
 function clock(ms) {
   const t = ms / 1000, m = Math.floor(t / 60), s = t - m * 60;
   return m + ":" + s.toFixed(1).padStart(4, "0");
 }
-const canPost = () => auth.isLoggedIn() && !!auth.getToken();
+const canPost = () => auth.isLoggedIn() && auth.hasScope(SCOPE);
 
 async function post(r) {
-  const res = await fetch(API + "/api/scores/submit", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: "Bearer " + auth.getToken() },
-    body: JSON.stringify({
-      game: slug(r.size), score: -r.ms,
-      meta: "v1 seed=" + r.seed + " first=" + r.first + " guesses=0",
-    }),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
-  return body;
-}
-
-/* Best time per player — the worker returns every run, and one fast player
-   should not fill the board. */
-async function top(size, period) {
-  const res = await fetch(API + "/api/scores/top?game=" + slug(size) + "&period=" + period + "&limit=100");
-  if (!res.ok) throw new Error("HTTP " + res.status);
-  const body = await res.json(), seen = new Set(), out = [];
-  for (const row of body.scores || []) {
-    if (seen.has(row.did)) continue;
-    seen.add(row.did); out.push(row);
-    if (out.length === 10) break;
-  }
-  return out;
+  const record = {
+    $type: COLLECTION, site: "orb", game: "pure-" + r.size, value: Math.round(r.ms), unit: "ms",
+    higherIsBetter: false, detail: "seed=" + r.seed + " first=" + r.first + " guesses=0",
+    createdAt: new Date(r.at || Date.now()).toISOString(),
+  };
+  const res = await auth.pds.createRecord(COLLECTION, record);
+  const me = auth.getUser();
+  corpus.upsert(res.uri, me.did, record, me.handle); // don't wait for Jetstream to echo it
+  posted = res.uri;
+  return record;
 }
 
 function status(msg) { $("board-status").textContent = msg || ""; }
 
-function renderAccount() {
-  const u = auth.getUser();
-  $("board-who").textContent = canPost() ? "signed in as @" + u.handle : "";
-  $("board-signin").hidden = canPost();
-  if (u && !$("board-handle").value) $("board-handle").value = u.handle;
-  $("board-signout").hidden = !auth.isLoggedIn();
+function renderLive() {
+  const el = $("board-live"), n = corpus.records.size;
+  el.className = "live is-" + corpus.state;
+  el.textContent = corpus.state === "backfill" ? "reading every repo on the network…"
+    : corpus.state === "live" ? "live · " + n + " pure clear" + (n === 1 ? "" : "s") + " in the corpus"
+    : corpus.state === "offline" ? "reconnecting to Jetstream…" : "";
 }
 
-async function render(highlight) {
+function renderAccount() {
+  const u = auth.getUser();
+  const signedIn = auth.isLoggedIn();
+  $("board-who").textContent = signedIn ? "signed in as @" + u.handle : "";
+  $("board-signout").hidden = !signedIn;
+  $("board-signin").hidden = signedIn;
+  if (u && !$("board-handle").value) $("board-handle").value = u.handle;
+}
+
+function render() {
   for (const b of document.querySelectorAll("[data-board-size]")) b.classList.toggle("on", b.dataset.boardSize === view.size);
   for (const b of document.querySelectorAll("[data-board-period]")) b.classList.toggle("on", b.dataset.boardPeriod === view.period);
-  const list = $("board-list");
-  list.innerHTML = "<li class='dim'>loading…</li>";
-  try {
-    const rows = await top(view.size, view.period);
-    const me = auth.getUser();
-    list.innerHTML = rows.length ? "" : "<li class='dim'>no pure clears yet — be the first</li>";
-    rows.forEach((r, k) => {
-      const li = document.createElement("li");
-      if ((me && r.did === me.did) || (highlight && r.did === highlight)) li.className = "me";
-      const seed = /seed=(\S+)/.exec(r.meta || "");
-      li.innerHTML = "<span class='rk'>" + (k + 1) + "</span><span class='h'></span><span class='t'>" + clock(-r.score) + "</span>";
-      li.querySelector(".h").textContent = "@" + r.handle;
-      if (seed) li.title = "seed " + seed[1];
-      list.appendChild(li);
-    });
-  } catch (e) {
-    list.innerHTML = "<li class='dim'>board unreachable (" + e.message + ")</li>";
+  renderLive();
+  const list = $("board-list"), me = auth.getUser();
+  const since = PERIOD_MS[view.period] ? Date.now() - PERIOD_MS[view.period] : 0;
+  const rows = corpus.top("pure-" + view.size, since, 10);
+  list.innerHTML = "";
+  if (!rows.length) {
+    list.innerHTML = corpus.state === "backfill" ? "<li class='dim'>loading…</li>" : "<li class='dim'>no pure clears yet. Be the first</li>";
+    return;
   }
+  rows.forEach((r, k) => {
+    const li = document.createElement("li");
+    if ((me && r.did === me.did) || r.uri === posted) li.className = "me";
+    li.innerHTML = "<span class='rk'>" + (k + 1) + "</span><a class='h' target='_blank' rel='noopener'></a><span class='t'>" + clock(r.value) + "</span>";
+    const a = li.querySelector(".h");
+    a.textContent = r.handle.startsWith("did:") ? r.handle.slice(0, 18) + "…" : "@" + r.handle;
+    a.href = "https://bsky.app/profile/" + r.did;
+    li.title = (r.detail || "") + " · " + r.uri;
+    list.appendChild(li);
+  });
 }
+
+let frame = 0;
+corpus.on(() => { if (!frame && !$("board").hidden) frame = requestAnimationFrame(() => { frame = 0; render(); }); });
 
 function open(size) {
   view.size = size || view.size;
   $("start").hidden = true;
   $("board").hidden = false;
+  if (!started) { started = true; corpus.start(); }
   renderAccount();
   render();
 }
 
-/* Called by main.js on a pure clear. Posts now if signed in; otherwise parks
-   it and opens the board with the sign-in row showing. */
+function park(r) { try { localStorage.setItem(PENDING, JSON.stringify(r)); } catch (e) { /* private mode */ } }
+
+/* Called by main.js on a pure clear. */
 async function offer(r) {
   await ready;
-  if (canPost()) {
-    try {
-      const res = await post(r);
-      status("posted " + clock(r.ms) + " — #" + res.rank + " of all pure " + SIZE_NAME[r.size] + " runs");
-      open(r.size);
-      return;
-    } catch (e) { status("couldn't post: " + e.message); }
-  } else {
-    try { localStorage.setItem(PENDING, JSON.stringify(r)); } catch (e) { /* private mode: sign-in will lose it */ }
-    status("sign in with Bluesky to post " + clock(r.ms) + " — it'll be waiting when you get back");
-  }
   open(r.size);
+  if (canPost()) {
+    try { await post(r); status("posted " + clock(r.ms) + " to your repo"); }
+    catch (e) { status("couldn't post: " + e.message); }
+  } else if (auth.isLoggedIn()) {
+    // signed in on some *.mino.mobi site, but without this collection
+    park(r);
+    status("posting needs one more permission (write score records). Taking you to Bluesky…");
+    setTimeout(() => auth.ensureScope([SCOPE]).catch((e) => status(e.message)), 1200);
+  } else {
+    park(r);
+    status("sign in with Bluesky to post " + clock(r.ms) + ". It'll be waiting when you get back");
+  }
+  render();
 }
 
 async function signIn() {
   const h = $("board-handle").value.trim().replace(/^@/, "");
   if (!h) { status("your Bluesky handle, e.g. alice.bsky.social"); return; }
   status("off to Bluesky…");
-  try { await auth.login(h, { scope: "atproto", returnTo: location.href }); }
+  try { await auth.login(h, { scope: "atproto " + SCOPE, returnTo: location.href }); }
   catch (e) { status(e.message); }
 }
 
 /* Back from sign-in with a parked result: post it. */
 async function resume() {
   await ready;
-  renderAccount();
   let r = null;
   try { r = JSON.parse(localStorage.getItem(PENDING) || "null"); } catch (e) { /* ignore */ }
   if (!r || !canPost()) return;
   try { localStorage.removeItem(PENDING); } catch (e) { /* ignore */ }
   if (Date.now() - (r.at || 0) > 3600e3) return; // stale: don't post an hour-old run silently
-  try {
-    const res = await post(r);
-    status("posted " + clock(r.ms) + " — #" + res.rank + " of all pure " + SIZE_NAME[r.size] + " runs");
-  } catch (e) { status("couldn't post: " + e.message); }
   open(r.size);
+  try { await post(r); status("posted " + clock(r.ms) + " to your repo"); }
+  catch (e) { status("couldn't post: " + e.message); }
+  render();
 }
 
 for (const b of document.querySelectorAll("[data-board-size]")) b.onclick = () => { view.size = b.dataset.boardSize; render(); };
 for (const b of document.querySelectorAll("[data-board-period]")) b.onclick = () => { view.period = b.dataset.boardPeriod; render(); };
 $("board-go").onclick = signIn;
 $("board-handle").onkeydown = (e) => { if (e.key === "Enter") signIn(); };
-$("board-signout").onclick = async (e) => { e.preventDefault(); await auth.logout(); renderAccount(); status("signed out"); };
+$("board-signout").onclick = async (e) => { e.preventDefault(); await auth.logout(); renderAccount(); render(); status("signed out"); };
 $("board-close").onclick = () => { $("board").hidden = true; };
 
 O.board = { open, offer };

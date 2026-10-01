@@ -145,5 +145,53 @@ console.log("rules");
   ck(s.phase === "lost" && s.boom === boom, "opening a mine loses");
 }
 
+console.log("score corpus (fake network)");
+{
+  const { Corpus, accept } = await import(new URL("../js/corpus.js", import.meta.url));
+  const now = Date.now(), iso = (dt) => new Date(now - dt).toISOString();
+  const rec = (game, value, dt = 0, extra = {}) => ({ $type: "com.minomobi.lab.score", site: "orb", game, value, unit: "ms", higherIsBetter: false, createdAt: iso(dt), ...extra });
+  const repos = {
+    "did:plc:aaa": [rec("pure-m", 90000), rec("pure-m", 80000, 9 * 86400e3), rec("pure-s", 40000)],
+    "did:plc:bbb": [rec("pure-m", 85000), { site: "ponderbrot", game: "ponderbrot", value: 667, unit: "x", createdAt: iso(0) }, rec("pure-m", 500)],
+    "did:plc:gone": null,                                    // relay lists it, PDS doesn't have it
+  };
+  const page = (list, cursor) => {                         // two-page listRecords to exercise cursors
+    const i = cursor ? +cursor : 0, slice = list.slice(i, i + 2);
+    return { records: slice.map((v, k) => ({ uri: "at://x/" + (i + k), value: v })), cursor: i + 2 < list.length ? String(i + 2) : undefined };
+  };
+  globalThis.fetch = async (url) => {
+    const u = new URL(url), j = (b, s = 200) => ({ ok: s === 200, status: s, json: async () => b });
+    if (u.pathname.endsWith("listReposByCollection")) return j({ repos: Object.keys(repos).map((did) => ({ did })) });
+    if (u.host === "plc.directory") return j({ service: [{ id: "#atproto_pds", serviceEndpoint: "https://pds.test" }], alsoKnownAs: ["at://claims-to-be.bsky.app"] });
+    if (u.pathname.endsWith("listRecords")) {
+      const list = repos[u.searchParams.get("repo")];
+      if (!list) return j({ error: "RepoNotFound" }, 400);
+      const p = page(list, u.searchParams.get("cursor"));
+      p.records.forEach((r) => (r.uri = "at://" + u.searchParams.get("repo") + "/c/" + r.uri.split("/").pop()));
+      return j(p);
+    }
+    if (u.pathname.endsWith("getProfiles")) return j({ profiles: u.searchParams.getAll("actors").map((did) => ({ did, handle: did === "did:plc:bbb" ? "handle.invalid" : did.slice(8) + ".test" })) });
+    return j({}, 404);
+  };
+  let sock = null;
+  globalThis.WebSocket = class { constructor(url) { this.url = url; sock = this; setTimeout(() => this.onopen && this.onopen(), 0); } close() {} };
+  const c = new Corpus(accept);
+  await c.start();
+  await new Promise((r) => setTimeout(r, 5));
+  const m = c.top("pure-m");
+  ck(c.repos === 3 && c.records.size === 4, `backfill: 3 repos listed (two pages of records each), dead one skipped, 4 Orb records kept (${c.records.size}); other sites' and malformed ones dropped`);
+  ck(m.length === 2 && m[0].did === "did:plc:aaa" && m[0].value === 80000 && m[1].value === 85000,
+    `ranking: best time per player, lowest first (${m.map((r) => r.value).join(", ")}); the 0.5 s record is rejected`);
+  ck(c.top("pure-m", now - 7 * 86400e3)[0].value === 85000, "period filter: this week drops the 9-day-old best");
+  ck(m[0].handle === "aaa.test" && m[1].handle === "did:plc:bbb", "names: verified handle shown; unverified falls back to the DID, never the DID doc's claim");
+  ck(c.state === "live" && /wantedCollections=com\.minomobi\.lab\.score&cursor=\d+/.test(sock.url), "Jetstream: filtered to the collection, with a cursor from before the backfill");
+  sock.onmessage({ data: JSON.stringify({ did: "did:plc:ccc", time_us: 1, kind: "identity" }) });
+  sock.onmessage({ data: JSON.stringify({ did: "did:plc:ccc", time_us: 2, kind: "commit", commit: { operation: "create", collection: "com.minomobi.lab.score", rkey: "r1", record: rec("pure-m", 70000) } }) });
+  ck(c.top("pure-m")[0].did === "did:plc:ccc", "live create from a new player tops the board");
+  sock.onmessage({ data: JSON.stringify({ did: "did:plc:ccc", time_us: 3, kind: "commit", commit: { operation: "delete", collection: "com.minomobi.lab.score", rkey: "r1" } }) });
+  ck(c.top("pure-m")[0].did === "did:plc:aaa" && c._cursor === 3, "live delete removes it; cursor tracks the stream for reconnects");
+  c.stop();
+}
+
 if (failures) { console.error(`\n${failures} failure(s)`); process.exit(1); }
 console.log("\nall orb invariants hold");

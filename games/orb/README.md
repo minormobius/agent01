@@ -69,23 +69,52 @@ version called it a guess whenever some single number elsewhere happened to
 clear a cell too. The selftest now pins `certainties()` to the exact
 solver's answer in every position it walks.
 
-## Leaderboard
+## Leaderboard: read live off ATProto, no server
 
 🏆 shows the fastest **pure** clears per size (zero guesses, no hints), one
-row per player, all-time / week / today. Storage is `scores.mino.mobi`
-(`workers/scores`, D1), slug `orb-pure-<s|m|l>`, score `−ms` because that
-board ranks higher-is-better. Identity is your Bluesky handle via
-auth.mino.mobi with plain `atproto` scope: nothing is written to your PDS.
+row per player, all-time / week / today.
 
-Why not `com.minomobi.lab.score` records on each player's PDS? Those have no
-index. A page can only rank the handles it is told to look up, so a global
-"fastest" would need an indexer first. `scores.mino.mobi` already is one.
+**Writing.** A pure clear is posted as a `com.minomobi.lab.score` record in
+*your own* repo, through the shared auth worker, with one narrow permission
+(`repo:com.minomobi.lab.score`):
 
-**The board trusts the client.** The worker checks who you are, not how you
-played. `meta` carries `seed` and `first`, which pin the exact board, so a
-replay verifier can be added later without changing the format. Signing in
-leaves the page, so a winning time is parked in localStorage and posted when
-you come back.
+```json
+{ "site": "orb", "game": "pure-m", "value": 83412, "unit": "ms",
+  "higherIsBetter": false, "detail": "seed=kor-lith-26 first=60 guesses=0",
+  "createdAt": "…" }
+```
+
+Signing in, or upgrading an existing mino.mobi session to that permission,
+leaves the page, so the time is parked in localStorage and posted on return.
+
+**Reading** (`js/corpus.js`). Nobody hosts the board. Every browser rebuilds
+it:
+
+1. The relay lists every repo holding the collection
+   (`com.atproto.sync.listReposByCollection`).
+2. Each repo's DID document names its PDS, and the PDS lists its records.
+3. Jetstream (`wantedCollections=com.minomobi.lab.score`) streams every
+   create and delete live, from a cursor a minute before the backfill
+   started, so nothing falls in the gap.
+
+All of these are CORS-open public endpoints. A score posted anywhere
+reaches every open board within about a second, and deleting the record
+takes it off. Against the real network: cold start to live in ~2 s.
+
+Names come from the appview's `getProfiles`, which only reports handles that
+verify both ways. A DID document's `alsoKnownAs` is a bare claim and is
+never shown. The collection is shared with other lab sites, so `accept()`
+keeps only well-formed Orb records.
+
+**Cost and limits.** One PDS request per player per page load. That's
+nothing now, and it's the moment to add a cache (or an appview) once there
+are thousands of players. The relay's list can include repos that moved or
+were deleted; they contribute nothing.
+
+**The board trusts the record.** Anyone can write any number into their own
+repo; that is what user-owned data means. `detail` carries the seed and
+first cell, which pin the exact board, so a replay check can be added later
+without changing the format.
 
 ## Files
 
@@ -97,7 +126,8 @@ you come back.
 | `js/solve.js` | `deduce`, `solveFrom`, `generate` (no-guess), `certainties` |
 | `js/view.js` | Canvas 2D orthographic renderer, rotation, picking |
 | `js/main.js` | input (drag vs tap vs hold vs pinch), the guess readout, overlays |
-| `js/board.js` | the leaderboard (ES module; imports `../../lib/auth.js`, which the deploy vendors) |
+| `js/corpus.js` | the score corpus: relay + PDS backfill, Jetstream live, per-player ranking (ES module, no DOM) |
+| `js/board.js` | the leaderboard UI and the write path (ES module; imports `../../lib/auth.js`, which the deploy vendors) |
 
 A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l`
 is a permalink.
@@ -114,4 +144,7 @@ own site). It checks the exact solver against brute force over every mine
 layout on small meshes, for soundness *and* completeness. It checks that
 every generated board clears by deduction and is deterministic. And it checks
 that a player who opens random safe cells never reaches a position with
-nothing certain.
+nothing certain. It also drives the score corpus against a fake network:
+backfill with a dead repo and paginated records, foreign and malformed
+records dropped, best time per player, the period filter, verified names,
+and live create and delete through a fake Jetstream.
