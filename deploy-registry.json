@@ -251,13 +251,13 @@
       "dir": "bisk",
       "endpoint": "bisk.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "branch": "claude/bisk-surface-news-collage-dymw50",
       "uses": [],
       "provides": null,
       "paths": [
         "bisk/**"
       ],
-      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
+      "status": "OWNERSHIP (2026-10-02): taken by claude/bisk-surface-news-collage-dymw50 from claude/landing-page-merge-candidate-8sp0fv with scripts/take-ownership.mjs (no work of the old owner lost). OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "mappa",
