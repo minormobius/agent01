@@ -378,20 +378,38 @@ workers: the wait is the slower of the two), then mixes them: the guitar brought
 RMS (counted only where each sounds), the piano a little left and the guitar a little right,
 peak-normalised to −1 dBFS. One instrument is not a duo, and plays as before.
 
-`compositions/duende.mjs` writes `duende.ly` (the library's `duende`): 90 bars, 2:47, A minor so the
-ballad and the flamenco share a centre. A jazz-duo head on the circle of fifths (Dm9 G13 Cmaj9
-Fmaj7#11 Bm7b5 E7b9 Am(maj7)), sung by the piano over guitar shells; the head again sung by the
-guitar over the piano's re-harmonisation (tritone subs Db7#11 and Bb7#11, F#m7b5–B7, a backdoor
-Bb13); trading fours (guitar, piano, guitar picado, piano in octaves); the duel, six rounds of the
-Andalusian cadence Am G F E (rasgueado alone, montuno in tresillo, the guitar's Phrygian-dominant
-runs, the piano's answer in octaves, unison, clusters in 3+3+2 to a held E7b9); and a coda with
-the roles swapped, ending on F Lydian: the piano's Fmaj7#11 under the guitar's six open-string
-harmonics, E A D G B E, every one a note of F Lydian. Edit the generator, run it, and paste the
-.ly into the library entry; the selftest holds the bar checks and the frets.
+`compositions/duende.mjs` writes `duende.ly` (the library's `duende`): 55 bars of 12/8, 3:11. The first
+version (90 bars of 4/4, a ballad then a flamenco duel bolted on) was replaced after the owner's
+"you could do it more so… I feel you're hiding". The rewrite rests on two ideas, both in the
+generator's header:
 
-Measured (headless Chromium, this sandbox): sections from −23 dB (intro) to −13 (the duel's
-montuno, the answer, the fists), the guitar's runs a deliberate dip; 188 s to render 167 s, the
-piano the slower part. A phone waits on the progress bar. Not listened to here.
+- **One grid.** A swung 4/4 bar is twelve triplet eighths and a bulería compás is twelve counts,
+  so the whole piece is 12/8: the swing leans on beats two and four, the bulería on counts 3 6 8
+  10 12, and the middle of the piece is the accents sliding from one to the other while the
+  tempo climbs (76 → 88).
+- **One argument.** A7(b9) is D minor's dominant to the piano and the guitar's HOME (A Phrygian
+  dominant, por medio). The opening cry, A Bb A G F E, is a jazz line over Dm and a quejío over
+  A. The coda's Em7b5–A7b9 deceives onto Bb (bII), the guitar's tremolo walks Bb to A, and the
+  piano accepts A.
+
+Sections: Soleá (guitar alone, tremolo, a Bb–A rasgueado), Nocturne (piano alone, ends on A7b9
+held, answered by the guitar's Bb–A), a D minor blues swung, trading (guitar chorus, piano
+chorus, the grid turning), Bulería (llamada; the piano's jazz voicings on the compás over a 3/4
+bass; a picado falseta with the piano in canon a count behind; a hocket rising four octaves; the
+fists, piano on the 3+3+2+2+2 group starts and guitar on their ends; a three-octave remate and a
+cierre on 10), Duende.
+
+**What playback learned for it** (audio.js, pfguitar.js; selftest 10e). Every later `\tempo`
+now changes the speed from its tick (a piecewise tick→seconds map; the slider scales the whole
+map). Hairpins ramp velocity from where they start to the next written dynamic, or a step either
+way at `\!`; `sf`/`sfz`/`fp` are one note's; `->` and `\marcato` lean on a note; staccato halves
+it. On the guitar, a chord marked `\upbow` strums high to low (rasgueado up-strokes). All of this
+affects every score that writes those marks, which until now were drawn and not heard.
+
+Measured (headless Chromium, this sandbox): 143 s to render 191 s, faster than real time;
+sections from −26 dB (Nocturne) to −12 (the fists). The first version's audio sent from here
+was corrupted by the encoder (channels written planar into a packed frame), not by clef; the
+owner heard the real thing on a phone. Not listened to here.
 
 ## Auth
 
@@ -547,7 +565,7 @@ Honest list, in rough order of how much they would be missed:
 - **Note-name alphabets** beyond Dutch, English and German are refused.
 - **Cross-staff beaming** and voice-collision resolution are not attempted;
   two-voice writing gets stem directions and rest offsets and nothing cleverer.
-- **Hairpins** (`\<` `\>`) are parsed but not drawn.
+- **Hairpins** (`\<` `\>`) are parsed and played, but not drawn.
 - **Layout overrides** (`\override`, `\set`, `\tweak`) are consumed and ignored
   by design — that is the part of LilyPond this is not.
 - More than two voices on a staff share one pair of stem directions.

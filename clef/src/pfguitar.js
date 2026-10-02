@@ -313,7 +313,7 @@ export async function render(perf, opts = {}) {
  * A performance as the guitar plays it. Notes the score placed on the guitar (guitar.js: a
  * guitar staff or a TabStaff, with strings, frets and techniques) go as tab, exactly as the tab
  * staff draws them; a chord of three or more is strummed low to high, 8 ms a string (45 ms
- * under `\arpeggio`). Anything else (a piano part, a note no string could reach) is fitted
+ * under `\arpeggio`), or high to low when it is marked `\upbow` (an up-stroke). Anything else (a piano part, a note no string could reach) is fitted
  * by packGuitar, and the two are played together.
  */
 export function packScore(perf) {
@@ -324,7 +324,8 @@ export function packScore(perf) {
   for (const e of tabbed) { const k = Math.round(e.at * 1000); if (!byAt.has(k)) byAt.set(k, []); byAt.get(k).push(e); }
   const tab = [];
   for (const group of byAt.values()) {
-    group.sort((a, b) => b.string - a.string);
+    const upstroke = group.some((e) => e.artics?.includes('upbow'));
+    group.sort((a, b) => (upstroke ? a.string - b.string : b.string - a.string));
     const roll = group.length >= 3 ? (group.some((e) => e.arpeggio) ? 0.045 : 0.008) : 0;
     group.forEach((e, i) => tab.push({
       at: e.at + i * roll, end: e.at + e.dur, string: e.string, fret: e.fret,

@@ -780,22 +780,44 @@ const midiList = (score, staff = 0, voice = 0) =>
 // ------------------------------------------- 10d. the duo --
 //
 // A piano-and-guitar score plays each staff on its own model (duo.js), and the library's
-// duet is a real 90-bar score that every bar check and every guitar fret agrees with.
+// duet is a real 55-bar score in 12/8 that every bar check and every guitar fret agrees with.
 {
   const { isDuo, mixDuo } = await import('../src/duo.js');
   const { scoreToNotes: toNotes, performance: perfOf } = await import('../src/audio.js');
   const d = LIBRARY.find((p) => p.id === 'duende');
   const ds = parseLily(d.source), dl = engrave(ds), dperf = perfOf(toNotes(ds), ds.tempo);
   const frets = ds.staves.filter((s) => s.guitar).flatMap((s) => s.voices.flat()).filter((e) => e.kind === 'note').flatMap((e) => e.pitches);
-  ok(ds.diagnostics.length === 0 && dl.warnings.length === 0 && dl.measures === 90 && frets.every((p) => p.fret != null),
-    `duende: 90 bars, no diagnostics, every bar check holds, all ${frets.length} guitar notes on a string and fret`);
-  ok(isDuo(dperf) && dperf.events.filter((e) => e.gtr).length > 1000 && dperf.events.filter((e) => !e.gtr).length > 900,
+  ok(ds.diagnostics.length === 0 && dl.warnings.length === 0 && dl.measures === 55 && frets.every((p) => p.fret != null),
+    `duende: 55 bars, no diagnostics, every bar check holds, all ${frets.length} guitar notes on a string and fret`);
+  ok(isDuo(dperf) && dperf.events.filter((e) => e.gtr).length > 1500 && dperf.events.filter((e) => !e.gtr).length > 900,
     'duende: plays as a duo, the guitar staves on the guitar, the piano staves on the piano');
   // the mix: the guitar brought to the piano's loudness, each placed to its side, −1 dBFS
   const tone = (f, a, n) => Float32Array.from({ length: n * 2 }, (_, i) => a * Math.sin((Math.floor(i / 2) * f * 2 * Math.PI) / 44100));
   const m = mixDuo(tone(220, 0.5, 4410), tone(330, 0.05, 2205));
   let pk = 0; for (const v of m) pk = Math.max(pk, Math.abs(v));
   ok(m.length === 8820 && Math.abs(pk - 0.89) < 1e-6 && !isDuo({ events: [{ gtr: true }] }), 'duo: the mix is as long as the longer part, balanced and peak-normalised; one instrument is not a duo');
+}
+
+// ------------------------------------- 10e. playing what is marked --
+//
+// Duende changes tempo nine times, and leans on hairpins and accents; playback once took the
+// first \tempo for the whole piece and heard only written dynamics, so all of that was silent.
+{
+  const { scoreToNotes: toNotes, performance: perfOf } = await import('../src/audio.js');
+  const play = (src, bpm) => { const s = parseLily(src); return perfOf(toNotes(s), bpm ? { ...s.tempo, bpm } : s.tempo); };
+  const t = play(`{ \\time 4/4 \\tempo 4 = 60 c'4 d' \\tempo 4 = 120 e' f' }`);
+  const t2 = play(`{ \\time 4/4 \\tempo 4 = 60 c'4 d' \\tempo 4 = 120 e' f' }`, 120);
+  ok(t.events.map((e) => e.at).join() === '0,1,2,2.5' && t.duration === 3 && t2.events.map((e) => e.at).join() === '0,0.5,1,1.25',
+    'tempo: a second \\tempo changes the speed from its bar; the slider scales the whole map');
+  const h = play(`{ c'4\\p\\< d' e' f'\\f g'\\sfz a' b'2\\> c''4 d''\\pp }`).events.map((e) => +e.velocity.toFixed(3));
+  ok(h[0] === 0.42 && h[1] > 0.42 && h[2] > h[1] && h[3] === 0.82 && h[4] === 0.98 && h[5] === 0.82 && h[6] === 0.82 && h[7] < 0.82 && h[7] > 0.3 && h[8] === 0.3,
+    `hairpins: a crescendo climbs to the next dynamic, a sforzando is one note's, a diminuendo falls (${h.join(' ')})`);
+  const a = play(`{ c'4\\mf d'-> e'-. f' }`).events;
+  ok(a[1].velocity > a[0].velocity && Math.abs(a[2].dur - a[0].dur / 2) < 1e-9 && a[3].velocity === a[0].velocity, 'an accent leans on its note; staccato halves it');
+  const { packScore } = await import('../src/pfguitar.js');
+  const g = packScore(play(`\\new TabStaff { <e\\4 g\\3 b\\2>4\\upbow <e\\4 g\\3 b\\2>4 }`));
+  const order = (k) => [0, 1, 2].map((i) => [g.notes[(k + i) * 4], g.tech[(k + i) * 5]]).sort((x, y) => x[0] - y[0]).map((x) => x[1]).join('');
+  ok(order(0) === '234' && order(3) === '432', 'guitar: an up-stroke (\\upbow) strums high to low, a plain chord low to high');
 }
 
 // -------------------------------------------- 11. scaled durations --
