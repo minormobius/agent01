@@ -108,13 +108,15 @@
      Torus boards (../orb/js/torus.js) draw through a TorusFrame instead of
      the sphere's projections: "globe" is the donut, "whole" the flat map
      (the torus's exact map: a rectangle that wraps both ways), and the inset
-     is the flat map too. A drag slides the skin; nothing turns. */
+     is the flat map too. A drag slides the skin; nothing turns. With
+     `four` set, the 3D view is the Clifford torus instead of the donut: the
+     flat torus as it sits in 4D, projected (../orb/js/torus.js). */
   View.prototype.torus = function () { return !!(this.game && this.game.board.topology === "torus"); };
   View.prototype.tmode = function () { return this.mode === "whole" ? "flat" : "donut"; };
   View.prototype.camFor = function () {
     var m = this.game.board.mesh;
     if (!this.cam || this.cam.mesh !== m) this.cam = NS.ORB.surfaceCam(m);
-    this.cam.zoom = this.zoom; return this.cam;
+    this.cam.zoom = this.zoom; this.cam.clifford = !!this.four && this.mode !== "whole"; return this.cam;
   };
   View.prototype.tmain = function () { return { cx: this.w / 2, cy: this.h / 2, w: this.w, h: this.h }; };
   View.prototype.tinset = function () {
@@ -144,12 +146,12 @@
     };
     var LT = (function () { var l = Math.hypot(-0.35, -0.55, 0.75); return [-0.35 / l, -0.55 / l, 0.75 / l]; })();
     var lit = function (i) { if (!donut) return 0.8; var e = cam.embed(m.sites[2 * i], m.sites[2 * i + 1]); return 0.35 + 0.65 * Math.max(0, e.n[0] * LT[0] + e.n[1] * LT[1] + e.n[2] * LT[2]); };
-    var seen = function (P) { return donut ? P[3] : true; };
+    var seen = function (P) { return donut ? P[3] && P[4] > 0.15 : true; }; // edge-on cells' dots would float past the silhouette
     var line = function (A, B) { ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); };
     var trace = function (ring) { ctx.beginPath(); ring.forEach(function (p, k) { if (k) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.closePath(); };
 
     if (mini) { ctx.fillStyle = "rgba(12,12,20,0.92)"; ctx.fillRect(F.vp.cx - F.vp.w / 2 - 3, F.vp.cy - F.vp.h / 2 - 3, F.vp.w + 6, F.vp.h + 6); ctx.save(); ctx.beginPath(); ctx.rect(F.vp.cx - F.vp.w / 2, F.vp.cy - F.vp.h / 2, F.vp.w, F.vp.h); ctx.clip(); }
-    else if (donut) {
+    else if (donut && !cam.clifford) {
       ctx.fillStyle = "rgba(120,140,255,0.05)"; ctx.beginPath();
       ctx.ellipse(F.vp.cx + F.ox, F.vp.cy + F.oy, F.k * (cam.R + cam.r) * 1.08, F.k * ((cam.R + cam.r) * Math.sin(cam.tilt) + cam.r * Math.cos(cam.tilt)) * 1.08, 0, 0, 6.2832); ctx.fill();
     }

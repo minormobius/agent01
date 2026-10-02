@@ -22,6 +22,7 @@
   load_("strand-solved", []).forEach(function (i) { solvedSet.add(i); });
   locked = !!load_("strand-lock", false);
   view.mode = load_("strand-view", "globe") === "whole" ? "whole" : "globe";
+  view.four = !!load_("strand-4d", false); // torus levels: the Clifford torus (4D) instead of the donut
 
   function load(i) {
     idx = Math.max(0, Math.min(S.LEVELS.length - 1, i));
@@ -44,7 +45,7 @@
     $("lock").classList.toggle("on", locked); $("lock").setAttribute("aria-pressed", String(locked));
     $("lock").textContent = locked ? "🔒 locked" : "🔓 free";
     var tor = b.topology === "torus";
-    $("viewmode").textContent = view.mode === "whole" ? (tor ? "▭ flat" : "◯ whole") : (tor ? "◎ donut" : "◐ globe");
+    $("viewmode").textContent = view.mode === "whole" ? (tor ? "▭ flat" : "◯ whole") : (tor ? (view.four ? "◎ 4D" : "◎ donut") : "◐ globe");
     $("viewmode").classList.toggle("on", view.mode === "whole");
   }
 
@@ -131,7 +132,15 @@
   $("next").onclick = function () { load(idx + 1); };
   $("reset").onclick = function () { game.reset(); check(); };
   $("lock").onclick = function () { locked = !locked; save_("strand-lock", locked); hud(); };
-  $("viewmode").onclick = function () { view.mode = view.mode === "whole" ? "globe" : "whole"; save_("strand-view", view.mode); hud(); dirty = true; };
+  $("viewmode").onclick = function () {
+    // torus: donut → 4D (Clifford) → flat, keeping the cell under the cursor; sphere: globe ↔ whole
+    var tor = game.board.topology === "torus", s0 = tor ? view.camFor().sweet() : null;
+    if (tor && view.mode === "globe" && !view.four) view.four = true;
+    else if (view.mode === "globe") { view.mode = "whole"; }
+    else { view.mode = "globe"; view.four = false; }
+    if (tor) view.camFor().toward(s0[0], s0[1], 1);
+    save_("strand-view", view.mode); save_("strand-4d", view.four); hud(); dirty = true;
+  };
   $("won-next").onclick = function () { load(idx + 1); };
   $("won-stay").onclick = function () { $("won").hidden = true; };
   $("levels-btn").onclick = function () { menu(); $("levels").hidden = false; };

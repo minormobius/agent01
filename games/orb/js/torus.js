@@ -278,7 +278,7 @@
     this.R = 1; this.r = mesh.H / mesh.W; // tube radius: cells true-shaped along the tube's top
   }
   TorusCam.prototype.flatLayout = flatLayout;
-  TorusCam.prototype.sweet = function () { // flat point under the cursor
+  TorusCam.prototype.sweetD = function () { // flat point under the cursor
     var m = this.mesh;
     return [wrap(m.W * -0.25 - this.ou, m.W), wrap(m.H * this.tilt / TAU - this.ov, m.H)];
   };
@@ -287,7 +287,7 @@
     var m = this.mesh, s = this.sweet(), d = delta(m, s[0], s[1], u, v);
     this.ou -= d[0] * (t == null ? 1 : t); this.ov -= d[1] * (t == null ? 1 : t);
   };
-  TorusCam.prototype.embed = function (u, v) {
+  TorusCam.prototype.embedD = function (u, v) {
     var m = this.mesh, th = TAU * (u + this.ou) / m.W, ph = TAU * (v + this.ov) / m.H;
     var R = this.R, r = this.r, cp = Math.cos(ph), sp = Math.sin(ph), ct = Math.cos(th), st = Math.sin(th);
     var x = (R + r * cp) * ct, y = (R + r * cp) * st, z = r * sp, nx = cp * ct, ny = cp * st, nz = sp;
@@ -296,7 +296,7 @@
   };
   /* Is this point of the surface hidden by another part of it? March
      toward the viewer and see whether the ray enters the solid torus. */
-  TorusCam.prototype.hidden = function (p) {
+  TorusCam.prototype.hiddenD = function (p) {
     var a = this.tilt, dx = 0, dy = -Math.cos(a), dz = Math.sin(a), R = this.R, r = this.r, r2 = r * r * 0.995;
     var step = r / 5, tmax = 2 * (R + r) + r;
     for (var t = step * 0.6; t < tmax; t += step) {
@@ -305,25 +305,132 @@
     }
     return false;
   };
-  TorusCam.prototype.scale = function (w, h) {
+  TorusCam.prototype.scaleD = function (w, h) {
     var a = this.tilt, ext = (this.R + this.r) * Math.sin(a) + this.r * Math.cos(a);
     return Math.min(w / (2 * (this.R + this.r)), h / (2 * ext)) * 0.94 * this.zoom;
   };
   /* Where the donut's centre goes on screen, relative to the view's centre.
      At zoom 1 the donut is centred; zooming in grows it round the cursor
      and brings the cursor toward the middle of the screen. */
-  TorusCam.prototype.origin = function (w, h) {
+  TorusCam.prototype.originD = function (w, h) {
     var k = this.scale(w, h), k1 = k / this.zoom, s = this.sweet(), e = this.embed(s[0], s[1]);
     return [(k1 / this.zoom - k) * e.X, -(k1 / this.zoom - k) * e.Y];
   };
-  TorusCam.prototype.cellR = function (k) { var m = this.mesh; return k * Math.sqrt(m.W * m.H / m.n) * 0.55 * (this.r / m.H * TAU); };
-  TorusCam.prototype.drag = function (dx, dy, mode, w, h) {
+  TorusCam.prototype.cellRD = function (k) { var m = this.mesh; return k * Math.sqrt(m.W * m.H / m.n) * 0.55 * (this.r / m.H * TAU); };
+  TorusCam.prototype.dragD = function (dx, dy, mode, w, h) {
     var m = this.mesh;
     if (mode === "flat") { var d = flatDrag(this, dx, dy, w, h); this.ou += d[0]; this.ov += d[1]; return; }
     var k = this.scale(w, h);
     this.ou += dx / (k * (this.R + this.r * Math.cos(this.tilt))) * m.W / TAU;
     this.ov -= dy / (k * this.r) * m.H / TAU * 0.6;
   };
+
+  /* THE CLIFFORD TORUS: the flat torus as it really sits, in 4D.
+     (a cos θ, a sin θ, b cos φ, b sin φ) with a : b = W : H lies on the unit
+     3-sphere and is EXACTLY our flat rectangle, every cell the same size and
+     shape. To see it, tilt it a little in 4D (a turn by β in the x–w plane),
+     then project it into 3D stereographically from the pole w = 1, as a
+     globe is projected onto a map from one pole. Stereographic projection
+     keeps angles, so every cell stays round; only sizes change. Unlike the
+     donut, sliding the skin here is a true rigid motion: the θ and φ slides
+     are 4D rotations, and the surface turns through itself in 4D, its cells
+     swelling as they come round the outside and shrinking through the hole.
+     With the tilt the 3D shadow is a Dupin cyclide (a lopsided donut).
+     Occlusion is exact: a 3D point lifts back to the 3-sphere, and the
+     torus splits the 3-sphere into two solid tori; inside is the one the
+     projection pole isn't in. */
+  TorusCam.prototype.cliffordSetup = function () {
+    var m = this.mesh, h = Math.hypot(m.W, m.H);
+    this.ca4 = m.W / h; this.cb4 = m.H / h; this.beta = this.beta == null ? 0.3 : this.beta;
+    var cb = Math.cos(this.beta), sb = Math.sin(this.beta), a = this.ca4;
+    this.poleSide = (sb * sb - a * a) > 0 ? 1 : -1; // which solid torus the projection pole (0,0,0,1) lies in
+    // the normal's sign: outward at the outermost point of the shadow
+    this.nsign = 1;
+    var best = -1, bu = 0, bv = 0;
+    for (var i = 0; i < 24; i++) for (var j = 0; j < 24; j++) { var q = this.cliffP(m.W * i / 24, m.H * j / 24, 0, 0); var rr = q[0] * q[0] + q[1] * q[1]; if (rr > best) { best = rr; bu = m.W * i / 24; bv = m.H * j / 24; } }
+    var e0 = this.cliffE(bu, bv, 0, 0); if (e0.n[0] * e0.p[0] + e0.n[1] * e0.p[1] < 0) this.nsign = -1;
+    // the cursor's spot: the nearest point that faces the camera squarely
+    var bd = -1e9; this.cuf = 0; this.cvf = 0;
+    for (i = 0; i < 72; i++) for (j = 0; j < 48; j++) {
+      var uu = m.W * i / 72, vv = m.H * j / 48, e = this.cliffE(uu, vv, 0, 0);
+      if (e.face > 0.75 && e.D > bd && !this.hiddenC(e.p)) { bd = e.D; this.cuf = uu; this.cvf = vv; }
+    }
+    // framing: the shadow's extent on screen (unslid; sliding only moves cells round the same shape)
+    var bb = [1e9, -1e9, 1e9, -1e9];
+    for (i = 0; i < 64; i++) for (j = 0; j < 32; j++) { var f = this.cliffE(m.W * i / 64, m.H * j / 32, 0, 0); bb[0] = Math.min(bb[0], f.X); bb[1] = Math.max(bb[1], f.X); bb[2] = Math.min(bb[2], f.Y); bb[3] = Math.max(bb[3], f.Y); }
+    this.cbb = bb; this.cliffKey = this.beta;
+  };
+  TorusCam.prototype.cliffP = function (u, v, ou, ov) {
+    var m = this.mesh, th = TAU * (u + ou) / m.W, ph = TAU * (v + ov) / m.H, a = this.ca4, b = this.cb4;
+    var x = a * Math.cos(th), y = a * Math.sin(th), z = b * Math.cos(ph), w = b * Math.sin(ph), cb = Math.cos(this.beta), sb = Math.sin(this.beta);
+    var x2 = x * cb - w * sb, w2 = x * sb + w * cb, s = 1 / (1 - w2);
+    return [x2 * s, y * s, z * s];
+  };
+  TorusCam.prototype.cliffE = function (u, v, ou, ov) {
+    var m = this.mesh, e = 1e-4, p = this.cliffP(u, v, ou, ov), pu = this.cliffP(u + e * m.W, v, ou, ov), pv = this.cliffP(u, v + e * m.H, ou, ov);
+    var A = [pu[0] - p[0], pu[1] - p[1], pu[2] - p[2]], B = [pv[0] - p[0], pv[1] - p[1], pv[2] - p[2]];
+    var n = [A[1] * B[2] - A[2] * B[1], A[2] * B[0] - A[0] * B[2], A[0] * B[1] - A[1] * B[0]], l = (Math.hypot(n[0], n[1], n[2]) || 1) * (this.nsign || 1);
+    n = [n[0] / l, n[1] / l, n[2] / l];
+    var ta = this.tilt, ca = Math.cos(ta), sa = Math.sin(ta);
+    return { X: p[0], Y: p[1] * sa + p[2] * ca, D: -p[1] * ca + p[2] * sa, face: -n[1] * ca + n[2] * sa, n: n, p: p };
+  };
+  TorusCam.prototype.hiddenC = function (p) {
+    var ta = this.tilt, dy = -Math.cos(ta), dz = Math.sin(ta), a2 = this.ca4 * this.ca4, cb = Math.cos(this.beta), sb = Math.sin(this.beta);
+    var reach = Math.max(4, Math.hypot(p[0], p[1], p[2]) * 2);
+    for (var t = 0.02; t < reach; t += 0.035) {
+      var X = p[0], Y = p[1] + dy * t, Z = p[2] + dz * t, r2 = X * X + Y * Y + Z * Z, d = 1 / (r2 + 1);
+      var q0 = 2 * X * d, q1 = 2 * Y * d, q3 = (r2 - 1) * d, x = q0 * cb + q3 * sb; // back to the 3-sphere, un-tilted
+      if (((x * x + q1 * q1 - a2) > 0 ? 1 : -1) !== this.poleSide) return true;
+    }
+    return false;
+  };
+  /* Position only (no normal): [X, Y, D]. For drawing cell edges as curves. */
+  TorusCam.prototype.proj3 = function (u, v) {
+    var m = this.mesh, ta = this.tilt, ca = Math.cos(ta), sa = Math.sin(ta), p;
+    if (this.clifford) { this.cliffReady(); p = this.cliffP(u, v, this.ou, this.ov); }
+    else {
+      var th = TAU * (u + this.ou) / m.W, ph = TAU * (v + this.ov) / m.H, cp = Math.cos(ph);
+      p = [(this.R + this.r * cp) * Math.cos(th), (this.R + this.r * cp) * Math.sin(th), this.r * Math.sin(ph)];
+    }
+    return [p[0], p[1] * sa + p[2] * ca, -p[1] * ca + p[2] * sa];
+  };
+  TorusCam.prototype.cliffReady = function () { if (this.beta == null) this.beta = 0.3; if (this.cliffKey !== this.beta) this.cliffordSetup(); };
+
+  // dispatch: the donut, or the Clifford torus
+  TorusCam.prototype.sweet = function () {
+    if (!this.clifford) return this.sweetD();
+    this.cliffReady(); var m = this.mesh;
+    return [wrap(this.cuf - this.ou, m.W), wrap(this.cvf - this.ov, m.H)];
+  };
+  TorusCam.prototype.embed = function (u, v) { if (!this.clifford) return this.embedD(u, v); this.cliffReady(); return this.cliffE(u, v, this.ou, this.ov); };
+  TorusCam.prototype.hidden = function (p) { if (!this.clifford) return this.hiddenD(p); return this.hiddenC(p); };
+  TorusCam.prototype.scale = function (w, h) {
+    if (!this.clifford) return this.scaleD(w, h);
+    this.cliffReady(); var bb = this.cbb;
+    return Math.min(w / ((bb[1] - bb[0]) * 1.08), h / ((bb[3] - bb[2]) * 1.08)) * this.zoom;
+  };
+  TorusCam.prototype.origin = function (w, h) { // centred at zoom 1, growing round the cursor
+    if (!this.clifford) return this.originD(w, h);
+    var k = this.scale(w, h), z = this.zoom, k1 = k / z, bb = this.cbb, e = this.cliffE(this.cuf, this.cvf, 0, 0);
+    var cX = (bb[0] + bb[1]) / 2, cY = (bb[2] + bb[3]) / 2;
+    return [k1 * (e.X - cX) / z - k * e.X, -(k1 * (e.Y - cY) / z - k * e.Y)];
+  };
+  TorusCam.prototype.cliffJ = function () { // screen per flat unit at the cursor (k = 1)
+    var h = 1e-4, m = this.mesh, A = this.cliffE(this.cuf, this.cvf, 0, 0), Bu = this.cliffE(this.cuf + h, this.cvf, 0, 0), Bv = this.cliffE(this.cuf, this.cvf + h, 0, 0);
+    return [(Bu.X - A.X) / h, (Bv.X - A.X) / h, -(Bu.Y - A.Y) / h, -(Bv.Y - A.Y) / h];
+  };
+  TorusCam.prototype.cellR = function (k) {
+    if (!this.clifford) return this.cellRD(k);
+    this.cliffReady(); var J = this.cliffJ(), m = this.mesh;
+    return k * Math.sqrt(Math.abs(J[0] * J[3] - J[1] * J[2])) * Math.sqrt(m.W * m.H / m.n) * 0.55;
+  };
+  TorusCam.prototype.drag = function (dx, dy, mode, w, h) {
+    if (!this.clifford || mode === "flat") return this.dragD(dx, dy, mode, w, h);
+    // glued to the finger: the cursor moves through the inverse Jacobian at its spot
+    this.cliffReady(); var J = this.cliffJ(), k = this.scale(w, h), det = (J[0] * J[3] - J[1] * J[2]) * k;
+    this.ou += (J[3] * dx - J[1] * dy) / det; this.ov += (-J[2] * dx + J[0] * dy) / det;
+  };
+  Object.defineProperty(TorusCam.prototype, "occludes", { get: function () { return !!this.clifford; } });
 
   /* THE KLEIN BOTTLE CAMERA: the classic bottle, and a skin that slides.
 
@@ -429,6 +536,10 @@
     return { X: e.X, Y: e.Y, D: e.D, face: e.nz, n: [nv[0], -nv[2] * 0.64 + nv[1] * 0.77, nv[2] * 0.77 + nv[1] * 0.64], p: e.p };
   };
   KleinCam.prototype.hidden = function () { return false; };
+  KleinCam.prototype.proj3 = function (u, v) {
+    var q = this.slide(u, v), p = bottleAt(this.mesh, q[0], q[1]), R = this.Rc;
+    return [R[0] * p[0] + R[1] * p[1] + R[2] * p[2], R[3] * p[0] + R[4] * p[1] + R[5] * p[2], R[6] * p[0] + R[7] * p[1] + R[8] * p[2]];
+  };
   KleinCam.prototype.scale = function (w, h) { var bb = this.bb; return Math.min(w / ((bb[1] - bb[0]) * 1.06), h / ((bb[3] - bb[2]) * 1.06)) * this.zoom; };
   /* At zoom 1 the bottle is centred; zooming grows it round the cursor and
      brings the cursor toward the middle of the screen. */
@@ -537,9 +648,29 @@
     var m = this.mesh;
     return this.off(i, delta(m, m.sites[2 * i], m.sites[2 * i + 1], m.verts[2 * v], m.verts[2 * v + 1]));
   };
+  /* A cell's outline. In 3D its edges are sampled along the surface (the
+     flat edge between two corners, embedded), not drawn as chords: on a
+     coarse mesh the surface bulges past the chords at the silhouette, and a
+     cell's own centre could otherwise fall outside its drawn shape. */
+  var EDGE_STEPS = 4;
   Frame.prototype.ring = function (i) {
     var self = this;
-    if (this.mode === "donut") { if (this.P[i][4] < -0.15) return null; return this.mesh.polys[i].map(function (v) { return self.Vp[v]; }); }
+    if (this.mode === "donut") {
+      if (this.P[i][4] < -0.15) return null;
+      if (!this.rings) this.rings = {};
+      if (this.rings[i]) return this.rings[i];
+      if (!this.cam.proj3) return this.mesh.polys[i].map(function (v) { return self.Vp[v]; });
+      var C = cellRing(this.mesh, i), out = [], cam = this.cam, k = this.k, cx = this.vp.cx + this.ox, cy = this.vp.cy + this.oy;
+      for (var q = 0; q < C.length; q++) {
+        var A = C[q], B = C[(q + 1) % C.length];
+        for (var t = 0; t < EDGE_STEPS; t++) {
+          var f = t / EDGE_STEPS, p = cam.proj3(A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f);
+          out.push([cx + k * p[0], cy - k * p[1], p[2], 1]);
+        }
+      }
+      this.rings[i] = out;
+      return out;
+    }
     return this.mesh.polys[i].map(function (v) { return self.corner(v, i); });
   };
   /* Cover point under a screen point (flat map). */

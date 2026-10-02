@@ -134,7 +134,9 @@ closed on itself, the torus's answer to C60's atoms. The atoms are drawn on
 a faint honeycomb, so they sit on a surface. The torus view is a donut, the
 same camera Orb uses: a drag slides the skin instead of turning a globe.
 **whole** becomes the flat map: the rectangle that wraps both ways, the
-torus's exact map. A 72-hex honeycomb is too open for 8 pairs to have one
+torus's exact map. Between the two sits the Clifford torus (`◎ 4D`): the
+flat torus as it sits in 4D, projected so every cell stays round (see
+`../orb/README.md`). A 72-hex honeycomb is too open for 8 pairs to have one
 answer; 12 do.
 
 A level is data on top of the engine (board spec, pairs, walls, bridges),

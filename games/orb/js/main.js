@@ -69,8 +69,10 @@
     $("hardc").classList.toggle("hot", game.inHard);
     $("mode").textContent = tapDigs ? "tap: ⛏ dig" : "tap: ⚑ flag";
     var torus = !!SIZES[game.size].torus;
-    $("tview").hidden = !torus; $("actions").classList.toggle("five", torus); $("tview").textContent = view.tmode === "flat" ? "▭" : "◎";
-    $("tview").setAttribute("aria-label", view.tmode === "flat" ? "flat map view" : "donut view");
+    $("tview").hidden = !torus; $("actions").classList.toggle("five", torus);
+    if (torus && SIZES[game.size].klein && view.tmode === "clifford") view.tmode = "donut"; // the Klein bottle has no Clifford view
+    $("tview").textContent = view.tmode === "flat" ? "▭" : view.tmode === "clifford" ? "4D" : "◎";
+    $("tview").setAttribute("aria-label", view.tmode === "flat" ? "flat map view" : view.tmode === "clifford" ? "Clifford torus: the flat torus in 4D, projected" : "3D view");
     $("mode").classList.toggle("on", tapDigs);
   }
   function clock(ms) { var t = Math.floor(ms / 1000); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
@@ -315,6 +317,9 @@
     else if (e.key === "h" || e.key === "?") hint();
     else if (e.key === "n") newGame(O.randomSeed(), game.size);
     else if (e.key === "v" && SIZES[game.size].torus) $("tview").click();
+    else if ((e.key === "[" || e.key === "]") && view.tmode === "clifford") { // tilt the Clifford torus in 4D
+      var cam = view.camFor(); cam.beta = Math.max(0, Math.min(0.7, (cam.beta || 0.3) + (e.key === "]" ? 0.05 : -0.05))); dirty = true;
+    }
     else if (e.key.indexOf("Arrow") === 0) {
       var d = 0.12 * view.radius(), k = e.key.slice(5);
       view.drag(k === "Left" ? -d : k === "Right" ? d : 0, k === "Up" ? -d : k === "Down" ? d : 0); dirty = true; e.preventDefault();
@@ -324,11 +329,13 @@
   $("mode").onclick = function () { tapDigs = !tapDigs; hud(); };
   $("hint").onclick = hint;
   $("tview").onclick = function () {
-    view.tmode = view.tmode === "flat" ? "donut" : "flat";
+    // torus: donut → 4D (Clifford) → flat; Klein bottle: bottle ↔ flat
+    var klein = !!SIZES[game.size].klein;
+    view.setTmode(view.tmode === "donut" ? (klein ? "flat" : "clifford") : view.tmode === "clifford" ? "flat" : "donut");
     try { localStorage.setItem("orb-tview", view.tmode); } catch (e) { /* ignore */ }
     hud(); dirty = true;
   };
-  try { if (localStorage.getItem("orb-tview") === "flat") view.tmode = "flat"; } catch (e) { /* ignore */ }
+  try { var tv0 = localStorage.getItem("orb-tview"); if (tv0 === "flat" || tv0 === "clifford") view.tmode = tv0; } catch (e) { /* ignore */ }
   $("new").onclick = function () { newGame(O.randomSeed(), game.size); };
   $("size").onchange = function () { newGame(O.randomSeed(), this.value); };
   $("hardbtn").onclick = function () {

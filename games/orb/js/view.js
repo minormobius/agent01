@@ -22,7 +22,7 @@
     this.R = [1, 0, 0, 0, 1, 0, 0, 0, 1];
     this.zoom = 1; this.w = 0; this.h = 0; this.dpr = 1;
     this.state = null; this.anim = null; this.mark = null; this.hl = null; this.reticle = true; this.focusCell = -1;
-    this.tmode = "donut"; this.cam = null; // the torus: "donut" (3D) or "flat" (the wrapped rectangle)
+    this.tmode = "donut"; this.cam = null; // the torus: "donut" (3D), "clifford" (4D, projected) or "flat" (the wrapped rectangle)
   }
 
   /* ------------------------------------------------------------ the torus
@@ -33,16 +33,22 @@
   View.prototype.camFor = function () {
     var m = this.state.mesh;
     if (!this.cam || this.cam.mesh !== m) this.cam = O.surfaceCam(m);
-    this.cam.zoom = this.zoom;
+    this.cam.zoom = this.zoom; this.cam.clifford = this.tmode === "clifford" && this.cam.kind === "torus";
     return this.cam;
   };
-  View.prototype.frame = function () { return new O.TorusFrame(this.camFor(), { cx: this.w / 2, cy: this.h / 2, w: this.w, h: this.h }, this.tmode); };
+  View.prototype.frame = function () { return new O.TorusFrame(this.camFor(), { cx: this.w / 2, cy: this.h / 2, w: this.w, h: this.h }, this.tmode === "flat" ? "flat" : "donut"); };
+  /* Switch view, keeping the cell under the cursor under the cursor. */
+  View.prototype.setTmode = function (mode) {
+    if (!this.torus()) { this.tmode = mode; return; }
+    var cam = this.camFor(), s = cam.sweet();
+    this.tmode = mode; cam = this.camFor(); cam.toward(s[0], s[1], 1);
+  };
   View.prototype.inset = function () {
     var m = this.state.mesh, iw = Math.max(90, Math.min(180, this.w * 0.36)), ih = iw * m.H / m.W;
     return { cx: this.w - iw / 2 - 8, cy: ih / 2 + 8, w: iw, h: ih, mini: true };
   };
   View.prototype.inInset = function (px, py) {
-    if (!this.torus() || this.tmode !== "donut") return false;
+    if (!this.torus() || this.tmode === "flat") return false;
     var vp = this.inset(); return Math.abs(px - vp.cx) <= vp.w / 2 && Math.abs(py - vp.cy) <= vp.h / 2;
   };
   /* Flat point under an inset tap. */
@@ -53,9 +59,9 @@
   /* How squarely cell c faces you (for choosing which certain cell to hint). */
   View.prototype.inView = function (c) {
     var m = this.state.mesh;
-    if (!this.torus()) { var R = this.R, P = m.sites; return R[6] * P[3 * c] + R[7] * P[3 * c + 1] + R[8] * P[3 * c + 2]; }
+    if (!this.torus()) { var R = this.R, P = m.sites, zc = R[6] * P[3 * c] + R[7] * P[3 * c + 1] + R[8] * P[3 * c + 2]; return m.proj ? Math.abs(zc) : zc; }
     var cam = this.camFor();
-    if (cam.rigid && this.tmode === "donut") { var e = cam.embed(m.sites[2 * c], m.sites[2 * c + 1]); return e.face - Math.hypot(e.X, e.Y) / 4; }
+    if (cam.rigid && this.tmode !== "flat") { var e = cam.embed(m.sites[2 * c], m.sites[2 * c + 1]); return e.face - Math.hypot(e.X, e.Y) / 4; }
     var sw = cam.sweet(), d = O.torusDelta(m, O.torusCellAt(m, sw[0], sw[1]), c);
     return 1 - Math.hypot(d[0], d[1]) / m.H;
   };
@@ -63,13 +69,14 @@
   View.prototype.toward = function (c, t) {
     var m = this.state.mesh;
     if (this.torus()) { this.camFor().toward(m.sites[2 * c], m.sites[2 * c + 1], t); return; }
+    if (m.proj) { var R2 = this.R, P2 = m.sites; if (R2[6] * P2[3 * c] + R2[7] * P2[3 * c + 1] + R2[8] * P2[3 * c + 2] < 0) c += m.n; } // the nearer copy
     this.face([m.sites[3 * c], m.sites[3 * c + 1], m.sites[3 * c + 2]], t);
   };
   View.prototype.towardPoint = function (u, v, t) { this.camFor().toward(u, v, t); };
 
   View.prototype.drawTorus = function (now) {
     var s = this.state, ctx = this.ctx, m = s.mesh, cam = this.camFor(), busy = false, self = this;
-    var F = this.frame(), donut = this.tmode === "donut", cellR = Math.max(4, F.cellR);
+    var F = this.frame(), donut = this.tmode !== "flat", cellR = Math.max(4, F.cellR);
     var showMines = s.phase === "lost" || s.phase === "won";
     var LT = (function () { var l = Math.hypot(-0.35, -0.55, 0.75); return [-0.35 / l, -0.55 / l, 0.75 / l]; })();
     ctx.lineJoin = "round"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -118,7 +125,7 @@
 
     if (donut) {
       // a soft shadow of the ring, then the cells back to front
-      if (cam.kind === "torus") { ctx.fillStyle = "rgba(94,232,193,0.05)"; ctx.beginPath(); ctx.ellipse(this.w / 2 + F.ox, this.h / 2 + F.oy, F.k * (cam.R + cam.r) * 1.08, F.k * ((cam.R + cam.r) * Math.sin(cam.tilt) + cam.r * Math.cos(cam.tilt)) * 1.08, 0, 0, 6.2832); ctx.fill(); }
+      if (cam.kind === "torus" && !cam.clifford) { ctx.fillStyle = "rgba(94,232,193,0.05)"; ctx.beginPath(); ctx.ellipse(this.w / 2 + F.ox, this.h / 2 + F.oy, F.k * (cam.R + cam.r) * 1.08, F.k * ((cam.R + cam.r) * Math.sin(cam.tilt) + cam.r * Math.cos(cam.tilt)) * 1.08, 0, 0, 6.2832); ctx.fill(); }
       for (var o = 0; o < F.order.length; o++) {
         var i = F.order[o], ring = F.ring(i); if (!ring) continue;
         var e = cam.embed(m.sites[2 * i], m.sites[2 * i + 1]), lit = Math.max(0, e.n[0] * LT[0] + e.n[1] * LT[1] + e.n[2] * LT[2]);
@@ -179,7 +186,7 @@
   /* Rotate so the surface follows the finger: a drag of (dx, dy) pixels turns
      about screen-y then screen-x by arc length / radius. */
   View.prototype.drag = function (dx, dy) {
-    if (this.torus()) { this.camFor().drag(dx, dy, this.tmode, this.w, this.h); return; }
+    if (this.torus()) { this.camFor().drag(dx, dy, this.tmode === "flat" ? "flat" : "donut", this.w, this.h); return; }
     var r = this.radius(), a = dx / r, b = dy / r;
     var ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
     var M = [ca, sa * sb, sa * cb, 0, cb, -sb, -sa, ca * sb, ca * cb]; // Ry(a)·Rx(b)
@@ -199,9 +206,10 @@
     if (this.torus()) return this.frame().pick(px, py);
     var r = this.radius(), x = (px - this.w / 2) / r, y = -(py - this.h / 2) / r, d = x * x + y * y;
     if (d > 1) return -1;
-    var z = Math.sqrt(1 - d), R = this.R;
+    var z = Math.sqrt(1 - d), R = this.R, m0 = this.state.mesh;
     // R is orthonormal: inverse = transpose
-    return O.cellAt(this.state.mesh, R[0] * x + R[3] * y + R[6] * z, R[1] * x + R[4] * y + R[7] * z, R[2] * x + R[5] * y + R[8] * z);
+    var hit = O.cellAt(m0, R[0] * x + R[3] * y + R[6] * z, R[1] * x + R[4] * y + R[7] * z, R[2] * x + R[5] * y + R[8] * z);
+    return m0.proj ? hit % m0.n : hit; // the projective plane: a cover cell and its antipode are one cell
   };
 
   View.prototype.draw = function (now) {
@@ -227,20 +235,20 @@
       var x = V[3 * k], y = V[3 * k + 1], z = V[3 * k + 2];
       VX[k] = R[0] * x + R[1] * y + R[2] * z; VY[k] = R[3] * x + R[4] * y + R[5] * z; VZ[k] = R[6] * x + R[7] * y + R[8] * z;
     }
-    var order = [];
-    for (var i = 0; i < m.n; i++) {
+    var order = [], NC = P.length / 3, G = function (i) { return m.proj ? i % m.n : i; }; // cover cell → game cell
+    for (var i = 0; i < NC; i++) {
       var sz = R[6] * P[3 * i] + R[7] * P[3 * i + 1] + R[8] * P[3 * i + 2];
       if (sz > -0.3) order.push([sz, i]);
     }
     order.sort(function (a, b) { return a[0] - b[0]; });
 
-    var cellR = r * Math.sqrt(4 / m.n); // ≈ typical cell radius, in px, at the centre
+    var cellR = r * Math.sqrt(4 / NC); // ≈ typical cell radius, in px, at the centre
     var showMines = s.phase === "lost" || s.phase === "won";
     ctx.lineJoin = "round";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
 
     for (var o = 0; o < order.length; o++) {
-      i = order[o][1];
+      i = order[o][1]; var g = G(i); // geometry by cover cell i, state by game cell g
       var ring = m.polys[i], front = false;
       for (k = 0; k < ring.length; k++) if (VZ[ring[k]] > 0) { front = true; break; }
       if (!front) continue;
@@ -251,15 +259,15 @@
       var limb = Math.max(0, szz);
 
       // reveal ripple: 0 = still closed, 1 = fully open
-      var openT = s.open[i] ? 1 : 0;
-      if (this.anim && this.anim[i] != null) {
-        openT = Math.min(1, Math.max(0, (now - this.anim[i]) / 160));
+      var openT = s.open[g] ? 1 : 0;
+      if (this.anim && this.anim[g] != null) {
+        openT = Math.min(1, Math.max(0, (now - this.anim[g]) / 160));
         if (openT < 1) busy = true;
       }
 
       var col;
-      if (s.open[i] && s.mine[i]) col = [255, 46, 77];
-      else if (showMines && s.mine[i] && !s.flag[i]) col = s.phase === "won" ? [70, 110, 100] : [110, 40, 55];
+      if (s.open[g] && s.mine[g]) col = [255, 46, 77];
+      else if (showMines && s.mine[g] && !s.flag[g]) col = s.phase === "won" ? [70, 110, 100] : [110, 40, 55];
       else {
         var cr = [66 + 70 * lit, 70 + 70 * lit, 104 + 80 * lit];   // closed: raised, lit
         var op = [18 + 12 * lit, 18 + 12 * lit, 28 + 16 * lit];   // open: recessed
@@ -276,24 +284,24 @@
       ctx.strokeStyle = "#08080c"; ctx.lineWidth = Math.max(0.8, cellR * 0.06); ctx.stroke();
 
       var hx = cx + r * sx, hy = cy - r * sy, fs = cellR * (0.35 + 0.65 * Math.sqrt(limb)) * 0.95;
-      if (this.hl && this.hl.has(i)) {
+      if (this.hl && this.hl.has(g)) {
         ctx.strokeStyle = "rgba(255,200,87,0.95)"; ctx.lineWidth = Math.max(1.5, cellR * 0.12); ctx.stroke();
       }
-      if (this.mark && this.mark.has(i)) {
+      if (this.mark && this.mark.has(g)) {
         var pulse = 0.55 + 0.45 * Math.sin(now / 180);
         ctx.strokeStyle = "rgba(94,232,193," + pulse.toFixed(2) + ")"; ctx.lineWidth = Math.max(2, cellR * 0.16); ctx.stroke();
         busy = true;
       }
       if (limb < 0.08) continue;
 
-      if (s.open[i] && !s.mine[i] && s.count[i] > 0 && openT > 0.5) {
-        ctx.fillStyle = NUM[s.count[i]];
+      if (s.open[g] && !s.mine[g] && s.count[g] > 0 && openT > 0.5) {
+        ctx.fillStyle = NUM[s.count[g]];
         ctx.font = "700 " + fs.toFixed(1) + "px ui-monospace, Menlo, Consolas, monospace";
-        ctx.fillText(String(s.count[i]), hx, hy + fs * 0.04);
-      } else if (s.flag[i]) {
-        drawFlag(ctx, hx, hy, fs, showMines && !s.mine[i]);
-      } else if (showMines && s.mine[i]) {
-        drawMine(ctx, hx, hy, fs * 0.36, s.open[i]);
+        ctx.fillText(String(s.count[g]), hx, hy + fs * 0.04);
+      } else if (s.flag[g]) {
+        drawFlag(ctx, hx, hy, fs, showMines && !s.mine[g]);
+      } else if (showMines && s.mine[g]) {
+        drawMine(ctx, hx, hy, fs * 0.36, s.open[g]);
       }
     }
 
@@ -303,8 +311,13 @@
     // this one" is not obvious at a glance.
     this.focusCell = -1;
     if (this.reticle && (s.phase === "play" || s.phase === "ready")) {
-      var fc = O.cellAt(m, R[6], R[7], R[8]);
-      this.focusCell = fc;
+      var fc = O.cellAt(m, R[6], R[7], R[8]);   // cover cell (the projective plane draws every cell twice)
+      this.focusCell = G(fc);
+      var near = function (j) { // the copy of game cell j on your side
+        if (!m.proj) return j;
+        var z1 = R[6] * P[3 * j] + R[7] * P[3 * j + 1] + R[8] * P[3 * j + 2];
+        return z1 >= 0 ? j : j + m.n;
+      };
       var ring2 = function (c) {
         var rr = m.polys[c];
         ctx.beginPath();
@@ -313,7 +326,8 @@
       };
       if (s.phase === "play") {
         ctx.strokeStyle = "rgba(94,232,193,0.9)"; ctx.lineWidth = Math.max(1.5, cellR * 0.1);
-        for (k = 0; k < m.nbrs[fc].length; k++) { ring2(m.nbrs[fc][k]); ctx.stroke(); }
+        var fn = m.nbrs[G(fc)];
+        for (k = 0; k < fn.length; k++) { ring2(near(fn[k])); ctx.stroke(); }
       }
       ring2(fc); ctx.strokeStyle = "rgba(255,255,255,0.95)"; ctx.lineWidth = Math.max(2, cellR * 0.14); ctx.stroke();
     }

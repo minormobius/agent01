@@ -72,6 +72,19 @@ for (const [kind, m] of [["hex 4×8", O.buildHexTorus(4, 8)], ["hex 8×16", O.bu
   ck(F.pick(P[0], P[1]) === c, "Klein bottle: the cursor's cell is the front-most cell under the cursor");
 }
 
+console.log("projective plane mesh");
+for (const n of [80, 160, 320]) {
+  const m = O.buildProjective("pp" + n, n, 2), V = m.verts.length / 3 / 2, E = m.nbrs.reduce((a, b) => a + b.length, 0) / 2;
+  const sym = m.nbrs.every((ns, i) => ns.every((j) => m.nbrs[j].includes(i)) && new Set(ns).size === ns.length && !ns.includes(i));
+  const anti = Array.from({ length: n }, (_, i) => [0, 1, 2].every((k) => Math.abs(m.sites[3 * i + k] + m.sites[3 * (i + n) + k]) < 1e-12)).every(Boolean);
+  const cover = m.coverNbrs.slice(0, n).every((ns, i) => new Set(ns.map((j) => j % n)).size === ns.length && ns.every((j) => j % n !== i));
+  ck(V - E + n === 1 && sym && anti && cover, `n=${n}: V−E+F=1 (${V} corners, ${E} edges), sites in antipodal pairs, no cell touches itself or a neighbour twice`);
+}
+{ // the globe's visible half is the whole plane: every game cell has a copy facing any viewer
+  const m = O.buildProjective("pview", 160, 2), R = [0.3, 0.9, 0.3]; const l = Math.hypot(...R);
+  ck(Array.from({ length: m.n }, (_, i) => Math.abs(m.sites[3 * i] * R[0] + m.sites[3 * i + 1] * R[1] + m.sites[3 * i + 2] * R[2]) / l >= 0).every(Boolean) && O.cellAt(m, R[0] / l, R[1] / l, R[2] / l) >= 0, "projective plane: cellAt reads the double cover");
+}
+
 console.log("solver vs brute force");
 function brute(mesh, open, count, total) {
   const n = mesh.n, canMine = new Uint8Array(n), canSafe = new Uint8Array(n);

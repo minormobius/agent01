@@ -74,10 +74,12 @@ Three things live here:
   spherical Delaunay; Lloyd-relaxed). An irregular mesh is measurably *less*
   guess-free than a regular one, so every board is proved solvable by an exact
   solver from the first tap before it ships. The readout counts the moves that
-  weren't certain when you made them. Also on a Voronoi torus and a Klein
+  weren't certain when you made them. Also on a projective plane (antipodal
+  pairs of sphere cells, `buildProjective`), and on a Voronoi torus and a Klein
   bottle (`js/torus.js`: Voronoi diagrams of the flat torus and of the flat
-  Klein bottle, whose gluing flips; drawn as a donut or as the classic bottle, both
-  with a skin that slides under a fixed cursor, or as the exact flat map). Canvas 2D, no build. See [`orb/README.md`](orb/README.md).
+  Klein bottle, whose gluing flips; drawn as a donut, the Clifford torus (4D,
+  stereographically projected) or the classic bottle, all with a skin that
+  slides under a fixed cursor, or as the exact flat map). Canvas 2D, no build. See [`orb/README.md`](orb/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a

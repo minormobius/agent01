@@ -142,7 +142,7 @@ without changing the format.
 | `js/board.js` | the leaderboard UI and the write path (ES module; imports `../../lib/auth.js`, which the deploy vendors) |
 
 A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l|x|ts|tm|tl`
-is a permalink (also `ks|km`, the Klein bottle).
+is a permalink (also `ks|km`, the Klein bottle, and `ps|pm`, the projective plane).
 
 ## Tiers
 
@@ -275,6 +275,44 @@ covers the surface, the same point the bottle slides to, and every cell is
 drawn at its copy nearest the cursor, so panning across the flipped edge is
 seamless. Further out, the copies beyond it are drawn mirrored, because they
 are.
+
+## The Clifford torus (the torus's `4D` view)
+
+The `◎ / 4D / ▭` toggle cycles the torus through the donut, the Clifford
+torus and the flat map. The Clifford torus is the flat torus as it really
+sits, in 4D: (a cos θ, a sin θ, b cos φ, b sin φ), with a : b = W : H, on the
+unit 3-sphere. It is *exactly* our flat rectangle, every cell the same size
+and shape, which no torus in 3D can be. To see it, it is tilted a little in
+4D (β = 0.3 in the x–w plane; `[` and `]` change it) and projected into 3D
+stereographically, from the pole w = 1. That projection keeps angles, so
+every cell stays round and only sizes change. Sliding the skin is a true
+rigid motion here (the θ and φ slides are 4D rotations), so cells swell as
+they come round the outside and shrink through the hole. With the tilt, the
+3D shadow is a Dupin cyclide, a lopsided donut. Occlusion is exact: a 3D
+point lifts back to the 3-sphere, the torus splits the 3-sphere into two
+solid tori, and inside is the one the projection pole isn't in. Switching
+views keeps the cell under the cursor.
+
+In every 3D view, cell edges are sampled along the surface, not drawn as
+chords between corners, so coarse meshes keep their shape at the silhouette.
+
+## The projective plane (`ps`, `pm`)
+
+The sphere with every point glued to the point opposite it. Its Voronoi
+diagram is the sphere's diagram of antipodal *pairs* of sites, kept
+symmetric through Lloyd relaxation, and each pair is one game cell
+(`buildProjective` in `js/sphere.js`). Euler characteristic 1, so
+V − E + F = 1 and the average cell has 6 − 6/n neighbours. The selftest
+checks that, and that no cell touches itself or the same neighbour twice.
+
+It needs no new view. Any hemisphere is the whole projective plane, once,
+so the globe already is its honest map. The mesh carries the double cover
+for drawing, and every cell is drawn on both sides of the sphere. Turn the
+globe and a cell sinking under one rim comes back up on the opposite rim,
+mirrored. The reticle always outlines the copy facing you, so near the rim
+its neighbours jump across the globe: that is the gluing, seen. Like the
+Klein bottle, it can't sit in 3D without passing through itself, but it can
+in 4D.
 
 ## Shared with Strand
 

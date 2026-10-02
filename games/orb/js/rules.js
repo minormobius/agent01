@@ -99,18 +99,21 @@
     // the Klein bottle: the same rectangle, one pair of edges glued with a flip
     ks: { n: 200, m: 36, label: "Klein bottle · small", climb: 600, torus: true, klein: true },
     km: { n: 320, m: 62, label: "Klein bottle · medium", climb: 600, torus: true, klein: true },
+    // the projective plane: the sphere with opposite points glued (js/sphere.js buildProjective)
+    ps: { n: 160, m: 28, label: "projective plane · small", climb: 600, proj: true },
+    pm: { n: 320, m: 62, label: "projective plane · medium", climb: 600, proj: true },
   };
   /* The board for a tier: the sphere, or the torus. */
   O.meshFor = function (size, seed) {
     var c = O.SIZES[size];
-    return c.klein ? O.buildKlein(seed, c.n, 3) : c.torus ? O.buildTorus(seed, c.n, 3) : O.buildMesh(seed, c.n, 2);
+    return c.proj ? O.buildProjective(seed, c.n, 2) : c.klein ? O.buildKlein(seed, c.n, 3) : c.torus ? O.buildTorus(seed, c.n, 3) : O.buildMesh(seed, c.n, 2);
   };
   /* `climb` is hard mode's search budget: mine moves tried while forging a
      board for hard moments (solve.js generateHard). Part of the board's
      identity, like the mine count, so it is in the hard-mode game id. */
   O.gameId = function (size, hard) {
     var c = O.SIZES[size], id = hard ? "hard-" + c.n + "-" + c.m + "-" + c.climb : "pure-" + c.n + "-" + c.m;
-    return c.klein ? "klein-" + id : c.torus ? "torus-" + id : id;
+    return c.proj ? "proj-" + id : c.klein ? "klein-" + id : c.torus ? "torus-" + id : id;
   };
 
   O.newState = newState;

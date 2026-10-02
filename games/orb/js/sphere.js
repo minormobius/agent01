@@ -151,11 +151,51 @@
     return { n: n, sites: P, verts: vor.verts, polys: vor.polys, nbrs: vor.nbrs, tris: vor.tris, seed: seed, relax: relax };
   }
 
+  /* The PROJECTIVE PLANE: the sphere with every point glued to the point
+     opposite it. Its Voronoi diagram is the sphere's diagram of antipodal
+     PAIRS of sites (kept symmetric through Lloyd: each pair relaxes to the
+     average of its two centroids, one negated), and each pair is one cell.
+     So the mesh carries the double cover for drawing (2n sites, polys,
+     verts: cover cell i and i + n are the same game cell) and the game's
+     adjacency on the n cells. Euler characteristic 1, so V − E + F = 1 and
+     the average cell has 6 − 6/n neighbours.
+
+     Any hemisphere is the whole projective plane, once: the globe view
+     already IS its honest map. Turn it, and a cell sinking under one rim
+     comes back up on the opposite rim, mirrored. */
+  function buildProjective(seed, n, relax) {
+    if (relax == null) relax = 2;
+    var rng = O.rngFor(seed, "projective", n), N = 2 * n, P = new Float64Array(3 * N);
+    for (var i = 0; i < n; i++) {
+      var z = 2 * rng.next() - 1, th = 2 * Math.PI * rng.next(), r = Math.sqrt(1 - z * z);
+      P[3 * i] = r * Math.cos(th); P[3 * i + 1] = r * Math.sin(th); P[3 * i + 2] = z;
+      P[3 * (i + n)] = -P[3 * i]; P[3 * (i + n) + 1] = -P[3 * i + 1]; P[3 * (i + n) + 2] = -P[3 * i + 2];
+    }
+    var vor = voronoi(P, N);
+    for (var it = 0; it < relax; it++) {
+      var Q = lloyd(P, N, vor);
+      for (i = 0; i < n; i++) {
+        var c = norm([Q[3 * i] - Q[3 * (i + n)], Q[3 * i + 1] - Q[3 * (i + n) + 1], Q[3 * i + 2] - Q[3 * (i + n) + 2]]);
+        P[3 * i] = c[0]; P[3 * i + 1] = c[1]; P[3 * i + 2] = c[2];
+        P[3 * (i + n)] = -c[0]; P[3 * (i + n) + 1] = -c[1]; P[3 * (i + n) + 2] = -c[2];
+      }
+      vor = voronoi(P, N);
+    }
+    var nbrs = [];
+    for (i = 0; i < n; i++) {
+      var ns = [];
+      vor.nbrs[i].forEach(function (j) { var g = j % n; if (g !== i && ns.indexOf(g) < 0) ns.push(g); });
+      nbrs.push(ns);
+    }
+    return { n: n, cover: N, proj: true, sites: P, verts: vor.verts, polys: vor.polys, nbrs: nbrs, coverNbrs: vor.nbrs, tris: vor.tris, seed: seed, relax: relax };
+  }
+
   /* Index of the cell containing unit vector (x,y,z): the nearest site, which
-     is the definition of a Voronoi cell — hit-testing needs no polygons. */
+     is the definition of a Voronoi cell — hit-testing needs no polygons.
+     (On the projective plane this is the COVER cell; mod n is the game's.) */
   function cellAt(mesh, x, y, z) {
     var P = mesh.sites, best = -2, bi = -1;
-    for (var i = 0; i < mesh.n; i++) {
+    for (var i = 0, N = P.length / 3; i < N; i++) {
       var d = P[3*i]*x + P[3*i+1]*y + P[3*i+2]*z;
       if (d > best) { best = d; bi = i; }
     }
@@ -163,6 +203,7 @@
   }
 
   O.buildMesh = buildMesh;
+  O.buildProjective = buildProjective;
   O.cellAt = cellAt;
   O._hull = hull;
 })();
