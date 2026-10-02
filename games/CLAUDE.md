@@ -90,13 +90,22 @@ Three things live here:
   into a planet (`mappa/lib/coast-mask.js`; `mappa/lib/onecoast/` holds
   byte-identical copies of `geo.js` and `world.js`, which our selftest checks).
   See [`onecoast/README.md`](onecoast/README.md).
+- **Skein at `/skein/`**: a word search wound round a Goldberg sphere (C80,
+  C180, C240), in the manner of NYT Strands. Every tile is a letter of exactly one
+  theme word, and the theme itself (the span) runs between two antipodal pentagons.
+  Boards are generated in the page from a seed, so the daily ball is the date.
+  Each board is proved by an exact-cover solver to have exactly one answer, in
+  milliseconds. Borrows `../onecoast/js/geo.js`. Hints are earned with words
+  from `dict/words.txt`, which is derived from `words/dict/enable1.txt` by
+  `tools/dict.mjs`; the selftest checks it is current. See
+  [`skein/README.md`](skein/README.md).
 - **Pressure at `/pressure/`** — the hub for the whole family: the thesis behind
   them, what each one can measure about a decision, and briefs for the two still
   unbuilt. A single hand-written page. Start here before adding another game
   to this family: [`pressure/README.md`](pressure/README.md).
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/strand/`, `/onecoast/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/strand/`, `/onecoast/`, `/skein/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -135,6 +144,7 @@ node games/orb/test/analysis.mjs 300             # guess-free rate: Voronoi orb 
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies
+node games/skein/test/skein.selftest.mjs         # every theme on every sphere: a board, proved one answer; rules; word list current
 node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
 ```
 

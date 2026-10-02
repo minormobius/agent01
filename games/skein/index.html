@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#06080d" />
+<meta name="description" content="Skein — a ball of words. Every letter on a buckyball belongs to one theme word; trace them out. The theme itself runs pole to pole." />
+<title>Skein — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/skein.css" />
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="left">
+      <button type="button" id="daily" class="tab on">daily</button>
+      <button type="button" id="new" class="tab">new</button>
+    </div>
+    <div class="right">
+      <select id="sphere" aria-label="Sphere size">
+        <option value="c80">C80 · 42</option>
+        <option value="c180">C180 · 92</option>
+        <option value="c240">C240 · 122</option>
+      </select>
+      <button type="button" id="lock" class="tog" aria-pressed="true" title="Trace: one finger draws. Turn: one finger turns, taps pick letters. (l)">✎ trace</button>
+      <button type="button" id="viewmode" class="tog" title="Globe or whole sphere (v)">◐ globe</button>
+    </div>
+  </div>
+  <div id="clue"><span class="k">theme</span> <b id="clue-text">—</b></div>
+  <div id="stat"><span><b id="found">0</b>/<span id="total">0</span> words</span><span id="span-state">span hidden</span></div>
+  <canvas id="orb" aria-label="A sphere of letters: trace words"></canvas>
+  <div id="word" aria-live="polite">&nbsp;</div>
+  <div id="note" aria-live="polite">trace a word</div>
+  <div class="tray">
+    <button class="ghost" id="clear" type="button" title="Clear the trace">✕</button>
+    <button class="hint" id="hint" type="button" title="Three words of your own earn a hint"><span id="hint-label">hint</span><i id="hint-meter"><u></u><u></u><u></u></i></button>
+    <button class="primary" id="enter" type="button" title="Submit the trace (Enter)">enter</button>
+  </div>
+  <p class="foot" id="foot">drag across letters to trace · two fingers turn and zoom · tap the corner map to look there</p>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>SKEIN</h1>
+  <p>
+    A ball of words. Every letter on this sphere belongs to exactly one
+    <b>theme word</b>, traced through neighbouring tiles, no tile used twice.
+    Find them all and the ball is wound.
+  </p>
+  <p>
+    One of them is the <b>span</b>: the theme itself, and it runs from one
+    ringed <b>pole</b> to the other. It turns gold when you find it.
+  </p>
+  <p class="accent">
+    Stuck? Any other word of four letters or more counts toward a hint:
+    three words, one hint. Every board has exactly one answer.
+  </p>
+  <button class="primary" id="start-btn" type="button" style="flex:none">UNWIND</button>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <h2 id="over-kicker">wound</h2>
+  <h1 id="over-title">—</h1>
+  <p id="over-body"></p>
+  <div class="row">
+    <button class="primary" id="again" type="button">NEW BALL</button>
+    <button class="ghost" id="look" type="button">LOOK</button>
+  </div>
+</div>
+
+<script src="../onecoast/js/geo.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/gen.js"></script>
+<script src="js/game.js"></script>
+<script src="js/view.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
