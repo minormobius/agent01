@@ -127,6 +127,31 @@ console.log("double torus mesh");
   ck(H.outside(...cur) < 0 && far < 2 * H.RCIRC + 1e-9 && Math.hypot(...z) < 1e-9, "double torus: a long wander keeps the cursor in the octagon; toward() centres a cell");
 }
 
+console.log("the double torus bent into 3D (js/pretzel.js)");
+{
+  const H = O.hyper, t0 = performance.now(), P = O.pretzel(), ms = performance.now() - t0;
+  ck(P.vertices - P.edges + P.triangles === -2 && P.sides === 8, `the pretzel mesh has V−E+F = −2, and cut along the four loops it is a disc with 8 sides, read as the octagon's word (${ms.toFixed(0)} ms)`);
+  // the map agrees across every seam: a point by side k and its glued partner by side k + 4 land together
+  const rc = Math.tanh(H.RCIRC / 2); let seam = 0;
+  for (let k = 0; k < 4; k++) for (let s = 0.03; s < 1; s += 0.06) {
+    const a = H.klein(rc * Math.cos(k * Math.PI / 4 - Math.PI / 8), rc * Math.sin(k * Math.PI / 4 - Math.PI / 8)), b = H.klein(rc * Math.cos(k * Math.PI / 4 + Math.PI / 8), rc * Math.sin(k * Math.PI / 4 + Math.PI / 8));
+    const kx = (a[0] + (b[0] - a[0]) * s) * 0.9999, ky = (a[1] + (b[1] - a[1]) * s) * 0.9999, r = Math.hypot(kx, ky), f = 1 / (1 + Math.sqrt(1 - r * r)), p = [kx * f, ky * f];
+    const x1 = P.at(...p), x2 = P.at(...H.apply(H.inverse(H.GENS[k]), ...p));
+    seam = Math.max(seam, Math.hypot(x1[0] - x2[0], x1[1] - x2[1], x1[2] - x2[2]));
+  }
+  ck(seam < 1e-3, `seamless: glued points land within ${seam.toExponential(1)} of each other`);
+  // every point of the octagon is covered by the relaxed layout
+  const rng = O.rngFor("cover", "pz", 1); let miss = 0, n = 0;
+  while (n < 4000) { const kx = rng.next() * 1.9 - 0.95, ky = rng.next() * 1.9 - 0.95, r = Math.hypot(kx, ky); if (r >= 1) continue; const f = 1 / (1 + Math.sqrt(1 - r * r)); if (H.outside(kx * f, ky * f) >= 0) continue; n++; const L = P.locate(kx, ky); if (Math.min(L[1], L[2], L[3]) < -1e-6) miss++; }
+  ck(miss === 0, `the layout covers the octagon (${n} random points, ${miss} outside every triangle)`);
+  // no cell is folded over on the surface: each one's outline turns the same way as the surface's outward normal
+  for (const sz of ["hs", "hm"]) {
+    const m = O.meshFor(sz, "pz-" + sz), C = O.pretzel.cells(m); let against = 0;
+    C.cells.forEach((c) => { let nx = 0, ny = 0, nz = 0; const R = c.ring, L = R.length / 3; for (let q = 0; q < L; q++) { const a = 3 * q, b = 3 * ((q + 1) % L); nx += (R[a + 1] - R[b + 1]) * (R[a + 2] + R[b + 2]); ny += (R[a + 2] - R[b + 2]) * (R[a] + R[b]); nz += (R[a] - R[b]) * (R[a + 1] + R[b + 1]); } if ((nx * c.n[0] + ny * c.n[1] + nz * c.n[2]) / Math.hypot(nx, ny, nz) < -0.3) against++; });
+    ck(against === 0, `${sz}: every cell lies the right way up on the pretzel (${against} folded)`);
+  }
+}
+
 console.log("solver vs brute force");
 function brute(mesh, open, count, total) {
   const n = mesh.n, canMine = new Uint8Array(n), canSafe = new Uint8Array(n);

@@ -22,7 +22,7 @@
     this.R = [1, 0, 0, 0, 1, 0, 0, 0, 1];
     this.zoom = 1; this.w = 0; this.h = 0; this.dpr = 1;
     this.state = null; this.anim = null; this.mark = null; this.hl = null; this.reticle = true; this.focusCell = -1;
-    this.tmode = "donut"; this.cam = null; // the torus: "donut" (3D), "clifford" (4D, projected) or "flat" (the wrapped rectangle)
+    this.tmode = "donut"; this.cam = null; this.hmode = "disk"; // the double torus: "disk" (Poincaré) or "pretzel" (3D) // the torus: "donut" (3D), "clifford" (4D, projected) or "flat" (the wrapped rectangle)
   }
 
   /* ------------------------------------------------------------ the torus
@@ -61,6 +61,7 @@
   /* How squarely cell c faces you (for choosing which certain cell to hint). */
   View.prototype.inView = function (c) {
     var m = this.state.mesh;
+    if (this.pretzelMode() && this.pz()) { var Zc = this.pz().cells[c], sc = this.pproj(Zc.c); return this.pfacing(Zc.n) - Math.hypot(sc[0] - this.w / 2, sc[1] - this.h / 2) / Math.min(this.w, this.h); }
     if (this.hyper()) { var hp = this.hcam().nearest(m.sites[2 * c], m.sites[2 * c + 1]); return 1 - O.hyper.distO(hp[0], hp[1]) / 3; }
     if (!this.torus()) { var R = this.R, P = m.sites, zc = R[6] * P[3 * c] + R[7] * P[3 * c + 1] + R[8] * P[3 * c + 2]; return m.proj ? Math.abs(zc) : zc; }
     var cam = this.camFor();
@@ -71,12 +72,15 @@
   /* Ease cell c toward the middle of the view by fraction t. */
   View.prototype.toward = function (c, t) {
     var m = this.state.mesh;
+    if (this.pretzelMode()) { this.ptoward(c, t); return; }
     if (this.hyper()) { this.hcam().toward(m.sites[2 * c], m.sites[2 * c + 1], t); return; }
     if (this.torus()) { this.camFor().toward(m.sites[2 * c], m.sites[2 * c + 1], t); return; }
     if (m.proj) { var R2 = this.R, P2 = m.sites; if (R2[6] * P2[3 * c] + R2[7] * P2[3 * c + 1] + R2[8] * P2[3 * c + 2] < 0) c += m.n; } // the nearer copy
     this.face([m.sites[3 * c], m.sites[3 * c + 1], m.sites[3 * c + 2]], t);
   };
-  View.prototype.towardPoint = function (u, v, t) { (this.hyper() ? this.hcam() : this.camFor()).toward(u, v, t); };
+  View.prototype.towardPoint = function (u, v, t) {
+    if (this.pretzelMode()) { if (this._tpu !== u || this._tpv !== v) { this._tpu = u; this._tpv = v; this._tpc = this.cellAtDisk(u, v); } this.ptoward(this._tpc, t); return; }
+    (this.hyper() ? this.hcam() : this.camFor()).toward(u, v, t); };
 
   View.prototype.drawTorus = function (now) {
     var s = this.state, ctx = this.ctx, m = s.mesh, cam = this.camFor(), busy = false, self = this;
@@ -293,6 +297,157 @@
     this.drawHyperInset();
     return busy;
   };
+  /* ------------------------------------------------------------ the pretzel
+     The same double torus bent into 3D (js/pretzel.js): a donut with two
+     holes, turned like the orb. Less useful than the disk (cells stretch and
+     shrink, as they must when a hyperbolic surface is forced into 3D), but
+     it's the shape. The octagon's four glued pairs of sides are drawn on it
+     in the corner map's colours: four loops through one point. */
+  View.prototype.pretzelMode = function () { // on, and bent (until the worker answers, the disk stands in)
+    return this.hyper() && this.hmode === "pretzel" && !!this._pz && this._pz.key === this.state.mesh.seed + "|" + this.state.mesh.n;
+  };
+  /* The board on the pretzel: built by js/bend.js in a worker (main thread
+     if there are no workers). Null until it arrives; `onbent` is told when it does. */
+  View.prototype.pz = function () {
+    var m = this.state.mesh, self = this, key = m.seed + "|" + m.n;
+    if (this._pz && this._pz.key === key) return this._pz;
+    if (this._pzWant === key) return null;
+    this._pzWant = key;
+    var land = function (data) {
+      if (self._pzWant !== key) return;
+      self._pz = { key: key, cells: data.cells.map(function (c) { var R = []; for (var q = 0; q < c.ring.length; q += 3) R.push([c.ring[q], c.ring[q + 1], c.ring[q + 2]]); return { ring: R, c: c.c, n: c.n }; }), loops: data.loops.map(function (L) { var R = []; for (var q = 0; q < L.length; q += 3) { var X = [L[q], L[q + 1], L[q + 2]]; R.push({ x: X, n: O.pretzel.normal(X) }); } return R; }) };
+      if (!self.pR) { self.pR = rotAxis([1, 0, 0], -0.95); self.pF = [0, 0, 0]; }
+      if (self._pzThen != null && self.hmode === "pretzel") { self.ptoward(self._pzThen, 1); self._pzThen = null; }
+      if (self.onbent) self.onbent();
+    };
+    try {
+      if (this._bend) this._bend.terminate();
+      this._bend = new Worker("js/bend.js");
+      this._bend.onmessage = function (e) { land(e.data.data); };
+      this._bend.onerror = function () { land(O.pretzel.cells(m)); };
+      this._bend.postMessage({ key: key, size: this.size, seed: m.seed });
+    } catch (e) { land(O.pretzel.cells(m)); }
+    return null;
+  };
+  View.prototype.pscale = function () { return Math.min(this.w, this.h) * 0.42 * this.zoom; };
+  View.prototype.pproj = function (X) {
+    var R = this.pR, F = this.pF, d0 = X[0] - F[0], d1 = X[1] - F[1], d2 = X[2] - F[2], k = this.pscale();
+    var qx = R[0] * d0 + R[1] * d1 + R[2] * d2, qy = R[3] * d0 + R[4] * d1 + R[5] * d2, qz = R[6] * d0 + R[7] * d1 + R[8] * d2;
+    return [this.w / 2 + k * qx, this.h / 2 - k * qy, qz];
+  };
+  View.prototype.pfacing = function (n) { var R = this.pR; return R[6] * n[0] + R[7] * n[1] + R[8] * n[2]; };
+  View.prototype.pdrag = function (dx, dy) {
+    if (!this.pR) return;
+    var r = this.pscale() * 0.8, a = dx / r, b = dy / r, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
+    this.pR = mul([ca, sa * sb, sa * cb, 0, cb, -sb, -sa, ca * sb, ca * cb], this.pR); orthonormalise(this.pR);
+  };
+  /* Turn cell c to face you and slide it to the middle, by fraction t. */
+  View.prototype.ptoward = function (c, t) {
+    var P = this.pz(); if (!P) { this._pzThen = c; return; }
+    var Z = P.cells[c];
+    if (!Z.look) Z.look = O.pretzel.viewDir(Z.c, Z.n); // where it can be seen from
+    var v = apply(this.pR, Z.look), axis = [v[1], -v[0], 0], sn = Math.hypot(axis[0], axis[1]);
+    if (t == null) t = 1;
+    if (sn > 1e-9) { this.pR = mul(rotAxis([axis[0] / sn, axis[1] / sn, 0], Math.atan2(sn, v[2]) * t), this.pR); orthonormalise(this.pR); }
+    for (var q = 0; q < 3; q++) this.pF[q] += (Z.c[q] - this.pF[q]) * t;
+  };
+  View.prototype.ppick = function (px, py) {
+    var D = this._pdrawn; if (!D) return -1;
+    for (var k = D.length - 1; k >= 0; k--) if (inPoly(D[k].scr, px, py)) return D[k].i;
+    return -1;
+  };
+  /* The cell under a point of the octagon (an inset tap). */
+  View.prototype.cellAtDisk = function (x, y) {
+    var m = this.state.mesh, H = O.hyper, NT = H.near(), best = -1, bd = 1e9;
+    for (var i = 0; i < m.n; i++) for (var e = 0; e < NT.length; e++) {
+      var p = H.apply(NT[e], m.sites[2 * i], m.sites[2 * i + 1]), q = H.apply(H.tau(-x, -y), p[0], p[1]), d = Math.hypot(q[0], q[1]);
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  };
+  View.prototype.drawPretzel = function (now) {
+    var Z = this.pz();
+    if (!Z || !this.pretzelMode()) { // still bending: the disk meanwhile
+      var b = this.drawHyper(now), ctx0 = this.ctx;
+      ctx0.fillStyle = "rgba(5,5,8,0.6)"; ctx0.fillRect(0, 0, this.w, this.h);
+      ctx0.fillStyle = "#5ee8c1"; ctx0.font = "600 15px ui-monospace, Menlo, Consolas, monospace"; ctx0.textAlign = "center";
+      ctx0.fillText("bending the surface into 3D…", this.w / 2, this.h / 2);
+      return b;
+    }
+    var s = this.state, ctx = this.ctx, m = s.mesh, self = this, busy = false;
+    var showMines = s.phase === "lost" || s.phase === "won", R = this.pR;
+    var LT = (function () { var l = Math.hypot(-0.35, 0.55, 0.75); return [-0.35 / l, 0.55 / l, 0.75 / l]; })();
+    ctx.lineJoin = "round"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    var list = [];
+    for (var i = 0; i < m.n; i++) {
+      var C = Z.cells[i], f = this.pfacing(C.n);
+      if (f < -0.02) continue;
+      var c = this.pproj(C.c);
+      list.push({ i: i, z: c[2], x: c[0], y: c[1], f: f, scr: C.ring.map(function (X) { return self.pproj(X); }) });
+    }
+    list.sort(function (a, b) { return a.z - b.z; });
+    this._pdrawn = list;
+    var trace = function (P) { ctx.beginPath(); for (var q = 0; q < P.length; q++) { if (q) ctx.lineTo(P[q][0], P[q][1]); else ctx.moveTo(P[q][0], P[q][1]); } ctx.closePath(); };
+    var cellR = this.pscale() * Math.sqrt(30 / m.n) / 2;
+    for (var k = 0; k < list.length; k++) {
+      var d = list[k], j = d.i, n = Z.cells[j].n, rn = apply(R, n), lit = Math.max(0, rn[0] * LT[0] + rn[1] * LT[1] + rn[2] * LT[2]);
+      var openT = s.open[j] ? 1 : 0;
+      if (this.anim && this.anim[j] != null) { openT = Math.min(1, Math.max(0, (now - this.anim[j]) / 160)); if (openT < 1) busy = true; }
+      var col;
+      if (s.open[j] && s.mine[j]) col = [255, 46, 77];
+      else if (showMines && s.mine[j] && !s.flag[j]) col = s.phase === "won" ? [70, 110, 100] : [110, 40, 55];
+      else {
+        var cr = [66 + 70 * lit, 70 + 70 * lit, 104 + 80 * lit], op = [18 + 12 * lit, 18 + 12 * lit, 28 + 16 * lit];
+        col = [cr[0] + (op[0] - cr[0]) * openT, cr[1] + (op[1] - cr[1]) * openT, cr[2] + (op[2] - cr[2]) * openT];
+      }
+      var dim = 0.35 + 0.65 * Math.min(1, Math.max(0, d.f) * 1.8);
+      ctx.fillStyle = "rgb(" + (col[0] * dim | 0) + "," + (col[1] * dim | 0) + "," + (col[2] * dim | 0) + ")";
+      trace(d.scr); ctx.fill(); ctx.strokeStyle = "#08080c"; ctx.lineWidth = Math.max(0.5, cellR * 0.05); ctx.stroke();
+      if (d.f < 0.15) continue;
+      var ar = 0; for (var q = 0; q < d.scr.length; q++) { var A = d.scr[q], B = d.scr[(q + 1) % d.scr.length]; ar += A[0] * B[1] - B[0] * A[1]; }
+      var fs = Math.sqrt(Math.abs(ar) / 2) * 0.6; if (fs < 5) continue;
+      ctx.save(); trace(d.scr); ctx.clip();
+      if (s.open[j] && !s.mine[j] && s.count[j] > 0 && openT > 0.5) {
+        ctx.fillStyle = NUM[s.count[j]]; ctx.font = "700 " + fs.toFixed(1) + "px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(String(s.count[j]), d.x, d.y + fs * 0.04);
+      } else if (s.flag[j]) drawFlag(ctx, d.x, d.y, fs, showMines && !s.mine[j]);
+      else if (showMines && s.mine[j]) drawMine(ctx, d.x, d.y, fs * 0.36, s.open[j]);
+      ctx.restore();
+    }
+    // the octagon's sides: four loops through one point
+    ctx.lineWidth = 2; ctx.lineCap = "round";
+    Z.loops.forEach(function (pts, k2) {
+      ctx.strokeStyle = PAIR[k2]; ctx.beginPath(); var pen = false;
+      pts.forEach(function (p) { var q2 = self.pproj(p.x); if (self.pfacing(p.n) > 0.05) { if (pen) ctx.lineTo(q2[0], q2[1]); else ctx.moveTo(q2[0], q2[1]); pen = true; } else pen = false; });
+      ctx.stroke();
+    });
+    var byI = new Map(); list.forEach(function (d2) { byI.set(d2.i, d2); });
+    var outline = function (i2, style, wdt) { var d2 = byI.get(i2); if (!d2) return; trace(d2.scr); ctx.strokeStyle = style; ctx.lineWidth = wdt; ctx.stroke(); };
+    list.forEach(function (d2) {
+      if (self.hl && self.hl.has(d2.i)) outline(d2.i, "rgba(255,200,87,0.95)", Math.max(1.5, cellR * 0.12));
+      if (self.mark && self.mark.has(d2.i)) { var pulse = 0.55 + 0.45 * Math.sin(now / 180); outline(d2.i, "rgba(94,232,193," + pulse.toFixed(2) + ")", Math.max(2, cellR * 0.16)); busy = true; }
+    });
+    this.focusCell = -1;
+    if (this.reticle && (s.phase === "play" || s.phase === "ready")) {
+      var fc = this.ppick(this.w / 2, this.h / 2);
+      if (fc >= 0) {
+        this.focusCell = fc;
+        if (s.phase === "play") m.nbrs[fc].forEach(function (j2) { outline(j2, "rgba(94,232,193,0.9)", Math.max(1.5, cellR * 0.1)); });
+        outline(fc, "rgba(255,255,255,0.95)", Math.max(2, cellR * 0.14));
+      }
+    }
+    this.drawHyperInset();
+    return busy;
+  };
+  /* Disk ↔ pretzel, keeping the cell under the cursor under the cursor. */
+  View.prototype.setHmode = function (mode) {
+    var c = this.focusCell, m = this.state.mesh;
+    this.hmode = mode;
+    if (c < 0) return;
+    if (mode === "pretzel") { if (this.pR) { this.pR = rotAxis([1, 0, 0], -0.95); this.pF = [0, 0, 0]; } } // the whole thing first
+    else this.hcam().toward(m.sites[2 * c], m.sites[2 * c + 1], 1);
+  };
+
   /* The fundamental octagon in the corner: the whole board, its sides
      coloured by which they're glued to, and where you are in it. */
   var PAIR = ["#5ee8c1", "#ffc857", "#c77dff", "#4dabf7"];
@@ -317,7 +472,9 @@
       for (var q = 0; q <= per; q++) { var p = oct[(Math.round(sd * per) + q) % oct.length]; if (q) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }
       ctx.strokeStyle = PAIR[sd % 4]; ctx.lineWidth = 2; ctx.stroke();
     }
-    var c = scr(this.hcam().cursor());
+    var cur = this.pretzelMode() ? (this.focusCell >= 0 ? [m.sites[2 * this.focusCell], m.sites[2 * this.focusCell + 1]] : null) : this.hcam().cursor();
+    if (!cur) return;
+    var c = scr(cur);
     ctx.strokeStyle = "rgba(255,255,255,0.95)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(c[0], c[1], 5, 0, 6.2832); ctx.stroke();
   };
   View.prototype.inHyperInset = function (px, py) { var vp = this.hinset(); return Math.hypot(px - vp.cx, py - vp.cy) <= vp.r + 4; };
@@ -339,6 +496,7 @@
   /* Rotate so the surface follows the finger: a drag of (dx, dy) pixels turns
      about screen-y then screen-x by arc length / radius. */
   View.prototype.drag = function (dx, dy, px, py) {
+    if (this.pretzelMode()) { this.pdrag(dx, dy); return; }
     if (this.hyper()) { this.hdrag(dx, dy, px, py); return; }
     if (this.torus()) { this.camFor().drag(dx, dy, this.tmode === "flat" ? "flat" : "donut", this.w, this.h); return; }
     var r = this.radius(), a = dx / r, b = dy / r;
@@ -357,6 +515,7 @@
   };
 
   View.prototype.pick = function (px, py) {
+    if (this.pretzelMode()) return this.ppick(px, py);
     if (this.hyper()) return this.hpick(px, py);
     if (this.torus()) return this.frame().pick(px, py);
     var r = this.radius(), x = (px - this.w / 2) / r, y = -(py - this.h / 2) / r, d = x * x + y * y;
@@ -372,6 +531,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, this.w, this.h);
     if (!s) return false;
+    if (this.hyper() && this.hmode === "pretzel") return this.drawPretzel(now);
     if (this.hyper()) return this.drawHyper(now);
     if (this.torus()) return this.drawTorus(now);
     var m = s.mesh, P = m.sites, V = m.verts, R = this.R, r = this.radius(), cx = this.w / 2, cy = this.h / 2;

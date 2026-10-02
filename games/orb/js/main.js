@@ -47,7 +47,7 @@
     var s = O.newState(mesh, cfg.m);
     if (forge) { forge.terminate(); forge = null; }
     game = { seed: seed, size: size, s: s, guesses: 0, hints: 0, gen: null, hard: hardMode, hardTotal: 0, cracked: 0, inHard: false };
-    view.state = s; view.anim = {}; view.mark = null; view.hl = null;
+    view.state = s; view.size = size; view.anim = {}; view.mark = null; view.hl = null;
     setURL(seed, size);
     $("seed").textContent = seed;
     $("size").value = size;
@@ -68,11 +68,16 @@
     $("hardc").textContent = game.cracked + (game.hard && game.cracked <= game.hardTotal ? "/" + (game.hardTotal || "–") : "");
     $("hardc").classList.toggle("hot", game.inHard);
     $("mode").textContent = tapDigs ? "tap: ⛏ dig" : "tap: ⚑ flag";
-    var torus = !!SIZES[game.size].torus;
-    $("tview").hidden = !torus; $("actions").classList.toggle("five", torus);
+    var torus = !!SIZES[game.size].torus, hyper = !!SIZES[game.size].hyper;
+    $("tview").hidden = !torus && !hyper; $("actions").classList.toggle("five", torus || hyper);
     if (torus && SIZES[game.size].klein && view.tmode === "clifford") view.tmode = "donut"; // the Klein bottle has no Clifford view
-    $("tview").textContent = view.tmode === "flat" ? "▭" : view.tmode === "clifford" ? "4D" : "◎";
-    $("tview").setAttribute("aria-label", view.tmode === "flat" ? "flat map view" : view.tmode === "clifford" ? "Clifford torus: the flat torus in 4D, projected" : "3D view");
+    if (hyper) {
+      $("tview").textContent = view.hmode === "pretzel" ? "∞" : "⊙";
+      $("tview").setAttribute("aria-label", view.hmode === "pretzel" ? "the double torus in 3D, a donut with two holes" : "the hyperbolic plane (Poincaré disk)");
+    } else {
+      $("tview").textContent = view.tmode === "flat" ? "▭" : view.tmode === "clifford" ? "4D" : "◎";
+      $("tview").setAttribute("aria-label", view.tmode === "flat" ? "flat map view" : view.tmode === "clifford" ? "Clifford torus: the flat torus in 4D, projected" : "3D view");
+    }
     $("mode").classList.toggle("on", tapDigs);
   }
   function clock(ms) { var t = Math.floor(ms / 1000); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
@@ -316,7 +321,7 @@
     if (e.key === "f" || e.key === " ") { tapDigs = !tapDigs; hud(); e.preventDefault(); }
     else if (e.key === "h" || e.key === "?") hint();
     else if (e.key === "n") newGame(O.randomSeed(), game.size);
-    else if (e.key === "v" && SIZES[game.size].torus) $("tview").click();
+    else if (e.key === "v" && (SIZES[game.size].torus || SIZES[game.size].hyper)) $("tview").click();
     else if ((e.key === "[" || e.key === "]") && view.tmode === "clifford") { // tilt the Clifford torus in 4D
       var cam = view.camFor(); cam.beta = Math.max(0, Math.min(0.7, (cam.beta || 0.3) + (e.key === "]" ? 0.05 : -0.05))); dirty = true;
     }
@@ -329,12 +334,18 @@
   $("mode").onclick = function () { tapDigs = !tapDigs; hud(); };
   $("hint").onclick = hint;
   $("tview").onclick = function () {
+    if (SIZES[game.size].hyper) { // the double torus: hyperbolic disk ↔ the pretzel in 3D
+      view.setHmode(view.hmode === "pretzel" ? "disk" : "pretzel");
+      try { localStorage.setItem("orb-hview", view.hmode); } catch (e) { /* ignore */ }
+      hud(); dirty = true; return;
+    }
     // torus: donut → 4D (Clifford) → flat; Klein bottle: bottle ↔ flat
     var klein = !!SIZES[game.size].klein;
     view.setTmode(view.tmode === "donut" ? (klein ? "flat" : "clifford") : view.tmode === "clifford" ? "flat" : "donut");
     try { localStorage.setItem("orb-tview", view.tmode); } catch (e) { /* ignore */ }
     hud(); dirty = true;
   };
+  try { if (localStorage.getItem("orb-hview") === "pretzel") view.hmode = "pretzel"; } catch (e) { /* ignore */ }
   try { var tv0 = localStorage.getItem("orb-tview"); if (tv0 === "flat" || tv0 === "clifford") view.tmode = tv0; } catch (e) { /* ignore */ }
   $("new").onclick = function () { newGame(O.randomSeed(), game.size); };
   $("size").onchange = function () { newGame(O.randomSeed(), this.value); };
@@ -375,6 +386,7 @@
   function fit() { view.resize(); dirty = true; }
   window.addEventListener("resize", fit);
 
+  view.onbent = function () { dirty = true; };
   O._debug = { game: function () { return game; }, view: view }; // for the browser playtest
 
   var p = params();

@@ -12,7 +12,7 @@ underneath gives its number, flags and hidden neighbours. On an irregular
 mesh, counting the far side of a cell by eye is the chore; turn the cell you
 care about to the middle instead.
 
-Pure static, like the rest of the `/pressure/` family: nine script tags, no
+Pure static, like the rest of the `/pressure/` family: ten script tags, no
 build, served by the assets fallback in `games/worker.js`.
 
 ## Does Minesweeper stay solvable on a Voronoi mesh?
@@ -132,6 +132,8 @@ without changing the format.
 |---|---|
 | `js/prng.js` | seeded RNG (local copy of the repo's xmur3 + mulberry32) |
 | `js/sphere.js` | random points → Lloyd → convex hull = spherical Delaunay → Voronoi cells and adjacency; nearest-site hit test |
+| `js/pretzel.js` | the double torus bent into 3D: a map from the octagon onto a pretzel (see below) |
+| `js/bend.js` | the 3D view's Web Worker: builds that map and the board's cells on it |
 | `js/hyper.js` | the double torus: a hyperbolic octagon's Voronoi diagram, Möbius maps of the Poincaré disk, and the camera that scrolls through it (see below) |
 | `js/torus.js` | the torus: Voronoi diagrams of the flat torus and the honeycomb torus, plus the donut camera and the flat map both games draw with (see below) |
 | `js/rules.js` | state, reveal/flood, flag, chord. Talks to the mesh only through `nbrs`, so the same rules run on the analysis tori |
@@ -348,6 +350,47 @@ however far you go. The dashed lines are the octagons' sides. The corner
 map is the fundamental octagon in the Klein model, where its sides are
 straight, with each glued pair of sides in one colour. Tap it to travel
 there.
+
+### The donut with two holes (the double torus's `∞` view)
+
+The disk is the honest picture; the `∞` button bends the same board into
+the shape you'd draw, a pretzel you turn with a finger. It is less useful
+(cells stretch, about 2× on average, and the outer walls' cells are many
+times the inner ones'), and that's the point: a hyperbolic surface can't sit
+in 3D without it. The octagon's four glued pairs of sides are drawn on it
+in the corner map's colours: four loops through one point, the octagon's
+eight corners.
+
+The map (`js/pretzel.js`) rests on one coincidence. The regular octagon
+with opposite sides glued is the **Bolza surface**, and turning it half a
+turn about its centre is its hyperelliptic involution, fixing six points:
+the centre, the corner, and the four side midpoints. A pretzel lying flat
+has the same symmetry, half a turn about its long axis, which pierces it
+six times. Quotient both by the half turn and you get a sphere with six
+marked points, where any four disjoint arcs from one point to four others
+lift to four loops that cut the surface into exactly the octagon. So it:
+
+1. meshes the pretzel z²/s² + g² = δ² with g = x⁴ − x² + c·y² (Gerono's
+   figure eight), then evens the mesh out on the surface itself;
+2. draws four arcs on its top face from the corner's axis point to the
+   midpoints' and closes each through the bottom face: corner and centre
+   opposite, two midpoints between them either way round, as on the Bolza
+   surface, where the six points are an octahedron's vertices;
+3. cuts along them and checks the resulting disc reads
+   x₀x₁x₂x₃x₀⁻¹x₁⁻¹x₂⁻¹x₃⁻¹, lays it into the octagon (Tutte), then lets
+   the seams slide: every vertex relaxes to the hyperbolic barycentre of
+   its neighbours, the ones across a seam carried over by the gluing. That
+   is a harmonic map, so an embedding, and it agrees across every seam;
+4. looks points up by triangle.
+
+A flat-lying pretzel has mirror symmetries the Bolza surface lacks, so no
+choice of proportions makes the map conformal. They were chosen by
+measuring the stretch. The map takes under a second, in a worker
+(`js/bend.js`), while the disk stands in. The selftest checks the mesh's
+V − E + F = −2, the eight-sided cut, that glued points land together, that
+the layout covers the octagon, and that no cell lies folded over. To centre
+a cell inside a hole, the view looks down through the hole (a ray march
+finds a direction nothing blocks).
 
 ## Shared with Strand
 
