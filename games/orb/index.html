@@ -24,6 +24,11 @@
         <option value="m">medium</option>
         <option value="l">large</option>
         <option value="x">huge</option>
+        <optgroup label="torus">
+          <option value="ts">torus · small</option>
+          <option value="tm">torus · medium</option>
+          <option value="tl">torus · large</option>
+        </optgroup>
       </select>
     </div>
   </div>
@@ -36,6 +41,7 @@
   <div id="actions">
     <button class="primary" id="mode" type="button" title="Swap tap and hold (f)">tap: ⚑ flag</button>
     <button class="ghost" id="hint" type="button" title="Show a cell that is certain (h)">? hint</button>
+    <button class="ghost" id="tview" type="button" title="The torus as a donut, or as its flat map, which wraps both ways (v)" hidden>◎</button>
     <button class="ghost" id="new" type="button" title="New orb (n)">↻ new</button>
     <button class="ghost" id="board-btn" type="button" title="Fastest pure clears">🏆</button>
   </div>
@@ -88,6 +94,9 @@
     <button type="button" data-board-size="m">medium</button>
     <button type="button" data-board-size="l">large</button>
     <button type="button" data-board-size="x">huge</button>
+    <button type="button" data-board-size="ts">torus s</button>
+    <button type="button" data-board-size="tm">torus m</button>
+    <button type="button" data-board-size="tl">torus l</button>
   </div>
   <div class="tabs">
     <button type="button" data-board-hard="0">normal</button>
@@ -110,6 +119,7 @@
 
 <script src="js/prng.js"></script>
 <script src="js/sphere.js"></script>
+<script src="js/torus.js"></script>
 <script src="js/rules.js"></script>
 <script src="js/solve.js"></script>
 <script src="js/view.js"></script>

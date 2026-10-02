@@ -132,6 +132,7 @@ without changing the format.
 |---|---|
 | `js/prng.js` | seeded RNG (local copy of the repo's xmur3 + mulberry32) |
 | `js/sphere.js` | random points → Lloyd → convex hull = spherical Delaunay → Voronoi cells and adjacency; nearest-site hit test |
+| `js/torus.js` | the torus: Voronoi diagrams of the flat torus and the honeycomb torus, plus the donut camera and the flat map both games draw with (see below) |
 | `js/rules.js` | state, reveal/flood, flag, chord. Talks to the mesh only through `nbrs`, so the same rules run on the analysis tori |
 | `js/solve.js` | `deduce`, `solveFrom`, `generate` (no-guess), `certainties` |
 | `js/view.js` | Canvas 2D orthographic renderer, rotation, picking |
@@ -140,7 +141,7 @@ without changing the format.
 | `js/forge.js` | hard mode's Web Worker: loads the engine, rebuilds the mesh, runs the climb, reports progress |
 | `js/board.js` | the leaderboard UI and the write path (ES module; imports `../../lib/auth.js`, which the deploy vendors) |
 
-A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l|x`
+A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l|x|ts|tm|tl`
 is a permalink.
 
 ## Tiers
@@ -199,10 +200,37 @@ A tier's cells and mines are its leaderboard game id (`pure-1000-250`).
 Retune a tier and its old times drop off instead of being ranked against a
 different board.
 
+## The torus (`ts`, `tm`, `tl`)
+
+The same game on a **Voronoi torus**: random sites in a W × H rectangle whose
+opposite edges are glued, each cell clipped against its neighbours' images in
+the eight surrounding copies, three rounds of Lloyd. A torus has Euler
+characteristic 0, so V − E + F = 0 and the average cell has **exactly six**
+neighbours, with no defects needed. (The sphere's average is 6 − 12/n.) The
+tiers keep the sphere's cell and mine counts, prove boards the same way, and
+have their own leaderboard ids (`torus-pure-…`, `torus-hard-…`).
+
+W/H = 4/√3. Drawn as a donut with tube radius r = R·H/W, cells are
+true-shaped along the top and bottom of the tube, stretched on the outside
+and squeezed on the inside, as on any real torus.
+
+Two views (`◎`/`▭`, or `v`):
+- **donut**: a fixed camera looking down at 50°. A drag slides the *skin*:
+  sideways turns it round the ring, up and down rolls it over the tube, so
+  any cell can come to the front. The reticle sits at the sweet spot, the
+  point that faces you squarely. Cells are drawn back to front, back faces
+  dropped, and a ray-march decides which centres the near tube hides. The
+  corner map is the flat torus; tap it to go there.
+- **flat**: the rectangle itself, the torus's exact map, tiled so the wrap
+  fills the screen. Nothing is distorted and every neighbour is where it
+  looks. On a portrait screen it turns a quarter, so the long way runs down
+  the screen.
+
 ## Shared with Strand
 
-`/strand/` loads `js/prng.js` and `js/sphere.js` from here for its Voronoi
-boards. Its levels are data on these meshes, so a change to either file must
+`/strand/` loads `js/prng.js`, `js/sphere.js` and `js/torus.js` from here
+for its Voronoi and torus boards, and draws its torus with the same camera
+and map. Its levels are data on these meshes, so a change to either file must
 keep `games/strand/test/strand.selftest.mjs` green: it re-proves every
 shipped Strand level against the current mesh.
 

@@ -43,7 +43,7 @@
 
   function newGame(seed, size) {
     var cfg = SIZES[size];
-    var mesh = O.buildMesh(seed, cfg.n, 2);
+    var mesh = O.meshFor(size, seed);
     var s = O.newState(mesh, cfg.m);
     if (forge) { forge.terminate(); forge = null; }
     game = { seed: seed, size: size, s: s, guesses: 0, hints: 0, gen: null, hard: hardMode, hardTotal: 0, cracked: 0, inHard: false };
@@ -68,6 +68,9 @@
     $("hardc").textContent = game.cracked + (game.hard && game.cracked <= game.hardTotal ? "/" + (game.hardTotal || "–") : "");
     $("hardc").classList.toggle("hot", game.inHard);
     $("mode").textContent = tapDigs ? "tap: ⛏ dig" : "tap: ⚑ flag";
+    var torus = !!SIZES[game.size].torus;
+    $("tview").hidden = !torus; $("actions").classList.toggle("five", torus); $("tview").textContent = view.tmode === "flat" ? "▭" : "◎";
+    $("tview").setAttribute("aria-label", view.tmode === "flat" ? "flat map view" : "donut view");
     $("mode").classList.toggle("on", tapDigs);
   }
   function clock(ms) { var t = Math.floor(ms / 1000); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
@@ -117,7 +120,7 @@
       after();
       $("note").textContent = "forged: " + res.hard + " hard moment" + (res.hard === 1 ? "" : "s") + " on this board (" + (game.genMs / 1000).toFixed(1) + " s)";
     }
-    var msg = { seed: game.seed, n: cfg.n, m: cfg.m, first: i, steps: cfg.climb };
+    var msg = { seed: game.seed, size: game.size, n: cfg.n, m: cfg.m, first: i, steps: cfg.climb };
     try {
       forge = new Worker("js/forge.js");
       forge.onmessage = function (e) {
@@ -158,8 +161,8 @@
     var cert = O.certainties(s);
     if (!cert.safe.length) return;
     // the certain cell nearest the middle of the screen
-    var R = view.R, P = s.mesh.sites, best = -9, bi = cert.safe[0];
-    cert.safe.forEach(function (c) { var z = R[6] * P[3 * c] + R[7] * P[3 * c + 1] + R[8] * P[3 * c + 2]; if (z > best) { best = z; bi = c; } });
+    var best = -9, bi = cert.safe[0];
+    cert.safe.forEach(function (c) { var z = view.inView(c); if (z > best) { best = z; bi = c; } });
     game.hints++;
     view.mark = new Set([bi]);
     if (best < 0.6) turnTo(bi);
@@ -168,10 +171,7 @@
   }
 
   var turning = null;
-  function turnTo(c) {
-    var P = game.s.mesh.sites;
-    turning = { p: [P[3 * c], P[3 * c + 1], P[3 * c + 2]], left: 18 };
-  }
+  function turnTo(c) { turning = { cell: c, left: 18 }; }
 
   /* Say what the reticle's cell sees: its number, flags around it, and how
      many neighbours are still hidden. Counting those by eye on an irregular
@@ -252,7 +252,9 @@
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     spin.x = spin.y = 0; turning = null; idle = 0;
     if (ptrs.size === 2) { press = null; clearTimeout(holdTimer); var a = Array.from(ptrs.values()); pinch = { d: dist(a[0], a[1]), z: view.zoom }; return; }
-    var p = local(e), cell = view.pick(p.x, p.y);
+    var p = local(e);
+    if (view.inInset(p.x, p.y)) { var fp = view.insetPoint(p.x, p.y); turning = { point: fp, left: 20 }; press = null; return; }
+    var cell = view.pick(p.x, p.y);
     press = { x: e.clientX, y: e.clientY, cell: cell, moved: false, right: e.button === 2, held: false };
     last = { x: e.clientX, y: e.clientY, t: performance.now() };
     if (cell >= 0 && game.s.open[cell] && game.s.count[cell] > 0) { view.hl = new Set(game.s.mesh.nbrs[cell]); dirty = true; }
@@ -312,6 +314,7 @@
     if (e.key === "f" || e.key === " ") { tapDigs = !tapDigs; hud(); e.preventDefault(); }
     else if (e.key === "h" || e.key === "?") hint();
     else if (e.key === "n") newGame(O.randomSeed(), game.size);
+    else if (e.key === "v" && SIZES[game.size].torus) $("tview").click();
     else if (e.key.indexOf("Arrow") === 0) {
       var d = 0.12 * view.radius(), k = e.key.slice(5);
       view.drag(k === "Left" ? -d : k === "Right" ? d : 0, k === "Up" ? -d : k === "Down" ? d : 0); dirty = true; e.preventDefault();
@@ -320,6 +323,12 @@
 
   $("mode").onclick = function () { tapDigs = !tapDigs; hud(); };
   $("hint").onclick = hint;
+  $("tview").onclick = function () {
+    view.tmode = view.tmode === "flat" ? "donut" : "flat";
+    try { localStorage.setItem("orb-tview", view.tmode); } catch (e) { /* ignore */ }
+    hud(); dirty = true;
+  };
+  try { if (localStorage.getItem("orb-tview") === "flat") view.tmode = "flat"; } catch (e) { /* ignore */ }
   $("new").onclick = function () { newGame(O.randomSeed(), game.size); };
   $("size").onchange = function () { newGame(O.randomSeed(), this.value); };
   $("hardbtn").onclick = function () {
@@ -342,7 +351,8 @@
   /* ----------------------------------------------------------------- loop */
   function frame(now) {
     if (turning) { // ease the hinted cell round to face you
-      view.face(turning.p, 0.18); dirty = true;
+      if (turning.point) view.towardPoint(turning.point[0], turning.point[1], 0.2); else view.toward(turning.cell, 0.18);
+      dirty = true;
       if (--turning.left <= 0) turning = null;
     }
     if (Math.abs(spin.x) + Math.abs(spin.y) > 0.05 && !press) {

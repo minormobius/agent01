@@ -92,13 +92,22 @@
     m: { n: 320, m: 62, label: "medium", climb: 600 },
     l: { n: 600, m: 132, label: "large", climb: 500 },
     x: { n: 1000, m: 250, label: "huge", climb: 350 },
+    // the torus: a Voronoi diagram of the flat torus (js/torus.js), drawn as a donut
+    ts: { n: 160, m: 28, label: "torus · small", climb: 600, torus: true },
+    tm: { n: 320, m: 62, label: "torus · medium", climb: 600, torus: true },
+    tl: { n: 600, m: 132, label: "torus · large", climb: 500, torus: true },
+  };
+  /* The board for a tier: the sphere, or the torus. */
+  O.meshFor = function (size, seed) {
+    var c = O.SIZES[size];
+    return c.torus ? O.buildTorus(seed, c.n, 3) : O.buildMesh(seed, c.n, 2);
   };
   /* `climb` is hard mode's search budget: mine moves tried while forging a
      board for hard moments (solve.js generateHard). Part of the board's
      identity, like the mine count, so it is in the hard-mode game id. */
   O.gameId = function (size, hard) {
-    var c = O.SIZES[size];
-    return hard ? "hard-" + c.n + "-" + c.m + "-" + c.climb : "pure-" + c.n + "-" + c.m;
+    var c = O.SIZES[size], id = hard ? "hard-" + c.n + "-" + c.m + "-" + c.climb : "pure-" + c.n + "-" + c.m;
+    return c.torus ? "torus-" + id : id;
   };
 
   O.newState = newState;

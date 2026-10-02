@@ -74,14 +74,16 @@ Three things live here:
   spherical Delaunay; Lloyd-relaxed). An irregular mesh is measurably *less*
   guess-free than a regular one, so every board is proved solvable by an exact
   solver from the first tap before it ships. The readout counts the moves that
-  weren't certain when you made them. Canvas 2D, no build. See
-  [`orb/README.md`](orb/README.md).
+  weren't certain when you made them. Also on a Voronoi torus (`js/torus.js`:
+  the flat torus's Voronoi diagram, drawn as a donut whose skin slides, or as
+  its exact flat map). Canvas 2D, no build. See [`orb/README.md`](orb/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
-  on Voronoi spheres. Panel levels are carved with walls and bridges by a
+  on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
+  Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
   solver until exactly one answer is left; levels are baked
   (`tools/bake.mjs`) into a committed `js/levels.js`, and the selftest
-  re-proves each one unique. Borrows `../orb/js/sphere.js`, so a change there
-  is checked by Strand's selftest too. See [`strand/README.md`](strand/README.md).
+  re-proves each one unique. Borrows `../orb/js/sphere.js` and `torus.js`, so a
+  change there is checked by Strand's selftest too. See [`strand/README.md`](strand/README.md).
 - **One Coast at `/onecoast/`**: a tile-laying world builder on the icosahedral
   Goldberg spheres (C60–C240). Land/sea sides, free placement with cliffs,
   scored by coastlines (one continent + one ocean = exactly one coast). The bag

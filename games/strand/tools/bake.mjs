@@ -38,6 +38,14 @@ const LADDER = [
   ["hive", { type: "voronoi-panels", n: 60, seed: "strand-p4" }, 8, 2],
   ["planet", { type: "voronoi-panels", n: 80, seed: "strand-p5" }, 12, 3],
   ["world", { type: "voronoi-panels", n: 100, seed: "strand-p6" }, 16, 3],
+  // the torus: no pentagons, nothing to stand on but the hole
+  ["nanotorus", { type: "torus-hex-atoms", rows: 4, cols: 8 }, 9, 0],
+  ["ring road", { type: "torus-hex-panels", rows: 4, cols: 8 }, 5, 1],
+  ["crossover", { type: "torus-hex-panels", rows: 4, cols: 8 }, 4, 2],
+  ["bagel", { type: "torus-voronoi-panels", n: 50, seed: "strand-t1" }, 8, 2],
+  ["inner tube", { type: "torus-hex-atoms", rows: 6, cols: 12 }, 12, 0],
+  ["doughnut", { type: "torus-hex-panels", rows: 6, cols: 12 }, 12, 2],
+  ["lifebuoy", { type: "torus-voronoi-panels", n: 70, seed: "strand-t2" }, 11, 3],
 ];
 
 const levels = [];

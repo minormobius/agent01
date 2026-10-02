@@ -40,6 +40,7 @@
   /* Turn by a screen drag. In the whole view a pixel near the centre is
      worth twice the angle (the disc's radius spans 180°, not 90°). */
   View.prototype.drag = function (dx, dy) {
+    if (this.torus()) { this.camFor().drag(dx, dy, this.tmode(), this.w, this.h); return; }
     var r = this.radius() * (this.mode === "whole" ? 0.5 : 1), a = dx / r, b = dy / r, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
     this.R = mul([ca, sa * sb, sa * cb, 0, cb, -sb, -sa, ca * sb, ca * cb], this.R); ortho(this.R);
   };
@@ -74,6 +75,7 @@
     return [R[0] * x + R[3] * y + R[6] * z, R[1] * x + R[4] * y + R[7] * z, R[2] * x + R[5] * y + R[8] * z];
   };
   View.prototype.inInset = function (px, py) {
+    if (this.torus()) { if (this.mode !== "globe" || !this.mini) return false; var iv = this.tinset(); return Math.abs(px - iv.cx) <= iv.w / 2 && Math.abs(py - iv.cy) <= iv.h / 2; }
     if (this.mode !== "globe" || !this.mini) return false;
     var vp = this.inset();
     return Math.hypot(px - vp.cx, py - vp.cy) <= vp.r;
@@ -81,6 +83,7 @@
   /* The cell under a screen point: the nearest cell centre (exact for
      Voronoi panels, close enough on C60). */
   View.prototype.pick = function (px, py) {
+    if (this.torus()) return this.tframe(this.tmain(), this.tmode()).pick(px, py);
     var m = this.unproject(px, py);
     if (!m) return -1;
     var b = this.game.board, best = -2, bi = -1, P = b.pos;
@@ -92,8 +95,161 @@
     var ctx = this.ctx, dpr = this.dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, this.w, this.h);
     if (!this.game) return;
+    if (this.torus()) {
+      this.tscene(this.tframe(this.tmain(), this.tmode()), false);
+      if (this.mode === "globe" && this.mini) this.tscene(this.tframe(this.tinset(), "flat"), true);
+      return;
+    }
     this.scene(this.main());
     if (this.mode === "globe" && this.mini) this.scene(this.inset());
+  };
+
+  /* ------------------------------------------------------------ the torus
+     Torus boards (../orb/js/torus.js) draw through a TorusFrame instead of
+     the sphere's projections: "globe" is the donut, "whole" the flat map
+     (the torus's exact map: a rectangle that wraps both ways), and the inset
+     is the flat map too. A drag slides the skin; nothing turns. */
+  View.prototype.torus = function () { return !!(this.game && this.game.board.topology === "torus"); };
+  View.prototype.tmode = function () { return this.mode === "whole" ? "flat" : "donut"; };
+  View.prototype.camFor = function () {
+    var m = this.game.board.mesh;
+    if (!this.cam || this.cam.mesh !== m) this.cam = new NS.ORB.TorusCam(m);
+    this.cam.zoom = this.zoom; return this.cam;
+  };
+  View.prototype.tmain = function () { return { cx: this.w / 2, cy: this.h / 2, w: this.w, h: this.h }; };
+  View.prototype.tinset = function () {
+    var m = this.game.board.mesh, iw = Math.max(90, Math.min(170, this.w * 0.34)), ih = iw * m.H / m.W;
+    return { cx: this.w - iw / 2 - 8, cy: ih / 2 + 8, w: iw, h: ih, mini: true };
+  };
+  View.prototype.tframe = function (vp, mode) { return new NS.ORB.TorusFrame(this.camFor(), vp, mode); };
+  /* Flat point under an inset tap, and easing a cell or point to the front. */
+  View.prototype.insetPoint = function (px, py) {
+    var F = this.tframe(this.tinset(), "flat"), m = this.game.board.mesh;
+    return F.flatAt(px, py);
+  };
+  View.prototype.towardCell = function (c, t) {
+    var b = this.game.board;
+    if (this.torus()) { this.camFor().toward(b.mesh.sites[2 * c], b.mesh.sites[2 * c + 1], t); return; }
+    this.face([b.pos[3 * c], b.pos[3 * c + 1], b.pos[3 * c + 2]], t);
+  };
+  View.prototype.towardPoint = function (p, t) { if (this.torus()) this.camFor().toward(p[0], p[1], t); else this.face(p, t); };
+
+  View.prototype.tscene = function (F, mini) {
+    var ctx = this.ctx, g = this.game, b = g.board, m = b.mesh, donut = F.mode === "donut", cam = F.cam;
+    var cellR = Math.max(3, F.cellR);
+    var cellColor = function (c) {
+      var nodes = g.nodesOf[c], col = -1;
+      for (var k = 0; k < nodes.length; k++) if (g.owner[nodes[k]] >= 0) col = g.owner[nodes[k]];
+      return col;
+    };
+    var LT = (function () { var l = Math.hypot(-0.35, -0.55, 0.75); return [-0.35 / l, -0.55 / l, 0.75 / l]; })();
+    var lit = function (i) { if (!donut) return 0.8; var e = cam.embed(m.sites[2 * i], m.sites[2 * i + 1]); return 0.35 + 0.65 * Math.max(0, e.n[0] * LT[0] + e.n[1] * LT[1] + e.n[2] * LT[2]); };
+    var seen = function (P) { return donut ? P[3] : true; };
+    var line = function (A, B) { ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); };
+    var trace = function (ring) { ctx.beginPath(); ring.forEach(function (p, k) { if (k) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.closePath(); };
+
+    if (mini) { ctx.fillStyle = "rgba(12,12,20,0.92)"; ctx.fillRect(F.vp.cx - F.vp.w / 2 - 3, F.vp.cy - F.vp.h / 2 - 3, F.vp.w + 6, F.vp.h + 6); ctx.save(); ctx.beginPath(); ctx.rect(F.vp.cx - F.vp.w / 2, F.vp.cy - F.vp.h / 2, F.vp.w, F.vp.h); ctx.clip(); }
+    else if (donut) {
+      ctx.fillStyle = "rgba(120,140,255,0.05)"; ctx.beginPath();
+      ctx.ellipse(F.vp.cx, F.vp.cy, F.k * (cam.R + cam.r) * 1.08, F.k * ((cam.R + cam.r) * Math.sin(cam.tilt) + cam.r * Math.cos(cam.tilt)) * 1.08, 0, 0, 6.2832); ctx.fill();
+    }
+
+    F.tiles.forEach(function (t) {
+      ctx.save(); ctx.translate(t[0], t[1]);
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      if (b.kind === "panels") {
+        F.order.forEach(function (c) {
+          var ring = F.ring(c); if (!ring) return;
+          var col = cellColor(c), L = lit(c), face = donut ? Math.max(0, F.P[c][4]) : 1;
+          trace(ring);
+          ctx.fillStyle = col >= 0 ? mix(S.COLORS[col % 16], 0.32 * L + 0.1) : "rgb(" + Math.round(26 * L + 10) + "," + Math.round(28 * L + 10) + "," + Math.round(44 * L + 14) + ")";
+          ctx.globalAlpha = donut ? 0.45 + 0.55 * Math.min(1, face * 2) : 1;
+          ctx.fill();
+          if (!mini) { ctx.strokeStyle = "#05050a"; ctx.lineWidth = Math.max(0.8, cellR * 0.05); ctx.stroke(); }
+          ctx.globalAlpha = 1;
+        });
+        if (!mini) {
+          // walls: the edge two cells share
+          ctx.strokeStyle = "rgba(230,232,255,0.92)"; ctx.lineWidth = Math.max(2.5, cellR * 0.16);
+          g.wallPairs.forEach(function (w) {
+            var a = w[0], c = w[1], common = b.polys[a].filter(function (x) { return b.polys[c].indexOf(x) >= 0; });
+            if (common.length < 2) return;
+            var A = F.corner(common[0], a), B = F.corner(common[1], a);
+            if (donut && (!(F.P[a][3] || F.P[c][3]) || A[3] < 0.02 || B[3] < 0.02)) return; // both corners must face you
+            line(A, B);
+          });
+          ctx.strokeStyle = "rgba(255,255,255,0.22)"; ctx.lineWidth = Math.max(1.5, cellR * 0.08);
+          g.level.bridges.forEach(function (br) {
+            var c = br.cell, C = F.cell(c); if (!seen(C)) return;
+            br.lanes.forEach(function (Ln) { var a = F.near(Ln[0], c), z = F.near(Ln[1], c); line(mid(C, a), mid(C, z)); });
+          });
+        }
+      } else {
+        // the nanotorus: the honeycomb it is made of, faintly, so the atoms sit on a surface
+        if (b.surface) {
+          var SF = new NS.ORB.TorusFrame(cam, F.vp, F.mode, b.surface);
+          SF.order.forEach(function (c) {
+            var ring = SF.ring(c); if (!ring) return;
+            var face = donut ? Math.max(0, SF.P[c][4]) : 1, e = donut ? cam.embed(b.surface.sites[2 * c], b.surface.sites[2 * c + 1]) : null;
+            var L = donut ? 0.35 + 0.65 * Math.max(0, e.n[0] * LT[0] + e.n[1] * LT[1] + e.n[2] * LT[2]) : 0.7;
+            trace(ring); ctx.globalAlpha = donut ? 0.4 + 0.6 * Math.min(1, face * 2) : 1;
+            ctx.fillStyle = "rgb(" + Math.round(16 + 18 * L) + "," + Math.round(17 + 19 * L) + "," + Math.round(26 + 30 * L) + ")"; ctx.fill();
+            ctx.globalAlpha = 1;
+          });
+        }
+        // bonds, then atoms
+        for (var i = 0; i < b.n; i++) b.nbrs[i].forEach(function (j) {
+          if (j < i) return;
+          var A = F.cell(i), B = F.near(j, i);
+          if (!seen(A) || (donut && !F.P[j][3])) return;
+          var walled = g.wallSet.has(i < j ? i + "-" + j : j + "-" + i);
+          if (walled) {
+            if (mini) return;
+            var M = mid(A, B), dx = (B[0] - A[0]) * 0.18, dy = (B[1] - A[1]) * 0.18;
+            ctx.strokeStyle = "#ff5a6e"; ctx.lineWidth = Math.max(1.5, cellR * 0.08); line([M[0] - dy, M[1] + dx], [M[0] + dy, M[1] - dx]);
+          } else { ctx.strokeStyle = "#3a3d58"; ctx.lineWidth = mini ? 0.7 : Math.max(1, cellR * 0.07); line(A, B); }
+        });
+      }
+      // strands
+      g.strands().forEach(function (st) {
+        var nodes = st.nodes; if (nodes.length < 2) return;
+        var lw = mini ? 1.6 : Math.max(3, cellR * (b.kind === "atoms" ? 0.28 : 0.3));
+        ctx.strokeStyle = S.COLORS[st.k % 16]; ctx.lineWidth = lw; ctx.setLineDash(st.anchored || mini ? [] : [lw * 0.9, lw * 0.9]);
+        ctx.globalAlpha = st.anchored ? 1 : 0.75;
+        for (var q = 1; q < nodes.length; q++) {
+          var a = g.cellOf[nodes[q - 1]], c = g.cellOf[nodes[q]], A = F.cell(a), B = F.near(c, a);
+          if (donut && !(F.P[a][3] && F.P[c][3])) continue;
+          line(A, B);
+        }
+        ctx.setLineDash([]); ctx.globalAlpha = 1;
+      });
+      if (b.kind === "atoms" && !mini) for (var a = 0; a < b.n; a++) {
+        var P = F.cell(a); if (!seen(P)) continue;
+        var col = cellColor(a);
+        ctx.fillStyle = col >= 0 ? S.COLORS[col % 16] : "#5c6080";
+        ctx.beginPath(); ctx.arc(P[0], P[1], Math.max(2, cellR * (col >= 0 ? 0.16 : 0.11) * (donut ? 0.6 + 0.4 * P[4] : 1)), 0, 6.2832); ctx.fill();
+      }
+      // the ends
+      g.level.pairs.forEach(function (p, k) {
+        p.forEach(function (node) {
+          var c = g.cellOf[node], P = F.cell(c); if (!seen(P)) return;
+          var rr = mini ? 2.4 : (b.kind === "atoms" ? 0.36 : 0.42) * cellR * (donut ? 0.55 + 0.45 * Math.max(0, P[4]) : 1);
+          ctx.fillStyle = S.COLORS[k % 16]; ctx.beginPath(); ctx.arc(P[0], P[1], rr, 0, 6.2832); ctx.fill();
+          if (g.done[k] && !mini) { ctx.strokeStyle = "#ffffff"; ctx.lineWidth = Math.max(1.5, rr * 0.18); ctx.stroke(); }
+        });
+      });
+      ctx.restore();
+    });
+
+    if (mini) {
+      ctx.restore();
+      ctx.strokeStyle = "#2a2a40"; ctx.lineWidth = 1; ctx.strokeRect(F.vp.cx - F.vp.w / 2, F.vp.cy - F.vp.h / 2, F.vp.w, F.vp.h);
+      // the donut's front, where the main view is looking
+      ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(F.vp.cx, F.vp.cy, Math.max(4, cellR * 1.6), 0, 6.2832); ctx.stroke();
+    } else if (!donut) {
+      ctx.strokeStyle = "rgba(160,170,255,0.25)"; ctx.setLineDash([5, 6]); ctx.lineWidth = 1;
+      ctx.strokeRect(F.box[0], F.box[1], F.box[2], F.box[3]); ctx.setLineDash([]);
+    }
   };
 
   View.prototype.scene = function (vp) {

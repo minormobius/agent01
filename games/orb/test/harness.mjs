@@ -6,7 +6,7 @@ import path from "node:path";
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 export async function loadOrb() {
-  for (const f of ["prng", "sphere", "rules", "solve"]) await import(path.join(here, `../js/${f}.js`));
+  for (const f of ["prng", "sphere", "torus", "rules", "solve"]) await import(path.join(here, `../js/${f}.js`));
   return globalThis.ORB;
 }
 

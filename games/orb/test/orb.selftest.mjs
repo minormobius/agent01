@@ -3,7 +3,9 @@
  * Gates Orb. The load-bearing properties:
  *
  *   1. The mesh is a real spherical Voronoi diagram: Euler holds, adjacency is
- *      symmetric, and every cell's polygon closes around its own site.
+ *      symmetric, and every cell's polygon closes around its own site. The
+ *      torus meshes (js/torus.js) likewise: V−E+F = 0, cells tile the flat
+ *      torus exactly, and the torus tiers' boards are proved like the sphere's.
  *   2. The solver is SOUND — it never calls a mine safe — and, at level 3,
  *      COMPLETE: it finds every cell that is certain. Both are checked against
  *      brute force over every mine layout on small meshes. Soundness is the
@@ -33,6 +35,23 @@ for (const [n, relax] of [[12, 0], [60, 0], [300, 2], [600, 3]]) {
   ck(m.tris.length === 2 * n - 4 && edges === 3 * n - 6 && sym && own && m.polys.every((r, i) => r.length === m.nbrs[i].length && r.length >= 3),
     `n=${n} relax=${relax}: V−E+F=2 (${2 * n - 4} tris, ${edges} edges), symmetric, every ring closes on its own site`);
 }
+
+console.log("torus mesh");
+for (const [kind, m] of [["hex 4×8", O.buildHexTorus(4, 8)], ["hex 8×16", O.buildHexTorus(8, 16)], ["voronoi 40", O.buildTorus("tt40", 40, 3)], ["voronoi 320", O.buildTorus("tt320", 320, 3)], ["voronoi 600", O.buildTorus("tt600", 600, 3)]]) {
+  const n = m.n, nv = m.verts.length / 2, edges = m.nbrs.reduce((a, b) => a + b.length, 0) / 2;
+  const sym = m.nbrs.every((ns, i) => ns.every((j) => m.nbrs[j].includes(i)) && new Set(ns).size === ns.length && !ns.includes(i));
+  const inc = new Array(nv).fill(0); m.polys.forEach((r) => r.forEach((v) => inc[v]++));
+  let area = 0, own = true;
+  for (let i = 0; i < n; i++) {
+    const r = O.torusRing(m, i); let A = 0, cx = 0, cy = 0;
+    for (let k = 0; k < r.length; k++) { const a = r[k], b = r[(k + 1) % r.length]; A += a[0] * b[1] - b[0] * a[1]; cx += a[0]; cy += a[1]; }
+    area += A / 2; if (A <= 0 || O.torusCellAt(m, cx / r.length, cy / r.length) !== i) own = false;
+  }
+  ck(nv - edges + n === 0 && nv === 2 * n && sym && inc.every((x) => x === 3) && m.polys.every((r, i) => r.length === m.nbrs[i].length),
+    `${kind}: V−E+F=0 (${nv} corners, ${edges} edges, ${n} cells), every corner in three cells, adjacency symmetric`);
+  ck(Math.abs(area - m.W * m.H) < 1e-9 * m.W * m.H && own, `${kind}: cells tile the flat torus exactly (area ${area.toFixed(6)}), each ring wound round its own site`);
+}
+{ const h = O.buildHexTorus(6, 12); ck(h.nbrs.every((ns) => ns.length === 6), "hex torus: every cell has exactly six neighbours"); }
 
 console.log("solver vs brute force");
 function brute(mesh, open, count, total) {
@@ -83,8 +102,8 @@ ck(incomplete === 0, `exact solver complete — found every certain cell (${inco
 ck(partialUnsound === 0, `levels 1–2 sound (${partialUnsound} wrong calls)`);
 
 console.log("generator");
-for (const [n, M] of Object.values(O.SIZES).map((c) => [c.n, c.m])) {
-  const mesh = O.buildMesh("gen-st", n, 2);
+for (const [key, n, M] of Object.entries(O.SIZES).map(([k, c]) => [k, c.n, c.m])) {
+  const mesh = O.meshFor(key, "gen-st");
   let all = true, clear = true, det = true;
   for (let t = 0; t < 12; t++) {
     const first = (t * 37) % n;
@@ -95,8 +114,8 @@ for (const [n, M] of Object.values(O.SIZES).map((c) => [c.n, c.m])) {
     if (!O.solveFrom(mesh, g.mines, first).solved) all = false;
     if (O.generate(mesh, M, first, "s" + t).mines.join() !== g.mines.join()) det = false;
   }
-  ck(all, `${n}/${M}: 12 boards, each clears by deduction alone`);
-  ck(clear && det, `${n}/${M}: first cell and neighbours clear; same (seed, click) → same board`);
+  ck(all, `${key} ${n}/${M}: 12 boards, each clears by deduction alone`);
+  ck(clear && det, `${key} ${n}/${M}: first cell and neighbours clear; same (seed, click) → same board`);
 }
 
 console.log("always a certain cell");

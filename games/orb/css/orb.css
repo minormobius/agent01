@@ -148,3 +148,7 @@ button.toggle.on { background: var(--blood); border-color: var(--blood); color: 
   .hud-value { font-size: 17px; }
   select { padding: 6px 4px; }
 }
+#actions #tview { flex: 0 0 auto; min-width: 44px; font-size: 16px; }
+#actions #tview[hidden] { display: none; }
+#actions.five { gap: 6px; }
+#actions.five button { font-size: 12px; padding-left: 6px; padding-right: 6px; }

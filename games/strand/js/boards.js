@@ -20,7 +20,12 @@
    each connect one pair of opposite sides), so the solver never needs to
    know they exist.
 
-   Needs ORB.buildMesh (../orb/js/sphere.js) for the Voronoi boards. */
+   The TORUS boards (torus-…) are the same game on a doughnut: a honeycomb
+   with six ways out of every cell, its corners as a carbon nanotorus, or a
+   Voronoi torus. No pentagons: a torus needs no defects (Euler χ = 0).
+
+   Needs ORB.buildMesh (../orb/js/sphere.js) for the Voronoi boards and
+   ../orb/js/torus.js for the torus. */
 (function () {
   "use strict";
   var NS = (typeof window !== "undefined") ? window : globalThis;
@@ -128,8 +133,31 @@
     return P;
   }
 
-  /* spec: { type: "c60-atoms" | "c60-panels" | "voronoi-panels" | "voronoi-atoms", n?, seed? } */
+  /* The torus (../orb/js/torus.js): the board keeps the flat mesh, and the
+     view draws it as a donut or as its wrapped map.
+       torus-hex-panels     the honeycomb torus, rows × cols hexes, six ways out of every cell
+       torus-hex-atoms      its corners: a carbon nanotorus, three bonds each, as C60's atoms
+       torus-voronoi-panels a Voronoi diagram of the flat torus, n cells */
+  function torusBoard(spec) {
+    var O = NS.ORB;
+    if (spec.type === "torus-voronoi-panels") {
+      var tv = O.buildTorus(spec.seed, spec.n, 3);
+      return { kind: "panels", topology: "torus", name: "Voronoi torus " + spec.n + " · panels", n: tv.n, nbrs: tv.nbrs.map(function (x) { return x.slice(); }), polys: tv.polys, mesh: tv };
+    }
+    var h = O.buildHexTorus(spec.rows, spec.cols);
+    if (spec.type === "torus-hex-panels") return { kind: "panels", topology: "torus", name: "hex torus " + spec.rows + "×" + spec.cols + " · panels", n: h.n, nbrs: h.nbrs.map(function (x) { return x.slice(); }), polys: h.polys, mesh: h };
+    // atoms: the honeycomb's corners, bonded along its edges
+    var nv = h.verts.length / 2, bonds = Array.from({ length: nv }, function () { return []; });
+    h.polys.forEach(function (ring) {
+      for (var k = 0; k < ring.length; k++) { var a = ring[k], b = ring[(k + 1) % ring.length]; if (bonds[a].indexOf(b) < 0) { bonds[a].push(b); bonds[b].push(a); } }
+    });
+    var atoms = { topology: "torus", kind: "atoms", n: nv, W: h.W, H: h.H, sites: h.verts, verts: new Float64Array(0), polys: [], nbrs: bonds };
+    return { kind: "atoms", topology: "torus", name: "nanotorus " + nv + " · atoms", n: nv, nbrs: bonds, mesh: atoms, surface: h };
+  }
+
+  /* spec: { type: "c60-atoms" | "c60-panels" | "voronoi-panels" | "voronoi-atoms" | "torus-…", n?, seed?, rows?, cols? } */
   function board(spec) {
+    if (spec.type.indexOf("torus-") === 0) return torusBoard(spec);
     if (spec.type === "c60-atoms") { var C = c60(); return atomsBoard("C60 · atoms", flat(C.pts), C.bonds); }
     if (spec.type === "c60-panels") {
       var C2 = c60(), rings = C2.rings;

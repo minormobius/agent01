@@ -27,8 +27,8 @@
     idx = Math.max(0, Math.min(S.LEVELS.length - 1, i));
     game = new S.Game(S.LEVELS[idx]);
     view.game = game;
-    var p0 = game.level.pairs[0][0], P = game.board.pos, c = game.cellOf[p0];
-    view.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; view.face([P[3 * c], P[3 * c + 1], P[3 * c + 2]]); view.zoom = 1;
+    var p0 = game.level.pairs[0][0], c = game.cellOf[p0];
+    view.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; view.zoom = 1; view.cam = null; view.towardCell(c, 1);
     try { history.replaceState(null, "", "?level=" + (idx + 1)); } catch (e) { /* file:// */ }
     $("won").hidden = true;
     hud(); dirty = true;
@@ -43,7 +43,8 @@
     $("prev").disabled = idx === 0; $("next").disabled = idx === S.LEVELS.length - 1;
     $("lock").classList.toggle("on", locked); $("lock").setAttribute("aria-pressed", String(locked));
     $("lock").textContent = locked ? "🔒 locked" : "🔓 free";
-    $("viewmode").textContent = view.mode === "whole" ? "◯ whole" : "◐ globe";
+    var tor = b.topology === "torus";
+    $("viewmode").textContent = view.mode === "whole" ? (tor ? "▭ flat" : "◯ whole") : (tor ? "◎ donut" : "◐ globe");
     $("viewmode").classList.toggle("on", view.mode === "whole");
   }
 
@@ -75,6 +76,7 @@
     var p = local(e);
     pointer = p; last = { x: e.clientX, y: e.clientY }; moved = false;
     if (view.inInset(p.x, p.y)) {   // tap the inset: turn there
+      if (view.torus()) { turnTo = { p: view.insetPoint(p.x, p.y), left: 20 }; return; }
       var vp = view.inset(), m = view.unproject(p.x, p.y, vp);
       if (m) turnTo = { p: m, left: 20 };
       return;
@@ -150,7 +152,7 @@
 
   /* ----------------------------------------------------------------- loop */
   function frame() {
-    if (turnTo) { view.face(turnTo.p, 0.2); dirty = true; if (--turnTo.left <= 0) turnTo = null; }
+    if (turnTo) { view.towardPoint(turnTo.p, 0.2); dirty = true; if (--turnTo.left <= 0) turnTo = null; }
     // drawing near the globe's rim (unlocked): turn so the finger's point comes round
     if (drawing && pointer && !locked && view.mode === "globe") {
       var dx = view.w / 2 - pointer.x, dy = view.h / 2 - pointer.y, r = view.radius(), d = Math.hypot(dx, dy);

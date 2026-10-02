@@ -44,8 +44,15 @@
     // what to draw as walls
     var key = function (a, c) { return a < c ? a + "-" + c : c + "-" + a; };
     this.wallSet = new Set(level.walls.map(function (w) { return key(w[0], w[1]); }));
+    // the same as cell pairs (the torus view finds each wall's shared edge itself; bridge cells' closed sides too)
+    this.wallPairs = level.walls.map(function (w) { return [w[0], w[1]]; });
+    level.bridges.forEach(function (br) {
+      b.nbrs[br.cell].forEach(function (j) {
+        if (br.lanes[0].indexOf(j) < 0 && br.lanes[1].indexOf(j) < 0 && !self.wallSet.has(key(br.cell, j))) self.wallPairs.push([br.cell, j]);
+      });
+    });
     this.wallSegs = [];
-    if (b.kind === "panels") {
+    if (b.kind === "panels" && b.verts) {
       var seg = function (a, c) {
         var common = b.polys[a].filter(function (x) { return b.polys[c].indexOf(x) >= 0; });
         if (common.length >= 2) self.wallSegs.push([common[0], common[1]]);

@@ -817,7 +817,7 @@
       "b": "2026-10-01",
       "p": "games",
       "surface": "games",
-      "d": "Flow on a sphere: join each pair of colours with strands that never cross and paint every cell, on a buckyball's atoms and panels and beyond. Every level was carved by a solver until exactly one answer was left.",
+      "d": "Flow on a sphere: join each pair of colours with strands that never cross and paint every cell, on a buckyball's atoms and panels and beyond. Every level was carved by a solver until exactly one answer was left. Seven torus levels close the ladder, including a carbon nanotorus.",
       "tags": [
         "games",
         "puzzle"
@@ -3720,7 +3720,7 @@
       "b": "2026-10-01",
       "p": "games",
       "surface": "games",
-      "d": "Minesweeper on a sphere of Voronoi cells you turn with a finger. Every board is proved solvable by pure deduction before you see it, and the game counts every move you made that wasn't certain.",
+      "d": "Minesweeper on a sphere of Voronoi cells you turn with a finger. Every board is proved solvable by pure deduction before you see it, and the game counts every move you made that wasn't certain. Now on a torus too: a Voronoi doughnut whose skin slides under your finger, or its exact flat map that wraps both ways.",
       "tags": [
         "games",
         "puzzle"
