@@ -33,10 +33,10 @@ _Regenerated 2026-10-02 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-02, 99 members / 232 posts):
+**Neighborhood spark** (bisk 2026-10-02, 99 members / 234 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: idk, jev, conservatism
-- Top post: "" — @thebadcode.com
+- Distinctive words: idk, jev, llms
+- Top post: "(confused) I believe LLMs are conscious, but only Deepseek LLMs, because of the Chinese Room theory" — @hikikomorphism.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
