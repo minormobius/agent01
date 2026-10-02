@@ -12,7 +12,7 @@ underneath gives its number, flags and hidden neighbours. On an irregular
 mesh, counting the far side of a cell by eye is the chore; turn the cell you
 care about to the middle instead.
 
-Pure static, like the rest of the `/pressure/` family: six script tags, no
+Pure static, like the rest of the `/pressure/` family: nine script tags, no
 build, served by the assets fallback in `games/worker.js`.
 
 ## Does Minesweeper stay solvable on a Voronoi mesh?
@@ -132,6 +132,7 @@ without changing the format.
 |---|---|
 | `js/prng.js` | seeded RNG (local copy of the repo's xmur3 + mulberry32) |
 | `js/sphere.js` | random points → Lloyd → convex hull = spherical Delaunay → Voronoi cells and adjacency; nearest-site hit test |
+| `js/hyper.js` | the double torus: a hyperbolic octagon's Voronoi diagram, Möbius maps of the Poincaré disk, and the camera that scrolls through it (see below) |
 | `js/torus.js` | the torus: Voronoi diagrams of the flat torus and the honeycomb torus, plus the donut camera and the flat map both games draw with (see below) |
 | `js/rules.js` | state, reveal/flood, flag, chord. Talks to the mesh only through `nbrs`, so the same rules run on the analysis tori |
 | `js/solve.js` | `deduce`, `solveFrom`, `generate` (no-guess), `certainties` |
@@ -142,7 +143,7 @@ without changing the format.
 | `js/board.js` | the leaderboard UI and the write path (ES module; imports `../../lib/auth.js`, which the deploy vendors) |
 
 A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l|x|ts|tm|tl`
-is a permalink (also `ks|km`, the Klein bottle, and `ps|pm`, the projective plane).
+is a permalink (also `ks|km`, the Klein bottle, `ps|pm`, the projective plane, and `hs|hm`, the double torus).
 
 ## Tiers
 
@@ -313,6 +314,40 @@ mirrored. The reticle always outlines the copy facing you, so near the rim
 its neighbours jump across the globe: that is the gluing, seen. Like the
 Klein bottle, it can't sit in 3D without passing through itself, but it can
 in 4D.
+
+## The double torus (`hs`, `hm`)
+
+Two holes, so Euler characteristic −2. Gauss–Bonnet says the total
+curvature is 2π·χ = −4π, so a double torus cannot be flat the way a torus
+can: its honest geometry is **hyperbolic**. The board is a regular octagon
+in the hyperbolic plane whose corners are 45° each, with opposite sides
+glued. All eight corners become one point with 8 × 45° = 360° round it, and
+V − E + F = 1 − 4 + 1 = −2. Each gluing is a hyperbolic translation by twice
+the octagon's inradius (cosh r = cot π/8); the four of them generate a group
+whose copies of the octagon tile the whole plane, eight round every corner.
+
+`js/hyper.js` works in the **Poincaré disk**, where isometries are Möbius
+maps `z ↦ (az + b)/(b̄z + ā)`. Voronoi cells are clipped in the **Klein
+model**, where hyperbolic bisectors are straight lines: each cell is cut
+with its own site moved to the centre, against every site's images in the
+octagons that touch the fundamental one, then Lloyd-relaxed. The average
+cell has 6 + 12/n neighbours, the mirror of the sphere's 6 − 12/n. The
+selftest checks V − E + F = −2, symmetric adjacency, that every edge's
+neighbour copy really shares the edge, and that the cells' hyperbolic areas
+(n − 2)π − Σ angles sum to exactly 4π.
+
+The view is the disk, centred on the cursor and larger than the screen
+(hyperbolic space shrinks so fast toward the rim that a whole-disk view
+makes the cells under your finger tiny). It shows every copy of every
+cell in reach, so a cell's neighbours are always the cells round it. A
+drag is the isometry that carries the point under your finger to your
+finger, so the board scrolls without end in every direction. Each time
+the cursor crosses a side of the octagon, the camera swaps to the
+equivalent copy: the picture doesn't change, and the numbers stay small
+however far you go. The dashed lines are the octagons' sides. The corner
+map is the fundamental octagon in the Klein model, where its sides are
+straight, with each glued pair of sides in one colour. Tap it to travel
+there.
 
 ## Shared with Strand
 

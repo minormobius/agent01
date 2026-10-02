@@ -79,7 +79,9 @@ Three things live here:
   bottle (`js/torus.js`: Voronoi diagrams of the flat torus and of the flat
   Klein bottle, whose gluing flips; drawn as a donut, the Clifford torus (4D,
   stereographically projected) or the classic bottle, all with a skin that
-  slides under a fixed cursor, or as the exact flat map). Canvas 2D, no build. See [`orb/README.md`](orb/README.md).
+  slides under a fixed cursor, or as the exact flat map), and on a double torus
+  (`js/hyper.js`: genus 2, so hyperbolic; a Voronoi diagram of the 45° octagon,
+  scrolled through the Poincaré disk). Canvas 2D, no build. See [`orb/README.md`](orb/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a

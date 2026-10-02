@@ -48,17 +48,20 @@
     return { cx: this.w - iw / 2 - 8, cy: ih / 2 + 8, w: iw, h: ih, mini: true };
   };
   View.prototype.inInset = function (px, py) {
+    if (this.hyper()) return this.inHyperInset(px, py);
     if (!this.torus() || this.tmode === "flat") return false;
     var vp = this.inset(); return Math.abs(px - vp.cx) <= vp.w / 2 && Math.abs(py - vp.cy) <= vp.h / 2;
   };
   /* Flat point under an inset tap. */
   View.prototype.insetPoint = function (px, py) {
+    if (this.hyper()) return this.hyperInsetPoint(px, py);
     var vp = this.inset(), F = new O.TorusFrame(this.camFor(), vp, "flat"), m = this.state.mesh;
     return F.flatAt(px, py);
   };
   /* How squarely cell c faces you (for choosing which certain cell to hint). */
   View.prototype.inView = function (c) {
     var m = this.state.mesh;
+    if (this.hyper()) { var hp = this.hcam().nearest(m.sites[2 * c], m.sites[2 * c + 1]); return 1 - O.hyper.distO(hp[0], hp[1]) / 3; }
     if (!this.torus()) { var R = this.R, P = m.sites, zc = R[6] * P[3 * c] + R[7] * P[3 * c + 1] + R[8] * P[3 * c + 2]; return m.proj ? Math.abs(zc) : zc; }
     var cam = this.camFor();
     if (cam.rigid && this.tmode !== "flat") { var e = cam.embed(m.sites[2 * c], m.sites[2 * c + 1]); return e.face - Math.hypot(e.X, e.Y) / 4; }
@@ -68,11 +71,12 @@
   /* Ease cell c toward the middle of the view by fraction t. */
   View.prototype.toward = function (c, t) {
     var m = this.state.mesh;
+    if (this.hyper()) { this.hcam().toward(m.sites[2 * c], m.sites[2 * c + 1], t); return; }
     if (this.torus()) { this.camFor().toward(m.sites[2 * c], m.sites[2 * c + 1], t); return; }
     if (m.proj) { var R2 = this.R, P2 = m.sites; if (R2[6] * P2[3 * c] + R2[7] * P2[3 * c + 1] + R2[8] * P2[3 * c + 2] < 0) c += m.n; } // the nearer copy
     this.face([m.sites[3 * c], m.sites[3 * c + 1], m.sites[3 * c + 2]], t);
   };
-  View.prototype.towardPoint = function (u, v, t) { this.camFor().toward(u, v, t); };
+  View.prototype.towardPoint = function (u, v, t) { (this.hyper() ? this.hcam() : this.camFor()).toward(u, v, t); };
 
   View.prototype.drawTorus = function (now) {
     var s = this.state, ctx = this.ctx, m = s.mesh, cam = this.camFor(), busy = false, self = this;
@@ -175,6 +179,155 @@
     ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(vp.cx, vp.cy, Math.max(4, F.cellR * 1.4), 0, 6.2832); ctx.stroke();
   };
 
+  /* ------------------------------------------------------------ the double torus
+     A hyperbolic surface (js/hyper.js), drawn in the Poincaré disk centred on
+     the cursor. The disk is bigger than the screen at rest: hyperbolic space
+     shrinks so fast toward the rim that a whole-disk view makes the cells
+     under your finger tiny. Every copy of a cell in view is drawn (the
+     surface is tiled by octagons, each a copy of the whole board), so a
+     number's neighbours are always the cells round it, wherever you are. */
+  View.prototype.hyper = function () { return !!(this.state && this.state.mesh.topology === "hyperbolic"); };
+  View.prototype.hcam = function () {
+    var m = this.state.mesh;
+    if (!this._hc || this._hc.mesh !== m) this._hc = new O.HyperCam(m);
+    return this._hc;
+  };
+  View.prototype.diskR = function () { return Math.min(this.w, this.h) * 0.46 * 1.4 * this.zoom; };
+  View.prototype.toDisk = function (px, py) { var R = this.diskR(); return [(px - this.w / 2) / R, -(py - this.h / 2) / R]; };
+  View.prototype.hdrag = function (dx, dy, px, py) {
+    if (px == null) { px = this.w / 2; py = this.h / 2; } // a key or a fling: slide about the middle
+    var a = this.toDisk(px - dx, py - dy), b = this.toDisk(px, py);
+    this.hcam().slide(a[0], a[1], b[0], b[1]);
+  };
+  View.prototype.hpick = function (px, py) {
+    var C = this._hcopies; if (!C) return -1;
+    for (var k = C.length - 1; k >= 0; k--) if (inPoly(C[k].scr, px, py)) return C[k].i;
+    return -1;
+  };
+  function inPoly(P, x, y) {
+    var c = false;
+    for (var a = 0, b = P.length - 1; a < P.length; b = a++) if ((P[a][1] > y) !== (P[b][1] > y) && x < (P[b][0] - P[a][0]) * (y - P[a][1]) / (P[b][1] - P[a][1]) + P[a][0]) c = !c;
+    return c;
+  }
+  View.prototype.drawHyper = function (now) {
+    var s = this.state, ctx = this.ctx, m = s.mesh, cam = this.hcam(), H = O.hyper, self = this, busy = false;
+    var w = this.w, h = this.h, cx = w / 2, cy = h / 2, R = this.diskR();
+    var scr = function (p) { return [cx + R * p[0], cy - R * p[1]]; };
+    var showMines = s.phase === "lost" || s.phase === "won";
+    ctx.lineJoin = "round"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+    // the disk, which is the whole hyperbolic plane
+    ctx.fillStyle = "#050508"; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2832); ctx.fill();
+    ctx.strokeStyle = "rgba(94,232,193,0.25)"; ctx.lineWidth = 1.5; ctx.stroke();
+
+    var copies = cam.copies(), drawn = [], pad = 4;
+    for (var k = 0; k < copies.length; k++) {
+      var cp = copies[k], P = cp.ring.map(scr), x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      for (var q = 0; q < P.length; q++) { x0 = Math.min(x0, P[q][0]); x1 = Math.max(x1, P[q][0]); y0 = Math.min(y0, P[q][1]); y1 = Math.max(y1, P[q][1]); }
+      if (x1 < -pad || x0 > w + pad || y1 < -pad || y0 > h + pad) continue;
+      var size = Math.max(x1 - x0, y1 - y0);
+      if (size < 1.2) continue;
+      var z = cp.z, c = scr(z);
+      drawn.push({ i: cp.i, M: cp.M, scr: P, x: c[0], y: c[1], size: size, r: Math.hypot(z[0], z[1]) });
+    }
+    this._hcopies = drawn;
+    var cellR = R * Math.sqrt(H.AREA / m.n / Math.PI) / 2; // a cell's radius at the middle, in px (the disk's scale there is ½)
+
+    var trace = function (P) { ctx.beginPath(); for (var q = 0; q < P.length; q++) { if (q) ctx.lineTo(P[q][0], P[q][1]); else ctx.moveTo(P[q][0], P[q][1]); } ctx.closePath(); };
+    for (k = 0; k < drawn.length; k++) {
+      var d = drawn[k], i = d.i, openT = s.open[i] ? 1 : 0;
+      if (this.anim && this.anim[i] != null) { openT = Math.min(1, Math.max(0, (now - this.anim[i]) / 160)); if (openT < 1) busy = true; }
+      var col, lit = 0.6;
+      if (s.open[i] && s.mine[i]) col = [255, 46, 77];
+      else if (showMines && s.mine[i] && !s.flag[i]) col = s.phase === "won" ? [70, 110, 100] : [110, 40, 55];
+      else {
+        var cr = [66 + 70 * lit, 70 + 70 * lit, 104 + 80 * lit], op = [18 + 12 * lit, 18 + 12 * lit, 28 + 16 * lit];
+        col = [cr[0] + (op[0] - cr[0]) * openT, cr[1] + (op[1] - cr[1]) * openT, cr[2] + (op[2] - cr[2]) * openT];
+      }
+      var dim = 0.45 + 0.55 * (1 - d.r * d.r); // toward the rim, into the distance
+      ctx.fillStyle = "rgb(" + (col[0] * dim | 0) + "," + (col[1] * dim | 0) + "," + (col[2] * dim | 0) + ")";
+      trace(d.scr); ctx.fill();
+      ctx.strokeStyle = "#08080c"; ctx.lineWidth = Math.max(0.5, Math.min(cellR * 0.06, d.size * 0.05)); ctx.stroke();
+      if (d.size < 9) continue;
+      var fs = d.size * 0.42;
+      if (s.open[i] && !s.mine[i] && s.count[i] > 0 && openT > 0.5) {
+        ctx.fillStyle = NUM[s.count[i]]; ctx.font = "700 " + fs.toFixed(1) + "px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(String(s.count[i]), d.x, d.y + fs * 0.04);
+      } else if (s.flag[i]) drawFlag(ctx, d.x, d.y, fs, showMines && !s.mine[i]);
+      else if (showMines && s.mine[i]) drawMine(ctx, d.x, d.y, fs * 0.36, s.open[i]);
+    }
+
+    // the octagons: each one a copy of the whole board
+    ctx.strokeStyle = "rgba(94,232,193,0.22)"; ctx.lineWidth = 1; ctx.setLineDash([4, 5]);
+    var T = cam.tiles || [];
+    for (k = 0; k < T.length; k++) {
+      var Mt = H.compose(cam.C, T[k]), o = H.apply(Mt, 0, 0);
+      if (H.distO(o[0], o[1]) > cam.view + H.RCIRC) continue;
+      trace(H.octagon(Mt).map(scr)); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // highlights, pulses, and the reticle: the cell at the middle and its neighbours' adjacent copies
+    var outline = function (P, style, wdt) { trace(P); ctx.strokeStyle = style; ctx.lineWidth = wdt; ctx.stroke(); };
+    for (k = 0; k < drawn.length; k++) {
+      d = drawn[k];
+      if (this.hl && this.hl.has(d.i)) outline(d.scr, "rgba(255,200,87,0.95)", Math.max(1.5, d.size * 0.06));
+      if (this.mark && this.mark.has(d.i)) { var pulse = 0.55 + 0.45 * Math.sin(now / 180); outline(d.scr, "rgba(94,232,193," + pulse.toFixed(2) + ")", Math.max(2, d.size * 0.08)); busy = true; }
+    }
+    this.focusCell = -1;
+    if (this.reticle && (s.phase === "play" || s.phase === "ready")) {
+      var fd = null;
+      for (k = drawn.length - 1; k >= 0; k--) if (inPoly(drawn[k].scr, cx, cy)) { fd = drawn[k]; break; }
+      if (fd) {
+        this.focusCell = fd.i;
+        if (s.phase === "play") {
+          var NT = H.near();
+          m.edges[fd.i].forEach(function (ed) {
+            if (!ed) return;
+            outline(H.geodesicRing(H.compose(fd.M, NT[ed.e]), m.rings[ed.j]).map(scr), "rgba(94,232,193,0.9)", Math.max(1.5, cellR * 0.1));
+          });
+        }
+        outline(fd.scr, "rgba(255,255,255,0.95)", Math.max(2, cellR * 0.14));
+      }
+    }
+    this.drawHyperInset();
+    return busy;
+  };
+  /* The fundamental octagon in the corner: the whole board, its sides
+     coloured by which they're glued to, and where you are in it. */
+  var PAIR = ["#5ee8c1", "#ffc857", "#c77dff", "#4dabf7"];
+  View.prototype.hinset = function () { var r = Math.max(48, Math.min(90, this.w * 0.18)); return { cx: this.w - r - 8, cy: r + 8, r: r }; };
+  View.prototype.drawHyperInset = function () {
+    var s = this.state, ctx = this.ctx, m = s.mesh, H = O.hyper, vp = this.hinset(), k0 = vp.r / Math.tanh(H.RCIRC);
+    // in the Klein model, where the octagon is a plain regular octagon with straight sides
+    var scr = function (p) { var q = H.klein(p[0], p[1]); return [vp.cx + k0 * q[0], vp.cy - k0 * q[1]]; };
+    var oct = H.octagon().map(scr), tr = function (P) { ctx.beginPath(); P.forEach(function (p, k) { if (k) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.closePath(); };
+    ctx.fillStyle = "rgba(8,8,14,0.92)"; ctx.beginPath(); ctx.arc(vp.cx, vp.cy, vp.r + 4, 0, 6.2832); ctx.fill();
+    ctx.save(); tr(oct); ctx.clip();
+    for (var i = 0; i < m.n; i++) {
+      tr(H.geodesicRing([1, 0, 0, 0], m.rings[i]).map(scr));
+      ctx.fillStyle = s.open[i] ? (s.mine[i] ? "#ff2e4d" : "#1a1a26") : s.flag[i] ? "#ff6a3d" : "#4a5070"; ctx.fill();
+      ctx.strokeStyle = "#08080c"; ctx.lineWidth = 0.5; ctx.stroke();
+    }
+    ctx.restore();
+    // each side in its pair's colour (side k is glued to side k + 4)
+    var per = oct.length / 8;
+    for (var sd = 0; sd < 8; sd++) {
+      ctx.beginPath();
+      for (var q = 0; q <= per; q++) { var p = oct[(Math.round(sd * per) + q) % oct.length]; if (q) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }
+      ctx.strokeStyle = PAIR[sd % 4]; ctx.lineWidth = 2; ctx.stroke();
+    }
+    var c = scr(this.hcam().cursor());
+    ctx.strokeStyle = "rgba(255,255,255,0.95)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(c[0], c[1], 5, 0, 6.2832); ctx.stroke();
+  };
+  View.prototype.inHyperInset = function (px, py) { var vp = this.hinset(); return Math.hypot(px - vp.cx, py - vp.cy) <= vp.r + 4; };
+  View.prototype.hyperInsetPoint = function (px, py) {
+    var vp = this.hinset(), H = O.hyper, k0 = vp.r / Math.tanh(H.RCIRC), x = (px - vp.cx) / k0, y = -(py - vp.cy) / k0, r = Math.hypot(x, y);
+    if (r >= 1) return null;
+    var f = 1 / (1 + Math.sqrt(1 - r * r)); x *= f; y *= f; // Klein → Poincaré
+    return H.outside(x, y) < 0 ? [x, y] : null;
+  };
+
   View.prototype.resize = function () {
     var dpr = Math.min(2, NS.devicePixelRatio || 1), r = this.cv.getBoundingClientRect();
     this.dpr = dpr; this.w = r.width; this.h = r.height;
@@ -185,7 +338,8 @@
 
   /* Rotate so the surface follows the finger: a drag of (dx, dy) pixels turns
      about screen-y then screen-x by arc length / radius. */
-  View.prototype.drag = function (dx, dy) {
+  View.prototype.drag = function (dx, dy, px, py) {
+    if (this.hyper()) { this.hdrag(dx, dy, px, py); return; }
     if (this.torus()) { this.camFor().drag(dx, dy, this.tmode === "flat" ? "flat" : "donut", this.w, this.h); return; }
     var r = this.radius(), a = dx / r, b = dy / r;
     var ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
@@ -203,6 +357,7 @@
   };
 
   View.prototype.pick = function (px, py) {
+    if (this.hyper()) return this.hpick(px, py);
     if (this.torus()) return this.frame().pick(px, py);
     var r = this.radius(), x = (px - this.w / 2) / r, y = -(py - this.h / 2) / r, d = x * x + y * y;
     if (d > 1) return -1;
@@ -217,6 +372,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, this.w, this.h);
     if (!s) return false;
+    if (this.hyper()) return this.drawHyper(now);
     if (this.torus()) return this.drawTorus(now);
     var m = s.mesh, P = m.sites, V = m.verts, R = this.R, r = this.radius(), cx = this.w / 2, cy = this.h / 2;
     var busy = false;

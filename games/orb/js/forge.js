@@ -5,7 +5,7 @@
    progress while the page stays responsive. It loads the same engine files
    the page does and rebuilds the same mesh from the same seed, so the board
    it returns is the board the page would have made itself. */
-importScripts("prng.js", "sphere.js", "torus.js", "rules.js", "solve.js");
+importScripts("prng.js", "sphere.js", "torus.js", "hyper.js", "rules.js", "solve.js");
 
 self.onmessage = function (e) {
   var q = e.data, O = self.ORB;

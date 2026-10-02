@@ -255,7 +255,7 @@
     spin.x = spin.y = 0; turning = null; idle = 0;
     if (ptrs.size === 2) { press = null; clearTimeout(holdTimer); var a = Array.from(ptrs.values()); pinch = { d: dist(a[0], a[1]), z: view.zoom }; return; }
     var p = local(e);
-    if (view.inInset(p.x, p.y)) { var fp = view.insetPoint(p.x, p.y); turning = { point: fp, left: 20 }; press = null; return; }
+    if (view.inInset(p.x, p.y)) { var fp = view.insetPoint(p.x, p.y); turning = fp ? { point: fp, left: 20 } : null; press = null; return; }
     var cell = view.pick(p.x, p.y);
     press = { x: e.clientX, y: e.clientY, cell: cell, moved: false, right: e.button === 2, held: false };
     last = { x: e.clientX, y: e.clientY, t: performance.now() };
@@ -281,7 +281,7 @@
     if (!press.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 7) { press.moved = true; clearTimeout(holdTimer); view.hl = null; }
     if (press.moved) {
       var dx = e.clientX - prev.x, dy = e.clientY - prev.y, now = performance.now(), dt = Math.max(8, now - last.t);
-      view.drag(dx, dy);
+      var lp = local(e); view.drag(dx, dy, lp.x, lp.y);
       spin.x = dx * 16 / dt; spin.y = dy * 16 / dt; last = { x: e.clientX, y: e.clientY, t: now };
       dirty = true;
     }

@@ -85,6 +85,48 @@ for (const n of [80, 160, 320]) {
   ck(Array.from({ length: m.n }, (_, i) => Math.abs(m.sites[3 * i] * R[0] + m.sites[3 * i + 1] * R[1] + m.sites[3 * i + 2] * R[2]) / l >= 0).every(Boolean) && O.cellAt(m, R[0] / l, R[1] / l, R[2] / l) >= 0, "projective plane: cellAt reads the double cover");
 }
 
+console.log("double torus mesh");
+{
+  const H = O.hyper, ID = [1, 0, 0, 0];
+  // a gluing carries side k + 4 onto side k
+  const mid = (k) => { const r = Math.tanh(H.RIN / 2); return [r * Math.cos(k * Math.PI / 4), r * Math.sin(k * Math.PI / 4)]; };
+  ck([0, 1, 2, 3].every((k) => { const p = H.apply(H.GENS[k], ...mid(k + 4)), q = mid(k); return Math.hypot(p[0] - q[0], p[1] - q[1]) < 1e-12; }), "each gluing carries side k + 4's midpoint onto side k's");
+  // hyperbolic area of a geodesic polygon: (k − 2)π − Σ angles; each corner's angle measured with the corner moved to the centre
+  const area = (ring) => {
+    let sum = 0;
+    for (let q = 0; q < ring.length; q++) {
+      const a = ring[(q + ring.length - 1) % ring.length], b = ring[q], c = ring[(q + 1) % ring.length], T = H.tau(-b[0], -b[1]);
+      const u = H.apply(T, ...a), v = H.apply(T, ...c);
+      sum += Math.acos(Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / Math.hypot(...u) / Math.hypot(...v))));
+    }
+    return (ring.length - 2) * Math.PI - sum;
+  };
+  for (const n of [60, 160, 320]) {
+    const m = O.buildDoubleTorus("dt" + n, n, 2), E = m.nbrs.reduce((a, b) => a + b.length, 0) / 2;
+    const sym = m.nbrs.every((ns, i) => ns.every((j) => m.nbrs[j].includes(i)) && !ns.includes(i) && ns.length === m.rings[i].length);
+    const inside = Array.from({ length: n }, (_, i) => H.outside(m.sites[2 * i], m.sites[2 * i + 1]) < 0).every(Boolean);
+    const A = m.rings.reduce((t, r) => t + area(r), 0);
+    ck(n - E / 3 === -2 && sym && inside && Math.abs(A - H.AREA) < 1e-6,
+      `n=${n}: V−E+F=−2 (${2 * E / 3} corners, ${E} edges), adjacency symmetric with one edge per neighbour, sites in the octagon, areas sum to 4π (${A.toFixed(9)})`);
+  }
+  // the reticle draws a neighbour's copy through edges[i]: that copy must share the edge
+  const m = O.buildDoubleTorus("dtnb", 160, 2), NT = H.near();
+  let shared = true;
+  for (let i = 0; i < m.n; i++) m.edges[i].forEach((ed, q) => {
+    const a = m.rings[i][q], b = m.rings[i][(q + 1) % m.rings[i].length], R = m.rings[ed.j].map((p) => H.apply(NT[ed.e], ...p));
+    const on = (p) => R.some((r) => Math.hypot(r[0] - p[0], r[1] - p[1]) < 1e-7);
+    if (!on(a) || !on(b)) shared = false;
+  });
+  ck(shared, "double torus: every edge's neighbour copy (edges[i] → near()) shares that edge");
+  // the camera: slides keep the cursor in the octagon, and toward() centres a cell
+  const cam = new O.HyperCam(m);
+  for (let k = 0; k < 200; k++) cam.slide(0, 0, 0.3 * Math.cos(k * 0.7), 0.3 * Math.sin(k * 0.3));
+  const cur = cam.cursor(), far = H.distO(...H.apply(cam.C, 0, 0));
+  cam.toward(m.sites[2 * 37], m.sites[2 * 37 + 1], 1);
+  const z = cam.nearest(m.sites[2 * 37], m.sites[2 * 37 + 1]);
+  ck(H.outside(...cur) < 0 && far < 2 * H.RCIRC + 1e-9 && Math.hypot(...z) < 1e-9, "double torus: a long wander keeps the cursor in the octagon; toward() centres a cell");
+}
+
 console.log("solver vs brute force");
 function brute(mesh, open, count, total) {
   const n = mesh.n, canMine = new Uint8Array(n), canSafe = new Uint8Array(n);

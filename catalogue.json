@@ -3720,7 +3720,7 @@
       "b": "2026-10-01",
       "p": "games",
       "surface": "games",
-      "d": "Minesweeper on a sphere of Voronoi cells you turn with a finger. Every board is proved solvable by pure deduction before you see it, and the game counts every move you made that wasn't certain. Now on a torus too (as a doughnut, or the Clifford torus projected out of 4D), on a Klein bottle, and on a projective plane, where opposite points are one.",
+      "d": "Minesweeper on a sphere of Voronoi cells you turn with a finger. Every board is proved solvable by pure deduction before you see it, and the game counts every move you made that wasn't certain. Now on a torus too (as a doughnut, or the Clifford torus projected out of 4D), on a Klein bottle, on a projective plane, where opposite points are one, and on a double torus, which has to be hyperbolic: you scroll through an endless Poincaré disk of octagons, each a copy of the board.",
       "tags": [
         "games",
         "puzzle"
