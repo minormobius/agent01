@@ -102,7 +102,7 @@
     }
     this.focusCell = fc;
     var outline = function (c, style, wdt) { var rg = F.ring(c); if (!rg) return; trace(rg); ctx.strokeStyle = style; ctx.lineWidth = wdt; ctx.stroke(); };
-    var shown = function (i) { return !donut || (cam.rigid ? F.onTop(i) : F.P[i][3]); };
+    var shown = function (i) { return !donut || (cam.rigid || cam.occludes ? F.onTop(i) : F.P[i][3]); };
     var marks = function () { // highlights, pulses and the reticle, after every fill
       for (var o = 0; o < F.order.length; o++) {
         var i = F.order[o], rg;
@@ -125,7 +125,13 @@
         var c = colour(i, lit), dim = 0.3 + 0.7 * Math.min(1, Math.max(0, e.face) * 1.8);
         ctx.fillStyle = "rgb(" + (c.col[0] * dim | 0) + "," + (c.col[1] * dim | 0) + "," + (c.col[2] * dim | 0) + ")";
         trace(ring); ctx.fill(); ctx.strokeStyle = "#08080c"; ctx.lineWidth = Math.max(0.6, cellR * 0.06); ctx.stroke();
-        if ((cam.rigid || F.P[i][3]) && e.face > 0.12) glyph(i, F.P[i][0], F.P[i][1], cellR * (0.45 + 0.55 * Math.sqrt(e.face)) * 0.95, c.openT);
+        if ((cam.rigid || F.P[i][3]) && e.face > 0.12) {
+          // a number fits its cell: smaller cells (the torus's inside, the bottle's neck) get smaller type
+          var ar = 0; for (var q = 0; q < ring.length; q++) { var A = ring[q], B = ring[(q + 1) % ring.length]; ar += A[0] * B[1] - B[0] * A[1]; }
+          ctx.save(); trace(ring); ctx.clip(); // clipped to its cell: nothing spills past the silhouette
+          glyph(i, F.P[i][0], F.P[i][1], Math.min(cellR * (0.45 + 0.55 * Math.sqrt(e.face)) * 0.95, Math.sqrt(Math.abs(ar) / 2) * 0.62), c.openT);
+          ctx.restore();
+        }
       }
       marks();
       this.drawInset(now);

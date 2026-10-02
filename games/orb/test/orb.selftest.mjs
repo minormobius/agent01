@@ -37,7 +37,7 @@ for (const [n, relax] of [[12, 0], [60, 0], [300, 2], [600, 3]]) {
 }
 
 console.log("torus mesh");
-for (const [kind, m] of [["hex 4×8", O.buildHexTorus(4, 8)], ["hex 8×16", O.buildHexTorus(8, 16)], ["voronoi 40", O.buildTorus("tt40", 40, 3)], ["voronoi 320", O.buildTorus("tt320", 320, 3)], ["voronoi 600", O.buildTorus("tt600", 600, 3)], ["Klein 40", O.buildKlein("kk40", 40, 3)], ["Klein 320", O.buildKlein("kk320", 320, 3)]]) {
+for (const [kind, m] of [["hex 4×8", O.buildHexTorus(4, 8)], ["hex 8×16", O.buildHexTorus(8, 16)], ["voronoi 40", O.buildTorus("tt40", 40, 3)], ["voronoi 320", O.buildTorus("tt320", 320, 3)], ["voronoi 600", O.buildTorus("tt600", 600, 3)], ["Klein 200", O.buildKlein("kk200", 200, 3)], ["Klein 320", O.buildKlein("kk320", 320, 3)]]) {
   const n = m.n, nv = m.verts.length / 2, edges = m.nbrs.reduce((a, b) => a + b.length, 0) / 2;
   const sym = m.nbrs.every((ns, i) => ns.every((j) => m.nbrs[j].includes(i)) && new Set(ns).size === ns.length && !ns.includes(i));
   const inc = new Array(nv).fill(0); m.polys.forEach((r) => r.forEach((v) => inc[v]++));
@@ -64,6 +64,12 @@ for (const [kind, m] of [["hex 4×8", O.buildHexTorus(4, 8)], ["hex 8×16", O.bu
     if (near(flip) && !near(plain)) flipped++;
   }));
   ck(across > 0 && flipped === across, `Klein bottle: all ${across / 2} edges across the glued edge join mirrored images (v ↦ −v)`);
+}
+
+{ // the bottle's parking spot is the front-most thing at its spot, so a tap on the cursor hits the cursor's cell
+  const k = O.buildKlein("kpark", 320, 3), cam = O.surfaceCam(k), F = new O.TorusFrame(cam, { cx: 195, cy: 330, w: 390, h: 660 }, "donut");
+  const s = cam.sweet(), c = O.torusCellAt(k, s[0], s[1]), P = F.cell(c);
+  ck(F.pick(P[0], P[1]) === c, "Klein bottle: the cursor's cell is the front-most cell under the cursor");
 }
 
 console.log("solver vs brute force");

@@ -76,8 +76,8 @@ Three things live here:
   solver from the first tap before it ships. The readout counts the moves that
   weren't certain when you made them. Also on a Voronoi torus and a Klein
   bottle (`js/torus.js`: Voronoi diagrams of the flat torus and of the flat
-  Klein bottle, whose gluing flips; drawn as a donut whose skin slides, as the
-  figure-8 Klein bottle immersion, or as the exact flat map). Canvas 2D, no build. See [`orb/README.md`](orb/README.md).
+  Klein bottle, whose gluing flips; drawn as a donut or as the classic bottle, both
+  with a skin that slides under a fixed cursor, or as the exact flat map). Canvas 2D, no build. See [`orb/README.md`](orb/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a

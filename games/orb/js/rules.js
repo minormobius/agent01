@@ -97,7 +97,7 @@
     tm: { n: 320, m: 62, label: "torus · medium", climb: 600, torus: true },
     tl: { n: 600, m: 132, label: "torus · large", climb: 500, torus: true },
     // the Klein bottle: the same rectangle, one pair of edges glued with a flip
-    ks: { n: 160, m: 28, label: "Klein bottle · small", climb: 600, torus: true, klein: true },
+    ks: { n: 200, m: 36, label: "Klein bottle · small", climb: 600, torus: true, klein: true },
     km: { n: 320, m: 62, label: "Klein bottle · medium", climb: 600, torus: true, klein: true },
   };
   /* The board for a tier: the sphere, or the torus. */

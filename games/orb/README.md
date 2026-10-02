@@ -241,20 +241,40 @@ neighbours, and boards proved guess-free. The selftest checks that every
 edge across the glued side joins mirrored images.
 
 What's hard is showing it. A Klein bottle can't sit in space without passing
-through itself, so the 3D view is the **figure-8 immersion**: a figure-eight
-cross-section swept round a circle with a half twist, which turns the eight
-over once per lap. That is exactly the gluing (u + W, v) ~ (u, −v). It
-crosses itself along one circle, which doesn't matter to the game: only which
-cells touch counts. It's two-sided-less (there is no outside), so it turns
-in your hand like the sphere, cells face you whichever way round they are,
-painter's order hides what's behind, and the reticle is the cell in the
-middle of the screen.
+through itself, so the 3D view is the **classic bottle**: a body, and a neck
+that bends over and passes back in through the wall, flaring into the base
+from inside. Three cheats make it playable:
+
+1. **The cursor never moves; the skin slides.** As on the torus, the reticle
+   is parked on the body (its fattest ring, on the side nearest you) and a drag
+   slides the surface under it, glued to the finger through the exact screen
+   Jacobian at that spot. Sliding *along* the bottle is free. Sliding *round*
+   it is not: the gluing flips v, so turning the whole skin is only
+   consistent by 0 or half a turn. So the turn is full at the cursor and fades
+   to an allowed value half a lap away, (u, v) ↦ (u + ou, v + k·H/2 +
+   ε·cos π(u − su)/W). That is consistent with the flip, and its shear is
+   zero at the cursor. The twist lives in the neck and round the back.
+2. **Cells are round where you work.** Flat u runs along the bottle
+   unevenly, dU/du ∝ C(U)^½ / S(U) (C the girth of the cross-section, S the
+   speed along it), scaled so cells are exactly round on the body. Exponent
+   1 would be round everywhere, but the neck is 12× thinner than the body and
+   the board would be 10× longer than it is round. ½ gives neck cells about a
+   third the size and three times as long, in a place nobody works. The same
+   choice sets the board's proportions: W/H = 4.42. The small tier is 200
+   cells, so there are enough cells round the body.
+3. **Text fits its cell**, clipped to it, so silhouette cells don't spill and
+   the neck's small cells take small type.
+
+It's two-sided (there is no outside), so painter's order does the hiding,
+picking takes the front-most cell, and the parking spot is chosen on the
+*near* wall (the inside of the far wall faces you too). The selftest checks
+that a tap on the cursor hits the cursor's cell.
 
 The **flat map** is the honest view. The cursor is a point in the plane that
-covers the surface, and every cell is drawn at its copy nearest the cursor, so
-panning across the flipped edge is seamless. Further out, the copies beyond
-it are drawn mirrored, because they are. W/H = 1.47 is the figure-eight's
-lap over its cross-section, so cells come out roughly round in 3D.
+covers the surface, the same point the bottle slides to, and every cell is
+drawn at its copy nearest the cursor, so panning across the flipped edge is
+seamless. Further out, the copies beyond it are drawn mirrored, because they
+are.
 
 ## Shared with Strand
 

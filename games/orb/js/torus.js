@@ -39,7 +39,7 @@
   "use strict";
   var NS = (typeof window !== "undefined") ? window : globalThis;
   var O = NS.ORB = NS.ORB || {};
-  var TAU = 2 * Math.PI, ASPECT = 4 / Math.sqrt(3), KLEIN_A = 2.2, KLEIN_ASPECT; // set below, from the figure-8's own lengths
+  var TAU = 2 * Math.PI, ASPECT = 4 / Math.sqrt(3), KLEIN_ASPECT; // set below, from the bottle's own shape
 
   function wrap(x, L) { x %= L; return x < 0 ? x + L : x; }
   /* b − a, the short way round. On a Klein bottle (mesh.glide) going once
@@ -325,67 +325,128 @@
     this.ov -= dy / (k * this.r) * m.H / TAU * 0.6;
   };
 
-  /* THE KLEIN BOTTLE CAMERA. A Klein bottle can't sit in space without
-     passing through itself, so it is shown as the FIGURE-8 IMMERSION: a
-     figure-eight cross-section swept round a circle with a half twist, so
-     that going once round turns the eight over (exactly the glide: (u + W,
-     v) ~ (u, −v)). It crosses itself along one circle. You turn it in your
-     hand like the sphere (a rotation R), and the cursor is the middle of
-     the screen. Surfaces are two-sided here (there is no outside), so a
-     cell faces you whichever way round it is; painter's order does the
-     hiding, and picking takes the front-most cell under the finger.
-     On the flat map the cursor is a point (su, sv) of the covering plane,
-     so panning across the flipped edge is continuous: what lies beyond it
-     is drawn mirrored, because it is. */
-  function KleinCam(mesh) {
-    this.mesh = mesh; this.zoom = 1; this.kind = "klein"; this.rigid = true;
-    this.R = [1, 0, 0, 0, 0.5, -0.866, 0, 0.866, 0.5]; // tipped toward you, so the twist shows
-    this.su = mesh.W * 0.1; this.sv = mesh.H * 0.25;
-    var A = 0, N = 64; // mean cell size, from the immersion's own area
-    for (var i = 0; i < N; i++) for (var j = 0; j < N; j++) {
-      var u = (i + 0.5) / N * mesh.W, v = (j + 0.5) / N * mesh.H, du = mesh.W / N, dv = mesh.H / N;
-      var p = fig8(mesh, u, v), pu = fig8(mesh, u + du, v), pv = fig8(mesh, u, v + dv);
-      var a = [pu[0] - p[0], pu[1] - p[1], pu[2] - p[2]], b = [pv[0] - p[0], pv[1] - p[1], pv[2] - p[2]];
-      A += Math.hypot(a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]);
+  /* THE KLEIN BOTTLE CAMERA: the classic bottle, and a skin that slides.
+
+     The bottle is the standard immersion (the body, a neck that bends over
+     and passes back in through the wall, flaring into the base from
+     inside), parameterised by U ∈ [0, π), V ∈ [0, 2π) with p(0, V) =
+     p(π, π − V): exactly our flat gluing once V = 2πv/H + π/2.
+
+     Three cheats keep the work front and centre and round:
+     1. CELLS ROUND WHERE YOU WORK. Flat u runs along the bottle unevenly:
+        dU/du ∝ C(U)^α / S(U), C the cross-section's girth, S the speed
+        along it, scaled so cells are exactly round on the body. α = ½ is a
+        compromise: α = 1 is round everywhere but makes the neck 12× smaller
+        and the board 10× longer than it is round; α = 0 is even spacing
+        with the neck's cells squashed thin. Here neck cells are about a
+        third the size and three times as long, and nobody works there.
+     2. THE CURSOR NEVER MOVES. It is parked on the fattest part of the body,
+        facing the camera, and a drag slides the skin under it, as on the
+        torus. Sliding along the bottle is free. Sliding round it is the
+        catch: the gluing flips v, so turning the whole skin is only
+        consistent by 0 or half a turn. So the turn is full at the cursor
+        and fades to that allowed value half a lap away, (u, v) ↦
+        (u + ou, v + k·H/2 + ε·cos π(u − su)/W): consistent with the flip,
+        and its shear is zero at the cursor. The twist lives in the neck and
+        round the back, where nobody is looking.
+     3. TEXT FITS ITS CELL: numbers shrink with the cell they sit in (the
+        view's job), so the neck's small cells stay legible enough.
+     Two-sided (a Klein bottle has no outside); painter's order hides, and
+     picking takes the front-most cell. On the flat map the cursor is the
+     same covering-plane point, so both views agree on where you are. */
+  function bottleP(U, V) {
+    var cu = Math.cos(U), su = Math.sin(U), cv = Math.cos(V), sv = Math.sin(V), c2 = cu * cu, c4 = c2 * c2, c6 = c4 * c2;
+    return [-2 / 15 * cu * (3 * cv - 30 * su + 90 * c4 * su - 60 * c6 * su + 5 * cu * cv * su),
+      -1 / 15 * su * (3 * cv - 3 * c2 * cv - 48 * c4 * cv + 48 * c6 * cv - 60 * su + 5 * cu * cv * su - 5 * c2 * cu * cv * su - 80 * c4 * cu * cv * su + 80 * c6 * cu * cv * su),
+      2 / 15 * (3 + 5 * cu * su) * sv];
+  }
+  var BOTTLE = (function () { // the warp table: flat u ↔ bottle U, and the domain's proportions (H = 1)
+    var N = 400, M = 48, ALPHA = 0.5, S = [], Cg = [], dist = function (a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); };
+    for (var i = 0; i <= N; i++) {
+      var U = Math.PI * i / N, c = 0, sp = 0;
+      for (var j = 0; j < M; j++) { var V = TAU * j / M; c += dist(bottleP(U, V), bottleP(U, V + TAU / M)); sp += dist(bottleP(U + 1e-4, V), bottleP(U, V)) / 1e-4; }
+      S.push(sp / M); Cg.push(c);
     }
-    this.area = A;
+    var Cmax = Math.max.apply(null, Cg), body = Cg.indexOf(Cmax), u = [0];
+    for (i = 0; i < N; i++) { var f = function (k) { return S[k] / (Math.pow(Cg[k], ALPHA) * Math.pow(Cmax, 1 - ALPHA)); }; u.push(u[i] + (f(i) + f(i + 1)) / 2 * Math.PI / N); }
+    return { N: N, u: u, W: u[N], bodyU: Math.PI * body / N, bodyu: u[body] };
+  })();
+  KLEIN_ASPECT = BOTTLE.W;
+  var KLEIN_VIEW = [1.2, -0.12, 0]; // the camera's turns (see KleinCam.place)
+  function warpU(u0) { // flat u in [0, W] → bottle U
+    var T = BOTTLE, lo = 0, hi = T.N;
+    while (hi - lo > 1) { var mid = (lo + hi) >> 1; if (T.u[mid] <= u0) lo = mid; else hi = mid; }
+    var f = (u0 - T.u[lo]) / ((T.u[hi] - T.u[lo]) || 1);
+    return Math.PI * (lo + Math.max(0, Math.min(1, f))) / T.N;
   }
-  function fig8(mesh, u, v) {
-    var th = TAU * u / mesh.W, ph = TAU * v / mesh.H, c = Math.cos(th / 2), s = Math.sin(th / 2);
-    var rr = KLEIN_A + c * Math.sin(ph) - s * Math.sin(2 * ph);
-    return [rr * Math.cos(th), rr * Math.sin(th), s * Math.sin(ph) + c * Math.sin(2 * ph)];
+  function bottleAt(mesh, u, v) { // a point of the covering plane → the bottle
+    var a = Math.floor(u / mesh.W), u0 = u - a * mesh.W, v0 = (a & 1) ? -v : v;
+    return bottleP(warpU(u0), TAU * v0 / mesh.H + Math.PI / 2);
   }
+  function KleinCam(mesh) {
+    this.mesh = mesh; this.zoom = 1; this.kind = "klein"; this.occludes = true;
+    this.place(KLEIN_VIEW[0], KLEIN_VIEW[1], KLEIN_VIEW[2]);
+  }
+  /* Set the camera (turns about the screen's vertical, horizontal and
+     viewing axes) and everything that depends on it: the parking spot,
+     the drag Jacobian, the framing. */
+  KleinCam.prototype.place = function (ay, ax, az) {
+    var mesh = this.mesh, cy = Math.cos(ay), sy = Math.sin(ay), cx = Math.cos(ax), sx = Math.sin(ax), cz = Math.cos(az), sz = Math.sin(az);
+    this.Rc = mat(mat([cz, -sz, 0, sz, cz, 0, 0, 0, 1], [cy, 0, sy, 0, 1, 0, -sy, 0, cy]), [1, 0, 0, 0, cx, -sx, 0, sx, cx]);
+    // the parking spot: the body's fattest ring, at the angle that faces the camera
+    // (the NEAR side: two-sided, the inside of the far wall faces you too, behind the near one)
+    var uf = BOTTLE.bodyu * mesh.W / BOTTLE.W, best = -1e9, vf = 0;
+    for (var j = 0; j < 144; j++) { var vv = mesh.H * j / 144, e = this.raw(uf, vv); if (e.nz > 0.5 && e.D > best) { best = e.D; vf = vv; } }
+    this.uf = uf; this.vf = vf; this.su = uf; this.sv = vf;
+    // the screen Jacobian at the parking spot, per flat unit (k = 1), for dragging the skin under the finger
+    var h = 1e-4, A = this.raw(uf, vf), Bu = this.raw(uf + h, vf), Bv = this.raw(uf, vf + h);
+    this.J = [(Bu.X - A.X) / h, (Bv.X - A.X) / h, -(Bu.Y - A.Y) / h, -(Bv.Y - A.Y) / h];
+    this.Lf = Math.sqrt(Math.abs(this.J[0] * this.J[3] - this.J[1] * this.J[2]));
+    this.Xf = [A.X, A.Y];
+    var bb = [1e9, -1e9, 1e9, -1e9];
+    for (var i = 0; i <= 60; i++) for (j = 0; j < 24; j++) { var q = this.raw(mesh.W * i / 60, mesh.H * j / 24); bb[0] = Math.min(bb[0], q.X); bb[1] = Math.max(bb[1], q.X); bb[2] = Math.min(bb[2], q.Y); bb[3] = Math.max(bb[3], q.Y); }
+    this.bb = bb;
+  };
+  /* The bottle as placed, before any sliding: view-space position and normal. */
+  KleinCam.prototype.raw = function (u, v) {
+    var m = this.mesh, h = 1e-4, p = bottleAt(m, u, v), pu = bottleAt(m, u + h * m.W, v), pv = bottleAt(m, u, v + h * m.H), R = this.Rc;
+    var a = [pu[0] - p[0], pu[1] - p[1], pu[2] - p[2]], b = [pv[0] - p[0], pv[1] - p[1], pv[2] - p[2]];
+    var n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], l = Math.hypot(n[0], n[1], n[2]) || 1;
+    var nv = [(R[0] * n[0] + R[1] * n[1] + R[2] * n[2]) / l, (R[3] * n[0] + R[4] * n[1] + R[5] * n[2]) / l, (R[6] * n[0] + R[7] * n[1] + R[8] * n[2]) / l];
+    if (nv[2] < 0) nv = [-nv[0], -nv[1], -nv[2]]; // two-sided: light the side you see
+    return { X: R[0] * p[0] + R[1] * p[1] + R[2] * p[2], Y: R[3] * p[0] + R[4] * p[1] + R[5] * p[2], D: R[6] * p[0] + R[7] * p[1] + R[8] * p[2], nz: nv[2], nv: nv, p: p };
+  };
+  /* The skin's slide: cover point (u, v) → where it sits on the placed bottle. */
+  KleinCam.prototype.slide = function (u, v) {
+    var H = this.mesh.H, d = this.vf - this.sv, k = Math.round(d / (H / 2)), eps = d - k * H / 2;
+    return [u + this.uf - this.su, v + k * H / 2 + eps * Math.cos(Math.PI * (u - this.su) / this.mesh.W)];
+  };
   KleinCam.prototype.flatLayout = flatLayout;
   KleinCam.prototype.sweet = function () { return [this.su, this.sv]; };
   KleinCam.prototype.embed = function (u, v) {
-    var m = this.mesh, e = 1e-4, p = fig8(m, u, v), pu = fig8(m, u + e * m.W, v), pv = fig8(m, u, v + e * m.H), R = this.R;
-    var a = [pu[0] - p[0], pu[1] - p[1], pu[2] - p[2]], b = [pv[0] - p[0], pv[1] - p[1], pv[2] - p[2]];
-    var n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], l = Math.hypot(n[0], n[1], n[2]) || 1;
-    n = [n[0] / l, n[1] / l, n[2] / l];
-    var X = R[0] * p[0] + R[1] * p[1] + R[2] * p[2], Y = R[3] * p[0] + R[4] * p[1] + R[5] * p[2], Z = R[6] * p[0] + R[7] * p[1] + R[8] * p[2];
-    var nv = [R[0] * n[0] + R[1] * n[1] + R[2] * n[2], R[3] * n[0] + R[4] * n[1] + R[5] * n[2], R[6] * n[0] + R[7] * n[1] + R[8] * n[2]];
-    if (nv[2] < 0) nv = [-nv[0], -nv[1], -nv[2]]; // two-sided: light the side you see
-    // lighting is in view space here, so hand it back as if the camera were the torus's
-    return { X: X, Y: Y, D: Z, face: nv[2], n: [nv[0], -nv[2] * 0.64 + nv[1] * 0.77, nv[2] * 0.77 + nv[1] * 0.64], p: p };
+    var q = this.slide(u, v), e = this.raw(q[0], q[1]), nv = e.nv;
+    // lighting is in view space here; hand it back as if the camera were the torus's
+    return { X: e.X, Y: e.Y, D: e.D, face: e.nz, n: [nv[0], -nv[2] * 0.64 + nv[1] * 0.77, nv[2] * 0.77 + nv[1] * 0.64], p: e.p };
   };
   KleinCam.prototype.hidden = function () { return false; };
-  KleinCam.prototype.scale = function (w, h) { return Math.min(w, h) / (2 * (KLEIN_A + 1.7)) * 0.98 * this.zoom; };
-  KleinCam.prototype.origin = function () { return [0, 0]; };
-  KleinCam.prototype.cellR = function (k) { return k * Math.sqrt(this.area / this.mesh.n) * 0.55; };
+  KleinCam.prototype.scale = function (w, h) { var bb = this.bb; return Math.min(w / ((bb[1] - bb[0]) * 1.06), h / ((bb[3] - bb[2]) * 1.06)) * this.zoom; };
+  /* At zoom 1 the bottle is centred; zooming grows it round the cursor and
+     brings the cursor toward the middle of the screen. */
+  KleinCam.prototype.origin = function (w, h) {
+    var k = this.scale(w, h), k1 = k / this.zoom, bb = this.bb, cX = (bb[0] + bb[1]) / 2, cY = (bb[2] + bb[3]) / 2, z = this.zoom;
+    var tx = k1 * (this.Xf[0] - cX) / z, ty = k1 * (this.Xf[1] - cY) / z; // where the cursor goes (math coords, from the view's centre)
+    return [tx - k * this.Xf[0], -(ty - k * this.Xf[1])];
+  };
+  KleinCam.prototype.cellR = function (k) { var m = this.mesh; return k * this.Lf * Math.sqrt(m.W * m.H / m.n) * 0.55; };
   KleinCam.prototype.drag = function (dx, dy, mode, w, h) {
     if (mode === "flat") { var d = flatDrag(this, dx, dy, w, h); this.su -= d[0]; this.sv -= d[1]; return; }
-    var r = this.scale(w, h) * KLEIN_A, a = dx / r, b = dy / r, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
-    this.R = mat(this.R, [ca, sa * sb, sa * cb, 0, cb, -sb, -sa, ca * sb, ca * cb]);
+    // the point under the finger follows it: the cursor moves the other way, through the inverse Jacobian
+    var k = this.scale(w, h), J = this.J, det = (J[0] * J[3] - J[1] * J[2]) * k;
+    this.su -= (J[3] * dx - J[1] * dy) / det; this.sv -= (-J[2] * dx + J[0] * dy) / det;
   };
-  /* Bring flat point (u, v) toward the cursor, by fraction t: on the map,
-     slide to its nearest image; in 3D, turn it to face you. */
   KleinCam.prototype.toward = function (u, v, t) {
     t = t == null ? 1 : t;
     var d = delta(this.mesh, this.su, this.sv, u, v); this.su += d[0] * t; this.sv += d[1] * t;
-    var e = this.embed(u, v), X = e.X, Y = e.Y, Z = e.D, s = Math.hypot(X, Y);
-    if (s < 1e-9) return;
-    var ang = Math.atan2(s, Math.abs(Z) + 1) * t, ax = [Y / s, -X / s, 0];
-    this.R = mat(this.R, rotAxis(ax, ang));
   };
   function mat(R, M) { // M · R, re-orthonormalised
     var C = new Array(9);
@@ -511,15 +572,6 @@
     }
     return c;
   }
-
-  /* The flat domain's proportions for the Klein bottle: the length of a
-     circle of u (at the twist's mean radius) over the length of the
-     figure-eight cross-section, so cells come out roughly round. */
-  (function () {
-    var L = 0, N = 720;
-    for (var i = 0; i < N; i++) { var p = (i + 0.5) / N * TAU; L += Math.hypot(Math.cos(p), 2 * Math.cos(2 * p)) * TAU / N; }
-    KLEIN_ASPECT = TAU * KLEIN_A / L;
-  })();
 
   O.buildTorus = buildTorus;
   O.buildHexTorus = buildHexTorus;
