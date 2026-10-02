@@ -99,16 +99,17 @@ Three things live here:
   from `dict/words.txt`, which is derived from `words/dict/enable1.txt` by
   `tools/dict.mjs`; the selftest checks it is current. See
   [`skein/README.md`](skein/README.md).
-- **Twelve at `/twelve/`**: 2048 on a buckyball (C60, C80). A sphere has no
-  global "that way" (the hairy ball theorem), so the twelve pentagons are drains.
-  Each drain is a whirlpool of five spiral arms: the rotations of one chain
-  that takes a hex from each of the pentagon's 5-fold orbits, so the arms
-  never share a cell. A move picks a drain, and each arm pours like a row of
-  2048, with no contention between tiles. `test/analysis.mjs` measures it
-  against classic 2048 using the same simulator. On C60, random play matches
-  2048 and greedy play gets ~2× further. Bigger spheres are too easy, so they
-  aren't offered. Borrows `../onecoast/js/geo.js`. See
-  [`twelve/README.md`](twelve/README.md).
+- **Twelve at `/twelve/`**: 2048 on the buckyballs (C60–C240). A sphere has no
+  global "that way" (the hairy ball theorem), so drains replace walls: a move
+  picks one and every tile pours toward it. There are two flows. **Gravity**, the
+  default, takes the steepest way down; contested cells go to the nearer tile,
+  and an aiming preview shows every landing. **Vortex** (C60/C80) turns each
+  pentagon into five spiral arms that partition the cells, so each arm is a row
+  of 2048. Bigger spheres add drains on the icosahedron's 3-fold axes (C180) or
+  2-fold axes (C240), plus rain (one more new tile a move every 100 moves);
+  otherwise they're too roomy to ever end. `test/analysis.mjs` measures every
+  board and flow against classic 2048 using the same simulator. Borrows
+  `../onecoast/js/geo.js`. See [`twelve/README.md`](twelve/README.md).
 - **Pressure at `/pressure/`** — the hub for the whole family: the thesis behind
   them, what each one can measure about a decision, and briefs for the two still
   unbuilt. A single hand-written page. Start here before adding another game
@@ -155,8 +156,8 @@ node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies
 node games/skein/test/skein.selftest.mjs         # every theme on every sphere: a board, proved one answer; rules; word list current
-node games/twelve/test/twelve.selftest.mjs       # drains, pour invariants, 2048 lane cases, the balance claim
-node games/twelve/test/analysis.mjs 60           # random/greedy reach vs classic 2048 grids (~4 s)
+node games/twelve/test/twelve.selftest.mjs       # drains per board, both flows' invariants, 2048 row cases, rain, the balance claim
+node games/twelve/test/analysis.mjs 40           # random/greedy reach, every board and flow, vs classic 2048 (~30 s)
 node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
 ```
 

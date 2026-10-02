@@ -19,56 +19,73 @@ sphere without touching one:
 
 A tile sliding along a loop has nothing to stop it.
 
-## What it is instead: twelve whirlpools
+## What it is instead: drains
 
-The moves are built on the points where the field must vanish. The twelve
-pentagons are **drains**, and nothing ever sits on one. A move picks a drain,
-and every tile slides in toward it.
+The moves are built on the points where the field must vanish. **Drains** are
+cells nothing ever sits on: the twelve pentagons, and on the bigger spheres more
+(below). A move picks a drain, and every tile pours toward it until it rests on
+the drain's rim or against another tile. Equal tiles that meet merge, at most
+once per tile per move, nearest the drain first, as against a wall in 2048.
 
-**How a tile gets there matters.** The first version let each tile take the
-steepest way down. The rings round a drain grow outward, so outer hexes
-funnel into fewer inner ones, and two tiles could want the same cell. Which
-one won was decided by an order the player couldn't see, so it played as a
-coin toss.
+### Two flows (⇣ gravity is the default; ◎ vortex on C60 and C80)
 
-Now each drain is a **whirlpool of five spiral arms**. A pentagon has
-five-fold symmetry, so the hexes round it fall into orbits of five. An *arm*
-is a chain of neighbours that starts on the drain's rim and takes exactly one
-hex from each orbit, and its five rotations are five lanes that cover every
-hex once and never touch. Such chains exist on every Goldberg sphere: C60 has
-2 (mirror twins), C80 16, C180 47,064. We pick the one that climbs outward
-most steadily and, between mirror twins, the one that turns anticlockwise
-seen from outside, so every drain swirls the same way. On C60 the arms climb
-the rings round the drain cleanly (ring 0, 1, 2, 3), five arms of four. On
-C80 they're five arms of six with one sideways step.
+**Gravity.** Each tile takes the steepest way down: one cell nearer the drain
+each step, choosing the step best aimed at it. The rings round a drain grow
+outward, so tiles funnel together and two can want the same cell. The nearer
+one gets it: nearer in steps first, then in true distance on the sphere. While
+you aim, every tile that would move shows an arrow to where it lands, with a
+ring where it would merge, so a contest is visible before you pour, not a coin
+toss after.
 
-So **a pour is exactly 2048 on five independent rows**: tiles slide along
-their arm, equal neighbours merge (nearest the drain first, at most once per
-move), and nothing is left to chance except where the new tile lands. While
-you aim, the drain's arms are drawn, so you can read the whole move before
-you make it.
+**Vortex.** Each pentagon drain is a **whirlpool of five spiral arms**. A
+pentagon has five-fold symmetry, so the hexes round it fall into orbits of five.
+An *arm* is a chain of neighbours that starts on the drain's rim and takes
+exactly one hex from each orbit, and its five rotations are five lanes that
+cover every hex once and never touch. There are 2 such arms on C60 (mirror
+twins) and 16 on C80. Branch-and-bound picks the one that climbs outward most
+steadily, and between twins the one that swirls anticlockwise seen from outside.
+It is found for one drain and carried to the other eleven by the sphere's own
+symmetry, so every drain swirls alike. On C60 the arms are five rows of four
+climbing the rings (0, 1, 2, 3), so a pour is exactly 2048 on five rows and
+nothing ever contends. Vortex needs every drain to be a pentagon, so it's
+offered on C60 and C80 only.
+
+### The bigger species: more drains, and rain
+
+Bigger spheres can't simply be bigger boards. With twelve drains, C180 and C240
+are so roomy that a player who looks one move ahead never dies, however many new
+tiles fall per move (greedy play survives 4,000+ moves at up to eight a move).
+Two changes fix it:
+
+- **Every rotation axis of the icosahedron that lands on a cell is a drain.**
+  The icosahedron has 12 five-fold axes (the pentagons), 20 three-fold axes
+  (face centres) and 30 two-fold axes (edge midpoints). C180 has hexes on the 20
+  three-fold axes, so it gets 32 drains and 60 cells. C240 has hexes on the 30
+  two-fold axes, so it gets 42 drains and 80 cells. Each drain is dotted with its
+  symmetry: five dots, three or two. (C240 also has hexes on the three-fold axes,
+  but all 62 drains at once chop the board into pockets and games die at 32.)
+- **Rain**: one new tile a move to start, then one more for every 100 moves
+  made. Every game ends, and skill is how long you last. C80 rains too. C60 stays
+  classic, one tile a move.
 
 ## Is it any good? (`test/analysis.mjs`)
 
 One simulator plays both games. The classic rows are its calibration: 4×4
 random ≈ 128 and greedy ≈ 256 are 2048's known numbers.
 
-| board | random play reaches | greedy play reaches |
-|---|---|---|
-| 2048, 4×4 | 64–128 | 128–256 |
-| **C60, five arms of four, 1 new tile a move** | **64–128** | **256–512** |
-| C80, five arms of six, 4 new tiles a move | 256–512 | 1024–2048 |
+| board | flow | random play reaches | greedy play reaches |
+|---|---|---|---|
+| 2048, 4×4 | | 64–128 | 128–256 |
+| **C60, 20 cells, 12 drains** | **gravity** | **128** | **1024–2048** |
+| C60 | vortex | 64–128 | 256–512 |
+| C80, 30 cells, 12 drains, rain | gravity | 256 | 512–1024 |
+| C80 | vortex | 512 | 1024–2048 |
+| C180, 60 cells, 32 drains, rain | gravity | 256–512 | 2048–4096 |
+| C240, 80 cells, 42 drains, rain | gravity | 512–1024 | 4096–8192 |
 
-On C60, luck gets you as far as in 2048, and skill gets you about twice as
-far: twelve drains give three times as many moves as four walls.
-
-An honest note: the funnel version measured greedy play at 1024–2048 on C60.
-Part of that came from tiles merging on their own as they funnelled together,
-which is the same hidden contention that felt like coin tosses. The whirlpool
-numbers are lower and genuine.
-
-**Bigger spheres don't work**: their arms are long and the board is roomy, so
-even random play survives indefinitely. The game ships C60 and C80 only.
+Gravity measures more generous to greedy play than vortex does. Part of that is
+the funnels merging tiles on their own as they converge. Vortex is the stricter
+game, exactly 2048's rule on every arm.
 
 ## Controls
 
@@ -81,14 +98,15 @@ even random play survives indefinitely. The game ships C60 and C80 only.
   default, `v`) shows the entire sphere as an equal-area disc. **Globe** shows
   the near half, with the whole-sphere map in the corner.
 - A drag that starts off the ball turns it, and so do two fingers (which also
-  zoom) and shift+arrows. **✥ turn** mode (`t`) makes one finger turn, so pours
-  are by tap only.
-- Games are seeded (`?seed=…&m=c60`), and each board's game in progress and
-  best score are kept in `localStorage`.
+  zoom) and shift+arrows. **✥ turn** mode (`t`, the ↘/✥ button) makes one
+  finger turn, so pours are by tap only.
+- **⇣ gravity / ◎ vortex** (`f`) switches the flow on C60 and C80.
+- Games are seeded (`?seed=…&m=c60&f=vortex`). Each board and flow keeps its
+  own game in progress and best score in `localStorage`.
 
 ## Tests
 
 ```bash
-node games/twelve/test/twelve.selftest.mjs   # whirlpools (a partition, rotation-symmetric, rim-ended), pour invariants, 2048 row cases, determinism, the balance claim
-node games/twelve/test/analysis.mjs 60       # the table above (~4 s)
+node games/twelve/test/twelve.selftest.mjs   # drains per board, gravity and vortex invariants, 2048 row cases, rain, saves, the balance claim
+node games/twelve/test/analysis.mjs 40       # the table above (~30 s)
 ```

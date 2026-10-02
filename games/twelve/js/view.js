@@ -4,7 +4,8 @@
    (orthographic, the near half), "whole" (Lambert azimuthal equal-area,
    the whole sphere in one disc) and the whole-sphere inset in globe mode.
 
-   Hexes hold tiles; the twelve pentagons are drains, drawn as dark wells.
+   Hexes hold tiles; drains are dark wells, dotted with their symmetry (five
+   on a pentagon, three on a face-centre drain, two on an edge drain).
    While you swipe, the drain the swipe points at glows and an arrow runs
    to it. A move animates: each tile slides cell to cell along its trail
    (interpolated on the sphere), then merges pulse and new tiles pop in. */
@@ -90,9 +91,9 @@
     }, this);
     return bv > 0.05 ? best : -1;
   };
-  /* The drain whose pentagon is under (px, py), or -1. */
+  /* The drain under (px, py), or -1. */
   View.prototype.drainAt = function (px, py) {
-    var c = this.pick(px, py), g = this.game; if (c < 0 || !g.s.pent[c]) return -1;
+    var c = this.pick(px, py), g = this.game; if (c < 0 || !g.env.hole[c]) return -1;
     for (var w = 0; w < g.env.drains.length; w++) if (g.env.drains[w].p === c) return w;
     return -1;
   };
@@ -163,7 +164,7 @@
 
     order.forEach(function (o) {
       var k = o[1], z = o[0], lit = shade(z);
-      if (s.pent[k]) { // a drain
+      if (g.env.hole[k]) { // a drain
         var w = drainOf[k], aimed = w === self.aim, lastOne = w === g.last;
         if (!path(ring(k, mini ? 0 : 0.04))) return;
         ctx.fillStyle = aimed ? "rgb(18,64,58)" : rgb([10, 13, 20], 1); ctx.fill();
@@ -175,6 +176,13 @@
           var ang = Math.atan2(c2[1] - cy, c2[0] - cx);
           ctx.strokeStyle = aimed ? "rgba(94,232,193,0.7)" : "rgba(140,160,200,0.22)"; ctx.lineWidth = Math.max(1, cellR * 0.04);
           [1, 0.66, 0.33].forEach(function (f) { ctx.beginPath(); ctx.ellipse(c2[0], c2[1], kk * f * (whole ? 1 : sq), kk * f, ang, 0, 6.2832); ctx.stroke(); });
+          // its symmetry, as dots: five round a pentagon, three on a face-centre drain, two on an edge drain
+          var fd = g.env.drains[w].fold, ca = Math.cos(ang), sa = Math.sin(ang);
+          ctx.fillStyle = aimed ? "rgba(94,232,193,0.9)" : "rgba(160,180,215,0.4)";
+          for (var t = 0; t < fd; t++) {
+            var th = t * 2 * Math.PI / fd - Math.PI / 2, ex = Math.cos(th) * kk * 0.83 * (whole ? 1 : sq), ey = Math.sin(th) * kk * 0.83;
+            ctx.beginPath(); ctx.arc(c2[0] + ex * ca - ey * sa, c2[1] + ex * sa + ey * ca, Math.max(1.2, cellR * 0.05), 0, 6.2832); ctx.fill();
+          }
         }
         return;
       }
@@ -221,7 +229,7 @@
           ctx.beginPath(); ctx.moveTo(a2[0], a2[1]); ctx.lineTo(b2[0], b2[1]); ctx.stroke();
         }
       };
-      if (pc[2] > 0.55) { ctx.strokeStyle = "rgba(94,232,193,0.22)"; ctx.lineWidth = Math.max(2, cellR * 0.1); Daim.lanes.forEach(function (L) { polyline(L.slice().reverse(), pc); }); }
+      if (g.flow === "vortex" && Daim.vortex && pc[2] > 0.55) { ctx.strokeStyle = "rgba(94,232,193,0.22)"; ctx.lineWidth = Math.max(2, cellR * 0.1); Daim.vortex.lanes.forEach(function (L) { polyline(L.slice().reverse(), pc); }); }
       if (this.preview) this.preview.trails.forEach(function (tr) {
         var end = scr[tr.path[tr.path.length - 1]], prev = scr[tr.path[tr.path.length - 2]];
         ctx.strokeStyle = "rgba(94,232,193,0.85)"; ctx.lineWidth = Math.max(2.5, cellR * 0.16); polyline(tr.path);

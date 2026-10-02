@@ -58,3 +58,6 @@ button:disabled { opacity: 0.35; cursor: default; }
 #stat .box i { font-style: normal; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; }
 .tog.on { color: var(--bg); background: #5ee8c1; border-color: #5ee8c1; }
 #note.good { color: #5ee8c1; }
+.tog, select, .tab { white-space: nowrap; }
+.tog.icon { min-width: 34px; padding: 7px 8px; font-size: 14px; line-height: 1; }
+#hud .left, #hud .right { gap: 5px; }

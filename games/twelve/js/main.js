@@ -5,7 +5,8 @@
    toward that one (the only way to choose the drain dead centre).
    A finger that lands off the globe turns it; two fingers turn and zoom;
    the corner map turns to where you tap. ✥ turn mode makes one finger
-   turn and leaves drains to taps. After each pour the ball rolls to put
+   turn and leaves drains to taps. ⇣ gravity / ◎ vortex picks the flow
+   (vortex on C60 and C80); each board and flow keeps its own game and best. After each pour the ball rolls to put
    that drain in the middle, so the pile is always in plain view. */
 (function () {
   "use strict";
@@ -13,13 +14,16 @@
   var cv = $("orb"), view = new T.View(cv), game = null, dirty = true, prevBest = 0;
   function load_(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }
   function save_(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } }
-  var turnMode = !!load_("twelve-turn", false);
+  var turnMode = !!load_("twelve-turn", false), flowPref = load_("twelve-flow", "gravity") === "vortex" ? "vortex" : "gravity";
   view.mode = load_("twelve-view", "whole") === "globe" ? "globe" : "whole";
   function randomSeed() { return Math.random().toString(36).slice(2, 8); }
 
+  function flowFor(mode) { return T.flows(mode).indexOf(flowPref) >= 0 ? flowPref : "gravity"; }
+  function slot(mode, flow) { return mode + "-" + flow; }
   function start(mode, seed, restore) {
-    game = (restore && T.Game.restore(restore)) || new T.Game(mode, seed);
-    view.game = game; view.anim = null; view.aim = -1;
+    var flow = flowFor(mode);
+    game = (restore && T.Game.restore(restore)) || new T.Game(mode, seed, flow);
+    view.game = game; view.anim = null; view.aim = -1; view.preview = null;
     $("mode").value = game.key; save_("twelve-mode", game.key);
     view.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; view.zoom = 1;
     var D = game.env.drains[0]; view.face(view.centreOf(D.p)); view.drag(view.radius() * 0.35, -view.radius() * 0.25);
@@ -29,14 +33,21 @@
     persist(); hud(); dirty = true;
     if (!game.canMove()) finish();
   }
-  function persist() { save_("twelve-game-" + game.key, game.save()); }
-  function bestScore() { return load_("twelve-best-" + game.key, 0); }
+  function persist() { save_("twelve-game-" + slot(game.key, game.flow), game.save()); }
+  function bestScore() { return load_("twelve-best-" + slot(game.key, game.flow), 0); }
+  function resume(mode) { start(mode, randomSeed(), load_("twelve-game-" + slot(mode, flowFor(mode)), null)); }
   function note(t, cls) { var n = $("note"); n.textContent = t; n.className = cls || ""; }
   function hud() {
     $("score").textContent = game.score; $("best").textContent = Math.max(bestScore(), game.score);
     $("top").textContent = game.best(); $("moves").textContent = game.moves;
-    $("turn").textContent = turnMode ? "✥ turn" : "↘ pour"; $("turn").classList.toggle("on", turnMode);
-    $("viewmode").textContent = view.mode === "whole" ? "◯ whole" : "◐ globe"; $("viewmode").classList.toggle("on", view.mode === "whole");
+    $("moves-label").textContent = game.mode.rain ? "moves · rain " + game.rain() : "moves";
+    var canVortex = T.flows(game.key).length > 1;
+    $("flow").textContent = game.flow === "vortex" ? "◎ vortex" : "⇣ gravity"; $("flow").classList.toggle("on", game.flow === "vortex");
+    $("flow").disabled = !canVortex; $("flow").title = canVortex ? "Gravity: tiles fall the steepest way. Vortex: each drain is a five-armed whirlpool, every arm a row of 2048. (f)" : "Vortex flow needs a sphere whose only drains are its pentagons (C60, C80)";
+    $("turn").textContent = turnMode ? "✥" : "↘"; $("turn").classList.toggle("on", turnMode);
+    $("turn").setAttribute("aria-label", turnMode ? "turn mode: one finger turns" : "pour mode: one finger pours");
+    $("viewmode").textContent = view.mode === "whole" ? "◯" : "◐"; $("viewmode").classList.toggle("on", view.mode === "whole");
+    $("viewmode").setAttribute("aria-label", view.mode === "whole" ? "whole-sphere view" : "globe view");
     $("foot").textContent = turnMode ? "one finger turns · tap a drain to pour · two fingers zoom"
       : "swipe toward a drain to pour · tap a drain · drag off the ball or use two fingers to turn";
     dirty = true;
@@ -50,7 +61,7 @@
     // once the tiles land, roll the ball so the drain they piled on comes to the centre:
     // the pile is always where the projection is truest, and the next swipe reads from there
     turnTo = { p: view.centreOf(game.env.drains[w].p), left: 22, wait: view.SLIDE + view.POP };
-    if (game.score > bestScore()) save_("twelve-best-" + game.key, game.score);
+    if (game.score > bestScore()) save_("twelve-best-" + slot(game.key, game.flow), game.score);
     var top = game.best();
     if (top >= 2048 && prevBest < 2048) note("2048! keep pouring", "gold");
     else if (top > prevBest && top >= 128) note("new high tile: " + top, "good");
@@ -62,7 +73,7 @@
   function finish() {
     $("over-title").textContent = game.best();
     var b = bestScore();
-    $("over-body").innerHTML = "<b>" + game.score + "</b> points in <b>" + game.moves + "</b> moves on " + game.s.name.toUpperCase() + ". Every drain is blocked." +
+    $("over-body").innerHTML = "<b>" + game.score + "</b> points in <b>" + game.moves + "</b> moves on " + game.s.name.toUpperCase() + " (" + game.flow + (game.mode.rain ? ", rain " + game.rain() + " a move at the end" : "") + "). Every drain is blocked." +
       (game.score >= b ? "<br><b>best on " + game.s.name.toUpperCase() + "</b>" : "<br>best: " + b);
     $("over").hidden = false;
   }
@@ -112,6 +123,7 @@
   cv.addEventListener("wheel", function (e) { e.preventDefault(); view.zoom = Math.max(0.7, Math.min(3, view.zoom * Math.exp(-e.deltaY * 0.0015))); dirty = true; }, { passive: false });
   document.addEventListener("keydown", function (e) {
     if (e.key === "v") $("viewmode").click();
+    else if (e.key === "f") $("flow").click();
     else if (e.key === "t") $("turn").click();
     else if (e.key.indexOf("Arrow") === 0) { // arrows pour, shift+arrows turn
       var k = e.key.slice(5), dx = k === "Left" ? -1 : k === "Right" ? 1 : 0, dy = k === "Up" ? -1 : k === "Down" ? 1 : 0;
@@ -125,7 +137,12 @@
   $("new").onclick = function () { start($("mode").value, randomSeed()); };
   $("again").onclick = function () { start(game.key, randomSeed()); };
   $("look").onclick = function () { $("over").hidden = true; };
-  $("mode").onchange = function () { var k = this.value; start(k, randomSeed(), load_("twelve-game-" + k, null)); };
+  $("mode").onchange = function () { resume(this.value); };
+  $("flow").onclick = function () {
+    if (T.flows(game.key).length < 2) return;
+    flowPref = game.flow === "vortex" ? "gravity" : "vortex"; save_("twelve-flow", flowPref);
+    resume(game.key);
+  };
   $("start-btn").onclick = function () { $("start").hidden = true; save_("twelve-seen", true); };
 
   function frame() {
@@ -141,9 +158,10 @@
 
   var q = new URLSearchParams(location.search), mode = q.get("m") || load_("twelve-mode", "c60");
   if (!T.MODES[mode]) mode = "c60";
+  if (q.get("f") === "vortex" || q.get("f") === "gravity") flowPref = q.get("f");
   if (load_("twelve-seen", false) || q.get("seed")) $("start").hidden = true;
   fit();
   if (q.get("seed")) start(mode, q.get("seed"));
-  else start(mode, randomSeed(), load_("twelve-game-" + mode, null));
+  else resume(mode);
   requestAnimationFrame(frame);
 })();
