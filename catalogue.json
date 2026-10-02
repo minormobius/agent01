@@ -759,6 +759,22 @@
       ]
     },
     {
+      "n": "twelve",
+      "u": "https://games.mino.mobi/twelve/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-02",
+      "b": "2026-10-02",
+      "p": "games",
+      "surface": "games",
+      "d": "2048 on a buckyball. A sphere has no single 'that way' (the hairy ball theorem), so its twelve pentagons are drains: a move picks one and every tile pours toward it. Luck gets you as far as in 2048; skill gets you about eight times further.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
       "n": "skein",
       "u": "https://games.mino.mobi/skein/",
       "c": "games",

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#06080d" />
+<meta name="description" content="Twelve — 2048 on a buckyball. A sphere has no single 'that way', so a move picks one of the twelve pentagon drains and every tile pours toward it." />
+<title>Twelve — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/twelve.css" />
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="left">
+      <select id="mode" aria-label="Board">
+        <option value="c60">C60 · 20</option>
+        <option value="c80">C80 · 30 ×3</option>
+      </select>
+      <button type="button" id="new" class="tab">new</button>
+    </div>
+    <div class="right">
+      <button type="button" id="turn" class="tog" title="Pour: one finger swipes toward a drain. Turn: one finger turns the ball, taps pour. (t)">↘ pour</button>
+      <button type="button" id="viewmode" class="tog" title="Whole sphere or globe (v)">◯ whole</button>
+    </div>
+  </div>
+  <div id="stat">
+    <span class="box"><i>score</i><b id="score">0</b></span>
+    <span class="box"><i>best</i><b id="best">0</b></span>
+    <span class="box"><i>top tile</i><b id="top">0</b></span>
+    <span class="box"><i>moves</i><b id="moves">0</b></span>
+  </div>
+  <canvas id="orb" aria-label="The ball: swipe toward a drain to pour every tile toward it"></canvas>
+  <div id="note" aria-live="polite">&nbsp;</div>
+  <p class="foot" id="foot">swipe toward a drain to pour · tap a drain · drag off the ball or use two fingers to turn</p>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>TWELVE</h1>
+  <p>
+    2048 needs a "that way", and a sphere hasn't got one: comb the hair on
+    a ball and somewhere there's a crown. So this ball has <b>twelve
+    crowns</b>, its pentagons, and they are <b>drains</b>.
+  </p>
+  <p>
+    Swipe toward a drain and every tile <b>pours toward it</b>, downhill
+    hex by hex, until it rests on the drain's rim or against another tile.
+    Equal tiles that meet merge. A new tile drops in after every pour.
+  </p>
+  <p class="accent">
+    Twelve drains are three times the moves of four walls. Luck gets you as
+    far as it does in 2048; skill gets you about eight times further.
+  </p>
+  <button class="primary" id="start-btn" type="button" style="flex:none">POUR</button>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <h2>blocked</h2>
+  <h1 id="over-title">—</h1>
+  <p id="over-body"></p>
+  <div class="row">
+    <button class="primary" id="again" type="button">NEW BALL</button>
+    <button class="ghost" id="look" type="button">LOOK</button>
+  </div>
+</div>
+
+<script src="../onecoast/js/geo.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/view.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
