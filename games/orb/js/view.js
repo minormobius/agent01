@@ -32,7 +32,7 @@
   View.prototype.torus = function () { return !!(this.state && this.state.mesh.topology === "torus"); };
   View.prototype.camFor = function () {
     var m = this.state.mesh;
-    if (!this.cam || this.cam.mesh !== m) this.cam = new O.TorusCam(m);
+    if (!this.cam || this.cam.mesh !== m) this.cam = O.surfaceCam(m);
     this.cam.zoom = this.zoom;
     return this.cam;
   };
@@ -54,7 +54,9 @@
   View.prototype.inView = function (c) {
     var m = this.state.mesh;
     if (!this.torus()) { var R = this.R, P = m.sites; return R[6] * P[3 * c] + R[7] * P[3 * c + 1] + R[8] * P[3 * c + 2]; }
-    var sw = this.camFor().sweet(), d = O.torusDelta(m, O.torusCellAt(m, sw[0], sw[1]), c);
+    var cam = this.camFor();
+    if (cam.rigid && this.tmode === "donut") { var e = cam.embed(m.sites[2 * c], m.sites[2 * c + 1]); return e.face - Math.hypot(e.X, e.Y) / 4; }
+    var sw = cam.sweet(), d = O.torusDelta(m, O.torusCellAt(m, sw[0], sw[1]), c);
     return 1 - Math.hypot(d[0], d[1]) / m.H;
   };
   /* Ease cell c toward the middle of the view by fraction t. */
@@ -94,38 +96,42 @@
     };
 
     var fc = -1;
-    if (this.reticle && (s.phase === "play" || s.phase === "ready")) { var sw = cam.sweet(); fc = O.torusCellAt(m, sw[0], sw[1]); }
+    if (this.reticle && (s.phase === "play" || s.phase === "ready")) {
+      if (cam.rigid && donut) fc = F.pick(this.w / 2, this.h / 2); // the Klein bottle in 3D: the cell at the middle of the screen
+      else { var sw = cam.sweet(); fc = O.torusCellAt(m, sw[0], sw[1]); }
+    }
     this.focusCell = fc;
     var outline = function (c, style, wdt) { var rg = F.ring(c); if (!rg) return; trace(rg); ctx.strokeStyle = style; ctx.lineWidth = wdt; ctx.stroke(); };
+    var shown = function (i) { return !donut || (cam.rigid ? F.onTop(i) : F.P[i][3]); };
     var marks = function () { // highlights, pulses and the reticle, after every fill
       for (var o = 0; o < F.order.length; o++) {
         var i = F.order[o], rg;
-        if (donut && !F.P[i][3]) continue;
+        if (!shown(i)) continue;
         if (self.hl && self.hl.has(i)) outline(i, "rgba(255,200,87,0.95)", Math.max(1.5, cellR * 0.12));
         if (self.mark && self.mark.has(i)) { var pulse = 0.55 + 0.45 * Math.sin(now / 180); outline(i, "rgba(94,232,193," + pulse.toFixed(2) + ")", Math.max(2, cellR * 0.16)); busy = true; }
       }
       if (fc >= 0) {
-        if (s.phase === "play") m.nbrs[fc].forEach(function (j) { if (!donut || F.P[j][3]) outline(j, "rgba(94,232,193,0.9)", Math.max(1.5, cellR * 0.1)); });
+        if (s.phase === "play") m.nbrs[fc].forEach(function (j) { if (shown(j)) outline(j, "rgba(94,232,193,0.9)", Math.max(1.5, cellR * 0.1)); });
         outline(fc, "rgba(255,255,255,0.95)", Math.max(2, cellR * 0.14));
       }
     };
 
     if (donut) {
       // a soft shadow of the ring, then the cells back to front
-      ctx.fillStyle = "rgba(94,232,193,0.05)"; ctx.beginPath(); ctx.ellipse(this.w / 2, this.h / 2, F.k * (cam.R + cam.r) * 1.08, F.k * ((cam.R + cam.r) * Math.sin(cam.tilt) + cam.r * Math.cos(cam.tilt)) * 1.08, 0, 0, 6.2832); ctx.fill();
+      if (cam.kind === "torus") { ctx.fillStyle = "rgba(94,232,193,0.05)"; ctx.beginPath(); ctx.ellipse(this.w / 2 + F.ox, this.h / 2 + F.oy, F.k * (cam.R + cam.r) * 1.08, F.k * ((cam.R + cam.r) * Math.sin(cam.tilt) + cam.r * Math.cos(cam.tilt)) * 1.08, 0, 0, 6.2832); ctx.fill(); }
       for (var o = 0; o < F.order.length; o++) {
         var i = F.order[o], ring = F.ring(i); if (!ring) continue;
         var e = cam.embed(m.sites[2 * i], m.sites[2 * i + 1]), lit = Math.max(0, e.n[0] * LT[0] + e.n[1] * LT[1] + e.n[2] * LT[2]);
         var c = colour(i, lit), dim = 0.3 + 0.7 * Math.min(1, Math.max(0, e.face) * 1.8);
         ctx.fillStyle = "rgb(" + (c.col[0] * dim | 0) + "," + (c.col[1] * dim | 0) + "," + (c.col[2] * dim | 0) + ")";
         trace(ring); ctx.fill(); ctx.strokeStyle = "#08080c"; ctx.lineWidth = Math.max(0.6, cellR * 0.06); ctx.stroke();
-        if (F.P[i][3] && e.face > 0.12) glyph(i, F.P[i][0], F.P[i][1], cellR * (0.45 + 0.55 * Math.sqrt(e.face)) * 0.95, c.openT);
+        if ((cam.rigid || F.P[i][3]) && e.face > 0.12) glyph(i, F.P[i][0], F.P[i][1], cellR * (0.45 + 0.55 * Math.sqrt(e.face)) * 0.95, c.openT);
       }
       marks();
       this.drawInset(now);
     } else {
       F.tiles.forEach(function (t) {
-        ctx.save(); ctx.translate(t[0], t[1]);
+        ctx.save(); ctx.transform(t[0], t[1], t[2], t[3], t[4], t[5]);
         for (var o = 0; o < F.order.length; o++) {
           var i = F.order[o], ring = F.ring(i), c = colour(i, 0.55);
           ctx.fillStyle = "rgb(" + (c.col[0] | 0) + "," + (c.col[1] | 0) + "," + (c.col[2] | 0) + ")";

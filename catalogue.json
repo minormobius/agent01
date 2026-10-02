@@ -3720,7 +3720,7 @@
       "b": "2026-10-01",
       "p": "games",
       "surface": "games",
-      "d": "Minesweeper on a sphere of Voronoi cells you turn with a finger. Every board is proved solvable by pure deduction before you see it, and the game counts every move you made that wasn't certain. Now on a torus too: a Voronoi doughnut whose skin slides under your finger, or its exact flat map that wraps both ways.",
+      "d": "Minesweeper on a sphere of Voronoi cells you turn with a finger. Every board is proved solvable by pure deduction before you see it, and the game counts every move you made that wasn't certain. Now on a torus too, a Voronoi doughnut whose skin slides under your finger, and on a Klein bottle, whose edges glue with a flip.",
       "tags": [
         "games",
         "puzzle"

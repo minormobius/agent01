@@ -29,6 +29,10 @@
           <option value="tm">torus · medium</option>
           <option value="tl">torus · large</option>
         </optgroup>
+        <optgroup label="Klein bottle">
+          <option value="ks">Klein · small</option>
+          <option value="km">Klein · medium</option>
+        </optgroup>
       </select>
     </div>
   </div>
@@ -41,7 +45,7 @@
   <div id="actions">
     <button class="primary" id="mode" type="button" title="Swap tap and hold (f)">tap: ⚑ flag</button>
     <button class="ghost" id="hint" type="button" title="Show a cell that is certain (h)">? hint</button>
-    <button class="ghost" id="tview" type="button" title="The torus as a donut, or as its flat map, which wraps both ways (v)" hidden>◎</button>
+    <button class="ghost" id="tview" type="button" title="In 3D (a donut, or the Klein bottle's figure-eight), or as the flat map, which wraps: straight round on a torus, with a flip on a Klein bottle (v)" hidden>◎</button>
     <button class="ghost" id="new" type="button" title="New orb (n)">↻ new</button>
     <button class="ghost" id="board-btn" type="button" title="Fastest pure clears">🏆</button>
   </div>
@@ -97,6 +101,8 @@
     <button type="button" data-board-size="ts">torus s</button>
     <button type="button" data-board-size="tm">torus m</button>
     <button type="button" data-board-size="tl">torus l</button>
+    <button type="button" data-board-size="ks">klein s</button>
+    <button type="button" data-board-size="km">klein m</button>
   </div>
   <div class="tabs">
     <button type="button" data-board-hard="0">normal</button>

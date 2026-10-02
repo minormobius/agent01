@@ -37,7 +37,7 @@ for (const [n, relax] of [[12, 0], [60, 0], [300, 2], [600, 3]]) {
 }
 
 console.log("torus mesh");
-for (const [kind, m] of [["hex 4×8", O.buildHexTorus(4, 8)], ["hex 8×16", O.buildHexTorus(8, 16)], ["voronoi 40", O.buildTorus("tt40", 40, 3)], ["voronoi 320", O.buildTorus("tt320", 320, 3)], ["voronoi 600", O.buildTorus("tt600", 600, 3)]]) {
+for (const [kind, m] of [["hex 4×8", O.buildHexTorus(4, 8)], ["hex 8×16", O.buildHexTorus(8, 16)], ["voronoi 40", O.buildTorus("tt40", 40, 3)], ["voronoi 320", O.buildTorus("tt320", 320, 3)], ["voronoi 600", O.buildTorus("tt600", 600, 3)], ["Klein 40", O.buildKlein("kk40", 40, 3)], ["Klein 320", O.buildKlein("kk320", 320, 3)]]) {
   const n = m.n, nv = m.verts.length / 2, edges = m.nbrs.reduce((a, b) => a + b.length, 0) / 2;
   const sym = m.nbrs.every((ns, i) => ns.every((j) => m.nbrs[j].includes(i)) && new Set(ns).size === ns.length && !ns.includes(i));
   const inc = new Array(nv).fill(0); m.polys.forEach((r) => r.forEach((v) => inc[v]++));
@@ -52,6 +52,19 @@ for (const [kind, m] of [["hex 4×8", O.buildHexTorus(4, 8)], ["hex 8×16", O.bu
   ck(Math.abs(area - m.W * m.H) < 1e-9 * m.W * m.H && own, `${kind}: cells tile the flat torus exactly (area ${area.toFixed(6)}), each ring wound round its own site`);
 }
 { const h = O.buildHexTorus(6, 12); ck(h.nbrs.every((ns) => ns.length === 6), "hex torus: every cell has exactly six neighbours"); }
+{ // the Klein bottle's gluing really flips: a neighbour across the u-seam sits mirrored in v
+  const k = O.buildKlein("kflip", 160, 3), W = k.W, H = k.H, S = k.sites;
+  let across = 0, flipped = 0;
+  k.nbrs.forEach((ns, i) => ns.forEach((j) => {
+    if (Math.abs(S[2 * i] - S[2 * j]) < W / 2) return;
+    across++;
+    const d = O.torusDelta(k, i, j); // the short step, through the seam
+    const plain = S[2 * j + 1] - S[2 * i + 1], flip = -S[2 * j + 1] - S[2 * i + 1];
+    const near = (x) => Math.abs(x - H * Math.round(x / H) - d[1]) < 1e-9;
+    if (near(flip) && !near(plain)) flipped++;
+  }));
+  ck(across > 0 && flipped === across, `Klein bottle: all ${across / 2} edges across the glued edge join mirrored images (v ↦ −v)`);
+}
 
 console.log("solver vs brute force");
 function brute(mesh, open, count, total) {

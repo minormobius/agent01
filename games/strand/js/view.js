@@ -113,7 +113,7 @@
   View.prototype.tmode = function () { return this.mode === "whole" ? "flat" : "donut"; };
   View.prototype.camFor = function () {
     var m = this.game.board.mesh;
-    if (!this.cam || this.cam.mesh !== m) this.cam = new NS.ORB.TorusCam(m);
+    if (!this.cam || this.cam.mesh !== m) this.cam = NS.ORB.surfaceCam(m);
     this.cam.zoom = this.zoom; return this.cam;
   };
   View.prototype.tmain = function () { return { cx: this.w / 2, cy: this.h / 2, w: this.w, h: this.h }; };
@@ -151,11 +151,11 @@
     if (mini) { ctx.fillStyle = "rgba(12,12,20,0.92)"; ctx.fillRect(F.vp.cx - F.vp.w / 2 - 3, F.vp.cy - F.vp.h / 2 - 3, F.vp.w + 6, F.vp.h + 6); ctx.save(); ctx.beginPath(); ctx.rect(F.vp.cx - F.vp.w / 2, F.vp.cy - F.vp.h / 2, F.vp.w, F.vp.h); ctx.clip(); }
     else if (donut) {
       ctx.fillStyle = "rgba(120,140,255,0.05)"; ctx.beginPath();
-      ctx.ellipse(F.vp.cx, F.vp.cy, F.k * (cam.R + cam.r) * 1.08, F.k * ((cam.R + cam.r) * Math.sin(cam.tilt) + cam.r * Math.cos(cam.tilt)) * 1.08, 0, 0, 6.2832); ctx.fill();
+      ctx.ellipse(F.vp.cx + F.ox, F.vp.cy + F.oy, F.k * (cam.R + cam.r) * 1.08, F.k * ((cam.R + cam.r) * Math.sin(cam.tilt) + cam.r * Math.cos(cam.tilt)) * 1.08, 0, 0, 6.2832); ctx.fill();
     }
 
     F.tiles.forEach(function (t) {
-      ctx.save(); ctx.translate(t[0], t[1]);
+      ctx.save(); ctx.transform(t[0], t[1], t[2], t[3], t[4], t[5]);
       ctx.lineCap = "round"; ctx.lineJoin = "round";
       if (b.kind === "panels") {
         F.order.forEach(function (c) {

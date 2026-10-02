@@ -142,7 +142,7 @@ without changing the format.
 | `js/board.js` | the leaderboard UI and the write path (ES module; imports `../../lib/auth.js`, which the deploy vendors) |
 
 A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l|x|ts|tm|tl`
-is a permalink.
+is a permalink (also `ks|km`, the Klein bottle).
 
 ## Tiers
 
@@ -225,6 +225,36 @@ Two views (`◎`/`▭`, or `v`):
   fills the screen. Nothing is distorted and every neighbour is where it
   looks. On a portrait screen it turns a quarter, so the long way runs down
   the screen.
+
+**Zoom grows round the cursor.** At zoom 1 the donut is centred; zooming in
+scales it about the reticle's point, which drifts toward the middle of the
+screen, so what you were looking at stays under your finger.
+
+## The Klein bottle (`ks`, `km`)
+
+The same rectangle with one pair of edges glued **with a flip**: walk off the
+right edge and you come back on the left, upside down. Minesweeper only reads
+the adjacency graph, so it works exactly as on the torus: Voronoi cells
+(each site clipped against its neighbours' images, mirrored ones included,
+in the plane that covers the surface), V − E + F = 0, an average of six
+neighbours, and boards proved guess-free. The selftest checks that every
+edge across the glued side joins mirrored images.
+
+What's hard is showing it. A Klein bottle can't sit in space without passing
+through itself, so the 3D view is the **figure-8 immersion**: a figure-eight
+cross-section swept round a circle with a half twist, which turns the eight
+over once per lap. That is exactly the gluing (u + W, v) ~ (u, −v). It
+crosses itself along one circle, which doesn't matter to the game: only which
+cells touch counts. It's two-sided-less (there is no outside), so it turns
+in your hand like the sphere, cells face you whichever way round they are,
+painter's order hides what's behind, and the reticle is the cell in the
+middle of the screen.
+
+The **flat map** is the honest view. The cursor is a point in the plane that
+covers the surface, and every cell is drawn at its copy nearest the cursor, so
+panning across the flipped edge is seamless. Further out, the copies beyond
+it are drawn mirrored, because they are. W/H = 1.47 is the figure-eight's
+lap over its cross-section, so cells come out roughly round in 3D.
 
 ## Shared with Strand
 
