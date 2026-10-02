@@ -24,6 +24,7 @@
     this.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; this.zoom = 1; this.w = 0; this.h = 0; this.dpr = 1;
     this.mode = "globe"; this.mini = true; this.game = null;
     this.aim = -1;       // the drain a swipe in progress points at
+    this.preview = null; // what pouring there would do (game.preview)
     this.swipe = null;   // { x0, y0, x1, y1 } screen, for the arrow
     this.anim = null;    // { before, trails, merged:Set, spawned:Set, t0 }
   }
@@ -201,6 +202,34 @@
         var ang2 = Math.atan2(c3[1] - cy, c3[0] - cx);
         ctx.ellipse(c3[0], c3[1], rad * (whole ? 1 : Math.max(0.1, c3[2])), rad, ang2, 0, 6.2832); ctx.fill();
         if (!mini && (whole || c3[2] > 0.12)) label(c3[0], c3[1], c3[2], tr.value, 0.9);
+      });
+      ctx.restore();
+    }
+
+    // aiming: what the pour would do. Each tile that would move gets an arrow along its own arm to where it
+    // lands, and a merge rings the tile it lands on. When the drain sits near the middle, its five arms are
+    // drawn faintly too (near the rim the projection tangles them).
+    if (!mini && this.aim >= 0) {
+      var Daim = g.env.drains[this.aim], pc = scr[Daim.p];
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.2832); ctx.clip();
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      var polyline = function (cells, tail) {
+        var pts = cells.map(function (c) { return scr[c]; }); if (tail) pts.push(tail);
+        for (var i2 = 1; i2 < pts.length; i2++) {
+          var a2 = pts[i2 - 1], b2 = pts[i2];
+          if (!vis(a2[2]) || !vis(b2[2]) || (whole && (Math.min(a2[2], b2[2]) < -0.75 || Math.hypot(a2[0] - b2[0], a2[1] - b2[1]) > LONG))) continue;
+          ctx.beginPath(); ctx.moveTo(a2[0], a2[1]); ctx.lineTo(b2[0], b2[1]); ctx.stroke();
+        }
+      };
+      if (pc[2] > 0.55) { ctx.strokeStyle = "rgba(94,232,193,0.22)"; ctx.lineWidth = Math.max(2, cellR * 0.1); Daim.lanes.forEach(function (L) { polyline(L.slice().reverse(), pc); }); }
+      if (this.preview) this.preview.trails.forEach(function (tr) {
+        var end = scr[tr.path[tr.path.length - 1]], prev = scr[tr.path[tr.path.length - 2]];
+        ctx.strokeStyle = "rgba(94,232,193,0.85)"; ctx.lineWidth = Math.max(2.5, cellR * 0.16); polyline(tr.path);
+        if (!vis(end[2]) || (whole && end[2] < -0.75)) return;
+        var ang = Math.atan2(end[1] - prev[1], end[0] - prev[0]), hl = Math.max(7, cellR * 0.36);
+        ctx.fillStyle = "rgba(94,232,193,0.95)"; ctx.beginPath(); ctx.moveTo(end[0] + Math.cos(ang) * hl * 0.5, end[1] + Math.sin(ang) * hl * 0.5);
+        ctx.lineTo(end[0] + Math.cos(ang + 2.4) * hl * 0.6, end[1] + Math.sin(ang + 2.4) * hl * 0.6); ctx.lineTo(end[0] + Math.cos(ang - 2.4) * hl * 0.6, end[1] + Math.sin(ang - 2.4) * hl * 0.6); ctx.closePath(); ctx.fill();
+        if (tr.merge) { ctx.strokeStyle = "rgba(255,226,140,0.95)"; ctx.lineWidth = Math.max(2, cellR * 0.1); ctx.beginPath(); ctx.arc(end[0], end[1], cellR * 0.62 * (whole ? 0.6 + 0.4 * (end[2] + 1) / 2 : Math.max(0.3, end[2])), 0, 6.2832); ctx.stroke(); }
       });
       ctx.restore();
     }

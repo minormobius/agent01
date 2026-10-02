@@ -768,7 +768,7 @@
       "b": "2026-10-02",
       "p": "games",
       "surface": "games",
-      "d": "2048 on a buckyball. A sphere has no single 'that way' (the hairy ball theorem), so its twelve pentagons are drains: a move picks one and every tile pours toward it. Luck gets you as far as in 2048; skill gets you about eight times further.",
+      "d": "2048 on a buckyball. A sphere has no single 'that way' (the hairy ball theorem), so its twelve pentagons are drains, each a whirlpool with five spiral arms: a move picks one and every tile slides in along its arm, a row of 2048. Luck gets you as far as in 2048; skill, twice as far.",
       "tags": [
         "games",
         "puzzle"

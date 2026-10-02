@@ -19,15 +19,34 @@ sphere without touching one:
 
 A tile sliding along a loop has nothing to stop it.
 
-## What it is instead
+## What it is instead: twelve whirlpools
 
 The moves are built on the points where the field must vanish. The twelve
 pentagons are **drains**, and nothing ever sits on one. A move picks a drain,
-and every tile slides **downhill** toward it, one hex nearer each step, taking
-the step best aimed at the drain. A tile stops when it reaches the drain's rim
-or meets another tile. Equal tiles that meet merge, at most once per tile per
-move, and the tiles nearest the drain settle first, as against a wall in 2048.
-One new tile drops in after each move (three on C80).
+and every tile slides in toward it.
+
+**How a tile gets there matters.** The first version let each tile take the
+steepest way down. The rings round a drain grow outward, so outer hexes
+funnel into fewer inner ones, and two tiles could want the same cell. Which
+one won was decided by an order the player couldn't see, so it played as a
+coin toss.
+
+Now each drain is a **whirlpool of five spiral arms**. A pentagon has
+five-fold symmetry, so the hexes round it fall into orbits of five. An *arm*
+is a chain of neighbours that starts on the drain's rim and takes exactly one
+hex from each orbit, and its five rotations are five lanes that cover every
+hex once and never touch. Such chains exist on every Goldberg sphere: C60 has
+2 (mirror twins), C80 16, C180 47,064. We pick the one that climbs outward
+most steadily and, between mirror twins, the one that turns anticlockwise
+seen from outside, so every drain swirls the same way. On C60 the arms climb
+the rings round the drain cleanly (ring 0, 1, 2, 3), five arms of four. On
+C80 they're five arms of six with one sideways step.
+
+So **a pour is exactly 2048 on five independent rows**: tiles slide along
+their arm, equal neighbours merge (nearest the drain first, at most once per
+move), and nothing is left to chance except where the new tile lands. While
+you aim, the drain's arms are drawn, so you can read the whole move before
+you make it.
 
 ## Is it any good? (`test/analysis.mjs`)
 
@@ -37,28 +56,24 @@ random ≈ 128 and greedy ≈ 256 are 2048's known numbers.
 | board | random play reaches | greedy play reaches |
 |---|---|---|
 | 2048, 4×4 | 64–128 | 128–256 |
-| 2048, 5×5 | 512 | 1024–2048 |
-| 2048, 6×6 | 4096–8192 | 8192+ (doesn't die) |
-| **C60, 20 hexes, 1 a move** | **64–128** | **1024–2048** |
-| C80, 30 hexes, 3 a move | 128 | 1024 |
+| **C60, five arms of four, 1 new tile a move** | **64–128** | **256–512** |
+| C80, five arms of six, 4 new tiles a move | 256–512 | 1024–2048 |
 
-On C60, luck gets you exactly as far as in 2048, and skill gets you about eight
-times further. Twelve drains give three times the moves of four walls, and
-draining toward the neighbour of the last drain is a small, controlled shove.
+On C60, luck gets you as far as in 2048, and skill gets you about twice as
+far: twelve drains give three times as many moves as four walls.
 
-Board size alone explains why 2048 is 4×4: a 6×6 board is trivially easy.
-Making the pentagons holes is what brings C60 (32 tiles) down to 20 playable
-hexes, close to a 4×5 board.
+An honest note: the funnel version measured greedy play at 1024–2048 on C60.
+Part of that came from tiles merging on their own as they funnelled together,
+which is the same hidden contention that felt like coin tosses. The whirlpool
+numbers are lower and genuine.
 
-**Bigger spheres don't work.** On C180 and C240 even random play survives
-20,000 moves at five to eight new tiles a move: the drains are too far apart,
-and the downhill routes funnel tiles together until they merge on their own.
-So the game ships C60 and C80 only.
+**Bigger spheres don't work**: their arms are long and the board is roomy, so
+even random play survives indefinitely. The game ships C60 and C80 only.
 
 ## Controls
 
-- **Swipe** across the ball: the drain furthest that way glows, an arrow runs
-  to it, and letting go pours. Arrow keys do the same.
+- **Swipe** across the ball: the drain furthest that way glows, its five arms
+  light up, and letting go pours. Arrow keys do the same.
 - **Tap a drain** to pour toward it. This is the only way to choose the drain
   in the middle.
 - After each pour the ball **rolls** to bring that drain to the centre, so the
@@ -74,6 +89,6 @@ So the game ships C60 and C80 only.
 ## Tests
 
 ```bash
-node games/twelve/test/twelve.selftest.mjs   # drains, pour invariants, 2048 lane cases, determinism, the balance claim
+node games/twelve/test/twelve.selftest.mjs   # whirlpools (a partition, rotation-symmetric, rim-ended), pour invariants, 2048 row cases, determinism, the balance claim
 node games/twelve/test/analysis.mjs 60       # the table above (~4 s)
 ```

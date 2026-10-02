@@ -100,11 +100,14 @@ Three things live here:
   `tools/dict.mjs`; the selftest checks it is current. See
   [`skein/README.md`](skein/README.md).
 - **Twelve at `/twelve/`**: 2048 on a buckyball (C60, C80). A sphere has no
-  global "that way" (the hairy ball theorem), so the twelve pentagons are drains:
-  a move picks one and every tile pours downhill toward it. `test/analysis.mjs`
-  measures it against classic 2048 using the same simulator. On C60, random
-  play reaches 2048's level and greedy play gets ~8× further. Bigger spheres
-  are too easy, so they aren't offered. Borrows `../onecoast/js/geo.js`. See
+  global "that way" (the hairy ball theorem), so the twelve pentagons are drains.
+  Each drain is a whirlpool of five spiral arms: the rotations of one chain
+  that takes a hex from each of the pentagon's 5-fold orbits, so the arms
+  never share a cell. A move picks a drain, and each arm pours like a row of
+  2048, with no contention between tiles. `test/analysis.mjs` measures it
+  against classic 2048 using the same simulator. On C60, random play matches
+  2048 and greedy play gets ~2× further. Bigger spheres are too easy, so they
+  aren't offered. Borrows `../onecoast/js/geo.js`. See
   [`twelve/README.md`](twelve/README.md).
 - **Pressure at `/pressure/`** — the hub for the whole family: the thesis behind
   them, what each one can measure about a decision, and briefs for the two still

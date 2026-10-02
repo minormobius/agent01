@@ -76,7 +76,7 @@
     if (!game) return;
     cv.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (ptrs.size === 2) { swiping = false; turning = false; view.aim = -1; view.swipe = null; var p2 = pair(); two = { d: p2.d, z: view.zoom, x: p2.x, y: p2.y }; dirty = true; return; }
+    if (ptrs.size === 2) { swiping = false; turning = false; view.aim = -1; view.preview = null; view.swipe = null; var p2 = pair(); two = { d: p2.d, z: view.zoom, x: p2.x, y: p2.y }; dirty = true; return; }
     if (ptrs.size > 2) return;
     var p = local(e); start0 = p; last = { x: e.clientX, y: e.clientY }; moved = false;
     if (view.inInset(p.x, p.y)) { var m = view.unproject(p.x, p.y, view.inset()); if (m) turnTo = { p: m, left: 20 }; start0 = null; return; }
@@ -90,7 +90,11 @@
     if (!start0) return;
     var p = local(e);
     if (Math.hypot(p.x - start0.x, p.y - start0.y) > 14) moved = true;
-    if (swiping && moved) { view.aim = view.drainToward(p.x - start0.x, p.y - start0.y); view.swipe = { x0: start0.x, y0: start0.y }; dirty = true; }
+    if (swiping && moved) {
+      var aim = view.drainToward(p.x - start0.x, p.y - start0.y);
+      if (aim !== view.aim) { view.aim = aim; view.preview = aim >= 0 ? game.preview(aim) : null; }
+      view.swipe = { x0: start0.x, y0: start0.y }; dirty = true;
+    }
     else if (turning && moved) { view.drag(e.clientX - last.x, e.clientY - last.y); last = { x: e.clientX, y: e.clientY }; dirty = true; }
     else if (turning) last = { x: e.clientX, y: e.clientY };
   });
@@ -101,7 +105,7 @@
     if (ptrs.size) return;
     if (start0 && !moved) pour(view.drainAt(start0.x, start0.y));      // a tap: on a drain, pour there
     else if (swiping && view.aim >= 0) pour(view.aim);
-    swiping = turning = false; view.aim = -1; view.swipe = null; start0 = null; dirty = true;
+    swiping = turning = false; view.aim = -1; view.preview = null; view.swipe = null; start0 = null; dirty = true;
   }
   cv.addEventListener("pointerup", up);
   cv.addEventListener("pointercancel", up);

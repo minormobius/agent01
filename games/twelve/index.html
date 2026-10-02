@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#06080d" />
-<meta name="description" content="Twelve — 2048 on a buckyball. A sphere has no single 'that way', so a move picks one of the twelve pentagon drains and every tile pours toward it." />
+<meta name="description" content="Twelve — 2048 on a buckyball. A sphere has no single 'that way', so a move picks one of the twelve pentagon drains, and every tile spirals into it." />
 <title>Twelve — games.mino.mobi</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="css/twelve.css" />
@@ -15,7 +15,7 @@
     <div class="left">
       <select id="mode" aria-label="Board">
         <option value="c60">C60 · 20</option>
-        <option value="c80">C80 · 30 ×3</option>
+        <option value="c80">C80 · 30 ×4</option>
       </select>
       <button type="button" id="new" class="tab">new</button>
     </div>
@@ -44,13 +44,14 @@
     crowns</b>, its pentagons, and they are <b>drains</b>.
   </p>
   <p>
-    Swipe toward a drain and every tile <b>pours toward it</b>, downhill
-    hex by hex, until it rests on the drain's rim or against another tile.
-    Equal tiles that meet merge. A new tile drops in after every pour.
+    Each drain is a whirlpool with <b>five spiral arms</b>. Swipe toward a
+    drain and every tile slides in along its arm until it rests on the rim
+    or against another tile; equal tiles that meet merge. Each arm is a row
+    of 2048, so nothing is ever left to chance but the new tile.
   </p>
   <p class="accent">
-    Twelve drains are three times the moves of four walls. Luck gets you as
-    far as it does in 2048; skill gets you about eight times further.
+    Twelve drains are three times the moves of four walls: luck gets you as
+    far as it does in 2048, and skill gets you twice as far.
   </p>
   <button class="primary" id="start-btn" type="button" style="flex:none">POUR</button>
 </div>
