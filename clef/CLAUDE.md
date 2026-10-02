@@ -368,6 +368,31 @@ and draws tablature from the same notes; clef now reads both and plays them on t
 - Not read yet: `\set TabStaff.stringTunings` (standard tuning only), `\bendAfter`, fret-diagram
   markups, `\harmonicByFret`. Harmonics are drawn with ordinary noteheads, not diamonds.
 
+## The duo, and Duende
+
+Owner: "a genre that blends those two well… a dueling instruments music theory self indulgent
+sonic force… this is the one to try and blow me away". A piano-and-guitar score now plays as a
+duo (`src/duo.js`): notes from guitar staves carry `gtr` (audio.js), and EITHER physical voice
+renders the guitar staves on the guitar model and the rest on the piano model, IN PARALLEL (two
+workers: the wait is the slower of the two), then mixes them: the guitar brought to the piano's
+RMS (counted only where each sounds), the piano a little left and the guitar a little right,
+peak-normalised to −1 dBFS. One instrument is not a duo, and plays as before.
+
+`compositions/duende.mjs` writes `duende.ly` (the library's `duende`): 90 bars, 2:47, A minor so the
+ballad and the flamenco share a centre. A jazz-duo head on the circle of fifths (Dm9 G13 Cmaj9
+Fmaj7#11 Bm7b5 E7b9 Am(maj7)), sung by the piano over guitar shells; the head again sung by the
+guitar over the piano's re-harmonisation (tritone subs Db7#11 and Bb7#11, F#m7b5–B7, a backdoor
+Bb13); trading fours (guitar, piano, guitar picado, piano in octaves); the duel, six rounds of the
+Andalusian cadence Am G F E (rasgueado alone, montuno in tresillo, the guitar's Phrygian-dominant
+runs, the piano's answer in octaves, unison, clusters in 3+3+2 to a held E7b9); and a coda with
+the roles swapped, ending on F Lydian: the piano's Fmaj7#11 under the guitar's six open-string
+harmonics, E A D G B E, every one a note of F Lydian. Edit the generator, run it, and paste the
+.ly into the library entry; the selftest holds the bar checks and the frets.
+
+Measured (headless Chromium, this sandbox): sections from −23 dB (intro) to −13 (the duel's
+montuno, the answer, the fists), the guitar's runs a deliberate dip; 188 s to render 167 s, the
+piano the slower part. A phone waits on the progress bar. Not listened to here.
+
 ## Auth
 
 Reading, writing, playing and exporting need no account. Signing in only adds

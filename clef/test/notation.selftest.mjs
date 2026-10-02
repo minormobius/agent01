@@ -431,7 +431,7 @@ const midiList = (score, staff = 0, voice = 0) =>
 // bar checks — a transcription whose bars do not add up is a bug in the
 // transcription, and `|` is what finds it.
 {
-  eq(LIBRARY.length, 10, 'the library has ten pieces');
+  eq(LIBRARY.length, 11, 'the library has eleven pieces');
   for (const piece of LIBRARY) {
     const score = parseLily(piece.source);
     eq(score.diagnostics.length, 0,
@@ -775,6 +775,27 @@ const midiList = (score, staff = 0, voice = 0) =>
   const gs = parseLily(gp.source), gperf = perfOf(toNotes(gs), gs.tempo), gpk = packScore(gperf);
   ok(gs.diagnostics.length === 0 && gs.staves.some((s) => s.tab) && gpk.count === gperf.events.length && gpk.folded === 0 && gpk.dropped === 0,
     `guitar: Open Strings parses clean, ${gpk.count} notes all played from their tab`);
+}
+
+// ------------------------------------------- 10d. the duo --
+//
+// A piano-and-guitar score plays each staff on its own model (duo.js), and the library's
+// duet is a real 90-bar score that every bar check and every guitar fret agrees with.
+{
+  const { isDuo, mixDuo } = await import('../src/duo.js');
+  const { scoreToNotes: toNotes, performance: perfOf } = await import('../src/audio.js');
+  const d = LIBRARY.find((p) => p.id === 'duende');
+  const ds = parseLily(d.source), dl = engrave(ds), dperf = perfOf(toNotes(ds), ds.tempo);
+  const frets = ds.staves.filter((s) => s.guitar).flatMap((s) => s.voices.flat()).filter((e) => e.kind === 'note').flatMap((e) => e.pitches);
+  ok(ds.diagnostics.length === 0 && dl.warnings.length === 0 && dl.measures === 90 && frets.every((p) => p.fret != null),
+    `duende: 90 bars, no diagnostics, every bar check holds, all ${frets.length} guitar notes on a string and fret`);
+  ok(isDuo(dperf) && dperf.events.filter((e) => e.gtr).length > 1000 && dperf.events.filter((e) => !e.gtr).length > 900,
+    'duende: plays as a duo, the guitar staves on the guitar, the piano staves on the piano');
+  // the mix: the guitar brought to the piano's loudness, each placed to its side, −1 dBFS
+  const tone = (f, a, n) => Float32Array.from({ length: n * 2 }, (_, i) => a * Math.sin((Math.floor(i / 2) * f * 2 * Math.PI) / 44100));
+  const m = mixDuo(tone(220, 0.5, 4410), tone(330, 0.05, 2205));
+  let pk = 0; for (const v of m) pk = Math.max(pk, Math.abs(v));
+  ok(m.length === 8820 && Math.abs(pk - 0.89) < 1e-6 && !isDuo({ events: [{ gtr: true }] }), 'duo: the mix is as long as the longer part, balanced and peak-normalised; one instrument is not a duo');
 }
 
 // -------------------------------------------- 11. scaled durations --

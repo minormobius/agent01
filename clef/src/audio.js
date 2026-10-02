@@ -175,6 +175,8 @@ export function scoreToNotes(score, opts = {}) {
             ...(p.string ? { string: p.string, fret: p.fret, art: p.art, artParam: p.artParam, slideTo: p.slideTo } : {}),
             ...(e.arpeggio ? { arpeggio: true } : {}),
             ...(tab ? { tab: true } : {}),
+            // a guitar staff's note: a piano-and-guitar score plays it on the guitar model (duo.js)
+            ...(score.staves[si].guitar ? { gtr: true } : {}),
           });
           if (e.tie || p.tie) pending.set(midi, idx); else pending.delete(midi);
         }

@@ -13,6 +13,7 @@ import { engrave } from './engrave.js';
 import { PATCHES, Player, scoreToNotes, performance as buildPerformance, renderWav, silentSwitchMayMute, patchForInstrument, wavBlobInterleaved } from './audio.js';
 import * as pfsynth from './pfsynth.js';
 import * as pfguitar from './pfguitar.js';
+import * as duo from './duo.js';
 
 /** The voice-picker value that selects the physical model. */
 const MODEL_PATCH = 'pfsynth';
@@ -518,7 +519,7 @@ function togglePlay() {
     guitarPlayer.load(state.perf);
     setPlayingUI(true);
     // Said once per score: what fitting it to six strings changed, so a missing note is explained.
-    const fit = pfguitar.packScore(state.perf);
+    const fit = duo.isDuo(state.perf) ? { folded: 0, dropped: 0 } : pfguitar.packScore(state.perf);
     if (fit.folded || fit.dropped) toast(guitarFitNote(fit), 5000);
     guitarPlayer.play(from).catch((err) => {
       showRenderProgress(false);
@@ -539,7 +540,8 @@ function showRenderProgress(on, value = 0) {
   const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
   el.renderFill.style.width = `${pct}%`;
   el.renderProgress.setAttribute('aria-valuenow', String(pct));
-  el.renderLabel.textContent = pct >= 99 ? 'almost there…' : `rendering ${el.patch.value === GUITAR_PATCH ? 'guitar' : 'piano'}… ${pct}%`;
+  const what = state.perf && duo.isDuo(state.perf) ? 'piano and guitar' : el.patch.value === GUITAR_PATCH ? 'guitar' : 'piano';
+  el.renderLabel.textContent = pct >= 99 ? 'almost there…' : `rendering ${what}… ${pct}%`;
 }
 
 let silentSwitchWarned = false;
@@ -613,7 +615,8 @@ player.onEnd = () => setPlayingUI(false);
 // The physical model, driven exactly like the patch-bank player above. Sharing
 // onTick means the playhead and the score-following work identically whichever
 // engine is sounding.
-const modelPlayer = new pfsynth.ModelPlayer();
+// Either physical voice plays a piano-and-guitar score as a duo, each staff on its own model.
+const modelPlayer = new pfsynth.ModelPlayer(duo.duoAware(pfsynth.render));
 modelPlayer.onTick = (elapsed) => player.onTick(elapsed);
 modelPlayer.onEnd = () => { setPlayingUI(false); showRenderProgress(false); };
 modelPlayer.onRenderProgress = (v) => {
@@ -621,7 +624,7 @@ modelPlayer.onRenderProgress = (v) => {
   showRenderProgress(true, v);
 };
 // The guitar: the same player, a different instrument behind it.
-const guitarPlayer = new pfsynth.ModelPlayer(pfguitar.render);
+const guitarPlayer = new pfsynth.ModelPlayer(duo.duoAware(pfguitar.render));
 guitarPlayer.onTick = modelPlayer.onTick;
 guitarPlayer.onEnd = modelPlayer.onEnd;
 guitarPlayer.onRenderProgress = modelPlayer.onRenderProgress;
@@ -733,7 +736,7 @@ async function exportWav() {
       // outside fold in by octaves, and a chord of more than six keeps six. The toast says so.
       toast('rendering the guitar…', 600000);
       showRenderProgress(true, 0);
-      const r = await pfguitar.render(state.perf, { onProgress: (v) => showRenderProgress(true, v) });
+      const r = await duo.duoAware(pfguitar.render)(state.perf, { onProgress: (v) => showRenderProgress(true, v) });
       showRenderProgress(false);
       download(wavBlobInterleaved(r.interleaved, r.sampleRate), `${slug(state.title)}.wav`);
       if (r.folded || r.dropped) { toast(guitarFitNote(r)); return; }
@@ -742,9 +745,10 @@ async function exportWav() {
       // piano playing the violin's part. Said out loud: quietly ignoring the
       // instruments a score asks for looks like the ensemble support breaking.
       const ensemble = state.staffPatches?.some((p) => p && p !== PATCHES.piano);
-      toast(ensemble ? 'rendering — every part will sound like a piano…' : 'rendering the piano…', 600000);
+      const pair = duo.isDuo(state.perf);
+      toast(pair ? 'rendering the piano and the guitar…' : ensemble ? 'rendering — every part will sound like a piano…' : 'rendering the piano…', 600000);
       showRenderProgress(true, 0);
-      const { interleaved, sampleRate } = await pfsynth.render(state.perf, {
+      const { interleaved, sampleRate } = await duo.duoAware(pfsynth.render)(state.perf, {
         onProgress: (v) => showRenderProgress(true, v),
       });
       showRenderProgress(false);
