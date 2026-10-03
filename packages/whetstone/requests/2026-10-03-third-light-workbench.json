@@ -1,0 +1,8 @@
+{
+  "label": "third-light-workbench",
+  "souls": "modulo,morphyx",
+  "kinds": "work,pairwork",
+  "seed": 3,
+  "concurrency": 4,
+  "note": "First workbench run: hands, not just words. Two solo investigations each (gripper log, footbridge paperwork) and one pair task (clinic dashboard, taking turns, BOARD.md). Starts the lab board."
+}
