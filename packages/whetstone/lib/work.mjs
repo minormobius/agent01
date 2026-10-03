@@ -63,11 +63,11 @@ export function diffOf({ root }) {
 }
 
 // The text files a person will want to read after: anything new or changed that is small.
-export function readOut(dir, names) {
+export function readOut(dir, names, max = 12000) {
   const o = {};
   for (const n of names) {
     const p = join(dir, n);
-    if (existsSync(p) && statSync(p).isFile()) o[n] = clip(readFileSync(p, 'utf8'), 12000);
+    if (existsSync(p) && statSync(p).isFile()) o[n] = clip(readFileSync(p, 'utf8'), max);
   }
   return o;
 }

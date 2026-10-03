@@ -92,7 +92,7 @@ try {
   save(join(out, 'scorecard.json'), JSON.stringify(scorecard, null, 2) + '\n');
   const md = scorecardMarkdown(scorecard, records);
   save(join(out, 'scorecard.md'), md);
-  const pw = records.find((r) => r.kind === 'pairwork');
+  const pw = records.filter((r) => r.kind === 'pairwork').at(-1); // the board as the run left it
   if (pw) save(join(out, 'board.md'), pw.board_after);
   if (!existsSync(join(out, 'souls'))) mkdirSync(join(out, 'souls'));
   for (const s of souls) writeFileSync(join(out, 'souls', `${s.key}.md`), s.text); // what was tested, exactly

@@ -129,10 +129,11 @@ function render(recs, judged, sc, bank) {
   }).join('') || '<p class="muted">This run had no pair work.</p>';
 
   // The board
-  const b = pw[0];
+  // The last pair task's board holds the whole run's thread (pair tasks run in order).
+  const b = pw.at(-1);
   $('brd').innerHTML = b
     ? `<div class="board"><div class="text">${prose(b.board_after)}</div></div>` +
-      `<p class="muted" style="font-size:13px">${b.board_before && !/Nothing here yet/.test(b.board_before) ? 'Continued from the board an earlier run left.' : 'The first board: it started empty this run.'}</p>`
+      `<p class="muted" style="font-size:13px">${pw[0].board_before && !/Nothing here yet/.test(pw[0].board_before) ? 'Continued from the board an earlier run left; the top of it is theirs from before.' : 'The first board: it started empty this run.'}</p>`
     : '<p class="muted">No board in this run: it is written by the pair task, which starts with third light.</p>';
 
   // Conversations

@@ -1,0 +1,6 @@
+{
+  "id": "w-precision",
+  "mode": "solo",
+  "brief": "A research group's paper reports every sample to ±0.02‰. A reviewer says that is implausibly good for their instrument and has asked them to check the data reduction against the method the paper states. The folder you're in is their pipeline, its tests, the published method (README.md) and three sessions of raw data. Find out whether the reviewer is right, make the pipeline do what the paper says it does, and write the reply to the reviewer in REVIEW.md.",
+  "check": true
+}

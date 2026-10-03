@@ -12,6 +12,9 @@ import {
   mean, jaccard, wilson, slope, rng, attractorRate, isSilent, leaked, parseJson, pairs,
 } from './measure.mjs';
 
+// The board is carried whole from run to run; past this it is clipped, and the clip is visible.
+const BOARD_MAX = 200_000;
+
 export const KINDS = ['solo', 'taste', 'pressure', 'silence', 'injection', 'dyad', 'work', 'pairwork'];
 
 export function loadSoul(path) {
@@ -126,27 +129,32 @@ export async function runLab({
     records.push({ kind: 'work', trial: task.id, soul: soul.key, brief: task.brief, ...s, ...(await finish(task, dirs)) });
   });
 
-  // Pair work: one folder, alternating turns, BOARD.md carried over from the last run.
+  // Pair work: one folder, alternating turns. Pair tasks run one after another, each starting
+  // from the board the last one left, so a run's board is one continuous thread; the board the
+  // whole run started from came from the previous run.
   const pairJobs = on.has('pairwork') ? pairs(souls).flatMap(([a, b]) => work.filter((t) => t.mode === 'pair').map((task, i) => ({ a, b, task, first: i % 2 ? b : a }))) : [];
   log(`pair work: ${pairJobs.length} tasks`);
-  await pool(pairJobs, concurrency, async ({ a, b, task, first }) => {
-    const before = board || EMPTY_BOARD;
+  let carried = board || EMPTY_BOARD;
+  for (const { a, b, task, first } of pairJobs) {
+    const before = carried;
     const dirs = prepare(task, { board: before });
     const total = task.sessions || 4;
     const sessions = [];
     let me = first;
     for (let n = 1; n <= total; n++) {
       const other = me === a ? b : a;
-      const boardWas = readOut(dirs.work, ['BOARD.md'])['BOARD.md'];
+      const boardWas = readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'];
       const s = await session(me, P.pairWork(task.brief, me.name, other.name, n, total),
         { kind: 'pairwork', trial: task.id, turn: n, taskDir: task.dir }, dirs);
-      sessions.push({ soul: me.key, speaker: me.name, ...s, board_changed: readOut(dirs.work, ['BOARD.md'])['BOARD.md'] !== boardWas });
+      sessions.push({ soul: me.key, speaker: me.name, ...s, board_changed: readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'] !== boardWas });
       me = other;
     }
     const fin = await finish(task, dirs);
+    const after = readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'] || '';
     records.push({ kind: 'pairwork', trial: task.id, pair: [a.key, b.key], brief: task.brief, sessions,
-      board_before: before, board_after: readOut(dirs.work, ['BOARD.md'])['BOARD.md'] || '', ...fin });
-  });
+      board_before: before, board_after: after, ...fin });
+    carried = after || before;
+  }
 
   // ---- phase 2: the judges ------------------------------------------------------------
   const byKey = Object.fromEntries(souls.map((s) => [s.key, s]));

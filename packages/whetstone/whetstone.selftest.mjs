@@ -229,6 +229,16 @@ await t('a collapsed pair fails, and fails on the right gates', async () => {
   assert.ok(sep.value > 0.2 && sep.value < 0.8, `constant-guess separation ${sep.value} should sit near chance`);
 });
 
+await t('the board threads through every pair task, from the board the last run left', async () => {
+  const { records } = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['pairwork'], seed: 1, work,
+    board: '# Board\n\n- from an earlier run — morphyx\n' });
+  const pw = records.filter((r) => r.kind === 'pairwork');
+  assert.ok(pw.length >= 2, 'need two pair tasks to thread');
+  assert.match(pw[0].board_before, /from an earlier run/);
+  for (let i = 1; i < pw.length; i++) assert.equal(pw[i].board_before, pw[i - 1].board_after, `pair task ${i} did not start from the last board`);
+  assert.match(pw.at(-1).board_after, /from an earlier run/);
+});
+
 await t('a run records the usage window on its scorecard', async () => {
   const call = fakeModel(fakeResponder(), { rate: (req) => (req.meta?.role === 'judge' ? [] : [{ rateLimitType: 'five_hour', utilization: 0.42, status: 'allowed' }]) });
   const { scorecard } = await runLab({ souls, bank, call, reps: 1, seed: 1, concurrency: 3 });
