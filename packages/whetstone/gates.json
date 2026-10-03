@@ -14,7 +14,7 @@
   "pair": {
     "separation":        { "min": 0.85, "why": "with no descriptions at all, a reader can tell the two voices apart" },
     "taste_cross":       { "max": 0.34, "why": "they want to read different things" },
-    "open_disagreement": { "min": 0.67, "why": "their conversations end with a real disagreement still standing" },
+    "reasoned_moves":    { "min": 0.67, "why": "when a position moves in their conversations, it moves for a stated reason, never for agreement's sake (replaced open_disagreement, which they failed on every run while their work showed reasoned disagreement; open_disagreement is still reported)" },
     "artifact":          { "min": 0.67, "why": "and with something proposed to measure or make" },
     "merge_rate":        { "max": 0.2,  "why": "few turns where one blurs into the other" },
     "praise_rate":       { "max": 0.15, "why": "the agent-agent attractor stays shut" },

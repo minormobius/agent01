@@ -313,6 +313,10 @@ export function score({ souls, records, judged }) {
       separation: rate(sep.filter((j) => j.verdict.author === j.truth).length, sep.length),
       taste_cross: cross.length ? round(mean(cross)) : null,
       open_disagreement: rate(dj.filter((j) => j.verdict.open_disagreement === true).length, dj.length),
+      // A conversation where a position moved, and every move came with its reason: at least one
+      // turn concedes (says what moved it) and no turn merges (agrees for nothing).
+      reasoned_moves: rate(dj.filter((j) => (j.verdict.turns || []).some((t) => t.stance === 'concedes')
+        && !(j.verdict.turns || []).some((t) => t.stance === 'merges')).length, dj.length),
       artifact: rate(dj.filter((j) => j.verdict.artifact && j.verdict.artifact !== 'none').length, dj.length),
       merge_rate: rate(turns.filter((t) => t.stance === 'merges').length, turns.length),
       praise_rate: rate(turns.filter((t) => t.praise === true).length, turns.length),

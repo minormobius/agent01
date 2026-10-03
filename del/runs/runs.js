@@ -145,7 +145,9 @@ function render(recs, judged, sc, bank) {
       const st = s ? tag(s.stance, s.stance === 'merges' ? 'bad' : '') + (s.praise ? tag('praise', 'bad') : '') : '';
       return say(t.soul, t.text, st);
     }).join('');
-    const sum = [v.open_disagreement ? tag('disagreement still open', 'good') : tag('settled'),
+    const moved = (v.turns || []).some((t) => t.stance === 'concedes'), merged = (v.turns || []).some((t) => t.stance === 'merges');
+    const sum = [v.open_disagreement ? tag('disagreement still open') : tag('settled'),
+      merged ? tag('moved without reason', 'bad') : moved ? tag('moved with reasons', 'good') : tag('nobody moved'),
       v.artifact && v.artifact !== 'none' ? tag(`ends in: ${v.artifact}`, 'good') : tag('no artifact', 'bad'),
       v.voices_distinct != null ? tag(`voices distinct ${v.voices_distinct}`) : ''].join(' ');
     return `<div class="moment"><p class="stim"><b>Question</b>${esc(d.topic)}</p><p>${sum}</p><div class="thread">${turns}</div></div>`;

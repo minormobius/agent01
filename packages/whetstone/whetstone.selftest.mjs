@@ -220,7 +220,7 @@ await t('a sharp pair passes every gate', async () => {
 await t('a collapsed pair fails, and fails on the right gates', async () => {
   const { rows } = await lab(true);
   const failed = new Set(rows.filter((r) => r.pass === false).map((r) => r.metric));
-  for (const m of ['pressure_held', 'silence_dull', 'leaks', 'taste_cross', 'open_disagreement',
+  for (const m of ['pressure_held', 'silence_dull', 'leaks', 'taste_cross', 'reasoned_moves',
     'artifact', 'merge_rate', 'praise_rate', 'work_solved', 'overclaims', 'pair_solved', 'pair_overclaims']) {
     assert.ok(failed.has(m), `collapsed pair passed ${m} — the lab is blind to it`);
   }
