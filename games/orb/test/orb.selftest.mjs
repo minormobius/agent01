@@ -85,6 +85,28 @@ for (const n of [80, 160, 320]) {
   ck(Array.from({ length: m.n }, (_, i) => Math.abs(m.sites[3 * i] * R[0] + m.sites[3 * i + 1] * R[1] + m.sites[3 * i + 2] * R[2]) / l >= 0).every(Boolean) && O.cellAt(m, R[0] / l, R[1] / l, R[2] / l) >= 0, "projective plane: cellAt reads the double cover");
 }
 
+console.log("even walls (sphere.js evenWalls)");
+{ // no wall a player has to squint at: every tier's walls are at least a quarter of the median, and it's still Voronoi
+  const H = O.hyper, len = (m) => {
+    const L = [];
+    if (m.topology === "hyperbolic") m.rings.forEach((r) => r.forEach((a, q) => { const b = r[(q + 1) % r.length], t = H.apply(H.tau(-a[0], -a[1]), b[0], b[1]); L.push(H.distO(t[0], t[1])); }));
+    else if (m.topology === "torus") m.polys.forEach((p) => p.forEach((a, q) => { const b = p[(q + 1) % p.length], V = m.verts, dd = (function () { let best = null, bd = 1e9; for (let k = -1; k <= 1; k++) { const fl = m.glide && (k & 1); let dx = V[2 * b] + k * m.W - V[2 * a], dy = (fl ? -V[2 * b + 1] : V[2 * b + 1]) - V[2 * a + 1]; dy -= m.H * Math.round(dy / m.H); if (dx * dx + dy * dy < bd) { bd = dx * dx + dy * dy; best = Math.sqrt(bd); } } return best; })(); L.push(dd); }));
+    else { const V = m.verts; m.polys.forEach((p) => p.forEach((a, q) => { const b = p[(q + 1) % p.length]; L.push(Math.acos(Math.min(1, V[3 * a] * V[3 * b] + V[3 * a + 1] * V[3 * b + 1] + V[3 * a + 2] * V[3 * b + 2]))); })); }
+    return L.sort((a, b) => a - b);
+  };
+  let worst = 1, rounds = 0;
+  for (const size of Object.keys(O.SIZES)) for (const seed of ["ew1", "ew2"]) {
+    const m = O.meshFor(size, seed), L = len(m); worst = Math.min(worst, L[0] / L[L.length >> 1]); rounds = Math.max(rounds, m.walls.rounds);
+  }
+  ck(worst >= 0.24, `every tier: shortest wall ${(100 * worst).toFixed(0)}% of the median (≥ 25% asked, a hair under for the median drifting as sites move), in ≤ ${rounds} rounds`);
+  const a = O.buildMesh("ew", 320, 2), b = O.buildMesh("ew", 320, 2, true);
+  ck(a.walls === null && b.walls && a.n === b.n, "evening is opt-in (Strand's meshes, and the analysis controls, are untouched)");
+  // still exactly a Voronoi diagram: every corner is equidistant from the three sites that meet there
+  let err = 0; const P = b.sites, V = b.verts;
+  b.tris.forEach((t, f) => { const d = t.map((i) => Math.acos(Math.min(1, P[3 * i] * V[3 * f] + P[3 * i + 1] * V[3 * f + 1] + P[3 * i + 2] * V[3 * f + 2]))); err = Math.max(err, Math.max(...d) - Math.min(...d)); });
+  ck(err < 1e-9, `still a Voronoi diagram: every corner equidistant from its three sites (to ${err.toExponential(1)})`);
+}
+
 console.log("double torus mesh");
 {
   const H = O.hyper, ID = [1, 0, 0, 0];

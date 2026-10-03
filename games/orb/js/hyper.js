@@ -123,14 +123,14 @@
       if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-10) continue;
       var kr = Math.hypot(a[0], a[1]), s = 1 / (1 + Math.sqrt(Math.max(0, 1 - kr * kr)));
       ring.push(apply(back, a[0] * s, a[1] * s));
-      edges.push(a[2] >= 0 ? { j: cands[a[2]].j, e: cands[a[2]].e } : null);
+      edges.push(a[2] >= 0 ? { j: cands[a[2]].j, e: cands[a[2]].e, w: cands[a[2]].w } : null);
     }
     return { ring: ring, edges: edges };
   }
 
   /* The double torus's Voronoi mesh: n random sites (uniform by hyperbolic
      area, in the octagon), `relax` rounds of Lloyd. */
-  function buildDoubleTorus(seed, n, relax) {
+  function buildDoubleTorus(seed, n, relax, even) {
     if (relax == null) relax = 2;
     var rng = O.rngFor(seed, "double-torus", n), S = new Float64Array(2 * n), coshR = Math.cosh(RCIRC);
     for (var i = 0; i < n;) {
@@ -153,13 +153,35 @@
         S[2 * i] = red[0]; S[2 * i + 1] = red[1];
       }
     }
+    // even out the walls (sphere.js evenWalls), rebuilding only the cells near the sites that moved
+    var walls = even ? O.evenWalls(function () {
+      return cells.map(function (cl) {
+        var out = [];
+        for (var q = 0; q < cl.ring.length; q++) {
+          var ed = cl.edges[q]; if (!ed) continue;
+          var a = cl.ring[q], b = cl.ring[(q + 1) % cl.ring.length], t = apply(tau(-a[0], -a[1]), b[0], b[1]);
+          out.push({ j: ed.j, len: distO(t[0], t[1]), x: ed.w[0], y: ed.w[1] }); // the image, as seen from the site (at the centre of its own frame)
+        }
+        return out;
+      });
+    }, function (mv) {
+      var dirty = new Set();
+      for (var i = 0; i < n; i++) {
+        if (!mv[i][0] && !mv[i][1]) continue;
+        var p = apply(tau(S[2 * i], S[2 * i + 1]), mv[i][0] / 2, mv[i][1] / 2), red = reduce(p[0], p[1]); // the disk's scale at the centre is ½
+        S[2 * i] = red[0]; S[2 * i + 1] = red[1]; dirty.add(i);
+      }
+      var near2 = new Set(dirty);
+      for (var r = 0; r < 2; r++) Array.from(near2).forEach(function (c) { cells[c].edges.forEach(function (ed) { if (ed) near2.add(ed.j); }); });
+      near2.forEach(function (c) { cells[c] = cellOf(S, n, c, maxD); });
+    }) : null;
     var nbrs = cells.map(function (cl, i) {
       var ns = [];
       cl.edges.forEach(function (ed) { if (ed && ed.j !== i && ns.indexOf(ed.j) < 0) ns.push(ed.j); });
       return ns;
     });
     for (i = 0; i < n; i++) nbrs[i].forEach(function (j) { if (nbrs[j].indexOf(i) < 0) nbrs[j].push(i); });
-    return { topology: "hyperbolic", surface: "double-torus", n: n, sites: S, rings: cells.map(function (c) { return c.ring; }), edges: cells.map(function (c) { return c.edges; }), nbrs: nbrs, seed: seed, relax: relax };
+    return { topology: "hyperbolic", surface: "double-torus", n: n, sites: S, rings: cells.map(function (c) { return c.ring; }), edges: cells.map(function (c) { return c.edges; }), nbrs: nbrs, seed: seed, relax: relax, walls: walls };
   }
 
   /* ------------------------------------------------------------ the view

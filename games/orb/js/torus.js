@@ -149,9 +149,9 @@
         var da = (A[0] - mx) * nx + (A[1] - my) * ny, db = (B[0] - mx) * nx + (B[1] - my) * ny;
         if (da <= 0) out.push(A);
         if ((da <= 0) !== (db <= 0)) {
-          var t = da / (da - db), X = [A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1]), -1];
-          // the new corner starts the edge along the bisector when we're leaving the kept side
-          X[2] = da <= 0 ? c.j : A[2];
+          var t = da / (da - db), X = [A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1]), -1, 0, 0];
+          // the new corner starts the edge along the bisector when we're leaving the kept side (and remembers the image it faces)
+          if (da <= 0) { X[2] = c.j; X[3] = qx; X[4] = qy; } else { X[2] = A[2]; X[3] = A[3]; X[4] = A[4]; }
           out.push(X);
         }
       }
@@ -197,7 +197,7 @@
   }
 
   /* The torus Voronoi mesh: n random sites, `relax` rounds of Lloyd. */
-  function buildTorus(seed, n, relax, klein) {
+  function buildTorus(seed, n, relax, klein, even) {
     if (relax == null) relax = 2;
     var W = klein ? KLEIN_ASPECT : ASPECT, H = 1, rng = O.rngFor(seed, klein ? "klein" : "torus", n), P = new Float64Array(2 * n), surf = { W: W, H: H, glide: !!klein };
     for (var i = 0; i < n; i++) { P[2 * i] = rng.next() * W; P[2 * i + 1] = rng.next() * H; }
@@ -213,7 +213,20 @@
       }
       vor = voronoiTorus(P, n, W, H, klein);
     }
-    var mesh = { topology: "torus", surface: klein ? "klein" : "torus", glide: !!klein, kind: "voronoi", n: n, W: W, H: H, sites: P, verts: vor.verts, polys: vor.polys, nbrs: vor.nbrs, seed: seed, relax: relax };
+    var walls = even ? O.evenWalls(function () { // each cell's walls, in the covering plane round its own site
+      return vor.cells.map(function (poly, i) {
+        var out = [];
+        for (var k = 0; k < poly.length; k++) {
+          var A = poly[k], B = poly[(k + 1) % poly.length], len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+          if (A[2] >= 0 && len > 1e-9 * W) out.push({ j: A[2], len: len, x: A[3] - P[2 * i], y: A[4] - P[2 * i + 1] });
+        }
+        return out;
+      });
+    }, function (mv) {
+      for (var i = 0; i < n; i++) { var w3 = wrapPt(surf, P[2 * i] + mv[i][0], P[2 * i + 1] + mv[i][1]); P[2 * i] = w3[0]; P[2 * i + 1] = w3[1]; }
+      vor = voronoiTorus(P, n, W, H, klein);
+    }) : null;
+    var mesh = { topology: "torus", surface: klein ? "klein" : "torus", glide: !!klein, kind: "voronoi", n: n, W: W, H: H, sites: P, verts: vor.verts, polys: vor.polys, nbrs: vor.nbrs, seed: seed, relax: relax, walls: walls };
     var vx = function (v) { return [mesh.verts[2 * v], mesh.verts[2 * v + 1]]; }, sx = function (v) { return [P[2 * v], P[2 * v + 1]]; };
     // symmetrise (a cell sees j iff j sees it) and put both rings in the same rotational order
     for (i = 0; i < n; i++) mesh.nbrs[i].forEach(function (j) { if (mesh.nbrs[j].indexOf(i) < 0) mesh.nbrs[j].push(i); });
@@ -225,7 +238,7 @@
      flip. Walk off the right edge and you come back on the left, upside
      down. A Voronoi diagram of it is built exactly like the torus's, the
      neighbouring images just include mirrored ones. */
-  function buildKlein(seed, n, relax) { return buildTorus(seed, n, relax, true); }
+  function buildKlein(seed, n, relax, even) { return buildTorus(seed, n, relax, true, even); }
 
   /* The cell at flat point (u, v) (anywhere in the covering plane): the
      nearest site, the short way round — exact for Voronoi, and for the

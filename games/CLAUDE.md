@@ -71,7 +71,8 @@ Three things live here:
   correctness: a *direction*, priced in ticks. See
   [`tempest/README.md`](tempest/README.md).
 - **Orb at `/orb/`**: Minesweeper on a sphere of Voronoi cells (convex hull =
-  spherical Delaunay; Lloyd-relaxed). An irregular mesh is measurably *less*
+  spherical Delaunay; Lloyd-relaxed, then sites nudged until no wall is under a
+  quarter of the median: `evenWalls`, opt-in, so Strand's meshes are untouched). An irregular mesh is measurably *less*
   guess-free than a regular one, so every board is proved solvable by an exact
   solver from the first tap before it ships. The readout counts the moves that
   weren't certain when you made them. Also on a projective plane (antipodal

@@ -147,6 +147,30 @@ without changing the format.
 A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l|x|ts|tm|tl`
 is a permalink (also `ks|km`, the Klein bottle, `ps|pm`, the projective plane, and `hs|hm`, the double torus).
 
+## Even walls
+
+On a raw Voronoi mesh about one wall in eleven is under a quarter of the
+median wall, and one in thirty under a tenth: four sites nearly on a circle
+leave a sliver of a wall that you can only find with the reticle. Every
+board here is evened out (`evenWalls` in `js/sphere.js`, used by every
+surface) until no wall is under a quarter of the median.
+
+You can't put a minimum on the walls of a Voronoi diagram of given sites,
+but you can move the sites. Each short wall pulls its two cells together and
+pushes the two cells at its ends apart, which lengthens it by about four
+times the step. Then the diagram is rebuilt from the moved sites, so it is
+still exactly a Voronoi diagram of slightly different points. Collapsing
+short walls into four-way corners was rejected: it isn't Voronoi any more,
+and two cells touching at a point is a worse ambiguity than a short wall.
+Each cell only ever moves itself, in its own local frame, so the torus's
+wrap, the Klein bottle's flip and the double torus's gluings never come
+into it. It takes 4–9 rounds and a few tens of milliseconds (0.2 s on the
+double torus, which rebuilds only the cells near those that moved). The
+selftest checks every tier's shortest wall against the median, and that
+every corner is still equidistant from its three sites. Evening is opt-in
+(`O.meshFor` asks for it), so Strand's baked Voronoi levels and the analysis
+controls are untouched.
+
 ## Tiers
 
 | tier | cells | mines | density | to prove a board (median / worst) | hard moments per board |

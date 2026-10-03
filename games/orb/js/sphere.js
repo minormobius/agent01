@@ -139,7 +139,7 @@
     return Q;
   }
 
-  function buildMesh(seed, n, relax) {
+  function buildMesh(seed, n, relax, even) {
     if (relax == null) relax = 2;
     var rng = O.rngFor(seed, "mesh", n), P = new Float64Array(3*n);
     for (var i = 0; i < n; i++) {
@@ -148,7 +148,12 @@
     }
     var vor = voronoi(P, n);
     for (var it = 0; it < relax; it++) { P = lloyd(P, n, vor); vor = voronoi(P, n); }
-    return { n: n, sites: P, verts: vor.verts, polys: vor.polys, nbrs: vor.nbrs, tris: vor.tris, seed: seed, relax: relax };
+    var walls = even ? evenWalls(function () { return sphereWalls(P, n, vor); }, function (mv) {
+      var Q = new Float64Array(3 * n);
+      for (var i = 0; i < n; i++) { var c = moveSphere(P, i, mv[i]); Q[3 * i] = c[0]; Q[3 * i + 1] = c[1]; Q[3 * i + 2] = c[2]; }
+      P = Q; vor = voronoi(P, n);
+    }) : null;
+    return { n: n, sites: P, verts: vor.verts, polys: vor.polys, nbrs: vor.nbrs, tris: vor.tris, seed: seed, relax: relax, walls: walls };
   }
 
   /* The PROJECTIVE PLANE: the sphere with every point glued to the point
@@ -163,7 +168,7 @@
      Any hemisphere is the whole projective plane, once: the globe view
      already IS its honest map. Turn it, and a cell sinking under one rim
      comes back up on the opposite rim, mirrored. */
-  function buildProjective(seed, n, relax) {
+  function buildProjective(seed, n, relax, even) {
     if (relax == null) relax = 2;
     var rng = O.rngFor(seed, "projective", n), N = 2 * n, P = new Float64Array(3 * N);
     for (var i = 0; i < n; i++) {
@@ -181,13 +186,20 @@
       }
       vor = voronoi(P, N);
     }
+    var walls = even ? evenWalls(function () { return sphereWalls(P, N, vor); }, function (mv) {
+      for (var i = 0; i < n; i++) { // the pair moves together: average the two halves' moves, one turned round
+        var a = moveSphere(P, i, mv[i]), b = moveSphere(P, i + n, mv[i + n]), c = norm([a[0] - b[0], a[1] - b[1], a[2] - b[2]]);
+        P[3 * i] = c[0]; P[3 * i + 1] = c[1]; P[3 * i + 2] = c[2]; P[3 * (i + n)] = -c[0]; P[3 * (i + n) + 1] = -c[1]; P[3 * (i + n) + 2] = -c[2];
+      }
+      vor = voronoi(P, N);
+    }) : null;
     var nbrs = [];
     for (i = 0; i < n; i++) {
       var ns = [];
       vor.nbrs[i].forEach(function (j) { var g = j % n; if (g !== i && ns.indexOf(g) < 0) ns.push(g); });
       nbrs.push(ns);
     }
-    return { n: n, cover: N, proj: true, sites: P, verts: vor.verts, polys: vor.polys, nbrs: nbrs, coverNbrs: vor.nbrs, tris: vor.tris, seed: seed, relax: relax };
+    return { n: n, cover: N, proj: true, sites: P, verts: vor.verts, polys: vor.polys, nbrs: nbrs, coverNbrs: vor.nbrs, tris: vor.tris, seed: seed, relax: relax, walls: walls };
   }
 
   /* Index of the cell containing unit vector (x,y,z): the nearest site, which
@@ -201,6 +213,77 @@
     }
     return bi;
   }
+
+  /* ------------------------------------------------------------ even walls
+     A Voronoi wall gets short when four sites are nearly on one circle, and
+     a short wall is a neighbour you can't see. No minimum can be imposed on
+     a Voronoi diagram of given sites, but the sites can move: every wall
+     under `min` pulls its two cells together and pushes the two cells at its
+     ends apart (each step lengthens it by about four times the step), then
+     the diagram is rebuilt from the moved sites, so it is still exactly a
+     Voronoi diagram, just of slightly different points.
+
+     The surfaces share this through one description: per cell, its walls in
+     ring order, each with the neighbour across it, that neighbour's image as
+     a vector from the cell's site in the cell's own local frame, and the
+     wall's length. A cell only ever moves itself, in its own frame, so the
+     torus's wrap, the Klein bottle's flip and the hyperbolic gluings never
+     come into it. Returns the moves ([dx, dy] per cell), or null when no
+     wall is short. */
+  function wallMoves(cells, min) {
+    var short = new Map(), key = function (a, b) { return a < b ? a + "," + b : b + "," + a; };
+    cells.forEach(function (W, i) { W.forEach(function (w) { if (w.len < min) short.set(key(i, w.j), Math.max(short.get(key(i, w.j)) || 0, 1.15 * min - w.len)); }); });
+    if (!short.size) return null;
+    var step = 0.28, cap = 1.2 * min;
+    return cells.map(function (W, i) {
+      var dx = 0, dy = 0;
+      for (var q = 0; q < W.length; q++) {
+        var w = W[q], d = short.get(key(i, w.j)), l;
+        if (d) { l = Math.hypot(w.x, w.y) || 1; dx += step * d * w.x / l; dy += step * d * w.y / l; } // toward the cell across a short wall
+        var a = W[(q + W.length - 1) % W.length], e = short.get(key(a.j, w.j));
+        if (e && a.j !== w.j && a.j !== i && w.j !== i) { // this corner ends the short wall between the cells either side of it: step away
+          var mx = (a.x + w.x) / 2, my = (a.y + w.y) / 2; l = Math.hypot(mx, my) || 1; dx -= step * e * mx / l; dy -= step * e * my / l;
+        }
+      }
+      var r = Math.hypot(dx, dy); if (r > cap) { dx *= cap / r; dy *= cap / r; }
+      return [dx, dy];
+    });
+  }
+  function median(cells) { var L = []; cells.forEach(function (W) { W.forEach(function (w) { L.push(w.len); }); }); L.sort(function (a, b) { return a - b; }); return L[L.length >> 1]; }
+  /* The loop every surface runs: describe, move, rebuild, until no wall is
+     under a quarter of the median (or `rounds` runs out). */
+  function evenWalls(describe, move, rounds) {
+    var cells = describe(), min = median(cells) / 4, it = 0;
+    for (; it < (rounds || 60); it++) {
+      var mv = wallMoves(cells, min);
+      if (!mv) break;
+      move(mv); cells = describe();
+    }
+    var left = 0; cells.forEach(function (W) { W.forEach(function (w) { if (w.len < min) left++; }); });
+    return { min: min, rounds: it, short: left / 2 };
+  }
+  O.evenWalls = evenWalls;
+
+  /* The sphere's description: a tangent frame at each site, walls between
+     consecutive ring corners (angles), neighbours by the face they share. */
+  function sphereWalls(P, N, vor) {
+    var V = vor.verts, tris = vor.tris;
+    var out = [];
+    for (var i = 0; i < N; i++) {
+      var p = [P[3 * i], P[3 * i + 1], P[3 * i + 2]], f = frame(p), ring = vor.polys[i], W = [];
+      for (var r = 0; r < ring.length; r++) {
+        var A = ring[r], B = ring[(r + 1) % ring.length], ta = tris[A], tb = tris[B], j = -1;
+        for (var q = 0; q < 3; q++) if (ta[q] !== i && tb.indexOf(ta[q]) >= 0) j = ta[q];
+        var d = [P[3 * j] - p[0], P[3 * j + 1] - p[1], P[3 * j + 2] - p[2]];
+        W.push({ j: j, len: Math.acos(Math.max(-1, Math.min(1, V[3 * A] * V[3 * B] + V[3 * A + 1] * V[3 * B + 1] + V[3 * A + 2] * V[3 * B + 2]))), x: dot(d, f[0]), y: dot(d, f[1]) });
+      }
+      out.push(W);
+    }
+    return out;
+  }
+  function frame(p) { var a = Math.abs(p[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0], e1 = norm(cross(p, a)), e2 = cross(p, e1); return [e1, e2]; }
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function moveSphere(P, i, mv) { var p = [P[3 * i], P[3 * i + 1], P[3 * i + 2]], f = frame(p); return norm([p[0] + mv[0] * f[0][0] + mv[1] * f[1][0], p[1] + mv[0] * f[0][1] + mv[1] * f[1][1], p[2] + mv[0] * f[0][2] + mv[1] * f[1][2]]); }
 
   O.buildMesh = buildMesh;
   O.buildProjective = buildProjective;

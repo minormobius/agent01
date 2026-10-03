@@ -109,7 +109,8 @@
   /* The board for a tier: the sphere, the torus, the Klein bottle, the projective plane or the double torus. */
   O.meshFor = function (size, seed) {
     var c = O.SIZES[size];
-    return c.hyper ? O.buildDoubleTorus(seed, c.n, 2) : c.proj ? O.buildProjective(seed, c.n, 2) : c.klein ? O.buildKlein(seed, c.n, 3) : c.torus ? O.buildTorus(seed, c.n, 3) : O.buildMesh(seed, c.n, 2);
+    // `true`: even the walls out, so none is under a quarter of the median (sphere.js evenWalls)
+    return c.hyper ? O.buildDoubleTorus(seed, c.n, 2, true) : c.proj ? O.buildProjective(seed, c.n, 2, true) : c.klein ? O.buildKlein(seed, c.n, 3, true) : c.torus ? O.buildTorus(seed, c.n, 3, false, true) : O.buildMesh(seed, c.n, 2, true);
   };
   /* `climb` is hard mode's search budget: mine moves tried while forging a
      board for hard moments (solve.js generateHard). Part of the board's
