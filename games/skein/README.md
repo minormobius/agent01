@@ -1,6 +1,6 @@
 # Skein — `/skein/`
 
-A ball of words. Every tile on a buckyball carries a letter, and every letter
+A ball of words (or a ring of them). Every tile on a buckyball carries a letter, and every letter
 belongs to exactly one **theme word**, traced through neighbouring tiles with
 no tile used twice. One of the words is the **span**: the theme itself, which
 runs from one ringed **pole** (a pentagon) to the one opposite. Find every
@@ -16,6 +16,21 @@ The spheres are One Coast's icosahedral Goldberg spheres
 (`../onecoast/js/geo.js`): C80 (42 tiles), C180 (92), C240 (122). The two poles
 are an antipodal pair of pentagons, 7, 10 and 11 tiles apart, so the span has
 at least that many letters (each theme carries a short span and a long one).
+
+Or a **torus**: honeycomb tori of 4 × 8, 6 × 12 and 8 × 16 hexes (32, 72 and
+128 tiles; twice as many columns as rows, the donut's own proportions), from
+Orb's `../orb/js/torus.js`. A torus needs no pentagons (Euler χ = 0), so every
+tile has six neighbours, and there are no poles to borrow. Instead the span
+runs between two ringed tiles half way round both ways, as far apart as the
+torus allows (6, 8 and 11 tiles), and it can wrap across either seam. The same
+generator lays and proves the boards: it only ever sees tiles and neighbours.
+
+A torus opens on the **flat map** (`▭`), the exact picture: a rectangle that
+wraps both ways, tiled to fill the screen, every tile in view. The **donut**
+(`◎`) is a tap away, with a skin that slides under your finger as in /strand/
+and /orb/. On a torus only six tiles round the tube, half a long word sits on
+the donut's hidden back, so the flat map is where you trace. Each kind of
+board remembers its own view.
 
 `js/gen.js` makes a board from a theme, a size and a seed:
 

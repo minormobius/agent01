@@ -37,10 +37,13 @@
     try { history.replaceState(null, "", isDaily ? "?s=" + sphere : "?s=" + sphere + "&t=" + t + "&seed=" + encodeURIComponent(seed)); } catch (e) { /* file:// */ }
     save_("skein-sphere", sphere);
     $("sphere").value = sphere;
+    // a torus opens on the flat map (no back to hide half a word on); the donut is a tap away. Remembered per kind
+    view.mode = game.s.torus ? (load_("skein-tview", "whole") === "globe" ? "globe" : "whole") : (load_("skein-view", "globe") === "whole" ? "whole" : "globe");
     view.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; view.zoom = 1;
-    view.face(view.centreOf(board.poles[0])); view.drag(0, -view.radius() * 0.5);
+    if (game.s.torus) view.toward(view.centreOf(board.poles[0]), 1);
+    else { view.face(view.centreOf(board.poles[0])); view.drag(0, -view.radius() * 0.5); }
     $("over").hidden = true;
-    note(game.done() ? "wound — every word found" : "trace a word · the span runs pole to pole", "");
+    note(game.done() ? "wound — every word found" : game.s.torus ? "trace a word · the span runs between the ringed tiles, half way round" : "trace a word · the span runs pole to pole", "");
     hud(); dirty = true;
     if (game.done()) finish(true);
   }
@@ -66,7 +69,8 @@
     $("enter").disabled = game.sel.length < 4;
     $("lock").textContent = locked ? "✎ trace" : "✥ turn"; $("lock").setAttribute("aria-pressed", String(locked));
     $("lock").classList.toggle("on", !locked);
-    $("viewmode").textContent = view.mode === "whole" ? "◯ whole" : "◐ globe"; $("viewmode").classList.toggle("on", view.mode === "whole");
+    var tor = game.s.torus;
+    $("viewmode").textContent = view.mode === "whole" ? (tor ? "▭ flat" : "◯ whole") : (tor ? "◎ donut" : "◐ globe"); $("viewmode").classList.toggle("on", view.mode === "whole");
     $("foot").textContent = locked ? "drag across letters to trace · two fingers turn and zoom · tap the corner map to look there"
       : "one finger turns · tap letters, tap the last again to enter · two fingers zoom";
     dirty = true;
@@ -92,9 +96,10 @@
   function finish(quiet) {
     var sp = game.words.find(function (w) { return w.span; }), h = game.hintsUsed;
     $("over-title").textContent = sp.w;
-    $("over-body").innerHTML = "<b>" + game.board.clue + "</b> — " + game.words.length + " words, " + game.s.n + " letters on " + game.s.name.toUpperCase() + ".<br>" +
+    var on = game.s.torus ? "a " + game.s.mesh.rows + "×" + game.s.mesh.cols + " torus" : game.s.name.toUpperCase();
+    $("over-body").innerHTML = "<b>" + game.board.clue + "</b> — " + game.words.length + " words, " + game.s.n + " letters on " + on + ".<br>" +
       (h === 0 ? "<b>No hints.</b> " : "<b>" + h + "</b> hint" + (h > 1 ? "s" : "") + ". ") + "<b>" + game.extras.size + "</b> word" + (game.extras.size === 1 ? "" : "s") + " of your own along the way." +
-      (daily ? "<br>Today's " + game.s.name.toUpperCase() + " is wound. A new ball tomorrow." : "");
+      (daily ? "<br>Today's " + (game.s.torus ? "torus" : game.s.name.toUpperCase()) + " is wound. A new " + (game.s.torus ? "one" : "ball") + " tomorrow." : "");
     if (!quiet) setTimeout(function () { $("over").hidden = false; }, 700);
   }
 
@@ -111,7 +116,7 @@
     if (ptrs.size === 2) { drawing = false; turning = false; var p2 = pair(); two = { d: p2.d, z: view.zoom, x: p2.x, y: p2.y }; return; }
     if (ptrs.size > 2) return;
     var p = local(e); pointer = p; last = { x: e.clientX, y: e.clientY }; moved = false; downAt = p;
-    if (view.inInset(p.x, p.y)) { var m = view.unproject(p.x, p.y, view.inset()); if (m) turnTo = { p: m, left: 20 }; downCell = -1; return; }
+    if (view.inInset(p.x, p.y)) { var m = view.insetPoint(p.x, p.y); if (m) turnTo = { p: m, left: 20 }; downCell = -1; return; }
     var c = view.pick(p.x, p.y); downCell = c;
     var n = game.sel.length; wasLast = n > 0 && game.sel[n - 1] === c;
     if (locked && c >= 0 && game.free(c)) {
@@ -182,7 +187,7 @@
     }
   };
   $("lock").onclick = function () { locked = !locked; save_("skein-lock", locked); hud(); };
-  $("viewmode").onclick = function () { view.mode = view.mode === "whole" ? "globe" : "whole"; save_("skein-view", view.mode); hud(); };
+  $("viewmode").onclick = function () { view.mode = view.mode === "whole" ? "globe" : "whole"; save_(game && game.s.torus ? "skein-tview" : "skein-view", view.mode); hud(); };
   $("daily").onclick = function () { open($("sphere").value, dailyTheme(), "daily-" + today(), true); };
   function fresh() { var t; do { t = Math.floor(Math.random() * K.THEMES.length); } while (game && K.THEMES[t].clue === game.board.clue && K.THEMES.length > 1); open($("sphere").value, t, randomSeed(), false); }
   $("new").onclick = fresh;
@@ -193,10 +198,11 @@
 
   /* ----------------------------------------------------------------- loop */
   function frame() {
-    if (turnTo) { view.face(turnTo.p, 0.2); dirty = true; if (--turnTo.left <= 0) turnTo = null; }
+    if (turnTo) { view.toward(turnTo.p, 0.2); dirty = true; if (--turnTo.left <= 0) turnTo = null; }
     if (drawing && pointer && view.mode === "globe") { // tracing near the rim rolls the sphere toward you
-      var dx = view.w / 2 - pointer.x, dy = view.h / 2 - pointer.y, r = view.radius(), d = Math.hypot(dx, dy);
-      if (d > r * 0.7) { var k = Math.min(1, (d - r * 0.7) / (r * 0.3)) * 3.5 / d; view.drag(dx * k, dy * k); dirty = true; follow(); }
+      // (the donut is wider than the ball: there, only near the screen's edge)
+      var dx = view.w / 2 - pointer.x, dy = view.h / 2 - pointer.y, r = game.s.torus ? Math.min(view.w, view.h) * 0.5 : view.radius(), d = Math.hypot(dx, dy), r0 = game.s.torus ? 0.85 : 0.7;
+      if (d > r * r0) { var k = Math.min(1, (d - r * r0) / (r * (1 - r0))) * 3.5 / d; view.drag(dx * k, dy * k); dirty = true; follow(); }
     }
     if (view.flash) { dirty = true; if (view.flash.until < Date.now()) view.flash = null; }
     if (dirty) { view.draw(); dirty = false; }
@@ -212,7 +218,7 @@
   }).catch(function () { /* hints just never accrue */ });
 
   var q = new URLSearchParams(location.search), sph = q.get("s") || load_("skein-sphere", "c80");
-  if (!/^c(80|180|240)$/.test(sph)) sph = "c80";
+  if (!/^(c(80|180|240)|t(32|72|128))$/.test(sph)) sph = "c80";
   if (load_("skein-seen", false) || q.get("seed")) $("start").hidden = true;
   fit();
   if (q.get("seed") && q.get("t") != null && K.THEMES[+q.get("t")]) open(sph, +q.get("t"), q.get("seed"), false);

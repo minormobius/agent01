@@ -21,9 +21,14 @@
         <option value="c80">C80 · 42</option>
         <option value="c180">C180 · 92</option>
         <option value="c240">C240 · 122</option>
+        <optgroup label="torus">
+          <option value="t32">torus · 32</option>
+          <option value="t72">torus · 72</option>
+          <option value="t128">torus · 128</option>
+        </optgroup>
       </select>
       <button type="button" id="lock" class="tog" aria-pressed="true" title="Trace: one finger draws. Turn: one finger turns, taps pick letters. (l)">✎ trace</button>
-      <button type="button" id="viewmode" class="tog" title="Globe or whole sphere (v)">◐ globe</button>
+      <button type="button" id="viewmode" class="tog" title="Globe or whole sphere; on a torus, the donut or the flat map (v)">◐ globe</button>
     </div>
   </div>
   <div id="clue"><span class="k">theme</span> <b id="clue-text">—</b></div>
@@ -69,6 +74,7 @@
 </div>
 
 <script src="../onecoast/js/geo.js"></script>
+<script src="../orb/js/torus.js"></script>
 <script src="js/themes.js"></script>
 <script src="js/gen.js"></script>
 <script src="js/game.js"></script>

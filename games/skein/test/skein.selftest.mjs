@@ -1,7 +1,8 @@
 /* node games/skein/test/skein.selftest.mjs
  *
  * The promises Skein makes, checked:
- *   - every theme pack is well formed and can span every sphere size;
+ *   - every theme pack is well formed and can span every sphere size (and
+ *     every honeycomb torus);
  *   - every theme makes a board on every size, and each board is what it
  *     claims: letters on every tile, each word a chain of neighbours, no
  *     tile twice, every tile used, the span pole to pole, EXACTLY ONE way
@@ -19,11 +20,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const K = await loadSkein();
 let fails = 0;
 const ok = (c, msg) => { if (!c) { fails++; console.log("  ✗ " + msg); } };
-const SIZES = ["c80", "c180", "c240"];
+const SIZES = ["c80", "c180", "c240"].concat(K.TORI); // the Goldberg spheres, and the honeycomb tori
 
 console.log("theme packs");
 const reachOf = {};
-for (const sz of SIZES) { const s = K.sphere(sz), [a, b] = K.polePairs(s)[0]; reachOf[sz] = K.bfs(s, a)[b] + 1; }
+for (const sz of SIZES) { const s = K.sphere(sz); reachOf[sz] = Math.max(...K.polePairs(s).map(([a, b]) => K.bfs(s, a)[b] + 1)); }
 for (const t of K.THEMES) {
   const all = t.words.concat(t.spans);
   ok(all.every((w) => /^[A-Z]{4,}$/.test(w)), `${t.clue}: words are 4+ capital letters`);
@@ -35,7 +36,7 @@ console.log(`  ${K.THEMES.length} themes · poles ${SIZES.map((s) => s + " " + r
 console.log("boards: every theme × every size, proved unique");
 let boards = 0, ms = 0, attempts = 0;
 for (const sz of SIZES) {
-  const s = K.sphere(sz), pents = new Set(); for (let i = 0; i < s.n; i++) if (s.pent[i]) pents.add(i);
+  const s = K.sphere(sz), pairs = new Set(K.polePairs(s).map(([a, b]) => a + "," + b));
   K.THEMES.forEach((t, ti) => {
     for (const seed of ["a", "b"]) {
       const t0 = Date.now(), B = K.generate(t, sz, seed); ms += Date.now() - t0;
@@ -52,7 +53,7 @@ for (const sz of SIZES) {
       const sp = B.words.filter((W) => W.span);
       ok(sp.length === 1, `${t.clue} ${sz}: one span`);
       const ends = [sp[0].cells[0], sp[0].cells[sp[0].cells.length - 1]].sort((x, y) => x - y), poles = B.poles.slice().sort((x, y) => x - y);
-      ok(ends[0] === poles[0] && ends[1] === poles[1] && pents.has(poles[0]) && pents.has(poles[1]), `${t.clue} ${sz}: the span runs pole to pole`);
+      ok(ends[0] === poles[0] && ends[1] === poles[1] && pairs.has(poles[0] + "," + poles[1]), `${t.clue} ${sz}: the span runs pole to pole (antipodal pentagons; on a torus, cells half way round both ways)`);
       ok(B.words.every((W) => t.words.includes(W.w) || t.spans.includes(W.w)), `${t.clue} ${sz}: words come from the pack`);
       ok(!B.words.some((W, i) => B.words.some((V, j) => i !== j && V.w.includes(W.w))), `${t.clue} ${sz}: no word inside another`);
       ok(K.countSolutions(s, B.letters.split(""), B.words.map((W) => W.w), 3).solutions === 1, `${t.clue} ${sz}: exactly one answer`);

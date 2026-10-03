@@ -8,7 +8,8 @@
    foreshortened with the surface (squashed along the radius by the cosine
    of its tilt), so the sphere reads as a ball of letters, not a sticker
    sheet. Found words are tinted and threaded (a line through their tiles in
-   order); the span is gold. The two poles are ringed. */
+   order); the span is gold. The two poles are ringed. The honeycomb tori
+   draw through Orb's torus views instead (see "the torus" below). */
 (function () {
   "use strict";
   var NS = (typeof window !== "undefined") ? window : globalThis;
@@ -31,6 +32,7 @@
   View.prototype.main = function () { return { cx: this.w / 2, cy: this.h / 2, r: this.radius(), mode: this.mode }; };
   View.prototype.inset = function () { var mr = Math.max(34, Math.min(70, Math.min(this.w, this.h) * 0.13)); return { cx: this.w - mr - 6, cy: mr + 6, r: mr, mode: "whole", mini: true }; };
   View.prototype.drag = function (dx, dy) {
+    if (this.torus()) { this.camFor().drag(dx, dy, this.tmode(), this.w, this.h); return; }
     var r = this.radius() * (this.mode === "whole" ? 0.5 : 1), a = dx / r, b = dy / r, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
     this.R = mul([ca, sa * sb, sa * cb, 0, cb, -sb, -sa, ca * sb, ca * cb], this.R); ortho(this.R);
   };
@@ -55,6 +57,7 @@
     return [R[0] * x + R[3] * y + R[6] * z, R[1] * x + R[4] * y + R[7] * z, R[2] * x + R[5] * y + R[8] * z];
   };
   View.prototype.inInset = function (px, py) {
+    if (this.torus()) { if (this.mode !== "globe" || !this.mini) return false; var iv = this.tinset(); return Math.abs(px - iv.cx) <= iv.w / 2 && Math.abs(py - iv.cy) <= iv.h / 2; }
     if (this.mode !== "globe" || !this.mini) return false;
     var vp = this.inset(); return Math.hypot(px - vp.cx, py - vp.cy) <= vp.r;
   };
@@ -63,6 +66,7 @@
      close to the tile's centre, relative to the tile's size: tracing uses it
      so a diagonal swipe that clips a corner doesn't grab the corner tile. */
   View.prototype.pick = function (px, py, inner) {
+    if (this.torus()) return this.tpick(px, py, inner);
     var m = this.unproject(px, py), g = this.game;
     if (!m || !g) return -1;
     var s = g.s, best = -2, bi = -1, second = -2;
@@ -73,7 +77,14 @@
     if (inner) { var cell = Math.sqrt(4 / s.n); if (Math.acos(Math.min(1, second)) - Math.acos(Math.min(1, best)) < inner * cell * 0.5) return -1; }
     return bi;
   };
-  View.prototype.centreOf = function (i) { var P = this.game.s.pos; return [P[3 * i], P[3 * i + 1], P[3 * i + 2]]; };
+  View.prototype.centreOf = function (i) { // a point to turn toward: on the sphere, the tile's centre; on a torus, its flat site
+    if (this.torus()) { var m = this.game.s.mesh; return [m.sites[2 * i], m.sites[2 * i + 1]]; }
+    var P = this.game.s.pos; return [P[3 * i], P[3 * i + 1], P[3 * i + 2]];
+  };
+  /* Ease point p (from centreOf or insetPoint) to the middle by fraction t. */
+  View.prototype.toward = function (p, t) { if (this.torus()) this.camFor().toward(p[0], p[1], t); else this.face(p, t); };
+  /* The point under a tap on the corner map. */
+  View.prototype.insetPoint = function (px, py) { return this.torus() ? this.tframe(this.tinset(), "flat").flatAt(px, py) : this.unproject(px, py, this.inset()); };
 
   function rgb(c, lit) { return "rgb(" + Math.round(c[0] * lit) + "," + Math.round(c[1] * lit) + "," + Math.round(c[2] * lit) + ")"; }
   function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
@@ -82,6 +93,11 @@
     var ctx = this.ctx, dpr = this.dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, this.w, this.h);
     if (!this.game) return;
+    if (this.torus()) {
+      this.tscene(this.tframe(this.tmain(), this.tmode()), false);
+      if (this.mode === "globe" && this.mini) this.tscene(this.tframe(this.tinset(), "flat"), true);
+      return;
+    }
     this.scene(this.main());
     if (this.mode === "globe" && this.mini) this.scene(this.inset());
   };
@@ -177,6 +193,97 @@
     });
     this.rim(vp);
   };
+  /* ------------------------------------------------------------ the torus
+     The honeycomb tori draw through ../orb/js/torus.js, as in /strand/:
+     "globe" is a donut whose skin slides under your finger (nothing turns),
+     "whole" is the flat map (a rectangle that wraps both ways), and the
+     corner map is the flat map too. */
+  View.prototype.torus = function () { return !!(this.game && this.game.s.torus); };
+  View.prototype.tmode = function () { return this.mode === "whole" ? "flat" : "donut"; };
+  View.prototype.camFor = function () {
+    var m = this.game.s.mesh;
+    if (!this.cam || this.cam.mesh !== m) this.cam = NS.ORB.surfaceCam(m);
+    this.cam.zoom = this.zoom; return this.cam;
+  };
+  View.prototype.tmain = function () { return { cx: this.w / 2, cy: this.h / 2, w: this.w, h: this.h }; };
+  View.prototype.tinset = function () {
+    var m = this.game.s.mesh, iw = Math.max(90, Math.min(170, this.w * 0.34)), ih = iw * m.H / m.W;
+    return { cx: this.w - iw / 2 - 8, cy: ih / 2 + 8, w: iw, h: ih, mini: true };
+  };
+  View.prototype.tframe = function (vp, mode) { return new NS.ORB.TorusFrame(this.camFor(), vp, mode); };
+  /* The tile under a point; with `inner`, only well inside it (every point a
+     little way round the finger must be the same tile). */
+  View.prototype.tpick = function (px, py, inner) {
+    var F = this.tframe(this.tmain(), this.tmode()), c = F.pick(px, py);
+    if (c < 0 || !inner) return c;
+    var rr = inner * Math.max(3, F.cellR) * 0.55;
+    for (var k = 0; k < 6; k++) if (F.pick(px + rr * Math.cos(k * 1.047), py + rr * Math.sin(k * 1.047)) !== c) return -1;
+    return c;
+  };
+  View.prototype.tscene = function (F, mini) {
+    var ctx = this.ctx, g = this.game, s = g.s, m = s.mesh, donut = F.mode === "donut", cam = F.cam, dpr = this.dpr;
+    var cellR = Math.max(3, F.cellR), flash = this.flash && this.flash.until > Date.now() ? this.flash : null;
+    var LT = (function () { var l = Math.hypot(-0.35, -0.55, 0.75); return [-0.35 / l, -0.55 / l, 0.75 / l]; })();
+    var lit = function (i) { if (!donut) return 0.86; var e = cam.embed(m.sites[2 * i], m.sites[2 * i + 1]); return 0.5 + 0.5 * Math.max(0, e.n[0] * LT[0] + e.n[1] * LT[1] + e.n[2] * LT[2]); };
+    var trace = function (ring) { ctx.beginPath(); ring.forEach(function (p, k) { if (k) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.closePath(); };
+    var inSel = new Uint8Array(s.n); g.sel.forEach(function (c2) { inSel[c2] = 1; });
+    var hintCells = new Uint8Array(s.n); if (g.hint >= 0) g.words[g.hint].cells.forEach(function (c2) { hintCells[c2] = 1; });
+    var hintOrder = g.hint >= 0 && g.hintLevel >= 2 ? g.words[g.hint].cells : null, poles = g.board.poles;
+    var font = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+
+    if (mini) { ctx.fillStyle = "rgba(10,14,22,0.92)"; ctx.fillRect(F.vp.cx - F.vp.w / 2 - 3, F.vp.cy - F.vp.h / 2 - 3, F.vp.w + 6, F.vp.h + 6); ctx.save(); ctx.beginPath(); ctx.rect(F.vp.cx - F.vp.w / 2, F.vp.cy - F.vp.h / 2, F.vp.w, F.vp.h); ctx.clip(); }
+    else if (donut) {
+      ctx.fillStyle = "rgba(255,206,120,0.05)"; ctx.beginPath();
+      ctx.ellipse(F.vp.cx + F.ox, F.vp.cy + F.oy, F.k * (cam.R + cam.r) * 1.08, F.k * ((cam.R + cam.r) * Math.sin(cam.tilt) + cam.r * Math.cos(cam.tilt)) * 1.08, 0, 0, 6.2832); ctx.fill();
+    }
+    F.tiles.forEach(function (t) {
+      ctx.save(); ctx.transform(t[0], t[1], t[2], t[3], t[4], t[5]);
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      F.order.forEach(function (k) {
+        var ring = F.ring(k); if (!ring) return;
+        var own = g.owner[k], base = own >= 0 ? (g.words[own].span ? SPAN : WORD) : inSel[k] ? TRACE : TILE, face = donut ? Math.max(0, F.P[k][4]) : 1;
+        if (flash && flash.cells.has(k)) base = mix(base, flash.color, 0.6);
+        trace(ring); ctx.fillStyle = rgb(base, lit(k) * (donut ? 0.55 + 0.45 * Math.min(1, face * 2) : 1)); ctx.fill();
+        if (mini) return;
+        ctx.strokeStyle = "#06080d"; ctx.lineWidth = Math.max(0.8, cellR * 0.08); ctx.stroke();
+        if (poles[0] === k || poles[1] === k) { ctx.strokeStyle = "rgba(255,206,104,0.9)"; ctx.lineWidth = Math.max(1.5, cellR * 0.1); ctx.stroke(); }
+        if (hintCells[k] && own < 0) { ctx.setLineDash([Math.max(2, cellR * 0.14), Math.max(2, cellR * 0.1)]); ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = Math.max(1.2, cellR * 0.07); ctx.stroke(); ctx.setLineDash([]); }
+      });
+      if (!mini) {
+        var thread = function (cells, color, wdt) {
+          ctx.strokeStyle = color; ctx.lineWidth = wdt;
+          for (var q = 1; q < cells.length; q++) {
+            var a = cells[q - 1], A = F.cell(a), B = F.near(cells[q], a);
+            if (donut && !(F.P[a][3] && F.P[cells[q]][3])) continue;
+            ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+          }
+        };
+        g.found.forEach(function (wi) { var W = g.words[wi]; thread(W.cells, W.span ? THREAD_SPAN : THREAD_WORD, cellR * 0.42); });
+        if (g.sel.length > 1) thread(g.sel, THREAD_TRACE, cellR * 0.46);
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        F.order.forEach(function (k) {
+          var P = F.cell(k), face = donut ? P[4] : 1;
+          if (donut && (!P[3] || face < 0.15)) return;
+          var size = cellR * 0.95 * (donut ? 0.45 + 0.55 * face : 1), own = g.owner[k];
+          ctx.fillStyle = own >= 0 ? (g.words[own].span ? "#fff3d6" : "#e6f0ff") : inSel[k] ? "#1a1206" : "rgba(226,232,244," + (0.55 + 0.45 * face) + ")";
+          ctx.font = "700 " + size.toFixed(1) + "px " + font;
+          ctx.fillText(g.letters[k], P[0], P[1] + size * 0.04);
+          if (hintOrder) { var at = hintOrder.indexOf(k); if (at >= 0) { ctx.font = "700 " + (size * 0.36).toFixed(1) + "px " + font; ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.fillText(String(at + 1), P[0] + size * 0.42, P[1] - size * 0.42); } }
+        });
+      }
+      ctx.restore();
+    });
+    if (mini) {
+      ctx.restore();
+      ctx.strokeStyle = "#2a3448"; ctx.lineWidth = 1; ctx.strokeRect(F.vp.cx - F.vp.w / 2, F.vp.cy - F.vp.h / 2, F.vp.w, F.vp.h);
+      ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(F.vp.cx, F.vp.cy, Math.max(4, cellR * 1.6), 0, 6.2832); ctx.stroke();
+    } else if (!donut) {
+      ctx.strokeStyle = "rgba(255,220,160,0.25)"; ctx.setLineDash([5, 6]); ctx.lineWidth = 1;
+      ctx.strokeRect(F.box[0], F.box[1], F.box[2], F.box[3]); ctx.setLineDash([]);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+
   View.prototype.rim = function (vp) {
     var ctx = this.ctx, cx = vp.cx, cy = vp.cy, r = vp.r;
     if (vp.mode === "whole") {

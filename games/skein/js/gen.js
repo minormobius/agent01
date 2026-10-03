@@ -37,9 +37,15 @@
     for (var h = 0; h < q.length; h++) { var u = q[h]; s.nbrs[u].forEach(function (v) { if (d[v] < 0 && (!ok || ok(v))) { d[v] = d[u] + 1; q.push(v); } }); }
     return d;
   }
-  /* The six antipodal pentagon pairs. */
+  /* The six antipodal pentagon pairs. On a torus: every cell and the cell
+     half way round both ways, as far as the torus goes. */
   function polePairs(s) {
     var P = [], out = [];
+    if (s.torus) {
+      var m = s.mesh;
+      for (var c = 0; c < s.n; c++) { var o = NS.ORB.torusCellAt(m, m.sites[2 * c] + m.W / 2, m.sites[2 * c + 1] + m.H / 2); if (c < o) out.push([c, o]); }
+      return out;
+    }
     for (var i = 0; i < s.n; i++) if (s.pent[i]) P.push(i);
     P.forEach(function (a) {
       var b = -1, best = 2;
@@ -186,7 +192,7 @@
     return { solutions: found, placements: P.length, nodes: nodes };
   }
 
-  /* Make a board. theme: an entry of K.THEMES; sphereName: c80, c180, c240.
+  /* Make a board. theme: an entry of K.THEMES; sphereName: c80, c180, c240, t32, t72, t128.
      Returns { sphere, clue, poles, letters, words: [{ w, cells, span }] }. */
   function generate(theme, sphereName, seed, opts) {
     opts = opts || {};
@@ -221,5 +227,16 @@
 
   K.rngFrom = rngFrom; K.polePairs = polePairs; K.placements = placements; K.countSolutions = countSolutions;
   K.generate = generate; K.bfs = bfs;
-  K.sphere = function (name) { return NS.COAST.sphere(name); };
+  /* The boards: One Coast's Goldberg spheres (c80, c180, c240), and
+     honeycomb tori (t32, t72, t128: rows × twice as many columns, the
+     donut's own proportions) from ../orb/js/torus.js. A torus needs no
+     pentagons (Euler χ = 0), so every cell has six neighbours. */
+  var TORI = { t32: [4, 8], t72: [6, 12], t128: [8, 16] }, tcache = {};
+  K.TORI = Object.keys(TORI);
+  K.sphere = function (name) {
+    if (!TORI[name]) return NS.COAST.sphere(name);
+    if (tcache[name]) return tcache[name];
+    var h = NS.ORB.buildHexTorus(TORI[name][0], TORI[name][1]);
+    return (tcache[name] = { name: name, torus: true, n: h.n, nbrs: h.nbrs, mesh: h });
+  };
 })();

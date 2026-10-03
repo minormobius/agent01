@@ -105,7 +105,10 @@ Three things live here:
   theme word, and the theme itself (the span) runs between two antipodal pentagons.
   Boards are generated in the page from a seed, so the daily ball is the date.
   Each board is proved by an exact-cover solver to have exactly one answer, in
-  milliseconds. Borrows `../onecoast/js/geo.js`. Hints are earned with words
+  milliseconds. Also on honeycomb tori (32, 72, 128 tiles), where the span runs
+  between two tiles half way round both ways; drawn as the flat map or the
+  donut with Orb's `torus.js`. Borrows `../onecoast/js/geo.js` and
+  `../orb/js/torus.js`. Hints are earned with words
   from `dict/words.txt`, which is derived from `words/dict/enable1.txt` by
   `tools/dict.mjs`; the selftest checks it is current. See
   [`skein/README.md`](skein/README.md).
