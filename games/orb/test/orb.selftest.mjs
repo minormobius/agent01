@@ -321,6 +321,11 @@ console.log("hard mode");
 console.log("score corpus (fake network)");
 {
   const { Corpus, accept } = await import(new URL("../js/corpus.js", import.meta.url));
+  { // every tier's game id, pure and hard, is one the board will read back (the surfaces' ids were once dropped)
+    const ids = Object.keys(O.SIZES).flatMap((k) => [O.gameId(k, false), O.gameId(k, true)]);
+    const shut = ids.filter((game) => !accept({ site: "orb", game, value: 60000, unit: "ms", higherIsBetter: false, createdAt: new Date().toISOString() }));
+    ck(!shut.length, `the board reads back every tier's records, pure and hard (${ids.length} game ids${shut.length ? "; refused: " + shut.join(", ") : ""})`);
+  }
   const now = Date.now(), iso = (dt) => new Date(now - dt).toISOString();
   const rec = (game, value, dt = 0, extra = {}) => ({ $type: "com.minomobi.lab.score", site: "orb", game, value, unit: "ms", higherIsBetter: false, createdAt: iso(dt), ...extra });
   const repos = {

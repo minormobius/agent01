@@ -29,7 +29,8 @@ export const COLLECTION = "com.minomobi.lab.score";
    Orb records: site "orb", game pure-<cells>-<mines> or hard-<cells>-<mines>-<climb>, an integer time
    in ms. */
 export function accept(v) {
-  return !!v && v.site === "orb" && /^(pure-\d{2,5}-\d{1,5}|hard-\d{2,5}-\d{1,5}-\d{1,5})$/.test(v.game) && v.unit === "ms" &&
+  // the game id is rules.js gameId: the sphere's, or a surface's (torus-, klein-, proj-, genus2-) before it
+  return !!v && v.site === "orb" && /^((torus|klein|proj|genus2)-)?(pure-\d{2,5}-\d{1,5}|hard-\d{2,5}-\d{1,5}-\d{1,5})$/.test(v.game) && v.unit === "ms" &&
     v.higherIsBetter === false && Number.isInteger(v.value) && v.value >= 1000 && v.value <= 86400e3 &&
     typeof v.createdAt === "string" && !isNaN(Date.parse(v.createdAt));
 }
