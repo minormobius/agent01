@@ -101,17 +101,27 @@ await t('parseStream reads the answer, the cost and the rate-limit report', () =
   assert.equal(parseStream('').found, false, 'no result line is detectable');
   assert.equal(parseStream(JSON.stringify({ type: 'result', is_error: true, result: 'boom' })).isError, true);
 });
-await t('the window summary counts silent calls and keeps the peak', () => {
+await t('the window summary reads unifiedWindows, counts silent calls, and keeps start, end and peak', () => {
+  // The shape second light (2026-10-03) actually returned, on every call.
+  const real = (five, seven) => ({ status: 'allowed', rateLimitType: 'five_hour', resetsAt: 1791003600,
+    overageStatus: 'rejected', unifiedWindows: { five_hour: { utilization: five, resetsAt: 1791003600 }, seven_day: { utilization: seven, resetsAt: 1791471600 } } });
   const w = newWindows();
   noteWindows(w, []);
-  noteWindows(w, [{ rateLimitType: 'five_hour', utilization: 0.30, status: 'allowed' }]);
-  noteWindows(w, [{ rateLimitType: 'five_hour', utilization: 0.20, status: 'allowed' }, { rateLimitType: 'seven_day', utilization: 0.61, status: 'allowed' }]);
+  noteWindows(w, [real(0.18, 0.09)]);
+  noteWindows(w, [real(0.23, 0.10)]);
+  noteWindows(w, [real(0.21, 0.10)]);
   noteWindows(w, undefined);
   const s = summarizeWindows(w);
-  assert.equal(s.calls, 4); assert.equal(s.calls_reporting, 2);
-  assert.equal(s.types.five_hour.peak_utilization, 0.30, 'peak, not last');
-  assert.equal(s.types.five_hour.last.utilization, 0.20);
-  assert.equal(s.types.seven_day.reports, 1);
+  assert.equal(s.calls, 5); assert.equal(s.calls_reporting, 3);
+  assert.equal(s.status, 'allowed'); assert.equal(s.overage, 'rejected');
+  assert.equal(s.types.five_hour.start, 0.18); assert.equal(s.types.five_hour.end, 0.21);
+  assert.equal(s.types.five_hour.peak_utilization, 0.23);
+  assert.equal(s.types.five_hour.used_by_run, 0.03);
+  assert.equal(s.types.seven_day.resets_at, '2026-10-08T15:00:00.000Z');
+  // The older flat shape (lab-agent-outcome's captured warning) still reads.
+  const f = newWindows();
+  noteWindows(f, [{ status: 'allowed_warning', rateLimitType: 'seven_day', utilization: 0.85 }]);
+  assert.equal(summarizeWindows(f).types.seven_day.end, 0.85);
 });
 
 // ---- the frame is the same for life and for tests ------------------------------------------
@@ -179,6 +189,7 @@ await t('a run records the usage window on its scorecard', async () => {
   const w = scorecard.run.window;
   assert.ok(w.calls > 0 && w.calls_reporting > 0 && w.calls_reporting < w.calls, 'judges were silent, souls reported');
   assert.equal(w.types.five_hour.peak_utilization, 0.42);
+  assert.equal(w.types.five_hour.used_by_run, 0);
 });
 
 await t('a lab of one soul refuses to run', async () => {

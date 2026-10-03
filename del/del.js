@@ -100,8 +100,12 @@ cached(RAW + 'packages/whetstone/gates.json').then((g) => {
 // The subscription's usage windows as the run saw them (whetstone records rate_limit_event lines).
 function windowText(w) {
   if (!w) return '';
-  const parts = Object.entries(w.types || {}).map(([k, t]) =>
-    `${k.replace('_', '-')} ${t.peak_utilization == null ? '?' : Math.round(t.peak_utilization * 100) + '%'}`);
+  const pct = (x) => (x == null ? '?' : `${Math.round(x * 100)}%`);
+  let wins = Object.entries(w.types || {}).map(([k, t]) => [k, t.end ?? t.peak_utilization ?? null]);
+  // Second light (the first run to record windows) kept them only inside the last raw report.
+  const raw = Object.values(w.types || {}).find((t) => t.last?.unifiedWindows)?.last?.unifiedWindows;
+  if (raw && wins.every(([, v]) => v == null)) wins = Object.entries(raw).map(([k, v]) => [k, v?.utilization]);
+  const parts = wins.map(([k, v]) => `${k.replace('_', '-')} ${pct(v)}`);
   return ` · usage window: ${parts.length ? parts.join(', ') : 'not reported'} (${w.calls_reporting}/${w.calls} calls)`;
 }
 

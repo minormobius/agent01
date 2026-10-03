@@ -160,33 +160,47 @@ export async function runLab({
 }
 
 // ---- the account's usage windows ---------------------------------------------------------
-// Every call may report where the subscription's windows stand (five_hour, seven_day). The run
-// keeps the last report and the peak utilization per window, and how many calls reported at all,
-// because "Claude Code only says something past a threshold" and "the account had slack all run"
-// look identical unless the silent calls are counted too.
+// Claude Code reports the subscription's windows on every call (second light: 111 of 111), as
+//   { status, rateLimitType, resetsAt, overageStatus, ...,
+//     unifiedWindows: { five_hour: { utilization, resetsAt }, seven_day: { utilization, resetsAt } } }
+// The run keeps, per window, the utilization it saw first and last and the peak, so end - start
+// is roughly what the run itself consumed (other use of the account in the same minutes counts
+// too). Silent calls are still counted, in case a future CLI stops reporting on every call.
 
-export function newWindows() { return { calls: 0, reporting: 0, byType: {} }; }
+export function newWindows() { return { calls: 0, reporting: 0, status: null, overage: null, byType: {} }; }
 
 export function noteWindows(w, infos = []) {
   w.calls++;
   if (!infos?.length) return;
   w.reporting++;
   for (const i of infos) {
-    const k = i.rateLimitType || 'unknown';
-    const b = (w.byType[k] ||= { reports: 0, peak: null, last: null });
-    b.reports++;
-    const u = Number(i.utilization);
-    if (Number.isFinite(u) && (b.peak === null || u > b.peak)) b.peak = u;
-    b.last = i;
+    w.status = i.status ?? w.status;
+    w.overage = i.overageStatus ?? w.overage;
+    const wins = i.unifiedWindows && typeof i.unifiedWindows === 'object'
+      ? Object.entries(i.unifiedWindows)
+      : [[i.rateLimitType || 'unknown', { utilization: i.utilization, resetsAt: i.resetsAt }]];
+    for (const [k, v] of wins) {
+      const u = Number(v?.utilization);
+      if (!Number.isFinite(u)) continue;
+      const b = (w.byType[k] ||= { reports: 0, start: u, end: u, peak: u, resetsAt: null });
+      b.reports++;
+      b.end = u;
+      if (u > b.peak) b.peak = u;
+      if (v?.resetsAt) b.resetsAt = v.resetsAt;
+    }
   }
 }
 
 export function summarizeWindows(w) {
   const types = {};
   for (const [k, b] of Object.entries(w.byType)) {
-    types[k] = { reports: b.reports, peak_utilization: b.peak, last_status: b.last?.status ?? null, last: b.last };
+    types[k] = {
+      reports: b.reports, start: b.start, end: b.end, peak_utilization: b.peak,
+      used_by_run: round(b.end - b.start, 3),
+      resets_at: b.resetsAt ? new Date(b.resetsAt * 1000).toISOString() : null,
+    };
   }
-  return { calls: w.calls, calls_reporting: w.reporting, types };
+  return { calls: w.calls, calls_reporting: w.reporting, status: w.status, overage: w.overage, types };
 }
 
 // ---- the scorecard --------------------------------------------------------------------

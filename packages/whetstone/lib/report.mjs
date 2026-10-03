@@ -10,9 +10,10 @@ export function scorecardMarkdown(sc, records = []) {
   L.push(`model \`${r.model}\` · judge \`${r.judge_model}\` · ${r.calls} calls · $${r.cost_usd} · ${r.seconds}s · seed ${r.seed} · reps ${r.reps}`);
   const w = r.window;
   if (w) {
+    const pct = (x) => (x == null ? '?' : `${Math.round(x * 100)}%`);
     const parts = Object.entries(w.types || {}).map(([k, t]) =>
-      `${k} peak ${t.peak_utilization === null ? '?' : Math.round(t.peak_utilization * 100) + '%'} (${t.last_status})`);
-    L.push(`usage window: ${w.calls_reporting} of ${w.calls} calls reported${parts.length ? ' · ' + parts.join(' · ') : ''}`);
+      `${k} ${pct(t.start)} → ${pct(t.end)}${t.resets_at ? ` (resets ${t.resets_at.slice(0, 16).replace('T', ' ')}Z)` : ''}`);
+    L.push(`usage window: ${w.calls_reporting} of ${w.calls} calls reported · status ${w.status ?? '?'}${parts.length ? ' · ' + parts.join(' · ') : ''}`);
   }
   L.push('');
 
