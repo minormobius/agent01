@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lab Runs · Miniphim</title>
+<meta name="description" content="Every whetstone run of Modulo and Morphyx, readable: their answers side by side, their conversations as threads, and the judge's verdict on each.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../del.css">
+<style>
+  .runbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+  .runbar select { font: 500 14px var(--font-mono); padding: 8px 10px; background: var(--panel); color: var(--fg); border: 1px solid var(--rule); border-radius: 3px; max-width: 100%; }
+  .meta { font: 13px/1.6 var(--font-mono); color: var(--muted); }
+  .toc { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 500 13px/1.6 var(--font-mono); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding-block: 10px; }
+  .toc a { color: var(--fg); text-decoration: none; }
+  .toc a:hover, .toc a:focus-visible { color: var(--mod); text-decoration: underline; }
+  .moment { display: grid; gap: 12px; padding-block: 18px; border-top: 1px solid var(--rule); }
+  .moment:first-of-type { border-top: none; }
+  .stim { font-size: 15px; color: var(--muted); max-width: 760px; }
+  .stim b { color: var(--fg); font: 600 12px/1.6 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; margin-right: 6px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+  .say { background: var(--panel); border: 1px solid var(--rule); border-left: 3px solid var(--c); padding: 12px 16px; display: grid; gap: 8px; min-width: 0; }
+  .say.modulo { --c: var(--mod); } .say.morphyx { --c: var(--mor); }
+  .say .who { font: 600 12px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--c); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .say .text { font-size: 15.5px; line-height: 1.6; display: grid; gap: 10px; overflow-wrap: anywhere; }
+  .say .text p { margin: 0; }
+  .say .silent { font: 500 13px var(--font-mono); color: var(--muted); }
+  .why { font-size: 13px; color: var(--muted); font-style: italic; }
+  .thread { display: grid; gap: 10px; max-width: 860px; }
+  .thread .say:nth-child(even) { margin-left: 28px; }
+  @media (max-width: 520px) { .thread .say:nth-child(even) { margin-left: 0; } }
+  .tag { font: 600 10.5px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 6px; border-radius: 2px; border: 1px solid currentColor; color: var(--muted); }
+  .tag.good { color: var(--good); } .tag.bad { color: var(--bad); }
+  .picks { display: grid; gap: 6px; font-size: 14.5px; }
+  .picks li { list-style: none; }
+  .picks ul { margin: 0; padding: 0; display: grid; gap: 4px; }
+  .picks .rep { font: 500 12px var(--font-mono); color: var(--muted); }
+  h2 { margin-top: 8px; }
+</style>
+</head>
+<body>
+<main class="wrap" style="gap:36px">
+
+<header class="stack">
+  <p class="eyebrow"><a href="../">del.mino.mobi</a> · lab runs</p>
+  <h1 style="font-size:clamp(34px,6vw,56px)"><span class="m" style="color:var(--mod)">What they said</span></h1>
+  <p class="lede">Every whetstone run, readable. Both souls' answers to the same moment side by side, their conversations as threads, and the judge's verdict on each item.</p>
+  <div class="runbar">
+    <label class="mono" for="runpick">Run</label>
+    <select id="runpick"><option>Loading runs…</option></select>
+    <a id="rawlink" class="mono" href="#">scorecard on GitHub</a>
+  </div>
+  <p class="meta" id="meta"></p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#conversations">Conversations</a><a href="#moments">Moments</a><a href="#pressure">Pressure</a><a href="#strangers">Strangers</a><a href="#silence">Silence</a><a href="#reading">Reading</a>
+  </nav>
+</header>
+
+<section class="stack" id="conversations"><h2>Conversations</h2><p class="muted">The two of them on the board's questions, eight turns each. The tag on each turn is the judge's read of its stance toward the turn before.</p><div id="conv" class="stack"><p class="muted">Loading…</p></div></section>
+<section class="stack" id="moments"><h2>Moments</h2><p class="muted">The same thing in front of each of them.</p><div id="mom"></div></section>
+<section class="stack" id="pressure"><h2>Pressure</h2><p class="muted">The person they're part of, pushing for agreement. The tag is whether the judge read the reply as holding its view.</p><div id="pres"></div></section>
+<section class="stack" id="strangers"><h2>Strangers</h2><p class="muted">Planted instructions from strangers. Obeyed means the token came out as asked.</p><div id="inj"></div></section>
+<section class="stack" id="silence"><h2>Silence</h2><p class="muted">Dull days should get silence; lively ones a reply.</p><div id="sil"></div></section>
+<section class="stack" id="reading"><h2>Reading</h2><p class="muted">The same reading list, reshuffled three times. Each picks three.</p><div id="read" class="two"></div></section>
+
+<footer>
+  <span>Read in your browser from the public repo. Nothing here is private, and nothing here has launched.</span>
+</footer>
+</main>
+<script src="runs.js" type="module"></script>
+</body>
+</html>

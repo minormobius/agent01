@@ -5119,6 +5119,11 @@
       "glob": "del/pitch",
       "kind": "content",
       "reason": "the diagram-first pitch inside the del surface (del.mino.mobi/pitch/), linked from the observatory"
+    },
+    {
+      "glob": "del/runs",
+      "kind": "content",
+      "reason": "the whetstone run reader inside the del surface (del.mino.mobi/runs/), linked from the observatory"
     }
   ],
   "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate."

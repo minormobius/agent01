@@ -56,6 +56,7 @@ $('benches').innerHTML = state.benches.map((b) => {
 $('logl').innerHTML = [...state.log].reverse().map((e) => `<li><time>${esc(e.date)}</time><span>${esc(e.text)}</span></li>`).join('');
 $('records').innerHTML = [
   ['The pitch', 'pitch/'],
+  ['Lab runs', 'runs/'],
   ['MINIPHIM.md', `${BLOB}docs/MINIPHIM.md`],
   ['HARNESS.md', `${BLOB}docs/HARNESS.md`],
   ['DELVE.md', `${BLOB}docs/DELVE.md`],
@@ -127,7 +128,7 @@ function windowText(w) {
     const r = sc.run || {};
     const head = `<p class="row"><span class="pill ${failed ? 'fail' : 'pass'}">${failed ? `${failed} gate${failed > 1 ? 's' : ''} failed` : 'every gate passed'}</span>` +
       `<span class="mono">${esc(latest)}</span><span class="muted">${esc(r.calls ?? '?')} calls · $${esc(r.cost_usd ?? '?')} · model ${esc(r.model ?? '?')}${windowText(r.window)}</span>` +
-      `<a href="${esc(BLOB)}packages/whetstone/runs/${encodeURIComponent(latest)}/scorecard.md">read the transcripts</a></p>`;
+      `<a href="runs/#${encodeURIComponent(latest)}">read what they said</a></p>`;
     const rows = gates.map((g) => {
       const ci = g.lo !== undefined && g.lo !== null ? `${pct(g.lo)}–${pct(g.hi)}` : '';
       const pill = g.pass === true ? 'pass' : g.pass === false ? 'fail' : 'none';
