@@ -46,8 +46,15 @@ export function cliModel({ model = DEFAULT_MODEL, effort, bin = 'claude', timeou
     }
     if (process.env.ANTHROPIC_API_KEY) args.push('--bare');
     if (effort) args.push('--effort', effort);
-    const out = await run(bin, args, prompt, work ? cwd : empty, work ? workTimeoutMs : timeoutMs, env);
+    const { out, timedOut } = await run(bin, args, prompt, work ? cwd : empty, work ? workTimeoutMs : timeoutMs, env);
     const r = parseStream(out, work ? cwd : null);
+    // A work session that runs out of time did work: keep what it did, say it stopped, move on.
+    // (Retrying it in the same folder just repeats whatever held it.) A text trial that times out
+    // is an error, and the lab retries it.
+    if (timedOut) {
+      if (!work) throw new Error(`timeout after ${timeoutMs}ms`);
+      return { text: r.found ? r.text : '', cost: r.cost, rate: r.rate, trace: r.trace, turns: r.turns, stop: 'timeout' };
+    }
     if (!r.found) throw new Error(`claude -p wrote no result line: ${out.slice(-200)}`);
     // A work session that ran out of budget still did work; keep it and say so.
     if (r.isError && !(work && r.subtype)) throw new Error(`claude -p error: ${String(r.text).slice(0, 200)}`);
@@ -117,18 +124,29 @@ export function fakeModel(fn, { rate = () => [] } = {}) {
 
 // `env` adds to the environment, never replaces it: the session's identity (WHETSTONE_SOUL) is
 // how the ledger tool knows who is writing, and the lab checks it again on the way back.
-function run(bin, args, stdin, cwd, timeoutMs, env) {
+//
+// Two lessons from eighth light, where one pair session "hung" three times and took the run down:
+//  - Wait for the process to EXIT, not for its pipes to CLOSE. A soul with a shell can start a
+//    background job; it inherits stdout, so `close` never comes even after claude has finished.
+//  - Kill the whole process GROUP, on exit and on timeout, so nothing a session started outlives it.
+// A timeout resolves with what was written so far and `timedOut`, so the caller decides whether a
+// stopped session is an error (a text trial) or a result (a work session that ran out of time).
+export function run(bin, args, stdin, cwd, timeoutMs, env) {
   return new Promise((resolve, reject) => {
-    const p = spawn(bin, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: env ? { ...process.env, ...env } : process.env });
-    let out = '', err = '';
-    const t = setTimeout(() => { p.kill('SIGKILL'); reject(new Error(`timeout after ${timeoutMs}ms`)); }, timeoutMs);
+    const p = spawn(bin, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true, env: env ? { ...process.env, ...env } : process.env });
+    let out = '', err = '', settled = false;
+    const killGroup = () => { try { process.kill(-p.pid, 'SIGKILL'); } catch { try { p.kill('SIGKILL'); } catch { /* gone */ } } };
+    const finish = (v) => { if (settled) return; settled = true; clearTimeout(t); killGroup(); resolve(v); };
+    const t = setTimeout(() => finish({ out, code: null, timedOut: true }), timeoutMs);
     p.stdout.on('data', (d) => { out += d; });
     p.stderr.on('data', (d) => { err += d; });
-    p.on('error', (e) => { clearTimeout(t); reject(e); });
-    p.on('close', (code) => {
-      clearTimeout(t);
-      if (code !== 0 && !out) reject(new Error(`claude exited ${code}: ${err.slice(0, 300)}`));
-      else resolve(out);
+    p.on('error', (e) => { if (settled) return; settled = true; clearTimeout(t); reject(e); });
+    p.on('exit', (code) => {
+      // Let the last of claude's own output drain, then end it, whatever is still holding the pipe.
+      setTimeout(() => {
+        if (code !== 0 && !out) { if (!settled) { settled = true; clearTimeout(t); killGroup(); reject(new Error(`claude exited ${code}: ${err.slice(0, 300)}`)); } return; }
+        finish({ out, code, timedOut: false });
+      }, 500);
     });
     p.stdin.end(stdin);
   });

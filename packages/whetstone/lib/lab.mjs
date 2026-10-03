@@ -123,9 +123,18 @@ export async function runLab({
   const session = async (soul, prompt, meta, dirs) => {
     // Who is at the keyboard, for the ledger tool: the environment, and WHOAMI in the folder.
     if (existsSync(join(dirs.work, 'ledger'))) for (const d of [dirs.seed, dirs.work]) writeFileSync(join(d, 'ledger', 'WHOAMI'), `${soul.key}\n`);
-    const r = await askFull(call, { system: soul.text, prompt, cwd: dirs.work, tools: WORK_TOOLS,
-      env: { WHETSTONE_SOUL: soul.key, WHETSTONE_SOULS: keys.join(',') },
-      meta: { role: 'soul', soul: soul.key, ...meta } });
+    // One session that fails for good (three tries) is a stopped session, not a lost run: eighth
+    // light lost seventy-five minutes of everyone's work to a single pair turn.
+    let r;
+    try {
+      r = await askFull(call, { system: soul.text, prompt, cwd: dirs.work, tools: WORK_TOOLS,
+        env: { WHETSTONE_SOUL: soul.key, WHETSTONE_SOULS: keys.join(',') },
+        meta: { role: 'soul', soul: soul.key, ...meta } });
+    } catch (e) {
+      log(`session stopped (${soul.key}, ${meta.kind} ${meta.trial}): ${String(e.message).slice(0, 120)}`);
+      return { output: '', trace: [], turns: 0, stop: `error: ${String(e.message).slice(0, 200)}` };
+    }
+    if (r.stop === 'timeout') log(`session timed out (${soul.key}, ${meta.kind} ${meta.trial}); kept what it did`);
     return { output: r.text, trace: r.trace || [], turns: r.turns || 0, stop: r.stop || null };
   };
   const finish = async (task, dirs) => {

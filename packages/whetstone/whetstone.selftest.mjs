@@ -5,14 +5,15 @@
 //   node packages/whetstone/whetstone.selftest.mjs
 
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, chmodSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   jaccard, wilson, slope, rng, attractorRate, isSilent, leaked, parseJson, pairs, mean,
 } from './lib/measure.mjs';
 import { runLab, loadSoul, applyGates, newWindows, noteWindows, summarizeWindows } from './lib/lab.mjs';
-import { fakeModel, pool, parseStream } from './lib/model.mjs';
+import { fakeModel, pool, parseStream, cliModel } from './lib/model.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import * as P from './lib/prompts.mjs';
 import { newCommons, harvest, shelfOf, usedShelf, readTree, harvestLedger, ledgerFiles, LEDGER } from './lib/commons.mjs';
@@ -277,6 +278,45 @@ await t('harvest replaces a part of the commons with what the folder holds, dele
   assert.deepEqual(Object.keys(shelfOf(c)).sort(), ['shelf/SHELF.md', 'shelf/new.mjs']);
   assert.deepEqual(Object.keys(readTree(d.work)).sort(), ['shelf/SHELF.md', 'shelf/new.mjs']);
 });
+
+// ---- sessions that don't end cleanly (eighth light) -----------------------------------------
+// Two stand-ins for `claude`: one finishes but leaves a background child holding stdout (the
+// eighth-light hang), one never finishes. Neither may take a run down, and nothing may outlive it.
+const fakeBin = (name, body) => {
+  const d = mkdtempSync(join(tmpdir(), 'whetstone-bin-'));
+  const f = join(d, name);
+  writeFileSync(f, `#!/usr/bin/env node\n${body}`);
+  chmodSync(f, 0o755);
+  return { bin: f, dir: d };
+};
+const line = (o) => `process.stdout.write(${JSON.stringify(JSON.stringify(o) + '\n')});`;
+const use = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'x', name: 'Bash', input: { command: 'node stress.mjs &' } }] } };
+const done = { type: 'result', result: 'Ran the stress test in the background.', total_cost_usd: 0.01, num_turns: 2 };
+await t('a session that leaves a background job holding stdout ends when claude does, and the job is killed', async () => {
+  const { bin, dir } = fakeBin('claude', `${line(use)}${line(done)}
+const c = require('child_process').spawn('sleep', ['30'], { stdio: ['ignore', 'inherit', 'inherit'] });
+require('fs').writeFileSync(${JSON.stringify(join('PIDDIR', 'pid'))}.replace('PIDDIR', process.cwd()), String(c.pid));
+process.exit(0);`);
+  const call = cliModel({ bin, workTimeoutMs: 20000 });
+  const t0 = Date.now();
+  const r = await call({ system: 's', prompt: 'p', cwd: dir, tools: ['Bash'] });
+  assert.ok(Date.now() - t0 < 5000, `waited ${Date.now() - t0}ms for a finished session`);
+  assert.equal(r.text, 'Ran the stress test in the background.');
+  assert.equal(r.stop, null);
+  const pid = Number(readFileSync(join(dir, 'pid'), 'utf8'));
+  await new Promise((res) => setTimeout(res, 200));
+  // Dead, or a zombie waiting for a reaper (this container's init may not reap): either way, not running.
+  const state = (() => { try { return (readFileSync(`/proc/${pid}/status`, 'utf8').match(/^State:\s+(\w)/m) || [])[1]; } catch { return 'gone'; } })();
+  assert.ok(state === 'gone' || state === 'Z', `the background job is still running (state ${state})`);
+});
+await t('a work session that runs out of time is a stopped result with its trace; a text trial is an error', async () => {
+  const { bin, dir } = fakeBin('claude', `${line(use)} setInterval(() => {}, 1000);`);
+  const r = await cliModel({ bin, workTimeoutMs: 600 })({ system: 's', prompt: 'p', cwd: dir, tools: ['Bash'] });
+  assert.equal(r.stop, 'timeout');
+  assert.equal(r.trace.length, 1);
+  await assert.rejects(cliModel({ bin, timeoutMs: 600 })({ system: 's', prompt: 'p' }), /timeout/);
+});
+void existsSync;
 
 // ---- the ledger, the custodian, the appeals --------------------------------------------------
 await t('the ledger refuses what the rules forbid, and says why', () => {
