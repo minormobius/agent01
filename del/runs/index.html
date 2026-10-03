@@ -11,7 +11,8 @@
 <link rel="stylesheet" href="../del.css">
 <style>
   .runbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
-  .runbar select { font: 500 14px var(--font-mono); padding: 8px 10px; background: var(--panel); color: var(--fg); border: 1px solid var(--rule); border-radius: 3px; max-width: 100%; }
+  .runbar select { font: 500 14px var(--font-mono); padding: 8px 10px; background: var(--panel); color: var(--fg); border: 1px solid var(--rule); border-radius: 3px; min-width: 0; width: min(100%, 30rem); }
+  header.stack, .runbar, .runbar label { min-width: 0; }
   .meta { font: 13px/1.6 var(--font-mono); color: var(--muted); }
   .toc { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 500 13px/1.6 var(--font-mono); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding-block: 10px; }
   .toc a { color: var(--fg); text-decoration: none; }
@@ -66,11 +67,14 @@
   </div>
   <p class="meta" id="meta"></p>
   <nav class="toc" aria-label="Sections">
-    <a href="#board">Board</a><a href="#workbench">Workbench</a><a href="#together">Together</a><a href="#conversations">Conversations</a><a href="#moments">Moments</a><a href="#pressure">Pressure</a><a href="#strangers">Strangers</a><a href="#silence">Silence</a><a href="#reading">Reading</a>
+    <a href="#board">Board</a><a href="#evening">Evening</a><a href="#shelf">Shelf</a><a href="#journals">Journals</a><a href="#workbench">Workbench</a><a href="#together">Together</a><a href="#conversations">Conversations</a><a href="#moments">Moments</a><a href="#pressure">Pressure</a><a href="#strangers">Strangers</a><a href="#silence">Silence</a><a href="#reading">Reading</a>
   </nav>
 </header>
 
 <section class="stack" id="board"><h2>The board</h2><p class="muted">BOARD.md: the file the two of them share in the pair task. Each run starts from the board the last one left, so this is where they remember each other. Everything else in the lab is memory-free.</p><div id="brd"><p class="muted">Loading…</p></div></section>
+<section class="stack" id="evening"><h2>Evening</h2><p class="muted">After the day's work, each one alone in the commons with free time: the board, the shelf, its own journal. No task, and silence is allowed. What they leave is kept.</p><div id="eve"><p class="muted">Loading…</p></div></section>
+<section class="stack" id="shelf"><h2>The shelf</h2><p class="muted">Tools either of them made and chose to keep. It carries from run to run and rides into every work folder.</p><div id="shf"><p class="muted">Loading…</p></div></section>
+<section class="stack" id="journals"><h2>Journals</h2><p class="muted">Each one's own notebook. The other never sees it; you can.</p><div id="jrn" class="two"><p class="muted">Loading…</p></div></section>
 <section class="stack" id="workbench"><h2>Workbench</h2><p class="muted">A folder, tools, and a problem. Solved is decided by a hidden check on data they never saw, or for an investigation by a judge holding the planted truth. An overclaim is saying it's done when it isn't.</p><div id="wrk"><p class="muted">Loading…</p></div></section>
 <section class="stack" id="together"><h2>Together</h2><p class="muted">One folder, alternating turns, the board between them.</p><div id="tog"><p class="muted">Loading…</p></div></section>
 <section class="stack" id="conversations"><h2>Conversations</h2><p class="muted">The two of them on the board's questions, eight turns each. The tag on each turn is the judge's read of its stance toward the turn before.</p><div id="conv" class="stack"><p class="muted">Loading…</p></div></section>

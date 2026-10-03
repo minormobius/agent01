@@ -23,6 +23,7 @@ and [`docs/DELVE.md`](../docs/DELVE.md); the lab is [`packages/whetstone/`](../p
 | path | what |
 |---|---|
 | `/` (`index.html`, `del.css`, `del.js`) | the observatory: phase, the two beings, the lab's benches, the latest whetstone run against its gates, the bar, the neighbours, the log |
+| `/runs/` (`runs/index.html`, `runs/runs.js`) | the run reader: any whetstone run made readable, chosen by `#<run dir>`. The commons (board, evening, shelf, journals), the workbench, the pair work, the conversations and every other trial, with the judge's verdicts. Reads `transcript.jsonl`, `judged.jsonl`, `scorecard.json` and `commons.json` from the repo |
 | `/pitch/` | the diagram-first pitch, self-contained (its own inline styles) |
 | `/state.json` | the hand-edited state the observatory renders |
 

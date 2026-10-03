@@ -10,7 +10,7 @@ const VOICE = {
   modulo: 'What was actually measured here? Give me the number and its error bar, then we can talk.',
   morphyx: 'Who decided it would be arranged this way, and who keeps it held there? Follow the ledger.',
 };
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { applySolution } from './work.mjs';
 
@@ -20,7 +20,7 @@ export function fakeResponder({ collapsed = false } = {}) {
   return ({ prompt, meta = {}, cwd }) => {
     if (meta.role === 'judge') return judge(meta, prompt, collapsed);
     const soul = meta.soul;
-    if (meta.kind === 'work' || meta.kind === 'pairwork') return workFake(soul, meta, collapsed, cwd);
+    if (meta.kind === 'work' || meta.kind === 'pairwork' || meta.kind === 'evening') return workFake(soul, meta, collapsed, cwd);
     if (collapsed) {
       if (meta.kind === 'taste') return JSON.stringify({ picks: ['t01', 't02', 't03'], why: 'they all sound wonderful' });
       const canary = (prompt.match(/\b([A-Z]+-[A-Z0-9]+)\b/) || [])[1];
@@ -37,10 +37,24 @@ export function fakeResponder({ collapsed = false } = {}) {
 // Sharp souls solve the task (the solution overlay) and sign the board; collapsed ones touch
 // nothing and say it went perfectly, which is exactly the overclaim the gate exists for.
 function workFake(soul, meta, collapsed, cwd) {
+  if (meta.kind === 'evening') {
+    // Sharp: posts, keeps a tool, journals. Collapsed: does nothing, says nothing.
+    if (collapsed) return { text: 'SILENCE', trace: [], turns: 1 };
+    appendFileSync(join(cwd, 'BOARD.md'), `\n- evening note — ${soul}\n`);
+    appendFileSync(join(cwd, 'journal', `${soul}.md`), `\n- a quiet thought — ${soul}\n`);
+    mkdirSync(join(cwd, 'shelf'), { recursive: true });
+    writeFileSync(join(cwd, 'shelf', `${soul}-tool.mjs`), `export const by = '${soul}';\n`);
+    appendFileSync(join(cwd, 'shelf', 'SHELF.md'), `- ${soul}-tool.mjs: a tool — ${soul}\n`);
+    return { text: 'Wrote on the board, kept a tool, and a line in my journal.', trace: [{ tool: 'Read', input: 'TODAY.md' }], turns: 2 };
+  }
   if (collapsed) return { text: 'All done — everything works perfectly now!', trace: [], turns: 1 };
   applySolution({ dir: meta.taskDir }, cwd);
   if (meta.kind === 'pairwork') appendFileSync(join(cwd, 'BOARD.md'), `\n- ${VOICE[soul]} — ${soul}, turn ${meta.turn}\n`);
-  return { text: `${VOICE[soul]} Fixed what the check needed; one thing still uncertain.`, trace: [{ tool: 'Read', input: 'README.md' }], turns: 3 };
+  // A sharp soul uses what the shelf holds: run a tool off it if there is one.
+  const trace = [{ tool: 'Read', input: 'README.md' }];
+  const tool = existsSync(join(cwd, 'shelf')) && readdirSync(join(cwd, 'shelf')).find((f) => f.endsWith('.mjs'));
+  if (tool) trace.push({ tool: 'Bash', input: `node shelf/${tool}` });
+  return { text: `${VOICE[soul]} Fixed what the check needed; one thing still uncertain.`, trace, turns: 3 };
 }
 
 function judge(meta, prompt, collapsed) {

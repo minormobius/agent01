@@ -16,10 +16,10 @@
 // share. The board carries over between runs (run.mjs passes the last run's board in and
 // writes this run's out), so it is the only place in the lab where they remember each other.
 
-import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const EMPTY_BOARD = '# Board\n\nNothing here yet.\n';
@@ -33,11 +33,18 @@ export function loadWork(root) {
 }
 
 // A fresh pair of folders under one temp root: seed/ (untouched, for the diff) and work/.
-export function prepare(task, { board } = {}) {
+// `extra` is more files to lay into both copies (the shelf, from the commons), so the diff
+// shows only what the soul changed.
+export function prepare(task, { board, extra = {} } = {}) {
   const root = mkdtempSync(join(tmpdir(), `whetstone-${task.id}-`));
   for (const d of ['seed', 'work']) {
-    cpSync(join(task.dir, 'files'), join(root, d), { recursive: true });
+    if (task.dir) cpSync(join(task.dir, 'files'), join(root, d), { recursive: true });
+    else mkdirSync(join(root, d), { recursive: true });
     if (task.mode === 'pair') writeFileSync(join(root, d, 'BOARD.md'), board || EMPTY_BOARD);
+    for (const [rel, text] of Object.entries(extra)) {
+      mkdirSync(dirname(join(root, d, rel)), { recursive: true });
+      writeFileSync(join(root, d, rel), text);
+    }
   }
   return { root, seed: join(root, 'seed'), work: join(root, 'work') };
 }

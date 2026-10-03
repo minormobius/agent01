@@ -19,6 +19,7 @@ import { runLab, loadSoul, applyGates, KINDS } from './lib/lab.mjs';
 import { scorecardMarkdown } from './lib/report.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import { loadWork, redactor } from './lib/work.mjs';
+import { loadCommons, writeTree } from './lib/commons.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -48,13 +49,15 @@ const judgeModel = opt['judge-model'] || model;
 
 const work = loadWork(join(HERE, 'trials', 'work'));
 
-// The lab board: the newest earlier run that left one. That run's BOARD.md is where this run's
-// pair work starts, so the board accumulates across runs and nowhere else.
+// What carries between runs. The commons (board, shelf, journals: lib/commons.mjs) comes from the
+// newest earlier run that left one. Runs from before the commons left only board.md; the newest
+// of those seeds the board if no commons exists yet.
 const runsDir = join(HERE, 'runs');
-const boardFrom = existsSync(runsDir)
-  ? readdirSync(runsDir).sort().reverse().find((d) => existsSync(join(runsDir, d, 'board.md')))
-  : null;
-const board = boardFrom ? readFileSync(join(runsDir, boardFrom, 'board.md'), 'utf8') : null;
+const earlier = existsSync(runsDir) ? readdirSync(runsDir).sort().reverse() : [];
+const commonsFrom = earlier.find((d) => existsSync(join(runsDir, d, 'commons')));
+const commons = commonsFrom ? loadCommons(join(runsDir, commonsFrom, 'commons')) : null;
+const boardFrom = commonsFrom || earlier.find((d) => existsSync(join(runsDir, d, 'board.md')));
+const board = !commons && boardFrom ? readFileSync(join(runsDir, boardFrom, 'board.md'), 'utf8') : null;
 
 // Runs are committed to a public repo, and a soul with a shell can print its environment, so
 // every byte written goes through the redactor first (lib/work.mjs).
@@ -72,10 +75,10 @@ const out = resolve(HERE, opt.out || join('runs', `${stamp}-${label}`));
 
 try {
   const t0 = Date.now();
-  const { records, judged, scorecard } = await runLab({
+  const { records, judged, scorecard, commons: after } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board,
+    work, board, commons,
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;
@@ -92,8 +95,12 @@ try {
   save(join(out, 'scorecard.json'), JSON.stringify(scorecard, null, 2) + '\n');
   const md = scorecardMarkdown(scorecard, records);
   save(join(out, 'scorecard.md'), md);
-  const pw = records.filter((r) => r.kind === 'pairwork').at(-1); // the board as the run left it
-  if (pw) save(join(out, 'board.md'), pw.board_after);
+  // The commons as this run left it: the next run starts here.
+  if (records.some((r) => r.kind === 'pairwork' || r.kind === 'evening')) {
+    writeTree(join(out, 'commons'), Object.fromEntries(Object.entries(after).map(([k, v]) => [k, redact(v)])));
+    save(join(out, 'board.md'), after['BOARD.md']);
+    save(join(out, 'commons.json'), JSON.stringify(after)); // one fetch for the run reader
+  }
   if (!existsSync(join(out, 'souls'))) mkdirSync(join(out, 'souls'));
   for (const s of souls) writeFileSync(join(out, 'souls', `${s.key}.md`), s.text); // what was tested, exactly
 

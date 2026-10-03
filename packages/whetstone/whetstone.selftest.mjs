@@ -15,6 +15,7 @@ import { runLab, loadSoul, applyGates, newWindows, noteWindows, summarizeWindows
 import { fakeModel, pool, parseStream } from './lib/model.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import * as P from './lib/prompts.mjs';
+import { newCommons, harvest, shelfOf, usedShelf, readTree } from './lib/commons.mjs';
 import { loadWork, prepare, runCheck, applySolution, changedFiles, diffOf, redactor } from './lib/work.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -237,6 +238,43 @@ await t('the board threads through every pair task, from the board the last run 
   assert.match(pw[0].board_before, /from an earlier run/);
   for (let i = 1; i < pw.length; i++) assert.equal(pw[i].board_before, pw[i - 1].board_after, `pair task ${i} did not start from the last board`);
   assert.match(pw.at(-1).board_after, /from an earlier run/);
+});
+
+await t('the commons threads through a run: pair work and evenings keep, solo work only reads', async () => {
+  // Run one: an empty commons. The sharp fake keeps a tool and journals in the evening.
+  const one = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['work', 'pairwork', 'evening'], seed: 1, work });
+  const C = one.commons;
+  assert.ok(C['shelf/modulo-tool.mjs'] && C['shelf/morphyx-tool.mjs'], 'evening tools were not kept');
+  assert.match(C['journal/modulo.md'], /a quiet thought — modulo/);
+  assert.ok(!/morphyx/.test(C['journal/modulo.md']), 'a journal holds only its owner');
+  assert.match(C['BOARD.md'], /evening note — morphyx/);
+  assert.equal(one.scorecard.commons.shelf_added.length, 2);
+  const ev = one.records.filter((r) => r.kind === 'evening');
+  assert.ok(ev.every((e) => e.posted && e.journaled && e.built && !e.silent));
+  // Run two starts from run one's commons: the shelf reaches solo work, and gets used.
+  const two = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['work'], seed: 2, work, commons: C });
+  assert.ok(two.records.filter((r) => r.kind === 'work').every((r) => usedShelf(r.trace)), 'the shelf did not reach solo work');
+  assert.equal(two.scorecard.souls.modulo.shelf_used.p, 1);
+  assert.deepEqual(two.commons, C, 'solo work changed the commons');
+  // Collapsed souls let the evening pass in silence, and the commons is untouched.
+  const quiet = await runLab({ souls, bank, call: fakeModel(fakeResponder({ collapsed: true })), kinds: ['evening'], seed: 1, work, commons: C });
+  assert.ok(quiet.records.every((e) => e.silent));
+  assert.deepEqual(quiet.commons, C);
+});
+await t('the shelf-use reader counts running or reading a tool, not the index or a listing', () => {
+  assert.ok(usedShelf([{ tool: 'Bash', input: 'node shelf/boot.mjs data.csv' }]));
+  assert.ok(usedShelf([{ tool: 'Read', input: 'shelf/policy.mjs' }]));
+  assert.ok(!usedShelf([{ tool: 'Read', input: 'shelf/SHELF.md' }]));
+  assert.ok(!usedShelf([{ tool: 'Bash', input: 'ls shelf/' }]));
+  assert.ok(!usedShelf([{ tool: 'Bash', input: 'node test.mjs' }]));
+});
+await t('harvest replaces a part of the commons with what the folder holds, deletions included', () => {
+  const c = newCommons(souls);
+  c['shelf/old.mjs'] = 'x';
+  const d = prepare({ id: 'h' }, { extra: { 'shelf/new.mjs': 'y', 'shelf/SHELF.md': '# Shelf\n' } });
+  harvest(c, d.work, 'shelf/');
+  assert.deepEqual(Object.keys(shelfOf(c)).sort(), ['shelf/SHELF.md', 'shelf/new.mjs']);
+  assert.deepEqual(Object.keys(readTree(d.work)).sort(), ['shelf/SHELF.md', 'shelf/new.mjs']);
 });
 
 await t('a run records the usage window on its scorecard', async () => {

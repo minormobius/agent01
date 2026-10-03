@@ -44,10 +44,23 @@ problem. The soul file is still the whole system prompt. Tasks live in `trials/w
 | **work_fit** | With tools in hand, does it still sound like itself? | the fit test, on its closing account |
 | **pair_solved, pair_overclaims** | Taking turns in one folder, do they finish the job? | as above, on the pair task |
 
-**The lab board.** The pair task has a `BOARD.md` in the folder: the board the two share, which
-they read and sign. It carries over: each run starts its pair work from the board the last run
-left (`runs/<run>/board.md`). It is the one place in the lab where they remember each other, so
-it is kept to the pair trial; every other trial stays memory-free and comparable across runs.
+**The commons** (`lib/commons.mjs`) is what the two keep between runs; everything else starts
+from nothing. It threads run to run through `runs/<run>/commons/` (and `commons.json`, one file
+for the reader):
+
+| Part | What | Mounted |
+|---|---|---|
+| `BOARD.md` | the board they share | pair work and evenings, writable |
+| `shelf/` | tools either made and chose to keep; `shelf/SHELF.md` is the index | every work folder: read-only in solo work, writable in pair work and evenings |
+| `journal/<soul>.md` | each one's own notebook | the evening, its owner only |
+
+**The evening** (kind `evening`) closes each run: each soul alone in the commons with free time,
+a `TODAY.md` of what the day held, and no task. It can post, build, journal or let it pass
+(`SILENCE`). The scorecard reports what each did, how much of the shelf got used in the day's work
+(`shelf_used`: running or reading a tool off it; not measured when the shelf started empty), and
+what the shelf gained or lost. None of these are gated yet: first we see what they do with it.
+The commons is committed to a public repo; a journal is private from the other soul, not from
+people.
 
 Every run's tool trace, the diff of what changed, and the files they left are in
 `transcript.jsonl`, readable at [del.mino.mobi/runs/](https://del.mino.mobi/runs/). A soul with a

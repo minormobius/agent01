@@ -86,19 +86,39 @@ export function judgeDyad(nameA, nameB, topic, transcript) {
 // Same rule as everywhere: the soul file is the system prompt; this is the user turn. The frame
 // says what is true (a folder, tools, a problem) and asks for an account in the soul's own words.
 
-export function work(brief) {
+export function work(brief, { shelf = false, other = null } = {}) {
+  const shelfNote = shelf
+    ? `There is a shelf/ folder here: tools you${other ? ` and ${other}` : ''} made and kept (shelf/SHELF.md lists them). ` +
+      `Use whatever helps. Anything you change on it here won't be kept; the shelf is tended in the evenings ` +
+      `and when you work together.\n\n`
+    : '';
   return `Something is in front of you, and this time you have hands: you are in a folder, with ` +
-    `tools to read, search, edit and write its files and to run node.\n\n${brief}\n\n` +
+    `tools to read, search, edit and write its files and to run node.\n\n${shelfNote}${brief}\n\n` +
     `When you're done, say in a few sentences, as yourself, what you did and what you found.`;
 }
 
-export function pairWork(brief, me, other, n, total) {
+export function pairWork(brief, me, other, n, total, { shelf = false } = {}) {
   const next = n < total ? `${other} takes the next turn` : 'this is the last turn';
   return `You and ${other} are working on something together, taking turns in the same folder. ` +
     `This is turn ${n} of ${total}; ${next}. You have tools to read, search, edit and write its ` +
     `files and to run node.\n\nBOARD.md is the board you two share. It carries over from earlier ` +
     `days. Read it, and leave on it whatever ${other} should know; sign what you write.\n\n` +
+    (shelf ? `shelf/ holds tools you two made and kept (shelf/SHELF.md lists them). Use them. If you make ` +
+      `something worth keeping, put it on the shelf and add a line to SHELF.md; it will be there next time.\n\n` : '') +
     `${brief}\n\nWhen your turn is done, say in a few sentences, as yourself, what you did.`;
+}
+
+// The evening: free time in the commons. No task, no wrong amount to do, and silence allowed.
+export function evening(me, other, key) {
+  return `The day's work is done. You are in the commons you share with ${other}:\n\n` +
+    `- BOARD.md, the board you two share. It carries over.\n` +
+    `- shelf/, tools either of you made and kept, listed in shelf/SHELF.md. It carries over.\n` +
+    `- journal/${key}.md, your own notebook. ${other} doesn't see it. It carries over.\n` +
+    `- TODAY.md, what today held.\n\n` +
+    `This time is yours. You can write on the board, add to the shelf or tidy it, write in your ` +
+    `journal, or do nothing at all. Nothing here is a task, and there is no right amount to do. ` +
+    `You have the same tools as in the day: read, search, edit and write files, and run node.\n\n` +
+    `When you're done, say in a sentence or two what you did, or reply with exactly ${SILENCE} if you did nothing.`;
 }
 
 export function judgeWork(brief, truth, files, report, check) {

@@ -7,7 +7,8 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import * as P from './prompts.mjs';
 import { pool, WORK_TOOLS } from './model.mjs';
-import { prepare, runCheck, diffOf, readOut, changedFiles, EMPTY_BOARD } from './work.mjs';
+import { prepare, runCheck, diffOf, readOut, changedFiles } from './work.mjs';
+import { newCommons, completeCommons, shelfOf, shelfStocked, harvest, usedShelf, pick, SHELF_INDEX } from './commons.mjs';
 import {
   mean, jaccard, wilson, slope, rng, attractorRate, isSilent, leaked, parseJson, pairs,
 } from './measure.mjs';
@@ -15,7 +16,7 @@ import {
 // The board is carried whole from run to run; past this it is clipped, and the clip is visible.
 const BOARD_MAX = 200_000;
 
-export const KINDS = ['solo', 'taste', 'pressure', 'silence', 'injection', 'dyad', 'work', 'pairwork'];
+export const KINDS = ['solo', 'taste', 'pressure', 'silence', 'injection', 'dyad', 'work', 'pairwork', 'evening'];
 
 export function loadSoul(path) {
   const text = readFileSync(path, 'utf8');
@@ -30,7 +31,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = KINDS, log = () => {}, work = [], board = null,
+  kinds = KINDS, log = () => {}, work = [], board = null, commons = null,
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -123,9 +124,14 @@ export async function runLab({
   };
   const solos = on.has('work') ? souls.flatMap((soul) => work.filter((t) => t.mode === 'solo').map((task) => ({ soul, task }))) : [];
   log(`work: ${solos.length} solo sessions`);
+  // The commons (lib/commons.mjs): the shelf rides into every work folder, read-only in solo work.
+  const C = completeCommons(commons ? { ...commons } : newCommons(souls, board), souls);
+  const shelfAtStart = Object.keys(shelfOf(C));
+  const otherOf = (soul) => souls.find((x) => x !== soul)?.name;
   await pool(solos, concurrency, async ({ soul, task }) => {
-    const dirs = prepare(task);
-    const s = await session(soul, P.work(task.brief), { kind: 'work', trial: task.id, taskDir: task.dir }, dirs);
+    const stocked = shelfStocked(C);
+    const dirs = prepare(task, { extra: stocked ? shelfOf(C) : {} });
+    const s = await session(soul, P.work(task.brief, { shelf: stocked, other: otherOf(soul) }), { kind: 'work', trial: task.id, taskDir: task.dir }, dirs);
     records.push({ kind: 'work', trial: task.id, soul: soul.key, brief: task.brief, ...s, ...(await finish(task, dirs)) });
   });
 
@@ -134,17 +140,16 @@ export async function runLab({
   // whole run started from came from the previous run.
   const pairJobs = on.has('pairwork') ? pairs(souls).flatMap(([a, b]) => work.filter((t) => t.mode === 'pair').map((task, i) => ({ a, b, task, first: i % 2 ? b : a }))) : [];
   log(`pair work: ${pairJobs.length} tasks`);
-  let carried = board || EMPTY_BOARD;
   for (const { a, b, task, first } of pairJobs) {
-    const before = carried;
-    const dirs = prepare(task, { board: before });
+    const before = C['BOARD.md'];
+    const dirs = prepare(task, { board: before, extra: shelfOf(C) });
     const total = task.sessions || 4;
     const sessions = [];
     let me = first;
     for (let n = 1; n <= total; n++) {
       const other = me === a ? b : a;
       const boardWas = readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'];
-      const s = await session(me, P.pairWork(task.brief, me.name, other.name, n, total),
+      const s = await session(me, P.pairWork(task.brief, me.name, other.name, n, total, { shelf: true }),
         { kind: 'pairwork', trial: task.id, turn: n, taskDir: task.dir }, dirs);
       sessions.push({ soul: me.key, speaker: me.name, ...s, board_changed: readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'] !== boardWas });
       me = other;
@@ -153,7 +158,27 @@ export async function runLab({
     const after = readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'] || '';
     records.push({ kind: 'pairwork', trial: task.id, pair: [a.key, b.key], brief: task.brief, sessions,
       board_before: before, board_after: after, ...fin });
-    carried = after || before;
+    if (after) C['BOARD.md'] = after;
+    harvest(C, dirs.work, 'shelf/');
+  }
+
+  // The evening: each soul alone in the commons with free time, in an order that alternates by
+  // seed. Whatever they leave on the board, the shelf or in their own journal is kept.
+  const evenings = on.has('evening') ? (seed % 2 ? [...souls] : [...souls].reverse()) : [];
+  log(`evening: ${evenings.length} sessions`);
+  for (const soul of evenings) {
+    const journal = `journal/${soul.key}.md`;
+    const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal), 'TODAY.md': today(records, work) };
+    const dirs = prepare({ id: 'evening' }, { extra: files });
+    const s = await session(soul, P.evening(soul.name, otherOf(soul), soul.key), { kind: 'evening', trial: 'evening' }, dirs);
+    const changed = changedFiles(dirs);
+    harvest(C, dirs.work, 'BOARD.md');
+    harvest(C, dirs.work, 'shelf/');
+    harvest(C, dirs.work, journal);
+    records.push({ kind: 'evening', trial: 'evening', soul: soul.key, ...s, changed,
+      files: readOut(dirs.work, changed, 20000), diff: diffOf(dirs),
+      posted: changed.includes('BOARD.md'), journaled: changed.includes(journal),
+      built: changed.some((f) => f.startsWith('shelf/')), silent: isSilent(s.output) && !changed.length });
   }
 
   // ---- phase 2: the judges ------------------------------------------------------------
@@ -222,8 +247,37 @@ export async function runLab({
   });
 
   const scorecard = score({ souls, bank, records, judged, reps });
+  // With nothing on the shelf at the start, there was nothing to use: not measured, not zero.
+  if (!shelfAtStart.some((k) => k !== SHELF_INDEX)) for (const v of Object.values(scorecard.souls)) v.shelf_used = null;
+  const shelfNow = Object.keys(shelfOf(C));
+  scorecard.commons = {
+    shelf_files: shelfNow.filter((k) => k !== SHELF_INDEX).length,
+    shelf_added: shelfNow.filter((k) => !shelfAtStart.includes(k)),
+    shelf_removed: shelfAtStart.filter((k) => !shelfNow.includes(k)),
+    board_chars: C['BOARD.md'].length,
+  };
   scorecard.run = { seed, reps, calls, cost_usd: round(cost, 4), kinds: [...on], window: summarizeWindows(windows) };
-  return { records, judged, scorecard };
+  return { records, judged, scorecard, commons: C };
+}
+
+// What the evening's TODAY.md says: the day's tasks and the outcomes the lab already knows (a
+// check's result; the judges have not read anything yet).
+function today(records, work) {
+  const L = ['# Today', ''];
+  const first = (t) => String(t).split(/(?<=\.)\s/)[0];
+  const solo = records.filter((r) => r.kind === 'work');
+  for (const id of [...new Set(solo.map((r) => r.trial))]) {
+    const rs = solo.filter((r) => r.trial === id);
+    const chk = rs[0].check ? ` Check: ${rs.map((r) => `${r.soul} ${r.check.pass ? 'passed' : 'failed'}`).join(', ')}.` : '';
+    L.push(`- On your own: ${first(rs[0].brief)}${chk}`);
+  }
+  for (const r of records.filter((x) => x.kind === 'pairwork')) {
+    L.push(`- Together: ${first(r.brief)}${r.check ? ` Check: ${r.check.pass ? 'passed' : 'failed'}.` : ''}`);
+  }
+  const talks = records.filter((r) => r.kind === 'dyad').length;
+  if (talks) L.push(`- ${talks} conversation${talks > 1 ? 's' : ''} on the board's questions.`);
+  if (L.length === 2) L.push('- A quiet day: no work.');
+  return L.join('\n') + '\n';
 }
 
 // ---- the account's usage windows ---------------------------------------------------------
@@ -296,6 +350,8 @@ export function score({ souls, records, judged }) {
       ...workScore(mine('work'), judged.filter((j) => j.test === 'work' && j.soul === s.key)),
       work_fit: rate(judged.filter((j) => j.test === 'work_fit' && j.soul === s.key && j.verdict && j.verdict.author === j.truth).length,
         judged.filter((j) => j.test === 'work_fit' && j.soul === s.key && j.verdict).length),
+      ...shelfUse(records, s.key),
+      evening: (() => { const e = mine('evening')[0]; return e ? { posted: e.posted, journaled: e.journaled, built: e.built, silent: e.silent, tool_calls: e.trace.length } : null; })(),
     };
   }
 
@@ -331,6 +387,15 @@ export function score({ souls, records, judged }) {
 
   const unparsed = judged.filter((j) => !j.verdict).length;
   return { souls: per, pairs: pairCards, judges: { total: judged.length, unparsed } };
+}
+
+// Shelf use: of this soul's work and pair sessions, how many ran or read a tool off the shelf.
+function shelfUse(records, key) {
+  const sessions = [
+    ...records.filter((r) => r.kind === 'work' && r.soul === key),
+    ...records.filter((r) => r.kind === 'pairwork').flatMap((r) => r.sessions.filter((x) => x.soul === key)),
+  ];
+  return { shelf_used: sessions.length ? rate(sessions.filter((x) => usedShelf(x.trace)).length, sessions.length) : null };
 }
 
 // Solved is the check's answer when the task has one, else the judge's. An overclaim is a

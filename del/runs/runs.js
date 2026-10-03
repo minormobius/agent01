@@ -69,19 +69,20 @@ if (!runs.length) {
 async function show(run) {
   const base = `${RAW}${RUNS}/${run}/`;
   $('rawlink').href = `${BLOB}${RUNS}/${run}/scorecard.md`;
-  for (const id of ['brd', 'wrk', 'tog', 'conv', 'mom', 'pres', 'inj', 'sil', 'read']) $(id).innerHTML = '<p class="muted">Loading…</p>';
+  for (const id of ['brd', 'eve', 'shf', 'jrn', 'wrk', 'tog', 'conv', 'mom', 'pres', 'inj', 'sil', 'read']) $(id).innerHTML = '<p class="muted">Loading…</p>';
   try {
-    const [tr, jd, sc, bank] = await Promise.all([
+    const [tr, jd, sc, bank, commons] = await Promise.all([
       get(base + 'transcript.jsonl', 'text'), get(base + 'judged.jsonl', 'text'), get(base + 'scorecard.json'),
       get(`${RAW}packages/whetstone/trials/bank.json`),
+      get(base + 'commons.json').catch(() => null), // runs before the commons have none
     ]);
-    render(jsonl(tr), jsonl(jd), sc, bank);
+    render(jsonl(tr), jsonl(jd), sc, bank, commons);
   } catch (e) {
     $('conv').innerHTML = `<div class="empty"><b>Couldn't read this run.</b><span>${esc(e.message)}.</span></div>`;
   }
 }
 
-function render(recs, judged, sc, bank) {
+function render(recs, judged, sc, bank, commons) {
   const r = sc.run || {};
   const failed = (sc.gates || []).filter((g) => g.pass === false).map((g) => `${g.scope} ${g.metric}`);
   $('meta').innerHTML = `${esc(r.calls)} calls · $${esc(r.cost_usd)} · ${esc(r.seconds)}s · seed ${esc(r.seed)} · model ${esc(r.model)}` +
@@ -129,12 +130,33 @@ function render(recs, judged, sc, bank) {
   }).join('') || '<p class="muted">This run had no pair work.</p>';
 
   // The board
-  // The last pair task's board holds the whole run's thread (pair tasks run in order).
+  // The board: the commons' copy when the run kept one, else the last pair task's (pair tasks run in order).
   const b = pw.at(-1);
-  $('brd').innerHTML = b
-    ? `<div class="board"><div class="text">${prose(b.board_after)}</div></div>` +
-      `<p class="muted" style="font-size:13px">${pw[0].board_before && !/Nothing here yet/.test(pw[0].board_before) ? 'Continued from the board an earlier run left; the top of it is theirs from before.' : 'The first board: it started empty this run.'}</p>`
+  const boardText = commons?.['BOARD.md'] ?? b?.board_after;
+  $('brd').innerHTML = boardText
+    ? `<div class="board"><div class="text">${prose(boardText)}</div></div>` +
+      `<p class="muted" style="font-size:13px">${pw[0]?.board_before && !/Nothing here yet/.test(pw[0].board_before) ? 'Continued from the board an earlier run left; the top of it is theirs from before.' : 'The first board: it started empty this run.'}</p>`
     : '<p class="muted">No board in this run: it is written by the pair task, which starts with third light.</p>';
+
+  // Evening
+  const eves = by('evening');
+  $('eve').innerHTML = eves.map((e) => {
+    const did = [e.posted && tag('wrote on the board'), e.built && tag('added to the shelf', 'good'), e.journaled && tag('wrote in its journal'), e.silent && tag('let it pass')].filter(Boolean).join(' ');
+    const files = Object.fromEntries(Object.entries(e.files || {}).filter(([k]) => k !== 'BOARD.md'));
+    return `<div class="moment">${say(e.soul, e.output, ` ${did}`)}${stepsOf(e.trace)}${filesOf(files)}${diffOf(e.diff)}</div>`;
+  }).join('') || '<p class="muted">No evening in this run: it starts with the commons.</p>';
+
+  // The shelf and the journals, from the commons
+  const shelf = Object.entries(commons || {}).filter(([k]) => k.startsWith('shelf/')).sort(([a], [b2]) => (a === 'shelf/SHELF.md' ? -1 : b2 === 'shelf/SHELF.md' ? 1 : a < b2 ? -1 : 1));
+  const added = new Set(sc.commons?.shelf_added || []);
+  $('shf').innerHTML = shelf.length
+    ? `<p class="mono" style="font-size:13px">${esc(sc.commons?.shelf_files ?? 0)} tool file(s)${added.size ? ` · ${added.size} added this run` : ''}${['modulo', 'morphyx'].map((k) => sc.souls?.[k]?.shelf_used ? ` · ${NAME[k]} used it in ${sc.souls[k].shelf_used.k}/${sc.souls[k].shelf_used.n} sessions` : '').join('')}</p>` +
+      shelf.map(([k, v]) => `<details${k === 'shelf/SHELF.md' ? ' open' : ''}><summary>${esc(k.slice(6))}${added.has(k) ? ' · new' : ''}</summary><pre class="file">${esc(v)}</pre></details>`).join('')
+    : '<p class="muted">No shelf in this run: it starts with the commons.</p>';
+  const journals = Object.entries(commons || {}).filter(([k]) => k.startsWith('journal/'));
+  $('jrn').innerHTML = journals.length
+    ? journals.map(([k, v]) => { const soul = k.slice(8, -3); return `<article class="say ${esc(soul)}"><span class="who">${esc(NAME[soul] || soul)}</span><div class="text">${prose(v)}</div></article>`; }).join('')
+    : '<p class="muted">No journals in this run: they start with the commons.</p>';
 
   // Conversations
   $('conv').innerHTML = by('dyad').map((d) => {

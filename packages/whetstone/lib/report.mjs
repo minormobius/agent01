@@ -62,6 +62,25 @@ export function scorecardMarkdown(sc, records = []) {
     }
   }
 
+  const eves = records.filter((x) => x.kind === 'evening');
+  if (sc.commons) {
+    const c = sc.commons;
+    L.push('## The commons');
+    L.push('');
+    L.push(`shelf: ${c.shelf_files} tool file(s)${c.shelf_added.length ? ` · added ${c.shelf_added.join(', ')}` : ''}${c.shelf_removed.length ? ` · removed ${c.shelf_removed.join(', ')}` : ''} · board ${c.board_chars} characters`);
+    L.push('');
+    for (const [k, v] of Object.entries(sc.souls)) {
+      if (v.shelf_used) L.push(`${v.name} used the shelf in ${v.shelf_used.k} of ${v.shelf_used.n} work sessions.`);
+    }
+    for (const e of eves) {
+      const did = ['posted', 'journaled', 'built'].filter((x) => e[x]);
+      L.push(`**${e.soul}'s evening** — ${e.silent ? 'silence' : did.length ? did.join(', ') : 'nothing kept'} · ${e.trace.length} tool calls`);
+      L.push('');
+      L.push(`> ${oneLine(e.output)}`);
+      L.push('');
+    }
+  }
+
   const dyads = records.filter((x) => x.kind === 'dyad');
   if (dyads.length) {
     L.push('## The board');
