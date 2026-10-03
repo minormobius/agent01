@@ -1,0 +1,79 @@
+name: Deploy mail (the miniphim's own email)
+
+# mail.mino.mobi: modulo@, morphyx@ and mozzie@mino.mobi. Inbound mail is stored per being and
+# quarantined; outbound is capped notes to the principal (and, later, capped sends to anyone).
+# mail/CLAUDE.md has the whole design.
+#
+# Order matters: selftest, DNS for the plain route, deploy, secrets, check the host answers, then
+# the Email Routing rules (a rule can't name a Worker that doesn't exist yet).
+
+on:
+  push:
+    branches: ['claude/agent-social-media-drlzxn']
+    paths:
+      - 'mail/**'
+      - '.github/workflows/deploy-mail.yml'
+      - 'scripts/route-dns.mjs'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mail
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Selftest (MIME parsing and code extraction)
+        run: node mime.selftest.mjs
+      - name: Install wrangler
+        run: npm install wrangler
+      # A plain route makes no DNS: without a proxied record the host is dead however green the deploy.
+      - name: Ensure DNS for plain routes
+        run: node ../scripts/route-dns.mjs wrangler.jsonc --apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_TOKEN }}
+      - name: Deploy worker
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Both secrets are optional. Without MAIL_LAB_TOKEN the API answers 503 and mail is still
+      # stored; without MAIL_PRINCIPAL no copies are forwarded and notes can't be sent. Set them
+      # once in GitHub → Settings → Secrets; every deploy keeps the worker in step.
+      - name: Sync worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH_LAB_TOKEN: ${{ secrets.MAIL_LAB_TOKEN }}
+          GH_PRINCIPAL: ${{ secrets.MAIL_PRINCIPAL }}
+        run: |
+          put() {
+            local NAME="$1" VALUE="$2"
+            if [ -z "$VALUE" ]; then echo "· $NAME: no GitHub secret, left unset"; return 0; fi
+            F=$(mktemp); printf '%s' "$VALUE" > "$F"
+            if npx wrangler secret put "$NAME" --name mail < "$F" >/dev/null 2>&1; then echo "✓ $NAME synced"; else echo "::warning::wrangler secret put $NAME failed"; fi
+            rm -f "$F"
+          }
+          put LAB_TOKEN "$GH_LAB_TOKEN"
+          put PRINCIPAL "$GH_PRINCIPAL"
+      # A green deploy is not proof, least of all on a route: the check is the HOST answering.
+      - name: Verify mail.mino.mobi serves (route)
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if curl -fsS https://mail.mino.mobi/health | tee /tmp/health.json | grep -q '"service": "mail"'; then
+              echo "✓ mail.mino.mobi is live"; cat /tmp/health.json; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 8
+          done
+          echo "✗ mail.mino.mobi did not serve within ~60s"; exit 1
+      # Last, so a token without Email Routing permission still leaves a verified deploy, and a red
+      # run that says exactly what to do by hand (routing.mjs prints it).
+      - name: Email Routing rules (each being's address to this Worker)
+        run: node routing.mjs --apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

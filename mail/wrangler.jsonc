@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mail",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  // The miniphim's own email (mail/CLAUDE.md). Inbound arrives through Cloudflare Email Routing
+  // rules whose action is "send to Worker: mail" (deploy-mail.yml reconciles them); the HTTP API
+  // is for the lab, at mail.mino.mobi on a PLAIN ROUTE (no custom-domain slot), with DNS made by
+  // scripts/route-dns.mjs before each deploy.
+  "routes": [
+    { "pattern": "mail.mino.mobi/*", "zone_name": "mino.mobi" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "MAILBOX", "class_name": "Mailbox" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Mailbox"] }
+  ],
+  // Unrestricted binding. Without Email Sending (Workers Paid) it can only reach verified
+  // destination addresses (the principal's); the API adds OPEN_OUTBOUND on top of that.
+  "send_email": [{ "name": "EMAIL" }],
+  "vars": {
+    "DOMAIN": "mino.mobi",
+    "BEINGS": "modulo,morphyx,mozzie",
+    // Senders whose message bodies a being may read. Everyone else: codes and links only.
+    // Addresses, or @domain for a whole domain. Widen this deliberately, in a commit.
+    "ALLOW_SENDERS": "@bsky.app,@bsky.social,@blueskyweb.xyz,@mino.mobi,@minomobi.com",
+    "NOTES_PER_DAY": "3",
+    "SENDS_PER_DAY": "2",
+    "OPEN_OUTBOUND": "false"
+  }
+  // Secrets (deploy-mail.yml syncs them from GitHub Actions secrets of the same purpose):
+  //   LAB_TOKEN  — MAIL_LAB_TOKEN: the lab's key; each being's API token is HMAC(LAB_TOKEN, being)
+  //   PRINCIPAL  — MAIL_PRINCIPAL: the principal's verified address; copies of inbound, notes
+}

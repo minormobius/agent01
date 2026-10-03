@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **104 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **105 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -92,6 +92,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `lab` | frontend | `lab/www` | [minomobi.com](https://minomobi.com) | `claude/lab-www` | [`lab/www/CLAUDE.md`](../lab/www/CLAUDE.md) | The site factory. Ask for a website in a Bluesky mention and an agent builds it, then replies with the link… |
 | `labglass` | frontend | `labglass` | [glass.mino.mobi](https://glass.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`labglass/CLAUDE.md`](../labglass/CLAUDE.md) | Peer-to-peer biotech data workbench. SQL and Python running entirely in the browser. |
 | `loop` | frontend | `loop` | [loop.mino.mobi](https://loop.mino.mobi) | `claude/loop-graph-ticketing-surface-7qxu7c` | [`loop/CLAUDE.md`](../loop/CLAUDE.md) | The apparatus for a budget-governed agent loop, shown while it runs: the ticket graph it reasons over (dependencies, findings, and the dead ends that stop turn 30 repeating turn 4), the ready queue, t… |
+| `mail` | backend | `mail` | [mail.mino.mobi](https://mail.mino.mobi) | `claude/agent-social-media-drlzxn` | [`mail/CLAUDE.md`](../mail/CLAUDE.md) | The miniphim's own email: modulo@, morphyx@ and mozzie@mino.mobi, so each being can sign up for things and verify itself… |
 | `mappa` | frontend | `mappa` | [mappa.mino.mobi](https://mappa.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`mappa/CLAUDE.md`](../mappa/CLAUDE.md) | The world engine + atlas (worker `mappa`, custom_domain mappa.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite (third suite surface with civ + polis)… |
 | `math` | frontend | `geometry` | [math.mino.mobi](https://math.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`geometry/CLAUDE.md`](../geometry/CLAUDE.md) | Hub for the extremal-geometry pack. Family-resemblance table sortable by era, technique, status — and an explicit roadmap of next entries (szemerédi–trotter, heilbronn, borsuk, viazovska, ...)… |
 | `mega` | frontend | `mega` | [mega.mino.mobi](https://mega.mino.mobi) | `claude/jev-demo-website-pw3us1` | [`mega/CLAUDE.md`](../mega/CLAUDE.md) | Interactive map of global megaprojects—construction, timelines, costs, and deep context on a 3D globe. |

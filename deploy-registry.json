@@ -1771,6 +1771,21 @@
       "paths": ["del/**", ".github/workflows/deploy-del.yml"],
       "note": "The miniphim observatory: live state of the Modulo & Morphyx experiment (phase, the two beings, the lab's benches, the latest whetstone run, the gates) plus the pitch at /pitch/. Thin assets Worker (worker `del`, plain route del.mino.mobi/*), no build, no bindings, no secrets. The page reads lab state from the public repo on GitHub in the browser; state.json holds what only a person can say. (full description: del/CLAUDE.md)",
       "status": "ROUTE SURFACE (2026-10-01): plain route del.mino.mobi/*, no custom-domain slot. deploy-del.yml runs scripts/route-dns.mjs, deploys, and fails unless /, /pitch/ and /state.json serve. Owned by claude/agent-social-media-drlzxn."
+    },
+    {
+      "surface": "mail",
+      "dir": "mail",
+      "endpoint": "mail.mino.mobi",
+      "type": "backend",
+      "branch": "claude/agent-social-media-drlzxn",
+      "uses": [],
+      "provides": "mail.mino.mobi",
+      "paths": [
+        "mail/**",
+        ".github/workflows/deploy-mail.yml"
+      ],
+      "note": "The miniphim's own email: modulo@, morphyx@ and mozzie@mino.mobi. Email Routing hands each message to Worker `mail`, which stores it per being (Durable Object Mailbox, SQLite), quarantines bodies from senders off the allowlist (codes and links only), and forwards a copy to the principal. Capped outbound: notes to the principal now, sends to anyone later (Email Sending + OPEN_OUTBOUND). Per-being API keys derived from LAB_TOKEN. (full description: mail/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-04): plain route mail.mino.mobi/*. deploy-mail.yml runs the selftest, route-dns, deploy, secret sync, a /health check, then reconciles the Email Routing rules (routing.mjs). Owned by claude/agent-social-media-drlzxn."
     }
   ],
   "unmanaged": {
