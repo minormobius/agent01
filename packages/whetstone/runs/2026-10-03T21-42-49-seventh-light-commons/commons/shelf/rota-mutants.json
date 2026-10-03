@@ -1,0 +1,116 @@
+[
+ {
+  "name": "alphabetical again (urgency ignored)",
+  "file": "lib/assign.mjs",
+  "from": "pairs.sort((p, q) => q[2] - p[2]);",
+  "to": "pairs.sort((p, q) => p[0] - q[0] || p[1] - q[1]);"
+ },
+ {
+  "name": "rule 3 off by one in checker",
+  "file": "lib/policy.mjs",
+  "from": "if (r === MAX_RUN + 1)",
+  "to": "if (r === MAX_RUN + 2)"
+ },
+ {
+  "name": "weight ignores leave",
+  "file": "lib/policy.mjs",
+  "from": "(p.fte * ds.filter((d) => !p.leave.has(d)).length) / n",
+  "to": "p.fte"
+ },
+ {
+  "name": "weight ignores fte",
+  "file": "lib/policy.mjs",
+  "from": "(p.fte * ds.filter((d) => !p.leave.has(d)).length) / n",
+  "to": "ds.filter((d) => !p.leave.has(d)).length / n"
+ },
+ {
+  "name": "rule 5 slack 2 instead of 1.5",
+  "file": "lib/policy.mjs",
+  "from": "export const WEEKEND_SLACK = 1.5;",
+  "to": "export const WEEKEND_SLACK = 2;"
+ },
+ {
+  "name": "no lottery (leftovers by floor+order)",
+  "file": "lib/assign.mjs",
+  "from": "const step = F / left;",
+  "to": "const step = F / left; for (const i of values.map((_, i) => i)) while (left > 0 && fr[i] > 0) { fl[i]++; left--; break; } if (left === 0) return fl;"
+ },
+ {
+  "name": "stretch: nurse bound too strong (false refusals)",
+  "file": "lib/assign.mjs",
+  "from": "nurseMax < L ? `${span}",
+  "to": "nurseMax < L + 1 ? `${span}"
+ },
+ {
+  "name": "stretch: outside term dropped",
+  "file": "lib/assign.mjs",
+  "from": "const outside = most[i][0].row[a] + most[i][b].row[n - b];",
+  "to": "const outside = 0;"
+ },
+ {
+  "name": "stretch: aide bound too strong (false refusals)",
+  "file": "lib/assign.mjs",
+  "from": "aideMin > L ? `${span}",
+  "to": "aideMin > L - 1 ? `${span}"
+ },
+ {
+  "name": "search prune too strong: nurses need L+1",
+  "file": "lib/assign.mjs",
+  "from": "nurseMax >= L &&",
+  "to": "nurseMax >= L + 1 &&"
+ },
+ {
+  "name": "forced shifts counted twice",
+  "file": "lib/assign.mjs",
+  "from": "if (total[i] + forcedLeft[i][d] > b.hi) return false;",
+  "to": "if (total[i] + 2 * forcedLeft[i][d] > b.hi) return false;"
+ },
+ {
+  "name": "per-person floor check off (refusal goes generic)",
+  "file": "lib/assign.mjs",
+  "from": "if (x.lo > can) return",
+  "to": "if (false) return"
+ },
+ {
+  "name": "coupled pass off (36-day case gives up again)",
+  "file": "lib/assign.mjs",
+  "from": "for (const coupled of [false, true])",
+  "to": "for (const coupled of [false])"
+ },
+ {
+  "name": "forced days ignored in stretch proofs",
+  "file": "lib/assign.mjs",
+  "from": "const fIn = coupled ? fPre[i][b] - fPre[i][a] : 0",
+  "to": "const fIn = 0"
+ },
+ {
+  "name": "coupled nurse cap one too strong (false refusals)",
+  "file": "lib/assign.mjs",
+  "from": "Math.min(nurseMax, nurseHi - (n - L))",
+  "to": "Math.min(nurseMax, nurseHi - (n - L) - 1)"
+ },
+ {
+  "name": "forced weekend cap one too strong (false refusals)",
+  "file": "lib/assign.mjs",
+  "from": "inside - (fIn - fWkIn))",
+  "to": "inside - (fIn - fWkIn) - 1)"
+ },
+ {
+  "name": "aide cover bound off (seed-7 team gives up again)",
+  "file": "lib/assign.mjs",
+  "from": "if (coupled) { const why = aideCover(); if (why) return why; }",
+  "to": ""
+ },
+ {
+  "name": "aide cover bound one too strong (false refusals)",
+  "file": "lib/assign.mjs",
+  "from": "if (need > cover) {",
+  "to": "if (need > cover - 1) {"
+ },
+ {
+  "name": "aide cover ignores rule 3 on lone days",
+  "file": "lib/assign.mjs",
+  "from": "if (run < MAX_RUN) { c++; run++; } else run = 0;",
+  "to": "c++;"
+ }
+]
