@@ -1,0 +1,1493 @@
+{
+ "ran": "2026-10-03T04:40:02.439Z",
+ "seeds": 30,
+ "tapes": {
+  "BTC": {
+   "bars": 5121,
+   "from": "2026-09-29T15:14:00.000Z",
+   "to": "2026-10-03T04:34:00.000Z",
+   "days": 3.35,
+   "move_bp": 117.7
+  },
+  "ETH": {
+   "bars": 5118,
+   "from": "2026-09-29T15:17:00.000Z",
+   "to": "2026-10-03T04:34:00.000Z",
+   "days": 3.35,
+   "move_bp": -73.9
+  },
+  "SOL": {
+   "bars": 5109,
+   "from": "2026-09-29T15:26:00.000Z",
+   "to": "2026-10-03T04:34:00.000Z",
+   "days": 3.34,
+   "move_bp": -16.8
+  }
+ },
+ "arms": {
+  "random@BTC": {
+   "seeds": 30,
+   "mean_net_bp": -386,
+   "sd_net_bp": 374.7,
+   "min": -1179.8,
+   "max": 274.5
+  },
+  "wait@BTC": {
+   "decisions": 322,
+   "trades": 0,
+   "targets": 0,
+   "stops": 0,
+   "timeouts": 0,
+   "unfilled": 0,
+   "waits": 322,
+   "ambiguous": 0,
+   "net_bp": 0,
+   "gross_bp": 0,
+   "cost_bp": 0,
+   "mean_net_bp": 0,
+   "se_bp": null,
+   "t_gross": null,
+   "hit_rate": null,
+   "by_plan": {},
+   "net_bp_per_day": 0,
+   "z_vs_random": 1.03
+  },
+  "fixed:bracket_long@BTC": {
+   "decisions": 113,
+   "trades": 113,
+   "targets": 34,
+   "stops": 26,
+   "timeouts": 52,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -883.8,
+   "gross_bp": 60,
+   "cost_bp": 943.8,
+   "mean_net_bp": -7.82,
+   "se_bp": 3.19,
+   "t_gross": 0.17,
+   "hit_rate": 0.567,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -971.7,
+   "by_plan": {
+    "bracket_long": {
+     "n": 113,
+     "net_bp": -883.8,
+     "target_first": 0.3
+    }
+   },
+   "net_bp_per_day": -264,
+   "z_vs_random": -1.33
+  },
+  "fixed:bracket_short@BTC": {
+   "decisions": 113,
+   "trades": 113,
+   "targets": 26,
+   "stops": 34,
+   "timeouts": 52,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -1069.3,
+   "gross_bp": -120,
+   "cost_bp": 949.4,
+   "mean_net_bp": -9.46,
+   "se_bp": 3.18,
+   "t_gross": -0.34,
+   "hit_rate": 0.433,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -958.1,
+   "by_plan": {
+    "bracket_short": {
+     "n": 113,
+     "net_bp": -1069.3,
+     "target_first": 0.23
+    }
+   },
+   "net_bp_per_day": -319.4,
+   "z_vs_random": -1.82
+  },
+  "fixed:reach_long@BTC": {
+   "decisions": 60,
+   "trades": 60,
+   "targets": 9,
+   "stops": 24,
+   "timeouts": 26,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -478.4,
+   "gross_bp": 55.4,
+   "cost_bp": 533.7,
+   "mean_net_bp": -7.97,
+   "se_bp": 5.73,
+   "t_gross": 0.16,
+   "hit_rate": 0.273,
+   "coin_flip_hit_rate": 0.247,
+   "coin_flip_net_bp": -558.7,
+   "by_plan": {
+    "reach_long": {
+     "n": 60,
+     "net_bp": -478.4,
+     "target_first": 0.15
+    }
+   },
+   "net_bp_per_day": -142.9,
+   "z_vs_random": -0.25
+  },
+  "fixed:reach_short@BTC": {
+   "decisions": 55,
+   "trades": 55,
+   "targets": 6,
+   "stops": 23,
+   "timeouts": 25,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -518,
+   "gross_bp": -40.2,
+   "cost_bp": 477.8,
+   "mean_net_bp": -9.42,
+   "se_bp": 6.97,
+   "t_gross": -0.11,
+   "hit_rate": 0.207,
+   "coin_flip_hit_rate": 0.247,
+   "coin_flip_net_bp": -499,
+   "by_plan": {
+    "reach_short": {
+     "n": 55,
+     "net_bp": -518,
+     "target_first": 0.11
+    }
+   },
+   "net_bp_per_day": -154.7,
+   "z_vs_random": -0.35
+  },
+  "fixed:dip_buy@BTC": {
+   "decisions": 139,
+   "trades": 72,
+   "targets": 25,
+   "stops": 32,
+   "timeouts": 14,
+   "unfilled": 67,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -460.6,
+   "gross_bp": -94.6,
+   "cost_bp": 366,
+   "mean_net_bp": -6.4,
+   "se_bp": 3.6,
+   "t_gross": -0.38,
+   "hit_rate": 0.439,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -376.1,
+   "by_plan": {
+    "dip_buy": {
+     "n": 72,
+     "net_bp": -460.6,
+     "target_first": 0.35
+    }
+   },
+   "net_bp_per_day": -137.6,
+   "z_vs_random": -0.2
+  },
+  "fixed:rip_sell@BTC": {
+   "decisions": 138,
+   "trades": 80,
+   "targets": 31,
+   "stops": 34,
+   "timeouts": 15,
+   "unfilled": 58,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -440.8,
+   "gross_bp": -53.6,
+   "cost_bp": 387.1,
+   "mean_net_bp": -5.51,
+   "se_bp": 2.81,
+   "t_gross": -0.25,
+   "hit_rate": 0.477,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -408.3,
+   "by_plan": {
+    "rip_sell": {
+     "n": 80,
+     "net_bp": -440.8,
+     "target_first": 0.39
+    }
+   },
+   "net_bp_per_day": -131.7,
+   "z_vs_random": -0.15
+  },
+  "fixed:breakout_long@BTC": {
+   "decisions": 75,
+   "trades": 37,
+   "targets": 10,
+   "stops": 20,
+   "timeouts": 7,
+   "unfilled": 38,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -284.3,
+   "gross_bp": 29.1,
+   "cost_bp": 313.4,
+   "mean_net_bp": -7.68,
+   "se_bp": 6.33,
+   "t_gross": 0.13,
+   "hit_rate": 0.333,
+   "coin_flip_hit_rate": 0.307,
+   "coin_flip_net_bp": -373.8,
+   "by_plan": {
+    "breakout_long": {
+     "n": 37,
+     "net_bp": -284.3,
+     "target_first": 0.27
+    }
+   },
+   "net_bp_per_day": -84.9,
+   "z_vs_random": 0.27
+  },
+  "fixed:breakdown_short@BTC": {
+   "decisions": 74,
+   "trades": 28,
+   "targets": 6,
+   "stops": 16,
+   "timeouts": 6,
+   "unfilled": 46,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -196.8,
+   "gross_bp": 39,
+   "cost_bp": 235.8,
+   "mean_net_bp": -7.03,
+   "se_bp": 6.86,
+   "t_gross": 0.21,
+   "hit_rate": 0.273,
+   "coin_flip_hit_rate": 0.307,
+   "coin_flip_net_bp": -276.1,
+   "by_plan": {
+    "breakdown_short": {
+     "n": 28,
+     "net_bp": -196.8,
+     "target_first": 0.21
+    }
+   },
+   "net_bp_per_day": -58.8,
+   "z_vs_random": 0.5
+  },
+  "fixed:revert@BTC": {
+   "decisions": 305,
+   "trades": 8,
+   "targets": 1,
+   "stops": 1,
+   "timeouts": 5,
+   "unfilled": 0,
+   "waits": 297,
+   "ambiguous": 0,
+   "net_bp": 31.3,
+   "gross_bp": 101.8,
+   "cost_bp": 70.5,
+   "mean_net_bp": 3.91,
+   "se_bp": 18.24,
+   "t_gross": 0.71,
+   "hit_rate": 0.5,
+   "coin_flip_hit_rate": 0.296,
+   "coin_flip_net_bp": -72.8,
+   "by_plan": {
+    "revert": {
+     "n": 8,
+     "net_bp": 31.3,
+     "target_first": 0.13
+    }
+   },
+   "net_bp_per_day": 9.3,
+   "z_vs_random": 1.11
+  },
+  "fixed:trail_long@BTC": {
+   "decisions": 37,
+   "trades": 37,
+   "targets": 0,
+   "stops": 26,
+   "timeouts": 10,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -266.6,
+   "gross_bp": 83.4,
+   "cost_bp": 350,
+   "mean_net_bp": -7.21,
+   "se_bp": 11.53,
+   "t_gross": 0.2,
+   "hit_rate": 0,
+   "by_plan": {
+    "trail_long": {
+     "n": 37,
+     "net_bp": -266.6,
+     "target_first": 0
+    }
+   },
+   "net_bp_per_day": -79.6,
+   "z_vs_random": 0.32
+  },
+  "fixed:trail_short@BTC": {
+   "decisions": 39,
+   "trades": 39,
+   "targets": 0,
+   "stops": 29,
+   "timeouts": 9,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -441.1,
+   "gross_bp": -92,
+   "cost_bp": 349.2,
+   "mean_net_bp": -11.31,
+   "se_bp": 10.25,
+   "t_gross": -0.23,
+   "hit_rate": 0,
+   "by_plan": {
+    "trail_short": {
+     "n": 39,
+     "net_bp": -441.1,
+     "target_first": 0
+    }
+   },
+   "net_bp_per_day": -131.8,
+   "z_vs_random": -0.15
+  },
+  "baseline@BTC": {
+   "decisions": 161,
+   "trades": 72,
+   "targets": 23,
+   "stops": 26,
+   "timeouts": 22,
+   "unfilled": 41,
+   "waits": 48,
+   "ambiguous": 0,
+   "net_bp": -674.6,
+   "gross_bp": -251,
+   "cost_bp": 423.7,
+   "mean_net_bp": -9.37,
+   "se_bp": 3.83,
+   "t_gross": -0.94,
+   "hit_rate": 0.469,
+   "coin_flip_hit_rate": 0.474,
+   "coin_flip_net_bp": -441.9,
+   "by_plan": {
+    "dip_buy": {
+     "n": 29,
+     "net_bp": -179.4,
+     "target_first": 0.45
+    },
+    "rip_sell": {
+     "n": 25,
+     "net_bp": -240.2,
+     "target_first": 0.32
+    },
+    "revert": {
+     "n": 18,
+     "net_bp": -255,
+     "target_first": 0.11
+    }
+   },
+   "net_bp_per_day": -201.5,
+   "z_vs_random": -0.77
+  },
+  "bestRecent@BTC": {
+   "decisions": 100,
+   "trades": 29,
+   "targets": 0,
+   "stops": 19,
+   "timeouts": 10,
+   "unfilled": 5,
+   "waits": 66,
+   "ambiguous": 0,
+   "net_bp": -597.5,
+   "gross_bp": -324.7,
+   "cost_bp": 272.9,
+   "mean_net_bp": -20.6,
+   "se_bp": 11.42,
+   "t_gross": -0.98,
+   "hit_rate": 0,
+   "coin_flip_hit_rate": 0.277,
+   "coin_flip_net_bp": -67.1,
+   "by_plan": {
+    "reach_long": {
+     "n": 4,
+     "net_bp": -140.6,
+     "target_first": 0
+    },
+    "trail_long": {
+     "n": 21,
+     "net_bp": -387.7,
+     "target_first": 0
+    },
+    "trail_short": {
+     "n": 1,
+     "net_bp": -19.9,
+     "target_first": 0
+    },
+    "breakout_long": {
+     "n": 1,
+     "net_bp": -12.3,
+     "target_first": 0
+    },
+    "breakdown_short": {
+     "n": 2,
+     "net_bp": -37,
+     "target_first": 0
+    }
+   },
+   "net_bp_per_day": -178.5,
+   "z_vs_random": -0.56
+  },
+  "random@ETH": {
+   "seeds": 30,
+   "mean_net_bp": -427.6,
+   "sd_net_bp": 370.3,
+   "min": -1590.9,
+   "max": 116.5
+  },
+  "wait@ETH": {
+   "decisions": 322,
+   "trades": 0,
+   "targets": 0,
+   "stops": 0,
+   "timeouts": 0,
+   "unfilled": 0,
+   "waits": 322,
+   "ambiguous": 0,
+   "net_bp": 0,
+   "gross_bp": 0,
+   "cost_bp": 0,
+   "mean_net_bp": 0,
+   "se_bp": null,
+   "t_gross": null,
+   "hit_rate": null,
+   "by_plan": {},
+   "net_bp_per_day": 0,
+   "z_vs_random": 1.15
+  },
+  "fixed:bracket_long@ETH": {
+   "decisions": 115,
+   "trades": 115,
+   "targets": 38,
+   "stops": 31,
+   "timeouts": 45,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -1149.5,
+   "gross_bp": -199.6,
+   "cost_bp": 949.8,
+   "mean_net_bp": -10,
+   "se_bp": 3.39,
+   "t_gross": -0.53,
+   "hit_rate": 0.551,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -988.9,
+   "by_plan": {
+    "bracket_long": {
+     "n": 115,
+     "net_bp": -1149.5,
+     "target_first": 0.33
+    }
+   },
+   "net_bp_per_day": -343.6,
+   "z_vs_random": -1.95
+  },
+  "fixed:bracket_short@ETH": {
+   "decisions": 115,
+   "trades": 115,
+   "targets": 31,
+   "stops": 38,
+   "timeouts": 45,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -821.6,
+   "gross_bp": 130.6,
+   "cost_bp": 952.3,
+   "mean_net_bp": -7.14,
+   "se_bp": 3.39,
+   "t_gross": 0.34,
+   "hit_rate": 0.449,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -975.1,
+   "by_plan": {
+    "bracket_short": {
+     "n": 115,
+     "net_bp": -821.6,
+     "target_first": 0.27
+    }
+   },
+   "net_bp_per_day": -245.6,
+   "z_vs_random": -1.06
+  },
+  "fixed:reach_long@ETH": {
+   "decisions": 63,
+   "trades": 63,
+   "targets": 10,
+   "stops": 29,
+   "timeouts": 23,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -705.3,
+   "gross_bp": -147.1,
+   "cost_bp": 558.2,
+   "mean_net_bp": -11.2,
+   "se_bp": 6.35,
+   "t_gross": -0.37,
+   "hit_rate": 0.256,
+   "coin_flip_hit_rate": 0.247,
+   "coin_flip_net_bp": -586.7,
+   "by_plan": {
+    "reach_long": {
+     "n": 63,
+     "net_bp": -705.3,
+     "target_first": 0.16
+    }
+   },
+   "net_bp_per_day": -210.8,
+   "z_vs_random": -0.75
+  },
+  "fixed:reach_short@ETH": {
+   "decisions": 59,
+   "trades": 59,
+   "targets": 6,
+   "stops": 26,
+   "timeouts": 26,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -408.1,
+   "gross_bp": 106.5,
+   "cost_bp": 514.6,
+   "mean_net_bp": -6.92,
+   "se_bp": 6.5,
+   "t_gross": 0.28,
+   "hit_rate": 0.188,
+   "coin_flip_hit_rate": 0.247,
+   "coin_flip_net_bp": -535.3,
+   "by_plan": {
+    "reach_short": {
+     "n": 59,
+     "net_bp": -408.1,
+     "target_first": 0.1
+    }
+   },
+   "net_bp_per_day": -122,
+   "z_vs_random": 0.05
+  },
+  "fixed:dip_buy@ETH": {
+   "decisions": 151,
+   "trades": 73,
+   "targets": 28,
+   "stops": 35,
+   "timeouts": 9,
+   "unfilled": 78,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -633.8,
+   "gross_bp": -271.4,
+   "cost_bp": 362.4,
+   "mean_net_bp": -8.68,
+   "se_bp": 3.73,
+   "t_gross": -1.04,
+   "hit_rate": 0.444,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -381.3,
+   "by_plan": {
+    "dip_buy": {
+     "n": 73,
+     "net_bp": -633.8,
+     "target_first": 0.38
+    }
+   },
+   "net_bp_per_day": -189.4,
+   "z_vs_random": -0.56
+  },
+  "fixed:rip_sell@ETH": {
+   "decisions": 142,
+   "trades": 83,
+   "targets": 32,
+   "stops": 37,
+   "timeouts": 14,
+   "unfilled": 59,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -269.4,
+   "gross_bp": 132.8,
+   "cost_bp": 402.2,
+   "mean_net_bp": -3.25,
+   "se_bp": 3.35,
+   "t_gross": 0.5,
+   "hit_rate": 0.464,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -423.6,
+   "by_plan": {
+    "rip_sell": {
+     "n": 83,
+     "net_bp": -269.4,
+     "target_first": 0.39
+    }
+   },
+   "net_bp_per_day": -80.5,
+   "z_vs_random": 0.43
+  },
+  "fixed:breakout_long@ETH": {
+   "decisions": 73,
+   "trades": 30,
+   "targets": 8,
+   "stops": 16,
+   "timeouts": 6,
+   "unfilled": 43,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -281.5,
+   "gross_bp": -26.9,
+   "cost_bp": 254.5,
+   "mean_net_bp": -9.38,
+   "se_bp": 7.66,
+   "t_gross": -0.12,
+   "hit_rate": 0.333,
+   "coin_flip_hit_rate": 0.307,
+   "coin_flip_net_bp": -303.1,
+   "by_plan": {
+    "breakout_long": {
+     "n": 30,
+     "net_bp": -281.5,
+     "target_first": 0.27
+    }
+   },
+   "net_bp_per_day": -84.1,
+   "z_vs_random": 0.39
+  },
+  "fixed:breakdown_short@ETH": {
+   "decisions": 75,
+   "trades": 33,
+   "targets": 5,
+   "stops": 21,
+   "timeouts": 7,
+   "unfilled": 42,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -442.5,
+   "gross_bp": -157.6,
+   "cost_bp": 284.9,
+   "mean_net_bp": -13.41,
+   "se_bp": 6.47,
+   "t_gross": -0.76,
+   "hit_rate": 0.192,
+   "coin_flip_hit_rate": 0.307,
+   "coin_flip_net_bp": -325.4,
+   "by_plan": {
+    "breakdown_short": {
+     "n": 33,
+     "net_bp": -442.5,
+     "target_first": 0.15
+    }
+   },
+   "net_bp_per_day": -132.3,
+   "z_vs_random": -0.04
+  },
+  "fixed:revert@ETH": {
+   "decisions": 300,
+   "trades": 8,
+   "targets": 0,
+   "stops": 1,
+   "timeouts": 7,
+   "unfilled": 0,
+   "waits": 292,
+   "ambiguous": 0,
+   "net_bp": -20.2,
+   "gross_bp": 53.5,
+   "cost_bp": 73.8,
+   "mean_net_bp": -2.53,
+   "se_bp": 14.41,
+   "t_gross": 0.46,
+   "hit_rate": 0,
+   "coin_flip_hit_rate": 0.348,
+   "coin_flip_net_bp": -72,
+   "by_plan": {
+    "revert": {
+     "n": 8,
+     "net_bp": -20.2,
+     "target_first": 0
+    }
+   },
+   "net_bp_per_day": -6,
+   "z_vs_random": 1.1
+  },
+  "fixed:trail_long@ETH": {
+   "decisions": 38,
+   "trades": 38,
+   "targets": 0,
+   "stops": 26,
+   "timeouts": 11,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -318.5,
+   "gross_bp": 40.8,
+   "cost_bp": 359.2,
+   "mean_net_bp": -8.38,
+   "se_bp": 9.79,
+   "t_gross": 0.11,
+   "hit_rate": 0,
+   "by_plan": {
+    "trail_long": {
+     "n": 38,
+     "net_bp": -318.5,
+     "target_first": 0
+    }
+   },
+   "net_bp_per_day": -95.2,
+   "z_vs_random": 0.29
+  },
+  "fixed:trail_short@ETH": {
+   "decisions": 38,
+   "trades": 38,
+   "targets": 0,
+   "stops": 29,
+   "timeouts": 8,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -151.9,
+   "gross_bp": 188.1,
+   "cost_bp": 340,
+   "mean_net_bp": -4,
+   "se_bp": 10.76,
+   "t_gross": 0.46,
+   "hit_rate": 0,
+   "by_plan": {
+    "trail_short": {
+     "n": 38,
+     "net_bp": -151.9,
+     "target_first": 0
+    }
+   },
+   "net_bp_per_day": -45.4,
+   "z_vs_random": 0.74
+  },
+  "baseline@ETH": {
+   "decisions": 158,
+   "trades": 62,
+   "targets": 21,
+   "stops": 21,
+   "timeouts": 20,
+   "unfilled": 48,
+   "waits": 48,
+   "ambiguous": 0,
+   "net_bp": -258.8,
+   "gross_bp": 97.3,
+   "cost_bp": 356,
+   "mean_net_bp": -4.17,
+   "se_bp": 4.26,
+   "t_gross": 0.38,
+   "hit_rate": 0.5,
+   "coin_flip_hit_rate": 0.479,
+   "coin_flip_net_bp": -373.5,
+   "by_plan": {
+    "dip_buy": {
+     "n": 26,
+     "net_bp": -162.7,
+     "target_first": 0.42
+    },
+    "revert": {
+     "n": 14,
+     "net_bp": 63.3,
+     "target_first": 0.14
+    },
+    "rip_sell": {
+     "n": 22,
+     "net_bp": -159.5,
+     "target_first": 0.36
+    }
+   },
+   "net_bp_per_day": -77.3,
+   "z_vs_random": 0.46
+  },
+  "bestRecent@ETH": {
+   "decisions": 135,
+   "trades": 40,
+   "targets": 8,
+   "stops": 24,
+   "timeouts": 7,
+   "unfilled": 23,
+   "waits": 72,
+   "ambiguous": 0,
+   "net_bp": -717.7,
+   "gross_bp": -417.4,
+   "cost_bp": 300.3,
+   "mean_net_bp": -17.94,
+   "se_bp": 8.78,
+   "t_gross": -1.21,
+   "hit_rate": 0.25,
+   "coin_flip_hit_rate": 0.429,
+   "coin_flip_net_bp": -165.8,
+   "by_plan": {
+    "reach_long": {
+     "n": 2,
+     "net_bp": -80.5,
+     "target_first": 0
+    },
+    "breakout_long": {
+     "n": 4,
+     "net_bp": -117.4,
+     "target_first": 0.25
+    },
+    "reach_short": {
+     "n": 1,
+     "net_bp": -1.1,
+     "target_first": 0
+    },
+    "trail_long": {
+     "n": 15,
+     "net_bp": -377,
+     "target_first": 0
+    },
+    "rip_sell": {
+     "n": 3,
+     "net_bp": -34.9,
+     "target_first": 0.33
+    },
+    "dip_buy": {
+     "n": 12,
+     "net_bp": -41.4,
+     "target_first": 0.5
+    },
+    "breakdown_short": {
+     "n": 2,
+     "net_bp": -18.8,
+     "target_first": 0
+    },
+    "trail_short": {
+     "n": 1,
+     "net_bp": -46.7,
+     "target_first": 0
+    }
+   },
+   "net_bp_per_day": -214.5,
+   "z_vs_random": -0.78
+  },
+  "random@SOL": {
+   "seeds": 30,
+   "mean_net_bp": -480.4,
+   "sd_net_bp": 459.8,
+   "min": -1314.5,
+   "max": 587.5
+  },
+  "wait@SOL": {
+   "decisions": 321,
+   "trades": 0,
+   "targets": 0,
+   "stops": 0,
+   "timeouts": 0,
+   "unfilled": 0,
+   "waits": 321,
+   "ambiguous": 0,
+   "net_bp": 0,
+   "gross_bp": 0,
+   "cost_bp": 0,
+   "mean_net_bp": 0,
+   "se_bp": null,
+   "t_gross": null,
+   "hit_rate": null,
+   "by_plan": {},
+   "net_bp_per_day": 0,
+   "z_vs_random": 1.04
+  },
+  "fixed:bracket_long@SOL": {
+   "decisions": 118,
+   "trades": 118,
+   "targets": 38,
+   "stops": 36,
+   "timeouts": 43,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -1157.2,
+   "gross_bp": -179.8,
+   "cost_bp": 977.4,
+   "mean_net_bp": -9.81,
+   "se_bp": 4.73,
+   "t_gross": -0.33,
+   "hit_rate": 0.514,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -1014.7,
+   "by_plan": {
+    "bracket_long": {
+     "n": 118,
+     "net_bp": -1157.2,
+     "target_first": 0.32
+    }
+   },
+   "net_bp_per_day": -346.5,
+   "z_vs_random": -1.47
+  },
+  "fixed:bracket_short@SOL": {
+   "decisions": 119,
+   "trades": 119,
+   "targets": 36,
+   "stops": 39,
+   "timeouts": 43,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -926.4,
+   "gross_bp": 47.2,
+   "cost_bp": 973.6,
+   "mean_net_bp": -7.78,
+   "se_bp": 4.72,
+   "t_gross": 0.09,
+   "hit_rate": 0.48,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -1009,
+   "by_plan": {
+    "bracket_short": {
+     "n": 119,
+     "net_bp": -926.4,
+     "target_first": 0.3
+    }
+   },
+   "net_bp_per_day": -277.4,
+   "z_vs_random": -0.97
+  },
+  "fixed:reach_long@SOL": {
+   "decisions": 64,
+   "trades": 64,
+   "targets": 14,
+   "stops": 25,
+   "timeouts": 24,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -507.5,
+   "gross_bp": 47.5,
+   "cost_bp": 555,
+   "mean_net_bp": -7.93,
+   "se_bp": 8,
+   "t_gross": 0.09,
+   "hit_rate": 0.359,
+   "coin_flip_hit_rate": 0.247,
+   "coin_flip_net_bp": -596,
+   "by_plan": {
+    "reach_long": {
+     "n": 64,
+     "net_bp": -507.5,
+     "target_first": 0.22
+    }
+   },
+   "net_bp_per_day": -152,
+   "z_vs_random": -0.06
+  },
+  "fixed:reach_short@SOL": {
+   "decisions": 61,
+   "trades": 61,
+   "targets": 5,
+   "stops": 31,
+   "timeouts": 24,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -470.9,
+   "gross_bp": 65.2,
+   "cost_bp": 536.1,
+   "mean_net_bp": -7.72,
+   "se_bp": 9.39,
+   "t_gross": 0.11,
+   "hit_rate": 0.139,
+   "coin_flip_hit_rate": 0.247,
+   "coin_flip_net_bp": -553.4,
+   "by_plan": {
+    "reach_short": {
+     "n": 61,
+     "net_bp": -470.9,
+     "target_first": 0.08
+    }
+   },
+   "net_bp_per_day": -141,
+   "z_vs_random": 0.02
+  },
+  "fixed:dip_buy@SOL": {
+   "decisions": 147,
+   "trades": 75,
+   "targets": 35,
+   "stops": 29,
+   "timeouts": 10,
+   "unfilled": 72,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -421.9,
+   "gross_bp": -68.8,
+   "cost_bp": 353,
+   "mean_net_bp": -5.62,
+   "se_bp": 5.04,
+   "t_gross": -0.19,
+   "hit_rate": 0.547,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -391.7,
+   "by_plan": {
+    "dip_buy": {
+     "n": 75,
+     "net_bp": -421.9,
+     "target_first": 0.47
+    }
+   },
+   "net_bp_per_day": -126.3,
+   "z_vs_random": 0.13
+  },
+  "fixed:rip_sell@SOL": {
+   "decisions": 141,
+   "trades": 79,
+   "targets": 27,
+   "stops": 37,
+   "timeouts": 15,
+   "unfilled": 62,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -812.4,
+   "gross_bp": -418.9,
+   "cost_bp": 393.5,
+   "mean_net_bp": -10.28,
+   "se_bp": 4.44,
+   "t_gross": -1.23,
+   "hit_rate": 0.422,
+   "coin_flip_hit_rate": 0.5,
+   "coin_flip_net_bp": -403.2,
+   "by_plan": {
+    "rip_sell": {
+     "n": 79,
+     "net_bp": -812.4,
+     "target_first": 0.34
+    }
+   },
+   "net_bp_per_day": -243.3,
+   "z_vs_random": -0.72
+  },
+  "fixed:breakout_long@SOL": {
+   "decisions": 74,
+   "trades": 35,
+   "targets": 8,
+   "stops": 20,
+   "timeouts": 7,
+   "unfilled": 39,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -374.3,
+   "gross_bp": -73.4,
+   "cost_bp": 300.8,
+   "mean_net_bp": -10.69,
+   "se_bp": 9.4,
+   "t_gross": -0.23,
+   "hit_rate": 0.286,
+   "coin_flip_hit_rate": 0.307,
+   "coin_flip_net_bp": -353.6,
+   "by_plan": {
+    "breakout_long": {
+     "n": 35,
+     "net_bp": -374.3,
+     "target_first": 0.23
+    }
+   },
+   "net_bp_per_day": -112.1,
+   "z_vs_random": 0.23
+  },
+  "fixed:breakdown_short@SOL": {
+   "decisions": 78,
+   "trades": 32,
+   "targets": 7,
+   "stops": 19,
+   "timeouts": 6,
+   "unfilled": 46,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -389.9,
+   "gross_bp": -120.4,
+   "cost_bp": 269.5,
+   "mean_net_bp": -12.19,
+   "se_bp": 9.48,
+   "t_gross": -0.41,
+   "hit_rate": 0.269,
+   "coin_flip_hit_rate": 0.307,
+   "coin_flip_net_bp": -315.6,
+   "by_plan": {
+    "breakdown_short": {
+     "n": 32,
+     "net_bp": -389.9,
+     "target_first": 0.22
+    }
+   },
+   "net_bp_per_day": -116.8,
+   "z_vs_random": 0.2
+  },
+  "fixed:revert@SOL": {
+   "decisions": 309,
+   "trades": 7,
+   "targets": 4,
+   "stops": 2,
+   "timeouts": 1,
+   "unfilled": 0,
+   "waits": 302,
+   "ambiguous": 0,
+   "net_bp": 125.7,
+   "gross_bp": 177.4,
+   "cost_bp": 51.7,
+   "mean_net_bp": 17.96,
+   "se_bp": 17.52,
+   "t_gross": 1.48,
+   "hit_rate": 0.667,
+   "coin_flip_hit_rate": 0.371,
+   "coin_flip_net_bp": -62.4,
+   "by_plan": {
+    "revert": {
+     "n": 7,
+     "net_bp": 125.7,
+     "target_first": 0.57
+    }
+   },
+   "net_bp_per_day": 37.6,
+   "z_vs_random": 1.32
+  },
+  "fixed:trail_long@SOL": {
+   "decisions": 35,
+   "trades": 35,
+   "targets": 0,
+   "stops": 25,
+   "timeouts": 9,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -232.4,
+   "gross_bp": 99.2,
+   "cost_bp": 331.6,
+   "mean_net_bp": -6.64,
+   "se_bp": 14.51,
+   "t_gross": 0.2,
+   "hit_rate": 0,
+   "by_plan": {
+    "trail_long": {
+     "n": 35,
+     "net_bp": -232.4,
+     "target_first": 0
+    }
+   },
+   "net_bp_per_day": -69.6,
+   "z_vs_random": 0.54
+  },
+  "fixed:trail_short@SOL": {
+   "decisions": 41,
+   "trades": 41,
+   "targets": 0,
+   "stops": 35,
+   "timeouts": 5,
+   "unfilled": 0,
+   "waits": 0,
+   "ambiguous": 0,
+   "net_bp": -388.4,
+   "gross_bp": -20.8,
+   "cost_bp": 367.6,
+   "mean_net_bp": -9.47,
+   "se_bp": 12.42,
+   "t_gross": -0.04,
+   "hit_rate": 0,
+   "by_plan": {
+    "trail_short": {
+     "n": 41,
+     "net_bp": -388.4,
+     "target_first": 0
+    }
+   },
+   "net_bp_per_day": -116.3,
+   "z_vs_random": 0.2
+  },
+  "baseline@SOL": {
+   "decisions": 170,
+   "trades": 78,
+   "targets": 32,
+   "stops": 32,
+   "timeouts": 14,
+   "unfilled": 49,
+   "waits": 43,
+   "ambiguous": 0,
+   "net_bp": -304.4,
+   "gross_bp": 121.3,
+   "cost_bp": 425.7,
+   "mean_net_bp": -3.9,
+   "se_bp": 5.33,
+   "t_gross": 0.3,
+   "hit_rate": 0.5,
+   "coin_flip_hit_rate": 0.48,
+   "coin_flip_net_bp": -464,
+   "by_plan": {
+    "rip_sell": {
+     "n": 34,
+     "net_bp": -79.7,
+     "target_first": 0.47
+    },
+    "dip_buy": {
+     "n": 28,
+     "net_bp": -180.4,
+     "target_first": 0.43
+    },
+    "revert": {
+     "n": 16,
+     "net_bp": -44.3,
+     "target_first": 0.25
+    }
+   },
+   "net_bp_per_day": -91.1,
+   "z_vs_random": 0.38
+  },
+  "bestRecent@SOL": {
+   "decisions": 94,
+   "trades": 43,
+   "targets": 5,
+   "stops": 30,
+   "timeouts": 8,
+   "unfilled": 14,
+   "waits": 37,
+   "ambiguous": 0,
+   "net_bp": -1343.7,
+   "gross_bp": -992.4,
+   "cost_bp": 351.3,
+   "mean_net_bp": -31.25,
+   "se_bp": 8.77,
+   "t_gross": -2.66,
+   "hit_rate": 0.143,
+   "coin_flip_hit_rate": 0.365,
+   "coin_flip_net_bp": -208.9,
+   "by_plan": {
+    "reach_long": {
+     "n": 8,
+     "net_bp": -32,
+     "target_first": 0.38
+    },
+    "trail_long": {
+     "n": 14,
+     "net_bp": -730.2,
+     "target_first": 0
+    },
+    "rip_sell": {
+     "n": 9,
+     "net_bp": -237.9,
+     "target_first": 0.22
+    },
+    "reach_short": {
+     "n": 7,
+     "net_bp": -112.9,
+     "target_first": 0
+    },
+    "trail_short": {
+     "n": 2,
+     "net_bp": -108.5,
+     "target_first": 0
+    },
+    "dip_buy": {
+     "n": 1,
+     "net_bp": -47.5,
+     "target_first": 0
+    },
+    "breakdown_short": {
+     "n": 2,
+     "net_bp": -74.8,
+     "target_first": 0
+    }
+   },
+   "net_bp_per_day": -402.4,
+   "z_vs_random": -1.88
+  }
+ },
+ "pooled": {
+  "random": {
+   "net_bp": -1294,
+   "sd_bp": 699.2
+  },
+  "wait": {
+   "net_bp": 0,
+   "gross_bp": 0,
+   "cost_bp": 0,
+   "trades": 0,
+   "target_first": null,
+   "mean_net_bp": 0,
+   "hit_rate": null,
+   "coin_flip_hit_rate": null,
+   "timeouts": 0,
+   "t_gross": null,
+   "z_vs_random": 1.85
+  },
+  "fixed:bracket_long": {
+   "net_bp": -3190.5,
+   "gross_bp": -319.4,
+   "cost_bp": 2871,
+   "trades": 346,
+   "target_first": 0.318,
+   "mean_net_bp": -9.22,
+   "hit_rate": 0.542,
+   "coin_flip_hit_rate": 0.5,
+   "timeouts": 140,
+   "t_gross": -0.43,
+   "z_vs_random": -2.71
+  },
+  "fixed:bracket_short": {
+   "net_bp": -2817.3,
+   "gross_bp": 57.8,
+   "cost_bp": 2875.3,
+   "trades": 347,
+   "target_first": 0.268,
+   "mean_net_bp": -8.12,
+   "hit_rate": 0.456,
+   "coin_flip_hit_rate": 0.5,
+   "timeouts": 140,
+   "t_gross": 0.08,
+   "z_vs_random": -2.18
+  },
+  "fixed:reach_long": {
+   "net_bp": -1691.2,
+   "gross_bp": -44.2,
+   "cost_bp": 1646.9,
+   "trades": 187,
+   "target_first": 0.176,
+   "mean_net_bp": -9.04,
+   "hit_rate": 0.297,
+   "coin_flip_hit_rate": 0.247,
+   "timeouts": 73,
+   "t_gross": -0.06,
+   "z_vs_random": -0.57
+  },
+  "fixed:reach_short": {
+   "net_bp": -1397,
+   "gross_bp": 131.5,
+   "cost_bp": 1528.5,
+   "trades": 175,
+   "target_first": 0.097,
+   "mean_net_bp": -7.98,
+   "hit_rate": 0.175,
+   "coin_flip_hit_rate": 0.247,
+   "timeouts": 75,
+   "t_gross": 0.17,
+   "z_vs_random": -0.15
+  },
+  "fixed:dip_buy": {
+   "net_bp": -1516.3,
+   "gross_bp": -434.8,
+   "cost_bp": 1081.4,
+   "trades": 220,
+   "target_first": 0.4,
+   "mean_net_bp": -6.89,
+   "hit_rate": 0.478,
+   "coin_flip_hit_rate": 0.5,
+   "timeouts": 33,
+   "t_gross": -0.85,
+   "z_vs_random": -0.32
+  },
+  "fixed:rip_sell": {
+   "net_bp": -1522.6,
+   "gross_bp": -339.7,
+   "cost_bp": 1182.8,
+   "trades": 242,
+   "target_first": 0.372,
+   "mean_net_bp": -6.29,
+   "hit_rate": 0.455,
+   "coin_flip_hit_rate": 0.5,
+   "timeouts": 44,
+   "t_gross": -0.7,
+   "z_vs_random": -0.33
+  },
+  "fixed:breakout_long": {
+   "net_bp": -940.1,
+   "gross_bp": -71.2,
+   "cost_bp": 868.7,
+   "trades": 102,
+   "target_first": 0.255,
+   "mean_net_bp": -9.22,
+   "hit_rate": 0.317,
+   "coin_flip_hit_rate": 0.307,
+   "timeouts": 20,
+   "t_gross": -0.16,
+   "z_vs_random": 0.51
+  },
+  "fixed:breakdown_short": {
+   "net_bp": -1029.2,
+   "gross_bp": -239,
+   "cost_bp": 790.2,
+   "trades": 93,
+   "target_first": 0.194,
+   "mean_net_bp": -11.07,
+   "hit_rate": 0.243,
+   "coin_flip_hit_rate": 0.307,
+   "timeouts": 19,
+   "t_gross": -0.59,
+   "z_vs_random": 0.38
+  },
+  "fixed:revert": {
+   "net_bp": 136.8,
+   "gross_bp": 332.7,
+   "cost_bp": 196,
+   "trades": 23,
+   "target_first": 0.217,
+   "mean_net_bp": 5.95,
+   "hit_rate": 0.556,
+   "coin_flip_hit_rate": 0.352,
+   "timeouts": 13,
+   "t_gross": 1.51,
+   "z_vs_random": 2.05
+  },
+  "fixed:trail_long": {
+   "net_bp": -817.5,
+   "gross_bp": 223.4,
+   "cost_bp": 1040.8,
+   "trades": 110,
+   "target_first": 0,
+   "mean_net_bp": -7.43,
+   "hit_rate": 0,
+   "coin_flip_hit_rate": 0,
+   "timeouts": 30,
+   "t_gross": 0.3,
+   "z_vs_random": 0.68
+  },
+  "fixed:trail_short": {
+   "net_bp": -981.4,
+   "gross_bp": 75.3,
+   "cost_bp": 1056.8,
+   "trades": 118,
+   "target_first": 0,
+   "mean_net_bp": -8.32,
+   "hit_rate": 0,
+   "coin_flip_hit_rate": 0,
+   "timeouts": 22,
+   "t_gross": 0.1,
+   "z_vs_random": 0.45
+  },
+  "baseline": {
+   "net_bp": -1237.8,
+   "gross_bp": -32.4,
+   "cost_bp": 1205.4,
+   "trades": 212,
+   "target_first": 0.358,
+   "mean_net_bp": -5.84,
+   "hit_rate": 0.49,
+   "coin_flip_hit_rate": 0.478,
+   "timeouts": 56,
+   "t_gross": -0.06,
+   "z_vs_random": 0.08
+  },
+  "bestRecent": {
+   "net_bp": -2658.9,
+   "gross_bp": -1734.5,
+   "cost_bp": 924.5,
+   "trades": 112,
+   "target_first": 0.116,
+   "mean_net_bp": -23.74,
+   "hit_rate": 0.151,
+   "coin_flip_hit_rate": 0.369,
+   "timeouts": 25,
+   "t_gross": -2.86,
+   "z_vs_random": -1.95
+  }
+ }
+}

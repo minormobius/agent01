@@ -3069,6 +3069,23 @@
       ]
     },
     {
+      "n": "trading floor",
+      "u": "https://mega.mino.mobi/jev/lab/plans/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "jev lab",
+      "surface": "mega",
+      "d": "Plans with exits instead of buy, sell or hold. Each decision picks an entry (at market, a resting limit or a stop-entry), a target, a stop that is fixed or trailing, and a time limit, and nothing is decided again until the plan exits. Replayed on recorded one-minute BTC, ETH and SOL tapes with every plan drawn as a band. Each plan's hit rate sits beside the rate it would have on a coin flip, and on real tape they match: before costs no plan beats a coin flip, so the costs are the whole loss. Only standing aside and one regime-conditional plan, reverting when price is stretched, come out at zero or better.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "markets"
+      ]
+    },
+    {
       "n": "golem",
       "u": "https://golem.mino.mobi",
       "c": "games",

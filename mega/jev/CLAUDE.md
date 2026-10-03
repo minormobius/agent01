@@ -34,6 +34,7 @@ space onto classifiable axes — had nowhere to live.
 | `/jev/` | the index: what each experiment found, the two rules, the axis-shape table |
 | `/jev/delve/` | **the dungeon**, moved here from the root |
 | `/jev/lab/` | the market harness |
+| `/jev/lab/plans/` | **the trading floor**: plans with targets and stops, replayed on recorded tapes (§ The trading floor) |
 | `/jev/composer/` | the procgen composer |
 | `/jev/craft/` | **craft** — a headless Minecraft-like on foam's tilings, built for a System 1 / System 2 split (§ craft) |
 
@@ -2884,6 +2885,157 @@ single pre-specified test and it is overwhelming. The tradeable version is the
 best of thirty and sits on the corrected bar. The only clean next step is to
 **pre-register the horizon and test forward on data that does not exist yet**;
 everything else is re-reading the same 208 days.
+
+## The trading floor: plans, not stances (2026-10-03)
+
+The operator, coming back to the perp: *"our innovations here were in
+evaluation and the System 2 arch (those macros are the System 2 fingerprint).
+Bring macros into the trading floor, strategies to choose from rather than
+simple buy sell hold … bring targets and stop losses into the equation."*
+
+The stance lab's lesson was that **the drag was turnover**. A stance re-decides
+every tick and every change of mind is paid for. A **plan** is one round trip
+whose risk is named before it starts. It's craft's macro shape carried over:
+System 2 writes the plans, the harness computes every fact about each one, and
+Jev picks one only when no plan is open.
+
+| file | holds |
+|---|---|
+| `lab/plans.mjs` | the menu (`MACROS`), the engine (`simulate`), the facts (`options`, `state`, `questions`), the deciders, `walk` and `tally`. Pure ESM: the gate, the eval and the page run the same code |
+| `lab/tape.mjs` | 1-minute candles from Hyperliquid's `candleSnapshot`, cached in `lab/fixtures/candles-<coin>-1m.json` (~3.3 days each of BTC, ETH and SOL, fetched 2026-10-03) so a rerun measures the same tape. Node only |
+| `eval/plans-gate.mjs` | every arm on every tape, no model calls, ~1 s; writes `lab/plans-gate.json` |
+| `eval/plans-jev.mjs` | Jev in the seat, paced, capped (`--max-decisions`), and a failed call stands aside and is counted. `--stub` plays the same loop with the baseline's picks; writes `lab/plans-stub.json` |
+| `lab/plans/` | the replay page: pick a tape and a decider and every plan is drawn as a band (entry, **T**arget, **S**top, exit mark). Click one to see the state and menu it was chosen from |
+| `test/plans.selftest.mjs` | 66 checks, gates the deploy |
+
+### The menu
+
+| plan | entry | target / stop | time |
+|---|---|---|---|
+| `bracket_long` / `_short` | market | ±1σ / ∓1σ (σ over an hour) | 60 min |
+| `reach_long` / `_short` | market | 2σ / 1σ | 120 min |
+| `dip_buy` / `rip_sell` | a resting limit half a σ away, lapsing after 30 min | back by a σ / a σ beyond the fill | 60 min |
+| `breakout_long` / `breakdown_short` | a stop-entry 1bp past the hour's high / low, lapsing after 60 min | 1.5σ / 0.75σ | 120 min |
+| `revert` | market, **only offered** when price sits 2 sd from its hour mean | the mean / an hour's σ further out | 60 min |
+| `trail_long` / `_short` | market | no target, a stop trailing 1.5σ behind | 240 min |
+| `wait` | — | — | 15 min, then choose again |
+
+Levels are in units of the volatility over each plan's own horizon, so a plan
+means the same thing in a quiet hour and a wild one.
+
+### The engine is pessimistic wherever a bar is ambiguous
+
+- A decision is made at the close of bar i, and a market entry fills at the next open.
+- If a bar's range holds both the stop and the target, the stop came first (counted as `ambiguous`).
+- A gap through the stop exits at the open. A gap through a resting target fills at the (better) open.
+- The bar that fills an entry can stop it out but can't reach its target.
+- A limit pays maker (1.5bp); everything else pays taker (4.5bp) plus half the spread. A stop pays 1bp of slippage. Funding is 0.12bp an hour; longs pay it and shorts are paid.
+- The selftest pins each rule on hand-built bars.
+
+**No lookahead is asserted, not assumed.** Options, state and the recent
+record at bar i are byte-identical whether or not the tape after bar i
+exists. `recentRecord` caches each plan's result on the whole tape, which is
+safe because it only uses plans whose exit came before bar i, and those read
+nothing after their exit.
+
+### The facts carry the coin-flip arithmetic
+
+**On a driftless tape, a bracket's gross expectancy is zero whatever its shape.**
+A 2:1 bracket hits its target a third of the time and breaks even, and costs
+then make every plan lose. So each option carries `if_price_were_a_coin_flip`:
+- the odds of target first, stop first, and the time limit running out;
+- what that expects after costs.
+
+The odds come from a lattice walk (`rwOdds`). **The first version used
+stop/(target+stop), and the selftest caught it.** A finite time limit makes a
+far target rarer than that ratio says, because time runs out first. For
+`reach_short` it was 33% against a simulated 27%; the lattice says 25%.
+
+The selftest builds 30,000 synthetic bars from a 20-step random walk inside
+each bar. It asserts that every bracket's gross t is inside ±3 and its hit rate
+matches the lattice, and that with costs every bracket loses. The synthetic
+sample must be non-overlapping: neighbouring breakout starts share one
+breakout, and an overlapping sample reported t = 3.09 on a pure random walk.
+
+The first synthetic tape used a 31-bit LCG whose multiply lost precision in
+float64. It trended so hard that `bracket_long` hit its target 71% of the
+time. It's mulberry32 now. **A biased null tape looks exactly like an edge.**
+
+### Measured: the gate (`lab/plans-gate.json`, 3 tapes × 3.3 days, 30 random seeds)
+
+| arm | net bp | gross | trades | hit (coin flip) | gross t |
+|---|---|---|---|---|---|
+| wait | **0** | 0 | 0 | — | — |
+| random (30 seeds) | −1294 ± 699 | | | | |
+| bracket_long | −3191 | −319 | 346 | 54% (50%) | −0.43 |
+| bracket_short | −2817 | +58 | 347 | 46% (50%) | 0.08 |
+| reach_long | −1691 | −44 | 187 | 30% (25%) | −0.06 |
+| reach_short | −1397 | +132 | 175 | 18% (25%) | 0.17 |
+| dip_buy | −1516 | −435 | 220 | 48% (50%) | −0.85 |
+| rip_sell | −1523 | −340 | 242 | 46% (50%) | −0.70 |
+| breakout_long | −940 | −71 | 102 | 32% (31%) | −0.16 |
+| breakdown_short | −1029 | −239 | 93 | 24% (31%) | −0.59 |
+| **revert** | **+137** | +333 | 23 | 56% (35%) | 1.51 |
+| trail_long | −818 | +223 | 110 | — | 0.30 |
+| trail_short | −981 | +75 | 118 | — | 0.10 |
+| baseline script | −1238 | −32 | 212 | 49% (48%) | −0.06 |
+| bestRecent | −2659 | −1735 | 112 | 15% (37%) | **−2.86** |
+
+**Read it the way it was pre-stated.**
+- **On real tape every plan hits its target at its coin-flip rate.** 54 vs 50,
+  46 vs 50, 32 vs 31… and every gross t but one is inside ±2. Before costs,
+  nothing on the menu does better than a coin flip, so **the costs are the
+  whole loss**, exactly as the arithmetic said. Brackets don't create an edge.
+  Standing aside returns exactly 0 and beats everything except `revert`.
+- **`revert` is the one regime-conditional plan, and the only arm above zero:**
+  +137bp on 23 trades, a 56% hit rate against 35%, and gross t 1.51.
+  - That is suggestive and not a result. 23 trades is nothing, and its first
+    version (a threshold mis-scaled by √3) fired once in ten tape-days, so it
+    has already been adjusted once.
+  - It has to be pre-registered and tested forward, the same discipline as
+    `preregister.json`.
+- **Chasing the trailing record is the one clear loser.** `bestRecent` picks the
+  plan with the best last-24-hours record (if that record made money), and it
+  lost 24bp a trade at gross t −2.86.
+  - It mostly picked the trailing long after runs up and was stopped on the
+    pullback (σ was 13.7bp a minute on 2026-09-30, so its stops were 160bp wide).
+  - **The `last_24h` fact stays on the menu, and it is an attractive nuisance.**
+    This number is the reason to watch whether Jev chases it.
+- The baseline script (revert when stretched, trail a clean trend, otherwise
+  dip-buy or rip-sell toward the middle of the hour's range) is a coin flip
+  before costs and loses its costs after.
+
+### Jev: blocked on billing, not measured
+
+The stub run (the baseline's picks through the same loop and questions, no
+calls) reproduces the gate's baseline row to the basis point (−1238 over the
+three tapes), so the plumbing is right.
+
+**The first live call returned HTTP 402: the TypeSafe organisation has no API
+credits left** (`billing_error`, 2026-10-03). Every `/jev/api/ask` caller is
+down until it's topped up: the dungeon, craft, the arena and this. A request is
+about 5.3KB: the state plus 11 options with their facts.
+
+**What a live run should answer, stated before it happens:**
+- Does Jev's net beat `wait` (0)? Almost certainly not, given the gate.
+- Does it lose less than random's −1294 ± 699, by trading less and choosing `revert` when offered?
+- Does it chase `last_24h` the way `bestRecent` does?
+- Its own hit rate against `coin_flip_hit_rate`, and its net against `coin_flip_net_bp` (what the same plans expect on a coin-flip tape) are the honest comparisons. Both are in every tally.
+
+```bash
+node mega/jev/eval/plans-gate.mjs --seeds 30 --out mega/jev/lab/plans-gate.json   # free, ~1 s
+node mega/jev/eval/plans-jev.mjs --stub --coins BTC,ETH,SOL                      # free
+node mega/jev/eval/plans-jev.mjs --coins BTC,ETH,SOL --out mega/jev/lab/plans-jev.json   # ~600 calls, ~25 min
+node mega/jev/test/plans.selftest.mjs
+```
+
+Caveats that outrank the table:
+- **Three days of three assets is one regime**, and the majors move together.
+- The menu, its levels and the baseline were written by the hand reading the
+  results; only `revert`'s threshold was changed after seeing them, and that
+  change is disclosed above.
+- 1-minute OHLC can't say what happened inside a bar. The ambiguity rule is
+  pessimistic, but `ambiguous` counts it, and it is rare at these levels.
 
 ## The composer: `/jev/composer/` (2026-09-19)
 

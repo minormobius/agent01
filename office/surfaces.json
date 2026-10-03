@@ -2075,6 +2075,15 @@
    "parent": null
   },
   {
+   "id": "trading floor",
+   "name": "trading floor",
+   "url": "https://mega.mino.mobi/jev/lab/plans/",
+   "cat": "tools",
+   "commits": 2,
+   "age": "hot",
+   "parent": "jev lab"
+  },
+  {
    "id": "golem",
    "name": "golem",
    "url": "https://golem.mino.mobi",
@@ -5312,6 +5321,16 @@
    "commits": 0,
    "age": "cold",
    "parent": "mega/jev",
+   "discovered": true
+  },
+  {
+   "id": "mega/jev/lab/plans",
+   "name": "plans",
+   "url": "https://mino.mobi/mega/jev/lab/plans/",
+   "cat": "data",
+   "commits": 0,
+   "age": "cold",
+   "parent": "mega/jev/lab",
    "discovered": true
   },
   {
