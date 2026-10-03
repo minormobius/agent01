@@ -1,0 +1,8 @@
+{
+  "label": "sixth-light-confirm",
+  "souls": "modulo,morphyx",
+  "reps": 3,
+  "seed": 6,
+  "concurrency": 4,
+  "note": "Baseline: the revised souls on a fresh seed, code unchanged since fifth light. Does every gate pass again, and does Morphyx keep its dull-day silence? The last run before the commons."
+}
