@@ -83,6 +83,14 @@
       if (!v) continue;
       ctx.fillStyle = "#ffd9b0"; ctx.beginPath(); ctx.arc(sx(x + 0.5), sy(y + 0.5), v === 2 ? ts * 0.3 * pulse : ts * 0.09, 0, 6.2832); ctx.fill();
     }
+    // the fruit: on its own face, and seen through the paper at its back (upside down, faint)
+    if (G.fruit) {
+      var F = G.fruit, fb = M.back(F.x, F.y), blink = F.t < 3 && Math.floor(now / 160) % 2;
+      if (!blink) {
+        drawFruit(ctx, sx(camX + M.dx(camX, F.x) + 0.5), sy(F.y + 0.5), ts * 0.42, F.kind, false);
+        drawFruit(ctx, sx(camX + M.dx(camX, fb[0]) + 0.5), sy(fb[1] + 0.5), ts * 0.42, F.kind, true);
+      }
+    }
     // you
     var P = G.pac, q = G.pos(P), dying = G.state === "dying" ? Math.min(1, G.stateT / 1.2) : 0;
     var px = sx(camX + M.dx(camX, q[0]) + 0.5), py = sy(q[1] + 0.5), mouth = dying ? Math.PI * dying : 0.08 + 0.32 * Math.abs(Math.sin(P.mouth * Math.PI));
@@ -97,6 +105,21 @@
     });
     ctx.restore();
   };
+  /* The arcade's fruit, drawn small. `through`: seen through the paper (faint, upside down). */
+  function drawFruit(ctx, x, y, r, kind, through) {
+    ctx.save(); ctx.translate(x, y); if (through) { ctx.scale(1, -1); ctx.globalAlpha = 0.38; }
+    var dot = function (cx, cy, rr, col) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx * r, cy * r, rr * r, 0, 6.2832); ctx.fill(); };
+    var stem = function (pts, col) { ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.2, r * 0.13); ctx.beginPath(); pts.forEach(function (p, k) { if (k) ctx.lineTo(p[0] * r, p[1] * r); else ctx.moveTo(p[0] * r, p[1] * r); }); ctx.stroke(); };
+    if (kind === "cherry") { stem([[-0.45, 0.3], [0.2, -0.75], [0.45, 0.35]], "#c27a2c"); dot(-0.45, 0.4, 0.42, "#ff1f2f"); dot(0.45, 0.45, 0.42, "#ff1f2f"); dot(-0.6, 0.25, 0.1, "#fff"); }
+    else if (kind === "strawberry") { ctx.fillStyle = "#ff2a3a"; ctx.beginPath(); ctx.moveTo(-0.8 * r, -0.25 * r); ctx.quadraticCurveTo(0, -0.55 * r, 0.8 * r, -0.25 * r); ctx.quadraticCurveTo(0.5 * r, 0.6 * r, 0, 0.95 * r); ctx.quadraticCurveTo(-0.5 * r, 0.6 * r, -0.8 * r, -0.25 * r); ctx.fill(); [[-0.3, 0], [0.3, 0.05], [0, 0.35], [-0.15, 0.6], [0.2, 0.55]].forEach(function (p) { dot(p[0], p[1], 0.07, "#fff"); }); stem([[-0.4, -0.45], [0.4, -0.45]], "#3cd14e"); }
+    else if (kind === "orange") { dot(0, 0.15, 0.75, "#ff9a1f"); stem([[0, -0.55], [0.35, -0.85]], "#3cd14e"); }
+    else if (kind === "apple") { dot(0, 0.18, 0.75, "#ff2a2a"); dot(-0.3, -0.05, 0.12, "#fff"); stem([[0, -0.5], [0.15, -0.85]], "#c27a2c"); }
+    else if (kind === "melon") { dot(0, 0.1, 0.8, "#3cd14e"); stem([[-0.4, -0.5], [-0.4, 0.7]], "#bfffbf"); stem([[0.1, -0.7], [0.1, 0.85]], "#bfffbf"); stem([[0.5, -0.4], [0.5, 0.6]], "#bfffbf"); }
+    else if (kind === "galaxian") { ctx.fillStyle = "#ffe14d"; ctx.beginPath(); ctx.moveTo(0, -0.8 * r); ctx.lineTo(0.8 * r, 0.1 * r); ctx.lineTo(0, 0.8 * r); ctx.lineTo(-0.8 * r, 0.1 * r); ctx.closePath(); ctx.fill(); dot(0, 0.1, 0.25, "#2d5bff"); }
+    else if (kind === "bell") { ctx.fillStyle = "#ffe14d"; ctx.beginPath(); ctx.moveTo(-0.75 * r, 0.6 * r); ctx.quadraticCurveTo(-0.6 * r, -0.9 * r, 0, -0.8 * r); ctx.quadraticCurveTo(0.6 * r, -0.9 * r, 0.75 * r, 0.6 * r); ctx.closePath(); ctx.fill(); dot(0, 0.72, 0.18, "#7fe8ff"); }
+    else { stem([[0, -0.2], [0, 0.85]], "#7fe8ff"); stem([[0, 0.5], [0.3, 0.5]], "#7fe8ff"); ctx.strokeStyle = "#7fe8ff"; ctx.lineWidth = Math.max(1.4, r * 0.18); ctx.beginPath(); ctx.arc(0, -0.45 * r, 0.32 * r, 0, 6.2832); ctx.stroke(); }
+    ctx.restore();
+  }
   function drawGhost(ctx, x, y, r, g, G, now) {
     var col = GHOST[g.i], fr = g.fright && g.state === "out", eyesOnly = g.state === "eyes", waiting = g.state === "wait";
     if (fr) col = G.frightT < 2 && Math.floor(now / 200) % 2 ? "#e8e8ff" : "#2233ff";
@@ -159,6 +182,7 @@
       ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx + sc * v[0], cy - sc * v[1], r, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
     };
     G.ghosts.forEach(function (g) { if (g.state === "wait") return; var gp = G.pos(g); mark(gp[0] + 0.5, gp[1] + 0.5, g.fright ? "#2233ff" : GHOST[g.i], Math.max(3, sc * 0.045)); });
+    if (G.fruit) mark(G.fruit.x + 0.5, G.fruit.y + 0.5, "#ff1f2f", Math.max(3, sc * 0.05));
     mark(q[0] + 0.5, q[1] + 0.5, "#ffe14d", Math.max(3.5, sc * 0.055));
     ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.font = "600 11px ui-monospace, Menlo, monospace"; ctx.textAlign = "left";
     ctx.fillText("the band: one side", 10, 16);

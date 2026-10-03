@@ -60,6 +60,9 @@
           else if (e.kind === "eat") say("+" + e.pts);
           else if (e.kind === "clear") say("both faces clean — level " + (G.level + 1));
           else if (e.kind === "life") say("an extra life");
+          else if (e.kind === "fruit-on") say("a " + e.fruit + ", right there — through the paper. It's half a strip away");
+          else if (e.kind === "fruit") say(e.fruit + " +" + e.pts);
+          else if (e.kind === "fruit-off") say("the " + "fruit's gone");
         });
       }
       if (G.state === "over" && $("over").hidden) {

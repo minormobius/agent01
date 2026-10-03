@@ -33,6 +33,9 @@
   var NAMES = ["red", "pink", "cyan", "orange"];
   var SCHEDULE = [7, 15, 7, 15, 6, 18, 5, Infinity]; // scatter, chase, … (the arcade's, with shorter chases)
   var RELEASE = [2, 5, 8.5, 12];
+  /* The arcade's bonus fruit, by level (then the key forever). */
+  var FRUIT = [["cherry", 100], ["strawberry", 300], ["orange", 500], ["orange", 500], ["apple", 700], ["apple", 700], ["melon", 1000], ["melon", 1000], ["galaxian", 2000], ["galaxian", 2000], ["bell", 3000], ["bell", 3000], ["key", 5000]];
+  var FRUIT_AT = [70, 170], FRUIT_FOR = 12;
 
   function Game(seed, level) {
     this.seed = seed; this.level = level || 1; this.score = 0; this.lives = 4; this.nextLife = 5000;
@@ -42,6 +45,7 @@
   Game.prototype.newMaze = function () {
     var mz = this.maze = M.build(this.seed + ":" + this.level);
     this.left = 0; for (var i = 0; i < mz.dots.length; i++) if (mz.dots[i]) this.left++;
+    this.eaten = 0; this.fruit = null;
     this.rand = M.rng("ghosts:" + this.seed + ":" + this.level);
     this.reset();
   };
@@ -88,6 +92,7 @@
       self.moveGhost(g, dt);
     });
     this.collide();
+    this.fruitStep(dt);
     if (this.score >= this.nextLife) { this.lives++; this.nextLife += 5000; this.events.push({ kind: "life" }); }
     if (this.left === 0 && this.state === "play") { this.state = "clear"; this.stateT = 0; this.events.push({ kind: "clear" }); }
   };
@@ -113,7 +118,8 @@
   Game.prototype.eat = function (x, y) {
     var mz = this.maze, k = y * M.W + x, v = mz.dots[k];
     if (!v) return;
-    mz.dots[k] = 0; this.left--;
+    mz.dots[k] = 0; this.left--; this.eaten++;
+    if (FRUIT_AT.indexOf(this.eaten) >= 0) this.spawnFruit();
     if (v === 1) { this.score += 10; this.events.push({ kind: "dot" }); }
     else {
       this.score += 50; this.frightT = Math.max(2, 7 - 0.5 * (this.level - 1)); this.chain = 0;
@@ -165,6 +171,31 @@
     return M.back(T[0], T[1]);
   };
 
+  /* The fruit. It turns up right beside you, through the paper: on the
+     other face, at the back of a corridor near where you are, so it's
+     really half a strip away. Twelve seconds to get round to it. You eat it
+     from its own face; a fruit on your stretch is just a fruit. */
+  Game.prototype.spawnFruit = function () {
+    var mz = this.maze, P = this.pac, best = null, bd = Infinity, kind = FRUIT[Math.min(this.level, FRUIT.length) - 1];
+    for (var ddx = -4; ddx <= 4; ddx++) for (var ddy = -4; ddy <= 4; ddy++) {
+      var b = M.back(P.x + ddx, P.y + ddy), d = Math.abs(ddx) + Math.abs(ddy) + this.rand() * 0.5; // a spot near you, physically; its back is where the fruit sits
+      if (d < 2 || !open(mz, b[0], b[1])) continue;
+      if (d < bd) { bd = d; best = b; }
+    }
+    if (!best) best = mz.start.slice();
+    this.fruit = { x: M.wrapX(best[0]), y: best[1], kind: kind[0], value: kind[1], t: FRUIT_FOR };
+    this.events.push({ kind: "fruit-on", fruit: kind[0] });
+  };
+  Game.prototype.fruitStep = function (dt) {
+    var f = this.fruit; if (!f) return;
+    f.t -= dt;
+    var q = pos(this.pac);
+    if (Math.abs(M.dx(f.x, q[0])) < 0.5 && Math.abs(f.y - q[1]) < 0.5) {
+      this.score += f.value; this.events.push({ kind: "fruit", fruit: f.kind, pts: f.value }); this.fruit = null; return;
+    }
+    if (f.t <= 0) { this.fruit = null; this.events.push({ kind: "fruit-off" }); }
+  };
+
   /* Touching happens at the same spot of the strip: a ghost at g against you at back(g). */
   Game.prototype.collide = function () {
     var q = pos(this.pac), self = this;
@@ -178,5 +209,5 @@
     });
   };
 
-  M.Game = Game; M.DX = DX; M.DY = DY; M.NAMES = NAMES;
+  M.Game = Game; M.DX = DX; M.DY = DY; M.NAMES = NAMES; M.FRUIT = FRUIT;
 })();

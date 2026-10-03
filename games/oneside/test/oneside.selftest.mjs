@@ -82,5 +82,18 @@ console.log("the rules");
   ck(G.level === 2 && G.ghosts.length === 3 && G.left > 100, `eating the last dot clears the level: a new maze, ${G.ghosts.length} ghosts`);
 }
 
+console.log("the fruit");
+{
+  const G = new M.Game("fruit"); G.input(1);
+  let at = -1;
+  for (let k = 0; k < 120 * 120 && !G.fruit && G.state !== "over"; k++) { bot(M, G, 2); G.step(1 / 120); if (G.state === "ready") G.input(G.pac.d); if (G.fruit) at = G.eaten; }
+  const F = G.fruit, P = G.pac, phys = F && M.back(F.x, F.y);
+  const near = F && Math.abs(M.dx(phys[0], P.x)) + Math.abs(phys[1] - P.y) <= 8, onIts = F && M.isOpen(G.maze, F.x, F.y);
+  ck(F && at === 70 && F.kind === "cherry" && F.value === 100 && near && onIts, `a cherry after 70 dots, on a corridor of its own face, physically right beside you (${F ? Math.abs(M.dx(phys[0], P.x)) + Math.abs(phys[1] - P.y) : "-"} tiles), so really half a strip away`);
+  const s0 = G.score; Object.assign(G.pac, { x: F.x, y: F.y, p: 0 }); G.fruitStep(0.01);
+  ck(!G.fruit && G.score === s0 + 100, "you eat it from its own face: +100");
+  ck(M.FRUIT[1][0] === "strawberry" && M.FRUIT[12][0] === "key", "the arcade's fruit by level: cherry, strawberry, orange, apple, melon, galaxian, bell, key");
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall one side invariants hold");
 process.exit(fails ? 1 : 0);

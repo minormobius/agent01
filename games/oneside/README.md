@@ -55,6 +55,15 @@ player is caught twice a minute by four ghosts. So level 1 has two ghosts,
 level 2 three, and all four come from level 3; they run at 75% of your
 speed, and you have four lives and one more every 5000 points.
 
+## The fruit
+
+Of course there are cherries: the arcade's bonus fruit, by level (cherry
+100, strawberry 300, orange 500, apple 700, melon 1000, galaxian 2000, bell
+3000, then the key, 5000), after 70 and 170 dots. Each one turns up right
+beside you, faint and upside down, through the paper: it sits at the back
+of a corridor near where you are, so it's really half a strip away. You
+have twelve seconds to go round and eat it from its own face.
+
 ## The band
 
 Above the strip, the strip itself: the whole surface painted on a Möbius
