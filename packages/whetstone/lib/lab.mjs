@@ -34,10 +34,20 @@ export async function runLab({
   const records = [];
   let cost = 0, calls = 0;
 
+  // A run is ~111 calls; one transient failure (a 429, a timeout) must not sink the other 110.
+  // Three tries with backoff, then the error is real and the run stops loudly.
   const ask = async (fn, req) => {
-    const r = await fn(req);
-    cost += r.cost; calls++;
-    return r.text;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const r = await fn(req);
+        cost += r.cost; calls++;
+        return r.text;
+      } catch (e) {
+        if (attempt >= 3) throw e;
+        log(`retry ${attempt}/2 after: ${String(e.message).slice(0, 120)}`);
+        await new Promise((res) => setTimeout(res, attempt * 8000));
+      }
+    }
   };
   const soulSays = (soul, prompt, meta) =>
     ask(call, { system: soul.text, prompt, meta: { role: 'soul', soul: soul.key, ...meta } });
