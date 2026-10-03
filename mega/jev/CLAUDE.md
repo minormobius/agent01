@@ -3104,6 +3104,86 @@ Caveats that outrank the table:
 - 1-minute OHLC can't say what happened inside a bar. The ambiguity rule is
   pessimistic, but `ambiguous` counts it, and it is rare at these levels.
 
+### System 2's turn: three registered searches, 42 trials, nothing confirmed (2026-10-03)
+
+The operator: *"be system 2, improve your approach, find a strategy set that
+works."* What changed in the approach comes first, because it outlasts the
+result:
+- **Every search was registered and committed before it ran.** Each
+  registration states what had already been seen.
+- **Selection used the early period only; confirmation used the later period**
+  (and, in v1, assets never looked at).
+- **Bonferroni over the registered grid**, and a trial ledger carried from one
+  search to the next.
+- **A beta rule in every search.** Without it, being short through a bear
+  market reads as skill.
+
+**Data.** Hyperliquid keeps 5,000 bars a series, so 4-hour bars go back to
+June 2024 (2.3 years); 15 assets, `lab/fixtures/candles-<coin>-4h.json`.
+Hourly funding is summed into each bar (`funding-<coin>-4h.json`, `loadFunding`
+in `lab/tape.mjs`, walked forward). The split is at bar 3000 (2025-11-03).
+Dev holds a bull run. The later period is a broad fall: 14 of 15 assets lost
+20–63% buy-and-hold.
+
+| search | registration | what it tested | outcome |
+|---|---|---|---|
+| v1 | `lab/plans-search-prereg.json` | 18 single-asset plans (breakout, momentum, reversion × horizon × stop), selected on BTC/ETH/SOL, scored in bp | **failed.** Best dev t 1.83 (30-day momentum). Carried as failed, it was positive later (t 1.48 / 2.26 on unseen assets), almost all shorts in the fall |
+| v2 | `lab/plans-search-prereg-v2.json` | the same 18, selected on all 15 assets, scored in R, a t over calendar weeks (15 correlated assets in one week are one bet), and the beta rule | **failed.** Best dev weekly t 1.59. Carried as failed, it was negative later and its profit was all longs |
+| v3 | `lab/plans-search-prereg-v3.json` | 6 market-neutral books: long the top 3, short the bottom 3 of 15 in equal risk, by momentum, reversal or funding, with funding charged at the printed rate | **failed.** Best dev t 0.92 (30-day cross-sectional momentum), later t 0.16 |
+
+Code: `lab/strategies.mjs` (the families, `runStrategy`) and `lab/books.mjs`
+(the book engine), plus `eval/plans-search.mjs`, `-v2.mjs` and `-v3.mjs`.
+Results are in `lab/plans-search*.json`. The engine now takes any bar size
+(`bars.barMin` sets the funding hours) and per-asset costs (alts pay 1bp half
+spread and 3bp stop slippage). v3's registration says no fourth search runs on
+this data, and none has.
+
+**What the failures say together.** On price alone, at 1 minute or 4 hours,
+single-asset or market-neutral, none of these plans has an edge after costs
+that survives being looked at honestly. The closest shape was the 5-day
+breakout with a tight trail (907 trades, longs and shorts both positive,
+weekly t 1.3). That is suggestive, not significant. **Jev's refusal to trade
+on the 1-minute menu was the right answer.**
+
+### What does work: funding, which is paid, not predicted
+
+One number in v3 was not noise. **The funding-carry book's funding leg earned
+about 25bp a week with t 11.8 in dev and 13.5 later**, against a price leg that
+swung about 700bp a week (t 0.17 and 1.37). Funding is structurally one-sided:
+
+| | |
+|---|---|
+| longs paid funding on | **59–91% of 4h bars**, all 15 assets |
+| mean annual rate a short collects | BTC 10.5%, ETH 9.6%, LTC 12.0%, DOGE 11.3%, kPEPE 13.8%, SOL 6.7% … ATOM **−4.1%** (the one that pays the other way) |
+
+This was looked at **after** the searches, so it is exploratory and counts
+toward no registered test. But it is not a multiple-comparisons artefact: it is
+a mechanical cash flow, printed every hour, and its t is 12–13 in both periods.
+
+**The strategy set that works is therefore not a set of timing plans. It is
+the carry trade:**
+- be paid to be short the perp, and hedge the price away with a long spot leg
+  (basis), on the assets whose funding is positive;
+- step aside where funding turns, as ATOM's has.
+
+The Carry section above already measured its shape: SOL basis about 15.7% a
+year with no directional view, and the risks that are monitorable against those
+that only sizing can help. It is also the most Jev-shaped decision on this
+surface. Whether funding is still positive, whether drawdown is inside its
+history, and whether the peg holds are **determinate classifications of printed
+state**, the exact shape where the gate was 93 of 93 correct above 0.9 and
+where the self-check separated answerable from unanswerable by 65 points.
+
+**Not built yet: the basis leg.** The trading floor's engine is perp-only.
+Harvesting carry needs:
+- a spot leg and its costs. Hyperliquid spot is thin (BTC spot round trip
+  about 40bp); a Solana aggregator measured 0.7bp at $11k;
+- the premium history, which `fundingHistory` returns alongside the rate and
+  `loadFunding` currently discards;
+- carry plans (enter while trailing funding is positive, exit when it flips or
+  a drawdown limit is hit), with Jev as the monitor that decides hold or exit
+  from printed facts.
+
 ## The composer: `/jev/composer/` (2026-09-19)
 
 The interface to the composition loop, and deliberately **not** "the sprite
