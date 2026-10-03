@@ -33,9 +33,9 @@ _Regenerated 2026-10-03 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-03, 99 members / 215 posts):
+**Neighborhood spark** (bisk 2026-10-03, 99 members / 193 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llms, org, yud
+- Distinctive words: llms, akvi, org
 - Top post: "(confused) I believe LLMs are conscious, but only Deepseek LLMs, because of the Chinese Room theory" — @hikikomorphism.bsky.social
 <!-- BRIEF_END -->
 
