@@ -8,7 +8,9 @@
 //
 // The rule's action is "send to Worker", which needs no verified destination address, so this is
 // a zone-level change only (Email Routing Rules: Edit). Following setup-email-routing.yml's rule,
-// learned the hard way: a read this token cannot perform means UNKNOWN, never "no rules".
+// learned the hard way: a read this token cannot perform means UNKNOWN, never "no rules". So a
+// token without that permission is a warning (measured 2026-10-04: this repo's token is one), and
+// the rules are made by hand once.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,11 +57,15 @@ try {
     say(`✓ ${addr}: ${existing ? 'updated' : 'created'} -> worker ${WORKER}`);
   }
 } catch (e) {
-  say(`::error::email routing for the miniphim could not be reconciled: ${e.message}`);
+  // A permission gap is UNKNOWN, not broken: the rules may well exist, made by hand. Warn, say
+  // exactly what to check, and don't paint every later deploy red for it. Anything else fails.
+  const level = e.auth ? 'warning' : 'error';
+  say(`::${level}::email routing for the miniphim could not be reconciled: ${e.message}`);
   if (e.auth) {
-    say('::error::This token cannot manage Email Routing rules. Either widen it (Zone → Email Routing Rules → Edit),');
-    say(`::error::or add them by hand: Cloudflare → ${ZONE} → Email → Email Routing → Routing rules → Create address,`);
-    say(`::error::one per being (${BEINGS.map((b) => `${b}@${ZONE}`).join(', ')}), action "Send to a Worker", worker "${WORKER}".`);
+    say('::warning::This token cannot read or manage Email Routing rules, so whether mail arrives is unknown from here.');
+    say(`::warning::If not done yet: Cloudflare → ${ZONE} → Email → Email Routing → Routing rules → Create address,`);
+    say(`::warning::one per being (${BEINGS.map((b) => `${b}@${ZONE}`).join(', ')}), action "Send to a Worker", worker "${WORKER}".`);
+    say('::warning::Or widen the token (Zone → Email Routing Rules → Edit) and this step will do it.');
   }
-  process.exit(1);
+  process.exit(e.auth ? 0 : 1);
 }

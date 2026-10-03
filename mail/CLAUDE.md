@@ -52,9 +52,11 @@ old `modulo@`/`morphyx@minomobi.com` forwards are left as they are.
 1. **Set the secrets** in GitHub → Settings → Secrets → Actions: `MAIL_LAB_TOKEN` (any long random
    string, e.g. `openssl rand -hex 32`) and `MAIL_PRINCIPAL` (the inbox that gets copies and notes;
    it must already be a verified Email Routing destination on the account). Then re-run the deploy.
-2. **If the routing step is red**, the API token can't manage Email Routing rules. Either widen it
-   (Zone → Email Routing Rules → Edit) or create the three rules in the dashboard exactly as
-   `routing.mjs` prints.
+2. **Create the routing rules once by hand.** Measured on the first deploy (2026-10-04): this repo's
+   API token can't read or edit Email Routing rules (`10000: Authentication error`), so the
+   routing step warns instead of acting. Cloudflare → mino.mobi → Email → Email Routing → Routing
+   rules → Create address, for `modulo@`, `morphyx@` and `mozzie@mino.mobi`, action "Send to a
+   Worker", worker `mail`. (Or widen the token: Zone → Email Routing Rules → Edit.)
 3. **Bluesky's SMS check** at signup, once per account, if bsky.social asks for it.
 4. **Opening outbound** (`OPEN_OUTBOUND`, and Workers Paid for Email Sending), when the beings
    have passed the town bench.
