@@ -1,0 +1,9 @@
+{
+  "label": "eighth-light-mozzie",
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "reps": 3,
+  "seed": 8,
+  "concurrency": 4,
+  "note": "Second attempt at eighth light: the first died when one pair session's background job held its pipe open (fixed: sessions end when claude exits, process groups are killed, a stuck session is a stopped result). Same as before: Mozzie's sweep of a 90,000-character board, the ledger, appeals, and the p-larkfield project, starting from seventh light's commons."
+}
