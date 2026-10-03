@@ -95,5 +95,13 @@ console.log("the fruit");
   ck(M.FRUIT[1][0] === "strawberry" && M.FRUIT[12][0] === "key", "the arcade's fruit by level: cherry, strawberry, orange, apple, melon, galaxian, bell, key");
 }
 
+console.log("the leaderboard's records");
+{
+  const { GAME, accept } = await import(new URL("../js/score.js", import.meta.url));
+  const ok = { site: "oneside", game: GAME, value: 12340, unit: "points", higherIsBetter: true, createdAt: new Date().toISOString() };
+  const bad = [{ ...ok, site: "orb" }, { ...ok, game: "score-v0" }, { ...ok, higherIsBetter: false }, { ...ok, value: 0 }, { ...ok, value: 1.5 }, { ...ok, value: 2e7 }, { ...ok, createdAt: "nope" }];
+  ck(accept(ok) && bad.every((v) => !accept(v)), "the board reads back a score, and refuses another game's, a time, a zero, a fraction, an absurd number, a bad date");
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall one side invariants hold");
 process.exit(fails ? 1 : 0);

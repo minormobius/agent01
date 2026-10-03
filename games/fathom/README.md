@@ -71,6 +71,15 @@ that shell, as in `/orb/`. The reticle rings the cell under the middle and
 everything it counts: its ring in teal, the cells below in blue, the cells
 above dashed. The line under the board splits the count by layer.
 
+## The leaderboard
+
+The fastest pure clears (no guesses, no hints), by goal and size: 🏆, and
+POST TIME TO THE BOARD after a pure clear. As in Orb, each score is a
+`com.minomobi.lab.score` record in the player's own repo, `{ site: "fathom",
+game: "<goal>-<cells>-<mines>", value: ms }`, read live off ATProto by Orb's
+`board-kit.js`. The cells and mines are the board's identity: retune a size
+and its old times stop being compared. `js/score.js` holds the record rules.
+
 ## Files
 
 | file | what |

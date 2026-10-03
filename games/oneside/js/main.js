@@ -44,6 +44,12 @@
   $("band").onclick = function () { view.showBand = !view.showBand; try { localStorage.setItem("oneside-band", view.showBand ? "1" : "0"); } catch (e) { /* ignore */ } hud(); };
   $("pause").onclick = function () { paused = !paused; say(paused ? "paused" : ""); };
   $("again").onclick = function () { start(); };
+  $("trophy").onclick = function () { if (M.board) { paused = true; M.board.open(); } };
+  $("post").onclick = function () {
+    if (!M.board || !G || !G.score) return;
+    this.disabled = true; $("over").hidden = true;
+    M.board.offer({ sel: {}, value: G.score, seed: G.seed, level: G.level, at: Date.now() });
+  };
   $("start-btn").onclick = function () { $("start").hidden = true; try { localStorage.setItem("oneside-seen", "1"); } catch (e) { /* ignore */ } };
   try { if (localStorage.getItem("oneside-seen")) $("start").hidden = true; } catch (e) { /* ignore */ }
 
@@ -68,6 +74,7 @@
       if (G.state === "over" && $("over").hidden) {
         if (G.score > best) { best = G.score; try { localStorage.setItem("oneside-best", String(best)); } catch (e) { /* ignore */ } }
         $("over-body").innerHTML = "<b>" + G.score + "</b> points · level " + G.level + (G.score >= best ? " · <b>best</b>" : " · best " + best);
+        $("post").hidden = !G.score || !M.board; $("post").disabled = false;
         setTimeout(function () { $("over").hidden = false; }, 600);
       }
       hud();

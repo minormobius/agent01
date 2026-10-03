@@ -172,17 +172,18 @@ export class Corpus {
     this._emit();
   }
 
-  /* Best (lowest) value per player for one game since `since` (ms epoch). */
-  top(game, since = 0, n = 10) {
-    const best = new Map();
+  /* Best value per player for one game since `since` (ms epoch): the lowest
+     (a time), or with `higher` the highest (a score). Ties go to the earlier. */
+  top(game, since = 0, n = 10, higher = false) {
+    const best = new Map(), s = higher ? -1 : 1;
     for (const r of this.records.values()) {
       if (r.game !== game) continue;
       if (since && Date.parse(r.createdAt) < since) continue;
       const b = best.get(r.did);
-      if (!b || r.value < b.value || (r.value === b.value && r.createdAt < b.createdAt)) best.set(r.did, r);
+      if (!b || s * r.value < s * b.value || (r.value === b.value && r.createdAt < b.createdAt)) best.set(r.did, r);
     }
     const rows = Array.from(best.values())
-      .sort((a, b) => a.value - b.value || (a.createdAt < b.createdAt ? -1 : 1))
+      .sort((a, b) => s * (a.value - b.value) || (a.createdAt < b.createdAt ? -1 : 1))
       .slice(0, n)
       .map((r) => {
         const p = this.profiles.get(r.did);

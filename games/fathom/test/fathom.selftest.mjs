@@ -61,5 +61,14 @@ for (const [size, c] of Object.entries(F.SIZES)) {
   ck(ok && clear && det, `${size}: 8 seas, each clears from its first tap by deduction alone; first cell and neighbours clear; same seed, same sea (${((Date.now() - t0) / 8).toFixed(0)} ms each)`);
 }
 
+console.log("the leaderboard's records");
+{
+  const { gameId, accept } = await import(new URL("../js/score.js", import.meta.url));
+  const ids = []; for (const goal of ["dive", "clear"]) for (const c of Object.values(F.SIZES)) ids.push(gameId(goal, c.shells * c.per, c.m));
+  const rec = (game, value = 61000) => ({ site: "fathom", game, value, unit: "ms", higherIsBetter: false, createdAt: new Date().toISOString() });
+  ck(ids.every((g) => accept(rec(g))) && new Set(ids).size === ids.length, `every goal and size has its own board the records reach (${ids.join(", ")})`);
+  ck(!accept({ ...rec(ids[0]), site: "orb" }) && !accept(rec(ids[0], 500)) && !accept(rec("dive-x-1")), "and nothing else: another game's record, a sub-second time, a malformed id");
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall fathom invariants hold");
 process.exit(fails ? 1 : 0);

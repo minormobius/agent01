@@ -29,7 +29,7 @@
     var c = SIZES[size], mesh = F.build(size, seed), s = O.newState(mesh, c.m);
     game = { seed: seed, size: size, s: s, guesses: 0, hints: 0, deepest: 0 };
     view.state = s; view.anim = {}; view.mark = null; view.hl = null; view.depth = 0; depthTo = null;
-    setURL(); $("seed").textContent = seed; $("size").value = size; $("over").hidden = true;
+    setURL(); $("seed").textContent = seed; $("size").value = size; $("over").hidden = true; $("post").hidden = true;
     $("note").textContent = "tap any cell — the first is always clear";
     gauge(); hud(); dirty = true;
   }
@@ -110,6 +110,8 @@
       var ms = s.t1 - s.t0, clean = game.guesses === 0, key = "fathom-best-" + game.size + "-" + goal, best = null;
       try { best = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { /* ignore */ }
       var isBest = clean && !game.hints && (!best || ms < best);
+      game.result = clean && !game.hints && F.board ? { sel: { goal: goal, size: game.size }, value: ms, seed: game.seed, first: s.first, at: Date.now() } : null;
+      $("post").hidden = !game.result; $("post").disabled = false;
       if (isBest) try { localStorage.setItem(key, JSON.stringify(ms)); } catch (e) { /* ignore */ }
       $("over-title").textContent = (goal === "dive" ? "THE CORE" : "CLEARED") + (clean ? " — PURE" : "");
       $("over-body").innerHTML = (goal === "dive" ? "You reached the core through " + m.K + " shells. " : "Every safe cell in " + m.K + " shells. ") +
@@ -216,6 +218,12 @@
   $("again").onclick = function () { newGame(O.randomSeed(), game.size); };
   $("replay").onclick = function () { newGame(game.seed, game.size); };
   $("look").onclick = function () { $("over").hidden = true; };
+  $("trophy").onclick = function () { if (F.board) F.board.open({ goal: goal, size: game.size }); };
+  $("post").onclick = function () {
+    if (!game.result || !F.board) return;
+    this.disabled = true; $("over").hidden = true;
+    F.board.offer(game.result); game.result = null;
+  };
   $("start-btn").onclick = function () { $("start").hidden = true; try { localStorage.setItem("fathom-seen", "1"); } catch (e) { /* ignore */ } };
   try { if (localStorage.getItem("fathom-seen")) $("start").hidden = true; } catch (e) { /* ignore */ }
 

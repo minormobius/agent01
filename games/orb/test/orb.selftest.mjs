@@ -321,6 +321,12 @@ console.log("hard mode");
 console.log("score corpus (fake network)");
 {
   const { Corpus, accept } = await import(new URL("../js/corpus.js", import.meta.url));
+  { // a score board ranks the other way: highest first, ties to the earlier
+    const c = new Corpus(() => true), at = (s) => new Date(Date.parse("2026-10-01") + s * 1000).toISOString();
+    [["did:a", 500, 1], ["did:a", 900, 2], ["did:b", 900, 0], ["did:c", 300, 3]].forEach(([d, v, t], k) => c.records.set("u" + k, { uri: "u" + k, did: d, game: "g", value: v, createdAt: at(t) }));
+    const hi = c.top("g", 0, 10, true).map((r) => r.did + ":" + r.value).join(" "), lo = c.top("g", 0, 10).map((r) => r.did + ":" + r.value).join(" ");
+    ck(hi === "did:b:900 did:a:900 did:c:300" && lo === "did:c:300 did:a:500 did:b:900", `top(): lowest first by default (${lo}); highest first for a score, tie to the earlier (${hi})`);
+  }
   { // every tier's game id, pure and hard, is one the board will read back (the surfaces' ids were once dropped)
     const ids = Object.keys(O.SIZES).flatMap((k) => [O.gameId(k, false), O.gameId(k, true)]);
     const shut = ids.filter((game) => !accept({ site: "orb", game, value: 60000, unit: "ms", higherIsBetter: false, createdAt: new Date().toISOString() }));

@@ -64,6 +64,16 @@ beside you, faint and upside down, through the paper: it sits at the back
 of a corridor near where you are, so it's really half a strip away. You
 have twelve seconds to go round and eat it from its own face.
 
+## The leaderboard
+
+Highest scores (🏆, and POST SCORE when a game ends), read live off
+ATProto: a score is a `com.minomobi.lab.score` record in the player's own
+repo, `{ site: "oneside", game: "score-v1", value, unit: "points",
+higherIsBetter: true, detail: "seed=… level=…" }`, and every browser
+rebuilds the board from the network (Orb's `board-kit.js` and `corpus.js`).
+The game id carries a version: change the rules in a way that moves scores,
+and bump it. `js/score.js` holds the record rules, which the selftest checks.
+
 ## The band
 
 Above the strip, the strip itself: the whole surface painted on a Möbius

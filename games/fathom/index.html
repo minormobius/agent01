@@ -19,6 +19,7 @@
     <div class="cell-hud"><span class="hud-label">guesses</span><span class="hud-value" id="guesses">0</span></div>
     <div class="cell-hud"><span class="hud-label">depth</span><span class="hud-value" id="depth">1</span></div>
     <div class="cell-hud right row">
+      <button type="button" id="trophy" class="toggle" title="Fastest pure clears">🏆</button>
       <button type="button" id="goal" class="toggle" title="Dive: reach the core. Clear: every safe cell (g)">DIVE</button>
       <select id="size" aria-label="How deep">
         <option value="shallow">shallow · 3</option>
@@ -76,6 +77,7 @@
     <button class="ghost" id="replay" type="button" style="flex:none">SAME SEED</button>
     <button class="ghost" id="look" type="button" style="flex:none">LOOK</button>
   </div>
+  <button class="primary" id="post" type="button" style="flex:none" hidden>POST TIME TO THE BOARD</button>
   <p class="seed-line">the seed is in the URL — same seed and same first tap, same sea</p>
 </div>
 
@@ -86,5 +88,6 @@
 <script src="js/onion.js"></script>
 <script src="js/view.js"></script>
 <script src="js/main.js"></script>
+<script type="module" src="js/board.js"></script>
 </body>
 </html>

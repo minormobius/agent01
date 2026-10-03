@@ -17,6 +17,7 @@
     <div class="h"><b>LEVEL</b><span id="level">1</span></div>
     <div class="h"><b>LIVES</b><span id="lives"></span></div>
     <div class="sp"></div>
+    <button type="button" id="trophy" title="Highest scores">🏆</button>
     <button type="button" id="band" title="Show the band, the strip in 3D (b)">∞</button>
     <button type="button" id="pause" title="Pause (space)">❚❚</button>
   </div>
@@ -46,12 +47,16 @@
 <div class="overlay" id="over" hidden>
   <h1>CAUGHT</h1>
   <p id="over-body"></p>
-  <button id="again" type="button">AGAIN</button>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button id="again" type="button">AGAIN</button>
+    <button id="post" type="button" style="background:#5ee8c1">POST SCORE</button>
+  </div>
 </div>
 
 <script src="js/maze.js"></script>
 <script src="js/game.js"></script>
 <script src="js/view.js"></script>
 <script src="js/main.js"></script>
+<script type="module" src="js/board.js"></script>
 </body>
 </html>
