@@ -4142,6 +4142,24 @@
       ]
     },
     {
+      "n": "stage3",
+      "u": "https://cell.mino.mobi/stage3/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "Every gene of JCVI-syn3A on its circular chromosome: 496 genes coloured by function, measured protein copies per cell as a spike for each (Breuer et al. 2019), a searchable card per gene, and what the cell spends its protein on. The parts list the later simulation stages run.",
+      "tags": [
+        "canvas",
+        "p5",
+        "biology",
+        "data"
+      ]
+    },
+    {
       "n": "core",
       "u": "https://ns.mino.mobi/core/",
       "c": "data",

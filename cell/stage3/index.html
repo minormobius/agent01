@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Every Gene in the Cell · Minimal Cell Twin</title>
+<meta name="description" content="Stage 3a of the Minimal Cell Twin: all 496 genes of JCVI-syn3A on its chromosome, with what each does and how many copies of its protein the cell holds.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/cell.css">
+<style>
+:root {
+  --k-dna: #6ea8ff; --k-tx: #4fd1e8; --k-tl: #f2b84b; --k-fate: #ff8a4c;
+  --k-met: #72e36c; --k-trn: #a98bff; --k-unk: #ff5fa2; --k-rna: #e8e2d0; --k-none: #7d8898;
+}
+.sec-title { font: 600 22px/1.2 var(--display); margin: 0; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px 28px; border-block: 1px solid var(--line); padding-block: 12px; }
+.facts div { font: 400 12px/1.3 var(--mono); color: var(--muted); }
+.facts b { display: block; font: 500 20px/1.2 var(--mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+.facts .unk b { color: var(--k-unk); }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 22px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.ringwrap { min-width: 0; display: grid; gap: 8px; }
+#ring { width: 100%; max-width: 680px; aspect-ratio: 1; margin: 0 auto; position: relative; cursor: crosshair; }
+#ring canvas { display: block; }
+.ringkey { text-align: center; color: var(--muted); font-size: 12.5px; margin: 0; }
+.side { display: grid; gap: 0; }
+.side > section { padding: 14px 16px; border-top: 1px solid var(--line); }
+.side > section:first-child { border-top: 0; }
+#q { width: 100%; font: 400 14px var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 9px 10px; }
+#q:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hits { display: grid; gap: 2px; margin-top: 6px; }
+.hits button, .toplist button { text-align: left; border: 0; padding: 5px 6px; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; font: 400 13px var(--body); }
+.hits button:hover, .toplist button:hover { background: var(--line); }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.hits .p, .toplist .p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hits .n, .toplist .n { font: 400 12px var(--mono); color: var(--muted); }
+.groups { display: flex; flex-wrap: wrap; gap: 6px; }
+.groups button { display: inline-flex; gap: 7px; align-items: center; padding: 6px 8px; font: 500 12px/1 var(--body); }
+.groups button[aria-pressed="true"] { border-color: var(--c); color: var(--c); }
+.groups button span { font-family: var(--mono); color: var(--muted); font-weight: 400; }
+.card h3 { font: 600 22px/1.15 var(--display); margin: 0; overflow-wrap: anywhere; }
+.card .prod { margin: 2px 0 10px; color: var(--muted); }
+.chip { display: inline-block; font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; border-radius: 3px; border: 1px solid var(--c); color: var(--c); margin-bottom: 10px; }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 13px; }
+.kv dt { color: var(--muted); font: 400 12px/1.5 var(--mono); }
+.kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.kv dd small { display: block; color: var(--muted); font-size: 12px; }
+.meter { height: 6px; background: var(--line); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--c); }
+.nav { display: flex; gap: 8px; margin-top: 12px; }
+.toplist { display: grid; gap: 2px; }
+
+.spend { display: grid; gap: 14px; }
+.spend-cap { margin: 0; color: var(--muted); max-width: 80ch; }
+.spend-cap b { color: var(--fg); font-weight: 500; }
+.bars { display: grid; gap: 10px; }
+.brow { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 4px 14px; align-items: center; }
+@media (max-width: 560px) { .brow { grid-template-columns: minmax(0, 1fr); } }
+.brow .lbl { font-weight: 500; display: flex; gap: 8px; align-items: center; }
+.brow .tracks { display: grid; gap: 3px; }
+.track { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 10px; align-items: center; font: 400 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.track .b { height: 10px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.track .b i { display: block; height: 100%; background: var(--c); }
+.track.genes .b i { opacity: .38; }
+.legend2 { display: flex; gap: 18px; font: 400 12px var(--mono); color: var(--muted); flex-wrap: wrap; }
+.legend2 i { display: inline-block; width: 18px; height: 8px; margin-right: 6px; vertical-align: 0; background: var(--muted); }
+.legend2 .g i { opacity: .38; }
+.src { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.src p { margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Minimal Cell Twin</a><span>/</span><a href="../stage1/">Stage 1</a><span>·</span><a href="../stage2/">Stage 2</a><span>·</span><span>Stage 3a</span></nav>
+  <header class="page">
+    <div class="eyebrow">Stage 3a · the parts list</div>
+    <h1>Every gene in the cell</h1>
+    <p class="lede">Stages 1 and 2 used made-up genes. From here on, the cell is real. <b>JCVI-syn3A</b> is a bacterium built in a lab by deleting every gene its ancestor could live without. What's left is the smallest genome of any cell that grows on its own. This page lays out all of it: where each gene sits on the single circular chromosome, what it does, and how many copies of its protein a cell holds, as measured by mass spectrometry. Nothing is simulated yet. This is the parts list the next layers will run.</p>
+  </header>
+
+  <div class="facts" id="facts" aria-label="Genome at a glance"></div>
+
+  <div class="main">
+    <div class="ringwrap">
+      <div id="ring" role="img" aria-label="The circular chromosome of JCVI-syn3A with every gene drawn at its position, coloured by function, with a bar for each protein's measured copy number"></div>
+      <p class="ringkey">Outer ring: genes read clockwise. Inner ring: genes read anticlockwise. Spikes: protein copies per cell, on a log scale. Hover a gene, click to open it.</p>
+      <p class="ringkey">Notice that the right half sits mostly on the outer ring and the left half on the inner. Copying of the chromosome starts at the top and runs both ways round to the bottom, and most genes point the same way it travels, so the machines that copy DNA and the machines that read it rarely meet head-on.</p>
+    </div>
+    <aside class="panel side">
+      <section>
+        <label class="label" for="q" style="display:block">Find a gene</label>
+        <input id="q" type="search" placeholder="dnaA, ribosomal, ATP synthase, 0001…" autocomplete="off">
+        <div class="hits" id="hits"></div>
+      </section>
+      <section>
+        <p class="label">Colour by function · click to highlight</p>
+        <div class="groups" id="groups"></div>
+      </section>
+      <section class="card" id="card" aria-live="polite"></section>
+    </aside>
+  </div>
+
+  <section class="spend" aria-labelledby="spend-t">
+    <h2 class="sec-title" id="spend-t">What the cell spends its proteins on</h2>
+    <p class="spend-cap" id="spendcap"></p>
+    <div class="legend2"><span class="g"><i></i>share of genes</span><span><i></i>share of all protein copies</span></div>
+    <div class="bars" id="bars"></div>
+  </section>
+
+  <div class="notes">
+    <div><h2>What is measured</h2><p><b>Positions</b> come from the genome sequence (NCBI CP016816.2). <b>Protein copies</b> are absolute counts from quantitative mass spectrometry (Breuer et al. 2019). Genes added when syn3A was built, and a few small proteins, were not detected and show no spike.</p></div>
+    <div><h2>What is simulated</h2><p>The <b>mRNA</b> figure in each gene's card is the average from the Luthey-Schulten lab's whole-cell simulations (Thornburg et al. 2022), not a measurement. Most genes average less than one mRNA: at any moment their message usually isn't there at all, which is the bursting from Stage 1 at real scale.</p></div>
+    <div><h2>Next layer: 3b</h2><p>Make these genes run. Every gene is transcribed and translated as exact random events, as in Stage 1, using real gene lengths and a finite pool of ribosomes and RNA polymerases that all 496 genes compete for. The ring above becomes the live view: genes flash as they're read.</p></div>
+  </div>
+
+  <section class="src" aria-labelledby="src-t">
+    <h2 class="sec-title" id="src-t" style="font-size:16px">Sources</h2>
+    <div id="sources"></div>
+    <p>Built by <code>cell/stage3/data/build-genome.mjs</code> from sources pinned by accession version and commit, and checked by <code>genome.selftest.mjs</code>.</p>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script>
+(async () => {
+  const css = getComputedStyle(document.documentElement);
+  const tok = (n) => css.getPropertyValue(n).trim();
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const { meta, genes } = await (await fetch('data/genome.json')).json();
+  const L = meta.genomeLength;
+
+  // ---------- functional groups ----------
+  const GROUPS = [
+    { id: 'tl', name: 'Translation', c: tok('--k-tl'), cats: ['Translation', 'Ribosome biogenesis', 'rRNA modification', 'tRNA modification'] },
+    { id: 'met', name: 'Metabolism', c: tok('--k-met'), cats: ['Glucose transport & catabolism', 'Carbon source transport & catabolism', 'Metabolic process', 'Nucleotide salvage', 'Cofactor transport and salvage', 'Lipid salvage and biogenesis', 'Redox homeostasis'] },
+    { id: 'trn', name: 'Transport', c: tok('--k-trn'), cats: ['Transport', 'Efflux'] },
+    { id: 'dna', name: 'DNA & division', c: tok('--k-dna'), cats: ['DNA replication', 'DNA topology', 'DNA repair', 'DNA metabolism', 'Chromosome segregation', 'Cell division'] },
+    { id: 'tx', name: 'Transcription', c: tok('--k-tx'), cats: ['Transcription', 'Regulation', 'RNA metabolism'] },
+    { id: 'fate', name: 'Protein fate', c: tok('--k-fate'), cats: ['Protein export', 'Protein folding', 'Proteolysis', 'Lipoprotein'] },
+    { id: 'unk', name: 'Unknown function', c: tok('--k-unk'), cats: ['Unclear'] },
+    { id: 'rna', name: 'RNA genes', c: tok('--k-rna'), cats: [] },
+    { id: 'none', name: 'Not in 2019 annotation', c: tok('--k-none'), cats: [] },
+  ];
+  const byCat = {}; GROUPS.forEach((g) => g.cats.forEach((c) => byCat[c] = g));
+  const G = Object.fromEntries(GROUPS.map((g) => [g.id, g]));
+  genes.forEach((g, i) => {
+    g.i = i;
+    g.grp = g.kind !== 'protein' && g.kind !== 'pseudo' ? G.rna : byCat[g.cat] || (/ribosomal protein/i.test(g.product) ? G.tl : G.none);
+    g.mid = (g.start + g.end) / 2;
+  });
+  const quant = genes.filter((g) => g.ptn != null).sort((a, b) => b.ptn - a.ptn);
+  quant.forEach((g, r) => g.rank = r + 1);
+  const totalPtn = quant.reduce((s, g) => s + g.ptn, 0), maxPtn = quant[0].ptn;
+  const proteinGenes = genes.filter((g) => g.kind === 'protein');
+  const unk = genes.filter((g) => g.grp === G.unk);
+
+  // ---------- facts strip ----------
+  const fmtN = (n) => n.toLocaleString('en-US');
+  document.getElementById('facts').innerHTML = [
+    [fmtN(L), 'base pairs, one circle'],
+    [fmtN(genes.length), 'genes'],
+    [fmtN(proteinGenes.length), 'make proteins'],
+    [fmtN(genes.length - proteinGenes.length - genes.filter((g) => g.kind === 'pseudo').length), 'make RNA only'],
+    [`<span>${unk.length}</span>`, 'of unknown function', 'unk'],
+    [fmtN(totalPtn), 'protein copies measured'],
+  ].map(([v, l, cls]) => `<div class="${cls || ''}"><b>${v}</b>${l}</div>`).join('');
+
+  // ---------- group filter ----------
+  let hiGroup = null, sel = null, hover = null;
+  const gEl = document.getElementById('groups');
+  gEl.innerHTML = GROUPS.map((g) => `<button type="button" data-g="${g.id}" aria-pressed="false" style="--c:${g.c}"><i class="dot" style="background:${g.c}"></i>${g.name}<span>${genes.filter((x) => x.grp === g).length}</span></button>`).join('');
+  gEl.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    hiGroup = hiGroup === G[b.dataset.g] ? null : G[b.dataset.g];
+    gEl.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', G[x.dataset.g] === hiGroup));
+    redraw(); renderCard();
+  });
+
+  // ---------- search ----------
+  const qEl = document.getElementById('q'), hitsEl = document.getElementById('hits');
+  const label = (g) => g.name || g.tag.replace('JCVISYN3A_', '');
+  const row = (g, right) => `<button type="button" data-i="${g.i}"><i class="dot" style="background:${g.grp.c}"></i><span class="p"><b style="font-weight:500">${label(g)}</b> ${g.product || g.ann || ''}</span><span class="n">${right}</span></button>`;
+  qEl.addEventListener('input', () => {
+    const q = qEl.value.trim().toLowerCase();
+    if (!q) { hitsEl.innerHTML = ''; return; }
+    const hit = genes.filter((g) => [g.tag, g.name, g.product, g.ann, g.cat].join(' ').toLowerCase().includes(q)).slice(0, 8);
+    hitsEl.innerHTML = hit.map((g) => row(g, g.ptn != null ? fmtN(g.ptn) : '')).join('') || '<p style="margin:6px 0 0;color:var(--muted);font-size:13px">No gene matches that.</p>';
+  });
+  const pickFrom = (e) => { const b = e.target.closest('button[data-i]'); if (b) select(genes[+b.dataset.i]); };
+  hitsEl.addEventListener('click', pickFrom);
+  document.getElementById('card').addEventListener('click', (e) => {
+    pickFrom(e);
+    const n = e.target.closest('[data-step]'); if (n && sel) select(genes[(sel.i + +n.dataset.step + genes.length) % genes.length]);
+    if (e.target.closest('[data-clear]')) select(null);
+  });
+
+  // ---------- detail card ----------
+  const CLS = { '5=Equivalog': 'well established', '4=Probable': 'probable', '3=Putative': 'putative', '2=Generic': 'general class only', '1=Unknown': 'unknown', '(6d)': 'not classified', '': 'not classified' };
+  const KIND = { protein: 'protein', rRNA: 'ribosomal RNA', tRNA: 'transfer RNA', tmRNA: 'tmRNA (rescues stalled ribosomes)', ncRNA: 'non-coding RNA', pseudo: 'pseudogene (broken copy, not expressed)' };
+  function renderCard() {
+    const el = document.getElementById('card');
+    if (!sel) {
+      const pool = (hiGroup ? quant.filter((g) => g.grp === hiGroup) : quant).slice(0, 10);
+      el.innerHTML = `<p class="label">${hiGroup ? 'Most abundant · ' + hiGroup.name : 'The ten most abundant proteins'}</p><div class="toplist">${pool.map((g) => row(g, fmtN(g.ptn))).join('')}</div>
+        <p style="margin:10px 0 0;color:var(--muted);font-size:12.5px">Copies per cell. Click one, or any gene on the ring.</p>`;
+      return;
+    }
+    const g = sel, len = g.kind === 'protein' ? `${fmtN(g.nt)} bp · ${fmtN(g.aa)} amino acids` : `${fmtN(g.nt)} bp`;
+    const ptn = g.ptn != null
+      ? `${fmtN(g.ptn)} per cell<small>rank ${g.rank} of ${quant.length} measured · ${(100 * g.ptn / totalPtn).toFixed(2)}% of all copies</small><div class="meter" style="--c:${g.grp.c}"><i style="width:${(100 * Math.log10(Math.max(1, g.ptn)) / Math.log10(maxPtn)).toFixed(1)}%"></i></div>`
+      : (g.kind === 'protein' ? 'not detected<small>too scarce, too small, or added after the 2019 measurements</small>' : '—<small>an RNA gene: its product is the RNA itself</small>');
+    const mrna = g.mrna != null ? `${g.mrna.toFixed(2)} on average<small>${g.mrna < 1 ? `simulated · most of the time there is no ${label(g)} mRNA in the cell at all` : 'simulated'}</small>` : '—';
+    el.innerHTML = `<p class="label">${g.tag}</p>
+      <h3 style="color:${g.grp.c}">${label(g)}</h3>
+      <p class="prod">${g.product || g.ann || 'no product annotated'}</p>
+      <span class="chip" style="--c:${g.grp.c}">${g.grp.name}${g.cat && g.cat !== 'Unclear' ? ' · ' + g.cat : ''}</span>
+      <dl class="kv">
+        <dt>makes</dt><dd>${KIND[g.kind] || g.kind}</dd>
+        <dt>position</dt><dd>${fmtN(g.start)}–${fmtN(g.end)}<small>${g.strand > 0 ? 'read clockwise (+ strand)' : 'read anticlockwise (− strand)'}</small></dd>
+        <dt>length</dt><dd>${len}</dd>
+        ${g.kind === 'protein' ? `<dt>function known</dt><dd>${CLS[g.cls] ?? g.cls}${g.ann && g.ann !== g.name && g.ann !== g.product ? `<small>${g.ann}</small>` : ''}</dd>` : ''}
+        <dt>protein</dt><dd>${ptn}</dd>
+        ${g.kind === 'protein' ? `<dt>mRNA</dt><dd>${mrna}</dd>` : ''}
+      </dl>
+      <div class="nav"><button type="button" data-step="-1">← previous gene</button><button type="button" data-step="1">next gene →</button><button type="button" data-clear>close</button></div>`;
+  }
+  function select(g) {
+    sel = g; renderCard(); redraw();
+    try { history.replaceState(null, '', g ? '#' + g.tag : location.pathname); } catch {}
+  }
+
+  // ---------- spending bars ----------
+  const rows = GROUPS.filter((g) => g !== G.rna).map((g) => {
+    const gs = genes.filter((x) => x.grp === g), copies = gs.reduce((s, x) => s + (x.ptn || 0), 0);
+    return { g, genes: gs.length / proteinGenes.length, copies: copies / totalPtn, n: gs.length, c: copies };
+  }).sort((a, b) => b.copies - a.copies);
+  const maxShare = Math.max(...rows.map((r) => Math.max(r.genes, r.copies)));
+  document.getElementById('bars').innerHTML = rows.map((r) => `<div class="brow" style="--c:${r.g.c}">
+      <div class="lbl"><i class="dot" style="background:${r.g.c}"></i>${r.g.name}</div>
+      <div class="tracks">
+        <div class="track genes"><div class="b"><i style="width:${(100 * r.genes / maxShare).toFixed(1)}%"></i></div><span>${(100 * r.genes).toFixed(0)}% · ${r.n} genes</span></div>
+        <div class="track"><div class="b"><i style="width:${(100 * r.copies / maxShare).toFixed(1)}%"></i></div><span>${(100 * r.copies).toFixed(0)}% · ${fmtN(r.c)}</span></div>
+      </div></div>`).join('');
+  const rT = rows.find((r) => r.g === G.tl), rM = rows.find((r) => r.g === G.met), rU = rows.find((r) => r.g === G.unk);
+  document.getElementById('spendcap').innerHTML = `Each pair of bars compares how many genes a function has with how much protein the cell actually makes for it. <b>Translation and metabolism take ${Math.round(100 * (rT.copies + rM.copies))}% of every protein copy</b>: a minimal cell is mostly a machine for making more protein and the energy to pay for it. The ${rU.n} genes of unknown function are ${Math.round(100 * rU.genes)}% of the protein-coding genome but only ${Math.round(100 * rU.copies)}% of the copies. They're mostly made in small numbers, yet they survived the deletion of everything the cell could do without.`;
+
+  document.getElementById('sources').innerHTML = meta.sources.map((s) => `<p>${s.cite} <a href="${s.url}" rel="noopener">${s.url.replace(/^https?:\/\//, '')}</a></p>`).join('');
+
+  // ---------- the ring ----------
+  const host = document.getElementById('ring');
+  let redraw = () => {};
+  new p5((s) => {
+    let W, C, t0 = performance.now();
+    const geo = () => {
+      const R = W / 2;
+      return { R, fo: R * 0.66, fi: R * 0.6, ro: R * 0.585, ri: R * 0.525, sk0: R * 0.685, sk1: R * 0.96, tick: R * 0.5 };
+    };
+    const ang = (pos) => pos / L * Math.PI * 2 - Math.PI / 2;
+    const size = () => Math.min(host.parentElement.clientWidth, 680);
+    s.setup = () => {
+      W = size(); s.createCanvas(W, W).parent(host);
+      s.pixelDensity(Math.min(2, window.devicePixelRatio || 1));
+      s.textFont('monospace'); s.strokeCap(s.SQUARE);
+      if (reduced) s.noLoop();
+    };
+    s.windowResized = () => { W = size(); s.resizeCanvas(W, W); s.redraw(); };
+    redraw = () => s.redraw();
+    s.draw = () => {
+      const intro = reduced ? 1 : Math.min(1, (performance.now() - t0) / 1400);
+      if (intro >= 1) s.noLoop();
+      const g = geo(), cx = W / 2, cy = W / 2, sweep = intro * L;
+      s.background(7, 9, 12);
+      s.push(); s.translate(cx, cy);
+      // backbone + ticks
+      s.noFill(); s.stroke(40, 50, 64); s.strokeWeight(1);
+      s.circle(0, 0, (g.fi + g.ro));
+      s.textSize(10.5); s.textAlign(s.CENTER, s.CENTER);
+      for (let kb = 0; kb < L / 1000; kb += 50) {
+        const a = ang(kb * 1000), c = Math.cos(a), si = Math.sin(a);
+        s.stroke(60, 72, 88); s.line(c * (g.ri - 4), si * (g.ri - 4), c * (g.ri - 10), si * (g.ri - 10));
+        if (kb % 100 === 0 && kb > 0) { s.noStroke(); s.fill(125, 136, 152); s.text(`${kb} kb`, c * (g.tick - 8), si * (g.tick - 8)); }
+      }
+      // genes
+      const dim = (x) => (hiGroup && x.grp !== hiGroup) ? 40 : 255;
+      for (const x of genes) {
+        if (x.start > sweep) break;
+        const a0 = ang(x.start), a1 = Math.max(ang(Math.min(x.end, sweep)), a0 + 0.004);
+        const col = s.color(x.grp.c); col.setAlpha(dim(x));
+        s.noFill(); s.stroke(col);
+        const r = x.strand > 0 ? (g.fo + g.fi) / 2 : (g.ro + g.ri) / 2, w = (g.fo - g.fi) * 0.92;
+        s.strokeWeight(w); s.arc(0, 0, 2 * r, 2 * r, a0, a1);
+        if (x.ptn != null) {
+          const h = (g.sk1 - g.sk0) * Math.log10(Math.max(1, x.ptn)) / Math.log10(maxPtn) * intro;
+          const am = ang(x.mid), c = Math.cos(am), si = Math.sin(am);
+          col.setAlpha(hiGroup && x.grp !== hiGroup ? 30 : 210); s.stroke(col); s.strokeWeight(Math.max(1.2, W / 420));
+          s.line(c * g.sk0, si * g.sk0, c * (g.sk0 + h), si * (g.sk0 + h));
+        }
+      }
+      // origin marker
+      s.stroke(217, 222, 230); s.strokeWeight(1.5); s.line(0, -g.ri + 2, 0, -g.sk0 + 2);
+      // hovered + selected
+      for (const [x, strong] of [[hover, false], [sel, true]]) {
+        if (!x) continue;
+        const a0 = ang(x.start), a1 = Math.max(ang(x.end), a0 + 0.01), am = ang(x.mid);
+        s.noFill(); s.stroke(255, strong ? 255 : 170); s.strokeWeight(2);
+        const r0 = x.strand > 0 ? g.fi - 3 : g.ri - 3, r1 = x.strand > 0 ? g.fo + 3 : g.ro + 3;
+        s.arc(0, 0, 2 * r0, 2 * r0, a0 - 0.01, a1 + 0.01); s.arc(0, 0, 2 * r1, 2 * r1, a0 - 0.01, a1 + 0.01);
+        s.line(Math.cos(am) * r1, Math.sin(am) * r1, Math.cos(am) * g.sk1, Math.sin(am) * g.sk1);
+      }
+      // centre label
+      const show = hover || sel;
+      s.noStroke(); s.textAlign(s.CENTER, s.CENTER);
+      if (show) {
+        s.fill(show.grp.c); s.textSize(Math.max(16, W * 0.04)); s.text(label(show), 0, -W * 0.035);
+        s.fill(170, 178, 190); s.textSize(Math.max(10.5, W * 0.018));
+        const p = (show.product || show.ann || '').slice(0, 34);
+        s.text(p, 0, W * 0.01);
+        s.text(show.ptn != null ? `${fmtN(show.ptn)} copies per cell` : (show.kind === 'protein' ? 'protein not detected' : KIND[show.kind] || ''), 0, W * 0.045);
+      } else {
+        s.fill(217, 222, 230); s.textSize(Math.max(15, W * 0.034)); s.text('JCVI-syn3A', 0, -W * 0.03);
+        s.fill(125, 136, 152); s.textSize(Math.max(10.5, W * 0.018));
+        s.text(`${fmtN(L)} bp · ${genes.length} genes`, 0, W * 0.01);
+        s.text('origin at the top, dnaA first', 0, W * 0.042);
+      }
+      s.pop();
+    };
+    function geneAt(mx, my) {
+      const g = geo(), dx = mx - W / 2, dy = my - W / 2, r = Math.hypot(dx, dy);
+      let a = Math.atan2(dy, dx) + Math.PI / 2; if (a < 0) a += Math.PI * 2;
+      const pos = a / (Math.PI * 2) * L, tol = 4 / (r || 1) / (Math.PI * 2) * L;
+      let pool;
+      if (r >= g.fi - 4 && r <= g.fo + 4) pool = genes.filter((x) => x.strand > 0);
+      else if (r >= g.ri - 4 && r <= g.ro + 4) pool = genes.filter((x) => x.strand < 0);
+      else if (r > g.fo + 4 && r <= g.sk1 + 6) pool = quant;
+      else return null;
+      let best = null, bd = Infinity;
+      for (const x of pool) {
+        const d = pos < x.start ? x.start - pos : pos > x.end ? pos - x.end : 0;
+        if (d < bd) { bd = d; best = x; }
+      }
+      return bd <= tol ? best : null;
+    }
+    s.mouseMoved = () => {
+      if (s.mouseX < 0 || s.mouseY < 0 || s.mouseX > W || s.mouseY > W) { if (hover) { hover = null; s.redraw(); } return; }
+      const h = geneAt(s.mouseX, s.mouseY);
+      if (h !== hover) { hover = h; s.redraw(); }
+    };
+    s.mouseClicked = () => {
+      if (s.mouseX < 0 || s.mouseY < 0 || s.mouseX > W || s.mouseY > W) return;
+      const h = geneAt(s.mouseX, s.mouseY); if (h) select(h);
+    };
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!sel || e.target === qEl) return;
+    if (e.key === 'ArrowRight') select(genes[(sel.i + 1) % genes.length]);
+    if (e.key === 'ArrowLeft') select(genes[(sel.i - 1 + genes.length) % genes.length]);
+  });
+  const fromHash = genes.find((g) => '#' + g.tag === location.hash);
+  if (fromHash) select(fromHash); else renderCard();
+})();
+</script>
+</body>
+</html>

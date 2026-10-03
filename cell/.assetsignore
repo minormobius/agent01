@@ -6,3 +6,4 @@ wrangler.jsonc
 node_modules
 package.json
 package-lock.json
+build-genome.mjs

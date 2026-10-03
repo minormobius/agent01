@@ -23,7 +23,9 @@ jobs:
       # The stage 2 engine's known-answer checks: mass balance, determinism, and the
       # clustered-beats-scattered result the page is about.
       - name: Selftest the simulation engines
-        run: node stage2/sim.selftest.mjs
+        run: |
+          node stage2/sim.selftest.mjs
+          node stage3/data/genome.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
       # cell.mino.mobi is a plain route (no custom-domain slot), and a route makes no DNS:

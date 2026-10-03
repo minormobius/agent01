@@ -52,11 +52,11 @@
       <p class="lede">The goal is a living cell you can watch: every protein made, bound and lost as a discrete event, animated as it happens. That is a research problem. The path there is a series of layers, each adding one kind of realism to the one inside it. <b>Every layer stays live</b>, so you can see what each step bought.</p>
     </header>
     <svg class="onion" viewBox="0 0 380 380" role="img" aria-labelledby="onion-t">
-      <title id="onion-t">Five nested layers. Stages 1 and 2 are live; 3, 4 and 5 are still to come.</title>
+      <title id="onion-t">Five nested layers. Stages 1 and 2 are live, stage 3 has begun, and 4 and 5 are still to come.</title>
       <g fill="none">
         <g><circle cx="190" cy="190" r="178" stroke="#2a3340" stroke-width="1.5" stroke-dasharray="2 6"/><text x="190" y="26" text-anchor="middle">5 twin</text></g>
         <g><circle cx="190" cy="190" r="142" stroke="#2a3340" stroke-width="1.5" stroke-dasharray="2 6"/><text x="190" y="62" text-anchor="middle">4 playback</text></g>
-        <g><circle cx="190" cy="190" r="106" stroke="#4a5666" stroke-width="1.5" stroke-dasharray="6 5"/><text x="190" y="98" text-anchor="middle">3 syn3A</text></g>
+        <a class="live" href="stage3/"><circle cx="190" cy="190" r="106" stroke="#f2b84b" stroke-width="2" stroke-dasharray="14 6" fill="#f2b84b" fill-opacity=".03"/><text x="190" y="98" text-anchor="middle">3 syn3A</text></a>
         <a class="live" href="stage2/"><circle cx="190" cy="190" r="70" stroke="#ff5fa2" stroke-width="2" fill="#ff5fa2" fill-opacity=".05"/><text x="190" y="134" text-anchor="middle">2 space</text></a>
         <a class="live" href="stage1/"><circle cx="190" cy="190" r="34" stroke="#4fd1e8" stroke-width="2" fill="#4fd1e8" fill-opacity=".1"/><text x="190" y="194" text-anchor="middle">1 events</text></a>
       </g>
@@ -74,10 +74,10 @@
       <div><h2>Where the enzymes sit</h2><p>Every metabolite is a particle taking <b>Brownian steps</b>, and enzymes capture what drifts close enough. Two cells have the same enzymes and rate constants, and only their arrangement differs. Clustered enzymes keep a leaky intermediate from escaping, which a well-mixed model cannot show.</p></div>
       <div class="side"><span class="pill">Live</span><a class="open" href="stage2/">Open →</a></div>
     </article>
-    <article class="stage">
+    <article class="stage live" style="--c: var(--amber)">
       <div class="n">3</div>
-      <div><h2>A real organism: JCVI-syn3A</h2><p>Swap the toy genes for the minimal cell's <b>published genome, copy numbers and kinetics</b>. Run it as a hybrid: exact events for gene expression, deterministic metabolism, and particle simulation only where space matters.</p></div>
-      <div class="side"><span class="pill">Next</span></div>
+      <div><h2>A real organism: JCVI-syn3A</h2><p>Swap the toy genes for the minimal cell's <b>published genome, copy numbers and kinetics</b>. <b>3a is live:</b> all 496 genes on the chromosome with their functions and measured protein counts. Next, 3b runs them as exact events, then 3c adds metabolism and 3d adds growth and division.</p></div>
+      <div class="side"><span class="pill">3a live</span><a class="open" href="stage3/">Open →</a></div>
     </article>
     <article class="stage">
       <div class="n">4</div>
