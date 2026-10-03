@@ -1,0 +1,473 @@
+{
+ "registration": "jev-plans-adaptive-v1",
+ "exploratory": "contrarian strategist, trial #49, not registered",
+ "ran": "2026-10-03T16:24:16.416Z",
+ "variants": {
+  "L=90 vigilance off": {
+   "trades": 671,
+   "weeks": 106,
+   "sumR": -10.5,
+   "t": -0.31,
+   "longs_meanR": -0.074,
+   "shorts_meanR": 0.031,
+   "aside_rate": 0.579,
+   "early_refits": {
+    "cusum": 0,
+    "vol": 0
+   },
+   "null": {
+    "mean_sumR": -5.8,
+    "sd": 19.8,
+    "z": -0.24
+   },
+   "halves": [
+    {
+     "trades": 343,
+     "weeks": 53,
+     "sumR": 21.6,
+     "t": 1.14
+    },
+    {
+     "trades": 328,
+     "weeks": 53,
+     "sumR": -32.2,
+     "t": -1.16
+    }
+   ],
+   "picks": [
+    [
+     "reversion(N=6,zt=2)",
+     319
+    ],
+    [
+     "momentum(N=30,k=1)",
+     138
+    ],
+    [
+     "breakout(N=30,k=1)",
+     93
+    ],
+    [
+     "reversion(N=30,zt=2)",
+     60
+    ],
+    [
+     "momentum(N=30,k=2)",
+     14
+    ],
+    [
+     "reversion(N=6,zt=3)",
+     13
+    ],
+    [
+     "reversion(N=30,zt=3)",
+     1
+    ]
+   ],
+   "works": false
+  },
+  "L=90 vigilance on": {
+   "trades": 643,
+   "weeks": 106,
+   "sumR": -5.4,
+   "t": -0.17,
+   "longs_meanR": -0.045,
+   "shorts_meanR": 0.021,
+   "aside_rate": 0.585,
+   "early_refits": {
+    "cusum": 5,
+    "vol": 3
+   },
+   "null": {
+    "mean_sumR": 0.7,
+    "sd": 19.9,
+    "z": -0.31
+   },
+   "halves": [
+    {
+     "trades": 341,
+     "weeks": 53,
+     "sumR": 22.3,
+     "t": 1.17
+    },
+    {
+     "trades": 302,
+     "weeks": 53,
+     "sumR": -27.7,
+     "t": -1.08
+    }
+   ],
+   "picks": [
+    [
+     "reversion(N=6,zt=2)",
+     320
+    ],
+    [
+     "momentum(N=30,k=1)",
+     135
+    ],
+    [
+     "breakout(N=30,k=1)",
+     90
+    ],
+    [
+     "reversion(N=30,zt=2)",
+     59
+    ],
+    [
+     "momentum(N=30,k=2)",
+     14
+    ],
+    [
+     "reversion(N=6,zt=3)",
+     13
+    ],
+    [
+     "reversion(N=30,zt=3)",
+     1
+    ]
+   ],
+   "works": false
+  },
+  "L=180 vigilance off": {
+   "trades": 1367,
+   "weeks": 106,
+   "sumR": -10.8,
+   "t": -0.19,
+   "longs_meanR": -0.029,
+   "shorts_meanR": 0.011,
+   "aside_rate": 0.084,
+   "early_refits": {
+    "cusum": 0,
+    "vol": 0
+   },
+   "null": {
+    "mean_sumR": -1.2,
+    "sd": 23.9,
+    "z": -0.4
+   },
+   "halves": [
+    {
+     "trades": 676,
+     "weeks": 53,
+     "sumR": 10.4,
+     "t": 0.27
+    },
+    {
+     "trades": 691,
+     "weeks": 53,
+     "sumR": -21.2,
+     "t": -0.53
+    }
+   ],
+   "picks": [
+    [
+     "reversion(N=6,zt=2)",
+     473
+    ],
+    [
+     "breakout(N=30,k=1)",
+     298
+    ],
+    [
+     "momentum(N=30,k=1)",
+     250
+    ],
+    [
+     "reversion(N=30,zt=2)",
+     96
+    ],
+    [
+     "momentum(N=30,k=2)",
+     72
+    ],
+    [
+     "reversion(N=6,zt=3)",
+     34
+    ],
+    [
+     "momentum(N=90,k=1)",
+     24
+    ],
+    [
+     "breakout(N=30,k=2)",
+     20
+    ],
+    [
+     "reversion(N=90,zt=2)",
+     7
+    ],
+    [
+     "breakout(N=90,k=1)",
+     5
+    ],
+    [
+     "reversion(N=30,zt=3)",
+     3
+    ]
+   ],
+   "works": false
+  },
+  "L=180 vigilance on": {
+   "trades": 1368,
+   "weeks": 106,
+   "sumR": -6.5,
+   "t": -0.12,
+   "longs_meanR": -0.027,
+   "shorts_meanR": 0.015,
+   "aside_rate": 0.08,
+   "early_refits": {
+    "cusum": 9,
+    "vol": 11
+   },
+   "null": {
+    "mean_sumR": -5.7,
+    "sd": 20.1,
+    "z": -0.04
+   },
+   "halves": [
+    {
+     "trades": 676,
+     "weeks": 53,
+     "sumR": 10.4,
+     "t": 0.27
+    },
+    {
+     "trades": 692,
+     "weeks": 53,
+     "sumR": -16.9,
+     "t": -0.42
+    }
+   ],
+   "picks": [
+    [
+     "reversion(N=6,zt=2)",
+     474
+    ],
+    [
+     "breakout(N=30,k=1)",
+     299
+    ],
+    [
+     "momentum(N=30,k=1)",
+     251
+    ],
+    [
+     "reversion(N=30,zt=2)",
+     93
+    ],
+    [
+     "momentum(N=30,k=2)",
+     72
+    ],
+    [
+     "reversion(N=6,zt=3)",
+     34
+    ],
+    [
+     "momentum(N=90,k=1)",
+     25
+    ],
+    [
+     "breakout(N=30,k=2)",
+     22
+    ],
+    [
+     "reversion(N=90,zt=2)",
+     7
+    ],
+    [
+     "breakout(N=90,k=1)",
+     5
+    ],
+    [
+     "reversion(N=30,zt=3)",
+     3
+    ]
+   ],
+   "works": false
+  },
+  "L=360 vigilance off": {
+   "trades": 1347,
+   "weeks": 106,
+   "sumR": -33.6,
+   "t": -0.68,
+   "longs_meanR": 0.034,
+   "shorts_meanR": -0.078,
+   "aside_rate": 0.013,
+   "early_refits": {
+    "cusum": 0,
+    "vol": 0
+   },
+   "null": {
+    "mean_sumR": 2.5,
+    "sd": 20.4,
+    "z": -1.77
+   },
+   "halves": [
+    {
+     "trades": 658,
+     "weeks": 53,
+     "sumR": 6,
+     "t": 0.2
+    },
+    {
+     "trades": 689,
+     "weeks": 54,
+     "sumR": -39.6,
+     "t": -1.02
+    }
+   ],
+   "picks": [
+    [
+     "reversion(N=6,zt=2)",
+     550
+    ],
+    [
+     "momentum(N=30,k=1)",
+     194
+    ],
+    [
+     "breakout(N=30,k=1)",
+     176
+    ],
+    [
+     "reversion(N=30,zt=2)",
+     132
+    ],
+    [
+     "breakout(N=30,k=2)",
+     73
+    ],
+    [
+     "momentum(N=90,k=1)",
+     59
+    ],
+    [
+     "reversion(N=6,zt=3)",
+     47
+    ],
+    [
+     "breakout(N=90,k=1)",
+     41
+    ],
+    [
+     "momentum(N=30,k=2)",
+     30
+    ],
+    [
+     "reversion(N=90,zt=2)",
+     15
+    ],
+    [
+     "reversion(N=30,zt=3)",
+     8
+    ],
+    [
+     "momentum(N=90,k=2)",
+     6
+    ],
+    [
+     "momentum(N=180,k=1)",
+     3
+    ],
+    [
+     "breakout(N=180,k=1)",
+     1
+    ]
+   ],
+   "works": false
+  },
+  "L=360 vigilance on": {
+   "trades": 1347,
+   "weeks": 106,
+   "sumR": -34.2,
+   "t": -0.7,
+   "longs_meanR": 0.033,
+   "shorts_meanR": -0.078,
+   "aside_rate": 0.013,
+   "early_refits": {
+    "cusum": 6,
+    "vol": 12
+   },
+   "null": {
+    "mean_sumR": 1.8,
+    "sd": 17.7,
+    "z": -2.03
+   },
+   "halves": [
+    {
+     "trades": 658,
+     "weeks": 53,
+     "sumR": 6,
+     "t": 0.2
+    },
+    {
+     "trades": 689,
+     "weeks": 54,
+     "sumR": -40.2,
+     "t": -1.05
+    }
+   ],
+   "picks": [
+    [
+     "reversion(N=6,zt=2)",
+     554
+    ],
+    [
+     "momentum(N=30,k=1)",
+     193
+    ],
+    [
+     "breakout(N=30,k=1)",
+     176
+    ],
+    [
+     "reversion(N=30,zt=2)",
+     133
+    ],
+    [
+     "breakout(N=30,k=2)",
+     72
+    ],
+    [
+     "momentum(N=90,k=1)",
+     60
+    ],
+    [
+     "reversion(N=6,zt=3)",
+     47
+    ],
+    [
+     "breakout(N=90,k=1)",
+     40
+    ],
+    [
+     "momentum(N=30,k=2)",
+     30
+    ],
+    [
+     "reversion(N=90,zt=2)",
+     15
+    ],
+    [
+     "reversion(N=30,zt=3)",
+     8
+    ],
+    [
+     "momentum(N=90,k=2)",
+     6
+    ],
+    [
+     "momentum(N=180,k=1)",
+     3
+    ],
+    [
+     "breakout(N=180,k=1)",
+     1
+    ]
+   ],
+   "works": false
+  }
+ }
+}

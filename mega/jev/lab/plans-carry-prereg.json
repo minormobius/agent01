@@ -1,0 +1,20 @@
+{
+  "id": "jev-plans-carry-v1",
+  "written": "2026-10-03",
+  "status": "registered before the premium history was fetched and before any result of this test",
+  "ledger": "48 registered trials on this data (v1-v3 searches, the adaptive test), all failed, plus 1 exploratory (contrarian strategist, failed). This adds 2. Total 50 + 1.",
+  "why": "The adaptive test showed that fitting locally to what worked recently loses: strategy performance reverts week to week (autocorrelation -0.02, positive on 87 of 270 asset-configurations), and so do direction and trend efficiency. Two quantities DO persist on every asset: funding (week-to-week autocorrelation 0.59, 15/15) and volatility (0.33, 15/15). So the strategist should fit locally only to those. This tests that: each week pick the assets whose recent funding is highest and harvest it hedged, with vigilance on funding itself.",
+  "seen_before_registering": "per-asset funding means over the whole span, the funding leg of v3's funding-carry book (t 11.8 dev, 13.5 validation), and the autocorrelations above. Not: any premium (basis) data, or any hedged result.",
+  "trade": "basis carry: short the perp, long the same asset's spot in equal notional. Per bar, P&L per unit notional = the funding a long paid that bar (received by the short) minus the change in the perp's premium over its spot index (premium from Hyperliquid fundingHistory, the last print in each 4h bar), minus costs.",
+  "costs": "at each change of holdings, per unit notional changed: perp taker 4.5bp + v1's half spread, plus spot 5bp a side for BTC/ETH/SOL and 10bp a side for the others (assumed: an external venue; Hyperliquid's own spot is thinner). No spot borrow is needed (spot is held long).",
+  "selection": "every 42 bars (one week) from bar 600: rank the 15 assets by their funding summed over the last 42 bars; hold the top 5 whose sum is positive (fewer if fewer are positive), equal notional, the book sums to 1",
+  "vigilance": "when ON, at each bar: drop an asset (its notional goes to cash) as soon as its funding summed over the last 6 bars (24 hours) is negative; it can only come back at the next weekly selection",
+  "variants": ["vigilance off", "vigilance on"],
+  "trials": 2,
+  "statistic": "the book's weekly return (bp of notional), t over calendar weeks, over the whole walk (bars 600-5000, every choice from data before it)",
+  "null": "the same book holding 5 assets drawn at random each week (same costs, same vigilance), 20 seeds",
+  "pass": "WORKS if weekly t >= 2.24 (one-sided p = 0.05/2), the total exceeds the random null's mean by at least 1.645 null sd, and the absolute correlation of its weekly returns with the equal-weight market is below 0.3",
+  "also_reported": "the funding, basis and cost parts separately; the worst week and the worst drawdown; each half of the walk; how often vigilance dropped an asset and what it saved or cost",
+  "caveat_known_now": "the premium is the perp against Hyperliquid's oracle (a spot index), a proxy for the basis on a real spot venue, not a fill. Spot costs are assumed. Funding rates in a crisis can turn hard negative; 2.3 years may not contain the worst case.",
+  "no_amendment": "nothing above changes after results are seen"
+}
