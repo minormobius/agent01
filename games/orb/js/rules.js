@@ -42,7 +42,7 @@
   function reveal(s, i) {
     if (s.phase === "won" || s.phase === "lost" || s.open[i] || s.flag[i]) return [];
     if (s.mine[i]) { s.open[i] = 1; s.boom = i; s.phase = "lost"; s.t1 = Date.now(); return [i]; }
-    var out = [], stack = [i], nb = s.mesh.nbrs;
+    var out = [], stack = [i], nb = s.mesh.flood || s.mesh.nbrs; // a mesh may flood less far than it counts (Fathom: within a shell)
     s.open[i] = 1;
     while (stack.length) {
       var c = stack.pop();

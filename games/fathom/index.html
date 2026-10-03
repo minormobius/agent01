@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#04080e" />
+<meta name="description" content="Fathom — Minesweeper in three dimensions: a sea of mines in nested Voronoi shells. Chip through the outside, read the numbers through the holes, and dive for the core without a guess." />
+<title>Fathom — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../orb/css/orb.css" />
+<link rel="stylesheet" href="css/fathom.css" />
+</head>
+<body>
+
+<div id="app">
+  <div id="hud">
+    <div class="cell-hud"><span class="hud-label">mines</span><span class="hud-value" id="mines">—</span></div>
+    <div class="cell-hud"><span class="hud-label">time</span><span class="hud-value" id="time">0:00</span></div>
+    <div class="cell-hud"><span class="hud-label">guesses</span><span class="hud-value" id="guesses">0</span></div>
+    <div class="cell-hud"><span class="hud-label">depth</span><span class="hud-value" id="depth">1</span></div>
+    <div class="cell-hud right row">
+      <button type="button" id="goal" class="toggle" title="Dive: reach the core. Clear: every safe cell (g)">DIVE</button>
+      <select id="size" aria-label="How deep">
+        <option value="shallow">shallow · 3</option>
+        <option value="deep">deep · 4</option>
+        <option value="abyss">abyss · 5</option>
+      </select>
+    </div>
+  </div>
+
+  <canvas id="orb" aria-label="The minefield: drag to turn, pinch to go deeper, tap to flag, hold to dig"></canvas>
+  <div id="gauge" aria-hidden="true"></div>
+
+  <div id="focus"></div>
+  <div id="note"></div>
+
+  <div id="actions" class="five">
+    <button class="primary" id="mode" type="button" title="Swap tap and hold (f)">tap: ⚑ flag</button>
+    <button class="ghost" id="hint" type="button" title="Show a cell that is certain (h)">?</button>
+    <button class="ghost" id="up" type="button" title="Up a shell (pinch in, w)">▲</button>
+    <button class="ghost" id="down" type="button" title="Down a shell (pinch out, s)">▼</button>
+    <button class="ghost" id="new" type="button" title="New sea (n)">↻ new</button>
+  </div>
+  <p class="seed-line">seed <code id="seed">—</code> · drag to turn · <b>pinch to dive</b> · <b>tap flags · hold digs</b> · numbers count the shells above and below too</p>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>FATHOM</h1>
+  <p>
+    Minesweeper in three dimensions. The mines hang in a sea of nested
+    shells, each a sphere of <b>Voronoi cells</b>, and every number counts
+    the cells around it on its own shell <b>and</b> the ones it overlaps on
+    the shells just above and below. A buried mine shows through the
+    layers over it.
+  </p>
+  <p>
+    You chip in from the outside. A cleared cell turns to water and you see
+    down through it; <b>pinch</b> (or ▼) to dive to the next shell, drag to
+    turn. Zeros clear their own shell, never deeper: every breach downward
+    is a tap of your own. The water gets denser with depth.
+  </p>
+  <p class="accent">
+    Every sea is proved clearable by pure deduction from your first tap.
+    <b>Dive</b>: reach the core. <b>Clear</b>: every safe cell. Zero guesses is the real win.
+  </p>
+  <button class="primary" id="start-btn" type="button" style="flex:none">DIVE</button>
+  <p class="seed-line">one of the <a href="../pressure/">/pressure/</a> games · a sibling of <a href="../orb/">/orb/</a> · <a href="./README.md">how it works</a></p>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <h1 id="over-title">—</h1>
+  <p id="over-body"></p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button class="primary" id="again" type="button" style="flex:none">NEW SEA</button>
+    <button class="ghost" id="replay" type="button" style="flex:none">SAME SEED</button>
+    <button class="ghost" id="look" type="button" style="flex:none">LOOK</button>
+  </div>
+  <p class="seed-line">the seed is in the URL — same seed and same first tap, same sea</p>
+</div>
+
+<script src="../orb/js/prng.js"></script>
+<script src="../orb/js/sphere.js"></script>
+<script src="../orb/js/rules.js"></script>
+<script src="../orb/js/solve.js"></script>
+<script src="js/onion.js"></script>
+<script src="js/view.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

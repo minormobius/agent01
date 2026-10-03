@@ -3727,6 +3727,22 @@
       ]
     },
     {
+      "n": "fathom",
+      "u": "https://games.mino.mobi/fathom/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "games",
+      "surface": "games",
+      "d": "Minesweeper in three dimensions: sea mines in nested shells of Voronoi cells, each number counting the cells around it and the ones it overlaps above and below. Chip in from outside, read through the holes, pinch to dive, and reach the core. Every sea is proved clearable by deduction.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
       "n": "outbound",
       "u": "https://games.mino.mobi/outbound/",
       "c": "games",

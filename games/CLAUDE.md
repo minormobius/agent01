@@ -85,6 +85,15 @@ Three things live here:
   scrolled through the Poincaré disk, or bent onto a pretzel in 3D by
   `js/pretzel.js`, a harmonic map built on the Bolza surface's hyperelliptic
   symmetry). Canvas 2D, no build. See [`orb/README.md`](orb/README.md).
+- **Fathom at `/fathom/`**: Minesweeper in 3D. Sea mines in nested shells of
+  Voronoi cells (each shell Orb's `buildMesh`); a number counts its ring and
+  every cell it overlaps on the shells just above and below (bricks, ~10
+  neighbours), so information crosses the layers. Zeros flood within their
+  own shell, the water is denser with depth, and the goal is to dive to the
+  core (or clear it all). Drawn as a perspective cutaway: pinch through the
+  shells, look down through opened cells. Plays with Orb's rules, solver and
+  no-guess generator unchanged (`mesh.flood` and `mesh.weight` are opt-in
+  hooks there). See [`fathom/README.md`](fathom/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -129,7 +138,7 @@ Three things live here:
   to this family: [`pressure/README.md`](pressure/README.md).
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -165,6 +174,7 @@ node games/outbound/test/sweep.mjs 12            # parameter sweep — slow (~15
 node games/tempest/test/tempest.selftest.mjs      # invariants + the wasm drift gate; preflight runs this
 node games/orb/test/orb.selftest.mjs             # mesh, solver vs brute force, generator; preflight runs this
 node games/orb/test/analysis.mjs 300             # guess-free rate: Voronoi orb vs square/hex grids (~3 s)
+node games/fathom/test/fathom.selftest.mjs       # the onion's layers, flood and depth rules, every size proved guess-free
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

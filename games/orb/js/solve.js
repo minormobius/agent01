@@ -240,6 +240,11 @@
     var banned = new Set(mesh.nbrs[first]); banned.add(first);
     var pool = [];
     for (var i = 0; i < mesh.n; i++) if (!banned.has(i)) pool.push(i);
+    if (mesh.weight) { // weighted, without replacement (Efraimidis–Spirakis): a cell of weight w is w times as likely
+      var key = pool.map(function (c) { return [Math.pow(rng.next(), 1 / mesh.weight[c]), c]; });
+      key.sort(function (a, b) { return b[0] - a[0]; });
+      return key.slice(0, nMines).map(function (k) { return k[1]; });
+    }
     rng.shuffle(pool);
     return pool.slice(0, nMines);
   }
