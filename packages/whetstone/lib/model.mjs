@@ -24,20 +24,48 @@ export const DEFAULT_MODEL = 'claude-opus-5-5';
 export function cliModel({ model = DEFAULT_MODEL, effort, bin = 'claude', timeoutMs = 300_000 } = {}) {
   const cwd = mkdtempSync(join(tmpdir(), 'whetstone-'));
   return async function call({ system, prompt }) {
+    // stream-json, not json: the single-result format drops the rate_limit_event lines, and
+    // those are the only place the subscription's usage windows are reported (see parseStream).
     const args = ['-p', '--model', model, '--system-prompt', system, '--tools', '',
-      '--output-format', 'json', '--no-session-persistence'];
+      '--output-format', 'stream-json', '--verbose', '--no-session-persistence'];
     if (process.env.ANTHROPIC_API_KEY) args.push('--bare');
     if (effort) args.push('--effort', effort);
     const out = await run(bin, args, prompt, cwd, timeoutMs);
-    let j;
-    try { j = JSON.parse(out); } catch { throw new Error(`claude -p returned non-JSON: ${out.slice(0, 200)}`); }
-    if (j.is_error) throw new Error(`claude -p error: ${String(j.result).slice(0, 200)}`);
-    return { text: String(j.result ?? '').trim(), cost: Number(j.total_cost_usd) || 0 };
+    const r = parseStream(out);
+    if (!r.found) throw new Error(`claude -p wrote no result line: ${out.slice(-200)}`);
+    if (r.isError) throw new Error(`claude -p error: ${String(r.text).slice(0, 200)}`);
+    return { text: r.text, cost: r.cost, rate: r.rate };
   };
 }
 
-export function fakeModel(fn) {
-  return async (req) => ({ text: String(await fn(req)), cost: 0 });
+// Read a `claude -p --output-format stream-json --verbose` transcript: one JSON object per line.
+// The last `result` line carries the answer and the cost. Any `rate_limit_event` lines carry the
+// account's usage windows, as Claude Code reports them:
+//   { type: 'rate_limit_event', rate_limit_info: { status, rateLimitType, utilization, ... } }
+// (shape as captured in scripts/lab-agent-outcome.selftest.mjs). Whether Claude Code emits one
+// on every call or only past a warning threshold is exactly what recording them will tell us.
+export function parseStream(text) {
+  let result = null;
+  const rate = [];
+  for (const line of String(text ?? '').split('\n')) {
+    const t = line.trim();
+    if (!t.startsWith('{')) continue;
+    let e;
+    try { e = JSON.parse(t); } catch { continue; }
+    if (e.type === 'result') result = e;
+    else if (e.type === 'rate_limit_event' && e.rate_limit_info) rate.push(e.rate_limit_info);
+  }
+  return {
+    found: !!result,
+    isError: !!result?.is_error,
+    text: String(result?.result ?? '').trim(),
+    cost: Number(result?.total_cost_usd) || 0,
+    rate,
+  };
+}
+
+export function fakeModel(fn, { rate = () => [] } = {}) {
+  return async (req) => ({ text: String(await fn(req)), cost: 0, rate: rate(req) });
 }
 
 function run(bin, args, stdin, cwd, timeoutMs) {

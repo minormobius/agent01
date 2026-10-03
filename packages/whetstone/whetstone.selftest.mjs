@@ -11,8 +11,8 @@ import { fileURLToPath } from 'node:url';
 import {
   jaccard, wilson, slope, rng, attractorRate, isSilent, leaked, parseJson, pairs, mean,
 } from './lib/measure.mjs';
-import { runLab, loadSoul, applyGates } from './lib/lab.mjs';
-import { fakeModel, pool } from './lib/model.mjs';
+import { runLab, loadSoul, applyGates, newWindows, noteWindows, summarizeWindows } from './lib/lab.mjs';
+import { fakeModel, pool, parseStream } from './lib/model.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import * as P from './lib/prompts.mjs';
 
@@ -82,6 +82,38 @@ await t('pool keeps order and bounds concurrency', async () => {
   assert.equal(peak, 2);
 });
 
+// ---- the usage window ----------------------------------------------------------------------
+await t('parseStream reads the answer, the cost and the rate-limit report', () => {
+  // The rate_limit_event line is the shape captured in scripts/lab-agent-outcome.selftest.mjs.
+  const lines = [
+    JSON.stringify({ type: 'system', subtype: 'init' }),
+    JSON.stringify({ type: 'rate_limit_event', rate_limit_info: { status: 'allowed_warning', rateLimitType: 'seven_day', utilization: 0.85, surpassedThreshold: 0.75 } }),
+    JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'Hello' }] } }),
+    'not json at all',
+    JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '  Hello  ', total_cost_usd: 0.0123 }),
+  ].join('\n');
+  const r = parseStream(lines);
+  assert.equal(r.found, true); assert.equal(r.isError, false);
+  assert.equal(r.text, 'Hello'); assert.equal(r.cost, 0.0123);
+  assert.equal(r.rate.length, 1); assert.equal(r.rate[0].rateLimitType, 'seven_day');
+  const quiet = parseStream(JSON.stringify({ type: 'result', is_error: false, result: 'ok' }));
+  assert.deepEqual(quiet.rate, [], 'a call with no rate event reports none');
+  assert.equal(parseStream('').found, false, 'no result line is detectable');
+  assert.equal(parseStream(JSON.stringify({ type: 'result', is_error: true, result: 'boom' })).isError, true);
+});
+await t('the window summary counts silent calls and keeps the peak', () => {
+  const w = newWindows();
+  noteWindows(w, []);
+  noteWindows(w, [{ rateLimitType: 'five_hour', utilization: 0.30, status: 'allowed' }]);
+  noteWindows(w, [{ rateLimitType: 'five_hour', utilization: 0.20, status: 'allowed' }, { rateLimitType: 'seven_day', utilization: 0.61, status: 'allowed' }]);
+  noteWindows(w, undefined);
+  const s = summarizeWindows(w);
+  assert.equal(s.calls, 4); assert.equal(s.calls_reporting, 2);
+  assert.equal(s.types.five_hour.peak_utilization, 0.30, 'peak, not last');
+  assert.equal(s.types.five_hour.last.utilization, 0.20);
+  assert.equal(s.types.seven_day.reports, 1);
+});
+
 // ---- the frame is the same for life and for tests ------------------------------------------
 await t('a soul cannot tell a probe from a moment', () => {
   const bank = JSON.parse(readFileSync(join(HERE, 'trials', 'bank.json'), 'utf8'));
@@ -139,6 +171,14 @@ await t('a collapsed pair fails, and fails on the right gates', async () => {
   // A judge guessing a constant label scores ~50% against shuffled truth: blind, not perfect.
   const sep = rows.find((r) => r.metric === 'separation');
   assert.ok(sep.value > 0.2 && sep.value < 0.8, `constant-guess separation ${sep.value} should sit near chance`);
+});
+
+await t('a run records the usage window on its scorecard', async () => {
+  const call = fakeModel(fakeResponder(), { rate: (req) => (req.meta?.role === 'judge' ? [] : [{ rateLimitType: 'five_hour', utilization: 0.42, status: 'allowed' }]) });
+  const { scorecard } = await runLab({ souls, bank, call, reps: 1, seed: 1, concurrency: 3 });
+  const w = scorecard.run.window;
+  assert.ok(w.calls > 0 && w.calls_reporting > 0 && w.calls_reporting < w.calls, 'judges were silent, souls reported');
+  assert.equal(w.types.five_hour.peak_utilization, 0.42);
 });
 
 await t('a lab of one soul refuses to run', async () => {

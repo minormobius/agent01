@@ -1,0 +1,8 @@
+{
+  "label": "second-light-seed2",
+  "souls": "modulo,morphyx",
+  "reps": 3,
+  "seed": 2,
+  "concurrency": 4,
+  "note": "Same souls as first light, new seed: more n for the small gates, the fixed leak check, and the first reading of the subscription's usage windows (stream-json rate_limit_event)."
+}

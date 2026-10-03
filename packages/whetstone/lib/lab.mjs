@@ -33,6 +33,7 @@ export async function runLab({
   const on = new Set(kinds);
   const records = [];
   let cost = 0, calls = 0;
+  const windows = newWindows();
 
   // A run is ~111 calls; one transient failure (a 429, a timeout) must not sink the other 110.
   // Three tries with backoff, then the error is real and the run stops loudly.
@@ -41,6 +42,7 @@ export async function runLab({
       try {
         const r = await fn(req);
         cost += r.cost; calls++;
+        noteWindows(windows, r.rate);
         return r.text;
       } catch (e) {
         if (attempt >= 3) throw e;
@@ -153,8 +155,38 @@ export async function runLab({
   });
 
   const scorecard = score({ souls, bank, records, judged, reps });
-  scorecard.run = { seed, reps, calls, cost_usd: round(cost, 4), kinds: [...on] };
+  scorecard.run = { seed, reps, calls, cost_usd: round(cost, 4), kinds: [...on], window: summarizeWindows(windows) };
   return { records, judged, scorecard };
+}
+
+// ---- the account's usage windows ---------------------------------------------------------
+// Every call may report where the subscription's windows stand (five_hour, seven_day). The run
+// keeps the last report and the peak utilization per window, and how many calls reported at all,
+// because "Claude Code only says something past a threshold" and "the account had slack all run"
+// look identical unless the silent calls are counted too.
+
+export function newWindows() { return { calls: 0, reporting: 0, byType: {} }; }
+
+export function noteWindows(w, infos = []) {
+  w.calls++;
+  if (!infos?.length) return;
+  w.reporting++;
+  for (const i of infos) {
+    const k = i.rateLimitType || 'unknown';
+    const b = (w.byType[k] ||= { reports: 0, peak: null, last: null });
+    b.reports++;
+    const u = Number(i.utilization);
+    if (Number.isFinite(u) && (b.peak === null || u > b.peak)) b.peak = u;
+    b.last = i;
+  }
+}
+
+export function summarizeWindows(w) {
+  const types = {};
+  for (const [k, b] of Object.entries(w.byType)) {
+    types[k] = { reports: b.reports, peak_utilization: b.peak, last_status: b.last?.status ?? null, last: b.last };
+  }
+  return { calls: w.calls, calls_reporting: w.reporting, types };
 }
 
 // ---- the scorecard --------------------------------------------------------------------

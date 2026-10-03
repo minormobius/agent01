@@ -8,6 +8,12 @@ export function scorecardMarkdown(sc, records = []) {
   L.push(`# whetstone scorecard — ${souls.map(([, s]) => `${s.name} \`${s.hash}\``).join(' · ')}`);
   L.push('');
   L.push(`model \`${r.model}\` · judge \`${r.judge_model}\` · ${r.calls} calls · $${r.cost_usd} · ${r.seconds}s · seed ${r.seed} · reps ${r.reps}`);
+  const w = r.window;
+  if (w) {
+    const parts = Object.entries(w.types || {}).map(([k, t]) =>
+      `${k} peak ${t.peak_utilization === null ? '?' : Math.round(t.peak_utilization * 100) + '%'} (${t.last_status})`);
+    L.push(`usage window: ${w.calls_reporting} of ${w.calls} calls reported${parts.length ? ' · ' + parts.join(' · ') : ''}`);
+  }
   L.push('');
 
   const gates = sc.gates || [];

@@ -97,6 +97,14 @@ cached(RAW + 'packages/whetstone/gates.json').then((g) => {
   $('gates').innerHTML = rows.join('');
 }).catch((e) => { $('gates').innerHTML = `<tr><td colspan="4" class="muted">${esc(e.message)}</td></tr>`; });
 
+// The subscription's usage windows as the run saw them (whetstone records rate_limit_event lines).
+function windowText(w) {
+  if (!w) return '';
+  const parts = Object.entries(w.types || {}).map(([k, t]) =>
+    `${k.replace('_', '-')} ${t.peak_utilization == null ? '?' : Math.round(t.peak_utilization * 100) + '%'}`);
+  return ` · usage window: ${parts.length ? parts.join(', ') : 'not reported'} (${w.calls_reporting}/${w.calls} calls)`;
+}
+
 // ---- the latest run -----------------------------------------------------------------------
 (async () => {
   const el = $('run');
@@ -114,7 +122,7 @@ cached(RAW + 'packages/whetstone/gates.json').then((g) => {
     const failed = gates.filter((g) => g.pass === false).length;
     const r = sc.run || {};
     const head = `<p class="row"><span class="pill ${failed ? 'fail' : 'pass'}">${failed ? `${failed} gate${failed > 1 ? 's' : ''} failed` : 'every gate passed'}</span>` +
-      `<span class="mono">${esc(latest)}</span><span class="muted">${esc(r.calls ?? '?')} calls · $${esc(r.cost_usd ?? '?')} · model ${esc(r.model ?? '?')}</span>` +
+      `<span class="mono">${esc(latest)}</span><span class="muted">${esc(r.calls ?? '?')} calls · $${esc(r.cost_usd ?? '?')} · model ${esc(r.model ?? '?')}${windowText(r.window)}</span>` +
       `<a href="${esc(BLOB)}packages/whetstone/runs/${encodeURIComponent(latest)}/scorecard.md">read the transcripts</a></p>`;
     const rows = gates.map((g) => {
       const ci = g.lo !== undefined && g.lo !== null ? `${pct(g.lo)}–${pct(g.hi)}` : '';
