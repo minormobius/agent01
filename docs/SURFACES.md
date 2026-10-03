@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **103 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **104 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -52,6 +52,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `cad` | frontend | `packages/cad` | [cad.mino.mobi](https://cad.mino.mobi) | `claude/browser-cad-ideation-ollmd3` | [`packages/cad/CLAUDE.md`](../packages/cad/CLAUDE.md) | Parametric CAD in the browser. A feature tree in, solids out—the Manifold preview lands in milliseconds and the exact build with every face named lands behind it… |
 | `canvas` | frontend | `draw` | [canvas.mino.mobi](https://canvas.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`draw/CLAUDE.md`](../draw/CLAUDE.md) | Massively multiplayer paint. Shared canvases with append-only stroke log, tamper-evident chain, and ATProto identity gating. |
 | `cards` | frontend | `cards` | [cards.mino.mobi](https://cards.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`cards/CLAUDE.md`](../cards/CLAUDE.md) | Wiki Cards. A deep Wikipedia card game—Lucky, Transmute, Nexus, and Library modes built on neural embeddings. |
+| `cell` | frontend | `cell` | [cell.mino.mobi](https://cell.mino.mobi) | `claude/cellular-digital-twin-research-o8k3vb` | [`cell/CLAUDE.md`](../cell/CLAUDE.md) | Minimal Cell Twin: a digital twin of a minimal cell, built one layer at a time and every layer kept live… |
 | `chat` | fullstack | `chat` | [chat.mino.mobi](https://chat.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`chat/CLAUDE.md`](../chat/CLAUDE.md) | Conversation-practice dojo. An AI partner (Workers AI Llama 3.3 70B) plays your counterpart and a theory-grounded rubric scores the exchange; multiplayer DO rooms are roadmap. |
 | `civ` | backend | `civ` | [civ.mino.mobi](https://civ.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`civ/CLAUDE.md`](../civ/CLAUDE.md) | Coevolutionary agent-based civilization simulation on a mappa world (worker civ, custom_domain civ.mino.mobi)… (full description: civ/CLAUDE.md) |
 | `clef` | frontend | `clef` | [clef.mino.mobi](https://clef.mino.mobi) | `claude/sheet-music-viewer-composer-qb4ljl` | [`clef/CLAUDE.md`](../clef/CLAUDE.md) | Sheet music in plain text: reads LilyPond notation, engraves it as classical notation, plays it back, and publishes the score to your own repository. |

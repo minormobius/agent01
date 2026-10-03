@@ -2786,6 +2786,33 @@
    "parent": null
   },
   {
+   "id": "cell",
+   "name": "cell",
+   "url": "https://cell.mino.mobi",
+   "cat": "data",
+   "commits": 3,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "stage1",
+   "name": "stage1",
+   "url": "https://cell.mino.mobi/stage1/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "cell"
+  },
+  {
+   "id": "stage2",
+   "name": "stage2",
+   "url": "https://cell.mino.mobi/stage2/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "cell"
+  },
+  {
    "id": "core",
    "name": "core",
    "url": "https://ns.mino.mobi/core/",

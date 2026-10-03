@@ -4090,6 +4090,58 @@
       ]
     },
     {
+      "n": "cell",
+      "u": "https://cell.mino.mobi",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "surface": "cell",
+      "d": "Minimal Cell Twin: a digital twin of a minimal cell, built one layer at a time and every layer kept live. Exact stochastic gene expression first, then particle-level reaction-diffusion, with the JCVI-syn3A organism, offline playback and a calibrated twin mapped out as the layers still to come.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation",
+        "biology",
+        "index"
+      ]
+    },
+    {
+      "n": "stage1",
+      "u": "https://cell.mino.mobi/stage1/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "Six genes in a 400 nm cell simulated with Gillespie's exact algorithm (transcription, mRNA decay, translation, dilution, a repressor, an α+β binding pair), one dot per protein in p5.js, with live gene knockouts.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation"
+      ]
+    },
+    {
+      "n": "stage2",
+      "u": "https://cell.mino.mobi/stage2/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "Brownian-dynamics reaction-diffusion with Doi-model enzymes: two cells with identical enzymes and rate constants, scattered vs clustered, and the yield of a leaky intermediate that a well-mixed model says should be the same.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation"
+      ]
+    },
+    {
       "n": "core",
       "u": "https://ns.mino.mobi/core/",
       "c": "data",
@@ -4588,11 +4640,6 @@
       "glob": "**/play",
       "kind": "content",
       "reason": "in-game route of a listed game"
-    },
-    {
-      "glob": "cell-twin",
-      "kind": "pending",
-      "reason": "cellular digital twin, stage 1 prototype (Gillespie gene expression in p5.js)"
     },
     {
       "glob": "clock/antoine",

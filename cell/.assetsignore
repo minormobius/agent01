@@ -1,0 +1,8 @@
+# Not part of the site. assets.directory is this dir, so without these lines
+# the files would be served at the surface's public URL.
+CLAUDE.md
+wrangler.jsonc
+*.selftest.mjs
+node_modules
+package.json
+package-lock.json

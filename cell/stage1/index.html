@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Minimal Cell Twin</title>
+<title>Stochastic Gene Expression · Minimal Cell Twin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
@@ -29,6 +29,9 @@ html, body { background: var(--bg); color: var(--fg); }
 body { font: 14px/1.5 var(--body); }
 .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 40px; display: grid; gap: 22px; }
 header { display: grid; gap: 6px; }
+.crumbs { display: flex; gap: 8px; flex-wrap: wrap; font: 500 12px/1 var(--mono); color: var(--muted); }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--fg); }
 .eyebrow { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
 h1 { font: 600 clamp(28px, 4.2vw, 40px)/1.05 var(--display); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
 .lede { margin: 0; color: var(--muted); max-width: 68ch; }
@@ -88,6 +91,7 @@ button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg
 </head><body>
 
 <div class="wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Minimal Cell Twin</a><span>/</span><span>Stage 1</span><span>·</span><a href="../stage2/">Stage 2 →</a></nav>
   <header>
     <div class="eyebrow">Stage 1 · stochastic gene expression</div>
     <h1>Minimal Cell Twin</h1>

@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cell",
+  "compatibility_date": "2026-02-20",
+  // Minimal Cell Twin: a landing plus one page per stage (stage1/, stage2/, …).
+  // No build, no worker script, no bindings: the directory IS the site.
+  // CLAUDE.md and the node selftests are kept out of the upload by .assetsignore.
+  "assets": {
+    "directory": "."
+  },
+  // A PLAIN ROUTE, not a custom domain: costs none of the zone's 100 custom-domain
+  // slots (routes cap at 1000). A route makes no DNS, so deploy-cell.yml runs
+  // scripts/route-dns.mjs before wrangler deploy. Do NOT turn this into a custom_domain.
+  "routes": [
+    { "pattern": "cell.mino.mobi/*", "zone_name": "mino.mobi" }
+  ]
+}
