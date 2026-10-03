@@ -1,0 +1,21 @@
+{
+  "id": "jev-plans-adaptive-v1",
+  "written": "2026-10-03",
+  "status": "registered before any result of this test was computed",
+  "framing": "The operator: 'the strategist at System 2 is finding something that works locally (i.e. dramatically overfit the current regime) and then stay vigilant for changing behaviors.' So the strategies are deliberately local, and what must work GLOBALLY is the procedure: fit to the trailing window, trade forward, refit when vigilance says behaviour changed. Every choice the procedure makes uses only data before it, so a walk-forward run is out of sample by construction.",
+  "ledger": "trials already run on this data: 42 (searches v1-v3, all failed). This adds 6 procedure variants. Total 48.",
+  "seen_before_registering": "every v1/v2 configuration's pooled results over the dev and validation halves; v3's six books; per-asset funding means. Not: any per-asset, per-window ranking of configurations, which is what this procedure acts on.",
+  "data": "the same 15 assets, 4h bars, bars 0-5000; costs as v1's registration",
+  "candidates": "per asset, the 18 single-asset configurations of v1's grid, plus standing aside",
+  "strategist": "at a refit at bar T, for each asset independently: score every configuration by the sum of R of its trades that both opened and closed in [T - L, T) (trades from a continuous run of that configuration, so the score is what it would have earned). Deploy the best, if it has at least 3 such trades and a positive sum; otherwise stand aside until the next refit. This is deliberate overfitting: the best of 18 on a short window.",
+  "schedule": "refits every 42 bars (one week) from bar 600 to bar 5000; a deployed strategy trades from T with one plan at a time; a plan open at the next refit runs to its own exit, and the next deployment starts when it closes",
+  "vigilance": "when ON, after every exit of a deployed strategy: (a) CUSUM on R, S = max(0, S + (mu_fit - R) - 0.5*sd_fit), mu_fit and sd_fit the mean and sd of the chosen configuration's R in its fitting window (sd floored at 0.5); refit early when S > 4*sd_fit. (b) refit early when the asset's sigma1 (120-bar) leaves [0.5, 2] times its value at the fit. When OFF, only the weekly schedule.",
+  "variants": { "L": [90, 180, 360], "vigilance": ["off", "on"] },
+  "trials": 6,
+  "statistic": "all assets' trades pooled; weekly t over calendar weeks of summed R, as v2",
+  "null": "the same procedure but each refit deploys a configuration drawn at random from the 18 (same schedule, same vigilance, same stand-aside rule replaced by a coin with the same stand-aside rate as the real variant): 20 seeds",
+  "pass": "a variant WORKS if (1) its weekly t >= 2.39 (one-sided p = 0.05/6), (2) its total R exceeds the random-choice null's mean by at least 1.645 of the null's sd, and (3) longs and shorts each have mean R >= 0 (the beta rule)",
+  "also_reported": "the vigilance ON vs OFF difference at each L, how often vigilance fired and why, the share of time standing aside, which configurations get chosen, and performance in the first and second halves of the walk separately",
+  "no_amendment": "nothing above changes after results are seen",
+  "then": "if a variant works, it goes forward: the strategist and the vigilance run on bars that do not exist yet, with Jev in the vigilance seat (a classification of printed facts: realised R against the fit, drawdown, volatility against the fit), scored against the mechanical CUSUM"
+}
