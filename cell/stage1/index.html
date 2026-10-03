@@ -1,18 +1,16 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Stochastic Gene Expression · Minimal Cell Twin</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>One Molecule at a Time · Minimal Cell Twin</title>
+<meta name="description" content="Stage 1 of the Minimal Cell Twin: six genes in a 400 nm cell, simulated one transcription, translation and decay event at a time, with an activity timeline of every mRNA.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/cell.css">
 <style>
-/* Layout: a dark-field microscope view (the cell) beside an instrument panel of live counts.
-   Single deliberate look: fluorescence microscopy is dark, so the page is too. */
 :root {
-  --bg: #07090c;
-  --panel: #0d1117;
-  --line: #1c2430;
-  --fg: #d9dee6;
-  --muted: #7d8898;
-  --accent: #4fd1e8;
   --g0: #4fd1e8; /* elongation factor, cyan */
   --g1: #f2b84b; /* chaperone, amber */
   --g2: #ff5fa2; /* repressor, magenta */
@@ -20,53 +18,44 @@
   --g4: #a98bff; /* subunit alpha, violet */
   --g5: #ff8a4c; /* subunit beta, orange */
   --cx: #fff1c9; /* alpha-beta complex */
-  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
-  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  color-scheme: dark;
 }
-html, body { background: var(--bg); color: var(--fg); }
-body { font: 14px/1.5 var(--body); }
-.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 40px; display: grid; gap: 22px; }
-header { display: grid; gap: 6px; }
-.crumbs { display: flex; gap: 8px; flex-wrap: wrap; font: 500 12px/1 var(--mono); color: var(--muted); }
-.crumbs a { color: var(--muted); text-decoration: none; }
-.crumbs a:hover { color: var(--fg); }
-.eyebrow { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
-h1 { font: 600 clamp(28px, 4.2vw, 40px)/1.05 var(--display); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
-.lede { margin: 0; color: var(--muted); max-width: 68ch; }
-.lede b { color: var(--fg); font-weight: 500; }
+/* ---- how a protein gets made ---- */
+.how { display: grid; gap: 14px; }
+.how-fig { overflow-x: auto; }
+.how-fig svg { display: block; min-width: 640px; width: 100%; height: auto; }
+.how-fig text { font: 500 13px var(--mono); fill: var(--fg); }
+.how-fig .mut { fill: var(--muted); font-weight: 400; font-size: 12px; }
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .steps { grid-template-columns: minmax(0, 1fr); } }
+.steps div { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 2px 8px; }
+.steps .n { grid-row: span 2; font: 600 22px/1 var(--display); color: var(--accent); }
+.steps h3 { font: 600 15px/1.2 var(--display); margin: 0; }
+.steps p { margin: 0; color: var(--muted); font-size: 13px; }
+.extras { margin: 0; color: var(--muted); font-size: 13px; }
+.extras b { color: var(--fg); font-weight: 500; }
 
+/* ---- cell + panel ---- */
 .main { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 22px; align-items: start; }
 @media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
-
-.stage { position: relative; min-width: 0; }
-#cell { width: 100%; max-width: 680px; aspect-ratio: 1; margin: 0 auto; position: relative; }
+.stage { min-width: 0; }
+#cell { width: 100%; max-width: 640px; aspect-ratio: 1; margin: 0 auto; position: relative; }
 #cell canvas { display: block; }
-.hud { position: absolute; top: 10px; left: 12px; font: 500 12px/1.4 var(--mono); color: var(--muted); pointer-events: none; font-variant-numeric: tabular-nums; }
+.hud { position: absolute; top: 8px; left: 10px; font: 500 12px/1.4 var(--mono); color: var(--muted); pointer-events: none; font-variant-numeric: tabular-nums; }
 .hud .clock { color: var(--fg); font-size: 18px; letter-spacing: .02em; }
-.hint { font-size: 13px; color: var(--muted); margin: 10px 0 0; text-align: center; }
-.hint b { color: var(--g2); font-weight: 500; }
-
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; display: grid; min-width: 0; }
+.panel { display: grid; }
 .panel > section { padding: 14px 16px; border-top: 1px solid var(--line); }
 .panel > section:first-child { border-top: 0; }
-.label { font: 500 10.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
-
 .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-button { font: 500 12px/1 var(--mono); color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; cursor: pointer; }
-button:hover { border-color: var(--muted); }
-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); min-width: 72px; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
-.seg button { border: 0; border-radius: 0; border-left: 1px solid var(--line); padding: 8px 9px; }
-.seg button:first-child { border-left: 0; }
-.seg button[aria-pressed="true"] { background: var(--line); color: var(--accent); }
+button[aria-pressed="true"].toggle { color: var(--accent); border-color: var(--accent); }
 .stats { display: flex; gap: 18px; margin-top: 12px; font: 400 12px/1.3 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; flex-wrap: wrap; }
 .stats b { display: block; color: var(--fg); font-weight: 500; font-size: 14px; }
 
 .rows { display: grid; gap: 2px; }
-.row { display: grid; grid-template-columns: 10px minmax(0, 1fr) 72px 44px 36px; gap: 10px; align-items: center; padding: 6px 0; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 72px 44px 36px; gap: 10px; align-items: center; padding: 4px 6px; margin: 0 -6px; border-radius: 4px; border: 1px solid transparent; }
+.row.sel { border-color: var(--c); background: color-mix(in srgb, var(--c) 7%, transparent); }
+.pick { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; align-items: center; border: 0; padding: 4px 0; text-align: left; background: none; font: inherit; color: inherit; min-width: 0; }
+.pick:hover .n { color: var(--c); }
 .sw { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
 .nm { min-width: 0; }
 .nm .n { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -77,33 +66,100 @@ button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg
 .row.off .sw { background: transparent; box-shadow: none; border: 1px solid var(--c); }
 .row.off .n { text-decoration: line-through; color: var(--muted); }
 .row.off .ko { color: var(--g2); border-color: var(--g2); }
+.rows-hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 
-.log { font: 400 11.5px/1.65 var(--mono); color: var(--muted); min-height: 8.5em; font-variant-numeric: tabular-nums; }
-.log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.log span { color: var(--fg); }
+.focus h3 { font: 600 18px/1.2 var(--display); margin: 0 0 4px; }
+.focus p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 14px; margin: 0; font-size: 13px; }
+.facts dt { color: var(--muted); font: 400 12px/1.5 var(--mono); }
+.facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.facts dd small { color: var(--muted); font-size: 12px; }
 
-.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
-@media (max-width: 760px) { .notes { grid-template-columns: minmax(0, 1fr); } }
-.notes h2 { font: 600 15px/1.2 var(--display); margin: 0 0 6px; letter-spacing: .01em; }
-.notes p { margin: 0; color: var(--muted); font-size: 13px; max-width: 60ch; }
-.notes p b { color: var(--fg); font-weight: 500; }
+/* ---- timeline ---- */
+.gantt { padding: 14px 16px; display: grid; gap: 10px; position: relative; }
+.gantt-head { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: baseline; justify-content: space-between; }
+.gantt-head h2 { font: 600 18px/1.2 var(--display); margin: 0; }
+.gantt-cap { margin: 0; color: var(--muted); font-size: 13px; max-width: 90ch; }
+.gantt-cap b { color: var(--fg); font-weight: 500; }
+#gantt { width: 100%; height: 340px; display: block; cursor: crosshair; }
+.tip { position: absolute; pointer-events: none; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; font: 400 12px/1.5 var(--mono); color: var(--fg); max-width: 280px; z-index: 2; }
+.tip b { font-weight: 500; }
+
+/* ---- try ---- */
+.try { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .try { grid-template-columns: minmax(0, 1fr); } }
+.try article { padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.try h3 { font: 600 16px/1.2 var(--display); margin: 0; }
+.try p { margin: 0; color: var(--muted); font-size: 13px; }
+.try button { justify-self: start; }
+.sec-title { font: 600 22px/1.2 var(--display); margin: 0; }
 </style>
-</head><body>
-
+</head>
+<body>
 <div class="wrap">
   <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Minimal Cell Twin</a><span>/</span><span>Stage 1</span><span>·</span><a href="../stage2/">Stage 2 →</a></nav>
-  <header>
+  <header class="page">
     <div class="eyebrow">Stage 1 · stochastic gene expression</div>
-    <h1>Minimal Cell Twin</h1>
-    <p class="lede">A 400&nbsp;nm cell, simulated one molecular event at a time with Gillespie's exact algorithm. Every dot is one protein. Each one appears because a ribosome translated it, and disappears when growth dilutes it or it binds a partner. <b>Knock out a gene to perturb the cell.</b></p>
+    <h1>One molecule at a time</h1>
+    <p class="lede">This is a tiny cell, 400&nbsp;nm across, with six genes. Inside it, proteins are made and lost through <b>four kinds of event</b>, and each one happens at a random moment. The simulation draws those moments with Gillespie's exact algorithm, one event at a time. That randomness is why real cells of the same type still differ from each other.</p>
   </header>
+
+  <section class="how" aria-labelledby="how-t">
+    <h2 class="sec-title" id="how-t">How a protein gets made, and lost</h2>
+    <div class="how-fig">
+      <svg viewBox="0 0 900 190" role="img" aria-label="A gene is transcribed into mRNA, which is translated into proteins several times before it decays. Proteins are diluted as the cell grows.">
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7d8898"/></marker></defs>
+        <!-- gene -->
+        <g transform="translate(30,40)">
+          <path d="M0,20 C20,0 40,40 60,20 S100,0 120,20" stroke="#4fd1e8" stroke-width="2.5" fill="none"/>
+          <path d="M0,20 C20,40 40,0 60,20 S100,40 120,20" stroke="#4fd1e8" stroke-width="2.5" fill="none" opacity=".5"/>
+          <text x="60" y="66" text-anchor="middle">gene (DNA)</text>
+          <text x="60" y="84" text-anchor="middle" class="mut">always there</text>
+        </g>
+        <!-- 1 transcription -->
+        <line x1="165" y1="60" x2="300" y2="60" stroke="#7d8898" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="232" y="48" text-anchor="middle">① transcription</text>
+        <!-- mRNA -->
+        <g transform="translate(315,40)">
+          <path d="M0,20 q15,-14 30,0 t30,0 t30,0 t30,0" stroke="#4fd1e8" stroke-width="2" fill="none" opacity=".75"/>
+          <circle cx="30" cy="20" r="6" fill="#8b95a5"/><circle cx="75" cy="20" r="6" fill="#8b95a5"/>
+          <text x="60" y="66" text-anchor="middle">mRNA + ribosomes</text>
+          <text x="60" y="84" text-anchor="middle" class="mut">lasts ~1.4 min</text>
+        </g>
+        <!-- 2 translation -->
+        <line x1="455" y1="60" x2="590" y2="60" stroke="#7d8898" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="522" y="48" text-anchor="middle">② translation</text>
+        <text x="522" y="80" text-anchor="middle" class="mut">a few per mRNA</text>
+        <!-- proteins -->
+        <g transform="translate(605,40)">
+          <circle cx="16" cy="12" r="5" fill="#4fd1e8"/><circle cx="36" cy="26" r="5" fill="#4fd1e8"/><circle cx="58" cy="10" r="5" fill="#4fd1e8"/><circle cx="74" cy="28" r="5" fill="#4fd1e8"/><circle cx="96" cy="16" r="5" fill="#4fd1e8"/>
+          <text x="56" y="66" text-anchor="middle">proteins</text>
+          <text x="56" y="84" text-anchor="middle" class="mut">last ~2.5 h</text>
+        </g>
+        <!-- 4 dilution -->
+        <line x1="725" y1="60" x2="830" y2="60" stroke="#7d8898" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="778" y="48" text-anchor="middle">④ dilution</text>
+        <text x="850" y="66" text-anchor="middle" style="font-size:20px">∅</text>
+        <!-- 3 decay -->
+        <line x1="375" y1="132" x2="375" y2="166" stroke="#7d8898" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="390" y="154">③ mRNA decay</text>
+        <text x="375" y="186" text-anchor="middle" style="font-size:18px">∅</text>
+      </svg>
+    </div>
+    <div class="steps">
+      <div><span class="n">1</span><h3>Transcription</h3><p>A gene is copied into an mRNA molecule. When that happens is random. On average it's every 50 to 250 seconds, depending on the gene.</p></div>
+      <div><span class="n">2</span><h3>Translation</h3><p>Ribosomes read the mRNA and build proteins from it, each at a random moment. An mRNA makes only a handful before it's gone.</p></div>
+      <div><span class="n">3</span><h3>mRNA decay</h3><p>mRNA is fragile: half of it is gone within a minute. A short-lived mRNA that makes a few proteins means proteins arrive in <b>bursts</b>.</p></div>
+      <div><span class="n">4</span><h3>Dilution</h3><p>Proteins are stable. The cell grows and divides every 105 minutes, which spreads them thinner, so a protein's average stay is about 2.5 hours.</p></div>
+    </div>
+    <p class="extras">Two extras wire the genes together. <b>Repressor R</b> sits on gene T's DNA and blocks step 1 for T, so more R means less T. Proteins <b>α and β</b> stick together into an αβ complex and sometimes come apart again.</p>
+  </section>
 
   <div class="main">
     <div class="stage">
       <div id="cell">
         <div class="hud"><div class="clock" id="clock">00:00:00</div><div>cell time</div></div>
       </div>
-      <p class="hint">Try this: at 300×, knock out <b>Repressor R</b>. Over the next simulated hour it dilutes away and Target T derepresses.</p>
     </div>
 
     <aside class="panel">
@@ -112,80 +168,62 @@ button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg
         <div class="controls">
           <button class="primary" id="play" type="button">Pause</button>
           <div class="seg" id="speed" role="group" aria-label="Simulation speed"></div>
+        </div>
+        <div class="controls" style="margin-top:8px">
           <button id="reset" type="button">Reset</button>
+          <button id="labels" class="toggle" type="button" aria-pressed="true">Labels</button>
         </div>
         <div class="stats">
-          <div><b id="nev">0</b>events</div>
+          <div><b id="nev">0</b>events so far</div>
           <div><b id="evs">0</b>events / s</div>
-          <div><b id="seed">0</b>seed</div>
         </div>
       </section>
       <section>
-        <p class="label">Proteins · last 2 h of cell time</p>
+        <p class="label">Genes · protein count · last 2 h</p>
         <div class="rows" id="rows"></div>
+        <p class="rows-hint">Click a gene to follow it. KO deletes it from the genome.</p>
       </section>
-      <section>
-        <p class="label">Event stream</p>
-        <div class="log" id="log"></div>
-      </section>
+      <section class="focus" id="focus" aria-live="polite"></section>
     </aside>
   </div>
 
+  <section class="panel gantt" aria-labelledby="gantt-t">
+    <div class="gantt-head">
+      <h2 id="gantt-t">Activity timeline</h2>
+      <div class="seg" id="win" role="group" aria-label="Timeline window"></div>
+    </div>
+    <p class="gantt-cap">Each <b>bar is one mRNA molecule</b>, from the moment it was transcribed to the moment it decayed. Each <b>tick on a bar is one protein</b> translated from it. Notice how few proteins each mRNA makes, and how the bars come and go at irregular times: that is where the bursts in the counts come from. Hover a bar for its story.</p>
+    <canvas id="gantt" aria-label="Timeline of every mRNA molecule and the proteins made from it"></canvas>
+    <div class="tip" id="tip" hidden></div>
+  </section>
+
+  <section aria-labelledby="try-t" style="display:grid;gap:14px">
+    <h2 class="sec-title" id="try-t">Three things to try</h2>
+    <div class="try">
+      <article class="panel">
+        <h3>Watch a burst</h3>
+        <p>Follow Repressor R at 10×. A new R mRNA appears only every few minutes. It makes two or three proteins and vanishes, and R's count jumps by that much at once.</p>
+        <button type="button" data-try="burst">Set it up</button>
+      </article>
+      <article class="panel">
+        <h3>Small numbers are noisy</h3>
+        <p>Compare the sparklines. Elongation factor, at about 950 copies, is nearly flat. Repressor R, at about 95, wobbles by 10% or more. The fewer copies, the bigger the relative noise, and averages hide it.</p>
+        <button type="button" data-try="noise">Set it up</button>
+      </article>
+      <article class="panel">
+        <h3>Cut a wire</h3>
+        <p>Knock out Repressor R at 300×. No new R is made, but existing R only dilutes away, so it takes hours. As R falls, T's gene is freed and T's timeline lane fills with bars.</p>
+        <button type="button" data-try="ko">Set it up</button>
+      </article>
+    </div>
+  </section>
+
   <div class="notes">
-    <div><h2>What is exact</h2><p>Transcription, mRNA decay, translation, dilution, and α + β binding and unbinding are <b>27 reaction channels over 13 species</b>, fired by the Gillespie direct method. Each event is a real stochastic draw, so protein bursts and noise come out of the model rather than being drawn in.</p></div>
-    <div><h2>What is decorative</h2><p>The model is <b>well-mixed</b>, so molecule positions are a visual random walk, not physics. Parameters are illustrative, sized for a JCVI-syn3A-like cell: about 1-minute mRNA half-life and a 105-minute doubling time. Division is modelled as continuous dilution.</p></div>
-    <div><h2>Next stages</h2><p>Stage 2 adds real spatial diffusion and reactions for one pathway. Stage 3 loads syn3A's published genes, counts and kinetics into a hybrid of exact gene-expression events and deterministic metabolism. The simulation already runs in a Web Worker, so it can grow without slowing the animation.</p></div>
+    <div><h2>What is exact</h2><p>The four events for six genes, the repression of T by R, and α + β binding make <b>27 reaction channels over 13 species</b>, fired by the Gillespie direct method. Every event is a real random draw from the right distribution, so the bursts and noise come out of the model rather than being drawn in.</p></div>
+    <div><h2>What is decorative</h2><p>The model is <b>well-mixed</b>: it tracks how many of each molecule exist, not where they are. Positions in the picture are a random walk for the eye, and which mRNA a protein came from is assigned at random among the live ones, which is statistically exact. Parameters are illustrative, sized for a JCVI-syn3A-like cell.</p></div>
+    <div><h2>What Stage 2 adds</h2><p>Position. In <a href="../stage2/">Stage 2</a> every molecule is a particle that really diffuses, and where the enzymes sit changes what the cell produces. That's something no well-mixed model like this one can show.</p></div>
   </div>
 </div>
-
-<script id="sim-src" type="text/plain">
-// Gillespie direct method. Species 0..5 mRNA, 6..11 protein (free), 12 complex alpha-beta.
-const NG = 6, SC = 12, NR = 27;
-let x, p, t = 0, rng, ko = [], nEv = 0;
-const a = new Float64Array(NR);
-function mulberry32(s) { return function () { s |= 0; s = s + 0x6D2B79F5 | 0; let q = Math.imul(s ^ s >>> 15, 1 | s); q = q + Math.imul(q ^ q >>> 7, 61 | q) ^ q; return ((q ^ q >>> 14) >>> 0) / 4294967296; }; }
-function props() {
-  for (let g = 0; g < NG; g++) {
-    const G = p.genes[g], b = 4 * g;
-    let tx = ko[g] ? 0 : G.tx;
-    if (G.repressedBy != null) { const r = x[NG + G.repressedBy] / p.K; tx /= 1 + r * r; }
-    a[b] = tx; a[b + 1] = p.dm * x[g]; a[b + 2] = G.tl * x[g]; a[b + 3] = p.dp * x[NG + g];
-  }
-  a[24] = p.kon * x[NG + p.A] * x[NG + p.B];
-  a[25] = p.koff * x[SC];
-  a[26] = p.dp * x[SC];
-}
-function fire(r) {
-  if (r < 24) { const g = r >> 2, k = r & 3; if (k === 0) x[g]++; else if (k === 1) x[g]--; else if (k === 2) x[NG + g]++; else x[NG + g]--; }
-  else if (r === 24) { x[NG + p.A]--; x[NG + p.B]--; x[SC]++; }
-  else if (r === 25) { x[NG + p.A]++; x[NG + p.B]++; x[SC]--; }
-  else x[SC]--;
-}
-onmessage = (e) => {
-  const m = e.data;
-  if (m.type === 'init') { p = m.params; x = Int32Array.from(m.x); t = 0; rng = mulberry32(m.seed); ko = m.ko.slice(); nEv = 0; return; }
-  if (m.type === 'ko') { ko[m.g] = m.on; return; }
-  if (m.type === 'step') {
-    const tEnd = t + m.dt, ev = [], MAX = 400, deadline = performance.now() + 12;
-    let dropped = 0;
-    for (;;) {
-      props();
-      let a0 = 0; for (let i = 0; i < NR; i++) a0 += a[i];
-      if (a0 <= 0) { t = tEnd; break; }
-      const tau = -Math.log(1 - rng()) / a0;
-      if (t + tau > tEnd) { t = tEnd; break; } // memoryless: safe to stop here
-      t += tau;
-      let u = rng() * a0, r = 0;
-      while (r < NR - 1 && u >= a[r]) { u -= a[r]; r++; }
-      while (a[r] === 0 && r > 0) r--; // float round-off guard
-      fire(r); nEv++;
-      if (ev.length < MAX * 2) ev.push(r, t); else dropped++;
-      if ((nEv & 1023) === 0 && performance.now() > deadline) break; // keep frames smooth
-    }
-    postMessage({ t, x: Array.from(x), ev, dropped, nEv });
-  }
-};
-</script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
 <script>
@@ -194,38 +232,49 @@ onmessage = (e) => {
   const css = getComputedStyle(document.documentElement);
   const tok = (n) => css.getPropertyValue(n).trim();
   const GENES = [
-    { name: 'Elongation factor', role: 'abundant, constitutive', tx: 0.020, tl: 0.06 },
-    { name: 'Chaperone',         role: 'constitutive',           tx: 0.010, tl: 0.04 },
-    { name: 'Repressor R',       role: 'represses T',            tx: 0.004, tl: 0.03 },
-    { name: 'Target T',          role: 'repressed by R',         tx: 0.030, tl: 0.04, repressedBy: 2 },
-    { name: 'Subunit α',         role: 'free',                   tx: 0.008, tl: 0.04 },
-    { name: 'Subunit β',         role: 'free',                   tx: 0.008, tl: 0.04 },
+    { name: 'Elongation factor', role: 'abundant', tx: 0.020, tl: 0.06,
+      desc: 'Every ribosome needs it, so the cell keeps a lot of it. Its gene is transcribed often and each mRNA is read many times.' },
+    { name: 'Chaperone', role: 'steady', tx: 0.010, tl: 0.04,
+      desc: 'Helps other proteins fold. Made at a steady, medium rate with no regulation.' },
+    { name: 'Repressor R', role: 'represses T', tx: 0.004, tl: 0.03,
+      desc: 'A regulator. R binds the start of gene T and blocks its transcription. Its gene is transcribed rarely, so R comes in big, irregular bursts.' },
+    { name: 'Target T', role: 'repressed by R', tx: 0.030, tl: 0.04, repressedBy: 2,
+      desc: "T's gene is strong, but R keeps it mostly switched off. Its transcription rate below is live: it depends on how much R there is right now." },
+    { name: 'Subunit α', role: 'free α', tx: 0.008, tl: 0.04,
+      desc: 'Half of a two-part machine. A free α that meets a β binds to it, so most α sits inside αβ complexes. The count shown is free α only.' },
+    { name: 'Subunit β', role: 'free β', tx: 0.008, tl: 0.04,
+      desc: 'The other half. Free α and β stay low because they keep pairing up into αβ.' },
   ];
   const PARAMS = {
-    dm: Math.LN2 / 60,          // mRNA half-life ~1 min
+    dm: Math.LN2 / 60,          // mRNA half-life 1 min
     dp: Math.LN2 / (105 * 60),  // dilution, 105 min doubling
     K: 40, kon: 1e-4, koff: 1e-3, A: 4, B: 5,
     genes: GENES.map(({ tx, tl, repressedBy }) => ({ tx, tl, repressedBy: repressedBy ?? null })),
   };
   const COLORS = [...Array(NG)].map((_, g) => tok('--g' + g));
-  const CX = tok('--cx');
+  const CX = tok('--cx'), MUTED = tok('--muted'), LINE = tok('--line'), FG = tok('--fg');
   const SPEEDS = [1, 10, 60, 300, 1200];
+  const WINDOWS = [[300, '5 min'], [1200, '20 min'], [3600, '60 min']];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // ---------- simulation state (mirrors the worker) ----------
+  // ---------- state ----------
   let counts, simT = 0, nEv = 0, playing = true, speed = 60, busy = false, seed = 0;
+  let focus = -1, labels = true, win = 1200, labelTargets = {};
   const ko = Array(NG).fill(false);
   const hist = [], HIST_DT = 20, HIST_N = 360; let nextSample = 0;
-  const log = [];
   let evRate = 0, lastEvN = 0, lastEvT = performance.now();
+  // timeline records: one per mRNA molecule
+  const ROWS_PER = 5;
+  let recs, liveRow, koMarks, bindTicks, seen;
 
   function poisson(m) { let L = Math.exp(-m), k = 0, q = 1; do { k++; q *= Math.random(); } while (q > L); return k - 1; }
   function gauss() { return Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random()); }
+  const txRate = (g, x) => { const G = GENES[g]; if (ko[g]) return 0; let tx = G.tx; if (G.repressedBy != null) tx /= 1 + (x[NG + G.repressedBy] / PARAMS.K) ** 2; return tx; };
   function initialState() {
     const x = Array(13).fill(0), { dm, dp } = PARAMS;
-    const R = GENES[2].tx * GENES[2].tl / (dm * dp);
+    x[NG + 2] = Math.round(GENES[2].tx * GENES[2].tl / (dm * dp));
     GENES.forEach((G, g) => {
-      let tx = G.tx; if (G.repressedBy != null) tx /= 1 + (R / PARAMS.K) ** 2;
+      const tx = txRate(g, x);
       x[g] = poisson(tx / dm);
       x[NG + g] = Math.max(0, Math.round(tx * G.tl / (dm * dp) * (1 + 0.08 * gauss())));
     });
@@ -234,7 +283,7 @@ onmessage = (e) => {
     return x;
   }
 
-  const worker = new Worker(URL.createObjectURL(new Blob([document.getElementById('sim-src').textContent], { type: 'text/javascript' })));
+  const worker = new Worker('sim.js');
   worker.onmessage = (e) => { busy = false; applyBatch(e.data); };
 
   // ---------- particles (unit-disc coordinates) ----------
@@ -262,23 +311,42 @@ onmessage = (e) => {
     if (bi < 0) return null;
     const q = L[bi]; L[bi] = L[L.length - 1]; L.pop(); return q;
   }
+  // A translation event is credited to one live mRNA of that gene, chosen uniformly:
+  // the molecules are indistinguishable, so this is the exact distribution.
   function spawnProtein(g) {
     const live = mr[g].filter((m) => !m.d);
-    const o = live.length ? live[(Math.random() * live.length) | 0] : LOCI[g];
-    return mk(near(o, 0.04));
+    const src = live.length ? live[(Math.random() * live.length) | 0] : null;
+    return [mk(near(src || LOCI[g], 0.04)), src];
+  }
+  function newMrna(g, t, init) {
+    const rec = { g, t0: t, t1: null, ticks: [], init, row: 0 };
+    const rows = liveRow[g]; let r = rows.indexOf(null);
+    if (r < 0) { r = recs[g].length % ROWS_PER; } else rows[r] = rec;
+    rec.row = r; recs[g].push(rec);
+    return mk(near(LOCI[g], init ? 0.3 : 0.05), { a: Math.random() * 6.28, rec });
+  }
+  function endMrna(m, t) {
+    if (!m || !m.rec || m.rec.t1 != null) return;
+    const rec = m.rec; rec.t1 = t;
+    if (liveRow[rec.g][rec.row] === rec) liveRow[rec.g][rec.row] = null;
+    if (!rec.init) { seen[rec.g].n++; seen[rec.g].p += rec.ticks.length; }
   }
 
   function reset() {
     seed = (Math.random() * 2 ** 31) | 0;
-    counts = initialState(); simT = 0; nEv = 0; nextSample = 0; hist.length = 0; log.length = 0;
+    counts = initialState(); simT = 0; nEv = 0; nextSample = 0; hist.length = 0;
     ko.fill(false);
-    mr = [...Array(NG)].map((_, g) => [...Array(counts[g])].map(() => mk(near(LOCI[g], 0.3), { a: Math.random() * 6.28 })));
+    document.querySelectorAll('.row').forEach((r) => r.classList.remove('off'));
+    document.querySelectorAll('.ko').forEach((b) => { b.textContent = 'KO'; b.setAttribute('aria-pressed', 'false'); });
+    recs = [...Array(NG)].map(() => []); liveRow = [...Array(NG)].map(() => Array(ROWS_PER).fill(null));
+    koMarks = []; bindTicks = []; seen = [...Array(NG)].map(() => ({ n: 0, p: 0 }));
+    mr = [...Array(NG)].map((_, g) => [...Array(counts[g])].map(() => newMrna(g, 0, true)));
     pr = [...Array(NG)].map((_, g) => [...Array(counts[NG + g])].map(() => mk(inDisc(0.93))));
     cx = [...Array(counts[SC])].map(() => mk(inDisc(0.93)));
-    flashes = [];
+    flashes = []; labelTargets = {};
     worker.postMessage({ type: 'init', params: PARAMS, x: counts, seed, ko });
     busy = false;
-    sample(); renderRows(true); renderLog(); updateStats();
+    sample(); renderPanel(); updateStats();
   }
 
   function applyBatch(m) {
@@ -287,30 +355,41 @@ onmessage = (e) => {
       const r = ev[i], t = ev[i + 1];
       if (r < 24) {
         const g = r >> 2, k = r & 3;
-        if (k === 0) mr[g].push(mk(near(LOCI[g], 0.05), { a: Math.random() * 6.28 }));
-        else if (k === 1) killRandom(mr[g], now);
-        else if (k === 2) { const q = spawnProtein(g); pr[g].push(q); if (!reduced && flashes.length < 160) flashes.push({ k: 0, x: q.x, y: q.y, t: now, c: g }); }
-        else killRandom(pr[g], now);
+        if (k === 0) mr[g].push(newMrna(g, t, false));
+        else if (k === 1) endMrna(killRandom(mr[g], now), t);
+        else if (k === 2) {
+          const [q, src] = spawnProtein(g); pr[g].push(q);
+          if (src) src.rec.ticks.push(t);
+          if (!reduced && flashes.length < 160) flashes.push({ k: 0, x: q.x, y: q.y, t: now, c: g });
+        } else killRandom(pr[g], now);
       } else if (r === 24) {
         const A = takeRandom(pr[4]), B = A ? takeNearest(pr[5], A) : takeRandom(pr[5]);
         const at = A && B ? { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 } : A || B || inDisc(0.9);
-        cx.push(mk(at));
+        cx.push(mk(at)); bindTicks.push([t, 1]);
         if (A && B && !reduced && flashes.length < 160) flashes.push({ k: 1, x: A.x, y: A.y, x2: B.x, y2: B.y, t: now });
       } else if (r === 25) {
         const C = takeRandom(cx) || inDisc(0.9);
-        pr[4].push(mk(near(C, 0.03))); pr[5].push(mk(near(C, 0.03)));
+        pr[4].push(mk(near(C, 0.03))); pr[5].push(mk(near(C, 0.03))); bindTicks.push([t, -1]);
       } else killRandom(cx, now);
-      if (i >= ev.length - 16) { log.push([t, r]); if (log.length > 9) log.shift(); }
     }
     counts = m.x; simT = m.t; nEv = m.nEv;
-    // Reconcile in case the event list was capped at high speed.
-    const fix = (L, n, make) => { let d = n - alive(L); while (d > 0) { L.push(make()); d--; } while (d < 0 && killRandom(L, now)) d++; };
+    // Reconcile in case the event list was ever capped.
+    const fix = (L, n, make, onKill) => { let d = n - alive(L); while (d > 0) { L.push(make()); d--; } while (d < 0) { const q = killRandom(L, now); if (!q) break; if (onKill) onKill(q); d++; } };
     for (let g = 0; g < NG; g++) {
-      fix(mr[g], counts[g], () => mk(near(LOCI[g], 0.1), { a: Math.random() * 6.28 }));
-      fix(pr[g], counts[NG + g], () => spawnProtein(g));
+      fix(mr[g], counts[g], () => newMrna(g, simT, false), (q) => endMrna(q, simT));
+      fix(pr[g], counts[NG + g], () => spawnProtein(g)[0]);
     }
     fix(cx, counts[SC], () => mk(inDisc(0.9)));
     while (simT >= nextSample) sample();
+    prune();
+  }
+  let lastPrune = 0;
+  function prune() {
+    if (simT - lastPrune < 60) return; lastPrune = simT;
+    const keep = simT - 3700;
+    for (let g = 0; g < NG; g++) recs[g] = recs[g].filter((r) => r.t1 == null || r.t1 > keep);
+    bindTicks = bindTicks.filter((b) => b[0] > keep);
+    koMarks = koMarks.filter((k) => k.t > keep);
   }
 
   function sample() {
@@ -321,32 +400,42 @@ onmessage = (e) => {
 
   // ---------- panel ----------
   const rowsEl = document.getElementById('rows');
-  const ROWS = GENES.map((G, g) => ({ name: G.name, role: G.role, c: COLORS[g], g })).concat([{ name: 'Complex αβ', role: 'α + β ⇌ αβ', c: CX, g: -1 }]);
+  const ROWS = GENES.map((G, g) => ({ name: G.name, role: G.role, c: COLORS[g], g })).concat([{ name: 'Complex αβ', role: 'α + β stuck together', c: CX, g: -1 }]);
   rowsEl.innerHTML = ROWS.map((R, i) => `
     <div class="row" id="row${i}" style="--c:${R.c}">
-      <span class="sw"></span>
-      <div class="nm"><div class="n">${R.name}</div><div class="r" id="role${i}">${R.role}</div></div>
+      ${R.g >= 0 ? `<button class="pick" type="button" data-g="${R.g}" aria-pressed="false">` : '<div class="pick">'}
+        <span class="sw"></span>
+        <span class="nm"><span class="n" style="display:block">${R.name}</span><span class="r" id="role${i}" style="display:block">${R.role}</span></span>
+      ${R.g >= 0 ? '</button>' : '</div>'}
       <canvas id="sp${i}" width="144" height="56" aria-hidden="true"></canvas>
       <div class="ct" id="ct${i}">0</div>
-      ${R.g >= 0 ? `<button class="ko" id="ko${i}" type="button" aria-pressed="false" title="Knock out this gene">KO</button>` : '<span></span>'}
+      ${R.g >= 0 ? `<button class="ko" id="ko${i}" type="button" aria-pressed="false" title="Delete this gene from the genome">KO</button>` : '<span></span>'}
     </div>`).join('');
-  ROWS.forEach((R, i) => {
-    if (R.g < 0) return;
-    document.getElementById('ko' + i).addEventListener('click', (e) => {
-      ko[R.g] = !ko[R.g];
-      e.currentTarget.setAttribute('aria-pressed', ko[R.g]);
-      e.currentTarget.textContent = ko[R.g] ? 'ON' : 'KO';
-      e.currentTarget.title = ko[R.g] ? 'Restore this gene' : 'Knock out this gene';
-      document.getElementById('row' + i).classList.toggle('off', ko[R.g]);
-      worker.postMessage({ type: 'ko', g: R.g, on: ko[R.g] });
-    });
+  function setFocus(g) {
+    focus = g;
+    document.querySelectorAll('.pick[data-g]').forEach((b) => { const on = +b.dataset.g === g; b.setAttribute('aria-pressed', on); b.closest('.row').classList.toggle('sel', on); });
+    labelTargets = {}; renderPanel();
+  }
+  function setKO(g, on) {
+    if (ko[g] === on) return;
+    ko[g] = on; koMarks.push({ t: simT, g, on });
+    const b = document.getElementById('ko' + g);
+    b.setAttribute('aria-pressed', on); b.textContent = on ? 'ON' : 'KO';
+    b.title = on ? 'Put this gene back' : 'Delete this gene from the genome';
+    document.getElementById('row' + g).classList.toggle('off', on);
+    worker.postMessage({ type: 'ko', g, on });
+    renderPanel();
+  }
+  rowsEl.addEventListener('click', (e) => {
+    const p = e.target.closest('.pick[data-g]'); if (p) { const g = +p.dataset.g; setFocus(focus === g ? -1 : g); return; }
+    const k = e.target.closest('.ko'); if (k) { const g = +k.id.slice(2); setKO(g, !ko[g]); }
   });
 
-  function renderRows() {
+  function sparks() {
     ROWS.forEach((R, i) => {
       const idx = R.g >= 0 ? NG + R.g : SC;
       document.getElementById('ct' + i).textContent = counts[idx];
-      if (R.g >= 0) document.getElementById('role' + i).textContent = `${R.role} · ${counts[R.g]} mRNA`;
+      if (R.g >= 0) document.getElementById('role' + i).textContent = `${R.role} · ${counts[R.g]} mRNA now`;
       const cv = document.getElementById('sp' + i), c = cv.getContext('2d'), W = cv.width, H = cv.height;
       c.clearRect(0, 0, W, H);
       if (hist.length < 2) return;
@@ -363,45 +452,145 @@ onmessage = (e) => {
       c.beginPath(); c.arc(lx, ly, 3.5, 0, 7); c.fillStyle = R.c; c.fill();
     });
   }
-  const VERB = ['transcribed', 'mRNA decayed', 'translated', 'diluted'];
-  function fmt(t) { const s = Math.floor(t); return [s / 3600, (s % 3600) / 60, s % 60].map((v) => String(Math.floor(v)).padStart(2, '0')).join(':') + '.' + Math.floor((t % 1) * 10); }
-  function renderLog() {
-    document.getElementById('log').innerHTML = log.slice().reverse().map(([t, r]) => {
-      let what;
-      if (r < 24) what = `<span>${GENES[r >> 2].name}</span> ${VERB[r & 3]}`;
-      else if (r === 24) what = '<span>α + β → αβ</span> bound';
-      else if (r === 25) what = '<span>αβ → α + β</span> unbound';
-      else what = '<span>αβ</span> diluted';
-      return `<div>${fmt(t)}  ${what}</div>`;
-    }).join('') || '<div>waiting for the first event…</div>';
+  const dur = (s) => s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${(s / 60).toFixed(1)} min` : `${(s / 3600).toFixed(1)} h`;
+  function renderPanel() {
+    sparks();
+    const el = document.getElementById('focus');
+    if (focus < 0) {
+      el.innerHTML = `<p class="label">Following</p><h3>Nothing yet</h3><p>Click a gene above. Its molecules light up in the cell, its lane lights up in the timeline below, and this box explains its numbers.</p>
+        <dl class="facts"><dt>dots</dt><dd>one dot = one protein molecule</dd><dt>strands</dt><dd>one strand = one mRNA, grey beads are ribosomes</dd><dt>rings</dt><dd>gene locations on the DNA, ✕ = knocked out</dd><dt>flashes</dt><dd>a ring = a protein just made; a line = α and β just bound</dd></dl>`;
+      return;
+    }
+    const G = GENES[focus], { dm, dp } = PARAMS, tx = txRate(focus, counts), s = seen[focus];
+    const burst = G.tl / dm, expect = tx * burst / dp;
+    const total = focus >= 4 ? counts[NG + focus] + counts[SC] : counts[NG + focus];
+    el.innerHTML = `<p class="label">Following</p><h3 style="color:${COLORS[focus]}">${G.name}</h3><p>${G.desc}</p>
+      <dl class="facts">
+        <dt>① new mRNA</dt><dd>${ko[focus] ? '<b>never</b>: gene knocked out' : `every ~${dur(1 / tx)} on average`}${focus === 3 && !ko[3] ? ` <small>with ${counts[NG + 2]} R present</small>` : ''}</dd>
+        <dt>③ mRNA lasts</dt><dd>~${dur(1 / dm)} on average</dd>
+        <dt>② proteins per mRNA</dt><dd>${burst.toFixed(1)} expected · ${s.n ? (s.p / s.n).toFixed(1) + ` seen over ${s.n} mRNAs` : 'none finished yet'}</dd>
+        <dt>④ protein lasts</dt><dd>~${dur(1 / dp)} (diluted by growth)</dd>
+        <dt>${focus >= 4 ? 'total incl. αβ' : 'count'}</dt><dd>${total} now · ~${Math.round(expect)} at steady state</dd>
+      </dl>`;
   }
+  function fmt(t) { const s = Math.floor(t); return [s / 3600, (s % 3600) / 60, s % 60].map((v) => String(Math.floor(v)).padStart(2, '0')).join(':'); }
   function updateStats() {
-    document.getElementById('clock').textContent = fmt(simT).slice(0, 8);
+    document.getElementById('clock').textContent = fmt(simT);
     document.getElementById('nev').textContent = nEv.toLocaleString();
     document.getElementById('evs').textContent = Math.round(evRate).toLocaleString();
-    document.getElementById('seed').textContent = seed.toString(16).slice(0, 6);
   }
 
+  // ---------- controls ----------
   const playBtn = document.getElementById('play');
   function setPlaying(v) { playing = v; playBtn.textContent = v ? 'Pause' : 'Play'; }
   playBtn.addEventListener('click', () => setPlaying(!playing));
   document.getElementById('reset').addEventListener('click', reset);
+  const lblBtn = document.getElementById('labels');
+  lblBtn.addEventListener('click', () => { labels = !labels; lblBtn.setAttribute('aria-pressed', labels); });
   document.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); setPlaying(!playing); } });
-  const segEl = document.getElementById('speed');
-  segEl.innerHTML = SPEEDS.map((v) => `<button type="button" data-v="${v}" aria-pressed="${v === speed}">${v}×</button>`).join('');
-  segEl.addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    speed = +b.dataset.v;
-    segEl.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b));
-  });
+  function segment(el, items, get, set) {
+    el.innerHTML = items.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === get()}">${l}</button>`).join('');
+    el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { set(+b.dataset.v); sync(); } });
+    const sync = () => el.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', +x.dataset.v === get()));
+    return sync;
+  }
+  const syncSpeed = segment(document.getElementById('speed'), SPEEDS.map((v) => [v, v + '×']), () => speed, (v) => { speed = v; });
+  const syncWin = segment(document.getElementById('win'), WINDOWS, () => win, (v) => { win = v; });
+  document.querySelectorAll('[data-try]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.try;
+    if (k === 'burst') { speed = 10; win = 1200; setFocus(2); }
+    if (k === 'noise') { speed = 300; win = 3600; setFocus(-1); }
+    if (k === 'ko') { speed = 300; win = 3600; setFocus(3); setKO(2, true); }
+    syncSpeed(); syncWin(); setPlaying(true);
+    document.getElementById('cell').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+  }));
 
-  // ---------- p5 view ----------
+  // ---------- timeline ----------
+  const gcv = document.getElementById('gantt'), tip = document.getElementById('tip');
+  let G_LAYOUT = null;
+  function drawGantt() {
+    const dpr = Math.min(2, devicePixelRatio || 1), W = gcv.clientWidth, H = gcv.clientHeight;
+    if (gcv.width !== Math.round(W * dpr) || gcv.height !== Math.round(H * dpr)) { gcv.width = Math.round(W * dpr); gcv.height = Math.round(H * dpr); }
+    const c = gcv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+    const LW = W < 560 ? 76 : 132, RM = 8, top = 4, axis = 22;
+    const laneH = (H - top - axis - 26) / NG, rowH = (laneH - 8) / ROWS_PER;
+    const x0 = LW, w = W - LW - RM, t1 = simT, t0 = simT - win;
+    const X = (t) => x0 + w * (t - t0) / win;
+    G_LAYOUT = { LW, top, laneH, rowH, X, t0, t1, w, x0 };
+    // grid
+    const step = win / 5;
+    c.font = '11px "IBM Plex Mono", monospace'; c.textBaseline = 'top';
+    for (let k = 0; k <= 5; k++) {
+      const x = x0 + w * k / 5;
+      c.strokeStyle = LINE; c.lineWidth = 1; c.beginPath(); c.moveTo(x, top); c.lineTo(x, H - axis); c.stroke();
+      c.fillStyle = MUTED; c.textAlign = k === 5 ? 'right' : k === 0 ? 'left' : 'center';
+      c.fillText(k === 5 ? 'now' : `−${Math.round((win - k * step) / 60)} min`, x, H - axis + 6);
+    }
+    // lanes
+    for (let g = 0; g < NG; g++) {
+      const y = top + g * laneH, dim = focus >= 0 && focus !== g;
+      c.globalAlpha = dim ? 0.22 : 1;
+      c.fillStyle = COLORS[g]; c.textAlign = 'left'; c.textBaseline = 'middle';
+      c.font = (W < 560 ? '11px' : '12.5px') + ' "IBM Plex Sans", sans-serif';
+      const nm = W < 560 ? GENES[g].name.replace('Elongation factor', 'Elong. f.').replace('Subunit ', '') : GENES[g].name;
+      c.fillText(nm, 0, y + laneH / 2 - 6);
+      c.fillStyle = MUTED; c.font = '10.5px "IBM Plex Mono", monospace';
+      c.fillText(ko[g] ? 'knocked out' : `${counts[g]} mRNA live`, 0, y + laneH / 2 + 8);
+      c.strokeStyle = LINE; c.beginPath(); c.moveTo(x0, y + laneH); c.lineTo(x0 + w, y + laneH); c.stroke();
+      for (const r of recs[g]) {
+        const e = r.t1 == null ? t1 : r.t1;
+        if (e < t0) continue;
+        const a = Math.max(r.t0, t0), xa = X(a), xb = Math.max(X(e), xa + 1.5), yy = y + 4 + r.row * rowH + rowH / 2;
+        c.fillStyle = COLORS[g]; c.globalAlpha = (dim ? 0.22 : 1) * 0.45;
+        c.fillRect(xa, yy - 1.5, xb - xa, 3);
+        c.globalAlpha = dim ? 0.22 : 1;
+        for (const tk of r.ticks) if (tk >= t0) c.fillRect(X(tk) - 0.75, yy - rowH * 0.42, 1.5, rowH * 0.84);
+        if (r.t1 == null) { c.beginPath(); c.arc(xb, yy, 2.5, 0, 7); c.fill(); }
+      }
+      for (const k of koMarks) {
+        if (k.g !== g || k.t < t0) continue;
+        const x = X(k.t); c.globalAlpha = 1; c.strokeStyle = tok('--g2'); c.setLineDash([3, 3]);
+        c.beginPath(); c.moveTo(x, y + 2); c.lineTo(x, y + laneH - 2); c.stroke(); c.setLineDash([]);
+        c.fillStyle = tok('--g2'); c.textAlign = 'left'; c.textBaseline = 'top'; c.font = '10.5px "IBM Plex Mono", monospace';
+        c.fillText(k.on ? 'knocked out' : 'restored', x + 4, y + 2);
+      }
+      c.globalAlpha = 1;
+    }
+    // binding lane
+    const yb = top + NG * laneH + 4;
+    c.fillStyle = CX; c.textAlign = 'left'; c.textBaseline = 'middle'; c.font = (W < 560 ? '11px' : '12.5px') + ' "IBM Plex Sans", sans-serif';
+    c.fillText(W < 560 ? 'α+β' : 'α + β binding', 0, yb + 9);
+    c.globalAlpha = focus >= 0 && focus < 4 ? 0.22 : 0.85;
+    for (const [t, s] of bindTicks) if (t >= t0) c.fillRect(X(t) - 0.5, s > 0 ? yb : yb + 9, 1, 9);
+    c.globalAlpha = 1;
+  }
+  gcv.addEventListener('mousemove', (e) => {
+    if (!G_LAYOUT) return;
+    const r = gcv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, L = G_LAYOUT;
+    const g = Math.floor((my - L.top) / L.laneH);
+    let hit = null;
+    if (g >= 0 && g < NG && mx > L.x0) {
+      const row = Math.floor((my - L.top - g * L.laneH - 4) / L.rowH);
+      const t = L.t0 + (mx - L.x0) / L.w * (L.t1 - L.t0), slack = 4 / L.w * (L.t1 - L.t0);
+      for (const rec of recs[g]) if (rec.row === row && t >= rec.t0 - slack && t <= (rec.t1 ?? L.t1) + slack) { hit = rec; break; }
+    }
+    if (!hit) { tip.hidden = true; return; }
+    const life = (hit.t1 ?? simT) - hit.t0;
+    tip.innerHTML = `<b style="color:${COLORS[hit.g]}">${GENES[hit.g].name} mRNA</b><br>${hit.init ? 'already present at the start' : 'transcribed at ' + fmt(hit.t0)}<br>${hit.t1 == null ? 'still alive, ' + dur(life) + ' so far' : 'decayed after ' + dur(life)}<br>${hit.ticks.length} protein${hit.ticks.length === 1 ? '' : 's'} made from it`;
+    const host = gcv.parentElement.getBoundingClientRect();
+    tip.hidden = false;
+    const tx = Math.min(e.clientX - host.left + 14, host.width - 290);
+    tip.style.left = Math.max(8, tx) + 'px'; tip.style.top = (e.clientY - host.top + 14) + 'px';
+  });
+  gcv.addEventListener('mouseleave', () => { tip.hidden = true; });
+
+  // ---------- the cell ----------
   reset();
   const host = document.getElementById('cell');
   let lastUi = 0;
   new p5((s) => {
     let col, cxCol, R;
-    const size = () => Math.min(host.clientWidth, 680);
+    const size = () => Math.min(host.parentElement.clientWidth, 640);
     s.setup = () => {
       const w = size();
       s.createCanvas(w, w).parent(host);
@@ -413,12 +602,13 @@ onmessage = (e) => {
     s.draw = () => {
       const now = performance.now();
       if (playing && !busy) { busy = true; worker.postMessage({ type: 'step', dt: speed * Math.min(s.deltaTime, 100) / 1000 }); }
-      if (now - lastUi > 200) {
+      if (now - lastUi > 250) {
         evRate = 0.6 * evRate + 0.4 * ((nEv - lastEvN) / ((now - lastEvT) / 1000) || 0);
         lastEvN = nEv; lastEvT = now; lastUi = now;
-        renderRows(); renderLog(); updateStats();
+        renderPanel(); updateStats();
       }
       draw(s, now);
+      drawGantt();
     };
     function walk(L, step, lim) {
       for (const q of L) {
@@ -430,31 +620,45 @@ onmessage = (e) => {
       }
     }
     function cull(L, now) { for (let i = L.length - 1; i >= 0; i--) if (L[i].d && now - L[i].d > 350) { L[i] = L[L.length - 1]; L.pop(); } }
-    function dots(L, c, d, now) {
-      const base = s.alpha(c);
-      c.setAlpha(base); s.fill(c);
+    function dots(L, c, d, now, a) {
+      c.setAlpha(a); s.fill(c);
       for (const q of L) if (!q.d) s.circle(q.x * R, q.y * R, d);
-      for (const q of L) if (q.d) { c.setAlpha(base * Math.max(0, 1 - (now - q.d) / 350)); s.fill(c); s.circle(q.x * R, q.y * R, d); }
-      c.setAlpha(base);
+      for (const q of L) if (q.d) { c.setAlpha(a * Math.max(0, 1 - (now - q.d) / 350)); s.fill(c); s.circle(q.x * R, q.y * R, d); }
+      c.setAlpha(255);
+    }
+    const pickLive = (L) => { for (let i = 0; i < 8 && L.length; i++) { const q = L[(Math.random() * L.length) | 0]; if (!q.d) return q; } return null; };
+    function target(key, L) { let q = labelTargets[key]; if (!q || q.d || !L.includes(q)) q = labelTargets[key] = pickLive(L); return q; }
+    function callout(text, tx, ty, c, dir) {
+      s.blendMode(s.BLEND);
+      s.textSize(12); s.textAlign(s.LEFT, s.CENTER);
+      const tw = s.textWidth(text), pad = 5, len = Math.hypot(tx, ty) || 1;
+      const [ux, uy] = dir ? [dir[0] / Math.hypot(...dir), dir[1] / Math.hypot(...dir)] : [tx / len, ty / len], d = dir ? 44 : 26;
+      let lx = tx + ux * d, ly = ty + uy * d;
+      const left = ux < 0, half = s.width / 2 - 4;
+      let bx = left ? lx - tw - pad * 2 : lx;
+      bx = Math.max(-half, Math.min(half - tw - pad * 2, bx));
+      ly = Math.max(-half + 40, Math.min(half - 12, ly));
+      const ax = left ? bx + tw + pad * 2 : bx;
+      s.stroke(c); s.strokeWeight(1); s.line(ax, ly, tx + ux * 6, ty + uy * 6);
+      s.noFill(); s.circle(tx, ty, 11);
+      s.noStroke(); s.fill(7, 9, 12, 225); s.rect(bx, ly - 10, tw + pad * 2, 20, 3);
+      s.fill(c); s.text(text, bx + pad, ly);
     }
     function draw(s, now) {
-      const w = s.width; R = w * 0.45;
+      const w = s.width; R = w * 0.43;
       const k = reduced ? 0 : 1;
       if (playing) { walk(mr.flat(), 0.0015 * k, 0.88); for (const L of pr) walk(L, 0.009 * k, 0.95); walk(cx, 0.006 * k, 0.94); }
       mr.forEach((L) => cull(L, now)); pr.forEach((L) => cull(L, now)); cull(cx, now);
 
       s.blendMode(s.BLEND); s.background(7, 9, 12);
       s.push(); s.translate(w / 2, w / 2);
-      // cytoplasm and membrane
       s.noStroke(); s.fill(16, 22, 30); s.circle(0, 0, R * 2.04);
       s.noFill(); s.stroke(70, 86, 104, 160); s.strokeWeight(R * 0.022); s.circle(0, 0, R * 2.04);
-      s.stroke(70, 86, 104, 50); s.strokeWeight(1); s.circle(0, 0, R * 2.13);
-      // nucleoid
       s.noStroke(); s.fill(40, 52, 68, 38);
       for (const n of NUC) s.circle(n.x * R, n.y * R, n.r * R * 2);
-      // gene loci
       LOCI.forEach((L, g) => {
-        s.noFill(); col[g].setAlpha(ko[g] ? 90 : 230); s.stroke(col[g]); s.strokeWeight(1.5);
+        const dim = focus >= 0 && focus !== g;
+        s.noFill(); col[g].setAlpha(ko[g] ? 90 : dim ? 70 : 230); s.stroke(col[g]); s.strokeWeight(1.5);
         const lx = L.x * R, ly = L.y * R, rr = R * 0.035;
         s.circle(lx, ly, rr * 2);
         if (ko[g]) { s.line(lx - rr, ly - rr, lx + rr, ly + rr); s.line(lx - rr, ly + rr, lx + rr, ly - rr); }
@@ -462,41 +666,46 @@ onmessage = (e) => {
       });
 
       s.blendMode(s.ADD);
-      // mRNA strands with ribosomes
       const len = R * 0.07;
       mr.forEach((L, g) => {
+        const dimA = focus >= 0 && focus !== g ? 0.25 : 1;
         for (const m of L) {
-          const fade = m.d ? Math.max(0, 1 - (now - m.d) / 350) : 1;
+          const fade = (m.d ? Math.max(0, 1 - (now - m.d) / 350) : 1) * dimA;
           m.a += (Math.random() - .5) * 0.05 * k;
           const dx = Math.cos(m.a) * len / 2, dy = Math.sin(m.a) * len / 2, X = m.x * R, Y = m.y * R;
-          col[g].setAlpha(120 * fade); s.stroke(col[g]); s.strokeWeight(1.6); s.noFill();
+          col[g].setAlpha(140 * fade); s.stroke(col[g]); s.strokeWeight(1.8); s.noFill();
           s.bezier(X - dx, Y - dy, X - dy * .6, Y + dx * .6, X + dy * .6, Y - dx * .6, X + dx, Y + dy);
           s.noStroke(); s.fill(150, 150, 160, 120 * fade);
-          for (const f of [-.5, 0, .5]) s.circle(X + dx * f * 1.6, Y + dy * f * 1.6, R * 0.013);
+          for (const f of [-.5, 0, .5]) s.circle(X + dx * f * 1.6, Y + dy * f * 1.6, R * 0.014);
         }
         col[g].setAlpha(255);
       });
       s.noStroke();
       const dp = Math.max(2.2, R * 0.011);
-      pr.forEach((L, g) => { col[g].setAlpha(190); dots(L, col[g], dp, now); col[g].setAlpha(255); });
-      cxCol.setAlpha(200); dots(cx, cxCol, dp * 1.6, now);
-      // event flashes
+      pr.forEach((L, g) => dots(L, col[g], dp, now, focus >= 0 && focus !== g ? 30 : 200));
+      dots(cx, cxCol, dp * 1.6, now, focus >= 0 && focus < 4 ? 30 : 200);
       for (let i = flashes.length - 1; i >= 0; i--) {
         const f = flashes[i], age = (now - f.t) / 500;
         if (age >= 1) { flashes.splice(i, 1); continue; }
-        if (f.k === 0) { s.noFill(); col[f.c].setAlpha(200 * (1 - age)); s.stroke(col[f.c]); s.strokeWeight(1); s.circle(f.x * R, f.y * R, dp * (2 + 6 * age)); col[f.c].setAlpha(255); }
-        else { s.stroke(255, 241, 201, 160 * (1 - age)); s.strokeWeight(1); s.line(f.x * R, f.y * R, f.x2 * R, f.y2 * R); }
+        if (f.k === 0) { if (focus >= 0 && f.c !== focus) continue; s.noFill(); col[f.c].setAlpha(200 * (1 - age)); s.stroke(col[f.c]); s.strokeWeight(1); s.circle(f.x * R, f.y * R, dp * (2 + 6 * age)); col[f.c].setAlpha(255); }
+        else if (focus < 0 || focus >= 4) { s.stroke(255, 241, 201, 160 * (1 - age)); s.strokeWeight(1); s.line(f.x * R, f.y * R, f.x2 * R, f.y2 * R); }
+      }
+      // callouts: what each kind of mark is
+      if (labels) {
+        const lc = s.color(FG), gF = focus >= 0 ? focus : 1, gc = s.color(COLORS[gF]);
+        callout('membrane', R * 1.02 * Math.cos(0.5), R * 1.02 * Math.sin(0.5), lc);
+        const L = LOCI[gF]; callout(`${GENES[gF].name} gene`, L.x * R, L.y * R, gc, [-1, -1]);
+        const m = target('m' + gF, mr[gF]); if (m) callout('mRNA', m.x * R, m.y * R, gc, [1, -1]);
+        const p = target('p' + gF, pr[gF]); if (p) callout('protein', p.x * R, p.y * R, gc, [-1, 1]);
+        const c = target('c', cx); if (c && (focus < 0 || focus >= 4)) callout('αβ complex', c.x * R, c.y * R, s.color(CX), [1, 1]);
       }
       s.pop();
-
-      // scale bar: cell diameter is 400 nm, so R px = 200 nm
       s.blendMode(s.BLEND); s.noStroke(); s.fill(217, 222, 230);
-      const bar = R / 2, bx = w - 18 - bar, by = w - 22;
-      s.rect(bx, by, bar, 3);
-      s.textSize(11); s.textAlign(s.CENTER, s.BOTTOM); s.text('100 nm', bx + bar / 2, by - 4);
+      const bar = R / 2, bx = w - 14 - bar, by = w - 12;
+      s.rect(bx, by, bar, 3); s.textSize(11); s.textAlign(s.CENTER, s.BOTTOM); s.text('100 nm', bx + bar / 2, by - 4);
     }
   });
-
 })();
 </script>
-</body></html>
+</body>
+</html>

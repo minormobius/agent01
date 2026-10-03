@@ -8,10 +8,10 @@ both when a stage ships.
 | Path | What |
 |---|---|
 | `index.html` | landing: the vision, the onion SVG, the stage list (live / next / planned / research) |
-| `assets/cell.css` | shared tokens and components for the landing and stage 2+ (stage 1 predates it and keeps its own inline styles) |
-| `stage1/` | Gillespie direct method, 27 reactions over 13 species (6 genes: transcription, mRNA decay, translation, dilution; a Hill repressor; α+β ⇌ αβ). The sim runs in a blob Web Worker; p5.js draws one dot per protein. Well-mixed: positions are a decorative random walk. |
-| `stage2/` | `sim.js`: 2D Brownian dynamics with Doi-model reactions (nm, µs). Transporters import S; E1: S→I; E2: I→P; I leaks at the membrane with probability `leak`; P is exported. Two cells with identical counts and rates, scattered vs clustered enzymes. `index.html` draws both with p5 and charts rolling yield. |
-| `stage2/sim.selftest.mjs` | mass balance, determinism, leak=0, and clustered yield > scattered + 8 points. Runs in the deploy workflow before `wrangler deploy`. |
+| `assets/cell.css` | shared tokens and components for the landing and every stage |
+| `stage1/` | `sim.js` (Web Worker): Gillespie direct method, 27 reactions over 13 species (6 genes: transcription, mRNA decay, translation, dilution; a Hill repressor; α+β ⇌ αβ). `index.html`: the four-event explainer, the cell (p5, one dot per protein, labels, click-a-gene focus with live rate card), and the activity timeline: one bar per mRNA, one tick per protein translated from it. Well-mixed: positions are decorative, and a translation is credited to a uniformly chosen live mRNA of that gene (statistically exact). |
+| `stage2/` | `sim.js`: 2D Brownian dynamics with Doi-model reactions (nm, µs). Transporters import S; E1: S→I; E2: I→P; I leaks at the membrane with probability `leak`; P is exported. Two cells with identical counts and rates, scattered vs clustered enzymes. `index.html`: pathway diagram, both cells in p5, the molecule tracer (tags the next imported S; the tag passes through each enzyme to its fate, narrated per cell), rolling yield, and the enzyme timeline (one row per enzyme, bars while busy, from exact capture intervals the worker reports). |
+| `stage2/sim.selftest.mjs` | mass balance, determinism, leak=0, clustered yield > scattered + 8 points, and the tracer reaching import → capture → export/leak. Runs in the deploy workflow before `wrangler deploy`. |
 
 ## Quirks
 

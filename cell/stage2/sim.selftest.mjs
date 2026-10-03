@@ -39,5 +39,19 @@ const run = (params, seed, us) => { const p = createPair(params, seed); const n 
   const y = p.cells.map((c) => c.stats.converted / (c.stats.converted + c.stats.leaked));
   check(y[1] > y[0] + 0.08, `clustered yield ${(y[1] * 100).toFixed(1)}% beats scattered ${(y[0] * 100).toFixed(1)}% by > 8 points`);
 }
+// 5. The tracer follows one molecule from import to a fate, and every capture is logged as a busy interval.
+{
+  const p = createPair({}, 9); for (const c of p.cells) c.startTrace();
+  const ev = [[], []]; let busyN = 0;
+  for (let i = 0; i < 4000 / p.P.dt; i++) {
+    for (const [k, c] of p.cells.entries()) { c.step(); if ((i & 63) === 0) { const s = c.snapshot(); ev[k].push(...s.trace.ev.map((e) => e[1])); busyN += s.busy.length / 3; } }
+  }
+  for (const k of [0, 1]) {
+    const kinds = ev[k].filter((e) => e !== 'bounce');
+    const ok = kinds[0] === 'import' && ['export', 'leak'].includes(kinds[kinds.length - 1]) && kinds.includes('capture');
+    check(ok, `cell ${k}: traced molecule ${kinds.join(' → ')}`);
+  }
+  check(busyN > 1000, `busy intervals reported (${busyN})`);
+}
 if (failed) { console.log(`\n${failed} failed`); process.exit(1); }
 console.log('\nall passed');

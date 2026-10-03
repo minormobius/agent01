@@ -4,15 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Where the Enzymes Sit · Minimal Cell Twin</title>
-<meta name="description" content="Stage 2 of the Minimal Cell Twin: particle-level reaction-diffusion in a 400 nm cell. Two cells, the same enzymes, different arrangements, different yields.">
+<meta name="description" content="Stage 2 of the Minimal Cell Twin: particle-level reaction-diffusion in a 400 nm cell. Two cells, the same enzymes, different arrangements, different yields. Follow one molecule from entry to fate.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
 <link rel="stylesheet" href="../assets/cell.css">
 <style>
+.sec-title { font: 600 22px/1.2 var(--display); margin: 0; }
+/* ---- pathway ---- */
+.path { display: grid; gap: 14px; }
+.path-fig { overflow-x: auto; }
+.path-fig svg { display: block; min-width: 660px; width: 100%; height: auto; }
+.path-fig text { font: 500 13px var(--mono); fill: var(--fg); }
+.path-fig .mut { fill: var(--muted); font-weight: 400; font-size: 12px; }
+.qs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .qs { grid-template-columns: minmax(0, 1fr); } }
+.qs h3 { font: 600 15px/1.2 var(--display); margin: 0 0 4px; }
+.qs p { margin: 0; color: var(--muted); font-size: 13px; }
+.qs p b { color: var(--fg); font-weight: 500; }
+
+/* ---- the two cells ---- */
+.bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.bar .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.clock { font: 500 13px/1.3 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.clock b { color: var(--fg); font-weight: 500; font-size: 18px; }
+button.trace { border-color: var(--fg); }
 .cells { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
 @media (max-width: 720px) { .cells { grid-template-columns: minmax(0, 1fr); } }
-figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
+figure { margin: 0; display: grid; gap: 10px; min-width: 0; align-content: start; }
 .disc { width: 100%; max-width: 520px; aspect-ratio: 1; margin: 0 auto; position: relative; }
 .disc canvas { display: block; }
 figcaption { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: baseline; max-width: 520px; width: 100%; margin: 0 auto; }
@@ -22,13 +41,18 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
 .yield small { display: block; font: 400 10.5px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .pools { grid-column: 1 / -1; display: flex; gap: 14px; flex-wrap: wrap; font: 400 12px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .pools i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.story { max-width: 520px; width: 100%; margin: 0 auto; padding: 12px 14px; font-size: 13px; min-height: 150px; }
+.story ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.story li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 10px; }
+.story time { font: 400 12px/1.5 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.story .now { color: var(--muted); margin: 8px 0 0; font-size: 12.5px; }
+.story .fate-ok { color: var(--green); font-weight: 500; }
+.story .fate-bad { color: var(--magenta); font-weight: 500; }
 
-.dash { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 22px; }
+/* ---- controls panel ---- */
+.dash { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
 @media (max-width: 860px) { .dash { grid-template-columns: minmax(0, 1fr); } }
-.dash .panel { padding: 14px 16px; display: grid; gap: 16px; align-content: start; }
-.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.clock { font: 500 13px/1.3 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
-.clock b { color: var(--fg); font-weight: 500; font-size: 18px; }
+.dash .panel { padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
 .slider { display: grid; gap: 6px; }
 .slider label { display: flex; justify-content: space-between; font: 500 12px/1.2 var(--mono); }
 .slider label span { color: var(--muted); }
@@ -38,83 +62,168 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
 .legend div { display: flex; gap: 8px; align-items: center; min-width: 0; }
 .legend i { flex: none; width: 10px; height: 10px; border-radius: 50%; }
 .legend i.ring { background: transparent !important; border: 2px solid; }
-.chart { min-width: 0; }
-.chart canvas { width: 100%; height: 220px; display: block; }
-.chart .keys { display: flex; gap: 16px; flex-wrap: wrap; font: 400 12px/1 var(--mono); color: var(--muted); margin-top: 8px; }
-.chart .keys i { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 6px; }
+.chart canvas { width: 100%; height: 170px; display: block; }
+.keys { display: flex; gap: 16px; flex-wrap: wrap; font: 400 12px/1 var(--mono); color: var(--muted); }
+.keys i { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 6px; }
+
+/* ---- enzyme timeline ---- */
+.gantt { padding: 14px 16px; display: grid; gap: 12px; }
+.gantt-cap { margin: 0; color: var(--muted); font-size: 13px; max-width: 92ch; }
+.gantt-cap b { color: var(--fg); font-weight: 500; }
+.gpair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+@media (max-width: 720px) { .gpair { grid-template-columns: minmax(0, 1fr); } }
+.gpair h3 { font: 600 15px/1.2 var(--display); margin: 0 0 6px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.gpair h3 span { font: 400 12px/1.4 var(--mono); color: var(--muted); }
+.gpair h3 span b { color: var(--fg); font-weight: 500; }
+.gpair canvas { width: 100%; height: 230px; display: block; }
+
+.try { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .try { grid-template-columns: minmax(0, 1fr); } }
+.try article { padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.try h3 { font: 600 16px/1.2 var(--display); margin: 0; }
+.try p { margin: 0; color: var(--muted); font-size: 13px; }
+.try button { justify-self: start; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Minimal Cell Twin</a><span>/</span><span>Stage 2</span><span>·</span><a href="../stage1/">Stage 1</a></nav>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Minimal Cell Twin</a><span>/</span><a href="../stage1/">← Stage 1</a><span>·</span><span>Stage 2</span></nav>
   <header class="page">
     <div class="eyebrow">Stage 2 · spatial reaction–diffusion</div>
     <h1>Where the enzymes sit</h1>
-    <p class="lede">Stage 1 treated the cell as a well-mixed bag. Here every metabolite is a particle taking real Brownian steps through a 400&nbsp;nm cell. Both cells have <b>the same 60 + 60 enzymes and the same rate constants</b>. Only the arrangement differs: scattered on the left, assembled into clusters on the right. A well-mixed model predicts identical yields for both.</p>
+    <p class="lede">Stage 1 counted molecules but ignored where they were. Here every small molecule is a particle bouncing randomly through the cell, and an enzyme can only act on one that drifts within 6&nbsp;nm of it. That makes position matter. Below, <b>two cells with exactly the same enzymes</b> differ only in where those enzymes sit, and they make different amounts of product.</p>
   </header>
 
-  <div class="cells">
-    <figure>
-      <div class="disc" id="disc0"></div>
-      <figcaption>
-        <h2>Scattered</h2>
-        <div class="yield"><span id="y0">–</span><small>yield</small></div>
-        <div class="sub">E1 and E2 drift independently through the cytoplasm.</div>
-        <div class="pools" id="pools0"></div>
-      </figcaption>
-    </figure>
-    <figure>
-      <div class="disc" id="disc1"></div>
-      <figcaption>
-        <h2>Clustered</h2>
-        <div class="yield"><span id="y1">–</span><small>yield</small></div>
-        <div class="sub">The same enzymes, packed into E1 + E2 assemblies, or metabolons.</div>
-        <div class="pools" id="pools1"></div>
-      </figcaption>
-    </figure>
-  </div>
+  <section class="path" aria-labelledby="path-t">
+    <h2 class="sec-title" id="path-t">The pathway in both cells</h2>
+    <div class="path-fig">
+      <svg viewBox="0 0 920 200" role="img" aria-label="Substrate S enters through transporters. Enzyme E1 turns S into the intermediate I. Enzyme E2 turns I into product P, which leaves the cell. I can also leak out through the membrane and be lost.">
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7d8898"/></marker>
+        <marker id="ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ff5fa2"/></marker></defs>
+        <!-- membrane -->
+        <rect x="18" y="20" width="884" height="140" rx="70" fill="none" stroke="#46566a" stroke-width="3"/>
+        <!-- transporter + S -->
+        <rect x="12" y="74" width="12" height="32" rx="2" fill="#4fd1e8"/>
+        <text x="30" y="186" class="mut">transporter</text>
+        <line x1="34" y1="90" x2="84" y2="90" stroke="#7d8898" stroke-width="1.5" marker-end="url(#ah)"/>
+        <circle cx="108" cy="90" r="9" fill="#4fd1e8"/><text x="108" y="126" text-anchor="middle">S</text><text x="108" y="144" text-anchor="middle" class="mut">substrate</text>
+        <!-- E1 -->
+        <line x1="124" y1="90" x2="214" y2="90" stroke="#7d8898" stroke-width="1.5" marker-end="url(#ah)"/>
+        <circle cx="244" cy="90" r="22" fill="none" stroke="#f2b84b" stroke-width="3"/><text x="244" y="95" text-anchor="middle" style="fill:#f2b84b">E1</text>
+        <text x="244" y="58" text-anchor="middle" class="mut">enzyme 1</text>
+        <!-- I -->
+        <line x1="270" y1="90" x2="360" y2="90" stroke="#7d8898" stroke-width="1.5" marker-end="url(#ah)"/>
+        <circle cx="386" cy="90" r="9" fill="#ff5fa2"/><text x="386" y="126" text-anchor="middle">I</text><text x="386" y="144" text-anchor="middle" class="mut">intermediate</text>
+        <!-- leak -->
+        <path d="M392,80 C420,40 440,24 452,4" fill="none" stroke="#ff5fa2" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#ahm)"/>
+        <text x="462" y="14" style="fill:#ff5fa2">leaks out, lost</text>
+        <!-- E2 -->
+        <line x1="402" y1="90" x2="512" y2="90" stroke="#7d8898" stroke-width="1.5" marker-end="url(#ah)"/>
+        <circle cx="542" cy="90" r="22" fill="none" stroke="#a98bff" stroke-width="3"/><text x="542" y="95" text-anchor="middle" style="fill:#a98bff">E2</text>
+        <text x="542" y="58" text-anchor="middle" class="mut">enzyme 2</text>
+        <!-- P -->
+        <line x1="568" y1="90" x2="660" y2="90" stroke="#7d8898" stroke-width="1.5" marker-end="url(#ah)"/>
+        <circle cx="686" cy="90" r="9" fill="#72e36c"/><text x="686" y="126" text-anchor="middle">P</text><text x="686" y="144" text-anchor="middle" class="mut">product</text>
+        <line x1="702" y1="90" x2="905" y2="90" stroke="#72e36c" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="800" y="80" text-anchor="middle" style="fill:#72e36c">exported, delivered</text>
+      </svg>
+    </div>
+    <div class="qs">
+      <div><h3>The catch</h3><p>I is <b>leaky</b>: every time it bumps into the membrane, it has a chance of slipping out and being lost. The longer I wanders before E2 catches it, the more of it escapes.</p></div>
+      <div><h3>The score</h3><p><b>Yield</b> is the share of I that E2 catches and turns into P, rather than losing it. 100% would mean nothing escapes.</p></div>
+      <div><h3>The question</h3><p>If E1 and E2 are packed side by side, does I get caught sooner? A model that only counts molecules says <b>it makes no difference</b>. Watch the two cells and see.</p></div>
+    </div>
+  </section>
 
-  <div class="dash">
-    <div class="panel">
+  <section style="display:grid;gap:14px" aria-labelledby="cells-t">
+    <div class="bar">
+      <h2 class="sec-title" id="cells-t">Two cells, running now</h2>
       <div class="controls">
+        <button class="trace" id="trace" type="button">Follow one molecule</button>
         <button class="primary" id="play" type="button">Pause</button>
         <div class="seg" id="speed" role="group" aria-label="Simulation speed"></div>
         <button id="reset" type="button">Reset</button>
       </div>
-      <div class="clock"><b id="clock">0.000 ms</b> cell time · <span id="rate">–</span></div>
+    </div>
+    <div class="clock"><b id="clock">0.000 ms</b> of cell time · <span id="rate">–</span>. One millisecond here is about 2,500 molecules entering each cell.</div>
+    <div class="cells">
+      <figure>
+        <div class="disc" id="disc0"></div>
+        <figcaption>
+          <h2>Scattered</h2>
+          <div class="yield"><span id="y0">–</span><small>yield</small></div>
+          <div class="sub">60 E1 and 60 E2 drift independently through the cell.</div>
+          <div class="pools" id="pools0"></div>
+        </figcaption>
+        <div class="story panel" id="story0"></div>
+      </figure>
+      <figure>
+        <div class="disc" id="disc1"></div>
+        <figcaption>
+          <h2>Clustered</h2>
+          <div class="yield"><span id="y1">–</span><small>yield</small></div>
+          <div class="sub">The same 60 + 60 enzymes, packed into clusters of E1 next to E2.</div>
+          <div class="pools" id="pools1"></div>
+        </figcaption>
+        <div class="story panel" id="story1"></div>
+      </figure>
+    </div>
+  </section>
+
+  <div class="dash">
+    <div class="panel">
+      <p class="label">Key</p>
+      <div class="legend">
+        <div><i style="background:var(--accent)"></i>S substrate</div>
+        <div><i class="ring" style="border-color:var(--amber)"></i>E1, free</div>
+        <div><i style="background:var(--magenta)"></i>I intermediate</div>
+        <div><i style="background:var(--amber)"></i>E1, working</div>
+        <div><i style="background:var(--green)"></i>P product</div>
+        <div><i class="ring" style="border-color:var(--violet)"></i>E2 (same idea)</div>
+      </div>
+      <p style="margin:0;font-size:12.5px;color:var(--muted)">Marks outside the membrane: <span style="color:var(--magenta)">pink</span> = I just leaked, <span style="color:var(--green)">green</span> = P just exported. Blue ticks on the membrane are transporters.</p>
+    </div>
+    <div class="panel">
       <div class="slider">
-        <label for="leak">Intermediate leakiness <span id="leakv">30%</span></label>
+        <label for="leak">Leakiness of I <span id="leakv">30%</span></label>
         <input id="leak" type="range" min="0" max="100" step="5" value="30">
-        <p>Chance that I escapes each time it reaches the membrane. Applies to both cells immediately.</p>
+        <p>Chance that I escapes each time it touches the membrane. Changes both cells immediately.</p>
       </div>
       <div class="slider">
         <label for="clus">Clusters in the right cell <span id="clusv">6</span></label>
         <input id="clus" type="range" min="1" max="30" step="1" value="6">
-        <p>Fewer clusters mean bigger assemblies. Changing this restarts both cells.</p>
-      </div>
-      <div>
-        <p class="label">Key</p>
-        <div class="legend">
-          <div><i style="background:var(--accent)"></i>S, substrate</div>
-          <div><i class="ring" style="border-color:var(--amber)"></i>E1: S → I</div>
-          <div><i style="background:var(--magenta)"></i>I, leaky intermediate</div>
-          <div><i class="ring" style="border-color:var(--violet)"></i>E2: I → P</div>
-          <div><i style="background:var(--green)"></i>P, product</div>
-          <div><i style="background:var(--muted)"></i>enzyme busy (filled)</div>
-        </div>
+        <p>Same enzymes split into fewer, bigger clusters or more, smaller ones. Restarts both cells.</p>
       </div>
     </div>
     <div class="panel chart">
-      <p class="label">Yield: share of intermediate turned into product rather than lost · rolling 0.2 ms</p>
+      <p class="label">Yield over time · rolling 0.2 ms</p>
       <canvas id="chart" aria-label="Yield over time for both cells"></canvas>
-      <div class="keys"><span><i style="background:var(--fg)"></i>scattered</span><span><i style="background:var(--magenta)"></i>clustered</span><span>well-mixed model: one line for both</span></div>
+      <div class="keys"><span><i style="background:var(--fg)"></i>scattered</span><span><i style="background:var(--magenta)"></i>clustered</span></div>
     </div>
   </div>
 
+  <section class="panel gantt" aria-labelledby="g-t">
+    <div class="bar"><h2 class="sec-title" id="g-t">What every enzyme is doing</h2></div>
+    <p class="gantt-cap">Each row is one enzyme, 60 E1 rows above 60 E2 rows. A <b>bar means that enzyme is busy</b> converting a molecule, which takes about 15&nbsp;µs. Blank means it is waiting for something to drift close enough. Compare the E2 rows: in the clustered cell, E2 is busier, because I is made right next to it and gets caught before it can reach the membrane.</p>
+    <div class="gpair">
+      <div><h3>Scattered <span id="u0"></span></h3><canvas id="g0" aria-label="Enzyme activity, scattered cell"></canvas></div>
+      <div><h3>Clustered <span id="u1"></span></h3><canvas id="g1" aria-label="Enzyme activity, clustered cell"></canvas></div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:14px" aria-labelledby="try-t">
+    <h2 class="sec-title" id="try-t">Three things to try</h2>
+    <div class="try">
+      <article class="panel"><h3>Seal the membrane</h3><p>Set leakiness to 0. Nothing can escape, so both yields go to 100%. Arrangement only matters because I is leaky.</p><button type="button" data-try="seal">Set it up</button></article>
+      <article class="panel"><h3>One giant cluster</h3><p>Put all 120 enzymes in one cluster. I is caught almost instantly, but S now has to find one spot in the whole cell. Watch the S pool grow.</p><button type="button" data-try="one">Set it up</button></article>
+      <article class="panel"><h3>A very leaky intermediate</h3><p>Raise leakiness to 100%: any I that touches the membrane is lost. The scattered cell suffers most, and the gap between the two cells widens.</p><button type="button" data-try="leaky">Set it up</button></article>
+    </div>
+  </section>
+
   <div class="notes">
-    <div><h2>What is simulated</h2><p><b>Brownian dynamics with Doi-model reactions.</b> Metabolites diffuse at 50&nbsp;µm²/s and enzymes at 2&nbsp;µm²/s, in 0.25&nbsp;µs steps. A molecule within 6&nbsp;nm of a free enzyme is captured with probability ½ per step. The enzyme then stays busy for an exponential time averaging 15&nbsp;µs. Substrate enters through 12 membrane transporters. Product leaves at the membrane, and so does the intermediate, with the chance set above.</p></div>
-    <div><h2>What is simplified</h2><p>The cell is a <b>2D slice</b>, so diffusion is planar and capture rates are not those of a real 3D cytoplasm. There is no crowding, no explicit enzyme–substrate complex, and no regulation. The parameters are physically plausible but not fitted to any organism. Notice the cost of clustering too: S builds up because there are fewer places to capture it.</p></div>
-    <div><h2>Next layer</h2><p>Stage 3 swaps the toy pathway for JCVI-syn3A's published genes, copy numbers and kinetics. It runs as a hybrid: exact events for gene expression, deterministic metabolism, and particle simulation like this one only where space matters. This engine already runs in a Web Worker and is checked by a node selftest.</p></div>
+    <div><h2>What is simulated</h2><p><b>Brownian dynamics with Doi-model reactions.</b> Small molecules diffuse at 50&nbsp;µm²/s and enzymes at 2&nbsp;µm²/s, in 0.25&nbsp;µs steps. A molecule within 6&nbsp;nm of a free enzyme is caught with probability ½ per step. The enzyme then stays busy for a random time averaging 15&nbsp;µs. S enters through 12 transporters.</p></div>
+    <div><h2>What is simplified</h2><p>The cell is a <b>2D slice</b>, so diffusion is flat and capture rates are not those of a real 3D cytoplasm. There is no crowding and no regulation, and the parameters are physically plausible but not fitted to any organism. Clustering has a cost too: S piles up, because there are fewer places to catch it.</p></div>
+    <div><h2>Next layer</h2><p>Stage 3 swaps this toy pathway for JCVI-syn3A's published genes, copy numbers and kinetics. It runs as a hybrid: exact events for gene expression, deterministic metabolism, and particle simulation like this only where space matters.</p></div>
   </div>
 </div>
 
@@ -124,6 +233,7 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
   const css = getComputedStyle(document.documentElement);
   const tok = (n) => css.getPropertyValue(n).trim();
   const C = { S: tok('--accent'), I: tok('--magenta'), P: tok('--green'), E1: tok('--amber'), E2: tok('--violet'), fg: tok('--fg'), muted: tok('--muted'), line: tok('--line') };
+  const STATE_COL = [C.S, C.I, C.P, C.E1, C.E2];
   const SPEEDS = [[20, '20 µs/s'], [100, '100 µs/s'], [500, '500 µs/s'], [2000, 'max']];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -132,6 +242,9 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
   const flashes = [[], []];
   const hist = []; // [t, conv0, leak0, conv1, leak1]
   let lastT = 0, lastWall = performance.now(), simRate = 0;
+  const GWIN = 120; // enzyme timeline window, us
+  let busyIv = [[], []];
+  let tr = [null, null]; // per cell: { pts: [], ev: [], state, holder, done, armed }
 
   const worker = new Worker('sim.js');
   worker.onmessage = (e) => {
@@ -143,6 +256,14 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
     m.snaps.forEach((s, k) => {
       const ev = s.ev;
       for (let i = 0; i < ev.length && flashes[k].length < 120; i += 3) flashes[k].push({ kind: ev[i], x: ev[i + 1], y: ev[i + 2], t: now });
+      const b = s.busy; for (let i = 0; i < b.length; i += 3) busyIv[k].push([b[i], b[i + 1], b[i + 2]]);
+      const cut = s.stats.t - GWIN * 1.2; if (busyIv[k].length > 4000 || (busyIv[k][0] && busyIv[k][0][2] < cut)) busyIv[k] = busyIv[k].filter((v) => v[2] > cut);
+      if (s.trace && tr[k]) {
+        const T = tr[k]; T.state = s.trace.state; T.holder = s.trace.holder; T.done = s.trace.done; T.armed = s.trace.armed;
+        for (let i = 0; i < s.trace.pts.length; i += 3) T.pts.push([s.trace.pts[i], s.trace.pts[i + 1], s.trace.pts[i + 2]]);
+        for (const e of s.trace.ev) T.ev.push(e);
+        if (s.trace.ev.length) story(k);
+      }
     });
     snaps = m.snaps;
     const s0 = m.snaps[0].stats, s1 = m.snaps[1].stats;
@@ -155,7 +276,42 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
   function reset() {
     seed = (Math.random() * 2 ** 31) | 0;
     hist.length = 0; flashes[0].length = 0; flashes[1].length = 0; snaps = [null, null]; busy = false;
+    busyIv = [[], []]; tr = [null, null]; story(0); story(1);
     worker.postMessage({ type: 'init', seed, warmup: 800, params: { leak, nClusters } });
+  }
+
+  // ---------- the molecule tracer ----------
+  function startTrace() {
+    tr = [0, 1].map(() => ({ pts: [], ev: [], state: -1, holder: -1, done: false, armed: true }));
+    worker.postMessage({ type: 'trace' });
+    speed = 20; syncSpeed(); setPlaying(true);
+    story(0); story(1);
+  }
+  const STATE_TXT = ['drifting as S, looking for an E1', 'drifting as I, looking for an E2 (and at risk of leaking)', 'drifting as P, on its way out', 'inside an E1, being converted', 'inside an E2, being converted'];
+  function story(k) {
+    const el = document.getElementById('story' + k), T = tr[k];
+    if (!T) {
+      el.innerHTML = `<p class="label">Follow one molecule</p><p style="margin:0;color:var(--muted)">Press <b style="color:var(--fg)">Follow one molecule</b>. The next S to enter each cell is tagged and drawn with its trail. Its story is told here, step by step: which enzymes catch it, and whether it ends as product or leaks away.</p>`;
+      return;
+    }
+    if (T.armed && !T.ev.length) { el.innerHTML = `<p class="label">Follow one molecule</p><p style="margin:0;color:var(--muted)">Waiting for the next S to come through a transporter…</p>`; return; }
+    const t0 = T.ev.length ? T.ev[0][0] : 0, rows = [];
+    let bounces = 0;
+    for (const [t, kind, a] of T.ev) {
+      const at = `+${Math.round(t - t0)} µs`;
+      if (kind === 'bounce') { bounces++; continue; }
+      const pre = bounces ? `<li><time></time><span>bumped the membrane ${bounces}× as I without leaking</span></li>` : ''; bounces = 0;
+      let txt = '';
+      if (kind === 'import') txt = `entered through a transporter as <b style="color:${C.S}">S</b>`;
+      else if (kind === 'capture') txt = a === 0 ? `caught by an <b style="color:${C.E1}">E1</b> enzyme` : `caught by an <b style="color:${C.E2}">E2</b> enzyme`;
+      else if (kind === 'release') txt = a === 0 ? `released as <b style="color:${C.I}">I</b>, the leaky intermediate` : `released as <b style="color:${C.P}">P</b>, the product`;
+      else if (kind === 'leak') txt = `<span class="fate-bad">escaped through the membrane as I. Lost.</span>`;
+      else if (kind === 'export') txt = `<span class="fate-ok">left the cell as P. Delivered.</span>`;
+      rows.push(pre + `<li><time>${at}</time><span>${txt}</span></li>`);
+    }
+    if (bounces) rows.push(`<li><time></time><span>bumped the membrane ${bounces}× as I without leaking</span></li>`);
+    const now = T.done ? '' : `<p class="now">Now: ${STATE_TXT[T.state] || '…'}</p>`;
+    el.innerHTML = `<p class="label">Following one molecule</p><ol>${rows.join('')}</ol>${now}`;
   }
 
   // rolling yield over the last 0.2 ms of cell time
@@ -172,21 +328,30 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
   const setPlaying = (v) => { playing = v; playBtn.textContent = v ? 'Pause' : 'Play'; };
   playBtn.addEventListener('click', () => setPlaying(!playing));
   document.getElementById('reset').addEventListener('click', reset);
+  document.getElementById('trace').addEventListener('click', startTrace);
   document.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); setPlaying(!playing); } });
   const segEl = document.getElementById('speed');
-  segEl.innerHTML = SPEEDS.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === speed}">${l}</button>`).join('');
-  segEl.addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    speed = +b.dataset.v; segEl.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b));
-  });
-  const leakEl = document.getElementById('leak');
-  leakEl.addEventListener('input', () => {
-    leak = leakEl.value / 100; document.getElementById('leakv').textContent = leakEl.value + '%';
+  segEl.innerHTML = SPEEDS.map(([v, l]) => `<button type="button" data-v="${v}">${l}</button>`).join('');
+  const syncSpeed = () => segEl.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', +x.dataset.v === speed));
+  segEl.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; speed = +b.dataset.v; syncSpeed(); });
+  syncSpeed();
+  const leakEl = document.getElementById('leak'), clusEl = document.getElementById('clus');
+  function setLeak(v) {
+    leak = v; leakEl.value = Math.round(v * 100); document.getElementById('leakv').textContent = Math.round(v * 100) + '%';
     worker.postMessage({ type: 'set', key: 'leak', value: leak });
-  });
-  const clusEl = document.getElementById('clus');
+  }
+  function setClusters(v) { nClusters = v; clusEl.value = v; document.getElementById('clusv').textContent = v; }
+  leakEl.addEventListener('input', () => setLeak(leakEl.value / 100));
   clusEl.addEventListener('input', () => { document.getElementById('clusv').textContent = clusEl.value; });
-  clusEl.addEventListener('change', () => { nClusters = +clusEl.value; reset(); });
+  clusEl.addEventListener('change', () => { setClusters(+clusEl.value); reset(); });
+  document.querySelectorAll('[data-try]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.try;
+    if (k === 'seal') { setLeak(0); }
+    if (k === 'one') { setClusters(1); setLeak(0.3); reset(); }
+    if (k === 'leaky') { if (nClusters !== 6) { setClusters(6); reset(); } setLeak(1); }
+    speed = 500; syncSpeed(); setPlaying(true);
+    document.getElementById('cells-t').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  }));
 
   // ---------- readouts ----------
   let lastUi = 0;
@@ -196,26 +361,29 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
     if (dtw > 0) simRate = 0.5 * simRate + 0.5 * ((t - lastT) / dtw);
     lastT = t; lastWall = now; lastUi = now;
     document.getElementById('clock').textContent = (t / 1000).toFixed(3) + ' ms';
-    document.getElementById('rate').textContent = playing ? Math.round(simRate) + ' µs per second' : 'paused';
+    document.getElementById('rate').textContent = playing ? `running at ${Math.round(simRate)} µs per second` : 'paused';
     [0, 1].forEach((k) => {
       const y = rollingYield(k);
       document.getElementById('y' + k).textContent = y == null ? '–' : Math.round(y * 100) + '%';
       const s = snaps[k];
       if (s) document.getElementById('pools' + k).innerHTML =
         [['S', C.S], ['I', C.I], ['P', C.P]].map(([n, c], i) => `<span><i style="background:${c}"></i>${n} ${s.counts[i]}</span>`).join('') +
-        `<span>exported ${s.stats.exported}</span><span>lost ${s.stats.leaked}</span>`;
+        `<span>delivered ${s.stats.exported}</span><span>lost ${s.stats.leaked}</span>`;
     });
     drawChart();
   }
 
-  function drawChart() {
-    const cv = document.getElementById('chart'), dpr = Math.min(2, devicePixelRatio || 1);
-    const W = cv.clientWidth, H = cv.clientHeight;
-    if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  function canvas2d(cv) {
+    const dpr = Math.min(2, devicePixelRatio || 1), W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+    return [c, W, H];
+  }
+  function drawChart() {
+    const [c, W, H] = canvas2d(document.getElementById('chart'));
     const L = 36, Rm = 8, T = 8, B = 22, w = W - L - Rm, h = H - T - B;
     c.font = '11px "IBM Plex Mono", monospace'; c.fillStyle = C.muted; c.strokeStyle = C.line; c.lineWidth = 1;
-    for (const v of [0, 0.25, 0.5, 0.75, 1]) {
+    for (const v of [0, 0.5, 1]) {
       const y = T + h * (1 - v); c.beginPath(); c.moveTo(L, y); c.lineTo(L + w, y); c.stroke();
       c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText(Math.round(v * 100) + '%', L - 6, y);
     }
@@ -237,6 +405,32 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
       c.strokeStyle = col; c.lineWidth = 2; c.stroke();
       if (last) { c.beginPath(); c.arc(last[0], last[1], 3.5, 0, 7); c.fillStyle = col; c.fill(); }
     });
+  }
+
+  // Enzyme timeline: one row per enzyme, a bar while it is busy.
+  function drawGantt(k) {
+    const [c, W, H] = canvas2d(document.getElementById('g' + k));
+    if (!P || !snaps[k]) return;
+    const n1 = P.n1, n2 = P.n2, LW = 34, gap = 10, axis = 18;
+    const rowH = (H - gap - axis) / (n1 + n2), w = W - LW - 4;
+    const t1 = snaps[k].stats.t, t0 = t1 - GWIN, X = (t) => LW + w * (t - t0) / GWIN;
+    c.font = '11px "IBM Plex Mono", monospace'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    c.fillStyle = C.E1; c.fillText('E1', 0, n1 * rowH / 2);
+    c.fillStyle = C.E2; c.fillText('E2', 0, n1 * rowH + gap + n2 * rowH / 2);
+    c.fillStyle = C.line; c.fillRect(LW, n1 * rowH + gap / 2 - 0.5, w, 1);
+    const busyT = [0, 0];
+    for (const [e, a, b] of busyIv[k]) {
+      if (b < t0 || a > t1) continue;
+      const isE2 = e >= n1, y = isE2 ? n1 * rowH + gap + (e - n1) * rowH : e * rowH;
+      const xa = X(Math.max(a, t0)), xb = X(Math.min(b, t1));
+      c.fillStyle = isE2 ? C.E2 : C.E1; c.fillRect(xa, y + 0.15 * rowH, Math.max(1, xb - xa), Math.max(1, rowH * 0.7));
+      busyT[isE2 ? 1 : 0] += Math.min(b, t1) - Math.max(a, t0);
+    }
+    c.fillStyle = C.muted; c.textBaseline = 'top';
+    c.textAlign = 'left'; c.fillText(`−${GWIN} µs`, LW, H - axis + 4);
+    c.textAlign = 'right'; c.fillText('now', LW + w, H - axis + 4);
+    const span = Math.min(GWIN, t1);
+    document.getElementById('u' + k).innerHTML = `busy: E1 <b>${Math.round(100 * busyT[0] / (n1 * span))}%</b> · E2 <b>${Math.round(100 * busyT[1] / (n2 * span))}%</b>`;
   }
 
   // ---------- the two cells ----------
@@ -263,6 +457,7 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
           ui(now);
         }
         render(s, now);
+        drawGantt(k);
       };
       function render(s, now) {
         const w = s.width, Rpx = w * 0.46, sc = P ? Rpx / P.R : 1;
@@ -270,32 +465,27 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
         s.push(); s.translate(w / 2, w / 2);
         s.noStroke(); s.fill(16, 22, 30); s.circle(0, 0, Rpx * 2);
         s.noFill(); s.stroke(70, 86, 104, 170); s.strokeWeight(Math.max(2, Rpx * 0.02)); s.circle(0, 0, Rpx * 2);
-        // transporters
         s.stroke(C.S); s.strokeWeight(Math.max(2, Rpx * 0.018));
         for (const a of trans) s.line(Math.cos(a) * (Rpx - 5), Math.sin(a) * (Rpx - 5), Math.cos(a) * (Rpx + 5), Math.sin(a) * (Rpx + 5));
-        const snap = snaps[k];
+        const snap = snaps[k], T = tr[k], tracing = T && T.pts.length;
         if (snap) {
-          // cluster halos
           s.noStroke(); s.fill(255, 241, 201, 14);
           for (const [x, y] of snap.clusters) s.circle(x * sc, y * sc, (P.clusterR + 10) * 2 * sc);
           s.blendMode(s.ADD);
-          // metabolites
-          const pos = snap.pos, typ = snap.typ, d = Math.max(2.4, Rpx * 0.016);
+          const pos = snap.pos, typ = snap.typ, d = Math.max(2.4, Rpx * 0.016), fade = tracing ? 110 : 200;
           const cols = [col.S, col.I, col.P];
           for (let t = 0; t < 3; t++) {
-            cols[t].setAlpha(200); s.fill(cols[t]);
+            cols[t].setAlpha(fade); s.fill(cols[t]);
             for (let i = 0; i < typ.length; i++) if (typ[i] === t) s.circle(pos[2 * i] * sc, pos[2 * i + 1] * sc, d);
           }
-          // enzymes: ring when free, filled when busy
           const enz = snap.enz, de = Math.max(5, P.rho * 2 * sc);
           s.strokeWeight(1.5);
           for (let i = 0; i < enz.length; i += 3) {
             const code = enz[i + 2], c = (code % 2) ? col.E2 : col.E1, isBusy = code >= 2;
-            c.setAlpha(235);
+            c.setAlpha(tracing ? 150 : 235);
             if (isBusy) { s.noStroke(); s.fill(c); } else { s.noFill(); s.stroke(c); }
             s.circle(enz[i] * sc, enz[i + 1] * sc, de);
           }
-          // membrane events: leaks (magenta) and exports (green)
           s.strokeWeight(2);
           const L = flashes[k];
           for (let i = L.length - 1; i >= 0; i--) {
@@ -306,9 +496,22 @@ figcaption .sub { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
             const r0 = Rpx + 3, r1 = Rpx + 3 + (f.kind === 0 ? 14 : 8) * (0.4 + age);
             s.line(Math.cos(a) * r0, Math.sin(a) * r0, Math.cos(a) * r1, Math.sin(a) * r1);
           }
+          s.blendMode(s.BLEND);
+          // the traced molecule: trail coloured by what it was at each moment
+          if (tracing) {
+            s.strokeWeight(2); s.noFill();
+            for (let i = 1; i < T.pts.length; i++) {
+              const [x0, y0] = T.pts[i - 1], [x1, y1, st] = T.pts[i];
+              s.stroke(STATE_COL[st] || C.fg); s.line(x0 * sc, y0 * sc, x1 * sc, y1 * sc);
+            }
+            const [lx, ly, lst] = T.pts[T.pts.length - 1];
+            const pulse = reduced ? 1 : 1 + 0.25 * Math.sin(now / 160);
+            s.stroke(255); s.strokeWeight(2); s.noFill();
+            if (!T.done) s.circle(lx * sc, ly * sc, (lst >= 3 ? de + 10 : 16) * pulse);
+            else { s.stroke(lst === 2 ? C.P : C.I); s.circle(lx * sc, ly * sc, 22); }
+          }
         }
         s.pop();
-        // scale bar: 100 nm
         s.blendMode(s.BLEND); s.noStroke(); s.fill(217, 222, 230);
         const bar = P ? 100 * sc : Rpx / 2, bx = w - 12 - bar, by = w - 14;
         s.rect(bx, by, bar, 3); s.textSize(10.5); s.textAlign(s.CENTER, s.BOTTOM); s.text('100 nm', bx + bar / 2, by - 4);
