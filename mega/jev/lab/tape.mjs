@@ -28,6 +28,14 @@ export const toBars = (tape) => { const b = tape.bars.map(([t, o, h, l, c]) => (
 export async function loadFunding(coin, bars, { refresh = false } = {}) {
   const f = join(here, 'fixtures', `funding-${coin.toLowerCase()}-${bars.barMin === 240 ? '4h' : bars.barMin + 'm'}.json`);
   if (!refresh && existsSync(f)) return JSON.parse(readFileSync(f, 'utf8')).fund;
+  const prints = await fundingPrints(coin, bars);
+  const ms = bars.barMin * 6e4, idx = new Map(bars.map((b, i) => [b.t, i])), fund = new Array(bars.length).fill(0);
+  for (const p of prints) { const i = idx.get(Math.floor((p.time - 1) / ms) * ms); if (i != null) fund[i] += +p.fundingRate * 1e4; }
+  writeFileSync(f, JSON.stringify({ coin, source: 'api.hyperliquid.xyz fundingHistory, summed per bar, bp a long pays', fetched: new Date().toISOString(), prints: prints.length, fund: fund.map((x) => +x.toFixed(4)) }));
+  return fund;
+}
+
+async function fundingPrints(coin, bars) {
   const prints = [];
   let t = bars[0].t;
   const end = bars.at(-1).t + bars.barMin * 6e4;
@@ -41,8 +49,18 @@ export async function loadFunding(coin, bars, { refresh = false } = {}) {
     if (page.length < 500) break;
     await new Promise((r) => setTimeout(r, 120));
   }
-  const ms = bars.barMin * 6e4, idx = new Map(bars.map((b, i) => [b.t, i])), fund = new Array(bars.length).fill(0);
-  for (const p of prints) { const i = idx.get(Math.floor((p.time - 1) / ms) * ms); if (i != null) fund[i] += +p.fundingRate * 1e4; }
-  writeFileSync(f, JSON.stringify({ coin, source: 'api.hyperliquid.xyz fundingHistory, summed per bar, bp a long pays', fetched: new Date().toISOString(), prints: prints.length, fund: fund.map((x) => +x.toFixed(4)) }));
-  return fund;
+  return prints;
+}
+// The perp's premium over its oracle (a spot index), the last print in each
+// bar, in bp: a proxy for the basis a hedged carry trade is exposed to. A bar
+// with no print carries the last value forward.
+export async function loadPremium(coin, bars, { refresh = false } = {}) {
+  const f = join(here, 'fixtures', `premium-${coin.toLowerCase()}-${bars.barMin === 240 ? '4h' : bars.barMin + 'm'}.json`);
+  if (!refresh && existsSync(f)) return JSON.parse(readFileSync(f, 'utf8')).prem;
+  const prints = await fundingPrints(coin, bars);
+  const ms = bars.barMin * 6e4, idx = new Map(bars.map((b, i) => [b.t, i])), prem = new Array(bars.length).fill(null);
+  for (const p of prints) { const i = idx.get(Math.floor((p.time - 1) / ms) * ms); if (i != null) prem[i] = +p.premium * 1e4; }
+  for (let i = 0; i < prem.length; i++) if (prem[i] == null) prem[i] = i ? prem[i - 1] : 0;
+  writeFileSync(f, JSON.stringify({ coin, source: 'api.hyperliquid.xyz fundingHistory premium, last print per bar, bp', fetched: new Date().toISOString(), prints: prints.length, prem: prem.map((x) => +x.toFixed(3)) }));
+  return prem;
 }
