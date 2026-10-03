@@ -63,6 +63,18 @@ console.log("atom layouts");
   ck(crossings === 0 && worst > 0.5, `${specs.length} Voronoi atom boards: no crossed bonds (${crossings}), shortest bond ${(100 * worst).toFixed(0)}% of mean`);
 }
 
+console.log("torus views: a finger finds every end facing it");
+for (const spec of [{ type: "torus-hex-atoms", rows: 4, cols: 8 }, { type: "torus-hex-panels", rows: 4, cols: 8 }, { type: "torus-voronoi-panels", seed: "pick", n: 50 }]) {
+  // the donut (and the Clifford torus): the nanotorus is atoms, points with no cells, which once threw on every press
+  const B = S.board(spec), cam = O.surfaceCam(B.mesh), vp = { cx: 195, cy: 330, w: 390, h: 660 };
+  for (const four of [false, true]) {
+    cam.clifford = four && cam.kind === "torus";
+    const F = new O.TorusFrame(cam, vp, "donut"); let vis = 0, hit = 0;
+    for (let c = 0; c < B.n; c++) { const P = F.cell(c); if (!P[3] || P[4] < 0.3) continue; vis++; let got = -2; try { got = F.pick(P[0], P[1]); } catch (e) { got = -3; } if (got === c) hit++; }
+    ck(vis > 0 && hit === vis, `${B.name}${four ? " (4D)" : ""}: every cell facing you is picked at its own centre (${hit}/${vis})`);
+  }
+}
+
 console.log("solver vs brute force");
 {
   function brute(g, pairs) {

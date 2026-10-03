@@ -668,6 +668,7 @@
   var EDGE_STEPS = 4;
   Frame.prototype.ring = function (i) {
     var self = this;
+    if (!this.mesh.polys[i]) return null; // a mesh of points (Strand's nanotorus atoms) has no cells to outline
     if (this.mode === "donut") {
       if (this.P[i][4] < -0.15) return null;
       if (!this.rings) this.rings = {};
@@ -695,12 +696,16 @@
   Frame.prototype.pick = function (x, y) {
     var m = this.mesh;
     if (this.mode === "flat") { var f = this.flatAt(x, y); return torusCellAt(m, f[0], f[1]); }
-    for (var q = this.order.length - 1; q >= 0; q--) {
+    if (m.polys.length) for (var q = this.order.length - 1; q >= 0; q--) {
       var i = this.order[q], ring = this.ring(i);
       if (!ring || this.P[i][4] < 0.02) continue;
       if (inPoly(ring, x, y)) return i;
     }
-    return -1;
+    // points with no cells (Strand's nanotorus atoms), or a gap between drawn outlines (they bend at grazing
+    // angles, so a cell's own centre can fall just outside): the nearest centre facing you, within reach
+    var best = -1, bd = Math.pow(Math.max(8, this.cellR * (m.polys.length ? 0.8 : 1.1)), 2);
+    for (var a = 0; a < m.n; a++) { var P = this.P[a]; if (!P[3] || P[4] < 0.05) continue; var d = (P[0] - x) * (P[0] - x) + (P[1] - y) * (P[1] - y); if (d < bd) { bd = d; best = a; } }
+    return best;
   };
   /* Is cell i the front-most thing at its own centre? (3D: whether marks
      drawn after the cells would land on top of something nearer.) */
