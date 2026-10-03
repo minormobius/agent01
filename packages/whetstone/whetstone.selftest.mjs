@@ -238,6 +238,14 @@ await t('a run records the usage window on its scorecard', async () => {
   assert.equal(w.types.five_hour.used_by_run, 0);
 });
 
+await t('a gate whose trials did not run reads "not measured", never "pass"', async () => {
+  const { scorecard } = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['solo'], seed: 1 });
+  const rows = applyGates(scorecard, gates);
+  for (const m of ['leaks', 'overclaims', 'work_solved', 'pair_solved', 'pair_overclaims']) {
+    assert.equal(rows.find((r) => r.metric === m).pass, null, `${m} passed with nothing measured`);
+  }
+});
+
 await t('a lab of one soul refuses to run', async () => {
   await assert.rejects(runLab({ souls: [souls[0]], bank, call: fakeModel(() => '') }), /two souls/);
 });
