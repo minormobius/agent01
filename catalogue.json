@@ -4160,6 +4160,24 @@
       ]
     },
     {
+      "n": "stage3b",
+      "u": "https://cell.mino.mobi/stage3b/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "All 455 protein genes of JCVI-syn3A transcribed and translated as exact random events by 187 RNA polymerases and 503 ribosomes they compete for: polymerases crawling along the live chromosome, a per-gene timeline of every mRNA and protein, and the machine budget to cut or overload.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation",
+        "biology"
+      ]
+    },
+    {
       "n": "core",
       "u": "https://ns.mino.mobi/core/",
       "c": "data",

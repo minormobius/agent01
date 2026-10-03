@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Genome, Running · Minimal Cell Twin</title>
+<meta name="description" content="Stage 3b of the Minimal Cell Twin: all 455 protein-coding genes of JCVI-syn3A transcribed and translated as exact random events by 187 RNA polymerases and 503 ribosomes that every gene competes for.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/cell.css">
+<style>
+:root {
+  --k-dna: #6ea8ff; --k-tx: #4fd1e8; --k-tl: #f2b84b; --k-fate: #ff8a4c;
+  --k-met: #72e36c; --k-trn: #a98bff; --k-unk: #ff5fa2; --k-rna: #e8e2d0; --k-none: #7d8898;
+}
+.sec-title { font: 600 22px/1.2 var(--display); margin: 0; }
+.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+@media (max-width: 860px) { .how { grid-template-columns: minmax(0, 1fr); } }
+.how h3 { font: 600 15px/1.2 var(--display); margin: 0 0 4px; }
+.how p { margin: 0; color: var(--muted); font-size: 13px; }
+.how p b { color: var(--fg); font-weight: 500; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 22px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.ringwrap { min-width: 0; display: grid; gap: 8px; }
+#ring { width: 100%; max-width: 680px; aspect-ratio: 1; margin: 0 auto; position: relative; cursor: crosshair; }
+#ring canvas { display: block; }
+.ringkey { text-align: center; color: var(--muted); font-size: 12.5px; margin: 0; }
+.side > section { padding: 14px 16px; border-top: 1px solid var(--line); }
+.side > section:first-child { border-top: 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.clock { font: 400 12px/1.4 var(--mono); color: var(--muted); margin-top: 10px; font-variant-numeric: tabular-nums; }
+.clock b { color: var(--fg); font-weight: 500; font-size: 18px; }
+.gauge { display: grid; gap: 4px; margin-bottom: 12px; }
+.gauge .top { display: flex; justify-content: space-between; font: 500 12px/1.2 var(--mono); }
+.gauge .top span { color: var(--muted); font-weight: 400; }
+.gauge .bar { height: 10px; border-radius: 2px; background: var(--line); overflow: hidden; display: flex; }
+.gauge .bar i { display: block; height: 100%; background: var(--c); }
+.gauge p { margin: 0; font-size: 12px; color: var(--muted); }
+.nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font: 400 11.5px/1.3 var(--mono); color: var(--muted); }
+.nums b { display: block; font: 500 16px/1.2 var(--mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+.slider { display: grid; gap: 4px; margin-top: 10px; }
+.slider label { display: flex; justify-content: space-between; font: 500 12px/1.2 var(--mono); }
+.slider label span { color: var(--muted); font-weight: 400; }
+.slider input { width: 100%; accent-color: var(--k-tl); }
+#q { width: 100%; font: 400 14px var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+.hits { display: grid; gap: 2px; margin-top: 6px; }
+.hits button { text-align: left; border: 0; padding: 5px 6px; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; font: 400 13px var(--body); }
+.hits button:hover { background: var(--line); }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.hits .p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hits .n { font: 400 12px var(--mono); color: var(--muted); }
+.card h3 { font: 600 22px/1.15 var(--display); margin: 0; }
+.card .prod { margin: 2px 0 10px; color: var(--muted); font-size: 13px; }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 14px; margin: 0; font-size: 13px; }
+.kv dt { color: var(--muted); font: 400 12px/1.5 var(--mono); }
+.kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.kv dd small { color: var(--muted); font-size: 12px; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.acts button[aria-pressed="true"] { border-color: var(--k-unk); color: var(--k-unk); }
+
+.tl { padding: 14px 16px; display: grid; gap: 10px; position: relative; }
+.tl-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: baseline; }
+.tl-head h2 { font: 600 18px/1.2 var(--display); margin: 0; }
+.tl-cap { margin: 0; color: var(--muted); font-size: 13px; max-width: 92ch; }
+.tl-cap b { color: var(--fg); font-weight: 500; }
+#tl { width: 100%; height: 230px; display: block; }
+.tip { position: absolute; pointer-events: none; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; font: 400 12px/1.5 var(--mono); max-width: 290px; z-index: 2; }
+
+.budget { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+@media (max-width: 760px) { .budget { grid-template-columns: minmax(0, 1fr); } }
+.budget .panel { padding: 14px 16px; }
+.budget canvas { width: 100%; height: 150px; display: block; }
+.try { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .try { grid-template-columns: minmax(0, 1fr); } }
+.try article { padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.try h3 { font: 600 16px/1.2 var(--display); margin: 0; }
+.try p { margin: 0; color: var(--muted); font-size: 13px; }
+.try button { justify-self: start; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Minimal Cell Twin</a><span>/</span><a href="../stage1/">1</a><span>·</span><a href="../stage2/">2</a><span>·</span><a href="../stage3/">3a</a><span>·</span><span>3b</span></nav>
+  <header class="page">
+    <div class="eyebrow">Stage 3b · the genome, running</div>
+    <h1>455 genes, 503 ribosomes</h1>
+    <p class="lede">This is Stage 1's engine at the scale of the real cell. Every protein-coding gene of JCVI-syn3A is transcribed and translated as exact random events. The machines that do it are <b>finite and shared</b>: 187 RNA polymerases and 503 ribosomes for the whole genome. A job takes real time, set by the gene's real length, and while a machine is busy no other gene can use it. Watch polymerases crawl along the chromosome, and see what happens when the budget changes.</p>
+  </header>
+
+  <section class="how" aria-label="How this stage works">
+    <div><h3>The machines</h3><p>An <b>RNA polymerase</b> copies a gene at 20 letters per second, so a 1,000-letter gene keeps it busy for 50 s. A <b>ribosome</b> builds a protein at 10 amino acids per second, so a typical 283-amino-acid protein takes about half a minute. When every ribosome is busy, a new mRNA has to wait.</p></div>
+    <div><h3>The events</h3><p>When a machine starts a job is random, as in Stage 1. When it finishes is set by the length. mRNAs fall apart at a rate set by their length. Proteins are thinned out as the cell grows and divides every 105 minutes. That's about 30 events every second, across the whole genome.</p></div>
+    <div><h3>What is fitted, what is not</h3><p>Each gene's promoter strength and ribosome-binding rate are set so that, on average, the cell holds its <b>measured</b> protein counts and published mRNA levels. Everything else comes out of the simulation and is not fitted: the noise, the bursts, the queues for machines, and every response to a knockout or a change in budget.</p></div>
+  </section>
+
+  <div class="main">
+    <div class="ringwrap">
+      <div id="ring" role="img" aria-label="The chromosome with each gene lit while it has mRNA, white dots for RNA polymerases currently transcribing, and a spike for each protein's live copy number"></div>
+      <p class="ringkey">White dots: RNA polymerases copying a gene right now, moving in the direction the gene is read. A gene lights up while its mRNA exists. Spikes: live protein count (log scale). Click a gene to follow it.</p>
+    </div>
+    <aside class="panel side">
+      <section>
+        <div class="controls">
+          <button class="primary" id="play" type="button">Pause</button>
+          <div class="seg" id="speed" role="group" aria-label="Simulation speed"></div>
+          <button id="reset" type="button">Reset</button>
+        </div>
+        <div class="clock"><b id="clock">0:00</b> of cell time · <span id="evs">–</span></div>
+      </section>
+      <section>
+        <div class="gauge" style="--c:var(--k-tl)"><div class="top">Ribosomes <span id="g-ribo"></span></div><div class="bar"><i id="b-ribo"></i></div></div>
+        <div class="gauge" style="--c:var(--fg)"><div class="top">RNA polymerases <span id="g-rnap"></span></div><div class="bar"><i id="b-rnap"></i></div><p>Only mRNA genes are simulated, so polymerases look idle here. In a real cell, rRNA and tRNA genes keep many more of them busy.</p></div>
+        <div class="nums"><div><b id="n-m">–</b>mRNAs now</div><div><b id="n-p">–</b>proteins now</div><div><b id="n-r">–</b>proteins / s</div></div>
+        <div class="slider"><label for="s-ribo">Ribosomes in the cell <span id="v-ribo">503</span></label><input id="s-ribo" type="range" min="50" max="1000" step="1" value="503"></div>
+        <div class="slider"><label for="s-rnap">RNA polymerases <span id="v-rnap">187</span></label><input id="s-rnap" type="range" min="5" max="400" step="1" value="187"></div>
+      </section>
+      <section>
+        <label class="label" for="q" style="display:block">Follow a gene</label>
+        <input id="q" type="search" placeholder="gapDH, dnaA, ribosomal…" autocomplete="off">
+        <div class="hits" id="hits"></div>
+      </section>
+      <section class="card" id="card" aria-live="polite"></section>
+    </aside>
+  </div>
+
+  <section class="panel tl" aria-labelledby="tl-t">
+    <div class="tl-head"><h2 id="tl-t">Timeline of one gene</h2><span class="clock" id="tl-who" style="margin:0"></span></div>
+    <p class="tl-cap">Top row: each bar is <b>one RNA polymerase copying the gene</b>, from start to finish. Below: each bar is <b>one mRNA molecule</b>, from the moment it's finished to the moment it falls apart. Each tick is <b>one protein completed</b> from that mRNA. A tick past the end of a bar is a ribosome that was already working when its message was cut. Last 20 minutes of cell time.</p>
+    <canvas id="tl" aria-label="Timeline of transcription, mRNA lifetimes and translations for the followed gene"></canvas>
+    <div class="tip" id="tip" hidden></div>
+  </section>
+
+  <section class="budget" aria-label="The budget over time">
+    <div class="panel"><p class="label">Busy ribosomes · since start</p><canvas id="c-ribo"></canvas></div>
+    <div class="panel"><p class="label">Proteins finished per second · since start</p><canvas id="c-rate"></canvas></div>
+  </section>
+
+  <section style="display:grid;gap:14px" aria-labelledby="try-t">
+    <h2 class="sec-title" id="try-t">Three things to try</h2>
+    <div class="try">
+      <article class="panel"><h3>Overload one gene</h3><p>Turn up one long gene 50 times. Its mRNAs soak up ribosomes, the busy-ribosome line climbs, and every other protein slows down. Engineers adding genes to bacteria see this cost as slower growth, called burden.</p><button type="button" data-try="burden">Set it up</button></article>
+      <article class="panel"><h3>Halve the ribosomes</h3><p>Cut the ribosomes from 503 to 250. The same share stays busy, about 70%, so protein output roughly halves. It's the same genome and the same promoters, with less machinery.</p><button type="button" data-try="half">Set it up</button></article>
+      <article class="panel"><h3>Knock out GAPDH</h3><p>The cell's most abundant protein. Its mRNA is gone within minutes, but 1,300 copies of the protein only dilute away, halving every 105 minutes. Cells feel a knockout late.</p><button type="button" data-try="ko">Set it up</button></article>
+    </div>
+  </section>
+
+  <div class="notes">
+    <div><h2>Where the numbers come from</h2><p>Gene positions and lengths come from the genome (NCBI CP016816.2). Protein targets are the measured counts of Breuer et al. 2019. mRNA targets are the averages from Thornburg et al. 2022. Machine counts and speeds, mRNA decay, and protein degradation follow Thornburg et al. 2022: 187 polymerases, 503 ribosomes, 10 amino acids per second, and 3.5 nucleotides of mRNA per second. Undetected proteins are given 10 copies, as in that model.</p></div>
+    <div><h2>What is still missing</h2><p><b>Energy and raw materials.</b> Here, building a protein costs nothing, and amino acids and nucleotides never run out. Also missing: rRNA and tRNA transcription, regulation, and real division (dilution is continuous). Each of these limits the cell in reality, so this cell is a little too free.</p></div>
+    <div><h2>Next layer: 3c</h2><p>Metabolism underneath. Glycolysis makes the ATP and GTP that every ribosome step costs, and transporters bring in the nucleotides and amino acids. When energy runs low, ribosomes stall, and that's how a metabolic knockout reaches gene expression.</p></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script>
+(async () => {
+  const css = getComputedStyle(document.documentElement);
+  const tok = (n) => css.getPropertyValue(n).trim();
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fmtN = (n) => Math.round(n).toLocaleString('en-US');
+  const { meta, genes: all } = await (await fetch('../stage3/data/genome.json')).json();
+  const L = meta.genomeLength;
+  const GROUPS = [
+    ['Translation', '--k-tl', ['Translation', 'Ribosome biogenesis', 'rRNA modification', 'tRNA modification']],
+    ['Metabolism', '--k-met', ['Glucose transport & catabolism', 'Carbon source transport & catabolism', 'Metabolic process', 'Nucleotide salvage', 'Cofactor transport and salvage', 'Lipid salvage and biogenesis', 'Redox homeostasis']],
+    ['Transport', '--k-trn', ['Transport', 'Efflux']],
+    ['DNA & division', '--k-dna', ['DNA replication', 'DNA topology', 'DNA repair', 'DNA metabolism', 'Chromosome segregation', 'Cell division']],
+    ['Transcription', '--k-tx', ['Transcription', 'Regulation', 'RNA metabolism']],
+    ['Protein fate', '--k-fate', ['Protein export', 'Protein folding', 'Proteolysis', 'Lipoprotein']],
+    ['Unknown function', '--k-unk', ['Unclear']],
+  ];
+  const byCat = {}; GROUPS.forEach(([n, c, cats]) => cats.forEach((k) => byCat[k] = { name: n, c: tok(c) }));
+  const RNA = { name: 'RNA genes', c: tok('--k-rna') }, NONE = { name: 'Not in 2019 annotation', c: tok('--k-none') };
+  all.forEach((g) => { g.grp = g.kind !== 'protein' && g.kind !== 'pseudo' ? RNA : byCat[g.cat] || (/ribosomal protein/i.test(g.product) ? byCat.Translation : NONE); g.mid = (g.start + g.end) / 2; });
+  const genes = all.filter((g) => g.kind === 'protein');      // simulated
+  genes.forEach((g, i) => { g.si = i; });
+  const label = (g) => g.name || g.tag.replace('JCVISYN3A_', '');
+  const SPEEDS = [1, 10, 60, 300];
+
+  // ---------- state ----------
+  let S = null, playing = true, speed = 10, busy = false, seed = 1, t0show = 0;
+  let sel = genes.find((g) => g.name === 'gapDH') || genes[0];
+  const recs = new Map();       // gene index -> { tx: [[t0,t1]], m: Map(id -> rec) }
+  const flashes = [];
+  const hist = [];              // [t, busyRibo, proteinsPerSec]
+  let lastTl = 0, lastHistT = -1e9, evRate = 0, lastEv = 0, lastWall = performance.now();
+  const knocked = new Set(), boosted = new Set();
+
+  const worker = new Worker('sim.js');
+  worker.onmessage = (e) => {
+    const m = e.data;
+    if (m.type === 'meta') { busy = false; return; }
+    if (m.type !== 'frame') return;
+    busy = false; S = m.s;
+    if (t0show === 0 && !hist.length) { t0show = S.t; lastTl = S.totals.tl; lastHistT = S.t; }
+    ingest(S.ev);
+    if (S.t - lastHistT >= 10) {
+      const rate = (S.totals.tl - lastTl) / (S.t - lastHistT);
+      hist.push([S.t - t0show, S.ribo.busy, rate]); if (hist.length > 2000) hist.shift();
+      lastTl = S.totals.tl; lastHistT = S.t;
+    }
+  };
+  function ingest(ev) {
+    const now = performance.now();
+    for (let i = 0; i < ev.length; i += 5) {
+      const type = ev[i], g = ev[i + 1], id = ev[i + 2], t = ev[i + 3], tEnd = ev[i + 4];
+      let R = recs.get(g); if (!R) recs.set(g, R = { tx: [], m: new Map() });
+      if (type === 0) R.tx.push([t, tEnd]);
+      else if (type === 1) { R.m.set(id, { t0: t, t1: null, ticks: [] }); if (!reduced && flashes.length < 80) flashes.push({ g, t: now }); }
+      else if (type === 2) { const r = R.m.get(id) || R.m.set(id, { t0: null, t1: null, ticks: [] }).get(id); r.t1 = t; }
+      else if (type === 4) { const r = R.m.get(id) || R.m.set(id, { t0: null, t1: null, ticks: [] }).get(id); r.ticks.push(t); }
+    }
+  }
+  function prune() {
+    if (!S) return; const keep = S.t - 1500;
+    for (const R of recs.values()) {
+      R.tx = R.tx.filter((x) => x[1] > keep);
+      for (const [id, r] of R.m) if (r.t1 != null && r.t1 < keep && (!r.ticks.length || r.ticks[r.ticks.length - 1] < keep)) R.m.delete(id);
+    }
+  }
+  setInterval(prune, 3000);
+
+  function reset() {
+    seed = (Math.random() * 2 ** 31) | 0; S = null; busy = true; t0show = 0; hist.length = 0; recs.clear();
+    knocked.clear(); boosted.clear(); setSliders(503, 187);
+    worker.postMessage({ type: 'init', seed, warmup: 1800, genes: genes.map(({ nt, aa, mrna, ptn }) => ({ nt, aa, mrna, ptn })) });
+    renderCard();
+  }
+
+  // ---------- controls ----------
+  const playBtn = document.getElementById('play');
+  const setPlaying = (v) => { playing = v; playBtn.textContent = v ? 'Pause' : 'Play'; };
+  playBtn.addEventListener('click', () => setPlaying(!playing));
+  document.getElementById('reset').addEventListener('click', reset);
+  const segEl = document.getElementById('speed');
+  segEl.innerHTML = SPEEDS.map((v) => `<button type="button" data-v="${v}">${v}×</button>`).join('');
+  const syncSpeed = () => segEl.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', +x.dataset.v === speed));
+  segEl.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { speed = +b.dataset.v; syncSpeed(); } });
+  syncSpeed();
+  const sRibo = document.getElementById('s-ribo'), sRnap = document.getElementById('s-rnap');
+  function setSliders(ribo, rnap) {
+    sRibo.value = ribo; sRnap.value = rnap;
+    document.getElementById('v-ribo').textContent = ribo; document.getElementById('v-rnap').textContent = rnap;
+    worker.postMessage({ type: 'machines', ribo, rnap });
+  }
+  sRibo.addEventListener('input', () => setSliders(+sRibo.value, +sRnap.value));
+  sRnap.addEventListener('input', () => setSliders(+sRibo.value, +sRnap.value));
+  function promoter(g, mult) {
+    knocked.delete(g.si); boosted.delete(g.si);
+    if (mult === 0) knocked.add(g.si); if (mult > 1) boosted.add(g.si);
+    worker.postMessage({ type: 'promoter', g: g.si, mult }); renderCard();
+  }
+  const qEl = document.getElementById('q'), hitsEl = document.getElementById('hits');
+  qEl.addEventListener('input', () => {
+    const q = qEl.value.trim().toLowerCase();
+    if (!q) { hitsEl.innerHTML = ''; return; }
+    hitsEl.innerHTML = genes.filter((g) => [g.tag, g.name, g.product, g.ann].join(' ').toLowerCase().includes(q)).slice(0, 7)
+      .map((g) => `<button type="button" data-i="${g.si}"><i class="dot" style="background:${g.grp.c}"></i><span class="p"><b style="font-weight:500">${label(g)}</b> ${g.product}</span><span class="n">${g.ptn ?? ''}</span></button>`).join('') || '<p style="margin:6px 0 0;color:var(--muted);font-size:13px">No protein gene matches.</p>';
+  });
+  hitsEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-i]'); if (b) { select(genes[+b.dataset.i]); qEl.value = ''; hitsEl.innerHTML = ''; } });
+  function select(g) { if (!g) return; sel = g; renderCard(); try { history.replaceState(null, '', '#' + g.tag); } catch {} }
+  document.getElementById('card').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const a = b.dataset.act;
+    promoter(sel, a === 'ko' ? (knocked.has(sel.si) ? 1 : 0) : a === 'up' ? (boosted.has(sel.si) ? 1 : 20) : 1);
+  });
+  document.querySelectorAll('[data-try]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.try;
+    if (k === 'burden') { const g = genes.find((x) => x.name === 'pheT') || genes.reduce((a, x) => (x.aa > a.aa ? x : a)); select(g); promoter(g, 50); speed = 60; }
+    if (k === 'half') { setSliders(250, +sRnap.value); speed = 60; }
+    if (k === 'ko') { const g = genes.find((x) => x.name === 'gapDH'); select(g); promoter(g, 0); speed = 300; }
+    syncSpeed(); setPlaying(true);
+    document.getElementById('ring').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+  }));
+
+  // ---------- card ----------
+  const dur = (s) => s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${(s / 60).toFixed(1)} min` : `${(s / 3600).toFixed(1)} h`;
+  function renderCard() {
+    const g = sel, el = document.getElementById('card'), i = g.si;
+    const m = S ? S.m[i] : '–', p = S ? S.prot[i] : '–';
+    const kdeg = 88 * 18 / 452 / g.nt, dP = Math.LN2 / 6300 + 7.7e-6, target = Math.max(10, g.ptn ?? 10);
+    const burst = target * dP / (Math.max(g.mrna, 1e-3) * kdeg);
+    const txNow = S ? (() => { let n = 0; for (let k = 0; k < S.tx.length; k += 3) if (S.tx[k] === i) n++; return n; })() : 0;
+    el.innerHTML = `<p class="label">Following ${g.tag}</p>
+      <h3 style="color:${g.grp.c}">${label(g)}</h3><p class="prod">${g.product}</p>
+      <dl class="kv">
+        <dt>mRNA now</dt><dd>${m} <small>· ${g.mrna.toFixed(2)} on average${txNow ? ` · ${txNow} being copied` : ''}</small></dd>
+        <dt>protein now</dt><dd>${typeof p === 'number' ? fmtN(p) : p} <small>· measured ${g.ptn != null ? fmtN(g.ptn) : 'n/a (10 assumed)'}</small></dd>
+        <dt>per mRNA</dt><dd>~${burst < 10 ? burst.toFixed(1) : fmtN(burst)} proteins <small>· each mRNA lasts ~${dur(1 / kdeg)}</small></dd>
+        <dt>copy job</dt><dd>${dur(g.nt / 20)} <small>· ${fmtN(g.nt)} letters at 20/s</small></dd>
+        <dt>protein job</dt><dd>${dur(g.aa / 10)} <small>· ${fmtN(g.aa)} amino acids at 10/s</small></dd>
+      </dl>
+      <div class="acts">
+        <button type="button" data-act="ko" aria-pressed="${knocked.has(i)}">${knocked.has(i) ? 'Restore gene' : 'Knock out'}</button>
+        <button type="button" data-act="up" aria-pressed="${boosted.has(i)}">${boosted.has(i) ? 'Back to normal' : 'Overexpress ×20'}</button>
+      </div>`;
+  }
+
+  // ---------- readouts, charts, timeline ----------
+  function canvas2d(cv) {
+    const dpr = Math.min(2, devicePixelRatio || 1), W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); return [c, W, H];
+  }
+  const MUTED = tok('--muted'), LINE = tok('--line'), FG = tok('--fg'), AMBER = tok('--k-tl');
+  function lineChart(id, k, col, yMaxFix) {
+    const [c, W, H] = canvas2d(document.getElementById(id));
+    const Lm = 40, B = 18, T = 6, w = W - Lm - 6, h = H - B - T;
+    c.font = '11px "IBM Plex Mono", monospace'; c.fillStyle = MUTED; c.strokeStyle = LINE; c.lineWidth = 1;
+    if (hist.length < 2) return;
+    const tMax = Math.max(60, hist[hist.length - 1][0]);
+    let yMax = yMaxFix || Math.max(...hist.map((x) => x[k])) * 1.2;
+    for (const f of [0, 0.5, 1]) { const y = T + h * (1 - f); c.beginPath(); c.moveTo(Lm, y); c.lineTo(Lm + w, y); c.stroke(); c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText(f === 0 ? '0' : (yMax * f).toFixed(yMax * f < 20 ? 1 : 0), Lm - 6, y); }
+    c.textAlign = 'right'; c.textBaseline = 'top'; c.fillText(dur(tMax), Lm + w, T + h + 4);
+    c.beginPath(); hist.forEach((x, i) => { const px = Lm + w * x[0] / tMax, py = T + h * (1 - x[k] / yMax); i ? c.lineTo(px, py) : c.moveTo(px, py); });
+    c.strokeStyle = col; c.lineWidth = 2; c.stroke();
+  }
+  let uiLast = 0;
+  function ui(now) {
+    if (!S || now - uiLast < 250) return;
+    const dtw = (now - lastWall) / 1000; evRate = 0.5 * evRate + 0.5 * ((S.totals.events - lastEv) / dtw); lastEv = S.totals.events; lastWall = now; uiLast = now;
+    const tt = Math.max(0, S.t - t0show), hh = Math.floor(tt / 3600), mm = Math.floor(tt % 3600 / 60), ss = Math.floor(tt % 60);
+    document.getElementById('clock').textContent = (hh ? hh + ':' + String(mm).padStart(2, '0') : mm) + ':' + String(ss).padStart(2, '0');
+    document.getElementById('evs').textContent = playing ? `${fmtN(evRate)} events/s` : 'paused';
+    const r = S.ribo, p = S.rnap;
+    document.getElementById('g-ribo').textContent = `${r.busy} busy of ${r.total}`;
+    document.getElementById('b-ribo').style.width = Math.min(100, 100 * r.busy / Math.max(1, r.total)) + '%';
+    document.getElementById('g-rnap').textContent = `${p.busy} busy of ${p.total}`;
+    document.getElementById('b-rnap').style.width = Math.min(100, 100 * p.busy / Math.max(1, p.total)) + '%';
+    let mt = 0, pt = 0; for (let i = 0; i < S.m.length; i++) { mt += S.m[i]; pt += S.prot[i]; }
+    document.getElementById('n-m').textContent = fmtN(mt); document.getElementById('n-p').textContent = fmtN(pt);
+    document.getElementById('n-r').textContent = hist.length ? hist[hist.length - 1][2].toFixed(1) : '–';
+    renderCard();
+    lineChart('c-ribo', 1, AMBER, 0); lineChart('c-rate', 2, FG, 0);
+  }
+
+  const tlCv = document.getElementById('tl'), tip = document.getElementById('tip'), WIN = 1200;
+  let TL = null;
+  function drawTimeline() {
+    const [c, W, H] = canvas2d(tlCv);
+    document.getElementById('tl-who').textContent = `${label(sel)} · ${sel.tag}`;
+    if (!S) return;
+    const Lw = W < 560 ? 70 : 120, top = 4, axis = 20, w = W - Lw - 8, t1 = S.t, t0 = t1 - WIN, X = (t) => Lw + w * (t - t0) / WIN;
+    const R = recs.get(sel.si) || { tx: [], m: new Map() }, col = sel.grp.c;
+    c.font = '11px "IBM Plex Mono", monospace'; c.textBaseline = 'top';
+    for (let k = 0; k <= 4; k++) { const x = Lw + w * k / 4; c.strokeStyle = LINE; c.beginPath(); c.moveTo(x, top); c.lineTo(x, H - axis); c.stroke(); c.fillStyle = MUTED; c.textAlign = k === 4 ? 'right' : k === 0 ? 'left' : 'center'; c.fillText(k === 4 ? 'now' : `−${(WIN - k * WIN / 4) / 60} min`, x, H - axis + 5); }
+    c.textBaseline = 'middle'; c.textAlign = 'left'; c.fillStyle = FG; c.font = '12px "IBM Plex Sans", sans-serif';
+    const txH = 22; c.fillText('copying', 0, top + txH / 2); c.fillText('mRNAs', 0, top + txH + 14);
+    // transcription runs (stacked if they overlap)
+    const lanes = [];
+    for (const [a, b] of R.tx) { if (b < t0) continue; let l = lanes.findIndex((e) => e < a); if (l < 0) { l = lanes.length; lanes.push(0); } lanes[l] = b; const y = top + 3 + (l % 3) * 6; c.fillStyle = FG; c.globalAlpha = 0.75; c.fillRect(X(Math.max(a, t0)), y, Math.max(1.5, X(Math.min(b, t1)) - X(Math.max(a, t0))), 4); c.globalAlpha = 1; }
+    // mRNA lifetimes with protein ticks
+    const list = [...R.m.values()].filter((r) => (r.t1 ?? t1) >= t0 || (r.ticks.length && r.ticks[r.ticks.length - 1] >= t0)).sort((a, b) => (a.t0 ?? -1) - (b.t0 ?? -1));
+    const rowsEnd = [];
+    for (const r of list) { const a = r.t0 ?? t0; let k = rowsEnd.findIndex((e) => e < a - 1); if (k < 0) { k = rowsEnd.length; rowsEnd.push(0); } rowsEnd[k] = Math.max(r.t1 ?? t1, r.ticks[r.ticks.length - 1] || 0); r.row = k; }
+    const nRows = Math.max(1, Math.min(14, rowsEnd.length)), y0 = top + txH + 4, rowH = Math.min(14, (H - axis - y0 - 4) / nRows);
+    TL = { X, t0, t1, w, Lw, y0, rowH, list };
+    for (const r of list) {
+      const y = y0 + (r.row % nRows) * rowH + rowH / 2, a = Math.max(r.t0 ?? t0, t0), b = r.t1 ?? t1;
+      c.fillStyle = col; c.globalAlpha = 0.45; c.fillRect(X(a), y - 1.5, Math.max(1.5, X(b) - X(a)), 3); c.globalAlpha = 1;
+      for (const tk of r.ticks) if (tk >= t0) c.fillRect(X(tk) - 0.6, y - rowH * 0.4, 1.2, rowH * 0.8);
+      if (r.t1 == null) { c.beginPath(); c.arc(X(b), y, 2.5, 0, 7); c.fill(); }
+    }
+    if (!list.length) { c.fillStyle = MUTED; c.textAlign = 'center'; c.fillText(knocked.has(sel.si) ? 'knocked out: no new mRNA' : 'no mRNA for this gene in the window yet: rare genes are rare', Lw + w / 2, y0 + 30); }
+  }
+  tlCv.addEventListener('mousemove', (e) => {
+    if (!TL) return; const b = tlCv.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top;
+    const row = Math.floor((my - TL.y0) / TL.rowH), t = TL.t0 + (mx - TL.Lw) / TL.w * WIN, sl = 4 / TL.w * WIN;
+    const r = TL.list.find((r) => r.row === row && t >= (r.t0 ?? TL.t0) - sl && t <= Math.max(r.t1 ?? TL.t1, r.ticks[r.ticks.length - 1] || 0) + sl);
+    if (!r) { tip.hidden = true; return; }
+    const life = (r.t1 ?? S.t) - (r.t0 ?? TL.t0);
+    tip.innerHTML = `<b style="color:${sel.grp.c}">${label(sel)} mRNA</b><br>${r.t0 == null ? 'made before the window' : 'finished ' + dur(S.t - r.t0) + ' ago'}<br>${r.t1 == null ? 'still alive' : 'fell apart after ' + dur(life)}<br>${r.ticks.length} protein${r.ticks.length === 1 ? '' : 's'} completed from it`;
+    const host = tlCv.parentElement.getBoundingClientRect(); tip.hidden = false;
+    tip.style.left = Math.max(8, Math.min(e.clientX - host.left + 14, host.width - 300)) + 'px'; tip.style.top = (e.clientY - host.top + 14) + 'px';
+  });
+  tlCv.addEventListener('mouseleave', () => { tip.hidden = true; });
+
+  // ---------- the live ring ----------
+  const host = document.getElementById('ring');
+  new p5((s) => {
+    let W;
+    const size = () => Math.min(host.parentElement.clientWidth, 680);
+    const ang = (pos) => pos / L * Math.PI * 2 - Math.PI / 2;
+    const cols = new Map();
+    s.setup = () => { W = size(); s.createCanvas(W, W).parent(host); s.pixelDensity(Math.min(2, devicePixelRatio || 1)); s.textFont('monospace'); s.strokeCap(s.SQUARE); };
+    s.windowResized = () => { W = size(); s.resizeCanvas(W, W); };
+    const C = (hex) => cols.get(hex) || cols.set(hex, s.color(hex)).get(hex);
+    s.draw = () => {
+      const now = performance.now();
+      if (playing && !busy && S !== undefined) { busy = true; worker.postMessage({ type: 'step', dt: speed * Math.min(s.deltaTime, 100) / 1000 }); }
+      ui(now); drawTimeline();
+      const R = W / 2, fo = R * .66, fi = R * .6, ro = R * .585, ri = R * .525, sk0 = R * .685, sk1 = R * .96;
+      s.background(7, 9, 12); s.push(); s.translate(W / 2, W / 2);
+      s.noFill(); s.stroke(40, 50, 64); s.strokeWeight(1); s.circle(0, 0, fi + ro);
+      const maxLog = Math.log10(1500);
+      for (const g of all) {
+        const a0 = ang(g.start), a1 = Math.max(ang(g.end), a0 + 0.004), sim = g.kind === 'protein';
+        const on = sim && S ? S.m[g.si] > 0 : false, ko = sim && knocked.has(g.si);
+        const col = C(g.grp.c); col.setAlpha(!sim ? 50 : ko ? 25 : on ? 255 : 70);
+        s.stroke(col); s.strokeWeight((fo - fi) * 0.92);
+        const r = g.strand > 0 ? (fo + fi) / 2 : (ro + ri) / 2; s.arc(0, 0, 2 * r, 2 * r, a0, a1);
+        if (sim && S) {
+          const h = (sk1 - sk0) * Math.log10(Math.max(1, S.prot[g.si])) / maxLog, am = ang(g.mid);
+          col.setAlpha(ko ? 70 : 170); s.stroke(col); s.strokeWeight(Math.max(1.2, W / 420));
+          s.line(Math.cos(am) * sk0, Math.sin(am) * sk0, Math.cos(am) * (sk0 + h), Math.sin(am) * (sk0 + h));
+        }
+        col.setAlpha(255);
+      }
+      // polymerases at work: a dot moving along the gene in its reading direction
+      if (S) {
+        s.noStroke(); s.fill(255);
+        for (let k = 0; k < S.tx.length; k += 3) {
+          const g = genes[S.tx[k]], f = Math.min(1, Math.max(0, (S.t - S.tx[k + 1]) / (S.tx[k + 2] - S.tx[k + 1])));
+          const pos = g.strand > 0 ? g.start + f * (g.end - g.start) : g.end - f * (g.end - g.start), a = ang(pos);
+          const r = g.strand > 0 ? (fo + fi) / 2 : (ro + ri) / 2;
+          s.circle(Math.cos(a) * r, Math.sin(a) * r, Math.max(5, W / 110));
+        }
+      }
+      // fresh mRNA flashes
+      for (let i = flashes.length - 1; i >= 0; i--) {
+        const f = flashes[i], age = (now - f.t) / 700; if (age >= 1) { flashes.splice(i, 1); continue; }
+        const g = genes[f.g], am = ang(g.mid), r = (g.strand > 0 ? fo : ro) + 6 + 18 * age;
+        const col = C(g.grp.c); col.setAlpha(255 * (1 - age)); s.noFill(); s.stroke(col); s.strokeWeight(2);
+        s.circle(Math.cos(am) * r, Math.sin(am) * r, 6 + 10 * age); col.setAlpha(255);
+      }
+      // followed gene
+      { const g = sel, a0 = ang(g.start), a1 = Math.max(ang(g.end), a0 + .01), r1 = (g.strand > 0 ? fo : ro) + 3, am = ang(g.mid);
+        s.noFill(); s.stroke(255); s.strokeWeight(2); s.arc(0, 0, 2 * r1, 2 * r1, a0 - .01, a1 + .01); s.line(Math.cos(am) * r1, Math.sin(am) * r1, Math.cos(am) * sk1, Math.sin(am) * sk1); }
+      // centre
+      s.noStroke(); s.textAlign(s.CENTER, s.CENTER);
+      if (S) {
+        s.fill(242, 184, 75); s.textSize(Math.max(22, W * .07)); s.text(S.ribo.busy, 0, -W * .045);
+        s.fill(125, 136, 152); s.textSize(Math.max(10.5, W * .018)); s.text(`ribosomes busy of ${S.ribo.total}`, 0, W * .01);
+        let tx = S.tx.length / 3; s.fill(217, 222, 230); s.text(`${tx} genes being copied`, 0, W * .045);
+      } else { s.fill(125, 136, 152); s.textSize(13); s.text('warming up the cell…', 0, 0); }
+      s.pop();
+    };
+    function geneAt(mx, my) {
+      const R = W / 2, dx = mx - R, dy = my - R, r = Math.hypot(dx, dy); let a = Math.atan2(dy, dx) + Math.PI / 2; if (a < 0) a += Math.PI * 2;
+      const pos = a / (Math.PI * 2) * L, tol = 4 / (r || 1) / (Math.PI * 2) * L;
+      let best = null, bd = Infinity;
+      for (const g of genes) { if (r < R * .5 || r > R * .98) break; const d = pos < g.start ? g.start - pos : pos > g.end ? pos - g.end : 0; const strandOk = r > R * .66 + 4 || (g.strand > 0 ? r >= R * .6 - 4 : r <= R * .585 + 4); if (strandOk && d < bd) { bd = d; best = g; } }
+      return bd <= tol ? best : null;
+    }
+    s.mouseClicked = () => { if (s.mouseX < 0 || s.mouseY < 0 || s.mouseX > W || s.mouseY > W) return; const g = geneAt(s.mouseX, s.mouseY); if (g) select(g); };
+  });
+
+  const fromHash = genes.find((g) => '#' + g.tag === location.hash); if (fromHash) sel = fromHash;
+  reset();
+})();
+</script>
+</body>
+</html>
