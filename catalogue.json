@@ -4590,6 +4590,11 @@
       "reason": "in-game route of a listed game"
     },
     {
+      "glob": "cell-twin",
+      "kind": "pending",
+      "reason": "cellular digital twin, stage 1 prototype (Gillespie gene expression in p5.js)"
+    },
+    {
       "glob": "clock/antoine",
       "kind": "pending",
       "reason": "the clock toy pack — 28 single-file toys, none listed"
