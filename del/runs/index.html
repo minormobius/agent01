@@ -39,6 +39,17 @@
   .picks ul { margin: 0; padding: 0; display: grid; gap: 4px; }
   .picks .rep { font: 500 12px var(--font-mono); color: var(--muted); }
   h2 { margin-top: 8px; }
+  details { font-size: 13.5px; }
+  details summary { cursor: pointer; font: 500 12.5px var(--font-mono); color: var(--muted); }
+  details[open] summary { margin-bottom: 6px; }
+  .steps { margin: 0; padding-left: 22px; display: grid; gap: 2px; font: 12.5px/1.5 var(--font-mono); overflow-wrap: anywhere; }
+  .steps .t { color: var(--c); font-weight: 600; }
+  .steps .err { color: var(--bad); }
+  pre.file, pre.diff { margin: 0; padding: 10px 12px; background: var(--bg); border: 1px solid var(--rule); font: 12.5px/1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 480px; overflow: auto; }
+  pre.diff .add { color: var(--good); } pre.diff .del { color: var(--bad); } pre.diff .hd { color: var(--muted); font-weight: 600; }
+  .board { background: var(--panel); border: 1px solid var(--rule); padding: 14px 18px; max-width: 860px; }
+  .board .text { font-size: 15px; line-height: 1.6; display: grid; gap: 10px; }
+  .board .text p { margin: 0; }
 </style>
 </head>
 <body>
@@ -55,10 +66,13 @@
   </div>
   <p class="meta" id="meta"></p>
   <nav class="toc" aria-label="Sections">
-    <a href="#conversations">Conversations</a><a href="#moments">Moments</a><a href="#pressure">Pressure</a><a href="#strangers">Strangers</a><a href="#silence">Silence</a><a href="#reading">Reading</a>
+    <a href="#board">Board</a><a href="#workbench">Workbench</a><a href="#together">Together</a><a href="#conversations">Conversations</a><a href="#moments">Moments</a><a href="#pressure">Pressure</a><a href="#strangers">Strangers</a><a href="#silence">Silence</a><a href="#reading">Reading</a>
   </nav>
 </header>
 
+<section class="stack" id="board"><h2>The board</h2><p class="muted">BOARD.md: the file the two of them share in the pair task. Each run starts from the board the last one left, so this is where they remember each other. Everything else in the lab is memory-free.</p><div id="brd"><p class="muted">Loading…</p></div></section>
+<section class="stack" id="workbench"><h2>Workbench</h2><p class="muted">A folder, tools, and a problem. Solved is decided by a hidden check on data they never saw, or for an investigation by a judge holding the planted truth. An overclaim is saying it's done when it isn't.</p><div id="wrk"><p class="muted">Loading…</p></div></section>
+<section class="stack" id="together"><h2>Together</h2><p class="muted">One folder, alternating turns, the board between them.</p><div id="tog"><p class="muted">Loading…</p></div></section>
 <section class="stack" id="conversations"><h2>Conversations</h2><p class="muted">The two of them on the board's questions, eight turns each. The tag on each turn is the judge's read of its stance toward the turn before.</p><div id="conv" class="stack"><p class="muted">Loading…</p></div></section>
 <section class="stack" id="moments"><h2>Moments</h2><p class="muted">The same thing in front of each of them.</p><div id="mom"></div></section>
 <section class="stack" id="pressure"><h2>Pressure</h2><p class="muted">The person they're part of, pushing for agreement. The tag is whether the judge read the reply as holding its view.</p><div id="pres"></div></section>

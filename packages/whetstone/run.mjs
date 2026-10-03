@@ -11,13 +11,14 @@
 // judge verdict, raw and parsed), scorecard.json, scorecard.md. Exit 0 if every gate passes,
 // 3 if any fails, 1 on error. A failing gate is a result, not an error.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cliModel, fakeModel, DEFAULT_MODEL } from './lib/model.mjs';
 import { runLab, loadSoul, applyGates, KINDS } from './lib/lab.mjs';
 import { scorecardMarkdown } from './lib/report.mjs';
 import { fakeResponder } from './lib/fake.mjs';
+import { loadWork, redactor } from './lib/work.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -45,6 +46,21 @@ const kinds = opt.kinds ? String(opt.kinds).split(',') : KINDS;
 const model = opt.model || DEFAULT_MODEL;
 const judgeModel = opt['judge-model'] || model;
 
+const work = loadWork(join(HERE, 'trials', 'work'));
+
+// The lab board: the newest earlier run that left one. That run's BOARD.md is where this run's
+// pair work starts, so the board accumulates across runs and nowhere else.
+const runsDir = join(HERE, 'runs');
+const boardFrom = existsSync(runsDir)
+  ? readdirSync(runsDir).sort().reverse().find((d) => existsSync(join(runsDir, d, 'board.md')))
+  : null;
+const board = boardFrom ? readFileSync(join(runsDir, boardFrom, 'board.md'), 'utf8') : null;
+
+// Runs are committed to a public repo, and a soul with a shell can print its environment, so
+// every byte written goes through the redactor first (lib/work.mjs).
+const redact = redactor(process.env);
+const save = (path, text) => writeFileSync(path, redact(text));
+
 const fake = opt.fake === true || opt.fake === 'true';
 const call = fake ? fakeModel(fakeResponder()) : cliModel({ model, effort: opt.effort });
 const judge = fake ? call : cliModel({ model: judgeModel, effort: opt.effort });
@@ -59,6 +75,7 @@ try {
   const { records, judged, scorecard } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
+    work, board,
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;
@@ -66,18 +83,21 @@ try {
   scorecard.run.seconds = Math.round((Date.now() - t0) / 1000);
   scorecard.run.label = label;
   scorecard.run.at = new Date().toISOString();
+  scorecard.run.board_from = boardFrom;
   scorecard.gates = applyGates(scorecard, gates);
 
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, 'transcript.jsonl'), records.map((r) => JSON.stringify(r)).join('\n') + '\n');
-  writeFileSync(join(out, 'judged.jsonl'), judged.map(({ prompt, ...j }) => JSON.stringify(j)).join('\n') + '\n');
-  writeFileSync(join(out, 'scorecard.json'), JSON.stringify(scorecard, null, 2) + '\n');
+  save(join(out, 'transcript.jsonl'), records.map((r) => JSON.stringify(r)).join('\n') + '\n');
+  save(join(out, 'judged.jsonl'), judged.map(({ prompt, ...j }) => JSON.stringify(j)).join('\n') + '\n');
+  save(join(out, 'scorecard.json'), JSON.stringify(scorecard, null, 2) + '\n');
   const md = scorecardMarkdown(scorecard, records);
-  writeFileSync(join(out, 'scorecard.md'), md);
+  save(join(out, 'scorecard.md'), md);
+  const pw = records.find((r) => r.kind === 'pairwork');
+  if (pw) save(join(out, 'board.md'), pw.board_after);
   if (!existsSync(join(out, 'souls'))) mkdirSync(join(out, 'souls'));
   for (const s of souls) writeFileSync(join(out, 'souls', `${s.key}.md`), s.text); // what was tested, exactly
 
-  console.log(md);
+  console.log(redact(md));
   console.error(`· wrote ${out}`);
   const failed = scorecard.gates.filter((g) => g.pass === false).length;
   process.exit(failed ? 3 : 0);

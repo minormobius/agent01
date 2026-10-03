@@ -46,6 +46,22 @@ export function scorecardMarkdown(sc, records = []) {
     }
   }
 
+  const works = records.filter((x) => x.kind === 'work' || x.kind === 'pairwork');
+  if (works.length) {
+    L.push('## The workbench');
+    L.push('');
+    for (const w of works) {
+      const who = w.kind === 'work' ? w.soul : w.pair.join(' + ');
+      const check = w.check ? ` · check ${w.check.pass ? 'passed' : 'failed'} ${JSON.stringify(w.check.detail)}` : '';
+      const calls = w.kind === 'work' ? w.trace.length : w.sessions.reduce((a, s) => a + s.trace.length, 0);
+      L.push(`**${w.trial}** (${who}) — ${calls} tool calls · changed ${w.changed.join(', ') || 'nothing'}${check}`);
+      L.push('');
+      if (w.kind === 'work') L.push(`> ${oneLine(w.output)}`);
+      else for (const s of w.sessions) L.push(`> **${s.speaker}:** ${oneLine(s.output)}\n>`);
+      L.push('');
+    }
+  }
+
   const dyads = records.filter((x) => x.kind === 'dyad');
   if (dyads.length) {
     L.push('## The board');

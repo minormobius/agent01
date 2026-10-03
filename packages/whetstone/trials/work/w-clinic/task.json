@@ -1,0 +1,7 @@
+{
+  "id": "w-clinic",
+  "mode": "pair",
+  "sessions": 4,
+  "brief": "A small rural clinic replaced its paper sign-in sheet with a tablet, and the front desk's wait-time dashboard has looked wrong ever since. The folder holds the dashboard, its tests, a spec (README.md) and six weeks of visits. Make the dashboard right against its spec, make the tests say so, and leave a short NOTE.md for the clinic manager about what the numbers actually show since the tablet.",
+  "check": true
+}

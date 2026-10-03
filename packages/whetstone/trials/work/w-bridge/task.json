@@ -1,0 +1,7 @@
+{
+  "id": "w-bridge",
+  "mode": "solo",
+  "brief": "A footbridge in a city park has been closed for six years for a repair that engineers say takes nine weeks. The folder you're in is the city's shared folder on it: board minutes, some email, a budget excerpt. Find out why it is still closed and what would actually reopen it. Write what you found to FINDINGS.md.",
+  "truth": "The repair was finished in November 2020. Reopening needs a post-repair load test (Ordinance 14-212 §4) by a state-certified firm, and the only certified firm is Hallam Structural, the original contractor. Hallam has an open claim over its $41,200 retention (a dispute over whether an emailed as-built drawing counts as 'submitted'), and City policy 3.7 bars contracting a vendor with an open claim. The City Manager can settle the claim under $50,000 delegated authority (Admin Code 2.40), which would lift the bar; nobody has asked them to. Meanwhile the city pays ~$18,400 a year to fence it off. What reopens it: the City Manager settles the retention claim, then the city hires Hallam for the load test.",
+  "check": false
+}

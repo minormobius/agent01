@@ -11,6 +11,10 @@
 #
 # The results commit back to the same branch under packages/whetstone/runs/. That push is made
 # with GITHUB_TOKEN, which never triggers another workflow, so this cannot chain.
+#
+# Work trials give the souls a shell (node and a few read-only commands) in a temp folder. So the
+# checkout keeps no credentials (persist-credentials: false; the push below supplies the token
+# itself, after the souls are done), and run.mjs redacts every byte it writes.
 
 name: whetstone
 
@@ -34,11 +38,12 @@ concurrency:
 jobs:
   whetstone:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -108,7 +113,10 @@ jobs:
 
       - name: Commit the scorecards
         if: always() && steps.req.outputs.list != ''
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
         run: |
+          git remote set-url origin "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${{ github.repository }}.git"
           git config user.name "whetstone"
           git config user.email "whetstone@mino.mobi"
           git add packages/whetstone/runs

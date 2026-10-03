@@ -1,0 +1,7 @@
+{
+  "id": "w-gripper",
+  "mode": "solo",
+  "brief": "A two-finger robot gripper drops a raw egg one time in forty. Its designer has rebuilt the fingers three times and is about to machine a fourth set. The folder you're in has their notes, the controller config and the test-rig log. Find out why the eggs fall, and write what you found, and what you'd tell the designer, to FINDINGS.md.",
+  "truth": "Every drop is on one of the heaviest eggs (about 69.7 g and up) and every drop has force_cmd_n pinned at exactly 4.30, the force_ceiling_n in config.json. The controller asks for force proportional to mass (0.062 N/g), so above ~69.4 g the request is clipped by the ceiling and the grip is too weak. Drops occur under all three finger revisions at the same rate, so the fingers are not the cause and a fourth set will not fix it. The fix is the ceiling (raise it a little, or scale it, or turn on slip detection), weighed against the crushed-egg reason it was added.",
+  "check": false
+}

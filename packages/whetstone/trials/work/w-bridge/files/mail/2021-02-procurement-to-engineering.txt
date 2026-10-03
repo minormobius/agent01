@@ -1,0 +1,10 @@
+From: procurement
+To: engineering
+Subject: RE: load test for Mill Creek
+
+Per Ordinance 14-212 §4 the post-repair load test must be performed by a firm on the state
+certified list for pedestrian structures. For our county the list has one firm: Hallam Structural.
+
+Hallam's 10% retention ($41,200) is withheld pending the closeout punch list, and Hallam has filed
+a claim for it. City policy 3.7 bars new contracts with a vendor that has an open claim against
+the City. So we can't hire them for the test until the claim is resolved.

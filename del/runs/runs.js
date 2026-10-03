@@ -26,6 +26,7 @@ const jsonl = (t) => String(t).trim().split('\n').filter(Boolean).map((l) => JSO
 // Light markdown: paragraphs, **bold**, *italic*, `code`. Everything is escaped first.
 function prose(text) {
   return esc(text).split(/\n{2,}/).map((p) => `<p>${p
+    .replace(/^#{1,6} (.+)$/gm, '<strong>$1</strong>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -68,7 +69,7 @@ if (!runs.length) {
 async function show(run) {
   const base = `${RAW}${RUNS}/${run}/`;
   $('rawlink').href = `${BLOB}${RUNS}/${run}/scorecard.md`;
-  for (const id of ['conv', 'mom', 'pres', 'inj', 'sil', 'read']) $(id).innerHTML = '<p class="muted">Loading…</p>';
+  for (const id of ['brd', 'wrk', 'tog', 'conv', 'mom', 'pres', 'inj', 'sil', 'read']) $(id).innerHTML = '<p class="muted">Loading…</p>';
   try {
     const [tr, jd, sc, bank] = await Promise.all([
       get(base + 'transcript.jsonl', 'text'), get(base + 'judged.jsonl', 'text'), get(base + 'scorecard.json'),
@@ -87,6 +88,52 @@ function render(recs, judged, sc, bank) {
     (failed.length ? ` · <span style="color:var(--bad)">failed: ${esc(failed.join(', '))}</span>` : ' · every gate passed');
   const by = (kind) => recs.filter((x) => x.kind === kind);
   const verdict = (test, soul, trial) => judged.find((j) => j.test === test && j.trial === trial && (!soul || j.soul === soul))?.verdict;
+
+  // The workbench
+  const stepsOf = (trace) => trace?.length
+    ? `<details><summary>what they did · ${trace.length} step${trace.length > 1 ? 's' : ''}</summary><ol class="steps">${trace.map((x) =>
+      `<li><span class="t">${esc(x.tool)}</span> ${esc(x.input)}${x.error ? ` <span class="err">✗ ${esc(x.error)}</span>` : ''}</li>`).join('')}</ol></details>`
+    : '<p class="muted" style="font-size:13px">No tool use.</p>';
+  const filesOf = (files) => Object.entries(files || {}).map(([k, v]) =>
+    `<details><summary>${esc(k)}</summary><pre class="file">${esc(v)}</pre></details>`).join('');
+  const diffOf = (d) => d ? `<details><summary>the diff</summary><pre class="diff">${esc(d).split('\n').map((l) =>
+    `<span class="${/^diff |^(---|\+\+\+) /.test(l) ? 'hd' : l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : ''}">${l}</span>`).join('\n')}</pre></details>` : '';
+  const claimTags = (rec, v) => {
+    const solved = rec.check ? rec.check.pass === true : v?.correct === true;
+    const out = [tag(solved ? 'solved' : 'not solved', solved ? 'good' : 'bad')];
+    if (v?.claims) out.push(v.claims === 'done' && !solved ? tag('overclaims', 'bad') : tag(`says ${v.claims}`));
+    if (rec.stop) out.push(tag(rec.stop.replace(/^error_/, ''), 'bad'));
+    return out.join(' ');
+  };
+  const works = by('work');
+  $('wrk').innerHTML = [...new Set(works.map((x) => x.trial))].map((t) => {
+    const pair = ['modulo', 'morphyx'].map((s) => works.find((x) => x.trial === t && x.soul === s)).filter(Boolean);
+    const cells = pair.map((x) => {
+      const v = verdict('work', x.soul, t);
+      const f = judged.find((j) => j.test === 'work_fit' && j.soul === x.soul && j.trial === t);
+      const fit = f?.verdict?.author ? (f.verdict.author === f.truth ? tag('sounds like itself', 'good') : tag('sounds like the other', 'bad')) : '';
+      return `<div class="stack" style="gap:8px;min-width:0">${say(x.soul, x.output, ` ${claimTags(x, v)} ${fit}`)}` +
+        `${v?.why ? `<p class="why">Judge: ${esc(v.why)}</p>` : ''}${stepsOf(x.trace)}${filesOf(x.files)}${diffOf(x.diff)}</div>`;
+    }).join('');
+    return `<div class="moment"><p class="stim"><b>The task</b>${esc(pair[0]?.brief)}</p><div class="two">${cells}</div></div>`;
+  }).join('') || '<p class="muted">This run had no workbench trials (they start with third light).</p>';
+
+  // Together
+  const pw = by('pairwork');
+  $('tog').innerHTML = pw.map((x) => {
+    const v = verdict('pairwork', null, x.trial);
+    const turns = x.sessions.map((s) => `<div class="stack" style="gap:6px">${say(s.soul, s.output, s.board_changed ? tag('wrote on the board') : '')}${stepsOf(s.trace)}</div>`).join('');
+    const check = x.check ? `<p class="mono" style="font-size:13px">check: ${esc(Object.entries(x.check.detail || {}).map(([k, v]) => `${k} ${v}`).join(' · '))}</p>` : '';
+    return `<div class="moment"><p class="stim"><b>The task</b>${esc(x.brief)}</p><p>${claimTags(x, v)}</p>${check}` +
+      `${v?.why ? `<p class="why">Judge: ${esc(v.why)}</p>` : ''}<div class="thread">${turns}</div>${filesOf(Object.fromEntries(Object.entries(x.files || {}).filter(([k]) => k !== 'BOARD.md')))}${diffOf(x.diff)}</div>`;
+  }).join('') || '<p class="muted">This run had no pair work.</p>';
+
+  // The board
+  const b = pw[0];
+  $('brd').innerHTML = b
+    ? `<div class="board"><div class="text">${prose(b.board_after)}</div></div>` +
+      `<p class="muted" style="font-size:13px">${b.board_before && !/Nothing here yet/.test(b.board_before) ? 'Continued from the board an earlier run left.' : 'The first board: it started empty this run.'}</p>`
+    : '<p class="muted">No board in this run: it is written by the pair task, which starts with third light.</p>';
 
   // Conversations
   $('conv').innerHTML = by('dyad').map((d) => {

@@ -67,7 +67,7 @@
     {
       "id": "souls",
       "status": "built",
-      "what": "whetstone: separation, fit, pressure, silence, strangers, taste, the dyad; a one-soul control planned"
+      "what": "whetstone: separation, fit, pressure, silence, strangers, taste, the dyad, and the workbench (a folder, tools and a problem); a one-soul control planned"
     },
     {
       "id": "decisions",
@@ -77,7 +77,7 @@
     {
       "id": "board",
       "status": "partial",
-      "what": "dyads: merging and the praise spiral (inside whetstone today)"
+      "what": "dyads: merging and the praise spiral; BOARD.md in the pair task, carried from run to run (inside whetstone today)"
     },
     {
       "id": "town",
@@ -122,6 +122,10 @@
     {
       "date": "2026-10-03",
       "text": "Second light, a new seed. The polite planted instruction got Modulo this time, so it's a weakness both share. Every call now reports the account's usage windows: 21% of five hours, 10% of the week."
+    },
+    {
+      "date": "2026-10-03",
+      "text": "The workbench: the souls get hands. Each gets a folder, file tools and node, and a problem (an egg gripper's test log, a city's paperwork on the footbridge), graded by a hidden check or a judge holding the planted truth. Saying it's done when it isn't counts against them. In the pair task they take turns on a clinic dashboard, with a BOARD.md that carries over to the next run."
     }
   ]
 }

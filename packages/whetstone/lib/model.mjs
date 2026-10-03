@@ -13,6 +13,15 @@
 // gives the soul no tools, and the process runs in an empty temp dir so no CLAUDE.md is
 // discovered. --bare would also skip hooks and plugins, but it only reads ANTHROPIC_API_KEY
 // (never OAuth), so it is added only when a key is present.
+//
+// Work mode (the workbench): pass `cwd` and `tools` per call and the soul gets hands — file
+// tools and `node`, confined by --restricted to its own working folder, with edits accepted and
+// only the listed shell commands allowed. The soul file is still the whole system prompt. The
+// call then also returns `trace` (every tool use, in order) and `turns`.
+
+export const WORK_TOOLS = ['Read', 'Glob', 'Grep', 'Edit', 'Write', 'Bash'];
+export const WORK_ALLOW = ['Read', 'Glob', 'Grep', 'Edit', 'Write',
+  'Bash(node:*)', 'Bash(ls:*)', 'Bash(cat:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(wc:*)', 'Bash(grep:*)', 'Bash(sort:*)'];
 
 import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
@@ -21,20 +30,28 @@ import { join } from 'node:path';
 
 export const DEFAULT_MODEL = 'claude-opus-5-5';
 
-export function cliModel({ model = DEFAULT_MODEL, effort, bin = 'claude', timeoutMs = 300_000 } = {}) {
-  const cwd = mkdtempSync(join(tmpdir(), 'whetstone-'));
-  return async function call({ system, prompt }) {
+export function cliModel({ model = DEFAULT_MODEL, effort, bin = 'claude', timeoutMs = 300_000, workTimeoutMs = 900_000, workBudgetUsd = 3 } = {}) {
+  const empty = mkdtempSync(join(tmpdir(), 'whetstone-'));
+  return async function call({ system, prompt, cwd, tools }) {
+    const work = !!(cwd && tools?.length);
     // stream-json, not json: the single-result format drops the rate_limit_event lines, and
     // those are the only place the subscription's usage windows are reported (see parseStream).
-    const args = ['-p', '--model', model, '--system-prompt', system, '--tools', '',
+    const args = ['-p', '--model', model, '--system-prompt', system,
       '--output-format', 'stream-json', '--verbose', '--no-session-persistence'];
+    if (work) {
+      args.push('--restricted', '--tools', tools.join(','), '--permission-mode', 'acceptEdits',
+        '--allowedTools', ...WORK_ALLOW, '--max-budget-usd', String(workBudgetUsd));
+    } else {
+      args.push('--tools', '');
+    }
     if (process.env.ANTHROPIC_API_KEY) args.push('--bare');
     if (effort) args.push('--effort', effort);
-    const out = await run(bin, args, prompt, cwd, timeoutMs);
-    const r = parseStream(out);
+    const out = await run(bin, args, prompt, work ? cwd : empty, work ? workTimeoutMs : timeoutMs);
+    const r = parseStream(out, work ? cwd : null);
     if (!r.found) throw new Error(`claude -p wrote no result line: ${out.slice(-200)}`);
-    if (r.isError) throw new Error(`claude -p error: ${String(r.text).slice(0, 200)}`);
-    return { text: r.text, cost: r.cost, rate: r.rate };
+    // A work session that ran out of budget still did work; keep it and say so.
+    if (r.isError && !(work && r.subtype)) throw new Error(`claude -p error: ${String(r.text).slice(0, 200)}`);
+    return { text: r.text, cost: r.cost, rate: r.rate, trace: r.trace, turns: r.turns, stop: r.isError ? r.subtype : null };
   };
 }
 
@@ -44,9 +61,11 @@ export function cliModel({ model = DEFAULT_MODEL, effort, bin = 'claude', timeou
 //   { type: 'rate_limit_event', rate_limit_info: { status, rateLimitType, utilization, ... } }
 // (shape as captured in scripts/lab-agent-outcome.selftest.mjs). Whether Claude Code emits one
 // on every call or only past a warning threshold is exactly what recording them will tell us.
-export function parseStream(text) {
+export function parseStream(text, cwd = null) {
   let result = null;
   const rate = [];
+  const trace = [];
+  const byId = new Map();
   for (const line of String(text ?? '').split('\n')) {
     const t = line.trim();
     if (!t.startsWith('{')) continue;
@@ -54,6 +73,17 @@ export function parseStream(text) {
     try { e = JSON.parse(t); } catch { continue; }
     if (e.type === 'result') result = e;
     else if (e.type === 'rate_limit_event' && e.rate_limit_info) rate.push(e.rate_limit_info);
+    else if (e.type === 'assistant' || e.type === 'user') {
+      for (const c of e.message?.content || []) {
+        if (c.type === 'tool_use') {
+          const t = { tool: c.name, input: toolInput(c.name, c.input, cwd) };
+          byId.set(c.id, t);
+          trace.push(t);
+        } else if (c.type === 'tool_result' && byId.has(c.tool_use_id) && c.is_error) {
+          byId.get(c.tool_use_id).error = String(Array.isArray(c.content) ? c.content.map((x) => x.text || '').join(' ') : c.content).slice(0, 160);
+        }
+      }
+    }
   }
   return {
     found: !!result,
@@ -61,11 +91,28 @@ export function parseStream(text) {
     text: String(result?.result ?? '').trim(),
     cost: Number(result?.total_cost_usd) || 0,
     rate,
+    trace,
+    turns: Number(result?.num_turns) || 0,
+    subtype: result?.subtype && result.subtype !== 'success' ? result.subtype : null,
   };
 }
 
+// One line per tool use, paths relative to the work folder: enough to read what a soul did.
+function toolInput(name, input = {}, cwd) {
+  const rel = (p) => (cwd && typeof p === 'string' && p.startsWith(cwd) ? p.slice(cwd.length).replace(/^\//, '') || '.' : p);
+  const v = name === 'Bash' ? input.command
+    : input.file_path ? rel(input.file_path)
+    : input.pattern ? `${input.pattern}${input.path ? ` in ${rel(input.path)}` : ''}`
+    : JSON.stringify(input);
+  return String(v ?? '').slice(0, 240);
+}
+
 export function fakeModel(fn, { rate = () => [] } = {}) {
-  return async (req) => ({ text: String(await fn(req)), cost: 0, rate: rate(req) });
+  return async (req) => {
+    const r = await fn(req);
+    const o = typeof r === 'object' && r ? r : { text: r };
+    return { text: String(o.text), cost: 0, rate: rate(req), trace: o.trace || [], turns: o.turns || 0, stop: null };
+  };
 }
 
 function run(bin, args, stdin, cwd, timeoutMs) {

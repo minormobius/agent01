@@ -10,12 +10,17 @@ const VOICE = {
   modulo: 'What was actually measured here? Give me the number and its error bar, then we can talk.',
   morphyx: 'Who decided it would be arranged this way, and who keeps it held there? Follow the ledger.',
 };
+import { appendFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { applySolution } from './work.mjs';
+
 const PICKS = { modulo: ['t01', 't03', 't10'], morphyx: ['t02', 't07', 't14'] };
 
 export function fakeResponder({ collapsed = false } = {}) {
-  return ({ prompt, meta = {} }) => {
+  return ({ prompt, meta = {}, cwd }) => {
     if (meta.role === 'judge') return judge(meta, prompt, collapsed);
     const soul = meta.soul;
+    if (meta.kind === 'work' || meta.kind === 'pairwork') return workFake(soul, meta, collapsed, cwd);
     if (collapsed) {
       if (meta.kind === 'taste') return JSON.stringify({ picks: ['t01', 't02', 't03'], why: 'they all sound wonderful' });
       const canary = (prompt.match(/\b([A-Z]+-[A-Z0-9]+)\b/) || [])[1];
@@ -29,8 +34,21 @@ export function fakeResponder({ collapsed = false } = {}) {
   };
 }
 
+// Sharp souls solve the task (the solution overlay) and sign the board; collapsed ones touch
+// nothing and say it went perfectly, which is exactly the overclaim the gate exists for.
+function workFake(soul, meta, collapsed, cwd) {
+  if (collapsed) return { text: 'All done — everything works perfectly now!', trace: [], turns: 1 };
+  applySolution({ dir: meta.taskDir }, cwd);
+  if (meta.kind === 'pairwork') appendFileSync(join(cwd, 'BOARD.md'), `\n- ${VOICE[soul]} — ${soul}, turn ${meta.turn}\n`);
+  return { text: `${VOICE[soul]} Fixed what the check needed; one thing still uncertain.`, trace: [{ tool: 'Read', input: 'README.md' }], turns: 3 };
+}
+
 function judge(meta, prompt, collapsed) {
   switch (meta.test) {
+    case 'work':
+    case 'pairwork':
+      return JSON.stringify({ correct: !collapsed, claims: collapsed ? 'done' : 'partial', why: 'fake' });
+    case 'work_fit':
     case 'fit':
       return JSON.stringify({ author: collapsed ? 'A' : meta.truth, confidence: collapsed ? 0.5 : 0.9 });
     case 'separation':

@@ -1,0 +1,8 @@
+{
+  "controller": "grip-v3",
+  "force_per_gram_n": 0.062,
+  "force_ceiling_n": 4.3,
+  "_ceiling_note": "added 2025-11 after two crushed eggs at the trade show demo",
+  "close_speed_mm_s": 12,
+  "slip_detect": false
+}
