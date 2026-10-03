@@ -139,5 +139,36 @@ ok(bars.length > 4000, `the cached BTC tape is there (${bars.length} bars)`);
   ok(tally(all).mean_net_bp < 0, 'and with costs, every bracket loses');
 }
 
+// --- slow bars and market-neutral books -----------------------------------
+{
+  const { weightsAt, runBook, SCORES, weekly, tWeeks } = await import('../lab/books.mjs');
+  const { runStrategy, FAMILIES } = await import('../lab/strategies.mjs');
+  // eight synthetic assets, asset k drifting at k-3.5 bp a bar, all bars 4h
+  const coins = Array.from({ length: 8 }, (_, k) => 'A' + k), tapes = {}, funds = {}, cb = {};
+  for (const [k, c] of coins.entries()) {
+    let p = 100; const b = [];
+    for (let t = 0; t < 400; t++) { const o = p; p *= 1 + (k - 3.5) / 1e4 + 0.002 * Math.sin(t * 0.7 + k); b.push({ t: t * 144e5, o, h: Math.max(o, p) * 1.001, l: Math.min(o, p) * 0.999, c: p }); }
+    b.barMin = 240; tapes[c] = b; funds[c] = new Array(400).fill(k === 7 ? 2 : 0); cb[c] = 5;
+  }
+  const w = weightsAt(tapes, funds, coins, SCORES.xs_momentum({ L: 42 }), 300);
+  const sum = (sg) => Object.values(w).filter((x) => Math.sign(x) === sg).reduce((a, b) => a + b, 0);
+  near(sum(1), 1, 1e-9, 'a book\'s long side sums to 1'); near(sum(-1), -1, 1e-9, 'and its short side to -1');
+  ok(w.A7 > 0 && w.A0 < 0, 'momentum buys the strongest and sells the weakest');
+  const rows = runBook(tapes, funds, coins, { family: 'xs_momentum', L: 42, W: 42 }, { from: 200, to: 400, costBps: cb });
+  ok(rows.reduce((a, r) => a + r.funding, 0) < 0, 'holding the funded long pays its funding');
+  ok(rows.reduce((a, r) => a + r.cost, 0) < 0 && rows[0].cost < 0, 'the first rebalance pays costs on the whole book');
+  ok(rows.reduce((a, r) => a + r.gross, 0) > 0, 'on assets with persistent drift, momentum earns');
+  const rv = runBook(tapes, funds, coins, { family: 'xs_reversal', L: 42, W: 42 }, { from: 200, to: 400, costBps: cb });
+  ok(rv.reduce((a, r) => a + r.gross, 0) < 0, 'and reversal, the same book flipped, loses');
+  const tw = tWeeks(weekly(rows).map((x) => x[1]));
+  ok(tw.weeks > 4 && Number.isFinite(tw.t), 'weekly t is computed over calendar weeks');
+  // slow-bar funding: a 4h tape charges six times the hours of a 1m tape's bar count
+  const long = simulate(Object.assign(flat(10), { barMin: 240 }), 0, { key: 'x', side: 1, entry: { type: 'market', px: 100 }, tgt: 101, stp: 99, max: 3 }, { ...Z, fundingBpsPerHour: 1 });
+  near(long.costBp, 4 * 4, 1e-9, 'on 4h bars a 4-bar hold pays 16 hours of funding');
+  const plans = runStrategy(tapes.A7, FAMILIES.breakout({ N: 30, k: 1 }), { from: 200, to: 399 });
+  let overlap = false; for (let k = 1; k < plans.length; k++) if (plans[k].start < plans[k - 1].exitBar) overlap = true;
+  ok(plans.length > 0 && !overlap, 'a fixed strategy runs one plan at a time');
+}
+
 console.log(`plans: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

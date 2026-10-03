@@ -20,3 +20,29 @@ export async function loadTape(coin, { refresh = false, interval = '1m' } = {}) 
 }
 export const toBars = (tape) => { const b = tape.bars.map(([t, o, h, l, c]) => ({ t, o, h, l, c })); b.barMin = MIN[tape.interval || '1m']; return b; };
 
+
+// Hourly funding, summed into the bars of a tape: fund[i] = the funding a long
+// paid over bar i, in bp (negative = longs were paid). fundingHistory returns
+// the first 500 prints from startTime, so it is walked FORWARD (walking back
+// returns the oldest window and reports it as current: a mistake made once).
+export async function loadFunding(coin, bars, { refresh = false } = {}) {
+  const f = join(here, 'fixtures', `funding-${coin.toLowerCase()}-${bars.barMin === 240 ? '4h' : bars.barMin + 'm'}.json`);
+  if (!refresh && existsSync(f)) return JSON.parse(readFileSync(f, 'utf8')).fund;
+  const prints = [];
+  let t = bars[0].t;
+  const end = bars.at(-1).t + bars.barMin * 6e4;
+  for (let guard = 0; guard < 400 && t < end; guard++) {
+    const res = await fetch('https://api.hyperliquid.xyz/info', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'fundingHistory', coin, startTime: t }) });
+    if (res.status === 429) { await new Promise((r) => setTimeout(r, 3000)); continue; }
+    const page = await res.json();
+    if (!page.length) break;
+    prints.push(...page);
+    t = page.at(-1).time + 1;
+    if (page.length < 500) break;
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  const ms = bars.barMin * 6e4, idx = new Map(bars.map((b, i) => [b.t, i])), fund = new Array(bars.length).fill(0);
+  for (const p of prints) { const i = idx.get(Math.floor((p.time - 1) / ms) * ms); if (i != null) fund[i] += +p.fundingRate * 1e4; }
+  writeFileSync(f, JSON.stringify({ coin, source: 'api.hyperliquid.xyz fundingHistory, summed per bar, bp a long pays', fetched: new Date().toISOString(), prints: prints.length, fund: fund.map((x) => +x.toFixed(4)) }));
+  return fund;
+}
