@@ -1,5 +1,5 @@
 {
- "ran": "2026-10-03T04:40:02.439Z",
+ "ran": "2026-10-03T05:17:57.502Z",
  "seeds": 30,
  "tapes": {
   "BTC": {
@@ -48,6 +48,7 @@
    "se_bp": null,
    "t_gross": null,
    "hit_rate": null,
+   "resolved": 0,
    "by_plan": {},
    "net_bp_per_day": 0,
    "z_vs_random": 1.03
@@ -68,6 +69,7 @@
    "se_bp": 3.19,
    "t_gross": 0.17,
    "hit_rate": 0.567,
+   "resolved": 60,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -971.7,
    "by_plan": {
@@ -96,6 +98,7 @@
    "se_bp": 3.18,
    "t_gross": -0.34,
    "hit_rate": 0.433,
+   "resolved": 60,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -958.1,
    "by_plan": {
@@ -124,6 +127,7 @@
    "se_bp": 5.73,
    "t_gross": 0.16,
    "hit_rate": 0.273,
+   "resolved": 33,
    "coin_flip_hit_rate": 0.247,
    "coin_flip_net_bp": -558.7,
    "by_plan": {
@@ -152,6 +156,7 @@
    "se_bp": 6.97,
    "t_gross": -0.11,
    "hit_rate": 0.207,
+   "resolved": 29,
    "coin_flip_hit_rate": 0.247,
    "coin_flip_net_bp": -499,
    "by_plan": {
@@ -180,6 +185,7 @@
    "se_bp": 3.6,
    "t_gross": -0.38,
    "hit_rate": 0.439,
+   "resolved": 57,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -376.1,
    "by_plan": {
@@ -208,6 +214,7 @@
    "se_bp": 2.81,
    "t_gross": -0.25,
    "hit_rate": 0.477,
+   "resolved": 65,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -408.3,
    "by_plan": {
@@ -236,6 +243,7 @@
    "se_bp": 6.33,
    "t_gross": 0.13,
    "hit_rate": 0.333,
+   "resolved": 30,
    "coin_flip_hit_rate": 0.307,
    "coin_flip_net_bp": -373.8,
    "by_plan": {
@@ -264,6 +272,7 @@
    "se_bp": 6.86,
    "t_gross": 0.21,
    "hit_rate": 0.273,
+   "resolved": 22,
    "coin_flip_hit_rate": 0.307,
    "coin_flip_net_bp": -276.1,
    "by_plan": {
@@ -292,6 +301,7 @@
    "se_bp": 18.24,
    "t_gross": 0.71,
    "hit_rate": 0.5,
+   "resolved": 2,
    "coin_flip_hit_rate": 0.296,
    "coin_flip_net_bp": -72.8,
    "by_plan": {
@@ -319,7 +329,8 @@
    "mean_net_bp": -7.21,
    "se_bp": 11.53,
    "t_gross": 0.2,
-   "hit_rate": 0,
+   "hit_rate": null,
+   "resolved": 0,
    "by_plan": {
     "trail_long": {
      "n": 37,
@@ -345,7 +356,8 @@
    "mean_net_bp": -11.31,
    "se_bp": 10.25,
    "t_gross": -0.23,
-   "hit_rate": 0,
+   "hit_rate": null,
+   "resolved": 0,
    "by_plan": {
     "trail_short": {
      "n": 39,
@@ -372,6 +384,7 @@
    "se_bp": 3.83,
    "t_gross": -0.94,
    "hit_rate": 0.469,
+   "resolved": 49,
    "coin_flip_hit_rate": 0.474,
    "coin_flip_net_bp": -441.9,
    "by_plan": {
@@ -410,6 +423,7 @@
    "se_bp": 11.42,
    "t_gross": -0.98,
    "hit_rate": 0,
+   "resolved": 3,
    "coin_flip_hit_rate": 0.277,
    "coin_flip_net_bp": -67.1,
    "by_plan": {
@@ -465,6 +479,7 @@
    "se_bp": null,
    "t_gross": null,
    "hit_rate": null,
+   "resolved": 0,
    "by_plan": {},
    "net_bp_per_day": 0,
    "z_vs_random": 1.15
@@ -485,6 +500,7 @@
    "se_bp": 3.39,
    "t_gross": -0.53,
    "hit_rate": 0.551,
+   "resolved": 69,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -988.9,
    "by_plan": {
@@ -513,6 +529,7 @@
    "se_bp": 3.39,
    "t_gross": 0.34,
    "hit_rate": 0.449,
+   "resolved": 69,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -975.1,
    "by_plan": {
@@ -541,6 +558,7 @@
    "se_bp": 6.35,
    "t_gross": -0.37,
    "hit_rate": 0.256,
+   "resolved": 39,
    "coin_flip_hit_rate": 0.247,
    "coin_flip_net_bp": -586.7,
    "by_plan": {
@@ -569,6 +587,7 @@
    "se_bp": 6.5,
    "t_gross": 0.28,
    "hit_rate": 0.188,
+   "resolved": 32,
    "coin_flip_hit_rate": 0.247,
    "coin_flip_net_bp": -535.3,
    "by_plan": {
@@ -597,6 +616,7 @@
    "se_bp": 3.73,
    "t_gross": -1.04,
    "hit_rate": 0.444,
+   "resolved": 63,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -381.3,
    "by_plan": {
@@ -625,6 +645,7 @@
    "se_bp": 3.35,
    "t_gross": 0.5,
    "hit_rate": 0.464,
+   "resolved": 69,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -423.6,
    "by_plan": {
@@ -653,6 +674,7 @@
    "se_bp": 7.66,
    "t_gross": -0.12,
    "hit_rate": 0.333,
+   "resolved": 24,
    "coin_flip_hit_rate": 0.307,
    "coin_flip_net_bp": -303.1,
    "by_plan": {
@@ -681,6 +703,7 @@
    "se_bp": 6.47,
    "t_gross": -0.76,
    "hit_rate": 0.192,
+   "resolved": 26,
    "coin_flip_hit_rate": 0.307,
    "coin_flip_net_bp": -325.4,
    "by_plan": {
@@ -709,6 +732,7 @@
    "se_bp": 14.41,
    "t_gross": 0.46,
    "hit_rate": 0,
+   "resolved": 1,
    "coin_flip_hit_rate": 0.348,
    "coin_flip_net_bp": -72,
    "by_plan": {
@@ -736,7 +760,8 @@
    "mean_net_bp": -8.38,
    "se_bp": 9.79,
    "t_gross": 0.11,
-   "hit_rate": 0,
+   "hit_rate": null,
+   "resolved": 0,
    "by_plan": {
     "trail_long": {
      "n": 38,
@@ -762,7 +787,8 @@
    "mean_net_bp": -4,
    "se_bp": 10.76,
    "t_gross": 0.46,
-   "hit_rate": 0,
+   "hit_rate": null,
+   "resolved": 0,
    "by_plan": {
     "trail_short": {
      "n": 38,
@@ -789,6 +815,7 @@
    "se_bp": 4.26,
    "t_gross": 0.38,
    "hit_rate": 0.5,
+   "resolved": 42,
    "coin_flip_hit_rate": 0.479,
    "coin_flip_net_bp": -373.5,
    "by_plan": {
@@ -826,7 +853,8 @@
    "mean_net_bp": -17.94,
    "se_bp": 8.78,
    "t_gross": -1.21,
-   "hit_rate": 0.25,
+   "hit_rate": 0.421,
+   "resolved": 19,
    "coin_flip_hit_rate": 0.429,
    "coin_flip_net_bp": -165.8,
    "by_plan": {
@@ -897,6 +925,7 @@
    "se_bp": null,
    "t_gross": null,
    "hit_rate": null,
+   "resolved": 0,
    "by_plan": {},
    "net_bp_per_day": 0,
    "z_vs_random": 1.04
@@ -917,6 +946,7 @@
    "se_bp": 4.73,
    "t_gross": -0.33,
    "hit_rate": 0.514,
+   "resolved": 74,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -1014.7,
    "by_plan": {
@@ -945,6 +975,7 @@
    "se_bp": 4.72,
    "t_gross": 0.09,
    "hit_rate": 0.48,
+   "resolved": 75,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -1009,
    "by_plan": {
@@ -973,6 +1004,7 @@
    "se_bp": 8,
    "t_gross": 0.09,
    "hit_rate": 0.359,
+   "resolved": 39,
    "coin_flip_hit_rate": 0.247,
    "coin_flip_net_bp": -596,
    "by_plan": {
@@ -1001,6 +1033,7 @@
    "se_bp": 9.39,
    "t_gross": 0.11,
    "hit_rate": 0.139,
+   "resolved": 36,
    "coin_flip_hit_rate": 0.247,
    "coin_flip_net_bp": -553.4,
    "by_plan": {
@@ -1029,6 +1062,7 @@
    "se_bp": 5.04,
    "t_gross": -0.19,
    "hit_rate": 0.547,
+   "resolved": 64,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -391.7,
    "by_plan": {
@@ -1057,6 +1091,7 @@
    "se_bp": 4.44,
    "t_gross": -1.23,
    "hit_rate": 0.422,
+   "resolved": 64,
    "coin_flip_hit_rate": 0.5,
    "coin_flip_net_bp": -403.2,
    "by_plan": {
@@ -1085,6 +1120,7 @@
    "se_bp": 9.4,
    "t_gross": -0.23,
    "hit_rate": 0.286,
+   "resolved": 28,
    "coin_flip_hit_rate": 0.307,
    "coin_flip_net_bp": -353.6,
    "by_plan": {
@@ -1113,6 +1149,7 @@
    "se_bp": 9.48,
    "t_gross": -0.41,
    "hit_rate": 0.269,
+   "resolved": 26,
    "coin_flip_hit_rate": 0.307,
    "coin_flip_net_bp": -315.6,
    "by_plan": {
@@ -1141,6 +1178,7 @@
    "se_bp": 17.52,
    "t_gross": 1.48,
    "hit_rate": 0.667,
+   "resolved": 6,
    "coin_flip_hit_rate": 0.371,
    "coin_flip_net_bp": -62.4,
    "by_plan": {
@@ -1168,7 +1206,8 @@
    "mean_net_bp": -6.64,
    "se_bp": 14.51,
    "t_gross": 0.2,
-   "hit_rate": 0,
+   "hit_rate": null,
+   "resolved": 0,
    "by_plan": {
     "trail_long": {
      "n": 35,
@@ -1194,7 +1233,8 @@
    "mean_net_bp": -9.47,
    "se_bp": 12.42,
    "t_gross": -0.04,
-   "hit_rate": 0,
+   "hit_rate": null,
+   "resolved": 0,
    "by_plan": {
     "trail_short": {
      "n": 41,
@@ -1221,6 +1261,7 @@
    "se_bp": 5.33,
    "t_gross": 0.3,
    "hit_rate": 0.5,
+   "resolved": 64,
    "coin_flip_hit_rate": 0.48,
    "coin_flip_net_bp": -464,
    "by_plan": {
@@ -1258,7 +1299,8 @@
    "mean_net_bp": -31.25,
    "se_bp": 8.77,
    "t_gross": -2.66,
-   "hit_rate": 0.143,
+   "hit_rate": 0.25,
+   "resolved": 20,
    "coin_flip_hit_rate": 0.365,
    "coin_flip_net_bp": -208.9,
    "by_plan": {
@@ -1444,8 +1486,8 @@
    "trades": 110,
    "target_first": 0,
    "mean_net_bp": -7.43,
-   "hit_rate": 0,
-   "coin_flip_hit_rate": 0,
+   "hit_rate": null,
+   "coin_flip_hit_rate": null,
    "timeouts": 30,
    "t_gross": 0.3,
    "z_vs_random": 0.68
@@ -1457,8 +1499,8 @@
    "trades": 118,
    "target_first": 0,
    "mean_net_bp": -8.32,
-   "hit_rate": 0,
-   "coin_flip_hit_rate": 0,
+   "hit_rate": null,
+   "coin_flip_hit_rate": null,
    "timeouts": 22,
    "t_gross": 0.1,
    "z_vs_random": 0.45
@@ -1483,8 +1525,8 @@
    "trades": 112,
    "target_first": 0.116,
    "mean_net_bp": -23.74,
-   "hit_rate": 0.151,
-   "coin_flip_hit_rate": 0.369,
+   "hit_rate": 0.309,
+   "coin_flip_hit_rate": 0.388,
    "timeouts": 25,
    "t_gross": -2.86,
    "z_vs_random": -1.95

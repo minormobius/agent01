@@ -2904,7 +2904,8 @@ Jev picks one only when no plan is open.
 | `lab/plans.mjs` | the menu (`MACROS`), the engine (`simulate`), the facts (`options`, `state`, `questions`), the deciders, `walk` and `tally`. Pure ESM: the gate, the eval and the page run the same code |
 | `lab/tape.mjs` | 1-minute candles from Hyperliquid's `candleSnapshot`, cached in `lab/fixtures/candles-<coin>-1m.json` (~3.3 days each of BTC, ETH and SOL, fetched 2026-10-03) so a rerun measures the same tape. Node only |
 | `eval/plans-gate.mjs` | every arm on every tape, no model calls, ~1 s; writes `lab/plans-gate.json` |
-| `eval/plans-jev.mjs` | Jev in the seat, paced, capped (`--max-decisions`), and a failed call stands aside and is counted. `--stub` plays the same loop with the baseline's picks; writes `lab/plans-stub.json` |
+| `eval/plans-jev.mjs` | Jev in the seat, paced, capped (`--max-decisions`), and a failed call stands aside and is counted. `--stub` plays the same loop with the baseline's picks (`lab/plans-stub.json`); `--no-wait` forces a trade and scores it against random picks from the same menu; `--no-coinflip` and `--no-record` drop a fact |
+| `eval/plans-replay.mjs` | re-scores a recorded `.jsonl` with no calls |
 | `lab/plans/` | the replay page: pick a tape and a decider and every plan is drawn as a band (entry, **T**arget, **S**top, exit mark). Click one to see the state and menu it was chosen from |
 | `test/plans.selftest.mjs` | 66 checks, gates the deploy |
 
@@ -3005,27 +3006,93 @@ time. It's mulberry32 now. **A biased null tape looks exactly like an edge.**
   dip-buy or rip-sell toward the middle of the hour's range) is a coin flip
   before costs and loses its costs after.
 
-### Jev: blocked on billing, not measured
+### Jev, live (2026-10-03): it stands aside, and when it can't, it does worse than random
 
-The stub run (the baseline's picks through the same loop and questions, no
-calls) reproduces the gate's baseline row to the basis point (−1238 over the
-three tapes), so the plumbing is right.
+The first live call came back 402 (no TypeSafe credits). After the operator
+topped up, three arms were run. A request is about 5.3KB: the state plus 11
+options with their facts.
 
-**The first live call returned HTTP 402: the TypeSafe organisation has no API
-credits left** (`billing_error`, 2026-10-03). Every `/jev/api/ask` caller is
-down until it's topped up: the dungeon, craft, the arena and this. A request is
-about 5.3KB: the state plus 11 options with their facts.
+**1. The full menu (`lab/plans-jev-v1.jsonl`, 109 decisions on BTC): `wait`
+every time,** at mean confidence 0.86. `revert` was offered once and got 0.20
+against `wait`'s 0.71. Given facts that say every plan expects to lose its
+costs on a coin-flip tape, and a gate that agrees, that is the right answer.
+It's the same refusal this file keeps recording when a question has no
+determinate answer. It is also untestable: 0bp, identical to the `wait` arm.
+The run was stopped at 109 decisions because the other 800 calls would have
+measured nothing more.
 
-**What a live run should answer, stated before it happens:**
-- Does Jev's net beat `wait` (0)? Almost certainly not, given the gate.
-- Does it lose less than random's −1294 ± 699, by trading less and choosing `revert` when offered?
-- Does it chase `last_24h` the way `bestRecent` does?
-- Its own hit rate against `coin_flip_hit_rate`, and its net against `coin_flip_net_bp` (what the same plans expect on a coin-flip tape) are the honest comparisons. Both are in every tally.
+**2. Without the coin-flip facts (`--no-coinflip`, `lab/plans-jev-nocoin.json`,
+40 decisions): `wait` 39 of 40.** The mass on `wait` dropped from ~0.86 to
+0.42–0.78, and `dip_buy` once topped it at 0.30. So the expectation fact
+sharpened the abstention without causing it. What's left is the 24-hour
+record (every plan negative) and the instruction's own *"standing aside is an
+option"*. Neither was ablated.
+
+**3. Made to trade (`--no-wait`, `lab/plans-jev-forced.json`, 307 calls, 0
+failures, 11 minutes).** `wait` is removed from the menu, and the null is
+random picks from **the same forced menu** (30 seeds per tape). Rescored by
+`eval/plans-replay.mjs` (`lab/plans-jev-forced-rescored.json`):
+
+| | Jev | random, same menu | baseline through the menu (stub) |
+|---|---|---|---|
+| net, 3 tapes | **−2884bp** | −1160 ± 750 | −1092 |
+| z against random | **−2.3** | — | +0.09 |
+| gross | −1582bp (t −1.36 / −0.98 / −2.17) | | +800bp |
+| trades | 192 (115 resting entries never filled) | | 286 |
+| hit rate (coin flip) | **40% (48%)**, n 122, z −1.7 | | 52% (48%) |
+
+What it picked: `dip_buy` 137, `rip_sell` 73, `trail_long` 26, `bracket_short`
+24, `revert` 23 (of the 24 times it was offered). Mean top probability was
+0.42, so it read nearly every forced choice as a close call.
+
+**The losses were concentrated:**
+- `trail_long`: 26 picks, −38.5bp a trade, about −1000bp in all. That is five
+  times the fixed arm's −7.4.
+  - It wasn't chasing: the hour before its picks averaged −1.3bp, at mid-range.
+  - A trailing stop scales with σ, so the likeliest reading is that it took
+    the trail when volatility was high, which makes the loss per trade large
+    in bp. Not checked.
+- `revert`: 23 trades, 2 targets against 8 stops, −14bp a trade.
+  - The gate's fixed `revert` made +137bp on 23 trades. Jev took `revert`
+    almost every time it was offered too, but it was offered on different bars,
+    because when a plan is offered depends on the path so far.
+  - **That disagreement is the best evidence yet that the gate's +137 was noise.**
+- The limit-entry plans (dip and rip) lost about their costs, and a third of
+  them never filled. Jev prefers the cheap-to-try resting orders.
+
+**What it says.** Jev given a choice declines, and on the facts it was handed
+that's correct. Forced, its selection was worse than random from the same menu
+(z −2.3 on net, −1.7 on hit rate), and the baseline script pushed through the
+same menu matched random. So on this substrate, **at selection among plans with
+no edge, it is not merely uninformative: it is mildly anti-informative**, and
+the cost was mostly two plans.
+
+Caveats that outrank it:
+- One live draw. Live runs here have not reproduced run to run before.
+- 3.3 days of three correlated assets.
+- −2.3σ against a 30-seed null on one pre-chosen comparison, not a sweep.
+
+**Where this leaves the substrate.** The menu has no edge before costs, so the
+only thing a decider can show here is **restraint**, and Jev shows it
+unprompted. To measure selection skill, the menu needs something worth
+selecting:
+- plans whose expectation depends on observable state that the facts can carry, as `revert` was meant to;
+- a tape with a regime in it;
+- or a pre-registered forward test of `revert` itself.
+
+`eval/plans-replay.mjs` re-scores any recorded run offline: the walk is
+deterministic given the picks. It reproduced the live run to the basis point.
+
+**A tally bug this round fixed.** `hit_rate` counted a trailing stop's exits as
+misses, although a trail has no target. That understated every arm that used
+one: `bestRecent` went from 15% to 31%, and Jev forced from 32% to 40%. It is
+now computed only over plans that have a target, with `resolved` as its n.
 
 ```bash
 node mega/jev/eval/plans-gate.mjs --seeds 30 --out mega/jev/lab/plans-gate.json   # free, ~1 s
 node mega/jev/eval/plans-jev.mjs --stub --coins BTC,ETH,SOL                      # free
-node mega/jev/eval/plans-jev.mjs --coins BTC,ETH,SOL --out mega/jev/lab/plans-jev.json   # ~600 calls, ~25 min
+node mega/jev/eval/plans-jev.mjs --coins BTC,ETH,SOL --no-wait --out mega/jev/lab/plans-jev-forced.json   # ~300 calls, ~11 min
+node mega/jev/eval/plans-replay.mjs mega/jev/lab/plans-jev-forced.jsonl --no-wait            # free re-score
 node mega/jev/test/plans.selftest.mjs
 ```
 

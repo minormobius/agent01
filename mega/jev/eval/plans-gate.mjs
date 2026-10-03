@@ -23,7 +23,7 @@ const out = arg('out', null), refresh = process.argv.includes('--refresh');
 
 const mean = (v) => v.reduce((a, b) => a + b, 0) / v.length;
 const sd = (v) => { const m = mean(v); return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / Math.max(1, v.length - 1)); };
-const pick = (t) => ({ decisions: t.decisions, trades: t.trades, targets: t.targets, stops: t.stops, timeouts: t.timeouts, unfilled: t.unfilled, waits: t.waits, ambiguous: t.ambiguous, net_bp: t.net_bp, gross_bp: t.gross_bp, cost_bp: t.cost_bp, mean_net_bp: t.mean_net_bp, se_bp: t.se_bp, t_gross: t.t_gross, hit_rate: t.hit_rate, coin_flip_hit_rate: t.coin_flip_hit_rate, coin_flip_net_bp: t.coin_flip_net_bp, by_plan: t.by_plan });
+const pick = (t) => ({ decisions: t.decisions, trades: t.trades, targets: t.targets, stops: t.stops, timeouts: t.timeouts, unfilled: t.unfilled, waits: t.waits, ambiguous: t.ambiguous, net_bp: t.net_bp, gross_bp: t.gross_bp, cost_bp: t.cost_bp, mean_net_bp: t.mean_net_bp, se_bp: t.se_bp, t_gross: t.t_gross, hit_rate: t.hit_rate, resolved: t.resolved, coin_flip_hit_rate: t.coin_flip_hit_rate, coin_flip_net_bp: t.coin_flip_net_bp, by_plan: t.by_plan });
 
 const t0 = Date.now();
 const report = { ran: new Date().toISOString(), seeds: nSeeds, tapes: {}, arms: {}, pooled: {} };
@@ -55,10 +55,11 @@ for (const n of names) {
   if (n === 'random') { report.pooled[n] = { net_bp: +rows.reduce((a, r) => a + r.mean_net_bp, 0).toFixed(1), sd_bp: +Math.sqrt(rows.reduce((a, r) => a + r.sd_net_bp ** 2, 0)).toFixed(1) }; continue; }
   const trades = rows.reduce((a, r) => a + r.trades, 0), targets = rows.reduce((a, r) => a + r.targets, 0);
   report.pooled[n] = { net_bp: +rows.reduce((a, r) => a + r.net_bp, 0).toFixed(1), gross_bp: +rows.reduce((a, r) => a + r.gross_bp, 0).toFixed(1), cost_bp: +rows.reduce((a, r) => a + r.cost_bp, 0).toFixed(1), trades, target_first: trades ? +(targets / trades).toFixed(3) : null, mean_net_bp: trades ? +(rows.reduce((a, r) => a + r.net_bp, 0) / trades).toFixed(2) : 0 };
-  const hr = rows.filter((r) => r.hit_rate != null);
-  const tg = rows.reduce((a, r) => a + r.targets, 0), st = rows.reduce((a, r) => a + r.stops, 0);
-  report.pooled[n].hit_rate = tg + st ? +(tg / (tg + st)).toFixed(3) : null;
-  report.pooled[n].coin_flip_hit_rate = hr.length ? +(hr.reduce((a, r) => a + (r.coin_flip_hit_rate || 0) * (r.targets + r.stops), 0) / Math.max(1, hr.reduce((a, r) => a + r.targets + r.stops, 0))).toFixed(3) : null;
+  const hr = rows.filter((r) => r.hit_rate != null && r.coin_flip_hit_rate != null);
+  // pooled from each tape's hit rate, weighted by its trades (trails, which have no target, are already out of it)
+  const hw = rows.filter((r) => r.hit_rate != null);
+  report.pooled[n].hit_rate = hw.length ? +(hw.reduce((a, r) => a + r.hit_rate * r.resolved, 0) / hw.reduce((a, r) => a + r.resolved, 0)).toFixed(3) : null;
+  report.pooled[n].coin_flip_hit_rate = hr.length && hr.some((r) => r.coin_flip_hit_rate != null) ? +(hr.reduce((a, r) => a + (r.coin_flip_hit_rate || 0) * r.resolved, 0) / hr.reduce((a, r) => a + r.resolved, 0)).toFixed(3) : null;
   report.pooled[n].timeouts = rows.reduce((a, r) => a + r.timeouts, 0);
   // gross per trade as a t, pooled from the per-tape standard errors
   const g = rows.filter((r) => r.trades > 1);

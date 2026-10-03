@@ -328,7 +328,8 @@ export function tally(plans) {
     // the edge before costs, as a t: |t| < 2 is a gross result indistinguishable from nothing
     t_gross: nets.length > 1 ? +((sum((p) => p.grossBp) / nets.length) / Math.max(1e-9, sd(traded.map((p) => p.grossBp)) / Math.sqrt(nets.length))).toFixed(2) : null,
     // of the plans that reached their target or their stop, the share that reached the target
-    hit_rate: (() => { const t = traded.filter((p) => p.reason === 'target').length, s = traded.filter((p) => p.reason === 'stopped').length; return t + s ? +(t / (t + s)).toFixed(3) : null; })(),
+    // (only plans that HAVE a target: a trailing stop has none, and counting its exits as misses understates every arm that uses it)
+    ...(() => { const w = traded.filter((p) => !p.spec || p.spec.tgt != null), t = w.filter((p) => p.reason === 'target').length, s = w.filter((p) => p.reason === 'stopped').length; return { hit_rate: t + s ? +(t / (t + s)).toFixed(3) : null, resolved: t + s }; })(),
     // what the same plans would have done on a coin-flip tape: the hit rate and net to beat
     ...(() => { const w = traded.filter((p) => p.odds); if (!w.length) return {}; const et = w.reduce((a, p) => a + p.odds.target, 0), es = w.reduce((a, p) => a + p.odds.stop, 0); return { coin_flip_hit_rate: +(et / (et + es)).toFixed(3), coin_flip_net_bp: +w.reduce((a, p) => a + p.rwBp, 0).toFixed(1) }; })(),
     by_plan: Object.fromEntries([...new Set(traded.map((p) => p.key))].map((k) => { const ps = traded.filter((p) => p.key === k); return [k, { n: ps.length, net_bp: +ps.reduce((a, p) => a + p.netBp, 0).toFixed(1), target_first: +(ps.filter((p) => p.reason === 'target').length / ps.length).toFixed(2) }]; })),
