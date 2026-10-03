@@ -130,7 +130,7 @@ export function simulate(bars, i, spec, costs = COSTS) {
   out.filled = true;
   // stops and targets move with the actual fill (a limit can fill better than asked)
   const shift = out.entryPx / spec.entry.px;
-  let stp = spec.stp * shift; const tgt = spec.tgt != null ? spec.tgt * (spec.key === 'revert' ? 1 : shift) : null;
+  let stp = spec.stp * shift; const tgt = spec.tgt != null ? spec.tgt * (spec.key === 'revert' || spec.revertTarget ? 1 : shift) : null;
   const riskBp = Math.abs(bp(out.entryPx, stp));
   let exitFee = 0, k = out.entryBar;
   for (; k < bars.length; k++) {
@@ -155,7 +155,7 @@ export function simulate(bars, i, spec, costs = COSTS) {
   if (out.exitPx == null) { k = bars.length - 1; out.exitPx = bars[k].c; out.reason = 'end of data'; exitFee = c.takerBps + c.halfSpreadBps; }
   out.exitBar = k;
   out.grossBp = side * bp(out.entryPx, out.exitPx);
-  const hours = (out.exitBar - out.entryBar + 1) * BAR_MIN / 60;
+  const hours = (out.exitBar - out.entryBar + 1) * (bars.barMin || BAR_MIN) / 60;   // a tape of other bars says so: bars.barMin
   out.costBp = entryFee + exitFee + side * c.fundingBpsPerHour * hours;
   out.netBp = out.grossBp - out.costBp;
   out.R = riskBp ? out.netBp / riskBp : 0;
@@ -294,7 +294,7 @@ export const DECIDERS = {
 // (opts, state, ctx) → key, sync or async. Returns every plan and the totals.
 // `menu` narrows or rewrites the options before the decider sees them (an arm
 // that must trade drops wait; an ablation drops a fact).
-export async function walk(bars, decide, { from = 300, to = bars.length - 1, record = true, onPlan, menu } = {}) {
+export async function walk(bars, decide, { from = 300, to = bars.length - 1, record = true, onPlan, menu, costs } = {}) {
   const plans = [], journal = [];
   let i = from;
   while (i < to) {
@@ -303,7 +303,7 @@ export async function walk(bars, decide, { from = 300, to = bars.length - 1, rec
     const st = state(bars, i, journal);
     const pick = await decide(opts, st, { i, bars });
     const o = opts.find((x) => x.key === pick) || opts.find((x) => x.key === 'wait') || opts[0];
-    const r = simulate(bars, i, o.spec);
+    const r = simulate(bars, i, o.spec, costs);
     r.t = bars[i].t; r.spec = o.spec;
     if (o.facts._odds) { r.odds = o.facts._odds; r.rwBp = o.facts._rw_bp; }
     plans.push(r);
