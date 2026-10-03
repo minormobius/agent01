@@ -3743,6 +3743,22 @@
       ]
     },
     {
+      "n": "oneside",
+      "u": "https://games.mino.mobi/oneside/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "games",
+      "surface": "games",
+      "d": "A maze chase on a Möbius strip. The ghosts walk the maze on the other side of the paper, half a strip away: they glide through your walls along its faint rails and catch you through the paper. But a Möbius strip has only one side, and half a strip on, you are on their maze.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
       "n": "outbound",
       "u": "https://games.mino.mobi/outbound/",
       "c": "games",

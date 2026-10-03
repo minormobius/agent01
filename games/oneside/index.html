@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#03030a" />
+<meta name="description" content="One Side — a maze chase on a Möbius strip. The ghosts walk the maze on the other side of the paper, and there is only one side." />
+<title>One Side — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/oneside.css" />
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="h"><b>SCORE</b><span id="score">0</span></div>
+    <div class="h"><b>BEST</b><span id="best">0</span></div>
+    <div class="h"><b>LEVEL</b><span id="level">1</span></div>
+    <div class="h"><b>LIVES</b><span id="lives"></span></div>
+    <div class="sp"></div>
+    <button type="button" id="band" title="Show the band, the strip in 3D (b)">∞</button>
+    <button type="button" id="pause" title="Pause (space)">❚❚</button>
+  </div>
+  <canvas id="game" aria-label="The strip: swipe to move"></canvas>
+  <div id="note"></div>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>ONE SIDE</h1>
+  <p>
+    A maze chase on a <b>Möbius strip</b>. Eat every dot. The ghosts pass
+    through walls, of course, because they don't walk your maze: they walk
+    the maze on <b>the other side of the paper</b>, half a strip away. Its
+    faint violet rails show through. They take their signals from over there,
+    and they reach you through the paper.
+  </p>
+  <p class="accent">
+    But a Möbius strip has only one side. Walk half a strip and you're on the
+    maze they were bound to, and they're bound to the one you left. Clear
+    both faces to clear the level.
+  </p>
+  <p>Swipe or use the arrows. The band at the top is the strip itself.</p>
+  <button id="start-btn" type="button">WALK</button>
+  <p style="font-size:12px"><a href="../">games.mino.mobi</a> · <a href="./README.md">how it works</a></p>
+</div>
+<div class="overlay" id="over" hidden>
+  <h1>CAUGHT</h1>
+  <p id="over-body"></p>
+  <button id="again" type="button">AGAIN</button>
+</div>
+
+<script src="js/maze.js"></script>
+<script src="js/game.js"></script>
+<script src="js/view.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

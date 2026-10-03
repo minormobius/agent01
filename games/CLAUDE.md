@@ -94,6 +94,14 @@ Three things live here:
   shells, look down through opened cells. Plays with Orb's rules, solver and
   no-guess generator unchanged (`mesh.flood` and `mesh.weight` are opt-in
   hooks there). See [`fathom/README.md`](fathom/README.md).
+- **One Side at `/oneside/`**: a maze chase on a Möbius strip. The maze is
+  painted on the strip's double cover (both faces of the paper: a band twice
+  as long, `back(x, y) = (x + L, H − 1 − y)`). The ghosts walk the maze on the
+  other side of the paper: bound by the maze half a strip away, targeting
+  through the twist, catching you through the paper; you see them glide
+  through your walls along its faint rails. And there's only one side: walk
+  half a strip and you're on their maze. Arcade ghost minds; a 3D band view.
+  See [`oneside/README.md`](oneside/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -138,7 +146,7 @@ Three things live here:
   to this family: [`pressure/README.md`](pressure/README.md).
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -175,6 +183,7 @@ node games/tempest/test/tempest.selftest.mjs      # invariants + the wasm drift 
 node games/orb/test/orb.selftest.mjs             # mesh, solver vs brute force, generator; preflight runs this
 node games/orb/test/analysis.mjs 300             # guess-free rate: Voronoi orb vs square/hex grids (~3 s)
 node games/fathom/test/fathom.selftest.mjs       # the onion's layers, flood and depth rules, every size proved guess-free
+node games/oneside/test/oneside.selftest.mjs     # the surface and its back, the maze, the through-the-paper rules
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies
