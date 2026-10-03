@@ -1,0 +1,57 @@
+{
+ "ran": "2026-10-03T05:05:28.873Z",
+ "stub": false,
+ "arm": {
+  "noWait": false,
+  "noCoin": true,
+  "noRecord": false
+ },
+ "maxDecisions": 40,
+ "coins": [
+  "BTC"
+ ],
+ "calls": 40,
+ "failures": 0,
+ "minutes": 1.4,
+ "runs": {
+  "BTC": {
+   "decisions": 321,
+   "trades": 0,
+   "targets": 0,
+   "stops": 0,
+   "timeouts": 0,
+   "unfilled": 1,
+   "waits": 320,
+   "ambiguous": 0,
+   "net_bp": 0,
+   "gross_bp": 0,
+   "cost_bp": 0,
+   "mean_net_bp": 0,
+   "se_bp": null,
+   "t_gross": null,
+   "hit_rate": null,
+   "by_plan": {},
+   "picks": [
+    [
+     "wait",
+     320
+    ],
+    [
+     "dip_buy",
+     1
+    ]
+   ],
+   "mean_confidence": 0.815,
+   "below_gate": 2,
+   "mean_have": 0.424,
+   "agreed_with_baseline": 14,
+   "failed": 0,
+   "capped": 281,
+   "random_same_menu": {
+    "mean_net_bp": -386,
+    "sd_net_bp": 374.7,
+    "z": 1.03
+   }
+  }
+ }
+}

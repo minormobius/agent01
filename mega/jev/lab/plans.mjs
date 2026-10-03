@@ -292,14 +292,17 @@ export const DECIDERS = {
 // ------------------------------------------------------------- the walk ---
 // Walk a tape: decide when no plan is open, run the plan, repeat. `decide` is
 // (opts, state, ctx) → key, sync or async. Returns every plan and the totals.
-export async function walk(bars, decide, { from = 300, to = bars.length - 1, record = true, onPlan } = {}) {
+// `menu` narrows or rewrites the options before the decider sees them (an arm
+// that must trade drops wait; an ablation drops a fact).
+export async function walk(bars, decide, { from = 300, to = bars.length - 1, record = true, onPlan, menu } = {}) {
   const plans = [], journal = [];
   let i = from;
   while (i < to) {
-    const opts = options(bars, i, { record });
+    let opts = options(bars, i, { record });
+    if (menu) opts = menu(opts);
     const st = state(bars, i, journal);
     const pick = await decide(opts, st, { i, bars });
-    const o = opts.find((x) => x.key === pick) || opts.find((x) => x.key === 'wait');
+    const o = opts.find((x) => x.key === pick) || opts.find((x) => x.key === 'wait') || opts[0];
     const r = simulate(bars, i, o.spec);
     r.t = bars[i].t; r.spec = o.spec;
     if (o.facts._odds) { r.odds = o.facts._odds; r.rwBp = o.facts._rw_bp; }

@@ -18,6 +18,14 @@ const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ?
 const coins = arg('coins', 'BTC').split(',');
 const from = +arg('from', 300), maxDecisions = +arg('max-decisions', 400);
 const out = arg('out', null), stub = process.argv.includes('--stub');
+// arms: --no-wait (it must pick a trade; scored against random picks from the same forced menu),
+// --no-coinflip (drop the coin-flip odds and expectation), --no-record (drop the last-24h record)
+const noWait = process.argv.includes('--no-wait'), noCoin = process.argv.includes('--no-coinflip'), noRecord = process.argv.includes('--no-record');
+const menu = (opts) => {
+  let o = noWait && opts.length > 1 ? opts.filter((x) => x.key !== 'wait') : opts;
+  if (noCoin || noRecord) o = o.map((x) => { const f = { ...x.facts }; if (noCoin) { delete f.if_price_were_a_coin_flip; } if (noRecord) { delete f.last_24h; delete f._recent; } return { ...x, facts: f }; });
+  return o;
+};
 const ENDPOINT = process.env.JEV_ENDPOINT || 'https://mega.mino.mobi/jev/api/ask';
 const jsonl = out ? out.replace(/\.json$/, '.jsonl') : null;
 
@@ -44,9 +52,11 @@ function jevDecider(coin, log) {
   let n = 0;
   return async (opts, st, { i, bars }) => {
     const rec = { coin, i, t: new Date(bars[i].t).toISOString(), price: st.price, offered: opts.map((o) => o.key) };
-    const base = baseline(opts, st);
+    let base = baseline(opts, st);
+    if (!opts.some((o) => o.key === base)) base = opts[0].key;
     if (n++ >= maxDecisions) { rec.source = 'cap'; rec.chose = 'wait'; log(rec); return 'wait'; }
     const qs = questions(opts);
+    rec.base = base;
     if (stub) { rec.source = 'stub'; rec.chose = base; log(rec); return base; }
     try {
       const r = await ask({ market: `${coin} perpetual, 1-minute bars, paper`, ...st }, qs);
@@ -71,7 +81,7 @@ for (const coin of coins) {
   const log = (rec) => { recs.push(rec); if (jsonl) appendFileSync(jsonl, JSON.stringify(rec) + '\n'); };
   let k = 0;
   const r = await walk(bars, jevDecider(coin, log), {
-    from, record: true,
+    from, record: true, menu,
     onPlan: (p) => { const rec = recs.at(-1); if (rec) Object.assign(rec, { result: p.reason, net_bp: +p.netBp.toFixed(2) }); if (++k % 20 === 0) console.log(`  ${coin} ${k} decisions, ${calls} calls, net ${recs.reduce((a, x) => a + (x.net_bp || 0), 0).toFixed(0)}bp, ${((Date.now() - t0) / 60000).toFixed(1)} min`); },
   });
   const { plans, ...tally } = r;
@@ -80,8 +90,13 @@ for (const coin of coins) {
   const mean = (v) => (v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(3) : null);
   runs[coin] = { ...tally, picks: Object.entries(picks).sort((a, b) => b[1] - a[1]), mean_confidence: mean(confs), below_gate: confs.filter((c) => c < 0.45).length, mean_have: mean(haves),
     agreed_with_baseline: recs.filter((x) => x.baseline_would && x.baseline_would === x.chose).length, failed: recs.filter((x) => /failed/.test(x.source)).length, capped: recs.filter((x) => x.source === 'cap').length };
-  console.log(`${coin}: net ${tally.net_bp}bp (gross ${tally.gross_bp}, costs ${tally.cost_bp}) over ${tally.trades} trades, hit ${tally.hit_rate} vs coin-flip ${tally.coin_flip_hit_rate}; coin-flip expectation for these plans ${tally.coin_flip_net_bp}bp`);
+  // the null for this arm: random picks from the very same menu, many seeds
+  const nulls = [];
+  for (let s = 1; s <= 30; s++) nulls.push((await walk(bars, DECIDERS.random(s), { from, record: false, menu })).net_bp);
+  const nm = nulls.reduce((a, b) => a + b, 0) / nulls.length, nsd = Math.sqrt(nulls.reduce((a, b) => a + (b - nm) ** 2, 0) / (nulls.length - 1));
+  runs[coin].random_same_menu = { mean_net_bp: +nm.toFixed(1), sd_net_bp: +nsd.toFixed(1), z: +((tally.net_bp - nm) / nsd).toFixed(2) };
+  console.log(`${coin}: net ${tally.net_bp}bp (gross ${tally.gross_bp}, costs ${tally.cost_bp}) over ${tally.trades} trades, hit ${tally.hit_rate} vs coin-flip ${tally.coin_flip_hit_rate}; coin-flip expectation for these plans ${tally.coin_flip_net_bp}bp; random from the same menu ${nm.toFixed(0)} ± ${nsd.toFixed(0)} (z ${runs[coin].random_same_menu.z})`);
 }
-const summary = { stub, coins, calls, failures, minutes: +((Date.now() - t0) / 60000).toFixed(1), runs };
+const summary = { stub, arm: { noWait, noCoin, noRecord }, maxDecisions, coins, calls, failures, minutes: +((Date.now() - t0) / 60000).toFixed(1), runs };
 console.log(JSON.stringify(summary, (k, v) => (k === 'by_plan' ? undefined : v), 1));
 if (out) writeFileSync(out, JSON.stringify({ ran: new Date().toISOString(), ...summary }, null, 1));
