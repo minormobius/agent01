@@ -87,6 +87,10 @@ function createExpression(genes, params = {}, seed = 1) {
 
   // ---- state ----
   let t = 0, nRNAP = P.nRNAP, nRibo = P.nRibo, onRNAP = 0, onRibo = 0, nextId = 1;
+  let tlScale = 1; // stage 3c: elongation slows when energy runs low (1 = 10 aa/s)
+  let growth = 1;  // stage 3c: a cell grows (and dilutes its proteins) only as fast as it builds protein
+  const dilution = Math.LN2 / P.Td;
+  let dNow = dP;
   const m = new Int32Array(N), prot = new Int32Array(N), boost = new Float64Array(N).fill(1);
   const live = Array.from({ length: N }, () => []); // live mRNA ids per gene
   const FTtx = fenwick(N), FTdeg = fenwick(N), FTtl = fenwick(N), FTloss = fenwick(N);
@@ -114,7 +118,7 @@ function createExpression(genes, params = {}, seed = 1) {
   let lastRebuild = 0;
   function rates() {
     const freeP = Math.max(0, nRNAP - onRNAP), freeR = Math.max(0, nRibo - onRibo);
-    const aTx = freeP * FTtx.total, aDeg = FTdeg.total, aTl = freeR * FTtl.total, aLoss = dP * FTloss.total;
+    const aTx = freeP * FTtx.total, aDeg = FTdeg.total, aTl = freeR * FTtl.total, aLoss = dNow * FTloss.total;
     return [aTx, aDeg, aTl, aLoss];
   }
 
@@ -151,10 +155,11 @@ function createExpression(genes, params = {}, seed = 1) {
       } else if ((u -= aDeg) < aTl) {
         const g = FTtl.pick(u / Math.max(1, nRibo - onRibo)); if (g < 0 || !m[g]) continue;
         const L = live[g], id = L[(rng() * L.length) | 0];
-        onRibo++; push({ t: t + tlDur[g], kind: 1, g, id, t0: t });
-        out.push(3, g, id, t, t + tlDur[g]);
+        const d = tlDur[g] * tlScale;
+        onRibo++; push({ t: t + d, kind: 1, g, id, t0: t });
+        out.push(3, g, id, t, t + d);
       } else {
-        const g = FTloss.pick((u - aTl) / dP); if (g < 0 || !prot[g]) continue;
+        const g = FTloss.pick((u - aTl) / dNow); if (g < 0 || !prot[g]) continue;
         prot[g]--; FTloss.set(g, prot[g]); totals.loss++;
         out.push(5, g, 0, t, 0);
       }
@@ -174,9 +179,12 @@ function createExpression(genes, params = {}, seed = 1) {
   }
   function setPromoter(g, mult) { boost[g] = mult; FTtx.set(g, cTx[g] * mult); }
   function setMachines(rnap, ribo) { if (rnap != null) nRNAP = rnap; if (ribo != null) nRibo = ribo; }
+  function setTlSpeed(f) { tlScale = 1 / Math.max(f, 0.02); }
+  function setGrowth(f) { growth = Math.max(0, f); dNow = growth * dilution + P.kPtnDeg; }
 
   return {
-    advance, snapshot, setPromoter, setMachines,
+    advance, snapshot, setPromoter, setMachines, setTlSpeed, setGrowth,
+    machines: () => ({ rnap: onRNAP, ribo: onRibo }),
     get t() { return t; }, m, prot, live,
     calib: { freeRNAP0, freeRibo0, busyRNAP, busyRibo, dP, target, mMean, cTx, kTl, txDur, tlDur, kdeg },
     P,

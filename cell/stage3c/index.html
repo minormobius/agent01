@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fuel for 503 Ribosomes · Minimal Cell Twin</title>
+<meta name="description" content="Stage 3c of the Minimal Cell Twin: JCVI-syn3A's energy metabolism, from glucose to lactate and acetate, running underneath whole-genome gene expression. Enzymes come from live protein counts; ribosomes slow when ATP or GTP run short.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/cell.css">
+<style>
+:root { --atp: #f2b84b; --gtp: #a98bff; --carbon: #72e36c; --waste: #7d8898; --hot: #ff5fa2; }
+.sec-title { font: 600 22px/1.2 var(--display); margin: 0; }
+.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+@media (max-width: 860px) { .how { grid-template-columns: minmax(0, 1fr); } }
+.how h3 { font: 600 15px/1.2 var(--display); margin: 0 0 4px; }
+.how p { margin: 0; color: var(--muted); font-size: 13px; }
+.how p b { color: var(--fg); font-weight: 500; }
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.clock { font: 400 12px/1.4 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.clock b { color: var(--fg); font-weight: 500; font-size: 18px; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 22px; align-items: start; }
+@media (max-width: 960px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.mapwrap { min-width: 0; overflow-x: auto; }
+#map { display: block; width: 100%; min-width: 640px; height: auto; }
+#map text { font-family: var(--mono); }
+#map .rx { cursor: pointer; }
+#map .rx:hover .hit { stroke: rgba(255,255,255,.06); }
+#map .rx:focus-visible { outline: none; }
+#map .rx:focus-visible .hit { stroke: rgba(79,209,232,.25); }
+.maphint { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; }
+
+.side > section { padding: 14px 16px; border-top: 1px solid var(--line); }
+.side > section:first-child { border-top: 0; }
+.speed { display: flex; align-items: baseline; gap: 10px; }
+.speed b { font: 500 40px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.speed span { color: var(--muted); font-size: 13px; }
+.pool { display: grid; grid-template-columns: 46px minmax(0, 1fr) 70px; gap: 8px; align-items: center; font: 400 12px/1.2 var(--mono); margin-top: 6px; }
+.pool .b { height: 9px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.pool .b i { display: block; height: 100%; background: var(--c); }
+.pool .v { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.flows { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font: 400 11.5px/1.3 var(--mono); color: var(--muted); margin-top: 10px; }
+.flows b { display: block; font: 500 15px/1.2 var(--mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+.slider { display: grid; gap: 4px; }
+.slider label { display: flex; justify-content: space-between; font: 500 12px/1.2 var(--mono); }
+.slider label span { color: var(--muted); font-weight: 400; }
+.slider input { width: 100%; accent-color: var(--carbon); }
+.slider p { margin: 0; color: var(--muted); font-size: 12px; }
+.card h3 { font: 600 19px/1.2 var(--display); margin: 0 0 2px; }
+.card p { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 13px; }
+.kv dt { color: var(--muted); font: 400 12px/1.5 var(--mono); }
+.kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.kv dd small { color: var(--muted); }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.acts button[aria-pressed="true"] { border-color: var(--hot); color: var(--hot); }
+
+.charts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+.charts .panel { padding: 12px 14px; }
+.charts canvas { width: 100%; height: 130px; display: block; }
+.try { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 960px) { .try { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .try { grid-template-columns: minmax(0, 1fr); } }
+.try article { padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.try h3 { font: 600 16px/1.2 var(--display); margin: 0; }
+.try p { margin: 0; color: var(--muted); font-size: 13px; }
+.try button { justify-self: start; }
+.loading { color: var(--muted); font: 400 13px var(--mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Minimal Cell Twin</a><span>/</span><a href="../stage1/">1</a><span>·</span><a href="../stage2/">2</a><span>·</span><a href="../stage3/">3a</a><span>·</span><a href="../stage3b/">3b</a><span>·</span><span>3c</span></nav>
+  <header class="page">
+    <div class="eyebrow">Stage 3c · metabolism underneath</div>
+    <h1>Fuel for 503 ribosomes</h1>
+    <p class="lede">In 3b, building a protein cost nothing. Here it costs what it costs a real cell: <b>one ATP and two GTP for every amino acid added</b>. The only way syn3A makes that energy is by breaking down glucose. Below, its energy metabolism runs live under the whole genome: 23 reactions with the published rate constants. The enzymes are the proteins the genome is making right now, so a gene's fate reaches the fuel supply, and the fuel supply reaches every gene.</p>
+  </header>
+
+  <section class="how" aria-label="How this stage works">
+    <div><h3>Energy in</h3><p>Glucose comes in through a transporter that spends one PEP to import it. Glycolysis splits it, and <b>phosphoglycerate kinase and pyruvate kinase make ATP</b>. They also make GTP when they grab GDP instead of ADP, the cell's only source of GTP. Some pyruvate becomes lactate, and some goes to acetate through acetate kinase, which makes one more ATP.</p></div>
+    <div><h3>Energy out</h3><p>Ribosomes spend GTP to move along an mRNA and ATP to load each amino acid. <b>ATP synthase, running backwards, burns the spare ATP</b> to pump protons out. It burns less when the ribosomes need more. All of these rates are live in the map below.</p></div>
+    <div><h3>How the two talk</h3><p>Every second of cell time, enzyme levels are read from the live protein counts, and the busy ribosomes set the energy demand. Then the ribosomes' speed is set from ATP and GTP. Gene expression is exact random events and metabolism is equations, the same split the published whole-cell model uses.</p></div>
+  </section>
+
+  <section style="display:grid;gap:12px" aria-labelledby="live-t">
+    <div class="bar">
+      <h2 class="sec-title" id="live-t">The energy pathway, live</h2>
+      <div class="controls">
+        <button class="primary" id="play" type="button">Pause</button>
+        <div class="seg" id="speedSeg" role="group" aria-label="Simulation speed"></div>
+        <button id="reset" type="button">Reset</button>
+      </div>
+    </div>
+    <div class="clock"><b id="clock">–</b> of cell time · <span id="rate" class="loading">warming up the cell: settling metabolism under the full genome…</span></div>
+    <div class="main">
+      <div class="mapwrap">
+        <svg id="map" viewBox="0 0 960 405" role="img" aria-label="Glycolysis and the acetate route with live fluxes and concentrations"></svg>
+        <p class="maphint">Arrow width is flux right now, and circle size is concentration. Badges show where ATP and GTP are made (+) or spent (−). Click any arrow to see its enzyme, drug it, or knock out its gene.</p>
+      </div>
+      <aside class="panel side">
+        <section>
+          <p class="label">Ribosome speed</p>
+          <div class="speed"><b id="spd">–</b><span id="spdtxt">of the measured 10 amino acids/s</span></div>
+          <p class="clock" style="margin:4px 0 8px">growing at <b id="grw" style="font-size:14px">–</b> of the lab rate · doubling every <span id="dbl">–</span></p>
+          <div id="pools"></div>
+          <div class="flows"><div><b id="f-glc">–</b>glucose in, mM/s</div><div><b id="f-lac">–</b>lactate out</div><div><b id="f-ac">–</b>acetate out</div></div>
+        </section>
+        <section>
+          <div class="slider"><label for="glc">Glucose in the medium <span id="glcv">40 mM</span></label><input id="glc" type="range" min="0" max="100" step="1" value="100"><p>The lab medium has 40 mM. Slide down to starve the cell.</p></div>
+        </section>
+        <section class="card" id="card" aria-live="polite"></section>
+      </aside>
+    </div>
+  </section>
+
+  <section class="charts" aria-label="Over time">
+    <div class="panel"><p class="label">Ribosome speed · % of normal</p><canvas id="c-spd"></canvas></div>
+    <div class="panel"><p class="label">ATP <span style="color:var(--atp)">■</span> and GTP <span style="color:var(--gtp)">■</span> · mM</p><canvas id="c-ntp"></canvas></div>
+    <div class="panel"><p class="label">Proteins finished per second</p><canvas id="c-prot"></canvas></div>
+  </section>
+
+  <section style="display:grid;gap:14px" aria-labelledby="try-t">
+    <h2 class="sec-title" id="try-t">Four things to try</h2>
+    <div class="try">
+      <article class="panel"><h3>Starve it</h3><p>Drop glucose to almost nothing. For about four minutes nothing seems to happen, because the cell lives off its stockpile of glycolytic intermediates (watch FBP shrink). Then the stockpile runs out, PEP vanishes, glucose import stops, and GTP collapses. The ribosomes stall on GTP while ATP sits unused.</p><button type="button" data-try="starve">Set it up</button></article>
+      <article class="panel"><h3>Feed it again</h3><p>Put the glucose back. Recovery is slow: importing glucose needs PEP, and only glycolysis makes PEP, so the pathway has to rebuild itself from the last few molecules. Expect 10 to 30 minutes of cell time.</p><button type="button" data-try="feed">Set it up</button></article>
+      <article class="panel"><h3>Poison GAPDH</h3><p>A drug that blocks 98% of GAPDH works at once. Everything downstream drains, and gene expression slows across the whole genome.</p><button type="button" data-try="drug">Set it up</button></article>
+      <article class="panel"><h3>Knock out pfkA</h3><p>Deleting the gene is slower than a drug. The enzyme already made only dilutes as the cell grows, halving every 105 minutes. Run at 300× and watch PFK's arrow thin out.</p><button type="button" data-try="ko">Set it up</button></article>
+    </div>
+  </section>
+
+  <div class="notes">
+    <div><h2>Where the numbers come from</h2><p>The 23 reactions, their rate constants and affinities, and the starting concentrations are the thermodynamically balanced set published with the whole-cell model (Thornburg et al. 2022). Gene–reaction rules come from the iMB155 reconstruction (Breuer et al. 2019). The rate law is the standard common modular form, and medium glucose is 40 mM, as in their simulations.</p></div>
+    <div><h2>What is our choice</h2><p>How ribosome speed depends on fuel. Ribosomes run at the measured 10 amino acids per second and slow only when GTP or ATP is nearly gone (half speed at 1&nbsp;µM), as in the published model, where translation draws GTP at full rate until the pool is empty. <b>The cell grows exactly as fast as its ribosomes add amino acids</b>, so a starved cell stops diluting its proteins, as real ones do. Proteins mass spec never detected carry a 10-copy placeholder and aren't allowed to limit an enzyme.</p></div>
+    <div><h2>What is still missing</h2><p>The rest of metabolism: amino acids and nucleotides arrive by transport, and lipids are made for the membrane. Above all, <b>growth</b>. Here the ribosome count is fixed, so a starved cell can't shrink its own demand. Stage 3d adds growth and division, so a well-fed cell makes more ribosomes and a starved one makes fewer.</p></div>
+  </div>
+</div>
+
+<script>
+(async () => {
+  const css = getComputedStyle(document.documentElement);
+  const tok = (n) => css.getPropertyValue(n).trim();
+  const C = { atp: tok('--atp'), gtp: tok('--gtp'), carbon: tok('--carbon'), waste: tok('--waste'), hot: tok('--hot'), fg: tok('--fg'), muted: tok('--muted'), line: tok('--line') };
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const [genome, net] = await Promise.all([fetch('../stage3/data/genome.json').then((r) => r.json()), fetch('data/metabolism.json').then((r) => r.json())]);
+  const prot = genome.genes.filter((g) => g.kind === 'protein');
+  const tagIndex = new Map(prot.map((g, i) => [g.tag, i]));
+  const byTag = new Map(genome.genes.map((g) => [g.tag, g]));
+  const RX = Object.fromEntries(net.reactions.map((r) => [r.id, r]));
+
+  // ---------- map layout ----------
+  const NODES = {
+    M_glc__D_e: [50, 70, 'glucose'], M_g6p_c: [150, 70, 'G6P'], M_f6p_c: [245, 70, 'F6P'], M_fdp_c: [340, 70, 'FBP'],
+    M_dhap_c: [440, 150, 'DHAP', 'left'], M_g3p_c: [440, 70, 'G3P', 'above'], M_13dpg_c: [540, 70, '1,3-BPG'], M_3pg_c: [640, 70, '3PG'],
+    M_2pg_c: [735, 70, '2PG'], M_pep_c: [835, 70, 'PEP', 'right'], M_pyr_c: [835, 210, 'pyruvate', 'right'], M_lac__L_c: [835, 320, 'lactate', 'right'],
+    M_accoa_c: [680, 210, 'acetyl-CoA'], M_actp_c: [540, 210, 'acetyl-P'], M_ac_c: [400, 210, 'acetate'],
+  };
+  const EDGES = [ // [reaction, from, to, badge]
+    ['GLCpts', 'M_glc__D_e', 'M_g6p_c', '−PEP'], ['PGI', 'M_g6p_c', 'M_f6p_c'], ['PFK', 'M_f6p_c', 'M_fdp_c', '−ATP'],
+    ['FBA', 'M_fdp_c', 'M_g3p_c'], ['TPI', 'M_dhap_c', 'M_g3p_c'], ['GAPD', 'M_g3p_c', 'M_13dpg_c', 'NADH'],
+    ['PGK', 'M_13dpg_c', 'M_3pg_c', '+ATP'], ['PGM', 'M_3pg_c', 'M_2pg_c'], ['ENO', 'M_2pg_c', 'M_pep_c'],
+    ['PYK', 'M_pep_c', 'M_pyr_c', '+ATP'], ['LDH_L', 'M_pyr_c', 'M_lac__L_c'], ['PDH_E1', 'M_pyr_c', 'M_accoa_c', 'NADH'],
+    ['PTAr', 'M_accoa_c', 'M_actp_c'], ['ACKr', 'M_actp_c', 'M_ac_c', '+ATP'],
+  ];
+  const OUTS = [['L_LACt2r', 'M_lac__L_c', [835, 390], 'out'], ['ACt', 'M_ac_c', [290, 210], 'acetate out']];
+  const svg = document.getElementById('map'), NS = 'http://www.w3.org/2000/svg';
+  const el = (name, attrs, parent = svg) => { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+  el('defs', {}).innerHTML = `<marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="2.4" markerHeight="2.4" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${C.carbon}"/></marker>`;
+  // dashed PEP loop to the importer
+  el('path', { d: 'M835,52 C835,10 120,10 100,58', fill: 'none', stroke: C.muted, 'stroke-dasharray': '3 5', 'stroke-width': 1.2 });
+  el('text', { x: 470, y: 22, 'text-anchor': 'middle', fill: C.muted, 'font-size': 11 }).textContent = 'each glucose imported costs one PEP';
+  const edgeEls = {};
+  function addEdge(id, a, b, badge) {
+    let [x1, y1] = NODES[a], [x2, y2] = Array.isArray(b) ? b : NODES[b];
+    { // stop short of the circles so the arrowheads stay visible
+      const L = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / L, uy = (y2 - y1) / L, end = Array.isArray(b) ? 0 : 17;
+      x1 += ux * 12; y1 += uy * 12; x2 -= ux * end; y2 -= uy * end;
+    }
+    const g = el('g', { class: 'rx', tabindex: 0, role: 'button', 'aria-label': RX[id].label });
+    el('line', { x1, y1, x2, y2, stroke: 'transparent', 'stroke-width': 22, class: 'hit' }, g);
+    const line = el('line', { x1, y1, x2, y2, stroke: C.carbon, 'stroke-linecap': 'round', 'marker-end': 'url(#ah)', opacity: 0.85 }, g);
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, vertical = Math.abs(x2 - x1) < 5;
+    const lab = el('text', { x: vertical ? mx + 10 : mx, y: vertical ? my : my - 14, 'text-anchor': vertical ? 'start' : 'middle', fill: C.muted, 'font-size': 10.5 }, g);
+    lab.textContent = id.replace('_L', '').replace('_E1', '').replace('r', '').replace('2', '');
+    let bdg = null;
+    if (badge) {
+      const col = badge.includes('ATP') ? C.atp : badge.includes('GTP') ? C.gtp : C.muted;
+      bdg = el('text', { x: vertical ? mx + 10 : mx, y: vertical ? my + 14 : my + 20, 'text-anchor': vertical ? 'start' : 'middle', fill: col, 'font-size': 11, 'font-weight': 500 }, g);
+      bdg.textContent = badge;
+    }
+    g.addEventListener('click', () => select(id));
+    g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(id); } });
+    edgeEls[id] = { line, lab, g };
+  }
+  EDGES.forEach(([id, a, b, bd]) => addEdge(id, a, b, bd));
+  OUTS.forEach(([id, a, to]) => addEdge(id, a, to));
+  OUTS.forEach(([, , [x, y], label]) => { const left = x < 400; el('text', { x: left ? x - 8 : x + 14, y: y + 4, 'text-anchor': left ? 'end' : 'start', fill: C.muted, 'font-size': 11 }).textContent = label; });
+  const nodeEls = {};
+  for (const [m, [x, y, label, side]] of Object.entries(NODES)) {
+    const c = el('circle', { cx: x, cy: y, r: 8, fill: m.endsWith('_e') ? C.line : '#16212c', stroke: C.carbon, 'stroke-width': 1.5 });
+    // labels go below a node, or beside it where a vertical arrow runs through
+    const lx = side === 'right' ? x + 22 : side === 'left' ? x - 22 : side === 'above' ? x + 14 : x, anchor = side === 'right' || side === 'above' ? 'start' : side === 'left' ? 'end' : 'middle';
+    const ly = side === 'above' ? y - 30 : side ? y - 2 : y + 34;
+    const t = el('text', { x: lx, y: ly, 'text-anchor': anchor, fill: C.fg, 'font-size': 11.5 }); t.textContent = label;
+    const v = el('text', { x: lx, y: ly + 14, 'text-anchor': anchor, fill: C.muted, 'font-size': 10.5 });
+    nodeEls[m] = { c, v };
+  }
+  // the energy side panel inside the map: GTP-making reactions and the burners
+  const side = el('g', {});
+  el('text', { x: 40, y: 285, fill: C.fg, 'font-size': 12 }, side).textContent = 'also running:';
+  const sideRows = [['PGK3', '+GTP', 'PGK grabs GDP'], ['PYK3', '+GTP', 'PYK grabs GDP'], ['ADK1', '', 'AMP + ATP ⇌ 2 ADP'], ['NOX', '', 'NADH → NAD⁺'], ['ATPase', '−ATP', 'ATP synthase, burning'], ['RIBO', '−GTP −ATP', 'ribosomes']];
+  const sideEls = {};
+  sideRows.forEach(([id, badge, text], k) => {
+    const y = 305 + k * 16, g = el('g', id === 'RIBO' ? {} : { class: 'rx', tabindex: 0, role: 'button', 'aria-label': text }, side);
+    const col = badge.includes('GTP') && badge.includes('ATP') ? C.hot : badge.includes('GTP') ? C.gtp : badge.includes('ATP') ? C.atp : C.muted;
+    el('text', { x: 40, y, fill: col, 'font-size': 11, 'font-weight': 500 }, g).textContent = badge || '·';
+    el('text', { x: 118, y, fill: C.muted, 'font-size': 11 }, g).textContent = text;
+    const bar = el('rect', { x: 268, y: y - 8, width: 1, height: 8, fill: col, rx: 1 }, g);
+    const val = el('text', { x: 366, y, fill: C.muted, 'font-size': 10.5 }, g);
+    if (id !== 'RIBO') g.addEventListener('click', () => select(id));
+    sideEls[id] = { bar, val };
+  });
+
+  // ---------- state ----------
+  let S = null, rest = null, playing = true, speed = 10, busy = true, seed = 1, sel = 'PFK', t0 = null;
+  const drugs = new Map(), knocked = new Set(), hist = [];
+  let lastTl = 0, lastHT = null, glucose = 40;
+  const worker = new Worker('sim.js');
+  worker.onmessage = (e) => {
+    const m = e.data;
+    if (m.type === 'meta') { rest = m.rest; busy = false; document.getElementById('rate').classList.remove('loading'); return; }
+    if (m.type !== 'frame') return;
+    busy = false; S = m.s;
+    if (t0 == null) { t0 = S.t; lastHT = S.t; lastTl = S.totals.tl; }
+    if (S.t - lastHT >= 10) {
+      hist.push([S.t - t0, S.met.speed, S.met.conc.M_atp_c, S.met.conc.M_gtp_c, (S.totals.tl - lastTl) / (S.t - lastHT)]);
+      if (hist.length > 3000) hist.shift(); lastTl = S.totals.tl; lastHT = S.t;
+    }
+  };
+  function reset() {
+    seed = (Math.random() * 2 ** 31) | 0; S = null; busy = true; t0 = null; hist.length = 0; drugs.clear(); knocked.clear(); setGlucose(40, false);
+    document.getElementById('rate').textContent = 'warming up the cell: settling metabolism under the full genome…'; document.getElementById('rate').classList.add('loading');
+    worker.postMessage({ type: 'init', seed, genes: prot.map(({ nt, aa, mrna, ptn }) => ({ nt, aa, mrna, ptn })), tags: prot.map((g) => g.tag), net, warm: 900 });
+    renderCard();
+  }
+
+  // ---------- controls ----------
+  const playBtn = document.getElementById('play');
+  const setPlaying = (v) => { playing = v; playBtn.textContent = v ? 'Pause' : 'Play'; };
+  playBtn.addEventListener('click', () => setPlaying(!playing));
+  document.getElementById('reset').addEventListener('click', reset);
+  const SPEEDS = [1, 10, 60, 300], seg = document.getElementById('speedSeg');
+  seg.innerHTML = SPEEDS.map((v) => `<button type="button" data-v="${v}">${v}×</button>`).join('');
+  const syncSpeed = () => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.v === speed));
+  seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { speed = +b.dataset.v; syncSpeed(); } });
+  syncSpeed();
+  const glcEl = document.getElementById('glc');
+  const sliderToMM = (v) => v <= 0 ? 0 : 0.01 * Math.pow(10, v / 100 * Math.log10(4000)); // 0.01 → 40 mM, log scale
+  const mmToSlider = (mm) => mm <= 0.01 ? 0 : Math.round(100 * Math.log10(mm / 0.01) / Math.log10(4000));
+  function setGlucose(mm, send = true) {
+    glucose = mm; glcEl.value = mmToSlider(mm);
+    document.getElementById('glcv').textContent = mm >= 1 ? `${mm.toFixed(mm < 10 ? 1 : 0)} mM` : `${(mm * 1000).toFixed(0)} µM`;
+    if (send) worker.postMessage({ type: 'glucose', mM: mm });
+  }
+  glcEl.addEventListener('input', () => setGlucose(sliderToMM(+glcEl.value)));
+
+  // ---------- reaction card ----------
+  function genesOf(id) { return RX[id] ? RX[id].genes.map((t) => byTag.get(t)).filter(Boolean) : []; }
+  function select(id) { sel = id; renderCard(); }
+  function renderCard() {
+    const r = RX[sel], elc = document.getElementById('card');
+    if (!r) return;
+    const gs = genesOf(sel), flux = S ? S.met.flux[sel] : null, E = S ? S.met.E[sel] : null;
+    const counts = gs.map((g) => { const i = tagIndex.get(g.tag); return S && i != null ? S.prot[i] : null; });
+    const drug = drugs.get(sel);
+    elc.innerHTML = `<p class="label">Reaction · ${r.id}</p><h3>${r.label}</h3>
+      <p>${r.subs.map(([m, n]) => (n > 1 ? n + ' ' : '') + m.replace(/^M_|_c$|_e$/g, '')).join(' + ')} → ${r.prods.map(([m, n]) => (n > 1 ? n + ' ' : '') + m.replace(/^M_|_c$|_e$/g, '')).join(' + ')}</p>
+      <dl class="kv">
+        <dt>flux now</dt><dd>${flux == null ? '–' : (flux * 1000).toFixed(0) + ' µM/s'}</dd>
+        ${r.law === 'modular' ? `<dt>enzyme</dt><dd>${E == null ? '–' : (E * 1000).toFixed(1) + ' µM'} <small>${gs.length > 1 ? '(scarcest of ' + gs.length + ' subunits)' : ''}</small></dd>` : `<dt>kind</dt><dd>passive leak across the membrane</dd>`}
+        ${gs.length ? `<dt>gene${gs.length > 1 ? 's' : ''}</dt><dd>${gs.map((g, k) => `${g.name || g.tag.slice(-4)} <small>${counts[k] ?? '–'} copies${g.ptn == null ? ' (undetected, 10 assumed)' : ''}</small>`).join('<br>')}</dd>` : (r.law === 'modular' ? '<dt>gene</dt><dd><small>none known: the model\'s default level</small></dd>' : '')}
+      </dl>
+      ${r.law === 'modular' ? `<div class="acts">
+        <button type="button" data-act="drug" aria-pressed="${!!drug}">${drug ? 'Remove the drug' : 'Drug it (−90%)'}</button>
+        ${gs.length ? `<button type="button" data-act="ko" aria-pressed="${gs.some((g) => knocked.has(g.tag))}">${gs.some((g) => knocked.has(g.tag)) ? 'Restore gene' : 'Knock out gene'}</button>` : ''}
+      </div>` : ''}`;
+  }
+  document.getElementById('card').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'drug') { const on = !drugs.has(sel); if (on) drugs.set(sel, 0.1); else drugs.delete(sel); worker.postMessage({ type: 'inhibit', id: sel, f: on ? 0.1 : 1 }); }
+    if (b.dataset.act === 'ko') {
+      const gs = genesOf(sel), on = !gs.some((g) => knocked.has(g.tag));
+      // knocking out one subunit gene is enough for a complex; do the first, or all for single-gene enzymes
+      for (const g of gs.slice(0, 1)) { const i = tagIndex.get(g.tag); if (i == null) continue; if (on) knocked.add(g.tag); else knocked.delete(g.tag); worker.postMessage({ type: 'promoter', g: i, mult: on ? 0 : 1 }); }
+    }
+    renderCard();
+  });
+  document.querySelectorAll('[data-try]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.try;
+    if (k === 'starve') { setGlucose(0.05); speed = 10; }
+    if (k === 'feed') { setGlucose(40); speed = 10; }
+    if (k === 'drug') { select('GAPD'); drugs.set('GAPD', 0.02); worker.postMessage({ type: 'inhibit', id: 'GAPD', f: 0.02 }); speed = 10; renderCard(); }
+    if (k === 'ko') { select('PFK'); const i = tagIndex.get('JCVISYN3A_0220'); knocked.add('JCVISYN3A_0220'); worker.postMessage({ type: 'promoter', g: i, mult: 0 }); speed = 300; renderCard(); }
+    syncSpeed(); setPlaying(true);
+    document.getElementById('live-t').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  }));
+
+  // ---------- drawing ----------
+  const fmtT = (s) => { s = Math.max(0, s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = Math.floor(s % 60); return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+  function canvas2d(cv) {
+    const dpr = Math.min(2, devicePixelRatio || 1), W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); return [c, W, H];
+  }
+  function chart(id, series, yMax, fmt) {
+    const [c, W, H] = canvas2d(document.getElementById(id)), L = 36, B = 16, T = 4, w = W - L - 4, h = H - B - T;
+    c.font = '10.5px "IBM Plex Mono", monospace'; c.fillStyle = C.muted; c.strokeStyle = C.line; c.lineWidth = 1;
+    for (const f of [0, .5, 1]) { const y = T + h * (1 - f); c.beginPath(); c.moveTo(L, y); c.lineTo(L + w, y); c.stroke(); c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText(fmt(yMax * f), L - 5, y); }
+    if (hist.length < 2) return;
+    const tMax = Math.max(60, hist[hist.length - 1][0]);
+    c.textAlign = 'right'; c.textBaseline = 'top'; c.fillText(fmtT(tMax), L + w, T + h + 3);
+    for (const [k, col] of series) {
+      c.beginPath(); hist.forEach((p, i) => { const x = L + w * p[0] / tMax, y = T + h * (1 - Math.min(1.05, p[k] / yMax)); i ? c.lineTo(x, y) : c.moveTo(x, y); });
+      c.strokeStyle = col; c.lineWidth = 2; c.stroke();
+    }
+  }
+  let lastUi = 0, lastEv = 0, lastWall = performance.now(), evRate = 0;
+  function frame(now) {
+    if (playing && !busy && rest) { busy = true; worker.postMessage({ type: 'step', dt: speed * Math.min(now - (frame.last || now), 100) / 1000 }); }
+    frame.last = now;
+    if (S && now - lastUi > 120) {
+      lastUi = now;
+      const dtw = (now - lastWall) / 1000; if (dtw > 0.4) { evRate = (S.t - lastEv) / dtw; lastEv = S.t; lastWall = now; }
+      document.getElementById('clock').textContent = fmtT(S.t - t0);
+      document.getElementById('rate').textContent = playing ? `running at ${evRate < 1.5 ? evRate.toFixed(1) : Math.round(evRate)}× real time` : 'paused';
+      const M = S.met, c = M.conc, sp = M.speed;
+      document.getElementById('spd').textContent = Math.round(sp * 100) + '%';
+      document.getElementById('spd').style.color = sp > 0.9 ? C.fg : sp > 0.5 ? C.atp : C.hot;
+      const gr = M.growth ?? sp; document.getElementById('grw').textContent = Math.round(gr * 100) + '%';
+      document.getElementById('dbl').textContent = gr > 0.02 ? Math.round(105 / gr) + ' min' : 'never: not growing';
+      const pools = [['ATP', c.M_atp_c, C.atp, 4], ['ADP', c.M_adp_c, C.atp, 4], ['AMP', c.M_amp_c, C.atp, 4], ['GTP', c.M_gtp_c, C.gtp, 2], ['GDP', c.M_gdp_c, C.gtp, 2]];
+      document.getElementById('pools').innerHTML = pools.map(([n, v, col, max]) => `<div class="pool" style="--c:${col}"><span>${n}</span><div class="b"><i style="width:${Math.min(100, 100 * v / max).toFixed(1)}%;opacity:${n.endsWith('TP') ? 1 : 0.45}"></i></div><span class="v">${v < 0.1 ? (v * 1000).toFixed(0) + ' µM' : v.toFixed(2) + ' mM'}</span></div>`).join('');
+      const um = (f) => { const v = Math.round(f * 1000); return (Math.abs(v) < 1 ? 0 : v) + ' µ'; };
+      document.getElementById('f-glc').textContent = um(M.flux.GLCpts);
+      document.getElementById('f-lac').textContent = um(M.flux.L_LACt2r);
+      document.getElementById('f-ac').textContent = um(M.flux.ACt);
+      // map
+      for (const [id, { line, lab }] of Object.entries(edgeEls)) {
+        const f = M.flux[id] ?? 0, w = 1 + 12 * Math.sqrt(Math.abs(f) / 0.6);
+        line.setAttribute('stroke-width', Math.max(2.5, Math.min(12, w)).toFixed(2)); line.setAttribute('opacity', Math.abs(f) < 1e-4 ? 0.2 : 0.85);
+        line.setAttribute('stroke', drugs.has(id) ? C.hot : C.carbon);
+        edgeEls[id].g.style.filter = id === sel ? 'drop-shadow(0 0 4px rgba(255,255,255,.5))' : '';
+      }
+      for (const [m, { c: circ, v }] of Object.entries(nodeEls)) {
+        const val = m in c ? c[m] : M.glucose; circ.setAttribute('r', m.endsWith('_e') ? 10 : (5 + 9 * Math.sqrt(Math.min(val, 20) / 4)).toFixed(1));
+        v.textContent = val < 0.1 ? (val * 1000).toFixed(val < 0.001 ? 2 : 0) + ' µM' : val.toFixed(2) + ' mM';
+      }
+      const aa = S.ribo.busy * 10 * sp, cmm = 1000 / (6.022e23 * (4 / 3) * Math.PI * Math.pow(net.meta.cellRadius, 3) * 1000);
+      const side = { PGK3: M.flux.PGK3, PYK3: M.flux.PYK3, ADK1: M.flux.ADK1, NOX: M.flux.NOX, ATPase: -M.flux.ATPase, RIBO: 2 * aa * cmm };
+      for (const [id, f] of Object.entries(side)) { const { bar, val } = sideEls[id]; bar.setAttribute('width', Math.max(1, Math.min(90, 90 * Math.abs(f) / 0.6)).toFixed(1)); val.textContent = `${(Math.abs(f) * 1000).toFixed(0)} µM/s`; }
+      renderCard();
+      chart('c-spd', [[1, C.fg]], 1, (v) => Math.round(v * 100) + '%');
+      chart('c-ntp', [[2, C.atp], [3, C.gtp]], Math.max(2.5, ...hist.map((p) => p[2])) , (v) => v.toFixed(1));
+      chart('c-prot', [[4, C.carbon]], Math.max(10, ...hist.map((p) => p[4])), (v) => v.toFixed(0));
+    }
+    requestAnimationFrame(frame);
+  }
+  reset();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

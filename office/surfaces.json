@@ -2831,6 +2831,15 @@
    "parent": "cell"
   },
   {
+   "id": "stage3c",
+   "name": "stage3c",
+   "url": "https://cell.mino.mobi/stage3c/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "cell"
+  },
+  {
    "id": "core",
    "name": "core",
    "url": "https://ns.mino.mobi/core/",
