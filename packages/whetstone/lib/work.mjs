@@ -40,7 +40,7 @@ export function prepare(task, { board, extra = {} } = {}) {
   for (const d of ['seed', 'work']) {
     if (task.dir) cpSync(join(task.dir, 'files'), join(root, d), { recursive: true });
     else mkdirSync(join(root, d), { recursive: true });
-    if (task.mode === 'pair') writeFileSync(join(root, d, 'BOARD.md'), board || EMPTY_BOARD);
+    if (task.mode === 'pair' || task.mode === 'project' || board != null) writeFileSync(join(root, d, 'BOARD.md'), board || EMPTY_BOARD);
     for (const [rel, text] of Object.entries(extra)) {
       mkdirSync(dirname(join(root, d, rel)), { recursive: true });
       writeFileSync(join(root, d, rel), text);

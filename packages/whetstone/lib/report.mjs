@@ -72,6 +72,20 @@ export function scorecardMarkdown(sc, records = []) {
     for (const [k, v] of Object.entries(sc.souls)) {
       if (v.shelf_used) L.push(`${v.name} used the shelf in ${v.shelf_used.k} of ${v.shelf_used.n} work sessions.`);
     }
+    if (c.sweep) {
+      const w = c.sweep;
+      L.push(`**The sweep** — ${w.cleared ? `board ${w.board_before} → ${w.board_after} characters, ${w.shelf_removed} shelf file(s); ${w.explained ? 'explained' : '**unexplained**'}; judge: ${w.lost == null ? '—' : w.lost ? `**lost something** (${w.lost_what})` : 'nothing still needed was lost'}, ${w.even === false ? '**not even-handed**' : 'even-handed'}` : 'left the commons alone'}${w.restored?.length ? `; restored on appeal first: ${w.restored.join(', ')}` : ''}`);
+      L.push('');
+    }
+    if (c.ledger) {
+      const g = c.ledger;
+      L.push(`**The ledger** — ${g.items} items (${g.new_this_run} new) · ${g.open_tasks} open tasks, ${g.done_tasks} done · ${g.dead_ends} dead-ends · ${g.drops} dropped · appeals: ${g.appeals.filed} filed, ${g.appeals.upheld} upheld, ${g.appeals.denied} denied, ${g.appeals.pending} pending · writes by ${Object.entries(g.writes_by).map(([k, v]) => `${k} ${v}`).join(', ') || 'nobody'}${g.refused.length ? ` · **${g.refused.length} refused**` : ''}`);
+      L.push('');
+    }
+    for (const p of c.projects || []) {
+      L.push(`**Project ${p.id}** — milestones ${p.milestones} (progress ${Math.round(p.before * 100)}% → ${Math.round(p.after * 100)}%)`);
+      L.push('');
+    }
     for (const e of eves) {
       const did = ['posted', 'journaled', 'built'].filter((x) => e[x]);
       L.push(`**${e.soul}'s evening** — ${e.silent ? 'silence' : did.length ? did.join(', ') : 'nothing kept'} · ${e.trace.length} tool calls`);

@@ -9,6 +9,7 @@
   --rule: #C6CED5;
   --mod: #2A5B89;
   --mor: #93541B;
+  --moz: #55702C;
   --good: #2E7D4F;
   --bad: #B0362B;
   --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
@@ -19,7 +20,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0E1216; --panel: #151B21; --band: #121920; --fg: #DCE2E8; --muted: #8E99A5; --rule: #2B343D;
-    --mod: #80B1E1; --mor: #E2A566; --good: #6CC58F; --bad: #F08A7E; color-scheme: dark;
+    --mod: #80B1E1; --mor: #E2A566; --moz: #A8C77B; --good: #6CC58F; --bad: #F08A7E; color-scheme: dark;
   }
 }
 
@@ -54,10 +55,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--mod); outline-o
 @media (max-width: 760px) { .phases { grid-template-columns: repeat(4, minmax(0, 1fr)); } .phase:nth-child(4) { border-right: none; } .phase:nth-child(-n+4) { border-bottom: 1px solid var(--rule); } }
 
 /* beings */
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 @media (max-width: 720px) { .pair { grid-template-columns: 1fr; } }
 .being { background: var(--panel); border: 1px solid var(--rule); border-top: 3px solid var(--c); padding: 18px 20px; display: grid; gap: 10px; min-width: 0; }
-.being.modulo { --c: var(--mod); } .being.morphyx { --c: var(--mor); }
+.being.modulo { --c: var(--mod); } .being.morphyx { --c: var(--mor); } .being.mozzie { --c: var(--moz); }
 .being h3 { font-size: 26px; color: var(--c); }
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 14.5px; margin: 0; }
 .kv dt { font: 500 11.5px/1.9 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }

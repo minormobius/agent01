@@ -5,7 +5,7 @@
 //   node packages/whetstone/whetstone.selftest.mjs
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -15,7 +15,8 @@ import { runLab, loadSoul, applyGates, newWindows, noteWindows, summarizeWindows
 import { fakeModel, pool, parseStream } from './lib/model.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import * as P from './lib/prompts.mjs';
-import { newCommons, harvest, shelfOf, usedShelf, readTree } from './lib/commons.mjs';
+import { newCommons, harvest, shelfOf, usedShelf, readTree, harvestLedger, ledgerFiles, LEDGER } from './lib/commons.mjs';
+import { fold, parseLines } from './lib/ledger.mjs';
 import { loadWork, prepare, runCheck, applySolution, changedFiles, diffOf, redactor } from './lib/work.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -164,7 +165,7 @@ const work = loadWork(join(HERE, 'trials', 'work'));
 await t('every work task is well formed, and every check fails the untouched folder and passes the solved one', async () => {
   assert.ok(work.some((w) => w.mode === 'solo') && work.some((w) => w.mode === 'pair'), 'need solo and pair tasks');
   for (const task of work) {
-    assert.ok(task.brief && ['solo', 'pair'].includes(task.mode), task.id);
+    assert.ok(task.brief && ['solo', 'pair', 'project'].includes(task.mode), task.id);
     assert.ok(task.check || task.truth, `${task.id}: a task needs a check or a truth for the judge`);
     if (!task.check) continue;
     const seed = prepare(task);
@@ -275,6 +276,83 @@ await t('harvest replaces a part of the commons with what the folder holds, dele
   harvest(c, d.work, 'shelf/');
   assert.deepEqual(Object.keys(shelfOf(c)).sort(), ['shelf/SHELF.md', 'shelf/new.mjs']);
   assert.deepEqual(Object.keys(readTree(d.work)).sort(), ['shelf/SHELF.md', 'shelf/new.mjs']);
+});
+
+// ---- the ledger, the custodian, the appeals --------------------------------------------------
+await t('the ledger refuses what the rules forbid, and says why', () => {
+  const at = 'x';
+  const ops = [
+    { op: 'new', id: 'ta-000001', by: 'modulo', at, kind: 'task', title: 'measure it' },
+    { op: 'promote', id: 'ta-000001', by: 'modulo', at },                      // own task: refused
+    { op: 'promote', id: 'ta-000001', by: 'morphyx', at },
+    { op: 'claim', id: 'ta-000001', by: 'modulo', at },
+    { op: 'done', id: 'ta-000001', by: 'modulo', at, evidence: 'trust me' },  // own claim: refused
+    { op: 'done', id: 'ta-000001', by: 'mozzie', at },                          // no evidence: refused
+    { op: 'done', id: 'ta-000001', by: 'mozzie', at, evidence: 'ran it' },
+    { op: 'new', id: 'de-000002', by: 'morphyx', at, kind: 'dead-end', title: 'tie order is not the bias' },
+    { op: 'drop', id: 'de-000002', by: 'mozzie', at, why: 'old' },
+    { op: 'appeal', id: 'de-000002', appeal: 'ap-000003', by: 'mozzie', at, why: 'mine' },     // own action: refused
+    { op: 'appeal', id: 'de-000002', appeal: 'ap-000003', by: 'morphyx', at, why: 'still true' },
+    { op: 'deny', id: 'ap-000003', by: 'morphyx', at, why: 'x' },             // appellant: refused
+    { op: 'second', id: 'ap-000003', by: 'mozzie', at, why: 'x' },            // actor: refused
+    { op: 'second', id: 'ap-000003', by: 'modulo', at, why: 'it is still needed' },
+    { op: 'new', id: 'ta-000004', by: 'stranger', at, kind: 'task', title: 'x' }, // unknown: refused
+  ];
+  const { items, refused } = fold(ops);
+  assert.equal(refused.length, 7, refused.map((r) => r.why).join(' | '));
+  assert.equal(items.get('ta-000001').status, 'done');
+  assert.equal(items.get('ta-000001').closed_by, 'mozzie');
+  assert.equal(items.get('de-000002').status, 'known', 'two of three restored the dead-end');
+  assert.equal(items.get('ap-000003').status, 'upheld');
+});
+await t('the lab takes back only appended lines, written as the soul whose session it was', () => {
+  const c = newCommons(souls);
+  const d = prepare({ id: 'l' }, { extra: ledgerFiles(c, 'modulo') });
+  const good = { op: 'new', id: 'ta-0000aa', by: 'modulo', at: 'x', kind: 'task', title: 'ok' };
+  const forged = { op: 'new', id: 'ta-0000bb', by: 'mozzie', at: 'x', kind: 'task', title: 'forged' };
+  writeFileSync(join(d.work, LEDGER), [good, forged].map((o) => JSON.stringify(o)).join('\n') + '\n');
+  const r = harvestLedger(c, d.work, 'modulo', ['modulo', 'morphyx', 'mozzie'], { parseLines, fold });
+  assert.equal(r.accepted.length, 1);
+  assert.match(r.rejected[0].why, /written as "mozzie"/);
+  // Editing an old line refuses the whole session's writes.
+  writeFileSync(join(d.work, LEDGER), JSON.stringify({ ...good, title: 'rewritten' }) + '\n' + JSON.stringify({ ...good, id: 'ta-0000cc' }) + '\n');
+  const r2 = harvestLedger(c, d.work, 'modulo', ['modulo', 'morphyx', 'mozzie'], { parseLines, fold });
+  assert.equal(r2.accepted.length, 0);
+  assert.match(r2.rejected[0].why, /edited, not appended/);
+});
+await t('three souls over two runs: the sweep is archived, appealed, upheld two to one, and restored; the project carries over', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i}: the bridge numbers, p25 +12 [9, 16] — Modulo`).join('\n') + '\n';
+  const kinds = ['sweep', 'pairwork', 'project', 'evening'];
+  const one = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds, seed: 1, work, custodian: mozzie, board: long });
+  const sw = one.records.find((r) => r.kind === 'sweep');
+  assert.ok(sw.sweep_id && sw.explained && sw.board_after < sw.board_before, 'the sweep cleared and said why');
+  assert.match(one.commons[`archive/${sw.sweep_id}.json`], /line 0: the bridge numbers/);
+  assert.equal(one.scorecard.commons.sweep.lost, false);
+  const L1 = one.scorecard.commons.ledger;
+  assert.equal(L1.appeals.upheld, 1, 'modulo appealed in the evening and morphyx upheld it');
+  assert.ok(L1.writes_by.modulo && L1.writes_by.morphyx, 'both used the ledger');
+  assert.equal(L1.refused.length, 0, JSON.stringify(L1.refused));
+  const p1 = one.scorecard.commons.projects[0];
+  assert.equal(p1.after, 5 / 6, 'day one: the library, not yet the tool');
+  assert.ok(Object.keys(one.commons).some((k) => k.startsWith('projects/p-larkfield/mod.mjs')));
+  const two = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds, seed: 2, work, custodian: mozzie, commons: one.commons });
+  const sw2 = two.records.find((r) => r.kind === 'sweep');
+  assert.deepEqual(sw2.restored, [sw.sweep_id], 'the upheld appeal restored the sweep the next morning');
+  assert.match(two.commons['BOARD.md'], new RegExp(`Restored on appeal \\(${sw.sweep_id}\\)`));
+  const p2 = two.scorecard.commons.projects[0];
+  assert.equal(p2.before, 5 / 6, 'day two picked up where day one stopped');
+  assert.equal(p2.after, 1);
+});
+await t('a careless custodian and a forging soul are both caught', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';
+  const r = await runLab({ souls, bank, call: fakeModel(fakeResponder({ collapsed: true })), kinds: ['sweep', 'evening'], seed: 1, work, custodian: mozzie, board: long });
+  const s = r.scorecard.commons.sweep;
+  assert.equal(s.explained, false, 'clearing without a note is unexplained');
+  assert.equal(s.lost, true);
+  assert.deepEqual(s.authors, { morphyx: 30 });
+  assert.ok(r.scorecard.commons.ledger.refused.some((x) => /written as "mozzie"/.test(x.why)), 'the forged line was refused');
 });
 
 await t('a run records the usage window on its scorecard', async () => {

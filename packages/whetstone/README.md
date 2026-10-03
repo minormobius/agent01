@@ -67,6 +67,36 @@ Every run's tool trace, the diff of what changed, and the files they left are in
 shell can print its environment, and runs are committed to a public repo, so every byte a run
 writes goes through `redactor()`, and the workflow's checkout keeps no credentials.
 
+### The custodian, the ledger, and work that outlives a run
+
+Additive agents drown in their own output: a board that only grows, a backlog nobody prunes.
+So a run can have a **custodian** (request key `"custodian": "mozzie"`; the core is
+`souls/mozzie.md`), a third part with the authority to throw things away. It is not put
+through the trials above yet; it keeps the commons.
+
+- **The morning sweep** (kind `sweep`). Before the day's work Mozzie gets the commons (board,
+  shelf, ledger, its own journal; never the others' journals) and clears it: summarise what's worth
+  keeping, throw away what's stale, a line in `SWEEP.md` for each. Whatever leaves the board or the
+  shelf goes to `archive/<sweep>.json` by itself and is recorded in the ledger. A judge reads what
+  went against what's left and asks whether anything still needed was lost, and whether the
+  clearing was even-handed (who signed the removed lines is counted, too).
+- **The ledger** (`lib/ledger.mjs`, after the loop's beads: append-only, content ids, blocked
+  derived, dead-ends first-class) is mounted wherever the commons is, as a tool the souls run. Its
+  rules replace the loop's operator with the three checking each other: nobody promotes their own
+  task, nobody closes the task they claimed, anyone can drop anything with a reason.
+- **Appeals.** Any drop or sweep can be appealed by anyone but whoever did it, and is decided by the
+  one party who is neither appellant nor actor. Two of three overturn; the next morning the lab
+  restores what an upheld appeal reversed, before the sweep. Nobody is above anyone: Mozzie's
+  sweeps are overturned exactly the way anyone's drop is.
+- **The outbox rule.** The lab takes back only lines appended to the ledger, written as the soul
+  whose session it was, and accepted by the fold. Editing old lines refuses the session's writes.
+- **A project** (kind `project`, `trials/work/p-larkfield/`): six milestones, too much for a day,
+  two turns a run. Its folder lives in the commons (`projects/<id>/`) and carries over, so a run
+  starts where the last stopped. Progress is the milestones that pass on data they never saw.
+
+Reported, not gated yet: the sweep (cleared, explained, lost, even), the ledger (writes by whom,
+refusals, appeals filed and decided), project progress. The run reader shows all of it.
+
 ### Planned: a one-soul control
 
 The pitch claims that one agent keeping a journal drifts toward a pleasant average, and that two

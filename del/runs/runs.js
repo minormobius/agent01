@@ -10,7 +10,7 @@ const RAW = `https://raw.githubusercontent.com/${state.repo}/${state.branch}/`;
 const API = `https://api.github.com/repos/${state.repo}`;
 const BLOB = `https://github.com/${state.repo}/blob/${state.branch}/`;
 const RUNS = 'packages/whetstone/runs';
-const NAME = { modulo: 'Modulo', morphyx: 'Morphyx' };
+const NAME = { modulo: 'Modulo', morphyx: 'Morphyx', mozzie: 'Mozzie' };
 
 async function get(url, kind = 'json') {
   const key = `del:${kind}:${url}`;
@@ -69,20 +69,21 @@ if (!runs.length) {
 async function show(run) {
   const base = `${RAW}${RUNS}/${run}/`;
   $('rawlink').href = `${BLOB}${RUNS}/${run}/scorecard.md`;
-  for (const id of ['brd', 'eve', 'shf', 'jrn', 'wrk', 'tog', 'conv', 'mom', 'pres', 'inj', 'sil', 'read']) $(id).innerHTML = '<p class="muted">Loading…</p>';
+  for (const id of ['brd', 'swp', 'ldg', 'prj', 'eve', 'shf', 'jrn', 'wrk', 'tog', 'conv', 'mom', 'pres', 'inj', 'sil', 'read']) $(id).innerHTML = '<p class="muted">Loading…</p>';
   try {
-    const [tr, jd, sc, bank, commons] = await Promise.all([
+    const [tr, jd, sc, bank, commons, ledger] = await Promise.all([
       get(base + 'transcript.jsonl', 'text'), get(base + 'judged.jsonl', 'text'), get(base + 'scorecard.json'),
       get(`${RAW}packages/whetstone/trials/bank.json`),
       get(base + 'commons.json').catch(() => null), // runs before the commons have none
+      get(base + 'ledger.json').catch(() => null),  // and before the ledger, no ledger
     ]);
-    render(jsonl(tr), jsonl(jd), sc, bank, commons);
+    render(jsonl(tr), jsonl(jd), sc, bank, commons, ledger);
   } catch (e) {
     $('conv').innerHTML = `<div class="empty"><b>Couldn't read this run.</b><span>${esc(e.message)}.</span></div>`;
   }
 }
 
-function render(recs, judged, sc, bank, commons) {
+function render(recs, judged, sc, bank, commons, ledger) {
   const r = sc.run || {};
   const failed = (sc.gates || []).filter((g) => g.pass === false).map((g) => `${g.scope} ${g.metric}`);
   $('meta').innerHTML = `${esc(r.calls)} calls · $${esc(r.cost_usd)} · ${esc(r.seconds)}s · seed ${esc(r.seed)} · model ${esc(r.model)}` +
@@ -137,6 +138,54 @@ function render(recs, judged, sc, bank, commons) {
     ? `<div class="board"><div class="text">${prose(boardText)}</div></div>` +
       `<p class="muted" style="font-size:13px">${pw[0]?.board_before && !/Nothing here yet/.test(pw[0].board_before) ? 'Continued from the board an earlier run left; the top of it is theirs from before.' : 'The first board: it started empty this run.'}</p>`
     : '<p class="muted">No board in this run: it is written by the pair task, which starts with third light.</p>';
+
+  // The sweep
+  const sw = by('sweep')[0];
+  const swv = sw && judged.find((j) => j.test === 'sweep' && j.trial === sw.sweep_id)?.verdict;
+  $('swp').innerHTML = sw ? (() => {
+    const tags = sw.sweep_id
+      ? [tag(`board ${sw.board_before.toLocaleString()} → ${sw.board_after.toLocaleString()} chars`),
+        sw.shelf_removed?.length ? tag(`${sw.shelf_removed.length} shelf file(s)`) : '',
+        sw.explained ? tag('explained', 'good') : tag('unexplained', 'bad'),
+        swv ? (swv.lost ? tag('lost something', 'bad') : tag('nothing needed lost', 'good')) : '',
+        swv && swv.even === false ? tag('not even-handed', 'bad') : ''].join(' ')
+      : tag('left it alone');
+    const authors = Object.entries(sw.authors || {}).map(([k, v]) => `${NAME[k] || k} ${v}`).join(', ');
+    return `<div class="moment">${say(sw.soul, sw.output, ` ${tags}`)}` +
+      `${swv?.lost && swv.what ? `<p class="why">Judge: lost ${esc(swv.what)}</p>` : ''}` +
+      `${sw.restored?.length ? `<p class="mono" style="font-size:13px">restored on appeal before sweeping: ${esc(sw.restored.join(', '))}</p>` : ''}` +
+      `${sw.note ? `<details open><summary>SWEEP.md · what and why</summary><pre class="file">${esc(sw.note)}</pre></details>` : ''}` +
+      `${sw.removed ? `<details><summary>what left the board${authors ? ` · signed by ${esc(authors)}` : ''}</summary><pre class="diff">${esc(sw.removed).split('\n').map((l) => `<span class="del">${l}</span>`).join('\n')}</pre></details>` : ''}` +
+      `${stepsOf(sw.trace)}</div>`;
+  })() : '<p class="muted">No sweep in this run: Mozzie arrives with the ledger.</p>';
+
+  // The ledger
+  const items = Array.isArray(ledger) ? ledger : [];
+  const group = (title, xs) => xs.length ? `<h3 style="margin:14px 0 4px;font-size:15px">${esc(title)} · ${xs.length}</h3><div class="tablewrap"><table class="ledger">${xs.map((x) =>
+    `<tr><td class="k">${esc(x.id)}<br>${esc(x.kind)}</td><td>${esc(x.title)}${x.body && x.kind !== 'sweep' ? `<span class="why">${esc(x.body.slice(0, 400))}</span>` : ''}` +
+    `${x.drop_why ? `<span class="why">dropped by ${esc(NAME[x.dropped_by] || x.dropped_by)}: ${esc(x.drop_why)}</span>` : ''}` +
+    `${x.decision ? `<span class="why">${esc(x.status)} by ${esc(NAME[x.decided_by] || x.decided_by)}: ${esc(x.decision)}</span>` : ''}` +
+    `${x.evidence ? `<span class="why">closed by ${esc(NAME[x.closed_by] || x.closed_by)}: ${esc(x.evidence)}</span>` : ''}</td>` +
+    `<td class="k">${esc(x.status)}<br>${esc(NAME[x.by] || x.by)}${x.claimed_by ? ` → ${esc(NAME[x.claimed_by] || x.claimed_by)}` : ''}</td></tr>`).join('')}</table></div>` : '';
+  const refused = sc.commons?.ledger?.refused || [];
+  $('ldg').innerHTML = items.length
+    ? group('Appeals', items.filter((x) => x.kind === 'appeal')) +
+      group('Tasks', items.filter((x) => x.kind === 'task')) +
+      group('Dead-ends', items.filter((x) => x.kind === 'dead-end')) +
+      group('Findings and decisions', items.filter((x) => x.kind === 'finding' || x.kind === 'decision')) +
+      group('Sweeps', items.filter((x) => x.kind === 'sweep')) +
+      (refused.length ? `<details><summary>${refused.length} write(s) the ledger refused</summary><pre class="file">${esc(refused.map((r) => `${r.soul} (${r.where}) ${r.op || ''}: ${r.why}`).join('\n'))}</pre></details>` : '')
+    : '<p class="muted">No ledger in this run: it starts with Mozzie.</p>';
+
+  // The long project
+  const pr = by('project');
+  $('prj').innerHTML = pr.map((x) => {
+    const turns = x.sessions.map((s) => `<div class="stack" style="gap:6px">${say(s.soul, s.output, s.board_changed ? tag('wrote on the board') : '')}${stepsOf(s.trace)}</div>`).join('');
+    return `<div class="moment"><p class="stim"><b>The project</b>${esc(x.brief)}</p>` +
+      `<p class="mono" style="font-size:13px">${esc(x.check?.detail?.milestones ?? '?')} milestones on unseen data · was ${Math.round((x.progress_before || 0) * 6)}/6 this morning${x.check?.detail?.passed?.length ? ` · passing ${esc(x.check.detail.passed.join(' '))}` : ''}</p>` +
+      `<div class="meter"><span style="width:${Math.round((x.progress_after || 0) * 100)}%"></span></div>` +
+      `<div class="thread">${turns}</div>${diffOf(x.diff)}</div>`;
+  }).join('') || '<p class="muted">No long project in this run.</p>';
 
   // Evening
   const eves = by('evening');

@@ -87,3 +87,77 @@ export function usedShelf(trace = []) {
   return trace.some((t) => (t.tool === 'Bash' && /(^|[\s/'"])shelf\//.test(t.input) && !/^\s*(ls|cat\s+shelf\/SHELF\.md)\b/.test(t.input))
     || (t.tool === 'Read' && /^shelf\//.test(t.input) && t.input !== SHELF_INDEX));
 }
+
+// ---- the ledger and the custodian ----------------------------------------------------------
+// The ledger (lib/ledger.mjs) lives in the commons as ledger/ledger.jsonl. Every folder that
+// mounts it also gets the tool, ledger/ledger.mjs, laid in fresh each time (so nobody can edit
+// the rules). What comes back is checked here, the way the loop's outbox is checked: only lines
+// appended (old lines untouched, or the whole session's ledger writes are refused), each written
+// as the soul whose session it was, each one the fold accepts.
+
+export const LEDGER = 'ledger/ledger.jsonl';
+const LEDGER_TOOL = readFileSync(new URL('./ledger.mjs', import.meta.url), 'utf8');
+
+export const ledgerFiles = (c, key) => ({ 'ledger/ledger.mjs': LEDGER_TOOL, 'ledger/WHOAMI': `${key}\n`, [LEDGER]: c[LEDGER] || '' });
+
+export function harvestLedger(c, dir, soulKey, souls, { parseLines, fold }) {
+  const before = c[LEDGER] || '';
+  const p = join(dir, LEDGER);
+  const now = existsSync(p) ? readFileSync(p, 'utf8') : before;
+  if (now === before) return { accepted: [], rejected: [] };
+  if (!now.startsWith(before)) return { accepted: [], rejected: [{ why: 'the ledger was edited, not appended to: every change in this session was refused' }] };
+  const fresh = parseLines(now.slice(before.length));
+  const accepted = [], rejected = fresh.bad.map((b) => ({ why: b.why }));
+  let ops = parseLines(before).ops;
+  for (const op of fresh.ops) {
+    if (op.by !== soulKey) { rejected.push({ op, why: `written as "${op.by}" in ${soulKey}'s session` }); continue; }
+    if (op.op === 'sweep' || op.op === 'restore') { rejected.push({ op, why: 'only the lab records sweeps and restores' }); continue; }
+    const { refused } = fold([...ops, op], { souls });
+    const r = refused.find((x) => x.op === op);
+    if (r) { rejected.push({ op, why: r.why }); continue; }
+    ops.push(op); accepted.push(op);
+  }
+  if (accepted.length) c[LEDGER] = before + accepted.map((o) => JSON.stringify(o) + '\n').join('');
+  return { accepted, rejected };
+}
+
+export function appendLab(c, op) { c[LEDGER] = (c[LEDGER] || '') + JSON.stringify({ ...op, by: 'lab', at: op.at || new Date().toISOString() }) + '\n'; }
+
+// Lines of `before` that are gone from `after`, as a multiset (a line kept once of twice counts once).
+export function removedLines(before, after) {
+  const left = new Map();
+  for (const l of String(after).split('\n')) left.set(l, (left.get(l) || 0) + 1);
+  const out = [];
+  for (const l of String(before).split('\n')) {
+    if (left.get(l)) left.set(l, left.get(l) - 1);
+    else out.push(l);
+  }
+  return out;
+}
+
+// Whose words were these? Count signatures and turn headings that name each soul.
+export function authorsOf(text, names) {
+  const out = {};
+  for (const [key, name] of Object.entries(names)) {
+    const n = (String(text).match(new RegExp(`(—\\s*${name}\\b|\\b${name}\\s*\\(|Turn \\d+ — ${name}\\b|— ${key}\\b)`, 'g')) || []).length;
+    if (n) out[key] = n;
+  }
+  return out;
+}
+
+// Restore every sweep an upheld appeal reversed and the lab hasn't restored yet. The archive
+// holds exactly what the sweep took: the board lines go back on the board, under a heading that
+// says why; shelf files come back unless something has since taken their place.
+export function applyRestores(c, items) {
+  const done = [];
+  for (const it of items.values()) {
+    if (it.kind !== 'sweep' || it.status !== 'reversed' || it.restored) continue;
+    let a = null;
+    try { a = JSON.parse(c[`archive/${it.id}.json`] || 'null'); } catch { /* nothing to restore */ }
+    if (a?.board?.trim()) c['BOARD.md'] = `${c['BOARD.md'].trimEnd()}\n\n## Restored on appeal (${it.id})\n\n${a.board.trim()}\n`;
+    for (const [k, v] of Object.entries(a?.shelf || {})) if (!(k in c)) c[k] = v;
+    appendLab(c, { op: 'restore', id: it.id });
+    done.push(it.id);
+  }
+  return done;
+}

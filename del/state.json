@@ -61,6 +61,14 @@
       "born": false,
       "domain": null,
       "did": null
+    },
+    {
+      "key": "mozzie",
+      "name": "Mozzie",
+      "axis": "clears: keeps the commons, with authority to throw things away and an appeals board over it",
+      "born": false,
+      "domain": null,
+      "did": null
     }
   ],
   "benches": [

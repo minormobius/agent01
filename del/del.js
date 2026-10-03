@@ -45,7 +45,7 @@ $('src').innerHTML = `Source: <a href="${esc(TREE)}">${esc(state.repo)} @ ${esc(
   const born = state.beings.filter((b) => b.born).length;
   $('phase-note').textContent = born
     ? `${born} of ${state.beings.length} born. Current step: ${state.phases[at]?.label}.`
-    : `Nothing has launched. Both beings are in the ${state.phases[at]?.label} step.`;
+    : `Nothing has launched. All ${state.beings.length} are in the ${state.phases[at]?.label} step.`;
 }
 
 // ---- benches and log (state only) --------------------------------------------------------
@@ -63,7 +63,7 @@ $('records').innerHTML = [
   ['whetstone', `${TREE}packages/whetstone`],
 ].map(([t, u]) => `<a href="${esc(u)}">${esc(t)}</a>`).join('');
 
-// ---- the two ------------------------------------------------------------------------------
+// ---- the beings ------------------------------------------------------------------------------
 async function being(b) {
   const path = `packages/whetstone/souls/${b.key}.md`;
   const rows = [

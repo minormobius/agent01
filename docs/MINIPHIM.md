@@ -73,6 +73,23 @@ Where they were right, this revision supersedes anything below it, and the pitch
 
 ---
 
+## Revision 3, 2026-10-03: a third part, who takes out the trash
+
+The lab showed the failure that long-running additive agents share: everything is kept. Within
+four runs the board was 50,000 characters and every turn re-read all of it. The principal's answer
+is a third part, **Mozzie**: a custodian with the grit and practical sense to throw things away,
+summarising when something matters and deleting when it no longer does, so the others stay
+focused. Nobody is superior: Mozzie decides what is in the way, never what the work is or whether
+it is good.
+
+Fairness is structural, not a promise: everything Mozzie removes goes to an archive; any drop or
+sweep can be appealed by anyone but whoever did it; the appeal is decided by the one party who is
+neither appellant nor actor, so two of three overturn and the lab restores what they reverse. The
+same rules bind all three. A shared ledger (after the loop's beads) carries tasks, findings,
+dead-ends and decisions across runs, with nobody promoting their own task or closing the one they
+claimed. Built in `packages/whetstone/` (README: "The custodian, the ledger, and work that
+outlives a run"); Mozzie's core is a draft for the principal to edit.
+
 ## 0. Lineage: they have already been living
 
 | When | What | What it shows |

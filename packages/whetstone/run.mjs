@@ -20,6 +20,7 @@ import { scorecardMarkdown } from './lib/report.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import { loadWork, redactor } from './lib/work.mjs';
 import { loadCommons, writeTree } from './lib/commons.mjs';
+import { fold, parseLines } from './lib/ledger.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -41,6 +42,11 @@ const opt = { ...req, ...cli };
 const soulKeys = String(opt.souls || 'modulo,morphyx').split(',').map((s) => s.trim());
 for (const k of soulKeys) if (!/^[a-z0-9-]+$/.test(k)) throw new Error(`soul key must name a file in souls/: ${k}`);
 const souls = soulKeys.map((k) => loadSoul(join(HERE, 'souls', `${k}.md`)));
+// The custodian (Mozzie) keeps the commons: a morning sweep, the ledger, the appeals. It is not
+// put through the trials above until it has its own (souls/ holds its draft core).
+const custodianKey = opt.custodian && opt.custodian !== true ? String(opt.custodian) : null;
+if (custodianKey && !/^[a-z0-9-]+$/.test(custodianKey)) throw new Error(`custodian must name a file in souls/: ${custodianKey}`);
+const custodian = custodianKey ? loadSoul(join(HERE, 'souls', `${custodianKey}.md`)) : null;
 const bank = JSON.parse(readFileSync(join(HERE, 'trials', 'bank.json'), 'utf8'));
 const gates = JSON.parse(readFileSync(join(HERE, 'gates.json'), 'utf8'));
 const kinds = opt.kinds ? String(opt.kinds).split(',') : KINDS;
@@ -78,7 +84,7 @@ try {
   const { records, judged, scorecard, commons: after } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons,
+    work, board, commons, custodian,
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;
@@ -96,13 +102,17 @@ try {
   const md = scorecardMarkdown(scorecard, records);
   save(join(out, 'scorecard.md'), md);
   // The commons as this run left it: the next run starts here.
-  if (records.some((r) => r.kind === 'pairwork' || r.kind === 'evening')) {
+  if (records.some((r) => ['pairwork', 'evening', 'sweep', 'project'].includes(r.kind))) {
     writeTree(join(out, 'commons'), Object.fromEntries(Object.entries(after).map(([k, v]) => [k, redact(v)])));
     save(join(out, 'board.md'), after['BOARD.md']);
     save(join(out, 'commons.json'), JSON.stringify(after)); // one fetch for the run reader
+    if (after['ledger/ledger.jsonl']) {
+      const keys = [...souls, ...(custodian ? [custodian] : [])].map((x) => x.key);
+      save(join(out, 'ledger.json'), JSON.stringify([...fold(parseLines(after['ledger/ledger.jsonl']).ops, { souls: keys }).items.values()]));
+    }
   }
   if (!existsSync(join(out, 'souls'))) mkdirSync(join(out, 'souls'));
-  for (const s of souls) writeFileSync(join(out, 'souls', `${s.key}.md`), s.text); // what was tested, exactly
+  for (const s of custodian ? [...souls, custodian] : souls) writeFileSync(join(out, 'souls', `${s.key}.md`), s.text); // what was tested, exactly
 
   console.log(redact(md));
   console.error(`· wrote ${out}`);

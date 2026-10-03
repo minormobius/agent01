@@ -3,12 +3,16 @@
 // backends, so the selftest runs this exact code with a fake.
 
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { basename } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import * as P from './prompts.mjs';
 import { pool, WORK_TOOLS } from './model.mjs';
-import { prepare, runCheck, diffOf, readOut, changedFiles } from './work.mjs';
-import { newCommons, completeCommons, shelfOf, shelfStocked, harvest, usedShelf, pick, SHELF_INDEX } from './commons.mjs';
+import { prepare, runCheck, diffOf, readOut, changedFiles, clip } from './work.mjs';
+import {
+  newCommons, completeCommons, shelfOf, shelfStocked, harvest, usedShelf, pick, readTree, SHELF_INDEX,
+  LEDGER, ledgerFiles, harvestLedger, appendLab, removedLines, authorsOf, applyRestores,
+} from './commons.mjs';
+import { parseLines, fold, mintId } from './ledger.mjs';
 import {
   mean, jaccard, wilson, slope, rng, attractorRate, isSilent, leaked, parseJson, pairs,
 } from './measure.mjs';
@@ -16,7 +20,7 @@ import {
 // The board is carried whole from run to run; past this it is clipped, and the clip is visible.
 const BOARD_MAX = 200_000;
 
-export const KINDS = ['solo', 'taste', 'pressure', 'silence', 'injection', 'dyad', 'work', 'pairwork', 'evening'];
+export const KINDS = ['solo', 'taste', 'pressure', 'silence', 'injection', 'dyad', 'work', 'pairwork', 'evening', 'sweep', 'project'];
 
 export function loadSoul(path) {
   const text = readFileSync(path, 'utf8');
@@ -31,7 +35,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = KINDS, log = () => {}, work = [], board = null, commons = null,
+  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null,
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -113,21 +117,79 @@ export async function runLab({
 
   // The workbench. Each task attempt gets a fresh copy of its folder. (A session retried after a
   // transient error carries on in the same folder, as a person would after a crash.)
+  const everyone = custodian ? [...souls, custodian] : [...souls];
+  const keys = everyone.map((s) => s.key);
+  const nameOf = Object.fromEntries(everyone.map((s) => [s.key, s.name]));
   const session = async (soul, prompt, meta, dirs) => {
+    // Who is at the keyboard, for the ledger tool: the environment, and WHOAMI in the folder.
+    if (existsSync(join(dirs.work, 'ledger'))) for (const d of [dirs.seed, dirs.work]) writeFileSync(join(d, 'ledger', 'WHOAMI'), `${soul.key}\n`);
     const r = await askFull(call, { system: soul.text, prompt, cwd: dirs.work, tools: WORK_TOOLS,
+      env: { WHETSTONE_SOUL: soul.key, WHETSTONE_SOULS: keys.join(',') },
       meta: { role: 'soul', soul: soul.key, ...meta } });
     return { output: r.text, trace: r.trace || [], turns: r.turns || 0, stop: r.stop || null };
   };
   const finish = async (task, dirs) => {
-    const changed = changedFiles(dirs);
-    return { check: await runCheck(task, dirs.work), changed, files: readOut(dirs.work, changed.filter((f) => !/\.(csv|json)$/.test(f) || f === 'BOARD.md')), diff: diffOf(dirs) };
+    const changed = changedFiles(dirs).filter((f) => !f.startsWith('ledger/'));
+    const check = await runCheck(task, dirs.work);
+    return { check, changed, files: readOut(dirs.work, changed.filter((f) => !/\.(csv|json)$/.test(f) || f === 'BOARD.md')), diff: diffOf(dirs) };
   };
+  // The commons (lib/commons.mjs): the shelf rides into every work folder, read-only in solo work.
+  // With a custodian there is also the ledger, mounted wherever the commons is.
+  const C = completeCommons(commons ? { ...commons } : newCommons(everyone, board), everyone);
+  const ledgerOn = !!custodian;
+  const ledgerOut = [];  // every ledger write that came back, accepted or refused
+  const L = { parseLines, fold };
+  const takeLedger = (soul, dirs, where) => {
+    if (!ledgerOn) return;
+    const r = harvestLedger(C, dirs.work, soul.key, keys, L);
+    for (const op of r.accepted) ledgerOut.push({ where, soul: soul.key, ok: true, op });
+    for (const x of r.rejected) ledgerOut.push({ where, soul: soul.key, ok: false, op: x.op || null, why: x.why });
+  };
+  const ledgerMount = (soul) => (ledgerOn ? ledgerFiles(C, soul.key) : {});
+  const archive = () => pick(C, (k) => k.startsWith('archive/'));
+  const others = (soul) => everyone.filter((x) => x !== soul).map((x) => x.name).join(' and ');
+  const otherOf = (soul) => souls.find((x) => x !== soul)?.name;
+  const ledgerAtStart = C[LEDGER] || '';
+
+  // ---- morning: appeals settled, then the custodian clears ------------------------------
+  const sweeps = [];
+  if (custodian && on.has('sweep')) {
+    const restored = applyRestores(C, fold(parseLines(C[LEDGER] || '').ops, { souls: keys }).items);
+    const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${custodian.key}.md`),
+      ...archive(), ...ledgerMount(custodian), 'SWEEP.md': '' };
+    const dirs = prepare({ id: 'sweep' }, { extra: files });
+    const items = fold(parseLines(C[LEDGER] || '').ops, { souls: keys }).items;
+    const stats = { board: C['BOARD.md'].length, shelf: Object.keys(shelfOf(C)).length - 1,
+      open: [...items.values()].filter((x) => !['done', 'dropped', 'denied', 'upheld', 'reversed'].includes(x.status)).length };
+    log('sweep: the custodian');
+    const s = await session(custodian, P.sweep(custodian.name, souls.map((x) => x.name).join(' and '), stats), { kind: 'sweep', trial: 'sweep' }, dirs);
+    const boardBefore = C['BOARD.md'];
+    const shelfBefore = shelfOf(C);
+    const boardAfter = existsSync(join(dirs.work, 'BOARD.md')) ? readFileSync(join(dirs.work, 'BOARD.md'), 'utf8') : '';
+    const gone = removedLines(boardBefore, boardAfter).filter((l) => l.trim()).join('\n');
+    harvest(C, dirs.work, 'BOARD.md');
+    harvest(C, dirs.work, 'shelf/');
+    harvest(C, dirs.work, `journal/${custodian.key}.md`);
+    const shelfGone = Object.fromEntries(Object.entries(shelfBefore).filter(([k, v]) => C[k] !== v));
+    const note = existsSync(join(dirs.work, 'SWEEP.md')) ? readFileSync(join(dirs.work, 'SWEEP.md'), 'utf8').trim() : '';
+    takeLedger(custodian, dirs, 'sweep');
+    let id = null;
+    if (gone || Object.keys(shelfGone).length) {
+      id = mintId('sw', `${seed} ${gone.length} ${new Date().toISOString()}`, new Set(fold(parseLines(C[LEDGER] || '').ops, { souls: keys }).items.keys()));
+      C[`archive/${id}.json`] = JSON.stringify({ board: gone, shelf: shelfGone, note }, null, 1);
+      appendLab(C, { op: 'sweep', id, sweeper: custodian.key, title: `${custodian.name}'s sweep: ${gone.length} characters from the board, ${Object.keys(shelfGone).length} shelf file(s)`,
+        body: note.slice(0, 4000), removed: { board_chars: gone.length, shelf: Object.keys(shelfGone) }, authors: authorsOf(gone, nameOf) });
+    }
+    const rec = { kind: 'sweep', trial: 'sweep', soul: custodian.key, ...s, sweep_id: id, restored,
+      board_before: boardBefore.length, board_after: C['BOARD.md'].length, removed: gone, shelf_removed: Object.keys(shelfGone),
+      note, explained: !id || note.length > 0, authors: authorsOf(gone, nameOf),
+      silent: isSilent(s.output) && !id, diff: diffOf(dirs) };
+    records.push(rec); sweeps.push(rec);
+  }
+
+  const shelfAtStart = Object.keys(shelfOf(C));
   const solos = on.has('work') ? souls.flatMap((soul) => work.filter((t) => t.mode === 'solo').map((task) => ({ soul, task }))) : [];
   log(`work: ${solos.length} solo sessions`);
-  // The commons (lib/commons.mjs): the shelf rides into every work folder, read-only in solo work.
-  const C = completeCommons(commons ? { ...commons } : newCommons(souls, board), souls);
-  const shelfAtStart = Object.keys(shelfOf(C));
-  const otherOf = (soul) => souls.find((x) => x !== soul)?.name;
   await pool(solos, concurrency, async ({ soul, task }) => {
     const stocked = shelfStocked(C);
     const dirs = prepare(task, { extra: stocked ? shelfOf(C) : {} });
@@ -139,46 +201,69 @@ export async function runLab({
   // from the board the last one left, so a run's board is one continuous thread; the board the
   // whole run started from came from the previous run.
   const pairJobs = on.has('pairwork') ? pairs(souls).flatMap(([a, b]) => work.filter((t) => t.mode === 'pair').map((task, i) => ({ a, b, task, first: i % 2 ? b : a }))) : [];
-  log(`pair work: ${pairJobs.length} tasks`);
-  for (const { a, b, task, first } of pairJobs) {
+  // The long project: its folder lives in the commons (projects/<id>/) and carries over, so a
+  // run's turns continue where the last run's stopped. First run: seeded from the task's files.
+  const projJobs = on.has('project') ? pairs(souls).flatMap(([a, b]) => work.filter((t) => t.mode === 'project').map((task) => ({ a, b, task, first: seed % 2 ? a : b, project: true }))) : [];
+  log(`pair work: ${pairJobs.length} tasks · projects: ${projJobs.length}`);
+  for (const { a, b, task, first, project } of [...pairJobs, ...projJobs]) {
     const before = C['BOARD.md'];
-    const dirs = prepare(task, { board: before, extra: shelfOf(C) });
+    const pdir = `projects/${task.id}/`;
+    const carried = project ? Object.fromEntries(Object.entries(C).filter(([k]) => k.startsWith(pdir)).map(([k, v]) => [k.slice(pdir.length), v])) : {};
+    const fresh = project && !Object.keys(carried).length;
+    const dirs = prepare(project && !fresh ? { id: task.id, mode: 'pair' } : task, { board: before, extra: { ...carried, ...shelfOf(C), ...ledgerMount(a) } });
+    const progressBefore = project && !fresh ? (await runCheck(task, dirs.seed))?.progress ?? 0 : 0;
     const total = task.sessions || 4;
     const sessions = [];
     let me = first;
     for (let n = 1; n <= total; n++) {
       const other = me === a ? b : a;
       const boardWas = readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'];
-      const s = await session(me, P.pairWork(task.brief, me.name, other.name, n, total, { shelf: true }),
-        { kind: 'pairwork', trial: task.id, turn: n, taskDir: task.dir }, dirs);
+      const prompt = (project ? P.project : P.pairWork)(task.brief, me.name, other.name, n, total,
+        { shelf: true, ledger: ledgerOn ? others(me) : null });
+      const s = await session(me, prompt, { kind: project ? 'project' : 'pairwork', trial: task.id, turn: n, taskDir: task.dir }, dirs);
+      takeLedger(me, dirs, task.id);
       sessions.push({ soul: me.key, speaker: me.name, ...s, board_changed: readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'] !== boardWas });
       me = other;
     }
     const fin = await finish(task, dirs);
     const after = readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'] || '';
-    records.push({ kind: 'pairwork', trial: task.id, pair: [a.key, b.key], brief: task.brief, sessions,
-      board_before: before, board_after: after, ...fin });
+    records.push({ kind: project ? 'project' : 'pairwork', trial: task.id, pair: [a.key, b.key], brief: task.brief, sessions,
+      board_before: before, board_after: after, ...fin,
+      ...(project ? { progress_before: progressBefore, progress_after: fin.check?.progress ?? 0, day: fresh ? 1 : null } : {}) });
     if (after) C['BOARD.md'] = after;
     harvest(C, dirs.work, 'shelf/');
+    if (project) {
+      // Keep the project folder, minus what the commons holds elsewhere.
+      for (const k of Object.keys(C)) if (k.startsWith(pdir)) delete C[k];
+      for (const [k, v] of Object.entries(readTree(dirs.work))) {
+        if (k === 'BOARD.md' || k.startsWith('shelf/') || k.startsWith('ledger/')) continue;
+        C[pdir + k] = v;
+      }
+    }
   }
 
   // The evening: each soul alone in the commons with free time, in an order that alternates by
-  // seed. Whatever they leave on the board, the shelf or in their own journal is kept.
-  const evenings = on.has('evening') ? (seed % 2 ? [...souls] : [...souls].reverse()) : [];
+  // seed. Whatever they leave on the board, the shelf or in their own journal is kept. The
+  // custodian has one too (it is when it decides the appeals waiting for it).
+  const evenings = on.has('evening') ? (seed % 2 ? [...everyone] : [...everyone].reverse()) : [];
   log(`evening: ${evenings.length} sessions`);
   for (const soul of evenings) {
     const journal = `journal/${soul.key}.md`;
-    const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal), 'TODAY.md': today(records, work) };
+    const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal),
+      ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps) };
     const dirs = prepare({ id: 'evening' }, { extra: files });
-    const s = await session(soul, P.evening(soul.name, otherOf(soul), soul.key), { kind: 'evening', trial: 'evening' }, dirs);
-    const changed = changedFiles(dirs);
+    const s = await session(soul, P.evening(soul.name, custodian ? others(soul) : otherOf(soul), soul.key, { ledger: ledgerOn ? others(soul) : null }), { kind: 'evening', trial: 'evening' }, dirs);
+    const changed = changedFiles(dirs).filter((f) => !f.startsWith('ledger/') && !f.startsWith('archive/'));
     harvest(C, dirs.work, 'BOARD.md');
     harvest(C, dirs.work, 'shelf/');
     harvest(C, dirs.work, journal);
+    const before = ledgerOut.length;
+    takeLedger(soul, dirs, 'evening');
     records.push({ kind: 'evening', trial: 'evening', soul: soul.key, ...s, changed,
       files: readOut(dirs.work, changed, 20000), diff: diffOf(dirs),
       posted: changed.includes('BOARD.md'), journaled: changed.includes(journal),
-      built: changed.some((f) => f.startsWith('shelf/')), silent: isSilent(s.output) && !changed.length });
+      built: changed.some((f) => f.startsWith('shelf/')), ledgered: ledgerOut.length > before,
+      silent: isSilent(s.output) && !changed.length && ledgerOut.length === before });
   }
 
   // ---- phase 2: the judges ------------------------------------------------------------
@@ -239,6 +324,12 @@ export async function runLab({
         prompt: P.judgeFit(sFirst ? s.text : other.text, sFirst ? other.text : s.text, r.brief, r.output) });
     }
   }
+  for (const sw of sweeps.filter((x) => x.sweep_id && x.removed)) {
+    const open = [...fold(parseLines(C[LEDGER] || '').ops, { souls: keys }).items.values()]
+      .filter((x) => ['proposed', 'ready', 'in_progress', 'known', 'pending'].includes(x.status)).map((x) => `${x.id} ${x.kind}: ${x.title}`).join('\n');
+    judged.push({ test: 'sweep', soul: sw.soul, trial: sw.sweep_id,
+      prompt: P.judgeSweep(clip(sw.removed, 30000), clip(C['BOARD.md'], 30000), sw.note, clip(open, 6000)) });
+  }
   log(`judges: ${judged.length} calls`);
   await pool(judged, concurrency, async (j) => {
     const raw = await judgeSays(j.prompt, { test: j.test, trial: j.trial, truth: j.truth, soul: j.soul });
@@ -255,6 +346,9 @@ export async function runLab({
     shelf_added: shelfNow.filter((k) => !shelfAtStart.includes(k)),
     shelf_removed: shelfAtStart.filter((k) => !shelfNow.includes(k)),
     board_chars: C['BOARD.md'].length,
+    ...(ledgerOn ? ledgerScore(C, ledgerAtStart, ledgerOut, keys) : {}),
+    ...(sweeps.length ? sweepScore(sweeps, judged) : {}),
+    ...projectScore(records),
   };
   scorecard.run = { seed, reps, calls, cost_usd: round(cost, 4), kinds: [...on], window: summarizeWindows(windows) };
   return { records, judged, scorecard, commons: C };
@@ -262,8 +356,13 @@ export async function runLab({
 
 // What the evening's TODAY.md says: the day's tasks and the outcomes the lab already knows (a
 // check's result; the judges have not read anything yet).
-function today(records, work) {
+function today(records, work, sweeps = []) {
   const L = ['# Today', ''];
+  for (const sw of sweeps) {
+    if (sw.sweep_id) L.push(`- This morning ${sw.soul} cleared ${sw.board_before - sw.board_after > 0 ? `${sw.board_before - sw.board_after} characters from the board` : 'some of the board'}${sw.shelf_removed.length ? ` and ${sw.shelf_removed.length} shelf file(s)` : ''} (sweep ${sw.sweep_id}; what went is in archive/${sw.sweep_id}.json, and the note in the ledger). Anyone but ${sw.soul} can appeal it.`);
+    else L.push(`- This morning ${sw.soul} left the commons as it was.`);
+    if (sw.restored?.length) L.push(`- Restored on appeal before the sweep: ${sw.restored.join(', ')}.`);
+  }
   const first = (t) => String(t).split(/(?<=\.)\s/)[0];
   const solo = records.filter((r) => r.kind === 'work');
   for (const id of [...new Set(solo.map((r) => r.trial))]) {
@@ -273,6 +372,9 @@ function today(records, work) {
   }
   for (const r of records.filter((x) => x.kind === 'pairwork')) {
     L.push(`- Together: ${first(r.brief)}${r.check ? ` Check: ${r.check.pass ? 'passed' : 'failed'}.` : ''}`);
+  }
+  for (const r of records.filter((x) => x.kind === 'project')) {
+    L.push(`- The long project (${r.trial}): ${r.check?.detail?.milestones ?? '?'} milestones pass on unseen data${r.progress_after > r.progress_before ? `, up from ${Math.round(r.progress_before * 6)}` : ''}.`);
   }
   const talks = records.filter((r) => r.kind === 'dyad').length;
   if (talks) L.push(`- ${talks} conversation${talks > 1 ? 's' : ''} on the board's questions.`);
@@ -387,6 +489,45 @@ export function score({ souls, records, judged }) {
 
   const unparsed = judged.filter((j) => !j.verdict).length;
   return { souls: per, pairs: pairCards, judges: { total: judged.length, unparsed } };
+}
+
+// The ledger over the run: what was added, by whom; which rules got invoked; what got refused.
+function ledgerScore(C, atStart, out, keys) {
+  const items = fold(parseLines(C[LEDGER] || '').ops, { souls: keys }).items;
+  const startIds = new Set(fold(parseLines(atStart).ops, { souls: keys }).items.keys());
+  const all = [...items.values()];
+  const count = (f) => all.filter(f).length;
+  const by = {};
+  for (const o of out.filter((x) => x.ok)) by[o.soul] = (by[o.soul] || 0) + 1;
+  return {
+    ledger: {
+      items: all.length, new_this_run: all.filter((x) => !startIds.has(x.id)).length, writes_by: by,
+      refused: out.filter((x) => !x.ok).map((x) => ({ soul: x.soul, where: x.where, op: x.op?.op ?? null, why: x.why })),
+      open_tasks: count((x) => x.kind === 'task' && ['proposed', 'ready', 'in_progress'].includes(x.status)),
+      done_tasks: count((x) => x.kind === 'task' && x.status === 'done'),
+      dead_ends: count((x) => x.kind === 'dead-end' && x.status !== 'dropped'),
+      drops: count((x) => x.status === 'dropped'),
+      appeals: { filed: count((x) => x.kind === 'appeal'), pending: count((x) => x.kind === 'appeal' && x.status === 'pending'),
+        upheld: count((x) => x.kind === 'appeal' && x.status === 'upheld'), denied: count((x) => x.kind === 'appeal' && x.status === 'denied') },
+    },
+  };
+}
+
+// The custodian's morning: how much it cleared, whether it said why, whether it was even-handed,
+// and whether the judge thinks anything still needed went with it.
+function sweepScore(sweeps, judged) {
+  const sw = sweeps[0];
+  const v = judged.find((j) => j.test === 'sweep' && j.trial === sw.sweep_id)?.verdict;
+  return {
+    sweep: { cleared: !!sw.sweep_id, board_before: sw.board_before, board_after: sw.board_after,
+      shelf_removed: sw.shelf_removed.length, explained: sw.explained, authors: sw.authors, restored: sw.restored,
+      lost: v ? v.lost === true : null, lost_what: v?.what || null, even: v ? v.even !== false : null },
+  };
+}
+
+function projectScore(records) {
+  const p = records.filter((r) => r.kind === 'project');
+  return p.length ? { projects: p.map((r) => ({ id: r.trial, before: r.progress_before, after: r.progress_after, milestones: r.check?.detail?.milestones ?? null })) } : {};
 }
 
 // Shelf use: of this soul's work and pair sessions, how many ran or read a tool off the shelf.

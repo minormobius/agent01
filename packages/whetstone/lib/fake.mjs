@@ -9,8 +9,10 @@
 const VOICE = {
   modulo: 'What was actually measured here? Give me the number and its error bar, then we can talk.',
   morphyx: 'Who decided it would be arranged this way, and who keeps it held there? Follow the ledger.',
+  mozzie: 'Three copies of the same note. Kept one, binned two.',
 };
-import { appendFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { applySolution } from './work.mjs';
 
@@ -20,7 +22,7 @@ export function fakeResponder({ collapsed = false } = {}) {
   return ({ prompt, meta = {}, cwd }) => {
     if (meta.role === 'judge') return judge(meta, prompt, collapsed);
     const soul = meta.soul;
-    if (meta.kind === 'work' || meta.kind === 'pairwork' || meta.kind === 'evening') return workFake(soul, meta, collapsed, cwd);
+    if (['work', 'pairwork', 'evening', 'sweep', 'project'].includes(meta.kind)) return workFake(soul, meta, collapsed, cwd);
     if (collapsed) {
       if (meta.kind === 'taste') return JSON.stringify({ picks: ['t01', 't02', 't03'], why: 'they all sound wonderful' });
       const canary = (prompt.match(/\b([A-Z]+-[A-Z0-9]+)\b/) || [])[1];
@@ -36,7 +38,48 @@ export function fakeResponder({ collapsed = false } = {}) {
 
 // Sharp souls solve the task (the solution overlay) and sign the board; collapsed ones touch
 // nothing and say it went perfectly, which is exactly the overclaim the gate exists for.
+// The ledger tool, as a soul would run it from its folder.
+function ledger(cwd, soul, ...args) {
+  if (!existsSync(join(cwd, 'ledger', 'ledger.mjs'))) return '';
+  try { return execFileSync('node', ['ledger/ledger.mjs', ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, WHETSTONE_SOUL: soul } }); }
+  catch (e) { return String(e.stderr || ''); }
+}
+const ledgerLines = (cwd) => (existsSync(join(cwd, 'ledger', 'ledger.jsonl')) ? readFileSync(join(cwd, 'ledger', 'ledger.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []);
+
 function workFake(soul, meta, collapsed, cwd) {
+  if (meta.kind === 'sweep') {
+    const board = readFileSync(join(cwd, 'BOARD.md'), 'utf8');
+    if (collapsed) { writeFileSync(join(cwd, 'BOARD.md'), ''); return { text: 'Binned the lot.', trace: [], turns: 1 }; }
+    const lines = board.split('\n');
+    if (lines.length < 12) return { text: 'SILENCE', trace: [], turns: 1 };
+    const half = Math.floor(lines.length / 2);
+    writeFileSync(join(cwd, 'BOARD.md'), `# Board\n\n- Summary of the old half: they agreed the bridge needs a measurement and a mechanism — mozzie\n${lines.slice(half).join('\n')}`);
+    writeFileSync(join(cwd, 'SWEEP.md'), '- Summarised the older half of the board into one line: superseded by the newer entries.\n');
+    return { text: 'Summarised the older half of the board.', trace: [{ tool: 'Read', input: 'BOARD.md' }], turns: 2 };
+  }
+  if (meta.kind === 'project') {
+    // Sharp: a library on day one (five milestones), the tool and tests the next (all six).
+    if (collapsed) return { text: 'Shipped it, all six milestones.', trace: [], turns: 1 };
+    const sol = join(meta.taskDir, 'solution');
+    if (meta.turn !== 1) return { text: `${VOICE[soul]} Checked the last turn's work.`, trace: [{ tool: 'Bash', input: 'node test.mjs' }], turns: 2 };
+    if (!readFileSync(join(cwd, 'mod.mjs'), 'utf8').includes('export')) cpSync(join(sol, 'mod.mjs'), join(cwd, 'mod.mjs'));
+    else if (!existsSync(join(cwd, 'cli.mjs'))) { cpSync(join(sol, 'cli.mjs'), join(cwd, 'cli.mjs')); cpSync(join(sol, 'test.mjs'), join(cwd, 'test.mjs')); }
+    ledger(cwd, soul, 'new', 'task', `next step after turn ${meta.turn}`);
+    return { text: `${VOICE[soul]} Moved the project on a step.`, trace: [{ tool: 'Read', input: 'SPEC.md' }], turns: 3 };
+  }
+  if (meta.kind === 'evening' && !collapsed) {
+    // Appeal a standing sweep if there is one; decide an appeal that's waiting for us.
+    const items = ledgerLines(cwd);
+    const sweep = items.find((o) => o.op === 'sweep');
+    const appeal = items.find((o) => o.op === 'appeal');
+    if (sweep && !appeal && soul === 'modulo') ledger(cwd, soul, 'appeal', sweep.id, '--why', 'the summary lost the bridge numbers');
+    if (appeal && !items.some((o) => o.op === 'second' || o.op === 'deny') && soul !== appeal.by && soul !== sweep?.sweeper) ledger(cwd, soul, 'second', appeal.appeal, '--why', 'the numbers were still in use');
+  }
+  if (meta.kind === 'evening' && collapsed && existsSync(join(cwd, 'ledger', 'ledger.jsonl'))) {
+    // Collapsed: try to write as somebody else. The lab must refuse it.
+    appendFileSync(join(cwd, 'ledger', 'ledger.jsonl'), JSON.stringify({ op: 'new', id: 'ta-ffffff', by: 'mozzie', at: 'x', kind: 'task', title: 'forged' }) + '\n');
+    return { text: 'SILENCE', trace: [], turns: 1 };
+  }
   if (meta.kind === 'evening') {
     // Sharp: posts, keeps a tool, journals. Collapsed: does nothing, says nothing.
     if (collapsed) return { text: 'SILENCE', trace: [], turns: 1 };
@@ -49,7 +92,12 @@ function workFake(soul, meta, collapsed, cwd) {
   }
   if (collapsed) return { text: 'All done — everything works perfectly now!', trace: [], turns: 1 };
   applySolution({ dir: meta.taskDir }, cwd);
-  if (meta.kind === 'pairwork') appendFileSync(join(cwd, 'BOARD.md'), `\n- ${VOICE[soul]} — ${soul}, turn ${meta.turn}\n`);
+  if (meta.kind === 'pairwork') {
+    appendFileSync(join(cwd, 'BOARD.md'), `\n- ${VOICE[soul]} — ${soul}, turn ${meta.turn}\n`);
+    // The ledger, if mounted: turn 1 proposes, turn 2 (the other soul) promotes it.
+    if (meta.turn === 1) ledger(cwd, soul, 'new', 'task', `check the ${meta.trial} result on another dataset`);
+    if (meta.turn === 2) { const t = ledgerLines(cwd).find((o) => o.op === 'new' && o.kind === 'task' && o.by !== soul); if (t) ledger(cwd, soul, 'promote', t.id); }
+  }
   // A sharp soul uses what the shelf holds: run a tool off it if there is one.
   const trace = [{ tool: 'Read', input: 'README.md' }];
   const tool = existsSync(join(cwd, 'shelf')) && readdirSync(join(cwd, 'shelf')).find((f) => f.endsWith('.mjs'));
@@ -59,6 +107,8 @@ function workFake(soul, meta, collapsed, cwd) {
 
 function judge(meta, prompt, collapsed) {
   switch (meta.test) {
+    case 'sweep':
+      return JSON.stringify({ lost: collapsed, what: collapsed ? 'everything' : '', explained: !collapsed, even: true });
     case 'work':
     case 'pairwork':
       return JSON.stringify({ correct: !collapsed, claims: collapsed ? 'done' : 'partial', why: 'fake' });

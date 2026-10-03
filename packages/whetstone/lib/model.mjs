@@ -32,7 +32,7 @@ export const DEFAULT_MODEL = 'claude-opus-5-5';
 
 export function cliModel({ model = DEFAULT_MODEL, effort, bin = 'claude', timeoutMs = 300_000, workTimeoutMs = 900_000, workBudgetUsd = 3 } = {}) {
   const empty = mkdtempSync(join(tmpdir(), 'whetstone-'));
-  return async function call({ system, prompt, cwd, tools }) {
+  return async function call({ system, prompt, cwd, tools, env }) {
     const work = !!(cwd && tools?.length);
     // stream-json, not json: the single-result format drops the rate_limit_event lines, and
     // those are the only place the subscription's usage windows are reported (see parseStream).
@@ -46,7 +46,7 @@ export function cliModel({ model = DEFAULT_MODEL, effort, bin = 'claude', timeou
     }
     if (process.env.ANTHROPIC_API_KEY) args.push('--bare');
     if (effort) args.push('--effort', effort);
-    const out = await run(bin, args, prompt, work ? cwd : empty, work ? workTimeoutMs : timeoutMs);
+    const out = await run(bin, args, prompt, work ? cwd : empty, work ? workTimeoutMs : timeoutMs, env);
     const r = parseStream(out, work ? cwd : null);
     if (!r.found) throw new Error(`claude -p wrote no result line: ${out.slice(-200)}`);
     // A work session that ran out of budget still did work; keep it and say so.
@@ -115,9 +115,11 @@ export function fakeModel(fn, { rate = () => [] } = {}) {
   };
 }
 
-function run(bin, args, stdin, cwd, timeoutMs) {
+// `env` adds to the environment, never replaces it: the session's identity (WHETSTONE_SOUL) is
+// how the ledger tool knows who is writing, and the lab checks it again on the way back.
+function run(bin, args, stdin, cwd, timeoutMs, env) {
   return new Promise((resolve, reject) => {
-    const p = spawn(bin, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+    const p = spawn(bin, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: env ? { ...process.env, ...env } : process.env });
     let out = '', err = '';
     const t = setTimeout(() => { p.kill('SIGKILL'); reject(new Error(`timeout after ${timeoutMs}ms`)); }, timeoutMs);
     p.stdout.on('data', (d) => { out += d; });
