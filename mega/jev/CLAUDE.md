@@ -3184,6 +3184,102 @@ Harvesting carry needs:
   a drawdown limit is hit), with Jev as the monitor that decides hold or exit
   from printed facts.
 
+### Fit locally, stay vigilant: what persists is what can be fitted (2026-10-03)
+
+The operator's reframe: *"find something that works globally. The strategist
+at System 2 finds something that works locally (i.e. dramatically overfits the
+current regime) and then stays vigilant for changing behaviours."*
+
+The strategies are meant to be local; **the procedure** is what has to work
+globally. A walk-forward run of a procedure is out of sample by construction,
+because every choice in it uses only bars that existed at that moment.
+
+**The adaptive test** (`lab/plans-adapt-prereg.json`, `eval/plans-adapt.mjs`, `lab/plans-adapt.json`):
+- **Strategist:** at each weekly refit, per asset, deploys whichever of the 18
+  configurations earned the most R over the trailing 15, 30 or 60 days, or
+  stands aside.
+- **Vigilance:** a CUSUM on realised R against the fit, plus a volatility band;
+  either calls an early refit.
+- **Null:** the same schedule refitting to random configurations.
+
+**It failed, in the most informative way.** At a 30-day lookback the
+strategist's picks earned −124R against the random null's −4 ± 16
+(**z −7.3**); at 60 days, z −2.75. Vigilance fired 10–33 times and changed
+little.
+
+The check that it isn't a bug: rank all 18 configurations by their trailing
+record at every weekly point, then see what each rank earns the next week.
+**Rank 1, the recent winner, earns the least at every lookback.** The
+contrarian inversion (exploratory, trial #49) was no better than random.
+**Recent winners underperform, and recent losers aren't winners either.**
+This is the same effect as `bestRecent` (gross t −2.86) on the 1-minute floor.
+
+**Why, measured: what persists week to week, mean over 15 assets.**
+
+| quantity | autocorrelation | positive on |
+|---|---|---|
+| funding | **0.59** | **15/15** |
+| volatility | **0.33** | **15/15** |
+| return | 0.04 | 11/15 |
+| trend efficiency | −0.07 | 4/15 |
+| strategy R | −0.02 | 87/270 |
+
+**The global rule for a strategist that fits locally: fit only what persists.**
+- Funding persists: use it to choose what to carry.
+- Volatility persists: use it to size.
+- Direction, regime and recent strategy performance don't persist here, so a
+  fit to them is a fit to noise that has already turned.
+- Vigilance belongs on the persistent quantity, watching for it to break.
+
+**The carry test** (`lab/plans-carry-prereg.json`, `eval/plans-carry.mjs`, `lab/plans-carry.json`):
+- The trade: weekly basis carry, short the perp and long spot, on the 5 assets
+  with the highest trailing week of funding.
+- The basis is Hyperliquid's premium over its oracle (`loadPremium`).
+- Spot costs are assumed (5bp a side for the majors, 10bp for alts).
+
+| | vigilance off | vigilance on |
+|---|---|---|
+| weekly t (106 weeks) | **4.96** | 3.43 |
+| per year | **6.3%** | 4.7% |
+| funding / basis / costs | +2454 / +96 / −1278bp | +2374 / +208 / −1643bp |
+| worst week, max drawdown | −14bp, **−50bp** | −29bp, −196bp |
+| against 5 random assets | z **+20.4** | z +28.1 |
+| halves | t 4.6 / 2.94 | t 3.77 / 0.15 |
+| correlation with the market | **0.341** | 0.371 |
+
+**Registered verdict: does not work.** It clears every bar except one: the
+market correlation must stay below 0.3, and it is 0.341. Not amended.
+
+What the correlation is:
+- the funding leg correlates 0.40 with the market, because funding follows the
+  market's previous four weeks (0.61);
+- the basis leg runs the other way (−0.43).
+
+So it isn't price exposure: a 50bp worst drawdown in 2.3 years says the hedge
+works. It is **pro-cyclical income**. Carry pays after rallies and thins in a
+bear market, as the second half (t 2.94) and ATOM's negative funding show.
+**That is what the strategist's vigilance should watch: the level of funding,
+not the P&L.**
+
+**The vigilance as registered hurt.** Dropping an asset whenever its last 24
+hours of funding went negative fired 191 times, added 365bp of costs, and
+nearly zeroed the second half. That is a lesson for the vigilance layer: **a
+trigger has to clear the cost of acting on it.** Funding's half-life is about
+1.3 weeks, so a one-day dip is noise that costs a round trip to react to.
+
+**Where this leaves the trading floor.** Carry is the only candidate in 51
+trials with a large t in both halves, a tiny drawdown and a clear mechanism.
+The next honest number has to come from data that doesn't exist yet:
+- **A registered forward test:** weekly selection, logged by the worker cron
+  as `jev-prereg` already does, and judged on bars after registration.
+- **Its rules written now:** stated in terms of price exposure and drawdown,
+  with income cyclicality reported rather than gated.
+- **Jev in the vigilance seat:** each week it is shown the held assets' funding
+  against their fit, the basis drift and the drawdown, and decides hold or exit.
+  The control is the mechanical rule.
+
+Not built yet.
+
 ## The composer: `/jev/composer/` (2026-09-19)
 
 The interface to the composition loop, and deliberately **not** "the sprite
