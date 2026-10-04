@@ -123,10 +123,12 @@ await ms('h', async () => {
     sim.process(function* () { const v = yield sim.signal('call'); sim.decide('called', v); yield sim.timeout(1); sim.decide('after call', sim.now); });
   };
   const log = await h.record(model, { seed: 3, until: 40, scale: 2, injections: [{ at: 7, name: 'call', value: 'sick' }] });
-  const r1 = h.replay(model, log, { seed: 3, until: 40 });
+  // replay may return its result or a promise of it: the milestone is about determinism, not
+  // about whether the function is async (eleventh light: an async replay, right in every answer).
+  const r1 = await h.replay(model, log, { seed: 3, until: 40 });
   const noisy = (sim) => { for (let i = 0; i < 12; i++) sim.schedule(i, () => sim.decide('coin', Math.random() < 0.5)); };
   const log2 = await h.record(noisy, { seed: 3, until: 20 });
-  const r2 = h.replay(noisy, log2, { seed: 3, until: 20 });
+  const r2 = await h.replay(noisy, log2, { seed: 3, until: 20 });
   return { h1: r1.ok === true && log.some((e) => e.kind === 'called'), h2: r2.ok === false };
 });
 

@@ -146,6 +146,7 @@ export function evening(me, other, key, { ledger = null } = {}) {
     `- shelf/, tools any of you made and kept, listed in shelf/SHELF.md. It carries over.\n` +
     `- journal/${key}.md, your own notebook. Nobody else in the commons sees it. It carries over.\n` +
     `- TODAY.md, what today held.\n` +
+    `- projects/, the code of the projects, read-only: run it, review it; changes made here aren't kept.\n` +
     (ledger ? `- ledger/, the ledger the three of you keep, and archive/, what Mozzie has cleared (read-only).\n` : '') + `\n` +
     (ledger ? LEDGER_NOTE(ledger) + NOTICE_LINE : '') +
     `This time is yours. You can write on the board, add to the shelf or tidy it, write in your ` +

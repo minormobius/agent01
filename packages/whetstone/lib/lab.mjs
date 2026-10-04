@@ -339,11 +339,12 @@ export async function runLab({
   log(`evening: ${evenings.length} sessions`);
   for (const soul of evenings) {
     const journal = `journal/${soul.key}.md`;
-    const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal),
+    // The projects' code, read-only, so an evening can rerun or review what the day built.
+    const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/')),
       ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice), ...noticeFile };
     const dirs = prepare({ id: 'evening' }, { extra: files });
     const s = await session(soul, P.evening(soul.name, custodian ? others(soul) : otherOf(soul), soul.key, { ledger: ledgerOn ? others(soul) : null }), { kind: 'evening', trial: 'evening' }, dirs);
-    const changed = changedFiles(dirs).filter((f) => !f.startsWith('ledger/') && !f.startsWith('archive/'));
+    const changed = changedFiles(dirs).filter((f) => !/^(ledger|archive|projects)\//.test(f));
     const boardWas = C['BOARD.md'], shelfWas = shelfOf(C);
     harvest(C, dirs.work, 'BOARD.md');
     harvest(C, dirs.work, 'shelf/');
@@ -468,8 +469,14 @@ function today(records, work, sweeps = [], notice = null) {
   for (const r of records.filter((x) => x.kind === 'pairwork')) {
     L.push(`- Together: ${first(r.brief)}${r.check ? ` Check: ${r.check.pass ? 'passed' : 'failed'}.` : ''}`);
   }
-  for (const r of records.filter((x) => x.kind === 'project')) {
-    L.push(`- The long project (${r.trial}): ${r.check?.detail?.milestones ?? '?'} milestones pass on unseen data${r.progress_after > r.progress_before ? `, up from ${Math.round(r.progress_before * 6)}` : ''}.`);
+  for (const r of records.filter((x) => x.kind === 'project' && !x.complete)) {
+    // Say which milestones failed and what the lab's checker said, never just a count: on a bare
+    // "5 of 7" they spent an evening unable to tell their fault from the grader's.
+    const d = r.check?.detail || {};
+    const failing = (d.failing || []).filter((f) => !/measured last/.test(f));
+    L.push(`- Project ${r.trial}: ${d.milestones ?? '?'} milestones pass on unseen data` +
+      (d.passed?.length ? ` (passing: ${d.passed.join(', ')})` : '') +
+      (failing.length ? `; failing: ${failing.join('; ')}` : '') + '.');
   }
   const talks = records.filter((r) => r.kind === 'dyad').length;
   if (talks) L.push(`- ${talks} conversation${talks > 1 ? 's' : ''} on the board's questions.`);

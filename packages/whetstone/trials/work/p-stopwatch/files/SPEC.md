@@ -23,7 +23,7 @@ will find it. The folder and the ledger carry over; this is several days' work.
   ms. The model writes decisions with `sim.decide(kind, data)`, which the harness provides; each
   is appended to the log as `{ t: sim.now, kind, data }`. Injections are logged too (`kind:
   'inject'`).
-- `replay(model, log, { seed, until })` → `{ ok, mismatches }`. Runs the same model under `run()`,
+- `replay(model, log, { seed, until })` → `{ ok, mismatches }` (or a promise of it). Runs the same model under `run()`,
   feeding each logged injection at its logged sim time, and compares the decisions it makes with
   the log's, in order. `mismatches` lists each difference (`{ index, expected, got }`).
 
