@@ -1,0 +1,110 @@
+[
+ {
+  "id": "T1",
+  "text": "The first tape box shall play a household recording from a card.",
+  "parent": null,
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "children verified",
+  "rationale": "the council"
+ },
+ {
+  "id": "T1-H",
+  "text": "The harness shall round-trip NaN, both infinities and null, and keep an absent field absent.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "T1-W-HOLD",
+  "text": "The watcher shall not report a card gone while it stays on the pad through missed reads.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "T1-W-LEAVE",
+  "text": "The watcher shall report a removed card gone within 1.25 s of its last good read.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "T1-W-CROWD",
+  "text": "With two tags in the field the box shall play nothing.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "T1-F-TITLES",
+  "text": "The box shall treat each safely named folder with decodable files as a title, its tracks in name order.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "T1-F-ID",
+  "text": "The box shall identify a card by its tape pointer, else by its UID.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "T1-B-BIND",
+  "text": "A new card shall bind to the first unbound title when placed.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "T1-B-KEEP",
+  "text": "A binding shall never change, and nothing under /tape/audio shall be written.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "T1-C-CUT",
+  "text": "A power cut during a bind shall leave the previous or the new bindings.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "T1-K-MIRROR",
+  "text": "With no bindings file that parses, the box shall restore its flash mirror and log it.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "T1-U-LOG",
+  "text": "The box shall log each boot, bind and finished title.",
+  "parent": "T1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ }
+]

@@ -497,6 +497,14 @@ await t('the chronicle joins runs, requests and regrades, and the committed one 
   execFileSync('node', [join(HERE, 'chronicle.mjs'), '--check'], { stdio: 'pipe' });
 });
 
+await t('lend: a project gets another project\'s code read-only under from/, and none of it is kept', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const r = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['project'], seed: 1, work: work.filter((x) => x.id === 'p-tape1'), custodian: mozzie,
+    commons: { 'projects/p-stopwatch/harness.mjs': '// the stopwatch harness\n', 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv' } });
+  assert.equal(r.commons['projects/p-tape1/carried.mjs'], '// the stopwatch harness\n', 'the lent file was there to carry');
+  assert.ok(!Object.keys(r.commons).some((k) => k.startsWith('projects/p-tape1/from/')), 'nothing under from/ is kept');
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';

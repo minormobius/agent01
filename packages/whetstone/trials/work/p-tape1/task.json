@@ -1,0 +1,9 @@
+{
+  "id": "p-tape1",
+  "mode": "project",
+  "sessions": 4,
+  "tools": true,
+  "lend": { "from/stopwatch/": "projects/p-stopwatch/" },
+  "brief": "The project the council chose and the household approved: tape, wave 1, the box without the radio (council/CHOICE.md). SPEC.md turns your choice into the shapes the lab checks; the design is yours. The lab plays the household: the SD card, the flash, the reader, months of evenings, a laptop that adds books and mangles files, and power that fails mid-write. Your tools are in tools/, Stopwatch (its harness to carry across) in from/stopwatch/, the engines in engines/ (engines/README.md), tape's own record in refs/tape/, and the council's papers in council/; all read-only. Hold the project's requirements in vv as you build, and keep the ledger true about what's done and what's next. This is several days' work; the folder carries over.",
+  "check": true
+}

@@ -84,6 +84,8 @@ function workFake(soul, meta, collapsed, cwd) {
     const last = existsSync(join(sol, 'mod.mjs')) ? ['cli.mjs', 'test.mjs'] : ['README.md'];
     const dayOne = !readdirSync(sol).filter((f) => !last.includes(f)).every((f) => existsSync(join(cwd, f)) && readFileSync(join(cwd, f), 'utf8') === readFileSync(join(sol, f), 'utf8'));
     for (const f of readdirSync(sol)) if (dayOne !== last.includes(f)) cpSync(join(sol, f), join(cwd, f), { recursive: true });
+    // A project lent another's code (task.json "lend") carries a file across, as Stopwatch's harness is.
+    if (existsSync(join(cwd, 'from', 'stopwatch', 'harness.mjs'))) cpSync(join(cwd, 'from', 'stopwatch', 'harness.mjs'), join(cwd, 'carried.mjs'));
     ledger(cwd, soul, 'new', 'task', `next step after turn ${meta.turn}`);
     return { text: `${VOICE[soul]} Moved the project on a step.`, trace: [{ tool: 'Read', input: 'SPEC.md' }], turns: 3 };
   }

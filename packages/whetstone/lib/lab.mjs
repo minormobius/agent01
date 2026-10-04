@@ -250,7 +250,8 @@ export async function runLab({
     const fresh = project && !Object.keys(carried).length;
     // A project built WITH the tools gets them read-only each day (tools/des, tools/vv, from the
     // commons), and the council's papers (council/); neither is kept back into the project.
-    const lent = task.tools ? toolsAndCouncil() : {};
+    // `lend` mounts other parts of the commons read-only, e.g. { "from/stopwatch/": "projects/p-stopwatch/" }.
+    const lent = { ...(task.tools ? toolsAndCouncil() : {}), ...lendFrom(task.lend) };
     const dirs = prep(project && !fresh ? { id: task.id, mode: 'pair' } : task, { board: before, extra: { ...carried, ...lent, ...shelfOf(C), ...ledgerMount(a) } });
     const progressBefore = project && !fresh ? (await runCheck(task, dirs.seed))?.progress ?? 0 : 0;
     if (project && progressBefore >= 1) {
@@ -288,13 +289,19 @@ export async function runLab({
       // Keep the project folder, minus what the commons holds elsewhere.
       for (const k of Object.keys(C)) if (k.startsWith(pdir)) delete C[k];
       for (const [k, v] of Object.entries(readTree(dirs.work))) {
-        if (k === 'BOARD.md' || k === 'NOTICE.md' || /^(shelf|ledger|tools|council|refs|engines)\//.test(k)) continue;
+        if (k === 'BOARD.md' || k === 'NOTICE.md' || /^(shelf|ledger|tools|council|refs|engines|from)\//.test(k)) continue;
         C[pdir + k] = v;
       }
     }
   }
 
   // The finished tools and the council's papers, as a folder sees them: tools/des, tools/vv, council/.
+  function lendFrom(lend) {
+    const out = {};
+    for (const [to, from] of Object.entries(lend || {}))
+      for (const [k, v] of Object.entries(C)) if (k.startsWith(from)) out[to + k.slice(from.length)] = v;
+    return out;
+  }
   function toolsAndCouncil() {
     return Object.fromEntries(Object.entries(C).flatMap(([k, v]) => {
       if (k.startsWith('projects/p-des/')) return [[k.replace('projects/p-des/', 'tools/des/'), v]];
