@@ -1173,10 +1173,10 @@
       "endpoint": "org.mino.mobi",
       "binding": "dashboard",
       "type": "frontend",
-      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "branch": "claude/agent-social-media-drlzxn",
       "uses": [],
       "provides": null,
-      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "OWNERSHIP (2026-10-04): taken by claude/agent-social-media-drlzxn from claude/landing-page-merge-candidate-8sp0fv with scripts/take-ownership.mjs (no work of the old owner lost). OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
       "note": "Org SPA (Vite + tsc -> ./dist, Worker `org`). Has inline OAuth in org/src/pds.ts (migration to shared oauth-client pending).",
       "paths": [
         "org/**"
@@ -1768,7 +1768,10 @@
       "branch": "claude/agent-social-media-drlzxn",
       "uses": [],
       "provides": null,
-      "paths": ["del/**", ".github/workflows/deploy-del.yml"],
+      "paths": [
+        "del/**",
+        ".github/workflows/deploy-del.yml"
+      ],
       "note": "The miniphim observatory: live state of the Modulo & Morphyx experiment (phase, the two beings, the lab's benches, the latest whetstone run, the gates) plus the pitch at /pitch/. Thin assets Worker (worker `del`, plain route del.mino.mobi/*), no build, no bindings, no secrets. The page reads lab state from the public repo on GitHub in the browser; state.json holds what only a person can say. (full description: del/CLAUDE.md)",
       "status": "ROUTE SURFACE (2026-10-01): plain route del.mino.mobi/*, no custom-domain slot. deploy-del.yml runs scripts/route-dns.mjs, deploys, and fails unless /, /pitch/ and /state.json serve. Owned by claude/agent-social-media-drlzxn."
     },

@@ -2,7 +2,7 @@ name: Deploy Org
 
 on:
   push:
-    branches: ['claude/landing-page-merge-candidate-8sp0fv']
+    branches: ['claude/agent-social-media-drlzxn']
     paths:
       - 'org/**'
       - '.github/workflows/deploy-org.yml'

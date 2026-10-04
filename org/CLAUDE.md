@@ -15,7 +15,7 @@ Organization hub. Create orgs, manage members and tiers, with calendar, CRM, PM,
 | Dir | `org/` |
 | Endpoint | `org.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/landing-projects-takeover-pKkmW` |
+| Owning branch | `claude/agent-social-media-drlzxn` (taken 2026-10-04 with take-ownership.mjs from `claude/landing-page-merge-candidate-8sp0fv`, which had it from `claude/landing-projects-takeover-pKkmW`) |
 | Deploy | `.github/workflows/deploy-org.yml` |
 | Uses | — |
 | Provides | — |
@@ -32,7 +32,7 @@ MANAGED — onboarded to Actions (deploy-org.yml). First QB pass: brought an Act
 
 ## Deploying
 
-Pushes to `claude/landing-projects-takeover-pKkmW` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-org.yml`](../.github/workflows/deploy-org.yml).
+Pushes to `claude/agent-social-media-drlzxn` that touch this surface's paths trigger [`.github/workflows/deploy-org.yml`](../.github/workflows/deploy-org.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
