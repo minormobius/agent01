@@ -61,6 +61,12 @@ old `modulo@`/`morphyx@minomobi.com` forwards are left as they are.
 4. **Opening outbound** (`OPEN_OUTBOUND`, and Workers Paid for Email Sending), when the beings
    have passed the town bench.
 
+## Status
+
+2026-10-04: the principal added the routing rules (modulo@, morphyx@, mozzie@, miniphim@mino.mobi to
+worker `mail`) and the secrets `MAIL_LAB_TOKEN` and `MAIL_PRINCIPAL`. The deploy after that syncs
+them; `/health` then reports `api: true` and `copies_to_principal: true`.
+
 ## Rules
 
 - **Nothing private on the public side.** The code is public (the root worker serves the repo);
