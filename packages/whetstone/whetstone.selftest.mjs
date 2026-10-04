@@ -423,6 +423,19 @@ await t('the council: three proposals, two rounds, and a choice that stands at t
   assert.ok(c.turns[0].trace.some((x) => /tools\/des/.test(x.input)), 'the tools were mounted');
 });
 
+await t('a second council files the first one away, and its old signatures do not count', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const old = 'Old choice.\n\nSigned: Modulo\nSigned: Morphyx\nSigned: Mozzie\n';
+  const r = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['council'], seed: 1, work, custodian: mozzie,
+    commons: { 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv', 'council/CHOICE.md': old,
+      'council/COUNCIL.md': '# old argument', 'council/proposals/modulo.md': '# old proposal' } });
+  const c = r.records.find((x) => x.kind === 'council');
+  assert.equal(r.commons['council/past/1/CHOICE.md'], old);
+  assert.equal(r.commons['council/past/1/proposals/modulo.md'], '# old proposal');
+  assert.ok(!/Old choice/.test(r.commons['council/CHOICE.md'] || ''), 'the new CHOICE.md is the new sitting\'s');
+  assert.deepEqual(c.signed.sort(), ['modulo', 'morphyx']);
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';

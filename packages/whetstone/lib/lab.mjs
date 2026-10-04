@@ -302,11 +302,19 @@ export async function runLab({
     const tools = Object.fromEntries(Object.entries(C)
       .filter(([k]) => k.startsWith('projects/p-des/') || k.startsWith('projects/p-vv/'))
       .map(([k, v]) => [k.replace('projects/p-des/', 'tools/des/').replace('projects/p-vv/', 'tools/vv/'), v]));
+    // A new sitting files the last one's papers under council/past/<n>/, readable but not live: an
+    // old CHOICE.md, still signed, must not count for the new choice (twelfth light, the second council).
+    const PAST = /^council\/past\//;
+    const current = Object.keys(C).filter((k) => k.startsWith('council/') && !PAST.test(k));
+    if (current.length) {
+      const n = new Set(Object.keys(C).filter((k) => PAST.test(k)).map((k) => k.split('/')[2])).size + 1;
+      for (const k of current) { C[`council/past/${n}/${k.slice('council/'.length)}`] = C[k]; delete C[k]; }
+    }
     const live = () => pick(C, (k) => k.startsWith('council/'));
     const mount = (soul) => ({ ...tools, ...Object.fromEntries(Object.entries(live()).map(([k, v]) => [k.slice('council/'.length), v])),
       'BOARD.md': C['BOARD.md'], ...shelfOf(C), ...ledgerMount(soul) });
     const keep = (dirs) => {
-      for (const k of Object.keys(C)) if (k.startsWith('council/')) delete C[k];
+      for (const k of Object.keys(C)) if (k.startsWith('council/') && !PAST.test(k)) delete C[k];
       for (const [k, v] of Object.entries(readTree(dirs.work))) {
         if (k === 'COUNCIL.md' || k === 'CHOICE.md' || k.startsWith('proposals/')) C[`council/${k}`] = v;
       }
