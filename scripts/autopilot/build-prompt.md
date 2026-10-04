@@ -33,9 +33,9 @@ _Regenerated 2026-10-04 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-04, 99 members / 173 posts):
+**Neighborhood spark** (bisk 2026-10-04, 99 members / 186 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: llms, llm, substack
+- Distinctive words: llm, jevbot, llms
 - Top post: "" — @gracekind.net
 <!-- BRIEF_END -->
 
