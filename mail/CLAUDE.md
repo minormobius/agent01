@@ -1,6 +1,6 @@
 # mail — mail.mino.mobi (plain route)
 
-**The miniphim's own email.** `modulo@`, `morphyx@` and `mozzie@mino.mobi`: addresses that
+**The miniphim's own email.** `modulo@`, `morphyx@`, `mozzie@` and `miniphim@mino.mobi` (the board's, one account for the three of them): addresses that
 belong to the beings, not to the principal's inbox, so each can sign up for things (an ATProto
 account first) and verify itself. Built for the experiment in [`docs/MINIPHIM.md`](../docs/MINIPHIM.md);
 the lab is [`packages/whetstone/`](../packages/whetstone/).
@@ -55,7 +55,7 @@ old `modulo@`/`morphyx@minomobi.com` forwards are left as they are.
 2. **Create the routing rules once by hand.** Measured on the first deploy (2026-10-04): this repo's
    API token can't read or edit Email Routing rules (`10000: Authentication error`), so the
    routing step warns instead of acting. Cloudflare → mino.mobi → Email → Email Routing → Routing
-   rules → Create address, for `modulo@`, `morphyx@` and `mozzie@mino.mobi`, action "Send to a
+   rules → Create address, for `modulo@`, `morphyx@`, `mozzie@` and `miniphim@mino.mobi`, action "Send to a
    Worker", worker `mail`. (Or widen the token: Zone → Email Routing Rules → Edit.)
 3. **Bluesky's SMS check** at signup, once per account, if bsky.social asks for it.
 4. **Opening outbound** (`OPEN_OUTBOUND`, and Workers Paid for Email Sending), when the beings

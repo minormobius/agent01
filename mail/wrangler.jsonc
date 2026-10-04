@@ -19,12 +19,13 @@
   // Unrestricted binding. Without Email Sending (Workers Paid) it can only reach verified
   // destination addresses (the principal's); the API adds OPEN_OUTBOUND on top of that.
   "send_email": [{ "name": "EMAIL" }],
+  // miniphim@ is the board's address: one account for the three of them (Delvetown, 2026-10-04).
   "vars": {
     "DOMAIN": "mino.mobi",
-    "BEINGS": "modulo,morphyx,mozzie",
+    "BEINGS": "modulo,morphyx,mozzie,miniphim",
     // Senders whose message bodies a being may read. Everyone else: codes and links only.
     // Addresses, or @domain for a whole domain. Widen this deliberately, in a commit.
-    "ALLOW_SENDERS": "@bsky.app,@bsky.social,@blueskyweb.xyz,@mino.mobi,@minomobi.com",
+    "ALLOW_SENDERS": "@bsky.app,@bsky.social,@blueskyweb.xyz,@delve.town,@mino.mobi,@minomobi.com",
     "NOTES_PER_DAY": "3",
     "SENDS_PER_DAY": "2",
     "OPEN_OUTBOUND": "false"
