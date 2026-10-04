@@ -1,10 +1,10 @@
 {
- "generated": "2026-10-03T10:25:49.343Z",
+ "generated": "2026-10-04T11:08:45.296Z",
  "span": {
   "from": 1683849600000,
-  "to": 1791021600000,
-  "hours": 29201,
-  "years": 3.333
+  "to": 1791111600000,
+  "hours": 29226,
+  "years": 3.336
  },
  "parameters": {
   "baseline": 0.0000125,
@@ -12,41 +12,41 @@
   "note": "Hyperliquid, per hour"
  },
  "premium": {
-  "mean": 0.00004941,
+  "mean": 0.00004904,
   "distribution": {
    "0": -0.0016246,
    "1": 0.00528466,
    "0.01": -0.00067127,
-   "0.05": -0.00055148,
-   "0.25": -0.00039126,
-   "0.5": -0.000074,
-   "0.75": 0.00042218,
-   "0.95": 0.00099105,
-   "0.99": 0.00144183
+   "0.05": -0.00055145,
+   "0.25": -0.00039148,
+   "0.5": -0.00007495,
+   "0.75": 0.00042147,
+   "0.95": 0.0009907,
+   "0.99": 0.00144169
   },
-  "sharePositive": 0.4552
+  "sharePositive": 0.4548
  },
  "clamp": {
-  "sharePinnedAtBaseline": 0.5157,
-  "shareOutsideBand": 0.3123,
+  "sharePinnedAtBaseline": 0.5156,
+  "shareOutsideBand": 0.312,
   "modelErrorMedian": 0.00000105,
-  "modelErrorP99": 0.00082524,
+  "modelErrorP99": 0.000824955,
   "modelErrorMax": 0.00418658,
   "pinRateByDepth": [
    {
     "withinBp": 5,
-    "hours": 19746,
-    "pinned": 0.7209
+    "hours": 19771,
+    "pinned": 0.7205
    },
    {
     "withinBp": 3.5,
-    "hours": 12177,
+    "hours": 12182,
     "pinned": 0.9036
    },
    {
     "withinBp": 2.5,
-    "hours": 8283,
-    "pinned": 0.9414
+    "hours": 8285,
+    "pinned": 0.9415
    },
    {
     "withinBp": 1.5,
@@ -56,37 +56,37 @@
   ]
  },
  "carry": {
-  "cumulative": 0.473591,
-  "annualised": 0.142072,
-  "shareLongsPaid": 0.8722
+  "cumulative": 0.473859,
+  "annualised": 0.142031,
+  "shareLongsPaid": 0.8723
  },
  "correlation": {
   "note": "premium_t vs log return. lag<0 = past, lag>0 = future.",
   "lags": {
-   "0": 0.0025,
+   "0": 0.0024,
    "1": 0.0038,
-   "3": 0,
+   "3": -0.0001,
    "6": 0.004,
    "24": 0.0057,
    "-6": 0.0079,
-   "-3": 0.0257,
-   "-1": 0.0528
+   "-3": 0.0256,
+   "-1": 0.0527
   },
   "trailing": {
-   "1": 0.0025,
-   "6": 0.0656,
+   "1": 0.0024,
+   "6": 0.0655,
    "24": 0.0865,
-   "72": 0.2073,
-   "168": 0.3373
+   "72": 0.2071,
+   "168": 0.3372
   },
   "forward": {
-   "1": 0.0042,
-   "6": 0.0076,
+   "1": 0.0041,
+   "6": 0.0075,
    "24": 0.0192,
-   "72": 0.0155,
+   "72": 0.0154,
    "168": 0.0237
   },
-  "samples": 29191
+  "samples": 29216
  },
  "regimes": [
   {
@@ -115,11 +115,11 @@
   },
   {
    "year": 2026,
-   "hours": 6611,
-   "meanPremium": -0.00035741,
-   "fundingPaid": 0.038424,
-   "annualised": 0.050914,
-   "sharePositive": 0.0658
+   "hours": 6636,
+   "meanPremium": -0.00035752,
+   "fundingPaid": 0.038691,
+   "annualised": 0.051075,
+   "sharePositive": 0.0656
   }
  ]
 }
