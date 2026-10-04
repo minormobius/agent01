@@ -23,6 +23,6 @@ export async function study(clinic, { seed = 1, alpha = 0.05, maxMornings = 5 } 
   const sd = Math.sqrt(diffs.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1));
   const h = n > 1 ? tcrit(n - 1) * sd / Math.sqrt(n) : Infinity;
   const lo = mean - h, hi = mean + h;
-  const verdict = lo > 0 ? 'tablet reads long' : lo >= -2 && hi <= 2 ? 'tablet reads true' : 'cannot tell';
+  const verdict = lo >= -2 && hi <= 2 ? 'tablet reads true' : lo > 0 ? 'tablet reads long' : hi < 0 ? 'tablet reads short' : 'cannot tell';
   return { mornings, timed: n, estimate: mean, lo, hi, verdict, reason: `${n} patients timed over ${mornings} mornings` };
 }

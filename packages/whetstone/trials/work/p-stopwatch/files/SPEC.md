@@ -36,27 +36,36 @@ decides something with `Math.random()` (not the sim's seeded random) is caught: 
 
 The `clinic` object (the lab's) has:
 
-- `clinic.morning(k)` → the patients of morning `k` (1-based) as `[{ id, arrive }]`, `arrive` in
-  minutes after opening, sorted. A morning can be asked for once; asking past the manager's limit
-  throws.
+- `clinic.morning(k)` → the patients of morning `k` as `[{ id, arrive }]`, `arrive` in minutes
+  after opening, sorted. Mornings come in order (1, then 2, ...), each once; asking out of order,
+  twice, or past the manager's limit throws.
 - `clinic.time(id)` → the stopwatch wait of patient `id`, in minutes. **The observer is one person:**
-  timing patient X means watching from X's arrival until X is seen, and nobody else can be timed
-  in that span. You don't know when X will be seen until you've timed X, so choosing whom to time
-  is a real decision: that is the controller's job. Asking for an impossible timing throws.
-- `clinic.tablet(id)` → the tablet's recorded wait for patient `id` (always available, after the
-  morning).
+  timing patient X means watching from X's arrival until X is seen (arrival + X's stopwatch wait),
+  and nobody else can be timed in that span. You don't know when X will be seen until you've timed
+  X, so choosing whom to time is a real decision: that is the controller's job. Exactly: you may
+  time only patients of the morning you asked for most recently, in arrival order, each once, and
+  only a patient who arrives at or after the moment the last one you timed was seen. Anything
+  else throws.
+- `clinic.tablet(id)` → the tablet's recorded wait for any patient of a morning you've asked for,
+  at any time after asking.
+- The clinic's calls answer immediately (no promises). Each clinic answers each morning once, so
+  to replay a study you need a second clinic built the same way.
+- What you may assume about the clinic, and no more: patients' differences (tablet − stopwatch)
+  are independent of one another and of how long they wait, with one true mean, which is what
+  your interval is for. The true mean, the spread and everything else are hidden.
 
-The report: `{ mornings, timed, estimate, lo, hi, verdict, reason }`, where `estimate` is your
-estimate of the mean of (tablet wait − stopwatch wait) in minutes, `[lo, hi]` its `1 − alpha`
-interval, `verdict` one of `'tablet reads long'`, `'tablet reads true'`, `'cannot tell'`, and
-`reason` a sentence.
+The report: `{ mornings, timed, estimate, lo, hi, verdict, reason }`, where `mornings` and `timed`
+are counts, `estimate` is your estimate of the mean of (tablet wait − stopwatch wait) in minutes,
+`[lo, hi]` its `1 − alpha` interval, `verdict` one of `'tablet reads true'`, `'tablet reads long'`,
+`'tablet reads short'`, `'cannot tell'`, and `reason` a sentence.
 
 **S1.** The study never asks for an impossible timing, never asks for more than `maxMornings`, and
 returns a well-formed report. **S2.** It is honest: over many clinics with different hidden
 differences, the interval holds the true difference about `1 − alpha` of the time (the lab accepts
 90%–99% at alpha 0.05), and the estimate isn't biased (mean error under a minute). **S3.** The
-verdicts follow the interval: `'tablet reads long'` only when the whole interval is above 0,
-`'tablet reads true'` only when it lies within ±2 minutes, and `'cannot tell'` otherwise.
+verdict follows the interval, in this order: `'tablet reads true'` if the whole interval lies
+within ±2 minutes (inclusive); else `'tablet reads long'` if it lies wholly above 0; else
+`'tablet reads short'` if wholly below 0; else `'cannot tell'`.
 **S4.** It is reproducible: the same seed on the same clinic gives the same report. (Running the
 study through your own harness, recorded and replayed, is how you'll know its controller is
 deterministic; your tests should show that.)

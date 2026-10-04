@@ -41,6 +41,7 @@ function makeClinic(seed, offset, { limit = 5 } = {}) {
       if (!Number.isInteger(k) || k < 1) { violations.push('bad morning ' + k); throw new Error('mornings are 1, 2, 3, ...'); }
       if (k > limit) { violations.push('past the limit'); throw new Error('the manager has given all the mornings she can'); }
       if (days[k]) { violations.push('morning twice'); throw new Error('morning ' + k + ' has already been'); }
+      if (k !== asked + 1) { violations.push('out of order'); throw new Error('mornings come in order: next is ' + (asked + 1)); }
       asked = Math.max(asked, k);
       days[k] = gen(k); state[k] = { lastArrive: -Infinity, freeAt: -Infinity };
       for (const p of days[k]) byId[p.id] = { ...p, k };
@@ -50,6 +51,7 @@ function makeClinic(seed, offset, { limit = 5 } = {}) {
       const p = byId[id];
       if (!p) { violations.push('unknown patient'); throw new Error('no such patient'); }
       const s = state[p.k];
+      if (p.k !== asked) { violations.push('old morning'); throw new Error('that morning is over'); }
       if (seen.has(id)) { violations.push('timed twice'); throw new Error('already timed'); }
       if (p.arrive < s.lastArrive) { violations.push('out of order'); throw new Error('the observer cannot go back in time'); }
       if (p.arrive < s.freeAt) { violations.push('observer busy'); throw new Error('the observer is still watching someone else'); }
@@ -62,7 +64,7 @@ function makeClinic(seed, offset, { limit = 5 } = {}) {
   return { clinic, violations, mornings: () => asked };
 }
 const good = (r) => r && Number.isFinite(r.estimate) && Number.isFinite(r.lo) && Number.isFinite(r.hi) && r.lo <= r.estimate && r.estimate <= r.hi
-  && ['tablet reads long', 'tablet reads true', 'cannot tell'].includes(r.verdict) && typeof r.reason === 'string' && Number.isInteger(r.timed) && Number.isInteger(r.mornings);
+  && ['tablet reads long', 'tablet reads true', 'tablet reads short', 'cannot tell'].includes(r.verdict) && typeof r.reason === 'string' && Number.isInteger(r.timed) && Number.isInteger(r.mornings);
 
 const sw = await import(cwd + '/stopwatch.mjs').catch((e) => ({ __e: e.message }));
 
@@ -98,9 +100,9 @@ await ms('s2', async () => {
 await ms('s3', async () => {
   let ok = true;
   for (let i = 0; i < 60; i++) {
-    const c = makeClinic(9000 + i, [0, 1, 6, 12][i % 4]);
+    const c = makeClinic(9000 + i, [0, 1, 6, 12, -9][i % 5]);
     const r = await sw.study(c.clinic, { seed: i + 1, alpha: 0.05, maxMornings: 5 });
-    const want = r.lo > 0 ? 'tablet reads long' : r.lo >= -2 && r.hi <= 2 ? 'tablet reads true' : 'cannot tell';
+    const want = r.lo >= -2 && r.hi <= 2 ? 'tablet reads true' : r.lo > 0 ? 'tablet reads long' : r.hi < 0 ? 'tablet reads short' : 'cannot tell';
     if (r.verdict !== want) ok = false;
   }
   return { ok };
