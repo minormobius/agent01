@@ -25,6 +25,7 @@ const PERIOD_MS = { all: 0, week: 7 * 86400e3, today: 86400e3 };
 const CSS = `
 .lbk { position: fixed; inset: 0; z-index: 30; background: rgba(5,6,12,0.95); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 16px; overflow-y: auto; font-family: ui-monospace, Menlo, Consolas, monospace; color: #e6e6ee; text-align: center; }
 .lbk[hidden] { display: none; }
+.lbk > :first-child { margin-top: auto; } .lbk > :last-child { margin-bottom: auto; }
 .lbk h1 { margin: 0; font-size: 34px; letter-spacing: 0.08em; }
 .lbk h2 { margin: 0; font-size: 11px; color: #8a8aa8; letter-spacing: 0.16em; font-weight: 600; }
 .lbk .tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }

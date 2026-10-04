@@ -83,12 +83,15 @@ button.ghost:hover { color: var(--text); border-color: var(--accent); }
 
 .overlay {
   position: fixed; inset: 0; z-index: 20;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
   gap: 14px; padding: 24px 16px; text-align: center;
   background: rgba(8,8,12,0.88); backdrop-filter: blur(3px);
   overflow-y: auto;
 }
 .overlay[hidden] { display: none; }
+/* centred while it fits, scrollable from the top when it doesn't (justify-content: center would clip the top) */
+.overlay > :first-child { margin-top: auto; }
+.overlay > :last-child { margin-bottom: auto; }
 .overlay h1 { font-family: var(--mono); font-size: clamp(26px, 8vw, 40px); margin: 0; color: var(--accent); }
 .overlay h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin: 0; }
 .overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.65; max-width: 32em; }
@@ -96,7 +99,15 @@ button.ghost:hover { color: var(--text); border-color: var(--accent); }
 .overlay .accent { color: var(--accent2); }
 
 /* leaderboard */
-.tabs { display: flex; gap: 6px; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+/* the leaderboard's boards: a row per surface */
+.sizegrid { display: grid; grid-template-columns: auto repeat(4, minmax(0, 1fr)); gap: 6px; align-items: center; width: min(400px, 100%); }
+.sizegrid span { font-family: var(--mono); font-size: 11px; color: var(--dim); text-align: right; padding-right: 4px; white-space: nowrap; }
+.sizegrid button {
+  font-family: var(--mono); font-size: 11px; padding: 6px 2px; border-radius: 6px; cursor: pointer; min-width: 0;
+  background: transparent; color: var(--dim); border: 1px solid var(--border);
+}
+.sizegrid button.on { color: var(--bg); background: var(--accent2); border-color: var(--accent2); }
 .tabs button {
   font-family: var(--mono); font-size: 12px; padding: 6px 10px; border-radius: 6px; cursor: pointer;
   background: transparent; color: var(--dim); border: 1px solid var(--border);

@@ -101,20 +101,12 @@
   <h2>pure clears only · no guesses, no hints · read live off ATProto</h2>
   <h1>FASTEST</h1>
   <p id="board-live" class="live"></p>
-  <div class="tabs">
-    <button type="button" data-board-size="s">small</button>
-    <button type="button" data-board-size="m">medium</button>
-    <button type="button" data-board-size="l">large</button>
-    <button type="button" data-board-size="x">huge</button>
-    <button type="button" data-board-size="ts">torus s</button>
-    <button type="button" data-board-size="tm">torus m</button>
-    <button type="button" data-board-size="tl">torus l</button>
-    <button type="button" data-board-size="ks">klein s</button>
-    <button type="button" data-board-size="km">klein m</button>
-    <button type="button" data-board-size="ps">proj s</button>
-    <button type="button" data-board-size="pm">proj m</button>
-    <button type="button" data-board-size="hs">genus 2 s</button>
-    <button type="button" data-board-size="hm">genus 2 m</button>
+  <div class="sizegrid" role="group" aria-label="Board">
+    <span>sphere</span><button type="button" data-board-size="s">small</button><button type="button" data-board-size="m">medium</button><button type="button" data-board-size="l">large</button><button type="button" data-board-size="x">huge</button>
+    <span>torus</span><button type="button" data-board-size="ts">small</button><button type="button" data-board-size="tm">medium</button><button type="button" data-board-size="tl">large</button><i></i>
+    <span>Klein</span><button type="button" data-board-size="ks">small</button><button type="button" data-board-size="km">medium</button><i></i><i></i>
+    <span>projective</span><button type="button" data-board-size="ps">small</button><button type="button" data-board-size="pm">medium</button><i></i><i></i>
+    <span>double torus</span><button type="button" data-board-size="hs">small</button><button type="button" data-board-size="hm">medium</button><i></i><i></i>
   </div>
   <div class="tabs">
     <button type="button" data-board-hard="0">normal</button>
