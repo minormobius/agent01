@@ -5,7 +5,8 @@
 //   node packages/whetstone/whetstone.selftest.mjs
 
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdtempSync, chmodSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, chmodSync, existsSync, mkdirSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -446,6 +447,26 @@ await t('refs are lent read-only: mounted for the council, never harvested into 
   assert.match(r.commons['council/proposals/mozzie.md'], /the card is a pointer\n$/, 'each turn gets a fresh copy: no one sees the last one\'s scribble');
   assert.ok(!Object.keys(r.commons).some((k) => /(^|\/)refs\//.test(k)), 'refs never enter the commons');
   assert.ok(r.records.filter((x) => x.kind === 'evening').every((x) => !x.changed.some((f) => f.startsWith('refs/'))));
+});
+
+await t('engines are lent runnable and read-only: never a change, never harvested, never in the commons', async () => {
+  const eng = mkdtempSync(join(tmpdir(), 'ws-engine-'));
+  mkdirSync(join(eng, 'bin'));
+  writeFileSync(join(eng, 'run.mjs'), "console.log('engine says ' + process.argv[2]);\n");
+  writeFileSync(join(eng, 'bin', 'blob.bin'), Buffer.from([0, 1, 2, 0]));
+  const dirs = prepare({ id: 'x' }, { engines: { toy: eng }, extra: { 'notes.md': 'mine' } });
+  assert.equal(execFileSync('node', ['engines/toy/run.mjs', 'hi'], { cwd: dirs.work, encoding: 'utf8' }).trim(), 'engine says hi');
+  assert.ok(existsSync(join(dirs.work, 'engines/toy/bin/blob.bin')), 'binaries come along');
+  assert.equal(statSync(join(dirs.work, 'engines/toy/run.mjs')).mode & 0o222, 0, 'read-only');
+  assert.deepEqual(changedFiles(dirs), [], 'an engine is never a change');
+  assert.deepEqual(Object.keys(readTree(dirs.work)), ['notes.md'], 'an engine is never harvested');
+
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const r = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['council', 'evening'], seed: 1, work, custodian: mozzie,
+    commons: { 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv' },
+    engines: { toy: { dir: eng, what: 'A toy engine.', guide: 'run.mjs' } } });
+  assert.ok(!Object.keys(r.commons).some((k) => /(^|\/)engines\//.test(k)), 'no engine file in the commons');
+  assert.ok(r.records.filter((x) => x.kind === 'evening').every((x) => !x.changed.some((f) => f.startsWith('engines/'))));
 });
 
 await t('a careless custodian and a forging soul are both caught', async () => {

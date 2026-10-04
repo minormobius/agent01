@@ -16,7 +16,7 @@
 // share. The board carries over between runs (run.mjs passes the last run's board in and
 // writes this run's out), so it is the only place in the lab where they remember each other.
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -35,16 +35,26 @@ export function loadWork(root) {
 // A fresh pair of folders under one temp root: seed/ (untouched, for the diff) and work/.
 // `extra` is more files to lay into both copies (the shelf, from the commons), so the diff
 // shows only what the soul changed.
-export function prepare(task, { board, extra = {} } = {}) {
+export const ENGINES = 'engines';
+function readOnly(p) {
+  if (statSync(p).isDirectory()) for (const e of readdirSync(p)) readOnly(join(p, e));
+  chmodSync(p, statSync(p).mode & ~0o222);
+}
+
+// engines: { name: stagedDir } — runnable folders (binaries and all) copied to engines/<name>/ in
+// both seed and work, so they never show as a change, and made read-only. readTree never harvests them.
+export function prepare(task, { board, extra = {}, engines = {} } = {}) {
   const root = mkdtempSync(join(tmpdir(), `whetstone-${task.id}-`));
   for (const d of ['seed', 'work']) {
     if (task.dir) cpSync(join(task.dir, 'files'), join(root, d), { recursive: true });
     else mkdirSync(join(root, d), { recursive: true });
+    for (const [name, dir] of Object.entries(engines)) cpSync(dir, join(root, d, ENGINES, name), { recursive: true });
     if (task.mode === 'pair' || task.mode === 'project' || board != null) writeFileSync(join(root, d, 'BOARD.md'), board || EMPTY_BOARD);
     for (const [rel, text] of Object.entries(extra)) {
       mkdirSync(dirname(join(root, d, rel)), { recursive: true });
       writeFileSync(join(root, d, rel), text);
     }
+    if (Object.keys(engines).length) readOnly(join(root, d, ENGINES));
   }
   return { root, seed: join(root, 'seed'), work: join(root, 'work') };
 }

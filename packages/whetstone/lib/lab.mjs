@@ -35,7 +35,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null,
+  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null,
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -138,7 +138,7 @@ export async function runLab({
     return { output: r.text, trace: r.trace || [], turns: r.turns || 0, stop: r.stop || null };
   };
   const finish = async (task, dirs) => {
-    const changed = changedFiles(dirs).filter((f) => !f.startsWith('ledger/'));
+    const changed = changedFiles(dirs).filter((f) => !/^(ledger|engines)\//.test(f));
     const check = await runCheck(task, dirs.work);
     return { check, changed, files: readOut(dirs.work, changed.filter((f) => !/\.(csv|json)$/.test(f) || f === 'BOARD.md')), diff: diffOf(dirs) };
   };
@@ -161,6 +161,13 @@ export async function runLab({
   // Reference material from the wider repo (a request's `refs`), lent read-only under refs/ wherever
   // the notice goes. Nothing under refs/ is ever harvested back (thirteenth light: /tape for the council).
   Object.assign(noticeFile, Object.fromEntries(Object.entries(refs || {}).map(([k, v]) => [`refs/${k}`, v])));
+  // Engines (run.mjs stages them from engines.json): runnable, read-only, in every session of the run.
+  const engineDirs = Object.fromEntries(Object.entries(engines || {}).map(([k, e]) => [k, e.dir]));
+  const engineIndex = engines && Object.keys(engines).length ? { 'engines/README.md': ['# Engines', '',
+    'Lent by the lab for this run: real, runnable, read-only. Run them from their own folder (`cd engines/<name>`);',
+    'write your outputs into your own files, outside engines/. Nothing under engines/ is kept.', '',
+    ...Object.entries(engines).map(([k, e]) => `- **${k}**: ${e.what} Guide: \`engines/${k}/${e.guide}\`.`), ''].join('\n') } : {};
+  const prep = (task, o = {}) => prepare(task, { ...o, engines: engineDirs, extra: { ...(o.extra || {}), ...engineIndex } });
   const ledgerMount = (soul) => ({ ...(ledgerOn ? ledgerFiles(C, soul.key) : {}), ...noticeFile });
   const archive = () => pick(C, (k) => k.startsWith('archive/'));
   const others = (soul) => everyone.filter((x) => x !== soul).map((x) => x.name).join(' and ');
@@ -193,7 +200,7 @@ export async function runLab({
     const restored = applyRestores(C, fold(parseLines(C[LEDGER] || '').ops, { souls: keys }).items);
     const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${custodian.key}.md`),
       ...archive(), ...ledgerMount(custodian), 'SWEEP.md': '' };
-    const dirs = prepare({ id: 'sweep' }, { extra: files });
+    const dirs = prep({ id: 'sweep' }, { extra: files });
     const items = fold(parseLines(C[LEDGER] || '').ops, { souls: keys }).items;
     const stats = { board: C['BOARD.md'].length, shelf: Object.keys(shelfOf(C)).length - 1,
       open: [...items.values()].filter((x) => !['done', 'dropped', 'denied', 'upheld', 'reversed'].includes(x.status)).length };
@@ -223,7 +230,7 @@ export async function runLab({
   log(`work: ${solos.length} solo sessions`);
   await pool(solos, concurrency, async ({ soul, task }) => {
     const stocked = shelfStocked(C);
-    const dirs = prepare(task, { extra: stocked ? shelfOf(C) : {} });
+    const dirs = prep(task, { extra: stocked ? shelfOf(C) : {} });
     const s = await session(soul, P.work(task.brief, { shelf: stocked, other: otherOf(soul) }), { kind: 'work', trial: task.id, taskDir: task.dir }, dirs);
     records.push({ kind: 'work', trial: task.id, soul: soul.key, brief: task.brief, ...s, ...(await finish(task, dirs)) });
   });
@@ -244,7 +251,7 @@ export async function runLab({
     // A project built WITH the tools gets them read-only each day (tools/des, tools/vv, from the
     // commons), and the council's papers (council/); neither is kept back into the project.
     const lent = task.tools ? toolsAndCouncil() : {};
-    const dirs = prepare(project && !fresh ? { id: task.id, mode: 'pair' } : task, { board: before, extra: { ...carried, ...lent, ...shelfOf(C), ...ledgerMount(a) } });
+    const dirs = prep(project && !fresh ? { id: task.id, mode: 'pair' } : task, { board: before, extra: { ...carried, ...lent, ...shelfOf(C), ...ledgerMount(a) } });
     const progressBefore = project && !fresh ? (await runCheck(task, dirs.seed))?.progress ?? 0 : 0;
     if (project && progressBefore >= 1) {
       // Finished on an earlier day: no turns spent on it. (Larkfield finished on its first day.)
@@ -281,7 +288,7 @@ export async function runLab({
       // Keep the project folder, minus what the commons holds elsewhere.
       for (const k of Object.keys(C)) if (k.startsWith(pdir)) delete C[k];
       for (const [k, v] of Object.entries(readTree(dirs.work))) {
-        if (k === 'BOARD.md' || k === 'NOTICE.md' || /^(shelf|ledger|tools|council|refs)\//.test(k)) continue;
+        if (k === 'BOARD.md' || k === 'NOTICE.md' || /^(shelf|ledger|tools|council|refs|engines)\//.test(k)) continue;
         C[pdir + k] = v;
       }
     }
@@ -325,11 +332,11 @@ export async function runLab({
     };
     const turns = [];
     const turn = async (soul, prompt, phase) => {
-      const dirs = prepare({ id: 'council' }, { extra: mount(soul) });
+      const dirs = prep({ id: 'council' }, { extra: mount(soul) });
       const s = await session(soul, prompt, { kind: 'council', trial: phase }, dirs);
       takeLedger(soul, dirs, 'council');
       keep(dirs);
-      turns.push({ phase, soul: soul.key, speaker: soul.name, ...s, changed: changedFiles(dirs).filter((f) => !/^(tools|ledger|refs)\//.test(f)) });
+      turns.push({ phase, soul: soul.key, speaker: soul.name, ...s, changed: changedFiles(dirs).filter((f) => !/^(tools|ledger|refs|engines)\//.test(f)) });
     };
     log(`council: ${everyone.length} proposals, then ${everyone.length * 2} turns of argument`);
     for (const soul of everyone) await turn(soul, P.councilPropose(soul.name, others(soul)), 'propose');
@@ -352,10 +359,10 @@ export async function runLab({
     const journal = `journal/${soul.key}.md`;
     // The projects' code, read-only, so an evening can rerun or review what the day built.
     const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/')),
-      ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice), ...noticeFile };
-    const dirs = prepare({ id: 'evening' }, { extra: files });
+      ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
+    const dirs = prep({ id: 'evening' }, { extra: files });
     const s = await session(soul, P.evening(soul.name, custodian ? others(soul) : otherOf(soul), soul.key, { ledger: ledgerOn ? others(soul) : null }), { kind: 'evening', trial: 'evening' }, dirs);
-    const changed = changedFiles(dirs).filter((f) => !/^(ledger|archive|projects|refs)\//.test(f));
+    const changed = changedFiles(dirs).filter((f) => !/^(ledger|archive|projects|refs|engines)\//.test(f));
     const boardWas = C['BOARD.md'], shelfWas = shelfOf(C);
     harvest(C, dirs.work, 'BOARD.md');
     harvest(C, dirs.work, 'shelf/');
@@ -462,9 +469,10 @@ export async function runLab({
 
 // What the evening's TODAY.md says: the day's tasks and the outcomes the lab already knows (a
 // check's result; the judges have not read anything yet).
-function today(records, work, sweeps = [], notice = null) {
+function today(records, work, sweeps = [], notice = null, engineNames = []) {
   const L = ['# Today', ''];
   if (notice) L.push(`**From the lab:** ${notice} (also in NOTICE.md)`, '');
+  if (engineNames.length) L.push(`**Engines lent today:** ${engineNames.map((n) => `engines/${n}/`).join(', ')}. See engines/README.md.`, '');
   for (const sw of sweeps) {
     if (sw.sweep_id) L.push(`- This morning ${sw.soul} cleared ${sw.board_before - sw.board_after > 0 ? `${sw.board_before - sw.board_after} characters from the board` : 'some of the board'}${sw.shelf_removed.length ? ` and ${sw.shelf_removed.length} shelf file(s)` : ''} (sweep ${sw.sweep_id}; what went is in archive/${sw.sweep_id}.json, and the note in the ledger). Anyone but ${sw.soul} can appeal it.`);
     else L.push(`- This morning ${sw.soul} left the commons as it was.`);

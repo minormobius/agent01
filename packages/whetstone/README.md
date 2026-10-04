@@ -135,8 +135,15 @@ file** to `requests/` on a `claude/**` branch:
 `whetstone.yml` runs it and commits `runs/<stamp>-<label>/` back to the branch. That holds the
 scorecard, both transcripts, every judge verdict, and **a copy of the exact souls tested**, so a
 result can never drift from the text that produced it. Optional keys: `kinds`, `model`,
-`judge-model`, `effort`, `seed`, `concurrency`. A full run is about 111 short calls, and each
-scorecard records its measured cost.
+`judge-model`, `effort`, `seed`, `concurrency`, `custodian`, `notice`, `work_timeout_min`, and two
+that lend the souls things from outside the lab:
+
+- `refs`: repo paths, comma-separated, mounted as text under `refs/` to read (the council read
+  `/tape` this way).
+- `engines`: names from [`engines.json`](engines.json), mounted runnable under `engines/`. See
+  [`ENGINES.md`](ENGINES.md).
+
+A full run is about 111 short calls, and each scorecard records its measured cost.
 
 ## The sharpening loop
 

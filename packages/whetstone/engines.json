@@ -1,0 +1,16 @@
+{
+  "_doc": "Engines the lab can lend the souls: real, runnable folders from the repo, mounted read-only at engines/<name>/ in every session of a run whose request names them (\"engines\": \"cad,dataviz\"). Each is copied once per run, proved by its health command before any model is called, and never harvested back. How to add one: ENGINES.md.",
+  "cad": {
+    "path": "packages/cad",
+    "exclude": ["bakeoff", "node_modules"],
+    "guide": "SKILL.md",
+    "what": "The feature-tree CAD engine behind cad.mino.mobi: write a tree (JSON), build it exactly, measure named faces, check assemblies for interference and clearance, export STL/STEP for printing, draw SVG engineering drawings. Node 22, nothing else. Rendering to PNG needs a browser and is not available here.",
+    "health": ["node", "agent/build.mjs", "bench:plate"]
+  },
+  "dataviz": {
+    "path": "packages/dataviz",
+    "guide": "README.md",
+    "what": "Statistics and charts with no dependencies: stats.js (estimators, intervals, tests) and charts.js (SVG-string charts). Run its known-answer selftest before trusting a new use of it.",
+    "health": ["node", "dataviz.selftest.mjs"]
+  }
+}

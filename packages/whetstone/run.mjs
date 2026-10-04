@@ -11,8 +11,10 @@
 // judge verdict, raw and parsed), scorecard.json, scorecard.md. Exit 0 if every gate passes,
 // 3 if any fails, 1 on error. A failing gate is a result, not an error.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, cpSync, mkdtempSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join, dirname, resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cliModel, fakeModel, DEFAULT_MODEL } from './lib/model.mjs';
 import { runLab, loadSoul, applyGates, KINDS } from './lib/lab.mjs';
@@ -27,6 +29,30 @@ const ROOT = resolve(HERE, '..', '..');
 
 // A request's `refs` ("tape,packages/cad/SKILL.md"): repo files or folders lent to the souls
 // read-only under refs/. Text only, under 1 MB in all, so a stray binary or build folder can't swamp a turn.
+// A request's `engines` ("cad,dataviz"): names from engines.json. Each is copied once to a staging
+// folder (minus its `exclude`) and proved by its health command there, before any model is
+// called: an engine that can't run here fails the run now, not three sessions in.
+function stageEngines(list) {
+  if (!list) return null;
+  const reg = JSON.parse(readFileSync(join(HERE, 'engines.json'), 'utf8'));
+  const stage = mkdtempSync(join(tmpdir(), 'whetstone-engines-'));
+  const out = {};
+  for (const name of String(list).split(',').map((x) => x.trim()).filter(Boolean)) {
+    const e = reg[name];
+    if (!e || name.startsWith('_')) throw new Error(`engines: ${name} is not in engines.json`);
+    const src = resolve(ROOT, e.path), dir = join(stage, name), skip = new Set(e.exclude || []);
+    cpSync(src, dir, { recursive: true, filter: (p) => !skip.has(relative(src, p).split(sep)[0]) });
+    try {
+      execFileSync(e.health[0], e.health.slice(1), { cwd: dir, stdio: 'pipe', timeout: 300_000 });
+    } catch (err) {
+      throw new Error(`engines: ${name} failed its health check (${e.health.join(' ')}): ${String(err.stderr || err.message).slice(0, 400)}`);
+    }
+    out[name] = { dir, what: e.what, guide: e.guide };
+    console.error(`· engine ${name}: staged from ${e.path}, health ok`);
+  }
+  return out;
+}
+
 function readRefs(list) {
   if (!list) return null;
   const out = {}; let total = 0;
@@ -109,7 +135,7 @@ try {
   const { records, judged, scorecard, commons: after } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs),
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: stageEngines(opt.engines),
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;

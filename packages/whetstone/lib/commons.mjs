@@ -15,7 +15,7 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { EMPTY_BOARD } from './work.mjs';
+import { EMPTY_BOARD, ENGINES } from './work.mjs';
 
 export const SHELF_INDEX = 'shelf/SHELF.md';
 const EMPTY_SHELF = '# Shelf\n\nTools either of you made and wanted to keep. One line each: the file, what it does, who made it.\n';
@@ -40,7 +40,7 @@ export function readTree(root, prefix = '') {
   if (!existsSync(base)) return out;
   const walk = (rel) => {
     for (const name of readdirSync(join(root, rel))) {
-      if (name === 'node_modules' || name === '.git') continue;
+      if (name === 'node_modules' || name === '.git' || (!rel && name === ENGINES)) continue; // engines are lent, never kept
       const r = rel ? `${rel}/${name}` : name;
       const p = join(root, r);
       if (statSync(p).isDirectory()) { walk(r); continue; }
