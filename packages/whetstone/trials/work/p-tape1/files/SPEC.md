@@ -62,20 +62,27 @@ lower case.
 
 **Titles.** At boot, each folder directly under `/tape/audio` whose name matches
 `^[a-z0-9][a-z0-9-]{0,31}$` and which holds at least one decodable file is one title, named by its
-folder. Decodable means the extension is mp3, m4a, aac, wav, ogg, opus, flac or amr, in any case.
-A title's tracks are its decodable files in code-unit order of their names; other files are
-ignored. Any other folder under `/tape/audio` is logged as `bad-folder` and never played.
+folder. Decodable means the extension is mp3, m4a, aac, wav, ogg, opus, flac or amr, in any case,
+and the name doesn't begin with `.`. A Mac leaves `._01.m4a` beside every file it copies, and
+those are not audio. A title's tracks are its decodable files in code-unit order of their names;
+other files are ignored. Any other folder under `/tape/audio` is logged as `bad-folder` and never played.
 
 **Events.** Each event the box appends carries `t` (when it happened) and one of these shapes:
-- `{ type: 'play', card, title, track, file }`: playback starts at track index `track` (from 0),
-  whose file is `file`.
+- `{ type: 'play', card, title, track, file }`: playback starts at track index `track` (from 0).
+  `file` is the track's name within its folder, such as `01.m4a`; the lab also accepts the full
+  path.
 - `{ type: 'pause' }`: playback stops because the card left or tags crowded.
 - `{ type: 'finished', title }`: the last track ended.
 - `{ type: 'bound', card, title }`: a new binding, emitted only once it is durable on the SD card.
+  A bind cut short by a power cut may still decide at the next boot (from `cards.new`, say) with
+  no `bound` ever emitted. That is allowed; see C.
 - `{ type: 'cue', card }`: a card with nowhere to go.
 - `{ type: 'restore' }`: bindings restored from flash at boot.
 
 You may add other events; the lab ignores them.
+
+An event's `t` may be earlier than the call that revealed it: a gone-timer that ran out between
+two polls happened when it ran out. It is never earlier than the input before it.
 
 ### The card watcher
 
@@ -85,10 +92,13 @@ You may add other events; the lab ignores them.
 - **W1, hold.** A card left on the pad for an hour, polled 20 times a second, with up to a quarter
   of the reads missed at random, is never reported gone.
 - **W2, leave.** A removed card is reported gone no more than 1.25 s after its last good read. If
-  it was playing, that is a `pause` whose `t` is at most last good read + 1.25.
+  it was playing, that is a `pause` whose `t` is at most last good read + 1.25. The lab allows for
+  floating-point rounding.
 - **W3, crowd.** When a poll reads `{ crowd: true }`, a playing box pauses at that poll. While the
-  field stays crowded the box only pauses: no play, no bind, no cue, nothing taken for a card. At
-  the first single good read after the crowd, that card is placed.
+  field stays crowded the box only pauses: no play, no bind, no cue, nothing taken for a card. A
+  poll that reads nothing doesn't end the crowd. The crowd ends at the next single good read, and
+  that card is placed, even if it is the card that was there before. So a finished card read alone
+  after a crowd starts again from track 0, the same as one lifted and put back.
 
 ### Playing
 
@@ -117,13 +127,16 @@ it is a JSON object whose other values are all strings.
     written, corrupt) joining the deck, no card is ever bound twice, and none ever plays anything
     but its title.
 - **C, cuts.** After a power cut at any step of a bind, the next boot behaves as though the bind
-  either never happened or fully did. This also holds over months with power cuts at random steps.
+  either never happened or fully did. The lab reads the SD card the way your next boot will: the
+  bindings file that decides must hold the old bindings, or the old ones plus exactly that bind. This also holds over months with power cuts at random steps.
 - **K, the mirror** (your TAPE-KEEP-ABSENT).
   - At boot, `cards.json` decides if it parses. That includes `{}`, which a person writes to start
     the deck over.
   - Failing that, `cards.new` decides if it parses.
   - Failing both, a box whose flash holds its mirror restores the bindings from it, emits
-    `restore`, and logs it. A new box (empty flash) starts with no bindings and no restore.
+    `restore`, and logs it. A restore is owed once the box has decided bindings (a bind, or a
+    bindings file accepted at a boot). A new box starts with no bindings and no restore. A
+    restore when a bindings file parses is wrong.
   - The mirror holds the bindings the box last decided on. It is rewritten on every bind and
     whenever the box accepts a bindings file at boot. So a hand edit, followed by the file going
     missing, comes back as the edit.
@@ -136,14 +149,15 @@ it is a JSON object whose other values are all strings.
 
 **U.** `/tape/log.txt` gets one line per thing that happened, tab-separated: the time, the kind,
 then any details. The lab counts these kinds:
-- `boot`: once per boot. Its line has a field `sd-change` exactly when there was an earlier boot
-  and the set of titles differs from that boot's.
+- `boot`: once per boot. Its line has a field `sd-change` exactly when this box (its flash) has
+  booted before and the set of titles differs from that boot's.
 - `bind`: once per binding.
 - `finished`: once per finished title.
 - `restore`: once per restore.
 - `bad-folder`: once per bad folder per boot, with the folder's name.
 
-Other lines are yours.
+Other lines are yours. The lab counts lines only on evenings without power cuts. What a cut does
+to the log is yours to decide, and to hold in vv if it matters to you.
 
 ### Same inputs, same box
 

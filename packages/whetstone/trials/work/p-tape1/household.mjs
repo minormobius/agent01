@@ -111,7 +111,7 @@ function titlesOn(S) {
   const out = [];
   for (const name of S.sd.list('/tape/audio').sort(byCode)) {
     if (!S.sd.isDir(`/tape/audio/${name}`)) continue;
-    const ok = /^[a-z0-9][a-z0-9-]{0,31}$/.test(name) && S.sd.list(`/tape/audio/${name}`).some((f) => /\.(mp3|m4a|aac|wav|ogg|opus|flac|amr)$/i.test(f));
+    const ok = /^[a-z0-9][a-z0-9-]{0,31}$/.test(name) && S.sd.list(`/tape/audio/${name}`).some((f) => /^[^.].*\.(mp3|m4a|aac|wav|ogg|opus|flac|amr)$/i.test(f));
     if (ok) out.push(name);
   }
   return out;
@@ -126,7 +126,7 @@ async function month(seed, { evenings = 24, cuts = 0, mishaps = 0, edits = 0 } =
   let nextWord = deck.length + 5;
   const E = {};                 // durable bindings the box has announced (or the household wrote)
   const violations = [];
-  let restoresWanted = 0, restoresSeen = 0, cutsDone = 0, boots = 0;
+  let restoresWanted = 0, restoresSeen = 0, cutsDone = 0, boots = 0, mirrorKnown = false;
   const parses = (text) => { if (text == null) return null; try { const o = JSON.parse(text); return o && typeof o === 'object' && !Array.isArray(o) && Object.entries(o).every(([k, v]) => k.startsWith('_') || typeof v === 'string') ? o : null; } catch { return null; } };
   for (let ev = 0; ev < evenings; ev++) {
     // The laptop, between evenings.
@@ -144,19 +144,24 @@ async function month(seed, { evenings = 24, cuts = 0, mishaps = 0, edits = 0 } =
       S.put('/tape/cards.json', JSON.stringify(E)); S.del('/tape/cards.new');
     }
     // Should this boot restore? Exactly when no bindings file parses and the box has a mirror.
-    const wantRestore = parses(S.sd.read('/tape/cards.json')) == null && parses(S.sd.read('/tape/cards.new')) == null && FL.raw() != null;
+    // Should this boot restore? Owed exactly when no bindings file parses and the box has decided
+    // bindings before (a bind, or a bindings file accepted at a boot), so its flash holds a mirror.
+    // A restore when a file parses is wrong; one from an empty or absent mirror is harmless.
+    const fileParses = parses(S.sd.read('/tape/cards.json')) != null || parses(S.sd.read('/tape/cards.new')) != null;
+    const wantRestore = !fileParses && mirrorKnown;
+    if (fileParses) mirrorKnown = true; // accepted at this boot (if the boot gets that far, it will be)
     // The evening.
     const cutTonight = cuts && R() < cuts;
     if (cutTonight) S.cutAfter(1 + Math.floor(R() * 12)); else S.noCut();
     let box, t = 0, seen = 0, c = null, firstFree;
     const judge = () => {
       for (const e of box.events.slice(seen)) {
-        if (e.type === 'restore' && !wantRestore) violations.push(`evening ${ev}: restored when a bindings file parsed (or with no mirror)`);
+        if (e.type === 'restore' && fileParses) violations.push(`evening ${ev}: restored when a bindings file parsed`);
         if (e.type === 'bound') {
           if (!c || e.card !== c.id) violations.push(`bound ${e.card}, but the card placed was ${c && c.id}`);
           else if (E[c.id] !== undefined) violations.push(`rebound ${c.id} (was ${E[c.id]}, now ${e.title})`);
           else if (e.title !== firstFree) violations.push(`bound ${c.id} to ${e.title}; the first unbound title was ${firstFree}`);
-          E[e.card] = e.title;
+          E[e.card] = e.title; mirrorKnown = true;
         }
         if (e.type === 'play' && E[e.card] === undefined) violations.push(`${e.card} played ${e.title} with no binding announced`);
         else if (e.type === 'play' && e.title !== E[e.card]) violations.push(`${e.card} played ${e.title}; it is bound to ${E[e.card]}`);
@@ -180,6 +185,17 @@ async function month(seed, { evenings = 24, cuts = 0, mishaps = 0, edits = 0 } =
       if (!(e instanceof PowerCut)) throw e;
       if (box) judge();
       cutsDone++;
+      // Read the card the way the next boot will. A cut bind may have landed (in cards.new, say)
+      // without its `bound` event: the deciding file must hold the old bindings, or the old ones plus
+      // exactly this bind. With no file that parses, the mirror decides and the old bindings stand.
+      const D = parses(S.sd.read('/tape/cards.json')) ?? parses(S.sd.read('/tape/cards.new'));
+      if (D) {
+        const own = Object.fromEntries(Object.entries(D).filter(([k]) => !k.startsWith('_')));
+        const same = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+        const plusOne = c && firstFree !== undefined && E[c.id] === undefined && same(own, { ...E, [c.id]: firstFree });
+        if (plusOne) { E[c.id] = firstFree; mirrorKnown = true; }
+        else if (!same(own, E)) violations.push(`evening ${ev}: after a power cut the bindings file holds neither the old bindings nor the old plus this bind`);
+      }
     }
   }
   const audio = S.touched.filter((p) => p.startsWith('/tape/audio'));
@@ -279,7 +295,7 @@ await ms('w3', async () => {
 async function shelfScenario() {
   const S = makeSD(); const FL = makeFlash();
   const files = {
-    'ant-book': ['b.mp3', 'a.m4a', 'C.opus', 'notes.txt', 'cover.jpg'],
+    'ant-book': ['b.mp3', 'a.m4a', 'C.opus', 'notes.txt', 'cover.jpg', '._a.m4a', '._b.mp3'],
     'bee-book': ['02.WAV', '01.flac', '10.ogg'],
     'Bad Name': ['01.mp3'], '-dash-first': ['01.mp3'], 'no-audio': ['readme.txt'],
     'cat-book': ['x.AMR', 'y.aac'],
@@ -301,7 +317,7 @@ async function shelfScenario() {
     if (cards.indexOf(c) < 3) {
       if (!bound) return { fail: fail(`card ${cards.indexOf(c) + 1} (${['written', 'blank', 'corrupt'][cards.indexOf(c)]}) was not bound`) };
       if (bound.card !== c.id) return { fail: fail(`a ${['written', 'blank', 'corrupt'][cards.indexOf(c)]} card was identified as ${bound.card}; expected ${c.id}`) };
-      seen[bound.title] = evs.filter((e) => e.type === 'play').map((e) => e.file);
+      seen[bound.title] = evs.filter((e) => e.type === 'play').map((e) => String(e.file).split('/').pop());
     } else if (!evs.some((e) => e.type === 'cue')) return { fail: fail('a fourth card with every title bound got no cue') };
   }
   return { S, FL, seen, cards, expect, fail: null };

@@ -8,7 +8,7 @@ const AUDIO = '/tape/audio';
 const CARDS = '/tape/cards.json', NEW = '/tape/cards.new';
 const LOG = '/tape/log.txt', UNKNOWN = '/tape/unknown.txt';
 const TITLE = /^[a-z0-9][a-z0-9-]{0,31}$/;
-const DECODABLE = /\.(mp3|m4a|aac|wav|ogg|opus|flac|amr)$/i;
+const DECODABLE = /^[^.].*\.(mp3|m4a|aac|wav|ogg|opus|flac|amr)$/i;
 const GONE_AFTER = 1.0; // seconds without a good read
 
 const byCode = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
