@@ -17,7 +17,12 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const HERE = dirname(fileURLToPath(import.meta.url)), OUT = join(HERE, 'metabolism.json');
+const HERE = dirname(fileURLToPath(import.meta.url));
+// --variant 3d: the network stage 3d runs. Adds two reactions the published model defines by hand
+// in its code rather than in the parameter table (CME_ODE/program/defMetRxns.py): the phosphate
+// importer PIabc, and its own ATP synthase, which replaces the table's.
+const VARIANT = process.argv.includes('--variant') ? process.argv[process.argv.indexOf('--variant') + 1] : '3c';
+const OUT = VARIANT === '3d' ? join(HERE, '..', '..', 'stage3d', 'data', 'metabolism.json') : join(HERE, 'metabolism.json');
 const SHA = 'db048aca5fe85438e0129819bbf0314b037dd931';
 const BASE = `https://raw.githubusercontent.com/Luthey-Schulten-Lab/minimal_cell/${SHA}/CME_ODE/model_data/`;
 const FILES = {
@@ -125,10 +130,33 @@ async function build() {
     }
     reactions.push(out);
   }
+  if (VARIANT === '3d') {
+    // Hand-set reactions from defMetRxns.py @ db048ac (ATPase ~line 1890, PIabc ~line 1918).
+    // Rate law: their Enzymatic(n_sub, n_prod), the same common modular form, where each term has its
+    // own Km (a species may appear in more than one term); stoichiometry is given separately.
+    const at = reactions.findIndex((r) => r.id === 'ATPase');
+    reactions[at] = {
+      id: 'ATPase', label: 'ATP synthase (makes ATP from ADP and phosphate, or burns it)', law: 'modular', rule: 'and',
+      subs: [['M_adp_c', 1], ['M_pi_c', 1]], prods: [['M_atp_c', 1]], genes: ['JCVISYN3A_0789'],
+      kcatF: 20, kcatR: 217 / 3,
+      terms: { subs: [['M_adp_c', 0.1], ['M_pi_c', 4.2]], prods: [['M_atp_c', 0.6]] },
+      km: { M_adp_c: 0.1, M_pi_c: 4.2, M_atp_c: 0.6 },
+      source: 'defMetRxns.py, hand-set ATPase',
+    };
+    reactions.push({
+      id: 'PIabc', label: 'phosphate import (ABC transporter, costs ATP)', law: 'modular', rule: 'and',
+      subs: [['M_pi_e', 1], ['M_atp_c', 1]], prods: [['M_pi_c', 2], ['M_adp_c', 1]], genes: ['JCVISYN3A_0427'],
+      kcatF: 25, kcatR: 0,
+      terms: { subs: [['M_pi_e', 0.0031], ['M_atp_c', 0.023]], prods: [['M_pi_c', 0.02], ['M_pi_c', 0.385], ['M_adp_c', 0.654]] },
+      km: { M_pi_e: 0.0031, M_atp_c: 0.023, M_pi_c: 0.02, M_adp_c: 0.654 },
+      source: 'defMetRxns.py, hand-set PIabc; medium phosphate 134 mM (growth medium buffers)',
+    });
+    FIXED.M_pi_e = 134;
+  }
   const species = [...new Set(reactions.flatMap((r) => [...r.subs, ...r.prods].map(([m]) => m)))];
   const fixed = {}, init = {};
   for (const m of species) {
-    if (m in FIXED) fixed[m] = FIXED[m] === 'globals' ? globals[m] : (conc[m] ?? 0.1);
+    if (m in FIXED) fixed[m] = FIXED[m] === 'globals' ? globals[m] : typeof FIXED[m] === 'number' && FIXED[m] > 0 ? FIXED[m] : (conc[m] ?? 0.1);
     else init[m] = conc[m] ?? 0.1;
   }
   return {
@@ -151,7 +179,7 @@ if (args.includes('--check')) {
   if (!existsSync(OUT) || readFileSync(OUT, 'utf8') !== json) { console.error('metabolism.json is stale'); process.exit(1); }
   console.log('metabolism.json is current');
 } else {
-  writeFileSync(OUT, json);
+  mkdirSync(dirname(OUT), { recursive: true }); writeFileSync(OUT, json);
   console.log(`wrote ${OUT}: ${data.reactions.length} reactions, ${Object.keys(data.init).length} dynamic species, fixed:`, data.fixed);
   for (const r of data.reactions) console.log(`  ${r.id.padEnd(9)} ${r.rule} ${r.genes.join(',') || '(no gene)'}  kF=${r.kcatF ?? '-'} kR=${r.kcatR ?? '-'}`);
   console.log('init:', data.init);

@@ -91,6 +91,11 @@ function createExpression(genes, params = {}, seed = 1) {
   let growth = 1;  // stage 3c: a cell grows (and dilutes its proteins) only as fast as it builds protein
   const dilution = Math.LN2 / P.Td;
   let dNow = dP;
+  // stage 3d: cell volume (1 = the measured average cell) and gene copy number. Binding steps are
+  // bimolecular, so they slow as the same molecules spread through a bigger cell.
+  let invV = 1;
+  const copies = new Float64Array(N).fill(1), dosageNorm = new Float64Array(N).fill(1);
+  const txWeight = (g) => cTx[g] * boost[g] * copies[g] / dosageNorm[g];
   const m = new Int32Array(N), prot = new Int32Array(N), boost = new Float64Array(N).fill(1);
   const live = Array.from({ length: N }, () => []); // live mRNA ids per gene
   const FTtx = fenwick(N), FTdeg = fenwick(N), FTtl = fenwick(N), FTloss = fenwick(N);
@@ -118,7 +123,7 @@ function createExpression(genes, params = {}, seed = 1) {
   let lastRebuild = 0;
   function rates() {
     const freeP = Math.max(0, nRNAP - onRNAP), freeR = Math.max(0, nRibo - onRibo);
-    const aTx = freeP * FTtx.total, aDeg = FTdeg.total, aTl = freeR * FTtl.total, aLoss = dNow * FTloss.total;
+    const aTx = freeP * invV * FTtx.total, aDeg = FTdeg.total, aTl = freeR * invV * FTtl.total, aLoss = dNow * FTloss.total;
     return [aTx, aDeg, aTl, aLoss];
   }
 
@@ -144,7 +149,7 @@ function createExpression(genes, params = {}, seed = 1) {
       t = tNext;                       // a memoryless event
       let u = rng() * a0;
       if (u < aTx) {
-        const g = FTtx.pick(u / Math.max(1, nRNAP - onRNAP)); if (g < 0) continue;
+        const g = FTtx.pick(u / (Math.max(1, nRNAP - onRNAP) * invV)); if (g < 0) continue;
         onRNAP++; push({ t: t + txDur[g], kind: 0, g, id: 0, t0: t });
         out.push(0, g, 0, t, t + txDur[g]);
       } else if ((u -= aTx) < aDeg) {
@@ -153,7 +158,7 @@ function createExpression(genes, params = {}, seed = 1) {
         m[g]--; setM(g); totals.deg++;
         out.push(2, g, id, t, 0);
       } else if ((u -= aDeg) < aTl) {
-        const g = FTtl.pick(u / Math.max(1, nRibo - onRibo)); if (g < 0 || !m[g]) continue;
+        const g = FTtl.pick(u / (Math.max(1, nRibo - onRibo) * invV)); if (g < 0 || !m[g]) continue;
         const L = live[g], id = L[(rng() * L.length) | 0];
         const d = tlDur[g] * tlScale;
         onRibo++; push({ t: t + d, kind: 1, g, id, t0: t });
@@ -177,13 +182,26 @@ function createExpression(genes, params = {}, seed = 1) {
       rnap: { total: nRNAP, busy: onRNAP }, ribo: { total: nRibo, busy: onRibo }, totals: { ...totals },
     };
   }
-  function setPromoter(g, mult) { boost[g] = mult; FTtx.set(g, cTx[g] * mult); }
+  function setPromoter(g, mult) { boost[g] = mult; FTtx.set(g, txWeight(g)); }
+  function setVolume(v) { invV = 1 / v; }
+  function setCopies(g, n) { if (copies[g] !== n) { copies[g] = n; FTtx.set(g, txWeight(g)); } }
+  function setDosageNorm(arr) { for (let g = 0; g < N; g++) { dosageNorm[g] = arr[g]; FTtx.set(g, txWeight(g)); } }
+  // Division: every protein, mRNA and machine-in-mid-job goes to this daughter or the other at random.
+  function partition() {
+    const binom = (n) => { let k = 0; for (let i = 0; i < n; i++) if (rng() < 0.5) k++; return k; };
+    for (let g = 0; g < N; g++) {
+      prot[g] = binom(prot[g]); FTloss.set(g, prot[g]);
+      live[g] = live[g].filter(() => rng() < 0.5); m[g] = live[g].length; setM(g);
+    }
+    const kept = heap.filter(() => rng() < 0.5); heap.length = 0; for (const j of kept) push(j);
+    onRNAP = kept.filter((j) => j.kind === 0).length; onRibo = kept.length - onRNAP;
+  }
   function setMachines(rnap, ribo) { if (rnap != null) nRNAP = rnap; if (ribo != null) nRibo = ribo; }
   function setTlSpeed(f) { tlScale = 1 / Math.max(f, 0.02); }
   function setGrowth(f) { growth = Math.max(0, f); dNow = growth * dilution + P.kPtnDeg; }
 
   return {
-    advance, snapshot, setPromoter, setMachines, setTlSpeed, setGrowth,
+    advance, snapshot, setPromoter, setMachines, setTlSpeed, setGrowth, setVolume, setCopies, setDosageNorm, partition,
     machines: () => ({ rnap: onRNAP, ribo: onRibo }),
     get t() { return t; }, m, prot, live,
     calib: { freeRNAP0, freeRibo0, busyRNAP, busyRibo, dP, target, mMean, cTx, kTl, txDur, tlDur, kdeg },

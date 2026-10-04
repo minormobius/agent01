@@ -1,0 +1,904 @@
+{
+ "meta": {
+  "built": "cell/stage3c/data/build-metabolism.mjs",
+  "units": "concentrations mM, rates mM/s, enzyme mM (copies × 1000 / (NA × V)), cell radius m",
+  "rateLaw": "common modular: v = E · (kcatF·Π(S/Km) − kcatR·Π(P/Km)) / (Π(1+S/Km) + Π(1+P/Km) − 1); enzyme = min of subunits (AND) or sum (OR)",
+  "cellRadius": 2e-7,
+  "sources": [
+   {
+    "cite": "Thornburg Z.R. et al. (2022) Fundamental behaviors emerge from simulations of a living minimal cell. Cell 185:345. Balanced kinetic parameters, via Luthey-Schulten-Lab/minimal_cell @ db048ac",
+    "url": "https://github.com/Luthey-Schulten-Lab/minimal_cell"
+   },
+   {
+    "cite": "Breuer M. et al. (2019) Essential metabolism for a minimal cell. eLife 8:e36842. The iMB155 reconstruction (gene–reaction rules).",
+    "url": "https://elifesciences.org/articles/36842"
+   }
+  ]
+ },
+ "reactions": [
+  {
+   "id": "GLCpts",
+   "label": "glucose import (PTS)",
+   "subs": [
+    [
+     "M_glc__D_e",
+     1
+    ],
+    [
+     "M_pep_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_g6p_c",
+     1
+    ],
+    [
+     "M_pyr_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0233",
+    "JCVISYN3A_0694",
+    "JCVISYN3A_0234",
+    "JCVISYN3A_0779"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 3122.4552,
+   "kcatR": 0.032,
+   "km": {
+    "M_glc__D_e": 0.1,
+    "M_pep_c": 0.1,
+    "M_g6p_c": 0.1,
+    "M_pyr_c": 0.1
+   }
+  },
+  {
+   "id": "PGI",
+   "label": "phosphoglucose isomerase",
+   "subs": [
+    [
+     "M_g6p_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_f6p_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0445"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 804.3384,
+   "kcatR": 650,
+   "km": {
+    "M_g6p_c": 22.9419,
+    "M_f6p_c": 3.3488
+   }
+  },
+  {
+   "id": "PFK",
+   "label": "phosphofructokinase",
+   "subs": [
+    [
+     "M_atp_c",
+     1
+    ],
+    [
+     "M_f6p_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_adp_c",
+     1
+    ],
+    [
+     "M_fdp_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0220"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 111,
+   "kcatR": 0.3438,
+   "km": {
+    "M_atp_c": 0.0255,
+    "M_f6p_c": 0.2133,
+    "M_adp_c": 0.1062,
+    "M_fdp_c": 0.1062
+   }
+  },
+  {
+   "id": "FBA",
+   "label": "aldolase",
+   "subs": [
+    [
+     "M_fdp_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_dhap_c",
+     1
+    ],
+    [
+     "M_g3p_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0131"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 59.7,
+   "kcatR": 0.56,
+   "km": {
+    "M_fdp_c": 0.2447,
+    "M_dhap_c": 0.0064,
+    "M_g3p_c": 0.0044
+   }
+  },
+  {
+   "id": "TPI",
+   "label": "triose phosphate isomerase",
+   "subs": [
+    [
+     "M_dhap_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_g3p_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0727"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 759.6105,
+   "kcatR": 4,
+   "km": {
+    "M_dhap_c": 1.0352,
+    "M_g3p_c": 0.1028
+   }
+  },
+  {
+   "id": "GAPD",
+   "label": "GAPDH",
+   "subs": [
+    [
+     "M_g3p_c",
+     1
+    ],
+    [
+     "M_nad_c",
+     1
+    ],
+    [
+     "M_pi_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_13dpg_c",
+     1
+    ],
+    [
+     "M_nadh_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0607"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 119.5924,
+   "kcatR": 72.397,
+   "km": {
+    "M_g3p_c": 0.0171,
+    "M_nad_c": 5.6969,
+    "M_pi_c": 6.5826,
+    "M_13dpg_c": 0.1232,
+    "M_nadh_c": 0.0324
+   }
+  },
+  {
+   "id": "PGK",
+   "label": "phosphoglycerate kinase (makes ATP)",
+   "subs": [
+    [
+     "M_13dpg_c",
+     1
+    ],
+    [
+     "M_adp_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_3pg_c",
+     1
+    ],
+    [
+     "M_atp_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0606"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 220,
+   "kcatR": 0.128899064884157,
+   "km": {
+    "M_13dpg_c": 0.0014,
+    "M_adp_c": 0.5273,
+    "M_3pg_c": 0.8868,
+    "M_atp_c": 0.368
+   }
+  },
+  {
+   "id": "PGM",
+   "label": "phosphoglycerate mutase",
+   "subs": [
+    [
+     "M_3pg_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_2pg_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0729"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 434,
+   "kcatR": 14,
+   "km": {
+    "M_3pg_c": 1.8869,
+    "M_2pg_c": 0.0278
+   }
+  },
+  {
+   "id": "ENO",
+   "label": "enolase",
+   "subs": [
+    [
+     "M_2pg_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_pep_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0213"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 62.1825,
+   "kcatR": 23.453,
+   "km": {
+    "M_2pg_c": 0.246,
+    "M_pep_c": 0.2874
+   }
+  },
+  {
+   "id": "PYK",
+   "label": "pyruvate kinase (makes ATP)",
+   "subs": [
+    [
+     "M_adp_c",
+     1
+    ],
+    [
+     "M_pep_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_atp_c",
+     1
+    ],
+    [
+     "M_pyr_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0221"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 3204,
+   "kcatR": 0.0021,
+   "km": {
+    "M_adp_c": 0.2814,
+    "M_pep_c": 0.0754,
+    "M_atp_c": 0.121,
+    "M_pyr_c": 0.0585
+   }
+  },
+  {
+   "id": "LDH_L",
+   "label": "lactate dehydrogenase",
+   "subs": [
+    [
+     "M_nadh_c",
+     1
+    ],
+    [
+     "M_pyr_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_lac__L_c",
+     1
+    ],
+    [
+     "M_nad_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0475"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 388.468,
+   "kcatR": 400.2106,
+   "km": {
+    "M_nadh_c": 0.0381,
+    "M_pyr_c": 0.9649,
+    "M_lac__L_c": 59.656,
+    "M_nad_c": 32.972
+   }
+  },
+  {
+   "id": "ATPase",
+   "label": "ATP synthase (makes ATP from ADP and phosphate, or burns it)",
+   "law": "modular",
+   "rule": "and",
+   "subs": [
+    [
+     "M_adp_c",
+     1
+    ],
+    [
+     "M_pi_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_atp_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0789"
+   ],
+   "kcatF": 20,
+   "kcatR": 72.33333333333333,
+   "terms": {
+    "subs": [
+     [
+      "M_adp_c",
+      0.1
+     ],
+     [
+      "M_pi_c",
+      4.2
+     ]
+    ],
+    "prods": [
+     [
+      "M_atp_c",
+      0.6
+     ]
+    ]
+   },
+   "km": {
+    "M_adp_c": 0.1,
+    "M_pi_c": 4.2,
+    "M_atp_c": 0.6
+   },
+   "source": "defMetRxns.py, hand-set ATPase"
+  },
+  {
+   "id": "PYK3",
+   "label": "pyruvate kinase on GDP (makes GTP)",
+   "subs": [
+    [
+     "M_gdp_c",
+     1
+    ],
+    [
+     "M_pep_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_gtp_c",
+     1
+    ],
+    [
+     "M_pyr_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0221"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 672.84,
+   "kcatR": 0.0014,
+   "km": {
+    "M_gdp_c": 0.2814,
+    "M_pep_c": 0.075,
+    "M_gtp_c": 0.1376,
+    "M_pyr_c": 0.0589
+   }
+  },
+  {
+   "id": "PGK3",
+   "label": "phosphoglycerate kinase on GDP (makes GTP)",
+   "subs": [
+    [
+     "M_13dpg_c",
+     1
+    ],
+    [
+     "M_gdp_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_3pg_c",
+     1
+    ],
+    [
+     "M_gtp_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0606"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 140.8,
+   "kcatR": 0.030214276516037,
+   "km": {
+    "M_13dpg_c": 0.0032,
+    "M_gdp_c": 0.5357,
+    "M_3pg_c": 0.7944,
+    "M_gtp_c": 0.2033
+   }
+  },
+  {
+   "id": "ADK1",
+   "label": "adenylate kinase (AMP + ATP ⇌ 2 ADP)",
+   "subs": [
+    [
+     "M_amp_c",
+     1
+    ],
+    [
+     "M_atp_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_adp_c",
+     2
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0651"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 319.1556,
+   "kcatR": 783.2866,
+   "km": {
+    "M_amp_c": 0.096,
+    "M_atp_c": 0.1426,
+    "M_adp_c": 0.2669
+   }
+  },
+  {
+   "id": "L_LACt2r",
+   "label": "lactate export",
+   "subs": [
+    [
+     "M_lac__L_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_lac__L_e",
+     1
+    ]
+   ],
+   "genes": [],
+   "rule": "and",
+   "law": "permeability",
+   "P": 5e-9,
+   "rCell": 2e-7
+  },
+  {
+   "id": "PDH_E1",
+   "label": "pyruvate dehydrogenase, step 1",
+   "subs": [
+    [
+     "M_lpl_PdhC_c",
+     1
+    ],
+    [
+     "M_pyr_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_acdhlpl_PdhC_c",
+     1
+    ],
+    [
+     "M_co2_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0227"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 82000.0235,
+   "kcatR": 1000.2763,
+   "km": {
+    "M_lpl_PdhC_c": 0.1003,
+    "M_pyr_c": 0.0537,
+    "M_acdhlpl_PdhC_c": 0.0997,
+    "M_co2_c": 0.0997
+   }
+  },
+  {
+   "id": "PDH_E2",
+   "label": "pyruvate dehydrogenase, step 2 (makes acetyl-CoA)",
+   "subs": [
+    [
+     "M_acdhlpl_PdhC_c",
+     1
+    ],
+    [
+     "M_coa_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_accoa_c",
+     1
+    ],
+    [
+     "M_dhlpl_PdhC_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0227"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 16900000.45,
+   "kcatR": 5620,
+   "km": {
+    "M_acdhlpl_PdhC_c": 0.1003,
+    "M_coa_c": 0.1003,
+    "M_accoa_c": 0.0111,
+    "M_dhlpl_PdhC_c": 0.0997
+   }
+  },
+  {
+   "id": "PDH_E3",
+   "label": "pyruvate dehydrogenase, step 3 (makes NADH)",
+   "subs": [
+    [
+     "M_dhlpl_PdhC_c",
+     1
+    ],
+    [
+     "M_nad_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_lpl_PdhC_c",
+     1
+    ],
+    [
+     "M_nadh_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0228"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 110,
+   "kcatR": 448,
+   "km": {
+    "M_dhlpl_PdhC_c": 0.1003,
+    "M_nad_c": 0.14,
+    "M_lpl_PdhC_c": 0.0997,
+    "M_nadh_c": 2.9919
+   }
+  },
+  {
+   "id": "PTAr",
+   "label": "phosphotransacetylase (makes acetyl-phosphate)",
+   "subs": [
+    [
+     "M_accoa_c",
+     1
+    ],
+    [
+     "M_pi_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_actp_c",
+     1
+    ],
+    [
+     "M_coa_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0229"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 895.9342,
+   "kcatR": 1509.0778,
+   "km": {
+    "M_accoa_c": 0.5535,
+    "M_pi_c": 5.291,
+    "M_actp_c": 0.2373,
+    "M_coa_c": 0.022
+   }
+  },
+  {
+   "id": "ACKr",
+   "label": "acetate kinase (makes ATP)",
+   "subs": [
+    [
+     "M_actp_c",
+     1
+    ],
+    [
+     "M_adp_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_ac_c",
+     1
+    ],
+    [
+     "M_atp_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0230"
+   ],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 1452.2498,
+   "kcatR": 655.0835,
+   "km": {
+    "M_actp_c": 0.9669,
+    "M_adp_c": 0.6657,
+    "M_ac_c": 55.7644,
+    "M_atp_c": 1.6092
+   }
+  },
+  {
+   "id": "NOX",
+   "label": "NADH oxidase (recycles NAD+)",
+   "subs": [
+    [
+     "M_nadh_c",
+     2
+    ],
+    [
+     "M_o2_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_nad_c",
+     2
+    ]
+   ],
+   "genes": [],
+   "rule": "and",
+   "law": "modular",
+   "kcatF": 1520.2025,
+   "kcatR": 0.0693,
+   "km": {
+    "M_nadh_c": 0.0268,
+    "M_o2_c": 0.0204,
+    "M_nad_c": 0.0993
+   }
+  },
+  {
+   "id": "ACt",
+   "label": "acetate export",
+   "subs": [
+    [
+     "M_ac_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_ac_e",
+     1
+    ]
+   ],
+   "genes": [],
+   "rule": "and",
+   "law": "permeability",
+   "P": 5e-9,
+   "rCell": 2e-7
+  },
+  {
+   "id": "PIabc",
+   "label": "phosphate import (ABC transporter, costs ATP)",
+   "law": "modular",
+   "rule": "and",
+   "subs": [
+    [
+     "M_pi_e",
+     1
+    ],
+    [
+     "M_atp_c",
+     1
+    ]
+   ],
+   "prods": [
+    [
+     "M_pi_c",
+     2
+    ],
+    [
+     "M_adp_c",
+     1
+    ]
+   ],
+   "genes": [
+    "JCVISYN3A_0427"
+   ],
+   "kcatF": 25,
+   "kcatR": 0,
+   "terms": {
+    "subs": [
+     [
+      "M_pi_e",
+      0.0031
+     ],
+     [
+      "M_atp_c",
+      0.023
+     ]
+    ],
+    "prods": [
+     [
+      "M_pi_c",
+      0.02
+     ],
+     [
+      "M_pi_c",
+      0.385
+     ],
+     [
+      "M_adp_c",
+      0.654
+     ]
+    ]
+   },
+   "km": {
+    "M_pi_e": 0.0031,
+    "M_atp_c": 0.023,
+    "M_pi_c": 0.02,
+    "M_adp_c": 0.654
+   },
+   "source": "defMetRxns.py, hand-set PIabc; medium phosphate 134 mM (growth medium buffers)"
+  }
+ ],
+ "init": {
+  "M_pep_c": 0.0409,
+  "M_g6p_c": 3.7076,
+  "M_pyr_c": 3.366,
+  "M_f6p_c": 0.8538,
+  "M_atp_c": 3.6529,
+  "M_adp_c": 0.2178,
+  "M_fdp_c": 7.6037,
+  "M_dhap_c": 0.6445,
+  "M_g3p_c": 0.1,
+  "M_nad_c": 2.1844,
+  "M_pi_c": 17.8185,
+  "M_13dpg_c": 0.0098,
+  "M_nadh_c": 0.0253,
+  "M_3pg_c": 1.1015,
+  "M_2pg_c": 0.0272,
+  "M_lac__L_c": 0.1,
+  "M_gdp_c": 0.2981,
+  "M_gtp_c": 1.6627,
+  "M_amp_c": 0.0832,
+  "M_lpl_PdhC_c": 0.1,
+  "M_acdhlpl_PdhC_c": 0.1,
+  "M_coa_c": 0.1782,
+  "M_accoa_c": 0.2502,
+  "M_dhlpl_PdhC_c": 0.1,
+  "M_actp_c": 0.6288,
+  "M_ac_c": 0.1
+ },
+ "fixed": {
+  "M_glc__D_e": 40,
+  "M_lac__L_e": 0.1,
+  "M_co2_c": 0.0234,
+  "M_o2_c": 0.1,
+  "M_ac_e": 0.1,
+  "M_pi_e": 134
+ }
+}

@@ -4195,6 +4195,24 @@
       ]
     },
     {
+      "n": "stage3d",
+      "u": "https://cell.mino.mobi/stage3d/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-04",
+      "b": "2026-10-04",
+      "p": "cell",
+      "surface": "cell",
+      "d": "JCVI-syn3A grows, copies its chromosome and divides, generation after generation: ribosomes built from ribosomal proteins, DnaA assembling at the origin to fire replication, forks running around the real chromosome, every molecule split at random between daughters, and a cell-cycle chart of each generation.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation",
+        "biology"
+      ]
+    },
+    {
       "n": "core",
       "u": "https://ns.mino.mobi/core/",
       "c": "data",

@@ -28,6 +28,7 @@ jobs:
           node stage3/data/genome.selftest.mjs
           node stage3b/sim.selftest.mjs
           node stage3c/sim.selftest.mjs
+          node stage3d/sim.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
       # cell.mino.mobi is a plain route (no custom-domain slot), and a route makes no DNS:

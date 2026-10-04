@@ -15,12 +15,19 @@ function createMetabolism(net, opts = {}) {
   const fixed = Object.assign({}, net.fixed, opts.fixed || {});
   const inhibit = {}; // reaction id -> remaining activity (a drug), 1 = untouched
   const x = Float64Array.from(ids.map((m) => net.init[m]));
+  // s/p: stoichiometry. sT/pT: rate-law terms [index, exponent, species, Km]. By default one term per
+  // species with its stoichiometry as exponent; a reaction may list its own terms (a species can then
+  // appear in several, each with its own affinity, as in the published model's hand-set reactions).
+  const ix = (m) => (m in idx ? idx[m] : -1);
   const R = net.reactions.map((r) => ({
     ...r,
-    s: r.subs.map(([m, n]) => [m in idx ? idx[m] : -1, n, m]),
-    p: r.prods.map(([m, n]) => [m in idx ? idx[m] : -1, n, m]),
+    s: r.subs.map(([m, n]) => [ix(m), n, m]),
+    p: r.prods.map(([m, n]) => [ix(m), n, m]),
+    sT: r.terms ? r.terms.subs.map(([m, K]) => [ix(m), 1, m, K]) : r.law === 'modular' ? r.subs.map(([m, n]) => [ix(m), n, m, r.km[m]]) : [],
+    pT: r.terms ? r.terms.prods.map(([m, K]) => [ix(m), 1, m, K]) : r.law === 'modular' ? r.prods.map(([m, n]) => [ix(m), n, m, r.km[m]]) : [],
   }));
   const E = new Float64Array(R.length).fill(0);
+  let vol = 1; // stage 3d: cell volume relative to the measured average cell
   const val = (v, i, m) => (i >= 0 ? Math.max(v[i], 0) : fixed[m]);
 
   function rate(r, k, v) {
@@ -29,8 +36,8 @@ function createMetabolism(net, opts = {}) {
       return r.P * (val(v, i, m) - val(v, j, mo)) * 3 / r.rCell;
     }
     let fwd = r.kcatF, rev = r.kcatR, dS = 1, dP = 1;
-    for (const [i, n, m] of r.s) { const q = val(v, i, m) / r.km[m]; fwd *= Math.pow(q, n); dS *= Math.pow(1 + q, n); }
-    for (const [i, n, m] of r.p) { const q = val(v, i, m) / r.km[m]; rev *= Math.pow(q, n); dP *= Math.pow(1 + q, n); }
+    for (const [i, n, m, K] of r.sT) { const q = val(v, i, m) / K; fwd *= Math.pow(q, n); dS *= Math.pow(1 + q, n); }
+    for (const [i, n, m, K] of r.pT) { const q = val(v, i, m) / K; rev *= Math.pow(q, n); dP *= Math.pow(1 + q, n); }
     return E[k] * (fwd - rev) / (dS + dP - 1);
   }
   const iATP = idx.M_atp_c, iAMP = idx.M_amp_c, iGTP = idx.M_gtp_c, iGDP = idx.M_gdp_c, iPI = idx.M_pi_c;
@@ -79,11 +86,43 @@ function createMetabolism(net, opts = {}) {
     for (let c = N - 1; c >= 0; c--) { let s = b[c]; for (let k = c + 1; k < N; k++) s -= A[c][k] * b[k]; b[c] = s / (A[c][c] || 1e-30); }
   }
   const Jx = Array.from({ length: N }, () => new Float64Array(N)), tmp = new Float64Array(N);
-  function jac(v) { // Jx = df/dx at v, by finite differences
+  // Jx = df/dx at v. Reactions are differentiated exactly (the modular rate law has a closed-form
+  // derivative); only the ribosome-demand term, which depends on ATP and GTP, is differenced.
+  function jac(v) {
     deriv(v, f0);
-    for (let j = 0; j < N; j++) {
-      const dy = 1e-7 * Math.max(1e-4, Math.abs(v[j])), keep = v[j]; v[j] = keep + dy; deriv(v, f1); v[j] = keep;
-      for (let i = 0; i < N; i++) Jx[i][j] = (f1[i] - f0[i]) / dy;
+    for (let i = 0; i < N; i++) Jx[i].fill(0);
+    for (let k = 0; k < R.length; k++) {
+      const r = R[k];
+      if (r.law === 'permeability') {
+        const [[i, , m]] = r.s, [[jo, , mo]] = r.p, c = r.P * 3 / r.rCell;
+        if (i >= 0 && v[i] > 0) { Jx[i][i] -= c; if (jo >= 0) Jx[jo][i] += c; }
+        if (jo >= 0 && v[jo] > 0) { Jx[jo][jo] -= c; if (i >= 0) Jx[i][jo] += c; }
+        continue;
+      }
+      let F = r.kcatF, B = r.kcatR, PS = 1, PP = 1;
+      for (const [i, n, m, K] of r.sT) { const q = val(v, i, m) / K; F *= Math.pow(q, n); PS *= Math.pow(1 + q, n); }
+      for (const [i, n, m, K] of r.pT) { const q = val(v, i, m) / K; B *= Math.pow(q, n); PP *= Math.pow(1 + q, n); }
+      const D = PS + PP - 1, e = E[k];
+      const dv = (j, dF, dB, dD) => e * ((dF - dB) * D - (F - B) * dD) / (D * D);
+      const touch = (list, isSub) => {
+        for (const [j, n, m, K] of list) {
+          if (j < 0 || v[j] <= 0) continue;
+          const x = v[j], q = x / K;
+          const dPow = n / x;                                   // d ln(q^n)/dx
+          const dSat = n / K / (1 + q);                         // d ln((1+q)^n)/dx
+          const d = isSub ? dv(j, F * dPow, 0, PS * dSat) : dv(j, 0, B * dPow, PP * dSat);
+          for (const [i, ni] of r.s) if (i >= 0) Jx[i][j] -= ni * d;
+          for (const [i, ni] of r.p) if (i >= 0) Jx[i][j] += ni * d;
+        }
+      };
+      touch(r.sT, true); touch(r.pT, false);
+    }
+    // demand term: difference only the ATP and GTP columns, for the demand part alone
+    for (const j of [iATP, iGTP]) {
+      const keep = v[j], dy = 1e-7 * Math.max(1e-4, Math.abs(keep));
+      const g0 = demandScale(v); v[j] = keep + dy; const g1 = demandScale(v); v[j] = keep;
+      const dg = (g1 - g0) / dy * aaFlux;
+      Jx[iATP][j] -= dg; Jx[iAMP][j] += dg; Jx[iGTP][j] -= 2 * dg; Jx[iGDP][j] += 2 * dg; Jx[iPI][j] += 4 * dg;
     }
   }
   function lie(v, h, out) { // one linearly implicit Euler step from v (Jacobian already at v)
@@ -96,7 +135,8 @@ function createMetabolism(net, opts = {}) {
   function step(h, depth = 0) {
     jac(x); lie(x, h, full);
     lie(x, h / 2, half); tmp.set(half); jac(tmp); lie(tmp, h / 2, half);
-    // tolerance: one molecule absolute, 0.1% relative
+    // tolerance: one molecule absolute, 0.1% relative (1% visibly changed the GTP budget, which is
+    // on a knife edge; linear invariants such as the adenine pool are conserved exactly either way)
     let err = 0; for (let i = 0; i < N; i++) err = Math.max(err, Math.abs(full[i] - half[i]) / (FLOOR + 1e-3 * Math.abs(half[i])));
     if (err <= 1 || depth >= 12) { x.set(half); stats.ok++; return; }
     stats.halved++; step(h / 2, depth + 1); step(h / 2, depth + 1);
@@ -116,10 +156,11 @@ function createMetabolism(net, opts = {}) {
       const gs = r.genes.filter(measured);
       if (!gs.length) { E[k] = DEFAULT_E * (inhibit[r.id] ?? 1) * Math.min(1, ...r.genes.map(relLevel)); return; }
       const c = gs.map((g) => countOf(g) ?? 0);
-      E[k] = (r.rule === 'or' ? c.reduce((a, b) => a + b, 0) : Math.min(...c)) * countToMM * (inhibit[r.id] ?? 1);
+      E[k] = (r.rule === 'or' ? c.reduce((a, b) => a + b, 0) : Math.min(...c)) * countToMM / vol * (inhibit[r.id] ?? 1);
     });
   }
-  function setDemand(aaPerSecond) { aaFlux = aaPerSecond * countToMM; }
+  function setDemand(aaPerSecond) { aaFlux = aaPerSecond * countToMM / vol; }
+  function setVolume(v) { vol = v; }
 
   // Let the network settle under a demand of aaPerSecond at full speed. The demand throttles itself
   // as GTP and ATP fall, so this always finds a steady state; its speed is the network's verdict.
@@ -135,7 +176,7 @@ function createMetabolism(net, opts = {}) {
   function setInhibit(id, f) { if (f >= 1) delete inhibit[id]; else inhibit[id] = f; }
 
   return {
-    stats, ids, x, flux, E, reactions: R, countToMM, advance, setEnzymes, setDemand, calibrate, setFixed, setInhibit, fixed, satNow, rebase,
+    stats, ids, x, flux, E, reactions: R, countToMM, advance, setEnzymes, setDemand, calibrate, setFixed, setInhibit, fixed, satNow, rebase, setVolume,
     speed: () => demandScale(x), // ribosome speed relative to the reference energy state
     conc: (m) => x[idx[m]],
   };
