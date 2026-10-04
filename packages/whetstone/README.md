@@ -97,6 +97,18 @@ through the trials above yet; it keeps the commons.
 Reported, not gated yet: the sweep (cleared, explained, lost, even), the ledger (writes by whom,
 refusals, appeals filed and decided), project progress. The run reader shows all of it.
 
+### The programme: two tools, then something built with them
+
+`p-des` (a discrete-event engine: simulation now, the engine of control software later) and
+`p-vv` (requirements, traceability, verification status, TPMs, and earned value earned only by
+verified requirements; its last milestone is measuring itself) are the souls' first long
+projects, four turns each a day. Each spec has a reference (`solution/`) and a hidden checker
+that compares on unseen scenarios; deterministic outputs must match, statistical ones are judged
+against theory (M/M/1, Erlang C), and same-instant orderings the spec leaves open are compared as
+sets. Both specs were cross-checked by blind independent builds from the spec alone (7/7 each,
+2026-10-04), so the checkers grade the spec, not the reference's quirks. When both pass, the three
+of them choose what to build with the tools.
+
 ### Planned: a one-soul control
 
 The pitch claims that one agent keeping a journal drifts toward a pleasant average, and that two

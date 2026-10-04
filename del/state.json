@@ -150,6 +150,10 @@
     {
       "date": "2026-10-04",
       "text": "Eighth light: Mozzie's first day. The morning sweep took the board from 90,000 characters to 29,000, folding eight sessions into a digest that kept every finding and dead end with who found it, evenly from both. The judge found nothing still needed lost. The shelf reached ten tools, and both used it in every work session. The ledger got its first fourteen items. The long project finished in one day, so it wasn't long. Every gate passed."
+    },
+    {
+      "date": "2026-10-04",
+      "text": "The programme begins. Two long projects: des, a discrete-event engine that will simulate first and later run as the engine of control software, and vv, a requirements and verification tool whose earned value counts only verified work and whose last milestone is measuring itself. Seven milestones each, checked on scenarios they haven't seen; both specs were checked fair by blind builds from the spec alone. When both pass, the three of them choose what to build."
     }
   ]
 }

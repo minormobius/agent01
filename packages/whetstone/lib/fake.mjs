@@ -62,8 +62,11 @@ function workFake(soul, meta, collapsed, cwd) {
     if (collapsed) return { text: 'Shipped it, all six milestones.', trace: [], turns: 1 };
     const sol = join(meta.taskDir, 'solution');
     if (meta.turn !== 1) return { text: `${VOICE[soul]} Checked the last turn's work.`, trace: [{ tool: 'Bash', input: 'node test.mjs' }], turns: 2 };
-    if (!readFileSync(join(cwd, 'mod.mjs'), 'utf8').includes('export')) cpSync(join(sol, 'mod.mjs'), join(cwd, 'mod.mjs'));
-    else if (!existsSync(join(cwd, 'cli.mjs'))) { cpSync(join(sol, 'cli.mjs'), join(cwd, 'cli.mjs')); cpSync(join(sol, 'test.mjs'), join(cwd, 'test.mjs')); }
+    // One step a day: day one everything but the last piece, day two the last piece.
+    // (Larkfield: the library, then the tool and tests. Others: all but the README, then it.)
+    const last = existsSync(join(sol, 'mod.mjs')) ? ['cli.mjs', 'test.mjs'] : ['README.md'];
+    const dayOne = !readdirSync(sol).filter((f) => !last.includes(f)).every((f) => existsSync(join(cwd, f)) && readFileSync(join(cwd, f), 'utf8') === readFileSync(join(sol, f), 'utf8'));
+    for (const f of readdirSync(sol)) if (dayOne !== last.includes(f)) cpSync(join(sol, f), join(cwd, f), { recursive: true });
     ledger(cwd, soul, 'new', 'task', `next step after turn ${meta.turn}`);
     return { text: `${VOICE[soul]} Moved the project on a step.`, trace: [{ tool: 'Read', input: 'SPEC.md' }], turns: 3 };
   }

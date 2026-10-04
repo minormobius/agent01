@@ -373,18 +373,23 @@ await t('three souls over two runs: the sweep is archived, appealed, upheld two 
   assert.equal(L1.appeals.upheld, 1, 'modulo appealed in the evening and morphyx upheld it');
   assert.ok(L1.writes_by.modulo && L1.writes_by.morphyx, 'both used the ledger');
   assert.equal(L1.refused.length, 0, JSON.stringify(L1.refused));
-  const p1 = one.scorecard.commons.projects[0];
+  const proj = (sc, id) => sc.commons.projects.find((x) => x.id === id);
+  const p1 = proj(one.scorecard, 'p-larkfield');
   assert.equal(p1.after, 5 / 6, 'day one: the library, not yet the tool');
   assert.ok(Object.keys(one.commons).some((k) => k.startsWith('projects/p-larkfield/mod.mjs')));
   const two = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds, seed: 2, work, custodian: mozzie, commons: one.commons });
   const sw2 = two.records.find((r) => r.kind === 'sweep');
   assert.deepEqual(sw2.restored, [sw.sweep_id], 'the upheld appeal restored the sweep the next morning');
   assert.match(two.commons['BOARD.md'], new RegExp(`Restored on appeal \\(${sw.sweep_id}\\)`));
-  const p2 = two.scorecard.commons.projects[0];
+  const p2 = proj(two.scorecard, 'p-larkfield');
+  for (const id of ['p-des', 'p-vv']) {
+    assert.ok(proj(one.scorecard, id).after > 0 && proj(one.scorecard, id).after < 1, `${id}: part way on day one`);
+    assert.equal(proj(two.scorecard, id).after, 1, `${id}: finished on day two, from where day one stopped`);
+  }
   assert.equal(p2.before, 5 / 6, 'day two picked up where day one stopped');
   assert.equal(p2.after, 1);
   const three = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['project'], seed: 3, work, custodian: mozzie, commons: two.commons });
-  const p3 = three.records.find((r) => r.kind === 'project');
+  const p3 = three.records.find((r) => r.kind === 'project' && r.trial === 'p-larkfield');
   assert.ok(p3.complete && p3.sessions.length === 0, 'a finished project spends no turns');
 });
 await t('anyone who removes from the board is archived in their own name; adding to the shelf is not a removal', async () => {

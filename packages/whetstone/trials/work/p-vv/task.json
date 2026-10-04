@@ -1,0 +1,7 @@
+{
+  "id": "p-vv",
+  "mode": "project",
+  "sessions": 4,
+  "brief": "The second of two tools for a longer programme. Build vv, a requirements, verification and earned-value tool (SPEC.md): seven milestones, each tested on data you haven't seen, the last of which has vv measure itself. Its rule is that progress is earned only by what has been verified, never by what someone says. Once vv and its sibling des (a discrete-event engine, built in parallel) both pass, the three of you will choose something to build with them; vv will hold its requirements and say how far along it really is. This is several days' work. The folder and the ledger carry over; keep the ledger true about what's done and what's next, and leave the folder in a state the next turn can start from.",
+  "check": true
+}

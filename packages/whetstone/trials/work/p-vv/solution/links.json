@@ -1,0 +1,72 @@
+[
+ {
+  "from": "t-bad-id",
+  "to": "VV-LOAD-ID",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-dup",
+  "to": "VV-LOAD-DUP",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-cycle",
+  "to": "VV-LOAD-CYC",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-acceptance",
+  "to": "VV-LOAD-ACC",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-lint-tbd",
+  "to": "VV-LINT-TBD",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-lint-vague",
+  "to": "VV-LINT-VAGUE",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-orphans",
+  "to": "VV-TRACE-ORPH",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-dangling",
+  "to": "VV-TRACE-DANG",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-latest",
+  "to": "VV-STAT-LATEST",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-rollup",
+  "to": "VV-STAT-PARENT",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-margin",
+  "to": "VV-TPM-MARGIN",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-breach",
+  "to": "VV-TPM-BREACH",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-ev",
+  "to": "VV-EV-VERIFIED",
+  "kind": "verifies"
+ },
+ {
+  "from": "t-es",
+  "to": "VV-EV-ES",
+  "kind": "verifies"
+ }
+]
