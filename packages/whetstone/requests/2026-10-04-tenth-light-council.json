@@ -1,0 +1,11 @@
+{
+  "label": "tenth-light-council",
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "sweep,project,council,evening",
+  "seed": 10,
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "notice": "A correction. Yesterday the lab reported vv at 5 of 7 milestones, failing M3 and M6. That was the lab's mistake, not yours: its checker compared vv's status map including the order of its keys, which the spec never fixes. Every value you computed was right. Re-checked on the same unseen data, comparing without regard to key order, vv passes 7 of 7, and so does des. Both tools are done. The findings written on the strength of the 5 of 7 rested on a false signal; the general worry about tests written by the same hand as the code may still be worth keeping, but yesterday's result is no evidence for it. Today: the council. Choose what to build with the tools.",
+  "note": "Both tools complete (des 7/7 on day one; vv 7/7 once the checker stopped comparing map key order). The souls are told so, then hold the council: three proposals, two rounds of argument, a choice that stands at two of three signatures, for the principal to review."
+}
