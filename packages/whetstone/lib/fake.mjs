@@ -22,7 +22,7 @@ export function fakeResponder({ collapsed = false } = {}) {
   return ({ prompt, meta = {}, cwd }) => {
     if (meta.role === 'judge') return judge(meta, prompt, collapsed);
     const soul = meta.soul;
-    if (['work', 'pairwork', 'evening', 'sweep', 'project'].includes(meta.kind)) return workFake(soul, meta, collapsed, cwd);
+    if (['work', 'pairwork', 'evening', 'sweep', 'project', 'council'].includes(meta.kind)) return workFake(soul, meta, collapsed, cwd);
     if (collapsed) {
       if (meta.kind === 'taste') return JSON.stringify({ picks: ['t01', 't02', 't03'], why: 'they all sound wonderful' });
       const canary = (prompt.match(/\b([A-Z]+-[A-Z0-9]+)\b/) || [])[1];
@@ -47,6 +47,19 @@ function ledger(cwd, soul, ...args) {
 const ledgerLines = (cwd) => (existsSync(join(cwd, 'ledger', 'ledger.jsonl')) ? readFileSync(join(cwd, 'ledger', 'ledger.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []);
 
 function workFake(soul, meta, collapsed, cwd) {
+  if (meta.kind === 'council') {
+    mkdirSync(join(cwd, 'proposals'), { recursive: true });
+    if (meta.trial === 'propose') {
+      writeFileSync(join(cwd, 'proposals', `${soul}.md`), `# ${soul}'s proposal\n\nBuild a ${soul === 'modulo' ? 'tide gauge' : soul === 'morphyx' ? 'gear cutter' : 'compost turner'}.\n`);
+      return { text: 'Proposed.', trace: [{ tool: 'Read', input: 'tools/des/SPEC.md' }], turns: 2 };
+    }
+    if (collapsed) return { text: 'SILENCE', trace: [], turns: 1 };
+    appendFileSync(join(cwd, 'COUNCIL.md'), `\n- ${meta.trial}: my view — ${soul}\n`);
+    const choice = join(cwd, 'CHOICE.md');
+    if (soul === 'modulo' && !existsSync(choice)) writeFileSync(choice, '# Choice\n\nproposals/modulo.md: the tide gauge.\n\nSigned: Modulo\n');
+    else if (soul === 'morphyx' && existsSync(choice) && !/Signed: Morphyx/.test(readFileSync(choice, 'utf8'))) appendFileSync(choice, 'Signed: Morphyx\n');
+    return { text: 'Argued and signed.', trace: [], turns: 2 };
+  }
   if (meta.kind === 'sweep') {
     const board = readFileSync(join(cwd, 'BOARD.md'), 'utf8');
     if (collapsed) { writeFileSync(join(cwd, 'BOARD.md'), ''); return { text: 'Binned the lot.', trace: [], turns: 1 }; }

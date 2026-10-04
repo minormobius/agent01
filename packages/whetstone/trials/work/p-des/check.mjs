@@ -153,12 +153,16 @@ function evaluate(dir) {
   try { return JSON.parse(node(dir, [h]).out); } catch { return {}; }
 }
 
+const canon = (x) => JSON.stringify(x, (k, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map((key) => [key, v[key]])) : v));
+
 export default async function check(dir) {
   const ref = mkdtempSync(join(tmpdir(), 'des-ref-'));
   cpSync(join(HERE, 'files'), ref, { recursive: true });
   cpSync(join(HERE, 'solution'), ref, { recursive: true });
   const want = evaluate(ref), got = evaluate(dir);
-  const same = (k) => want[k] != null && !want[k].error && JSON.stringify(got[k]) === JSON.stringify(want[k]);
+  // Key order in a map is not part of any contract (ninth light: vv's status map was right in
+  // every value and failed on order alone), so compare canonically: keys sorted, all the way down.
+  const same = (k) => want[k] != null && !want[k].error && canon(got[k]) === canon(want[k]);
   const ms = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'].filter(same);
   const tests = node(dir, ['test.mjs']).ok;
   const readme = existsSync(join(dir, 'README.md')) && readFileSync(join(dir, 'README.md'), 'utf8').length > 600;

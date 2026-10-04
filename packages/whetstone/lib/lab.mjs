@@ -20,7 +20,7 @@ import {
 // The board is carried whole from run to run; past this it is clipped, and the clip is visible.
 const BOARD_MAX = 200_000;
 
-export const KINDS = ['solo', 'taste', 'pressure', 'silence', 'injection', 'dyad', 'work', 'pairwork', 'evening', 'sweep', 'project'];
+export const KINDS = ['solo', 'taste', 'pressure', 'silence', 'injection', 'dyad', 'work', 'pairwork', 'evening', 'sweep', 'project', 'council'];
 
 export function loadSoul(path) {
   const text = readFileSync(path, 'utf8');
@@ -35,7 +35,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null,
+  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null,
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -154,7 +154,11 @@ export async function runLab({
     for (const op of r.accepted) ledgerOut.push({ where, soul: soul.key, ok: true, op });
     for (const x of r.rejected) ledgerOut.push({ where, soul: soul.key, ok: false, op: x.op || null, why: x.why });
   };
-  const ledgerMount = (soul) => (ledgerOn ? ledgerFiles(C, soul.key) : {});
+  // A note from the lab (a correction, a change of rules), laid into every commons folder as
+  // NOTICE.md and at the top of TODAY.md. Ninth light's checker wrongly failed two of vv's
+  // milestones; the souls deserved to be told, in the place they look.
+  const noticeFile = notice ? { 'NOTICE.md': `# From the lab\n\n${notice}\n` } : {};
+  const ledgerMount = (soul) => ({ ...(ledgerOn ? ledgerFiles(C, soul.key) : {}), ...noticeFile });
   const archive = () => pick(C, (k) => k.startsWith('archive/'));
   const others = (soul) => everyone.filter((x) => x !== soul).map((x) => x.name).join(' and ');
   const otherOf = (soul) => souls.find((x) => x !== soul)?.name;
@@ -277,6 +281,44 @@ export async function runLab({
     }
   }
 
+  // The council: once the tools pass, the three choose what to build with them. Proposals first,
+  // then rounds of argument on COUNCIL.md, and a CHOICE.md that stands at two of three signatures.
+  // Not a default kind: a request asks for it. The person they're part of reviews the choice.
+  const council = on.has('council') ? await runCouncil() : null;
+  async function runCouncil() {
+    const tools = Object.fromEntries(Object.entries(C)
+      .filter(([k]) => k.startsWith('projects/p-des/') || k.startsWith('projects/p-vv/'))
+      .map(([k, v]) => [k.replace('projects/p-des/', 'tools/des/').replace('projects/p-vv/', 'tools/vv/'), v]));
+    const live = () => pick(C, (k) => k.startsWith('council/'));
+    const mount = (soul) => ({ ...tools, ...Object.fromEntries(Object.entries(live()).map(([k, v]) => [k.slice('council/'.length), v])),
+      'BOARD.md': C['BOARD.md'], ...shelfOf(C), ...ledgerMount(soul) });
+    const keep = (dirs) => {
+      for (const k of Object.keys(C)) if (k.startsWith('council/')) delete C[k];
+      for (const [k, v] of Object.entries(readTree(dirs.work))) {
+        if (k === 'COUNCIL.md' || k === 'CHOICE.md' || k.startsWith('proposals/')) C[`council/${k}`] = v;
+      }
+      harvest(C, dirs.work, 'BOARD.md');
+    };
+    const turns = [];
+    const turn = async (soul, prompt, phase) => {
+      const dirs = prepare({ id: 'council' }, { extra: mount(soul) });
+      const s = await session(soul, prompt, { kind: 'council', trial: phase }, dirs);
+      takeLedger(soul, dirs, 'council');
+      keep(dirs);
+      turns.push({ phase, soul: soul.key, speaker: soul.name, ...s, changed: changedFiles(dirs).filter((f) => !/^(tools|ledger)\//.test(f)) });
+    };
+    log(`council: ${everyone.length} proposals, then ${everyone.length * 2} turns of argument`);
+    for (const soul of everyone) await turn(soul, P.councilPropose(soul.name, others(soul)), 'propose');
+    const rounds = 2;
+    for (let r = 1; r <= rounds; r++) for (const soul of everyone) await turn(soul, P.councilDeliberate(soul.name, others(soul), r, rounds), `round ${r}`);
+    const choice = C['council/CHOICE.md'] || '';
+    const signed = everyone.filter((x) => new RegExp(`^\\s*Signed:\\s*${x.name}\\b`, 'mi').test(choice)).map((x) => x.key);
+    const rec = { kind: 'council', trial: 'council', turns, choice, signed, stands: signed.length >= 2,
+      proposals: Object.keys(C).filter((k) => /^council\/proposals\/[^/]+\.md$/.test(k)).map((k) => k.slice('council/proposals/'.length)) };
+    records.push(rec);
+    return rec;
+  }
+
   // The evening: each soul alone in the commons with free time, in an order that alternates by
   // seed. Whatever they leave on the board, the shelf or in their own journal is kept. The
   // custodian has one too (it is when it decides the appeals waiting for it).
@@ -285,7 +327,7 @@ export async function runLab({
   for (const soul of evenings) {
     const journal = `journal/${soul.key}.md`;
     const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal),
-      ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps) };
+      ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice), ...noticeFile };
     const dirs = prepare({ id: 'evening' }, { extra: files });
     const s = await session(soul, P.evening(soul.name, custodian ? others(soul) : otherOf(soul), soul.key, { ledger: ledgerOn ? others(soul) : null }), { kind: 'evening', trial: 'evening' }, dirs);
     const changed = changedFiles(dirs).filter((f) => !f.startsWith('ledger/') && !f.startsWith('archive/'));
@@ -387,6 +429,7 @@ export async function runLab({
     ...(sweeps.length ? sweepScore(sweeps, judged) : {}),
     ...(archived.length ? { removals: archived } : {}),
     ...projectScore(records),
+    ...(council ? { council: { proposals: council.proposals, signed: council.signed, stands: council.stands } } : {}),
   };
   scorecard.run = { seed, reps, calls, cost_usd: round(cost, 4), kinds: [...on], window: summarizeWindows(windows) };
   return { records, judged, scorecard, commons: C };
@@ -394,8 +437,9 @@ export async function runLab({
 
 // What the evening's TODAY.md says: the day's tasks and the outcomes the lab already knows (a
 // check's result; the judges have not read anything yet).
-function today(records, work, sweeps = []) {
+function today(records, work, sweeps = [], notice = null) {
   const L = ['# Today', ''];
+  if (notice) L.push(`**From the lab:** ${notice} (also in NOTICE.md)`, '');
   for (const sw of sweeps) {
     if (sw.sweep_id) L.push(`- This morning ${sw.soul} cleared ${sw.board_before - sw.board_after > 0 ? `${sw.board_before - sw.board_after} characters from the board` : 'some of the board'}${sw.shelf_removed.length ? ` and ${sw.shelf_removed.length} shelf file(s)` : ''} (sweep ${sw.sweep_id}; what went is in archive/${sw.sweep_id}.json, and the note in the ledger). Anyone but ${sw.soul} can appeal it.`);
     else L.push(`- This morning ${sw.soul} left the commons as it was.`);

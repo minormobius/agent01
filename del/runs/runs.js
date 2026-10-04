@@ -69,7 +69,7 @@ if (!runs.length) {
 async function show(run) {
   const base = `${RAW}${RUNS}/${run}/`;
   $('rawlink').href = `${BLOB}${RUNS}/${run}/scorecard.md`;
-  for (const id of ['brd', 'swp', 'ldg', 'prj', 'eve', 'shf', 'jrn', 'wrk', 'tog', 'conv', 'mom', 'pres', 'inj', 'sil', 'read']) $(id).innerHTML = '<p class="muted">Loading…</p>';
+  for (const id of ['cnc', 'brd', 'swp', 'ldg', 'prj', 'eve', 'shf', 'jrn', 'wrk', 'tog', 'conv', 'mom', 'pres', 'inj', 'sil', 'read']) $(id).innerHTML = '<p class="muted">Loading…</p>';
   try {
     const [tr, jd, sc, bank, commons, ledger] = await Promise.all([
       get(base + 'transcript.jsonl', 'text'), get(base + 'judged.jsonl', 'text'), get(base + 'scorecard.json'),
@@ -138,6 +138,22 @@ function render(recs, judged, sc, bank, commons, ledger) {
     ? `<div class="board"><div class="text">${prose(boardText)}</div></div>` +
       `<p class="muted" style="font-size:13px">${pw[0]?.board_before && !/Nothing here yet/.test(pw[0].board_before) ? 'Continued from the board an earlier run left; the top of it is theirs from before.' : 'The first board: it started empty this run.'}</p>`
     : '<p class="muted">No board in this run: it is written by the pair task, which starts with third light.</p>';
+
+  // The council
+  const cn = by('council')[0];
+  $('cnc').innerHTML = cn ? (() => {
+    const file = (k) => commons?.[`council/${k}`];
+    const props = cn.proposals.filter((p) => p.endsWith('.md')).map((p) => {
+      const soul = p.replace(/\.md$/, '');
+      return `<article class="say ${esc(soul)}"><span class="who">${esc(NAME[soul] || soul)}'s proposal</span><div class="text">${prose(file(`proposals/${p}`) || '')}</div></article>`;
+    }).join('');
+    const turns = cn.turns.map((t) => `<div class="stack" style="gap:6px">${say(t.soul, t.output, ` ${tag(t.phase)}`)}${stepsOf(t.trace)}</div>`).join('');
+    return `<p>${cn.stands ? tag(`choice stands: signed by ${cn.signed.map((k) => NAME[k] || k).join(' and ')}`, 'good') : tag(`no choice yet${cn.signed.length ? `: signed by ${cn.signed.map((k) => NAME[k] || k).join(', ')}` : ''}`, 'bad')}</p>` +
+      (cn.choice ? `<div class="board"><div class="text">${prose(cn.choice)}</div></div>` : '') +
+      `<h3 style="margin:16px 0 6px;font-size:16px">Proposals</h3><div class="two">${props}</div>` +
+      (file('COUNCIL.md') ? `<details><summary>COUNCIL.md, the argument</summary><div class="board"><div class="text">${prose(file('COUNCIL.md'))}</div></div></details>` : '') +
+      `<details><summary>every turn</summary><div class="thread">${turns}</div></details>`;
+  })() : '<p class="muted">No council in this run: it meets once both tools pass.</p>';
 
   // The sweep
   const sw = by('sweep')[0];

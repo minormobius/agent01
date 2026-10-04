@@ -411,6 +411,18 @@ await t('anyone who removes from the board is archived in their own name; adding
   assert.equal(r.scorecard.commons.ledger.refused.length, 0, 'the lab record must not break anyone\'s ledger writes');
 });
 
+await t('the council: three proposals, two rounds, and a choice that stands at two of three signatures', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const r = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['project', 'council'], seed: 1, work, custodian: mozzie,
+    commons: { 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv' } });
+  const c = r.records.find((x) => x.kind === 'council');
+  assert.deepEqual(c.proposals.filter((x) => !x.includes('-requirements')).sort(), ['modulo.md', 'morphyx.md', 'mozzie.md']);
+  assert.equal(c.turns.length, 9);
+  assert.deepEqual(c.signed.sort(), ['modulo', 'morphyx']);
+  assert.ok(c.stands && /tide gauge/.test(r.commons['council/CHOICE.md']));
+  assert.ok(c.turns[0].trace.some((x) => /tools\/des/.test(x.input)), 'the tools were mounted');
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';
