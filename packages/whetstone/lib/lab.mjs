@@ -3,7 +3,7 @@
 // backends, so the selftest runs this exact code with a fake.
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, symlinkSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import * as P from './prompts.mjs';
 import { pool, WORK_TOOLS } from './model.mjs';
@@ -372,6 +372,10 @@ export async function runLab({
     const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/')),
       ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
     const dirs = prep({ id: 'evening' }, { extra: files });
+    // The engines too: a project's own scripts find them at <project>/engines/, as they do by day
+    // (fifteenth light: the enclosure checks failed in the evening for want of this, not of node).
+    if (Object.keys(engineDirs).length) for (const id of new Set(Object.keys(projectTools).map((k) => k.split('/')[1])))
+      for (const d of [dirs.seed, dirs.work]) if (existsSync(join(d, 'projects', id)) && !existsSync(join(d, 'projects', id, 'engines'))) symlinkSync(join('..', '..', 'engines'), join(d, 'projects', id, 'engines'));
     const s = await session(soul, P.evening(soul.name, custodian ? others(soul) : otherOf(soul), soul.key, { ledger: ledgerOn ? others(soul) : null }), { kind: 'evening', trial: 'evening' }, dirs);
     const changed = changedFiles(dirs).filter((f) => !/^(ledger|archive|projects|refs|engines)\//.test(f));
     const boardWas = C['BOARD.md'], shelfWas = shelfOf(C);
