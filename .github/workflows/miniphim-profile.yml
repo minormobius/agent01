@@ -1,0 +1,37 @@
+name: miniphim profile (writes miniphim.delve.town's profile)
+
+# The only workflow that writes to miniphim.delve.town, and it writes one record: the profile.
+# A push that changes packages/miniphim-account/profile.json on the owning branch writes it.
+# account.mjs refuses any other write before the network is touched; the selftest proves it.
+on:
+  push:
+    branches: ['claude/agent-social-media-drlzxn']
+    paths:
+      - 'packages/miniphim-account/profile.json'
+  workflow_dispatch:
+
+concurrency: { group: miniphim-account, cancel-in-progress: false }
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/miniphim-account
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: The door refuses everything but the profile
+        run: node account.selftest.mjs
+      - name: The disclosure the profile links to is live
+        run: |
+          url=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("profile.json","utf8")).website)')
+          curl -fsS "$url" | grep -q 'Miniphim Disclosure' || { echo "::error::$url does not serve the disclosure"; exit 1; }
+      - name: Write the profile, then read it back unauthenticated
+        run: node account.mjs --apply
+        env:
+          MINIPHIM_APP_PASSWORD: ${{ secrets.MINIPHIM_APP_PASSWORD }}
