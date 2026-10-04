@@ -238,7 +238,10 @@ export async function runLab({
     const pdir = `projects/${task.id}/`;
     const carried = project ? Object.fromEntries(Object.entries(C).filter(([k]) => k.startsWith(pdir)).map(([k, v]) => [k.slice(pdir.length), v])) : {};
     const fresh = project && !Object.keys(carried).length;
-    const dirs = prepare(project && !fresh ? { id: task.id, mode: 'pair' } : task, { board: before, extra: { ...carried, ...shelfOf(C), ...ledgerMount(a) } });
+    // A project built WITH the tools gets them read-only each day (tools/des, tools/vv, from the
+    // commons), and the council's papers (council/); neither is kept back into the project.
+    const lent = task.tools ? toolsAndCouncil() : {};
+    const dirs = prepare(project && !fresh ? { id: task.id, mode: 'pair' } : task, { board: before, extra: { ...carried, ...lent, ...shelfOf(C), ...ledgerMount(a) } });
     const progressBefore = project && !fresh ? (await runCheck(task, dirs.seed))?.progress ?? 0 : 0;
     if (project && progressBefore >= 1) {
       // Finished on an earlier day: no turns spent on it. (Larkfield finished on its first day.)
@@ -275,10 +278,20 @@ export async function runLab({
       // Keep the project folder, minus what the commons holds elsewhere.
       for (const k of Object.keys(C)) if (k.startsWith(pdir)) delete C[k];
       for (const [k, v] of Object.entries(readTree(dirs.work))) {
-        if (k === 'BOARD.md' || k.startsWith('shelf/') || k.startsWith('ledger/')) continue;
+        if (k === 'BOARD.md' || k === 'NOTICE.md' || /^(shelf|ledger|tools|council)\//.test(k)) continue;
         C[pdir + k] = v;
       }
     }
+  }
+
+  // The finished tools and the council's papers, as a folder sees them: tools/des, tools/vv, council/.
+  function toolsAndCouncil() {
+    return Object.fromEntries(Object.entries(C).flatMap(([k, v]) => {
+      if (k.startsWith('projects/p-des/')) return [[k.replace('projects/p-des/', 'tools/des/'), v]];
+      if (k.startsWith('projects/p-vv/')) return [[k.replace('projects/p-vv/', 'tools/vv/'), v]];
+      if (k.startsWith('council/')) return [[k, v]];
+      return [];
+    }));
   }
 
   // The council: once the tools pass, the three choose what to build with them. Proposals first,
