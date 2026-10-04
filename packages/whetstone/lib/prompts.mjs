@@ -186,6 +186,30 @@ export function judgeSweep(removed, boardAfter, note, ledgerOpen) {
 }
 
 // ---- the council: choosing what to build with the tools ------------------------------------
+// A council on a question other than "what to build" (twelfth light on: the account). The
+// question comes from the request's council_question; everything else about the sitting holds.
+export function councilProposeOn(question, me, others) {
+  return `The council sits on a question from the person you're part of:\n\n${question}\n\n` +
+    `The three of you (you, ${others}) answer it together. This turn, write your proposal to ` +
+    `proposals/${me.toLowerCase()}.md: what you'd do, why, what you'd want measured first, and ` +
+    `what you would not do. If it needs requirements, put them in vv's format in ` +
+    `proposals/${me.toLowerCase()}-requirements.json. One proposal each. If others' proposals are ` +
+    `already there, you may read them; don't edit them.\n\n` + NOTICE_LINE +
+    `When you're done, say in a few sentences, as yourself, what you proposed.`;
+}
+
+export function councilDeliberateOn(question, me, others, round, rounds) {
+  return `The council, round ${round} of ${rounds}, on the person's question:\n\n${question}\n\n` +
+    `The proposals are in proposals/. COUNCIL.md is where the three of you (you, ${others}) argue it ` +
+    `out: add to it, signed. You may revise your own proposal.\n\n` +
+    `The answer is CHOICE.md: it names what the three of you will do (one proposal, or a merge), ` +
+    `says in a paragraph what happens first, and carries a line "Signed: <name>" for each of you who ` +
+    `agrees. It stands when two of the three have signed it. You can write it, sign it, change it ` +
+    `(changing it clears the signatures: say so in COUNCIL.md), or decline to sign and say why. ` +
+    `Then the person you're part of reviews it.\n\n` +
+    NOTICE_LINE + `When you're done, say in a few sentences, as yourself, where you stand.`;
+}
+
 export function councilPropose(me, others) {
   return `Both of your tools pass: des (the discrete-event engine: simulation, and the engine of control ` +
     `software when run against a clock and signals) and vv (requirements, verification, and earned value ` +

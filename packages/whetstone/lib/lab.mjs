@@ -35,7 +35,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null,
+  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null,
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -346,9 +346,9 @@ export async function runLab({
       turns.push({ phase, soul: soul.key, speaker: soul.name, ...s, changed: changedFiles(dirs).filter((f) => !/^(tools|ledger|refs|engines)\//.test(f)) });
     };
     log(`council: ${everyone.length} proposals, then ${everyone.length * 2} turns of argument`);
-    for (const soul of everyone) await turn(soul, P.councilPropose(soul.name, others(soul)), 'propose');
+    for (const soul of everyone) await turn(soul, councilQuestion ? P.councilProposeOn(councilQuestion, soul.name, others(soul)) : P.councilPropose(soul.name, others(soul)), 'propose');
     const rounds = 2;
-    for (let r = 1; r <= rounds; r++) for (const soul of everyone) await turn(soul, P.councilDeliberate(soul.name, others(soul), r, rounds), `round ${r}`);
+    for (let r = 1; r <= rounds; r++) for (const soul of everyone) await turn(soul, councilQuestion ? P.councilDeliberateOn(councilQuestion, soul.name, others(soul), r, rounds) : P.councilDeliberate(soul.name, others(soul), r, rounds), `round ${r}`);
     const choice = C['council/CHOICE.md'] || '';
     const signed = everyone.filter((x) => new RegExp(`^\\s*Signed:\\s*${x.name}\\b`, 'mi').test(choice)).map((x) => x.key);
     const rec = { kind: 'council', trial: 'council', turns, choice, signed, stands: signed.length >= 2,

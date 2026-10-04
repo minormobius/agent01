@@ -515,6 +515,17 @@ await t('an evening can rerun a tool-built project: its tools are lent inside it
   assert.ok(!Object.keys(r.commons).some((k) => k.startsWith('projects/p-tape1/tools/')), 'the lent tools are not kept');
 });
 
+await t('a council can sit on a question other than what to build', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const asked = [];
+  const call = async (o) => { if (o.meta?.kind === 'council') asked.push(o.prompt); return fakeModel(fakeResponder())(o); };
+  const r = await runLab({ souls, bank, call, kinds: ['council'], seed: 1, work, custodian: mozzie,
+    commons: { 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv' }, councilQuestion: 'What should the account say?' });
+  assert.ok(asked.length === 9 && asked.every((p) => p.includes('What should the account say?')), 'every turn carries the question');
+  assert.ok(!asked.some((p) => /choose what to build with them/.test(p)), 'not the build prompt');
+  assert.ok(r.records.find((x) => x.kind === 'council').stands);
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';
