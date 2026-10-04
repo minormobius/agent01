@@ -7475,6 +7475,16 @@
    "discovered": true
   },
   {
+   "id": "del/days",
+   "name": "days",
+   "url": "https://del.mino.mobi/days/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "del",
+   "discovered": true
+  },
+  {
    "id": "del/pitch",
    "name": "pitch",
    "url": "https://del.mino.mobi/pitch/",

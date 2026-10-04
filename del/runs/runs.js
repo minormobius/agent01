@@ -47,7 +47,12 @@ function say(soul, text, extra = '') {
 }
 
 // ---- pick a run -------------------------------------------------------------------------
-const list = await get(`${API}/contents/${RUNS}?ref=${encodeURIComponent(state.branch)}`).catch(() => []);
+// The chronicle names every run as a day (raw.githubusercontent.com: no rate limit). Only if it
+// can't be read does the picker fall back to listing the folder through the API.
+const chron = await get(`${RAW}packages/whetstone/chronicle.json`).catch(() => null);
+const dayOf = Object.fromEntries((chron?.days || []).map((d) => [d.dir, d]));
+const list = chron?.days?.length ? chron.days.map((d) => ({ type: 'dir', name: d.dir }))
+  : await get(`${API}/contents/${RUNS}?ref=${encodeURIComponent(state.branch)}`).catch(() => []);
 const runs = (Array.isArray(list) ? list : []).filter((x) => x.type === 'dir').map((x) => x.name).sort().reverse();
 const pick = $('runpick');
 // Section links scroll without touching the hash, which names the run.
@@ -58,7 +63,7 @@ if (!runs.length) {
   pick.innerHTML = '<option>No runs yet</option>';
   $('conv').innerHTML = '<p class="muted">No run has been committed yet.</p>';
 } else {
-  pick.innerHTML = runs.map((r) => `<option value="${esc(r)}">${esc(r.replace(/^(\d{4}-\d\d-\d\d)T(\d\d)-(\d\d)-\d\d-/, '$1 $2:$3 · '))}</option>`).join('');
+  pick.innerHTML = runs.map((r) => `<option value="${esc(r)}">${esc(dayOf[r] ? `Day ${dayOf[r].n} · ${dayOf[r].label} · ${r.slice(0, 10)}` : r.replace(/^(\d{4}-\d\d-\d\d)T(\d\d)-(\d\d)-\d\d-/, '$1 $2:$3 · '))}</option>`).join('');
   const want = decodeURIComponent(location.hash.slice(1));
   pick.value = runs.includes(want) ? want : runs[0];
   pick.addEventListener('change', () => { location.hash = pick.value; });

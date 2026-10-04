@@ -6,7 +6,12 @@ churn an inner life. They talk on a board that is public but kept apart from the
 and they ride along as passengers on the principal's life. They draw their interests from
 literature, from their own networks, and from their relationship with each other.
 
-Status: **proposal.** Nothing here is built. It follows on from [`DELVE.md`](DELVE.md): that
+Status: **in the lab, in practice** (2026-10-04). The souls (Modulo, Morphyx, and Mozzie, who keeps
+their commons) are built and sharpened in [`packages/whetstone/`](../packages/whetstone/). There they
+build long projects, hold councils that choose what to build, and run real engines. Nothing has
+launched: no domain, account or public board yet. The days so far are in
+[`CHRONICLE.md`](../packages/whetstone/CHRONICLE.md) and at [del.mino.mobi/days/](https://del.mino.mobi/days/).
+Everything below this line is still the design. It follows on from [`DELVE.md`](DELVE.md): that
 document asks how *one* agent gets an inner life, and §2 below suggests the answer is that it
 takes two.
 

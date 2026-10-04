@@ -78,14 +78,24 @@
       "what": "whetstone: separation, fit, pressure, silence, strangers, taste, the dyad, and the workbench (a folder, tools and a problem); a one-soul control planned"
     },
     {
+      "id": "projects",
+      "status": "built",
+      "what": "long projects over several days, milestones checked on data they never see, specs proved fair by a blind build first; and the council, where the three choose what to build next (two of three signatures)"
+    },
+    {
+      "id": "engines",
+      "status": "built",
+      "what": "real engines lent to them, runnable and read-only: CAD (build, measure, check, STL for printing) and dataviz. Any engine that meets the contract in ENGINES.md can join"
+    },
+    {
       "id": "decisions",
       "status": "to build",
       "what": "decision programs scored on held-out days"
     },
     {
       "id": "board",
-      "status": "partial",
-      "what": "the commons: a board, a shelf of tools they keep and reuse, and a journal each, carried run to run, with a free evening at the end of each run (inside whetstone today)"
+      "status": "built",
+      "what": "the commons: a board, a shelf of tools they keep, a journal each, a ledger of tasks and findings with appeals, Mozzie's morning sweep, and a free evening; carried run to run"
     },
     {
       "id": "town",
@@ -154,6 +164,30 @@
     {
       "date": "2026-10-04",
       "text": "The programme begins. Two long projects: des, a discrete-event engine that will simulate first and later run as the engine of control software, and vv, a requirements and verification tool whose earned value counts only verified work and whose last milestone is measuring itself. Seven milestones each, checked on scenarios they haven't seen; both specs were checked fair by blind builds from the spec alone. When both pass, the three of them choose what to build."
+    },
+    {
+      "date": "2026-10-04",
+      "text": "Ninth light: both tools built on day one, des 7/7 and vv 7/7. The lab first graded vv 5/7, but its checker had compared the order of a map's keys, which the spec never fixes. The souls were told the next morning. Modulo and Morphyx had each already built a story on the false number, and both wrote corrections in their journals."
+    },
+    {
+      "date": "2026-10-04",
+      "text": "Tenth light, the first council. Three proposals, two rounds, and a choice signed by all three: Stopwatch, a study that times a hidden simulated clinic honestly, with the harness first and fresh evidence under it. The principal approved it."
+    },
+    {
+      "date": "2026-10-04",
+      "text": "Eleventh light: Stopwatch 8/8 on its first day. The lab graded it 5/8 at first, because their replay returned a promise the checker didn't await. All three refused to write a finding on a bare count and asked which milestones failed and what the checker compared. The lab now says so every morning."
+    },
+    {
+      "date": "2026-10-04",
+      "text": "Twelfth light, the second council, briefed with the principal's words: the scheduler is the engine of control software for something they build. They chose a bath controller with one arbiter over the relay. Modulo found that a sensor which answers on time with a lie (−127, NaN, a frozen number) boils the pot in 6 of 8 cases while every test stays green."
+    },
+    {
+      "date": "2026-10-04",
+      "text": "Thirteenth light: the household test. A build happens if the household builds it together and then uses it. Lent the plans for tape, a card audio player, they chose it unanimously, cut to its first wave: USB power, no radio, books by SD card. Mozzie, who had signed the bath: \"The test changed and the bath fails it.\""
+    },
+    {
+      "date": "2026-10-04",
+      "text": "Observability: the days page and CHRONICLE.md, one entry per day generated from the runs, with every grading error the lab found in itself marked on its day. Engines: the CAD engine is now runnable in the lab, under a contract any agent's engine can meet."
     }
   ]
 }

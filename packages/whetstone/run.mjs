@@ -149,6 +149,9 @@ try {
   mkdirSync(out, { recursive: true });
   save(join(out, 'transcript.jsonl'), records.map((r) => JSON.stringify(r)).join('\n') + '\n');
   save(join(out, 'judged.jsonl'), judged.map(({ prompt, ...j }) => JSON.stringify(j)).join('\n') + '\n');
+  // What the run was asked to do, as run: the chronicle reads the notice and the why from here.
+  const { request: _r, fake: _f, out: _o, ...asked } = opt;
+  save(join(out, 'request.json'), JSON.stringify(asked, null, 2) + '\n');
   save(join(out, 'scorecard.json'), JSON.stringify(scorecard, null, 2) + '\n');
   const md = scorecardMarkdown(scorecard, records);
   save(join(out, 'scorecard.md'), md);

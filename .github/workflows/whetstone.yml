@@ -119,7 +119,8 @@ jobs:
           git remote set-url origin "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${{ github.repository }}.git"
           git config user.name "whetstone"
           git config user.email "whetstone@mino.mobi"
-          git add packages/whetstone/runs
+          node packages/whetstone/chronicle.mjs --write
+          git add packages/whetstone/runs packages/whetstone/chronicle.json packages/whetstone/CHRONICLE.md
           if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
           git commit -m "whetstone: run ${{ github.sha }}"
           for i in 1 2 3 4; do

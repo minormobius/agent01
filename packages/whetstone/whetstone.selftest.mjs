@@ -469,6 +469,34 @@ await t('engines are lent runnable and read-only: never a change, never harveste
   assert.ok(r.records.filter((x) => x.kind === 'evening').every((x) => !x.changed.some((f) => f.startsWith('engines/'))));
 });
 
+await t('the chronicle joins runs, requests and regrades, and the committed one is current', async () => {
+  const { build, markdown } = await import('./chronicle.mjs');
+  const root = mkdtempSync(join(tmpdir(), 'ws-chron-'));
+  const day = (dir, sc, tr = []) => { mkdirSync(join(root, 'runs', dir), { recursive: true });
+    writeFileSync(join(root, 'runs', dir, 'scorecard.json'), JSON.stringify(sc));
+    writeFileSync(join(root, 'runs', dir, 'transcript.jsonl'), tr.map((x) => JSON.stringify(x)).join('\n')); };
+  day('2026-01-01T00-00-00-one', { run: { label: 'one', kinds: ['project', 'evening'], cost_usd: 2, calls: 5, at: '2026-01-01T01:00:00Z' },
+    commons: { projects: [{ id: 'p-x', before: 0, after: 0.5, milestones: '2/4' }] } },
+    [{ kind: 'evening', soul: 'modulo', output: 'I checked it twice. Then I slept.' }]);
+  day('2026-01-02T00-00-00-two', { run: { label: 'two', kinds: ['council'], cost_usd: 3, calls: 9 } },
+    [{ kind: 'council', choice: '**Proposal: A tide gauge** (proposals/modulo.md)\n\nSigned: Modulo', signed: ['modulo', 'morphyx'], stands: true, proposals: ['modulo.md', 'modulo-requirements.json'] }]);
+  mkdirSync(join(root, 'requests'));
+  writeFileSync(join(root, 'requests', 'a.json'), JSON.stringify({ label: 'one', notice: 'Build p-x.', note: 'Because.' }));
+  writeFileSync(join(root, 'regrades.json'), JSON.stringify({ regrades: [{ run: '2026-01-01T00-00-00-one', project: 'p-x', what: 'M3', from: '2/4', to: '4/4', why: 'checker bug' }] }));
+  const ch = build(root);
+  assert.equal(ch.days.length, 2);
+  assert.equal(ch.days[0].told, 'Build p-x.');
+  assert.equal(ch.days[0].projects[0].regraded.milestones, '4/4');
+  assert.deepEqual(ch.now.projects.map((p) => [p.id, p.milestones, p.complete]), [['p-x', '4/4', true]]);
+  assert.equal(ch.now.choice.choice, 'A tide gauge');
+  assert.deepEqual(ch.days[1].council.proposals, ['modulo.md']);
+  assert.equal(ch.now.cost_usd, 5);
+  const md = markdown(ch);
+  assert.match(md, /Lab correction:\*\* M3: 2\/4 → 4\/4/);
+  assert.ok(md.indexOf('Day 2') < md.indexOf('Day 1'), 'newest first');
+  execFileSync('node', [join(HERE, 'chronicle.mjs'), '--check'], { stdio: 'pipe' });
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';

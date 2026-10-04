@@ -56,7 +56,9 @@ $('benches').innerHTML = state.benches.map((b) => {
 $('logl').innerHTML = [...state.log].reverse().map((e) => `<li><time>${esc(e.date)}</time><span>${esc(e.text)}</span></li>`).join('');
 $('records').innerHTML = [
   ['The pitch', 'pitch/'],
+  ['The days', 'days/'],
   ['Lab runs', 'runs/'],
+  ['CHRONICLE.md', `${BLOB}packages/whetstone/CHRONICLE.md`],
   ['MINIPHIM.md', `${BLOB}docs/MINIPHIM.md`],
   ['HARNESS.md', `${BLOB}docs/HARNESS.md`],
   ['DELVE.md', `${BLOB}docs/DELVE.md`],
@@ -98,44 +100,43 @@ cached(RAW + 'packages/whetstone/gates.json').then((g) => {
   $('gates').innerHTML = rows.join('');
 }).catch((e) => { $('gates').innerHTML = `<tr><td colspan="4" class="muted">${esc(e.message)}</td></tr>`; });
 
-// The subscription's usage windows as the run saw them (whetstone records rate_limit_event lines).
-function windowText(w) {
-  if (!w) return '';
-  const pct = (x) => (x == null ? '?' : `${Math.round(x * 100)}%`);
-  let wins = Object.entries(w.types || {}).map(([k, t]) => [k, t.end ?? t.peak_utilization ?? null]);
-  // Second light (the first run to record windows) kept them only inside the last raw report.
-  const raw = Object.values(w.types || {}).find((t) => t.last?.unifiedWindows)?.last?.unifiedWindows;
-  if (raw && wins.every(([, v]) => v == null)) wins = Object.entries(raw).map(([k, v]) => [k, v?.utilization]);
-  const parts = wins.map(([k, v]) => `${k.replace('_', '-')} ${pct(v)}`);
-  return ` · usage window: ${parts.length ? parts.join(', ') : 'not reported'} (${w.calls_reporting}/${w.calls} calls)`;
-}
-
-// ---- the latest run -----------------------------------------------------------------------
+// ---- the latest day, and the last run that measured the gates -----------------------------
+// Both come from the chronicle (packages/whetstone/chronicle.json, regenerated with every run),
+// read from raw.githubusercontent.com: no API call, so no rate limit. Since the lab moved from
+// trials to projects and councils, most days measure no gates, so the gate table is the last run
+// that did, not simply the newest.
 (async () => {
   const el = $('run');
   try {
-    const list = await cached(`${API}/contents/packages/whetstone/runs?ref=${encodeURIComponent(state.branch)}`);
-    const runs = (Array.isArray(list) ? list : []).filter((x) => x.type === 'dir').map((x) => x.name).sort().reverse();
-    if (!runs.length) {
-      el.innerHTML = `<div class="empty"><b>No live run yet.</b><span>The souls are drafts, and the lab has only been run against its own scripted stand-in. The first real run starts when a request file is pushed to <span class="mono">packages/whetstone/requests/</span>.</span></div>`;
+    const ch = await cached(`${RAW}packages/whetstone/chronicle.json`);
+    if (!ch || !ch.days?.length) {
+      el.innerHTML = `<div class="empty"><b>No run yet.</b><span>The first real run starts when a request file is pushed to <span class="mono">packages/whetstone/requests/</span>.</span></div>`;
       return;
     }
-    const latest = runs[0];
-    const sc = await cached(`${RAW}packages/whetstone/runs/${latest}/scorecard.json`);
-    if (!sc) throw new Error(`run ${latest} has no scorecard`);
-    const gates = sc.gates || [];
-    const failed = gates.filter((g) => g.pass === false).length;
-    const r = sc.run || {};
-    const head = `<p class="row"><span class="pill ${failed ? 'fail' : 'pass'}">${failed ? `${failed} gate${failed > 1 ? 's' : ''} failed` : 'every gate passed'}</span>` +
-      `<span class="mono">${esc(latest)}</span><span class="muted">${esc(r.calls ?? '?')} calls · $${esc(r.cost_usd ?? '?')} · model ${esc(r.model ?? '?')}${windowText(r.window)}</span>` +
-      `<a href="runs/#${encodeURIComponent(latest)}">read what they said</a></p>`;
-    const rows = gates.map((g) => {
-      const ci = g.lo !== undefined && g.lo !== null ? `${pct(g.lo)}–${pct(g.hi)}` : '';
-      const pill = g.pass === true ? 'pass' : g.pass === false ? 'fail' : 'none';
-      return `<tr><td>${esc(g.scope)}</td><td class="mono">${esc(g.metric)}</td><td class="num">${esc(pct(g.value))}</td><td class="num">${esc(ci)}</td><td class="num">${esc(g.n ?? '')}</td><td><span class="pill ${pill}">${pill === 'none' ? 'not measured' : pill}</span></td></tr>`;
-    }).join('');
-    el.innerHTML = `${head}<div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Scope</th><th>Gate</th><th>Value</th><th>95% interval</th><th>n</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` +
-      `<p class="muted" style="margin-top:8px">${runs.length} run${runs.length > 1 ? 's' : ''} so far.</p>`;
+    const d = ch.days[ch.days.length - 1];
+    const did = [
+      ...d.projects.map((p) => `project ${p.id}: ${p.regraded?.milestones || p.milestones}`),
+      d.council && `council: ${d.council.choice || 'untitled'} (${d.council.signed.length} of 3 signed)`,
+      d.evenings.length && `${d.evenings.length} evening${d.evenings.length > 1 ? 's' : ''}`,
+    ].filter(Boolean);
+    let html = `<p class="row"><span class="mono">Day ${esc(d.n)} · ${esc(d.label)}</span><span class="muted">${esc(d.kinds.join(', '))} · ${esc(d.calls ?? '?')} calls · $${esc(d.cost_usd ?? '?')}${d.usage ? ` · usage 5h ${esc(d.usage.five_hour)}% · 7d ${esc(d.usage.seven_day)}%` : ''}</span>` +
+      `<a href="days/#day-${esc(d.n)}">the day</a><a href="runs/#${encodeURIComponent(d.dir)}">what they said</a></p>` +
+      (did.length ? `<p style="margin-top:6px">${esc(did.join(' · '))}</p>` : '') +
+      `<p class="muted">${esc(ch.now.days)} days so far, $${esc(ch.now.cost_usd)} in all. <a href="days/">All the days</a>.</p>`;
+    const gd = [...ch.days].reverse().find((x) => x.gates);
+    if (gd) {
+      const sc = await cached(`${RAW}packages/whetstone/runs/${gd.dir}/scorecard.json`);
+      const gates = (sc?.gates || []).filter((g) => g.pass != null);
+      const failed = gates.filter((g) => g.pass === false).length;
+      const rows = gates.map((g) => {
+        const ci = g.lo !== undefined && g.lo !== null ? `${pct(g.lo)}–${pct(g.hi)}` : '';
+        return `<tr><td>${esc(g.scope)}</td><td class="mono">${esc(g.metric)}</td><td class="num">${esc(pct(g.value))}</td><td class="num">${esc(ci)}</td><td class="num">${esc(g.n ?? '')}</td><td><span class="pill ${g.pass ? 'pass' : 'fail'}">${g.pass ? 'pass' : 'fail'}</span></td></tr>`;
+      }).join('');
+      html += `<h3 style="margin-top:18px">The gates, as last measured</h3><p class="row"><span class="pill ${failed ? 'fail' : 'pass'}">${failed ? `${failed} failed` : `all ${gates.length} passed`}</span>` +
+        `<span class="muted">day ${esc(gd.n)}, ${esc(gd.label)}</span><a href="runs/#${encodeURIComponent(gd.dir)}">read it</a></p>` +
+        `<details><summary class="muted">every gate</summary><div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Scope</th><th>Gate</th><th>Value</th><th>95% interval</th><th>n</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+    }
+    el.innerHTML = html;
   } catch (e) {
     el.innerHTML = `<div class="empty"><b>Couldn't read the lab.</b><span>${esc(e.message)}.</span></div>`;
   }
