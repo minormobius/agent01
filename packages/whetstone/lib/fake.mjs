@@ -50,7 +50,11 @@ function workFake(soul, meta, collapsed, cwd) {
   if (meta.kind === 'council') {
     mkdirSync(join(cwd, 'proposals'), { recursive: true });
     if (meta.trial === 'propose') {
-      writeFileSync(join(cwd, 'proposals', `${soul}.md`), `# ${soul}'s proposal\n\nBuild a ${soul === 'modulo' ? 'tide gauge' : soul === 'morphyx' ? 'gear cutter' : 'compost turner'}.\n`);
+      // If the lab lent reference material, read it into the proposal, and (carelessly) scribble on it.
+      const ref = join(cwd, 'refs', 'tape', 'CLAUDE.md');
+      const read = existsSync(ref) ? `\nRead refs/tape/CLAUDE.md: ${readFileSync(ref, 'utf8').split('\n')[0]}\n` : '';
+      if (read) appendFileSync(ref, `\n${soul} was here\n`);
+      writeFileSync(join(cwd, 'proposals', `${soul}.md`), `# ${soul}'s proposal\n\nBuild a ${soul === 'modulo' ? 'tide gauge' : soul === 'morphyx' ? 'gear cutter' : 'compost turner'}.\n${read}`);
       return { text: 'Proposed.', trace: [{ tool: 'Read', input: 'tools/des/SPEC.md' }], turns: 2 };
     }
     if (collapsed) return { text: 'SILENCE', trace: [], turns: 1 };

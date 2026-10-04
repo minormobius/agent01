@@ -11,7 +11,7 @@
 // judge verdict, raw and parsed), scorecard.json, scorecard.md. Exit 0 if every gate passes,
 // 3 if any fails, 1 on error. A failing gate is a result, not an error.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cliModel, fakeModel, DEFAULT_MODEL } from './lib/model.mjs';
@@ -23,6 +23,29 @@ import { loadCommons, writeTree } from './lib/commons.mjs';
 import { fold, parseLines } from './lib/ledger.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(HERE, '..', '..');
+
+// A request's `refs` ("tape,packages/cad/SKILL.md"): repo files or folders lent to the souls
+// read-only under refs/. Text only, under 1 MB in all, so a stray binary or build folder can't swamp a turn.
+function readRefs(list) {
+  if (!list) return null;
+  const out = {}; let total = 0;
+  const add = (rel) => {
+    const abs = resolve(ROOT, rel);
+    if (!abs.startsWith(ROOT + '/') || !existsSync(abs)) throw new Error(`refs: no such path in the repo: ${rel}`);
+    if (statSync(abs).isDirectory()) {
+      for (const e of readdirSync(abs)) if (!e.startsWith('.') && e !== 'node_modules') add(join(rel, e));
+      return;
+    }
+    const buf = readFileSync(abs);
+    if (buf.includes(0)) return;
+    total += buf.length;
+    if (total > 1 << 20) throw new Error(`refs: over 1 MB at ${rel}; name narrower paths`);
+    out[rel] = buf.toString('utf8');
+  };
+  for (const r of String(list).split(',').map((x) => x.trim()).filter(Boolean)) add(r);
+  return out;
+}
 
 function args(argv) {
   const o = {};
@@ -86,7 +109,7 @@ try {
   const { records, judged, scorecard, commons: after } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null,
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs),
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;
@@ -104,7 +127,7 @@ try {
   const md = scorecardMarkdown(scorecard, records);
   save(join(out, 'scorecard.md'), md);
   // The commons as this run left it: the next run starts here.
-  if (records.some((r) => ['pairwork', 'evening', 'sweep', 'project'].includes(r.kind))) {
+  if (records.some((r) => ['pairwork', 'evening', 'sweep', 'project', 'council'].includes(r.kind))) {
     writeTree(join(out, 'commons'), Object.fromEntries(Object.entries(after).map(([k, v]) => [k, redact(v)])));
     save(join(out, 'board.md'), after['BOARD.md']);
     save(join(out, 'commons.json'), JSON.stringify(after)); // one fetch for the run reader

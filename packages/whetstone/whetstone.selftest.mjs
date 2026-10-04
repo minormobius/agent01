@@ -436,6 +436,18 @@ await t('a second council files the first one away, and its old signatures do no
   assert.deepEqual(c.signed.sort(), ['modulo', 'morphyx']);
 });
 
+await t('refs are lent read-only: mounted for the council, never harvested into the commons', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const r = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['council', 'evening'], seed: 1, work, custodian: mozzie,
+    commons: { 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv' }, notice: 'see refs/tape/',
+    refs: { 'tape/CLAUDE.md': '# tape: the card is a pointer' } });
+  const c = r.records.find((x) => x.kind === 'council');
+  assert.match(r.commons['council/proposals/modulo.md'], /Read refs\/tape\/CLAUDE\.md: # tape: the card is a pointer/, 'the council can read refs/');
+  assert.match(r.commons['council/proposals/mozzie.md'], /the card is a pointer\n$/, 'each turn gets a fresh copy: no one sees the last one\'s scribble');
+  assert.ok(!Object.keys(r.commons).some((k) => /(^|\/)refs\//.test(k)), 'refs never enter the commons');
+  assert.ok(r.records.filter((x) => x.kind === 'evening').every((x) => !x.changed.some((f) => f.startsWith('refs/'))));
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';

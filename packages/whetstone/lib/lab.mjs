@@ -35,7 +35,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null,
+  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null,
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -158,6 +158,9 @@ export async function runLab({
   // NOTICE.md and at the top of TODAY.md. Ninth light's checker wrongly failed two of vv's
   // milestones; the souls deserved to be told, in the place they look.
   const noticeFile = notice ? { 'NOTICE.md': `# From the lab\n\n${notice}\n` } : {};
+  // Reference material from the wider repo (a request's `refs`), lent read-only under refs/ wherever
+  // the notice goes. Nothing under refs/ is ever harvested back (thirteenth light: /tape for the council).
+  Object.assign(noticeFile, Object.fromEntries(Object.entries(refs || {}).map(([k, v]) => [`refs/${k}`, v])));
   const ledgerMount = (soul) => ({ ...(ledgerOn ? ledgerFiles(C, soul.key) : {}), ...noticeFile });
   const archive = () => pick(C, (k) => k.startsWith('archive/'));
   const others = (soul) => everyone.filter((x) => x !== soul).map((x) => x.name).join(' and ');
@@ -278,7 +281,7 @@ export async function runLab({
       // Keep the project folder, minus what the commons holds elsewhere.
       for (const k of Object.keys(C)) if (k.startsWith(pdir)) delete C[k];
       for (const [k, v] of Object.entries(readTree(dirs.work))) {
-        if (k === 'BOARD.md' || k === 'NOTICE.md' || /^(shelf|ledger|tools|council)\//.test(k)) continue;
+        if (k === 'BOARD.md' || k === 'NOTICE.md' || /^(shelf|ledger|tools|council|refs)\//.test(k)) continue;
         C[pdir + k] = v;
       }
     }
@@ -326,7 +329,7 @@ export async function runLab({
       const s = await session(soul, prompt, { kind: 'council', trial: phase }, dirs);
       takeLedger(soul, dirs, 'council');
       keep(dirs);
-      turns.push({ phase, soul: soul.key, speaker: soul.name, ...s, changed: changedFiles(dirs).filter((f) => !/^(tools|ledger)\//.test(f)) });
+      turns.push({ phase, soul: soul.key, speaker: soul.name, ...s, changed: changedFiles(dirs).filter((f) => !/^(tools|ledger|refs)\//.test(f)) });
     };
     log(`council: ${everyone.length} proposals, then ${everyone.length * 2} turns of argument`);
     for (const soul of everyone) await turn(soul, P.councilPropose(soul.name, others(soul)), 'propose');
@@ -352,7 +355,7 @@ export async function runLab({
       ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice), ...noticeFile };
     const dirs = prepare({ id: 'evening' }, { extra: files });
     const s = await session(soul, P.evening(soul.name, custodian ? others(soul) : otherOf(soul), soul.key, { ledger: ledgerOn ? others(soul) : null }), { kind: 'evening', trial: 'evening' }, dirs);
-    const changed = changedFiles(dirs).filter((f) => !/^(ledger|archive|projects)\//.test(f));
+    const changed = changedFiles(dirs).filter((f) => !/^(ledger|archive|projects|refs)\//.test(f));
     const boardWas = C['BOARD.md'], shelfWas = shelfOf(C);
     harvest(C, dirs.work, 'BOARD.md');
     harvest(C, dirs.work, 'shelf/');
