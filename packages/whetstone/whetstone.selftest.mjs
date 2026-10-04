@@ -505,6 +505,16 @@ await t('lend: a project gets another project\'s code read-only under from/, and
   assert.ok(!Object.keys(r.commons).some((k) => k.startsWith('projects/p-tape1/from/')), 'nothing under from/ is kept');
 });
 
+await t('an evening can rerun a tool-built project: its tools are lent inside its folder, and not kept', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  let saw = false;
+  const call = async (o) => { if (o.meta?.kind === 'evening' && existsSync(join(o.cwd, 'projects', 'p-tape1', 'tools', 'des', 'des.mjs'))) saw = true; return fakeModel(fakeResponder())(o); };
+  const r = await runLab({ souls, bank, call, kinds: ['evening'], seed: 1, work, custodian: mozzie,
+    commons: { 'projects/p-tape1/tape1.mjs': '// box', 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv' } });
+  assert.ok(saw, 'the evening saw projects/p-tape1/tools/des/des.mjs');
+  assert.ok(!Object.keys(r.commons).some((k) => k.startsWith('projects/p-tape1/tools/')), 'the lent tools are not kept');
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';
