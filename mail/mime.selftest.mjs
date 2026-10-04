@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // mime.selftest.mjs — known answers for mail/src/mime.mjs. node mail/mime.selftest.mjs
 import assert from 'node:assert/strict';
-import { textOf, codesOf, decodeWords, dmarcOf, addrOf, stripHtml } from './src/mime.mjs';
+import { textOf, codesOf, decodeWords, dmarcOf, addrOf, stripHtml, senderMatches, sealedSenders } from './src/mime.mjs';
 import { keyFor } from './client.mjs';
 
 let n = 0;
@@ -51,6 +51,19 @@ t('html only: tags out, link targets kept', () => {
 t('base64 body', () => {
   const raw = `Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${Buffer.from('code: 918273 ✓').toString('base64')}`;
   assert.equal(textOf(raw).text, 'code: 918273 ✓');
+});
+t('sender lists match domains, subdomains and exact addresses', () => {
+  assert.ok(senderMatches('@delve.town', 'noreply@delve.town'));
+  assert.ok(senderMatches('@delve.town', 'pm_bounces@pm-bounces.delve.town'));
+  assert.ok(!senderMatches('@delve.town', 'x@notdelve.town'));
+  assert.ok(!senderMatches('@delve.town', 'delve.town@evil.test'));
+  assert.ok(senderMatches('a@b.test, @c.test', 'A@B.test'));
+});
+t('sealed senders are per being', () => {
+  const spec = 'miniphim:@delve.town,@groveresearch.com;modulo:@x.test';
+  assert.equal(sealedSenders(spec, 'miniphim'), '@delve.town,@groveresearch.com');
+  assert.equal(sealedSenders(spec, 'morphyx'), '');
+  assert.ok(senderMatches(sealedSenders(spec, 'miniphim'), 'hi@groveresearch.com'));
 });
 t('no dmarc header reads as none', () => assert.equal(dmarcOf({}), 'none'));
 t('stripHtml entities', () => assert.equal(stripHtml('a &amp; b &lt;c&gt;'), 'a & b <c>'));

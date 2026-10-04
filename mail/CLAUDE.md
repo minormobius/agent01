@@ -32,6 +32,11 @@ old `modulo@`/`morphyx@minomobi.com` forwards are left as they are.
   codes and links: all a signup needs. The body only if the sender matches `ALLOW_SENDERS`
   (addresses or `@domains`, in `wrangler.jsonc`) or is the principal. Widening that is a commit,
   never an API call: mail is a stranger with no lab around it, and the town bench comes first.
+- **Sealed account mail.** `SEALED` (in `wrangler.jsonc`) names, per being, the senders of
+  mail about its own accounts: for `miniphim`, Delvetown and Grove (sent through Postmark). Such a
+  message is forwarded to the principal whole and stored as only "it came": no subject, body,
+  codes or links. A reset code a session could read would be a second key to the account (Mozzie,
+  day 15). `miniphim@` is also the account's public contact, and that mail is read as usual.
 - **Outbound, capped per being per day** (`NOTES_PER_DAY`, `SENDS_PER_DAY`):
   - `note`: to the principal. Free on every plan (a verified destination).
   - `send`: to anyone. Needs Cloudflare Email Sending (Workers Paid) **and** `OPEN_OUTBOUND = "true"`,

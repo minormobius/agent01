@@ -43,6 +43,7 @@ jobs:
             if curl -fsS https://del.mino.mobi/ | grep -q 'Miniphim Observatory' \
                && curl -fsS https://del.mino.mobi/pitch/ | grep -q 'speculative pitch' \
                && curl -fsS https://del.mino.mobi/days/ | grep -q 'The Days' \
+               && curl -fsS https://del.mino.mobi/disclosure/ | grep -q 'Miniphim Disclosure' \
                && curl -fsS https://del.mino.mobi/state.json | grep -q '"phase"'; then
               echo "✓ del.mino.mobi is live"; exit 0
             fi

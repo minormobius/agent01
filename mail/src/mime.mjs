@@ -91,3 +91,26 @@ export function dmarcOf(headers) {
 }
 
 export const addrOf = (h) => (String(h || '').match(/<([^>]+)>/) || [null, String(h || '').trim()])[1].toLowerCase();
+
+// Does an address match a sender list ("@domain" covers the domain and its subdomains, a bare
+// address matches exactly)? Used for ALLOW_SENDERS and for SEALED.
+export function senderMatches(list, addr) {
+  const a = String(addr || '').toLowerCase().trim();
+  const at = a.lastIndexOf('@');
+  const host = at >= 0 ? a.slice(at + 1) : '';
+  return String(list || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean).some((e) => {
+    if (!e.startsWith('@')) return a === e;
+    const d = e.slice(1);
+    return host === d || host.endsWith('.' + d);
+  });
+}
+
+// SEALED: "being:@sender,@sender;being2:..." — account-security mail for a being's own accounts
+// (resets, verification). Forwarded to the principal; stored with nothing a session could use.
+export function sealedSenders(spec, being) {
+  for (const part of String(spec || '').split(';')) {
+    const [who, list] = part.split(':');
+    if (who && who.trim().toLowerCase() === being) return list || '';
+  }
+  return '';
+}

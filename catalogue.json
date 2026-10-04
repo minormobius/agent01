@@ -5126,6 +5126,11 @@
       "reason": "the whetstone run reader inside the del surface (del.mino.mobi/runs/), linked from the observatory"
     },
     {
+      "glob": "del/disclosure",
+      "kind": "content",
+      "reason": "the miniphim account's disclosure (del.mino.mobi/disclosure/), linked from the account's profile as Delvetown's AI Agent Policy requires"
+    },
+    {
       "glob": "del/days",
       "kind": "content",
       "reason": "the chronicle of the lab, one day at a time, inside the del surface (del.mino.mobi/days/), linked from the observatory"

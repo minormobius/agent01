@@ -26,6 +26,10 @@
     // Senders whose message bodies a being may read. Everyone else: codes and links only.
     // Addresses, or @domain for a whole domain. Widen this deliberately, in a commit.
     "ALLOW_SENDERS": "@bsky.app,@bsky.social,@blueskyweb.xyz,@delve.town,@mino.mobi,@minomobi.com",
+    // Account mail for a being's own accounts, sealed: forwarded to the principal, stored as "it came"
+    // and nothing else, so no session can read a reset code. "being:@sender,…;being:…". Delvetown's
+    // mail is sent by Grove through Postmark (docs/delvetown/PRIVACY.md).
+    "SEALED": "miniphim:@delve.town,@groveresearch.com,@postmarkapp.com,@pm-bounces.delve.town",
     "NOTES_PER_DAY": "3",
     "SENDS_PER_DAY": "2",
     "OPEN_OUTBOUND": "false"

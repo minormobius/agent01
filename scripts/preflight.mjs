@@ -752,7 +752,9 @@ if (!quick) {
   // REAL BROWSER is legitimately slower, and capping it at the same number
   // turns a passing test red on a machine one second slower than the last one.
   // Give the browser tests room; leave the tight cap where it does its job.
-  const SLOW = [/browser\.selftest\.mjs$/];
+  // whetstone.selftest.mjs runs whole lab days against a fake model (41 tests, ~170 s alone on
+  // 2026-10-04): slow by design, not hung.
+  const SLOW = [/browser\.selftest\.mjs$/, /whetstone\.selftest\.mjs$/];
   const timeoutFor = (f) => (SLOW.some((re) => re.test(f)) ? 420000 : 120000);
   console.log(`\nselftests (${scope.length} of ${found.length} — ${scopeLabel}; --all-tests for every one)`);
   let pass = 0; const failed = [];

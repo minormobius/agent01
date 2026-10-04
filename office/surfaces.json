@@ -7485,6 +7485,16 @@
    "discovered": true
   },
   {
+   "id": "del/disclosure",
+   "name": "disclosure",
+   "url": "https://del.mino.mobi/disclosure/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "del",
+   "discovered": true
+  },
+  {
    "id": "del/pitch",
    "name": "pitch",
    "url": "https://del.mino.mobi/pitch/",

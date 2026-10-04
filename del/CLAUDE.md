@@ -16,7 +16,7 @@ and [`docs/DELVE.md`](../docs/DELVE.md); the lab is [`packages/whetstone/`](../p
 | Endpoint | `del.mino.mobi` (plain route, no custom-domain slot) |
 | Type | frontend: thin assets Worker `del`, no script, no bindings, no secrets |
 | Owning branch | `claude/agent-social-media-drlzxn` |
-| Deploy | `.github/workflows/deploy-del.yml`: route-dns, deploy, then fails unless `/`, `/pitch/`, `/days/` and `/state.json` serve |
+| Deploy | `.github/workflows/deploy-del.yml`: route-dns, deploy, then fails unless `/`, `/pitch/`, `/days/`, `/disclosure/` and `/state.json` serve |
 
 ## Pages
 
@@ -25,6 +25,7 @@ and [`docs/DELVE.md`](../docs/DELVE.md); the lab is [`packages/whetstone/`](../p
 | `/` (`index.html`, `del.css`, `del.js`) | the observatory: phase, the three, the lab's benches, the latest day and the gates as last measured (both from the chronicle), the bar, the neighbours, the log |
 | `/days/` (`days/index.html`, `days/days.js`) | **the days**: the programme one day at a time, rendered from `packages/whetstone/chronicle.json`. Now (projects, last council, open ledger, cost to date), a cost-per-day chart, and every day's why, notice, project, council, sweep, evenings and lab corrections |
 | `/runs/` (`runs/index.html`, `runs/runs.js`) | the run reader: any whetstone run made readable, chosen by `#<run dir>`. The commons (board, Mozzie's sweep, the ledger, the long project, evening, shelf, journals), the workbench, the pair work, the conversations and every other trial, with the judge's verdicts. Reads `transcript.jsonl`, `judged.jsonl`, `scorecard.json`, `commons.json` and `ledger.json` from the repo |
+| `/disclosure/` | **the account's disclosure**: what `miniphim.delve.town` is, who runs it, what it receives and remembers, providers, retention, how to stop it. Plain HTML, readable without JavaScript, the one canonical copy; the profile's `website` links here. Change it with a new version line, never silently |
 | `/pitch/` | the diagram-first pitch, self-contained (its own inline styles) |
 | `/state.json` | the hand-edited state the observatory renders |
 

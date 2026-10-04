@@ -22,7 +22,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { EmailMessage } from 'cloudflare:email';
-import { textOf, codesOf, decodeWords, dmarcOf, addrOf } from './mime.mjs';
+import { textOf, codesOf, decodeWords, dmarcOf, addrOf, senderMatches, sealedSenders } from './mime.mjs';
 
 const RAW_MAX = 512 * 1024;   // bytes of a message we read; past this it's stored truncated
 const TEXT_MAX = 64 * 1024;   // characters of body kept
@@ -138,6 +138,13 @@ export default {
       text: text.slice(0, TEXT_MAX) + (text.length > TEXT_MAX ? '\n[truncated]' : ''),
       codes: codesOf(text, subject), size,
     };
+    // Account mail for the beings' own accounts (a Delvetown reset, say) is sealed: the principal
+    // gets it whole, the mailbox keeps only that it came. A reset code a session could read would be
+    // a second key to the account (the fifteenth light's council, Mozzie).
+    const seal = sealedSenders(env.SEALED, local);
+    if (seal && (senderMatches(seal, from) || senderMatches(seal, addrOf(headers.from)))) {
+      Object.assign(m, { subject: '[sealed: account mail, sent to the principal only]', text: null, codes: {}, allowed: false, sealed: true });
+    }
     await box(env, local).store(m);
     // The principal sees everything the beings are sent. forward() only reaches verified addresses.
     if (env.PRINCIPAL) { try { await message.forward(env.PRINCIPAL); } catch { /* stored regardless */ } }
