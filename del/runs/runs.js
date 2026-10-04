@@ -182,7 +182,7 @@ function render(recs, judged, sc, bank, commons, ledger) {
   $('prj').innerHTML = pr.map((x) => {
     const turns = x.sessions.map((s) => `<div class="stack" style="gap:6px">${say(s.soul, s.output, s.board_changed ? tag('wrote on the board') : '')}${stepsOf(s.trace)}</div>`).join('');
     return `<div class="moment"><p class="stim"><b>The project</b>${esc(x.brief)}</p>` +
-      `<p class="mono" style="font-size:13px">${esc(x.check?.detail?.milestones ?? '?')} milestones on unseen data · was ${Math.round((x.progress_before || 0) * 6)}/6 this morning${x.check?.detail?.passed?.length ? ` · passing ${esc(x.check.detail.passed.join(' '))}` : ''}</p>` +
+      `<p class="mono" style="font-size:13px">${x.complete ? 'finished on an earlier day; no turns spent today · ' : ''}${esc(x.check?.detail?.milestones ?? '?')} milestones on unseen data · was ${Math.round((x.progress_before || 0) * 6)}/6 this morning${x.check?.detail?.passed?.length ? ` · passing ${esc(x.check.detail.passed.join(' '))}` : ''}</p>` +
       `<div class="meter"><span style="width:${Math.round((x.progress_after || 0) * 100)}%"></span></div>` +
       `<div class="thread">${turns}</div>${diffOf(x.diff)}</div>`;
   }).join('') || '<p class="muted">No long project in this run.</p>';

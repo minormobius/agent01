@@ -71,7 +71,9 @@ const redact = redactor(process.env);
 const save = (path, text) => writeFileSync(path, redact(text));
 
 const fake = opt.fake === true || opt.fake === 'true';
-const call = fake ? fakeModel(fakeResponder()) : cliModel({ model, effort: opt.effort });
+// A work session's time limit (minutes). Eighth light: two rota turns ran mutation suites past 15.
+const workTimeoutMs = Math.round(Number(opt.work_timeout_min || 20) * 60_000);
+const call = fake ? fakeModel(fakeResponder()) : cliModel({ model, effort: opt.effort, workTimeoutMs });
 const judge = fake ? call : cliModel({ model: judgeModel, effort: opt.effort });
 
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);

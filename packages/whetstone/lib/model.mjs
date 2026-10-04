@@ -30,7 +30,7 @@ import { join } from 'node:path';
 
 export const DEFAULT_MODEL = 'claude-opus-5-5';
 
-export function cliModel({ model = DEFAULT_MODEL, effort, bin = 'claude', timeoutMs = 300_000, workTimeoutMs = 900_000, workBudgetUsd = 3 } = {}) {
+export function cliModel({ model = DEFAULT_MODEL, effort, bin = 'claude', timeoutMs = 300_000, workTimeoutMs = 1_200_000, workBudgetUsd = 3 } = {}) {
   const empty = mkdtempSync(join(tmpdir(), 'whetstone-'));
   return async function call({ system, prompt, cwd, tools, env }) {
     const work = !!(cwd && tools?.length);

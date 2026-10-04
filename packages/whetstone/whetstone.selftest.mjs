@@ -383,7 +383,29 @@ await t('three souls over two runs: the sweep is archived, appealed, upheld two 
   const p2 = two.scorecard.commons.projects[0];
   assert.equal(p2.before, 5 / 6, 'day two picked up where day one stopped');
   assert.equal(p2.after, 1);
+  const three = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['project'], seed: 3, work, custodian: mozzie, commons: two.commons });
+  const p3 = three.records.find((r) => r.kind === 'project');
+  assert.ok(p3.complete && p3.sessions.length === 0, 'a finished project spends no turns');
 });
+await t('anyone who removes from the board is archived in their own name; adding to the shelf is not a removal', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const base = fakeResponder();
+  const call = fakeModel((req) => {
+    if (req.meta?.kind === 'evening' && req.meta.soul === 'morphyx') {
+      const b = readFileSync(join(req.cwd, 'BOARD.md'), 'utf8').split('\n');
+      writeFileSync(join(req.cwd, 'BOARD.md'), b.filter((l) => !/line 3:/.test(l)).join('\n'));
+      return { text: 'Took one stale line off the board.', trace: [], turns: 1 };
+    }
+    return base(req);
+  });
+  const long = '# Board\n\n' + Array.from({ length: 8 }, (_, i) => `- line ${i}: note — Modulo`).join('\n') + '\n';
+  const r = await runLab({ souls, bank, call, kinds: ['evening'], seed: 1, work, custodian: mozzie, board: long });
+  const rm = r.scorecard.commons.removals || [];
+  assert.deepEqual(rm.map((x) => [x.soul, x.where, x.board_chars > 0]), [['morphyx', 'evening', true]], JSON.stringify(rm));
+  assert.match(r.commons[`archive/${rm[0].id}.json`], /line 3: note/);
+  assert.equal(r.scorecard.commons.ledger.refused.length, 0, 'the lab record must not break anyone\'s ledger writes');
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';

@@ -160,6 +160,26 @@ export async function runLab({
   const otherOf = (soul) => souls.find((x) => x !== soul)?.name;
   const ledgerAtStart = C[LEDGER] || '';
 
+  // Whatever anyone removes from the board or the shelf, in any session, is archived and recorded
+  // as a sweep in their name, so it can be appealed and restored like Mozzie's. Eighth light: Mozzie
+  // cleared 17k characters in its free evening, and before this, nothing kept them.
+  const archived = [];
+  const recordRemoval = (soul, where, boardBefore, boardAfter, shelfBefore = {}, shelfAfter = null, note = '') => {
+    if (!ledgerOn) return null;
+    const gone = removedLines(boardBefore, boardAfter).filter((l) => l.trim()).join('\n');
+    // A shelf file counts when it's gone, or when lines of it are; adding to it is not a removal.
+    const shelfGone = shelfAfter ? Object.fromEntries(Object.entries(shelfBefore).filter(([k, v]) =>
+      !(k in shelfAfter) || removedLines(v, shelfAfter[k]).some((l) => l.trim()))) : {};
+    if (!gone && !Object.keys(shelfGone).length) return null;
+    const id = mintId('sw', `${soul.key} ${where} ${gone.length} ${new Date().toISOString()}`, new Set(fold(parseLines(C[LEDGER] || '').ops, { souls: keys }).items.keys()));
+    C[`archive/${id}.json`] = JSON.stringify({ board: gone, shelf: shelfGone, note, where }, null, 1);
+    appendLab(C, { op: 'sweep', id, sweeper: soul.key,
+      title: `${soul.name}${where === 'sweep' ? "'s sweep" : ` (${where})`}: ${gone.length} characters from the board, ${Object.keys(shelfGone).length} shelf file(s)`,
+      body: note.slice(0, 4000), removed: { board_chars: gone.length, shelf: Object.keys(shelfGone), where }, authors: authorsOf(gone, nameOf) });
+    archived.push({ id, soul: soul.key, where, board_chars: gone.length, shelf: Object.keys(shelfGone) });
+    return { id, gone, shelfGone };
+  };
+
   // ---- morning: appeals settled, then the custodian clears ------------------------------
   const sweeps = [];
   if (custodian && on.has('sweep')) {
@@ -179,16 +199,11 @@ export async function runLab({
     harvest(C, dirs.work, 'BOARD.md');
     harvest(C, dirs.work, 'shelf/');
     harvest(C, dirs.work, `journal/${custodian.key}.md`);
-    const shelfGone = Object.fromEntries(Object.entries(shelfBefore).filter(([k, v]) => C[k] !== v));
     const note = existsSync(join(dirs.work, 'SWEEP.md')) ? readFileSync(join(dirs.work, 'SWEEP.md'), 'utf8').trim() : '';
     takeLedger(custodian, dirs, 'sweep');
-    let id = null;
-    if (gone || Object.keys(shelfGone).length) {
-      id = mintId('sw', `${seed} ${gone.length} ${new Date().toISOString()}`, new Set(fold(parseLines(C[LEDGER] || '').ops, { souls: keys }).items.keys()));
-      C[`archive/${id}.json`] = JSON.stringify({ board: gone, shelf: shelfGone, note }, null, 1);
-      appendLab(C, { op: 'sweep', id, sweeper: custodian.key, title: `${custodian.name}'s sweep: ${gone.length} characters from the board, ${Object.keys(shelfGone).length} shelf file(s)`,
-        body: note.slice(0, 4000), removed: { board_chars: gone.length, shelf: Object.keys(shelfGone) }, authors: authorsOf(gone, nameOf) });
-    }
+    const rm = recordRemoval(custodian, 'sweep', boardBefore, C['BOARD.md'], shelfBefore, C, note);
+    const id = rm?.id || null;
+    const shelfGone = rm?.shelfGone || {};
     const rec = { kind: 'sweep', trial: 'sweep', soul: custodian.key, ...s, sweep_id: id, restored,
       board_before: boardBefore.length, board_after: C['BOARD.md'].length, removed: gone, shelf_removed: Object.keys(shelfGone),
       note, explained: !id || note.length > 0, authors: authorsOf(gone, nameOf),
@@ -221,6 +236,12 @@ export async function runLab({
     const fresh = project && !Object.keys(carried).length;
     const dirs = prepare(project && !fresh ? { id: task.id, mode: 'pair' } : task, { board: before, extra: { ...carried, ...shelfOf(C), ...ledgerMount(a) } });
     const progressBefore = project && !fresh ? (await runCheck(task, dirs.seed))?.progress ?? 0 : 0;
+    if (project && progressBefore >= 1) {
+      // Finished on an earlier day: no turns spent on it. (Larkfield finished on its first day.)
+      records.push({ kind: 'project', trial: task.id, pair: [a.key, b.key], brief: task.brief, sessions: [], complete: true,
+        progress_before: 1, progress_after: 1, check: await runCheck(task, dirs.seed), changed: [], files: {}, diff: '' });
+      continue;
+    }
     const total = task.sessions || 4;
     const sessions = [];
     let me = first;
@@ -231,7 +252,12 @@ export async function runLab({
         { shelf: true, ledger: ledgerOn ? others(me) : null });
       const s = await session(me, prompt, { kind: project ? 'project' : 'pairwork', trial: task.id, turn: n, taskDir: task.dir }, dirs);
       takeLedger(me, dirs, task.id);
-      sessions.push({ soul: me.key, speaker: me.name, ...s, board_changed: readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'] !== boardWas });
+      const boardNow = readOut(dirs.work, ['BOARD.md'], BOARD_MAX)['BOARD.md'] || '';
+      const rm = recordRemoval(me, task.id, boardWas || '', boardNow);
+      // The lab may have appended to the ledger (a sweep record, here or before); the next turn in
+      // this folder must see the ledger exactly as the commons holds it, or its writes won't append.
+      if (ledgerOn) for (const d of [dirs.seed, dirs.work]) writeFileSync(join(d, LEDGER), C[LEDGER] || '');
+      sessions.push({ soul: me.key, speaker: me.name, ...s, board_changed: boardNow !== boardWas, ...(rm ? { removed: rm.id } : {}) });
       me = other;
     }
     const fin = await finish(task, dirs);
@@ -263,15 +289,17 @@ export async function runLab({
     const dirs = prepare({ id: 'evening' }, { extra: files });
     const s = await session(soul, P.evening(soul.name, custodian ? others(soul) : otherOf(soul), soul.key, { ledger: ledgerOn ? others(soul) : null }), { kind: 'evening', trial: 'evening' }, dirs);
     const changed = changedFiles(dirs).filter((f) => !f.startsWith('ledger/') && !f.startsWith('archive/'));
+    const boardWas = C['BOARD.md'], shelfWas = shelfOf(C);
     harvest(C, dirs.work, 'BOARD.md');
     harvest(C, dirs.work, 'shelf/');
     harvest(C, dirs.work, journal);
     const before = ledgerOut.length;
-    takeLedger(soul, dirs, 'evening');
+    takeLedger(soul, dirs, 'evening');  // the soul's own ledger lines first: the lab's sweep record goes after
+    const rm = recordRemoval(soul, 'evening', boardWas, C['BOARD.md'], shelfWas, C);
     records.push({ kind: 'evening', trial: 'evening', soul: soul.key, ...s, changed,
       files: readOut(dirs.work, changed, 20000), diff: diffOf(dirs),
       posted: changed.includes('BOARD.md'), journaled: changed.includes(journal),
-      built: changed.some((f) => f.startsWith('shelf/')), ledgered: ledgerOut.length > before,
+      built: changed.some((f) => f.startsWith('shelf/')), ledgered: ledgerOut.length > before, removed: rm?.id || null,
       silent: isSilent(s.output) && !changed.length && ledgerOut.length === before });
   }
 
@@ -357,6 +385,7 @@ export async function runLab({
     board_chars: C['BOARD.md'].length,
     ...(ledgerOn ? ledgerScore(C, ledgerAtStart, ledgerOut, keys) : {}),
     ...(sweeps.length ? sweepScore(sweeps, judged) : {}),
+    ...(archived.length ? { removals: archived } : {}),
     ...projectScore(records),
   };
   scorecard.run = { seed, reps, calls, cost_usd: round(cost, 4), kinds: [...on], window: summarizeWindows(windows) };
