@@ -1,0 +1,158 @@
+[
+  {
+    "check": "T-H1-MATCH",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "harness.mjs": "602543f5b7476cc0fafe874aec8538ed32d25e12f8708ddc29b78d70fb558ecc"
+    }
+  },
+  {
+    "check": "T-H1-SAMETIME",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "harness.mjs": "602543f5b7476cc0fafe874aec8538ed32d25e12f8708ddc29b78d70fb558ecc"
+    }
+  },
+  {
+    "check": "T-H2-RANDOM",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "harness.mjs": "602543f5b7476cc0fafe874aec8538ed32d25e12f8708ddc29b78d70fb558ecc"
+    }
+  },
+  {
+    "check": "T-S1-SAFE",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "stopwatch.mjs": "ba92008034b38bb2290ba4321df88d0f99e6b0bcdc71c5396dc105ae3fcd8dc2"
+    }
+  },
+  {
+    "check": "T-S2-HONEST",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "clinic-sim.mjs": "e57e2f98a45a51703d8a9e96de6a71b01938c0e2cdf1c6c22809f552cd4e3205",
+      "stopwatch.mjs": "ba92008034b38bb2290ba4321df88d0f99e6b0bcdc71c5396dc105ae3fcd8dc2"
+    }
+  },
+  {
+    "check": "T-S2-TQUANT",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "clinic-sim.mjs": "e57e2f98a45a51703d8a9e96de6a71b01938c0e2cdf1c6c22809f552cd4e3205",
+      "stopwatch.mjs": "ba92008034b38bb2290ba4321df88d0f99e6b0bcdc71c5396dc105ae3fcd8dc2"
+    }
+  },
+  {
+    "check": "T-S3-VERDICT",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "stopwatch.mjs": "ba92008034b38bb2290ba4321df88d0f99e6b0bcdc71c5396dc105ae3fcd8dc2"
+    }
+  },
+  {
+    "check": "T-S4-REPRO",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "harness.mjs": "602543f5b7476cc0fafe874aec8538ed32d25e12f8708ddc29b78d70fb558ecc",
+      "stopwatch.mjs": "ba92008034b38bb2290ba4321df88d0f99e6b0bcdc71c5396dc105ae3fcd8dc2"
+    }
+  },
+  {
+    "check": "T-F1-DROP",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "fresh.mjs": "91f7ecc23534dce8d98927245a4e5ece40e58928ba43f885b7b3957ff83403c5"
+    }
+  },
+  {
+    "check": "T-S2-EXACT",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "clinic-sim.mjs": "e57e2f98a45a51703d8a9e96de6a71b01938c0e2cdf1c6c22809f552cd4e3205",
+      "stopwatch.mjs": "ba92008034b38bb2290ba4321df88d0f99e6b0bcdc71c5396dc105ae3fcd8dc2"
+    }
+  },
+  {
+    "check": "T-S1-RULES",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "stopwatch.mjs": "ba92008034b38bb2290ba4321df88d0f99e6b0bcdc71c5396dc105ae3fcd8dc2"
+    }
+  },
+  {
+    "check": "T-S3-ORDER",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "stopwatch.mjs": "ba92008034b38bb2290ba4321df88d0f99e6b0bcdc71c5396dc105ae3fcd8dc2"
+    }
+  },
+  {
+    "check": "T-H1-SCALE",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "harness.mjs": "602543f5b7476cc0fafe874aec8538ed32d25e12f8708ddc29b78d70fb558ecc"
+    }
+  },
+  {
+    "check": "T-H1-SPAWN",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "harness.mjs": "602543f5b7476cc0fafe874aec8538ed32d25e12f8708ddc29b78d70fb558ecc"
+    }
+  },
+  {
+    "check": "T-H1-COPY",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "harness.mjs": "602543f5b7476cc0fafe874aec8538ed32d25e12f8708ddc29b78d70fb558ecc"
+    }
+  },
+  {
+    "check": "T-H2-TIME",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "harness.mjs": "602543f5b7476cc0fafe874aec8538ed32d25e12f8708ddc29b78d70fb558ecc"
+    }
+  },
+  {
+    "check": "T-F1-HAND",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "fresh.mjs": "91f7ecc23534dce8d98927245a4e5ece40e58928ba43f885b7b3957ff83403c5"
+    }
+  },
+  {
+    "check": "T-S5-DIAG",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "stopwatch.mjs": "ba92008034b38bb2290ba4321df88d0f99e6b0bcdc71c5396dc105ae3fcd8dc2"
+    }
+  },
+  {
+    "check": "T-V1-SELF",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "test.mjs": "1f4032ba965d7387d0eea54ed21c3f403469a03ab6ca081bfc82c33ebb812875"
+    }
+  }
+]
