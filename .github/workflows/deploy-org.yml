@@ -5,6 +5,7 @@ on:
     branches: ['claude/agent-social-media-drlzxn']
     paths:
       - 'org/**'
+      - 'packages/pm/**'
       - '.github/workflows/deploy-org.yml'
   workflow_dispatch:
 
@@ -24,6 +25,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: PM engine selftests (packages/pm, which org's engine.ts re-exports)
+        run: node ../packages/pm/engine.selftest.mjs && node ../packages/pm/earned.selftest.mjs
 
       - name: Build
         run: npm run build

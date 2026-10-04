@@ -9,7 +9,8 @@
   "scripts": {
     "build": "esbuild src/server.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/server.mjs --packages=external",
     "start": "node dist/server.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "selftest": "esbuild src/pm.selftest.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/pm.selftest.mjs --packages=external --log-level=warning && node dist/pm.selftest.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
