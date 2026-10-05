@@ -1,0 +1,35 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Reference, not printed: the air inside the pod, as a solid.",
+ "params": {
+  "a": 73,
+  "b": 79,
+  "h": 52.5
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "s",
+   "loops": [
+    {
+     "name": "air",
+     "rect": {
+      "c": [
+       44,
+       9
+      ],
+      "w": "a",
+      "h": "b"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "air",
+   "profile": "s",
+   "depth": "h"
+  }
+ ]
+}

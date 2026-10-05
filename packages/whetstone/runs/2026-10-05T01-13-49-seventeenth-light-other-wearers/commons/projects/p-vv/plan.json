@@ -1,0 +1,79 @@
+{
+ "workPackages": [
+  {
+   "id": "WP-M1",
+   "budget": 4,
+   "start": "2026-10-04",
+   "finish": "2026-10-04",
+   "reqs": [
+    "VV-M1-ID",
+    "VV-M1-TREE",
+    "VV-M1-LEAF",
+    "VV-M1-LINT"
+   ]
+  },
+  {
+   "id": "WP-M2",
+   "budget": 1,
+   "start": "2026-10-04",
+   "finish": "2026-10-04",
+   "reqs": [
+    "VV-M2"
+   ]
+  },
+  {
+   "id": "WP-M3",
+   "budget": 4,
+   "start": "2026-10-04",
+   "finish": "2026-10-04",
+   "reqs": [
+    "VV-M3-LEAF",
+    "VV-M3-ASOF",
+    "VV-M3-PARENT",
+    "VV-M3-COVERAGE"
+   ]
+  },
+  {
+   "id": "WP-M4",
+   "budget": 3,
+   "start": "2026-10-04",
+   "finish": "2026-10-04",
+   "reqs": [
+    "VV-M4-STATUS",
+    "VV-M4-TREND",
+    "VV-M4-BREACH"
+   ]
+  },
+  {
+   "id": "WP-M5",
+   "budget": 3,
+   "start": "2026-10-04",
+   "finish": "2026-10-04",
+   "reqs": [
+    "VV-M5-PV",
+    "VV-M5-EV",
+    "VV-M5-ES"
+   ]
+  },
+  {
+   "id": "WP-M6",
+   "budget": 3,
+   "start": "2026-10-04",
+   "finish": "2026-10-04",
+   "reqs": [
+    "VV-M6-REPORT",
+    "VV-M6-EVM",
+    "VV-M6-ERRORS"
+   ]
+  },
+  {
+   "id": "WP-M7",
+   "budget": 1,
+   "start": "2026-10-04",
+   "finish": "2026-10-05",
+   "reqs": [
+    "VV-M7"
+   ]
+  }
+ ]
+}
