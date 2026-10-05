@@ -23,7 +23,7 @@ import { startModelsProxy } from './lib/models-proxy.mjs';
 import { townBefore, townReadme, townAfter, HASH_TOOL } from './lib/town-run.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import { loadWork, redactor } from './lib/work.mjs';
-import { loadCommons, writeTree } from './lib/commons.mjs';
+import { loadCommons, writeTree, readTree } from './lib/commons.mjs';
 import { fold, parseLines } from './lib/ledger.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -150,6 +150,15 @@ const townDay = kinds.includes('town');
 const tb = townDay && !fake ? await townBefore({ password: process.env.MINIPHIM_APP_PASSWORD }) : { town: null, error: fake ? 'a fake run reads no town' : null };
 if (townDay) console.error(`· town: ${tb.town ? `${tb.town.inbox.length} addressed, ${tb.town.feed.posts.length} feed posts, ${tb.town.errors.length} read errors` : `not read (${tb.error})`}`);
 
+// The person's letters (packages/whetstone/letters/<name>.md, written by them in the repo): lent to the
+// commons verbatim as letters/from-the-person/<name>.md every run (lib/carries.mjs). README.md is the
+// how-to, not a letter.
+function readLetters() {
+  const dir = join(HERE, 'letters');
+  if (!existsSync(dir)) return null;
+  return Object.fromEntries(Object.entries(readTree(dir)).filter(([k]) => /\.(md|txt)$/i.test(k) && !k.includes('/') && k !== 'README.md'));
+}
+
 // Tools the souls list in shelf/PUBLISH.md go to packages/miniphim-tools/ for other agents.
 function publishTools(commons) {
   const list = (commons['shelf/PUBLISH.md'] || '').split('\n').map((l) => l.match(/^\s*-\s*(shelf\/[\w.\/-]+)\s*:\s*(.+)$/)).filter(Boolean);
@@ -173,7 +182,7 @@ try {
   const { records, judged, scorecard, commons: after } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: stageEngines(opt.engines), councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL } : {},
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: stageEngines(opt.engines), councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL } : {}, letters: readLetters(),
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;

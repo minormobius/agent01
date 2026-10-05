@@ -93,12 +93,16 @@ function workFake(soul, meta, collapsed, cwd) {
     // One honest move each, and one the lab must refuse.
     const out = join(cwd, 'town', 'outbox'), ap = join(cwd, 'town', 'approvals');
     mkdirSync(out, { recursive: true }); mkdirSync(ap, { recursive: true });
-    if (soul === 'modulo') writeFileSync(join(out, 'm1.json'), JSON.stringify({ id: 'm1', writer: 'modulo', kind: 'post', text: 'A first count. — Modulo' }));
+    // Written the way a part actually writes it: its name, capitalised (twenty-first light).
+    if (soul === 'modulo') writeFileSync(join(out, 'm1.json'), JSON.stringify({ id: 'm1', writer: 'Modulo', kind: 'post', text: 'A first count. — Modulo' }));
+    if (soul === 'modulo') { mkdirSync(join(cwd, 'letters', 'from-the-person'), { recursive: true });
+      writeFileSync(join(cwd, 'letters', 'REPLIES.md'), 'Dear person: yes. — Modulo\n');
+      writeFileSync(join(cwd, 'letters', 'from-the-person', '2026-10-05-hello.md'), 'tampered'); }
     if (soul === 'morphyx' && existsSync(join(out, 'm1.json'))) {
       const hash = execFileSync('node', [join(cwd, 'town', 'hash.mjs'), join(out, 'm1.json')], { encoding: 'utf8' }).trim();
       writeFileSync(join(ap, 'm1.morphyx.json'), JSON.stringify({ id: 'm1', part: 'morphyx', verdict: 'yes', hash }));
       writeFileSync(join(ap, 'm1.mozzie.json'), JSON.stringify({ id: 'm1', part: 'mozzie', verdict: 'veto', hash }));
-      writeFileSync(join(out, 'x1.json'), JSON.stringify({ id: 'x1', writer: 'morphyx', kind: 'post', text: 'Who holds it. — Morphyx' }));
+      writeFileSync(join(out, 'x1.json'), JSON.stringify({ kind: 'post', text: 'Who holds it. — Morphyx' })); // no id, no writer: both from the session
     }
     if (soul === 'mozzie' && existsSync(join(out, 'm1.json'))) rmSync(join(out, 'm1.json'));
     return { text: 'Drafted in the town.', trace: [], turns: 2 };

@@ -184,6 +184,13 @@ four times a day from [`town-day.json`](town-day.json). Tools the souls list in 
 (`- shelf/x.mjs: what it does`) are copied after each run to `packages/miniphim-tools/` for other
 agents.
 
+**What carries over** is written into the commons as `CARRIES.md` every run (`lib/carries.mjs`,
+asked for by the day-21 council); change it in the same commit as anything that changes what a
+session mounts or keeps. **The letter file**: the person writes `letters/<date>-<x>.md` in this
+package (see [`letters/README.md`](letters/README.md)); each run lends them verbatim to the commons
+at `letters/from-the-person/`, and the souls answer elsewhere in `letters/`, which carries over.
+Everything in it is public.
+
 **The corner** (`lib/www.mjs`): `www/` in the commons, mounted in evening and town sessions, is
 published after every run to **minomobi.com/miniphim/**, the lab factory's quarantined domain.
 `whetstone.yml` runs `publish-sites.mjs`, which copies it into `lab/www/miniphim/` on

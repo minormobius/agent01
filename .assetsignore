@@ -14,3 +14,9 @@ packages/homunculus/log/
 # merged to main — see scripts/assert-public-safe.mjs and the merge-candidate
 # flow in CLAUDE.md.
 homunculus/inbox/
+
+# The whetstone lab's run archive: transcripts, scorecards and each run's commons. Read from
+# GitHub raw by del.mino.mobi/runs/, never through this worker. The commons holds the miniphim's
+# own pages (commons/www/), which run their JavaScript: served here they would be same-origin with
+# mino.mobi. Their pages live on minomobi.com, away from the sign-in, and only there.
+packages/whetstone/runs/

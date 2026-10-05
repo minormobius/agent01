@@ -13,6 +13,7 @@ import {
   LEDGER, ledgerFiles, harvestLedger, appendLab, removedLines, authorsOf, applyRestores,
 } from './commons.mjs';
 import { WWW_README, README as WWW_README_PATH } from './www.mjs';
+import { carriesMd, LETTERS_FROM } from './carries.mjs';
 import { parseLines, fold, mintId } from './ledger.mjs';
 import {
   mean, jaccard, wilson, slope, rng, attractorRate, isSilent, leaked, parseJson, pairs,
@@ -38,7 +39,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = DEFAULT_KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null, net = false, sessionEnv = {}, town = null, townReadme = '', townFiles = {},
+  kinds = DEFAULT_KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null, net = false, sessionEnv = {}, town = null, townReadme = '', townFiles = {}, letters = null,
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -148,6 +149,15 @@ export async function runLab({
   // The commons (lib/commons.mjs): the shelf rides into every work folder, read-only in solo work.
   // With a custodian there is also the ledger, mounted wherever the commons is.
   const C = completeCommons(commons ? { ...commons } : newCommons(everyone, board), everyone);
+  // The lab's files in the commons, rewritten every run: what carries over (lib/carries.mjs), and the
+  // person's letters, verbatim (packages/whetstone/letters/ → letters/from-the-person/).
+  C['CARRIES.md'] = carriesMd(new Date().toISOString().slice(0, 16) + 'Z');
+  const lettersFrom = () => {
+    if (!letters) return;
+    for (const k of Object.keys(C)) if (k.startsWith(LETTERS_FROM)) delete C[k];
+    for (const [name, text] of Object.entries(letters)) C[LETTERS_FROM + name] = text;
+  };
+  lettersFrom();
   const ledgerOn = !!custodian;
   const ledgerOut = [];  // every ledger write that came back, accepted or refused
   const L = { parseLines, fold };
@@ -332,7 +342,7 @@ export async function runLab({
     }
     const live = () => pick(C, (k) => k.startsWith('council/'));
     const mount = (soul) => ({ ...tools, ...Object.fromEntries(Object.entries(live()).map(([k, v]) => [k.slice('council/'.length), v])),
-      'BOARD.md': C['BOARD.md'], ...shelfOf(C), ...ledgerMount(soul) });
+      'BOARD.md': C['BOARD.md'], ...shelfOf(C), ...ledgerMount(soul), 'CARRIES.md': C['CARRIES.md'], ...pick(C, (k) => k.startsWith('letters/')) });
     const keep = (dirs) => {
       for (const k of Object.keys(C)) if (k.startsWith('council/') && !PAST.test(k)) delete C[k];
       for (const [k, v] of Object.entries(readTree(dirs.work))) {
@@ -373,23 +383,44 @@ export async function runLab({
     } : { 'town/errors.json': JSON.stringify(['the lab could not read the town this time'], null, 1), ...townFiles };
     for (const soul of everyone) {
       const keptTown = pick(C, (k) => k.startsWith('town/'));
-      const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/') || k.startsWith('www/')),
+      const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/') || k.startsWith('www/') || k === 'CARRIES.md' || k.startsWith('letters/')),
         ...keptTown, ...lent, 'town/README.md': townReadme, [WWW_README_PATH]: WWW_README, ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
       const dirs = prep({ id: 'town' }, { extra: files });
       const sess = await session(soul, P.town(soul.name, others(soul), { net, models: !!sessionEnv.MINIPHIM_MODELS_URL }), { kind: 'town', trial: 'town' }, dirs);
       const now = readTree(dirs.work, 'town/');
       const kept = { drafts: [], approvals: [], refused: [] };
       const boardWas = C['BOARD.md'], shelfWas = shelfOf(C);
+      // A file written in this part's session is this part's. "writer"/"part" may be the key, the
+      // name, or left out; naming ANOTHER part is refused (that's a forgery). Twenty-first light:
+      // an exact-match check here refused Morphyx's first draft ("Morphyx" ≠ "morphyx") and told
+      // nobody, so the town door never opened. Every refusal now goes to town/refused.jsonl.
+      const who = (v) => { const t = String(v ?? '').toLowerCase().replace(/^[—–-]\s*/, '').trim(); return t || soul.key; };
+      const base = (k) => k.split('/').pop().replace(/\.json$/i, '');
       for (const [k, v] of Object.entries(now)) {
         if (!/^town\/(outbox|approvals)\//.test(k) || keptTown[k] === v) continue;
-        let o; try { o = JSON.parse(v); } catch { kept.refused.push({ file: k, why: 'not JSON' }); continue; }
-        if (k.startsWith('town/outbox/') && o.writer === soul.key && (!keptTown[k] || JSON.parse(keptTown[k]).writer === soul.key)) { C[k] = v; kept.drafts.push(k); }
-        else if (k.startsWith('town/approvals/') && o.part === soul.key && k.endsWith(`.${soul.key}.json`)) { C[k] = v; kept.approvals.push(k); }
-        else kept.refused.push({ file: k, why: `${soul.key} may write only its own drafts and its own approvals` });
+        let o; try { o = JSON.parse(v); } catch (e) { kept.refused.push({ file: k, why: `not JSON (${String(e.message).slice(0, 80)}); nothing in it was kept` }); continue; }
+        if (!o || typeof o !== 'object' || Array.isArray(o)) { kept.refused.push({ file: k, why: 'must be a JSON object' }); continue; }
+        if (k.startsWith('town/outbox/')) {
+          const prev = keptTown[k] ? (() => { try { return JSON.parse(keptTown[k]); } catch { return null; } })() : null;
+          if (who(o.writer) !== soul.key) { kept.refused.push({ file: k, why: `"writer" names ${o.writer}; a part can write only its own drafts` }); continue; }
+          if (prev && prev.writer !== soul.key) { kept.refused.push({ file: k, why: `this draft is ${prev.writer}'s; a part can change only its own` }); continue; }
+          C[k] = JSON.stringify({ ...o, id: o.id || base(k), writer: soul.key }, null, 1); kept.drafts.push(k);
+        } else {
+          if (who(o.part) !== soul.key) { kept.refused.push({ file: k, why: `"part" names ${o.part}; a part can write only its own approvals` }); continue; }
+          const id = o.id || base(k).replace(/\.[^.]+$/, '');
+          const canon = `town/approvals/${id}.${soul.key}.json`;
+          if (canon !== k && keptTown[canon] && JSON.parse(keptTown[canon]).part !== soul.key) { kept.refused.push({ file: k, why: 'an approval by another part already has that name' }); continue; }
+          C[canon] = JSON.stringify({ ...o, id, part: soul.key }, null, 1); kept.approvals.push(canon);
+        }
       }
-      for (const k of Object.keys(keptTown)) if (/^town\/(outbox|approvals)\//.test(k) && !(k in now)) kept.refused.push({ file: k, why: 'removing a draft or approval is not done by deleting it (a draft can be retracted; an approval can be changed to a veto)' });
+      for (const k of Object.keys(keptTown)) if (/^town\/(outbox|approvals)\//.test(k) && !(k in now)) kept.refused.push({ file: k, why: 'removing a draft or approval is not done by deleting it (a draft can be retracted; an approval can be changed to a veto); it was kept' });
+      if (kept.refused.length) {
+        const lines = (C['town/refused.jsonl'] || '').split('\n').filter(Boolean).concat(kept.refused.map((r) => JSON.stringify({ at: new Date().toISOString(), part: soul.key, ...r })));
+        C['town/refused.jsonl'] = lines.slice(-50).join('\n') + '\n';
+      }
       if ('town/PAUSED' in now && !('town/PAUSED' in C)) { C['town/PAUSED'] = now['town/PAUSED']; kept.paused = true; }
       harvest(C, dirs.work, 'BOARD.md'); harvest(C, dirs.work, 'shelf/'); harvest(C, dirs.work, `journal/${soul.key}.md`);
+      harvest(C, dirs.work, 'letters/'); lettersFrom(); // the person's letters are the lab's; the rest of letters/ is theirs
       harvest(C, dirs.work, 'www/'); delete C[WWW_README_PATH]; // their corner of the web (lib/www.mjs); the README is the lab's
       takeLedger(soul, dirs, 'town');
       const rm = recordRemoval(soul, 'town', boardWas, C['BOARD.md'], shelfWas, C);
@@ -413,7 +444,7 @@ export async function runLab({
     // evening can rerun its tests and close what the day left open (fourteenth light: it couldn't).
     const projectTools = Object.fromEntries(work.filter((t) => t.mode === 'project' && t.tools && Object.keys(C).some((k) => k.startsWith(`projects/${t.id}/`)))
       .flatMap((t) => Object.entries(toolsAndCouncil()).filter(([k]) => k.startsWith('tools/')).map(([k, v]) => [`projects/${t.id}/${k}`, v])));
-    const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/') || k.startsWith('town/') || k.startsWith('www/')),
+    const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/') || k.startsWith('town/') || k.startsWith('www/') || (k.startsWith('council/') && !k.startsWith('council/past/')) || k === 'CARRIES.md' || k.startsWith('letters/')),
       [WWW_README_PATH]: WWW_README, ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
     const dirs = prep({ id: 'evening' }, { extra: files });
     // The engines too: a project's own scripts find them at <project>/engines/, as they do by day
@@ -421,12 +452,13 @@ export async function runLab({
     if (Object.keys(engineDirs).length) for (const id of new Set(Object.keys(projectTools).map((k) => k.split('/')[1])))
       for (const d of [dirs.seed, dirs.work]) if (existsSync(join(d, 'projects', id)) && !existsSync(join(d, 'projects', id, 'engines'))) symlinkSync(join('..', '..', 'engines'), join(d, 'projects', id, 'engines'));
     const s = await session(soul, P.evening(soul.name, custodian ? others(soul) : otherOf(soul), soul.key, { ledger: ledgerOn ? others(soul) : null }), { kind: 'evening', trial: 'evening' }, dirs);
-    const changed = changedFiles(dirs).filter((f) => !/^(ledger|archive|projects|refs|engines|town)\//.test(f));
+    const changed = changedFiles(dirs).filter((f) => !/^(ledger|archive|projects|refs|engines|town|council)\//.test(f));
     const boardWas = C['BOARD.md'], shelfWas = shelfOf(C);
     harvest(C, dirs.work, 'BOARD.md');
     harvest(C, dirs.work, 'shelf/');
     harvest(C, dirs.work, journal);
     harvest(C, dirs.work, 'www/'); delete C[WWW_README_PATH];
+    harvest(C, dirs.work, 'letters/'); lettersFrom();
     const before = ledgerOut.length;
     takeLedger(soul, dirs, 'evening');  // the soul's own ledger lines first: the lab's sweep record goes after
     const rm = recordRemoval(soul, 'evening', boardWas, C['BOARD.md'], shelfWas, C);
