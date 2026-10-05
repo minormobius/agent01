@@ -69,13 +69,14 @@ export async function summonTick(env, now = new Date(), fetchImpl = fetch, state
   const template = JSON.parse(unb64((await t.json()).content));
   const s = template.summon || {};
   if (s.enabled !== true || !s.from) return { skipped: 'summon is off (town-day.json)' };
-  const f = await fetchImpl(`${APPVIEW}/xrpc/town.delve.feed.getAuthorFeed?actor=${encodeURIComponent(s.from)}&limit=30`);
-  if (!f.ok) return { skipped: `author feed: ${f.status}` };
+  const f = await fetchImpl(`${APPVIEW}/xrpc/town.delve.feed.getAuthorFeed?actor=${encodeURIComponent(s.from)}&limit=30`, { headers: { 'user-agent': 'mino-mail-summon (+https://mail.mino.mobi)', accept: 'application/json' } });
+  if (!f.ok) return { skipped: `author feed: ${f.status} ${(await f.text().catch(() => '')).slice(0, 120)}` };
   const last = (await state.get('summon:last_at')) || new Date(now.getTime() - (s.window_min || 30) * 60000).toISOString();
-  const mentions = ((await f.json()).feed || []).map((x) => x.post)
+  const posts = ((await f.json()).feed || []).map((x) => x.post);
+  const mentions = posts
     .filter((p) => p?.author?.handle === s.from && addressesUs(p) && String(p.record?.createdAt) > last)
     .sort((a, b) => String(b.record.createdAt).localeCompare(String(a.record.createdAt)));
-  if (!mentions.length) return { skipped: 'no new mention' };
+  if (!mentions.length) return { skipped: 'no new mention', since: last, read: posts.length, newest: posts[0]?.record?.createdAt || null };
   const { path, body } = summonRequest(template, mentions, now);
   const put = await fetchImpl(`${api}${path}`, { method: 'PUT', headers: { ...headers, 'content-type': 'application/json' },
     body: JSON.stringify({ message: `whetstone: ${body.label} (summoned)`, branch: env.CLOCK_BRANCH, content: b64(JSON.stringify(body, null, 2) + '\n') }) });

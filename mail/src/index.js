@@ -161,7 +161,11 @@ export default {
     // Two crons: the four-a-day clock, and the summon watcher (every two minutes).
     if (event.cron === SUMMON_CRON) {
       const box = env.MAILBOX.get(env.MAILBOX.idFromName('miniphim'));
-      ctx.waitUntil(summonTick(env, now, fetch, { get: (k) => box.kvGet(k), set: (k, v) => box.kvSet(k, v) }).then((r) => console.log('summon', JSON.stringify(r))));
+      // Every tick's outcome is kept (summon:last) and shown on /health: the only way to see the
+      // watcher from outside, since its logs need the Cloudflare dashboard.
+      ctx.waitUntil(summonTick(env, now, fetch, { get: (k) => box.kvGet(k), set: (k, v) => box.kvSet(k, v) })
+        .catch((e) => ({ error: String(e?.stack || e).slice(0, 500) }))
+        .then((r) => { console.log('summon', JSON.stringify(r)); return box.kvSet('summon:last', JSON.stringify({ at: now.toISOString(), ...r })); }));
     } else ctx.waitUntil(townTick(env, now).then((r) => console.log('clock', JSON.stringify(r))));
   },
 
@@ -170,7 +174,9 @@ export default {
     const url = new URL(req.url);
     const parts = url.pathname.split('/').filter(Boolean);
     if (parts.length === 0 || parts[0] === 'health') {
-      return json({ ok: true, service: 'mail', beings: beingsOf(env), domain: env.DOMAIN,
+      const box = env.MAILBOX.get(env.MAILBOX.idFromName('miniphim'));
+      let summon = null; try { summon = JSON.parse((await box.kvGet('summon:last')) || 'null'); summon && (summon.last_answered = await box.kvGet('summon:last_at')); } catch (e) { summon = { error: String(e).slice(0, 200) }; }
+      return json({ ok: true, service: 'mail', summon, beings: beingsOf(env), domain: env.DOMAIN,
         api: !!env.LAB_TOKEN, copies_to_principal: !!env.PRINCIPAL, outbound_open: env.OPEN_OUTBOUND === 'true' });
     }
     if (parts[0] !== 'v1' || parts.length < 3) return json({ error: 'not found' }, 404);
