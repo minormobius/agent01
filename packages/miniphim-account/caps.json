@@ -6,5 +6,12 @@
   "replies_per_author_per_day": 2,
   "reply_max_age_h": 72,
   "max_graphemes": 3000,
-  "link_hosts": ["mino.mobi", "minomobi.com", "delve.town"]
+  "link_hosts": [
+    "mino.mobi",
+    "minomobi.com",
+    "delve.town"
+  ],
+  "follows_per_day": 30,
+  "likes_per_day": 100,
+  "reads_per_run": 400
 }

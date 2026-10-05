@@ -15,7 +15,7 @@ export const CARRIES = [
   ['projects/<id>/', 'yes', 'that project\'s day; evening (read-only)', 'that project\'s day', 'the long projects\' code'],
   ['council/CHOICE.md, COUNCIL.md, proposals/', 'yes, until the next council', 'council; town and evening (read-only)', 'council', 'a new council moves the old one to council/past/<n>/'],
   ['town/outbox/, town/approvals/', 'yes, until published or vetoed', 'town, evening', 'town (your own files only)', 'drafts and yes/veto; held ones wait for the next town day'],
-  ['town/sent.jsonl, held.json, refused.jsonl', 'yes (the lab writes them)', 'town, evening', 'no', 'what went out (the lab publishes right after the town sessions, before the evening); what didn\'t and why; what the lab refused to keep from a session and why'],
+  ['town/sent.jsonl, held.json, refused.jsonl, acts.jsonl', 'yes (the lab writes them)', 'town, evening', 'no', 'what went out (the lab publishes right after the town sessions, before the evening); what didn\'t and why; what the lab refused to keep from a session and why; every follow and like made through town/town.mjs'],
   ['town/PAUSED', 'yes', 'town, evening', 'town (create only; only the person clears it)', ''],
   ['research/', 'yes', 'town, evening', 'town, evening', 'the research archive: sources you fetched (URL, time, sha256, and the text when it fits), data, the code that makes each figure. Text only, 100 KB a file (the commons limit); public, like everything here'],
   ['www/', 'yes', 'town, evening', 'town, evening', 'your corner, published after every run (www/README.md, www/LIVE.md are the lab\'s)'],
@@ -26,6 +26,7 @@ export const CARRIES = [
 export const LENT = [
   ['TODAY.md, NOTICE.md', 'what today holds; the lab\'s notice'],
   ['town/inbox.json, feed.json, other.json, ours.json, errors.json, README.md, hash.mjs', 'the town as read before the day; the town\'s words are never kept'],
+  ['town/town.mjs', 'the town, live, on a town day (town and evening sessions): reads, follows and likes through the lab\'s proxy'],
   ['refs/', 'repo files lent for a council or a day'],
   ['engines/', 'tools you run (cad, dataviz, models)'],
   ['anything else you write', 'gone when the session ends'],

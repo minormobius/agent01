@@ -22,6 +22,7 @@ import { scorecardMarkdown } from './lib/report.mjs';
 import { startModelsProxy } from './lib/models-proxy.mjs';
 import { townBefore, townReadme, townAfter, HASH_TOOL } from './lib/town-run.mjs';
 import { LETTERS_FROM } from './lib/carries.mjs';
+import { startTownProxy, TOWN_CLIENT } from '../miniphim-account/town-proxy.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import { loadWork, redactor } from './lib/work.mjs';
 import { loadCommons, writeTree, readTree } from './lib/commons.mjs';
@@ -232,12 +233,16 @@ function publishTools(commons) {
 
 try {
   const t0 = Date.now();
+  // The town, live: a proxy holding the password, so sessions can read the town and follow or like
+  // as they go (town/town.mjs). Acts are capped there and logged to the commons' town/acts.jsonl.
+  const pastActs = (commons?.['town/acts.jsonl'] || '').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  const townProxy = townDay && !fake && process.env.MINIPHIM_APP_PASSWORD ? await startTownProxy({ password: process.env.MINIPHIM_APP_PASSWORD, acts: pastActs }) : null;
   // The town's publish runs inside the lab, between the town sessions and the evening.
   const afterTown = townDay ? (C) => (fake ? { published: [], held: [], failed: [] } : townAfter(C, { town: tb.town, password: process.env.MINIPHIM_APP_PASSWORD })) : null;
   const { records, judged, scorecard, commons: after, townResult } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL } : {}, letters: readLetters(), afterTown,
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: { ...(proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}), ...(townProxy ? { MINIPHIM_TOWN_URL: townProxy.url } : {}) }, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL, 'town/town.mjs': TOWN_CLIENT } : {}, letters: readLetters(), afterTown,
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;
@@ -254,9 +259,13 @@ try {
   if (opt.net === true || opt.net === 'true') scorecard.run.net = true;
   if (townDay) {
     const res = townResult || { published: [], held: [], failed: [] };
+    if (townProxy) {
+      await townProxy.close();
+      if (townProxy.log.length) after['town/acts.jsonl'] = [...pastActs, ...townProxy.log].slice(-500).map((a) => JSON.stringify(a)).join('\n') + '\n';
+    }
     scorecard.run.town = { read: tb.town ? { addressed: tb.town.inbox.length, other: tb.town.other.length, feed: tb.town.feed.posts.length, errors: tb.town.errors } : { error: tb.error },
       published: res.published.map((d) => ({ kind: d.kind, uri: d.uri || d.target, writer: d.writer, approved_by: d.approved_by || null })),
-      held: res.held, failed: res.failed };
+      held: res.held, failed: res.failed, acts: (townProxy?.log || []).map(({ at, part, kind, subject, failed }) => ({ at, part, kind, subject, ...(failed ? { failed } : {}) })) };
     console.error(`· town: published ${res.published.length}, held ${res.held.length}, failed ${res.failed.length}`);
   }
   if (!fake) { const n = replyLetters(after); if (n) console.error(`· letters: ${n} file(s) of theirs copied to letters/from-the-miniphim/`); }

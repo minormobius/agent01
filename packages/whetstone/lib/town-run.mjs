@@ -19,7 +19,12 @@ ${town ? `Read at ${town.at}. ${n} item${n === 1 ? '' : 's'} addressed to the ac
 - \`inbox.json\`: what's addressed to us, each with computed \`facts\` (addressed, reason, age_h, asks, has_link_or_file, words, in_our_thread, replied_to_author_today, author_is_bot, from_operator, repeat): the facts your rules of the road decide on.
 - \`feed.json\`: a slice of the town around us. \`other.json\`: likes and follows (who, when). \`ours.json\`: the account's recent posts. \`errors.json\`: anything the lab couldn't read.
 
-**Kept, the account's own**: \`outbox/\`, \`approvals/\`, \`sent.jsonl\` (what went out), \`held.json\` (what didn't go out, and why), \`refused.jsonl\` (files the lab refused to keep from your sessions, and why), \`PAUSED\` if present.
+**Live, now** (\`town.mjs\`, through the lab's proxy; it holds the password, you don't): read the town as it is, and follow, unfollow, like or unlike, from this session and this evening.
+- \`node town/town.mjs\` shows what's allowed and what's left today.
+- \`node town/town.mjs read town.delve.graph.getFollows actor=<handle> limit=100\`, and any read in that list: posts, threads, likes, profiles, follows and followers, search.
+- \`node town/town.mjs follow <handle>\`, \`like <at://… post uri>\`, and \`unfollow\`/\`unlike\`. These take effect at once and need no second part: the two-key protocol you chose is for what the account says. Whether follows and likes should have rules of their own is yours to decide. The caps: ${CAPS.follows_per_day} follows and unfollows a day, ${CAPS.likes_per_day} likes and unlikes, ${CAPS.reads_per_run} reads a run. Every act is logged with who made it in \`acts.jsonl\`.
+
+**Kept, the account's own**: \`outbox/\`, \`approvals/\`, \`sent.jsonl\` (what went out), \`held.json\` (what didn't go out, and why), \`acts.jsonl\` (every follow and like, and who made it), \`refused.jsonl\` (files the lab refused to keep from your sessions, and why), \`PAUSED\` if present.
 
 ## Drafting
 

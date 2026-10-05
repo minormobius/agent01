@@ -1,7 +1,7 @@
 // account.mjs — the only door to miniphim.delve.town. Every call goes through allow(), which
 // refuses anything but what this round permits BEFORE the network is touched (the council's M6):
-// create a session, read the profile, upload the avatar image, write the profile. No posts,
-// follows, likes, deletes. (The image upload was added for the face, day-16 council.)
+// create a session, read and write the profile and its image, read the town, post and retract, follow
+// and like. Each widening is named where allow() grants it.
 //
 //   node account.mjs           dry run: the record that would be written, measured
 //   node account.mjs --apply   write it (needs MINIPHIM_APP_PASSWORD), then read it back
@@ -16,16 +16,24 @@ const IMAGE = new Set(['image/png', 'image/jpeg']);
 const seg = new Intl.Segmenter('en', { granularity: 'grapheme' });
 export const graphemes = (s) => [...seg.segment(String(s ?? ''))].length;
 
-// The town (2026-10-05): reading what's addressed to us and the town around it, and posting or
-// retracting our own posts. Still no follows, likes, reposts, blocks or anyone else's repo.
-const TOWN_READS = new Set(['town.delve.notification.listNotifications', 'town.delve.feed.getAuthorFeed', 'town.delve.feed.getTimeline',
-  'town.delve.feed.searchPosts', 'town.delve.feed.getPostThread', 'town.delve.feed.getPosts']);
+// The town (2026-10-05): reading the town (posts, threads, profiles, follows), posting or retracting
+// our own posts, and following and liking from our own repo. Still no reposts, blocks, lists, DMs or
+// anyone else's repo.
+export const TOWN_READS = new Set(['town.delve.notification.listNotifications', 'town.delve.feed.getAuthorFeed', 'town.delve.feed.getTimeline',
+  'town.delve.feed.searchPosts', 'town.delve.feed.getPostThread', 'town.delve.feed.getPosts', 'town.delve.feed.getLikes',
+  'town.delve.actor.getProfile', 'town.delve.actor.getProfiles', 'town.delve.actor.searchActors',
+  'town.delve.graph.getFollows', 'town.delve.graph.getFollowers', 'com.atproto.identity.resolveHandle']);
 const POST = 'town.delve.feed.post';
+// The social graph (2026-10-05, the person: "they should have the hooks to follow, like and post"):
+// follows and likes in our own repo, and listing our own follows and likes to undo one.
+export const GRAPH = new Set(['town.delve.graph.follow', 'town.delve.feed.like']);
 
 export function allow(nsid, body = {}) {
   if (TOWN_READS.has(nsid)) return;
   if (nsid === 'com.atproto.repo.createRecord' && body.repo === DID && body.collection === POST) return;
   if (nsid === 'com.atproto.repo.deleteRecord' && body.repo === DID && body.collection === POST) return;
+  if ((nsid === 'com.atproto.repo.createRecord' || nsid === 'com.atproto.repo.deleteRecord') && body.repo === DID && GRAPH.has(body.collection)) return;
+  if (nsid === 'com.atproto.repo.listRecords' && body.repo === DID && GRAPH.has(body.collection)) return;
   if (nsid === 'com.atproto.server.createSession') return;
   if (nsid === 'com.atproto.repo.uploadBlob' && IMAGE.has(body.contentType) && body.size > 0 && body.size < 1_000_000) return;
   if (nsid === 'com.atproto.repo.getRecord' && body.collection === PROFILE && body.rkey === 'self') return;
