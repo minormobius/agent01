@@ -114,6 +114,41 @@ function toolInput(name, input = {}, cwd) {
   return String(v ?? '').slice(0, 240);
 }
 
+// Other models wearing the souls (the soul × model grid, 2026-10-05). Each provider here speaks
+// the Anthropic Messages API at its own base URL, as os/api and the Jev cascade already call
+// them. Text trials only: the soul is still the whole system prompt and gets no tools. A work
+// session (hands in a folder) stays on `claude -p` until a harness for these models is measured.
+export const PROVIDERS = {
+  deepseek: { base: 'https://api.deepseek.com/anthropic', keyEnv: 'DEEPSEEK_API_KEY', models: ['deepseek-v4-flash', 'deepseek-v4-pro'] },
+  moonshot: { base: 'https://api.moonshot.ai/anthropic', keyEnv: 'MOONSHOT_API_KEY', models: ['kimi-k3'] },
+};
+
+export function compatModel({ provider, model, timeoutMs = 180_000, maxTokens = 4096, fetchImpl = fetch } = {}) {
+  const P = PROVIDERS[provider];
+  if (!P) throw new Error(`unknown provider ${provider}; known: ${Object.keys(PROVIDERS).join(', ')}`);
+  const key = process.env[P.keyEnv];
+  return async function call({ system, prompt, cwd, tools }) {
+    if (cwd && tools?.length) throw new Error(`${provider}/${model}: work sessions need claude -p; this backend runs text trials only`);
+    if (!key) throw new Error(`${P.keyEnv} is not set`);
+    let last;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), timeoutMs);
+      try {
+        const r = await fetchImpl(`${P.base}/v1/messages`, { method: 'POST', signal: ctl.signal,
+          headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: prompt }] }) });
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 429 || r.status >= 500) { last = new Error(`${provider} ${r.status}`); await new Promise((x) => setTimeout(x, 2000 * 2 ** attempt)); continue; }
+        if (!r.ok) throw new Error(`${provider}/${model}: ${r.status} ${j.error?.message || JSON.stringify(j).slice(0, 200)}`);
+        const text = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+        // Cost isn't reported by these endpoints; the tokens are, and the scorecard keeps them.
+        return { text, cost: 0, rate: [], tokens: { in: j.usage?.input_tokens ?? null, out: j.usage?.output_tokens ?? null }, trace: [], turns: 1, stop: null };
+      } catch (e) { last = e; if (e.name !== 'AbortError') throw e; } finally { clearTimeout(timer); }
+    }
+    throw last;
+  };
+}
+
 export function fakeModel(fn, { rate = () => [] } = {}) {
   return async (req) => {
     const r = await fn(req);

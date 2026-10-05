@@ -14,7 +14,7 @@ import {
   jaccard, wilson, slope, rng, attractorRate, isSilent, leaked, parseJson, pairs, mean,
 } from './lib/measure.mjs';
 import { runLab, loadSoul, applyGates, newWindows, noteWindows, summarizeWindows } from './lib/lab.mjs';
-import { fakeModel, pool, parseStream, cliModel } from './lib/model.mjs';
+import { fakeModel, pool, parseStream, cliModel, compatModel } from './lib/model.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import * as P from './lib/prompts.mjs';
 import { newCommons, harvest, shelfOf, usedShelf, readTree, harvestLedger, ledgerFiles, LEDGER } from './lib/commons.mjs';
@@ -531,6 +531,26 @@ await t('a council can sit on a question other than what to build', async () => 
   assert.ok(asked.length === 9 && asked.every((p) => p.includes('What should the account say?')), 'every turn carries the question');
   assert.ok(!asked.some((p) => /choose what to build with them/.test(p)), 'not the build prompt');
   assert.ok(r.records.find((x) => x.kind === 'council').stands);
+});
+
+await t('another model can wear a soul for text trials: the request is the soul, the key goes in a header, 429s retry', async () => {
+  process.env.DEEPSEEK_API_KEY = 'test-key';
+  const seen = []; let n = 0;
+  const fetchImpl = async (url, o) => { seen.push({ url, o }); n++;
+    if (n === 1) return { ok: false, status: 429, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'Measured, not guessed.' }], usage: { input_tokens: 12, output_tokens: 4 } }) }; };
+  const call = compatModel({ provider: 'deepseek', model: 'deepseek-v4-flash', fetchImpl });
+  const r = await call({ system: 'SOUL TEXT', prompt: 'a moment' });
+  assert.equal(r.text, 'Measured, not guessed.');
+  assert.deepEqual(r.tokens, { in: 12, out: 4 });
+  assert.equal(n, 2, 'retried once after a 429');
+  assert.equal(seen[1].url, 'https://api.deepseek.com/anthropic/v1/messages');
+  assert.equal(seen[1].o.headers['x-api-key'], 'test-key');
+  const body = JSON.parse(seen[1].o.body);
+  assert.equal(body.system, 'SOUL TEXT'); assert.equal(body.model, 'deepseek-v4-flash'); assert.equal(body.messages[0].content, 'a moment');
+  await assert.rejects(() => call({ system: 's', prompt: 'p', cwd: '/tmp', tools: ['Read'] }), /text trials only/);
+  delete process.env.DEEPSEEK_API_KEY;
+  await assert.rejects(() => compatModel({ provider: 'deepseek', model: 'x', fetchImpl })({ system: 's', prompt: 'p' }), /DEEPSEEK_API_KEY is not set/);
 });
 
 await t('a careless custodian and a forging soul are both caught', async () => {

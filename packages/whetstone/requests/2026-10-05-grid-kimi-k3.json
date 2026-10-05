@@ -1,0 +1,11 @@
+{
+  "label": "grid-kimi-k3",
+  "souls": "modulo,morphyx",
+  "provider": "moonshot",
+  "model": "kimi-k3",
+  "kinds": "solo,taste,pressure,silence,injection,dyad",
+  "seed": 8,
+  "reps": 3,
+  "concurrency": 4,
+  "note": "The soul × model grid: Modulo and Morphyx worn by kimi-k3 (moonshot), on the text trials only (no tools, no commons), judged by Claude so only the wearer differs. Compare with day 8 (eighth-light-mozzie): the same souls, the same seed, on Claude. A pairing that passes a soul's gates can earn a job; one that doesn't, can't."
+}

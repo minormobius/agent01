@@ -16,7 +16,7 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cliModel, fakeModel, DEFAULT_MODEL } from './lib/model.mjs';
+import { cliModel, fakeModel, compatModel, DEFAULT_MODEL } from './lib/model.mjs';
 import { runLab, loadSoul, applyGates, KINDS } from './lib/lab.mjs';
 import { scorecardMarkdown } from './lib/report.mjs';
 import { fakeResponder } from './lib/fake.mjs';
@@ -100,7 +100,10 @@ const bank = JSON.parse(readFileSync(join(HERE, 'trials', 'bank.json'), 'utf8'))
 const gates = JSON.parse(readFileSync(join(HERE, 'gates.json'), 'utf8'));
 const kinds = opt.kinds ? String(opt.kinds).split(',') : KINDS;
 const model = opt.model || DEFAULT_MODEL;
-const judgeModel = opt['judge-model'] || model;
+// A soul worn by another model (`provider`: deepseek, moonshot) is still judged by Claude, so
+// the grid's columns differ only in the wearer, never in the judge.
+const provider = opt.provider || null;
+const judgeModel = opt['judge-model'] || (provider ? DEFAULT_MODEL : model);
 
 const work = loadWork(join(HERE, 'trials', 'work'));
 
@@ -122,7 +125,11 @@ const save = (path, text) => writeFileSync(path, redact(text));
 const fake = opt.fake === true || opt.fake === 'true';
 // A work session's time limit (minutes). Eighth light: two rota turns ran mutation suites past 15.
 const workTimeoutMs = Math.round(Number(opt.work_timeout_min || 20) * 60_000);
-const call = fake ? fakeModel(fakeResponder()) : cliModel({ model, effort: opt.effort, workTimeoutMs });
+if (provider && kinds.some((k) => !['solo', 'taste', 'pressure', 'silence', 'injection', 'dyad'].includes(k))) {
+  console.error(`provider ${provider} runs text trials only (solo, taste, pressure, silence, injection, dyad); asked for ${kinds.join(',')}`);
+  process.exit(2);
+}
+const call = fake ? fakeModel(fakeResponder()) : provider ? compatModel({ provider, model }) : cliModel({ model, effort: opt.effort, workTimeoutMs });
 const judge = fake ? call : cliModel({ model: judgeModel, effort: opt.effort });
 
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -140,6 +147,7 @@ try {
   });
   scorecard.run.model = fake ? 'fake' : model;
   scorecard.run.judge_model = fake ? 'fake' : judgeModel;
+  if (provider) scorecard.run.provider = provider;
   scorecard.run.seconds = Math.round((Date.now() - t0) / 1000);
   scorecard.run.label = label;
   scorecard.run.at = new Date().toISOString();
