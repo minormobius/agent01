@@ -33,9 +33,9 @@ _Regenerated 2026-10-05 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-05, 99 members / 209 posts):
+**Neighborhood spark** (bisk 2026-10-05, 99 members / 219 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: bluesky, atproto, llm
+- Distinctive words: fogdooding, llms, cybersecurity
 - Top post: "" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
