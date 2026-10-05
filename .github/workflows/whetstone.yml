@@ -96,6 +96,9 @@ jobs:
           # Other models wearing the souls, for text trials (request key `provider`).
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          # A town day (kind `town`) reads and publishes as miniphim.delve.town. The lab holds it;
+          # run.mjs strips it, and every other key, from the souls' sessions.
+          MINIPHIM_APP_PASSWORD: ${{ secrets.MINIPHIM_APP_PASSWORD }}
           LIST: ${{ steps.req.outputs.list }}
         working-directory: packages/whetstone
         run: |
@@ -124,6 +127,8 @@ jobs:
           git config user.email "whetstone@mino.mobi"
           node packages/whetstone/chronicle.mjs --write
           git add packages/whetstone/runs packages/whetstone/chronicle.json packages/whetstone/CHRONICLE.md
+          # Tools the souls chose to publish (shelf/PUBLISH.md), when any run has.
+          if [ -d packages/miniphim-tools ]; then git add packages/miniphim-tools; fi
           if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
           git commit -m "whetstone: run ${{ github.sha }}"
           for i in 1 2 3 4; do

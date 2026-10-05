@@ -22,6 +22,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { EmailMessage } from 'cloudflare:email';
+import { townTick } from './clock.mjs';
 import { textOf, codesOf, decodeWords, dmarcOf, addrOf, senderMatches, sealedSenders } from './mime.mjs';
 
 const RAW_MAX = 512 * 1024;   // bytes of a message we read; past this it's stored truncated
@@ -148,6 +149,11 @@ export default {
     await box(env, local).store(m);
     // The principal sees everything the beings are sent. forward() only reaches verified addresses.
     if (env.PRINCIPAL) { try { await message.forward(env.PRINCIPAL); } catch { /* stored regardless */ } }
+  },
+
+  // ---- the clock: the miniphim's town days (clock.mjs) ----------------------------------
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(townTick(env, new Date(event.scheduledTime)).then((r) => console.log('clock', JSON.stringify(r))));
   },
 
   // ---- the API -------------------------------------------------------------------------

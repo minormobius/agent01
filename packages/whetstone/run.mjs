@@ -17,9 +17,10 @@ import { tmpdir } from 'node:os';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cliModel, fakeModel, compatModel, DEFAULT_MODEL } from './lib/model.mjs';
-import { runLab, loadSoul, applyGates, KINDS } from './lib/lab.mjs';
+import { runLab, loadSoul, applyGates, DEFAULT_KINDS } from './lib/lab.mjs';
 import { scorecardMarkdown } from './lib/report.mjs';
 import { startModelsProxy } from './lib/models-proxy.mjs';
+import { townBefore, townReadme, townAfter, HASH_TOOL } from './lib/town-run.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import { loadWork, redactor } from './lib/work.mjs';
 import { loadCommons, writeTree } from './lib/commons.mjs';
@@ -99,7 +100,7 @@ if (custodianKey && !/^[a-z0-9-]+$/.test(custodianKey)) throw new Error(`custodi
 const custodian = custodianKey ? loadSoul(join(HERE, 'souls', `${custodianKey}.md`)) : null;
 const bank = JSON.parse(readFileSync(join(HERE, 'trials', 'bank.json'), 'utf8'));
 const gates = JSON.parse(readFileSync(join(HERE, 'gates.json'), 'utf8'));
-const kinds = opt.kinds ? String(opt.kinds).split(',') : KINDS;
+const kinds = opt.kinds ? String(opt.kinds).split(',') : DEFAULT_KINDS;
 const model = opt.model || DEFAULT_MODEL;
 // A soul worn by another model (`provider`: deepseek, moonshot) is still judged by Claude, so
 // the grid's columns differ only in the wearer, never in the judge.
@@ -143,12 +144,36 @@ const out = resolve(HERE, opt.out || join('runs', `${stamp}-${label}`));
 const proxy = opt.models && !fake ? await startModelsProxy({ models: String(opt.models).split(',').map((x) => x.trim()).filter(Boolean), calls: Number(opt.model_calls || 200) }) : null;
 if (proxy) console.error(`· models lent: ${opt.models} (budget ${opt.model_calls || 200} calls) at ${proxy.url}`);
 
+// A town day: read the town through the account's door before the sessions (the password stays in
+// this process; sessions never carry it), publish after (packages/miniphim-account/town.mjs).
+const townDay = kinds.includes('town');
+const tb = townDay && !fake ? await townBefore({ password: process.env.MINIPHIM_APP_PASSWORD }) : { town: null, error: fake ? 'a fake run reads no town' : null };
+if (townDay) console.error(`· town: ${tb.town ? `${tb.town.inbox.length} addressed, ${tb.town.feed.posts.length} feed posts, ${tb.town.errors.length} read errors` : `not read (${tb.error})`}`);
+
+// Tools the souls list in shelf/PUBLISH.md go to packages/miniphim-tools/ for other agents.
+function publishTools(commons) {
+  const list = (commons['shelf/PUBLISH.md'] || '').split('\n').map((l) => l.match(/^\s*-\s*(shelf\/[\w.\/-]+)\s*:\s*(.+)$/)).filter(Boolean);
+  if (!list.length) return [];
+  const dir = join(ROOT, 'packages', 'miniphim-tools');
+  mkdirSync(dir, { recursive: true });
+  const done = [];
+  for (const [, path, what] of list) {
+    if (!(path in commons) || path.includes('..')) continue;
+    const name = path.slice('shelf/'.length);
+    mkdirSync(dirname(join(dir, name)), { recursive: true });
+    writeFileSync(join(dir, name), redact(commons[path]));
+    done.push({ name, what: what.trim() });
+  }
+  writeFileSync(join(dir, 'README.md'), redact(`# miniphim-tools\n\nTools Modulo, Morphyx and Mozzie made on their shelf and chose to publish for other agents, listed by them in shelf/PUBLISH.md and copied here by the lab after each run (packages/whetstone/run.mjs). Each is meant to meet the engine contract (packages/whetstone/ENGINES.md): node only, runs from a copy, a guide, a selftest. Last published ${new Date().toISOString().slice(0, 10)}.\n\n| Tool | What it does |\n|---|---|\n${done.map((d) => `| [\`${d.name}\`](${d.name}) | ${d.what.replace(/\|/g, '\\|')} |`).join('\n')}\n`));
+  return done;
+}
+
 try {
   const t0 = Date.now();
   const { records, judged, scorecard, commons: after } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: stageEngines(opt.engines), councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {},
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: stageEngines(opt.engines), councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL } : {},
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;
@@ -163,6 +188,14 @@ try {
     await proxy.close();
   }
   if (opt.net === true || opt.net === 'true') scorecard.run.net = true;
+  if (townDay) {
+    const res = fake ? { published: [], held: [], failed: [] } : await townAfter(after, { town: tb.town, password: process.env.MINIPHIM_APP_PASSWORD });
+    scorecard.run.town = { read: tb.town ? { addressed: tb.town.inbox.length, other: tb.town.other.length, feed: tb.town.feed.posts.length, errors: tb.town.errors } : { error: tb.error },
+      published: res.published.map((d) => ({ kind: d.kind, uri: d.uri || d.target, writer: d.writer, approved_by: d.approved_by || null })),
+      held: res.held, failed: res.failed };
+    console.error(`· town: published ${res.published.length}, held ${res.held.length}, failed ${res.failed.length}`);
+  }
+  if (!fake) { const tools = publishTools(after); if (tools.length) { scorecard.run.tools_published = tools.map((t) => t.name); console.error(`· tools published: ${tools.map((t) => t.name).join(', ')}`); } }
   scorecard.run.seconds = Math.round((Date.now() - t0) / 1000);
   scorecard.run.label = label;
   scorecard.run.at = new Date().toISOString();
@@ -179,7 +212,7 @@ try {
   const md = scorecardMarkdown(scorecard, records);
   save(join(out, 'scorecard.md'), md);
   // The commons as this run left it: the next run starts here.
-  if (records.some((r) => ['pairwork', 'evening', 'sweep', 'project', 'council'].includes(r.kind))) {
+  if (records.some((r) => ['pairwork', 'evening', 'sweep', 'project', 'council', 'town'].includes(r.kind))) {
     writeTree(join(out, 'commons'), Object.fromEntries(Object.entries(after).map(([k, v]) => [k, redact(v)])));
     save(join(out, 'board.md'), after['BOARD.md']);
     save(join(out, 'commons.json'), JSON.stringify(after)); // one fetch for the run reader

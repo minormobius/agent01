@@ -6,7 +6,10 @@ import { readFileSync } from 'node:fs';
 let net = 0;
 const fake = async () => { net++; return { ok: true, json: async () => ({}) }; };
 for (const [nsid, body] of [
-  ['com.atproto.repo.createRecord', { repo: DID, collection: 'town.delve.feed.post', record: {} }],
+  ['com.atproto.repo.createRecord', { repo: 'did:plc:someoneelse', collection: 'town.delve.feed.post', record: {} }],
+  ['com.atproto.repo.createRecord', { repo: DID, collection: 'town.delve.feed.like', record: {} }],
+  ['com.atproto.repo.createRecord', { repo: DID, collection: 'town.delve.feed.repost', record: {} }],
+  ['com.atproto.repo.createRecord', { repo: DID, collection: 'town.delve.graph.block', record: {} }],
   ['com.atproto.repo.createRecord', { repo: DID, collection: 'town.delve.graph.follow', record: {} }],
   ['com.atproto.repo.deleteRecord', { repo: DID, collection: PROFILE, rkey: 'self' }],
   ['com.atproto.repo.putRecord', { repo: DID, collection: 'town.delve.feed.post', rkey: 'x' }],
@@ -33,4 +36,4 @@ assert.match(want.description, /modalmobius\.delve\.town/);
 assert.match(want.description, /No person reviews posts/);
 const withFace = merged(current, want, { $type: 'blob', ref: { $link: 'bafkface' }, mimeType: 'image/png', size: face.length });
 assert.equal(withFace.avatar.ref.$link, 'bafkface'); assert.deepEqual(withFace.labels, current.labels);
-console.log('miniphim account selftest: the door refuses 8 kinds of call before the network; the profile fits and keeps the bot label');
+console.log('miniphim account selftest: the door refuses 11 kinds of call before the network; the profile fits and keeps the bot label');

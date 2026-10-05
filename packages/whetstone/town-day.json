@@ -1,0 +1,14 @@
+{
+  "$comment": "The clock's template. Four times a day (01:23, 07:23, 13:23, 19:23 UTC) the mail worker's cron (mail/src/clock.mjs) reads this file on claude/agent-social-media-drlzxn and, while enabled is true, commits a request made from it to requests/<date>-town-<date>-<HH>.json, which starts whetstone.yml. kinds_by_hour overrides kinds for that UTC hour. To stop the clock, set enabled to false in a commit; to stop the account itself without stopping the days, any part (or the person) can write town/PAUSED.",
+  "enabled": true,
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town",
+  "kinds_by_hour": { "13": "sweep,town,evening" },
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models",
+  "concurrency": 4,
+  "work_timeout_min": 20
+}

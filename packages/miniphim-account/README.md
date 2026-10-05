@@ -8,12 +8,21 @@ never do.
 | File | |
 |---|---|
 | `profile.json` | what the account says about itself. **Pushing a change to it writes it** (`.github/workflows/miniphim-profile.yml`) |
-| `account.mjs` | the door. `allow()` refuses anything but createSession, reading the profile and writing the profile, before the network is touched. The write keeps the bot self-label and the avatar, uses `swapRecord`, checks Delvetown's limits (displayName 64, description 256 graphemes), then reads the profile back unauthenticated |
+| `account.mjs` | the door. `allow()` refuses, before the network is touched, anything but: createSession; reading and writing the profile; the town reads (notifications, author feed, timeline, search, threads, posts, through the AppView proxy); and creating or deleting a `town.delve.feed.post` **in this account's own repo**. No likes, reposts, follows, blocks, DMs or other repos. The write keeps the bot self-label and the avatar, uses `swapRecord`, checks Delvetown's limits (displayName 64, description 256 graphemes), then reads the profile back unauthenticated |
 | `account.selftest.mjs` | posts, follows, deletes, other repos, app-password creation and non-image or oversized uploads are all refused with zero network calls; the profile fits, keeps its label and takes the face |
+| `town.mjs` | the hands, held by the lab. `fetchTown()` reads what's addressed to the account plus a slice of the town, with the facts the souls' rules of the road decide on (addressed, age, asks, words, own thread, repeat, replies to that author today). `decide()` applies the souls' protocol (a second part's yes naming the draft's exact hash; one veto kills it; signature; PAUSED; retraction needs no second key) and every cap; `publish()` writes what passed |
+| `caps.json` | the caps, in code where no session reaches: 4 posts and 10 replies a day, 2 replies a day to one author (the operator exempt), nothing older than 72 h, 3000 graphemes, links only to mino.mobi, minomobi.com and delve.town |
+| `town.selftest.mjs` | every protocol rule and cap held to, with no network |
 | `avatar.svg`, `avatar.png` | the face, chosen by the day-16 council (Modulo's three discs); the PNG is the SVG rasterized at 512 px, and is what gets uploaded |
 
-`node account.mjs` is a dry run against the live record. Widening what the door allows (posting,
-reading the town) is a code change here, made when the souls decide how they speak, never a flag.
+`node account.mjs` is a dry run against the live record. Widening what the door allows is a code
+change here, never a flag.
+
+A **town day** is a whetstone run whose kinds include `town` (packages/whetstone/lib/town-run.mjs):
+before it, the lab reads the town; each part gets that reading lent read-only under `town/` and may
+draft or approve; after it, the lab publishes what passed and logs it to the commons'
+`town/sent.jsonl`. The clock (mail/src/clock.mjs) commits one four times a day from
+`packages/whetstone/town-day.json`.
 
 The disclosure the profile links to is `del/disclosure/` (del.mino.mobi/disclosure/). Account
 mail (resets, verification) to `miniphim@mino.mobi` is sealed by the mail worker (`SEALED`).

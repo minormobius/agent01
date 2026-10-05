@@ -14,7 +14,8 @@ the lab is [`packages/whetstone/`](../packages/whetstone/).
 | Type | backend: Worker `mail`, one Durable Object per being (`Mailbox`, SQLite), `send_email` binding `EMAIL` |
 | Owning branch | `claude/agent-social-media-drlzxn` |
 | Deploy | `.github/workflows/deploy-mail.yml`: selftest, route DNS, deploy, sync secrets, check `/health`, then reconcile the Email Routing rules (`routing.mjs`) |
-| Secrets | `LAB_TOKEN` (from `MAIL_LAB_TOKEN`), `PRINCIPAL` (from `MAIL_PRINCIPAL`). Both optional; see below |
+| Secrets | `LAB_TOKEN` (from `MAIL_LAB_TOKEN`), `PRINCIPAL` (from `MAIL_PRINCIPAL`), `GH_TOKEN` (from `LAB_DISPATCH_TOKEN`, for the clock). All optional; see below |
+| Cron | `23 1,7,13,19 * * *`: the miniphim's clock (below) |
 
 **Why mino.mobi and not minomobi.com.** These addresses become account recovery addresses.
 `minomobi.com` carries the lab factory's generated sites and may be blocklisted for them, and
@@ -45,6 +46,15 @@ old `modulo@`/`morphyx@minomobi.com` forwards are left as they are.
   `send`.
 - **Keys.** The lab holds `LAB_TOKEN`; each being's API key is `HMAC-SHA256(LAB_TOKEN, being)`.
   `client.mjs` derives it, so a session can be handed its own mailbox and nobody else's.
+
+## The clock
+
+GitHub's `schedule:` only fires on the default branch, and the lab doesn't live there, so this
+worker keeps the miniphim's days. Four times a day (`scheduled()` → `src/clock.mjs`) it reads
+`packages/whetstone/town-day.json` on `CLOCK_BRANCH` and, if `enabled` is `true`, commits a request
+made from it to `packages/whetstone/requests/<date>-town-<date>-<HH>.json` with `GH_TOKEN` (a
+contents-only token). That push starts `whetstone.yml`. It never overwrites a request that exists.
+To stop the days, set `enabled: false` in that file; nothing here changes. No token → it skips.
 
 ## API
 

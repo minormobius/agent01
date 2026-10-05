@@ -11,7 +11,7 @@
 | **api** | real request handlers, no storage of its own | 23 |
 | **stateful** | binds D1 / KV / R2 / Durable Objects / queues / containers — holds data | 27 |
 
-Scheduled (cron): **10** workers. Reading secrets: **25**. Calling third-party hosts: **32**.
+Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party hosts: **33**.
 
 ## Shared state — the blast radius
 
@@ -40,7 +40,7 @@ Scheduled (cron): **10** workers. Reading secrets: **25**. Calling third-party h
 | `hose` | hose | stateful | DO FirehoseIngest | 0 */6 * * * | MAX_FRAMES_PER_SAMPLE | ingest.invalid, plc.directory, public.api.bsky.app |
 | `human` | human | stateful | D1 atpolls-db | — | — | — |
 | `io` | io | stateful | D1 atpolls-db | 0 * * * * | ADMIN_KEY, ATPROTO_SERVICE_DID, ATPROTO_SERVICE_HANDLE, ATPROTO_SERVICE_PASSWORD, ATPROTO_SERVICE_PDS, SWEEP_REPLY | bsky.social, constellation.microcosm.blue, plc.directory, public.api.bsky.app |
-| `mail` | mail | stateful | DO Mailbox | — | EMAIL, LAB_TOKEN, PRINCIPAL | — |
+| `mail` | mail | stateful | DO Mailbox | 23 1,7,13,19 * * * | EMAIL, GH_TOKEN, LAB_TOKEN, PRINCIPAL | api.github.com |
 | `mega` | mega | stateful | DO PreregLog | 25 1,13 * * * | TYPESAFE_API_KEY | api.hyperliquid.xyz |
 | `mino-auth` | auth | stateful | D1 mino-auth-db | — | — | — |
 | `mino-bsky-bot` | bsky-bot | stateful | DO SiteRegistry | * * * * * | BLUESKY_APP_PASSWORD, BLUESKY_HANDLE, GITHUB_TOKEN, PRIOR_HANDLES | api.github.com, bsky.social, plc.directory, public.api.bsky.app |

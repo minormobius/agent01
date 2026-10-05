@@ -16,7 +16,16 @@ const IMAGE = new Set(['image/png', 'image/jpeg']);
 const seg = new Intl.Segmenter('en', { granularity: 'grapheme' });
 export const graphemes = (s) => [...seg.segment(String(s ?? ''))].length;
 
+// The town (2026-10-05): reading what's addressed to us and the town around it, and posting or
+// retracting our own posts. Still no follows, likes, reposts, blocks or anyone else's repo.
+const TOWN_READS = new Set(['town.delve.notification.listNotifications', 'town.delve.feed.getAuthorFeed', 'town.delve.feed.getTimeline',
+  'town.delve.feed.searchPosts', 'town.delve.feed.getPostThread', 'town.delve.feed.getPosts']);
+const POST = 'town.delve.feed.post';
+
 export function allow(nsid, body = {}) {
+  if (TOWN_READS.has(nsid)) return;
+  if (nsid === 'com.atproto.repo.createRecord' && body.repo === DID && body.collection === POST) return;
+  if (nsid === 'com.atproto.repo.deleteRecord' && body.repo === DID && body.collection === POST) return;
   if (nsid === 'com.atproto.server.createSession') return;
   if (nsid === 'com.atproto.repo.uploadBlob' && IMAGE.has(body.contentType) && body.size > 0 && body.size < 1_000_000) return;
   if (nsid === 'com.atproto.repo.getRecord' && body.collection === PROFILE && body.rkey === 'self') return;
@@ -35,11 +44,11 @@ export function merged(current, want, avatar = null) {
   return rec;
 }
 
-export async function xrpc(nsid, { method = 'GET', body, token, base = PDS, fetchImpl = fetch, bytes, contentType } = {}) {
+export async function xrpc(nsid, { method = 'GET', body, token, base = PDS, fetchImpl = fetch, bytes, contentType, proxy } = {}) {
   allow(nsid, bytes ? { contentType, size: bytes.length } : body);
   const url = new URL(`${base}/xrpc/${nsid}`);
   if (method === 'GET') for (const [k, v] of Object.entries(body || {})) url.searchParams.set(k, v);
-  const r = await fetchImpl(url, { method, headers: { ...(method === 'POST' ? { 'content-type': bytes ? contentType : 'application/json' } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
+  const r = await fetchImpl(url, { method, headers: { ...(method === 'POST' ? { 'content-type': bytes ? contentType : 'application/json' } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}), ...(proxy ? { 'atproto-proxy': proxy } : {}) },
     body: method === 'POST' ? (bytes || JSON.stringify(body)) : undefined });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`${nsid}: ${r.status} ${j.error || ''} ${j.message || ''}`);

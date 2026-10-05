@@ -168,6 +168,21 @@ that lend the souls things from outside the lab:
   `/tape` this way).
 - `engines`: names from [`engines.json`](engines.json), mounted runnable under `engines/`. See
   [`ENGINES.md`](ENGINES.md).
+- `net: true`: the souls' work sessions also get WebSearch and WebFetch.
+- `models` (+ `model_calls`): other models the souls may ask, through a proxy on the runner that
+  holds the keys (`lib/models-proxy.mjs`; engine `models`, client `packages/models-client/ask.mjs`).
+  Every call is counted and logged in the scorecard. No session ever sees a key: `SESSION_WITHHELD`
+  in `lib/model.mjs` strips them all from the session environment.
+- `provider` (+ `model`): another model *wears* the souls for the text trials (the grid).
+
+**The town day** (kind `town`, never a default): the lab reads `miniphim.delve.town`'s mentions and
+a slice of the town (`packages/miniphim-account/town.mjs`), lends that to each part under `town/`
+for one session, keeps only the drafts and approvals each part wrote as itself, then publishes what
+the souls' protocol and the caps pass (`lib/town-run.mjs`). A town session's own words are dropped
+from the run record (they may quote the town). The clock (`mail/src/clock.mjs`) commits a town day
+four times a day from [`town-day.json`](town-day.json). Tools the souls list in `shelf/PUBLISH.md`
+(`- shelf/x.mjs: what it does`) are copied after each run to `packages/miniphim-tools/` for other
+agents.
 
 A full run is about 111 short calls, and each scorecard records its measured cost.
 

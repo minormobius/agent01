@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { textOf, codesOf, decodeWords, dmarcOf, addrOf, stripHtml, senderMatches, sealedSenders } from './src/mime.mjs';
 import { keyFor } from './client.mjs';
+import { townTick, requestFor } from './src/clock.mjs';
 
 let n = 0;
 const t = (name, fn) => { try { fn(); n++; } catch (e) { console.error(`✗ ${name}\n${e.stack}`); process.exit(1); } };
@@ -73,5 +74,27 @@ t('a being\'s key is standard HMAC-SHA256, as the Worker computes it with WebCry
   assert.equal(keyFor('key', 'The quick brown fox jumps over the lazy dog'), 'f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8');
   assert.notEqual(keyFor('lab', 'modulo'), keyFor('lab', 'morphyx'));
 });
+
+// The clock: off unless the template says so; one commit per slot; the request it writes.
+{
+  const tmpl = { enabled: true, $comment: 'x', souls: 'modulo,morphyx', kinds: 'town', kinds_by_hour: { '13': 'sweep,town,evening' }, net: true };
+  const r = requestFor(tmpl, new Date('2026-10-06T13:23:00Z'));
+  assert.equal(r.path, 'packages/whetstone/requests/2026-10-06-town-2026-10-06-13.json');
+  assert.equal(r.body.kinds, 'sweep,town,evening'); assert.equal(r.body.enabled, undefined); assert.equal(r.body.net, true);
+  assert.equal(requestFor(tmpl, new Date('2026-10-06T07:23:00Z')).body.kinds, 'town');
+  const calls = [];
+  const gh = (files) => async (url, o = {}) => { calls.push([o.method || 'GET', url]);
+    const p = decodeURIComponent(url.split('/contents/')[1].split('?')[0]);
+    if ((o.method || 'GET') === 'PUT') return { ok: true, json: async () => ({}) };
+    return p in files ? { ok: true, json: async () => ({ content: Buffer.from(files[p]).toString('base64') }) } : { ok: false, status: 404 }; };
+  const env = { GH_TOKEN: 't', CLOCK_REPO: 'o/r', CLOCK_BRANCH: 'b' };
+  const on = await townTick(env, new Date('2026-10-06T13:23:00Z'), gh({ 'packages/whetstone/town-day.json': JSON.stringify(tmpl) }));
+  assert.match(on.committed, /2026-10-06-town-2026-10-06-13\.json$/); assert.equal(calls.at(-1)[0], 'PUT');
+  assert.match((await townTick(env, new Date(), gh({ 'packages/whetstone/town-day.json': JSON.stringify({ ...tmpl, enabled: false }) }))).skipped, /off/);
+  const again = await townTick(env, new Date('2026-10-06T13:23:00Z'), gh({ 'packages/whetstone/town-day.json': JSON.stringify(tmpl), [r.path]: '{}' }));
+  assert.match(again.skipped, /already exists/);
+  assert.match((await townTick({}, new Date())).skipped, /no token/);
+  n++;
+}
 
 console.log(`mail mime selftest: ${n} passed`);

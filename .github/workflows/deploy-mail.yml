@@ -51,6 +51,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GH_LAB_TOKEN: ${{ secrets.MAIL_LAB_TOKEN }}
           GH_PRINCIPAL: ${{ secrets.MAIL_PRINCIPAL }}
+          # The clock (src/clock.mjs): a contents-only token that commits the town day's request.
+          GH_DISPATCH: ${{ secrets.LAB_DISPATCH_TOKEN }}
         run: |
           put() {
             local NAME="$1" VALUE="$2"
@@ -61,6 +63,7 @@ jobs:
           }
           put LAB_TOKEN "$GH_LAB_TOKEN"
           put PRINCIPAL "$GH_PRINCIPAL"
+          put GH_TOKEN "$GH_DISPATCH"
       # A green deploy is not proof, least of all on a route: the check is the HOST answering.
       - name: Verify mail.mino.mobi serves (route)
         run: |

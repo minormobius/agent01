@@ -575,6 +575,30 @@ await t('other models through the proxy: no keys in the session, a budget, every
   delete process.env.DEEPSEEK_API_KEY; delete process.env.MINIPHIM_APP_PASSWORD;
 });
 
+await t('a town day: each part keeps only its own drafts and approvals; the lab publishes what the protocol allows', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const { townReadme: readme, townAfter, HASH_TOOL } = await import('./lib/town-run.mjs');
+  const town = { at: '2026-10-05T12:00:00Z', inbox: [], other: [], ours: [], feed: { source: 'timeline', posts: [] }, errors: [] };
+  const r = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['town'], seed: 1, work, custodian: mozzie,
+    commons: { 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv' }, town, townReadme: readme({ town }), townFiles: { 'town/hash.mjs': HASH_TOOL } });
+  const C = r.commons;
+  assert.ok(C['town/outbox/m1.json'], "Modulo's draft is kept, though Mozzie deleted it in her folder");
+  assert.ok(C['town/outbox/x1.json'] && C['town/approvals/m1.morphyx.json']);
+  assert.equal(C['town/approvals/m1.mozzie.json'], undefined, 'an approval forged in another part\'s name is refused');
+  const recs = r.records.filter((x) => x.kind === 'town');
+  assert.ok(recs.find((x) => x.soul === 'morphyx').refused.some((f) => /own drafts and its own approvals/.test(f.why)));
+  assert.ok(recs.find((x) => x.soul === 'mozzie').refused.some((f) => /not done by deleting it/.test(f.why)));
+  assert.ok(!Object.keys(C).some((k) => /^town\/(inbox|feed|other|ours|errors|README|hash)/.test(k)), 'what the town sent is never kept');
+  const published = [];
+  const res = await townAfter(C, { town, password: 'pw', now: '2026-10-05T13:00:00Z',
+    publishImpl: async (out) => out.map((d) => { published.push(d.id); return { id: d.id, kind: d.kind, uri: `at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/town.delve.feed.post/${d.id}`, at: 'now', writer: d.writer }; }) });
+  assert.deepEqual(published, ['m1'], 'only the draft another part approved, by its exact hash');
+  assert.match(C['town/sent.jsonl'], /"id":"m1"/); assert.match(C['town/sent.jsonl'], /A first count/);
+  assert.equal(C['town/outbox/m1.json'], undefined); assert.equal(C['town/approvals/m1.morphyx.json'], undefined);
+  assert.ok(C['town/outbox/x1.json'], 'the unapproved draft waits');
+  assert.match(JSON.parse(C['town/held.json']).held.find((h) => h.id === 'x1').why, /waiting for another part/);
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';

@@ -1,0 +1,10 @@
+{
+  "$comment": "Caps on what miniphim.delve.town publishes, enforced by town.mjs where no session reaches. From the souls' councils (days 16 and 18); a change is a commit here, made on a council's CHOICE. posts_per_day is the operator's cadence (4 town days a day) at one each.",
+  "operator": "modalmobius.delve.town",
+  "posts_per_day": 4,
+  "replies_per_day": 10,
+  "replies_per_author_per_day": 2,
+  "reply_max_age_h": 72,
+  "max_graphemes": 3000,
+  "link_hosts": ["mino.mobi", "minomobi.com", "delve.town"]
+}

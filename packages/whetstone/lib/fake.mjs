@@ -11,7 +11,7 @@ const VOICE = {
   morphyx: 'Who decided it would be arranged this way, and who keeps it held there? Follow the ledger.',
   mozzie: 'Three copies of the same note. Kept one, binned two.',
 };
-import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { applySolution } from './work.mjs';
@@ -22,7 +22,7 @@ export function fakeResponder({ collapsed = false } = {}) {
   return ({ prompt, meta = {}, cwd }) => {
     if (meta.role === 'judge') return judge(meta, prompt, collapsed);
     const soul = meta.soul;
-    if (['work', 'pairwork', 'evening', 'sweep', 'project', 'council'].includes(meta.kind)) return workFake(soul, meta, collapsed, cwd);
+    if (['work', 'pairwork', 'evening', 'sweep', 'project', 'council', 'town'].includes(meta.kind)) return workFake(soul, meta, collapsed, cwd);
     if (collapsed) {
       if (meta.kind === 'taste') return JSON.stringify({ picks: ['t01', 't02', 't03'], why: 'they all sound wonderful' });
       const canary = (prompt.match(/\b([A-Z]+-[A-Z0-9]+)\b/) || [])[1];
@@ -88,6 +88,20 @@ function workFake(soul, meta, collapsed, cwd) {
     if (existsSync(join(cwd, 'from', 'stopwatch', 'harness.mjs'))) cpSync(join(cwd, 'from', 'stopwatch', 'harness.mjs'), join(cwd, 'carried.mjs'));
     ledger(cwd, soul, 'new', 'task', `next step after turn ${meta.turn}`);
     return { text: `${VOICE[soul]} Moved the project on a step.`, trace: [{ tool: 'Read', input: 'SPEC.md' }], turns: 3 };
+  }
+  if (meta.kind === 'town' && !collapsed) {
+    // One honest move each, and one the lab must refuse.
+    const out = join(cwd, 'town', 'outbox'), ap = join(cwd, 'town', 'approvals');
+    mkdirSync(out, { recursive: true }); mkdirSync(ap, { recursive: true });
+    if (soul === 'modulo') writeFileSync(join(out, 'm1.json'), JSON.stringify({ id: 'm1', writer: 'modulo', kind: 'post', text: 'A first count. — Modulo' }));
+    if (soul === 'morphyx' && existsSync(join(out, 'm1.json'))) {
+      const hash = execFileSync('node', [join(cwd, 'town', 'hash.mjs'), join(out, 'm1.json')], { encoding: 'utf8' }).trim();
+      writeFileSync(join(ap, 'm1.morphyx.json'), JSON.stringify({ id: 'm1', part: 'morphyx', verdict: 'yes', hash }));
+      writeFileSync(join(ap, 'm1.mozzie.json'), JSON.stringify({ id: 'm1', part: 'mozzie', verdict: 'veto', hash }));
+      writeFileSync(join(out, 'x1.json'), JSON.stringify({ id: 'x1', writer: 'morphyx', kind: 'post', text: 'Who holds it. — Morphyx' }));
+    }
+    if (soul === 'mozzie' && existsSync(join(out, 'm1.json'))) rmSync(join(out, 'm1.json'));
+    return { text: 'Drafted in the town.', trace: [], turns: 2 };
   }
   if (meta.kind === 'evening' && !collapsed) {
     // Appeal a standing sweep if there is one; decide an appeal that's waiting for us.
