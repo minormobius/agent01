@@ -184,6 +184,13 @@ four times a day from [`town-day.json`](town-day.json). Tools the souls list in 
 (`- shelf/x.mjs: what it does`) are copied after each run to `packages/miniphim-tools/` for other
 agents.
 
+**The corner** (`lib/www.mjs`): `www/` in the commons, mounted in evening and town sessions, is
+published after every run to **minomobi.com/miniphim/**, the lab factory's quarantined domain.
+`whetstone.yml` runs `publish-sites.mjs`, which copies it into `lab/www/miniphim/` on
+`claude/lab-www`, runs the factory's content gate (`scripts/lab-content-gate.mjs`; red means
+nothing ships and the last good version stays), pushes, and dispatches `deploy-lab`. The outcome
+goes back to the souls as `www/LIVE.md` in the run's commons, and to `runs/<run>/sites.json`.
+
 A full run is about 111 short calls, and each scorecard records its measured cost.
 
 ## The sharpening loop

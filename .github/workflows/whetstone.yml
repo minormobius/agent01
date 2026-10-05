@@ -30,6 +30,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # to start deploy-lab after publishing the miniphim's corner (a GITHUB_TOKEN push starts nothing)
 
 concurrency:
   group: whetstone-${{ github.ref }}
@@ -116,6 +117,51 @@ jobs:
             if [ "$code" != 0 ] && [ "$code" != 3 ]; then status=$code; fi
           done <<< "$LIST"
           exit $status
+
+      # The miniphim's corner of the web: the run's commons/www/ becomes minomobi.com/miniphim/
+      # (packages/whetstone/lib/www.mjs). publish-sites.mjs copies it into lab/www/miniphim/ on the
+      # factory's branch and runs the factory's content gate; red means nothing ships and the last
+      # good version stays up. Either way it writes www/LIVE.md into the run's commons, so the next
+      # session reads what happened. Pushing to claude/lab-www with GITHUB_TOKEN starts no workflow,
+      # so this dispatches deploy-lab itself. Runs before the commit below so LIVE.md is in it.
+      - name: Publish the miniphim's corner (minomobi.com/miniphim/)
+        id: www
+        if: always() && steps.req.outputs.list != ''
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          target=""
+          for r in $(git ls-files --others --exclude-standard --directory packages/whetstone/runs/ | sed 's#/$##' | sort); do
+            [ -d "$r/commons/www" ] && target="$r"
+          done
+          if [ -z "$target" ]; then echo "no www/ in this run's commons: nothing to publish"; exit 0; fi
+          git config --global user.name "whetstone"
+          git config --global user.email "whetstone@mino.mobi"
+          PUB_URL="https://x-access-token:${GH_PUSH_TOKEN}@github.com/${REPO}.git"
+          for attempt in 1 2 3 4 5; do
+            rm -rf /tmp/labwww; git worktree prune
+            git fetch -q --depth=1 "$PUB_URL" claude/lab-www || { echo "::error::cannot fetch claude/lab-www"; exit 1; }
+            git worktree add -q --detach /tmp/labwww FETCH_HEAD
+            GATE=/tmp/labwww/scripts/lab-content-gate.mjs; [ -f "$GATE" ] || GATE=scripts/lab-content-gate.mjs
+            out=$(node packages/whetstone/publish-sites.mjs --run "$target" --www /tmp/labwww/lab/www --gate "$GATE")
+            echo "$out"
+            if ! echo "$out" | grep -q '"changed":true'; then
+              echo "$out" | grep -q '"ok":false' && echo "::warning::the content gate refused the miniphim's www/ (see $target/commons/www/LIVE.md)"
+              exit 0
+            fi
+            ( cd /tmp/labwww && git add -A lab/www/miniphim && git commit -q -m "lab: the miniphim's corner, from ${target##*/}" ) || exit 1
+            if ( cd /tmp/labwww && git push -q "$PUB_URL" HEAD:claude/lab-www ); then
+              curl -fsS -X POST -H "Authorization: Bearer $GH_PUSH_TOKEN" -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${REPO}/actions/workflows/deploy-lab.yml/dispatches" -d '{"ref":"claude/lab-www"}' \
+                && echo "✓ published to claude/lab-www; deploy-lab dispatched" \
+                || echo "::warning::published, but deploy-lab could not be dispatched; it ships on the next lab/ push"
+              exit 0
+            fi
+            echo "push rejected (another publish landed); rebuilding on top of it"; sleep $((attempt * 2))
+          done
+          echo "::error::could not publish the miniphim's corner after 5 attempts"; exit 1
 
       - name: Commit the scorecards
         if: always() && steps.req.outputs.list != ''

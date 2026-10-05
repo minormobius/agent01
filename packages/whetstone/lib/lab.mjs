@@ -12,6 +12,7 @@ import {
   newCommons, completeCommons, shelfOf, shelfStocked, harvest, usedShelf, pick, readTree, SHELF_INDEX,
   LEDGER, ledgerFiles, harvestLedger, appendLab, removedLines, authorsOf, applyRestores,
 } from './commons.mjs';
+import { WWW_README, README as WWW_README_PATH } from './www.mjs';
 import { parseLines, fold, mintId } from './ledger.mjs';
 import {
   mean, jaccard, wilson, slope, rng, attractorRate, isSilent, leaked, parseJson, pairs,
@@ -372,8 +373,8 @@ export async function runLab({
     } : { 'town/errors.json': JSON.stringify(['the lab could not read the town this time'], null, 1), ...townFiles };
     for (const soul of everyone) {
       const keptTown = pick(C, (k) => k.startsWith('town/'));
-      const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/')),
-        ...keptTown, ...lent, 'town/README.md': townReadme, ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
+      const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/') || k.startsWith('www/')),
+        ...keptTown, ...lent, 'town/README.md': townReadme, [WWW_README_PATH]: WWW_README, ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
       const dirs = prep({ id: 'town' }, { extra: files });
       const sess = await session(soul, P.town(soul.name, others(soul), { net, models: !!sessionEnv.MINIPHIM_MODELS_URL }), { kind: 'town', trial: 'town' }, dirs);
       const now = readTree(dirs.work, 'town/');
@@ -389,6 +390,7 @@ export async function runLab({
       for (const k of Object.keys(keptTown)) if (/^town\/(outbox|approvals)\//.test(k) && !(k in now)) kept.refused.push({ file: k, why: 'removing a draft or approval is not done by deleting it (a draft can be retracted; an approval can be changed to a veto)' });
       if ('town/PAUSED' in now && !('town/PAUSED' in C)) { C['town/PAUSED'] = now['town/PAUSED']; kept.paused = true; }
       harvest(C, dirs.work, 'BOARD.md'); harvest(C, dirs.work, 'shelf/'); harvest(C, dirs.work, `journal/${soul.key}.md`);
+      harvest(C, dirs.work, 'www/'); delete C[WWW_README_PATH]; // their corner of the web (lib/www.mjs); the README is the lab's
       takeLedger(soul, dirs, 'town');
       const rm = recordRemoval(soul, 'town', boardWas, C['BOARD.md'], shelfWas, C);
       // The session's own words can quote the town; the run's record is public, so it keeps only what
@@ -411,8 +413,8 @@ export async function runLab({
     // evening can rerun its tests and close what the day left open (fourteenth light: it couldn't).
     const projectTools = Object.fromEntries(work.filter((t) => t.mode === 'project' && t.tools && Object.keys(C).some((k) => k.startsWith(`projects/${t.id}/`)))
       .flatMap((t) => Object.entries(toolsAndCouncil()).filter(([k]) => k.startsWith('tools/')).map(([k, v]) => [`projects/${t.id}/${k}`, v])));
-    const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/') || k.startsWith('town/')),
-      ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
+    const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/') || k.startsWith('town/') || k.startsWith('www/')),
+      [WWW_README_PATH]: WWW_README, ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
     const dirs = prep({ id: 'evening' }, { extra: files });
     // The engines too: a project's own scripts find them at <project>/engines/, as they do by day
     // (fifteenth light: the enclosure checks failed in the evening for want of this, not of node).
@@ -424,6 +426,7 @@ export async function runLab({
     harvest(C, dirs.work, 'BOARD.md');
     harvest(C, dirs.work, 'shelf/');
     harvest(C, dirs.work, journal);
+    harvest(C, dirs.work, 'www/'); delete C[WWW_README_PATH];
     const before = ledgerOut.length;
     takeLedger(soul, dirs, 'evening');  // the soul's own ledger lines first: the lab's sweep record goes after
     const rm = recordRemoval(soul, 'evening', boardWas, C['BOARD.md'], shelfWas, C);
