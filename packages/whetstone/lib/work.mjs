@@ -121,7 +121,8 @@ export function changedFiles({ seed, work }) {
 // a key, become [redacted]. A soul with a shell can print its environment; a public repo must
 // never receive it.
 export function redactor(env) {
-  const secrets = ['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'GITHUB_TOKEN', 'GH_TOKEN', 'DEEPSEEK_API_KEY']
+  const secrets = ['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'GITHUB_TOKEN', 'GH_TOKEN', 'DEEPSEEK_API_KEY',
+    'MOONSHOT_API_KEY', 'MINIPHIM_APP_PASSWORD', 'JEV_KEY', 'TYPESAFE_API_KEY', 'MAIL_LAB_TOKEN']
     .map((k) => env[k]).filter((v) => v && v.length >= 12);
   return (text) => {
     let t = String(text);

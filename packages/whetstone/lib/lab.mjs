@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, symlinkSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import * as P from './prompts.mjs';
-import { pool, WORK_TOOLS } from './model.mjs';
+import { pool, WORK_TOOLS, NET_TOOLS } from './model.mjs';
 import { prepare, runCheck, diffOf, readOut, changedFiles, clip } from './work.mjs';
 import {
   newCommons, completeCommons, shelfOf, shelfStocked, harvest, usedShelf, pick, readTree, SHELF_INDEX,
@@ -35,7 +35,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null,
+  kinds = KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null, net = false, sessionEnv = {},
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -127,8 +127,8 @@ export async function runLab({
     // light lost seventy-five minutes of everyone's work to a single pair turn.
     let r;
     try {
-      r = await askFull(call, { system: soul.text, prompt, cwd: dirs.work, tools: WORK_TOOLS,
-        env: { WHETSTONE_SOUL: soul.key, WHETSTONE_SOULS: keys.join(',') },
+      r = await askFull(call, { system: soul.text, prompt, cwd: dirs.work, tools: net ? [...WORK_TOOLS, ...NET_TOOLS] : WORK_TOOLS,
+        env: { WHETSTONE_SOUL: soul.key, WHETSTONE_SOULS: keys.join(','), ...sessionEnv },
         meta: { role: 'soul', soul: soul.key, ...meta } });
     } catch (e) {
       log(`session stopped (${soul.key}, ${meta.kind} ${meta.trial}): ${String(e.message).slice(0, 120)}`);

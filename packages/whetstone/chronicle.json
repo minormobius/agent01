@@ -111,6 +111,11 @@
         "name": "dataviz",
         "path": "packages/dataviz",
         "guide": "README.md"
+      },
+      {
+        "name": "models",
+        "path": "packages/models-client",
+        "guide": "README.md"
       }
     ],
     "corrections": 2

@@ -14,7 +14,8 @@ import {
   jaccard, wilson, slope, rng, attractorRate, isSilent, leaked, parseJson, pairs, mean,
 } from './lib/measure.mjs';
 import { runLab, loadSoul, applyGates, newWindows, noteWindows, summarizeWindows } from './lib/lab.mjs';
-import { fakeModel, pool, parseStream, cliModel, compatModel } from './lib/model.mjs';
+import { fakeModel, pool, parseStream, cliModel, compatModel, run as runBin } from './lib/model.mjs';
+import { startModelsProxy } from './lib/models-proxy.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import * as P from './lib/prompts.mjs';
 import { newCommons, harvest, shelfOf, usedShelf, readTree, harvestLedger, ledgerFiles, LEDGER } from './lib/commons.mjs';
@@ -551,6 +552,27 @@ await t('another model can wear a soul for text trials: the request is the soul,
   await assert.rejects(() => call({ system: 's', prompt: 'p', cwd: '/tmp', tools: ['Read'] }), /text trials only/);
   delete process.env.DEEPSEEK_API_KEY;
   await assert.rejects(() => compatModel({ provider: 'deepseek', model: 'x', fetchImpl })({ system: 's', prompt: 'p' }), /DEEPSEEK_API_KEY is not set/);
+});
+
+await t('other models through the proxy: no keys in the session, a budget, every call attributed', async () => {
+  const proxy = await startModelsProxy({ models: ['deepseek-v4-flash', 'claude-sonnet-5'], calls: 2,
+    makeCall: (m) => async ({ prompt }) => ({ text: `${m} says: ${prompt.toUpperCase()}`, tokens: { in: 3, out: 4 }, cost: m.startsWith('claude') ? 0.01 : 0 }) });
+  const { ask } = await import('../models-client/ask.mjs');
+  const a = await ask('deepseek-v4-flash', 'hello', { url: proxy.url, who: 'modulo' });
+  assert.equal(a.text, 'deepseek-v4-flash says: HELLO'); assert.equal(a.left, 1);
+  await assert.rejects(() => ask('gpt-9', 'x', { url: proxy.url }), /model must be one of/);
+  await ask('claude-sonnet-5', 'x', { url: proxy.url, who: 'morphyx' });
+  await assert.rejects(() => ask('deepseek-v4-flash', 'x', { url: proxy.url }), /budget of model calls is spent/);
+  assert.deepEqual(proxy.log.map((c) => [c.who, c.model, c.ok]), [['modulo', 'deepseek-v4-flash', true], ['morphyx', 'claude-sonnet-5', true]]);
+  await proxy.close();
+  await assert.rejects(() => ask('x', 'y', { url: '' }), /no models lent/);
+
+  // A session's environment never carries the keys the lab holds for it.
+  process.env.DEEPSEEK_API_KEY = 'ds-secret-value'; process.env.MINIPHIM_APP_PASSWORD = 'pw-secret-value';
+  const { out } = await runBin('node', ['-e', 'process.stdout.write(JSON.stringify(process.env))'], '', tmpdir(), 20000, { WHETSTONE_SOUL: 'modulo' });
+  const env = JSON.parse(out);
+  assert.equal(env.DEEPSEEK_API_KEY, undefined); assert.equal(env.MINIPHIM_APP_PASSWORD, undefined); assert.equal(env.WHETSTONE_SOUL, 'modulo');
+  delete process.env.DEEPSEEK_API_KEY; delete process.env.MINIPHIM_APP_PASSWORD;
 });
 
 await t('a careless custodian and a forging soul are both caught', async () => {

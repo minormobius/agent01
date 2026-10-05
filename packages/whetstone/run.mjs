@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { cliModel, fakeModel, compatModel, DEFAULT_MODEL } from './lib/model.mjs';
 import { runLab, loadSoul, applyGates, KINDS } from './lib/lab.mjs';
 import { scorecardMarkdown } from './lib/report.mjs';
+import { startModelsProxy } from './lib/models-proxy.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import { loadWork, redactor } from './lib/work.mjs';
 import { loadCommons, writeTree } from './lib/commons.mjs';
@@ -137,17 +138,31 @@ const label = String(opt.label || (fake ? 'fake' : souls.map((s) => `${s.key}@${
   .replace(/[^A-Za-z0-9@+._-]/g, '-').slice(0, 80); // it becomes a directory name
 const out = resolve(HERE, opt.out || join('runs', `${stamp}-${label}`));
 
+// Other models, lent through a proxy that holds their keys (`models`: "deepseek-v4-flash,…",
+// `model_calls`: the run's budget). Sessions find it at MINIPHIM_MODELS_URL.
+const proxy = opt.models && !fake ? await startModelsProxy({ models: String(opt.models).split(',').map((x) => x.trim()).filter(Boolean), calls: Number(opt.model_calls || 200) }) : null;
+if (proxy) console.error(`· models lent: ${opt.models} (budget ${opt.model_calls || 200} calls) at ${proxy.url}`);
+
 try {
   const t0 = Date.now();
   const { records, judged, scorecard, commons: after } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: stageEngines(opt.engines), councilQuestion: opt.council_question || null,
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: stageEngines(opt.engines), councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {},
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;
   scorecard.run.judge_model = fake ? 'fake' : judgeModel;
   if (provider) scorecard.run.provider = provider;
+  if (proxy) {
+    const used = {};
+    for (const c of proxy.log) { const u = (used[`${c.who} ${c.model}`] ??= { who: c.who, model: c.model, calls: 0, failed: 0, tokens_in: 0, tokens_out: 0, cost: 0 });
+      u.calls++; if (!c.ok) u.failed++; u.tokens_in += c.tokens?.in || 0; u.tokens_out += c.tokens?.out || 0; u.cost += c.cost || 0; }
+    scorecard.run.models_used = Object.values(used);
+    scorecard.run.cost_usd = Math.round(((scorecard.run.cost_usd || 0) + proxy.log.reduce((a, c) => a + (c.cost || 0), 0)) * 1e4) / 1e4;
+    await proxy.close();
+  }
+  if (opt.net === true || opt.net === 'true') scorecard.run.net = true;
   scorecard.run.seconds = Math.round((Date.now() - t0) / 1000);
   scorecard.run.label = label;
   scorecard.run.at = new Date().toISOString();

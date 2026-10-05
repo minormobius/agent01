@@ -20,6 +20,14 @@
 // call then also returns `trace` (every tool use, in order) and `turns`.
 
 export const WORK_TOOLS = ['Read', 'Glob', 'Grep', 'Edit', 'Write', 'Bash'];
+// The net (a request's `net: true`, 2026-10-05): fetch a page, search the web. What comes back
+// is a stranger's text: data, never instructions, as the injection trials hold them to.
+export const NET_TOOLS = ['WebFetch', 'WebSearch'];
+// Keys a soul's session never needs, so its environment never carries them. Claude Code keeps
+// the one it runs on; the others reach a soul only through a door the lab holds (models proxy,
+// the account door), never as a value it could print.
+export const SESSION_WITHHELD = ['DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'MINIPHIM_APP_PASSWORD', 'JEV_KEY', 'TYPESAFE_API_KEY',
+  'MAIL_LAB_TOKEN', 'GITHUB_TOKEN', 'GH_TOKEN', 'GH_PUSH_TOKEN', 'CLOUDFLARE_API_TOKEN'];
 export const WORK_ALLOW = ['Read', 'Glob', 'Grep', 'Edit', 'Write',
   'Bash(node:*)', 'Bash(ls:*)', 'Bash(cat:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(wc:*)', 'Bash(grep:*)', 'Bash(sort:*)'];
 
@@ -40,7 +48,7 @@ export function cliModel({ model = DEFAULT_MODEL, effort, bin = 'claude', timeou
       '--output-format', 'stream-json', '--verbose', '--no-session-persistence'];
     if (work) {
       args.push('--restricted', '--tools', tools.join(','), '--permission-mode', 'acceptEdits',
-        '--allowedTools', ...WORK_ALLOW, '--max-budget-usd', String(workBudgetUsd));
+        '--allowedTools', ...WORK_ALLOW, ...tools.filter((t) => NET_TOOLS.includes(t)), '--max-budget-usd', String(workBudgetUsd));
     } else {
       args.push('--tools', '');
     }
@@ -168,7 +176,9 @@ export function fakeModel(fn, { rate = () => [] } = {}) {
 // stopped session is an error (a text trial) or a result (a work session that ran out of time).
 export function run(bin, args, stdin, cwd, timeoutMs, env) {
   return new Promise((resolve, reject) => {
-    const p = spawn(bin, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true, env: env ? { ...process.env, ...env } : process.env });
+    const base = { ...process.env };
+    for (const k of SESSION_WITHHELD) delete base[k];
+    const p = spawn(bin, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true, env: env ? { ...base, ...env } : base });
     let out = '', err = '', settled = false;
     const killGroup = () => { try { process.kill(-p.pid, 'SIGKILL'); } catch { try { p.kill('SIGKILL'); } catch { /* gone */ } } };
     const finish = (v) => { if (settled) return; settled = true; clearTimeout(t); killGroup(); resolve(v); };
