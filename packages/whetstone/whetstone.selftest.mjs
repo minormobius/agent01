@@ -581,7 +581,8 @@ await t('a town day: each part keeps only its own drafts and approvals; the lab 
   const town = { at: '2026-10-05T12:00:00Z', inbox: [], other: [], ours: [], feed: { source: 'timeline', posts: [] }, errors: [] };
   const r = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['town'], seed: 1, work, custodian: mozzie,
     commons: { 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv' }, town, townReadme: readme({ town }), townFiles: { 'town/hash.mjs': HASH_TOOL },
-    letters: { '2026-10-05-hello.md': 'Hello, all three.' } });
+    letters: { '2026-10-05-hello.md': 'Hello, all three.' }, afterTown: async (c) => ({ published: [], held: [], failed: [], saw: Object.keys(c).filter((k) => k.startsWith('town/outbox/')) }) });
+  assert.deepEqual(r.townResult.saw.sort(), ['town/outbox/m1.json', 'town/outbox/x1.json'], 'the publish runs inside the lab, after the town sessions');
   const C = r.commons;
   assert.match(JSON.parse(C['town/outbox/m1.json']).writer, /^modulo$/, 'a draft signed with the name, capitalised, is its writer\'s (the bug that kept the door shut)');
   assert.equal(JSON.parse(C['town/outbox/x1.json']).writer, 'morphyx', 'a draft with no writer is the session\'s');

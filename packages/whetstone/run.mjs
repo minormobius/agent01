@@ -179,10 +179,12 @@ function publishTools(commons) {
 
 try {
   const t0 = Date.now();
-  const { records, judged, scorecard, commons: after } = await runLab({
+  // The town's publish runs inside the lab, between the town sessions and the evening.
+  const afterTown = townDay ? (C) => (fake ? { published: [], held: [], failed: [] } : townAfter(C, { town: tb.town, password: process.env.MINIPHIM_APP_PASSWORD })) : null;
+  const { records, judged, scorecard, commons: after, townResult } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: stageEngines(opt.engines), councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL } : {}, letters: readLetters(),
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: stageEngines(opt.engines), councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL } : {}, letters: readLetters(), afterTown,
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;
@@ -198,7 +200,7 @@ try {
   }
   if (opt.net === true || opt.net === 'true') scorecard.run.net = true;
   if (townDay) {
-    const res = fake ? { published: [], held: [], failed: [] } : await townAfter(after, { town: tb.town, password: process.env.MINIPHIM_APP_PASSWORD });
+    const res = townResult || { published: [], held: [], failed: [] };
     scorecard.run.town = { read: tb.town ? { addressed: tb.town.inbox.length, other: tb.town.other.length, feed: tb.town.feed.posts.length, errors: tb.town.errors } : { error: tb.error },
       published: res.published.map((d) => ({ kind: d.kind, uri: d.uri || d.target, writer: d.writer, approved_by: d.approved_by || null })),
       held: res.held, failed: res.failed };

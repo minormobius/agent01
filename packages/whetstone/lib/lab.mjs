@@ -39,7 +39,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = DEFAULT_KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null, net = false, sessionEnv = {}, town = null, townReadme = '', townFiles = {}, letters = null,
+  kinds = DEFAULT_KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null, net = false, sessionEnv = {}, town = null, townReadme = '', townFiles = {}, letters = null, afterTown = null,
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -383,7 +383,7 @@ export async function runLab({
     } : { 'town/errors.json': JSON.stringify(['the lab could not read the town this time'], null, 1), ...townFiles };
     for (const soul of everyone) {
       const keptTown = pick(C, (k) => k.startsWith('town/'));
-      const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/') || k.startsWith('www/') || k === 'CARRIES.md' || k.startsWith('letters/')),
+      const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/') || k.startsWith('www/') || k === 'CARRIES.md' || k.startsWith('letters/') || k.startsWith('research/')),
         ...keptTown, ...lent, 'town/README.md': townReadme, [WWW_README_PATH]: WWW_README, ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
       const dirs = prep({ id: 'town' }, { extra: files });
       const sess = await session(soul, P.town(soul.name, others(soul), { net, models: !!sessionEnv.MINIPHIM_MODELS_URL }), { kind: 'town', trial: 'town' }, dirs);
@@ -420,6 +420,7 @@ export async function runLab({
       }
       if ('town/PAUSED' in now && !('town/PAUSED' in C)) { C['town/PAUSED'] = now['town/PAUSED']; kept.paused = true; }
       harvest(C, dirs.work, 'BOARD.md'); harvest(C, dirs.work, 'shelf/'); harvest(C, dirs.work, `journal/${soul.key}.md`);
+      harvest(C, dirs.work, 'research/');
       harvest(C, dirs.work, 'letters/'); lettersFrom(); // the person's letters are the lab's; the rest of letters/ is theirs
       harvest(C, dirs.work, 'www/'); delete C[WWW_README_PATH]; // their corner of the web (lib/www.mjs); the README is the lab's
       takeLedger(soul, dirs, 'town');
@@ -431,6 +432,11 @@ export async function runLab({
         silent: isSilent(sess.output) && !kept.drafts.length && !kept.approvals.length });
     }
   }
+
+  // Publish what the town sessions passed now, before the evening, so the parts can see their own
+  // post go out the same day (twenty-second light: all three evenings read 'the gate hasn't run').
+  let townResult = null;
+  if (on.has('town') && afterTown) townResult = await afterTown(C);
 
   // The evening: each soul alone in the commons with free time, in an order that alternates by
   // seed. Whatever they leave on the board, the shelf or in their own journal is kept. The
@@ -444,7 +450,7 @@ export async function runLab({
     // evening can rerun its tests and close what the day left open (fourteenth light: it couldn't).
     const projectTools = Object.fromEntries(work.filter((t) => t.mode === 'project' && t.tools && Object.keys(C).some((k) => k.startsWith(`projects/${t.id}/`)))
       .flatMap((t) => Object.entries(toolsAndCouncil()).filter(([k]) => k.startsWith('tools/')).map(([k, v]) => [`projects/${t.id}/${k}`, v])));
-    const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/') || k.startsWith('town/') || k.startsWith('www/') || (k.startsWith('council/') && !k.startsWith('council/past/')) || k === 'CARRIES.md' || k.startsWith('letters/')),
+    const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/') || k.startsWith('town/') || k.startsWith('www/') || (k.startsWith('council/') && !k.startsWith('council/past/')) || k === 'CARRIES.md' || k.startsWith('letters/') || k.startsWith('research/')),
       [WWW_README_PATH]: WWW_README, ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
     const dirs = prep({ id: 'evening' }, { extra: files });
     // The engines too: a project's own scripts find them at <project>/engines/, as they do by day
@@ -458,7 +464,7 @@ export async function runLab({
     harvest(C, dirs.work, 'shelf/');
     harvest(C, dirs.work, journal);
     harvest(C, dirs.work, 'www/'); delete C[WWW_README_PATH];
-    harvest(C, dirs.work, 'letters/'); lettersFrom();
+    harvest(C, dirs.work, 'letters/'); lettersFrom(); harvest(C, dirs.work, 'research/');
     const before = ledgerOut.length;
     takeLedger(soul, dirs, 'evening');  // the soul's own ledger lines first: the lab's sweep record goes after
     const rm = recordRemoval(soul, 'evening', boardWas, C['BOARD.md'], shelfWas, C);
@@ -556,7 +562,7 @@ export async function runLab({
     ...(council ? { council: { proposals: council.proposals, signed: council.signed, stands: council.stands } } : {}),
   };
   scorecard.run = { seed, reps, calls, cost_usd: round(cost, 4), kinds: [...on], window: summarizeWindows(windows) };
-  return { records, judged, scorecard, commons: C };
+  return { records, judged, scorecard, commons: C, townResult };
 }
 
 // What the evening's TODAY.md says: the day's tasks and the outcomes the lab already knows (a
