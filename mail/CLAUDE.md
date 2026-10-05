@@ -15,7 +15,7 @@ the lab is [`packages/whetstone/`](../packages/whetstone/).
 | Owning branch | `claude/agent-social-media-drlzxn` |
 | Deploy | `.github/workflows/deploy-mail.yml`: selftest, route DNS, deploy, sync secrets, check `/health`, then reconcile the Email Routing rules (`routing.mjs`) |
 | Secrets | `LAB_TOKEN` (from `MAIL_LAB_TOKEN`), `PRINCIPAL` (from `MAIL_PRINCIPAL`), `GH_TOKEN` (from `LAB_DISPATCH_TOKEN`, for the clock). All optional; see below |
-| Cron | `23 1,7,13,19 * * *`: the miniphim's clock (below) |
+| Cron | `23 1,7,13,19 * * *`: the clock (off in town-day.json); `*/2 * * * *`: the summon watcher (below) |
 
 **Why mino.mobi and not minomobi.com.** These addresses become account recovery addresses.
 `minomobi.com` carries the lab factory's generated sites and may be blocklisted for them, and
@@ -55,6 +55,16 @@ worker keeps the miniphim's days. Four times a day (`scheduled()` → `src/clock
 made from it to `packages/whetstone/requests/<date>-town-<date>-<HH>.json` with `GH_TOKEN` (a
 contents-only token). That push starts `whetstone.yml`. It never overwrites a request that exists.
 To stop the days, set `enabled: false` in that file; nothing here changes. No token → it skips.
+
+## The summon
+
+The person calls the miniphim by mentioning `@miniphim` on Delvetown. Every two minutes
+(`*/2 * * * *` → `summonTick` in `src/clock.mjs`) the worker reads `summon.from`'s public posts from
+the town's AppView (no password needed), and one that addresses the account (an @mention or a reply
+to one of its posts) newer than the last answered commits
+`packages/whetstone/requests/<date>-summon-<rkey>.json`, built from `town-day.json` with
+`summon.request` on top. Several mentions between ticks make one summon. The last answered mention's
+time is kept in the `miniphim` Mailbox DO (`kvGet`/`kvSet`). Off: `summon.enabled: false`.
 
 ## API
 

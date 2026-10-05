@@ -72,9 +72,20 @@ jobs:
           fi
           echo "requests: $list"
           { echo 'list<<EOF'; echo "$list"; echo 'EOF'; } >> "$GITHUB_OUTPUT"
+          # A push that only adds requests (the clock, a summon) changes no code: skip the 3-minute
+          # selftest so a summoned run starts sooner. Any other change, or a manual dispatch, runs it.
+          others=$(printf '%s\n' "${changed:-x}" | grep -v -E '^packages/whetstone/requests/' | grep -c . || true)
+          if [ -z "$INPUT_REQUEST" ] && [ "${others:-1}" = "0" ]; then echo "code_changed=false" >> "$GITHUB_OUTPUT"; else echo "code_changed=true" >> "$GITHUB_OUTPUT"; fi
 
       - name: Selftest
+        if: steps.req.outputs.code_changed != 'false'
         run: node packages/whetstone/whetstone.selftest.mjs
+
+      # SVG → PNG for charts in posts (lib/town-run.mjs renderer). Not fatal: without it, a post with
+      # images is held with the reason, and everything else goes out.
+      - name: Image renderer
+        if: steps.req.outputs.list != ''
+        run: npm install --no-save --no-package-lock --prefix packages/whetstone @resvg/resvg-js@2 || echo "::warning::resvg did not install; posts with images will be held"
 
       - name: Model credentials
         if: steps.req.outputs.list != ''

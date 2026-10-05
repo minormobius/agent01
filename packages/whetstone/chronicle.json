@@ -116,6 +116,11 @@
         "name": "models",
         "path": "packages/models-client",
         "guide": "README.md"
+      },
+      {
+        "name": "arxiv",
+        "path": "packages/arxiv-client",
+        "guide": "README.md"
       }
     ],
     "corrections": 2

@@ -22,7 +22,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { EmailMessage } from 'cloudflare:email';
-import { townTick } from './clock.mjs';
+import { townTick, summonTick, SUMMON_CRON } from './clock.mjs';
 import { textOf, codesOf, decodeWords, dmarcOf, addrOf, senderMatches, sealedSenders } from './mime.mjs';
 
 const RAW_MAX = 512 * 1024;   // bytes of a message we read; past this it's stored truncated
@@ -76,7 +76,11 @@ export class Mailbox extends DurableObject {
       dmarc TEXT, allowed INTEGER, text TEXT, codes TEXT, size INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS sent (
       id TEXT PRIMARY KEY, at TEXT, kind TEXT, to_addr TEXT, subject TEXT, ok INTEGER, error TEXT)`);
+    this.sql.exec('CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)');
   }
+  // A small key-value place for the worker's own state (the summon watcher's last answered mention).
+  kvGet(k) { return this.sql.exec('SELECT v FROM kv WHERE k = ?', k).toArray()[0]?.v ?? null; }
+  kvSet(k, v) { this.sql.exec('INSERT OR REPLACE INTO kv VALUES (?,?)', k, String(v)); }
   store(m) {
     this.sql.exec('INSERT OR REPLACE INTO messages VALUES (?,?,?,?,?,?,?,?,?,?)',
       m.id, m.at, m.from, m.subject, m.message_id, m.dmarc, m.allowed ? 1 : 0, m.text, JSON.stringify(m.codes), m.size);
@@ -153,7 +157,12 @@ export default {
 
   // ---- the clock: the miniphim's town days (clock.mjs) ----------------------------------
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(townTick(env, new Date(event.scheduledTime)).then((r) => console.log('clock', JSON.stringify(r))));
+    const now = new Date(event.scheduledTime);
+    // Two crons: the four-a-day clock, and the summon watcher (every two minutes).
+    if (event.cron === SUMMON_CRON) {
+      const box = env.MAILBOX.get(env.MAILBOX.idFromName('miniphim'));
+      ctx.waitUntil(summonTick(env, now, fetch, { get: (k) => box.kvGet(k), set: (k, v) => box.kvSet(k, v) }).then((r) => console.log('summon', JSON.stringify(r))));
+    } else ctx.waitUntil(townTick(env, now).then((r) => console.log('clock', JSON.stringify(r))));
   },
 
   // ---- the API -------------------------------------------------------------------------

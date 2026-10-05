@@ -23,10 +23,16 @@ const day = (iso) => String(iso).slice(0, 10);
 const hours = (a, b) => (Date.parse(b) - Date.parse(a)) / 36e5;
 
 // The canonical form a part signs off on: exactly what would be published.
-export function draftHash(d) {
-  const canon = JSON.stringify({ kind: d.kind, text: d.text ?? null, reply: d.reply ? { uri: d.reply.uri, root: d.reply.root?.uri ?? d.reply.uri } : null, target: d.target ?? null });
+// Images (charts): a draft may name up to 4 SVG files from the commons, each with alt text. The hash
+// covers each file's exact bytes and its alt, so a yes is a yes to the picture too. No images, no
+// key: every hash signed before images existed stays valid.
+export const sha16 = (s) => createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
+export function draftHash(d, files = {}) {
+  const images = (Array.isArray(d.images) ? d.images : []).map((i) => ({ file: i?.file ?? null, alt: i?.alt ?? '', sha: sha16(files[i?.file] ?? '') }));
+  const canon = JSON.stringify({ kind: d.kind, text: d.text ?? null, reply: d.reply ? { uri: d.reply.uri, root: d.reply.root?.uri ?? d.reply.uri } : null, target: d.target ?? null, ...(images.length ? { images } : {}) });
   return createHash('sha256').update(canon).digest('hex').slice(0, 16);
 }
+export const IMAGE_MAX = 4, SVG_MAX = 300_000;
 
 // ---- reading -------------------------------------------------------------------------------
 export async function session(password, fetchImpl = fetch) {
@@ -102,7 +108,7 @@ export async function fetchTown({ password, now = new Date().toISOString(), fetc
 // Decide what may go out, without the network: the protocol and every cap. Pure, so the selftest
 // can hold it to each rule. `sent` is the account's own log of what it published (uri, kind, at,
 // author_did for replies).
-export function decide(drafts, approvals, { now, sent = [], paused = false, mentions = {} } = {}) {
+export function decide(drafts, approvals, { now, sent = [], paused = false, mentions = {}, files = {} } = {}) {
   const out = [], held = [];
   const today = sent.filter((s) => day(s.at) === day(now));
   let posts = today.filter((s) => s.kind === 'post').length, replies = today.filter((s) => s.kind === 'reply').length;
@@ -110,7 +116,7 @@ export function decide(drafts, approvals, { now, sent = [], paused = false, ment
   for (const s of today) if (s.kind === 'reply' && s.author_did) perAuthor[s.author_did] = (perAuthor[s.author_did] || 0) + 1;
   for (const d of drafts) {
     const why = (w) => held.push({ id: d.id, why: w });
-    const h = draftHash(d);
+    const h = draftHash(d, files);
     if (!PARTS.includes(d.writer)) { why(`unknown writer ${d.writer}`); continue; }
     if (d.kind === 'delete') {
       // Retraction: no second key, works while paused, only our own posts.
@@ -126,12 +132,17 @@ export function decide(drafts, approvals, { now, sent = [], paused = false, ment
     if (!text.trim()) { why('empty'); continue; }
     if (graphemes(text) > CAPS.max_graphemes) { why(`over ${CAPS.max_graphemes} graphemes`); continue; }
     if (!new RegExp(`—\\s*${SIGN[d.writer]}\\s*$`).test(text)) { why(`must end with its writer's signature: "— ${SIGN[d.writer]}"`); continue; }
+    const imgs = Array.isArray(d.images) ? d.images : [];
+    if (imgs.length > IMAGE_MAX) { why(`at most ${IMAGE_MAX} images`); continue; }
+    const badImg = imgs.find((i) => !/\.svg$/i.test(String(i?.file)) || !(i.file in files) || !String(i.alt || '').trim() || String(files[i.file]).length > SVG_MAX || !/<svg[\s>]/i.test(files[i.file]));
+    if (badImg) { why(`image ${badImg?.file}: an image is an .svg file in the commons, under ${SVG_MAX / 1000} KB, with alt text`); continue; }
+    const images = imgs.map((i) => ({ file: i.file, alt: String(i.alt).slice(0, 2000), svg: files[i.file] }));
     const links = text.match(/https?:\/\/[^\s)]+/g) || [];
     const bad = links.find((u) => !CAPS.link_hosts.some((host) => new URL(u).hostname === host || new URL(u).hostname.endsWith(`.${host}`)));
     if (bad) { why(`link to ${bad}: links only to ${CAPS.link_hosts.join(', ')}`); continue; }
     if (d.kind === 'post') {
       if (posts >= CAPS.posts_per_day) { why(`cap: ${CAPS.posts_per_day} posts a day`); continue; }
-      posts++; out.push({ ...d, hash: h, approved_by: yes.part }); continue;
+      posts++; out.push({ ...d, images, hash: h, approved_by: yes.part }); continue;
     }
     if (d.kind === 'reply') {
       const m = mentions[d.reply?.uri];
@@ -140,14 +151,15 @@ export function decide(drafts, approvals, { now, sent = [], paused = false, ment
       if (replies >= CAPS.replies_per_day) { why(`cap: ${CAPS.replies_per_day} replies a day`); continue; }
       if ((perAuthor[m.author_did] || 0) >= CAPS.replies_per_author_per_day && !m.facts.from_operator) { why(`cap: ${CAPS.replies_per_author_per_day} replies a day to one author`); continue; }
       replies++; perAuthor[m.author_did] = (perAuthor[m.author_did] || 0) + 1;
-      out.push({ ...d, hash: h, approved_by: yes.part, author_did: m.author_did, root: m.reply_root, parent: { uri: m.uri, cid: m.cid } }); continue;
+      out.push({ ...d, images, hash: h, approved_by: yes.part, author_did: m.author_did, root: m.reply_root, parent: { uri: m.uri, cid: m.cid } }); continue;
     }
     why(`unknown kind ${d.kind}`);
   }
   return { out, held };
 }
 
-export async function publish(decided, { password, now = new Date().toISOString(), fetchImpl = fetch } = {}) {
+// render(svgText) → { png: Uint8Array, width, height }: supplied by the lab (lib/town-run.mjs).
+export async function publish(decided, { password, now = new Date().toISOString(), fetchImpl = fetch, render = null } = {}) {
   if (!decided.length) return [];
   const token = await session(password, fetchImpl);
   const done = [];
@@ -158,10 +170,22 @@ export async function publish(decided, { password, now = new Date().toISOString(
         await xrpc('com.atproto.repo.deleteRecord', { method: 'POST', token, fetchImpl, body: { repo: DID, collection: POST, rkey } });
         done.push({ id: d.id, kind: 'delete', target: d.target, at: now, writer: d.writer }); continue;
       }
+      let embed = null;
+      if (d.images?.length) {
+        if (!render) throw new Error('no renderer for images on this runner');
+        const images = [];
+        for (const i of d.images) {
+          const { png, width, height } = await render(i.svg);
+          if (png.length >= 1_000_000) throw new Error(`${i.file} renders to ${png.length} bytes; the limit is 1 MB`);
+          const b = await xrpc('com.atproto.repo.uploadBlob', { method: 'POST', token, fetchImpl, bytes: png, contentType: 'image/png' });
+          images.push({ alt: i.alt, image: b.blob, aspectRatio: { width, height } });
+        }
+        embed = { $type: 'town.delve.embed.images', images };
+      }
       const record = { $type: POST, text: d.text, createdAt: now, langs: ['en'],
-        ...(d.kind === 'reply' ? { reply: { root: d.root, parent: d.parent } } : {}) };
+        ...(d.kind === 'reply' ? { reply: { root: d.root, parent: d.parent } } : {}), ...(embed ? { embed } : {}) };
       const r = await xrpc('com.atproto.repo.createRecord', { method: 'POST', token, fetchImpl, body: { repo: DID, collection: POST, record } });
-      done.push({ id: d.id, kind: d.kind, uri: r.uri, cid: r.cid, at: now, writer: d.writer, approved_by: d.approved_by, hash: d.hash, author_did: d.author_did || null });
+      done.push({ id: d.id, kind: d.kind, uri: r.uri, cid: r.cid, at: now, writer: d.writer, approved_by: d.approved_by, hash: d.hash, author_did: d.author_did || null, ...(d.images?.length ? { images: d.images.map((i) => i.file) } : {}) });
     } catch (e) { done.push({ id: d.id, kind: d.kind, failed: String(e.message).slice(0, 200), at: now, writer: d.writer }); }
   }
   return done;

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { textOf, codesOf, decodeWords, dmarcOf, addrOf, stripHtml, senderMatches, sealedSenders } from './src/mime.mjs';
 import { keyFor } from './client.mjs';
-import { townTick, requestFor } from './src/clock.mjs';
+import { townTick, requestFor, summonTick, addressesUs, MINIPHIM_DID } from './src/clock.mjs';
 
 let n = 0;
 const t = (name, fn) => { try { fn(); n++; } catch (e) { console.error(`✗ ${name}\n${e.stack}`); process.exit(1); } };
@@ -94,6 +94,40 @@ t('a being\'s key is standard HMAC-SHA256, as the Worker computes it with WebCry
   const again = await townTick(env, new Date('2026-10-06T13:23:00Z'), gh({ 'packages/whetstone/town-day.json': JSON.stringify(tmpl), [r.path]: '{}' }));
   assert.match(again.skipped, /already exists/);
   assert.match((await townTick({}, new Date())).skipped, /no token/);
+  n++;
+}
+
+// The summon: a post of the person's that addresses the account, newer than the last answered.
+{
+  const D = MINIPHIM_DID;
+  assert.ok(addressesUs({ record: { text: 'hey @miniphim.delve.town look' } }));
+  assert.ok(addressesUs({ record: { text: 'x', facets: [{ features: [{ $type: 'town.delve.richtext.facet#mention', did: D }] }] } }));
+  assert.ok(addressesUs({ record: { text: 'yes', reply: { parent: { uri: `at://${D}/town.delve.feed.post/3x` } } } }));
+  assert.ok(!addressesUs({ record: { text: 'about miniphims in general' } }));
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64');
+  const tpl = { enabled: false, souls: 'modulo,morphyx', kinds: 'town', summon: { enabled: true, from: 'modalmobius.delve.town', request: { kinds: 'town' } } };
+  const now = new Date('2026-10-06T10:00:00Z');
+  const post = (rkey, at, text, handle = 'modalmobius.delve.town') => ({ post: { uri: `at://did:plc:me/town.delve.feed.post/${rkey}`, author: { handle }, record: { text, createdAt: at } } });
+  let feed = [post('a1', '2026-10-06T09:58:00Z', '@miniphim are you there'), post('a0', '2026-10-06T09:00:00Z', '@miniphim old'), post('b1', '2026-10-06T09:59:00Z', 'not for them'), post('c1', '2026-10-06T09:59:30Z', '@miniphim', 'someone.delve.town')];
+  const puts = [];
+  const fake = async (url, init = {}) => {
+    if (String(url).includes('town-day.json')) return { ok: true, json: async () => ({ content: b64(tpl) }) };
+    if (String(url).includes('getAuthorFeed')) return { ok: true, json: async () => ({ feed }) };
+    if (init.method === 'PUT') { puts.push({ url, body: JSON.parse(init.body) }); return { ok: true, status: 201 }; }
+    return { ok: false, status: 404 };
+  };
+  const kv = new Map(); const state = { get: async (k) => kv.get(k) ?? null, set: async (k, v) => kv.set(k, v) };
+  const env = { GH_TOKEN: 't', CLOCK_REPO: 'o/r', CLOCK_BRANCH: 'b' };
+  const r = await summonTick(env, now, fake, state);
+  assert.match(r.committed, /requests\/2026-10-06-summon-a1\.json$/);
+  const body = JSON.parse(Buffer.from(puts[0].body.content, 'base64').toString());
+  assert.deepEqual(body.summoned_by, ['at://did:plc:me/town.delve.feed.post/a1'], 'only the person, only addressed, only inside the window');
+  assert.equal(body.kinds, 'town'); assert.equal(body.summon, undefined); assert.match(body.notice, /summoned you/);
+  assert.match((await summonTick(env, now, fake, state)).skipped, /no new mention/, 'a mention is answered once');
+  feed = [post('a2', '2026-10-06T10:01:00Z', 'reply', 'modalmobius.delve.town')]; feed[0].post.record.reply = { parent: { uri: `at://${D}/town.delve.feed.post/3x` } };
+  assert.match((await summonTick(env, new Date('2026-10-06T10:02:00Z'), fake, state)).committed, /summon-a2/, 'a reply in our thread summons too');
+  tpl.summon.enabled = false;
+  assert.match((await summonTick(env, now, fake, state)).skipped, /summon is off/);
   n++;
 }
 

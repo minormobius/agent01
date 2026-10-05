@@ -32,5 +32,15 @@
       "ask.mjs",
       "--selftest"
     ]
+  },
+  "arxiv": {
+    "path": "packages/arxiv-client",
+    "guide": "README.md",
+    "what": "arXiv, the way the buildabot reads it: search, the newest submissions in a category, papers by id, as JSON lines. Uses the public API on the net; one command, one request (arXiv asks for ~3 s between calls). A door, not required reading.",
+    "health": [
+      "node",
+      "arxiv.mjs",
+      "--selftest"
+    ]
   }
 }

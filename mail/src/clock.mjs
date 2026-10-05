@@ -30,3 +30,56 @@ export async function townTick(env, now = new Date(), fetchImpl = fetch) {
     body: JSON.stringify({ message: `whetstone: ${body.label} (the clock)`, branch: env.CLOCK_BRANCH, content: b64(JSON.stringify(body, null, 2) + '\n') }) });
   return put.ok ? { committed: path } : { failed: `GitHub answered ${put.status}` };
 }
+
+// ---- the summon --------------------------------------------------------------------------
+// The person summons the miniphim by mentioning them. Every two minutes this reads the person's
+// public posts on Delvetown (no password: the AppView serves them to anyone) and, if one addresses
+// the account (an @mention, or a reply to one of its posts) and is newer than the last one
+// answered, commits a summon request built from town-day.json's `summon` block. The push starts
+// whetstone.yml. Several mentions between ticks make one summon; the run reads them all.
+export const SUMMON_CRON = '*/2 * * * *';
+const APPVIEW = 'https://api.delve.town';
+export const MINIPHIM_DID = 'did:plc:a3vq3hjlkz2nbf67bpv5z6qs';
+
+export function addressesUs(post, did = MINIPHIM_DID) {
+  const r = post?.record || {};
+  if (String(r.reply?.parent?.uri || '').startsWith(`at://${did}/`)) return true;
+  if ((r.facets || []).some((f) => (f.features || []).some((x) => String(x.$type).endsWith('#mention') && x.did === did))) return true;
+  return /(^|\s)@miniphim(\.delve\.town)?\b/i.test(r.text || '');
+}
+
+export function summonRequest(template, mentions, now) {
+  const s = template.summon || {};
+  const newest = mentions[0];
+  const date = now.toISOString().slice(0, 10);
+  const rkey = newest.uri.split('/').pop();
+  const { enabled, $comment, kinds_by_hour, summon, ...rest } = template;
+  return { path: `packages/whetstone/requests/${date}-summon-${rkey}.json`,
+    body: { ...rest, ...(s.request || {}), label: `summon-${rkey}`, seed: Math.floor(now.getTime() / 60000) % 100000,
+      summoned_by: mentions.map((m) => m.uri),
+      notice: `The person summoned you: ${mentions.length === 1 ? 'a post' : `${mentions.length} posts`} addressed to the account (${mentions.map((m) => m.uri).join(', ')}), in town/inbox.json.` } };
+}
+
+export async function summonTick(env, now = new Date(), fetchImpl = fetch, state) {
+  if (!env.GH_TOKEN || !env.CLOCK_REPO || !env.CLOCK_BRANCH) return { skipped: 'no token or repo' };
+  const api = `https://api.github.com/repos/${env.CLOCK_REPO}/contents/`;
+  const headers = { authorization: `Bearer ${env.GH_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': 'mino-mail-clock' };
+  const t = await fetchImpl(`${api}packages/whetstone/town-day.json?ref=${encodeURIComponent(env.CLOCK_BRANCH)}`, { headers });
+  if (!t.ok) return { skipped: `template: GitHub answered ${t.status}` };
+  const template = JSON.parse(unb64((await t.json()).content));
+  const s = template.summon || {};
+  if (s.enabled !== true || !s.from) return { skipped: 'summon is off (town-day.json)' };
+  const f = await fetchImpl(`${APPVIEW}/xrpc/town.delve.feed.getAuthorFeed?actor=${encodeURIComponent(s.from)}&limit=30`);
+  if (!f.ok) return { skipped: `author feed: ${f.status}` };
+  const last = (await state.get('summon:last_at')) || new Date(now.getTime() - (s.window_min || 30) * 60000).toISOString();
+  const mentions = ((await f.json()).feed || []).map((x) => x.post)
+    .filter((p) => p?.author?.handle === s.from && addressesUs(p) && String(p.record?.createdAt) > last)
+    .sort((a, b) => String(b.record.createdAt).localeCompare(String(a.record.createdAt)));
+  if (!mentions.length) return { skipped: 'no new mention' };
+  const { path, body } = summonRequest(template, mentions, now);
+  const put = await fetchImpl(`${api}${path}`, { method: 'PUT', headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ message: `whetstone: ${body.label} (summoned)`, branch: env.CLOCK_BRANCH, content: b64(JSON.stringify(body, null, 2) + '\n') }) });
+  if (!put.ok && put.status !== 422) return { failed: `GitHub answered ${put.status}` };
+  await state.set('summon:last_at', mentions[0].record.createdAt);
+  return put.ok ? { committed: path, mentions: mentions.length } : { skipped: `${path} already exists` };
+}

@@ -248,6 +248,17 @@ function publishTools(commons) {
 
 try {
   const t0 = Date.now();
+  // Their own copy of the dataviz engine, seeded once onto the shelf (the person: "they should be able to
+  // improve it at their leisure"). After this it's theirs: the lab never touches shelf/dataviz/ again.
+  if (commons && !Object.keys(commons).some((k) => k.startsWith('shelf/dataviz/'))) {
+    for (const f of ['charts.js', 'stats.js', 'index.mjs', 'README.md', 'dataviz.selftest.mjs']) {
+      const src = join(ROOT, 'packages', 'dataviz', f);
+      if (existsSync(src)) commons[`shelf/dataviz/${f}`] = readFileSync(src, 'utf8');
+    }
+    commons['shelf/SHELF.md'] = (commons['shelf/SHELF.md'] || '# Shelf\n').replace(/\n*$/, '\n') +
+      `- shelf/dataviz/: a copy of packages/dataviz (charts.js: 24 SVG charts; stats.js: estimators), seeded by the lab ${new Date().toISOString().slice(0, 10)} at the person's word, yours to change. Charts made with it can go into posts (town/README.md, Images). — the lab\n`;
+  }
+
   // The town, live: a proxy holding the password, so sessions can read the town and follow or like
   // as they go (town/town.mjs). Acts are capped there and logged to the commons' town/acts.jsonl.
   const pastActs = (commons?.['town/acts.jsonl'] || '').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);

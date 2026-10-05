@@ -22,7 +22,7 @@
   // The clock (src/clock.mjs): four town days a day for the miniphim, at :23 past 01, 07, 13, 19 UTC.
   // It commits the day's request from packages/whetstone/town-day.json with GH_TOKEN (a contents-only
   // token, LAB_DISPATCH_TOKEN). Off: "enabled": false in that file.
-  "triggers": { "crons": ["23 1,7,13,19 * * *"] },
+  "triggers": { "crons": ["23 1,7,13,19 * * *", "*/2 * * * *"] },
   // miniphim@ is the board's address: one account for the three of them (Delvetown, 2026-10-04).
   "vars": {
     "DOMAIN": "mino.mobi",

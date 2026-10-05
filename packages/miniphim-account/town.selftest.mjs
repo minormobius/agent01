@@ -1,6 +1,11 @@
 // town.selftest.mjs — what may leave the account, held to the souls' own protocol and the caps.
 import assert from 'node:assert/strict';
 import { decide, draftHash, factsOf, publish, CAPS, POST } from './town.mjs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { HASH_TOOL } from '../whetstone/lib/town-run.mjs';
 import { DID } from './account.mjs';
 
 const now = '2026-10-05T12:00:00Z';
@@ -75,4 +80,36 @@ assert.deepEqual(done.map((d) => [d.kind, d.failed || 'ok']), [['reply', 'ok'], 
 const create = calls.filter((c) => c.url.endsWith('createRecord'));
 assert.equal(create[0].body.record.reply.parent.uri, 'at://x/1'); assert.equal(create[1].body.record.reply, undefined);
 assert.ok(create.every((c) => c.body.repo === DID && c.body.collection === POST));
-console.log('miniphim town selftest: second-part yes on the exact hash, veto, signature, links, length, posts/replies/per-author caps, PAUSED, retraction, facts, records');
+
+// Images: the hash covers each SVG's bytes and alt; the souls' hash tool agrees with the lab; a
+// picture with no alt text is held; publishing uploads a PNG and embeds it.
+{
+  const svg = '<svg viewBox="0 0 10 10"><rect width="10" height="10"/></svg>';
+  const files = { 'www/c.svg': svg };
+  const g = { id: 'g1', writer: 'modulo', kind: 'post', text: 'A chart. — Modulo', images: [{ file: 'www/c.svg', alt: 'a black square' }] };
+  const hg = draftHash(g, files);
+  assert.notEqual(hg, draftHash({ ...g, images: undefined }, files), 'the picture is in the hash');
+  assert.notEqual(hg, draftHash(g, { 'www/c.svg': svg.replace('10"/>', '9"/>') }), 'a changed picture is a changed hash');
+  assert.equal(draftHash({ id: 'x', kind: 'post', text: 't' }), draftHash({ id: 'x', kind: 'post', text: 't', images: [] }), 'no images: hashes from before images still hold');
+  const root = mkdtempSync(join(tmpdir(), 'hash-')); mkdirSync(join(root, 'town', 'outbox'), { recursive: true }); mkdirSync(join(root, 'www'));
+  writeFileSync(join(root, 'town', 'hash.mjs'), HASH_TOOL); writeFileSync(join(root, 'www', 'c.svg'), svg); writeFileSync(join(root, 'town', 'outbox', 'g1.json'), JSON.stringify(g));
+  assert.equal(execFileSync('node', ['town/hash.mjs', 'town/outbox/g1.json'], { cwd: root, encoding: 'utf8' }).trim(), hg, "the souls' hash tool and the lab agree");
+  const yesG = { id: 'g1', part: 'morphyx', verdict: 'yes', hash: hg };
+  const ok = decide([g], [yesG], { now, files });
+  assert.equal(ok.out.length, 1); assert.equal(ok.out[0].images[0].svg, svg);
+  const noAlt = { ...g, images: [{ file: 'www/c.svg', alt: '' }] };
+  assert.match(decide([noAlt], [{ ...yesG, hash: draftHash(noAlt, files) }], { now, files }).held[0].why, /alt text/);
+  assert.match(decide([{ ...g, images: [{ file: 'www/missing.svg', alt: 'x' }] }], [yesG], { now, files }).held[0].why, /image|hash/);
+  const icalls = [];
+  const ifetch = async (url, o) => { icalls.push({ url: String(url), body: o.body, headers: o.headers });
+    if (String(url).includes('createSession')) return { ok: true, json: async () => ({ did: DID, accessJwt: 't' }) };
+    if (String(url).includes('uploadBlob')) return { ok: true, json: async () => ({ blob: { $type: 'blob', ref: { $link: 'bafkpng' }, mimeType: 'image/png', size: 3 } }) };
+    return { ok: true, json: async () => ({ uri: `at://${DID}/${POST}/img`, cid: 'cid' }) }; };
+  const pub = await publish(ok.out, { password: 'pw', now, fetchImpl: ifetch, render: async () => ({ png: new Uint8Array([1, 2, 3]), width: 1600, height: 900 }) });
+  assert.equal(pub[0].failed, undefined);
+  const rec = JSON.parse(icalls.find((c) => c.url.endsWith('createRecord')).body).record;
+  assert.deepEqual(rec.embed, { $type: 'town.delve.embed.images', images: [{ alt: 'a black square', image: { $type: 'blob', ref: { $link: 'bafkpng' }, mimeType: 'image/png', size: 3 }, aspectRatio: { width: 1600, height: 900 } }] });
+  assert.equal(icalls.find((c) => c.url.includes('uploadBlob')).headers['content-type'], 'image/png');
+  assert.match((await publish(ok.out, { password: 'pw', now, fetchImpl: ifetch }))[0].failed, /no renderer/);
+}
+console.log('miniphim town selftest: second-part yes on the exact hash, veto, signature, links, length, posts/replies/per-author caps, PAUSED, retraction, facts, records, images (hash, alt, embed)');
