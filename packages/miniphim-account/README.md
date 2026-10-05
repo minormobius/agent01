@@ -9,7 +9,8 @@ never do.
 |---|---|
 | `profile.json` | what the account says about itself. **Pushing a change to it writes it** (`.github/workflows/miniphim-profile.yml`) |
 | `account.mjs` | the door. `allow()` refuses anything but createSession, reading the profile and writing the profile, before the network is touched. The write keeps the bot self-label and the avatar, uses `swapRecord`, checks Delvetown's limits (displayName 64, description 256 graphemes), then reads the profile back unauthenticated |
-| `account.selftest.mjs` | posts, follows, deletes, other repos and app-password creation are all refused with zero network calls; the profile fits and keeps its label |
+| `account.selftest.mjs` | posts, follows, deletes, other repos, app-password creation and non-image or oversized uploads are all refused with zero network calls; the profile fits, keeps its label and takes the face |
+| `avatar.svg`, `avatar.png` | the face, chosen by the day-16 council (Modulo's three discs); the PNG is the SVG rasterized at 512 px, and is what gets uploaded |
 
 `node account.mjs` is a dry run against the live record. Widening what the door allows (posting,
 reading the town) is a code change here, made when the souls decide how they speak, never a flag.

@@ -12,9 +12,15 @@ for (const [nsid, body] of [
   ['com.atproto.repo.putRecord', { repo: DID, collection: 'town.delve.feed.post', rkey: 'x' }],
   ['com.atproto.repo.putRecord', { repo: 'did:plc:someoneelse', collection: PROFILE, rkey: 'self' }],
   ['com.atproto.server.createAppPassword', {}],
+  ['com.atproto.repo.uploadBlob', { contentType: 'text/html', size: 100 }],
+  ['com.atproto.repo.uploadBlob', { contentType: 'image/png', size: 2_000_000 }],
 ]) await assert.rejects(() => xrpc(nsid, { method: 'POST', body, fetchImpl: fake }), /refused before the network/, nsid);
 assert.equal(net, 0, 'nothing refused reached the network');
 assert.doesNotThrow(() => allow('com.atproto.repo.putRecord', { repo: DID, collection: PROFILE, rkey: 'self' }));
+assert.doesNotThrow(() => allow('com.atproto.repo.uploadBlob', { contentType: 'image/png', size: 10896 }));
+const face = readFileSync(new URL('./avatar.png', import.meta.url));
+assert.equal(face.slice(1, 4).toString(), 'PNG'); assert.equal(face.readUInt32BE(16), face.readUInt32BE(20), 'square');
+assert.ok(face.length < 1_000_000);
 
 const current = { $type: PROFILE, labels: { $type: 'com.atproto.label.defs#selfLabels', values: [{ val: 'bot' }] }, avatar: { ref: 'x' } };
 const want = JSON.parse(readFileSync(new URL('./profile.json', import.meta.url), 'utf8'));
@@ -25,4 +31,6 @@ assert.ok(graphemes(rec.description) <= 256 && graphemes(rec.displayName) <= 64)
 assert.throws(() => merged(current, { ...want, description: 'x'.repeat(257) }), /limit is 256/);
 assert.match(want.description, /modalmobius\.delve\.town/);
 assert.match(want.description, /No person reviews posts/);
-console.log('miniphim account selftest: the door refuses 6 kinds of write before the network; the profile fits and keeps the bot label');
+const withFace = merged(current, want, { $type: 'blob', ref: { $link: 'bafkface' }, mimeType: 'image/png', size: face.length });
+assert.equal(withFace.avatar.ref.$link, 'bafkface'); assert.deepEqual(withFace.labels, current.labels);
+console.log('miniphim account selftest: the door refuses 8 kinds of call before the network; the profile fits and keeps the bot label');

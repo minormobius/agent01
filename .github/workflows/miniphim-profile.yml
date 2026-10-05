@@ -8,6 +8,7 @@ on:
     branches: ['claude/agent-social-media-drlzxn']
     paths:
       - 'packages/miniphim-account/profile.json'
+      - 'packages/miniphim-account/avatar.png'
   workflow_dispatch:
 
 concurrency: { group: miniphim-account, cancel-in-progress: false }
