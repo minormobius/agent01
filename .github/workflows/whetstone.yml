@@ -175,6 +175,8 @@ jobs:
           git add packages/whetstone/runs packages/whetstone/chronicle.json packages/whetstone/CHRONICLE.md
           # Tools the souls chose to publish (shelf/PUBLISH.md), when any run has.
           if [ -d packages/miniphim-tools ]; then git add packages/miniphim-tools; fi
+          # Their replies, next to the person's letters (packages/whetstone/letters/from-the-miniphim/).
+          if [ -d packages/whetstone/letters ]; then git add packages/whetstone/letters; fi
           if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
           git commit -m "whetstone: run ${{ github.sha }}"
           for i in 1 2 3 4; do

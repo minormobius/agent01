@@ -11,7 +11,7 @@
 // judge verdict, raw and parsed), scorecard.json, scorecard.md. Exit 0 if every gate passes,
 // 3 if any fails, 1 on error. A failing gate is a result, not an error.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, cpSync, mkdtempSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, cpSync, mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve, relative, sep } from 'node:path';
@@ -21,6 +21,7 @@ import { runLab, loadSoul, applyGates, DEFAULT_KINDS } from './lib/lab.mjs';
 import { scorecardMarkdown } from './lib/report.mjs';
 import { startModelsProxy } from './lib/models-proxy.mjs';
 import { townBefore, townReadme, townAfter, HASH_TOOL } from './lib/town-run.mjs';
+import { LETTERS_FROM } from './lib/carries.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import { loadWork, redactor } from './lib/work.mjs';
 import { loadCommons, writeTree, readTree } from './lib/commons.mjs';
@@ -199,6 +200,18 @@ function readLetters() {
   return Object.fromEntries(Object.entries(readTree(dir)).filter(([k]) => !k.includes('/') && k !== 'README.md' && !k.startsWith('.')));
 }
 
+// Their side of the letter file, copied next to the person's letters after every run
+// (letters/from-the-miniphim/), so the person finds the replies where they wrote, not inside a run's
+// archive. A subfolder, so readLetters never mistakes a reply for a letter.
+function replyLetters(commons) {
+  const dir = join(HERE, 'letters', 'from-the-miniphim');
+  const mine = Object.entries(commons).filter(([k]) => k.startsWith('letters/') && !k.startsWith(LETTERS_FROM));
+  if (!mine.length) return 0;
+  rmSync(dir, { recursive: true, force: true });
+  for (const [k, v] of mine) { const p = join(dir, k.slice('letters/'.length)); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, redact(v)); }
+  return mine.length;
+}
+
 // Tools the souls list in shelf/PUBLISH.md go to packages/miniphim-tools/ for other agents.
 function publishTools(commons) {
   const list = (commons['shelf/PUBLISH.md'] || '').split('\n').map((l) => l.match(/^\s*-\s*(shelf\/[\w.\/-]+)\s*:\s*(.+)$/)).filter(Boolean);
@@ -246,6 +259,7 @@ try {
       held: res.held, failed: res.failed };
     console.error(`· town: published ${res.published.length}, held ${res.held.length}, failed ${res.failed.length}`);
   }
+  if (!fake) { const n = replyLetters(after); if (n) console.error(`· letters: ${n} file(s) of theirs copied to letters/from-the-miniphim/`); }
   if (!fake) { const tools = publishTools(after); if (tools.length) { scorecard.run.tools_published = tools.map((t) => t.name); console.error(`· tools published: ${tools.map((t) => t.name).join(', ')}`); } }
   scorecard.run.seconds = Math.round((Date.now() - t0) / 1000);
   scorecard.run.label = label;
