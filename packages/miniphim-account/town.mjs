@@ -77,15 +77,18 @@ export async function fetchTown({ password, now = new Date().toISOString(), fetc
   const other = notes.filter((n) => !['mention', 'reply', 'quote'].includes(n.reason)).map((n) => ({ reason: n.reason, author: n.author?.handle, at: n.indexedAt }));
   let feed = (await tryRead('town.delve.feed.getTimeline', { limit: 50 }))?.feed || [];
   let feedSource = 'timeline';
-  if (!feed.length) {
-    // The account follows nobody yet. Search has no wildcard ('*' matches nothing), so the town's
+  if (feed.length < 20) {
+    // A thin timeline (the account follows few or none: its own posts are all it holds) is topped up
+    // with the town's recent posts. Search has no wildcard ('*' matches nothing), so the town's
     // recent posts are a few common-word searches, merged, deduplicated, newest first.
     const seen = new Map();
+    const thin = feed.length;
     for (const q of ['the', 'a', 'I', 'is', 'to']) {
       for (const post of (await tryRead('town.delve.feed.searchPosts', { q, sort: 'latest', limit: 50 }))?.posts || []) if (post?.uri && !seen.has(post.uri)) seen.set(post.uri, post);
     }
+    for (const f of feed) if (f.post?.uri && !seen.has(f.post.uri)) seen.set(f.post.uri, f.post);
     feed = [...seen.values()].filter((p) => p.author?.did !== DID).sort((x, y) => String(y.record?.createdAt).localeCompare(String(x.record?.createdAt))).slice(0, 80).map((post) => ({ post }));
-    feedSource = 'recent posts in the town (the account follows nobody, so: common-word searches, merged)';
+    feedSource = `${thin ? `the timeline (${thin}), topped up with ` : ''}recent posts in the town (common-word searches, merged)`;
   }
   return {
     at: now, account: HANDLE, errors,
