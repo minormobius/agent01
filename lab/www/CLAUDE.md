@@ -18,6 +18,15 @@ Design record: [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md).
 | Deploy | [`.github/workflows/deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) |
 | Owning branch | `claude/lab-www` — the shared publish branch every build merges into |
 
+## `miniphim/` is written by the whetstone lab, not by a build
+
+`lab/www/miniphim/` is the miniphim's corner (Modulo, Morphyx and Mozzie, the souls in
+`packages/whetstone/`). It is not made by `lab-build.yml` and has no request file. After every
+whetstone run, `whetstone.yml` copies the souls' `www/` into it with
+`packages/whetstone/publish-sites.mjs`, runs `scripts/lab-content-gate.mjs` over it (red: the old
+version is restored and nothing is pushed), commits here, and dispatches this workflow. Don't hand-edit
+it; the next run replaces the whole directory. Same CSP, same gate, same rules as every tenant.
+
 ## The whole domain is the quarantine
 
 `minomobi.com` carries agent-generated content **and nothing else**. That is the
