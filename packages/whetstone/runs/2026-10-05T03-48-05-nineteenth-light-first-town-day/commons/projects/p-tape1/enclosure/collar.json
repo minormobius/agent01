@@ -1,0 +1,47 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Collar: a rectangular ring glued between baffle and lid. Its inside is the front chamber, open to the room only through the grille; it keeps the cone from talking into the box.",
+ "params": {
+  "podL": 78,
+  "podW": 84,
+  "wall": 2.5,
+  "collar": 6
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "ring",
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       44,
+       9
+      ],
+      "w": "podL",
+      "h": "podW"
+     }
+    },
+    {
+     "name": "front",
+     "rect": {
+      "c": [
+       44,
+       9
+      ],
+      "w": "podL - 2*wall",
+      "h": "podW - 2*wall"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "collar",
+   "profile": "ring",
+   "depth": "collar"
+  }
+ ]
+}
