@@ -55,6 +55,44 @@ function stageEngines(list) {
   return out;
 }
 
+// A whole ATProto repo, lent for one run (a request's `lend_repo`: a handle or DID). Fetched fresh
+// from its PDS as a CAR (com.atproto.sync.getRepo), decoded with packages/atproto/car.js into posts
+// by month plus a summary, and mounted read-only like an engine (engines/<name>/), so it is never
+// harvested and never committed: a post its author deletes is gone from the next lending.
+async function stageRepo(who) {
+  const { readCar } = await import('../atproto/car.js');
+  const handle = String(who).trim();
+  const did = handle.startsWith('did:') ? handle : (await (await fetch(`https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`)).json()).did;
+  if (!did) throw new Error(`lend_repo: cannot resolve ${handle}`);
+  const doc = await (await fetch(`https://plc.directory/${did}`)).json();
+  const pds = (doc.service || []).find((x) => x.id === '#atproto_pds')?.serviceEndpoint;
+  if (!pds) throw new Error(`lend_repo: no PDS for ${did}`);
+  const res = await fetch(`${pds}/xrpc/com.atproto.sync.getRepo?did=${did}`);
+  if (!res.ok) throw new Error(`lend_repo: getRepo answered ${res.status}`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  const { posts, collections } = readCar(bytes);
+  const name = (doc.alsoKnownAs?.[0] || did).replace('at://', '').split('.')[0].replace(/[^a-z0-9-]/gi, '').toLowerCase() || 'repo';
+  const dir = join(mkdtempSync(join(tmpdir(), 'whetstone-lend-')), name);
+  mkdirSync(join(dir, 'posts'), { recursive: true });
+  const byMonth = {};
+  for (const p of posts.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))) {
+    const m = String(p.createdAt || 'unknown').slice(0, 7);
+    (byMonth[m] ||= []).push(JSON.stringify({ ...p, url: `https://bsky.app/profile/${did}/post/${p.rkey}` }));
+  }
+  for (const [m, lines] of Object.entries(byMonth)) writeFileSync(join(dir, 'posts', `${m}.jsonl`), lines.join('\n') + '\n');
+  const at = new Date().toISOString();
+  const perMonth = Object.fromEntries(Object.entries(byMonth).map(([m, l]) => [m, l.length]));
+  writeFileSync(join(dir, 'summary.json'), JSON.stringify({ handle: doc.alsoKnownAs?.[0] || null, did, pds, fetched_at: at, car_bytes: bytes.length, posts: posts.length, collections: Object.fromEntries([...(collections instanceof Map ? collections : Object.entries(collections || {}))].sort((a, b) => b[1] - a[1])), posts_per_month: perMonth }, null, 1) + '\n');
+  writeFileSync(join(dir, 'README.md'), `# ${doc.alsoKnownAs?.[0]?.replace('at://', '@') || did}: the whole repo, lent\n\n` +
+    `Fetched ${at} from ${pds} as one CAR file (${(bytes.length / 1e6).toFixed(1)} MB, com.atproto.sync.getRepo): every record this account has, signed. ` +
+    `Lent for this run only, read-only: it is not kept, and it is fetched fresh each time it's lent, so anything the account deletes is gone from the next lending.\n\n` +
+    `- \`posts/YYYY-MM.jsonl\`: all ${posts.length} posts, one JSON object a line: rkey, text, createdAt, lang, isReply, replyTo (the DID replied to), embed (its kind), counts of links, mentions and tags, and url.\n` +
+    `- \`summary.json\`: every collection in the repo with its record count (likes, reposts, follows, blocks, lists, and records from other apps), and posts per month. Only posts are decoded; the rest are counts.\n\n` +
+    `Searching it: \`grep -h -i "word" posts/*.jsonl | head\`, or node over the files. ${Object.keys(byMonth).length} months, ${Object.keys(byMonth)[0]} to ${Object.keys(byMonth).at(-1)}.\n`);
+  console.error(`· lent repo ${name}: ${posts.length} posts, ${(bytes.length / 1e6).toFixed(1)} MB CAR from ${pds}`);
+  return { [name]: { dir, what: `the whole repo of ${doc.alsoKnownAs?.[0]?.replace('at://', '@') || did}, lent for this run: ${posts.length} posts by month, and counts of everything else`, guide: 'README.md' } };
+}
+
 function readRefs(list) {
   if (!list) return null;
   const out = {}; let total = 0;
@@ -156,7 +194,9 @@ if (townDay) console.error(`· town: ${tb.town ? `${tb.town.inbox.length} addres
 function readLetters() {
   const dir = join(HERE, 'letters');
   if (!existsSync(dir)) return null;
-  return Object.fromEntries(Object.entries(readTree(dir)).filter(([k]) => /\.(md|txt)$/i.test(k) && !k.includes('/') && k !== 'README.md'));
+  // Any text file at the top level is a letter, whatever its name (the first one had no extension,
+  // and a .md-only filter would have skipped it silently). readTree already drops binaries.
+  return Object.fromEntries(Object.entries(readTree(dir)).filter(([k]) => !k.includes('/') && k !== 'README.md' && !k.startsWith('.')));
 }
 
 // Tools the souls list in shelf/PUBLISH.md go to packages/miniphim-tools/ for other agents.
@@ -184,7 +224,7 @@ try {
   const { records, judged, scorecard, commons: after, townResult } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: stageEngines(opt.engines), councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL } : {}, letters: readLetters(), afterTown,
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL } : {}, letters: readLetters(), afterTown,
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;

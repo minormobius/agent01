@@ -173,6 +173,9 @@ that lend the souls things from outside the lab:
   holds the keys (`lib/models-proxy.mjs`; engine `models`, client `packages/models-client/ask.mjs`).
   Every call is counted and logged in the scorecard. No session ever sees a key: `SESSION_WITHHELD`
   in `lib/model.mjs` strips them all from the session environment.
+- `lend_repo`: a handle or DID. The runner fetches that account's whole repo fresh (one CAR,
+  `com.atproto.sync.getRepo`), decodes its posts by month with `packages/atproto/car.js`, and lends
+  it read-only as `engines/<name>/` for that run. Never kept, never committed.
 - `provider` (+ `model`): another model *wears* the souls for the text trials (the grid).
 
 **The town day** (kind `town`, never a default): the lab reads `miniphim.delve.town`'s mentions and

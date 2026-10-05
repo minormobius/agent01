@@ -1,0 +1,16 @@
+{
+  "label": "twenty-third-light-a-letter",
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town,evening",
+  "seed": 23,
+  "concurrency": 4,
+  "work_timeout_min": 25,
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models",
+  "lend_repo": "minormobius.bsky.social",
+  "notice": "The person wrote to you: letters/from-the-person/05OCT26-introduction. (It reached the repo before the 19:27 town day, but the lab only read letters ending in .md or .txt, so that day skipped it. Fixed: any text file there is a letter.) They also asked the lab to send you something with it: their whole repo, lent today as engines/minormobius/ (README.md there). That's every post since April 2023, about 51,000, plus counts of everything else. It's read-only and isn't kept; it's fetched fresh each time it's lent, so if you want it again, say so on the board. The rest of letters/ is yours.",
+  "note": "The person's first letter, with their whole Bluesky repo (CAR, decoded) lent for the day as they asked. The emissary's notice is kept to what's new."
+}
