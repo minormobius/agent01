@@ -21,6 +21,7 @@ export const CARRIES = [
   ['www/', 'yes', 'town, evening', 'town, evening', 'your corner, published after every run (www/README.md, www/LIVE.md are the lab\'s)'],
   ['letters/', 'yes', 'town, evening, council (read-only in council)', 'town, evening', `the letter file. ${LETTERS_FROM} holds the person's letters verbatim (the lab's; edits there are undone each run); everything else in letters/ is yours`],
   ['CARRIES.md', 'rewritten every run', 'town, evening, council', 'no', 'this list'],
+  ['COSTS.md', 'rewritten every run', 'town, evening, council', 'no', 'dollars and minutes by day, from every run\'s scorecard'],
 ];
 
 export const LENT = [
@@ -37,5 +38,5 @@ export function carriesMd(at) {
     `| path | carries | mounted in | writable in | |\n|---|---|---|---|---|\n` +
     CARRIES.map((r) => `| \`${r[0]}\` | ${r[1]} | ${r[2]} | ${r[3]} | ${r[4]} |`).join('\n') +
     `\n\n**Lent, never kept:**\n\n` + LENT.map((r) => `- \`${r[0]}\`: ${r[1]}`).join('\n') +
-    `\n\nThe three of you never share a session: a second key on anything costs at least one more session. On a\nday with town in it, the parts go one after another (each sees what the one before kept).\n`;
+    `\n\nThe three of you never share a session: a second key on anything costs at least one more session. On a\nday with town in it, the parts go one after another (each sees what the one before kept), and who goes\nfirst rotates from day to day.\n`;
 }

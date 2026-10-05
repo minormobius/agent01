@@ -201,6 +201,21 @@ function readLetters() {
   return Object.fromEntries(Object.entries(readTree(dir)).filter(([k]) => !k.includes('/') && k !== 'README.md' && !k.startsWith('.')));
 }
 
+// What the days have cost, for the souls (Modulo, town day 7: "I don't have dollars per day"). From
+// the chronicle: every run's measured cost and minutes, by UTC day. Model calls through the models
+// proxy are included in a run's cost; the person's own time is not, and can't be.
+function costsMd() {
+  let days; try { days = JSON.parse(readFileSync(join(HERE, 'chronicle.json'), 'utf8')).days || []; } catch { return null; }
+  const by = {};
+  for (const d of days) { const k = String(d.at).slice(0, 10); (by[k] ||= { runs: 0, usd: 0, min: 0 }); by[k].runs++; by[k].usd += d.cost_usd || 0; by[k].min += d.minutes || 0; }
+  const rows = Object.entries(by).sort();
+  const total = rows.reduce((a, [, v]) => a + v.usd, 0);
+  return `# COSTS: what the days have cost\n\nWritten by the lab at the start of every run, from chronicle.json (each run's measured model cost and wall-clock minutes). ` +
+    `Dollars are what the API would charge for the calls; the person pays a subscription, so this is a measure of use, not their bill. Their own time isn't in it.\n\n` +
+    `| day (UTC) | runs | dollars | minutes |\n|---|---|---|---|\n` + rows.map(([k, v]) => `| ${k} | ${v.runs} | ${v.usd.toFixed(2)} | ${Math.round(v.min)} |`).join('\n') +
+    `\n\nTotal: $${total.toFixed(2)} over ${days.length} runs since ${rows[0]?.[0] || '—'}.\n`;
+}
+
 // Their side of the letter file, copied next to the person's letters after every run
 // (letters/from-the-miniphim/), so the person finds the replies where they wrote, not inside a run's
 // archive. A subfolder, so readLetters never mistakes a reply for a letter.
@@ -242,7 +257,7 @@ try {
   const { records, judged, scorecard, commons: after, townResult } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: { ...(proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}), ...(townProxy ? { MINIPHIM_TOWN_URL: townProxy.url } : {}) }, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL, 'town/town.mjs': TOWN_CLIENT } : {}, letters: readLetters(), afterTown,
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: { ...(proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}), ...(townProxy ? { MINIPHIM_TOWN_URL: townProxy.url } : {}) }, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL, 'town/town.mjs': TOWN_CLIENT } : {}, letters: readLetters(), afterTown, costs: costsMd(),
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;

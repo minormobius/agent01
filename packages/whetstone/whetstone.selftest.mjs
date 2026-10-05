@@ -579,7 +579,7 @@ await t('a town day: each part keeps only its own drafts and approvals; the lab 
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const { townReadme: readme, townAfter, HASH_TOOL } = await import('./lib/town-run.mjs');
   const town = { at: '2026-10-05T12:00:00Z', inbox: [], other: [], ours: [], feed: { source: 'timeline', posts: [] }, errors: [] };
-  const r = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['town'], seed: 1, work, custodian: mozzie,
+  const r = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['town'], seed: 0, work, custodian: mozzie,
     commons: { 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv' }, town, townReadme: readme({ town }), townFiles: { 'town/hash.mjs': HASH_TOOL },
     letters: { '2026-10-05-hello.md': 'Hello, all three.' }, afterTown: async (c) => ({ published: [], held: [], failed: [], saw: Object.keys(c).filter((k) => k.startsWith('town/outbox/')) }) });
   assert.deepEqual(r.townResult.saw.sort(), ['town/outbox/m1.json', 'town/outbox/x1.json'], 'the publish runs inside the lab, after the town sessions');
@@ -595,6 +595,9 @@ await t('a town day: each part keeps only its own drafts and approvals; the lab 
   assert.ok(C['town/outbox/x1.json'] && C['town/approvals/m1.morphyx.json']);
   assert.equal(C['town/approvals/m1.mozzie.json'], undefined, 'an approval forged in another part\'s name is refused');
   const recs = r.records.filter((x) => x.kind === 'town');
+  assert.deepEqual(recs.map((x) => x.soul), ['modulo', 'morphyx', 'mozzie'], 'seed 0: the listed order');
+  const r1 = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['town'], seed: 1, work, custodian: mozzie, town, townReadme: readme({ town }), townFiles: { 'town/hash.mjs': HASH_TOOL } });
+  assert.deepEqual(r1.records.filter((x) => x.kind === 'town').map((x) => x.soul), ['morphyx', 'mozzie', 'modulo'], 'the town order rotates with the seed');
   assert.ok(recs.find((x) => x.soul === 'morphyx').refused.some((f) => /only its own approvals/.test(f.why)));
   assert.ok(recs.find((x) => x.soul === 'mozzie').refused.some((f) => /not done by deleting it/.test(f.why)));
   assert.ok(!Object.keys(C).some((k) => /^town\/(inbox|feed|other|ours|errors|README|hash)/.test(k)), 'what the town sent is never kept');

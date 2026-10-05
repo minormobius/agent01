@@ -10,7 +10,9 @@ export function requestFor(template, now) {
   const { enabled, $comment, kinds_by_hour, ...rest } = template;
   const label = `town-${date}-${hh}`;
   return { path: `packages/whetstone/requests/${date}-${label}.json`,
-    body: { ...rest, label, kinds: (kinds_by_hour && kinds_by_hour[hh]) || rest.kinds, seed: Number(date.replace(/-/g, '')) % 100000 + Number(hh) } };
+    body: { ...rest, label, kinds: (kinds_by_hour && kinds_by_hour[hh]) || rest.kinds, seed: (Number(date.replace(/-/g, '')) % 100000) * 4 + Math.floor(Number(hh) / 6) } };
+  // The seed steps by one per run (four a day), so whatever rotates by seed (who goes first on a
+  // town day: lib/lab.mjs) turns over every run, not once a day.
 }
 
 export async function townTick(env, now = new Date(), fetchImpl = fetch) {

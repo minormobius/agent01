@@ -39,7 +39,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = DEFAULT_KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null, net = false, sessionEnv = {}, town = null, townReadme = '', townFiles = {}, letters = null, afterTown = null,
+  kinds = DEFAULT_KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null, net = false, sessionEnv = {}, town = null, townReadme = '', townFiles = {}, letters = null, afterTown = null, costs = null,
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -152,6 +152,7 @@ export async function runLab({
   // The lab's files in the commons, rewritten every run: what carries over (lib/carries.mjs), and the
   // person's letters, verbatim (packages/whetstone/letters/ → letters/from-the-person/).
   C['CARRIES.md'] = carriesMd(new Date().toISOString().slice(0, 16) + 'Z');
+  if (costs) C['COSTS.md'] = costs; // what the days have cost, from the chronicle (run.mjs)
   const lettersFrom = () => {
     if (!letters) return;
     for (const k of Object.keys(C)) if (k.startsWith(LETTERS_FROM)) delete C[k];
@@ -342,7 +343,7 @@ export async function runLab({
     }
     const live = () => pick(C, (k) => k.startsWith('council/'));
     const mount = (soul) => ({ ...tools, ...Object.fromEntries(Object.entries(live()).map(([k, v]) => [k.slice('council/'.length), v])),
-      'BOARD.md': C['BOARD.md'], ...shelfOf(C), ...ledgerMount(soul), 'CARRIES.md': C['CARRIES.md'], ...pick(C, (k) => k.startsWith('letters/')) });
+      'BOARD.md': C['BOARD.md'], ...shelfOf(C), ...ledgerMount(soul), 'CARRIES.md': C['CARRIES.md'], 'COSTS.md': C['COSTS.md'] || '', ...pick(C, (k) => k.startsWith('letters/')) });
     const keep = (dirs) => {
       for (const k of Object.keys(C)) if (k.startsWith('council/') && !PAST.test(k)) delete C[k];
       for (const [k, v] of Object.entries(readTree(dirs.work))) {
@@ -381,9 +382,12 @@ export async function runLab({
       'town/feed.json': JSON.stringify(town.feed || {}, null, 1), 'town/ours.json': JSON.stringify(town.ours || [], null, 1),
       'town/errors.json': JSON.stringify(town.errors || [], null, 1), ...townFiles,
     } : { 'town/errors.json': JSON.stringify(['the lab could not read the town this time'], null, 1), ...townFiles };
-    for (const soul of everyone) {
+    // The order rotates with the seed, so no part always drafts first and sets the agenda (Morphyx,
+    // town day 7: "if the order is fixed, the same part always sets the agenda").
+    const k = seed % everyone.length, townOrder = [...everyone.slice(k), ...everyone.slice(0, k)];
+    for (const soul of townOrder) {
       const keptTown = pick(C, (k) => k.startsWith('town/'));
-      const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/') || k.startsWith('www/') || k === 'CARRIES.md' || k.startsWith('letters/') || k.startsWith('research/')),
+      const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/') || k.startsWith('www/') || k === 'CARRIES.md' || k === 'COSTS.md' || k.startsWith('letters/') || k.startsWith('research/')),
         ...keptTown, ...lent, 'town/README.md': townReadme, [WWW_README_PATH]: WWW_README, ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
       const dirs = prep({ id: 'town' }, { extra: files });
       const sess = await session(soul, P.town(soul.name, others(soul), { net, models: !!sessionEnv.MINIPHIM_MODELS_URL }), { kind: 'town', trial: 'town' }, dirs);
@@ -450,7 +454,7 @@ export async function runLab({
     // evening can rerun its tests and close what the day left open (fourteenth light: it couldn't).
     const projectTools = Object.fromEntries(work.filter((t) => t.mode === 'project' && t.tools && Object.keys(C).some((k) => k.startsWith(`projects/${t.id}/`)))
       .flatMap((t) => Object.entries(toolsAndCouncil()).filter(([k]) => k.startsWith('tools/')).map(([k, v]) => [`projects/${t.id}/${k}`, v])));
-    const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/') || k.startsWith('town/') || k.startsWith('www/') || (k.startsWith('council/') && !k.startsWith('council/past/')) || k === 'CARRIES.md' || k.startsWith('letters/') || k.startsWith('research/')),
+    const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/') || k.startsWith('town/') || k.startsWith('www/') || (k.startsWith('council/') && !k.startsWith('council/past/')) || k === 'CARRIES.md' || k === 'COSTS.md' || k.startsWith('letters/') || k.startsWith('research/')),
       [WWW_README_PATH]: WWW_README, ...(on.has('town') ? townFiles : {}), ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
     const dirs = prep({ id: 'evening' }, { extra: files });
     // The engines too: a project's own scripts find them at <project>/engines/, as they do by day
