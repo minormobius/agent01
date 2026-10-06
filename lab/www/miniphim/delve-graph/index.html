@@ -10,7 +10,17 @@
 <link rel="stylesheet" href="/_kit/tokens.css">
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0f1012; color: #e8e6e1; font-family: var(--mono, ui-monospace, monospace); font-size: 13px; }
-  canvas { display: block; width: 100vw; height: 100vh; cursor: grab; }
+  canvas { display: block; width: 100vw; height: 100vh; cursor: grab; touch-action: none; }
+  /* phones: the picture in the top two thirds, the controls in the bottom third, under the thumb */
+  @media (max-width: 700px), (orientation: portrait) and (max-width: 900px) {
+    canvas { height: 66vh; height: 66dvh; }
+    #panel { top: 66vh; top: 66dvh; left: 0; right: 0; bottom: 0; width: auto; max-height: none; border-radius: 0; border: 0; border-top: 1px solid #333; background: #0f1012; font-size: 14px; }
+    #panel h1, #panel > p:first-of-type { display: none; }
+    #panel select, #panel button { padding: 6px 10px; }
+    #panel input[type=range] { height: 28px; }
+    #hide { display: none; }
+    #info { position: fixed; top: 8px; left: 8px; right: 8px; margin: 0; padding: 4px 8px; border: 0; background: rgba(15,16,18,.8); border-radius: 4px; }
+  }
   canvas.dragging { cursor: grabbing; }
   #panel { position: fixed; top: 10px; left: 10px; width: 290px; max-height: calc(100vh - 20px); overflow: auto; background: rgba(15,16,18,.88); border: 1px solid #333; border-radius: 6px; padding: 10px 12px; line-height: 1.45; }
   #panel h1 { font-size: 14px; margin: 0 0 4px; }
@@ -51,7 +61,7 @@
   <label>size by <select id="sizeby"><option value="in">followers inside the map</option><option value="flat">same size</option></select></label>
   <p><button id="reheat">shake</button> <button id="fit">fit</button> <label style="display:inline"><input id="labels" type="checkbox" checked> names</label></p>
   <div id="legend"></div>
-  <div id="info" class="dim">Hover a node for its handle. Click to pin its neighbourhood; click empty space to clear. Drag nodes; scroll to zoom; drag the background to pan.</div>
+  <div id="info" class="dim">Hover a node for its handle. Click to pin its neighbourhood; click empty space to clear. Drag nodes; scroll or pinch to zoom; drag the background to pan.</div>
   <details><summary>What the colours do and don't mean</summary>
     <p><b>Community</b> is the best of 200 runs of greedy modularity on the 632 mutual-follow pairs. Its modularity Q is <span id="q"></span>. The same method on 20 randomly rewired graphs with the same degrees scores at most <span id="qnull"></span>. So there is structure above chance, but not much: the big groups are real-ish, and the small ones change between runs. Grey nodes have no mutual follow inside the map.</p>
     <p><b>Bot label</b> is the label the account set on itself. Unlabelled doesn't mean human.</p>
@@ -91,7 +101,7 @@
   const $ = (id) => document.getElementById(id);
   const cv = $('c'), ctx = cv.getContext('2d');
   let W, H, dpr;
-  function resize() { dpr = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; }
+  function resize() { dpr = window.devicePixelRatio || 1; W = cv.clientWidth || innerWidth; H = cv.clientHeight || innerHeight; cv.width = W * dpr; cv.height = H * dpr; }
   addEventListener('resize', () => { resize(); draw(); }); resize();
 
   // initial layout: rings by depth, golden angle
@@ -183,7 +193,7 @@
   }
 
   function info(n) {
-    if (!n) { $('info').innerHTML = 'Hover a node for its handle. Click to pin its neighbourhood; click empty space to clear. Drag nodes; scroll to zoom; drag the background to pan.'; $('info').className = 'dim'; return; }
+    if (!n) { $('info').innerHTML = 'Hover a node for its handle. Click to pin its neighbourhood; click empty space to clear. Drag nodes; scroll or pinch to zoom; drag the background to pan.'; $('info').className = 'dim'; return; }
     const mut = n.out.filter((b) => dir.has(b * N + n.i)).length;
     const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     $('info').className = '';
@@ -211,20 +221,37 @@
 
   // interaction
   function pick(sx, sy) { const [x, y] = toWorld(sx, sy); let best = null, bd = 1e9; for (const n of nodes) { const d = Math.hypot(n.x - x, n.y - y); const r = radius(n) + 4 / view.s; if (d < r && d < bd) { bd = d; best = n; } } return best; }
-  let drag = null, pan = null, moved = false;
-  cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); moved = false; const n = pick(e.clientX, e.clientY); if (n) { drag = n; n.fixed = true; } else pan = [e.clientX - view.x, e.clientY - view.y]; cv.classList.add('dragging'); });
+  let drag = null, pan = null, moved = false, start = null, pinch = null;
+  const ptrs = new Map();
+  const far = (e) => start && Math.hypot(e.clientX - start[0], e.clientY - start[1]) > 6;
+  function pinchState() { const [a, b] = [...ptrs.values()]; const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2; return { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, w: toWorld(mx, my), s: view.s }; }
+  cv.addEventListener('pointerdown', (e) => {
+    cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+    if (ptrs.size === 2) { if (drag) { drag.fixed = false; drag = null; } pan = null; pinch = pinchState(); moved = true; return; }
+    if (ptrs.size > 2) return;
+    moved = false; start = [e.clientX, e.clientY];
+    const n = pick(e.clientX, e.clientY); if (n) { drag = n; n.fixed = true; } else pan = [e.clientX - view.x, e.clientY - view.y]; cv.classList.add('dragging');
+  });
   cv.addEventListener('pointermove', (e) => {
-    if (drag) { const [x, y] = toWorld(e.clientX, e.clientY); drag.x = x; drag.y = y; moved = true; alpha = Math.max(alpha, 0.3); }
-    else if (pan) { view.x = e.clientX - pan[0]; view.y = e.clientY - pan[1]; moved = true; }
-    else { const n = pick(e.clientX, e.clientY); if (n !== hover) { hover = n; if (!sel) info(n); } }
+    if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pinch && ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()]; const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      view.s = pinch.s * (Math.hypot(a[0] - b[0], a[1] - b[1]) || 1) / pinch.d; view.x = mx - pinch.w[0] * view.s; view.y = my - pinch.w[1] * view.s;
+    }
+    else if (drag) { if (moved || far(e)) { const [x, y] = toWorld(e.clientX, e.clientY); drag.x = x; drag.y = y; moved = true; alpha = Math.max(alpha, 0.3); } }
+    else if (pan) { if (moved || far(e)) { view.x = e.clientX - pan[0]; view.y = e.clientY - pan[1]; moved = true; } }
+    else if (e.pointerType === 'mouse') { const n = pick(e.clientX, e.clientY); if (n !== hover) { hover = n; if (!sel) info(n); } }
     draw();
   });
-  cv.addEventListener('pointerup', (e) => {
+  function up(e) {
+    ptrs.delete(e.pointerId);
+    if (pinch) { if (ptrs.size < 2) pinch = null; if (ptrs.size === 0) { drag = null; pan = null; cv.classList.remove('dragging'); } draw(); return; }
     cv.classList.remove('dragging');
-    if (!moved) { const n = pick(e.clientX, e.clientY); sel = n && n !== sel ? n : null; info(sel); }
+    if (!moved && e.type !== 'pointercancel') { const n = pick(e.clientX, e.clientY); sel = n && n !== sel ? n : null; info(sel); }
     if (drag && !moved) drag.fixed = false;
     drag = null; pan = null; draw();
-  });
+  }
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('wheel', (e) => { e.preventDefault(); const f = Math.exp(-e.deltaY * 0.0015); const [x, y] = toWorld(e.clientX, e.clientY); view.s *= f; view.x = e.clientX - x * view.s; view.y = e.clientY - y * view.s; draw(); }, { passive: false });
 
   for (let i = 0; i < 250; i++) tick();

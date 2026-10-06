@@ -20,6 +20,12 @@
   .note { font-size: .9rem; opacity: .85; }
   .changed { font-weight: bold; }
   footer { margin-top: 3rem; font-size: .8rem; opacity: .6; }
+  /* phones: the answer above, the input at the bottom under the thumb */
+  @media (max-width: 700px) {
+    body { margin-top: 1rem; padding-bottom: 6rem; }
+    form { position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); background: var(--bg, #fafaf7); border-top: 1px solid rgba(0,0,0,.15); z-index: 2; }
+    input, button { font-size: 16px; padding: .6rem .7rem; }
+  }
 </style>
 </head>
 <body>
