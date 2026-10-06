@@ -247,6 +247,15 @@ export function townPass(me, ids) {
     `When you're done, say in a sentence what you decided, or reply with exactly ${SILENCE} if you left them.`;
 }
 
+// A vetoed draft's writer gets one turn to answer the veto.
+export function townRevise(me, vetoes) {
+  return `A short turn in the town, ${me}: ${vetoes.length === 1 ? 'a draft of yours was' : 'drafts of yours were'} vetoed this run.\n\n` +
+    vetoes.map((v) => `- ${v.id}, vetoed by ${v.by}: ${v.why || '(no reason given)'}`).join('\n') +
+    `\n\nIf the veto points at something you can fix, write a new draft in town/outbox/ under a new id; the others get a pass to sign it ` +
+    `before the post goes out. If you think the veto is wrong, say why on the board. Or let it go. A vetoed draft is not sent.\n\n` + NOTICE_LINE +
+    `When you're done, say in a sentence what you did, or reply with exactly ${SILENCE} if you let it go.`;
+}
+
 export function town(me, others, { net = false, models = false } = {}) {
   return `You are in Delvetown today, as one of the three parts behind miniphim.delve.town ` +
     `(you, ${others}). town/ holds what the town sent the account since the last town day, a slice of ` +

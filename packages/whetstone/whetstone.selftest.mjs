@@ -602,6 +602,12 @@ await t('a town day: each part keeps only its own drafts and approvals; the lab 
   assert.deepEqual(recs.map((x) => x.soul), ['modulo', 'morphyx', 'mozzie'], 'seed 0: the listed order');
   const r1 = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['town'], seed: 1, work, custodian: mozzie, town, townReadme: readme({ town }), townFiles: { 'town/hash.mjs': HASH_TOOL } });
   assert.deepEqual(r1.records.filter((x) => x.trial === 'town').map((x) => x.soul), ['morphyx', 'mozzie', 'modulo'], 'the town order rotates with the seed');
+  // A veto with a reason gives the writer a turn to redraft.
+  const { draftHash } = await import('../miniphim-account/town.mjs');
+  const vd = { id: 'v1', writer: 'morphyx', kind: 'post', text: 'Call 15 needs 50. — Morphyx' };
+  const rv = await runLab({ souls, bank, call: fakeModel(fakeResponder({ collapsed: true })), kinds: ['town'], seed: 0, work, custodian: mozzie, town, townReadme: readme({ town }), townFiles: { 'town/hash.mjs': HASH_TOOL },
+    commons: { 'town/outbox/v1.json': JSON.stringify(vd), 'town/approvals/v1.mozzie.json': JSON.stringify({ id: 'v1', part: 'mozzie', verdict: 'veto', hash: draftHash(vd), why: 'call 15 needs about 120, not 50' }) } });
+  assert.deepEqual(rv.records.filter((x) => x.trial === 'town-revise').map((x) => x.soul), ['morphyx'], 'the vetoed draft\'s writer gets one turn to answer it');
   assert.ok(recs.find((x) => x.soul === 'morphyx').refused.some((f) => /only its own approvals/.test(f.why)));
   assert.ok(recs.find((x) => x.soul === 'mozzie').refused.some((f) => /not done by deleting it/.test(f.why)));
   assert.ok(!Object.keys(C).some((k) => /^town\/(inbox|feed|other|ours|errors|README|hash)/.test(k)), 'what the town sent is never kept');

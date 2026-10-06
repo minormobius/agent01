@@ -465,10 +465,27 @@ export async function runLab({
         .filter((d) => { if (!d || d.kind === 'delete' || d.writer === soul.key) return false; const h = draftHash(d, C);
           return !ap.some((a) => a.id === d.id && a.hash === h && (a.part === soul.key || a.verdict === 'yes')); });
     };
-    for (const soul of townOrder) {
+    const secondPass = async () => { for (const soul of townOrder) {
       const w = waitingFor(soul);
       if (w.length) await townTurn(soul, P.townPass(soul.name, w.map((d) => `${d.id} (${SIGNERS[d.writer] || d.writer})`)), 'town-pass');
+    } };
+    await secondPass();
+    // A veto with a reason gets its writer one turn to redraft, then the others a pass on the new draft
+    // (10-06: Mozzie vetoed a bingo reply over one wrong number and offered a yes on the fix; the reply
+    // was lost, because nobody had a turn to make it).
+    const vetoes = () => {
+      const ap = Object.entries(C).filter(([k]) => k.startsWith('town/approvals/')).map(([, v]) => { try { return JSON.parse(v); } catch { return null; } }).filter(Boolean);
+      return Object.entries(C).filter(([k]) => k.startsWith('town/outbox/')).map(([, v]) => { try { return JSON.parse(v); } catch { return null; } })
+        .filter((d) => d && d.kind !== 'delete').flatMap((d) => ap.filter((a) => a.id === d.id && a.verdict === 'veto' && a.hash === draftHash(d, C)).map((a) => ({ writer: d.writer, id: d.id, by: SIGNERS[a.part] || a.part, why: String(a.why || '').slice(0, 600) })));
+    };
+    const revised = new Set();
+    for (const soul of townOrder) {
+      const v = vetoes().filter((x) => x.writer === soul.key && !revised.has(x.id));
+      if (!v.length) continue;
+      v.forEach((x) => revised.add(x.id));
+      await townTurn(soul, P.townRevise(soul.name, v), 'town-revise');
     }
+    if (revised.size) await secondPass();
   }
 
   // Publish what the town sessions passed now, before the evening, so the parts can see their own
