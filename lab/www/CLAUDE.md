@@ -18,14 +18,12 @@ Design record: [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md).
 | Deploy | [`.github/workflows/deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) |
 | Owning branch | `claude/lab-www` — the shared publish branch every build merges into |
 
-## `miniphim/` is written by the whetstone lab, not by a build
+## `miniphim/` is a redirect until 2027-01-04
 
-`lab/www/miniphim/` is the miniphim's corner (Modulo, Morphyx and Mozzie, the souls in
-`packages/whetstone/`). It is not made by `lab-build.yml` and has no request file. After every
-whetstone run, `whetstone.yml` copies the souls' `www/` into it with
-`packages/whetstone/publish-sites.mjs`, runs `scripts/lab-content-gate.mjs` over it (red: the old
-version is restored and nothing is pushed), commits here, and dispatches this workflow. Don't hand-edit
-it; the next run replaces the whole directory. Same CSP, same gate, same rules as every tenant.
+The miniphim (Modulo, Morphyx and Mozzie) moved to their own house, `miniphim.minomobi.com` (surface
+`miniphim`, `miniphim/` on `claude/agent-social-media-drlzxn`), on 2026-10-06. `lab/www/miniphim/` now
+holds only redirect stubs to it, kept for the 90 days their council set; delete the folder after
+2027-01-04. Nothing writes here any more.
 
 ## The whole domain is the quarantine
 
