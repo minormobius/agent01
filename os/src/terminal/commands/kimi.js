@@ -15,6 +15,9 @@
 import { checkContainerHealth } from '../../lib/container-config.js';
 
 const HARNESSES = ['claude', 'opencode', 'codex'];
+// ChatGPT-subscription cells: Responses-only, so codex is their only harness
+// and the only harness that can reach them (os/api/CODEX.md D6).
+const SUBSCRIPTION = ['astra', 'sol', 'luna'];
 
 export default async function kimi(args, flags, ctx) {
   const { terminal, fmt, shell } = ctx;
@@ -39,8 +42,8 @@ export default async function kimi(args, flags, ctx) {
   }
 
   const boot = typeof flags.model === 'string' ? flags.model : harness === 'codex' ? 'astra' : 'kimi3';
-  if ((harness === 'codex') !== (boot === 'astra')) {
-    terminal.writeln(fmt.red('astra requires --harness=codex; the open models require claude or opencode'));
+  if ((harness === 'codex') !== SUBSCRIPTION.includes(boot)) {
+    terminal.writeln(fmt.red(`${SUBSCRIPTION.join('/')} require --harness=codex; the open models require claude or opencode`));
     return;
   }
 

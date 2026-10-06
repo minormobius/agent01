@@ -676,7 +676,7 @@ cannot cancel an already authorized upstream response or revoke the OpenAI
 session globally. Status and deletion need only the Bluesky identity, not a
 local ChatGPT token file. Broker status never returns token material.
 
-After deployment, choose **astra** in browser repo mode, use
+After deployment, choose **astra** (or the cheaper **sol** / **luna** — same login, different model) in browser repo mode, use
 `kimi --harness=codex --model=astra` in the browser terminal, or run
 `agent --harness=codex astra` in the container. Browser chat uses Codex's JSONL
 exec/resume flow. Session rollouts survive workspace saves in `.codex-cells`;

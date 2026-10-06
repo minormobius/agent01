@@ -245,6 +245,24 @@ export class ContainerShell extends Container {
     }
   }
 
+  // A ChatGPT-subscription cell under the codex harness. `respBase` is THIS
+  // worker's /openai proxy, `key` the capability token — see the astra note.
+  _subscriptionProfile(model) {
+    return {
+      respBase: `${this.env.SYNC_URL || 'https://os-api.mino.mobi'}/openai/v1`,
+      model,
+      effort: this.env.OPENAI_CODEX_EFFORT || 'high',
+      // Optional. Codex resolves model metadata from a catalog it fetches
+      // from chatgpt.com at startup; the GPT-6 models are NOT in 0.154.0's
+      // bundled catalog (which stops at gpt-5.6). If a run reports "Model
+      // metadata for `<model>` not found" it fell back to generic metadata —
+      // set OPENAI_CODEX_CONTEXT_WINDOW to pin it rather than leaving the
+      // context window guessed.
+      contextWindow: this.env.OPENAI_CODEX_CONTEXT_WINDOW || '',
+      key: this._capToken || '',
+    };
+  }
+
   // ─── OpenAI credential custody (Design C) ──────────────────────────
   //
   // Storage input gates do not serialize external fetches. The custody
@@ -365,20 +383,14 @@ export class ContainerShell extends Container {
         // swaps it for the real ChatGPT bearer held in this DO. Rotation
         // happens here, where the DO's single-threaded execution serializes it
         // by construction. See CODEX.md §5 Design C.
-        astra: {
-          respBase: `${this.env.SYNC_URL || 'https://os-api.mino.mobi'}/openai/v1`,
-          model: this.env.OPENAI_CODEX_MODEL || 'gpt-6-astra',
-          effort: this.env.OPENAI_CODEX_EFFORT || 'high',
-          // Optional. Codex resolves model metadata from a catalog it fetches
-          // from chatgpt.com at startup; `gpt-6-astra` is NOT in 0.154.0's
-          // bundled catalog (which stops at gpt-5.6), and it ships
-          // visibility="hide" during its gated rollout. If a run reports
-          // "Model metadata for `gpt-6-astra` not found" it fell back to
-          // generic metadata — set OPENAI_CODEX_CONTEXT_WINDOW to pin it
-          // rather than leaving the context window guessed.
-          contextWindow: this.env.OPENAI_CODEX_CONTEXT_WINDOW || '',
-          key: this._capToken || '',
-        },
+        astra: this._subscriptionProfile(this.env.OPENAI_CODEX_MODEL || 'gpt-6-astra'),
+        // sol / luna — the cheaper GPT-6 tiers on the SAME subscription. One
+        // deposited login covers every model the plan includes, so these are
+        // the astra cell with a different model string: same proxy, same
+        // capability token, same refresh custody. The proxy does not look at
+        // the model, so adding a tier never touches the credential path.
+        sol: this._subscriptionProfile(this.env.OPENAI_CODEX_SOL_MODEL || 'gpt-6-sol'),
+        luna: this._subscriptionProfile(this.env.OPENAI_CODEX_LUNA_MODEL || 'gpt-6-luna'),
       }),
       // AGENT_HARNESSES — which agent loops the image can run. Advisory: the
       // launcher validates against what is actually installed, but the frontend

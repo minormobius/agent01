@@ -24,7 +24,9 @@ const HANDOFF_LAST_N = 12;
 // them as the agent's model (?profile= on /chat). Native `claude` is
 // browser-keyed and terminal-only, so it is not offered here.
 const MODELS = ['kimi3', 'ds4-flash', 'ds4-pro'];
-const REPO_MODELS = [...MODELS, 'astra'];
+// The ChatGPT-subscription cells run only under codex (Responses API).
+const SUBSCRIPTION_MODELS = ['astra', 'sol', 'luna'];
+const REPO_MODELS = [...MODELS, ...SUBSCRIPTION_MODELS];
 
 const DEFAULT_SYSTEM = 'You are the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to the repo-agent mode (a full coding-agent harness inside the agent01 monorepo) with the → repo button.';
 
@@ -364,7 +366,7 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         },
       });
       socketRef.current = sock;
-      sock.connect({ session: session.did, ...authInfo, profile: repoProfile, harness: repoProfile === 'astra' ? 'codex' : 'claude' });
+      sock.connect({ session: session.did, ...authInfo, profile: repoProfile, harness: SUBSCRIPTION_MODELS.includes(repoProfile) ? 'codex' : 'claude' });
     } finally {
       if (generation === connectGenerationRef.current) connectingRef.current = false;
     }
