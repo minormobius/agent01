@@ -161,3 +161,34 @@ definitions, and `circulant()` and `gram()` implement them literally
 - **EvenBarker is not counted as formalized.** The library has an
   `EvenBarker` challenge file, but it is not in `formalization.yaml`'s main
   results, and the page says so.
+
+## `/seymour/` (family 173): Seymour's second-neighbourhood conjecture
+
+```bash
+node proofs/seymour/seymour.selftest.mjs   # ~2.4 s, 5214 checks
+```
+
+The engine is `seymour/seymour.js`, imported by the page, `search.worker.js`
+and the selftest. The Lean main result is
+`OAI.SeymourSecondNeighborhood.exists_goodVertex`, and its whole statement is
+quoted on the page.
+
+- **Graphs are bitmasks** (`out[v]`, bit u set iff v → u, n ≤ 31; the page
+  caps at 24). `second()` is the Lean `secondNeighbors` (w ≠ v, not
+  already an out-neighbour, reachable in two steps). The selftest compares
+  it with a literal transcription (`leanSecondNeighbors`) on 300 random
+  graphs.
+- **The exhaustive check covers all 3^C(n,2) labelled graphs** (14,348,907 at
+  n = 6, about 0.7–2.3 s in node), counted in base 3 with incremental mask
+  patches. The sink-free count is checked against inclusion–exclusion over
+  the set of sinks, an independent formula. n = 7 would be 3²¹ ≈ 10¹⁰, which
+  is out of reach.
+- **Sinks are trivially good (0 ≤ 0).** Statistics that matter therefore
+  exclude them: sink-free graphs can have as few as 2 good vertices for
+  n = 4–6. The hunt charges 10⁶ per sink, or it just builds sinks.
+- **Paley tournaments are exactly tight at every vertex**: |N⁺| = |N⁺⁺| =
+  (p−1)/2 for p = 3, 7, 11, 19, 23. They make good demos of how little room
+  the theorem leaves.
+- History comes from the paper's introduction. The 1990 date for Seymour's
+  posing is the conventional one; the paper credits the written record to
+  Dean and Latka (1995).

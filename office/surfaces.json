@@ -2876,6 +2876,15 @@
    "parent": "proofs"
   },
   {
+   "id": "seymour",
+   "name": "seymour",
+   "url": "https://proofs.mino.mobi/seymour/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "proofs"
+  },
+  {
    "id": "henderhead",
    "name": "henderhead",
    "url": "https://henderhead.mino.mobi",

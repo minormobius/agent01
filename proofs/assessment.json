@@ -1866,12 +1866,12 @@
    "tier": "A",
    "effort": "S",
    "confidence": "high",
-   "widget": "Draw any oriented graph (or generate random/tournament-like ones) and the page highlights a vertex whose second out-neighbourhood is at least its first, with both sets shown.",
-   "engine": "For a given oriented graph computes |N+(v)| and |N++(v)| for every vertex and certifies a Seymour vertex; selftest exhaustively checks all oriented graphs up to n=6 (3^15 orientations of K6 incl. non-edges is ~14M, feasible offline) and random larger ones.",
+   "widget": "Draw any oriented graph and see which vertices reach at least as many in two steps as in one; Paley tournaments where every vertex is exactly tight; check all 14,348,907 graphs on six vertices; set an adversary hunting for a counterexample.",
+   "engine": "Bitmask N⁺/N⁺⁺ checked against the literal Lean definitions; exhaustive enumeration of all 3^C(n,2) labelled oriented graphs to n = 6 (sink-free counts checked by inclusion–exclusion); Paley tightness; adversarial hill-climb.",
    "hook": "every social network has someone whose friends-of-friends outnumber their friends",
    "related": [],
    "conjectures": false,
-   "page": null
+   "page": "seymour/"
   },
   "174": {
    "tier": "B",

@@ -4255,6 +4255,23 @@
       ]
     },
     {
+      "n": "seymour",
+      "u": "https://proofs.mino.mobi/seymour/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "In any network of one-way links, someone reaches at least as many people in exactly two steps as in one. Paul Seymour conjectured it around 1990, and a 2026 AI-written, Lean-formalized paper claims it. Draw any oriented graph and watch which vertices qualify, see Paley tournaments sit exactly on the line, check every one of the 14,348,907 graphs on six vertices in your browser, and set an adversary hunting for a counterexample.",
+      "tags": [
+        "canvas",
+        "math",
+        "selftest"
+      ]
+    },
+    {
       "n": "henderhead",
       "u": "https://henderhead.mino.mobi",
       "c": "tools",

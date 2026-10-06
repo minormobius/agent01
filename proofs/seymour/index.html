@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>seymour — two steps beat one</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="Seymour's second-neighbourhood conjecture (1990): in any one-way network, someone reaches at least as many people in exactly two steps as in one. A 2026 AI-written, Lean-formalized paper claims it. Draw any oriented graph and watch which vertices qualify, check all 14 million graphs on six vertices, and set an adversary to hunt for a counterexample.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6;
+  --accent: #2a78d6; --accent-faint: rgba(42,120,214,0.13); --accent-tint: rgba(42,120,214,0.06);
+  --panel: #f3f3f0; --stage: #f7f7f4;
+  --n1: #2a78d6; --n2: #eb6834; --good: #1f7a3f; --bad: #b3261e; --vertex: #52514e;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f;
+    --accent: #3987e5; --accent-faint: rgba(57,135,229,0.18); --accent-tint: rgba(57,135,229,0.08);
+    --panel: #20201e; --stage: #121211;
+    --n1: #3987e5; --n2: #d95926; --good: #6ec48f; --bad: #e66767; --vertex: #c3c2b7;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--serif); line-height: 1.5; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+.head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top)); }
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.score { position: absolute; left: 0.7rem; top: 0.45rem; pointer-events: none; font-family: var(--mono); }
+.score .big { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+.score .vs { font-size: 0.6rem; color: var(--muted); margin-top: 0.15rem; }
+.score.ok .big { color: var(--good); }
+.score.no .big { color: var(--bad); }
+.insp { position: absolute; right: 0.7rem; top: 0.45rem; font-family: var(--mono); font-size: 0.62rem; text-align: right; pointer-events: none; color: var(--muted); max-width: 55%; }
+.insp b { color: var(--fg); }
+.hint { position: absolute; left: 0.7rem; bottom: 0.55rem; right: 0.7rem; font-family: var(--mono); font-size: 0.58rem; color: var(--muted); pointer-events: none; }
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab { flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.4rem; }
+button.act { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.42rem 0.55rem; cursor: pointer; min-height: 2rem; }
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act:disabled { opacity: 0.4; cursor: default; }
+.knob { display: grid; grid-template-columns: 4.2rem 1fr 2.6rem; align-items: center; gap: 0.4rem; margin: 0.1rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.66rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.note { font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; font-family: var(--mono); font-size: 0.58rem; color: var(--muted); margin-top: 0.45rem; }
+.legend i { display: inline-block; width: 0.65rem; height: 0.65rem; border-radius: 50%; vertical-align: -0.08rem; margin-right: 0.3rem; }
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.64rem; margin-top: 0.5rem; }
+table.facts td, table.facts th { padding: 0.26rem 0.25rem; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: top; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.56rem; }
+table.facts td:first-child, table.facts th:first-child { text-align: left; }
+.good { color: var(--good); } .bad { color: var(--bad); }
+.bar { height: 4px; background: var(--rule); border-radius: 2px; margin-top: 0.4rem; overflow: hidden; }
+.bar span { display: block; height: 100%; width: 0; background: var(--accent); }
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose code, pre { font-family: var(--mono); font-size: 0.72rem; }
+pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.5rem 0.6rem; overflow-x: auto; line-height: 1.4; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+@media (min-width: 860px) {
+  .app { flex-direction: row; } .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 28rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; } .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://proofs.mino.mobi/">← proofs</a>
+      <h1>seymour</h1>
+      <span class="tagline">family 173 · Lean-formalized</span>
+    </div>
+    <div class="stage">
+      <canvas id="cv"></canvas>
+      <div class="score" id="score"><div class="big" id="big">—</div><div class="vs" id="vs"></div></div>
+      <div class="insp" id="insp"></div>
+      <div class="hint" id="hint">tap empty space to add a vertex · drag from one vertex to another to add an arc · tap an arc to reverse it, again to delete it · tap a vertex to inspect it</div>
+    </div>
+  </div>
+  <div class="panel">
+    <nav class="tabs">
+      <button class="tab active" data-pane="graph">graph</button>
+      <button class="tab" data-pane="check">check</button>
+      <button class="tab" data-pane="history">history</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+      <div class="pane active" id="pane-graph">
+        <div class="row" style="margin-top:0">
+          <button class="act" data-gen="tri">triangle</button>
+          <button class="act" data-gen="paley7">Paley 7</button>
+          <button class="act" data-gen="paley11">Paley 11</button>
+          <button class="act" data-gen="tour">random tournament</button>
+          <button class="act" data-gen="sparse">random sparse</button>
+          <button class="act" data-gen="clear">clear</button>
+        </div>
+        <div class="knob" style="margin-top:0.5rem"><label for="gn">vertices</label><input type="range" id="gn" min="3" max="16" step="1" value="9"><output id="gnv"></output></div>
+        <div class="legend"><span><i style="background:var(--good)"></i>good: |N⁺⁺| ≥ |N⁺|</span><span><i style="background:var(--vertex)"></i>not good</span><span><i style="background:var(--n1)"></i>one step from the selected vertex</span><span><i style="background:var(--n2)"></i>exactly two steps</span></div>
+        <p class="note">Arrows only go one way, and no pair points both ways. A vertex is <em>good</em> when it reaches at least as many vertices in exactly two steps as in one. Every vertex reached in one step is excluded from the second count. Seymour conjectured that every such graph has a good vertex. Try to draw one where nobody is good. Sinks don't help: a vertex with no way out reaches 0 in one step, so it is good. In a Paley tournament every vertex is exactly on the line.</p>
+      </div>
+      <div class="pane" id="pane-check">
+        <p class="note" style="margin-top:0"><strong>Every graph on n vertices.</strong> There are 3^(n choose 2) labelled oriented graphs: each pair is joined one way, the other way, or not at all. That is 14,348,907 for n = 6. The check visits all of them in your browser.</p>
+        <div class="knob"><label for="en">n</label><input type="range" id="en" min="2" max="6" step="1" value="6"><output id="env"></output></div>
+        <div class="row"><button class="act" id="exhaust">check every graph</button></div>
+        <div class="bar"><span id="ebar"></span></div>
+        <table class="facts" id="etab"><thead><tr><th>n</th><th>graphs</th><th>without a sink</th><th>fewest good, sink-free</th><th>counterexamples</th><th>time</th></tr></thead><tbody></tbody></table>
+        <p class="note" style="margin-top:1rem"><strong>An adversary.</strong> Starting from random graphs, it changes one pair at a time to shrink the best vertex's margin and the number of good vertices, with sinks forbidden. A counterexample would end with the margin below zero.</p>
+        <div class="knob"><label for="hn">n</label><input type="range" id="hn" min="5" max="24" step="1" value="12"><output id="hnv"></output></div>
+        <div class="row"><button class="act" id="hunt">hunt</button></div>
+        <table class="facts" id="htab"><thead><tr><th>n</th><th>best margin</th><th>good vertices left</th><th>time</th></tr></thead><tbody></tbody></table>
+        <p class="note">The hunt's result loads into the drawing, so you can see what it built. For n ≤ 6 the exhaustive check is a proof of those cases. Beyond that the adversary is only evidence, and the theorem is what covers every n.</p>
+      </div>
+      <div class="pane" id="pane-history">
+        <table class="facts" id="hist"><thead><tr><th>year</th><th>what was known</th></tr></thead><tbody></tbody></table>
+        <p class="note">Also known before 2026: tournaments missing a matching, a star or a clique (Fidler and Yuster, 2007), almost every orientation of a random graph (Espuny Díaz, Girão, Granet and Kronenberg, 2025), and minimum outdegree 7 by computer (a 2026 preprint). All of this is from the paper's own introduction.</p>
+      </div>
+      <div class="pane prose" id="pane-about">
+        <h2>The question</h2>
+        <p>Picture a network where every link runs one way: who follows whom, who beats whom. Count each person's direct links, and then the new people they reach in exactly two steps. Paul Seymour conjectured around 1990 that someone always has at least as many in the second group as in the first. It is easy to state and to test, and it held up through decades of attempts. Proofs came for tournaments, where every pair plays, and for low degrees. The best general guarantee before 2026 was about 72% of the way there.</p>
+
+        <h2>The 2026 claim</h2>
+        <p>A paper dated 23 September 2026, written by an internal OpenAI model and released on 6 October in <a href="https://github.com/openai/math">a collection of 722</a>, proves the conjecture in full, with no connectivity or degree assumption. It argues by a minimal counterexample. Deleting arcs shows every vertex set must expand in a strict "concave" way. Blowing each vertex up into a large transitive tournament then turns that into an inequality about pairs of vertices. The paper shows no such pair system can exist, using a pruning lemma about matchings that holds for every finite relation.</p>
+
+        <h2>How it was checked</h2>
+        <p>The theorem is formalized in Lean. The release ships the statement as a separate file, checked by its Comparator tool against Lean's three standard axioms. The whole statement fits on a screen:</p>
+<pre>structure IsOriented (r : V → V → Prop) : Prop where
+  loopless : ∀ v, ¬ r v v
+  asymmetric : ∀ {u v}, r u v → ¬ r v u
+
+def secondNeighbors (r : V → V → Prop) (v : V) :=
+  univ.filter (fun w =>
+    w ≠ v ∧ ¬ r v w ∧ ∃ u, r v u ∧ r u w)
+
+def GoodVertex (r : V → V → Prop) (v : V) : Prop :=
+  (firstNeighbors r v).card ≤ (secondNeighbors r v).card
+
+theorem exists_goodVertex (r : V → V → Prop)
+    (hr : IsOriented r) : ∃ v, GoodVertex r v</pre>
+        <p>This page's <code>second()</code> is that definition with bitmasks, and the selftest compares the two on random graphs. We did not run Lean ourselves, and the paper is a preprint.</p>
+
+        <h2>What this page checks</h2>
+        <p><code>seymour.js</code> is the only copy of the maths, and <code>seymour.selftest.mjs</code> holds it to 5,214 checks:</p>
+        <ul>
+          <li>The fast neighbourhoods equal the literal Lean definitions on 300 random graphs.</li>
+          <li>Paley tournaments (p = 3, 7, 11, 19, 23) are tight at every vertex.</li>
+          <li>All 3^(n choose 2) labelled oriented graphs up to n = 6 have a good vertex. That is 14,348,907 graphs at n = 6, and the sink-free count matches an independent inclusion–exclusion formula.</li>
+          <li>Sink-free graphs can have as few as 2 good vertices.</li>
+          <li>The adversary never gets below zero.</li>
+        </ul>
+        <p>For six vertices or fewer the check is complete. Past that, only the proof speaks.</p>
+        <div class="crossref">
+          the collection · <a href="https://proofs.mino.mobi/">proofs</a> ·
+          the paper · <a href="https://github.com/openai/math/blob/main/preprints/A-proof-of-Seymours-second-neighborhood-conjecture-September-23-2026/paper.pdf">Seymour</a> ·
+          next door · <a href="https://proofs.mino.mobi/crossing/">crossing</a> · <a href="https://proofs.mino.mobi/hadamard/">hadamard</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as G from './seymour.js';
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// the drawing: vertex positions in [0,1]², and the graph as bitmasks
+const S = { g: G.paley(7), pos: [], sel: -1 };
+const MAXV = 24;
+function circlePos(n) { return Array.from({ length: n }, (_, i) => [0.5 + 0.36 * Math.cos(-Math.PI / 2 + (2 * Math.PI * i) / n), 0.53 + 0.36 * Math.sin(-Math.PI / 2 + (2 * Math.PI * i) / n)]); }
+S.pos = circlePos(7);
+
+// =============================================================== drawing ===
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0;
+function frame() { const s = Math.min(W, H); return { s, ox: (W - s) / 2, oy: (H - s) / 2 }; }
+const px = (p) => { const { s, ox, oy } = frame(); return [ox + p[0] * s, oy + p[1] * s]; };
+const toUnit = (x, y) => { const { s, ox, oy } = frame(); return [(x - ox) / s, (y - oy) / s]; };
+const R = () => Math.max(9, Math.min(15, frame().s / 30));
+function arrow(a, b, colour, width) {
+  const [x1, y1] = px(a), [x2, y2] = px(b), r = R();
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+  const sx = x1 + ux * r, sy = y1 + uy * r, ex = x2 - ux * (r + 2), ey = y2 - uy * (r + 2);
+  ctx.strokeStyle = colour; ctx.fillStyle = colour; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+  const h = 7 + width;
+  ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex - ux * h - uy * h * 0.45, ey - uy * h + ux * h * 0.45); ctx.lineTo(ex - ux * h + uy * h * 0.45, ey - uy * h - ux * h * 0.45); ctx.closePath(); ctx.fill();
+}
+function draw() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = css('--stage'); ctx.fillRect(0, 0, W, H);
+  const g = S.g, n = g.n, deg = G.degrees(g), good = new Set(G.goodVertices(g));
+  const sel = S.sel, n1 = sel >= 0 ? G.first(g, sel) : 0, n2 = sel >= 0 ? G.second(g, sel) : 0;
+  // arcs: the selected vertex's first step bold, second step tinted
+  for (let u = 0; u < n; u++) for (let v = 0; v < n; v++) {
+    if (!G.hasArc(g, u, v)) continue;
+    let c = css('--faint'), w = 1.1;
+    if (sel >= 0 && u === sel) { c = css('--n1'); w = 2.4; }
+    else if (sel >= 0 && ((n1 >>> u) & 1) && ((n2 >>> v) & 1)) { c = css('--n2'); w = 1.8; }
+    else if (sel >= 0) { ctx.globalAlpha = 0.35; }
+    arrow(S.pos[u], S.pos[v], c, w);
+    ctx.globalAlpha = 1;
+  }
+  const r = R();
+  ctx.font = `${Math.round(r * 0.8)}px ${css('--mono')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let v = 0; v < n; v++) {
+    const [x, y] = px(S.pos[v]);
+    let fill = good.has(v) ? css('--good') : css('--vertex');
+    if (sel >= 0 && v !== sel) fill = ((n1 >>> v) & 1) ? css('--n1') : ((n2 >>> v) & 1) ? css('--n2') : css('--rule');
+    ctx.fillStyle = fill;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill();
+    if (v === sel) { ctx.strokeStyle = css('--fg'); ctx.lineWidth = 2.5; ctx.stroke(); }
+    if (good.has(v) && sel >= 0 && v !== sel) { ctx.strokeStyle = css('--good'); ctx.lineWidth = 2; ctx.stroke(); }
+    ctx.fillStyle = '#fff';
+    ctx.fillText(`${deg[v].d1}·${deg[v].d2}`, x, y + 0.5);
+  }
+  const k = good.size;
+  $('big').textContent = `${k} of ${n}`;
+  $('score').className = 'score ' + (k > 0 ? 'ok' : 'no');
+  $('vs').textContent = n ? (k > 0 ? 'vertices are good · the theorem promises at least 1' : 'NO good vertex: this would be a counterexample!') : 'tap to add vertices';
+  if (sel >= 0) {
+    const d = deg[sel];
+    $('insp').innerHTML = `vertex ${sel}: one step <b style="color:var(--n1)">${d.d1}</b> · exactly two steps <b style="color:var(--n2)">${d.d2}</b><br>${d.d1 <= d.d2 ? '<span class="good">good</span>' : 'not good'} · labels read one·two`;
+  } else $('insp').textContent = 'labels: one-step · two-step counts';
+}
+
+// ============================================================ interaction ==
+function vertexAt(x, y) { const r = R() + 6; for (let v = 0; v < S.g.n; v++) { const [a, b] = px(S.pos[v]); if (Math.hypot(a - x, b - y) < r) return v; } return -1; }
+function arcAt(x, y) {
+  let best = null, bd = 9;
+  for (let u = 0; u < S.g.n; u++) for (let v = 0; v < S.g.n; v++) {
+    if (!G.hasArc(S.g, u, v)) continue;
+    const [x1, y1] = px(S.pos[u]), [x2, y2] = px(S.pos[v]);
+    const dx = x2 - x1, dy = y2 - y1, L2 = dx * dx + dy * dy, t = Math.max(0.15, Math.min(0.85, ((x - x1) * dx + (y - y1) * dy) / L2));
+    const d = Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
+    if (d < bd) { bd = d; best = [u, v]; }
+  }
+  return best;
+}
+let press = null;
+cv.addEventListener('pointerdown', (e) => {
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  press = { x, y, v: vertexAt(x, y), moved: false, id: e.pointerId };
+  cv.setPointerCapture(e.pointerId);
+  $('hint').style.opacity = 0;
+});
+cv.addEventListener('pointermove', (e) => {
+  if (!press) return;
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (Math.hypot(x - press.x, y - press.y) > 6) press.moved = true;
+  if (press.moved && press.v >= 0) {
+    draw();
+    const [a, b] = px(S.pos[press.v]);
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = css('--accent'); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(x, y); ctx.stroke(); ctx.setLineDash([]);
+  }
+});
+cv.addEventListener('pointerup', (e) => {
+  if (!press) return;
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, g = S.g;
+  if (press.moved && press.v >= 0) {
+    const w = vertexAt(x, y);
+    if (w >= 0 && w !== press.v) {
+      // oriented: setting u→v clears v→u
+      g.out[w] &= ~(1 << press.v); g.out[press.v] |= 1 << w;
+    } else if (w < 0) {
+      // drag a vertex to move it
+      S.pos[press.v] = toUnit(x, y).map((c) => Math.max(0.03, Math.min(0.97, c)));
+    }
+  } else if (press.v >= 0) {
+    S.sel = S.sel === press.v ? -1 : press.v;
+  } else {
+    const a = arcAt(x, y);
+    if (a) {
+      const [u, v] = a;
+      g.out[u] &= ~(1 << v);
+      if (!S.flipped || S.flipped !== `${v},${u}`) { g.out[v] |= 1 << u; S.flipped = `${u},${v}`; } else S.flipped = null;
+    } else if (g.n < MAXV) {
+      g.n++; g.out.push(0); S.pos.push(toUnit(x, y)); S.sel = -1;
+    }
+  }
+  press = null; draw(); pushURL();
+});
+
+// ============================================================ generators ===
+function load(g, pos) { S.g = g; S.pos = pos || circlePos(g.n); S.sel = -1; draw(); pushURL(); }
+$('gn').addEventListener('input', (e) => { $('gnv').textContent = e.target.value; });
+$('gnv').textContent = $('gn').value;
+for (const b of document.querySelectorAll('[data-gen]')) b.addEventListener('click', () => {
+  const n = +$('gn').value, k = b.dataset.gen;
+  if (k === 'tri') load(G.cycle(3));
+  if (k === 'paley7') load(G.paley(7));
+  if (k === 'paley11') load(G.paley(11));
+  if (k === 'tour') load(G.randomTournament(n));
+  if (k === 'sparse') {
+    // keep drawing until no sink: sinks are trivially good, so they are dull
+    let g; for (let t = 0; t < 200; t++) { g = G.randomOriented(n, 0.35); if (G.degrees(g).every((d) => d.d1 > 0)) break; }
+    load(g);
+  }
+  if (k === 'clear') load(G.empty(0), []);
+});
+
+// ================================================================ worker ===
+let worker = null;
+function run(msg, onMsg) {
+  if (worker) worker.terminate();
+  try { worker = new Worker('./search.worker.js', { type: 'module' }); } catch { onMsg({ done: true, error: 'no module workers here' }); return; }
+  worker.onmessage = (e) => onMsg(e.data);
+  worker.onerror = (e) => onMsg({ done: true, error: e.message || 'worker failed' });
+  worker.postMessage(msg);
+}
+const ms = (t) => (t < 1000 ? Math.round(t) + ' ms' : (t / 1000).toFixed(1) + ' s');
+for (const [id, out] of [['en', 'env'], ['hn', 'hnv']]) { $(id).addEventListener('input', (e) => { $(out).textContent = e.target.value; }); $(out).textContent = $(id).value; }
+$('exhaust').addEventListener('click', () => {
+  const n = +$('en').value; $('exhaust').disabled = true;
+  run({ task: 'exhaust', n }, (d) => {
+    if (!d.done) { $('ebar').style.width = (100 * d.progress).toFixed(1) + '%'; return; }
+    $('exhaust').disabled = false; $('ebar').style.width = '100%';
+    if (d.error) { $('etab').tBodies[0].insertAdjacentHTML('afterbegin', `<tr><td colspan="6">${d.error}</td></tr>`); return; }
+    $('etab').tBodies[0].insertAdjacentHTML('afterbegin', `<tr><td>${d.n}</td><td>${d.count.toLocaleString()}</td><td>${d.sinkFree.toLocaleString()}</td><td>${d.fewestGood === Infinity ? '—' : d.fewestGood}</td><td class="${d.counterexample ? 'bad' : 'good'}">${d.counterexample ? 'FOUND' : 'none'}</td><td>${ms(d.ms)}</td></tr>`);
+    if (d.fewestWitness) load({ n: d.n, out: d.fewestWitness });
+  });
+});
+$('hunt').addEventListener('click', () => {
+  const n = +$('hn').value; $('hunt').disabled = true;
+  run({ task: 'hunt', n, seed: (Math.random() * 1e9) | 0 }, (d) => {
+    $('hunt').disabled = false;
+    if (d.error) return;
+    $('htab').tBodies[0].insertAdjacentHTML('afterbegin', `<tr><td>${n}</td><td class="${d.slack < 0 ? 'bad' : ''}">${d.slack}</td><td>${d.good} of ${n}</td><td>${ms(d.ms)}</td></tr>`);
+    load(d.graph);
+  });
+});
+
+// ========================================================== history, tabs ==
+$('hist').tBodies[0].innerHTML = G.MILESTONES.map((m) => `<tr><td>${m.year}</td><td style="text-align:left">${m.text}</td></tr>`).join('');
+for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => {
+  for (const u of document.querySelectorAll('.tab')) u.classList.toggle('active', u === t);
+  for (const p of document.querySelectorAll('.pane')) p.classList.toggle('active', p.id === 'pane-' + t.dataset.pane);
+});
+
+// =================================================================== URL ===
+// #n:hex,hex,…  (each vertex's out-mask)
+function pushURL() { history.replaceState(null, '', '#' + S.g.n + ':' + S.g.out.map((m) => m.toString(36)).join(',')); }
+const m = location.hash.match(/^#(\d+):([0-9a-z,]*)$/);
+if (m) {
+  const n = Math.min(MAXV, +m[1]), masks = m[2] ? m[2].split(',').map((x) => parseInt(x, 36) & ((1 << n) - 1)) : [];
+  const g = { n, out: Array.from({ length: n }, (_, i) => (masks[i] || 0) & ~(1 << i)) };
+  // repair any 2-cycles a hand-edited URL might carry
+  for (let u = 0; u < n; u++) for (let v = u + 1; v < n; v++) if (G.hasArc(g, u, v) && G.hasArc(g, v, u)) g.out[v] &= ~(1 << u);
+  S.g = g; S.pos = circlePos(n);
+}
+draw();
+window.addEventListener('resize', draw);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+</script>
+</body>
+</html>
