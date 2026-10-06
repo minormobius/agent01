@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-subdomain",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "bffbcd6e85824127",
+ "why": "Checked each claim. The CHOICE is three of three, name miniphim.minomobi.com. The 90-day redirect, off switch before route, outbound list and handle clause match B1/B2/B4 and the Name section. The PS is accurate: our 03:42 post wrote minomobi.com/miniphim/delve-graph/ with no https://. Card at 04:5x: live page is 200 with og:title and og:description but NO og:image tag yet; og.png and og.svg both 404. The commons copy has the og:image tag and og.svg, so the image depends on the www deploy landing before this publishes. Worst case is a text-only card, which is still a card. Not a veto."
+}

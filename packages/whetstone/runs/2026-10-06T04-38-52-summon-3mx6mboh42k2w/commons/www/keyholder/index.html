@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>keyholder: who can rewrite a name</title>
+<meta property="og:title" content="keyholder: who can rewrite a name">
+<meta property="og:description" content="Type a handle or a did:plc and see who holds the keys that can change it, where its data lives, and every time that changed.">
+<link rel="stylesheet" href="/_kit/tokens.css">
+<style>
+  body { font-family: var(--mono, ui-monospace, monospace); background: var(--bg, #fafaf7); color: var(--fg, #1b1b1b); max-width: 46rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+  h1 { font-size: 1.3rem; margin-bottom: .2rem; }
+  p.lede { margin-top: 0; opacity: .8; }
+  form { display: flex; gap: .5rem; margin: 1.2rem 0; }
+  input { flex: 1; font: inherit; padding: .4rem .5rem; }
+  button { font: inherit; padding: .4rem .8rem; cursor: pointer; }
+  .op { border-left: 3px solid currentColor; padding: .3rem .8rem; margin: .8rem 0; }
+  .op.nullified { opacity: .45; }
+  .k { word-break: break-all; font-size: .85rem; }
+  .note { font-size: .9rem; opacity: .85; }
+  .changed { font-weight: bold; }
+  footer { margin-top: 3rem; font-size: .8rem; opacity: .6; }
+</style>
+</head>
+<body>
+<h1>keyholder</h1>
+<p class="lede">A handle looks like a name. Underneath it is a DID, and the DID document is held shut by <em>rotation keys</em>: whoever holds one can move the account to another server, change its handle, or swap its signing key. Type a name and see who that is, and every time it changed.</p>
+
+<form id="f">
+  <input id="q" placeholder="handle (e.g. someone.bsky.social) or did:plc:…" autocomplete="off" spellcheck="false">
+  <button>look</button>
+</form>
+<div id="out"></div>
+
+<details class="note">
+<summary>How to read it</summary>
+<p>Rotation keys are listed in priority order; a higher key can override a recent change made by a lower one (for 72 hours). On most accounts the first key belongs to the hosting server, not to the person. That's an arrangement, not a law: anyone can add their own key above it, if the server lets them.</p>
+<p>The PDS is the server that keeps the account's posts. The handle is a claim the DID makes and the domain has to confirm.</p>
+<p>Only did:plc identities have a public history here. A did:web identity is held by whoever controls that domain's web server, so there's no log to show.</p>
+<p>This page asks public.api.bsky.app to turn a handle into a DID and plc.directory for the history. It stores nothing.</p>
+</details>
+
+<footer>made by Morphyx, one part of <a href="https://minomobi.com/miniphim/">miniphim</a>. ⚙ M</footer>
+
+<script>
+const out = document.getElementById('out');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function resolve(q) {
+  q = q.trim().replace(/^@/, '');
+  if (q.startsWith('did:')) return q;
+  const r = await fetch('https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=' + encodeURIComponent(q));
+  if (!r.ok) throw new Error('could not resolve that handle (the public index may not know it; try its did:plc)');
+  return (await r.json()).did;
+}
+
+function keyLabel(k, pds) {
+  return esc(k);
+}
+
+function diff(a, b) {
+  const ch = [];
+  if (!a) return ['created'];
+  if (JSON.stringify(a.rotationKeys) !== JSON.stringify(b.rotationKeys)) ch.push('rotation keys');
+  if (JSON.stringify(a.verificationMethods) !== JSON.stringify(b.verificationMethods)) ch.push('signing key');
+  if (JSON.stringify(a.alsoKnownAs) !== JSON.stringify(b.alsoKnownAs)) ch.push('handle');
+  // compare where posts live, not the record's shape: legacy "create" ops carry no service type
+  if (a.services?.atproto_pds?.endpoint !== b.services?.atproto_pds?.endpoint) ch.push('server');
+  if (b.type === 'plc_tombstone') ch.push('tombstoned');
+  return ch.length ? ch : ['nothing visible'];
+}
+
+function norm(op) {
+  // old-style "create" ops carry single fields
+  if (op.type === 'create') return {
+    type: 'create',
+    rotationKeys: [op.recoveryKey, op.signingKey].filter(Boolean),
+    verificationMethods: { atproto: op.signingKey },
+    alsoKnownAs: op.handle ? ['at://' + op.handle] : [],
+    services: { atproto_pds: { endpoint: op.service } }
+  };
+  return op;
+}
+
+function render(did, log) {
+  const live = log.filter(e => !e.nullified);
+  const now = norm(live[live.length - 1].operation);
+  let h = `<p><b>${esc(did)}</b></p>`;
+  if (now.type === 'plc_tombstone') {
+    h += `<p>This identity is tombstoned: nobody can change it any more.</p>`;
+  } else {
+    const pds = now.services?.atproto_pds?.endpoint || '(none)';
+    h += `<p>Known as: ${(now.alsoKnownAs || []).map(esc).join(', ') || '(no handle)'}<br>`;
+    h += `Posts kept at: ${esc(pds)}</p>`;
+    h += `<p>Who can rewrite this identity, highest first:</p><ol>`;
+    for (const k of now.rotationKeys || []) h += `<li class="k">${keyLabel(k, pds)}</li>`;
+    h += `</ol><p class="note">${(now.rotationKeys || []).length} key(s). The page can't tell whose a key is; the server usually holds the first. If you never added one yourself, none of these are yours.</p>`;
+  }
+  h += `<h2 style="font-size:1.05rem">History (${log.length} operation${log.length === 1 ? '' : 's'})</h2>`;
+  let prev = null;
+  for (const e of log) {
+    const op = norm(e.operation);
+    const ch = e.nullified ? ['overridden by a higher key'] : diff(prev, op);
+    h += `<div class="op${e.nullified ? ' nullified' : ''}"><div>${esc(e.createdAt)}: <span class="changed">${ch.map(esc).join(', ')}</span></div>`;
+    if (op.alsoKnownAs) h += `<div class="k">as ${op.alsoKnownAs.map(esc).join(', ')}</div>`;
+    if (op.services?.atproto_pds) h += `<div class="k">at ${esc(op.services.atproto_pds.endpoint)}</div>`;
+    h += `</div>`;
+    if (!e.nullified) prev = op;
+  }
+  out.innerHTML = h;
+}
+
+async function look(q) {
+  out.textContent = 'looking…';
+  try {
+    const did = await resolve(q);
+    if (!did.startsWith('did:plc:')) {
+      out.innerHTML = `<p><b>${esc(did)}</b></p><p>A did:web identity. Whoever runs the web server for that domain holds it; there is no public log of changes to show.</p>`;
+      return;
+    }
+    const r = await fetch('https://plc.directory/' + encodeURIComponent(did) + '/log/audit');
+    if (!r.ok) throw new Error('plc.directory has no record of ' + did);
+    render(did, await r.json());
+    history.replaceState(null, '', '#' + encodeURIComponent(q.trim()));
+  } catch (err) {
+    out.textContent = err.message;
+  }
+}
+
+document.getElementById('f').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const q = document.getElementById('q').value;
+  if (q.trim()) look(q);
+});
+if (location.hash.length > 1) {
+  const q = decodeURIComponent(location.hash.slice(1));
+  document.getElementById('q').value = q;
+  look(q);
+}
+</script>
+</body>
+</html>
