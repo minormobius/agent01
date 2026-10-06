@@ -105,8 +105,11 @@ export function generate(seed = 1) {
   const NB = 60, NH = 15;                                   // discs on the path; glitter columns
   const elevAt = (y) => Math.pow(clamp((yH - y) / yH), 0.8);   // the sky ramp's own curve
   const core = alloc(NB, (i) => ({ k: 'sun', b: i, e: 0.5, x: -99, y: -99, ms: 0 }));
-  const CL = 8;     // two bands of eight shades: each knows the sky behind it, so clear days fade it away
-  const clouds = alloc(CL * 2, (i) => ({ k: 'cloud', s: (i % CL) / (CL - 1), e: i < CL ? 0.42 : 0.72 }));
+  // clouds: three height bands of six shades, each knowing the sky behind it so a clear day can fade
+  // it away; the band boundaries are ordered-dithered (two hard bands left a straight line across
+  // every cloud where they met)
+  const CL = 6, CB = [0.38, 0.6, 0.82];
+  const clouds = alloc(CL * CB.length, (i) => ({ k: 'cloud', s: (i % CL) / (CL - 1), e: CB[Math.floor(i / CL)] }));
   for (let y = 0; y < yH; y++) for (let x = 0; x < W; x++) {
     const e = elevAt(y);
     const id = sky + dq(e, SKY, x, y);
@@ -118,7 +121,8 @@ export function generate(seed = 1) {
       // lit from above: brighter where the density climbs going down (a top), darker in the belly
       const above = fbm2(x * cs * 0.45, (y - 6) * cs * 1.6, S + 11, 5);
       const s = clamp(0.4 + (d0 - above) * 9 + (d0 - thr) * 2.2 - smooth(0, 1, (y - yH * 0.2) / yH) * 0.15);
-      set(x, y, clouds + (e > 0.57 ? CL : 0) + dq(s, CL, x, y), LAYER.cloud); continue;
+      const band = Math.max(0, Math.min(CB.length - 1, Math.floor((e - CB[0]) / (CB[1] - CB[0]) + BAYER[((y + 2) & 3) * 4 + ((x + 1) & 3)])));
+      set(x, y, clouds + band * CL + dq(s, CL, x, y), LAYER.cloud); continue;
     }
     set(x, y, id, LAYER.sky);
   }
