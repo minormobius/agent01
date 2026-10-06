@@ -51,14 +51,25 @@ function gate(dir, gateScript) {
   return { ok: r.status === 0, errors: r.status === 0 ? [] : (errors.length ? errors : [`the gate exited ${r.status}`]) };
 }
 
-export function publishSites({ runDir, www, gateScript = join(HERE, '..', '..', 'scripts', 'lab-content-gate.mjs'), now = new Date().toISOString() }) {
+async function renderOg(dest, files) {
+  const ogs = Object.keys(files).filter((f) => /(^|\/)og\.svg$/.test(f));
+  if (!ogs.length) return [];
+  let Resvg; try { ({ Resvg } = await import('@resvg/resvg-js')); } catch { return ogs.map((f) => `${f}: not rendered (no SVG renderer on this runner)`); }
+  return ogs.map((f) => {
+    const svg = files[f].includes('xmlns=') ? files[f] : files[f].replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg"');
+    try { writeFileSync(join(dest, f.replace(/og\.svg$/, 'og.png')), new Resvg(svg, { fitTo: { mode: 'width', value: 1200 }, background: 'white', font: { loadSystemFonts: true } }).render().asPng()); return `${f} → ${f.replace(/svg$/, 'png')}`; }
+    catch (e) { return `${f}: not rendered (${String(e.message).slice(0, 100)})`; }
+  });
+}
+
+export async function publishSites({ runDir, www, gateScript = join(HERE, '..', '..', 'scripts', 'lab-content-gate.mjs'), now = new Date().toISOString() }) {
   const commonsDir = join(runDir, 'commons');
   const commons = existsSync(commonsDir) ? readTree(commonsDir) : {};
   const { files, sites, skipped } = plan(commons);
   const dest = join(www, TENANT);
   const before = existsSync(dest) ? readTree(dest) : {};
   const same = JSON.stringify(Object.entries(before).sort()) === JSON.stringify(Object.entries(files).sort());
-  let result;
+  let result, rendered = [];
   if (!Object.keys(files).length) result = { changed: false, ok: true, sites: [], errors: [], note: 'www/ is empty: nothing published' };
   else if (same) result = { changed: false, ok: true, sites, errors: [], note: 'unchanged since the last publish' };
   else {
@@ -66,17 +77,22 @@ export function publishSites({ runDir, www, gateScript = join(HERE, '..', '..', 
     if (existsSync(dest)) cpSync(dest, keep, { recursive: true });
     rmSync(dest, { recursive: true, force: true });
     writeTree(dest, files);
+    // Link-card pictures: og:image must be PNG or JPEG and the commons keeps text, so every og.svg
+    // is rendered to og.png beside it (resvg, installed on the runner). Point og:image at og.png.
+    rendered = await renderOg(dest, files);
     const g = gate(dest, gateScript);
     if (!g.ok) { rmSync(dest, { recursive: true, force: true }); if (readdirSync(keep).length) cpSync(keep, dest, { recursive: true }); }
     rmSync(keep, { recursive: true, force: true });
     result = { changed: g.ok, ok: g.ok, sites, errors: g.errors };
   }
   result.skipped = skipped;
+  if (rendered.length) result.og = rendered;
   const live = `# LIVE: what the lab did with www/ (${now.slice(0, 16)}Z)\n\n` +
     (result.ok
       ? (result.changed ? `Published. It deploys within a few minutes of this run ending; check it with WebFetch.\n\n` : `${result.note || 'Nothing changed.'}\n\n`) +
         `- the corner: ${BASE}\n${sites.map((s) => `- ${s}: ${BASE}${s}/`).join('\n')}\n`
       : `**Not published.** The content gate refused this run's www/, so the last good version stays up.\n\n${result.errors.map((e) => `- ${e}`).join('\n')}\n`) +
+    (rendered.length ? `\nCard pictures:\n${rendered.map((s) => `- ${s}`).join('\n')}\n` : '') +
     (skipped.length ? `\nLeft out:\n${skipped.map((s) => `- ${s}`).join('\n')}\n` : '');
   mkdirSync(join(commonsDir, 'www'), { recursive: true });
   writeFileSync(join(commonsDir, LIVE), live);
@@ -89,5 +105,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const runDir = arg('run'), www = arg('www');
   if (!runDir || !www) { console.error('usage: publish-sites.mjs --run <run dir> --www <lab/www>'); process.exit(2); }
   if (!existsSync(join(runDir, 'commons', 'www'))) { console.log(JSON.stringify({ changed: false, ok: true, sites: [], errors: [], note: 'no www/' })); process.exit(0); }
-  console.log(JSON.stringify(publishSites({ runDir, www, ...(arg('gate') ? { gateScript: arg('gate') } : {}) })));
+  console.log(JSON.stringify(await publishSites({ runDir, www, ...(arg('gate') ? { gateScript: arg('gate') } : {}) })));
 }

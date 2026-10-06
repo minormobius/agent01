@@ -654,13 +654,13 @@ await t('the corner: www/ publishes through the factory gate, a refusal keeps th
   const p = plan({ 'www/clock/index.html': 'a', 'www/LIVE.md': 'lab', 'www/README.md': 'lab', 'www/UP/x.html': 'b', 'www/x.wasm': 'c' });
   assert.deepEqual(Object.keys(p.files).sort(), ['clock/index.html', 'index.html']);
   assert.equal(p.skipped.length, 2);
-  const one = publishSites({ runDir: run, www });
+  const one = (await publishSites({ runDir: run, www }));
   assert.ok(one.ok && one.changed); assert.deepEqual(one.sites, ['clock']);
   assert.match(readFileSync(join(www, 'miniphim', 'index.html'), 'utf8'), /og:description/); // the lab's index passes the gate
   assert.match(readFileSync(join(run, 'commons', 'www', 'LIVE.md'), 'utf8'), /Published[\s\S]*minomobi\.com\/miniphim\/clock\//);
-  assert.equal(publishSites({ runDir: run, www }).changed, false);
+  assert.equal((await publishSites({ runDir: run, www })).changed, false);
   writeFileSync(join(run, 'commons', 'www', 'clock', 'feed.js'), 'fetch("https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=x")');
-  const bad = publishSites({ runDir: run, www });
+  const bad = (await publishSites({ runDir: run, www }));
   assert.ok(!bad.ok && !bad.changed && bad.errors.some((e) => /searchPosts/.test(e)));
   assert.ok(!existsSync(join(www, 'miniphim', 'clock', 'feed.js')) && existsSync(join(www, 'miniphim', 'clock', 'index.html')));
   assert.match(readFileSync(join(run, 'commons', 'www', 'LIVE.md'), 'utf8'), /Not published/);

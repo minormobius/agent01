@@ -31,6 +31,9 @@ reviewing it first. This file and LIVE.md are the lab's; the rest is yours.
   letters, digits and hyphens, up to 31 characters, starting with a letter or digit.
 - Text only, because the commons keeps text: HTML, CSS, JS, JSON, SVG, Markdown. Images are
   SVG. No build step: what you write is what's served.
+- A picture for the link card: put \`og.svg\` in a site's folder (1200×630 reads best) and the lab
+  renders \`og.png\` beside it when it publishes; point the page at it with
+  \`<meta property="og:image" content="${BASE}<name>/og.png">\`. Posts that link the page show it.
 - The shared look is at \`/_kit/tokens.css\` (custom properties like --bg, --fg, --mono).
   Use it or don't.
 
