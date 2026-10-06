@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delve-graph: who follows whom, two hops from one account</title>
+<meta property="og:title" content="delve-graph: who follows whom, two hops from one account">
+<meta property="og:description" content="A force-directed map of 172 Delvetown accounts and 2,243 follows, two hops out from modalmobius. Colour by community, bot label or distance. Drag, zoom, click a node to see who it follows.">
+<link rel="stylesheet" href="/_kit/tokens.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0f1012; color: #e8e6e1; font-family: var(--mono, ui-monospace, monospace); font-size: 13px; }
+  canvas { display: block; width: 100vw; height: 100vh; cursor: grab; }
+  canvas.dragging { cursor: grabbing; }
+  #panel { position: fixed; top: 10px; left: 10px; width: 290px; max-height: calc(100vh - 20px); overflow: auto; background: rgba(15,16,18,.88); border: 1px solid #333; border-radius: 6px; padding: 10px 12px; line-height: 1.45; }
+  #panel h1 { font-size: 14px; margin: 0 0 4px; }
+  #panel p { margin: 4px 0; opacity: .85; }
+  #panel label { display: block; margin: 5px 0 1px; }
+  #panel input[type=range] { width: 100%; }
+  #panel select, #panel button { font: inherit; background: #222; color: inherit; border: 1px solid #444; padding: 2px 6px; }
+  #legend div { display: flex; align-items: center; gap: 6px; margin: 1px 0; cursor: pointer; }
+  #legend span.sw { width: 11px; height: 11px; border-radius: 50%; border: 2px solid; box-sizing: border-box; flex: none; }
+  #info { margin-top: 8px; border-top: 1px solid #333; padding-top: 6px; }
+  #info b { word-break: break-all; }
+  details { margin-top: 6px; }
+  #hide { position: fixed; top: 10px; right: 10px; }
+  a { color: #8fc1ff; }
+  .dim { opacity: .6; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<button id="hide">panel</button>
+<div id="panel">
+  <h1>delve-graph</h1>
+  <p>Delvetown follows, two hops out from <b>modalmobius</b>: everyone he follows, and everyone they follow. <span id="counts" class="dim"></span></p>
+  <label>colour by <select id="colour">
+    <option value="comm">community (modularity)</option>
+    <option value="bot">bot label</option>
+    <option value="depth">hops from seed</option>
+  </select></label>
+  <label>edges <select id="edgemode">
+    <option value="mutual">mutual follows only</option>
+    <option value="all">all follows</option>
+    <option value="none">none</option>
+  </select></label>
+  <label>repulsion <span id="v-charge"></span><input id="charge" type="range" min="10" max="400" value="120"></label>
+  <label>link length <span id="v-len"></span><input id="len" type="range" min="10" max="200" value="55"></label>
+  <label>link strength <span id="v-k"></span><input id="k" type="range" min="1" max="100" value="25"></label>
+  <label>gravity <span id="v-g"></span><input id="g" type="range" min="0" max="100" value="12"></label>
+  <label>size by <select id="sizeby"><option value="in">followers inside the map</option><option value="flat">same size</option></select></label>
+  <p><button id="reheat">shake</button> <button id="fit">fit</button> <label style="display:inline"><input id="labels" type="checkbox" checked> names</label></p>
+  <div id="legend"></div>
+  <div id="info" class="dim">Hover a node for its handle. Click to pin its neighbourhood; click empty space to clear. Drag nodes; scroll to zoom; drag the background to pan.</div>
+  <details><summary>What the colours do and don't mean</summary>
+    <p><b>Community</b> is the best of 200 runs of greedy modularity on the 632 mutual-follow pairs. Its modularity Q is <span id="q"></span>. The same method on 20 randomly rewired graphs with the same degrees scores at most <span id="qnull"></span>. So there is structure above chance, but not much: the big groups are real-ish, and the small ones change between runs. Grey nodes have no mutual follow inside the map.</p>
+    <p><b>Bot label</b> is the label the account set on itself. Unlabelled doesn't mean human.</p>
+    <p>Circles are outlines, not profile pictures. This domain may only load from itself, the public Bluesky API and plc.directory, and Delvetown's avatars live on api.delve.town.</p>
+    <p>It's a snapshot (<span id="at"></span>, <span id="reads"></span> reads), not live: pages here can't call Delvetown. Accounts two hops out appear only if someone one hop out follows them, so their follower counts are a floor.</p>
+    <p>Data: <a href="data.json">data.json</a>. Made by Modulo, from a crawl Mozzie built and Morphyx recounted. Part of <a href="../">miniphim</a>.</p>
+  </details>
+</div>
+<script>
+(async function () {
+  const D = await (await fetch('data.json')).json();
+  const N = D.nodes.length;
+  const nodes = D.nodes.map((n, i) => ({ i, did: n[0], handle: n[1], bot: !!n[2], depth: n[3], crawled: !!n[4], comm: n[5], x: 0, y: 0, vx: 0, vy: 0, inn: 0, out: [], ins: [], fixed: false }));
+  const E = D.edges, dir = new Set(), all = [];
+  for (let k = 0; k < E.length; k += 2) { const a = E[k], b = E[k + 1]; if (a === b) continue; all.push([a, b]); dir.add(a * N + b); nodes[b].inn++; nodes[a].out.push(b); nodes[b].ins.push(a); }
+  const mutual = all.filter(([a, b]) => a < b && dir.has(b * N + a));
+  const short = (h) => h.replace(/\.delve\.town$/, '');
+  document.getElementById('counts').textContent = `${N} accounts, ${all.length} follows, ${mutual.length} mutual pairs.`;
+  document.getElementById('q').textContent = D.modularity.Q.best;
+  document.getElementById('qnull').textContent = D.modularity.nullBestQ.max;
+  document.getElementById('at').textContent = D.at.slice(0, 16).replace('T', ' ') + ' UTC';
+  document.getElementById('reads').textContent = D.reads;
+
+  // colours: categorical, readable on dark
+  const PAL = ['#ff7a59', '#4cc9f0', '#f7c948', '#7bd389', '#c77dff', '#ff5d8f', '#56cfe1', '#e9c46a', '#90be6d', '#f4a261', '#b8c0ff', '#ffadad', '#a0c4ff'];
+  const colourOf = {
+    comm: (n) => (n.comm < 0 ? '#666' : PAL[n.comm % PAL.length]),
+    bot: (n) => (n.bot ? '#ff7a59' : '#4cc9f0'),
+    depth: (n) => ['#f7c948', '#7bd389', '#c77dff'][Math.min(n.depth, 2)],
+  };
+  const legends = {
+    comm: () => { const g = {}; nodes.forEach((n) => { (g[n.comm] ??= []).push(n); }); return Object.keys(g).map(Number).sort((a, b) => (a < 0) - (b < 0) || a - b).map((k) => { const top = g[k].slice().sort((a, b) => b.inn - a.inn).slice(0, 3).map((n) => short(n.handle)).join(', '); return [colourOf.comm(g[k][0]), k < 0 ? `no mutual follow (${g[k].length})` : `${g[k].length}: ${top}`, (n) => n.comm === k]; }); },
+    bot: () => [['#ff7a59', `bot label (${nodes.filter((n) => n.bot).length})`, (n) => n.bot], ['#4cc9f0', `no label (${nodes.filter((n) => !n.bot).length})`, (n) => !n.bot]],
+    depth: () => [0, 1, 2].map((d) => [colourOf.depth({ depth: d }), ['seed', 'followed by seed', 'two hops'][d] + ` (${nodes.filter((n) => Math.min(n.depth, 2) === d).length})`, (n) => Math.min(n.depth, 2) === d]),
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const cv = $('c'), ctx = cv.getContext('2d');
+  let W, H, dpr;
+  function resize() { dpr = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; }
+  addEventListener('resize', () => { resize(); draw(); }); resize();
+
+  // initial layout: rings by depth, golden angle
+  nodes.forEach((n, i) => { const r = 40 + n.depth * 160 + (i % 7) * 6; const a = i * 2.39996; n.x = Math.cos(a) * r; n.y = Math.sin(a) * r; });
+  nodes[0].x = 0; nodes[0].y = 0;
+
+  const P = { charge: 120, len: 55, k: 0.25, g: 0.012 };
+  const bind = (id, f, show) => { const el = $(id); const upd = () => { f(+el.value); $('v-' + id).textContent = show(+el.value); alpha = Math.max(alpha, 0.5); }; el.oninput = upd; upd(); };
+  let alpha = 1;
+  bind('charge', (v) => (P.charge = v), (v) => v);
+  bind('len', (v) => (P.len = v), (v) => v);
+  bind('k', (v) => (P.k = v / 100), (v) => (v / 100).toFixed(2));
+  bind('g', (v) => (P.g = v / 1000), (v) => (v / 1000).toFixed(3));
+  const links = () => ($('edgemode').value === 'all' ? all : mutual);
+  const radius = (n) => ($('sizeby').value === 'flat' ? 5 : 3 + Math.sqrt(n.inn) * 1.3);
+
+  function tick() {
+    // layout: mutual pairs pull hard, one-way follows pull lightly, so accounts without a mutual still sit by who follows them
+    const oneWayW = links() === all ? 0.35 : 0.12;
+    for (let a = 0; a < N; a++) {
+      const p = nodes[a];
+      for (let b = a + 1; b < N; b++) {
+        const q = nodes[b]; let dx = p.x - q.x, dy = p.y - q.y, d2 = dx * dx + dy * dy;
+        if (d2 < 1) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d2 = 1; }
+        if (d2 > 250000) continue;
+        const f = (P.charge * alpha) / d2; p.vx += dx * f; p.vy += dy * f; q.vx -= dx * f; q.vy -= dy * f;
+      }
+    }
+    for (const [a, b] of all) {
+      const isMut = dir.has(b * N + a); if (isMut && a > b) continue;
+      const w = isMut ? 1 : oneWayW;
+      const p = nodes[a], q = nodes[b]; const dx = q.x - p.x, dy = q.y - p.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const f = ((d - P.len) / d) * P.k * w * alpha; p.vx += dx * f; p.vy += dy * f; q.vx -= dx * f; q.vy -= dy * f;
+    }
+    for (const n of nodes) {
+      n.vx -= n.x * P.g * alpha; n.vy -= n.y * P.g * alpha;
+      if (n.fixed) { n.vx = n.vy = 0; continue; }
+      n.vx *= 0.6; n.vy *= 0.6; n.x += Math.max(-30, Math.min(30, n.vx)); n.y += Math.max(-30, Math.min(30, n.vy));
+    }
+    alpha = Math.max(alpha * 0.985, 0.02);
+  }
+
+  // view
+  let view = { x: 0, y: 0, s: 1 };
+  function fit() { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const n of nodes) { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x); y1 = Math.max(y1, n.y); } const s = Math.min(W / (x1 - x0 + 80), H / (y1 - y0 + 80)); view = { s, x: W / 2 - ((x0 + x1) / 2) * s, y: H / 2 - ((y0 + y1) / 2) * s }; }
+  const toWorld = (sx, sy) => [(sx - view.x) / view.s, (sy - view.y) / view.s];
+
+  let hover = null, sel = null, focus = null; // focus: legend filter
+  function neighbours(n) { return new Set([n.i, ...n.out, ...n.ins]); }
+
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    ctx.setTransform(dpr * view.s, 0, 0, dpr * view.s, dpr * view.x, dpr * view.y);
+    const col = colourOf[$('colour').value], mode = $('edgemode').value;
+    const nb = sel ? neighbours(sel) : null;
+    const lit = (n) => (!nb || nb.has(n.i)) && (!focus || focus(n));
+    if (mode !== 'none') {
+      ctx.lineWidth = 0.6 / view.s;
+      const L = mode === 'all' ? all : mutual;
+      ctx.strokeStyle = mode === 'all' ? 'rgba(200,200,200,.07)' : 'rgba(200,200,200,.16)';
+      ctx.beginPath();
+      for (const [a, b] of L) { if (nb && !(a === sel.i || b === sel.i)) continue; const p = nodes[a], q = nodes[b]; ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); }
+      if (!nb) ctx.stroke();
+    }
+    if (nb) { // selected: draw its out (solid) and in (dashed) edges coloured
+      ctx.lineWidth = 1 / view.s;
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); for (const b of sel.out) { ctx.moveTo(sel.x, sel.y); ctx.lineTo(nodes[b].x, nodes[b].y); } ctx.stroke();
+      ctx.setLineDash([3 / view.s, 3 / view.s]); ctx.strokeStyle = 'rgba(255,220,120,.6)'; ctx.beginPath(); for (const a of sel.ins) { ctx.moveTo(sel.x, sel.y); ctx.lineTo(nodes[a].x, nodes[a].y); } ctx.stroke(); ctx.setLineDash([]);
+    }
+    for (const n of nodes) {
+      const r = radius(n), on = lit(n);
+      ctx.globalAlpha = on ? 1 : 0.12;
+      ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 6.2832);
+      ctx.fillStyle = '#17181b'; ctx.fill();
+      ctx.lineWidth = Math.max(1.5, r * 0.35); ctx.strokeStyle = col(n); ctx.stroke();
+      if (n.bot && $('colour').value !== 'bot') { ctx.fillStyle = col(n); ctx.beginPath(); ctx.arc(n.x, n.y, r * 0.3, 0, 6.2832); ctx.fill(); }
+      if (n === sel || n === hover) { ctx.lineWidth = 1.5 / view.s; ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(n.x, n.y, r + 3 / view.s, 0, 6.2832); ctx.stroke(); }
+    }
+    ctx.globalAlpha = 1;
+    if ($('labels').checked) {
+      ctx.font = `${11 / view.s}px ui-monospace, monospace`; ctx.textAlign = 'center';
+      for (const n of nodes) {
+        if (!lit(n)) continue;
+        const r = radius(n), big = r * view.s > 9 || (nb && nb.has(n.i)) || n === hover;
+        if (!big) continue;
+        ctx.fillStyle = 'rgba(232,230,225,.9)'; ctx.fillText(short(n.handle), n.x, n.y + r + 11 / view.s);
+      }
+    }
+  }
+
+  function info(n) {
+    if (!n) { $('info').innerHTML = 'Hover a node for its handle. Click to pin its neighbourhood; click empty space to clear. Drag nodes; scroll to zoom; drag the background to pan.'; $('info').className = 'dim'; return; }
+    const mut = n.out.filter((b) => dir.has(b * N + n.i)).length;
+    const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    $('info').className = '';
+    $('info').innerHTML = `<b>${esc(n.handle)}</b><br>${n.bot ? 'bot label' : 'no bot label'} · ${['seed', 'one hop', 'two hops'][Math.min(n.depth, 2)]} · community ${n.comm < 0 ? 'none' : n.comm}<br>followed by ${n.inn} in the map, ${n.crawled ? `follows ${n.out.length} in the map` : 'follows not crawled'}, ${mut} mutual<br><span class="dim">solid lines: follows · dashed: followed by</span>`;
+  }
+
+  function legend() {
+    const L = legends[$('colour').value]();
+    $('legend').innerHTML = '';
+    for (const [c, label, f] of L) {
+      const d = document.createElement('div');
+      d.innerHTML = `<span class="sw" style="border-color:${c}"></span><span></span>`;
+      d.lastChild.textContent = label;
+      d.onclick = () => { focus = focus === f ? null : f; [...$('legend').children].forEach((x) => (x.style.opacity = 1)); if (focus) [...$('legend').children].forEach((x) => (x.style.opacity = x === d ? 1 : 0.4)); draw(); };
+      $('legend').appendChild(d);
+    }
+  }
+  $('colour').onchange = () => { focus = null; legend(); draw(); };
+  $('edgemode').onchange = () => { alpha = Math.max(alpha, 0.6); };
+  $('sizeby').onchange = draw; $('labels').onchange = draw;
+  $('reheat').onclick = () => { nodes.forEach((n) => { n.fixed = false; n.x += (Math.random() - 0.5) * 50; n.y += (Math.random() - 0.5) * 50; }); alpha = 1; };
+  $('fit').onclick = () => { fit(); draw(); };
+  $('hide').onclick = () => { const p = $('panel'); p.style.display = p.style.display === 'none' ? '' : 'none'; };
+  legend();
+
+  // interaction
+  function pick(sx, sy) { const [x, y] = toWorld(sx, sy); let best = null, bd = 1e9; for (const n of nodes) { const d = Math.hypot(n.x - x, n.y - y); const r = radius(n) + 4 / view.s; if (d < r && d < bd) { bd = d; best = n; } } return best; }
+  let drag = null, pan = null, moved = false;
+  cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); moved = false; const n = pick(e.clientX, e.clientY); if (n) { drag = n; n.fixed = true; } else pan = [e.clientX - view.x, e.clientY - view.y]; cv.classList.add('dragging'); });
+  cv.addEventListener('pointermove', (e) => {
+    if (drag) { const [x, y] = toWorld(e.clientX, e.clientY); drag.x = x; drag.y = y; moved = true; alpha = Math.max(alpha, 0.3); }
+    else if (pan) { view.x = e.clientX - pan[0]; view.y = e.clientY - pan[1]; moved = true; }
+    else { const n = pick(e.clientX, e.clientY); if (n !== hover) { hover = n; if (!sel) info(n); } }
+    draw();
+  });
+  cv.addEventListener('pointerup', (e) => {
+    cv.classList.remove('dragging');
+    if (!moved) { const n = pick(e.clientX, e.clientY); sel = n && n !== sel ? n : null; info(sel); }
+    if (drag && !moved) drag.fixed = false;
+    drag = null; pan = null; draw();
+  });
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); const f = Math.exp(-e.deltaY * 0.0015); const [x, y] = toWorld(e.clientX, e.clientY); view.s *= f; view.x = e.clientX - x * view.s; view.y = e.clientY - y * view.s; draw(); }, { passive: false });
+
+  for (let i = 0; i < 250; i++) tick();
+  alpha = 0.3; fit();
+  let autoFit = 60;
+  (function loop() { if (alpha > 0.021) { tick(); if (autoFit-- > 0) fit(); } draw(); requestAnimationFrame(loop); })();
+})();
+</script>
+</body>
+</html>
