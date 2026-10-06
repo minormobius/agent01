@@ -1,0 +1,34 @@
+[
+  { "id": "VV", "text": "vv shall measure a project's progress only by what has been verified.", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "Progress that is said rather than shown is not progress." },
+
+  { "id": "VV-M1", "parent": "VV", "text": "vv shall load and check a requirement list.", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "SPEC M1" },
+  { "id": "VV-M1-ID", "parent": "VV-M1", "text": "load shall report every malformed id and each duplicated id once.", "strength": "shall", "method": "test", "acceptance": "T-M1-BADID and T-M1-DUP pass.", "rationale": "Ids are what everything else joins on." },
+  { "id": "VV-M1-TREE", "parent": "VV-M1", "text": "load shall report unknown parents and every member of a parent cycle.", "strength": "shall", "method": "test", "acceptance": "T-M1-PARENT and T-M1-CYCLE pass.", "rationale": "Status rolls up the tree; the tree must be one." },
+  { "id": "VV-M1-LEAF", "parent": "VV-M1", "text": "load shall report leaves with an unknown method, and mandatory leaves without acceptance criteria, sorted by id then code.", "strength": "shall", "method": "test", "acceptance": "T-M1-LEAF and T-M1-SORT pass.", "rationale": "A leaf is where verification happens." },
+  { "id": "VV-M1-LINT", "parent": "VV-M1", "text": "lint shall flag placeholder words, vague words, the slashed and-or, and mandatory text without the word shall.", "strength": "shall", "method": "test", "acceptance": "T-M1-LINT passes.", "rationale": "Wording nobody can test cannot be verified." },
+
+  { "id": "VV-M2", "parent": "VV", "text": "vv shall trace requirements to the checks that verify them and the artifacts that implement them.", "strength": "shall", "method": "test", "acceptance": "T-M2-TRACE passes.", "rationale": "SPEC M2" },
+
+  { "id": "VV-M3", "parent": "VV", "text": "vv shall derive each requirement's status from dated evidence.", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "SPEC M3" },
+  { "id": "VV-M3-LEAF", "parent": "VV-M3", "text": "A leaf's status shall follow the latest result of each of its checks.", "strength": "shall", "method": "test", "acceptance": "T-M3-LEAF passes.", "rationale": "A fixed failure counts once it passes, not before." },
+  { "id": "VV-M3-ASOF", "parent": "VV-M3", "text": "Status shall ignore evidence dated after the as-of date.", "strength": "shall", "method": "test", "acceptance": "T-M3-ASOF passes.", "rationale": "Reports must be reproducible for any past date." },
+  { "id": "VV-M3-PARENT", "parent": "VV-M3", "text": "A parent's status shall roll up from its mandatory children, or from all of them when none is mandatory.", "strength": "shall", "method": "test", "acceptance": "T-M3-PARENT passes.", "rationale": "SPEC M3" },
+  { "id": "VV-M3-COVERAGE", "parent": "VV-M3", "text": "coverage shall count leaves by status and give the verified ratio.", "strength": "shall", "method": "test", "acceptance": "T-M3-COVERAGE passes.", "rationale": "SPEC M3" },
+
+  { "id": "VV-M4", "parent": "VV", "text": "vv shall track technical performance measures against their thresholds.", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "SPEC M4" },
+  { "id": "VV-M4-STATUS", "parent": "VV-M4", "text": "tpm shall give the current value, margin, status and objective as of a date.", "strength": "shall", "method": "test", "acceptance": "T-M4-STATUS passes.", "rationale": "SPEC M4" },
+  { "id": "VV-M4-TREND", "parent": "VV-M4", "text": "tpm shall give the least-squares slope per day.", "strength": "shall", "method": "test", "acceptance": "T-M4-TREND passes.", "rationale": "SPEC M4" },
+  { "id": "VV-M4-BREACH", "parent": "VV-M4", "text": "tpm shall project the first date the fitted line crosses the threshold.", "strength": "shall", "method": "test", "acceptance": "T-M4-BREACH passes, including a line that lands exactly on the threshold.", "rationale": "Warning before the breach is the point of a TPM." },
+
+  { "id": "VV-M5", "parent": "VV", "text": "vv shall compute earned value with value earned only by verified requirements.", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "SPEC M5" },
+  { "id": "VV-M5-PV", "parent": "VV-M5", "text": "earned shall compute planned value and actual cost as of a date.", "strength": "shall", "method": "test", "acceptance": "T-M5-PV passes.", "rationale": "SPEC M5" },
+  { "id": "VV-M5-EV", "parent": "VV-M5", "text": "earned shall credit a work package only with the share of its requirements that are verified.", "strength": "shall", "method": "test", "acceptance": "T-M5-EV passes, including hours spent with nothing verified earning zero.", "rationale": "The rule of the tool." },
+  { "id": "VV-M5-ES", "parent": "VV-M5", "text": "earned shall compute earned schedule and the time-based schedule index.", "strength": "shall", "method": "test", "acceptance": "T-M5-ES passes.", "rationale": "SPI drifts to 1 at the end of a late project; SPIt does not." },
+
+  { "id": "VV-M6", "parent": "VV", "text": "The command line shall print one JSON report for a project folder.", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "SPEC M6" },
+  { "id": "VV-M6-REPORT", "parent": "VV-M6", "text": "The report shall hold problems, lint, coverage, orphans, status and measures, as of a given or derived date.", "strength": "shall", "method": "test", "acceptance": "T-M6-REPORT and T-DATES pass.", "rationale": "SPEC M6" },
+  { "id": "VV-M6-EVM", "parent": "VV-M6", "text": "The report shall include earned value when the folder has a plan, and null when it has none.", "strength": "shall", "method": "test", "acceptance": "T-M6-EVM and T-M6-EMPTY pass.", "rationale": "SPEC M6" },
+  { "id": "VV-M6-ERRORS", "parent": "VV-M6", "text": "The command line shall exit 1 with a one-line message on bad input.", "strength": "should", "method": "test", "acceptance": "T-M6-ERRORS passes.", "rationale": "A stack trace is not a message." },
+
+  { "id": "VV-M7", "parent": "VV", "text": "vv shall hold its own requirements and verify itself.", "strength": "shall", "method": "test", "acceptance": "T-M7-SELF passes and the report on this folder has no problems and coverage of at least 0.8.", "rationale": "SPEC M7" }
+]
