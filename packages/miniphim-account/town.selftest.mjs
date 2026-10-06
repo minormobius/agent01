@@ -30,13 +30,14 @@ assert.match(held(r, 'a'), /hash changed/);
 // Signature, links, length.
 const noSig = post('n', 'modulo', 'unsigned');
 const wrongSig = post('w', 'modulo', 'signed by the wrong part. — Morphyx');
-const link = post('l', 'modulo', 'see https://evil.example/x — Modulo');
-const okLink = post('k', 'modulo', 'see https://del.mino.mobi/days/ — Modulo');
+// Links go anywhere now; a bare "https://." in prose is not a link (it held a reply on 10-06).
+const link = post('l', 'modulo', 'see https://arxiv.org/abs/2410.01234 — Modulo');
+const okLink = post('k', 'modulo', 'it had no https://. so: https://del.mino.mobi/days/ — Modulo');
 const long = post('g', 'modulo', `${'x'.repeat(CAPS.max_graphemes)} — Modulo`);
 r = decide([noSig, wrongSig, link, okLink, long], [noSig, wrongSig, link, okLink, long].map((d) => yes(d, 'mozzie')), { now });
-assert.deepEqual(ids(r), ['k']);
+assert.deepEqual(ids(r), ['l', 'k']);
 assert.match(held(r, 'n'), /signature/); assert.match(held(r, 'w'), /signature/);
-assert.match(held(r, 'l'), /links only to/); assert.match(held(r, 'g'), /graphemes/);
+assert.match(held(r, 'g'), /graphemes/);
 
 // Posts a day.
 const many = Array.from({ length: CAPS.posts_per_day + 2 }, (_, i) => post(`p${i}`, 'morphyx', `post ${i}. — Morphyx`));

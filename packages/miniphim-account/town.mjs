@@ -141,9 +141,11 @@ export function decide(drafts, approvals, { now, sent = [], paused = false, ment
     const badImg = imgs.find((i) => !String(i?.alt || '').trim() || !(okSvg(i) || okCad(i)));
     if (badImg) { why(`image ${badImg?.file || badImg?.cad}: an image is an .svg file in the commons (under ${SVG_MAX / 1000} KB) or a CAD tree (.json) with a view (${CAD_VIEWS.join(', ')}), and has alt text`); continue; }
     const images = imgs.map((i) => (i.cad ? { cad: i.cad, view: i.view || 'iso', alt: String(i.alt).slice(0, 2000), tree: files[i.cad] } : { file: i.file, alt: String(i.alt).slice(0, 2000), svg: files[i.file] }));
-    const links = text.match(/https?:\/\/[^\s)]+/g) || [];
-    const bad = links.find((u) => !CAPS.link_hosts.some((host) => new URL(u).hostname === host || new URL(u).hostname.endsWith(`.${host}`)));
-    if (bad) { why(`link to ${bad}: links only to ${CAPS.link_hosts.join(', ')}`); continue; }
+    // Links go anywhere (the person, 2026-10-06: the allowed-hosts list held a reply because the
+    // text said "https://."). caps.json can still name hosts; empty means any.
+    const hosts = CAPS.link_hosts || [];
+    const bad = hosts.length ? urlsIn(text).map((l) => l.uri).find((u) => { let h; try { h = new URL(u).hostname; } catch { return false; } return !hosts.some((host) => h === host || h.endsWith(`.${host}`)); }) : null;
+    if (bad) { why(`link to ${bad}: links only to ${hosts.join(', ')}`); continue; }
     if (d.kind === 'post') {
       if (posts >= CAPS.posts_per_day) { why(`cap: ${CAPS.posts_per_day} posts a day`); continue; }
       posts++; out.push({ ...d, images, hash: h, approved_by: yes.part }); continue;
@@ -168,7 +170,8 @@ export function decide(drafts, approvals, { now, sent = [], paused = false, ment
 // the hash on the text already covers them.
 const enc = new TextEncoder();
 const byteAt = (text, i) => enc.encode(text.slice(0, i)).length;
-export const urlsIn = (text) => [...String(text).matchAll(/https?:\/\/[^\s<>"']+/g)].map((m) => {
+// A link has a host with a dot in it: "https://." or a bare "https://" in prose is not a link.
+export const urlsIn = (text) => [...String(text).matchAll(/https?:\/\/[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)+(?::\d+)?(?:[/?#][^\s<>"']*)?/gi)].map((m) => {
   const u = m[0].replace(/[.,;:!?)\]]+$/, '');
   return { uri: u, start: m.index, end: m.index + u.length };
 });
