@@ -3,11 +3,10 @@
   "cad": {
     "path": "packages/cad",
     "exclude": [
-      "bakeoff",
-      "node_modules"
+      "bakeoff"
     ],
     "guide": "SKILL.md",
-    "what": "The feature-tree CAD engine behind cad.mino.mobi: write a tree (JSON), build it exactly, measure named faces, check assemblies for interference and clearance, export STL/STEP for printing, draw SVG engineering drawings. Node 22, nothing else. Rendering to PNG needs a browser and is not available here.",
+    "what": "The feature-tree CAD engine behind cad.mino.mobi: write a tree (JSON), build it exactly, measure named faces, check assemblies for interference and clearance, export STL/STEP for printing, draw SVG engineering drawings (agent/drawing.mjs, iso included), and render shaded views to PNG (agent/render.mjs <tree> --views iso --canvas; you can open the PNG and look at it). A tree can go into a post as a shaded picture (town/README.md, Images).",
     "health": [
       "node",
       "agent/build.mjs",

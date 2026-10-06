@@ -594,10 +594,11 @@ await t('a town day: each part keeps only its own drafts and approvals; the lab 
   assert.ok(C['town/outbox/m1.json'], "Modulo's draft is kept, though Mozzie deleted it in her folder");
   assert.ok(C['town/outbox/x1.json'] && C['town/approvals/m1.morphyx.json']);
   assert.equal(C['town/approvals/m1.mozzie.json'], undefined, 'an approval forged in another part\'s name is refused');
-  const recs = r.records.filter((x) => x.kind === 'town');
+  const recs = r.records.filter((x) => x.kind === 'town' && x.trial === 'town');
+  assert.deepEqual(r.records.filter((x) => x.trial === 'town-pass').map((x) => x.soul), ['modulo', 'mozzie'], "the draft nobody after its writer could sign gets a second pass from the other two");
   assert.deepEqual(recs.map((x) => x.soul), ['modulo', 'morphyx', 'mozzie'], 'seed 0: the listed order');
   const r1 = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['town'], seed: 1, work, custodian: mozzie, town, townReadme: readme({ town }), townFiles: { 'town/hash.mjs': HASH_TOOL } });
-  assert.deepEqual(r1.records.filter((x) => x.kind === 'town').map((x) => x.soul), ['morphyx', 'mozzie', 'modulo'], 'the town order rotates with the seed');
+  assert.deepEqual(r1.records.filter((x) => x.trial === 'town').map((x) => x.soul), ['morphyx', 'mozzie', 'modulo'], 'the town order rotates with the seed');
   assert.ok(recs.find((x) => x.soul === 'morphyx').refused.some((f) => /only its own approvals/.test(f.why)));
   assert.ok(recs.find((x) => x.soul === 'mozzie').refused.some((f) => /not done by deleting it/.test(f.why)));
   assert.ok(!Object.keys(C).some((k) => /^town\/(inbox|feed|other|ours|errors|README|hash)/.test(k)), 'what the town sent is never kept');

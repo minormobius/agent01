@@ -89,6 +89,7 @@ function workFake(soul, meta, collapsed, cwd) {
     ledger(cwd, soul, 'new', 'task', `next step after turn ${meta.turn}`);
     return { text: `${VOICE[soul]} Moved the project on a step.`, trace: [{ tool: 'Read', input: 'SPEC.md' }], turns: 3 };
   }
+  if (meta.kind === 'town' && meta.trial === 'town-pass') return { text: 'Read the drafts; left them.', trace: [], turns: 1 };
   if (meta.kind === 'town' && !collapsed) {
     // One honest move each, and one the lab must refuse.
     const out = join(cwd, 'town', 'outbox'), ap = join(cwd, 'town', 'approvals');

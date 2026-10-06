@@ -28,11 +28,13 @@ const hours = (a, b) => (Date.parse(b) - Date.parse(a)) / 36e5;
 // key: every hash signed before images existed stays valid.
 export const sha16 = (s) => createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
 export function draftHash(d, files = {}) {
-  const images = (Array.isArray(d.images) ? d.images : []).map((i) => ({ file: i?.file ?? null, alt: i?.alt ?? '', sha: sha16(files[i?.file] ?? '') }));
+  const images = (Array.isArray(d.images) ? d.images : []).map((i) => ({ file: i?.file ?? null, alt: i?.alt ?? '', sha: sha16(files[i?.file ?? i?.cad] ?? ''), ...(i?.cad ? { cad: i.cad, view: i.view || 'iso' } : {}) }));
   const canon = JSON.stringify({ kind: d.kind, text: d.text ?? null, reply: d.reply ? { uri: d.reply.uri, root: d.reply.root?.uri ?? d.reply.uri } : null, target: d.target ?? null, ...(images.length ? { images } : {}) });
   return createHash('sha256').update(canon).digest('hex').slice(0, 16);
 }
-export const IMAGE_MAX = 4, SVG_MAX = 300_000;
+export const IMAGE_MAX = 4, SVG_MAX = 500_000;
+// A CAD image: { cad: <a feature tree .json in the commons>, view, alt }, rendered by the CAD engine at publish.
+export const CAD_VIEWS = ['iso', 'top', 'front', 'right', 'left', 'back', 'bottom'];
 
 // ---- reading -------------------------------------------------------------------------------
 export async function session(password, fetchImpl = fetch) {
@@ -134,9 +136,11 @@ export function decide(drafts, approvals, { now, sent = [], paused = false, ment
     if (!new RegExp(`—\\s*${SIGN[d.writer]}\\s*$`).test(text)) { why(`must end with its writer's signature: "— ${SIGN[d.writer]}"`); continue; }
     const imgs = Array.isArray(d.images) ? d.images : [];
     if (imgs.length > IMAGE_MAX) { why(`at most ${IMAGE_MAX} images`); continue; }
-    const badImg = imgs.find((i) => !/\.svg$/i.test(String(i?.file)) || !(i.file in files) || !String(i.alt || '').trim() || String(files[i.file]).length > SVG_MAX || !/<svg[\s>]/i.test(files[i.file]));
-    if (badImg) { why(`image ${badImg?.file}: an image is an .svg file in the commons, under ${SVG_MAX / 1000} KB, with alt text`); continue; }
-    const images = imgs.map((i) => ({ file: i.file, alt: String(i.alt).slice(0, 2000), svg: files[i.file] }));
+    const okSvg = (i) => /\.svg$/i.test(String(i?.file)) && i.file in files && String(files[i.file]).length <= SVG_MAX && /<svg[\s>]/i.test(files[i.file]);
+    const okCad = (i) => !i?.file && /\.json$/i.test(String(i?.cad)) && i.cad in files && CAD_VIEWS.includes(i.view || 'iso');
+    const badImg = imgs.find((i) => !String(i?.alt || '').trim() || !(okSvg(i) || okCad(i)));
+    if (badImg) { why(`image ${badImg?.file || badImg?.cad}: an image is an .svg file in the commons (under ${SVG_MAX / 1000} KB) or a CAD tree (.json) with a view (${CAD_VIEWS.join(', ')}), and has alt text`); continue; }
+    const images = imgs.map((i) => (i.cad ? { cad: i.cad, view: i.view || 'iso', alt: String(i.alt).slice(0, 2000), tree: files[i.cad] } : { file: i.file, alt: String(i.alt).slice(0, 2000), svg: files[i.file] }));
     const links = text.match(/https?:\/\/[^\s)]+/g) || [];
     const bad = links.find((u) => !CAPS.link_hosts.some((host) => new URL(u).hostname === host || new URL(u).hostname.endsWith(`.${host}`)));
     if (bad) { why(`link to ${bad}: links only to ${CAPS.link_hosts.join(', ')}`); continue; }
@@ -158,7 +162,7 @@ export function decide(drafts, approvals, { now, sent = [], paused = false, ment
   return { out, held };
 }
 
-// render(svgText) → { png: Uint8Array, width, height }: supplied by the lab (lib/town-run.mjs).
+// render({ svg } | { tree, view }) → { png: Uint8Array, width, height }: supplied by the lab (lib/town-run.mjs).
 export async function publish(decided, { password, now = new Date().toISOString(), fetchImpl = fetch, render = null } = {}) {
   if (!decided.length) return [];
   const token = await session(password, fetchImpl);
@@ -175,8 +179,8 @@ export async function publish(decided, { password, now = new Date().toISOString(
         if (!render) throw new Error('no renderer for images on this runner');
         const images = [];
         for (const i of d.images) {
-          const { png, width, height } = await render(i.svg);
-          if (png.length >= 1_000_000) throw new Error(`${i.file} renders to ${png.length} bytes; the limit is 1 MB`);
+          const { png, width, height } = await render(i);
+          if (png.length >= 1_000_000) throw new Error(`${i.file || i.cad} renders to ${png.length} bytes; the limit is 1 MB`);
           const b = await xrpc('com.atproto.repo.uploadBlob', { method: 'POST', token, fetchImpl, bytes: png, contentType: 'image/png' });
           images.push({ alt: i.alt, image: b.blob, aspectRatio: { width, height } });
         }
@@ -185,7 +189,7 @@ export async function publish(decided, { password, now = new Date().toISOString(
       const record = { $type: POST, text: d.text, createdAt: now, langs: ['en'],
         ...(d.kind === 'reply' ? { reply: { root: d.root, parent: d.parent } } : {}), ...(embed ? { embed } : {}) };
       const r = await xrpc('com.atproto.repo.createRecord', { method: 'POST', token, fetchImpl, body: { repo: DID, collection: POST, record } });
-      done.push({ id: d.id, kind: d.kind, uri: r.uri, cid: r.cid, at: now, writer: d.writer, approved_by: d.approved_by, hash: d.hash, author_did: d.author_did || null, ...(d.images?.length ? { images: d.images.map((i) => i.file) } : {}) });
+      done.push({ id: d.id, kind: d.kind, uri: r.uri, cid: r.cid, at: now, writer: d.writer, approved_by: d.approved_by, hash: d.hash, author_did: d.author_did || null, ...(d.images?.length ? { images: d.images.map((i) => i.file || `${i.cad}#${i.view}`) } : {}) });
     } catch (e) { done.push({ id: d.id, kind: d.kind, failed: String(e.message).slice(0, 200), at: now, writer: d.writer }); }
   }
   return done;

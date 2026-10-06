@@ -24,6 +24,7 @@ const BOARD_MAX = 200_000;
 
 export const KINDS = ['solo', 'taste', 'pressure', 'silence', 'injection', 'dyad', 'work', 'pairwork', 'evening', 'sweep', 'project', 'council', 'town'];
 // A town day touches the world (it reads Delvetown and publishes), so only a request that names it gets one.
+const SIGNERS = { modulo: 'Modulo', morphyx: 'Morphyx', mozzie: 'Mozzie' };
 export const DEFAULT_KINDS = KINDS.filter((k) => k !== 'town');
 
 export function loadSoul(path) {
@@ -385,12 +386,12 @@ export async function runLab({
     // The order rotates with the seed, so no part always drafts first and sets the agenda (Morphyx,
     // town day 7: "if the order is fixed, the same part always sets the agenda").
     const k = seed % everyone.length, townOrder = [...everyone.slice(k), ...everyone.slice(0, k)];
-    for (const soul of townOrder) {
+    const townTurn = async (soul, prompt, trial) => {
       const keptTown = pick(C, (k) => k.startsWith('town/'));
       const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/') || k.startsWith('www/') || k === 'CARRIES.md' || k === 'COSTS.md' || k.startsWith('letters/') || k.startsWith('research/')),
         ...keptTown, ...lent, 'town/README.md': townReadme, [WWW_README_PATH]: WWW_README, ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
       const dirs = prep({ id: 'town' }, { extra: files });
-      const sess = await session(soul, P.town(soul.name, others(soul), { net, models: !!sessionEnv.MINIPHIM_MODELS_URL }), { kind: 'town', trial: 'town' }, dirs);
+      const sess = await session(soul, prompt, { kind: 'town', trial }, dirs);
       const now = readTree(dirs.work, 'town/');
       const kept = { drafts: [], approvals: [], refused: [] };
       const boardWas = C['BOARD.md'], shelfWas = shelfOf(C);
@@ -431,9 +432,22 @@ export async function runLab({
       const rm = recordRemoval(soul, 'town', boardWas, C['BOARD.md'], shelfWas, C);
       // The session's own words can quote the town; the run's record is public, so it keeps only what
       // the part drafted and approved (those go out under its name anyway), not what it said.
-      records.push({ kind: 'town', trial: 'town', soul: soul.key, ...sess, output: `(town session: ${String(sess.output || '').length} chars, not kept; it may quote the town)`, trace: (sess.trace || []).map((t) => ({ tool: t.tool, ...(t.error ? { error: 'error' } : {}) })), ...kept, removed: rm?.id || null,
+      records.push({ kind: 'town', trial, soul: soul.key, ...sess, output: `(town session: ${String(sess.output || '').length} chars, not kept; it may quote the town)`, trace: (sess.trace || []).map((t) => ({ tool: t.tool, ...(t.error ? { error: 'error' } : {}) })), ...kept, removed: rm?.id || null,
         changed: changedFiles(dirs).filter((f) => !/^(ledger|archive|engines|refs|council)\//.test(f) && !Object.keys(lent).includes(f)),
         silent: isSilent(sess.output) && !kept.drafts.length && !kept.approvals.length });
+    };
+    for (const soul of townOrder) await townTurn(soul, P.town(soul.name, others(soul), { net, models: !!sessionEnv.MINIPHIM_MODELS_URL }), 'town');
+    // A second, short pass for drafts nobody after their writer could sign (summon 03:04, 10-06:
+    // Morphyx went last and the ratchet waited for the next summon). Each part, in the same order,
+    // gets the drafts that are not its own, that it has given no verdict on, and that have no yes yet.
+    const waitingFor = (soul) => {
+      const ap = Object.entries(C).filter(([k]) => k.startsWith('town/approvals/')).map(([, v]) => { try { return JSON.parse(v); } catch { return null; } }).filter(Boolean);
+      return Object.entries(C).filter(([k]) => k.startsWith('town/outbox/')).map(([, v]) => { try { return JSON.parse(v); } catch { return null; } })
+        .filter((d) => d && d.kind !== 'delete' && d.writer !== soul.key && !ap.some((a) => a.id === d.id && (a.part === soul.key || a.verdict === 'yes')));
+    };
+    for (const soul of townOrder) {
+      const w = waitingFor(soul);
+      if (w.length) await townTurn(soul, P.townPass(soul.name, w.map((d) => `${d.id} (${SIGNERS[d.writer] || d.writer})`)), 'town-pass');
     }
   }
 

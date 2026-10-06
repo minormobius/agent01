@@ -85,7 +85,11 @@ jobs:
       # images is held with the reason, and everything else goes out.
       - name: Image renderer
         if: steps.req.outputs.list != ''
-        run: npm install --no-save --no-package-lock --prefix packages/whetstone @resvg/resvg-js@2 || echo "::warning::resvg did not install; posts with images will be held"
+        run: |
+          npm install --no-save --no-package-lock --prefix packages/whetstone @resvg/resvg-js@2 || echo "::warning::resvg did not install; posts with SVG images will be held"
+          # Shaded CAD views (packages/cad/agent/render.mjs): playwright-core drives the runner's Chrome.
+          npm install --no-save --no-package-lock --prefix packages/cad playwright-core@1.56.1 || echo "::warning::playwright-core did not install; CAD renders will fail"
+          ls -la /usr/bin/google-chrome || echo "::warning::no google-chrome on this runner"
 
       - name: Model credentials
         if: steps.req.outputs.list != ''
@@ -111,6 +115,8 @@ jobs:
           # A town day (kind `town`) reads and publishes as miniphim.delve.town. The lab holds it;
           # run.mjs strips it, and every other key, from the souls' sessions.
           MINIPHIM_APP_PASSWORD: ${{ secrets.MINIPHIM_APP_PASSWORD }}
+          # The browser the CAD engine renders with, in the lab and in the souls' sessions.
+          CAD_CHROME: /usr/bin/google-chrome
           LIST: ${{ steps.req.outputs.list }}
         working-directory: packages/whetstone
         run: |

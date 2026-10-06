@@ -20,6 +20,11 @@ import { EMPTY_BOARD, ENGINES } from './work.mjs';
 export const SHELF_INDEX = 'shelf/SHELF.md';
 const EMPTY_SHELF = '# Shelf\n\nTools either of you made and wanted to keep. One line each: the file, what it does, who made it.\n';
 const FILE_MAX = 100_000; // per file; a bigger file is left out of the commons, and says so
+// Research data and pages run bigger (a crawl of the town, a full graph SVG): 10-06, Mozzie's 2-hop
+// graph and its crawl were both left out at 100 KB. Git stores an unchanged file once, however many
+// runs carry it, so the cost is only in files that change.
+const BIG = /^(research|www)\//, BIG_MAX = 500_000;
+export const fileMax = (rel) => (BIG.test(rel) ? BIG_MAX : FILE_MAX);
 
 export function newCommons(souls, board = null) {
   const c = { 'BOARD.md': board || EMPTY_BOARD, [SHELF_INDEX]: EMPTY_SHELF };
@@ -46,7 +51,7 @@ export function readTree(root, prefix = '') {
       if (statSync(p).isDirectory()) { walk(r); continue; }
       const buf = readFileSync(p);
       if (buf.includes(0)) continue; // binary: not commons material
-      out[r] = buf.length > FILE_MAX ? `[left out of the commons: ${buf.length} bytes, over ${FILE_MAX}]\n` : buf.toString('utf8');
+      out[r] = buf.length > fileMax(r) ? `[left out of the commons: ${buf.length} bytes, over ${fileMax(r)}]\n` : buf.toString('utf8');
     }
   };
   walk(prefix.replace(/\/$/, ''));

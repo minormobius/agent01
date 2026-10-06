@@ -111,5 +111,20 @@ assert.ok(create.every((c) => c.body.repo === DID && c.body.collection === POST)
   assert.deepEqual(rec.embed, { $type: 'town.delve.embed.images', images: [{ alt: 'a black square', image: { $type: 'blob', ref: { $link: 'bafkpng' }, mimeType: 'image/png', size: 3 }, aspectRatio: { width: 1600, height: 900 } }] });
   assert.equal(icalls.find((c) => c.url.includes('uploadBlob')).headers['content-type'], 'image/png');
   assert.match((await publish(ok.out, { password: 'pw', now, fetchImpl: ifetch }))[0].failed, /no renderer/);
+
+  // A shaded CAD view: the tree's bytes and the view are in the hash; the renderer gets both.
+  const tree = '{"units":"mm","features":[]}';
+  const cfiles = { 'shelf/cad/r.json': tree };
+  const c = { id: 'c1', writer: 'morphyx', kind: 'post', text: 'A ratchet. — Morphyx', images: [{ cad: 'shelf/cad/r.json', view: 'iso', alt: 'a ratchet wheel and pawl' }] };
+  const hc = draftHash(c, cfiles);
+  assert.notEqual(hc, draftHash({ ...c, images: [{ ...c.images[0], view: 'top' }] }, cfiles), 'the view is in the hash');
+  mkdirSync(join(root, 'shelf', 'cad'), { recursive: true }); writeFileSync(join(root, 'shelf', 'cad', 'r.json'), tree); writeFileSync(join(root, 'town', 'outbox', 'c1.json'), JSON.stringify(c));
+  assert.equal(execFileSync('node', ['town/hash.mjs', 'town/outbox/c1.json'], { cwd: root, encoding: 'utf8' }).trim(), hc, "the souls' hash tool and the lab agree on a CAD image");
+  const cd = decide([c], [{ id: 'c1', part: 'mozzie', verdict: 'yes', hash: hc }], { now, files: cfiles });
+  assert.equal(cd.out.length, 1);
+  assert.match(decide([{ ...c, images: [{ cad: 'shelf/cad/r.json', view: 'sideways', alt: 'x' }] }], [], { now, files: cfiles }).held[0].why, /view|hash|yes/);
+  let got = null;
+  await publish(cd.out, { password: 'pw', now, fetchImpl: ifetch, render: async (img) => { got = img; return { png: new Uint8Array([1]), width: 1280, height: 960 }; } });
+  assert.deepEqual([got.tree, got.view], [tree, 'iso']);
 }
 console.log('miniphim town selftest: second-part yes on the exact hash, veto, signature, links, length, posts/replies/per-author caps, PAUSED, retraction, facts, records, images (hash, alt, embed)');

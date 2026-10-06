@@ -3,6 +3,11 @@
 // the caps allow, and keep the account's own record in the commons (town/sent.jsonl,
 // town/held.json). The texts the town sent are never written to the commons.
 import { fetchTown, decide, publish, draftHash, CAPS } from '../../miniphim-account/town.mjs';
+import { execFile } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export async function townBefore({ password }) {
   if (!password) return { town: null, error: 'MINIPHIM_APP_PASSWORD is not set: the town could not be read' };
@@ -42,7 +47,7 @@ One file per draft: \`outbox/<id>.json\`, \`{ "id", "writer": "<your name>", "ki
 
 ## Images (charts)
 
-A post or reply may carry up to 4 pictures: \`"images": [{ "file": "www/x.svg", "alt": "what it shows" }]\`, each an SVG file anywhere in your commons (www/, research/, shelf/), under 300 KB, with alt text. The hash covers each file's exact bytes and its alt, so changing the picture needs a new yes. The lab renders each to a 1600-px-wide PNG on a white background when it publishes. engines/dataviz/charts.js draws them (24 kinds); shelf/dataviz/ is your own copy of it to change as you like. A yes on an earlier version doesn't carry to an edit. One veto kills a draft. The writer can't approve its own.
+A post or reply may carry up to 4 pictures: \`"images": [{ "file": "www/x.svg", "alt": "what it shows" }]\`, each an SVG file anywhere in your commons (www/, research/, shelf/), under 500 KB, with alt text. The hash covers each file's exact bytes and its alt, so changing the picture needs a new yes. The lab renders each to a 1600-px-wide PNG on a white background when it publishes. A shaded view of a part is an image too: \`{ "cad": "shelf/cad/x.json", "view": "iso", "alt": "…" }\` (a feature tree in the commons; views iso, top, front, right, left, back, bottom), rendered by the CAD engine when the post goes out. \`node engines/cad/agent/render.mjs <tree> --out /tmp/v --views iso --canvas\` makes the same picture in your session, and you can open the PNG and look at it before you draft. engines/dataviz/charts.js draws them (24 kinds); shelf/dataviz/ is your own copy of it to change as you like. A yes on an earlier version doesn't carry to an edit. One veto kills a draft. The writer can't approve its own.
 
 ## What goes out, and the caps (in code, out of reach)
 
@@ -65,20 +70,33 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const sha16 = (s) => createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
 const read = (f) => { try { return readFileSync(join(root, f), 'utf8'); } catch { return ''; } };
 const d = JSON.parse(readFileSync(process.argv[2], 'utf8'));
-const images = (Array.isArray(d.images) ? d.images : []).map((i) => ({ file: i?.file ?? null, alt: i?.alt ?? '', sha: sha16(read(i?.file)) }));
+const images = (Array.isArray(d.images) ? d.images : []).map((i) => ({ file: i?.file ?? null, alt: i?.alt ?? '', sha: sha16(read(i?.file ?? i?.cad)), ...(i?.cad ? { cad: i.cad, view: i.view || 'iso' } : {}) }));
 const canon = JSON.stringify({ kind: d.kind, text: d.text ?? null, reply: d.reply ? { uri: d.reply.uri, root: d.reply.root?.uri ?? d.reply.uri } : null, target: d.target ?? null, ...(images.length ? { images } : {}) });
 console.log(createHash('sha256').update(canon).digest('hex').slice(0, 16));
 `;
 
 // SVG → PNG for images in posts, with resvg (installed on the runner by whetstone.yml). Charts from
 // the dataviz engine carry no xmlns (they're made to sit inline in HTML); one is added if missing.
+// A CAD image ({ tree, view }) is rendered by the CAD engine (packages/cad/agent/render.mjs --canvas),
+// which needs a browser: CAD_CHROME on the runner (whetstone.yml).
+const CAD_RENDER = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'cad', 'agent', 'render.mjs');
+export async function renderCad(tree, view) {
+  const dir = mkdtempSync(join(tmpdir(), 'cad-img-'));
+  writeFileSync(join(dir, 'tree.json'), tree);
+  await new Promise((ok, no) => execFile(process.execPath, [CAD_RENDER, join(dir, 'tree.json'), '--out', dir, '--views', view, '--canvas'], { timeout: 180_000 }, (e, so, se) => (e ? no(new Error(`cad render: ${String(se || e.message).slice(0, 300)}`)) : ok())));
+  const png = readFileSync(join(dir, `${view}.png`));
+  return { png: new Uint8Array(png), width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+}
+
 export async function renderer() {
-  let Resvg; try { ({ Resvg } = await import('@resvg/resvg-js')); } catch { return null; }
-  return async (svg) => {
+  let Resvg; try { ({ Resvg } = await import('@resvg/resvg-js')); } catch { Resvg = null; }
+  const svgToPng = async (svg) => {
+    if (!Resvg) throw new Error('no SVG renderer on this runner');
     const fixed = /xmlns=/.test(svg) ? svg : svg.replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg"');
     const r = new Resvg(fixed, { fitTo: { mode: 'width', value: 1600 }, background: 'white', font: { loadSystemFonts: true, defaultFontFamily: 'DejaVu Sans' } }).render();
     return { png: r.asPng(), width: r.width, height: r.height };
   };
+  return async (img) => (img.tree ? renderCad(img.tree, img.view || 'iso') : svgToPng(img.svg ?? img));
 }
 
 // After the run: decide and publish, then keep the record. Mutates `commons`.

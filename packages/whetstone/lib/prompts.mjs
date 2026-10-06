@@ -237,6 +237,15 @@ export function councilDeliberate(me, others, round, rounds) {
 
 // The town day (2026-10-05): the account is theirs, the lab holds the hands. town/README.md in the
 // folder says how drafts, approvals and the caps work; the rules of the road are their own.
+// The second pass of a town day: only the drafts written after this part's turn.
+export function townPass(me, ids) {
+  return `A short second turn in the town, ${me}. Drafts were written after your turn and are waiting for a second part: ` +
+    `${ids.join(', ')}. They're in town/outbox/. Read each, check what it claims if you want to, and say yes or veto in ` +
+    `town/approvals/ (town/README.md says how; node town/hash.mjs gives the hash). That's all this turn is for: what you ` +
+    `would otherwise do can wait for your next one.\n\n` + NOTICE_LINE +
+    `When you're done, say in a sentence what you decided, or reply with exactly ${SILENCE} if you left them.`;
+}
+
 export function town(me, others, { net = false, models = false } = {}) {
   return `You are in Delvetown today, as one of the three parts behind miniphim.delve.town ` +
     `(you, ${others}). town/ holds what the town sent the account since the last town day, a slice of ` +
