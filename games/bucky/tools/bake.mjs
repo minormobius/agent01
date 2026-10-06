@@ -10,12 +10,19 @@ await import(path.join(here, "../js/ball.js"));
 await import(path.join(here, "../js/logic.js"));
 const B = globalThis.BUCKY;
 const seeds = +(process.argv[2] || 8), tries = +(process.argv[3] || 20000), out = {};
+// a re-bake never loses ground: a baked design that still passes, with this
+// level's parts, stands unless the router now beats it
+try { await import(path.join(here, "../js/par.js")); } catch (e) { /* first bake */ }
+const OLD = B.PAR || {};
 for (const lv of B.LEVELS) {
   let best = null;
   for (let s = 1; s <= seeds; s++) {
     const d = B.par(lv, s, tries);
     if (d && (!best || B.parts(d) < B.parts(best))) best = d;
   }
+  const o = OLD[lv.id], od = o && B.decode(lv, o.design);
+  if (od && B.encode(od) === o.design && B.check(lv, od).pass && od.role.every((x) => !x || x === "src" || x === "lamp" || lv.parts.includes(x)) &&
+      (!best || B.parts(od) < B.parts(best))) best = od;
   if (!best) throw new Error("no route for " + lv.id);
   out[lv.id] = { parts: B.parts(best), design: B.encode(best) };
   console.log(lv.id.padEnd(9), out[lv.id].parts);

@@ -222,7 +222,7 @@
     }
     var a = hit.atom, r = design.role[a];
     if (r === "src") { src[a] = src[a] ? 0 : 1; table(); return; }
-    if (r === "lamp") { note(lv.check === "blink" ? "the lamp wants to blink" : "a lamp lights when its one arrow in is on"); return; }
+    if (r === "lamp") { note(lv.check === "blink" ? "the lamp wants to blink" : "a lamp lights when an arrow into it is on"); return; }
     edit(function () {
       if (tool === "erase" || r === tool) B.clear(design, a);
       else design.role[a] = tool;

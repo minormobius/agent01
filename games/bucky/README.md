@@ -13,14 +13,27 @@ many wires fit where: the chemistry is the constraint.
 
 | part | in | out |
 |---|---|---|
-| wire | 1 | up to 2 (a wire is also a splitter) |
-| NOT | 1 | up to 2 |
-| AND, OR, XOR, NAND, NOR | 2 | 1 |
+| wire | 1, or 2 joined | up to 2 (a wire is also a splitter) |
+| NOT | 1, or 2 joined | up to 2 |
+| AND, XOR, NAND | 2 | 1 |
 | source (the level's input) | 0 | up to 3 |
-| lamp (the level's output) | 1 | 0 |
+| lamp (the level's output) | 1, or 2 joined | 0 |
+
+Arrows that meet in one atom **join**, and a join is an OR: a wire with
+two in is an OR, a NOT with two in is a NOR, a lamp with two in lights for
+either. So there is no OR or NOR part; they would be a wire and a NOT.
+
+That rule is the answer to a design problem. The first version made a
+second arrow into a wire illegal, so on the OR level wiring A and B both
+into the lamp, the obvious answer, came up red for no reason the ball could
+give. Now the only rules are the ball's (three bonds, sources don't listen,
+lamps don't talk), the same on every level, and **anything that lights the
+table is a solution**. A level that wants something harder gets it from its
+truth table and its parts box, never from a rule that exists to block one
+answer: XOR is not a join, and a NAND-only box has no NOT.
 
 An atom with too few inputs is *open* (dashed, drives 0). One with too
-many, or an arrow it can't have, is *bad* (red, drives 0).
+many (a gate with three), or an arrow it can't have, is *bad* (red, drives 0).
 
 The ball is a sphere, so the wiring is **planar**: wires can't cross.
 Routing round each other is half of every level after the first few.
@@ -36,7 +49,7 @@ Time is synchronous and every atom costs one tick, wires included:
   blinks with a period of twice its length: round a pentagon, 10 ticks.
 - five NOTs round a pentagon blink every tick instead, all together. They
   are an odd ring, but from all-zero they flip in step.
-- two NORs feeding each other are a latch, provided it starts from a
+- two NORs (NOTs with two in) feeding each other are a latch, provided it starts from a
   defined state. Started from all-zero with both inputs off, the pair
   never settles: a ring only ever rotates its contents, and from cold the
   two NORs put two flips into it that go round for ever. That is why the

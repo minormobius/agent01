@@ -44,8 +44,14 @@ function period(d, a) {
   ok(B.compile(d).status[a] === "open", "a gate with one input is open");
   d.role[a] = "wire"; ok(B.compile(d).status[a] === "ok", "a wire with one input is ok");
   d.role[b] = "wire"; d.arrow[B.key(a, b)] = b;
-  ok(B.compile(d).status[a] === "bad", "a wire with two inputs is bad");
+  ok(B.compile(d).status[a] === "ok", "a wire with two inputs is ok: a join");
+  { const c = B.compile(d), tt = [[0, 0], [0, 1], [1, 0], [1, 1]];
+    ok(tt.every(([x, y]) => { const v = B.zero(c); v[t.at.A] = x; v[b] = y; return B.step(c, v, { [t.at.A]: x })[a] === (x | y); }), "a join is an OR");
+    d.role[a] = "not"; const c2 = B.compile(d);
+    ok(c2.status[a] === "ok" && tt.every(([x, y]) => { const v = B.zero(c2); v[t.at.A] = x; v[b] = y; return B.step(c2, v, { [t.at.A]: x })[a] === 1 - (x | y); }), "a NOT with two in is a NOR"); }
   d.role[a] = "and"; ok(B.compile(d).status[a] === "ok", "a gate with two inputs is ok");
+  { const c = B.compile(d), x = ball.nbrs[a].find((y) => y !== t.at.A && y !== b); d.role[x] = "wire"; d.arrow[B.key(a, x)] = x;
+    ok(B.compile(d).status[a] === "bad", "a gate with three inputs is bad"); B.clear(d, x); }
   d.arrow[B.key(t.at.A, a)] = a; ok(B.compile(d).status[t.at.A] === "bad", "an arrow into a source is bad");
   const e = B.decode(lv0, B.encode(d)); ok(B.encode(e) === B.encode(d), "encode/decode round trip");
   B.clear(d, a); ok(!d.role[a] && ball.nbrs[a].every((x) => d.arrow[B.key(a, x)] === undefined), "clearing a part takes its arrows");
@@ -59,7 +65,7 @@ for (const lv of B.LEVELS) {
   ok(at.length === t.srcs.length + t.lamps.length && new Set(at).size === at.length, lv.id + ": terminals placed");
   ok(at.every((a) => at.every((b) => !ball.nbrs[a].includes(b))), lv.id + ": no two terminals touch");
   ok(lv.parts.every((p) => B.PARTS[p] && p !== "src" && p !== "lamp"), lv.id + ": palette is parts");
-  ok(lv.net.gates.every((g) => lv.parts.includes(g.f)), lv.id + ": the reference uses the palette");
+  ok([].concat(lv.net).every((n) => n.gates.every((g) => lv.parts.includes(g.f))), lv.id + ": the reference uses the palette");
   ok(!B.check(lv, B.blank(lv)).pass, lv.id + ": an empty ball fails");
   const par = B.PAR[lv.id], d = B.decode(lv, par.design), r = B.check(lv, d);
   ok(B.encode(d) === par.design, lv.id + ": par design decodes exactly");
@@ -74,6 +80,17 @@ for (const lv of B.LEVELS) {
   ok(B.check(B.LEVELS[0], w).pass, "wire level: the wire passes");
   const tw = B.terminals(B.LEVELS[0]), tn = B.terminals(nt);
   if (tw.at.A === tn.at.A && tw.at.out === tn.at.out) ok(!B.check(nt, w).pass, "not level: a bare wire fails");
+}
+{ // the rules are physics, not a level's: A and B wired straight into the lamp IS the join level
+  const lv = B.LEVELS.find((l) => l.id === "or"), t = B.terminals(lv), d = B.blank(lv);
+  const lay = (from) => { const prev = { [from]: -1 }, q = [from];
+    for (let h = 0; h < q.length; h++) for (const x of ball.nbrs[q[h]]) if (prev[x] === undefined && (!d.role[x] || x === t.at.out)) { prev[x] = q[h]; q.push(x); }
+    const path = []; for (let c = t.at.out; c !== from; c = prev[c]) path.push(c);
+    let f = from; path.reverse().forEach((a) => { if (!d.role[a]) d.role[a] = "wire"; d.arrow[B.key(f, a)] = f; f = a; }); };
+  lay(t.at.A); lay(t.at.B);
+  ok(B.check(lv, d).pass, "join level: A and B each wired into the lamp passes");
+  const x = B.LEVELS.find((l) => l.id === "xor");
+  if (B.terminals(x).at.out === t.at.out) ok(!B.check(x, d).pass, "xor level: the bare join fails");
 }
 { // the latch must remember: a lamp wired straight from SET fails
   const lv = B.LEVELS.find((l) => l.id === "latch"), t = B.terminals(lv), d = B.blank(lv);

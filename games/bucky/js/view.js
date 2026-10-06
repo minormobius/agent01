@@ -142,7 +142,7 @@
       var nm = this.term.name[a];
       ctx.fillStyle = on ? COL.src : "#123a32"; ctx.strokeStyle = COL.src; ctx.lineWidth = 2;
       roundRect(ctx, x - rr * 1.15, y - rr * 0.85, rr * 2.3, rr * 1.7, 5); ctx.fill(); ctx.stroke();
-      label(nm.length > 3 ? nm.slice(0, 4) : nm, on ? "#04201a" : COL.src, rr * (nm.length > 3 ? 0.62 : 0.85));
+      label(nm.length > 5 ? nm.slice(0, 4) : nm, on ? "#04201a" : COL.src, rr * (nm.length > 4 ? 0.5 : nm.length > 3 ? 0.62 : 0.85));
       if (st === "bad") ring(COL.bad, 3);
       return;
     }
@@ -156,15 +156,17 @@
       if (st === "bad") ring(COL.bad, 3);
       return;
     }
+    var join = c && c.ins[a].length === 2;
     if (role === "wire") {
-      ctx.fillStyle = on ? COL.lit : COL.wireAtom; ctx.beginPath(); ctx.arc(x, y, rr * 0.5, 0, 2 * Math.PI); ctx.fill();
+      ctx.fillStyle = on ? COL.lit : COL.wireAtom; ctx.beginPath(); ctx.arc(x, y, rr * (join ? 0.62 : 0.5), 0, 2 * Math.PI); ctx.fill();
+      if (join && st === "ok") { label("OR", on ? "#2d1800" : "#0b0d18", rr * 0.48); return; }
       if (st === "bad") { rr *= 0.75; ring(COL.bad, 3); } else if (st === "open") { rr *= 0.75; ring(COL.open, 1.5, [3, 3]); }
       return;
     }
     var col = COL[role] || COL.text;
     ctx.fillStyle = on ? col : "#141828"; ctx.beginPath(); ctx.arc(x, y, rr, 0, 2 * Math.PI); ctx.fill();
     ring(st === "bad" ? COL.bad : col, st === "bad" ? 3 : 2, st === "open" ? [4, 3] : null);
-    var t = B.PARTS[role].label;
+    var t = role === "not" && join ? "NOR" : B.PARTS[role].label;
     label(t, on ? "#0b0d18" : col, rr * (t.length > 3 ? 0.56 : 0.7));
   };
 

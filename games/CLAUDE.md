@@ -104,6 +104,8 @@ Three things live here:
   See [`oneside/README.md`](oneside/README.md).
 - **Bucky at `/bucky/`**: logic gates on C60. Every atom has three bonds,
   which is exactly a two-in, one-out gate or a one-in, two-out splitter.
+  Arrows that meet join, and a join is an OR (so no OR part); the rules are
+  the ball's and the same on every level, never there to block one answer.
   Synchronous, one tick per atom, so loops are delay lines and a NOT in a
   pentagon is a clock. Twelve levels from a wire to an SR latch and a
   three-sensor boot; every edit re-runs the level's truth table. Par is the

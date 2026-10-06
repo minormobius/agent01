@@ -4,13 +4,17 @@
    A design puts a PART on each atom it uses and an ARROW on each bond it
    uses. An atom's inputs are the arrows pointing at it; it drives every
    arrow pointing away. C60 gives every atom three bonds, so:
-     wire, not     one in, up to two out (a wire is also a splitter)
-     and, or, xor, nand, nor
+     wire, not     one in and up to two out (a wire is also a splitter), or
+                   two in and one out: arrows that meet JOIN, and a join is
+                   an OR. A wire with two in is an OR; a NOT with two in
+                   is a NOR. There is no OR part because it would be a wire.
+     and, xor, nand
                    two in, one out
      src           a level's input: no in, up to three out
-     lamp          a level's output: one in, none out
+     lamp          a level's output: one or two in (joined), none out
    An atom with too few inputs is OPEN (dim, drives 0); with too many, or an
-   arrow it can't have, it is BAD (red, drives 0).
+   arrow it can't have, it is BAD (red, drives 0). The rules are the
+   physics, never a level's: anything that lights the table is a solution.
 
    Time is synchronous and every atom costs one tick, wires included:
      next[a] = part(a)(inputs of a, now).
@@ -38,15 +42,16 @@
 
   B.HOLD = 72; B.SETTLE = 8; B.BLINK = 160;
   B.PARTS = {
-    wire: { ins: 1, outs: 2, f: function (a) { return a; }, label: "", name: "wire" },
-    not: { ins: 1, outs: 2, f: function (a) { return 1 - a; }, label: "NOT", name: "NOT" },
+    wire: { ins: 1, max: 2, outs: 2, f: function (a, b) { return a | b; }, label: "", name: "wire" },
+    not: { ins: 1, max: 2, outs: 2, f: function (a, b) { return 1 - (a | b); }, label: "NOT", name: "NOT" },
     and: { ins: 2, outs: 1, f: function (a, b) { return a & b; }, label: "AND", name: "AND" },
+    // OR and NOR are what a join makes (below); kept so old saved designs still load
     or: { ins: 2, outs: 1, f: function (a, b) { return a | b; }, label: "OR", name: "OR" },
     xor: { ins: 2, outs: 1, f: function (a, b) { return a ^ b; }, label: "XOR", name: "XOR" },
     nand: { ins: 2, outs: 1, f: function (a, b) { return 1 - (a & b); }, label: "NAND", name: "NAND" },
     nor: { ins: 2, outs: 1, f: function (a, b) { return 1 - (a | b); }, label: "NOR", name: "NOR" },
     src: { ins: 0, outs: 3 },
-    lamp: { ins: 1, outs: 0 },
+    lamp: { ins: 1, max: 2, outs: 0 },
   };
   var CODE = { "": ".", wire: "w", not: "n", and: "a", or: "o", xor: "x", nand: "d", nor: "r" }, DECODE = {};
   Object.keys(CODE).forEach(function (k) { DECODE[CODE[k]] = k; });
@@ -79,11 +84,11 @@
     src: { A: [-0.75, 0.45, 0.5], B: [-0.75, -0.45, 0.5] }, lamp: { out: [0.85, 0, 0.5] },
     check: "table", rows: rows(["A", "B"], function (v) { return { out: v.A & v.B }; }),
     net: { gates: [{ id: "g", f: "and", in: ["A", "B"] }], lamps: { out: "g" } } });
-  L.push({ id: "or", title: "Or", parts: ["wire", "or"],
-    brief: "Either A or B. Now the lamp is round the back: drag the empty space to turn the ball.",
+  L.push({ id: "or", title: "Join", parts: ["wire"],
+    brief: "Either A or B. There is no OR part: where two arrows meet in one atom they join, and a join is an OR. The lamp is round the back: drag the empty space to turn the ball.",
     src: { A: [-0.6, 0.5, 0.6], B: [-0.6, -0.5, 0.6] }, lamp: { out: [0.3, 0, -0.95] },
     check: "table", rows: rows(["A", "B"], function (v) { return { out: v.A | v.B }; }),
-    net: { gates: [{ id: "g", f: "or", in: ["A", "B"] }], lamps: { out: "g" } } });
+    net: [{ gates: [], lamps: { out: ["A", "B"] } }, { gates: [{ id: "g", f: "wire", in: ["A", "B"] }], lamps: { out: "g" } }] });
   L.push({ id: "blink", title: "Blink", parts: ["wire", "not"],
     brief: "No inputs at all: make the lamp blink. Every atom is one tick late, so a loop with a NOT in it chases its own tail forever. The pentagons make good clocks.",
     src: {}, lamp: { out: [0.2, 0, 0.98] },
@@ -94,28 +99,30 @@
     src: { A: [-0.8, 0.2, 0.55] }, lamp: { out: [0.8, -0.2, 0.55] },
     check: "table", rows: rows(["A"], function (v) { return { out: 1 - v.A }; }),
     net: { gates: [{ id: "g", f: "nand", in: ["A", "A"] }], lamps: { out: "g" } } });
-  L.push({ id: "xor", title: "Not both", parts: ["wire", "and", "or", "not"],
-    brief: "A or B, but not both, and no XOR in the box. Sources can feed up to three arrows.",
+  L.push({ id: "xor", title: "Not both", parts: ["wire", "and", "not"],
+    brief: "A or B, but not both. A join is an OR, but there's no XOR in the box. Sources can feed up to three arrows.",
     src: { A: [-0.75, 0.45, 0.5], B: [-0.75, -0.45, 0.5] }, lamp: { out: [0.85, 0, 0.5] },
     check: "table", rows: rows(["A", "B"], function (v) { return { out: v.A ^ v.B }; }),
-    net: { gates: [{ id: "o", f: "or", in: ["A", "B"] }, { id: "a", f: "and", in: ["A", "B"] }, { id: "n", f: "not", in: ["a"] }, { id: "x", f: "and", in: ["o", "n"] }], lamps: { out: "x" } } });
-  L.push({ id: "nandxor", title: "Universal", parts: ["wire", "nand"],
-    brief: "The same lamp, A or B but not both, from NAND alone. Four will do it.",
+    net: { gates: [{ id: "o", f: "wire", in: ["A", "B"] }, { id: "a", f: "and", in: ["A", "B"] }, { id: "n", f: "not", in: ["a"] }, { id: "x", f: "and", in: ["o", "n"] }], lamps: { out: "x" } } });
+  L.push({ id: "nandxor", title: "Universal", parts: ["wire", "nand"], // two references: the classic four, and three with a join
+    brief: "The same lamp, A or B but not both, from NAND and joins alone.",
     src: { A: [-0.75, 0.45, 0.5], B: [-0.75, -0.45, 0.5] }, lamp: { out: [0.85, 0, 0.5] },
     check: "table", rows: rows(["A", "B"], function (v) { return { out: v.A ^ v.B }; }),
-    net: { gates: [{ id: "m", f: "nand", in: ["A", "B"] }, { id: "p", f: "nand", in: ["A", "m"] }, { id: "q", f: "nand", in: ["B", "m"] }, { id: "x", f: "nand", in: ["p", "q"] }], lamps: { out: "x" } } });
+    net: [{ gates: [{ id: "m", f: "nand", in: ["A", "B"] }, { id: "p", f: "nand", in: ["A", "m"] }, { id: "q", f: "nand", in: ["B", "m"] }, { id: "x", f: "nand", in: ["p", "q"] }], lamps: { out: "x" } },
+      { gates: [{ id: "m", f: "nand", in: ["A", "B"] }, { id: "o", f: "wire", in: ["A", "B"] }, { id: "y", f: "nand", in: ["m", "o"] }, { id: "x", f: "nand", in: ["y", "y"] }], lamps: { out: "x" } }] });
   L.push({ id: "adder", title: "Half adder", parts: ["wire", "xor", "and"],
     brief: "Add A and B: SUM is the ones, CARRY the twos. Two lamps, and the ball is planar: wires can't cross, so route round.",
     src: { A: [-0.75, 0.45, 0.5], B: [-0.75, -0.45, 0.5] }, lamp: { sum: [0.75, 0.45, 0.5], carry: [0.75, -0.45, 0.5] },
     check: "table", rows: rows(["A", "B"], function (v) { return { sum: v.A ^ v.B, carry: v.A & v.B }; }),
     net: { gates: [{ id: "s", f: "xor", in: ["A", "B"] }, { id: "c", f: "and", in: ["A", "B"] }], lamps: { sum: "s", carry: "c" } } });
-  L.push({ id: "majority", title: "Majority", parts: ["wire", "and", "or"],
+  L.push({ id: "majority", title: "Majority", parts: ["wire", "and"],
     brief: "Three voters; the lamp lights when at least two say yes.",
     src: { A: [-0.7, 0.55, 0.45], B: [-0.85, 0, 0.5], C: [-0.7, -0.55, 0.45] }, lamp: { out: [0.85, 0, 0.5] },
     check: "table", rows: rows(["A", "B", "C"], function (v) { return { out: (v.A + v.B + v.C) >= 2 ? 1 : 0 }; }),
-    net: { gates: [{ id: "ab", f: "and", in: ["A", "B"] }, { id: "o", f: "or", in: ["A", "B"] }, { id: "c", f: "and", in: ["C", "o"] }, { id: "m", f: "or", in: ["ab", "c"] }], lamps: { out: "m" } } });
-  L.push({ id: "latch", title: "Latch", parts: ["wire", "nor"],
-    brief: "A memory. SET lights Q and RESET puts it out, and with both off Q must remember. Two NORs, each feeding the other. Tap a source to flip it.",
+    net: [{ gates: [{ id: "ab", f: "and", in: ["A", "B"] }, { id: "o", f: "wire", in: ["A", "B"] }, { id: "c", f: "and", in: ["C", "o"] }], lamps: { out: ["ab", "c"] } },
+      { gates: [{ id: "ab", f: "and", in: ["A", "B"] }, { id: "o", f: "wire", in: ["A", "B"] }, { id: "c", f: "and", in: ["C", "o"] }, { id: "m", f: "wire", in: ["ab", "c"] }], lamps: { out: "m" } }] });
+  L.push({ id: "latch", title: "Latch", parts: ["wire", "not"],
+    brief: "A memory. SET lights Q and RESET puts it out, and with both off Q must remember. A NOT with two arrows in is a NOR; two of them, each feeding the other, hold a bit. Tap a source to flip it.",
     src: { SET: [-0.75, 0.45, 0.5], RESET: [-0.75, -0.45, 0.5] }, lamp: { Q: [0.85, 0, 0.5] },
     check: "seq", rows: [
       { in: { SET: 0, RESET: 1 }, want: { Q: 0 } }, { in: { SET: 0, RESET: 0 }, want: { Q: 0 } },
@@ -123,7 +130,7 @@
       { in: { SET: 0, RESET: 1 }, want: { Q: 0 } }, { in: { SET: 0, RESET: 0 }, want: { Q: 0 } },
       { in: { SET: 1, RESET: 0 }, want: { Q: 1 } }, { in: { SET: 1, RESET: 0 }, want: { Q: 1 } },
       { in: { SET: 0, RESET: 0 }, want: { Q: 1 } }],
-    net: { gates: [{ id: "q", f: "nor", in: ["RESET", "qb"] }, { id: "qb", f: "nor", in: ["SET", "q"] }], lamps: { Q: "q" } } });
+    net: { gates: [{ id: "q", f: "not", in: ["RESET", "qb"] }, { id: "qb", f: "not", in: ["SET", "q"] }], lamps: { Q: "q" } } });
   L.push({ id: "kick", title: "The boot", parts: ["wire", "and", "not"],
     brief: "Three sensors watch what rolls past. Kick it if it is blue, and a diamond, and not big.",
     src: { blue: [-0.6, 0.6, 0.5], diamond: [-0.9, 0, 0.45], big: [-0.6, -0.6, 0.5] }, lamp: { kick: [0.2, 0.1, -0.97] },
@@ -193,7 +200,7 @@
     for (a = 0; a < n; a++) {
       var r = d.role[a], P = B.PARTS[r];
       if (!r) status.push(ins[a].length || outs[a].length ? "bad" : "empty");
-      else if (ins[a].length > P.ins || outs[a].length > P.outs) status.push("bad");
+      else if (ins[a].length > (P.max || P.ins) || outs[a].length > P.outs) status.push("bad");
       else if (ins[a].length < P.ins) status.push("open");
       else status.push("ok");
     }
@@ -206,8 +213,7 @@
       var r = c.role[a];
       if (r === "src") nv[a] = src[a] | 0;
       else if (c.status[a] !== "ok") nv[a] = 0;
-      else if (r === "lamp") nv[a] = v[c.ins[a][0]];
-      else { var f = B.PARTS[r].f, i = c.ins[a]; nv[a] = i.length === 1 ? f(v[i[0]]) : f(v[i[0]], v[i[1]]); }
+      else { var i = c.ins[a], x = v[i[0]], y = i.length > 1 ? v[i[1]] : 0; nv[a] = r === "lamp" ? x | y : B.PARTS[r].f(x, y); }
     }
     return nv;
   };
@@ -245,8 +251,10 @@
 
   /* ------------------------------------------------------------ the router */
   function outCap(r) { return B.PARTS[r] ? B.PARTS[r].outs : 0; }
-  B.route = function (lv, rng, place) {
-    var ball = B.ball(), d = B.blank(lv), t = B.terminals(lv), net = lv.net, drv = {}, ins = {}, outs = {};
+  B.route = function (lv, rng, place, ni) {
+    var ball = B.ball(), d = B.blank(lv), t = B.terminals(lv), nets = [].concat(lv.net);
+    if (ni == null) ni = Math.floor(rng() * nets.length);
+    var net = nets[ni], drv = {}, ins = {}, outs = {};
     for (var a = 0; a < ball.n; a++) { ins[a] = 0; outs[a] = 0; }
     t.srcs.forEach(function (s) { drv[s] = t.at[s]; });
     var free = []; for (a = 0; a < ball.n; a++) if (!d.role[a]) free.push(a);
@@ -255,10 +263,10 @@
       if (i < 0) return null;
       free.splice(i, 1); d.role[at] = gate.f; drv[gate.id] = at;
     }
-    d.place = net.gates.map(function (gate) { return drv[gate.id]; });
+    d.place = net.gates.map(function (gate) { return drv[gate.id]; }); d.ni = ni;
     var jobs = [];
     net.gates.forEach(function (gate) { gate.in.forEach(function (s) { jobs.push([s, drv[gate.id]]); }); });
-    Object.keys(net.lamps).forEach(function (l) { jobs.push([net.lamps[l], t.at[l]]); });
+    Object.keys(net.lamps).forEach(function (l) { [].concat(net.lamps[l]).forEach(function (s) { jobs.push([s, t.at[l]]); }); });
     for (i = jobs.length - 1; i > 0; i--) { var j = Math.floor(rng() * (i + 1)), x = jobs[i]; jobs[i] = jobs[j]; jobs[j] = x; }
     var tree = {};
     Object.keys(drv).forEach(function (s) { tree[s] = [drv[s]]; });
@@ -325,14 +333,14 @@
       var d = B.route(lv, rng);
       if (d && (!best || B.parts(d) < B.parts(best))) better(d);
     }
-    var G = lv.net.gates.length;
-    for (k = 0; best && G && k < tries; k++) {
+    for (k = 0; best && best.place.length && k < tries; k++) {
+      var G = best.place.length;
       var pl = best.place.slice(), g = Math.floor(rng() * G), a = pl[g];
       for (var s = 1 + Math.floor(rng() * 2); s > 0; s--) a = ball.nbrs[a][Math.floor(rng() * 3)];
       pl[g] = a;
-      for (var o = 0; o < 4; o++) better(B.route(lv, rng, pl));
+      for (var o = 0; o < 4; o++) better(B.route(lv, rng, pl, best.ni));
     }
-    if (best) delete best.place;
+    if (best) { delete best.place; delete best.ni; }
     return best;
   };
   function mulberry32(a) {

@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#080a12" />
-<meta name="description" content="Bucky — logic gates on a buckyball. Every carbon atom has three bonds: two in and one out is a gate, one in and two out is a splitter. Wire NOT, AND, OR and NAND across C60 to light the lamps, build a clock from a pentagon and a memory from two NORs." />
+<meta name="description" content="Bucky — logic gates on a buckyball. Every carbon atom has three bonds: two in and one out is a gate, one in and two out is a splitter. Wire NOT, AND and NAND across C60 (a join is an OR) to light the lamps, build a clock from a pentagon and a memory from two NORs." />
 <title>Bucky — games.mino.mobi</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="css/bucky.css" />
@@ -44,6 +44,12 @@
     exactly <b>three bonds</b>, which is exactly enough for a gate: <b>two
     arrows in and one out</b>. A wire is one in and up to two out, so it
     splits as well as carries.
+  </p>
+  <p>
+    Where two arrows meet in one atom they <b>join</b>, and a join is an
+    <b>OR</b>: a wire with two arrows in is an OR, a NOT with two in is a
+    NOR. So there is no OR part. Anything that lights the table is a
+    solution; the only rules are the ball's.
   </p>
   <p>
     <b>Drag from a source</b> (or any part) across the atoms to lay wire.

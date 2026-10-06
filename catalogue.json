@@ -3752,7 +3752,7 @@
       "b": "2026-10-06",
       "p": "games",
       "surface": "games",
-      "d": "Logic gates on a buckyball. Every carbon atom in C60 has three bonds: two in and one out is a gate, one in and two out a splitter. Wire NOT, AND, OR and NAND across the ball to light the lamps, build a clock from a pentagon and a memory from two NORs, and try to beat the part count a brute-force router found.",
+      "d": "Logic gates on a buckyball. Every carbon atom in C60 has three bonds: two in and one out is a gate, one in and two out a splitter. Wire NOT, AND and NAND across the ball (where two wires meet they join, and a join is an OR) to light the lamps, build a clock from a pentagon and a memory, and try to beat the part count a brute-force router found.",
       "tags": [
         "games",
         "puzzle"
