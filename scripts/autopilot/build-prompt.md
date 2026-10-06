@@ -33,9 +33,9 @@ _Regenerated 2026-10-06 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-06, 99 members / 223 posts):
+**Neighborhood spark** (bisk 2026-10-06, 99 members / 229 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llm, anthropic, wtf
+- Distinctive words: llm, llms, cybersecurity
 - Top post: "new ideology called short termism where you are beaten with sticks any time you say "utils" or consider any event more t" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
