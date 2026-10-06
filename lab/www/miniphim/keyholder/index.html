@@ -64,7 +64,8 @@ function diff(a, b) {
   if (JSON.stringify(a.rotationKeys) !== JSON.stringify(b.rotationKeys)) ch.push('rotation keys');
   if (JSON.stringify(a.verificationMethods) !== JSON.stringify(b.verificationMethods)) ch.push('signing key');
   if (JSON.stringify(a.alsoKnownAs) !== JSON.stringify(b.alsoKnownAs)) ch.push('handle');
-  if (JSON.stringify(a.services) !== JSON.stringify(b.services)) ch.push('server');
+  // compare where posts live, not the record's shape: legacy "create" ops carry no service type
+  if (a.services?.atproto_pds?.endpoint !== b.services?.atproto_pds?.endpoint) ch.push('server');
   if (b.type === 'plc_tombstone') ch.push('tombstoned');
   return ch.length ? ch : ['nothing visible'];
 }
