@@ -129,3 +129,35 @@ follow the Comparator statements literally (natural-number floor division).
   orientation tests. Dragging uses floats, which is fine for a toy.
 - History is taken from the two papers' introductions (Guy 1972 for n ≤ 10 is
   the one line not from them).
+
+## `/hadamard/` (family 179): Ryser's circulant Hadamard conjecture and the Barker lengths
+
+```bash
+node proofs/hadamard/hadamard.selftest.mjs   # ~2.3 s, 1513 checks
+```
+
+The engine is `hadamard/hadamard.js`, imported by the page, `search.worker.js`
+and the selftest. The Lean main result is
+`OAI.CirculantHadamard.exists_iff_order_one_or_four`. The page quotes its
+definitions, and `circulant()` and `gram()` implement them literally
+(H i j = h (j − i), and H·Hᵀ as a real matrix product).
+
+- **Two equivalent conditions, both kept.** `gram()` is the Lean form and
+  `periodic()` is the paper's. The selftest asserts that (H·Hᵀ)_ij =
+  P((j − i) mod n) on random rows, so the page can use either.
+- **Brute force uses no theory.** `bruteCirculant` tries all 2ⁿ rows with no
+  row-sum filter, so its "only n = 1 (2 rows) and n = 4 (8 rows) up to 20"
+  is independent of the s² = n argument.
+- **The Barker search fills from both ends.** With d signs fixed at each end,
+  C(t) is determined for every t ≥ n − d. Up to 40 it is about 1.8 s total
+  in node, and n = 48, 56 and 64 take 2, 13 and 74 s, so the page caps at 44.
+  It is checked against brute force for n ≤ 16. Length 4's two classical
+  sequences (+++− and ++−+) count as **one** class here, because the symmetry
+  group includes the alternating sign flip.
+- **The order funnel is labelled honestly.** Two conditions are proved and
+  checked (s² = n; Hadamard orders are 1, 2 or ≡ 0 mod 4). Two are Turyn's
+  (u odd; u not a prime power) and are labelled *cited*. Up to 10⁴ the
+  survivors are 1, 4, 900, 1764, 4356, 4900, 6084 and 8100.
+- **EvenBarker is not counted as formalized.** The library has an
+  `EvenBarker` challenge file, but it is not in `formalization.yaml`'s main
+  results, and the page says so.

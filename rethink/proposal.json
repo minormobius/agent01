@@ -1259,6 +1259,12 @@
           "action": "new",
           "group": "computable results",
           "note": "Harary–Hill and Turán's brickyard: the optimal drawings counted exactly, and an exhaustive two-page search"
+        },
+        {
+          "u": "proofs.mino.mobi/hadamard",
+          "action": "new",
+          "group": "computable results",
+          "note": "Ryser's circulant Hadamard conjecture and the Barker lengths: build rows, exhaust small orders, and the order funnel"
         }
       ],
       "blurb": "A machine-made math collection, sorted for people: every one of 372 results with its claim and its verification status, and interactive pages that recompute what can be recomputed.",

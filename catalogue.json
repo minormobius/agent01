@@ -4238,6 +4238,23 @@
       ]
     },
     {
+      "n": "hadamard",
+      "u": "https://proofs.mino.mobi/hadamard/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "A ±1 matrix whose rows are shifts of one row and all perfectly orthogonal. Ryser guessed in 1963 that only orders 1 and 4 have one, and a 2026 AI-written, Lean-formalized paper claims it, settling which lengths of Barker sequence (the codes radar and early Wi-Fi use) can exist. Flip signs and watch H·Hᵀ, exhaust every order to 18 and every Barker length to 44 in your browser, and see which orders each classical condition leaves.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
       "n": "henderhead",
       "u": "https://henderhead.mino.mobi",
       "c": "tools",

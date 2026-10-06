@@ -2867,6 +2867,15 @@
    "parent": "proofs"
   },
   {
+   "id": "hadamard",
+   "name": "hadamard",
+   "url": "https://proofs.mino.mobi/hadamard/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "proofs"
+  },
+  {
    "id": "henderhead",
    "name": "henderhead",
    "url": "https://henderhead.mino.mobi",

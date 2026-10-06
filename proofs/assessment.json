@@ -1932,12 +1932,12 @@
    "tier": "A",
    "effort": "S",
    "confidence": "high",
-   "widget": "Search all +/-1 sequences of length n for circulant Hadamard matrices and Barker sequences; see that only orders 1 and 4 (and Barker lengths 2,3,4,5,7,11,13) survive.",
-   "engine": "Exhaustive enumeration up to n~28 of circulant +/-1 matrices with H H^T = nI (with periodic autocorrelation pruning) and of Barker sequences; verifies the paper's Barker table (contradiction.tex line ~227) by computing aperiodic autocorrelations.",
+   "widget": "Build a circulant ±1 matrix one row at a time and watch H·Hᵀ, search every order up to 18 and every Barker length up to 44 in the browser, and see which orders survive each classical condition.",
+   "engine": "H·Hᵀ as a literal matrix product (the Lean condition) against the periodic autocorrelations; the identities (Σh)² = ΣP(t), P ≡ n mod 4 and the difference-set form; brute force over all 2ⁿ rows to n = 20; a two-ended Barker search to n = 40 checked against brute force to 16.",
    "hook": "the radar code that cannot get longer than 13",
    "related": [],
    "conjectures": false,
-   "page": null
+   "page": "hadamard/"
   },
   "180": {
    "tier": "B",
