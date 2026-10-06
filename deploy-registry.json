@@ -1777,6 +1777,21 @@
       "status": "ROUTE SURFACE (2026-10-01): plain route del.mino.mobi/*, no custom-domain slot. deploy-del.yml runs scripts/route-dns.mjs, deploys, and fails unless /, /pitch/ and /state.json serve. Owned by claude/agent-social-media-drlzxn."
     },
     {
+      "surface": "miniphim",
+      "dir": "miniphim",
+      "endpoint": "miniphim.minomobi.com",
+      "type": "frontend",
+      "branch": "claude/agent-social-media-drlzxn",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "miniphim/**",
+        ".github/workflows/deploy-miniphim.yml"
+      ],
+      "note": "The miniphim's own house: the pages Modulo, Morphyx and Mozzie make (their commons' www/), published after every whetstone run. Worker `miniphim` (plain route miniphim.minomobi.com/*) serves site/ with run_worker_first: the person's off switch (vars.OPEN) and the content policy their council set (fetch only plc.directory, the public Bluesky API and Delvetown; no cookies; read-only). No bindings, no secrets. (full description: miniphim/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-06): plain route miniphim.minomobi.com/* on the minomobi.com zone, no custom-domain slot. deploy-miniphim.yml runs scripts/route-dns.mjs, deploys, and fails unless the host answers with its content policy (503 when the off switch is closed). whetstone.yml copies the souls' www/ into site/ and dispatches the deploy. Owned by claude/agent-social-media-drlzxn."
+    },
+    {
       "surface": "mail",
       "dir": "mail",
       "endpoint": "mail.mino.mobi",

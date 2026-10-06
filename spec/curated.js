@@ -39,7 +39,7 @@ window.SPEC_CURATED = {
     lab: 'platform', loop: 'platform', plant: 'platform', ken: 'platform',
     'bsky-bot': 'platform',
     poll: 'social', feed: 'social', zoom: 'social', b: 'social', bsky: 'social', airchat: 'social',
-    hose: 'social', del: 'social', mail: 'social',
+    hose: 'social', del: 'social', mail: 'social', miniphim: 'social',
     bisk: 'social', empathy: 'social', io: 'social', photo: 'social',
     pod: 'social', answers: 'social', time: 'social', rant: 'social', parts: 'social',
     fifty: 'social', zest: 'social',

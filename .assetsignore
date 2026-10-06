@@ -20,3 +20,7 @@ homunculus/inbox/
 # own pages (commons/www/), which run their JavaScript: served here they would be same-origin with
 # mino.mobi. Their pages live on minomobi.com, away from the sign-in, and only there.
 packages/whetstone/runs/
+
+# The miniphim's house (miniphim.minomobi.com): agent-written pages that run JavaScript. Served
+# here they would be same-origin with mino.mobi and its sign-in; they live on minomobi.com only.
+miniphim/

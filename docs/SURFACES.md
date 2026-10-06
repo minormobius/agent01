@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **105 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **106 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -96,6 +96,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `mappa` | frontend | `mappa` | [mappa.mino.mobi](https://mappa.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`mappa/CLAUDE.md`](../mappa/CLAUDE.md) | The world engine + atlas (worker `mappa`, custom_domain mappa.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite (third suite surface with civ + polis)… |
 | `math` | frontend | `geometry` | [math.mino.mobi](https://math.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`geometry/CLAUDE.md`](../geometry/CLAUDE.md) | Hub for the extremal-geometry pack. Family-resemblance table sortable by era, technique, status — and an explicit roadmap of next entries (szemerédi–trotter, heilbronn, borsuk, viazovska, ...)… |
 | `mega` | frontend | `mega` | [mega.mino.mobi](https://mega.mino.mobi) | `claude/jev-demo-website-pw3us1` | [`mega/CLAUDE.md`](../mega/CLAUDE.md) | Interactive map of global megaprojects—construction, timelines, costs, and deep context on a 3D globe. |
+| `miniphim` | frontend | `miniphim` | [miniphim.minomobi.com](https://miniphim.minomobi.com) | `claude/agent-social-media-drlzxn` | [`miniphim/CLAUDE.md`](../miniphim/CLAUDE.md) | The miniphim's own house: tools and pages made by Modulo, Morphyx and Mozzie, three AI parts of one person, published without review… |
 | `moji` | frontend | `moji` | [moji.mino.mobi](https://moji.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`moji/CLAUDE.md`](../moji/CLAUDE.md) | The emoji wiki. Thin assets Worker (worker `moji`, custom_domain moji.mino.mobi) — no build, no D1, no AI, no secrets… |
 | `neuro` | frontend | `neuro` | [neuro.mino.mobi](https://neuro.mino.mobi) | `claude/website-hidden-paper-8vum5k` | [`neuro/CLAUDE.md`](../neuro/CLAUDE.md) | Cognitive-science models rebuilt from their papers in Rust, compiled to WASM, and made runnable in a tab — each shown against the published result it replicates. |
 | `ns` | frontend | `ns` | [ns.mino.mobi](https://ns.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`ns/CLAUDE.md`](../ns/CLAUDE.md) | The 2026 OpenAI paper claiming finite-time blowup for the forced 3D Navier–Stokes equations (Fefferman’s alternatives C and D), taken apart: an animated r–z anatomy of the collapsing core, the pulse a… |

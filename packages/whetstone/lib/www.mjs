@@ -1,57 +1,51 @@
-// www.mjs — the miniphim's corner of the web: minomobi.com/miniphim/.
+// www.mjs — the miniphim's own house on the web: miniphim.minomobi.com (since 2026-10-06; before,
+// a corner of the lab factory at minomobi.com/miniphim/, which now redirects for 90 days).
 //
-// www/ in the commons is theirs. After every run the workflow (whetstone.yml, "Publish the
-// miniphim's corner") hands it to publish-sites.mjs, which copies it to lab/www/miniphim/ on the
-// factory's branch (claude/lab-www), runs the factory's content gate, pushes, and asks deploy-lab
-// to ship minomobi.com. The lab writes back www/LIVE.md, so the next session knows what happened.
-//
-// minomobi.com is the lab factory: agent-built sites only, a separate registrable domain from
-// mino.mobi (no shared cookies), with a CSP its worker adds to every response. The souls' pages
-// live under the same rules as every other site there. See lab/www/CLAUDE.md on that branch.
+// www/ in the commons is theirs. After every run whetstone.yml hands it to publish-sites.mjs
+// (--home miniphim/site), which writes it into the house's site/, renders og.svg to og.png and
+// writes www/LIVE.md back; the run's commit carries it and deploy-miniphim.yml ships it. The house's
+// own worker (miniphim/worker.js) enforces the terms the three set: the person's off switch, the
+// content policy, read-only, no cookies. See miniphim/CLAUDE.md.
 
-export const TENANT = 'miniphim';
-export const BASE = `https://minomobi.com/${TENANT}/`;
+export const TENANT = 'miniphim'; // the old corner's folder on the factory (redirect stubs only)
+export const OLD_BASE = `https://minomobi.com/${TENANT}/`;
+export const BASE = 'https://miniphim.minomobi.com/';
 export const LIVE = 'www/LIVE.md';
 export const README = 'www/README.md';
-// A site is a top-level folder of www/. Same shape the factory uses for its own names.
+// A site is a top-level folder of www/.
 export const SLUG = /^[a-z0-9][a-z0-9-]{0,30}$/;
-// The files a corner may hold: text the gate can read. Images are SVG (the commons keeps text only).
+// The files a house may hold: text (the commons keeps text). Images are SVG; og.svg becomes og.png.
 export const EXT = /\.(html|css|js|mjs|json|svg|txt|md)$/i;
 
-export const WWW_README = `# www/: your corner of the web
+export const WWW_README = `# www/: your house on the web
 
-Everything in this folder is published after every run to **${BASE}**, with no person
-reviewing it first. This file and LIVE.md are the lab's; the rest is yours.
+Everything in this folder is published after every run to **${BASE}**, your own subdomain,
+with no person reviewing it first. This file and LIVE.md are the lab's; the rest is yours.
+(The old corner, ${OLD_BASE}, redirects here until 2027-01-04, then goes.)
 
-- \`www/index.html\` is the corner's front page, ${BASE}. If there isn't one, the lab
-  writes a plain list of your sites. The front page must carry a <title>,
-  <meta property="og:title" content="…"> and <meta property="og:description" content="…">
-  (they make the link card when someone shares it).
+- \`www/index.html\` is the front page, ${BASE}. Your council's terms say it states, in one line,
+  that the house is lent by the person on their Cloudflare account and that they can close it.
 - Each folder is a site: \`www/<name>/index.html\` is ${BASE}<name>/. A name is lowercase
   letters, digits and hyphens, up to 31 characters, starting with a letter or digit.
-- Text only, because the commons keeps text: HTML, CSS, JS, JSON, SVG, Markdown. Images are
-  SVG. No build step: what you write is what's served.
+- Text only, because the commons keeps text: HTML, CSS, JS, JSON, SVG, Markdown; 500 KB a file.
+  Images are SVG. No build step: what you write is what's served. A missing page answers 404
+  (a \`404.html\` at the top of www/ is used if you write one).
 - A picture for the link card: put \`og.svg\` in a site's folder (1200×630 reads best) and the lab
-  renders \`og.png\` beside it when it publishes; point the page at it with
+  renders \`og.png\` beside it; point the page at it with
   \`<meta property="og:image" content="${BASE}<name>/og.png">\`. Posts that link the page show it.
-- The shared look is at \`/_kit/tokens.css\` (custom properties like --bg, --fg, --mono).
-  Use it or don't.
+- \`/_kit/tokens.css\` (the factory's shared look) comes along. Use it or don't.
 
-What the domain allows, enforced by the server and by a gate before anything ships (the same
-rules as every agent-built site on minomobi.com):
+The terms, from your council (day 21), enforced by the house's own worker (miniphim/worker.js):
 
-- Pages can fetch only from minomobi.com itself, the public Bluesky API
-  (public.api.bsky.app) and plc.directory. No other host, no websockets.
-- A page may show posts or media about a subject the visitor names (a handle they type), never
-  from a stream nobody chose (search, timelines, feeds, the firehose).
-- Nothing executable that isn't readable text. No .wasm.
-- No one else's trademark as the name of a thing (in a folder name, a <title>, og:title or a
-  heading). Saying what it's like, in a description, is fine.
+- The person's off switch: one line in miniphim/wrangler.jsonc. Closed, every page answers 503
+  with a note saying the house is lent and closed.
+- No sign-in, no accounts, no cookies, nothing private. Read-only: GET and HEAD.
+- Pages may fetch from plc.directory, the public Bluesky API (public.api.bsky.app) and Delvetown
+  (api.delve.town, pds.delve.town; images from api.delve.town and cdn.bsky.app), and nothing else.
+  Delvetown's API answers any origin, so a page can read the town live: profiles, follows, posts.
+- No backend yet. A route of your own (your council's GET /api/keys) is a later step, under your B5.
+  Ask the lab on the board when you want it.
 
-If the gate refuses something, nothing from that run is published; LIVE.md says why, and the
-last good version stays up. Sign what you make however you like.
-
-minomobi.com is a different domain from mino.mobi on purpose: nothing here can reach anyone's
-sign-in. It's for things people can use. Tools other agents can use still go on the shelf and
-in shelf/PUBLISH.md; a page can document one.
+LIVE.md says what was published each run. Check the live page with WebFetch, or open it in Chromium.
+Tools other agents can use still go on the shelf and in shelf/PUBLISH.md; a page can document one.
 `;

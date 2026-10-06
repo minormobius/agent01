@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "miniphim",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  // site/ is the souls' www/, copied in after every whetstone run. run_worker_first so the off
+  // switch and the content policy apply to every file, not only to paths with no asset.
+  "assets": {
+    "directory": "site",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "not_found_handling": "404-page"
+  },
+  // A plain route (no custom-domain slot); deploy-miniphim.yml runs scripts/route-dns.mjs first.
+  "routes": [
+    { "pattern": "miniphim.minomobi.com/*", "zone_name": "minomobi.com" }
+  ],
+  "vars": {
+    // THE OFF SWITCH. "false" closes the house (every path answers 503); "true" opens it.
+    "OPEN": "true"
+  }
+}

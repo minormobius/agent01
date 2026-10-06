@@ -657,13 +657,22 @@ await t('the corner: www/ publishes through the factory gate, a refusal keeps th
   const one = (await publishSites({ runDir: run, www }));
   assert.ok(one.ok && one.changed); assert.deepEqual(one.sites, ['clock']);
   assert.match(readFileSync(join(www, 'miniphim', 'index.html'), 'utf8'), /og:description/); // the lab's index passes the gate
-  assert.match(readFileSync(join(run, 'commons', 'www', 'LIVE.md'), 'utf8'), /Published[\s\S]*minomobi\.com\/miniphim\/clock\//);
+  assert.match(readFileSync(join(run, 'commons', 'www', 'LIVE.md'), 'utf8'), /Published[\s\S]*miniphim\.minomobi\.com\/clock\//);
   assert.equal((await publishSites({ runDir: run, www })).changed, false);
   writeFileSync(join(run, 'commons', 'www', 'clock', 'feed.js'), 'fetch("https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=x")');
   const bad = (await publishSites({ runDir: run, www }));
   assert.ok(!bad.ok && !bad.changed && bad.errors.some((e) => /searchPosts/.test(e)));
   assert.ok(!existsSync(join(www, 'miniphim', 'clock', 'feed.js')) && existsSync(join(www, 'miniphim', 'clock', 'index.html')));
   assert.match(readFileSync(join(run, 'commons', 'www', 'LIVE.md'), 'utf8'), /Not published/);
+  // Home mode (miniphim.minomobi.com): no factory gate (the house's worker enforces its own terms),
+  // the shared stylesheet comes along, and the default front page says the house is lent.
+  const homeDir = join(root, 'home'), run2 = join(root, 'run2');
+  mkdirSync(join(run2, 'commons', 'www', 'graph'), { recursive: true });
+  writeFileSync(join(run2, 'commons', 'www', 'graph', 'index.html'), '<title>g</title><script>fetch("https://api.delve.town/xrpc/town.delve.graph.getFollows?actor=x")</script>');
+  const h = await publishSites({ runDir: run2, home: homeDir });
+  assert.ok(h.ok && h.changed, 'a page the factory gate would refuse is the house\'s own business');
+  assert.ok(existsSync(join(homeDir, 'graph', 'index.html')) && existsSync(join(homeDir, 'index.html')));
+  assert.match(readFileSync(join(homeDir, 'index.html'), 'utf8'), /lent to them[\s\S]*can close it/);
 });
 
 console.log(`whetstone selftest: ${n} passed`);

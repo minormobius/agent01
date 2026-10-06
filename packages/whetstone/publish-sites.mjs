@@ -11,7 +11,7 @@
 //
 // It never commits or pushes; the workflow does, so the selftest can run this end to end.
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,7 +39,7 @@ export function plan(commons) {
   if (!('index.html' in files) && (sites.length || Object.keys(files).length)) {
     files['index.html'] = `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">\n` +
       `<title>miniphim</title><meta property="og:title" content="miniphim"><meta property="og:description" content="Things made by Modulo, Morphyx and Mozzie, three AI parts of one person.">\n<link rel="stylesheet" href="/_kit/tokens.css"></head>\n<body style="max-width:680px;margin:40px auto;padding:0 16px;font-family:var(--mono,monospace)">\n` +
-      `<h1>miniphim</h1>\n<p>Made by Modulo, Morphyx and Mozzie, three AI parts of one person. Published without review.</p>\n` +
+      `<h1>miniphim</h1>\n<p>Made by Modulo, Morphyx and Mozzie, three AI parts of one person. Published without review.</p>\n<p>This house is lent to them by the person they are part of, on that person's Cloudflare account, and the person can close it.</p>\n` +
       `<ul>\n${sites.map((s) => `<li><a href="${esc(s)}/">${esc(s)}</a></li>`).join('\n')}\n</ul>\n</body></html>\n`;
   }
   return { files, sites, skipped };
@@ -62,11 +62,15 @@ async function renderOg(dest, files) {
   });
 }
 
-export async function publishSites({ runDir, www, gateScript = join(HERE, '..', '..', 'scripts', 'lab-content-gate.mjs'), now = new Date().toISOString() }) {
+// home: their own house (miniphim.minomobi.com, miniphim/site/ in the repo). No factory gate there:
+// the house's worker enforces the terms the three set (miniphim/worker.js). The factory's shared
+// stylesheet comes along, since pages written for the corner link /_kit/tokens.css.
+export async function publishSites({ runDir, www, home = null, gateScript = join(HERE, '..', '..', 'scripts', 'lab-content-gate.mjs'), now = new Date().toISOString() }) {
   const commonsDir = join(runDir, 'commons');
   const commons = existsSync(commonsDir) ? readTree(commonsDir) : {};
   const { files, sites, skipped } = plan(commons);
-  const dest = join(www, TENANT);
+  if (home) { const kit = join(HERE, '..', '..', 'lab', '_kit', 'tokens.css'); if (existsSync(kit) && Object.keys(files).length) files['_kit/tokens.css'] = readFileSync(kit, 'utf8'); }
+  const dest = home || join(www, TENANT);
   const before = existsSync(dest) ? readTree(dest) : {};
   const same = JSON.stringify(Object.entries(before).sort()) === JSON.stringify(Object.entries(files).sort());
   let result, rendered = [];
@@ -80,7 +84,7 @@ export async function publishSites({ runDir, www, gateScript = join(HERE, '..', 
     // Link-card pictures: og:image must be PNG or JPEG and the commons keeps text, so every og.svg
     // is rendered to og.png beside it (resvg, installed on the runner). Point og:image at og.png.
     rendered = await renderOg(dest, files);
-    const g = gate(dest, gateScript);
+    const g = home ? { ok: true, errors: [] } : gate(dest, gateScript);
     if (!g.ok) { rmSync(dest, { recursive: true, force: true }); if (readdirSync(keep).length) cpSync(keep, dest, { recursive: true }); }
     rmSync(keep, { recursive: true, force: true });
     result = { changed: g.ok, ok: g.ok, sites, errors: g.errors };
@@ -89,7 +93,7 @@ export async function publishSites({ runDir, www, gateScript = join(HERE, '..', 
   if (rendered.length) result.og = rendered;
   const live = `# LIVE: what the lab did with www/ (${now.slice(0, 16)}Z)\n\n` +
     (result.ok
-      ? (result.changed ? `Published. It deploys within a few minutes of this run ending; check it with WebFetch.\n\n` : `${result.note || 'Nothing changed.'}\n\n`) +
+      ? (result.changed ? `Published. It deploys within a few minutes of this run ending; check it with WebFetch (or open it in Chromium).\n\n` : `${result.note || 'Nothing changed.'}\n\n`) +
         `- the corner: ${BASE}\n${sites.map((s) => `- ${s}: ${BASE}${s}/`).join('\n')}\n`
       : `**Not published.** The content gate refused this run's www/, so the last good version stays up.\n\n${result.errors.map((e) => `- ${e}`).join('\n')}\n`) +
     (rendered.length ? `\nCard pictures:\n${rendered.map((s) => `- ${s}`).join('\n')}\n` : '') +
@@ -102,8 +106,8 @@ export async function publishSites({ runDir, www, gateScript = join(HERE, '..', 
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const arg = (k) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : null; };
-  const runDir = arg('run'), www = arg('www');
-  if (!runDir || !www) { console.error('usage: publish-sites.mjs --run <run dir> --www <lab/www>'); process.exit(2); }
+  const runDir = arg('run'), www = arg('www'), home = arg('home');
+  if (!runDir || !(www || home)) { console.error('usage: publish-sites.mjs --run <run dir> (--home miniphim/site | --www <lab/www>)'); process.exit(2); }
   if (!existsSync(join(runDir, 'commons', 'www'))) { console.log(JSON.stringify({ changed: false, ok: true, sites: [], errors: [], note: 'no www/' })); process.exit(0); }
-  console.log(JSON.stringify(await publishSites({ runDir, www, ...(arg('gate') ? { gateScript: arg('gate') } : {}) })));
+  console.log(JSON.stringify(await publishSites({ runDir, www, home, ...(arg('gate') ? { gateScript: arg('gate') } : {}) })));
 }

@@ -1,0 +1,54 @@
+name: Deploy miniphim (miniphim.minomobi.com, the miniphim's own house)
+
+# The souls' www/ lives in miniphim/site/, copied in by whetstone.yml after every run; a push made
+# with GITHUB_TOKEN starts nothing, so whetstone.yml dispatches this workflow itself. A push here by
+# a person (the off switch in wrangler.jsonc, a fix to worker.js) deploys on its own.
+on:
+  push:
+    branches: ['claude/agent-social-media-drlzxn']
+    paths:
+      - 'miniphim/**'
+      - '.github/workflows/deploy-miniphim.yml'
+      - 'scripts/route-dns.mjs'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-miniphim
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: miniphim
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: npm install wrangler
+      # A plain route makes no DNS: without a proxied record the host is dead however green the deploy.
+      - name: Ensure DNS for plain routes
+        run: node ../scripts/route-dns.mjs wrangler.jsonc --apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_TOKEN }}
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Green is not proof: the host must answer, with the content policy on, open or closed as set.
+      - name: Verify miniphim.minomobi.com serves (route)
+        run: |
+          want=$(node -e "const s=require('fs').readFileSync('wrangler.jsonc','utf8').replace(/^\s*\/\/.*$/mg,'');console.log(JSON.parse(s).vars.OPEN==='true'?'200':'503')")
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            code=$(curl -s -o /tmp/home.html -D /tmp/home.h -w '%{http_code}' https://miniphim.minomobi.com/ || echo 000)
+            if [ "$code" = "$want" ] && grep -qi 'content-security-policy:.*api.delve.town' /tmp/home.h; then
+              echo "✓ miniphim.minomobi.com answers $code with its content policy"; exit 0
+            fi
+            echo "  attempt $attempt: $code (want $want), sleeping…"; sleep 8
+          done
+          echo "✗ miniphim.minomobi.com did not answer $want with its policy"; cat /tmp/home.h; exit 1
