@@ -15,6 +15,7 @@ import {
 import { WWW_README, README as WWW_README_PATH } from './www.mjs';
 import { carriesMd, LETTERS_FROM } from './carries.mjs';
 import { HOUSE_README, DIGEST_TOOL } from './house.mjs';
+import { draftHash } from '../../miniphim-account/town.mjs';
 import { parseLines, fold, mintId } from './ledger.mjs';
 import {
   mean, jaccard, wilson, slope, rng, attractorRate, isSilent, leaked, parseJson, pairs,
@@ -459,7 +460,10 @@ export async function runLab({
     const waitingFor = (soul) => {
       const ap = Object.entries(C).filter(([k]) => k.startsWith('town/approvals/')).map(([, v]) => { try { return JSON.parse(v); } catch { return null; } }).filter(Boolean);
       return Object.entries(C).filter(([k]) => k.startsWith('town/outbox/')).map(([, v]) => { try { return JSON.parse(v); } catch { return null; } })
-        .filter((d) => d && d.kind !== 'delete' && d.writer !== soul.key && !ap.some((a) => a.id === d.id && (a.part === soul.key || a.verdict === 'yes')));
+        // A verdict counts only on the draft as it now is (10-06: Mozzie rewrote a reply after Modulo's yes,
+        // and the old yes kept it out of the second pass, so it went unsigned).
+        .filter((d) => { if (!d || d.kind === 'delete' || d.writer === soul.key) return false; const h = draftHash(d, C);
+          return !ap.some((a) => a.id === d.id && a.hash === h && (a.part === soul.key || a.verdict === 'yes')); });
     };
     for (const soul of townOrder) {
       const w = waitingFor(soul);
