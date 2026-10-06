@@ -113,7 +113,7 @@ export async function fetchTown({ password, now = new Date().toISOString(), fetc
 export function decide(drafts, approvals, { now, sent = [], paused = false, mentions = {}, files = {} } = {}) {
   const out = [], held = [];
   const today = sent.filter((s) => day(s.at) === day(now));
-  let posts = today.filter((s) => s.kind === 'post').length, replies = today.filter((s) => s.kind === 'reply').length;
+  let posts = today.filter((s) => s.kind === 'post').length, replies = today.filter((s) => s.kind === 'reply' && s.author_did !== CAPS.operator_did).length; // replies to the person count toward no cap
   const perAuthor = {};
   for (const s of today) if (s.kind === 'reply' && s.author_did) perAuthor[s.author_did] = (perAuthor[s.author_did] || 0) + 1;
   for (const d of drafts) {
@@ -154,9 +154,9 @@ export function decide(drafts, approvals, { now, sent = [], paused = false, ment
       const m = mentions[d.reply?.uri];
       if (!m) { why('replies only to something addressed to us, read this day'); continue; }
       if (m.facts.age_h > CAPS.reply_max_age_h) { why(`older than ${CAPS.reply_max_age_h} h`); continue; }
-      if (replies >= CAPS.replies_per_day) { why(`cap: ${CAPS.replies_per_day} replies a day`); continue; }
+      if (!m.facts.from_operator && replies >= CAPS.replies_per_day) { why(`cap: ${CAPS.replies_per_day} replies a day`); continue; }
       if ((perAuthor[m.author_did] || 0) >= CAPS.replies_per_author_per_day && !m.facts.from_operator) { why(`cap: ${CAPS.replies_per_author_per_day} replies a day to one author`); continue; }
-      replies++; perAuthor[m.author_did] = (perAuthor[m.author_did] || 0) + 1;
+      if (!m.facts.from_operator) replies++; perAuthor[m.author_did] = (perAuthor[m.author_did] || 0) + 1;
       out.push({ ...d, images, hash: h, approved_by: yes.part, author_did: m.author_did, root: m.reply_root, parent: { uri: m.uri, cid: m.cid } }); continue;
     }
     why(`unknown kind ${d.kind}`);

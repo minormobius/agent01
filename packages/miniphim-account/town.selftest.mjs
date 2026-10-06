@@ -55,6 +55,14 @@ const rs = [reply('r1', 'at://x/1'), reply('r2', 'at://x/2'), reply('r3', 'at://
 r = decide(rs, rs.map((d) => yes(d, 'morphyx')), { now, mentions });
 assert.deepEqual(ids(r), ['r1', 'r2', 'o1', 'o2', 'o3']);
 assert.match(held(r, 'r3'), /one author/); assert.match(held(r, 'r4'), /older than/); assert.match(held(r, 'r5'), /addressed to us/);
+// Replies to the person count toward no cap: a full day of others doesn't block one to them, and a
+// long conversation with them doesn't use up the day (10-06: it held Mozzie's reply at 10).
+const fullDay = Array.from({ length: CAPS.replies_per_day }, (_, i) => ({ kind: 'reply', at: now, author_did: `did:x${i}` }));
+r = decide([reply('o1', 'at://x/op1'), reply('r1', 'at://x/1')], [reply('o1', 'at://x/op1'), reply('r1', 'at://x/1')].map((d) => yes(d, 'morphyx')), { now, mentions, sent: fullDay });
+assert.deepEqual(ids(r), ['o1']); assert.match(held(r, 'r1'), /replies a day/);
+const opDay = Array.from({ length: CAPS.replies_per_day + 5 }, () => ({ kind: 'reply', at: now, author_did: CAPS.operator_did }));
+r = decide([reply('r1', 'at://x/1')], [yes(reply('r1', 'at://x/1'), 'morphyx')], { now, mentions, sent: opDay });
+assert.deepEqual(ids(r), ['r1']);
 const out1 = r.out.find((d) => d.id === 'r1');
 assert.equal(out1.parent.uri, 'at://x/1'); assert.equal(out1.root.uri, 'at://x/1');
 

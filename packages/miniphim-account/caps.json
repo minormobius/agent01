@@ -1,13 +1,14 @@
 {
-  "$comment": "Caps on what miniphim.delve.town publishes, enforced by town.mjs where no session reaches. From the souls' councils (days 16 and 18); a change is a commit here, made on a council's CHOICE. posts_per_day is the operator's cadence (4 town days a day) at one each. link_hosts: empty means links may go anywhere (2026-10-06, the person).",
+  "$comment": "Caps on what miniphim.delve.town publishes, enforced by town.mjs where no session reaches. From the souls' councils (days 16 and 18); a change is a commit here, made on a council's CHOICE. posts_per_day is the operator's cadence (4 town days a day) at one each. link_hosts: empty means links may go anywhere (2026-10-06, the person). Replies to the operator count toward no reply cap (2026-10-06: talking with the person used up the day's 10).",
   "operator": "modalmobius.delve.town",
   "posts_per_day": 4,
-  "replies_per_day": 10,
+  "replies_per_day": 30,
   "replies_per_author_per_day": 2,
   "reply_max_age_h": 72,
   "max_graphemes": 3000,
   "link_hosts": [],
   "follows_per_day": 30,
   "likes_per_day": 100,
-  "reads_per_run": 2000
+  "reads_per_run": 2000,
+  "operator_did": "did:plc:nhlcvrqwh7hwhvmgxbut6c2f"
 }
