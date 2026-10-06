@@ -15,11 +15,10 @@ const ROOT = { alpine: 50, canyon: 52, autumn: 45, alien: 54 };     // D, E, A, 
 const PROGRESSION = [0, 5, 3, 4, 0, 2, 3, 6];                        // scale degrees, two bars each
 const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
-/** Which mode the light is in at `hour`: by the sun's elevation, and whether it is rising. */
-export function modeAt(hour) {
-  const el = Math.sin(Math.PI * (hour - 6) / 12);
+/** Which mode the light is in: by the sun's elevation (sine of its altitude), and whether it is rising. */
+export function modeAt(el, rising) {
   if (el < -0.15) return 'lydian';
-  if (el < 0.18) return hour < 12 ? 'mixolydian' : 'dorian';
+  if (el < 0.18) return rising ? 'mixolydian' : 'dorian';
   return 'ionian';
 }
 /** MIDI notes of the chord on `degree` of `mode` from `root`: a spread voicing, 1 5 9 3. */
@@ -106,8 +105,8 @@ export class Sound {
     }
   }
   beat(b, at) {
-    const hour = this.clock.hourAtBeat(b), mode = modeAt(hour), root = ROOT[this.scene.biome] ?? 50;
-    const night = Math.sin(Math.PI * (hour - 6) / 12) < -0.1;
+    const { el, rising } = this.clock.lightAtBeat(b), mode = modeAt(el, rising), root = ROOT[this.scene.biome] ?? 50;
+    const night = el < -0.1;
     if (b % 8 === 0) this.pad(chord(root, mode, PROGRESSION[(b / 8) % PROGRESSION.length]), at, this.clock.beatSec * 8.6);
     // bells: sparser by day; sometimes a pair a dotted beat apart (3 against 2 with the pad)
     if (this.rnd() < (night ? 0.42 : 0.24)) {

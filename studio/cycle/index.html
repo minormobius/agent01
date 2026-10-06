@@ -31,6 +31,9 @@
   #pal { width: 100%; max-width: 768px; height: 30px; image-rendering: pixelated; }
   #notes { max-width: 640px; font-size: 13px; color: var(--dim); }
   #notes p { margin: 0 0 8px; }
+  #sky { display: grid; gap: 6px; }
+  #sky[hidden], #facingRow[hidden] { display: none; }
+  input[type=date] { font: 12.5px var(--mono); background: rgba(7, 6, 10, 0.55); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; color-scheme: dark; }
   @media (max-width: 640px) {
     .row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
     .row::-webkit-scrollbar { display: none; }
@@ -43,12 +46,18 @@
 <div id="bar">
   <div id="notes" hidden>
     <p>Every pixel here holds a number from 0 to 255, never a colour. The 256 colours live in a table, and the picture moves only because the table changes: ranges of it rotate (the waterfall, the lake, the smoke, the stars, the fireflies), and the whole of it is re-lit for the hour. Nothing is redrawn. That is colour cycling, the technique of Mark Ferrari's painted game scenes, which Joseph Huckaby's Canvas Cycle brought to the browser.</p>
-    <p>Here the scene is generated for the palette. Water is painted in phase, so turning its colours pours it. Rock is painted by the way each face turns, so the shadows swing across the mountains as the sun crosses. The sun's whole path is painted into the sky as a row of discs, one colour each, and lighting one is the sun; twelve hours on, the same discs are the moon, and the lake carries a glitter path under whichever is up. The music keeps the palette's beat, takes its mode from the light, and every bell lights a star.</p>
+    <p>The sky is real. Choose a place, a date and the way the painting faces, and the stars stand where they stand there and then (2851 of them, to magnitude 5.5, from the Hipparcos-based catalogue of d3-celestial), the moon rises in its true phase, and the sun's path painted into the sky is that day's track. The sky is drawn as a stereographic projection, so the constellations keep their shapes.</p>
+    <p>And the world can be flown. Press fly: the painting's world is built in three dimensions, every patch of ground still a palette index (what it is, and which way it faces), drawn the way Comanche drew in 1992, Voxel Space, column by column. The flight is a loop: over the lake, up the face of the falls, along the river, round the mountains and down past the cabin, once every five days of the scene's clock.</p>
+    <p>Here the scene is generated for the palette. Water is painted in phase, so turning its colours pours it. Rock is painted by the way each face turns, so the shadows swing across the mountains as the sun crosses. The sun's path is painted into the sky as a row of discs, one colour each, and lighting one is the sun; the lake carries a glitter path under the sun or the moon. The music keeps the palette's beat, takes its mode from the light, and every bell lights a star.</p>
   </div>
   <div class="row"><span class="label"><a href="../">studio</a> · colour cycle</span><span class="label" id="info"></span></div>
   <canvas id="pal" hidden></canvas>
-  <div class="row"><span id="time"></span><input id="hour" type="range" min="0" max="24" step="0.01" aria-label="hour of the day"></div>
-  <div class="row"><button id="new" class="primary" type="button">new scene</button><button id="sound" type="button">sound</button><span id="speeds" class="row"></span><button id="palbtn" type="button">palette</button><button id="about" type="button">how</button></div>
+  <div id="sky" hidden>
+    <div class="row"><span class="label">where</span><span class="label" id="where"></span><span id="places" class="row"></span><span class="label">date</span><input id="date" type="date" aria-label="date"></div>
+    <div class="row" id="facingRow"><span class="label">facing</span><span id="facing" class="row"></span></div>
+  </div>
+  <div class="row"><span id="time"></span><input id="hour" type="range" min="0" max="24" step="0.01" aria-label="local solar time"></div>
+  <div class="row"><button id="new" class="primary" type="button">new scene</button><button id="flybtn" type="button">fly</button><button id="sound" type="button">sound</button><span id="speeds" class="row"></span><button id="more" type="button">sky</button><button id="figbtn" type="button">constellations</button><button id="palbtn" type="button">palette</button><button id="about" type="button">how</button></div>
 </div>
 <script type="module" src="./main.js"></script>
 </body>

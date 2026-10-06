@@ -578,41 +578,78 @@ console.log('\nThe Minormobius Lectures (lecture/)');
 }
 
 // colour cycle (cycle/) ---------------------------------------------------------
-// A scene is an index map and a palette. What can be checked: it fits 256 colours, it is the same
-// twice, the palette moves only inside its cycles, the sun's disc travels the arc with the hour
-// (and the moon takes its place at night), stars are night-only, and the light swings the faces.
+// A scene is an index map and a palette, under the real sky. What can be checked: the astronomy
+// against known moments; the scene fits 256 colours and is the same twice; the palette moves only
+// inside its cycles; the sun walks its painted path through the day; stars are drawn only at
+// night; the faces that turn to the sun light up; the 3D world and its flight are sound.
 {
-  const { generate, palette, light } = await import('../cycle/scene.js');
+  const { generate, palette, light, paintSunPath, useSky, project } = await import('../cycle/scene.js');
+  const { sky, sunEq, daysJ2000 } = await import('../cycle/astro.js');
+  const { drawNight } = await import('../cycle/night.js');
+  useSky(sky);
+  // astronomy: Polaris stands at the latitude; the equinox sun on the equator; a solstice sunrise
+  const nyc = [40.71, -74.0];
+  const pol = sky(Date.UTC(2026, 9, 6, 3), ...nyc).place(37.95, 89.26);
+  const eq = sunEq(daysJ2000(Date.UTC(2026, 2, 20, 14, 46)));
+  let rise = Date.UTC(2026, 5, 21, 8); while (sky(rise, ...nyc).sun.alt < -0.833) rise += 30000;
+  const riseMin = new Date(rise).getUTCHours() * 60 + new Date(rise).getUTCMinutes();
+  const full = sky(Date.UTC(2026, 9, 26, 4, 12), 0, 0).moonLit, nw = sky(Date.UTC(2026, 9, 10, 15, 50), 0, 0).moonLit;
+  ok(Math.abs(pol.alt - nyc[0]) < 0.8 && Math.abs(eq.dec) < 0.02 && Math.abs(riseMin - (9 * 60 + 25)) <= 2 && full > 0.99 && nw < 0.01,
+    `astro: Polaris at ${pol.alt.toFixed(2)}° from ${nyc[0]}°N, the equinox sun on the equator, New York's solstice sunrise 09:${String(riseMin - 540).padStart(2, '0')} UTC, full and new moons on their days`);
+
+  const view = { lat: 40.71, lon: -74.0, facing: 180 };
+  const day = Date.UTC(2026, 9, 6, 0);
   const a = generate(7), b = generate(7);
   let maxIdx = 0; for (const v of a.index) if (v > maxIdx) maxIdx = v;
   ok(a.used <= 256 && maxIdx < a.used && Buffer.compare(Buffer.from(a.index), Buffer.from(b.index)) === 0,
     `cycle: a scene fits ${a.used}/256 colours, every pixel names one, and the same seed paints the same scene`);
-  ok(a.cycles.every((c) => c.lo >= 0 && c.lo + c.len <= a.used && c.len >= 3),
-    `cycle: ${a.cycles.length} cycles, each inside the palette`);
-  // turning the clock (not the hour) changes only cycling entries, and those really move
+  ok(a.cycles.every((c) => c.lo >= 0 && c.lo + c.len <= a.used && c.len >= 3), `cycle: ${a.cycles.length} cycles, each inside the palette`);
+  const at = (h) => day + (h + 74 / 15) * 3600000;           // local solar hour h on that day
+  paintSunPath(a, view, at(12));
   const inCycle = new Set(a.cycles.flatMap((c) => Array.from({ length: c.len }, (_, i) => c.lo + i)));
-  const p0 = palette(a, 15, 10), p1 = palette(a, 15, 10.37);
+  const sk15 = sky(at(15), view.lat, view.lon);
+  const p0 = palette(a, view, sk15, 10), p1 = palette(a, view, sk15, 10.37);
   let outside = 0, inside = 0;
   for (let i = 0; i < 256; i++) { const d = Math.abs(p0[i * 3] - p1[i * 3]) + Math.abs(p0[i * 3 + 1] - p1[i * 3 + 1]) + Math.abs(p0[i * 3 + 2] - p1[i * 3 + 2]); if (d > 0) (inCycle.has(i) ? inside++ : outside++); }
   const win = a.entries.filter((e) => e.k === 'window').length;
   ok(outside <= win && inside > 40, `cycle: time moves ${inside} cycling colours and nothing else (but the window's flicker)`);
-  // the sun: the brightest disc on the arc walks right to left through the day
+  // the sun: the brightest of the painted discs walks along them through the day (facing south)
   const discs = a.entries.map((e, i) => (e.k === 'sun' ? i : -1)).filter((i) => i >= 0);
-  const brightest = (h) => { const p = palette(a, h, 0); let best = -1, bv = -1; for (const i of discs) { const v = p[i * 3] + p[i * 3 + 1] + p[i * 3 + 2]; if (v > bv) { bv = v; best = i; } } return [best - discs[0], bv]; };
-  const [m9] = brightest(9), [m12] = brightest(12), [m15] = brightest(15), [n0, v0] = brightest(0);
-  ok(m9 < m12 && m12 < m15 && Math.abs(m12 - (discs.length - 1) / 2) <= 2 && v0 > 600,
-    `cycle: the sun crosses its painted path (disc ${m9} → ${m12} → ${m15}); at midnight the moon is disc ${n0}`);
-  const star = a.slots.stars, sum = (p, i) => p[i * 3] + p[i * 3 + 1] + p[i * 3 + 2];
-  const sky = a.entries.findIndex((e) => e.k === 'sky' && e.e > 0.7);
-  ok(Math.abs(sum(palette(a, 12, 0), star) - sum(palette(a, 12, 0), sky)) < 60 && sum(palette(a, 0, 0), star) > sum(palette(a, 0, 0), sky) + 200,
-    'cycle: stars are sky by day and light only at night');
-  // facing: a face turned right is lit in the morning (sun on the right) and shaded in the evening
+  const placed = discs.filter((i) => a.entries[i].ms > 0).length;
+  const brightest = (h) => { const p = palette(a, view, sky(at(h), view.lat, view.lon), 0); let best = -1, bv = -1; for (const i of discs) { const v = p[i * 3] + p[i * 3 + 1] + p[i * 3 + 2]; if (v > bv) { bv = v; best = i; } } return best - discs[0]; };
+  const m9 = brightest(9), m12 = brightest(12), m15 = brightest(15);
+  ok(placed > 20 && m9 < m12 && m12 < m15, `cycle: the day's real track is painted (${placed} discs) and the sun walks it (disc ${m9} → ${m12} → ${m15})`);
+  // the night: real stars only after dark; facing north at 40°N, Polaris is 40° up
+  const px = (sk) => new Uint8ClampedArray(640 * 360 * 4);
+  const lt0 = light(a, view, sky(at(0), view.lat, view.lon)), lt12 = light(a, view, sky(at(12), view.lat, view.lon));
+  const nStars = drawNight(px(), a, view, sky(at(0), view.lat, view.lon), 0, { night: lt0.night, cover: 0 }).length;
+  const dStars = drawNight(px(), a, view, sky(at(12), view.lat, view.lon), 0, { night: lt12.night, cover: 0 }).length;
+  const north = { ...view, facing: 0 }, sk0 = sky(at(0), view.lat, view.lon), pp = sk0.place(37.95, 89.26);
+  const [, py] = project(a, north, pp.alt, pp.az), [, py40] = project(a, north, 40.71, 0);
+  ok(nStars > 150 && dStars === 0 && Math.abs(py - py40) < 4, `cycle: ${nStars} real stars at midnight, none at noon; Polaris stands where 40° up is drawn`);
   const faces = a.entries.map((e, i) => (e.k === 'land' && e.name === 'far' ? i : -1)).filter((i) => i >= 0);
-  const L = faces[0], Rt = faces[faces.length - 1];
-  const am = palette(a, 8, 0), pm = palette(a, 16, 0);
-  ok(sum(am, Rt) > sum(am, L) && sum(pm, L) > sum(pm, Rt), 'cycle: the faces that turn to the sun light up, and swap as it crosses');
-  const lt = light(12, a);
-  ok(lt.el > 0.99 && light(0, a).night > 0.99, 'cycle: noon is noon and midnight is night');
+  const L = faces[0], Rt = faces[faces.length - 1], sum = (p, i) => p[i * 3] + p[i * 3 + 1] + p[i * 3 + 2];
+  // facing south, the morning sun is to the left (east) and the evening sun to the right (west)
+  const am = palette(a, view, sky(at(8.5), view.lat, view.lon), 0), pm = palette(a, view, sky(at(15.5), view.lat, view.lon), 0);
+  ok(sum(am, L) > sum(am, Rt) && sum(pm, Rt) > sum(pm, L), 'cycle: the faces that turn to the sun light up, east in the morning and west in the afternoon');
+
+  // the 3D world and the flight
+  const { buildWorld, cameraAt, heightAt, KIND } = await import('../cycle/world.js');
+  const w1 = buildWorld(3), w2 = buildWorld(3);
+  const kinds = new Set(w1.kind);
+  let minClear = Infinity;
+  for (let u = 0; u < 1; u += 0.002) { const c = cameraAt(w1, u); minClear = Math.min(minClear, c.z - heightAt(w1, c.x, c.y)); }
+  const c0 = cameraAt(w1, 0), c1 = cameraAt(w1, 1 - 1e-9);
+  ok(w1.used <= 256 && Buffer.compare(Buffer.from(w1.index), Buffer.from(w2.index)) === 0 && [KIND.lake, KIND.river, KIND.fall, KIND.cliff].every((k) => kinds.has(k)),
+    `fly: a world fits ${w1.used}/256 colours, is the same twice, and has its lake, river, fall and cliffs`);
+  ok(minClear > 10 && Math.hypot(c0.x - c1.x, c0.y - c1.y, c0.z - c1.z) < 5 && w1.path.length > 4000,
+    `fly: a closed ${(w1.path.length / 1000).toFixed(1)} km loop, never nearer the ground than ${minClear.toFixed(0)} m`);
+  const { Flight } = await import('../cycle/fly.js');
+  const img = { data: new Uint8ClampedArray(640 * 360 * 4) }, f = new Flight(img, { putImageData() {} }, view);
+  f.load(3, 54);
+  const t0 = performance.now(); f.frame(1, 5 * 86400000 * 4000.13); const ms = performance.now() - t0;
+  let lum = 0; for (let i = 0; i < img.data.length; i += 4) lum += img.data[i] + img.data[i + 1] + img.data[i + 2];
+  ok(lum / (640 * 360) > 60 && f.idx.some((v) => v > 0), `fly: a frame renders by day (${ms.toFixed(0)} ms in node, cold)`);
 }
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');

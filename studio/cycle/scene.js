@@ -11,15 +11,17 @@
 //   - rock is painted in FACING: each face's index is the direction it turns to (left … right),
 //     and the palette lights the faces that turn toward the sun, so the shadows swing across
 //     the mountains as the day goes, from one painted image.
-//   - the sky holds the SUN'S PATH: an arc of small discs, one palette entry each. The palette
-//     lights the disc where the sun is (and the moon, twelve hours round), so the sun crosses
-//     the sky, sets behind the range and comes back as the moon; the lake has a column of
-//     glitter pixels per stretch of arc, lit under wherever the sun or moon stands.
-//   - stars, fireflies, a window and its flicker are entries that only the night lights.
+//   - the sky holds the SUN'S PATH: the day's real track (for the date, the place and the way the
+//     painting faces) painted as a row of small discs, one palette entry each, each resting at the
+//     sky's colour. The palette lights the disc where the sun is, so it crosses and sets behind the
+//     range; the lake has glitter columns, lit under wherever the sun or moon stands.
+//   - the stars and the moon are REAL (astro.js), drawn where they are at that moment, over the
+//     sky pixels only; fireflies and the window are entries only the night lights.
 //
 // generate(seed) → { W, H, index (Uint8Array), entries (256 descriptions), cycles, … }
-// palette(scene, hour, t, flares) → Uint8ClampedArray(256 × 3), lit and rotated for that moment.
-// Both are deterministic: a still is a function of (seed, hour, t).
+// paintSunPath(scene, view, ms) paints the day's track; palette(scene, view, sky, t, flares) →
+// Uint8ClampedArray(256 × 3), lit and rotated for that moment. A still is a function of
+// (seed, view, moment, t). view = { lat, lon, facing }.
 
 export const W = 640, H = 360;
 
@@ -32,39 +34,39 @@ export function mulberry32(a) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const hash2 = (x, y, s) => {
+export const hash2 = (x, y, s) => {
   let h = (x * 374761393 + y * 668265263 + s * 2147483647) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 };
-const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
-const lerp = (a, b, t) => a + (b - a) * t;
-const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
-const mix3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
-const add3 = (a, b, k = 1) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
-const mul3 = (a, b) => [a[0] * b[0], a[1] * b[1], a[2] * b[2]];
-const scale3 = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+export const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
+export const lerp = (a, b, t) => a + (b - a) * t;
+export const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+export const mix3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+export const add3 = (a, b, k = 1) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
+export const mul3 = (a, b) => [a[0] * b[0], a[1] * b[1], a[2] * b[2]];
+export const scale3 = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
 
 /** Smooth value noise in 1D and 2D, and fractal sums of it. */
-function noise1(x, s) {
+export function noise1(x, s) {
   const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f);
   return lerp(hash2(i, 0, s), hash2(i + 1, 0, s), u);
 }
-function noise2(x, y, s) {
+export function noise2(x, y, s) {
   const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
   const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
   return lerp(lerp(hash2(i, j, s), hash2(i + 1, j, s), u), lerp(hash2(i, j + 1, s), hash2(i + 1, j + 1, s), u), v);
 }
-const fbm1 = (x, s, o = 5) => { let a = 0, w = 0.5, f = 1; for (let k = 0; k < o; k++) { a += w * noise1(x * f, s + k * 17); w *= 0.5; f *= 2.03; } return a / (1 - Math.pow(0.5, o)); };
-const fbm2 = (x, y, s, o = 5) => { let a = 0, w = 0.5, f = 1; for (let k = 0; k < o; k++) { a += w * noise2(x * f, y * f, s + k * 31); w *= 0.5; f *= 2.01; } return a / (1 - Math.pow(0.5, o)); };
+export const fbm1 = (x, s, o = 5) => { let a = 0, w = 0.5, f = 1; for (let k = 0; k < o; k++) { a += w * noise1(x * f, s + k * 17); w *= 0.5; f *= 2.03; } return a / (1 - Math.pow(0.5, o)); };
+export const fbm2 = (x, y, s, o = 5) => { let a = 0, w = 0.5, f = 1; for (let k = 0; k < o; k++) { a += w * noise2(x * f, y * f, s + k * 31); w *= 0.5; f *= 2.01; } return a / (1 - Math.pow(0.5, o)); };
 /** Ridged: sharp crests, the shape of a mountain range. */
-const ridge1 = (x, s, o = 5) => { let a = 0, w = 0.5, f = 1; for (let k = 0; k < o; k++) { const n = 1 - Math.abs(noise1(x * f, s + k * 13) * 2 - 1); a += w * n * n; w *= 0.5; f *= 2.1; } return a / (1 - Math.pow(0.5, o)); };
+export const ridge1 = (x, s, o = 5) => { let a = 0, w = 0.5, f = 1; for (let k = 0; k < o; k++) { const n = 1 - Math.abs(noise1(x * f, s + k * 13) * 2 - 1); a += w * n * n; w *= 0.5; f *= 2.1; } return a / (1 - Math.pow(0.5, o)); };
 
 /** Rock: ridged 2D noise, a height field of crests and gullies. */
-const rock = (x, y, s) => { let a = 0, w = 0.5, f = 1; for (let k = 0; k < 4; k++) { const n = 1 - Math.abs(noise2(x * f, y * f, s + k * 7) * 2 - 1); a += w * n; w *= 0.5; f *= 2.2; } return a / 0.9375; };
+export const rock = (x, y, s) => { let a = 0, w = 0.5, f = 1; for (let k = 0; k < 4; k++) { const n = 1 - Math.abs(noise2(x * f, y * f, s + k * 7) * 2 - 1); a += w * n; w *= 0.5; f *= 2.2; } return a / 0.9375; };
 
 // 4×4 ordered dither: how a gradient is spread over a ramp's few colours, the old way
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+export const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 const dq = (v, n, x, y) => Math.min(n - 1, Math.max(0, Math.floor(clamp(v) * (n - 1) + BAYER[(y & 3) * 4 + (x & 3)])));
 
 // ------------------------------------------------------------------------- biomes --
@@ -96,35 +98,18 @@ export function generate(seed = 1) {
   const cloudiness = 0.1 + rnd() * 0.32;
   const fireflies = rnd() < 0.8;
 
-  // ---- the sky: a gradient ramp, the sun's path, stars, clouds
+  // ---- the sky: a gradient ramp, the sun's path (placed by paintSunPath for the day), clouds.
+  // The stars and the moon are not painted: they are real, and drawn where they are (main.js).
   const SKY = 20;
   const sky = alloc(SKY, (i, n) => ({ k: 'sky', e: i / (n - 1) }));
-  // the arc: centre below the horizon; the sun touches the horizon line at φ0 and 180°−φ0
-  const cx = W / 2, cy = yH + H * 0.26, R = cy - H * 0.1;
-  const phi0 = Math.asin(clamp((cy - yH) / R));
-  const NB = 60, NH = 15, GROUP = NB / NH, margin = 0.1;   // NH glitter columns, GROUP discs each
-  const arcFrom = phi0 - margin, arcTo = Math.PI - phi0 + margin, dPhi = (arcTo - arcFrom) / (NB - 1);
-  const arcPt = (phi) => [cx + R * Math.cos(phi), cy - R * Math.sin(phi)];
+  const NB = 60, NH = 15;                                   // discs on the path; glitter columns
   const elevAt = (y) => Math.pow(clamp((yH - y) / yH), 0.8);   // the sky ramp's own curve
-  const core = alloc(NB, (i) => { const [ax, ay] = arcPt(arcFrom + i * dPhi); return { k: 'sun', b: i, e: elevAt(ay), ax }; });
-  const STARS = 8;
-  const stars = alloc(STARS, (i) => ({ k: 'star', e: 0.8, b: [1, 0.35, 0.15, 0.5, 0.2, 0.8, 0.3, 0.1][i] }));
-  cycle(stars, STARS, 1, 'stars');
-  const CL = 8;
-  const clouds = alloc(CL, (i, n) => ({ k: 'cloud', s: i / (n - 1) }));
-  const rc = 6.5;
+  const core = alloc(NB, (i) => ({ k: 'sun', b: i, e: 0.5, x: -99, y: -99, ms: 0 }));
+  const CL = 8;     // two bands of eight shades: each knows the sky behind it, so clear days fade it away
+  const clouds = alloc(CL * 2, (i) => ({ k: 'cloud', s: (i % CL) / (CL - 1), e: i < CL ? 0.42 : 0.72 }));
   for (let y = 0; y < yH; y++) for (let x = 0; x < W; x++) {
     const e = elevAt(y);
-    let id = sky + dq(e, SKY, x, y);
-    // the sun's path
-    const dx = x - cx, dy = cy - y, phi = Math.atan2(dy, dx), r = Math.hypot(dx, dy);
-    const b = Math.round((phi - arcFrom) / dPhi);
-    if (b >= 0 && b < NB && Math.abs(r - R) < rc + 1) {
-      const [bx, by] = arcPt(arcFrom + b * dPhi);
-      if (Math.hypot(x - bx, y - by) < rc) id = core + b;
-    }
-    // stars, thinning toward the horizon
-    if (id < core && hash2(x, y, S + 7) < 0.0035 * smooth(0.3, 0.85, e)) id = stars + Math.floor(hash2(x, y, S + 8) * STARS);
+    const id = sky + dq(e, SKY, x, y);
     // clouds: a stretched fbm, lit from above (their tops brighter than their bellies)
     const cs = 1 / 90, d0 = fbm2(x * cs * 0.45, y * cs * 1.6, S + 11, 5);
     const band = smooth(0.2, 0.5, e) * smooth(1.0, 0.75, e);
@@ -133,8 +118,7 @@ export function generate(seed = 1) {
       // lit from above: brighter where the density climbs going down (a top), darker in the belly
       const above = fbm2(x * cs * 0.45, (y - 6) * cs * 1.6, S + 11, 5);
       const s = clamp(0.4 + (d0 - above) * 9 + (d0 - thr) * 2.2 - smooth(0, 1, (y - yH * 0.2) / yH) * 0.15);
-      id = clouds + dq(s, CL, x, y);
-      set(x, y, id, LAYER.cloud); continue;
+      set(x, y, clouds + (e > 0.57 ? CL : 0) + dq(s, CL, x, y), LAYER.cloud); continue;
     }
     set(x, y, id, LAYER.sky);
   }
@@ -228,9 +212,7 @@ export function generate(seed = 1) {
   const shoreAt = new Float32Array(W);
   for (let x = 0; x < W; x++) shoreAt[x] = H * (0.84 + fbm1(x * 0.012, S + 400) * 0.08) - (cliffLeft ? smooth(cw * 1.3, 0, x) : smooth(W - cw * 1.3, W, x)) * H * 0.06;
   // halo bucket under each column: the stretch of arc whose x is nearest
-  const haloX = Array.from({ length: NH }, (_, i) => entries[core + Math.round((i + 0.5) * GROUP - 0.5)].ax);
-  const glitBucket = (x) => { let best = 0; for (let i = 1; i < NH; i++) if (Math.abs(haloX[i] - x) < Math.abs(haloX[best] - x)) best = i; return best; };
-  const colBucket = Array.from({ length: W }, (_, x) => glitBucket(x));
+  const colBucket = Array.from({ length: W }, (_, x) => Math.min(NH - 1, Math.floor(x * NH / W)));   // glitter column under x
   for (let y = yH; y < H; y++) for (let x = 0; x < W; x++) {
     if (y >= shoreAt[x]) continue;
     const depth = (y - yH) / (H - yH);
@@ -351,28 +333,28 @@ export function generate(seed = 1) {
   while (entries.length < 256) entries.push({ k: 'unused' });
   return {
     seed, biome: biomeName, W, H, index, entries, cycles, bpm, yH, cliffLeft,
-    arc: { cx, cy, R, from: arcFrom, dPhi, NB, NH, GROUP, phi0 }, cabin: { x: cabX, y: cabBase }, waterfall: { x: toX(Math.round(xw)), width: ww },
-    slots: { stars, glitter: glit, fireflies: flies, fall },
+    path: { lo: core, NB, NH, rc: 6.5, day: null }, layer, LAYER, cabin: { x: cabX, y: cabBase }, waterfall: { x: toX(Math.round(xw)), width: ww },
+    slots: { glitter: glit, fireflies: flies, fall },
     used: entries.findIndex((e) => e.k === 'unused'), skyTurn: B.skyTurn, water: B.water, midAlb: B.mid,
   };
 }
 
 // ------------------------------------------------------------------------- the light --
 // Keyed on the sun's elevation, −1 (midnight) … 1 (noon).
-const key = (table, el) => {
+export const key = (table, el) => {
   for (let i = 1; i < table.length; i++) if (el <= table[i][0]) {
     const [a, ca] = table[i - 1], [b, cb] = table[i];
     return mix3(ca, cb, smooth(0, 1, (el - a) / (b - a)));
   }
   return table[table.length - 1][1];
 };
-const ZENITH = [[-1, [0.01, 0.012, 0.04]], [-0.3, [0.02, 0.03, 0.09]], [-0.1, [0.08, 0.07, 0.22]], [0, [0.22, 0.20, 0.44]], [0.12, [0.28, 0.44, 0.76]], [0.4, [0.20, 0.44, 0.86]], [1, [0.16, 0.40, 0.84]]];
-const HORIZON = [[-1, [0.03, 0.04, 0.09]], [-0.3, [0.05, 0.06, 0.15]], [-0.1, [0.42, 0.18, 0.26]], [0, [0.98, 0.48, 0.24]], [0.12, [0.96, 0.74, 0.54]], [0.4, [0.70, 0.82, 0.93]], [1, [0.64, 0.80, 0.95]]];
-const AMBIENT = [[-1, [0.05, 0.06, 0.13]], [-0.12, [0.10, 0.09, 0.19]], [0, [0.34, 0.24, 0.34]], [0.2, [0.48, 0.48, 0.56]], [1, [0.55, 0.58, 0.66]]];
-const SUNCOL = [[-0.1, [1.0, 0.30, 0.10]], [0.02, [1.0, 0.45, 0.20]], [0.15, [1.0, 0.75, 0.50]], [0.45, [1.0, 0.95, 0.86]], [1, [1.0, 0.97, 0.92]]];
+export const ZENITH = [[-1, [0.01, 0.012, 0.04]], [-0.3, [0.02, 0.03, 0.09]], [-0.1, [0.08, 0.07, 0.22]], [0, [0.22, 0.20, 0.44]], [0.12, [0.28, 0.44, 0.76]], [0.4, [0.20, 0.44, 0.86]], [1, [0.16, 0.40, 0.84]]];
+export const HORIZON = [[-1, [0.03, 0.04, 0.09]], [-0.3, [0.05, 0.06, 0.15]], [-0.1, [0.42, 0.18, 0.26]], [0, [0.98, 0.48, 0.24]], [0.12, [0.96, 0.74, 0.54]], [0.4, [0.70, 0.82, 0.93]], [1, [0.64, 0.80, 0.95]]];
+export const AMBIENT = [[-1, [0.05, 0.06, 0.13]], [-0.12, [0.10, 0.09, 0.19]], [0, [0.34, 0.24, 0.34]], [0.2, [0.48, 0.48, 0.56]], [1, [0.55, 0.58, 0.66]]];
+export const SUNCOL = [[-0.1, [1.0, 0.30, 0.10]], [0.02, [1.0, 0.45, 0.20]], [0.15, [1.0, 0.75, 0.50]], [0.45, [1.0, 0.95, 0.86]], [1, [1.0, 0.97, 0.92]]];
 
 /** Turn a colour's hue by `a` radians about the grey axis (an alien sky). */
-function turn(c, a) {
+export function turn(c, a) {
   if (!a) return c;
   const k = [1 / Math.sqrt(3), 1 / Math.sqrt(3), 1 / Math.sqrt(3)], cs = Math.cos(a), sn = Math.sin(a);
   const d = (k[0] * c[0] + k[1] * c[1] + k[2] * c[2]) * (1 - cs);
@@ -380,24 +362,106 @@ function turn(c, a) {
   return [c[0] * cs + cr[0] * sn + k[0] * d, c[1] * cs + cr[1] * sn + k[1] * d, c[2] * cs + cr[2] * sn + k[2] * d];
 }
 
-/** Everything the palette needs to know about the hour. */
-export function light(hour, scene) {
-  const psi = Math.PI * (hour - 6) / 12;                  // the sun's angle: 0 rising (right), π setting
-  const el = Math.sin(psi), mel = -el;
-  const L = [Math.cos(psi), el], M = [-Math.cos(psi), mel];
-  const sunI = smooth(-0.06, 0.1, el), moonI = smooth(-0.05, 0.15, mel) * 0.55;
+// ------------------------------------------------------------------------- the view --
+// The painting looks one way (`facing`, an azimuth), FOV degrees across. Its sky is a stereographic
+// projection centred on the horizon straight ahead: conformal, so every constellation keeps its true
+// shape, and the horizon (a great circle through the centre) stays the straight line the painting
+// stands on. 160° across, it shows the sky to about 60° up in the middle; sizes grow toward the
+// edges (shapes do not change), as in a painted panorama.
+export const FOV = 160;
+const wrap180 = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
+const KST = (W / 2) / (2 * Math.tan(FOV / 4 * Math.PI / 180));
+/** Screen position of an altitude/azimuth in the painting ([NaN, NaN] when behind the viewer). */
+export function project(scene, view, alt, az) {
+  const D = Math.PI / 180, ca = Math.cos(alt * D), dz = (az - view.facing) * D;
+  const cx = ca * Math.sin(dz), cy = Math.sin(alt * D), cz = ca * Math.cos(dz);
+  if (cz < -0.2) return [NaN, NaN];
+  const k = 2 / (1 + cz);
+  return [W / 2 + cx * k * KST, scene.yH - cy * k * KST];
+}
+
+/**
+ * Paint the sun's real path for the solar day containing `ms` into the sky: NB discs evenly along
+ * the part of the track the window shows, each remembering the moment the sun stands there. Re-run
+ * when the day (or the place, or the facing) changes; it touches only sky pixels.
+ */
+export function paintSunPath(scene, view, ms) {
+  const { index, layer, LAYER, path, entries } = scene;
+  const { lo, NB, rc } = path, sky0 = entries.findIndex((e) => e.k === 'sky');
+  const isSky = (i) => entries[i].k === 'sky';
+  // un-paint the old discs: each pixel back to the sky ramp at its height
+  for (let i = 0; i < W * H; i++) if (index[i] >= lo && index[i] < lo + NB) {
+    const y = Math.floor(i / W), x = i % W;
+    index[i] = sky0 + dq(Math.pow(clamp((scene.yH - y) / scene.yH), 0.8), 20, x, y);
+  }
+  const day = Math.floor((ms / 3600000 + view.lon / 15) / 24);
+  const t0 = (day * 24 - view.lon / 15) * 3600000;
+  // the track, sampled every 3 minutes, where it is on the canvas
+  const pts = [];
+  for (let m = 0; m <= 24 * 60; m += 3) {
+    const t = t0 + m * 60000, sk = skyAt$(t, view);
+    if (sk.sun.alt < -1.5) continue;
+    const [x, y] = project(scene, view, sk.sun.alt, sk.sun.az);
+    if (!(x > -rc && x < W + rc && y > -rc)) continue;
+    pts.push({ x, y, t });
+  }
+  for (let i = 0; i < NB; i++) Object.assign(entries[lo + i], { x: -99, y: -99, ms: -1 });
+  path.day = day; path.view = { ...view };
+  if (pts.length < 2) return;
+  let len = 0; const cum = [0];
+  for (let i = 1; i < pts.length; i++) { const jump = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); len += jump > 40 ? 0 : jump; cum.push(len); }
+  const n = Math.min(NB, Math.max(2, Math.floor(len / (2 * rc - 1)) + 1)), step = len / (n - 1);
+  let k = 0;
+  for (let i = 0; i < n; i++) {
+    const want = i * step;
+    while (k < pts.length - 2 && cum[k + 1] < want) k++;
+    const f = cum[k + 1] > cum[k] ? clamp((want - cum[k]) / (cum[k + 1] - cum[k])) : 0;
+    const x = lerp(pts[k].x, pts[k + 1].x, f), y = lerp(pts[k].y, pts[k + 1].y, f), t = lerp(pts[k].t, pts[k + 1].t, f);
+    Object.assign(entries[lo + i], { x, y, ms: t, e: Math.pow(clamp((scene.yH - y) / scene.yH), 0.8) });
+    for (let py = Math.floor(y - rc); py <= y + rc; py++) for (let px = Math.floor(x - rc); px <= x + rc; px++) {
+      if (px < 0 || px >= W || py < 0 || py >= scene.yH || Math.hypot(px - x, py - y) >= rc) continue;
+      const j = py * W + px;
+      if (layer[j] === LAYER.sky && (isSky(index[j]) || (index[j] >= lo && index[j] < lo + NB))) index[j] = lo + i;
+    }
+  }
+}
+let skyAt$ = null;
+/** The page hands in astro.js's sky() (keeps this module free of the star data). */
+export function useSky(fn) { skyAt$ = (t, v) => fn(t, v.lat, v.lon); }
+
+/**
+ * The day's cloud cover, 0 (clear) … 1 (the painted clouds in full): a smooth random walk over days,
+ * the same for everyone at that place and date, easing from one day to the next over the night.
+ */
+export function weather(scene, ms, view) {
+  const days = ms / 86400000 + view.lon / 360 + 0.5, d = Math.floor(days), f = smooth(0.85, 1, days - d);
+  const at = (k) => smooth(0.25, 0.85, hash2(k, scene.seed, 977));
+  return lerp(at(d), at(d + 1), f);
+}
+
+/** Everything the palette needs to know about the moment: from the real sun and moon. */
+export function light(scene, view, sk) {
+  const D = Math.PI / 180;
+  const el = Math.sin(sk.sun.alt * D), mel = Math.sin(sk.moon.alt * D);
+  // the light's direction in the painting: across (right +) and up
+  const L = [Math.sin((sk.sun.az - view.facing) * D) * Math.cos(sk.sun.alt * D), el];
+  const M = [Math.sin((sk.moon.az - view.facing) * D) * Math.cos(sk.moon.alt * D), mel];
+  const phaseLight = 0.15 + 0.85 * sk.moonLit;
+  const sunI = smooth(-0.06, 0.1, el), moonI = smooth(-0.05, 0.15, mel) * 0.55 * phaseLight * smooth(0.1, -0.1, el);
   const t = scene.skyTurn;
   let zen = turn(key(ZENITH, el), t), hor = turn(key(HORIZON, el), t);
-  // moonlight lifts the night sky a little
   zen = add3(zen, [0.02, 0.03, 0.06], moonI); hor = add3(hor, [0.03, 0.04, 0.08], moonI);
   const amb = add3(key(AMBIENT, el), [0.04, 0.05, 0.09], moonI);
   const sunCol = scale3(key(SUNCOL, el), sunI), moonCol = scale3([0.55, 0.65, 0.95], moonI);
-  // where the sun and moon stand on the painted arc, in buckets (−1: not on it)
-  const A = scene.arc;
-  const onArc = (ang) => { const phi = A.phi0 + (Math.PI - 2 * A.phi0) * ang / Math.PI; return (phi - A.from) / A.dPhi; };
-  const sunPos = el > -0.2 ? onArc(((psi % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) : -99;
-  const moonPos = mel > -0.2 ? onArc((((psi - Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) : -99;
-  return { el, mel, L, M, sunI, moonI, zen, hor, amb, sunCol, moonCol, sunPos, moonPos, night: smooth(0.05, -0.2, el) };
+  // where the sun stands among the painted discs (by time), and over which glitter column
+  const P = scene.path, discs = scene.entries.slice(P.lo, P.lo + P.NB);
+  let sunPos = -99;
+  for (let i = 0; i + 1 < P.NB && discs[i + 1].ms > 0; i++) {
+    if (discs[i].ms <= sk.ms && sk.ms <= discs[i + 1].ms) { sunPos = i + (sk.ms - discs[i].ms) / (discs[i + 1].ms - discs[i].ms); break; }
+  }
+  const [sx] = project(scene, view, sk.sun.alt, sk.sun.az), [mx] = project(scene, view, sk.moon.alt, sk.moon.az);
+  const col = (x, alt, az) => (Math.abs(wrap180(az - view.facing)) < FOV / 2 && alt > -2 ? x * P.NH / W - 0.5 : -99);
+  return { cover: weather(scene, sk.ms, view), el, mel, L, M, sunI, moonI, zen, hor, amb, sunCol, moonCol, sunPos, sunCol$: col(sx, sk.sun.alt, sk.sun.az), moonCol$: col(mx, sk.moon.alt, sk.moon.az), night: smooth(0.05, -0.2, el) };
 }
 const skyAt = (lt, e) => mix3(lt.hor, lt.zen, Math.pow(clamp(e), 0.7));
 const lambert = (nx, L, ny = 0.8) => Math.max(0, (nx * L[0] + ny * L[1]) / Math.hypot(nx, ny));
@@ -409,26 +473,25 @@ function litLand(lt, alb, nx, depth) {
 const discW = (b, pos) => smooth(1.3, 0.35, Math.abs(b - pos));
 
 /**
- * The palette at `hour` (0–24) and clock `t` (seconds): each entry lit, then the cycles turned.
+ * The palette for a moment (`sk`, astro.js sky()) seen through `view`, at clock `t` (seconds): each
+ * entry lit, then the cycles turned.
  * `flares` (optional): [{ lo, i, amount }] momentary brightening of one entry (the music's notes).
  * Returns Uint8ClampedArray(768).
  */
-export function palette(scene, hour, t, flares = []) {
-  const lt = light(hour, scene), out = new Float32Array(768);
+export function palette(scene, view, sk, t, flares = []) {
+  const lt = light(scene, view, sk), out = new Float32Array(768);
   const lit = scene.entries.map((e) => {
     switch (e.k) {
       case 'sky': return skyAt(lt, e.e);
       case 'sun': {
         let c = skyAt(lt, e.e);
-        const ws = discW(e.b, lt.sunPos), wm = discW(e.b, lt.moonPos);
+        const ws = discW(e.b, lt.sunPos);
         const sunBody = mix3([1, 0.45, 0.18], [1, 0.97, 0.85], smooth(0, 0.35, lt.el));
-        c = mix3(c, sunBody, ws * smooth(-0.15, 0.02, lt.el));
-        return mix3(c, [0.92, 0.94, 1.0], wm * smooth(-0.15, 0.02, lt.mel) * 0.95);
+        return mix3(c, sunBody, ws * smooth(-0.15, 0.02, lt.el));
       }
-      case 'star': return add3(skyAt(lt, 0.7), [0.95, 0.95, 1], e.b * lt.night * 0.95);
       case 'cloud': {
         const d = add3(add3(scale3(lt.amb, 0.95), lt.sunCol, 0.25 + 0.85 * e.s), lt.moonCol, 0.2 + 0.6 * e.s);
-        return mix3(mul3([0.92, 0.92, 0.97], d), skyAt(lt, 0.5), 0.18);
+        return mix3(mix3(mul3([0.92, 0.92, 0.97], d), skyAt(lt, e.e), 0.18), skyAt(lt, e.e), 1 - lt.cover);
       }
       case 'land': return litLand(lt, e.alb, e.nx, e.depth);
       case 'fall': case 'foam': {
@@ -447,7 +510,7 @@ export function palette(scene, hour, t, flares = []) {
       }
       case 'glitter': {
         const base = mix3(skyAt(lt, 0.15), mul3(scene.water, add3(lt.amb, lt.sunCol, 0.3)), 0.4);
-        const G = scene.arc.GROUP, ws = smooth(1.6, 0.2, Math.abs(e.b - (lt.sunPos + 0.5) / G + 0.5)), wm = smooth(1.6, 0.2, Math.abs(e.b - (lt.moonPos + 0.5) / G + 0.5));
+        const ws = smooth(1.6, 0.2, Math.abs(e.b - lt.sunCol$)), wm = smooth(1.6, 0.2, Math.abs(e.b - lt.moonCol$));
         const low = 1.2 - Math.max(0, lt.el) * 0.7;
         return add3(add3(base, add3(lt.sunCol, [0.3, 0.25, 0.1], lt.sunI), ws * low), [0.8, 0.85, 1], wm * lt.moonI * 1.4);
       }
@@ -468,10 +531,18 @@ export function palette(scene, hour, t, flares = []) {
     }
   });
   for (const f of flares) if (lit[f.lo + f.i]) lit[f.lo + f.i] = add3(lit[f.lo + f.i], [1, 0.95, 0.85], f.amount);
-  // turn the cycles: smoothly (blending neighbours), as Canvas Cycle's "blend shift" does
-  const beat = 60 / scene.bpm;
-  const rot = lit.slice();
-  for (const c of scene.cycles) {
+  const rot = turnCycles(lit, scene.cycles, t, scene.bpm);
+  for (let i = 0; i < 256; i++) for (let j = 0; j < 3; j++) out[i * 3 + j] = Math.pow(clamp(rot[i][j]), 1 / 1.15) * 255;
+  return Uint8ClampedArray.from(out);
+}
+
+/**
+ * Turn the cycles: each moves `perBeat` entries a beat, smoothly (blending neighbours), as Canvas
+ * Cycle's "blend shift" does. `lit` is one colour per entry; returns the turned copy.
+ */
+export function turnCycles(lit, cycles, t, bpm) {
+  const beat = 60 / bpm, rot = lit.slice();
+  for (const c of cycles) {
     const pos = (t / beat) * c.perBeat, k = Math.floor(pos), f = pos - k;
     for (let i = 0; i < c.len; i++) {
       // the colour that sits at slot i now came from slot i − pos
@@ -479,13 +550,12 @@ export function palette(scene, hour, t, flares = []) {
       rot[c.lo + i] = mix3(a, b, f);
     }
   }
-  for (let i = 0; i < 256; i++) for (let j = 0; j < 3; j++) out[i * 3 + j] = Math.pow(clamp(rot[i][j]), 1 / 1.15) * 255;
-  return Uint8ClampedArray.from(out);
+  return rot;
 }
 
 /** The picture at a moment, as RGBA bytes (node stills, tests). */
-export function frame(scene, hour, t, flares) {
-  const pal = palette(scene, hour, t, flares), px = new Uint8ClampedArray(W * H * 4);
+export function frame(scene, view, sk, t, flares) {
+  const pal = palette(scene, view, sk, t, flares), px = new Uint8ClampedArray(W * H * 4);
   for (let i = 0; i < W * H; i++) { const p = scene.index[i] * 3; px[i * 4] = pal[p]; px[i * 4 + 1] = pal[p + 1]; px[i * 4 + 2] = pal[p + 2]; px[i * 4 + 3] = 255; }
   return px;
 }
