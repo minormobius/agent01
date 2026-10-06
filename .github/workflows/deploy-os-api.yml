@@ -39,7 +39,7 @@ name: Deploy os-api (container backend)
 on:
   workflow_dispatch:
   push:
-    branches: ['claude/codex-containers-research-58t9ad']
+    branches: ['claude/codex-container-auth-sngj6k']
     paths:
       - 'os/api/**'
       - '.github/workflows/deploy-os-api.yml'

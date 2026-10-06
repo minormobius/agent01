@@ -15,7 +15,7 @@ The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container (bash 
 | Dir | `os/api/` |
 | Endpoint | `os-api.minomobi.com` |
 | Type | backend |
-| Owning branch | `claude/codex-containers-research-58t9ad` |
+| Owning branch | `claude/codex-container-auth-sngj6k` |
 | Deploy | `.github/workflows/deploy-os-api.yml` |
 | Uses | — |
 | Provides | `os-api.minomobi.com` |
@@ -95,7 +95,7 @@ MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern):
 
 ## Deploying
 
-Pushes to `claude/codex-containers-research-58t9ad` that touch this surface's paths trigger [`.github/workflows/deploy-os-api.yml`](../../.github/workflows/deploy-os-api.yml). `main` is **not** a trigger — see the root `CLAUDE.md`: a merge to main is an integration event, not a deploy.
+Pushes to `claude/codex-container-auth-sngj6k` that touch this surface's paths trigger [`.github/workflows/deploy-os-api.yml`](../../.github/workflows/deploy-os-api.yml). `main` is **not** a trigger — see the root `CLAUDE.md`: a merge to main is an integration event, not a deploy.
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

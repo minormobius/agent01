@@ -1244,12 +1244,12 @@
       "dir": "os",
       "endpoint": "os.mino.mobi",
       "type": "frontend",
-      "branch": "claude/codex-containers-research-58t9ad",
+      "branch": "claude/codex-container-auth-sngj6k",
       "uses": [
         "os-api.minomobi.com"
       ],
       "provides": null,
-      "status": "MANAGED (frontend) \u2014 standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). `kimi` takes --model (kimi3 | ds4-flash | ds4-pro) and --harness (claude | opencode) \u2014 the cell matrix. public/arena/ serves published bake-off runs; public/_headers gives entries an opaque origin (CSP sandbox allow-scripts) so model-written HTML cannot reach the .mino.mobi SSO cookie or the Anthropic key in localStorage. The `kimi`/`container` commands probe the os-api backend at RUNTIME (/health, 4s timeout) and report exactly what's missing instead of dangling a dead WebSocket \u2014 no build-time gating variable needed (VITE_CONTAINER_API_URL remains an optional override). Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker.",
+      "status": "OWNERSHIP (2026-10-06): taken by claude/codex-container-auth-sngj6k from claude/codex-containers-research-58t9ad with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED (frontend) — standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). `kimi` takes --model (kimi3 | ds4-flash | ds4-pro) and --harness (claude | opencode) — the cell matrix. public/arena/ serves published bake-off runs; public/_headers gives entries an opaque origin (CSP sandbox allow-scripts) so model-written HTML cannot reach the .mino.mobi SSO cookie or the Anthropic key in localStorage. The `kimi`/`container` commands probe the os-api backend at RUNTIME (/health, 4s timeout) and report exactly what's missing instead of dangling a dead WebSocket — no build-time gating variable needed (VITE_CONTAINER_API_URL remains an optional override). Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker.",
       "note": "Browser-based terminal for your ATProto PDS (XRPC commands, DuckDB SQL, AI chat) and the front end of the cross-model/cross-harness agent platform: `kimi --model= --harness=` boots any (harness, model) cell in the os-api container. Serves published bake-off runs at /arena/<run-id>/. (full description: os/CLAUDE.md)",
       "paths": [
         "os/**",
@@ -1261,10 +1261,10 @@
       "dir": "os/api",
       "endpoint": "os-api.minomobi.com",
       "type": "backend",
-      "branch": "claude/codex-containers-research-58t9ad",
+      "branch": "claude/codex-container-auth-sngj6k",
       "uses": [],
       "provides": "os-api.minomobi.com",
-      "status": "MANAGED \u2014 SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com \u2014 golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY + DEEPSEEK_API_KEY <- GH secrets; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 \u2014 learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets \u2014 see os/RUNBOOK.md.",
+      "status": "OWNERSHIP (2026-10-06): taken by claude/codex-container-auth-sngj6k from claude/codex-containers-research-58t9ad with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com — golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY + DEEPSEEK_API_KEY <- GH secrets; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 — learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets — see os/RUNBOOK.md.",
       "note": "The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container running TWO agent harnesses (Claude Code + OpenCode) against N model profiles (kimi3, ds4-flash, ds4-pro, native claude) via worker-injected AGENT_PROFILES, PTY over WebSocket, DO-storage-synced\u2026 (full description: os/api/CLAUDE.md)",
       "paths": [
         "os/api/**",

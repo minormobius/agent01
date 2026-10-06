@@ -15,7 +15,7 @@ Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat,
 | Dir | `os/` |
 | Endpoint | `os.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/codex-containers-research-58t9ad` |
+| Owning branch | `claude/codex-container-auth-sngj6k` |
 | Deploy | `.github/workflows/deploy-os.yml` |
 | Uses | `os-api.minomobi.com` |
 | Provides | — |
@@ -79,7 +79,7 @@ MANAGED (frontend) — standalone PDS shell ships and works with no backend (log
 
 ## Deploying
 
-Pushes to `claude/codex-containers-research-58t9ad` that touch this surface's paths trigger [`.github/workflows/deploy-os.yml`](../.github/workflows/deploy-os.yml). `main` is **not** a trigger — see the root `CLAUDE.md`: a merge to main is an integration event, not a deploy.
+Pushes to `claude/codex-container-auth-sngj6k` that touch this surface's paths trigger [`.github/workflows/deploy-os.yml`](../.github/workflows/deploy-os.yml). `main` is **not** a trigger — see the root `CLAUDE.md`: a merge to main is an integration event, not a deploy.
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
