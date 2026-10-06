@@ -1,11 +1,13 @@
-// sound.js — the scene's music, on the scene's clock. WebAudio, synthesised; nothing is a recording.
+// sound.js — the scene's music, on the scene's clock. Nothing is a recording.
 //
 // One clock drives both senses: the palette's cycles turn so many entries per BEAT, and the
-// music is on the same beat. Water and wind are filtered noise, sized by the scene (a wider
-// fall is louder). Over them a slow pad changes chord every two bars, in a mode the light
-// chooses (Lydian at night, Mixolydian at dawn, Ionian by day, Dorian at dusk), and a bell
-// sounds now and then on the beat. Every bell is also LIGHT: it is handed back to the page,
-// which flares one star at night or a glint on the water by day, at the moment it sounds.
+// music is on the same beat. Water and wind are filtered noise, sized by the scene (a wider fall
+// is louder). Over them, THE DUO: John O'Laughlin's physically modelled piano and guitar, playing
+// music composed as it goes for this landscape and this moment (compose.js), rendered ahead in a
+// worker (music-worker.js, pfstream.wasm) and laid on the audio clock half a second at a time.
+// Every note struck is also LIGHT: handed back to the page, which flares a star at night or a
+// glint on the water by day. If the worker cannot start, or keeps falling behind, the old voice
+// takes over: a WebAudio pad in the mode the light chooses, and FM bells on the beat.
 
 const MODES = {
   lydian: [0, 2, 4, 6, 7, 9, 11], mixolydian: [0, 2, 4, 5, 7, 9, 10],
@@ -31,6 +33,7 @@ export class Sound {
   constructor(scene, { onNote } = {}) {
     this.scene = scene; this.onNote = onNote || (() => {});
     this.ctx = null; this.on = false; this.nextBeat = 0; this.timer = 0; this.seed = scene.seed * 7919 + 1;
+    this.duo = null; this.place = null; this.describe = '';
   }
   rnd() { this.seed = (this.seed * 1103515245 + 12345) & 0x7fffffff; return this.seed / 0x7fffffff; }
 
@@ -53,6 +56,7 @@ export class Sound {
     this.master.gain.setTargetAtTime(0.9, this.ctx.currentTime, 0.6);
     this.on = true;
     this.nextBeat = Math.ceil(clock.beat() + 0.05);
+    this.duoWanted = typeof Worker !== 'undefined';
     clearInterval(this.timer);
     this.timer = setInterval(() => this.schedule(), 90);
   }
@@ -60,6 +64,61 @@ export class Sound {
     if (!this.ctx) return;
     this.on = false; clearInterval(this.timer);
     this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.25);
+    this.#duoStop();
+  }
+  close() { this.stop(); if (this.ctx) this.ctx.close(); }
+
+  // ---- the duo: a worker composing and rendering ahead, chunks laid on the audio clock
+  #clockModel() {
+    const c = this.clock, t = c.now();
+    return { speed: c.speed(), msBase: c.msBase, tBase: c.tBase, wallMs: Date.now(), tAt: t, lat: c.view.lat, lon: c.view.lon, seed: this.scene.seed };
+  }
+  #duoStart() {
+    const ctx = this.ctx, sr = ctx.sampleRate, c = this.clock;
+    const t0 = c.now() + 1.2;                                    // scene second at which the stream begins
+    const w = new Worker(new URL('./music-worker.js', import.meta.url), { type: 'module' });
+    const duo = this.duo = { w, t0, sr, out: ctx.createGain(), sources: new Set(), wanted: 0, late: 0, chunks: 0, failed: false, model: '' };
+    duo.out.gain.value = 1.0; duo.out.connect(this.master);
+    w.onmessage = (ev) => {
+      const m = ev.data;
+      if (this.duo !== duo) return;
+      if (m.type === 'error') { duo.failed = true; console.warn('duo:', m.message); return; }
+      if (m.type !== 'chunk') return;
+      const pcm = new Float32Array(m.pcm), buf = ctx.createBuffer(2, m.frames, sr);
+      const L = buf.getChannelData(0), R = buf.getChannelData(1);
+      for (let i = 0; i < m.frames; i++) { L[i] = pcm[i * 2]; R[i] = pcm[i * 2 + 1]; }
+      const when = c.audioTimeOf(duo.t0) + m.frame / sr, late = ctx.currentTime - when;
+      if (late > 0) duo.late++;
+      if (late < buf.duration) {
+        const s = ctx.createBufferSource(); s.buffer = buf; s.connect(duo.out);
+        s.onended = () => { duo.sources.delete(s); s.disconnect(); };
+        s.start(Math.max(when, ctx.currentTime), Math.max(0, late)); duo.sources.add(s);
+      }
+      duo.chunks++;
+      this.describe = m.describe;
+      if (typeof document !== 'undefined') document.body.dataset.duo = `${duo.chunks} chunks, ${duo.late} late`;
+      for (const n of m.notes) this.onNote(c.audioTimeOf(n.t), n.midi, n.inst);
+    };
+    w.onerror = (e) => { duo.failed = true; console.warn('duo worker:', e.message); };
+    duo.model = JSON.stringify(this.#clockModel());
+    w.postMessage({ type: 'start', seed: this.scene.seed, biome: this.scene.biome, bpm: this.scene.bpm, sampleRate: sr, t0, clock: JSON.parse(duo.model), place: this.place, want: Math.round(5 * sr) });
+  }
+  #duoStop() {
+    const d = this.duo; if (!d) return;
+    this.duo = null;
+    for (const s of d.sources) { try { s.stop(); } catch {} s.disconnect(); }
+    d.w.terminate(); d.out.disconnect();
+  }
+  /** Is the duo carrying the music (else the pad and bells do)? */
+  get duoPlaying() { const d = this.duo; return !!d && !d.failed && d.chunks > 0 && d.late < 6; }
+  #duoTick() {
+    const d = this.duo, c = this.clock;
+    if (!d) { if (this.duoWanted && c.audio) this.#duoStart(); return; }
+    if (d.failed || d.late >= 6) return;
+    const played = (this.ctx.currentTime - c.audioTimeOf(d.t0)) * d.sr, want = Math.round(played + 5 * d.sr);
+    if (want > d.wanted + d.sr / 4) { d.wanted = want; d.w.postMessage({ type: 'want', want }); }
+    const model = this.#clockModel(), key = JSON.stringify({ ...model, wallMs: 0, tAt: 0, place: this.place });
+    if (key !== d.key) { d.key = key; d.w.postMessage({ type: 'clock', clock: model, place: this.place }); }
   }
 
   /** A room: decaying stereo noise, at the context's own rate (Safari insists). */
@@ -96,6 +155,7 @@ export class Sound {
   /** Look ahead and schedule every beat that falls in the next 0.4 s. */
   schedule() {
     if (!this.on) return;
+    this.#duoTick();
     const c = this.clock, now = this.ctx.currentTime;
     while (true) {
       const at = c.audioTimeOfBeat(this.nextBeat);
@@ -107,6 +167,8 @@ export class Sound {
   beat(b, at) {
     const { el, rising } = this.clock.lightAtBeat(b), mode = modeAt(el, rising), root = ROOT[this.scene.biome] ?? 50;
     const night = el < -0.1;
+    // the duo is the music; the pad and bells are its stand-in while it starts, or if it cannot
+    if (this.duoPlaying || (this.duo && !this.duo.failed && this.duo.chunks === 0)) return;
     if (b % 8 === 0) this.pad(chord(root, mode, PROGRESSION[(b / 8) % PROGRESSION.length]), at, this.clock.beatSec * 8.6);
     // bells: sparser by day; sometimes a pair a dotted beat apart (3 against 2 with the pad)
     if (this.rnd() < (night ? 0.42 : 0.24)) {

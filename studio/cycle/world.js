@@ -220,6 +220,9 @@ function flightPath(world, riverOff) {
     P(theta + Math.PI - 0.15, R + 170, 50, -0.02),
     P(theta + Math.PI + 0.05, R + 40, 24),      // low over the cabin's shore
   ];
+  // what the music should be at each leg (compose.js's textures): the lake, up the fall, the
+  // river, the mountains, and down past the cabin to the lake again
+  const PLACES = ['lake', 'lake', 'falls', 'falls', 'falls', 'river', 'river', 'river', 'river', 'mountains', 'mountains', 'mountains', 'stars', 'lake'];
   // sample the closed spline densely, lift it clear of the ground, and index by arc length
   const n = pts.length, samples = [];
   const cr = (p0, p1, p2, p3, t) => 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
@@ -231,7 +234,7 @@ function flightPath(world, riverOff) {
     const nearFall = Math.hypot(x - world.fallAt.x, y - world.fallAt.y) < 170;    // the fall is flown close on purpose
     if (!nearFall) for (let a = 0; a < 8; a++) for (const rr of [40, 90]) ground = Math.max(ground, heightAt(world, x + Math.sin(a * 0.785) * rr, y + Math.cos(a * 0.785) * rr) - rr * 0.25);
     z = Math.max(z, ground + (nearFall ? 16 : 30), 14);
-    samples.push({ x, y, z, look: cr(a.look, b.look, c.look, d.look, t) });
+    samples.push({ x, y, z, look: cr(a.look, b.look, c.look, d.look, t), place: PLACES[s] });
   }
   // keep the ground clearance smooth: a moving maximum, then a moving average
   const zs = samples.map((p) => p.z), m = zs.length;
@@ -256,5 +259,5 @@ export function cameraAt(world, u) {
   const yaw = Math.atan2(ahead.x - x, ahead.y - y);
   const climb = (ahead.z - behind.z) / Math.max(1, Math.hypot(ahead.x - behind.x, ahead.y - behind.y));
   const pitch = clamp(lerp(a.look, b.look, f) * 0.6 + climb * 0.3, -0.3, 0.38);
-  return { x, y, z, yaw, pitch };
+  return { x, y, z, yaw, pitch, place: a.place };
 }

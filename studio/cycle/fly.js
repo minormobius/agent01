@@ -31,11 +31,22 @@ export class Flight {
     if (bpm) this.world.bpm = bpm;
     if (!this.cloud) {             // the cloud layer: 512² density, 25 m a texel, wrapping
       const c = new Float32Array(512 * 512);
-      for (let j = 0; j < 512; j++) for (let i = 0; i < 512; i++) c[j * 512 + i] = fbm2(i / 64, j / 64, 4242, 5);
+      // tileable (the layer wraps, and a seam would show as a straight line across the sky): the
+      // noise blended with its own copies shifted by one tile, weighted by distance to each edge
+      const f = (i, j) => fbm2(i / 64, j / 64, 4242, 5);
+      for (let j = 0; j < 512; j++) for (let i = 0; i < 512; i++) {
+        const u = i / 512, v = j / 512;
+        const n = f(i, j) * (1 - u) * (1 - v) + f(i - 512, j) * u * (1 - v) + f(i, j - 512) * (1 - u) * v + f(i - 512, j - 512) * u * v;
+        // the blend flattens the middle of the tile: restore its spread about the mean
+        const k = 1 / Math.sqrt((1 - u) ** 2 * (1 - v) ** 2 + u ** 2 * (1 - v) ** 2 + (1 - u) ** 2 * v ** 2 + u ** 2 * v ** 2);
+        c[j * 512 + i] = 0.5 + (n - 0.5) * k;
+      }
       this.cloud = c;
     }
   }
   cycles() { return this.world.cycles; }
+  /** Where on the loop the camera is, as the music's texture. */
+  place() { return this.cam ? this.cam.place : null; }
 
   /** Render one frame at clock `t` (s) and moment `ms`; returns { sk, lt } for the page. */
   frame(t, ms, { figures = false, notes = [] } = {}) {
@@ -44,7 +55,10 @@ export class Flight {
     this.cam = cam;
     const lt = this.light(sk, ms);
     const lut = this.palette(lt, t);
-    const hor = H / 2 + cam.pitch * F;
+    // at night the camera tips its gaze up: the dark land sinks toward the bottom of the frame and
+    // the sky takes the rest (eased by how dark it is; the shear keeps it within Voxel Space's reach)
+    const look = clamp(cam.pitch + 0.34 * lt.night, -0.3, 0.33);
+    const hor = H / 2 + look * F;
     const fwd = [Math.sin(cam.yaw), Math.cos(cam.yaw)], right = [Math.cos(cam.yaw), -Math.sin(cam.yaw)];
     this.voxel(cam, cam.z, hor, this.idx, this.dep, this.knd, FAR);
     // the mirror pass, only for the columns where the lake shows

@@ -652,5 +652,70 @@ console.log('\nThe Minormobius Lectures (lecture/)');
   ok(lum / (640 * 360) > 60 && f.idx.some((v) => v > 0), `fly: a frame renders by day (${ms.toFixed(0)} ms in node, cold)`);
 }
 
+// the duo (cycle/compose.js, music.js, pfstream.wasm) -------------------------------------
+// The stream host must sound exactly like the offline hosts it stands for, the guitar's body
+// must be clef's, every guitar note must be playable, and the music must render: audible, finite,
+// and faster than it plays.
+{
+  const load = async (p) => (await WebAssembly.instantiate(await readFile(p), {})).instance.exports;
+  const P = await load(join(root, '..', 'clef/vendor/pfsynth/pfsynth.wasm'));
+  const G = await load(join(root, '..', 'clef/vendor/pfsynth/pfguitar.wasm'));
+  const X = await load(join(root, 'vendor/pfsynth/pfstream.wasm'));
+  const sr = 44100, LEN = 3 * sr, BLK = 2048;
+  const piano = Array.from({ length: 10 }, (_, k) => ({ at: k * 0.25, dur: 0.6, midi: 60 + [0, 4, 7, 12, 7][k % 5], vel: 0.5 }));
+  const gtr = [[0, 5, 45, 0, 0], [0.3, 3, 57, 0, 0], [0.6, 1, 64, 4, 12], [1.1, 3, 59, 1, 0], [1.6, 2, 62, 0, 0]].map(([at, string, midi, art, ap]) => ({ at, dur: 1.2, string, midi, art, ap, vel: 100 }));
+  let dv = new DataView(P.memory.buffer), ptr = P.pfw_notes_ptr();
+  piano.forEach((e, i) => { const st = Math.round(e.at * sr); dv.setInt32(ptr + i * 16, st, true); dv.setInt32(ptr + i * 16 + 4, st + Math.round(e.dur * sr), true); dv.setFloat32(ptr + i * 16 + 8, e.midi, true); dv.setFloat32(ptr + i * 16 + 12, e.vel, true); });
+  P.pfw_begin(sr, piano.length, 110);
+  const op = new Float32Array(LEN * 2); for (let f = 0; f < LEN; f += BLK) { P.pfw_render(BLK); op.set(new Float32Array(P.memory.buffer, P.pfw_out_ptr(), BLK * 2).subarray(0, Math.min(BLK, LEN - f) * 2), f * 2); }
+  const nb = G.pgw_note_bytes(); ptr = G.pgw_notes_ptr(); dv = new DataView(G.memory.buffer);
+  new Uint8Array(G.memory.buffer, ptr, nb * gtr.length).fill(0);
+  gtr.forEach((e, i) => { const q = ptr + i * nb; dv.setFloat64(q, e.at, true); dv.setFloat64(q + 8, e.at + e.dur, true); dv.setFloat32(q + 16, e.midi, true); dv.setFloat32(q + 20, e.vel, true); dv.setFloat32(q + 24, e.ap, true); dv.setInt8(q + 40, e.string); dv.setInt8(q + 41, e.midi - [64, 59, 55, 50, 45, 40][e.string - 1]); dv.setInt8(q + 42, -1); dv.setUint8(q + 43, e.art); });
+  G.pgw_set(4, 0); G.pgw_begin(sr, gtr.length, 3);
+  const og = new Float32Array(LEN); for (let f = 0; f < LEN;) { const n = G.pgw_render(Math.min(2048, LEN - f)); if (!n) break; og.set(new Float32Array(G.memory.buffer, G.pgw_out_ptr(), n), f); f += n; }
+  X.ps_begin(sr, 110);
+  const sp = new Float32Array(LEN * 2), sg = new Float32Array(LEN), all = [...piano.map((e) => ({ ...e, inst: 0 })), ...gtr.map((e) => ({ ...e, inst: 1 }))], pushed = new Set();
+  for (let f = 0; f < LEN; f += BLK) {
+    const due = all.filter((e) => !pushed.has(e) && e.at < f / sr + 0.2), d2 = new DataView(X.memory.buffer), sp0 = X.ps_stage_ptr();
+    due.forEach((e, i) => { pushed.add(e); const q = sp0 + i * 40; d2.setFloat64(q, Math.round(e.at * sr), true); d2.setFloat64(q + 8, Math.round(e.at * sr) + Math.round(e.dur * sr), true); d2.setFloat32(q + 16, e.midi, true); d2.setFloat32(q + 20, e.vel, true); d2.setInt32(q + 24, e.inst, true); d2.setInt32(q + 28, e.string || 0, true); d2.setInt32(q + 32, e.art || 0, true); d2.setFloat32(q + 36, e.ap || 0, true); });
+    if (due.length) X.ps_push(due.length);
+    X.ps_render(BLK); const n = Math.min(BLK, LEN - f);
+    sp.set(new Float32Array(X.memory.buffer, X.ps_piano_ptr(), n * 2), f * 2); sg.set(new Float32Array(X.memory.buffer, X.ps_guitar_ptr(), n), f);
+  }
+  let dp = 0, dg = 0, pg = 0; for (let i = 0; i < op.length; i++) dp = Math.max(dp, Math.abs(op[i] - sp[i])); for (let i = 0; i < og.length; i++) { dg = Math.max(dg, Math.abs(og[i] - sg[i])); pg = Math.max(pg, Math.abs(og[i])); }
+  ok(dp === 0 && dg < pg * 1e-4, `duo: the stream host is clef's piano exactly (max diff ${dp}) and upstream's guitar to ${(20 * Math.log10(dg / pg)).toFixed(0)} dB, with notes pushed while it renders`);
+  const bodyOurs = await readFile(join(root, 'vendor/pfsynth/bodies/g34.wav')), bodyClef = await readFile(join(root, '..', 'clef/vendor/pfsynth/bodies/g34.wav'));
+  ok(Buffer.compare(bodyOurs, bodyClef) === 0, 'duo: the guitar body is clef\'s, byte for byte');
+
+  const { Composer } = await import('../cycle/compose.js');
+  const OPEN = [64, 59, 55, 50, 45, 40];
+  let bad = 0, total = 0, flamencoThird = true;
+  for (const biome of ['alpine', 'canyon', 'autumn', 'alien']) for (const place of ['lake', 'falls', 'river', 'mountains', 'stars']) {
+    const c = new Composer({ seed: 3, biome, bpm: 56 });
+    for (let n = 0; n < 40; n++) for (const x of c.bar(n, { el: 0.4, rising: true, night: place === 'stars' ? 1 : 0, cover: 0.3, moon: 0.5, place, density: 1 })) {
+      total++;
+      if (!Number.isFinite(x.at) || !(x.dur > 0) || !(x.vel > 0)) bad++;
+      if (x.inst === 1) {
+        const f = x.midi - OPEN[x.string - 1];
+        if (!(x.string >= 1 && x.string <= 6)) bad++;
+        else if (x.art === 4 ? ![12, 19, 24].includes(f) : f < 0 || f > 19) bad++;
+      }
+    }
+  }
+  const cf = new Composer({ seed: 3, biome: 'canyon', bpm: 56 });
+  for (let n = 0; n < 32; n++) { const notes = cf.bar(n, { el: 0.6, rising: true, night: 0, cover: 0.3, moon: 0.5, place: 'mountains', density: 1 }); if (cf.section.chords[n] === 0 && notes.some((x) => x.inst === 0 && ((x.midi - 45) % 12 + 12) % 12 === 3)) flamencoThird = false; }
+  ok(bad === 0 && total > 5000, `duo: ${total} notes over every biome and texture, all well-formed, every guitar note on a string and fret (harmonics at 12, 7, 5)`);
+  ok(flamencoThird, 'duo: in the canyon the home chord keeps its major third (C# over A, never C), as flamenco does');
+
+  const { Music, parseWav } = await import('../cycle/music.js');
+  const bb = await readFile(join(root, 'vendor/pfsynth/bodies/g34.wav'));
+  const m = new Music(X, { seed: 4, biome: 'canyon', bpm: 56, sampleRate: 22050, body: parseWav(bb.buffer.slice(bb.byteOffset, bb.byteOffset + bb.byteLength)) });
+  m.cond = () => ({ el: 0.5, rising: true, night: 0, cover: 0.3, moon: 0.5, place: 'river', density: 1 });
+  const t0 = performance.now(); let pk = 0, sum = 0, n = 0, finite = true, notes = 0;
+  while (m.frame < 22050 * 20) { const r = m.render(10); notes += r.notes.length; for (const v of r.pcm) { if (!Number.isFinite(v)) finite = false; pk = Math.max(pk, Math.abs(v)); sum += v * v; n++; } }
+  const speed = 20 / ((performance.now() - t0) / 1000), db = 10 * Math.log10(sum / n);
+  ok(finite && pk < 1 && db > -40 && notes > 20 && speed > 1.5, `duo: 20 s of the canyon's river render at ${speed.toFixed(1)}× real time (22 kHz), ${notes} notes, ${db.toFixed(1)} dB, peak ${pk.toFixed(2)}`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

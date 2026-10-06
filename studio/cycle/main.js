@@ -40,6 +40,9 @@ const clock = {
     return this.msBase + (t - this.tBase) * 86400000 / speed;
   },
   setMs(ms) { this.msBase = ms; this.tBase = this.now(); },
+  audioTimeOf(t) { return t - this.offset; },
+  speed() { return speed; },
+  view,
   lightAtBeat(b) {
     const sk = sky(this.msAt(b * this.beatSec), view.lat, view.lon);
     return { el: Math.sin(sk.sun.alt * Math.PI / 180), rising: sk.sun.az < 180 };
@@ -48,10 +51,11 @@ const clock = {
 
 function load(seed) {
   const was = sound && sound.on;
-  if (sound) { sound.stop(); clock.use(false); if (sound.ctx) sound.ctx.close(); }
+  if (sound) { sound.close(); clock.use(false); }
   scene = generate(seed);
   clock.beatSec = 60 / scene.bpm;
   sound = new Sound(scene, { onNote: (at, m) => notes.push({ t: at + clock.offset, m }) });
+  sound.place = mode === 'fly' && fly ? fly.place() : null;
   if (was) { sound.start(clock); clock.use(true); }
   notes = [];
   scene.path.day = null;
@@ -105,10 +109,12 @@ function paint(t, ms) {
 function frame() {
   const t = clock.now(), ms = clock.msAt(t);
   const { sk, lt } = mode === 'fly' && fly ? fly.frame(t, ms, { figures, notes }) : paint(t, ms);
+  if (sound) sound.place = mode === 'fly' && fly ? fly.place() : null;
   const hr = solarHour(ms, view.lon), hh = Math.floor(hr), mm = Math.floor((hr - hh) * 60);
   const date = new Date(ms + view.lon / 15 * 3600000).toISOString().slice(0, 10);
   const el = Math.sin(sk.sun.alt * Math.PI / 180);
-  $('time').textContent = `${date} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} · ${modeAt(el, sk.sun.az < 180)} · moon ${Math.round(sk.moonLit * 100)}%${lt.cover < 0.15 ? ' · clear' : ''}`;
+  const playing = sound && sound.on && sound.describe;
+  $('time').textContent = `${date} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}${playing ? '' : ` · ${modeAt(el, sk.sun.az < 180)}`} · moon ${Math.round(sk.moonLit * 100)}%${lt.cover < 0.15 ? ' · clear' : ''}${sound && sound.on && sound.describe ? ` · ♪ ${sound.describe}` : ''}`;
   if (!scrubbing) $('hour').value = hr.toFixed(2);
   if (Math.floor(t) % 5 === 0 && Math.floor(t) !== lastRemember) { lastRemember = Math.floor(t); remember(); }
   requestAnimationFrame(frame);

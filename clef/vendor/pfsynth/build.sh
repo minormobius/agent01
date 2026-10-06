@@ -28,3 +28,14 @@ $CC --target=wasm32-wasi --sysroot="$SYSROOT" -O2 -DNDEBUG \
   -o pfguitar.wasm -lm
 
 echo "pfguitar.wasm: $(wc -c < pfguitar.wasm) bytes, $(gzip -c pfguitar.wasm | wc -c) gzipped"
+
+# The endless stream (studio/cycle's generative music): the piano's chain and the guitar's strings
+# behind one host, pf_stream.c, which takes notes while it renders. Ours; core/ and host/ unmodified.
+$CC --target=wasm32-wasi --sysroot="$SYSROOT" -O2 -DNDEBUG \
+  -Wl,--no-entry -Wl,--export-dynamic -Wl,--strip-all \
+  -Wl,--initial-memory=16777216 -Wl,--max-memory=268435456 \
+  -nostartfiles \
+  pf_stream.c core/pf_string.c core/pf_board.c core/pf_reverb.c host/pf_guitar.c core/pf_pluck.c \
+  -o ../../../studio/vendor/pfsynth/pfstream.wasm -lm
+
+echo "pfstream.wasm: $(wc -c < ../../../studio/vendor/pfsynth/pfstream.wasm) bytes"
