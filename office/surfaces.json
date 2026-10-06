@@ -3065,6 +3065,15 @@
    "parent": "studio"
   },
   {
+   "id": "colour cycle",
+   "name": "colour cycle",
+   "url": "https://studio.mino.mobi/cycle/",
+   "cat": "games",
+   "commits": 1,
+   "age": "hot",
+   "parent": "studio"
+  },
+  {
    "id": "attractor bodies",
    "name": "attractor bodies",
    "url": "https://studio.mino.mobi/avatar/",

@@ -577,5 +577,43 @@ console.log('\nThe Minormobius Lectures (lecture/)');
   ok(v.audio.every(Number.isFinite) && dB(l0.from, l0.to) > dB(0.5, 6) + 20, `the voice: finite, and speaking (${dB(l0.from, l0.to).toFixed(1)} dB) over the title's silence`);
 }
 
+// colour cycle (cycle/) ---------------------------------------------------------
+// A scene is an index map and a palette. What can be checked: it fits 256 colours, it is the same
+// twice, the palette moves only inside its cycles, the sun's disc travels the arc with the hour
+// (and the moon takes its place at night), stars are night-only, and the light swings the faces.
+{
+  const { generate, palette, light } = await import('../cycle/scene.js');
+  const a = generate(7), b = generate(7);
+  let maxIdx = 0; for (const v of a.index) if (v > maxIdx) maxIdx = v;
+  ok(a.used <= 256 && maxIdx < a.used && Buffer.compare(Buffer.from(a.index), Buffer.from(b.index)) === 0,
+    `cycle: a scene fits ${a.used}/256 colours, every pixel names one, and the same seed paints the same scene`);
+  ok(a.cycles.every((c) => c.lo >= 0 && c.lo + c.len <= a.used && c.len >= 3),
+    `cycle: ${a.cycles.length} cycles, each inside the palette`);
+  // turning the clock (not the hour) changes only cycling entries, and those really move
+  const inCycle = new Set(a.cycles.flatMap((c) => Array.from({ length: c.len }, (_, i) => c.lo + i)));
+  const p0 = palette(a, 15, 10), p1 = palette(a, 15, 10.37);
+  let outside = 0, inside = 0;
+  for (let i = 0; i < 256; i++) { const d = Math.abs(p0[i * 3] - p1[i * 3]) + Math.abs(p0[i * 3 + 1] - p1[i * 3 + 1]) + Math.abs(p0[i * 3 + 2] - p1[i * 3 + 2]); if (d > 0) (inCycle.has(i) ? inside++ : outside++); }
+  const win = a.entries.filter((e) => e.k === 'window').length;
+  ok(outside <= win && inside > 40, `cycle: time moves ${inside} cycling colours and nothing else (but the window's flicker)`);
+  // the sun: the brightest disc on the arc walks right to left through the day
+  const discs = a.entries.map((e, i) => (e.k === 'sun' ? i : -1)).filter((i) => i >= 0);
+  const brightest = (h) => { const p = palette(a, h, 0); let best = -1, bv = -1; for (const i of discs) { const v = p[i * 3] + p[i * 3 + 1] + p[i * 3 + 2]; if (v > bv) { bv = v; best = i; } } return [best - discs[0], bv]; };
+  const [m9] = brightest(9), [m12] = brightest(12), [m15] = brightest(15), [n0, v0] = brightest(0);
+  ok(m9 < m12 && m12 < m15 && Math.abs(m12 - (discs.length - 1) / 2) <= 2 && v0 > 600,
+    `cycle: the sun crosses its painted path (disc ${m9} → ${m12} → ${m15}); at midnight the moon is disc ${n0}`);
+  const star = a.slots.stars, sum = (p, i) => p[i * 3] + p[i * 3 + 1] + p[i * 3 + 2];
+  const sky = a.entries.findIndex((e) => e.k === 'sky' && e.e > 0.7);
+  ok(Math.abs(sum(palette(a, 12, 0), star) - sum(palette(a, 12, 0), sky)) < 60 && sum(palette(a, 0, 0), star) > sum(palette(a, 0, 0), sky) + 200,
+    'cycle: stars are sky by day and light only at night');
+  // facing: a face turned right is lit in the morning (sun on the right) and shaded in the evening
+  const faces = a.entries.map((e, i) => (e.k === 'land' && e.name === 'far' ? i : -1)).filter((i) => i >= 0);
+  const L = faces[0], Rt = faces[faces.length - 1];
+  const am = palette(a, 8, 0), pm = palette(a, 16, 0);
+  ok(sum(am, Rt) > sum(am, L) && sum(pm, L) > sum(pm, Rt), 'cycle: the faces that turn to the sun light up, and swap as it crosses');
+  const lt = light(12, a);
+  ok(lt.el > 0.99 && light(0, a).night > 0.99, 'cycle: noon is noon and midnight is night');
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

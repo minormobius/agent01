@@ -52,6 +52,7 @@ lecture/                 No. 10, The Minormobius Lectures: a documentary as a le
 grew/                    No. 9, And Still It Grew: the major-key companion to No. 8 (score.js carries the harmony, drive and two voices; grown/film*.js do the rest)
 nobody/                  No. 8, Nobody Drew It: one evolved Grown history replayed (world.js, history.js GENERATED), sung by the world's choir, a voice and piano
 grown/                   Grown (sketchbook): bodies grown organ by organ from a program (packages/attractor lib/organism.js); gl.js WebGL
+cycle/                   Colour Cycle (sketchbook): a landscape generated for a 256-colour palette; scene.js (index map + palette, pure), sound.js, main.js
 accretion/               Accretion (sketchbook): a flow that grows a geode round itself (packages/attractor lib/shell.js); gl.js WebGL
 descending/              No. 7, Daisy Bell sung by the formant voice (lib/chipsing.js); a figure descending, after Duchamp
 bommie/                  No. 6, a sitcom on a coral head: script.js (the clock), world.js (poses at t), sound.js (synth), render.js (raymarch)
@@ -473,6 +474,49 @@ README and CLAUDE.md), copied to `vendor/attractor/lib` by `scripts/sync-dataviz
   (no existing link changed). Creatures move or hold still, are looked down on a little more (pitch
   0.42), and are fitted to the stage by their extent over a gait. Lucky picks a plan a third of the time
   humanoid; the neighbours share the plan.
+
+## Colour Cycle (cycle/)
+
+A sketchbook (owner, 2026-10-06, after someone sent them Huckaby's Canvas Cycle: "procgen aesthetics
+and atmospherics in graphics and music… I think it's something new… author a scene generator").
+The technique is 8-bit colour cycling (Mark Ferrari's painted scenes): each pixel is an INDEX into a
+256-entry palette and is never redrawn; the picture moves because ranges of the palette rotate, and
+the day passes because the palette is re-lit. Ferrari's scenes are his; this uses the technique only.
+
+**The rule that makes it a look and not a filter:** the index map is authored FOR the palette. (The
+PC-98 pass on the dancers was a palette squeezed onto a full-colour render, and the owner read it as
+degradation.) What an index means is chosen by what it should do:
+
+- **phase** for water: a waterfall's index is its row (plus a per-column lag) mod 16, so turning the
+  cycle pours it; the lake's is a wobbling band (two sky-reflection sets, near and far), smoke's rises
+  with height, foam's rings move outward.
+- **facing** for rock, ground, pines, the cabin: index = which way the face turns (8 buckets, left …
+  right, Bayer-dithered from a ridged 2D height field). The palette lights faces by `lambert(nx, L)`
+  with the sun's direction for the hour, so shadows swing across the range from one painted image.
+- **the sun's path** is painted into the sky: 60 discs on an arc, one entry each, resting at the sky's
+  colour at their height (the sky ramp and the discs use the same elevation curve; mismatch shows as
+  holes). The palette lights the disc where the sun is, crossfading neighbours; the moon is the same
+  discs twelve hours round. The lake has 15 glitter columns, each lit when the sun or moon stands over
+  its stretch of arc. A halo band was tried and dropped: a lit band made unlit discs read as holes.
+- **reflections** mirror the layer above (far, snow, mid, cliff) into two tones (its shaded and lit
+  facets) × three ripple phases; they keep the facing of what they mirror, dimmed.
+- **night-only entries**: stars (a twinkle cycle), fireflies (each blinks once a cycle), the window.
+
+Budget: 253 of 256 entries (`entries.length` throws past 256). Cycles turn so many entries per BEAT
+(`perBeat`), with fractional blending between neighbours (Canvas Cycle's "blend shift"). `palette(scene,
+hour, t, flares)` is pure; `frame()` gives RGBA for stills (the selftest and the og card use it).
+
+**Sound** (sound.js, WebAudio, synthesised): the fall (louder for a wider fall, panned to its side), the
+lake lapping and wind as filtered noise; a pad changing chord every two bars in the mode the light
+chooses (Lydian night, Mixolydian dawn, Ionian day, Dorian dusk; root by biome); FM bells on the beat,
+sparser by day. Each bell is handed to the page, which flares a star at night, a glint under the sun
+by day, a firefly at dusk. While sound is on, the audio clock is the scene's clock.
+
+**The page**: the scene covers the stage with square hard pixels (drag to pan when cropped, as on a
+phone held upright). Day speed: real time (wall clock), 4 min, 1 min, held; an hour scrubber; a palette
+strip with the cycles marked; `#seed=N&h=H&speed=S` (S seconds per day, 0 real time, −1 held). Four
+biomes (alpine, canyon mesas, autumn, alien with a turned sky). Generation ~0.2 s; 60 fps in headless
+Chromium at 1280×720 (CPU canvas, 230k lookups a frame). Not listened to here; not seen on a phone.
 
 ## Accretion (accretion/), and packages/attractor/lib/shell.js
 

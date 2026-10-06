@@ -4605,6 +4605,23 @@
       ]
     },
     {
+      "n": "colour cycle",
+      "u": "https://studio.mino.mobi/cycle/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Landscapes generated for an 8-bit palette, after Mark Ferrari's colour-cycling art: nothing is ever redrawn. Water pours and the lake shimmers because the palette turns; the sun crosses a path painted into the sky and the faces of the mountains swing from light to shade because the palette is re-lit hour by hour. Its music keeps the same beat, and every bell lights a star.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
       "n": "attractor bodies",
       "u": "https://studio.mino.mobi/avatar/",
       "c": "games",
