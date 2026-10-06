@@ -28,8 +28,11 @@ export const NET_TOOLS = ['WebFetch', 'WebSearch'];
 // the account door), never as a value it could print.
 export const SESSION_WITHHELD = ['DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'MINIPHIM_APP_PASSWORD', 'JEV_KEY', 'TYPESAFE_API_KEY',
   'MAIL_LAB_TOKEN', 'GITHUB_TOKEN', 'GH_TOKEN', 'GH_PUSH_TOKEN', 'CLOUDFLARE_API_TOKEN'];
-export const WORK_ALLOW = ['Read', 'Glob', 'Grep', 'Edit', 'Write',
-  'Bash(node:*)', 'Bash(ls:*)', 'Bash(cat:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(wc:*)', 'Bash(grep:*)', 'Bash(sort:*)'];
+// The whole shell (2026-10-06, the person: unhobble them; the souls couldn't start Chromium, make a
+// directory or copy a file). The command list was never the boundary, since node:* already runs
+// anything: what holds is the throwaway runner, the keys withheld from the environment
+// (SESSION_WITHHELD) and the redactor on everything written back.
+export const WORK_ALLOW = ['Read', 'Glob', 'Grep', 'Edit', 'Write', 'Bash'];
 
 import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';

@@ -1,6 +1,6 @@
 // town.selftest.mjs — what may leave the account, held to the souls' own protocol and the caps.
 import assert from 'node:assert/strict';
-import { decide, draftHash, factsOf, publish, CAPS, POST } from './town.mjs';
+import { decide, draftHash, factsOf, publish, CAPS, POST, facetsFor, cardUri } from './town.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -127,4 +127,27 @@ assert.ok(create.every((c) => c.body.repo === DID && c.body.collection === POST)
   await publish(cd.out, { password: 'pw', now, fetchImpl: ifetch, render: async (img) => { got = img; return { png: new Uint8Array([1]), width: 1280, height: 960 }; } });
   assert.deepEqual([got.tree, got.view], [tree, 'iso']);
 }
-console.log('miniphim town selftest: second-part yes on the exact hash, veto, signature, links, length, posts/replies/per-author caps, PAUSED, retraction, facts, records, images (hash, alt, embed)');
+
+// Links: facets at the right UTF-8 bytes (an emoji before the link), trailing punctuation left out,
+// mentions resolved; the card is the first link unless the draft says otherwise; it reaches the record.
+{
+  const text = '🔑 see https://minomobi.com/miniphim/keyholder/. Ask @modalmobius.delve.town — Modulo';
+  const f = await facetsFor(text, { resolve: async (h) => (h === 'modalmobius.delve.town' ? 'did:plc:me' : null) });
+  const b = new TextEncoder().encode(text), slice = (x) => new TextDecoder().decode(b.slice(x.index.byteStart, x.index.byteEnd));
+  assert.deepEqual(f.map((x) => [x.features[0].$type.split('#')[1], slice(x)]), [['link', 'https://minomobi.com/miniphim/keyholder/'], ['mention', '@modalmobius.delve.town']]);
+  assert.equal(cardUri({ text }), 'https://minomobi.com/miniphim/keyholder/');
+  assert.equal(cardUri({ text, card: false }), null); assert.equal(cardUri({ text, images: [{}] }), null);
+  assert.notEqual(draftHash({ kind: 'post', text }), draftHash({ kind: 'post', text, card: false }), 'choosing no card is in the hash');
+  const lcalls = [];
+  const lfetch = async (url, o = {}) => { lcalls.push({ url: String(url), body: o.body });
+    if (String(url).includes('createSession')) return { ok: true, json: async () => ({ did: DID, accessJwt: 't' }) };
+    if (String(url).includes('resolveHandle')) return { ok: true, json: async () => ({ did: 'did:plc:me' }) };
+    if (String(url).startsWith('https://minomobi.com/')) return { ok: true, text: async () => '<head><title>t</title><meta property="og:title" content="keyholder &amp; co"><meta property="og:description" content="who can rewrite a name"></head>' };
+    return { ok: true, json: async () => ({ uri: `at://${DID}/${POST}/l`, cid: 'cid' }) }; };
+  const d = { id: 'l1', writer: 'modulo', kind: 'post', text, hash: 'x', approved_by: 'mozzie', images: [] };
+  await publish([d], { password: 'pw', now, fetchImpl: lfetch });
+  const rec = JSON.parse(lcalls.find((c) => c.url.endsWith('createRecord')).body).record;
+  assert.equal(rec.facets.length, 2);
+  assert.deepEqual(rec.embed, { $type: 'town.delve.embed.external', external: { uri: 'https://minomobi.com/miniphim/keyholder/', title: 'keyholder & co', description: 'who can rewrite a name' } });
+}
+console.log('miniphim town selftest: second-part yes on the exact hash, veto, signature, links, length, posts/replies/per-author caps, PAUSED, retraction, facts, records, images (hash, alt, embed), links (facets, cards)');

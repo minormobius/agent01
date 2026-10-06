@@ -29,7 +29,7 @@ const hours = (a, b) => (Date.parse(b) - Date.parse(a)) / 36e5;
 export const sha16 = (s) => createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
 export function draftHash(d, files = {}) {
   const images = (Array.isArray(d.images) ? d.images : []).map((i) => ({ file: i?.file ?? null, alt: i?.alt ?? '', sha: sha16(files[i?.file ?? i?.cad] ?? ''), ...(i?.cad ? { cad: i.cad, view: i.view || 'iso' } : {}) }));
-  const canon = JSON.stringify({ kind: d.kind, text: d.text ?? null, reply: d.reply ? { uri: d.reply.uri, root: d.reply.root?.uri ?? d.reply.uri } : null, target: d.target ?? null, ...(images.length ? { images } : {}) });
+  const canon = JSON.stringify({ kind: d.kind, text: d.text ?? null, reply: d.reply ? { uri: d.reply.uri, root: d.reply.root?.uri ?? d.reply.uri } : null, target: d.target ?? null, ...(images.length ? { images } : {}), ...(d.card !== undefined ? { card: d.card } : {}) });
   return createHash('sha256').update(canon).digest('hex').slice(0, 16);
 }
 export const IMAGE_MAX = 4, SVG_MAX = 500_000;
@@ -162,6 +162,54 @@ export function decide(drafts, approvals, { now, sent = [], paused = false, ment
   return { out, held };
 }
 
+// ---- links ------------------------------------------------------------------------------
+// Rich text the way the town writes it (town.delve.richtext.facet): every URL in the text becomes a
+// clickable link, every @handle a mention. Offsets are UTF-8 bytes. Derived from the text alone, so
+// the hash on the text already covers them.
+const enc = new TextEncoder();
+const byteAt = (text, i) => enc.encode(text.slice(0, i)).length;
+export const urlsIn = (text) => [...String(text).matchAll(/https?:\/\/[^\s<>"']+/g)].map((m) => {
+  const u = m[0].replace(/[.,;:!?)\]]+$/, '');
+  return { uri: u, start: m.index, end: m.index + u.length };
+});
+export async function facetsFor(text, { resolve = async () => null } = {}) {
+  const facets = urlsIn(text).map((l) => ({ $type: 'town.delve.richtext.facet', index: { byteStart: byteAt(text, l.start), byteEnd: byteAt(text, l.end) }, features: [{ $type: 'town.delve.richtext.facet#link', uri: l.uri }] }));
+  for (const m of String(text).matchAll(/(^|[\s(])@([a-z0-9][a-z0-9.-]*\.[a-z]{2,})/gi)) {
+    const start = m.index + m[1].length, end = start + 1 + m[2].length;
+    const did = await resolve(m[2].toLowerCase()).catch(() => null);
+    if (did) facets.push({ $type: 'town.delve.richtext.facet', index: { byteStart: byteAt(text, start), byteEnd: byteAt(text, end) }, features: [{ $type: 'town.delve.richtext.facet#mention', did }] });
+  }
+  return facets.sort((a, b) => a.index.byteStart - b.index.byteStart);
+}
+
+// A link card (town.delve.embed.external) for the post's first link, or the one the draft names
+// ("card": "<url>"); "card": false for none. Title, description and thumbnail come from the page's
+// own og: tags (or <title>), fetched when the post goes out. A post with images carries no card.
+const attr = (html, prop) => (html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]*content=["']([^"']*)`, 'i')) || html.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${prop}["']`, 'i')) || [])[1];
+const unent = (s) => String(s || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+export function cardUri(d) {
+  if (d.card === false || d.images?.length) return null;
+  if (typeof d.card === 'string') return d.card;
+  return urlsIn(d.text || '')[0]?.uri || null;
+}
+export async function linkCard(uri, { fetchImpl = fetch, upload = null } = {}) {
+  const r = await fetchImpl(uri, { headers: { 'user-agent': 'miniphim-card/1 (+https://del.mino.mobi/disclosure/)', accept: 'text/html' }, redirect: 'follow' });
+  const html = r.ok ? (await r.text()).slice(0, 400_000) : '';
+  const title = unent(attr(html, 'og:title') || (html.match(/<title[^>]*>([^<]*)<\/title>/i) || [])[1] || uri).slice(0, 300);
+  const description = unent(attr(html, 'og:description') || attr(html, 'description') || '').slice(0, 1000);
+  const external = { uri, title, description };
+  const img = attr(html, 'og:image');
+  if (img && upload) {
+    try {
+      const ir = await fetchImpl(new URL(img, uri).href);
+      const type = (ir.headers.get?.('content-type') || '').split(';')[0];
+      const bytes = new Uint8Array(await ir.arrayBuffer());
+      if (ir.ok && ['image/png', 'image/jpeg'].includes(type) && bytes.length < 1_000_000) external.thumb = await upload(bytes, type);
+    } catch { /* a card without a picture is still a card */ }
+  }
+  return { $type: 'town.delve.embed.external', external };
+}
+
 // render({ svg } | { tree, view }) → { png: Uint8Array, width, height }: supplied by the lab (lib/town-run.mjs).
 export async function publish(decided, { password, now = new Date().toISOString(), fetchImpl = fetch, render = null } = {}) {
   if (!decided.length) return [];
@@ -186,7 +234,13 @@ export async function publish(decided, { password, now = new Date().toISOString(
         }
         embed = { $type: 'town.delve.embed.images', images };
       }
-      const record = { $type: POST, text: d.text, createdAt: now, langs: ['en'],
+      const card = cardUri(d);
+      if (!embed && card) {
+        try { embed = await linkCard(card, { fetchImpl, upload: async (bytes, type) => (await xrpc('com.atproto.repo.uploadBlob', { method: 'POST', token, fetchImpl, bytes, contentType: type })).blob }); }
+        catch { /* the post goes out with its link, without a card */ }
+      }
+      const facets = await facetsFor(d.text, { resolve: async (h) => (await xrpc('com.atproto.identity.resolveHandle', { body: { handle: h }, base: 'https://api.delve.town', fetchImpl })).did });
+      const record = { $type: POST, text: d.text, createdAt: now, langs: ['en'], ...(facets.length ? { facets } : {}),
         ...(d.kind === 'reply' ? { reply: { root: d.root, parent: d.parent } } : {}), ...(embed ? { embed } : {}) };
       const r = await xrpc('com.atproto.repo.createRecord', { method: 'POST', token, fetchImpl, body: { repo: DID, collection: POST, record } });
       done.push({ id: d.id, kind: d.kind, uri: r.uri, cid: r.cid, at: now, writer: d.writer, approved_by: d.approved_by, hash: d.hash, author_did: d.author_did || null, ...(d.images?.length ? { images: d.images.map((i) => i.file || `${i.cad}#${i.view}`) } : {}) });
