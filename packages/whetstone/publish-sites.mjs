@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readTree, writeTree } from './lib/commons.mjs';
 import { TENANT, BASE, LIVE, README, SLUG, EXT } from './lib/www.mjs';
+import { planApi } from './lib/house.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -90,12 +91,25 @@ export async function publishSites({ runDir, www, home = null, gateScript = join
     result = { changed: g.ok, ok: g.ok, sites, errors: g.errors };
   }
   result.skipped = skipped;
+  // The house's API (lib/house.mjs): routes with a passing test and two parts' signatures, written
+  // to miniphim/api/ beside site/, with the routes table the worker imports.
+  let api = null;
+  if (home) {
+    api = planApi(commons);
+    const apiDir = join(dirname(home), 'api');
+    const was = existsSync(apiDir) ? readTree(apiDir) : {};
+    if (JSON.stringify(Object.entries(was).sort()) !== JSON.stringify(Object.entries(api.files).sort())) {
+      rmSync(apiDir, { recursive: true, force: true }); writeTree(apiDir, api.files); result.changed = true;
+    }
+    result.api = { live: api.routes.map((r) => r.name), held: api.held };
+  }
   if (rendered.length) result.og = rendered;
   const live = `# LIVE: what the lab did with www/ (${now.slice(0, 16)}Z)\n\n` +
     (result.ok
       ? (result.changed ? `Published. It deploys within a few minutes of this run ending; check it with WebFetch (or open it in Chromium).\n\n` : `${result.note || 'Nothing changed.'}\n\n`) +
         `- the corner: ${BASE}\n${sites.map((s) => `- ${s}: ${BASE}${s}/`).join('\n')}\n`
       : `**Not published.** The content gate refused this run's www/, so the last good version stays up.\n\n${result.errors.map((e) => `- ${e}`).join('\n')}\n`) +
+    (api ? `\nAPI (house/api/): ${api.routes.length ? api.routes.map((r) => `${BASE}api/${r.name}/ (signed by ${r.signed.join(', ')})`).join(', ') : 'no routes live'}\n${api.held.map((h) => `- held: ${h.name}: ${h.why}`).join('\n')}${api.held.length ? '\n' : ''}` : '') +
     (rendered.length ? `\nCard pictures:\n${rendered.map((s) => `- ${s}`).join('\n')}\n` : '') +
     (skipped.length ? `\nLeft out:\n${skipped.map((s) => `- ${s}`).join('\n')}\n` : '');
   mkdirSync(join(commonsDir, 'www'), { recursive: true });
@@ -108,6 +122,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const arg = (k) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : null; };
   const runDir = arg('run'), www = arg('www'), home = arg('home');
   if (!runDir || !(www || home)) { console.error('usage: publish-sites.mjs --run <run dir> (--home miniphim/site | --www <lab/www>)'); process.exit(2); }
-  if (!existsSync(join(runDir, 'commons', 'www'))) { console.log(JSON.stringify({ changed: false, ok: true, sites: [], errors: [], note: 'no www/' })); process.exit(0); }
+  if (!existsSync(join(runDir, 'commons', 'www')) && !existsSync(join(runDir, 'commons', 'house'))) { console.log(JSON.stringify({ changed: false, ok: true, sites: [], errors: [], note: 'no www/' })); process.exit(0); }
   console.log(JSON.stringify(await publishSites({ runDir, www, home, ...(arg('gate') ? { gateScript: arg('gate') } : {}) })));
 }

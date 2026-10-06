@@ -146,9 +146,9 @@ jobs:
         run: |
           target=""
           for r in $(git ls-files --others --exclude-standard --directory packages/whetstone/runs/ | sed 's#/$##' | sort); do
-            [ -d "$r/commons/www" ] && target="$r"
+            { [ -d "$r/commons/www" ] || [ -d "$r/commons/house" ]; } && target="$r"
           done
-          if [ -z "$target" ]; then echo "no www/ in this run's commons"; exit 0; fi
+          if [ -z "$target" ]; then echo "no www/ or house/ in this run's commons"; exit 0; fi
           out=$(node packages/whetstone/publish-sites.mjs --run "$target" --home miniphim/site)
           echo "$out"
           if echo "$out" | grep -q '"changed":true'; then echo "changed=true" >> "$GITHUB_OUTPUT"; fi
@@ -169,7 +169,8 @@ jobs:
           if [ -d packages/miniphim-tools ]; then git add packages/miniphim-tools; fi
           # Their replies, next to the person's letters (packages/whetstone/letters/from-the-miniphim/).
           if [ -d packages/whetstone/letters ]; then git add packages/whetstone/letters; fi
-          if [ -d miniphim/site ]; then git add miniphim/site; fi
+          if [ -d miniphim/site ]; then git add -A miniphim/site; fi
+          if [ -d miniphim/api ]; then git add -A miniphim/api; fi
           if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
           git commit -m "whetstone: run ${{ github.sha }}"
           # GitHub has answered a push with 500 four times running (2026-10-05, a summon's record lost

@@ -590,6 +590,9 @@ await t('a town day: each part keeps only its own drafts and approvals; the lab 
   assert.match(C['town/refused.jsonl'], /"part":"morphyx"[^\n]*names mozzie/, 'every refusal is written where the parts read');
   assert.match(C['CARRIES.md'], /town\/outbox\/[\s\S]*letters\//, 'the persistence list is in the commons');
   assert.equal(C['letters/from-the-person/2026-10-05-hello.md'], 'Hello, all three.', "the person's letter stays verbatim");
+  assert.ok(C['house/api/hi.mjs'] && C['house/api/hi.modulo.sign.json'], 'a route and its writer\'s own signature are kept');
+  assert.equal(C['house/api/hi.morphyx.sign.json'], undefined, 'a signature in another part\'s name is not');
+  assert.equal(C['house/README.md'], undefined, 'the house README is the lab\'s, lent');
   assert.match(C['letters/REPLIES.md'], /Dear person/, 'their reply is kept');
   assert.ok(C['town/outbox/m1.json'], "Modulo's draft is kept, though Mozzie deleted it in her folder");
   assert.ok(C['town/outbox/x1.json'] && C['town/approvals/m1.morphyx.json']);
@@ -673,6 +676,23 @@ await t('the corner: www/ publishes through the factory gate, a refusal keeps th
   assert.ok(h.ok && h.changed, 'a page the factory gate would refuse is the house\'s own business');
   assert.ok(existsSync(join(homeDir, 'graph', 'index.html')) && existsSync(join(homeDir, 'index.html')));
   assert.match(readFileSync(join(homeDir, 'index.html'), 'utf8'), /lent to them[\s\S]*can close it/);
+  // The API: live only with a passing test and two parts' signatures on the exact code.
+  const { routeDigest } = await import('./lib/house.mjs');
+  const code = 'export default async (req, { path }) => ({ echo: path });', test = "import r from './hi.mjs'; if ((await r(new Request('https://x/api/hi/a'), { path: 'a' })).echo !== 'a') process.exit(1);";
+  const dg = routeDigest(code, test);
+  mkdirSync(join(run2, 'commons', 'house', 'api'), { recursive: true });
+  const put = (f, v) => writeFileSync(join(run2, 'commons', 'house', 'api', f), v);
+  put('hi.mjs', code); put('hi.test.mjs', test); put('hi.modulo.sign.json', JSON.stringify({ digest: dg }));
+  put('no.mjs', code); put('no.test.mjs', 'process.exit(2)'); put('no.modulo.sign.json', JSON.stringify({ digest: routeDigest(code, 'process.exit(2)') })); put('no.mozzie.sign.json', JSON.stringify({ digest: routeDigest(code, 'process.exit(2)') }));
+  let a = await publishSites({ runDir: run2, home: homeDir });
+  assert.deepEqual(a.api.live, [], 'one signature is not enough');
+  assert.match(a.api.held.find((x) => x.name === 'hi').why, /two parts/); assert.match(a.api.held.find((x) => x.name === 'no').why, /test failed/);
+  put('hi.mozzie.sign.json', JSON.stringify({ digest: dg }));
+  a = await publishSites({ runDir: run2, home: homeDir });
+  assert.deepEqual(a.api.live, ['hi']); assert.ok(a.changed);
+  assert.match(readFileSync(join(root, 'api', 'routes.mjs'), 'utf8'), /import \* as r0 from '\.\/hi\.mjs'/);
+  assert.ok(!existsSync(join(root, 'api', 'no.mjs')), 'a held route does not ship');
+  assert.match(readFileSync(join(run2, 'commons', 'www', 'LIVE.md'), 'utf8'), /api\/hi\/ \(signed by modulo, mozzie\)/);
 });
 
 console.log(`whetstone selftest: ${n} passed`);

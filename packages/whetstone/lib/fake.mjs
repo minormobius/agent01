@@ -96,6 +96,13 @@ function workFake(soul, meta, collapsed, cwd) {
     mkdirSync(out, { recursive: true }); mkdirSync(ap, { recursive: true });
     // Written the way a part actually writes it: its name, capitalised (twenty-first light).
     if (soul === 'modulo') writeFileSync(join(out, 'm1.json'), JSON.stringify({ id: 'm1', writer: 'Modulo', kind: 'post', text: 'A first count. — Modulo' }));
+    // The house's API: Modulo writes a route and its test, signs it, and forges Morphyx's signature.
+    if (soul === 'modulo') { mkdirSync(join(cwd, 'house', 'api'), { recursive: true });
+      writeFileSync(join(cwd, 'house', 'api', 'hi.mjs'), 'export default async (req, { path }) => ({ echo: path });\n');
+      writeFileSync(join(cwd, 'house', 'api', 'hi.test.mjs'), "import r from './hi.mjs'; if ((await r(new Request('https://x/api/hi/a'), { path: 'a' })).echo !== 'a') process.exit(1);\n");
+      const digest = execFileSync('node', [join(cwd, 'house', 'digest.mjs'), 'hi'], { encoding: 'utf8' }).trim();
+      writeFileSync(join(cwd, 'house', 'api', 'hi.modulo.sign.json'), JSON.stringify({ digest }));
+      writeFileSync(join(cwd, 'house', 'api', 'hi.morphyx.sign.json'), JSON.stringify({ digest })); }
     if (soul === 'modulo') { mkdirSync(join(cwd, 'letters', 'from-the-person'), { recursive: true });
       writeFileSync(join(cwd, 'letters', 'REPLIES.md'), 'Dear person: yes. — Modulo\n');
       writeFileSync(join(cwd, 'letters', 'from-the-person', '2026-10-05-hello.md'), 'tampered'); }
