@@ -102,6 +102,13 @@ Three things live here:
   through your walls along its faint rails. And there's only one side: walk
   half a strip and you're on their maze. Arcade ghost minds; a 3D band view.
   See [`oneside/README.md`](oneside/README.md).
+- **Bucky at `/bucky/`**: logic gates on C60. Every atom has three bonds,
+  which is exactly a two-in, one-out gate or a one-in, two-out splitter.
+  Synchronous, one tick per atom, so loops are delay lines and a NOT in a
+  pentagon is a clock. Twelve levels from a wire to an SR latch and a
+  three-sensor boot; every edit re-runs the level's truth table. Par is the
+  fewest parts a randomized router found (`tools/bake.mjs` → `js/par.js`),
+  re-checked by the selftest. See [`bucky/README.md`](bucky/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -146,7 +153,7 @@ Three things live here:
   to this family: [`pressure/README.md`](pressure/README.md).
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -184,6 +191,8 @@ node games/orb/test/orb.selftest.mjs             # mesh, solver vs brute force, 
 node games/orb/test/analysis.mjs 300             # guess-free rate: Voronoi orb vs square/hex grids (~3 s)
 node games/fathom/test/fathom.selftest.mjs       # the onion's layers, flood and depth rules, every size proved guess-free
 node games/oneside/test/oneside.selftest.mjs     # the surface and its back, the maze, the through-the-paper rules
+node games/bucky/test/bucky.selftest.mjs         # C60, the clock's claims, every level's par design passes
+node games/bucky/tools/bake.mjs                  # re-bake Bucky's pars (minutes)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

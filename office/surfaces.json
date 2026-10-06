@@ -2516,6 +2516,15 @@
    "parent": "games"
   },
   {
+   "id": "bucky",
+   "name": "bucky",
+   "url": "https://games.mino.mobi/bucky/",
+   "cat": "games",
+   "commits": 3,
+   "age": "hot",
+   "parent": "games"
+  },
+  {
    "id": "oneside",
    "name": "oneside",
    "url": "https://games.mino.mobi/oneside/",
