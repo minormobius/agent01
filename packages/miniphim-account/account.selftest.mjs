@@ -9,21 +9,21 @@ for (const [nsid, body] of [
   ['com.atproto.repo.createRecord', { repo: 'did:plc:someoneelse', collection: 'town.delve.feed.post', record: {} }],
   ['com.atproto.repo.createRecord', { repo: 'did:plc:someoneelse', collection: 'town.delve.feed.like', record: {} }],
   ['com.atproto.repo.deleteRecord', { repo: 'did:plc:someoneelse', collection: 'town.delve.graph.follow', rkey: 'x' }],
-  ['com.atproto.repo.listRecords', { repo: 'did:plc:someoneelse', collection: 'town.delve.graph.follow' }],
-  ['com.atproto.repo.listRecords', { repo: DID, collection: 'town.delve.feed.post' }],
-  ['com.atproto.repo.createRecord', { repo: DID, collection: 'town.delve.feed.repost', record: {} }],
-  ['com.atproto.repo.createRecord', { repo: DID, collection: 'town.delve.graph.block', record: {} }],
-  ['com.atproto.repo.createRecord', { repo: DID, collection: 'town.delve.graph.list', record: {} }],
-  ['town.delve.graph.muteActor', {}],
-  ['com.atproto.repo.deleteRecord', { repo: DID, collection: PROFILE, rkey: 'self' }],
-  ['com.atproto.repo.putRecord', { repo: DID, collection: 'town.delve.feed.post', rkey: 'x' }],
   ['com.atproto.repo.putRecord', { repo: 'did:plc:someoneelse', collection: PROFILE, rkey: 'self' }],
+  ['com.atproto.repo.applyWrites', { repo: 'did:plc:someoneelse', writes: [] }],
+  ['com.atproto.repo.listRecords', { repo: 'did:plc:someoneelse', collection: 'town.delve.graph.follow' }],
   ['com.atproto.server.createAppPassword', {}],
-  ['com.atproto.repo.uploadBlob', { contentType: 'text/html', size: 100 }],
-  ['com.atproto.repo.uploadBlob', { contentType: 'image/png', size: 2_000_000 }],
+  ['com.atproto.server.deleteAccount', {}],
+  ['com.atproto.server.updateEmail', {}],
+  ['com.atproto.identity.updateHandle', { handle: 'x.delve.town' }],
+  ['com.atproto.repo.uploadBlob', { contentType: 'image/png', size: 6_000_000 }],
+  ['town.delve.graph.muteActor', {}],
 ]) await assert.rejects(() => xrpc(nsid, { method: 'POST', body, fetchImpl: fake }), /refused before the network/, nsid);
 assert.equal(net, 0, 'nothing refused reached the network');
-for (const c of ['town.delve.graph.follow', 'town.delve.feed.like']) for (const m of ['createRecord', 'deleteRecord', 'listRecords']) assert.doesNotThrow(() => allow(`com.atproto.repo.${m}`, { repo: DID, collection: c }), `${m} ${c} in our own repo`);
+for (const c of ['town.delve.graph.follow', 'town.delve.feed.like', 'town.delve.feed.repost', 'town.delve.graph.block', 'com.minomobi.garden.plot', PROFILE, 'town.delve.feed.post'])
+  for (const m of ['createRecord', 'putRecord', 'deleteRecord', 'getRecord', 'listRecords']) assert.doesNotThrow(() => allow(`com.atproto.repo.${m}`, { repo: DID, collection: c }), `${m} ${c} in our own repo`);
+assert.doesNotThrow(() => allow('com.atproto.repo.applyWrites', { repo: DID, writes: [] }));
+assert.doesNotThrow(() => allow('com.atproto.repo.uploadBlob', { contentType: 'application/json', size: 1000 }));
 assert.doesNotThrow(() => allow('town.delve.graph.getFollows', { actor: 'modalmobius.delve.town' }));
 assert.doesNotThrow(() => allow('com.atproto.repo.putRecord', { repo: DID, collection: PROFILE, rkey: 'self' }));
 assert.doesNotThrow(() => allow('com.atproto.repo.uploadBlob', { contentType: 'image/png', size: 10896 }));
@@ -42,4 +42,4 @@ assert.match(want.description, /modalmobius\.delve\.town/);
 assert.match(want.description, /No person reviews posts/);
 const withFace = merged(current, want, { $type: 'blob', ref: { $link: 'bafkface' }, mimeType: 'image/png', size: face.length });
 assert.equal(withFace.avatar.ref.$link, 'bafkface'); assert.deepEqual(withFace.labels, current.labels);
-console.log('miniphim account selftest: the door refuses 15 kinds of call before the network; the profile fits and keeps the bot label');
+console.log('miniphim account selftest: the door refuses 12 kinds of call (other repos, the account itself) before the network; the profile fits and keeps the bot label');

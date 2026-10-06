@@ -10,5 +10,7 @@
   "follows_per_day": 30,
   "likes_per_day": 100,
   "reads_per_run": 2000,
-  "operator_did": "did:plc:nhlcvrqwh7hwhvmgxbut6c2f"
+  "operator_did": "did:plc:nhlcvrqwh7hwhvmgxbut6c2f",
+  "repo_writes_per_day": 500,
+  "posts_via_outbox": true
 }

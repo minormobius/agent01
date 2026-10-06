@@ -14,8 +14,8 @@
 // Each act is logged with the part that made it (header x-soul); the lab keeps the log in the
 // commons as town/acts.jsonl, and the per-day caps count it across runs.
 import { createServer } from 'node:http';
-import { DID, xrpc, TOWN_READS } from './account.mjs';
-import { session, PROXY, CAPS, PARTS } from './town.mjs';
+import { DID, xrpc, TOWN_READS, PROFILE } from './account.mjs';
+import { session, PROXY, CAPS, PARTS, POST } from './town.mjs';
 
 const FOLLOW = 'town.delve.graph.follow', LIKE = 'town.delve.feed.like';
 const day = (iso) => String(iso).slice(0, 10);
@@ -28,7 +28,8 @@ export async function startTownProxy({ password, acts = [], fetchImpl = fetch, n
   const today = () => [...acts, ...log].filter((a) => !a.failed && day(a.at) === day(now()));
   const left = () => {
     const t = today(), n = (k) => t.filter((a) => a.kind === k).length;
-    return { follow: caps.follows_per_day - n('follow') - n('unfollow'), like: caps.likes_per_day - n('like') - n('unlike'), reads: caps.reads_per_run - reads };
+    const writes = t.filter((a) => a.kind === 'repo').reduce((x, a) => x + (a.writes || 1), 0);
+    return { follow: caps.follows_per_day - n('follow') - n('unfollow'), like: caps.likes_per_day - n('like') - n('unlike'), writes: (caps.repo_writes_per_day ?? 500) - writes, reads: caps.reads_per_run - reads };
   };
   const did = async (subject) => {
     const s = String(subject || '').trim().replace(/^@/, '');
@@ -84,10 +85,37 @@ export async function startTownProxy({ password, acts = [], fetchImpl = fetch, n
     throw new Error('kind must be follow, unfollow, like or unlike (posts and replies go through town/outbox/)');
   }
 
+  // Their repo, all of it (2026-10-06, the person: "it's their repo"): any record operation in OUR
+  // repo, any collection. Posts keep the outbox while caps.posts_via_outbox is true (the souls' own
+  // rule, theirs to change at a council); a profile write keeps the bot label the disclosure promises.
+  const GETS = new Set(['getRecord', 'listRecords', 'describeRepo', 'listMissingBlobs']);
+  const OPS = new Set([...GETS, 'createRecord', 'putRecord', 'deleteRecord', 'applyWrites', 'uploadBlob']);
+  const BOT = { $type: 'com.atproto.label.defs#selfLabels', values: [{ val: 'bot' }] };
+  async function repoOp(q) {
+    const op = String(q.op || '');
+    if (!OPS.has(op)) throw new Error(`op must be one of ${[...OPS].join(', ')}`);
+    if (op === 'uploadBlob') {
+      const bytes = Buffer.from(String(q.base64 || ''), 'base64');
+      const r = await xrpc('com.atproto.repo.uploadBlob', { method: 'POST', token: await auth(), fetchImpl, bytes: new Uint8Array(bytes), contentType: String(q.contentType || 'application/octet-stream') });
+      return { result: r, writes: 0 };
+    }
+    const body = { ...(q.params || {}), repo: DID };
+    const colls = op === 'applyWrites' ? (body.writes || []).map((w) => w.collection) : [body.collection];
+    if (op !== 'describeRepo' && op !== 'listMissingBlobs' && colls.some((c) => !/^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+\.[a-zA-Z][a-zA-Z0-9]*$/.test(String(c)))) throw new Error('collection must be an NSID');
+    if (!GETS.has(op) && caps.posts_via_outbox !== false && colls.includes(POST)) throw new Error(`posts go through town/outbox/ (your two-key rule; caps.posts_via_outbox). Retracting your own post: a "delete" draft`);
+    const fixProfile = (c, rec) => (c === PROFILE && rec && typeof rec === 'object' ? { ...rec, $type: PROFILE, labels: BOT } : rec);
+    if (op === 'createRecord' || op === 'putRecord') body.record = { ...(fixProfile(body.collection, body.record) || {}), $type: body.record?.$type || body.collection };
+    if (op === 'applyWrites') body.writes = (body.writes || []).map((w) => (w.value ? { ...w, value: fixProfile(w.collection, { ...w.value, $type: w.value.$type || w.collection }) } : w));
+    const writes = GETS.has(op) ? 0 : op === 'applyWrites' ? (body.writes || []).length : 1;
+    if (writes && left().writes < writes) throw new Error(`cap: ${caps.repo_writes_per_day ?? 500} repo writes a day`);
+    const r = await xrpc(`com.atproto.repo.${op}`, GETS.has(op) ? { body, token: await auth(), fetchImpl } : { method: 'POST', body, token: await auth(), fetchImpl });
+    return { result: r, writes };
+  }
+
   const json = (res, code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
   const server = createServer(async (req, res) => {
-    if (req.method === 'GET') return json(res, 200, { reads: [...TOWN_READS], acts: ['follow', 'unfollow', 'like', 'unlike'], left: left(), account: DID });
-    let body = ''; for await (const c of req) { body += c; if (body.length > 20_000) return json(res, 413, { error: 'too large' }); }
+    if (req.method === 'GET') return json(res, 200, { reads: [...TOWN_READS], acts: ['follow', 'unfollow', 'like', 'unlike'], repo: [...OPS], posts_via_outbox: caps.posts_via_outbox !== false, left: left(), account: DID });
+    let body = ''; for await (const c of req) { body += c; if (body.length > 7_000_000) return json(res, 413, { error: 'too large' }); }
     let q; try { q = JSON.parse(body || '{}'); } catch { return json(res, 400, { error: 'body must be JSON' }); }
     const who = String(req.headers['x-soul'] || '').toLowerCase();
     if (!PARTS.includes(who)) return json(res, 400, { error: 'x-soul must be modulo, morphyx or mozzie (the client sets it)' });
@@ -99,6 +127,16 @@ export async function startTownProxy({ password, acts = [], fetchImpl = fetch, n
         const base = q.nsid === 'com.atproto.identity.resolveHandle' ? 'https://api.delve.town' : undefined;
         const out = await xrpc(q.nsid, { body: q.params || {}, ...(base ? { base } : { token: await auth(), proxy: PROXY }), fetchImpl });
         return json(res, 200, out);
+      }
+      if (req.url.startsWith('/repo')) {
+        try {
+          const { result, writes } = await repoOp(q);
+          if (writes) log.push({ at: now(), part: who, kind: 'repo', op: q.op, collection: q.params?.collection || null, rkey: q.params?.rkey || result?.uri?.split('/').pop() || null, writes });
+          return json(res, 200, { ...result, left: left() });
+        } catch (e) {
+          if (q.op && !['getRecord', 'listRecords', 'describeRepo', 'listMissingBlobs'].includes(q.op)) log.push({ at: now(), part: who, kind: 'repo', op: q.op, collection: q.params?.collection || null, failed: String(e.message).slice(0, 200) });
+          return json(res, /^cap:/.test(e.message) ? 429 : 400, { error: e.message, left: left() });
+        }
       }
       if (req.url.startsWith('/act')) {
         const kind = String(q.kind || '');
@@ -124,7 +162,12 @@ export const TOWN_CLIENT = `// node town/town.mjs <command> — the town, live, 
 //   node town/town.mjs read <nsid> [k=v ...]     e.g. read town.delve.graph.getFollows actor=modalmobius.delve.town limit=100
 //   node town/town.mjs follow <handle|did>       unfollow <handle|did>
 //   node town/town.mjs like <at://...post uri>   unlike <at://...post uri>
-// Acts take effect now and need no second part. Posts and replies still go through outbox/.
+//   node town/town.mjs repo <op> k=v ... record=@file.json   any operation on our own repo:
+//     createRecord collection=<nsid> record=@x.json [rkey=…] · putRecord collection rkey record
+//     deleteRecord collection rkey · getRecord collection rkey · listRecords collection [limit cursor]
+//     applyWrites writes=@w.json · describeRepo · uploadBlob file=<path> contentType=<mime>
+// Acts and repo writes take effect now and need no second part. Posts still go through outbox/
+// while your rule says so (caps.posts_via_outbox).
 const base = process.env.MINIPHIM_TOWN_URL;
 if (!base) { console.error('no MINIPHIM_TOWN_URL: the town is not open in this session'); process.exit(2); }
 const soul = process.env.WHETSTONE_SOUL || '';
@@ -136,5 +179,18 @@ const call = async (path, body) => {
 if (!cmd) await call('/');
 else if (cmd === 'read') await call('/read', { nsid: rest[0], params: Object.fromEntries(rest.slice(1).map((kv) => [kv.slice(0, kv.indexOf('=')), kv.slice(kv.indexOf('=') + 1)])) });
 else if (['follow', 'unfollow', 'like', 'unlike'].includes(cmd)) await call('/act', { kind: cmd, subject: rest[0] });
-else { console.error('commands: read, follow, unfollow, like, unlike'); process.exit(2); }
+else if (cmd === 'repo') {
+  // node town/town.mjs repo <op> [k=v ...] [record=@file.json]   (repo is always ours)
+  const { readFileSync } = await import('node:fs');
+  const [op, ...kv] = rest, params = {};
+  let blob = null;
+  for (const a of kv) {
+    const i = a.indexOf('='), k = a.slice(0, i), v = a.slice(i + 1);
+    if (k === 'file') blob = readFileSync(v);
+    else if (v.startsWith('@')) params[k] = JSON.parse(readFileSync(v.slice(1), 'utf8'));
+    else params[k] = /^(true|false|\d+)$/.test(v) ? JSON.parse(v) : v;
+  }
+  await call('/repo', op === 'uploadBlob' ? { op, base64: blob?.toString('base64'), contentType: params.contentType } : { op, params });
+}
+else { console.error('commands: read, follow, unfollow, like, unlike, repo'); process.exit(2); }
 `;

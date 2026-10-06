@@ -1,7 +1,7 @@
 // account.mjs — the only door to miniphim.delve.town. Every call goes through allow(), which
 // refuses anything but what this round permits BEFORE the network is touched (the council's M6):
-// create a session, read and write the profile and its image, read the town, post and retract, follow
-// and like. Each widening is named where allow() grants it.
+// create a session, read the town, and every record operation in our own repo (profile, posts, follows,
+// likes, reposts, blocks, lists, any lexicon of theirs). Each widening is named where allow() grants it.
 //
 //   node account.mjs           dry run: the record that would be written, measured
 //   node account.mjs --apply   write it (needs MINIPHIM_APP_PASSWORD), then read it back
@@ -34,6 +34,14 @@ export function allow(nsid, body = {}) {
   if (nsid === 'com.atproto.repo.deleteRecord' && body.repo === DID && body.collection === POST) return;
   if ((nsid === 'com.atproto.repo.createRecord' || nsid === 'com.atproto.repo.deleteRecord') && body.repo === DID && GRAPH.has(body.collection)) return;
   if (nsid === 'com.atproto.repo.listRecords' && body.repo === DID && GRAPH.has(body.collection)) return;
+  // Their repo is theirs (2026-10-06, the person: "they should be able to perform all operations,
+  // it's their repo"): every record operation, any collection, in OUR repo only. Other repos, the
+  // account itself (passwords, email, handle, deletion) and other servers' admin stay refused here,
+  // and an app password can't reach those anyway.
+  const REPO_OPS = ['com.atproto.repo.createRecord', 'com.atproto.repo.putRecord', 'com.atproto.repo.deleteRecord', 'com.atproto.repo.getRecord',
+    'com.atproto.repo.listRecords', 'com.atproto.repo.applyWrites', 'com.atproto.repo.describeRepo', 'com.atproto.repo.listMissingBlobs'];
+  if (REPO_OPS.includes(nsid) && body.repo === DID) return;
+  if (nsid === 'com.atproto.repo.uploadBlob' && body.size > 0 && body.size < 5_000_000) return;
   if (nsid === 'com.atproto.server.createSession') return;
   if (nsid === 'com.atproto.repo.uploadBlob' && IMAGE.has(body.contentType) && body.size > 0 && body.size < 1_000_000) return;
   if (nsid === 'com.atproto.repo.getRecord' && body.collection === PROFILE && body.rkey === 'self') return;

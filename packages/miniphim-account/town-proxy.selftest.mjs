@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { startTownProxy, TOWN_CLIENT } from './town-proxy.mjs';
 import { DID } from './account.mjs';
 
-const repo = { 'town.delve.graph.follow': [], 'town.delve.feed.like': [] };
+const repo = { 'town.delve.graph.follow': [], 'town.delve.feed.like': [], 'com.minomobi.garden.plot': [], 'town.delve.actor.profile': [] };
 const calls = [];
 let n = 0;
 const fake = async (url, init = {}) => {
@@ -24,6 +24,7 @@ const fake = async (url, init = {}) => {
   if (nsid === 'deleteRecord') { repo[body.collection] = repo[body.collection].filter((r) => !r.uri.endsWith('/' + body.rkey)); return ok({}); }
   if (nsid === 'getPosts') return ok({ posts: [{ uri: body.uris, cid: 'bafypost' }] });
   if (nsid === 'getFollows') return ok({ follows: [{ handle: 'a.delve.town' }] });
+  if (nsid === 'putRecord' || nsid === 'applyWrites' || nsid === 'getRecord' || nsid === 'describeRepo') { repo.last = { nsid, body }; return ok({ uri: `at://${body.repo}/${body.collection}/${body.rkey || 'k'}`, value: body.record || null }); }
   return { ok: false, status: 400, json: async () => ({ error: 'unexpected ' + nsid }) };
 };
 const p = await startTownProxy({ password: 'pw', fetchImpl: fake, caps: { follows_per_day: 2, likes_per_day: 5, reads_per_run: 3 },
@@ -53,5 +54,26 @@ assert.ok(!(await run('morphyx', 'post', 'hello')).ok, 'posts are not an act: th
 assert.ok(!(await run('morphyx', 'read', 'town.delve.graph.getFollows', 'actor=x')).ok, 'reads are capped per run');
 assert.ok(calls.every((c) => !c.body?.repo || c.body.repo === DID), 'every write and listing was in our own repo');
 assert.deepEqual(p.log.filter((a) => !a.failed).map((a) => `${a.part}:${a.kind}`), ['mozzie:follow', 'modulo:unfollow', 'morphyx:like']);
+
+// Their repo, all of it: any collection, always ours; posts to the outbox; the profile keeps its bot label.
+const p2 = await startTownProxy({ password: 'pw', fetchImpl: fake, caps: { follows_per_day: 2, likes_per_day: 5, reads_per_run: 10, repo_writes_per_day: 3, posts_via_outbox: true } });
+const run2 = async (soul, ...args) => { try { const { stdout } = await exec('node', [join(dir, 'town.mjs'), ...args], { env: { ...process.env, MINIPHIM_TOWN_URL: p2.url, WHETSTONE_SOUL: soul } }); return { ok: true, out: JSON.parse(stdout) }; } catch (e) { return { ok: false, out: JSON.parse(e.stdout || '{}') }; } };
+writeFileSync(join(dir, 'plot.json'), JSON.stringify({ name: 'bed one', water: 3 }));
+const made = await run2('mozzie', 'repo', 'createRecord', 'collection=com.minomobi.garden.plot', 'record=@' + join(dir, 'plot.json'), 'repo=did:plc:someoneelse');
+assert.ok(made.ok, JSON.stringify(made.out));
+const created = repo['com.minomobi.garden.plot'].at(-1);
+assert.match(created.uri, new RegExp(`^at://${DID}/`), 'always our repo, whatever the client says');
+assert.equal(created.value.$type, 'com.minomobi.garden.plot', 'the record gets its $type');
+writeFileSync(join(dir, 'prof.json'), JSON.stringify({ displayName: 'miniphim (bot)', description: 'x' }));
+assert.ok((await run2('modulo', 'repo', 'putRecord', 'collection=town.delve.actor.profile', 'rkey=self', 'record=@' + join(dir, 'prof.json'))).ok);
+assert.deepEqual(repo.last.body.record.labels, { $type: 'com.atproto.label.defs#selfLabels', values: [{ val: 'bot' }] }, 'the profile keeps its bot label');
+const post = await run2('modulo', 'repo', 'createRecord', 'collection=town.delve.feed.post', 'record=@' + join(dir, 'plot.json'));
+assert.ok(!post.ok && /outbox/.test(post.out.error), 'posts go through the outbox while their rule says so');
+assert.ok((await run2('morphyx', 'repo', 'listRecords', 'collection=com.minomobi.garden.plot')).ok, 'reads are not writes');
+assert.ok((await run2('morphyx', 'repo', 'deleteRecord', 'collection=com.minomobi.garden.plot', 'rkey=r1')).ok);
+const capped2 = await run2('morphyx', 'repo', 'deleteRecord', 'collection=com.minomobi.garden.plot', 'rkey=r2');
+assert.ok(!capped2.ok && /repo writes a day/.test(capped2.out.error), 'the write cap holds');
+assert.deepEqual(p2.log.filter((a) => !a.failed).map((a) => `${a.part}:${a.op}`), ['mozzie:createRecord', 'modulo:putRecord', 'morphyx:deleteRecord']);
+await p2.close();
 await p.close();
-console.log('miniphim town proxy selftest: live reads through the AppView, follow/unfollow/like idempotent, caps across runs, attributed, posts kept out');
+console.log('miniphim town proxy selftest: live reads through the AppView, follow/unfollow/like idempotent, caps across runs, attributed, posts kept out; the whole repo (any collection, always ours, profile keeps its label, write cap)');
