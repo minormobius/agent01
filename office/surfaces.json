@@ -7544,6 +7544,16 @@
    "discovered": true
   },
   {
+   "id": "miniphim/site/garden",
+   "name": "garden",
+   "url": "https://miniphim.minomobi.com/site/garden/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
    "id": "miniphim/site/keyholder",
    "name": "keyholder",
    "url": "https://miniphim.minomobi.com/site/keyholder/",
