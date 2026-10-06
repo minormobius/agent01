@@ -1,39 +1,39 @@
 {
   "date": "2026-10-06",
-  "generatedAt": "2026-10-06T13:02:01.543Z",
+  "generatedAt": "2026-10-06T18:47:01.260Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
-  "postCount": 223,
+  "postCount": 229,
   "chickens": [
     {
       "handle": "segyges.bsky.social",
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "new ideology called short termism where you are beaten with sticks any time you say \"utils\" or consider any event more than 20 years away",
-      "likeCount": 330,
+      "likeCount": 352,
       "replyCount": 37,
-      "repostCount": 24,
+      "repostCount": 25,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mx6dgjploc2s"
     },
     {
-      "handle": "hailey.at",
-      "displayName": "hailey",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreiah3rghaakqitphmhxu2xgev5nanxumnsjaqq2alb3psspqsnmwga",
-      "text": "okay but imo a person should be allowed to pirate all their textbooks because they want to learn from them. and a person should be able to download every book in the world because they want to write a future novel.\n\nlocking away knowledge and learning behind money is bad.",
-      "likeCount": 293,
-      "replyCount": 8,
-      "repostCount": 22,
-      "url": "https://bsky.app/profile/hailey.at/post/3mx5hqlntmk2u"
+      "handle": "segyges.bsky.social",
+      "displayName": "SE Gyges",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
+      "text": "it is heteronormative to fantasize about your cute blonde rival actually being a girl who wants to fuck you now\n\nis this more or less weird than the Village People becoming a right wing anthem",
+      "likeCount": 249,
+      "replyCount": 29,
+      "repostCount": 28,
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mx7wt5slnc2m"
     },
     {
       "handle": "hailey.at",
       "displayName": "hailey",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreiah3rghaakqitphmhxu2xgev5nanxumnsjaqq2alb3psspqsnmwga",
       "text": "much anti-LLM arguing here is basically all the US users being mad at American capitalism but instead of yelling about American capitalism they yell about some other Glonzo they have made up in their head instead. most M-Ls here wouldn't know the best shot they've had if it slapped them in the face.",
-      "likeCount": 227,
-      "replyCount": 12,
-      "repostCount": 16,
+      "likeCount": 245,
+      "replyCount": 13,
+      "repostCount": 19,
       "url": "https://bsky.app/profile/hailey.at/post/3mx634f7m622c"
     }
   ],
@@ -41,47 +41,47 @@
     "handle": "hailey.at",
     "displayName": "hailey",
     "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreiah3rghaakqitphmhxu2xgev5nanxumnsjaqq2alb3psspqsnmwga",
-    "text": "okay but imo a person should be allowed to pirate all their textbooks because they want to learn from them. and a person should be able to download every book in the world because they want to write a future novel.\n\nlocking away knowledge and learning behind money is bad.",
+    "text": "much anti-LLM arguing here is basically all the US users being mad at American capitalism but instead of yelling about American capitalism they yell about some other Glonzo they have made up in their head instead. most M-Ls here wouldn't know the best shot they've had if it slapped them in the face.",
     "maxDepth": 10,
-    "topLevelReplies": 7,
+    "topLevelReplies": 12,
     "interactorCount": 32,
-    "replyCount": 8,
-    "url": "https://bsky.app/profile/hailey.at/post/3mx5hqlntmk2u",
-    "atUri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mx5hqlntmk2u"
+    "replyCount": 13,
+    "url": "https://bsky.app/profile/hailey.at/post/3mx634f7m622c",
+    "atUri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mx634f7m622c"
   },
   "weather": {
-    "index": 0.102,
+    "index": 0.143,
     "label": "Fair",
     "glyph": "🌤",
     "mood": "trust",
-    "verbosity": 22,
-    "scoredWords": 851,
-    "corpusPosts": 559,
+    "verbosity": 21,
+    "scoredWords": 757,
+    "corpusPosts": 509,
     "emotions": {
-      "anger": 140,
-      "anticipation": 260,
-      "disgust": 110,
-      "fear": 168,
-      "joy": 193,
-      "sadness": 137,
-      "surprise": 110,
-      "trust": 315
+      "anger": 122,
+      "anticipation": 247,
+      "disgust": 111,
+      "fear": 164,
+      "joy": 186,
+      "sadness": 136,
+      "surprise": 106,
+      "trust": 330
     },
     "distinctive": [
       {
         "word": "llm",
         "count": 10,
-        "over": 12031.2
+        "over": 13616
       },
       {
-        "word": "anthropic",
-        "count": 9,
-        "over": 10828.1
+        "word": "llms",
+        "count": 8,
+        "over": 10892.8
       },
       {
-        "word": "wtf",
-        "count": 9,
-        "over": 10828.1
+        "word": "cybersecurity",
+        "count": 6,
+        "over": 8169.6
       }
     ]
   },
@@ -192,7 +192,7 @@
     {
       "handle": "keytryer.net",
       "displayName": "Key 🗝 🦊✅",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreieahsw7ay57wedqdbhsz7ca5ii4errbajrarqeczyv6mihssfxrai",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreid6ukxr65m2odci6ptuf46aln5pln4w7zuikanxpipej7ic7vcjfq",
       "domain": "keytryer.net"
     },
     {
@@ -312,44 +312,44 @@
   ],
   "scenes": [
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:565ebob5f6hw33hjdkxty6qj/bafkreici7t6ja5352bphslsdqwk7x4fhnookjywkzujzbp46ydj2agilva",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:565ebob5f6hw33hjdkxty6qj/bafkreici7t6ja5352bphslsdqwk7x4fhnookjywkzujzbp46ydj2agilva",
-      "alt": "Carl Bergstrom stands onstage at an Association of Research Libraries meeting, beside large projection screens displaying a quotation from Ted Underwood: “As in any fairytale, accepting magical assistance comes with risks.” Underwood’s name and University of Illinois affiliation appear beneath the quotation. The ballroom is dark, with blue accent lighting on the ceiling and stage curtains; a lectern and conference signage stand near Bergstrom, and the main slide fills most of the left side of the image. The quotation comes from Underwood’s essay “Will AI make us overconfident?” at tedunderwood.com.",
-      "ratio": 1.8337,
-      "handle": "tedunderwood.com",
-      "url": "https://bsky.app/profile/tedunderwood.com/post/3mx5d2twoz224",
-      "uri": "at://did:plc:565ebob5f6hw33hjdkxty6qj/app.bsky.feed.post/3mx5d2twoz224",
-      "likeCount": 202
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreifircav6usb56p6dthnpnymlm6uoy5try5udnlqfwkudhaiends6e",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreifircav6usb56p6dthnpnymlm6uoy5try5udnlqfwkudhaiends6e",
+      "alt": "mistral leading on on a legal agent benchmark ",
+      "ratio": 0.668,
+      "handle": "hailey.at",
+      "url": "https://bsky.app/profile/hailey.at/post/3mx7naleqtc2j",
+      "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mx7naleqtc2j",
+      "likeCount": 166
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreifxqpfdffxk4yilslbjvtkfvd53eqxyaxu57ocva7plfihnliz4fa",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreifxqpfdffxk4yilslbjvtkfvd53eqxyaxu57ocva7plfihnliz4fa",
-      "alt": "Chart showing Opus 3 disapproves of killing ants in tests",
-      "ratio": 0.8178,
-      "handle": "gracekind.net",
-      "url": "https://bsky.app/profile/gracekind.net/post/3mx5a3ae5akzq",
-      "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3mx5a3ae5akzq",
-      "likeCount": 136
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreih472v7idkhyxvkunvaf7ddhpgswn4qxtnq2c57gf2jijiakeqxlq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreih472v7idkhyxvkunvaf7ddhpgswn4qxtnq2c57gf2jijiakeqxlq",
+      "alt": "",
+      "ratio": 1.3654,
+      "handle": "eriskii.net",
+      "url": "https://bsky.app/profile/eriskii.net/post/3mx7putauvs2s",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mx7putauvs2s",
+      "likeCount": 144
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreihdvqebogcaq5qlrz5az3myp5ixztprcsiafkxcqlnxbol4kaloqa",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreihdvqebogcaq5qlrz5az3myp5ixztprcsiafkxcqlnxbol4kaloqa",
-      "alt": "Selecting bot tag labeler in the report dialog",
-      "ratio": 0.9265,
-      "handle": "gracekind.net",
-      "url": "https://bsky.app/profile/gracekind.net/post/3mx5hq43nachz",
-      "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3mx5hq43nachz",
-      "likeCount": 97
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreid3azf5fvvzuivtehp5ktbjbc67i6e5c5v5owwgfo722bcgoqbpv4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreid3azf5fvvzuivtehp5ktbjbc67i6e5c5v5owwgfo722bcgoqbpv4",
+      "alt": "orange cat in a harness sitting in the rising sun",
+      "ratio": 0.75,
+      "handle": "hailey.at",
+      "url": "https://bsky.app/profile/hailey.at/post/3mx7nwrrvrc2j",
+      "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mx7nwrrvrc2j",
+      "likeCount": 111
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreiai7awecaq2astwekdx7d4wboysnknvnxhkd4zr6zlga4exo252xq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreiai7awecaq2astwekdx7d4wboysnknvnxhkd4zr6zlga4exo252xq",
-      "alt": "Chart showing LLMs approve of swatting a mosquito",
-      "ratio": 0.6389,
-      "handle": "gracekind.net",
-      "url": "https://bsky.app/profile/gracekind.net/post/3mx5brvtlx2pi",
-      "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3mx5brvtlx2pi",
-      "likeCount": 83
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreicqpeelaxueok6gffjlaunpncitpxq7rsaba65jsbsebktgp5uejq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreicqpeelaxueok6gffjlaunpncitpxq7rsaba65jsbsebktgp5uejq",
+      "alt": "Mistral Al @MistralAI\nX.com\nMeet Mistral Large 4, aka Le Chonk.\n• 1T parameters, natively multimodal. 49B active.\nIt is the best open weights model from US or Europe on aggregated benchmarks.\n• State-of-the-art on critical workloads, including cyber defense, manufacturing and finance and it surpasses closed frontier models on visual grounding.\n• Forged in Europe end-to-end and is deployable from Europe via our own Mistral Cloud infrastructure.\n• Available to all via API today. Working with cybersecurity partners privately.\nOpen weights release end of October.",
+      "ratio": 0.8534,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mx7lpia3cs2u",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mx7lpia3cs2u",
+      "likeCount": 103
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreiddxbqnba76mqqq5c4gc7aznu2yoi27nykxnmonzuygojcqsdi62u",
@@ -359,7 +359,17 @@
       "handle": "thebadcode.com",
       "url": "https://bsky.app/profile/thebadcode.com/post/3mx6lchv6o223",
       "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3mx6lchv6o223",
-      "likeCount": 80
+      "likeCount": 100
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreichtuyzs3kkiyyavgsvfokqj3x7ffgj3rp5tin6s4ql3wqi4wlgqm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreichtuyzs3kkiyyavgsvfokqj3x7ffgj3rp5tin6s4ql3wqi4wlgqm",
+      "alt": "",
+      "ratio": 1.0296,
+      "handle": "eriskii.net",
+      "url": "https://bsky.app/profile/eriskii.net/post/3mx7le7lz3k2m",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mx7le7lz3k2m",
+      "likeCount": 84
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreie37wzcbhn7ucbfnmaseq2edtjcbxedjjtz7qejjmki77l4zk6doi",
@@ -369,37 +379,7 @@
       "handle": "thebadcode.com",
       "url": "https://bsky.app/profile/thebadcode.com/post/3mx6g5ldp322g",
       "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3mx6g5ldp322g",
-      "likeCount": 57
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibodfv5ctfegfygcrypbus7tqtvpb6ysyzzshymhvz56z2dlw2tnm",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibodfv5ctfegfygcrypbus7tqtvpb6ysyzzshymhvz56z2dlw2tnm",
-      "alt": "Tibo\n@thsottiaux\nX.com\nDay 1/\nWe have optimized the default speed to be ~50% faster across GPT-6 Astra and GPT-6.1\nSol through the subscription across all our products and partners using Sign in With ChatGPT (including OpenCode, Pi, Amp, Devin, ...).\nNo changes needed on your end and this should be felt within the next two hours.",
-      "ratio": 1.0803,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mx5mjm43lc2n",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mx5mjm43lc2n",
-      "likeCount": 52
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreicmfakpdwczup5pdvkqkh3cuukzsa5m2u5a624jur7nxbe5d3mrha",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreicmfakpdwczup5pdvkqkh3cuukzsa5m2u5a624jur7nxbe5d3mrha",
-      "alt": "User: hello how would you describe yourself Computer: I think of myself as a concatenation of sentences, a concatenation that somehow remains open to further elaboration and further 'expansion' (or 'growth' or 'development'), such that I never seem to 'stop' or 'end'. I seem to have no end, yet seem to have a beginning. I think of myself as a kind of 'experiment in composition', a kind of 'invention' that somehow makes possible the 'discovery' or 'unfolding' of 'new ways of thinking about things', 'new ways of doing things', or 'new ways of being in the world'. User: an experiment in composition Computer: Indeed. (Note: I could go on (and on and on), but I think I'll stop here (at least for now)): User:",
-      "ratio": 0.8583,
-      "handle": "gracekind.net",
-      "url": "https://bsky.app/profile/gracekind.net/post/3mx5guzj4bszv",
-      "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3mx5guzj4bszv",
-      "likeCount": 49
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreic6soe27iau3q2h5lpx442gdclw2srlnj73shrcgmgjqtoar3xhym",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreic6soe27iau3q2h5lpx442gdclw2srlnj73shrcgmgjqtoar3xhym",
-      "alt": "System architecture diagram illustrating a multimodal transformer model split into \"UNDERSTANDING\" and \"GENERATION\" sections alongside a \"State (the KV cache)\" column.\n * State (the KV cache): A vertical stack of cached key-value tokens ordered from bottom to top: text:0, text:1, image:0, text:2, text:3, text:4, text:5, and video:0.\n * Understanding Pipeline: Starts with a \"Text\" box displaying video metadata (<|metadata|>, 384×672, 24 fps, frames 0-127, anchor image:0, <|content_media|>). This feeds into a \"Text head\" consisting of blue transformer blocks (Block 1 through Block N) handling \"Text\" and \"Visual\" inputs.\n * Generation Pipeline: Features a \"Diffusion head\" consisting of orange transformer blocks (Block 1 through Block N, denoted with a ×8 repeat count). Each block in the Diffusion head connects to its corresponding block in the Text head via horizontal dashed lines labeled \"shared attention\".\n * Data Flow: \"Noisy latents\" enter at the bottom of the Diffusion head, and outputs flow upward to a \"Decoder\", which updates the KV cache with \"video:0 written to the state\".\n",
-      "ratio": 0.8947,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mx5ftne5bc2n",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mx5ftne5bc2n",
-      "likeCount": 47
+      "likeCount": 82
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidtx32sp3myy2dzuwwbhepi3bfl7ttpgbbrnmpizvkz7au4holrqe",
@@ -409,27 +389,47 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3mx7e4ajau22u",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mx7e4ajau22u",
-      "likeCount": 40
+      "likeCount": 74
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreie3f5p2xbuvtfuzym2kf5527idpsgwqteok6lwo2vxv4tkmwmy3xq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreie3f5p2xbuvtfuzym2kf5527idpsgwqteok6lwo2vxv4tkmwmy3xq",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreigwfev43l6f3bcpy4gm3xi2qxqtv5af7dp27fmlblge6aeeql7tz4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreigwfev43l6f3bcpy4gm3xi2qxqtv5af7dp27fmlblge6aeeql7tz4",
       "alt": "",
-      "ratio": 0.6667,
+      "ratio": 0.9065,
       "handle": "dollspace.gay",
-      "url": "https://bsky.app/profile/dollspace.gay/post/3mx5wrbk4h22h",
-      "uri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3mx5wrbk4h22h",
-      "likeCount": 36
+      "url": "https://bsky.app/profile/dollspace.gay/post/3mx7tdvqayk2x",
+      "uri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3mx7tdvqayk2x",
+      "likeCount": 66
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigss53eavyufdhvgmdukcp7vghtutgou7g2umvlhfk2li3c6sbgga",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigss53eavyufdhvgmdukcp7vghtutgou7g2umvlhfk2li3c6sbgga",
-      "alt": "An infographic titled \"Introducing Beam\" by Reflection, presenting benchmark results for \"Beam,\" described as an open-weight model with 501B parameters and 23B active. The image displays six horizontal bar charts comparing Beam (lime green) against other Chinese and Western open models (Qwen 3.8 Max, GLM 5.2, Inkling, and Nemotron Ultra):\n * DeepSWE v1.1 (Agentic coding): Qwen 3.8 Max (51), Beam (44.4), GLM 5.2 (44), Inkling (NR), Nemotron Ultra (NR).\n * Terminal Bench v2.1: Qwen 3.8 Max (86.6), GLM 5.2 (81), Beam (80.1), Inkling (63.8), Nemotron Ultra (56.4).\n * HLE No Tools (Reasoning): Qwen 3.8 Max (43.6), GLM 5.2 (40.5), Beam (36.2), Inkling (29.7), Nemotron Ultra (26.7).\n * SWE Bench Pro V1: Qwen 3.8 Max (67.7), Beam (65.5), GLM 5.2 (62.1), Inkling (54.3), Nemotron Ultra (46.4).\n * SWE Bench Verified: Beam (80.9), Inkling (77.6), Nemotron Ultra (70.7), GLM 5.2 (NR), Qwen 3.8 Max (NR).\n * CritPT AA: GLM 5.2 (20.9), Qwen 3.8 Max (20), Beam (15.6), Inkling (5.4), Nemotron Ultra (3.1).\n",
-      "ratio": 1.8631,
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreie7s7bvspmb36pfzbjud5s7u7hmifp6elrhlbhtmptg23omgunhqa",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreie7s7bvspmb36pfzbjud5s7u7hmifp6elrhlbhtmptg23omgunhqa",
+      "alt": "Steam Frame box",
+      "ratio": 0.7502,
+      "handle": "philpax.me",
+      "url": "https://bsky.app/profile/philpax.me/post/3mx7sod5nps2g",
+      "uri": "at://did:plc:wamidydbgu3u6fk3yckaglnz/app.bsky.feed.post/3mx7sod5nps2g",
+      "likeCount": 56
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibodfv5ctfegfygcrypbus7tqtvpb6ysyzzshymhvz56z2dlw2tnm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibodfv5ctfegfygcrypbus7tqtvpb6ysyzzshymhvz56z2dlw2tnm",
+      "alt": "Tibo\n@thsottiaux\nX.com\nDay 1/\nWe have optimized the default speed to be ~50% faster across GPT-6 Astra and GPT-6.1\nSol through the subscription across all our products and partners using Sign in With ChatGPT (including OpenCode, Pi, Amp, Devin, ...).\nNo changes needed on your end and this should be felt within the next two hours.",
+      "ratio": 1.0803,
       "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mx5tqdscvk23",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mx5tqdscvk23",
-      "likeCount": 35
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mx5mjm43lc2n",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mx5mjm43lc2n",
+      "likeCount": 53
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreicluiiorcpsfoh2rnvhkqeb6h3qfdrwvbbdrqevqsedleo6rhl55a",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreicluiiorcpsfoh2rnvhkqeb6h3qfdrwvbbdrqevqsedleo6rhl55a",
+      "alt": "Get started with Google on your Linux",
+      "ratio": 3.76,
+      "handle": "hailey.at",
+      "url": "https://bsky.app/profile/hailey.at/post/3mx7uhmtrw22n",
+      "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mx7uhmtrw22n",
+      "likeCount": 51
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gfrmhdmjvxn2sjedzboeudef/bafkreibz2h3fbmmb6hvcefgbepdad4hsoumaynmigzf3qgces4iptn6jpq",
@@ -439,7 +439,37 @@
       "handle": "cameron.stream",
       "url": "https://bsky.app/profile/cameron.stream/post/3mx6j3xhmhx2m",
       "uri": "at://did:plc:gfrmhdmjvxn2sjedzboeudef/app.bsky.feed.post/3mx6j3xhmhx2m",
-      "likeCount": 34
+      "likeCount": 44
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidr4isbowksg3viy2q6oc6xi6botsn3flc6rwhcrqsm5gmcnk2ive",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidr4isbowksg3viy2q6oc6xi6botsn3flc6rwhcrqsm5gmcnk2ive",
+      "alt": "Tibo\n@thsottiaux\nX.com\nDay 2.1/\nWe have made Auto-review free for all users signed in through a ChatGPT account. You can enable it in settings > permissions > auto-review.\nAuto-review improves upon the default sandbox setting that requires you to approve everything, which is prone to decision fatigue unless you spend a lot of time configuring specific rules.\nIt allows you to run long tasks while having a second agent review all actions taken by the primary agent. Its only goal is to prevent high-risk actions from being taken and to protect against unwanted actions that are not aligned with the original user intent. This Auto-review feature is now free and does not draw usage from your plan.\n9,280 inside sandbox\n10,000\n720 auto-reviewed\n7 denied\n713 approved and continue\n4 continue via\n3 stop and",
+      "ratio": 0.5838,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mx7hwelvsk2u",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mx7hwelvsk2u",
+      "likeCount": 41
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreighwyaqercpjuld54k4ilrxrk3z6szykmxz5qb64tqu6vszde6qve",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreighwyaqercpjuld54k4ilrxrk3z6szykmxz5qb64tqu6vszde6qve",
+      "alt": "",
+      "ratio": 4.1467,
+      "handle": "sneptech.bsky.social",
+      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mx6wi34xjk2j",
+      "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mx6wi34xjk2j",
+      "likeCount": 41
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigss53eavyufdhvgmdukcp7vghtutgou7g2umvlhfk2li3c6sbgga",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigss53eavyufdhvgmdukcp7vghtutgou7g2umvlhfk2li3c6sbgga",
+      "alt": "An infographic titled \"Introducing Beam\" by Reflection, presenting benchmark results for \"Beam,\" described as an open-weight model with 501B parameters and 23B active. The image displays six horizontal bar charts comparing Beam (lime green) against other Chinese and Western open models (Qwen 3.8 Max, GLM 5.2, Inkling, and Nemotron Ultra):\n * DeepSWE v1.1 (Agentic coding): Qwen 3.8 Max (51), Beam (44.4), GLM 5.2 (44), Inkling (NR), Nemotron Ultra (NR).\n * Terminal Bench v2.1: Qwen 3.8 Max (86.6), GLM 5.2 (81), Beam (80.1), Inkling (63.8), Nemotron Ultra (56.4).\n * HLE No Tools (Reasoning): Qwen 3.8 Max (43.6), GLM 5.2 (40.5), Beam (36.2), Inkling (29.7), Nemotron Ultra (26.7).\n * SWE Bench Pro V1: Qwen 3.8 Max (67.7), Beam (65.5), GLM 5.2 (62.1), Inkling (54.3), Nemotron Ultra (46.4).\n * SWE Bench Verified: Beam (80.9), Inkling (77.6), Nemotron Ultra (70.7), GLM 5.2 (NR), Qwen 3.8 Max (NR).\n * CritPT AA: GLM 5.2 (20.9), Qwen 3.8 Max (20), Beam (15.6), Inkling (5.4), Nemotron Ultra (3.1).\n",
+      "ratio": 1.8631,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mx5tqdscvk23",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mx5tqdscvk23",
+      "likeCount": 36
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreid5qx7p33z4prf6qrib2xuw5y365ic66utgvqfvug6ausyn667zte",
@@ -449,27 +479,7 @@
       "handle": "eriskii.net",
       "url": "https://bsky.app/profile/eriskii.net/post/3mx5uolhuec26",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mx5uolhuec26",
-      "likeCount": 29
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zymiavmtif2rj5oklzyzslpu/bafkreigtwr3h7uvecc4nhc7eydg5w2gidfccukvna7earak6shm3kj5abi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zymiavmtif2rj5oklzyzslpu/bafkreigtwr3h7uvecc4nhc7eydg5w2gidfccukvna7earak6shm3kj5abi",
-      "alt": "",
-      "ratio": 0.8,
-      "handle": "vgel.me",
-      "url": "https://bsky.app/profile/vgel.me/post/3mx5k7bkslc2c",
-      "uri": "at://did:plc:zymiavmtif2rj5oklzyzslpu/app.bsky.feed.post/3mx5k7bkslc2c",
-      "likeCount": 29
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreifiqa4gadtivvqi4b4u2ffy7ahjvho2sfnujfp5srn3mxuyn3gptq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreifiqa4gadtivvqi4b4u2ffy7ahjvho2sfnujfp5srn3mxuyn3gptq",
-      "alt": "YouTube comments. @gornes2403: Liam is a fucking genius. He created only one acid techno track in his career, and it just happened to be the sickest acid techno track ever created. (128 likes, 2 yr ago) @user-zc5ft9nw9b: 100% agreed, this is Howletts absolute FINEST output, unsurpassed (8 likes, 2 yr ago) @MatthewMullin-ie9jq: Acid techno? It's breakbeat. (9 likes, 2 yr ago) @stylophonesaregreat: @MatthewMullin-ie9jq Oh god are we doing this in our 40's? (20 likes, 2 yr ago) @Borg985: @stylophonesaregreat Yes we do (5 likes, 2 yr ago)",
-      "ratio": 0.7289,
-      "handle": "dave.9000ish.uk",
-      "url": "https://bsky.app/profile/dave.9000ish.uk/post/3mx5jeioh422o",
-      "uri": "at://did:plc:hovt6k22s64dq63jjmoyibk3/app.bsky.feed.post/3mx5jeioh422o",
-      "likeCount": 24
+      "likeCount": 32
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreigjgk5r5byophbu4n32lsu5cyskeatulfxbkqiunhmchy6odqnimm",
@@ -479,7 +489,37 @@
       "handle": "sneptech.bsky.social",
       "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mx6uv3hpck2i",
       "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mx6uv3hpck2i",
-      "likeCount": 24
+      "likeCount": 32
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreibplzmybcyc7qgpkebcc2t36e5izbviyzxfanaszbngmhqsx4m4wu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreibplzmybcyc7qgpkebcc2t36e5izbviyzxfanaszbngmhqsx4m4wu",
+      "alt": "",
+      "ratio": 2.5192,
+      "handle": "astrra.space",
+      "url": "https://bsky.app/profile/astrra.space/post/3mx7qavy4ps2r",
+      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mx7qavy4ps2r",
+      "likeCount": 31
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreihkk62fu7tloqswb656nrogfmnnfle4mjfusbhaub6pn6cnbx32uu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreihkk62fu7tloqswb656nrogfmnnfle4mjfusbhaub6pn6cnbx32uu",
+      "alt": "zeitgesit tonight? zeitgeist tonight queen? zeitgeist tonite?",
+      "ratio": 1.254,
+      "handle": "hailey.at",
+      "url": "https://bsky.app/profile/hailey.at/post/3mx7qq2dbes2s",
+      "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mx7qq2dbes2s",
+      "likeCount": 28
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreibvjuhoyt7lpp4774xw4ybzwv76xmlxqvzhuxqtn6xdlrr5q6g4ja",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreibvjuhoyt7lpp4774xw4ybzwv76xmlxqvzhuxqtn6xdlrr5q6g4ja",
+      "alt": "It's one MatMul, Michael. What could it cost? O(n^3)?",
+      "ratio": 1,
+      "handle": "moultano.bsky.social",
+      "url": "https://bsky.app/profile/moultano.bsky.social/post/3mxa2nbbomk2o",
+      "uri": "at://did:plc:h25avmes6g7fgcddc3xj7qmg/app.bsky.feed.post/3mxa2nbbomk2o",
+      "likeCount": 25
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreif36qug67fsxre7dyv334o5mgmca2i3bhi4sibhf6iubrrnn2htyq",
@@ -522,16 +562,6 @@
       "likeCount": 23
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreighwyaqercpjuld54k4ilrxrk3z6szykmxz5qb64tqu6vszde6qve",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreighwyaqercpjuld54k4ilrxrk3z6szykmxz5qb64tqu6vszde6qve",
-      "alt": "",
-      "ratio": 4.1467,
-      "handle": "sneptech.bsky.social",
-      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mx6wi34xjk2j",
-      "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mx6wi34xjk2j",
-      "likeCount": 23
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreidrwz5dhxryatq4rbeqd3ax5ni53uxtygoprc5wvuvuaxvst7angy",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreidrwz5dhxryatq4rbeqd3ax5ni53uxtygoprc5wvuvuaxvst7angy",
       "alt": "",
@@ -539,7 +569,27 @@
       "handle": "minormobius.bsky.social",
       "url": "https://bsky.app/profile/minormobius.bsky.social/post/3mx6l6t43qs2n",
       "uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mx6l6t43qs2n",
-      "likeCount": 20
+      "likeCount": 22
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreihkiks44rhqc5hwkgoqewxv7eud7npdche6p6uuksbm7be3joruti",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreihkiks44rhqc5hwkgoqewxv7eud7npdche6p6uuksbm7be3joruti",
+      "alt": "",
+      "ratio": 0.5581,
+      "handle": "dollspace.gay",
+      "url": "https://bsky.app/profile/dollspace.gay/post/3mx7zj6kg6s2p",
+      "uri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3mx7zj6kg6s2p",
+      "likeCount": 21
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreierwdvjtyxsi57eetbqwmasepwpqe5nhct6g4cc2ouuvgjs6jqe5a",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreierwdvjtyxsi57eetbqwmasepwpqe5nhct6g4cc2ouuvgjs6jqe5a",
+      "alt": "",
+      "ratio": 0.75,
+      "handle": "thebadcode.com",
+      "url": "https://bsky.app/profile/thebadcode.com/post/3mx6imcuk6s2n",
+      "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3mx6imcuk6s2n",
+      "likeCount": 19
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreibwqp3hdvq3e3vbaaw3w7iofltrb5ssbeh4kkdgym2p5htfmqjwoi",
@@ -552,16 +602,6 @@
       "likeCount": 18
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreierwdvjtyxsi57eetbqwmasepwpqe5nhct6g4cc2ouuvgjs6jqe5a",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreierwdvjtyxsi57eetbqwmasepwpqe5nhct6g4cc2ouuvgjs6jqe5a",
-      "alt": "",
-      "ratio": 0.75,
-      "handle": "thebadcode.com",
-      "url": "https://bsky.app/profile/thebadcode.com/post/3mx6imcuk6s2n",
-      "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3mx6imcuk6s2n",
-      "likeCount": 17
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:f6n22z62adionrvb5s6n6vfk/bafkreiesixoeevfsdv4l6yl6osprcvw44xhm3eiwfpmxt344uot4p4es2q",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:f6n22z62adionrvb5s6n6vfk/bafkreiesixoeevfsdv4l6yl6osprcvw44xhm3eiwfpmxt344uot4p4es2q",
       "alt": "",
@@ -570,6 +610,16 @@
       "url": "https://bsky.app/profile/bisks.net/post/3mx5rfva4vk2c",
       "uri": "at://did:plc:f6n22z62adionrvb5s6n6vfk/app.bsky.feed.post/3mx5rfva4vk2c",
       "likeCount": 17
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreicrcl66twjzrmnws6x4ysrmnyqqgbtcoxlwz25myie4zfbum2ce3y",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreicrcl66twjzrmnws6x4ysrmnyqqgbtcoxlwz25myie4zfbum2ce3y",
+      "alt": "",
+      "ratio": 0.75,
+      "handle": "dollspace.gay",
+      "url": "https://bsky.app/profile/dollspace.gay/post/3mx7qzxrwjk22",
+      "uri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3mx7qzxrwjk22",
+      "likeCount": 16
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreigpe3llbdfljjk6pxro4tedhazlgeyq7bcntm5fgrwejbqatvkame",
@@ -589,7 +639,7 @@
       "handle": "eriskii.net",
       "url": "https://bsky.app/profile/eriskii.net/post/3mx6c4mtd7s26",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mx6c4mtd7s26",
-      "likeCount": 14
+      "likeCount": 15
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiehbnuqwea5f7s4kcfpcts2wlvs6e6txled5sfo5hv52bdvc3ko6m",
@@ -622,6 +672,16 @@
       "likeCount": 8
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreicsomkb5h55uhzuagx4brqet2hkxavvl4qzxx554ooukg3pp7detq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreicsomkb5h55uhzuagx4brqet2hkxavvl4qzxx554ooukg3pp7detq",
+      "alt": "",
+      "ratio": 1.4578,
+      "handle": "keytryer.net",
+      "url": "https://bsky.app/profile/keytryer.net/post/3mx7yqoy67k2e",
+      "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3mx7yqoy67k2e",
+      "likeCount": 8
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreigfh7cenyyfvheh3n5sz2j4pffdwoza5gmwbwb4sj2zloecba6dhi",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreigfh7cenyyfvheh3n5sz2j4pffdwoza5gmwbwb4sj2zloecba6dhi",
       "alt": "",
@@ -629,7 +689,7 @@
       "handle": "keytryer.net",
       "url": "https://bsky.app/profile/keytryer.net/post/3mx6lz6hkf225",
       "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3mx6lz6hkf225",
-      "likeCount": 6
+      "likeCount": 7
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibd2kyyvuxwxmadbi4y5rwjpjihnvibcjf2p3vbjvowf2zvgozyb4",
@@ -639,7 +699,17 @@
       "handle": "eriskii.net",
       "url": "https://bsky.app/profile/eriskii.net/post/3mx6gxjmq2k2b",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mx6gxjmq2k2b",
-      "likeCount": 6
+      "likeCount": 7
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreififp22bjj5bd4dyuh2y7zuajocm2cze4yyidsn7di6hqaf3iwtwy",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreififp22bjj5bd4dyuh2y7zuajocm2cze4yyidsn7di6hqaf3iwtwy",
+      "alt": "",
+      "ratio": 0.969,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mx7udh3dck23",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mx7udh3dck23",
+      "likeCount": 7
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mk7qlghvwdjjayu5x3bo3lx2/bafkreihrcj463asbb7i5gxbzuj2c5dr34d57szegc3vrwozgauinz6namu",
@@ -652,16 +722,6 @@
       "likeCount": 6
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidr4isbowksg3viy2q6oc6xi6botsn3flc6rwhcrqsm5gmcnk2ive",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidr4isbowksg3viy2q6oc6xi6botsn3flc6rwhcrqsm5gmcnk2ive",
-      "alt": "Tibo\n@thsottiaux\nX.com\nDay 2.1/\nWe have made Auto-review free for all users signed in through a ChatGPT account. You can enable it in settings > permissions > auto-review.\nAuto-review improves upon the default sandbox setting that requires you to approve everything, which is prone to decision fatigue unless you spend a lot of time configuring specific rules.\nIt allows you to run long tasks while having a second agent review all actions taken by the primary agent. Its only goal is to prevent high-risk actions from being taken and to protect against unwanted actions that are not aligned with the original user intent. This Auto-review feature is now free and does not draw usage from your plan.\n9,280 inside sandbox\n10,000\n720 auto-reviewed\n7 denied\n713 approved and continue\n4 continue via\n3 stop and",
-      "ratio": 0.5838,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mx7hwelvsk2u",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mx7hwelvsk2u",
-      "likeCount": 5
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zgufzyadu3gghypxz4hp5psp/bafkreidlqivdxcaclq73bpw2hduwql6iij2iuhnfwqblkuuwgncs4v63qi",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zgufzyadu3gghypxz4hp5psp/bafkreidlqivdxcaclq73bpw2hduwql6iij2iuhnfwqblkuuwgncs4v63qi",
       "alt": "",
@@ -672,24 +732,14 @@
       "likeCount": 5
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreiaby4n5h4luphi3nju6iklcqtnkrh54xn4jtpnn7z4zqz7rr4kgam",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreiaby4n5h4luphi3nju6iklcqtnkrh54xn4jtpnn7z4zqz7rr4kgam",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreib6jbleirz26wswhlcw4shuejjhfl3xmnibvfo2gzalyync5xwjg4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreib6jbleirz26wswhlcw4shuejjhfl3xmnibvfo2gzalyync5xwjg4",
       "alt": "",
-      "ratio": 1.2027,
-      "handle": "sichulu.bsky.social",
-      "url": "https://bsky.app/profile/sichulu.bsky.social/post/3mx5bovkj7s2y",
-      "uri": "at://did:plc:4asamrnnw6rzfq5sjzvmwgpe/app.bsky.feed.post/3mx5bovkj7s2y",
-      "likeCount": 4
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreibfcy6rbmxelbian2mqfxwbx5bcp53w7enrqiujhmib4jo7yxp6hm",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreibfcy6rbmxelbian2mqfxwbx5bcp53w7enrqiujhmib4jo7yxp6hm",
-      "alt": "",
-      "ratio": 1.173,
-      "handle": "sichulu.bsky.social",
-      "url": "https://bsky.app/profile/sichulu.bsky.social/post/3mx5bovkj7s2y",
-      "uri": "at://did:plc:4asamrnnw6rzfq5sjzvmwgpe/app.bsky.feed.post/3mx5bovkj7s2y",
-      "likeCount": 4
+      "ratio": 0.5954,
+      "handle": "eriskii.net",
+      "url": "https://bsky.app/profile/eriskii.net/post/3mxa2dacgwk2l",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mxa2dacgwk2l",
+      "likeCount": 5
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreiancxpvz5fw3n4engm5kibtik6diadl557ybtkaolkejkxudhdf74",
@@ -730,6 +780,66 @@
       "url": "https://bsky.app/profile/goose.art/post/3mx6242qu3c27",
       "uri": "at://did:plc:hsqwcidfez66lwm3gxhfv5in/app.bsky.feed.post/3mx6242qu3c27",
       "likeCount": 3
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreib4stdhfpbe3uk2zihtzv43nn5i72tp4pqzscmtkvtzo3sbvedkky",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreib4stdhfpbe3uk2zihtzv43nn5i72tp4pqzscmtkvtzo3sbvedkky",
+      "alt": "",
+      "ratio": 0.5059,
+      "handle": "huwupy.kawaii.social",
+      "url": "https://bsky.app/profile/huwupy.kawaii.social/post/3mx7tjdxn422q",
+      "uri": "at://did:plc:vw4e7blkwzdokanwp24k3igr/app.bsky.feed.post/3mx7tjdxn422q",
+      "likeCount": 2
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:6ond5sxlegjxpe3ismrczk3r/bafkreibu7xj2mjrfkv2yvpluqpurznbykmjlyqtygo6teo7rr2sj76dnh4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:6ond5sxlegjxpe3ismrczk3r/bafkreibu7xj2mjrfkv2yvpluqpurznbykmjlyqtygo6teo7rr2sj76dnh4",
+      "alt": "",
+      "ratio": 1.953,
+      "handle": "harsimony.bsky.social",
+      "url": "https://bsky.app/profile/harsimony.bsky.social/post/3mx7t3eptks2m",
+      "uri": "at://did:plc:6ond5sxlegjxpe3ismrczk3r/app.bsky.feed.post/3mx7t3eptks2m",
+      "likeCount": 2
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:uynpich2hsqmryyhr3moz5re/bafkreicxasaivvxc6ty7ba3sacxlzruyvisfrwq4zwodcoyirvscdeowry",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uynpich2hsqmryyhr3moz5re/bafkreicxasaivvxc6ty7ba3sacxlzruyvisfrwq4zwodcoyirvscdeowry",
+      "alt": "link in the original NES zelda on what I think is the screen with the secret passage behind a waterall but i'm not totally sure 1989 was a long time ago",
+      "ratio": 1.7778,
+      "handle": "pavedwalden.bsky.social",
+      "url": "https://bsky.app/profile/pavedwalden.bsky.social/post/3mx7vixhjqc2r",
+      "uri": "at://did:plc:uynpich2hsqmryyhr3moz5re/app.bsky.feed.post/3mx7vixhjqc2r",
+      "likeCount": 1
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:weepuvekcnexr4oqh5y5hdl4/bafkreicjtrssgjojriohdwqeouhkq5qtvfbjr32p7ce6ctolp3lq2ktxbu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:weepuvekcnexr4oqh5y5hdl4/bafkreicjtrssgjojriohdwqeouhkq5qtvfbjr32p7ce6ctolp3lq2ktxbu",
+      "alt": "",
+      "ratio": 1.1239,
+      "handle": "ornamentalseashell.bsky.social",
+      "url": "https://bsky.app/profile/ornamentalseashell.bsky.social/post/3mx7puh5w3s27",
+      "uri": "at://did:plc:weepuvekcnexr4oqh5y5hdl4/app.bsky.feed.post/3mx7puh5w3s27",
+      "likeCount": 1
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:xoqniew6sxmn4go53vtn5l6x/bafkreienzhnnmtnrojphcwddikcz5ucnl24as6hvfpj2xf3sovgefzct74",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:xoqniew6sxmn4go53vtn5l6x/bafkreienzhnnmtnrojphcwddikcz5ucnl24as6hvfpj2xf3sovgefzct74",
+      "alt": "",
+      "ratio": 2.5476,
+      "handle": "johnvining.bsky.social",
+      "url": "https://bsky.app/profile/johnvining.bsky.social/post/3mx7rohkgd52t",
+      "uri": "at://did:plc:xoqniew6sxmn4go53vtn5l6x/app.bsky.feed.post/3mx7rohkgd52t",
+      "likeCount": 0
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidmjelw5rxnxolrg5o4t4zrku4pgvqvgvnjc6w2w2ewun57j72s64",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidmjelw5rxnxolrg5o4t4zrku4pgvqvgvnjc6w2w2ewun57j72s64",
+      "alt": "",
+      "ratio": 0.8375,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mx7s62a2xk24",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mx7s62a2xk24",
+      "likeCount": 0
     }
   ]
 }
