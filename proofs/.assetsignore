@@ -1,0 +1,6 @@
+# Not part of the site. assets.directory is this dir, so without these lines
+# they would be served at the surface's public URL.
+CLAUDE.md
+build.mjs
+assessment.json
+wrangler.jsonc

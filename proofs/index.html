@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>proofs — a machine-made math collection, sorted</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="An independent, browsable index of OpenAI's 2026 release of 722 model-written mathematics papers in 372 result families: what each claims, which are machine-checked in Lean, and which can be turned into interactive pages that recompute something real.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6; --card: #ffffff;
+  --accent: #2a78d6; --accent-tint: rgba(42,120,214,0.07); --accent-faint: rgba(42,120,214,0.14);
+  --tA: #2a78d6; --tB: #eb6834; --tC: #1baf7a;
+  --good: #1f7a3f; --warn: #8a5a00;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f; --card: #20201e;
+    --accent: #3987e5; --accent-tint: rgba(57,135,229,0.09); --accent-faint: rgba(57,135,229,0.18);
+    --tA: #3987e5; --tB: #d95926; --tC: #199e70;
+    --good: #6ec48f; --warn: #d9a54a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 1rem 16px 3rem; padding-top: calc(1rem + env(safe-area-inset-top)); }
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+h1 { font-size: 2rem; margin: 0.3rem 0 0.2rem; letter-spacing: -0.02em; }
+.lede { font-size: 1.02rem; max-width: 46rem; margin: 0.3rem 0 0.8rem; }
+.small { font-size: 0.82rem; color: var(--muted); max-width: 46rem; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 0.5rem; margin: 1rem 0; }
+.tile { border: 1px solid var(--rule); border-radius: 8px; padding: 0.55rem 0.7rem; background: var(--card); }
+.tile .v { font-family: var(--mono); font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+.tile .l { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+h2 { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.6rem 0 0.5rem; }
+.tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.5rem; }
+.tiers div { border-left: 3px solid; padding: 0.1rem 0 0.1rem 0.6rem; font-size: 0.85rem; }
+.tiers b { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.featured { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.6rem; }
+.feat { display: block; border: 1px solid var(--accent); background: var(--accent-tint); border-radius: 8px; padding: 0.7rem 0.8rem; color: var(--fg); }
+.feat:hover { text-decoration: none; background: var(--accent-faint); }
+.feat .k { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.feat .t { font-weight: 600; margin: 0.15rem 0; }
+.feat .d { font-size: 0.82rem; color: var(--muted); }
+/* discipline × tier bars */
+.legend { display: flex; gap: 0.9rem; flex-wrap: wrap; font-family: var(--mono); font-size: 0.6rem; color: var(--muted); margin-bottom: 0.4rem; }
+.legend i { display: inline-block; width: 0.65rem; height: 0.65rem; border-radius: 2px; vertical-align: -0.05rem; margin-right: 0.3rem; }
+.bars { display: grid; grid-template-columns: minmax(8rem, 13rem) 1fr; gap: 0.18rem 0.6rem; align-items: center; font-size: 0.78rem; }
+.bars .lab { text-align: right; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.bars .lab:hover { color: var(--accent); }
+.bar { display: flex; height: 0.85rem; gap: 2px; }
+.bar span { border-radius: 2px; min-width: 3px; position: relative; }
+.bar span:first-child { border-radius: 2px 0 0 2px; } .bar span:last-child { border-radius: 0 4px 4px 0; }
+.bar em { font-family: var(--mono); font-size: 0.6rem; font-style: normal; color: var(--muted); margin-left: 0.35rem; align-self: center; }
+.tip { position: fixed; pointer-events: none; font-family: var(--mono); font-size: 0.62rem; background: var(--card); color: var(--fg); border: 1px solid var(--rule); border-radius: 4px; padding: 0.2rem 0.45rem; display: none; z-index: 5; white-space: nowrap; }
+/* filters */
+.filters { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 0.55rem 0 0.5rem; border-bottom: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.filters input[type=search] { flex: 1 1 14rem; min-width: 0; font: inherit; font-size: 0.9rem; padding: 0.4rem 0.6rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--card); color: var(--fg); }
+.filters select { font-family: var(--mono); font-size: 0.66rem; padding: 0.4rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--card); color: var(--fg); max-width: 100%; }
+.chip { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.38rem 0.55rem; border: 1px solid var(--rule); border-radius: 999px; background: var(--card); color: var(--fg); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-faint); color: var(--accent); }
+.count { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); margin: 0.5rem 0; }
+/* cards */
+.card { border: 1px solid var(--rule); background: var(--card); border-radius: 8px; padding: 0.7rem 0.8rem; margin: 0.5rem 0; }
+.card .meta { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: center; font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.04em; color: var(--muted); }
+.badge { display: inline-flex; align-items: center; gap: 0.25rem; border: 1px solid var(--rule); border-radius: 999px; padding: 0.06rem 0.45rem; text-transform: uppercase; }
+.badge .dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; display: inline-block; }
+.badge.lean { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--rule)); }
+.badge.nolean { color: var(--warn); }
+.card h3 { font-size: 1rem; margin: 0.3rem 0 0.2rem; line-height: 1.3; }
+.card .sum { font-size: 0.86rem; margin: 0.2rem 0; }
+.card .idea { font-size: 0.8rem; color: var(--muted); margin: 0.3rem 0 0; }
+.card .idea b { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg); font-weight: 400; }
+.card .open { display: inline-block; margin-top: 0.4rem; font-family: var(--mono); font-size: 0.66rem; font-weight: 700; }
+details { margin-top: 0.35rem; }
+summary { cursor: pointer; font-family: var(--mono); font-size: 0.62rem; color: var(--muted); letter-spacing: 0.04em; }
+.paper { font-size: 0.82rem; margin: 0.45rem 0 0 0.2rem; }
+.paper .ab { color: var(--muted); font-size: 0.8rem; margin: 0.15rem 0 0; }
+.paper .lk { font-family: var(--mono); font-size: 0.55rem; color: var(--good); margin-left: 0.3rem; }
+footer { margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid var(--rule); font-size: 0.78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="crumb" href="https://math.mino.mobi/">← math</a>
+  <h1>proofs</h1>
+  <p class="lede">In October 2026 OpenAI released <a href="https://github.com/openai/math">722 mathematics papers</a> written by an internal model, grouped into 372 results. They range from the Birch–Swinnerton-Dyer formula for most elliptic curves to a counterexample to Sidorenko's conjecture. This is an independent index of that release. For every result it shows what is claimed and whether it has been machine-checked, and it builds pages that recompute something real wherever the mathematics allows it.</p>
+  <p class="small">Read the claims as claims. The release itself says its results are "at different stages of verification", and that some of the unformalized ones "could have issues". A green <b>Lean</b> badge means at least one of a family's papers has a formal proof in the release's Lean library. It does not mean anyone here ran it, or that a mathematician has read it. This site is not affiliated with OpenAI. The papers are theirs, under Apache-2.0, and every link goes to their repository.</p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <h2>Built so far</h2>
+  <div class="featured" id="featured"></div>
+
+  <h2>Which results can become pages</h2>
+  <div class="tiers">
+    <div style="border-color:var(--tA)"><b style="color:var(--tA)">A · computable</b><br>There is a finite object or certificate to recompute in the browser, with a selftest held to the paper's own numbers.</div>
+    <div style="border-color:var(--tB)"><b style="color:var(--tB)">B · illustrative</b><br>The setting can be simulated or drawn honestly, but the theorem itself is infinite or asymptotic and can't be checked here.</div>
+    <div style="border-color:var(--tC)"><b style="color:var(--tC)">C · card only</b><br>Too abstract for an honest interactive. The summary and the papers are the page.</div>
+  </div>
+  <p class="small">Tiers came from a first pass: six model readers worked through every family against one rubric, and humans review each one before anything is built. The bars below are the families in each field.</p>
+  <div class="legend"><span><i style="background:var(--tA)"></i>A computable</span><span><i style="background:var(--tB)"></i>B illustrative</span><span><i style="background:var(--tC)"></i>C card only</span></div>
+  <div class="bars" id="bars"></div>
+  <div class="tip" id="tip"></div>
+
+  <h2>All results</h2>
+  <div class="filters">
+    <input type="search" id="q" placeholder="search titles, summaries, papers…" aria-label="search">
+    <select id="disc" aria-label="field"></select>
+    <button class="chip" data-tier="A">A</button>
+    <button class="chip" data-tier="B">B</button>
+    <button class="chip" data-tier="C">C</button>
+    <button class="chip" id="leanOnly">Lean only</button>
+  </div>
+  <div class="count" id="count"></div>
+  <div id="list"></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script src="./data.js"></script>
+<script>
+(function () {
+  const P = window.PROOFS, M = P.meta, $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const TIER = { A: 'computable', B: 'illustrative', C: 'card only' };
+  const RELATED = (p) => `https://math.mino.mobi/${p}/`;
+
+  // ------------------------------------------------------------- tiles ---
+  const tiles = [
+    [M.families, 'results (families)'], [M.papers, 'papers'],
+    [M.leanFamilies, 'families with a Lean proof'], [M.tiers.A, 'computable (tier A)'], [M.built, 'pages built'],
+  ];
+  $('tiles').innerHTML = tiles.map(([v, l]) => `<div class="tile"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+
+  // ---------------------------------------------------------- featured ---
+  const built = P.families.filter((f) => f.page);
+  $('featured').innerHTML = built.map((f) => `<a class="feat" href="./${esc(f.page)}"><div class="k">family ${f.id} · ${esc(P.disciplines[f.disc])}${f.lean ? ' · Lean' : ''}</div><div class="t">${esc(f.t)}</div><div class="d">${esc(f.d)}</div></a>`).join('') +
+    `<div class="feat" style="border-style:dashed;background:none"><div class="k">next</div><div class="t">${P.families.filter((f) => f.tier === 'A' && !f.page).length} more tier-A results</div><div class="d">Filter the list to A to see them, each with the computation its page would run.</div></div>`;
+
+  // -------------------------------------------------- discipline bars ---
+  const byDisc = P.disciplines.map((d, i) => {
+    const fs = P.families.filter((f) => f.disc === i);
+    return { d, i, n: fs.length, A: fs.filter((f) => f.tier === 'A').length, B: fs.filter((f) => f.tier === 'B').length, C: fs.filter((f) => f.tier === 'C').length };
+  }).sort((a, b) => b.n - a.n);
+  const max = Math.max(...byDisc.map((r) => r.n));
+  $('bars').innerHTML = byDisc.map((r) =>
+    `<div class="lab" data-disc="${r.i}" title="show only ${esc(r.d)}">${esc(r.d)}</div><div class="bar">` +
+    ['A', 'B', 'C'].filter((t) => r[t]).map((t) => `<span style="width:${(100 * r[t]) / max * 0.86}%;background:var(--t${t})" data-tip="${esc(r.d)} · ${t} ${TIER[t]}: ${r[t]} of ${r.n}"></span>`).join('') +
+    `<em>${r.n}</em></div>`).join('');
+  const tip = $('tip');
+  $('bars').addEventListener('pointermove', (e) => {
+    const t = e.target.closest('[data-tip]');
+    if (!t) { tip.style.display = 'none'; return; }
+    tip.textContent = t.dataset.tip; tip.style.display = 'block';
+    tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 8, e.clientX + 10) + 'px'; tip.style.top = (e.clientY - 30) + 'px';
+  });
+  $('bars').addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+  $('bars').addEventListener('click', (e) => {
+    const l = e.target.closest('[data-disc]'); if (!l) return;
+    $('disc').value = l.dataset.disc; render(); $('q').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // ------------------------------------------------------------- list ----
+  $('disc').innerHTML = `<option value="">every field</option>` + byDisc.map((r) => `<option value="${r.i}">${esc(r.d)} (${r.n})</option>`).join('');
+  const state = { tiers: new Set(), lean: false };
+  for (const b of document.querySelectorAll('[data-tier]')) b.addEventListener('click', () => {
+    const t = b.dataset.tier; state.tiers.has(t) ? state.tiers.delete(t) : state.tiers.add(t);
+    b.setAttribute('aria-pressed', String(state.tiers.has(t))); render();
+  });
+  $('leanOnly').addEventListener('click', () => { state.lean = !state.lean; $('leanOnly').setAttribute('aria-pressed', String(state.lean)); render(); });
+  $('q').addEventListener('input', () => { clearTimeout(render.t); render.t = setTimeout(render, 120); });
+  $('disc').addEventListener('change', render);
+
+  const hay = P.families.map((f) => (f.id + ' ' + f.t + ' ' + f.d + ' ' + f.papers.map((p) => p.t).join(' ') + ' ' + (f.widget || '')).toLowerCase());
+  function card(f) {
+    const lean = f.lean
+      ? `<span class="badge lean">Lean ✓ ${f.lean}/${f.papers.length} paper${f.papers.length > 1 ? 's' : ''}</span>`
+      : `<span class="badge nolean">not formalized</span>`;
+    const rel = f.related.length ? ` · on this site: ${f.related.map((p) => `<a href="${RELATED(p)}">${esc(p)}</a>`).join(', ')}` : '';
+    const idea = f.tier !== 'C' && f.widget ? `<p class="idea"><b>page idea</b> · ${esc(f.widget)}</p>` : '';
+    const open = f.page ? `<a class="open" href="./${esc(f.page)}">open the page →</a>` : '';
+    const papers = f.papers.map((p) => `<div class="paper"><a href="https://github.com/openai/math/blob/main/preprints/${encodeURIComponent(p.dir)}/${p.pdf.split('/').map(encodeURIComponent).join('/')}">${esc(p.t)}</a>${p.lean ? '<span class="lk">LEAN</span>' : ''}<p class="ab" data-dir="${esc(p.dir)}"></p></div>`).join('');
+    return `<article class="card" id="r${f.id}"><div class="meta"><span>${f.id}</span><span>${esc(P.disciplines[f.disc])}</span>` +
+      `<span class="badge"><span class="dot" style="background:var(--t${f.tier})"></span>${f.tier} · ${TIER[f.tier]}</span>${lean}${f.conj ? '<span class="badge">touches a listed conjecture</span>' : ''}</div>` +
+      `<h3>${esc(f.t)}</h3><p class="sum">${esc(f.d)}</p>${idea}${open}` +
+      `<details data-id="${f.id}"><summary>${f.papers.length} paper${f.papers.length > 1 ? 's' : ''}${rel ? '' : ''}</summary>${papers}</details>${rel ? `<p class="idea">${rel.slice(3)}</p>` : ''}</article>`;
+  }
+  let abstracts = null;
+  async function fillAbstracts(det) {
+    if (!abstracts) {
+      try { abstracts = await (await fetch('./abstracts.json')).json(); } catch { abstracts = {}; }
+    }
+    for (const p of det.querySelectorAll('.ab')) if (!p.textContent) p.textContent = abstracts[p.dataset.dir] || '';
+  }
+  $('list').addEventListener('toggle', (e) => { if (e.target.open) fillAbstracts(e.target); }, true);
+
+  function render() {
+    const q = $('q').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const disc = $('disc').value;
+    const rows = P.families.filter((f, i) =>
+      (!state.tiers.size || state.tiers.has(f.tier)) && (!state.lean || f.lean) &&
+      (disc === '' || f.disc === +disc) && q.every((w) => hay[i].includes(w)));
+    rows.sort((a, b) => (b.page ? 1 : 0) - (a.page ? 1 : 0) || 'ABC'.indexOf(a.tier) - 'ABC'.indexOf(b.tier) || a.id.localeCompare(b.id));
+    $('count').textContent = `${rows.length} of ${P.families.length} results · built pages first, then A → B → C`;
+    $('list').innerHTML = rows.map(card).join('');
+  }
+  render();
+  if (location.hash.startsWith('#r')) setTimeout(() => document.querySelector(location.hash)?.scrollIntoView(), 50);
+
+  $('foot').innerHTML = `Source: <a href="${esc(M.source)}">${esc(M.source.replace('https://', ''))}</a> at commit <code>${esc(M.commit)}</code>, Apache-2.0. Family summaries are converted from the release's LaTeX overview to plain text, and abstracts come from its manuscript map; both are lightly reformatted, not rewritten. Tiers and page ideas are this site's own judgement. Part of <a href="https://math.mino.mobi/">math.mino.mobi</a>.`;
+})();
+</script>
+</body>
+</html>

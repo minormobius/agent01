@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **103 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **104 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -109,6 +109,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `pokemon` | frontend | `pokemon` | [poke.mino.mobi](https://poke.mino.mobi) | `claude/microbial-locomotion-flagellation-uj0l09` | [`pokemon/CLAUDE.md`](../pokemon/CLAUDE.md) | Critter Red. A browser-native monster RPG in the classic turn-based vein. |
 | `polis` | frontend | `polis` | [polis.mino.mobi](https://polis.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`polis/CLAUDE.md`](../polis/CLAUDE.md) | The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite… |
 | `poll` | fullstack | `poll` | [poll.mino.mobi](https://poll.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`poll/CLAUDE.md`](../poll/CLAUDE.md) | Anonymous polling with RSA blind signatures. The poll host can’t link your identity to your vote. |
+| `proofs` | frontend | `proofs` | [proofs.mino.mobi](https://proofs.mino.mobi) | `claude/3d-einstein-tile-math-n4t93d` | [`proofs/CLAUDE.md`](../proofs/CLAUDE.md) | OpenAI's October 2026 release of 722 model-written mathematics papers, sorted for people… |
 | `rant` | fullstack | `rant` | [rant.mino.mobi](https://rant.mino.mobi) | `claude/standard-site-blog-page-319rod` | [`rant/CLAUDE.md`](../rant/CLAUDE.md) | A box to rant into, and the words end up in your own repo as standard.site records—so any reader on the network can index them… |
 | `read` | frontend | `read` | [read.mino.mobi](https://read.mino.mobi) | `claude/portrait-artist-mythograph-pi5umf` | [`read/CLAUDE.md`](../read/CLAUDE.md) | Joyce’s Portrait of the Artist under the same deep-read apparatus with every folkloric instrument swapped out—Genette for Propp, a measured leitmotif index for Thompson, and a style curve computed off… |
 | `reef` | fullstack | `reef` | [reef.mino.mobi](https://reef.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`reef/CLAUDE.md`](../reef/CLAUDE.md) | reef.mino.mobi — Tinder-style crowd judging of procedurally generated voxel sea creatures (fish/eel/ray/jellyfish/turtle/coral/anemone… |

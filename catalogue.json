@@ -4205,6 +4205,39 @@
       ]
     },
     {
+      "n": "proofs",
+      "u": "https://proofs.mino.mobi",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "surface": "proofs",
+      "d": "OpenAI's October 2026 release of 722 model-written mathematics papers, sorted for people. Each of its 372 results is shown with what it claims, whether it has a Lean proof, and whether it can become an interactive page: a computation the browser can rerun, a setting it can honestly simulate, or just a card. Search and filter by field. Starts with Turán's brickyard.",
+      "tags": [
+        "math",
+        "index",
+        "selftest"
+      ]
+    },
+    {
+      "n": "crossing",
+      "u": "https://proofs.mino.mobi/crossing/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "How few crossings can a complete graph be drawn with? Turán's 1944 brickyard problem and Hill's formula for Kₙ, both claimed settled in 2026 by an AI-written, Lean-formalized pair of papers. Draw the optimal pictures, with crossings counted exactly. Flip edges and drag kilns to try to beat them. Run an exhaustive search of every two-page drawing up to K₁₁ in your browser.",
+      "tags": [
+        "canvas",
+        "math",
+        "selftest"
+      ]
+    },
+    {
       "n": "henderhead",
       "u": "https://henderhead.mino.mobi",
       "c": "tools",

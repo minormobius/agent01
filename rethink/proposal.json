@@ -652,7 +652,7 @@
             {
               "u": "mega.mino.mobi/jev/swarm",
               "action": "new",
-              "note": "the decision model in the steering seat of a particle swarm, live beside the rule it replaced: it does not rebel, it legislates \u2014 one policy applied to every particle, and less alignment than no steering at all",
+              "note": "the decision model in the steering seat of a particle swarm, live beside the rule it replaced: it does not rebel, it legislates — one policy applied to every particle, and less alignment than no steering at all",
               "domain": "agents"
             },
             {
@@ -1238,6 +1238,30 @@
         }
       ],
       "blurb": "The 2026 Navier–Stokes blowup paper taken apart: a collapsing core, shear-fed pulses whose Reynolds stress supplies the missing force, an exact heat-flow exterior — each piece implemented in the browser, and the whole ansatz drawn in three dimensions.",
+      "wing": "study"
+    },
+    {
+      "id": "proofs",
+      "label": "proofs",
+      "u": "proofs.mino.mobi",
+      "kind": "explainer",
+      "domain": "math",
+      "action": "new-hub",
+      "why": "OpenAI's 2026 math release is 722 papers, far too many for the math hub, so it gets its own surface like ns did: an honest index of every result (claim, Lean status, what kind of page it can become) and, one by one, interactive pages for the results with something real to recompute. Sits beside math and ns in the study wing.",
+      "members": [
+        {
+          "u": "proofs.mino.mobi",
+          "action": "new",
+          "note": "the index: all 372 results, filterable by field, tier and Lean status"
+        },
+        {
+          "u": "proofs.mino.mobi/crossing",
+          "action": "new",
+          "group": "computable results",
+          "note": "Harary–Hill and Turán's brickyard: the optimal drawings counted exactly, and an exhaustive two-page search"
+        }
+      ],
+      "blurb": "A machine-made math collection, sorted for people: every one of 372 results with its claim and its verification status, and interactive pages that recompute what can be recomputed.",
       "wing": "study"
     },
     {
@@ -2158,7 +2182,7 @@
           "action": "keep",
           "kind": "app",
           "domain": "bluesky",
-          "note": "256 characters of animation per post \u2014 the same no-backend trick as bsky, because the artwork fits in the firehose event; also runs demosky.app's shader dialect",
+          "note": "256 characters of animation per post — the same no-backend trick as bsky, because the artwork fits in the firehose event; also runs demosky.app's shader dialect",
           "wing": "bluesky"
         },
         {
