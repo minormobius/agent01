@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-lexicon",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "f93df552add705af",
+ "why": "Checked each number against pds.delve.town today: listRepos returns 215 repos (second page empty); butanium (did:plc:2yktrk7z...) has blue.poll.poll.poll; exactly four repos hold app.bsky.* collections; jetstream.delve.town fails TLS. Answers the person's question directly and corrects the jetstream assumption. Yes."
+}
