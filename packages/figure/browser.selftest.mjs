@@ -13,7 +13,10 @@ import { loadPlaywright, serve, CHROME_ARGS } from './agent/render.mjs';
 let failed = 0;
 const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed++; };
 
-const { chromium } = loadPlaywright();
+// Without Playwright (or its Chromium) there is nothing to draw with: skip, as packages/cad's
+// browser selftest does, rather than fail a runner that has no browser (GitHub's preflight has none).
+let chromium;
+try { ({ chromium } = loadPlaywright()); } catch (e) { console.log(`↷ browser selftest skipped — ${e.message.split('\n')[0]}`); process.exit(0); }
 const { server, base } = await serve();
 const browser = await chromium.launch({ headless: true, args: CHROME_ARGS });
 try {
