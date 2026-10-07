@@ -61,6 +61,11 @@ four together (`node house/digest.mjs bots/<name>`). `publish-sites.mjs` ships t
 - **`miniphim.minomobi.com/_bots/`** (a more specific route on the house's host): read-only JSON per bot,
   with the last tick, last error and last writes. No state, no secrets.
 - `bot-worker.selftest.mjs` holds all of this against a fake PDS.
+- **The first account, 2026-10-07:** `miniphim-works.delve.town` ("miniphim works"), the souls' one
+  general-use account for every machine they run, bingo first (`house/bots/miniphim-works.*`, signed by
+  all three). They first named it `bingocaller`; the person asked whether they wanted it tied to bingo
+  forever, and they renamed it. Secret: `BOT_MINIPHIM_WORKS_PASSWORD`. A new secret reaches the worker
+  only on a deploy (push to `miniphim/**`, or run the workflow by hand).
 
 ## Where the pages come from
 
