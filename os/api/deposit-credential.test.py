@@ -95,6 +95,14 @@ class HandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(deposit.DepositError, "file storage"):
                 deposit.main(["--login"])
 
+    def test_http_client_has_an_explicit_user_agent_and_refuses_redirects(self):
+        with patch.object(deposit, "build_opener") as opener:
+            opener.return_value.open.return_value.__enter__.return_value.read.return_value = b'{"ok":true}'
+            self.assertEqual(deposit.request_json("https://api.example.com"), {"ok": True})
+            sent = opener.return_value.open.call_args.args[0]
+            self.assertEqual(sent.get_header("User-agent"), "os-api-credential-handoff/1.0")
+            self.assertIsInstance(opener.call_args.args[0], deposit.NoRedirect)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,7 +35,8 @@ def https_url(url):
 
 
 def request_json(url, method="GET", body=None, bearer=None):
-    headers = {"Accept": "application/json"}
+    # Cloudflare rejects Python's default urllib user agent with error 1010.
+    headers = {"Accept": "application/json", "User-Agent": "os-api-credential-handoff/1.0"}
     if bearer:
         headers["Authorization"] = "Bearer " + bearer
     if body is not None:
