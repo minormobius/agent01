@@ -645,8 +645,14 @@ held). Three coasts: atlantic, tropic (turquoise shallows, white sand), nordic (
   nearer than its foot; wakes; masthead and side lights at night), a ship hull-down on the horizon,
   gulls wheeling and now and then beating their wings (by day, fewer in rain and storm). Over the lake: a
   skein of geese crossing at dawn and dusk, and a hawk circling by day.
-- **Sound**: the sea's roar (low brown noise) instead of the fall; each breaker a crash and the wash's
-  hiss, scheduled on the surf's own times (bigger in a storm); gull cries by day.
+- **Sound**: a low roar instead of the fall; each wave on the surf's own times (bigger in a storm), plus
+  0–2 smaller, farther, darker waves between them, panned along the beach; gull cries by day. A wave is
+  pink noise heard BUILDING for ~3 s before it breaks (gain and low-pass rising on time constants),
+  then draining ~6 s with a quiet hiss, so waves overlap and the sea never stops (owner: the first
+  version was "an overwhelming abrupt noise… fade in fade out and multiple overlapping": it was white
+  noise opening in 0.35 s, −10 dB, from silence). Measured offline in Chromium (OfflineAudioContext,
+  45 s): the coast bed swells −36 … −27 dB, never steeper than 4 dB in 50 ms (it was 109), ~9 dB under
+  the lake's bed.
 - **Music**: coast homes (atlantic B, tropic F, nordic C#) and a `sea` texture (it takes the falls'
   place, and often the lake's or river's): a barcarolle in the left hand that swells toward each
   breaker, the melody in sixths, a rolled guitar chord as the wave breaks, the piano's spray after it.

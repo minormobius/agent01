@@ -177,15 +177,15 @@ export class Sound {
   beds() {
     const ctx = this.ctx, w = this.scene.waterfall.width, coast = this.scene.kind === 'coast';
     const fall = this.noise(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = coast ? 320 : 900 + w * 40;
-    const fg = ctx.createGain(); fg.gain.value = coast ? 0.07 : 0.05 + w * 0.006;
+    const fg = ctx.createGain(); fg.gain.value = coast ? 0.028 : 0.05 + w * 0.006;
     this.bedOut = ctx.createGain(); this.bedOut.gain.value = this.ambience === false ? 0 : 1; this.bedOut.connect(this.master);
     fall.connect(lp).connect(fg).connect(this.bedOut);
     const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
     if (pan && !coast) { pan.pan.value = this.scene.cliffLeft ? -0.45 : 0.45; fg.disconnect(); fg.connect(pan).connect(this.bedOut); }
-    if (coast) { this.white = this.whiteBuf(); this.surf = surfTimes(this.scene); this.nextSurf = null; this.nextGull = null; }
+    if (coast) { this.pink = this.pinkBuf(); this.surf = surfTimes(this.scene); this.nextSurf = null; this.nextGull = null; }
     const lap = this.noise(), bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 380; bp.Q.value = 1.2;
-    const lg = ctx.createGain(); lg.gain.value = 0.06;
-    const lfo = ctx.createOscillator(), lfoG = ctx.createGain(); lfo.frequency.value = 0.21; lfoG.gain.value = 0.05;
+    const lg = ctx.createGain(); lg.gain.value = coast ? 0.025 : 0.06;          // on the coast the waves do the lapping
+    const lfo = ctx.createOscillator(), lfoG = ctx.createGain(); lfo.frequency.value = 0.21; lfoG.gain.value = coast ? 0.01 : 0.05;
     lfo.connect(lfoG).connect(lg.gain); lfo.start();
     lap.connect(bp).connect(lg).connect(this.bedOut);
     const wind = this.noise(), wb = ctx.createBiquadFilter(); wb.type = 'bandpass'; wb.Q.value = 3;
@@ -203,22 +203,40 @@ export class Sound {
     ws.connect(rh).connect(rg); rain.connect(rp).connect(rg); rg.connect(this.bedOut); rg.connect(this.verb);
   }
 
-  whiteBuf() {
-    const ctx = this.ctx, b = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate), d = b.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  /** Three seconds of pink noise (Kellet's filter), for the sea: softer than white, still airy. */
+  pinkBuf() {
+    const ctx = this.ctx, b = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate), d = b.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (let i = 0; i < d.length; i++) {
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
+      b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
+      d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11; b6 = w * 0.115926;
+    }
     return b;
   }
-  /** One wave breaking at audio time `at`: the crash (noise opening and closing), then the wash up the sand. */
-  breaker(at, size) {
-    const ctx = this.ctx, src = ctx.createBufferSource(); src.buffer = this.white; src.loop = true;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.4;
-    lp.frequency.setValueAtTime(250, at); lp.frequency.exponentialRampToValueAtTime(1800 + 1400 * size, at + 0.45); lp.frequency.exponentialRampToValueAtTime(500, at + 4.5);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.09 * size, at + 0.35); g.gain.exponentialRampToValueAtTime(0.03 * size, at + 1.6); g.gain.exponentialRampToValueAtTime(0.0001, at + 6);
-    // the wash: a high hiss that rises as the foam runs up and fades as it drains
-    const hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 3800; hp.Q.value = 0.5;
-    const wg = ctx.createGain(); wg.gain.setValueAtTime(0.0001, at + 0.8); wg.gain.exponentialRampToValueAtTime(0.03 * size, at + 2.2); wg.gain.exponentialRampToValueAtTime(0.0001, at + 5.5);
-    src.connect(lp).connect(g).connect(this.bedOut); g.connect(this.verb); src.connect(hp).connect(wg).connect(this.bedOut);
-    src.start(at, Math.random() * 2); src.stop(at + 6.2);
+  /**
+   * One wave at audio time `at` (the moment it breaks). It is heard building for ~3 s before (a
+   * low swell, its filter slowly opening), breaks softly, and drains for ~6 s as a hiss up the sand,
+   * so each wave overlaps the next. `far` (0 near … 1 far) darkens and quietens it; `pan` places it
+   * along the beach.
+   */
+  breaker(at, size, far = 0, pan = 0) {
+    const ctx = this.ctx, start = Math.max(ctx.currentTime, at - 3.2), end = at + 7;
+    const src = ctx.createBufferSource(); src.buffer = this.pink; src.loop = true;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.3;
+    const top = (1300 + 700 * size) * (1 - 0.55 * far);
+    lp.frequency.setValueAtTime(220, start); lp.frequency.setTargetAtTime(top, start, 1.3); lp.frequency.setTargetAtTime(380, at + 0.6, 2.2);
+    const g = ctx.createGain(), peak = 0.28 * size * (1 - 0.6 * far);
+    g.gain.setValueAtTime(0, start); g.gain.setTargetAtTime(peak, start, 1.1); g.gain.setTargetAtTime(0, at + 0.4, 1.9);
+    // the wash: a quiet hiss that comes up as the foam runs up the sand and drains away
+    const hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 3200 - 1200 * far; hp.Q.value = 0.4;
+    const wg = ctx.createGain(); wg.gain.setValueAtTime(0, start); wg.gain.setTargetAtTime(0.07 * size * (1 - 0.7 * far), at + 0.3, 0.9); wg.gain.setTargetAtTime(0, at + 2.4, 1.5);
+    const out = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+    if (out.pan) out.pan.value = pan;
+    src.connect(lp).connect(g).connect(out); src.connect(hp).connect(wg).connect(out);
+    out.connect(this.bedOut); g.connect(this.verb);
+    src.start(start, Math.random() * 3.5); src.stop(end);
   }
   /** A gull's call: two or three falling cries, nasal (a saw through two formants). */
   gull(at) {
@@ -241,10 +259,15 @@ export class Sound {
   #coastTick() {
     const c = this.clock, now = this.ctx.currentTime, t = c.now(), { period, phase } = this.surf;
     if (this.nextSurf === null || this.nextSurf < t - period) this.nextSurf = phase + Math.ceil((t - phase) / period) * period;
-    while (c.audioTimeOf(this.nextSurf) < now + 0.6) {
-      const at = c.audioTimeOf(this.nextSurf), k = Math.round((this.nextSurf - phase) / period);
-      const size = (0.7 + 0.3 * Math.abs(Math.sin(k * 1.7))) * (1 + 0.5 * ((this.wx && this.wx.storm) || 0));
-      if (at >= now - 0.05) this.breaker(Math.max(now, at), size);
+    // each wave is scheduled ~3.6 s ahead (it is heard building before it breaks); between the
+    // painted waves, smaller ones break farther along the beach, so the sea never stops
+    while (c.audioTimeOf(this.nextSurf) < now + 3.6) {
+      const at = c.audioTimeOf(this.nextSurf), k = Math.round((this.nextSurf - phase) / period), r = (q) => Math.abs(Math.sin(k * 12.9898 + q * 78.233) * 43758.5453) % 1;
+      const storm = 1 + 0.5 * ((this.wx && this.wx.storm) || 0);
+      if (at > now - 2) {
+        this.breaker(at, (0.75 + 0.25 * r(1)) * storm, 0, (r(2) - 0.5) * 0.5);
+        for (let j = 0; j < 2; j++) if (r(3 + j) < 0.8) this.breaker(at + period * (0.3 + 0.35 * j + 0.1 * r(5 + j)), (0.4 + 0.3 * r(7 + j)) * storm, 0.4 + 0.5 * r(9 + j), (r(11 + j) - 0.5) * 1.4);
+      }
       this.nextSurf += period;
     }
     const day = c.lightAtBeat(c.beat()).el > 0;
