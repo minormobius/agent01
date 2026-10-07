@@ -217,6 +217,15 @@ export default {
     const h = { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'x-content-type-options': 'nosniff' };
     if (env.OPEN !== 'true') return new Response(JSON.stringify({ closed: 'the person has closed the house; the bots are stopped' }), { status: 503, headers: h });
     if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('read-only\n', { status: 405, headers: { allow: 'GET, HEAD' } });
+    // /_bots/run: one round now, as the cron would, with the result or the error in the answer. Safe to
+    // call by anyone: a bot runs only when it is due, so this can't make one post more often.
+    if (new URL(req.url).pathname.replace(/\/+$/, '').endsWith('/_bots/run')) {
+      if (!Object.keys(bots).length) return new Response(JSON.stringify({ ran: [], note: 'no bots shipped' }), { headers: h });
+      try {
+        const t = await stub(env).fetch(`https://bots/tick?now=${encodeURIComponent(new Date().toISOString())}`);
+        return new Response(JSON.stringify({ status: t.status, result: await t.text() }, null, 1), { status: t.ok ? 200 : 500, headers: h });
+      } catch (e) { return new Response(JSON.stringify({ error: String(e?.stack || e).slice(0, 800) }, null, 1), { status: 500, headers: h }); }
+    }
     const r = await stub(env).fetch('https://bots/status');
     return new Response(JSON.stringify(await r.json(), null, 1), { headers: h });
   },
