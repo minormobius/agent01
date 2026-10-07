@@ -6,7 +6,7 @@ import { Bots, makeAgent, linkFacets, due, _setNet, guardedFetch, WRITES } from 
 
 const calls = [];
 let sessions = 0;
-_setNet(async (input, init = {}) => {
+const fakeNet = async (input, init = {}) => {
   const url = new URL(String(input)), nsid = url.pathname.split('/').pop().split('.').pop();
   const body = init.body && typeof init.body === 'string' ? JSON.parse(init.body) : null;
   calls.push({ nsid, body, params: Object.fromEntries(url.searchParams), auth: init.headers?.authorization || null, proxy: init.headers?.['atproto-proxy'] || null });
@@ -17,11 +17,15 @@ _setNet(async (input, init = {}) => {
   if (nsid === 'resolveHandle') return ok({ did: 'did:plc:op' });
   if (nsid === 'getTimeline') return ok({ feed: [] });
   return ok({ uri: `at://${body?.repo}/${body?.collection}/1`, cid: 'c' });
-});
+};
+_setNet(fakeNet);
 
 // The fence: only the council's hosts.
 await assert.rejects(guardedFetch('https://example.com/x'), /not allowed/);
 await assert.rejects(guardedFetch('http://pds.delve.town/x'), /not allowed/);
+{ let saw; _setNet(async (u, init) => { saw = init.redirect; return new Response('', { status: 302, headers: { location: 'https://evil.example/' } }); });
+  await assert.rejects(guardedFetch('https://pds.delve.town/x'), /redirect/);
+  assert.equal(saw, 'manual', "redirect: 'error' does not exist on Workers; 'manual' and a check does"); _setNet(fakeNet); }
 
 // Facets: byte offsets, trailing punctuation dropped.
 const f = linkFacets('é see https://del.mino.mobi/days/.');
@@ -93,5 +97,14 @@ assert.equal(calls.find((c) => c.nsid === 'createRecord').body.record.text, 'bal
 const { default: worker } = await import('./bot-worker.js');
 assert.equal((await worker.fetch(new Request('https://miniphim.minomobi.com/_bots/'), { OPEN: 'false' })).status, 503);
 assert.equal((await worker.fetch(new Request('https://miniphim.minomobi.com/_bots/', { method: 'POST' }), { OPEN: 'true' })).status, 405);
+
+// A failure before the tick (here, sign-in refused) doesn't use up the bot's clock: next cron retries.
+{ const st2 = new Map(); const c2 = { storage: { get: async (k) => structuredClone(st2.get(k)), put: async (k, v) => { st2.set(k, structuredClone(v)); }, delete: async (k) => st2.delete(k) } };
+  const o2 = new Bots(c2, { BOT_BINGO_PASSWORD: 'wrong' }, { bingo });
+  await o2.tick('2026-10-07T00:00:00Z');
+  const s2 = (await o2.status()).bots.bingo;
+  assert.equal(s2.last_tick, null, 'a sign-in failure is not the bot\'s turn'); assert.ok(s2.last_error);
+  o2.env.BOT_BINGO_PASSWORD = 'pw'; await o2.tick('2026-10-07T00:05:00Z');
+  assert.equal((await o2.status()).bots.bingo.runs, 1, 'and the next cron runs it'); }
 
 console.log('miniphim bots selftest: the fence, facets, own repo only, 100-write rail, waiting, profile with bot label, session reuse, private state, errors per tick, status');

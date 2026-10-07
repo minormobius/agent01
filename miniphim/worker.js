@@ -35,7 +35,11 @@ globalThis.fetch = (input, init) => {
   if (url.protocol !== 'https:' || !ALLOWED_HOSTS.includes(url.hostname)) {
     return Promise.reject(new Error(`miniphim: fetch to ${url.hostname} is not allowed (only ${ALLOWED_HOSTS.join(', ')})`));
   }
-  return realFetch(input, { ...init, redirect: 'error' });
+  // Workers has no redirect: 'error'; 'manual' plus a check refuses a redirect the same way.
+  return realFetch(input, { ...init, redirect: 'manual' }).then((r) => {
+    if (r.status >= 300 && r.status < 400) throw new Error(`miniphim: ${url.hostname} answered a redirect (${r.status}); redirects are refused`);
+    return r;
+  });
 };
 
 const CLOSED = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

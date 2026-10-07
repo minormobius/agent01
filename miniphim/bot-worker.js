@@ -34,7 +34,11 @@ export function guardedFetch(input, init) {
   if (url.protocol !== 'https:' || !ALLOWED_HOSTS.includes(url.hostname)) {
     return Promise.reject(new Error(`miniphim: fetch to ${url.hostname} is not allowed (only ${ALLOWED_HOSTS.join(', ')})`));
   }
-  return net(input, { ...init, redirect: 'error' });
+  // Workers has no redirect: 'error'; 'manual' plus a check refuses a redirect the same way.
+  return net(input, { ...init, redirect: 'manual' }).then((r) => {
+    if (r.status >= 300 && r.status < 400) throw new Error(`miniphim: ${url.hostname} answered a redirect (${r.status}); redirects are refused`);
+    return r;
+  });
 }
 globalThis.fetch = guardedFetch;
 
@@ -154,11 +158,13 @@ export class Bots {
       const st = (await this.ctx.storage.get(`status:${name}`)) || { runs: 0 };
       const password = this.env[bot.secret];
       if (!password) { await this.ctx.storage.put(`status:${name}`, { ...st, waiting: `the person has not added ${bot.secret} yet`, digest: bot.digest }); continue; }
-      if (!due(bot, st.last_tick, Date.parse(now))) continue;
+      // Due on its clock; and a bot that has never once got as far as its own code tries again at every cron.
+      if (!due(bot, st.last_tick, Date.parse(now)) && !(st.last_error && !st.last_ok && st.last_error_stage !== 'tick')) continue;
       const log = [];
       const rec = { ...st, waiting: null, last_tick: now, digest: bot.digest, runs: (st.runs || 0) + 1 };
       // Where it got to, written before each step: a run that dies mid-way still says where.
-      const stage = (s) => this.ctx.storage.put(`status:${name}`, { ...rec, stage: s, stage_at: new Date().toISOString() });
+      let at = null;
+      const stage = (s) => { at = s; return this.ctx.storage.put(`status:${name}`, { ...rec, stage: s, stage_at: new Date().toISOString() }); };
       try {
         await stage('signing in');
         const s = await this.session(name, bot, password);
@@ -178,7 +184,10 @@ export class Bots {
         }
         rec.last_ok = now; rec.last_error = null;
       } catch (e) {
-        rec.last_error = String(e?.message || e).slice(0, 500); rec.last_error_at = now;
+        rec.last_error = String(e?.message || e).slice(0, 500); rec.last_error_at = now; rec.last_error_stage = at;
+        // A failure before the bot's own code ran (signing in, the profile) is ours, not its turn: it
+        // tries again at the next cron instead of waiting out its clock.
+        if (at !== 'tick') { rec.last_tick = st.last_tick ?? null; rec.runs = st.runs || 0; }
         if (e?.status === 401) await this.ctx.storage.delete(`session:${name}`);
       }
       rec.last_writes = log.slice(-20); rec.stage = 'done'; rec.stage_at = new Date().toISOString();
