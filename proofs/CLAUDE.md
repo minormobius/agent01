@@ -27,7 +27,7 @@ that have something real to recompute. Repo-wide rules are in
 | `abstracts.json` | paper abstracts, fetched only when a card is opened | **generated** by `build.mjs` |
 | `assessment.json` | the editorial layer: tier, effort, page idea, related site pages, built `page` | hand (seeded by model readers) |
 | `build.mjs` | joins the release with `assessment.json` | hand |
-| `crossing/`, `hadamard/`, `seymour/`, `catalan/`, `mub/`, `petty/`, `ramsey/` | the built pages (families 165, 179, 173, 005, 266, 088, 189), one section each below | hand |
+| `crossing/`, `hadamard/`, `seymour/`, `catalan/`, `mub/`, `petty/`, `ramsey/`, `sidorenko/` | the built pages (families 165, 179, 173, 005, 266, 088, 189, 161), one section each below | hand |
 | `.assetsignore` | keeps `CLAUDE.md`, `build.mjs`, `assessment.json` and `wrangler.jsonc` off the web | hand |
 
 ## Rebuilding the data
@@ -340,8 +340,8 @@ node proofs/ramsey/build-traces.mjs --src ~/openai-math --check
 The engine is `ramsey/ramsey.js`, imported by the page, `search.worker.js`
 and the selftest. The release's Lean library proves the **whole** main
 theorem (`OAI.CycleClique.thm_main`, which the scope note calls "the
-complete parameter range"). The paper is not in `formalization.yaml`, so the tagline says "uncatalogued",
-as for 005.
+complete parameter range"). The paper is not in `formalization.yaml`, so
+the tagline says "uncatalogued", as for 005.
 
 - **The finite check is reimplemented from the paper's text**, not from
   the release's Python. That covers the pattern recursion (and the paper's
@@ -371,3 +371,41 @@ as for 005.
 - The release's Python files were never opened or run. The paper's
   appendix describes them, and that was enough. The trace file was read
   as data.
+
+## `/sidorenko/` (family 161): a counterexample to Sidorenko's conjecture
+
+```bash
+node proofs/sidorenko/sidorenko.selftest.mjs   # ~7 s, 205 checks
+```
+
+The engine is `sidorenko/sidorenko.js`, imported by the page,
+`search.worker.js` and the selftest. The Lean library proves the
+counterexample (`OAI.SidorenkoCounterexample.main`, an existence statement).
+The forcing corollary is out of its scope, and the paper is uncatalogued. The
+page quotes `faces` and `main` verbatim, and `FACES` is the Lean list.
+
+- **The host is not explicit, and the page never pretends otherwise.** It
+  is sampled from a kernel over symmetric matrices in 𝔽_q in a large fixed
+  dimension, with q → ∞. What *is* finite is the paper's Proposition on the
+  complex, and the selftest replays all four items against Tables 1 and 2:
+  pairs in two faces, opposite faces, exposure orders, a_e, the degree
+  table and its three tied pairs, and colour refinement (2 → 4 → 10 → 20 →
+  35 classes). It also checks the sign identity.
+- **The complex is a triangulated 2-sphere.** It has χ = 2, every link is a
+  cycle, and it is orientable. This is **our observation**, labelled as such,
+  and it is what makes the counting cheap. Hom(H, G) = Σ over 13 point
+  assignments of Π_faces codeg(a, b, c), so the face vertices are summed out
+  first. The rest is variable elimination along `ELIM`, an order of width 5
+  found offline. Any order gives the same value, and the selftest compares
+  two. The float path is inlined and does n = 16 in about 2.5 s. BigInt
+  exact runs to 10 vertices (Petersen in about 0.6 s). Both are checked
+  against a direct 13-point sum (all graphs on 3 vertices) and against
+  brute force over all maps (into K₂).
+- **Small hosts never break it.** Complete graphs fall toward 1 from above
+  (K₁₀ gives 1.0468), random graphs on 6–13 vertices sit far above, and random
+  local search on 2 × 2 and 3 × 3 kernels slides to the constant kernel
+  (ratio exactly 1, consistent with Lovász's local theorem). The page uses
+  this to show why nobody found the counterexample by search.
+- **The drawing** is a Tutte embedding with outer face 19, reweighted 4
+  rounds by edge length. Any positive weights stay crossing-free, and the
+  selftest checks it.

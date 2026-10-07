@@ -2921,6 +2921,15 @@
    "parent": "proofs"
   },
   {
+   "id": "sidorenko",
+   "name": "sidorenko",
+   "url": "https://proofs.mino.mobi/sidorenko/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "proofs"
+  },
+  {
    "id": "henderhead",
    "name": "henderhead",
    "url": "https://henderhead.mino.mobi",

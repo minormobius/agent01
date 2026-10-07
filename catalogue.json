@@ -4340,6 +4340,23 @@
       ]
     },
     {
+      "n": "sidorenko",
+      "u": "https://proofs.mino.mobi/sidorenko/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Sidorenko's conjecture said every bipartite pattern shows up in any graph at least as often as in a random one of the same density. A 2026 AI-written paper with a Lean proof breaks it with one explicit pattern: the 22 triangles of a 13-point triangulated sphere, read as a 35-vertex bipartite graph. Inspect the pattern and the paper's certificate for it, count it exactly in small graphs, and see why no small graph can be the counterexample.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
       "n": "henderhead",
       "u": "https://henderhead.mino.mobi",
       "c": "tools",

@@ -1737,12 +1737,12 @@
    "tier": "A",
    "effort": "M",
    "confidence": "med",
-   "widget": "Inspect the explicit 13-point, 22-triangle complex H (35-vertex, 66-edge bipartite pattern) that breaks Sidorenko's conjecture, and see why each pair lying in exactly two faces creates a sign correlation.",
-   "engine": "Rebuilds H from Table tab:complex, asserts 35 vertices/66 edges, 33 pairs each in exactly two faces, the opposite-face columns, face-neighbor graph, the a_e separation values from the bit labels, and the color-refinement partition; verifies the sign identity E(1+c eta xi xi)(1+c eta xi xi)=1+xi^4-product.",
-   "hook": "a small graph that appears less often than at random",
+   "widget": "The 13-point, 22-face complex drawn flat (it is a triangulated sphere), coloured by the paper's bit classes with the exposure orders stepped through and colour refinement run to discreteness; exact homomorphism counts of the 35-vertex pattern in small hosts, complete graphs creeping down to the bound, random graphs and kernels that never go below it.",
+      "engine": "Replays the paper's Proposition on the complex (pairs in two faces, Table 1 opposite faces, Table 2 exposure orders, separations a_e, degree table, colour refinement) and the sign identity; counts Hom(H,G) by variable elimination over the 13 points (treewidth 5), exactly in BigInt up to 10 host vertices, checked against a direct sum and brute force. The host itself exists only asymptotically (q -> infinity) and is not constructed.",
+      "hook": "a small graph that appears less often than at random",
    "related": [],
    "conjectures": true,
-   "page": null
+   "page": "sidorenko/"
   },
   "162": {
    "tier": "B",
