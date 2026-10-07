@@ -4,3 +4,4 @@ CLAUDE.md
 build.mjs
 assessment.json
 wrangler.jsonc
+ramsey/build-traces.mjs

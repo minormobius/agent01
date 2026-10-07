@@ -1289,6 +1289,12 @@
           "action": "new",
           "group": "computable results",
           "note": "Projection bodies: Petty's ellipsoid minimum, and the 20-dimensional product of simplices that breaks the simplex maximum, recomputed from 231 determinants"
+        },
+        {
+          "u": "proofs.mino.mobi/ramsey",
+          "action": "new",
+          "group": "computable results",
+          "note": "Cycle-clique Ramsey numbers: colour graphs, exhaust small cases, and rerun all 3,099 patterns of the paper's finite check from an independent implementation"
         }
       ],
       "blurb": "A machine-made math collection, sorted for people: every one of 372 results with its claim and its verification status, and interactive pages that recompute what can be recomputed.",

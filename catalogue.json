@@ -4323,6 +4323,23 @@
       ]
     },
     {
+      "n": "ramsey",
+      "u": "https://proofs.mino.mobi/ramsey/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Colour every connection among N people red or blue: how many people force a red cycle through exactly m of them or a blue group of n who all know each other? Erdős and three coauthors guessed (m−1)(n−1)+1 in 1978, and a 2026 AI-written paper with a full Lean proof settles it. Colour graphs yourself, exhaust the small cases, and rerun the paper's whole 3,099-pattern finite check from its own rules in your browser, matching the published traces line for line.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
       "n": "henderhead",
       "u": "https://henderhead.mino.mobi",
       "c": "tools",

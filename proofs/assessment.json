@@ -2044,12 +2044,12 @@
    "tier": "A",
    "effort": "M",
    "confidence": "high",
-   "widget": "Pick m,n, see the extremal colouring with no red C_m and no blue K_n on (m-1)(n-1) vertices, and brute-force small cases like R(C_4,K_3)=7.",
-   "engine": "Engine re-checks the paper's finite path-system certificates (verification/data/certificates.jsonl, 3099 records over 5<=k<=17) against expected-output.txt, verifies the extremal construction, and exhaustively confirms small Ramsey values.",
-   "hook": "Exact answer to an Erdos Ramsey problem",
+   "widget": "Colour K_N edge by edge and watch a red C_m or blue K_n appear; the extremal colouring on (m-1)(n-1) vertices and what one more vertex does; exhaustive small cases to R(C7,K3) = 13 and R(C4,K4) = 10; and the paper's whole 3,099-pattern finite check rerun in the browser, with every pattern inspectable.",
+      "engine": "An independent JS implementation of the paper's Section 9 rules from its text (pattern recursion and generating function, labels, extension rule, required paths, ball bounds, packing, strengthening): it reproduces the paper's tables and, for all 3,099 patterns, the release's outcome, initial flags and every strengthening round; every witness in the release's traces is validated against rebuilt data. Exhaustive vertex-extension search for small Ramsey numbers. The structural Sections 2-8 are proofs in words (Lean covers the theorem) and are not rechecked.",
+      "hook": "Exact answer to an Erdos Ramsey problem",
    "related": [],
    "conjectures": false,
-   "page": null
+   "page": "ramsey/"
   },
   "190": {
    "tier": "A",

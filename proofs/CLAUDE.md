@@ -27,7 +27,7 @@ that have something real to recompute. Repo-wide rules are in
 | `abstracts.json` | paper abstracts, fetched only when a card is opened | **generated** by `build.mjs` |
 | `assessment.json` | the editorial layer: tier, effort, page idea, related site pages, built `page` | hand (seeded by model readers) |
 | `build.mjs` | joins the release with `assessment.json` | hand |
-| `crossing/`, `hadamard/`, `seymour/`, `catalan/`, `mub/`, `petty/` | the built pages (families 165, 179, 173, 005, 266, 088), one section each below | hand |
+| `crossing/`, `hadamard/`, `seymour/`, `catalan/`, `mub/`, `petty/`, `ramsey/` | the built pages (families 165, 179, 173, 005, 266, 088, 189), one section each below | hand |
 | `.assetsignore` | keeps `CLAUDE.md`, `build.mjs`, `assessment.json` and `wrangler.jsonc` off the web | hand |
 
 ## Rebuilding the data
@@ -281,8 +281,9 @@ this in its tagline and quotes the statement whole.
   classification the companion cites. Every other matrix gives |g| < 10⁻¹¹.
 - **Not rerun:** the paper's exclusion (its documented run took 4,470 s
   wall-clock, which the paper says is not a CPU time) and the companion's
-  `verify.py` exact moment certificates. The latter is a multi-modular rank computation over combinatorial invariants,
-  and porting it is a project of its own. The release directory is
+  `verify.py` exact moment certificates. The latter is a multi-modular rank
+  computation over combinatorial invariants, and porting it is a project of
+  its own. The release directory is
   untrusted, so its Python was read but never run.
 
 ## `/petty/` (family 088): projection bodies, Petty's minimum and Brannen's maximum
@@ -327,3 +328,46 @@ and uses their definitions (`simplexConstant`, `pettyConstant`).
   page stops auto-spinning above 800 faces.
 - **Not checked:** Petty's inequality for n ≥ 4, which is analysis
   (harmonics, a strict norm estimate, a fixed point).
+
+## `/ramsey/` (family 189): cycle–clique Ramsey numbers
+
+```bash
+node proofs/ramsey/ramsey.selftest.mjs                        # ~17 s, 3675 checks
+node proofs/ramsey/build-traces.mjs --src ~/openai-math       # rewrites traces.json
+node proofs/ramsey/build-traces.mjs --src ~/openai-math --check
+```
+
+The engine is `ramsey/ramsey.js`, imported by the page, `search.worker.js`
+and the selftest. The release's Lean library proves the **whole** main
+theorem (`OAI.CycleClique.thm_main`, which the scope note calls "the
+complete parameter range"). The paper is not in `formalization.yaml`, so the tagline says "uncatalogued",
+as for 005.
+
+- **The finite check is reimplemented from the paper's text**, not from
+  the release's Python. That covers the pattern recursion (and the paper's
+  separate generating-function count), the label construction, the
+  extension rule, the required-path rule (states of visited set and
+  endpoint), the ball bounds with their exception, the packing test, and the
+  strengthening rounds. On the first run it agreed with the release on
+  every one of the 3,099 patterns, down to the initial flag matrix and the
+  exact set of prohibitions added in each round. The output table is 3,049
+  ones, 50 twos and no zeros, matching the paper. It takes about 10 s in a
+  browser worker and 7 s in node.
+- **`traces.json` is a compacted copy** of the release's
+  `verification/data/certificates.jsonl` (Apache-2.0). Initial flags are
+  3.4 MB of its 3.8 MB, so `build-traces.mjs` replaces them by an FNV-1a
+  checksum (`flagsHash`). The page recomputes the flags and compares.
+  Witnesses are kept, and `checkTrace` validates every one against
+  rebuilt data, as both round trials and final packings. A dominated radius
+  inherits the bound of the last retained radius, as the paper's "removing
+  redundant radii" allows. The selftest also tampers with three traces and
+  expects rejection. Re-run the build if the release changes the file.
+- **Small cases are exhaustive and theory-free:** vertex-extension search
+  keeping graphs with no C_m and α < n (both hereditary). (3,3)…(6,3) take
+  well under a second; (7,3) and (4,4) take 15–25 s, so they are in the
+  page but not the selftest.
+- **Not checked:** Sections 2–8 (expansion, the clique bound, k = 3, 4, t ≥ 9).
+  They are proofs in words, and the Lean development covers them.
+- The release's Python files were never opened or run. The paper's
+  appendix describes them, and that was enough. The trace file was read
+  as data.
