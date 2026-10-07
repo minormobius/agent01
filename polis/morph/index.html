@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>polis — morph</title>
+<meta name="description" content="A city's form from districts down to buildings: streets, blocks, plots and buildings, each district laid out by its own era.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230d1117'/%3E%3Cpath d='M2 14V7h3v7M6 14V3h4v11M11 14V9h3v5' fill='%23d9a441'/%3E%3C/svg%3E">
+<style>
+  :root { --bg:#0d1117; --panel:#131a24ee; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:14px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; overflow:hidden; }
+  a { color:var(--acc); }
+  #c { position:fixed; inset:0; width:100vw; height:100vh; touch-action:none; cursor:grab; display:block; }
+  #c.drag { cursor:grabbing; }
+  .panel { position:fixed; left:12px; top:12px; width:290px; max-height:calc(100vh - 24px); overflow:auto; background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:12px 14px; backdrop-filter:blur(6px); }
+  .panel h1 { margin:0; font-size:18px; } .panel h1 .g { color:var(--gold); }
+  .crumb { font-size:12px; color:var(--dim); }
+  .row { display:flex; align-items:center; gap:8px; margin:7px 0; flex-wrap:wrap; }
+  .row label { color:var(--dim); font-size:12px; min-width:76px; }
+  .row input[type=range] { flex:1; min-width:100px; accent-color:var(--gold); }
+  .row .v { font-variant-numeric:tabular-nums; font-size:12px; min-width:34px; text-align:right; }
+  button { background:#1b2533; color:var(--ink); border:1px solid var(--edge); border-radius:8px; padding:5px 10px; font:inherit; font-size:13px; cursor:pointer; }
+  button.on { background:#3a2f17; border-color:var(--gold); color:var(--gold); }
+  button.primary { background:var(--gold); color:#16120a; border-color:var(--gold); font-weight:700; }
+  .seg { display:flex; gap:4px; flex-wrap:wrap; }
+  .stats { font-size:12px; color:var(--dim); font-variant-numeric:tabular-nums; margin-top:8px; }
+  .stats b { color:var(--ink); font-weight:600; }
+  .note { font-size:12.5px; color:var(--dim); }
+  .note p { margin:6px 0; }
+  #inspect { position:fixed; right:12px; bottom:12px; max-width:300px; background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:10px 12px; font-size:12.5px; display:none; }
+  #inspect b { color:var(--gold); }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 10px; font-size:11.5px; color:var(--dim); margin-top:6px; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:4px; vertical-align:-1px; }
+  #toggle { display:none; }
+  @media (max-width: 640px) {
+    .panel { left:8px; right:8px; top:auto; bottom:8px; width:auto; max-height:46vh; }
+    .panel.closed > :not(.head) { display:none; }
+    #toggle { display:inline-block; }
+    #inspect { right:8px; left:8px; bottom:auto; top:8px; max-width:none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="panel" id="panel">
+  <div class="head row" style="justify-content:space-between;margin:0">
+    <div><div class="crumb"><a href="../">polis</a> · the city cascade</div><h1>morph <span class="g">· a city's form</span></h1></div>
+    <button id="toggle" type="button">▾</button>
+  </div>
+  <div class="row"><div class="seg"><button id="vplan" type="button" class="on">plan</button><button id="vmodel" type="button">model</button></div><button id="new" type="button" class="primary">new city</button></div>
+  <div class="row"><label>seed</label><input id="seed" type="number" style="width:90px;background:#0d1117;color:var(--ink);border:1px solid var(--edge);border-radius:6px;padding:3px 6px"></div>
+  <div class="row"><label>districts</label><input id="districts" type="range" min="2" max="10" step="1"><span class="v" id="districtsV"></span></div>
+  <div class="row"><label>the core</label><div class="seg" id="coreSeg"></div></div>
+  <div class="row"><label>later eras</label><div class="seg" id="eraSeg"></div></div>
+  <div class="row"><label>plot width</label><input id="plotScale" type="range" min="0.5" max="2.5" step="0.05"><span class="v" id="plotScaleV"></span></div>
+  <div class="row"><label>streets</label><input id="streetScale" type="range" min="0.5" max="2" step="0.05"><span class="v" id="streetScaleV"></span></div>
+  <div class="row"><label>height</label><input id="heightScale" type="range" min="0.3" max="3" step="0.05"><span class="v" id="heightScaleV"></span></div>
+  <div class="row"><label>show</label><div class="seg" id="layerSeg"></div></div>
+  <div class="row" id="sunRow"><label>sun</label><input id="sun" type="range" min="0" max="360" step="1"><span class="v" id="sunV"></span></div>
+  <div class="legend" id="legend"></div>
+  <div class="stats" id="stats"></div>
+  <div class="note">
+    <p>A town plan is three things laid down at different times: the <b>streets</b>, the <b>plots</b>, and the <b>buildings</b> on the plots (M. R. G. Conzen, 1960). Each district here was laid out in one era by one idea of a street: an organic core, a planned grid, a boulevard scheme round a rond-point, a modern grid, a suburb. Each lattice runs at its own angle, so where two meet the blocks are cut short: a boulevard on the seam, and triangular plots where flatirons go.</p>
+    <p>Every block is shared among the streets it fronts (the land nearest each street is its), and each frontage is cut into plots running back to the block's middle: narrow burgage plots in the old core, wider and often merged ones later. Buildings stand on the front of their plots, as deep, tall and roofed as their era built. Every cut is a convex clip, so the plots tile the blocks exactly. Plan: drag to pan, wheel or pinch to zoom, tap to inspect. Model: drag to turn, shift-drag or two fingers to pan.</p>
+  </div>
+</div>
+<div id="inspect"></div>
+<script type="module">
+import { generate, ERAS, KINDS } from './morph.js';
+import * as G from './geom.js';
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('c'), ctx = canvas.getContext('2d');
+const COLOURS = { organic: [205, 160, 112], grid: [176, 168, 150], radial: [214, 196, 160], modern: [140, 158, 184], suburb: [176, 150, 128] };
+const ROOFS = { organic: [146, 72, 52], grid: [120, 92, 80], radial: [96, 104, 118], modern: [92, 96, 104], suburb: [150, 84, 60] };
+const LAYERS = ['districts', 'plots', 'buildings', 'labels'];
+
+// ---- state, from the link
+const q = new URLSearchParams(location.hash.slice(1));
+const st = {
+  seed: +q.get('seed') || 1 + Math.floor(Math.random() * 9999),
+  districts: +q.get('n') || 6,
+  core: q.get('core') || 'organic',
+  later: (q.get('eras') || 'grid,radial,modern,suburb').split(',').filter((k) => ERAS[k]),
+  plotScale: +q.get('pw') || 1, streetScale: +q.get('sw') || 1, heightScale: +q.get('hs') || 1,
+  view: q.get('view') === 'model' ? 'model' : 'plan',
+  layers: new Set((q.get('show') || 'districts,plots,buildings,labels').split(',')),
+  sun: q.has('sun') ? +q.get('sun') : 225,
+};
+const cam = { x: 0, y: 0, zoom: 1, yaw: 0.6, tilt: 0.75 };
+let city = null, order = null;
+
+function remember() {
+  const p = new URLSearchParams({ seed: st.seed, n: st.districts, core: st.core, eras: st.later.join(',') });
+  if (st.plotScale !== 1) p.set('pw', st.plotScale);
+  if (st.streetScale !== 1) p.set('sw', st.streetScale);
+  if (st.heightScale !== 1) p.set('hs', st.heightScale);
+  if (st.view === 'model') p.set('view', 'model');
+  p.set('show', [...st.layers].join(','));
+  if (st.sun !== 225) p.set('sun', st.sun);
+  history.replaceState(null, '', '#' + p);
+}
+
+function rebuild() {
+  const t0 = performance.now();
+  city = generate({ seed: st.seed, districts: st.districts, kinds: [st.core, ...st.later.filter((k) => k !== st.core)], plotScale: st.plotScale, streetScale: st.streetScale, heightScale: st.heightScale });
+  const ms = performance.now() - t0, s = city.stats;
+  $('stats').innerHTML = `<b>${s.blocks}</b> blocks · <b>${s.plots}</b> plots · <b>${s.buildings}</b> buildings<br>${(s.streetShare * 100).toFixed(0)}% street · ${(s.coverage * 100).toFixed(0)}% built over · floor area ratio <b>${s.far.toFixed(2)}</b> · tallest ${s.tallest.toFixed(0)} m<br>generated in ${ms.toFixed(0)} ms`;
+  order = null; $('inspect').style.display = 'none';
+  draw(); remember();
+}
+
+// ---- the controls
+function seg(el, items, isOn, click) {
+  el.innerHTML = '';
+  for (const [k, label] of items) { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.classList.toggle('on', isOn(k)); b.onclick = () => { click(k); seg(el, items, isOn, click); }; el.append(b); }
+}
+const eraItems = KINDS.map((k) => [k, k]);
+seg($('coreSeg'), eraItems, (k) => st.core === k, (k) => { st.core = k; rebuild(); });
+seg($('eraSeg'), eraItems, (k) => st.later.includes(k), (k) => { st.later = st.later.includes(k) ? st.later.filter((x) => x !== k) : [...st.later, k]; rebuild(); });
+seg($('layerSeg'), LAYERS.map((k) => [k, k]), (k) => st.layers.has(k), (k) => { st.layers.has(k) ? st.layers.delete(k) : st.layers.add(k); draw(); remember(); });
+for (const [id, key, fmt] of [['districts', 'districts', (v) => v], ['plotScale', 'plotScale', (v) => `×${v.toFixed(2)}`], ['streetScale', 'streetScale', (v) => `×${v.toFixed(2)}`], ['heightScale', 'heightScale', (v) => `×${v.toFixed(2)}`]]) {
+  const el = $(id); el.value = st[key]; $(id + 'V').textContent = fmt(+st[key]);
+  el.oninput = () => { st[key] = +el.value; $(id + 'V').textContent = fmt(+el.value); };
+  el.onchange = rebuild;
+}
+$('sun').value = st.sun; $('sunV').textContent = `${st.sun}°`;
+$('sun').oninput = () => { st.sun = +$('sun').value; $('sunV').textContent = `${st.sun}°`; draw(); remember(); };
+$('seed').value = st.seed; $('seed').onchange = () => { st.seed = +$('seed').value || 1; rebuild(); };
+$('new').onclick = () => { st.seed = 1 + Math.floor(Math.random() * 99999); $('seed').value = st.seed; rebuild(); };
+const setView = (v) => { st.view = v; $('vplan').classList.toggle('on', v === 'plan'); $('vmodel').classList.toggle('on', v === 'model'); $('sunRow').style.display = v === 'model' ? '' : 'none'; order = null; draw(); remember(); };
+$('vplan').onclick = () => setView('plan'); $('vmodel').onclick = () => setView('model');
+$('toggle').onclick = () => { $('panel').classList.toggle('closed'); $('toggle').textContent = $('panel').classList.contains('closed') ? '▴' : '▾'; };
+$('legend').innerHTML = KINDS.map((k) => `<span><i style="background:rgb(${COLOURS[k]})"></i>${ERAS[k].label} (${ERAS[k].year})</span>`).join('');
+
+// ---- the camera
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  draw();
+}
+addEventListener('resize', resize);
+const baseScale = () => Math.min(W, H) / 1500;
+// plan: world (x, y north) → screen
+const planXY = (x, y) => [W / 2 + (x - cam.x) * baseScale() * cam.zoom, H / 2 - (y - cam.y) * baseScale() * cam.zoom];
+// model: an axonometric turned by yaw, tilted by tilt; returns [sx, sy, depth]
+function modelXYZ(x, y, z) {
+  const s = baseScale() * cam.zoom, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+  const rx = (x - cam.x) * cy - (y - cam.y) * sy, ry = (x - cam.x) * sy + (y - cam.y) * cy;
+  return [W / 2 + rx * s, H / 2 - (ry * Math.sin(cam.tilt) + z * Math.cos(cam.tilt)) * s, ry];
+}
+
+// ---- drawing
+const rgb = (c, k = 1, a = 1) => `rgba(${Math.round(Math.min(255, c[0] * k))},${Math.round(Math.min(255, c[1] * k))},${Math.round(Math.min(255, c[2] * k))},${a})`;
+function poly(P, f) { ctx.beginPath(); P.forEach((p, i) => { const [x, y] = f(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); }
+
+function draw() {
+  if (!city || !W) return;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H);
+  if (st.view === 'plan') drawPlan(); else drawModel();
+}
+
+function drawPlan() {
+  const f = (p) => planXY(p[0], p[1]), z = baseScale() * cam.zoom;
+  poly(city.frame, f); ctx.fillStyle = '#2a2d33'; ctx.fill();                       // the streets: everything not a block
+  for (const b of city.blocks) {
+    if (!b.lot.length) continue;
+    poly(b.lot, f); ctx.fillStyle = b.square ? '#3f6b45' : '#d8d1bf'; ctx.fill();
+  }
+  if (st.layers.has('plots') && z > 0.35) {
+    ctx.lineWidth = Math.min(1, z * 0.6); ctx.strokeStyle = 'rgba(120,108,90,0.55)';
+    for (const p of city.plots) { poly(p.poly, f); ctx.stroke(); }
+  }
+  if (st.layers.has('buildings')) {
+    for (const b of city.buildings) {
+      const kind = city.districts[b.district].kind, k = 0.62 + Math.min(0.5, b.height / 160);
+      poly(b.footprint, f); ctx.fillStyle = rgb(COLOURS[kind], k * 0.85); ctx.fill();
+      if (z > 0.8) { ctx.lineWidth = 0.6; ctx.strokeStyle = 'rgba(40,30,25,0.6)'; ctx.stroke(); }
+    }
+  }
+  // the boulevards and avenues, lightly marked
+  ctx.lineCap = 'round';
+  for (const s of city.streets) {
+    if (s.rank === 'street') continue;
+    const [ax, ay] = f(s.a), [bx, by] = f(s.b);
+    ctx.strokeStyle = s.rank === 'boulevard' ? 'rgba(217,164,65,0.35)' : 'rgba(90,169,230,0.25)'; ctx.lineWidth = Math.max(1, z * 2);
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+  if (st.layers.has('districts')) {
+    ctx.setLineDash([6, 5]); ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(217,164,65,0.7)';
+    for (const d of city.districts) { poly(d.region, f); ctx.stroke(); }
+    ctx.setLineDash([]);
+  }
+  if (st.layers.has('labels')) labels((p) => f(p));
+}
+
+function labels(f) {
+  ctx.font = '600 12px ui-sans-serif,system-ui,sans-serif'; ctx.textAlign = 'center';
+  for (const d of city.districts) {
+    const [x, y] = f(d.centre);
+    const t1 = d.era.label, t2 = `c. ${d.era.year}`;
+    ctx.fillStyle = 'rgba(13,17,23,0.75)'; const w = Math.max(ctx.measureText(t1).width, 50) + 12;
+    ctx.fillRect(x - w / 2, y - 16, w, 32);
+    ctx.fillStyle = '#d9a441'; ctx.fillText(t1, x, y - 2); ctx.fillStyle = '#8b98a9'; ctx.fillText(t2, x, y + 12);
+  }
+}
+
+function drawModel() {
+  const f = (p, z = 0) => modelXYZ(p[0], p[1], z);
+  const sunA = st.sun * Math.PI / 180, sun = [Math.sin(sunA) * 0.75, Math.cos(sunA) * 0.75, 0.66];
+  const shade = (nx, ny, nz) => 0.42 + 0.68 * Math.max(0, nx * sun[0] + ny * sun[1] + nz * sun[2]);
+  // the ground: streets, lots, squares
+  ctx.beginPath(); city.frame.forEach((p, i) => { const [x, y] = f(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); ctx.fillStyle = '#26292e'; ctx.fill();
+  for (const b of city.blocks) { if (!b.lot.length) continue; ctx.beginPath(); b.lot.forEach((p, i) => { const [x, y] = f(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); ctx.fillStyle = b.square ? '#3d6342' : '#bfb7a5'; ctx.fill(); }
+  if (!st.layers.has('buildings')) { if (st.layers.has('labels')) labels((p) => f(p, 0)); return; }
+  // painter's order: the far side first (each building by its footprint's centre)
+  const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), depth = (x, y) => (x - cam.x) * sy + (y - cam.y) * cy;
+  if (!order || order.yaw !== cam.yaw) {
+    order = city.buildings.map((b) => { const c = G.centroid(b.footprint); return { b, d: depth(c[0], c[1]) }; }).sort((a, b) => b.d - a.d);
+    order.yaw = cam.yaw;
+  }
+  const view = [sy, cy];                                  // the direction the camera looks (into the screen, on the ground)
+  const s = baseScale() * cam.zoom;
+  for (const { b } of order) {
+    const F = b.footprint, kind = city.districts[b.district].kind, wall = COLOURS[kind], roofC = ROOFS[kind], h = b.height;
+    // walls: those facing the camera (their outward normal against the view direction)
+    for (let i = 0; i < F.length; i++) {
+      const p = F[i], q = F[(i + 1) % F.length], ex = q[0] - p[0], ey = q[1] - p[1], L = Math.hypot(ex, ey) || 1, nx = ey / L, ny = -ex / L;
+      if (nx * view[0] + ny * view[1] >= 0) continue;
+      const a = f(p, 0), bb = f(q, 0), c = f(q, h), dd = f(p, h);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(bb[0], bb[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(dd[0], dd[1]); ctx.closePath();
+      ctx.fillStyle = rgb(wall, shade(nx, ny, 0)); ctx.fill();
+      // storeys, when they are big enough to see
+      const storeyPx = (h / b.storeys) * s * Math.cos(cam.tilt);
+      if (storeyPx > 5 && b.storeys > 1) {
+        ctx.strokeStyle = 'rgba(30,24,20,0.28)'; ctx.lineWidth = 0.7; ctx.beginPath();
+        for (let k = 1; k < b.storeys; k++) { const z = (k / b.storeys) * h, u = f(p, z), v = f(q, z); ctx.moveTo(u[0], u[1]); ctx.lineTo(v[0], v[1]); }
+        ctx.stroke();
+      }
+    }
+    // the roof
+    if (b.roofFaces && b.roofFaces.length) {
+      for (const r of b.roofFaces) {
+        const P = r.poly, e0 = F[r.edge], e1 = F[(r.edge + 1) % F.length], ex = e1[0] - e0[0], ey = e1[1] - e0[1], L = Math.hypot(ex, ey) || 1;
+        const tz = Math.max(...P.map((p) => p[2])) > 0.01 ? 1 : 0, nx = (ey / L) * tz, ny = (-ex / L) * tz, nn = Math.hypot(nx, ny, 1);
+        ctx.beginPath(); P.forEach((pt, i) => { const [x, y] = f(pt, h + pt[2]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath();
+        ctx.fillStyle = rgb(roofC, shade(nx / nn, ny / nn, 1 / nn)); ctx.fill();
+      }
+    } else {
+      ctx.beginPath(); F.forEach((pt, i) => { const [x, y] = f(pt, h); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath();
+      ctx.fillStyle = rgb(roofC, shade(0, 0, 1) * 0.95); ctx.fill();
+    }
+  }
+  if (st.layers.has('labels')) labels((p) => f(p, 0));
+}
+
+// ---- pointers: plan pans and zooms; the model turns, tilts, pans and zooms
+const pts = new Map();
+let last = null, moved = 0;
+canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); canvas.classList.add('drag'); last = null; moved = 0; });
+canvas.addEventListener('pointermove', (e) => {
+  if (!pts.has(e.pointerId)) return;
+  pts.set(e.pointerId, [e.clientX, e.clientY]);
+  const P = [...pts.values()], cx = P.reduce((s, p) => s + p[0], 0) / P.length, cyy = P.reduce((s, p) => s + p[1], 0) / P.length;
+  const spread = P.length > 1 ? Math.hypot(P[0][0] - P[1][0], P[0][1] - P[1][1]) : 0;
+  if (last && last.n === P.length) {
+    const dx = cx - last.x, dy = cyy - last.y; moved += Math.abs(dx) + Math.abs(dy);
+    const s = baseScale() * cam.zoom;
+    if (st.view === 'model' && P.length === 1 && !e.shiftKey) {
+      cam.yaw -= dx * 0.008; cam.tilt = Math.max(0.25, Math.min(1.45, cam.tilt + dy * 0.005)); order = null;
+    } else if (st.view === 'model') {
+      const c = Math.cos(cam.yaw), si = Math.sin(cam.yaw), ux = dx / s, uy = -dy / s / Math.max(0.2, Math.sin(cam.tilt));
+      cam.x -= ux * c + uy * si; cam.y -= -ux * si + uy * c;
+    } else { cam.x -= dx / s; cam.y += dy / s; }
+    if (P.length > 1 && last.spread) cam.zoom = Math.max(0.4, Math.min(30, cam.zoom * spread / last.spread));
+    draw();
+  }
+  last = { x: cx, y: cyy, n: P.length, spread };
+});
+const up = (e) => {
+  pts.delete(e.pointerId); last = null;
+  if (!pts.size) { canvas.classList.remove('drag'); if (moved < 4 && st.view === 'plan') inspect(e.clientX, e.clientY); }
+};
+canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const k = Math.exp(-e.deltaY * 0.0015);
+  if (st.view === 'plan') {
+    // zoom about the cursor
+    const s0 = baseScale() * cam.zoom, wx = cam.x + (e.clientX - W / 2) / s0, wy = cam.y - (e.clientY - H / 2) / s0;
+    cam.zoom = Math.max(0.4, Math.min(30, cam.zoom * k));
+    const s1 = baseScale() * cam.zoom; cam.x = wx - (e.clientX - W / 2) / s1; cam.y = wy + (e.clientY - H / 2) / s1;
+  } else cam.zoom = Math.max(0.4, Math.min(30, cam.zoom * k));
+  draw();
+}, { passive: false });
+
+function inspect(sx, sy) {
+  const s = baseScale() * cam.zoom, x = cam.x + (sx - W / 2) / s, y = cam.y - (sy - H / 2) / s, pt = [x, y];
+  const el = $('inspect');
+  const b = city.buildings.find((bd) => G.inside(bd.footprint, pt, 0));
+  const p = b ? city.plots[b.plot] : city.plots.find((pl) => G.inside(pl.poly, pt, 0));
+  const blk = p ? city.blocks[p.block] : city.blocks.find((bl) => bl.lot.length && G.inside(bl.lot, pt, 0));
+  if (!blk) { el.style.display = 'none'; return; }
+  const d = city.districts[blk.district], A = (P) => Math.abs(G.area(P));
+  let html = `<b>${d.era.label}</b>, laid out c. ${d.era.year}<br>`;
+  if (blk.square) html += `an open square, ${A(blk.lot).toFixed(0)} m²`;
+  if (p) {
+    const st2 = blk.widths[p.frontEdge] || { w: 0, rank: 'street' };
+    html += `a plot ${p.width.toFixed(1)} m wide and ${p.depth.toFixed(0)} m deep, ${A(p.poly).toFixed(0)} m², fronting a ${st2.rank} ${st2.w.toFixed(0)} m wide`;
+  }
+  if (b) html += `<br>a building of ${b.storeys} storey${b.storeys > 1 ? 's' : ''}, ${b.height.toFixed(0)} m to the eaves, ${A(b.footprint).toFixed(0)} m² on the ground, ${b.roof === 'flat' ? 'flat-roofed' : b.roof === 'mansard' ? 'under a mansard' : 'under a hipped roof'}`;
+  el.innerHTML = html; el.style.display = 'block';
+}
+
+if (matchMedia('(max-width: 640px)').matches) { $('panel').classList.add('closed'); $('toggle').textContent = '▴'; }   // a phone sees the city first
+setView(st.view);
+resize();
+rebuild();
+</script>
+</body>
+</html>

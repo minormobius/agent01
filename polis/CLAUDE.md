@@ -15,7 +15,7 @@ The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF t
 | Dir | `polis/` |
 | Endpoint | `polis.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/civ-deploy-unification-vt35ju` |
+| Owning branch | `claude/plant-growth-animation-gxbby1` (taken 2026-10-07 for the city engine; the registry is the authority) |
 | Deploy | `.github/workflows/deploy-polis.yml` |
 | Uses | `civ` |
 | Provides | — |
@@ -28,8 +28,21 @@ The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF t
 
 ## Deploying
 
-Pushes to `claude/civ-deploy-unification-vt35ju` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-polis.yml`](../.github/workflows/deploy-polis.yml).
+Pushes to the owning branch (the registry's `branch`; `main` deploys nothing) that touch this surface's paths trigger [`.github/workflows/deploy-polis.yml`](../.github/workflows/deploy-polis.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
 or the deploy goes green while the site never changes.
+
+## morph — blocks, plots, buildings (`/morph/`, 2026-10-07)
+
+The descent below the settlement field's cells, as an engine and a toy. The engine is
+`packages/morph/` (canonical; `geom.js` + `morph.js`), copied byte-identical into `polis/morph/` by
+`node scripts/sync-dataviz.mjs --write` — **edit packages/morph, never the copy**. Its selftest is
+`packages/morph/morph.selftest.mjs` (exact geometry; plots tile lots; every plot fronts its street;
+determinism; Math.random removed). Read `packages/morph/README.md` for the model.
+
+`/morph/` is the toy: a seeded city (districts are grains: organic, grid, radial, modern, suburb),
+in plan (figure-ground, plots, street ranks) and in model (an axonometric in canvas 2D, painter's
+order by footprint centre, hipped and mansard roofs from the straight skeleton). Not yet wired to
+`field.js`: next, the field's cells, eras, walls and lanes become the districts, seams and streets.

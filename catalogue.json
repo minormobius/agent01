@@ -5259,6 +5259,11 @@
       "reason": "sub-sites of other listed surfaces"
     },
     {
+      "glob": "polis/morph",
+      "kind": "content",
+      "reason": "polis's city-engine toy (blocks, plots, buildings), linked from the cascade page"
+    },
+    {
       "glob": "reef/model",
       "kind": "pending",
       "reason": "sub-sites of other listed surfaces"
