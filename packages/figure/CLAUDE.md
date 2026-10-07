@@ -328,6 +328,12 @@ uncanny valley, and the studio has moved to invented, inhuman casts (see studio/
 P(doom) status). What is worth reusing elsewhere: the checks, choreo.js's compile-and-check
 shape, liveface.js's timing, and the surface coordinates (shader.js `surfaceUV`).
 
+## The selftest's time (2026-10-07)
+
+`figure.selftest.mjs` ran ~110 s in a row against preflight's 120 s cap, and timed out on GitHub's
+slower runner. It now runs itself as four parallel shards (`FIGURE_SHARD` 0–3; the maths on 0, every
+fourth spec on each, the two dances on 1 and 2) and prints them in order: ~33 s, the same 27 checks.
+
 ## Not done yet (the next layers)
 
 Hair

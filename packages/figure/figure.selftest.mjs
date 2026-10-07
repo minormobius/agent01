@@ -18,6 +18,27 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 let failed = 0;
 const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed++; };
 
+// FOUR SHARDS, IN PARALLEL (as studio/test/studio.selftest.mjs): run plainly, this file runs itself
+// four times at once (FIGURE_SHARD=0..3) and prints their output in order. In a row it took ~110 s
+// against preflight's 120 s cap, and timed out on a slower runner. Shard 0 has the rig's maths; each
+// takes every fourth spec; the two dances go to shards 1 and 2.
+const SHARD = process.env.FIGURE_SHARD === undefined ? -1 : Number(process.env.FIGURE_SHARD), SHARDS = 4;
+if (SHARD < 0) {
+  const { spawn } = await import('node:child_process');
+  const t0 = Date.now();
+  const res = await Promise.all(Array.from({ length: SHARDS }, (_, k) => new Promise((done) => {
+    const c = spawn(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, FIGURE_SHARD: String(k) }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = ''; c.stdout.on('data', (d) => { out += d; }); c.stderr.on('data', (d) => { out += d; });
+    c.on('close', (code) => done({ k, code, out, s: (Date.now() - t0) / 1000 }));
+  })));
+  let bad = 0;
+  for (const r of res) { process.stdout.write(r.out.replace(/\n*(all passed|\d+ failed)\n*$/, '\n')); if (r.code !== 0) { bad++; console.log(`✗ shard ${r.k} exited ${r.code}`); } }
+  console.log(`\n(${SHARDS} shards in parallel, ${((Date.now() - t0) / 1000).toFixed(0)} s: ${res.map((r) => `${r.s.toFixed(0)} s`).join(', ')})`);
+  console.log(bad ? `\n${bad} shard(s) failed` : '\nall passed');
+  process.exit(bad ? 1 : 0);
+}
+
+if (SHARD === 0) {   // the rig's maths
 // ---- frames
 {
   let worst = 0;
@@ -86,8 +107,11 @@ const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed+
   ok(Math.abs(w1.pose.root.pos[1] - w0.pose.root.pos[1]) < 1e-9 && Math.abs(stride - w0.speed * T) < 1e-9, `the walk repeats every ${T.toFixed(3)} s, a stride of ${stride.toFixed(2)} heads`);
 }
 
+}
+
 // ---- every check on every spec
-for (const f of fs.readdirSync(path.join(here, 'specs')).filter((f) => f.endsWith('.json')).sort()) {
+for (const [i, f] of fs.readdirSync(path.join(here, 'specs')).filter((f) => f.endsWith('.json')).sort().entries()) {
+  if (i % SHARDS !== SHARD) continue;
   const spec = JSON.parse(fs.readFileSync(path.join(here, 'specs', f), 'utf8'));
   const res = Object.values(checkAll(spec)).flat();
   const bad = res.filter((x) => !x.ok);
@@ -99,7 +123,8 @@ for (const f of fs.readdirSync(path.join(here, 'specs')).filter((f) => f.endsWit
   const { MOVES } = await import('./lib/choreo.js');
   const { checkDance } = await import('./lib/check.js');
   const script = Object.keys(MOVES).map((move, i) => ({ bar: i * 2, bars: 2, move }));
-  for (const [label, spec] of [['7-head', { heads: 7 }], ['chibi', { heads: 3, build: 0.3, legs: 0.2, mass: 0.7, headWidth: 0.9 }]]) {
+  for (const [label, spec, k] of [['7-head', { heads: 7 }, 1], ['chibi', { heads: 3, build: 0.3, legs: 0.2, mass: 0.7, headWidth: 0.9 }, 2]]) {
+    if (k !== SHARD) continue;
     const res = checkDance(spec, script, { bpm: 132, fps: 4, clothes: false });
     const bad = res.filter((x) => !x.ok);
     ok(!bad.length, `a dance of all ${script.length} moves on a ${label}: ${res.length} checks over ${res.frames} frames${bad.length ? ' — ' + bad.map((x) => `${x.name} ${x.value} ${x.detail}`).join('; ') : ''}`);
