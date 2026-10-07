@@ -725,6 +725,12 @@ await t('the corner: www/ publishes through the factory gate, a refusal keeps th
   assert.match(idx, /import \* as b0 from '\.\/bingo-caller\.mjs'/); assert.match(idx, /BOT_BINGO_CALLER_PASSWORD/); assert.match(idx, /calls numbers · a bot made by @miniphim\.delve\.town/);
   assert.ok(!existsSync(join(root, 'bots', 'loud.mjs')), 'a held bot does not ship');
   assert.match(readFileSync(join(run2, 'commons', 'www', 'LIVE.md'), 'utf8'), /bingo-caller as bingo\.delve\.town, every 15 min/);
+  // A helper is signed too (Morphyx found the gap): add one, and the old signatures stop counting.
+  mkdirSync(join(run2, 'commons', 'house', 'bots', 'lib'), { recursive: true });
+  bput('lib/h.mjs', 'export const x = 1;');
+  a = await publishSites({ runDir: run2, home: homeDir });
+  assert.deepEqual(a.bots.live, [], 'an unsigned helper unships the bot');
+  assert.ok(!existsSync(join(root, 'bots', 'lib', 'h.mjs')), 'and the helper does not ship');
 });
 
 console.log(`whetstone selftest: ${n} passed`);
