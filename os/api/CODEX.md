@@ -638,40 +638,88 @@ curl -sS -H "Authorization: Bearer $CAP_TOKEN" -X POST \
 the capability gate works and the failure names itself instead of 500ing.
 `$CAP_TOKEN` is already in the container's environment.
 
-### 7.3 The one step that needs the principal
+### 7.3 Bootstrap and hand off the login
 
-On a machine with a real browser — device-code initiation is bot-walled from
-container egress (D1, measured twice), so this cannot happen in the container:
-
-```bash
-codex login                                  # normal browser flow
-bash os/api/deposit-credential.sh            # deposits it, once
-```
-
-The script reads `~/.codex/auth.json`, takes only `access_token` /
-`refresh_token` / `account_id` (never `id_token` — an identity assertion we
-have no use for), gets an accessJwt from an app-password session, and `PUT`s to
-`/openai/credential`. The app password is read interactively or from
-`OS_APP_PASSWORD`, never from argv, so it stays out of shell history.
-
-It refuses an API-key-only `auth.json` rather than depositing something that
-cannot refresh. Status afterwards, secrets excluded from the reply:
+Run on a trusted machine with a browser and the Codex CLI installed. The
+script requires Python 3.9+; on Windows, run `python os/api/deposit-credential.py`
+with the same flags instead of the Bash wrapper.
 
 ```bash
-curl "https://os-api.mino.mobi/openai/credential?session=<did>&authMode=pds" \
-  -H "Authorization: Bearer <accessJwt>"
+bash os/api/deposit-credential.sh --login
+bash os/api/deposit-credential.sh
+bash os/api/deposit-credential.sh --status
 ```
 
-Then, in the container: `agent --harness=codex astra`.
+`--login` uses a dedicated `~/.codex-os-api` cache with file storage. It does
+not use your usual laptop/IDE login. Deposit sends only `access_token`,
+`refresh_token`, and `account_id`, authenticating the destination with your
+allowlisted Bluesky handle and app password. It removes that dedicated local
+`auth.json` only after a successful HTTP response confirms `ok: true` and
+`stored: true`. The worker becomes the sole refresh owner. Do not use the
+bootstrap cache from another client, restore it from backup, or re-deposit an
+old copy. If the response is lost, check `--status` before attempting another
+deposit; if ownership is uncertain, create a fresh dedicated browser login with `--login --fresh`.
 
-**This is the moment unknown 1 gets answered** — whether
-`backend-api/codex/responses` accepts what Codex sends. Watch for three things:
+`OS_HANDLE`, `OS_APP_PASSWORD`, and `OS_API` are optional environment inputs.
+Passwords default to hidden interactive entry. HTTP requests are made inside
+Python, so passwords, JWTs and ChatGPT tokens never become command arguments.
+Endpoints must use HTTPS and redirects are refused. DID resolution selects
+the ATProto PDS service explicitly, including `did:web` identities.
 
-| what you see | what it means |
-|---|---|
-| a normal Astra reply | Design C works end to end |
-| `Model metadata for gpt-6-astra not found` | it fell back to generic metadata — set `OPENAI_CODEX_CONTEXT_WINDOW` |
-| a 4xx mentioning an account | the upstream wants `chatgpt-account-id`; re-deposit with `account_id` and the proxy forwards it |
+To deliberately hand off an existing file, stop every local client using it,
+set `CODEX_AUTH_JSON` to its path (or `CODEX_HOME` to its directory), and use
+`--handoff`. That file is also removed on success. `--login` refuses these
+overrides; unset them to create the dedicated bootstrap login.
+
+Use `--delete` to remove broker custody. This stops future proxy requests; it
+cannot cancel an already authorized upstream response or revoke the OpenAI
+session globally. Status and deletion need only the Bluesky identity, not a
+local ChatGPT token file. Broker status never returns token material.
+
+After deployment, choose **astra** in browser repo mode, use
+`kimi --harness=codex --model=astra` in the browser terminal, or run
+`agent --harness=codex astra` in the container. Browser chat uses Codex's JSONL
+exec/resume flow. Session rollouts survive workspace saves in `.codex-cells`;
+config and auth files there are excluded from the tarball and the launcher
+uses ephemeral credential storage. The container receives only a capability.
+
+### 7.4 Rotation and recovery
+
+All credential operations share one per-DID queue. A Durable Object's storage
+input gates do not serialize external `fetch` calls; single-threaded execution
+alone is insufficient. Refresh stores a pending marker before contacting
+OAuth, persists the rotated pair before replying, and has a 15-second timeout.
+Concurrent expired-token calls reuse the first refreshed pair. Deletion and
+replacement wait for an in-flight refresh, so neither can be overwritten by
+its eventual response.
+
+An upstream 401 triggers one forced refresh and one replay of the same request
+body. Concurrent rejections of the same access token cause only one refresh.
+403s are passed through without refresh. SSE replies remain streaming.
+
+A revoked/expired refresh grant reports `login_required`. A network failure,
+malformed successful refresh, or restart during an unfinished refresh reports
+`refresh_uncertain`. Both set `loginRequired: true` in status and refuse to
+replay the old refresh token. Re-run the dedicated browser bootstrap (`--login --fresh` if an unusable local
+cache remains) and deposit a fresh login. Known non-success transient OAuth responses remain
+retryable. Raw OAuth error bodies are never returned to the container.
+
+This is a custom custody broker, not the documented Codex-managed refresh
+workflow. End-to-end acceptance by the subscription backend still requires a
+real owner login; mock tests cannot establish account/model access.
+
+Validation (no credentials or OpenAI contact):
+
+```bash
+node --test os/api/openai.selftest.mjs
+cd os && npm ci && npm run build
+```
+
+After a real deposit, verify a streamed Astra reply, another reply after
+rotation, session resume after container sleep/wake, and `--delete` followed
+by `no_credential`. `Model metadata ... not found` is the reason to set
+`OPENAI_CODEX_CONTEXT_WINDOW`; an account-related 4xx needs the correct
+`account_id` in the dedicated login.
 
 ### What is deliberately not built yet
 

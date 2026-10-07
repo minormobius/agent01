@@ -28,7 +28,7 @@ RUN apt-get update && apt-get install -y \
 RUN npm install -g \
       @anthropic-ai/claude-code \
       opencode-ai \
-      @openai/codex \
+      @openai/codex@0.154.0 \
       @modelcontextprotocol/server-github
 
 # uv — fast Python package/project manager (pip/venv/pipx/poetry replacement).
@@ -48,6 +48,7 @@ WORKDIR /home/coder
 # Copy server files
 COPY package.json /home/coder/package.json
 COPY server.js /home/coder/server.js
+COPY codex-chat.js /home/coder/codex-chat.js
 COPY startup.sh /home/coder/startup.sh
 
 # Agent launcher — runs any (harness, model-profile) cell from AGENT_PROFILES:

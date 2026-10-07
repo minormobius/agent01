@@ -80,8 +80,9 @@ one credential-bearing header (`Authorization: Bearer <env_key>` — measured), 
 ChatGPT bearer from DO storage, and forwards to
 `chatgpt.com/backend-api/codex`. The container never holds an OpenAI credential,
 so there is nothing for a workspace tarball to carry off and nothing that
-rotates there; refresh happens in the DO, whose single-threaded execution
-gives us the "one holder, serialized" property OpenAI's own guidance demands.
+rotates there; refresh happens in the DO through an explicit credential-operation queue.
+External fetches can interleave even in a single-threaded DO; a persisted
+pending marker prevents replay after an interrupted rotation.
 The tokens are deposited once via `PUT /openai/credential` (owner identity, same
 gate as `/ws`) from an `auth.json` minted by `codex login` on a machine with a
 real browser — required because device-code initiation is bot-walled from
@@ -99,3 +100,8 @@ The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrang
 Read [`docs/DEPLOYS.md`](../../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
 or the deploy goes green while the site never changes.
+
+Codex browser repo chat uses the astra profile and exec/resume JSONL. Bootstrap
+with `bash os/api/deposit-credential.sh --login`, then run it again to hand off
+the dedicated login. Successful deposit removes the local token cache. See
+`CODEX.md` sections 7.3-7.4 for status, deletion and rotation recovery.

@@ -4,7 +4,7 @@
 // endpoint + model id. Provider keys live on the worker (AGENT_PROFILES), so no
 // key is needed here; access is gated by the worker's ALLOWED_DIDS check.
 //
-// Usage: kimi [--model=<profile>] [--harness=<claude|opencode>]
+// Usage: kimi [--model=<profile>] [--harness=<claude|opencode|codex>]
 //   kimi                                   → kimi3 under Claude Code
 //   kimi --model=ds4-flash                 → DeepSeek V4 Flash under Claude Code
 //   kimi --model=ds4-flash --harness=opencode
@@ -14,7 +14,7 @@
 
 import { checkContainerHealth } from '../../lib/container-config.js';
 
-const HARNESSES = ['claude', 'opencode'];
+const HARNESSES = ['claude', 'opencode', 'codex'];
 
 export default async function kimi(args, flags, ctx) {
   const { terminal, fmt, shell } = ctx;
@@ -38,7 +38,11 @@ export default async function kimi(args, flags, ctx) {
     return;
   }
 
-  const boot = typeof flags.model === 'string' ? flags.model : 'kimi3';
+  const boot = typeof flags.model === 'string' ? flags.model : harness === 'codex' ? 'astra' : 'kimi3';
+  if ((harness === 'codex') !== (boot === 'astra')) {
+    terminal.writeln(fmt.red('astra requires --harness=codex; the open models require claude or opencode'));
+    return;
+  }
 
   terminal.writeln(fmt.dim(`launching ${boot} under ${harness} in your container...`));
   terminal.writeln(fmt.dim('(cold start may take 2-3s; exit returns to bash, exit again for PDS shell)'));

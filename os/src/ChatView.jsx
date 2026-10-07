@@ -24,6 +24,7 @@ const HANDOFF_LAST_N = 12;
 // them as the agent's model (?profile= on /chat). Native `claude` is
 // browser-keyed and terminal-only, so it is not offered here.
 const MODELS = ['kimi3', 'ds4-flash', 'ds4-pro'];
+const REPO_MODELS = [...MODELS, 'astra'];
 
 const DEFAULT_SYSTEM = 'You are the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to the repo-agent mode (a full coding-agent harness inside the agent01 monorepo) with the → repo button.';
 
@@ -147,13 +148,14 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
   // conversation (the history frame repopulates from that cell's journal).
   const [repoProfile, setRepoProfile] = useState(() => {
     const saved = localStorage.getItem(REPO_PROFILE_KEY);
-    return MODELS.includes(saved) ? saved : profile;
+    return REPO_MODELS.includes(saved) ? saved : REPO_MODELS.includes(profile) ? profile : 'kimi3';
   });
   const assistModel = MODELS.includes(prefs.model) ? prefs.model : 'kimi3';
   const assistTurnRef = useRef(null); // { turnId, authInfo } while a turn is in flight
   const socketRef = useRef(null);
   const scrollRef = useRef(null);
   const connectingRef = useRef(false);
+  const connectGenerationRef = useRef(0);
   const pendingRef = useRef(null);
   const handleFrameRef = useRef(null);
   const stickRef = useRef(true); // stay glued to bottom only while user IS at bottom
@@ -273,6 +275,8 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
           const err = evt.is_error ? ' · ERROR' : '';
           push({ role: 'info', text: `turn done · ${secs}${cost}${err}` });
           if (evt.is_error && evt.result) push({ role: 'error', text: String(evt.result).slice(0, 1000) });
+        } else if (evt.type !== 'codex_progress') {
+          push({ role: 'info', text: msg.line.slice(0, 300) });
         }
         break;
       }
@@ -300,12 +304,14 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
   const connect = useCallback(async () => {
     if (connectingRef.current || socketRef.current?.connected) return;
     connectingRef.current = true;
+    const generation = connectGenerationRef.current;
     setStatus('connecting');
     setStatusDetail('checking access…');
     try {
       const authInfo = getContainerAuth();
       if (!authInfo) { setStatus('denied'); setStatusDetail('linking device via OAuth…'); return; }
       const pre = await chatPreflight({ session: session.did, ...authInfo });
+      if (generation !== connectGenerationRef.current) return;
       if (!pre.ok) {
         setStatus('denied');
         setStatusDetail(pre.error);
@@ -314,12 +320,15 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
       }
       setStatusDetail('starting container (first boot after a deploy can take ~2 min)…');
       let boot = await debugBoot({ session: session.did, ...authInfo });
+      if (generation !== connectGenerationRef.current) return;
       if (boot.containerStatus === 404) {
         push({ role: 'info', text: 'container is on a stale image — restarting it onto the current one…' });
         setStatusDetail('restarting container…');
         await debugRestart({ session: session.did, ...authInfo });
+        if (generation !== connectGenerationRef.current) return;
         setStatusDetail('booting fresh container (~40s)…');
         boot = await debugBoot({ session: session.did, ...authInfo });
+        if (generation !== connectGenerationRef.current) return;
       }
       if (!boot.ok || (boot.containerStatus && boot.containerStatus >= 400)) {
         setStatus('denied');
@@ -355,9 +364,9 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         },
       });
       socketRef.current = sock;
-      sock.connect({ session: session.did, ...authInfo, profile: repoProfile });
+      sock.connect({ session: session.did, ...authInfo, profile: repoProfile, harness: repoProfile === 'astra' ? 'codex' : 'claude' });
     } finally {
-      connectingRef.current = false;
+      if (generation === connectGenerationRef.current) connectingRef.current = false;
     }
   }, [session, getContainerAuth, repoProfile, handleFrame, push]);
 
@@ -371,6 +380,8 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
   const switchRepoProfile = useCallback((p) => {
     if (p === repoProfile) return;
     try { localStorage.setItem(REPO_PROFILE_KEY, p); } catch { /* no-op */ }
+    connectGenerationRef.current++;
+    connectingRef.current = false;
     socketRef.current?.disconnect();
     socketRef.current = null;
     setMessages([]);
@@ -378,7 +389,10 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     setStatus('idle');
     setRepoProfile(p); // triggers the reconnect effect above
   }, [repoProfile]);
-  useEffect(() => () => socketRef.current?.disconnect(), []);
+  useEffect(() => () => {
+    connectGenerationRef.current++;
+    socketRef.current?.disconnect();
+  }, []);
 
   useEffect(() => {
     const onVisible = () => {
@@ -631,7 +645,7 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
       {!isAssist && (
         <div style={{ display: 'flex', gap: 6, padding: '6px 12px', borderBottom: '1px solid #1e1e1e', flexShrink: 0, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ color: '#606060', fontSize: 11 }}>model</div>
-          {MODELS.map((m) => (
+          {REPO_MODELS.map((m) => (
             <button key={m} style={S.hbtn(m === repoProfile, A)} onClick={() => switchRepoProfile(m)}>{m}</button>
           ))}
         </div>
