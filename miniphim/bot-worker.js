@@ -41,7 +41,7 @@ globalThis.fetch = guardedFetch;
 async function xrpc(nsid, { method = 'GET', params, body, token, bytes, type, proxy } = {}) {
   const url = new URL(`${PDS}/xrpc/${nsid}`);
   for (const [k, v] of Object.entries(params || {})) for (const x of [].concat(v)) url.searchParams.append(k, String(x));
-  const r = await globalThis.fetch(url, { method, headers: {
+  const r = await globalThis.fetch(url, { signal: AbortSignal.timeout(20_000), method, headers: {
     ...(method === 'POST' ? { 'content-type': bytes ? type : 'application/json' } : {}),
     ...(token ? { authorization: `Bearer ${token}` } : {}), ...(proxy ? { 'atproto-proxy': proxy } : {}) },
     body: method === 'POST' ? (bytes || JSON.stringify(body || {})) : undefined });
@@ -118,7 +118,10 @@ export class Bots {
 
   async fetch(req) {
     const url = new URL(req.url);
-    if (url.pathname === '/tick') return Response.json(await this.tick(url.searchParams.get('now') || new Date().toISOString()));
+    if (url.pathname === '/tick') {
+      try { return Response.json(await this.tick(url.searchParams.get('now') || new Date().toISOString())); }
+      catch (e) { await this.ctx.storage.put('cron:error', { at: new Date().toISOString(), error: String(e?.stack || e).slice(0, 600) }); throw e; }
+    }
     return Response.json(await this.status());
   }
 
@@ -146,6 +149,7 @@ export class Bots {
 
   async tick(now) {
     const ran = [];
+    await this.ctx.storage.put('cron:last', now); // every cron that reaches the bots, whether or not one is due
     for (const [name, bot] of Object.entries(this.bots)) {
       const st = (await this.ctx.storage.get(`status:${name}`)) || { runs: 0 };
       const password = this.env[bot.secret];
@@ -153,10 +157,14 @@ export class Bots {
       if (!due(bot, st.last_tick, Date.parse(now))) continue;
       const log = [];
       const rec = { ...st, waiting: null, last_tick: now, digest: bot.digest, runs: (st.runs || 0) + 1 };
+      // Where it got to, written before each step: a run that dies mid-way still says where.
+      const stage = (s) => this.ctx.storage.put(`status:${name}`, { ...rec, stage: s, stage_at: new Date().toISOString() });
       try {
+        await stage('signing in');
         const s = await this.session(name, bot, password);
         rec.did = s.did;
-        if (st.profile_digest !== bot.digest) { await this.syncProfile(bot, s); rec.profile_digest = bot.digest; rec.profile_at = now; }
+        if (st.profile_digest !== bot.digest) { await stage('setting the profile'); await this.syncProfile(bot, s); rec.profile_digest = bot.digest; rec.profile_at = now; }
+        await stage('tick');
         const agent = makeAgent({ did: s.did, handle: s.handle, token: s.access, log });
         const state = await this.ctx.storage.get(`state:${name}`);
         const tick = bot.mod.default;
@@ -173,7 +181,7 @@ export class Bots {
         rec.last_error = String(e?.message || e).slice(0, 500); rec.last_error_at = now;
         if (e?.status === 401) await this.ctx.storage.delete(`session:${name}`);
       }
-      rec.last_writes = log.slice(-20);
+      rec.last_writes = log.slice(-20); rec.stage = 'done'; rec.stage_at = new Date().toISOString();
       await this.ctx.storage.put(`status:${name}`, rec);
       ran.push(name);
     }
@@ -186,9 +194,9 @@ export class Bots {
       const st = (await this.ctx.storage.get(`status:${name}`)) || {};
       out[name] = { handle: bot.profile.handle, displayName: bot.profile.displayName, every_min: bot.every, digest: bot.digest, signed: bot.signed,
         did: st.did || null, waiting: st.waiting || null, runs: st.runs || 0, last_tick: st.last_tick || null, last_ok: st.last_ok || null,
-        last_error: st.last_error || null, last_error_at: st.last_error_at || null, profile_at: st.profile_at || null, last_writes: st.last_writes || [] };
+        last_error: st.last_error || null, last_error_at: st.last_error_at || null, profile_at: st.profile_at || null, stage: st.stage || null, stage_at: st.stage_at || null, last_writes: st.last_writes || [] };
     }
-    return { bots: out, note: 'the miniphim\'s bots: code in house/bots/ of their commons; state is private and not shown here' };
+    return { cron_last: (await this.ctx.storage.get('cron:last')) || null, cron_error: (await this.ctx.storage.get('cron:error')) || null, bots: out, note: 'the miniphim\'s bots: code in house/bots/ of their commons; state is private and not shown here' };
   }
 }
 
@@ -202,7 +210,8 @@ const stub = (env) => env.BOTS.get(env.BOTS.idFromName('bots'));
 export default {
   async scheduled(event, env, ctx) {
     if (env.OPEN !== 'true' || !Object.keys(bots).length) return;
-    ctx.waitUntil(stub(env).fetch(`https://bots/tick?now=${encodeURIComponent(new Date(event.scheduledTime).toISOString())}`));
+    const r = await stub(env).fetch(`https://bots/tick?now=${encodeURIComponent(new Date(event.scheduledTime).toISOString())}`);
+    if (!r.ok) throw new Error(`bots tick: ${r.status} ${(await r.text()).slice(0, 300)}`);
   },
   async fetch(req, env) {
     const h = { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'x-content-type-options': 'nosniff' };
