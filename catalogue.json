@@ -4306,6 +4306,23 @@
       ]
     },
     {
+      "n": "petty",
+      "u": "https://proofs.mino.mobi/petty/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Collect the areas of every shadow a solid casts and they form a second solid, its projection body. Petty guessed in 1971 that ellipsoids make it smallest, Brannen in 1996 that simplices make it largest. A pair of 2026 AI-written, Lean-formalized papers proves the first from dimension four up and breaks the second with two ten-dimensional simplices. Drag a polygon, turn solids and their projection bodies, and recompute the twenty-dimensional counterexample exactly from 231 determinants in your browser.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
       "n": "henderhead",
       "u": "https://henderhead.mino.mobi",
       "c": "tools",

@@ -935,12 +935,12 @@
    "tier": "A",
    "effort": "S",
    "confidence": "high",
-   "widget": "Build products of simplices T_r x T_s, see their projection bodies (zonotopes) in 2D/3D, and watch the normalized projection-body volume beat the conjectured simplex maximum from dimension 20.",
-   "engine": "Exact rational/BigInt evaluation of c_n = R_n(T_n) and the product formula R_{r+s}(T_r x T_s)/c_{r+s} = (r+1)(s+1)/(r+s+1) * C(r+s,r) r^r s^s/(r+s)^{r+s}; asserts the paper's certificate 121*184756 - 21*1048576 = 335380 > 0, c_10 = 17187500/567, and the lambda>1 exponential-excess constant; low-dimensional zonotope volumes computed directly from facet vectors to cross-check the facet formula.",
-   "hook": "a 20-dimensional counterexample checkable by hand",
+   "widget": "Drag a polygon and watch its projection body (K - K turned a quarter turn) and R2 between 4 and 6; turn solids and their zonotope projection bodies between the ball (3pi^2/4) and the tetrahedron (18); recompute the 20-dimensional counterexample T10 x T10 from its 22 facet vectors; map every product T_r x T_s and the best product of simplices in each dimension against Petty's ellipsoid minimum.",
+      "engine": "Exact BigInt zonotope volumes (sum of |det| over d-subsets of facet area-normals, Bareiss): 231 determinants of 20x20 give 22355476/22020096 without the product formula, which is also checked on 13 other products; simplex value from the facet zonotope to d = 12; dynamic programming over splits into simplices (first win at n = 20, exact recheck to 30); planar and spatial facet lemma against measured shadows; brute-force 3D hulls and zonotope faces for drawing. Petty's n >= 4 inequality is analysis and only illustrated.",
+      "hook": "a 20-dimensional counterexample checkable by hand",
    "related": [],
    "conjectures": false,
-   "page": null
+   "page": "petty/"
   },
   "089": {
    "tier": "B",

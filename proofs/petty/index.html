@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>petty — projection bodies</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="Collect the areas of every shadow a convex body casts and they form a second body, its projection body. Petty conjectured in 1971 that ellipsoids make it as small as possible, and Brannen in 1996 that simplices make it as large as possible. A 2026 AI-written, Lean-formalized pair of papers settles the first in every dimension from four up and breaks the second with two ten-dimensional simplices. Drag shapes, rotate solids, and recompute the twenty-dimensional counterexample from 231 exact determinants.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6;
+  --accent: #2a78d6; --accent-faint: rgba(42,120,214,0.13); --accent-tint: rgba(42,120,214,0.06);
+  --panel: #f3f3f0; --stage: #f7f7f4;
+  --s1: #2a78d6; --s2: #eb6834; --good: #1f7a3f; --bad: #b3261e;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f;
+    --accent: #3987e5; --accent-faint: rgba(57,135,229,0.18); --accent-tint: rgba(57,135,229,0.08);
+    --panel: #20201e; --stage: #121211;
+    --s1: #3987e5; --s2: #d95926; --good: #6ec48f; --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--serif); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+.head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top)); }
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); overflow: hidden; display: flex; flex-direction: column; }
+.view { display: none; flex: 1 1 0; min-height: 0; flex-direction: column; padding: 0.6rem 0.9rem; gap: 0.6rem; overflow: auto; }
+.view.on { display: flex; }
+.cap { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.04em; }
+svg { display: block; width: 100%; max-width: 620px; margin: 0 auto; }
+svg text { font-family: var(--mono); fill: var(--muted); }
+.grid { display: grid; gap: 1px; }
+.cell { aspect-ratio: 1; border-radius: 1px; }
+.status { font-family: var(--mono); font-size: 0.66rem; line-height: 1.7; }
+.ok { color: var(--good); } .no { color: var(--bad); }
+
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab { flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.4rem; }
+button.act { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.42rem 0.55rem; cursor: pointer; min-height: 2rem; }
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+button.act:disabled { opacity: 0.4; cursor: default; }
+.knob { display: grid; grid-template-columns: 4.2rem 1fr 2.8rem; align-items: center; gap: 0.4rem; margin: 0.1rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.66rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.note { font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.62rem; margin-top: 0.5rem; }
+table.facts td, table.facts th { padding: 0.22rem 0.25rem; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: top; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.55rem; }
+table.facts td:first-child, table.facts th:first-child { text-align: left; }
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose code, pre { font-family: var(--mono); font-size: 0.72rem; }
+pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.5rem 0.6rem; overflow-x: auto; line-height: 1.4; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+@media (min-width: 860px) {
+  .app { flex-direction: row; } .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 28rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; } .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+.view > * { flex-shrink: 0; }
+.pair2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; max-width: 760px; width: 100%; margin: 0 auto; }
+.pair2 figure { margin: 0; }
+.pair2 figcaption { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); text-align: center; margin-top: 0.2rem; }
+.pair2 svg { touch-action: none; background: var(--bg); border: 1px solid var(--rule); border-radius: 6px; }
+svg .handle { cursor: grab; }
+.gauge svg { max-width: 560px; }
+.big { font-family: var(--mono); font-size: clamp(1rem, 3vw, 1.5rem); text-align: center; }
+.mat { display: grid; gap: 1px; max-width: 520px; width: 100%; margin: 0 auto; }
+.mat div { aspect-ratio: 1; border-radius: 1px; }
+.stepper { display: inline-flex; align-items: center; gap: 0.3rem; font-family: var(--mono); font-size: 0.7rem; }
+.stepper button.act { min-width: 2rem; padding: 0.3rem; }
+.stepper output { min-width: 1.6rem; text-align: center; }
+.swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -0.1rem; margin-right: 0.2rem; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://proofs.mino.mobi/">← proofs</a>
+      <h1>petty</h1>
+      <span class="tagline">family 088 · Lean main result</span>
+    </div>
+    <div class="stage">
+      <div class="view on" id="v-shadows">
+        <div class="cap" id="scap">a convex body K (drag its corners) and its projection body ΠK, drawn at the same scale</div>
+        <div class="pair2">
+          <figure><svg id="kbox" viewBox="-1.8 -1.8 3.6 3.6"></svg><figcaption id="kcap">K</figcaption></figure>
+          <figure><svg id="pbox" viewBox="-1.3 -1.3 2.6 2.6"></svg><figcaption id="pcap">ΠK</figcaption></figure>
+        </div>
+        <div class="gauge"><svg id="gauge" viewBox="0 0 320 46"></svg></div>
+      </div>
+      <div class="view" id="v-twenty">
+        <div class="cap" id="tcap">the 22 facets of T₁₀ × T₁₀ ⊂ ℝ²⁰, as area-normal vectors (rows; blue +, orange −)</div>
+        <div class="mat" id="gmat"></div>
+        <div class="big" id="tbig"></div>
+        <div class="cap" style="text-align:center" id="tsub"></div>
+      </div>
+      <div class="view" id="v-products">
+        <div class="cap">R(T_r × T_s) ÷ c_{r+s}: orange cells beat the simplex. The ringed diagonal is dimension 20, where only 8+12, 9+11, 10+10 and their mirror images (thick rings) win.</div>
+        <svg id="heat" viewBox="0 0 320 320" style="max-width:440px"></svg>
+        <div class="cap">every dimension n: each body's R_n divided by the simplex value c_n (log scale)</div>
+        <svg id="ladder" viewBox="0 0 320 180"></svg>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <nav class="tabs">
+      <button class="tab active" data-pane="shadows">shadows</button>
+      <button class="tab" data-pane="twenty">ℝ²⁰</button>
+      <button class="tab" data-pane="products">products</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+      <div class="pane active" id="pane-shadows">
+        <div class="row" style="margin-top:0"><button class="act" data-dim="2" aria-pressed="true">plane</button><button class="act" data-dim="3">space</button></div>
+        <div id="ctl2">
+          <div class="row"><button class="act" data-s2="triangle">triangle</button><button class="act" data-s2="square">square</button><button class="act" data-s2="hexagon">hexagon</button><button class="act" data-s2="random">random</button><button class="act" id="addv">+ corner</button><button class="act" id="delv">− corner</button></div>
+          <div class="knob"><label for="ang">shadow of</label><input type="range" id="ang" min="0" max="360" step="1" value="30"><output id="angv"></output></div>
+        </div>
+        <div id="ctl3" hidden>
+          <div class="row" id="solids"></div>
+          <div class="knob"><label for="np">points</label><input type="range" id="np" min="8" max="80" step="1" value="30"><output id="npv"></output></div>
+          <div class="row"><button class="act" id="sph">hull of random points on a sphere</button></div>
+        </div>
+        <div class="status" id="sstat"></div>
+        <p class="note" id="snote"></p>
+      </div>
+      <div class="pane" id="pane-twenty">
+        <div class="row" style="margin-top:0;align-items:center;gap:0.8rem">
+          <span class="stepper">r <button class="act" data-st="r-">−</button><output id="rv">10</output><button class="act" data-st="r+">+</button></span>
+          <span class="stepper">s <button class="act" data-st="s-">−</button><output id="sv">10</output><button class="act" data-st="s+">+</button></span>
+        </div>
+        <div class="row"><button class="act" id="brute">recompute by brute force</button></div>
+        <div class="status" id="bstat"><span style="color:var(--muted)">For a polytope, the projection body is a sum of segments, one per facet: ΠK = Σ [−s_F ν_F/2, s_F ν_F/2], with s_F the facet's area and ν_F its normal. A sum of segments has volume Σ |det| over every way of choosing d of them. The product T_r × T_s has r + s + 2 facets, so in ℝ²⁰ that is C(22, 20) = 231 determinants of 20 × 20 integer matrices, all exact. The paper's product formula is not used.</span></div>
+        <p class="note">The release's Lean statement <code>product_counterexample</code> claims the quotient equals both 121·C(20,10)/(21·2²⁰) and 22355476/22020096, and that it exceeds 1. The paper's integer certificate is 121·184756 − 21·1048576 = 335380 &gt; 0.</p>
+      </div>
+      <div class="pane prose" id="pane-products">
+        <p>The paper's product test: for r, s ≥ 2,</p>
+        <pre>R(T_r × T_s) / c_{r+s} = (r+1)(s+1)/(r+s+1) · C(r+s, r) · r^r s^s / (r+s)^{r+s}</pre>
+        <p>where c_d = (d+1)·d^d / d! is the simplex value. Tap a cell to see its exact value.</p>
+        <div class="status" id="cell"></div>
+        <p>On the ladder, the blue line is the best product of simplices in each dimension, found by dynamic programming over all splits into parts of size at least 2 and rechecked exactly up to n = 30. It stays at or below the simplex until n = 20, where 10 + 10 wins. After that it pulls away exponentially. The paper's corollary says some λ &gt; 1 works. This page's own computation puts the best rate at e^{max_a (log c_a)/a − 1} ≈ 1.034 per dimension, reached with factors of size 12 or 13. The orange line is Petty's ellipsoid minimum and the grey line is the cube, 2ⁿ.</p>
+        <div class="status" id="ladstat"></div>
+      </div>
+      <div class="pane prose" id="pane-about">
+        <h2>Shadows and the projection body</h2>
+        <p>Shine a light on a convex body K from direction u and measure the area of its shadow. Do that for every u and you get a function. It is the support function of a second convex body, the <b>projection body</b> ΠK (Minkowski, 1903). The ratio R(K) = |ΠK| / |K|^{n−1} does not change under any affine map, so it measures shape alone. Two old questions ask for its extremes.</p>
+        <p><b>Petty (1971): the minimum.</b> Ellipsoids should give the smallest R, with value κ_{n−1}ⁿ κ_n^{2−n}, where κ_j is the volume of the unit ball in ℝʲ. Chen, Feng, Li, Xi and Xu proved this in ℝ³ in 2026. <b>Brannen (1996): the maximum.</b> Simplices should give the largest R, with value c_n = (n+1)nⁿ/n!. Tetrahedra do maximise in ℝ³ (same paper). In the plane, R(K) = |K − K| / |K| lies between 4 and 6 for every K. The minimum 4 is reached by every centrally symmetric shape, not only ellipses, which is why Petty's conjecture starts at n = 3.</p>
+
+        <h2>The 2026 claims</h2>
+        <p>Two papers dated 24 September 2026, released on 6 October in <a href="https://github.com/openai/math">a collection of 722 model-written papers</a>, make the claims below.</p>
+        <ul>
+          <li><b>Petty in every dimension n ≥ 4</b>, with ellipsoids the only minimisers. Combined with the ℝ³ theorem of Chen et al., the conjecture holds for every n ≥ 3.</li>
+          <li><b>Brannen fails</b>: T₁₀ × T₁₀ beats the simplex in ℝ²⁰, by the factor 22355476/22020096 ≈ 1.0152. Products of simplices also win by an exponential factor in every large dimension.</li>
+        </ul>
+        <p>The second paper is candid about priority. Feng, Hu, Liu and Xu had already given counterexamples in every dimension d ≥ 9, using polytopes with at most d + 2 facets. What is new is a direct product construction whose value is exact.</p>
+
+        <h2>What Lean covers</h2>
+        <p>Both papers are in the release's formalization catalogue. Its scope note says the formalization proves Petty's inequality with the equality case for every n ≥ 4, and the dimension-20 counterexample. It does not cover the Lutwak–Petty family or the exponential excess. The counterexample's statement, verbatim:</p>
+<pre>theorem product_counterexample :
+    (IsCompact productWitness ∧ Convex ℝ productWitness ∧
+      (interior productWitness).Nonempty) ∧
+    normalizedProjectionVolume productWitness / simplexConstant 20 =
+      (121 * (Nat.choose 20 10 : ℝ)) / (21 * (2 : ℝ) ^ 20) ∧
+    normalizedProjectionVolume productWitness / simplexConstant 20 =
+      (22355476 : ℝ) / 22020096 ∧
+    1 &lt; normalizedProjectionVolume productWitness / simplexConstant 20 ∧
+    (volume (projectionBody productWitness)).toReal &gt;
+      simplexConstant 20 * (volume productWitness).toReal ^ 19</pre>
+        <p>Here <code>simplexConstant d = (d+1)·d^d/d!</code>, and <code>projectionBody K</code> is the set of y with ⟨u, y⟩ ≤ ‖u‖·(shadow volume) for every u. And Petty:</p>
+<pre>theorem petty_projection_volume (n : ℕ) (hn : 4 ≤ n)
+    (K : Set (Space n)) (hK : IsConvexBody K) :
+    pettyConstant n ≤ projectionRatio K ∧
+      (projectionRatio K = pettyConstant n ↔ IsEllipsoid K)</pre>
+        <p>with <code>pettyConstant n = κ(n−1)^n · κ(n)^(2−n)</code>. We did not build or run the Lean.</p>
+
+        <h2>What this page checks</h2>
+        <p><code>petty.js</code> is the only copy of the maths, and <code>petty.selftest.mjs</code> holds it to 2,926 checks.</p>
+        <ul>
+          <li><b>The counterexample by brute force.</b> The 22 facet vectors of T₁₀ × T₁₀ go into the zonotope volume formula: 231 exact 20 × 20 determinants. The quotient comes out exactly 22355476/22020096, with no use of the product formula. The same brute force matches the formula on ten smaller products and three more 20-dimensional splits.</li>
+          <li><b>The simplex value.</b> |ΠT_d| = (d+1)/((d−1)!)^d, from the facet zonotope for d ≤ 12. The certificate integer is 335380.</li>
+          <li><b>Every dimension.</b> No product of simplices beats the simplex below ℝ²⁰. This is exact for every two-factor split, and for the best split of each n ≤ 30.</li>
+          <li><b>The facet lemma itself.</b> In the plane and in space, the formula ½ Σ|⟨s_F ν_F, u⟩| matches the measured shadow. Random polygons give 4 ≤ R₂ ≤ 6.</li>
+          <li><b>Reference values.</b> In space: tetrahedron 18, prism 12, octahedron 9, cube 8, and hulls of many sphere points approaching 3π²/4 ≈ 7.402.</li>
+        </ul>
+        <p>Not checked: Petty's inequality in ℝ⁴ and up. It is a statement about every convex body, and its proof is analysis (spherical harmonics, a strict norm estimate, a fixed-point argument). Shapes can only illustrate it.</p>
+        <div class="crossref">
+          the collection · <a href="https://proofs.mino.mobi/">proofs</a> ·
+          the papers · <a href="https://github.com/openai/math/blob/main/preprints/Pettys-projection-volume-conjecture-in-dimensions-at-least-four-September-24-2026/paper.pdf">Petty, n ≥ 4</a> · <a href="https://github.com/openai/math/blob/main/preprints/A-product-counterexample-to-the-simplex-maximum-for-projection-body-volume-September-24-2026/paper.pdf">product counterexample</a> · <a href="https://github.com/openai/math/blob/main/lean/docs/088.md">Lean scope</a> ·
+          next door · <a href="https://proofs.mino.mobi/mub/">mub</a> · <a href="https://proofs.mino.mobi/catalan/">catalan</a>
+        </div>
+        <p class="note">Not affiliated with OpenAI. The papers are Apache-2.0. Formulas here are retyped in Unicode from their TeX and Lean sources.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as P from './petty.js';
+const { Q } = P;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+const ms = (t) => (t < 1000 ? Math.round(t) + ' ms' : (t / 1000).toFixed(1) + ' s');
+const SUP = (n) => String(n).replace(/\d/g, (d) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]).replace('-', '⁻');
+const SUB = (n) => String(n).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]);
+
+// ================================================================ worker ===
+const workers = {};
+function run(task, msg, onMsg) {
+  if (workers[task]) workers[task].terminate();
+  let w;
+  try { w = new Worker('./search.worker.js', { type: 'module' }); } catch { onMsg({ done: true, error: 'this browser has no module workers' }); return; }
+  workers[task] = w;
+  w.onmessage = (e) => onMsg(e.data);
+  w.onerror = (e) => onMsg({ done: true, error: e.message || 'worker failed' });
+  w.postMessage({ task, ...msg });
+}
+
+// ================================================================== tabs ===
+const seen = new Set(['shadows']);
+const onOpen = { twenty: () => brute(), products: () => { heat(); ladder(); } };
+document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b));
+  const p = b.dataset.pane;
+  document.querySelectorAll('.pane').forEach((x) => x.classList.toggle('active', x.id === 'pane-' + p));
+  if (p !== 'about') document.querySelectorAll('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + p));
+  if (!seen.has(p)) { seen.add(p); onOpen[p]?.(); }
+}));
+
+// =============================================================== gauge ====
+function gauge(lo, hi, value, marks, unit) {
+  const W = 320, L = 14, Rr = W - 14, X = (v) => L + ((v - lo) / (hi - lo)) * (Rr - L);
+  let s = `<line x1="${L}" x2="${Rr}" y1="22" y2="22" stroke="var(--rule)" stroke-width="3" stroke-linecap="round"/>`;
+  for (const [v, lab, up] of marks) { const x = X(v), an = x < 50 ? 'start' : x > W - 50 ? 'end' : 'middle'; s += `<line x1="${x}" x2="${x}" y1="17" y2="27" stroke="var(--faint)" stroke-width="0.8"/><text x="${an === 'start' ? x - 4 : an === 'end' ? x + 4 : x}" y="${up ? 12 : 38}" font-size="5.5" text-anchor="${an}">${lab}</text>`; }
+  const x = X(Math.max(lo, Math.min(hi, value)));
+  s += `<circle cx="${x}" cy="22" r="5" fill="var(--accent)"/><text x="${x}" y="${unit === 'top' ? 39 : 12}" font-size="7" text-anchor="middle" fill="var(--fg)"></text>`;
+  $('gauge').innerHTML = s;
+}
+
+// ============================================================ the plane ===
+let dim = 2, K2 = [[-0.8, -0.6], [0.9, -0.5], [-0.1, 0.9]];
+const SHAPES2 = {
+  triangle: () => [[-0.8, -0.6], [0.9, -0.5], [-0.1, 0.9]],
+  square: () => [[-0.6, -0.6], [0.6, -0.6], [0.6, 0.6], [-0.6, 0.6]],
+  hexagon: () => Array.from({ length: 6 }, (_, k) => [0.8 * Math.cos((k * Math.PI) / 3), 0.8 * Math.sin((k * Math.PI) / 3)]),
+  random: () => P.hull2(Array.from({ length: 7 }, () => [Math.random() * 1.8 - 0.9, Math.random() * 1.8 - 0.9])),
+};
+function fitScale(polys) { let m = 0; for (const p of polys) for (const [x, y] of p) m = Math.max(m, Math.abs(x), Math.abs(y)); return m; }
+function draw2() {
+  K2 = P.hull2(K2);
+  const pb = P.projectionBody2(K2), A = P.area2(K2), R = pb.volume / A;
+  // ΠK has dimensions of length here (areas of 1-D shadows), so scale its panel to fit
+  const sP = 1.15 / fitScale([pb.body]);
+  const a = (+$('ang').value * Math.PI) / 180, u = [Math.cos(a), Math.sin(a)];
+  $('angv').textContent = $('ang').value + '°';
+  // K panel, with the shadow on the line u⊥ (light coming along u)
+  const perp = [-u[1], u[0]], t = K2.map((p) => p[0] * perp[0] + p[1] * perp[1]), t0 = Math.min(...t), t1 = Math.max(...t);
+  const off = Math.min(...K2.map((p) => p[0] * u[0] + p[1] * u[1])) - 0.3;
+  let k = `<line x1="${perp[0] * -2 + u[0] * off}" y1="${-(perp[1] * -2 + u[1] * off)}" x2="${perp[0] * 2 + u[0] * off}" y2="${-(perp[1] * 2 + u[1] * off)}" stroke="var(--rule)" stroke-width="0.01"/>`;
+  k += `<line x1="${perp[0] * t0 + u[0] * off}" y1="${-(perp[1] * t0 + u[1] * off)}" x2="${perp[0] * t1 + u[0] * off}" y2="${-(perp[1] * t1 + u[1] * off)}" stroke="var(--s2)" stroke-width="0.05" stroke-linecap="round"/>`;
+  for (const tt of [t0, t1]) { const p = K2[t.indexOf(tt)]; k += `<line x1="${p[0]}" y1="${-p[1]}" x2="${perp[0] * tt + u[0] * off}" y2="${-(perp[1] * tt + u[1] * off)}" stroke="var(--s2)" stroke-width="0.008" stroke-dasharray="0.03 0.03"/>`; }
+  k += `<polygon points="${K2.map(([x, y]) => `${x},${-y}`).join(' ')}" fill="var(--accent-faint)" stroke="var(--s1)" stroke-width="0.02" stroke-linejoin="round"/>`;
+  K2.forEach(([x, y], i) => { k += `<circle class="handle" data-i="${i}" cx="${x}" cy="${-y}" r="0.07" fill="var(--s1)" stroke="var(--bg)" stroke-width="0.015"/>`; });
+  $('kbox').innerHTML = k;
+  // ΠK panel: the support in direction u equals the shadow length
+  const h = t1 - t0;
+  let p = `<polygon points="${pb.body.map(([x, y]) => `${x * sP},${-y * sP}`).join(' ')}" fill="color-mix(in srgb, var(--s2) 14%, transparent)" stroke="var(--s2)" stroke-width="0.02" stroke-linejoin="round"/>`;
+  p += `<line x1="0" y1="0" x2="${u[0] * h * sP}" y2="${-u[1] * h * sP}" stroke="var(--fg)" stroke-width="0.015"/>`;
+  p += `<line x1="${(u[0] * h - u[1] * 2) * sP}" y1="${-(u[1] * h + u[0] * 2) * sP}" x2="${(u[0] * h + u[1] * 2) * sP}" y2="${-(u[1] * h - u[0] * 2) * sP}" stroke="var(--fg)" stroke-width="0.008" stroke-dasharray="0.04 0.03"/>`;
+  p += `<circle cx="0" cy="0" r="0.025" fill="var(--fg)"/>`;
+  $('pbox').innerHTML = p;
+  $('kcap').textContent = `K: ${K2.length} corners, area ${A.toFixed(3)}`;
+  $('pcap').textContent = `ΠK (scaled ×${sP.toFixed(2)}): area ${pb.volume.toFixed(3)}`;
+  gauge(3.8, 6.2, R, [[4, 'centrally symmetric: 4', false], [6, 'triangle: 6', false]]);
+  $('sstat').innerHTML = `<div>R₂(K) = |ΠK| / |K| = <b>${R.toFixed(5)}</b></div><div>shadow at ${$('ang').value}°: length ${h.toFixed(4)} = the support of ΠK in that direction (the dashed line)</div>`;
+  $('snote').innerHTML = 'In the plane every edge of K adds one segment to ΠK, its own length, turned a quarter turn. So ΠK is K − K turned 90°, and R₂ = |K − K| / |K| lies between 4 and 6 (Brunn–Minkowski, Rogers–Shephard). Every centrally symmetric shape gives 4, and every triangle gives 6. In the plane the simplex really is the maximum.';
+}
+let drag = null;
+function svgPoint(svg, e) { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const q = pt.matrixTransform(svg.getScreenCTM().inverse()); return [q.x, -q.y]; }
+$('kbox').addEventListener('pointerdown', (e) => { const h = e.target.closest('.handle'); if (!h) return; drag = +h.dataset.i; $('kbox').setPointerCapture(e.pointerId); });
+$('kbox').addEventListener('pointermove', (e) => { if (drag === null || dim !== 2) return; const [x, y] = svgPoint($('kbox'), e); K2[drag] = [Math.max(-1.2, Math.min(1.2, x)), Math.max(-1.2, Math.min(1.2, y))]; draw2(); });
+$('kbox').addEventListener('pointerup', () => { drag = null; });
+document.querySelectorAll('[data-s2]').forEach((b) => b.addEventListener('click', () => { K2 = SHAPES2[b.dataset.s2](); draw2(); }));
+$('addv').addEventListener('click', () => {               // split the longest edge, nudged outward
+  let best = 0, L = 0; K2.forEach((p, i) => { const q = K2[(i + 1) % K2.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]); if (l > L) { L = l; best = i; } });
+  const p = K2[best], q = K2[(best + 1) % K2.length], m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], n = [q[1] - p[1], -(q[0] - p[0])].map((x) => (0.12 * x) / L);
+  K2.splice(best + 1, 0, [m[0] + n[0], m[1] + n[1]]); draw2();
+});
+$('delv').addEventListener('click', () => { if (K2.length > 3) { K2.splice(Math.floor(Math.random() * K2.length), 1); draw2(); } });
+$('ang').addEventListener('input', () => { if (dim === 2) draw2(); });
+
+// ============================================================ space ===
+let solid = 'tetrahedron', B3 = null, pts3 = null, rot = [0.5, -0.35], spinning = true;
+$('solids').innerHTML = Object.keys(P.SOLIDS).map((k) => `<button class="act" data-sol="${k}" aria-pressed="${k === solid}">${k}</button>`).join('');
+function setSolid(pts, label) {
+  // centre at the centroid of the vertices so both pictures turn about their middles
+  const c = [0, 1, 2].map((q) => pts.reduce((s, p) => s + p[q], 0) / pts.length);
+  pts3 = pts.map((p) => p.map((x, q) => x - c[q]));
+  const B = P.body3(pts3);
+  B3 = { ...B, zf: P.zonotopeFaces(B.gens), label };
+  if (B3.zf.length > 800) spinning = false;          // thousands of faces: turn by hand only
+  draw3();
+}
+function project(p) {   // rotate about y then x, orthographic
+  const [a, b] = rot, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
+  const x1 = ca * p[0] + sa * p[2], z1 = -sa * p[0] + ca * p[2], y2 = cb * p[1] - sb * z1, z2 = sb * p[1] + cb * z1;
+  return [x1, y2, z2];
+}
+function drawPolys(polys, scale, col) {
+  const sw = polys.length > 400 ? 0.004 : polys.length > 60 ? 0.008 : 0.012;
+  const light = [0.35, 0.55, 0.75];
+  const items = polys.map((poly) => {
+    const q = poly.map(project), z = q.reduce((s, v) => s + v[2], 0) / q.length;
+    const e1 = q[1].map((x, i) => x - q[0][i]), e2 = q[2].map((x, i) => x - q[0][i]);
+    let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]]; const L = Math.hypot(...n) || 1; n = n.map((x) => x / L);
+    return { q, z, shade: Math.abs(n[0] * light[0] + n[1] * light[1] + n[2] * light[2]) };
+  }).sort((a, b) => a.z - b.z);
+  return items.map((it) => `<polygon points="${it.q.map((v) => `${(v[0] * scale).toFixed(4)},${(-v[1] * scale).toFixed(4)}`).join(' ')}" fill="color-mix(in srgb, ${col} ${Math.round(18 + 55 * it.shade)}%, var(--bg))" stroke="${col}" stroke-width="${sw}" stroke-linejoin="round" fill-opacity="0.92"/>`).join('');
+}
+function draw3() {
+  if (!B3) return;
+  const kPolys = B3.faces.map((f) => f.verts.map((i) => pts3[i]));
+  const sK = 1.1 / Math.max(...pts3.map((p) => Math.hypot(...p)));
+  let rz = 0; for (const f of B3.zf) for (const p of f.poly) rz = Math.max(rz, Math.hypot(...p));
+  const sP = 1.1 / rz;
+  $('kbox').innerHTML = drawPolys(kPolys, sK, 'var(--s1)');
+  $('pbox').innerHTML = drawPolys(B3.zf.map((f) => f.poly), sP, 'var(--s2)');
+  $('kcap').textContent = `K: ${B3.label}, ${B3.faces.length} faces`;
+  $('pcap').textContent = `ΠK: a zonotope with ${B3.zf.length} faces`;
+  const lo = (3 * Math.PI ** 2) / 4;
+  gauge(6.8, 18.6, B3.R, [[lo, 'ball 7.40', false], [8, 'cube 8', true], [9, '9', false], [12, 'prism 12', true], [13.5, '13.5', false], [18, 'tetrahedron 18', true]]);
+  $('sstat').innerHTML = `<div>R₃(K) = |ΠK| / |K|² = <b>${B3.R.toFixed(5)}</b></div><div>|K| = ${B3.volume.toFixed(4)}, |ΠK| = Σ|det| over ${B3.gens.length * (B3.gens.length - 1) * (B3.gens.length - 2) / 6} triples of the ${B3.gens.length} facet vectors</div>`;
+  $('snote').innerHTML = 'Each face of K contributes one segment, its area times its normal. ΠK is their sum, a zonotope. In ℝ³ both extremes are now theorems (Chen, Feng, Li, Xi and Xu, 2026). Ellipsoids are the minimum, 3π²/4 ≈ 7.402, and tetrahedra the maximum, 18. Add points on the sphere and watch R₃ fall toward the ball. Drag to turn.';
+}
+let rotDrag = null;
+for (const id of ['kbox', 'pbox']) {
+  $(id).addEventListener('pointerdown', (e) => { if (dim !== 3) return; rotDrag = [e.clientX, e.clientY, ...rot]; spinning = false; $(id).setPointerCapture(e.pointerId); });
+  $(id).addEventListener('pointermove', (e) => { if (dim !== 3 || !rotDrag) return; rot = [rotDrag[2] + (e.clientX - rotDrag[0]) * 0.01, rotDrag[3] + (e.clientY - rotDrag[1]) * 0.01]; draw3(); });
+  $(id).addEventListener('pointerup', () => { rotDrag = null; });
+}
+function spin() { if (dim === 3 && spinning && !document.hidden && document.querySelector('#v-shadows.on')) { rot[0] += 0.006; draw3(); } requestAnimationFrame(spin); }
+requestAnimationFrame(spin);
+document.querySelectorAll('[data-sol]').forEach((b) => b.addEventListener('click', () => {
+  solid = b.dataset.sol; document.querySelectorAll('[data-sol]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  setSolid(P.SOLIDS[solid], solid);
+}));
+$('np').addEventListener('input', () => { $('npv').textContent = $('np').value; });
+$('npv').textContent = $('np').value;
+$('sph').addEventListener('click', () => {
+  const n = +$('np').value; $('sph').disabled = true; $('sstat').textContent = `hull of ${n} random points…`;
+  run('sphere', { n, seed: Math.floor(Math.random() * 1e9) }, (d) => {
+    $('sph').disabled = false;
+    if (d.error) { $('sstat').innerHTML = `<span class="no">${esc(d.error)}</span>`; return; }
+    document.querySelectorAll('[data-sol]').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+    setSolid(d.pts, `hull of ${n} sphere points`);
+  });
+});
+document.querySelectorAll('[data-dim]').forEach((b) => b.addEventListener('click', () => {
+  dim = +b.dataset.dim; document.querySelectorAll('[data-dim]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  $('ctl2').hidden = dim !== 2; $('ctl3').hidden = dim !== 3;
+  $('kbox').setAttribute('viewBox', dim === 2 ? '-1.8 -1.8 3.6 3.6' : '-1.25 -1.25 2.5 2.5');
+  $('pbox').setAttribute('viewBox', dim === 2 ? '-1.3 -1.3 2.6 2.6' : '-1.25 -1.25 2.5 2.5');
+  $('scap').textContent = dim === 2 ? 'a convex body K (drag its corners) and its projection body ΠK' : 'a solid K and its projection body ΠK (drag to turn)';
+  if (dim === 2) draw2(); else { spinning = true; if (!B3) setSolid(P.SOLIDS[solid], solid); else draw3(); }
+}));
+draw2();
+
+// ============================================================ ℝ²⁰ =====
+let r = 10, s = 10;
+document.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => {
+  const k = b.dataset.st;
+  if (k === 'r-') r = Math.max(2, r - 1); if (k === 'r+') r = Math.min(22 - s, r + 1);
+  if (k === 's-') s = Math.max(2, s - 1); if (k === 's+') s = Math.min(22 - r, s + 1);
+  $('rv').textContent = r; $('sv').textContent = s;
+}));
+function brute() {
+  const parts = [r, s], n = r + s;
+  $('brute').disabled = true;
+  $('tcap').textContent = `the ${n + 2} facets of T${SUB(r)} × T${SUB(s)} ⊂ ℝ${SUP(n)}, as area-normal vectors (rows; blue +, orange −)`;
+  $('tbig').textContent = ''; $('tsub').textContent = '';
+  run('brute', { parts }, (d) => {
+    if (d.error) { $('bstat').innerHTML = `<span class="no">${esc(d.error)}</span>`; $('brute').disabled = false; return; }
+    if (d.step === 'gens') {
+      const m = d.gens.length, cols = d.gens[0].length;
+      $('gmat').style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      $('gmat').style.maxWidth = Math.min(520, cols * 24) + 'px';
+      $('gmat').innerHTML = d.gens.map((g) => g.map((x) => `<div style="background:${x > 0 ? 'var(--s1)' : x < 0 ? 'var(--s2)' : 'var(--rule)'};opacity:${x === 0 ? 0.35 : 1}"></div>`).join('')).join('');
+      $('bstat').innerHTML = `${d.total} determinants of ${n} × ${n}…`;
+      return;
+    }
+    if (d.step === 'progress') { $('bstat').innerHTML = `${d.count} of ${d.total} determinants…`; return; }
+    $('brute').disabled = false;
+    $('tbig').innerHTML = `R${SUB(n)}(T${SUB(r)} × T${SUB(s)}) ÷ c${SUB(n)} = <b>${d.overDec}</b>`;
+    $('tsub').innerHTML = d.beats ? `<span class="ok">beats the simplex: Brannen's bound fails in ℝ${SUP(n)}</span>` : 'below the simplex';
+    $('bstat').innerHTML = [
+      `✓ ${d.subsets} exact determinants (${ms(d.ms)})`,
+      `|ΠK| = ${d.piVolume.length > 60 ? d.piVolume.slice(0, 28) + '…' + d.piVolume.slice(-28) : d.piVolume}`,
+      `|K| = ${d.volume}`,
+      `R = |ΠK| / |K|${SUP(n - 1)} ≈ ${d.Rdec}, c${SUB(n)} ≈ ${d.cdec}`,
+      `quotient = <b>${d.over}</b>`,
+      `${d.agree ? '<span class="ok">✓ equals the paper\'s product formula</span>' : '<span class="no">✗ disagrees with the product formula</span>'}`,
+      r === 10 && s === 10 ? (d.over === '5588869/5505024' ? '<span class="ok">✓ = 22355476/22020096 (both reduce to 5588869/5505024), the Lean statement\'s value</span>' : '<span class="no">✗ not the Lean statement\'s value</span>') : '',
+    ].filter(Boolean).map((x) => `<div>${x}</div>`).join('');
+  });
+}
+$('brute').addEventListener('click', brute);
+
+// ============================================================ products ====
+const NMAX = 40;
+function heat() {
+  const W = 320, L = 22, T = 6, cell = (W - L - 6) / (NMAX - 1);
+  let s = '';
+  for (let a = 2; a <= NMAX; a++) for (let b = 2; b <= NMAX; b++) {
+    const lr = P.logC(a) + P.logC(b) - P.logC(a + b);
+    const t = Math.max(-1, Math.min(1, lr / 0.6));
+    const col = t >= 0 ? `color-mix(in srgb, var(--s2) ${Math.round(18 + 82 * t)}%, var(--bg))` : `color-mix(in srgb, var(--s1) ${Math.round(18 + 82 * -t)}%, var(--bg))`;
+    s += `<rect class="hc" data-a="${a}" data-b="${b}" x="${L + (a - 2) * cell}" y="${T + (b - 2) * cell}" width="${cell + 0.05}" height="${cell + 0.05}" fill="${col}"/>`;
+  }
+  // the dimension-20 antidiagonal
+  for (let a = 2; a <= 18; a++) {
+    const win = Q.cmp(P.productTest(a, 20 - a), Q.of(1)) > 0;
+    s += `<rect x="${L + (a - 2) * cell}" y="${T + (20 - a - 2) * cell}" width="${cell}" height="${cell}" fill="none" stroke="${win ? 'var(--s2)' : 'var(--fg)'}" stroke-width="${win ? 1.4 : 0.5}"/>`;
+  }
+  for (const v of [2, 10, 20, 30, 40]) s += `<text x="${L + (v - 2) * cell + cell / 2}" y="${W - 2}" font-size="6" text-anchor="middle">${v}</text><text x="${L - 3}" y="${T + (v - 2) * cell + cell / 2 + 2}" font-size="6" text-anchor="end">${v}</text>`;
+  s += `<text x="${W - 6}" y="${W - 10}" font-size="6.5" text-anchor="end">r →</text><text x="4" y="${T + 8}" font-size="6.5">s ↓</text>`;
+  $('heat').innerHTML = s;
+  $('heat').querySelectorAll('.hc').forEach((el) => el.addEventListener('click', () => {
+    const a = +el.dataset.a, b = +el.dataset.b, q = P.productTest(a, b), beat = Q.cmp(q, Q.of(1)) > 0;
+    $('cell').innerHTML = `T${SUB(a)} × T${SUB(b)} ⊂ ℝ${SUP(a + b)}: R ÷ c = ${Q.dec(q, 9)} ${beat ? '<span class="ok">beats the simplex</span>' : '<span style="color:var(--muted)">below the simplex</span>'}<br><span style="color:var(--muted);word-break:break-all">${Q.str(q).length < 120 ? Q.str(q) : ''}</span>`;
+  }));
+}
+function ladder() {
+  const N = 80, B = P.bestPartitions(N);
+  const W = 320, H = 180, L = 30, Bm = 16, T = 8, lo = -6, hi = 2;               // log10 of R/c
+  const X = (n) => L + ((n - 2) / (N - 2)) * (W - L - 6), Y = (v) => T + (1 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * (H - T - Bm);
+  let s = '';
+  for (let e = lo; e <= hi; e += 2) s += `<line x1="${L}" x2="${W - 6}" y1="${Y(e)}" y2="${Y(e)}" stroke="${e === 0 ? 'var(--faint)' : 'var(--rule)'}" stroke-width="${e === 0 ? 0.9 : 0.5}"/><text x="${L - 3}" y="${Y(e) + 2}" font-size="6" text-anchor="end">10${SUP(e)}</text>`;
+  for (const n of [2, 20, 40, 60, 80]) s += `<text x="${X(n)}" y="${H - 4}" font-size="6" text-anchor="middle">${n}</text>`;
+  s += `<line x1="${X(20)}" x2="${X(20)}" y1="${T}" y2="${H - Bm}" stroke="var(--rule)" stroke-dasharray="2 2" stroke-width="0.6"/><text x="${X(20) + 2}" y="${T + 6}" font-size="6">n = 20</text>`;
+  const path = (f, col, w = 1.4) => `<path d="${Array.from({ length: N - 1 }, (_, i) => i + 2).map((n, k) => (k ? 'L' : 'M') + X(n).toFixed(1) + ' ' + Y(f(n) / Math.LN10).toFixed(1)).join('')}" fill="none" stroke="${col}" stroke-width="${w}"/>`;
+  s += path((n) => P.logPetty(n) - P.logC(n), 'var(--s2)');
+  s += path((n) => n * Math.LN2 - P.logC(n), 'var(--faint)');
+  s += path((n) => B[n - 2].logExcess, 'var(--s1)', 1.8);
+  [['var(--s1)', 'best product of simplices'], ['var(--faint)', 'cube, 2ⁿ'], ['var(--s2)', 'ellipsoid (Petty\'s minimum)']].forEach(([c, t], i) => {
+    s += `<line x1="${X(40)}" x2="${X(40) + 12}" y1="${T + 8 + i * 9}" y2="${T + 8 + i * 9}" stroke="${c}" stroke-width="1.6"/><text x="${X(40) + 16}" y="${T + 10.5 + i * 9}" font-size="6.5">${t}</text>`;
+  });
+  s += `<text x="${X(N) - 2}" y="${Y(0) + 8}" font-size="6.5" text-anchor="end">simplex = 1</text>`;
+  $('ladder').innerHTML = s;
+  const b20 = B[18], b80 = B[N - 2];
+  $('ladstat').innerHTML = `best at n = 20: ${b20.parts.join(' + ')}, ratio ${Math.exp(b20.logExcess).toFixed(6)} · at n = ${N}: ${b80.parts.join(' + ')}, ratio ${Math.exp(b80.logExcess).toFixed(3)}`;
+}
+</script>
+</body>
+</html>

@@ -27,7 +27,7 @@ that have something real to recompute. Repo-wide rules are in
 | `abstracts.json` | paper abstracts, fetched only when a card is opened | **generated** by `build.mjs` |
 | `assessment.json` | the editorial layer: tier, effort, page idea, related site pages, built `page` | hand (seeded by model readers) |
 | `build.mjs` | joins the release with `assessment.json` | hand |
-| `crossing/`, `hadamard/`, `seymour/`, `catalan/`, `mub/` | the built pages (families 165, 179, 173, 005, 266), one section each below | hand |
+| `crossing/`, `hadamard/`, `seymour/`, `catalan/`, `mub/`, `petty/` | the built pages (families 165, 179, 173, 005, 266, 088), one section each below | hand |
 | `.assetsignore` | keeps `CLAUDE.md`, `build.mjs`, `assessment.json` and `wrangler.jsonc` off the web | hand |
 
 ## Rebuilding the data
@@ -280,7 +280,50 @@ this in its tagline and quotes the statement whole.
   after dephasing) recognises that class, which is unique by the Butson
   classification the companion cites. Every other matrix gives |g| < 10⁻¹¹.
 - **Not rerun:** the paper's exclusion (its documented run took 4,470 s
-  wall-clock, which the paper says is not a CPU time) and the companion's `verify.py` exact moment certificates. The
-  latter is a multi-modular rank computation over combinatorial invariants,
+  wall-clock, which the paper says is not a CPU time) and the companion's
+  `verify.py` exact moment certificates. The latter is a multi-modular rank computation over combinatorial invariants,
   and porting it is a project of its own. The release directory is
   untrusted, so its Python was read but never run.
+
+## `/petty/` (family 088): projection bodies, Petty's minimum and Brannen's maximum
+
+```bash
+node proofs/petty/petty.selftest.mjs   # ~0.5 s, 2926 checks
+```
+
+The engine is `petty/petty.js`, imported by the page, `search.worker.js` and
+the selftest. Both papers are in the Lean catalogue:
+`OAI.PettyProjection.petty_projection_volume` (n ≥ 4, with the equality
+case) and `OAI.Paper092.product_counterexample` (ℝ²⁰). The page quotes both
+and uses their definitions (`simplexConstant`, `pettyConstant`).
+
+- **One formula carries the whole page:** the facet lemma ΠP = Σ [−s_F ν_F/2,
+  s_F ν_F/2] together with the zonotope volume Σ_{|S|=d} |det v_S|.
+  `zonotopeVolume` evaluates it exactly: BigInt Bareiss on integerised
+  generators, with the denominators carried separately.
+- **The counterexample is brute-forced.** The 22 facet area-normals of
+  T₁₀ × T₁₀ (a factor's own facet vector times the other factor's volume,
+  which is elementary) give 231 determinants of 20 × 20 in about 50 ms. They
+  yield exactly 5588869/5505024, which is 22355476/22020096 reduced by 4,
+  without using the paper's product formula. The page prints both forms
+  because the Lean statement uses the unreduced one. Thirteen other
+  products (two and three factors, including 8+12 and 9+11, which also win in
+  ℝ²⁰, and 7+13, which does not) match the formula by brute force.
+- **Priority is stated.** The paper itself credits Feng, Hu, Liu and Xu with
+  counterexamples in every d ≥ 9. The new part is an exact product witness,
+  and the page says so.
+- **Dimensions beyond the paper.** `bestPartitions` (DP on log c_a) finds
+  that no product of simplices wins below n = 20, rechecked exactly to 30
+  and for every two-factor split below 20. Its asymptotic rate
+  e^{max_a log c_a / a − 1} ≈ 1.034 (factors of size 12–13) is **this
+  page's computation**, labelled as such. The paper only claims some λ > 1.
+- **Low dimensions are illustration.** In the plane R₂ = |K − K|/|K| ∈ [4, 6]:
+  every centrally symmetric shape gives 4, so Petty starts at n = 3. In
+  space, R₃ runs from 3π²/4 for the ball to 18 for the tetrahedron, both
+  from the 2026 ℝ³ theorem of Chen et al. The facet lemma is checked against
+  measured shadows in both. `hull3` is brute force over triples, fine
+  to about 80 points. `zonotopeFaces` merges parallel generators and draws
+  each face as a zonogon; faces run into thousands for big hulls, so the
+  page stops auto-spinning above 800 faces.
+- **Not checked:** Petty's inequality for n ≥ 4, which is analysis
+  (harmonics, a strict norm estimate, a fixed point).
