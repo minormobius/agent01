@@ -1,0 +1,27 @@
+{
+ "at": "2026-10-07T22:03:59.924Z",
+ "changed": true,
+ "ok": true,
+ "sites": [
+  "delve-graph",
+  "garden",
+  "keyholder",
+  "sierpinski"
+ ],
+ "errors": [],
+ "skipped": [],
+ "api": {
+  "live": [],
+  "held": []
+ },
+ "bots": {
+  "live": [
+   "miniphim-works"
+  ],
+  "held": []
+ },
+ "og": [
+  "delve-graph/og.svg → delve-graph/og.png",
+  "garden/og.svg → garden/og.png"
+ ]
+}
