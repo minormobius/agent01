@@ -67,6 +67,11 @@ export class Sound {
     this.#duoStop();
   }
   close() { this.stop(); if (this.ctx) this.ctx.close(); }
+  /** The ambience (the fall, the lake, the wind) on or off, faded; the music is unaffected. */
+  setAmbience(on) {
+    this.ambience = on;
+    if (this.bedOut) this.bedOut.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, 0.3);
+  }
 
   // ---- the duo: a worker composing and rendering ahead, chunks laid on the audio clock
   #clockModel() {
@@ -137,19 +142,20 @@ export class Sound {
     const ctx = this.ctx, w = this.scene.waterfall.width;
     const fall = this.noise(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900 + w * 40;
     const fg = ctx.createGain(); fg.gain.value = 0.05 + w * 0.006;
-    fall.connect(lp).connect(fg).connect(this.master);
+    this.bedOut = ctx.createGain(); this.bedOut.gain.value = this.ambience === false ? 0 : 1; this.bedOut.connect(this.master);
+    fall.connect(lp).connect(fg).connect(this.bedOut);
     const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-    if (pan) { pan.pan.value = this.scene.cliffLeft ? -0.45 : 0.45; fg.disconnect(); fg.connect(pan).connect(this.master); }
+    if (pan) { pan.pan.value = this.scene.cliffLeft ? -0.45 : 0.45; fg.disconnect(); fg.connect(pan).connect(this.bedOut); }
     const lap = this.noise(), bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 380; bp.Q.value = 1.2;
     const lg = ctx.createGain(); lg.gain.value = 0.06;
     const lfo = ctx.createOscillator(), lfoG = ctx.createGain(); lfo.frequency.value = 0.21; lfoG.gain.value = 0.05;
     lfo.connect(lfoG).connect(lg.gain); lfo.start();
-    lap.connect(bp).connect(lg).connect(this.master);
+    lap.connect(bp).connect(lg).connect(this.bedOut);
     const wind = this.noise(), wb = ctx.createBiquadFilter(); wb.type = 'bandpass'; wb.Q.value = 3;
     const wl = ctx.createOscillator(), wlG = ctx.createGain(); wl.frequency.value = 0.043; wlG.gain.value = 260;
     wb.frequency.value = 620; wl.connect(wlG).connect(wb.frequency); wl.start();
     const wg = ctx.createGain(); wg.gain.value = 0.035;
-    wind.connect(wb).connect(wg).connect(this.master); wg.connect(this.verb);
+    wind.connect(wb).connect(wg).connect(this.bedOut);
   }
 
   /** Look ahead and schedule every beat that falls in the next 0.4 s. */

@@ -246,18 +246,44 @@ function flightPath(world, riverOff) {
   return { samples, cum, length: cum[m] };
 }
 
-/** Where the camera is at loop fraction `u` (0..1): position, heading (radians from north), pitch. */
-export function cameraAt(world, u) {
+/** The camera at loop fraction `u` before its heading is smoothed (see cameraAt). */
+function rawCamera(world, u) {
   const { samples, cum, length } = world.path, m = samples.length;
   const want = (((u % 1) + 1) % 1) * length;
   let lo = 0, hi = m;
   while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cum[mid] <= want) lo = mid; else hi = mid; }
   const a = samples[lo], b = samples[(lo + 1) % m], f = (want - cum[lo]) / Math.max(1e-6, cum[lo + 1] - cum[lo]);
   const x = lerp(a.x, b.x, f), y = lerp(a.y, b.y, f), z = lerp(a.z, b.z, f);
-  // heading: toward a point a little ahead (a smooth look, not the jitter of the tangent)
-  const ahead = samples[(lo + 30) % m], behind = samples[(lo + m - 30) % m];
-  const yaw = Math.atan2(ahead.x - x, ahead.y - y);
+  // heading: toward points a little ahead, each INTERPOLATED between samples (taking whole samples
+  // made the heading tick from one to the next, like clockwork) and averaged over a stretch
+  const at = (k) => { const p = samples[(lo + k + m) % m], q = samples[(lo + k + 1 + m) % m]; return { x: lerp(p.x, q.x, f), y: lerp(p.y, q.y, f), z: lerp(p.z, q.z, f) }; };
+  // …as a weighted sum of where the path goes over the next ~300 m (a smooth bell of weights over
+  // the samples ahead). It is continuous by construction: as the camera passes a sample the weights
+  // slide along with it. (Aiming at "the first point 50 m away" jumped where the path's ground track
+  // doubles back, at the foot of the fall.)
+  let hx = 0, hy = 0;
+  for (let k = 4; k <= 200; k += 2) {
+    const wgt = Math.exp(-(((k - 90) / 55) ** 2)), p = at(k);
+    hx += (p.x - x) * wgt; hy += (p.y - y) * wgt;
+  }
+  const ahead = at(30), behind = at(-30);
   const climb = (ahead.z - behind.z) / Math.max(1, Math.hypot(ahead.x - behind.x, ahead.y - behind.y));
   const pitch = clamp(lerp(a.look, b.look, f) * 0.6 + climb * 0.3, -0.3, 0.38);
-  return { x, y, z, yaw, pitch, place: a.place };
+  return { x, y, z, hx, hy, pitch, place: a.place };
+}
+
+/**
+ * Where the camera is at loop fraction `u` (0..1): position, heading (radians from north), pitch.
+ * The heading is the raw one (where the path goes next) averaged over a few seconds of the flight
+ * either side of now: still a pure function of `u`, continuous, and it caps how fast the camera can
+ * turn where the path itself turns hard (the foot of the fall).
+ */
+export function cameraAt(world, u) {
+  const c = rawCamera(world, u);
+  let hx = 0, hy = 0;
+  for (let k = -6; k <= 6; k++) {
+    const w = Math.exp(-((k / 3.5) ** 2)), r = k === 0 ? c : rawCamera(world, u + k * 0.0007);
+    const l = Math.hypot(r.hx, r.hy) || 1; hx += w * r.hx / l; hy += w * r.hy / l;
+  }
+  return { x: c.x, y: c.y, z: c.z, yaw: Math.atan2(hx, hy), pitch: c.pitch, place: c.place };
 }

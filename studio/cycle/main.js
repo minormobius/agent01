@@ -56,6 +56,7 @@ function load(seed) {
   clock.beatSec = 60 / scene.bpm;
   sound = new Sound(scene, { onNote: (at, m) => notes.push({ t: at + clock.offset, m }) });
   sound.place = mode === 'fly' && fly ? fly.place() : null;
+  sound.setAmbience(ambience);
   if (was) { sound.start(clock); clock.use(true); }
   notes = [];
   scene.path.day = null;
@@ -69,6 +70,7 @@ function remember() {
   const q = new URLSearchParams({ seed: scene.seed, lat: view.lat, lon: view.lon, face: view.facing, date: new Date(ms).toISOString().slice(0, 10), h: solarHour(ms, view.lon).toFixed(2) });
   if (speed !== 240) q.set('speed', speed);
   if (mode === 'fly') q.set('mode', 'fly');
+  if (!ambience) q.set('amb', '0');
   history.replaceState(null, '', `#${q}`);
 }
 
@@ -201,6 +203,9 @@ $('sound').onclick = () => {
 };
 $('figbtn').onclick = () => { figures = !figures; $('figbtn').classList.toggle('on', figures); };
 $('figbtn').classList.toggle('on', figures);
+let ambience = params.get('amb') !== '0';
+$('ambbtn').classList.toggle('on', ambience);
+$('ambbtn').onclick = () => { ambience = !ambience; $('ambbtn').classList.toggle('on', ambience); if (sound) sound.setAmbience(ambience); remember(); };
 $('palbtn').onclick = () => { showPal = !showPal; $('pal').hidden = !showPal; $('palbtn').classList.toggle('on', showPal); };
 $('about').onclick = () => { $('notes').hidden = !$('notes').hidden; };
 $('more').onclick = () => { $('sky').hidden = !$('sky').hidden; $('more').classList.toggle('on', !$('sky').hidden); };

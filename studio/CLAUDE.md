@@ -537,7 +537,12 @@ mirrored below the water, which looks THROUGH water cells), and the stars and mo
 reflected in the lake. Pines are billboards indexed by the compass way each needle-mass faces; the
 cabin is six flat-filled quads with its window. The loop (Catmull-Rom through waypoints, re-timed by
 arc length, kept 30 m clear of slopes sideways except at the fall) is flown once in FIVE DAYS of the
-scene's clock: at 4 min a day, a 20-minute flight; held, it stops. At night the gaze tips up (owner:
+scene's clock: at 4 min a day, a 20-minute flight; held, it stops. The heading (owner: "camera rotation is stepping
+clockwork") is a weighted sum of where the path goes over the next ~300 m (samples interpolated, a bell
+of weights that slides with the camera), then averaged over ±5 s of the flight: a pure function of the
+loop position. Measured at 60 fps over the whole loop: at most 10°/s, 0.007° change between frames
+(it had been whole-sample aim points: 2.3° ticks, and 230°/s swings at the foot of the fall, where the
+path's ground track doubles back). At night the gaze tips up (owner:
 "more night sky when the landscape is dark"): the horizon sinks by how dark it is, within the shear
 Voxel Space allows. The cloud texture tiles (its noise blended with shifted copies): a seam showed
 as a straight line across the night sky. ~35 ms a frame in node, 35 fps in
@@ -589,7 +594,9 @@ landscape, sort of steady state but still sonically rich"). Endless music, compo
 - Measured: ~6× real time in node at 44.1 kHz; −22 to −30 dB by texture; Chromium plays it with the
   painting at 60 fps. Not listened to here.
 
-**The beds** (sound.js, WebAudio): the fall, the lake and wind as filtered noise, under the duo.
+**The beds** (sound.js, WebAudio): the fall, the lake and wind as filtered noise, under the duo, on their
+own gain: the "ambience" button turns them off without touching the music (owner: "the option to kill
+the environmental noise"), kept in the link as `amb=0`.
 
 **The page**: hard square pixels covering the stage (drag to pan the painting when cropped). Controls:
 day speed, an hour scrubber (solar time), "sky" (place presets incl. "here" by geolocation, date,
