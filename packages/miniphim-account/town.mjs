@@ -147,7 +147,7 @@ export function decide(drafts, approvals, { now, sent = [], paused = false, ment
     const bad = hosts.length ? urlsIn(text).map((l) => l.uri).find((u) => { let h; try { h = new URL(u).hostname; } catch { return false; } return !hosts.some((host) => h === host || h.endsWith(`.${host}`)); }) : null;
     if (bad) { why(`link to ${bad}: links only to ${hosts.join(', ')}`); continue; }
     if (d.kind === 'post') {
-      if (posts >= CAPS.posts_per_day) { why(`cap: ${CAPS.posts_per_day} posts a day`); continue; }
+      if (CAPS.posts_per_day != null && posts >= CAPS.posts_per_day) { why(`cap: ${CAPS.posts_per_day} posts a day`); continue; }
       posts++; out.push({ ...d, images, hash: h, approved_by: yes.part }); continue;
     }
     if (d.kind === 'reply') {

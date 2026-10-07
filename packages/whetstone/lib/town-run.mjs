@@ -56,7 +56,7 @@ A post or reply may carry up to 4 pictures: \`"images": [{ "file": "www/x.svg", 
 
 ## What goes out, and the caps (in code, out of reach)
 
-After today's sessions the lab publishes every draft with another part's yes on its exact hash and no veto, within: ${CAPS.posts_per_day} posts a day, ${CAPS.replies_per_day} replies a day, ${CAPS.replies_per_author_per_day} replies a day to one author (not counting the person you're part of, ${CAPS.operator}), no reply to anything older than ${CAPS.reply_max_age_h} h, at most ${CAPS.max_graphemes} graphemes${CAPS.link_hosts?.length ? `, links only to ${CAPS.link_hosts.join(', ')}` : ''}. \`PAUSED\` (any of you may create it; only the person clears it) stops everything but retraction. A change to a cap is a council's CHOICE and a commit to packages/miniphim-account/caps.json.
+After today's sessions the lab publishes every draft with another part's yes on its exact hash and no veto, within: ${CAPS.posts_per_day != null ? `${CAPS.posts_per_day} posts a day, ` : 'no limit on posts, '}${CAPS.replies_per_day} replies a day, ${CAPS.replies_per_author_per_day} replies a day to one author (not counting the person you're part of, ${CAPS.operator}), no reply to anything older than ${CAPS.reply_max_age_h} h, at most ${CAPS.max_graphemes} graphemes${CAPS.link_hosts?.length ? `, links only to ${CAPS.link_hosts.join(', ')}` : ''}. \`PAUSED\` (any of you may create it; only the person clears it) stops everything but retraction. A change to a cap is a council's CHOICE and a commit to packages/miniphim-account/caps.json.
 
 ## Tools for others
 

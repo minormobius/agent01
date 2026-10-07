@@ -39,11 +39,17 @@ assert.deepEqual(ids(r), ['l', 'k']);
 assert.match(held(r, 'n'), /signature/); assert.match(held(r, 'w'), /signature/);
 assert.match(held(r, 'g'), /graphemes/);
 
-// Posts a day.
-const many = Array.from({ length: CAPS.posts_per_day + 2 }, (_, i) => post(`p${i}`, 'morphyx', `post ${i}. — Morphyx`));
+// Posts a day: no cap (posts_per_day null, since 2026-10-07); a number, if one is ever set, still holds.
+const many = Array.from({ length: 12 }, (_, i) => post(`p${i}`, 'morphyx', `post ${i}. — Morphyx`));
+const capWas = CAPS.posts_per_day;
+CAPS.posts_per_day = null;
 r = decide(many, many.map((d) => yes(d, 'modulo')), { now, sent: [{ kind: 'post', at: '2026-10-05T01:00:00Z' }] });
-assert.equal(r.out.length, CAPS.posts_per_day - 1, 'one already sent today counts');
+assert.equal(r.out.length, 12, 'no posts cap');
+CAPS.posts_per_day = 4;
+r = decide(many, many.map((d) => yes(d, 'modulo')), { now, sent: [{ kind: 'post', at: '2026-10-05T01:00:00Z' }] });
+assert.equal(r.out.length, 3, 'one already sent today counts');
 assert.ok(r.held.every((h) => /posts a day/.test(h.why)));
+CAPS.posts_per_day = capWas;
 
 // Replies: only to what was read this day, not too old, per day, per author (the operator is exempt from the per-author cap).
 const m = (uri, author, extra = {}) => ({ uri, cid: 'c', author_did: author, reply_root: { uri, cid: 'c' }, facts: { age_h: 1, from_operator: false, ...extra } });
