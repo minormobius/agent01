@@ -33,9 +33,9 @@ _Regenerated 2026-10-07 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-07, 99 members / 278 posts):
+**Neighborhood spark** (bisk 2026-10-07, 99 members / 317 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: embeddings, openai, llms
+- Distinctive words: llms, idk, openai
 - Top post: "Holy shit" — @gracekind.net
 <!-- BRIEF_END -->
 
