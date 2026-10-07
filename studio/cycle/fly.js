@@ -12,8 +12,11 @@ import { buildWorld, cameraAt, KIND, N, CELL, SIZE, heightAt } from './world.js'
 import { sky, enu } from './astro.js';
 import { STARS, N as NSTARS, LINES } from './stars.js';
 import { starColour } from './astro.js';
+import { forecast, weatherLight, lightning } from './weather.js';
+import { Precip } from './precip.js';
 import { W, H, turnCycles, key, ZENITH, HORIZON, AMBIENT, SUNCOL, turn, smooth, clamp, mix3, add3, mul3, scale3, fbm2, weather } from './scene.js';
 
+const wx0 = (lt) => lt.wx || { overcast: 0, fog: 0, rain: 0, snow: 0, storm: 0 };
 const FOV = 75 * Math.PI / 180, F = (W / 2) / Math.tan(FOV / 2);
 const FAR = 7000, LOOP_DAYS = 5;
 const D = Math.PI / 180;
@@ -51,6 +54,7 @@ export class Flight {
   /** Render one frame at clock `t` (s) and moment `ms`; returns { sk, lt } for the page. */
   frame(t, ms, { figures = false, notes = [] } = {}) {
     const w = this.world, v = this.view, sk = sky(ms, v.lat, v.lon);
+    this.t = t;
     const cam = cameraAt(w, ms / (LOOP_DAYS * 86400000));
     this.cam = cam;
     const lt = this.light(sk, ms);
@@ -72,8 +76,16 @@ export class Flight {
     this.cabin(cam, cam.z, hor, fwd, right, this.idx, this.dep);
     this.compose(cam, hor, fwd, right, lut, lt, sk, t, ms);
     this.night(cam, hor, fwd, right, lt, sk, t, figures);
+    // the weather over the frame: rain (and its rings on the lake), snow, the bolt; fog is in the haze
+    if (!this.precip) this.precip = new Precip(W, H, w.seed);
+    const knd = this.knd;
+    this.precip.draw(this.img.data, {
+      t, wx: lt.wx, lt, flash: this.fl, horizon: hor, boltTop: 0, boltBottom: Math.max(20, hor - 10),
+      water: (x, y) => x >= 0 && x < W && y >= 0 && y < H && knd[y * W + x] === KIND.lake,
+      sky: (x, y) => x >= 0 && x < W && y >= 0 && y < H && !(this.dep[y * W + x] < Infinity),
+    });
     this.g.putImageData(this.img, 0, 0);
-    return { sk, lt };
+    return { sk, lt, fl: this.fl };
   }
 
   light(sk, ms) {
@@ -84,8 +96,10 @@ export class Flight {
     let zen = turn(key(ZENITH, el), tn), hor = turn(key(HORIZON, el), tn);
     zen = add3(zen, [0.02, 0.03, 0.06], moonI); hor = add3(hor, [0.03, 0.04, 0.08], moonI);
     const amb = add3(add3(key(AMBIENT, el), [0.04, 0.05, 0.09], moonI), [0.035, 0.04, 0.07], smooth(0, -0.3, el));   // starlight, for the eye
-    const cover = weather({ seed: this.world.seed }, ms, this.view);
-    return { el, mel, L, M, sunI, moonI, zen, hor, amb, sunCol: scale3(key(SUNCOL, el), sunI), moonCol: scale3([0.55, 0.65, 0.95], moonI), night: smooth(0.05, -0.2, el), cover };
+    const wx = forecast(this.world.seed, ms, this.view.lat, this.view.lon, this.view.wx || null);
+    const fl = lightning(this.world.seed, this.t ?? 0, wx.storm);
+    this.fl = fl;
+    return weatherLight({ el, mel, L, M, sunI, moonI, zen, hor, amb, sunCol: scale3(key(SUNCOL, el), sunI), moonCol: scale3([0.55, 0.65, 0.95], moonI), night: smooth(0.05, -0.2, el), cover: 0 }, wx, fl.flash);
   }
 
   /** The palette: each entry lit for this moment, the cycles turned; packed 0..1 floats ×3. */
@@ -93,7 +107,12 @@ export class Flight {
     const w = this.world, dotp = (n, l) => Math.max(0, n[0] * l[0] + n[1] * l[1] + n[2] * l[2]);
     const lit = w.entries.map((e) => {
       switch (e.k) {
-        case 'land3': return mul3(e.alb, add3(add3(lt.amb, lt.sunCol, dotp(e.n, lt.L) * 1.05), lt.moonCol, dotp(e.n, lt.M)));
+        case 'land3': {
+          // lying snow whitens what faces up (and pine tops a little), not steep rock
+          const up = e.n[2], lie = lt.wx ? lt.wx.lying * clamp((up - 0.45) * 2.2) * (e.name === 'pine' ? 0.55 : e.name === 'rock' ? 0.6 : 1) : 0;
+          const alb = lie > 0 ? mix3(e.alb, [0.9, 0.92, 0.97], lie) : e.alb;
+          return mul3(alb, add3(add3(lt.amb, lt.sunCol, dotp(e.n, lt.L) * 1.05), lt.moonCol, dotp(e.n, lt.M)));
+        }
         // the lake's entries hold only its ripple highlights: the water itself is reflection (compose)
         case 'lake3': return scale3(add3(add3(lt.sunCol, lt.moonCol), lt.zen, 0.5), 0.07 * e.hl);
         case 'river3': return mul3(mix3(scale3(w.water, 2.4), [0.8, 0.88, 0.95], e.s * 0.7), add3(add3(lt.amb, lt.sunCol, 0.55), lt.moonCol, 0.5));
@@ -237,9 +256,11 @@ export class Flight {
   compose(cam, hor, fwd, right, lut, lt, sk, t, ms) {
     const px = this.img.data, idx = this.idx, dep = this.dep, knd = this.knd, ridx = this.ridx, rdep = this.rdep;
     const L = lt.L, w = this.world;
-    const fogK = 1 / (3600 - 1400 * lt.cover);
+    const wx = lt.wx || { fog: 0, rain: 0, overcast: 0 };
+    // fog closes the view; rain greys the distance; overcast lowers and fills the cloud deck
+    const fogK = 1 / Math.max(260, 3600 - 1400 * lt.cover - 3100 * wx.fog - 1100 * wx.rain);
     const clouds = this.cloud, drift = ms / 86400000 * 900;
-    const thr = 0.66 - 0.2 * lt.cover, cAlpha = (0.35 + 0.65 * lt.cover);
+    const thr = 0.66 - 0.2 * lt.cover - 0.28 * wx.overcast, cAlpha = Math.min(1, 0.35 + 0.65 * lt.cover + 0.3 * wx.overcast);
     const cloudCol = add3(add3(scale3(lt.amb, 0.95), lt.sunCol, 0.85), lt.moonCol, 0.6);
     const cloudDark = add3(scale3(lt.amb, 0.75), lt.sunCol, 0.25);
     this.cloudA = this.cloudA || new Float32Array(W * H);
@@ -359,12 +380,13 @@ export class Flight {
       const q = i * 4;
       px[q] = Math.min(255, px[q] + c[0] * 255 * a * k); px[q + 1] = Math.min(255, px[q + 1] + c[1] * 255 * a * k); px[q + 2] = Math.min(255, px[q + 2] + c[2] * 255 * a * k);
     };
-    if (lt.night > 0.01) {
+    const veil = 1 - 0.95 * (wx0(lt).overcast);
+    if (lt.night * veil > 0.01) {
       if (figures) for (const poly of LINES) {
         let prev = null;
         for (let j = 0; j < poly.length; j += 2) {
           const p = sk.place(poly[j], poly[j + 1]), q = p.alt > 0 ? proj(p.alt, p.az) : null;
-          if (q && prev) { const n = Math.ceil(Math.hypot(q[0] - prev[0], q[1] - prev[1])); if (n < W) for (let s = 0; s <= n; s++) { const x = prev[0] + (q[0] - prev[0]) * s / (n || 1), y = prev[1] + (q[1] - prev[1]) * s / (n || 1); if (y < hor) put(x, y, [0.55, 0.7, 1], 0.22 * lt.night); } }
+          if (q && prev) { const n = Math.ceil(Math.hypot(q[0] - prev[0], q[1] - prev[1])); if (n < W) for (let s = 0; s <= n; s++) { const x = prev[0] + (q[0] - prev[0]) * s / (n || 1), y = prev[1] + (q[1] - prev[1]) * s / (n || 1); if (y < hor) put(x, y, [0.55, 0.7, 1], 0.22 * lt.night * veil); } }
           prev = q;
         }
       }
@@ -374,7 +396,7 @@ export class Flight {
         const q = proj(p.alt, p.az);
         if (!q || q[0] < -2 || q[0] > W + 2 || q[1] < -2 || q[1] > H) continue;
         const ext = Math.min(1, (p.alt - 0.5) / 12);
-        let a = Math.pow(Math.max(0, (6.5 - mag) / 5), 1.4) * lt.night * (0.3 + 0.7 * ext) * 2.2;
+        let a = Math.pow(Math.max(0, (6.5 - mag) / 5), 1.4) * lt.night * veil * (0.3 + 0.7 * ext) * 2.2;
         a *= 1 + (0.18 + 0.3 * (1 - ext)) * Math.sin(t * (3 + (i % 50) / 10) + i);
         put(q[0], q[1], STARCOL[i], a);
         put(q[0], 2 * hor - q[1], STARCOL[i], a);
@@ -382,7 +404,7 @@ export class Flight {
       }
     }
     // the moon, in its phase, lit from the sun's side
-    const mq = sk.moon.alt > -1 ? proj(sk.moon.alt, sk.moon.az) : null;
+    const mq = sk.moon.alt > -1 && veil > 0.15 ? proj(sk.moon.alt, sk.moon.az) : null;
     if (mq) {
       const vm = enu(sk.moon.alt, sk.moon.az), vs = enu(sk.sun.alt, sk.sun.az);
       const dot = vm[0] * vs[0] + vm[1] * vs[1] + vm[2] * vs[2], E = Math.acos(clamp(dot, -1, 1));
@@ -397,7 +419,7 @@ export class Flight {
         const z = Math.sqrt(1 - q), lit = u * s[0] + v * s[1] + z * s[2];
         const mare = 0.86 + 0.14 * Math.sin(u * 5.1 + 1.3) * Math.sin(v * 4.3 - 0.4);
         const day = 1 - lt.night;
-        if (lit > 0) { put(x, y, [0.96 * mare, 0.94 * mare, 0.86 * mare], 0.95 * (1 - 0.5 * day)); put(x, 2 * hor - y, [0.9, 0.9, 0.85], 0.5); }
+        if (lit > 0) { put(x, y, [0.96 * mare, 0.94 * mare, 0.86 * mare], 0.95 * (1 - 0.5 * day) * veil); put(x, 2 * hor - y, [0.9, 0.9, 0.85], 0.5 * veil); }
       }
     }
   }

@@ -23,6 +23,8 @@
 // Uint8ClampedArray(256 × 3), lit and rotated for that moment. A still is a function of
 // (seed, view, moment, t). view = { lat, lon, facing }.
 
+import { forecast, weatherLight, lightning } from './weather.js';
+
 export const W = 640, H = 360;
 
 // ------------------------------------------------------------------------- numbers --
@@ -433,18 +435,19 @@ let skyAt$ = null;
 /** The page hands in astro.js's sky() (keeps this module free of the star data). */
 export function useSky(fn) { skyAt$ = (t, v) => fn(t, v.lat, v.lon); }
 
-/**
- * The day's cloud cover, 0 (clear) … 1 (the painted clouds in full): a smooth random walk over days,
- * the same for everyone at that place and date, easing from one day to the next over the night.
- */
+/** The day's cloud cover, 0 (clear) … 1 (the painted clouds in full): weather.js's forecast. */
 export function weather(scene, ms, view) {
-  const days = ms / 86400000 + view.lon / 360 + 0.5, d = Math.floor(days), f = smooth(0.85, 1, days - d);
-  const at = (k) => smooth(0.25, 0.85, hash2(k, scene.seed, 977));
-  return lerp(at(d), at(d + 1), f);
+  return forecast(scene.seed, ms, view.lat ?? 40, view.lon ?? 0, view.wx || null).cover;
 }
 
 /** Everything the palette needs to know about the moment: from the real sun and moon. */
-export function light(scene, view, sk) {
+export function light(scene, view, sk, t = null) {
+  const wx = forecast(scene.seed, sk.ms, view.lat ?? 40, view.lon ?? 0, view.wx || null);
+  const flash = t == null ? 0 : lightning(scene.seed, t, wx.storm).flash;
+  return weatherLight(clearLight(scene, view, sk), wx, flash);
+}
+/** The light of a clear sky (the weather is laid over it by `light`). */
+function clearLight(scene, view, sk) {
   const D = Math.PI / 180;
   const el = Math.sin(sk.sun.alt * D), mel = Math.sin(sk.moon.alt * D);
   // the light's direction in the painting: across (right +) and up
@@ -465,7 +468,7 @@ export function light(scene, view, sk) {
   }
   const [sx] = project(scene, view, sk.sun.alt, sk.sun.az), [mx] = project(scene, view, sk.moon.alt, sk.moon.az);
   const col = (x, alt, az) => (Math.abs(wrap180(az - view.facing)) < FOV / 2 && alt > -2 ? x * P.NH / W - 0.5 : -99);
-  return { cover: weather(scene, sk.ms, view), el, mel, L, M, sunI, moonI, zen, hor, amb, sunCol, moonCol, sunPos, sunCol$: col(sx, sk.sun.alt, sk.sun.az), moonCol$: col(mx, sk.moon.alt, sk.moon.az), night: smooth(0.05, -0.2, el) };
+  return { cover: 0, el, mel, L, M, sunI, moonI, zen, hor, amb, sunCol, moonCol, sunPos, sunCol$: col(sx, sk.sun.alt, sk.sun.az), moonCol$: col(mx, sk.moon.alt, sk.moon.az), night: smooth(0.05, -0.2, el) };
 }
 const skyAt = (lt, e) => mix3(lt.hor, lt.zen, Math.pow(clamp(e), 0.7));
 const lambert = (nx, L, ny = 0.8) => Math.max(0, (nx * L[0] + ny * L[1]) / Math.hypot(nx, ny));
@@ -483,7 +486,7 @@ const discW = (b, pos) => smooth(1.3, 0.35, Math.abs(b - pos));
  * Returns Uint8ClampedArray(768).
  */
 export function palette(scene, view, sk, t, flares = []) {
-  const lt = light(scene, view, sk), out = new Float32Array(768);
+  const lt = light(scene, view, sk, t), out = new Float32Array(768);
   const lit = scene.entries.map((e) => {
     switch (e.k) {
       case 'sky': return skyAt(lt, e.e);
@@ -491,13 +494,17 @@ export function palette(scene, view, sk, t, flares = []) {
         let c = skyAt(lt, e.e);
         const ws = discW(e.b, lt.sunPos);
         const sunBody = mix3([1, 0.45, 0.18], [1, 0.97, 0.85], smooth(0, 0.35, lt.el));
-        return mix3(c, sunBody, ws * smooth(-0.15, 0.02, lt.el));
+        return mix3(c, sunBody, ws * smooth(-0.15, 0.02, lt.el) * (1 - 0.95 * (lt.veiled || 0)));
       }
       case 'cloud': {
         const d = add3(add3(scale3(lt.amb, 0.95), lt.sunCol, 0.25 + 0.85 * e.s), lt.moonCol, 0.2 + 0.6 * e.s);
         return mix3(mix3(mul3([0.92, 0.92, 0.97], d), skyAt(lt, e.e), 0.18), skyAt(lt, e.e), 1 - lt.cover);
       }
-      case 'land': return litLand(lt, e.alb, e.nx, e.depth);
+      case 'land': {
+        // lying snow whitens what faces up: the meadow and the roofs most, steep rock least
+        const lie = lt.wx ? lt.wx.lying * ({ ground: 0.85, roof: 0.9, pine: 0.45, far: 0.7, mid: 0.6, cliff: 0.22 }[e.name] ?? 0) : 0;
+        return litLand(lt, lie > 0 ? mix3(e.alb, [0.9, 0.92, 0.97], lie) : e.alb, e.nx, e.depth);
+      }
       case 'fall': case 'foam': {
         const s = e.k === 'foam' ? 0.5 + 0.5 * e.s : e.s;
         const d = add3(add3(scale3(lt.amb, 1.1), lt.sunCol, 0.55), lt.moonCol, 0.5);

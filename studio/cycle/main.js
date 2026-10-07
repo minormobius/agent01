@@ -4,6 +4,8 @@
 import { generate, palette, paintSunPath, useSky, light, W, H } from './scene.js';
 import { sky, solarHour } from './astro.js';
 import { drawNight } from './night.js';
+import { Precip } from './precip.js';
+import { lightning, thunderDelay, KINDS } from './weather.js';
 import { Sound, modeAt } from './sound.js';
 
 useSky(sky);
@@ -71,6 +73,7 @@ function remember() {
   if (speed !== 240) q.set('speed', speed);
   if (mode === 'fly') q.set('mode', 'fly');
   if (!ambience) q.set('amb', '0');
+  if (view.wx) q.set('wx', view.wx);
   history.replaceState(null, '', `#${q}`);
 }
 
@@ -96,27 +99,48 @@ function paint(t, ms) {
   const sk = sky(ms, view.lat, view.lon);
   const day = Math.floor((ms / 3600000 + view.lon / 15) / 24), pv = scene.path.view;
   if (scene.path.day !== day || !pv || pv.lat !== view.lat || pv.lon !== view.lon || pv.facing !== view.facing) paintSunPath(scene, view, ms);
-  const lt = light(scene, view, sk), f = flares(t, lt);
+  const lt = light(scene, view, sk, t), f = flares(t, lt);
   const pal = palette(scene, view, sk, t, f.palette);
   for (let i = 0; i < 256; i++) lut[i] = 0xff000000 | (pal[i * 3 + 2] << 16) | (pal[i * 3 + 1] << 8) | pal[i * 3];
   const idx = scene.index;
   for (let i = 0; i < idx.length; i++) px32[i] = lut[idx[i]];
   const star = f.star && lastStars ? { k: f.star.k % lastStars, amount: f.star.amount } : null;
-  lastStars = drawNight(img.data, scene, view, sk, t, { night: lt.night, figures, flare: star, cover: lt.cover }).length || 1;
+  lastStars = drawNight(img.data, scene, view, sk, t, { night: lt.night * (1 - 0.95 * lt.wx.overcast), figures, flare: star, cover: lt.cover, overcast: lt.wx.overcast }).length || 1;
+  // what the weather draws: rain and its rings, snow, fog on the lake, the bolt
+  if (!precip || precip.seed !== scene.seed) precip = new Precip(W, H, scene.seed);
+  const L = scene.layer, LA = scene.LAYER, fl = lightning(scene.seed, t, lt.wx.storm);
+  precip.draw(img.data, {
+    t, wx: lt.wx, lt, flash: fl, horizon: scene.yH, fogTop: scene.yH - 70, fogBottom: scene.yH + 60, fogLine: scene.yH + 4,
+    boltTop: scene.yH * 0.18, boltBottom: scene.yH - 8,
+    water: (x, y) => x >= 0 && x < W && y >= 0 && y < H && L[y * W + x] === LA.lake,
+    sky: (x, y) => x >= 0 && x < W && y >= 0 && y < H && (L[y * W + x] === LA.sky || L[y * W + x] === LA.cloud),
+    veil: (i) => (L[i] === LA.far || L[i] === LA.snow ? 0.6 : L[i] === LA.mid ? 0.35 : 0),
+  });
+  thunderFrom(fl);
   g.putImageData(img, 0, 0);
   if (showPal) drawPalette(pal);
   return { sk, lt };
 }
 
+// ---- thunder: each strike, once, handed to the sound after the delay its distance gives it
+let precip = null, lastStrike = -1;
+function thunderFrom(fl) {
+  const st = fl && fl.strike;
+  if (!st || st.t0 === lastStrike) return;
+  lastStrike = st.t0;
+  if (sound && sound.on) sound.thunder(clock.audioTimeOf(st.t0 + thunderDelay(st.dist)), st.dist);
+}
+
 function frame() {
   const t = clock.now(), ms = clock.msAt(t);
-  const { sk, lt } = mode === 'fly' && fly ? fly.frame(t, ms, { figures, notes }) : paint(t, ms);
-  if (sound) sound.place = mode === 'fly' && fly ? fly.place() : null;
+  const r = mode === 'fly' && fly ? fly.frame(t, ms, { figures, notes }) : paint(t, ms), { sk, lt } = r;
+  if (r.fl) thunderFrom(r.fl);
+  if (sound) { sound.place = mode === 'fly' && fly ? fly.place() : null; if (lt.wx) sound.setWeather(lt.wx); }
   const hr = solarHour(ms, view.lon), hh = Math.floor(hr), mm = Math.floor((hr - hh) * 60);
   const date = new Date(ms + view.lon / 15 * 3600000).toISOString().slice(0, 10);
   const el = Math.sin(sk.sun.alt * Math.PI / 180);
   const playing = sound && sound.on && sound.describe;
-  $('time').textContent = `${date} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}${playing ? '' : ` · ${modeAt(el, sk.sun.az < 180)}`} · moon ${Math.round(sk.moonLit * 100)}%${lt.cover < 0.15 ? ' · clear' : ''}${sound && sound.on && sound.describe ? ` · ♪ ${sound.describe}` : ''}`;
+  $('time').textContent = `${date} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}${playing ? '' : ` · ${modeAt(el, sk.sun.az < 180)}`} · moon ${Math.round(sk.moonLit * 100)}%${lt.wx ? ` · ${lt.wx.kind} ${Math.round(lt.wx.temp)}°` : ''}${sound && sound.on && sound.describe ? ` · ♪ ${sound.describe}` : ''}`;
   if (!scrubbing) $('hour').value = hr.toFixed(2);
   if (Math.floor(t) % 5 === 0 && Math.floor(t) !== lastRemember) { lastRemember = Math.floor(t); remember(); }
   requestAnimationFrame(frame);
@@ -183,6 +207,16 @@ for (const name of Object.keys(PLACES)) {
   };
   $('places').append(b);
 }
+// the weather: the forecast (auto), or one kind held
+view.wx = params.get('wx') || null;
+for (const k of ['auto', ...KINDS]) {
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = k; b.dataset.k = k;
+  b.onclick = () => { view.wx = k === 'auto' ? null : k; syncWx(); remember(); };
+  $('wxs').append(b);
+}
+function syncWx() { for (const b of $('wxs').children) b.classList.toggle('on', (b.dataset.k === 'auto' && !view.wx) || b.dataset.k === view.wx); }
+syncWx();
+
 function place(lat, lon) {
   view.lat = Math.round(lat * 100) / 100; view.lon = Math.round(lon * 100) / 100;
   view.facing = view.lat >= 0 ? 180 : 0; syncFacing(); remember();

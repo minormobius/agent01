@@ -6,7 +6,7 @@
 // (a slow device), it thins the music out before it falls behind: density follows its own speed.
 import { Music, parseWav } from './music.js';
 import { sky } from './astro.js';
-import { weather } from './scene.js';
+import { forecast, strikesIn, thunderDelay } from './weather.js';
 
 const WASM = new URL('../vendor/pfsynth/pfstream.wasm', import.meta.url);
 const BODY = new URL('../vendor/pfsynth/bodies/g34.wav', import.meta.url);
@@ -17,12 +17,18 @@ let music = null, clock = null, place = null, want = 0, busy = false, started = 
 /** The moment (ms) at scene second `t`, from the page's clock model. */
 const msAt = (t) => (clock.speed === 0 ? clock.wallMs + (t - clock.tAt) * 1000 : clock.speed < 0 ? clock.msBase : clock.msBase + (t - clock.tBase) * 86400000 / clock.speed);
 
+const wxAt = (t) => forecast(clock.seed, msAt(t), clock.lat, clock.lon, clock.wx);
 function cond(t) {
   const ms = msAt(t), sk = sky(ms, clock.lat, clock.lon), D = Math.PI / 180;
-  const el = Math.sin(sk.sun.alt * D);
+  const el = Math.sin(sk.sun.alt * D), wx = wxAt(t), bar = music.composer.barSec;
+  // thunder whose sound arrives in this bar (the flash was up to ~17 s earlier): the same schedule
+  // the picture flashes by, so the piano's low cluster lands with the roll
+  const thunder = strikesIn(clock.seed, t - 18, t + bar, (s) => wxAt(s).storm)
+    .map((s) => ({ t: s.t + thunderDelay(s.dist), dist: s.dist })).filter((s) => s.t >= t && s.t < t + bar);
   return {
     el, rising: sk.sun.az < 180, night: Math.min(1, Math.max(0, (0.05 - el) * 4)),
-    cover: weather({ seed: clock.seed }, ms, { lon: clock.lon }), moon: sk.moonLit, place, density,
+    cover: wx.cover, rain: wx.rain, snow: wx.snow, fog: wx.fog, storm: wx.storm, thunder,
+    moon: sk.moonLit * (1 - wx.overcast), place, density,
   };
 }
 

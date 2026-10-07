@@ -597,7 +597,7 @@ console.log('\nThe Minormobius Lectures (lecture/)');
   ok(Math.abs(pol.alt - nyc[0]) < 0.8 && Math.abs(eq.dec) < 0.02 && Math.abs(riseMin - (9 * 60 + 25)) <= 2 && full > 0.99 && nw < 0.01,
     `astro: Polaris at ${pol.alt.toFixed(2)}° from ${nyc[0]}°N, the equinox sun on the equator, New York's solstice sunrise 09:${String(riseMin - 540).padStart(2, '0')} UTC, full and new moons on their days`);
 
-  const view = { lat: 40.71, lon: -74.0, facing: 180 };
+  const view = { lat: 40.71, lon: -74.0, facing: 180, wx: 'clear' };   // the sun's walk, seen on a clear day
   const day = Date.UTC(2026, 9, 6, 0);
   const a = generate(7), b = generate(7);
   let maxIdx = 0; for (const v of a.index) if (v > maxIdx) maxIdx = v;
@@ -715,6 +715,28 @@ console.log('\nThe Minormobius Lectures (lecture/)');
   while (m.frame < 22050 * 20) { const r = m.render(10); notes += r.notes.length; for (const v of r.pcm) { if (!Number.isFinite(v)) finite = false; pk = Math.max(pk, Math.abs(v)); sum += v * v; n++; } }
   const speed = 20 / ((performance.now() - t0) / 1000), db = 10 * Math.log10(sum / n);
   ok(finite && pk < 1 && db > -40 && notes > 20 && speed > 1.5, `duo: 20 s of the canyon's river render at ${speed.toFixed(1)}× real time (22 kHz), ${notes} notes, ${db.toFixed(1)} dB, peak ${pk.toFixed(2)}`);
+}
+
+// 19 — the cycle's weather: a forecast is a pure function of the place and moment, the season decides
+// rain or snow, lightning is one schedule for the picture, the thunder and the music
+{
+  const { forecast, lightning, strikesIn, weatherLight, KINDS } = await import('../cycle/weather.js');
+  const { Precip } = await import('../cycle/precip.js');
+  const same = JSON.stringify(forecast(7, 1.8e12, 47, 8)) === JSON.stringify(forecast(7, 1.8e12, 47, 8));
+  const count = (month, lat) => { const c = {}; for (let d = 0; d < 400; d++) { const k = forecast(7, Date.UTC(2026, month, 1) + (d % 28) * 86400000 + Math.floor(d / 28) * 365.25 * 86400000, lat, 8).kind; c[k] = (c[k] || 0) + 1; } return c; };
+  const jan = count(0, 50), jul = count(6, 50);
+  ok(same && (jan.snow || 0) > 20 && !jul.snow && (jul.storm || 0) > 0 && !jan.storm, `weather: deterministic; at 50°N January snows (${jan.snow}/400 days) and never storms, July storms (${jul.storm}) and never snows`);
+  let ordered = true, finite = true;
+  for (const k of KINDS) { const w = forecast(7, 1.8e12, 47, 8, k); if (w.kind !== k) ordered = false; for (const v of Object.values(w)) if (typeof v === 'number' && !Number.isFinite(v)) finite = false; }
+  ok(ordered && finite, `weather: the chooser forces each of ${KINDS.length} kinds, every level finite`);
+  const s = strikesIn(7, 0, 600, () => 1), hit = s.filter((x) => lightning(7, x.t + 0.01, 1).flash > 0.9).length;
+  ok(s.length > 10 && hit === s.length && lightning(7, 100, 0).flash === 0 && strikesIn(7, 0, 600, () => 0).length === 0, `weather: ${s.length} strikes in 10 min of full storm, each one flashes where the schedule says; none without a storm`);
+  const lt = { zen: [0.3, 0.5, 0.9], hor: [0.6, 0.7, 0.9], amb: [0.5, 0.5, 0.5], sunCol: [1, 0.9, 0.8], moonCol: [0.2, 0.2, 0.3], sunI: 1, moonI: 0, night: 0 };
+  const dull = weatherLight(lt, forecast(7, 1.8e12, 47, 8, 'storm')), lit = weatherLight(lt, forecast(7, 1.8e12, 47, 8, 'storm'), 1);
+  ok(dull.sunI < 0.2 && dull.sunCol[0] < 0.3 && lit.zen[2] > dull.zen[2] + 0.5, 'weather: overcast hides the sun, a flash lights the sky');
+  const fx = new Precip(320, 200, 7), px = new Float32Array(320 * 200 * 4).fill(100);
+  for (const k of ['rain', 'snow', 'fog', 'storm']) fx.draw(px, { t: 3, wx: forecast(7, 1.8e12, 47, 8, k), lt: lit, flash: lightning(7, s[0].t + 0.01, 1), horizon: 100, fogTop: 60, fogBottom: 160, water: (x, y) => y > 150, sky: (x, y) => y < 100, veil: () => 0.3 });
+  ok(px.every(Number.isFinite) && px.some((v) => v !== 100), 'weather: rain, rings, snow, fog and a bolt draw over a frame, every pixel finite');
 }
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');

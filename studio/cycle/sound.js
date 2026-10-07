@@ -67,6 +67,33 @@ export class Sound {
     this.#duoStop();
   }
   close() { this.stop(); if (this.ctx) this.ctx.close(); }
+  /** The weather's beds: rain as loud as it rains, the wind up with the storm. */
+  setWeather(wx) {
+    this.wx = wx;
+    if (!this.ctx || !this.rainGain) return;
+    const now = this.ctx.currentTime;
+    this.rainGain.gain.setTargetAtTime(0.11 * wx.rain + 0.03 * wx.snow * 0, now, 1.5);
+    this.windGain.gain.setTargetAtTime(0.035 + 0.07 * wx.storm + 0.03 * Math.abs(wx.wind), now, 2);
+  }
+  /** Thunder at audio time `at`: a crack when it is near, then a long low roll; part of the ambience. */
+  thunder(at, dist = 0.5) {
+    if (!this.ctx || !this.bedOut) return;
+    const ctx = this.ctx, len = 4 + 4 * dist, n = Math.floor(len * ctx.sampleRate);
+    const b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+    let lo = 0, rumble = 0;
+    for (let i = 0; i < n; i++) {
+      const tt = i / ctx.sampleRate, w = Math.random() * 2 - 1;
+      lo += (w - lo) * 0.02; rumble += (lo - rumble) * 0.08;
+      const env = Math.min(1, tt / (0.04 + dist * 0.5)) * Math.exp(-tt / (1.2 + dist * 1.6)) * (0.7 + 0.3 * Math.sin(tt * 3.1) * Math.sin(tt * 1.7));
+      const crack = (1 - dist) * Math.exp(-tt / 0.07) * w * 0.5;
+      d[i] = rumble * 9 * env + crack;
+    }
+    const src = ctx.createBufferSource(); src.buffer = b;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900 - 600 * dist;
+    const g = ctx.createGain(); g.gain.value = 0.5 * (1 - 0.6 * dist);
+    src.connect(lp).connect(g).connect(this.bedOut); g.connect(this.verb);
+    src.start(Math.max(ctx.currentTime, at));
+  }
   /** The ambience (the fall, the lake, the wind) on or off, faded; the music is unaffected. */
   setAmbience(on) {
     this.ambience = on;
@@ -76,7 +103,7 @@ export class Sound {
   // ---- the duo: a worker composing and rendering ahead, chunks laid on the audio clock
   #clockModel() {
     const c = this.clock, t = c.now();
-    return { speed: c.speed(), msBase: c.msBase, tBase: c.tBase, wallMs: Date.now(), tAt: t, lat: c.view.lat, lon: c.view.lon, seed: this.scene.seed };
+    return { speed: c.speed(), msBase: c.msBase, tBase: c.tBase, wallMs: Date.now(), tAt: t, lat: c.view.lat, lon: c.view.lon, seed: this.scene.seed, wx: c.view.wx || null };
   }
   #duoStart() {
     const ctx = this.ctx, sr = ctx.sampleRate, c = this.clock;
@@ -154,8 +181,16 @@ export class Sound {
     const wind = this.noise(), wb = ctx.createBiquadFilter(); wb.type = 'bandpass'; wb.Q.value = 3;
     const wl = ctx.createOscillator(), wlG = ctx.createGain(); wl.frequency.value = 0.043; wlG.gain.value = 260;
     wb.frequency.value = 620; wl.connect(wlG).connect(wb.frequency); wl.start();
-    const wg = ctx.createGain(); wg.gain.value = 0.035;
+    const wg = ctx.createGain(); wg.gain.value = 0.035; this.windGain = wg;
     wind.connect(wb).connect(wg).connect(this.bedOut);
+    // rain: a hiss (high) over a patter (mid), as loud as it is raining
+    const rain = this.noise(), rh = ctx.createBiquadFilter(); rh.type = 'highpass'; rh.frequency.value = 2400;
+    const rp = ctx.createBiquadFilter(); rp.type = 'bandpass'; rp.frequency.value = 900; rp.Q.value = 0.6;
+    const rg = ctx.createGain(); rg.gain.value = 0; this.rainGain = rg;
+    const white = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), wd = white.getChannelData(0);
+    for (let i = 0; i < wd.length; i++) wd[i] = Math.random() * 2 - 1;
+    const ws = ctx.createBufferSource(); ws.buffer = white; ws.loop = true; ws.start();
+    ws.connect(rh).connect(rg); rain.connect(rp).connect(rg); rg.connect(this.bedOut); rg.connect(this.verb);
   }
 
   /** Look ahead and schedule every beat that falls in the next 0.4 s. */

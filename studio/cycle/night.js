@@ -24,7 +24,7 @@ const add = (px, i, c, a) => { const k = i * 4; px[k] += c[0] * 255 * a; px[k + 
  * Draw the night into `px` (RGBA Uint8ClampedArray, W×H: it saturates by itself). `night` 0..1 is how dark the sky is. `flare` (optional):
  * { k, amount } brightens the k-th visible star (the music's bells). Returns the visible stars.
  */
-export function drawNight(px, scene, view, sk, t, { night = 1, figures = false, flare = null, cover = 1 } = {}) {
+export function drawNight(px, scene, view, sk, t, { night = 1, figures = false, flare = null, cover = 1, overcast = 0 } = {}) {
   const { layer, LAYER } = scene, yH = scene.yH;
   // a cloud hides what is behind it in proportion to the day's cover
   const seen = (x, y) => (x >= 0 && x < W && y >= 0 && y < yH ? (layer[y * W + x] === LAYER.sky ? 1 : layer[y * W + x] === LAYER.cloud ? 1 - cover : 0) : 0);
@@ -82,7 +82,7 @@ export function drawNight(px, scene, view, sk, t, { night = 1, figures = false, 
         const l = layer[y * W + x], i = y * W + x;
         if (l !== LAYER.sky && l !== LAYER.cloud) continue;
         const u = (x - mx) / r, v = (y - my) / r, q = u * u + v * v;
-        const behind = l === LAYER.cloud ? 1 - 0.75 * cover : 1;
+        const behind = (l === LAYER.cloud ? 1 - 0.75 * cover : 1) * (1 - 0.92 * overcast);   // a grey sky hides it
         if (q < 1) {
           const z = Math.sqrt(1 - q), lit = u * s[0] + v * s[1] + z * s[2];
           const mare = 0.86 + 0.14 * Math.sin(u * 5.1 + 1.3) * Math.sin(v * 4.3 - 0.4);

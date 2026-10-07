@@ -496,6 +496,8 @@ cycle/fly.js     Voxel Space renderer for the world (imported only when "fly" is
 cycle/compose.js the duo's composer: notes bar by bar for the landscape and the moment (pure)
 cycle/music.js   compose.js → pfstream.wasm, the guitar dressed by partitioned convolution (pure)
 cycle/music-worker.js  the duo rendered ahead in a worker, posted half a second at a time
+cycle/weather.js the forecast, lightning schedule and the light under weather (pure)
+cycle/precip.js  rain, rings on the lake, snow, fog, the bolt, drawn in RGB over a finished frame
 cycle/sound.js   the beds, the duo laid on the audio clock, the old pad and bells as its stand-in
 cycle/main.js    the page: clock (real ms), place, facing, the two views
 ```
@@ -598,10 +600,29 @@ landscape, sort of steady state but still sonically rich"). Endless music, compo
 own gain: the "ambience" button turns them off without touching the music (owner: "the option to kill
 the environmental noise"), kept in the link as `amb=0`.
 
+**Weather** (owner, 2026-10-07: "Yep do it"). `forecast(seed, ms, lat, lon, force)` is pure: each local
+day draws a kind weighted by season (storm needs warmth, snow needs < ~4 °C from `temperature()`: date,
+|lat|, hour), and the hour shapes it (showers come and go on a noise, storms build 9–16 h, fog at dawn);
+the last two hours of the night ease into tomorrow. `lying` is snow from the last three days × cold.
+- Light: `weatherLight` greys and darkens zen/hor/amb, moves the sun's share into the ambient, scales
+  `sunI`/`moonI` (disc, glitter) and sets `veiled`; a flash adds white. Both views go through it;
+  lying snow whitens the land's albedo (painting by layer, flight by upness).
+- Lightning is a schedule in SCENE seconds (1.7 s slots, chance 0.07·storm), not simulated ms, so the
+  picture's flash, sound.js `thunder()` (delay `thunderDelay(dist)`, 1.2–17 s) and the composer's low
+  cluster (music-worker `cond().thunder`) agree. The bolt draws only on open sky (`sky(x,y)`), so it
+  strikes behind the ridge, not across it.
+- precip.js draws in RGB after the palette (rain crosses everything, no index can mean "rain over
+  whatever"). Fog in the painting is a band at the waterline plus a veil on far layers; in the flight
+  it is the haze distance.
+- Sound: a rain bed (high-passed white + band-passed brown) and wind scale with rain/storm/wind, under
+  the ambience gain. The composer's texture follows: storm → mountains, snow/fog → stars/lake, rain →
+  river/falls.
+- Chooser: auto or a kind, `wx=` in the link. Not judged by ear here.
+
 **The page**: hard square pixels covering the stage (drag to pan the painting when cropped). Controls:
 day speed, an hour scrubber (solar time), "sky" (place presets incl. "here" by geolocation, date,
-facing), constellation figures, the palette strip, fly. `#seed=N&lat=&lon=&face=&date=YYYY-MM-DD&h=
-&speed=&fig=1&mode=fly`.
+facing, weather), constellation figures, the palette strip, fly. `#seed=N&lat=&lon=&face=&date=YYYY-MM-DD&h=
+&speed=&fig=1&mode=fly&wx=&amb=0`.
 
 ## Accretion (accretion/), and packages/attractor/lib/shell.js
 

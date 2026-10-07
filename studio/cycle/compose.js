@@ -79,6 +79,11 @@ export class Composer {
   #texture(cond) {
     if (cond.place) return cond.place;
     const r = this.r;
+    // the weather first: a storm is the mountains, fog the lake, snow the stars, rain the river or the fall
+    if ((cond.storm || 0) > 0.35) return 'mountains';
+    if ((cond.snow || 0) > 0.3) return weighted(r, [['stars', 3], ['lake', 1]]);
+    if ((cond.fog || 0) > 0.5) return weighted(r, [['lake', 3], ['stars', 1]]);
+    if ((cond.rain || 0) > 0.3) return weighted(r, [['river', 2], ['falls', 1.6], ['lake', 0.6]]);
     if (cond.night > 0.6) return weighted(r, [['stars', 3], ['lake', 2], ['falls', 0.6]]);
     if (cond.el < 0.15) return weighted(r, [['falls', 2], ['lake', 2], ['river', 1]]);       // dawn and dusk
     return weighted(r, [['river', 2.2], ['lake', 1.4], ['mountains', 1.2 * (1 - cond.cover)], ['falls', 0.8]]);
@@ -321,6 +326,12 @@ export class Composer {
         if (inPhrase % 2 === 1) harmonics(2 + Math.round((cond.moon || 0) * 2)).forEach((h, j) => G(2 + j * 3, 24, h.s, h.midi, 125, 4, h.fret));
         break;
       }
+    }
+    // thunder: the roll arrives as a low cluster (root, minor second, fifth, two octaves down),
+    // louder the nearer the strike
+    for (const th of cond.thunder || []) {
+      const root = this.home.root - 24, v0 = 0.3 + 0.45 * (1 - th.dist);
+      for (const [d, k] of [[0, 1], [1, 0.8], [7, 0.7]]) out.push({ at: th.t + d * 0.012, dur: 30 * T, midi: root + d, vel: clamp(v0 * k, 0.05, 1), inst: 0 });
     }
     return out.sort((a, b) => a.at - b.at);
   }
