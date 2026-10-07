@@ -2885,6 +2885,15 @@
    "parent": "proofs"
   },
   {
+   "id": "catalan",
+   "name": "catalan",
+   "url": "https://proofs.mino.mobi/catalan/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "proofs"
+  },
+  {
    "id": "henderhead",
    "name": "henderhead",
    "url": "https://henderhead.mino.mobi",

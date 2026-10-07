@@ -4272,6 +4272,23 @@
       ]
     },
     {
+      "n": "catalan",
+      "u": "https://proofs.mino.mobi/catalan/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Catalan's constant G = 1 − 1/9 + 1/25 − 1/49 + … turns up all over combinatorics, and for two centuries nobody could prove it is not a fraction. A 2026 AI-written paper claims it, with a Lean development behind it. Compute G two independent ways, see the 0.0000999 gap that leaves no room for a fraction, and replay both of the paper's finite certificates exactly in your browser: three 48 × 48 rational determinants and fifty bounded stationary points.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
       "n": "henderhead",
       "u": "https://henderhead.mino.mobi",
       "c": "tools",

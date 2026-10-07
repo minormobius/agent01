@@ -27,7 +27,7 @@ that have something real to recompute. Repo-wide rules are in
 | `abstracts.json` | paper abstracts, fetched only when a card is opened | **generated** by `build.mjs` |
 | `assessment.json` | the editorial layer: tier, effort, page idea, related site pages, built `page` | hand (seeded by model readers) |
 | `build.mjs` | joins the release with `assessment.json` | hand |
-| `crossing/` | the first page (family 165) | hand |
+| `crossing/`, `hadamard/`, `seymour/`, `catalan/` | the built pages (families 165, 179, 173, 005), one section each below | hand |
 | `.assetsignore` | keeps `CLAUDE.md`, `build.mjs`, `assessment.json` and `wrangler.jsonc` off the web | hand |
 
 ## Rebuilding the data
@@ -192,3 +192,42 @@ quoted on the page.
 - History comes from the paper's introduction. The 1990 date for Seymour's
   posing is the conventional one; the paper credits the written record to
   Dean and Latka (1995).
+
+## `/catalan/` (family 005): Catalan's constant is irrational
+
+```bash
+node proofs/catalan/catalan.selftest.mjs   # ~5 s, 166 checks
+```
+
+The engine is `catalan/catalan.js`, imported by the page, `search.worker.js`
+and the selftest. The proof sets two bounds on L = log|Δ_N|/(48N)² − ½ log 2
+against each other. If G were p/q, arithmetic forces L > −2.29084. Analysis
+gives L ≤ −2.290939875. Both bounds rest on finite certificates printed in
+the paper, and the page replays both.
+
+- **Certificate 1, the matrices.** `buildB()` follows the paper's recipe
+  step by step: the m_i and k±, the 65 × 59 matrix Y, the E/I polynomials
+  by `S_m = 2S_{m−1}/t − S_{m−2}`, the rows y_r and z_r, then four rounds
+  of differencing, giving 49 × 48. All 144 pivots mod 101 and the two
+  σ = 1 swaps match the printed tables. The selftest also computes all three
+  determinants exactly over ℚ (numerators of about 2,000 digits) and checks
+  that each one reduces mod 101 to ± the product of the pivots.
+- **Certificate 2, the barriers.** Trial coefficients are stored ×10⁻⁸
+  exactly as printed. Complex tails come as `[re, im, a, b]` with
+  r = (a − ib)/2, and `expandTails` adds the conjugates. `numerators()`
+  works over ℚ(i) and asserts that the result is real. Descartes counts,
+  the 43 brackets (each with a sign change) and all 50 values are checked,
+  each 0 ≤ bound − value ≤ 10⁻¹² (60-digit `flog`/`farg`). The final sum is
+  exactly −2.290939875.
+- **G digits** come from two independent routes, Ramanujan's log(2 + √3)
+  formula and the Cohen–Villegas–Zagier acceleration of the defining series.
+  They agree to 600 digits. This is a sanity display, not part of the proof.
+- **Not checked here:** the arithmetic lower bound (it needs the prime number
+  theorem), and the reduction from the growing 48p determinants to the three
+  fixed matrices. The page says so.
+- **Lean status.** The release has a complete Lean development and a
+  Comparator challenge (`catalan_irrational`). The paper is **not** in
+  `formalization.yaml`, so `build.mjs` counts it as not formalized. The
+  page's tagline reads "Lean proof in library, uncatalogued", and we did not
+  run it. If more papers turn up like this, teach `build.mjs` a third status
+  rather than hand-editing.

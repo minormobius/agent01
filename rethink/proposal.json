@@ -1271,6 +1271,12 @@
           "action": "new",
           "group": "computable results",
           "note": "Seymour's second-neighbourhood conjecture: a graph editor, every graph on six vertices, and an adversary"
+        },
+        {
+          "u": "proofs.mino.mobi/catalan",
+          "action": "new",
+          "group": "computable results",
+          "note": "Catalan's constant is irrational: G to 600 digits, the barrier gap, and both finite certificates replayed exactly"
         }
       ],
       "blurb": "A machine-made math collection, sorted for people: every one of 372 results with its claim and its verification status, and interactive pages that recompute what can be recomputed.",

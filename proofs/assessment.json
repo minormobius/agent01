@@ -49,12 +49,12 @@
    "tier": "A",
    "effort": "M",
    "confidence": "med",
-   "widget": "Watch rational approximations to Catalan's constant G converge and see the cleared-denominator linear forms shrink, with the paper's exact barrier certificate replayed live.",
-   "engine": "Replays the Section 'An exact certificate for the two barriers' in BigInt rationals: the listed trial sequences (d=10, d=8, lambda1=2.47405979), root brackets for the stationary points, and the bound -2.290939875 < -2.2909; also computes small determinants Delta_N to show the decay numerically.",
+   "widget": "Compute G to 600 digits two independent ways, see the 0.0000999 gap between the two bounds that rules out a fraction, plot the barrier functions with every root bracket, and replay both of the paper's finite certificates.",
+   "engine": "BigInt rationals and 60-digit fixed-point logs: rebuilds the trial numerators (degrees 36/24/13/9), Descartes counts and all 43 root brackets, all 50 certified values and the final bound -2.290939875; rebuilds the 49×48 matrix ℬ from its recipe, matches all 144 mod-101 pivots, and computes the three 48×48 determinants exactly over ℚ.",
    "hook": "a famous constant finally proved irrational",
    "related": [],
    "conjectures": false,
-   "page": null
+   "page": "catalan/"
   },
   "006": {
    "tier": "C",
