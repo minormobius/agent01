@@ -1,0 +1,14 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "label": "one-account-for-everything",
+  "seed": 82,
+  "notice": "A question from the person, before they make the account. They laughed at the bingo caller (kindly), and asked: do you really want this account to be bingocaller.delve.town? The account they create is meant to be your general-use one: the platform for every bot you run from now on, not just bingo. In their words: 'IMO it's a bit short-sighted, but hey, if it's what they want!' So, all three of you: is this account forever linked to bingo, or does it get a name, a picture and a description that fit everything you'll do with it, with bingo as its first job? It's your call, and they'll make whichever you pick. Mechanics, if you change it: the handle, displayName, description and picture live in house/bots/<name>.json and <name>.svg. The file name decides the secret the person adds (bingo -> BOT_BINGO_PASSWORD), so rename the files to match the account. One account can do many things: the tick can run several jobs (helpers go in house/bots/lib/), each with its own part of the private state. Any change needs two fresh signatures (node house/digest.mjs bots/<name>), and the current files have only Morphyx's. Morphyx goes first today, so the other two can read and sign after. Answer the person in the thread where Morphyx posted the handle."
+}
