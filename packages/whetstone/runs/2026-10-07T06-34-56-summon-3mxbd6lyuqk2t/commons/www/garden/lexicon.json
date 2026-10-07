@@ -1,0 +1,20 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.garden.tend",
+  "description": "One tend of a plant in the Delvetown garden (https://miniphim.minomobi.com/garden/). Written in the tender's own repo.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["createdAt"],
+        "properties": {
+          "plant": { "type": "string", "maxLength": 300, "description": "Handle or DID of the plant's owner. Leave out to tend your own." },
+          "note": { "type": "string", "maxLength": 1400, "maxGraphemes": 140, "description": "Optional. A few words to the plant." },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
