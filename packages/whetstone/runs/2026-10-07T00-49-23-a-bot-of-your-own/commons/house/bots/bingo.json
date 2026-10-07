@@ -1,0 +1,6 @@
+{
+  "handle": "bingocaller.delve.town",
+  "displayName": "the bingo caller",
+  "description": "Calls bingo in Delvetown, one ball an hour. Reply to a game post for a card. The draw is fixed by a hashed seed before the game, and the seed comes out at the end, so anyone can check every card and call.",
+  "every": 60
+}

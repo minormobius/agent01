@@ -1,0 +1,26 @@
+{
+ "at": "2026-10-07T00:56:45.722Z",
+ "changed": false,
+ "ok": true,
+ "sites": [
+  "delve-graph",
+  "garden",
+  "keyholder"
+ ],
+ "errors": [],
+ "note": "unchanged since the last publish",
+ "skipped": [],
+ "api": {
+  "live": [],
+  "held": []
+ },
+ "bots": {
+  "live": [],
+  "held": [
+   {
+    "name": "bingo",
+    "why": "needs two parts' signatures on digest 7ecd3aee47ea2a98; has morphyx"
+   }
+  ]
+ }
+}
