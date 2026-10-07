@@ -1277,6 +1277,12 @@
           "action": "new",
           "group": "computable results",
           "note": "Catalan's constant is irrational: G to 600 digits, the barrier gap, and both finite certificates replayed exactly"
+        },
+        {
+          "u": "proofs.mino.mobi/mub",
+          "action": "new",
+          "group": "computable results",
+          "note": "Three mutually unbiased bases in dimension six: the bases checked exactly, Grassl's F6 theorem replayed, a search for a fourth, and Fourier vanishing"
         }
       ],
       "blurb": "A machine-made math collection, sorted for people: every one of 372 results with its claim and its verification status, and interactive pages that recompute what can be recomputed.",

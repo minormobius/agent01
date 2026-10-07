@@ -4289,6 +4289,23 @@
       ]
     },
     {
+      "n": "mub",
+      "u": "https://proofs.mino.mobi/mub/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "How many measurements of a six-level quantum system can be completely complementary? Three are easy to build. Zauner conjectured in 1991 that four are impossible, and a 2026 AI-written, computer-assisted paper claims it. See the three bases checked exactly, replay Grassl's 2004 proof that the standard and Fourier bases can't be extended to four, watch a search for a fourth stall in dimension six but succeed in five, and test the companion paper's Fourier-vanishing theorem on any Hadamard matrix of order six.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
       "n": "henderhead",
       "u": "https://henderhead.mino.mobi",
       "c": "tools",

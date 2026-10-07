@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>mub — three bases in dimension six</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="How many measurements can be completely complementary in a six-level quantum system? Three are easy. Zauner conjectured in 1991 that four are impossible, and a 2026 AI-written, computer-assisted paper claims it. See the three bases exactly, replay Grassl's 2004 theorem for the standard–Fourier pair, try to find a fourth, and test the companion paper's Fourier-vanishing theorem on any Hadamard matrix of order six.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6;
+  --accent: #2a78d6; --accent-faint: rgba(42,120,214,0.13); --accent-tint: rgba(42,120,214,0.06);
+  --panel: #f3f3f0; --stage: #f7f7f4;
+  --s1: #2a78d6; --s2: #eb6834; --good: #1f7a3f; --bad: #b3261e;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f;
+    --accent: #3987e5; --accent-faint: rgba(57,135,229,0.18); --accent-tint: rgba(57,135,229,0.08);
+    --panel: #20201e; --stage: #121211;
+    --s1: #3987e5; --s2: #d95926; --good: #6ec48f; --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--serif); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+.head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top)); }
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); overflow: hidden; display: flex; flex-direction: column; }
+.view { display: none; flex: 1 1 0; min-height: 0; flex-direction: column; padding: 0.6rem 0.9rem; gap: 0.6rem; overflow: auto; }
+.view.on { display: flex; }
+.cap { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.04em; }
+svg { display: block; width: 100%; max-width: 620px; margin: 0 auto; }
+svg text { font-family: var(--mono); fill: var(--muted); }
+.grid { display: grid; gap: 1px; }
+.cell { aspect-ratio: 1; border-radius: 1px; }
+.status { font-family: var(--mono); font-size: 0.66rem; line-height: 1.7; }
+.ok { color: var(--good); } .no { color: var(--bad); }
+
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab { flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.4rem; }
+button.act { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.42rem 0.55rem; cursor: pointer; min-height: 2rem; }
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+button.act:disabled { opacity: 0.4; cursor: default; }
+.knob { display: grid; grid-template-columns: 4.2rem 1fr 2.8rem; align-items: center; gap: 0.4rem; margin: 0.1rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.66rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.note { font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.62rem; margin-top: 0.5rem; }
+table.facts td, table.facts th { padding: 0.22rem 0.25rem; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: top; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.55rem; }
+table.facts td:first-child, table.facts th:first-child { text-align: left; }
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose code, pre { font-family: var(--mono); font-size: 0.72rem; }
+pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.5rem 0.6rem; overflow-x: auto; line-height: 1.4; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+@media (min-width: 860px) {
+  .app { flex-direction: row; } .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 28rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; } .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+.view > * { flex-shrink: 0; }
+#hpick button.act { text-transform: none; font-size: 0.66rem; }
+.grids { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; max-width: 760px; width: 100%; margin: 0 auto; }
+.grids figure { margin: 0; }
+.grids figcaption { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); text-align: center; margin-top: 0.2rem; }
+svg.pg { max-width: 100%; }
+svg.pg .col { cursor: pointer; }
+.legend { display: flex; align-items: center; gap: 0.5rem; justify-content: center; }
+.checkgrid { display: grid; grid-template-columns: auto repeat(3, 1fr); gap: 2px; font-family: var(--mono); font-size: 0.6rem; max-width: 420px; margin: 0 auto; width: 100%; }
+.checkgrid div { padding: 0.25rem 0.3rem; text-align: center; background: var(--bg); border-radius: 3px; }
+.checkgrid .h { background: none; color: var(--muted); }
+.pm { display: grid; grid-template-columns: 1.4rem repeat(16, minmax(0, 1fr)); gap: 1px; font-family: var(--mono); font-size: 0.5rem; max-width: 440px; width: 100%; margin: 0 auto; }
+.pm div { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 2px; }
+.pm .c { cursor: pointer; }
+.pm .h { color: var(--muted); }
+.pm .sel { outline: 2px solid var(--fg); outline-offset: -1px; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.chips button.act { min-width: 2.2rem; padding: 0.3rem 0.4rem; }
+ul.tight { margin: 0.3rem 0; padding-left: 1.1rem; }
+.status ul { margin: 0.2rem 0; padding-left: 1rem; }
+.swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -0.1rem; margin-right: 0.2rem; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://proofs.mino.mobi/">← proofs</a>
+      <h1>mub</h1>
+      <span class="tagline">family 266 · computer-assisted · Lean: ≤ 5</span>
+    </div>
+    <div class="stage">
+      <div class="view on" id="v-three">
+        <div class="cap">three orthonormal bases of ℂ⁶. Each column is one basis vector. Colour and hand show each entry's phase.</div>
+        <div class="grids" id="grids"></div>
+        <div class="legend" id="legend"></div>
+        <div class="cap" style="text-align:center">|⟨u, v⟩|², checked exactly in ℤ[e^{iπ/6}], for every pair of vectors</div>
+        <div class="checkgrid" id="checks"></div>
+      </div>
+      <div class="view" id="v-pair">
+        <div class="cap" id="paircap">the 48 vectors unbiased to both the standard and the Fourier basis</div>
+        <svg id="ring" viewBox="0 0 320 320" style="max-width:420px" role="img" aria-label="the 48 vectors and their orthogonality graph"></svg>
+        <div class="cap" style="text-align:center">all 120 pairs of the 16 bases they form. Grey = they share vectors; otherwise the number of the 36 cross pairs that are unbiased. Four bases would need a 36.</div>
+        <div class="pm" id="pm"></div>
+      </div>
+      <div class="view" id="v-four">
+        <div class="cap" id="fourcap">searching for 4 mutually unbiased bases in ℂ⁶: the misfit f of each run against the step</div>
+        <svg id="plotF" viewBox="0 0 320 200" role="img" aria-label="misfit against step"></svg>
+      </div>
+      <div class="view" id="v-fourier">
+        <div class="cap" id="hcap">a complex Hadamard matrix H of order six (columns ↔ an unbiased basis)</div>
+        <div class="grids" style="grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);max-width:640px">
+          <figure><svg class="pg" id="hgrid" viewBox="0 0 120 120"></svg><figcaption id="hname">H</figcaption></figure>
+          <figure><svg id="gbars" viewBox="0 0 200 120" role="img" aria-label="the twenty values |g(π·α)|"></svg><figcaption>|g_H(π·α)| at all 20 charges</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <nav class="tabs">
+      <button class="tab active" data-pane="three">three</button>
+      <button class="tab" data-pane="pair">F₆ pair</button>
+      <button class="tab" data-pane="four">four?</button>
+      <button class="tab" data-pane="fourier">Fourier</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+      <div class="pane active prose" id="pane-three">
+        <p>Two orthonormal bases of ℂ⁶ are <b>mutually unbiased</b> when every vector of one has |⟨b, c⟩|² = 1/6 with every vector of the other. Measure a state from one basis in the other and all six outcomes are equally likely. These three, from the paper's Lemma (the Klappenecker–Rötteler tensor construction), are U_r = A_r ⊗ B_r:</p>
+        <pre>A₀ = I₂   A₁ = ¹⁄√2 [1 1; 1 −1]   A₂ = ¹⁄√2 [1 1; i −i]
+B₀ = I₃   B₁ = F = ¹⁄√3 (ω^{jk})   B₂ = DF,  D = diag(1, ω, ω)</pre>
+        <p>Every entry is a 12th root of unity divided by 1, or by √6. So each of the 216 inner products (six blocks of 36, above) is computed <b>exactly</b>, in the ring ℤ[ζ] with ζ = e^{iπ/6}, ζ⁴ = ζ² − 1. No floating point is involved.</p>
+        <div class="status" id="threestatus"></div>
+        <p class="note">Tap a column to pick a vector.</p>
+        <div class="status" id="picked"></div>
+      </div>
+      <div class="pane" id="pane-pair">
+        <div class="row" style="margin-top:0"><button class="act" id="runG">find the vectors again</button></div>
+        <div class="status" id="gstatus"><span style="color:var(--muted)">Fix the standard basis and the Fourier basis F₆/√6. Which vectors are unbiased to both? Newton's method from random starting phases finds them.</span></div>
+        <p class="note">This is the paper's final step (Stage C) on one fixed pair. Make the vectors the vertices of two graphs, 𝒪 for orthogonal pairs and 𝒰 for unbiased pairs. A further basis is a 6-clique in 𝒪. Two further bases would be two disjoint 6-cliques with all 36 cross edges in 𝒰. The paper runs this search inside millions of small balls covering <i>every</i> second basis. Here the second basis is the Fourier one, the case Grassl settled in 2004 with a Gröbner basis.</p>
+        <p class="note">Pick two bases in the grid. <span class="swatch" style="background:var(--s1)"></span>first, <span class="swatch" style="background:var(--s2)"></span>second; green lines are their unbiased cross pairs.</p>
+        <div class="status" id="pairpick"></div>
+      </div>
+      <div class="pane" id="pane-four">
+        <div class="knob"><label>dimension d</label><div class="chips" id="dchips"></div><output></output></div>
+        <div class="knob"><label>bases k</label><div class="chips" id="kchips"></div><output></output></div>
+        <div class="row"><button class="act" id="runS">run 6 searches</button></div>
+        <div class="status" id="sstatus"></div>
+        <p class="note">The first basis is the standard one. The other k − 1 are free complex matrices, and gradient descent (Adam) minimises a misfit f that is zero exactly when all k bases are orthonormal and mutually unbiased. Try d = 5 with 4 or 6 bases, which exist, and then d = 6 with 4.</p>
+        <p class="note"><b>This is evidence, not proof.</b> Butterley and Hall (2007) and Brierley and Weigert (2008) ran searches like this and saw the same stall. A search that fails proves nothing, because it might just be looking in the wrong place. The paper's contribution is to rule out every place.</p>
+      </div>
+      <div class="pane" id="pane-fourier">
+        <div class="row" style="margin-top:0" id="hpick">
+          <button class="act" data-h="F6" aria-pressed="true">F₆</button>
+          <button class="act" data-h="fam">F₆⁽²⁾(a, b)</button>
+          <button class="act" data-h="tao">Tao T</button>
+          <button class="act" data-h="rand">random</button>
+          <button class="act" id="equiv">an equivalent</button>
+        </div>
+        <div id="famknobs" hidden>
+          <div class="knob"><label for="fa">a</label><input type="range" id="fa" min="0" max="6.2832" step="0.001" value="0.7"><output id="fav"></output></div>
+          <div class="knob"><label for="fb">b</label><input type="range" id="fb" min="0" max="6.2832" step="0.001" value="2.1"><output id="fbv"></output></div>
+        </div>
+        <div class="status" id="hstatus"></div>
+        <p class="note">The companion paper proves the Matolcsi–Ruzsa–Weiner conjecture. For every complex Hadamard matrix of order six that is not equivalent to Tao's cubic matrix T, every one of the 20 character sums vanishes:</p>
+        <pre>g_H(a) = ⅙ Σ_k Π_i H(i,k)^{a_i},   a = π·(1,1,1,−1,−1,−1)</pre>
+        <div class="row"><button class="act" id="runR">300 random Hadamard matrices</button></div>
+        <div class="status" id="rstatus"></div>
+      </div>
+      <div class="pane prose" id="pane-about">
+        <h2>The question</h2>
+        <p>In ℂᵈ at most d + 1 bases can be pairwise mutually unbiased. When d is a prime power, d + 1 is reached (Ivanović 1981; Wootters and Fields 1989). Six is the first dimension that is not a prime power, and there the best anyone has built is three. Zauner conjectured in his 1991 diploma thesis that three is the maximum. Grassl (2004) showed that the standard–Fourier pair cannot be extended to four. Jaming, Matolcsi, Móra, Szöllősi and Weiner (2009) did the same for the whole two-parameter Fourier family with certified discretisation. Numerical searches agreed. No proof covered every pair.</p>
+
+        <h2>The 2026 claim</h2>
+        <p>A paper dated 24 September 2026, released on 6 October in <a href="https://github.com/openai/math">a collection of 722 model-written papers</a>, claims N(6) = 3. Its proof of "not four" is <b>computer-assisted</b>. It covers every possible second basis by finitely many balls in phase space, bounds every completion with Taylor estimates, and inside each ball runs the graph search from the F₆ tab. Its theorem is stated "under the arithmetic and compiler conditions" of its appendix, for one documented fresh run in binary64. A companion paper proves the Fourier-vanishing conjecture with exact integer and rational certificates. By Weiner's completion theorem, it also gives an exact upper bound of five bases.</p>
+
+        <h2>What Lean covers</h2>
+        <p>The release's Lean statement for this family is narrower than the headline, and the release says so: it "does not establish the paper's upper bound of three or its computer-assisted exclusion of four arbitrary bases". It proves the Fourier vanishing and the bound of five:</p>
+<pre>theorem fourier_and_family_bound :
+    (∀ H : CMatrix, IsHadamard H → ¬Equivalent H tao →
+      ∀ π : Equiv.Perm Coord, g H (permuteCharge π alpha) = 0) ∧
+    (∀ n : ℕ, Attainable n → n ≤ 5)</pre>
+        <p>The Fourier tab uses its definitions literally: <code>IsHadamard</code> (|H_ij|² = 1 and H*H = 6I), <code>g</code>, <code>permuteCharge</code>, <code>Equivalent</code> and <code>taoExponent</code>. The release's formalization catalogue does not list either paper. We did not build or run the Lean, and we did not rerun the paper's search. Its documented run took 4,470 seconds of wall-clock time (about 75 minutes) on the authors' platform.</p>
+
+        <h2>What this page checks</h2>
+        <p><code>mub.js</code> is the only copy of the maths, and <code>mub.selftest.mjs</code> holds it to 1,387 checks.</p>
+        <ul>
+          <li>The three bases: all 216 inner products, exactly in ℤ[ζ₁₂], plus the paper's two sums |1 + 2ω|² = |2 + ω²|² = 3. A perturbed basis fails.</li>
+          <li>The F₆ pair: random-start Newton finds 48 vectors, every time and from several seeds. Every phase is a multiple of 15°, or offset from one by θ or 2θ with sin θ = (√3 − 1)/2. They form 16 bases and no two are unbiased. Every edge is decided to within 10⁻¹³, and every other overlap sits at least 0.012 away from both 0 and 1/6. That this list of 48 is complete is Grassl's theorem, which we cite. Random search alone cannot prove it.</li>
+          <li>The search: it reaches f = 0 where bases are known to exist (3 in ℂ², 4 in ℂ³ and ℂ⁵, 3 in ℂ⁶), stalls above 0.04 for 4 in ℂ⁶, and its gradient matches finite differences.</li>
+          <li>Fourier: T and T∘T are Hadamard. |6g|² = 9 exactly at all 20 charges for T, and g = 0 exactly for F₆. g vanishes numerically across the F₆⁽²⁾ family and across random Hadamard matrices, except the ones Newton lands on in T's class. Equivalence moves neither verdict.</li>
+        </ul>
+        <p>Not checked: the claim itself. Excluding four bases for <i>every</i> second basis is the paper's whole computation, and it is not rerun here. Neither are the companion paper's exact moment certificates.</p>
+        <div class="crossref">
+          the collection · <a href="https://proofs.mino.mobi/">proofs</a> ·
+          the papers · <a href="https://github.com/openai/math/blob/main/preprints/The-maximum-number-of-mutually-unbiased-bases-in-dimension-six-September-24-2026/The-maximum-number-of-mutually-unbiased-bases-in-dimension-six-September-24-2026.pdf">three bases</a> · <a href="https://github.com/openai/math/blob/main/preprints/Exact-Fourier-certificates-for-complex-Hadamard-matrices-of-order-six-September-24-2026/Exact-Fourier-certificates-for-complex-Hadamard-matrices-of-order-six-September-24-2026.pdf">Fourier certificates</a> · <a href="https://github.com/openai/math/blob/main/lean/docs/266.md">Lean scope</a> ·
+          next door · <a href="https://proofs.mino.mobi/hadamard/">hadamard</a> · <a href="https://proofs.mino.mobi/catalan/">catalan</a>
+        </div>
+        <p class="note">Not affiliated with OpenAI. The papers are Apache-2.0. Formulas here are retyped in Unicode from their TeX and Lean sources.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as M from './mub.js';
+const { cx } = M;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+const ms = (t) => (t < 1000 ? Math.round(t) + ' ms' : (t / 1000).toFixed(1) + ' s');
+const sub = (n) => String(n).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]);
+const sci = (x) => (x === 0 ? '0' : x.toExponential(1).replace(/e([+-])(\d+)/, (m, s, e) => '·10' + (s === '-' ? '⁻' : '') + e.replace(/\d/g, (d) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d])));
+
+// ================================================================ worker ===
+const workers = {};
+function run(task, msg, onMsg) {
+  if (workers[task]) workers[task].terminate();
+  let w;
+  try { w = new Worker('./search.worker.js', { type: 'module' }); } catch { onMsg({ done: true, error: 'this browser has no module workers' }); return; }
+  workers[task] = w;
+  w.onmessage = (e) => onMsg(e.data);
+  w.onerror = (e) => onMsg({ done: true, error: e.message || 'worker failed' });
+  w.postMessage({ task, ...msg });
+}
+
+// ================================================================== tabs ===
+const seen = new Set();
+const onOpen = { pair: () => findVectors(), four: () => search(), fourier: () => showH() };
+document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b));
+  const p = b.dataset.pane;
+  document.querySelectorAll('.pane').forEach((x) => x.classList.toggle('active', x.id === 'pane-' + p));
+  if (p !== 'about') document.querySelectorAll('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + p));
+  if (!seen.has(p)) { seen.add(p); onOpen[p]?.(); }
+}));
+
+// ========================================================= phase grids ====
+// hue = phase, plus a hand, so the picture does not depend on colour alone
+function phaseGrid(H, { size = 120, sel = null, zero = (z) => cx.abs2(z) < 1e-12 } = {}) {
+  const n = H.length, c = size / n, r = c * 0.4;
+  let s = '';
+  for (let j = 0; j < n; j++) {
+    s += `<g class="col" data-j="${j}">${sel === j ? `<rect x="${j * c + 0.5}" y="0.5" width="${c - 1}" height="${size - 1}" rx="2" fill="none" stroke="var(--fg)" stroke-width="1"/>` : `<rect x="${j * c}" y="0" width="${c}" height="${size}" fill="transparent"/>`}`;
+    for (let i = 0; i < n; i++) {
+      const z = H[i][j], x = j * c + c / 2, y = i * c + c / 2;
+      if (zero(z)) { s += `<circle cx="${x}" cy="${y}" r="1" fill="var(--faint)"/>`; continue; }
+      const t = cx.arg(z), deg = ((t * 180) / Math.PI + 360) % 360;
+      s += `<circle cx="${x}" cy="${y}" r="${r}" fill="hsl(${deg.toFixed(0)},62%,52%)"/><line x1="${x}" y1="${y}" x2="${(x + r * Math.cos(t)).toFixed(2)}" y2="${(y - r * Math.sin(t)).toFixed(2)}" stroke="var(--bg)" stroke-width="${(c * 0.07).toFixed(2)}" stroke-linecap="round"/>`;
+    }
+    s += '</g>';
+  }
+  return s;
+}
+function legend() {
+  let s = '<svg viewBox="0 0 230 22" style="max-width:300px">';
+  ['1', 'ζ', 'i', 'ω', '−1', '−i'].forEach((lab, k) => {
+    const t = [0, 1, 3, 4, 6, 9][k] * Math.PI / 6, x = 10 + k * 38, deg = ((t * 180) / Math.PI) % 360;
+    s += `<circle cx="${x}" cy="11" r="7" fill="hsl(${deg},62%,52%)"/><line x1="${x}" y1="11" x2="${x + 7 * Math.cos(t)}" y2="${11 - 7 * Math.sin(t)}" stroke="var(--bg)" stroke-width="1.2"/><text x="${x + 10}" y="14" font-size="8">${lab}</text>`;
+  });
+  return s + '</svg>';
+}
+
+// ================================================================ three ====
+const B3 = M.tensorBases(), V3 = B3.map(M.basisVectors);
+const NAMES = ['U₀ = I', 'U₁ = A₁ ⊗ F', 'U₂ = A₂ ⊗ DF'];
+let pick = null;
+function drawThree() {
+  $('grids').innerHTML = B3.map((b, r) => {
+    const H = V3[r][0].map((_, i) => V3[r].map((v) => v[i]));          // rows i, columns = vectors
+    return `<figure><svg class="pg" viewBox="0 0 120 120" data-r="${r}">${phaseGrid(H, { sel: pick && pick.r === r ? pick.j : null })}</svg><figcaption>${NAMES[r]}</figcaption></figure>`;
+  }).join('');
+  document.querySelectorAll('#grids svg').forEach((svg) => svg.addEventListener('click', (e) => {
+    const g = e.target.closest('.col'); if (!g) return;
+    pick = { r: +svg.dataset.r, j: +g.dataset.j }; drawThree(); describePick();
+  }));
+}
+function describePick() {
+  if (!pick) return;
+  const u = V3[pick.r][pick.j], lines = [];
+  for (let s = 0; s < 3; s++) {
+    const vals = V3[s].map((v) => cx.abs2(M.inner(u, v)));
+    lines.push(`<li>with ${NAMES[s].split(' ')[0]}: ${vals.map((x) => (Math.abs(x - 1 / 6) < 1e-12 ? '⅙' : Math.abs(x - 1) < 1e-12 ? '<b>1</b>' : Math.abs(x) < 1e-12 ? '0' : x.toFixed(4))).join(' ')}</li>`);
+  }
+  $('picked').innerHTML = `column ${pick.j + 1} of ${NAMES[pick.r].split(' ')[0]}: |⟨u, v⟩|² against every vector<ul>${lines.join('')}</ul>`;
+}
+function checkThree() {
+  const t0 = performance.now(), rows = M.exactCheck(B3), ms1 = performance.now() - t0;
+  const cell = (r, s) => { const x = rows.find((q) => q.r === Math.min(r, s) && q.s === Math.max(r, s)); return `<div class="${x.ok === 36 ? 'ok' : 'no'}">${x.ok}/36 ${r === s ? 'δ' : '⅙'} ✓</div>`; };
+  $('checks').innerHTML = '<div class="h"></div>' + [0, 1, 2].map((s) => `<div class="h">U${sub(s)}</div>`).join('') +
+    [0, 1, 2].map((r) => `<div class="h">U${sub(r)}</div>` + [0, 1, 2].map((s) => cell(r, s)).join('')).join('');
+  const all = rows.every((x) => x.ok === 36);
+  $('threestatus').innerHTML = all
+    ? `<span class="ok">✓ all 216 inner products exact: orthonormal within each basis, |⟨u, v⟩|² = 1/6 across</span> · ${ms(ms1)}`
+    : '<span class="no">exact check failed</span>';
+}
+$('legend').innerHTML = legend();
+drawThree(); checkThree();
+
+// =========================================================== F₆ pair =====
+let G = null, selA = null, selB = null;
+function findVectors() {
+  $('runG').disabled = true;
+  const seed = 1 + Math.floor(Math.random() * 1e6);
+  $('gstatus').innerHTML = 'Newton from 2,000 random starts…';
+  run('grassl', { starts: 2000, seed }, (d) => {
+    if (d.error) { $('gstatus').innerHTML = `<span class="no">${esc(d.error)}</span>`; $('runG').disabled = false; return; }
+    if (d.step === 'progress') { $('gstatus').innerHTML = `Newton from random starts: ${d.it} of 2,000 · <b>${d.found}</b> distinct vectors`; return; }
+    if (!d.done) return;
+    G = d; $('runG').disabled = false;
+    const nO = d.degrees.reduce((s, x) => s + x, 0) / 2, nU = d.values.find((v) => v[0] === '1/6')?.[1] || 0;
+    const share = d.pairs.filter((p) => !p.disjoint).length, hist = {};
+    d.pairs.filter((p) => p.disjoint).forEach((p) => { hist[p.cross] = (hist[p.cross] || 0) + 1; });
+    const best = Math.max(...d.pairs.filter((p) => p.disjoint).map((p) => p.cross));
+    $('gstatus').innerHTML = [
+      `<span class="${d.vectors.length === 48 ? 'ok' : 'no'}">${d.vectors.length === 48 ? '✓' : '✗'} ${d.vectors.length} vectors</span>, the last one found at start ${d.firstFull ?? '—'} of ${d.starts}; every residual below ${sci(Math.max(d.maxResidual, 1e-16))}`,
+      `✓ the graphs: ${nO} orthogonal pairs (𝒪), ${nU} unbiased pairs (𝒰). Each is decided to within ${sci(d.maxErr)}, and every other overlap is at least ${d.margin.toFixed(3)} from both 0 and ⅙.`,
+      `✓ ${d.cliques.length} orthonormal bases (6-cliques in 𝒪), each one a third basis for {standard, Fourier}`,
+      `${d.full === 0 ? '<span class="ok">✓' : '<span class="no">✗'} of their ${d.pairs.length} pairs, ${share} share vectors, and the disjoint ones have ${Object.entries(hist).map(([k, v]) => `${v} × ${k}/36`).join(', ')} unbiased cross pairs. The best is ${best}/36, so none is a fourth basis.</span>`,
+      `<span style="color:var(--muted)">${ms(d.ms)} · seed ${seed}</span>`,
+    ].map((x) => `<div>${x}</div>`).join('');
+    if (selA === null) { const p = d.pairs.find((q) => q.disjoint && q.cross === best); selA = p.a; selB = p.b; }
+    drawPair();
+  });
+}
+$('runG').addEventListener('click', findVectors);
+function drawPair() {
+  if (!G) return;
+  const n = G.vectors.length, R = 135, cx0 = 160, cy0 = 160;
+  // order the ring so each basis sits together where possible: greedy by first clique containing the vertex
+  const order = []; for (const c of G.cliques) for (const v of c) if (!order.includes(v)) order.push(v);
+  for (let v = 0; v < n; v++) if (!order.includes(v)) order.push(v);
+  const pos = {}; order.forEach((v, k) => { const t = (2 * Math.PI * k) / n - Math.PI / 2; pos[v] = [cx0 + R * Math.cos(t), cy0 + R * Math.sin(t)]; });
+  const A = selA !== null ? G.cliques[selA] : [], Bc = selB !== null ? G.cliques[selB] : [];
+  let s = '';
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (G.ov[i][j] < 1e-9) s += `<line x1="${pos[i][0].toFixed(1)}" y1="${pos[i][1].toFixed(1)}" x2="${pos[j][0].toFixed(1)}" y2="${pos[j][1].toFixed(1)}" stroke="var(--rule)" stroke-width="0.5"/>`;
+  const edge = (i, j, col, w) => `<line x1="${pos[i][0].toFixed(1)}" y1="${pos[i][1].toFixed(1)}" x2="${pos[j][0].toFixed(1)}" y2="${pos[j][1].toFixed(1)}" stroke="${col}" stroke-width="${w}"/>`;
+  for (const a of A) for (const b of Bc) if (a !== b && Math.abs(G.ov[a][b] - 1 / 6) < 1e-9) s += edge(a, b, 'var(--good)', 0.9);
+  for (const C of [[A, 'var(--s1)'], [Bc, 'var(--s2)']]) for (const a of C[0]) for (const b of C[0]) if (a < b) s += edge(a, b, C[1], 1.2);
+  for (let v = 0; v < n; v++) {
+    const inA = A.includes(v), inB = Bc.includes(v);
+    s += `<circle cx="${pos[v][0].toFixed(1)}" cy="${pos[v][1].toFixed(1)}" r="${inA || inB ? 4 : 2.6}" fill="${inA && inB ? 'var(--fg)' : inA ? 'var(--s1)' : inB ? 'var(--s2)' : 'var(--faint)'}"><title>vector ${v + 1}</title></circle>`;
+  }
+  $('ring').innerHTML = s;
+  // the 16 × 16 pair matrix
+  let m = '<div class="h"></div>' + G.cliques.map((_, b) => `<div class="h">${b + 1}</div>`).join('');
+  for (let a = 0; a < G.cliques.length; a++) {
+    m += `<div class="h">${a + 1}</div>`;
+    for (let b = 0; b < G.cliques.length; b++) {
+      if (a === b) { m += '<div></div>'; continue; }
+      const p = G.pairs.find((q) => q.a === Math.min(a, b) && q.b === Math.max(a, b));
+      const isSel = (a === selA && b === selB) || (a === selB && b === selA);
+      const bg = !p.disjoint ? 'var(--rule)' : `color-mix(in srgb, var(--good) ${Math.round((100 * p.cross) / 36)}%, var(--bg))`;
+      m += `<div class="c${isSel ? ' sel' : ''}" data-a="${a}" data-b="${b}" style="background:${bg}" title="bases ${a + 1}, ${b + 1}">${p.disjoint ? p.cross : ''}</div>`;
+    }
+  }
+  $('pm').innerHTML = m;
+  document.querySelectorAll('#pm .c').forEach((el) => el.addEventListener('click', () => { selA = +el.dataset.a; selB = +el.dataset.b; drawPair(); }));
+  if (selA !== null) {
+    const p = G.pairs.find((q) => q.a === Math.min(selA, selB) && q.b === Math.max(selA, selB));
+    const shared = A.filter((v) => Bc.includes(v)).length;
+    $('pairpick').innerHTML = p.disjoint
+      ? `bases ${selA + 1} and ${selB + 1}: disjoint, with <b>${p.cross}</b> of the 36 cross pairs unbiased. ${p.cross === 36 ? '<span class="ok">a fourth basis!</span>' : `<span class="no">${36 - p.cross} pairs fail</span>, so these two are not mutually unbiased.`}`
+      : `bases ${selA + 1} and ${selB + 1} share ${shared} vector${shared > 1 ? 's' : ''}, so they cannot both be new bases in one family.`;
+  }
+}
+
+// ============================================================ four? =====
+let dSel = 6, kSel = 4;
+function chips() {
+  $('dchips').innerHTML = [2, 3, 4, 5, 6, 7].map((d) => `<button class="act" data-d="${d}" aria-pressed="${d === dSel}">${d}</button>`).join('');
+  if (kSel > dSel + 1) kSel = dSel + 1;
+  $('kchips').innerHTML = Array.from({ length: dSel }, (_, i) => i + 2).map((k) => `<button class="act" data-k="${k}" aria-pressed="${k === kSel}">${k}</button>`).join('');
+  document.querySelectorAll('#dchips button').forEach((b) => b.addEventListener('click', () => { dSel = +b.dataset.d; chips(); }));
+  document.querySelectorAll('#kchips button').forEach((b) => b.addEventListener('click', () => { kSel = +b.dataset.k; chips(); }));
+}
+chips();
+const RUNCOL = ['var(--s1)', 'var(--s2)', '#7a5bd6', '#2a9d8f', '#c2410c', '#64748b'];
+let traces = [];
+function plotTraces(steps) {
+  const W = 320, H = 200, L = 34, Bm = 18, T = 8, lo = -16, hi = 2;
+  const X = (i) => L + (i / steps) * (W - L - 6), Y = (f) => T + (1 - (Math.max(lo, Math.min(hi, Math.log10(Math.max(f, 1e-300)))) - lo) / (hi - lo)) * (H - T - Bm);
+  let s = '';
+  for (let e = lo; e <= hi; e += 2) s += `<line x1="${L}" x2="${W - 6}" y1="${Y(10 ** e)}" y2="${Y(10 ** e)}" stroke="var(--rule)" stroke-width="0.5"/><text x="${L - 3}" y="${Y(10 ** e) + 2.5}" font-size="6" text-anchor="end">10${e < 0 ? '⁻' : ''}${String(Math.abs(e)).replace(/\d/g, (d) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d])}</text>`;
+  s += `<text x="${L}" y="${H - 4}" font-size="6">0</text><text x="${W - 6}" y="${H - 4}" font-size="6" text-anchor="end">${steps} steps</text><text x="${L - 3}" y="6" font-size="6" text-anchor="end">f</text>`;
+  traces.forEach((tr, r) => { if (!tr) return; s += `<path d="${tr.map(([i, f], k) => (k ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(f).toFixed(1)).join('')}" fill="none" stroke="${RUNCOL[r]}" stroke-width="1.2"/>`; });
+  $('plotF').innerHTML = s;
+}
+function search() {
+  const d = dSel, k = kSel, steps = 8000, runs = 6;
+  traces = []; plotTraces(steps);
+  $('fourcap').textContent = `searching for ${k} mutually unbiased bases in ℂ${String(d).replace(/\d/g, (x) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[x])}: the misfit f of each run against the step (log scale)`;
+  $('runS').disabled = true;
+  const rows = [];
+  const show = (extra = '') => { $('sstatus').innerHTML = rows.map((r, i) => `<div><span class="swatch" style="background:${RUNCOL[i]}"></span>run ${i + 1}: f = ${r}</div>`).join('') + extra; };
+  show('<div>running…</div>');
+  run('search', { d, k, runs, steps, seed: Math.floor(Math.random() * 1e6) }, (m) => {
+    if (m.error) { $('sstatus').innerHTML = `<span class="no">${esc(m.error)}</span>`; $('runS').disabled = false; return; }
+    if (m.step === 'progress') { show(`<div style="color:var(--muted)">run ${m.run + 1}: step ${m.it}, f = ${sci(m.f)}</div>`); return; }
+    if (m.step === 'run') { traces[m.run] = m.trace; rows.push(m.f < 1e-12 ? `<span class="ok">${sci(m.f)} · found</span>` : m.f.toFixed(5)); plotTraces(steps); show(); return; }
+    if (m.done) {
+      $('runS').disabled = false;
+      const found = m.fs.filter((f) => f < 1e-12).length, best = Math.min(...m.fs);
+      show(`<div style="margin-top:0.3rem">${found ? `<span class="ok">${found} of ${runs} runs found ${k} mutually unbiased bases in ℂ${String(d).replace(/\d/g, (x) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[x])}.</span>` : `<span class="no">No run got below f = ${best.toFixed(4)}.</span>`} ${ms(m.ms)}</div>`);
+    }
+  });
+}
+$('runS').addEventListener('click', search);
+
+// ========================================================== Fourier =====
+let hKind = 'F6', Hcur = null, hLabel = '';
+const Q = M.charges();
+function makeH(kind) {
+  if (kind === 'F6') return [M.fourierMatrix(6), 'F₆ = (e^{2πi jk/6})'];
+  if (kind === 'fam') { const a = +$('fa').value, b = +$('fb').value; $('fav').textContent = a.toFixed(2); $('fbv').textContent = b.toFixed(2); return [M.fourierFamily(a, b), `F₆⁽²⁾(${a.toFixed(2)}, ${b.toFixed(2)})`]; }
+  if (kind === 'tao') return [M.tao(), 'Tao T = (ω^{t_ij})'];
+  const H = M.randomHadamard(); return [H, 'a random Hadamard matrix (Newton)'];
+}
+function showH(fresh = true) {
+  if (fresh) [Hcur, hLabel] = makeH(hKind);
+  if (!Hcur) { $('hstatus').innerHTML = '<span class="no">Newton did not converge; try again</span>'; return; }
+  $('hgrid').innerHTML = phaseGrid(Hcur);
+  $('hname').textContent = hLabel;
+  const g = Q.map((q) => Math.hypot(...M.gValue(Hcur, q.a))), gmax = Math.max(...g);
+  const W = 200, H = 120, L = 18, Bm = 14, T = 6, Y = (v) => T + (1 - v / 0.6) * (H - T - Bm), bw = (W - L - 4) / 20;
+  let s = `<line x1="${L}" x2="${W - 2}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--faint)" stroke-width="0.5"/><line x1="${L}" x2="${W - 2}" y1="${Y(0.5)}" y2="${Y(0.5)}" stroke="var(--rule)" stroke-dasharray="2 2" stroke-width="0.6"/><text x="${L - 2}" y="${Y(0.5) + 2}" font-size="5.5" text-anchor="end">½</text><text x="${L - 2}" y="${Y(0) + 2}" font-size="5.5" text-anchor="end">0</text>`;
+  g.forEach((v, i) => { const h = Math.max(Y(0) - Y(v), v > 1e-9 ? 0 : 0.8); s += `<rect x="${L + i * bw + 0.6}" y="${Y(0) - h}" width="${bw - 1.2}" height="${h}" fill="${v > 1e-9 ? 'var(--s2)' : 'var(--s1)'}"><title>+ rows ${Q[i].plus.map((x) => x + 1).join(',')}: ${v.toExponential(2)}</title></rect>`; });
+  s += `<text x="${(L + W) / 2}" y="${H - 3}" font-size="5.5" text-anchor="middle">the 20 ways to choose the three +1 rows</text>`;
+  $('gbars').innerHTML = s;
+  const he = M.hadamardError(Hcur), sq = M.hadamardError(M.square(Hcur)), cubic = M.isCubic(Hcur);
+  $('hstatus').innerHTML = [
+    `IsHadamard: |H_ij|² = 1 and H*H = 6I to within ${sci(he)} ${he < 1e-9 ? '<span class="ok">✓</span>' : '<span class="no">✗</span>'}`,
+    `H∘H (entrywise square) is ${sq < 1e-9 ? '<b>also</b> Hadamard' : 'not Hadamard'}`,
+    `${cubic ? '<b>cube-root entries after dephasing: Tao\'s class</b>' : 'not in Tao\'s class (entries are not all cube roots after dephasing)'}`,
+    gmax < 1e-9 ? `<span class="ok">✓ all 20 values of g vanish (largest ${sci(gmax)})</span>` : `<span class="no">g does not vanish: |g| = ${gmax.toFixed(6)} at ${g.filter((v) => v > 1e-9).length} of 20 charges</span>${cubic ? ', the theorem\'s one exception' : ''}`,
+  ].map((x) => `<div>${x}</div>`).join('');
+}
+document.querySelectorAll('#hpick [data-h]').forEach((b) => b.addEventListener('click', () => {
+  hKind = b.dataset.h;
+  document.querySelectorAll('#hpick [data-h]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  $('famknobs').hidden = hKind !== 'fam';
+  showH();
+}));
+$('equiv').addEventListener('click', () => { if (!Hcur) return; Hcur = M.randomEquivalent(Hcur); hLabel = 'an equivalent: rows and columns permuted and rephased'; showH(false); });
+['fa', 'fb'].forEach((id) => $(id).addEventListener('input', () => { if (hKind === 'fam') showH(); }));
+$('runR').addEventListener('click', () => {
+  $('runR').disabled = true;
+  run('random', { count: 300, seed: Math.floor(Math.random() * 1e6) }, (d) => {
+    if (d.error) { $('rstatus').innerHTML = `<span class="no">${esc(d.error)}</span>`; $('runR').disabled = false; return; }
+    if (d.step === 'progress') { $('rstatus').textContent = `${d.t} of 300 · ${d.cubic} in Tao's class so far`; return; }
+    if (!d.done) return;
+    $('runR').disabled = false;
+    $('rstatus').innerHTML = `<div><span class="ok">✓ ${d.n - d.cubic} matrices outside Tao's class: every g vanishes (largest ${sci(d.worstZero)})</span></div>` +
+      (d.cubic ? `<div>${d.cubic} landed in Tao's class, the isolated point Newton often finds: |g| = ${d.cubicMin.toFixed(6)}–${d.cubicMax.toFixed(6)}</div>` : '') +
+      `<div style="color:var(--muted)">every one Hadamard to within ${sci(d.worstH)} · ${ms(d.ms)}</div>`;
+  });
+});
+</script>
+</body>
+</html>

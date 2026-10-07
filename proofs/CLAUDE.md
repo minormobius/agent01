@@ -27,7 +27,7 @@ that have something real to recompute. Repo-wide rules are in
 | `abstracts.json` | paper abstracts, fetched only when a card is opened | **generated** by `build.mjs` |
 | `assessment.json` | the editorial layer: tier, effort, page idea, related site pages, built `page` | hand (seeded by model readers) |
 | `build.mjs` | joins the release with `assessment.json` | hand |
-| `crossing/`, `hadamard/`, `seymour/`, `catalan/` | the built pages (families 165, 179, 173, 005), one section each below | hand |
+| `crossing/`, `hadamard/`, `seymour/`, `catalan/`, `mub/` | the built pages (families 165, 179, 173, 005, 266), one section each below | hand |
 | `.assetsignore` | keeps `CLAUDE.md`, `build.mjs`, `assessment.json` and `wrangler.jsonc` off the web | hand |
 
 ## Rebuilding the data
@@ -54,12 +54,20 @@ Things to know about the build:
 
 - **Families come from `overview.tex`** (`\cataloguesection` gives the field,
   `\resultentry{id}{title}{summary}{links}` the rest). Paper abstracts come
-  from `CONTENTS.md`. Lean status comes from the `sources:` block of
-  `lean/formalization.yaml`: a paper counts as formalized if its directory is
-  listed there.
+  from `CONTENTS.md`.
+- **Lean status has two levels.** `lean` counts a family's papers listed in
+  the `sources:` block of `lean/formalization.yaml`, which the release calls
+  its "catalog of papers with a formalized main result" (127 families).
+  `leanDoc` is set when `lean/docs/<id>.md` exists. That file is the
+  release's scope note, and it exists for 108 more families. Their scope
+  varies: 005 proves the full result, while 266 proves only a weaker bound. So
+  the landing gives them a dashed "Lean, uncatalogued" badge that links to the
+  note, and never the green one. Only the directory listing is read.
 - **TeX becomes Unicode** with a small hand-written converter. There is no
   external math renderer on this surface. About 20 rare macro uses are left as
-  their bare names, and the script prints them. Two traps it already handles:
+  their bare names, and the script prints them. A text-mode control word
+  swallows the space after it (`Zauner\textquotesingle s` → Zauner's). Two
+  more traps it already handles:
   an optional `\}?` in the `\mathbb` pattern ate the brace of an enclosing
   `\overline{…}`, and superscripts must run *after* macros resolve, or
   `2^\infty` becomes `2^(ı)nfty`.
@@ -229,5 +237,50 @@ the paper, and the page replays both.
   Comparator challenge (`catalan_irrational`). The paper is **not** in
   `formalization.yaml`, so `build.mjs` counts it as not formalized. The
   page's tagline reads "Lean proof in library, uncatalogued", and we did not
-  run it. If more papers turn up like this, teach `build.mjs` a third status
-  rather than hand-editing.
+  run it. `build.mjs` now marks it `leanDoc` (see above).
+
+## `/mub/` (family 266): exactly three mutually unbiased bases in dimension six
+
+```bash
+node proofs/mub/mub.selftest.mjs   # ~3 s, 1387 checks
+```
+
+The engine is `mub/mub.js`, imported by the page, `search.worker.js` and the
+selftest. The headline claim (N(6) = 3) is **computer-assisted**. It is a
+binary64 cover of every second basis, stated "under the arithmetic and
+compiler conditions" of the paper's appendix, and **Lean does not cover it**.
+The Lean statement `OAI.MUB6.fourier_and_family_bound` proves the
+companion's Fourier vanishing and a family bound of **five**. The page says
+this in its tagline and quotes the statement whole.
+
+- **Three bases, exactly.** Every entry of the tensor-product bases is a
+  ζ₁₂-power over 1 or √6. The page therefore checks all 216 inner products in
+  ℤ[ζ₁₂] (`Z`: BigInt coefficients mod Φ₁₂ = x⁴ − x² + 1) with no floats. A
+  perturbed basis fails the check (selftest).
+- **The F₆ pair is the paper's Stage C in miniature.** Random-start
+  Gauss–Newton finds the vectors unbiased to I and F₆. It always gets
+  exactly 48, all found within about 300 of 2,000 starts. Every phase is a
+  multiple of 15°, offset by θ or 2θ where sin θ = (√3 − 1)/2, so entries
+  involve 3^¼ and the field is not cyclotomic. That is why this part uses
+  floats with a stated margin: edges are decided to about 10⁻¹⁴, and every
+  other overlap is at least 0.012 away from both 0 and 1/6. The results are
+  16 bases (6-cliques of 𝒪), and among their 120 pairs, 40 share a vector,
+  32 have 0/36 unbiased cross edges and 48 have 12/36. None is a fourth
+  basis. That the list of 48 is *complete* is Grassl's (Gröbner) theorem, and
+  the page cites it rather than claiming it.
+- **The search for a fourth is evidence, labelled as such.** Adam minimises
+  a misfit that is zero exactly at a MUB family. It reaches 0 for 3 in ℂ², 4 in
+  ℂ³ and ℂ⁵, and 3 in ℂ⁶, and stalls at f ≈ 0.051 for 4 in ℂ⁶. The gradient
+  is checked against finite differences.
+- **Fourier vanishing.** `gValue`, `hadamardError`, `charges` (the 20 =
+  `permuteCharge π alpha`) and `randomEquivalent` follow the Lean
+  definitions. Tao's T gives |6g|² = 9 exactly at all 20 charges, and F₆ gives
+  exactly 0. Random Hadamard matrices from Newton land in T's class about 13%
+  of the time (it is isolated and attracting). `isCubic` (cube-root entries
+  after dephasing) recognises that class, which is unique by the Butson
+  classification the companion cites. Every other matrix gives |g| < 10⁻¹¹.
+- **Not rerun:** the paper's exclusion (its documented run took 4,470 s
+  wall-clock, which the paper says is not a CPU time) and the companion's `verify.py` exact moment certificates. The
+  latter is a multi-modular rank computation over combinatorial invariants,
+  and porting it is a project of its own. The release directory is
+  untrusted, so its Python was read but never run.

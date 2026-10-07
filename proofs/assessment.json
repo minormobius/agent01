@@ -2899,12 +2899,12 @@
    "tier": "A",
    "effort": "S",
    "confidence": "high",
-   "widget": "Inspect three mutually unbiased bases in C^6 as phase grids, verify |<b,c>|^2=1/6 live, and try (and fail) to numerically find a fourth.",
-   "engine": "Builds the Klappenecker-Rotteler tensor-product construction (2x2 A_1,A_2 and 3x3 F, DF with omega=e^{2pi i/3}) and checks all overlaps; can also run the companion exact moment identities on order-6 Hadamard families. The full 4th-basis exclusion (~75 CPU-minutes binary64) is not rerun.",
-   "hook": "quantum measurement in dimension 6: exactly three fully complementary bases",
+   "widget": "The three tensor-product bases as phase grids, every overlap checked exactly in Z[zeta12]; Grassl's 2004 theorem replayed as the paper's Stage-C graph search (48 vectors, 16 bases, no unbiased pair); a numerical search for a fourth basis that stalls in C^6 and succeeds in C^5; and the companion's Fourier vanishing tested on any order-six Hadamard matrix, with Tao's matrix as the one exception.",
+      "engine": "Exact cyclotomic arithmetic for the lower bound; random-start Gauss-Newton for the vectors unbiased to I and F6, then O/U graphs and 6-cliques with an explicit margin; Adam on a misfit that vanishes exactly at a MUB family; Lean-literal g, IsHadamard and Equivalent. The paper's full exclusion (a documented 4,470 s wall-clock run) and the companion's exact moment certificates are not rerun.",
+      "hook": "quantum measurement in dimension 6: exactly three fully complementary bases",
    "related": [],
    "conjectures": false,
-   "page": null
+   "page": "mub/"
   },
   "267": {
    "tier": "C",

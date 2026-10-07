@@ -70,6 +70,7 @@ h2 { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-t
 .badge { display: inline-flex; align-items: center; gap: 0.25rem; border: 1px solid var(--rule); border-radius: 999px; padding: 0.06rem 0.45rem; text-transform: uppercase; }
 .badge .dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; display: inline-block; }
 .badge.lean { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--rule)); }
+.badge.part { color: var(--muted); text-decoration: none; border-style: dashed; }
 .badge.nolean { color: var(--warn); }
 .card h3 { font-size: 1rem; margin: 0.3rem 0 0.2rem; line-height: 1.3; }
 .card .sum { font-size: 0.86rem; margin: 0.2rem 0; }
@@ -89,7 +90,7 @@ footer { margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid var(--rule
   <a class="crumb" href="https://math.mino.mobi/">← math</a>
   <h1>proofs</h1>
   <p class="lede">In October 2026 OpenAI released <a href="https://github.com/openai/math">722 mathematics papers</a> written by an internal model, grouped into 372 results. They range from the Birch–Swinnerton-Dyer formula for most elliptic curves to a counterexample to Sidorenko's conjecture. This is an independent index of that release. For every result it shows what is claimed and whether it has been machine-checked, and it builds pages that recompute something real wherever the mathematics allows it.</p>
-  <p class="small">Read the claims as claims. The release itself says its results are "at different stages of verification", and that some of the unformalized ones "could have issues". A green <b>Lean</b> badge means at least one of a family's papers has a formal proof in the release's Lean library. It does not mean anyone here ran it, or that a mathematician has read it. This site is not affiliated with OpenAI. The papers are theirs, under Apache-2.0, and every link goes to their repository.</p>
+  <p class="small">Read the claims as claims. The release itself says its results are "at different stages of verification", and that some of the unformalized ones "could have issues". A green <b>Lean</b> badge means the release's formalization catalogue lists at least one of a family's papers as having its main result proved in Lean. A dashed <b>Lean, uncatalogued</b> badge links to the release's own scope note for a Lean development that is not in the catalogue. Some of those prove the whole result and some prove only part of it, so read the note. Neither badge means anyone here ran it, or that a mathematician has read it. This site is not affiliated with OpenAI. The papers are theirs, under Apache-2.0, and every link goes to their repository.</p>
 
   <div class="tiles" id="tiles"></div>
 
@@ -133,7 +134,7 @@ footer { margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid var(--rule
   // ------------------------------------------------------------- tiles ---
   const tiles = [
     [M.families, 'results (families)'], [M.papers, 'papers'],
-    [M.leanFamilies, 'families with a Lean proof'], [M.tiers.A, 'computable (tier A)'], [M.built, 'pages built'],
+    [M.leanFamilies, 'families with the main result in Lean'], [M.leanDocFamilies, 'more with an uncatalogued Lean development'], [M.tiers.A, 'computable (tier A)'], [M.built, 'pages built'],
   ];
   $('tiles').innerHTML = tiles.map(([v, l]) => `<div class="tile"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
 
@@ -180,7 +181,9 @@ footer { margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid var(--rule
   function card(f) {
     const lean = f.lean
       ? `<span class="badge lean">Lean ✓ ${f.lean}/${f.papers.length} paper${f.papers.length > 1 ? 's' : ''}</span>`
-      : `<span class="badge nolean">not formalized</span>`;
+      : f.leanDoc
+        ? `<a class="badge part" href="https://github.com/openai/math/blob/main/lean/docs/${f.id}.md" title="the release's scope note: what its Lean development proves; the scope varies, from the full result to a weaker statement">Lean, uncatalogued ↗</a>`
+        : `<span class="badge nolean">not formalized</span>`;
     const rel = f.related.length ? ` · on this site: ${f.related.map((p) => `<a href="${RELATED(p)}">${esc(p)}</a>`).join(', ')}` : '';
     const idea = f.tier !== 'C' && f.widget ? `<p class="idea"><b>page idea</b> · ${esc(f.widget)}</p>` : '';
     const open = f.page ? `<a class="open" href="./${esc(f.page)}">open the page →</a>` : '';

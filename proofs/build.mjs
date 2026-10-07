@@ -13,7 +13,7 @@
 // overview.tex, CONTENTS.md, lean/formalization.yaml — and never executes
 // anything inside the clone.
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,6 +67,8 @@ function script(body, map) {
 export function tex(s) {
   if (!s) return s;
   let t = s;
+  // a text-mode control word swallows the space after it: Zauner\textquotesingle s → Zauner's
+  t = t.replace(/\\textquotesingle\s*/g, "'");
   // accents: \"o, \"{o}, \'{e}, \H{o}, \v{c}
   t = t.replace(/\\(["'`^~]|[Hvc](?![a-zA-Z]))\s*\{?([a-zA-Z])\}?/g, (m, a, ch) => (ACC[a] && ACC[a][ch]) || ch);
   // braces only in pairs: an optional \}? would eat the brace of an enclosing \overline{…}
@@ -153,6 +155,11 @@ for (const m of md.matchAll(/&emsp;\[([^\]\n]*?)\]\(preprints\/([^/)]+)\/[^)]*\)
 const yaml = readFileSync(join(SRC, 'lean', 'formalization.yaml'), 'utf8');
 const sources = yaml.slice(yaml.indexOf('\nsources:'), yaml.indexOf('\nrelated_formalizations:'));
 const leanDirs = new Set([...sources.matchAll(/preprints\/([^/\s"]+)\//g)].map((x) => x[1]));
+// lean/docs/NNN.md: the release's scope note for a family's Lean development. It exists for
+// every catalogued family and for about a hundred more whose formalized statement is
+// narrower than the paper's main result (or simply uncatalogued, like 005). Only the
+// file names are read here; the page for a family quotes the scope when it matters.
+const leanDocs = new Set(readdirSync(join(SRC, 'lean', 'docs')).filter((n) => /^\d{3}\.md$/.test(n)).map((n) => n.slice(0, 3)));
 
 // ------------------------------------------------------------------- join ---
 const A = JSON.parse(readFileSync(join(HERE, 'assessment.json'), 'utf8')).families;
@@ -172,14 +179,14 @@ const out = families.map((f) => {
   return {
     id: f.id, t: scrubText(tex(f.title)), d: scrubText(tex(f.desc)), disc: disciplines.indexOf(f.discipline),
     tier: a.tier, effort: a.effort, widget: scrubText(tex(a.widget)), related: a.related, conj: a.conjectures, page: a.page,
-    lean: papers.filter((p) => p.lean).length, papers,
+    lean: papers.filter((p) => p.lean).length, leanDoc: leanDocs.has(f.id), papers,
   };
 });
 for (const id of Object.keys(A)) if (!out.some((f) => f.id === id)) throw new Error(`assessment has ${id}, the release does not`);
 
 const meta = {
   source: REPO, commit, families: out.length, papers: out.reduce((s, f) => s + f.papers.length, 0),
-  leanFamilies: out.filter((f) => f.lean).length, leanPapers: out.reduce((s, f) => s + f.lean, 0),
+  leanFamilies: out.filter((f) => f.lean).length, leanDocFamilies: out.filter((f) => !f.lean && f.leanDoc).length, leanPapers: out.reduce((s, f) => s + f.lean, 0),
   tiers: Object.fromEntries(['A', 'B', 'C'].map((t) => [t, out.filter((f) => f.tier === t).length])),
   built: out.filter((f) => f.page).length,
 };
@@ -189,7 +196,7 @@ const absJson = JSON.stringify(abstracts) + '\n';
 
 const r1 = emit(join(HERE, 'data.js'), js, { write: !CHECK });
 const r2 = emit(join(HERE, 'abstracts.json'), absJson, { write: !CHECK });
-console.log(`${meta.families} families · ${meta.papers} papers · ${meta.leanPapers} formalized papers in ${meta.leanFamilies} families · tiers ${JSON.stringify(meta.tiers)} · built ${meta.built}`);
+console.log(`${meta.families} families · ${meta.papers} papers · ${meta.leanPapers} formalized papers in ${meta.leanFamilies} families (+${meta.leanDocFamilies} with an uncatalogued Lean development) · tiers ${JSON.stringify(meta.tiers)} · built ${meta.built}`);
 console.log(`data.js ${(js.length / 1024).toFixed(0)} kB · abstracts.json ${(absJson.length / 1024).toFixed(0)} kB · ${Object.keys(abstracts).length} abstracts`);
 if (leftovers.size) console.log('unconverted TeX macros (shown as their names):', [...leftovers].map(([k, v]) => `${k}×${v}`).join(' '));
 if (CHECK && !(r1.same && r2.same)) { console.error('proofs data is stale — rerun without --check'); process.exit(1); }
