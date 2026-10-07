@@ -1,7 +1,8 @@
 // main.js — the page: a generated scene under the real sky, its palette turned every frame, its music
 // on the same beat. Two ways to see it: the painting (one view, nothing redrawn but the sky) and the
 // flight (fly.js: the same palette over a 3D world, flown in a loop).
-import { generate, palette, paintSunPath, useSky, light, W, H } from './scene.js';
+import { generate, palette, paintSunPath, useSky, light, unproject, W, H } from './scene.js';
+import { auroraAt, paintAurora, compass } from './aurora.js';
 import { sky, solarHour } from './astro.js';
 import { drawNight } from './night.js';
 import { Precip } from './precip.js';
@@ -76,6 +77,7 @@ function remember() {
   if (mode === 'fly') q.set('mode', 'fly');
   if (!ambience) q.set('amb', '0');
   if (view.wx) q.set('wx', view.wx);
+  if (view.aurora) q.set('aur', '1');
   history.replaceState(null, '', `#${q}`);
 }
 
@@ -96,7 +98,8 @@ function flares(t, lt) {
 }
 
 // ---- drawing the painting: the index map never changes, but for the sun's path once a day
-let showPal = false, figures = params.get('fig') === '1', lastStars = 1;
+let showPal = false, figures = params.get('fig') === '1', lastStars = 1, lastAurora = null, auPeak = 0;
+const auCache = {};
 function paint(t, ms) {
   const sk = sky(ms, view.lat, view.lon);
   const day = Math.floor((ms / 3600000 + view.lon / 15) / 24), pv = scene.path.view;
@@ -106,6 +109,10 @@ function paint(t, ms) {
   for (let i = 0; i < 256; i++) lut[i] = 0xff000000 | (pal[i * 3 + 2] << 16) | (pal[i * 3 + 1] << 8) | pal[i * 3];
   const idx = scene.index;
   for (let i = 0; i < idx.length; i++) px32[i] = lut[idx[i]];
+  // the aurora, where and when this place would see it: behind the stars, mirrored on the water
+  const au = auroraAt(scene.seed, ms, view.lat, view.lon, sk.sun.alt, view.aurora ? 7 : null);
+  lastAurora = au; auPeak = 0;
+  if (au) { auCache.want = `${scene.seed}|${scene.kind}|${view.facing}`; auPeak = paintAurora(img.data, scene, au, t, { cover: lt.cover, overcast: lt.wx.overcast, dir: (x, y) => unproject(scene, view, x, y), cache: auCache }); }
   const star = f.star && lastStars ? { k: f.star.k % lastStars, amount: f.star.amount } : null;
   lastStars = drawNight(img.data, scene, view, sk, t, { night: lt.night * (1 - 0.95 * lt.wx.overcast), figures, flare: star, cover: lt.cover, overcast: lt.wx.overcast }).length || 1;
   life.draw(img.data, { t, lt });                     // boats and gulls, geese and a hawk
@@ -138,12 +145,13 @@ function frame() {
   const t = clock.now(), ms = clock.msAt(t);
   const r = mode === 'fly' && fly ? fly.frame(t, ms, { figures, notes }) : paint(t, ms), { sk, lt } = r;
   if (r.fl) thunderFrom(r.fl);
+  if (mode === 'fly' && fly) { lastAurora = r.au || null; auPeak = r.auPeak || 0; }
   if (sound) { sound.place = mode === 'fly' && fly ? fly.place() : null; if (lt.wx) sound.setWeather(lt.wx); }
   const hr = solarHour(ms, view.lon), hh = Math.floor(hr), mm = Math.floor((hr - hh) * 60);
   const date = new Date(ms + view.lon / 15 * 3600000).toISOString().slice(0, 10);
   const el = Math.sin(sk.sun.alt * Math.PI / 180);
   const playing = sound && sound.on && sound.describe;
-  $('time').textContent = `${date} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}${playing ? '' : ` · ${modeAt(el, sk.sun.az < 180)}`} · moon ${Math.round(sk.moonLit * 100)}%${lt.wx ? ` · ${lt.wx.kind} ${Math.round(lt.wx.temp)}°` : ''}${sound && sound.on && sound.describe ? ` · ♪ ${sound.describe}` : ''}`;
+  $('time').textContent = `${date} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}${playing ? '' : ` · ${modeAt(el, sk.sun.az < 180)}`} · moon ${Math.round(sk.moonLit * 100)}%${lt.wx ? ` · ${lt.wx.kind} ${Math.round(lt.wx.temp)}°` : ''}${lastAurora && auPeak > 0.06 ? ` · aurora Kp ${lastAurora.kp.toFixed(0)}, ${compass(lastAurora.bearing)}` : ''}${sound && sound.on && sound.describe ? ` · ♪ ${sound.describe}` : ''}`;
   if (!scrubbing) $('hour').value = hr.toFixed(2);
   if (Math.floor(t) % 5 === 0 && Math.floor(t) !== lastRemember) { lastRemember = Math.floor(t); remember(); }
   requestAnimationFrame(frame);
@@ -212,6 +220,9 @@ for (const name of Object.keys(PLACES)) {
 }
 // the weather: the forecast (auto), or one kind held
 view.wx = params.get('wx') || null;
+view.aurora = params.get('aur') === '1';
+$('aurbtn').classList.toggle('on', view.aurora);
+$('aurbtn').onclick = () => { view.aurora = !view.aurora; $('aurbtn').classList.toggle('on', view.aurora); remember(); };
 for (const k of ['auto', ...KINDS]) {
   const b = document.createElement('button'); b.type = 'button'; b.textContent = k; b.dataset.k = k;
   b.onclick = () => { view.wx = k === 'auto' ? null : k; syncWx(); remember(); };

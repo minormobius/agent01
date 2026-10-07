@@ -410,6 +410,13 @@ export function project(scene, view, alt, az) {
   return [W / 2 + cx * k * KST, scene.yH - cy * k * KST];
 }
 
+/** The direction (alt, az in radians) a painting pixel looks toward: the inverse of `project`. */
+export function unproject(scene, view, x, y) {
+  const X = (x - W / 2) / KST, Y = (scene.yH - y) / KST, r2 = X * X + Y * Y;
+  const cz = (4 - r2) / (4 + r2), cx = X * (1 + cz) / 2, cy = Y * (1 + cz) / 2;
+  return [Math.asin(Math.max(-1, Math.min(1, cy))), view.facing * Math.PI / 180 + Math.atan2(cx, cz)];
+}
+
 /**
  * Paint the sun's real path for the solar day containing `ms` into the sky: NB discs evenly along
  * the part of the track the window shows, each remembering the moment the sun stands there. Re-run

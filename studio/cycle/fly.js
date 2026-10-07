@@ -15,6 +15,7 @@ import { STARS, N as NSTARS, LINES } from './stars.js';
 import { starColour } from './astro.js';
 import { forecast, weatherLight, lightning } from './weather.js';
 import { Precip } from './precip.js';
+import { auroraAt } from './aurora.js';
 import { W, H, turnCycles, key, ZENITH, HORIZON, AMBIENT, SUNCOL, turn, smooth, clamp, mix3, add3, mul3, scale3, fbm2, weather } from './scene.js';
 
 const wx0 = (lt) => lt.wx || { overcast: 0, fog: 0, rain: 0, snow: 0, storm: 0 };
@@ -77,6 +78,8 @@ export class Flight {
     if (wantMirror) this.trees(cam, -cam.z, hor, fwd, right, this.ridx, this.rdep, 900);
     this.cabin(cam, cam.z, hor, fwd, right, this.idx, this.dep);
     if (w.lighthouse) this.tower(cam, cam.z, hor, fwd, right, this.idx, this.dep);
+    this.au = auroraAt(w.seed, ms, v.lat, v.lon, sk.sun.alt, v.aurora ? 7 : null);
+    this.AU = this.au ? this.aurora(this.au, hor, fwd, right, t, lt) : null;
     this.compose(cam, hor, fwd, right, lut, lt, sk, t, ms);
     this.night(cam, hor, fwd, right, lt, sk, t, figures);
     if (w.lighthouse) this.beam(cam, hor, fwd, right, lt, t);
@@ -89,7 +92,7 @@ export class Flight {
       sky: (x, y) => x >= 0 && x < W && y >= 0 && y < H && !(this.dep[y * W + x] < Infinity),
     });
     this.g.putImageData(this.img, 0, 0);
-    return { sk, lt, fl: this.fl };
+    return { sk, lt, fl: this.fl, au: this.au, auPeak: this.au ? this.auPeak : 0 };
   }
 
   /**
@@ -374,8 +377,33 @@ export class Flight {
     }
   }
 
+  /**
+   * The aurora (aurora.js) toward every sky pixel and every lake pixel's mirrored sky, traced every
+   * 2×2 pixels; light (0..~1) per pixel, added in compose behind the clouds and in the reflection.
+   */
+  aurora(au, hor, fwd, right, t, lt) {
+    const A = this.aub || (this.aub = new Float32Array(W * H * 3)), dep = this.dep, knd = this.knd, o = [0, 0, 0];
+    const veil = 1 - 0.95 * wx0(lt).overcast;
+    A.fill(0);
+    let peak = 0;
+    for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 2) {        // 2 × 4 blocks: the rays are vertical
+      let need = false;
+      for (let q = 0; q < 8 && !need; q++) { const i = (y + (q >> 1)) * W + x + (q & 1); if (y + (q >> 1) < H && (dep[i] === Infinity || knd[i] === KIND.lake)) need = true; }
+      if (!need) continue;
+      const xs = (x + 1 - W / 2) / F, ys = (hor - y - 2) / F, dx = fwd[0] + right[0] * xs, dy = fwd[1] + right[1] * xs;
+      o[0] = o[1] = o[2] = 0;
+      au.sample(Math.atan(Math.abs(ys) / Math.sqrt(1 + xs * xs)), Math.atan2(dx, dy), t, o);
+      const v = [0, 1, 2].map((c) => 0.95 * (1 - Math.exp(-o[c] * veil * 1.3)));
+      if (ys > 0 && v[0] + v[1] > peak) peak = v[0] + v[1];
+      for (let q = 0; q < 8; q++) { const yy = y + (q >> 1); if (yy >= H) continue; const k = (yy * W + x + (q & 1)) * 3; A[k] = v[0]; A[k + 1] = v[1]; A[k + 2] = v[2]; }
+    }
+    this.auPeak = peak;
+    return A;
+  }
+
   /** Index → colour, then the per-pixel things: water's reflection, the haze, the sky. */
   compose(cam, hor, fwd, right, lut, lt, sk, t, ms) {
+    const AU = this.AU;
     const px = this.img.data, idx = this.idx, dep = this.dep, knd = this.knd, ridx = this.ridx, rdep = this.rdep;
     const L = lt.L, w = this.world;
     const wx = lt.wx || { fog: 0, rain: 0, overcast: 0 };
@@ -452,6 +480,7 @@ export class Flight {
           l = Math.sqrt(ys2 + XS[x] * XS[x]);
           rowG = GR; rowY = y * 3;
           skyRGB(dx, dy, ys, l, s3, i); r = s3[0]; g = s3[1]; b = s3[2];
+          if (AU) { const q = i * 3, k = 1 - CA[i] * 0.9; r += AU[q] * k; g += AU[q + 1] * k; b += AU[q + 2] * k; }
         } else {
           const p = idx[i] * 3;
           r = lut[p]; g = lut[p + 1]; b = lut[p + 2];
@@ -462,7 +491,7 @@ export class Flight {
             const wob = Math.round(Math.sin(y * 0.9 + t * 1.7 + x * 0.05) * (1 + Math.min(3, (y - hor) * 0.02)));
             const my = Math.round(2 * hor - y) + wob, j = (my >= 0 && my < H) ? my * W + x : -1;
             let rr, rg, rb;
-            if (j < 0 || rdep[j] === Infinity) { rowG = GM; rowY = y * 3; skyRGB(dx, dy, -ys, l, m3, -1); rr = m3[0]; rg = m3[1]; rb = m3[2]; }
+            if (j < 0 || rdep[j] === Infinity) { rowG = GM; rowY = y * 3; skyRGB(dx, dy, -ys, l, m3, -1); rr = m3[0]; rg = m3[1]; rb = m3[2]; if (AU) { rr += AU[i * 3] * 0.8; rg += AU[i * 3 + 1] * 0.8; rb += AU[i * 3 + 2] * 0.8; } }
             else {
               const q = ridx[j] * 3, f = FOG[Math.min(FAR, rdep[j] | 0)];
               rr = lut[q] + (HZ[x * 3] - lut[q]) * f; rg = lut[q + 1] + (HZ[x * 3 + 1] - lut[q + 1]) * f; rb = lut[q + 2] + (HZ[x * 3 + 2] - lut[q + 2]) * f;

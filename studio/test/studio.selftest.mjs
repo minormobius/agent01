@@ -785,5 +785,26 @@ console.log('\nThe Minormobius Lectures (lecture/)');
     `coast: the world to fly is the same ${wld.biome} coast, ${wld.used} colours, sea and ${foam} cells of surf, and renders`);
 }
 
+// 21 — the aurora: on the oval round the geomagnetic pole, seen where and when a place would see it
+{
+  const { geomag, auroraAt, kp } = await import('../cycle/aurora.js');
+  const tro = geomag(69.65, 18.96), ny = geomag(40.71, -74), syd = geomag(-33.87, 151.21);
+  const ms = Date.parse('2026-12-10T22:00:00Z'), D = Math.PI / 180;
+  const look = (au, alt, az) => { const o = [0, 0, 0]; au.sample(alt * D, az, 20, o); return o; };
+  const T2 = auroraAt(7, ms, 69.65, 18.96, -40, 2), N2 = auroraAt(7, ms, 40.71, -74, -40, 2), day = auroraAt(7, ms, 69.65, 18.96, 5, 9);
+  const N7 = auroraAt(7, ms, 40.71, -74, -40, 7);
+  // from New York in a storm the curtain stands ~400 km north: low it is green, its top red
+  let bestG = 0, bestR = 0, gAlt = 0, rAlt = 0;
+  for (let a = 1; a < 60; a += 1) { const o = look(N7, a, N7.bearing); if (o[1] > bestG) { bestG = o[1]; gAlt = a; } if (o[0] > bestR) { bestR = o[0]; rAlt = a; } }
+  const fin = [0, 10, 30, 60, 89].every((a) => look(T2, a, 1).every(Number.isFinite));
+  ok(Math.abs(tro.mlat - 67) < 1.5 && Math.abs(ny.mlat - 50.5) < 1.5 && syd.mlat < -40 && Math.abs(Math.cos(syd.bearing) + 1) < 0.3,
+    `aurora: geomagnetic latitudes Tromsø ${tro.mlat.toFixed(1)}°, New York ${ny.mlat.toFixed(1)}°, Sydney ${syd.mlat.toFixed(1)}° (its aurora to the south)`);
+  const peak = (au) => { if (!au) return 0; let m = 0; for (let a = 3; a < 60; a++) for (let z = -1; z <= 1; z += 0.5) { const o = look(au, a, au.bearing + z); m = Math.max(m, o[0] + o[1]); } return m; };
+  ok(peak(T2) > 0.06 && peak(N2) < 0.02 && !day && N7 && fin && gAlt < rAlt && bestR > 0.05,
+    `aurora: a quiet night lights Tromsø (${peak(T2).toFixed(2)}) and not New York (${peak(N2).toFixed(3)}); never by day; a storm reaches New York, green at ${gAlt}° and red above at ${rAlt}°`);
+  const ks = Array.from({ length: 400 }, (_, i) => kp(3, ms + i * 86400000, 0)), big = ks.filter((k) => k >= 5).length;
+  ok(ks.every((k) => k >= 0 && k <= 9) && big > 4 && big < 60 && kp(3, ms, 0) === kp(3, ms + 3600000, 0), `aurora: each night's Kp is fixed for the night, storms (Kp ≥ 5) on ${big} of 400 nights`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);
