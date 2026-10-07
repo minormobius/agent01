@@ -6,7 +6,7 @@ name: Deploy tjs (three.js workbenches)
 
 on:
   push:
-    branches: ['claude/mobile-support-attribution-abs7qz']
+    branches: ['claude/plant-growth-animation-gxbby1']
     paths:
       - 'tjs/**'
       - '.github/workflows/deploy-tjs.yml'

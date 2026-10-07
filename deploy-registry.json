@@ -280,7 +280,7 @@
       "dir": "polis",
       "endpoint": "polis.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [
         "civ"
       ],
@@ -291,7 +291,7 @@
         "mappa/climate-forcing.js"
       ],
       "note": "The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite. `/` is the cascade charter (civ über-macro → hinterland mesoscale → city micro)… (full description: polis/CLAUDE.md)",
-      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"polis.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/civ-deploy-unification-vt35ju, byte-identical over every deployed path at handover). "
+      "status": "OWNERSHIP (2026-10-07): taken by claude/plant-growth-animation-gxbby1 from claude/landing-page-merge-candidate-8sp0fv with scripts/take-ownership.mjs (no work of the old owner lost). ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"polis.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/civ-deploy-unification-vt35ju, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "civ",
@@ -1013,10 +1013,10 @@
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
       "type": "frontend",
-      "branch": "claude/mobile-support-attribution-abs7qz",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/mobile-support-attribution-abs7qz (marble-run take-over; the /marbles bench is a touch-first re-implementation of Codetaur's Marbleworks builder, github.com/ngwnos/marbles, MIT, with full accreditation). Before the reassignment the tjs/ tree on this branch was diffed against the previous owner (claude/threejs-procgen-buildings-mprgs6) and found identical apart from the additions — Static Assets replaces the whole manifest, so that check is the precondition for moving ownership, not a formality.",
+      "status": "OWNERSHIP (2026-10-07): taken by claude/plant-growth-animation-gxbby1 from claude/mobile-support-attribution-abs7qz with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/mobile-support-attribution-abs7qz (marble-run take-over; the /marbles bench is a touch-first re-implementation of Codetaur's Marbleworks builder, github.com/ngwnos/marbles, MIT, with full accreditation). Before the reassignment the tjs/ tree on this branch was diffed against the previous owner (claude/threejs-procgen-buildings-mprgs6) and found identical apart from the additions — Static Assets replaces the whole manifest, so that check is the precondition for moving ownership, not a formality.",
       "op": "create",
       "note": "tjs.mino.mobi \u2014 three.js workbenches\u2026 (full description: tjs/CLAUDE.md)",
       "paths": [
