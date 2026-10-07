@@ -42,7 +42,11 @@ The descent below the settlement field's cells, as an engine and a toy. The engi
 `packages/morph/morph.selftest.mjs` (exact geometry; plots tile lots; every plot fronts its street;
 determinism; Math.random removed). Read `packages/morph/README.md` for the model.
 
-`/morph/` is the toy: a seeded city (districts are grains: organic, grid, radial, modern, suburb),
-in plan (figure-ground, plots, street ranks) and in model (an axonometric in canvas 2D, painter's
-order by footprint centre, hipped and mansard roofs from the straight skeleton). Not yet wired to
+`/morph/` is the toy: a seeded city laid down in time (v2, owner: "greedy edges… path dependency…
+gradients"): country lanes and hamlets first, districts as grains (organic, grid, radial, modern,
+suburb) cut along the lanes, slivers absorbed, a land-value field, and buildings rebuilt in waves, so
+old houses survive on cheap land. A year slider (and ▶) shows what stood when (`y=` in the link);
+colour by style or by year built (`col=age`); tap a plot for its history. Plan (figure-ground,
+plots, street ranks) and model (an axonometric in canvas 2D, painter's order by footprint centre,
+hipped and mansard roofs from the straight skeleton). Not yet wired to
 `field.js`: next, the field's cells, eras, walls and lanes become the districts, seams and streets.

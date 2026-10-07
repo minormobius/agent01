@@ -204,3 +204,61 @@ export function onBoundary(P, a, b, tol = 1e-5) {
 export function hipRoof(F, pitch) {
   return zones(F).map((Z, i) => ({ edge: i, poly: Z.map((p) => [p[0], p[1], Math.max(0, edgeDist(F, i, p)) * pitch]) })).filter((r) => r.poly.length >= 3);
 }
+
+/**
+ * The POWER diagram (weighted Voronoi): cell i = { x : |x − pᵢ|² − wᵢ ≤ |x − pⱼ|² − wⱼ }. Still convex,
+ * still exact; a smaller weight makes a smaller cell (a village among districts).
+ */
+export function power(points, weights, region) {
+  return points.map((p, i) => {
+    let C = region;
+    for (let j = 0; j < points.length && C.length; j++) {
+      if (j === i) continue;
+      const q = points[j];
+      // |x−p|² − wp ≤ |x−q|² − wq  ⇔  2(q−p)·x ≤ |q|² − |p|² + wp − wq
+      C = clipHalf(C, p[0] - q[0], p[1] - q[1], (q[0] * q[0] + q[1] * q[1] - p[0] * p[0] - p[1] * p[1] + weights[i] - weights[j]) / 2);
+    }
+    return C;
+  });
+}
+
+/** Convex hull (CCW), monotone chain. The union of consecutive slices of a convex polygon is its hull. */
+export function hull(points) {
+  const P = points.map((p) => [p[0], p[1]]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (P.length < 3) return P;
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], hi = [];
+  for (const p of P) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 1e-9) lo.pop(); lo.push(p); }
+  for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (hi.length >= 2 && cr(hi[hi.length - 2], hi[hi.length - 1], p) <= 1e-9) hi.pop(); hi.push(p); }
+  lo.pop(); hi.pop();
+  return clean(lo.concat(hi));
+}
+
+/** Split convex P by the line through o along (ux, uy): [left, right] (either may be []). */
+export function split(P, o, ux, uy) {
+  const nx = -uy, ny = ux, c = -(nx * o[0] + ny * o[1]);
+  return [clipHalf(P, nx, ny, c), clipHalf(P, -nx, -ny, -c)];
+}
+
+/** Where the line o + t·(ux, uy) crosses convex P: [tmin, tmax], or null. */
+export function lineSpan(P, o, ux, uy) {
+  let t0 = -Infinity, t1 = Infinity;
+  for (let i = 0; i < P.length; i++) {
+    const [nx, ny, c] = edgeLine(P, i), den = nx * ux + ny * uy, num = nx * o[0] + ny * o[1] + c;   // inside: num + den·t ≥ 0
+    if (Math.abs(den) < 1e-12) { if (num < 0) return null; continue; }
+    const t = -num / den;
+    if (den > 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t);
+  }
+  return t0 < t1 - 1e-9 ? [t0, t1] : null;
+}
+
+/** Do segments ab and cd lie on one line and overlap by more than `min`? Returns the overlap length. */
+export function sharedLength(a, b, c, d, tol = 0.05) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy);
+  if (L < 1e-9) return 0;
+  const nx = -dy / L, ny = dx / L;
+  if (Math.abs(nx * (c[0] - a[0]) + ny * (c[1] - a[1])) > tol || Math.abs(nx * (d[0] - a[0]) + ny * (d[1] - a[1])) > tol) return 0;
+  const ux = dx / L, uy = dy / L, s0 = 0, s1 = L;
+  const t0 = ux * (c[0] - a[0]) + uy * (c[1] - a[1]), t1 = ux * (d[0] - a[0]) + uy * (d[1] - a[1]);
+  return Math.max(0, Math.min(s1, Math.max(t0, t1)) - Math.max(s0, Math.min(t0, t1)));
+}

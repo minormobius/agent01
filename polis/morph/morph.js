@@ -1,42 +1,52 @@
-// morph.js — a city's form, from districts down to buildings: streets → blocks → plots → buildings.
-// Pure, DOM-free, deterministic (the same seed is the same city in node and every browser).
+// morph.js — a city's form, laid down in time: lanes → districts → streets → blocks → plots → buildings,
+// and then rebuilt, plot by plot, for seven centuries. Pure, DOM-free, deterministic.
 //
 // The model is urban morphology's (M. R. G. Conzen, Alnwick 1960): a town plan is three things laid
-// down at different times and lasting differently long — the STREET system, the PLOT pattern, and the
-// BUILDINGS on the plots — and a town is read by the order they were laid in. Here:
+// down at different times and lasting differently long — the STREET system (longest), the PLOT pattern,
+// and the BUILDINGS on the plots (shortest) — so a city is a palimpsest, read by the order its layers
+// were laid in. Here, in the order they happen:
 //
-//   DISTRICTS are GRAINS (the word is bismuth's, packages/bismuth/poly.js: a polycrystal is several
-//   lattices at their own angles that grow until they meet). Each district was laid out in one era by
-//   one idea of a street: the ORGANIC core (streets between irregular cells), a planned GRID (a
-//   lattice at its own angle, avenues every few blocks), a RADIAL scheme (rings and spokes round a
-//   rond-point), a SUBURB (big irregular cells, houses set back on their plots). A district's lattice
-//   is clipped to the district's own region, so where two grains meet the blocks are cut short: the
-//   seam is the irregular street and the triangular leftover plots (the flatirons) that real cities
-//   have where two plans meet.
+//   THE COUNTRYSIDE comes first: lanes radiating from the market town to the frame's edge, and hamlets
+//   on them. Everything later inherits both. A lane is never erased: whatever district is laid over it
+//   is cut along it, and it stays a street (an old road: Broadway through the Manhattan grid). A hamlet
+//   is a small cell of its own in the district diagram (a POWER diagram, a weighted Voronoi), so when
+//   the city reaches it the later plan flows round it and it survives as an urban village.
 //
-//   BLOCKS are the lattice cells, and STREETS are what is left between them: every block edge is moved
-//   in by half its street's width (`geom.inset`), so two blocks either side of a street leave exactly
-//   the street. A street's width is its rank: a lane, a street, an avenue, a boulevard on a seam.
+//   DISTRICTS are GRAINS (bismuth's word, packages/bismuth/poly.js): each was laid out in one era by
+//   one idea of a street — an organic core, a planned grid, a boulevard scheme round a rond-point, a
+//   suburb, a modern grid — each lattice at its own angle and clipped to its district, so where two
+//   plans meet the seam is sharp (the Commissioners' grid stops dead at Greenwich Village) and leaves
+//   triangular blocks. The core's edge is where the wall stood: a ring boulevard (the Ringstraße).
 //
-//   PLOTS. A block is divided among the streets it fronts by the straight skeleton (`geom.zones`): the
-//   land nearest each street belongs to it. Each frontage is cut into strips running back to the middle
-//   of the block, as wide as the era's plots: burgage plots (5–8 m) in the old core, wider ones later.
-//   Later eras MERGE strips (the burgage cycle: plots are amalgamated as values rise), so a modern
-//   district has a few big plots where a medieval one has many narrow ones.
+//   SLIVERS are not built: a block too small or too thin to hold a building is absorbed by its
+//   neighbour (the minor street between them is closed), or left as a traffic island, or a pocket
+//   square. A plot that only fronts a closed street is a yard.
 //
-//   BUILDINGS stand on the front of each plot, as deep as the era built (a medieval range of 12 m, a
-//   modern slab of 20), as tall as the era and the land's value allow, roofed as the era roofed: hipped
-//   (the skeleton again, raised by a pitch) or flat. A suburb's houses stand back from the street.
+//   THE FABRIC is a field, not a district setting: land value falls from the core (bid-rent) and rises
+//   on the big streets, and heights follow it smoothly. Where a district was NOT planned (the organic
+//   core, a village, a suburb) its plots and heights also blend toward its neighbour's over a seam, as
+//   growth does; a PLANNED district keeps its edge.
 //
-//   const city = generate({ seed: 7 });   // { frame, districts, blocks, streets, plots, buildings, stats }
+//   PLOTS are cut back from each frontage to the middle of the block (the straight skeleton,
+//   `geom.zones`), as wide as the plan's plots: burgage strips in the core.
+//
+//   BUILDINGS have histories. Each plot is first built in its plan's style; then the city's waves of
+//   redevelopment (1780, 1870, 1965, 2005) rebuild a plot when its land has become worth far more than
+//   what stands on it (the rent gap): likely on a valuable street, rarely on a quiet one, so old
+//   buildings survive where values stayed low. A rebuilding often takes the neighbouring plots too (the
+//   burgage cycle: plots amalgamate), so a modern office stands on what were six medieval strips.
+//
+//   const city = generate({ seed: 7 });
+//   standing(city, 1900)  → { blocks, buildings } as they stood that year
 
 import * as G from './geom.js';
 
-export const VERSION = 1;
+export const VERSION = 2;
+export const PRESENT = 2025;
 
 // ---------------------------------------------------------------------------- randomness --
-// xmur3 + mulberry32, the repo's convention (polis/prng.js, tjs/brut/rand.js): a stream per SALT, so
-// adding a draw in one place cannot move anything elsewhere ("district/3/plot/12" is its own stream).
+// xmur3 + mulberry32, the repo's convention (polis/prng.js, tjs/brut/rand.js): one stream per SALT, so
+// adding a draw in one place cannot move anything elsewhere.
 function xmur3(str) {
   let h = 1779033703 ^ str.length;
   for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
@@ -50,159 +60,276 @@ export function Rand(seed, salt) {
   return {
     f, range: (a, b) => a + (b - a) * f(), int: (a, b) => a + Math.floor(f() * (b - a + 1)),
     chance: (p) => f() < p, pick: (xs) => xs[Math.floor(f() * xs.length)],
-    pickW: (pairs) => { let s = 0; for (const [, w] of pairs) s += w; let x = f() * s; for (const [v, w] of pairs) { x -= w; if (x <= 0) return v; } return pairs[pairs.length - 1][0]; },
   };
 }
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const lerp = (a, b, t) => a + (b - a) * t;
 
-// ---------------------------------------------------------------------------- the eras --
-// What each kind of district builds. Widths in metres; storeys as [min, max] near the centre and far
-// out (the value of land falls with distance, and so do the buildings).
-export const ERAS = {
+// ---------------------------------------------------------------------------- styles --
+// How each era BUILT: storeys from [at low land value, at high], depth behind the frontage, roof,
+// and how readily a rebuilding in this style swallows its neighbours' plots (and how wide it gets).
+export const STYLES = {
+  village:   { label: 'village houses', year: 1200, storeys: [1, 2], storeyH: 3.0, depth: [8, 12], roof: 'hip', pitch: 0.9, setback: 0, merge: 0, maxW: 20 },
+  medieval:  { label: 'medieval houses', year: 1300, storeys: [2, 4], storeyH: 3.2, depth: [10, 15], roof: 'hip', pitch: 0.85, setback: 0, merge: 0, maxW: 12 },
+  georgian:  { label: 'Georgian terraces', year: 1800, storeys: [3, 5], storeyH: 3.4, depth: [12, 16], roof: 'hip', pitch: 0.5, setback: 0, merge: 0.15, maxW: 22 },
+  haussmann: { label: 'apartment blocks', year: 1870, storeys: [5, 7], storeyH: 3.5, depth: [14, 18], roof: 'mansard', pitch: 1.6, setback: 0, merge: 0.45, maxW: 34 },
+  villa:     { label: 'detached houses', year: 1930, storeys: [1, 2], storeyH: 3.0, depth: [9, 12], roof: 'hip', pitch: 0.65, setback: 7, side: 2.5, merge: 0, maxW: 30 },
+  modern:    { label: 'modern slabs', year: 1965, storeys: [5, 18], storeyH: 3.4, depth: [16, 24], roof: 'flat', pitch: 0, setback: 3, merge: 0.75, maxW: 70, tower: 0.08 },
+  glass:     { label: 'glass towers', year: 2005, storeys: [8, 40], storeyH: 3.6, depth: [18, 28], roof: 'flat', pitch: 0, setback: 2, merge: 0.85, maxW: 80, tower: 0.35 },
+};
+// the city's waves of redevelopment: who rebuilds, how likely at the highest land value
+export const WAVES = [
+  { year: 1780, style: 'georgian', p: 0.22 },
+  { year: 1870, style: 'haussmann', p: 0.3 },
+  { year: 1965, style: 'modern', p: 0.32 },
+  { year: 2005, style: 'glass', p: 0.14 },
+];
+
+// ---------------------------------------------------------------------------- plans --
+// How each era LAID OUT streets. `planned`: a plan's edge is a legal line, kept sharp; growth blends.
+export const PLANS = {
   organic: {
-    label: 'the old core', year: 1300,
-    lattice: 'voronoi', cell: 70, jitter: 0.75,
-    street: [5, 8], avenue: 11, plotW: [5, 8.5], merge: 0.08, depth: [10, 16], setback: 0,
-    storeys: [[3, 5], [2, 3]], storeyH: 3.3, roof: 'hip', pitch: 0.8, square: 0.02,
+    label: 'the old core', year: [1250, 1320], planned: false,
+    lattice: 'voronoi', cell: 70, jitter: 0.75, street: [5, 8], avenue: 11,
+    plotW: [5, 8.5], merge: 0.06, style: 'medieval', square: 0.02,
+  },
+  village: {
+    label: 'a village', year: [1100, 1220], planned: false,
+    lattice: 'voronoi', cell: 55, jitter: 0.8, street: [5, 7], avenue: 9,
+    plotW: [9, 16], merge: 0.05, style: 'village', square: 0.12,
   },
   grid: {
-    label: 'a planned grid', year: 1820,
+    label: 'a planned grid', year: [1770, 1840], planned: true,
     lattice: 'grid', cell: [70, 110], street: [12, 15], avenue: 22, avenueEvery: 4,
-    plotW: [7, 11], merge: 0.25, depth: [14, 20], setback: 0,
-    storeys: [[4, 6], [3, 4]], storeyH: 3.4, roof: 'hip', pitch: 0.55, square: 0.03,
+    plotW: [7, 11], merge: 0.2, style: 'georgian', square: 0.03,
   },
   radial: {
-    label: 'a boulevard scheme', year: 1870,
+    label: 'a boulevard scheme', year: [1855, 1890], planned: true,
     lattice: 'radial', ring: 85, plaza: 55, street: [14, 18], avenue: 30, avenueEvery: 2,
-    plotW: [10, 16], merge: 0.15, depth: [15, 18], setback: 0,
-    storeys: [[6, 7], [5, 6]], storeyH: 3.6, roof: 'mansard', pitch: 1.6, square: 0.02,
-  },
-  modern: {
-    label: 'a modern grid', year: 1965,
-    lattice: 'grid', cell: [90, 140], street: [16, 20], avenue: 32, avenueEvery: 3,
-    plotW: [12, 20], merge: 0.6, depth: [18, 26], setback: 4,
-    storeys: [[8, 30], [4, 10]], storeyH: 3.5, roof: 'flat', pitch: 0, square: 0.05,
+    plotW: [10, 16], merge: 0.15, style: 'haussmann', square: 0.02,
   },
   suburb: {
-    label: 'a suburb', year: 1930,
-    lattice: 'voronoi', cell: 120, jitter: 1.0, relax: false,
-    street: [9, 12], avenue: 16, plotW: [14, 22], merge: 0.05, depth: [9, 12], setback: 7, side: 2.5,
-    storeys: [[2, 2], [1, 2]], storeyH: 3, roof: 'hip', pitch: 0.65, square: 0.04,
+    label: 'a suburb', year: [1905, 1945], planned: false,
+    lattice: 'voronoi', cell: 120, jitter: 1.0, relax: false, street: [9, 12], avenue: 16,
+    plotW: [14, 22], merge: 0.03, style: 'villa', square: 0.04,
+  },
+  modern: {
+    label: 'a modern grid', year: [1955, 1975], planned: true,
+    lattice: 'grid', cell: [90, 140], street: [16, 20], avenue: 32, avenueEvery: 3,
+    plotW: [14, 22], merge: 0.55, style: 'modern', square: 0.05,
   },
 };
-export const KINDS = Object.keys(ERAS);
-const BOULEVARD = 26;            // a street on a seam between two districts: the old town's ring road
+export const KINDS = ['organic', 'grid', 'radial', 'modern', 'suburb'];   // what a district may be (villages come from the countryside)
+// kept for older callers: a plan with its first style's fabric
+export const ERAS = Object.fromEntries(Object.entries(PLANS).map(([k, p]) => [k, { ...p, year: p.year[0] }]));
 
-// ---------------------------------------------------------------------------- the plan --
+const RING = 26, SEAM = 16, OLDROAD = 13;      // street widths: the old wall's ring, a seam between plans, an old lane
+
+// ---------------------------------------------------------------------------- the city --
 /**
- * opts: seed, size (the frame's side, m), districts (how many), kinds (which eras may appear, the
- * first is the core's), plotScale, streetScale, heightScale.
+ * opts: seed, size (the frame's side, m), districts, kinds (the first is the core's, the rest the
+ * later plans), villages (how many hamlets), lanes, plotScale, streetScale, heightScale.
  */
 export function generate(opts = {}) {
-  const o = { seed: 1, size: 1400, districts: 6, kinds: KINDS, plotScale: 1, streetScale: 1, heightScale: 1, ...opts };
+  const o = { seed: 1, size: 1400, districts: 6, kinds: KINDS, villages: 3, lanes: 5, plotScale: 1, streetScale: 1, heightScale: 1, ...opts };
   const S = o.size, half = S / 2, frame = [[-half, -half], [half, -half], [half, half], [-half, half]];
-  const city = { seed: o.seed, frame, districts: [], blocks: [], streets: [], plots: [], buildings: [], squares: [] };
+  const city = { seed: o.seed, size: S, frame, lanes: [], districts: [], blocks: [], streets: [], plots: [], frontages: [], buildings: [], squares: [], years: [Infinity, PRESENT] };
 
-  // ---- districts: a Voronoi of seeds round the core; the core's kind is the first, and an era is
-  // older the nearer it stands to the core (cities grow outward)
-  const R = Rand(o.seed, 'districts');
-  const n = Math.max(1, Math.min(12, o.districts | 0));
-  const pts = [[R.range(-0.08, 0.08) * S, R.range(-0.08, 0.08) * S]];
-  for (let i = 1; i < n; i++) {
-    const a = (i / (n - 1)) * Math.PI * 2 + R.range(-0.35, 0.35), r = R.range(0.28, 0.46) * S;
-    pts.push([pts[0][0] + Math.cos(a) * r, pts[0][1] + Math.sin(a) * r]);
+  // ---- the countryside: the market town and the lanes out of it
+  const R = Rand(o.seed, 'countryside');
+  const core = [R.range(-0.08, 0.08) * S, R.range(-0.08, 0.08) * S];
+  const nl = Math.max(3, Math.min(8, o.lanes | 0)), a0 = R.range(0, Math.PI * 2);
+  for (let k = 0; k < nl; k++) {
+    const a = a0 + (k / nl) * Math.PI * 2 + R.range(-0.25, 0.25) * (Math.PI * 2 / nl);
+    city.lanes.push({ id: k, o: core, u: [Math.cos(a), Math.sin(a)], angle: a });
   }
-  const regions = G.voronoi(pts, frame);
-  const kinds = o.kinds.filter((k) => ERAS[k]);
-  const core = kinds[0] || 'organic', later = kinds.slice(1).length ? kinds.slice(1) : [core];
-  pts.forEach((p, i) => {
-    const kind = i === 0 ? core : R.pick(later);
-    const toCore = Math.atan2(pts[0][1] - p[1], pts[0][0] - p[0]);
-    city.districts.push({ id: i, kind, era: ERAS[kind], seed: p, region: regions[i], centre: G.centroid(regions[i]), angle: toCore + R.range(-0.25, 0.25), dist: Math.hypot(p[0] - pts[0][0], p[1] - pts[0][1]) });
-  });
+  city.lanes.sort((p, q) => p.angle - q.angle);
 
-  // ---- each district's lattice, clipped to its region: the blocks
-  for (const d of city.districts) layDistrict(city, d, o);
+  // ---- district seeds: the core, the later plans round it, and hamlets out on the lanes
+  const n = Math.max(1, Math.min(12, o.districts | 0)), kinds = o.kinds.filter((k) => PLANS[k] && k !== 'village');
+  const coreKind = kinds[0] || 'organic', later = kinds.slice(1).length ? kinds.slice(1) : [coreKind];
+  const RD = Rand(o.seed, 'districts');
+  const seeds = [{ p: core, kind: coreKind, w: 0 }];
+  for (let i = 1; i < n; i++) {
+    const a = (i / (n - 1)) * Math.PI * 2 + RD.range(-0.35, 0.35), r = RD.range(0.28, 0.46) * S;
+    seeds.push({ p: [core[0] + Math.cos(a) * r, core[1] + Math.sin(a) * r], kind: RD.pick(later), w: 0 });
+  }
+  const RV = Rand(o.seed, 'villages');
+  for (let v = 0, tries = 0; v < (o.villages | 0) && tries < 40; tries++) {
+    const lane = RV.pick(city.lanes), r = RV.range(0.3, 0.44) * S, p = [core[0] + lane.u[0] * r, core[1] + lane.u[1] * r];
+    if (Math.abs(p[0]) > half - 60 || Math.abs(p[1]) > half - 60) continue;
+    const D = Math.min(...seeds.map((s) => Math.hypot(s.p[0] - p[0], s.p[1] - p[1])));
+    if (D < 230) continue;
+    const rv = RV.range(110, 160);
+    seeds.push({ p, kind: 'village', w: 2 * D * rv - D * D, lane: lane.id, rv });     // its cell reaches ~rv toward its neighbours
+    v++;
+  }
+  const regions = G.power(seeds.map((s) => s.p), seeds.map((s) => s.w), frame);
+  // a hamlet out toward the frame has no neighbour beyond it, so its cell would run to the edge: it keeps
+  // an octagon of its fields' reach, and the land beyond goes to the district it borders most (a later
+  // plan reaches round the village and past it). So a district is one or more convex PARTS.
+  const parts = regions.map((r) => (r.length ? [r] : []));
+  for (let i = 0; i < seeds.length; i++) {
+    const s = seeds[i];
+    if (s.kind !== 'village' || !regions[i].length) continue;
+    const r = s.rv * 1.25, oct = [];
+    for (let k = 0; k < 8; k++) oct.push([s.p[0] + Math.cos((k + 0.5) * Math.PI / 4) * r, s.p[1] + Math.sin((k + 0.5) * Math.PI / 4) * r]);
+    let rest = regions[i];
+    parts[i] = [G.clipConvex(rest, oct)].filter((x) => x.length);
+    for (let k = 0; k < 8 && rest.length; k++) {
+      const [nx, ny, c] = G.edgeLine(oct, k);
+      const out = G.clipHalf(rest, -nx, -ny, -c);          // beyond this side of the octagon
+      rest = G.clipHalf(rest, nx, ny, c);
+      if (!out.length || Math.abs(G.area(out)) < 1) continue;
+      let best = -1, most = 0, near = Infinity;
+      const cen = G.centroid(out);
+      seeds.forEach((t, j) => {
+        if (t.kind === 'village' || !regions[j].length) return;
+        let L = 0;
+        for (let e = 0; e < out.length; e++) for (let f = 0; f < regions[j].length; f++) L += G.sharedLength(out[e], out[(e + 1) % out.length], regions[j][f], regions[j][(f + 1) % regions[j].length]);
+        const dd = Math.hypot(t.p[0] - cen[0], t.p[1] - cen[1]);
+        if (L > most + 1e-6 || (most === 0 && L === 0 && dd < near)) { best = j; most = L; near = dd; }
+      });
+      if (best >= 0) parts[best].push(out); else parts[i].push(out);
+    }
+  }
+  const orphans = [];
+  seeds.forEach((s, i) => {
+    const area = parts[i].reduce((t, P) => t + Math.abs(G.area(P)), 0);
+    if (!parts[i].length) return;
+    if (area < 6000) { orphans.push(...parts[i]); return; }
+    const plan = PLANS[s.kind], Ry = Rand(o.seed, `year/${i}`);
+    let year = Math.round(Ry.range(plan.year[0], plan.year[1]));
+    if (i > 0 && s.kind !== 'village') year = Math.max(year, city.districts[0] ? city.districts[0].year + 60 : year);
+    const toCore = Math.atan2(core[1] - s.p[1], core[0] - s.p[0]);
+    city.districts.push({ id: city.districts.length, kind: s.kind, plan, era: { ...plan, year }, year, seed: s.p, parts: parts[i], region: parts[i][0], area, centre: G.centroid(parts[i][0]), angle: toCore + Ry.range(-0.25, 0.25), isCore: i === 0 });
+    city.years[0] = Math.min(city.years[0], year);
+  });
+  for (const P of orphans) {            // a cell too small to be a district joins the nearest one
+    const c = G.centroid(P);
+    let best = city.districts[0], bd = Infinity;
+    for (const d of city.districts) { const dd = Math.hypot(d.seed[0] - c[0], d.seed[1] - c[1]); if (dd < bd) { bd = dd; best = d; } }
+    best.parts.push(P); best.area += Math.abs(G.area(P));
+  }
+
+  // ---- each district, cut along the lanes it inherits, then its lattice laid in each piece
+  for (const d of city.districts) {
+    d.pieces = d.parts.flatMap((P) => cutByLanes(P, city.lanes, core));
+    for (const piece of d.pieces) layDistrict(city, d, piece, o);
+  }
 
   // ---- streets: each block edge drawn back by half its street's width
+  for (const b of city.blocks) rankEdges(city, b, o);
+  for (const b of city.blocks) b.lot = G.inset(b.cell, b.widths.map((x) => x.w / 2));
+
+  // ---- slivers and squares
+  slivers(city);
   for (const b of city.blocks) {
-    const d = city.districts[b.district], e = d.era, Rs = Rand(o.seed, `street/${b.id}`);
-    b.widths = b.cell.map((p, i) => {
-      const q = b.cell[(i + 1) % b.cell.length];
-      let w, rank;
-      if (G.onBoundary(d.region, p, q) >= 0 && G.onBoundary(frame, p, q) < 0) { w = BOULEVARD; rank = 'boulevard'; }
-      else if (b.avenue && b.avenue[i]) { w = e.avenue; rank = 'avenue'; }
-      else { w = Rs.range(e.street[0], e.street[1]); rank = 'street'; }
-      w *= o.streetScale;
-      city.streets.push({ block: b.id, a: p, b: q, width: w, rank });
-      return { w, rank };
-    });
-    b.lot = G.inset(b.cell, b.widths.map((x) => x.w / 2));
+    if (b.square || b.island || !b.lot.length) continue;
+    const d = city.districts[b.district], centre = d.isCore || d.kind === 'village';
+    if (b.plaza || (centre && G.inside(b.cell, d.seed)) || Rand(o.seed, `square/${b.id}`).chance(d.plan.square)) { b.square = 'square'; city.squares.push(b.id); }
+  }
+  for (const b of city.blocks) for (let i = 0; i < b.cell.length; i++) {
+    if (b.widths[i].w > 0) city.streets.push({ block: b.id, a: b.cell[i], b: b.cell[(i + 1) % b.cell.length], width: b.widths[i].w, rank: b.widths[i].rank, year: b.year });
   }
 
-  // ---- squares: a few blocks are left open (a market place in the core, squares in the plans)
-  for (const b of city.blocks) {
-    const d = city.districts[b.district];
-    const near = d.id === 0 && G.inside(b.cell, d.seed);
-    if (b.lot.length && (near || Rand(o.seed, `square/${b.id}`).chance(d.era.square))) { b.square = true; city.squares.push(b.id); }
-  }
-
-  // ---- plots, then buildings
-  for (const b of city.blocks) if (b.lot.length && !b.square) layPlots(city, b, o);
-  for (const p of city.plots) build(city, p, o);
+  // ---- plots, then the first building on each, then the waves of rebuilding
+  for (const b of city.blocks) if (b.lot.length && !b.square && !b.island) layPlots(city, b, o);
+  for (const f of city.frontages) firstBuild(city, f, o);
+  for (const w of WAVES) for (const f of city.frontages) rebuild(city, f, w, o);
 
   city.stats = stats(city);
   return city;
 }
 
-/** A district's lattice of block cells, clipped to its region (the seams fall where they fall). */
-function layDistrict(city, d, o) {
-  const e = d.era, reg = d.region, R = Rand(o.seed, `lattice/${d.id}`);
+/** What stood in a given year: the blocks laid by then, and the buildings standing then. */
+export function standing(city, year) {
+  return {
+    blocks: city.blocks.filter((b) => b.year <= year),
+    buildings: city.buildings.filter((b) => b.from <= year && (b.to == null || b.to > year)),
+    districts: city.districts.filter((d) => d.year <= year),
+  };
+}
+
+// ---------------------------------------------------------------------------- the plan --
+/** A district's region, cut along the lanes that cross it (the core is cut into wedges between them). */
+function cutByLanes(region, lanes, core) {
+  if (G.inside(region, core, -1e-6)) {
+    const out = [];
+    for (let k = 0; k < lanes.length; k++) {
+      const u = lanes[k].u, v = lanes[(k + 1) % lanes.length].u;
+      // left of lane k and right of lane k+1: the wedge between them (their gap is under π)
+      let W = G.clipHalf(region, -u[1], u[0], -(-u[1] * core[0] + u[0] * core[1]));
+      W = G.clipHalf(W, v[1], -v[0], -(v[1] * core[0] - v[0] * core[1]));
+      if (W.length) out.push(W);
+    }
+    return out;
+  }
+  let pieces = [region];
+  for (const L of lanes) {
+    const next = [];
+    for (const P of pieces) {
+      const span = G.lineSpan(P, L.o, L.u[0], L.u[1]);
+      if (span && span[0] > 1) { for (const half of G.split(P, L.o, L.u[0], L.u[1])) if (half.length && Math.abs(G.area(half)) > 50) next.push(half); }
+      else next.push(P);
+    }
+    pieces = next;
+  }
+  return pieces;
+}
+
+/** A district's lattice of block cells, clipped to one piece of its region. */
+function layDistrict(city, d, reg, o) {
+  const e = d.plan, R = Rand(o.seed, `lattice/${d.id}/${city.blocks.length}`);
   const add = (cell, avenue = null) => {
     const C = G.clipConvex(cell, reg);
-    if (C.length < 3 || G.area(C) < 60) return;
-    // which edges of the CLIPPED cell are avenues: those lying on an avenue line of the lattice
+    if (C.length < 3 || G.area(C) < 40) return;
     const av = avenue ? C.map((p, i) => avenue(p, C[(i + 1) % C.length])) : null;
-    city.blocks.push({ id: city.blocks.length, district: d.id, cell: C, avenue: av });
+    city.blocks.push({ id: city.blocks.length, district: d.id, year: d.year, cell: C, avenue: av });
   };
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of reg) { minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
-  const span = Math.hypot(maxX - minX, maxY - minY);
+  const centre = [(minX + maxX) / 2, (minY + maxY) / 2], span = Math.hypot(maxX - minX, maxY - minY);
 
   if (e.lattice === 'grid') {
-    // a rectangular lattice at the district's angle, its origin on the district's seed
+    // a rectangular lattice at the district's angle, its origin on the district's seed (so its pieces
+    // either side of a lane are one grid, interrupted)
+    const RG = Rand(o.seed, `grid/${d.id}`);
     const ux = Math.cos(d.angle), uy = Math.sin(d.angle), vx = -uy, vy = ux;
-    const bw = R.range(e.cell[0], e.cell[1]), bd = R.range(e.cell[0], e.cell[1]) * R.range(1.1, 1.6);
+    const bw = RG.range(e.cell[0], e.cell[1]), bd = RG.range(e.cell[0], e.cell[1]) * RG.range(1.1, 1.6);
     const ox = d.seed[0], oy = d.seed[1], k = e.avenueEvery || 99;
-    const nu = Math.ceil(span / bw) + 1, nv = Math.ceil(span / bd) + 1;
-    for (let i = -nu; i <= nu; i++) for (let j = -nv; j <= nv; j++) {
+    const cu = (centre[0] - ox) * ux + (centre[1] - oy) * uy, cv = (centre[0] - ox) * vx + (centre[1] - oy) * vy;
+    const nu = Math.ceil(span / bw) + 1, nv = Math.ceil(span / bd) + 1, iu = Math.round(cu / bw), iv = Math.round(cv / bd);
+    for (let i = iu - nu; i <= iu + nu; i++) for (let j = iv - nv; j <= iv + nv; j++) {
       const cx = ox + ux * (i + 0.5) * bw + vx * (j + 0.5) * bd, cy = oy + uy * (i + 0.5) * bw + vy * (j + 0.5) * bd;
-      if (Math.hypot(cx - d.centre[0], cy - d.centre[1]) > span) continue;
-      const cell = G.orientedRect(cx, cy, ux, uy, bw / 2, bd / 2);
-      // an avenue runs along every k-th lattice line in each direction
       const onLine = (p, q) => {
         const su = ((p[0] - ox) * ux + (p[1] - oy) * uy) / bw, sv = ((p[0] - ox) * vx + (p[1] - oy) * vy) / bd;
         const tu = ((q[0] - ox) * ux + (q[1] - oy) * uy) / bw, tv = ((q[0] - ox) * vx + (q[1] - oy) * vy) / bd;
-        const isU = Math.abs(su - tu) < 1e-6 && Math.abs(su - Math.round(su)) < 1e-6 && Math.round(su) % k === 0;
-        const isV = Math.abs(sv - tv) < 1e-6 && Math.abs(sv - Math.round(sv)) < 1e-6 && Math.round(sv) % k === 0;
-        return isU || isV;
+        const on = (s, t) => Math.abs(s - t) < 1e-6 && Math.abs(s - Math.round(s)) < 1e-6 && ((Math.round(s) % k) + k) % k === 0;
+        return on(su, tu) || on(sv, tv);
       };
-      add(cell, onLine);
+      add(G.orientedRect(cx, cy, ux, uy, bw / 2, bd / 2), onLine);
     }
   } else if (e.lattice === 'radial') {
-    // rings and spokes round a rond-point on the district's seed; sectors multiply outward so the
-    // blocks stay roughly as wide as they are deep
-    const c = d.seed, r0 = e.plaza, dr = e.ring, k = e.avenueEvery || 99;
-    // sectors DOUBLE outward from a base of 8 (so every spoke of an inner ring runs on through the
-    // outer ones, and the avenue spokes stay straight), as soon as the blocks would get too wide
-    const BASE = 8;
-    for (let ring = 0; r0 + ring * dr < span; ring++) {
-      const ra = r0 + ring * dr, rb = ra + dr, want = (2 * Math.PI * (ra + rb) / 2) / (dr * 1.3);
-      let f = 1; while (BASE * f * 2 <= want) f *= 2;
-      const spokes = BASE * f;
+    // rings and spokes round a rond-point on the district's seed; sectors DOUBLE outward from a base
+    // of 8, so every spoke runs on through the outer rings and the avenue spokes stay straight
+    const c = d.seed, r0 = e.plaza, dr = e.ring, k = e.avenueEvery || 99, BASE = 8;
+    const rmax = Math.max(...reg.map((p) => Math.hypot(p[0] - c[0], p[1] - c[1])));
+    const fOf = (ring) => { const ra = r0 + ring * dr, want = (2 * Math.PI * (ra + dr / 2)) / (dr * 1.3); let f = 1; while (BASE * f * 2 <= want) f *= 2; return f; };
+    const at = (a, r) => [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r];
+    // the rond-point itself: a polygon on the first ring's spokes
+    const f0 = BASE * fOf(0), plaza = [];
+    for (let s = 0; s < f0; s++) plaza.push(at(d.angle + (s / f0) * Math.PI * 2, r0));
+    add(plaza, () => true);
+    if (city.blocks.length && city.blocks[city.blocks.length - 1].cell && G.inside(city.blocks[city.blocks.length - 1].cell, c, 1e-6)) city.blocks[city.blocks.length - 1].plaza = true;
+    for (let ring = 0; r0 + ring * dr < rmax; ring++) {
+      const ra = r0 + ring * dr, rb = ra + dr, f = fOf(ring), spokes = BASE * f, split = fOf(ring + 1) / f;
       for (let s = 0; s < spokes; s++) {
         const a0 = d.angle + (s / spokes) * Math.PI * 2, a1 = d.angle + ((s + 1) / spokes) * Math.PI * 2;
-        const cell = [[c[0] + Math.cos(a0) * ra, c[1] + Math.sin(a0) * ra], [c[0] + Math.cos(a0) * rb, c[1] + Math.sin(a0) * rb], [c[0] + Math.cos(a1) * rb, c[1] + Math.sin(a1) * rb], [c[0] + Math.cos(a1) * ra, c[1] + Math.sin(a1) * ra]];
-        // every k-th BASE spoke is an avenue, and so is the innermost ring (round the rond-point)
+        // the outer side follows the next ring's spokes, so the rings meet without gaps
+        const cell = [at(a0, ra)];
+        for (let k = 0; k <= split; k++) cell.push(at(a0 + (a1 - a0) * (k / split), rb));
+        cell.push(at(a1, ra));
         const onLine = (p, q) => {
           const rp = Math.hypot(p[0] - c[0], p[1] - c[1]), rq = Math.hypot(q[0] - c[0], q[1] - c[1]);
           if (Math.abs(rp - r0) < 1e-6 && Math.abs(rq - r0) < 1e-6) return true;
@@ -215,50 +342,153 @@ function layDistrict(city, d, o) {
     }
     d.plaza = c;
   } else {
-    // organic and suburban: a Voronoi of jittered points in the region, relaxed once (Lloyd) so the
-    // cells are irregular but not shattered
+    // organic, village, suburb: a Voronoi of jittered points in the piece, relaxed once (Lloyd) unless
+    // the plan wants its cells raw
     const cell = e.cell, pts = [];
     for (let x = minX - cell; x <= maxX + cell; x += cell) for (let y = minY - cell; y <= maxY + cell; y += cell) {
       const p = [x + R.range(-0.5, 0.5) * cell * e.jitter, y + R.range(-0.5, 0.5) * cell * e.jitter];
       if (G.inside(reg, p, cell * 0.2)) pts.push(p);
     }
+    if (!pts.length) pts.push(G.centroid(reg));
     let cells = G.voronoi(pts, reg);
-    if (e.relax !== false) {
-      const relaxed = cells.map((C, i) => (C.length ? G.centroid(C) : pts[i]));
-      cells = G.voronoi(relaxed, reg);
-    }
+    if (e.relax !== false) cells = G.voronoi(cells.map((C, i) => (C.length ? G.centroid(C) : pts[i])), reg);
     for (const C of cells) if (C.length) add(C);
   }
 }
 
-/** Divide a block among the streets it fronts, and each frontage into plots. */
+/** Each block edge's street: the ring (the old wall), a seam between plans, an old lane, an avenue, a street. */
+function rankEdges(city, b, o) {
+  const d = city.districts[b.district], e = d.plan, Rs = Rand(o.seed, `street/${b.id}`);
+  b.widths = b.cell.map((p, i) => {
+    const q = b.cell[(i + 1) % b.cell.length];
+    let w, rank;
+    const lane = city.lanes.find((L) => {
+      const dp = -L.u[1] * (p[0] - L.o[0]) + L.u[0] * (p[1] - L.o[1]), dq = -L.u[1] * (q[0] - L.o[0]) + L.u[0] * (q[1] - L.o[1]);
+      const tp = L.u[0] * (p[0] - L.o[0]) + L.u[1] * (p[1] - L.o[1]), tq = L.u[0] * (q[0] - L.o[0]) + L.u[1] * (q[1] - L.o[1]);
+      return Math.abs(dp) < 1e-5 && Math.abs(dq) < 1e-5 && Math.min(tp, tq) > -1e-6;
+    });
+    // which district lies across? (none: the frame)
+    const mid = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], [nx, ny] = G.edgeLine(b.cell, i);
+    const other = districtAt(city, [mid[0] - nx * 2, mid[1] - ny * 2]);
+    if (lane) { w = OLDROAD; rank = 'old road'; }
+    else if (other && other !== d) {
+      if (d.isCore || other.isCore) { w = RING; rank = 'ring'; }
+      else { w = SEAM; rank = 'seam'; }
+    } else if (b.avenue && b.avenue[i]) { w = e.avenue; rank = 'avenue'; }
+    else { w = Rs.range(e.street[0], e.street[1]); rank = 'street'; }
+    return { w: w * o.streetScale, rank };
+  });
+}
+
+/**
+ * Blocks too small to build on are not built: absorbed by a neighbour across a minor street (which is
+ * closed), or left as a traffic island or a pocket square.
+ */
+function slivers(city) {
+  const MIN_AREA = 450, MIN_R = 6.5;
+  const test = (b) => !b.lot.length || Math.abs(G.area(b.lot)) < MIN_AREA || G.inradius(b.lot) < MIN_R;
+  const sliver = city.blocks.map(test);
+  const box = city.blocks.map((b) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of b.cell) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); } return [x0 - 1, y0 - 1, x1 + 1, y1 + 1]; });
+  const minor = (r) => r === 'street' || r === 'seam';
+  for (const b of city.blocks) {
+    if (!sliver[b.id]) continue;
+    // the neighbours sharing a minor street with it, biggest first
+    let best = null, bestEdge = -1, theirEdge = -1, bestArea = 0;
+    const [x0, y0, x1, y1] = box[b.id];
+    for (const c of city.blocks) {
+      if (c === b || c.absorbed != null || sliver[c.id] || !c.lot.length) continue;
+      const k = box[c.id];
+      if (k[0] > x1 || k[2] < x0 || k[1] > y1 || k[3] < y0) continue;
+      for (let i = 0; i < b.cell.length; i++) {
+        if (!minor(b.widths[i].rank)) continue;
+        const p = b.cell[i], q = b.cell[(i + 1) % b.cell.length];
+        for (let j = 0; j < c.cell.length; j++) {
+          if (G.sharedLength(p, q, c.cell[j], c.cell[(j + 1) % c.cell.length]) > 3) {
+            const A = Math.abs(G.area(c.lot));
+            if (A > bestArea) { best = c; bestEdge = i; theirEdge = j; bestArea = A; }
+          }
+        }
+      }
+    }
+    if (best) {
+      b.widths[bestEdge] = { w: 0, rank: 'closed' }; best.widths[theirEdge] = { w: 0, rank: 'closed' };
+      b.lot = G.inset(b.cell, b.widths.map((x) => x.w / 2)); best.lot = G.inset(best.cell, best.widths.map((x) => x.w / 2));
+      b.absorbed = best.id;
+    } else if (b.lot.length) {
+      if (Math.abs(G.area(b.lot)) < 200) b.island = true; else { b.square = 'pocket'; city.squares.push(b.id); }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------- the fabric --
+/** Land value, 0..1: falling from the core, higher on the big streets and round a rond-point. */
+function value(city, p, rank) {
+  const c = city.districts[0] ? city.districts[0].seed : [0, 0];
+  let v = Math.exp(-Math.hypot(p[0] - c[0], p[1] - c[1]) / (city.size * 0.3));
+  for (const d of city.districts) if (d.plaza) v += 0.35 * Math.exp(-Math.hypot(p[0] - d.plaza[0], p[1] - d.plaza[1]) / 160);
+  v *= { ring: 1.3, avenue: 1.25, 'old road': 1.2, seam: 1.08 }[rank] || 1;
+  return Math.max(0, Math.min(1, v));
+}
+
+/**
+ * How far an UNPLANNED district's fabric leans toward its neighbour's at this point: up to half-way at
+ * the seam, nothing 150 m in. A planned district keeps its edge (0).
+ */
+function blend(city, d, p) {
+  if (d.plan.planned) return null;
+  let best = Infinity, other = null;
+  for (const P of d.parts) for (let i = 0; i < P.length; i++) {
+    if (!G.inside(P, p, 1)) break;                       // only the part the point is in
+    const dist = G.edgeDist(P, i, p);
+    if (dist < best && dist > -1) {
+      const [nx, ny] = G.edgeLine(P, i), foot = [p[0] - nx * (dist + 2), p[1] - ny * (dist + 2)];
+      const o = districtAt(city, foot);
+      if (o && o !== d) { best = Math.max(0, dist); other = o; }
+    }
+  }
+  if (!other) return null;
+  const w = 0.5 * (1 - smooth(0, 150, best));
+  return w > 0.01 ? { w, other } : null;
+}
+/** The district a point lies in, or null outside the frame. */
+function districtAt(city, p) {
+  for (const d of city.districts) for (const P of d.parts) if (G.inside(P, p, 1e-6)) return d;
+  return null;
+}
+
+/** Divide a block among the streets it fronts, and each frontage into strips (the finest plots). */
 function layPlots(city, b, o) {
-  const d = city.districts[b.district], e = d.era, B = b.lot, Z = G.zones(B);
+  const d = city.districts[b.district], e = d.plan, B = b.lot, Z = G.zones(B);
   const R = Rand(o.seed, `plots/${b.id}`);
   Z.forEach((zone, i) => {
     if (zone.length < 3) return;
     const a = B[i], q = B[(i + 1) % B.length], L = Math.hypot(q[0] - a[0], q[1] - a[1]);
-    if (L < 3) { addPlot(city, b, zone, i, L, 0); return; }
+    const closed = b.widths[i] && b.widths[i].rank === 'closed', rank = b.widths[i] ? b.widths[i].rank : 'street';
+    const f = { id: city.frontages.length, block: b.id, district: d.id, edge: i, a, q, rank, closed, strips: [] };
+    city.frontages.push(f);
+    if (L < 3 || closed) { f.strips.push(addPlot(city, b, zone, i, Math.max(L, 0.1), closed)); return; }
     const ux = (q[0] - a[0]) / L, uy = (q[1] - a[1]) / L;
-    // plot widths along the frontage, scaled to fit it exactly
+    // the plan's plot width, leaning toward the neighbour's across an unplanned seam
+    const bl = blend(city, d, [(a[0] + q[0]) / 2, (a[1] + q[1]) / 2]);
+    let lo = e.plotW[0], hi = e.plotW[1];
+    if (bl) { lo = lerp(lo, bl.other.plan.plotW[0], bl.w); hi = lerp(hi, bl.other.plan.plotW[1], bl.w); }
+    lo *= o.plotScale; hi *= o.plotScale;
     const ws = [];
     let sum = 0;
-    const lo = e.plotW[0] * o.plotScale, hi = e.plotW[1] * o.plotScale;
     while (sum < L - lo * 0.5) { const w = R.range(lo, hi); ws.push(w); sum += w; }
     if (!ws.length) ws.push(L);
-    // the burgage cycle: neighbouring strips merged into one, more often in later eras
-    const merged = [];
-    for (const w of ws) { if (merged.length && R.chance(e.merge)) merged[merged.length - 1] += w; else merged.push(w); }
-    const k = L / merged.reduce((s, w) => s + w, 0), cuts = [];
+    const k = L / ws.reduce((s, w) => s + w, 0), cuts = [];
     let acc = 0;
-    for (let m = 0; m < merged.length - 1; m++) { acc += merged[m] * k; cuts.push(acc); }
-    const strips = G.slices(zone, a, ux, uy, cuts);
-    strips.forEach((S, m) => { if (S.length >= 3) addPlot(city, b, S, i, merged[m] * k, m); });
+    for (let m = 0; m < ws.length - 1; m++) { acc += ws[m] * k; cuts.push(acc); }
+    G.slices(zone, a, ux, uy, cuts).forEach((S, m) => { if (S.length >= 3) f.strips.push(addPlot(city, b, S, i, ws[m] * k, false)); });
   });
 }
-function addPlot(city, b, poly, front, width, index) {
+function addPlot(city, b, poly, front, width, yard) {
   const B = b.lot, a = B[front], q = B[(front + 1) % B.length];
-  city.plots.push({ id: city.plots.length, block: b.id, district: b.district, poly, front: [a, q], frontEdge: front, width, index, depth: depthFrom(poly, a, q) });
+  const p = { id: city.plots.length, block: b.id, district: b.district, poly, front: [a, q], frontEdge: front, width, depth: depthFrom(poly, a, q), yard };
+  p.value = value(city, G.centroid(poly), b.widths[front] ? b.widths[front].rank : 'street');
+  city.plots.push(p);
+  return p.id;
 }
 function depthFrom(P, a, q) {
   const dx = q[0] - a[0], dy = q[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
@@ -266,52 +496,99 @@ function depthFrom(P, a, q) {
   return m;
 }
 
-/** The building on a plot: on its front, as deep, tall and roofed as its era built. */
-function build(city, p, o) {
-  const d = city.districts[p.district], e = d.era, R = Rand(o.seed, `building/${p.id}`);
-  const [a, q] = p.front, dx = q[0] - a[0], dy = q[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
-  const c0 = -(nx * a[0] + ny * a[1]);                      // distance behind the frontage line
-  if (R.chance(0.04) && e.setback === 0) return;            // a gap: a yard, a gate, a ruin
-  const setback = e.setback, depth = R.range(e.depth[0], e.depth[1]);
-  let F = G.clipHalf(p.poly, nx, ny, c0 - setback);
+// ---------------------------------------------------------------------------- the buildings --
+/** The first building on each parcel of a frontage, in its plan's style, in the decades after the plan. */
+function firstBuild(city, f, o) {
+  const d = city.districts[f.district], R = Rand(o.seed, `first/${f.id}`);
+  f.parcels = [];
+  for (const id of f.strips) {
+    const prev = f.parcels[f.parcels.length - 1];
+    if (prev && R.chance(d.plan.merge) && !city.plots[id].yard && !city.plots[prev.strips[0]].yard) prev.strips.push(id);
+    else f.parcels.push({ strips: [id], building: null });
+  }
+  for (const pc of f.parcels) {
+    const year = d.year + Math.round(R.range(0, d.plan.planned ? 25 : 60));
+    pc.building = build(city, f, pc.strips, d.plan.style, year, o);
+  }
+}
+
+/** One wave of redevelopment along a frontage: the rent gap decides who is rebuilt, and how much they take with them. */
+function rebuild(city, f, wave, o) {
+  const d = city.districts[f.district];
+  if (d.year > wave.year - 20 || f.closed) return;
+  const st = STYLES[wave.style], R = Rand(o.seed, `wave/${wave.year}/${f.id}`);
+  const out = [];
+  for (let i = 0; i < f.parcels.length; i++) {
+    const pc = f.parcels[i], cur = pc.building ? city.buildings[pc.building] : null;
+    const young = cur && cur.from > wave.year - 45;
+    const v = pc.strips.reduce((s, id) => s + city.plots[id].value, 0) / pc.strips.length;
+    const villa = cur && cur.style === 'villa';
+    const p = wave.p * Math.pow(v, 1.6) * (villa ? 0.35 : 1) * (d.kind === 'village' ? 0.5 : 1);
+    if (young || pc.strips.every((id) => city.plots[id].yard) || !R.chance(p)) { out.push(pc); continue; }
+    // the new building takes this parcel, and (in a merging style) its neighbours, up to the style's width
+    const strips = [...pc.strips], ended = [pc];
+    let width = strips.reduce((s, id) => s + city.plots[id].width, 0);
+    while (i + 1 < f.parcels.length && R.chance(st.merge)) {
+      const nx = f.parcels[i + 1], nb = nx.building ? city.buildings[nx.building] : null;
+      const w = nx.strips.reduce((s, id) => s + city.plots[id].width, 0);
+      if ((nb && nb.from > wave.year - 45) || width + w > st.maxW) break;
+      strips.push(...nx.strips); ended.push(nx); width += w; i++;
+    }
+    const year = wave.year + Math.round(R.range(0, 30));
+    for (const e of ended) if (e.building != null) city.buildings[e.building].to = year;
+    out.push({ strips, building: build(city, f, strips, wave.style, year, o) });
+  }
+  f.parcels = out;
+}
+
+/** A building on a parcel (consecutive strips of one frontage): on its front, as deep, tall and roofed as its style built. */
+function build(city, f, strips, styleName, year, o) {
+  const st = STYLES[styleName], d = city.districts[f.district];
+  const parcel = strips.length === 1 ? city.plots[strips[0]].poly : G.hull(strips.flatMap((id) => city.plots[id].poly));
+  if (strips.every((id) => city.plots[id].yard)) return null;
+  const R = Rand(o.seed, `building/${f.id}/${strips[0]}/${year}`);
+  const { a, q } = f, dx = q[0] - a[0], dy = q[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+  const c0 = -(nx * a[0] + ny * a[1]);
+  if (st.setback === 0 && strips.length === 1 && R.chance(0.03)) return null;     // a gap: a yard, a gate
+  const setback = st.setback, depth = R.range(st.depth[0], st.depth[1]);
+  let F = G.clipHalf(parcel, nx, ny, c0 - setback);
   F = G.clipHalf(F, -nx, -ny, -c0 + setback + depth);
-  if (e.side) {
-    // a house stands free of its neighbours: side yards, on the edges that are not the frontage
-    const w = F.map((pt, i) => {
-      const nb = F[(i + 1) % F.length], mid = [(pt[0] + nb[0]) / 2, (pt[1] + nb[1]) / 2];
-      return Math.abs(nx * mid[0] + ny * mid[1] + c0 - setback) < 0.5 ? 0 : e.side;
-    });
+  if (st.side) {
+    const w = F.map((pt, i) => { const nb = F[(i + 1) % F.length], mid = [(pt[0] + nb[0]) / 2, (pt[1] + nb[1]) / 2]; return Math.abs(nx * mid[0] + ny * mid[1] + c0 - setback) < 0.5 ? 0 : st.side; });
     F = G.inset(F, w);
   }
-  if (F.length < 3 || G.area(F) < 18) return;
-  // height: the era's range, falling with distance from the city's centre (the value of land)
-  const core = city.districts[0].seed, cen = G.centroid(F), dist = Math.hypot(cen[0] - core[0], cen[1] - core[1]);
-  const t = Math.min(1, dist / (city.frame[1][0] * 1.1));
-  const lo = e.storeys[0][0] + (e.storeys[1][0] - e.storeys[0][0]) * t, hi = e.storeys[0][1] + (e.storeys[1][1] - e.storeys[0][1]) * t;
-  let storeys = Math.max(1, Math.round(R.range(lo, hi) * o.heightScale));
-  if (e.roof === 'flat' && R.chance(0.04) && G.area(F) > 500) storeys = Math.round(storeys * R.range(1.8, 3));   // a tower
-  const h = storeys * e.storeyH;
-  const roofKind = e.roof;
-  const roof = roofKind === 'hip' ? G.hipRoof(F, e.pitch) : roofKind === 'mansard' ? mansard(F, e.storeyH * 1.1) : null;
-  city.buildings.push({ id: city.buildings.length, plot: p.id, district: p.district, footprint: F, storeys, height: h, roof: roofKind, roofFaces: roof, frontEdge: frontEdgeOf(F, nx, ny, c0 - setback) });
+  if (F.length < 3 || G.area(F) < 18) return null;
+  // height: the style's range, along the land's value (and an unplanned seam leans to its neighbour's)
+  const v = strips.reduce((s, id) => s + city.plots[id].value, 0) / strips.length;
+  let lo = st.storeys[0], hi = st.storeys[1];
+  const bl = blend(city, d, G.centroid(F));
+  if (bl && bl.other.year <= year) { const os = STYLES[bl.other.plan.style]; lo = lerp(lo, os.storeys[0], bl.w); hi = lerp(hi, os.storeys[1], bl.w); }
+  let storeys = Math.max(1, Math.round((lo + (hi - lo) * Math.pow(v, 0.8) + R.range(-0.6, 0.6)) * o.heightScale));
+  if (st.tower && Math.abs(G.area(F)) > 450 && R.chance(st.tower * v)) storeys = Math.round(storeys * R.range(1.6, 2.6));
+  const h = storeys * st.storeyH;
+  const roof = st.roof === 'hip' ? G.hipRoof(F, st.pitch) : st.roof === 'mansard' ? mansard(F, st.storeyH * 1.1) : null;
+  const b = { id: city.buildings.length, plot: strips[0], strips, frontage: f.id, district: f.district, style: styleName, from: year, to: null, footprint: F, storeys, height: h, roof: st.roof, roofFaces: roof };
+  city.buildings.push(b);
+  return b.id;
 }
-/** A mansard: a steep lower slope to a setback, then flat. The hip zones, capped at a height. */
+/** A mansard: a steep lower slope up to a set height, then flat (the hip zones, capped). */
 function mansard(F, h) {
   const steep = 2.2, cap = h / steep;
   return G.zones(F).map((Z, i) => ({ edge: i, poly: Z.map((p) => [p[0], p[1], Math.min(cap, Math.max(0, G.edgeDist(F, i, p))) * steep]) })).filter((r) => r.poly.length >= 3);
 }
-function frontEdgeOf(F, nx, ny, c) {
-  for (let i = 0; i < F.length; i++) { const p = F[i], q = F[(i + 1) % F.length]; if (Math.abs(nx * p[0] + ny * p[1] + c) < 0.05 && Math.abs(nx * q[0] + ny * q[1] + c) < 0.05) return i; }
-  return -1;
-}
 
 function stats(city) {
   const A = (P) => Math.abs(G.area(P));
-  const land = A(city.frame), blocks = city.blocks.reduce((s, b) => s + A(b.lot.length ? b.lot : [[0, 0], [0, 0], [0, 0]]), 0);
-  const built = city.buildings.reduce((s, b) => s + A(b.footprint), 0), floor = city.buildings.reduce((s, b) => s + A(b.footprint) * b.storeys, 0);
+  const now = standing(city, PRESENT).buildings, land = A(city.frame);
+  const lots = city.blocks.reduce((s, b) => s + (b.lot.length ? A(b.lot) : 0), 0);
+  const built = now.reduce((s, b) => s + A(b.footprint), 0), floor = now.reduce((s, b) => s + A(b.footprint) * b.storeys, 0);
+  const byStyle = {};
+  for (const b of now) byStyle[b.style] = (byStyle[b.style] || 0) + 1;
   return {
-    districts: city.districts.length, blocks: city.blocks.length, plots: city.plots.length, buildings: city.buildings.length,
-    streetShare: 1 - blocks / land, coverage: built / land, far: floor / land,
-    tallest: city.buildings.reduce((m, b) => Math.max(m, b.height), 0),
+    districts: city.districts.length, blocks: city.blocks.length, plots: city.plots.length, buildings: now.length, everBuilt: city.buildings.length,
+    streetShare: 1 - lots / land, coverage: built / land, far: floor / land,
+    tallest: now.reduce((m, b) => Math.max(m, b.height), 0), byStyle,
+    absorbed: city.blocks.filter((b) => b.absorbed != null).length, islands: city.blocks.filter((b) => b.island).length,
+    survivors: now.filter((b) => b.from < 1800).length,
   };
 }

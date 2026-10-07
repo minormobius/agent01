@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>polis — morph</title>
-<meta name="description" content="A city's form from districts down to buildings: streets, blocks, plots and buildings, each district laid out by its own era.">
+<meta name="description" content="A city's form laid down in time: country lanes and villages, districts each laid out by its own era, plots, and buildings rebuilt wave by wave for seven centuries.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230d1117'/%3E%3Cpath d='M2 14V7h3v7M6 14V3h4v11M11 14V9h3v5' fill='%23d9a441'/%3E%3C/svg%3E">
 <style>
   :root { --bg:#0d1117; --panel:#131a24ee; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; }
@@ -52,6 +52,8 @@
   <div class="row"><label>seed</label><input id="seed" type="number" style="width:90px;background:#0d1117;color:var(--ink);border:1px solid var(--edge);border-radius:6px;padding:3px 6px"></div>
   <div class="row"><label>districts</label><input id="districts" type="range" min="2" max="10" step="1"><span class="v" id="districtsV"></span></div>
   <div class="row"><label>the core</label><div class="seg" id="coreSeg"></div></div>
+  <div class="row"><label>year</label><button id="play" type="button">▶</button><input id="year" type="range" min="1100" max="2025" step="1"><span class="v" id="yearV"></span></div>
+  <div class="row"><label>colour by</label><div class="seg" id="colSeg"></div></div>
   <div class="row"><label>later eras</label><div class="seg" id="eraSeg"></div></div>
   <div class="row"><label>plot width</label><input id="plotScale" type="range" min="0.5" max="2.5" step="0.05"><span class="v" id="plotScaleV"></span></div>
   <div class="row"><label>streets</label><input id="streetScale" type="range" min="0.5" max="2" step="0.05"><span class="v" id="streetScaleV"></span></div>
@@ -61,19 +63,29 @@
   <div class="legend" id="legend"></div>
   <div class="stats" id="stats"></div>
   <div class="note">
-    <p>A town plan is three things laid down at different times: the <b>streets</b>, the <b>plots</b>, and the <b>buildings</b> on the plots (M. R. G. Conzen, 1960). Each district here was laid out in one era by one idea of a street: an organic core, a planned grid, a boulevard scheme round a rond-point, a modern grid, a suburb. Each lattice runs at its own angle, so where two meet the blocks are cut short: a boulevard on the seam, and triangular plots where flatirons go.</p>
-    <p>Every block is shared among the streets it fronts (the land nearest each street is its), and each frontage is cut into plots running back to the block's middle: narrow burgage plots in the old core, wider and often merged ones later. Buildings stand on the front of their plots, as deep, tall and roofed as their era built. Every cut is a convex clip, so the plots tile the blocks exactly. Plan: drag to pan, wheel or pinch to zoom, tap to inspect. Model: drag to turn, shift-drag or two fingers to pan.</p>
+    <p>A town plan is three things laid down at different times and lasting differently long: the <b>streets</b>, the <b>plots</b>, and the <b>buildings</b> on the plots (M. R. G. Conzen, 1960). So a city is a palimpsest. Drag the year, or play it.</p>
+    <p><b>The countryside comes first</b>: lanes out of a market town, and hamlets on them. Every later plan inherits both. A lane is never erased: it runs on through the grids as an old road (Broadway through Manhattan), and a hamlet survives inside the city as an urban village, its own small cell that the later plans flow round.</p>
+    <p><b>Districts are grains</b>: each was laid out in one era by one idea of a street (an organic core, a planned grid, a boulevard scheme round a rond-point, a suburb, a modern grid), each at its own angle, so where two meet the blocks are cut short. The old core's edge is where its wall stood: a ring boulevard. A block too small to build on is absorbed by its neighbour (the street between them closes), or left as an island or a pocket square.</p>
+    <p><b>The fabric is a field</b>: land value falls from the core and rises on the big streets, and heights follow it. An unplanned district's plots and heights lean toward its neighbour's over the seam, as growth does; a planned one keeps its edge.</p>
+    <p><b>Buildings have histories</b>. Each plot is built in its plan's style, then waves of redevelopment (1780, 1870, 1965, 2005) rebuild where the land has come to be worth far more than what stands on it: often on the big streets, rarely on quiet ones, so old houses survive where values stayed low. A rebuilding often takes its neighbours' plots too, so a modern slab stands on what were six medieval strips. Tap a building for its plot's history.</p>
+    <p>Plan: drag to pan, wheel or pinch to zoom, tap to inspect. Model: drag to turn, shift-drag or two fingers to pan.</p>
   </div>
 </div>
 <div id="inspect"></div>
 <script type="module">
-import { generate, ERAS, KINDS } from './morph.js';
+import { generate, standing, ERAS, KINDS, PLANS, STYLES, PRESENT } from './morph.js';
 import * as G from './geom.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('c'), ctx = canvas.getContext('2d');
-const COLOURS = { organic: [205, 160, 112], grid: [176, 168, 150], radial: [214, 196, 160], modern: [140, 158, 184], suburb: [176, 150, 128] };
-const ROOFS = { organic: [146, 72, 52], grid: [120, 92, 80], radial: [96, 104, 118], modern: [92, 96, 104], suburb: [150, 84, 60] };
+// walls and roofs by the style a building was built in
+const COLOURS = { village: [196, 172, 132], medieval: [205, 160, 112], georgian: [186, 132, 104], haussmann: [222, 206, 170], villa: [214, 190, 160], modern: [150, 158, 170], glass: [120, 168, 204] };
+const ROOFS = { village: [150, 120, 70], medieval: [146, 72, 52], georgian: [92, 88, 96], haussmann: [96, 104, 118], villa: [160, 80, 58], modern: [92, 96, 104], glass: [80, 120, 150] };
+// by the year it was built: a ramp from old (warm, dark) to new (cool, bright)
+const AGES = [[1100, [92, 52, 36]], [1400, [150, 74, 46]], [1700, [200, 132, 70]], [1850, [222, 196, 120]], [1930, [168, 196, 160]], [1980, [120, 170, 210]], [2025, [200, 230, 255]]];
+const ageCol = (y) => { for (let i = 1; i < AGES.length; i++) if (y <= AGES[i][0]) { const [y0, a] = AGES[i - 1], [y1, b] = AGES[i], t = Math.max(0, (y - y0) / (y1 - y0)); return a.map((v, k) => v + (b[k] - v) * t); } return AGES[AGES.length - 1][1]; };
+const wallOf = (b) => (st.colour === 'age' ? ageCol(b.from) : COLOURS[b.style]);
+const roofOf = (b) => (st.colour === 'age' ? ageCol(b.from).map((v) => v * 0.7) : ROOFS[b.style]);
 const LAYERS = ['districts', 'plots', 'buildings', 'labels'];
 
 // ---- state, from the link
@@ -87,9 +99,11 @@ const st = {
   view: q.get('view') === 'model' ? 'model' : 'plan',
   layers: new Set((q.get('show') || 'districts,plots,buildings,labels').split(',')),
   sun: q.has('sun') ? +q.get('sun') : 225,
+  year: q.has('y') ? +q.get('y') : PRESENT,
+  colour: q.get('col') === 'age' ? 'age' : 'style',
 };
 const cam = { x: 0, y: 0, zoom: 1, yaw: 0.6, tilt: 0.75 };
-let city = null, order = null;
+let city = null, order = null, vis = null;
 
 function remember() {
   const p = new URLSearchParams({ seed: st.seed, n: st.districts, core: st.core, eras: st.later.join(',') });
@@ -99,6 +113,8 @@ function remember() {
   if (st.view === 'model') p.set('view', 'model');
   p.set('show', [...st.layers].join(','));
   if (st.sun !== 225) p.set('sun', st.sun);
+  if (st.year !== PRESENT) p.set('y', st.year);
+  if (st.colour === 'age') p.set('col', 'age');
   history.replaceState(null, '', '#' + p);
 }
 
@@ -106,9 +122,15 @@ function rebuild() {
   const t0 = performance.now();
   city = generate({ seed: st.seed, districts: st.districts, kinds: [st.core, ...st.later.filter((k) => k !== st.core)], plotScale: st.plotScale, streetScale: st.streetScale, heightScale: st.heightScale });
   const ms = performance.now() - t0, s = city.stats;
-  $('stats').innerHTML = `<b>${s.blocks}</b> blocks · <b>${s.plots}</b> plots · <b>${s.buildings}</b> buildings<br>${(s.streetShare * 100).toFixed(0)}% street · ${(s.coverage * 100).toFixed(0)}% built over · floor area ratio <b>${s.far.toFixed(2)}</b> · tallest ${s.tallest.toFixed(0)} m<br>generated in ${ms.toFixed(0)} ms`;
-  order = null; $('inspect').style.display = 'none';
-  draw(); remember();
+  $('stats').innerHTML = `<b>${s.blocks}</b> blocks · <b>${s.plots}</b> plots · <b>${s.buildings}</b> buildings standing (${s.everBuilt} ever built)<br>${(s.streetShare * 100).toFixed(0)}% street · ${(s.coverage * 100).toFixed(0)}% built over · floor area ratio <b>${s.far.toFixed(2)}</b> · tallest ${s.tallest.toFixed(0)} m<br>${s.survivors} buildings from before 1800 still stand · ${s.absorbed} slivers absorbed<br>generated in ${ms.toFixed(0)} ms`;
+  $('year').min = Math.floor(city.years[0] / 10) * 10; $('year').max = PRESENT;
+  setYear(Math.max(+$('year').min, Math.min(PRESENT, st.year)));
+  $('inspect').style.display = 'none';
+}
+function setYear(y) {
+  st.year = y; $('year').value = y; $('yearV').textContent = y;
+  vis = standing(city, y); vis.blockSet = new Set(vis.blocks.map((b) => b.id));
+  order = null; draw(); remember();
 }
 
 // ---- the controls
@@ -125,6 +147,30 @@ for (const [id, key, fmt] of [['districts', 'districts', (v) => v], ['plotScale'
   el.oninput = () => { st[key] = +el.value; $(id + 'V').textContent = fmt(+el.value); };
   el.onchange = rebuild;
 }
+$('year').oninput = () => { stopPlay(); setYear(+$('year').value); };
+let playing = null;
+function stopPlay() { if (playing) cancelAnimationFrame(playing); playing = null; $('play').textContent = '▶'; }
+$('play').onclick = () => {
+  if (playing) return stopPlay();
+  let y = st.year >= PRESENT ? +$('year').min : st.year, t0 = null;
+  $('play').textContent = '❚❚';
+  const step = (t) => {
+    if (t0 == null) t0 = t;
+    // about 25 s for the whole history; quicker through the quiet centuries
+    const dt = Math.min(0.1, (t - t0) / 1000); t0 = t;
+    y = Math.min(PRESENT, y + dt * (y < 1700 ? 70 : 30));
+    if (Math.floor(y) !== st.year) setYear(Math.floor(y));
+    if (y >= PRESENT) return stopPlay();
+    playing = requestAnimationFrame(step);
+  };
+  playing = requestAnimationFrame(step);
+};
+seg($('colSeg'), [['style', 'style'], ['age', 'year built']], (k) => st.colour === k, (k) => { st.colour = k; legend(); draw(); remember(); });
+function legend() {
+  if (st.colour === 'age') { $('legend').innerHTML = AGES.map(([y, c]) => `<span><i style="background:rgb(${c})"></i>${y}</span>`).join(''); return; }
+  $('legend').innerHTML = Object.entries(STYLES).map(([k, x]) => `<span><i style="background:rgb(${COLOURS[k]})"></i>${x.label}</span>`).join('');
+}
+legend();
 $('sun').value = st.sun; $('sunV').textContent = `${st.sun}°`;
 $('sun').oninput = () => { st.sun = +$('sun').value; $('sunV').textContent = `${st.sun}°`; draw(); remember(); };
 $('seed').value = st.seed; $('seed').onchange = () => { st.seed = +$('seed').value || 1; rebuild(); };
@@ -132,7 +178,6 @@ $('new').onclick = () => { st.seed = 1 + Math.floor(Math.random() * 99999); $('s
 const setView = (v) => { st.view = v; $('vplan').classList.toggle('on', v === 'plan'); $('vmodel').classList.toggle('on', v === 'model'); $('sunRow').style.display = v === 'model' ? '' : 'none'; order = null; draw(); remember(); };
 $('vplan').onclick = () => setView('plan'); $('vmodel').onclick = () => setView('model');
 $('toggle').onclick = () => { $('panel').classList.toggle('closed'); $('toggle').textContent = $('panel').classList.contains('closed') ? '▴' : '▾'; };
-$('legend').innerHTML = KINDS.map((k) => `<span><i style="background:rgb(${COLOURS[k]})"></i>${ERAS[k].label} (${ERAS[k].year})</span>`).join('');
 
 // ---- the camera
 let W = 0, H = 0, DPR = 1;
@@ -163,35 +208,42 @@ function draw() {
   if (st.view === 'plan') drawPlan(); else drawModel();
 }
 
+const STREETS = { ring: 'rgba(217,164,65,0.45)', 'old road': 'rgba(196,150,96,0.6)', avenue: 'rgba(90,169,230,0.28)', seam: 'rgba(90,169,230,0.18)' };
+function ground(f) {
+  // the countryside, the lanes over it, the districts laid out by now (their streets), and their lots
+  poly(city.frame, f); ctx.fillStyle = '#3a4a2e'; ctx.fill();
+  ctx.save(); poly(city.frame, f); ctx.clip();
+  ctx.lineCap = 'round'; ctx.strokeStyle = '#8a7a58'; ctx.lineWidth = Math.max(1, baseScale() * cam.zoom * 5);
+  for (const L of city.lanes) { const [ax, ay] = f(L.o), [bx, by] = f([L.o[0] + L.u[0] * city.size * 1.5, L.o[1] + L.u[1] * city.size * 1.5]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); }
+  for (const b of vis.blocks) { poly(b.cell, f); ctx.fillStyle = '#2a2d33'; ctx.fill(); }
+  for (const b of vis.blocks) { if (!b.lot.length || b.island) continue; poly(b.lot, f); ctx.fillStyle = b.square ? '#3f6b45' : '#d8d1bf'; ctx.fill(); }
+  ctx.restore();
+}
 function drawPlan() {
   const f = (p) => planXY(p[0], p[1]), z = baseScale() * cam.zoom;
-  poly(city.frame, f); ctx.fillStyle = '#2a2d33'; ctx.fill();                       // the streets: everything not a block
-  for (const b of city.blocks) {
-    if (!b.lot.length) continue;
-    poly(b.lot, f); ctx.fillStyle = b.square ? '#3f6b45' : '#d8d1bf'; ctx.fill();
-  }
+  ground(f);
   if (st.layers.has('plots') && z > 0.35) {
     ctx.lineWidth = Math.min(1, z * 0.6); ctx.strokeStyle = 'rgba(120,108,90,0.55)';
-    for (const p of city.plots) { poly(p.poly, f); ctx.stroke(); }
+    for (const p of city.plots) { if (!vis.blockSet.has(p.block)) continue; poly(p.poly, f); ctx.stroke(); }
   }
   if (st.layers.has('buildings')) {
-    for (const b of city.buildings) {
-      const kind = city.districts[b.district].kind, k = 0.62 + Math.min(0.5, b.height / 160);
-      poly(b.footprint, f); ctx.fillStyle = rgb(COLOURS[kind], k * 0.85); ctx.fill();
+    for (const b of vis.buildings) {
+      const k = 0.62 + Math.min(0.5, b.height / 160);
+      poly(b.footprint, f); ctx.fillStyle = rgb(wallOf(b), k * 0.85); ctx.fill();
       if (z > 0.8) { ctx.lineWidth = 0.6; ctx.strokeStyle = 'rgba(40,30,25,0.6)'; ctx.stroke(); }
     }
   }
-  // the boulevards and avenues, lightly marked
+  // the ring, the old roads, the avenues and seams, lightly marked
   ctx.lineCap = 'round';
   for (const s of city.streets) {
-    if (s.rank === 'street') continue;
+    if (!STREETS[s.rank] || !vis.blockSet.has(s.block)) continue;
     const [ax, ay] = f(s.a), [bx, by] = f(s.b);
-    ctx.strokeStyle = s.rank === 'boulevard' ? 'rgba(217,164,65,0.35)' : 'rgba(90,169,230,0.25)'; ctx.lineWidth = Math.max(1, z * 2);
+    ctx.strokeStyle = STREETS[s.rank]; ctx.lineWidth = Math.max(1, z * 2);
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
   }
   if (st.layers.has('districts')) {
     ctx.setLineDash([6, 5]); ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(217,164,65,0.7)';
-    for (const d of city.districts) { poly(d.region, f); ctx.stroke(); }
+    for (const d of vis.districts) for (const P of d.parts) { poly(P, f); ctx.stroke(); }
     ctx.setLineDash([]);
   }
   if (st.layers.has('labels')) labels((p) => f(p));
@@ -199,9 +251,9 @@ function drawPlan() {
 
 function labels(f) {
   ctx.font = '600 12px ui-sans-serif,system-ui,sans-serif'; ctx.textAlign = 'center';
-  for (const d of city.districts) {
+  for (const d of vis.districts) {
     const [x, y] = f(d.centre);
-    const t1 = d.era.label, t2 = `c. ${d.era.year}`;
+    const t1 = d.plan.label, t2 = `laid out c. ${d.year}`;
     ctx.fillStyle = 'rgba(13,17,23,0.75)'; const w = Math.max(ctx.measureText(t1).width, 50) + 12;
     ctx.fillRect(x - w / 2, y - 16, w, 32);
     ctx.fillStyle = '#d9a441'; ctx.fillText(t1, x, y - 2); ctx.fillStyle = '#8b98a9'; ctx.fillText(t2, x, y + 12);
@@ -212,20 +264,19 @@ function drawModel() {
   const f = (p, z = 0) => modelXYZ(p[0], p[1], z);
   const sunA = st.sun * Math.PI / 180, sun = [Math.sin(sunA) * 0.75, Math.cos(sunA) * 0.75, 0.66];
   const shade = (nx, ny, nz) => 0.42 + 0.68 * Math.max(0, nx * sun[0] + ny * sun[1] + nz * sun[2]);
-  // the ground: streets, lots, squares
-  ctx.beginPath(); city.frame.forEach((p, i) => { const [x, y] = f(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); ctx.fillStyle = '#26292e'; ctx.fill();
-  for (const b of city.blocks) { if (!b.lot.length) continue; ctx.beginPath(); b.lot.forEach((p, i) => { const [x, y] = f(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); ctx.fillStyle = b.square ? '#3d6342' : '#bfb7a5'; ctx.fill(); }
+  // the ground: countryside, lanes, streets, lots, squares
+  ground((p) => f(p, 0));
   if (!st.layers.has('buildings')) { if (st.layers.has('labels')) labels((p) => f(p, 0)); return; }
   // painter's order: the far side first (each building by its footprint's centre)
   const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), depth = (x, y) => (x - cam.x) * sy + (y - cam.y) * cy;
   if (!order || order.yaw !== cam.yaw) {
-    order = city.buildings.map((b) => { const c = G.centroid(b.footprint); return { b, d: depth(c[0], c[1]) }; }).sort((a, b) => b.d - a.d);
+    order = vis.buildings.map((b) => { const c = G.centroid(b.footprint); return { b, d: depth(c[0], c[1]) }; }).sort((a, b) => b.d - a.d);
     order.yaw = cam.yaw;
   }
   const view = [sy, cy];                                  // the direction the camera looks (into the screen, on the ground)
   const s = baseScale() * cam.zoom;
   for (const { b } of order) {
-    const F = b.footprint, kind = city.districts[b.district].kind, wall = COLOURS[kind], roofC = ROOFS[kind], h = b.height;
+    const F = b.footprint, wall = wallOf(b), roofC = roofOf(b), h = b.height;
     // walls: those facing the camera (their outward normal against the view direction)
     for (let i = 0; i < F.length; i++) {
       const p = F[i], q = F[(i + 1) % F.length], ex = q[0] - p[0], ey = q[1] - p[1], L = Math.hypot(ex, ey) || 1, nx = ey / L, ny = -ex / L;
@@ -297,21 +348,27 @@ canvas.addEventListener('wheel', (e) => {
   draw();
 }, { passive: false });
 
+const ROOF_WORDS = { flat: 'flat-roofed', mansard: 'under a mansard', hip: 'under a hipped roof' };
 function inspect(sx, sy) {
   const s = baseScale() * cam.zoom, x = cam.x + (sx - W / 2) / s, y = cam.y - (sy - H / 2) / s, pt = [x, y];
   const el = $('inspect');
-  const b = city.buildings.find((bd) => G.inside(bd.footprint, pt, 0));
-  const p = b ? city.plots[b.plot] : city.plots.find((pl) => G.inside(pl.poly, pt, 0));
-  const blk = p ? city.blocks[p.block] : city.blocks.find((bl) => bl.lot.length && G.inside(bl.lot, pt, 0));
+  const b = vis.buildings.find((bd) => G.inside(bd.footprint, pt, 0));
+  const p = city.plots.find((pl) => vis.blockSet.has(pl.block) && G.inside(pl.poly, pt, 0)) || (b ? city.plots[b.plot] : null);
+  const blk = p ? city.blocks[p.block] : vis.blocks.find((bl) => bl.lot.length && G.inside(bl.lot, pt, 0));
   if (!blk) { el.style.display = 'none'; return; }
   const d = city.districts[blk.district], A = (P) => Math.abs(G.area(P));
-  let html = `<b>${d.era.label}</b>, laid out c. ${d.era.year}<br>`;
-  if (blk.square) html += `an open square, ${A(blk.lot).toFixed(0)} m²`;
+  let html = `<b>${d.plan.label}</b>, laid out c. ${d.year}<br>`;
+  if (blk.square) html += `${blk.square === 'pocket' ? 'a pocket square: a block too small to build' : blk.plaza ? 'the rond-point' : 'an open square'}, ${A(blk.lot).toFixed(0)} m²`;
   if (p) {
     const st2 = blk.widths[p.frontEdge] || { w: 0, rank: 'street' };
-    html += `a plot ${p.width.toFixed(1)} m wide and ${p.depth.toFixed(0)} m deep, ${A(p.poly).toFixed(0)} m², fronting a ${st2.rank} ${st2.w.toFixed(0)} m wide`;
+    html += p.yard ? `a yard behind a closed street, ${A(p.poly).toFixed(0)} m²` : `a plot ${p.width.toFixed(1)} m wide and ${p.depth.toFixed(0)} m deep, fronting ${st2.rank === 'old road' ? 'an' : 'a'} ${st2.rank} ${st2.w.toFixed(0)} m wide; land value ${(p.value * 100).toFixed(0)}`;
   }
-  if (b) html += `<br>a building of ${b.storeys} storey${b.storeys > 1 ? 's' : ''}, ${b.height.toFixed(0)} m to the eaves, ${A(b.footprint).toFixed(0)} m² on the ground, ${b.roof === 'flat' ? 'flat-roofed' : b.roof === 'mansard' ? 'under a mansard' : 'under a hipped roof'}`;
+  if (b) html += `<br>standing in ${st.year}: ${STYLES[b.style].label.replace(/s$/, '')}, built ${b.from}, ${b.storeys} storey${b.storeys > 1 ? 's' : ''}, ${b.height.toFixed(0)} m, ${ROOF_WORDS[b.roof]}${b.strips.length > 1 ? `, on ${b.strips.length} of the original plots` : ''}`;
+  if (p) {
+    // the plot's history: every building that ever stood on it
+    const hist = city.buildings.filter((x) => x.strips.includes(p.id)).sort((u, v) => u.from - v.from);
+    if (hist.length) html += `<br><span style="color:var(--dim)">this plot: ${hist.map((x) => `${x.from}${x.to ? `–${x.to}` : ''} ${STYLES[x.style].label}${x.strips.length > 1 ? ` (×${x.strips.length})` : ''}`).join(' → ')}</span>`;
+  }
   el.innerHTML = html; el.style.display = 'block';
 }
 
