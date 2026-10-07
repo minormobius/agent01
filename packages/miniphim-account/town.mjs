@@ -62,6 +62,49 @@ export function factsOf(m, { now, ours, repliedToday }) {
   };
 }
 
+// ---- threads, whole (the person, 2026-10-07: "send the whole thread with full context, including
+// links they can go verify for themselves") ------------------------------------------------------
+export const WEB = 'https://delve.town';
+export const webUrl = (uri, handle) => { const [, , did, , rkey] = String(uri).split('/'); return `${WEB}/profile/${handle || did}/post/${rkey}`; };
+const THREAD_MAX = 200;
+
+// One post, as a session needs it to read and to check: who, when, the text, a web link to open, and
+// everything the post points at (links in the text, a link card, a quoted post, pictures' alt text).
+export function postView(p, depth = 0) {
+  const r = p?.record || {}, e = p?.embed || {};
+  const links = [...new Set([
+    ...(r.facets || []).flatMap((f) => (f.features || []).filter((x) => /#link$/.test(x.$type || '')).map((x) => x.uri)),
+    ...urlsIn(r.text || '').map((l) => l.uri)])];
+  const ext = e.external || e.media?.external || null;
+  const quoted = e.record?.record || e.record || null;
+  const quote = quoted?.uri && quoted.author ? { uri: quoted.uri, url: webUrl(quoted.uri, quoted.author.handle), author: quoted.author.handle, text: quoted.value?.text || '' } : null;
+  const images = (e.images || e.media?.images || []).map((i) => i.alt || '(no alt text)');
+  const mentions = (r.facets || []).flatMap((f) => (f.features || []).filter((x) => /#mention$/.test(x.$type || '')).map((x) => x.did));
+  return {
+    uri: p.uri, cid: p.cid, url: webUrl(p.uri, p.author?.handle), author: p.author?.handle, name: p.author?.displayName || null,
+    author_is_bot: (p.author?.labels || []).some((l) => l.val === 'bot'), at: r.createdAt || p.indexedAt, depth, text: r.text || '',
+    ...(links.length ? { links } : {}), ...(ext ? { card: { uri: ext.uri, title: ext.title || '', description: ext.description || '' } } : {}),
+    ...(quote ? { quote } : {}), ...(images.length ? { images } : {}), ...(mentions.length ? { mentions } : {}),
+    ...(r.reply ? { parent: r.reply.parent?.uri } : {}), likes: p.likeCount || 0, replies: p.replyCount || 0,
+  };
+}
+
+// A getPostThread answer, flattened in reading order: the ancestors above, then the tree depth-first,
+// each branch oldest first. Posts that are gone or hidden are kept as placeholders so the shape holds.
+export function flattenThread(view, max = THREAD_MAX) {
+  const out = [];
+  const up = []; for (let n = view?.parent; n; n = n.parent) up.unshift(n);
+  for (const n of up) out.push(n.post ? postView(n.post, 0) : { uri: n.uri || null, missing: n.$type || 'not found' });
+  const walk = (n, d) => {
+    if (out.length >= max) return;
+    if (!n?.post) { out.push({ uri: n?.uri || null, missing: n?.$type || 'not found', depth: d }); return; }
+    out.push(postView(n.post, d));
+    for (const c of [...(n.replies || [])].sort((a, b) => String(a.post?.record?.createdAt).localeCompare(String(b.post?.record?.createdAt)))) walk(c, d + 1);
+  };
+  walk(view, up.length);
+  return { posts: out, truncated: out.length >= max };
+}
+
 export async function fetchTown({ password, now = new Date().toISOString(), fetchImpl = fetch } = {}) {
   const token = await session(password, fetchImpl);
   const errors = [];
@@ -79,9 +122,24 @@ export async function fetchTown({ password, now = new Date().toISOString(), fetc
     const facts = factsOf(n, { now, ours, repliedToday });
     const key = (n.record?.text || '').trim().toLowerCase();
     facts.repeat = seenText.has(key); seenText.add(key);
-    return { uri: n.uri, cid: n.cid, author: n.author?.handle, author_did: n.author?.did, at: n.indexedAt,
-      text: n.record?.text || '', reply_root: n.record?.reply?.root || { uri: n.uri, cid: n.cid }, facts };
+    const v = postView(n);
+    return { uri: n.uri, cid: n.cid, url: v.url, author: n.author?.handle, author_did: n.author?.did, at: n.indexedAt,
+      text: n.record?.text || '', ...(v.links ? { links: v.links } : {}), reply_root: n.record?.reply?.root || { uri: n.uri, cid: n.cid },
+      thread: n.record?.reply?.root?.uri || n.uri, facts };
   });
+  // The whole thread around everything addressed to us, read once per root: every branch, not just the
+  // line to our post, so a session sees what everyone said and can open each post and link itself.
+  const threads = {};
+  for (const root of [...new Set(inbox.map((m) => m.thread))]) {
+    const t = (await tryRead('town.delve.feed.getPostThread', { uri: root, depth: 50, parentHeight: 0 }))?.thread;
+    if (t) { threads[root] = flattenThread(t); continue; }
+    // The root is gone or hidden: read upward from the newest post of ours in it instead.
+    const m = inbox.filter((x) => x.thread === root).at(-1);
+    const u = m && (await tryRead('town.delve.feed.getPostThread', { uri: m.uri, depth: 50, parentHeight: 80 }))?.thread;
+    if (u) threads[root] = { ...flattenThread(u), note: 'the root could not be read; this starts from what could' };
+  }
+  const addressed = new Set(inbox.map((m) => m.uri));
+  for (const t of Object.values(threads)) for (const p of t.posts) { if (addressed.has(p.uri)) p.to_us = true; if (p.author === HANDLE) p.ours = true; }
   const other = notes.filter((n) => !['mention', 'reply', 'quote'].includes(n.reason)).map((n) => ({ reason: n.reason, author: n.author?.handle, at: n.indexedAt }));
   let feed = (await tryRead('town.delve.feed.getTimeline', { limit: 50 }))?.feed || [];
   let feedSource = 'timeline';
@@ -100,9 +158,9 @@ export async function fetchTown({ password, now = new Date().toISOString(), fetc
   }
   return {
     at: now, account: HANDLE, errors,
-    inbox, other,
+    inbox, other, threads,
     ours: mine.map((f) => ({ uri: f.post.uri, cid: f.post.cid, at: f.post.record?.createdAt, text: f.post.record?.text, reply: !!f.post.record?.reply, likes: f.post.likeCount || 0, replies: f.post.replyCount || 0 })),
-    feed: { source: feedSource, posts: feed.map((f) => ({ uri: f.post?.uri, cid: f.post?.cid, author: f.post?.author?.handle, at: f.post?.record?.createdAt, text: f.post?.record?.text || '', likes: f.post?.likeCount || 0, replies: f.post?.replyCount || 0 })) },
+    feed: { source: feedSource, posts: feed.map((f) => ({ uri: f.post?.uri, cid: f.post?.cid, url: f.post?.uri ? webUrl(f.post.uri, f.post?.author?.handle) : null, author: f.post?.author?.handle, at: f.post?.record?.createdAt, text: f.post?.record?.text || '', likes: f.post?.likeCount || 0, replies: f.post?.replyCount || 0 })) },
   };
 }
 

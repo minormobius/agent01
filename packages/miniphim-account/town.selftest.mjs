@@ -165,4 +165,29 @@ assert.ok(create.every((c) => c.body.repo === DID && c.body.collection === POST)
   assert.equal(rec.facets.length, 2);
   assert.deepEqual(rec.embed, { $type: 'town.delve.embed.external', external: { uri: 'https://minomobi.com/miniphim/keyholder/', title: 'keyholder & co', description: 'who can rewrite a name' } });
 }
-console.log('miniphim town selftest: second-part yes on the exact hash, veto, signature, links, length, posts/replies/per-author caps, PAUSED, retraction, facts, records, images (hash, alt, embed), links (facets, cards)');
+// Threads, whole: ancestors first, every branch depth-first and oldest first, a url on delve.town for
+// each post, what it points at, and a placeholder where a post is gone.
+{
+  const { flattenThread, postView, webUrl } = await import('./town.mjs');
+  const P = (rkey, handle, text, at, extra = {}) => ({ uri: `at://did:plc:${handle}/town.delve.feed.post/${rkey}`, cid: 'c', author: { did: `did:plc:${handle}`, handle: `${handle}.delve.town` }, record: { text, createdAt: at, ...extra.record }, ...extra.view });
+  const tree = { post: P('root', 'sam', 'start https://agentwiki.example.org/p/x.', '2026-10-06T01:00:00Z'), replies: [
+    { post: P('b', 'kim', 'later branch', '2026-10-06T03:00:00Z'), replies: [] },
+    { post: P('a', 'ana', 'earlier branch', '2026-10-06T02:00:00Z', { view: { embed: { external: { uri: 'https://x.org/', title: 'X' } } } }), replies: [
+      { post: P('a1', 'sam', 'look', '2026-10-06T02:30:00Z', { view: { embed: { record: { uri: 'at://did:plc:kim/town.delve.feed.post/q', author: { handle: 'kim.delve.town' }, value: { text: 'quoted' } } } } }) },
+      { $type: 'town.delve.feed.defs#notFoundPost', uri: 'at://gone' }] }] };
+  const t = flattenThread(tree);
+  assert.deepEqual(t.posts.map((p) => p.uri?.split('/').pop()), ['root', 'a', 'a1', 'gone', 'b'], 'reading order: depth-first, oldest branch first');
+  assert.deepEqual(t.posts.map((p) => p.depth), [0, 1, 2, 2, 1]);
+  assert.equal(t.posts[0].url, 'https://delve.town/profile/sam.delve.town/post/root');
+  assert.deepEqual(t.posts[0].links, ['https://agentwiki.example.org/p/x'], 'links in the text, trailing punctuation dropped');
+  assert.equal(t.posts[1].card.uri, 'https://x.org/');
+  assert.equal(t.posts[2].quote.url, 'https://delve.town/profile/kim.delve.town/post/q');
+  assert.match(t.posts[3].missing, /notFound/, 'a gone post keeps its place');
+  const withParent = flattenThread({ post: P('c', 'ana', 'me', '2026-10-06T05:00:00Z'), parent: { post: P('p', 'sam', 'up', '2026-10-06T04:00:00Z') } });
+  assert.deepEqual(withParent.posts.map((p) => p.uri.split('/').pop()), ['p', 'c'], 'ancestors come first');
+  assert.equal(flattenThread({ post: P('r', 'a', 'x', 'z'), replies: Array.from({ length: 300 }, (_, i) => ({ post: P(`r${i}`, 'b', 'y', 'z') })) }, 50).truncated, true);
+  assert.equal(webUrl('at://did:plc:x/town.delve.feed.post/k'), 'https://delve.town/profile/did:plc:x/post/k');
+  assert.deepEqual(postView({ uri: 'at://d/c/k', record: { text: 'hi', facets: [{ features: [{ $type: 'town.delve.richtext.facet#link', uri: 'https://a.b/' }] }] } }).links, ['https://a.b/']);
+}
+
+console.log('miniphim town selftest: second-part yes on the exact hash, veto, signature, links, length, posts/replies/per-author caps, PAUSED, retraction, facts, records, images (hash, alt, embed), links (facets, cards), whole threads');

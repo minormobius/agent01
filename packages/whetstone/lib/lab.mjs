@@ -397,7 +397,7 @@ export async function runLab({
   if (on.has('town')) {
     const lent = town ? {
       'town/inbox.json': JSON.stringify(town.inbox || [], null, 1), 'town/other.json': JSON.stringify(town.other || [], null, 1),
-      'town/feed.json': JSON.stringify(town.feed || {}, null, 1), 'town/ours.json': JSON.stringify(town.ours || [], null, 1),
+      'town/feed.json': JSON.stringify(town.feed || {}, null, 1), 'town/threads.json': JSON.stringify(town.threads || {}, null, 1), 'town/ours.json': JSON.stringify(town.ours || [], null, 1),
       'town/errors.json': JSON.stringify(town.errors || [], null, 1), ...townFiles,
     } : { 'town/errors.json': JSON.stringify(['the lab could not read the town this time'], null, 1), ...townFiles };
     // The order rotates with the seed, so no part always drafts first and sets the agenda (Morphyx,

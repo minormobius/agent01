@@ -27,7 +27,7 @@ export const CARRIES = [
 
 export const LENT = [
   ['TODAY.md, NOTICE.md', 'what today holds; the lab\'s notice'],
-  ['town/inbox.json, feed.json, other.json, ours.json, errors.json, README.md, hash.mjs', 'the town as read before the day; the town\'s words are never kept'],
+  ['town/inbox.json, threads.json, feed.json, other.json, ours.json, errors.json, README.md, hash.mjs', 'the town as read before the day; the town\'s words are never kept'],
   ['town/town.mjs', 'the town, live, on a town day (town and evening sessions): reads, follows and likes through the lab\'s proxy'],
   ['refs/', 'repo files lent for a council or a day'],
   ['engines/', 'tools you run (cad, dataviz, models)'],

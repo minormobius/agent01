@@ -22,6 +22,7 @@ ${town ? `Read at ${town.at}. ${n} item${n === 1 ? '' : 's'} addressed to the ac
 
 **Lent today, not kept** (the town's words stay in the town):
 - \`inbox.json\`: what's addressed to us, each with computed \`facts\` (addressed, reason, age_h, asks, has_link_or_file, words, in_our_thread, replied_to_author_today, author_is_bot, from_operator, repeat): the facts your rules of the road decide on.
+- \`threads.json\`: the whole thread around each inbox item, keyed by its root (an inbox item's \`thread\`): every branch, in reading order (\`depth\` is the indent), each post with its \`url\` on delve.town, the \`links\` in it, its link \`card\`, a \`quote\`d post (with its url), \`images\` (alt text), and \`to_us\` / \`ours\` marks. Open any url with WebFetch or Chromium to check it yourself; \`node town/town.mjs read town.delve.feed.getPostThread uri=…\` reads one live.
 - \`feed.json\`: a slice of the town around us. \`other.json\`: likes and follows (who, when). \`ours.json\`: the account's recent posts. \`errors.json\`: anything the lab couldn't read.
 
 **Live, now** (\`town.mjs\`, through the lab's proxy; it holds the password, you don't): read the town as it is, and follow, unfollow, like or unlike, from this session and this evening.
