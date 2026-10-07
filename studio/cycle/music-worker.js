@@ -36,7 +36,7 @@ async function start(msg) {
   const [w, b] = await Promise.all([fetch(WASM).then((r) => r.arrayBuffer()), fetch(BODY).then((r) => r.arrayBuffer())]);
   const { instance } = await WebAssembly.instantiate(w, {});
   clock = msg.clock; place = msg.place ?? null;
-  music = new Music(instance.exports, { seed: msg.seed, biome: msg.biome, bpm: msg.bpm, sampleRate: msg.sampleRate, body: parseWav(b), t0: msg.t0 });
+  music = new Music(instance.exports, { seed: msg.seed, biome: msg.biome, bpm: msg.bpm, sampleRate: msg.sampleRate, body: parseWav(b), t0: msg.t0, surf: msg.surf || null });
   music.cond = cond;
   started = performance.now(); rendered = 0;
   want = msg.want; pump();

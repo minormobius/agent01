@@ -24,6 +24,7 @@
 // (seed, view, moment, t). view = { lat, lon, facing }.
 
 import { forecast, weatherLight, lightning } from './weather.js';
+import { generateCoast } from './coast.js';
 
 export const W = 640, H = 360;
 
@@ -69,7 +70,7 @@ export const rock = (x, y, s) => { let a = 0, w = 0.5, f = 1; for (let k = 0; k 
 
 // 4×4 ordered dither: how a gradient is spread over a ramp's few colours, the old way
 export const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
-const dq = (v, n, x, y) => Math.min(n - 1, Math.max(0, Math.floor(clamp(v) * (n - 1) + BAYER[(y & 3) * 4 + (x & 3)])));
+export const dq = (v, n, x, y) => Math.min(n - 1, Math.max(0, Math.floor(clamp(v) * (n - 1) + BAYER[(y & 3) * 4 + (x & 3)])));
 
 // ------------------------------------------------------------------------- biomes --
 // albedos (linear-ish 0..1), and a hue turn for the sky
@@ -81,27 +82,27 @@ export const BIOMES = {
 };
 
 // ------------------------------------------------------------------------- the scene --
-export function generate(seed = 1) {
-  const rnd = mulberry32(seed * 9973 + 17);
-  const S = (seed * 131) % 100000;
-  const biomeName = Object.keys(BIOMES)[Math.floor(rnd() * 4)];
-  const B = BIOMES[biomeName];
-  const index = new Uint8Array(W * H);
-  const layer = new Uint8Array(W * H);          // what each pixel is: for the lake's reflection
-  const LAYER = { sky: 0, far: 1, snow: 2, mid: 3, cliff: 4, fall: 5, tree: 6, cloud: 7, ground: 8, lake: 9, cabin: 10 };
-  const entries = [], cycles = [];
-  const alloc = (n, make) => { const lo = entries.length; for (let i = 0; i < n; i++) entries.push(make(i, n)); return lo; };
-  const cycle = (lo, len, beats, name) => cycles.push({ lo, len, perBeat: beats, name });
-  const set = (x, y, i, l) => { if (x >= 0 && x < W && y >= 0 && y < H) { index[y * W + x] = i; layer[y * W + x] = l; } };
+/**
+ * A blank canvas for a painting: the index map, what each pixel is (`layer`), the palette entries
+ * and the cycles, and the small tools to fill them. Shared by the lake (generate) and the coast.
+ */
+export function canvas() {
+  const index = new Uint8Array(W * H), layer = new Uint8Array(W * H), entries = [], cycles = [];
+  return {
+    index, layer, entries, cycles,
+    alloc: (n, make) => { const lo = entries.length; for (let i = 0; i < n; i++) entries.push(make(i, n)); return lo; },
+    cycle: (lo, len, beats, name) => cycles.push({ lo, len, perBeat: beats, name }),
+    set: (x, y, i, l) => { if (x >= 0 && x < W && y >= 0 && y < H) { index[y * W + x] = i; layer[y * W + x] = l; } },
+  };
+}
 
-  const bpm = 48 + Math.floor(rnd() * 18);
-  const yH = Math.round(H * (0.6 + rnd() * 0.06));         // the lake's far shore: the horizon line
-  const cliffLeft = rnd() < 0.5;
-  const cloudiness = 0.1 + rnd() * 0.32;
-  const fireflies = rnd() < 0.8;
-
-  // ---- the sky: a gradient ramp, the sun's path (placed by paintSunPath for the day), clouds.
-  // The stars and the moon are not painted: they are real, and drawn where they are (main.js).
+/**
+ * The sky down to the horizon `yH`: a gradient ramp, the sun's path (its discs, placed by
+ * paintSunPath for the day) and clouds. The stars and the moon are not painted: they are real, and
+ * drawn where they are (night.js). Returns the slots and the ramp's curve.
+ */
+export function paintSky(cv, yH, S, cloudiness, LAYER) {
+  const { alloc, set } = cv;
   const SKY = 20;
   const sky = alloc(SKY, (i, n) => ({ k: 'sky', e: i / (n - 1) }));
   const NB = 60, NH = 15;                                   // discs on the path; glitter columns
@@ -128,6 +129,29 @@ export function generate(seed = 1) {
     }
     set(x, y, id, LAYER.sky);
   }
+  return { sky, core, clouds, NB, NH, elevAt };
+}
+
+/** A scene of either kind: 'lake' (the first: a lake under a waterfall) or 'coast' (coast.js). */
+export function generate(seed = 1, kind = 'lake') {
+  return kind === 'coast' ? generateCoast(seed) : generateLake(seed);
+}
+
+function generateLake(seed = 1) {
+  const rnd = mulberry32(seed * 9973 + 17);
+  const S = (seed * 131) % 100000;
+  const biomeName = Object.keys(BIOMES)[Math.floor(rnd() * 4)];
+  const B = BIOMES[biomeName];
+  const LAYER = { sky: 0, far: 1, snow: 2, mid: 3, cliff: 4, fall: 5, tree: 6, cloud: 7, ground: 8, lake: 9, cabin: 10 };
+  const cv = canvas(), { index, layer, entries, cycles, alloc, cycle, set } = cv;
+
+  const bpm = 48 + Math.floor(rnd() * 18);
+  const yH = Math.round(H * (0.6 + rnd() * 0.06));         // the lake's far shore: the horizon line
+  const cliffLeft = rnd() < 0.5;
+  const cloudiness = 0.1 + rnd() * 0.32;
+  const fireflies = rnd() < 0.8;
+
+  const { core, NB, NH, elevAt } = paintSky(cv, yH, S, cloudiness, LAYER);
 
   // ---- three ranges of land, far to near: each face indexed by which way it turns
   const facing = (alb, depth, name, n = 8) => alloc(n, (i, nn) => ({ k: 'land', alb, nx: (i / (nn - 1)) * 2 - 1, depth, name }));
@@ -338,7 +362,7 @@ export function generate(seed = 1) {
   if (entries.length > 256) throw new Error(`palette overflow: ${entries.length}`);
   while (entries.length < 256) entries.push({ k: 'unused' });
   return {
-    seed, biome: biomeName, W, H, index, entries, cycles, bpm, yH, cliffLeft,
+    kind: 'lake', seed, biome: biomeName, W, H, index, entries, cycles, bpm, yH, cliffLeft,
     path: { lo: core, NB, NH, rc: 6.5, day: null }, layer, LAYER, cabin: { x: cabX, y: cabBase }, waterfall: { x: toX(Math.round(xw)), width: ww },
     slots: { glitter: glit, fireflies: flies, fall },
     used: entries.findIndex((e) => e.k === 'unused'), skyTurn: B.skyTurn, water: B.water, midAlb: B.mid,
@@ -502,7 +526,7 @@ export function palette(scene, view, sk, t, flares = []) {
       }
       case 'land': {
         // lying snow whitens what faces up: the meadow and the roofs most, steep rock least
-        const lie = lt.wx ? lt.wx.lying * ({ ground: 0.85, roof: 0.9, pine: 0.45, far: 0.7, mid: 0.6, cliff: 0.22 }[e.name] ?? 0) : 0;
+        const lie = lt.wx ? lt.wx.lying * ({ ground: 0.85, roof: 0.9, pine: 0.45, far: 0.7, mid: 0.6, cliff: 0.22, sand: 0.8, dune: 0.75 }[e.name] ?? 0) : 0;
         return litLand(lt, lie > 0 ? mix3(e.alb, [0.9, 0.92, 0.97], lie) : e.alb, e.nx, e.depth);
       }
       case 'fall': case 'foam': {
@@ -511,7 +535,7 @@ export function palette(scene, view, sk, t, flares = []) {
         return mul3(mix3(scale3(scene.water, 2.2), [0.86, 0.92, 0.98], s), d);
       }
       case 'lake': {
-        const base = mix3(skyAt(lt, e.e), mul3(scene.water, add3(lt.amb, lt.sunCol, 0.3)), 0.42);
+        const base = mix3(skyAt(lt, e.e), mul3(e.w || scene.water, add3(lt.amb, lt.sunCol, 0.3)), 0.42);
         return add3(add3(base, skyAt(lt, e.e + 0.25), 0.22 * e.hl), add3(lt.sunCol, lt.moonCol), 0.12 * e.hl);
       }
       case 'refl': {
@@ -528,6 +552,27 @@ export function palette(scene, view, sk, t, flares = []) {
       case 'smoke': {
         const behind = e.lake ? mix3(skyAt(lt, 0.25), mul3(scene.water, add3(lt.amb, lt.sunCol, 0.3)), 0.42) : skyAt(lt, e.e);
         return mix3(behind, mul3([0.62, 0.62, 0.66], add3(lt.amb, lt.sunCol, 0.6)), e.s * 0.7);
+      }
+      case 'surf': case 'wash': {
+        // the surf (coast.js): foam over the shallows, or over the sand it runs up, wetting it
+        const foam = mul3([0.9, 0.93, 0.96], add3(add3(scale3(lt.amb, 1.15), lt.sunCol, 0.75), lt.moonCol, 0.7));
+        let under;
+        if (e.k === 'surf') under = mix3(skyAt(lt, 0.06), mul3(scene.shallow || scene.water, add3(lt.amb, lt.sunCol, 0.3)), 0.42);
+        else {
+          const dry = litLand(lt, scene.sand, 0, 0);
+          under = mix3(dry, add3(scale3(dry, 0.5), skyAt(lt, 0.25), 0.3), e.wet);
+        }
+        return e.s >= 0 ? mix3(under, foam, e.s) : scale3(under, 1 + e.s);
+      }
+      case 'beam': case 'lamp': {
+        // the lighthouse (coast.js): the lamp turns once a period; its beam, seen from the side,
+        // reaches across the sky as far as it is turned across the view, and flashes toward us
+        const L = scene.lighthouse, a = 2 * Math.PI * (t / L.period), across = Math.sin(a), toward = Math.cos(a);
+        const dark = smooth(0.03, -0.14, lt.el), haze = 0.45 + 0.9 * (lt.wx ? lt.wx.fog + 0.4 * lt.wx.rain : 0);
+        const warm = [1, 0.92, 0.7];
+        if (e.k === 'lamp') return add3([0.2, 0.2, 0.2], warm, dark * (0.6 + 2.2 * Math.pow(Math.max(0, toward), 6)));
+        const on = e.side * across > 0 ? smooth(0.05, 0, e.d - Math.abs(across)) : 0;
+        return add3(skyAt(lt, e.e), warm, dark * on * haze * 0.7 * Math.pow(1 - e.d, 1.2) * (0.5 + 0.5 * Math.abs(across)));
       }
       case 'window': {
         const fl = 0.85 + 0.15 * Math.sin(t * 7.3 + e.ph * 2.1) * Math.sin(t * 2.9 + e.ph);

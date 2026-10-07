@@ -9,6 +9,7 @@
 // 1800 m, the real stars and the moon in its phase), and the lake's reflection, which is a second
 // Voxel Space pass from a camera mirrored below the water.
 import { buildWorld, cameraAt, KIND, N, CELL, SIZE, heightAt } from './world.js';
+import { buildCoastWorld } from './coastworld.js';
 import { sky, enu } from './astro.js';
 import { STARS, N as NSTARS, LINES } from './stars.js';
 import { starColour } from './astro.js';
@@ -30,8 +31,8 @@ export class Flight {
     this.ridx = new Uint8Array(W * H); this.rdep = new Float32Array(W * H);
     this.cloud = null;
   }
-  load(seed, bpm) {
-    this.world = buildWorld(seed);
+  load(seed, bpm, kind = 'lake') {
+    this.world = kind === 'coast' ? buildCoastWorld(seed) : buildWorld(seed);
     if (bpm) this.world.bpm = bpm;
     if (!this.cloud) {             // the cloud layer: 512² density, 25 m a texel, wrapping
       const c = new Float32Array(512 * 512);
@@ -75,8 +76,10 @@ export class Flight {
     this.trees(cam, cam.z, hor, fwd, right, this.idx, this.dep, 1500);
     if (wantMirror) this.trees(cam, -cam.z, hor, fwd, right, this.ridx, this.rdep, 900);
     this.cabin(cam, cam.z, hor, fwd, right, this.idx, this.dep);
+    if (w.lighthouse) this.tower(cam, cam.z, hor, fwd, right, this.idx, this.dep);
     this.compose(cam, hor, fwd, right, lut, lt, sk, t, ms);
     this.night(cam, hor, fwd, right, lt, sk, t, figures);
+    if (w.lighthouse) this.beam(cam, hor, fwd, right, lt, t);
     // the weather over the frame: rain (and its rings on the lake), snow, the bolt; fog is in the haze
     if (!this.precip) this.precip = new Precip(W, H, w.seed);
     const knd = this.knd;
@@ -147,6 +150,19 @@ export class Flight {
         case 'lake3': return scale3(add3(add3(lt.sunCol, lt.moonCol), lt.zen, 0.5), 0.07 * e.hl);
         case 'river3': return mul3(mix3(scale3(w.water, 2.4), [0.8, 0.88, 0.95], e.s * 0.7), add3(add3(lt.amb, lt.sunCol, 0.55), lt.moonCol, 0.5));
         case 'fall3': case 'foam3': return mul3(mix3(scale3(w.water, 2.2), [0.88, 0.93, 0.98], e.k === 'foam3' ? 0.5 + 0.5 * e.s : e.s), add3(add3(scale3(lt.amb, 1.1), lt.sunCol, 0.6), lt.moonCol, 0.5));
+        // the coast (coastworld.js): surf over the shallows, the wash on the sand, the lighthouse's lamp
+        case 'surf3': case 'wash3': {
+          const foam = mul3([0.9, 0.93, 0.96], add3(add3(scale3(lt.amb, 1.15), lt.sunCol, 0.75), lt.moonCol, 0.7));
+          let under;
+          if (e.k === 'surf3') under = mix3(mix3(lt.hor, lt.zen, 0.3), mul3(w.shallow, add3(lt.amb, lt.sunCol, 0.3)), 0.5);
+          else { const dry = mul3(w.sand, add3(add3(lt.amb, lt.sunCol, Math.max(0, lt.L[2]) * 1.05), lt.moonCol, Math.max(0, lt.M[2]))); under = mix3(dry, add3(scale3(dry, 0.5), mix3(lt.hor, lt.zen, 0.3), 0.3), e.wet); }
+          return e.s >= 0 ? mix3(under, foam, e.s) : scale3(under, 1 + e.s);
+        }
+        case 'lamp3': {
+          const L = w.lighthouse, a = 2 * Math.PI * t / L.period, cam = this.cam;
+          const toward = Math.cos(a - Math.atan2(cam.x - L.x, cam.y - L.y));
+          return add3([0.2, 0.2, 0.2], [1, 0.92, 0.7], smooth(0.03, -0.14, lt.el) * (0.7 + 2 * Math.pow(Math.max(0, toward), 6)) + 0.1);
+        }
         case 'window': {
           const fl = 0.85 + 0.15 * Math.sin(t * 7.3) * Math.sin(t * 2.9);
           return add3([0.12, 0.09, 0.07], [1.0, 0.68, 0.28], smooth(0.15, -0.05, lt.el) * fl * 1.1);
@@ -185,11 +201,11 @@ export class Flight {
         if (hor + (cz - TOP) / zp * F >= ybot) break;
         let h = z < 900 ? (Hm[k] * (1 - u) + Hm[k + 1] * u) * (1 - v) + (Hm[k + N] * (1 - u) + Hm[k + N + 1] * u) * v : Hm[k];
         let kc = k;
-        if (z < 500) { const t = BY[((step & 3) << 2) | (x & 3)]; kc = k + (u > t ? 1 : 0) + (v > t ? N : 0); }
+        if (z < 500) { const t = BY[((step & 3) << 2) | (x & 3)]; kc = k + (u > t ? 1 : 0) + (v > t ? N : 0); if (KD[kc] !== KD[k]) kc = k; }   // blend within a kind: sand drawn up a cliff face streaks it
         const kd = KD[kc];
         if (kd === KIND.lake || kd === KIND.foam) {
           if (cz < 0) { z += dz; dz = 0.5 + z * 0.014; step++; continue; }   // the mirror sees through the water
-          if (h < 0) h = 0;
+          h = 0;                     // water is level: a water cell chosen by the dither beside a cliff stays at the surface
         }
         const sy = hor + (cz - h) / zp * F;
         if (sy < ybot) {
@@ -279,6 +295,82 @@ export class Flight {
         if (dep[i] <= zc) return;
         idx[i] = f.win && u > 0.2 && u < 0.38 && v > 0.35 && v < 0.7 ? c.window : f.id; dep[i] = zc;
       });
+    }
+  }
+
+  /** The lighthouse: a tapering banded tower lit by which way each strip of it faces, the lantern on top. */
+  tower(cam, cz, hor, fwd, right, idx, dep) {
+    const L = this.world.lighthouse, rx = L.x - cam.x, ry = L.y - cam.y, zc = rx * fwd[0] + ry * fwd[1];
+    if (zc < 3 || zc > 4000) return;
+    const sx = W / 2 + (rx * right[0] + ry * right[1]) / zc * F, view = Math.atan2(cam.x - L.x, cam.y - L.y);
+    const rowAt = (z) => hor + (cz - z) / zc * F, z0 = L.z - 1, z1 = L.z + L.h, zl = z1 + 3.2, zc2 = zl + 1.6;
+    for (let y = Math.max(0, Math.floor(rowAt(zc2))); y <= Math.min(H - 1, Math.ceil(rowAt(z0))); y++) {
+      const z = cz - (y - hor) * zc / F, f = (z - z0) / (z1 - z0);
+      let r = L.r * (1 - 0.3 * clamp(f)), id = -1;
+      if (z > zl) r = L.r * 0.7 * (1 - (z - zl) / (zc2 - zl));                   // the cap
+      else if (z > z1 + 0.5) r = L.r * 0.62;                                       // the lantern
+      else if (z > z1) r = L.r * 0.95;                                             // the gallery
+      const half = r / zc * F;
+      for (let x = Math.max(0, Math.ceil(sx - half)); x <= Math.min(W - 1, Math.floor(sx + half)); x++) {
+        const i = y * W + x;
+        if (dep[i] <= zc) continue;
+        if (z > zl || (z > z1 && z <= z1 + 0.5)) id = L.iron;
+        else if (z > z1) id = L.lamp;
+        else {
+          const az = view + Math.asin(clamp((x - sx) / Math.max(0.5, half), -1, 1)), b = ((Math.round(az / (Math.PI / 4)) % 8) + 8) % 8;
+          id = (Math.floor(f * 6) % 2 ? L.band : L.white) + b;
+        }
+        idx[i] = id; dep[i] = zc;
+      }
+    }
+  }
+
+  /**
+   * The beam at night: a cone from the lamp, turning once a period, fading over the sea; gathered as
+   * a maximum per pixel (so the segments do not double up where they meet), then added. The lamp
+   * glows, and flashes as the beam swings past the camera.
+   */
+  beam(cam, hor, fwd, right, lt, t) {
+    const L = this.world.lighthouse, dark = smooth(0.03, -0.14, lt.el);
+    if (dark < 0.02) return;
+    const wx = wx0(lt), haze = 0.5 + 0.9 * (wx.fog + 0.4 * wx.rain), a = 2 * Math.PI * t / L.period;
+    const px = this.img.data, dep = this.dep, zl = L.z + L.h + 1.6;
+    const B = this.bbuf || (this.bbuf = new Float32Array(W * H));
+    B.fill(0);
+    const proj = (x, y, z) => { const rx = x - cam.x, ry = y - cam.y, zc = rx * fwd[0] + ry * fwd[1]; return zc < 2 ? null : [W / 2 + (rx * right[0] + ry * right[1]) / zc * F, hor + (cam.z - z) / zc * F, zc]; };
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, prev = null;
+    for (let k = 0; k <= 160; k++) {
+      const d = 4 + (k / 160) ** 1.6 * 2600, p = proj(L.x + Math.sin(a) * d, L.y + Math.cos(a) * d, zl + d * 0.004);
+      if (p && prev) {
+        const n = Math.ceil(Math.hypot(p[0] - prev[0], p[1] - prev[1]));
+        if (n < 2 * W) for (let s = 0; s < n; s++) {
+          const x = prev[0] + (p[0] - prev[0]) * s / n, y = prev[1] + (p[1] - prev[1]) * s / n, zc = prev[2] + (p[2] - prev[2]) * s / n;
+          const wpx = Math.max(0.8, (1.2 + d * 0.035) / zc * F), inten = dark * haze * 0.5 * Math.pow(1 - k / 160, 1.3);
+          const X = Math.round(x);
+          if (X < 0 || X >= W) continue;
+          for (let Y = Math.max(0, Math.floor(y - wpx)); Y <= Math.min(H - 1, Math.ceil(y + wpx)); Y++) {
+            const i = Y * W + X;
+            if (dep[i] < zc) continue;
+            const v = inten * (1 - Math.abs(Y - y) / (wpx + 1));
+            if (v > B[i]) { B[i] = v; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+          }
+        }
+      }
+      prev = p;
+    }
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const v = B[y * W + x]; if (v <= 0) continue;
+      const k = (y * W + x) * 4; px[k] = Math.min(255, px[k] + 255 * v); px[k + 1] = Math.min(255, px[k + 1] + 235 * v); px[k + 2] = Math.min(255, px[k + 2] + 180 * v);
+    }
+    // the lamp: a glow, and the flash as it turns toward us
+    const q = proj(L.x, L.y, zl);
+    if (q && q[1] >= 0 && q[1] < H && q[0] >= 0 && q[0] < W && dep[Math.round(q[1]) * W + Math.round(q[0])] >= q[2] - 6) {
+      const toward = Math.cos(a - Math.atan2(cam.x - L.x, cam.y - L.y)), fl = dark * (0.5 + 2.5 * Math.pow(Math.max(0, toward), 8)), R = 2 + 6 * Math.pow(Math.max(0, toward), 8);
+      for (let y = Math.floor(q[1] - R); y <= q[1] + R; y++) for (let x = Math.floor(q[0] - R); x <= q[0] + R; x++) {
+        if (x < 0 || x >= W || y < 0 || y >= H) continue;
+        const v = fl * Math.max(0, 1 - Math.hypot(x - q[0], y - q[1]) / (R + 0.5)) ** 2, k = (y * W + x) * 4;
+        px[k] = Math.min(255, px[k] + 255 * v); px[k + 1] = Math.min(255, px[k + 1] + 235 * v); px[k + 2] = Math.min(255, px[k + 2] + 190 * v);
+      }
     }
   }
 

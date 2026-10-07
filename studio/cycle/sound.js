@@ -13,10 +13,19 @@ const MODES = {
   lydian: [0, 2, 4, 6, 7, 9, 11], mixolydian: [0, 2, 4, 5, 7, 9, 10],
   ionian: [0, 2, 4, 5, 7, 9, 11], dorian: [0, 2, 3, 5, 7, 9, 10],
 };
-const ROOT = { alpine: 50, canyon: 52, autumn: 45, alien: 54 };     // D, E, A, F#
+const ROOT = { alpine: 50, canyon: 52, autumn: 45, alien: 54, atlantic: 47, tropic: 53, nordic: 49 };
 const PROGRESSION = [0, 5, 3, 4, 0, 2, 3, 6];                        // scale degrees, two bars each
 const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
+/**
+ * When the coast's waves break, in scene seconds: the surf cycle (coast.js) turns `perBeat` phases a
+ * beat, so a crest crosses the break line once every len / perBeat beats, at `breakPos`.
+ */
+export function surfTimes(scene) {
+  const s = scene.surf; if (!s) return null;
+  const beat = 60 / scene.bpm;
+  return { period: s.len / s.perBeat * beat, phase: s.breakPos / s.perBeat * beat };
+}
 /** Which mode the light is in: by the sun's elevation (sine of its altitude), and whether it is rising. */
 export function modeAt(el, rising) {
   if (el < -0.15) return 'lydian';
@@ -133,7 +142,7 @@ export class Sound {
     };
     w.onerror = (e) => { duo.failed = true; console.warn('duo worker:', e.message); };
     duo.model = JSON.stringify(this.#clockModel());
-    w.postMessage({ type: 'start', seed: this.scene.seed, biome: this.scene.biome, bpm: this.scene.bpm, sampleRate: sr, t0, clock: JSON.parse(duo.model), place: this.place, want: Math.round(5 * sr) });
+    w.postMessage({ type: 'start', seed: this.scene.seed, biome: this.scene.biome, bpm: this.scene.bpm, surf: surfTimes(this.scene), sampleRate: sr, t0, clock: JSON.parse(duo.model), place: this.place, want: Math.round(5 * sr) });
   }
   #duoStop() {
     const d = this.duo; if (!d) return;
@@ -164,15 +173,16 @@ export class Sound {
     let p = 0; for (let i = 0; i < n; i++) { p = 0.97 * p + (Math.random() * 2 - 1) * 0.25; d[i] = p; }   // brownish
     const s = ctx.createBufferSource(); s.buffer = b; s.loop = true; s.start(); return s;
   }
-  /** The beds: the fall (sized by its width), the lake lapping, the wind. */
+  /** The beds: the fall (sized by its width) or the sea's roar, the water lapping, the wind. */
   beds() {
-    const ctx = this.ctx, w = this.scene.waterfall.width;
-    const fall = this.noise(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900 + w * 40;
-    const fg = ctx.createGain(); fg.gain.value = 0.05 + w * 0.006;
+    const ctx = this.ctx, w = this.scene.waterfall.width, coast = this.scene.kind === 'coast';
+    const fall = this.noise(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = coast ? 320 : 900 + w * 40;
+    const fg = ctx.createGain(); fg.gain.value = coast ? 0.07 : 0.05 + w * 0.006;
     this.bedOut = ctx.createGain(); this.bedOut.gain.value = this.ambience === false ? 0 : 1; this.bedOut.connect(this.master);
     fall.connect(lp).connect(fg).connect(this.bedOut);
     const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-    if (pan) { pan.pan.value = this.scene.cliffLeft ? -0.45 : 0.45; fg.disconnect(); fg.connect(pan).connect(this.bedOut); }
+    if (pan && !coast) { pan.pan.value = this.scene.cliffLeft ? -0.45 : 0.45; fg.disconnect(); fg.connect(pan).connect(this.bedOut); }
+    if (coast) { this.white = this.whiteBuf(); this.surf = surfTimes(this.scene); this.nextSurf = null; this.nextGull = null; }
     const lap = this.noise(), bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 380; bp.Q.value = 1.2;
     const lg = ctx.createGain(); lg.gain.value = 0.06;
     const lfo = ctx.createOscillator(), lfoG = ctx.createGain(); lfo.frequency.value = 0.21; lfoG.gain.value = 0.05;
@@ -193,10 +203,60 @@ export class Sound {
     ws.connect(rh).connect(rg); rain.connect(rp).connect(rg); rg.connect(this.bedOut); rg.connect(this.verb);
   }
 
+  whiteBuf() {
+    const ctx = this.ctx, b = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  }
+  /** One wave breaking at audio time `at`: the crash (noise opening and closing), then the wash up the sand. */
+  breaker(at, size) {
+    const ctx = this.ctx, src = ctx.createBufferSource(); src.buffer = this.white; src.loop = true;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.4;
+    lp.frequency.setValueAtTime(250, at); lp.frequency.exponentialRampToValueAtTime(1800 + 1400 * size, at + 0.45); lp.frequency.exponentialRampToValueAtTime(500, at + 4.5);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.09 * size, at + 0.35); g.gain.exponentialRampToValueAtTime(0.03 * size, at + 1.6); g.gain.exponentialRampToValueAtTime(0.0001, at + 6);
+    // the wash: a high hiss that rises as the foam runs up and fades as it drains
+    const hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 3800; hp.Q.value = 0.5;
+    const wg = ctx.createGain(); wg.gain.setValueAtTime(0.0001, at + 0.8); wg.gain.exponentialRampToValueAtTime(0.03 * size, at + 2.2); wg.gain.exponentialRampToValueAtTime(0.0001, at + 5.5);
+    src.connect(lp).connect(g).connect(this.bedOut); g.connect(this.verb); src.connect(hp).connect(wg).connect(this.bedOut);
+    src.start(at, Math.random() * 2); src.stop(at + 6.2);
+  }
+  /** A gull's call: two or three falling cries, nasal (a saw through two formants). */
+  gull(at) {
+    const ctx = this.ctx, n = 1 + Math.floor(Math.random() * 3), f0 = 1500 + Math.random() * 500, pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    const out = ctx.createGain(); out.gain.value = 0.02 + Math.random() * 0.02;
+    if (pan) { pan.pan.value = Math.random() * 1.6 - 0.8; out.connect(pan).connect(this.bedOut); } else out.connect(this.bedOut);
+    out.connect(this.verb);
+    for (let i = 0; i < n; i++) {
+      const t = at + i * (0.32 + Math.random() * 0.1), d = 0.22 + Math.random() * 0.1;
+      const o = ctx.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f0 * 0.8, t); o.frequency.linearRampToValueAtTime(f0, t + 0.04); o.frequency.exponentialRampToValueAtTime(f0 * 0.55, t + d);
+      const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 1900; f1.Q.value = 4;
+      const f2 = ctx.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 3200; f2.Q.value = 5;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(f1).connect(g); o.connect(f2).connect(g); g.connect(out);
+      o.start(t); o.stop(t + d + 0.05);
+    }
+  }
+  /** The coast's events in the next 0.6 s: each wave as it breaks (from the surf cycle), gulls by day. */
+  #coastTick() {
+    const c = this.clock, now = this.ctx.currentTime, t = c.now(), { period, phase } = this.surf;
+    if (this.nextSurf === null || this.nextSurf < t - period) this.nextSurf = phase + Math.ceil((t - phase) / period) * period;
+    while (c.audioTimeOf(this.nextSurf) < now + 0.6) {
+      const at = c.audioTimeOf(this.nextSurf), k = Math.round((this.nextSurf - phase) / period);
+      const size = (0.7 + 0.3 * Math.abs(Math.sin(k * 1.7))) * (1 + 0.5 * ((this.wx && this.wx.storm) || 0));
+      if (at >= now - 0.05) this.breaker(Math.max(now, at), size);
+      this.nextSurf += period;
+    }
+    const day = c.lightAtBeat(c.beat()).el > 0;
+    if (this.nextGull === null) this.nextGull = now + 4 + Math.random() * 10;
+    if (now >= this.nextGull) { if (day && !(this.wx && this.wx.rain > 0.4)) this.gull(now + 0.05); this.nextGull = now + 9 + Math.random() * 28; }
+  }
+
   /** Look ahead and schedule every beat that falls in the next 0.4 s. */
   schedule() {
     if (!this.on) return;
     this.#duoTick();
+    if (this.surf) this.#coastTick();
     const c = this.clock, now = this.ctx.currentTime;
     while (true) {
       const at = c.audioTimeOfBeat(this.nextBeat);

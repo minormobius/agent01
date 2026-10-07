@@ -223,6 +223,15 @@ function flightPath(world, riverOff) {
   // what the music should be at each leg (compose.js's textures): the lake, up the fall, the
   // river, the mountains, and down past the cabin to the lake again
   const PLACES = ['lake', 'lake', 'falls', 'falls', 'falls', 'river', 'river', 'river', 'river', 'mountains', 'mountains', 'mountains', 'stars', 'lake'];
+  return loopThrough(world, pts, PLACES, (x, y) => Math.hypot(x - world.fallAt.x, y - world.fallAt.y) < 170);
+}
+
+/**
+ * A closed flight through waypoints { x, y, z, look }: the Catmull-Rom spline sampled densely,
+ * lifted clear of the ground (30 m, and of slopes beside it, except where `close(x, y)` says it is
+ * flown close on purpose: 16 m), smoothed, and indexed by arc length. `places` names each leg.
+ */
+export function loopThrough(world, pts, PLACES, close = () => false) {
   // sample the closed spline densely, lift it clear of the ground, and index by arc length
   const n = pts.length, samples = [];
   const cr = (p0, p1, p2, p3, t) => 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
@@ -231,7 +240,7 @@ function flightPath(world, riverOff) {
     const x = cr(a.x, b.x, c.x, d.x, t), y = cr(a.y, b.y, c.y, d.y, t);
     let z = cr(a.z, b.z, c.z, d.z, t);
     let ground = heightAt(world, x, y);
-    const nearFall = Math.hypot(x - world.fallAt.x, y - world.fallAt.y) < 170;    // the fall is flown close on purpose
+    const nearFall = close(x, y);                                                // the fall is flown close on purpose
     if (!nearFall) for (let a = 0; a < 8; a++) for (const rr of [40, 90]) ground = Math.max(ground, heightAt(world, x + Math.sin(a * 0.785) * rr, y + Math.cos(a * 0.785) * rr) - rr * 0.25);
     z = Math.max(z, ground + (nearFall ? 16 : 30), 14);
     samples.push({ x, y, z, look: cr(a.look, b.look, c.look, d.look, t), place: PLACES[s] });

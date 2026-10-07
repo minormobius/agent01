@@ -153,9 +153,9 @@ export class StereoConvolver {
 }
 
 export class Music {
-  constructor(X, { seed, biome, bpm, sampleRate, body, t0 = 0 }) {
+  constructor(X, { seed, biome, bpm, sampleRate, body, t0 = 0, surf = null }) {
     this.X = X; this.sr = sampleRate; this.t0 = t0;
-    this.composer = new Composer({ seed, biome, bpm });
+    this.composer = new Composer({ seed, biome, bpm, surf });
     this.nextBar = Math.floor(t0 / this.composer.barSec);
     this.cond = () => ({ el: 0.5, rising: true, night: 0, cover: 0.3, moon: 0.5, density: 1 });
     X.ps_begin(sampleRate, PIANO_GAIN);

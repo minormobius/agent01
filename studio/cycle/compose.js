@@ -33,9 +33,13 @@ const HOME = {
   canyon: { root: 45, base: 0, flamenco: true },
   autumn: { root: 52, base: 2, flamenco: false },
   alien: { root: 54, base: 3, flamenco: false },
+  // the coasts (coast.js): Atlantic B, the tropic F, the north C#, darker
+  atlantic: { root: 47, base: 3, flamenco: false, coast: true },
+  tropic: { root: 53, base: 4, flamenco: false, coast: true },
+  nordic: { root: 49, base: 1, flamenco: false, coast: true },
 };
 const OPEN = [64, 59, 55, 50, 45, 40];
-export const TEXTURES = ['lake', 'falls', 'river', 'mountains', 'stars'];
+export const TEXTURES = ['lake', 'falls', 'river', 'mountains', 'stars', 'sea'];
 // 12/8 rhythmic cells: ticks (a tick is a third of a beat), 12 to the bar
 const CELLS = [[3, 3, 3, 3], [2, 1, 3, 2, 1, 3], [1, 1, 1, 3, 3, 3], [6, 3, 3], [3, 1, 1, 1, 6], [2, 1, 2, 1, 6], [3, 3, 6], [1, 2, 3, 6]];
 
@@ -52,8 +56,9 @@ function weighted(r, pairs) {
 }
 
 export class Composer {
-  constructor({ seed = 1, biome = 'alpine', bpm = 56 } = {}) {
+  constructor({ seed = 1, biome = 'alpine', bpm = 56, surf = null } = {}) {
     this.seed = seed; this.home = HOME[biome] || HOME.alpine; this.biome = biome;
+    this.surf = surf;                // the coast's waves: { period, phase } in seconds (when each breaks)
     this.beat = 60 / bpm; this.barSec = 4 * this.beat; this.tick = this.beat / 3;
     this.r = rng(seed * 7919 + 13);
     // the motifs: a call and an answer (rhythm cell + steps), a bass figure
@@ -77,6 +82,13 @@ export class Composer {
 
   /** Which texture the moment asks for. */
   #texture(cond) {
+    const t = this.#texture0(cond);
+    // on the coast there is no fall: the sea takes its place, and often the day's too
+    if (!this.home.coast) return t;
+    if (t === 'falls') return 'sea';
+    return t === 'river' || t === 'lake' ? weighted(this.r, [[t, 1], ['sea', 1.4]]) : t;
+  }
+  #texture0(cond) {
     if (cond.place) return cond.place;
     const r = this.r;
     // the weather first: a storm is the mountains, fog the lake, snow the stars, rain the river or the fall
@@ -99,7 +111,7 @@ export class Composer {
   /** A section: texture, mode, harmonic plan (one chord per bar or per two), the motif to open with. */
   #plan(n, cond) {
     const r = this.r, texture = this.#texture(cond), mode = this.#mode(cond);
-    const slow = texture === 'stars' || texture === 'lake' || cond.night > 0.5;
+    const slow = texture === 'stars' || texture === 'lake' || texture === 'sea' || cond.night > 0.5;
     const chords = [];
     for (let p = 0; p < 8; p++) {                                  // eight phrases of four bars
       const answer = p % 2 === 1, phrase = [];
@@ -124,6 +136,12 @@ export class Composer {
     // flamenco: the major third belongs to the home chord alone (A major against Bb, C, D minor)
     const sc = this.home.flamenco && this.chordNow !== 0 ? LADDER[0][1] : this.section.mode.scale, k = ((d % 7) + 7) % 7;
     return root + sc[k] + 12 * Math.floor(d / 7);
+  }
+  /** The degree `k` scale steps below MIDI note `m` (for a line in thirds or sixths under the melody). */
+  #below(m, k) {
+    let best = 0, bd = Infinity;
+    for (let d = -21; d <= 35; d++) { const x = this.#deg(d); if (Math.abs(x - m) < bd) { bd = Math.abs(x - m); best = d; } }
+    return best - k;
   }
   /** Chord tones of degree `c` as degrees: root, third, fifth, seventh, ninth. */
   #chord(c) { return [c, c + 2, c + 4, c + 6, c + 8]; }
@@ -317,6 +335,23 @@ export class Composer {
           ss.forEach((x, q) => G(k + q * 0.04, 3, x.string, x.midi, 120 - q * 4));
         }
         if (inPhrase % 2 === 1) this.#melody(n, c, 72, 88).forEach((m) => P(m.tick, m.len, m.midi, 0.55));
+        break;
+      }
+      case 'sea': {
+        // a barcarolle: the left hand rocks in 12/8 (bass, fifth, octave, tenth…), swelling toward
+        // the moment each wave breaks; there a rolled guitar chord, and the piano's spray after it
+        const breaks = [];
+        if (this.surf) { const { period, phase } = this.surf; for (let k = Math.ceil((t0 - phase) / period); phase + k * period < t0 + this.barSec; k++) breaks.push((phase + k * period - t0) / T); }
+        const swell = (tick) => { let v = 0.75; for (const b of breaks) v = Math.max(v, 1.15 - Math.abs(tick - b) / 14); return v; };
+        const lo = v.bass, rock = [[0, lo], [2, lo + 7], [3, lo + 12], [5, v.up[0]], [6, lo + 7], [8, v.up[1]], [9, lo + 12], [11, v.up[0]]];
+        rock.forEach(([k, m], j) => { if ((dens > 0.6 || j % 2 === 0) && !(last && k > 6)) P(k, j === 0 ? 12 : 4, m, (j === 0 ? 0.4 : 0.24) * swell(k)); });
+        const mel = this.#melody(n, c, 67, 84);
+        if (leadIs === 0) mel.forEach((m) => { P(m.tick, m.len + 1, m.midi, 0.5); if (inPhrase < 3) P(m.tick + 0.05, m.len + 1, this.#deg(this.#below(m.midi, 5)), 0.3); });   // in sixths
+        else mel.forEach((m) => { const p = this.#onString(m.midi); G(m.tick + 0.05, m.len + 2, p.string, p.midi, 135); });
+        for (const b of breaks) {
+          if (shape && b >= 0 && b < 12 && !last) shape.filter(Boolean).reverse().forEach((x, q) => G(b + q * 0.12, 9, x.string, x.midi, 100 - q * 3));
+          if (b + 2 < 12) [v.up[3] + 12, v.up[2] + 12, v.up[1] + 12].forEach((m, q) => P(b + 2 + q * 0.5, 4, m, 0.16));
+        }
         break;
       }
       default: {                                                    // stars

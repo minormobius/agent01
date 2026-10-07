@@ -690,8 +690,8 @@ console.log('\nThe Minormobius Lectures (lecture/)');
   const { Composer } = await import('../cycle/compose.js');
   const OPEN = [64, 59, 55, 50, 45, 40];
   let bad = 0, total = 0, flamencoThird = true;
-  for (const biome of ['alpine', 'canyon', 'autumn', 'alien']) for (const place of ['lake', 'falls', 'river', 'mountains', 'stars']) {
-    const c = new Composer({ seed: 3, biome, bpm: 56 });
+  for (const biome of ['alpine', 'canyon', 'autumn', 'alien', 'atlantic', 'tropic', 'nordic']) for (const place of ['lake', 'falls', 'river', 'mountains', 'stars', 'sea']) {
+    const c = new Composer({ seed: 3, biome, bpm: 56, surf: { period: 8.4, phase: 1.1 } });
     for (let n = 0; n < 40; n++) for (const x of c.bar(n, { el: 0.4, rising: true, night: place === 'stars' ? 1 : 0, cover: 0.3, moon: 0.5, place, density: 1 })) {
       total++;
       if (!Number.isFinite(x.at) || !(x.dur > 0) || !(x.vel > 0)) bad++;
@@ -737,6 +737,52 @@ console.log('\nThe Minormobius Lectures (lecture/)');
   const fx = new Precip(320, 200, 7), px = new Float32Array(320 * 200 * 4).fill(100);
   for (const k of ['rain', 'snow', 'fog', 'storm']) fx.draw(px, { t: 3, wx: forecast(7, 1.8e12, 47, 8, k), lt: lit, flash: lightning(7, s[0].t + 0.01, 1), horizon: 100, fogTop: 60, fogBottom: 160, water: (x, y) => y > 150, sky: (x, y) => y < 100, veil: () => 0.3 });
   ok(px.every(Number.isFinite) && px.some((v) => v !== 100), 'weather: rain, rings, snow, fog and a bolt draw over a frame, every pixel finite');
+}
+
+// 20 — the coast: a second kind of scene. It fits its palette; the surf is one wave on two cycles,
+// and the sound's breakers land when the painted crest crosses the break line; the lighthouse sweeps
+// by night only; boats and gulls move; the world to fly is built for it and renders
+{
+  const { generate, palette, turnCycles, light, W: CW, H: CH } = await import('../cycle/scene.js');
+  const { sky } = await import('../cycle/astro.js');
+  const { surfTimes } = await import('../cycle/sound.js');
+  const { Life } = await import('../cycle/life.js');
+  const a = generate(5, 'coast'), b = generate(5, 'coast');
+  let maxIdx = 0; for (const v of a.index) if (v > maxIdx) maxIdx = v;
+  ok(a.kind === 'coast' && a.used <= 256 && maxIdx < a.used && Buffer.compare(Buffer.from(a.index), Buffer.from(b.index)) === 0 && a.cycles.every((c) => c.lo + c.len <= a.used),
+    `coast: a scene fits ${a.used}/256 colours, every pixel names one, the same seed paints the same coast (${a.biome})`);
+  const kinds = new Set(Array.from({ length: 30 }, (_, i) => generate(i + 1, 'coast').biome));
+  ok(kinds.size === 3, `coast: the seeds find all three coasts (${[...kinds].join(', ')})`);
+  // the surf: at the moment the sound says a wave breaks, the crest stands on the break line
+  const st = surfTimes(a), sea = a.cycles.find((c) => c.name === 'surf'), sand = a.cycles.find((c) => c.name === 'surf on the sand');
+  const lit = a.entries.map((e) => [e.k === 'surf' ? e.s : 0, 0, 0]), crestAt = (t) => { const r = turnCycles(lit, [sea], t, a.bpm); let best = 0; for (let i = 1; i < 16; i++) if (r[sea.lo + i][0] > r[sea.lo + best][0]) best = i; return best; };
+  const at = [0, 1, 2, 5].map((k) => crestAt(st.phase + k * st.period + 1e-6));
+  ok(sea.len === sand.len && sea.perBeat === sand.perBeat && Math.abs(st.period - 8 * 60 / a.bpm) < 1e-9 && at.every((v) => v === at[0]) && at[0] === ((a.surf.breakPos + 12) % 16),
+    `coast: one wave every ${st.period.toFixed(2)} s (two bars), the sea's and the sand's halves on one beat; each breaker sounds as the crest reaches slot ${at[0]}`);
+  // the lighthouse: by night the beam lights one side at a time and the lamp flashes toward us; by day nothing
+  const view = { lat: 40.71, lon: -74, facing: 180, wx: 'clear' }, night = sky(Date.UTC(2026, 9, 8, 4), 40.71, -74), noon = sky(Date.UTC(2026, 9, 7, 17), 40.71, -74);
+  const [lo, BB] = a.lighthouse.beam, P = a.lighthouse.period;
+  const side = (p, s) => { let v = 0; for (let i = 0; i < BB; i++) { const j = (lo + (s < 0 ? 0 : BB) + i) * 3; v += p[j] + p[j + 1] + p[j + 2]; } return v; };
+  const n1 = palette(a, view, night, P * 0.25), n2 = palette(a, view, night, P * 0.75), dn = palette(a, view, noon, P * 0.25), dn2 = palette(a, view, noon, P * 0.75);
+  const lampI = a.entries.findIndex((e) => e.k === 'lamp'), lampAt = (t) => { const p = palette(a, view, night, t); return p[lampI * 3] + p[lampI * 3 + 1]; };
+  ok(side(n1, 1) > side(n1, -1) + 200 && side(n2, -1) > side(n2, 1) + 200 && Math.abs(side(dn, 1) - side(dn2, 1)) < 30 && lampAt(0) > lampAt(P / 2) + 60,
+    'coast: the beam sweeps right then left by night, not by day; the lamp flashes as it turns toward us');
+  // life: boats and gulls are drawn, move, and stay finite
+  const life = new Life(a), lt = light(a, view, noon, 10);
+  const f1 = new Float32Array(CW * CH * 4).fill(100), f2 = new Float32Array(CW * CH * 4).fill(100);
+  life.draw(f1, { t: 10, lt }); life.draw(f2, { t: 40, lt });
+  let diff = 0; for (let i = 0; i < f1.length; i++) diff += f1[i] !== f2[i];
+  ok(life.boats.length >= 2 && life.gulls.length >= 4 && f1.every(Number.isFinite) && diff > 100, `coast: ${life.boats.length} boats and ${life.gulls.length} gulls drawn, and they move (${diff} values differ in 30 s)`);
+  // the world to fly: the same coast, the surf on it, and a frame
+  const { buildCoastWorld } = await import('../cycle/coastworld.js');
+  const { Flight } = await import('../cycle/fly.js');
+  const wld = buildCoastWorld(5);
+  const img = { data: new Uint8ClampedArray(CW * CH * 4) }, fl = new Flight(img, { putImageData() {} }, view);
+  fl.world = wld; fl.load = () => {}; fl.cloud = new Float32Array(512 * 512).fill(0.3);
+  const r = fl.frame(20, Date.UTC(2026, 9, 7, 17));
+  let lake = 0, foam = 0; for (const k of wld.kind) { if (k === 1) lake++; if (k === 4) foam++; }
+  ok(wld.biome === a.biome && wld.used <= 256 && lake > 1e5 && foam > 2000 && r.lt && img.data.every(Number.isFinite) && wld.path.samples.every((p) => Number.isFinite(p.z)),
+    `coast: the world to fly is the same ${wld.biome} coast, ${wld.used} colours, sea and ${foam} cells of surf, and renders`);
 }
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');

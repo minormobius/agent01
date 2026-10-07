@@ -5,6 +5,7 @@ import { generate, palette, paintSunPath, useSky, light, W, H } from './scene.js
 import { sky, solarHour } from './astro.js';
 import { drawNight } from './night.js';
 import { Precip } from './precip.js';
+import { Life } from './life.js';
 import { lightning, thunderDelay, KINDS } from './weather.js';
 import { Sound, modeAt } from './sound.js';
 
@@ -17,7 +18,7 @@ const img = g.createImageData(W, H), px32 = new Uint32Array(img.data.buffer), lu
 const params = new URLSearchParams(location.hash.slice(1));
 const SPEEDS = [['real time', 0], ['1 day = 4 min', 240], ['1 day = 1 min', 60], ['held', -1]];
 let speed = params.has('speed') ? Number(params.get('speed')) : 240;
-let scene, sound, notes = [], fly = null, mode = params.get('mode') === 'fly' ? 'fly' : 'painting';
+let scene, sound, life, notes = [], fly = null, mode = params.get('mode') === 'fly' ? 'fly' : 'painting';
 
 // ---- the place: from the link, else a guess from the time zone (longitude) at a middling latitude
 const tzLon = -new Date().getTimezoneOffset() / 4;
@@ -51,10 +52,11 @@ const clock = {
   },
 };
 
-function load(seed) {
+function load(seed, kind = 'lake') {
   const was = sound && sound.on;
   if (sound) { sound.close(); clock.use(false); }
-  scene = generate(seed);
+  scene = generate(seed, kind);
+  life = new Life(scene);
   clock.beatSec = 60 / scene.bpm;
   sound = new Sound(scene, { onNote: (at, m) => notes.push({ t: at + clock.offset, m }) });
   sound.place = mode === 'fly' && fly ? fly.place() : null;
@@ -62,14 +64,14 @@ function load(seed) {
   if (was) { sound.start(clock); clock.use(true); }
   notes = [];
   scene.path.day = null;
-  if (fly) fly.load(seed, scene.bpm);
-  $('info').textContent = `seed ${seed} · ${scene.biome} · ${scene.used} colours · ${scene.cycles.length} cycles · ♩ = ${scene.bpm}`;
-  focus = scene.waterfall.x * 0.5 + scene.cabin.x * 0.5;
+  if (fly) fly.load(seed, scene.bpm, scene.kind);
+  $('info').textContent = `seed ${seed} · ${scene.kind} · ${scene.biome} · ${scene.used} colours · ${scene.cycles.length} cycles · ♩ = ${scene.bpm}`;
+  focus = scene.kind === 'coast' ? (scene.lighthouse.x + W / 2) / 2 : scene.waterfall.x * 0.5 + scene.cabin.x * 0.5;
   layout(); remember();
 }
 function remember() {
   const ms = clock.msAt(clock.now());
-  const q = new URLSearchParams({ seed: scene.seed, lat: view.lat, lon: view.lon, face: view.facing, date: new Date(ms).toISOString().slice(0, 10), h: solarHour(ms, view.lon).toFixed(2) });
+  const q = new URLSearchParams({ seed: scene.seed, ...(scene.kind === 'coast' ? { kind: 'coast' } : {}), lat: view.lat, lon: view.lon, face: view.facing, date: new Date(ms).toISOString().slice(0, 10), h: solarHour(ms, view.lon).toFixed(2) });
   if (speed !== 240) q.set('speed', speed);
   if (mode === 'fly') q.set('mode', 'fly');
   if (!ambience) q.set('amb', '0');
@@ -106,6 +108,7 @@ function paint(t, ms) {
   for (let i = 0; i < idx.length; i++) px32[i] = lut[idx[i]];
   const star = f.star && lastStars ? { k: f.star.k % lastStars, amount: f.star.amount } : null;
   lastStars = drawNight(img.data, scene, view, sk, t, { night: lt.night * (1 - 0.95 * lt.wx.overcast), figures, flare: star, cover: lt.cover, overcast: lt.wx.overcast }).length || 1;
+  life.draw(img.data, { t, lt });                     // boats and gulls, geese and a hawk
   // what the weather draws: rain and its rings, snow, fog on the lake, the bolt
   if (!precip || precip.seed !== scene.seed) precip = new Precip(W, H, scene.seed);
   const L = scene.layer, LA = scene.LAYER, fl = lightning(scene.seed, t, lt.wx.storm);
@@ -114,7 +117,7 @@ function paint(t, ms) {
     boltTop: scene.yH * 0.18, boltBottom: scene.yH - 8,
     water: (x, y) => x >= 0 && x < W && y >= 0 && y < H && L[y * W + x] === LA.lake,
     sky: (x, y) => x >= 0 && x < W && y >= 0 && y < H && (L[y * W + x] === LA.sky || L[y * W + x] === LA.cloud),
-    veil: (i) => (L[i] === LA.far || L[i] === LA.snow ? 0.6 : L[i] === LA.mid ? 0.35 : 0),
+    veil: (i) => (L[i] === LA.far || L[i] === LA.snow ? 0.6 : L[i] === LA.mid ? 0.35 : scene.kind === 'coast' && (L[i] === LA.cliff || L[i] === LA.cabin) ? 0.3 : 0),
   });
   thunderFrom(fl);
   g.putImageData(img, 0, 0);
@@ -229,7 +232,7 @@ for (let i = 0; i < 8; i++) {
   $('facing').append(b);
 }
 function syncFacing() { for (const b of $('facing').children) b.classList.toggle('on', Number(b.dataset.a) === view.facing); }
-$('new').onclick = () => load(1 + Math.floor(Math.random() * 99999));
+$('new').onclick = () => load(1 + Math.floor(Math.random() * 99999), Math.random() < 0.5 ? 'coast' : 'lake');
 $('sound').onclick = () => {
   if (sound.on) { sound.stop(); clock.use(false); $('sound').classList.remove('on'); $('sound').textContent = 'sound'; return; }
   sound.start(clock); clock.use(true);
@@ -249,7 +252,7 @@ $('flybtn').onclick = async () => {
     $('flybtn').textContent = 'building the world…';
     const { Flight } = await import('./fly.js');
     fly = new Flight(img, g, view);
-    fly.load(scene.seed, scene.bpm);
+    fly.load(scene.seed, scene.bpm, scene.kind);
   }
   $('flybtn').textContent = mode === 'fly' ? 'back to the painting' : 'fly';
   $('flybtn').classList.toggle('on', mode === 'fly');
@@ -258,7 +261,7 @@ $('flybtn').onclick = async () => {
 };
 
 const seed = Number(params.get('seed')) || 1 + Math.floor(Math.random() * 99999);
-load(seed);
+load(seed, params.get('kind') === 'coast' ? 'coast' : 'lake');
 place(view.lat, view.lon);
 if (params.has('face')) { view.facing = Number(params.get('face')); syncFacing(); }
 if (params.has('date')) {
