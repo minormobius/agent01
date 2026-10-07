@@ -670,7 +670,7 @@ await t('the corner: www/ publishes through the factory gate, a refusal keeps th
   const one = (await publishSites({ runDir: run, www }));
   assert.ok(one.ok && one.changed); assert.deepEqual(one.sites, ['clock']);
   assert.match(readFileSync(join(www, 'miniphim', 'index.html'), 'utf8'), /og:description/); // the lab's index passes the gate
-  assert.match(readFileSync(join(run, 'commons', 'www', 'LIVE.md'), 'utf8'), /Published[\s\S]*miniphim\.minomobi\.com\/clock\//);
+  assert.match(readFileSync(join(run, 'commons', 'www', 'LIVE.md'), 'utf8'), /Committed to the house[\s\S]*miniphim\.minomobi\.com\/clock\//);
   assert.equal((await publishSites({ runDir: run, www })).changed, false);
   writeFileSync(join(run, 'commons', 'www', 'clock', 'feed.js'), 'fetch("https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=x")');
   const bad = (await publishSites({ runDir: run, www }));
@@ -725,6 +725,10 @@ await t('the corner: www/ publishes through the factory gate, a refusal keeps th
   assert.match(idx, /import \* as b0 from '\.\/bingo-caller\.mjs'/); assert.match(idx, /BOT_BINGO_CALLER_PASSWORD/); assert.match(idx, /calls numbers · a bot made by @miniphim\.delve\.town/);
   assert.ok(!existsSync(join(root, 'bots', 'loud.mjs')), 'a held bot does not ship');
   assert.match(readFileSync(join(run2, 'commons', 'www', 'LIVE.md'), 'utf8'), /bingo-caller as bingo\.delve\.town, every 15 min/);
+  // The live check: pages the house held before a run, fetched; a 404 is reported, not hidden.
+  { const { checkLive } = await import('./publish-sites.mjs');
+    const c = await checkLive(['', 'sierpinski'], async (u) => ({ status: u.endsWith('sierpinski/') ? 404 : 200 }));
+    assert.deepEqual(c.map((x) => x.code), [200, 404]); assert.equal(c[1].url, 'https://miniphim.minomobi.com/sierpinski/'); }
   // A helper is signed too (Morphyx found the gap): add one, and the old signatures stop counting.
   mkdirSync(join(run2, 'commons', 'house', 'bots', 'lib'), { recursive: true });
   bput('lib/h.mjs', 'export const x = 1;');

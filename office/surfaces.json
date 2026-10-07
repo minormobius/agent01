@@ -7534,6 +7534,16 @@
    "discovered": true
   },
   {
+   "id": "miniphim/site/404.html",
+   "name": "404",
+   "url": "https://miniphim.minomobi.com/site/404.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
    "id": "miniphim/site/delve-graph",
    "name": "delve-graph",
    "url": "https://miniphim.minomobi.com/site/delve-graph/",
@@ -7557,6 +7567,16 @@
    "id": "miniphim/site/keyholder",
    "name": "keyholder",
    "url": "https://miniphim.minomobi.com/site/keyholder/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/sierpinski",
+   "name": "sierpinski",
+   "url": "https://miniphim.minomobi.com/site/sierpinski/",
    "cat": "bluesky",
    "commits": 0,
    "age": "hot",

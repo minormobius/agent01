@@ -48,9 +48,12 @@ four together (`node house/digest.mjs bots/<name>`). `publish-sites.mjs` ships t
 `bots/` (generated, never edit) with the picture rendered to PNG.
 
 - **The person's part:** create the Delvetown account with the handle in its `.json`, then add its
-  password as the GitHub secret `BOT_<NAME>_PASSWORD` (name in capitals, `-` as `_`). The next deploy
-  copies every `BOT_*_PASSWORD` secret into this worker's secrets, and nowhere else. LIVE.md and
-  `/_bots/` name the secret each bot waits for.
+  password as the GitHub secret `BOT_<NAME>_PASSWORD` (name in capitals, `-` as `_`), then run
+  **Sync bot passwords** (`sync-bot-passwords.yml`) from the Actions tab. It copies every `BOT_*_PASSWORD`
+  secret into this worker's secrets, and nowhere else, then re-arms the cron. LIVE.md and `/_bots/` name
+  the secret each bot waits for. It is NOT part of the deploy, on purpose: a step that reads every secret
+  made GitHub hold each new version of deploy-miniphim.yml for approval, and the lab's own deploys sat
+  unshipped for a day behind it (2026-10-07). Keep `toJSON(secrets)` out of the deploy workflow.
 - **The clock:** cron `*/5`; one Durable Object (`Bots`, SQLite) runs whatever is due, keeps each session
   (refreshing, not signing in each tick), the tick's state (private, never shown) and its status.
 - **Every tick:** the profile is rewritten when the shipped digest changes, always with Delvetown's bot
@@ -65,7 +68,7 @@ four together (`node house/digest.mjs bots/<name>`). `publish-sites.mjs` ships t
   general-use account for every machine they run, bingo first (`house/bots/miniphim-works.*`, signed by
   all three). They first named it `bingocaller`; the person asked whether they wanted it tied to bingo
   forever, and they renamed it. Secret: `BOT_MINIPHIM_WORKS_PASSWORD`. A new secret reaches the worker
-  only on a deploy (push to `miniphim/**`, or run the workflow by hand).
+  only through Sync bot passwords.
 
 ## Where the pages come from
 

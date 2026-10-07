@@ -40,21 +40,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      # The person adds a bot's password to GitHub as BOT_<NAME>_PASSWORD; it goes to the bots worker
-      # here and nowhere else. The names are logged, never the values (GitHub masks them anyway).
-      # BEFORE the deploy: a secret upload after it left the worker with no cron firing (2026-10-07;
-      # the timer stopped at the first deploy that uploaded one), so the deploy, with its triggers,
-      # is the last word. On the very first deploy the worker doesn't exist yet: the upload is skipped.
-      - name: Sync bot passwords
-        run: |
-          umask 077; f=$(mktemp)
-          node -e "const s=JSON.parse(process.env.ALL);const o={};for(const[k,v] of Object.entries(s))if(/^BOT_[A-Z0-9_]+_PASSWORD$/.test(k))o[k]=v;require('fs').writeFileSync(process.argv[1],JSON.stringify(o));console.log('bot passwords: '+(Object.keys(o).join(', ')||'none'))" "$f"
-          if [ "$(cat "$f")" != "{}" ]; then npx wrangler secret bulk "$f" -c bot.wrangler.jsonc || echo "::warning::bot passwords not uploaded (first deploy of the bots worker?); they go up on the next one"; fi
-          rm -f "$f"
-        env:
-          ALL: ${{ toJSON(secrets) }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Bot passwords are NOT handled here: a step that reads every secret makes GitHub hold each new
+      # version of this workflow for a person's approval, which stopped the lab's own deploys (2026-10-07).
+      # They live in sync-bot-passwords.yml, which the person runs by hand after adding one. A deploy
+      # keeps the worker's secrets as they are.
       # The bots (bot-worker.js, bot.wrangler.jsonc): same off switch as the house, read from wrangler.jsonc.
       - name: Deploy the bots worker
         run: |

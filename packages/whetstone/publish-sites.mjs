@@ -66,13 +66,28 @@ async function renderOg(dest, files) {
 // home: their own house (miniphim.minomobi.com, miniphim/site/ in the repo). No factory gate there:
 // the house's worker enforces the terms the three set (miniphim/worker.js). The factory's shared
 // stylesheet comes along, since pages written for the corner link /_kit/tokens.css.
-export async function publishSites({ runDir, www, home = null, gateScript = join(HERE, '..', '..', 'scripts', 'lab-content-gate.mjs'), now = new Date().toISOString() }) {
+// Did the last publish actually reach the web? Every page the house held before this run, fetched
+// live. The deploy is a separate workflow that can fail or be held (2026-10-07: a day of runs said
+// "Published" while every deploy sat waiting for approval, and Morphyx found it from outside).
+export async function checkLive(pages, fetchImpl = fetch) {
+  const out = [];
+  for (const s of pages) {
+    const url = s ? `${BASE}${s}/` : BASE;
+    let code; try { code = (await fetchImpl(url, { method: 'GET', signal: AbortSignal.timeout(10_000) })).status; } catch (e) { code = `unreachable (${String(e.message).slice(0, 60)})`; }
+    out.push({ url, code });
+  }
+  return out;
+}
+
+export async function publishSites({ runDir, www, home = null, gateScript = join(HERE, '..', '..', 'scripts', 'lab-content-gate.mjs'), now = new Date().toISOString(), checkPages = false }) {
   const commonsDir = join(runDir, 'commons');
   const commons = existsSync(commonsDir) ? readTree(commonsDir) : {};
   const { files, sites, skipped } = plan(commons);
   if (home) { const kit = join(HERE, '..', '..', 'lab', '_kit', 'tokens.css'); if (existsSync(kit) && Object.keys(files).length) files['_kit/tokens.css'] = readFileSync(kit, 'utf8'); }
   const dest = home || join(www, TENANT);
   const before = existsSync(dest) ? readTree(dest) : {};
+  const was = Object.keys(before).filter((k) => /^([a-z0-9][a-z0-9-]*\/)?index\.html$/.test(k)).map((k) => k.replace(/\/?index\.html$/, ''));
+  const checked = home && checkPages && was.length ? await checkLive(was) : null;
   const same = JSON.stringify(Object.entries(before).sort()) === JSON.stringify(Object.entries(files).sort());
   let result, rendered = [];
   if (!Object.keys(files).length) result = { changed: false, ok: true, sites: [], errors: [], note: 'www/ is empty: nothing published' };
@@ -117,11 +132,14 @@ export async function publishSites({ runDir, www, home = null, gateScript = join
   if (rendered.length) result.og = rendered;
   const live = `# LIVE: what the lab did with www/ (${now.slice(0, 16)}Z)\n\n` +
     (result.ok
-      ? (result.changed ? `Published. It deploys within a few minutes of this run ending; check it with WebFetch (or open it in Chromium).\n\n` : `${result.note || 'Nothing changed.'}\n\n`) +
+      ? (result.changed ? `Committed to the house. It goes live when the deploy runs, a few minutes after this run ends; this file can't see that happen, so the next run checks the pages live (below), and you can check with WebFetch or Chromium.\n\n` : `${result.note || 'Nothing changed.'}\n\n`) +
         `- the corner: ${BASE}\n${sites.map((s) => `- ${s}: ${BASE}${s}/`).join('\n')}\n`
       : `**Not published.** The content gate refused this run's www/, so the last good version stays up.\n\n${result.errors.map((e) => `- ${e}`).join('\n')}\n`) +
     (api ? `\nAPI (house/api/): ${api.routes.length ? api.routes.map((r) => `${BASE}api/${r.name}/ (signed by ${r.signed.join(', ')})`).join(', ') : 'no routes live'}\n${api.held.map((h) => `- held: ${h.name}: ${h.why}`).join('\n')}${api.held.length ? '\n' : ''}` : '') +
-    (bots ? `\nBots (house/bots/): ${bots.bots.length ? bots.bots.map((b) => `${b.name} as ${b.profile.handle}, every ${b.every} min (signed by ${b.signed.join(', ')}; the person adds ${b.secret} once the account exists)`).join(', ') : 'none shipped'}. What they did: ${BASE}_bots/\n${bots.held.map((h) => `- held: ${h.name}: ${h.why}`).join('\n')}${bots.held.length ? '\n' : ''}` : '') +
+    (bots ? `\nBots (house/bots/): ${bots.bots.length ? bots.bots.map((b) => `${b.name} as ${b.profile.handle}, every ${b.every} min (signed by ${b.signed.join(', ')}; needs ${b.secret}, which the person adds and syncs)`).join(', ') : 'none shipped'}. What they did: ${BASE}_bots/\n${bots.held.map((h) => `- held: ${h.name}: ${h.why}`).join('\n')}${bots.held.length ? '\n' : ''}` : '') +
+    (checked ? (checked.every((c) => c.code === 200)
+      ? `\nThe last publish is live: every page the house held before this run answers 200 (${checked.length} checked).\n`
+      : `\n**The last publish did not all reach the web.** Pages the house held before this run, fetched live now:\n${checked.map((c) => `- ${c.url}: ${c.code}`).join('\n')}\nA page that isn't 200 means the deploy after the last run failed or is waiting; tell the person.\n`) : '') +
     (rendered.length ? `\nCard pictures:\n${rendered.map((s) => `- ${s}`).join('\n')}\n` : '') +
     (skipped.length ? `\nLeft out:\n${skipped.map((s) => `- ${s}`).join('\n')}\n` : '');
   mkdirSync(join(commonsDir, 'www'), { recursive: true });
@@ -135,5 +153,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const runDir = arg('run'), www = arg('www'), home = arg('home');
   if (!runDir || !(www || home)) { console.error('usage: publish-sites.mjs --run <run dir> (--home miniphim/site | --www <lab/www>)'); process.exit(2); }
   if (!existsSync(join(runDir, 'commons', 'www')) && !existsSync(join(runDir, 'commons', 'house'))) { console.log(JSON.stringify({ changed: false, ok: true, sites: [], errors: [], note: 'no www/' })); process.exit(0); }
-  console.log(JSON.stringify(await publishSites({ runDir, www, home, ...(arg('gate') ? { gateScript: arg('gate') } : {}) })));
+  console.log(JSON.stringify(await publishSites({ runDir, www, home, checkPages: !!home, ...(arg('gate') ? { gateScript: arg('gate') } : {}) })));
 }
