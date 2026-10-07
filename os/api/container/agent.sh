@@ -262,6 +262,7 @@ run_codex() {
   cat > "$root/config.toml" <<CONFIG
 model_provider = "$PROFILE"
 model = "$MODEL"
+cli_auth_credentials_store = "ephemeral"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 CONFIG

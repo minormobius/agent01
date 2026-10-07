@@ -84,3 +84,8 @@ The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrang
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
 or the deploy goes green while the site never changes.
+
+Repo mode also offers astra, routed to the Codex Responses harness and the
+os-api subscription broker. Assist mode retains the three direct providers.
+`kimi --harness=codex` defaults to astra; unsupported harness/model pairs fail
+explicitly. The ChatGPT bootstrap procedure lives in `api/CODEX.md` section 7.3.

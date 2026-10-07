@@ -2,6 +2,8 @@
 // DO-storage-backed workspace, auto-save, agent profiles (kimi3 etc.)
 
 import { Container } from '@cloudflare/containers';
+import { OpenAICredentialStore } from './openai-credential.js';
+import { proxyOpenAIResponses } from './openai-proxy.js';
 
 // ─── Capability tokens ─────────────────────────────────────────────
 // A container is fully controlled by its user (they have a shell), so NO secret
@@ -32,37 +34,6 @@ async function hmacKey(secret) {
     'raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']
   );
 }
-// The public Codex OAuth client id. Not a secret — it ships in the CLI binary;
-// it is required on the refresh grant.
-const OPENAI_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
-// Where a ChatGPT-subscription Codex turn actually goes. NOT api.openai.com:
-// the two endpoints accept different credentials, and a plan token is only
-// good here. Measured answering from container egress (CODEX.md D1).
-const OPENAI_CODEX_UPSTREAM = 'https://chatgpt.com/backend-api/codex';
-
-// `exp` out of a JWT access token, without verifying it — we are not the
-// audience and have no business validating the signature. It is only used to
-// decide whether to refresh, so a malformed token simply reads as "stale".
-function jwtExp(jwt) {
-  try {
-    const claims = JSON.parse(dec.decode(b64urlBytes(String(jwt).split('.')[1])));
-    return typeof claims.exp === 'number' ? claims.exp : null;
-  } catch { return null; }
-}
-
-// Credential status with NO secret material in it — safe for the browser.
-function credStatus(cred) {
-  if (!cred?.refresh) return { stored: false };
-  const exp = jwtExp(cred.access);
-  return {
-    stored: true,
-    accountId: cred.accountId || null,
-    accessExpiresAt: exp ? new Date(exp * 1000).toISOString() : null,
-    accessExpired: exp ? exp < Date.now() / 1000 : null,
-    lastRefresh: cred.lastRefresh ? new Date(cred.lastRefresh).toISOString() : null,
-  };
-}
-
 async function mintCap(secret, did, ttlSec = 24 * 3600) {
   const payload = b64url(enc.encode(JSON.stringify({ did, exp: Math.floor(Date.now() / 1000) + ttlSec })));
   const sig = await crypto.subtle.sign('HMAC', await hmacKey(secret), enc.encode(payload));
@@ -100,6 +71,7 @@ export class ContainerShell extends Container {
 
   constructor(ctx, env) {
     super(ctx, env);
+    this._openaiCredentials = new OpenAICredentialStore(ctx.storage);
     this._workspaceId = null;
     this._capToken = '';
     // Load workspace ID from DO storage before handling any requests.
@@ -275,95 +247,10 @@ export class ContainerShell extends Container {
 
   // ─── OpenAI credential custody (Design C) ──────────────────────────
   //
-  // The principal's ChatGPT tokens live in THIS DO and are refreshed by it.
-  // That placement is the whole design, not an implementation detail: a
-  // rotating single-use refresh token requires exactly one holder refreshing
-  // at a time (CODEX.md D3), and a Durable Object is single-threaded by
-  // construction — so the serialization OpenAI's own CI/CD guidance asks us to
-  // maintain by discipline is instead a property of the runtime.
-  //
-  // Nothing here is ever handed to the container. The container gets a
-  // capability token; /openai/v1/responses does the swap.
-  //
-  // Routed here by the worker AFTER auth (owner DID for writes, capability
-  // token for `token`), so no re-auth at this layer.
+  // Storage input gates do not serialize external fetches. The custody
+  // queue covers reads, refreshes, replacements and deletion together.
   async handleOpenAIOp(request, op) {
-    const storage = this.ctx.storage;
-    const KEY = 'openai:cred';
-    const json = (body, status = 200) =>
-      new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
-    if (op === 'put') {
-      // Body is the shape lifted from a local ~/.codex/auth.json, reduced to
-      // what we actually need. We deliberately do NOT store id_token: it is an
-      // identity assertion we have no use for, and not storing it is one less
-      // thing to leak.
-      let body;
-      try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-      const access = body.access_token || body.tokens?.access_token || '';
-      const refresh = body.refresh_token || body.tokens?.refresh_token || '';
-      if (!refresh) return json({ error: 'refresh_token required' }, 400);
-      await storage.put(KEY, {
-        access, refresh,
-        accountId: body.account_id || body.tokens?.account_id || '',
-        lastRefresh: Date.now(),
-      });
-      return json({ ok: true, ...credStatus(await storage.get(KEY)) });
-    }
-
-    if (op === 'status') {
-      return json(credStatus(await storage.get(KEY)));
-    }
-
-    if (op === 'delete') {
-      await storage.delete(KEY);
-      return json({ ok: true, stored: false });
-    }
-
-    if (op === 'token') {
-      const cred = await storage.get(KEY);
-      if (!cred?.refresh) return json({ error: 'no_credential' }, 503);
-
-      // Refresh only when the access token is absent or within 5 minutes of
-      // expiry — the same threshold Codex itself uses. Refreshing eagerly
-      // would burn refresh tokens for nothing.
-      const exp = jwtExp(cred.access);
-      const stale = !cred.access || !exp || exp - Date.now() / 1000 < 300;
-      if (!stale) return json({ access_token: cred.access, account_id: cred.accountId, refreshed: false });
-
-      const resp = await fetch('https://auth.openai.com/oauth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          grant_type: 'refresh_token',
-          refresh_token: cred.refresh,
-          client_id: OPENAI_CLIENT_ID,
-        }),
-      });
-      const text = await resp.text();
-      if (!resp.ok) {
-        // A failed refresh is worth surfacing verbatim: refresh_token_reused
-        // means the rotation family is burnt and only a fresh browser login
-        // fixes it, which is a very different instruction to the operator than
-        // a transient 5xx.
-        return json({ error: 'refresh_failed', status: resp.status, detail: text.slice(0, 400) }, 502);
-      }
-      let tok;
-      try { tok = JSON.parse(text); } catch { return json({ error: 'refresh_unparseable' }, 502); }
-
-      // Persist the ROTATED refresh token before returning. If OpenAI rotated
-      // and we dropped it, the next refresh would replay a burnt token and
-      // invalidate the whole family.
-      await storage.put(KEY, {
-        access: tok.access_token || cred.access,
-        refresh: tok.refresh_token || cred.refresh,
-        accountId: cred.accountId || tok.account_id || '',
-        lastRefresh: Date.now(),
-      });
-      return json({ access_token: tok.access_token, account_id: cred.accountId, refreshed: true });
-    }
-
-    return json({ error: 'unknown op' }, 404);
+    return this._openaiCredentials.handle(request, op);
   }
 
   // Chunked workspace tarball in DO storage. Routed here by the worker's
@@ -847,7 +734,7 @@ export default {
 async function handleOpenAI(request, env, url) {
   const origin = request.headers.get('Origin') || '*';
   const json = (body, status = 200) => new Response(JSON.stringify(body), {
-    status, headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders(origin) },
   });
 
   // ── the proxy itself: capability token in, subscription bearer out ──
@@ -861,35 +748,16 @@ async function handleOpenAI(request, env, url) {
     if (!cap) return json({ error: 'unauthorized' }, 401);
 
     const stub = env.CONTAINER_SHELL.get(env.CONTAINER_SHELL.idFromName(cap.did));
-    const tokResp = await stub.fetch(new Request('https://do/_openai/token'));
-    const tok = await tokResp.json().catch(() => ({}));
-    if (!tokResp.ok) {
-      // Pass the reason through rather than flattening to 500 — "no credential
-      // deposited yet" and "the rotation family is burnt" need different
-      // actions from a human, and Codex will surface whatever we say here.
-      return json({ error: { message: `os-api: ${tok.error || 'credential unavailable'}${tok.detail ? ` — ${tok.detail}` : ''}`, type: 'os_api_credential' } }, tokResp.status);
+    if (!(env.ALLOWED_DIDS || '').split(',').map((did) => did.trim()).includes(cap.did)) {
+      return json({ error: 'unauthorized' }, 403);
     }
-
-    // Forward verbatim apart from the swapped credential. Codex's other
-    // headers (session-id, thread-id, originator, x-codex-*) are metadata the
-    // upstream may well care about, so they are preserved rather than dropped.
-    const fwd = new Headers(request.headers);
-    fwd.set('Authorization', `Bearer ${tok.access_token}`);
-    fwd.delete('host');
-    if (tok.account_id) fwd.set('chatgpt-account-id', tok.account_id);
-
-    const upstream = await fetch(`${OPENAI_CODEX_UPSTREAM}/responses`, {
-      method: 'POST', headers: fwd, body: request.body,
-    });
-    // Return the response as-is so the SSE stream passes through unbuffered.
-    const out = new Headers(upstream.headers);
-    for (const [k, v] of Object.entries(corsHeaders(origin))) out.set(k, v);
-    return new Response(upstream.body, { status: upstream.status, headers: out });
+    return proxyOpenAIResponses(request, stub, corsHeaders(origin));
   }
 
-  // ── credential deposit: owner identity, same gate as /ws ──
+  // Credential deposit: verified owner identity.
   if (url.pathname === '/openai/credential') {
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
+    if (!['GET', 'PUT', 'DELETE'].includes(request.method)) return json({ error: 'method not allowed' }, 405);
     const auth = await authorizeDid(
       env,
       url.searchParams.get('session'),
@@ -907,7 +775,7 @@ async function handleOpenAI(request, env, url) {
     const body = await resp.text();
     return new Response(body, {
       status: resp.status,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders(origin) },
     });
   }
 
@@ -1033,17 +901,23 @@ async function resolvePds(did) {
     const res = await fetch(`https://plc.directory/${encodeURIComponent(did)}`);
     if (!res.ok) throw new Error('plc resolve failed');
     const doc = await res.json();
-    const svc = doc.service?.find((s) => s.id === '#atproto_pds');
+    const svc = doc.service?.find((s) => s.id === '#atproto_pds' || s.id === `${did}#atproto_pds`);
     if (!svc?.serviceEndpoint) throw new Error('no pds in did doc');
     return svc.serviceEndpoint;
   }
   if (did.startsWith('did:web:')) {
-    const domain = did.slice('did:web:'.length);
-    if (!/^[a-zA-Z0-9.-]+$/.test(domain)) throw new Error('bad did:web');
-    const res = await fetch(`https://${domain}/.well-known/did.json`);
+    const [host, ...path] = did.slice('did:web:'.length).split(':');
+    const domain = decodeURIComponent(host);
+    if (!/^[a-zA-Z0-9.-]+(?::[0-9]+)?$/.test(domain)) throw new Error('bad did:web');
+    const segments = path.map((part) => decodeURIComponent(part));
+    if (segments.some((part) => !part || part === '.' || part === '..')) throw new Error('bad did:web path');
+    const documentPath = segments.length
+      ? `/${segments.map((part) => encodeURIComponent(part)).join('/')}/did.json`
+      : '/.well-known/did.json';
+    const res = await fetch(`https://${domain}${documentPath}`);
     if (!res.ok) throw new Error('did:web resolve failed');
     const doc = await res.json();
-    const svc = doc.service?.find((s) => s.id === '#atproto_pds');
+    const svc = doc.service?.find((s) => s.id === '#atproto_pds' || s.id === `${did}#atproto_pds`);
     if (!svc?.serviceEndpoint) throw new Error('no pds in did doc');
     return svc.serviceEndpoint;
   }

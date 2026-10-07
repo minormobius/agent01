@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import { execSync, spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import pty from 'node-pty';
+import { codexChatArgs, normalizeCodexEvent, validSessionId } from './codex-chat.js';
 
 const PORT = 8080;
 const HEARTBEAT_MS = 30_000;
@@ -46,7 +47,9 @@ async function saveWorkspace() {
         ' --exclude=node_modules' +
         ' --exclude=.cache' +
         ' --exclude=__pycache__' +
-        ' workspace .claude .bashrc .gitconfig' +
+        ' --exclude=.codex-cells/*/auth.json' +
+        ' --exclude=.codex-cells/*/config.toml' +
+        ' workspace .claude .codex-cells .bashrc .gitconfig' +
         ' 2>/dev/null',
       { maxBuffer: 100 * 1024 * 1024, encoding: 'buffer' }
     );
@@ -137,13 +140,13 @@ function profileDiag(name, harness = 'claude') {
     // the one THIS run will actually use, so "no endpoint" is attributable.
     const base = harness === 'opencode'
       ? (prof.oaiBase || '')
-      : (prof.base || 'anthropic');
+      : harness === 'codex' ? (prof.respBase || '') : (prof.base || 'anthropic');
     return {
       harness,
       model: prof.model || '(default)',
       base: base || '(none for this harness)',
       hasKey: !!prof.key,
-      runnable: harness === 'opencode' ? !!prof.oaiBase : true,
+      runnable: harness === 'opencode' ? !!prof.oaiBase : harness === 'codex' ? !!prof.respBase : !!prof.base || name === 'claude',
     };
   } catch {
     return { parseError: true, harness };
@@ -201,7 +204,12 @@ function startChatRun(cell, harness, profile, state, text, originWs) {
   // is the container itself + what the scoped PAT allows. In both cases the
   // prompt rides stdin, so user text is never shell-quoted.
   let cmd;
-  if (harness === 'opencode') {
+  if (harness === 'codex') {
+    let sessionId;
+    try { sessionId = readFileSync(chatSessionFile(cell), 'utf8').trim(); } catch { /* first run */ }
+    cmd = `exec agent ${codexChatArgs(profile, sessionId).join(' ')}`;
+    state.codexSeen = new Map();
+  } else if (harness === 'opencode') {
     // opencode's session store is per-profile (agent.sh sets XDG_DATA_HOME),
     // so "continue the last session in this store" IS the right conversation —
     // no session id to track. `-` reads the prompt from stdin.
@@ -218,12 +226,17 @@ function startChatRun(cell, harness, profile, state, text, originWs) {
   }
 
   const child = spawn('bash', ['-lc', cmd], {
+    cwd,
     env: { ...process.env, HOME: '/home/coder' },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   state.child = child;
   chatRecord(cell, state, { type: 'user-msg', text }, originWs);
   chatRecord(cell, state, { type: 'start', harness, diag: profileDiag(profile, harness) });
+  child.stdin.on('error', () => {
+    // An early CLI/config failure can close stdin before a large prompt is
+    // written. close/stderr report it; an unhandled EPIPE would kill the server.
+  });
   child.stdin.write(text);
   child.stdin.end();
 
@@ -244,14 +257,15 @@ function startChatRun(cell, harness, profile, state, text, originWs) {
     // diagnosis and must never be lost to client-side filtering.
     stderrBuf = (stderrBuf + d.toString()).slice(-8000);
   });
-  child.on('exit', (code) => {
+  // close follows the final stdout/stderr chunk; exit can precede it.
+  child.on('close', (code, signal) => {
     if (buf.trim()) emitChatLine(cell, harness, state, buf.trim());
     // opencode has no session id to persist; the marker file is what tells the
     // next turn that a session exists in this cell's store to --continue.
     if (harness === 'opencode' && code === 0) {
       try { writeFileSync(chatSessionFile(cell), 'opencode'); } catch { /* not fatal */ }
     }
-    chatRecord(cell, state, { type: 'done', code, stderr: code ? stderrBuf.slice(-4000) : undefined });
+    chatRecord(cell, state, { type: 'done', code: code ?? 1, signal, stderr: code !== 0 ? stderrBuf.slice(-4000) : undefined });
     state.child = null;
   });
   child.on('error', (err) => {
@@ -293,6 +307,16 @@ function normalizeOpencodeEvent(evt) {
 }
 
 function emitChatLine(cell, harness, state, line) {
+  if (harness === 'codex') {
+    let evt;
+    try { evt = JSON.parse(line); } catch { chatRecord(cell, state, { type: 'event', line }); return; }
+    if (evt.type === 'thread.started' && validSessionId(evt.thread_id)) {
+      try { writeFileSync(chatSessionFile(cell), evt.thread_id); } catch { /* best effort */ }
+    }
+    const normalized = normalizeCodexEvent(evt, state.codexSeen);
+    chatRecord(cell, state, { type: 'event', line: normalized ? JSON.stringify(normalized) : line });
+    return;
+  }
   if (harness === 'opencode') {
     let evt;
     try { evt = JSON.parse(line); } catch { chatRecord(cell, state, { type: 'event', line }); return; }
@@ -316,7 +340,18 @@ function handleChatConnection(ws, req) {
   const rawProfile = params.get('profile') || 'kimi3';
   const profile = /^[a-z0-9][a-z0-9-]{0,31}$/.test(rawProfile) ? rawProfile : 'kimi3';
   const rawHarness = params.get('harness') || 'claude';
-  const harness = (rawHarness === 'claude' || rawHarness === 'opencode') ? rawHarness : 'claude';
+  if (!['claude', 'opencode', 'codex'].includes(rawHarness)) {
+    ws.send(JSON.stringify({ type: 'error', error: 'unknown harness' }));
+    ws.close(1008, 'unknown harness');
+    return;
+  }
+  const harness = rawHarness;
+  const diag = profileDiag(profile, harness);
+  if (!diag.runnable) {
+    ws.send(JSON.stringify({ type: 'error', error: `${profile} cannot run under ${harness}` }));
+    ws.close(1008, 'unsupported cell');
+    return;
+  }
   const cell = cellKey(harness, profile);
   const state = chatState(cell);
   state.clients.add(ws);
