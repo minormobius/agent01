@@ -171,6 +171,7 @@ jobs:
           if [ -d packages/whetstone/letters ]; then git add packages/whetstone/letters; fi
           if [ -d miniphim/site ]; then git add -A miniphim/site; fi
           if [ -d miniphim/api ]; then git add -A miniphim/api; fi
+          if [ -d miniphim/bots ]; then git add -A miniphim/bots; fi
           if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
           git commit -m "whetstone: run ${{ github.sha }}"
           # GitHub has answered a push with 500 four times running (2026-10-05, a summon's record lost

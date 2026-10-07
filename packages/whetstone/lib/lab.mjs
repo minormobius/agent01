@@ -157,7 +157,7 @@ export async function runLab({
   C['CARRIES.md'] = carriesMd(new Date().toISOString().slice(0, 16) + 'Z');
   if (costs) C['COSTS.md'] = costs; // what the days have cost, from the chronicle (run.mjs)
   // house/ (their API, lib/house.mjs): kept like the shelf, except that a signature file
-  // (house/api/<name>.<part>.sign.json) can be written only by that part; the README and the digest
+  // (house/api/<name>.<part>.sign.json, house/bots/<name>.<part>.sign.json) can be written only by that part; the README and the digest
   // tool are the lab's, lent each session.
   const HOUSE_LENT = { 'house/README.md': HOUSE_README, 'house/digest.mjs': DIGEST_TOOL };
   const harvestHouse = (soul, dir) => {
@@ -165,7 +165,7 @@ export async function runLab({
     harvest(C, dir, 'house/');
     for (const k of Object.keys(HOUSE_LENT)) delete C[k];
     for (const k of Object.keys(C)) {
-      const m = k.match(/^house\/api\/.+\.([a-z]+)\.sign\.json$/);
+      const m = k.match(/^house\/.+\.([a-z]+)\.sign\.json$/);
       if (!m || m[1] === soul.key || before[k] === C[k]) continue;
       if (k in before) C[k] = before[k]; else delete C[k]; // another part's signature: not this session's to write
     }

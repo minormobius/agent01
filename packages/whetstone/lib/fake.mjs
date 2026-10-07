@@ -102,7 +102,13 @@ function workFake(soul, meta, collapsed, cwd) {
       writeFileSync(join(cwd, 'house', 'api', 'hi.test.mjs'), "import r from './hi.mjs'; if ((await r(new Request('https://x/api/hi/a'), { path: 'a' })).echo !== 'a') process.exit(1);\n");
       const digest = execFileSync('node', [join(cwd, 'house', 'digest.mjs'), 'hi'], { encoding: 'utf8' }).trim();
       writeFileSync(join(cwd, 'house', 'api', 'hi.modulo.sign.json'), JSON.stringify({ digest }));
-      writeFileSync(join(cwd, 'house', 'api', 'hi.morphyx.sign.json'), JSON.stringify({ digest })); }
+      writeFileSync(join(cwd, 'house', 'api', 'hi.morphyx.sign.json'), JSON.stringify({ digest }));
+      // A bot too, with the same forgery: its own signature stays, the forged one goes.
+      mkdirSync(join(cwd, 'house', 'bots'), { recursive: true });
+      for (const [f, v] of [['b.mjs', 'export default async () => {};\n'], ['b.test.mjs', '\n'], ['b.json', '{}\n'], ['b.svg', '<svg/>\n']]) writeFileSync(join(cwd, 'house', 'bots', f), v);
+      const bd = execFileSync('node', [join(cwd, 'house', 'digest.mjs'), 'bots/b'], { encoding: 'utf8' }).trim();
+      writeFileSync(join(cwd, 'house', 'bots', 'b.modulo.sign.json'), JSON.stringify({ digest: bd }));
+      writeFileSync(join(cwd, 'house', 'bots', 'b.mozzie.sign.json'), JSON.stringify({ digest: bd })); }
     if (soul === 'modulo') { mkdirSync(join(cwd, 'letters', 'from-the-person'), { recursive: true });
       writeFileSync(join(cwd, 'letters', 'REPLIES.md'), 'Dear person: yes. — Modulo\n');
       writeFileSync(join(cwd, 'letters', 'from-the-person', '2026-10-05-hello.md'), 'tampered'); }

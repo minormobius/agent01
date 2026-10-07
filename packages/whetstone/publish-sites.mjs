@@ -17,7 +17,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readTree, writeTree } from './lib/commons.mjs';
 import { TENANT, BASE, LIVE, README, SLUG, EXT } from './lib/www.mjs';
-import { planApi } from './lib/house.mjs';
+import { planApi, planBots } from './lib/house.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -93,7 +93,7 @@ export async function publishSites({ runDir, www, home = null, gateScript = join
   result.skipped = skipped;
   // The house's API (lib/house.mjs): routes with a passing test and two parts' signatures, written
   // to miniphim/api/ beside site/, with the routes table the worker imports.
-  let api = null;
+  let api = null, bots = null;
   if (home) {
     api = planApi(commons);
     const apiDir = join(dirname(home), 'api');
@@ -102,6 +102,17 @@ export async function publishSites({ runDir, www, home = null, gateScript = join
       rmSync(apiDir, { recursive: true, force: true }); writeTree(apiDir, api.files); result.changed = true;
     }
     result.api = { live: api.routes.map((r) => r.name), held: api.held };
+    // The bots (lib/house.mjs planBots): written to miniphim/bots/ for the bots worker, each picture
+    // rendered to a 512-px PNG here, since the worker has no renderer.
+    let Resvg = null; try { ({ Resvg } = await import('@resvg/resvg-js')); } catch { /* no renderer: bots ship without a picture */ }
+    const renderPng = Resvg ? (svg) => new Resvg(svg.includes('xmlns=') ? svg : svg.replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg"'), { fitTo: { mode: 'width', value: 512 }, background: 'white', font: { loadSystemFonts: true } }).render().asPng() : null;
+    bots = await planBots(commons, { renderPng });
+    const botsDir = join(dirname(home), 'bots');
+    const had = existsSync(botsDir) ? readTree(botsDir) : {};
+    if (JSON.stringify(Object.entries(had).sort()) !== JSON.stringify(Object.entries(bots.files).sort())) {
+      rmSync(botsDir, { recursive: true, force: true }); writeTree(botsDir, bots.files); result.changed = true;
+    }
+    result.bots = { live: bots.bots.map((b) => b.name), held: bots.held };
   }
   if (rendered.length) result.og = rendered;
   const live = `# LIVE: what the lab did with www/ (${now.slice(0, 16)}Z)\n\n` +
@@ -110,6 +121,7 @@ export async function publishSites({ runDir, www, home = null, gateScript = join
         `- the corner: ${BASE}\n${sites.map((s) => `- ${s}: ${BASE}${s}/`).join('\n')}\n`
       : `**Not published.** The content gate refused this run's www/, so the last good version stays up.\n\n${result.errors.map((e) => `- ${e}`).join('\n')}\n`) +
     (api ? `\nAPI (house/api/): ${api.routes.length ? api.routes.map((r) => `${BASE}api/${r.name}/ (signed by ${r.signed.join(', ')})`).join(', ') : 'no routes live'}\n${api.held.map((h) => `- held: ${h.name}: ${h.why}`).join('\n')}${api.held.length ? '\n' : ''}` : '') +
+    (bots ? `\nBots (house/bots/): ${bots.bots.length ? bots.bots.map((b) => `${b.name} as ${b.profile.handle}, every ${b.every} min (signed by ${b.signed.join(', ')}; the person adds ${b.secret} once the account exists)`).join(', ') : 'none shipped'}. What they did: ${BASE}_bots/\n${bots.held.map((h) => `- held: ${h.name}: ${h.why}`).join('\n')}${bots.held.length ? '\n' : ''}` : '') +
     (rendered.length ? `\nCard pictures:\n${rendered.map((s) => `- ${s}`).join('\n')}\n` : '') +
     (skipped.length ? `\nLeft out:\n${skipped.map((s) => `- ${s}`).join('\n')}\n` : '');
   mkdirSync(join(commonsDir, 'www'), { recursive: true });

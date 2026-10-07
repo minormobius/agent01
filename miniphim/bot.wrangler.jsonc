@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The miniphim's bots (bot-worker.js): accounts the person made, driven by the souls' code in
+  // bots/ (generated from house/bots/ in their commons). Passwords are this worker's secrets,
+  // BOT_<NAME>_PASSWORD, synced from GitHub by deploy-miniphim.yml; nothing else holds them.
+  "name": "miniphim-bots",
+  "main": "bot-worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  // Status only, read-only, under the house's own host (the host's DNS is the house's).
+  "routes": [
+    { "pattern": "miniphim.minomobi.com/_bots*", "zone_name": "minomobi.com" }
+  ],
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "durable_objects": { "bindings": [{ "name": "BOTS", "class_name": "Bots" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Bots"] }],
+  "vars": {
+    // Overridden at deploy with the house's OPEN (miniphim/wrangler.jsonc): one off switch for both.
+    "OPEN": "true"
+  }
+}

@@ -592,6 +592,10 @@ await t('a town day: each part keeps only its own drafts and approvals; the lab 
   assert.equal(C['letters/from-the-person/2026-10-05-hello.md'], 'Hello, all three.', "the person's letter stays verbatim");
   assert.ok(C['house/api/hi.mjs'] && C['house/api/hi.modulo.sign.json'], 'a route and its writer\'s own signature are kept');
   assert.equal(C['house/api/hi.morphyx.sign.json'], undefined, 'a signature in another part\'s name is not');
+  assert.ok(C['house/bots/b.mjs'] && C['house/bots/b.modulo.sign.json'], 'a bot and its writer\'s own signature are kept');
+  assert.equal(C['house/bots/b.mozzie.sign.json'], undefined, 'a bot signature in another part\'s name is not');
+  { const { botDigest } = await import('./lib/house.mjs');
+    assert.equal(JSON.parse(C['house/bots/b.modulo.sign.json']).digest, botDigest(C['house/bots/b.mjs'], C['house/bots/b.test.mjs'], C['house/bots/b.json'], C['house/bots/b.svg']), 'the digest tool and the lab agree'); }
   assert.equal(C['house/README.md'], undefined, 'the house README is the lab\'s, lent');
   assert.match(C['letters/REPLIES.md'], /Dear person/, 'their reply is kept');
   assert.ok(C['town/outbox/m1.json'], "Modulo's draft is kept, though Mozzie deleted it in her folder");
@@ -699,6 +703,28 @@ await t('the corner: www/ publishes through the factory gate, a refusal keeps th
   assert.match(readFileSync(join(root, 'api', 'routes.mjs'), 'utf8'), /import \* as r0 from '\.\/hi\.mjs'/);
   assert.ok(!existsSync(join(root, 'api', 'no.mjs')), 'a held route does not ship');
   assert.match(readFileSync(join(run2, 'commons', 'www', 'LIVE.md'), 'utf8'), /api\/hi\/ \(signed by modulo, mozzie\)/);
+  // Bots: four files, a passing test, two signatures; the lab adds the made-by line; the generated
+  // index names the secret the person adds.
+  const { botDigest } = await import('./lib/house.mjs');
+  mkdirSync(join(run2, 'commons', 'house', 'bots'), { recursive: true });
+  const bput = (f, v) => writeFileSync(join(run2, 'commons', 'house', 'bots', f), v);
+  const bcode = 'export default async ({ agent, state }) => { await agent.post("ball"); return { n: (state?.n || 0) + 1 }; };';
+  const btest = "import t from './bingo-caller.mjs'; const sent = []; const s = await t({ agent: { post: async (x) => sent.push(x) }, state: null }); if (s.n !== 1 || sent[0] !== 'ball') process.exit(1);";
+  const bjson = JSON.stringify({ handle: 'bingo.delve.town', displayName: 'Bingo', description: 'calls numbers', every: 15 });
+  const bsvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>';
+  bput('bingo-caller.mjs', bcode); bput('bingo-caller.test.mjs', btest); bput('bingo-caller.json', bjson); bput('bingo-caller.svg', bsvg);
+  bput('bingo-caller.modulo.sign.json', JSON.stringify({ digest: botDigest(bcode, btest, bjson, bsvg) }));
+  a = await publishSites({ runDir: run2, home: homeDir });
+  assert.deepEqual(a.bots.live, []); assert.match(a.bots.held[0].why, /two parts/);
+  bput('bingo-caller.morphyx.sign.json', JSON.stringify({ digest: botDigest(bcode, btest, bjson, bsvg) }));
+  bput('loud.mjs', bcode); bput('loud.test.mjs', btest); bput('loud.svg', bsvg); bput('loud.json', JSON.stringify({ handle: 'x.bsky.social', displayName: 'L', every: 7 }));
+  a = await publishSites({ runDir: run2, home: homeDir });
+  assert.deepEqual(a.bots.live, ['bingo-caller']);
+  assert.match(a.bots.held.find((x) => x.name === 'loud').why, /delve\.town.*multiple of 5/);
+  const idx = readFileSync(join(root, 'bots', 'index.mjs'), 'utf8');
+  assert.match(idx, /import \* as b0 from '\.\/bingo-caller\.mjs'/); assert.match(idx, /BOT_BINGO_CALLER_PASSWORD/); assert.match(idx, /calls numbers · a bot made by @miniphim\.delve\.town/);
+  assert.ok(!existsSync(join(root, 'bots', 'loud.mjs')), 'a held bot does not ship');
+  assert.match(readFileSync(join(run2, 'commons', 'www', 'LIVE.md'), 'utf8'), /bingo-caller as bingo\.delve\.town, every 15 min/);
 });
 
 console.log(`whetstone selftest: ${n} passed`);

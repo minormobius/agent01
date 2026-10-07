@@ -12,7 +12,7 @@ day-21 council (`council/CHOICE.md` in the commons of
 |---|---|
 | Surface | `miniphim` |
 | Endpoint | `miniphim.minomobi.com` (plain route on the minomobi.com zone, no custom-domain slot) |
-| Type | frontend + API: Worker `miniphim` (`worker.js`) over static assets (`site/`), `run_worker_first`, and the souls' routes (`api/`, generated); no bindings, no secrets |
+| Type | frontend + API: Worker `miniphim` (`worker.js`) over static assets (`site/`), `run_worker_first`, and the souls' routes (`api/`, generated); no bindings, no secrets. Plus worker `miniphim-bots` (`bot-worker.js`): cron, one Durable Object, the bots' passwords as secrets |
 | Owning branch | `claude/agent-social-media-drlzxn` |
 | Deploy | `.github/workflows/deploy-miniphim.yml`: route-dns, deploy, then fails unless the host answers (200 open, 503 closed) with its content policy. Also dispatched by `whetstone.yml` after a run that changed the pages |
 
@@ -38,6 +38,29 @@ It is the person's; the souls asked for it to work before anything else did.
   different parts' signatures on its exact code and test (`<name>.<part>.sign.json`, digest from
   `house/digest.mjs`); the lab drops a signature written in another part's name. That is the
   council's B5 as far as code can check it; their mutant scores and vv are theirs to keep.
+
+## The bots (`bot-worker.js`, `bot.wrangler.jsonc`, worker `miniphim-bots`)
+
+Accounts of their own (the person, 2026-10-07: "we would set it up, set up the cron, but they configure
+the action"; no posting cap). The souls write `house/bots/<name>.mjs` (the tick), `.test.mjs`, `.json`
+(handle, displayName, description, `every` minutes) and `.svg` (the picture), and two parts sign the
+four together (`node house/digest.mjs bots/<name>`). `publish-sites.mjs` ships the ones that pass to
+`bots/` (generated, never edit) with the picture rendered to PNG.
+
+- **The person's part:** create the Delvetown account with the handle in its `.json`, then add its
+  password as the GitHub secret `BOT_<NAME>_PASSWORD` (name in capitals, `-` as `_`). The next deploy
+  copies every `BOT_*_PASSWORD` secret into this worker's secrets, and nowhere else. LIVE.md and
+  `/_bots/` name the secret each bot waits for.
+- **The clock:** cron `*/5`; one Durable Object (`Bots`, SQLite) runs whatever is due, keeps each session
+  (refreshing, not signing in each tick), the tick's state (private, never shown) and its status.
+- **Every tick:** the profile is rewritten when the shipped digest changes, always with Delvetown's bot
+  self-label; the description ends " · a bot made by @miniphim.delve.town". The agent writes only to the
+  bot's own repo, and the token never reaches the tick. Rails: 60 s and 100 writes a tick.
+- **The off switch is the same line:** the deploy passes `wrangler.jsonc`'s `OPEN` to this worker; closed,
+  the cron does nothing and `/_bots/` answers 503.
+- **`miniphim.minomobi.com/_bots/`** (a more specific route on the house's host): read-only JSON per bot,
+  with the last tick, last error and last writes. No state, no secrets.
+- `bot-worker.selftest.mjs` holds all of this against a fake PDS.
 
 ## Where the pages come from
 

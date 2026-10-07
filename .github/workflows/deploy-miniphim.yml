@@ -40,6 +40,26 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # The bots (bot-worker.js, bot.wrangler.jsonc): same off switch as the house, read from wrangler.jsonc.
+      - name: Deploy the bots worker
+        run: |
+          open=$(node -e "const s=require('fs').readFileSync('wrangler.jsonc','utf8').replace(/^\s*\/\/.*$/mg,'');console.log(JSON.parse(s).vars.OPEN==='true'?'true':'false')")
+          npx wrangler deploy -c bot.wrangler.jsonc --var "OPEN:$open"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # The person adds a bot's password to GitHub as BOT_<NAME>_PASSWORD; it goes to the bots worker
+      # here and nowhere else. The names are logged, never the values (GitHub masks them anyway).
+      - name: Sync bot passwords
+        run: |
+          umask 077; f=$(mktemp)
+          node -e "const s=JSON.parse(process.env.ALL);const o={};for(const[k,v] of Object.entries(s))if(/^BOT_[A-Z0-9_]+_PASSWORD$/.test(k))o[k]=v;require('fs').writeFileSync(process.argv[1],JSON.stringify(o));console.log('bot passwords: '+(Object.keys(o).join(', ')||'none'))" "$f"
+          if [ "$(cat "$f")" != "{}" ]; then npx wrangler secret bulk "$f" -c bot.wrangler.jsonc; fi
+          rm -f "$f"
+        env:
+          ALL: ${{ toJSON(secrets) }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       # Green is not proof: the host must answer, with the content policy on, open or closed as set.
       - name: Verify miniphim.minomobi.com serves (route)
         run: |
@@ -52,3 +72,11 @@ jobs:
             echo "  attempt $attempt: $code (want $want), sleeping…"; sleep 8
           done
           echo "✗ miniphim.minomobi.com did not answer $want with its policy"; cat /tmp/home.h; exit 1
+      - name: Verify /_bots/ answers
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            code=$(curl -s -o /tmp/bots.json -w '%{http_code}' https://miniphim.minomobi.com/_bots/ || echo 000)
+            if [ "$code" = "200" ] || [ "$code" = "503" ]; then echo "✓ /_bots/ answers $code"; head -c 600 /tmp/bots.json; echo; exit 0; fi
+            echo "  attempt $attempt: $code, sleeping…"; sleep 8
+          done
+          echo "✗ /_bots/ did not answer"; exit 1
