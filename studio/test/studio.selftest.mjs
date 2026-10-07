@@ -20,6 +20,28 @@ const root = join(here, '..');
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? '✓' : '✗'} ${msg}`); if (!cond) failed++; };
 
+// FOUR SHARDS, IN PARALLEL. Run plainly, this file runs itself four times at once (STUDIO_SHARD=0..3),
+// each child taking a quarter of the sections, balanced by how long they take (full-length renders of
+// whole pieces are most of it), and prints their output in order: the suite took ~5 minutes in a
+// row; it takes about as long as its slowest shard. STUDIO_SHARD=n runs just that shard.
+const SHARD = process.env.STUDIO_SHARD === undefined ? -1 : Number(process.env.STUDIO_SHARD), SHARDS = 4;
+if (SHARD < 0) {
+  const { spawn } = await import('node:child_process');
+  const t0 = Date.now();
+  const runs = Array.from({ length: SHARDS }, (_, k) => new Promise((done) => {
+    const c = spawn(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, STUDIO_SHARD: String(k) }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = ''; c.stdout.on('data', (d) => { out += d; }); c.stderr.on('data', (d) => { out += d; });
+    c.on('close', (code) => done({ k, code, out, s: (Date.now() - t0) / 1000 }));
+  }));
+  const res = await Promise.all(runs);
+  let bad = 0;
+  for (const r of res) { process.stdout.write(r.out.replace(/\n*(all passed|\d+ failed)\n*$/, '\n')); if (r.code !== 0) { bad++; console.log(`✗ shard ${r.k} exited ${r.code}`); } }
+  console.log(`\n(${SHARDS} shards in parallel, ${((Date.now() - t0) / 1000).toFixed(0)} s: ${res.map((r) => `${r.s.toFixed(0)} s`).join(', ')})`);
+  console.log(bad ? `\n${bad} shard(s) failed` : '\nall passed');
+  process.exit(bad ? 1 : 0);
+}
+
+if (SHARD === 0) {   // sections 1–6: the piano pieces and their scores
 // 1 ---------------------------------------------------------------------------
 const ours = await readFile(join(root, 'vendor/pfsynth/pfsynth.wasm'));
 const clefs = await readFile(join(root, '..', 'clef/vendor/pfsynth/pfsynth.wasm'));
@@ -278,21 +300,23 @@ for (const { slug, subtitle } of PIECES) {
   ok(parsed.title === S.title && parsed.staves.length === 2, `${slug}: titled, on a piano grand staff`);
 }
 
+}
+
 // 7 — the P(doom) video: its compiled dance is current, and its checks hold -------
-console.log('\nThe P(doom) video (a dance, compiled per body)');
-{
+if (SHARD === 1) {
+  console.log('\nThe P(doom) video (a dance, compiled per body)');
   const { execFileSync } = await import('node:child_process');
   let stale = false;
   try { execFileSync(process.execPath, [join(root, 'tools', 'build-pdoom.mjs'), '--check'], { stdio: 'pipe' }); } catch { stale = true; }
   ok(!stale, 'pdoom/dance.json is current (node studio/tools/build-pdoom.mjs)');
-  const rep = JSON.parse(await rf(join(root, 'pdoom', 'report.json'), 'utf8'));
+  const rep = JSON.parse(await readFile(join(root, 'pdoom', 'report.json'), 'utf8'));
   const bad = rep.dancers.flatMap((d) => d.checks.filter((c) => !c.ok).map((c) => `${d.name}: ${c.name} ${c.detail}`));
   ok(!bad.length, `every dancer holds up through the whole song (report.json)${bad.length ? ': ' + bad.slice(0, 3).join('; ') : ''}`);
 }
 
 // 8 — The Bommie: a sitcom on a coral head. What can be checked without eyes or ears ----
-console.log('\nThe Bommie (a reef sitcom)');
-{
+if (SHARD === 1) {
+  console.log('\nThe Bommie (a reef sitcom)');
   const W = await import('../bommie/world.js');
   const Snd = await import('../bommie/sound.js');
   const Sc = await import('../bommie/script.js');
@@ -328,24 +352,24 @@ console.log('\nThe Bommie (a reef sitcom)');
 }
 
 // 9 — the voice lab: the chip voice renders, deterministically, and knows every word it's tested on
-console.log('\nA Voice of Arithmetic (formant speech)');
-{
+if (SHARD === 1) {
+  console.log('\nA Voice of Arithmetic (formant speech)');
   const V = await import('../lib/chipvoice.js');
   const T = await import('../voice/texts.js');
-  const lex = JSON.parse(await rf(join(root, 'voice', 'lexicon.json'), 'utf8')).words;
+  const lex = JSON.parse(await readFile(join(root, 'voice', 'lexicon.json'), 'utf8')).words;
   const missing = [...new Set(V.words([T.PARAGRAPH, ...T.HARVARD].join(' ')))].filter((w) => !lex[w]);
   ok(!missing.length, `the lexicon has every word the voice is tested on${missing.length ? ': missing ' + missing.join(', ') : ''} (node studio/tools/voice-lexicon.mjs <cmudict>)`);
   const t0 = Date.now(), a = V.speak(T.PARAGRAPH, lex).audio, b = V.speak(T.PARAGRAPH, lex).audio, ms = (Date.now() - t0) / 2;
   let same = a.length === b.length, finite = true, peak = 0;
   for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) same = false; if (!Number.isFinite(a[i])) finite = false; peak = Math.max(peak, Math.abs(a[i])); }
   ok(same && finite && peak > 0.5 && peak <= 0.91, `the paragraph renders the same every time, finite, normalised (${(a.length / 16000).toFixed(1)} s of speech in ${ms.toFixed(0)} ms)`);
-  const rep = JSON.parse(await rf(join(root, 'voice', 'report.json'), 'utf8'));
+  const rep = JSON.parse(await readFile(join(root, 'voice', 'report.json'), 'utf8'));
   ok(rep.sentences.length === T.PARAGRAPH_SENTENCES.length + T.HARVARD.length, `report.json scores every test sentence (Harvard WER ${rep.harvard.wer}%, ${rep.date}; rescore: studio/tools/voice.mjs --report)`);
 }
 
 // 10 — Descending: the voice on the beat, the feet on the stairs ------------------------------------
-console.log('\nDescending (Daisy Bell, sung by arithmetic)');
-{
+if (SHARD === 1) {
+  console.log('\nDescending (Daisy Bell, sung by arithmetic)');
   const S = await import('../descending/score.js');
   const F = await import('../descending/figure.js');
   const { sing } = await import('../lib/chipsing.js');
@@ -378,7 +402,7 @@ console.log('\nDescending (Daisy Bell, sung by arithmetic)');
   let sorted = true;
   for (let i = 1; i < Env.GLINT_COUNT; i++) if (Env.GLINTS[i * 6] < Env.GLINTS[i * 6 - 6]) { sorted = false; break; }
   ok(sorted && Env.GLINT_COUNT > 10000 && Env.GLINTS.every(Number.isFinite), `the wall: ${Env.GLINT_COUNT} glints of the song's spectrum, sorted along the flight`);
-  const rsrc = await rf(join(root, 'descending', 'render.js'), 'utf8');
+  const rsrc = await readFile(join(root, 'descending', 'render.js'), 'utf8');
   ok(/return \{ draw/.test(rsrc), 'makeRenderer returns { draw }, the shape lib/extras.js exports with (a bare function broke Export video)');
   const c1 = JSON.stringify(Env.circuit(40)), c2 = JSON.stringify(Env.circuit(40)), cc = Env.circuit(40);
   const inside = cc.traces.flat().every(([x, z]) => x >= 0 && x <= 1 && z >= 0 && z <= 1);
@@ -387,8 +411,8 @@ console.log('\nDescending (Daisy Bell, sung by arithmetic)');
 }
 
 // 11 — Attractor Bodies: the bestiary is strange, a seed is a character, every point lands --------------
-console.log('\nAttractor Bodies (packages/attractor)');
-{
+if (SHARD === 1) {
+  console.log('\nAttractor Bodies (packages/attractor)');
   const { BESTIARY } = await import('../vendor/attractor/lib/bestiary.js');
   const Av = await import('../vendor/attractor/lib/avatar.js');
   const { makeRig, solve } = await import('../vendor/figure/lib/rig.js');
@@ -421,8 +445,8 @@ console.log('\nAttractor Bodies (packages/attractor)');
 }
 
 // 12 — Accretion: a world grows the same every time, flows stay free, and they move by themselves ----
-console.log('\nAccretion (packages/attractor/lib/shell.js)');
-{
+if (SHARD === 1) {
+  console.log('\nAccretion (packages/attractor/lib/shell.js)');
   const { World } = await import('../vendor/attractor/lib/shell.js');
   const a = new World(7, 3).run(700), b = new World(7, 3).run(700);
   ok(a.digest() === b.digest() && a.count > 200, `a seed grows the same world every time (${a.count} crystals, 3 creatures, 700 steps)`);
@@ -447,8 +471,8 @@ console.log('\nAccretion (packages/attractor/lib/shell.js)');
 }
 
 // 13 — Grown: bodies grown from programs; each hand-written one must work before evolution may begin --
-console.log('\nGrown (packages/attractor/lib/organism.js)');
-{
+if (SHARD === 2) {
+  console.log('\nGrown (packages/attractor/lib/organism.js)');
   const { World, GENOMES, develop } = await import('../vendor/attractor/lib/organism.js');
   ok(JSON.stringify(develop(GENOMES.swimmer)) === JSON.stringify(develop(GENOMES.swimmer)) && develop(GENOMES.grazer).length === 6, 'a program develops the same plan every time (the grazer: 6 organs)');
   // each alone in three worlds, from the richest place, 3000 steps
@@ -472,17 +496,20 @@ console.log('\nGrown (packages/attractor/lib/organism.js)');
 }
 
 // 14 — Grown, evolving: mutation makes new body plans, deterministically; nothing lives forever --------
-console.log('\nGrown, evolving');
-{
+if (SHARD === 1) {
+  console.log('\nGrown, evolving');
   const { World, GENOMES, signature, mutate, speciesName } = await import('../vendor/attractor/lib/organism.js');
   ok(JSON.stringify(mutate(GENOMES.grazer, 42)) === JSON.stringify(mutate(GENOMES.grazer, 42)) && signature(GENOMES.reef) === 'm(g(bh)hhh)' && speciesName('m(b)') === speciesName('m(b)'), 'a mutation is a function of its seed; a plan\'s signature tells shell (h) from sense (s); a plan\'s name is fixed');
-  const run = () => { const W = new World(1, { cap: 60, mutate: 0.3 }); ['grazer', 'reef', 'swimmer'].forEach((n, i) => { for (let k = 0; k < 3; k++) { const a = (i * 3 + k) / 9 * 6.283; W.add(GENOMES[n], [80 + Math.cos(a) * 45, 32, 80 + Math.sin(a) * 45], a, 4); } }); for (let k = 0; k < 40; k++) { W.run(1000); W.census(); } return W; };
-  const A = run(), B = run(), plans = Object.keys(A.book).length, old = A.dead.filter((d) => d.cause === 'old').length;
-  ok(plans > 8 && A.mutants > 50 && old > 0 && JSON.stringify(Object.keys(A.book).sort()) === JSON.stringify(Object.keys(B.book).sort()), `in 40,000 steps: ${A.mutants} mutants, ${plans} body plans, ${old} died of age, the same every time`);
+  // one run of 15,000 steps (it has all of it by then), and a second to 5,000 that must match the
+  // first exactly where they overlap: determinism needs no second full run
+  const state = (W) => JSON.stringify([W.mutants, Object.keys(W.book).sort(), W.bodies.map((b) => b.p.map((v) => v.toFixed(9)))]);
+  const run = (n, at) => { const W = new World(1, { cap: 60, mutate: 0.3 }); ['grazer', 'reef', 'swimmer'].forEach((g, i) => { for (let k = 0; k < 3; k++) { const a = (i * 3 + k) / 9 * 6.283; W.add(GENOMES[g], [80 + Math.cos(a) * 45, 32, 80 + Math.sin(a) * 45], a, 4); } }); let snap = null; for (let k = 1; k <= n; k++) { W.run(1000); W.census(); if (k === at) snap = state(W); } W.snap = snap; return W; };
+  const A = run(15, 5), B = run(5), plans = Object.keys(A.book).length, old = A.dead.filter((d) => d.cause === 'old').length;
+  ok(plans > 8 && A.mutants > 30 && old > 0 && A.snap === state(B), `in 15,000 steps: ${A.mutants} mutants, ${plans} body plans, ${old} died of age; a second run matches the first exactly`);
   // predation: mouths bite other species (some die eaten), armour blunts a bite; the veins drift
-  const P = run(), eaten = P.dead.filter((d) => d.cause === 'eaten').length;
+  const eaten = A.dead.filter((d) => d.cause === 'eaten').length;
   const W0 = new World(5), r0 = W0.richest(); W0.lay(20000); const r1 = W0.richest();
-  ok(eaten > 0 && Math.hypot(r0[0] - r1[0], r0[2] - r1[2]) > 5, `some are eaten (${eaten} in 40,000 steps), and the richest water moves (${Math.hypot(r0[0] - r1[0], r0[2] - r1[2]).toFixed(0)} units in 20,000 steps)`);
+  ok(eaten > 0 && Math.hypot(r0[0] - r1[0], r0[2] - r1[2]) > 5, `some are eaten (${eaten} in 15,000 steps), and the richest water moves (${Math.hypot(r0[0] - r1[0], r0[2] - r1[2]).toFixed(0)} units in 20,000 steps)`);
   {
     // one bite, by the same mouth, on a bare grazer and on a reef-builder in 30 armour crystals
     const taken = (genome, armour) => {
@@ -499,8 +526,8 @@ console.log('\nGrown, evolving');
 }
 
 // 15 — Grown's sound: the population is the score --------------------------------------------------
-console.log('\nGrown, the sound (grown/sound.js)');
-{
+if (SHARD === 2) {
+  console.log('\nGrown, the sound (grown/sound.js)');
   const { makeEngine, makeConductor } = await import('../grown/sound.js');
   const { World, signature } = await import('../vendor/attractor/lib/organism.js');
   const { EVOLVED } = await import('../vendor/attractor/lib/evolved.js');
@@ -521,8 +548,8 @@ console.log('\nGrown, the sound (grown/sound.js)');
 }
 
 // 16 — Nobody Drew It (No. 8): one evolved history, replayed and sung --------------------------------
-console.log('\nNobody Drew It (nobody/)');
-{
+if (SHARD === 2) {
+  console.log('\nNobody Drew It (nobody/)');
   const S = await import('../nobody/score.js');
   const { LEXICON } = await import('../nobody/lexicon.js');
   const { sing } = await import('../lib/chipsing.js');
@@ -540,8 +567,8 @@ console.log('\nNobody Drew It (nobody/)');
 }
 
 // 17 — And Still It Grew (No. 9): the major-key companion; the same machinery, its own music ---------
-console.log('\nAnd Still It Grew (grew/)');
-{
+if (SHARD === 2) {
+  console.log('\nAnd Still It Grew (grew/)');
   const S = await import('../grew/score.js');
   const { LEXICON } = await import('../grew/lexicon.js');
   const { sing } = await import('../lib/chipsing.js');
@@ -558,8 +585,8 @@ console.log('\nAnd Still It Grew (grew/)');
 }
 
 // 18 — The Minormobius Lectures (No. 10): a documentary from a public record --------------------------
-console.log('\nThe Minormobius Lectures (lecture/)');
-{
+if (SHARD === 2) {
+  console.log('\nThe Minormobius Lectures (lecture/)');
   const S = await import('../lecture/score.js');
   const { OPENING, LECTURES, QUOTED } = await import('../lecture/script.js');
   const { DUR, LEXICON } = await import('../lecture/narration.js');
@@ -582,7 +609,7 @@ console.log('\nThe Minormobius Lectures (lecture/)');
 // against known moments; the scene fits 256 colours and is the same twice; the palette moves only
 // inside its cycles; the sun walks its painted path through the day; stars are drawn only at
 // night; the faces that turn to the sun light up; the 3D world and its flight are sound.
-{
+if (SHARD === 3) {
   const { generate, palette, light, paintSunPath, useSky, project } = await import('../cycle/scene.js');
   const { sky, sunEq, daysJ2000 } = await import('../cycle/astro.js');
   const { drawNight } = await import('../cycle/night.js');
@@ -656,7 +683,7 @@ console.log('\nThe Minormobius Lectures (lecture/)');
 // The stream host must sound exactly like the offline hosts it stands for, the guitar's body
 // must be clef's, every guitar note must be playable, and the music must render: audible, finite,
 // and faster than it plays.
-{
+if (SHARD === 3) {
   const load = async (p) => (await WebAssembly.instantiate(await readFile(p), {})).instance.exports;
   const P = await load(join(root, '..', 'clef/vendor/pfsynth/pfsynth.wasm'));
   const G = await load(join(root, '..', 'clef/vendor/pfsynth/pfguitar.wasm'));
@@ -719,7 +746,7 @@ console.log('\nThe Minormobius Lectures (lecture/)');
 
 // 19 — the cycle's weather: a forecast is a pure function of the place and moment, the season decides
 // rain or snow, lightning is one schedule for the picture, the thunder and the music
-{
+if (SHARD === 3) {
   const { forecast, lightning, strikesIn, weatherLight, KINDS } = await import('../cycle/weather.js');
   const { Precip } = await import('../cycle/precip.js');
   const same = JSON.stringify(forecast(7, 1.8e12, 47, 8)) === JSON.stringify(forecast(7, 1.8e12, 47, 8));
@@ -742,7 +769,7 @@ console.log('\nThe Minormobius Lectures (lecture/)');
 // 20 — the coast: a second kind of scene. It fits its palette; the surf is one wave on two cycles,
 // and the sound's breakers land when the painted crest crosses the break line; the lighthouse sweeps
 // by night only; boats and gulls move; the world to fly is built for it and renders
-{
+if (SHARD === 3) {
   const { generate, palette, turnCycles, light, W: CW, H: CH } = await import('../cycle/scene.js');
   const { sky } = await import('../cycle/astro.js');
   const { surfTimes } = await import('../cycle/sound.js');
@@ -786,7 +813,7 @@ console.log('\nThe Minormobius Lectures (lecture/)');
 }
 
 // 21 — the aurora: on the oval round the geomagnetic pole, seen where and when a place would see it
-{
+if (SHARD === 3) {
   const { geomag, auroraAt, kp } = await import('../cycle/aurora.js');
   const tro = geomag(69.65, 18.96), ny = geomag(40.71, -74), syd = geomag(-33.87, 151.21);
   const ms = Date.parse('2026-12-10T22:00:00Z'), D = Math.PI / 180;

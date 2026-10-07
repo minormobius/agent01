@@ -3,12 +3,18 @@
 // it frame by frame through the whole song.
 //
 //   node studio/tools/build-pdoom.mjs            # write studio/pdoom/dance.json + report.json
-//   node studio/tools/build-pdoom.mjs --check    # exit 1 if dance.json is stale
+//   node studio/tools/build-pdoom.mjs --check    # exit 1 if dance.json is stale (fast: see below)
+//   node studio/tools/build-pdoom.mjs --check --full --stamp   # compile, compare, and record dance.inputs
 //   node studio/tools/build-pdoom.mjs --fps 12   # the checks' frame rate (default 8)
 //
 // Compiling clears every arm shape against the dancer's body with a solver (choreo.js),
 // seconds per dancer, too slow for a page load, so the page plays what this writes.
 // The report is the benchmark: every check, its worst frame, and where in the song.
+//
+// --check is fast when nothing it depends on has changed: the build writes `dance.inputs`, a hash of
+// every file the compile reads (packages/figure/lib, show.js, this script). If the hash matches, the
+// dance is current without compiling (the compile is deterministic). If it differs, --check compiles
+// and compares, as it always did, so a stale dance can never pass; --check --full always compiles.
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -23,21 +29,37 @@ const out = join(here, '..', 'pdoom');
 const argv = process.argv.slice(2);
 const fps = Number(argv[argv.indexOf('--fps') + 1]) || 8;
 
-const dancers = CAST.map((c) => {
-  const rig = makeRig(c.spec);
-  const script = c.lead ? LEAD : CREW_DANCE;
-  const D = compileDance(rig, script, { home: c.home, mirror: !!c.mirror });
-  return { name: c.name, home: c.home, facing: 0, keys: packKeys(D.keys) };
-});
-const dance = JSON.stringify({ song: { bpm: SONG.bpm, t0: SONG.t0, bars: SONG.bars }, dancers });
+const inputsHash = async () => {
+  const { createHash } = await import('node:crypto');
+  const { readdir } = await import('node:fs/promises');
+  const lib = join(here, '..', '..', 'packages', 'figure', 'lib');
+  const files = [...(await readdir(lib)).filter((f) => f.endsWith('.js')).sort().map((f) => join(lib, f)), join(out, 'show.js'), fileURLToPath(import.meta.url)];
+  const h = createHash('sha256');
+  for (const f of files) h.update(f.slice(f.lastIndexOf('/') + 1)).update(await readFile(f));
+  return h.digest('hex');
+};
+const compile = () => {
+  const dancers = CAST.map((c) => {
+    const rig = makeRig(c.spec);
+    const script = c.lead ? LEAD : CREW_DANCE;
+    const D = compileDance(rig, script, { home: c.home, mirror: !!c.mirror });
+    return { name: c.name, home: c.home, facing: 0, keys: packKeys(D.keys) };
+  });
+  return { dancers, dance: JSON.stringify({ song: { bpm: SONG.bpm, t0: SONG.t0, bars: SONG.bars }, dancers }) };
+};
 
 if (argv.includes('--check')) {
-  let old = '';
+  let old = '', had = '';
   try { old = await readFile(join(out, 'dance.json'), 'utf8'); } catch {}
-  if (old !== dance) { console.log('✗ studio/pdoom/dance.json is stale: node studio/tools/build-pdoom.mjs'); process.exit(1); }
-  console.log('✓ studio/pdoom/dance.json is current'); process.exit(0);
+  try { had = (await readFile(join(out, 'dance.inputs'), 'utf8')).trim(); } catch {}
+  if (old && !argv.includes('--full') && had === await inputsHash()) { console.log('✓ studio/pdoom/dance.json is current (its inputs are unchanged)'); process.exit(0); }
+  if (old !== compile().dance) { console.log('✗ studio/pdoom/dance.json is stale: node studio/tools/build-pdoom.mjs'); process.exit(1); }
+  if (argv.includes('--stamp')) await writeFile(join(out, 'dance.inputs'), await inputsHash() + '\n');   // the compare just proved it
+  console.log(`✓ studio/pdoom/dance.json is current (compiled and compared${argv.includes('--stamp') ? '; dance.inputs written' : '; --stamp to record its inputs'})`); process.exit(0);
 }
+const { dancers, dance } = compile();
 await writeFile(join(out, 'dance.json'), dance);
+await writeFile(join(out, 'dance.inputs'), await inputsHash() + '\n');
 console.log(`dance.json: ${dancers.length} dancers, ${dancers.reduce((s, d) => s + d.keys.length, 0)} keyframes, ${(dance.length / 1024).toFixed(0)} KB`);
 
 // the report card: every check, for every dancer, over the whole song

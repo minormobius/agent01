@@ -15,7 +15,7 @@ recording. The front page (`index.html`) lists the pieces; each piece is a direc
 | Owning branch | `claude/plant-growth-animation-gxbby1` (it also owns `ink`) |
 | Deploy | [`.github/workflows/deploy-studio.yml`](../.github/workflows/deploy-studio.yml): selftest, then `route-dns.mjs`, then `wrangler deploy`, then it checks that the host serves the page **and the .wasm** |
 | Uses | nothing shared at runtime. The piano is a copy (below) |
-| Selftest | `node studio/test/studio.selftest.mjs` |
+| Selftest | `node studio/test/studio.selftest.mjs`: four shards in parallel, ~45 s (`STUDIO_SHARD=n` runs one) |
 
 ## Layout
 
@@ -99,6 +99,18 @@ a copy of clef's. The selftest fails if the two differ. To update the model, reb
 in clef (`clef/vendor/pfsynth/build.sh`), then copy the `.wasm` here. The note layout
 and gain (110, upstream's) are clef's too; see `clef/CLAUDE.md` § pfsynth for the
 provenance and the measurements.
+
+## The selftest's time
+
+It ran ~5 minutes in a row and preflight caps a selftest at 120 s, so preflight had been red on this
+branch since late September (2026-10-07: found and fixed). Now: run plainly, the file spawns itself
+four times (`STUDIO_SHARD` 0–3), each a quarter of the sections, balanced by measured cost, and prints
+their output in order; ~43 s wall (shards 43/29/42/19 s), the same 146 checks. Shard 0 is the piano
+pieces (sections 1–6 share top-level names); 1 P(doom), Bommie, voice, Descending, attractors, Grown
+evolving; 2 Grown, its sound, Nos. 8–10; 3 the cycle. A section's names must stay inside its own block.
+Also: the P(doom) check hashes its inputs instead of recompiling (59 s → 0.1 s), and Grown's evolution
+check runs once to 15,000 steps plus a 5,000-step rerun compared exactly at the overlap (was three
+40,000-step runs, 104 s → 15 s). Full-length renders of whole pieces are most of what remains.
 
 ## Checking a piece without ears
 
@@ -1023,6 +1035,9 @@ When YouTube does not load (blocked, offline), it falls back to the dance withou
   compiles each dancer's dance for its own body, then runs checkDance at 8 fps. The
   studio selftest fails if `dance.json` is stale or any check fails. Edit `show.js` or
   choreo.js, then rebuild (about 3 minutes).
+  `--check` is instant when `dance.inputs` (a hash of packages/figure/lib, show.js and the build
+  script, written by the build) still matches; if anything changed it compiles and compares (~1 min),
+  so a stale dance never passes. `--check --full --stamp` compiles, compares and records the hash.
 - `voice.json`: the mouth through the song. How open and how round, at 30 fps, derived from the vocal band of deckard's original, only inside the sung spans (from its subtitles). Numbers, not audio. Mino sings throughout, the crew on the choruses. `?shot=face` holds a close-up for looking.
 - The page plays each dance through `liveDance` (springs, breath, per-dancer seed = cast index), and the build checks the same thing.
 - `stage.js` draws the stage in 2D, in world units, with the dancers' own orthographic
