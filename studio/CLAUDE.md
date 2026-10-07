@@ -612,7 +612,9 @@ the last two hours of the night ease into tomorrow. `lying` is snow from the las
   cluster (music-worker `cond().thunder`) agree. The bolt draws only on open sky (`sky(x,y)`), so it
   strikes behind the ridge, not across it.
 - precip.js draws in RGB after the palette (rain crosses everything, no index can mean "rain over
-  whatever"). Fog in the painting is a band at the waterline plus a veil on far layers; in the flight
+  whatever"). Rain rings: the painting's camera is still, so they are placed on screen; the flight's
+  moves, so `Flight.rings` traces the visible lake pixels back to 5 m world cells and each cell owns
+  its ring (owner: "move with the camera where they should be fixed in scene"). Fog in the painting is a band at the waterline plus a veil on far layers; in the flight
   it is the haze distance.
 - Sound: a rain bed (high-passed white + band-passed brown) and wind scale with rain/storm/wind, under
   the ambience gain. The composer's texture follows: storm → mountains, snow/fog → stars/lake, rain →

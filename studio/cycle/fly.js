@@ -19,6 +19,7 @@ import { W, H, turnCycles, key, ZENITH, HORIZON, AMBIENT, SUNCOL, turn, smooth, 
 const wx0 = (lt) => lt.wx || { overcast: 0, fog: 0, rain: 0, snow: 0, storm: 0 };
 const FOV = 75 * Math.PI / 180, F = (W / 2) / Math.tan(FOV / 2);
 const FAR = 7000, LOOP_DAYS = 5;
+const rh = (a, b, c) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 const D = Math.PI / 180;
 const STARCOL = Array.from({ length: NSTARS }, (_, i) => starColour(STARS[i * 4 + 3]));
 
@@ -80,12 +81,41 @@ export class Flight {
     if (!this.precip) this.precip = new Precip(W, H, w.seed);
     const knd = this.knd;
     this.precip.draw(this.img.data, {
-      t, wx: lt.wx, lt, flash: this.fl, horizon: hor, boltTop: 0, boltBottom: Math.max(20, hor - 10),
+      t, wx: lt.wx, lt, flash: this.fl, horizon: hor, rings: lt.wx.rain > 0.04 ? this.rings(cam, hor, fwd, right, t, lt.wx.rain) : null, boltTop: 0, boltBottom: Math.max(20, hor - 10),
       water: (x, y) => x >= 0 && x < W && y >= 0 && y < H && knd[y * W + x] === KIND.lake,
       sky: (x, y) => x >= 0 && x < W && y >= 0 && y < H && !(this.dep[y * W + x] < Infinity),
     });
     this.g.putImageData(this.img, 0, 0);
     return { sk, lt, fl: this.fl };
+  }
+
+  /**
+   * Rain rings on the lake, fixed in the world: each 5 m cell of the lake may hold a ring that starts
+   * small, spreads and fades, then begins again elsewhere in its cell. The cells are found from the
+   * lake pixels on screen (each one traced back to the water), so only what can be seen is visited.
+   */
+  rings(cam, hor, fwd, right, t, rain) {
+    const G = 5, out = [], cz = cam.z, seen = new Set(), knd = this.knd;
+    if (cz <= 0) return out;
+    for (let y = Math.max(0, Math.ceil(hor + 1)); y < H; y++) for (let x = y & 1; x < W; x += 2) {
+      if (knd[y * W + x] !== KIND.lake) continue;
+      // the ray through this pixel meets the water (height 0) at forward depth zc
+      const zc = cz * F / (y + 0.5 - hor), xs = (x + 0.5 - W / 2) / F;
+      const X = cam.x + fwd[0] * zc + right[0] * xs * zc, Y = cam.y + fwd[1] * zc + right[1] * xs * zc;
+      const i = Math.floor(X / G), j = Math.floor(Y / G), key = i * 131071 + j;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (rh(i, j, 1) > 0.12 * rain) continue;
+      const P = 0.7 + rh(i, j, 2) * 0.7, s = t / P + rh(i, j, 3), cyc = Math.floor(s), ph = s - cyc;
+      const RX = (i + rh(i, j, cyc * 2 + 4)) * G - cam.x, RY = (j + rh(i, j, cyc * 2 + 5)) * G - cam.y;
+      const z = RX * fwd[0] + RY * fwd[1];
+      if (z < 2) continue;
+      const sx = W / 2 + (RX * right[0] + RY * right[1]) / z * F, sy = hor + cz / z * F;
+      const r = (0.25 + ph * 1.1) / z * F;
+      if (r < 1 || sy >= H || sx < -r || sx > W + r) continue;
+      out.push({ x: sx, y: sy, r, ry: r * Math.max(0.12, Math.min(1, cz / z)), a: (1 - ph) * 0.45 });
+    }
+    return out;
   }
 
   light(sk, ms) {

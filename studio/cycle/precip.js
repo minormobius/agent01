@@ -41,7 +41,8 @@ export class Precip {
   /**
    * opts: t (scene s), wx (weather.js forecast), lt (the weathered light: hor, amb, flash),
    * flash (weather.js lightning(): its strike), water(x, y) → is this pixel lake?, horizon (row),
-   * fogTop/fogBottom (rows the fog lies between), sky(x, y) → is this pixel open sky? (the bolt
+   * rings ([{x, y, r, ry, a}] already on screen, for a moving camera; else they are placed on the
+   * screen), fogTop/fogBottom (rows the fog lies between), sky(x, y) → is this pixel open sky? (the bolt
    * strikes behind the land).
    */
   draw(px, o) {
@@ -81,7 +82,17 @@ export class Precip {
 
     // ---- rings on the water where the rain lands: each starts small, spreads and fades, then begins
     // again somewhere else
-    if (wx.rain > 0.04 && o.water) {
+    // (a moving camera passes `rings`: ones it placed in the world and projected, so they stay put)
+    if (wx.rain > 0.04 && o.rings) {
+      const c = [0.8, 0.84, 0.9].map((v) => v * (0.35 + lum));
+      for (const g of o.rings) {
+        const n = Math.max(8, Math.round(g.r * 6));
+        for (let q = 0; q < n; q++) {
+          const ang = (q / n) * 6.283, X = Math.round(g.x + Math.cos(ang) * g.r), Y = Math.round(g.y + Math.sin(ang) * g.ry);
+          if (o.water(X, Y)) add(X, Y, c, g.a * 0.5);
+        }
+      }
+    } else if (wx.rain > 0.04 && o.water) {
       const K = Math.round(70 * wx.rain), c = [0.8, 0.84, 0.9].map((v) => v * (0.35 + lum));
       for (let j = 0; j < K; j++) {
         const P = 0.7 + hash(j, this.seed, 30) * 0.7, s = t / P + hash(j, this.seed, 31), cyc = Math.floor(s), ph = s - cyc;
