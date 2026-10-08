@@ -20,6 +20,10 @@ const params = new URLSearchParams(location.hash.slice(1));
 const SPEEDS = [['real time', 0], ['1 day = 4 min', 240], ['1 day = 1 min', 60], ['held', -1]];
 let speed = params.has('speed') ? Number(params.get('speed')) : 240;
 let scene, sound, life, notes = [], fly = null, mode = params.get('mode') === 'fly' ? 'fly' : 'painting';
+// the city (cityworld.js) is a world to fly, with no painting of its own: `world=city` flies it
+let cityMode = params.get('world') === 'city';
+if (cityMode) mode = 'fly';
+const flyKind = () => (cityMode ? 'city' : scene.kind);
 
 // ---- the place: from the link, else a guess from the time zone (longitude) at a middling latitude
 const tzLon = -new Date().getTimezoneOffset() / 4;
@@ -65,7 +69,7 @@ function load(seed, kind = 'lake') {
   if (was) { sound.start(clock); clock.use(true); }
   notes = [];
   scene.path.day = null;
-  if (fly) fly.load(seed, scene.bpm, scene.kind);
+  if (fly) fly.load(seed, scene.bpm, flyKind());
   $('info').textContent = `seed ${seed} · ${scene.kind} · ${scene.biome} · ${scene.used} colours · ${scene.cycles.length} cycles · ♩ = ${scene.bpm}`;
   focus = scene.kind === 'coast' ? (scene.lighthouse.x + W / 2) / 2 : scene.waterfall.x * 0.5 + scene.cabin.x * 0.5;
   layout(); remember();
@@ -75,6 +79,7 @@ function remember() {
   const q = new URLSearchParams({ seed: scene.seed, ...(scene.kind === 'coast' ? { kind: 'coast' } : {}), lat: view.lat, lon: view.lon, face: view.facing, date: new Date(ms).toISOString().slice(0, 10), h: solarHour(ms, view.lon).toFixed(2) });
   if (speed !== 240) q.set('speed', speed);
   if (mode === 'fly') q.set('mode', 'fly');
+  if (cityMode) q.set('world', 'city');
   if (!ambience) q.set('amb', '0');
   if (view.wx) q.set('wx', view.wx);
   if (view.aurora) q.set('aur', '1');
@@ -249,6 +254,19 @@ $('sound').onclick = () => {
   sound.start(clock); clock.use(true);
   $('sound').classList.add('on'); $('sound').textContent = 'sound on';
 };
+$('citybtn').classList.toggle('on', cityMode);
+$('citybtn').onclick = async () => {
+  cityMode = !cityMode;
+  $('citybtn').classList.toggle('on', cityMode);
+  if (mode !== 'fly') { if (cityMode) $('flybtn').click(); else remember(); return; }
+  if (fly) {
+    $('citybtn').textContent = cityMode ? 'building the city…' : 'building the world…';
+    await new Promise((r) => setTimeout(r, 30));
+    fly.load(scene.seed, scene.bpm, flyKind());
+    $('citybtn').textContent = 'city';
+  }
+  remember();
+};
 $('figbtn').onclick = () => { figures = !figures; $('figbtn').classList.toggle('on', figures); };
 $('figbtn').classList.toggle('on', figures);
 let ambience = params.get('amb') !== '0';
@@ -260,10 +278,11 @@ $('more').onclick = () => { $('sky').hidden = !$('sky').hidden; $('more').classL
 $('flybtn').onclick = async () => {
   mode = mode === 'fly' ? 'painting' : 'fly';
   if (mode === 'fly' && !fly) {
-    $('flybtn').textContent = 'building the world…';
+    $('flybtn').textContent = cityMode ? 'building the city…' : 'building the world…';
+    await new Promise((r) => setTimeout(r, 30));
     const { Flight } = await import('./fly.js');
     fly = new Flight(img, g, view);
-    fly.load(scene.seed, scene.bpm, scene.kind);
+    fly.load(scene.seed, scene.bpm, flyKind());
   }
   $('flybtn').textContent = mode === 'fly' ? 'back to the painting' : 'fly';
   $('flybtn').classList.toggle('on', mode === 'fly');

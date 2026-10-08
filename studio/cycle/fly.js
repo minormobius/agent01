@@ -10,6 +10,7 @@
 // Voxel Space pass from a camera mirrored below the water.
 import { buildWorld, cameraAt, KIND, N, CELL, SIZE, heightAt } from './world.js';
 import { buildCoastWorld } from './coastworld.js';
+import { buildCityWorld } from './cityworld.js';
 import { sky, enu } from './astro.js';
 import { STARS, N as NSTARS, LINES } from './stars.js';
 import { starColour } from './astro.js';
@@ -33,7 +34,7 @@ export class Flight {
     this.cloud = null;
   }
   load(seed, bpm, kind = 'lake') {
-    this.world = kind === 'coast' ? buildCoastWorld(seed) : buildWorld(seed);
+    this.world = kind === 'city' ? buildCityWorld(seed) : kind === 'coast' ? buildCoastWorld(seed) : buildWorld(seed);
     if (bpm) this.world.bpm = bpm;
     if (!this.cloud) {             // the cloud layer: 512² density, 25 m a texel, wrapping
       const c = new Float32Array(512 * 512);
@@ -64,10 +65,11 @@ export class Flight {
     const lut = this.palette(lt, t);
     // at night the camera tips its gaze up: the dark land sinks toward the bottom of the frame and
     // the sky takes the rest (eased by how dark it is; the shear keeps it within Voxel Space's reach)
-    const look = clamp(cam.pitch + 0.34 * lt.night, -0.3, 0.33);
+    // (a city is looked down on at night: its lights are what there is to see)
+    const look = clamp(cam.pitch + (w.nightTip ?? 0.34) * lt.night, -0.3, 0.33);
     const hor = H / 2 + look * F;
     const fwd = [Math.sin(cam.yaw), Math.cos(cam.yaw)], right = [Math.cos(cam.yaw), -Math.sin(cam.yaw)];
-    this.voxel(cam, cam.z, hor, this.idx, this.dep, this.knd, FAR);
+    this.voxel(cam, cam.z, hor, this.idx, this.dep, this.knd, w.far || FAR);
     // the mirror pass, only for the columns where the lake shows
     this.cols = this.cols || new Uint8Array(W);
     let any = 0;
@@ -76,7 +78,7 @@ export class Flight {
     if (wantMirror) this.voxel(cam, -cam.z, hor, this.ridx, this.rdep, null, 4000, this.cols);
     this.trees(cam, cam.z, hor, fwd, right, this.idx, this.dep, 1500);
     if (wantMirror) this.trees(cam, -cam.z, hor, fwd, right, this.ridx, this.rdep, 900);
-    this.cabin(cam, cam.z, hor, fwd, right, this.idx, this.dep);
+    if (w.cabin) this.cabin(cam, cam.z, hor, fwd, right, this.idx, this.dep);
     if (w.lighthouse) this.tower(cam, cam.z, hor, fwd, right, this.idx, this.dep);
     this.au = auroraAt(w.seed, ms, v.lat, v.lon, sk.sun.alt, v.aurora ? 7 : null);
     this.AU = this.au ? this.aurora(this.au, hor, fwd, right, t, lt) : null;
@@ -170,6 +172,14 @@ export class Flight {
           const fl = 0.85 + 0.15 * Math.sin(t * 7.3) * Math.sin(t * 2.9);
           return add3([0.12, 0.09, 0.07], [1.0, 0.68, 0.28], smooth(0.15, -0.05, lt.el) * fl * 1.1);
         }
+        // the city (cityworld.js): a household's window, a street lamp, the street in its light
+        case 'cwin': {
+          const dark = smooth(e.th - 0.2, e.th, lt.night), glass = add3([0.03, 0.035, 0.045], lt.zen, 0.22);
+          const fl = e.tv ? 0.75 + 0.25 * Math.sin(t * 5.1 + e.th * 9) * Math.sin(t * 1.7) : 1;
+          return add3(glass, e.col, dark * fl * 0.95);
+        }
+        case 'clamp': return add3([0.2, 0.2, 0.2], [1, 0.82, 0.5], lt.night * 1.4);
+        case 'cpool': return add3(mul3(e.alb, add3(lt.amb, lt.sunCol, Math.max(0, lt.L[2]))), [0.42, 0.3, 0.14], lt.night);
         default: return [0, 0, 0];
       }
     });
@@ -186,6 +196,7 @@ export class Flight {
    */
   voxel(cam, cz, hor, idx, dep, knd, far, cols) {
     const w = this.world, Hm = w.height, IX = w.index, KD = w.kind, fall = w.slots.fall, strata = w.slots.strata;
+    const N = w.N, CELL = w.CELL, SIZE = w.SIZE, SH = w.sharp, FC = w.facade;
     idx.fill(0); dep.fill(Infinity); if (knd) knd.fill(255);
     const S2 = 2 * SIZE, LIM = SIZE - CELL - 1, TOP = w.maxH;
     const BY = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
@@ -193,7 +204,7 @@ export class Flight {
       if (cols && !cols[x]) continue;
       const xs = (x + 0.5 - W / 2) / F, ang = cam.yaw + Math.atan(xs), cosc = 1 / Math.sqrt(1 + xs * xs);
       const dx = Math.sin(ang), dy = Math.cos(ang);
-      let ybot = H, z = 1.5, dz = 0.5, step = 0;
+      let ybot = H, z = 1.5, dz = 0.5, step = 0, hp = -1e9;
       while (z < far && ybot > 0) {
         let px = cam.x + dx * z, py = cam.y + dy * z;
         if (px < 0 || px > LIM) { px = ((px % S2) + S2) % S2; if (px > LIM) px = S2 - CELL - 2 - px; if (px < 0) px = 0; }
@@ -201,13 +212,14 @@ export class Flight {
         const fx = px / CELL, fy = py / CELL, i = fx | 0, j = fy | 0, u = fx - i, v = fy - j, k = j * N + i;
         const zp = z * cosc;
         // nothing further out can show: even the highest peak would land below what is drawn
-        if (hor + (cz - TOP) / zp * F >= ybot) break;
-        let h = z < 900 ? (Hm[k] * (1 - u) + Hm[k + 1] * u) * (1 - v) + (Hm[k + N] * (1 - u) + Hm[k + N + 1] * u) * v : Hm[k];
+        if (cz <= TOP && hor + (cz - TOP) / zp * F >= ybot) break;          // (above the highest point the far ground still rises toward the horizon)
+        const crisp = SH !== undefined && SH[k] === 1;     // a wall or a quay: not blended with its neighbours
+        let h = z < 900 && !crisp ? (Hm[k] * (1 - u) + Hm[k + 1] * u) * (1 - v) + (Hm[k + N] * (1 - u) + Hm[k + N + 1] * u) * v : Hm[k];
         let kc = k;
-        if (z < 500) { const t = BY[((step & 3) << 2) | (x & 3)]; kc = k + (u > t ? 1 : 0) + (v > t ? N : 0); if (KD[kc] !== KD[k]) kc = k; }   // blend within a kind: sand drawn up a cliff face streaks it
+        if (z < 500 && !crisp) { const t = BY[((step & 3) << 2) | (x & 3)]; kc = k + (u > t ? 1 : 0) + (v > t ? N : 0); if (KD[kc] !== KD[k]) kc = k; }   // blend within a kind: sand drawn up a cliff face streaks it
         const kd = KD[kc];
         if (kd === KIND.lake || kd === KIND.foam) {
-          if (cz < 0) { z += dz; dz = 0.5 + z * 0.014; step++; continue; }   // the mirror sees through the water
+          if (cz < 0) { z += dz; dz = 0.5 + z * 0.014; step++; hp = 0; continue; }   // the mirror sees through the water
           h = 0;                     // water is level: a water cell chosen by the dither beside a cliff stays at the surface
         }
         const sy = hor + (cz - h) / zp * F;
@@ -227,20 +239,63 @@ export class Flight {
               const zr = cz - (r - hor) * zp / F, o = r * W + x, band = Math.sin(zr * 0.5 + off) + 0.6 * Math.sin(zr * 1.6 + off * 3) > 1.0;
               idx[o] = band ? id + strata : id; dep[o] = z; if (knd) knd[o] = kd;
             }
+          } else if (kd === KIND.building && h - hp > 1.2) {
+            this.facadeRows(FC, kc, px, py, top, ybot, x, z, zp, cz, hor, idx, dep, knd);
           } else {
             const id = IX[kc];
             for (let r = top, o = top * W + x; r < ybot; r++, o += W) { idx[o] = id; dep[o] = z; if (knd) knd[o] = kd; }
           }
           ybot = top;
         }
+        hp = h;
         z += dz; dz = 0.5 + z * 0.014; step++;
       }
     }
   }
 
+  /**
+   * A wall, drawn per row (cityworld.js): the cell knows its building and which way its nearest wall
+   * faces; the row's height is the storey, the position along the wall the bay, and the building's
+   * period says which of window, pier, timber, balcony or cornice that is. Above the eave it is roof.
+   */
+  facadeRows(FC, k, px, py, top, ybot, x, z, zp, cz, hor, idx, dep, knd) {
+    const b = FC.bid[k] - 1, a = FC.ang[k], blank = a & 128, az = (a & 127) * (Math.PI / 64), f4 = b * 4;
+    const base = FC.facts[f4], eave = FC.facts[f4 + 1], sh = FC.facts[f4 + 2], P = FC.styles[FC.facts[f4 + 3]];
+    const bucket = ((a & 127) + 8 >> 4) & 7, wall = P.wall + bucket, roof = this.world.index[k];
+    const s = px * Math.cos(az) - py * Math.sin(az), bayF = s / P.bay, bay = Math.floor(bayF), gx = bayF - bay;
+    const kd = KIND.building, stone = FC.stone + bucket, timber = FC.timber + bucket;
+    const bridge = P.name === 'bridge', top0 = eave - base;
+    for (let r = top, o = top * W + x; r < ybot; r++, o += W) {
+      const zr = cz - (r - hor) * zp / F;
+      let id;
+      if (zr > eave) id = roof;
+      else if (bridge) {
+        // arches: a semicircle-topped opening in each bay, springing from the water
+        const q = (gx - 0.5) / 0.36, rise = eave - 1.4;
+        id = Math.abs(q) < 1 && zr < rise * Math.sqrt(1 - q * q) ? FC.arch : stone;
+      } else if (zr < base) id = stone;                                 // the plinth, where the ground falls away
+      else {
+        const rel = zr - base, fl = Math.floor(rel / sh), f = rel / sh - fl;
+        id = wall;
+        if (P.cornice && eave - zr < P.cornice + (P.name === 'georgian' ? 1 : 0)) id = stone;
+        else if (!blank) {
+          let sill = P.sill, head = P.head, ww = P.ww;
+          if (fl === 0 && P.shop) { sill = P.shop[0]; head = P.shop[1]; ww = P.shop[2]; }
+          else if (fl === 1 && P.nobile) head = P.nobile;
+          const g = gx - 0.5;
+          if (f > sill && f < head && Math.abs(g) < ww / 2 && rel < top0 - 0.3) {
+            id = FC.win + (((Math.imul(b + 1, 73856093) ^ Math.imul(fl, 19349663) ^ Math.imul(bay, 83492791)) >>> 0) & 15);
+          } else if (P.timber && (f < 0.07 || gx < 0.06 || gx > 0.94 || (fl > 0 && Math.abs(gx - f) < 0.06))) id = timber;
+          else if (P.balcony && f < 0.06 && (fl === 2 || fl === Math.floor(top0 / sh) - 1)) id = timber;
+        } else if (P.timber && (f < 0.07 || gx < 0.06 || gx > 0.94)) id = timber;
+      }
+      idx[o] = id; dep[o] = z; if (knd) knd[o] = kd;
+    }
+  }
+
   /** Pines as billboards: cones of tiers, each needle-mass indexed by the compass way it faces. */
   trees(cam, cz, hor, fwd, right, idx, dep, far) {
-    const T = this.world.trees, pine = this.world.slots.pine, trunk = this.world.slots.trunk;
+    const T = this.world.trees, pine = this.world.slots.pine, trunk = this.world.slots.trunk, round = !!this.world.round;
     for (let n = 0; n < T.length; n += 4) {
       const rx = T[n] - cam.x, ry = T[n + 1] - cam.y;
       const zc = rx * fwd[0] + ry * fwd[1];
@@ -254,12 +309,14 @@ export class Flight {
       const flip = top > base;                                   // the mirror pass: tip downward
       for (let r = Math.max(0, Math.floor(y0)); r < Math.min(H, Math.ceil(y1)); r++) {
         const f = flip ? (y1 - r) / span : (r - y0) / span;      // 0 at the tip, 1 at the base
-        if (f > 0.92) {                                           // trunk
+        if (f > (round ? 0.8 : 0.92)) {                           // trunk
           const c = Math.round(sx);
           if (c >= 0 && c < W && dep[r * W + c] > zc) { idx[r * W + c] = trunk; dep[r * W + c] = zc; }
           continue;
         }
-        const tier = (f * 5.5) % 1, half = half0 * (0.1 + 0.9 * f) * (0.55 + 0.45 * tier);
+        // a broadleaf (the city's) is a round crown on a trunk; a pine a cone of tiers
+        const tier = (f * 5.5) % 1, half = round ? half0 * 1.25 * Math.sqrt(Math.max(0, 1 - ((f - 0.4) / 0.42) ** 2)) * (0.85 + 0.15 * Math.sin(f * 19 + n)) : half0 * (0.1 + 0.9 * f) * (0.55 + 0.45 * tier);
+        if (half < 0.3) continue;
         for (let c = Math.max(0, Math.floor(sx - half)); c <= Math.min(W - 1, sx + half); c++) {
           if (dep[r * W + c] <= zc) continue;
           const uu = (c - sx) / Math.max(0.5, half);

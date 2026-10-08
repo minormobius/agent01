@@ -508,6 +508,8 @@ cycle/night.js   the real stars, the moon in its phase, the figures, over the pa
 cycle/aurora.js  the aurora: geomagnetic latitude, each night's Kp, curtains traced per direction (pure)
 cycle/world.js   the 3D world: heightmap + per-cell palette index, trees, cabin, the flight loop (pure)
 cycle/coastworld.js  the coast's world to fly: sea, surf, beach, dunes, hills, headland, lighthouse (pure)
+cycle/cityworld.js   a city to fly: packages/morph's city on its ground, 2 m cells, facades drawn per row (pure)
+cycle/vendor/morph/  BYTE-IDENTICAL copy of packages/morph (geom, morph, ground, rand): sync-dataviz --write
 cycle/fly.js     Voxel Space renderer for the world (imported only when "fly" is pressed)
 cycle/compose.js the duo's composer: notes bar by bar for the landscape and the moment (pure)
 cycle/music.js   compose.js → pfstream.wasm, the guitar dressed by partitioned convolution (pure)
@@ -566,7 +568,7 @@ Voxel Space allows. The cloud texture tiles (its noise blended with shifted copi
 as a straight line across the night sky. ~35 ms a frame in node, 35 fps in
 headless Chromium (CPU); phones will be slower. Not seen on a phone; not listened to.
 
-Budget: the lake painting uses 255 of 256 entries, the coast 247; the lake's world 166, the coast's 188. Cycles turn `perBeat` entries a beat with
+Budget: the lake painting uses 255 of 256 entries, the coast 247; the lake's world 166, the coast's 188, the city's 179. Cycles turn `perBeat` entries a beat with
 fractional blending (`turnCycles`, Canvas Cycle's "blend shift").
 
 **The duo** (owner, 2026-10-07: "procgen composition with John's piano and guitar. A Duende for every
@@ -703,10 +705,45 @@ place skies"). aurora.js, pure; drawn in RGB like the stars, in both kinds of sc
 - The status line says "aurora Kp n, NW" only when one is actually showing (its drawn peak, not its
   existence). "aurora storm" under sky holds Kp 7 (`aur=1` in the link).
 
+**The city** (owner, 2026-10-08, after the morph city and brut through the centuries: "enough to color cycle
+fly through"). `cityworld.js` builds a world to fly from `packages/morph` (vendored in `cycle/vendor/morph/`
+by `scripts/sync-dataviz.mjs --write`: **edit packages/morph, never the copy**): morph's ground (hills, a river
+in its valley, no coast) and its sketch city on it (`generate({ seed, size: 1800, ground })`: lanes and
+hamlets, districts in their eras, blocks, plots, seven centuries of buildings), ~6–7k buildings standing.
+- **2 m cells** over 3 km (N 1536), not 4 m over 4 km: a plot is six metres wide. fly.js and world.js's
+  `heightAt` read N, CELL and SIZE from the world now. The river's surface at the city is the world's 0,
+  so it is the lake's mirror and the city stands in it; its ripples run downstream (the lake's cycle).
+- **Walls are drawn per row**, as the fall and the cliff strata are: a building cell knows its building and
+  the bearing of its nearest wall (`facade.bid`, `facade.ang`, 7 bits + a party-wall bit); `facadeRows`
+  takes the row's height as the storey and the position along the wall as the bay, and the period's face
+  (`FACES`, cut down from tjs/brut/period.js's grammar) decides window, pier, timber frame, balcony line,
+  cornice, shopfront, plinth; above the eave it is roof. A span is a wall only where the height steps up
+  more than 1.2 m from the last sample (otherwise it is a roof or street seen from above). `sharp` marks
+  cells whose height must not be blended (walls stand straight; the dither is off there too).
+- **Windows are sixteen households**: dark glass by day (the sky in it); each lights at its own darkness,
+  warm or cold, some flickering like a television, and the sixteen turn as a slow cycle (0.025 a beat), so
+  lights come on and go off across the city. Lamps every 30 m along the kerbs, a pool of light round each.
+  Roofs by period (thatch, tile, slate, zinc mansards, flat with plant) lit by which way they face; bridges
+  where an old road crosses the river, a deck on arches; broadleaf trees (round crowns: `world.round`)
+  in green squares, gardens and down the avenues and ring; hedgerows and woods in the country.
+- **The loop**: in from the fields, down the river between the quays (16 m over the water), up over the old
+  core, down into an old road at the height of its eaves (16 m, the lane's straight line so the spline
+  cannot cut a corner) and out along it, up round the tallest tower, a wide turn over the countryside.
+  `close` in loopThrough is the river channel and that stretch of road. At night the gaze tips up only a
+  little (`nightTip` 0.1): a city's lights are what there is to see. The music's places: river, falls (the
+  street), mountains (over the roofs), stars, lake (the fields).
+- The page: a "city" button (`world=city` in the link) flies it; there is no painting of a city, so the
+  painting behind it stays the lake's. ~2 s to build in node, ~3 s in Chromium; ~22 fps in headless
+  Chromium (CPU), the coast flight's rate. Two renderer bugs it found: `heightAt` indexed below zero just
+  short of the mirrored edge (a NaN loop), and the far-terrain early-out assumed the camera is never
+  above the highest point (at 380 m over the towers the ground vanished).
+- Not seen on a phone; the world's edge mirrors, so from high up a mirrored twin of the city stands
+  on the horizon.
+
 **The page**: hard square pixels covering the stage (drag to pan the painting when cropped). Controls:
 day speed, an hour scrubber (solar time), "sky" (place presets incl. "here" by geolocation, date,
 facing, weather, an aurora storm), constellation figures, the palette strip, fly. `#seed=N&kind=coast&lat=&lon=&face=&date=YYYY-MM-DD&h=
-&speed=&fig=1&mode=fly&wx=&amb=0&aur=1`.
+&speed=&fig=1&mode=fly&world=city&wx=&amb=0&aur=1`.
 
 ## Accretion (accretion/), and packages/attractor/lib/shell.js
 

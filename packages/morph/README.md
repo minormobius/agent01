@@ -1,7 +1,8 @@
 # packages/morph — a city's form: streets → blocks → plots → buildings
 
 Pure, DOM-free, deterministic ES modules (node and browser). Served by polis (`polis.mino.mobi/morph/`)
-as a byte-identical copy (`scripts/sync-dataviz.mjs`). Selftest: `node packages/morph/morph.selftest.mjs`.
+and flown through by studio's colour cycle (`studio.mino.mobi/cycle/`, `cityworld.js`), each from a
+byte-identical copy (`scripts/sync-dataviz.mjs`). Selftest: `node packages/morph/morph.selftest.mjs`.
 
 ## The model
 

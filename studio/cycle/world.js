@@ -16,7 +16,7 @@
 import { mulberry32, hash2, fbm2, rock, noise2, clamp, smooth, lerp, BIOMES } from './scene.js';
 
 export const N = 1024, CELL = 4, SIZE = N * CELL;
-export const KIND = { land: 0, lake: 1, river: 2, fall: 3, foam: 4, cabin: 5, cliff: 6 };
+export const KIND = { land: 0, lake: 1, river: 2, fall: 3, foam: 4, cabin: 5, cliff: 6, building: 7 };
 
 const ridged2 = (x, y, s) => { let a = 0, w = 0.5, f = 1; for (let k = 0; k < 5; k++) { const n = 1 - Math.abs(noise2(x * f, y * f, s + k * 11) * 2 - 1); a += w * n * n; w *= 0.5; f *= 2.05; } return a / 0.97; };
 const angDiff = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; };
@@ -188,10 +188,11 @@ export function buildWorld(seed = 1) {
 
 /** Terrain height (metres) at world x, y: bilinear, mirrored at the edges so the world never ends. */
 export function heightAt(world, x, y) {
-  const m = (v) => { v = ((v % (2 * SIZE)) + 2 * SIZE) % (2 * SIZE); return v > SIZE - CELL ? 2 * SIZE - CELL - v : v; };
-  const fx = m(x) / CELL, fy = m(y) / CELL, i = Math.min(N - 2, Math.floor(fx)), j = Math.min(N - 2, Math.floor(fy));
-  const u = fx - i, v = fy - j, H = world.height, k = j * N + i;
-  return (H[k] * (1 - u) + H[k + 1] * u) * (1 - v) + (H[k + N] * (1 - u) + H[k + N + 1] * u) * v;
+  const n = world.N || N, cell = world.CELL || CELL, size = world.SIZE || SIZE;    // the city's world is finer (cityworld.js)
+  const m = (v) => { v = ((v % (2 * size)) + 2 * size) % (2 * size); return v > size - cell ? Math.max(0, 2 * size - cell - v) : v; };   // (just short of 0, the mirror lands below it)
+  const fx = m(x) / cell, fy = m(y) / cell, i = Math.min(n - 2, Math.floor(fx)), j = Math.min(n - 2, Math.floor(fy));
+  const u = fx - i, v = fy - j, H = world.height, k = j * n + i;
+  return (H[k] * (1 - u) + H[k + 1] * u) * (1 - v) + (H[k + n] * (1 - u) + H[k + n + 1] * u) * v;
 }
 
 // ---------------------------------------------------------------------------- the flight --

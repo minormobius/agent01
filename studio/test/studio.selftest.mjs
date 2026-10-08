@@ -677,6 +677,33 @@ if (SHARD === 3) {
   const t0 = performance.now(); f.frame(1, 5 * 86400000 * 4000.13); const ms = performance.now() - t0;
   let lum = 0; for (let i = 0; i < img.data.length; i += 4) lum += img.data[i] + img.data[i + 1] + img.data[i + 2];
   ok(lum / (640 * 360) > 60 && f.idx.some((v) => v > 0), `fly: a frame renders by day (${ms.toFixed(0)} ms in node, cold)`);
+
+  // the city (cityworld.js): packages/morph's city on its ground, flown down its river and an old road
+  const { buildCityWorld } = await import('../cycle/cityworld.js');
+  const tc = performance.now(), cw = buildCityWorld(3), tcity = performance.now() - tc, cw2 = buildCityWorld(3);
+  let cityClear = Infinity;
+  for (let u = 0; u < 1; u += 0.002) { const c = cameraAt(cw, u); cityClear = Math.min(cityClear, c.z - heightAt(cw, c.x, c.y)); }
+  const cc0 = cameraAt(cw, 0), cc1 = cameraAt(cw, 1 - 1e-9), legs = new Set(cw.path.samples.map((p) => p.place));
+  let walls = 0, water = 0;
+  for (let k = 0; k < cw.kind.length; k++) { if (cw.kind[k] === KIND.building) walls++; else if (cw.kind[k] === KIND.lake) water++; }
+  ok(cw.used <= 256 && Buffer.compare(Buffer.from(cw.index), Buffer.from(cw2.index)) === 0 && Buffer.compare(Buffer.from(cw.facade.bid.buffer), Buffer.from(cw2.facade.bid.buffer)) === 0
+    && cw.city.buildings > 2000 && walls > 50000 && water > 5000 && ['river', 'falls', 'mountains'].every((p) => legs.has(p)),
+    `fly: a city of ${cw.city.buildings} buildings in ${cw.used}/256 colours, the same twice, with its river (${(tcity / 1000).toFixed(1)} s to build)`);
+  ok(cityClear > 10 && Math.hypot(cc0.x - cc1.x, cc0.y - cc1.y, cc0.z - cc1.z) < 5 && cw.path.samples.every((p) => Number.isFinite(p.z)),
+    `fly: the city's ${(cw.path.length / 1000).toFixed(1)} km loop closes and never comes nearer than ${cityClear.toFixed(0)} m to what is under it`);
+  // by night, flying down the river: the facades are drawn per row and their windows light
+  const fc = new Flight(img, { putImageData() {} }, view);
+  fc.load(3, 54, 'city');
+  const onRiver = cw.path.samples.flatMap((p, i) => (p.place === 'river' ? [i] : [])), riverU = cw.path.cum[onRiver[onRiver.length >> 1]] / cw.path.length;
+  const D5 = 5 * 86400000, msN = (Math.floor(Date.UTC(2026, 0, 10) / D5) + riverU) * D5;
+  const utcH = (msN / 3600000) % 24;
+  Object.assign(view, { lat: 48, lon: ((((-utcH * 15) % 360) + 540) % 360) - 180 });   // where it is midnight there and then
+  fc.frame(1, msN);
+  const lit = fc.palette(fc.light(sky(msN, view.lat, view.lon), msN), 1);
+  const cwin = cw.facade.win;
+  let wpx = 0, bright = 0;
+  for (let i = 0; i < fc.idx.length; i++) if (fc.idx[i] >= cwin && fc.idx[i] < cwin + 16 && fc.dep[i] < Infinity) { wpx++; const q = fc.idx[i] * 3; if (lit[q] + lit[q + 1] + lit[q + 2] > 0.9) bright++; }
+  ok(wpx > 2000 && bright > wpx * 0.1 && bright < wpx * 0.9, `fly: by night ${wpx} window pixels on the river's facades, ${Math.round(100 * bright / wpx)}% of them lit`);
 }
 
 // the duo (cycle/compose.js, music.js, pfstream.wasm) -------------------------------------
