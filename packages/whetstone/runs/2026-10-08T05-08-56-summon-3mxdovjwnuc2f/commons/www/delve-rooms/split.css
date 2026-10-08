@@ -1,0 +1,17 @@
+/* split.css: the house layout for a live picture on a phone.
+   Top two thirds: the picture, edge to edge. Bottom third: status, controls, then the docs, scrolling under the thumb.
+   Mark the picture(s) class="viz" and the control row class="ctl"; keep everything else inside <main>.
+   On a wide screen this file does nothing. First used on /delve-graph/, made standard 2026-10-08. */
+@media (max-width: 700px), (orientation: portrait) and (max-width: 900px) {
+  html, body { height: 100%; overflow: hidden; }
+  .viz { position: fixed; top: 0; left: 0; width: 100vw; height: 66vh; height: 66dvh; margin: 0; border: 0; border-radius: 0; box-sizing: border-box; }
+  main { position: fixed; top: 66vh; top: 66dvh; left: 0; right: 0; bottom: 0; max-width: none; margin: 0; padding: 8px 12px 28px; box-sizing: border-box;
+         overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; border-top: 1px solid #3a3c41; display: flex; flex-direction: column; }
+  main > * { flex: none; }
+  main .ctl { order: -3; margin: 0 0 4px; }
+  main #status { order: -2; margin: 0 0 6px; }
+  main h1 { font-size: 15px; }
+  main button { padding: 8px 14px; font-size: 16px; }
+  main table, main td, main th { font-size: 13px; overflow-wrap: anywhere; }
+  main .k span { display: block; }
+}
