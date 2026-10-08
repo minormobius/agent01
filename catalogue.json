@@ -3743,6 +3743,22 @@
       ]
     },
     {
+      "n": "ecumene",
+      "u": "https://games.mino.mobi/ecumene/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-08",
+      "b": "2026-10-08",
+      "p": "games",
+      "surface": "games",
+      "d": "A transit game on a small planet grown by mappa's world engine. Towns rise where the water is, and cities grow where your lines reach: every line raises the reach of the districts along it, the city grows along it, and the line fills until you buy trains or it strands people. Dense districts split, so the map gets finer where the city does.",
+      "tags": [
+        "games",
+        "simulation"
+      ]
+    },
+    {
       "n": "bucky",
       "u": "https://games.mino.mobi/bucky/",
       "c": "games",

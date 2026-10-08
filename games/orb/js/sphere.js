@@ -289,4 +289,5 @@
   O.buildProjective = buildProjective;
   O.cellAt = cellAt;
   O._hull = hull;
+  O.voronoi = voronoi; // any sites (Ecumene rebuilds its refined mesh with it)
 })();

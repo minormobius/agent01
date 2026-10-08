@@ -111,6 +111,17 @@ Three things live here:
   three-sensor boot; every edit re-runs the level's truth table. Par is the
   fewest parts a randomized router found (`tools/bake.mjs` → `js/par.js`),
   re-checked by the selftest. See [`bucky/README.md`](bucky/README.md).
+- **Ecumene at `/ecumene/`**: a transit game on a small planet from mappa's
+  engine (`js/mappa-engine.js`, a byte-identical copy; the selftest fails on
+  drift). Towns grow where the water is; each year a Dijkstra per settled
+  zone over roads and the player's lines gives gravity demand, logit mode
+  share, and transit trips assigned to ride segments, so every line knows
+  its load and strands what it can't carry. A zone's ceiling scales with
+  its reach (access to jobs) and its water, so a line grows the city along
+  it, which the selftest measures with a counterfactual (about +60%). Dense
+  zones split and the spherical Voronoi is rebuilt (`ORB.voronoi`, now
+  exposed by `orb/js/sphere.js`). The sim runs in a module worker. See
+  [`ecumene/README.md`](ecumene/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -155,7 +166,7 @@ Three things live here:
   to this family: [`pressure/README.md`](pressure/README.md).
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -195,6 +206,7 @@ node games/fathom/test/fathom.selftest.mjs       # the onion's layers, flood and
 node games/oneside/test/oneside.selftest.mjs     # the surface and its back, the maze, the through-the-paper rules
 node games/bucky/test/bucky.selftest.mjs         # C60, the clock's claims, every level's par design passes
 node games/bucky/tools/bake.mjs                  # re-bake Bucky's pars (minutes)
+node games/ecumene/test/ecumene.selftest.mjs     # mappa copy current, mesh and splits, determinism, crowding, the loop (+60% along a line)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

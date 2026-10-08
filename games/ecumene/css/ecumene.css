@@ -1,0 +1,90 @@
+/* Ecumene — layout and chrome: the family's single-canvas page. */
+:root {
+  --bg: #050a14; --surface: #0f1726; --border: #22304a; --text: #e6eefb; --dim: #8796b3;
+  --accent: #ffb547; --accent2: #5ee8c1; --warn: #ff5a5f;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overscroll-behavior: none; }
+#app {
+  height: 100vh; height: 100dvh; max-width: 900px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: max(8px, env(safe-area-inset-top)) 12px max(8px, env(safe-area-inset-bottom));
+}
+#hud { display: flex; gap: 10px; font-family: var(--mono); flex-wrap: wrap; align-items: flex-end; }
+.h { display: flex; flex-direction: column; gap: 2px; }
+.h.right { margin-left: auto; align-items: flex-end; }
+.lab { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.val { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.h.warn .val { color: var(--warn); }
+#credits { color: var(--accent); }
+.sub { font-size: 10px; color: var(--accent2); }
+.sub.neg { color: var(--warn); }
+#stage { position: relative; flex: 1; min-height: 0; }
+#globe { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; display: block; cursor: grab; }
+#info {
+  position: absolute; left: 8px; top: 8px; max-width: min(320px, calc(100% - 16px)); font-family: var(--mono); font-size: 12px; line-height: 1.5;
+  background: rgba(15,23,38,0.88); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; pointer-events: none;
+}
+#info b { color: var(--accent); }
+#note {
+  position: absolute; left: 50%; top: 8px; transform: translateX(-50%); opacity: 0; transition: opacity .2s; pointer-events: none;
+  font-family: var(--mono); font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px;
+  width: max-content; max-width: calc(100% - 16px); text-align: center; cursor: pointer;
+}
+#note.show { opacity: 1; pointer-events: auto; }
+#panel {
+  --c: #fff; position: absolute; left: 8px; right: 8px; bottom: 8px; max-width: 460px; margin: 0 auto;
+  background: rgba(15,23,38,0.94); border: 1px solid var(--border); border-left: 4px solid var(--c); border-radius: 10px; padding: 8px 10px;
+  font-family: var(--mono); font-size: 12px; display: flex; flex-direction: column; gap: 6px;
+}
+#panel[hidden] { display: none; }
+.ptop { display: flex; align-items: center; gap: 8px; }
+.ptop i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); }
+.ptop span { flex: 1; }
+.pstats { display: flex; gap: 14px; flex-wrap: wrap; }
+.pstats > div { display: flex; flex-direction: column; gap: 2px; }
+.pstats span:not(.lab) { font-weight: 700; font-size: 14px; }
+.pstats .warn { color: var(--warn); }
+.tr { display: flex; align-items: center; gap: 6px; }
+.pact { display: flex; gap: 8px; }
+button.mini {
+  font-family: var(--mono); font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text); border: 1px solid var(--border);
+}
+button.mini.danger { color: var(--warn); border-color: rgba(255,90,95,0.5); }
+#linebar { display: flex; gap: 6px; flex-wrap: wrap; min-height: 34px; }
+.lchip {
+  --c: var(--dim); font-family: var(--mono); font-size: 12px; font-weight: 700; padding: 7px 10px; border-radius: 18px; cursor: pointer;
+  background: transparent; color: var(--text); border: 1.5px solid var(--c); display: flex; align-items: center; gap: 6px;
+}
+.lchip i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.lchip em { font-style: normal; color: var(--warn); }
+.lchip.on { background: var(--c); color: var(--bg); }
+.lchip.on i { background: var(--bg); }
+.lchip.add { border-style: dashed; color: var(--dim); }
+#actions { display: flex; gap: 6px; }
+button.primary, button.ghost {
+  font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 10px 8px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; white-space: nowrap;
+}
+button.primary { background: var(--accent); color: #1a1000; border-color: var(--accent); flex: 2; }
+button.ghost { background: transparent; color: var(--dim); flex: 1; }
+button.ghost.on { color: var(--bg); background: var(--accent2); border-color: var(--accent2); }
+button:disabled { opacity: 0.4; cursor: default; }
+.foot { font-family: var(--mono); font-size: 11px; color: var(--dim); text-align: center; line-height: 1.6; margin: 0; }
+.foot a { color: var(--accent2); }
+.overlay {
+  position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 14px; padding: 24px 16px; text-align: center; background: rgba(5,10,20,0.9); backdrop-filter: blur(3px); overflow-y: auto;
+}
+.overlay > :first-child { margin-top: auto; }
+.overlay > :last-child { margin-bottom: auto; }
+.overlay[hidden] { display: none; }
+.overlay h1 { font-family: var(--mono); font-size: clamp(26px, 8vw, 40px); margin: 0; color: var(--accent); letter-spacing: 0.1em; }
+.overlay h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin: 0; }
+.overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.65; max-width: 32em; }
+.overlay p b { color: var(--text); }
+.overlay .accent { color: var(--accent2); }
+.dim { color: var(--dim); }
