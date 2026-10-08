@@ -11,6 +11,7 @@
 import { buildWorld, cameraAt, KIND, N, CELL, SIZE, heightAt } from './world.js';
 import { buildCoastWorld } from './coastworld.js';
 import { buildCityWorld } from './cityworld.js';
+import { movers, vehiclesAt } from './vendor/morph/motion.js';
 import { sky, enu } from './astro.js';
 import { STARS, N as NSTARS, LINES } from './stars.js';
 import { starColour } from './astro.js';
@@ -62,6 +63,7 @@ export class Flight {
     const cam = cameraAt(w, ms / (LOOP_DAYS * 86400000));
     this.cam = cam;
     const lt = this.light(sk, ms);
+    this.dark = lt.night;
     const lut = this.palette(lt, t);
     // at night the camera tips its gaze up: the dark land sinks toward the bottom of the frame and
     // the sky takes the rest (eased by how dark it is; the shear keeps it within Voxel Space's reach)
@@ -79,6 +81,7 @@ export class Flight {
     this.trees(cam, cam.z, hor, fwd, right, this.idx, this.dep, 1500);
     if (wantMirror) this.trees(cam, -cam.z, hor, fwd, right, this.ridx, this.rdep, 900);
     if (w.cabin) this.cabin(cam, cam.z, hor, fwd, right, this.idx, this.dep);
+    if (w.day) this.traffic(cam, cam.z, hor, fwd, right, this.idx, this.dep, ms);
     if (w.lighthouse) this.tower(cam, cam.z, hor, fwd, right, this.idx, this.dep);
     this.au = auroraAt(w.seed, ms, v.lat, v.lon, sk.sun.alt, v.aurora ? 7 : null);
     this.AU = this.au ? this.aurora(this.au, hor, fwd, right, t, lt) : null;
@@ -179,6 +182,9 @@ export class Flight {
           return add3(glass, e.col, dark * fl * 0.95);
         }
         case 'clamp': return add3([0.2, 0.2, 0.2], [1, 0.82, 0.5], lt.night * 1.4);
+        case 'chead': return add3([0.55, 0.55, 0.5], [1, 0.95, 0.75], lt.night * 1.8);
+        case 'ctail': return add3([0.35, 0.05, 0.04], [1, 0.12, 0.08], lt.night * 1.3);
+        case 'vwin': return add3(add3([0.04, 0.05, 0.06], lt.zen, 0.25), [1, 0.86, 0.6], smooth(0.1, 0.5, lt.night) * 1.1);
         case 'cpool': return add3(mul3(e.alb, add3(lt.amb, lt.sunCol, Math.max(0, lt.L[2]))), [0.42, 0.3, 0.14], lt.night);
         default: return [0, 0, 0];
       }
@@ -290,6 +296,105 @@ export class Flight {
         } else if (P.timber && (f < 0.07 || gx < 0.06 || gx > 0.94)) id = timber;
       }
       idx[o] = id; dep[o] = z; if (knd) knd[o] = kd;
+    }
+  }
+
+  /**
+   * The town's day (cityworld.js → packages/morph motion.js): every car, cyclist and walker under way at this
+   * minute of local solar time, and every tram, bus and train in service, drawn into the index buffer with
+   * depth, so the buildings hide them. A car is a roof and a side, its lamps lit after dark; a vehicle a
+   * body along its route with a band of windows; a person a speck the height of a person.
+   */
+  traffic(cam, cz, hor, fwd, right, idx, dep, ms) {
+    const w = this.world, D = w.day, Mo = w.motion, C = Mo.off, v = this.view;
+    const minute = ((ms / 60000 + v.lon * 4) % 1440 + 1440) % 1440;
+    const proj = (x, y, z) => { const rx = x - cam.x, ry = y - cam.y, zc = rx * fwd[0] + ry * fwd[1]; return zc < 1.5 ? null : [W / 2 + (rx * right[0] + ry * right[1]) / zc * F, hor + (cz - z) / zc * F, zc]; };
+    const put = (x, y, zc, id) => { x = Math.round(x); y = Math.round(y); if (x < 0 || y < 0 || x >= W || y >= H) return; const o = y * W + x; if (dep[o] > zc) { dep[o] = zc; idx[o] = id; } };
+    const quad = (p, id, zc) => { if (p.some((q) => !q)) return; fillQuad(p, (x, y) => { const o = y * W + x; if (dep[o] > zc) { dep[o] = zc; idx[o] = id; } }); };
+    // vehicles first (they are big); each segment of a body: a side wall with its windows, and a roof
+    for (const veh of vehiclesAt(D, minute)) {
+      const H0 = veh.kind === 'train' ? 4 : veh.kind === 'omnibus' || veh.kind === 'horsetram' ? 2.8 : 3.3, col = Mo.livery[veh.kind] ?? Mo.livery.bus;
+      for (let s = 0; s + 1 < veh.body.length; s++) {
+        const [ax, ay] = veh.body[s], [bx, by] = veh.body[s + 1], X0 = ax + C, Y0 = ay + C, X1 = bx + C, Y1 = by + C;
+        const z0 = heightAt(w, X0, Y0) + 0.3, z1 = heightAt(w, X1, Y1) + 0.3;
+        const A = proj(X0, Y0, z0), B = proj(X1, Y1, z1), A2 = proj(X0, Y0, z0 + H0), B2 = proj(X1, Y1, z1 + H0);
+        if (!A || !B || !A2 || !B2 || (A[2] + B[2]) / 2 > 2500) continue;
+        const zc = (A[2] + B[2]) / 2;
+        const L = Math.hypot(X1 - X0, Y1 - Y0) || 1, nx = -(Y1 - Y0) / L * 1.3, ny = (X1 - X0) / L * 1.3;
+        quad([proj(X0 + nx, Y0 + ny, z0 + H0), proj(X1 + nx, Y1 + ny, z1 + H0), proj(X1 - nx, Y1 - ny, z1 + H0), proj(X0 - nx, Y0 - ny, z0 + H0)], Mo.vroof, zc + 0.5);
+        // the side as columns, so the window band can be picked out by height
+        const x0 = Math.ceil(Math.min(A[0], B[0])), x1 = Math.floor(Math.max(A[0], B[0]));
+        for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) {
+          const f = (x - A[0]) / ((B[0] - A[0]) || 1), yb = A[1] + (B[1] - A[1]) * f, yt = A2[1] + (B2[1] - A2[1]) * f;
+          for (let y = Math.max(0, Math.ceil(yt)); y <= Math.min(H - 1, Math.floor(yb)); y++) {
+            const u = (yb - y) / Math.max(1, yb - yt), o = y * W + x;
+            if (dep[o] <= zc) continue;
+            dep[o] = zc; idx[o] = u > 0.5 && u < 0.82 && ((x + s) % 4) !== 0 ? Mo.vwin : col;
+          }
+        }
+      }
+    }
+    // a car: a roof and a side (the card that shows from the street), and its lamps when it is running
+    const drawCar = (X, Y, hx, hy, id, running) => {
+      const rx = X - cam.x, ry = Y - cam.y, zc = rx * fwd[0] + ry * fwd[1];
+      if (zc < 1.5) return;
+      const z = heightAt(w, X, Y), px = -hy * 0.9, py = hx * 0.9;
+      const Fp = proj(X + hx * 2.2, Y + hy * 2.2, z + 0.9), Bp = proj(X - hx * 2.2, Y - hy * 2.2, z + 0.9);
+      if (!Fp || !Bp) return;
+      if (Math.hypot(Fp[0] - Bp[0], Fp[1] - Bp[1]) < 1.5 && zc > 120) {      // far off: a lamp, or a speck
+        if (running) put((Fp[0] + Bp[0]) / 2, Fp[1], zc, this.dark > 0.3 ? (hx * fwd[0] + hy * fwd[1] < 0 ? Mo.head : Mo.tail) : id);
+        return;
+      }
+      quad([proj(X + hx * 2.2 + px, Y + hy * 2.2 + py, z + 1.45), proj(X - hx * 2.2 + px, Y - hy * 2.2 + py, z + 1.45), proj(X - hx * 2.2 - px, Y - hy * 2.2 - py, z + 1.45), proj(X + hx * 2.2 - px, Y + hy * 2.2 - py, z + 1.45)], id, zc);
+      quad([proj(X + hx * 2.2, Y + hy * 2.2, z + 0.2), proj(X - hx * 2.2, Y - hy * 2.2, z + 0.2), proj(X - hx * 2.2, Y - hy * 2.2, z + 1.45), proj(X + hx * 2.2, Y + hy * 2.2, z + 1.45)], id, zc);
+      if (running) { put(Fp[0], Fp[1], zc - 0.5, Mo.head); put(Bp[0], Bp[1], zc - 0.5, Mo.tail); }   // white ahead, red behind
+    };
+    // the parked cars along the kerbs near the camera
+    const P = Mo.parked, cxB = Math.floor(cam.x / P.B), cyB = Math.floor(cam.y / P.B), R = 5;
+    for (let j = cyB - R; j <= cyB + R; j++) for (let i = cxB - R; i <= cxB + R; i++) {
+      const L = P.cells.get(i + j * P.n); if (!L) continue;
+      for (const q of L) { const d = P.data; if ((d[q] - cam.x) * fwd[0] + (d[q + 1] - cam.y) * fwd[1] < 2) continue; drawCar(d[q], d[q + 1], d[q + 2], d[q + 3], Mo.car + d[q + 4], false); }
+    }
+    if (w.boats) this.boatsAt(minute, proj, quad, put, Mo);
+    // the people, the cyclists and the cars
+    const M = this.mv = movers(D, minute, this.mv || {});
+    for (let k = 0; k < M.n; k++) {
+      const X = M.x[k] + C, Y = M.y[k] + C, rx = X - cam.x, ry = Y - cam.y, zc = rx * fwd[0] + ry * fwd[1];
+      if (zc < 1.5 || zc > 2600) continue;
+      const sx = W / 2 + (rx * right[0] + ry * right[1]) / zc * F;
+      if (sx < -20 || sx > W + 20) continue;
+      const z = heightAt(w, X, Y), m = M.mode[k];
+      if (m === 2) drawCar(X, Y, M.hx[k], M.hy[k], Mo.car + (k * 7 % 6), true);
+      else {
+        const top = proj(X, Y, z + (m === 1 ? 1.6 : 1.75)), bot = proj(X, Y, z);
+        if (!top || !bot) continue;
+        const id = Mo.person + (k % 4);
+        if (bot[1] - top[1] < 1) { if (zc < 400) put(sx, bot[1], zc, id); continue; }
+        for (let y = Math.max(0, Math.round(top[1])); y <= Math.min(H - 1, Math.round(bot[1])); y++) put(sx, y, zc, m === 1 && y > (top[1] + bot[1]) / 2 ? Mo.car + 4 : id);
+      }
+    }
+  }
+
+  /** The river's boats at this minute: a hull at the waterline, a deckhouse with its windows, oars as specks. */
+  boatsAt(minute, proj, quad, put, Mo) {
+    const Bt = this.world.boats;
+    const at = (s) => { s = Math.max(0, Math.min(Bt.len, s)); let i = 1; while (i < Bt.cum.length - 1 && Bt.cum[i] < s) i++; const a = Bt.pts[i - 1], b = Bt.pts[i], f = (s - Bt.cum[i - 1]) / Math.max(1e-6, Bt.cum[i] - Bt.cum[i - 1]); return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, (b[0] - a[0]) / (Bt.cum[i] - Bt.cum[i - 1] || 1), (b[1] - a[1]) / (Bt.cum[i] - Bt.cum[i - 1] || 1)]; };
+    for (const b of Bt.list) {
+      if (minute < b.from || minute > b.to) continue;
+      // up and down the reach: a round trip of twice its length, from its own starting point
+      const run = (b.phase * 2 * Bt.len + (minute - b.from) * b.speed) % (2 * Bt.len), up = run < Bt.len, s = up ? run : 2 * Bt.len - run;
+      const [x0, y0, tx0, ty0] = at(s), dir = up ? 1 : -1, tx = tx0 * dir, ty = ty0 * dir, side = Bt.width * 0.22;
+      const X = x0 + ty * side, Y = y0 - tx * side, hl = b.length / 2, hb = b.beam / 2;
+      const c = (a, o, z) => proj(X + tx * a - ty * o, Y + ty * a + tx * o, z);
+      const hull = b.kind === 'barge' ? Mo.car + 3 : b.kind === 'tour' ? Mo.car + 2 : Mo.livery.horsetram;
+      const zc = (X - this.cam.x) * Math.sin(this.cam.yaw) + (Y - this.cam.y) * Math.cos(this.cam.yaw);
+      if (zc < 2 || zc > 2500) continue;
+      quad([c(hl, 0, 0.6), c(hl * 0.6, hb, 0.6), c(-hl, hb, 0.6), c(-hl, -hb, 0.6)], hull, zc);
+      quad([c(hl, 0, 0.6), c(hl * 0.6, -hb, 0.6), c(-hl, -hb, 0.6), c(-hl, hb, 0.6)], hull, zc);
+      if (b.kind === 'tour') quad([c(hl * 0.4, -hb * 0.7, 2.6), c(hl * 0.4, hb * 0.7, 2.6), c(-hl * 0.8, hb * 0.7, 2.6), c(-hl * 0.8, -hb * 0.7, 2.6)], Mo.vroof, zc - 1);
+      if (b.kind === 'tour') quad([c(hl * 0.4, 0, 0.7), c(-hl * 0.8, 0, 0.7), c(-hl * 0.8, 0, 2.5), c(hl * 0.4, 0, 2.5)], Mo.vwin, zc - 0.5);
+      if (b.kind === 'barge') quad([c(-hl * 0.6, -hb * 0.6, 3), c(-hl * 0.6, hb * 0.6, 3), c(-hl * 0.95, hb * 0.6, 3), c(-hl * 0.95, -hb * 0.6, 3)], Mo.vroof, zc - 1);
+      if (b.kind === 'row') for (const a of [-1.5, 0, 1.5]) { const p = c(a, 0, 1.4); if (p) put(p[0], p[1], zc - 0.5, Mo.person + 1); }
     }
   }
 

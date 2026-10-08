@@ -23,6 +23,8 @@ import { mulberry32, hash2, fbm2, smooth, BIOMES } from './scene.js';
 import { KIND, NORMALS, heightAt, loopThrough } from './world.js';
 import { generate, standing, PRESENT } from './vendor/morph/morph.js';
 import { Ground } from './vendor/morph/ground.js';
+import { transport } from './vendor/morph/mobility.js';
+import { day } from './vendor/morph/motion.js';
 
 const N = 1536, CELL = 2, SIZE = N * CELL, C = SIZE / 2;
 const FRAME = 1800;                           // the city's side; the ground (3 km) is countryside beyond it
@@ -55,6 +57,8 @@ export function buildCityWorld(seed = 1) {
   const cl = (v) => Math.max(-1499, Math.min(1499, v));
   const g = { ...g0, heightAt: (x, y) => g0.heightAt(cl(x), cl(y)), water: (x, y) => g0.water(cl(x), cl(y)), riverDistAt: (x, y) => g0.riverDistAt(cl(x), cl(y)) };
   const city = generate({ seed, size: FRAME, ground: g });
+  // its people and how they get about (mobility.js): the railway clears its line before anything is drawn
+  transport(city);
   const now = standing(city, PRESENT);
   const sAtValley = (x, y) => {      // how far down the valley (m): the river's phase
     const n = g.n, i = Math.max(0, Math.min(n - 1, Math.round((x + 1500) / g.cell))), j = Math.max(0, Math.min(n - 1, Math.round((y + 1500) / g.cell)));
@@ -135,6 +139,30 @@ export function buildCityWorld(seed = 1) {
     });
   }
 
+  // ---- the railway: a ballasted bed along its line, and the terminus's train shed (arched portals: the
+  // bridge's face, which is what a shed's end is)
+  const R0 = city.transport.rail, ballast = new Uint8Array(N * N);
+  if (R0) {
+    for (let q = 0; q + 1 < R0.path.length; q++) {
+      const [ax, ay] = R0.path[q], [bx, by] = R0.path[q + 1], L = Math.hypot(bx - ax, by - ay);
+      for (let s = 0; s <= L; s += 1) for (let o = -4; o <= 4; o += 1) {
+        const x = ax + (bx - ax) * s / L - (by - ay) / L * o, y = ay + (by - ay) * s / L + (bx - ax) / L * o;
+        const i = Math.floor((x + C) / CELL), j = Math.floor((y + C) / CELL), k = j * N + i;
+        if (i < 0 || j < 0 || i >= N || j >= N || cls[k] >= 5) continue;
+        ballast[k] = 1;
+      }
+    }
+    const cx = R0.shed.reduce((a, p) => a + p[0] / R0.shed.length, 0), cy = R0.shed.reduce((a, p) => a + p[1] / R0.shed.length, 0);
+    const base = Math.max(0.6, g.heightAt(cx, cy) - zOff), id = facts.length / 4 + 1;
+    facts.push(base - 2, base + 13, 13, STYLE_IDS.indexOf('bridge'));
+    fillPoly(R0.shed, (k, d, e) => {
+      if (cls[k] === 6) return;
+      cls[k] = 5; kind[k] = KIND.building; bid[k] = id; ballast[k] = 0;
+      const az = Math.atan2(-e[0], -e[1]); ang[k] = (Math.round(az / (2 * Math.PI) * 128) % 128 + 128) % 128;
+      height[k] = base + 13 + Math.min(4, d * 0.35);            // a shallow pitched roof over the platforms
+    });
+  }
+
   // ---- bridges: where an old road crosses the river, a deck on arches
   for (const L of city.lanes) {
     const ox = L.o[0], oy = L.o[1], ux = L.u[0], uy = L.u[1];
@@ -184,6 +212,18 @@ export function buildCityWorld(seed = 1) {
   const arch = alloc(1, () => ({ k: 'land3', alb: [0.05, 0.05, 0.06], n: [0, 0, 1], name: 'shadow' }));
   const leaf = alloc(8, (i) => ({ k: 'land3', alb: B.pine.map((v, c) => v * 1.25 + [0.03, 0.06, 0.01][c]), n: [0.85 * Math.sin(i * Math.PI / 4), 0.85 * Math.cos(i * Math.PI / 4), 0.5], name: 'pine' }));
   const trunk = alloc(1, () => ({ k: 'land3', alb: [0.18, 0.12, 0.08], n: [0, 0, 1], name: 'trunk' }));
+  // what moves (motion.js, drawn by fly.js's traffic()): cars in six paints, their lamps, people in four
+  // coats, each kind of vehicle in its livery, a roof grey and lit windows; and the railway's ballast
+  const CARS = [[0.62, 0.12, 0.10], [0.14, 0.24, 0.52], [0.82, 0.82, 0.80], [0.08, 0.08, 0.09], [0.55, 0.56, 0.58], [0.80, 0.62, 0.12]];
+  const car = alloc(6, (i) => ({ k: 'land3', alb: CARS[i], n: [0.35, 0.35, 0.87], name: 'car' }));
+  const head = alloc(1, () => ({ k: 'chead' })), tail = alloc(1, () => ({ k: 'ctail' }));
+  const COATS = [[0.20, 0.20, 0.26], [0.50, 0.30, 0.22], [0.62, 0.58, 0.50], [0.25, 0.34, 0.30]];
+  const person = alloc(4, (i) => ({ k: 'land3', alb: COATS[i], n: [0.5, 0.5, 0.7], name: 'person' }));
+  const LIVERY = { tram: [0.86, 0.66, 0.18], horsetram: [0.55, 0.30, 0.18], omnibus: [0.45, 0.28, 0.16], bus: [0.30, 0.62, 0.34], lightrail: [0.30, 0.62, 0.82], train: [0.38, 0.12, 0.12] };
+  const livery = {}; for (const [k2, c2] of Object.entries(LIVERY)) livery[k2] = alloc(1, () => ({ k: 'land3', alb: c2, n: [0.4, 0.4, 0.82], name: 'vehicle' }));
+  const vroof = alloc(1, () => ({ k: 'land3', alb: [0.45, 0.46, 0.48], n: [0, 0, 1], name: 'vehicle' }));
+  const vwin = alloc(1, () => ({ k: 'vwin' }));
+  const gravel = alloc(1, () => ({ k: 'land3', alb: [0.36, 0.33, 0.30], n: [0, 0, 1], name: 'ballast' }));
   cycles.push({ lo: lake, len: LAKE, perBeat: 1, name: 'river' }, { lo: win, len: 16, perBeat: 0.025, name: 'windows' });
   const ROOF = { village: M.thatch, medieval: M.tile, georgian: M.slate, haussmann: M.zinc, villa: M.tile, modern: M.flat, glass: M.lead };
   const styleWall = STYLE_IDS.map((s) => W[FACES[s].wall]);
@@ -191,7 +231,7 @@ export function buildCityWorld(seed = 1) {
   // ---- streets: lamps along the kerb every 30 m, a pool of light round each, and trees down the avenues
   const core = city.districts.find((d) => d.isCore);
   const inCore = (x, y) => core && core.parts.some((P) => { let s = 0; for (let e = 0; e < P.length; e++) { const a = P[e], b = P[(e + 1) % P.length]; const c2 = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); if (c2 !== 0) { if (s === 0) s = Math.sign(c2); else if (Math.sign(c2) !== s) return false; } } return true; });
-  const lampAt = new Set();
+  const lampAt = new Set(), parked = [];
   for (const st of city.streets) {
     if (st.width <= 0) continue;
     const blk = city.blocks[st.block], cen = blk.lot && blk.lot.length ? blk.lot.reduce((a, p) => [a[0] + p[0] / blk.lot.length, a[1] + p[1] / blk.lot.length], [0, 0]) : null;
@@ -208,6 +248,14 @@ export function buildCityWorld(seed = 1) {
       if (i < 1 || j < 1 || i >= N - 1 || j >= N - 1 || cls[j * N + i] !== 1) continue;
       lampAt.add(j * N + i);
     }
+    // cars parked along the kerb, nose to tail with gaps, where the street is wide enough to park in
+    if (st.width >= 9) for (let s = 5; s < L - 5; s += 5.6) {
+      if (hash2(Math.round(s * 7), st.block * 31 + Math.round(mx), S + 51) < 0.35) continue;
+      const kerb = st.width / 2 - (trees_ ? 4.4 : 3.1), x = st.a[0] + dx / L * s + nx * kerb, y = st.a[1] + dy / L * s + ny * kerb;
+      const i = Math.floor((x + C) / CELL), j = Math.floor((y + C) / CELL);
+      if (i < 1 || j < 1 || i >= N - 1 || j >= N - 1 || cls[j * N + i] !== 1) continue;
+      parked.push(x + C, y + C, dx / L, dy / L, Math.floor(hash2(Math.round(x), Math.round(y), S + 52) * 6));
+    }
     if (trees_) for (let s = 6; s < L - 4; s += 9) {
       const x = st.a[0] + dx / L * s + nx * (st.width / 2 - 2.6), y = st.a[1] + dy / L * s + ny * (st.width / 2 - 2.6);
       const i = Math.floor((x + C) / CELL), j = Math.floor((y + C) / CELL), k = j * N + i;
@@ -217,7 +265,7 @@ export function buildCityWorld(seed = 1) {
   // the countryside's trees: hedgerows and woods where the noise says, none on the river
   for (let n = 0; n < 60000 && trees.length < 4 * 9000; n++) {
     const x = R() * SIZE, y = R() * SIZE, i = Math.floor(x / CELL), j = Math.floor(y / CELL), k = j * N + i;
-    if (cls[k] !== 0) continue;
+    if (cls[k] !== 0 || ballast[k]) continue;
     const hedge = Math.abs(((x * 0.6 + y * 0.8) % 130 + 130) % 130 - 65) < 2 || Math.abs(((x * 0.8 - y * 0.6) % 170 + 170) % 170 - 85) < 2;
     if (!(fbm2(x / 260, y / 260, S + 30, 4) > 0.58 || (hedge && hash2(i, j, S + 31) < 0.5))) continue;
     trees.push(x, y, height[k] - 0.5, 8 + R() * 9);
@@ -241,6 +289,7 @@ export function buildCityWorld(seed = 1) {
       continue;
     }
     if (c === 7) { index[k] = paving; continue; }
+    if (ballast[k]) { index[k] = gravel; continue; }
     if (c === 1) { index[k] = lampAt.has(k) ? lamp : inCore(x - C, y - C) ? cobble : street; continue; }
     if (c === 3) { index[k] = paving; continue; }
     // ground, by which way it faces: fields in the country, lawns and gardens in town
@@ -270,6 +319,9 @@ export function buildCityWorld(seed = 1) {
     kind: 'city', seed, biome, N, CELL, SIZE, height, kind, index, entries, cycles, trees: new Float32Array(trees), sharp,
     facade: { bid, ang, facts: new Float32Array(facts), styles: STYLE_IDS.map((s, i) => ({ ...FACES[s], wall: styleWall[i], name: s })), win, timber: W.timber, stone: W.stone, arch },
     slots: { lake, pine: leaf, trunk, window: win }, round: true, nightTip: 0.1, far: 4600,
+    // a day of the town (motion.js): ~40,000 journeys and the timetabled vehicles, in morph's frame (+C)
+    day: day(city, PRESENT, { target: 80000 }), motion: { off: C, car, head, tail, person, livery, vroof, vwin, parked: bucket(parked, 5) },
+    boats: boats(g, S),
     skyTurn: B.skyTurn, water: B.water, bpm: 48 + Math.floor(rnd() * 18), city: { stats: city.stats, zOff, buildings: facts.length / 4 },
   };
   let maxH = 0; for (let k = 0; k < N * N; k++) if (height[k] > maxH) maxH = height[k];
@@ -279,6 +331,28 @@ export function buildCityWorld(seed = 1) {
   world.used = entries.length;
   while (entries.length < 256) entries.push({ k: 'unused' });
   return world;
+}
+/** Things in a flat array of `stride` numbers (x, y first), in 64 m buckets, for "what is near here". */
+function bucket(arr, stride) {
+  const B = 64, n = Math.ceil(SIZE / B), cells = new Map();
+  for (let q = 0; q < arr.length; q += stride) {
+    const k = Math.floor(arr[q] / B) + Math.floor(arr[q + 1] / B) * n;
+    let L = cells.get(k); if (!L) cells.set(k, (L = [])); L.push(q);
+  }
+  return { data: Float32Array.from(arr), stride, B, n, cells };
+}
+/**
+ * The river's traffic: barges all day, slow; tour boats from nine till nine, with lit cabins after dark;
+ * rowing boats by day. Each runs up and down the channel inside the town, keeping to its right, and where
+ * it is is a function of the minute (fly.js `boatsAt`).
+ */
+function boats(g, S) {
+  if (!g.river) return null;
+  const pts = g.river.path.filter(([x, y]) => Math.abs(x) < FRAME / 2 + 300 && Math.abs(y) < FRAME / 2 + 300).map(([x, y]) => [x + C, y + C]);
+  if (pts.length < 2) return null;
+  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const KINDS = [['barge', 55, 0, 24, 40, 6], ['barge', 50, 0, 24, 36, 6], ['tour', 85, 9, 21, 22, 5], ['tour', 80, 10, 22, 22, 5], ['tour', 90, 9.5, 20, 18, 4.5], ['row', 70, 7, 19, 7, 1.4], ['row', 65, 8, 18, 7, 1.4], ['row', 75, 9, 17, 6, 1.4], ['row', 60, 7.5, 18.5, 8, 1.4]];
+  return { pts, cum, len: cum[cum.length - 1], width: g.river.width, list: KINDS.map(([kind, speed, from, to, length, beam], i) => ({ kind, speed, from: from * 60, to: to * 60, length, beam, phase: hash2(i, 3, S + 60) })) };
 }
 const STYLES_PITCH = { village: 0.9, medieval: 0.85, georgian: 0.5, villa: 0.65 };
 

@@ -510,7 +510,7 @@ cycle/aurora.js  the aurora: geomagnetic latitude, each night's Kp, curtains tra
 cycle/world.js   the 3D world: heightmap + per-cell palette index, trees, cabin, the flight loop (pure)
 cycle/coastworld.js  the coast's world to fly: sea, surf, beach, dunes, hills, headland, lighthouse (pure)
 cycle/cityworld.js   a city to fly: packages/morph's city on its ground, 2 m cells, facades drawn per row (pure)
-cycle/vendor/morph/  BYTE-IDENTICAL copy of packages/morph (geom, morph, ground, rand): sync-dataviz --write
+cycle/vendor/morph/  BYTE-IDENTICAL copy of packages/morph (geom, morph, ground, rand, mobility, motion): sync-dataviz --write
 cycle/fly.js     Voxel Space renderer for the world (imported only when "fly" is pressed)
 cycle/compose.js the duo's composer: notes bar by bar for the landscape and the moment (pure)
 cycle/music.js   compose.js → pfstream.wasm, the guitar dressed by partitioned convolution (pure)
@@ -569,7 +569,7 @@ Voxel Space allows. The cloud texture tiles (its noise blended with shifted copi
 as a straight line across the night sky. ~35 ms a frame in node, 35 fps in
 headless Chromium (CPU); phones will be slower. Not seen on a phone; not listened to.
 
-Budget: the lake painting uses 255 of 256 entries, the coast 247; the lake's world 166, the coast's 188, the city's 179. Cycles turn `perBeat` entries a beat with
+Budget: the lake painting uses 255 of 256 entries, the coast 247; the lake's world 166, the coast's 188, the city's 200. Cycles turn `perBeat` entries a beat with
 fractional blending (`turnCycles`, Canvas Cycle's "blend shift").
 
 **The duo** (owner, 2026-10-07: "procgen composition with John's piano and guitar. A Duende for every
@@ -743,6 +743,19 @@ hamlets, districts in their eras, blocks, plots, seven centuries of buildings), 
   Chromium (CPU), the coast flight's rate. Two renderer bugs it found: `heightAt` indexed below zero just
   short of the mirrored edge (a NaN loop), and the far-terrain early-out assumed the camera is never
   above the highest point (at 380 m over the towers the ground vanished).
+- **The town's day** (owner, 2026-10-08: "go back to time series with discrete objects… let's see it"):
+  cityworld runs `transport(city)` (packages/morph mobility.js, vendored) BEFORE rasterising, so the railway
+  has cleared its line: its bed is ballast and the terminus a train shed (the bridge's arched face). Then
+  `day(city, PRESENT, { target: 80000 })` (motion.js): ~80k journeys and the timetabled trams, buses and
+  trains. `Flight.traffic()` draws, each frame at that minute of LOCAL SOLAR time, every vehicle as a body
+  along its route (livery side with a band of windows lit after dark, a grey roof), every moving car as a
+  roof and a side with a white lamp ahead and a red one behind (far off, just the lamp), cyclists and
+  walkers as specks the height of a person, ~12k cars parked along the kerbs (bucketed, drawn within
+  ~320 m), and the river's boats (`boatsAt`: barges all day, tour boats 9–21 with lit cabins, rowing
+  boats by day, up and down the reach keeping right). All into the index buffer with depth, so buildings
+  hide them; the palette lights the lamps (`chead`, `ctail`, `vwin`). At the default day speed the day
+  passes in 4 minutes, so the traffic runs at 360×. Not in the river's reflection. 200 colours; ~3.6 s to
+  build (transport ~1 s, the day ~1 s); 23 fps in headless Chromium, unchanged.
 - Not seen on a phone; the world's edge mirrors, so from high up a mirrored twin of the city stands
   on the horizon.
 

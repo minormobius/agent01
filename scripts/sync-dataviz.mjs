@@ -46,6 +46,8 @@ const EXTRA = [
   ["packages/morph/morph.js", "studio/cycle/vendor/morph/morph.js"],
   ["packages/morph/ground.js", "studio/cycle/vendor/morph/ground.js"],
   ["packages/morph/rand.js", "studio/cycle/vendor/morph/rand.js"],
+  ["packages/morph/mobility.js", "studio/cycle/vendor/morph/mobility.js"],
+  ["packages/morph/motion.js", "studio/cycle/vendor/morph/motion.js"],
   // brut through the centuries: the period shells the city's model view and elevations draw
   ["tjs/brut/period.js", "polis/morph/brut/period.js"],
   ["tjs/brut/rand.js", "polis/morph/brut/rand.js"],

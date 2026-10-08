@@ -704,6 +704,11 @@ if (SHARD === 3) {
   let wpx = 0, bright = 0;
   for (let i = 0; i < fc.idx.length; i++) if (fc.idx[i] >= cwin && fc.idx[i] < cwin + 16 && fc.dep[i] < Infinity) { wpx++; const q = fc.idx[i] * 3; if (lit[q] + lit[q + 1] + lit[q + 2] > 0.9) bright++; }
   ok(wpx > 2000 && bright > wpx * 0.1 && bright < wpx * 0.9, `fly: by night ${wpx} window pixels on the river's facades, ${Math.round(100 * bright / wpx)}% of them lit`);
+  // the town's day (packages/morph mobility.js + motion.js): a railway, the journeys, cars drawn with depth
+  const Mo = cw.motion; let carPx = 0;
+  for (let i = 0; i < fc.idx.length; i++) if (fc.idx[i] >= Mo.car && fc.idx[i] < Mo.car + 6) carPx++;
+  ok(cw.day && cw.day.n > 30000 && cw.day.vehicles.length > 0 && Mo.parked.data.length / 5 > 2000 && carPx > 50 && cw.boats,
+    `fly: the city's day runs: ${cw.day.n} journeys, ${cw.day.vehicles.length} timetabled services, ${Mo.parked.data.length / 5} parked cars (${carPx} car pixels in that frame), ${cw.boats.list.length} boats on the river`);
 }
 
 // the duo (cycle/compose.js, music.js, pfstream.wasm) -------------------------------------
