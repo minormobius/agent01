@@ -297,10 +297,46 @@ export function subtract(R, holes, zcuts = []) {
 // ---------------------------------------------------------------------------------- roofs --
 function roof(b, push, opts) {
   const { W, D, era } = b, E = b.eaves, sh = b.shell;
-  const quad = (pts, mat, kind = 'roof') => push({ shape: 'quad', mat, kind, pts: pts.map((p) => p.map(r3)) });
-  const tri = (pts, mat, kind = 'gable') => push({ shape: 'tri', mat, kind, pts: pts.map((p) => p.map(r3)) });
+  // every roof plane is remembered, so a stack can find the roof under it
+  const planes = [];
+  const plane = (pts) => { if (Math.abs(pts[0][1] - pts[1][1]) + Math.abs(pts[1][1] - pts[2][1]) > 1e-6 || pts.every((q) => Math.abs(q[1] - pts[0][1]) < 1e-6)) planes.push(pts); };
+  const quad = (pts, mat, kind = 'roof') => { plane(pts); return push({ shape: 'quad', mat, kind, pts: pts.map((p) => p.map(r3)) }); };
+  const tri = (pts, mat, kind = 'gable') => { if (kind !== 'party gable' && !/gable/.test(kind)) plane(pts); return push({ shape: 'tri', mat, kind, pts: pts.map((p) => p.map(r3)) }); };
+  /** The roof's height over a point in plan (the highest plane above it), or the eaves where there is none. */
+  const roofY = (x, z) => {
+    let best = -Infinity;
+    for (const P of planes) {
+      // inside the plane's footprint (its projection on the ground)?
+      let inside = true;
+      for (let i = 0, n = P.length, sgn = 0; i < n; i++) {
+        const a = P[i], b = P[(i + 1) % n], c = (b[0] - a[0]) * (z - a[2]) - (b[2] - a[2]) * (x - a[0]);
+        if (Math.abs(c) < 1e-9) continue;
+        if (!sgn) sgn = Math.sign(c); else if (Math.sign(c) !== sgn) { inside = false; break; }
+      }
+      if (!inside) continue;
+      // the plane through its first three corners
+      const [a, b, c] = P, ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      if (Math.abs(ny) < 1e-9) continue;
+      best = Math.max(best, a[1] - (nx * (x - a[0]) + nz * (z - a[2])) / ny);
+    }
+    return best > -Infinity ? best : E;
+  };
+  /** A chimney stack: it starts inside the roof (or the wall it stands on) and rises clear of the roof's
+   *  highest point over its footprint by `clear`; a coping caps it and the pots stand on the coping. */
+  const stack = (x, z, w, d, mat, clear, flues, along = 'z') => {
+    // a stack is as long as its row of flues: one pot to a flue, 30 cm apart
+    if (flues) { const need = flues * 0.3 + 0.12; if (along === 'z') d = Math.max(d, need); else w = Math.max(w, need); }
+    const pts = [[x - w / 2, z - d / 2], [x + w / 2, z - d / 2], [x + w / 2, z + d / 2], [x - w / 2, z + d / 2], [x, z]];
+    const hs = pts.map(([a, c]) => roofY(a, c)), low = Math.min(...hs) - 0.3, top = Math.max(...hs) + clear;
+    boxW(x, (low + top) / 2, z, w, top - low, d, mat, 'chimney stack');
+    boxW(x, top + 0.06, z, w + 0.1, 0.12, d + 0.1, 'stone', 'stack coping');
+    if (flues) pots(x, top + 0.12, z, flues, along);
+    return top;
+  };
   const boxW = (x, y, z, w, h, d, mat, kind) => push({ mat, kind, x: r3(x), y: r3(y), z: r3(z), w: r3(w), h: r3(h), d: r3(d), ry: 0 });
-  const pots = (x, y, z, n, along = 'z') => { for (let k = 0; k < n; k++) { const off = (k - (n - 1) / 2) * 0.32; push({ shape: 'cyl', mat: 'pot', kind: 'chimney pot', x: r3(along === 'z' ? x : x + off), y: r3(y + 0.3), z: r3(along === 'z' ? z + off : z), r: 0.11, h: 0.6 }); } };
+  // the pots stand ON the coping: a pot's base is at y, its centre half its height above
+  const pots = (x, y, z, n, along = 'z') => { for (let k = 0; k < n; k++) { const off = (k - (n - 1) / 2) * 0.3; push({ shape: 'cyl', mat: 'pot', kind: 'chimney pot', x: r3(along === 'z' ? x : x + off), y: r3(y + 0.3), z: r3(along === 'z' ? z + off : z), r: 0.11, h: 0.6 }); } };
   const hip = (x0, x1, z0, z1, y, pitch, mat, over = 0) => {
     // a hipped roof over a rectangle (z0 > z1 in the world: the front is the larger z)
     x0 -= over; x1 += over; z0 += over; z1 -= over;
@@ -321,9 +357,7 @@ function roof(b, push, opts) {
     // the stacks stand on the party wall, one shared by each pair of houses
     const flues = sh.storeys.length, sw = 0.55 + 0.11 * flues;
     for (const x of opts.endRight ? [0, W] : [0]) for (const zc of [-D / 4, -3 * D / 4]) {
-      boxW(x, E + h / 2 + 0.9, zc, 0.62, h + 1.8, sw, 'brick', 'chimney stack');
-      boxW(x, E + h + 1.83, zc, 0.72, 0.12, sw + 0.1, 'stone', 'stack coping');
-      pots(x, E + h + 1.89, zc, flues);
+      stack(x, zc, 0.62, sw, 'brick', 0.9, flues);
     }
   } else if (era === 'haussmann') {
     // the mansard: a steep lower slope of slate (the brisis) with a dormer to every bay, a shallow
@@ -343,7 +377,7 @@ function roof(b, push, opts) {
       push({ mat: 'zinc', kind: 'dormer pediment', x: r3(cx), y: r3(E + 2.45), z: r3(dz + 0.1), w: r3(dw + 0.5), h: 0.18, d: r3(inset * 1.1), ry: 0 });
     }
     const flues = sh.storeys.length + 1;
-    for (const x of opts.endRight ? [0, W] : [0]) for (const zc of [-D * 0.3, -D * 0.7]) { boxW(x, ridge + 0.6, zc, 0.6, 3.4, 0.6 + 0.12 * flues, 'stone', 'chimney stack'); pots(x, ridge + 2.3, zc, flues); }
+    for (const x of opts.endRight ? [0, W] : [0]) for (const zc of [-D * 0.3, -D * 0.7]) stack(x, zc, 0.6, 0.6 + 0.12 * flues, 'stone', 1.4, flues);
   } else if (era === 'medieval') {
     // the gable to the street: ridge running back from the front, steep for tiles, over the top jetty
     const jt = sh.jetty * (sh.storeys.length - 1), p = Math.tan(52 * Math.PI / 180), H = E + (W / 2) * p, zf = jt + 0.3, zb = -D - 0.3;
@@ -353,14 +387,15 @@ function roof(b, push, opts) {
     tri([[W, E, -D], [0, E, -D], [W / 2, H - 0.2, -D]], 'daub', 'back gable');
     boxW(W / 2, (E + H) / 2, jt + 0.02, 0.16, H - E - 0.2, 0.06, 'timber', 'king post');
     boxW(W / 2, E + 0.1, jt + 0.03, W, 0.2, 0.06, 'timber', 'tie beam');
-    boxW(W * 0.82, H - 0.6, -D * 0.55, 0.9, 2.6, 0.9, 'brick', 'chimney stack'); pots(W * 0.82, H + 0.7, -D * 0.55, 1);
+    // the stack rises through the slope near the ridge, clear of it by the old rule of thumb
+    stack(W / 2 + 0.75, -D * 0.55, 0.9, 0.9, 'brick', 0.9, 2, 'z');
   } else if (era === 'village') {
     const H = hip(0, W, 0, -D, E, Math.tan(50 * Math.PI / 180), 'thatch', 0.45);
     const s = Math.min(W, D) / 2 + 0.45, cx = Math.max(W * 0.2, s - 0.45 + 0.6);    // on the ridge, near the hall's end
-    boxW(cx, H - 0.2, -D / 2, 0.8, 1.6, 0.8, 'cob', 'chimney stack');
+    stack(cx, -D / 2, 0.8, 0.8, 'cob', 0.6, 0);
   } else if (era === 'villa') {
     const H = hip(0, W, 0, -D, E, Math.tan(35 * Math.PI / 180), 'tile', 0.45);
-    boxW(W * 0.72, H - 0.2, -D * 0.35, 0.7, 2.4, 0.6, 'brickred', 'chimney stack'); pots(W * 0.72, H + 1.0, -D * 0.35, 2, 'x');
+    stack(W * 0.72, -D * 0.35, 0.7, 0.6, 'brickred', 0.9, 2, 'x');
   } else {
     // a flat roof: the slab, the parapet's coping (the walls rise to it), the plant on top
     boxW(W / 2, E + 0.15, -D / 2, W, 0.3, D, era === 'glass' ? 'concrete2' : 'concrete', 'roof slab');

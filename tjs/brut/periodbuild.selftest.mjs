@@ -72,6 +72,41 @@ const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed+
   ok(!gl.parts.some((p) => p.kind === 'wall') && gl.parts.filter((p) => p.kind === 'mullion').length > 200, 'a glass tower has no wall at all: its face is mullions, transoms and glass hung on the frame');
 }
 
+// nothing floats: every stack starts inside the roof (or the wall it rises from) and every pot stands on a stack
+{
+  let floating = 0, loose = 0, stacks = 0, potsN = 0;
+  for (const e of ERAS) for (const sd of ['1', '2', '3', '4', '5', '6']) {
+    const b = building(resolveParams(`era=${e}&s=${sd}`), 0, { endRight: true });
+    const roofs = b.parts.filter((p) => (p.shape === 'quad' || p.shape === 'tri') && !/gable/.test(p.kind));
+    // the roof's height over a point: the highest roof plane whose footprint holds it
+    const roofY = (x, z) => {
+      let best = -Infinity;
+      for (const r of roofs) {
+        const P = r.pts; let inside = true, sgn = 0;
+        for (let i = 0; i < P.length; i++) { const a = P[i], c = P[(i + 1) % P.length], cr = (c[0] - a[0]) * (z - a[2]) - (c[2] - a[2]) * (x - a[0]); if (Math.abs(cr) < 1e-9) continue; if (!sgn) sgn = Math.sign(cr); else if (Math.sign(cr) !== sgn) { inside = false; break; } }
+        if (!inside) continue;
+        const [a, c, d] = P, ux = c[0] - a[0], uy = c[1] - a[1], uz = c[2] - a[2], vx = d[0] - a[0], vy = d[1] - a[1], vz = d[2] - a[2];
+        const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        if (Math.abs(ny) > 1e-9) best = Math.max(best, a[1] - (nx * (x - a[0]) + nz * (z - a[2])) / ny);
+      }
+      return best;
+    };
+    const st = b.parts.filter((p) => p.kind === 'chimney stack');
+    for (const p of st) {
+      stacks++;
+      const under = roofY(p.x, p.z), bottom = p.y - p.h / 2;
+      if (under > -Infinity && bottom > under + 1e-3) floating++;
+      if (under === -Infinity && bottom > b.eaves + 1e-3) floating++;
+    }
+    for (const c of b.parts.filter((p) => p.kind === 'chimney pot')) {
+      potsN++;
+      const base = c.y - c.h / 2;
+      if (!st.some((p) => Math.abs(c.x - p.x) <= p.w / 2 + 0.06 && Math.abs(c.z - p.z) <= p.d / 2 + 0.06 && Math.abs(base - (p.y + p.h / 2 + 0.12)) < 0.02)) loose++;
+    }
+  }
+  ok(stacks > 30 && floating === 0 && loose === 0, `nothing floats: all ${stacks} chimney stacks start inside the roof or the wall they rise from, and all ${potsN} pots stand on a stack's coping`);
+}
+
 // a seed's own building stands up
 {
   let fail = 0, n = 0;
