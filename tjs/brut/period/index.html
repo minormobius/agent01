@@ -42,7 +42,19 @@
   #sheet .close{position:sticky;top:0;float:right;background:#222;color:#fff;border:none}
   #sheet svg{display:block;margin:0 auto 14px;max-width:100%;height:auto}
   .note{font-size:11.5px;color:var(--soft);margin-top:8px} .note p{margin:5px 0}
-  @media (max-width:760px){ #info{top:auto;bottom:8px;right:8px;left:8px;width:auto;max-height:34vh} #panel{max-height:50vh} }
+  #dock{display:none}
+  /* a phone: the model keeps the top two thirds; the controls live in a tabbed panel in the bottom third */
+  body.mobile #viewport{bottom:33vh}
+  body.mobile #dock{display:flex;position:fixed;left:0;right:0;bottom:calc(33vh - 38px);height:38px;z-index:7;background:#0b0b12;border-top:1px solid var(--line);gap:4px;padding:5px 8px}
+  body.mobile #dock button{flex:1 1 0;padding:4px 0;font-size:12.5px}
+  body.mobile #panel, body.mobile #info{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;max-width:none;height:calc(33vh - 38px);max-height:none;border-radius:0;border:none;border-top:1px solid var(--line);display:none;padding:8px 12px;box-shadow:none}
+  body.mobile.tab-controls #panel, body.mobile.tab-about #panel{display:block}
+  body.mobile.tab-building #info{display:block}
+  body.mobile.tab-controls #panel .note, body.mobile.tab-controls #panel h1, body.mobile.tab-controls #panel .sub{display:none}
+  body.mobile.tab-about #panel .ctl{display:none}
+  body.mobile .row{margin:4px 0} body.mobile .row label{flex-basis:58px}
+  body.mobile .crumb{top:8px;left:10px;font-size:11px}
+  body.mobile #sheet{width:100vw;height:100vh;border-radius:0}
 </style>
 </head>
 <body>
@@ -51,6 +63,7 @@
 <div id="panel" class="pane">
   <h1>Brut through the centuries</h1>
   <div class="sub">one building in its period, from a seed — every wall as thick as its masonry needs</div>
+  <div class="ctl">
   <div class="row"><label>era</label><select id="era"></select></div>
   <div class="row"><label>seed</label><input id="seed" type="text"><button id="roll" type="button">roll</button></div>
   <div class="row"><label>frontage</label><input id="w" type="range" min="3" max="45" step="0.1"><span class="v" id="wV"></span></div>
@@ -60,13 +73,16 @@
   <div class="row"><label>view</label><div class="seg"><button data-view="street" type="button">street</button><button data-view="aerial" type="button">aerial</button><button data-view="front" type="button">front</button><button data-view="back" type="button">back</button></div></div>
   <div class="row"><label>sun</label><input id="sun" type="range" min="0" max="360" step="1" value="210"><span class="v" id="sunV"></span></div>
   <div class="row"><label>altitude</label><input id="alt" type="range" min="5" max="75" step="1" value="38"><span class="v" id="altV"></span></div>
+  </div>
   <div class="note">
     <p>The kernel is <a href="../period.js" style="color:var(--accent)">period.js</a> (the shell: walls classed by what they face, bays, storeys, openings, the masonry check) and <a href="../periodbuild.js" style="color:var(--accent)">periodbuild.js</a> (this building: parts, roof, site, plans). The same shells stand in the city at <a href="https://polis.mino.mobi/morph/" style="color:var(--accent)">polis · morph</a>.</p>
     <p>How a building stood up decided its face. A <b>timber frame</b> carries the floors, so its windows sit small between the posts and its upper storeys oversail the street. <b>Load-bearing brick</b> takes every window out of the piers that hold up everything above it, so the windows are a fixed width with a pier as wide between, and the walls thicken toward the ground; the check below is done in working stress, with the joists spanning the short way. <b>Stone over an iron shop floor</b> opened the ground to shops. A <b>concrete frame</b> frees the face into ribbons; a <b>curtain wall</b> is a grid hung on the frame.</p>
+    <p>The brick is drawn by a shader, brick by brick, from each surface's place in the world: Flemish bond on the Georgian house (a stretcher and a header in every course, the headers burnt darker, each course set a quarter brick over), stretcher bond on the villa, 215 × 65 mm bricks in 10 mm lime joints; ashlar coursing on the stone, courses of slate and tile on the roofs. It fades to the average colour where the bricks get smaller than a pixel.</p>
     <p>Drag to orbit, right-drag or two fingers to pan, wheel or pinch to zoom.</p>
   </div>
 </div>
 <div id="info" class="pane"></div>
+<div id="dock"><button type="button" data-tab="controls" class="on">controls</button><button type="button" data-tab="building">the building</button><button type="button" data-tab="about">about</button></div>
 <div id="sheet" class="pane"><button class="close" id="sheetClose" type="button">close</button><div id="sheetBody"></div></div>
 
 <script type="module">
@@ -92,7 +108,7 @@ for (const e of ERAS) { const o = document.createElement('option'); o.value = e;
 
 // ---- three
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+renderer.setPixelRatio(Math.min(innerWidth < 760 ? 1.5 : 2, devicePixelRatio || 1));
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 $('viewport').append(renderer.domElement);
@@ -103,14 +119,88 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.495;
 scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x5a5348, 0.95));
 const sun = new THREE.DirectionalLight(0xfff2dc, 2.4);
-sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+sun.castShadow = true; sun.shadow.mapSize.set(innerWidth < 760 ? 1024 : 2048, innerWidth < 760 ? 1024 : 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
 scene.add(sun, sun.target);
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x6e6a60, roughness: 1 }));
 ground.rotation.x = -Math.PI / 2; ground.position.y = -1.6; ground.receiveShadow = true; scene.add(ground);
 const clip = new THREE.Plane(new THREE.Vector3(0, 0, -1), -0.35);     // the cut-away: keep z < −0.35 for the building
 let root = new THREE.Group(); scene.add(root);
 const mats = {};
-const mat = (m) => mats[m] || (mats[m] = new THREE.MeshStandardMaterial({ color: COL[m] ?? 0x888888, roughness: ROUGH[m] ?? 0.85, metalness: m === 'glass' ? 0.2 : 0, side: THREE.DoubleSide }));
+// the surfaces drawn by a shader: each one's pattern from its world position and normal
+const PATTERN = { brick: 1, rubbed: 2, brickred: 2, stone: 3, slate: 4, tile: 5, zinc: 6 };
+const PATTERN_GLSL = `
+  float ph21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  vec3 periodPattern(vec3 base, vec3 P, vec3 N) {
+    vec3 an = abs(N);
+    bool roof = an.y > 0.25 && an.y < 0.97;
+    vec2 uv = an.y >= 0.97 ? P.xz : (an.x > an.z ? vec2(P.z, P.y) : vec2(P.x, P.y));
+    float fw = max(fwidth(uv.x), fwidth(uv.y));
+    vec3 c = base;
+#if PATTERN == 1 || PATTERN == 2
+    if (an.y < 0.97) {
+      // brick: 215 x 65 mm in 10 mm joints, a 75 mm course
+      float ch = 0.075, row = floor(uv.y / ch), fy = uv.y - row * ch, j = 0.01;
+#if PATTERN == 1
+      // Flemish bond: stretcher + header in every course, each course a quarter brick over
+      float per = 0.3375, x = uv.x + mod(row, 2.0) * 0.16875, k = floor(x / per), t = x - k * per;
+      bool head = t > 0.225; float lx = head ? t - 0.225 : t; float id = k * 2.0 + (head ? 1.0 : 0.0);
+#else
+      // stretcher bond: half a brick over each course
+      float per = 0.225, x = uv.x + mod(row, 2.0) * 0.1125, k = floor(x / per), lx = x - k * per, id = k; bool head = false;
+#endif
+      float v = ph21(vec2(id, row)), w = ph21(vec2(row, id * 1.7));
+      vec3 brick = base * (0.8 + 0.34 * v) * (head ? 0.7 : 1.0) + vec3(0.03, 0.0, -0.02) * (w - 0.5);
+      vec3 mortar = vec3(0.78, 0.75, 0.68) * (0.93 + 0.07 * w);
+      c = (lx < j || fy < j) ? mortar : brick;
+      c = mix(base * 0.95, c, clamp(1.0 - fw * 28.0, 0.0, 1.0));
+    }
+#elif PATTERN == 3
+    if (an.y < 0.97) {
+      // ashlar: courses of ~45 cm, blocks of ~1.1 m breaking joint, hairline joints
+      float ch = 0.45, row = floor(uv.y / ch), fy = uv.y - row * ch;
+      float per = 1.1, x = uv.x + mod(row, 2.0) * 0.55, k = floor(x / per), lx = x - k * per;
+      float v = ph21(vec2(k, row));
+      c = base * (0.93 + 0.12 * v);
+      if (lx < 0.008 || fy < 0.008) c = base * 0.72;
+      c = mix(base, c, clamp(1.0 - fw * 8.0, 0.0, 1.0));
+    }
+#elif PATTERN == 4 || PATTERN == 5
+    if (roof) {
+      // slates (or tiles) laid in courses up the slope, each course breaking joint with the last
+      float ch = PATTERN == 4 ? 0.13 : 0.1, wd = PATTERN == 4 ? 0.3 : 0.24;
+      float u = an.x > an.z ? P.z : P.x, row = floor(P.y / ch), fy = P.y - row * ch;
+      float x = u + mod(row, 2.0) * wd * 0.5, k = floor(x / wd), lx = x - k * wd;
+      float v = ph21(vec2(k, row));
+      c = base * (0.82 + 0.3 * v) * (0.88 + 0.12 * (fy / ch));
+      if (lx < 0.012) c *= 0.6;
+      c = mix(base * 0.95, c, clamp(1.0 - max(fwidth(u), fwidth(P.y)) * 22.0, 0.0, 1.0));
+    }
+#elif PATTERN == 6
+    if (roof) { float u = an.x > an.z ? P.z : P.x; float seam = abs(fract(u / 0.6) - 0.5); c = base * (seam > 0.47 ? 1.12 : 1.0); }
+#endif
+    return c;
+  }`;
+const mat = (m) => {
+  if (mats[m]) return mats[m];
+  const M = new THREE.MeshStandardMaterial({ color: COL[m] ?? 0x888888, roughness: ROUGH[m] ?? 0.85, metalness: m === 'glass' ? 0.2 : 0, side: THREE.DoubleSide });
+  const P = PATTERN[m];
+  if (P) {
+    M.onBeforeCompile = (sh) => {
+      sh.defines = { ...(sh.defines || {}), PATTERN: P };
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;\nvarying vec3 vWN;')
+        .replace('#include <project_vertex>', `#include <project_vertex>
+          vec4 wpP = vec4(transformed, 1.0); vec3 wnP = objectNormal;
+          #ifdef USE_INSTANCING
+            wpP = instanceMatrix * wpP; wnP = mat3(instanceMatrix) * wnP;
+          #endif
+          wpP = modelMatrix * wpP; vWP = wpP.xyz; vWN = normalize(mat3(modelMatrix) * wnP);`);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;\nvarying vec3 vWN;\n' + PATTERN_GLSL)
+        .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = periodPattern(diffuseColor.rgb, vWP, vWN);');
+    };
+    M.customProgramCacheKey = () => 'period-pattern-' + P;
+  }
+  return (mats[m] = M);
+};
 
 // ---- the row: the building, and (for a period that built attached) its neighbours either side
 function row() {
@@ -274,7 +364,21 @@ function sheet(b) {
   $('sheetBody').innerHTML = svg + plans + `<p style="font:12px sans-serif;color:#444;max-width:900px">Plans are the arrangement each type was built round — coarse, not a survey. The elevation is the model itself, drawn orthographically from the street: every part the bench renders, projected, so the drawing and the model cannot disagree.</p>`;
 }
 
-function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+// a phone: the model in the top two thirds, the controls tabbed in the bottom third
+const phone = matchMedia('(max-width: 760px)');
+let tab = 'controls';
+function layout() {
+  document.body.classList.toggle('mobile', phone.matches);
+  for (const t of ['controls', 'building', 'about']) document.body.classList.toggle('tab-' + t, phone.matches && tab === t);
+  for (const b of document.querySelectorAll('#dock button')) b.classList.toggle('on', b.dataset.tab === tab);
+}
+for (const b of document.querySelectorAll('#dock button')) b.onclick = () => { tab = b.dataset.tab; layout(); };
+phone.addEventListener('change', () => { layout(); resize(); });
+layout();
+function resize() {
+  const el = $('viewport'), w = el.clientWidth || innerWidth, h = el.clientHeight || innerHeight;
+  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
 addEventListener('resize', resize);
 resize();
 rebuild(true);
