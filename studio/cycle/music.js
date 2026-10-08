@@ -15,8 +15,8 @@
 // and the turning palette keep one beat. Stream frame 0 is scene second `t0`.
 import { Composer } from './compose.js';
 
-const NOTE_BYTES = 40;
-const PIANO_GAIN = 110;            // upstream's makeup gain, as clef
+export const NOTE_BYTES = 40;
+export const PIANO_GAIN = 110;            // upstream's makeup gain, as clef
 export const GUITAR_GAIN = 2.4;     // the dressed guitar against the piano (calibrated in the selftest)
 
 /** A WAV's samples (32-bit float or 16-bit), as clef's parseWav. */
@@ -37,7 +37,7 @@ export function parseWav(buf) {
 }
 
 /** Windowed-sinc resampling (Lanczos-8), as clef's pfguitar.js. */
-function resample(x, from, to) {
+export function resample(x, from, to) {
   if (from === to) return x;
   const ratio = to / from, n = Math.max(1, Math.round(x.length * ratio)), out = new Float32Array(n);
   const cut = Math.min(1, ratio), A = 8, half = Math.ceil(A / cut);
@@ -52,7 +52,7 @@ function resample(x, from, to) {
 }
 
 /** Upstream pfsynth's statistical room (docs/guitar/guitar.js, via clef's pfguitar.js), stereo. */
-function roomImpulse(rtLow, rtHigh, ratio, sr) {
+export function roomImpulse(rtLow, rtHigh, ratio, sr) {
   const rt = (f) => Math.exp(Math.log(rtLow) + (Math.log(rtHigh) - Math.log(rtLow)) * (Math.log(f) - Math.log(200)) / (Math.log(4000) - Math.log(200)));
   const n = Math.round(1.3 * Math.max(rtLow, rtHigh) * sr), pre = Math.round(.012 * sr), chans = [new Float32Array(n + pre), new Float32Array(n + pre)];
   const edges = [44, 88, 177, 355, 710, 1420, 2840, 5680, 11360, 20000];
@@ -101,7 +101,7 @@ function fft(re, im, inv) {
 }
 
 /** Plain (non-streaming) convolution, for folding the body into the room once. */
-function convolveOnce(x, h) {
+export function convolveOnce(x, h) {
   const n = x.length + h.length - 1; let N = 1; while (N < n) N <<= 1;
   const ar = new Float64Array(N), ai = new Float64Array(N), br = new Float64Array(N), bi = new Float64Array(N);
   ar.set(x); br.set(h); fft(ar, ai, false); fft(br, bi, false);

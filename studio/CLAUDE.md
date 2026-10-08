@@ -52,6 +52,7 @@ lecture/                 No. 10, The Minormobius Lectures: a documentary as a le
 grew/                    No. 9, And Still It Grew: the major-key companion to No. 8 (score.js carries the harmony, drive and two voices; grown/film*.js do the rest)
 nobody/                  No. 8, Nobody Drew It: one evolved Grown history replayed (world.js, history.js GENERATED), sung by the world's choir, a voice and piano
 grown/                   Grown (sketchbook): bodies grown organ by organ from a program (packages/attractor lib/organism.js); gl.js WebGL
+radio/                   Duende Radio: endless piano+guitar steered by eight dials (composer.js, stream.js, worker.js), duende.js the figure that hears
 city/                    City (sketchbook): cycle's flight over cityworld.js, its own page (index.html + og.jpg; the code is cycle's)
 cycle/                   Colour Cycle (sketchbook): a 256-colour landscape under the real sky, a lake or a coast; scene.js + coast.js, astro.js, stars.js (GENERATED), night.js, life.js, world.js + coastworld.js + fly.js (the flight), sound.js, main.js
 accretion/               Accretion (sketchbook): a flow that grows a geode round itself (packages/attractor lib/shell.js); gl.js WebGL
@@ -487,6 +488,53 @@ README and CLAUDE.md), copied to `vendor/attractor/lib` by `scripts/sync-dataviz
   (no existing link changed). Creatures move or hold still, are looked down on a little more (pitch
   0.42), and are fitted to the stage by their extent over a gait. Lucky picks a plan a third of the time
   humanoid; the neighbours share the plan.
+
+## Duende Radio (radio/)
+
+Endless music for piano and guitar, steered by eight dials of feeling. It is the colour cycle's duo
+(`cycle/compose.js` → `cycle/music.js` → `pfstream.wasm`) taken out of the landscape: the conditions
+that came from the sky and the weather now come from the dials.
+
+```
+radio/composer.js   Radio: next(knobs) → one bar { t, sec, notes, info }. KNOBS, STATIONS, TEXTURES (pure)
+radio/stream.js     RadioStream: bars into pfstream.wasm, the guitar dressed as music.js, then a hall (pure)
+radio/worker.js     the stream in a worker: start / want / knobs / stop → chunks with notes and bars
+radio/duende.js     the figure: an attractor body (vendor/attractor) on the figure rig, posed by what it hears
+radio/main.js       dials, stations, drift, the link, chunks on the audio clock, the piano roll
+```
+
+- **Every dial is read every bar.** The tempo glides (a third of the way per bar), so bars are not a fixed
+  length: the composer keeps its own clock, and `stream.js` composes each bar only when the render is
+  about to reach it. That, and the worker running only 1.6 s ahead (4 s in a hidden tab), is why a dial is
+  heard within a bar or two. The colour cycle's duo is two bars ahead and five seconds buffered, and
+  assumes a fixed bar. The harmony is planned a phrase (four bars) at a time and re-planned
+  mid-phrase when tension, journey, duende or light move far enough. The texture is kept while the dials
+  still suit it, and re-chosen when its weight falls under 30% of the best.
+- **What each dial does** is written at the head of `composer.js`, and the selftest measures each one:
+  pace sets the bpm, energy the notes per second, light the mode's brightness, tension the chord tension,
+  journey the number of keys and chord changes, duende the share of jazz and flamenco textures,
+  conversation how often the voice changes, and air the treble's register. Section 22 of the selftest
+  holds those checks. If you change the composer, keep them passing. They are the spec.
+- **The bar is the soleá's compás.** A 12/8 bar of twelve ticks is exactly the twelve-count, so the
+  flamenco accents are ticks 2 5 7 9 11 (3 6 8 10 12). Flamenco's light runs from Phrygian, with the
+  Andalusian descent and the home chord major (♭9 when tense), up to the alegrías' major. Jazz is swing
+  cells, a walking bass, shells off the beat, and ii–V–I with dominants (♭9 when tense). A diatonic
+  ♭9 on a chord that is not a dominant becomes an eleventh.
+- **Conversation** at its four settings: `solo`, one instrument per section, and only textures it can
+  carry alone (`weights(k, solo)`). A solo guitar keeps strings 1–2 for the tune and comps on 3–6.
+  `accompany`: one lead per section. `trade`: the lead swaps every phrase. `duel`: the lead swaps every
+  bar, and the other instrument answers in the gap the line leaves.
+- **The duende hears; it does not read the dials.** `main.js` hands it each note and bar at its audio
+  time. A piano note lifts and lights the right arm, a guitar note the left. Lows light the legs and
+  highs the head, and the head turns to whoever spoke last. Loudness sets the attractors' thought and
+  how high the arms are carried. The chord's tension arches and twists the spine and widens the orbits.
+  The mode's brightness is the colour (a ramp from violet to gold). Flamenco textures carry the arms
+  high and curved and strike the heel on accents. Jazz bounces on the swung off-beat.
+- `stream.js` levels slowly (gain 0.7–2.6 toward −24 dBFS RMS), so a lullaby is quieter than a feria
+  but not 15 dB quieter. The hall is `roomImpulse(2.6, 1.1)` with its direct sound removed, fed the duo's
+  mid, at a wet level of 0.06 + 0.5·air.
+- The link: `#st=<station>` or `#k=<eight 0–100>`, plus `seed=` and `drift=1`. The figure's character
+  is the seed's.
 
 ## Colour Cycle (cycle/)
 

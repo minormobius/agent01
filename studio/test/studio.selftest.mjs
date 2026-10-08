@@ -865,5 +865,68 @@ if (SHARD === 3) {
   ok(ks.every((k) => k >= 0 && k <= 9) && big > 4 && big < 60 && kp(3, ms, 0) === kp(3, ms + 3600000, 0), `aurora: each night's Kp is fixed for the night, storms (Kp ≥ 5) on ${big} of 400 nights`);
 }
 
+// 22 — Duende Radio: the dials steer what is played, each one measurably; every station is well-formed
+// and playable; the same seed and dials are the same music; and it streams faster than it plays.
+if (SHARD === 2) {
+  const { Radio, STATIONS, KNOBS, TEXTURES } = await import('../radio/composer.js');
+  const OPEN = [64, 59, 55, 50, 45, 40];
+  const asK = (v) => Object.fromEntries(KNOBS.map((k, i) => [k, v[i]]));
+  let bad = 0, total = 0;
+  for (const [, v] of STATIONS) for (const seed of [1, 2]) {
+    const R = new Radio({ seed });
+    for (let b = 0; b < 48; b++) {
+      const bar = R.next(asK(v));
+      for (const x of bar.notes) {
+        total++;
+        if (!Number.isFinite(x.at) || x.at < bar.t - 1e-6 || x.at > bar.t + bar.sec || !(x.dur > 0) || !(x.vel > 0) || x.midi < 21 || x.midi > 108) bad++;
+        if (x.inst === 0 && x.vel > 1) bad++;
+        if (x.inst === 1) { const f = x.midi - OPEN[x.string - 1]; if (!(x.string >= 1 && x.string <= 6) || (x.art === 4 ? ![12, 19, 24].includes(f) : f < 0 || f > 19)) bad++; }
+      }
+    }
+  }
+  ok(bad === 0 && total > 8000, `radio: ${total} notes over ${STATIONS.length} stations, all in their bar and on the keyboard, every guitar note on a string and fret`);
+  const listen = (k, seed = 11, bars = 96) => {
+    const R = new Radio({ seed }); let N = 0, T = 0, pitch = 0, pn = 0, bright = 0, tense = 0, changes = 0, last = '', leads = 0, ll = '', keys = new Set();
+    const tex = {};
+    for (let b = 0; b < bars; b++) {
+      const x = R.next(k); N += x.notes.length; T += x.sec;
+      for (const n of x.notes) if (n.inst === 0 && n.midi > 60) { pitch += n.midi; pn++; }
+      bright += x.info.bright; tense += x.info.tense; if (x.info.chord !== last) changes++; last = x.info.chord;
+      if (x.info.lead !== ll) leads++; ll = x.info.lead; keys.add(x.info.key); tex[x.info.texture] = (tex[x.info.texture] || 0) + 1;
+    }
+    return { bpm: (bars * 240) / T, nps: N / T, pitch: pitch / pn, bright: bright / bars, tense: tense / bars, changes, leads, keys: keys.size, tex };
+  };
+  const mid = asK(KNOBS.map(() => 0.5)), at = (k, v) => listen({ ...mid, [k]: v });
+  const D = Object.fromEntries(KNOBS.map((k) => [k, [at(k, 0.05), at(k, 0.95)]]));
+  const share = (r, names) => names.reduce((s, t) => s + (r.tex[t] || 0), 0) / 96;
+  ok(D.pace[0].bpm < 55 && D.pace[1].bpm > 105, `radio: pace sets the tempo (${D.pace[0].bpm.toFixed(0)} → ${D.pace[1].bpm.toFixed(0)} bpm)`);
+  ok(D.energy[1].nps > 2.5 * D.energy[0].nps, `radio: energy sets how much is played (${D.energy[0].nps.toFixed(1)} → ${D.energy[1].nps.toFixed(1)} notes a second)`);
+  ok(D.light[0].bright < 0.15 && D.light[1].bright > 0.85, `radio: light climbs the modes (brightness ${D.light[0].bright.toFixed(2)} → ${D.light[1].bright.toFixed(2)})`);
+  ok(D.tension[1].tense > D.tension[0].tense + 0.15, `radio: tension thickens and unsettles the chords (${D.tension[0].tense.toFixed(2)} → ${D.tension[1].tense.toFixed(2)})`);
+  ok(D.journey[0].keys === 1 && D.journey[1].keys >= 3 && D.journey[1].changes > D.journey[0].changes * 1.3, `radio: journey travels (keys ${D.journey[0].keys} → ${D.journey[1].keys}, chord changes ${D.journey[0].changes} → ${D.journey[1].changes} in 96 bars)`);
+  ok(share(D.duende[0], ['swing', 'ballad']) > 0.9 && share(D.duende[1], ['buleria', 'falseta', 'mountains']) > 0.9, `radio: duende runs from jazz (${(100 * share(D.duende[0], ['swing', 'ballad'])).toFixed(0)}% swing and ballad) to flamenco (${(100 * share(D.duende[1], ['buleria', 'falseta', 'mountains'])).toFixed(0)}% compás and falsetas)`);
+  ok(D.conversation[0].leads < 10 && D.conversation[1].leads > 80, `radio: conversation hands the tune over (${D.conversation[0].leads} → ${D.conversation[1].leads} changes of voice in 96 bars)`);
+  ok(D.air[1].pitch > D.air[0].pitch + 4, `radio: air lifts the register (mean piano treble ${D.air[0].pitch.toFixed(1)} → ${D.air[1].pitch.toFixed(1)})`);
+  ok(TEXTURES.every((t) => STATIONS.some(([, v]) => listen(asK(v), 3, 64).tex[t]) || KNOBS.some((k) => D[k].some((r) => r.tex[t]))), 'radio: every texture is reachable');
+  // the dials are heard within two bars: energy thrown from still to driving
+  const R1 = new Radio({ seed: 5 }), quiet = asK(STATIONS[3][1]);
+  for (let b = 0; b < 12; b++) R1.next(quiet);
+  const before = R1.next(quiet).notes.length, after = [R1.next({ energy: 1 }).notes.length, R1.next({ energy: 1 }).notes.length];
+  ok(Math.max(...after) > 2 * before, `radio: thrown from still to driving, the next two bars play ${after.join(' and ')} notes (from ${before})`);
+  const same = JSON.stringify(new Radio({ seed: 9 }).next(mid)) === JSON.stringify(new Radio({ seed: 9 }).next(mid));
+  ok(same, 'radio: the same seed and dials are the same music');
+
+  const { RadioStream } = await import('../radio/stream.js');
+  const { parseWav } = await import('../cycle/music.js');
+  const X = (await WebAssembly.instantiate(await readFile(join(root, 'vendor/pfsynth/pfstream.wasm')), {})).instance.exports;
+  const bb = await readFile(join(root, 'vendor/pfsynth/bodies/g34.wav'));
+  const st = new RadioStream(X, { seed: 4, sampleRate: 22050, body: parseWav(bb.buffer.slice(bb.byteOffset, bb.byteOffset + bb.byteLength)) });
+  st.knobs = asK(STATIONS.find(([n]) => n === 'feria')[1]);
+  const t0 = performance.now(); let pk = 0, sum = 0, n = 0, finite = true, notes = 0, bars = 0;
+  while (st.frame < 22050 * 12) { const r = st.render(10); notes += r.notes.length; bars += r.bars.length; for (const v of r.pcm) { if (!Number.isFinite(v)) finite = false; pk = Math.max(pk, Math.abs(v)); sum += v * v; n++; } }
+  const speed = 12 / ((performance.now() - t0) / 1000), db = 10 * Math.log10(sum / n);
+  ok(finite && pk < 1 && db > -35 && notes > 60 && bars >= 4 && speed > 1.5, `radio: 12 s of feria stream at ${speed.toFixed(1)}× real time (22 kHz, the hall included), ${notes} notes in ${bars} bars, ${db.toFixed(1)} dB, peak ${pk.toFixed(2)}`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

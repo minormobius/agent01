@@ -3074,6 +3074,15 @@
    "parent": "studio"
   },
   {
+   "id": "duende radio",
+   "name": "duende radio",
+   "url": "https://studio.mino.mobi/radio/",
+   "cat": "games",
+   "commits": 1,
+   "age": "hot",
+   "parent": "studio"
+  },
+  {
    "id": "city",
    "name": "city",
    "url": "https://studio.mino.mobi/city/",
