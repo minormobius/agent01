@@ -4367,6 +4367,23 @@
       ]
     },
     {
+      "n": "obit",
+      "u": "https://b.mino.mobi/obit/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-08",
+      "b": "2026-10-08",
+      "p": "atmosphere",
+      "surface": "b",
+      "d": "An obituary, and the report. Chapter one of norvid_studies' SIMCLUSTER ART PROJECTS THREAD ran 224 days and filed 998 entries by 121 artists before it grew too long for the Bluesky app to open. The obit is written in words, and every number in it is checked against the frozen thread. Below it are the cadence week by week, how the canon grew, the curator's clock, what the work was made of, who made it, the most-loved pieces, and every entry in one mosaic.",
+      "tags": [
+        "atproto",
+        "svg",
+        "report"
+      ]
+    },
+    {
       "n": "szilassi",
       "u": "https://math.mino.mobi/szilassi/",
       "c": "data",

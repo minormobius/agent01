@@ -2,7 +2,7 @@ name: Deploy b (Bluesky corner)
 
 on:
   push:
-    branches: ['claude/mutual-closeness-game-earzue']
+    branches: ['claude/orb-chapter-report']
     paths:
       - 'b/**'
       - '.github/workflows/deploy-b.yml'

@@ -2939,6 +2939,15 @@
    "parent": "atmosphere"
   },
   {
+   "id": "obit",
+   "name": "obit",
+   "url": "https://b.mino.mobi/obit/",
+   "cat": "bluesky",
+   "commits": 1,
+   "age": "hot",
+   "parent": "atmosphere"
+  },
+  {
    "id": "szilassi",
    "name": "szilassi",
    "url": "https://math.mino.mobi/szilassi/",

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>obit — the simcluster art projects thread, chapter one</title>
+<meta name="description" content="An obituary and a report for chapter one of norvid_studies' SIMCLUSTER ART PROJECTS THREAD on Bluesky: 998 entries by 121 artists over 224 days, 26 February to 8 October 2026.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SIMCLUSTER ART PROJECTS THREAD, 2026–2026">
+<meta property="og:description" content="Chapter one has closed. 998 entries, 121 artists, 224 days. An obituary, and the report.">
+<meta property="og:url" content="https://b.mino.mobi/obit/">
+<style>
+:root {
+  --bg: #faf9f6; --panel: #ffffff; --text: #1a1a1a; --muted: #6f6e69; --rule: #dedcd5; --grid: #e8e6df;
+  --sky: #1a82c4; --sky-wash: rgba(26, 130, 196, 0.10);
+  --k-image: #2a78d6; --k-video: #eb6834; --k-link: #1baf7a; --k-quote: #eda100; --k-text: #e87ba4;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f0f0f; --panel: #171716; --text: #dddcd6; --muted: #8f8e88; --rule: #2e2e2c; --grid: #232321;
+    --sky: #6ec1e4; --sky-wash: rgba(110, 193, 228, 0.10);
+    --k-image: #3987e5; --k-video: #d95926; --k-link: #199e70; --k-quote: #c98500; --k-text: #d55181;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f0f0f; --panel: #171716; --text: #dddcd6; --muted: #8f8e88; --rule: #2e2e2c; --grid: #232321;
+  --sky: #6ec1e4; --sky-wash: rgba(110, 193, 228, 0.10);
+  --k-image: #3987e5; --k-video: #d95926; --k-link: #199e70; --k-quote: #c98500; --k-text: #d55181;
+  color-scheme: dark;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+  padding: 2.4rem 16px 6rem;
+}
+a { color: var(--sky); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.col { max-width: 680px; margin: 0 auto; }
+.wide { max-width: 980px; margin: 0 auto; }
+
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); display: inline-block; margin-bottom: 1.6rem;
+}
+.kicker {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted);
+}
+h1 { font-size: clamp(1.9rem, 6vw, 3rem); font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; margin-top: 0.5rem; }
+.dates { font-size: 1.15rem; color: var(--muted); margin-top: 0.4rem; font-style: italic; }
+.rule { height: 3px; width: 84px; background: var(--sky); margin: 1.3rem 0 1.8rem; border-radius: 2px; }
+
+.obit p { font-size: 1.08rem; margin-bottom: 1.05rem; hyphens: auto; }
+.obit p:first-of-type::first-letter {
+  float: left; font-size: 3.4rem; line-height: 0.9; padding: 0.3rem 0.5rem 0 0; color: var(--sky); font-weight: 600;
+}
+.obit q { quotes: '“' '”'; font-style: italic; }
+.obit .sig { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; margin-top: 1.4rem; }
+
+h2 {
+  font-family: var(--mono); font-size: 0.74rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--muted); border-top: 1px solid var(--rule); padding-top: 0.9rem; margin: 3.4rem 0 0.35rem;
+}
+.dek { font-size: 1rem; color: var(--muted); margin-bottom: 1.1rem; max-width: 62ch; }
+
+/* figures */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 1rem; }
+.tile { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 0.8rem 0.9rem; }
+.tile .label { font-family: var(--sans); font-size: 0.78rem; color: var(--muted); }
+.tile .value { font-family: var(--sans); font-size: 1.6rem; font-weight: 600; line-height: 1.2; margin-top: 0.15rem; }
+.tile.hero { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 0.9rem; flex-wrap: wrap; }
+.tile.hero .value { font-size: 3.4rem; line-height: 1; }
+.tile.hero .label { font-size: 0.95rem; }
+
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px; position: relative; }
+.card svg { display: block; width: 100%; height: auto; overflow: visible; }
+.card svg text { font-family: var(--sans); font-size: 11px; fill: var(--muted); }
+.card svg .lbl { fill: var(--text); }
+.card svg .grid { stroke: var(--grid); stroke-width: 1; }
+.card svg .base { stroke: var(--rule); stroke-width: 1; }
+.card svg .hit { fill: transparent; cursor: default; }
+.card svg .hit:hover + .mark, .card svg .mark.on { opacity: 0.75; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+.note { font-family: var(--sans); font-size: 0.78rem; color: var(--muted); margin-top: 0.5rem; }
+
+#tip {
+  position: fixed; z-index: 50; pointer-events: none; display: none;
+  background: var(--panel); color: var(--text); border: 1px solid var(--rule); border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16); padding: 0.45rem 0.6rem; font-family: var(--sans); font-size: 0.8rem;
+  max-width: 260px; line-height: 1.35;
+}
+#tip b { display: block; font-size: 0.95rem; }
+
+/* the media mix */
+.stack { display: flex; gap: 2px; height: 22px; margin: 0.4rem 0 0.8rem; }
+.stack > div { height: 100%; border-radius: 0; }
+.stack > div:first-child { border-radius: 4px 0 0 4px; }
+.stack > div:last-child { border-radius: 0 4px 4px 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; font-family: var(--sans); font-size: 0.82rem; }
+.legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 0.35rem; background: var(--c); vertical-align: -1px; }
+.legend b { font-weight: 600; margin-left: 0.25rem; }
+
+/* tables */
+table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 0.84rem; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 0.74rem; padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--rule); }
+td { padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--grid); vertical-align: top; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+details { margin-top: 0.8rem; }
+summary { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); cursor: pointer; letter-spacing: 0.04em; }
+details[open] summary { margin-bottom: 0.6rem; }
+.scroll { max-height: 420px; overflow: auto; }
+
+/* walls */
+.wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.work { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; color: var(--text); }
+.work:hover { text-decoration: none; border-color: var(--sky); }
+.work .pic { aspect-ratio: 1; background: var(--grid); position: relative; overflow: hidden; }
+.work .pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.work .pic .badge { position: absolute; left: 6px; top: 6px; font-family: var(--mono); font-size: 0.62rem; background: rgba(0,0,0,.62); color: #fff; padding: 1px 5px; border-radius: 3px; }
+.work .pic.txt { display: flex; align-items: center; padding: 0.7rem; font-size: 0.78rem; line-height: 1.35; color: var(--muted); background: var(--sky-wash); overflow: hidden; }
+.work .meta { padding: 0.45rem 0.55rem 0.55rem; font-family: var(--sans); font-size: 0.76rem; line-height: 1.3; }
+.work .meta .who { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work .meta .likes { font-weight: 600; }
+
+.mosaic { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 2px; }
+.mosaic a { aspect-ratio: 1; background: var(--grid); display: block; border-radius: 2px; position: relative; overflow: hidden; }
+.mosaic a img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.mosaic a.t { background: var(--sky-wash); }
+.mosaic a.dim { opacity: 0.12; }
+.filters { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-bottom: 0.8rem; font-family: var(--sans); font-size: 0.84rem; }
+select { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--text); max-width: 100%; }
+
+/* chronology and voices */
+.months { list-style: none; }
+.months li { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.8rem; padding: 0.7rem 0; border-bottom: 1px solid var(--grid); }
+.months .m { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); padding-top: 0.15rem; }
+.months .d { font-size: 0.96rem; }
+.months .d small { font-family: var(--sans); color: var(--muted); font-size: 0.78rem; display: block; }
+.voices { list-style: none; columns: 2 280px; column-gap: 24px; }
+.voices li { break-inside: avoid; margin-bottom: 0.9rem; font-size: 0.95rem; }
+.voices li q { font-style: italic; }
+.voices li .who { display: block; font-family: var(--sans); font-size: 0.76rem; color: var(--muted); }
+
+footer { margin-top: 4rem; border-top: 1px solid var(--rule); padding-top: 1rem; font-family: var(--sans); font-size: 0.8rem; color: var(--muted); }
+footer p { margin-bottom: 0.6rem; }
+code { font-family: var(--mono); font-size: 0.85em; }
+#err { display: none; font-family: var(--mono); font-size: 0.8rem; color: #c0392b; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div class="col">
+  <a class="crumb" href="/">← b.mino.mobi</a>
+  <div class="kicker">Obituary · Chapter one</div>
+  <h1>SIMCLUSTER ART PROJECTS THREAD</h1>
+  <div class="dates">26 February 2026 – 8 October 2026</div>
+  <div class="rule"></div>
+
+  <article class="obit">
+    <p><b>SIMCLUSTER ART PROJECTS THREAD</b>, a Bluesky thread kept by
+    <a href="https://bsky.app/profile/norvid-studies.bsky.social">norvid_studies</a>, closed at
+    14:17 UTC on 8 October 2026, aged <b data-stat="days">224</b> days. The cause was length. By its last
+    week it was <span data-stat="posts">1,155</span> posts deep and the Bluesky app could no longer open the
+    bottom of it on a phone. It was succeeded, on request, by
+    <a href="https://bsky.app/profile/norvid-studies.bsky.social/post/3mxendi6xuc2y">THREAD 2.0</a>.</p>
+
+    <p>It was born on the afternoon of 26 February with a modest brief, <q>maybe something more organized
+    later but for now just to have an archive pre-assembled</q>. Within a quarter of an hour it held a mosaic
+    of mutuals' profile pictures, <q>all abelcore but representatively</q>, a hex-tiling website, the promise
+    of all of fleetingbits' cats, and a note that contributions were welcome. The first reply from outside
+    came at 18:01. It was fleetingbits, promising even more wonderful boids.</p>
+
+    <p>What followed was <b data-stat="entries">998</b> entries: <span data-stat="works">975</span> distinct
+    works by <b data-stat="artists">121</b> artists, filed at an average of <span data-stat="perDay">4.5</span>
+    a day and never fewer than four in a week. The longest it ever went quiet was
+    <span data-stat="silence">5.1</span> days, in mid-April. Its busiest day was 26 May, with
+    <span data-stat="binge">27</span> works filed, in a week of <span data-stat="peakWeek">106</span>.
+    That was the week abeliansoup pointed the museum at its latest post.</p>
+
+    <p>It was mostly pictures (<span data-stat="images">509</span>) and moving pictures
+    (<span data-stat="videos">387</span>): boids, tilings, fluid simulations, cellular automata, games,
+    maps, music videos, and more than one new way to read Bluesky itself. It ran close to live, with
+    <span data-stat="sameDay">84</span>% of works filed within a day of being posted. It was also kept by
+    someone who sleeps. Between 07:00 and 10:00 UTC the thread received nothing at all, on any day.</p>
+
+    <p>Its most-loved work was <a href="https://bsky.app/profile/cee.wtf/post/3muplmkx56s2k">throng.cee.wtf</a>,
+    <q>a new way to browse bluesky</q>, with <b data-stat="loved">8,215</b> likes, seven times the next.
+    Its most-filed artist was <span data-stat="top">abeliansoup.bsky.social</span>. At the other end,
+    <span data-stat="onceOnly">50</span> artists appear exactly once.</p>
+
+    <p>It was one voice with a quiet chorus. norvid wrote <span data-stat="curated">1,077</span> of its
+    posts, and <span data-stat="speakers">38</span> others wrote <span data-stat="voices">78</span> between
+    them. They called it <q>good and important work</q> and <q>the thread that makes crow mode
+    impossible</q>. One wrote <q>its an honor to be placed in the norvid hall</q>, and another
+    <q>not a single dame project in this whole thread smh</q>. Three times, newcomers asked what it was
+    for. One of them was sent a paper.</p>
+
+    <p>It is survived by THREAD 2.0; by abeliansoup's museum; by
+    <a href="https://photo.mino.mobi/orb/">orb</a>, which wraps its pictures around a sphere; and by a
+    thread listing its own duplicates (it filed <span data-stat="repeats">23</span> works twice). It is
+    also survived by <span data-stat="gone">3</span> entries that point at posts which no longer exist, the
+    first of them pleorama's. <span data-stat="after">2</span> more posts arrived after the doors had
+    closed. abeliansoup had the last word on the matter: <q>the great work must continue until it crashes on
+    all platforms, and then wetware BLITly.</q></p>
+
+    <div class="sig">Filed from the frozen thread · counts as of the closing post</div>
+  </article>
+</div>
+
+<div class="wide" id="report">
+  <h2>The record</h2>
+  <div class="tiles" id="tiles"></div>
+
+  <h2>Cadence</h2>
+  <p class="dek">Entries filed per week, Monday to Sunday, UTC. The thread never had an empty week.</p>
+  <div class="card" id="weekly"></div>
+
+  <div class="two" style="margin-top:14px">
+    <div>
+      <h2 style="margin-top:2rem">The canon grew</h2>
+      <p class="dek">Distinct artists filed so far, one step per entry. It never flattened out.</p>
+      <div class="card" id="growth"></div>
+    </div>
+    <div>
+      <h2 style="margin-top:2rem">The curator's clock</h2>
+      <p class="dek">Entries by hour of day, UTC. The gap is when norvid sleeps.</p>
+      <div class="card" id="clock"></div>
+    </div>
+  </div>
+
+  <h2>What it was made of</h2>
+  <p class="dek">Each work counted once, by what it is: a video beats a picture beats a link beats a quote.</p>
+  <div class="card" id="media"></div>
+
+  <h2>Who made it</h2>
+  <p class="dek">Entries per artist, most-filed first. Where norvid filed a screenshot that quotes the
+  original post, the entry is credited to the original artist.</p>
+  <div class="card" id="artists"></div>
+
+  <h2>The most loved</h2>
+  <p class="dek">The works with the most likes on their own posts. These are not likes on the thread's entries.</p>
+  <div class="wall" id="loved"></div>
+
+  <h2>Month by month</h2>
+  <p class="dek">How much was filed each month, how many artists were new, and the month's most-liked work.</p>
+  <ol class="months" id="months"></ol>
+
+  <h2>The chorus</h2>
+  <p class="dek">Everything said in the thread by someone other than norvid, in order.</p>
+  <ul class="voices" id="voices"></ul>
+
+  <h2>The whole chapter</h2>
+  <p class="dek">Every entry, in the order it was filed. Pick an artist to light up their work.</p>
+  <div class="filters">
+    <label>Artist <select id="who"><option value="">everyone</option></select></label>
+    <span class="note" id="whoNote"></span>
+  </div>
+  <div class="mosaic" id="mosaic"></div>
+
+  <div id="err"></div>
+
+  <footer>
+    <p>Data: <a href="chapter-1.json">chapter-1.json</a>, the thread frozen at its close. It covers every
+    post whose <code>reply.root</code> is the
+    <a href="https://bsky.app/profile/norvid-studies.bsky.social/post/3mfrqrq2jdk2x">opening post</a>, found
+    through Constellation and hydrated through the public AppView. Like counts are the works' own as of the
+    freeze. A closed chapter does not change, so this page makes no network requests except for thumbnails.</p>
+    <p>Rebuild with <code>node b/obit/build.mjs</code>. The numbers in the obituary are checked against the
+    data by <code>b/obit/obit.selftest.mjs</code>.</p>
+  </footer>
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+<script src="/lib/hovercard.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
