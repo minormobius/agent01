@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brut · through the centuries · tjs</title>
+<meta name="description" content="One building in its period, generated from a seed: a village longhouse, a timber-framed house with its jetties, a Georgian terrace house with its area and fanlight, a Haussmann block with its balconies and mansard, a villa, a concrete slab, a glass tower. Every wall cut round its openings and as thick as its masonry needs, the sash in its reveal, the stack and its pots — and the load-bearing walls checked.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{ --bg:#07070c; --panel:#0f0f18ee; --line:#23232e; --ink:#e6e6f0; --soft:#8a8aa0; --accent:#d9a441; --bad:#ff7a7a; --ok:#7fd49a; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+  #viewport{position:fixed;inset:0}
+  #viewport canvas{display:block}
+  .crumb{position:fixed;top:14px;left:18px;z-index:5;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft)}
+  .crumb a{color:var(--soft);text-decoration:none} .crumb a:hover{color:var(--accent)}
+  .pane{position:fixed;z-index:6;background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(9px);box-shadow:0 18px 50px #0009}
+  #panel{top:42px;left:14px;width:300px;max-width:calc(100vw - 28px);max-height:calc(100vh - 58px);overflow:auto;padding:13px}
+  #panel h1{font-size:16px;margin:0 0 2px;font-weight:700} #panel .sub{font-size:11.5px;color:var(--soft);margin:0 0 10px}
+  .row{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:12px;color:var(--soft)}
+  .row label{flex:0 0 66px}
+  .row input[type=range]{flex:1 1 auto;min-width:0;accent-color:var(--accent)}
+  .row .v{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+  select,input[type=text]{flex:1 1 auto;min-width:0;background:#05050a;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:5px 6px;font:12px/1.2 ui-monospace,Menlo,monospace}
+  button{background:#12121c;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer}
+  button:hover{border-color:var(--accent);color:var(--accent)} button.on{border-color:var(--accent);color:var(--accent)}
+  .seg{display:flex;gap:5px;flex-wrap:wrap}
+  #info{right:14px;top:14px;width:330px;max-width:calc(100vw - 28px);max-height:calc(100vh - 28px);overflow:auto;padding:11px 13px;font-size:12px;color:var(--soft)}
+  #info b{color:var(--ink);font-weight:600} #info h2{font-size:13px;color:var(--ink);margin:0 0 4px}
+  table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;margin-top:6px}
+  td,th{padding:2px 4px;text-align:right;border-bottom:1px solid #1c1c26;font-weight:400} td:first-child,th:first-child{text-align:left}
+  th{color:var(--soft);font-size:11px} .over{color:var(--bad)} .okc{color:var(--ok)}
+  #sheet{left:50%;top:50%;transform:translate(-50%,-50%);width:min(1100px,calc(100vw - 28px));height:min(760px,calc(100vh - 28px));display:none;overflow:auto;padding:12px;background:#f4f1e8;color:#222;z-index:9}
+  #sheet .close{position:sticky;top:0;float:right;background:#222;color:#fff;border:none}
+  #sheet svg{display:block;margin:0 auto 14px;max-width:100%;height:auto}
+  .note{font-size:11.5px;color:var(--soft);margin-top:8px} .note p{margin:5px 0}
+  @media (max-width:760px){ #info{top:auto;bottom:8px;right:8px;left:8px;width:auto;max-height:34vh} #panel{max-height:50vh} }
+</style>
+</head>
+<body>
+<div id="viewport"></div>
+<div class="crumb"><a href="../../">tjs</a> / <a href="../">brut</a> / through the centuries</div>
+<div id="panel" class="pane">
+  <h1>Brut through the centuries</h1>
+  <div class="sub">one building in its period, from a seed — every wall as thick as its masonry needs</div>
+  <div class="row"><label>era</label><select id="era"></select></div>
+  <div class="row"><label>seed</label><input id="seed" type="text"><button id="roll" type="button">roll</button></div>
+  <div class="row"><label>frontage</label><input id="w" type="range" min="3" max="45" step="0.1"><span class="v" id="wV"></span></div>
+  <div class="row"><label>depth</label><input id="d" type="range" min="4" max="40" step="0.1"><span class="v" id="dV"></span></div>
+  <div class="row"><label>storeys</label><input id="n" type="range" min="1" max="40" step="1"><span class="v" id="nV"></span></div>
+  <div class="row"><label>show</label><div class="seg"><button id="nb" type="button" class="on">neighbours</button><button id="cut" type="button">cut away</button><button id="draw" type="button">drawings</button></div></div>
+  <div class="row"><label>view</label><div class="seg"><button data-view="street" type="button">street</button><button data-view="aerial" type="button">aerial</button><button data-view="front" type="button">front</button><button data-view="back" type="button">back</button></div></div>
+  <div class="row"><label>sun</label><input id="sun" type="range" min="0" max="360" step="1" value="210"><span class="v" id="sunV"></span></div>
+  <div class="row"><label>altitude</label><input id="alt" type="range" min="5" max="75" step="1" value="38"><span class="v" id="altV"></span></div>
+  <div class="note">
+    <p>The kernel is <a href="../period.js" style="color:var(--accent)">period.js</a> (the shell: walls classed by what they face, bays, storeys, openings, the masonry check) and <a href="../periodbuild.js" style="color:var(--accent)">periodbuild.js</a> (this building: parts, roof, site, plans). The same shells stand in the city at <a href="https://polis.mino.mobi/morph/" style="color:var(--accent)">polis · morph</a>.</p>
+    <p>How a building stood up decided its face. A <b>timber frame</b> carries the floors, so its windows sit small between the posts and its upper storeys oversail the street. <b>Load-bearing brick</b> takes every window out of the piers that hold up everything above it, so the windows are a fixed width with a pier as wide between, and the walls thicken toward the ground; the check below is done in working stress, with the joists spanning the short way. <b>Stone over an iron shop floor</b> opened the ground to shops. A <b>concrete frame</b> frees the face into ribbons; a <b>curtain wall</b> is a grid hung on the frame.</p>
+    <p>Drag to orbit, right-drag or two fingers to pan, wheel or pinch to zoom.</p>
+  </div>
+</div>
+<div id="info" class="pane"></div>
+<div id="sheet" class="pane"><button class="close" id="sheetClose" type="button">close</button><div id="sheetBody"></div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { building, resolveParams, paramsToQuery, deriveParams, ERAS, ERA_LABELS } from '../periodbuild.js';
+import { PERIODS } from '../period.js';
+
+const $ = (id) => document.getElementById(id);
+const COL = {
+  brick: 0xb08a5e, brickred: 0xa4513b, rubbed: 0xc4683f, stucco: 0xebe5d6, stone: 0xd6caad, stone2: 0xe6dcc5, groove: 0x8f8574,
+  frame: 0xf3f0e7, glass: 0x22303b, door: 0x1f3227, doorpanel: 0x26392d, iron: 0x1b1d20, slate: 0x4d5661, zinc: 0x8e9ba5,
+  tile: 0x9a4b33, thatch: 0xa48a52, timber: 0x3a2a1f, daub: 0xe6dcc4, cob: 0xcdb48c, concrete: 0xa9a49b, concrete2: 0xbfbab0,
+  mullion: 0x59636b, spandrel: 0x2f3c46, interior: 0x15171b, floor: 0x2a2622, pavement: 0x9a978f, road: 0x3b3d40, yard: 0x6f6a5f,
+  grass: 0x5d7843, pot: 0xa8553a, fascia: 0x243a33,
+};
+const ROUGH = { glass: 0.08, spandrel: 0.15, iron: 0.45, zinc: 0.4, mullion: 0.35, frame: 0.55, door: 0.4 };
+
+// ---- state, from the address bar
+let params = resolveParams(location.search), showNb = true, cutaway = false;
+const select = $('era');
+for (const e of ERAS) { const o = document.createElement('option'); o.value = e; o.textContent = ERA_LABELS[e]; select.append(o); }
+
+// ---- three
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+$('viewport').append(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xb9c6d2); scene.fog = new THREE.Fog(0xb9c6d2, 140, 420);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 2000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.495;
+scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x5a5348, 0.95));
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.4);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+scene.add(sun, sun.target);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x6e6a60, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = -1.6; ground.receiveShadow = true; scene.add(ground);
+const clip = new THREE.Plane(new THREE.Vector3(0, 0, -1), -0.35);     // the cut-away: keep z < −0.35 for the building
+let root = new THREE.Group(); scene.add(root);
+const mats = {};
+const mat = (m) => mats[m] || (mats[m] = new THREE.MeshStandardMaterial({ color: COL[m] ?? 0x888888, roughness: ROUGH[m] ?? 0.85, metalness: m === 'glass' ? 0.2 : 0, side: THREE.DoubleSide }));
+
+// ---- the row: the building, and (for a period that built attached) its neighbours either side
+function row() {
+  const P = PERIODS[params.era], list = [];
+  const n = showNb && P.attached ? 2 : 0;
+  let x = 0;
+  const subject = { b: building(params, 0, { endRight: true }), x: 0, subject: true };
+  list.push(subject);
+  // neighbours: the same street, other seeds; their doors mirror ours (ids alternate)
+  let xr = params.frontage, xl = 0;
+  for (let k = 1; k <= n; k++) {
+    for (const side of [1, -1]) {
+      const q = { ...deriveParams(`${params.seed}~${side > 0 ? 'r' : 'l'}${k}`, params.era), depth: params.depth };
+      q.storeys = Math.max(1, Math.min(q.storeys, params.storeys + 1));
+      const nb = building(q, k * (side > 0 ? 1 : 3), { endRight: side > 0 });
+      if (side > 0) { list.push({ b: nb, x: xr }); xr += q.frontage; } else { xl -= q.frontage; list.push({ b: nb, x: xl }); }
+    }
+  }
+  return list;
+}
+
+function build() {
+  scene.remove(root); root.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+  root = new THREE.Group(); scene.add(root);
+  const list = row(), boxes = {}, polys = {}, discs = [], cyls = [];
+  for (const { b, x, subject } of list) for (const p of b.parts) {
+    if (cutaway && subject && p.kind !== 'interior' && (p.z ?? 0) > -0.4 && !['pavement', 'road', 'kerb', 'yard', 'under', 'garden', 'front', 'area floor', 'area wall', 'step', 'rail', 'bar'].includes(p.kind) && !p.shape) continue;
+    if (cutaway && subject && p.kind === 'interior') continue;
+    if (p.shape === 'quad' || p.shape === 'tri') (polys[p.mat] = polys[p.mat] || []).push(p.pts.map(([a, y, c]) => [a + x, y, c]));
+    else if (p.shape === 'halfdisc') discs.push({ ...p, x: p.x + x });
+    else if (p.shape === 'cyl') cyls.push({ ...p, x: p.x + x });
+    else (boxes[p.mat] = boxes[p.mat] || []).push({ ...p, x: p.x + x });
+  }
+  const geo = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), v = new THREE.Vector3();
+  let count = 0;
+  for (const [m, items] of Object.entries(boxes)) {
+    const mesh = new THREE.InstancedMesh(geo, mat(m), items.length);
+    items.forEach((p, i) => { e.set(0, p.ry || 0, p.rz || 0); q.setFromEuler(e); m4.compose(v.set(p.x, p.y, p.z), q, s.set(p.w, p.h, p.d)); mesh.setMatrixAt(i, m4); });
+    mesh.castShadow = !['glass', 'interior', 'floor', 'road', 'pavement', 'yard', 'grass'].includes(m); mesh.receiveShadow = true;
+    root.add(mesh); count += items.length;
+  }
+  for (const [m, list2] of Object.entries(polys)) {
+    const pos = [];
+    for (const pts of list2) { pos.push(...pts[0], ...pts[1], ...pts[2]); if (pts.length === 4) pos.push(...pts[0], ...pts[2], ...pts[3]); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+    const mesh = new THREE.Mesh(g, mat(m)); mesh.castShadow = true; mesh.receiveShadow = true; root.add(mesh);
+  }
+  for (const d of discs) { const g = new THREE.CircleGeometry(d.r, 20, 0, Math.PI), mesh = new THREE.Mesh(g, mat('glass')); mesh.position.set(d.x, d.y, d.z); mesh.rotation.y = d.ry; root.add(mesh); }
+  if (cyls.length) {
+    const g = new THREE.CylinderGeometry(1, 1.15, 1, 10), mesh = new THREE.InstancedMesh(g, mat('pot'), cyls.length);
+    cyls.forEach((c, i) => { m4.compose(v.set(c.x, c.y, c.z), q.identity(), s.set(c.r, c.h, c.r)); mesh.setMatrixAt(i, m4); });
+    mesh.castShadow = true; root.add(mesh);
+  }
+  const subject = list[0].b;
+  renderer.clippingPlanes = [];
+  info(subject, count + cyls.length);
+  return subject;
+}
+
+// ---- the panel and the address bar
+function sync() {
+  select.value = params.era; $('seed').value = params.seed;
+  for (const [id, key, fmt] of [['w', 'frontage', (v) => `${(+v).toFixed(1)} m`], ['d', 'depth', (v) => `${(+v).toFixed(1)} m`], ['n', 'storeys', (v) => v]]) { $(id).value = params[key]; $(id + 'V').textContent = fmt(params[key]); }
+  history.replaceState(null, '', '?' + paramsToQuery(params));
+}
+let current = null;
+function rebuild(frameIt = false) { sync(); current = build(); if (frameIt) frame('street'); if ($('sheet').style.display === 'block') sheet(current); }
+select.onchange = () => { params = resolveParams(`era=${select.value}&s=${params.seed}`); rebuild(true); };
+$('seed').onchange = () => { params = resolveParams(`era=${params.era}&s=${encodeURIComponent($('seed').value || '1')}`); rebuild(true); };
+$('roll').onclick = () => { params = resolveParams(`era=${params.era}&s=${Math.random().toString(36).slice(2, 7)}`); rebuild(true); };
+for (const [id, key] of [['w', 'frontage'], ['d', 'depth'], ['n', 'storeys']]) {
+  $(id).oninput = () => { params = { ...params, [key]: key === 'storeys' ? Math.round(+$(id).value) : +(+$(id).value).toFixed(2) }; $(id + 'V').textContent = key === 'storeys' ? params[key] : `${params[key].toFixed(1)} m`; };
+  $(id).onchange = () => rebuild();
+}
+$('nb').onclick = () => { showNb = !showNb; $('nb').classList.toggle('on', showNb); rebuild(); };
+$('cut').onclick = () => { cutaway = !cutaway; $('cut').classList.toggle('on', cutaway); rebuild(); };
+$('draw').onclick = () => { $('sheet').style.display = 'block'; sheet(current); };
+$('sheetClose').onclick = () => { $('sheet').style.display = 'none'; };
+for (const btn of document.querySelectorAll('[data-view]')) btn.onclick = () => frame(btn.dataset.view);
+const light = () => {
+  const a = +$('sun').value * Math.PI / 180, h = +$('alt').value * Math.PI / 180, W = current ? current.W : 10, D = current ? current.D : 10, R = Math.max(60, (current ? current.top : 20) * 3);
+  sun.position.set(W / 2 + Math.sin(a) * Math.cos(h) * R, Math.sin(h) * R, -D / 2 + Math.cos(a) * Math.cos(h) * R);
+  sun.target.position.set(W / 2, 0, -D / 2);
+  const S = Math.max(30, Math.max(W * 2.6, D, current ? current.top : 10) * 0.9);
+  Object.assign(sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 1, far: R * 2.5 }); sun.shadow.camera.updateProjectionMatrix();
+  $('sunV').textContent = `${$('sun').value}°`; $('altV').textContent = `${$('alt').value}°`;
+};
+$('sun').oninput = light; $('alt').oninput = light;
+
+function frame(view) {
+  const b = current, W = b.W, H = b.top + 4, D = b.D, cx = W / 2, cz = -D / 2;
+  const span = Math.max(H, W * (showNb && PERIODS[b.era].attached ? 1.6 : 1.1));
+  const dist = span / (2 * Math.tan((camera.fov * Math.PI / 180) / 2)) * 1.25;
+  if (view === 'street') { camera.position.set(cx - W * 0.35, 1.7, Math.max(6, dist * 0.55)); controls.target.set(cx, Math.min(H * 0.45, 12), cz * 0.2); }
+  else if (view === 'aerial') { camera.position.set(cx + dist * 0.55, H + dist * 0.45, dist * 0.75); controls.target.set(cx, H * 0.35, cz); }
+  else if (view === 'front') { camera.position.set(cx, H * 0.5, dist); controls.target.set(cx, H * 0.5, 0); }
+  else { camera.position.set(cx, H * 0.5, -D - dist); controls.target.set(cx, H * 0.5, cz); }
+  controls.update(); light();
+}
+
+// ---- the info pane: what it is, how it stands
+function info(b, n) {
+  const P = PERIODS[b.era], st = b.structure, sh = b.shell;
+  const sys = { masonry: 'load-bearing brick', stone: 'dressed stone over an iron-framed ground floor', timber: 'a timber frame, its panels daubed', frame: 'a reinforced concrete frame', curtain: 'a steel frame hung with a curtain wall' }[P.system];
+  let html = `<h2>${P.label}</h2><b>${b.W.toFixed(1)} m</b> frontage × <b>${b.D.toFixed(1)} m</b> deep · <b>${b.params.storeys}</b> storeys${sh.storeys[0].basement ? ' over a basement' : ''} · eaves <b>${b.eaves.toFixed(1)} m</b><br>built in ${sys}${sh.jetty ? `, each upper storey oversailing the street by ${(sh.jetty * 100).toFixed(0)} cm` : ''}<br>${n.toLocaleString()} parts`;
+  if (st) {
+    html += `<br><br><b>Does it stand?</b> ${st.ok ? '<span class="okc">yes</span>' : '<span class="over">no — overloaded</span>'}: the worst wall works at <b class="${st.ok ? '' : 'over'}">${(st.worst * 100).toFixed(0)}%</b> of what ${P.system === 'stone' ? 'the stone' : 'lime-mortared brick'} bears (${(st.allowable / 1e6).toFixed(2)} MPa). Joists span ${st.joists} (${st.span.toFixed(1)} m). On this plot ${b.era === 'haussmann' ? 'the stone' : 'brick'} could go to <b>${b.maxStoreys}</b> storeys.`;
+    html += `<table><tr><th>storey</th><th>wall</th><th>front σ</th><th>party σ</th><th>h/t</th></tr>${st.storeys.map((s) => `<tr><td>${s.name}</td><td>${(s.t * 1000).toFixed(0)}</td><td class="${s.frontStress > st.allowable ? 'over' : ''}">${(s.frontStress / 1e6).toFixed(2)}</td><td class="${s.partyStress > st.allowable ? 'over' : ''}">${(s.partyStress / 1e6).toFixed(2)}</td><td class="${s.slender > 18 ? 'over' : ''}">${s.slender.toFixed(1)}</td></tr>`).join('')}</table><div style="margin-top:4px">wall thickness mm · stress MPa · slenderness limit 18</div>`;
+  } else html += `<br><br>${P.system === 'timber' ? 'A timber frame carries its floors on its posts: the walls between them are infill, so there is no masonry to check.' : 'A frame carries the floors on columns: the face carries only itself, so there is no masonry to check — which is the whole point of the frame.'}`;
+  html += `<br><br><b>Plan</b>: ${b.plan.map((l) => `<i>${l.name}</i> — ${l.rooms.map((r) => r.name).join(', ')}${l.stair ? `; ${l.stair.name}` : ''}`).join('<br>')}<br><br><a href="#" id="openSheet" style="color:var(--accent)">the drawings ↗</a>`;
+  $('info').innerHTML = html;
+  $('openSheet').onclick = (e) => { e.preventDefault(); $('sheet').style.display = 'block'; sheet(b); };
+}
+
+// ---- the drawings: an elevation projected from the same parts, and the plans
+function sheet(b) {
+  const parts = b.parts, W = b.W;
+  // front elevation: every part projected onto the street face, far ones first
+  const items = [];
+  const corners = (p) => {
+    const cr = Math.cos(p.ry || 0), sr = Math.sin(p.ry || 0), cz = Math.cos(p.rz || 0), sz = Math.sin(p.rz || 0), out = [];
+    for (const [a, c] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const lx = a * p.w / 2, ly = c * p.h / 2, rx = lx * cz - ly * sz, ryy = lx * sz + ly * cz; out.push([p.x + rx * cr, p.y + ryy]); }
+    return out;
+  };
+  for (const p of parts) {
+    if (['road', 'yard', 'under', 'garden', 'floor', 'interior'].includes(p.kind)) continue;
+    if (p.shape === 'quad' || p.shape === 'tri') items.push({ z: Math.max(...p.pts.map((q) => q[2])), pts: p.pts.map((q) => [q[0], q[1]]), mat: p.mat });
+    else if (p.shape === 'halfdisc') { const pts = []; for (let k = 0; k <= 12; k++) pts.push([p.x + Math.cos(Math.PI * k / 12) * p.r, p.y + Math.sin(Math.PI * k / 12) * p.r]); items.push({ z: p.z, pts, mat: 'glass' }); }
+    else if (p.shape === 'cyl') items.push({ z: p.z + p.r, pts: [[p.x - p.r, p.y - p.h / 2], [p.x + p.r, p.y - p.h / 2], [p.x + p.r, p.y + p.h / 2], [p.x - p.r, p.y + p.h / 2]], mat: 'pot' });
+    else { const half = Math.abs(Math.sin(p.ry || 0)) * p.w / 2 + Math.abs(Math.cos(p.ry || 0)) * p.d / 2; items.push({ z: p.z + half, pts: corners(p), mat: p.mat }); }
+  }
+  items.sort((a, c) => a.z - c.z);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const it of items) for (const [x, y] of it.pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  x0 = Math.max(x0, -2); x1 = Math.min(x1, W + 2); y0 = Math.max(y0, -2);
+  const sc = Math.min(980 / (x1 - x0), 560 / (y1 - y0)), X = (x) => 40 + (x - x0) * sc, Y = (y) => 30 + (y1 - y) * sc;
+  const hex = (m) => '#' + (COL[m] ?? 0x888888).toString(16).padStart(6, '0');
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${80 + (x1 - x0) * sc}" height="${70 + (y1 - y0) * sc}" style="background:#fbf8f0"><text x="40" y="20" font-size="13" font-family="sans-serif">Front elevation — ${PERIODS[b.era].label}, ${b.W.toFixed(1)} m frontage (projected from the model's own parts)</text>`;
+  svg += `<clipPath id="cp"><rect x="${X(x0)}" y="${Y(y1)}" width="${(x1 - x0) * sc}" height="${(y1 - y0) * sc}"/></clipPath><g clip-path="url(#cp)" stroke="#2228" stroke-width="0.4">`;
+  for (const it of items) svg += `<polygon points="${it.pts.map(([x, y]) => `${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(' ')}" fill="${hex(it.mat)}"/>`;
+  svg += `</g><line x1="${X(x0)}" x2="${X(x1)}" y1="${Y(0)}" y2="${Y(0)}" stroke="#000" stroke-width="1.2"/>`;
+  for (let m = 0; m <= Math.floor(y1); m += 5) svg += `<text x="${X(x1) + 4}" y="${Y(m) + 3}" font-size="9" font-family="sans-serif" fill="#555">+${m} m</text>`;
+  svg += `</svg>`;
+  // the plans, floor by floor
+  const ps = Math.min(220 / b.W, 220 / b.D), cols = Math.min(4, b.plan.length), cw = b.W * ps + 40, ch = b.D * ps + 50;
+  let plans = `<svg xmlns="http://www.w3.org/2000/svg" width="${cols * cw + 20}" height="${Math.ceil(b.plan.length / cols) * ch + 10}" style="background:#fbf8f0" font-family="sans-serif">`;
+  b.plan.forEach((L, i) => {
+    const ox = 20 + (i % cols) * cw, oy = 26 + Math.floor(i / cols) * ch, PX = (x) => ox + x * ps, PY = (y) => oy + y * ps;
+    plans += `<text x="${ox}" y="${oy - 8}" font-size="11" font-weight="600">${L.name}</text><rect x="${PX(0)}" y="${PY(0)}" width="${b.W * ps}" height="${b.D * ps}" fill="#333"/>`;
+    for (const r of [...L.rooms, ...(L.stair ? [L.stair] : [])]) {
+      plans += `<rect x="${PX(r.x0)}" y="${PY(r.y0)}" width="${(r.x1 - r.x0) * ps}" height="${(r.y1 - r.y0) * ps}" fill="${r === L.stair ? '#e8e1cf' : '#fbf8f0'}"/>`;
+      if (r === L.stair) for (let y = r.y0 + 0.28; y < r.y1; y += 0.28) plans += `<line x1="${PX(r.x0)}" x2="${PX(r.x1)}" y1="${PY(y)}" y2="${PY(y)}" stroke="#999" stroke-width="0.5"/>`;
+      if ((r.x1 - r.x0) * ps > 34) plans += `<text x="${PX((r.x0 + r.x1) / 2)}" y="${PY((r.y0 + r.y1) / 2) + 3}" font-size="8.5" text-anchor="middle" fill="#333">${r.name}</text>`;
+    }
+    // the street front's openings at this storey, as gaps in the wall
+    const front = b.shell.walls.find((w) => w.kind === 'front');
+    for (const o of front.openings.filter((o) => o.storey === L.name)) plans += `<rect x="${PX(o.x0)}" y="${PY(0)}" width="${(o.x1 - o.x0) * ps}" height="${0.3 * ps}" fill="${/door/.test(o.kind) ? '#c9a27a' : '#9cc3d8'}"/>`;
+    plans += `<text x="${PX(b.W / 2)}" y="${PY(b.D) + 14}" font-size="8" text-anchor="middle" fill="#777">street ↑</text>`;
+  });
+  plans += `</svg>`;
+  $('sheetBody').innerHTML = svg + plans + `<p style="font:12px sans-serif;color:#444;max-width:900px">Plans are the arrangement each type was built round — coarse, not a survey. The elevation is the model itself, drawn orthographically from the street: every part the bench renders, projected, so the drawing and the model cannot disagree.</p>`;
+}
+
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize);
+resize();
+rebuild(true);
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+window.period = { get building() { return current; }, frame, rebuild };
+</script>
+</body>
+</html>

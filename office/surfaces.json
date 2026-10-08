@@ -6189,6 +6189,16 @@
    "discovered": true
   },
   {
+   "id": "tjs/brut/period",
+   "name": "period",
+   "url": "https://tjs.mino.mobi/brut/period/",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "tjs/brut",
+   "discovered": true
+  },
+  {
    "id": "tjs/brut/plan",
    "name": "plan",
    "url": "https://tjs.mino.mobi/brut/plan/",

@@ -225,7 +225,7 @@ export function masonry(sh, b = {}) {
   const front = sh.walls.find((w) => w.kind === 'front'), width = front ? front.length : 6;
   // the joists span the short way: between the party walls on a narrow house; on a wide one front to
   // back onto a spine wall, which puts the floors on the FRONT (and the spine) instead
-  const depth = b.depth || (front ? Math.max(...sh.walls.map((w) => w.length)) : 12), across = width <= Math.max(7.2, depth / 2);
+  const depth = b.depth || (front ? Math.max(...sh.walls.map((w) => w.length)) : 12), across = width <= Math.max(7.6, depth / 2);
   const span = across ? width : depth / 2;
   // working loads against a working (allowable) stress, as the period designed: a timber floor's boards,
   // joists and plaster ceiling, and a dwelling's live load, unfactored
