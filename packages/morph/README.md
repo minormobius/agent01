@@ -127,3 +127,34 @@ a bridge (the selftest holds it). Not modelled: congestion feeding back into the
 feeding back into where the city builds (the waves of rebuilding run first), freight, and anything
 finer than a day's totals.
 
+## The day, back out of the totals (v5, `motion.js`)
+
+mobility.js's flows are a day summed: everything that moved, added up per street (owner: "a kind of
+Fourier transform of traffic… now go back to time series with discrete objects"). `day(city, year)`
+turns the era's trip table back into things that move:
+
+- **Journeys**: each pair of zones' trips (by purpose: work, going out) are sampled as people (about 80,000
+  journeys a day are drawn, so a dot is 2–7 real people, `D.scale`), each with a mode drawn from the pair's
+  shares, a departure from the hour's profile (`rhythm(year)`: the working day began at a quarter past six
+  in 1800 and lasted eleven and a half hours, now a quarter past eight and under nine; going out is a
+  midday outing or, mostly, an evening one) and a way home after. Each is routed over the street graph
+  and timed street by street: on foot 4.5 km/h, a bicycle 14, a car at the street's free speed (30 km/h,
+  45 on a main road, slower before 1930) slowed by the BPR curve, `t = t0 (1 + 0.15 (V/C)⁴)`, where V is
+  that street's cars in that hour (its daily flow × the hour's share of car departures) and C its
+  carriageway (the width less 6 m of pavement, ~550 cars an hour a lane), with V/C capped at 2 (uncapped,
+  a grown town's bridge at four times its capacity made a crossing take hours and the whole day one
+  plateau of stuck cars; past that point people travel earlier or later). So the rush hour is slower
+  (selftest, sketch town: 19.4 km/h door to door at 8, 20.4 late morning; the grown town's day keeps its
+  peaks and no journey takes more than an hour). Transit riders are counted, not drawn.
+- **Vehicles**: every line in service runs to a **timetable**: headways by mode at the peak (tram 7 min,
+  bus 10, omnibus 20…), twice that off-peak, three times in the evening, horse services 7:00–22:00, the
+  rest 5:30–00:30, both ways, at 70% of the mode's speed for its stops; trains come in from the country to
+  the terminus (every 90 min in 1850, 15 now), stand 15 minutes and go out. How full each is comes from
+  its line's riders spread by the hour.
+- **Where everything is** is a function of the minute: `movers(D, minute)` (positions kept to the right of
+  the centreline, headings) and `vehiclesAt(D, minute)` (each body a polyline along its route).
+- **The series**: `D.series` holds people under way by mode and vehicles in service, in quarter hours,
+  which is the day drawn as a time series.
+
+About 0.5–1.4 s a day (cached per era), ~6 ms a frame to place everything.
+

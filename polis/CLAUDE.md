@@ -70,6 +70,15 @@ returns); the panel gives each era's people, jobs, trips and mode shares; the in
 building held that era. Read packages/morph/README.md (v4) for the model. Integration checks in
 `polis/test/morph.selftest.mjs`.
 
+**The moving day** (2026-10-08, owner: "now you must go back to time series with discrete objects"):
+`packages/morph/motion.js` (copied to `morph/motion.js`) samples the era's trip table back into ~80,000
+journeys and timetabled trams, buses and trains (README v5). The toy's `moving` layer (on by default) and
+"time of day" clock (▶ runs an hour in 2.5 s; `t=` in the link) draw them over a cached still map: people
+as specks, bicycles green, cars as little oriented boxes with headlights after dark, vehicles along their
+routes as full as their riders make them, the town tinted by the hour; the panel's chart is the day as a
+time series by mode with the clock on it. The day is sampled on the page (0.5–1.4 s per era, cached), and
+not while the years play.
+
 **Facades** (2026-10-08): every building's shell in its period comes from `tjs/brut/period.js` (brut through
 the centuries), copied to `morph/brut/` by sync-dataviz — edit it in tjs. The model view draws a wall's
 openings, bands and balconies once a storey is more than ~6 px tall (scaled so the shell's eaves meet the

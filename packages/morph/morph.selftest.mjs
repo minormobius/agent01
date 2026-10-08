@@ -6,6 +6,7 @@ import * as G from './geom.js';
 import { generate, standing, KINDS, PRESENT } from './morph.js';
 import { Ground } from './ground.js';
 import { transport, activity, network, eraAt, linesAt, SPACE, carsPerHead } from './mobility.js';
+import { day, movers, vehiclesAt } from './motion.js';
 
 let failed = 0;
 const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed++; };
@@ -256,6 +257,34 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   // the busiest street for cars is a main road or a bridge, not a back street
   let top = 0; late.flowCar.forEach((v, k) => { if (v > late.flowCar[top]) top = k; });
   ok(['ring', 'old road', 'main road', 'avenue', 'main street', 'bridge', 'seam'].includes(net.edges[top].rank), `the busiest street for cars now is ${net.edges[top].rank === 'old road' ? 'an' : 'a'} ${net.edges[top].rank} (${Math.round(late.flowCar[top])} cars a day)`);
+
+  // ---- the day, back out of the totals (motion.js): discrete journeys and timetabled vehicles
+  const t0 = performance.now(), D = day(cm, PRESENT), tday = performance.now() - t0, D2 = day(cm, PRESENT);
+  ok(D.n > 20000 && D.n === D2.n && D.t1.every((v, k) => v === D2.t1[k]) && D.nodes.every((v, k) => v === D2.nodes[k]), `a day of ${D.n} journeys (each ${D.scale.toFixed(1)} people), the same twice (${tday.toFixed(0)} ms)`);
+  // every journey runs along the graph, its clock only moving forward
+  const edgeOk = new Set(net.edges.map((e) => `${Math.min(e.a, e.b)}-${Math.max(e.a, e.b)}`));
+  let offGraph = 0, backwards = 0;
+  for (let k = 0; k < D.n; k++) for (let q = D.off[k] + 1; q < D.off[k + 1]; q++) {
+    const a = D.nodes[q - 1], b = D.nodes[q];
+    if (!edgeOk.has(`${Math.min(a, b)}-${Math.max(a, b)}`)) offGraph++;
+    if (D.times[q] < D.times[q - 1]) backwards++;
+  }
+  ok(offGraph === 0 && backwards === 0, `every journey walks, rides or drives along streets (${offGraph} steps off them), its clock never running back (${backwards})`);
+  // the day's shape: a morning and an evening peak, the small hours nearly empty
+  const tot = new Float32Array(96); for (const k of ['walk', 'bike', 'car', 'transit']) for (let q = 0; q < 96; q++) tot[q] += D.series[k][q];
+  const peakAt = (a, b) => { let m = 0; for (let q = a * 4; q < b * 4; q++) m = Math.max(m, tot[q]); return m; };
+  const am = peakAt(6, 10), pm = peakAt(16, 20), small = peakAt(2, 5), noon = peakAt(10.5, 11.5);
+  ok(am > noon * 1.5 && pm > noon * 1.3 && small < am * 0.05, `the day has its rush hours: ${Math.round(am)} under way at the morning peak, ${Math.round(pm)} in the evening, ${Math.round(noon)} mid-morning, ${Math.round(small)} in the small hours`);
+  // the rush hour is slower: the BPR curve on each street's hourly load
+  const speed = (h0, h1) => { let d = 0, t = 0; for (let k = 0; k < D.n; k++) { if (D.mode[k] !== 2 || D.t0[k] < h0 * 60 || D.t0[k] >= h1 * 60) continue; const a = D.off[k], b = D.off[k + 1]; for (let q = a + 1; q < b; q++) d += Math.hypot(D.xy[2 * D.nodes[q]] - D.xy[2 * D.nodes[q - 1]], D.xy[2 * D.nodes[q] + 1] - D.xy[2 * D.nodes[q - 1] + 1]); t += D.t1[k] - D.t0[k]; } return d / Math.max(1e-6, t) * 0.06; };
+  const vPeak = speed(7.5, 8.75), vOff = speed(10.5, 15);
+  ok(vPeak < vOff, `cars are slower in the rush hour: ${vPeak.toFixed(1)} km/h door to door at 8, ${vOff.toFixed(1)} km/h late morning`);
+  // where they are is a function of the minute, and they are in the town
+  const Mv = movers(D, 8 * 60), half = cm.size / 2 + 50;
+  let out = 0; for (let k = 0; k < Mv.n; k++) if (!(Math.abs(Mv.x[k]) < half && Math.abs(Mv.y[k]) < half)) out++;
+  const V8 = vehiclesAt(D, 8 * 60), V3 = vehiclesAt(D, 3 * 60), running = linesAt(cm, PRESENT).lines.length;
+  ok(Mv.n > 300 && out === 0 && V8.length >= running && V3.length === 0 && V8.some((v) => v.kind === 'train'),
+    `at 8 o'clock ${Mv.n} people under way (each ${D.scale.toFixed(1)}), all in the town; ${V8.length} vehicles in service on ${running} lines and the railway, none at 3 in the morning`);
 }
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');

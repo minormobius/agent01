@@ -58,6 +58,9 @@
   <div class="row"><label>later eras</label><div class="seg" id="eraSeg"></div></div>
   </div>
   <div class="row"><label>year</label><button id="play" type="button">▶</button><input id="year" type="range" min="1100" max="2025" step="1"><span class="v" id="yearV"></span></div>
+  <div class="row" id="clockRow"><label>time of day</label><button id="dplay" type="button">▶</button><input id="clock" type="range" min="0" max="24" step="0.01"><span class="v" id="clockV"></span></div>
+  <canvas id="series" width="560" height="120" style="width:280px;height:60px;display:block;margin:2px 0 4px"></canvas>
+  <div class="stats" id="dayNote" style="margin-top:0"></div>
   <div class="row"><label>colour by</label><div class="seg" id="colSeg"></div></div>
   <div class="row"><label>plot width</label><input id="plotScale" type="range" min="0.5" max="2.5" step="0.05"><span class="v" id="plotScaleV"></span></div>
   <div class="row"><label>streets</label><input id="streetScale" type="range" min="0.5" max="2" step="0.05"><span class="v" id="streetScaleV"></span></div>
@@ -83,11 +86,13 @@
 import { generate, standing, ERAS, KINDS, PLANS, STYLES, PRESENT } from './morph.js';
 import { shell, elevation, PERIODS } from './brut/period.js';
 import { transport, eraAt, linesAt, MODES, USES } from './mobility.js';
+import { day, movers, vehiclesAt, MODE_IDS } from './motion.js';
 // polis mode grows the ground, the settlement field and the plan in worker.js
 import * as G from './geom.js';
 
 const $ = (id) => document.getElementById(id);
-const canvas = $('c'), ctx = canvas.getContext('2d');
+const canvas = $('c'), mainCtx = canvas.getContext('2d');
+let ctx = mainCtx;
 // walls and roofs by the style a building was built in
 const COLOURS = { village: [196, 172, 132], medieval: [205, 160, 112], georgian: [186, 132, 104], haussmann: [222, 206, 170], villa: [214, 190, 160], modern: [150, 158, 170], glass: [120, 168, 204] };
 const ROOFS = { village: [150, 120, 70], medieval: [146, 72, 52], georgian: [92, 88, 96], haussmann: [96, 104, 118], villa: [160, 80, 58], modern: [92, 96, 104], glass: [80, 120, 150] };
@@ -96,7 +101,7 @@ const AGES = [[1100, [92, 52, 36]], [1400, [150, 74, 46]], [1700, [200, 132, 70]
 const ageCol = (y) => { for (let i = 1; i < AGES.length; i++) if (y <= AGES[i][0]) { const [y0, a] = AGES[i - 1], [y1, b] = AGES[i], t = Math.max(0, (y - y0) / (y1 - y0)); return a.map((v, k) => v + (b[k] - v) * t); } return AGES[AGES.length - 1][1]; };
 const wallOf = (b) => (st.colour === 'age' ? ageCol(b.from) : COLOURS[b.style]);
 const roofOf = (b) => (st.colour === 'age' ? ageCol(b.from).map((v) => v * 0.7) : ROOFS[b.style]);
-const LAYERS = ['districts', 'plots', 'buildings', 'labels', 'people', 'work', 'leisure', 'transit', 'traffic'];
+const LAYERS = ['districts', 'plots', 'buildings', 'labels', 'people', 'work', 'leisure', 'transit', 'traffic', 'moving'];
 
 // ---- state, from the link
 const q = new URLSearchParams(location.hash.slice(1));
@@ -107,7 +112,8 @@ const st = {
   later: (q.get('eras') || 'grid,radial,modern,suburb').split(',').filter((k) => ERAS[k]),
   plotScale: +q.get('pw') || 1, streetScale: +q.get('sw') || 1, heightScale: +q.get('hs') || 1,
   view: q.get('view') === 'model' ? 'model' : 'plan',
-  layers: new Set((q.get('show') || 'districts,plots,buildings,labels,transit').split(',')),
+  layers: new Set((q.get('show') || 'districts,plots,buildings,labels,transit,moving').split(',')),
+  clock: q.has('t') ? +q.get('t') : 8,          // the time of day, hours
   sun: q.has('sun') ? +q.get('sun') : 225,
   year: q.has('y') ? +q.get('y') : PRESENT,
   colour: q.get('col') === 'age' ? 'age' : 'style',
@@ -135,6 +141,7 @@ function remember() {
   if (st.heightScale !== 1) p.set('hs', st.heightScale);
   if (st.view === 'model') p.set('view', 'model');
   p.set('show', [...st.layers].join(','));
+  if (st.clock !== 8) p.set('t', st.clock.toFixed(2));
   if (st.sun !== 225) p.set('sun', st.sun);
   if (st.year !== PRESENT) p.set('y', st.year);
   if (st.colour === 'age') p.set('col', 'age');
@@ -215,13 +222,24 @@ function seg(el, items, isOn, click) {
 const eraItems = KINDS.map((k) => [k, k]);
 seg($('coreSeg'), eraItems, (k) => st.core === k, (k) => { st.core = k; rebuild(); });
 seg($('eraSeg'), eraItems, (k) => st.later.includes(k), (k) => { st.later = st.later.includes(k) ? st.later.filter((x) => x !== k) : [...st.later, k]; rebuild(); });
-seg($('layerSeg'), LAYERS.map((k) => [k, k]), (k) => st.layers.has(k), (k) => { st.layers.has(k) ? st.layers.delete(k) : st.layers.add(k); legend2(); draw(); remember(); });
+const layerSeg = () => seg($('layerSeg'), LAYERS.map((k) => [k, k]), (k) => st.layers.has(k), (k) => { st.layers.has(k) ? st.layers.delete(k) : st.layers.add(k); legend2(); draw(); remember(); });
+layerSeg();
 for (const [id, key, fmt] of [['districts', 'districts', (v) => v], ['plotScale', 'plotScale', (v) => `×${v.toFixed(2)}`], ['streetScale', 'streetScale', (v) => `×${v.toFixed(2)}`], ['heightScale', 'heightScale', (v) => `×${v.toFixed(2)}`]]) {
   const el = $(id); el.value = st[key]; $(id + 'V').textContent = fmt(+st[key]);
   el.oninput = () => { st[key] = +el.value; $(id + 'V').textContent = fmt(+el.value); };
   el.onchange = rebuild;
 }
 $('year').oninput = () => { stopPlay(); setYear(+$('year').value); };
+$('clock').value = st.clock; $('clockV').textContent = clockText(st.clock);
+$('clock').oninput = () => { setClock(+$('clock').value); remember(); };
+$('dplay').onclick = () => {
+  if (dplaying) { cancelAnimationFrame(dplaying); dplaying = null; $('dplay').textContent = '▶'; remember(); return; }
+  if (!st.layers.has('moving')) { st.layers.add('moving'); layerSeg(); }
+  $('dplay').textContent = '❚❚';
+  let last = null;
+  const step = (t) => { if (last != null) setClock(st.clock + Math.min(0.1, (t - last) / 1000) * 0.4); last = t; dplaying = requestAnimationFrame(step); };   // an hour in 2.5 s
+  dplaying = requestAnimationFrame(step);
+};
 let playing = null;
 function stopPlay() { if (playing) cancelAnimationFrame(playing); playing = null; $('play').textContent = '▶'; }
 $('play').onclick = () => {
@@ -335,6 +353,78 @@ function legend2() {
   $('legend2').innerHTML = out.join('');
 }
 
+// ---- the day, as things that move (packages/morph/motion.js): sampled back out of the era's trip table
+let D = null, M = {}, dplaying = null;
+const MOVE_COL = ['#f2efe6', '#7fe08a', '#ffb347', '#e0b43c'];
+function ensureDay() {
+  const E = eraAt(city, st.year);
+  if (!E || !E.od) { D = null; return false; }
+  if (!D || D.year !== E.year || D.city !== city) {
+    const t0 = performance.now();
+    D = day(city, st.year); if (!D) return false;
+    D.city = city;
+    $('dayNote').textContent = `${E.year}: a day of ${D.n.toLocaleString()} journeys drawn, each dot ${D.scale.toFixed(0)} people; ${D.vehicles.length ? `${D.vehicles.length} services running to a timetable` : 'no public transport yet'} (${(performance.now() - t0).toFixed(0)} ms)`;
+    drawSeries();
+  }
+  return true;
+}
+// darkness by the hour, for the night tint and the lights
+const darkAt = (h) => Math.max(0, Math.min(1, (Math.cos(((h - 1) / 24) * 2 * Math.PI) - 0.15) * 1.25));
+function drawMoving(f) {
+  const z = baseScale() * cam.zoom, minute = st.clock * 60, dark = darkAt(st.clock);
+  if (dark > 0) { ctx.fillStyle = `rgba(6,10,28,${0.72 * dark})`; ctx.fillRect(0, 0, W, H); }
+  // the vehicles: each a body along its route, as full as its riders make it
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const v of vehiclesAt(D, minute)) {
+    const col = v.kind === 'train' ? '#d9dde6' : MODES[v.kind].colour;
+    ctx.strokeStyle = '#0b0d12'; ctx.lineWidth = Math.max(4, z * 4.2);
+    ctx.beginPath(); v.body.forEach((p, i) => { const [x, y] = f(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+    ctx.strokeStyle = col; ctx.globalAlpha = 0.55 + 0.45 * v.full; ctx.lineWidth = Math.max(2.6, z * 3);
+    ctx.beginPath(); v.body.forEach((p, i) => { const [x, y] = f(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  // the people: on foot a speck, a bicycle a green dash, a car a little oriented box (headlights at night)
+  movers(D, minute, M);
+  const big = z > 1.2;
+  for (let k = 0; k < M.n; k++) {
+    const [x, y] = f([M.x[k], M.y[k]]), m = M.mode[k];
+    if (x < -10 || y < -10 || x > W + 10 || y > H + 10) continue;
+    if (m === 2) {
+      const L = Math.max(2.2, 4.5 * z), Wd = Math.max(1.4, 1.9 * z), hx = M.hx[k], hy = -M.hy[k];
+      ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(hy, hx));
+      if (dark > 0.3) { ctx.fillStyle = `rgba(255,236,170,${0.25 * dark})`; ctx.beginPath(); ctx.moveTo(L / 2, 0); ctx.lineTo(L / 2 + Math.max(6, 14 * z), -Math.max(3, 5 * z)); ctx.lineTo(L / 2 + Math.max(6, 14 * z), Math.max(3, 5 * z)); ctx.fill(); }
+      ctx.fillStyle = dark > 0.5 ? '#ffe9b0' : MOVE_COL[2]; ctx.fillRect(-L / 2, -Wd / 2, L, Wd);
+      ctx.restore();
+    } else {
+      const r = m === 0 ? (big ? Math.max(1.3, 0.6 * z) : 1.2) : Math.max(1.4, 0.9 * z);
+      ctx.fillStyle = MOVE_COL[m]; ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+    }
+  }
+  drawSeries();
+}
+// the day as a time series: people under way by mode (stacked), and the vehicles, with the clock on it
+function drawSeries() {
+  const cv = $('series'), c2 = cv.getContext('2d'), w = cv.width, h = cv.height;
+  c2.clearRect(0, 0, w, h);
+  if (!D) return;
+  const S = D.series, order = ['walk', 'bike', 'car', 'transit'], cols = { walk: '#cfcabd', bike: '#7fe08a', car: '#ffb347', transit: '#e0b43c' };
+  let top = 1; for (let s = 0; s < 96; s++) { let v = 0; for (const k of order) v += S[k][s]; top = Math.max(top, v); }
+  const base = new Float32Array(97);
+  for (const k of order) {
+    c2.beginPath(); c2.moveTo(0, h);
+    for (let s = 0; s <= 96; s++) { const v = base[s] + S[k][s % 96]; c2.lineTo(s / 96 * w, h - v / top * (h - 14)); }
+    for (let s = 96; s >= 0; s--) c2.lineTo(s / 96 * w, h - base[s] / top * (h - 14));
+    c2.closePath(); c2.fillStyle = cols[k]; c2.globalAlpha = k === 'walk' ? 0.55 : 0.85; c2.fill(); c2.globalAlpha = 1;
+    for (let s = 0; s <= 96; s++) base[s] += S[k][s % 96];
+  }
+  c2.fillStyle = '#8b98a9'; c2.font = '18px ui-sans-serif,system-ui'; for (const hr of [0, 6, 12, 18]) c2.fillText(`${hr}`, hr / 24 * w + 3, 16);
+  const x = st.clock / 24 * w; c2.strokeStyle = '#d9a441'; c2.lineWidth = 3; c2.beginPath(); c2.moveTo(x, 0); c2.lineTo(x, h); c2.stroke();
+  const s = Math.floor(st.clock * 4) % 96, now = order.map((k) => [k, S[k][s]]);
+  c2.fillStyle = '#e6edf3'; c2.fillText(`${Math.round(now.reduce((a, [, v]) => a + v, 0)).toLocaleString()} under way`, Math.min(w - 230, x + 6), 36);
+}
+function clockText(hr) { return `${String(Math.floor(hr) % 24).padStart(2, '0')}:${String(Math.floor((hr % 1) * 60)).padStart(2, '0')}`; }
+function setClock(hr) { st.clock = ((hr % 24) + 24) % 24; $('clock').value = st.clock; $('clockV').textContent = clockText(st.clock); draw(); }
+
 // ---- the camera
 let W = 0, H = 0, DPR = 1;
 function resize() {
@@ -357,8 +447,22 @@ function modelXYZ(x, y, z) {
 const rgb = (c, k = 1, a = 1) => `rgba(${Math.round(Math.min(255, c[0] * k))},${Math.round(Math.min(255, c[1] * k))},${Math.round(Math.min(255, c[2] * k))},${a})`;
 function poly(P, f) { ctx.beginPath(); P.forEach((p, i) => { const [x, y] = f(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); }
 
+let staticCv = null, staticKey = '';
 function draw() {
   if (!city || !W) return;
+  const moving = st.view === 'plan' && st.layers.has('moving') && !playing && ensureDay();   // (a day takes a second to sample: not while the years play)
+  if (moving) {
+    // the still map is drawn once into its own canvas; only what moves is drawn each frame
+    const key = [cam.x, cam.y, cam.zoom, st.year, [...st.layers].join(), W, H, DPR, st.colour].join('|');
+    if (key !== staticKey || !staticCv) {
+      staticCv = staticCv || document.createElement('canvas'); staticCv.width = canvas.width; staticCv.height = canvas.height;
+      ctx = staticCv.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H);
+      drawPlan(); ctx = mainCtx; staticKey = key;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(staticCv, 0, 0); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawMoving((p) => planXY(p[0], p[1]));
+    return;
+  }
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H);
   if (st.view === 'plan') drawPlan(); else drawModel();

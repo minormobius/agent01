@@ -534,7 +534,7 @@ function era(city, net, year) {
     return { sh, t: Math.min(...u.map((x, q) => -x / theta)) };
   };
   // trips: a commute from homes to jobs and an outing to leisure, each spread by gravity on the best time
-  const trips = new Float64Array(Z * Z);
+  const trips = new Float64Array(Z * Z), byPurpose = { work: new Float32Array(Z * Z), fun: new Float32Array(Z * Z) };
   const best = new Float64Array(Z * Z);
   const S = [];
   for (let i = 0; i < Z; i++) for (let j = 0; j < Z; j++) { const s = split(i, j); best[i * Z + j] = s.t; S.push(s.sh); }
@@ -543,7 +543,7 @@ function era(city, net, year) {
       const P = (zones[i][prod] || 0) * rate; if (P <= 0) continue;
       let sum = 0; for (let j = 0; j < Z; j++) sum += zones[j][attr] * Math.exp(-beta * best[i * Z + j]);
       if (sum <= 0) continue;
-      for (let j = 0; j < Z; j++) trips[i * Z + j] += P * zones[j][attr] * Math.exp(-beta * best[i * Z + j]) / sum;
+      for (let j = 0; j < Z; j++) { const t = P * zones[j][attr] * Math.exp(-beta * best[i * Z + j]) / sum; trips[i * Z + j] += t; byPurpose[attr === 'fun' ? 'fun' : 'work'][i * Z + j] += t; }
     }
   }
   // route them: cars and walkers on the streets, riders on their lines
@@ -560,10 +560,17 @@ function era(city, net, year) {
     for (let v = zones[j].node; pred[v] >= 0;) { const q = pred[v], e = net.edges[q]; flowCar[q] += car; flowWalk[q] += walk; v = e.a === v ? e.b : e.a; }
   }
   for (const k in modes) modes[k] /= total || 1;
+  // the trip table itself, compactly, so a day can be sampled back out of it (motion.js): the zones (their
+  // middle and node), the trips by purpose (both ways, a day), each pair's mode shares in 1/255ths, and
+  // the line each zone walks to
+  const zxy = new Float32Array(Z * 3), share = new Uint8Array(Z * Z * 4), walkTo = new Int16Array(Z).fill(-1);
+  zones.forEach((z, i) => { zxy[3 * i] = z.x; zxy[3 * i + 1] = z.y; zxy[3 * i + 2] = z.node; if (near[i]) walkTo[i] = near[i].line.id; });
+  for (let q = 0; q < Z * Z; q++) { const sh = S[q]; share[4 * q] = Math.round((sh.walk || 0) * 255); share[4 * q + 1] = Math.round((sh.transit || 0) * 255); share[4 * q + 2] = Math.round((sh.car || 0) * 255); share[4 * q + 3] = Math.round((sh.bike || 0) * 255); }
+  const od = { Z, zxy, work: byPurpose.work, fun: byPurpose.fun, share, walkTo };
   // what each building held this era (for the inspector), and the heatmaps
   const nb = city.buildings.length, bRes = new Float32Array(nb), bJobs = new Float32Array(nb), bFun = new Float32Array(nb), bUse = new Uint8Array(nb);
   for (const a of act.buildings) { bRes[a.id] = a.res; bJobs[a.id] = a.jobs; bFun[a.id] = a.fun; bUse[a.id] = USES.indexOf(a.use) + 1; }
-  return { year, residents: act.totals.res, jobs: act.totals.jobs, fun: act.totals.fun, trips: total, grid: act.grid, held: { res: bRes, jobs: bJobs, fun: bFun, use: bUse }, modes, flowCar, flowWalk, load, lines: lines.map((L) => L.id), zones: Z, cars, inbound, gates: gates.map((g) => ({ x: g.x, y: g.y, gate: g.gate, people: g.ext })) };
+  return { year, residents: act.totals.res, jobs: act.totals.jobs, fun: act.totals.fun, trips: total, grid: act.grid, held: { res: bRes, jobs: bJobs, fun: bFun, use: bUse }, modes, flowCar, flowWalk, load, lines: lines.map((L) => L.id), zones: Z, od, cars, inbound, gates: gates.map((g) => ({ x: g.x, y: g.y, gate: g.gate, people: g.ext })) };
 }
 
 /** The era in force in `year` (the latest computed at or before it). */
@@ -578,4 +585,4 @@ export function linesAt(city, year) {
   if (!T) return { lines: [], rail: null };
   return { lines: T.lines.filter((L) => L.from <= year && (L.to == null || L.to > year)), rail: T.rail && T.rail.year <= year ? T.rail : null };
 }
-export { hash2 };
+export { hash2, dijkstra, buffers, CAR, MAIN };

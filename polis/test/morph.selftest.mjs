@@ -8,6 +8,7 @@ import { generate, standing, envelope, PRESENT } from '../../packages/morph/morp
 import * as G from '../../packages/morph/geom.js';
 import { growCity } from '../field.js';
 import { transport, eraAt, linesAt, MODES } from '../../packages/morph/mobility.js';
+import { day, movers, vehiclesAt } from '../../packages/morph/motion.js';
 
 let failed = 0;
 const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed++; };
@@ -86,6 +87,13 @@ const now = eraAt(c, PRESENT), modes = Object.entries(now.modes).filter(([, v]) 
 const kinds2 = new Set(T.lines.map((L) => L.mode));
 ok(kinds2.has('tram') && (kinds2.has('bus') || kinds2.has('lightrail')) && now.residents > 20000 && now.modes.car > 0.2, `${T.lines.length} lines over the history (${[...kinds2].map((k) => MODES[k].label).join(', ')}); now ${Math.round(now.residents)} people, ${modes}`);
 ok(tt < 6000, `the transport history is quick enough for the toy's worker (${(tt / 1000).toFixed(1)} s)`);
+t0 = performance.now();
+const D1900 = day(c, 1905), D2025 = day(c, PRESENT), td = (performance.now() - t0) / 2;
+const trams = vehiclesAt(D1900, 8 * 60).filter((v) => v.kind === 'tram' || v.kind === 'horsetram').length, cars1900 = [...D1900.mode].filter((m) => m === 2).length;
+const tot = new Float32Array(96); for (const k of ['walk', 'bike', 'car', 'transit']) for (let q = 0; q < 96; q++) tot[q] += D2025.series[k][q];
+const pk = (a, b) => { let m = 0; for (let q = a * 4; q < b * 4; q++) m = Math.max(m, tot[q]); return m; }, longest = Math.max(...D2025.t1.map((v, k) => v - D2025.t0[k]));
+ok(pk(6, 10) > pk(10.5, 11.5) * 1.5 && longest < 120, `the grown town's day has its rush hours (${Math.round(pk(6, 10))} under way at the morning peak, ${Math.round(pk(10.5, 11.5))} mid-morning); the longest journey ${Math.round(longest)} min`);
+ok(trams > 3 && cars1900 === 0 && movers(D2025, 17.5 * 60).n > 300 && td < 2500, `a day sampled back out: ${trams} trams under way at 8 in 1905 and no cars; ${movers(D2025, 17.5 * 60).n} people moving at half past five now (${Math.round(td)} ms a day)`);
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);
