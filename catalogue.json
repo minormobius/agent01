@@ -4622,6 +4622,23 @@
       ]
     },
     {
+      "n": "city",
+      "u": "https://studio.mino.mobi/city/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-08",
+      "b": "2026-10-08",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A city seven centuries deep, flown through in 256 colours, Voxel Space style: lanes become old roads, a walled core, a Georgian grid, boulevards, suburbs, slabs and glass towers, each building rebuilt or left standing as its land rose in value. Every wall is drawn row by row from its period, and every window is one of sixteen households that lights at dusk and turns as a slow colour cycle. Down the river with the city mirrored in it, along an old road at eave height, round the towers.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
       "n": "attractor bodies",
       "u": "https://studio.mino.mobi/avatar/",
       "c": "games",

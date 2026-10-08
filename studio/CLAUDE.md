@@ -52,6 +52,7 @@ lecture/                 No. 10, The Minormobius Lectures: a documentary as a le
 grew/                    No. 9, And Still It Grew: the major-key companion to No. 8 (score.js carries the harmony, drive and two voices; grown/film*.js do the rest)
 nobody/                  No. 8, Nobody Drew It: one evolved Grown history replayed (world.js, history.js GENERATED), sung by the world's choir, a voice and piano
 grown/                   Grown (sketchbook): bodies grown organ by organ from a program (packages/attractor lib/organism.js); gl.js WebGL
+city/                    City (sketchbook): cycle's flight over cityworld.js, its own page (index.html + og.jpg; the code is cycle's)
 cycle/                   Colour Cycle (sketchbook): a 256-colour landscape under the real sky, a lake or a coast; scene.js + coast.js, astro.js, stars.js (GENERATED), night.js, life.js, world.js + coastworld.js + fly.js (the flight), sound.js, main.js
 accretion/               Accretion (sketchbook): a flow that grows a geode round itself (packages/attractor lib/shell.js); gl.js WebGL
 descending/              No. 7, Daisy Bell sung by the formant voice (lib/chipsing.js); a figure descending, after Duchamp
@@ -732,8 +733,13 @@ hamlets, districts in their eras, blocks, plots, seven centuries of buildings), 
   `close` in loopThrough is the river channel and that stretch of road. At night the gaze tips up only a
   little (`nightTip` 0.1): a city's lights are what there is to see. The music's places: river, falls (the
   street), mountains (over the roofs), stars, lake (the fields).
-- The page: a "city" button (`world=city` in the link) flies it; there is no painting of a city, so the
-  painting behind it stays the lake's. ~2 s to build in node, ~3 s in Chromium; ~22 fps in headless
+- **Its own page, `studio/city/`** (owner: "can't seem to reach it, maybe city gets its own page"; the
+  button sat at the end of a row that scrolls sideways on a phone). `city/index.html` is the cycle page's
+  markup with `data-world="city"` on `<html>`, loading `../cycle/main.js` (every module and worker URL is
+  module-relative, so nothing is copied); main.js reads the attribute, the fly and city buttons are hidden,
+  and the stage stays hidden behind "building the city…" until the world is built (`html.ready`). The
+  cycle page keeps its "city" button (`world=city` in the link). There is no painting of a city, so the
+  painting state behind it is the lake's. ~2 s to build in node, ~3 s in Chromium; ~22 fps in headless
   Chromium (CPU), the coast flight's rate. Two renderer bugs it found: `heightAt` indexed below zero just
   short of the mirrored edge (a NaN loop), and the far-terrain early-out assumed the camera is never
   above the highest point (at 380 m over the towers the ground vanished).

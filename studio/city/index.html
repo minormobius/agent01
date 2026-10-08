@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" data-world="city">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>City</title>
+<meta name="description" content="A city seven centuries deep, flown through in 256 colours: every wall drawn row by row from its period, every window a household that lights at dusk, the river carrying the city in it. A sketchbook from studio.mino.mobi.">
+<meta property="og:title" content="City — studio">
+<meta property="og:description" content="Fly through a generated city in an 8-bit palette: down the river, along an old road, round the towers, by day and by night.">
+<meta property="og:image" content="https://studio.mino.mobi/city/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#07060a">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+  :root { --bg: #07060a; --ink: #ecebf5; --dim: rgba(236, 235, 245, 0.66); --line: rgba(236, 235, 245, 0.18); --acc: #ff9a5a;
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; --mono: ui-monospace, "SF Mono", Menlo, monospace; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--font); overflow: hidden; }
+  #stage { position: fixed; inset: 0; overflow: hidden; background: #000; }
+  #c { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: pan-y; cursor: grab; }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, rgba(5, 4, 8, 0.82) 38%); display: grid; gap: 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .label { font: 11px var(--mono); color: var(--dim); letter-spacing: 0.06em; }
+  .label a { color: var(--dim); }
+  #time { font: 600 13px var(--mono); min-width: 128px; }
+  button { font: 600 12.5px var(--font); border-radius: 999px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--line);
+    background: rgba(7, 6, 10, 0.55); color: var(--ink); }
+  button.on, button.primary { background: var(--acc); color: #1a0d05; border-color: var(--acc); }
+  input[type=range] { flex: 1; min-width: 140px; accent-color: var(--acc); }
+  #pal { width: 100%; max-width: 768px; height: 30px; image-rendering: pixelated; }
+  #notes { max-width: 640px; font-size: 13px; color: var(--dim); }
+  #notes p { margin: 0 0 8px; }
+  #sky { display: grid; gap: 6px; }
+  #sky[hidden], #facingRow[hidden] { display: none; }
+  button[hidden] { display: none; }
+  html:not(.ready) #c { visibility: hidden; }
+  #wait { position: fixed; inset: 0; display: grid; place-items: center; font: 600 14px var(--font); color: var(--dim); }
+  html.ready #wait { display: none; }
+  input[type=date] { font: 12.5px var(--mono); background: rgba(7, 6, 10, 0.55); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; color-scheme: dark; }
+  @media (max-width: 640px) {
+    .row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .row::-webkit-scrollbar { display: none; }
+    button { flex: none; white-space: nowrap; }
+  }
+</style>
+</head>
+<body>
+<div id="wait">building the city…</div>
+<div id="stage" aria-label="A generated city, flown through, animated only by its palette"><canvas id="c"></canvas></div>
+<div id="bar">
+  <div id="notes" hidden>
+    <p>A city to fly through: a town seven centuries deep: country lanes that became its old roads, a walled core, a Georgian grid, a boulevard scheme, suburbs, modern slabs and glass towers, each building rebuilt or left standing as its land rose in value, on hills with a river through them. Every wall is drawn row by row from the building's period, so a storey is a storey and a bay is a bay: sash windows in brick, timber frames, balconies along the stone apartment blocks, ribbon windows, curtain walls. Each window is one of sixteen households, dark glass by day; at night each lights when it is dark enough for it, and the sixteen turn slowly, so lights come on and go off across the city. You fly down the river between the quays with the city standing in it, up over the old core, along an old road at the height of its eaves, and up round the towers.</p>
+    <p>Every pixel here holds a number from 0 to 255, never a colour. The 256 colours live in a table, and the picture moves only because the table changes: ranges of it rotate (the waterfall, the lake, the smoke, the stars, the fireflies), and the whole of it is re-lit for the hour. Nothing is redrawn. That is colour cycling, the technique of Mark Ferrari's painted game scenes, which Joseph Huckaby's Canvas Cycle brought to the browser.</p>
+    <p>The sky is real. Choose a place, a date and the way the painting faces, and the stars stand where they stand there and then (2851 of them, to magnitude 5.5, from the Hipparcos-based catalogue of d3-celestial), the moon rises in its true phase, and the sun's path painted into the sky is that day's track. The sky is drawn as a stereographic projection, so the constellations keep their shapes.</p>
+    <p>The music is composed as it plays, for this landscape and this moment, and played on John O'Laughlin's physically modelled piano and guitar (pfsynth), rendered as you listen. The biome sets the key and its character (the canyon is flamenco), the light sets how bright the mode is, and where you are sets the texture: pedalled arpeggios at the lake, a guitar tremolo at the falls, an ostinato by the river, rolled chords on the mountains, harmonics under the stars. It never ends and never repeats, and every note lights something.</p>
+    <p>The weather is a forecast for the place and the moment. Each day draws its kind, weighted by the season: clear, fair, overcast, rain, storm, fog or snow, and whether what falls is rain or snow depends on a temperature from the date, the latitude and the hour. Showers come and go, storms build in the afternoon, fog lies in the valley at dawn, and snow that fell stays on the ground while it is cold. Overcast hides the sun and the moon and greys the light, the lake rings where the rain lands, lightning whitens everything for an instant, and its thunder arrives as late as the strike was far, in the rain and wind of the beds and as a low cluster on the piano. The music turns with it too. Or choose the weather yourself.</p>
+    <p>And the aurora, where a place would see it. Every night has its own geomagnetic weather, so Tromsø or Reykjavík see curtains on most dark nights, New York only in a storm and then low and red in the north, and Sydney toward the south. Each direction in the sky is traced out to curtains standing 100 to 300 km up: oxygen's green low down, red above, rays drifting along the folds, mirrored in the water. Choose "aurora storm" under sky for a big night.</p>
+    <p>Here the scene is generated for the palette. Water is painted in phase, so turning its colours pours it. Rock is painted by the way each face turns, so the shadows swing across the mountains as the sun crosses. The sun's path is painted into the sky as a row of discs, one colour each, and lighting one is the sun; the lake carries a glitter path under the sun or the moon. The music keeps the palette's beat, takes its mode from the light, and every bell lights a star.</p>
+  </div>
+  <div class="row"><span class="label"><a href="../">studio</a> · city · <a href="../cycle/">colour cycle</a></span><span class="label" id="info"></span></div>
+  <canvas id="pal" hidden></canvas>
+  <div id="sky" hidden>
+    <div class="row"><span class="label">where</span><span class="label" id="where"></span><span id="places" class="row"></span><span class="label">date</span><input id="date" type="date" aria-label="date"></div>
+    <div class="row"><span class="label">weather</span><span id="wxs" class="row"></span></div>
+    <div class="row"><span class="label">space weather</span><button id="aurbtn" type="button" title="a geomagnetic storm (Kp 7): the aurora reaches far from the poles">aurora storm</button></div>
+    <div class="row" id="facingRow"><span class="label">facing</span><span id="facing" class="row"></span></div>
+  </div>
+  <div class="row"><span id="time"></span><input id="hour" type="range" min="0" max="24" step="0.01" aria-label="local solar time"></div>
+  <div class="row"><button id="new" class="primary" type="button">new scene</button><button id="flybtn" type="button" hidden>fly</button><button id="citybtn" type="button" hidden title="fly through a city: seven centuries of streets, plots and buildings on the same ground">city</button><button id="sound" type="button">sound</button><button id="ambbtn" type="button" class="on" title="the waterfall, the lake and the wind">ambience</button><span id="speeds" class="row"></span><button id="more" type="button">sky</button><button id="figbtn" type="button">constellations</button><button id="palbtn" type="button">palette</button><button id="about" type="button">how</button></div>
+</div>
+<script type="module" src="../cycle/main.js"></script>
+</body>
+</html>

@@ -21,7 +21,7 @@ const SPEEDS = [['real time', 0], ['1 day = 4 min', 240], ['1 day = 1 min', 60],
 let speed = params.has('speed') ? Number(params.get('speed')) : 240;
 let scene, sound, life, notes = [], fly = null, mode = params.get('mode') === 'fly' ? 'fly' : 'painting';
 // the city (cityworld.js) is a world to fly, with no painting of its own: `world=city` flies it
-let cityMode = params.get('world') === 'city';
+let cityMode = params.get('world') === 'city' || document.documentElement.dataset.world === 'city';   // studio.mino.mobi/city/ is this page, flying the city
 if (cityMode) mode = 'fly';
 const flyKind = () => (cityMode ? 'city' : scene.kind);
 
@@ -283,6 +283,7 @@ $('flybtn').onclick = async () => {
     const { Flight } = await import('./fly.js');
     fly = new Flight(img, g, view);
     fly.load(scene.seed, scene.bpm, flyKind());
+    document.documentElement.classList.add('ready');
   }
   $('flybtn').textContent = mode === 'fly' ? 'back to the painting' : 'fly';
   $('flybtn').classList.toggle('on', mode === 'fly');
