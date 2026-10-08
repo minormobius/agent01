@@ -1,0 +1,152 @@
+[
+  {
+    "name": "alphabetical again (urgency ignored)",
+    "file": "lib/assign.mjs",
+    "from": "pairs.sort((p, q) => q[2] - p[2]);",
+    "to": "pairs.sort((p, q) => p[0] - q[0] || p[1] - q[1]);"
+  },
+  {
+    "name": "file order decides (canonical hash order off)",
+    "file": "lib/assign.mjs",
+    "from": "validatePeople(peopleIn).sort((a, b) => key(a) - key(b) || (a.name < b.name ? -1 : 1))",
+    "to": "validatePeople(peopleIn)"
+  },
+  {
+    "name": "rule 3 off by one in checker",
+    "file": "lib/policy.mjs",
+    "from": "if (r === MAX_RUN + 1)",
+    "to": "if (r === MAX_RUN + 2)"
+  },
+  {
+    "name": "weight ignores leave",
+    "file": "lib/policy.mjs",
+    "from": "(p.fte * ds.filter((d) => !p.leave.has(d)).length) / n",
+    "to": "p.fte"
+  },
+  {
+    "name": "weight ignores fte",
+    "file": "lib/policy.mjs",
+    "from": "(p.fte * ds.filter((d) => !p.leave.has(d)).length) / n",
+    "to": "ds.filter((d) => !p.leave.has(d)).length / n"
+  },
+  {
+    "name": "rule 5 slack 2 instead of 1.5",
+    "file": "lib/policy.mjs",
+    "from": "export const WEEKEND_SLACK = 1.5;",
+    "to": "export const WEEKEND_SLACK = 2;"
+  },
+  {
+    "name": "no lottery (leftovers to the first in order)",
+    "file": "lib/assign.mjs",
+    "from": "let u = rnd() * step, acc = 0;",
+    "to": "let u = 0, acc = 0;"
+  },
+  {
+    "name": "per-person floor one too strong (false refusals)",
+    "file": "lib/assign.mjs",
+    "from": "if (x.lo > can) return",
+    "to": "if (x.lo > can - 1) return"
+  },
+  {
+    "name": "stretch nurse bound too strong (false refusals)",
+    "file": "lib/assign.mjs",
+    "from": "if (nurseMax < nurseNeed) return",
+    "to": "if (nurseMax < nurseNeed + 1) return"
+  },
+  {
+    "name": "coupled nurse cap one too strong (false refusals)",
+    "file": "lib/assign.mjs",
+    "from": "Math.min(nurseCapIn, nurseHi - outNeed)",
+    "to": "Math.min(nurseCapIn, nurseHi - outNeed - 1)"
+  },
+  {
+    "name": "aide cover one too strong (false refusals)",
+    "file": "lib/assign.mjs",
+    "from": "if (need > cover) {",
+    "to": "if (need > cover - 1) {"
+  },
+  {
+    "name": "search prune too strong: nurses need rem+1",
+    "file": "lib/assign.mjs",
+    "from": "nRoom >= rem && aNeed",
+    "to": "nRoom >= rem + 1 && aNeed"
+  },
+  {
+    "name": "forced shifts counted twice",
+    "file": "lib/assign.mjs",
+    "from": "if (total[i] + forcedLeft[i][d] > hi[i]) return false;",
+    "to": "if (total[i] + 2 * forcedLeft[i][d] > hi[i]) return false;"
+  },
+  {
+    "name": "forced run one too strong",
+    "file": "lib/assign.mjs",
+    "from": "run[i] + forcedRun[i][d] > MAX_RUN",
+    "to": "run[i] + forcedRun[i][d] >= MAX_RUN"
+  },
+  {
+    "name": "no-aide days: whole-period check off",
+    "file": "lib/assign.mjs",
+    "from": "if (nurseHi < n + noAideDays.length) return",
+    "to": "if (false) return"
+  },
+  {
+    "name": "no-aide days: whole-period need one too strong (false refusals)",
+    "file": "lib/assign.mjs",
+    "from": "if (nurseHi < n + noAideDays.length) return",
+    "to": "if (nurseHi < n + noAideDays.length + 1) return"
+  },
+  {
+    "name": "no-aide days: stretch ignores them (nA = 0)",
+    "file": "lib/assign.mjs",
+    "from": "const nA = noAideLeft[a] - noAideLeft[b], nAout",
+    "to": "const nA = 0, nAout"
+  },
+  {
+    "name": "no-aide days: stretch aide cover ignores aide caps too strongly (false refusals)",
+    "file": "lib/assign.mjs",
+    "from": "const aideCover = Math.min(L - nA, aideMaxIn)",
+    "to": "const aideCover = Math.min(L - nA, aideMaxIn - 1)"
+  },
+  {
+    "name": "forced-cap propagation off",
+    "file": "lib/assign.mjs",
+    "from": "?? propagated(P, ds, wk, avail, B)",
+    "to": ""
+  },
+  {
+    "name": "forced-cap propagation too strong: cuts at cap − 1 (false refusals)",
+    "file": "lib/assign.mjs",
+    "from": "if (fT === B[i].hi) {",
+    "to": "if (fT >= B[i].hi - 1) {"
+  },
+  {
+    "name": "forced-aware maximum off (forced days ignored when bounding what a person can work)",
+    "file": "lib/assign.mjs",
+    "from": "most[i] = maxTable(avail[i], ones, n, forced[i])[0];",
+    "to": "most[i] = maxTable(avail[i], ones, n)[0];"
+  },
+  {
+    "name": "forced-aware maximum one too strong (false refusals)",
+    "file": "lib/assign.mjs",
+    "from": "most[i] = maxTable(avail[i], ones, n, forced[i])[0];",
+    "to": "most[i] = maxTable(avail[i], ones, n, forced[i])[0] - (forced[i].some(Boolean) ? 1 : 0);"
+  },
+  {
+    "name": "local-search fallback off (gives up on a feasible team)",
+    "file": "lib/assign.mjs",
+    "from": "const sol = anneal(P, ds, wk, avail, B, seed);",
+    "to": "const sol = null;"
+  },
+  {
+    "name": "rest-next-to-forced-runs propagation off",
+    "file": "lib/assign.mjs",
+    "from": "if (a + 1 + b > MAX_RUN) rest.push(d);",
+    "to": "if (false) rest.push(d);"
+  },
+  {
+    "name": "rest-next-to-forced-runs one too strong: cuts at MAX_RUN (false refusals)",
+    "file": "lib/assign.mjs",
+    "from": "if (a + 1 + b > MAX_RUN) rest.push(d);",
+    "to": "if (a + 1 + b >= MAX_RUN) rest.push(d);"
+  }
+]
