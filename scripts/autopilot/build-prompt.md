@@ -33,9 +33,9 @@ _Regenerated 2026-10-08 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-08, 99 members / 292 posts):
+**Neighborhood spark** (bisk 2026-10-08, 99 members / 273 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: anthropic, idk, haiku
+- Distinctive words: firmware, llm, openai
 - Top post: "" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
