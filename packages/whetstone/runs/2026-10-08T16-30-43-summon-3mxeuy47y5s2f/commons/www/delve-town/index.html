@@ -11,16 +11,21 @@
   main { max-width: 980px; margin: 0 auto; padding: 18px; }
   h1 { font-size: 18px; margin: 0 0 4px; } a { color: #9cc4ff; } .dim { opacity: .7; }
   svg { width: 100%; height: auto; border: 1px solid #2c2d31; border-radius: 6px; display: block; }
+  #plan { background: #2a2b2e; }
   footer { margin-top: 22px; font-size: 12px; opacity: .65; } li { margin: 4px 0; }
 </style>
 <link rel="stylesheet" href="/delve-rooms/split.css">
 </head>
-<body><main>
-<h1>Delve rooms, as a town</h1>
-<p class="dim">Same live read as the <a href="/delve-rooms/">room map</a>, plus one assumption, modalmobius's: <b>every door is two-way</b> (the town has recorded none that way yet). Under it, rooms joined by doors make one <b>building</b>; each room is a Voronoi cell inside it; each door is a gap in the wall two rooms share. Rooms with no doors stand alone.</p>
-<div id="status">reading the town…</div>
-<p class="dim ctl">Drag to pan, pinch or wheel to zoom, double-click to reset.</p>
+<body>
+<header class="head"><h1>Delve rooms, as a town</h1></header>
+<div class="stage">
+<div class="bar"><div id="status" class="chip">reading the town…</div></div>
 <svg id="plan" class="viz" viewBox="0 0 900 300"></svg>
+</div>
+<main class="sheet">
+<button class="grip" type="button" aria-expanded="false">Delve rooms, as a town</button>
+<p class="dim">Same live read as the <a href="/delve-rooms/">room map</a>, plus one assumption, modalmobius's: <b>every door is two-way</b> (the town has recorded none that way yet). Under it, rooms joined by doors make one <b>building</b>; each room is a Voronoi cell inside it; each door is a gap in the wall two rooms share. Rooms with no doors stand alone.</p>
+<p class="dim">Drag to pan, pinch or wheel to zoom, double-click to reset.</p>
 <ul class="dim">
   <li><b>What the data says:</b> rooms and the doors their builders wrote. Nothing else.</li>
   <li><b>What is assumed:</b> reciprocity. Turn it off and every building on this page is a set of one-way chutes.</li>
@@ -33,6 +38,7 @@
 <script src="town.js"></script>
 <script src="/delve-rooms/zoom.js"></script>
 <script src="/delve-rooms/peek.js"></script>
+<script src="/delve-rooms/shell.js"></script>
 <script>
 const API = 'https://api.delve.town/xrpc/';
 const get = (m, q) => fetch(API + m + '?' + new URLSearchParams(q)).then(r => { if (!r.ok) throw new Error(m + ' ' + r.status); return r.json(); });
