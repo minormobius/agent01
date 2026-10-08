@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Sunday weeks",
+    "file": "dashboard.mjs",
+    "from": "(d.getUTCDay() + 6) % 7",
+    "to": "d.getUTCDay()"
+  },
+  {
+    "name": "string sort in median",
+    "file": "dashboard.mjs",
+    "from": "sort((a, b) => a - b)",
+    "to": "sort()"
+  },
+  {
+    "name": "upper-middle median",
+    "file": "dashboard.mjs",
+    "from": "(s[n / 2 - 1] + s[n / 2]) / 2",
+    "to": "s[n / 2]"
+  },
+  {
+    "name": "walkouts dropped",
+    "file": "dashboard.mjs",
+    "from": "acc.visits++;",
+    "to": "if (!r.seen_at) continue; acc.visits++;"
+  },
+  {
+    "name": "local-time parse",
+    "file": "dashboard.mjs",
+    "from": "const ms = Date.UTC(y, mo - 1, d, h, mi);",
+    "to": "const ms = new Date(y, mo - 1, d, h, mi).getTime();"
+  },
+  {
+    "name": "no timestamp validation",
+    "file": "dashboard.mjs",
+    "from": "if (!m) throw",
+    "to": "if (false) throw"
+  },
+  {
+    "name": "no impossible-date check",
+    "file": "dashboard.mjs",
+    "from": "back.getUTCMonth() !== mo - 1 ||",
+    "to": "false &&"
+  },
+  {
+    "name": "weeks unsorted",
+    "file": "dashboard.mjs",
+    "from": "[...weeks.keys()].sort()",
+    "to": "[...weeks.keys()]"
+  },
+  {
+    "name": "negative wait accepted",
+    "file": "dashboard.mjs",
+    "from": "if (wait < 0) throw",
+    "to": "if (false) throw"
+  },
+  {
+    "name": "hour/minute range unchecked",
+    "file": "dashboard.mjs",
+    "from": "h > 23 || mi > 59 ||",
+    "to": ""
+  }
+]
