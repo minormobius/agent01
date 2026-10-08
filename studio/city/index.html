@@ -32,7 +32,7 @@
   #notes { max-width: 640px; font-size: 13px; color: var(--dim); }
   #notes p { margin: 0 0 8px; }
   #sky { display: grid; gap: 6px; }
-  #sky[hidden], #facingRow[hidden] { display: none; }
+  #sky[hidden], #facingRow[hidden], #routeRow[hidden] { display: none; }
   button[hidden] { display: none; }
   html:not(.ready) #c { visibility: hidden; }
   #wait { position: fixed; inset: 0; display: grid; place-items: center; font: 600 14px var(--font); color: var(--dim); }
@@ -67,7 +67,8 @@
     <div class="row" id="facingRow"><span class="label">facing</span><span id="facing" class="row"></span></div>
   </div>
   <div class="row"><span id="time"></span><input id="hour" type="range" min="0" max="24" step="0.01" aria-label="local solar time"></div>
-  <div class="row"><button id="new" class="primary" type="button">new scene</button><button id="flybtn" type="button" hidden>fly</button><button id="citybtn" type="button" hidden title="fly through a city: seven centuries of streets, plots and buildings on the same ground">city</button><button id="sound" type="button">sound</button><button id="ambbtn" type="button" class="on" title="the waterfall, the lake and the wind">ambience</button><span id="speeds" class="row"></span><button id="more" type="button">sky</button><button id="figbtn" type="button">constellations</button><button id="palbtn" type="button">palette</button><button id="about" type="button">how</button></div>
+  <div class="row" id="routeRow" hidden><span class="label">route</span><button id="rplay" type="button">❚❚</button><input id="route" type="range" min="0" max="1" step="0.0005" aria-label="where on the loop"><span class="label" id="routeV"></span></div>
+  <div class="row"><button id="new" class="primary" type="button">new scene</button><button id="flybtn" type="button" hidden>fly</button><button id="citybtn" type="button" hidden title="fly through a city: seven centuries of streets, plots and buildings on the same ground">city</button><button id="sound" type="button">sound</button><button id="ambbtn" type="button" class="on" title="the waterfall, the lake and the wind">ambience</button><span id="speeds" class="row"></span><button id="more" type="button">sky</button><button id="figbtn" type="button">constellations</button><button id="crtbtn" type="button" title="the picture on a cathode-ray tube: scanlines, a shadow mask, curved glass">crt</button><button id="palbtn" type="button">palette</button><button id="about" type="button">how</button></div>
 </div>
 <script type="module" src="../cycle/main.js"></script>
 </body>

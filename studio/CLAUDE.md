@@ -518,7 +518,8 @@ cycle/music-worker.js  the duo rendered ahead in a worker, posted half a second 
 cycle/weather.js the forecast, lightning schedule and the light under weather (pure)
 cycle/precip.js  rain, rings on the lake, snow, fog, the bolt, drawn in RGB over a finished frame
 cycle/sound.js   the beds, the duo laid on the audio clock, the old pad and bells as its stand-in
-cycle/main.js    the page: clock (real ms), place, facing, the two views
+cycle/main.js    the page: clock (real ms), place, facing, the two views, the route clock
+cycle/crt.js     the CRT toggle: a WebGL scanline / shadow-mask / curved-glass pass over the finished frame
 ```
 
 **The rule that makes it a look and not a filter:** the index map is authored FOR the palette. (The
@@ -759,10 +760,29 @@ hamlets, districts in their eras, blocks, plots, seven centuries of buildings), 
 - Not seen on a phone; the world's edge mirrors, so from high up a mirrored twin of the city stands
   on the horizon.
 
+**The route, decoupled from the clock** (owner, 2026-10-08: "I can't scrub through to a good part of the map
+in real time mode… or decouple map from time, in two sliders. Your call"). The flight's position on its loop
+has its own clock in main.js (`route`: a position `u0` set at `t0`, a loop in `LOOP_S` = 20 minutes whatever
+the day speed, ▶/❚❚ to fly on or hold), passed to `Flight.frame(t, ms, { u })`; the day speed now governs only
+the sky, the light, the weather and the town's traffic. So real time works: the camera still travels, and
+the "route" slider (shown in fly mode, the leg's name beside it) sends it anywhere on the loop. `at=` (loop
+fraction) and `rp=0` (held) in the link; an old link without `at` starts where five days of its clock put it.
+
+**CRT** (owner, 2026-10-08: feedback that the scenes "are yearning for a crt filter"). `crt.js`: a WebGL
+pass over the finished 640×360 frame, on a canvas laid exactly over the page's (pointer-events off, so
+dragging still reaches the picture). Per device pixel: the source line it lies on, a Gaussian beam across it
+that widens on bright lines, a soft filter along the line with the three guns a fraction of a pixel out of
+register, the phosphor's glow (a wide blur added back), an aperture-grille mask (RGB stripes, three device
+pixels a triad), barrel curvature, a vignette and a hair of flicker. The scanlines and the mask fade in with
+the resolution the screen has for them: at under ~3 device pixels a line the beam aliased into concentric
+moiré rings against the curved glass (seen at 1× in headless Chromium), so a desktop at 1× gets the glass,
+glow and colour, and a phone or a retina screen gets the lines too. The index-buffer art underneath is
+untouched. A "crt" button; `crt=1` in the link. Both views and the city page. Not seen on a real phone.
+
 **The page**: hard square pixels covering the stage (drag to pan the painting when cropped). Controls:
 day speed, an hour scrubber (solar time), "sky" (place presets incl. "here" by geolocation, date,
 facing, weather, an aurora storm), constellation figures, the palette strip, fly. `#seed=N&kind=coast&lat=&lon=&face=&date=YYYY-MM-DD&h=
-&speed=&fig=1&mode=fly&world=city&wx=&amb=0&aur=1`.
+&speed=&fig=1&mode=fly&world=city&at=&rp=0&crt=1&wx=&amb=0&aur=1`.
 
 ## Accretion (accretion/), and packages/attractor/lib/shell.js
 

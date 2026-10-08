@@ -9,6 +9,7 @@ import { Precip } from './precip.js';
 import { Life } from './life.js';
 import { lightning, thunderDelay, KINDS } from './weather.js';
 import { Sound, modeAt } from './sound.js';
+import { CRT } from './crt.js';
 
 useSky(sky);
 const $ = (id) => document.getElementById(id);
@@ -24,6 +25,12 @@ let scene, sound, life, notes = [], fly = null, mode = params.get('mode') === 'f
 let cityMode = params.get('world') === 'city' || document.documentElement.dataset.world === 'city';   // studio.mino.mobi/city/ is this page, flying the city
 if (cityMode) mode = 'fly';
 const flyKind = () => (cityMode ? 'city' : scene.kind);
+// the flight's own clock (owner: "I can't scrub through to a good part of the map in real time"): where on the
+// loop is a route position with its own play/pause, a loop in 20 minutes whatever the day speed, so the sky
+// can run in real time while the camera goes where you send it
+const LOOP_S = 1200;
+const route = { u0: params.has('at') ? Number(params.get('at')) : null, t0: 0, on: params.get('rp') !== '0', dragging: false };
+const routeU = (t) => { if (route.u0 == null) { route.u0 = (clock.msAt(t) / (5 * 86400000)) % 1; route.t0 = t; } return (((route.on ? route.u0 + (t - route.t0) / LOOP_S : route.u0) % 1) + 1) % 1; };
 
 // ---- the place: from the link, else a guess from the time zone (longitude) at a middling latitude
 const tzLon = -new Date().getTimezoneOffset() / 4;
@@ -79,6 +86,9 @@ function remember() {
   const q = new URLSearchParams({ seed: scene.seed, ...(scene.kind === 'coast' ? { kind: 'coast' } : {}), lat: view.lat, lon: view.lon, face: view.facing, date: new Date(ms).toISOString().slice(0, 10), h: solarHour(ms, view.lon).toFixed(2) });
   if (speed !== 240) q.set('speed', speed);
   if (mode === 'fly') q.set('mode', 'fly');
+  if (mode === 'fly' && fly) q.set('at', routeU(clock.now()).toFixed(4));
+  if (!route.on) q.set('rp', '0');
+  if (crt.on) q.set('crt', '1');
   if (cityMode) q.set('world', 'city');
   if (!ambience) q.set('amb', '0');
   if (view.wx) q.set('wx', view.wx);
@@ -148,7 +158,10 @@ function thunderFrom(fl) {
 
 function frame() {
   const t = clock.now(), ms = clock.msAt(t);
-  const r = mode === 'fly' && fly ? fly.frame(t, ms, { figures, notes }) : paint(t, ms), { sk, lt } = r;
+  const u = mode === 'fly' && fly ? routeU(t) : 0;
+  const r = mode === 'fly' && fly ? fly.frame(t, ms, { figures, notes, u }) : paint(t, ms), { sk, lt } = r;
+  if (mode === 'fly' && fly && !route.dragging) { $('route').value = u.toFixed(4); $('routeV').textContent = fly.place() || ''; }
+  if (crt.on) crt.draw(t);
   if (r.fl) thunderFrom(r.fl);
   if (mode === 'fly' && fly) { lastAurora = r.au || null; auPeak = r.auPeak || 0; }
   if (sound) { sound.place = mode === 'fly' && fly ? fly.place() : null; if (lt.wx) sound.setWeather(lt.wx); }
@@ -267,6 +280,16 @@ $('citybtn').onclick = async () => {
   }
   remember();
 };
+// the route: drag to go anywhere on the loop; ▶/❚❚ flies on or holds the camera (the sky keeps its own time)
+$('route').addEventListener('input', () => { route.dragging = true; route.u0 = Number($('route').value); route.t0 = clock.now(); });
+$('route').addEventListener('change', () => { route.dragging = false; remember(); });
+const syncRoute = () => { $('rplay').textContent = route.on ? '❚❚' : '▶'; $('rplay').title = route.on ? 'hold the camera here' : 'fly on'; };
+$('rplay').onclick = () => { const t = clock.now(); route.u0 = routeU(t); route.t0 = t; route.on = !route.on; syncRoute(); remember(); };
+syncRoute();
+// the tube: a CRT pass over the finished frame (crt.js), on or off
+const crt = new CRT(canvas, $('stage'));
+const setCrt = (on) => { crt.set(on); $('crtbtn').classList.toggle('on', crt.on); if (on && !crt.ok) $('crtbtn').textContent = 'crt (no WebGL)'; if (scene) remember(); };
+$('crtbtn').onclick = () => setCrt(!crt.on);
 $('figbtn').onclick = () => { figures = !figures; $('figbtn').classList.toggle('on', figures); };
 $('figbtn').classList.toggle('on', figures);
 let ambience = params.get('amb') !== '0';
@@ -288,10 +311,12 @@ $('flybtn').onclick = async () => {
   $('flybtn').textContent = mode === 'fly' ? 'back to the painting' : 'fly';
   $('flybtn').classList.toggle('on', mode === 'fly');
   $('facingRow').hidden = mode === 'fly';
+  $('routeRow').hidden = mode !== 'fly';
   layout(); remember();
 };
 
 const seed = Number(params.get('seed')) || 1 + Math.floor(Math.random() * 99999);
+if (params.get('crt') === '1') setCrt(true);
 load(seed, params.get('kind') === 'coast' ? 'coast' : 'lake');
 place(view.lat, view.lon);
 if (params.has('face')) { view.facing = Number(params.get('face')); syncFacing(); }

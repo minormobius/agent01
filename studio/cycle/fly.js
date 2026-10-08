@@ -57,10 +57,11 @@ export class Flight {
   place() { return this.cam ? this.cam.place : null; }
 
   /** Render one frame at clock `t` (s) and moment `ms`; returns { sk, lt } for the page. */
-  frame(t, ms, { figures = false, notes = [] } = {}) {
+  frame(t, ms, { figures = false, notes = [], u = null } = {}) {
     const w = this.world, v = this.view, sk = sky(ms, v.lat, v.lon);
     this.t = t;
-    const cam = cameraAt(w, ms / (LOOP_DAYS * 86400000));
+    // where on the loop: the page's route clock (`u`), else (older callers) five days of the scene's clock
+    const cam = cameraAt(w, u ?? ms / (LOOP_DAYS * 86400000));
     this.cam = cam;
     const lt = this.light(sk, ms);
     this.dark = lt.night;
