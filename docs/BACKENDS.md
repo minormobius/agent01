@@ -40,7 +40,7 @@ Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party h
 | `hose` | hose | stateful | DO FirehoseIngest | 0 */6 * * * | MAX_FRAMES_PER_SAMPLE | ingest.invalid, plc.directory, public.api.bsky.app |
 | `human` | human | stateful | D1 atpolls-db | — | — | — |
 | `io` | io | stateful | D1 atpolls-db | 0 * * * * | ADMIN_KEY, ATPROTO_SERVICE_DID, ATPROTO_SERVICE_HANDLE, ATPROTO_SERVICE_PASSWORD, ATPROTO_SERVICE_PDS, SWEEP_REPLY | bsky.social, constellation.microcosm.blue, plc.directory, public.api.bsky.app |
-| `mail` | mail | stateful | DO Mailbox | 23 1,7,13,19 * * *, */2 * * * * | EMAIL, GH_TOKEN, LAB_TOKEN, PRINCIPAL | api.delve.town, api.github.com |
+| `mail` | mail | stateful | DO Mailbox | 23 1,5,9,13,17,21 * * *, */2 * * * * | EMAIL, GH_TOKEN, LAB_TOKEN, PRINCIPAL | api.delve.town, api.github.com |
 | `mega` | mega | stateful | DO PreregLog | 25 1,13 * * * | TYPESAFE_API_KEY | api.hyperliquid.xyz |
 | `mino-auth` | auth | stateful | D1 mino-auth-db | — | — | — |
 | `mino-bsky-bot` | bsky-bot | stateful | DO SiteRegistry | * * * * * | BLUESKY_APP_PASSWORD, BLUESKY_HANDLE, GITHUB_TOKEN, PRIOR_HANDLES | api.github.com, bsky.social, plc.directory, public.api.bsky.app |
@@ -71,7 +71,7 @@ Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party h
 | `hopper` | hopper | api | — | — | — | — |
 | `idol` | idol | api | — | — | ELEVENLABS_API_KEY, ELEVENLABS_VOICES, GEMINI_API_KEY | api.elevenlabs.io, generativelanguage.googleapis.com |
 | `lab` | lab | api | — | — | — | cdn.bsky.app, plc.directory, public.api.bsky.app |
-| `miniphim` | miniphim | api | — | — | — | api.delve.town, cdn.bsky.app, fonts.googleapis.com, fonts.gstatic.com |
+| `miniphim` | miniphim | api | — | — | — | api.delve.town, cdn.bsky.app, delve.town, fonts.googleapis.com, fonts.gstatic.com |
 | `minomobi-cron` | cron | api | — | 0 13 * * *, 30 13 * * *, 30 21 * * 1-5, 0 6 1 * *, 0 * * * *, 0 */6 * * *, 0 6 * * *, 10,30,50 * * * * | ADMIN_KEY, GITHUB_PAT | api.github.com |
 | `ocr` | ocr | api | — | — | GEMINI_API_KEY, GEMINI_MODEL | generativelanguage.googleapis.com, ocrs-models.s3-accelerate.amazonaws.com |
 | `photo` | photo | api | — | — | — | plc.directory, public.api.bsky.app |

@@ -91,6 +91,9 @@ t('a being\'s key is standard HMAC-SHA256, as the Worker computes it with WebCry
   const on = await townTick(env, new Date('2026-10-06T13:23:00Z'), gh({ 'packages/whetstone/town-day.json': JSON.stringify(tmpl) }));
   assert.match(on.committed, /2026-10-06-town-2026-10-06-13\.json$/); assert.equal(calls.at(-1)[0], 'PUT');
   assert.match((await townTick(env, new Date(), gh({ 'packages/whetstone/town-day.json': JSON.stringify({ ...tmpl, enabled: false }) }))).skipped, /off/);
+  { const { requestFor } = await import('./src/clock.mjs');
+    const seeds = [1, 5, 9, 13, 17, 21].map((h) => requestFor(tmpl, new Date(`2026-10-08T${String(h).padStart(2, '0')}:23:00Z`)).body.seed);
+    assert.equal(new Set(seeds).size, 6, 'every four-hour day gets its own seed (and so its own turn order)'); }
   const again = await townTick(env, new Date('2026-10-06T13:23:00Z'), gh({ 'packages/whetstone/town-day.json': JSON.stringify(tmpl), [r.path]: '{}' }));
   assert.match(again.skipped, /already exists/);
   assert.match((await townTick({}, new Date())).skipped, /no token/);

@@ -183,7 +183,7 @@ a slice of the town (`packages/miniphim-account/town.mjs`), lends that to each p
 for one session, keeps only the drafts and approvals each part wrote as itself, then publishes what
 the souls' protocol and the caps pass (`lib/town-run.mjs`). A town session's own words are dropped
 from the run record (they may quote the town). The clock (`mail/src/clock.mjs`) commits a town day
-four times a day from [`town-day.json`](town-day.json). Tools the souls list in `shelf/PUBLISH.md`
+every four hours from [`town-day.json`](town-day.json). Tools the souls list in `shelf/PUBLISH.md`
 (`- shelf/x.mjs: what it does`) are copied after each run to `packages/miniphim-tools/` for other
 agents.
 

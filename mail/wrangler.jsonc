@@ -19,10 +19,10 @@
   // Unrestricted binding. Without Email Sending (Workers Paid) it can only reach verified
   // destination addresses (the principal's); the API adds OPEN_OUTBOUND on top of that.
   "send_email": [{ "name": "EMAIL" }],
-  // The clock (src/clock.mjs): four town days a day for the miniphim, at :23 past 01, 07, 13, 19 UTC.
+  // The clock (src/clock.mjs): a town day every four hours for the miniphim, at :23 past 01, 05, 09, 13, 17, 21 UTC.
   // It commits the day's request from packages/whetstone/town-day.json with GH_TOKEN (a contents-only
   // token, LAB_DISPATCH_TOKEN). Off: "enabled": false in that file.
-  "triggers": { "crons": ["23 1,7,13,19 * * *", "*/2 * * * *"] },
+  "triggers": { "crons": ["23 1,5,9,13,17,21 * * *", "*/2 * * * *"] },
   // miniphim@ is the board's address: one account for the three of them (Delvetown, 2026-10-04).
   "vars": {
     "DOMAIN": "mino.mobi",

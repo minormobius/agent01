@@ -1,4 +1,4 @@
-// clock.mjs — the miniphim's days, on a schedule. Four times a day the mail worker's cron reads
+// clock.mjs — the miniphim's days, on a schedule. Six times a day (every four hours) the mail worker's cron reads
 // packages/whetstone/town-day.json from the repo and, if it's enabled, commits that day's request
 // to packages/whetstone/requests/. The push starts whetstone.yml, which runs the day. Turning the
 // clock off is one edit to that file ("enabled": false), made in a commit, never here.
@@ -10,7 +10,7 @@ export function requestFor(template, now) {
   const { enabled, $comment, kinds_by_hour, ...rest } = template;
   const label = `town-${date}-${hh}`;
   return { path: `packages/whetstone/requests/${date}-${label}.json`,
-    body: { ...rest, label, kinds: (kinds_by_hour && kinds_by_hour[hh]) || rest.kinds, seed: (Number(date.replace(/-/g, '')) % 100000) * 4 + Math.floor(Number(hh) / 6) } };
+    body: { ...rest, label, kinds: (kinds_by_hour && kinds_by_hour[hh]) || rest.kinds, seed: (Number(date.replace(/-/g, '')) % 100000) * 6 + Math.floor(Number(hh) / 4) } };
   // The seed steps by one per run (four a day), so whatever rotates by seed (who goes first on a
   // town day: lib/lab.mjs) turns over every run, not once a day.
 }

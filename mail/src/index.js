@@ -158,7 +158,7 @@ export default {
   // ---- the clock: the miniphim's town days (clock.mjs) ----------------------------------
   async scheduled(event, env, ctx) {
     const now = new Date(event.scheduledTime);
-    // Two crons: the four-a-day clock, and the summon watcher (every two minutes).
+    // Two crons: the clock (every four hours), and the summon watcher (every two minutes).
     if (event.cron === SUMMON_CRON) {
       const box = env.MAILBOX.get(env.MAILBOX.idFromName('miniphim'));
       // Every tick's outcome is kept (summon:last) and shown on /health: the only way to see the

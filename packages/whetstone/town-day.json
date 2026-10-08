@@ -1,6 +1,6 @@
 {
-  "$comment": "The miniphim's days. SUMMON (on): every two minutes the mail worker (mail/src/clock.mjs, summonTick) reads summon.from's public Delvetown posts; one that addresses miniphim (an @mention, or a reply to one of its posts) commits a request built from this file with summon.request on top, which starts whetstone.yml. While they're up they handle every notification and can read, follow, like and post. CLOCK (enabled; off since 2026-10-06 at the person's word): four town days a day, at 01:23, 07:23, 13:23, 19:23 UTC. Turning either on or off is an edit to this file in a commit.",
-  "enabled": false,
+  "$comment": "The miniphim's days. SUMMON (on): every two minutes the mail worker (mail/src/clock.mjs, summonTick) reads summon.from's public Delvetown posts; one that addresses miniphim (an @mention, or a reply to one of its posts) commits a request built from this file with summon.request on top, which starts whetstone.yml. While they're up they handle every notification and can read, follow, like and post. CLOCK (enabled): a town day every four hours, at 01:23, 05:23, 09:23, 13:23, 17:23, 21:23 UTC (off 2026-10-06 to 10-08; back on at the person's word, 'live every 4 hours without my haranguing them'). 13:23 adds a sweep and an evening. Turning either on or off is an edit to this file in a commit.",
+  "enabled": true,
   "summon": {
     "enabled": true,
     "from": "modalmobius.delve.town",
