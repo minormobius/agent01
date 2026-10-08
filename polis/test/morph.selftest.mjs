@@ -7,6 +7,7 @@ import { Ground } from '../../packages/morph/ground.js';
 import { generate, standing, envelope, PRESENT } from '../../packages/morph/morph.js';
 import * as G from '../../packages/morph/geom.js';
 import { growCity } from '../field.js';
+import { transport, eraAt, linesAt, MODES } from '../../packages/morph/mobility.js';
 
 let failed = 0;
 const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed++; };
@@ -74,6 +75,17 @@ ok(off === 0, `every building is levelled within the ground under it (${steep} s
 let crowded = 0;
 for (const y of [1400, 1700, 1850, 1950, PRESENT]) { const seen = new Set(); for (const bd of standing(c, y).buildings) for (const id of bd.strips) { if (seen.has(id)) crowded++; seen.add(id); } }
 ok(crowded === 0, 'no strip ever holds two standing buildings at once');
+
+// transport on the grown town: the railway comes up the valley on dry land, the lines run, the people move
+t0 = performance.now();
+const T = transport(c);
+const tt = performance.now() - t0, R = T.rail;
+const wetRail = R ? R.path.filter(([x, y]) => g.water(x, y) || g.heightAt(x, y) < 0).length : -1;
+ok(R && wetRail === 0 && !g.water(R.station[0], R.station[1]), `the railway (${R && R.year}) runs on dry land up the valley to its terminus; ${R ? R.cleared : 0} buildings cleared for it (${(tt / 1000).toFixed(1)} s for the whole transport history)`);
+const now = eraAt(c, PRESENT), modes = Object.entries(now.modes).filter(([, v]) => v > 0.01).map(([k, v]) => `${k} ${(v * 100).toFixed(0)}%`).join(', ');
+const kinds2 = new Set(T.lines.map((L) => L.mode));
+ok(kinds2.has('tram') && (kinds2.has('bus') || kinds2.has('lightrail')) && now.residents > 20000 && now.modes.car > 0.2, `${T.lines.length} lines over the history (${[...kinds2].map((k) => MODES[k].label).join(', ')}); now ${Math.round(now.residents)} people, ${modes}`);
+ok(tt < 6000, `the transport history is quick enough for the toy's worker (${(tt / 1000).toFixed(1)} s)`);
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

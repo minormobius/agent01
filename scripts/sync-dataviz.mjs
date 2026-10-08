@@ -39,6 +39,7 @@ const EXTRA = [
   ["packages/morph/morph.js", "polis/morph/morph.js"],
   ["packages/morph/ground.js", "polis/morph/ground.js"],
   ["packages/morph/rand.js", "polis/morph/rand.js"],
+  ["packages/morph/mobility.js", "polis/morph/mobility.js"],
   // …and by studio's colour-cycle flight, which flies through one (studio.mino.mobi/cycle/, cityworld.js)
   ["packages/morph/geom.js", "studio/cycle/vendor/morph/geom.js"],
   ["packages/morph/morph.js", "studio/cycle/vendor/morph/morph.js"],

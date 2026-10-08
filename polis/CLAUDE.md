@@ -59,6 +59,17 @@ hillshade with 5 m contours (plan) or a mesh (model), the farmed cells, the fiel
 river and its bridges, and a chronicle line from the field's events. `src=sketch` is the old synthetic
 town. Integration selftest: `polis/test/morph.selftest.mjs` (~10 s).
 
+**People and transport** (2026-10-08, owner: "a population and working and entertainment heatmap as a
+function of the buildings as drawn… transit, rail and bus… the development of these things over time"):
+`packages/morph/mobility.js` (copied to `morph/mobility.js` by sync-dataviz) runs in the worker after the
+plan (~2–3 s; `transport(city)` before the ground is stripped, since it reads the river). The toy's new
+layers: people / work / leisure (heatmaps per era), transit (the railway and its terminus, every line in
+service that year by mode, stops), traffic (cars a day amber→red, footfall pale, the gates where commuters
+come in). The chronicle merges the transport's events (the railway arrives, trams open and close, light rail
+returns); the panel gives each era's people, jobs, trips and mode shares; the inspector says what a
+building held that era. Read packages/morph/README.md (v4) for the model. Integration checks in
+`polis/test/morph.selftest.mjs`.
+
 **Facades** (2026-10-08): every building's shell in its period comes from `tjs/brut/period.js` (brut through
 the centuries), copied to `morph/brut/` by sync-dataviz — edit it in tjs. The model view draws a wall's
 openings, bands and balconies once a storey is more than ~6 px tall (scaled so the shell's eaves meet the

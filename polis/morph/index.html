@@ -65,6 +65,8 @@
   <div class="row"><label>show</label><div class="seg" id="layerSeg"></div></div>
   <div class="row" id="sunRow"><label>sun</label><input id="sun" type="range" min="0" max="360" step="1"><span class="v" id="sunV"></span></div>
   <div class="legend" id="legend"></div>
+  <div class="legend" id="legend2"></div>
+  <div class="stats" id="era"></div>
   <div class="stats" id="stats"></div>
   <div class="note">
     <p>A town plan is three things laid down at different times and lasting differently long: the <b>streets</b>, the <b>plots</b>, and the <b>buildings</b> on the plots (M. R. G. Conzen, 1960). So a city is a palimpsest. Drag the year, or play it.</p>
@@ -80,6 +82,7 @@
 <script type="module">
 import { generate, standing, ERAS, KINDS, PLANS, STYLES, PRESENT } from './morph.js';
 import { shell, elevation, PERIODS } from './brut/period.js';
+import { transport, eraAt, linesAt, MODES, USES } from './mobility.js';
 // polis mode grows the ground, the settlement field and the plan in worker.js
 import * as G from './geom.js';
 
@@ -93,7 +96,7 @@ const AGES = [[1100, [92, 52, 36]], [1400, [150, 74, 46]], [1700, [200, 132, 70]
 const ageCol = (y) => { for (let i = 1; i < AGES.length; i++) if (y <= AGES[i][0]) { const [y0, a] = AGES[i - 1], [y1, b] = AGES[i], t = Math.max(0, (y - y0) / (y1 - y0)); return a.map((v, k) => v + (b[k] - v) * t); } return AGES[AGES.length - 1][1]; };
 const wallOf = (b) => (st.colour === 'age' ? ageCol(b.from) : COLOURS[b.style]);
 const roofOf = (b) => (st.colour === 'age' ? ageCol(b.from).map((v) => v * 0.7) : ROOFS[b.style]);
-const LAYERS = ['districts', 'plots', 'buildings', 'labels'];
+const LAYERS = ['districts', 'plots', 'buildings', 'labels', 'people', 'work', 'leisure', 'transit', 'traffic'];
 
 // ---- state, from the link
 const q = new URLSearchParams(location.hash.slice(1));
@@ -104,7 +107,7 @@ const st = {
   later: (q.get('eras') || 'grid,radial,modern,suburb').split(',').filter((k) => ERAS[k]),
   plotScale: +q.get('pw') || 1, streetScale: +q.get('sw') || 1, heightScale: +q.get('hs') || 1,
   view: q.get('view') === 'model' ? 'model' : 'plan',
-  layers: new Set((q.get('show') || 'districts,plots,buildings,labels').split(',')),
+  layers: new Set((q.get('show') || 'districts,plots,buildings,labels,transit').split(',')),
   sun: q.has('sun') ? +q.get('sun') : 225,
   year: q.has('y') ? +q.get('y') : PRESENT,
   colour: q.get('col') === 'age' ? 'age' : 'style',
@@ -122,6 +125,7 @@ function shellOf(b) {
   }
   return sh;
 }
+let heatCache = null, chron = [];
 let city = null, order = null, vis = null, grd = null, groundImg = null, events = [], worker = null;
 
 function remember() {
@@ -144,11 +148,14 @@ function rebuild() {
   if (st.src === 'sketch') {
     const t0 = performance.now();
     grd = null; groundImg = null; events = [];
-    show(generate({ seed: st.seed, districts: st.districts, kinds: [st.core, ...st.later.filter((k) => k !== st.core)], plotScale: st.plotScale, streetScale: st.streetScale, heightScale: st.heightScale }), `generated in ${(performance.now() - t0).toFixed(0)} ms`);
+    const c = generate({ seed: st.seed, districts: st.districts, kinds: [st.core, ...st.later.filter((k) => k !== st.core)], plotScale: st.plotScale, streetScale: st.streetScale, heightScale: st.heightScale });
+    const t1 = performance.now();
+    transport(c);
+    show(c, `generated in ${(t1 - t0).toFixed(0)} ms, its transport solved in ${(performance.now() - t1).toFixed(0)} ms`);
     return;
   }
   // polis: the ground, then the settlement field grown on it, then the plan read off the field
-  const STAGES = { ground: 'laying the ground…', field: 'the settlement field is growing the town (nine centuries; a few seconds)…', plan: 'laying out streets, plots and buildings…' };
+  const STAGES = { ground: 'laying the ground…', field: 'the settlement field is growing the town (nine centuries; a few seconds)…', plan: 'laying out streets, plots and buildings…', transport: 'who lives and works where, and how they get about, era by era…' };
   $('status').textContent = 'starting…';
   worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
   const t0 = performance.now();
@@ -158,13 +165,15 @@ function rebuild() {
     worker.terminate(); worker = null;
     if (m.stage === 'error') { $('status').textContent = 'the town failed to grow: ' + m.message.split('\n')[0]; console.error(m.message); return; }
     grd = m.ground; events = m.events; groundImg = groundImage(grd);
-    show(m.city, `grown in ${((performance.now() - t0) / 1000).toFixed(1)} s (ground ${(m.ms.ground / 1000).toFixed(1)}, field ${(m.ms.field / 1000).toFixed(1)}, plan ${(m.ms.plan / 1000).toFixed(1)}) · relief ${grd.relief} m, ${grd.soil}${grd.coast ? ', on a coast' : ''}`);
+    show(m.city, `grown in ${((performance.now() - t0) / 1000).toFixed(1)} s (ground ${(m.ms.ground / 1000).toFixed(1)}, field ${(m.ms.field / 1000).toFixed(1)}, plan ${(m.ms.plan / 1000).toFixed(1)}, transport ${(m.ms.transport / 1000).toFixed(1)}) · relief ${grd.relief} m, ${grd.soil}${grd.coast ? ', on a coast' : ''}`);
   };
   worker.onerror = (e) => { $('status').textContent = 'the town failed to grow: ' + e.message; };
   worker.postMessage({ seed: st.seed, plotScale: st.plotScale, streetScale: st.streetScale, heightScale: st.heightScale });
 }
 function show(c, note) {
-  city = c; shells = new Map();
+  city = c; shells = new Map(); heatCache = null;
+  // the chronicle: the field's events and the transport's, in order
+  chron = [...events, ...(city.transport ? city.transport.events : [])].sort((a, b) => a.year - b.year);
   // each district's outline: the edges of its parts that no other part of it shares
   for (const d of city.districts) {
     d.outline = [];
@@ -191,8 +200,10 @@ function fit() {
 function setYear(y) {
   st.year = y; $('year').value = y; $('yearV').textContent = y;
   vis = standing(city, y); vis.blockSet = new Set(vis.blocks.map((b) => b.id));
-  const ev = events.filter((x) => x.year <= y).pop();
+  const ev = chron.filter((x) => x.year <= y).pop();
   if (st.src === 'polis' && grd) $('status').innerHTML = ev ? `<b>${ev.year}</b> · ${ev.text}` : `<b>${y}</b> · fields and lanes`;
+  else $('status').innerHTML = ev ? `<b>${ev.year}</b> · ${ev.text}` : '';
+  eraSummary();
   order = null; draw(); remember();
 }
 
@@ -204,7 +215,7 @@ function seg(el, items, isOn, click) {
 const eraItems = KINDS.map((k) => [k, k]);
 seg($('coreSeg'), eraItems, (k) => st.core === k, (k) => { st.core = k; rebuild(); });
 seg($('eraSeg'), eraItems, (k) => st.later.includes(k), (k) => { st.later = st.later.includes(k) ? st.later.filter((x) => x !== k) : [...st.later, k]; rebuild(); });
-seg($('layerSeg'), LAYERS.map((k) => [k, k]), (k) => st.layers.has(k), (k) => { st.layers.has(k) ? st.layers.delete(k) : st.layers.add(k); draw(); remember(); });
+seg($('layerSeg'), LAYERS.map((k) => [k, k]), (k) => st.layers.has(k), (k) => { st.layers.has(k) ? st.layers.delete(k) : st.layers.add(k); legend2(); draw(); remember(); });
 for (const [id, key, fmt] of [['districts', 'districts', (v) => v], ['plotScale', 'plotScale', (v) => `×${v.toFixed(2)}`], ['streetScale', 'streetScale', (v) => `×${v.toFixed(2)}`], ['heightScale', 'heightScale', (v) => `×${v.toFixed(2)}`]]) {
   const el = $(id); el.value = st[key]; $(id + 'V').textContent = fmt(+st[key]);
   el.oninput = () => { st[key] = +el.value; $(id + 'V').textContent = fmt(+el.value); };
@@ -242,6 +253,87 @@ const setView = (v) => { st.view = v; $('vplan').classList.toggle('on', v === 'p
 $('vplan').onclick = () => setView('plan'); $('vmodel').onclick = () => setView('model');
 seg($('srcSeg'), [['polis', 'grown by polis'], ['sketch', 'sketch']], (k) => st.src === k, (k) => { st.src = k; rebuild(); remember(); });
 $('toggle').onclick = () => { $('panel').classList.toggle('closed'); $('toggle').textContent = $('panel').classList.contains('closed') ? '▴' : '▾'; };
+
+// ---- the people: what the buildings hold, how they get about (packages/morph/mobility.js)
+const fmtN = (v) => (v >= 10000 ? `${Math.round(v / 1000)}k` : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`);
+const MODE_WORDS = { walk: 'on foot', transit: 'transit', car: 'car', bike: 'bike' };
+function eraSummary() {
+  const E = city && eraAt(city, st.year);
+  if (!E) { $('era').innerHTML = ''; return; }
+  const L = linesAt(city, st.year), by = {};
+  for (const x of L.lines) by[x.mode] = (by[x.mode] || 0) + 1;
+  const lines = Object.entries(by).map(([m, n]) => `${n} ${MODES[m].label} line${n > 1 ? 's' : ''}`);
+  if (L.rail) lines.unshift('the railway');
+  $('era').innerHTML = `<b>${E.year}</b>: <b>${fmtN(E.residents)}</b> people, <b>${fmtN(E.jobs)}</b> jobs${E.inbound > 50 ? ` (${fmtN(E.inbound)} come in from outside)` : ''}, ${fmtN(E.trips)} trips a day<br>`
+    + Object.entries(E.modes).filter(([, v]) => v > 0.005).map(([k, v]) => `${MODE_WORDS[k]} <b>${(v * 100).toFixed(0)}%</b>`).join(' · ')
+    + (lines.length ? `<br>${lines.join(', ')}` : '');
+}
+const HEAT = { people: ['res', [90, 160, 255]], work: ['jobs', [255, 150, 50]], leisure: ['fun', [255, 80, 200]] };
+// the era's heatmaps as one picture: each layer's colour, by the square root of its share of a busy square
+function heatImage(E) {
+  const on = Object.keys(HEAT).filter((k) => st.layers.has(k)), key = `${E.year}|${on.join()}`;
+  if (heatCache && heatCache.key === key) return heatCache.cv;
+  const g = E.grid, n = g.n, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
+  const c2 = cv.getContext('2d'), img = c2.createImageData(n, n);
+  const scale = on.map((k) => { const v = [...g[HEAT[k][0]]].filter((x) => x > 0).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length * 0.97)] : 1; });
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    let r = 0, gg = 0, b = 0, a = 0;
+    on.forEach((k, m) => { const v = Math.sqrt(Math.min(1, g[HEAT[k][0]][j * n + i] / scale[m])), c = HEAT[k][1]; r += c[0] * v; gg += c[1] * v; b += c[2] * v; a = Math.max(a, v); });
+    const o = ((n - 1 - j) * n + i) * 4;
+    img.data[o] = Math.min(255, r); img.data[o + 1] = Math.min(255, gg); img.data[o + 2] = Math.min(255, b); img.data[o + 3] = a * 210;
+  }
+  c2.putImageData(img, 0, 0);
+  heatCache = { key, cv };
+  return cv;
+}
+function drawMobility(f) {
+  const E = eraAt(city, st.year), z = baseScale() * cam.zoom, T = city.transport;
+  if (!E || !T) return;
+  if (Object.keys(HEAT).some((k) => st.layers.has(k))) {
+    const [x0, y0] = f([-city.size / 2, city.size / 2]), [x1, y1] = f([city.size / 2, -city.size / 2]);
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(heatImage(E), x0, y0, x1 - x0, y1 - y0);
+  }
+  const G2 = T.graph, P = (q) => f([G2.xy[2 * q], G2.xy[2 * q + 1]]);
+  if (st.layers.has('traffic')) {
+    // footfall pale, cars amber to red, as wide as the root of the day's flow
+    ctx.lineCap = 'round';
+    for (const [flow, col, k] of [[E.flowWalk, (t) => `rgba(220,240,255,${0.25 + 0.45 * t})`, 0.05], [E.flowCar, (t) => `rgba(255,${Math.round(190 - 150 * t)},${Math.round(60 - 40 * t)},${0.55 + 0.4 * t})`, 0.12]]) {
+      let top = 1; for (let e = 0; e < flow.length; e++) if (flow[e] > top) top = flow[e];
+      for (let e = 0; e < flow.length; e++) {
+        const v = flow[e]; if (v < top * 0.01 || G2.year[e] > st.year) continue;
+        const [ax, ay] = P(G2.a[e]), [bx, by] = P(G2.b[e]);
+        ctx.strokeStyle = col(Math.sqrt(v / top)); ctx.lineWidth = Math.max(0.6, Math.min(22, Math.sqrt(v) * k) * z);
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      }
+    }
+    // where the commuters from outside come in
+    for (const g of E.gates || []) { if (g.people < 20) continue; const [x, y] = f([g.x, g.y]); ctx.fillStyle = 'rgba(255,120,60,0.9)'; ctx.beginPath(); ctx.arc(x, y, 4 + Math.sqrt(g.people) * 0.06, 0, 7); ctx.fill(); }
+  }
+  if (st.layers.has('transit')) {
+    const L = linesAt(city, st.year);
+    if (L.rail) {
+      ctx.lineJoin = 'round'; ctx.lineCap = 'butt';
+      const path = () => { ctx.beginPath(); L.rail.path.forEach((p, i) => { const [x, y] = f(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); };
+      path(); ctx.strokeStyle = '#15181d'; ctx.lineWidth = Math.max(3, z * 9); ctx.stroke();
+      path(); ctx.strokeStyle = '#e8e4da'; ctx.lineWidth = Math.max(1.5, z * 4); ctx.setLineDash([Math.max(4, z * 14), Math.max(4, z * 14)]); ctx.stroke(); ctx.setLineDash([]);
+      poly(L.rail.shed, f); ctx.fillStyle = '#3b3f48'; ctx.fill(); ctx.strokeStyle = '#e8e4da'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    // the lines, each a little to the side of the last so a shared street shows its bundle
+    L.lines.forEach((x, k) => {
+      const off = (k - (L.lines.length - 1) / 2) * 2.2, M = MODES[x.mode];
+      ctx.strokeStyle = M.colour; ctx.lineWidth = Math.max(2, z * 3.5); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath(); x.nodes.forEach((q, i) => { const [sx, sy] = P(q); i ? ctx.lineTo(sx + off, sy + off) : ctx.moveTo(sx + off, sy + off); }); ctx.stroke();
+      for (const q of x.stops) { const [sx, sy] = P(q); ctx.fillStyle = '#f4f1ea'; ctx.beginPath(); ctx.arc(sx + off, sy + off, Math.max(2, z * 4), 0, 7); ctx.fill(); ctx.strokeStyle = M.colour; ctx.lineWidth = 1.5; ctx.stroke(); }
+    });
+  }
+}
+function legend2() {
+  const out = [];
+  for (const [k, [, c]] of Object.entries(HEAT)) if (st.layers.has(k)) out.push(`<span><i style="background:rgb(${c})"></i>${k === 'people' ? 'where people live' : k === 'work' ? 'where they work' : 'where they go out'}</span>`);
+  if (st.layers.has('transit')) { out.push('<span><i style="background:#e8e4da;outline:2px solid #15181d"></i>railway</span>'); for (const [k, M] of Object.entries(MODES)) if (M.colour) out.push(`<span><i style="background:${M.colour}"></i>${M.label}</span>`); }
+  if (st.layers.has('traffic')) out.push('<span><i style="background:rgb(255,110,30)"></i>cars a day</span><span><i style="background:rgba(220,240,255,0.8)"></i>footfall</span><span><i style="background:rgb(255,120,60);border-radius:50%"></i>commuters in</span>');
+  $('legend2').innerHTML = out.join('');
+}
 
 // ---- the camera
 let W = 0, H = 0, DPR = 1;
@@ -351,6 +443,7 @@ function drawPlan() {
     ctx.strokeStyle = STREETS[s.rank]; ctx.lineWidth = Math.max(1, z * 2);
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
   }
+  drawMobility(f);
   if (st.layers.has('districts')) {
     ctx.setLineDash([6, 5]); ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(217,164,65,0.7)';
     ctx.beginPath();
@@ -579,6 +672,10 @@ function inspect(sx, sy) {
   if (grd) { const c0 = p ? G.centroid(p.poly) : pt, h0 = heightAt(c0[0], c0[1]); html += `<br><span style="color:var(--dim)">ground ${h0.toFixed(1)} m above the sea${b && b.fall > 1.5 ? `; it falls ${b.fall.toFixed(1)} m across the building, levelled at ${b.base.toFixed(1)} m` : ''}</span>`; }
   if (b) html += `<br>standing in ${st.year}: ${STYLES[b.style].label.replace(/s$/, '')}, built ${b.from}, ${b.storeys} storey${b.storeys > 1 ? 's' : ''}, ${b.height.toFixed(0)} m, ${ROOF_WORDS[b.roof]}${b.strips.length > 1 ? `, on ${b.strips.length} of the original plots` : ''}`;
   if (b) {
+    const E = eraAt(city, st.year), u = E && E.held.use[b.id];
+    if (u) html += `<br><span style="color:var(--dim)">in ${E.year}: ${USES[u - 1]}${E.held.res[b.id] >= 0.5 ? `, ${Math.round(E.held.res[b.id])} people living here` : ''}${E.held.jobs[b.id] >= 0.5 ? `, ${Math.round(E.held.jobs[b.id])} working` : ''}</span>`;
+  }
+  if (b) {
     const sh = shellOf(b), m = sh.structure;
     html += `<canvas id="elev" width="290" height="${Math.round(Math.min(260, 40 + sh.top * 9))}" style="display:block;margin:6px 0;width:290px;max-width:100%"></canvas><span style="color:var(--dim)">${sh.label}: ${sh.system === 'masonry' ? 'load-bearing brick' : sh.system === 'stone' ? 'dressed stone over an iron shop frame' : sh.system === 'timber' ? 'timber frame' : sh.system === 'frame' ? 'a concrete frame' : 'a steel frame hung with a curtain wall'}${m ? `; its walls at ${(m.worst * 100).toFixed(0)}% of what ${sh.system === 'stone' ? 'the stone' : 'lime-mortared brick'} will bear${m.ok ? '' : ' — overloaded'}` : ''}</span>`;
   }
@@ -594,6 +691,7 @@ function inspect(sx, sy) {
 // a handle for poking at it from the console: morph.cam, morph.city, morph.redraw()
 window.morph = { cam, get city() { return city; }, redraw: () => { order = null; draw(); }, inspect: (x, y) => inspect(x, y) };
 if (matchMedia('(max-width: 640px)').matches) { $('panel').classList.add('closed'); $('toggle').textContent = '▴'; }   // a phone sees the city first
+legend2();
 setView(st.view);
 resize();
 rebuild();

@@ -5,6 +5,7 @@
 import * as G from './geom.js';
 import { generate, standing, KINDS, PRESENT } from './morph.js';
 import { Ground } from './ground.js';
+import { transport, activity, network, eraAt, linesAt, SPACE, carsPerHead } from './mobility.js';
 
 let failed = 0;
 const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed++; };
@@ -206,6 +207,55 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   let coastSeed = 1; while (!Ground(coastSeed).coast) coastSeed++;
   const gc = Ground(coastSeed), ux = Math.cos(gc.coastDir), uy = Math.sin(gc.coastDir), far = [ux * 1400, uy * 1400];
   ok(gc.heightAt(far[0], far[1]) < 0 && gc.water(far[0], far[1]) === 'sea' && gc.sampler()(far[0] / 1000, far[1] / 1000).water, `a coast (seed ${coastSeed}): the sea lies below zero beyond the shore, and the settlement field's sampler calls it water`);
+}
+
+// ---------------------------------------------------------------------------- mobility --
+// who lives and works where, read off the buildings; the street graph; transport laid down era by era
+{
+  const gm = Ground(3, { size: 3000, coast: false }), cm = generate({ seed: 3, size: 1800, ground: gm });
+  const cm2 = generate({ seed: 3, size: 1800, ground: Ground(3, { size: 3000, coast: false }) });
+  const net = network(cm);
+  // connected: the biggest component holds nearly every junction
+  const seen = new Int32Array(net.N).fill(-1);
+  let biggest = 0;
+  for (let s0 = 0; s0 < net.N; s0++) {
+    if (seen[s0] >= 0) continue;
+    let size = 0; const stack = [s0]; seen[s0] = s0;
+    while (stack.length) { const u = stack.pop(); size++; for (let q = net.start[u]; q < net.start[u + 1]; q++) { const e = net.edges[net.adj[q]], v = e.a === u ? e.b : e.a; if (seen[v] < 0) { seen[v] = s0; stack.push(v); } } }
+    biggest = Math.max(biggest, size);
+  }
+  const bridges = net.edges.filter((e) => e.bridge).length;
+  ok(biggest > net.N * 0.9 && bridges >= 1, `the streets are one graph (${biggest} of ${net.N} junctions connected, T-junctions split), crossing the river on ${bridges} bridge${bridges > 1 ? 's' : ''}`);
+
+  const a1500 = activity(cm, 1500), a1900 = activity(cm, 1900), a2025 = activity(cm, 2025);
+  ok(a1500.totals.res > 1000 && a1900.totals.res > a1500.totals.res && a2025.totals.jobs > a2025.totals.res * 0.3 && SPACE.every((x, i) => !i || x[1] >= SPACE[i - 1][1]),
+    `activity from the buildings as drawn: ${Math.round(a1500.totals.res)} people in 1500, ${Math.round(a1900.totals.res)} in 1900, ${Math.round(a2025.totals.res)} and ${Math.round(a2025.totals.jobs)} jobs now (space per head only grows)`);
+  const gsum = [...a2025.grid.res].reduce((x, y) => x + y, 0);
+  ok(Math.abs(gsum - a2025.totals.res) < a2025.totals.res * 0.02, `the people heatmap holds everyone (${Math.round(gsum)} of ${Math.round(a2025.totals.res)})`);
+
+  const T = transport(cm), T2 = transport(cm2);
+  ok(JSON.stringify(T.events) === JSON.stringify(T2.events) && T.eras.every((E, i) => E.modes.car === T2.eras[i].modes.car && E.flowCar.every((v, k) => v === T2.eras[i].flowCar[k])), `transport is the same twice (${T.events.length} events, ${T.eras.length} eras)`);
+  const R = T.rail;
+  ok(R && R.year >= 1838 && R.year <= 1900 && R.path.length > 2, `the railway arrives in ${R && R.year}, to a terminus ${R ? Math.round(Math.hypot(R.station[0] - cm.lanes[0].o[0], R.station[1] - cm.lanes[0].o[1])) : '?'} m from the market`);
+  // nothing stands on the line once it is open
+  const onLine = (b) => { const c = G.centroid(b.footprint); for (let i = 0; i + 1 < R.path.length; i++) { const [a, q] = [R.path[i], R.path[i + 1]], dx = q[0] - a[0], dy = q[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((c[0] - a[0]) * dx + (c[1] - a[1]) * dy) / L2)); if (Math.hypot(c[0] - a[0] - t * dx, c[1] - a[1] - t * dy) < 4) return true; } return false; };
+  const blocking = [R.year, 1950, PRESENT].map((y) => standing(cm, y).buildings.filter(onLine).length);
+  ok(blocking.every((n) => n === 0), `no building stands on the railway once it opens (${blocking.join(', ')} in ${R.year}, 1950, ${PRESENT})`);
+  // every line runs along streets that exist when it opens
+  const edgeSet = new Set(net.edges.map((e) => `${e.a}-${e.b}`));
+  const bad = T.lines.filter((L) => L.nodes.some((v, i) => i && !edgeSet.has(v < L.nodes[i - 1] ? `${v}-${L.nodes[i - 1]}` : `${L.nodes[i - 1]}-${v}`)));
+  ok(T.lines.length >= 3 && !bad.length, `${T.lines.length} transit lines over the history, every one along streets (${bad.length} off them)`);
+  const early = T.eras.find((E) => E.year <= 1830) || T.eras[0], late = eraAt(cm, PRESENT), mid = eraAt(cm, 1975);
+  const sums = T.eras.every((E) => Math.abs(Object.values(E.modes).reduce((x, y) => x + y, 0) - 1) < 1e-6);
+  ok(sums && early.modes.walk > 0.9 && (early.modes.car || 0) === 0 && carsPerHead(1900) === 0 && mid.modes.car > 0.3 && late.modes.bike > 0.05,
+    `the modes through time: on foot ${(early.modes.walk * 100).toFixed(0)}% in ${early.year}, cars ${(mid.modes.car * 100).toFixed(0)}% by 1975, bicycles ${(late.modes.bike * 100).toFixed(0)}% now`);
+  const abandoned = T.events.find((e) => e.kind === 'abandon');
+  const tramsAfter = abandoned ? linesAt(cm, abandoned.year + 1).lines.filter((L) => L.mode === 'tram').length : 0;
+  const lrt = T.lines.some((L) => L.mode === 'lightrail');
+  ok(!abandoned ? !lrt : tramsAfter === 0, abandoned ? `the trams go in ${abandoned.year} (none run after) ${lrt ? 'and light rail comes back' : ''}` : 'the trams were kept, so there is no light-rail revival');
+  // the busiest street for cars is a main road or a bridge, not a back street
+  let top = 0; late.flowCar.forEach((v, k) => { if (v > late.flowCar[top]) top = k; });
+  ok(['ring', 'old road', 'main road', 'avenue', 'main street', 'bridge', 'seam'].includes(net.edges[top].rank), `the busiest street for cars now is ${net.edges[top].rank === 'old road' ? 'an' : 'a'} ${net.edges[top].rank} (${Math.round(late.flowCar[top])} cars a day)`);
 }
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');

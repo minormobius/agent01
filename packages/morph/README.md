@@ -81,3 +81,49 @@ Metres, y north. ~0.3 s a city. `standing(city, year)` → `{ blocks, buildings,
    districts, seams and streets; terrain from the hinterland sampler; river, quays, bridges.
 2. brut on plots: plot → bays, height limit, street front, party walls, a shell-only mode, new typologies.
 3. A city to fly (studio/cycle): the plan as a heightmap world, every window a palette entry.
+
+## People and how they get about (v4, `mobility.js`)
+
+`transport(city)` lays the transport down through the city's history and records each era's trips;
+`activity(city, year)` says who is where. Both read the city as drawn: nothing here is a separate map.
+
+- **Activity, from the buildings.** Each standing building's floors are homes, shops, workshops, offices or
+  works, by its period, the street it fronts and its land value: a medieval house is a shop below and a
+  family above; a Haussmann block has its café on the ground floor and (1850–1960) a floor of ateliers and
+  offices over the shops of a main street; a modern slab is offices where land is dear and flats where it
+  is not; a third of the glass towers are flats; a low-value building on the river (1780–1975), or beside the
+  railway once it comes, is a warehouse or works. Floor space per head rises through the centuries (`SPACE`:
+  12 m² in a medieval town, 40 now), so the same buildings hold fewer people as the city gets richer. Before
+  1850 much work is done at home (a share of the household); servants until 1914. Leisure is the share of
+  commercial ground floors given to taverns, cafés, theatres and restaurants (`FUN`, up in the 1890s and the
+  2000s), plus the squares (markets) and parks, and the station. A 50 m heatmap of each comes with it.
+- **The street graph** (`network`): every block edge with a street on it is a centreline; edges are split
+  where another block's corner lands on them (T-junctions) and merged from their two sides; the bridges are
+  the field's, or (sketch mode) where an old lane crosses the river. Each edge keeps its block's year, so the
+  graph of any year is a filter. A street along the frame is the road round the map: a main road.
+- **The eras.** The railway comes in the 1840s (once the town has 6,000 people) along the valley from
+  upstream on dry land (railways follow rivers: the gradient is free), or with no river through the widest
+  gap between the old lanes, to a **terminus on the edge of the old town**, and clears the buildings on its
+  line and the station's site (those standing end that year; none is built there after). Horse omnibuses
+  (1830s), horse trams (1870s), electric trams (1890s: the horse lines electrified and extended), motor buses
+  (1920s, redrawn in the late 1960s and the 2000s); most towns tear their trams up in the 1950s–60s (seeded,
+  65%), the buses take their routes, and those towns get light rail back on the busiest old tram corridor
+  around 2000. Each line is planned from that year's demand: the zone with the most people not yet within
+  420 m of a line, beyond walking distance of the centre, reached from the centre (or the station, if
+  nearer) by the shortest path over streets that can take it (trams want the ring, the old roads, the
+  avenues). Lines persist: path dependency.
+- **The trips.** The town in 260 m zones, each connected to the main-road network where one is near (a
+  transport model's zone connectors: otherwise a quarter's trips all leave by the back street beside its
+  middle). A commute from homes to jobs and an outing to leisure, spread by a gravity model on the best
+  time; the jobs the town's own workers cannot fill are filled from outside, by train to the station and
+  by road through the four outlying main-road gates. Modes by a logit on time: on foot, transit (if both
+  ends are within 450 m of a stop, a transfer if the lines differ), car (with the century's ownership
+  curve, `carsPerHead`), bicycle from 2008. Cars and walkers are routed over the streets (flows per edge),
+  riders onto their lines (loads). About 2–3 s for a grown town.
+
+Measured (a grown town, seed 3): railway 1848, 172 buildings cleared; 22 lines over the history; now
+116k people, on foot 21%, transit 9%, car 49%, bicycle 21%. The busiest street for cars is a main road or
+a bridge (the selftest holds it). Not modelled: congestion feeding back into the route choice, transport
+feeding back into where the city builds (the waves of rebuilding run first), freight, and anything
+finer than a day's totals.
+
