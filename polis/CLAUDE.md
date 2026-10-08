@@ -48,5 +48,14 @@ suburb) cut along the lanes, slivers absorbed, a land-value field, and buildings
 old houses survive on cheap land. A year slider (and ▶) shows what stood when (`y=` in the link);
 colour by style or by year built (`col=age`); tap a plot for its history. Plan (figure-ground,
 plots, street ranks) and model (an axonometric in canvas 2D, painter's order by footprint centre,
-hipped and mansard roofs from the straight skeleton). Not yet wired to
-`field.js`: next, the field's cells, eras, walls and lanes become the districts, seams and streets.
+hipped and mansard roofs from the straight skeleton).
+
+**Wired to `field.js` (v3, 2026-10-08)**: by default the toy grows the town in `morph/worker.js` (a module
+worker): packages/morph/ground.js (the ground: hills, river valley, coast, in metres) → `growCity` on it
+(`ctx.sampler` water and `ctx.riverPath` are new and optional; `ctx.agentCap` caps the people simulated;
+without them field.js behaves exactly as before) with morph's `envelope()` population curve → morph's plan
+off the field (`generate({ field, ground })`). ~7 s (field ~4.5 s). The page draws the ground as a
+hillshade with 5 m contours (plan) or a mesh (model), the farmed cells, the field's roads by year, the
+river and its bridges, and a chronicle line from the field's events. `src=sketch` is the old synthetic
+town. Integration selftest: `polis/test/morph.selftest.mjs` (~10 s). The worker imports `../field.js`,
+which imports `../rite/names/engine.js`: the deploy stages it (deploy-polis.yml).

@@ -36,6 +36,32 @@ is a palimpsest, and v2 generates it in the order it happened. `standing(city, y
 
 Everything is a convex clip of a convex polygon, so it is exact: plots tile their lots to 1e-9.
 
+## On a settlement field and its ground (v3)
+
+`generate({ seed, field, ground })` lays the plan off polis's settlement field instead of the synthetic
+countryside (polis/morph/worker.js runs the whole descent):
+
+- **`ground.js`**: the ground, a heightfield in metres over the field's 3 km frame (8 m cells, ~0.2 s):
+  fractal hills at the place's relief, a river (a meandering valley, a channel meandering inside its
+  floodplain, a terrace scarp, the valley's sides; distances by an exact Euclidean distance transform),
+  perhaps a coast (beach or cliffs), and thermal relaxation so no slope stands steeper than the soil's
+  friction angle (tjs/brut/terrain.js's rule). `sampler()` and `riverPathKm()` feed polis/field.js
+  (`ctx.sampler` water, `ctx.riverPath`), so the town is founded and spreads on the same ground.
+- **Districts**: each built field cell takes the plan of the era it was first built in (by the walls'
+  year the walled town, then extramural organic growth, grids from 1750, boulevard schemes from 1850,
+  suburbs from 1905, modern grids from 1950), smoothed by a majority filter (the field builds cell by cell;
+  a planned extension is one piece), neighbouring cells of one plan being one district. River cells beside
+  the town are built on both banks. `HISTORY`/`envelope(T)` is the population curve fed to the field.
+- **Streets**: the field's lanes are site → shared edge → site. Old roads (tier 0) and main roads (3)
+  survive every plan: a lattice is laid over whole cells, merged back across cell edges (no street there:
+  `closed`), and cut straight along the kept roads; the field paths it covers are `erased`.
+- **Water**: `clipToLand` cuts each block back from the channel (the strip either side of its local
+  chord) and the shore; the cut edges are `quay`s. A lane over a river cell the field bridged is a
+  bridge deck (`city.bridges`, dated by the field's bridge).
+- **Value** is the field's rent, less for slopes; in rebuilding waves the floodplain is poor before 1850
+  and high ground earns a premium after. A block too steep (slope > 0.3) is a green. Each building
+  stands on a platform at the mean of the ground under it (`base`; `fall` is the drop across it).
+
 ## API
 
 `generate({ seed, size, districts, kinds, villages, lanes, plotScale, streetScale, heightScale })` →

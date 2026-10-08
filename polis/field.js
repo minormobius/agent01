@@ -165,6 +165,8 @@ export function growCity(siteSeed, ctx = {}) {
   const sites = [];
   const terrainAt = (x, y, gen) => {
     const base = ctx.sampler ? ctx.sampler(x, y) : { elev: 0.12 + 0.1 * fbm(x * 0.5 + 9, y * 0.5 + 9, seed ^ 0xa1), moist: 0.55 };
+    // a sampler that knows its own water (packages/morph/ground.js: the sea) is taken at its word
+    if (base.water) return { elev: Math.min(-0.01, base.elev), moist: 1 };
     // deeper generations sample deeper octaves — conditional refinement by position
     let e = Math.max(0.01, base.elev) * 0.6 + (fbm(x * 2.2 + 31, y * 2.2 + 31, seed ^ 0x3c, 4 + Math.min(3, gen)) - 0.5) * 0.16;
     if (coastal) {
@@ -203,7 +205,22 @@ export function growCity(siteSeed, ctx = {}) {
   const nb = (id) => nbrs[id] || [];
 
   // -- the river: carve on the initial mesh; river/water sites never divide --------
-  if (hasRiver) {
+  if (hasRiver && ctx.riverPath) {
+    // the river is the ground's (packages/morph/ground.js): every cell its channel passes through, in order
+    const P = ctx.riverPath;
+    for (let k = 0; k + 1 < P.length; k++) {
+      const [ax, ay] = P[k], [bx, by] = P[k + 1], m = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 0.02));
+      for (let q = 0; q < m; q++) {
+        const x = ax + (bx - ax) * q / m, y = ay + (by - ay) * q / m;
+        if (Math.abs(x) > half || Math.abs(y) > half) continue;
+        let best = -1, bv = Infinity;
+        for (const s of sites) { if (s.dead) continue; const d = (s.x - x) ** 2 + (s.y - y) ** 2; if (d < bv) { bv = d; best = s.id; } }
+        const s = sites[best];
+        if (s.water) continue;
+        s.river = 1; s.elev = Math.min(s.elev, 0.02);
+      }
+    }
+  } else if (hasRiver) {
     const enter = edgeSiteAt(riverDir + Math.PI), exit = edgeSiteAt(riverDir);
     let cur = enter, guard = 0;
     while (cur !== exit && guard++ < sites.length) {
@@ -470,7 +487,7 @@ export function growCity(siteSeed, ctx = {}) {
   function agentStep(t) {
     retarget(t);
     establishmentStep(t);                       // the secondary economy opens shops
-    const target = Math.min(AGENT_CAP, Math.round(pop[t] / AGENT_SCALE));
+    const target = Math.min(ctx.agentCap || AGENT_CAP, Math.round(pop[t] / AGENT_SCALE));
     let guard = 0;
     while (agents.length < target && guard++ < 4000) { if (!spawnAgent(t)) break; }
     if (t % ECON_EVERY === 1 && t > 1) {

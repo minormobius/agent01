@@ -44,24 +44,9 @@ import * as G from './geom.js';
 export const VERSION = 2;
 export const PRESENT = 2025;
 
-// ---------------------------------------------------------------------------- randomness --
-// xmur3 + mulberry32, the repo's convention (polis/prng.js, tjs/brut/rand.js): one stream per SALT, so
-// adding a draw in one place cannot move anything elsewhere.
-function xmur3(str) {
-  let h = 1779033703 ^ str.length;
-  for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
-  return () => { h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return (h ^= h >>> 16) >>> 0; };
-}
-function mulberry32(a) {
-  return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-}
-export function Rand(seed, salt) {
-  const f = mulberry32(xmur3(`${seed}::${salt}`)());
-  return {
-    f, range: (a, b) => a + (b - a) * f(), int: (a, b) => a + Math.floor(f() * (b - a + 1)),
-    chance: (p) => f() < p, pick: (xs) => xs[Math.floor(f() * xs.length)],
-  };
-}
+import { Rand } from './rand.js';
+export { Rand };
+
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -123,7 +108,23 @@ export const KINDS = ['organic', 'grid', 'radial', 'modern', 'suburb'];   // wha
 // kept for older callers: a plan with its first style's fabric
 export const ERAS = Object.fromEntries(Object.entries(PLANS).map(([k, p]) => [k, { ...p, year: p.year[0] }]));
 
-const RING = 26, SEAM = 16, OLDROAD = 13;      // street widths: the old wall's ring, a seam between plans, an old lane
+const RING = 26, SEAM = 16, OLDROAD = 13, QUAY = 18;     // street widths: the old wall's ring, a seam between plans, an old lane, a quay
+
+// ---------------------------------------------------------------------------- history --
+// A European town's population through the centuries (the settlement field's input, one value a tick
+// from 1100 to the present): a medieval rise, the Black Death, slow early-modern growth, then the
+// industrial city's boom and the modern plateau. `peak` scales the whole curve.
+export const HISTORY = [[1100, 300], [1300, 4000], [1350, 2800], [1500, 6000], [1700, 12000], [1800, 20000], [1900, 40000], [1960, 60000], [2025, 70000]];
+export function envelope(T = 240, peak = 70000) {
+  const out = [], k = peak / 70000;
+  for (let t = 0; t < T; t++) {
+    const y = 1100 + t * (PRESENT - 1100) / (T - 1);
+    let i = 1; while (i < HISTORY.length - 1 && HISTORY[i][0] < y) i++;
+    const [y0, p0] = HISTORY[i - 1], [y1, p1] = HISTORY[i];
+    out.push(Math.round(k * p0 * Math.pow(p1 / p0, Math.min(1, (y - y0) / (y1 - y0)))));
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------- the city --
 /**
@@ -132,9 +133,217 @@ const RING = 26, SEAM = 16, OLDROAD = 13;      // street widths: the old wall's 
  */
 export function generate(opts = {}) {
   const o = { seed: 1, size: 1400, districts: 6, kinds: KINDS, villages: 3, lanes: 5, plotScale: 1, streetScale: 1, heightScale: 1, ...opts };
+  if (o.field) o.size = o.field.meta.frame * 1000;
   const S = o.size, half = S / 2, frame = [[-half, -half], [half, -half], [half, half], [-half, half]];
-  const city = { seed: o.seed, size: S, frame, lanes: [], districts: [], blocks: [], streets: [], plots: [], frontages: [], buildings: [], squares: [], years: [Infinity, PRESENT] };
+  const city = { seed: o.seed, size: S, frame, ground: o.ground || null, lanes: [], roads: [], bridges: [], fields: [], water: [], districts: [], blocks: [], streets: [], plots: [], frontages: [], buildings: [], squares: [], years: [Infinity, PRESENT] };
 
+  if (o.field) fromField(city, o); else countryside(city, o);
+  indexParts(city);
+
+  // ---- each district's lattice, laid in each of its pieces
+  for (const d of city.districts) layDistrict(city, d, o);
+
+  // ---- streets: each block edge drawn back by half its street's width
+  for (const b of city.blocks) rankEdges(city, b, o);
+  for (const b of city.blocks) b.lot = G.inset(b.cell, b.widths.map((x) => x.w / 2));
+
+  // ---- slivers and squares
+  slivers(city);
+  for (const b of city.blocks) {
+    if (b.square || b.island || !b.lot.length) continue;
+    const d = city.districts[b.district], centre = d.isCore || d.kind === 'village';
+    if (b.plaza || (centre && G.inside(b.cell, d.seed)) || Rand(o.seed, `square/${b.id}`).chance(d.plan.square)) { b.square = 'square'; city.squares.push(b.id); }
+    else if (city.ground) {
+      // too steep to build: a park on the scarp
+      const c = G.centroid(b.lot);
+      if (city.ground.slopeAt(c[0], c[1]) > 0.3) { b.square = 'green'; city.squares.push(b.id); }
+    }
+  }
+  for (const b of city.blocks) for (let i = 0; i < b.cell.length; i++) {
+    if (b.widths[i].w > 0) city.streets.push({ block: b.id, a: b.cell[i], b: b.cell[(i + 1) % b.cell.length], width: b.widths[i].w, rank: b.widths[i].rank, year: b.year });
+  }
+
+  // ---- plots, then the first building on each, then the waves of rebuilding
+  for (const b of city.blocks) if (b.lot.length && !b.square && !b.island) layPlots(city, b, o);
+  if (city.ground) { const hs = city.plots.map((p) => p.elev).sort((a, b) => a - b); city.lowGround = hs[Math.floor(hs.length * 0.1)] || 0; }
+  for (const f of city.frontages) firstBuild(city, f, o);
+  for (const w of WAVES) for (const f of city.frontages) rebuild(city, f, w, o);
+
+  city.stats = stats(city);
+  return city;
+}
+
+/**
+ * The plan read off the SETTLEMENT FIELD (polis/field.js: one Voronoi of sites grown by a land market,
+ * cells dividing where rent is high). Each built cell is a piece of the city, laid out in the plan of
+ * the era it was first built in: the walled town (built by the time the walls went up) is the old core
+ * and its edge the ring; then extramural growth, Georgian grids, boulevard schemes, suburbs, modern
+ * grids. Neighbouring cells of one era are one district. The field's LANES run through the cells
+ * (site to the shared edge to the next site), so a lane is never erased; its tier says what street it
+ * became. River and sea cells are water, fronted by quays; a lane across a river cell is a bridge once
+ * the field built one. Unbuilt cells are the countryside, farmed or wild. Land value is the field's rent.
+ */
+function fromField(city, o) {
+  const F = o.field, K = 1000, T = F.meta.ticks, FIRST = 1100;
+  const yearOf = (t) => Math.round(FIRST + Math.max(0, t) * (PRESENT - FIRST) / (T - 1));
+  city.yearOf = yearOf; city.years[0] = FIRST;
+  const at = (id) => [F.sites[id].x * K, F.sites[id].y * K];
+  const live = F.sites.filter((s) => !s.dead && F.polys[s.id] && F.polys[s.id].length >= 3);
+  const P = new Map();
+  for (const s of live) { const Q = G.ccw(G.clean(F.polys[s.id].map(([x, y]) => [x * K, y * K]))); if (Q.length >= 3) P.set(s.id, Q); }
+  const built = live.filter((s) => P.has(s.id) && s.builtAt >= 0 && !s.water && !s.river);
+  const rents = built.map((s) => s.rent).sort((a, b) => a - b), hi = rents[Math.floor(rents.length * 0.95)] || 1;
+  city.nucleus = at(F.nucleus);
+
+  // ---- neighbours: built and river cells sharing an edge
+  const river = live.filter((s) => P.has(s.id) && s.river && !s.water);
+  const box = new Map();
+  for (const s of [...built, ...river]) { const Q = P.get(s.id); box.set(s.id, [Math.min(...Q.map((p) => p[0])) - 1, Math.min(...Q.map((p) => p[1])) - 1, Math.max(...Q.map((p) => p[0])) + 1, Math.max(...Q.map((p) => p[1])) + 1]); }
+  const shares = (a, b) => {
+    const ba = box.get(a), bb = box.get(b);
+    if (ba[0] > bb[2] || bb[0] > ba[2] || ba[1] > bb[3] || bb[1] > ba[3]) return false;
+    const A = P.get(a), B = P.get(b);
+    for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) if (G.sharedLength(A[i], A[(i + 1) % A.length], B[j], B[(j + 1) % B.length]) > 1) return true;
+    return false;
+  };
+  // a river cell beside the town is built when the town reaches it, on both banks of the channel
+  // (the field leaves the cell itself unbuilt: its water is only the channel the ground cuts through it)
+  const builtAt = new Map(built.map((s) => [s.id, s.builtAt]));
+  for (const r of river) {
+    let first = null;
+    for (const s of built) if (shares(r.id, s.id) && (!first || s.builtAt < first.builtAt)) first = s;
+    if (first) builtAt.set(r.id, first.builtAt);
+  }
+  const cellsAll = [...built, ...river.filter((r) => builtAt.has(r.id))];
+  city.rentOf = (id) => Math.max(0.05, Math.min(1, Math.pow(Math.max(0, F.sites[id].rent) / hi, 0.6)));
+  for (const s of live) if (P.has(s.id) && !s.water && !builtAt.has(s.id)) city.fields.push({ poly: P.get(s.id), use: s.river ? 0 : s.use, site: s.id });
+
+  // ---- the plan of each built cell, by the year it was first built
+  const wallYear = F.wall ? yearOf(F.wall.at) : null;
+  const planOf = (s) => {
+    const y = yearOf(builtAt.get(s.id));
+    if (wallYear != null ? y <= wallYear : y < 1450) return 'core';
+    if (y < 1750) return 'organic';
+    if (y < 1850) return 'grid';
+    if (y < 1905) return 'radial';
+    if (y < 1950) return 'suburb';
+    return 'modern';
+  };
+  const parent = new Map(cellsAll.map((s) => [s.id, s.id]));
+  const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  const plan = new Map(cellsAll.map((s) => [s.id, planOf(s)]));
+  const nbrs = new Map(cellsAll.map((s) => [s.id, []]));
+  for (let i = 0; i < cellsAll.length; i++) for (let j = i + 1; j < cellsAll.length; j++) {
+    const a = cellsAll[i].id, b = cellsAll[j].id;
+    if (shares(a, b)) { nbrs.get(a).push(b); nbrs.get(b).push(a); }
+  }
+  // the field builds cell by cell, so neighbours were often built decades apart and the eras speckle;
+  // a planned extension is laid out as one piece. So each cell takes the plan most of the land round it
+  // has (by area), twice over, if that plan is not an anachronism for when the cell was built. The
+  // walled town keeps its wall.
+  const START = { core: 0, organic: 1450, grid: 1750, radial: 1850, suburb: 1905, modern: 1950 };
+  for (let pass = 0; pass < 3; pass++) {
+    const next = new Map(plan);
+    for (const s of cellsAll) {
+      if (plan.get(s.id) === 'core') continue;
+      const w = new Map();
+      for (const id of [s.id, ...nbrs.get(s.id)]) { const k = plan.get(id); if (k !== 'core') w.set(k, (w.get(k) || 0) + Math.abs(G.area(P.get(id)))); }
+      let best = plan.get(s.id), bw = w.get(best) || 0;
+      for (const [k, v] of w) if (v > bw && START[k] <= yearOf(builtAt.get(s.id)) + 50) { best = k; bw = v; }
+      next.set(s.id, best);
+    }
+    for (const [k, v] of next) plan.set(k, v);
+  }
+  for (const s of cellsAll) for (const id of nbrs.get(s.id)) if (plan.get(id) === plan.get(s.id)) parent.set(find(s.id), find(id));
+  const groups = new Map();
+  for (const s of cellsAll) { const r = find(s.id); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(s); }
+
+  // ---- the lanes: each runs site → the shared edge → the next site
+  const TIER = [['old road', OLDROAD], ['lane', 8], ['main street', 11], ['main road', 16]];
+  const lanes = F.lanes.filter((l) => l.removedAt < 0 && !F.sites[l.a].dead && !F.sites[l.b].dead);
+  const dirs = new Map();
+  const bridged = new Map(F.bridges.map((b) => [b.seat, yearOf(b.at)]));
+  for (const l of lanes) {
+    const A = at(l.a), B = at(l.b), m = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], [rank, width] = TIER[l.tier] || TIER[1], year = yearOf(l.at);
+    if (F.sites[l.a].water || F.sites[l.b].water) continue;
+    const seat = F.sites[l.a].river ? l.a : F.sites[l.b].river ? l.b : -1;
+    if (seat >= 0 && bridged.has(seat) && o.ground && o.ground.river) {
+      // the deck: where this lane crosses the channel
+      const L = Math.hypot(B[0] - A[0], B[1] - A[1]), wet = [];
+      for (let t = 0; t <= L; t += 2) { const p = [A[0] + (B[0] - A[0]) * t / L, A[1] + (B[1] - A[1]) * t / L]; if (o.ground.water(p[0], p[1]) === 'river') wet.push(t); }
+      if (wet.length) {
+        const t0 = Math.max(0, wet[0] - 8), t1 = Math.min(L, wet[wet.length - 1] + 8), pt = (t) => [A[0] + (B[0] - A[0]) * t / L, A[1] + (B[1] - A[1]) * t / L];
+        city.bridges.push({ a: pt(t0), b: pt(t1), year: Math.max(year, bridged.get(seat)), width: Math.min(width, 14) });
+      }
+    }
+    for (const [s, from, to] of [[l.a, A, B], [l.b, B, A]]) {
+      if (!dirs.has(s)) dirs.set(s, []);
+      const road = { a: from, b: [from[0] + (m[0] - from[0]) * 1.05, from[1] + (m[1] - from[1]) * 1.05], rank, width, year, tier: l.tier, site: s };
+      dirs.get(s).push({ angle: Math.atan2(to[1] - from[1], to[0] - from[0]), road });
+      city.roads.push(road);
+    }
+  }
+
+  // ---- the districts
+  const ordered = [...groups.values()].sort((a, b) => Math.min(...a.map((s) => builtAt.get(s.id))) - Math.min(...b.map((s) => builtAt.get(s.id))) || a[0].id - b[0].id);
+  for (const cells of ordered) {
+    let key = plan.get(cells[0].id);
+    const area = cells.reduce((t, s) => t + Math.abs(G.area(P.get(s.id))), 0);
+    if (key === 'radial' && area < 150000) key = 'grid';                 // a boulevard scheme needs room
+    const kind = key === 'core' ? 'organic' : key, pl = PLANS[kind];
+    const year = Math.min(...cells.map((s) => yearOf(builtAt.get(s.id))));
+    const isCore = key === 'core' && cells.some((s) => s.id === F.nucleus || Math.hypot(s.x - F.sites[F.nucleus].x, s.y - F.sites[F.nucleus].y) < 0.3);
+    // where its plan is centred, and which way a planned grid runs: along its busiest old road
+    const centre = G.centroid(P.get(cells.reduce((b2, s) => (Math.abs(G.area(P.get(s.id))) > Math.abs(G.area(P.get(b2.id))) ? s : b2)).id));
+    let seed = isCore ? at(F.nucleus) : centre, angle = Math.atan2(city.nucleus[1] - centre[1], city.nucleus[0] - centre[0]), best = 0;
+    for (const s of cells) for (const r of city.roads) {
+      if (r.a[0] !== at(s.id)[0] || r.a[1] !== at(s.id)[1]) continue;
+      const L = Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1]) * (r.tier === 0 || r.tier === 3 ? 2 : 1);
+      if (L > best) { best = L; angle = Math.atan2(r.b[1] - r.a[1], r.b[0] - r.a[0]); }
+    }
+    if (kind === 'radial') { const c = cells.reduce((b2, s) => (Math.hypot(at(s.id)[0] - centre[0], at(s.id)[1] - centre[1]) < Math.hypot(at(b2.id)[0] - centre[0], at(b2.id)[1] - centre[1]) ? s : b2)); seed = at(c.id); }
+    const label = isCore ? (wallYear != null ? 'the walled town' : 'the old core') : kind === 'organic' ? 'growth outside the walls' : pl.label;
+    const d = { id: city.districts.length, kind, plan: pl, label, era: { ...pl, year }, year, seed, parts: cells.map((s) => P.get(s.id)), region: P.get(cells[0].id), area, centre, angle, isCore, cells: cells.map((s) => s.id) };
+    // each cell cut along its lanes into wedges, each piece dated by its own cell
+    // each cell cut along the lanes that survive its plan: an unplanned district keeps every lane; a
+    // planned one keeps only the old roads and main roads, and its lattice erases the field paths
+    // (in the old core the field's cells are already its blocks, their edges its streets: the lanes
+    // between them run along those edges, and only the through routes cut across)
+    const keeps = (r) => r.tier === 0 || r.tier === 3 || (r.tier === 2 && (d.kind === 'suburb' || d.kind === 'organic'));
+    for (const s of cells) for (const { road } of dirs.get(s.id) || []) if (!keeps(road)) road.erased = year;
+    // the lattice is laid over whole cells, then cut straight along the roads it kept
+    d.pieces = cells.map((s) => ({ poly: P.get(s.id), year: yearOf(builtAt.get(s.id)), site: s.id }));
+    d.cutRoads = cells.flatMap((s) => (dirs.get(s.id) || []).map((x) => x.road).filter((r) => r.erased == null));
+    city.districts.push(d);
+  }
+}
+
+/** A convex cell cut by rays from a point inside it into convex wedges (a gap wider than π is halved). */
+function wedges(Pc, c, angles) {
+  if (!angles.length) return [Pc];
+  const a = [...angles].map((x) => ((x % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)).sort((x, y) => x - y);
+  const rays = [];
+  for (let i = 0; i < a.length; i++) {
+    rays.push(a[i]);
+    const nx = i + 1 < a.length ? a[i + 1] : a[0] + 2 * Math.PI;
+    if (nx - a[i] > Math.PI - 1e-6) rays.push(a[i] + (nx - a[i]) / 2);
+  }
+  if (rays.length === 1) rays.push(rays[0] + Math.PI);
+  const out = [];
+  for (let i = 0; i < rays.length; i++) {
+    const t0 = rays[i], t1 = i + 1 < rays.length ? rays[i + 1] : rays[0] + 2 * Math.PI;
+    if (t1 - t0 < 1e-9) continue;
+    const u = [Math.cos(t0), Math.sin(t0)], v = [Math.cos(t1), Math.sin(t1)];
+    let W = G.clipHalf(Pc, -u[1], u[0], -(-u[1] * c[0] + u[0] * c[1]));
+    W = G.clipHalf(W, v[1], -v[0], -(v[1] * c[0] - v[0] * c[1]));
+    if (W.length >= 3 && Math.abs(G.area(W)) > 1) out.push(W);
+  }
+  return out;
+}
+
+/** The synthetic countryside: lanes out of a market town, hamlets on them, districts round it. */
+function countryside(city, o) {
+  const S = o.size, half = S / 2, frame = city.frame;
   // ---- the countryside: the market town and the lanes out of it
   const R = Rand(o.seed, 'countryside');
   const core = [R.range(-0.08, 0.08) * S, R.range(-0.08, 0.08) * S];
@@ -212,34 +421,11 @@ export function generate(opts = {}) {
     best.parts.push(P); best.area += Math.abs(G.area(P));
   }
 
-  // ---- each district, cut along the lanes it inherits, then its lattice laid in each piece
-  for (const d of city.districts) {
-    d.pieces = d.parts.flatMap((P) => cutByLanes(P, city.lanes, core));
-    for (const piece of d.pieces) layDistrict(city, d, piece, o);
-  }
+  // each district is cut along the lanes it inherits
+  for (const d of city.districts) d.pieces = d.parts.flatMap((P) => cutByLanes(P, city.lanes, core).map((poly) => ({ poly, year: d.year })));
+  // the lanes are the old roads
+  for (const L of city.lanes) city.roads.push({ a: L.o, b: [L.o[0] + L.u[0] * S * 1.5, L.o[1] + L.u[1] * S * 1.5], rank: 'old road', width: OLDROAD, year: city.years[0] });
 
-  // ---- streets: each block edge drawn back by half its street's width
-  for (const b of city.blocks) rankEdges(city, b, o);
-  for (const b of city.blocks) b.lot = G.inset(b.cell, b.widths.map((x) => x.w / 2));
-
-  // ---- slivers and squares
-  slivers(city);
-  for (const b of city.blocks) {
-    if (b.square || b.island || !b.lot.length) continue;
-    const d = city.districts[b.district], centre = d.isCore || d.kind === 'village';
-    if (b.plaza || (centre && G.inside(b.cell, d.seed)) || Rand(o.seed, `square/${b.id}`).chance(d.plan.square)) { b.square = 'square'; city.squares.push(b.id); }
-  }
-  for (const b of city.blocks) for (let i = 0; i < b.cell.length; i++) {
-    if (b.widths[i].w > 0) city.streets.push({ block: b.id, a: b.cell[i], b: b.cell[(i + 1) % b.cell.length], width: b.widths[i].w, rank: b.widths[i].rank, year: b.year });
-  }
-
-  // ---- plots, then the first building on each, then the waves of rebuilding
-  for (const b of city.blocks) if (b.lot.length && !b.square && !b.island) layPlots(city, b, o);
-  for (const f of city.frontages) firstBuild(city, f, o);
-  for (const w of WAVES) for (const f of city.frontages) rebuild(city, f, w, o);
-
-  city.stats = stats(city);
-  return city;
 }
 
 /** What stood in a given year: the blocks laid by then, and the buildings standing then. */
@@ -279,16 +465,70 @@ function cutByLanes(region, lanes, core) {
 }
 
 /** A district's lattice of block cells, clipped to one piece of its region. */
-function layDistrict(city, d, reg, o) {
+function layDistrict(city, d, o) {
+  // an unplanned core or village grows block by block inside each piece (the field's own grain);
+  // a planned lattice (and a suburb's) is laid once across the whole district and clipped to its pieces
+  d.perPiece = d.kind === 'organic' || d.kind === 'village';
+  if (d.perPiece) for (const piece of d.pieces) lay(city, d, o, [piece]);
+  else lay(city, d, o, d.pieces);
+}
+function lay(city, d, o, pieces) {
   const e = d.plan, R = Rand(o.seed, `lattice/${d.id}/${city.blocks.length}`);
   const add = (cell, avenue = null) => {
-    const C = G.clipConvex(cell, reg);
-    if (C.length < 3 || G.area(C) < 40) return;
-    const av = avenue ? C.map((p, i) => avenue(p, C[(i + 1) % C.length])) : null;
-    city.blocks.push({ id: city.blocks.length, district: d.id, year: d.year, cell: C, avenue: av });
+    // the lattice cell's fragments in each piece, merged back together wherever no road divides them
+    // (a piece boundary inside one plan is a field cell's edge, not a street)
+    let frags = [];
+    for (const piece of pieces) {
+      const C0 = G.clipConvex(cell, piece.poly);
+      if (C0.length >= 3 && G.area(C0) >= 1) frags.push({ poly: C0, piece, edges: [piece.poly] });
+    }
+    // first whole groups (three field cells meeting inside one block are convex only together), then pairs
+    if (frags.length > 1) {
+      const up = frags.map((_, i) => i), root = (i) => { while (up[i] !== i) i = up[i] = up[up[i]]; return i; };
+      for (let i = 0; i < frags.length; i++) for (let j = i + 1; j < frags.length; j++) {
+        const A = frags[i].poly, B = frags[j].poly;
+        for (let a = 0; a < A.length; a++) for (let b = 0; b < B.length; b++) {
+          if (G.sharedLength(A[a], A[(a + 1) % A.length], B[b], B[(b + 1) % B.length]) > 0.5 && !roadAlong(city, A[a], A[(a + 1) % A.length])) up[root(i)] = root(j);
+        }
+      }
+      const groups = new Map();
+      frags.forEach((f, i) => { const r = root(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(f); });
+      frags = [...groups.values()].flatMap((gr) => {
+        if (gr.length < 2) return gr;
+        const H = G.hull(gr.flatMap((f) => f.poly)), sum = gr.reduce((t, f) => t + Math.abs(G.area(f.poly)), 0);
+        if (Math.abs(Math.abs(G.area(H)) - sum) > 1e-6 * sum + 1e-6) return gr;
+        const keep = gr.reduce((b2, f) => (Math.abs(G.area(f.poly)) > Math.abs(G.area(b2.poly)) ? f : b2));
+        return [{ poly: H, piece: keep.piece, edges: gr.flatMap((f) => f.edges) }];
+      });
+    }
+    for (let merged = true; merged && frags.length > 1;) {
+      merged = false;
+      for (let i = 0; i < frags.length && !merged; i++) for (let j = i + 1; j < frags.length && !merged; j++) {
+        const A = frags[i].poly, B = frags[j].poly;
+        let shared = null;
+        for (let a = 0; a < A.length && !shared; a++) for (let b = 0; b < B.length && !shared; b++) if (G.sharedLength(A[a], A[(a + 1) % A.length], B[b], B[(b + 1) % B.length]) > 0.5) shared = [A[a], A[(a + 1) % A.length]];
+        if (!shared || roadAlong(city, shared[0], shared[1])) continue;
+        const H = G.hull([...A, ...B]);
+        if (Math.abs(Math.abs(G.area(H)) - Math.abs(G.area(A)) - Math.abs(G.area(B))) > 1e-6 * Math.abs(G.area(H)) + 1e-6) continue;   // their union is not convex
+        const keep = Math.abs(G.area(A)) >= Math.abs(G.area(B)) ? frags[i] : frags[j];
+        frags[i] = { poly: H, piece: keep.piece, edges: [...frags[i].edges, ...frags[j].edges] };
+        frags.splice(j, 1); merged = true;
+      }
+    }
+    if (d.cutRoads && d.cutRoads.length) frags = frags.flatMap((fr) => cutAlongRoads(fr, d.cutRoads));
+    for (const fr of frags) {
+      if (Math.abs(G.area(fr.poly)) < 40) continue;
+      for (const { poly: C, banks } of clipToLand(city, fr.poly)) {
+        if (C.length < 3 || G.area(C) < 40) continue;
+        const av = avenue ? C.map((p, i) => avenue(p, C[(i + 1) % C.length])) : null;
+        const onPiece = C.map((p, i) => fr.edges.some((E) => G.onBoundary(E, p, C[(i + 1) % C.length]) >= 0));
+        city.blocks.push({ id: city.blocks.length, district: d.id, year: fr.piece.year ?? d.year, site: fr.piece.site ?? -1, cell: C, avenue: av, onPiece, banks, roadLines: fr.roadLines || null });
+      }
+    }
   };
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const p of reg) { minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
+  for (const pc of pieces) for (const p of pc.poly) { minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
+  const reg = [[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY]];
   const centre = [(minX + maxX) / 2, (minY + maxY) / 2], span = Math.hypot(maxX - minX, maxY - minY);
 
   if (e.lattice === 'grid') {
@@ -314,14 +554,15 @@ function layDistrict(city, d, reg, o) {
     // rings and spokes round a rond-point on the district's seed; sectors DOUBLE outward from a base
     // of 8, so every spoke runs on through the outer rings and the avenue spokes stay straight
     const c = d.seed, r0 = e.plaza, dr = e.ring, k = e.avenueEvery || 99, BASE = 8;
-    const rmax = Math.max(...reg.map((p) => Math.hypot(p[0] - c[0], p[1] - c[1])));
+    const rmax = Math.max(...reg.map((p) => Math.hypot(p[0] - c[0], p[1] - c[1])));     // the box's far corner
     const fOf = (ring) => { const ra = r0 + ring * dr, want = (2 * Math.PI * (ra + dr / 2)) / (dr * 1.3); let f = 1; while (BASE * f * 2 <= want) f *= 2; return f; };
     const at = (a, r) => [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r];
     // the rond-point itself: a polygon on the first ring's spokes
     const f0 = BASE * fOf(0), plaza = [];
     for (let s = 0; s < f0; s++) plaza.push(at(d.angle + (s / f0) * Math.PI * 2, r0));
+    const before = city.blocks.length;
     add(plaza, () => true);
-    if (city.blocks.length && city.blocks[city.blocks.length - 1].cell && G.inside(city.blocks[city.blocks.length - 1].cell, c, 1e-6)) city.blocks[city.blocks.length - 1].plaza = true;
+    for (let i = before; i < city.blocks.length; i++) city.blocks[i].plaza = true;
     for (let ring = 0; r0 + ring * dr < rmax; ring++) {
       const ra = r0 + ring * dr, rb = ra + dr, f = fOf(ring), spokes = BASE * f, split = fOf(ring + 1) / f;
       for (let s = 0; s < spokes; s++) {
@@ -342,18 +583,75 @@ function layDistrict(city, d, reg, o) {
     }
     d.plaza = c;
   } else {
-    // organic, village, suburb: a Voronoi of jittered points in the piece, relaxed once (Lloyd) unless
+    // organic, village, suburb: a Voronoi of jittered points in the pieces, relaxed once (Lloyd) unless
     // the plan wants its cells raw
     const cell = e.cell, pts = [];
     for (let x = minX - cell; x <= maxX + cell; x += cell) for (let y = minY - cell; y <= maxY + cell; y += cell) {
       const p = [x + R.range(-0.5, 0.5) * cell * e.jitter, y + R.range(-0.5, 0.5) * cell * e.jitter];
-      if (G.inside(reg, p, cell * 0.2)) pts.push(p);
+      if (pieces.some((pc) => G.inside(pc.poly, p, cell * 0.2))) pts.push(p);
     }
-    if (!pts.length) pts.push(G.centroid(reg));
+    if (!pts.length) pts.push(G.centroid(pieces[0].poly));
     let cells = G.voronoi(pts, reg);
     if (e.relax !== false) cells = G.voronoi(cells.map((C, i) => (C.length ? G.centroid(C) : pts[i])), reg);
     for (const C of cells) if (C.length) add(C);
   }
+}
+
+/** A fragment cut along every road segment that crosses it (by the road's whole line: a road ending
+ * inside a block runs on to the block's next street). The cut edges remember their road. */
+function cutAlongRoads(fr, roads) {
+  let out = [fr];
+  for (const r of roads) {
+    const dx = r.b[0] - r.a[0], dy = r.b[1] - r.a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, nx = -uy, ny = ux, c = -(nx * r.a[0] + ny * r.a[1]);
+    const next = [];
+    for (const f of out) {
+      const P = f.poly;
+      let lo = Infinity, hi = -Infinity, neg = false, pos = false;
+      for (const p of P) { const t = ux * (p[0] - r.a[0]) + uy * (p[1] - r.a[1]), sd = nx * p[0] + ny * p[1] + c; lo = Math.min(lo, t); hi = Math.max(hi, t); if (sd < -0.5) neg = true; if (sd > 0.5) pos = true; }
+      if (!(neg && pos) || hi < 0 || lo > L) { next.push(f); continue; }
+      const line = [nx, ny, c], A = G.clipHalf(P, nx, ny, c), B = G.clipHalf(P, -nx, -ny, -c);
+      for (const Q of [A, B]) if (Q.length >= 3) next.push({ ...f, poly: Q, roadLines: [...(f.roadLines || []), { line, road: r }] });
+    }
+    out = next;
+  }
+  return out;
+}
+
+/**
+ * A block cell cut back to dry land: where the ground's river runs through it, the cell is cut by two
+ * lines either side of the channel (the channel is nearly straight across one block) and the strip
+ * between is water; where the sea reaches it, it is cut along the shore. The cut edges are BANKS
+ * (returned as lines), and become quays.
+ */
+function clipToLand(city, C) {
+  const g = city.ground;
+  if (!g) return [{ poly: C, banks: null }];
+  let out = [{ poly: C, banks: [] }];
+  if (g.river) {
+    const w2 = g.river.width / 2, near = [...C, G.centroid(C)].some((p) => g.riverDistAt(p[0], p[1]) < w2 + 40);
+    if (near) {
+      // the channel's points over this cell, and the line they make
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const [x, y] of C) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+      const P = g.river.path, m = w2 + 40, pts = P.filter(([x, y]) => x > x0 - m && x < x1 + m && y > y0 - m && y < y1 + m);
+      if (pts.length >= 2) {
+        const a = pts[0], b = pts[pts.length - 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = -(b[1] - a[1]) / L, ny = (b[0] - a[0]) / L;
+        const c0 = -(nx * a[0] + ny * a[1]);
+        // the channel strays from the chord by its bend: widen the strip to cover it
+        let bend = 0; for (const [x, y] of pts) bend = Math.max(bend, Math.abs(nx * x + ny * y + c0));
+        const half = w2 + Math.min(bend, 25);
+        const left = [nx, ny, c0 - half], right = [-nx, -ny, -c0 - half];
+        out = [];
+        for (const L2 of [left, right]) { const Q = G.clipHalf(C, L2[0], L2[1], L2[2]); if (Q.length >= 3) out.push({ poly: Q, banks: [L2] }); }
+      }
+    }
+  }
+  if (g.shore && [...C].some(([x, y]) => g.heightAt(x, y) < 0.5)) {
+    const ux = Math.cos(g.shore.dir), uy = Math.sin(g.shore.dir), cen = G.centroid(C), s0 = g.shore.at(cen[0], cen[1]) - 4;
+    const L2 = [-ux, -uy, s0];
+    out = out.flatMap(({ poly, banks }) => { const Q = G.clipHalf(poly, L2[0], L2[1], L2[2]); return Q.length >= 3 ? [{ poly: Q, banks: [...banks, L2] }] : []; });
+  }
+  return out;
 }
 
 /** Each block edge's street: the ring (the old wall), a seam between plans, an old lane, an avenue, a street. */
@@ -362,18 +660,20 @@ function rankEdges(city, b, o) {
   b.widths = b.cell.map((p, i) => {
     const q = b.cell[(i + 1) % b.cell.length];
     let w, rank;
-    const lane = city.lanes.find((L) => {
-      const dp = -L.u[1] * (p[0] - L.o[0]) + L.u[0] * (p[1] - L.o[1]), dq = -L.u[1] * (q[0] - L.o[0]) + L.u[0] * (q[1] - L.o[1]);
-      const tp = L.u[0] * (p[0] - L.o[0]) + L.u[1] * (p[1] - L.o[1]), tq = L.u[0] * (q[0] - L.o[0]) + L.u[1] * (q[1] - L.o[1]);
-      return Math.abs(dp) < 1e-5 && Math.abs(dq) < 1e-5 && Math.min(tp, tq) > -1e-6;
-    });
-    // which district lies across? (none: the frame)
-    const mid = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], [nx, ny] = G.edgeLine(b.cell, i);
-    const other = districtAt(city, [mid[0] - nx * 2, mid[1] - ny * 2]);
-    if (lane) { w = OLDROAD; rank = 'old road'; }
+    // an old road along this edge? (a lane of the countryside, or of the settlement field)
+    const road = roadAlong(city, p, q);
+    // which district lies across? (none: the frame, the countryside, or water)
+    const mid = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], [nx, ny] = G.edgeLine(b.cell, i), out = [mid[0] - nx * 3, mid[1] - ny * 3];
+    const other = districtAt(city, out);
+    const cutRoad = !road && b.roadLines && b.roadLines.find(({ line: L }) => Math.abs(L[0] * p[0] + L[1] * p[1] + L[2]) < 1e-6 && Math.abs(L[0] * q[0] + L[1] * q[1] + L[2]) < 1e-6);
+    if (road) { w = road.width; rank = road.rank; }
+    else if (cutRoad) { w = cutRoad.road.width; rank = cutRoad.road.rank; }
+    else if (b.banks && b.banks.some((L) => Math.abs(L[0] * p[0] + L[1] * p[1] + L[2]) < 1e-6 && Math.abs(L[0] * q[0] + L[1] * q[1] + L[2]) < 1e-6)) { w = QUAY; rank = 'quay'; }
+    else if (other === d && b.onPiece && b.onPiece[i] && !d.perPiece) { w = 0; rank = 'closed'; }     // inside one lattice: no street
     else if (other && other !== d) {
       if (d.isCore || other.isCore) { w = RING; rank = 'ring'; }
       else { w = SEAM; rank = 'seam'; }
+    } else if (!other && waterAt(city, out)) { w = QUAY; rank = 'quay';
     } else if (b.avenue && b.avenue[i]) { w = e.avenue; rank = 'avenue'; }
     else { w = Rs.range(e.street[0], e.street[1]); rank = 'street'; }
     return { w: w * o.streetScale, rank };
@@ -389,11 +689,13 @@ function slivers(city) {
   const test = (b) => !b.lot.length || Math.abs(G.area(b.lot)) < MIN_AREA || G.inradius(b.lot) < MIN_R;
   const sliver = city.blocks.map(test);
   const box = city.blocks.map((b) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of b.cell) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); } return [x0 - 1, y0 - 1, x1 + 1, y1 + 1]; });
-  const minor = (r) => r === 'street' || r === 'seam';
+  const minor = (r) => r === 'street' || r === 'seam' || r === 'closed';
   for (const b of city.blocks) {
     if (!sliver[b.id]) continue;
-    // the neighbours sharing a minor street with it, biggest first
-    let best = null, bestEdge = -1, theirEdge = -1, bestArea = 0;
+    // the neighbours sharing a minor street with it, biggest first; but a fragment whose street is
+    // already closed (a lattice cell cut by a field cell's edge) joins across that, and no street is lost
+    let best = null, bestEdge = -1, theirEdge = -1, bestArea = 0, bestCost = 9;
+    const COST = { closed: 0, street: 1, seam: 2 };
     const [x0, y0, x1, y1] = box[b.id];
     for (const c of city.blocks) {
       if (c === b || c.absorbed != null || sliver[c.id] || !c.lot.length) continue;
@@ -404,8 +706,8 @@ function slivers(city) {
         const p = b.cell[i], q = b.cell[(i + 1) % b.cell.length];
         for (let j = 0; j < c.cell.length; j++) {
           if (G.sharedLength(p, q, c.cell[j], c.cell[(j + 1) % c.cell.length]) > 3) {
-            const A = Math.abs(G.area(c.lot));
-            if (A > bestArea) { best = c; bestEdge = i; theirEdge = j; bestArea = A; }
+            const A = Math.abs(G.area(c.lot)), cost = COST[b.widths[i].rank];
+            if (cost < bestCost || (cost === bestCost && A > bestArea)) { best = c; bestEdge = i; theirEdge = j; bestArea = A; bestCost = cost; }
           }
         }
       }
@@ -422,11 +724,13 @@ function slivers(city) {
 
 // ---------------------------------------------------------------------------- the fabric --
 /** Land value, 0..1: falling from the core, higher on the big streets and round a rond-point. */
-function value(city, p, rank) {
-  const c = city.districts[0] ? city.districts[0].seed : [0, 0];
-  let v = Math.exp(-Math.hypot(p[0] - c[0], p[1] - c[1]) / (city.size * 0.3));
+function value(city, p, rank, b) {
+  let v;
+  if (city.rentOf && b && b.site >= 0) v = city.rentOf(b.site);        // the settlement field's own land market
+  else { const c = city.districts[0] ? city.districts[0].seed : [0, 0]; v = Math.exp(-Math.hypot(p[0] - c[0], p[1] - c[1]) / (city.size * 0.3)); }
   for (const d of city.districts) if (d.plaza) v += 0.35 * Math.exp(-Math.hypot(p[0] - d.plaza[0], p[1] - d.plaza[1]) / 160);
-  v *= { ring: 1.3, avenue: 1.25, 'old road': 1.2, seam: 1.08 }[rank] || 1;
+  v *= { ring: 1.3, avenue: 1.25, 'old road': 1.2, 'main street': 1.15, quay: 1.12, seam: 1.08 }[rank] || 1;
+  if (city.ground) v *= 1 - Math.min(0.5, city.ground.slopeAt(p[0], p[1]) * 1.5);   // a slope costs to build on
   return Math.max(0, Math.min(1, v));
 }
 
@@ -450,9 +754,41 @@ function blend(city, d, p) {
   const w = 0.5 * (1 - smooth(0, 150, best));
   return w > 0.01 ? { w, other } : null;
 }
-/** The district a point lies in, or null outside the frame. */
+/** A bucket grid over every district's parts (and the water's), so a point finds its district quickly. */
+function indexParts(city) {
+  const B = 120, half = city.size / 2, nb = Math.ceil(city.size / B) + 1, grid = new Map();
+  const put = (P, item) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of P) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    for (let j = Math.floor((y0 + half) / B); j <= Math.floor((y1 + half) / B); j++) for (let i = Math.floor((x0 + half) / B); i <= Math.floor((x1 + half) / B); i++) {
+      const k = j * nb + i; if (!grid.has(k)) grid.set(k, []); grid.get(k).push([P, item]);
+    }
+  };
+  for (const d of city.districts) for (const P of d.parts) put(P, d);
+  for (const P of city.water) put(P, 'water');
+  city._index = { B, half, nb, grid };
+}
+const atIndex = (city, p) => { const I = city._index; return I.grid.get(Math.floor((p[1] + I.half) / I.B) * I.nb + Math.floor((p[0] + I.half) / I.B)) || []; };
+/** The district a point lies in, or null outside every district. */
 function districtAt(city, p) {
-  for (const d of city.districts) for (const P of d.parts) if (G.inside(P, p, 1e-6)) return d;
+  for (const [P, item] of atIndex(city, p)) if (item !== 'water' && G.inside(P, p, 1e-6)) return item;
+  return null;
+}
+/** Whether a point is in the water: a river or sea cell of the field, or the ground's own water. */
+function waterAt(city, p) {
+  for (const [P, item] of atIndex(city, p)) if (item === 'water' && G.inside(P, p, 1e-6)) return true;
+  return !!(city.ground && city.ground.water(p[0], p[1]));
+}
+/** An old road running along the segment p–q, if any. */
+function roadAlong(city, p, q) {
+  for (const r of city.roads) {
+    if (r.erased != null) continue;
+    const dx = r.b[0] - r.a[0], dy = r.b[1] - r.a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    const dp = -uy * (p[0] - r.a[0]) + ux * (p[1] - r.a[1]), dq = -uy * (q[0] - r.a[0]) + ux * (q[1] - r.a[1]);
+    if (Math.abs(dp) > 1e-5 || Math.abs(dq) > 1e-5) continue;
+    const tp = ux * (p[0] - r.a[0]) + uy * (p[1] - r.a[1]), tq = ux * (q[0] - r.a[0]) + uy * (q[1] - r.a[1]);
+    if (Math.min(tp, tq) > -1e-6 && Math.max(tp, tq) < L + 1e-6) return r;
+  }
   return null;
 }
 
@@ -486,7 +822,9 @@ function layPlots(city, b, o) {
 function addPlot(city, b, poly, front, width, yard) {
   const B = b.lot, a = B[front], q = B[(front + 1) % B.length];
   const p = { id: city.plots.length, block: b.id, district: b.district, poly, front: [a, q], frontEdge: front, width, depth: depthFrom(poly, a, q), yard };
-  p.value = value(city, G.centroid(poly), b.widths[front] ? b.widths[front].rank : 'street');
+  const c = G.centroid(poly);
+  p.value = value(city, c, b.widths[front] ? b.widths[front].rank : 'street', b);
+  if (city.ground) { p.elev = city.ground.heightAt(c[0], c[1]); p.flood = city.ground.floodplain(c[0], c[1]); }
   city.plots.push(p);
   return p.id;
 }
@@ -507,7 +845,7 @@ function firstBuild(city, f, o) {
     else f.parcels.push({ strips: [id], building: null });
   }
   for (const pc of f.parcels) {
-    const year = d.year + Math.round(R.range(0, d.plan.planned ? 25 : 60));
+    const year = city.blocks[f.block].year + Math.round(R.range(0, d.plan.planned ? 25 : 60));
     pc.building = build(city, f, pc.strips, d.plan.style, year, o);
   }
 }
@@ -515,13 +853,20 @@ function firstBuild(city, f, o) {
 /** One wave of redevelopment along a frontage: the rent gap decides who is rebuilt, and how much they take with them. */
 function rebuild(city, f, wave, o) {
   const d = city.districts[f.district];
-  if (d.year > wave.year - 20 || f.closed) return;
+  if (city.blocks[f.block].year > wave.year - 20 || f.closed) return;
   const st = STYLES[wave.style], R = Rand(o.seed, `wave/${wave.year}/${f.id}`);
   const out = [];
   for (let i = 0; i < f.parcels.length; i++) {
     const pc = f.parcels[i], cur = pc.building ? city.buildings[pc.building] : null;
     const young = cur && cur.from > wave.year - 45;
-    const v = pc.strips.reduce((s, id) => s + city.plots[id].value, 0) / pc.strips.length;
+    let v = pc.strips.reduce((s, id) => s + city.plots[id].value, 0) / pc.strips.length;
+    if (city.ground) {
+      // the ground changes what land is worth: before the river is embanked the floodplain is a poor
+      // place to build; after 1850 high ground has a view and clean air (the hill villas, Nob Hill)
+      const pl = city.plots[pc.strips[0]], lift = Math.max(0, Math.min(1, (pl.elev - city.lowGround) / 40));
+      if (wave.year >= 1850) v = Math.min(1, v * (1 + 0.5 * lift));
+      else if (pl.flood) v *= 0.6;
+    }
     const villa = cur && cur.style === 'villa';
     const p = wave.p * Math.pow(v, 1.6) * (villa ? 0.35 : 1) * (d.kind === 'village' ? 0.5 : 1);
     if (young || pc.strips.every((id) => city.plots[id].yard) || !R.chance(p)) { out.push(pc); continue; }
@@ -567,7 +912,13 @@ function build(city, f, strips, styleName, year, o) {
   if (st.tower && Math.abs(G.area(F)) > 450 && R.chance(st.tower * v)) storeys = Math.round(storeys * R.range(1.6, 2.6));
   const h = storeys * st.storeyH;
   const roof = st.roof === 'hip' ? G.hipRoof(F, st.pitch) : st.roof === 'mansard' ? mansard(F, st.storeyH * 1.1) : null;
-  const b = { id: city.buildings.length, plot: strips[0], strips, frontage: f.id, district: f.district, style: styleName, from: year, to: null, footprint: F, storeys, height: h, roof: st.roof, roofFaces: roof };
+  const b = { id: city.buildings.length, plot: strips[0], strips, frontage: f.id, district: f.district, style: styleName, from: year, to: null, footprint: F, storeys, height: h, roof: st.roof, roofFaces: roof, base: 0, fall: 0 };
+  if (city.ground) {
+    // levelled on the ground: its platform at the mean of the natural surface under it (cut = fill),
+    // and how far the ground falls across it (a slope shows a storey more on the low side)
+    const hs = [...F, G.centroid(F)].map((pt) => city.ground.heightAt(pt[0], pt[1]));
+    b.base = hs.reduce((s2, x) => s2 + x, 0) / hs.length; b.fall = Math.max(...hs) - Math.min(...hs);
+  }
   city.buildings.push(b);
   return b.id;
 }
@@ -579,7 +930,8 @@ function mansard(F, h) {
 
 function stats(city) {
   const A = (P) => Math.abs(G.area(P));
-  const now = standing(city, PRESENT).buildings, land = A(city.frame);
+  // the land is the frame, or (laid on a settlement field) the town's own districts
+  const now = standing(city, PRESENT).buildings, land = city.rentOf ? city.districts.reduce((t, d) => t + d.parts.reduce((u, P) => u + A(P), 0), 0) : A(city.frame);
   const lots = city.blocks.reduce((s, b) => s + (b.lot.length ? A(b.lot) : 0), 0);
   const built = now.reduce((s, b) => s + A(b.footprint), 0), floor = now.reduce((s, b) => s + A(b.footprint) * b.storeys, 0);
   const byStyle = {};
@@ -589,6 +941,6 @@ function stats(city) {
     streetShare: 1 - lots / land, coverage: built / land, far: floor / land,
     tallest: now.reduce((m, b) => Math.max(m, b.height), 0), byStyle,
     absorbed: city.blocks.filter((b) => b.absorbed != null).length, islands: city.blocks.filter((b) => b.island).length,
-    survivors: now.filter((b) => b.from < 1800).length,
+    survivors: now.filter((b) => b.from < 1800).length, bridges: city.bridges.length, quays: city.streets.filter((x) => x.rank === 'quay').length,
   };
 }

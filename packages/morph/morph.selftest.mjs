@@ -4,6 +4,7 @@
 //   node packages/morph/morph.selftest.mjs
 import * as G from './geom.js';
 import { generate, standing, KINDS, PRESENT } from './morph.js';
+import { Ground } from './ground.js';
 
 let failed = 0;
 const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed++; };
@@ -155,6 +156,56 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   const narrow = c.plots.filter((p) => c.districts[p.district].kind === 'organic' && p.width < 9).length / Math.max(1, c.plots.filter((p) => c.districts[p.district].kind === 'organic').length);
   ok(narrow > 0.6, `the old core is burgage plots: ${(narrow * 100).toFixed(0)}% of its frontages under 9 m`);
   ok(c.stats.streetShare > 0.2 && c.stats.streetShare < 0.5 && c.stats.coverage > 0.15 && c.stats.coverage < 0.6, `the city's proportions: ${(c.stats.streetShare * 100).toFixed(0)}% street, ${(c.stats.coverage * 100).toFixed(0)}% built over, floor area ratio ${c.stats.far.toFixed(2)}`);
+}
+
+// ---- the ground --------------------------------------------------------------------------------
+{
+  const t0 = performance.now(), g = Ground(3), ms = performance.now() - t0, g2 = Ground(3);
+  let same = g.h.length === g2.h.length; for (let i = 0; same && i < g.h.length; i++) if (g.h[i] !== g2.h[i]) same = false;
+  ok(same, `the ground is deterministic: seed 3 twice (${g.n}² points at ${g.cell} m, relief ${g.relief} m, ${g.soil.label}, ${ms.toFixed(0)} ms)`);
+
+  // repose: no neighbouring pair of points stands steeper than the soil's friction angle allows
+  const tan = Math.tan(g.repose * Math.PI / 180);
+  let steep = 0;
+  for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) {
+    const k = j * g.n + i;
+    if (i + 1 < g.n && Math.abs(g.h[k] - g.h[k + 1]) > g.cell * tan + 1e-3) steep++;
+    if (j + 1 < g.n && Math.abs(g.h[k] - g.h[k + g.n]) > g.cell * tan + 1e-3) steep++;
+  }
+  ok(steep === 0, `repose: no slope steeper than ${g.repose}° anywhere on the ground`);
+
+  // the river: in its channel, below its banks, the floodplain flat beside it
+  const half = g.size / 2, P = g.river.path.filter(([x, y]) => Math.abs(x) < half - 60 && Math.abs(y) < half - 60);
+  let wet = 0, below = 0, checked = 0;
+  for (let k = 0; k + 1 < P.length; k++) {
+    const [x, y] = P[k], [x2, y2] = P[k + 1], L = Math.hypot(x2 - x, y2 - y) || 1, nx = -(y2 - y) / L, ny = (x2 - x) / L, off = g.river.width / 2 + 25;
+    if (g.heightAt(x, y) < 0) continue;            // out in the sea
+    checked++;
+    if (g.water(x, y) === 'river') wet++;
+    if (g.heightAt(x, y) < Math.min(g.heightAt(x + nx * off, y + ny * off), g.heightAt(x - nx * off, y - ny * off)) - 1.5) below++;
+  }
+  ok(checked > 20 && wet === checked && below >= checked * 0.95, `the river runs in its channel (${wet}/${checked} points wet) and below both banks (${below}/${checked})`);
+
+  // the distance transform: exact against brute force (to the channel's line, where it lies on the
+  // grid: the transform sees the channel only inside the frame) at scattered points
+  const inFrame = g.river.path.map(([x, y]) => Math.abs(x) <= half && Math.abs(y) <= half);
+  let worstD = 0;
+  for (let k = 0; k < 200; k++) {
+    const x = ((k * 7919) % 2900) - 1450, y = ((k * 104729) % 2900) - 1450;
+    let best = Infinity;
+    for (let s = 0; s + 1 < g.river.path.length; s++) {
+      if (!inFrame[s] || !inFrame[s + 1]) continue;
+      const [ax, ay] = g.river.path[s], [bx, by] = g.river.path[s + 1], dx = bx - ax, dy = by - ay, ll = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / ll)); best = Math.min(best, Math.hypot(x - ax - dx * t, y - ay - dy * t));
+    }
+    worstD = Math.max(worstD, Math.abs(g.riverDistAt(x, y) - best));
+  }
+  ok(worstD < g.cell, `the river's distance field agrees with brute force to ${worstD.toFixed(2)} m (under one ${g.cell} m cell)`);
+
+  // a coast: the sea below zero beyond the shore, and the field's sampler calls it water
+  let coastSeed = 1; while (!Ground(coastSeed).coast) coastSeed++;
+  const gc = Ground(coastSeed), ux = Math.cos(gc.coastDir), uy = Math.sin(gc.coastDir), far = [ux * 1400, uy * 1400];
+  ok(gc.heightAt(far[0], far[1]) < 0 && gc.water(far[0], far[1]) === 'sea' && gc.sampler()(far[0] / 1000, far[1] / 1000).water, `a coast (seed ${coastSeed}): the sea lies below zero beyond the shore, and the settlement field's sampler calls it water`);
 }
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');

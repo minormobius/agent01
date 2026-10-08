@@ -50,11 +50,15 @@
   </div>
   <div class="row"><div class="seg"><button id="vplan" type="button" class="on">plan</button><button id="vmodel" type="button">model</button></div><button id="new" type="button" class="primary">new city</button></div>
   <div class="row"><label>seed</label><input id="seed" type="number" style="width:90px;background:#0d1117;color:var(--ink);border:1px solid var(--edge);border-radius:6px;padding:3px 6px"></div>
+  <div class="row"><label>the town</label><div class="seg" id="srcSeg"></div></div>
+  <div id="status" class="stats" style="margin-top:0"></div>
+  <div id="sketchOnly">
   <div class="row"><label>districts</label><input id="districts" type="range" min="2" max="10" step="1"><span class="v" id="districtsV"></span></div>
   <div class="row"><label>the core</label><div class="seg" id="coreSeg"></div></div>
+  <div class="row"><label>later eras</label><div class="seg" id="eraSeg"></div></div>
+  </div>
   <div class="row"><label>year</label><button id="play" type="button">▶</button><input id="year" type="range" min="1100" max="2025" step="1"><span class="v" id="yearV"></span></div>
   <div class="row"><label>colour by</label><div class="seg" id="colSeg"></div></div>
-  <div class="row"><label>later eras</label><div class="seg" id="eraSeg"></div></div>
   <div class="row"><label>plot width</label><input id="plotScale" type="range" min="0.5" max="2.5" step="0.05"><span class="v" id="plotScaleV"></span></div>
   <div class="row"><label>streets</label><input id="streetScale" type="range" min="0.5" max="2" step="0.05"><span class="v" id="streetScaleV"></span></div>
   <div class="row"><label>height</label><input id="heightScale" type="range" min="0.3" max="3" step="0.05"><span class="v" id="heightScaleV"></span></div>
@@ -64,6 +68,7 @@
   <div class="stats" id="stats"></div>
   <div class="note">
     <p>A town plan is three things laid down at different times and lasting differently long: the <b>streets</b>, the <b>plots</b>, and the <b>buildings</b> on the plots (M. R. G. Conzen, 1960). So a city is a palimpsest. Drag the year, or play it.</p>
+    <p><b>Grown by polis</b> (the default): first the <b>ground</b>, a heightfield in metres: hills, a river meandering in its floodplain below a terrace scarp, perhaps a coast, no slope steeper than the soil stands. Then polis's <b>settlement field</b> grows a town on it for nine centuries (a land market, lanes, walls, bridges; the town founded and spreading where the ground allows). Then morph reads the field: each built cell is laid out in the plan of the era it was first built in (the walled town an organic core inside its ring; later Georgian grids, boulevard schemes, suburbs, modern grids), the field's busiest lanes run on through every plan as old roads while a grid erases the field paths, blocks are cut back to the river's banks (quays), the field's bridges cross it when the field built them, and land value is the field's rent. Too steep to build is a park; every building is levelled on the ground. It takes the field several seconds to grow. <b>Sketch</b> is the quick synthetic town on a flat frame.</p>
     <p><b>The countryside comes first</b>: lanes out of a market town, and hamlets on them. Every later plan inherits both. A lane is never erased: it runs on through the grids as an old road (Broadway through Manhattan), and a hamlet survives inside the city as an urban village, its own small cell that the later plans flow round.</p>
     <p><b>Districts are grains</b>: each was laid out in one era by one idea of a street (an organic core, a planned grid, a boulevard scheme round a rond-point, a suburb, a modern grid), each at its own angle, so where two meet the blocks are cut short. The old core's edge is where its wall stood: a ring boulevard. A block too small to build on is absorbed by its neighbour (the street between them closes), or left as an island or a pocket square.</p>
     <p><b>The fabric is a field</b>: land value falls from the core and rises on the big streets, and heights follow it. An unplanned district's plots and heights lean toward its neighbour's over the seam, as growth does; a planned one keeps its edge.</p>
@@ -74,6 +79,7 @@
 <div id="inspect"></div>
 <script type="module">
 import { generate, standing, ERAS, KINDS, PLANS, STYLES, PRESENT } from './morph.js';
+// polis mode grows the ground, the settlement field and the plan in worker.js
 import * as G from './geom.js';
 
 const $ = (id) => document.getElementById(id);
@@ -101,12 +107,13 @@ const st = {
   sun: q.has('sun') ? +q.get('sun') : 225,
   year: q.has('y') ? +q.get('y') : PRESENT,
   colour: q.get('col') === 'age' ? 'age' : 'style',
+  src: q.get('src') === 'sketch' ? 'sketch' : 'polis',
 };
 const cam = { x: 0, y: 0, zoom: 1, yaw: 0.6, tilt: 0.75 };
-let city = null, order = null, vis = null;
+let city = null, order = null, vis = null, grd = null, groundImg = null, events = [], worker = null;
 
 function remember() {
-  const p = new URLSearchParams({ seed: st.seed, n: st.districts, core: st.core, eras: st.later.join(',') });
+  const p = new URLSearchParams(st.src === 'sketch' ? { src: 'sketch', seed: st.seed, n: st.districts, core: st.core, eras: st.later.join(',') } : { seed: st.seed });
   if (st.plotScale !== 1) p.set('pw', st.plotScale);
   if (st.streetScale !== 1) p.set('sw', st.streetScale);
   if (st.heightScale !== 1) p.set('hs', st.heightScale);
@@ -119,17 +126,61 @@ function remember() {
 }
 
 function rebuild() {
-  const t0 = performance.now();
-  city = generate({ seed: st.seed, districts: st.districts, kinds: [st.core, ...st.later.filter((k) => k !== st.core)], plotScale: st.plotScale, streetScale: st.streetScale, heightScale: st.heightScale });
-  const ms = performance.now() - t0, s = city.stats;
-  $('stats').innerHTML = `<b>${s.blocks}</b> blocks · <b>${s.plots}</b> plots · <b>${s.buildings}</b> buildings standing (${s.everBuilt} ever built)<br>${(s.streetShare * 100).toFixed(0)}% street · ${(s.coverage * 100).toFixed(0)}% built over · floor area ratio <b>${s.far.toFixed(2)}</b> · tallest ${s.tallest.toFixed(0)} m<br>${s.survivors} buildings from before 1800 still stand · ${s.absorbed} slivers absorbed<br>generated in ${ms.toFixed(0)} ms`;
-  $('year').min = Math.floor(city.years[0] / 10) * 10; $('year').max = PRESENT;
-  setYear(Math.max(+$('year').min, Math.min(PRESENT, st.year)));
+  $('sketchOnly').style.display = st.src === 'sketch' ? '' : 'none';
   $('inspect').style.display = 'none';
+  if (worker) { worker.terminate(); worker = null; }
+  if (st.src === 'sketch') {
+    const t0 = performance.now();
+    grd = null; groundImg = null; events = [];
+    show(generate({ seed: st.seed, districts: st.districts, kinds: [st.core, ...st.later.filter((k) => k !== st.core)], plotScale: st.plotScale, streetScale: st.streetScale, heightScale: st.heightScale }), `generated in ${(performance.now() - t0).toFixed(0)} ms`);
+    return;
+  }
+  // polis: the ground, then the settlement field grown on it, then the plan read off the field
+  const STAGES = { ground: 'laying the ground…', field: 'the settlement field is growing the town (nine centuries; a few seconds)…', plan: 'laying out streets, plots and buildings…' };
+  $('status').textContent = 'starting…';
+  worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+  const t0 = performance.now();
+  worker.onmessage = (e) => {
+    const m = e.data;
+    if (STAGES[m.stage]) { $('status').textContent = STAGES[m.stage]; return; }
+    worker.terminate(); worker = null;
+    if (m.stage === 'error') { $('status').textContent = 'the town failed to grow: ' + m.message.split('\n')[0]; console.error(m.message); return; }
+    grd = m.ground; events = m.events; groundImg = groundImage(grd);
+    show(m.city, `grown in ${((performance.now() - t0) / 1000).toFixed(1)} s (ground ${(m.ms.ground / 1000).toFixed(1)}, field ${(m.ms.field / 1000).toFixed(1)}, plan ${(m.ms.plan / 1000).toFixed(1)}) · relief ${grd.relief} m, ${grd.soil}${grd.coast ? ', on a coast' : ''}`);
+  };
+  worker.onerror = (e) => { $('status').textContent = 'the town failed to grow: ' + e.message; };
+  worker.postMessage({ seed: st.seed, plotScale: st.plotScale, streetScale: st.streetScale, heightScale: st.heightScale });
+}
+function show(c, note) {
+  city = c;
+  // each district's outline: the edges of its parts that no other part of it shares
+  for (const d of city.districts) {
+    d.outline = [];
+    for (const P of d.parts) for (let i = 0; i < P.length; i++) {
+      const a = P[i], b = P[(i + 1) % P.length], ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey) || 1;
+      const out = [(a[0] + b[0]) / 2 + (ey / L) * 2, (a[1] + b[1]) / 2 - (ex / L) * 2];
+      if (!d.parts.some((Q) => Q !== P && G.inside(Q, out, 1e-6))) d.outline.push([a, b]);
+    }
+  }
+  const s = city.stats;
+  $('stats').innerHTML = `<b>${s.blocks}</b> blocks · <b>${s.plots}</b> plots · <b>${s.buildings}</b> buildings standing (${s.everBuilt} ever built)<br>${(s.streetShare * 100).toFixed(0)}% street · ${(s.coverage * 100).toFixed(0)}% built over · floor area ratio <b>${s.far.toFixed(2)}</b> · tallest ${s.tallest.toFixed(0)} m<br>${s.survivors} buildings from before 1800 still stand · ${s.absorbed} slivers absorbed${s.bridges ? ` · ${s.bridges} bridge spans · ${s.quays} quay edges` : ''}<br>${note}`;
+  $('year').min = Math.floor(city.years[0] / 10) * 10; $('year').max = PRESENT;
+  fit();
+  setYear(Math.max(+$('year').min, Math.min(PRESENT, st.year)));
+}
+// the camera frames the town: every block's extent
+function fit() {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const b of city.blocks) for (const [x, y] of b.cell) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  if (!isFinite(x0)) return;
+  cam.x = (x0 + x1) / 2; cam.y = (y0 + y1) / 2;
+  cam.zoom = Math.max(0.4, Math.min(4, (city.size * 1.07) / Math.max(x1 - x0, y1 - y0) * 0.92));
 }
 function setYear(y) {
   st.year = y; $('year').value = y; $('yearV').textContent = y;
   vis = standing(city, y); vis.blockSet = new Set(vis.blocks.map((b) => b.id));
+  const ev = events.filter((x) => x.year <= y).pop();
+  if (st.src === 'polis' && grd) $('status').innerHTML = ev ? `<b>${ev.year}</b> · ${ev.text}` : `<b>${y}</b> · fields and lanes`;
   order = null; draw(); remember();
 }
 
@@ -177,6 +228,7 @@ $('seed').value = st.seed; $('seed').onchange = () => { st.seed = +$('seed').val
 $('new').onclick = () => { st.seed = 1 + Math.floor(Math.random() * 99999); $('seed').value = st.seed; rebuild(); };
 const setView = (v) => { st.view = v; $('vplan').classList.toggle('on', v === 'plan'); $('vmodel').classList.toggle('on', v === 'model'); $('sunRow').style.display = v === 'model' ? '' : 'none'; order = null; draw(); remember(); };
 $('vplan').onclick = () => setView('plan'); $('vmodel').onclick = () => setView('model');
+seg($('srcSeg'), [['polis', 'grown by polis'], ['sketch', 'sketch']], (k) => st.src === k, (k) => { st.src = k; rebuild(); remember(); });
 $('toggle').onclick = () => { $('panel').classList.toggle('closed'); $('toggle').textContent = $('panel').classList.contains('closed') ? '▴' : '▾'; };
 
 // ---- the camera
@@ -187,7 +239,7 @@ function resize() {
   draw();
 }
 addEventListener('resize', resize);
-const baseScale = () => Math.min(W, H) / 1500;
+const baseScale = () => Math.min(W, H) / ((city ? city.size : 1400) * 1.07);
 // plan: world (x, y north) → screen
 const planXY = (x, y) => [W / 2 + (x - cam.x) * baseScale() * cam.zoom, H / 2 - (y - cam.y) * baseScale() * cam.zoom];
 // model: an axonometric turned by yaw, tilted by tilt; returns [sx, sy, depth]
@@ -208,13 +260,51 @@ function draw() {
   if (st.view === 'plan') drawPlan(); else drawModel();
 }
 
-const STREETS = { ring: 'rgba(217,164,65,0.45)', 'old road': 'rgba(196,150,96,0.6)', avenue: 'rgba(90,169,230,0.28)', seam: 'rgba(90,169,230,0.18)' };
+const STREETS = { ring: 'rgba(217,164,65,0.45)', 'old road': 'rgba(196,150,96,0.6)', 'main road': 'rgba(196,150,96,0.6)', avenue: 'rgba(90,169,230,0.28)', seam: 'rgba(90,169,230,0.18)', quay: 'rgba(150,190,230,0.35)' };
+const WATER = '#3d6690';
+// the ground as a picture: height tinted, hill-shaded from the north-west, contours every 5 m, the sea
+function groundImage(g) {
+  const n = g.n, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
+  const c2 = cv.getContext('2d'), img = c2.createImageData(n, n), h = g.h;
+  let top = 10; for (let k = 0; k < h.length; k++) if (h[k] > top) top = h[k];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const k = j * n + i, z = h[k], o = ((n - 1 - j) * n + i) * 4;
+    if (z < 0) { img.data[o] = 52; img.data[o + 1] = 88; img.data[o + 2] = 128; img.data[o + 3] = 255; continue; }
+    const dx = (h[k + (i < n - 1 ? 1 : 0)] - h[k - (i > 0 ? 1 : 0)]) / (2 * g.cell), dy = (h[k + (j < n - 1 ? n : 0)] - h[k - (j > 0 ? n : 0)]) / (2 * g.cell);
+    const shade = Math.max(0.45, Math.min(1.3, 0.85 + (-dx + dy) * 1.8)), t = Math.min(1, z / top);
+    const line = Math.floor(z / 5) !== Math.floor((h[k - (i > 0 ? 1 : 0)]) / 5) || Math.floor(z / 5) !== Math.floor((h[k - (j > 0 ? n : 0)]) / 5) ? 0.86 : 1;
+    img.data[o] = (78 + 92 * t) * shade * line; img.data[o + 1] = (98 + 70 * t) * shade * line; img.data[o + 2] = (62 + 50 * t) * shade * line; img.data[o + 3] = 255;
+  }
+  c2.putImageData(img, 0, 0);
+  return cv;
+}
+// the ground's height at a point (bilinear), for the model and the inspector
+function heightAt(x, y) {
+  if (!grd) return 0;
+  const n = grd.n, half = grd.size / 2, fx = Math.max(0, Math.min(n - 1.0001, (x + half) / grd.cell)), fy = Math.max(0, Math.min(n - 1.0001, (y + half) / grd.cell));
+  const i = Math.floor(fx), j = Math.floor(fy), u = fx - i, v = fy - j, k = j * n + i, h = grd.h;
+  return h[k] * (1 - u) * (1 - v) + h[k + 1] * u * (1 - v) + h[k + n] * (1 - u) * v + h[k + n + 1] * u * v;
+}
 function ground(f) {
-  // the countryside, the lanes over it, the districts laid out by now (their streets), and their lots
-  poly(city.frame, f); ctx.fillStyle = '#3a4a2e'; ctx.fill();
+  // the countryside: the ground (or a flat frame), the fields, the lanes; then the districts laid out
+  // by now (their streets) and their lots
+  const z = baseScale() * cam.zoom;
+  if (groundImg) {
+    const [x0, y0] = f([-city.size / 2, city.size / 2]), [x1, y1] = f([city.size / 2, -city.size / 2]);
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(groundImg, x0, y0, x1 - x0, y1 - y0);
+  } else { poly(city.frame, f); ctx.fillStyle = '#3a4a2e'; ctx.fill(); }
   ctx.save(); poly(city.frame, f); ctx.clip();
-  ctx.lineCap = 'round'; ctx.strokeStyle = '#8a7a58'; ctx.lineWidth = Math.max(1, baseScale() * cam.zoom * 5);
+  for (const fl of city.fields) { if (fl.use !== 1) continue; poly(fl.poly, f); ctx.fillStyle = 'rgba(214,196,120,0.16)'; ctx.fill(); }
+  ctx.lineCap = 'round'; ctx.strokeStyle = '#8a7a58'; ctx.lineWidth = Math.max(1, z * 5);
   for (const L of city.lanes) { const [ax, ay] = f(L.o), [bx, by] = f([L.o[0] + L.u[0] * city.size * 1.5, L.o[1] + L.u[1] * city.size * 1.5]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); }
+  if (grd) for (const r of city.roads) {
+    if (r.year > st.year || r.erased <= st.year) continue;
+    const [ax, ay] = f(r.a), [bx, by] = f(r.b); ctx.lineWidth = Math.max(1, z * Math.min(r.width, 10)); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+  if (grd && grd.river) {
+    ctx.strokeStyle = WATER; ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1.5, z * grd.river.width);
+    ctx.beginPath(); grd.river.path.forEach((p, i) => { const [x, y] = f(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+  }
   for (const b of vis.blocks) { poly(b.cell, f); ctx.fillStyle = '#2a2d33'; ctx.fill(); }
   for (const b of vis.blocks) { if (!b.lot.length || b.island) continue; poly(b.lot, f); ctx.fillStyle = b.square ? '#3f6b45' : '#d8d1bf'; ctx.fill(); }
   ctx.restore();
@@ -233,6 +323,14 @@ function drawPlan() {
       if (z > 0.8) { ctx.lineWidth = 0.6; ctx.strokeStyle = 'rgba(40,30,25,0.6)'; ctx.stroke(); }
     }
   }
+  // the bridges the field built, once it built them
+  ctx.lineCap = 'butt';
+  for (const br of city.bridges) {
+    if (br.year > st.year) continue;
+    const [ax, ay] = f(br.a), [bx, by] = f(br.b);
+    ctx.strokeStyle = '#1d2026'; ctx.lineWidth = Math.max(2, z * (br.width + 3)); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.strokeStyle = '#cfc6b0'; ctx.lineWidth = Math.max(1.5, z * br.width); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
   // the ring, the old roads, the avenues and seams, lightly marked
   ctx.lineCap = 'round';
   for (const s of city.streets) {
@@ -243,7 +341,9 @@ function drawPlan() {
   }
   if (st.layers.has('districts')) {
     ctx.setLineDash([6, 5]); ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(217,164,65,0.7)';
-    for (const d of vis.districts) for (const P of d.parts) { poly(P, f); ctx.stroke(); }
+    ctx.beginPath();
+    for (const d of vis.districts) for (const [a, b] of d.outline) { const [ax, ay] = f(a), [bx, by] = f(b); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); }
+    ctx.stroke();
     ctx.setLineDash([]);
   }
   if (st.layers.has('labels')) labels((p) => f(p));
@@ -252,8 +352,9 @@ function drawPlan() {
 function labels(f) {
   ctx.font = '600 12px ui-sans-serif,system-ui,sans-serif'; ctx.textAlign = 'center';
   for (const d of vis.districts) {
+    if (d.cells && (d.area < 60000 || d.area * (baseScale() * cam.zoom) ** 2 < 12000)) continue;   // name the districts big enough on screen
     const [x, y] = f(d.centre);
-    const t1 = d.plan.label, t2 = `laid out c. ${d.year}`;
+    const t1 = d.label || d.plan.label, t2 = `laid out c. ${d.year}`;
     ctx.fillStyle = 'rgba(13,17,23,0.75)'; const w = Math.max(ctx.measureText(t1).width, 50) + 12;
     ctx.fillRect(x - w / 2, y - 16, w, 32);
     ctx.fillStyle = '#d9a441'; ctx.fillText(t1, x, y - 2); ctx.fillStyle = '#8b98a9'; ctx.fillText(t2, x, y + 12);
@@ -264,9 +365,19 @@ function drawModel() {
   const f = (p, z = 0) => modelXYZ(p[0], p[1], z);
   const sunA = st.sun * Math.PI / 180, sun = [Math.sin(sunA) * 0.75, Math.cos(sunA) * 0.75, 0.66];
   const shade = (nx, ny, nz) => 0.42 + 0.68 * Math.max(0, nx * sun[0] + ny * sun[1] + nz * sun[2]);
-  // the ground: countryside, lanes, streets, lots, squares
-  ground((p) => f(p, 0));
-  if (!st.layers.has('buildings')) { if (st.layers.has('labels')) labels((p) => f(p, 0)); return; }
+  // the ground: in polis mode the terrain itself, as a mesh drawn far side first; streets and lots on it
+  const gz = (p) => f(p, heightAt(p[0], p[1]));
+  if (grd) terrainModel(f, shade); else ground((p) => f(p, 0));
+  if (grd) {
+    for (const b of vis.blocks) { poly(b.cell, gz); ctx.fillStyle = '#34373d'; ctx.fill(); }
+    for (const b of vis.blocks) { if (!b.lot.length || b.island) continue; poly(b.lot, gz); ctx.fillStyle = b.square ? '#3f6b45' : '#bfb7a5'; ctx.fill(); }
+    for (const br of city.bridges) {
+      if (br.year > st.year) continue;
+      const za = Math.max(heightAt(br.a[0], br.a[1]), heightAt(br.b[0], br.b[1])), a = f(br.a, za), b2 = f(br.b, za);
+      ctx.strokeStyle = '#cfc6b0'; ctx.lineWidth = Math.max(1.5, baseScale() * cam.zoom * br.width); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b2[0], b2[1]); ctx.stroke();
+    }
+  }
+  if (!st.layers.has('buildings')) { if (st.layers.has('labels')) labels(grd ? gz : (p) => f(p, 0)); return; }
   // painter's order: the far side first (each building by its footprint's centre)
   const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), depth = (x, y) => (x - cam.x) * sy + (y - cam.y) * cy;
   if (!order || order.yaw !== cam.yaw) {
@@ -276,19 +387,23 @@ function drawModel() {
   const view = [sy, cy];                                  // the direction the camera looks (into the screen, on the ground)
   const s = baseScale() * cam.zoom;
   for (const { b } of order) {
-    const F = b.footprint, wall = wallOf(b), roofC = roofOf(b), h = b.height;
+    // each building stands on its levelled platform: walls from the lowest ground under it, the eaves
+    // its height above the platform
+    const F = b.footprint, wall = wallOf(b), roofC = roofOf(b), z0 = (b.base || 0) - (b.fall || 0) / 2, h = (b.base || 0) + b.height;
+    const cp = f(F[0], h);
+    if (cp[0] < -200 || cp[0] > W + 200 || cp[1] < -400 || cp[1] > H + 300) continue;          // off screen
     // walls: those facing the camera (their outward normal against the view direction)
     for (let i = 0; i < F.length; i++) {
       const p = F[i], q = F[(i + 1) % F.length], ex = q[0] - p[0], ey = q[1] - p[1], L = Math.hypot(ex, ey) || 1, nx = ey / L, ny = -ex / L;
       if (nx * view[0] + ny * view[1] >= 0) continue;
-      const a = f(p, 0), bb = f(q, 0), c = f(q, h), dd = f(p, h);
+      const a = f(p, z0), bb = f(q, z0), c = f(q, h), dd = f(p, h);
       ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(bb[0], bb[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(dd[0], dd[1]); ctx.closePath();
       ctx.fillStyle = rgb(wall, shade(nx, ny, 0)); ctx.fill();
       // storeys, when they are big enough to see
-      const storeyPx = (h / b.storeys) * s * Math.cos(cam.tilt);
+      const storeyPx = (b.height / b.storeys) * s * Math.cos(cam.tilt);
       if (storeyPx > 5 && b.storeys > 1) {
         ctx.strokeStyle = 'rgba(30,24,20,0.28)'; ctx.lineWidth = 0.7; ctx.beginPath();
-        for (let k = 1; k < b.storeys; k++) { const z = (k / b.storeys) * h, u = f(p, z), v = f(q, z); ctx.moveTo(u[0], u[1]); ctx.lineTo(v[0], v[1]); }
+        for (let k = 1; k < b.storeys; k++) { const z = (b.base || 0) + (k / b.storeys) * b.height, u = f(p, z), v = f(q, z); ctx.moveTo(u[0], u[1]); ctx.lineTo(v[0], v[1]); }
         ctx.stroke();
       }
     }
@@ -305,7 +420,32 @@ function drawModel() {
       ctx.fillStyle = rgb(roofC, shade(0, 0, 1) * 0.95); ctx.fill();
     }
   }
-  if (st.layers.has('labels')) labels((p) => f(p, 0));
+  if (st.layers.has('labels')) labels(grd ? gz : (p) => f(p, 0));
+}
+// the terrain in the model: a mesh of quads ~30 m across, far side first, height-tinted and sun-shaded;
+// the river on it
+function terrainModel(f, shade) {
+  const N = 100, size = city.size, half = size / 2, step = size / N, cyw = Math.cos(cam.yaw), syw = Math.sin(cam.yaw);
+  const Z = new Float32Array((N + 1) * (N + 1));
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) Z[j * (N + 1) + i] = heightAt(-half + i * step, -half + j * step);
+  let top = 10; for (const z of Z) if (z > top) top = z;
+  const quads = [];
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) quads.push([i, j, ((-half + (i + 0.5) * step) - cam.x) * syw + ((-half + (j + 0.5) * step) - cam.y) * cyw]);
+  quads.sort((a, b) => b[2] - a[2]);
+  for (const [i, j] of quads) {
+    const k = j * (N + 1) + i, z00 = Z[k], z10 = Z[k + 1], z01 = Z[k + N + 1], z11 = Z[k + N + 2];
+    const x = -half + i * step, y = -half + j * step, sea = Math.max(z00, z10, z01, z11) < 0;
+    const P = [f([x, y], Math.max(0, z00)), f([x + step, y], Math.max(0, z10)), f([x + step, y + step], Math.max(0, z11)), f([x, y + step], Math.max(0, z01))];
+    ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]); for (let m = 1; m < 4; m++) ctx.lineTo(P[m][0], P[m][1]); ctx.closePath();
+    if (sea) { ctx.fillStyle = '#34587e'; ctx.fill(); continue; }
+    const dx = ((z10 + z11) - (z00 + z01)) / (2 * step), dy = ((z01 + z11) - (z00 + z10)) / (2 * step), nn = Math.hypot(dx, dy, 1), t = Math.min(1, Math.max(0, (z00 + z11) / 2) / top);
+    const c = [78 + 92 * t, 98 + 70 * t, 62 + 50 * t];
+    ctx.fillStyle = rgb(c, shade(-dx / nn, -dy / nn, 1 / nn)); ctx.fill(); ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 0.6; ctx.stroke();
+  }
+  if (grd.river) {
+    ctx.strokeStyle = WATER; ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1.5, baseScale() * cam.zoom * grd.river.width);
+    ctx.beginPath(); grd.river.path.forEach((p, i) => { const [x, y] = f(p, heightAt(p[0], p[1]) + 3); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+  }
 }
 
 // ---- pointers: plan pans and zooms; the model turns, tilts, pans and zooms
@@ -363,6 +503,7 @@ function inspect(sx, sy) {
     const st2 = blk.widths[p.frontEdge] || { w: 0, rank: 'street' };
     html += p.yard ? `a yard behind a closed street, ${A(p.poly).toFixed(0)} m²` : `a plot ${p.width.toFixed(1)} m wide and ${p.depth.toFixed(0)} m deep, fronting ${st2.rank === 'old road' ? 'an' : 'a'} ${st2.rank} ${st2.w.toFixed(0)} m wide; land value ${(p.value * 100).toFixed(0)}`;
   }
+  if (grd) { const c0 = p ? G.centroid(p.poly) : pt, h0 = heightAt(c0[0], c0[1]); html += `<br><span style="color:var(--dim)">ground ${h0.toFixed(1)} m above the sea${b && b.fall > 1.5 ? `; it falls ${b.fall.toFixed(1)} m across the building, levelled at ${b.base.toFixed(1)} m` : ''}</span>`; }
   if (b) html += `<br>standing in ${st.year}: ${STYLES[b.style].label.replace(/s$/, '')}, built ${b.from}, ${b.storeys} storey${b.storeys > 1 ? 's' : ''}, ${b.height.toFixed(0)} m, ${ROOF_WORDS[b.roof]}${b.strips.length > 1 ? `, on ${b.strips.length} of the original plots` : ''}`;
   if (p) {
     // the plot's history: every building that ever stood on it
