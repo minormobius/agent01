@@ -17,7 +17,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readTree, writeTree } from './lib/commons.mjs';
 import { TENANT, BASE, LIVE, README, SLUG, EXT } from './lib/www.mjs';
-import { planApi, planBots } from './lib/house.mjs';
+import { planApi, planBots, planFeeds } from './lib/house.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -108,7 +108,7 @@ export async function publishSites({ runDir, www, home = null, gateScript = join
   result.skipped = skipped;
   // The house's API (lib/house.mjs): routes with a passing test and two parts' signatures, written
   // to miniphim/api/ beside site/, with the routes table the worker imports.
-  let api = null, bots = null;
+  let api = null, bots = null, feeds = null;
   if (home) {
     api = planApi(commons);
     const apiDir = join(dirname(home), 'api');
@@ -128,6 +128,14 @@ export async function publishSites({ runDir, www, home = null, gateScript = join
       rmSync(botsDir, { recursive: true, force: true }); writeTree(botsDir, bots.files); result.changed = true;
     }
     result.bots = { live: bots.bots.map((b) => b.name), held: bots.held };
+    // Feeds (lib/house.mjs planFeeds): written to miniphim/feeds/, served by the bots worker.
+    feeds = planFeeds(commons);
+    const feedsDir = join(dirname(home), 'feeds');
+    const hadF = existsSync(feedsDir) ? readTree(feedsDir) : {};
+    if (JSON.stringify(Object.entries(hadF).sort()) !== JSON.stringify(Object.entries(feeds.files).sort())) {
+      rmSync(feedsDir, { recursive: true, force: true }); writeTree(feedsDir, feeds.files); result.changed = true;
+    }
+    result.feeds = { live: feeds.feeds.map((f) => f.name), held: feeds.held };
   }
   if (rendered.length) result.og = rendered;
   const live = `# LIVE: what the lab did with www/ (${now.slice(0, 16)}Z)\n\n` +
@@ -140,6 +148,7 @@ export async function publishSites({ runDir, www, home = null, gateScript = join
     (checked ? (checked.every((c) => c.code === 200)
       ? `\nThe last publish is live: every page the house held before this run answers 200 (${checked.length} checked).\n`
       : `\n**The last publish did not all reach the web.** Pages the house held before this run, fetched live now:\n${checked.map((c) => `- ${c.url}: ${c.code}`).join('\n')}\nA page that isn't 200 means the deploy after the last run failed or is waiting; tell the person.\n`) : '') +
+    (feeds ? `\nFeeds (house/feeds/, served as did:web:miniphim.minomobi.com): ${feeds.feeds.length ? feeds.feeds.map((f) => `${f.name} (signed by ${f.signed.join(', ')})`).join(', ') : 'none of yours shipped'}; the lab's welcome-desk is served too. Each needs a town.delve.feed.generator record (rkey = its name) in your repo to appear in Delvetown. Status: ${BASE}_bots/\n${feeds.held.map((h) => `- held: ${h.name}: ${h.why}`).join('\n')}${feeds.held.length ? '\n' : ''}` : '') +
     (rendered.length ? `\nCard pictures:\n${rendered.map((s) => `- ${s}`).join('\n')}\n` : '') +
     (skipped.length ? `\nLeft out:\n${skipped.map((s) => `- ${s}`).join('\n')}\n` : '');
   mkdirSync(join(commonsDir, 'www'), { recursive: true });

@@ -65,13 +65,13 @@ const bingo = { digest: 'd1', every: 60, secret: 'BOT_BINGO_PASSWORD', signed: [
 const broken = { ...bingo, digest: 'd2', secret: 'BOT_BROKEN_PASSWORD', profile: { ...bingo.profile, handle: 'broken.delve.town' }, mod: { default: async () => { throw new Error('oops'); } } };
 
 // No password yet: waiting, nothing sent.
-let o = new Bots(ctx, {}, { bingo });
+let o = new Bots(ctx, {}, { bingo }, {});
 calls.length = 0;
 await o.tick('2026-10-07T00:00:00Z');
 assert.equal(calls.length, 0);
 assert.match((await o.status()).bots.bingo.waiting, /BOT_BINGO_PASSWORD/);
 
-o = new Bots(ctx, { BOT_BINGO_PASSWORD: 'pw', BOT_BROKEN_PASSWORD: 'pw' }, { bingo, broken });
+o = new Bots(ctx, { BOT_BINGO_PASSWORD: 'pw', BOT_BROKEN_PASSWORD: 'pw' }, { bingo, broken }, {});
 await o.tick('2026-10-07T00:00:00Z');
 const put = calls.find((c) => c.nsid === 'putRecord' && c.body.collection === 'town.delve.actor.profile');
 assert.deepEqual(put.body.record.labels.values, [{ val: 'bot' }], 'the profile carries the bot label');
@@ -100,11 +100,52 @@ assert.equal((await worker.fetch(new Request('https://miniphim.minomobi.com/_bot
 
 // A failure before the tick (here, sign-in refused) doesn't use up the bot's clock: next cron retries.
 { const st2 = new Map(); const c2 = { storage: { get: async (k) => structuredClone(st2.get(k)), put: async (k, v) => { st2.set(k, structuredClone(v)); }, delete: async (k) => st2.delete(k) } };
-  const o2 = new Bots(c2, { BOT_BINGO_PASSWORD: 'wrong' }, { bingo });
+  const o2 = new Bots(c2, { BOT_BINGO_PASSWORD: 'wrong' }, { bingo }, {});
   await o2.tick('2026-10-07T00:00:00Z');
   const s2 = (await o2.status()).bots.bingo;
   assert.equal(s2.last_tick, null, 'a sign-in failure is not the bot\'s turn'); assert.ok(s2.last_error);
   o2.env.BOT_BINGO_PASSWORD = 'pw'; await o2.tick('2026-10-07T00:05:00Z');
   assert.equal((await o2.status()).bots.bingo.runs, 1, 'and the next cron runs it'); }
 
-console.log('miniphim bots selftest: the fence, facets, own repo only, 100-write rail, waiting, profile with bot label, session reuse, private state, errors per tick, status');
+// Feeds: the DID document, describe, and the welcome desk against a fake PDS (two accounts with posts,
+// one without); refresh stores each first post once, the skeleton pages newest arrivals first.
+{
+  const { didDoc, FEED_DID } = await import('./bot-worker.js');
+  const wd = await import('./lab-feeds/welcome-desk.mjs');
+  assert.equal(FEED_DID, 'did:web:miniphim.minomobi.com');
+  assert.deepEqual(didDoc().service[0], { id: '#bsky_fg', type: 'BskyFeedGenerator', serviceEndpoint: 'https://miniphim.minomobi.com' });
+  const firsts = { 'did:plc:a': { uri: 'at://did:plc:a/town.delve.feed.post/1', value: { createdAt: '2026-10-01T00:00:00Z' } },
+    'did:plc:b': { uri: 'at://did:plc:b/town.delve.feed.post/1', value: { createdAt: '2026-10-05T00:00:00Z' } } };
+  let reads = 0;
+  _setNet(async (input) => {
+    const u = new URL(String(input)); reads++;
+    if (u.pathname.endsWith('listRepos')) return new Response(JSON.stringify({ repos: [{ did: 'did:plc:a' }, { did: 'did:plc:b' }, { did: 'did:plc:c' }, { did: 'did:plc:gone', active: false }] }));
+    if (u.pathname.endsWith('listRecords')) { assert.equal(u.searchParams.get('reverse'), 'true'); const r = firsts[u.searchParams.get('repo')]; return new Response(JSON.stringify({ records: r ? [r] : [] })); }
+    return new Response('{}', { status: 404 });
+  });
+  const st = new Map(); const c3 = { storage: { get: async (k) => structuredClone(st.get(k)), put: async (k, v) => { st.set(k, structuredClone(v)); }, delete: async (k) => st.delete(k),
+    list: async ({ prefix }) => new Map([...st].filter(([k]) => k.startsWith(prefix)).sort()) } };
+  const o3 = new Bots(c3, {}, {}, { 'welcome-desk': { mod: wd, by: 'lab' } });
+  await o3.tick('2026-10-08T00:00:00Z');
+  assert.equal(reads, 4, 'the account list once, then each active account once');
+  let r = await o3.skeleton('welcome-desk', undefined, 1);
+  assert.deepEqual(r.body, { feed: [{ post: 'at://did:plc:b/town.delve.feed.post/1' }], cursor: '1' }, 'newest arrival first, paged');
+  r = await o3.skeleton('welcome-desk', '1', 1);
+  assert.deepEqual(r.body, { feed: [{ post: 'at://did:plc:a/town.delve.feed.post/1' }] });
+  reads = 0; await o3.tick('2026-10-08T00:10:00Z');
+  assert.equal(reads, 0, 'a first post is read once; an account without one waits 2 h; the list 30 min');
+  assert.equal((await o3.skeleton('nope', undefined, 5)).status, 400);
+  assert.deepEqual((await o3.status()).feeds['welcome-desk'].result, { accounts: 3, checked: 0, found: 0 }, 'status shows the last refresh');
+  const { default: worker } = await import('./bot-worker.js');
+  const env = { OPEN: 'true', BOTS: { idFromName: () => 'id', get: () => ({ fetch: (u) => o3.fetch(new Request(u)) }) } };
+  const dd = await (await worker.fetch(new Request('https://miniphim.minomobi.com/.well-known/did.json'), env)).json();
+  assert.equal(dd.id, FEED_DID);
+  const desc = await (await worker.fetch(new Request('https://miniphim.minomobi.com/xrpc/town.delve.feed.describeFeedGenerator'), env)).json();
+  assert.ok(desc.feeds.some((f) => f.uri.endsWith('/town.delve.feed.generator/welcome-desk')));
+  const sk = await worker.fetch(new Request('https://miniphim.minomobi.com/xrpc/town.delve.feed.getFeedSkeleton?feed=at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/town.delve.feed.generator/welcome-desk&limit=5'), env);
+  assert.equal(sk.status, 200); assert.equal((await sk.json()).feed.length, 2);
+  assert.equal((await worker.fetch(new Request('https://miniphim.minomobi.com/xrpc/town.delve.feed.getFeedSkeleton?feed=nonsense'), env)).status, 400);
+  _setNet(fakeNet);
+}
+
+console.log('miniphim bots selftest: the fence, facets, own repo only, 100-write rail, waiting, profile with bot label, session reuse, private state, errors per tick, status, feeds (DID doc, describe, welcome desk, skeleton paging)');

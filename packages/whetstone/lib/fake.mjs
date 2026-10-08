@@ -108,7 +108,10 @@ function workFake(soul, meta, collapsed, cwd) {
       for (const [f, v] of [['b.mjs', 'export default async () => {};\n'], ['b.test.mjs', '\n'], ['b.json', '{}\n'], ['b.svg', '<svg/>\n']]) writeFileSync(join(cwd, 'house', 'bots', f), v);
       const bd = execFileSync('node', [join(cwd, 'house', 'digest.mjs'), 'bots/b'], { encoding: 'utf8' }).trim();
       writeFileSync(join(cwd, 'house', 'bots', 'b.modulo.sign.json'), JSON.stringify({ digest: bd }));
-      writeFileSync(join(cwd, 'house', 'bots', 'b.mozzie.sign.json'), JSON.stringify({ digest: bd })); }
+      writeFileSync(join(cwd, 'house', 'bots', 'b.mozzie.sign.json'), JSON.stringify({ digest: bd }));
+      mkdirSync(join(cwd, 'house', 'feeds'), { recursive: true });
+      for (const [f, v] of [['w.mjs', 'export default async () => ({ feed: [] });\n'], ['w.test.mjs', '\n'], ['w.json', '{"displayName":"W"}\n']]) writeFileSync(join(cwd, 'house', 'feeds', f), v);
+      writeFileSync(join(cwd, 'house', 'feeds', 'w.modulo.sign.json'), JSON.stringify({ digest: execFileSync('node', [join(cwd, 'house', 'digest.mjs'), 'feeds/w'], { encoding: 'utf8' }).trim() })); }
     if (soul === 'modulo') { mkdirSync(join(cwd, 'letters', 'from-the-person'), { recursive: true });
       writeFileSync(join(cwd, 'letters', 'REPLIES.md'), 'Dear person: yes. — Modulo\n');
       writeFileSync(join(cwd, 'letters', 'from-the-person', '2026-10-05-hello.md'), 'tampered'); }

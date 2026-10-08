@@ -9,7 +9,10 @@
   "workers_dev": false,
   // Status only, read-only, under the house's own host (the host's DNS is the house's).
   "routes": [
-    { "pattern": "miniphim.minomobi.com/_bots*", "zone_name": "minomobi.com" }
+    { "pattern": "miniphim.minomobi.com/_bots*", "zone_name": "minomobi.com" },
+    // The feed service (feeds in bot-worker.js): its DID document and the feed XRPC methods.
+    { "pattern": "miniphim.minomobi.com/.well-known/did.json", "zone_name": "minomobi.com" },
+    { "pattern": "miniphim.minomobi.com/xrpc/*", "zone_name": "minomobi.com" }
   ],
   "triggers": { "crons": ["*/5 * * * *"] },
   "durable_objects": { "bindings": [{ "name": "BOTS", "class_name": "Bots" }] },

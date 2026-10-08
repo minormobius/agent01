@@ -595,6 +595,8 @@ await t('a town day: each part keeps only its own drafts and approvals; the lab 
   assert.ok(C['house/bots/b.mjs'] && C['house/bots/b.modulo.sign.json'], 'a bot and its writer\'s own signature are kept');
   assert.equal(C['house/bots/b.mozzie.sign.json'], undefined, 'a bot signature in another part\'s name is not');
   { const { botDigest } = await import('./lib/house.mjs');
+    const { feedDigest } = await import('./lib/house.mjs');
+    assert.equal(JSON.parse(C['house/feeds/w.modulo.sign.json']).digest, feedDigest(C['house/feeds/w.mjs'], C['house/feeds/w.test.mjs'], C['house/feeds/w.json']), 'the digest tool and the lab agree on feeds');
     assert.equal(JSON.parse(C['house/bots/b.modulo.sign.json']).digest, botDigest(C['house/bots/b.mjs'], C['house/bots/b.test.mjs'], C['house/bots/b.json'], C['house/bots/b.svg']), 'the digest tool and the lab agree'); }
   assert.equal(C['house/README.md'], undefined, 'the house README is the lab\'s, lent');
   assert.match(C['letters/REPLIES.md'], /Dear person/, 'their reply is kept');
@@ -729,6 +731,21 @@ await t('the corner: www/ publishes through the factory gate, a refusal keeps th
   { const { checkLive } = await import('./publish-sites.mjs');
     const c = await checkLive(['', 'sierpinski'], async (u) => ({ status: u.endsWith('sierpinski/') ? 404 : 200 }));
     assert.deepEqual(c.map((x) => x.code), [200, 404]); assert.equal(c[1].url, 'https://miniphim.minomobi.com/sierpinski/'); }
+  // Feeds: a test, a json and two signatures; the generated index carries the name and digest.
+  { const { feedDigest } = await import('./lib/house.mjs');
+    mkdirSync(join(run2, 'commons', 'house', 'feeds'), { recursive: true });
+    const fput = (f, v) => writeFileSync(join(run2, 'commons', 'house', 'feeds', f), v);
+    const fc = 'export default async ({ limit }) => ({ feed: [{ post: "at://did:plc:x/town.delve.feed.post/1" }].slice(0, limit) });';
+    const ft = "import s from './rooms.mjs'; const r = await s({ limit: 1 }); if (r.feed.length !== 1) process.exit(1);";
+    const fj = JSON.stringify({ displayName: 'Rooms', description: 'every room' });
+    fput('rooms.mjs', fc); fput('rooms.test.mjs', ft); fput('rooms.json', fj); fput('rooms.modulo.sign.json', JSON.stringify({ digest: feedDigest(fc, ft, fj) }));
+    a = await publishSites({ runDir: run2, home: homeDir });
+    assert.deepEqual(a.feeds.live, []); assert.match(a.feeds.held[0].why, /two parts/);
+    fput('rooms.mozzie.sign.json', JSON.stringify({ digest: feedDigest(fc, ft, fj) }));
+    a = await publishSites({ runDir: run2, home: homeDir });
+    assert.deepEqual(a.feeds.live, ['rooms']);
+    assert.match(readFileSync(join(root, 'feeds', 'index.mjs'), 'utf8'), /import \* as f0 from '\.\/rooms\.mjs'[\s\S]*"displayName":"Rooms"/);
+    assert.match(readFileSync(join(run2, 'commons', 'www', 'LIVE.md'), 'utf8'), /Feeds \(house\/feeds\/[\s\S]*rooms \(signed by modulo, mozzie\)/); }
   // A helper is signed too (Morphyx found the gap): add one, and the old signatures stop counting.
   mkdirSync(join(run2, 'commons', 'house', 'bots', 'lib'), { recursive: true });
   bput('lib/h.mjs', 'export const x = 1;');

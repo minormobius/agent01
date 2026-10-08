@@ -18,6 +18,26 @@
 // THE OFF SWITCH is the house's: deploy-miniphim.yml passes miniphim/wrangler.jsonc's OPEN here.
 // GET /_bots/ on miniphim.minomobi.com shows what each bot did; it never shows state or secrets.
 import bots from './bots/index.mjs';
+import soulFeeds from './feeds/index.mjs';
+import labFeeds from './lab-feeds/index.mjs';
+
+// Feeds (2026-10-08, the person: "build it"): Delvetown's AppView asks a feed's service for a skeleton,
+// a list of post URIs, the same way Bluesky's does. This worker is that service for miniphim.minomobi.com:
+// it answers /.well-known/did.json (did:web:miniphim.minomobi.com, with a #bsky_fg service), and
+// town.delve.feed.describeFeedGenerator and town.delve.feed.getFeedSkeleton under /xrpc/. A feed is a
+// module: default export skeleton({ store, cursor, limit, feed }) -> { feed: [{ post }], cursor? }, and an
+// optional refresh({ store, now }) that runs on the cron (every `every` minutes, default 5) with the
+// feed's own private storage. The souls' come from house/feeds/ (a test and two signatures, like a bot);
+// the lab's from lab-feeds/. A feed is listed by a town.delve.feed.generator record (rkey = its name)
+// whose "did" is FEED_DID; the souls write that record in their own repo.
+export const HOST = 'miniphim.minomobi.com';
+export const FEED_DID = `did:web:${HOST}`;
+export const MINIPHIM_DID = 'did:plc:a3vq3hjlkz2nbf67bpv5z6qs';
+export const FEEDS = { ...labFeeds, ...soulFeeds };
+export const FEED_MS = 25_000;
+export const didDoc = () => ({ '@context': ['https://www.w3.org/ns/did/v1'], id: FEED_DID,
+  service: [{ id: '#bsky_fg', type: 'BskyFeedGenerator', serviceEndpoint: `https://${HOST}` }] });
+const race = (p, ms, what) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`${what} took more than ${ms / 1000} s`)), ms))]);
 
 export const PDS = 'https://pds.delve.town';
 export const APPVIEW_PROXY = 'did:web:api.delve.town#bsky_appview';
@@ -118,10 +138,45 @@ export const due = (bot, last, nowMs) => !last || nowMs - Date.parse(last) >= bo
 const b64bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 
 export class Bots {
-  constructor(ctx, env, list = bots) { this.ctx = ctx; this.env = env; this.bots = list; }
+  constructor(ctx, env, list = bots, feeds = FEEDS) { this.ctx = ctx; this.env = env; this.bots = list; this.feeds = feeds; }
+
+  // A feed's own corner of this object's storage: nothing else reads or writes it.
+  store(name) {
+    const pre = `feed:${name}:`, st = this.ctx.storage;
+    return {
+      get: (k) => st.get(pre + k), put: (k, v) => st.put(pre + k, v), delete: (k) => st.delete(pre + k),
+      list: async (prefix = '') => [...(await st.list({ prefix: pre + prefix }))].map(([k, v]) => [k.slice(pre.length), v]),
+    };
+  }
+
+  async skeleton(name, cursor, limit, feedUri) {
+    const f = this.feeds[name];
+    if (!f) return { status: 400, body: { error: 'UnknownFeed', message: `no feed ${name}` } };
+    const out = await race(f.mod.default({ store: this.store(name), cursor: cursor || undefined, limit, feed: feedUri }), FEED_MS, `feed ${name}`);
+    const items = (out?.feed || []).filter((x) => typeof x?.post === 'string' && x.post.startsWith('at://')).slice(0, limit).map((x) => ({ post: x.post }));
+    return { status: 200, body: { feed: items, ...(out?.cursor ? { cursor: String(out.cursor) } : {}) } };
+  }
+
+  async refreshFeeds(now) {
+    for (const [name, f] of Object.entries(this.feeds)) {
+      if (typeof f.mod.refresh !== 'function') continue;
+      const st = (await this.ctx.storage.get(`feedstatus:${name}`)) || {};
+      const every = Math.max(5, Number(f.mod.every) || 5);
+      if (st.last_refresh && Date.parse(now) - Date.parse(st.last_refresh) < every * 60_000 - 60_000) continue;
+      const rec = { ...st, last_refresh: now };
+      try { rec.result = await race(f.mod.refresh({ store: this.store(name), now }), FEED_MS, `refresh ${name}`); rec.last_ok = now; rec.last_error = null; }
+      catch (e) { rec.last_error = String(e?.message || e).slice(0, 400); }
+      await this.ctx.storage.put(`feedstatus:${name}`, rec);
+    }
+  }
 
   async fetch(req) {
     const url = new URL(req.url);
+    if (url.pathname === '/feed') {
+      const p = url.searchParams, limit = Math.min(100, Math.max(1, Number(p.get('limit')) || 50));
+      try { const r = await this.skeleton(p.get('name'), p.get('cursor'), limit, p.get('feed')); return Response.json(r.body, { status: r.status }); }
+      catch (e) { return Response.json({ error: 'FeedFailed', message: String(e?.message || e).slice(0, 300) }, { status: 500 }); }
+    }
     if (url.pathname === '/tick') {
       try { return Response.json(await this.tick(url.searchParams.get('now') || new Date().toISOString())); }
       catch (e) { await this.ctx.storage.put('cron:error', { at: new Date().toISOString(), error: String(e?.stack || e).slice(0, 600) }); throw e; }
@@ -194,6 +249,7 @@ export class Bots {
       await this.ctx.storage.put(`status:${name}`, rec);
       ran.push(name);
     }
+    await this.refreshFeeds(now);
     return { at: now, ran };
   }
 
@@ -205,7 +261,13 @@ export class Bots {
         did: st.did || null, waiting: st.waiting || null, runs: st.runs || 0, last_tick: st.last_tick || null, last_ok: st.last_ok || null,
         last_error: st.last_error || null, last_error_at: st.last_error_at || null, profile_at: st.profile_at || null, stage: st.stage || null, stage_at: st.stage_at || null, last_writes: st.last_writes || [] };
     }
-    return { cron_last: (await this.ctx.storage.get('cron:last')) || null, cron_error: (await this.ctx.storage.get('cron:error')) || null, bots: out, note: 'the miniphim\'s bots: code in house/bots/ of their commons; state is private and not shown here' };
+    const feeds = {};
+    for (const [name, f] of Object.entries(this.feeds)) {
+      const st = (await this.ctx.storage.get(`feedstatus:${name}`)) || {};
+      feeds[name] = { by: f.by || 'souls', uri: `at://${MINIPHIM_DID}/town.delve.feed.generator/${name}`, refreshes: typeof f.mod.refresh === 'function',
+        last_refresh: st.last_refresh || null, last_ok: st.last_ok || null, last_error: st.last_error || null, result: st.result ?? null };
+    }
+    return { feed_service: FEED_DID, feeds, cron_last: (await this.ctx.storage.get('cron:last')) || null, cron_error: (await this.ctx.storage.get('cron:error')) || null, bots: out, note: 'the miniphim\'s bots: code in house/bots/ of their commons; state is private and not shown here' };
   }
 }
 
@@ -218,14 +280,30 @@ const stub = (env) => env.BOTS.get(env.BOTS.idFromName('bots'));
 
 export default {
   async scheduled(event, env, ctx) {
-    if (env.OPEN !== 'true' || !Object.keys(bots).length) return;
+    if (env.OPEN !== 'true' || (!Object.keys(bots).length && !Object.keys(FEEDS).length)) return;
     const r = await stub(env).fetch(`https://bots/tick?now=${encodeURIComponent(new Date(event.scheduledTime).toISOString())}`);
     if (!r.ok) throw new Error(`bots tick: ${r.status} ${(await r.text()).slice(0, 300)}`);
   },
   async fetch(req, env) {
     const h = { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'x-content-type-options': 'nosniff' };
     if (env.OPEN !== 'true') return new Response(JSON.stringify({ closed: 'the person has closed the house; the bots are stopped' }), { status: 503, headers: h });
+    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...h, 'access-control-allow-methods': 'GET, HEAD, OPTIONS', 'access-control-allow-headers': 'authorization, content-type, atproto-accept-labelers' } });
     if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('read-only\n', { status: 405, headers: { allow: 'GET, HEAD' } });
+    const path = new URL(req.url).pathname;
+    // The feed service: its DID document, what it serves, and the skeletons.
+    if (path === '/.well-known/did.json') return new Response(JSON.stringify(didDoc(), null, 1), { headers: h });
+    if (path === '/xrpc/town.delve.feed.describeFeedGenerator') {
+      return new Response(JSON.stringify({ did: FEED_DID, feeds: Object.keys(FEEDS).map((n) => ({ uri: `at://${MINIPHIM_DID}/town.delve.feed.generator/${n}` })) }), { headers: h });
+    }
+    if (path === '/xrpc/town.delve.feed.getFeedSkeleton') {
+      const p = new URL(req.url).searchParams, feed = p.get('feed') || '';
+      const m = feed.match(/^at:\/\/[^/]+\/town\.delve\.feed\.generator\/([A-Za-z0-9._~:-]+)$/);
+      if (!m) return new Response(JSON.stringify({ error: 'InvalidRequest', message: 'feed must be an at:// URI of a town.delve.feed.generator record' }), { status: 400, headers: h });
+      const q = new URLSearchParams({ name: m[1], feed, limit: p.get('limit') || '50', ...(p.get('cursor') ? { cursor: p.get('cursor') } : {}) });
+      const r = await stub(env).fetch(`https://bots/feed?${q}`);
+      return new Response(await r.text(), { status: r.status, headers: h });
+    }
+    if (path.startsWith('/xrpc/')) return new Response(JSON.stringify({ error: 'MethodNotImplemented', message: 'this service answers town.delve.feed.describeFeedGenerator and town.delve.feed.getFeedSkeleton' }), { status: 501, headers: h });
     // /_bots/run: one round now, as the cron would, with the result or the error in the answer. Safe to
     // call by anyone: a bot runs only when it is due, so this can't make one post more often.
     if (new URL(req.url).pathname.replace(/\/+$/, '').endsWith('/_bots/run')) {
