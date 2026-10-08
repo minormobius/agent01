@@ -57,5 +57,11 @@ without them field.js behaves exactly as before) with morph's `envelope()` popul
 off the field (`generate({ field, ground })`). ~7 s (field ~4.5 s). The page draws the ground as a
 hillshade with 5 m contours (plan) or a mesh (model), the farmed cells, the field's roads by year, the
 river and its bridges, and a chronicle line from the field's events. `src=sketch` is the old synthetic
-town. Integration selftest: `polis/test/morph.selftest.mjs` (~10 s). The worker imports `../field.js`,
+town. Integration selftest: `polis/test/morph.selftest.mjs` (~10 s).
+
+**Facades** (2026-10-08): every building's shell in its period comes from `tjs/brut/period.js` (brut through
+the centuries), copied to `morph/brut/` by sync-dataviz — edit it in tjs. The model view draws a wall's
+openings, bands and balconies once a storey is more than ~6 px tall (scaled so the shell's eaves meet the
+mass the city drew); tapping a building draws its street elevation in the inspector, with its
+construction and the masonry check. `window.morph` (cam, city, redraw, inspect) is a console handle. The worker imports `../field.js`,
 which imports `../rite/names/engine.js`: the deploy stages it (deploy-polis.yml).

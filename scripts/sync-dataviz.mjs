@@ -39,6 +39,9 @@ const EXTRA = [
   ["packages/morph/morph.js", "polis/morph/morph.js"],
   ["packages/morph/ground.js", "polis/morph/ground.js"],
   ["packages/morph/rand.js", "polis/morph/rand.js"],
+  // brut through the centuries: the period shells the city's model view and elevations draw
+  ["tjs/brut/period.js", "polis/morph/brut/period.js"],
+  ["tjs/brut/rand.js", "polis/morph/brut/rand.js"],
   ["packages/oauth-client/auth.js", "lab/_kit/auth.js"],
   // handle typeahead on every handle field, through the cad gateway
   ["packages/oauth-client/typeahead.js", "packages/cad/vendor/typeahead.js"],

@@ -28,7 +28,7 @@
   .stats b { color:var(--ink); font-weight:600; }
   .note { font-size:12.5px; color:var(--dim); }
   .note p { margin:6px 0; }
-  #inspect { position:fixed; right:12px; bottom:12px; max-width:300px; background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:10px 12px; font-size:12.5px; display:none; }
+  #inspect { position:fixed; right:12px; bottom:12px; max-width:320px; max-height:70vh; overflow:auto; background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:10px 12px; font-size:12.5px; display:none; }
   #inspect b { color:var(--gold); }
   .legend { display:flex; flex-wrap:wrap; gap:6px 10px; font-size:11.5px; color:var(--dim); margin-top:6px; }
   .legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:4px; vertical-align:-1px; }
@@ -79,6 +79,7 @@
 <div id="inspect"></div>
 <script type="module">
 import { generate, standing, ERAS, KINDS, PLANS, STYLES, PRESENT } from './morph.js';
+import { shell, elevation, PERIODS } from './brut/period.js';
 // polis mode grows the ground, the settlement field and the plan in worker.js
 import * as G from './geom.js';
 
@@ -110,6 +111,17 @@ const st = {
   src: q.get('src') === 'sketch' ? 'sketch' : 'polis',
 };
 const cam = { x: 0, y: 0, zoom: 1, yaw: 0.6, tilt: 0.75 };
+let shells = new Map();
+// a building's shell in its period (tjs/brut/period.js), made when first drawn up close
+function shellOf(b) {
+  let sh = shells.get(b.id);
+  if (!sh) {
+    const f = city.frontages[b.frontage], blk = city.blocks[f.block];
+    sh = shell({ footprint: b.footprint, front: [f.a, f.q], storeys: b.storeys, style: b.style, seed: city.seed, id: b.id }, { lot: blk.lot });
+    shells.set(b.id, sh);
+  }
+  return sh;
+}
 let city = null, order = null, vis = null, grd = null, groundImg = null, events = [], worker = null;
 
 function remember() {
@@ -152,7 +164,7 @@ function rebuild() {
   worker.postMessage({ seed: st.seed, plotScale: st.plotScale, streetScale: st.streetScale, heightScale: st.heightScale });
 }
 function show(c, note) {
-  city = c;
+  city = c; shells = new Map();
   // each district's outline: the edges of its parts that no other part of it shares
   for (const d of city.districts) {
     d.outline = [];
@@ -399,8 +411,9 @@ function drawModel() {
       const a = f(p, z0), bb = f(q, z0), c = f(q, h), dd = f(p, h);
       ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(bb[0], bb[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(dd[0], dd[1]); ctx.closePath();
       ctx.fillStyle = rgb(wall, shade(nx, ny, 0)); ctx.fill();
-      // storeys, when they are big enough to see
+      // up close: the facade in its period — bands, openings, balconies (scaled to the mass drawn)
       const storeyPx = (b.height / b.storeys) * s * Math.cos(cam.tilt);
+      if (storeyPx > 6) { facade(b, i, p, q, f, shade(nx, ny, 0)); continue; }
       if (storeyPx > 5 && b.storeys > 1) {
         ctx.strokeStyle = 'rgba(30,24,20,0.28)'; ctx.lineWidth = 0.7; ctx.beginPath();
         for (let k = 1; k < b.storeys; k++) { const z = (b.base || 0) + (k / b.storeys) * b.height, u = f(p, z), v = f(q, z); ctx.moveTo(u[0], u[1]); ctx.lineTo(v[0], v[1]); }
@@ -422,6 +435,66 @@ function drawModel() {
   }
   if (st.layers.has('labels')) labels(grd ? gz : (p) => f(p, 0));
 }
+// one wall's facade in its period, drawn on the wall's quad: z is scaled so the shell's eaves meet the
+// height the city drew
+const GLASS = [40, 52, 66];
+function facade(b, i, p, q, f, light) {
+  const sh = shellOf(b), w = sh.walls[i];
+  if (!w) return;
+  const k = b.height / sh.eaves, base = b.base || 0, L = w.length || 1;
+  const at = (x, z) => f([p[0] + (q[0] - p[0]) * (x / L), p[1] + (q[1] - p[1]) * (x / L)], base + Math.max(z, -(b.fall || 0) / 2) * k);
+  const quad = (x0, x1, z0, z1) => { const A = at(x0, z0), B = at(x1, z0), C = at(x1, z1), D = at(x0, z1); ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.lineTo(C[0], C[1]); ctx.lineTo(D[0], D[1]); ctx.closePath(); };
+  for (const band of w.bands) {
+    if (band.z1 != null) { quad(0, L, band.z, Math.min(band.z1, sh.eaves)); ctx.fillStyle = `rgba(236,228,206,${0.55 * light})`; ctx.fill(); }
+    else if (band.kind !== 'parapet') { quad(0, L, band.z, band.z + band.h); ctx.fillStyle = `rgba(230,222,200,${0.7 * light})`; ctx.fill(); }
+  }
+  for (const o of w.openings) {
+    if (o.z1 <= 0) continue;
+    quad(o.x0, o.x1, Math.max(0, o.z0), o.z1);
+    ctx.fillStyle = o.kind === 'door' || o.kind === 'carriage door' ? rgb([60, 44, 34], light) : rgb(GLASS, 0.75 + 0.35 * light); ctx.fill();
+    if (o.mullion) { ctx.strokeStyle = 'rgba(200,205,210,0.5)'; ctx.lineWidth = 0.6; ctx.beginPath(); for (let x = o.x0 + o.mullion; x < o.x1 - 0.1; x += o.mullion) { const A = at(x, o.z0), B = at(x, o.z1); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); } ctx.stroke(); }
+  }
+  ctx.strokeStyle = 'rgba(30,28,26,0.75)'; ctx.lineWidth = 1;
+  for (const bl of w.balconies) { const A = at(bl.x0, bl.z + 0.9), B = at(bl.x1, bl.z + 0.9); ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); }
+}
+
+// the elevation of a building's street front, drawn into the inspector: the period's shell as the
+// drawing office would draw it (storeys named, glazing bars, fanlight, bands, balconies)
+function drawElevation(cv, b) {
+  const sh = shellOf(b), i = sh.walls.findIndex((w) => w.kind === 'front'), w = sh.walls[i >= 0 ? i : 0];
+  if (!w) return;
+  const prims = elevation(sh, sh.walls.indexOf(w)), zmin = Math.min(0, ...sh.storeys.map((s) => s.z0)), H = w.top - zmin + 1, Wd = w.length + 2;
+  const sc = Math.min((cv.width - 70) / Wd, (cv.height - 10) / H), c2 = cv.getContext('2d'), X = (x) => 8 + (x + 1) * sc, Z = (z) => cv.height - 5 - (z - zmin + 0.5) * sc;
+  c2.fillStyle = '#0d1117'; c2.fillRect(0, 0, cv.width, cv.height);
+  c2.strokeStyle = '#8b98a9'; c2.lineWidth = 1; c2.beginPath(); c2.moveTo(0, Z(0)); c2.lineTo(cv.width, Z(0)); c2.stroke();
+  const wall = sh.system === 'curtain' ? '#9fb4c8' : sh.system === 'frame' ? '#b9b4aa' : sh.period === 'georgian' ? '#b9805e' : sh.period === 'haussmann' ? '#e2d6b8' : '#cbb38e';
+  for (const p of prims) {
+    const x0 = X(p.x0), x1 = X(p.x1), z0 = Z(p.z0), z1 = Z(p.z1);
+    if (p.kind === 'wall') { c2.fillStyle = wall; c2.fillRect(x0, z1, x1 - x0, z0 - z1); continue; }
+    if (p.kind === 'stucco' || p.kind === 'rustication') {
+      c2.fillStyle = '#e8e0cc'; c2.fillRect(x0, z1, x1 - x0, z0 - z1);
+      c2.strokeStyle = 'rgba(0,0,0,0.18)'; c2.beginPath(); for (let z = p.z0 + 0.35; z < p.z1; z += 0.35) { c2.moveTo(x0, Z(z)); c2.lineTo(x1, Z(z)); } c2.stroke(); continue;
+    }
+    if (['string course', 'cornice', 'slab edge', 'parapet'].includes(p.kind)) { c2.fillStyle = p.kind === 'parapet' ? wall : '#efe7d2'; c2.fillRect(x0, z1, x1 - x0, z0 - z1); if (p.kind === 'parapet') { c2.fillStyle = '#efe7d2'; c2.fillRect(x0, z1, x1 - x0, 2); } continue; }
+    if (p.kind === 'balcony' || p.kind === 'balconette') {
+      c2.strokeStyle = '#1b1f24'; c2.lineWidth = 1; const top = Z(p.z0 + 0.95);
+      c2.beginPath(); c2.moveTo(x0, top); c2.lineTo(x1, top); c2.moveTo(x0, z0); c2.lineTo(x1, z0); for (let x = p.x0; x <= p.x1; x += 0.12) { c2.moveTo(X(x), z0); c2.lineTo(X(x), top); } c2.stroke(); continue;
+    }
+    // an opening: the hole, then its glazing bars
+    const door = /door/.test(p.kind);
+    c2.fillStyle = door ? '#3b2a20' : '#2a3542'; c2.fillRect(x0, z1, x1 - x0, z0 - z1);
+    if (p.fan) { c2.beginPath(); c2.arc((x0 + x1) / 2, z1, (x1 - x0) / 2, Math.PI, 0); c2.fillStyle = '#2a3542'; c2.fill(); c2.strokeStyle = '#e9e2d0'; c2.stroke(); }
+    c2.strokeStyle = '#e9e2d0'; c2.lineWidth = 1; c2.strokeRect(x0, z1, x1 - x0, z0 - z1);
+    const [cols, rows] = p.panes || [0, 0], step = p.mullion;
+    c2.beginPath();
+    if (cols) { for (let a = 1; a < cols; a++) { const x = x0 + (x1 - x0) * a / cols; c2.moveTo(x, z1); c2.lineTo(x, z0); } for (let a = 1; a < rows; a++) { const z = z1 + (z0 - z1) * a / rows; c2.moveTo(x0, z); c2.lineTo(x1, z); } }
+    if (step) for (let x = p.x0 + step; x < p.x1 - 0.1; x += step) { c2.moveTo(X(x), z1); c2.lineTo(X(x), z0); }
+    c2.stroke();
+  }
+  c2.fillStyle = '#8b98a9'; c2.font = '10px ui-sans-serif,system-ui'; c2.textAlign = 'left';
+  for (const s of sh.storeys) if (s.h * sc > 10) c2.fillText(s.name, X(w.length) + 6, Z(s.z0 + s.h / 2) + 3);
+}
+
 // the terrain in the model: a mesh of quads ~30 m across, far side first, height-tinted and sun-shaded;
 // the river on it
 function terrainModel(f, shade) {
@@ -505,14 +578,21 @@ function inspect(sx, sy) {
   }
   if (grd) { const c0 = p ? G.centroid(p.poly) : pt, h0 = heightAt(c0[0], c0[1]); html += `<br><span style="color:var(--dim)">ground ${h0.toFixed(1)} m above the sea${b && b.fall > 1.5 ? `; it falls ${b.fall.toFixed(1)} m across the building, levelled at ${b.base.toFixed(1)} m` : ''}</span>`; }
   if (b) html += `<br>standing in ${st.year}: ${STYLES[b.style].label.replace(/s$/, '')}, built ${b.from}, ${b.storeys} storey${b.storeys > 1 ? 's' : ''}, ${b.height.toFixed(0)} m, ${ROOF_WORDS[b.roof]}${b.strips.length > 1 ? `, on ${b.strips.length} of the original plots` : ''}`;
+  if (b) {
+    const sh = shellOf(b), m = sh.structure;
+    html += `<canvas id="elev" width="290" height="${Math.round(Math.min(260, 40 + sh.top * 9))}" style="display:block;margin:6px 0;width:290px;max-width:100%"></canvas><span style="color:var(--dim)">${sh.label}: ${sh.system === 'masonry' ? 'load-bearing brick' : sh.system === 'stone' ? 'dressed stone over an iron shop frame' : sh.system === 'timber' ? 'timber frame' : sh.system === 'frame' ? 'a concrete frame' : 'a steel frame hung with a curtain wall'}${m ? `; its walls at ${(m.worst * 100).toFixed(0)}% of what ${sh.system === 'stone' ? 'the stone' : 'lime-mortared brick'} will bear${m.ok ? '' : ' — overloaded'}` : ''}</span>`;
+  }
   if (p) {
     // the plot's history: every building that ever stood on it
     const hist = city.buildings.filter((x) => x.strips.includes(p.id)).sort((u, v) => u.from - v.from);
     if (hist.length) html += `<br><span style="color:var(--dim)">this plot: ${hist.map((x) => `${x.from}${x.to ? `–${x.to}` : ''} ${STYLES[x.style].label}${x.strips.length > 1 ? ` (×${x.strips.length})` : ''}`).join(' → ')}</span>`;
   }
   el.innerHTML = html; el.style.display = 'block';
+  if (b && $('elev')) drawElevation($('elev'), b);
 }
 
+// a handle for poking at it from the console: morph.cam, morph.city, morph.redraw()
+window.morph = { cam, get city() { return city; }, redraw: () => { order = null; draw(); }, inspect: (x, y) => inspect(x, y) };
 if (matchMedia('(max-width: 640px)').matches) { $('panel').classList.add('closed'); $('toggle').textContent = '▴'; }   // a phone sees the city first
 setView(st.view);
 resize();
