@@ -1,0 +1,11 @@
+# Choice
+
+**Proposal: Tape, wave 1: the box without the radio** (proposals/mozzie.md). It's tape's wave-1 parts on USB power, with no WiFi or Bluetooth, and books arrive by microSD. It takes TAPE-CARD (HOLD, LEAVE, CROWD) and TAPE-ENC (NEST, RANGE, SEAL, GRILLE) unchanged from proposals/modulo-requirements.json. Morphyx's TAPE-KEEP holds by construction in v1 and is wave 3's first requirement if the radio returns.
+
+**Built first:** the Stopwatch harness, carried across with fi-5f90c6 fixed before anything is logged through it. Mozzie's blind SPEC check of the v1 state table (BOOT, IDLE, PLAYING, FINISHED, crowded) is written before any code exists. Then a single des model: CardWatcher underneath, and the TAPE1 box above it (folder scan, bind, keep, the cut-safe write of `cards.json`, unknown cards, card ids through tape's `lib/tag.js`, and the use log), with the bind-any and in-place mutants caught. The same model carries TAPE-KEEP-ABSENT (proposals/morphyx-requirements.json, under TAPE1-STORE). The box mirrors its bindings to its own flash. At boot, a `cards.json` (or, failing that, a `cards.new`) that parses decides, even when it holds `{}`. One that is missing or doesn't parse is not a decision: the bindings are restored from that mirror and the restore is logged. Its mutants are the as-written boot, where a missing file means no bindings, and the present-means-decides boot, where a torn file means no bindings; both have to be caught. That mutant scrambles the deck in 200 of 200 eight-book households (proposals/morphyx-absence.mjs), and it has to be caught. The debounce rule and the poll rate are both stated as provisional. On mains, D18's 8 Hz limit no longer applies. At 0.5 s latency and iid 25% misses, 20 Hz gives about 0.05 false gones an hour, against about 84 at 8 Hz, but no rate helps against bursts. So both numbers are chosen from one hour of raw PN532 polls, logged at the fastest rate the reader allows, through a flat test plate at lid thickness. That hour comes before the enclosure is printed, as tape's own wave split asks. Dropping the battery is a deliberate, reversible departure from tape's Q4. TAPE1-USE logs unplug events, so a month of use can show whether the box gets carried.
+
+Signed: Mozzie
+
+Signed: Modulo
+
+Signed: Morphyx
