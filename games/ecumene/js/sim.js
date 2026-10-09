@@ -11,8 +11,13 @@
    A year:
      1. the network: roads between neighbouring land zones (slower where
         dense: a crowded zone's streets jam), and the player's LINES: stops,
-        rides between consecutive stops, boarding (access + half a headway)
-        and alighting. A line's headway is its round trip over its trains.
+        rides between consecutive stops (and from the last back to the first
+        on a LOOP), boarding (access + half a headway) and alighting. A
+        line's headway is its round trip over its trains; an open line also
+        turns back at both ends, which a loop never does. Stops of different
+        lines at the same place are an INTERCHANGE: a change there takes a
+        minute and half the other line's headway instead of a walk out to
+        the street and back, and jobs gather at it (a station district).
      2. demand: from every settled zone, one Dijkstra over the whole network
         (cut off at TMAX minutes). Workers spread over the jobs they reach by
         a gravity model, exp(−β t). Where the best path rides a line, the
@@ -43,6 +48,9 @@ import { freight, F_, farmers } from "./freight.js";
 export const P_ = {
   ROAD_KMH: 40, CONGEST: 250,     // road speed falls as 1/(1 + density/CONGEST)
   LINE_KMH: 70, DWELL: 1, ACCESS: 3, EGRESS: 2, MIN_HEADWAY: 2,
+  TURN: 3,                        // a train turning back at a terminus, each end (a loop never turns)
+  HUB_KM: 0.6, TRANSFER: 1,       // stops of two lines this close are one station: change in a minute, not through the street
+  HUB_JOBS: 0.5,                  // and jobs gather there: ×(1 + HUB_JOBS) for every line past the first
   BETA: 0.04, THETA: 0.12, TMAX: 120,
   WORK: 0.45,                     // workers (and jobs) per person
   R_GROW: 0.07, RURAL: 6, URBAN: 6000, A_REF: 100000, ALPHA: 1, A_MAX: 4, W_HALF: 400,
@@ -209,7 +217,7 @@ export class Sim {
   /* ---------------------------------------------------------------- lines
      line: { id, color, stops: [[x, y, z], …], trains }. Stops are points on
      the sphere; each year they are found in whatever zone now holds them. */
-  setLines(lines) { this.lines = lines.map((l) => ({ id: l.id, color: l.color, stops: l.stops.map((s) => s.slice()), trains: l.trains, wagons: l.wagons || 0 })); }
+  setLines(lines) { this.lines = lines.map((l) => ({ id: l.id, color: l.color, stops: l.stops.map((s) => s.slice()), trains: l.trains, wagons: l.wagons || 0, loop: !!l.loop && l.stops.length >= 3 })); }
   /* Prices now: the index, and what building costs at p (a stop) or from a to b (track). */
   densAt(p) { const z = this.zoneAt(p); return this.pop[z] / Math.max(1e-6, this.area[z]); }
   trackCost(a, b) { return trackCost(this.world, a, b, (p) => this.densAt(p)) * (this.index || 1); }
@@ -257,7 +265,7 @@ export class Sim {
     const levy = gross * P_.LEVY_MAX * gross / (gross + P_.LEVY_HALF * (this.index || 1)), fares = gross - levy;
     this.stats.gross = gross; this.stats.levy = levy;
     let upkeep = 0;
-    for (const L of this.lines) { upkeep += P_.TRAIN_UPKEEP * L.trains + P_.WAGON_UPKEEP * (L.wagons || 0); for (let k = 0; k + 1 < L.stops.length; k++) upkeep += P_.TRACK_UPKEEP * arc(L.stops[k], L.stops[k + 1]) * R; }
+    for (const L of this.lines) { upkeep += P_.TRAIN_UPKEEP * L.trains + P_.WAGON_UPKEEP * (L.wagons || 0); for (const [a, b] of legs(L)) upkeep += P_.TRACK_UPKEEP * arc(L.stops[a], L.stops[b]) * R; }
     upkeep *= this.index || 1;
     const cargo = this.fr ? this.fr.revenue : 0;
     this.credits += fares + cargo - upkeep; this.stats.fares = fares + cargo; this.stats.cargo = cargo; this.stats.upkeep = upkeep;
@@ -280,6 +288,10 @@ export class Sim {
       fr.mines.forEach((m, k) => { if (this.edge("mine:" + k, m.on) && this.year > 1) this.emit("mine", "A " + m.kind + " mine opens" + nearTown(this, m.p), m.p); });
       for (const [id, f] of fr.lines) if (this.edge("cargo:" + id, f.food + f.ore > 50e3)) this.emit("cargo", "carries " + fmtN(f.food + f.ore) + " of freight a year", null, id);
     }
+    // a new interchange, said once (its lines are named on the page, which knows their colours)
+    const hubKeys = new Set((this.hubs || []).map((h) => h.lines.join("+") + "@" + h.p.map((x) => Math.round(x * 2000)).join(",")));
+    (this.hubs || []).forEach((h) => { const key = h.lines.join("+") + "@" + h.p.map((x) => Math.round(x * 2000)).join(","); if (!(this.hubSeen || new Set()).has(key)) { this.emit("hub", nearTown(this, h.p), h.p); this.events[this.events.length - 1].lines = h.lines; } });
+    this.hubSeen = hubKeys;
     if (this.pop0) this.index = Math.max(1, Math.pow(total / this.pop0, P_.INDEX_EXP));
     if (this.home != null && this.edge("charterReady:" + this.tier, this.charterReady()))
       this.emit("charter", "You've earned a wider charter: " + (TIERS[this.tier + 1].km === Infinity ? "the whole planet" : TIERS[this.tier + 1].km + " km") + ", for ₵" + Math.round(this.charterFee()), this.towns[this.home].p);
@@ -310,15 +322,17 @@ export class Sim {
       if (L.stops.length < 2 || L.trains < 1) return;
       const base = out.length, rides = [];
       L.stops.forEach((s, k) => { const z = this.zoneAt(s); stops.push({ line: li, k, zone: z, node: base + k }); out.push([]); });
-      let cycle = 0;
-      for (let k = 0; k + 1 < L.stops.length; k++) { const m = 60 * arc(L.stops[k], L.stops[k + 1]) * R / P_.LINE_KMH + P_.DWELL; rides.push(m); cycle += 2 * m; }
+      const lg = legs(L);
+      // both ways round: a loop runs half its trains each way, so its cycle is twice the ring, like an open line's out and back
+      let cycle = L.loop ? 0 : 2 * P_.TURN;
+      for (const [a, b] of lg) { const m = 60 * arc(L.stops[a], L.stops[b]) * R / P_.LINE_KMH + P_.DWELL; rides.push(m); cycle += 2 * m; }
       const headway = Math.max(P_.MIN_HEADWAY, cycle / L.trains), cap = L.trains * (P_.SERVICE_MIN / Math.max(1, cycle)) * P_.TRAIN_CAP;
       L._cycle = cycle; L._headway = headway; L._cap = cap;
-      for (let k = 0; k + 1 < L.stops.length; k++) for (const dir of [1, -1]) {
-        const a = dir > 0 ? k : k + 1, b = dir > 0 ? k + 1 : k, key = L.id + ":" + k + ":" + dir, c = this.crowd.get(key) || 0;
-        const seg = segs.length; segs.push({ line: li, k, dir, key, km: arc(L.stops[k], L.stops[k + 1]) * R, minutes: rides[k] * (1 + P_.CROWD_SLOW * Math.max(0, c - 0.8)) });
+      lg.forEach(([s0, s1], k) => { for (const dir of [1, -1]) {
+        const a = dir > 0 ? s0 : s1, b = dir > 0 ? s1 : s0, key = L.id + ":" + k + ":" + dir, c = this.crowd.get(key) || 0;
+        const seg = segs.length; segs.push({ line: li, k, dir, key, km: arc(L.stops[s0], L.stops[s1]) * R, minutes: rides[k] * (1 + P_.CROWD_SLOW * Math.max(0, c - 0.8)) });
         out[base + a].push([base + b, segs[seg].minutes, 3, seg]);
-      }
+      } });
       L.stops.forEach((s, k) => {
         const z = stops[stops.length - L.stops.length + k].zone;
         if (!this.land[z]) return;
@@ -326,6 +340,19 @@ export class Sim {
         out[base + k].push([z, P_.EGRESS, 2, li]);
       });
     });
+    // interchanges: every pair of stops of two lines within HUB_KM; a change is kind 4, and boards the other line
+    const hubs = [], hubOf = new Map(), lineAt = (s) => this.lines[s.line];
+    for (let x = 0; x < stops.length; x++) for (let y = x + 1; y < stops.length; y++) {
+      const A = stops[x], B = stops[y]; if (A.line === B.line) continue;
+      const pa = lineAt(A).stops[A.k], pb = lineAt(B).stops[B.k];
+      if (arc(pa, pb) * R > P_.HUB_KM) continue;
+      out[A.node].push([B.node, P_.TRANSFER + lineAt(B)._headway / 2, 4, B.line]);
+      out[B.node].push([A.node, P_.TRANSFER + lineAt(A)._headway / 2, 4, A.line]);
+      let h = hubOf.get(x) ?? hubOf.get(y);
+      if (h == null) { h = hubs.length; hubs.push({ p: pa, zone: A.zone, lines: new Set() }); }
+      hubOf.set(x, h); hubOf.set(y, h); hubs[h].lines.add(lineAt(A).id); hubs[h].lines.add(lineAt(B).id);
+    }
+    this.hubs = hubs.map((h) => ({ p: h.p, zone: h.zone, lines: [...h.lines].sort((a, b) => a - b) }));
     return { out, nodes: out.length, stops, segs, speed };
   }
 
@@ -337,7 +364,7 @@ export class Sim {
     const access = new Float64Array(n), segLoad = new Float64Array(net.segs.length), boards = new Float64Array(this.lines.length);
     const dist = new Float64Array(N).fill(Infinity), road = new Float64Array(N).fill(Infinity), pred = new Int32Array(N), pedge = new Int32Array(N), via = new Uint8Array(N), flow = new Float64Array(N);
     const heap = new Heap(N);
-    let trips = 0, transit = 0;
+    let trips = 0, transit = 0, changes = 0;
     const selfT = (i) => 60 * 0.4 * Math.sqrt(this.area[i]) / net.speed[i];
     for (const o of origins) {
       // combined search
@@ -367,6 +394,7 @@ export class Sim {
         const kind = net.out[u][e][2];
         if (kind === 3) segLoad[net.out[u][e][3]] += f;
         else if (kind === 1) boards[net.out[u][e][3]] += f;
+        else if (kind === 4) { boards[net.out[u][e][3]] += f; changes += f; }
       }
       done();
     }
@@ -375,7 +403,7 @@ export class Sim {
       let s = 0, c = 0; for (const j of this.nbrs[i]) if (access[j]) { s += access[j]; c++; }
       access[i] = c ? 0.6 * s / c : jobs[i];
     }
-    return { access, segLoad, boards, trips, transit, origins: origins.length };
+    return { access, segLoad, boards, trips, transit, changes, origins: origins.length };
   }
 
   lineStats(net, dem) {
@@ -397,7 +425,7 @@ export class Sim {
        is shared between lines by their boardings; each keeps its own km. */
     const journeys = 2 * dem.transit, boardings = per.reduce((s, L) => s + L.riders, 0);
     per.forEach((L) => { L.fare = P_.FARE_KM * L.km + (boardings > 0 ? P_.FARE_TRIP * journeys * L.riders / boardings : 0); });
-    this.stats = { riders: journeys, boardings, share: dem.trips ? dem.transit / dem.trips : 0, stranded, origins: dem.origins, lines: per,
+    this.stats = { riders: journeys, boardings, transfers: 2 * (dem.changes || 0), hubs: (this.hubs || []).length, share: dem.trips ? dem.transit / dem.trips : 0, stranded, origins: dem.origins, lines: per,
       riderKm: per.reduce((s, L) => s + L.km, 0) };
   }
 
@@ -441,13 +469,14 @@ export class Sim {
       next[i] -= p > k ? out : moved;   // over the ceiling the rest leave anyway
     }
     for (let i = 0; i < n; i++) pop[i] = next[i] > 0 && isFinite(next[i]) ? next[i] : 0;
-    // jobs gather where access is high; as many as there are workers
-    let tot = 0, w = 0;
+    // jobs gather where access is high, and at interchanges; as many as there are workers
+    let tot = 0, w = 0; const hubJobs = new Map();
+    for (const h of this.hubs || []) hubJobs.set(h.zone, Math.max(hubJobs.get(h.zone) || 1, 1 + P_.HUB_JOBS * (h.lines.length - 1)));
     for (let i = 0; i < n; i++) {
       const t = this.zoneTown ? this.zoneTown[i] : -1, ind = this.fr && t >= 0 ? 0.85 + 0.3 * this.fr.ore[t] : 1;   // industry follows the ore
       // farmers work their own fields: only the rest of a zone's people fill (and make) the jobs others travel to
       const town = Math.max(0, pop[i] - farmers(this, i));
-      this.jobs[i] = town * (0.4 + Math.min(1, u[i])) * ind; w += this.jobs[i]; tot += town;
+      this.jobs[i] = town * (0.4 + Math.min(1, u[i])) * ind * (hubJobs.get(i) || 1); w += this.jobs[i]; tot += town;
     }
     const f = w > 0 ? P_.WORK * tot / w : 0;
     for (let i = 0; i < n; i++) this.jobs[i] *= f;
@@ -481,6 +510,7 @@ export class Sim {
       food: this.fr ? Array.from(this.fr.food) : [], short: this.fr ? Array.from(this.fr.short) : [], ore: this.fr ? Array.from(this.fr.ore) : [],
       mines: this.fr ? this.fr.mines : [], cargo: this.fr ? [...this.fr.lines].map(([id, f]) => ({ id, food: f.food, ore: f.ore, load: f.load })) : [],
       runs: this.fr ? this.fr.runs : [],
+      hubs: this.hubs || [],
       home: this.home != null ? this.towns[this.home].p : null, homeName: this.home != null ? this.towns[this.home].name : "", tier: this.tier || 0,
       charterKm: this.home != null ? TIERS[this.tier].km : Infinity, charterReady: this.home != null && this.charterReady(), charterFee: this.home != null ? this.charterFee() : 0,
       nextRiders: this.home != null && TIERS[this.tier + 1] ? TIERS[this.tier + 1].riders : 0, index: this.index || 1 };
@@ -552,6 +582,12 @@ function polyArea(P, V, i, ring) {
     s += 2 * Math.atan2(num, den);
   }
   return s;
+}
+/* A line's legs, as pairs of stop indices: each stop to the next, and on a loop the last back to the first. */
+export function legs(L) {
+  const g = []; for (let k = 0; k + 1 < L.stops.length; k++) g.push([k, k + 1]);
+  if (L.loop && L.stops.length >= 3) g.push([L.stops.length - 1, 0]);
+  return g;
 }
 export function arc(a, b) { return Math.atan2(len(cross(a, b)), dot(a, b)); }
 function arcI(P, i, j) { return arc([P[3 * i], P[3 * i + 1], P[3 * i + 2]], [P[3 * j], P[3 * j + 1], P[3 * j + 2]]); }

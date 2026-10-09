@@ -8,7 +8,7 @@ import { loadEcumene } from "./harness.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const E = await loadEcumene(), P = E.P_;
 let fails = 0, checks = 0;
-const ok = (c, m) => { checks++; if (!c) { fails++; console.error("FAIL " + m); } };
+const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok   " : "FAIL ") + m); if (!c) { fails++; console.error("FAIL " + m); } };
 
 /* ---- the copy of mappa's engine */
 const mine = path.join(here, "../js/mappa-engine.js"), theirs = path.join(here, "../../../mappa/engine.js");
@@ -194,6 +194,43 @@ ok(withL > 1.1 * without, "a line grows the city along it: +" + Math.round(100 *
   ok(Math.abs(L.fare - (P.FARE_KM * L.km + P.FARE_TRIP * one.riders)) < 1e-9, "a lone line's fares are its journeys and its km");
 }
 function pt2(s, i) { return [s.P[3 * i], s.P[3 * i + 1], s.P[3 * i + 2]]; }
+
+/* ---- sculpting: loops and interchanges */
+{
+  const fresh = () => { const t = new E.Sim(E.makeWorld(3), 3); t.warmup(); return t; };
+  const t0 = fresh(), dens = (i) => t0.pop[i] / t0.area[i];
+  let c0 = -1; for (let i = 0; i < t0.n; i++) if (t0.land[i] && t0.zoneTown[i] === t0.home && (c0 < 0 || dens(i) > dens(c0))) c0 = i;
+  const c = pt2(t0, c0), north = [0, 0, 1], e = norm(cross(north, c)), nn = norm(cross(c, e));
+  const at = (deg, km) => { const th = deg * Math.PI / 180, d = [Math.cos(th) * e[0] + Math.sin(th) * nn[0], Math.cos(th) * e[1] + Math.sin(th) * nn[1], Math.cos(th) * e[2] + Math.sin(th) * nn[2]], a = km / E.R; return norm([Math.cos(a) * c[0] + Math.sin(a) * d[0], Math.cos(a) * c[1] + Math.sin(a) * d[1], Math.cos(a) * c[2] + Math.sin(a) * d[2]]); };
+  // a ring of six stops round the city's centre, open and closed
+  const ring = [0, 60, 120, 180, 240, 300].map((d) => at(d, 5));
+  const ride = (loop) => { const t = fresh(); t.setLines([{ id: 1, color: "#f00", stops: ring, trains: 4, loop }]); const net = t.network(); t.step(); return { t, net, L: t.lines[0], st: t.stats.lines[0] }; };
+  const open = ride(false), loop = ride(true);
+  ok(E.legs(open.L).length === 5 && E.legs(loop.L).length === 6 && E.legs(loop.L)[5].join() === "5,0", "a loop has one more leg: the last stop back to the first");
+  ok(open.net.segs.length === 10 && loop.net.segs.length === 12, "and rides it both ways");
+  const sumRides = (L) => E.legs(L).reduce((x, [a, b]) => x + 60 * E.arc(L.stops[a], L.stops[b]) * E.R / P.LINE_KMH + P.DWELL, 0);
+  ok(Math.abs(open.L._cycle - (2 * sumRides(open.L) + 2 * P.TURN)) < 1e-9 && Math.abs(loop.L._cycle - 2 * sumRides(loop.L)) < 1e-9, "an open line turns back at both ends; a loop never turns");
+  // the ring's last leg costs about what the two turnbacks saved, so a ring carries about what the open line did; the leg itself is ridden
+  const closing = loop.st.segs.filter((g) => g.k === 5).reduce((x, g) => x + g.load, 0);
+  ok(closing > 0, "the leg that closes the ring is ridden (" + Math.round(closing) + " a day; the ring " + Math.round(loop.st.riders) + " riders, open " + Math.round(open.st.riders) + ")");
+  const t2 = fresh(); t2.setLines([{ id: 1, color: "#f00", stops: ring.slice(0, 2), trains: 1, loop: true }]);
+  ok(!t2.lines[0].loop, "two stops can't make a loop");
+  // two lines crossing at the centre: at one shared stop, or at stops 1.5 km apart
+  const we = [at(180, 6), at(180, 3), c, at(0, 3), at(0, 6)], sn = (mid) => [at(270, 6), at(270, 3), mid, at(90, 3), at(90, 6)];
+  const cross2 = (mid) => {
+    const t = fresh(); t.setLines([{ id: 1, color: "#f00", stops: we, trains: 3 }, { id: 2, color: "#00f", stops: sn(mid), trains: 3 }]);
+    const net = t.network(), dem = t.demand(net); t.lineStats(net, dem);
+    const z = t.zoneAt(c), stats = t.stats; t.grow(dem);
+    return { t, net, dem, stats, jobs: t.jobs[z] };
+  };
+  const hub = cross2(c), apart = cross2(at(45, 1.5));
+  ok(hub.t.hubs.length === 1 && hub.t.hubs[0].lines.join() === "1,2" && apart.t.hubs.length === 0, "stops of two lines at one place are an interchange; 1.5 km apart they are not");
+  ok(hub.net.out.some((E4) => E4.some((ed) => ed[2] === 4)) && hub.stats.transfers > 0, "people change lines there (" + Math.round(hub.stats.transfers) + " a day)");
+  ok(hub.stats.riders > apart.stats.riders, "the interchange carries more journeys (" + Math.round(hub.stats.riders) + " vs " + Math.round(apart.stats.riders) + " a day)");
+  ok(hub.jobs > 1.2 * apart.jobs, "and jobs gather at it (×" + (hub.jobs / apart.jobs).toFixed(2) + ")");
+}
+function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+function norm(v) { const l = Math.hypot(...v); return [v[0] / l, v[1] / l, v[2] / l]; }
 
 console.log(fails ? `ecumene: ${fails}/${checks} FAILED` : `ecumene: ${checks} checks ok`);
 process.exit(fails ? 1 : 0);

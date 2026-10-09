@@ -16,8 +16,10 @@
    Zoom goes deep (to ~40 px per km in a dense city), anchored where you pinch or scroll,
    and only zones on screen are drawn. Towns are labelled. Lines are thick
    great-circle arcs between stops, pulsing red where a ride is overfull,
-   with each line's trains running along it. */
-import { slerp, arc } from "./sim.js";
+   with each line's trains running along it (out and back, or round a
+   loop), and stations two lines share drawn as one interchange. */
+import { slerp, arc, legs, P_ } from "./sim.js";
+import { R as RKM } from "./world.js";
 import { BIOMES } from "./mappa-engine.js";
 
 export const EXAG = 14;          // relief exaggeration
@@ -397,8 +399,8 @@ export class View {
   /* A line's path on screen: every segment as a sampled great-circle arc. */
   path(L) {
     const pts = [];
-    for (let k = 0; k + 1 < L.stops.length; k++) {
-      const a = L.stops[k], b = L.stops[k + 1], m = Math.max(2, Math.ceil(arc(a, b) * 60 * Math.min(8, Math.sqrt(this.zoom))));
+    for (const [k, [ia, ib]] of legs(L).entries()) {
+      const a = L.stops[ia], b = L.stops[ib], m = Math.max(2, Math.ceil(arc(a, b) * 60 * Math.min(8, Math.sqrt(this.zoom))));
       for (let j = k ? 1 : 0; j <= m; j++) { const p = slerp(a, b, j / m); pts.push({ q: this.proj(p[0], p[1], p[2]), seg: k, t: j / m }); }
     }
     return pts;
@@ -421,8 +423,10 @@ export class View {
       }
       if (L.stops.length > 1 && info) {
         const n = pts.length - 1, period = 14;
+        // out and back on an open line; on a loop, round and round, every other train the other way
+        const at = (f) => L.loop ? f : (f *= 2) > 1 ? 2 - f : f;
         for (let k = 0; k < L.trains; k++) {
-          let f = ((this.t / period + k / L.trains) % 1) * 2; if (f > 1) f = 2 - f;
+          let f = at((this.t / period + k / L.trains) % 1); if (L.loop && k % 2) f = 1 - f;
           const x = f * n, i = Math.min(n - 1, Math.floor(x)), u = x - i, p = pts[i].q, q = pts[i + 1].q;
           if (p[2] < 0) continue;
           ctx.fillStyle = "#fff"; ctx.strokeStyle = L.color; ctx.lineWidth = 2;
@@ -431,7 +435,7 @@ export class View {
         // freight: an ochre block per wagon pair, on a slower clock
         const nf = Math.ceil((L.wagons || 0) / 2);
         for (let k = 0; k < nf; k++) {
-          let f = ((this.t / (period * 1.7) + (k + 0.5) / nf) % 1) * 2; if (f > 1) f = 2 - f;
+          const f = at((this.t / (period * 1.7) + (k + 0.5) / nf) % 1);
           const x = f * n, i = Math.min(n - 1, Math.floor(x)), u = x - i, p = pts[i].q, q = pts[i + 1].q;
           if (p[2] < 0) continue;
           const X = p[0] + (q[0] - p[0]) * u, Y = p[1] + (q[1] - p[1]) * u, a = lw * 0.8;
@@ -439,12 +443,34 @@ export class View {
           ctx.fillRect(X - a, Y - a * 0.7, 2 * a, 1.4 * a); ctx.strokeRect(X - a, Y - a * 0.7, 2 * a, 1.4 * a);
         }
       }
+      const n = L.stops.length, end = L.loop || n < 2 ? -1 : L.end === 0 ? 0 : n - 1, on = li === this.sel;
       L.stops.forEach((s, k) => {
         const q = this.proj(s[0], s[1], s[2]); if (q[2] < 0) return;
         ctx.fillStyle = "#fff"; ctx.strokeStyle = "#111"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(q[0], q[1], lw * (k === L.stops.length - 1 && li === this.sel ? 1.3 : 0.95), 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(q[0], q[1], lw * (on && (k === end || n === 1) ? 1.3 : 0.95), 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+        if (on && k === end) {   // the end you're building from: a ring that breathes
+          ctx.strokeStyle = L.color; ctx.lineWidth = 2; ctx.globalAlpha = 0.5 + 0.5 * Math.sin(this.t * 4);
+          ctx.beginPath(); ctx.arc(q[0], q[1], lw * 2.2, 0, 2 * Math.PI); ctx.stroke(); ctx.globalAlpha = 1;
+        }
+        if (on && k === this.pick) {
+          ctx.strokeStyle = L.color; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(q[0], q[1], lw * 1.9, 0, 2 * Math.PI); ctx.stroke();
+        }
       });
     });
+    // interchanges: stops of two lines at one place, drawn as one station
+    const cosHub = Math.cos(P_.HUB_KM / RKM), all = [];
+    this.lines.forEach((L, li) => { if (L.stops.length > 1) for (const s of L.stops) all.push([li, s]); });
+    const done = new Set();
+    for (let x = 0; x < all.length; x++) for (let y = x + 1; y < all.length; y++) {
+      if (all[x][0] === all[y][0] || done.has(x)) continue;
+      const a = all[x][1], b = all[y][1]; if (a[0] * b[0] + a[1] * b[1] + a[2] * b[2] < cosHub) continue;
+      done.add(x); done.add(y);
+      const q = this.proj(a[0], a[1], a[2]); if (q[2] < 0) continue;
+      ctx.fillStyle = "#fff"; ctx.strokeStyle = "#111"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(q[0], q[1], lw * 1.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(q[0], q[1], lw * 0.6, 0, 2 * Math.PI); ctx.stroke();
+    }
   }
 }
 

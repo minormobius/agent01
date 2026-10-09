@@ -2,21 +2,24 @@
    thread draws the globe, takes taps, and keeps the player's lines.
 
    One finger turns the globe, two pinch to zoom. With no line picked, a
-   tap shows a zone. Pick a line (or start one) and every tap on land adds a
-   stop at the end of it, at the centre of the zone you tapped; the track
-   and the stop are paid for on the spot. Trains are bought and sold per
+   tap shows a zone. Pick a line (or start one) and a tap on land adds a
+   stop where you tapped: at the end you're building from (tap an end stop
+   to switch ends), or, on the line's own track, between the two stops it
+   runs through. A loop's new stops go in wherever they add the least track.
+   A stop laid on another line's stop takes its exact place: an interchange.
+   The track and the stop are paid for on the spot. Trains are bought and sold per
    line. A year passes every few seconds; the lines change hands with the
    worker between years. */
 import { View } from "./view.js";
 import { GLGround } from "./gl.js";
-import { trackCost, arc } from "./sim.js";
+import { trackCost, arc, legs, slerp } from "./sim.js";
 import { R } from "./world.js";
 
 const $ = (id) => document.getElementById(id);
 const COLORS = ["#ff5a5f", "#3ec1ff", "#ffd23f", "#5ee88a", "#c77dff", "#ff9a3c", "#ff7ac8", "#9be15d", "#7aa2ff", "#e8e8e8"];
 const cv = $("globe"), view = new View(cv);
 view.ground = /[?&]gl=0/.test(location.search) ? null : GLGround.create($("ground"));   // ?gl=0: the plain 2D ground
-let W = null, P = null, snap = null, warm = 0, credits = 0, lines = [], sel = -1, nextId = 1;
+let W = null, P = null, snap = null, warm = 0, credits = 0, lines = [], sel = -1, nextId = 1, pick = -1;   // pick: a stop of the selected line
 let running = false, speed = 1, pending = false, lastStep = 0, dirty = true;
 
 const seedQ = /[?&]seed=(\d+)/.exec(location.search);
@@ -57,7 +60,7 @@ const fmt = (x) => x >= 1e6 ? (x / 1e6).toFixed(2) + "M" : x >= 1e4 ? Math.round
 function frame(t) {
   view.t = t / 1000;
   if (running && snap && !pending && t - lastStep > (speed === 1 ? 4000 : 1500)) { pending = true; lastStep = t; worker.postMessage({ type: "step" }); }
-  view.lines = lines; view.sel = sel;
+  view.lines = lines; view.sel = sel; view.pick = pick;
   view.draw(); // trains move every frame
   requestAnimationFrame(frame);
 }
@@ -84,7 +87,7 @@ function bar() {
     const b = document.createElement("button"), info = snap && snap.stats.lines && snap.stats.lines.find((x) => x.id === L.id);
     b.type = "button"; b.className = "lchip" + (i === sel ? " on" : ""); b.style.setProperty("--c", L.color);
     b.innerHTML = "<i></i>" + (info ? fmt(info.riders) : "—") + (info && info.crowd > 1 ? " <em>full</em>" : "");
-    b.onclick = () => { sel = sel === i ? -1 : i; hud(); };
+    b.onclick = () => { sel = sel === i ? -1 : i; pick = -1; hud(); };
     el.appendChild(b);
   });
   if (lines.length < COLORS.length) {
@@ -114,8 +117,16 @@ function panel() {
   if (sel < 0 || !lines[sel]) { el.hidden = true; return; }
   const L = lines[sel], info = snap.stats.lines && snap.stats.lines.find((x) => x.id === L.id);
   el.hidden = false; el.style.setProperty("--c", L.color);
-  let km = 0; for (let k = 0; k + 1 < L.stops.length; k++) km += arc(L.stops[k], L.stops[k + 1]) * R;
-  $("p-title").textContent = L.stops.length < 2 ? "tap land to lay stops" : km.toFixed(0) + " km · " + L.stops.length + " stops" + (info && info.fare ? " · fares ₵" + Math.round(info.fare * 365) + "/yr" : "");
+  let km = 0; for (const [a, b] of legs(L)) km += arc(L.stops[a], L.stops[b]) * R;
+  const hubs = (snap.hubs || []).filter((h) => h.lines.includes(L.id)).length;
+  $("p-title").textContent = L.stops.length < 2 ? "tap land to lay stops" : km.toFixed(0) + " km · " + L.stops.length + " stops" + (L.loop ? " · loop" : "") + (hubs ? " · " + hubs + " ◎" : "") + (info && info.fare ? " · fares ₵" + Math.round(info.fare * 365) + "/yr" : "");
+  $("p-end").hidden = L.loop || L.stops.length < 2;
+  $("p-end").textContent = L.end === 0 ? "◀ from start" : "from end ▶";
+  $("p-loop").hidden = L.stops.length < 3;
+  $("p-loop").classList.toggle("on", !!L.loop);
+  $("p-loop").textContent = L.loop ? "loop ✓" : L.stops.length < 3 ? "loop" : "loop · ₵" + Math.ceil(trackPrice(L.stops[L.stops.length - 1], L.stops[0]));
+  $("p-undo").textContent = pick >= 0 && pick < L.stops.length ? "remove stop " + (pick + 1) : "remove stop";
+  $("p-undo").hidden = !L.stops.length;
   $("p-riders").textContent = info && info.riders ? fmt(info.riders) + "/day" : "—";
   $("p-load").textContent = info && info.cap ? Math.round(100 * info.crowd) + "%" : "—";
   $("p-load").classList.toggle("warn", !!(info && info.crowd > 1));
@@ -123,7 +134,7 @@ function panel() {
   $("p-trains").textContent = L.trains;
   $("p-wagons").textContent = L.wagons || 0;
   const c = snap.cargo && snap.cargo.find((x) => x.id === L.id);
-  $("p-cargo").textContent = !L.wagons ? "add a wagon to carry food and ore between towns" : c ? fmt(c.food) + " food · " + fmt(c.ore) + " ore · " + Math.round(100 * c.load) + "% full" : "nothing yet: stops must reach two towns, or a mine";
+  $("p-cargo").textContent = !L.wagons ? "wagons carry food and ore" : c ? "freight " + fmt(c.food) + " food · " + fmt(c.ore) + " ore · " + Math.round(100 * c.load) + "% full" : "no freight yet: stops must reach two towns, or a mine";
   $("p-cargo").classList.toggle("warn", !!(c && c.load > 0.99));
 }
 
@@ -141,22 +152,99 @@ function chartered(p) { return !snap.home || arc(p, snap.home) * R <= snap.chart
 function newLine() {
   if (!spend(trainPrice())) return;
   const used = new Set(lines.map((l) => l.color)), color = COLORS.find((c) => !used.has(c));
-  lines.push({ id: nextId++, color, stops: [], trains: 1, wagons: 0, paid: [] });
-  sel = lines.length - 1; push();
+  lines.push({ id: nextId++, color, stops: [], trains: 1, wagons: 0, paid: [], end: 1, loop: false });
+  sel = lines.length - 1; pick = -1; push();
   note("new line: tap land to lay its stops");
 }
-function addStop(z, at) {
-  const L = lines[sel], p = at || site(z);   // exactly where you tapped; the zone centre when there is no tap
-  if (!snap.land[z]) { note("stops go on land"); return; }
-  if (!chartered(p)) { note("outside your charter (" + snap.charterKm + " km round " + snap.homeName + ")"); return; }
-  const last = L.stops[L.stops.length - 1];
+/* Where a tap lands on the selected line, in screen pixels: a stop of it, a
+   leg of it, or neither. Another line's stop near the tap is where the new
+   stop goes instead (an interchange). */
+const HIT = 16;
+function scr(p) { return view.proj(p[0], p[1], p[2]); }
+function hitStop(L, px) { let best = HIT, bi = -1; L.stops.forEach((s, k) => { const q = scr(s); if (q[2] < 0) return; const d = Math.hypot(q[0] - px[0], q[1] - px[1]); if (d < best) { best = d; bi = k; } }); return bi; }
+function hitLeg(L, px) {
+  let best = HIT * 0.8, bi = -1;
+  legs(L).forEach(([a, b], k) => {
+    const A = L.stops[a], B = L.stops[b], m = Math.max(2, Math.ceil(arc(A, B) * R / 2));   // every ~2 km of track
+    for (let j = 0; j < m; j++) {
+      const p = scr(slerp(A, B, j / m)), q = scr(slerp(A, B, (j + 1) / m)); if (p[2] < 0 || q[2] < 0) continue;
+      const d = segDist(px, p, q); if (d < best) { best = d; bi = k; }
+    }
+  });
+  return bi;
+}
+function snapTo(px, m) {
+  let best = Infinity, at = null, who = null;
+  lines.forEach((L, i) => {
+    if (i === sel) return;
+    for (const s of L.stops) { const q = scr(s); if (q[2] < 0) continue; const d = Math.hypot(q[0] - px[0], q[1] - px[1]); if ((d < HIT || arc(s, m) * R < P.HUB_KM) && d < best) { best = d; at = s; who = L; } }
+  });
+  return at ? { p: at.slice(), line: who } : null;
+}
+function place(z, p) {
+  if (!snap.land[z]) { note("stops go on land"); return false; }
+  if (!chartered(p)) { note("outside your charter (" + snap.charterKm + " km round " + snap.homeName + ")"); return false; }
+  return true;
+}
+/* A stop at p, on a leg (the stop goes between its two stops), at an end, or, on a loop, wherever it adds the least. */
+function addStop(z, at, px) {
+  const L = lines[sel]; let p = at || site(z);   // exactly where you tapped; the zone centre when there is no tap
+  const sn = px && snapTo(px, p); if (sn) { p = sn.p; z = zoneAt(p); }
+  if (!place(z, p)) return;
+  if (L.stops.some((s) => arc(s, p) * R < 0.3)) return;
+  const n = L.stops.length;
+  let leg = px && n > 1 ? hitLeg(L, px) : -1;
+  if (leg < 0 && L.loop) {   // a loop has no end to grow from: the cheapest place in it
+    let best = Infinity; legs(L).forEach(([a, b], k) => { const d = arc(L.stops[a], p) + arc(p, L.stops[b]) - arc(L.stops[a], L.stops[b]); if (d < best) { best = d; leg = k; } });
+  }
+  const tag = sn ? " · interchange with " + CNAME[sn.line.color] + " line" : "";
+  if (leg >= 0) {
+    const [a, b] = legs(L)[leg], A = L.stops[a], B = L.stops[b];
+    const c = stopPrice(p) + Math.max(0, trackPrice(A, p) + trackPrice(p, B) - trackPrice(A, B));   // only the detour is new track
+    if (!spend(c)) return;
+    const at2 = b === 0 ? n : b;   // the loop's closing leg: the new stop goes last
+    L.stops.splice(at2, 0, p); L.paid.splice(at2, 0, c); pick = -1; push();
+    note("stop added between " + (a + 1) + " and " + (b + 1) + " · ₵" + Math.ceil(c) + tag);
+    return;
+  }
+  const front = n > 1 && L.end === 0, last = n ? L.stops[front ? 0 : n - 1] : null;
   if (last && arc(last, p) * R < 1) return;
   const c = stopPrice(p) + (last ? trackPrice(last, p) : 0);
   if (!spend(c)) return;
-  L.stops.push(p); L.paid.push(c); push();
-  note(L.stops.length < 2 ? "first stop · ₵" + Math.ceil(c) + " · now tap the next" : "stop " + L.stops.length + " · ₵" + Math.ceil(c) + (last ? " (" + (arc(last, p) * R).toFixed(0) + " km of track)" : ""));
+  if (front) { L.stops.unshift(p); L.paid.unshift(c); } else { L.stops.push(p); L.paid.push(c); }
+  pick = -1; push();
+  note(L.stops.length < 2 ? "first stop · ₵" + Math.ceil(c) + " · now tap the next" : "stop " + L.stops.length + " · ₵" + Math.ceil(c) + (last ? " (" + (arc(last, p) * R).toFixed(0) + " km of track)" : "") + tag);
 }
-$("p-undo").onclick = () => { const L = lines[sel]; if (!L || !L.stops.length) return; L.stops.pop(); const c = L.paid.pop(); credits += c / 2; pendingSpend -= c / 2; push(); note("stop removed: half its cost back"); };
+/* A tap with a line picked: on one of its stops picks that stop (an end stop also becomes the end you build from); anywhere else lays a stop. */
+function lineTap(z, m, px) {
+  const L = lines[sel], k = hitStop(L, px);
+  if (k >= 0) {
+    if (pick === k) { pick = -1; hud(); return; }
+    pick = k;
+    if (!L.loop && L.stops.length > 1 && (k === 0 || k === L.stops.length - 1)) { L.end = k === 0 ? 0 : 1; note("building from " + (k === 0 ? "the start" : "the end") + " · stop " + (k + 1) + " picked"); }
+    else note("stop " + (k + 1) + " picked: remove it, or tap it again to let go");
+    hud(); return;
+  }
+  addStop(z, m, px);
+}
+function removeStop(k) {
+  const L = lines[sel]; if (!L || !L.stops.length) return;
+  if (k < 0 || k >= L.stops.length) k = L.end === 0 ? 0 : L.stops.length - 1;
+  L.stops.splice(k, 1); const c = L.paid.splice(k, 1)[0] || 0;
+  let back = c / 2;
+  if (L.loop && L.stops.length < 3) { L.loop = false; back += (L.loopPaid || 0) / 2; L.loopPaid = 0; }
+  credits += back; pendingSpend -= back; pick = -1; push(); note("stop removed: half its cost back");
+}
+$("p-undo").onclick = () => removeStop(pick);
+$("p-end").onclick = () => { const L = lines[sel]; if (!L) return; L.end = L.end === 0 ? 1 : 0; pick = -1; hud(); };
+$("p-loop").onclick = () => {
+  const L = lines[sel]; if (!L || L.stops.length < 3) return;
+  if (L.loop) { L.loop = false; const back = (L.loopPaid || 0) / 2; L.loopPaid = 0; credits += back; pendingSpend -= back; push(); note("loop opened: half its track back"); return; }
+  const A = L.stops[L.stops.length - 1], B = L.stops[0];
+  if (!chartered(A) || !chartered(B)) return;
+  const c = trackPrice(A, B); if (!spend(c)) return;
+  L.loop = true; L.loopPaid = c; pick = -1; push(); note("loop closed · ₵" + Math.ceil(c) + " (" + (arc(A, B) * R).toFixed(0) + " km of track)");
+};
 $("p-plus").onclick = () => { const L = lines[sel], c = trainPrice(); if (L && spend(c)) { L.trains++; (L.trainPaid = L.trainPaid || []).push(c); push(); } };
 $("p-minus").onclick = () => { const L = lines[sel]; if (L && L.trains > 1) { L.trains--; const c = (L.trainPaid && L.trainPaid.pop()) || P.COST_TRAIN; credits += c / 2; pendingSpend -= c / 2; push(); } };
 $("w-plus").onclick = () => { const L = lines[sel], c = wagonPrice(); if (L && spend(c)) { L.wagons = (L.wagons || 0) + 1; (L.wagonPaid = L.wagonPaid || []).push(c); push(); } };
@@ -177,10 +265,10 @@ document.addEventListener("dblclick", (e) => e.preventDefault());
 $("p-del").onclick = () => {
   const L = lines[sel]; if (!L) return;
   const sum = (a) => (a || []).reduce((x, y) => x + y, 0);
-  const back = (sum(L.paid) + sum(L.trainPaid) + P.COST_TRAIN * ix() * Math.max(0, L.trains - (L.trainPaid || []).length) + sum(L.wagonPaid)) / 2;
-  credits += back; pendingSpend -= back; lines.splice(sel, 1); sel = -1; push(); note("line closed: half its cost back");
+  const back = (sum(L.paid) + (L.loopPaid || 0) + sum(L.trainPaid) + P.COST_TRAIN * ix() * Math.max(0, L.trains - (L.trainPaid || []).length) + sum(L.wagonPaid)) / 2;
+  credits += back; pendingSpend -= back; lines.splice(sel, 1); sel = -1; pick = -1; push(); note("line closed: half its cost back");
 };
-$("p-done").onclick = () => { sel = -1; hud(); };
+$("p-done").onclick = () => { sel = -1; pick = -1; hud(); };
 
 /* ------------------------------------------------------------ input */
 const pts = new Map(); let g = null;
@@ -211,6 +299,10 @@ const up = (e) => {
 cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 cv.addEventListener("wheel", (e) => { e.preventDefault(); const p = xy(e); view.zoomAt(p[0], p[1], Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
 
+function segDist(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy, t = l ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l)) : 0;
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
 function zoneAt(p) {
   let best = -2, bi = -1; const S = snap.P;
   for (let i = 0; i < snap.n; i++) { const d = S[3 * i] * p[0] + S[3 * i + 1] * p[1] + S[3 * i + 2] * p[2]; if (d > best) { best = d; bi = i; } }
@@ -220,7 +312,7 @@ function tap(p) {
   if (!snap) return;
   const m = view.unproject(p[0], p[1]); if (!m) { view.hot = -1; $("info").hidden = true; return; }
   const z = zoneAt(m);
-  if (sel >= 0) { addStop(z, m); return; }
+  if (sel >= 0) { lineTap(z, m, p); return; }
   view.hot = z; info(z);
 }
 function info(z) {
@@ -258,6 +350,10 @@ $("note").onclick = () => look(notePt);
    filling up and the money running out also pop up as a note. */
 const CNAME = { "#ff5a5f": "Red", "#3ec1ff": "Blue", "#ffd23f": "Yellow", "#5ee88a": "Green", "#c77dff": "Violet", "#ff9a3c": "Orange", "#ff7ac8": "Pink", "#9be15d": "Lime", "#7aa2ff": "Indigo", "#e8e8e8": "White" };
 function evText(ev) {
+  if (ev.kind === "hub" && ev.lines) {
+    const nm = ev.lines.map((id) => lines.find((l) => l.id === id)).filter(Boolean).map((L) => CNAME[L.color]);
+    return (nm.length > 1 ? nm.slice(0, -1).join(", ") + " and " + nm[nm.length - 1] + " lines meet" : "An interchange opens") + ev.text;
+  }
   if (ev.line == null) return ev.text;
   const L = lines.find((l) => l.id === ev.line);
   return (L ? CNAME[L.color] + " line " : "A line ") + ev.text;
@@ -266,7 +362,7 @@ function evPoint(ev) {
   if (ev.p) return ev.p;
   const L = lines.find((l) => l.id === ev.line); return L && L.stops.length ? L.stops[L.stops.length >> 1] : null;
 }
-function toast(ev) { if (["town", "full", "money", "planet", "hunger", "mine", "charter"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
+function toast(ev) { if (["hub", "town", "full", "money", "planet", "hunger", "mine", "charter"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
 function renderLog() {
   $("logbtn").textContent = "log" + (unread && $("log").hidden ? " ·" + unread : "");
   if ($("log").hidden) return;
@@ -292,10 +388,10 @@ $("newworld").onclick = (e) => { e.preventDefault(); location.search = "?seed=" 
 function playBtn() { $("play").textContent = running ? "❚❚" : "▶"; }
 document.addEventListener("keydown", (e) => {
   if (e.key === " ") { e.preventDefault(); $("play").click(); }
-  if (e.key === "Escape") { sel = -1; hud(); }
+  if (e.key === "Escape") { sel = -1; pick = -1; hud(); }
 });
 window.addEventListener("resize", () => view.resize());
 if (window.ResizeObserver) new ResizeObserver(() => view.resize()).observe(cv);
 view.resize();
 requestAnimationFrame(frame);
-window.ECUMENE = { view, get snap() { return snap; }, get lines() { return lines; }, addStop, newLine, site, zoneAt, get credits() { return credits; } }; // for tests
+window.ECUMENE = { view, get snap() { return snap; }, get lines() { return lines; }, addStop, lineTap, removeStop, newLine, site, zoneAt, get credits() { return credits; } }; // for tests

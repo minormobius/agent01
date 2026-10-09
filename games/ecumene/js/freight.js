@@ -96,15 +96,15 @@ export function freight(sim) {
   const runs = [];   // { line, a, b, km, cap, load, food, ore }
   sim.lines.forEach((L) => {
     if (!(L.wagons > 0) || L.stops.length < 2) return;
-    const seq = [];
-    for (const s of L.stops) {
+    const seq = [], ring = L.loop && L.stops.length >= 3 ? L.stops.concat([L.stops[0]]) : L.stops;   // a loop runs on round to its first stop
+    for (const s of ring) {
       let v = -1;
       D.forEach((d, k) => { if (v < 0 && arc(s, d.p) * R < F_.MINE_STOP_KM) v = nt + k; });
       if (v < 0) { const z = sim.zoneAt(s); if (sim.land[z] && zt[z] >= 0) v = zt[z]; }
       seq.push(v);
     }
     let km = 0, last = -1, lastStop = null;
-    L.stops.forEach((s, k) => {
+    ring.forEach((s, k) => {
       if (lastStop) km += arc(lastStop, s) * R;
       lastStop = s;
       const v = seq[k]; if (v < 0) return;

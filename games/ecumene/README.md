@@ -18,7 +18,11 @@ It works like this, once a year:
    with density, `40 km/h / (1 + density/250)`: a downtown of 1000/km² moves
    at 8 km/h. Lines are the player's: stops, rides at 70 km/h, boarding
    (3 min plus half a headway) and alighting. A line's headway is its round
-   trip divided by its trains.
+   trip divided by its trains; an open line also spends 3 min turning back
+   at each end, which a loop never does. Stops of two lines at one place are
+   an **interchange**: a change there costs a minute plus half the other
+   line's headway, where it used to cost a walk out to the street and back
+   (alight 2, board 3 plus the headway).
 2. **Demand.** From every settled zone, one Dijkstra over roads and lines
    together, cut off at 2 hours. Workers spread over the jobs they reach,
    weighted by `exp(−0.04 t)` (a gravity model). Where the best path rides a
@@ -107,13 +111,51 @@ the two loops meeting. A metro line alone grows a city by about 25% where
 it used to grow it by about 50%, because the city it serves now runs out
 of food first. The player has to feed a city as well as move it.
 
+## Shaping a line
+
+Pick a line and tap:
+
+- **land**: a stop at the end you're building from. Tap an **end stop** to
+  build from that end instead (or use the `from end ▶` / `◀ from start`
+  button). The end you're building from has a ring that breathes.
+- **its own track**: a stop between the two stops that leg joins. You pay for
+  the stop and for the detour only, never for track you already have.
+- **one of its stops**: picks it (a ring), and **remove stop** takes it out,
+  refunding half its cost. With nothing picked, it removes the end you're
+  building from.
+- **another line's stop**: the new stop snaps to its exact place, and the two
+  are an interchange (◎).
+
+**Loop** (from three stops) lays the track from the last stop to the first.
+A loop runs half its trains each way round, so its headway per kilometre is
+an open line's; what it saves is the turnbacks. A ring of six stops 5 km
+round a city carries about what the same stops open did (the closing leg
+costs what the turnbacks saved), and its closing leg is ridden. On a loop, a
+tap off the track puts the stop wherever it adds the least track. Opening
+the loop refunds half its track.
+
+**Interchanges** do two things. Changing there is quick (above), and
+**jobs gather** there: a zone holding an interchange of *m* lines draws
+×(1 + 0.5(*m* − 1)) of the jobs it would, out of the same total, so a
+station district forms where lines meet and every zone that reaches it
+gains reach. The selftest crosses two lines in the home city at one shared
+stop, against the same lines 1.5 km apart: the shared stop carries 7% more
+journeys in the first year (3.6k changes a day) and holds ×1.48 the jobs.
+The log says when lines meet.
+
+What the turnbacks cost the economy was measured with the oracle. The metro
+bot's net a year at year 60 moves 10–20% either way between variants (with
+and without turnbacks, with and without the jobs at interchanges), inside
+the noise of when it buys its last line.
+
 ## The log
 
 The sim names its towns (seeded, so a world always names them the same)
 and says what happens, once per change: a town founded, a town going
 hungry (and fed again), a mine opening, a line passing 50k of freight, a city passing
 100k, 250k, 500k, 1M, a new largest city, a line full and stranding riders
-(and room again), a line passing 50k riders, funds overdrawn, the planet
+(and room again), a line passing 50k riders, two lines meeting at an
+interchange, funds overdrawn, the planet
 passing a mark, the mesh reaching its cap. The page keeps the whole log
 (newest first; tap an entry to look there) and pops the big ones up.
 

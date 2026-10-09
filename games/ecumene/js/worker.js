@@ -15,7 +15,7 @@ function snap() {
     charterFee: s.charterFee, nextRiders: s.nextRiders, index: s.index,
     u: sim.u ? Float64Array.from(sim.u) : null, K: sim.K ? Float64Array.from(sim.K) : null, lastTown: sim.lastTown,
     events: sim.events, towns: sim.towns.map((t, k) => ({ name: t.name, p: t.p, pop: t.pop, rural: t.rural || 0, gdp: t.gdp || 0, food: s.food[k] ?? 1, short: s.short[k] || 0, ore: s.ore[k] || 0 })), nbrs: sim.nbrs,
-    mines: s.mines, cargo: s.cargo, runs: s.runs };
+    mines: s.mines, cargo: s.cargo, runs: s.runs, hubs: s.hubs };
 }
 self.onmessage = (e) => {
   const m = e.data;

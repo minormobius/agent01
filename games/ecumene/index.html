@@ -35,17 +35,15 @@
     <div id="dockbody">
       <div id="panel" hidden>
         <div class="ptop"><i></i><span id="p-title">—</span><button type="button" id="p-done" class="mini">done</button></div>
+        <div class="pact"><button type="button" id="p-end" class="mini" title="Which end new stops go on (or tap an end stop)">from end ▶</button><button type="button" id="p-loop" class="mini" title="Join the last stop to the first">loop</button><button type="button" id="p-undo" class="mini" title="Remove the picked stop (tap a stop to pick it), or the end you're building from">remove stop</button></div>
         <div class="pstats">
           <div><span class="lab">riders</span><span id="p-riders">—</span></div>
-          <div><span class="lab">fullest ride</span><span id="p-load">—</span></div>
+          <div><span class="lab">fullest</span><span id="p-load">—</span></div>
           <div><span class="lab">every</span><span id="p-head">—</span></div>
           <div><span class="lab">trains</span><span class="tr"><button type="button" id="p-minus" class="mini">−</button><b id="p-trains">1</b><button type="button" id="p-plus" class="mini">+</button></span></div>
+          <div><span class="lab">wagons</span><span class="tr"><button type="button" id="w-minus" class="mini">−</button><b id="p-wagons">0</b><button type="button" id="w-plus" class="mini">+</button></span></div>
         </div>
-        <div class="pstats">
-          <div><span class="lab">freight wagons</span><span class="tr"><button type="button" id="w-minus" class="mini">−</button><b id="p-wagons">0</b><button type="button" id="w-plus" class="mini">+</button></span></div>
-          <div class="grow"><span class="lab">carries a year</span><span id="p-cargo">—</span></div>
-        </div>
-        <div class="pact"><button type="button" id="p-undo" class="mini">undo stop</button><button type="button" id="p-del" class="mini danger">close line</button></div>
+        <div class="pfoot"><span id="p-cargo">—</span><button type="button" id="p-del" class="mini danger">close line</button></div>
       </div>
       <div id="cities">
         <div class="ctop"><span>cities</span><span class="dim" id="c-sum">—</span></div>
@@ -85,6 +83,14 @@
     too. The <b>food</b> map shows where it grows and who is short.
   </p>
   <p>
+    Shape a line as you go: tap an <b>end stop</b> to build from that end,
+    tap on the <b>track</b> to put a stop in between, tap a stop to pick it
+    and <b>remove</b> it. <b>Loop</b> joins the ends: no terminus to turn
+    back at, and no dead end. Lay a stop on another line's and it's an
+    <b>interchange</b> (◎): changing there takes a minute, not a walk out to
+    the street, and jobs gather round it.
+  </p>
+  <p>
     The map gets finer where the city gets dense: a crowded zone
     <b>splits</b>, and the city you planned for keeps turning into a bigger
     one.
@@ -96,7 +102,7 @@
     richer, building through a dense city costs more, and the cities take
     a growing cut of your fares.
   </p>
-  <p class="accent">Drag to turn, pinch to zoom. Pick <b>+ line</b>, then tap land to lay stops.</p>
+  <p class="accent">Drag to turn, pinch to zoom. Pick <b>+ line</b>, then tap land to lay stops; tap on its track to add one between.</p>
   <p id="loading" class="dim">growing a world…</p>
   <button class="primary" id="start-btn" type="button" style="flex:none" disabled>…</button>
   <p class="foot"><a href="./README.md">how it works</a> · one of the <a href="../pressure/">games</a></p>

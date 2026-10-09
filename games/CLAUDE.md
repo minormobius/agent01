@@ -133,7 +133,9 @@ Three things live here:
   the cities. The ground is WebGL (`js/gl.js`: biomes blended across tiles,
   lit relief, a shaded sea; `?gl=0` falls back to 2D), rivers follow district
   boundaries and end at the coast, and deep zoom shows a city's blocks and
-  buildings. See
+  buildings. Lines are shaped as you go: build from either end, stops put in
+  on the track, loops (no turnbacks), and interchanges where two lines share a
+  stop (a quick change, and jobs gather there). See
   [`ecumene/README.md`](ecumene/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
@@ -219,7 +221,7 @@ node games/fathom/test/fathom.selftest.mjs       # the onion's layers, flood and
 node games/oneside/test/oneside.selftest.mjs     # the surface and its back, the maze, the through-the-paper rules
 node games/bucky/test/bucky.selftest.mjs         # C60, the clock's claims, every level's par design passes
 node games/bucky/tools/bake.mjs                  # re-bake Bucky's pars (minutes)
-node games/ecumene/test/ecumene.selftest.mjs     # mappa copy current, mesh and splits, determinism, crowding, no runaway, the log, the loop, freight feeding a hungry city
+node games/ecumene/test/ecumene.selftest.mjs     # mappa copy current, mesh and splits, determinism, crowding, no runaway, the log, the loop, freight feeding a hungry city, loops and interchanges
 node games/ecumene/test/economy.mjs 60            # the economy oracle: bots play headless, the money curve per world (~2 min)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
