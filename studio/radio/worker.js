@@ -7,6 +7,10 @@
 //
 //   start { seed, sampleRate, knobs, want, clip? }   clip: play a saved moment first (clip.js)
 //   want { want } · knobs { knobs } · clip { from, to } → clip { clip } · stop
+//   rewind { bar, want } → rewound { epoch, bar }: start again from the state saved before `bar`, on a fresh
+//     synth, as a new epoch whose frame 0 is that bar. The page asks when it has a long buffer (the screen
+//     was off: it renders a minute ahead then) and a dial moves: the music that was rendered ahead is
+//     dropped from that bar on, so the dial is heard there and not a minute later. Chunks carry their epoch.
 import { RadioStream } from './stream.js';
 import { Radio, KNOBS } from './composer.js';
 import { parseWav } from '../cycle/music.js';
@@ -17,6 +21,7 @@ const BLOCKS = 11;                                   // ≈ 0.5 s at 44.1 kHz (2
 const KEEP = 96;                                     // bars of saved states (a minute or more)
 
 let s = null, want = 0, busy = false, started = 0, rendered = 0, thin = 1, knobs = {}, seed = 1;
+let mod = null, body = null, rate = 44100, epoch = 0;
 let replay = null;                                    // { clip, from }: a saved moment being played
 const states = new Map(), dials = new Map();          // bar → the radio's state before it, the dials it was played at
 
@@ -25,33 +30,40 @@ const asKnobs = (a) => ({ ...Object.fromEntries(KNOBS.map((n, i) => [n, a[i] / 1
 
 async function start(msg) {
   const [w, b] = await Promise.all([fetch(WASM).then((r) => r.arrayBuffer()), fetch(BODY).then((r) => r.arrayBuffer())]);
-  const { instance } = await WebAssembly.instantiate(w, {});
+  mod = await WebAssembly.compile(w); body = parseWav(b); rate = msg.sampleRate;
   knobs = msg.knobs; seed = msg.seed;
-  s = new RadioStream(instance.exports, { seed, sampleRate: msg.sampleRate, body: parseWav(b) });
-  if (msg.clip) { s.use(Radio.from(msg.clip.state)); replay = { clip: msg.clip, from: msg.clip.state.n }; }
-  // before each bar: the dials it will be played at (a replay's own, while it lasts), and the state to save
-  s.beforeBar = (radio) => {
-    let a = round(knobs);
-    if (replay) {
-      const off = radio.n - replay.from;
-      if (off < replay.clip.bars) { const e = replay.clip.knobs.find(([at]) => at === off); if (e) replay.a = e[1]; if (replay.a) a = replay.a; }
-      else replay = null;
-    }
-    s.knobs = asKnobs(a);
-    states.set(radio.n, radio.state()); dials.set(radio.n, a);
-    for (const m of [states, dials]) for (const key of m.keys()) if (key < radio.n - KEEP) m.delete(key);
-  };
+  s = fresh(msg.clip ? Radio.from(msg.clip.state) : null);
+  if (msg.clip) replay = { clip: msg.clip, from: msg.clip.state.n };
   started = performance.now(); rendered = 0;
   want = msg.want; pump();
+}
+/** A stream on a fresh synth, playing `radio` (or a new one). */
+function fresh(radio) {
+  const st = new RadioStream(new WebAssembly.Instance(mod, {}).exports, { seed, sampleRate: rate, body });
+  if (radio) st.use(radio);
+  st.beforeBar = beforeBar;
+  return st;
+}
+// before each bar: the dials it will be played at (a replay's own, while it lasts), and the state to save
+function beforeBar(radio, stream) {
+  let a = round(knobs);
+  if (replay) {
+    const off = radio.n - replay.from;
+    if (off < replay.clip.bars) { const e = replay.clip.knobs.find(([at]) => at === off); if (e) replay.a = e[1]; if (replay.a) a = replay.a; }
+    else replay = null;
+  }
+  stream.knobs = asKnobs(a);
+  states.set(radio.n, radio.state()); dials.set(radio.n, a);
+  for (const m of [states, dials]) for (const key of m.keys()) if (key < radio.n - KEEP) m.delete(key);
 }
 
 async function pump() {
   if (busy || !s) return;
   busy = true;
   while (s && s.frame < want) {
-    const r = s.render(BLOCKS), frames = r.pcm.length / 2;
-    rendered += frames / s.sr;
-    postMessage({ type: 'chunk', frame: s.frame - frames, frames, pcm: r.pcm.buffer, notes: r.notes, bars: r.bars }, [r.pcm.buffer]);
+    const st = s, ep = epoch, r = st.render(BLOCKS), frames = r.pcm.length / 2;
+    rendered += frames / st.sr;
+    postMessage({ type: 'chunk', epoch: ep, frame: st.frame - frames, frames, pcm: r.pcm.buffer, notes: r.notes, bars: r.bars }, [r.pcm.buffer]);
     const speed = rendered / ((performance.now() - started) / 1000);
     thin = Math.max(0.35, Math.min(1, thin + (speed < 1.5 ? -0.05 : 0.02)));
     await new Promise((res) => setTimeout(res, 0));                // let messages in
@@ -74,6 +86,14 @@ onmessage = (ev) => {
   if (m.type === 'start') start(m).catch((e) => postMessage({ type: 'error', message: String((e && e.message) || e) }));
   else if (m.type === 'want') { want = m.want; pump(); }
   else if (m.type === 'knobs') knobs = m.knobs;
+  else if (m.type === 'rewind') {
+    if (!s || !states.has(m.bar)) { postMessage({ type: 'rewound', epoch: -1 }); return; }
+    epoch++; replay = null;
+    s = fresh(Radio.from(states.get(m.bar)));
+    started = performance.now(); rendered = 0; want = m.want;
+    postMessage({ type: 'rewound', epoch, bar: m.bar });
+    pump();
+  }
   else if (m.type === 'clip') postMessage({ type: 'clip', clip: clip(m.from, m.to) });
   else if (m.type === 'stop') s = null;
 };

@@ -915,6 +915,22 @@ if (SHARD === 2) {
   ok(Math.max(...after) > 2 * before, `radio: thrown from still to driving, the next two bars play ${after.join(' and ')} notes (from ${before})`);
   const same = JSON.stringify(new Radio({ seed: 9 }).next(mid)) === JSON.stringify(new Radio({ seed: 9 }).next(mid));
   ok(same, 'radio: the same seed and dials are the same music');
+  // a held note is never cut short by a brief note on the same string or key (owner: "a-b-a with a very
+  // quick b… the final a stops short": the ornament's last pluck was a third of a tick and took the string)
+  let cuts = 0, ornaments = 0;
+  for (const [, v] of STATIONS) for (const seed of [1, 2]) {
+    const R = new Radio({ seed }), all = [];
+    for (let b = 0; b < 64; b++) all.push(...R.next(asK(v)).notes);
+    all.sort((a, b) => a.at - b.at);
+    ornaments += all.filter((x) => x.art === 1).length;
+    for (let i = 0; i < all.length; i++) {
+      const a = all[i]; if (a.art === 4) continue;
+      const same = (y) => (a.inst === 1 ? y.inst === 1 && y.string === a.string : y.inst === 0 && y.midi === a.midi);
+      const c = all.find((y, j) => j > i && same(y) && y.at > a.at + 0.01 && y.at < a.at + a.dur);
+      if (c && a.at + a.dur - (c.at + c.dur) > 0.5 && c.dur < 0.35 && !all.some((y) => same(y) && y.at > c.at && y.at < c.at + c.dur + 0.05)) cuts++;
+    }
+  }
+  ok(cuts <= 2 && ornaments > 5, `radio: no held note is cut short by a brief one on its string or key (${cuts}); ${ornaments} guitar ornaments are hammer-on and pull-off, the note ringing on`);
   // a saved moment ("that bit"): the state before a bar and the dials after it, through a link, replay exactly
   const { encodeClip, decodeClip, clipKnobs } = await import('../radio/clip.js');
   const RC = new Radio({ seed: 42 }), states = new Map(), played = [];

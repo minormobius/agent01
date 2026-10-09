@@ -10,7 +10,7 @@
 //   const s = new RadioStream(wasmExports, { seed, sampleRate, body });
 //   s.knobs = { light, energy, … };          // read at every bar
 //   s.render(blocks) → { pcm (interleaved stereo), notes: [{ t, dur, midi, inst, v, role }], bars: [info…] }
-//   s.beforeBar = (radio) => …                // called before each bar is composed (the worker saves states)
+//   s.beforeBar = (radio, stream) => …        // called before each bar is composed (the worker saves states)
 //   s.use(radio)                             // play another radio from here (a saved moment: Radio.from)
 import { Radio } from './composer.js';
 import { NOTE_BYTES, PIANO_GAIN, GUITAR_GAIN, StereoConvolver, resample, convolveOnce, roomImpulse } from '../cycle/music.js';
@@ -45,7 +45,7 @@ export class RadioStream {
   #compose(until) {
     const now = this.frame / this.sr;
     while (this.nextAt < until) {
-      this.beforeBar?.(this.radio);
+      this.beforeBar?.(this.radio, this);
       const bar = this.radio.next(this.knobs), o = this.origin;
       this.nextAt = bar.t - o + bar.sec;
       this.bars.push({ ...bar.info, t: bar.t - o, sec: bar.sec });

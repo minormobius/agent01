@@ -477,7 +477,10 @@ export class Radio {
       ro = roleOf(midi, tick, ro);
       if (ro === 'comp') while (midi > top && midi - 12 >= 40) midi -= 12;
       len = pedal(tick, len, midi, ro);
-      out.push({ at: when(tick, ro), dur: durOf(tick, len), midi, vel: clamp(vel * ev * arc * metric(tick) * (0.94 + 0.12 * r()), 0.04, 1), inst: 0, role: ro, tick, bar: n });
+      const at = when(tick, ro), dur = durOf(tick, len);
+      // a short note never re-strikes a key that is still sounding longer: it would cut it
+      if (out.some((x) => x.inst === 0 && x.midi === midi && x.at < at && x.at + x.dur > at + dur + 0.3)) return;
+      out.push({ at, dur, midi, vel: clamp(vel * ev * arc * metric(tick) * (0.94 + 0.12 * r()), 0.04, 1), inst: 0, role: ro, tick, bar: n });
     };
     const thin = k.thin ?? 1;
     const G = (tick, len, s, midi, vel, art = 0, ap = 0, ro) => {
@@ -707,7 +710,12 @@ export class Radio {
         P(m.tick, m.len + (sparse ? 6 : 1), m.midi, v, 'mel');
         // thirds or sixths under it, when the room is close and the music is calm
         if (tex === 'sea' || (k.air < 0.4 && k.energy < 0.6 && j % 2 === 0)) P(m.tick + 0.05, m.len, this.#fit(this.#deg(this.#below(m.midi, tex === 'sea' ? 5 : 2)), m.tick < 6 ? x.ch : x.ch2), v * 0.6, 'orn');
-        if (m.len >= 6 && r() < ornament) [1, 0, -1].forEach((d, q) => P(m.tick + 0.5 + q * 0.25, 0.25, this.#snap(m.midi + d * 2), v * 0.6, 'orn'));
+        if (m.len >= 6 && r() < ornament) {
+          // a turn: the note above, the note below, and back to the note, held to where it would have ended
+          // (a short re-strike of the same key cut the note: the owner heard "a-b-a with the last a stopped short")
+          const end = m.tick + m.len + (sparse ? 6 : 1), up = this.#snap(m.midi + 2), dn = this.#snap(m.midi - 1);
+          P(m.tick + 0.5, 0.25, up, v * 0.6, 'orn'); P(m.tick + 0.75, 0.25, dn, v * 0.55, 'orn'); P(m.tick + 1, end - m.tick - 1, m.midi, v * 0.75, 'orn');
+        }
       });
       return;
     }
@@ -724,14 +732,20 @@ export class Radio {
       const p = this.#onString(m.midi, strings), nx = line[j + 1];
       if (sparse && line.length >= 4 && j % 2 === 1 && k.energy < 0.5) return;
       if (m.len >= 3 && m.tick >= 1 && r() < approach) { const a = this.#onString(m.midi - 1, strings); G(m.tick - 0.33, 0.33, a.string, a.midi, 110, 0, 0, 'orn'); }
-      G(m.tick, m.len + 2, p.string, p.midi, (sparse ? 125 : 142) * shape(m, j), 0, 0, 'mel');
+      const orn = !(tex === 'falseta' && nx && m.len >= 2) && m.len >= 6 && r() < ornament;
+      G(m.tick, orn ? 0.5 : m.len + 2, p.string, p.midi, (sparse ? 125 : 142) * shape(m, j), 0, 0, 'mel');
       // picado: a run up or down the scale into the next note, two to a tick
       if (tex === 'falseta' && nx && m.len >= 2 && r() < 0.4 + 0.5 * k.energy) {
         const n = Math.min(Math.floor((m.len - 1) * 2), 6), dir = Math.sign(nx.midi - m.midi) || 1;
         let q = m.midi;
         for (let z = 1; z <= n; z++) { q = this.#snap(q + dir * 2); const s = this.#onString(q, strings); G(m.tick + 1 + (z - 1) * 0.5, 0.5, s.string, s.midi, 120, 0, 0, 'orn'); }
-      } else if (m.len >= 6 && r() < ornament) {
-        [2, 0].forEach((d, q) => { const s = this.#onString(this.#snap(m.midi + d), strings); G(m.tick + 0.5 + q * 0.3, 0.3, s.string, s.midi, 105, 0, 0, 'orn'); });   // a hammer and pull
+      } else if (orn) {
+        // a hammer-on to the note above and a pull-off back, on the same string (slurs: one pluck), the
+        // note then ringing for the rest of its length. It was three plucks, the last only a third of a
+        // tick long and owning the string, so the held note stopped short
+        const up = this.#snap(m.midi + 2), upF = up - OPEN[p.string - 1];
+        if (upF <= 19) { G(m.tick + 0.5, 0.3, p.string, up, 110, 1, 0, 'orn'); G(m.tick + 0.8, m.len + 1.2, p.string, p.midi, 110, 2, 0, 'orn'); }
+        else G(m.tick + 0.5, m.len + 1.5, p.string, p.midi, 100, 6, 0, 'orn');           // no room above: the note just ties on
       }
     });
   }

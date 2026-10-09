@@ -499,7 +499,7 @@ that came from the sky and the weather now come from the dials.
 ```
 radio/composer.js   Radio: next(knobs) → one bar { t, sec, notes, info }; state() / Radio.from(); KNOBS, STATIONS (pure)
 radio/stream.js     RadioStream: bars into pfstream.wasm, the guitar dressed as music.js, then a hall (pure)
-radio/worker.js     the stream in a worker: start / want / knobs / clip / stop → chunks with notes and bars
+radio/worker.js     the stream in a worker: start / want / knobs / clip / rewind / stop → chunks (with their epoch)
 radio/clip.js       a saved moment as a link: the state before a bar + the dials bar by bar, deflated (pure)
 radio/lint.js       the critic: counts what a harmony teacher would mark, from the notes' roles (pure)
 radio/main.js       dials, stations, drift, the link, "that bit", chunks on the audio clock, the scale streaming past
@@ -554,6 +554,21 @@ tools/radio.mjs     node: lint every station; --score a passage; --wav; --clip '
   bar and the dials bar by bar, as JSON, deflated and base64url: a link of ~400–800 characters,
   `#clip=…`, that replays it exactly (the selftest checks bar for bar) and then plays on.
   `node studio/tools/radio.mjs --clip '<link>' --score --wav x.wav` reads it here.
+- **Ornaments are slurs** (owner: "a-b-a with a very quick b… the final a stops short"). The guitar's was
+  three plucks, the last a third of a tick long and owning the string, so the held note died with it. Now
+  it is one pluck, a hammer-on (art 1) to the note above on the same string and a pull-off (art 2) back
+  that rings for the rest of the note; the piano's turn ends on the note held to its end, and a short
+  piano note never re-strikes a key that is still sounding longer. The selftest scans every station.
+- **With the screen off** (owner: "the other widgets still held my audio when the phone turned off, this
+  one bails"). The finished pieces render everything up front; the radio was 1.6 s ahead, and a phone
+  with its screen off stops the page's timers (and maybe the worker), so it ran dry. Now: the audio session
+  is `playback` (`navigator.audioSession`, Safari 16.4+); a silent looping `<audio>` started in the tap
+  makes the page a media player (kept alive, lock-screen controls); and the moment the page hides it asks
+  for a minute ahead (`HIDDEN_LEAD`). A dial moved while that buffer is long would be heard a minute late,
+  so the page CUTS: it asks the worker to `rewind` to the first bar a second or more away; the worker
+  restores that bar's saved state on a fresh synth instance as a new epoch; the old epoch's gain fades
+  over 0.25 s from the cut and its later chunks are dropped. Checked in headless Chromium (hidden: 75 s
+  rendered in 15 s; a dial after: epoch 1, no late chunks). Not checked on a real locked phone.
 - **Conversation** at its four settings: `solo`, one instrument per section, and only textures it can
   carry alone (`weights(k, solo)`). A solo guitar keeps strings 1–2 for the tune and comps on 3–6.
   `accompany`: one lead per section. `trade`: the lead swaps every phrase. `duel`: the lead swaps every

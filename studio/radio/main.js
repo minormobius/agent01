@@ -102,50 +102,108 @@ function driftStep(dt) {
 }
 
 // ---- sound -----------------------------------------------------------------------------------------
-let ctx = null, worker = null, t0 = null, sr = 44100, wanted = 0, playing = false, out = null, chunks = 0, late = 0;
+// The worker renders ahead of the ear: LEAD seconds while you can see the page (so a dial is heard within
+// a bar or two), a minute when you can't (a phone with its screen off stops the page's timers, and the
+// radio went quiet when the 1.6 s ran out; the finished pieces had rendered everything up front). To
+// keep a dial quick after that, moving one with a long buffer cuts it at the next bar and the worker
+// starts again from that bar's saved state on a fresh synth: an EPOCH. Chunks carry their epoch; each
+// epoch has its own t0 (the audio time of its frame 0) and its own gain, so the old one fades out at the cut.
+const HIDDEN_LEAD = 60;
+let ctx = null, worker = null, sr = 44100, wanted = 0, playing = false, out = null, chunks = 0, late = 0, keepAlive = null;
+let epoch = 0, cutting = null, ended = 0;                // ended: the audio time the last scheduled chunk ends
+const ep = new Map();                                    // epoch → { t0, gain }
 const sources = new Set(), pending = [];                  // pending: bars by audio time, for the words
-function sendKnobs() { if (worker) worker.postMessage({ type: 'knobs', knobs: { ...state.k } }); }
+const T0 = () => ep.get(epoch)?.t0 ?? null;
+let t0 = null;                                           // (the first epoch's start: "has it begun")
+function sendKnobs() {
+  if (!worker) return;
+  worker.postMessage({ type: 'knobs', knobs: { ...state.k } });
+  if (ctx && t0 !== null && !cutting && ended - ctx.currentTime > 4) cut();
+}
+function epochOut(e) { const gain = ctx.createGain(); gain.connect(out); ep.set(e, { t0: null, gain }); return ep.get(e); }
 function start() {
+  // the session is playback (Safari 16.4+): it carries on with the screen off and ignores the silent switch
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}
   ctx = new (window.AudioContext || window.webkitAudioContext)();
   sr = ctx.sampleRate; out = ctx.createGain(); out.gain.value = 0.9; out.connect(ctx.destination);
+  epochOut(0);
+  // a silent looping <audio> started in the same tap: the page is then playing media, which phones keep
+  // alive (and give lock-screen controls); the music itself still goes through Web Audio
+  keepAlive = new Audio(silence()); keepAlive.loop = true; keepAlive.play().catch(() => {});
   worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
   worker.onmessage = (ev) => {
     const m = ev.data;
     if (m.type === 'error') { $('playing').textContent = `the radio would not start: ${m.message}`; return; }
     if (m.type === 'clip') { gotBit(m.clip); return; }
-    if (m.type !== 'chunk') return;
-    if (t0 === null) t0 = ctx.currentTime + 0.25;           // the stream begins when it first arrives
+    if (m.type === 'rewound') { rewound(m); return; }
+    if (m.type !== 'chunk' || m.epoch !== epoch) return;      // a chunk of a superseded epoch
+    const E = ep.get(epoch);
+    if (E.t0 === null) { E.t0 = ctx.currentTime + 0.25; t0 ??= E.t0; }   // the first epoch begins when it first arrives
     const pcm = new Float32Array(m.pcm), buf = ctx.createBuffer(2, m.frames, sr), L = buf.getChannelData(0), R = buf.getChannelData(1);
     for (let i = 0; i < m.frames; i++) { L[i] = pcm[i * 2]; R[i] = pcm[i * 2 + 1]; }
-    const when = t0 + m.frame / sr, lateBy = ctx.currentTime - when;
+    const when = E.t0 + m.frame / sr, lateBy = ctx.currentTime - when;
     if (lateBy > 0) late++;
     if (lateBy < buf.duration) {
-      const s = ctx.createBufferSource(); s.buffer = buf; s.connect(out);
+      const s = ctx.createBufferSource(); s.buffer = buf; s.connect(E.gain); s.startAt = when;
       s.onended = () => { sources.delete(s); s.disconnect(); };
       s.start(Math.max(when, ctx.currentTime), Math.max(0, lateBy)); sources.add(s);
     }
-    chunks++; document.body.dataset.radio = `${chunks} chunks, ${late} late`;
-    for (const n of m.notes) notes.push({ ...n, at: t0 + n.t });
-    for (const b of m.bars) { const x = { ...b, at: t0 + b.t }; bars.push(x); pending.push(x); }
+    ended = Math.max(ended, when + buf.duration);
+    chunks++; document.body.dataset.radio = `${chunks} chunks, ${late} late, epoch ${epoch}`;
+    for (const n of m.notes) notes.push({ ...n, at: E.t0 + n.t });
+    for (const b of m.bars) { const x = { ...b, at: E.t0 + b.t }; bars.push(x); pending.push(x); }
   };
   worker.postMessage({ type: 'start', seed: state.seed, sampleRate: sr, knobs: { ...state.k }, want: Math.round(LEAD * sr), clip: state.clip });
   wanted = Math.round(LEAD * sr);
+  if ('mediaSession' in navigator) for (const [a, f] of [['play', () => !playing && toggle()], ['pause', () => playing && toggle()]]) try { navigator.mediaSession.setActionHandler(a, f); } catch {}
+}
+/** Cut the music rendered ahead at the first bar a second or more away, and start again there. */
+function cut() {
+  const now = ctx.currentTime, b = bars.find((x) => x.at >= now + 1);
+  if (!b) return;
+  cutting = { bar: b.bar, at: b.at };
+  worker.postMessage({ type: 'rewind', bar: b.bar, want: Math.round(LEAD * sr) });
+}
+function rewound(m) {
+  const c = cutting; cutting = null;
+  if (!c || m.epoch < 0) return;
+  const old = ep.get(epoch);
+  // the old epoch fades over a quarter second from the cut (its rings and its hall's tail with it)
+  old.gain.gain.setValueAtTime(1, c.at); old.gain.gain.linearRampToValueAtTime(0, c.at + 0.25);
+  for (const s of sources) if (s.startAt >= c.at + 0.25) { try { s.stop(); } catch {} s.disconnect(); sources.delete(s); }
+  for (const list of [notes, bars, pending]) for (let i = list.length - 1; i >= 0; i--) if (list[i].at >= c.at) list.splice(i, 1);
+  epoch = m.epoch; epochOut(epoch).t0 = c.at;
+  ended = c.at; wanted = Math.round(LEAD * sr);
+  setTimeout(() => { for (const [e, E] of ep) if (e < epoch) { E.gain.disconnect(); ep.delete(e); } }, (c.at - ctx.currentTime + 1) * 1000);
+}
+/** One second of silence as a WAV (for the keep-alive element). */
+function silence() {
+  const n = 8000, b = new ArrayBuffer(44 + n * 2), v = new DataView(b), w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 16000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
 }
 function toggle() {
   if (!ctx) { start(); playing = true; }
-  else if (playing) { ctx.suspend(); playing = false; }
-  else { ctx.resume(); playing = true; }
+  else if (playing) { ctx.suspend(); keepAlive?.pause(); playing = false; }
+  else { ctx.resume(); keepAlive?.play().catch(() => {}); playing = true; }
   $('tune').hidden = true;
   $('playpause').textContent = playing ? 'pause' : 'play';
   if ('mediaSession' in navigator) navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
 }
-// keep the worker ahead of the ear (further ahead when the tab is hidden and the timers slow)
+// keep the worker ahead of the ear: a minute ahead when the page is hidden (asked for the moment it hides)
 function feed() {
-  if (!ctx || t0 === null || !playing) return;
-  const ahead = document.hidden ? 4 : LEAD, want = Math.round((ctx.currentTime - t0 + ahead) * sr);
+  const t = T0();
+  if (!ctx || t === null || !playing || cutting) return;
+  const ahead = document.hidden ? HIDDEN_LEAD : LEAD, want = Math.round((ctx.currentTime - t + ahead) * sr);
   if (want > wanted + sr / 8) { wanted = want; worker.postMessage({ type: 'want', want }); }
 }
 setInterval(feed, 120);
+document.addEventListener('visibilitychange', () => {
+  if (!ctx) return;
+  if (!document.hidden && playing && ctx.state !== 'running') ctx.resume();   // a phone may have interrupted it
+  feed();
+});
 
 // ---- "that bit": the last half minute, as a link that plays it again --------------------------------
 function saveBit() {
