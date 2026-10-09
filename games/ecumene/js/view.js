@@ -220,9 +220,9 @@ export class View {
   foodColor(i, shade) {
     const s = this.snap, W = this.world, d = s.pop[i] / Math.max(1, s.area[i]);
     const grow = W.yieldKm[s.geo[i]] * Math.max(0, 1 - d / 300);
-    const t = this.townOf ? this.townOf[i] : -1, fed = t >= 0 && s.towns[t] ? s.towns[t].food : 1;
-    if (d > 150) { // the city itself: how well it eats
-      const h = 140 * Math.max(0, Math.min(1, (fed - 0.5) / 0.5)), l = 45 + 10 * Math.min(1, Math.log10(d / 150));
+    const t = this.townOf ? this.townOf[i] : -1, price = t >= 0 && s.towns[t] ? s.towns[t].price ?? 1 : 1;
+    if (d > 150) { // the city itself: what its food costs, green at half the usual price to red at twice it
+      const h = 70 * Math.max(0, Math.min(2, 1 - Math.log2(price))), l = 45 + 10 * Math.min(1, Math.log10(d / 150));
       return "hsl(" + h.toFixed(0) + ",80%," + (l * (0.75 + 0.25 * shade)).toFixed(0) + "%)";
     }
     return "hsl(" + (95 - 40 * (1 - grow)).toFixed(0) + "," + (20 + 55 * grow).toFixed(0) + "%," + ((12 + 32 * grow) * (0.7 + 0.3 * shade)).toFixed(0) + "%)";
@@ -390,7 +390,7 @@ export class View {
       const hungry = t.food < 0.9 && t.short > 5000;
       ctx.fillStyle = hungry ? "#ffb547" : "rgba(255,240,220,0.92)"; ctx.fillText(t.name, q[0], q[1] - fs / 2 - 6);
       if (hungry) { // how short it is, under the name
-        const msg = "food " + Math.round(100 * t.food) + "%", sm = Math.max(9, fs - 3);
+        const msg = "food " + Math.round(100 * t.food) + "% · ×" + (t.price ?? 1).toFixed(1), sm = Math.max(9, fs - 3);
         ctx.font = "600 " + sm + "px ui-monospace, Menlo, monospace"; ctx.strokeText(msg, q[0], q[1] + sm / 2 - 2); ctx.fillStyle = "#ffb547"; ctx.fillText(msg, q[0], q[1] + sm / 2 - 2);
         ctx.font = "600 " + fs + "px -apple-system, system-ui, sans-serif"; boxes.push([box[0], box[1] + fs, box[2], sm + 4]);
       }

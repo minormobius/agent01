@@ -199,7 +199,8 @@ export class Sim {
       // GDP: jobs, worth more where they reach more and where the ore comes in; and what the farms grow
       // a zone split since growth has no reach yet
       const u = this.u && this.u[i] != null ? Math.min(1, this.u[i]) : 0, ind = this.fr && this.fr.ore[bi] != null ? 0.85 + 0.3 * this.fr.ore[bi] : 1;
-      gdp[bi] += (this.jobs[i] * P_.WAGE * (0.7 + 0.6 * u) * ind + fm * P_.WAGE * 0.4) * (this.index || 1);
+      const food = this.fr && this.fr.price && this.fr.price.food[bi] != null ? Math.min(3, this.fr.price.food[bi]) : 1;   // the farms earn what food fetches
+      gdp[bi] += (this.jobs[i] * P_.WAGE * (0.7 + 0.6 * u) * ind + fm * P_.WAGE * 0.4 * food) * (this.index || 1);
     }
     this.zoneTown = zt;
     const MARKS = [50e3, 100e3, 250e3, 500e3, 1e6, 2e6, 5e6];
@@ -284,6 +285,9 @@ export class Sim {
         if (this.edge("hungry:" + k, fr.food[k] < 0.85 && fr.short[k] > 20e3)) this.emit("hunger", t.name + " is going hungry: " + Math.round(100 * (1 - fr.food[k])) + "% short of food", t.p);
         if (this.edge("fed:" + k, fr.food[k] > 0.97) && this.flags.get("wasHungry:" + k)) this.emit("fed", t.name + " is fed again", t.p);
         if (fr.food[k] < 0.85 && fr.short[k] > 20e3) this.flags.set("wasHungry:" + k, true); else if (fr.food[k] > 0.97) this.flags.set("wasHungry:" + k, false);
+        const p = fr.price ? fr.price.food[k] : 1;   // the market: dear food, said once until it eases
+        if (this.edge("dear:" + k, p > 1.6 && fr.need[k] > 20e3)) this.emit("dear", "Food in " + t.name + " costs ×" + p.toFixed(1) + " the usual", t.p);
+        else if (p < 1.3) this.flags.set("dear:" + k, false);
       });
       fr.mines.forEach((m, k) => { if (this.edge("mine:" + k, m.on) && this.year > 1) this.emit("mine", "A " + m.kind + " mine opens" + nearTown(this, m.p), m.p); });
       for (const [id, f] of fr.lines) if (this.edge("cargo:" + id, f.food + f.ore > 50e3)) this.emit("cargo", "carries " + fmtN(f.food + f.ore) + " of freight a year", null, id);
@@ -430,13 +434,14 @@ export class Sim {
   }
 
   grow(dem) {
-    const n = this.n, W = this.world, pop = this.pop, K = new Float64Array(n), u = new Float64Array(n);
+    const n = this.n, W = this.world, pop = this.pop, K = new Float64Array(n), u = new Float64Array(n), eat = new Float64Array(n);
     for (let i = 0; i < n; i++) {
       if (!this.land[i]) { pop[i] = 0; continue; }
       const g = this.geo[i], a = this.area[i];
       u[i] = Math.min(P_.A_MAX, dem.access[i] / P_.A_REF);
       const wet = W.fresh[g] / (W.fresh[g] + P_.W_HALF);   // how much of a city its water can carry
-      const t = this.zoneTown ? this.zoneTown[i] : -1, fed = this.fr && t >= 0 ? this.fr.food[t] : 1;
+      const t = this.zoneTown ? this.zoneTown[i] : -1, fed = this.fr && t >= 0 && this.fr.food[t] != null ? this.fr.food[t] : 1;
+      eat[i] = Math.max(0, Math.min(1, (fed - F_.FOOD_STALL) / (1 - F_.FOOD_STALL)));   // a hungry town grows slower, and not at all past FOOD_STALL
       // the town's ceiling, and the farmers its land takes (who feed themselves)
       K[i] = a * W.hab[g] * wet * (P_.RURAL + P_.URBAN * Math.pow(u[i], P_.ALPHA)) * (F_.FOOD_FLOOR + (1 - F_.FOOD_FLOOR) * fed) + farmers(this, i);
     }
@@ -458,7 +463,7 @@ export class Sim {
         // two populations in one zone: the farmers settle toward what the land takes, and the
         // town grows on its own people (from a seed, so any zone can start one)
         if (p < fm) next[i] += 0.1 * (fm - p);
-        else next[i] += P_.R_GROW * Math.max(pt, P_.TOWN_SEED) * (1 - pt / kt);
+        else next[i] += P_.R_GROW * eat[i] * Math.max(pt, P_.TOWN_SEED) * (1 - pt / kt);
         out = pt / kt > P_.SPILL_AT ? P_.SPILL * pt * (pt / kt - P_.SPILL_AT) : 0;
       }
       else out = 0.25 * (p - k);
@@ -507,8 +512,9 @@ export class Sim {
   snapshot() {
     return { n: this.n, P: this.P, verts: this.verts, polys: this.polys, geo: Int32Array.from(this.geo), pop: Float64Array.from(this.pop),
       area: this.area, land: this.land, stats: this.stats, credits: this.credits, year: this.year,
+      price: this.fr && this.fr.price ? Array.from(this.fr.price.food) : [], orePrice: this.fr && this.fr.price ? Array.from(this.fr.price.ore) : [],
       food: this.fr ? Array.from(this.fr.food) : [], short: this.fr ? Array.from(this.fr.short) : [], ore: this.fr ? Array.from(this.fr.ore) : [],
-      mines: this.fr ? this.fr.mines : [], cargo: this.fr ? [...this.fr.lines].map(([id, f]) => ({ id, food: f.food, ore: f.ore, load: f.load })) : [],
+      mines: this.fr ? this.fr.mines : [], cargo: this.fr ? [...this.fr.lines].map(([id, f]) => ({ id, food: f.food, ore: f.ore, load: f.load, toll: f.toll, earned: f.earned })) : [],
       runs: this.fr ? this.fr.runs : [],
       hubs: this.hubs || [],
       home: this.home != null ? this.towns[this.home].p : null, homeName: this.home != null ? this.towns[this.home].name : "", tier: this.tier || 0,

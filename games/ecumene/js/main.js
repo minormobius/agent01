@@ -104,7 +104,8 @@ function cities() {
   for (const t of T) {
     const tr = document.createElement("tr"), f = Math.round(100 * t.food);
     if (snap.homeName === t.name) tr.className = "home";
-    tr.innerHTML = "<td></td><td>" + fmt(t.pop) + "</td><td>" + fmt(t.rural) + "</td><td class='" + (f < 70 ? "starve" : f < 95 ? "short" : "") + "'>" + f + "%</td><td>₵" + fmt(t.gdp) + "</td>";
+    const pr = t.price ?? 1;   // food: what it costs there (×1 the usual), and how much short when it is
+    tr.innerHTML = "<td></td><td>" + fmt(t.pop) + "</td><td>" + fmt(t.rural) + "</td><td class='" + (f < 70 ? "starve" : f < 95 || pr > 1.5 ? "short" : pr < 0.7 ? "cheap" : "") + "'>×" + pr.toFixed(2) + (f < 99 ? " <small>" + f + "%</small>" : "") + "</td><td>₵" + fmt(t.gdp) + "</td>";
     tr.firstChild.textContent = t.name;
     tr.onclick = () => look(t.p);
     rows.appendChild(tr);
@@ -134,7 +135,7 @@ function panel() {
   $("p-trains").textContent = L.trains;
   $("p-wagons").textContent = L.wagons || 0;
   const c = snap.cargo && snap.cargo.find((x) => x.id === L.id);
-  $("p-cargo").textContent = !L.wagons ? "wagons carry food and ore" : c ? "freight " + fmt(c.food) + " food · " + fmt(c.ore) + " ore · " + Math.round(100 * c.load) + "% full" : "no freight yet: stops must reach two towns, or a mine";
+  $("p-cargo").textContent = !L.wagons ? "wagons carry food and ore" : c ? "freight " + fmt(c.food) + " food · " + fmt(c.ore) + " ore · " + Math.round(100 * c.load) + "% full" + (c.toll > 0.02 ? " · full: +×" + c.toll.toFixed(2) + " a unit" : "") + " · ₵" + Math.round(c.earned || 0) + "/yr" : "no freight yet: stops must reach two towns, or a mine";
   $("p-cargo").classList.toggle("warn", !!(c && c.load > 0.99));
 }
 
@@ -327,7 +328,7 @@ function info(z) {
 function townLine(z) {
   const t = snap.towns && nearestTown(site(z)); if (t == null) return "";
   const T = snap.towns[t];
-  return "<br><i>" + T.name + "</i>: food <b>" + Math.round(100 * T.food) + "%</b>" + (T.short > 0 ? " (short " + fmt(T.short) + ")" : "") + " · ore <b>" + Math.round(100 * T.ore) + "%</b>";
+  return "<br><i>" + T.name + "</i>: food <b>×" + (T.price ?? 1).toFixed(2) + "</b> the usual price, " + Math.round(100 * T.food) + "% fed" + (T.short > 0 ? " (short " + fmt(T.short) + ")" : "") + " · ore <b>×" + (T.orePrice ?? 1).toFixed(1) + "</b>, " + Math.round(100 * T.ore) + "% of what its industry wants";
 }
 function nearestTown(p) { let best = -2, bi = null; snap.towns.forEach((t, k) => { const d = t.p[0] * p[0] + t.p[1] * p[1] + t.p[2] * p[2]; if (d > best) { best = d; bi = k; } }); return bi; }
 function townOf(z) {
@@ -362,7 +363,7 @@ function evPoint(ev) {
   if (ev.p) return ev.p;
   const L = lines.find((l) => l.id === ev.line); return L && L.stops.length ? L.stops[L.stops.length >> 1] : null;
 }
-function toast(ev) { if (["hub", "town", "full", "money", "planet", "hunger", "mine", "charter"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
+function toast(ev) { if (["dear", "hub", "town", "full", "money", "planet", "hunger", "mine", "charter"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
 function renderLog() {
   $("logbtn").textContent = "log" + (unread && $("log").hidden ? " ·" + unread : "");
   if ($("log").hidden) return;

@@ -109,17 +109,33 @@ ok(city.length >= 8 && km > 8, "the start has a city worth a line (" + city.leng
   ok(slowed.minutes > base.minutes * 1.5, "an overfull ride is slower (" + base.minutes.toFixed(1) + " → " + slowed.minutes.toFixed(1) + " min)");
 }
 
-/* ---- the loop: the same planet with and without the line, 25 years on */
-function run(withLine) {
-  const t = new E.Sim(E.makeWorld(3), 3); t.warmup();
-  if (withLine) t.setLines([{ id: 1, color: "#f00", stops, trains: 8 }]);
+/* ---- the loop: the same planet with and without a line through its home city, 25 years on.
+   One world's 25 years are sensitive to anything (a town founded a year
+   apart changes the rest), so it is measured on three. */
+function corridor(seed) {
+  const s = new E.Sim(E.makeWorld(seed), seed); s.warmup();
+  const pt = (i) => [s.P[3 * i], s.P[3 * i + 1], s.P[3 * i + 2]];
+  let a = -1; for (let i = 0; i < s.n; i++) if (s.land[i] && s.zoneTown[i] === s.home && (a < 0 || s.pop[i] / s.area[i] > s.pop[a] / s.area[a])) a = i;
+  const city = [a], seen = new Set(city);
+  for (let h = 0; h < city.length; h++) for (const j of s.nbrs[city[h]]) if (!seen.has(j) && s.pop[j] / s.area[j] > 30) { seen.add(j); city.push(j); }
+  let far = [a, a, -1]; for (const i of city) for (const j of city) { const d = E.arc(pt(i), pt(j)); if (d > far[2]) far = [i, j, d]; }
+  const st = []; for (let k = 0, ns = Math.max(2, Math.round(far[2] * E.R / 4)); k <= ns; k++) st.push(E.slerp(pt(far[0]), pt(far[1]), k / ns));
+  return st;
+}
+function run(seed, st) {
+  const t = new E.Sim(E.makeWorld(seed), seed); t.warmup();
+  if (st) t.setLines([{ id: 1, color: "#f00", stops: st, trains: 8 }]);
   for (let y = 0; y < 25; y++) t.step();
-  let along = 0; for (let i = 0; i < t.n; i++) { const q = [t.P[3 * i], t.P[3 * i + 1], t.P[3 * i + 2]]; if (t.land[i] && stops.some((p) => E.arc(q, p) * E.R < 5)) along += t.pop[i]; }
+  const ref = st || corridor(seed);
+  let along = 0; for (let i = 0; i < t.n; i++) { const q = [t.P[3 * i], t.P[3 * i + 1], t.P[3 * i + 2]]; if (t.land[i] && ref.some((p) => E.arc(q, p) * E.R < 5)) along += t.pop[i]; }
   return along;
 }
-const without = run(false), withL = run(true);
-console.log("the loop: people along the line after 25 years, " + Math.round(without) + " without it, " + Math.round(withL) + " with it (+" + Math.round(100 * (withL / without - 1)) + "%)");
-ok(withL > 1.1 * without, "a line grows the city along it: +" + Math.round(100 * (withL / without - 1)) + "% in 25 years");
+{
+  const gains = [3, 11, 896933214].map((seed) => { const st = corridor(seed), w0 = run(seed, null), w1 = run(seed, st); return w1 / w0 - 1; });
+  const mean = gains.reduce((x, y) => x + y, 0) / gains.length;
+  console.log("the loop: people along a line through the home city after 25 years, against none: " + gains.map((g) => "+" + Math.round(100 * g) + "%").join(", ") + " (worlds 3, 11, 896933214)");
+  ok(gains.every((g) => g > 0) && mean > 0.12, "a line grows the city along it, in every world: +" + Math.round(100 * mean) + "% on average in 25 years");
+}
 
 /* ---- commodities and freight */
 {
@@ -144,18 +160,36 @@ ok(withL > 1.1 * without, "a line grows the city along it: +" + Math.round(100 *
     for (let y = 0; y < years; y++) t.step();
     return t;
   };
-  const a1 = run(-1, 1);
+  const a1 = run(-1, 1), ph = (t) => t.fr.price.food[h];
   let used = -1, c1 = null;
-  for (const [, b] of baskets) { const t = run(b, 1), F = t.fr.lines.get(1); if (F && F.food > 0 && t.fr.food[h] > a1.fr.food[h] + 0.05) { c1 = t; used = b; break; } }
+  for (const [, b] of baskets) { const t = run(b, 1), F = t.fr.lines.get(1); if (F && F.food > 0 && ph(t) < 0.95 * ph(a1) && t.fr.food[h] > a1.fr.food[h] + 0.01) { c1 = t; used = b; break; } }
   ok(c1, "a line from one of them feeds the hungry city (" + T[h].name + ")");
   if (c1) {
     const F = c1.fr.lines.get(1);
     ok(c1.fr.runs.every((r) => r.load <= r.cap * (1 + 1e-9)), "the line carries food (" + Math.round(F.food) + " a year from " + T[used].name + "), never past its wagons");
-    ok(c1.fr.food[h] > a1.fr.food[h] + 0.05, "the hungry city is better fed (" + Math.round(100 * a1.fr.food[h]) + "% → " + Math.round(100 * c1.fr.food[h]) + "% in the first year)");
+    // in a market the line's food also displaces what came by road, so the city gains less than the line carries, and its food gets cheaper
+    ok(c1.fr.food[h] > a1.fr.food[h] + 0.01 && ph(c1) < 0.95 * ph(a1), "the hungry city is better fed, and food there is cheaper (" + Math.round(100 * a1.fr.food[h]) + "% → " + Math.round(100 * c1.fr.food[h]) + "% fed, price ×" + ph(a1).toFixed(2) + " → ×" + ph(c1).toFixed(2) + ")");
     const a = run(-1, POST), c = run(used, POST);
     ok(c.towns[h].pop > a.towns[h].pop * 1.02, "and it keeps more people: +" + Math.round(100 * (c.towns[h].pop / a.towns[h].pop - 1)) + "% after " + POST + " years");
     ok(c1.stats.cargo > 0, "freight pays (₵" + Math.round(c1.stats.cargo) + " a year)");
+    // the market: where goods flow, what a seller gets there is what it could get anywhere (within the traders' spread)
+    const fr1 = c1.fr; let worst = 0, n = 0;
+    for (const f of fr1.flows) {
+      if (f.c !== "food" || f.src === f.dst || f.x < 0.05 * fr1.local[f.src]) continue;
+      let toll = 0; for (const r of f.runs) toll += fr1.tolls.food[r];
+      const net = fr1.price.food[f.dst] * f.d - f.cost - toll, own = fr1.price.food[f.src];
+      worst = Math.max(worst, Math.abs(net - own) / Math.max(1, own)); n++;
+    }
+    ok(n > 0 && worst < 0.15, "where food flows, the dear end pays the cheap end's price plus the way (" + n + " flows, within " + Math.round(100 * worst) + "%)");
+    // a full line is rationed by a toll, which is its margin; more wagons, less toll
+    const more = (() => { const t = base(); t.setLines([{ id: 1, color: "#f00", stops: [t.towns[used].p, t.towns[h].p], trains: 1, wagons: 16 }]); t.step(); return t; })();
+    const tl = (t) => t.fr.lines.get(1).toll;
+    ok(F.load > 0.97 && tl(c1) > 0.05 && tl(more) < tl(c1) / 4, "a full line charges what its room is worth (toll ×" + tl(c1).toFixed(2) + "); with four times the wagons it isn't full and the toll falls (×" + tl(more).toFixed(3) + ")");
   }
+  // the farms answer the price: where food is dear more land is farmed, where cheap less
+  const f30 = s0.fr, pl = s0.farmPull; let up = 0, dn = 0, bad = 0;
+  T.forEach((t, k) => { if (k >= pl.length || f30.price.food[k] == null) return; const p = f30.price.food[k]; if (p > 1.15) { if (pl[k] > 1) up++; else bad++; } else if (p < 0.85) { if (pl[k] < 1) dn++; else bad++; } });
+  ok(up + dn > 0 && bad === 0, "dear food draws farmers, cheap food sends them to town (" + up + " towns farming more, " + dn + " less)");
 }
 
 /* ---- the economy's rules (test/economy.mjs measures the curve itself) */

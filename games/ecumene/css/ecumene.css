@@ -31,6 +31,9 @@ button, a { touch-action: manipulation; }
 #cities tr.home td:first-child { color: var(--accent); }
 #cities td.short { color: #ffb547; }
 #cities td.starve { color: var(--warn); }
+#cities td.cheap { color: var(--accent2); }
+#cities td small { font-size: 10px; opacity: 0.8; }
+.ev.dear .t { color: #ffb547; }
 #dock {
   flex: 0 0 36%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px;
   padding: 8px 12px 6px; border-top: 1px solid var(--border); background: #070d18;

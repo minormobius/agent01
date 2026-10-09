@@ -7,10 +7,13 @@ water is; cities grow where your lines reach; the lines fill as they do.
 ## The loop
 
 The game rests on one claim, which the selftest measures on every run:
-**a line grows the city along it.** On world 3, an 8-train line across the
-home city at the start leaves about 25% more people along it 25 years
-later than the same planet without it. (The selftest's floor is 10%; it
-has ranged from 20% to 60% as food, ships and the countryside came in.)
+**a line grows the city along it.** An 8-train line across the home city
+at the start leaves more people along it 25 years later than the same
+planet without it: +5%, +16% and +45% on worlds 3, 11 and 896933214
+(mean +22%). The selftest asks for a gain on every one and +12% on
+average. It is measured on three worlds since the market came in: one
+world's 25 years are sensitive to anything, and world 3 alone has ranged
+from +5% to +60% as food, ships, the countryside and prices came in.
 
 It works like this, once a year:
 
@@ -90,26 +93,77 @@ the one that guards it.
   is worked once a town is within 45 km or a freight stop is on it. A
   town's industry wants 0.25 units a person.
 - **Every land zone belongs to its nearest town**, so a town is a region,
-  and its own farms feed it first. Surplus and shortfall are traded
-  between towns and working mines over **roads** (any two within 70 km
-  with no sea between; cargo decays as exp(−km/65), carts being slow and
-  food spoiling), **ships** (ports within 350 km) and over the player's lines that carry **wagons** (a
-  tenth of the cost, almost no decay, but 40k units a year per wagon).
-  Every (short town, source) pair is served cheapest first, until the
-  shortfall is met or the source runs dry; an overfull rail run scales
-  down every flow through it. (Biggest shortfall first, the old order,
-  let two big cities drain a breadbasket by road before the city on a
-  rail line from it was asked, and the line carried nothing.)
-- **What arrives matters.** A town's food share scales its zones'
-  ceilings (down to 30% when starving), and its ore share draws jobs to it
-  (±15%). Rail freight earns ₵1.2e-5 per unit-km.
+  and it pools its own farms' food at no cost (a simplification: a farm
+  60 km out feeds its town free, while the next town over pays carriage).
+- **A market, not a planner.** Each town has a price for food and for ore,
+  in units of the usual price. Each year the market is settled by
+  adjustment (`market` in `js/freight.js`):
+  - every seller (a town's harvest, a working mine) spreads what it has
+    over its buyers by what a unit **nets** there: the price, times the
+    share that arrives, less the carriage. Carriage is by **road** (any two
+    towns within 70 km with no sea between: 0.006 a km, and food spoils as
+    exp(−km/65)), by **ship** (ports within 350 km: 0.002 a km, spoiling
+    4× slower), or by your **lines with wagons** (your tariff, 0.0008 a
+    km, spoiling 80× slower, but 40k units a year a wagon). Selling at home
+    costs nothing. Unsold, a unit is worth 0.2 (stores, fodder).
+  - every buyer's price is the one at which its people would buy exactly
+    what arrives: demand is need × price^−0.4 for food (a necessity: twice
+    the price, a quarter less eaten) and ^−0.8 for ore;
+  - a line's run charges a **toll** that climbs steeply as it fills
+    (0.05 at its wagons, ×20 at 120%), so a full line is rationed by price
+    and keeps the gap between its ends.
+  The flows are averaged over 160 rounds (the method of successive
+  averages, as in traffic assignment). Chasing each round's best buyer
+  outright swung everything back and forth and never settled; neither did
+  a toll that rose and fell with each round's load. What comes out is a
+  spatial price equilibrium, near enough: where food flows, the dear end
+  pays the cheap end's price plus the way, which the selftest checks on
+  every flow (within 15%; measured, within 7–8%).
+- **Hunger is what you can't afford.** A town is fed by what arrives
+  (food share = what it eats over what it needs, capped at 1). A dear
+  price cuts what it eats; its food share scales its zones' ceilings
+  (down to 30% when starving) and now its growth rate too, which falls
+  with hunger and stops at 60% fed. Ore's share draws jobs (±15%).
+- **The farms answer the price.** Each town's land farmed, and the farmers
+  on it, go as last year's price^0.2 (between ×0.85 and ×1.3, eased in
+  over a few years): dear food puts more land under the plough and draws
+  people to it; cheap food lets fields go and sends their people to town.
+  The farms' share of GDP is paid at the price.
+- **Your margin is the toll.** A line earns its tariff on every unit-km
+  and, where it is full, the toll on every unit: ₵0.005 a unit per price
+  unit. So wagons are worth most where they are scarce: on world 3, 30
+  years in, a 4-wagon line into the hungry home city runs full at a toll
+  of ×0.09 and earns ₵200 a year; with 16 wagons it isn't full and the
+  toll is gone. More wagons feed more people and earn less a unit: the
+  monopolist's choice is yours.
 
-The selftest measures it: 30 years in on world 3, a 4-wagon line from a
-breadbasket 200 km away takes the hungriest city from about 66% fed to
-about 92%, and it has grown about 10% more 12 years later. It also shows
-the two loops meeting. A metro line alone grows a city by about 25% where
-it used to grow it by about 50%, because the city it serves now runs out
-of food first. The player has to feed a city as well as move it.
+The old allocation served every (short town, source) pair cheapest first.
+A least-cost flow is what a competitive market settles on too (the prices
+are its dual), so it found roughly the same flows, but it had no prices:
+no demand that falls when food is dear, no farms that answer it, no reason
+to pay a line more where it is full. Across worlds 3, 11 and 896933214 the
+fed share and the planet's people come out within a few percent of the old
+model; cities run 5–15% bigger, because cheap food sends farmers to town. The
+oracle after it (`test/economy.mjs 60`): the metro bot ends year 60 with
+₵6.2k, ₵18k and ₵6.0k on worlds 3, 11 and 896933214 (₵5.2k, ₵3.8k and
+₵3.8k before; that end balance swings with when the bot buys its last
+line), its first line paying back in 22, 6 and 22 years; greedy and
+sprinkle still lose money.
+
+The selftest measures it, 30 years in on world 3: a 4-wagon line from a
+breadbasket into the hungriest city (the home city, 91% fed at ×1.25 the
+usual price) makes it 100% fed at ×0.95, keeps 3% more people 12 years
+later, and pays. The line's food also displaces what came by road, so the
+city gains less than the line carries: the rest goes to the towns that
+food used to feed.
+
+A metro line through the home city, against none, 25 years on: +5%, +16%
+and +45% more people along it on worlds 3, 11 and 896933214. On five
+worlds it is +10% to +40% (mean +21%); before the market, +10% to +52%
+(mean +29%). World 3 gains least because the line's growth makes its home
+city hungry, and hunger now slows growth: feed a city as well as move it.
+One world's 25 years are sensitive to anything (a town founded a year
+apart changes the rest), so the selftest asks it of three.
 
 ## Shaping a line
 
@@ -230,7 +284,8 @@ Four rules ramp the costs, because without them the game printed money:
   day earns the right to buy a wider one: 70 km, 140 km, 300 km, the whole
   planet, for ₵400, ₵1,200, ₵3,500 and ₵9,000 at start prices. Intercity
   freight is a mid-game unlock, not a day-one exploit.
-- **Prices follow the world's wealth.** Everything you buy, and all
+- **Prices follow the world's wealth.** (The ₵ index, not the food
+  market's prices, which are relative to the usual.) Everything you buy, and all
   upkeep, costs `(people / people at the start)^0.5` times its start
   price.
 - **Building through a city costs more.** Stops and track cost ×(1 +
@@ -304,7 +359,8 @@ Next:
 - **Water as freight** (aqueducts) and **dry years** from
   `computeClimate` with a shifted forcing, which would make the
   breadbaskets move.
-- **Prices**, from civ's price field, in place of the fixed freight fare.
+- **Carriage inside a region**: a farm's food reaching its own town at a
+  cost, so the farm-gate price falls with distance (von Thünen's rings).
 - **Goods**: the ore turned into something the cities trade back.
 
 A sandbox purse: `?funds=5000` starts you with that much.

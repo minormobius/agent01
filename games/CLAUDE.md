@@ -118,14 +118,16 @@ Three things live here:
   share, and transit trips assigned to ride segments, so every line knows
   its load and strands what it can't carry. A zone's ceiling scales with
   its reach (access to jobs) and its water, so a line grows the city along
-  it, which the selftest measures with a counterfactual (about +25% now that food, ships and farmers also shape it). Dense
+  it, which the selftest measures with a counterfactual on three worlds (+22% on average). Dense
   zones split and the spherical Voronoi is rebuilt (`ORB.voronoi`, now
   exposed by `orb/js/sphere.js`). The sim runs in a module worker; it names
   its towns and keeps a log of events. Commodities (`js/freight.js`): food grown
   on open country and ore mined at geology-placed deposits, traded between
-  towns by road (decaying with distance) or by lines with freight wagons
-  (capacity); a hungry city's ceiling falls, and the selftest measures a
-  freight line feeding one. The economy is ramped (a charter round your home
+  towns through a market: a price per town, found by successive averages,
+  goods flowing by road, ship or the player's freight wagons to where they
+  net the most, and a toll on a full line that is its margin; dear food
+  draws farmers, a hungry city stops growing, and the selftest measures a
+  freight line feeding one and the prices' no-arbitrage condition. The economy is ramped (a charter round your home
   city, widened by riders and a fee; prices that follow the world's wealth;
   dearer building in dense cities; a levy on fares; ships for coastal
   freight) and measured by `test/economy.mjs`. Farmers live on the land (their numbers set by
@@ -221,7 +223,7 @@ node games/fathom/test/fathom.selftest.mjs       # the onion's layers, flood and
 node games/oneside/test/oneside.selftest.mjs     # the surface and its back, the maze, the through-the-paper rules
 node games/bucky/test/bucky.selftest.mjs         # C60, the clock's claims, every level's par design passes
 node games/bucky/tools/bake.mjs                  # re-bake Bucky's pars (minutes)
-node games/ecumene/test/ecumene.selftest.mjs     # mappa copy current, mesh and splits, determinism, crowding, no runaway, the log, the loop, freight feeding a hungry city, loops and interchanges
+node games/ecumene/test/ecumene.selftest.mjs     # mappa copy current, mesh and splits, determinism, crowding, no runaway, the log, the loop, freight feeding a hungry city, the market's prices and tolls, loops and interchanges
 node games/ecumene/test/economy.mjs 60            # the economy oracle: bots play headless, the money curve per world (~2 min)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
