@@ -50,9 +50,49 @@ function build(seed) {
     let relief = 0; for (const j of w.adj[i]) if (w.water[j] === 0) relief = Math.max(relief, Math.abs(w.elev[i] - w.elev[j]));
     rough[i] = 1 + 6 * relief + (b === "alpine" || b === "snow" || b === "glacier" || b === "ice" ? 1.5 : 0);
   }
-  return { seed: w.meta.seed, meta: w.meta, N, V, adj: w.adj, cells: w.cells, water: w.water, elev: w.elev, biome: w.biome,
-    temp: w.temperature, moist: w.moisture, flow, hab, fresh, rough, areaKm, rivers: w.rivers, landCells, livable };
+  // food: what a km² of open country grows, before the farms get better (js/sim.js scales it by year)
+  const yieldKm = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    if (w.water[i] !== 0) continue;
+    const T = w.temperature[i], M = w.moisture[i];
+    const wet = Math.max(0, Math.min(1, (M - 0.12) / 0.45)), warm = T < 0 ? 0 : T < 8 ? T / 8 : T > 28 ? Math.max(0.4, 1 - (T - 28) / 15) : 1;
+    yieldKm[i] = hab[i] * wet * warm;
+  }
+  const W = { seed: w.meta.seed, meta: w.meta, N, V, adj: w.adj, cells: w.cells, water: w.water, elev: w.elev, biome: w.biome,
+    temp: w.temperature, moist: w.moisture, flow, hab, fresh, rough, areaKm, rivers: w.rivers, landCells, livable, yieldKm,
+    conv: w.conv, volc: w.volc };
+  W.deposits = deposits(W);
+  return W;
 }
+
+/* Ore, where the rocks would put it: metal (iron, copper, tin) in the
+   mountains plates push up, where they collide or a volcanic arc stands;
+   coal in warm, wet lowlands far from any boundary (old swamps). One deposit
+   per ~55 land cells, none within three cells of another. `rich` is its
+   output, in units a year (a unit is what one person's industry uses). */
+export const ORES = { iron: "#c0583f", copper: "#d58a45", tin: "#9fb0c0", coal: "#4a4a52" };
+function deposits(W) {
+  const cand = [];
+  for (let i = 0; i < W.N; i++) {
+    if (W.water[i] !== 0) continue;
+    const h = hash(i * 7 + W.seed);
+    const metal = Math.max(0, W.conv[i]) * 1.2 + W.volc[i] * 0.8 + Math.max(0, W.elev[i] - 0.2);
+    const coal = W.elev[i] < 0.15 && Math.abs(W.conv[i]) < 0.05 && W.moist[i] > 0.55 && W.temp[i] > 4 ? 0.9 + 0.4 * W.moist[i] : 0;
+    if (metal > 0.5) cand.push([metal * (0.7 + 0.6 * h), i, h < 0.45 ? "iron" : h < 0.8 ? "copper" : "tin"]);
+    if (coal > 0) cand.push([coal * (0.6 + 0.6 * h), i, "coal"]);
+  }
+  cand.sort((a, b) => b[0] - a[0]);
+  const want = Math.max(6, Math.round(W.landCells / 55)), out = [], near = new Int32Array(W.N).fill(-1);
+  for (const [score, i, kind] of cand) {
+    if (out.length >= want) break;
+    if (near[i] >= 0) continue;
+    out.push({ cell: i, kind, p: [W.V[3 * i], W.V[3 * i + 1], W.V[3 * i + 2]], rich: Math.round(60e3 + 140e3 * Math.min(1, score / 2.5)) });
+    const q = [i]; near[i] = 0;   // nothing else within three cells
+    for (let h = 0; h < q.length; h++) { const c = q[h]; if (near[c] >= 3) continue; for (const j of W.adj[c]) if (near[j] < 0) { near[j] = near[c] + 1; q.push(j); } }
+  }
+  return out;
+}
+function hash(i) { let x = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; }
 
 /* The world cell nearest to unit vector p, by greedy walk from `from`. */
 export function nearestCell(world, p, from) {

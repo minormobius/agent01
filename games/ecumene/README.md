@@ -8,7 +8,7 @@ water is; cities grow where your lines reach; the lines fill as they do.
 
 The game rests on one claim, which the selftest measures on every run:
 **a line grows the city along it.** On world 3, an 8-train line across the
-biggest city at the start leaves about 50% more people along it 25 years
+biggest city at the start leaves about 25% more people along it 25 years
 later than the same planet without it.
 
 It works like this, once a year:
@@ -61,10 +61,43 @@ hard with density, gave +51% with 3 trains and +69% with 8. The tuning
 scripts that found this are not committed; the selftest's counterfactual is
 the one that guards it.
 
+## Commodities and freight
+
+`js/freight.js`, once a year between the passengers and the growth.
+
+- **Food** grows on every zone's open country: livability × rain × warmth
+  (`yieldKm` in `js/world.js`), at a yield that improves 2.5% a year (the
+  farms get better). A zone loses its farms as it fills (none past
+  300/km²). Everyone eats a unit a year.
+- **Ore** comes from deposits the geology places (`deposits` in
+  `js/world.js`): iron, copper and tin where plates collide or a volcanic
+  arc stands, coal in warm wet lowlands far from any boundary. A deposit
+  is worked once a town is within 45 km or a freight stop is on it. A
+  town's industry wants 0.25 units a person.
+- **Every land zone belongs to its nearest town**, so a town is a region,
+  and its own farms feed it first. Surplus and shortfall are traded
+  between towns and working mines over **roads** (any two within 95 km
+  with no sea between; cargo decays as exp(−km/110), carts being slow and
+  food spoiling) and over the player's lines that carry **wagons** (a
+  tenth of the cost, almost no decay, but 40k units a year per wagon).
+  Each short node, biggest first, draws from the cheapest sources it can
+  reach; an overfull rail run scales down every flow through it.
+- **What arrives matters.** A town's food share scales its zones'
+  ceilings (down to 30% when starving), and its ore share draws jobs to it
+  (±15%). Rail freight earns ₵1.2e-5 per unit-km.
+
+The selftest measures it: 30 years in on world 3, a 4-wagon line from a
+breadbasket 200 km away takes the hungriest city from about 66% fed to
+about 92%, and it has grown about 10% more 12 years later. It also shows
+the two loops meeting. A metro line alone grows a city by about 25% where
+it used to grow it by about 50%, because the city it serves now runs out
+of food first. The player has to feed a city as well as move it.
+
 ## The log
 
 The sim names its towns (seeded, so a world always names them the same)
-and says what happens, once per change: a town founded, a city passing
+and says what happens, once per change: a town founded, a town going
+hungry (and fed again), a mine opening, a line passing 50k of freight, a city passing
 100k, 250k, 500k, 1M, a new largest city, a line full and stranding riders
 (and room again), a line passing 50k riders, funds overdrawn, the planet
 passing a mark, the mesh reaching its cap. The page keeps the whole log
@@ -109,10 +142,14 @@ the towns are already cities of 20–40 zones.
 
 ## Not yet
 
-This is v1 of the plan. Next:
-- **v2:** water and food as freight; aqueducts as lines; dry years from
-  `computeClimate` with a shifted forcing.
-- **v3:** mappa's ores and civ's price field.
+Next:
+- **Water as freight** (aqueducts) and **dry years** from
+  `computeClimate` with a shifted forcing, which would make the
+  breadbaskets move.
+- **Prices**, from civ's price field, in place of the fixed freight fare.
+- **Goods**: the ore turned into something the cities trade back.
+
+A sandbox purse: `?funds=5000` starts you with that much.
 
 Also missing: saving a game and a fail state. Saving should follow hoop's
 pattern (`hoop/lexicons/story.save.json`): a record in the player's own
@@ -127,6 +164,7 @@ when a second game needs it.
 |---|---|
 | `js/world.js` | the planet from mappa: water, livability, roughness |
 | `js/sim.js` | zones, the network, demand, lines, growth, splitting, money |
+| `js/freight.js` | food and ore: what grows and what's mined, road and rail freight |
 | `js/worker.js` | runs the sim off the main thread |
 | `js/view.js` | the globe: zones lit by population, rivers, lines, trains |
 | `js/main.js` | the page: building lines, the clock, the HUD |

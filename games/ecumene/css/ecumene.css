@@ -66,6 +66,12 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .pstats span:not(.lab) { font-weight: 700; font-size: 14px; }
 .pstats .warn { color: var(--warn); }
 .tr { display: flex; align-items: center; gap: 6px; }
+.pstats .grow { flex: 1; }
+#p-cargo { font-size: 12px !important; font-weight: 600 !important; }
+#p-cargo.warn { color: var(--warn); }
+.ev.hunger .t { color: #ffb547; }
+.ev.mine .t { color: #d58a45; }
+.ev.fed .t { color: var(--accent2); }
 .pact { display: flex; gap: 8px; }
 button.mini {
   font-family: var(--mono); font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;

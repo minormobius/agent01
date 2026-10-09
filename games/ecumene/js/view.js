@@ -21,6 +21,7 @@ import { slerp, arc } from "./sim.js";
 import { BIOMES } from "./mappa-engine.js";
 
 export const EXAG = 14;          // relief exaggeration
+const ORE_COL = { iron: "#c0583f", copper: "#d58a45", tin: "#9fb0c0", coal: "#4a4a52" };
 export const ZOOM_MAX = 40;
 const HKM = 6;                   // mappa's elevation 1.0 ≈ 6 km above the sea
 
@@ -29,7 +30,7 @@ export class View {
     this.cv = cv; this.ctx = cv.getContext("2d");
     this.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; this.zoom = 1; this.w = 0; this.h = 0; this.dpr = 1;
     this.world = null; this.snap = null; this.lines = []; this.sel = -1; this.hot = -1; this.t = 0;
-    this.waves = null; this.normals = null; this.elev = null; this.coast = null;
+    this.waves = null; this.normals = null; this.elev = null; this.coast = null; this.layer = "terrain";
   }
   resize() {
     const dpr = Math.min(2, globalThis.devicePixelRatio || 1), r = this.cv.getBoundingClientRect();
@@ -111,6 +112,12 @@ export class View {
       nrm[3 * i] = v[0] / l; nrm[3 * i + 1] = v[1] / l; nrm[3 * i + 2] = v[2] / l;
     }
     this.elev = elev; this.normals = nrm; this.coast = coast;
+    // each zone's town (for the food layer): the nearest, as the sim has it
+    const tw = new Int32Array(n).fill(-1);
+    if (s.towns && s.towns.length) for (let i = 0; i < n; i++) if (s.land[i]) {
+      let best = -2; for (let t = 0; t < s.towns.length; t++) { const q = s.towns[t].p, d = P[3 * i] * q[0] + P[3 * i + 1] * q[1] + P[3 * i + 2] * q[2]; if (d > best) { best = d; tw[i] = t; } }
+    }
+    this.townOf = tw;
   }
 
   /* ------------------------------------------------------------ drawing */
@@ -172,12 +179,14 @@ export class View {
     const lg = ctx.createRadialGradient(cx, cy, r * 0.75, cx, cy, r);
     lg.addColorStop(0, "rgba(0,0,0,0)"); lg.addColorStop(1, "rgba(0,0,0,0.4)");
     ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.fill();
+    this.drawMines();
     this.drawLines();
     if (this.hot >= 0 && this.hot < s.n) { poly(this.hot); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke(); }
     this.drawLabels();
   }
   landColor(i, shade) {
     const s = this.snap, b = BIOMES[this.world.biome[s.geo[i]]], e = this.elev[i];
+    if (this.layer === "food") return this.foodColor(i, shade);
     if (b.id === "lake") return "hsl(204,45%," + (30 * shade).toFixed(0) + "%)";
     // hypsometric: low green, mid tan, high brown, top snow, mixed with the biome
     const stops = [[0, 105, 32, 34], [0.12, 80, 30, 40], [0.3, 42, 32, 44], [0.55, 25, 22, 38], [0.8, 0, 0, 82]];
@@ -191,6 +200,32 @@ export class View {
       hh += (36 - hh) * q; ss += (92 - ss) * q; ll += ((26 + 64 * u) * (0.65 + 0.35 * Math.min(1.2, shade)) - ll) * q;
     }
     return "hsl(" + hh.toFixed(0) + "," + ss.toFixed(0) + "%," + Math.min(96, ll).toFixed(0) + "%)";
+  }
+  /* The food layer: green where food grows (open country × what the ground
+     yields), and every town's land tinted by whether it eats: cool when fed,
+     amber to red as it goes short. */
+  foodColor(i, shade) {
+    const s = this.snap, W = this.world, d = s.pop[i] / Math.max(1, s.area[i]);
+    const grow = W.yieldKm[s.geo[i]] * Math.max(0, 1 - d / 300);
+    const t = this.townOf ? this.townOf[i] : -1, fed = t >= 0 && s.towns[t] ? s.towns[t].food : 1;
+    if (d > 150) { // the city itself: how well it eats
+      const h = 140 * Math.max(0, Math.min(1, (fed - 0.5) / 0.5)), l = 45 + 10 * Math.min(1, Math.log10(d / 150));
+      return "hsl(" + h.toFixed(0) + ",80%," + (l * (0.75 + 0.25 * shade)).toFixed(0) + "%)";
+    }
+    return "hsl(" + (95 - 40 * (1 - grow)).toFixed(0) + "," + (20 + 55 * grow).toFixed(0) + "%," + ((12 + 32 * grow) * (0.7 + 0.3 * shade)).toFixed(0) + "%)";
+  }
+  /* Ore deposits: a diamond in the ore's colour, bright once it is worked. */
+  drawMines() {
+    const s = this.snap; if (!s.mines) return;
+    const ctx = this.ctx, k = Math.max(6, Math.min(11, 4 + this.zoom));
+    for (const m of s.mines) {
+      const q = this.proj(m.p[0], m.p[1], m.p[2]); if (q[2] < 0.05) continue;
+      ctx.fillStyle = ORE_COL[m.kind] || "#aaa"; ctx.globalAlpha = m.on ? 1 : 0.45;
+      ctx.strokeStyle = m.on ? "#fff8e0" : "rgba(10,10,10,0.8)"; ctx.lineWidth = m.on ? 2 : 1.2;
+      ctx.beginPath(); ctx.moveTo(q[0], q[1] - k); ctx.lineTo(q[0] + k * 0.75, q[1]); ctx.lineTo(q[0], q[1] + k); ctx.lineTo(q[0] - k * 0.75, q[1]); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.globalAlpha = 1;
+      if (this.zoom > 5) { ctx.font = "600 10px ui-monospace, Menlo, monospace"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(5,10,20,0.7)"; ctx.strokeText(m.kind, q[0] + k + 3, q[1]); ctx.fillStyle = "#eee"; ctx.fillText(m.kind, q[0] + k + 3, q[1]); }
+    }
   }
   drawWaves() {
     const ctx = this.ctx, Wv = this.waves; if (!Wv) return;
@@ -222,7 +257,13 @@ export class View {
       if (boxes.some((b) => b[0] < box[0] + box[2] && box[0] < b[0] + b[2] && b[1] < box[1] + box[3] && box[1] < b[1] + b[3])) continue;
       boxes.push(box);
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(5,10,20,0.75)"; ctx.strokeText(t.name, q[0], q[1] - fs / 2 - 6);
-      ctx.fillStyle = "rgba(255,240,220,0.92)"; ctx.fillText(t.name, q[0], q[1] - fs / 2 - 6);
+      const hungry = t.food < 0.9 && t.short > 5000;
+      ctx.fillStyle = hungry ? "#ffb547" : "rgba(255,240,220,0.92)"; ctx.fillText(t.name, q[0], q[1] - fs / 2 - 6);
+      if (hungry) { // how short it is, under the name
+        const msg = "food " + Math.round(100 * t.food) + "%", sm = Math.max(9, fs - 3);
+        ctx.font = "600 " + sm + "px ui-monospace, Menlo, monospace"; ctx.strokeText(msg, q[0], q[1] + sm / 2 - 2); ctx.fillStyle = "#ffb547"; ctx.fillText(msg, q[0], q[1] + sm / 2 - 2);
+        ctx.font = "600 " + fs + "px -apple-system, system-ui, sans-serif"; boxes.push([box[0], box[1] + fs, box[2], sm + 4]);
+      }
     }
   }
   /* A line's path on screen: every segment as a sampled great-circle arc. */
@@ -258,6 +299,16 @@ export class View {
           if (p[2] < 0) continue;
           ctx.fillStyle = "#fff"; ctx.strokeStyle = L.color; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.arc(p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u, lw * 0.75, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+        }
+        // freight: an ochre block per wagon pair, on a slower clock
+        const nf = Math.ceil((L.wagons || 0) / 2);
+        for (let k = 0; k < nf; k++) {
+          let f = ((this.t / (period * 1.7) + (k + 0.5) / nf) % 1) * 2; if (f > 1) f = 2 - f;
+          const x = f * n, i = Math.min(n - 1, Math.floor(x)), u = x - i, p = pts[i].q, q = pts[i + 1].q;
+          if (p[2] < 0) continue;
+          const X = p[0] + (q[0] - p[0]) * u, Y = p[1] + (q[1] - p[1]) * u, a = lw * 0.8;
+          ctx.fillStyle = "#c98a3a"; ctx.strokeStyle = "#1a1206"; ctx.lineWidth = 1.5;
+          ctx.fillRect(X - a, Y - a * 0.7, 2 * a, 1.4 * a); ctx.strokeRect(X - a, Y - a * 0.7, 2 * a, 1.4 * a);
         }
       }
       L.stops.forEach((s, k) => {

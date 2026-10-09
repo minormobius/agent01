@@ -38,6 +38,7 @@
    Deterministic: the same seed and the same lines on the same years give
    the same planet. Pure: no DOM, runs in node and in the worker. */
 import { R, nearestCell } from "./world.js";
+import { freight, F_ } from "./freight.js";
 
 export const P_ = {
   ROAD_KMH: 40, CONGEST: 250,     // road speed falls as 1/(1 + density/CONGEST)
@@ -52,6 +53,7 @@ export const P_ = {
   TOWN_EVERY: 4, TOWNS0: 7, TOWN_POP: 6000, WARMUP: 60,
   FARE: 0.000008,                 // credits per rider (×365 a year inside)
   TRAIN_UPKEEP: 10, TRACK_UPKEEP: 0.25, // a year: per train, per km of line
+  COST_WAGON: 60, WAGON_UPKEEP: 6,      // freight: a wagon, and its year
   COST_KM: 4, COST_WATER: 3, COST_STOP: 20, COST_TRAIN: 90, START_CREDITS: 700,
 };
 
@@ -66,6 +68,7 @@ export class Sim {
     this.towns = []; this.events = []; this.log = []; this.flags = new Map(); this.names = new Set();
     this.rebuild();
     for (let k = 0; k < P_.TOWNS0; k++) this.foundTown(5);
+    this.chronicle();
   }
 
   /* ---------------------------------------------------------------- mesh */
@@ -141,12 +144,14 @@ export class Sim {
   /* Cities: every settled zone belongs to its nearest town. */
   chronicle() {
     const T = this.towns; if (!T.length) return;
-    const tot = new Float64Array(T.length), P = this.P;
+    const tot = new Float64Array(T.length), P = this.P, zt = new Int32Array(this.n).fill(-1);
     for (let i = 0; i < this.n; i++) {
-      if (!this.land[i] || this.pop[i] < 500) continue;
+      if (!this.land[i]) continue;
       let best = -2, bi = 0; for (let t = 0; t < T.length; t++) { const q = T[t].p, d = P[3 * i] * q[0] + P[3 * i + 1] * q[1] + P[3 * i + 2] * q[2]; if (d > best) { best = d; bi = t; } }
-      if (best > Math.cos(60 / R)) tot[bi] += this.pop[i];
+      zt[i] = bi;   // every piece of land belongs to its nearest town: its farms feed it
+      if (this.pop[i] >= 500 && best > Math.cos(60 / R)) tot[bi] += this.pop[i];
     }
+    this.zoneTown = zt;
     const MARKS = [50e3, 100e3, 250e3, 500e3, 1e6, 2e6, 5e6];
     T.forEach((t, k) => {
       t.pop = tot[k];
@@ -162,7 +167,7 @@ export class Sim {
   /* ---------------------------------------------------------------- lines
      line: { id, color, stops: [[x, y, z], …], trains }. Stops are points on
      the sphere; each year they are found in whatever zone now holds them. */
-  setLines(lines) { this.lines = lines.map((l) => ({ id: l.id, color: l.color, stops: l.stops.map((s) => s.slice()), trains: l.trains })); }
+  setLines(lines) { this.lines = lines.map((l) => ({ id: l.id, color: l.color, stops: l.stops.map((s) => s.slice()), trains: l.trains, wagons: l.wagons || 0 })); }
   trackCost(a, b) { return trackCost(this.world, a, b); }
   warmup() {
     for (let k = 0; k < P_.WARMUP; k++) this.step();
@@ -179,6 +184,7 @@ export class Sim {
     const net = this.network();
     const dem = this.demand(net);
     this.lineStats(net, dem);
+    this.fr = freight(this);
     this.grow(dem);
     this.events = [];
     const splits = this.refine();
@@ -187,8 +193,9 @@ export class Sim {
     this.chronicle();
     const fares = this.stats.riders * 365 * P_.FARE;
     let upkeep = 0;
-    for (const L of this.lines) { upkeep += P_.TRAIN_UPKEEP * L.trains; for (let k = 0; k + 1 < L.stops.length; k++) upkeep += P_.TRACK_UPKEEP * arc(L.stops[k], L.stops[k + 1]) * R; }
-    this.credits += fares - upkeep; this.stats.fares = fares; this.stats.upkeep = upkeep;
+    for (const L of this.lines) { upkeep += P_.TRAIN_UPKEEP * L.trains + P_.WAGON_UPKEEP * (L.wagons || 0); for (let k = 0; k + 1 < L.stops.length; k++) upkeep += P_.TRACK_UPKEEP * arc(L.stops[k], L.stops[k + 1]) * R; }
+    const cargo = this.fr ? this.fr.revenue : 0;
+    this.credits += fares + cargo - upkeep; this.stats.fares = fares + cargo; this.stats.cargo = cargo; this.stats.upkeep = upkeep;
     let total = 0, urban = 0; for (let i = 0; i < this.n; i++) { total += this.pop[i]; if (this.pop[i] / Math.max(1, this.area[i]) > 300) urban += this.pop[i]; }
     Object.assign(this.stats, { year: this.year, pop: total, urban, zones: this.n, splits, ms: Date.now() - t0, credits: this.credits });
     // the lines, the money and the planet, each said once when it changes
@@ -197,6 +204,16 @@ export class Sim {
       else if (this.edge("room:" + L.id, L.crowd < 0.85 && this.flags.get("full:" + L.id) === false && this.flags.has("full:" + L.id) && this.flags.get("wasfull:" + L.id))) this.emit("room", "has room again", null, L.id);
       if (L.crowd > 1.05 && L.stranded > 200) this.flags.set("wasfull:" + L.id, true); else if (L.crowd < 0.85) this.flags.set("wasfull:" + L.id, false);
       if (this.edge("busy:" + L.id, L.riders > 50e3)) this.emit("line", "carries " + fmtN(L.riders) + " riders a day", null, L.id);
+    }
+    if (this.fr) {
+      const fr = this.fr;
+      this.towns.forEach((t, k) => {
+        if (this.edge("hungry:" + k, fr.food[k] < 0.85 && fr.short[k] > 20e3)) this.emit("hunger", t.name + " is going hungry: " + Math.round(100 * (1 - fr.food[k])) + "% short of food", t.p);
+        if (this.edge("fed:" + k, fr.food[k] > 0.97) && this.flags.get("wasHungry:" + k)) this.emit("fed", t.name + " is fed again", t.p);
+        if (fr.food[k] < 0.85 && fr.short[k] > 20e3) this.flags.set("wasHungry:" + k, true); else if (fr.food[k] > 0.97) this.flags.set("wasHungry:" + k, false);
+      });
+      fr.mines.forEach((m, k) => { if (this.edge("mine:" + k, m.on) && this.year > 1) this.emit("mine", "A " + m.kind + " mine opens" + nearTown(this, m.p), m.p); });
+      for (const [id, f] of fr.lines) if (this.edge("cargo:" + id, f.food + f.ore > 50e3)) this.emit("cargo", "carries " + fmtN(f.food + f.ore) + " of freight a year", null, id);
     }
     if (this.edge("broke", this.credits < 0)) this.emit("money", "Funds are overdrawn: the lines still run, but nothing new can be built");
     const PM = [2e6, 5e6, 10e6, 20e6, 50e6];
@@ -316,7 +333,8 @@ export class Sim {
       const g = this.geo[i], a = this.area[i];
       u[i] = Math.min(P_.A_MAX, dem.access[i] / P_.A_REF);
       const wet = W.fresh[g] / (W.fresh[g] + P_.W_HALF);   // how much of a city its water can carry
-      K[i] = a * W.hab[g] * wet * (P_.RURAL + P_.URBAN * Math.pow(u[i], P_.ALPHA));
+      const t = this.zoneTown ? this.zoneTown[i] : -1, fed = this.fr && t >= 0 ? this.fr.food[t] : 1;
+      K[i] = a * W.hab[g] * wet * (P_.RURAL + P_.URBAN * Math.pow(u[i], P_.ALPHA)) * (F_.FOOD_FLOOR + (1 - F_.FOOD_FLOOR) * fed);
     }
     /* Below its ceiling a zone grows logistically; near it, some of its people
        move next door, to wherever there is room; over it (a ceiling falls when
@@ -341,7 +359,10 @@ export class Sim {
     for (let i = 0; i < n; i++) pop[i] = next[i] > 0 && isFinite(next[i]) ? next[i] : 0;
     // jobs gather where access is high; as many as there are workers
     let tot = 0, w = 0;
-    for (let i = 0; i < n; i++) { this.jobs[i] = pop[i] * (0.4 + Math.min(1, u[i])); w += this.jobs[i]; tot += pop[i]; }
+    for (let i = 0; i < n; i++) {
+      const t = this.zoneTown ? this.zoneTown[i] : -1, ind = this.fr && t >= 0 ? 0.85 + 0.3 * this.fr.ore[t] : 1;   // industry follows the ore
+      this.jobs[i] = pop[i] * (0.4 + Math.min(1, u[i])) * ind; w += this.jobs[i]; tot += pop[i];
+    }
     const f = w > 0 ? P_.WORK * tot / w : 0;
     for (let i = 0; i < n; i++) this.jobs[i] *= f;
     this.K = K; this.u = u;
@@ -370,7 +391,10 @@ export class Sim {
   /* What the page draws. */
   snapshot() {
     return { n: this.n, P: this.P, verts: this.verts, polys: this.polys, geo: Int32Array.from(this.geo), pop: Float64Array.from(this.pop),
-      area: this.area, land: this.land, stats: this.stats, credits: this.credits, year: this.year };
+      area: this.area, land: this.land, stats: this.stats, credits: this.credits, year: this.year,
+      food: this.fr ? Array.from(this.fr.food) : [], short: this.fr ? Array.from(this.fr.short) : [], ore: this.fr ? Array.from(this.fr.ore) : [],
+      mines: this.fr ? this.fr.mines : [], cargo: this.fr ? [...this.fr.lines].map(([id, f]) => ({ id, food: f.food, ore: f.ore, load: f.load })) : [],
+      runs: this.fr ? this.fr.runs : [] };
   }
 }
 
@@ -387,6 +411,10 @@ export function trackCost(W, a, b) {
 }
 
 /* ---------------------------------------------------------------- helpers */
+function nearTown(sim, p) {
+  let best = -2, nm = ""; for (const t of sim.towns) { const d = t.p[0] * p[0] + t.p[1] * p[1] + t.p[2] * p[2]; if (d > best) { best = d; nm = t.name; } }
+  return nm ? " near " + nm : "";
+}
 function fmtN(x) { return x >= 1e6 ? (x / 1e6).toFixed(x >= 1e7 ? 0 : 1).replace(/\.0$/, "") + "M" : x >= 1e3 ? Math.round(x / 1e3) + "k" : Math.round(x) + ""; }
 function dijkstra(out, src, dist, pred, pedge, via, heap, tmax, roadOnly) {
   const order = []; dist[src] = 0; if (via) via[src] = 0; heap.clear(); heap.push(src, 0);

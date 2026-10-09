@@ -19,7 +19,8 @@ let running = false, speed = 1, pending = false, lastStep = 0, dirty = true;
 
 const seedQ = /[?&]seed=(\d+)/.exec(location.search);
 const seed = seedQ ? +seedQ[1] : (Math.random() * 1e9) >>> 0;
-try { history.replaceState(null, "", "?seed=" + seed); } catch (e) { /* file:// */ }
+const fundsQ = /[?&]funds=(\d+)/.exec(location.search);
+try { history.replaceState(null, "", "?seed=" + seed + (fundsQ ? "&funds=" + fundsQ[1] : "")); } catch (e) { /* file:// */ }
 
 const worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
 worker.onmessage = (e) => {
@@ -39,7 +40,7 @@ worker.onmessage = (e) => {
   }
 };
 let log = [], unread = 0;
-worker.postMessage({ type: "init", seed });
+worker.postMessage({ type: "init", seed, funds: fundsQ ? +fundsQ[1] : 0 });
 $("seed").textContent = seed;
 
 function yearLabel() { return snap ? 1900 + snap.year - warm : 1900; }
@@ -101,6 +102,10 @@ function panel() {
   $("p-load").classList.toggle("warn", !!(info && info.crowd > 1));
   $("p-head").textContent = info && info.headway ? info.headway.toFixed(0) + " min" : "—";
   $("p-trains").textContent = L.trains;
+  $("p-wagons").textContent = L.wagons || 0;
+  const c = snap.cargo && snap.cargo.find((x) => x.id === L.id);
+  $("p-cargo").textContent = !L.wagons ? "add a wagon to carry food and ore between towns" : c ? fmt(c.food) + " food · " + fmt(c.ore) + " ore · " + Math.round(100 * c.load) + "% full" : "nothing yet: stops must reach two towns, or a mine";
+  $("p-cargo").classList.toggle("warn", !!(c && c.load > 0.99));
 }
 
 /* ------------------------------------------------------------ building */
@@ -110,7 +115,7 @@ function push() { seqN++; inflight.push({ seq: seqN, spend: pendingSpend }); wor
 function newLine() {
   if (!spend(P.COST_TRAIN)) return;
   const used = new Set(lines.map((l) => l.color)), color = COLORS.find((c) => !used.has(c));
-  lines.push({ id: nextId++, color, stops: [], trains: 1, paid: [] });
+  lines.push({ id: nextId++, color, stops: [], trains: 1, wagons: 0, paid: [] });
   sel = lines.length - 1; push();
   note("new line: tap land to lay its stops");
 }
@@ -127,9 +132,12 @@ function addStop(z, at) {
 $("p-undo").onclick = () => { const L = lines[sel]; if (!L || !L.stops.length) return; L.stops.pop(); const c = L.paid.pop(); credits += c / 2; pendingSpend -= c / 2; push(); note("stop removed: half its cost back"); };
 $("p-plus").onclick = () => { const L = lines[sel]; if (L && spend(P.COST_TRAIN)) { L.trains++; push(); } };
 $("p-minus").onclick = () => { const L = lines[sel]; if (L && L.trains > 1) { L.trains--; credits += P.COST_TRAIN / 2; pendingSpend -= P.COST_TRAIN / 2; push(); } };
+$("w-plus").onclick = () => { const L = lines[sel]; if (L && spend(P.COST_WAGON)) { L.wagons = (L.wagons || 0) + 1; push(); } };
+$("w-minus").onclick = () => { const L = lines[sel]; if (L && L.wagons > 0) { L.wagons--; credits += P.COST_WAGON / 2; pendingSpend -= P.COST_WAGON / 2; push(); } };
+$("layer").onclick = () => { view.layer = view.layer === "food" ? "terrain" : "food"; $("layer").textContent = view.layer; $("layer").classList.toggle("on", view.layer === "food"); };
 $("p-del").onclick = () => {
   const L = lines[sel]; if (!L) return;
-  const back = (L.paid.reduce((a, b) => a + b, 0) + L.trains * P.COST_TRAIN) / 2;
+  const back = (L.paid.reduce((a, b) => a + b, 0) + L.trains * P.COST_TRAIN + (L.wagons || 0) * P.COST_WAGON) / 2;
   credits += back; pendingSpend -= back; lines.splice(sel, 1); sel = -1; push(); note("line closed: half its cost back");
 };
 $("p-done").onclick = () => { sel = -1; hud(); };
@@ -182,8 +190,14 @@ function info(z) {
   el.hidden = false;
   el.innerHTML = (townOf(z) ? "<i>" + townOf(z) + "</i> · " : "") + "<b>" + fmt(snap.pop[z]) + "</b> people · " + fmt(d) + "/km² · " + snap.area[z].toFixed(0) + " km²<br>" +
     "water <b>" + fmt(water) + "</b>/km² · reach <b>×" + acc.toFixed(2) + "</b>" +
-    (snap.K ? " · room for " + fmt(snap.K[z]) : "");
+    (snap.K ? " · room for " + fmt(snap.K[z]) : "") + townLine(z);
 }
+function townLine(z) {
+  const t = snap.towns && nearestTown(site(z)); if (t == null) return "";
+  const T = snap.towns[t];
+  return "<br><i>" + T.name + "</i>: food <b>" + Math.round(100 * T.food) + "%</b>" + (T.short > 0 ? " (short " + fmt(T.short) + ")" : "") + " · ore <b>" + Math.round(100 * T.ore) + "%</b>";
+}
+function nearestTown(p) { let best = -2, bi = null; snap.towns.forEach((t, k) => { const d = t.p[0] * p[0] + t.p[1] * p[1] + t.p[2] * p[2]; if (d > best) { best = d; bi = k; } }); return bi; }
 function townOf(z) {
   if (!snap.towns || !snap.towns.length || snap.pop[z] < 200) return "";
   const p = site(z); let best = -2, nm = "";
@@ -212,7 +226,7 @@ function evPoint(ev) {
   if (ev.p) return ev.p;
   const L = lines.find((l) => l.id === ev.line); return L && L.stops.length ? L.stops[L.stops.length >> 1] : null;
 }
-function toast(ev) { if (["town", "full", "money", "planet"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
+function toast(ev) { if (["town", "full", "money", "planet", "hunger", "mine"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
 function renderLog() {
   $("logbtn").textContent = "log" + (unread && $("log").hidden ? " ·" + unread : "");
   if ($("log").hidden) return;

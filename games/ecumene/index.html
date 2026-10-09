@@ -35,6 +35,10 @@
         <div><span class="lab">every</span><span id="p-head">—</span></div>
         <div><span class="lab">trains</span><span class="tr"><button type="button" id="p-minus" class="mini">−</button><b id="p-trains">1</b><button type="button" id="p-plus" class="mini">+</button></span></div>
       </div>
+      <div class="pstats">
+        <div><span class="lab">freight wagons</span><span class="tr"><button type="button" id="w-minus" class="mini">−</button><b id="p-wagons">0</b><button type="button" id="w-plus" class="mini">+</button></span></div>
+        <div class="grow"><span class="lab">carries a year</span><span id="p-cargo">—</span></div>
+      </div>
       <div class="pact"><button type="button" id="p-undo" class="mini">undo stop</button><button type="button" id="p-del" class="mini danger">close line</button></div>
     </div>
   </div>
@@ -42,6 +46,7 @@
   <div id="actions">
     <button class="ghost" id="play" type="button" title="Pause / run (space)">▶</button>
     <button class="ghost" id="fast" type="button" title="Faster">▶▶</button>
+    <button class="ghost" id="layer" type="button" title="Map: terrain, or food (where it grows, who is short)">terrain</button>
     <button class="ghost" id="logbtn" type="button" title="What happened in the world">log</button>
     <button class="ghost" id="help" type="button" aria-label="How to play">?</button>
     <button class="ghost" id="newworld" type="button">new world</button>
@@ -62,6 +67,13 @@
     can hold more people, so it grows, so the line fills. Buy <b>trains</b>
     to keep up: a full ride slows down, and the riders it can't carry are
     <b>stranded</b>. Fares pay for the next line.
+  </p>
+  <p>
+    Cities eat. Food grows in the countryside, and a city that outgrows its
+    farms goes <b>hungry</b> and stops growing. Give a line <b>freight
+    wagons</b> and it carries food from the breadbaskets, and <b>ore</b>
+    from the mines (◆) to the towns whose industry wants it. Freight pays
+    too. The <b>food</b> map shows where it grows and who is short.
   </p>
   <p>
     The map gets finer where the city gets dense: a crowded zone

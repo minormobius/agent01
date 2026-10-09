@@ -94,10 +94,13 @@ ok(city.length >= 8 && km > 8, "the start has a city worth a line (" + city.leng
   ok(gain[gain.length >> 1] > 1.05, "a line raises the reach of the zones it serves (median ×" + gain[gain.length >> 1].toFixed(2) + ")");
   const far0 = s.demand(s.network()); // same again: demand is a pure function of the state
   ok(Math.abs(far0.transit - d1.transit) < 1e-6, "demand is repeatable");
-  // one train on the same line is overfull, and an overfull ride slows down
+  // fewer trains, fuller rides; and whatever a ride can't carry is stranded
+  s.step(); const six = s.stats.lines[0];
   s.setLines([{ id: 1, color: "#f00", stops, trains: 1 }]); s.step();
   const L = s.stats.lines[0];
-  ok(L.crowd > 1 && s.stats.stranded > 0, "one train on a city line is overfull and strands riders (" + Math.round(100 * L.crowd) + "%)");
+  ok(Math.abs(six.cap - 6 * L.cap) < 1e-6 * six.cap, "capacity is per train");
+  ok(L.headway > 3 * six.headway && L.riders < six.riders, "one train means a long wait, and fewer riders (" + Math.round(L.riders) + " vs " + Math.round(six.riders) + ")");
+  ok(Math.abs(L.stranded - Math.max(0, ...L.segs.map((g) => g.load - L.cap))) < 1e-6, "stranded is what the fullest ride can't carry");
   const base = s.network().segs[0], key = base.key; s.crowd.set(key, 1.5);
   const slowed = s.network().segs.find((g) => g.key === key);
   ok(slowed.minutes > base.minutes * 1.5, "an overfull ride is slower (" + base.minutes.toFixed(1) + " → " + slowed.minutes.toFixed(1) + " min)");
@@ -114,6 +117,33 @@ function run(withLine) {
 const without = run(false), withL = run(true);
 console.log("the loop: people along the line after 25 years, " + Math.round(without) + " without it, " + Math.round(withL) + " with it (+" + Math.round(100 * (withL / without - 1)) + "%)");
 ok(withL > 1.2 * without, "a line grows the city along it: +" + Math.round(100 * (withL / without - 1)) + "% in 25 years");
+
+/* ---- commodities and freight */
+{
+  const D = w.deposits;
+  ok(D.length >= 6 && D.every((d) => w.water[d.cell] === 0 && d.rich > 0), "deposits sit on land and yield ore");
+  ok(D.every((d, i) => D.every((e, j) => i === j || !w.adj[d.cell].includes(e.cell))), "no two deposits touch");
+  ok([...w.yieldKm].every((y, i) => w.water[i] === 0 ? y >= 0 && y <= 1 : y === 0), "food grows on land only");
+}
+{ // a freight line from a breadbasket to the hungriest town feeds it, within its wagons' capacity
+  const PRE = 30, POST = 12, base = () => { const t = new E.Sim(E.makeWorld(3), 3); t.warmup(); for (let y = 0; y < PRE; y++) t.step(); return t; };
+  const s0 = base(), fr = s0.fr, T = s0.towns;
+  ok(fr.food.every((x) => x >= 0 && x <= 1) && fr.ore.every((x) => x >= 0 && x <= 1), "satisfactions are shares");
+  let h = -1; T.forEach((t, k) => { if (fr.short[k] > 0 && (h < 0 || fr.short[k] > fr.short[h])) h = k; });
+  ok(h >= 0, "by " + PRE + " years in, a city is short of food (" + (h >= 0 ? T[h].name + ", " + Math.round(100 * fr.food[h]) + "%" : "none") + ")");
+  let b = -1, bs = 0; T.forEach((t, k) => { const sur = fr.local[k] - fr.need[k]; if (k !== h && sur > bs && E.arc(t.p, T[h].p) * E.R < 350) { bs = sur; b = k; } });
+  ok(b >= 0, "a breadbasket within reach");
+  const run = (line) => {
+    const t = base(); if (line) { const A = t.towns[b].p, B = t.towns[h].p, st = [A]; for (let k = 1; k < 4; k++) st.push(E.slerp(A, B, k / 4)); st.push(B); t.setLines([{ id: 1, color: "#f00", stops: st, trains: 1, wagons: 4 }]); }
+    for (let y = 0; y < POST; y++) t.step();
+    return t;
+  };
+  const a = run(false), c = run(true), F = c.fr.lines.get(1);
+  ok(F && F.food > 0 && c.fr.runs.every((r) => r.load <= r.cap * (1 + 1e-9)), "the line carries food, never past its wagons");
+  ok(c.fr.food[h] > a.fr.food[h] + 0.1, "the line feeds the hungry city (" + Math.round(100 * a.fr.food[h]) + "% → " + Math.round(100 * c.fr.food[h]) + "%)");
+  ok(c.towns[h].pop > a.towns[h].pop * 1.05, "and it grows: +" + Math.round(100 * (c.towns[h].pop / a.towns[h].pop - 1)) + "% in " + POST + " years");
+  ok(c.stats.cargo > 0, "freight pays (₵" + Math.round(c.stats.cargo) + " a year)");
+}
 
 console.log(fails ? `ecumene: ${fails}/${checks} FAILED` : `ecumene: ${checks} checks ok`);
 process.exit(fails ? 1 : 0);
