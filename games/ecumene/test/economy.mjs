@@ -11,6 +11,11 @@
      greedy   metro, and spends every spare coin on trains (frequency sells)
      freight  metro, plus a 4-wagon line from the nearest food surplus to the
               hungriest town it may build in
+     sprinkle short lines in the densest cores: two or three stops, 2-5 km,
+              wherever no stop is yet within 2 km, one a year if affordable
+              (a player's strategy: it printed money under flat fares)
+     sprinkle+ the same, buying trains until every short line runs every 3 min
+     core     sprinkle+ with four stops each, walking the densest districts
    For each: funds at a few years, net a year, riders, and the PAYBACK of
    the first line (years until what it earned covered what it cost). A game
    where a bot's money compounds without limit, or the first line pays back
@@ -19,7 +24,7 @@ import { loadEcumene } from "./harness.mjs";
 const E = await loadEcumene(), P = E.P_;
 const YEARS = +(process.argv[2] || 40);
 const SEEDS = (process.argv[3] || "3,11,896933214").split(",").map(Number);
-const BOTS = (process.argv[4] || "idle,metro,greedy,freight").split(",");
+const BOTS = (process.argv[4] || "idle,metro,greedy,freight,sprinkle").split(",");
 const f = (x) => Math.abs(x) >= 1e6 ? (x / 1e6).toFixed(2) + "M" : Math.abs(x) >= 1e4 ? Math.round(x / 1e3) + "k" : Math.abs(x) >= 1e3 ? (x / 1e3).toFixed(1) + "k" : Math.round(x) + "";
 const pt = (s, i) => [s.P[3 * i], s.P[3 * i + 1], s.P[3 * i + 2]];
 const may = (s, p) => !s.canBuild || s.canBuild(p);
@@ -62,6 +67,33 @@ function cityLine(s, served, lines) {
   }
   return null;
 }
+function shortLine(s, lines) {
+  const dens = (i) => s.pop[i] / Math.max(1e-6, s.area[i]);
+  const taken = (p) => lines.some((L) => L.stops.some((q) => E.arc(p, q) * E.R < 2));
+  const order = []; for (let i = 0; i < s.n; i++) if (s.land[i] && dens(i) > 300 && may(s, pt(s, i))) order.push(i);
+  order.sort((a, b) => dens(b) - dens(a));
+  for (const i of order) {
+    const a = pt(s, i); if (taken(a)) continue;
+    let best = -1, bd = 0;
+    for (const j of s.nbrs[i]) { const b = pt(s, j), km = E.arc(a, b) * E.R; if (s.land[j] && km > 1.5 && km < 5 && dens(j) > bd && may(s, b) && !taken(b)) { bd = dens(j); best = j; } }
+    if (best < 0) {   // a neighbour's neighbour, for a bit more length
+      for (const j of s.nbrs[i]) for (const k of s.nbrs[j]) { const b = pt(s, k), km = E.arc(a, b) * E.R; if (s.land[k] && k !== i && km > 1.5 && km < 5 && dens(k) > bd && may(s, b) && !taken(b)) { bd = dens(k); best = k; } }
+    }
+    if (best >= 0) {
+      const stops = [a, pt(s, best)];
+      if (CHAIN) { // keep walking to the densest untaken neighbour: a short line of 4 stops through the core
+        let cur = best;
+        for (let k = 0; k < 2; k++) {
+          let nx = -1, nd = 0; for (const j of s.nbrs[cur]) { const b = pt(s, j); if (s.land[j] && dens(j) > nd && !stops.some((q) => E.arc(q, b) * E.R < 1.2) && may(s, b) && !taken(b)) { nd = dens(j); nx = j; } }
+          if (nx < 0) break; stops.push(pt(s, nx)); cur = nx;
+        }
+      }
+      return { stops };
+    }
+  }
+  return null;
+}
+let CHAIN = false;
 function norm(a) { const l = Math.hypot(...a) || 1; return a.map((x) => x / l); }
 function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
 function freightLine(s) {
@@ -85,12 +117,14 @@ function play(seed, bot) {
       // trains where full; greedy keeps buying while it can
       for (const L of lines) {
         const st = s.stats.lines && s.stats.lines.find((x) => x.id === L.id);
-        if (st && (st.crowd > 0.9 || (bot === "greedy" && st.headway > 5)) && s.credits > trainC(s) * (bot === "greedy" ? 1 : 2)) { L.trains++; s.credits -= trainC(s); }
+        const keen = bot === "greedy" || bot === "sprinkle+" || bot === "core";
+        if (st && (st.crowd > 0.9 || (keen && st.headway > 3)) && s.credits > trainC(s) * (keen ? 1 : 2)) { L.trains++; s.credits -= trainC(s); }
       }
-      const c = cityLine(s, served, lines);
+      CHAIN = bot === "core";
+      const c = bot.startsWith("sprinkle") || bot === "core" ? shortLine(s, lines) : cityLine(s, served, lines);
       if (c) {
         const cost = lineCost(s, c.stops, 1, 0);
-        if (cost < s.credits) { s.credits -= cost; lines.push({ id: id++, color: "#f00", stops: c.stops, trains: 1, wagons: 0 }); c.zones.forEach((z) => served.add(z)); if (!first) { first = lines[0].id; spentFirst = cost; } }
+        if (cost < s.credits) { s.credits -= cost; lines.push({ id: id++, color: "#f00", stops: c.stops, trains: 1, wagons: 0 }); (c.zones || []).forEach((z) => served.add(z)); if (!first) { first = lines[0].id; spentFirst = cost; } }
       }
       if (bot === "freight") {
         const fl = freightLine(s);
@@ -107,7 +141,7 @@ function play(seed, bot) {
     if (first) {
       const st = s.stats.lines.find((x) => x.id === first), L = lines.find((x) => x.id === first);
       let km = 0; for (let k = 0; k + 1 < L.stops.length; k++) km += E.arc(L.stops[k], L.stops[k + 1]) * E.R;
-      firstNet = (st ? st.riders : 0) * 365 * P.FARE - (P.TRAIN_UPKEEP * L.trains + P.TRACK_UPKEEP * km) * (s.index || 1);
+      firstNet = (st ? st.fare : 0) * 365 - (P.TRAIN_UPKEEP * L.trains + P.TRACK_UPKEEP * km) * (s.index || 1);
     }
     rows.push({ y, credits: s.credits, net: (s.stats.fares || 0) - (s.stats.upkeep || 0), cargo: s.stats.cargo || 0, riders: s.stats.riders, pop: s.stats.pop, lines: lines.length,
       trains: lines.reduce((t, L) => t + L.trains, 0), firstNet, tier: s.tier != null ? s.tier : null });

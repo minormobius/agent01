@@ -96,7 +96,7 @@ function panel() {
   const L = lines[sel], info = snap.stats.lines && snap.stats.lines.find((x) => x.id === L.id);
   el.hidden = false; el.style.setProperty("--c", L.color);
   let km = 0; for (let k = 0; k + 1 < L.stops.length; k++) km += arc(L.stops[k], L.stops[k + 1]) * R;
-  $("p-title").textContent = L.stops.length < 2 ? "tap land to lay stops" : km.toFixed(0) + " km · " + L.stops.length + " stops";
+  $("p-title").textContent = L.stops.length < 2 ? "tap land to lay stops" : km.toFixed(0) + " km · " + L.stops.length + " stops" + (info && info.fare ? " · fares ₵" + Math.round(info.fare * 365) + "/yr" : "");
   $("p-riders").textContent = info && info.riders ? fmt(info.riders) + "/day" : "—";
   $("p-load").textContent = info && info.cap ? Math.round(100 * info.crowd) + "%" : "—";
   $("p-load").classList.toggle("warn", !!(info && info.crowd > 1));

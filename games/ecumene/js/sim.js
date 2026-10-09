@@ -51,7 +51,7 @@ export const P_ = {
   SPLIT_POP: 8000, SPLIT_MIN_AREA: 1.5, MAX_ZONES: 6000, MAX_SPLITS: 60,
   TRAIN_CAP: 260, SERVICE_MIN: 1080, CROWD_SLOW: 1.5,
   TOWN_EVERY: 4, TOWNS0: 7, TOWN_POP: 6000, WARMUP: 60,
-  FARE: 0.000012,                 // credits per rider (×365 a year inside)
+  FARE_TRIP: 0.000006, FARE_KM: 0.0000006, // a fare per JOURNEY (however many lines it takes) and per km ridden; ×365 a year
   TRAIN_UPKEEP: 10, TRACK_UPKEEP: 0.25, // a year: per train, per km of line
   COST_WAGON: 60, WAGON_UPKEEP: 6,      // freight: a wagon, and its year
   COST_KM: 4, COST_WATER: 3, COST_STOP: 20, COST_TRAIN: 90, START_CREDITS: 700,
@@ -224,7 +224,7 @@ export class Sim {
     this.year++;
     if (this.year % P_.TOWN_EVERY === 0) this.foundTown(4);
     this.chronicle();
-    const gross = this.stats.riders * 365 * P_.FARE;
+    const gross = this.stats.lines.reduce((s, L) => s + L.fare, 0) * 365;
     // the concession: the cities you serve take a share of the fares that grows with them
     const levy = gross * P_.LEVY_MAX * gross / (gross + P_.LEVY_HALF * (this.index || 1)), fares = gross - levy;
     this.stats.gross = gross; this.stats.levy = levy;
@@ -288,7 +288,7 @@ export class Sim {
       L._cycle = cycle; L._headway = headway; L._cap = cap;
       for (let k = 0; k + 1 < L.stops.length; k++) for (const dir of [1, -1]) {
         const a = dir > 0 ? k : k + 1, b = dir > 0 ? k + 1 : k, key = L.id + ":" + k + ":" + dir, c = this.crowd.get(key) || 0;
-        const seg = segs.length; segs.push({ line: li, k, dir, key, minutes: rides[k] * (1 + P_.CROWD_SLOW * Math.max(0, c - 0.8)) });
+        const seg = segs.length; segs.push({ line: li, k, dir, key, km: arc(L.stops[k], L.stops[k + 1]) * R, minutes: rides[k] * (1 + P_.CROWD_SLOW * Math.max(0, c - 0.8)) });
         out[base + a].push([base + b, segs[seg].minutes, 3, seg]);
       }
       L.stops.forEach((s, k) => {
@@ -352,18 +352,25 @@ export class Sim {
 
   lineStats(net, dem) {
     let stranded = 0;
-    const per = this.lines.map((L) => ({ id: L.id, riders: 0, peak: 0, cap: L._cap || 0, crowd: 0, stranded: 0, headway: L._headway || 0, segs: [] }));
+    const per = this.lines.map((L) => ({ id: L.id, riders: 0, peak: 0, cap: L._cap || 0, crowd: 0, stranded: 0, headway: L._headway || 0, segs: [], km: 0, fare: 0 }));
     net.segs.forEach((s, k) => {
       const load = 2 * dem.segLoad[k];           // the morning flow, and its evening return the other way
       const L = per[s.line], c = load / Math.max(1, L.cap);
-      L.segs.push({ k: s.k, dir: s.dir, load, crowd: c });
+      L.segs.push({ k: s.k, dir: s.dir, load, crowd: c }); L.km += load * s.km;
       L.peak = Math.max(L.peak, load); L.crowd = Math.max(L.crowd, c);
       const prev = this.crowd.get(s.key) || 0; this.crowd.set(s.key, 0.5 * prev + 0.5 * c);
       const x = Math.max(0, load - L.cap); L.stranded = Math.max(L.stranded, x);
     });
     per.forEach((L, i) => { L.riders = 2 * dem.boards[i]; stranded += L.stranded; });
-    const riders = per.reduce((s, L) => s + L.riders, 0);
-    this.stats = { riders, share: dem.trips ? dem.transit / dem.trips : 0, stranded, origins: dem.origins, lines: per };
+    /* Fares: one per JOURNEY, however many lines it takes, and a rate per km
+       ridden. A flat fare per boarding paid a change of lines twice, and a web
+       of short lines that made people change earned as much from fewer of
+       them (measured: 40% fewer journeys, the same fares). The journey fare
+       is shared between lines by their boardings; each keeps its own km. */
+    const journeys = 2 * dem.transit, boardings = per.reduce((s, L) => s + L.riders, 0);
+    per.forEach((L) => { L.fare = P_.FARE_KM * L.km + (boardings > 0 ? P_.FARE_TRIP * journeys * L.riders / boardings : 0); });
+    this.stats = { riders: journeys, boardings, share: dem.trips ? dem.transit / dem.trips : 0, stranded, origins: dem.origins, lines: per,
+      riderKm: per.reduce((s, L) => s + L.km, 0) };
   }
 
   grow(dem) {

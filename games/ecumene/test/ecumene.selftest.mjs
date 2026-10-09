@@ -165,6 +165,21 @@ ok(withL > 1.1 * without, "a line grows the city along it: +" + Math.round(100 *
   ok([1e3, 5e3, 2e4, 1e5].every((g, k, A) => k === 0 || keep(g) > keep(A[k - 1])) && keep(2e4) / 2e4 < keep(1e3) / 1e3, "the cities' cut grows with the fares, and you always keep more for more");
   ok(t.fr.ports && t.fr.ports.length > 0, "coastal towns are ports, and ship to each other");
 }
+{ // fares: one per journey and a rate per km, so cutting a line into pieces earns less, never more
+  const run = (split) => {
+    const t = new E.Sim(E.makeWorld(3), 3); t.warmup();
+    const dens = (i) => t.pop[i] / t.area[i]; let a = 0; for (let i = 0; i < t.n; i++) if (t.land[i] && dens(i) > dens(a)) a = i;
+    const st = [a]; for (let k = 0; k < 5; k++) { let nx = -1, nd = 0; for (const j of t.nbrs[st[st.length - 1]]) if (t.land[j] && !st.includes(j) && dens(j) > nd && st.every((q) => E.arc(pt2(t, q), pt2(t, j)) * E.R > 1)) { nd = dens(j); nx = j; } if (nx < 0) break; st.push(nx); }
+    const ps = st.map((i) => pt2(t, i));
+    t.setLines(split ? ps.slice(1).map((p, k) => ({ id: k + 1, color: "#f00", stops: [ps[k], p], trains: 1 })) : [{ id: 1, color: "#f00", stops: ps, trains: 4 }]);
+    t.step(); t.step(); return t.stats;
+  };
+  const one = run(false), cut = run(true);
+  ok(cut.boardings > cut.riders * 1.2, "chopped into short lines, journeys change lines (" + (cut.boardings / cut.riders).toFixed(2) + " boardings each)");
+  ok(cut.gross <= one.gross, "and earn no more than the one line (₵" + Math.round(cut.gross) + " vs ₵" + Math.round(one.gross) + " a year)");
+  const L = one.lines[0];
+  ok(Math.abs(L.fare - (P.FARE_KM * L.km + P.FARE_TRIP * one.riders)) < 1e-9, "a lone line's fares are its journeys and its km");
+}
 function pt2(s, i) { return [s.P[3 * i], s.P[3 * i + 1], s.P[3 * i + 2]]; }
 
 console.log(fails ? `ecumene: ${fails}/${checks} FAILED` : `ecumene: ${checks} checks ok`);

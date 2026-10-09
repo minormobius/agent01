@@ -137,7 +137,10 @@ You start with ₵700. At start prices:
 - A stop costs ₵20.
 - Track costs ₵4 a km, three times that over water and more over rough
   ground, plus ₵0.25 a km a year.
-- Fares bring in ₵0.012 per rider per day, every year.
+- Fares: ₵0.000006 a day per **journey** (however many lines it takes)
+  plus ₵0.0000006 per km ridden, every day of the year. A cross-city line
+  of 25 km carries its riders ~14 km each and earns about what the old
+  flat fare did.
 - Closing a line, a stop, a train or a wagon refunds half what it cost.
 
 Four rules ramp the costs, because without them the game printed money:
@@ -158,17 +161,35 @@ Four rules ramp the costs, because without them the game printed money:
 - And on the freight side, **ships**: coastal towns trade by sea without
   you, so the freight business is inland.
 
-`test/economy.mjs` plays the game headless with bots and prints the money
+`test/economy.mjs` plays the game headless with bots (`idle`, `metro`,
+`greedy`, `freight`, `sprinkle`, `sprinkle+`, `core`) and prints the money
 curve; read it after moving any price. Before these rules, world 3's
 metro bot went ₵300 (year 10), ₵2.5k (30), ₵14k (40), ₵49k (60): a
-hockey stick from riders compounding against fixed prices. After them:
+hockey stick from riders compounding against fixed prices. After them, and the fare change below:
 
 | world | bot | y10 | y20 | y40 | y60 | net/yr at 60 | first line pays back |
 |---|---|---|---|---|---|---|---|
-| 3 | metro | ₵596 | ₵1.1k | ₵1.8k | ₵2.8k | ₵1.7k | 10 yr |
-| 3 | greedy | ₵275 | ₵1.2k | ₵3.9k | ₵3.9k | ₵2.9k | 5 yr |
-| 11 | metro | ₵448 | ₵916 | ₵2.3k | ₵3.2k | ₵3.1k | 15 yr |
-| 11 | greedy | ₵383 | ₵686 | ₵3.4k | ₵4.4k | ₵4.0k | 6 yr |
+| 3 | metro | ₵622 | ₵1.2k | ₵2.4k | ₵8.0k | ₵1.3k | 10 yr |
+| 3 | greedy | ₵304 | ₵1.2k | ₵1.2k | ₵745 | ₵613 | 5 yr |
+| 3 | sprinkle+ | −₵160 | −₵536 | −₵1.3k | −₵2.6k | −₵72 | never |
+| 3 | core | ₵2 | ₵101 | ₵9 | −₵1.0k | −₵77 | never |
+| 11 | metro | ₵435 | ₵603 | ₵2.5k | ₵5.6k | ₵1.8k | 15 yr |
+| 11 | greedy | ₵114 | ₵313 | ₵418 | ₵1.9k | ₵588 | 9 yr |
+| 11 | sprinkle+ | −₵197 | −₵565 | −₵1.4k | −₵2.7k | −₵69 | never |
+| 11 | core | ₵84 | ₵463 | −₵55 | −₵528 | −₵62 | 7 yr |
+
+### Why fares are per journey and per km
+
+A player's strategy, "short lines in the metro cores, sprinkled around",
+found what the bots hadn't: a fare was charged per **boarding**, so a
+journey that changed lines paid twice. Measured on one chain of six
+districts: built as one line it carried 1.88% of trips, built as five
+two-stop lines it carried 1.12%, and the five earned the same (₵142 vs
+₵146 a year) from 40% fewer people. Now a journey pays once, plus its
+km: the five earn ₵47 to the one line's ₵88. The selftest pins that
+chopping a line up never pays. Charter milestones count journeys, not
+boardings, for the same reason. The `sprinkle`, `sprinkle+` and `core`
+bots play the strategy and now lose money.
 
 The bots spend what they can (a line across a city at a new heading, a
 train wherever a ride is 90% full, the next charter when they can afford
