@@ -49,7 +49,8 @@ export const DEFAULT = Object.fromEntries(KNOBS.map((k, i) => [k, STATIONS[0][1]
 
 // 12/8 rhythmic cells (ticks, 12 to the bar), by how much is going on
 const CELLS = {
-  slow: [[12], [6, 6], [9, 3], [6, 3, 3], [3, 3, 6], [3, 9]],
+  still: [[6, 6], [9, 3], [3, 9], [6, 3, 3], [12]],
+  slow: [[6, 2, 1, 3], [3, 2, 1, 6], [4, 2, 6], [6, 3, 3], [9, 2, 1], [5, 1, 6], [3, 3, 4, 2]],
   mid: [[3, 3, 3, 3], [2, 1, 3, 2, 1, 3], [1, 1, 1, 3, 3, 3], [6, 3, 3], [3, 1, 1, 1, 6], [2, 1, 2, 1, 6], [3, 3, 6], [1, 2, 3, 6]],
   fast: [[1, 1, 1, 1, 1, 1, 3, 3], [1, 1, 1, 3, 1, 1, 1, 3], [2, 1, 2, 1, 1, 1, 1, 3], [1, 1, 1, 1, 1, 1, 1, 1, 1, 3], [1, 1, 1, 2, 1, 1, 1, 1, 3]],
   swing: [[2, 1, 2, 1, 3, 3], [3, 2, 1, 2, 1, 3], [2, 1, 2, 1, 2, 1, 3], [1, 2, 2, 1, 3, 3], [3, 3, 2, 1, 3], [2, 1, 3, 2, 1, 3]],
@@ -58,10 +59,15 @@ const CELLS = {
 // the soleá's accents, the bar read as its twelve: 3 6 8 10 12
 const COMPAS = [2, 5, 7, 9, 11];
 
-function rng(seed) {
-  let a = seed >>> 0;
-  return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-}
+// functional harmony, by scale degree (0 the home chord): where each chord tends to go, and how strongly
+const FLOW = {
+  0: [[3, 2], [4, 1.4], [5, 1.4], [1, 1], [2, 0.5]], 1: [[4, 3], [6, 0.5], [2, 0.4]], 2: [[5, 2], [3, 1.3], [1, 0.5]],
+  3: [[4, 2], [1, 1.3], [0, 1.2], [6, 0.4]], 4: [[0, 3], [5, 1.2], [3, 0.3]], 5: [[1, 2], [3, 2], [4, 0.8], [2, 0.4]], 6: [[0, 2], [2, 0.7], [5, 0.4]],
+};
+// the chord each mode leans on to come home instead of the dominant (Phrygian's ♭II, Aeolian's and
+// Mixolydian's ♭VII, Dorian's IV, Ionian's V, Lydian's II)
+const MODAL = [1, 6, 3, 6, 4, 1];
+
 const pick = (r, xs) => xs[Math.floor(r() * xs.length)];
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -77,25 +83,29 @@ export const manner = (c) => (c < 0.15 ? 'solo' : c < 0.45 ? 'accompany' : c < 0
 
 export class Radio {
   constructor({ seed = 1 } = {}) {
-    this.seed = seed; this.r = rng(seed * 7919 + 29);
+    this.seed = seed; this.rs = (seed * 7919 + 29) | 0;
+    // the generator keeps its state in a field, so the whole radio can be saved and resumed (state())
+    this.r = () => { this.rs = (this.rs + 0x6d2b79f5) | 0; let t = Math.imul(this.rs ^ (this.rs >>> 15), 1 | this.rs); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     this.home = pick(this.r, [43, 45, 48, 50, 52]);      // G, A, C, D, E: the guitar's keys
-    this.motifs = [this.#motif(), this.#motif(), this.#motif()];
-    this.sung = []; this.prevVoicing = null; this.lastMel = null;
+    this.theme = this.#motif(); this.motif = { ...this.theme, head: [...this.theme.head] };
+    this.prevVoicing = null; this.lastMel = null; this.mp = null; this.handAt = 2; this.hd = { mel: 0, comp: 0 };
     this.n = 0; this.t = 0; this.bpm = null; this.sec = null; this.phrase = null; this.secs = 0;
     this.key = 0; this.k = { ...DEFAULT }; this.mode = null;
   }
+  /** All the radio is, as data: with the dials bar by bar it makes the same music again (a saved moment). */
+  state() { const { r, mode, ...s } = this; return JSON.parse(JSON.stringify(s)); }
+  static from(s) { const R = new Radio({ seed: s.seed }); Object.assign(R, JSON.parse(JSON.stringify(s))); return R; }
 
-  // a motif: a contour of scale steps (long enough for any cell) and a preference among the cells
+  // a motif: the head of a tune (scale steps from its first note; a leap is followed by a step back,
+  // and it stays within a sixth) and a preference among the rhythmic cells
   #motif() {
-    const r = this.r;
-    let s = 0;
-    const contour = Array.from({ length: 12 }, (_, i) => {
-      if (i === 0) return 0;
-      const d = r() < 0.22 ? pick(r, [3, 4, -3, -2, 5]) : pick(r, [1, -1, 1, -1, 2, -2, 0]);
-      s += d; if (Math.abs(s) > 6) s -= 2 * d;
-      return s;
-    });
-    return { contour, ci: Math.floor(r() * 64) };
+    const r = this.r, head = [0];
+    let s = 0, prev = 0;
+    for (let j = 1; j < 5; j++) {
+      const d = Math.abs(prev) >= 2 ? -Math.sign(prev) : r() < 0.25 ? pick(r, [2, 3, -2, -3]) : pick(r, j === 1 ? [1, -1, 1, -1, 2, -2] : [1, -1, 1, -1, 0, 1, -1, 2]);
+      s = clamp(s + d, -3, 4); head.push(s); prev = d;
+    }
+    return { head, ci: Math.floor(r() * 64) };
   }
 
   /** The mode the light asks for (flamenco keeps its own: Phrygian below, the alegrías' major above). */
@@ -156,15 +166,24 @@ export class Radio {
   }
 
   #newSection(n, k) {
-    const r = this.r, prev = this.sec;
+    const r = this.r, prev = this.sec, idx = this.secs++;
     // the journey: away to a neighbouring key (by its dominant), and home again
     let key = this.key;
     if (prev && k.journey > 0.2 && r() < k.journey * 0.8) key = this.key !== 0 && r() < 0.6 ? 0 : pick(r, [7, 5, -3, 2, -2].filter((x) => x !== this.key));
     if (prev && k.journey <= 0.2) key = 0;                        // a still dial comes home
+    // the tune's life: every fourth section the theme comes back, at home; between, the motif is
+    // varied a little, now and then replaced
+    let theme = false;
+    if (idx > 0 && idx % 4 === 0) { this.motif = { ...this.theme, head: [...this.theme.head] }; theme = true; key = 0; }
+    else if (idx > 0) {
+      const x = r();
+      if (x < 0.35) { const j = 1 + Math.floor(r() * 4); this.motif.head[j] = clamp(this.motif.head[j] + (r() < 0.5 ? 1 : -1), -3, 4); }
+      else if (x < 0.5) this.motif.ci += 1 + Math.floor(r() * 3);
+      else if (x < 0.65) this.motif = this.#motif();
+    }
     const turned = key !== this.key;
     this.key = key;
-    const idx = this.secs++;
-    this.sec = { start: n, idx, texture: null, lead: r() < 0.5 ? 0 : 1, solo: (idx + (this.seed & 1)) % 2, turned };
+    this.sec = { start: n, idx, texture: null, lead: r() < 0.5 ? 0 : 1, solo: (idx + (this.seed & 1)) % 2, turned, theme };
   }
 
   /** Four bars of chords (each bar one chord or two), planned from the dials as they stand. */
@@ -189,34 +208,23 @@ export class Radio {
       if (answer && !bars[3].some((c) => c.dom) && r() < T * 0.5) bars[3] = [C(5, { dom: true })];   // deceptive
       if (J > 0.6) bars = bars.map((b, j) => (b.length === 1 && j < 3 && r() < J ? [b[0], j % 2 ? C(4, { dom: true }) : C(b[0].d + 3)] : b));
     } else {
-      // the landscapes' plan (compose.js): a walk among the degrees, home at the start, a cadence at the end
-      const pairs = J < 0.3 ? [[0, 6], [3, 1.5], [-3, 1], [1, 1]] : [[3, 3], [-1, 3], [1, 2], [-2, 2], [2, 1], [-3, 1.4]];
-      let d = ph === 0 || answer ? 0 : weighted(r, [[0, 3], [5, 1], [3, 1.4]]);
-      const ds = [];
-      for (let b = 0; b < 4; b++) {
-        if (b > 0) {
-          if (b === 3) {
-            // the question ends away (more often on a dominant as tension rises); the answer ends home,
-            // unless tension wants it deceived
-            if (answer) d = r() < T * 0.4 ? 5 : weighted(r, [[0, 3], [5, 0.6 + T], [3, 0.8 * (1 - T)]]);
-            else d = weighted(r, [[4, 1 + 2 * T], [3, 1.6], [6, 0.4 + T], [1, 0.6]]);
-          } else d = ((d + weighted(r, pairs)) % 7 + 7) % 7;
-        }
-        ds.push(d);
-      }
-      // a slow journey changes chord every two bars
-      if (J < 0.25) { ds[1] = ds[0]; ds[3] = ds[3] === 0 ? 0 : ds[2] = ds[3]; }
-      bars = ds.map((x, b) => {
-        const dom = x === 4 && (T > 0.35 || mode.idx <= 2) && b === 3 && !answer;
-        const ch = C(x, { dom, b9: dom && T > 0.65 });
-        // a dim chord on a cadence is a dominant instead
-        if (b === 3 && !dom && this.#tones(ch)[2] === 6) return [C(4, { dom: true })];
-        return [ch];
-      });
+      // functional harmony: home, then chords that lead somewhere, then a cadence. The question ends open
+      // (on the dominant, or the chord this mode leans on instead of it); the answer closes, unless
+      // tension deceives it
+      const pre = (x) => { const p = []; for (const [y, list] of Object.entries(FLOW)) for (const [z, w] of list) if (z === x) p.push([+y, w]); return p.length ? p : [[4, 1]]; };
+      const firm = mode.idx >= 3 || T > 0.35;
+      const opener = ph === 0 || answer ? 0 : weighted(r, [[0, 3], [5, 1], [3, 1.2]]);
+      let cad, pen;
+      if (answer) { cad = r() < T * 0.35 ? 5 : 0; pen = weighted(r, [[4, firm ? 3 : 1], [MODAL[mode.idx], 2], [3, 0.8]]); }
+      else { cad = weighted(r, [[4, firm ? 2.5 : 0.8], [MODAL[mode.idx], 1.6], [3, 0.7]]); pen = weighted(r, pre(cad)); }
+      const mid = weighted(r, FLOW[opener].map(([d, w]) => [d, w * (FLOW[d].some(([x]) => x === pen) ? 2.5 : 1)]));
+      let ds = J < 0.25 ? (answer ? [pen, pen, cad, cad] : [opener, opener, cad, cad]) : [opener, mid, pen, cad];
+      ds = ds.map((d) => (this.#tones(C(d))[2] === 6 ? (d + 5) % 7 : d));        // a diminished chord gives way to the one a third below
+      bars = ds.map((x, b) => { const dom = x === 4 && b >= 2 && (T > 0.35 || mode.idx <= 2); return [C(x, { dom, b9: dom && T > 0.65 })]; });
       // a suspension over the cadence, resolved halfway through the bar
       if (T > 0.35 && r() < T) bars[3] = [{ ...bars[3][0], sus: true }, bars[3][0]];
-      // a quick journey: passing chords on the half-bar
-      if (J > 0.65) for (const b of [1, 2]) if (bars[b].length === 1 && r() < J) bars[b] = [bars[b][0], C(bars[b + 1][0].d + 3)];
+      // a quick journey: a chord on the half-bar that leads into the next
+      if (J > 0.65) for (const b of [1, 2]) if (bars[b].length === 1 && r() < J) { const x = weighted(r, pre(bars[b + 1][0].d)); if (x !== bars[b][0].d) bars[b] = [bars[b][0], C(x)]; }
     }
     // a turned key arrives by its dominant
     if (i < 4 && this.sec.turned) bars[0] = [C(4, { dom: true })];
@@ -226,12 +234,14 @@ export class Radio {
   // ---- voicings --------------------------------------------------------------------------------------
 
   /** A piano voicing: a low root, then the colour tones near the last voicing, between lo and hi. */
-  #voicing(ch, lo, hi) {
+  #voicing(ch, lo, hi, avoid = null) {
     const nt = this.#nt(), air = this.k.air;
     let bass = this.#ct(ch, 0) - 12;
     while (bass > 50) bass -= 12; while (bass < 33) bass += 12;
     if (air > 0.65 && bass - 12 >= 28) bass -= 12;                    // air: the bass lower, the hands apart
-    const tones = [1, 2, 3, 4].slice(0, nt - 1).map((j) => this.#ct(ch, j));
+    let tones = [1, 2, 3, 4].slice(0, nt - 1).map((j) => this.#ct(ch, j));
+    // a colour tone a semitone from the tune is left out (if two tones remain)
+    if (avoid && avoid.size) { const ok = tones.filter((m) => ![...avoid].some((q) => { const d = (((m - q) % 12) + 12) % 12; return d === 1 || d === 11; })); if (ok.length >= 2) tones = ok; }
     const prev = this.prevVoicing;
     let up = tones.map((m, i) => {
       let best = null;
@@ -243,29 +253,39 @@ export class Radio {
     return { bass, up };
   }
 
-  /** A guitar shape in one hand position: each string a chord tone, the root (or fifth) in the bass. */
+  /** A guitar shape: each string a chord tone, the root (or fifth) in the bass, in the hand position
+   * nearest where the hand already is (open strings welcome, stretches and high positions not). */
   #shape(ch) {
     const t = this.#tones(ch), b = this.#deg(ch.d), nt = Math.min(4, this.#nt());
     const pcs = new Set(t.slice(0, nt).map((x) => (b + x) % 12)), rootPc = b % 12, fifthPc = (b + t[2]) % 12;
-    for (const need of [4, 3]) for (const pos of [0, 2, 3, 5, 7, 9]) {
-      const s = [];
-      for (let k = 0; k < 6; k++) {
-        let found = -1;
-        for (let f = pos; f <= pos + 4; f++) if (pcs.has((OPEN[k] + f) % 12)) { found = f; break; }
-        if (found < 0 && pcs.has(OPEN[k] % 12)) found = 0;
-        s.push(found);
+    let best = null, cost0 = Infinity;
+    for (const need of [4, 3]) {
+      for (const pos of [0, 1, 2, 3, 4, 5, 7, 9]) {
+        const s = [];
+        for (let k = 0; k < 6; k++) {
+          let found = -1;
+          for (let f = pos; f <= pos + 3; f++) if (pcs.has((OPEN[k] + f) % 12)) { found = f; break; }
+          if (found < 0 && pcs.has(OPEN[k] % 12)) found = 0;
+          s.push(found);
+        }
+        let bassK = -1;
+        for (const want of [rootPc, fifthPc]) { for (const k of [5, 4, 3]) if (s[k] >= 0 && (OPEN[k] + s[k]) % 12 === want) { bassK = k; break; } if (bassK >= 0) break; }
+        if (bassK < 0) continue;
+        for (let k = 5; k > bassK; k--) s[k] = -1;
+        const on = s.filter((f) => f >= 0); if (on.length < need) continue;
+        const fr = on.filter((f) => f > 0), at = fr.length ? fr.reduce((a, f) => a + f, 0) / fr.length : this.handAt;
+        const cost = Math.abs(at - this.handAt) + 0.3 * (fr.length ? Math.max(...fr) - Math.min(...fr) : 0) - 0.3 * (on.length - fr.length) + 0.12 * at + ((OPEN[bassK] + s[bassK]) % 12 === rootPc ? 0 : 1.2);
+        if (cost < cost0) { cost0 = cost; best = { s, at }; }
       }
-      let bassK = -1;
-      for (const want of [rootPc, fifthPc]) { for (const k of [5, 4, 3]) if (s[k] >= 0 && (OPEN[k] + s[k]) % 12 === want) { bassK = k; break; } if (bassK >= 0) break; }
-      if (bassK < 0) continue;
-      for (let k = 5; k > bassK; k--) s[k] = -1;
-      if (s.filter((f) => f >= 0).length >= need) return s.map((f, k) => (f >= 0 ? { string: k + 1, midi: OPEN[k] + f } : null));
+      if (best) break;
     }
-    return null;
+    if (!best) return null;
+    this.handAt += (best.at - this.handAt) * 0.7;
+    return best.s.map((f, k) => (f >= 0 ? { string: k + 1, midi: OPEN[k] + f } : null));
   }
-  /** A melody note onto the strings it may use: lowest fret within reach, an octave moved if need be. */
+  /** A melody note onto the strings it may use: lowest fret within reach (to 17), an octave moved only if none can. */
   #onString(midi, strings = [1, 2, 3]) {
-    for (const reach of [12, 17]) for (const oct of [0, -12, 12]) {
+    for (const oct of [0, -12, 12]) for (const reach of [12, 17]) {
       let best = null;
       for (const s of strings) { const f = midi + oct - OPEN[s - 1]; if (f >= 0 && f <= reach && (!best || f < best.f)) best = { s, f }; }
       if (best) return { string: best.s, midi: midi + oct };
@@ -280,67 +300,109 @@ export class Radio {
 
   // ---- the melody --------------------------------------------------------------------------------------
 
-  #cell(mo, i) {
-    const e = this.k.energy, { fw, jw } = styleOf(this.k.duende), r = this.r;
-    const pool = jw > 0.5 ? (e < 0.3 ? 'slow' : 'swing') : fw > 0.5 ? (e < 0.25 ? 'slow' : 'compas') : e < 0.3 ? 'slow' : e < 0.68 ? 'mid' : 'fast';
+  /** The motif's rhythm at this energy and style (`dense` asks for a busier cell, to develop it). */
+  #cell(dense = 0) {
+    const e = this.k.energy + dense, { fw, jw } = styleOf(this.k.duende);
+    const pool = e < 0.15 ? 'still' : jw > 0.5 ? (e < 0.3 ? 'slow' : 'swing') : fw > 0.5 ? (e < 0.25 ? 'slow' : 'compas') : e < 0.3 ? 'slow' : e < 0.68 ? 'mid' : 'fast';
     const P = CELLS[pool];
-    return P[(mo.ci + (r() < 0.25 ? i : 0)) % P.length];
+    return P[this.motif.ci % P.length];
   }
-  /** One bar of the tune, for the bar's place in its phrase (as compose.js), between low and high. */
-  #melody(i, ch, ch2, low, high) {
+  /** A phrase's plan for its tune: where each bar aims, as a height in the register. The question rises
+   * and stays open; the answer climbs to the period's peak (its second or third bar: the sixth or seventh
+   * of eight) and falls home. And how the third bar develops the motif. */
+  #tunePlan(ph) {
+    const r = this.r, answer = ph % 2 === 1;
+    const Q = [[0.3, 0.45, 0.6, 0.45], [0.4, 0.55, 0.45, 0.5], [0.25, 0.4, 0.55, 0.55]];
+    const A = [[0.5, 0.95, 0.7, 0.25], [0.45, 0.75, 0.95, 0.3], [0.6, 0.95, 0.6, 0.3]];
+    return { id: `${this.sec.idx}:${ph}`, shape: pick(r, answer ? A : Q), invert: answer && r() < 0.3, dev: pick(r, ['sequence', 'fragment', 'diminish', 'invert']) };
+  }
+  #isCT(d, c) { const x = (((d - c.d) % 7) + 7) % 7; return x === 0 || x === 2 || x === 4 || (x === 6 && styleOf(this.k.duende).jw > 0.5); }
+  /** The chord-tone degree nearest a MIDI height, within the register. */
+  #nearCT(aim, c, low, high) {
+    let best = null, bd = Infinity;
+    for (let d = -14; d <= 42; d++) {
+      if (!this.#isCT(d, c)) continue;
+      const m = this.#deg(d); if (m < low || m > high + 2) continue;
+      // the third over the bass rather than its root or fifth: the outer voices move in imperfect consonance
+      const x = Math.abs(m - aim) + ({ 0: 1.5, 4: 0.8 }[(((d - c.d) % 7) + 7) % 7] ?? 0) + (m === this.lastMel ? 2.5 : 0);   // and not the note just sung
+      if (x < bd) { bd = x; best = d; }
+    }
+    return best ?? c.d + 14;
+  }
+  /** Degree d, or the chord tone a step from it (a tie goes the way the line is going). */
+  #snapCT(d, c, dir = 0) { if (this.#isCT(d, c)) return d; const up = this.#isCT(d + 1, c), dn = this.#isCT(d - 1, c); if (up && dn) return dir < 0 ? d - 1 : d + 1; return up ? d + 1 : dn ? d - 1 : d; }
+
+  /**
+   * One bar of the tune. Its first note is the chord tone nearest where the phrase's plan aims this bar;
+   * then the motif (stated in the first two bars, developed in the third) or, past its head, steps toward
+   * where the next bar aims. Every note on a beat is a chord tone; between beats, passing and neighbour
+   * notes. A leap is answered by a step back. The fourth bar is a cadence: the question ends open, on the
+   * key's fifth, second or seventh; the answer closed, on its tonic or third; each approached by step.
+   */
+  #melody(i, ch, ch2, low, high, nextCh) {
     const r = this.r, ph = Math.floor(i / 4), inP = i % 4, answer = ph % 2 === 1, k = this.k;
-    const mo = this.motifs[answer ? 1 : 0];
-    let contour = mo.contour;
-    if (answer && r() < 0.35) contour = this.motifs[0].contour.map((x) => -x);
-    let cell = this.#cell(mo, i);
-    if (ph >= 2 && this.sung.length && r() < 0.35) { const s = pick(r, this.sung); contour = s.contour; }
-    let steps = contour.slice(0, cell.length);
-    if (inP === 2) {                                                 // the third bar develops
-      const op = pick(r, ['sequence', 'fragment', 'augment', 'invert', 'retrograde']);
-      if (op === 'sequence') steps = steps.map((x) => x + (answer ? -1 : 1));
-      if (op === 'fragment' && cell.length >= 3) { const h = cell.slice(0, 2), s2 = steps.slice(0, 2); const rest = 12 - 2 * (h[0] + h[1]); cell = rest > 0 ? [...h, ...h, rest] : [...h, ...h]; steps = [...s2, ...s2.map((x) => x + 1), s2[1] + 2].slice(0, cell.length); }
-      if (op === 'augment') { cell = [6, 6]; steps = [steps[0], steps[Math.min(2, steps.length - 1)]]; }
-      if (op === 'invert') steps = steps.map((x) => -x);
-      if (op === 'retrograde') steps = [...steps].reverse().map((x) => x - steps[steps.length - 1]);
+    if (!this.mp || this.mp.id !== `${this.sec.idx}:${ph}`) this.mp = this.#tunePlan(ph);
+    const mp = this.mp, span = high - low, aimAt = (b) => low + span * mp.shape[b], degM = (d) => this.#deg(d);
+    let head = mp.invert ? this.motif.head.map((x) => -x) : this.motif.head, cell = this.#cell();
+    if (inP === 2) {
+      if (mp.dev === 'fragment' && cell.length >= 3) { const h = cell.slice(0, 2), s = h[0] + h[1]; cell = 12 - 2 * s > 0 ? [...h, ...h, 12 - 2 * s] : [...h, ...h]; head = [0, head[1], 1, head[1] + 1, head[1] + 2]; }
+      if (mp.dev === 'diminish') cell = this.#cell(0.35);
+      if (mp.dev === 'invert') head = head.map((x) => -x);
     }
-    if (inP === 3) {                                                 // the cadence: a turn, then a held note
-      if (k.energy > 0.7) { cell = [1, 1, 1, 9]; steps = [2, 1, -1, 0]; }
-      else { cell = answer ? [3, 9] : [2, 1, 9]; steps = answer ? [1, 0] : [-1, 1, 0]; }
+    if (inP === 3) cell = k.energy > 0.7 ? [1, 1, 1, 9] : answer ? [3, 9] : pick(r, [[2, 1, 9], [3, 3, 6]]);
+    const ticks = []; { let t = 0; for (const len of cell) { ticks.push(t); t += len; } }
+    const half = (t) => (t < 6 ? ch : ch2);
+    const rise = inP < 3 ? 1.7 * Math.max(0, ...head.slice(0, cell.length)) : 0;      // how far the motif climbs above its first note
+    const aim = (this.lastMel != null && inP > 0 ? 0.8 * aimAt(inP) + 0.2 * this.lastMel : aimAt(inP)) - rise;
+    const degs = [this.#nearCT(aim, ch, low, high)];
+    const goal = inP < 3 ? this.#nearCT(aimAt(inP + 1), nextCh, low, high) : null;
+    for (let j = 1; j < cell.length; j++) {
+      const t = ticks[j], c = half(t), strong = t % 3 === 0, prev = degs[j - 1];
+      let d;
+      if (inP < 3 && j < head.length) d = degs[0] + head[j];
+      else { const g = goal ?? prev; d = prev === g ? prev + (r() < 0.5 ? 1 : -1) : prev + Math.sign(g - prev) * (Math.abs(g - prev) > 2 && r() < 0.3 ? 2 : 1); }
+      if (strong) d = this.#snapCT(d, c, d - prev);
+      if (j >= 2) {                                                  // a leap is answered by a step back
+        const a = degM(prev) - degM(degs[j - 2]), b = degM(d) - degM(prev);
+        if (Math.abs(a) > 4 && (Math.sign(b) === Math.sign(a) || Math.abs(b) > 4)) { d = prev - Math.sign(a); if (strong && !this.#isCT(d, c)) d = prev - 2 * Math.sign(a); }
+      }
+      if (Math.abs(degM(d) - degM(prev)) > 9) d = this.#snapCT(prev + Math.sign(d - prev) * 2, c);
+      if (d === prev && (strong || (j >= 2 && prev === degs[j - 2]))) { const g = goal ?? prev + 1, dir = g >= prev ? 1 : -1; d = strong ? this.#snapCT(d + dir, c, dir) : d + dir; if (d === prev) d = this.#snapCT(d + 2 * dir, c, dir); }
+      degs.push(d);
     }
-    // where it starts: the chord tone nearest the last note sung
-    const tones = [ch.d, ch.d + 2, ch.d + 4], prev = this.lastMel ?? (low + high) / 2;
-    let start = null, bd = Infinity;
-    for (const t of tones) for (let o = -21; o <= 21; o += 7) {
-      const m = this.#deg(t + o);
-      if (m < low - 2 || m > high + 2) continue;
-      if (Math.abs(m - prev) < bd) { bd = Math.abs(m - prev); start = t + o; }
+    if (inP === 3) {
+      const prefer = answer ? [0, 2] : [4, 1, 6], n = degs.length, c = half(ticks[n - 1]);
+      let fin = degs[n - 1], fd = Infinity;
+      for (let d = -14; d <= 42; d++) {
+        const m = degM(d); if (m < low - 2 || m > high + 2) continue;
+        const x = Math.abs(m - aimAt(3)) + (prefer.includes(((d % 7) + 7) % 7) && this.#isCT(d, c) ? 0 : this.#isCT(d, c) ? 6 : 99);
+        if (x < fd) { fd = x; fin = d; }
+      }
+      degs[n - 1] = fin;
+      for (let j = n - 2; j >= 1; j--) {
+        const sg = answer ? 1 : -1, d = degs[j + 1] + sg, c2 = half(ticks[j]);
+        let x = ticks[j] % 3 === 0 ? this.#snapCT(d, c2, sg) : d;
+        if (x === degs[j + 1]) x = this.#snapCT(degs[j + 1] + 2 * sg, c2, sg);
+        degs[j] = x;
+      }
+      if (n > 1 && Math.abs(degs[0] - degs[1]) > 3) degs[0] = this.#snapCT(degs[1] + (answer ? 2 : -2), ch);
     }
-    if (start === null) start = tones[0] + 7;
-    const degs = steps.map((x) => start + x);
-    // where it lands: on a tone of the chord sounding then
-    if (inP === 3 || r() < 0.5) {
-      const end = degs[degs.length - 1], lt = [ch2.d, ch2.d + 2, ch2.d + 4];
-      let land = end, b2 = Infinity;
-      for (const t of lt) for (let o = -14; o <= 14; o += 7) if (Math.abs(t + o - end) < b2) { b2 = Math.abs(t + o - end); land = t + o; }
-      degs[degs.length - 1] = land;
-    }
-    let midis = degs.map((d) => this.#deg(d));
-    const lo = Math.min(...midis), hi = Math.max(...midis);
-    if (hi > high) midis = midis.map((x) => x - 12 * Math.ceil((hi - high) / 12));
-    else if (lo < low) midis = midis.map((x) => x + 12 * Math.ceil((low - lo) / 12));
+    // the bar into its register, by octaves of the whole line
+    let mids = degs.map(degM);
+    const lo = Math.min(...mids), hi = Math.max(...mids), off = hi > high + 3 ? -12 : lo < low - 3 ? 12 : 0;
+    mids = mids.map((m) => m + off);
     const notes = [];
-    let t = 0;
     cell.forEach((len, j) => {
-      if (j >= midis.length) return;
-      const last = j === cell.length - 1 || j === midis.length - 1;
-      const c = t < 6 ? ch : ch2;
-      // air: rests in the line (never its first note, never the cadence's)
-      if (j > 0 && !last && r() < Math.max(0, k.air - 0.45) * 0.5) { t += len; return; }
-      notes.push({ tick: t, len: last && inP === 3 ? len + 6 : len, midi: this.#fit(midis[j], c) });
-      t += len;
+      const t = ticks[j], lastNote = j === cell.length - 1;
+      if (j > 0 && !lastNote && t % 3 !== 0 && r() < Math.max(0, k.air - 0.45) * 0.5) return;   // air: rests, off the beat
+      notes.push({ tick: t, len: lastNote && inP === 3 ? len + 3 : len, midi: this.#fit(mids[j], half(t)), strong: t % 3 === 0 });
     });
+    // a question may lead into its answer: two notes stepping up from where it stopped
+    if (inP === 3 && !answer && k.energy > 0.35 && r() < 0.5 && notes.length) {
+      const f = notes[notes.length - 1];
+      if (f.tick <= 6) { f.len = 10 - f.tick; let d = degs[degs.length - 1]; for (const t of [10, 11]) { d += 1; notes.push({ tick: t, len: 1, midi: this.#fit(degM(d) + off, ch2), strong: false }); } }
+    }
     if (notes.length) this.lastMel = notes[notes.length - 1].midi;
-    if (inP === 0) this.sung = [...this.sung.slice(-5), { contour: steps.concat(contour.slice(steps.length)) }];
     return notes;
   }
 
@@ -351,7 +413,7 @@ export class Radio {
     const k = (this.k = { ...this.k, ...knobs }), r = this.r;
     const target = 44 + 76 * k.pace;
     this.bpm = this.bpm == null ? target : this.bpm + (target - this.bpm) * 0.35;
-    const beat = 60 / this.bpm, T = beat / 3, barSec = 4 * beat, t0 = this.t, n = this.n;
+    const beat = 60 / this.bpm, T = beat / 3, t0 = this.t, n = this.n;
     const { fw, jw } = styleOf(k.duende);
     const targetLen = Math.max(8, 4 * Math.round((32 - 24 * k.journey) / 4));
     let i = this.sec ? n - this.sec.start : 0;
@@ -359,12 +421,14 @@ export class Radio {
     const sec = this.sec, ph = Math.floor(i / 4), inP = i % 4;
     this.mode = this.#modeFor(k);
     const how = manner(k.conversation), solo = how === 'solo' ? sec.solo : -1;
-    // the texture: kept while the dials still suit it; re-chosen at a section, sometimes at a phrase
+    // the texture: kept while the dials still suit it, and changed at a phrase's start (at once only if
+    // the dials have left it far behind); re-chosen at a section, sometimes at a phrase
     const W = this.weights(k, solo), mx = Math.max(...Object.values(W));
-    if (!sec.texture || !(W[sec.texture] > 0.3 * mx) || (inP === 0 && i > 0 && r() < 0.08 + 0.3 * k.journey)) sec.texture = weighted(r, Object.entries(W));
+    const cur = W[sec.texture] ?? 0;
+    if (!sec.texture || !(cur > 0.08 * mx) || (inP === 0 && (!(cur > 0.3 * mx) || (i > 0 && r() < 0.08 + 0.3 * k.journey)))) sec.texture = weighted(r, Object.entries(W));
     // the harmony: this phrase's plan, re-made if the dials that shape it have moved
     const moved = this.phrase && this.phrase.sig.some((v, j) => Math.abs(v - [k.tension, k.journey, k.duende, k.light][j]) > (j === 3 ? 0.2 : 0.12));
-    if (!this.phrase || this.phrase.sec !== sec || this.phrase.ph !== ph || moved) this.phrase = { ...this.#planPhrase(i, k), sec };
+    if (!this.phrase || this.phrase.secIdx !== sec.idx || this.phrase.ph !== ph || moved) this.phrase = { ...this.#planPhrase(i, k), secIdx: sec.idx };
     const half = this.phrase.bars[inP], ch = half[0], ch2 = half[1] || half[0];
     const nextCh = inP < 3 ? this.phrase.bars[inP + 1][0] : { d: 0 };
     const last = inP === 3 && i + 1 >= targetLen;                   // the section's seam: thin out
@@ -374,48 +438,89 @@ export class Radio {
     else if (how === 'accompany') { lead = sec.lead; comp = 1 - lead; }
     else if (how === 'trade') { lead = (ph + sec.lead) % 2; comp = 1 - lead; }
     else { lead = (i + sec.lead) % 2; comp = 1 - lead; }
-    const tex = sec.texture, e = k.energy, air = k.air;
+    const tex = sec.texture, e = k.energy, air = k.air, answer = ph % 2 === 1;
 
+    // ---- time. The bar's ticks into seconds: swung (in 12/8 a beat is already three: jazz flattens the
+    // triplet toward straight as the tempo rises), and held back into a cadence (a ritardando over the
+    // bar's second half, more when it is calm and spacious, most at a section's end)
+    const rho = 2 - 0.6 * clamp((this.bpm - 70) / 60, 0, 1) * jw, p2 = (3 * rho) / (1 + rho);
+    let R = inP === 3 ? (0.04 + 0.1 * (1 - e)) * (0.5 + 0.5 * air) * (answer ? 1 : 0.45) * (tex === 'buleria' || tex === 'swing' ? 0.25 : 1) : 0;
+    if (last) R += 0.1;
+    const warp0 = (x) => { const b = Math.floor(x / 3), f = x - 3 * b; let y = 3 * b + (f <= 2 ? (f * p2) / 2 : p2 + (f - 2) * (3 - p2)); if (R > 0 && y > 6) y += (R * (y - 6) ** 3) / 108; return y; };
+    const end = warp0(12), warp = (x) => (x <= 12 ? warp0(x) : end + (x - 12) * (1 + 2 * R)), barSec = T * end;
+    // the hands: the bass on the beat, the accompaniment a hair after, the tune laid back (more in jazz),
+    // and each hand's lateness wandering slowly, as a player's does
+    for (const h of ['mel', 'comp']) this.hd[h] = clamp(this.hd[h] + (r() - 0.5) * 0.004, -0.008, 0.008);
+    const lag = { bass: 0, comp: 0.003 + this.hd.comp, echo: 0.005 + this.hd.comp, mel: 0.007 + 0.016 * jw + this.hd.mel, orn: 0.007 + 0.016 * jw + this.hd.mel };
+    const when = (tick, ro) => t0 + Math.max(0, T * warp(tick) + (lag[ro] ?? 0) + (r() - 0.5) * 0.006);
+    const durOf = (tick, len) => Math.max(0.3 * T, T * (warp(tick + Math.max(0.3, len)) - warp(tick)));
+    // loudness: the energy, the phrase's arc, the beat's weight
     const out = [], ev = 0.5 + 0.65 * e;
     const arc = (0.78 + 0.22 * Math.sin(Math.PI * (inP + 0.5) / 4)) * (0.85 + 0.15 * Math.sin(Math.PI * Math.min(1, i / targetLen)));
-    const hum = () => (r() - 0.5) * 0.014;
-    let win = [0, 12];
-    const P = (tick, len, midi, vel) => {
+    const metric = (tick) => (tick === 0 ? 1.08 : tick === 6 ? 1.03 : Math.abs(tick % 3) < 1e-6 ? 1 : 0.9);
+    let win = [0, 12], role = 'comp';
+    const roleOf = (midi, tick, ro) => ro ?? (role === 'comp' && midi < 52 && Math.abs(tick % 3) < 1e-6 ? 'bass' : role);
+    let top = 127;                                                   // the accompaniment's ceiling: under the tune
+    // the pedal changes with the chord: a held accompaniment note stops at the change unless the next
+    // chord has it too (it rang on into the next bar before, and rubbed against the tune there)
+    const nextPcs = (c) => new Set([0, 1, 2, 3, 4].slice(0, this.#nt()).map((j) => this.#ct(c, j) % 12));
+    let held = null;
+    const pedal = (tick, len, midi, ro) => {
+      if (ro !== 'comp' && ro !== 'bass') return len;
+      const edge = win[1] === 6 ? 6 : 12;
+      if (tick + len <= edge + 0.02) return len;
+      held ??= { 6: nextPcs(ch2), 12: nextPcs(nextCh) };
+      return held[edge].has(((midi % 12) + 12) % 12) ? len : Math.max(0.4, edge - tick);
+    };
+    const P = (tick, len, midi, vel, ro) => {
       if (tick < win[0] - 1e-6 || tick >= win[1] || midi < 21 || midi > 105) return;
-      out.push({ at: t0 + Math.max(0, tick * T + hum()), dur: Math.max(0.3, len) * T, midi, vel: clamp(vel * ev * arc * (0.92 + 0.16 * r()), 0.04, 1), inst: 0 });
+      ro = roleOf(midi, tick, ro);
+      if (ro === 'comp') while (midi > top && midi - 12 >= 40) midi -= 12;
+      len = pedal(tick, len, midi, ro);
+      out.push({ at: when(tick, ro), dur: durOf(tick, len), midi, vel: clamp(vel * ev * arc * metric(tick) * (0.94 + 0.12 * r()), 0.04, 1), inst: 0, role: ro, tick, bar: n });
     };
     const thin = k.thin ?? 1;
-    const G = (tick, len, s, midi, vel, art = 0, ap = 0) => {
+    const G = (tick, len, s, midi, vel, art = 0, ap = 0, ro) => {
       if (tick < win[0] - 1e-6 || tick >= win[1]) return;
       if (thin < 1 && vel < 100 && r() > thin) return;
-      out.push({ at: t0 + Math.max(0, tick * T + hum()), dur: Math.max(0.3, len) * T, midi, vel: clamp(vel * ev * arc * (0.9 + 0.2 * r()), 20, 220), inst: 1, string: s, art, ap });
+      ro = roleOf(midi, tick, ro);
+      len = pedal(tick, len, midi, ro);
+      out.push({ at: when(tick, ro), dur: durOf(tick, len), midi, vel: clamp(vel * ev * arc * metric(tick) * (0.92 + 0.16 * r()), 20, 220), inst: 1, string: s, art, ap, role: ro, tick, bar: n });
     };
 
-    // the bar, half by half when the chord changes in the middle
+    // the tune first (the accompaniment keeps out of its register), then the bar half by half when the
+    // chord changes in the middle
     const halves = half.length > 1 ? [[ch, 0, 6], [ch2, 6, 12]] : [[ch, 0, 12]];
     const pianoSings = lead === 0, guitarSings = lead === 1;
-    const lowM = lead === 0 ? 66 + 9 * air : 62 + 6 * air, highM = lowM + 15;
-    const line = this.#melody(i, ch, ch2, Math.round(lowM), Math.round(highM));
+    const lowM = Math.round(64 + 8 * air), highM = lowM + 15;                // one register for the tune, whoever sings it
+    const line = this.#melody(i, ch, ch2, lowM, highM, nextCh);
     for (const [c, a, b] of halves) {
-      win = [a, b];
+      win = [a, b]; role = 'comp'; top = lowM - 3;
+      // the tune's notes in this half: the accompaniment leaves out what would rub a semitone against them
+      const avoid = new Set(line.filter((m) => m.tick >= a && m.tick < b && (m.strong || m.len >= 3)).map((m) => m.midi % 12));
       const x = { ch: c, next: b === 12 ? nextCh : ch2, i, inP, last, e, air, fw, jw, T, line, solo: how === 'solo', duel: how === 'duel' };
-      for (const inst of new Set([comp])) {
-        if (inst === 0) this.#pianoComp(tex, P, { ...x, v: this.#voicing(c, pianoSings ? 45 : 55, pianoSings ? Math.round(lowM) - 2 : 76 + Math.round(6 * air)) });
-        else this.#guitarComp(tex, G, { ...x, shape: this.#shape(c), sings: guitarSings });
-      }
+      if (comp === 0) this.#pianoComp(tex, P, { ...x, v: this.#voicing(c, 48, lowM - 3, avoid) });
+      else this.#guitarComp(tex, G, { ...x, shape: this.#shape(c), sings: guitarSings, ceil: lowM - 3, avoid });
     }
-    win = [0, 12];
-    this.#sing(tex, lead, line, P, G, { ch, ch2, i, inP, e, fw, jw, last, T, sing: !(last && r() < 0.5) });
+    win = [0, 12]; role = 'mel'; top = 127;
+    this.#sing(tex, lead, line, P, G, { ch, ch2, i, inP, e, fw, jw, last, T, low: lowM, high: highM, answer, sing: !(last && r() < 0.5) });
     // the duel: the other answers in the gap the line leaves at its end
+    role = 'echo';
     if (how === 'duel' && line.length) {
       const endT = line[line.length - 1].tick;
       if (endT <= 8) {
         const echo = line.slice(0, 3).map((m, j) => ({ tick: Math.max(endT + 2, 9) + j, midi: m.midi - (comp === 0 ? 0 : 12) - 3 }));
         for (const m of echo) if (m.tick < 12) {
-          if (comp === 0) P(m.tick, 1.5, this.#fit(this.#snap(m.midi), ch2) + 12, 0.42);
-          else { const p = this.#onString(this.#fit(this.#snap(m.midi + 12), ch2)); G(m.tick, 1.5, p.string, p.midi, 125); }
+          if (comp === 0) P(m.tick, 1.5, this.#fit(this.#snap(m.midi), ch2) + 12, 0.42, 'echo');
+          else { const p = this.#onString(this.#fit(this.#snap(m.midi + 12), ch2)); G(m.tick, 1.5, p.string, p.midi, 125, 0, 0, 'echo'); }
         }
       }
+    }
+    // block chords rolled from the bottom, wider when it is slow and open (never the comping of swing or compás)
+    if (tex !== 'swing' && tex !== 'buleria') {
+      const roll = 0.006 + 0.018 * air * (1 - e), groups = new Map();
+      for (const x of out) if (x.inst === 0 && (x.role === 'comp' || x.role === 'bass')) { const key = x.tick.toFixed(3); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(x); }
+      for (const g of groups.values()) if (g.length >= 3) { g.sort((a, b) => a.midi - b.midi); const a0 = Math.min(...g.map((x) => x.at)); g.forEach((x, j) => (x.at = a0 + j * roll)); }
     }
     out.sort((a, b) => a.at - b.at);
     this.t += barSec; this.n++;
@@ -423,6 +528,8 @@ export class Radio {
     const info = {
       bar: n, bpm: Math.round(this.bpm), key: NAMES[this.root % 12], mode: this.mode.name, chord: half.map((c) => this.symbol(c)).join(' '),
       texture: tex, lead: lead === 0 ? 'piano' : 'guitar', manner: how, tense, bright: this.mode.bright, section: sec.idx, inPhrase: inP, home: this.key === 0,
+      i, ph, theme: !!sec.theme, root: this.root % 12, split: half.length > 1, scale: this.mode.scale.map((x) => (this.root + x) % 12),
+      pcs: half.map((c) => [0, 1, 2, 3, 4].slice(0, this.#nt()).map((j) => this.#ct(c, j) % 12)),
     };
     return { t: t0, sec: barSec, notes: out, info };
   }
@@ -507,6 +614,9 @@ export class Radio {
     // the strings: low to high; a guitar that also sings keeps strings 1 and 2 for the tune
     let ss = shape ? shape.filter(Boolean).reverse() : [this.#bassString(this.#ct(x.ch, 0))];
     if (sings && solo) ss = ss.filter((s) => s.string >= 3);
+    if (ss.filter((s) => s.midi <= x.ceil).length >= 3) ss = ss.filter((s) => s.midi <= x.ceil);     // under the tune
+    const rub = (m) => [...(x.avoid || [])].some((q) => { const d = (((m - q) % 12) + 12) % 12; return d === 1 || d === 11; });
+    if (ss.filter((s) => !rub(s.midi)).length >= 2) ss = ss.filter((s) => !rub(s.midi));               // and off its semitones
     if (!ss.length) ss = [this.#bassString(this.#ct(x.ch, 0))];
     const bass = ss[0], top = ss.slice(1);
     const strum = (tick, len, vel, up = false, n = 6, spread = 0.05) => {
@@ -515,7 +625,7 @@ export class Radio {
     };
     const harmonics = (n) => {
       const pcs = new Set([0, 1, 2, 3].slice(0, this.#nt()).map((j) => this.#ct(x.ch, j) % 12)), hs = [];
-      for (let s = 1; s <= 6; s++) for (const [fret, up] of [[12, 12], [7, 19], [5, 24]]) if (pcs.has((OPEN[s - 1] + up) % 12) && !(sings && solo && s <= 2)) hs.push({ s, midi: OPEN[s - 1] + up, fret });
+      for (let s = 1; s <= 6; s++) for (const [fret, up] of [[12, 12], [7, 19], [5, 24]]) if (pcs.has((OPEN[s - 1] + up) % 12) && !(sings && solo && s <= 2) && (sings || OPEN[s - 1] + up <= x.ceil || OPEN[s - 1] + up >= x.ceil + 21)) hs.push({ s, midi: OPEN[s - 1] + up, fret });
       return hs.slice(0, n);
     };
     switch (tex) {
@@ -587,15 +697,17 @@ export class Radio {
     if (!x.sing || !line.length) return;
     const r = this.r, k = this.k, ornament = k.tension * 0.25 + x.fw * 0.35, approach = k.tension * 0.35 + x.jw * 0.25;
     const sparse = tex === 'stars';
+    // a line is shaped: louder as it climbs, the beats leaning, the answer's last note let go softly
+    const shape = (m, j) => (0.86 + 0.28 * clamp((m.midi - x.low) / (x.high - x.low), 0, 1)) * (m.strong ? 1.04 : 0.92) * (x.inP === 3 && x.answer && j === line.length - 1 ? 0.82 : 1);
     if (lead === 0) {
       line.forEach((m, j) => {
-        if (sparse && j % 2 === 1 && k.energy < 0.5) return;
-        const v = (sparse ? 0.34 : 0.52) * (m.tick % 3 === 0 ? 1 : 0.9);
-        if (m.len >= 3 && m.tick >= 1 && r() < approach) P(m.tick - 0.33, 0.33, m.midi - 1, v * 0.7);   // a chromatic approach
-        P(m.tick, m.len + (sparse ? 6 : 1), m.midi, v);
+        if (sparse && line.length >= 4 && j % 2 === 1 && k.energy < 0.5) return;
+        const v = (sparse ? 0.34 : 0.52) * shape(m, j);
+        if (m.len >= 3 && m.tick >= 1 && r() < approach) P(m.tick - 0.33, 0.33, m.midi - 1, v * 0.7, 'orn');   // a chromatic approach
+        P(m.tick, m.len + (sparse ? 6 : 1), m.midi, v, 'mel');
         // thirds or sixths under it, when the room is close and the music is calm
-        if (tex === 'sea' || (k.air < 0.4 && k.energy < 0.6 && j % 2 === 0)) P(m.tick + 0.05, m.len, this.#fit(this.#deg(this.#below(m.midi, tex === 'sea' ? 5 : 2)), m.tick < 6 ? x.ch : x.ch2), v * 0.6);
-        if (m.len >= 6 && r() < ornament) [1, 0, -1].forEach((d, q) => P(m.tick + 0.5 + q * 0.25, 0.25, this.#snap(m.midi + d * 2), v * 0.6));
+        if (tex === 'sea' || (k.air < 0.4 && k.energy < 0.6 && j % 2 === 0)) P(m.tick + 0.05, m.len, this.#fit(this.#deg(this.#below(m.midi, tex === 'sea' ? 5 : 2)), m.tick < 6 ? x.ch : x.ch2), v * 0.6, 'orn');
+        if (m.len >= 6 && r() < ornament) [1, 0, -1].forEach((d, q) => P(m.tick + 0.5 + q * 0.25, 0.25, this.#snap(m.midi + d * 2), v * 0.6, 'orn'));
       });
       return;
     }
@@ -604,22 +716,22 @@ export class Radio {
     if (tex === 'falls') {
       for (let b = 0; b < 4; b++) {
         const m = line.filter((n) => n.tick <= b * 3).pop() || line[0], p = this.#onString(m.midi, [1, 2]);
-        for (let q = 1; q <= 3; q++) G(b * 3 + q * 0.75, 0.75, p.string, p.midi, 100 + (q === 1 ? 12 : 0));
+        for (let q = 1; q <= 3; q++) G(b * 3 + q * 0.75, 0.75, p.string, p.midi, (100 + (q === 1 ? 12 : 0)) * shape(m, 0), 0, 0, q === 1 ? 'mel' : 'orn');
       }
       return;
     }
     line.forEach((m, j) => {
       const p = this.#onString(m.midi, strings), nx = line[j + 1];
-      if (sparse && j % 2 === 1 && k.energy < 0.5) return;
-      if (m.len >= 3 && m.tick >= 1 && r() < approach) { const a = this.#onString(m.midi - 1, strings); G(m.tick - 0.33, 0.33, a.string, a.midi, 110); }
-      G(m.tick + 0.04, m.len + 2, p.string, p.midi, sparse ? 125 : 142);
+      if (sparse && line.length >= 4 && j % 2 === 1 && k.energy < 0.5) return;
+      if (m.len >= 3 && m.tick >= 1 && r() < approach) { const a = this.#onString(m.midi - 1, strings); G(m.tick - 0.33, 0.33, a.string, a.midi, 110, 0, 0, 'orn'); }
+      G(m.tick, m.len + 2, p.string, p.midi, (sparse ? 125 : 142) * shape(m, j), 0, 0, 'mel');
       // picado: a run up or down the scale into the next note, two to a tick
       if (tex === 'falseta' && nx && m.len >= 2 && r() < 0.4 + 0.5 * k.energy) {
         const n = Math.min(Math.floor((m.len - 1) * 2), 6), dir = Math.sign(nx.midi - m.midi) || 1;
         let q = m.midi;
-        for (let z = 1; z <= n; z++) { q = this.#snap(q + dir * 2); const s = this.#onString(q, strings); G(m.tick + 1 + (z - 1) * 0.5, 0.5, s.string, s.midi, 120); }
+        for (let z = 1; z <= n; z++) { q = this.#snap(q + dir * 2); const s = this.#onString(q, strings); G(m.tick + 1 + (z - 1) * 0.5, 0.5, s.string, s.midi, 120, 0, 0, 'orn'); }
       } else if (m.len >= 6 && r() < ornament) {
-        [2, 0].forEach((d, q) => { const s = this.#onString(this.#snap(m.midi + d), strings); G(m.tick + 0.5 + q * 0.3, 0.3, s.string, s.midi, 105); });   // a hammer and pull
+        [2, 0].forEach((d, q) => { const s = this.#onString(this.#snap(m.midi + d), strings); G(m.tick + 0.5 + q * 0.3, 0.3, s.string, s.midi, 105, 0, 0, 'orn'); });   // a hammer and pull
       }
     });
   }

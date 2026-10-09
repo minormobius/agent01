@@ -915,6 +915,23 @@ if (SHARD === 2) {
   ok(Math.max(...after) > 2 * before, `radio: thrown from still to driving, the next two bars play ${after.join(' and ')} notes (from ${before})`);
   const same = JSON.stringify(new Radio({ seed: 9 }).next(mid)) === JSON.stringify(new Radio({ seed: 9 }).next(mid));
   ok(same, 'radio: the same seed and dials are the same music');
+  // a saved moment ("that bit"): the state before a bar and the dials after it, through a link, replay exactly
+  const { encodeClip, decodeClip, clipKnobs } = await import('../radio/clip.js');
+  const RC = new Radio({ seed: 42 }), states = new Map(), played = [];
+  for (let b = 0; b < 30; b++) { const k = asK(STATIONS[b < 15 ? 1 : 6][1].map((x) => Math.round(x * 100) / 100)); states.set(RC.n, RC.state()); played.push(RC.next(k)); }
+  const clipped = { v: 1, state: states.get(12), bars: 14, knobs: [[0, [...STATIONS[1][1].map((x) => Math.round(x * 100)), 100]], [3, [...STATIONS[6][1].map((x) => Math.round(x * 100)), 100]]] };
+  const code = await encodeClip(clipped), back = await decodeClip(`https://studio.mino.mobi/radio/#clip=${code}`), RP = Radio.from(back.state);
+  let kk, exact = true;
+  for (let b = 0; b < back.bars; b++) { kk = clipKnobs(back, b, KNOBS) || kk; if (JSON.stringify(RP.next(kk)) !== JSON.stringify(played[12 + b])) exact = false; }
+  ok(exact && code.length < 2000, `radio: a saved moment replays exactly from its link (${code.length} characters)`);
+  // the critic (lint.js): what a harmony teacher would mark, held under the levels the rewrite reached
+  const { lint } = await import('../radio/lint.js');
+  const Ls = [];
+  for (const [, v] of STATIONS) for (const seed of [1, 2]) { const R = new Radio({ seed }), bars = []; for (let b = 0; b < 64; b++) bars.push(R.next(asK(v))); Ls.push(lint(bars)); }
+  const avg = (key) => Ls.reduce((a, L) => a + L[key], 0) / Ls.length, L = Object.fromEntries(['clash', 'seconds', 'crowd', 'leaps', 'unrecovered', 'repeats', 'peaks', 'cadence'].map((key) => [key, avg(key)]));
+  ok(L.clash < 0.06 && L.seconds < 0.08 && L.crowd < 0.04, `radio: on the beat the tune is a chord tone (${(100 * L.clash).toFixed(1)}% not), rubs a semitone on ${(100 * L.seconds).toFixed(1)}%, is crowded by the accompaniment on ${(100 * L.crowd).toFixed(1)}%`);
+  ok(L.leaps < 0.08 && L.unrecovered < 0.15 && L.repeats < 0.15, `radio: the line moves by step: ${(100 * L.leaps).toFixed(1)}% leaps over a fifth, ${(100 * L.unrecovered).toFixed(1)}% unrecovered, ${(100 * L.repeats).toFixed(1)}% repeated notes`);
+  ok(L.peaks > 0.6 && L.cadence > 0.8, `radio: ${(100 * L.peaks).toFixed(0)}% of periods peak in bars 5–7; ${(100 * L.cadence).toFixed(0)}% of answers end on the tonic or third`);
 
   const { RadioStream } = await import('../radio/stream.js');
   const { parseWav } = await import('../cycle/music.js');

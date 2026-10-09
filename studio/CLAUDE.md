@@ -52,7 +52,7 @@ lecture/                 No. 10, The Minormobius Lectures: a documentary as a le
 grew/                    No. 9, And Still It Grew: the major-key companion to No. 8 (score.js carries the harmony, drive and two voices; grown/film*.js do the rest)
 nobody/                  No. 8, Nobody Drew It: one evolved Grown history replayed (world.js, history.js GENERATED), sung by the world's choir, a voice and piano
 grown/                   Grown (sketchbook): bodies grown organ by organ from a program (packages/attractor lib/organism.js); gl.js WebGL
-radio/                   Duende Radio: endless piano+guitar steered by eight dials (composer.js, stream.js, worker.js), duende.js the figure that hears
+radio/                   Duende Radio: endless piano+guitar steered by eight dials (composer.js, stream.js, worker.js), lint.js the critic, clip.js saved moments
 city/                    City (sketchbook): cycle's flight over cityworld.js, its own page (index.html + og.jpg; the code is cycle's)
 cycle/                   Colour Cycle (sketchbook): a 256-colour landscape under the real sky, a lake or a coast; scene.js + coast.js, astro.js, stars.js (GENERATED), night.js, life.js, world.js + coastworld.js + fly.js (the flight), sound.js, main.js
 accretion/               Accretion (sketchbook): a flow that grows a geode round itself (packages/attractor lib/shell.js); gl.js WebGL
@@ -67,6 +67,7 @@ lib/band-load.js         loadBand(scoreUrl, rate, seconds): the worker, or the m
 lib/paint.js             the brush engine: paper, Wash, Bristle, Ink, Dab, and the Painter
 lib/score-kit.js         note names, tempo map, pedal, humanising: for new scores
 tools/render.mjs         render a piece's score in node: speed, level per section, --wav
+tools/radio.mjs          the radio in node: lint the stations, --score, --wav, --clip (a saved moment)
 test/                    selftest (not served: .assetsignore)
 ```
 
@@ -496,45 +497,76 @@ Endless music for piano and guitar, steered by eight dials of feeling. It is the
 that came from the sky and the weather now come from the dials.
 
 ```
-radio/composer.js   Radio: next(knobs) → one bar { t, sec, notes, info }. KNOBS, STATIONS, TEXTURES (pure)
+radio/composer.js   Radio: next(knobs) → one bar { t, sec, notes, info }; state() / Radio.from(); KNOBS, STATIONS (pure)
 radio/stream.js     RadioStream: bars into pfstream.wasm, the guitar dressed as music.js, then a hall (pure)
-radio/worker.js     the stream in a worker: start / want / knobs / stop → chunks with notes and bars
-radio/duende.js     the figure: an attractor body (vendor/attractor) on the figure rig, posed by what it hears
-radio/main.js       dials, stations, drift, the link, chunks on the audio clock, the piano roll
+radio/worker.js     the stream in a worker: start / want / knobs / clip / stop → chunks with notes and bars
+radio/clip.js       a saved moment as a link: the state before a bar + the dials bar by bar, deflated (pure)
+radio/lint.js       the critic: counts what a harmony teacher would mark, from the notes' roles (pure)
+radio/main.js       dials, stations, drift, the link, "that bit", chunks on the audio clock, the scale streaming past
+tools/radio.mjs     node: lint every station; --score a passage; --wav; --clip '<link>' replays a saved moment
 ```
 
 - **Every dial is read every bar.** The tempo glides (a third of the way per bar), so bars are not a fixed
   length: the composer keeps its own clock, and `stream.js` composes each bar only when the render is
   about to reach it. That, and the worker running only 1.6 s ahead (4 s in a hidden tab), is why a dial is
-  heard within a bar or two. The colour cycle's duo is two bars ahead and five seconds buffered, and
-  assumes a fixed bar. The harmony is planned a phrase (four bars) at a time and re-planned
-  mid-phrase when tension, journey, duende or light move far enough. The texture is kept while the dials
-  still suit it, and re-chosen when its weight falls under 30% of the best.
-- **What each dial does** is written at the head of `composer.js`, and the selftest measures each one:
-  pace sets the bpm, energy the notes per second, light the mode's brightness, tension the chord tension,
-  journey the number of keys and chord changes, duende the share of jazz and flamenco textures,
-  conversation how often the voice changes, and air the treble's register. Section 22 of the selftest
-  holds those checks. If you change the composer, keep them passing. They are the spec.
-- **The bar is the soleá's compás.** A 12/8 bar of twelve ticks is exactly the twelve-count, so the
-  flamenco accents are ticks 2 5 7 9 11 (3 6 8 10 12). Flamenco's light runs from Phrygian, with the
-  Andalusian descent and the home chord major (♭9 when tense), up to the alegrías' major. Jazz is swing
-  cells, a walking bass, shells off the beat, and ii–V–I with dominants (♭9 when tense). A diatonic
-  ♭9 on a chord that is not a dominant becomes an eleventh.
+  heard within a bar or two. The harmony is planned a phrase (four bars) at a time and re-planned
+  mid-phrase when tension, journey, duende or light move far enough. The texture changes at a phrase's
+  start (at once only if the dials have left it far behind).
+- **What each dial does** is written at the head of `composer.js`, and section 22 of the selftest measures
+  each one (pace → bpm, energy → notes a second, light → the mode's brightness, tension → chord tension,
+  journey → keys and chord changes, duende → jazz and flamenco textures, conversation → changes of voice,
+  air → the treble's register). They are the spec.
+- **The critic** (owner, 2026-10-09: "music quality specifically, what can we do"). There are no ears here,
+  so `lint.js` counts what a harmony teacher would mark: tune notes on a beat outside the chord, a
+  semitone rub against the accompaniment on a beat, the accompaniment crowding the tune, consecutive fifths
+  and octaves between tune and bass, leaps over a fifth and leaps not answered by a step back, repeated
+  notes, where each eight-bar period peaks, how answers end, how far the guitar's hand moves, how often
+  figures repeat. Each note carries its `role` (mel, comp, bass, echo, orn) and `tick` for it. `node
+  studio/tools/radio.mjs` prints the table; `--composer <file>` lints another version (A/B). The first
+  composer against the rewrite, mean of eight stations × two seeds: on-beat clashes 27% → 2%, rubs 13% →
+  3%, crowding 15% → 1%, leaps 14% → 4%, repeats 19% → 7%, periods peaking in bars 5–7 24% → 83%, answers
+  ending on the tonic or third 36% → 95%. The selftest holds the rewrite's levels. **A metric is a floor,
+  not the goal**: they say what is wrong, never that it is beautiful. Only the owner's ears say that.
+- **The tune** (`#melody`): each phrase has a plan of where each bar aims in the register (the question
+  rises and stays open; the answer climbs to the period's peak in its second or third bar and falls home).
+  Each bar's first note is the chord tone nearest its aim (a third over the bass rather than the root or
+  fifth, and not the note just sung), placed so that the motif's highest note lands at the aim. The motif
+  (a head of scale steps and a rhythm) is stated in bars 1–2, developed in bar 3 (fragment, diminution,
+  inversion, sequence), and past its head the line steps toward where the next bar aims. Every note on a
+  beat is a chord tone, a leap is answered by a step back, and the fourth bar is a cadence approached by
+  step (the question on the key's 5th, 2nd or 7th; the answer on its tonic or third). The theme comes
+  back every fourth section, at home; between, the motif is varied, now and then replaced. One register
+  for the tune whoever sings it, so a hand-off is not a leap.
+- **The harmony** (landscape textures): functional, `FLOW` (where each degree tends to go) with a cadence
+  planned first and the bars before it chosen to lead there; each mode's own cadence chord (`MODAL`:
+  ♭II, ♭VII, IV, V, II) beside the dominant; a diminished chord gives way to the one a third below.
+  Jazz keeps its ii–V forms, flamenco its descent.
+- **The playing**: ticks become seconds through a warp: swing flattens from triplets toward straight as
+  the tempo rises (jazz), and a ritardando holds back the second half of a cadence bar (more when calm
+  and open, most at a section's end). The bass is on the beat, the accompaniment 3 ms after, the tune laid
+  back 7–23 ms, each hand's lateness wandering. Beats lean (1 > 3 > other beats > off-beats), the tune is
+  louder as it climbs and lets its last note go softly, block chords roll from the bottom. The
+  accompaniment stays under the tune (its ceiling three semitones below the tune's register), leaves out
+  colour tones a semitone from the tune's notes, and its held notes stop at a chord change unless the next
+  chord has them (the pedal changes). Guitar shapes are chosen by how far the hand must move.
+- **That bit** (`clip.js`): the worker rounds the dials to whole percents and keeps the radio's state
+  before each of the last 96 bars. The button asks for the last 30 s heard: the state before its first
+  bar and the dials bar by bar, as JSON, deflated and base64url: a link of ~400–800 characters,
+  `#clip=…`, that replays it exactly (the selftest checks bar for bar) and then plays on.
+  `node studio/tools/radio.mjs --clip '<link>' --score --wav x.wav` reads it here.
 - **Conversation** at its four settings: `solo`, one instrument per section, and only textures it can
   carry alone (`weights(k, solo)`). A solo guitar keeps strings 1–2 for the tune and comps on 3–6.
   `accompany`: one lead per section. `trade`: the lead swaps every phrase. `duel`: the lead swaps every
   bar, and the other instrument answers in the gap the line leaves.
-- **The duende hears; it does not read the dials.** `main.js` hands it each note and bar at its audio
-  time. A piano note lifts and lights the right arm, a guitar note the left. Lows light the legs and
-  highs the head, and the head turns to whoever spoke last. Loudness sets the attractors' thought and
-  how high the arms are carried. The chord's tension arches and twists the spine and widens the orbits.
-  The mode's brightness is the colour (a ramp from violet to gold). Flamenco textures carry the arms
-  high and curved and strike the heel on accents. Jazz bounces on the swung off-beat.
+- **The picture** (owner: "leave the attractor figure behind… maybe scale bars streaming past"): time
+  runs right to left past a line at three quarters of the width (what is about to sound is to its right),
+  pitch climbs; each bar lays down its mode's notes as bars of light in every octave, the chord's notes
+  brighter and the key's root brightest, hued by the mode (violet Phrygian … amber Lydian); the notes go
+  over them, piano orange, guitar blue, the tune bolder.
 - `stream.js` levels slowly (gain 0.7–2.6 toward −24 dBFS RMS), so a lullaby is quieter than a feria
   but not 15 dB quieter. The hall is `roomImpulse(2.6, 1.1)` with its direct sound removed, fed the duo's
   mid, at a wet level of 0.06 + 0.5·air.
-- The link: `#st=<station>` or `#k=<eight 0–100>`, plus `seed=` and `drift=1`. The figure's character
-  is the seed's.
+- The link: `#st=<station>` or `#k=<eight 0–100>`, plus `seed=` and `drift=1`; or `#clip=`.
 
 ## Colour Cycle (cycle/)
 
