@@ -8,8 +8,10 @@ water is; cities grow where your lines reach; the lines fill as they do.
 
 The game rests on one claim, which the selftest measures on every run:
 **a line grows the city along it.** On world 3, an 8-train line across the
-biggest city at the start leaves about 25% more people along it 25 years
-later than the same planet without it.
+biggest city at the start leaves about 20% more people along it 25 years
+later than the same planet without it. (It was 50% before cities needed
+feeding and coastal cities could ship food in; the selftest's floor is
+10%.)
 
 It works like this, once a year:
 
@@ -103,6 +105,12 @@ hungry (and fed again), a mine opening, a line passing 50k of freight, a city pa
 passing a mark, the mesh reaching its cap. The page keeps the whole log
 (newest first; tap an entry to look there) and pops the big ones up.
 
+## The screen
+
+The planet gets the top two thirds; the bottom third is the dock: the
+charter, the lines, the selected line's panel, the controls. No page
+zoom, no text selection, no double-tap zoom: the globe takes every touch.
+
 ## The map
 
 - **Relief, exaggerated.** Each zone's height is interpolated from
@@ -112,17 +120,60 @@ passing a mark, the mesh reaching its cap. The page keeps the whole log
 - **The sea has no cells.** One deep gradient, a pale shelf haloed round
   every coast, and a field of small waves: 40k points fixed on the sphere,
   thinned to about 2,000 on screen, breathing in phase.
+- **Three layers** (the button cycles them): *terrain*; *food* (where it
+  grows, and how well each city eats); *towns* (each zone in its town's
+  colour, with white borders between towns: whose land is whose, which is
+  what the food and freight run on). The charter is a dashed gold circle.
+- **The grain of a city.** Districts are drawn with a dark seam and each
+  its own shade, so the splits show.
 - **Deep zoom.** Pinch or scroll, anchored where you point, to about
   40 px per km in a dense city. Only zones on screen are drawn. Stops go
   exactly where you tap.
 
-## Money
+## Money, and the oracle that balances it
 
-You start with ₵700. A train costs ₵90 and ₵10 a year. Track costs ₵4 a km,
-three times that over water and more over rough ground, plus ₵0.25 a km a
-year. A stop costs ₵20. Fares bring in ₵0.008 per rider per day, every year. A line through a dense
-core pays for itself. A long line out to a small town loses money every
-year. Closing a line, a stop or a train refunds half its cost.
+You start with ₵700. At start prices:
+- A train costs ₵90 and ₵10 a year to run; a freight wagon ₵60 and ₵6.
+- A stop costs ₵20.
+- Track costs ₵4 a km, three times that over water and more over rough
+  ground, plus ₵0.25 a km a year.
+- Fares bring in ₵0.012 per rider per day, every year.
+- Closing a line, a stop, a train or a wagon refunds half what it cost.
+
+Four rules ramp the costs, because without them the game printed money:
+
+- **The charter.** You may build only within 35 km of your home city (the
+  biggest at the start). Carrying 20k, 60k, 150k and then 400k riders a
+  day earns the right to buy a wider one: 70 km, 140 km, 300 km, the whole
+  planet, for ₵400, ₵1,200, ₵3,500 and ₵9,000 at start prices. Intercity
+  freight is a mid-game unlock, not a day-one exploit.
+- **Prices follow the world's wealth.** Everything you buy, and all
+  upkeep, costs `(people / people at the start)^0.5` times its start
+  price.
+- **Building through a city costs more.** Stops and track cost ×(1 +
+  density/700): tunnels and land.
+- **The cities take a cut.** Their levy is
+  `0.6 · f / (f + 6000·index)` of fares `f` a year. You always keep more
+  for carrying more, but ever less of each extra fare.
+- And on the freight side, **ships**: coastal towns trade by sea without
+  you, so the freight business is inland.
+
+`test/economy.mjs` plays the game headless with bots and prints the money
+curve; read it after moving any price. Before these rules, world 3's
+metro bot went ₵300 (year 10), ₵2.5k (30), ₵14k (40), ₵49k (60): a
+hockey stick from riders compounding against fixed prices. After them:
+
+| world | bot | y10 | y20 | y40 | y60 | net/yr at 60 | first line pays back |
+|---|---|---|---|---|---|---|---|
+| 3 | metro | ₵596 | ₵1.1k | ₵1.8k | ₵2.8k | ₵1.7k | 10 yr |
+| 3 | greedy | ₵275 | ₵1.2k | ₵3.9k | ₵3.9k | ₵2.9k | 5 yr |
+| 11 | metro | ₵448 | ₵916 | ₵2.3k | ₵3.2k | ₵3.1k | 15 yr |
+| 11 | greedy | ₵383 | ₵686 | ₵3.4k | ₵4.4k | ₵4.0k | 6 yr |
+
+The bots spend what they can (a line across a city at a new heading, a
+train wherever a ride is 90% full, the next charter when they can afford
+it), so these are the floor of what a player earns, not the ceiling.
+The clock is slower too: a year takes 4 s (1.5 s fast).
 
 ## The planet
 

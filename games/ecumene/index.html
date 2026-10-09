@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#050a14" />
 <meta name="description" content="Ecumene — a transit game on a small planet. Towns grow where the water is, cities grow where your lines reach, and the lines fill as they do. Built on mappa's world engine." />
 <title>Ecumene — games.mino.mobi</title>
@@ -11,22 +11,26 @@
 </head>
 <body>
 <div id="app">
-  <div id="hud">
-    <div class="h"><span class="lab">year</span><span id="year" class="val">—</span></div>
-    <div class="h"><span class="lab">people</span><span id="pop" class="val">—</span></div>
-    <div class="h"><span class="lab">riders</span><span id="riders" class="val">0</span></div>
-    <div class="h"><span class="lab">transit</span><span id="share" class="val">0%</span></div>
-    <div class="h"><span class="lab">stranded</span><span id="stranded" class="val">0</span></div>
-    <div class="h right"><span class="lab">funds</span><span id="credits" class="val">—</span><span id="net" class="sub">—</span></div>
-  </div>
   <div id="stage">
     <canvas id="globe" aria-label="The planet: drag to turn, pinch to zoom, tap to look or to lay a stop"></canvas>
+    <div id="hud">
+      <div class="h"><span class="lab">year</span><span id="year" class="val">—</span></div>
+      <div class="h"><span class="lab">people</span><span id="pop" class="val">—</span></div>
+      <div class="h"><span class="lab">riders</span><span id="riders" class="val">0</span></div>
+      <div class="h"><span class="lab">transit</span><span id="share" class="val">0%</span></div>
+      <div class="h"><span class="lab">stranded</span><span id="stranded" class="val">0</span></div>
+      <div class="h right"><span class="lab">funds</span><span id="credits" class="val">—</span><span id="net" class="sub">—</span></div>
+    </div>
     <div id="info" hidden></div>
     <div id="note"></div>
     <div id="log" hidden>
       <div class="ptop"><span>what happened</span><button type="button" id="logclose" class="mini">close</button></div>
       <div id="loglist"></div>
     </div>
+  </div>
+  <div id="dock">
+    <div id="charter"><span id="ch-text">—</span><button type="button" id="ch-buy" class="mini buy" hidden>—</button></div>
+    <div id="linebar"></div>
     <div id="panel" hidden>
       <div class="ptop"><i></i><span id="p-title">—</span><button type="button" id="p-done" class="mini">done</button></div>
       <div class="pstats">
@@ -41,17 +45,15 @@
       </div>
       <div class="pact"><button type="button" id="p-undo" class="mini">undo stop</button><button type="button" id="p-del" class="mini danger">close line</button></div>
     </div>
+    <div id="actions">
+      <button class="ghost" id="play" type="button" title="Pause / run (space)">▶</button>
+      <button class="ghost" id="fast" type="button" title="Faster">▶▶</button>
+      <button class="ghost" id="layer" type="button" title="Map: terrain, food, or towns (whose land is whose)">terrain</button>
+      <button class="ghost" id="logbtn" type="button" title="What happened in the world">log</button>
+      <button class="ghost" id="help" type="button" aria-label="How to play">?</button>
+    </div>
+    <p class="foot">world <code id="seed">—</code> · <a href="#" id="newworld">new world</a> · drag to turn · pinch to zoom · a planet from <a href="https://mappa.mino.mobi/">mappa</a></p>
   </div>
-  <div id="linebar"></div>
-  <div id="actions">
-    <button class="ghost" id="play" type="button" title="Pause / run (space)">▶</button>
-    <button class="ghost" id="fast" type="button" title="Faster">▶▶</button>
-    <button class="ghost" id="layer" type="button" title="Map: terrain, or food (where it grows, who is short)">terrain</button>
-    <button class="ghost" id="logbtn" type="button" title="What happened in the world">log</button>
-    <button class="ghost" id="help" type="button" aria-label="How to play">?</button>
-    <button class="ghost" id="newworld" type="button">new world</button>
-  </div>
-  <p class="foot">world <code id="seed">—</code> · drag to turn · pinch or scroll to zoom right in · pick a line, tap land to lay stops · a planet from <a href="https://mappa.mino.mobi/">mappa</a></p>
 </div>
 
 <div class="overlay" id="start">
@@ -79,6 +81,13 @@
     The map gets finer where the city gets dense: a crowded zone
     <b>splits</b>, and the city you planned for keeps turning into a bigger
     one.
+  </p>
+  <p>
+    You hold a <b>charter</b> round your home city: build inside it. Carry
+    enough riders and you earn the right to buy a wider one, until the
+    whole planet is yours to build on. Prices rise as the world gets
+    richer, building through a dense city costs more, and the cities take
+    a growing cut of your fares.
   </p>
   <p class="accent">Drag to turn, pinch to zoom. Pick <b>+ line</b>, then tap land to lay stops.</p>
   <p id="loading" class="dim">growing a world…</p>

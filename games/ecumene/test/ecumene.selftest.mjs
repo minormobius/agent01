@@ -116,7 +116,7 @@ function run(withLine) {
 }
 const without = run(false), withL = run(true);
 console.log("the loop: people along the line after 25 years, " + Math.round(without) + " without it, " + Math.round(withL) + " with it (+" + Math.round(100 * (withL / without - 1)) + "%)");
-ok(withL > 1.2 * without, "a line grows the city along it: +" + Math.round(100 * (withL / without - 1)) + "% in 25 years");
+ok(withL > 1.1 * without, "a line grows the city along it: +" + Math.round(100 * (withL / without - 1)) + "% in 25 years");
 
 /* ---- commodities and freight */
 {
@@ -144,6 +144,28 @@ ok(withL > 1.2 * without, "a line grows the city along it: +" + Math.round(100 *
   ok(c.towns[h].pop > a.towns[h].pop * 1.05, "and it grows: +" + Math.round(100 * (c.towns[h].pop / a.towns[h].pop - 1)) + "% in " + POST + " years");
   ok(c.stats.cargo > 0, "freight pays (₵" + Math.round(c.stats.cargo) + " a year)");
 }
+
+/* ---- the economy's rules (test/economy.mjs measures the curve itself) */
+{
+  const t = new E.Sim(E.makeWorld(3), 3); t.warmup();
+  const home = t.towns[t.home].p, e1 = [home[1], -home[0], 0], l = Math.hypot(...e1), off = (km) => E.slerp(home, [e1[0] / l, e1[1] / l, e1[2] / l], km / (E.R * Math.PI / 2));
+  ok(t.home != null && t.tier === 0 && t.canBuild(off(20)) && !t.canBuild(off(60)), "you may build within your charter, and not beyond");
+  ok(!t.charterReady() && !t.buyCharter(), "a wider charter has to be earned");
+  t.stats.riders = E.TIERS[1].riders; t.credits = 0;
+  ok(t.charterReady() && !t.buyCharter(), "earned, it still has to be paid for");
+  t.credits = 1e6; const fee = t.charterFee();
+  ok(t.buyCharter() && t.tier === 1 && t.credits === 1e6 - fee && t.canBuild(off(60)), "bought, it reaches further");
+  ok(t.index === 1, "prices start at 1");
+  for (let y = 0; y < 10; y++) t.step();
+  ok(t.index > 1 && Math.abs(t.index - Math.pow(t.stats.pop / t.pop0, P.INDEX_EXP)) < 1e-9, "prices follow the world's wealth (×" + t.index.toFixed(2) + " after 10 years)");
+  let city = 0, rural = -1; for (let i = 0; i < t.n; i++) { const d = t.pop[i] / t.area[i]; if (t.land[i] && d > t.pop[city] / t.area[city]) city = i; if (t.land[i] && d < 5 && rural < 0) rural = i; }
+  ok(t.stopCost(pt2(t, city)) > 2 * t.stopCost(pt2(t, rural)), "building in a dense city costs more");
+  // the levy: what you keep always grows with what riders pay, but ever more slowly
+  const keep = (g) => g - g * P.LEVY_MAX * g / (g + P.LEVY_HALF);
+  ok([1e3, 5e3, 2e4, 1e5].every((g, k, A) => k === 0 || keep(g) > keep(A[k - 1])) && keep(2e4) / 2e4 < keep(1e3) / 1e3, "the cities' cut grows with the fares, and you always keep more for more");
+  ok(t.fr.ports && t.fr.ports.length > 0, "coastal towns are ports, and ship to each other");
+}
+function pt2(s, i) { return [s.P[3 * i], s.P[3 * i + 1], s.P[3 * i + 2]]; }
 
 console.log(fails ? `ecumene: ${fails}/${checks} FAILED` : `ecumene: ${checks} checks ok`);
 process.exit(fails ? 1 : 0);

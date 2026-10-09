@@ -54,7 +54,7 @@ const fmt = (x) => x >= 1e6 ? (x / 1e6).toFixed(2) + "M" : x >= 1e4 ? Math.round
 /* ------------------------------------------------------------ the clock */
 function frame(t) {
   view.t = t / 1000;
-  if (running && snap && !pending && t - lastStep > (speed === 1 ? 2600 : 900)) { pending = true; lastStep = t; worker.postMessage({ type: "step" }); }
+  if (running && snap && !pending && t - lastStep > (speed === 1 ? 4000 : 1500)) { pending = true; lastStep = t; worker.postMessage({ type: "step" }); }
   view.lines = lines; view.sel = sel;
   view.draw(); // trains move every frame
   requestAnimationFrame(frame);
@@ -74,7 +74,7 @@ function hud() {
   const net = (s.fares || 0) - (s.upkeep || 0);
   $("net").textContent = (net >= 0 ? "+" : "−") + Math.round(Math.abs(net)) + "/yr";
   $("net").classList.toggle("neg", net < 0);
-  bar(); panel();
+  bar(); panel(); charter();
 }
 function bar() {
   const el = $("linebar"); el.innerHTML = "";
@@ -112,8 +112,15 @@ function panel() {
 function spend(c) { if (c > credits + 1e-9) { note("not enough: that costs ₵" + Math.ceil(c)); return false; } credits -= c; pendingSpend += c; return true; }
 let pendingSpend = 0, seqN = 0; const inflight = [];
 function push() { seqN++; inflight.push({ seq: seqN, spend: pendingSpend }); worker.postMessage({ type: "lines", lines, spend: pendingSpend, seq: seqN }); pendingSpend = 0; hud(); }
+/* Prices now: the snapshot's index, and the density where you build. */
+const ix = () => (snap && snap.index) || 1;
+const trainPrice = () => P.COST_TRAIN * ix(), wagonPrice = () => P.COST_WAGON * ix();
+function densAt(p) { const z = zoneAt(p); return snap.pop[z] / Math.max(1e-6, snap.area[z]); }
+const stopPrice = (p) => P.COST_STOP * (1 + densAt(p) / P.URBAN_COST) * ix();
+const trackPrice = (a, b) => trackCost(W, a, b, densAt) * ix();
+function chartered(p) { return !snap.home || arc(p, snap.home) * R <= snap.charterKm + 1e-9; }
 function newLine() {
-  if (!spend(P.COST_TRAIN)) return;
+  if (!spend(trainPrice())) return;
   const used = new Set(lines.map((l) => l.color)), color = COLORS.find((c) => !used.has(c));
   lines.push({ id: nextId++, color, stops: [], trains: 1, wagons: 0, paid: [] });
   sel = lines.length - 1; push();
@@ -122,22 +129,36 @@ function newLine() {
 function addStop(z, at) {
   const L = lines[sel], p = at || site(z);   // exactly where you tapped; the zone centre when there is no tap
   if (!snap.land[z]) { note("stops go on land"); return; }
+  if (!chartered(p)) { note("outside your charter (" + snap.charterKm + " km round " + snap.homeName + ")"); return; }
   const last = L.stops[L.stops.length - 1];
   if (last && arc(last, p) * R < 1) return;
-  const c = P.COST_STOP + (last ? trackCost(W, last, p) : 0);
+  const c = stopPrice(p) + (last ? trackPrice(last, p) : 0);
   if (!spend(c)) return;
   L.stops.push(p); L.paid.push(c); push();
   note(L.stops.length < 2 ? "first stop · ₵" + Math.ceil(c) + " · now tap the next" : "stop " + L.stops.length + " · ₵" + Math.ceil(c) + (last ? " (" + (arc(last, p) * R).toFixed(0) + " km of track)" : ""));
 }
 $("p-undo").onclick = () => { const L = lines[sel]; if (!L || !L.stops.length) return; L.stops.pop(); const c = L.paid.pop(); credits += c / 2; pendingSpend -= c / 2; push(); note("stop removed: half its cost back"); };
-$("p-plus").onclick = () => { const L = lines[sel]; if (L && spend(P.COST_TRAIN)) { L.trains++; push(); } };
-$("p-minus").onclick = () => { const L = lines[sel]; if (L && L.trains > 1) { L.trains--; credits += P.COST_TRAIN / 2; pendingSpend -= P.COST_TRAIN / 2; push(); } };
-$("w-plus").onclick = () => { const L = lines[sel]; if (L && spend(P.COST_WAGON)) { L.wagons = (L.wagons || 0) + 1; push(); } };
-$("w-minus").onclick = () => { const L = lines[sel]; if (L && L.wagons > 0) { L.wagons--; credits += P.COST_WAGON / 2; pendingSpend -= P.COST_WAGON / 2; push(); } };
-$("layer").onclick = () => { view.layer = view.layer === "food" ? "terrain" : "food"; $("layer").textContent = view.layer; $("layer").classList.toggle("on", view.layer === "food"); };
+$("p-plus").onclick = () => { const L = lines[sel], c = trainPrice(); if (L && spend(c)) { L.trains++; (L.trainPaid = L.trainPaid || []).push(c); push(); } };
+$("p-minus").onclick = () => { const L = lines[sel]; if (L && L.trains > 1) { L.trains--; const c = (L.trainPaid && L.trainPaid.pop()) || P.COST_TRAIN; credits += c / 2; pendingSpend -= c / 2; push(); } };
+$("w-plus").onclick = () => { const L = lines[sel], c = wagonPrice(); if (L && spend(c)) { L.wagons = (L.wagons || 0) + 1; (L.wagonPaid = L.wagonPaid || []).push(c); push(); } };
+$("w-minus").onclick = () => { const L = lines[sel]; if (L && L.wagons > 0) { L.wagons--; const c = (L.wagonPaid && L.wagonPaid.pop()) || P.COST_WAGON; credits += c / 2; pendingSpend -= c / 2; push(); } };
+const LAYERS = ["terrain", "food", "towns"];
+$("layer").onclick = () => { view.layer = LAYERS[(LAYERS.indexOf(view.layer) + 1) % LAYERS.length]; $("layer").textContent = view.layer; $("layer").classList.toggle("on", view.layer !== "terrain"); };
+$("ch-buy").onclick = () => { if (snap && snap.charterReady && credits >= snap.charterFee) worker.postMessage({ type: "charter" }); else note("not enough for the charter: ₵" + Math.ceil(snap.charterFee)); };
+function charter() {
+  if (!snap || !snap.home) return;
+  const next = snap.nextRiders, km = snap.charterKm === Infinity ? "the whole planet" : snap.charterKm + " km round " + snap.homeName;
+  $("ch-text").innerHTML = "charter: <b>" + km + "</b>" + (next && !snap.charterReady ? " · wider at " + fmt(next) + " riders a day" : "");
+  $("ch-buy").hidden = !snap.charterReady;
+  if (snap.charterReady) $("ch-buy").textContent = "widen · ₵" + Math.ceil(snap.charterFee);
+}
+// no page zoom: iOS ignores user-scalable for its own gestures
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("dblclick", (e) => e.preventDefault());
 $("p-del").onclick = () => {
   const L = lines[sel]; if (!L) return;
-  const back = (L.paid.reduce((a, b) => a + b, 0) + L.trains * P.COST_TRAIN + (L.wagons || 0) * P.COST_WAGON) / 2;
+  const sum = (a) => (a || []).reduce((x, y) => x + y, 0);
+  const back = (sum(L.paid) + sum(L.trainPaid) + P.COST_TRAIN * ix() * Math.max(0, L.trains - (L.trainPaid || []).length) + sum(L.wagonPaid)) / 2;
   credits += back; pendingSpend -= back; lines.splice(sel, 1); sel = -1; push(); note("line closed: half its cost back");
 };
 $("p-done").onclick = () => { sel = -1; hud(); };
@@ -226,7 +247,7 @@ function evPoint(ev) {
   if (ev.p) return ev.p;
   const L = lines.find((l) => l.id === ev.line); return L && L.stops.length ? L.stops[L.stops.length >> 1] : null;
 }
-function toast(ev) { if (["town", "full", "money", "planet", "hunger", "mine"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
+function toast(ev) { if (["town", "full", "money", "planet", "hunger", "mine", "charter"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
 function renderLog() {
   $("logbtn").textContent = "log" + (unread && $("log").hidden ? " ·" + unread : "");
   if ($("log").hidden) return;
@@ -248,7 +269,7 @@ $("start-btn").onclick = () => { $("start").hidden = true; running = true; playB
 $("play").onclick = () => { running = !running; playBtn(); };
 $("fast").onclick = () => { speed = speed === 1 ? 2 : 1; $("fast").classList.toggle("on", speed === 2); };
 $("help").onclick = () => { running = false; playBtn(); $("start").hidden = false; };
-$("newworld").onclick = () => { location.search = "?seed=" + ((Math.random() * 1e9) >>> 0); };
+$("newworld").onclick = (e) => { e.preventDefault(); location.search = "?seed=" + ((Math.random() * 1e9) >>> 0); };
 function playBtn() { $("play").textContent = running ? "❚❚" : "▶"; }
 document.addEventListener("keydown", (e) => {
   if (e.key === " ") { e.preventDefault(); $("play").click(); }

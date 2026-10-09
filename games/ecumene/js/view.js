@@ -166,7 +166,10 @@ export class View {
       const vx = R[0] * nx + R[1] * ny + R[2] * nz, vy = R[3] * nx + R[4] * ny + R[5] * nz, vz = R[6] * nx + R[7] * ny + R[8] * nz;
       const lit = Math.max(0, vx * Lx + vy * Ly + vz * Lz) / Math.hypot(Lx, Ly, Lz), shade = 0.35 + 0.85 * lit;
       ctx.fillStyle = this.landColor(i, shade); ctx.fill();
-      if (fine || s.area[i] < 25) { ctx.strokeStyle = s.pop[i] / s.area[i] > 150 ? "rgba(255,220,170,0.25)" : "rgba(0,0,0,0.13)"; ctx.lineWidth = 0.7; ctx.stroke(); }
+      // the grain of a city: its districts drawn with a dark seam, wherever a district is big enough to see
+      const urban = s.pop[i] / s.area[i] > 60, px = r * Math.sqrt(s.area[i] / Math.PI) / 250;
+      if (urban && px > 3) { ctx.strokeStyle = "rgba(60,30,5,0.6)"; ctx.lineWidth = Math.max(0.8, Math.min(1.8, px / 10)); ctx.stroke(); }
+      else if (!urban && (fine || s.area[i] < 25)) { ctx.strokeStyle = "rgba(0,0,0,0.13)"; ctx.lineWidth = 0.7; ctx.stroke(); }
     }
     // rivers
     ctx.strokeStyle = "rgba(110,190,255,0.85)"; ctx.lineCap = "round";
@@ -179,6 +182,8 @@ export class View {
     const lg = ctx.createRadialGradient(cx, cy, r * 0.75, cx, cy, r);
     lg.addColorStop(0, "rgba(0,0,0,0)"); lg.addColorStop(1, "rgba(0,0,0,0.4)");
     ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.fill();
+    if (this.layer === "towns") this.drawBorders(vis, Q);
+    this.drawCharter();
     this.drawMines();
     this.drawLines();
     if (this.hot >= 0 && this.hot < s.n) { poly(this.hot); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke(); }
@@ -187,6 +192,7 @@ export class View {
   landColor(i, shade) {
     const s = this.snap, b = BIOMES[this.world.biome[s.geo[i]]], e = this.elev[i];
     if (this.layer === "food") return this.foodColor(i, shade);
+    if (this.layer === "towns") return this.townColor(i, shade);
     if (b.id === "lake") return "hsl(204,45%," + (30 * shade).toFixed(0) + "%)";
     // hypsometric: low green, mid tan, high brown, top snow, mixed with the biome
     const stops = [[0, 105, 32, 34], [0.12, 80, 30, 40], [0.3, 42, 32, 44], [0.55, 25, 22, 38], [0.8, 0, 0, 82]];
@@ -198,6 +204,7 @@ export class View {
     if (d > 8) { // people
       const u = Math.min(1, Math.log10(d / 8) / 2.4), q = Math.sqrt(u);
       hh += (36 - hh) * q; ss += (92 - ss) * q; ll += ((26 + 64 * u) * (0.65 + 0.35 * Math.min(1.2, shade)) - ll) * q;
+      if (d > 150) { ll += (hash(i) - 0.5) * 9; hh += (hash(i + 7) - 0.5) * 8; }   // each district its own shade
     }
     return "hsl(" + hh.toFixed(0) + "," + ss.toFixed(0) + "%," + Math.min(96, ll).toFixed(0) + "%)";
   }
@@ -213,6 +220,46 @@ export class View {
       return "hsl(" + h.toFixed(0) + ",80%," + (l * (0.75 + 0.25 * shade)).toFixed(0) + "%)";
     }
     return "hsl(" + (95 - 40 * (1 - grow)).toFixed(0) + "," + (20 + 55 * grow).toFixed(0) + "%," + ((12 + 32 * grow) * (0.7 + 0.3 * shade)).toFixed(0) + "%)";
+  }
+  /* The towns layer: every zone in the colour of the town whose land it is
+     (the region its farms feed and its people count toward), cities bright. */
+  townColor(i, shade) {
+    const s = this.snap, t = this.townOf ? this.townOf[i] : -1, d = s.pop[i] / Math.max(1, s.area[i]);
+    if (t < 0) return "hsl(0,0%," + (20 * shade).toFixed(0) + "%)";
+    const h = (t * 137.508) % 360, city = Math.min(1, Math.log10(1 + d / 30) / 2);
+    return "hsl(" + h.toFixed(0) + "," + (35 + 35 * city).toFixed(0) + "%," + ((24 + 34 * city + (d > 150 ? (hash(i) - 0.5) * 8 : 0)) * (0.7 + 0.3 * shade)).toFixed(0) + "%)";
+  }
+  /* Region borders (towns layer): the Voronoi edges between zones of different towns. */
+  drawBorders(vis, Q) {
+    const s = this.snap, ctx = this.ctx, tw = this.townOf; if (!tw || !s.nbrs) return;
+    ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.6; ctx.lineCap = "round"; ctx.beginPath();
+    for (const i of vis) {
+      const a = s.off[i], L = s.off[i + 1] - a, ns = s.nbrs[i]; if (L < 3 || !ns) continue;
+      for (let m = 0; m < L; m++) {
+        const j = ns[(m + 1) % L]; if (j === undefined || j < i && s.land[j]) continue;
+        if (s.land[j] && tw[j] === tw[i]) continue;
+        if (!s.land[j]) continue;   // the coast draws itself
+        const u = s.ring[a + m], v = s.ring[a + (m + 1) % L];
+        if (Q[3 * u + 2] < 0 || Q[3 * v + 2] < 0) continue;
+        ctx.moveTo(Q[3 * u], Q[3 * u + 1]); ctx.lineTo(Q[3 * v], Q[3 * v + 1]);
+      }
+    }
+    ctx.stroke();
+  }
+  /* The charter: a dashed small circle round home. */
+  drawCharter() {
+    const s = this.snap; if (!s.home || !(s.charterKm < Infinity)) return;
+    const c = s.home, th = s.charterKm / 250, e1 = norm(cross(c, Math.abs(c[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0])), e2 = cross(c, e1), ctx = this.ctx;
+    ctx.save(); ctx.setLineDash([7, 6]); ctx.strokeStyle = "rgba(255,190,80,0.9)"; ctx.lineWidth = 2; ctx.beginPath();
+    let pen = false;
+    for (let k = 0; k <= 160; k++) {
+      const f = 2 * Math.PI * k / 160, ct = Math.cos(th), st = Math.sin(th);
+      const p = [c[0] * ct + (e1[0] * Math.cos(f) + e2[0] * Math.sin(f)) * st, c[1] * ct + (e1[1] * Math.cos(f) + e2[1] * Math.sin(f)) * st, c[2] * ct + (e1[2] * Math.cos(f) + e2[2] * Math.sin(f)) * st];
+      const q = this.proj(p[0], p[1], p[2]);
+      if (q[2] < 0) { pen = false; continue; }
+      if (pen) ctx.lineTo(q[0], q[1]); else { ctx.moveTo(q[0], q[1]); pen = true; }
+    }
+    ctx.stroke(); ctx.restore();
   }
   /* Ore deposits: a diamond in the ore's colour, bright once it is worked. */
   drawMines() {

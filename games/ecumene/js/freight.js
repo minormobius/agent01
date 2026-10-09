@@ -17,6 +17,10 @@
      rail  the player's lines that carry WAGONS: each run of a line between
            the nodes its stops fall in, at RAIL_COST of the distance, but
            with a capacity, WAGON_CAP units a year per wagon.
+     sea   ships between any two PORTS (towns on the open sea), at SEA_COST
+           of the distance, keeping cargo SEA_KEEP× as well as a cart. Nobody's
+           monopoly: a coastal city can feed itself across the water, so the
+           player's freight is the business of the interior.
    Each short node, biggest shortfall first, draws from the cheapest
    sources it can reach until it is met or they run dry (a greedy min-cost
    allocation). Then any rail run carrying more than its capacity scales
@@ -35,6 +39,7 @@ export const F_ = {
   FARM_DENS: 300,                      // a zone has no farms left at this density
   ORE_PER: 0.25, MINE_KM: 45, MINE_STOP_KM: 12,
   ROAD_KM: 95, HAUL: 110, RAIL_COST: 0.12, CMAX: 600,
+  SEA_COST: 0.3, SEA_KEEP: 4,          // shipping between ports: cost per km, and it keeps 4× as well as a cart
   WAGON_CAP: 40e3, FREIGHT_RATE: 1.2e-5, STOP_SNAP_KM: 14,
   FOOD_FLOOR: 0.3,                     // a starving town's ceiling is this share of its fed one
 };
@@ -66,6 +71,13 @@ export function freight(sim) {
   const roads = roadEdges(sim, node);
   const adj = Array.from({ length: N }, () => []);
   for (const [a, b, km] of roads) { adj[a].push([b, km, -1]); adj[b].push([a, km, -1]); }
+  // the sea: every coastal town is a port, and ships run between any two (nobody's monopoly)
+  const ports = []; T.forEach((t, k) => { if (isPort(W, t.p)) ports.push(k); });
+  for (let x = 0; x < ports.length; x++) for (let y = x + 1; y < ports.length; y++) {
+    const a = ports[x], b = ports[y], km = arc(node[a], node[b]) * R;
+    adj[a].push([b, km * F_.SEA_COST, -2]); adj[b].push([a, km * F_.SEA_COST, -2]);
+  }
+  out.ports = ports;
   // rail: each wagon line, as the run of nodes its stops fall in
   const runs = [];   // { line, a, b, km, cap, load, food, ore }
   sim.lines.forEach((L) => {
@@ -109,7 +121,7 @@ export function freight(sim) {
       let rest = want[c][j];
       for (const i of src) {
         if (rest <= 0) break;
-        const delta = Math.exp(-sp.road[i] / F_.HAUL - sp.rail[i] / (F_.HAUL * 8)), x = Math.min(left[i], rest / delta);
+        const delta = Math.exp(-sp.road[i] / F_.HAUL - sp.rail[i] / (F_.HAUL * 8) - sp.sea[i] / (F_.HAUL * F_.SEA_KEEP)), x = Math.min(left[i], rest / delta);
         if (x <= 0) continue;
         left[i] -= x; rest -= x * delta;
         flows.push({ c, src: i, dst: j, x, delta, runs: sp.runsTo(i) });
@@ -140,6 +152,12 @@ export function freight(sim) {
   return out;
 }
 
+/* A port: a town whose ground touches the open sea. */
+function isPort(W, p) {
+  const g = nearestCell(W, p, -1);
+  return W.water[g] === 1 || W.adj[g].some((j) => W.water[j] === 1);
+}
+
 /* Road links between nodes: within ROAD_KM, and no open sea on the way.
    Kept until the nodes change. */
 function roadEdges(sim, node) {
@@ -160,17 +178,17 @@ function roadEdges(sim, node) {
    cost of each split out (they decay cargo differently), and the rail runs
    on the way. Node counts are small (tens), so a plain O(N²) Dijkstra. */
 function paths(adj, j, N) {
-  const cost = new Float64Array(N).fill(Infinity), road = new Float64Array(N), rail = new Float64Array(N), prev = new Int32Array(N).fill(-1), via = new Int32Array(N).fill(-1), done = new Uint8Array(N);
+  const cost = new Float64Array(N).fill(Infinity), road = new Float64Array(N), rail = new Float64Array(N), sea = new Float64Array(N), prev = new Int32Array(N).fill(-1), via = new Int32Array(N).fill(-1), done = new Uint8Array(N);
   cost[j] = 0;
   for (;;) {
     let u = -1, best = Infinity; for (let v = 0; v < N; v++) if (!done[v] && cost[v] < best) { best = cost[v]; u = v; }
     if (u < 0) break; done[u] = 1;
     for (const [v, c, run] of adj[u]) {
       const nc = cost[u] + c;
-      if (nc < cost[v]) { cost[v] = nc; prev[v] = u; via[v] = run; road[v] = road[u] + (run < 0 ? c : 0); rail[v] = rail[u] + (run >= 0 ? c : 0); }
+      if (nc < cost[v]) { cost[v] = nc; prev[v] = u; via[v] = run; road[v] = road[u] + (run === -1 ? c : 0); rail[v] = rail[u] + (run >= 0 ? c : 0); sea[v] = sea[u] + (run === -2 ? c : 0); }
     }
   }
-  return { cost, road, rail, runsTo(i) { const r = []; for (let v = i; v !== j && v >= 0; v = prev[v]) if (via[v] >= 0) r.push(via[v]); return r; } };
+  return { cost, road, rail, sea, runsTo(i) { const r = []; for (let v = i; v !== j && v >= 0; v = prev[v]) if (via[v] >= 0) r.push(via[v]); return r; } };
 }
 function slerp(a, b, t) {
   const w = arc(a, b); if (w < 1e-9) return a.slice();

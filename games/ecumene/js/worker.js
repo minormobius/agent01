@@ -11,7 +11,8 @@ function snap() {
   const s = sim.snapshot(), off = new Int32Array(s.n + 1);
   let tot = 0; for (let i = 0; i < s.n; i++) { off[i] = tot; tot += s.polys[i].length; } off[s.n] = tot;
   const ring = new Int32Array(tot); for (let i = 0, k = 0; i < s.n; i++) for (const v of s.polys[i]) ring[k++] = v;
-  return { n: s.n, P: s.P, verts: s.verts, off, ring, geo: s.geo, pop: s.pop, area: s.area, land: s.land, stats: s.stats, credits: s.credits, year: s.year, seq,
+  return { n: s.n, P: s.P, verts: s.verts, off, ring, geo: s.geo, pop: s.pop, area: s.area, land: s.land, stats: s.stats, credits: s.credits, year: s.year, seq, home: s.home, homeName: s.homeName, tier: s.tier, charterKm: s.charterKm, charterReady: s.charterReady,
+    charterFee: s.charterFee, nextRiders: s.nextRiders, index: s.index,
     u: sim.u ? Float64Array.from(sim.u) : null, K: sim.K ? Float64Array.from(sim.K) : null, lastTown: sim.lastTown,
     events: sim.events, towns: sim.towns.map((t, k) => ({ name: t.name, p: t.p, pop: t.pop, food: s.food[k] ?? 1, short: s.short[k] || 0, ore: s.ore[k] || 0 })), nbrs: sim.nbrs,
     mines: s.mines, cargo: s.cargo, runs: s.runs };
@@ -29,6 +30,9 @@ self.onmessage = (e) => {
     self.postMessage({ type: "year", snap: snap(), log: sim.log });
   } else if (m.type === "lines") {
     sim.setLines(m.lines); sim.credits -= m.spend || 0; seq = m.seq;
+  } else if (m.type === "charter") {
+    sim.events = [];
+    if (sim.buyCharter()) self.postMessage({ type: "year", snap: snap() });
   } else if (m.type === "step") {
     sim.step();
     self.postMessage({ type: "year", snap: snap() });
