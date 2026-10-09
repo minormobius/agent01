@@ -28,7 +28,7 @@ void main() {
 const FS = `
 precision highp float;
 varying vec3 vP; varying vec3 vN; varying vec3 vC; varying float vK; varying float vZ;
-uniform mat3 uR; uniform float uT; uniform float uZoom;
+uniform mat3 uR; uniform float uT; uniform float uZoom; uniform float uData;
 float h3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float noise(vec3 x) {
   vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
@@ -58,6 +58,7 @@ void main() {
   col = mix(vec3(dot(col, vec3(0.3, 0.59, 0.11))), col, 1.2);   // a little more colour
   col = col * (1.0 + col / 2.2) / (1.0 + col);                     // and the snow doesn't blow out
   if (vK > 1.5) col = vC * (0.55 + 0.45 * diff);   // a lake: flat water
+  if (uData > 0.5 && vK < 0.5) col = vC * (0.8 + 0.2 * diff);   // a data layer: its colours as they are, a hint of relief
   gl_FragColor = vec4(col * (0.55 + 0.45 * limb), 1.0);
 }`;
 
@@ -73,7 +74,7 @@ export class GLGround {
       g.pr = pr;
     } catch (e) { console.warn("ecumene: WebGL ground off:", e.message); return null; }
     g.loc = { P: gl.getAttribLocation(g.pr, "aP"), N: gl.getAttribLocation(g.pr, "aN"), C: gl.getAttribLocation(g.pr, "aC"), K: gl.getAttribLocation(g.pr, "aK"),
-      R: gl.getUniformLocation(g.pr, "uR"), S: gl.getUniformLocation(g.pr, "uS"), T: gl.getUniformLocation(g.pr, "uT"), Z: gl.getUniformLocation(g.pr, "uZoom") };
+      R: gl.getUniformLocation(g.pr, "uR"), S: gl.getUniformLocation(g.pr, "uS"), T: gl.getUniformLocation(g.pr, "uT"), Z: gl.getUniformLocation(g.pr, "uZoom"), D: gl.getUniformLocation(g.pr, "uData") };
     g.buf = gl.createBuffer(); g.count = 0;
     return g;
   }
@@ -145,7 +146,7 @@ export class GLGround {
     // uR maps model → view; GLSL mat3 is column-major, R is row-major
     gl.uniformMatrix3fv(this.loc.R, false, new Float32Array([R[0], R[3], R[6], R[1], R[4], R[7], R[2], R[5], R[8]]));
     gl.uniform2f(this.loc.S, 2 * radius / this.w, 2 * radius / this.h);
-    gl.uniform1f(this.loc.T, t); gl.uniform1f(this.loc.Z, zoom);
+    gl.uniform1f(this.loc.T, t); gl.uniform1f(this.loc.Z, zoom); gl.uniform1f(this.loc.D, this.data ? 1 : 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
     const st = 40;
     gl.enableVertexAttribArray(this.loc.P); gl.vertexAttribPointer(this.loc.P, 3, gl.FLOAT, false, st, 0);

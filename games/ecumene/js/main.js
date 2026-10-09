@@ -10,7 +10,7 @@
    The track and the stop are paid for on the spot. Trains are bought and sold per
    line. A year passes every few seconds; the lines change hands with the
    worker between years. */
-import { View } from "./view.js";
+import { View, CHORO, ramp } from "./view.js";
 import { GLGround } from "./gl.js";
 import { trackCost, arc, legs, slerp } from "./sim.js";
 import { R } from "./world.js";
@@ -250,8 +250,18 @@ $("p-plus").onclick = () => { const L = lines[sel], c = trainPrice(); if (L && s
 $("p-minus").onclick = () => { const L = lines[sel]; if (L && L.trains > 1) { L.trains--; const c = (L.trainPaid && L.trainPaid.pop()) || P.COST_TRAIN; credits += c / 2; pendingSpend -= c / 2; push(); } };
 $("w-plus").onclick = () => { const L = lines[sel], c = wagonPrice(); if (L && spend(c)) { L.wagons = (L.wagons || 0) + 1; (L.wagonPaid = L.wagonPaid || []).push(c); push(); } };
 $("w-minus").onclick = () => { const L = lines[sel]; if (L && L.wagons > 0) { L.wagons--; const c = (L.wagonPaid && L.wagonPaid.pop()) || P.COST_WAGON; credits += c / 2; pendingSpend -= c / 2; push(); } };
-const LAYERS = ["terrain", "food", "towns"];
-$("layer").onclick = () => { view.relayer(LAYERS[(LAYERS.indexOf(view.layer) + 1) % LAYERS.length]); $("layer").textContent = view.layer; $("layer").classList.toggle("on", view.layer !== "terrain"); };
+const LAYERS = ["terrain", "people", "GDP", "food", "towns"];
+$("layer").onclick = () => { view.relayer(LAYERS[(LAYERS.indexOf(view.layer) + 1) % LAYERS.length]); $("layer").textContent = view.layer; $("layer").classList.toggle("on", view.layer !== "terrain"); legend(); };
+/* The key for the people and GDP layers: the ramp, and its decades. */
+function legend() {
+  const el = $("legend"), sc = CHORO[view.layer];
+  if (!sc) { el.hidden = true; return; }
+  el.hidden = false;
+  const stops = []; for (let k = 0; k <= 8; k++) { const c = ramp(k / 8); stops.push("rgb(" + c.join(",") + ") " + (k * 12.5) + "%"); }
+  const lab = (e) => e >= 3 ? fmt(Math.pow(10, e)) : e >= 0 ? String(Math.pow(10, e)) : Math.pow(10, e).toFixed(-e);
+  let ticks = ""; for (let e = sc.lo; e <= sc.hi; e++) ticks += "<span>" + lab(e) + "</span>";
+  el.innerHTML = "<div class='lg-bar' style='background:linear-gradient(90deg," + stops.join(",") + ")'></div><div class='lg-ticks'>" + ticks + "</div><div class='lg-unit'>" + sc.unit + "</div>";
+}
 $("ch-buy").onclick = () => { if (snap && snap.charterReady && credits >= snap.charterFee) worker.postMessage({ type: "charter" }); else note("not enough for the charter: ₵" + Math.ceil(snap.charterFee)); };
 function charter() {
   if (!snap || !snap.home) return;
@@ -321,14 +331,16 @@ function info(z) {
   if (!snap.land[z]) { el.hidden = false; el.innerHTML = "<b>sea</b>"; return; }
   const water = W.fresh[g], acc = (snap.u && snap.u[z]) || 0;
   el.hidden = false;
+  const gz = snap.gdpZ ? snap.gdpZ[z] : 0;
   el.innerHTML = (townOf(z) ? "<i>" + townOf(z) + "</i> · " : "") + "<b>" + fmt(snap.pop[z]) + "</b> people · " + fmt(d) + "/km² · " + snap.area[z].toFixed(0) + " km²<br>" +
+    "GDP <b>₵" + (gz >= 10 ? fmt(gz) : gz.toFixed(gz >= 1 ? 1 : 2)) + "</b>/yr" + (snap.pop[z] > 50 ? " · ₵" + (1e3 * gz / snap.pop[z]).toFixed(2) + " a year per thousand people" : "") + "<br>" +
     "water <b>" + fmt(water) + "</b>/km² · reach <b>×" + acc.toFixed(2) + "</b>" +
     (snap.K ? " · room for " + fmt(snap.K[z]) : "") + townLine(z);
 }
 function townLine(z) {
   const t = snap.towns && nearestTown(site(z)); if (t == null) return "";
   const T = snap.towns[t];
-  return "<br><i>" + T.name + "</i>: food <b>×" + (T.price ?? 1).toFixed(2) + "</b> the usual price, " + Math.round(100 * T.food) + "% fed" + (T.short > 0 ? " (short " + fmt(T.short) + ")" : "") + " · ore <b>×" + (T.orePrice ?? 1).toFixed(1) + "</b>, " + Math.round(100 * T.ore) + "% of what its industry wants";
+  return "<br><i>" + T.name + "</i>: food <b>×" + (T.price ?? 1).toFixed(2) + "</b> the usual price, " + Math.round(100 * T.food) + "% fed, farms ×" + (T.tech ?? 1).toFixed(1) + "" + (T.short > 0 ? " (short " + fmt(T.short) + ")" : "") + " · ore <b>×" + (T.orePrice ?? 1).toFixed(1) + "</b>, " + Math.round(100 * T.ore) + "% of what its industry wants";
 }
 function nearestTown(p) { let best = -2, bi = null; snap.towns.forEach((t, k) => { const d = t.p[0] * p[0] + t.p[1] * p[1] + t.p[2] * p[2]; if (d > best) { best = d; bi = k; } }); return bi; }
 function townOf(z) {
@@ -363,7 +375,7 @@ function evPoint(ev) {
   if (ev.p) return ev.p;
   const L = lines.find((l) => l.id === ev.line); return L && L.stops.length ? L.stops[L.stops.length >> 1] : null;
 }
-function toast(ev) { if (["dear", "hub", "town", "full", "money", "planet", "hunger", "mine", "charter"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
+function toast(ev) { if (["tech", "dear", "hub", "town", "full", "money", "planet", "hunger", "mine", "charter"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
 function renderLog() {
   $("logbtn").textContent = "log" + (unread && $("log").hidden ? " ·" + unread : "");
   if ($("log").hidden) return;

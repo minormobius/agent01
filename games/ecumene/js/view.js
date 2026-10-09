@@ -25,6 +25,14 @@ import { BIOMES } from "./mappa-engine.js";
 export const EXAG = 14;          // relief exaggeration
 const ORE_COL = { iron: "#c0583f", copper: "#d58a45", tin: "#9fb0c0", coal: "#4a4a52" };
 export const ZOOM_MAX = 200;
+/* Fixed log scales for the people and GDP layers (decades of the value per km²). */
+export const CHORO = { people: { lo: -1, hi: 4, unit: "people/km²" }, GDP: { lo: -3, hi: 2, unit: "₵/km² a year" } };
+const RAMP = [[13, 8, 135], [126, 3, 168], [204, 71, 120], [248, 149, 64], [240, 249, 33]];   // plasma
+export function ramp(t) {
+  t = Math.max(0, Math.min(1, t)) * (RAMP.length - 1); const k = Math.min(RAMP.length - 2, Math.floor(t)), u = t - k, A = RAMP[k], B = RAMP[k + 1];
+  return [0, 1, 2].map((c) => Math.round(A[c] + (B[c] - A[c]) * u));
+}
+function rampCSS(t) { const c = ramp(t); return "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")"; }
 const HKM = 6;                   // mappa's elevation 1.0 ≈ 6 km above the sea
 
 export class View {
@@ -134,7 +142,8 @@ export class View {
     // atmosphere and the sea
     const g = ctx.createRadialGradient(cx, cy, r * 0.97, cx, cy, r * 1.07);
     g.addColorStop(0, "rgba(120,170,255,0.28)"); g.addColorStop(1, "rgba(120,170,255,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r * 1.07, 0, 2 * Math.PI); ctx.fill();
+    // a ring outside the limb only: inside its inner circle a radial gradient keeps its first colour, which hazed the whole WebGL ground under this canvas
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r * 1.07, 0, 2 * Math.PI); ctx.arc(cx, cy, r, 0, 2 * Math.PI, true); ctx.fill("evenodd");
     const gl = this.ground;
     if (gl) gl.draw(R, r, this.t, this.zoom);   // the ground and the sea, below this canvas
     else {
@@ -198,6 +207,7 @@ export class View {
   landColor(i, shade) {
     const s = this.snap, b = BIOMES[this.world.biome[s.geo[i]]], e = this.elev[i];
     if (this.layer === "food") return this.foodColor(i, shade);
+    if (this.layer === "people" || this.layer === "GDP") return this.choroColor(i);
     if (this.layer === "towns") return this.townColor(i, shade);
     if (b.id === "lake") return "hsl(204,45%," + (30 * shade).toFixed(0) + "%)";
     // hypsometric: low green, mid tan, high brown, top snow, mixed with the biome
@@ -217,6 +227,15 @@ export class View {
   /* The food layer: green where food grows (open country × what the ground
      yields), and every town's land tinted by whether it eats: cool when fed,
      amber to red as it goes short. */
+  /* The people and GDP layers: each district by its density, people or ₵ a
+     year per km², on a log scale fixed across the years (so a map from 1910
+     and one from 1990 compare), coloured dark violet to yellow. */
+  choroColor(i) {
+    const s = this.snap, sc = CHORO[this.layer], a = Math.max(1e-6, s.area[i]);
+    const v = this.layer === "people" ? s.pop[i] / a : (s.gdpZ ? s.gdpZ[i] : 0) / a;
+    if (!(v > 0)) return "rgb(18,14,30)";
+    return rampCSS((Math.log10(v) - sc.lo) / (sc.hi - sc.lo));
+  }
   foodColor(i, shade) {
     const s = this.snap, W = this.world, d = s.pop[i] / Math.max(1, s.area[i]);
     const grow = W.yieldKm[s.geo[i]] * Math.max(0, 1 - d / 300);
@@ -276,11 +295,11 @@ export class View {
     const s = this.snap, W = this.world; if (!this.ground || !s || !this.elev) return;
     const seaRGB = (i) => { const e = W.elev[s.geo[i]], t = Math.max(0, Math.min(1, -e / 1.4)); return [0.16 + (0.03 - 0.16) * t, 0.45 + (0.11 - 0.45) * t, 0.55 + (0.26 - 0.55) * t]; };
     const colorOf = (i) => s.land[i] ? cssRGB(this.landColor(i, 1)) : seaRGB(i);
-    const flat = (i) => this.layer === "towns" || (s.land[i] && s.pop[i] / Math.max(1e-6, s.area[i]) > 60);
+    const flat = (i) => this.layer === "towns" || this.layer === "people" || this.layer === "GDP" || (s.land[i] && s.pop[i] / Math.max(1e-6, s.area[i]) > 60);
     const elev = new Float32Array(s.n); for (let i = 0; i < s.n; i++) elev[i] = s.land[i] ? this.elev[i] : 0;
     this.ground.build(s, W, colorOf, flat, elev, 2 * HKM / 250 * EXAG);   // twice the 2D relief's exaggeration: the shader's light is softer
   }
-  relayer(layer) { this.layer = layer; this.buildGround(); }
+  relayer(layer) { this.layer = layer; if (this.ground) this.ground.data = !!CHORO[layer]; this.buildGround(); }
   /* Rivers along the district boundaries: a dark bank, a light current,
      smoothed through the Voronoi vertices, wider downstream. */
   drawRivers(Q) {
@@ -519,7 +538,8 @@ function riverPaths(W, s) {
   return { n: s.n, verts: V.length, paths };
 }
 function quad(ctx, c) { ctx.beginPath(); ctx.moveTo(c[0][0], c[0][1]); for (let k = 1; k < 4; k++) ctx.lineTo(c[k][0], c[k][1]); ctx.closePath(); }
-function cssRGB(c) {   // "hsl(h,s%,l%)" → [r, g, b] in 0..1
+function cssRGB(c) {   // "hsl(h,s%,l%)" or "rgb(r,g,b)" → [r, g, b] in 0..1
+  const r = /rgb\(([\d.]+),([\d.]+),([\d.]+)\)/.exec(c); if (r) return [r[1] / 255, r[2] / 255, r[3] / 255];
   const m = /hsl\(([-\d.]+),([-\d.]+)%,([-\d.]+)%\)/.exec(c); if (!m) return [0.5, 0.5, 0.5];
   const h = ((+m[1] % 360) + 360) % 360 / 360, s = Math.max(0, Math.min(1, m[2] / 100)), l = Math.max(0, Math.min(1, m[3] / 100));
   const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q, f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };

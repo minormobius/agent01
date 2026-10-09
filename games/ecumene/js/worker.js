@@ -13,8 +13,8 @@ function snap() {
   const ring = new Int32Array(tot); for (let i = 0, k = 0; i < s.n; i++) for (const v of s.polys[i]) ring[k++] = v;
   return { n: s.n, P: s.P, verts: s.verts, off, ring, geo: s.geo, pop: s.pop, area: s.area, land: s.land, stats: s.stats, credits: s.credits, year: s.year, seq, home: s.home, homeName: s.homeName, tier: s.tier, charterKm: s.charterKm, charterReady: s.charterReady,
     charterFee: s.charterFee, nextRiders: s.nextRiders, index: s.index,
-    u: sim.u ? Float64Array.from(sim.u) : null, K: sim.K ? Float64Array.from(sim.K) : null, lastTown: sim.lastTown,
-    events: sim.events, towns: sim.towns.map((t, k) => ({ name: t.name, p: t.p, pop: t.pop, rural: t.rural || 0, gdp: t.gdp || 0, food: s.food[k] ?? 1, short: s.short[k] || 0, ore: s.ore[k] || 0, price: s.price[k] ?? 1, orePrice: s.orePrice[k] ?? 1 })), nbrs: sim.nbrs,
+    u: sim.u ? Float64Array.from(sim.u) : null, gdpZ: s.gdpZ, K: sim.K ? Float64Array.from(sim.K) : null, lastTown: sim.lastTown,
+    events: sim.events, towns: sim.towns.map((t, k) => ({ name: t.name, p: t.p, pop: t.pop, rural: t.rural || 0, gdp: t.gdp || 0, food: s.food[k] ?? 1, short: s.short[k] || 0, ore: s.ore[k] || 0, price: s.price[k] ?? 1, orePrice: s.orePrice[k] ?? 1, tech: s.tech[k] ?? 1 })), nbrs: sim.nbrs,
     mines: s.mines, cargo: s.cargo, runs: s.runs, hubs: s.hubs };
 }
 self.onmessage = (e) => {

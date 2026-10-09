@@ -66,7 +66,7 @@ export const P_ = {
   COST_KM: 4, COST_WATER: 3, COST_STOP: 20, COST_TRAIN: 90, START_CREDITS: 700,
   URBAN_COST: 1200,                // building costs ×(1 + density/URBAN_COST): tunnels and land
   INDEX_EXP: 0.5,
-  WAGE: 0.01,                     // GDP: ₵ a year a job is worth (before reach, ore and prices)
+  WAGE: 0.01, FOOD_GDP: 0.008,     // FOOD_GDP: ₵ a unit of food is worth to its farm at the usual price                     // GDP: ₵ a year a job is worth (before reach, ore and prices)
   LEVY_MAX: 0.6, LEVY_HALF: 4000, // the cities' cut of fares: LEVY_MAX·f/(f + LEVY_HALF·index), f = fares a year                 // prices follow the world's wealth: (people / people at the start)^INDEX_EXP
 };
 
@@ -188,6 +188,7 @@ export class Sim {
   chronicle() {
     const T = this.towns; if (!T.length) return;
     const tot = new Float64Array(T.length), rur = new Float64Array(T.length), gdp = new Float64Array(T.length), P = this.P, zt = new Int32Array(this.n).fill(-1);
+    const gz = this.gdpZ = new Float64Array(this.n);   // GDP zone by zone, for the map
     for (let i = 0; i < this.n; i++) {
       if (!this.land[i]) continue;
       let best = -2, bi = 0; for (let t = 0; t < T.length; t++) { const q = T[t].p, d = P[3 * i] * q[0] + P[3 * i + 1] * q[1] + P[3 * i + 2] * q[2]; if (d > best) { best = d; bi = t; } }
@@ -199,8 +200,10 @@ export class Sim {
       // GDP: jobs, worth more where they reach more and where the ore comes in; and what the farms grow
       // a zone split since growth has no reach yet
       const u = this.u && this.u[i] != null ? Math.min(1, this.u[i]) : 0, ind = this.fr && this.fr.ore[bi] != null ? 0.85 + 0.3 * this.fr.ore[bi] : 1;
-      const food = this.fr && this.fr.price && this.fr.price.food[bi] != null ? Math.min(3, this.fr.price.food[bi]) : 1;   // the farms earn what food fetches
-      gdp[bi] += (this.jobs[i] * P_.WAGE * (0.7 + 0.6 * u) * ind + fm * P_.WAGE * 0.4 * food) * (this.index || 1);
+      // the farms earn what they grow at what food fetches
+      const fr = this.fr, food = fr && fr.price && fr.price.food[bi] != null ? Math.min(3, fr.price.food[bi]) : 1, hand = fr && fr.perHand && fr.perHand[bi] != null ? fr.perHand[bi] : 0.5;
+      gz[i] = (this.jobs[i] * P_.WAGE * (0.7 + 0.6 * u) * ind + fm * hand * food * P_.FOOD_GDP) * (this.index || 1);
+      gdp[bi] += gz[i];
     }
     this.zoneTown = zt;
     const MARKS = [50e3, 100e3, 250e3, 500e3, 1e6, 2e6, 5e6];
@@ -285,6 +288,8 @@ export class Sim {
         if (this.edge("hungry:" + k, fr.food[k] < 0.85 && fr.short[k] > 20e3)) this.emit("hunger", t.name + " is going hungry: " + Math.round(100 * (1 - fr.food[k])) + "% short of food", t.p);
         if (this.edge("fed:" + k, fr.food[k] > 0.97) && this.flags.get("wasHungry:" + k)) this.emit("fed", t.name + " is fed again", t.p);
         if (fr.food[k] < 0.85 && fr.short[k] > 20e3) this.flags.set("wasHungry:" + k, true); else if (fr.food[k] > 0.97) this.flags.set("wasHungry:" + k, false);
+        const tk = this.agTech ? this.agTech[k] || 1 : 1;   // the farms getting better, each doubling said once
+        for (const m of [2, 4, 8]) if (this.edge("tech:" + k + ":" + m, tk >= m) && this.year > 1) this.emit("tech", "The farms round " + t.name + " grow " + (m === 2 ? "twice" : m + "×") + " what they did", t.p);
         const p = fr.price ? fr.price.food[k] : 1;   // the market: dear food, said once until it eases
         if (this.edge("dear:" + k, p > 1.6 && fr.need[k] > 20e3)) this.emit("dear", "Food in " + t.name + " costs ×" + p.toFixed(1) + " the usual", t.p);
         else if (p < 1.3) this.flags.set("dear:" + k, false);
@@ -403,8 +408,9 @@ export class Sim {
       done();
     }
     // a zone nobody searches from still has access: what its neighbours see
+    const searched = access.slice();   // (read from a copy: filling in order let one filled zone feed the next, and a line could lower a reach)
     for (let i = 0; i < n; i++) if (this.land[i] && !access[i]) {
-      let s = 0, c = 0; for (const j of this.nbrs[i]) if (access[j]) { s += access[j]; c++; }
+      let s = 0, c = 0; for (const j of this.nbrs[i]) if (searched[j]) { s += searched[j]; c++; }
       access[i] = c ? 0.6 * s / c : jobs[i];
     }
     return { access, segLoad, boards, trips, transit, changes, origins: origins.length };
@@ -478,7 +484,7 @@ export class Sim {
     let tot = 0, w = 0; const hubJobs = new Map();
     for (const h of this.hubs || []) hubJobs.set(h.zone, Math.max(hubJobs.get(h.zone) || 1, 1 + P_.HUB_JOBS * (h.lines.length - 1)));
     for (let i = 0; i < n; i++) {
-      const t = this.zoneTown ? this.zoneTown[i] : -1, ind = this.fr && t >= 0 ? 0.85 + 0.3 * this.fr.ore[t] : 1;   // industry follows the ore
+      const t = this.zoneTown ? this.zoneTown[i] : -1, ind = this.fr && t >= 0 && this.fr.ore[t] != null ? 0.85 + 0.3 * this.fr.ore[t] : 1;   // industry follows the ore (a town founded since the market has none yet)
       // farmers work their own fields: only the rest of a zone's people fill (and make) the jobs others travel to
       const town = Math.max(0, pop[i] - farmers(this, i));
       this.jobs[i] = town * (0.4 + Math.min(1, u[i])) * ind * (hubJobs.get(i) || 1); w += this.jobs[i]; tot += town;
@@ -512,6 +518,7 @@ export class Sim {
   snapshot() {
     return { n: this.n, P: this.P, verts: this.verts, polys: this.polys, geo: Int32Array.from(this.geo), pop: Float64Array.from(this.pop),
       area: this.area, land: this.land, stats: this.stats, credits: this.credits, year: this.year,
+      gdpZ: this.gdpZ ? Float64Array.from(this.gdpZ) : null, tech: this.agTech ? this.agTech.slice() : [],
       price: this.fr && this.fr.price ? Array.from(this.fr.price.food) : [], orePrice: this.fr && this.fr.price ? Array.from(this.fr.price.ore) : [],
       food: this.fr ? Array.from(this.fr.food) : [], short: this.fr ? Array.from(this.fr.short) : [], ore: this.fr ? Array.from(this.fr.ore) : [],
       mines: this.fr ? this.fr.mines : [], cargo: this.fr ? [...this.fr.lines].map(([id, f]) => ({ id, food: f.food, ore: f.ore, load: f.load, toll: f.toll, earned: f.earned })) : [],

@@ -35,7 +35,9 @@ import { R, nearestCell } from "./world.js";
 import { arc } from "./sim.js";
 
 export const F_ = {
-  FOOD_Y: 20, FOOD_GROWTH: 0.015,      // units per yield-km², ×(1 + FOOD_GROWTH·year)
+  FOOD_Y: 20, FOOD_DRIFT0: 0.015, FOOD_GROWTH: 0.005,   // units per yield-km², drifting up (see yieldNow); the rest is invested, below
+  TECH_RATE: 0.08, TECH_FROM: 1, TECH_ORE0: 0.6, TECH_STEP: 0.08, TECH_MAX: 30,   // know-how grows TECH_RATE×(price − 1) a year, at TECH_ORE0 of that without ore
+  TECH_DIFF: 0.04, TECH_RAIL: 0.12,    // and catches up this share of the gap to the farms it trades with, by road or sea, and by rail
   FARM_DENS: 300,                      // a zone has no farms left at this density
   ORE_PER: 0.25, MINE_KM: 45, MINE_STOP_KM: 12,
   ROAD_KM: 70, HAUL: 65, RAIL_COST: 0.12, CMAX: 600,
@@ -49,7 +51,7 @@ export const F_ = {
   TAU: 0.04, ROUNDS: 160, TOLL0: 0.05, TOLL_POW: 16,   // a run's toll: TOLL0 × (load / room)^TOLL_POW
   PULL_EPS: 0.2, PULL_MIN: 0.85, PULL_MAX: 1.3, PULL_EASE: 0.3,   // land farmed ∝ price^PULL_EPS, within these, eased in at this rate a year
   FOOD_FLOOR: 0.3,                     // a starving town's ceiling is this share of its fed one
-  FOOD_STALL: 0.6,                     // and its growth slows with hunger, stopping at this share fed
+  FOOD_STALL: 0.5,                     // and its growth slows with hunger, stopping at this share fed
   AG0: 22, AG_DECAY: 90, AG_FLOOR: 3,  // farmers a yield-km² needs: AG0 until AG_FROM, then falling (machines) to AG_FLOOR
   AG_FROM: 60,                         // the machines arrive with the player (the end of the warm-up)
   STAFFED: 0.7,                        // a farm at this share of its farmers grows all it can
@@ -77,7 +79,14 @@ export function freight(sim) {
   const out = { food: new Float64Array(nt).fill(1), ore: new Float64Array(nt), short: new Float64Array(nt), need: new Float64Array(nt), local: new Float64Array(nt),
     lines: new Map(), revenue: 0, mines: [], moved: { food: 0, ore: 0 } };
   if (!nt) return out;
-  const zt = sim.zoneTown, yieldNow = F_.FOOD_Y * (1 + F_.FOOD_GROWTH * sim.year);
+  // the drift: FOOD_DRIFT0 a year until the player arrives (the world's own history), FOOD_GROWTH after it, when farming gets better only where it pays
+  const zt = sim.zoneTown, yieldNow = F_.FOOD_Y * (1 + F_.FOOD_DRIFT0 * Math.min(sim.year, F_.AG_FROM) + F_.FOOD_GROWTH * Math.max(0, sim.year - F_.AG_FROM));
+  // each town's farming know-how (×1 at the start); a new town learns from its nearest neighbour
+  const tech = sim.agTech = T.map((t, k) => {
+    if (sim.agTech && sim.agTech[k] != null) return sim.agTech[k];
+    let best = -2, v = 1; T.forEach((u, j) => { if (j === k || !sim.agTech || sim.agTech[j] == null) return; const d = u.p[0] * t.p[0] + u.p[1] * t.p[1] + u.p[2] * t.p[2]; if (d > best) { best = d; v = sim.agTech[j]; } });
+    return v;
+  });
   // the farms answer last year's prices
   const last = sim.fr && sim.fr.price ? sim.fr.price.food : null, prev = sim.farmPull || [];
   sim.farmPull = T.map((t, k) => {
@@ -85,13 +94,13 @@ export function freight(sim) {
     return prev[k] != null ? prev[k] + F_.PULL_EASE * (target - prev[k]) : target;
   });
   // food: grown and eaten, town by town
-  const grown = new Float64Array(nt), eat = new Float64Array(nt);
+  const grown = new Float64Array(nt), eat = new Float64Array(nt), hands = new Float64Array(nt);
   for (let i = 0; i < n; i++) {
     if (!sim.land[i] || zt[i] < 0) continue;
     const dens = sim.pop[i] / Math.max(1e-6, sim.area[i]), farm = Math.max(0, 1 - dens / F_.FARM_DENS);
     const need = farmers(sim, i), staffed = need > 0 ? Math.min(1, sim.pop[i] / (need * F_.STAFFED)) : 0;
-    grown[zt[i]] += sim.area[i] * farm * W.yieldKm[sim.geo[i]] * yieldNow * staffed * pull(sim, i);
-    eat[zt[i]] += sim.pop[i];
+    grown[zt[i]] += sim.area[i] * farm * W.yieldKm[sim.geo[i]] * yieldNow * tech[zt[i]] * staffed * pull(sim, i);
+    eat[zt[i]] += sim.pop[i]; hands[zt[i]] += Math.min(sim.pop[i], need);
   }
   // the mines that are worked: a settled zone near them, or a freight stop on them
   const stops = [];
@@ -190,8 +199,33 @@ export function freight(sim) {
     s.food += r.food; s.ore += r.ore; s.load = Math.max(s.load, r.load / r.cap); s.earned += r.earned; s.toll = Math.max(s.toll, mu.food[runs.indexOf(r)], mu.ore[runs.indexOf(r)]); out.lines.set(r.line, s);
   }
   out.flows = flows; out.tolls = mu;
+  out.perHand = T.map((t, k) => hands[k] > 0 ? grown[k] / hands[k] : 0);   // what a farmer grows: the farms' GDP
+  invest(sim, out, tech, flows, nt);
   out.runs = runs.map((r) => ({ line: r.line, a: node[r.a], b: node[r.b], load: r.load, cap: r.cap }));
   return out;
+}
+
+/* Farming gets better where it pays (induced innovation: Boserup, Hayami and
+   Ruttan). A town whose food is dear invests in its farms: drainage,
+   fertiliser, better seed, machines. Its know-how grows each year by
+   TECH_RATE × (price − TECH_FROM), and machines and fertiliser are made of
+   ore, so without ore it grows at TECH_ORE0 of that. Know-how also travels
+   with trade: a town catches up a share of the gap to the best farms it
+   trades food with, TECH_DIFF by road or sea and TECH_RAIL along a line.
+   Cheap food invests nothing, and nothing is forgotten. */
+function invest(sim, out, tech, flows, nt) {
+  const p = out.price.food, next = tech.slice();
+  for (let t = 0; t < nt; t++) {
+    const gain = F_.TECH_RATE * Math.max(0, p[t] - F_.TECH_FROM) * (F_.TECH_ORE0 + (1 - F_.TECH_ORE0) * out.ore[t]);
+    next[t] = tech[t] * (1 + Math.min(F_.TECH_STEP, gain));
+  }
+  const catchUp = new Float64Array(nt);
+  for (const f of flows) {
+    if (f.c !== "food" || f.src === f.dst || f.src >= nt || f.dst >= nt || f.x < 1e3) continue;
+    const k = f.runs.length ? F_.TECH_RAIL : F_.TECH_DIFF;
+    for (const [a, b] of [[f.src, f.dst], [f.dst, f.src]]) if (tech[b] > tech[a]) catchUp[a] = Math.max(catchUp[a], k * (tech[b] - tech[a]));
+  }
+  for (let t = 0; t < nt; t++) sim.agTech[t] = Math.min(F_.TECH_MAX, next[t] + catchUp[t]);
 }
 
 /* A route from seller i to buyer j along a path: what a unit costs to send

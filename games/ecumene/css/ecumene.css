@@ -149,3 +149,12 @@ button:disabled { opacity: 0.4; cursor: default; }
 .overlay p b { color: var(--text); }
 .overlay .accent { color: var(--accent2); }
 .dim { color: var(--dim); }
+
+/* the key for the people and GDP layers */
+#legend { position: absolute; right: 8px; top: 60px; z-index: 3; width: min(200px, calc(100% - 16px)); font-family: var(--mono); font-size: 10px; color: var(--dim);
+  background: rgba(7,13,24,0.82); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; pointer-events: none; }
+#legend[hidden] { display: none; }
+.lg-bar { height: 8px; border-radius: 3px; }
+.lg-ticks { display: flex; justify-content: space-between; margin-top: 2px; color: var(--text); }
+.lg-unit { margin-top: 1px; }
+.ev.tech .t { color: var(--accent2); }

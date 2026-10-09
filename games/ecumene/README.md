@@ -9,11 +9,15 @@ water is; cities grow where your lines reach; the lines fill as they do.
 The game rests on one claim, which the selftest measures on every run:
 **a line grows the city along it.** An 8-train line across the home city
 at the start leaves more people along it 25 years later than the same
-planet without it: +5%, +16% and +45% on worlds 3, 11 and 896933214
-(mean +22%). The selftest asks for a gain on every one and +12% on
+planet without it: +19%, +11% and +33% on worlds 3, 11 and 896933214
+(mean +21%). The selftest asks for a gain on every one and +12% on
 average. It is measured on three worlds since the market came in: one
 world's 25 years are sensitive to anything, and world 3 alone has ranged
-from +5% to +60% as food, ships, the countryside and prices came in.
+from −9% to +60% as food, ships, the countryside, prices and farm
+know-how came in. "Along it" counts the districts whose centres lie
+within 5 km of the line, which undercounts where the line works: a line
+makes its city split more, and a split moves two thirds of a district's
+people to new centres beside it, some outside the band.
 
 It works like this, once a year:
 
@@ -123,12 +127,29 @@ the one that guards it.
   (food share = what it eats over what it needs, capped at 1). A dear
   price cuts what it eats; its food share scales its zones' ceilings
   (down to 30% when starving) and now its growth rate too, which falls
-  with hunger and stops at 60% fed. Ore's share draws jobs (±15%).
+  with hunger and stops at 50% fed. Ore's share draws jobs (±15%).
 - **The farms answer the price.** Each town's land farmed, and the farmers
   on it, go as last year's price^0.2 (between ×0.85 and ×1.3, eased in
   over a few years): dear food puts more land under the plough and draws
   people to it; cheap food lets fields go and sends their people to town.
-  The farms' share of GDP is paid at the price.
+  The farms' share of GDP is what they grow, at the price.
+- **Farming gets better where it pays** (induced innovation: Boserup;
+  Hayami and Ruttan). Without it the planet outgrew its farms: by year 100
+  every big city sat at 63–67% fed, just above where growth stops, with
+  food at ×3. Now each town has its own farming know-how (×1 at the
+  start), multiplying its harvest. Where food is dear the farms invest:
+  know-how grows 0.08 × (price − 1) a year (at most 8%), at 60% of that
+  without ore, since machines and fertiliser are made of it. Cheap food
+  invests nothing, and nothing is forgotten. Know-how also travels with
+  trade: each year a town closes 4% of the gap to the best farms it trades
+  food with by road or sea, and 12% along a line. The slow drift in yields
+  (1.5% a year) runs only until you arrive; after that it is 0.5% and the
+  rest is investment. The log says when a town's farms double.
+  Measured: a century on, world 3 is 85% fed with 24.6M people, its best
+  farms ×12; a freight line to a town with farms ×4 lifts a ×1 town to
+  ×1.36 in a year, where roads alone get it to ×1.20. It is the world's
+  doing, not a menu of yours; your hand in it is the ore you haul and the
+  lines that carry the know-how.
 - **Your margin is the toll.** A line earns its tariff on every unit-km
   and, where it is full, the toll on every unit: ₵0.005 a unit per price
   unit. So wagons are worth most where they are scarce: on world 3, 30
@@ -148,7 +169,9 @@ oracle after it (`test/economy.mjs 60`): the metro bot ends year 60 with
 ₵6.2k, ₵18k and ₵6.0k on worlds 3, 11 and 896933214 (₵5.2k, ₵3.8k and
 ₵3.8k before; that end balance swings with when the bot buys its last
 line), its first line paying back in 22, 6 and 22 years; greedy and
-sprinkle still lose money.
+sprinkle still lose money. With farm know-how in (bigger, hungrier cities
+early, then richer ones): ₵1.8k, ₵12k and ₵759, paying back in 33, 12 and
+5 years; greedy and sprinkle still lose. World 3 is the hard one now.
 
 The selftest measures it, 30 years in on world 3: a 4-wagon line from a
 breadbasket into the hungriest city (the home city, 91% fed at ×1.25 the
@@ -157,13 +180,14 @@ later, and pays. The line's food also displaces what came by road, so the
 city gains less than the line carries: the rest goes to the towns that
 food used to feed.
 
-A metro line through the home city, against none, 25 years on: +5%, +16%
-and +45% more people along it on worlds 3, 11 and 896933214. On five
-worlds it is +10% to +40% (mean +21%); before the market, +10% to +52%
-(mean +29%). World 3 gains least because the line's growth makes its home
-city hungry, and hunger now slows growth: feed a city as well as move it.
-One world's 25 years are sensitive to anything (a town founded a year
-apart changes the rest), so the selftest asks it of three.
+A metro line through the home city, against none, 25 years on: +19%,
++11% and +33% more people along it on worlds 3, 11 and 896933214; on
+worlds 3, 11, 896933214, 5 and 7, +11% to +34% (mean +22%), and the whole
+home city 0% to +15% bigger. Before the market it was +10% to +52% (mean
++29%). With the market but no farm know-how it fell to −9% on world 3:
+the line's growth made its home city hungry, and hunger slows growth, so
+dear food ate the gain. Farms that answer dear food gave it back. Feed a
+city as well as move it.
 
 ## Shaping a line
 
@@ -224,6 +248,20 @@ more where they reach more and where the ore comes in, plus the farms;
 zoom, no text selection, no double-tap zoom: the globe takes every touch.
 
 ## The map
+
+Five layers, on the layer button: **terrain**; **people** and **GDP**,
+every district by its density (people or ₵ a year per km²) on a log
+scale fixed across the years so maps from different decades compare,
+with a key; **food** (what the land yields, and each city tinted by its
+food price); and **towns** (whose land is whose). Tap a district for its
+people, its GDP and its GDP a head, and its town's food price, fed share
+and farm know-how.
+
+The WebGL ground had been under a blue haze since it went in: the
+atmosphere's radial gradient was filled over the whole disc, and inside
+its inner circle a gradient keeps its first colour, so the canvas above
+the ground tinted every district 28% blue. It is a ring outside the limb
+now.
 
 The ground is drawn in WebGL (`js/gl.js`; `?gl=0` for the 2D fallback).
 Every zone is a triangle fan; a corner takes the average colour of the
@@ -382,4 +420,7 @@ when a second game needs it.
 | `js/worker.js` | runs the sim off the main thread |
 | `js/view.js` | the globe: zones lit by population, rivers, lines, trains |
 | `js/main.js` | the page: building lines, the clock, the HUD |
-| `test/ecumene.selftest.mjs` | `node games/ecumene/test/ecumene.selftest.mjs` (~20 s) |
+| `test/ecumene.selftest.mjs` | `node games/ecumene/test/ecumene.selftest.mjs`: the invariants (~45 s) |
+| `test/loop.selftest.mjs` | a line grows the city along it, on three worlds (~50 s) |
+| `test/market.selftest.mjs` | freight feeds a hungry city; prices, tolls, farms answering the price (~50 s) |
+| `test/farms.selftest.mjs` | farm know-how, and a century on (~45 s). Four files so each fits preflight's two-minute cap per selftest |
