@@ -8,7 +8,7 @@ water is; cities grow where your lines reach; the lines fill as they do.
 
 The game rests on one claim, which the selftest measures on every run:
 **a line grows the city along it.** On world 3, an 8-train line across the
-densest city at the start leaves about 50% more people along it 25 years
+home city at the start leaves about 25% more people along it 25 years
 later than the same planet without it. (The selftest's floor is 10%; it
 has ranged from 20% to 60% as food, ships and the countryside came in.)
 
@@ -67,7 +67,7 @@ the one that guards it.
 `js/freight.js`, once a year between the passengers and the growth.
 
 - **Food** grows on every zone's open country: livability × rain × warmth
-  (`yieldKm` in `js/world.js`), at a yield that improves 1.5% a year (the
+  (`yieldKm` in `js/world.js`), at 20 units per yield-km², a yield that improves 1.5% a year (the
   farms get better). A zone loses its farms as it fills (none past
   300/km²). Everyone eats a unit a year.
 - **Farms need farmers.** Open country holds the people it takes to farm
@@ -87,9 +87,9 @@ the one that guards it.
   town's industry wants 0.25 units a person.
 - **Every land zone belongs to its nearest town**, so a town is a region,
   and its own farms feed it first. Surplus and shortfall are traded
-  between towns and working mines over **roads** (any two within 95 km
-  with no sea between; cargo decays as exp(−km/110), carts being slow and
-  food spoiling) and over the player's lines that carry **wagons** (a
+  between towns and working mines over **roads** (any two within 70 km
+  with no sea between; cargo decays as exp(−km/65), carts being slow and
+  food spoiling), **ships** (ports within 350 km) and over the player's lines that carry **wagons** (a
   tenth of the cost, almost no decay, but 40k units a year per wagon).
   Every (short town, source) pair is served cheapest first, until the
   shortfall is met or the source runs dry; an overfull rail run scales
@@ -119,11 +119,40 @@ passing a mark, the mesh reaching its cap. The page keeps the whole log
 
 ## The screen
 
-The planet gets the top two thirds; the bottom third is the dock: the
-charter, the lines, the selected line's panel, the controls. No page
+The planet gets the top two thirds; the bottom third is the dock, and it
+never changes height: the charter, the lines, then a body that shows the
+picked line's panel or, with no line picked, the **cities**: every town
+with its people, its farmers, how well it eats, and its GDP (jobs, worth
+more where they reach more and where the ore comes in, plus the farms;
+₵ a year at today's prices). Tap a town to fly there. No page
 zoom, no text selection, no double-tap zoom: the globe takes every touch.
 
 ## The map
+
+The ground is drawn in WebGL (`js/gl.js`; `?gl=0` for the 2D fallback).
+Every zone is a triangle fan; a corner takes the average colour of the
+zones of its own kind that meet there, so biomes blend smoothly across the
+tiles while the coast stays crisp, and a city's districts keep flat
+colours so its grain shows. Normals come from the heights at twice the 2D
+relief's exaggeration, averaged per corner, and the shader lights them
+(and tames the snow), adds a fine texture that fades in with zoom, and
+does the sea: shelf to abyss by depth, moving waves, the sun's glint. The
+2D canvas on top keeps everything with edges: the faint tile lines, a
+city's seams, rivers, lines, labels.
+
+**Rivers** run along the district boundaries. Every zone a river of flow
+≥ 30 crosses is split twice at the start (finer valleys), and each of
+mappa's river segments is routed over the Voronoi edges, avoiding the
+shore, and stops at the first shore vertex where it meets the sea or a
+lake. They're drawn as a dark bank and a light current, smoothed, wider
+downstream.
+
+**Deep zoom shows the city.** Past ~20 px a km (zoom goes to ~140 px a
+km), every dense district fills with a grid of ~150 m blocks at its own
+angle: lots built up by its density, each building extruded with its
+shadow, terracotta houses in the suburbs, stone and then glass toward the
+towers, a park here and there. Seeded per district and lot, so a building
+stays put; a lot fills in as the district gets denser.
 
 - **Relief, exaggerated.** Each zone's height is interpolated from
   mappa's cells round it, and a normal is fitted to its neighbours'
@@ -138,8 +167,7 @@ zoom, no text selection, no double-tap zoom: the globe takes every touch.
   what the food and freight run on). The charter is a dashed gold circle.
 - **The grain of a city.** Districts are drawn with a dark seam and each
   its own shade, so the splits show.
-- **Deep zoom.** Pinch or scroll, anchored where you point, to about
-  40 px per km in a dense city. Only zones on screen are drawn. Stops go
+- **Deep zoom.** Pinch or scroll, anchored where you point. Only zones on screen are drawn. Stops go
   exactly where you tap.
 
 ## Money, and the oracle that balances it
@@ -149,8 +177,8 @@ You start with ₵700. At start prices:
 - A stop costs ₵20.
 - Track costs ₵4 a km, three times that over water and more over rough
   ground, plus ₵0.25 a km a year.
-- Fares: ₵0.000004 a day per **journey** (however many lines it takes)
-  plus ₵0.0000004 per km ridden, every day of the year.
+- Fares: ₵0.000005 a day per **journey** (however many lines it takes)
+  plus ₵0.0000005 per km ridden, every day of the year.
 - Closing a line, a stop, a train or a wagon refunds half what it cost.
 
 Four rules ramp the costs, because without them the game printed money:
@@ -179,16 +207,18 @@ hockey stick from riders compounding against fixed prices. After them, and the f
 
 | world | bot | y10 | y20 | y40 | y60 | net/yr at 60 | lines | first line pays back |
 |---|---|---|---|---|---|---|---|---|
-| 3 | metro | ₵462 | ₵602 | ₵4.2k | ₵1.7k | ₵416 | 18 | 6 yr |
-| 3 | greedy | ₵33 | ₵37 | −₵169 | −₵1.2k | −₵86 | 1 | 6 yr |
-| 3 | core | ₵94 | ₵112 | −₵52 | −₵648 | −₵56 | 2 | never |
-| 11 | metro | ₵381 | ₵2.0k | ₵1.3k | ₵1.5k | ₵626 | 26 | 4 yr |
-| 11 | greedy | ₵629 | ₵193 | ₵53 | −₵1.5k | −₵140 | 3 | 4 yr |
-| 11 | core | ₵242 | ₵79 | −₵198 | −₵1.1k | −₵61 | 2 | 10 yr |
+| 3 | metro | ₵65 | ₵499 | ₵4.5k | ₵7.0k | ₵858 | 12 | 18 yr |
+| 3 | greedy | ₵71 | ₵175 | ₵547 | ₵345 | ₵209 | 5 | 12 yr |
+| 3 | core | ₵34 | ₵47 | ₵145 | −₵197 | −₵41 | 2 | 18 yr |
+| 11 | metro | ₵526 | ₵583 | ₵3.2k | ₵12k | ₵451 | 12 | 10 yr |
+| 11 | greedy | ₵363 | ₵198 | ₵784 | ₵653 | ₵110 | 6 | 5 yr |
+| 11 | core | −₵14 | ₵21 | ₵57 | −₵451 | −₵48 | 2 | never |
 
-(Retuned after the countryside came in: denser cities at the start made
+(Retuned twice after the countryside came in: denser cities at first made
 the first line pay back in 3 years and world 11's metro bot reach ₵42k,
-so fares came down by a third and the levy up. The metro bot now spends
+so fares came down by a third and the levy up; then finer river valleys
+changed the worlds' histories and smaller home cities slowed the start,
+so fares went back up a quarter. The metro bot now spends
 its peaks on charters and new lines; buying trains past need, and short
 core lines, lose money.)
 

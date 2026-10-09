@@ -118,7 +118,7 @@ Three things live here:
   share, and transit trips assigned to ride segments, so every line knows
   its load and strands what it can't carry. A zone's ceiling scales with
   its reach (access to jobs) and its water, so a line grows the city along
-  it, which the selftest measures with a counterfactual (about +20% now that food and ships also shape it). Dense
+  it, which the selftest measures with a counterfactual (about +25% now that food, ships and farmers also shape it). Dense
   zones split and the spherical Voronoi is rebuilt (`ORB.voronoi`, now
   exposed by `orb/js/sphere.js`). The sim runs in a module worker; it names
   its towns and keeps a log of events. Commodities (`js/freight.js`): food grown
@@ -128,8 +128,12 @@ Three things live here:
   freight line feeding one. The economy is ramped (a charter round your home
   city, widened by riders and a fee; prices that follow the world's wealth;
   dearer building in dense cities; a levy on fares; ships for coastal
-  freight) and measured by `test/economy.mjs`. Drawn as exaggerated relief over a
-  cell-less sea of waves, with deep zoom. See
+  freight) and measured by `test/economy.mjs`. Farmers live on the land (their numbers set by
+  what it yields, falling as farms mechanize) and the countryside empties into
+  the cities. The ground is WebGL (`js/gl.js`: biomes blended across tiles,
+  lit relief, a shaded sea; `?gl=0` falls back to 2D), rivers follow district
+  boundaries and end at the coast, and deep zoom shows a city's blocks and
+  buildings. See
   [`ecumene/README.md`](ecumene/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and

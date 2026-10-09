@@ -22,7 +22,7 @@ import { BIOMES } from "./mappa-engine.js";
 
 export const EXAG = 14;          // relief exaggeration
 const ORE_COL = { iron: "#c0583f", copper: "#d58a45", tin: "#9fb0c0", coal: "#4a4a52" };
-export const ZOOM_MAX = 40;
+export const ZOOM_MAX = 200;
 const HKM = 6;                   // mappa's elevation 1.0 ≈ 6 km above the sea
 
 export class View {
@@ -36,6 +36,7 @@ export class View {
     const dpr = Math.min(2, globalThis.devicePixelRatio || 1), r = this.cv.getBoundingClientRect();
     this.dpr = dpr; this.w = r.width; this.h = r.height;
     this.cv.width = Math.round(r.width * dpr); this.cv.height = Math.round(r.height * dpr);
+    if (this.ground) this.ground.resize(r.width, r.height, dpr);
   }
   radius() { return Math.min(this.w, this.h) * 0.45 * this.zoom; }
   drag(dx, dy) {
@@ -118,6 +119,8 @@ export class View {
       let best = -2; for (let t = 0; t < s.towns.length; t++) { const q = s.towns[t].p, d = P[3 * i] * q[0] + P[3 * i + 1] * q[1] + P[3 * i + 2] * q[2]; if (d > best) { best = d; tw[i] = t; } }
     }
     this.townOf = tw;
+    if (!this.rivers || this.rivers.n !== n || this.rivers.verts !== s.verts.length) this.rivers = riverPaths(W, s);
+    this.buildGround();
   }
 
   /* ------------------------------------------------------------ drawing */
@@ -130,10 +133,14 @@ export class View {
     const g = ctx.createRadialGradient(cx, cy, r * 0.97, cx, cy, r * 1.07);
     g.addColorStop(0, "rgba(120,170,255,0.28)"); g.addColorStop(1, "rgba(120,170,255,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r * 1.07, 0, 2 * Math.PI); ctx.fill();
-    const sea = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.05, cx, cy, r);
-    sea.addColorStop(0, "#1d4f7a"); sea.addColorStop(0.75, "#0f3150"); sea.addColorStop(1, "#081a2e");
-    ctx.fillStyle = sea; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.fill();
-    this.drawWaves();
+    const gl = this.ground;
+    if (gl) gl.draw(R, r, this.t, this.zoom);   // the ground and the sea, below this canvas
+    else {
+      const sea = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.05, cx, cy, r);
+      sea.addColorStop(0, "#1d4f7a"); sea.addColorStop(0.75, "#0f3150"); sea.addColorStop(1, "#081a2e");
+      ctx.fillStyle = sea; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.fill();
+      this.drawWaves();
+    }
     // project every Voronoi vertex once
     const V = s.verts, Q = new Float32Array(V.length);
     for (let k = 0; k < V.length / 3; k++) {
@@ -153,7 +160,7 @@ export class View {
     // the shelf: a pale halo round every coast
     const halo = Math.max(6, Math.min(40, r / 40));
     ctx.lineJoin = "round";
-    for (const [wd, al] of [[halo, 0.12], [halo * 0.5, 0.16]]) {
+    if (!gl) for (const [wd, al] of [[halo, 0.12], [halo * 0.5, 0.16]]) {
       ctx.strokeStyle = "rgba(110,200,230," + al + ")"; ctx.lineWidth = wd;
       for (const i of vis) if (this.coast[i] && s.off[i + 1] - s.off[i] >= 3) { poly(i); ctx.stroke(); }
     }
@@ -162,24 +169,21 @@ export class View {
     for (const i of vis) {
       if (s.off[i + 1] - s.off[i] < 3) continue;
       poly(i);
-      const nx = this.normals[3 * i], ny = this.normals[3 * i + 1], nz = this.normals[3 * i + 2];
-      const vx = R[0] * nx + R[1] * ny + R[2] * nz, vy = R[3] * nx + R[4] * ny + R[5] * nz, vz = R[6] * nx + R[7] * ny + R[8] * nz;
-      const lit = Math.max(0, vx * Lx + vy * Ly + vz * Lz) / Math.hypot(Lx, Ly, Lz), shade = 0.35 + 0.85 * lit;
-      ctx.fillStyle = this.landColor(i, shade); ctx.fill();
+      if (!gl) {
+        const nx = this.normals[3 * i], ny = this.normals[3 * i + 1], nz = this.normals[3 * i + 2];
+        const vx = R[0] * nx + R[1] * ny + R[2] * nz, vy = R[3] * nx + R[4] * ny + R[5] * nz, vz = R[6] * nx + R[7] * ny + R[8] * nz;
+        const lit = Math.max(0, vx * Lx + vy * Ly + vz * Lz) / Math.hypot(Lx, Ly, Lz), shade = 0.35 + 0.85 * lit;
+        ctx.fillStyle = this.landColor(i, shade); ctx.fill();
+      }
       // the grain of a city: its districts drawn with a dark seam, wherever a district is big enough to see
       const urban = s.pop[i] / s.area[i] > 60, px = r * Math.sqrt(s.area[i] / Math.PI) / 250;
       if (urban && px > 3) { ctx.strokeStyle = "rgba(60,30,5,0.6)"; ctx.lineWidth = Math.max(0.8, Math.min(1.8, px / 10)); ctx.stroke(); }
-      else if (!urban && (fine || s.area[i] < 25)) { ctx.strokeStyle = "rgba(0,0,0,0.13)"; ctx.lineWidth = 0.7; ctx.stroke(); }
+      else if (!urban && (fine || s.area[i] < 25 || (gl && px > 10))) { ctx.strokeStyle = gl ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.13)"; ctx.lineWidth = 0.7; ctx.stroke(); }   // the tiles under the smooth ground
     }
-    // rivers
-    ctx.strokeStyle = "rgba(110,190,255,0.85)"; ctx.lineCap = "round";
-    for (const rv of W.rivers) {
-      const p = this.proj(rv[0][0], rv[0][1], rv[0][2]), q = this.proj(rv[1][0], rv[1][1], rv[1][2]);
-      if (p[2] < 0 || q[2] < 0) continue;
-      ctx.lineWidth = Math.min(8, 0.6 + rv[2] * 0.4 * Math.sqrt(this.zoom)); ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
-    }
+    this.drawCity(vis, Q, poly);
+    this.drawRivers(Q);
     // the limb
-    const lg = ctx.createRadialGradient(cx, cy, r * 0.75, cx, cy, r);
+    const lg = ctx.createRadialGradient(cx, cy, r * (gl ? 0.9 : 0.75), cx, cy, r);
     lg.addColorStop(0, "rgba(0,0,0,0)"); lg.addColorStop(1, "rgba(0,0,0,0.4)");
     ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.fill();
     if (this.layer === "towns") this.drawBorders(vis, Q);
@@ -220,6 +224,83 @@ export class View {
       return "hsl(" + h.toFixed(0) + ",80%," + (l * (0.75 + 0.25 * shade)).toFixed(0) + "%)";
     }
     return "hsl(" + (95 - 40 * (1 - grow)).toFixed(0) + "," + (20 + 55 * grow).toFixed(0) + "%," + ((12 + 32 * grow) * (0.7 + 0.3 * shade)).toFixed(0) + "%)";
+  }
+  /* Deep zoom: the city itself. Past ~20 px a km, every dense district gets
+     a grid of blocks at its own angle (streets between), lots built up by
+     its density, each building extruded with its shadow: terracotta houses
+     in the suburbs, stone and glass toward the towers downtown, a park here
+     and there. Seeded per district and lot, so a building stays where it
+     is; a lot fills in as the district gets denser. */
+  drawCity(vis, Q, poly) {
+    const s = this.snap, ctx = this.ctx, pxkm = this.radius() / 250;
+    if (pxkm < 20) return;
+    const fade = Math.min(1, (pxkm - 20) / 25), pp0 = 0.15 * pxkm;   // a block is ~150 m
+    let budget = 9000;
+    for (const i of vis) {
+      const d = s.pop[i] / Math.max(1e-6, s.area[i]); if (d < 120 || s.off[i + 1] - s.off[i] < 3) continue;
+      const x = s.P[3 * i], y = s.P[3 * i + 1], z = s.P[3 * i + 2], R = this.R;
+      const cx = this.w / 2 + this.radius() * (R[0] * x + R[1] * y + R[2] * z), cy = this.h / 2 - this.radius() * (R[3] * x + R[4] * y + R[5] * z);
+      const rz = pxkm * Math.sqrt(s.area[i] / Math.PI) * 1.4, pp = pp0 * (d > 2000 ? 0.8 : 1);
+      const N = Math.ceil(rz / pp) + 1; if ((2 * N + 1) ** 2 > budget) continue;
+      budget -= (2 * N + 1) ** 2;
+      const th = hash(i * 13 + 5) * Math.PI, ux = Math.cos(th), uy = Math.sin(th), cover = Math.min(0.92, 0.15 + d / 3500), tall = Math.min(1, d / 6000);
+      ctx.save(); poly(i); ctx.clip();
+      ctx.globalAlpha = fade * 0.85; ctx.fillStyle = "#5d5a55"; ctx.fill();   // the streets
+      for (let a = -N; a <= N; a++) for (let b = -N; b <= N; b++) {
+        const lot = i * 7919 + (a + 500) * 1009 + (b + 500), h = hash(lot);
+        const bx = cx + (a * ux - b * uy) * pp, by = cy + (a * uy + b * ux) * pp;
+        if (Math.abs(bx - cx) > rz + pp || Math.abs(by - cy) > rz + pp) continue;
+        const park = hash(lot + 3) < 0.06;
+        const f = 0.36 * pp, g = (0.25 + 0.2 * hash(lot + 1)) * pp;
+        const corners = [[-f, -g], [f, -g], [f, g], [-f, g]].map(([p, q]) => [bx + p * ux - q * uy, by + p * uy + q * ux]);
+        if (park) { ctx.globalAlpha = fade; ctx.fillStyle = "#4f7a3e"; quad(ctx, corners); ctx.fill(); continue; }
+        if (h > cover) continue;
+        const storeys = 1 + Math.floor(Math.pow(hash(lot + 2), 2) * (2 + 40 * tall)), hp = Math.min(pp * 2.5, storeys * pp * 0.04);
+        ctx.globalAlpha = fade * 0.55; ctx.fillStyle = "#1c1a18";   // the shadow, toward the lower right
+        quad(ctx, corners.map(([p, q]) => [p + hp * 0.7, q + hp * 0.55])); ctx.fill();
+        ctx.globalAlpha = fade;
+        const tone = hash(lot + 4), glass = storeys > 12;
+        ctx.fillStyle = glass ? "hsl(" + (200 + 20 * tone).toFixed(0) + ",18%," + (52 + 18 * tone).toFixed(0) + "%)" : storeys > 4 ? "hsl(" + (30 + 15 * tone).toFixed(0) + ",12%," + (62 + 14 * tone).toFixed(0) + "%)" : "hsl(" + (10 + 20 * tone).toFixed(0) + ",45%," + (45 + 12 * tone).toFixed(0) + "%)";
+        quad(ctx, corners); ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 0.6; ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+  /* The WebGL ground: each zone's colour at full light (the shader lights it),
+     the sea by its depth; a city's districts and the towns layer keep flat colours. */
+  buildGround() {
+    const s = this.snap, W = this.world; if (!this.ground || !s || !this.elev) return;
+    const seaRGB = (i) => { const e = W.elev[s.geo[i]], t = Math.max(0, Math.min(1, -e / 1.4)); return [0.16 + (0.03 - 0.16) * t, 0.45 + (0.11 - 0.45) * t, 0.55 + (0.26 - 0.55) * t]; };
+    const colorOf = (i) => s.land[i] ? cssRGB(this.landColor(i, 1)) : seaRGB(i);
+    const flat = (i) => this.layer === "towns" || (s.land[i] && s.pop[i] / Math.max(1e-6, s.area[i]) > 60);
+    const elev = new Float32Array(s.n); for (let i = 0; i < s.n; i++) elev[i] = s.land[i] ? this.elev[i] : 0;
+    this.ground.build(s, W, colorOf, flat, elev, 2 * HKM / 250 * EXAG);   // twice the 2D relief's exaggeration: the shader's light is softer
+  }
+  relayer(layer) { this.layer = layer; this.buildGround(); }
+  /* Rivers along the district boundaries: a dark bank, a light current,
+     smoothed through the Voronoi vertices, wider downstream. */
+  drawRivers(Q) {
+    const rv = this.rivers; if (!rv) return;
+    const ctx = this.ctx, k = Math.sqrt(this.zoom);
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    for (const pass of [0, 1]) {
+      for (const path of rv.paths) {
+        const wd = Math.min(10, 0.5 + path.w * 0.45 * k);
+        ctx.strokeStyle = pass ? "rgba(125,195,255,0.95)" : "rgba(15,45,90,0.75)"; ctx.lineWidth = pass ? wd : wd + 2.2;
+        ctx.beginPath(); let pen = false, px = 0, py = 0;
+        for (let m = 0; m < path.v.length; m++) {
+          const v = path.v[m]; if (Q[3 * v + 2] < 0) { pen = false; continue; }
+          const x = Q[3 * v], y = Q[3 * v + 1];
+          if (!pen) { ctx.moveTo(x, y); pen = true; }
+          else ctx.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
+          px = x; py = y;
+          if (m === path.v.length - 1) ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
   }
   /* The towns layer: every zone in the colour of the town whose land it is
      (the region its farms feed and its people count toward), cities bright. */
@@ -367,6 +448,57 @@ export class View {
   }
 }
 
+/* Each of mappa's river segments, routed over the zone mesh's Voronoi edges:
+   from the land vertex nearest its source to the one nearest its mouth (or,
+   where it flows into the sea or a lake, to the nearest shore vertex, so it
+   ends at the water instead of running into it). Edges along the shore cost
+   triple, so a river doesn't follow the coast. Recomputed when the mesh
+   changes. */
+function riverPaths(W, s) {
+  const V = s.verts, nv = V.length / 3, adj = Array.from({ length: nv }, () => []);
+  const land = new Uint8Array(nv), wet = new Uint8Array(nv);
+  for (let i = 0; i < s.n; i++) {
+    const a = s.off[i], b = s.off[i + 1];
+    for (let k = a; k < b; k++) {
+      const u = s.ring[k], v = s.ring[k + 1 < b ? k + 1 : a];
+      if (s.land[i]) land[u] = 1; else wet[u] = 1;
+      if (!adj[u].includes(v)) adj[u].push(v); if (!adj[v].includes(u)) adj[v].push(u);
+    }
+  }
+  const near = (p, ok) => { let best = -2, bi = -1; for (let v = 0; v < nv; v++) { if (!ok(v)) continue; const d = V[3 * v] * p[0] + V[3 * v + 1] * p[1] + V[3 * v + 2] * p[2]; if (d > best) { best = d; bi = v; } } return bi; };
+  const len = (u, v) => Math.acos(Math.min(1, V[3 * u] * V[3 * v] + V[3 * u + 1] * V[3 * v + 1] + V[3 * u + 2] * V[3 * v + 2]));
+  const paths = [];
+  let g = 0;
+  for (const [a, b, w] of W.rivers) {
+    g = nearest(W, b, g);
+    const intoWater = W.water[g] !== 0;
+    const src = near(a, (v) => land[v] && !wet[v]), dst = intoWater ? near(b, (v) => land[v] && wet[v]) : near(b, (v) => land[v] && !wet[v]);
+    if (src < 0 || dst < 0 || src === dst) continue;
+    // Dijkstra over land vertices (a heap is overkill: the search stays within a few cells)
+    const dist = new Map([[src, 0]]), prev = new Map(), open = [src];
+    while (open.length) {
+      let bi = 0; for (let k = 1; k < open.length; k++) if (dist.get(open[k]) < dist.get(open[bi])) bi = k;
+      const u = open.splice(bi, 1)[0]; if (u === dst) break;
+      for (const v of adj[u]) {
+        if (!land[v]) continue;
+        const c = dist.get(u) + len(u, v) * (wet[u] && wet[v] ? 3 : 1);
+        if (!dist.has(v) || c < dist.get(v)) { if (!dist.has(v)) open.push(v); dist.set(v, c); prev.set(v, u); }
+      }
+      if (dist.get(u) > 4 * len(src, dst) + 0.05) break;
+    }
+    if (!prev.has(dst)) continue;
+    const v = [dst]; for (let x = dst; x !== src; x = prev.get(x)) v.push(prev.get(x));
+    paths.push({ v: v.reverse(), w });
+  }
+  return { n: s.n, verts: V.length, paths };
+}
+function quad(ctx, c) { ctx.beginPath(); ctx.moveTo(c[0][0], c[0][1]); for (let k = 1; k < 4; k++) ctx.lineTo(c[k][0], c[k][1]); ctx.closePath(); }
+function cssRGB(c) {   // "hsl(h,s%,l%)" → [r, g, b] in 0..1
+  const m = /hsl\(([-\d.]+),([-\d.]+)%,([-\d.]+)%\)/.exec(c); if (!m) return [0.5, 0.5, 0.5];
+  const h = ((+m[1] % 360) + 360) % 360 / 360, s = Math.max(0, Math.min(1, m[2] / 100)), l = Math.max(0, Math.min(1, m[3] / 100));
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q, f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+  return [f(h + 1 / 3), f(h), f(h - 1 / 3)];
+}
 function nearest(W, p, from) {
   let i = from, best = W.V[3 * i] * p[0] + W.V[3 * i + 1] * p[1] + W.V[3 * i + 2] * p[2];
   for (;;) {

@@ -17,9 +17,22 @@ button, a { touch-action: manipulation; }
   display: flex; flex-direction: column;
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
 }
-#stage { position: relative; flex: 1 1 auto; min-height: 62%; }
+#stage { position: relative; flex: 1 1 64%; min-height: 0; }
+/* the dock never changes height: what changes is what its body shows (a line, or the cities), scrolled */
+#dockbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#cities { font-family: var(--mono); font-size: 12px; }
+#cities[hidden] { display: none; }
+.ctop { display: flex; justify-content: space-between; color: var(--dim); font-size: 11px; padding: 0 2px 4px; }
+#cities table { width: 100%; border-collapse: collapse; }
+#cities th { text-align: right; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); font-weight: 400; padding: 2px 4px; position: sticky; top: 0; background: #070d18; }
+#cities th:first-child, #cities td:first-child { text-align: left; }
+#cities td { text-align: right; padding: 4px; border-top: 1px solid rgba(34,48,74,0.6); font-variant-numeric: tabular-nums; }
+#cities tr { cursor: pointer; }
+#cities tr.home td:first-child { color: var(--accent); }
+#cities td.short { color: #ffb547; }
+#cities td.starve { color: var(--warn); }
 #dock {
-  flex: 0 0 auto; max-height: 38%; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+  flex: 0 0 36%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px;
   padding: 8px 12px 6px; border-top: 1px solid var(--border); background: #070d18;
 }
 #hud {
@@ -35,6 +48,7 @@ button, a { touch-action: manipulation; }
 #credits { color: var(--accent); }
 .sub { font-size: 10px; color: var(--accent2); }
 .sub.neg { color: var(--warn); }
+#ground { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 #globe { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; display: block; cursor: grab; }
 #info {
   position: absolute; left: 8px; top: 56px; z-index: 2; max-width: min(320px, calc(100% - 16px)); font-family: var(--mono); font-size: 12px; line-height: 1.5;

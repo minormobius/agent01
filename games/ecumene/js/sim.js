@@ -47,16 +47,18 @@ export const P_ = {
   WORK: 0.45,                     // workers (and jobs) per person
   R_GROW: 0.07, RURAL: 6, URBAN: 6000, A_REF: 100000, ALPHA: 1, A_MAX: 4, W_HALF: 400,
   SPILL_AT: 0.6, SPILL: 0.05, TOWN_SEED: 30,
+  RIVER_FLOW: 30,                 // rivers this big get finer districts along them
   ORIGIN_MIN: 600, ORIGIN_DENS: 40, MAX_ORIGINS: 1600,   // farmers (under ORIGIN_DENS/km²) work where they live
   SPLIT_POP: 8000, SPLIT_MIN_AREA: 1.5, MAX_ZONES: 6000, MAX_SPLITS: 60,
   TRAIN_CAP: 260, SERVICE_MIN: 1080, CROWD_SLOW: 1.5,
   TOWN_EVERY: 4, TOWNS0: 7, TOWN_POP: 6000, WARMUP: 60,
-  FARE_TRIP: 0.000004, FARE_KM: 0.0000004, // a fare per JOURNEY (however many lines it takes) and per km ridden; ×365 a year
+  FARE_TRIP: 0.000005, FARE_KM: 0.0000005, // a fare per JOURNEY (however many lines it takes) and per km ridden; ×365 a year
   TRAIN_UPKEEP: 10, TRACK_UPKEEP: 0.25, // a year: per train, per km of line
   COST_WAGON: 60, WAGON_UPKEEP: 6,      // freight: a wagon, and its year
   COST_KM: 4, COST_WATER: 3, COST_STOP: 20, COST_TRAIN: 90, START_CREDITS: 700,
   URBAN_COST: 1200,                // building costs ×(1 + density/URBAN_COST): tunnels and land
   INDEX_EXP: 0.5,
+  WAGE: 0.01,                     // GDP: ₵ a year a job is worth (before reach, ore and prices)
   LEVY_MAX: 0.6, LEVY_HALF: 4000, // the cities' cut of fares: LEVY_MAX·f/(f + LEVY_HALF·index), f = fares a year                 // prices follow the world's wealth: (people / people at the start)^INDEX_EXP
 };
 
@@ -81,6 +83,7 @@ export class Sim {
     this.lines = []; this.history = []; this.stats = {}; this.crowd = new Map();
     this.towns = []; this.events = []; this.log = []; this.flags = new Map(); this.names = new Set();
     this.rebuild();
+    this.riverDetail(); this.riverDetail();   // twice: the valleys get two levels of detail
     // the countryside, farmed from the start: each habitable zone at 60% of the farmers its land takes
     for (let i = 0; i < this.n; i++) if (this.land[i]) this.pop[i] = 0.6 * farmers(this, i);
     for (let k = 0; k < P_.TOWNS0; k++) this.foundTown(5);
@@ -109,6 +112,22 @@ export class Sim {
     }
     this.jobs[i] /= 3;
     return kids;
+  }
+  /* Finer districts along the rivers: every land zone a real river runs
+     through (flow ≥ RIVER_FLOW) is split once, so the river has district
+     boundaries to follow and the valley its own detail. Done once, at the
+     start, before anyone lives there. */
+  riverDetail() {
+    const W = this.world, hit = new Set();
+    for (const r of W.rivers) {
+      if (r.flow < P_.RIVER_FLOW) continue;
+      const steps = Math.max(2, Math.ceil(arc(r.a, r.b) * R / 6));
+      for (let k = 0; k <= steps; k++) { const z = this.zoneAt(slerp(r.a, r.b, k / steps)); if (this.land[z] && this.area[z] > 4 * P_.SPLIT_MIN_AREA) hit.add(z); }
+    }
+    if (!hit.size) return 0;
+    for (const z of [...hit].sort((a, b) => a - b)) this.split(z);
+    this.rebuild();
+    return hit.size;
   }
   /* The zone containing unit vector p. */
   zoneAt(p) {
@@ -160,7 +179,7 @@ export class Sim {
   /* Cities: every settled zone belongs to its nearest town. */
   chronicle() {
     const T = this.towns; if (!T.length) return;
-    const tot = new Float64Array(T.length), rur = new Float64Array(T.length), P = this.P, zt = new Int32Array(this.n).fill(-1);
+    const tot = new Float64Array(T.length), rur = new Float64Array(T.length), gdp = new Float64Array(T.length), P = this.P, zt = new Int32Array(this.n).fill(-1);
     for (let i = 0; i < this.n; i++) {
       if (!this.land[i]) continue;
       let best = -2, bi = 0; for (let t = 0; t < T.length; t++) { const q = T[t].p, d = P[3 * i] * q[0] + P[3 * i + 1] * q[1] + P[3 * i + 2] * q[2]; if (d > best) { best = d; bi = t; } }
@@ -169,11 +188,15 @@ export class Sim {
       const fm = Math.min(this.pop[i], farmers(this, i));
       if (best > Math.cos(60 / R)) tot[bi] += this.pop[i] - fm;
       rur[bi] += fm;
+      // GDP: jobs, worth more where they reach more and where the ore comes in; and what the farms grow
+      // a zone split since growth has no reach yet
+      const u = this.u && this.u[i] != null ? Math.min(1, this.u[i]) : 0, ind = this.fr && this.fr.ore[bi] != null ? 0.85 + 0.3 * this.fr.ore[bi] : 1;
+      gdp[bi] += (this.jobs[i] * P_.WAGE * (0.7 + 0.6 * u) * ind + fm * P_.WAGE * 0.4) * (this.index || 1);
     }
     this.zoneTown = zt;
     const MARKS = [50e3, 100e3, 250e3, 500e3, 1e6, 2e6, 5e6];
     T.forEach((t, k) => {
-      t.pop = tot[k]; t.rural = rur[k];
+      t.pop = tot[k]; t.rural = rur[k]; t.gdp = gdp[k];
       while (t.mark < MARKS.length && tot[k] >= MARKS[t.mark]) {
         if (this.year > 0 && t.mark >= 1) this.emit("city", t.name + " passes " + fmtN(MARKS[t.mark]), t.p);
         t.mark++;

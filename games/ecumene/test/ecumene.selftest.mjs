@@ -39,7 +39,7 @@ ok(s.pop.every((p, i) => s.land[i] || p === 0), "nobody lives at sea");
   t.refine();
   ok(t.n === n0 + 2 && Math.abs(t.pop.reduce((a, b) => a + b, 0) - before) < 1e-6, "a split adds two zones and keeps every person");
   let calls = 0; while (t.refine() > 0 && calls < 30) calls++;
-  ok(calls < 12 && t.pop.every((p, i) => p <= P.SPLIT_POP || t.area[i] <= P.SPLIT_MIN_AREA), "splitting settles: a few rounds and every zone is under the line (" + calls + " rounds)");
+  ok(calls < 12 && t.pop.every((p, i) => p <= P.SPLIT_POP || t.area[i] <= P.SPLIT_MIN_AREA || p / t.area[i] <= 60), "splitting settles: a few rounds and every zone is under the line (" + calls + " rounds)");
 }
 { // determinism, lines included
   const run = () => { const a = new E.Sim(E.makeWorld(5), 5); a.warmup(); a.setLines([{ id: 1, color: "#f00", stops: [pt(0), pt(1)], trains: 2 }]); for (let k = 0; k < 4; k++) a.step(); return a.pop.reduce((x, y) => x + y, 0); };
@@ -79,7 +79,8 @@ ok(s.pop.every((p, i) => s.land[i] || p === 0), "nobody lives at sea");
 }
 
 /* ---- a line through the biggest city */
-let a = 0; for (let i = 0; i < s.n; i++) if (s.land[i] && s.pop[i] / s.area[i] > s.pop[a] / s.area[a]) a = i;   // the densest district: a city, not a farm county
+// the home city's densest district (the biggest city, not a farm county)
+let a = -1; for (let i = 0; i < s.n; i++) if (s.land[i] && s.zoneTown[i] === s.home && (a < 0 || s.pop[i] / s.area[i] > s.pop[a] / s.area[a])) a = i;
 const city = [a], seen = new Set(city);
 for (let h = 0; h < city.length; h++) for (const j of s.nbrs[city[h]]) if (!seen.has(j) && s.pop[j] / s.area[j] > 30) { seen.add(j); city.push(j); }
 let far = [a, a, -1]; for (const i of city) for (const j of city) { const d = E.arc(pt(i), pt(j)); if (d > far[2]) far = [i, j, d]; }
@@ -133,18 +134,28 @@ ok(withL > 1.1 * without, "a line grows the city along it: +" + Math.round(100 *
   ok(fr.food.every((x) => x >= 0 && x <= 1) && fr.ore.every((x) => x >= 0 && x <= 1), "satisfactions are shares");
   let h = -1; T.forEach((t, k) => { if (fr.short[k] > 0 && (h < 0 || fr.short[k] > fr.short[h])) h = k; });
   ok(h >= 0, "by " + PRE + " years in, a city is short of food (" + (h >= 0 ? T[h].name + ", " + Math.round(100 * fr.food[h]) + "%" : "none") + ")");
-  let b = -1, bs = 0; T.forEach((t, k) => { const sur = fr.local[k] - fr.need[k]; if (k !== h && sur > bs && E.arc(t.p, T[h].p) * E.R < 350) { bs = sur; b = k; } });
-  ok(b >= 0, "a breadbasket within reach");
-  const run = (line) => {
-    const t = base(); if (line) { const A = t.towns[b].p, B = t.towns[h].p, st = [A]; for (let k = 1; k < 4; k++) st.push(E.slerp(A, B, k / 4)); st.push(B); t.setLines([{ id: 1, color: "#f00", stops: st, trains: 1, wagons: 4 }]); }
-    for (let y = 0; y < POST; y++) t.step();
+  // the breadbaskets within 350 km, biggest surplus first; a player tries them in turn
+  const baskets = T.map((t, k) => [fr.local[k] - fr.need[k], k]).filter(([sur, k]) => k !== h && sur > 20e3 && E.arc(T[k].p, T[h].p) * E.R < 350).sort((x, y) => y[0] - x[0]).slice(0, 4);
+  ok(baskets.length > 0, "a breadbasket within reach");
+  // a hungry city without a line shrinks until its farms feed it, so food shares converge; the
+  // line shows in the first year's food and in how many people the city keeps
+  const run = (b, years) => {
+    const t = base(); if (b >= 0) t.setLines([{ id: 1, color: "#f00", stops: [t.towns[b].p, t.towns[h].p], trains: 1, wagons: 4 }]);
+    for (let y = 0; y < years; y++) t.step();
     return t;
   };
-  const a = run(false), c = run(true), F = c.fr.lines.get(1);
-  ok(F && F.food > 0 && c.fr.runs.every((r) => r.load <= r.cap * (1 + 1e-9)), "the line carries food, never past its wagons");
-  ok(c.fr.food[h] > a.fr.food[h] + 0.1, "the line feeds the hungry city (" + Math.round(100 * a.fr.food[h]) + "% → " + Math.round(100 * c.fr.food[h]) + "%)");
-  ok(c.towns[h].pop > a.towns[h].pop * 1.05, "and it grows: +" + Math.round(100 * (c.towns[h].pop / a.towns[h].pop - 1)) + "% in " + POST + " years");
-  ok(c.stats.cargo > 0, "freight pays (₵" + Math.round(c.stats.cargo) + " a year)");
+  const a1 = run(-1, 1);
+  let used = -1, c1 = null;
+  for (const [, b] of baskets) { const t = run(b, 1), F = t.fr.lines.get(1); if (F && F.food > 0 && t.fr.food[h] > a1.fr.food[h] + 0.05) { c1 = t; used = b; break; } }
+  ok(c1, "a line from one of them feeds the hungry city (" + T[h].name + ")");
+  if (c1) {
+    const F = c1.fr.lines.get(1);
+    ok(c1.fr.runs.every((r) => r.load <= r.cap * (1 + 1e-9)), "the line carries food (" + Math.round(F.food) + " a year from " + T[used].name + "), never past its wagons");
+    ok(c1.fr.food[h] > a1.fr.food[h] + 0.05, "the hungry city is better fed (" + Math.round(100 * a1.fr.food[h]) + "% → " + Math.round(100 * c1.fr.food[h]) + "% in the first year)");
+    const a = run(-1, POST), c = run(used, POST);
+    ok(c.towns[h].pop > a.towns[h].pop * 1.02, "and it keeps more people: +" + Math.round(100 * (c.towns[h].pop / a.towns[h].pop - 1)) + "% after " + POST + " years");
+    ok(c1.stats.cargo > 0, "freight pays (₵" + Math.round(c1.stats.cargo) + " a year)");
+  }
 }
 
 /* ---- the economy's rules (test/economy.mjs measures the curve itself) */

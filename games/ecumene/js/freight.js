@@ -35,11 +35,11 @@ import { R, nearestCell } from "./world.js";
 import { arc } from "./sim.js";
 
 export const F_ = {
-  FOOD_Y: 18, FOOD_GROWTH: 0.015,      // units per yield-km², ×(1 + FOOD_GROWTH·year)
+  FOOD_Y: 20, FOOD_GROWTH: 0.015,      // units per yield-km², ×(1 + FOOD_GROWTH·year)
   FARM_DENS: 300,                      // a zone has no farms left at this density
   ORE_PER: 0.25, MINE_KM: 45, MINE_STOP_KM: 12,
-  ROAD_KM: 95, HAUL: 110, RAIL_COST: 0.12, CMAX: 600,
-  SEA_COST: 0.3, SEA_KEEP: 4,          // shipping between ports: cost per km, and it keeps 4× as well as a cart
+  ROAD_KM: 70, HAUL: 65, RAIL_COST: 0.12, CMAX: 600,
+  SEA_COST: 0.5, SEA_KEEP: 4, SEA_KM: 350,   // coastal shipping between ports up to SEA_KM apart: cost per km, and it keeps 4× as well as a cart
   WAGON_CAP: 40e3, FREIGHT_RATE: 1.2e-5, STOP_SNAP_KM: 14,
   FOOD_FLOOR: 0.3,                     // a starving town's ceiling is this share of its fed one
   AG0: 22, AG_DECAY: 90, AG_FLOOR: 3,  // farmers a yield-km² needs: AG0 until AG_FROM, then falling (machines) to AG_FLOOR
@@ -88,6 +88,7 @@ export function freight(sim) {
   const ports = []; T.forEach((t, k) => { if (isPort(W, t.p)) ports.push(k); });
   for (let x = 0; x < ports.length; x++) for (let y = x + 1; y < ports.length; y++) {
     const a = ports[x], b = ports[y], km = arc(node[a], node[b]) * R;
+    if (km > F_.SEA_KM) continue;
     adj[a].push([b, km * F_.SEA_COST, -2]); adj[b].push([a, km * F_.SEA_COST, -2]);
   }
   out.ports = ports;
@@ -141,6 +142,7 @@ export function freight(sim) {
       left[i] -= x; rest[j] -= x * delta;
       flows.push({ c, src: i, dst: j, x, delta, runs: sp.runsTo(i) });
     }
+    if (c === "food") out.spare = left.slice(0, nt);   // food nobody could reach: what a new line could sell
   }
   // rail capacity: an overfull run scales down every flow through it
   for (const f of flows) for (const r of f.runs) runs[r].load += f.x;

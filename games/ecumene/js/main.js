@@ -8,12 +8,14 @@
    line. A year passes every few seconds; the lines change hands with the
    worker between years. */
 import { View } from "./view.js";
+import { GLGround } from "./gl.js";
 import { trackCost, arc } from "./sim.js";
 import { R } from "./world.js";
 
 const $ = (id) => document.getElementById(id);
 const COLORS = ["#ff5a5f", "#3ec1ff", "#ffd23f", "#5ee88a", "#c77dff", "#ff9a3c", "#ff7ac8", "#9be15d", "#7aa2ff", "#e8e8e8"];
 const cv = $("globe"), view = new View(cv);
+view.ground = /[?&]gl=0/.test(location.search) ? null : GLGround.create($("ground"));   // ?gl=0: the plain 2D ground
 let W = null, P = null, snap = null, warm = 0, credits = 0, lines = [], sel = -1, nextId = 1;
 let running = false, speed = 1, pending = false, lastStep = 0, dirty = true;
 
@@ -47,7 +49,7 @@ function yearLabel() { return snap ? 1900 + snap.year - warm : 1900; }
 function site(i) { return [snap.P[3 * i], snap.P[3 * i + 1], snap.P[3 * i + 2]]; }
 function lookAtBiggest() {
   let b = 0; for (let i = 0; i < snap.n; i++) if (snap.pop[i] > snap.pop[b]) b = i;
-  view.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; view.face(site(b), 1); view.zoom = 4;
+  view.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; view.face(snap.home || site(b), 1); view.zoom = 4;
 }
 const fmt = (x) => x >= 1e6 ? (x / 1e6).toFixed(2) + "M" : x >= 1e4 ? Math.round(x / 1e3) + "k" : x >= 1e3 ? (x / 1e3).toFixed(1) + "k" : Math.round(x) + "";
 
@@ -90,8 +92,25 @@ function bar() {
     b.onclick = newLine; el.appendChild(b);
   }
 }
+/* The cities: every town, biggest first. Shown in the dock when no line is picked. */
+function cities() {
+  const el = $("cities"), T = (snap.towns || []).map((t, k) => ({ ...t, k })).filter((t) => t.pop + t.rural > 500).sort((a, b) => b.pop - a.pop);
+  let pop = 0, gdp = 0; for (const t of T) { pop += t.pop + t.rural; gdp += t.gdp; }
+  $("c-sum").textContent = T.length + " towns · " + fmt(pop) + " people · GDP ₵" + fmt(gdp) + "/yr";
+  const rows = $("c-rows"); rows.innerHTML = "";
+  for (const t of T) {
+    const tr = document.createElement("tr"), f = Math.round(100 * t.food);
+    if (snap.homeName === t.name) tr.className = "home";
+    tr.innerHTML = "<td></td><td>" + fmt(t.pop) + "</td><td>" + fmt(t.rural) + "</td><td class='" + (f < 70 ? "starve" : f < 95 ? "short" : "") + "'>" + f + "%</td><td>₵" + fmt(t.gdp) + "</td>";
+    tr.firstChild.textContent = t.name;
+    tr.onclick = () => look(t.p);
+    rows.appendChild(tr);
+  }
+}
 function panel() {
   const el = $("panel");
+  $("cities").hidden = sel >= 0 && !!lines[sel];
+  if (!$("cities").hidden) cities();
   if (sel < 0 || !lines[sel]) { el.hidden = true; return; }
   const L = lines[sel], info = snap.stats.lines && snap.stats.lines.find((x) => x.id === L.id);
   el.hidden = false; el.style.setProperty("--c", L.color);
@@ -143,7 +162,7 @@ $("p-minus").onclick = () => { const L = lines[sel]; if (L && L.trains > 1) { L.
 $("w-plus").onclick = () => { const L = lines[sel], c = wagonPrice(); if (L && spend(c)) { L.wagons = (L.wagons || 0) + 1; (L.wagonPaid = L.wagonPaid || []).push(c); push(); } };
 $("w-minus").onclick = () => { const L = lines[sel]; if (L && L.wagons > 0) { L.wagons--; const c = (L.wagonPaid && L.wagonPaid.pop()) || P.COST_WAGON; credits += c / 2; pendingSpend -= c / 2; push(); } };
 const LAYERS = ["terrain", "food", "towns"];
-$("layer").onclick = () => { view.layer = LAYERS[(LAYERS.indexOf(view.layer) + 1) % LAYERS.length]; $("layer").textContent = view.layer; $("layer").classList.toggle("on", view.layer !== "terrain"); };
+$("layer").onclick = () => { view.relayer(LAYERS[(LAYERS.indexOf(view.layer) + 1) % LAYERS.length]); $("layer").textContent = view.layer; $("layer").classList.toggle("on", view.layer !== "terrain"); };
 $("ch-buy").onclick = () => { if (snap && snap.charterReady && credits >= snap.charterFee) worker.postMessage({ type: "charter" }); else note("not enough for the charter: ₵" + Math.ceil(snap.charterFee)); };
 function charter() {
   if (!snap || !snap.home) return;
@@ -207,7 +226,7 @@ function tap(p) {
 function info(z) {
   const el = $("info"), g = snap.geo[z], d = snap.pop[z] / Math.max(1, snap.area[z]);
   if (!snap.land[z]) { el.hidden = false; el.innerHTML = "<b>sea</b>"; return; }
-  const water = W.fresh[g], acc = snap.u ? snap.u[z] : 0;
+  const water = W.fresh[g], acc = (snap.u && snap.u[z]) || 0;
   el.hidden = false;
   el.innerHTML = (townOf(z) ? "<i>" + townOf(z) + "</i> · " : "") + "<b>" + fmt(snap.pop[z]) + "</b> people · " + fmt(d) + "/km² · " + snap.area[z].toFixed(0) + " km²<br>" +
     "water <b>" + fmt(water) + "</b>/km² · reach <b>×" + acc.toFixed(2) + "</b>" +

@@ -14,7 +14,7 @@ function snap() {
   return { n: s.n, P: s.P, verts: s.verts, off, ring, geo: s.geo, pop: s.pop, area: s.area, land: s.land, stats: s.stats, credits: s.credits, year: s.year, seq, home: s.home, homeName: s.homeName, tier: s.tier, charterKm: s.charterKm, charterReady: s.charterReady,
     charterFee: s.charterFee, nextRiders: s.nextRiders, index: s.index,
     u: sim.u ? Float64Array.from(sim.u) : null, K: sim.K ? Float64Array.from(sim.K) : null, lastTown: sim.lastTown,
-    events: sim.events, towns: sim.towns.map((t, k) => ({ name: t.name, p: t.p, pop: t.pop, food: s.food[k] ?? 1, short: s.short[k] || 0, ore: s.ore[k] || 0 })), nbrs: sim.nbrs,
+    events: sim.events, towns: sim.towns.map((t, k) => ({ name: t.name, p: t.p, pop: t.pop, rural: t.rural || 0, gdp: t.gdp || 0, food: s.food[k] ?? 1, short: s.short[k] || 0, ore: s.ore[k] || 0 })), nbrs: sim.nbrs,
     mines: s.mines, cargo: s.cargo, runs: s.runs };
 }
 self.onmessage = (e) => {
