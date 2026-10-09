@@ -33,9 +33,9 @@ _Regenerated 2026-10-09 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-09, 99 members / 245 posts):
+**Neighborhood spark** (bisk 2026-10-09, 99 members / 257 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: eris, llm, anthropic
+- Distinctive words: eris, anthropic, llm
 - Top post: "Pope Leo takes a hard stance in favor of stateful agents" — @timkellogg.me
 <!-- BRIEF_END -->
 
