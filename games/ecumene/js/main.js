@@ -25,20 +25,20 @@ const worker = new Worker(new URL("./worker.js", import.meta.url), { type: "modu
 worker.onmessage = (e) => {
   const m = e.data;
   if (m.type === "world") {
-    W = m.world; P = m.P; warm = m.warmup; view.world = W;
+    W = m.world; P = m.P; warm = m.warmup; view.setWorld(W);
   } else if (m.type === "year") {
     const first = !snap;
-    snap = m.snap; view.snap = snap; pending = false; dirty = true;
+    snap = m.snap; view.setSnap(snap); pending = false; dirty = true;
+    if (m.log) { log = m.log.slice(); renderLog(); }
+    else if (snap.events.length) { for (const ev of snap.events) { log.push(ev); toast(ev); } unread += snap.events.length; renderLog(); }
     // spends the worker hasn't seen yet still count against what this year's snapshot says
     while (inflight.length && inflight[0].seq <= snap.seq) inflight.shift();
     credits = snap.credits - inflight.reduce((a, x) => a + x.spend, 0);
     if (first) { lookAtBiggest(); $("loading").hidden = true; $("start-btn").disabled = false; $("start-btn").textContent = "BUILD"; }
-    if (snap.lastTown != null && snap.lastTown !== lastTownSeen && !first) { lastTownSeen = snap.lastTown; note("a new town is founded", snap.lastTown); }
-    if (first) lastTownSeen = snap.lastTown;
     hud();
   }
 };
-let lastTownSeen = null;
+let log = [], unread = 0;
 worker.postMessage({ type: "init", seed });
 $("seed").textContent = seed;
 
@@ -46,7 +46,7 @@ function yearLabel() { return snap ? 1900 + snap.year - warm : 1900; }
 function site(i) { return [snap.P[3 * i], snap.P[3 * i + 1], snap.P[3 * i + 2]]; }
 function lookAtBiggest() {
   let b = 0; for (let i = 0; i < snap.n; i++) if (snap.pop[i] > snap.pop[b]) b = i;
-  view.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; view.face(site(b), 1); view.zoom = 3.2;
+  view.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; view.face(site(b), 1); view.zoom = 4;
 }
 const fmt = (x) => x >= 1e6 ? (x / 1e6).toFixed(2) + "M" : x >= 1e4 ? Math.round(x / 1e3) + "k" : x >= 1e3 ? (x / 1e3).toFixed(1) + "k" : Math.round(x) + "";
 
@@ -114,8 +114,8 @@ function newLine() {
   sel = lines.length - 1; push();
   note("new line: tap land to lay its stops");
 }
-function addStop(z) {
-  const L = lines[sel], p = site(z);
+function addStop(z, at) {
+  const L = lines[sel], p = at || site(z);   // exactly where you tapped; the zone centre when there is no tap
   if (!snap.land[z]) { note("stops go on land"); return; }
   const last = L.stops[L.stops.length - 1];
   if (last && arc(last, p) * R < 1) return;
@@ -147,7 +147,7 @@ cv.addEventListener("pointermove", (e) => {
   const p = xy(e); pts.set(e.pointerId, p);
   if (g.two && pts.size === 2) {
     const v = [...pts.values()], d = Math.hypot(v[0][0] - v[1][0], v[0][1] - v[1][1]), c = [(v[0][0] + v[1][0]) / 2, (v[0][1] + v[1][1]) / 2];
-    view.drag(c[0] - g.c[0], c[1] - g.c[1]); view.zoom = Math.max(0.8, Math.min(12, view.zoom * d / Math.max(1, g.d))); g.c = c; g.d = d; return;
+    view.drag(c[0] - g.c[0], c[1] - g.c[1]); view.zoomAt(c[0], c[1], d / Math.max(1, g.d)); g.c = c; g.d = d; return;
   }
   if (!g.moved && Math.hypot(p[0] - g.start[0], p[1] - g.start[1]) < 7) return;
   g.moved = true; view.drag(p[0] - g.last[0], p[1] - g.last[1]); g.last = p;
@@ -161,7 +161,7 @@ const up = (e) => {
   if (!t.moved) tap(t.start);
 };
 cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
-cv.addEventListener("wheel", (e) => { e.preventDefault(); view.zoom = Math.max(0.8, Math.min(12, view.zoom * Math.exp(-e.deltaY * 0.0015))); }, { passive: false });
+cv.addEventListener("wheel", (e) => { e.preventDefault(); const p = xy(e); view.zoomAt(p[0], p[1], Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
 
 function zoneAt(p) {
   let best = -2, bi = -1; const S = snap.P;
@@ -172,7 +172,7 @@ function tap(p) {
   if (!snap) return;
   const m = view.unproject(p[0], p[1]); if (!m) { view.hot = -1; $("info").hidden = true; return; }
   const z = zoneAt(m);
-  if (sel >= 0) { addStop(z); return; }
+  if (sel >= 0) { addStop(z, m); return; }
   view.hot = z; info(z);
 }
 function info(z) {
@@ -180,16 +180,54 @@ function info(z) {
   if (!snap.land[z]) { el.hidden = false; el.innerHTML = "<b>sea</b>"; return; }
   const water = W.fresh[g], acc = snap.u ? snap.u[z] : 0;
   el.hidden = false;
-  el.innerHTML = "<b>" + fmt(snap.pop[z]) + "</b> people · " + fmt(d) + "/km² · " + snap.area[z].toFixed(0) + " km²<br>" +
+  el.innerHTML = (townOf(z) ? "<i>" + townOf(z) + "</i> · " : "") + "<b>" + fmt(snap.pop[z]) + "</b> people · " + fmt(d) + "/km² · " + snap.area[z].toFixed(0) + " km²<br>" +
     "water <b>" + fmt(water) + "</b>/km² · reach <b>×" + acc.toFixed(2) + "</b>" +
     (snap.K ? " · room for " + fmt(snap.K[z]) : "");
 }
-let noteT = 0, noteZone = -1;
-function note(s, z) {
-  const el = $("note"); el.textContent = s + (z != null ? " · tap to look" : ""); el.classList.add("show"); noteZone = z == null ? -1 : z;
-  clearTimeout(noteT); noteT = setTimeout(() => el.classList.remove("show"), 2600);
+function townOf(z) {
+  if (!snap.towns || !snap.towns.length || snap.pop[z] < 200) return "";
+  const p = site(z); let best = -2, nm = "";
+  for (const t of snap.towns) { const d = t.p[0] * p[0] + t.p[1] * p[1] + t.p[2] * p[2]; if (d > best) { best = d; nm = t.name; } }
+  return best > Math.cos(60 / R) ? nm : "";
 }
-$("note").onclick = () => { if (noteZone >= 0 && snap) { view.face(site(noteZone), 1); view.hot = noteZone; info(noteZone); } };
+let noteT = 0, notePt = null;
+function note(s, p) {
+  const el = $("note"); el.textContent = s + (p ? " · tap to look" : ""); el.classList.add("show"); notePt = p || null;
+  clearTimeout(noteT); noteT = setTimeout(() => el.classList.remove("show"), 3200);
+}
+function look(p) { if (!p || !snap) return; view.face(p, 1); if (view.zoom < 4) view.zoom = 4; const z = zoneAt(p); view.hot = z; info(z); }
+$("note").onclick = () => look(notePt);
+
+/* ------------------------------------------------------------ the log
+   What the world did, newest first. Line events are worded here, where
+   the lines' colours have names. Towns, cities passing a mark, a line
+   filling up and the money running out also pop up as a note. */
+const CNAME = { "#ff5a5f": "Red", "#3ec1ff": "Blue", "#ffd23f": "Yellow", "#5ee88a": "Green", "#c77dff": "Violet", "#ff9a3c": "Orange", "#ff7ac8": "Pink", "#9be15d": "Lime", "#7aa2ff": "Indigo", "#e8e8e8": "White" };
+function evText(ev) {
+  if (ev.line == null) return ev.text;
+  const L = lines.find((l) => l.id === ev.line);
+  return (L ? CNAME[L.color] + " line " : "A line ") + ev.text;
+}
+function evPoint(ev) {
+  if (ev.p) return ev.p;
+  const L = lines.find((l) => l.id === ev.line); return L && L.stops.length ? L.stops[L.stops.length >> 1] : null;
+}
+function toast(ev) { if (["town", "full", "money", "planet"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
+function renderLog() {
+  $("logbtn").textContent = "log" + (unread && $("log").hidden ? " ·" + unread : "");
+  if ($("log").hidden) return;
+  const el = $("loglist"); el.innerHTML = "";
+  for (let k = log.length - 1; k >= 0; k--) {
+    const ev = log[k], row = document.createElement("button"), L = ev.line != null && lines.find((l) => l.id === ev.line);
+    row.type = "button"; row.className = "ev " + ev.kind;
+    row.innerHTML = "<span class='y'>" + (1900 + ev.year - warm) + "</span>" + (L ? "<i style='background:" + L.color + "'></i>" : "") + "<span class='t'></span>";
+    row.querySelector(".t").textContent = evText(ev);
+    const p = evPoint(ev); if (p) row.onclick = () => { if (view.w < 700) $("log").hidden = true; look(p); }; else row.disabled = true;
+    el.appendChild(row);
+  }
+}
+$("logbtn").onclick = () => { $("log").hidden = !$("log").hidden; unread = 0; renderLog(); };
+$("logclose").onclick = () => { $("log").hidden = true; renderLog(); };
 
 /* ------------------------------------------------------------ buttons */
 $("start-btn").onclick = () => { $("start").hidden = true; running = true; playBtn(); };

@@ -23,6 +23,10 @@
     <canvas id="globe" aria-label="The planet: drag to turn, pinch to zoom, tap to look or to lay a stop"></canvas>
     <div id="info" hidden></div>
     <div id="note"></div>
+    <div id="log" hidden>
+      <div class="ptop"><span>what happened</span><button type="button" id="logclose" class="mini">close</button></div>
+      <div id="loglist"></div>
+    </div>
     <div id="panel" hidden>
       <div class="ptop"><i></i><span id="p-title">—</span><button type="button" id="p-done" class="mini">done</button></div>
       <div class="pstats">
@@ -38,10 +42,11 @@
   <div id="actions">
     <button class="ghost" id="play" type="button" title="Pause / run (space)">▶</button>
     <button class="ghost" id="fast" type="button" title="Faster">▶▶</button>
+    <button class="ghost" id="logbtn" type="button" title="What happened in the world">log</button>
     <button class="ghost" id="help" type="button" aria-label="How to play">?</button>
     <button class="ghost" id="newworld" type="button">new world</button>
   </div>
-  <p class="foot">world <code id="seed">—</code> · drag to turn · pinch to zoom · pick a line, tap land to lay stops · a planet from <a href="https://mappa.mino.mobi/">mappa</a></p>
+  <p class="foot">world <code id="seed">—</code> · drag to turn · pinch or scroll to zoom right in · pick a line, tap land to lay stops · a planet from <a href="https://mappa.mino.mobi/">mappa</a></p>
 </div>
 
 <div class="overlay" id="start">

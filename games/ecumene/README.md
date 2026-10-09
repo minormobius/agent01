@@ -8,7 +8,7 @@ water is; cities grow where your lines reach; the lines fill as they do.
 
 The game rests on one claim, which the selftest measures on every run:
 **a line grows the city along it.** On world 3, an 8-train line across the
-biggest city at the start leaves about 60% more people along it 25 years
+biggest city at the start leaves about 50% more people along it 25 years
 later than the same planet without it.
 
 It works like this, once a year:
@@ -34,6 +34,14 @@ It works like this, once a year:
    + 400): a river carries a city, rain alone a town. Growth is logistic
    toward the ceiling, with spill into the neighbours. Every 4 years a new
    town is founded at the best open site.
+
+   A zone over its ceiling sheds a quarter of the excess a year, and every
+   move is bounded by what is there and what has room. That is a fix: the
+   plain logistic step, once a zone sat far over its ceiling, overshot by a
+   factor of a hundred a year and ran the planet to NaN (seed 896933214,
+   year ~105, from a 0.6 km² sliver a split had handed a third of a
+   district). A split now hands its people out by the land each child got,
+   and the selftest pins both.
 5. **The mesh.** A zone over 8,000 people splits into three, and the
    spherical Voronoi diagram is rebuilt from the sites (`ORB.voronoi`, from
    `../orb/js/sphere.js`). So the map is finest where the city is dense.
@@ -52,6 +60,28 @@ ceiling, and the water bound everywhere: a line changed nothing (−4% to
 hard with density, gave +51% with 3 trains and +69% with 8. The tuning
 scripts that found this are not committed; the selftest's counterfactual is
 the one that guards it.
+
+## The log
+
+The sim names its towns (seeded, so a world always names them the same)
+and says what happens, once per change: a town founded, a city passing
+100k, 250k, 500k, 1M, a new largest city, a line full and stranding riders
+(and room again), a line passing 50k riders, funds overdrawn, the planet
+passing a mark, the mesh reaching its cap. The page keeps the whole log
+(newest first; tap an entry to look there) and pops the big ones up.
+
+## The map
+
+- **Relief, exaggerated.** Each zone's height is interpolated from
+  mappa's cells round it, and a normal is fitted to its neighbours'
+  heights at 14× exaggeration, lit from the upper left. The colour is a
+  hypsometric tint mixed with mappa's biome. People light it up.
+- **The sea has no cells.** One deep gradient, a pale shelf haloed round
+  every coast, and a field of small waves: 40k points fixed on the sphere,
+  thinned to about 2,000 on screen, breathing in phase.
+- **Deep zoom.** Pinch or scroll, anchored where you point, to about
+  40 px per km in a dense city. Only zones on screen are drawn. Stops go
+  exactly where you tap.
 
 ## Money
 
@@ -84,8 +114,12 @@ This is v1 of the plan. Next:
   `computeClimate` with a shifted forcing.
 - **v3:** mappa's ores and civ's price field.
 
-Also missing: saving a game (a replay log of line edits would do it,
-since the sim is deterministic), city names, and a fail state.
+Also missing: saving a game and a fail state. Saving should follow hoop's
+pattern (`hoop/lexicons/story.save.json`): a record in the player's own
+repo, localStorage for the hot path, and here the event-sourced variant
+its lexicon names, since the sim is deterministic: the seed and the
+line edits by year replay the game. Built generic for the games suite
+when a second game needs it.
 
 ## Files
 

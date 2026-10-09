@@ -24,7 +24,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 #stage { position: relative; flex: 1; min-height: 0; }
 #globe { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; display: block; cursor: grab; }
 #info {
-  position: absolute; left: 8px; top: 8px; max-width: min(320px, calc(100% - 16px)); font-family: var(--mono); font-size: 12px; line-height: 1.5;
+  position: absolute; left: 8px; top: 48px; max-width: min(320px, calc(100% - 16px)); font-family: var(--mono); font-size: 12px; line-height: 1.5;
   background: rgba(15,23,38,0.88); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; pointer-events: none;
 }
 #info b { color: var(--accent); }
@@ -40,6 +40,24 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
   font-family: var(--mono); font-size: 12px; display: flex; flex-direction: column; gap: 6px;
 }
 #panel[hidden] { display: none; }
+#log {
+  position: absolute; right: 8px; top: 8px; bottom: 8px; width: min(340px, calc(100% - 16px)); z-index: 5;
+  background: #0f1726; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px;
+  font-family: var(--mono); font-size: 12px; display: flex; flex-direction: column; gap: 6px;
+}
+#log[hidden] { display: none; }
+#loglist { overflow-y: auto; display: flex; flex-direction: column; gap: 2px; min-height: 0; }
+.ev {
+  display: flex; gap: 8px; align-items: baseline; text-align: left; font-family: var(--mono); font-size: 12px; line-height: 1.4;
+  background: transparent; color: var(--text); border: 0; border-radius: 6px; padding: 5px 6px; cursor: pointer;
+}
+.ev:hover:not(:disabled) { background: rgba(255,255,255,0.05); }
+.ev:disabled { cursor: default; color: var(--dim); }
+.ev .y { color: var(--dim); min-width: 4ch; }
+.ev i { width: 9px; height: 9px; border-radius: 50%; flex: none; align-self: center; }
+.ev.full .t, .ev.money .t { color: var(--warn); }
+.ev.town .t { color: var(--accent2); }
+.ev.planet .t { color: var(--accent); }
 .ptop { display: flex; align-items: center; gap: 8px; }
 .ptop i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); }
 .ptop span { flex: 1; }

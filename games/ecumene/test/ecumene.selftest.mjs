@@ -37,7 +37,8 @@ ok(s.pop.every((p, i) => s.land[i] || p === 0), "nobody lives at sea");
   t.pop[big] = 3 * P.SPLIT_POP - 3; const before = t.pop.reduce((a, b) => a + b, 0), n0 = t.n;
   t.refine();
   ok(t.n === n0 + 2 && Math.abs(t.pop.reduce((a, b) => a + b, 0) - before) < 1e-6, "a split adds two zones and keeps every person");
-  ok(t.pop[big] < P.SPLIT_POP && t.pop[n0] < P.SPLIT_POP, "a split doesn't cascade");
+  let calls = 0; while (t.refine() > 0 && calls < 30) calls++;
+  ok(calls < 12 && t.pop.every((p, i) => p <= P.SPLIT_POP || t.area[i] <= P.SPLIT_MIN_AREA), "splitting settles: a few rounds and every zone is under the line (" + calls + " rounds)");
 }
 { // determinism, lines included
   const run = () => { const a = new E.Sim(E.makeWorld(5), 5); a.warmup(); a.setLines([{ id: 1, color: "#f00", stops: [pt(0), pt(1)], trains: 2 }]); for (let k = 0; k < 4; k++) a.step(); return a.pop.reduce((x, y) => x + y, 0); };
@@ -48,6 +49,31 @@ ok(s.pop.every((p, i) => s.land[i] || p === 0), "nobody lives at sea");
   for (let i = 0; i < w.N && (land < 0 || sea < 0); i++) for (const j of w.adj[i]) { if (w.water[i] === 0 && w.water[j] === 0 && land < 0) land = i * 1e4 + j; if (w.water[i] === 1 && w.water[j] === 1 && sea < 0) sea = i * 1e4 + j; }
   const V = (i) => [w.V[3 * i], w.V[3 * i + 1], w.V[3 * i + 2]], per = (k) => { const a = V(Math.floor(k / 1e4)), b = V(k % 1e4); return E.trackCost(w, a, b) / (E.arc(a, b) * E.R); };
   ok(per(sea) > 2 * per(land) / Math.sqrt(3), "water costs more per km");
+}
+
+{ // a zone far over its ceiling (a closed line, a sliver after a split) comes down; nothing runs away
+  const t = new E.Sim(E.makeWorld(3), 3); t.warmup();
+  let z = 0; for (let i = 0; i < t.n; i++) if (t.land[i] && t.pop[i] > 1000) { z = i; break; }
+  t.pop[z] = 2000 * Math.max(1, t.K[z]);
+  const before = t.pop.reduce((a, b) => a + b, 0), peak = t.pop[z];
+  for (let k = 0; k < 4; k++) t.step();
+  const after = t.pop.reduce((a, b) => a + b, 0);
+  ok(t.pop.every((p) => isFinite(p) && p >= 0), "an overfull zone leaves every population finite");
+  ok(after < before * 1.2 && t.pop[z] < peak, "an overfull zone empties rather than explodes (seed 896933214 once ran to NaN this way)");
+}
+{ // a split hands its people out by the land each child got
+  const t = new E.Sim(w, 3); let big = 0; for (let i = 0; i < t.n; i++) if (t.land[i] && t.area[i] > 50) { big = i; break; }
+  t.pop[big] = 3 * P.SPLIT_POP; const n0 = t.n; t.refine();
+  const kids = [big, n0, n0 + 1].filter((c) => t.land[c]), dens = kids.map((c) => t.pop[c] / t.area[c]);
+  ok(Math.max(...dens) / Math.min(...dens) < 1.0001, "a split's children start at one density");
+}
+{ // the chronicle: named towns, and a log that says what happened
+  ok(s.towns.length >= P.TOWNS0 && new Set(s.towns.map((t) => t.name)).size === s.towns.length, "every town has its own name");
+  ok(s.log.length > 1 && s.log[0].kind === "planet", "the log opens with the planet");
+  const t = new E.Sim(E.makeWorld(3), 3); t.warmup(); let seen = 0; for (let k = 0; k < 12; k++) { t.step(); seen += t.events.length; }
+  ok(seen > 0 && t.log.length > 9, "a dozen years make the news");
+  const u = new E.Sim(E.makeWorld(3), 3); u.warmup(); for (let k = 0; k < 12; k++) u.step();
+  ok(t.log.map((e) => e.year + e.text).join("|") === u.log.map((e) => e.year + e.text).join("|"), "the same seed tells the same story");
 }
 
 /* ---- a line through the biggest city */

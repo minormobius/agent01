@@ -63,6 +63,7 @@ export class Sim {
     this.sites = Array.from(W.V); this.geo = []; this.pop = []; this.jobs = [];
     for (let i = 0; i < n; i++) { this.geo.push(i); this.pop.push(0); this.jobs.push(0); }
     this.lines = []; this.history = []; this.stats = {}; this.crowd = new Map();
+    this.towns = []; this.events = []; this.log = []; this.flags = new Map(); this.names = new Set();
     this.rebuild();
     for (let k = 0; k < P_.TOWNS0; k++) this.foundTown(5);
   }
@@ -81,12 +82,14 @@ export class Sim {
   split(i) {
     const p = [this.P[3 * i], this.P[3 * i + 1], this.P[3 * i + 2]], r = 0.42 * Math.sqrt(this.area[i] / Math.PI) / R;
     const f = frame(p), a0 = this.rng() * 2 * Math.PI, share = this.pop[i] / 3;
-    this.pop[i] = share;
+    this.pop[i] = share; const kids = [i];
     for (let k = 1; k <= 2; k++) {
       const a = a0 + k * 2 * Math.PI / 3, q = norm([p[0] + r * (Math.cos(a) * f[0][0] + Math.sin(a) * f[1][0]), p[1] + r * (Math.cos(a) * f[0][1] + Math.sin(a) * f[1][1]), p[2] + r * (Math.cos(a) * f[0][2] + Math.sin(a) * f[1][2])]);
+      kids.push(this.sites.length / 3);
       this.sites.push(q[0], q[1], q[2]); this.geo.push(nearestCell(this.world, q, this.geo[i])); this.pop.push(share); this.jobs.push(this.jobs[i] / 3);
     }
     this.jobs[i] /= 3;
+    return kids;
   }
   /* The zone containing unit vector p. */
   zoneAt(p) {
@@ -108,8 +111,52 @@ export class Sim {
       if (!this.land[i] || d[i] >= 0) continue;
       const s = this.siteScore(i); if (s > bs) { bs = s; best = i; }
     }
-    if (best >= 0) { this.pop[best] += P_.TOWN_POP; this.lastTown = best; }
+    if (best >= 0) {
+      this.pop[best] += P_.TOWN_POP; this.lastTown = best;
+      const t = { name: this.townName(), p: [this.P[3 * best], this.P[3 * best + 1], this.P[3 * best + 2]], year: this.year, mark: 0, pop: P_.TOWN_POP };
+      this.towns.push(t);
+      const g = this.geo[best], W = this.world;
+      this.emit("town", t.name + " is founded" + (W.flow[g] > 60 ? " on a river" : W.fresh[g] > 900 ? " by a lake" : ""), t.p);
+    }
     return best;
+  }
+
+  /* A town's name: two or three syllables, drawn from the sim's own rng so a
+     seed always names its towns the same. */
+  townName() {
+    const A = ["ar", "bel", "cor", "dun", "el", "fen", "gal", "har", "is", "kel", "lin", "mar", "nor", "ost", "pel", "quar", "ros", "sal", "tor", "ul", "ven", "wy", "yar", "zel", "ash", "bri", "cal", "dor", "eth", "lo"];
+    const B = ["a", "e", "i", "o", "en", "an", "or", "is", "ia", "um"];
+    const C = ["ford", "mere", "ton", "holm", "by", "wick", "stead", "mouth", "dale", "port", "brook", "vale", "ness", "gate", "", "", ""];
+    for (let k = 0; k < 50; k++) {
+      const r = () => this.rng(), w = A[r() * A.length | 0] + (r() < 0.5 ? B[r() * B.length | 0] : "") + C[r() * C.length | 0];
+      const name = w[0].toUpperCase() + w.slice(1);
+      if (name.length >= 4 && !this.names.has(name)) { this.names.add(name); return name; }
+    }
+    return "Town " + (this.towns.length + 1);
+  }
+  /* What happened this year, for the page's log: { year, kind, text, p, line }. */
+  emit(kind, text, p, line) { const e = { year: this.year, kind, text, p: p || null, line: line == null ? null : line }; this.events.push(e); this.log.push(e); }
+  /* Once per crossing: true the first time `key` turns on, after it was off. */
+  edge(key, on) { const was = this.flags.get(key) || false; this.flags.set(key, on); return on && !was; }
+  /* Cities: every settled zone belongs to its nearest town. */
+  chronicle() {
+    const T = this.towns; if (!T.length) return;
+    const tot = new Float64Array(T.length), P = this.P;
+    for (let i = 0; i < this.n; i++) {
+      if (!this.land[i] || this.pop[i] < 500) continue;
+      let best = -2, bi = 0; for (let t = 0; t < T.length; t++) { const q = T[t].p, d = P[3 * i] * q[0] + P[3 * i + 1] * q[1] + P[3 * i + 2] * q[2]; if (d > best) { best = d; bi = t; } }
+      if (best > Math.cos(60 / R)) tot[bi] += this.pop[i];
+    }
+    const MARKS = [50e3, 100e3, 250e3, 500e3, 1e6, 2e6, 5e6];
+    T.forEach((t, k) => {
+      t.pop = tot[k];
+      while (t.mark < MARKS.length && tot[k] >= MARKS[t.mark]) {
+        if (this.year > 0 && t.mark >= 1) this.emit("city", t.name + " passes " + fmtN(MARKS[t.mark]), t.p);
+        t.mark++;
+      }
+    });
+    const sorted = T.map((t, k) => [tot[k], k]).sort((a, b) => b[0] - a[0]);
+    if (sorted.length > 1 && sorted[0][0] > 1.05 * sorted[1][0] && this.edge("biggest:" + sorted[0][1], true)) { for (const [, k] of sorted.slice(1)) this.flags.set("biggest:" + k, false); if (this.year > 1) this.emit("city", T[sorted[0][1]].name + " is now the largest city", T[sorted[0][1]].p); }
   }
 
   /* ---------------------------------------------------------------- lines
@@ -117,7 +164,14 @@ export class Sim {
      the sphere; each year they are found in whatever zone now holds them. */
   setLines(lines) { this.lines = lines.map((l) => ({ id: l.id, color: l.color, stops: l.stops.map((s) => s.slice()), trains: l.trains })); }
   trackCost(a, b) { return trackCost(this.world, a, b); }
-  warmup() { for (let k = 0; k < P_.WARMUP; k++) this.step(); this.history.length = 0; this.credits = P_.START_CREDITS; }
+  warmup() {
+    for (let k = 0; k < P_.WARMUP; k++) this.step();
+    this.history.length = 0; this.credits = P_.START_CREDITS;
+    const big = this.towns.filter((t) => t.pop > 1000).sort((a, b) => b.pop - a.pop);
+    this.log = [{ year: this.year, kind: "planet", text: big.length + " towns and cities, " + fmtN(this.stats.pop) + " people", p: null, line: null }]
+      .concat(big.slice(0, 8).map((t) => ({ year: this.year, kind: "town", text: t.name + ", " + fmtN(t.pop) + " people", p: t.p, line: null })));
+    this.events = [];
+  }
 
   /* ---------------------------------------------------------------- a year */
   step() {
@@ -126,15 +180,28 @@ export class Sim {
     const dem = this.demand(net);
     this.lineStats(net, dem);
     this.grow(dem);
+    this.events = [];
     const splits = this.refine();
     this.year++;
     if (this.year % P_.TOWN_EVERY === 0) this.foundTown(4);
+    this.chronicle();
     const fares = this.stats.riders * 365 * P_.FARE;
     let upkeep = 0;
     for (const L of this.lines) { upkeep += P_.TRAIN_UPKEEP * L.trains; for (let k = 0; k + 1 < L.stops.length; k++) upkeep += P_.TRACK_UPKEEP * arc(L.stops[k], L.stops[k + 1]) * R; }
     this.credits += fares - upkeep; this.stats.fares = fares; this.stats.upkeep = upkeep;
     let total = 0, urban = 0; for (let i = 0; i < this.n; i++) { total += this.pop[i]; if (this.pop[i] / Math.max(1, this.area[i]) > 300) urban += this.pop[i]; }
     Object.assign(this.stats, { year: this.year, pop: total, urban, zones: this.n, splits, ms: Date.now() - t0, credits: this.credits });
+    // the lines, the money and the planet, each said once when it changes
+    for (const L of this.stats.lines) {
+      if (this.edge("full:" + L.id, L.crowd > 1.05 && L.stranded > 200)) this.emit("full", "is full: " + fmtN(L.stranded) + " riders a day left on the platform", null, L.id);
+      else if (this.edge("room:" + L.id, L.crowd < 0.85 && this.flags.get("full:" + L.id) === false && this.flags.has("full:" + L.id) && this.flags.get("wasfull:" + L.id))) this.emit("room", "has room again", null, L.id);
+      if (L.crowd > 1.05 && L.stranded > 200) this.flags.set("wasfull:" + L.id, true); else if (L.crowd < 0.85) this.flags.set("wasfull:" + L.id, false);
+      if (this.edge("busy:" + L.id, L.riders > 50e3)) this.emit("line", "carries " + fmtN(L.riders) + " riders a day", null, L.id);
+    }
+    if (this.edge("broke", this.credits < 0)) this.emit("money", "Funds are overdrawn: the lines still run, but nothing new can be built");
+    const PM = [2e6, 5e6, 10e6, 20e6, 50e6];
+    for (const m of PM) if (this.edge("planet:" + m, total >= m) && this.year > 1) this.emit("planet", "The planet passes " + fmtN(m) + " people");
+    if (this.edge("meshfull", this.n + 2 > P_.MAX_ZONES)) this.emit("planet", "The map is as fine as it gets: districts no longer split");
     this.history.push({ year: this.year, pop: total, riders: this.stats.riders, share: this.stats.share, stranded: this.stats.stranded });
     return this.stats;
   }
@@ -251,18 +318,27 @@ export class Sim {
       const wet = W.fresh[g] / (W.fresh[g] + P_.W_HALF);   // how much of a city its water can carry
       K[i] = a * W.hab[g] * wet * (P_.RURAL + P_.URBAN * Math.pow(u[i], P_.ALPHA));
     }
+    /* Below its ceiling a zone grows logistically; near it, some of its people
+       move next door, to wherever there is room; over it (a ceiling falls when
+       a line is closed or a split leaves a sliver), a quarter of the excess
+       leaves each year. Every move is bounded by what is there and what has
+       room, so nothing here can overshoot: the explicit logistic step alone
+       did, by a factor of a hundred a year, once a zone sat far over its
+       ceiling. */
     const next = pop.slice();
     for (let i = 0; i < n; i++) {
       if (!this.land[i] || pop[i] <= 0) continue;
       const k = Math.max(1, K[i]), p = pop[i];
-      next[i] += P_.R_GROW * p * (1 - p / k);
-      if (p / k > P_.SPILL_AT) { // spill into neighbours with room
-        const s = P_.SPILL * p * (p / k - P_.SPILL_AT);
-        let room = 0; for (const j of this.nbrs[i]) if (this.land[j]) room += Math.max(0, K[j] - pop[j]);
-        if (room > 0) { for (const j of this.nbrs[i]) if (this.land[j]) next[j] += s * Math.max(0, K[j] - pop[j]) / room; next[i] -= s; }
-      }
+      let out;
+      if (p <= k) { next[i] += P_.R_GROW * p * (1 - p / k); out = p / k > P_.SPILL_AT ? P_.SPILL * p * (p / k - P_.SPILL_AT) : 0; }
+      else out = 0.25 * (p - k);
+      if (out <= 0) continue;
+      let room = 0; for (const j of this.nbrs[i]) if (this.land[j]) room += Math.max(0, K[j] - pop[j]);
+      const moved = Math.min(out, 0.5 * room);
+      if (moved > 0) for (const j of this.nbrs[i]) if (this.land[j]) next[j] += moved * Math.max(0, K[j] - pop[j]) / room;
+      next[i] -= p > k ? out : moved;   // over the ceiling the rest leave anyway
     }
-    for (let i = 0; i < n; i++) pop[i] = Math.max(0, next[i]);
+    for (let i = 0; i < n; i++) pop[i] = next[i] > 0 && isFinite(next[i]) ? next[i] : 0;
     // jobs gather where access is high; as many as there are workers
     let tot = 0, w = 0;
     for (let i = 0; i < n; i++) { this.jobs[i] = pop[i] * (0.4 + Math.min(1, u[i])); w += this.jobs[i]; tot += pop[i]; }
@@ -275,9 +351,19 @@ export class Sim {
     const cand = [];
     for (let i = 0; i < this.n; i++) if (this.land[i] && this.area[i] > P_.SPLIT_MIN_AREA && this.pop[i] > P_.SPLIT_POP) cand.push(i);
     cand.sort((a, b) => this.pop[b] - this.pop[a]);
-    let k = 0;
-    for (const i of cand) { if (k >= P_.MAX_SPLITS || this.sites.length / 3 + 2 > P_.MAX_ZONES) break; this.split(i); k++; }
-    if (k) this.rebuild();
+    let k = 0; const groups = [];
+    for (const i of cand) { if (k >= P_.MAX_SPLITS || this.sites.length / 3 + 2 > P_.MAX_ZONES) break; groups.push(this.split(i)); k++; }
+    if (k) {
+      this.rebuild();
+      // the people of a split go to its children by the land each one got. An equal
+      // three-way share once put a third of a district into a 0.6 km² sliver, a
+      // thousand times over its ceiling, and the overshoot ran away (seed 896933214).
+      for (const g of groups) {
+        let tot = 0, area = 0;
+        for (const c of g) { tot += this.pop[c]; if (this.land[c]) area += this.area[c]; }
+        for (const c of g) this.pop[c] = this.land[c] && area > 0 ? tot * this.area[c] / area : 0;
+      }
+    }
     return k;
   }
 
@@ -301,6 +387,7 @@ export function trackCost(W, a, b) {
 }
 
 /* ---------------------------------------------------------------- helpers */
+function fmtN(x) { return x >= 1e6 ? (x / 1e6).toFixed(x >= 1e7 ? 0 : 1).replace(/\.0$/, "") + "M" : x >= 1e3 ? Math.round(x / 1e3) + "k" : Math.round(x) + ""; }
 function dijkstra(out, src, dist, pred, pedge, via, heap, tmax, roadOnly) {
   const order = []; dist[src] = 0; if (via) via[src] = 0; heap.clear(); heap.push(src, 0);
   while (heap.size) {
