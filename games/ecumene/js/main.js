@@ -122,7 +122,7 @@ function report(me, tw) {
   // the score: the hours your trains gave back, against the road, over the century; and what the planet became, against the same planet without you
   const h = (snap.legacy && snap.legacy.hours) || 0;
   $("end-lead").innerHTML = h > 0 ? "Your railway gave the world back <b>" + big(h) + " hours</b>: some " + big(h / (70 * 8760)) + " lifetimes of travel. " + (dg > 0.5 ? "The planet is " + sgn(dg) + " richer than it would have been without you." : "It is no richer than it would have been without you.") : "Your railway gave the world back no time at all.";
-  $("end-line").textContent = big((snap.legacy && snap.legacy.hoursDay) || 0) + " hours a day by 2000 · " + lines.length + (lines.length === 1 ? " line," : " lines,") " + Math.round(km) + " km of track, " + fmt(snap.stats.riders || 0) + " riders a day, ₵" + Math.floor(credits) + " in the bank · world " + seed;
+  $("end-line").textContent = big((snap.legacy && snap.legacy.hoursDay) || 0) + " hours a day by 2000 · " + lines.length + (lines.length === 1 ? " line, " : " lines, ") + Math.round(km) + " km of track, " + fmt(snap.stats.riders || 0) + " riders a day, ₵" + Math.floor(credits) + " in the bank · world " + seed;
   $("end").hidden = false;
 }
 $("end-more").onclick = () => { $("end").hidden = true; running = true; playBtn(); century(); };

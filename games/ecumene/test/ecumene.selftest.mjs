@@ -18,6 +18,16 @@ const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok  
 const mine = path.join(here, "../js/mappa-engine.js"), theirs = path.join(here, "../../../mappa/engine.js");
 if (fs.existsSync(theirs)) ok(fs.readFileSync(mine, "utf8") === fs.readFileSync(theirs, "utf8"), "js/mappa-engine.js is byte-identical to mappa/engine.js (cp ../../mappa/engine.js js/mappa-engine.js)");
 
+/* ---- every script the page loads parses as a module. A dropped "+" in main.js once
+   shipped: the page sat on "growing a world…" for good, and nothing in node noticed,
+   because the sims run in node and the page's own code never did. */
+{
+  const { spawnSync } = await import("node:child_process");
+  const js = fs.readdirSync(path.join(here, "../js")).filter((f) => f.endsWith(".js"));
+  const bad = js.filter((f) => spawnSync(process.execPath, ["--input-type=module", "--check"], { input: fs.readFileSync(path.join(here, "../js", f)) }).status !== 0);
+  ok(js.length >= 8 && !bad.length, "every page script parses (" + js.length + " files" + (bad.length ? "; broken: " + bad.join(", ") : "") + ")");
+}
+
 /* ---- the planet */
 const w = E.makeWorld(3), w2 = E.makeWorld(3);
 ok(w.landCells >= 450 && w.livable >= 250, "a world with room to live");
