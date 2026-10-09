@@ -21,9 +21,9 @@
            of the distance, keeping cargo SEA_KEEP× as well as a cart. Nobody's
            monopoly: a coastal city can feed itself across the water, so the
            player's freight is the business of the interior.
-   Each short node, biggest shortfall first, draws from the cheapest
-   sources it can reach until it is met or they run dry (a greedy min-cost
-   allocation). Then any rail run carrying more than its capacity scales
+   Every (short node, source) pair is served in order of cost, cheapest
+   first, until the shortfall is met or the source runs dry (a greedy
+   min-cost allocation). Then any rail run carrying more than its capacity scales
    down every flow through it. What arrives sets the town's food
    satisfaction (which caps its zones' ceilings in js/sim.js grow) and its
    ore satisfaction (which draws jobs to it). Rail freight earns its fare
@@ -35,14 +35,26 @@ import { R, nearestCell } from "./world.js";
 import { arc } from "./sim.js";
 
 export const F_ = {
-  FOOD_Y: 30, FOOD_GROWTH: 0.025,      // units per yield-km², ×(1 + FOOD_GROWTH·year)
+  FOOD_Y: 18, FOOD_GROWTH: 0.015,      // units per yield-km², ×(1 + FOOD_GROWTH·year)
   FARM_DENS: 300,                      // a zone has no farms left at this density
   ORE_PER: 0.25, MINE_KM: 45, MINE_STOP_KM: 12,
   ROAD_KM: 95, HAUL: 110, RAIL_COST: 0.12, CMAX: 600,
   SEA_COST: 0.3, SEA_KEEP: 4,          // shipping between ports: cost per km, and it keeps 4× as well as a cart
   WAGON_CAP: 40e3, FREIGHT_RATE: 1.2e-5, STOP_SNAP_KM: 14,
   FOOD_FLOOR: 0.3,                     // a starving town's ceiling is this share of its fed one
+  AG0: 22, AG_DECAY: 90, AG_FLOOR: 3,  // farmers a yield-km² needs: AG0 until AG_FROM, then falling (machines) to AG_FLOOR
+  AG_FROM: 60,                         // the machines arrive with the player (the end of the warm-up)
+  STAFFED: 0.7,                        // a farm at this share of its farmers grows all it can
 };
+
+/* Farming takes people. A zone's open country needs `farmers(sim, i)` hands
+   to grow all it can; fewer grow less. The need falls with the years as the
+   farms mechanize, which is what empties the countryside into the cities. */
+export function agDens(year) { return Math.max(F_.AG_FLOOR, F_.AG0 * Math.exp(-Math.max(0, year - F_.AG_FROM) / F_.AG_DECAY)); }
+export function farmers(sim, i) {
+  const dens = sim.pop[i] / Math.max(1e-6, sim.area[i]), farm = Math.max(0, 1 - dens / F_.FARM_DENS);
+  return sim.area[i] * farm * sim.world.yieldKm[sim.geo[i]] * agDens(sim.year);
+}
 
 export function freight(sim) {
   const W = sim.world, T = sim.towns, D = W.deposits, n = sim.n, nt = T.length;
@@ -55,7 +67,8 @@ export function freight(sim) {
   for (let i = 0; i < n; i++) {
     if (!sim.land[i] || zt[i] < 0) continue;
     const dens = sim.pop[i] / Math.max(1e-6, sim.area[i]), farm = Math.max(0, 1 - dens / F_.FARM_DENS);
-    grown[zt[i]] += sim.area[i] * farm * W.yieldKm[sim.geo[i]] * yieldNow;
+    const need = farmers(sim, i), staffed = need > 0 ? Math.min(1, sim.pop[i] / (need * F_.STAFFED)) : 0;
+    grown[zt[i]] += sim.area[i] * farm * W.yieldKm[sim.geo[i]] * yieldNow * staffed;
     eat[zt[i]] += sim.pop[i];
   }
   // the mines that are worked: a settled zone near them, or a freight stop on them
@@ -111,21 +124,22 @@ export function freight(sim) {
   D.forEach((d, k) => { if (mineOn[k]) supply.ore[nt + k] = d.rich; out.mines.push({ kind: d.kind, p: d.p, on: mineOn[k], rich: d.rich }); });
   const flows = [];  // { c, src, dst, x, delta, runs: [ids] }
   for (const c of ["food", "ore"]) {
-    const left = supply[c].slice(), order = [];
-    for (let v = 0; v < N; v++) if (want[c][v] > 0) order.push(v);
-    order.sort((a, b) => want[c][b] - want[c][a]);
-    for (const j of order) {
+    // every short node's cheapest paths, then every (short, source) pair served cheapest
+    // first: a greedy min-cost allocation. (Biggest shortfall first let two big cities
+    // drain a breadbasket by road before the city on a rail line from it was asked.)
+    const left = supply[c].slice(), rest = want[c].slice(), pairs = [];
+    for (let j = 0; j < N; j++) {
+      if (!(want[c][j] > 0)) continue;
       const sp = paths(adj, j, N);
-      const src = []; for (let v = 0; v < N; v++) if (left[v] > 0 && v !== j && sp.cost[v] < F_.CMAX) src.push(v);
-      src.sort((a, b) => sp.cost[a] - sp.cost[b]);
-      let rest = want[c][j];
-      for (const i of src) {
-        if (rest <= 0) break;
-        const delta = Math.exp(-sp.road[i] / F_.HAUL - sp.rail[i] / (F_.HAUL * 8) - sp.sea[i] / (F_.HAUL * F_.SEA_KEEP)), x = Math.min(left[i], rest / delta);
-        if (x <= 0) continue;
-        left[i] -= x; rest -= x * delta;
-        flows.push({ c, src: i, dst: j, x, delta, runs: sp.runsTo(i) });
-      }
+      for (let i = 0; i < N; i++) if (supply[c][i] > 0 && i !== j && sp.cost[i] < F_.CMAX) pairs.push([sp.cost[i], j, i, sp]);
+    }
+    pairs.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+    for (const [, j, i, sp] of pairs) {
+      if (rest[j] <= 0 || left[i] <= 0) continue;
+      const delta = Math.exp(-sp.road[i] / F_.HAUL - sp.rail[i] / (F_.HAUL * 8) - sp.sea[i] / (F_.HAUL * F_.SEA_KEEP)), x = Math.min(left[i], rest[j] / delta);
+      if (x <= 0) continue;
+      left[i] -= x; rest[j] -= x * delta;
+      flows.push({ c, src: i, dst: j, x, delta, runs: sp.runsTo(i) });
     }
   }
   // rail capacity: an overfull run scales down every flow through it

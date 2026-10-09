@@ -8,10 +8,9 @@ water is; cities grow where your lines reach; the lines fill as they do.
 
 The game rests on one claim, which the selftest measures on every run:
 **a line grows the city along it.** On world 3, an 8-train line across the
-biggest city at the start leaves about 20% more people along it 25 years
-later than the same planet without it. (It was 50% before cities needed
-feeding and coastal cities could ship food in; the selftest's floor is
-10%.)
+densest city at the start leaves about 50% more people along it 25 years
+later than the same planet without it. (The selftest's floor is 10%; it
+has ranged from 20% to 60% as food, ships and the countryside came in.)
 
 It works like this, once a year:
 
@@ -68,9 +67,19 @@ the one that guards it.
 `js/freight.js`, once a year between the passengers and the growth.
 
 - **Food** grows on every zone's open country: livability × rain × warmth
-  (`yieldKm` in `js/world.js`), at a yield that improves 2.5% a year (the
+  (`yieldKm` in `js/world.js`), at a yield that improves 1.5% a year (the
   farms get better). A zone loses its farms as it fills (none past
   300/km²). Everyone eats a unit a year.
+- **Farms need farmers.** Open country holds the people it takes to farm
+  it: 22 per yield-km² until the player arrives, then fewer each year as
+  the farms mechanize (an e-folding of 90 years, down to 3). A farm with
+  under 70% of its hands grows less. The countryside starts settled (60%
+  of its farmers at year 0) and empties into the cities as the machines
+  come: on world 3, 78% of people live on the land at the start and about
+  30% by 80 years in. Farmers work their own fields: they don't commute,
+  don't make the jobs others travel to, and don't spill into the towns
+  until the machines put them over what the land takes. A town is the
+  people who don't farm, and that is what its population counts.
 - **Ore** comes from deposits the geology places (`deposits` in
   `js/world.js`): iron, copper and tin where plates collide or a volcanic
   arc stands, coal in warm wet lowlands far from any boundary. A deposit
@@ -82,8 +91,11 @@ the one that guards it.
   with no sea between; cargo decays as exp(−km/110), carts being slow and
   food spoiling) and over the player's lines that carry **wagons** (a
   tenth of the cost, almost no decay, but 40k units a year per wagon).
-  Each short node, biggest first, draws from the cheapest sources it can
-  reach; an overfull rail run scales down every flow through it.
+  Every (short town, source) pair is served cheapest first, until the
+  shortfall is met or the source runs dry; an overfull rail run scales
+  down every flow through it. (Biggest shortfall first, the old order,
+  let two big cities drain a breadbasket by road before the city on a
+  rail line from it was asked, and the line carried nothing.)
 - **What arrives matters.** A town's food share scales its zones'
   ceilings (down to 30% when starving), and its ore share draws jobs to it
   (±15%). Rail freight earns ₵1.2e-5 per unit-km.
@@ -137,10 +149,8 @@ You start with ₵700. At start prices:
 - A stop costs ₵20.
 - Track costs ₵4 a km, three times that over water and more over rough
   ground, plus ₵0.25 a km a year.
-- Fares: ₵0.000006 a day per **journey** (however many lines it takes)
-  plus ₵0.0000006 per km ridden, every day of the year. A cross-city line
-  of 25 km carries its riders ~14 km each and earns about what the old
-  flat fare did.
+- Fares: ₵0.000004 a day per **journey** (however many lines it takes)
+  plus ₵0.0000004 per km ridden, every day of the year.
 - Closing a line, a stop, a train or a wagon refunds half what it cost.
 
 Four rules ramp the costs, because without them the game printed money:
@@ -154,9 +164,9 @@ Four rules ramp the costs, because without them the game printed money:
   upkeep, costs `(people / people at the start)^0.5` times its start
   price.
 - **Building through a city costs more.** Stops and track cost ×(1 +
-  density/700): tunnels and land.
+  density/1200): tunnels and land.
 - **The cities take a cut.** Their levy is
-  `0.6 · f / (f + 6000·index)` of fares `f` a year. You always keep more
+  `0.6 · f / (f + 4000·index)` of fares `f` a year. You always keep more
   for carrying more, but ever less of each extra fare.
 - And on the freight side, **ships**: coastal towns trade by sea without
   you, so the freight business is inland.
@@ -167,16 +177,20 @@ curve; read it after moving any price. Before these rules, world 3's
 metro bot went ₵300 (year 10), ₵2.5k (30), ₵14k (40), ₵49k (60): a
 hockey stick from riders compounding against fixed prices. After them, and the fare change below:
 
-| world | bot | y10 | y20 | y40 | y60 | net/yr at 60 | first line pays back |
-|---|---|---|---|---|---|---|---|
-| 3 | metro | ₵622 | ₵1.2k | ₵2.4k | ₵8.0k | ₵1.3k | 10 yr |
-| 3 | greedy | ₵304 | ₵1.2k | ₵1.2k | ₵745 | ₵613 | 5 yr |
-| 3 | sprinkle+ | −₵160 | −₵536 | −₵1.3k | −₵2.6k | −₵72 | never |
-| 3 | core | ₵2 | ₵101 | ₵9 | −₵1.0k | −₵77 | never |
-| 11 | metro | ₵435 | ₵603 | ₵2.5k | ₵5.6k | ₵1.8k | 15 yr |
-| 11 | greedy | ₵114 | ₵313 | ₵418 | ₵1.9k | ₵588 | 9 yr |
-| 11 | sprinkle+ | −₵197 | −₵565 | −₵1.4k | −₵2.7k | −₵69 | never |
-| 11 | core | ₵84 | ₵463 | −₵55 | −₵528 | −₵62 | 7 yr |
+| world | bot | y10 | y20 | y40 | y60 | net/yr at 60 | lines | first line pays back |
+|---|---|---|---|---|---|---|---|---|
+| 3 | metro | ₵462 | ₵602 | ₵4.2k | ₵1.7k | ₵416 | 18 | 6 yr |
+| 3 | greedy | ₵33 | ₵37 | −₵169 | −₵1.2k | −₵86 | 1 | 6 yr |
+| 3 | core | ₵94 | ₵112 | −₵52 | −₵648 | −₵56 | 2 | never |
+| 11 | metro | ₵381 | ₵2.0k | ₵1.3k | ₵1.5k | ₵626 | 26 | 4 yr |
+| 11 | greedy | ₵629 | ₵193 | ₵53 | −₵1.5k | −₵140 | 3 | 4 yr |
+| 11 | core | ₵242 | ₵79 | −₵198 | −₵1.1k | −₵61 | 2 | 10 yr |
+
+(Retuned after the countryside came in: denser cities at the start made
+the first line pay back in 3 years and world 11's metro bot reach ₵42k,
+so fares came down by a third and the levy up. The metro bot now spends
+its peaks on charters and new lines; buying trains past need, and short
+core lines, lose money.)
 
 ### Why fares are per journey and per km
 

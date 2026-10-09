@@ -53,13 +53,18 @@ function cityLine(s, served, lines) {
     let cx = 0, cy = 0, cz = 0, w = 0; for (const i of c) { const p = pt(s, i); cx += p[0] * s.pop[i]; cy += p[1] * s.pop[i]; cz += p[2] * s.pop[i]; w += s.pop[i]; }
     const C = [cx / w, cy / w, cz / w], l = Math.hypot(...C), Cn = C.map((x) => x / l);
     let reach = 0; for (const i of c) reach = Math.max(reach, E.arc(Cn, pt(s, i)));
+    reach = Math.min(reach, 12 / E.R);   // a line of at most ~20 km: what a player can afford early
     const e1 = norm(cross(Cn, Math.abs(Cn[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0])), e2 = cross(Cn, e1);
     for (let k = 0; k < 6; k++) {
       const th = k * Math.PI / 6, d = [Math.cos(th) * e1[0] + Math.sin(th) * e2[0], Math.cos(th) * e1[1] + Math.sin(th) * e2[1], Math.cos(th) * e1[2] + Math.sin(th) * e2[2]];
       const end = (sg) => norm([Cn[0] + sg * reach * 0.8 * d[0], Cn[1] + sg * reach * 0.8 * d[1], Cn[2] + sg * reach * 0.8 * d[2]]);
       const A = end(-1), B = end(1), km = E.arc(A, B) * E.R; if (km < 4) continue;
       const ns = Math.max(2, Math.round(km / 4)), stops = [];
-      for (let j = 0; j <= ns; j++) { const z = s.zoneAt(E.slerp(A, B, j / ns)); if (!s.land[z]) continue; const p = pt(s, z); if (!stops.length || E.arc(stops[stops.length - 1], p) * E.R > 1) stops.push(p); }
+      for (let j = 0; j <= ns; j++) {
+        const q = E.slerp(A, B, j / ns), z = s.zoneAt(q); if (!s.land[z]) continue;
+        const p = may(s, pt(s, z)) ? pt(s, z) : q;   // a stop at the district's centre, unless that's outside the charter
+        if (may(s, p) && (!stops.length || E.arc(stops[stops.length - 1], p) * E.R > 1)) stops.push(p);
+      }
       if (stops.length < 3 || !stops.every((p) => may(s, p))) continue;
       if (stops.filter(near).length > stops.length / 2) continue;
       return { stops, zones: c };

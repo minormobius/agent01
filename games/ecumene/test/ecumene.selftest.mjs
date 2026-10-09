@@ -33,7 +33,8 @@ ok(s.n > w.N, "the cities have split the mesh");
 ok([...s.geo.keys()].every((i) => s.land[i] === (w.water[s.geo[i]] === 0 ? 1 : 0)), "a zone is land when its ground is");
 ok(s.pop.every((p, i) => s.land[i] || p === 0), "nobody lives at sea");
 { // a split shares its people three ways, and no child is over the threshold it split at
-  const t = new E.Sim(w, 3); let big = 0; for (let i = 0; i < t.n; i++) if (t.land[i] && t.area[i] > 50) { big = i; break; }
+  const t = new E.Sim(w, 3); let big = 0; for (let i = 0; i < t.n; i++) if (t.land[i] && t.area[i] > 50 && t.area[i] < 300) { big = i; break; }
+  for (let i = 0; i < t.n; i++) t.pop[i] = 0;   // alone, so nothing else splits with it
   t.pop[big] = 3 * P.SPLIT_POP - 3; const before = t.pop.reduce((a, b) => a + b, 0), n0 = t.n;
   t.refine();
   ok(t.n === n0 + 2 && Math.abs(t.pop.reduce((a, b) => a + b, 0) - before) < 1e-6, "a split adds two zones and keeps every person");
@@ -62,7 +63,8 @@ ok(s.pop.every((p, i) => s.land[i] || p === 0), "nobody lives at sea");
   ok(after < before * 1.2 && t.pop[z] < peak, "an overfull zone empties rather than explodes (seed 896933214 once ran to NaN this way)");
 }
 { // a split hands its people out by the land each child got
-  const t = new E.Sim(w, 3); let big = 0; for (let i = 0; i < t.n; i++) if (t.land[i] && t.area[i] > 50) { big = i; break; }
+  const t = new E.Sim(w, 3); let big = 0; for (let i = 0; i < t.n; i++) if (t.land[i] && t.area[i] > 50 && t.area[i] < 300) { big = i; break; }
+  for (let i = 0; i < t.n; i++) t.pop[i] = 0;
   t.pop[big] = 3 * P.SPLIT_POP; const n0 = t.n; t.refine();
   const kids = [big, n0, n0 + 1].filter((c) => t.land[c]), dens = kids.map((c) => t.pop[c] / t.area[c]);
   ok(Math.max(...dens) / Math.min(...dens) < 1.0001, "a split's children start at one density");
@@ -77,7 +79,7 @@ ok(s.pop.every((p, i) => s.land[i] || p === 0), "nobody lives at sea");
 }
 
 /* ---- a line through the biggest city */
-let a = 0; for (let i = 0; i < s.n; i++) if (s.pop[i] > s.pop[a]) a = i;
+let a = 0; for (let i = 0; i < s.n; i++) if (s.land[i] && s.pop[i] / s.area[i] > s.pop[a] / s.area[a]) a = i;   // the densest district: a city, not a farm county
 const city = [a], seen = new Set(city);
 for (let h = 0; h < city.length; h++) for (const j of s.nbrs[city[h]]) if (!seen.has(j) && s.pop[j] / s.area[j] > 30) { seen.add(j); city.push(j); }
 let far = [a, a, -1]; for (const i of city) for (const j of city) { const d = E.arc(pt(i), pt(j)); if (d > far[2]) far = [i, j, d]; }

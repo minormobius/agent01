@@ -38,26 +38,26 @@
    Deterministic: the same seed and the same lines on the same years give
    the same planet. Pure: no DOM, runs in node and in the worker. */
 import { R, nearestCell } from "./world.js";
-import { freight, F_ } from "./freight.js";
+import { freight, F_, farmers } from "./freight.js";
 
 export const P_ = {
   ROAD_KMH: 40, CONGEST: 250,     // road speed falls as 1/(1 + density/CONGEST)
   LINE_KMH: 70, DWELL: 1, ACCESS: 3, EGRESS: 2, MIN_HEADWAY: 2,
   BETA: 0.04, THETA: 0.12, TMAX: 120,
   WORK: 0.45,                     // workers (and jobs) per person
-  R_GROW: 0.07, RURAL: 18, URBAN: 6000, A_REF: 100000, ALPHA: 1, A_MAX: 4, W_HALF: 400,
-  SPILL_AT: 0.6, SPILL: 0.05,
-  ORIGIN_MIN: 600, MAX_ORIGINS: 1600,
+  R_GROW: 0.07, RURAL: 6, URBAN: 6000, A_REF: 100000, ALPHA: 1, A_MAX: 4, W_HALF: 400,
+  SPILL_AT: 0.6, SPILL: 0.05, TOWN_SEED: 30,
+  ORIGIN_MIN: 600, ORIGIN_DENS: 40, MAX_ORIGINS: 1600,   // farmers (under ORIGIN_DENS/km²) work where they live
   SPLIT_POP: 8000, SPLIT_MIN_AREA: 1.5, MAX_ZONES: 6000, MAX_SPLITS: 60,
   TRAIN_CAP: 260, SERVICE_MIN: 1080, CROWD_SLOW: 1.5,
   TOWN_EVERY: 4, TOWNS0: 7, TOWN_POP: 6000, WARMUP: 60,
-  FARE_TRIP: 0.000006, FARE_KM: 0.0000006, // a fare per JOURNEY (however many lines it takes) and per km ridden; ×365 a year
+  FARE_TRIP: 0.000004, FARE_KM: 0.0000004, // a fare per JOURNEY (however many lines it takes) and per km ridden; ×365 a year
   TRAIN_UPKEEP: 10, TRACK_UPKEEP: 0.25, // a year: per train, per km of line
   COST_WAGON: 60, WAGON_UPKEEP: 6,      // freight: a wagon, and its year
   COST_KM: 4, COST_WATER: 3, COST_STOP: 20, COST_TRAIN: 90, START_CREDITS: 700,
-  URBAN_COST: 700,                // building costs ×(1 + density/URBAN_COST): tunnels and land
+  URBAN_COST: 1200,                // building costs ×(1 + density/URBAN_COST): tunnels and land
   INDEX_EXP: 0.5,
-  LEVY_MAX: 0.6, LEVY_HALF: 6000, // the cities' cut of fares: LEVY_MAX·f/(f + LEVY_HALF·index), f = fares a year                 // prices follow the world's wealth: (people / people at the start)^INDEX_EXP
+  LEVY_MAX: 0.6, LEVY_HALF: 4000, // the cities' cut of fares: LEVY_MAX·f/(f + LEVY_HALF·index), f = fares a year                 // prices follow the world's wealth: (people / people at the start)^INDEX_EXP
 };
 
 /* Building rights. You hold a charter round your home city; carrying enough
@@ -81,6 +81,8 @@ export class Sim {
     this.lines = []; this.history = []; this.stats = {}; this.crowd = new Map();
     this.towns = []; this.events = []; this.log = []; this.flags = new Map(); this.names = new Set();
     this.rebuild();
+    // the countryside, farmed from the start: each habitable zone at 60% of the farmers its land takes
+    for (let i = 0; i < this.n; i++) if (this.land[i]) this.pop[i] = 0.6 * farmers(this, i);
     for (let k = 0; k < P_.TOWNS0; k++) this.foundTown(5);
     this.chronicle();
   }
@@ -121,7 +123,7 @@ export class Sim {
   }
   foundTown(minHops) {
     const taken = new Uint8Array(this.n), q = [], d = new Int32Array(this.n).fill(-1);
-    for (let i = 0; i < this.n; i++) if (this.pop[i] > 400) { d[i] = 0; q.push(i); }
+    for (let i = 0; i < this.n; i++) if (this.pop[i] / Math.max(1e-6, this.area[i]) > 60) { d[i] = 0; q.push(i); }
     for (let h = 0; h < q.length; h++) { const i = q[h]; if (d[i] >= minHops) continue; for (const j of this.nbrs[i]) if (d[j] < 0) { d[j] = d[i] + 1; q.push(j); } }
     let best = -1, bs = 0;
     for (let i = 0; i < this.n; i++) {
@@ -158,17 +160,20 @@ export class Sim {
   /* Cities: every settled zone belongs to its nearest town. */
   chronicle() {
     const T = this.towns; if (!T.length) return;
-    const tot = new Float64Array(T.length), P = this.P, zt = new Int32Array(this.n).fill(-1);
+    const tot = new Float64Array(T.length), rur = new Float64Array(T.length), P = this.P, zt = new Int32Array(this.n).fill(-1);
     for (let i = 0; i < this.n; i++) {
       if (!this.land[i]) continue;
       let best = -2, bi = 0; for (let t = 0; t < T.length; t++) { const q = T[t].p, d = P[3 * i] * q[0] + P[3 * i + 1] * q[1] + P[3 * i + 2] * q[2]; if (d > best) { best = d; bi = t; } }
       zt[i] = bi;   // every piece of land belongs to its nearest town: its farms feed it
-      if (this.pop[i] >= 500 && best > Math.cos(60 / R)) tot[bi] += this.pop[i];
+      // a town is its people who don't farm; its farmers are its countryside
+      const fm = Math.min(this.pop[i], farmers(this, i));
+      if (best > Math.cos(60 / R)) tot[bi] += this.pop[i] - fm;
+      rur[bi] += fm;
     }
     this.zoneTown = zt;
     const MARKS = [50e3, 100e3, 250e3, 500e3, 1e6, 2e6, 5e6];
     T.forEach((t, k) => {
-      t.pop = tot[k];
+      t.pop = tot[k]; t.rural = rur[k];
       while (t.mark < MARKS.length && tot[k] >= MARKS[t.mark]) {
         if (this.year > 0 && t.mark >= 1) this.emit("city", t.name + " passes " + fmtN(MARKS[t.mark]), t.p);
         t.mark++;
@@ -304,7 +309,7 @@ export class Sim {
   demand(net) {
     const n = this.n, N = net.nodes, jobs = this.jobs, pop = this.pop;
     const origins = [];
-    for (let i = 0; i < n; i++) if (this.land[i] && pop[i] >= P_.ORIGIN_MIN) origins.push(i);
+    for (let i = 0; i < n; i++) if (this.land[i] && pop[i] >= P_.ORIGIN_MIN && pop[i] / Math.max(1e-6, this.area[i]) >= P_.ORIGIN_DENS) origins.push(i);
     origins.sort((a, b) => pop[b] - pop[a]); origins.length = Math.min(origins.length, P_.MAX_ORIGINS);
     const access = new Float64Array(n), segLoad = new Float64Array(net.segs.length), boards = new Float64Array(this.lines.length);
     const dist = new Float64Array(N).fill(Infinity), road = new Float64Array(N).fill(Infinity), pred = new Int32Array(N), pedge = new Int32Array(N), via = new Uint8Array(N), flow = new Float64Array(N);
@@ -381,7 +386,8 @@ export class Sim {
       u[i] = Math.min(P_.A_MAX, dem.access[i] / P_.A_REF);
       const wet = W.fresh[g] / (W.fresh[g] + P_.W_HALF);   // how much of a city its water can carry
       const t = this.zoneTown ? this.zoneTown[i] : -1, fed = this.fr && t >= 0 ? this.fr.food[t] : 1;
-      K[i] = a * W.hab[g] * wet * (P_.RURAL + P_.URBAN * Math.pow(u[i], P_.ALPHA)) * (F_.FOOD_FLOOR + (1 - F_.FOOD_FLOOR) * fed);
+      // the town's ceiling, and the farmers its land takes (who feed themselves)
+      K[i] = a * W.hab[g] * wet * (P_.RURAL + P_.URBAN * Math.pow(u[i], P_.ALPHA)) * (F_.FOOD_FLOOR + (1 - F_.FOOD_FLOOR) * fed) + farmers(this, i);
     }
     /* Below its ceiling a zone grows logistically; near it, some of its people
        move next door, to wherever there is room; over it (a ceiling falls when
@@ -394,8 +400,16 @@ export class Sim {
     for (let i = 0; i < n; i++) {
       if (!this.land[i] || pop[i] <= 0) continue;
       const k = Math.max(1, K[i]), p = pop[i];
+      // spill is the town's: farmers stay on the land they farm (until the machines put them over the ceiling)
+      const fm = farmers(this, i), pt = Math.max(0, p - fm), kt = Math.max(1, k - fm);
       let out;
-      if (p <= k) { next[i] += P_.R_GROW * p * (1 - p / k); out = p / k > P_.SPILL_AT ? P_.SPILL * p * (p / k - P_.SPILL_AT) : 0; }
+      if (p <= k) {
+        // two populations in one zone: the farmers settle toward what the land takes, and the
+        // town grows on its own people (from a seed, so any zone can start one)
+        if (p < fm) next[i] += 0.1 * (fm - p);
+        else next[i] += P_.R_GROW * Math.max(pt, P_.TOWN_SEED) * (1 - pt / kt);
+        out = pt / kt > P_.SPILL_AT ? P_.SPILL * pt * (pt / kt - P_.SPILL_AT) : 0;
+      }
       else out = 0.25 * (p - k);
       if (out <= 0) continue;
       let room = 0; for (const j of this.nbrs[i]) if (this.land[j]) room += Math.max(0, K[j] - pop[j]);
@@ -408,7 +422,9 @@ export class Sim {
     let tot = 0, w = 0;
     for (let i = 0; i < n; i++) {
       const t = this.zoneTown ? this.zoneTown[i] : -1, ind = this.fr && t >= 0 ? 0.85 + 0.3 * this.fr.ore[t] : 1;   // industry follows the ore
-      this.jobs[i] = pop[i] * (0.4 + Math.min(1, u[i])) * ind; w += this.jobs[i]; tot += pop[i];
+      // farmers work their own fields: only the rest of a zone's people fill (and make) the jobs others travel to
+      const town = Math.max(0, pop[i] - farmers(this, i));
+      this.jobs[i] = town * (0.4 + Math.min(1, u[i])) * ind; w += this.jobs[i]; tot += town;
     }
     const f = w > 0 ? P_.WORK * tot / w : 0;
     for (let i = 0; i < n; i++) this.jobs[i] *= f;
@@ -417,7 +433,7 @@ export class Sim {
 
   refine() {
     const cand = [];
-    for (let i = 0; i < this.n; i++) if (this.land[i] && this.area[i] > P_.SPLIT_MIN_AREA && this.pop[i] > P_.SPLIT_POP) cand.push(i);
+    for (let i = 0; i < this.n; i++) if (this.land[i] && this.area[i] > P_.SPLIT_MIN_AREA && this.pop[i] > P_.SPLIT_POP && this.pop[i] / this.area[i] > 60) cand.push(i);   // cities split; farmland doesn't need the detail
     cand.sort((a, b) => this.pop[b] - this.pop[a]);
     let k = 0; const groups = [];
     for (const i of cand) { if (k >= P_.MAX_SPLITS || this.sites.length / 3 + 2 > P_.MAX_ZONES) break; groups.push(this.split(i)); k++; }
