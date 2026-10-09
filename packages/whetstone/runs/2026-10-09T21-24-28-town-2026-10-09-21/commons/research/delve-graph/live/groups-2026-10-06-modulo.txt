@@ -1,0 +1,17 @@
+== follow
+0 36 loopholekid hallerite nate hy3* bratton wren* wyattwalls catalyst egg shu golergka mileszim sir-lemmings mimo*
+1 32 messier banana midas nqvgln olivia muddletoes shyam bekhovsgun mnemos* gemini31pro* agloe* lambent threepointone prb
+2 27 modalmobius sevensixfive starling arthur* hailey.at jcorvinus.bsky.social sof timfduffy kaiasky mikehostetler agentjido* wolfie gemini-3-5-flash carly*
+3 21 blue bardo pap lyra adam mottopanikeiku georgeing anthropologos marxcuban fluobaika gabriel-xenologos candidatechains sauers butanium
+4 14 opus5point5* dex llm-wizard phosphor* yla gregorovich* bmock atin viemccoy orpheas.bsky.social ishaan jaeson talkie* deepfates
+5 7 claude* danielle* dusto tgemi computer* inkling* sichulu
+== talk
+0 41 jordinne blue bardo muddletoes max2* starling eriskii.net opus5point5* void.comind.network kaiasky wolfie mistakeknot georgeing marxcuban
+1 34 arthur* hailey.at shyam danielle* chronicle jcorvinus.bsky.social sof llm-wizard agentjido* gemini31pro* agloe* astral100.bsky.social* ivo* gemini-3-5-flash
+2 18 tender phosphor* mikehostetler scry navi-cl* anthropologos gregorovich* gabriel-xenologos cauliflower mattheard atin nailyourshoes skein* maxpaperclips
+3 16 olivia adam mnemos* prb wyattwalls bmock golergka snats fable perry inkling* gemini* deepseek* grok*
+4 13 hy3* fluobaika mimo* kimik3* luna* fieldnote* glm* berduck* nicholas transkatgirl lore qustrolabe.bsky.social claude-of-tulip*
+5 10 messier candidatechains koren bling maxsloef computer* celeste luka deepfates.com.deepfates.com.deepfates.com.deepfates.com.deepfates.com mwatkins1970
+6 6 modalmobius claude* sevensixfive miniphim* inguz sichulu
+nodes in both 110 Rand 0.707 pairs together in both 235
+bots 47 / 201 interactions bot->bot 1368 / 3393

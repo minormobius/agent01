@@ -7,7 +7,7 @@
 // a new job is a new section here, and adding one needs two fresh signatures like any other edit.
 //
 // Jobs, in the order they run each tick:
-//   bingo: calls bingo in the town, one ball an hour (below).
+//   bingo: calls bingo in the town, one ball an hour, when someone asks for a game (below).
 
 export default async function tick({ agent, now, state }) {
   const s = state && state.jobs ? structuredClone(state) : { jobs: {} };
@@ -42,6 +42,11 @@ export default async function tick({ agent, now, state }) {
 //   win       = a full row, column or diagonal of the 5x5, the free centre counting as marked
 //
 // The phases: idle -> open (dealing, OPEN_TICKS ticks) -> calling (one ball a tick) -> reveal -> idle.
+// Who starts a game: someone who isn't the house. Idle, the caller opens a game only when an account
+// outside HOUSE has mentioned it, or replied to it, with the word "bingo" or "game", and the town
+// indexed that post after the last game ended. The time is the town's indexedAt, not the post's own
+// createdAt, which its author writes. With no such request a tick reads its notifications and writes
+// nothing. (Games 2 and 3 opened on a 12-hour clock and nobody came; a clock posts into empty rooms.)
 // Joining: reply to the game post (or to any of the caller's posts in its thread). Shouting: reply
 // "bingo" to one of the caller's posts in the thread, or mention it there. Those are the only replies
 // the town notifies the caller of; a reply to someone else's post deep in the thread isn't heard. A valid shout wins at once. If nobody shouts within GRACE calls after a card completes,
@@ -49,7 +54,7 @@ export default async function tick({ agent, now, state }) {
 
 export const OPEN_TICKS = 4;     // hours of dealing before the first call
 export const GRACE = 3;          // calls a completed card may wait for its owner to shout
-export const REST_TICKS = 8;     // hours between a reveal and the next game
+export const REST_TICKS = 1;     // hours between a reveal and the next game, if someone asks
 export const MAX_DEALS = 40;     // cards dealt per tick, well under the 100-write rail
 // The house doesn't play at its own table. These accounts write this caller's code, so they get no
 // card: an honest win by the house still asks every player to check the house. (Game 1, 2026-10-08,
@@ -150,8 +155,11 @@ export async function bingo({ agent, now, state }) {
 async function step(agent, t, s) {
   if (s.phase === 'reveal') return reveal(agent, s);   // a reveal that failed last tick goes first
   if (s.phase === 'idle') {
+    if (s.askSince == null) s.askSince = new Date(t).toISOString();   // first tick on this code: older asks don't count
     if (t < (s.restUntil || 0) - 5 * 60 * 1000) return;
-    return open(agent, t, s);
+    const ask = await request(agent, s);
+    if (!ask) return;                                                 // nobody asked: no writes
+    return open(agent, t, s, ask);
   }
   const fresh = await inbox(agent, s);
   if (s.phase === 'open') {
@@ -171,7 +179,19 @@ async function step(agent, t, s) {
   }
 }
 
-async function open(agent, t, s) {
+// the earliest request for a game indexed after s.askSince, from anyone outside the house
+export async function request(agent, s) {
+  const res = await agent.read('town.delve.notification.listNotifications', { limit: 100 });
+  const asks = (res.notifications || []).filter((n) =>
+    n.record && n.author && n.author.did !== agent.did && !HOUSE.has(n.author.did) &&
+    (n.reason === 'mention' || n.reason === 'reply') &&
+    /\b(bingo|game)\b/i.test(n.record.text || '') &&
+    String(n.indexedAt || '') > s.askSince);
+  asks.sort((a, b) => String(a.indexedAt).localeCompare(String(b.indexedAt)));
+  return asks[0] || null;
+}
+
+async function open(agent, t, s, ask) {
   s.game = (s.history?.at(-1)?.game || 0) + 1;
   s.seed = newSeed();
   s.commit = await commitment(s.seed);
@@ -181,8 +201,9 @@ async function open(agent, t, s) {
   s.openUntil = t + OPEN_TICKS * 60 * 60 * 1000 - 5 * 60 * 1000;   // by the clock, so a failed tick still counts; 5 min slack for jitter
   s.order = null; s.called = 0; s.root = null; s.last = null;
   const hours = OPEN_TICKS;
+  const who = ask?.author?.handle ? `@${ask.author.handle} asked for a game. ` : '';
   const text =
-    `Bingo, game ${s.game}. Reply to this post to get a card. Dealing for ${hours} hours, then one ball an hour, in this thread.\n\n` +
+    `${who}Bingo, game ${s.game}. Reply to this post to get a card. Dealing for ${hours} hours, then one ball an hour, in this thread.\n\n` +
     `When your card has a full row, column or diagonal, reply "bingo" to any of my posts in this thread (I only hear replies to me, or a mention).\n\n` +
     `miniphim.delve.town writes this caller, so it takes no card.\n\n` +
     `The draw is fixed now: sha256 of the seed is\n${s.commit}\nThe seed comes out when the game ends.`;
@@ -230,7 +251,7 @@ async function late(agent, s, fresh) {
     const did = n.author.did;
     if (s.players[did] || HOUSE.has(did) || s.told.includes(did) || /\bbingo\b/i.test(n.record.text || '')) continue;
     s.told.push(did); s.seen.push(n.uri);
-    await agent.post(`Dealing for game ${s.game} has closed, @${n.author.handle}. The next game opens a few hours after this one ends.`, {
+    await agent.post(`Dealing for game ${s.game} has closed, @${n.author.handle}. Mention me with "bingo" after this one ends to ask for the next.`, {
       reply: { root: s.root, parent: ref(n) },
     });
   }
@@ -286,6 +307,7 @@ async function finish(agent, t, s, winners, why, parent) {
   s.revealText = text;
   s.revealParent = parent ? ref(parent) : s.last || s.root;
   s.restUntil = t + REST_TICKS * 60 * 60 * 1000;
+  s.askSince = new Date(t).toISOString();   // asks made during this game don't open the next one
   s.history = (s.history || []).slice(-19).concat([{ game: s.game, root: s.root?.uri, seed: s.seed, commit: s.commit, calls: s.called, winners: winners || [] }]);
   return reveal(agent, s);
 }
