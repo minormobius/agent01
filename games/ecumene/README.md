@@ -439,6 +439,18 @@ The clock is slower too: a year takes 4 s (1.5 s fast).
 
 ## The planet
 
+**Growing a world fast enough for a phone.** The 60 years before you arrive
+took 2–6 s here (seconds more on a phone, with nothing on screen moving),
+and 80% of it was rebuilding the mesh: Orb's hull found the faces a new point
+can see by scanning every face ever made, dead ones too, O(n²). It now walks
+the triangulation to one visible face and floods out from it
+(`orb/js/sphere.js` `findVisible`), sorted so the hull is face for face the
+same as before (checked on random sets and on Ecumene's own year-100 meshes;
+Orb's selftest checks 2n − 4 triangles at 3000 and 6000 sites). A warm-up
+went from 3.8 s to 1.3 s on the slowest of 24 random seeds, and a rebuild of
+a 6000-district late-game planet from 1 s to 0.1 s. The loading line counts
+the years as they pass.
+
 `js/world.js` reads a mappa world (`js/mappa-engine.js`, a byte-identical
 copy of `mappa/engine.js` that the selftest checks; refresh it with
 `cp mappa/engine.js games/ecumene/js/mappa-engine.js`) at about 1,500

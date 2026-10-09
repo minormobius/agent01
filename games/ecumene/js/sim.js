@@ -263,8 +263,8 @@ export class Sim {
     this.emit("charter", km === Infinity ? "The charter now covers the whole planet" : "The charter now reaches " + km + " km from " + this.towns[this.home].name, this.towns[this.home].p);
     return true;
   }
-  warmup() {
-    for (let k = 0; k < P_.WARMUP; k++) this.step();
+  warmup(onYear) {
+    for (let k = 0; k < P_.WARMUP; k++) { this.step(); if (onYear) onYear(k + 1, P_.WARMUP); }
     this.history.length = 0; this.credits = P_.START_CREDITS;
     // home: the biggest city at the start; prices index from here
     let h = 0; this.towns.forEach((t, k) => { if (t.pop > this.towns[h].pop) h = k; });

@@ -16,7 +16,8 @@
    keeps the irregularity but kills the slivers — a near-zero edge would be an
    adjacency nobody can see. `relax` is the knob between "foam" and "football".
 
-   Incremental hull, O(n²) worst case, which at a few hundred cells is a few
+   Incremental hull; each new point finds the faces it sees by walking the
+   triangulation (see findVisible), so a few thousand cells take a few
    milliseconds. Exposes O.buildMesh(seed, n, relax). */
 (function () {
   "use strict";
@@ -64,10 +65,52 @@
     if (ad[0]*pn[0] + ad[1]*pn[1] + ad[2]*pn[2] > 0) { var t = b; b = c; c = t; } // d behind abc
     addFace(a, b, c); addFace(a, d, b); addFace(b, d, c); addFace(c, d, a);
 
+    /* The faces p can see. Scanning every face ever made (the dead ones too)
+       made a hull O(n²): fine at a few hundred cells, 80 ms at Ecumene's two
+       thousand and far worse at its six. So walk instead: from the newest
+       face, step across whichever edge p lies beyond, until a face p can see;
+       the faces it can see are connected (their rim is the horizon), so flood
+       out from that one. Sorted, they are exactly the full scan's list in
+       the full scan's order, so the hull comes out face for face the same.
+       Where the walk can't settle (the first few points, before the hull
+       holds the centre; a point inside it; a rounding tie) the full scan
+       decides, as it always did. */
+    function scanAll(p) { var v = []; for (var fi = 0; fi < faces.length; fi++) if (faces[fi].alive && visible(faces[fi], p)) v.push(fi); return v; }
+    function findVisible(p) {
+      var px = P[3*p], py = P[3*p+1], pz = P[3*p+2], f = faces.length - 1, start = -1;
+      while (f >= 0 && !faces[f].alive) f--;
+      for (var steps = 0; f >= 0 && steps < 4 * n + 64; steps++) {
+        var F = faces[f];
+        if (visible(F, p)) { start = f; break; }
+        var bestE = -1, bestS = 0;
+        for (var e = 0; e < 3; e++) {
+          var u = F.v[e], w = F.v[(e+1)%3], o = F.v[(e+2)%3];
+          var mx = P[3*u+1]*P[3*w+2]-P[3*u+2]*P[3*w+1], my = P[3*u+2]*P[3*w]-P[3*u]*P[3*w+2], mz = P[3*u]*P[3*w+1]-P[3*u+1]*P[3*w];
+          var so = mx*P[3*o] + my*P[3*o+1] + mz*P[3*o+2], sp = mx*px + my*py + mz*pz, s = so > 0 ? sp : -sp;
+          if (s < bestS) { bestS = s; bestE = e; }   // p beyond this edge's great circle, away from the face
+        }
+        if (bestE < 0) break;
+        var nf = edge.get(F.v[(bestE+1)%3]*n + F.v[bestE]);
+        if (nf === undefined || !faces[nf].alive) break;
+        f = nf;
+      }
+      if (start < 0) return scanAll(p);
+      var seen = new Set([start]), q = [start], out = [];
+      while (q.length) {
+        var g = q.pop(), G = faces[g]; out.push(g);
+        for (var k = 0; k < 3; k++) {
+          var nb = edge.get(G.v[(k+1)%3]*n + G.v[k]);
+          if (nb === undefined || seen.has(nb)) continue;
+          seen.add(nb);
+          if (faces[nb].alive && visible(faces[nb], p)) q.push(nb);
+        }
+      }
+      return out.sort(function (x, y) { return x - y; });
+    }
+
     for (var p = 0; p < n; p++) {
       if (p === a || p === b || p === c || p === d) continue;
-      var vis = [];
-      for (var fi = 0; fi < faces.length; fi++) if (faces[fi].alive && visible(faces[fi], p)) vis.push(fi);
+      var vis = findVisible(p);
       if (!vis.length) continue; // duplicate / interior point: not a cell
       var isVis = new Set(vis), horizon = [];
       for (var k = 0; k < vis.length; k++) {
@@ -87,7 +130,7 @@
       for (k = 0; k < horizon.length; k++) addFace(horizon[k][0], horizon[k][1], p);
     }
     var out = [];
-    for (fi = 0; fi < faces.length; fi++) if (faces[fi].alive) out.push(faces[fi].v);
+    for (var fi = 0; fi < faces.length; fi++) if (faces[fi].alive) out.push(faces[fi].v);
     return out;
   }
 

@@ -35,7 +35,8 @@ self.onmessage = (e) => {
   if (m.type === "init") {
     const world = makeWorld(m.seed);
     sim = new Sim(world, m.seed);
-    sim.warmup();
+    // the world's own history before you arrive: say how far along it is, so a slow phone doesn't look frozen
+    sim.warmup((k, of) => { if (k % 3 === 0) self.postMessage({ type: "progress", k, of }); });
     if (m.funds > 0) sim.credits = m.funds;   // ?funds= : a sandbox purse
     const W = world;
     self.postMessage({ type: "world", world: { seed: W.seed, N: W.N, V: W.V, adj: W.adj, cells: W.cells, water: W.water, biome: W.biome, rough: W.rough,

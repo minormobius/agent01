@@ -30,7 +30,9 @@ try { history.replaceState(null, "", "?seed=" + seed + (fundsQ ? "&funds=" + fun
 const worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
 worker.onmessage = (e) => {
   const m = e.data;
-  if (m.type === "world") {
+  if (m.type === "progress") {
+    $("loading").textContent = "growing a world… " + (1900 - m.of + m.k) + " (" + Math.round(100 * m.k / m.of) + "%)";
+  } else if (m.type === "world") {
     W = m.world; P = m.P; warm = m.warmup; view.setWorld(W);
   } else if (m.type === "year") {
     const first = !snap;

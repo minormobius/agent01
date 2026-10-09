@@ -389,5 +389,24 @@ console.log("score corpus (fake network)");
   c.stop();
 }
 
+// the hull at Ecumene's scale: thousands of sites, clustered where its cities split. A point
+// finds the faces it sees by walking the triangulation (sphere.js findVisible); a missed
+// face would leave a hole or an overlap, which Euler catches: n sites, 2n − 4 triangles.
+{
+  console.log("hull at scale");
+  let rs = 99; const rnd = () => { rs = (rs * 16807) % 2147483647; return rs / 2147483647; };
+  for (const n of [3000, 6000]) {
+    const P = new Float64Array(3 * n);
+    for (let i = 0; i < n; i++) {
+      const z = 2 * rnd() - 1, t = 2 * Math.PI * rnd(), r = Math.sqrt(1 - z * z), c = i % 3 ? 1 : 0.1;   // a third of them packed into one cap
+      let x = r * Math.cos(t), y = r * Math.sin(t), w = z; if (c < 1) { x *= c; y *= c; w = Math.sqrt(1 - x * x - y * y); }
+      P[3 * i] = x; P[3 * i + 1] = y; P[3 * i + 2] = w;
+    }
+    const t0 = Date.now(), v = O.voronoi(P, n), ms = Date.now() - t0;
+    const sym = v.nbrs.every((ns, i) => ns.every((j) => v.nbrs[j].includes(i)));
+    ck(v.tris.length === 2 * n - 4 && sym && v.polys.every((r) => r.length >= 3), n + " sites: " + v.tris.length + " triangles (2n − 4), adjacency symmetric, every cell closed (" + ms + " ms)");
+  }
+}
+
 if (failures) { console.error(`\n${failures} failure(s)`); process.exit(1); }
 console.log("\nall orb invariants hold");
