@@ -31,6 +31,7 @@
     </div>
   </div>
   <div id="dock">
+    <div id="legacy">—</div>
     <div id="charter"><span id="ch-text">—</span><button type="button" id="ch-buy" class="mini buy" hidden>—</button></div>
     <div id="linebar"></div>
     <div id="dockbody">
@@ -41,9 +42,10 @@
           <div><span class="lab">riders</span><span id="p-riders">—</span></div>
           <div><span class="lab">fullest</span><span id="p-load">—</span></div>
           <div><span class="lab">every</span><span id="p-head">—</span></div>
-          <div><span class="lab">trains</span><span class="tr"><button type="button" id="p-minus" class="mini">−</button><b id="p-trains">1</b><button type="button" id="p-plus" class="mini">+</button></span></div>
+          <div><span class="lab">trains</span><span class="tr"><button type="button" id="p-minus" class="mini">−</button><b id="p-trains">1</b><button type="button" id="p-plus" class="mini">+</button><button type="button" id="p-plus5" class="mini">+5</button></span></div>
           <div><span class="lab">wagons</span><span class="tr"><button type="button" id="w-minus" class="mini">−</button><b id="p-wagons">0</b><button type="button" id="w-plus" class="mini">+</button></span></div>
         </div>
+        <div class="ptrack"><span id="p-track">—</span><button type="button" id="p-grade" class="mini">—</button></div>
         <div class="pfoot"><span id="p-cargo">—</span><button type="button" id="p-del" class="mini danger">close line</button></div>
       </div>
       <div id="cities">
@@ -106,10 +108,27 @@
     richer, building through a dense city costs more, and the cities take
     a growing cut of your fares.
   </p>
+  <p>
+    A run is a <b>century</b>, 1900 to 2000, and it is scored against the
+    same planet without you: how many more people, how much more wealth,
+    how much better fed. From the 1910s the <b>car</b> speeds up the roads
+    every year, so your lines have a rival; <b>track</b> decides how
+    closely trains can follow (single track: one every 8 minutes) and how
+    fast they run, and upgrading it is how a busy line grows.
+  </p>
   <p class="accent">Drag to turn, pinch to zoom. Pick <b>+ line</b>, then tap land to lay stops; tap on its track to add one between.</p>
   <p id="loading" class="dim">growing a world…</p>
   <button class="primary" id="start-btn" type="button" style="flex:none" disabled>…</button>
   <p class="foot"><a href="./README.md">how it works</a> · one of the <a href="../pressure/">games</a></p>
+</div>
+
+<div class="overlay" id="end" hidden>
+  <h2>2000</h2>
+  <h1>YOUR CENTURY</h1>
+  <p id="end-lead">—</p>
+  <table id="end-table"><thead><tr><th></th><th>with your railway</th><th>without it</th><th></th></tr></thead><tbody id="end-rows"></tbody></table>
+  <p id="end-line" class="dim">—</p>
+  <div class="end-btns"><button class="primary" id="end-more" type="button">keep playing</button><button class="ghost" id="end-new" type="button">new world</button></div>
 </div>
 
 <script type="module" src="js/main.js"></script>

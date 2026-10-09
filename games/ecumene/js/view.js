@@ -436,7 +436,8 @@ export class View {
           const p = pts[k - 1].q, q = pts[k].q; if (p[2] < 0 || q[2] < 0) continue;
           const c = crowd[pts[k].seg] || 0;
           ctx.strokeStyle = pass ? (c > 1 ? mix(L.color, "#ff2a2a", 0.5 + 0.5 * Math.sin(this.t * 6)) : L.color) : "rgba(0,0,0,0.6)";
-          ctx.lineWidth = pass ? lw * (li === this.sel ? 1.25 : 1) : lw + 3;
+          const gw = 1 + 0.18 * (L.grade || 0);   // better track, a broader line
+          ctx.lineWidth = pass ? lw * gw * (li === this.sel ? 1.25 : 1) : lw * gw + 3;
           ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
         }
       }

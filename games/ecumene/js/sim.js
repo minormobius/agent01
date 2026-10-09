@@ -47,6 +47,8 @@ import { freight, F_, farmers } from "./freight.js";
 
 export const P_ = {
   ROAD_KMH: 40, CONGEST: 250,     // road speed falls as 1/(1 + density/CONGEST)
+  CAR_FROM: 1912, CAR_MID: 1950, CAR_SPAN: 9, CAR_KMH: 90,   // the car: roads speed up from CAR_FROM, half way to CAR_KMH by CAR_MID
+  CENTURY: 100,                   // a run: 1900 to 2000
   LINE_KMH: 70, DWELL: 1, ACCESS: 3, EGRESS: 2, MIN_HEADWAY: 2,
   TURN: 3,                        // a train turning back at a terminus, each end (a loop never turns)
   HUB_KM: 0.6, TRANSFER: 1,       // stops of two lines this close are one station: change in a minute, not through the street
@@ -66,13 +68,32 @@ export const P_ = {
   COST_KM: 4, COST_WATER: 3, COST_STOP: 20, COST_TRAIN: 90, START_CREDITS: 700,
   URBAN_COST: 1200,                // building costs ×(1 + density/URBAN_COST): tunnels and land
   INDEX_EXP: 0.5,
-  WAGE: 0.01, FOOD_GDP: 0.008,     // FOOD_GDP: ₵ a unit of food is worth to its farm at the usual price                     // GDP: ₵ a year a job is worth (before reach, ore and prices)
+  WAGE: 0.01, FOOD_GDP: 0.008, AGGLO: 0.25,     // FOOD_GDP: ₵ a unit of food is worth to its farm at the usual price                     // GDP: ₵ a year a job is worth (before reach, ore and prices)
   LEVY_MAX: 0.6, LEVY_HALF: 4000, // the cities' cut of fares: LEVY_MAX·f/(f + LEVY_HALF·index), f = fares a year                 // prices follow the world's wealth: (people / people at the start)^INDEX_EXP
 };
 
 /* Building rights. You hold a charter round your home city; carrying enough
    riders a day earns the right to buy the next, wider one. The last covers
    the planet. Fees are at start prices (the index applies). */
+/* Track. A line's grade sets how fast it runs and how closely its trains can
+   follow each other: on single track they wait at passing loops, so a train
+   every 8 minutes at best, and trains past that sit in the sidings. So track
+   has a carrying capacity, and upgrading it is how a line grows. Each grade
+   costs `cost` × the track's own price per km to reach from the one below,
+   costs `upkeep` × the track upkeep a year, and is there from `from` (the
+   calendar year). */
+export const GRADES = [
+  { name: "single", kmh: 70, headway: 8, cost: 0, upkeep: 1, from: 0 },
+  { name: "double", kmh: 85, headway: 3, cost: 0.7, upkeep: 1.6, from: 0 },
+  { name: "electric", kmh: 100, headway: 1.5, cost: 0.9, upkeep: 2.2, from: 1925 },
+  { name: "rapid", kmh: 140, headway: 1.5, cost: 1.6, upkeep: 3, from: 1960 },
+];
+/* The car. Roads run at ROAD_KMH (carts, horses, trams) until motor cars
+   come, then their free-flow speed rises toward CAR_KMH (half way by
+   CAR_MID); a dense city still jams (÷(1 + density/CONGEST)), so the car
+   takes the suburbs and the countryside first and the downtowns last. */
+export function roadKmh(cal) { return cal < P_.CAR_FROM ? P_.ROAD_KMH : P_.ROAD_KMH + (P_.CAR_KMH - P_.ROAD_KMH) * (1 / (1 + Math.exp(-(cal - P_.CAR_MID) / P_.CAR_SPAN)) - 1 / (1 + Math.exp(-(P_.CAR_FROM - P_.CAR_MID) / P_.CAR_SPAN))) / (1 - 1 / (1 + Math.exp(-(P_.CAR_FROM - P_.CAR_MID) / P_.CAR_SPAN))); }
+
 export const TIERS = [
   { km: 35 },
   { km: 70, riders: 20e3, fee: 400 },
@@ -197,12 +218,13 @@ export class Sim {
       const fm = Math.min(this.pop[i], farmers(this, i));
       if (best > Math.cos(60 / R)) tot[bi] += this.pop[i] - fm;
       rur[bi] += fm;
-      // GDP: jobs, worth more where they reach more and where the ore comes in; and what the farms grow
-      // a zone split since growth has no reach yet
-      const u = this.u && this.u[i] != null ? Math.min(1, this.u[i]) : 0, ind = this.fr && this.fr.ore[bi] != null ? 0.85 + 0.3 * this.fr.ore[bi] : 1;
+      // GDP: jobs, worth more where they reach more (agglomeration: reach^AGGLO, so a line's reach shows as
+      // wealth; it was capped at a reach of 1, which every downtown passes, and no railway changed GDP) and
+      // where the ore comes in; and what the farms grow. A zone split since growth has no reach yet.
+      const u = this.u && this.u[i] != null ? this.u[i] : 0, ind = this.fr && this.fr.ore[bi] != null ? 0.85 + 0.3 * this.fr.ore[bi] : 1;
       // the farms earn what they grow at what food fetches
       const fr = this.fr, food = fr && fr.price && fr.price.food[bi] != null ? Math.min(3, fr.price.food[bi]) : 1, hand = fr && fr.perHand && fr.perHand[bi] != null ? fr.perHand[bi] : 0.5;
-      gz[i] = (this.jobs[i] * P_.WAGE * (0.7 + 0.6 * u) * ind + fm * hand * food * P_.FOOD_GDP) * (this.index || 1);
+      gz[i] = (this.jobs[i] * P_.WAGE * Math.pow(Math.max(0.05, u), P_.AGGLO) * ind + fm * hand * food * P_.FOOD_GDP) * (this.index || 1);
       gdp[bi] += gz[i];
     }
     this.zoneTown = zt;
@@ -221,7 +243,9 @@ export class Sim {
   /* ---------------------------------------------------------------- lines
      line: { id, color, stops: [[x, y, z], …], trains }. Stops are points on
      the sphere; each year they are found in whatever zone now holds them. */
-  setLines(lines) { this.lines = lines.map((l) => ({ id: l.id, color: l.color, stops: l.stops.map((s) => s.slice()), trains: l.trains, wagons: l.wagons || 0, loop: !!l.loop && l.stops.length >= 3 })); }
+  setLines(lines) { this.lines = lines.map((l) => ({ id: l.id, color: l.color, stops: l.stops.map((s) => s.slice()), trains: l.trains, wagons: l.wagons || 0, loop: !!l.loop && l.stops.length >= 3, grade: Math.max(0, Math.min(GRADES.length - 1, l.grade | 0)) })); }
+  /* The calendar: the player arrives in 1900, after WARMUP years of the world's own history. */
+  cal() { return 1900 + this.year - P_.WARMUP; }
   /* Prices now: the index, and what building costs at p (a stop) or from a to b (track). */
   densAt(p) { const z = this.zoneAt(p); return this.pop[z] / Math.max(1e-6, this.area[z]); }
   trackCost(a, b) { return trackCost(this.world, a, b, (p) => this.densAt(p)) * (this.index || 1); }
@@ -264,14 +288,17 @@ export class Sim {
     this.year++;
     if (this.year % P_.TOWN_EVERY === 0) this.foundTown(4);
     this.chronicle();
-    const gross = this.stats.lines.reduce((s, L) => s + L.fare, 0) * 365;
+    // fares follow prices, as everything you pay does (they didn't, and every railway went broke as the world got rich)
+    const gross = this.stats.lines.reduce((s, L) => s + L.fare, 0) * 365 * (this.index || 1);
+    // the century's score: the hours a day the railway gives back, summed over its years
+    if (this.cal() > 1900) this.hours = (this.hours || 0) + (this.stats.hoursSaved || 0) * 365;
     // the concession: the cities you serve take a share of the fares that grows with them
     const levy = gross * P_.LEVY_MAX * gross / (gross + P_.LEVY_HALF * (this.index || 1)), fares = gross - levy;
     this.stats.gross = gross; this.stats.levy = levy;
     let upkeep = 0;
-    for (const L of this.lines) { upkeep += P_.TRAIN_UPKEEP * L.trains + P_.WAGON_UPKEEP * (L.wagons || 0); for (const [a, b] of legs(L)) upkeep += P_.TRACK_UPKEEP * arc(L.stops[a], L.stops[b]) * R; }
+    for (const L of this.lines) { upkeep += P_.TRAIN_UPKEEP * L.trains + P_.WAGON_UPKEEP * (L.wagons || 0); for (const [a, b] of legs(L)) upkeep += P_.TRACK_UPKEEP * GRADES[L.grade || 0].upkeep * arc(L.stops[a], L.stops[b]) * R; }
     upkeep *= this.index || 1;
-    const cargo = this.fr ? this.fr.revenue : 0;
+    const cargo = this.fr ? this.fr.revenue * (this.index || 1) : 0;
     this.credits += fares + cargo - upkeep; this.stats.fares = fares + cargo; this.stats.cargo = cargo; this.stats.upkeep = upkeep;
     let total = 0, urban = 0; for (let i = 0; i < this.n; i++) { total += this.pop[i]; if (this.pop[i] / Math.max(1, this.area[i]) > 300) urban += this.pop[i]; }
     Object.assign(this.stats, { year: this.year, pop: total, urban, zones: this.n, splits, ms: Date.now() - t0, credits: this.credits });
@@ -305,6 +332,9 @@ export class Sim {
     if (this.home != null && this.edge("charterReady:" + this.tier, this.charterReady()))
       this.emit("charter", "You've earned a wider charter: " + (TIERS[this.tier + 1].km === Infinity ? "the whole planet" : TIERS[this.tier + 1].km + " km") + ", for ₵" + Math.round(this.charterFee()), this.towns[this.home].p);
     if (this.edge("broke", this.credits < 0)) this.emit("money", "Funds are overdrawn: the lines still run, but nothing new can be built");
+    const road = roadKmh(this.cal());
+    if (this.edge("cars", road > P_.ROAD_KMH + 1) && this.year > 1) this.emit("car", "Motor cars take to the roads: the roads get faster every year, and the trains have a rival");
+    for (const v of [55, 70, 85]) if (this.edge("road:" + v, road >= v) && this.year > 1) this.emit("car", "Open roads now run at " + v + " km/h: " + (v === 55 ? "the car takes the countryside" : v === 70 ? "the suburbs drive to work" : "only the jammed downtowns still need the trains"));
     const PM = [2e6, 5e6, 10e6, 20e6, 50e6];
     for (const m of PM) if (this.edge("planet:" + m, total >= m) && this.year > 1) this.emit("planet", "The planet passes " + fmtN(m) + " people");
     if (this.edge("meshfull", this.n + 2 > P_.MAX_ZONES)) this.emit("planet", "The map is as fine as it gets: districts no longer split");
@@ -314,7 +344,8 @@ export class Sim {
 
   network() {
     const n = this.n, P = this.P, speed = new Float64Array(n);
-    for (let i = 0; i < n; i++) speed[i] = P_.ROAD_KMH / (1 + this.pop[i] / Math.max(1, this.area[i]) / P_.CONGEST) / this.world.rough[this.geo[i]];
+    const road = roadKmh(this.cal());
+    for (let i = 0; i < n; i++) speed[i] = road / (1 + this.pop[i] / Math.max(1, this.area[i]) / P_.CONGEST) / this.world.rough[this.geo[i]];
     // edges: [to, minutes, kind, seg] kind 0 road, 1 board, 2 alight, 3 ride
     const out = [];
     for (let i = 0; i < n; i++) {
@@ -334,9 +365,11 @@ export class Sim {
       const lg = legs(L);
       // both ways round: a loop runs half its trains each way, so its cycle is twice the ring, like an open line's out and back
       let cycle = L.loop ? 0 : 2 * P_.TURN;
-      for (const [a, b] of lg) { const m = 60 * arc(L.stops[a], L.stops[b]) * R / P_.LINE_KMH + P_.DWELL; rides.push(m); cycle += 2 * m; }
-      const headway = Math.max(P_.MIN_HEADWAY, cycle / L.trains), cap = L.trains * (P_.SERVICE_MIN / Math.max(1, cycle)) * P_.TRAIN_CAP;
-      L._cycle = cycle; L._headway = headway; L._cap = cap;
+      const G = GRADES[L.grade || 0];
+      for (const [a, b] of lg) { const m = 60 * arc(L.stops[a], L.stops[b]) * R / G.kmh + P_.DWELL; rides.push(m); cycle += 2 * m; }
+      // the track decides how closely trains can follow: past that, more trains only wait in the sidings
+      const headway = Math.max(P_.MIN_HEADWAY, G.headway, cycle / L.trains), cap = (P_.SERVICE_MIN / headway) * P_.TRAIN_CAP;
+      L._cycle = cycle; L._headway = headway; L._cap = cap; L._running = Math.min(L.trains, cycle / headway);
       lg.forEach(([s0, s1], k) => { for (const dir of [1, -1]) {
         const a = dir > 0 ? s0 : s1, b = dir > 0 ? s1 : s0, key = L.id + ":" + k + ":" + dir, c = this.crowd.get(key) || 0;
         const seg = segs.length; segs.push({ line: li, k, dir, key, km: arc(L.stops[s0], L.stops[s1]) * R, minutes: rides[k] * (1 + P_.CROWD_SLOW * Math.max(0, c - 0.8)) });
@@ -373,7 +406,7 @@ export class Sim {
     const access = new Float64Array(n), segLoad = new Float64Array(net.segs.length), boards = new Float64Array(this.lines.length);
     const dist = new Float64Array(N).fill(Infinity), road = new Float64Array(N).fill(Infinity), pred = new Int32Array(N), pedge = new Int32Array(N), via = new Uint8Array(N), flow = new Float64Array(N);
     const heap = new Heap(N);
-    let trips = 0, transit = 0, changes = 0;
+    let trips = 0, transit = 0, changes = 0, saved = 0;
     const selfT = (i) => 60 * 0.4 * Math.sqrt(this.area[i]) / net.speed[i];
     for (const o of origins) {
       // combined search
@@ -395,6 +428,7 @@ export class Sim {
         const T = Wk * jobs[v] * Math.exp(-P_.BETA * dist[v]) / den, tr = road[v], tc = dist[v];
         const share = tr === Infinity ? 1 : 1 / (1 + Math.exp(P_.THETA * (tc - tr)));
         flow[v] = T * share; transit += T * share;
+        saved += T * share * Math.max(0, (tr === Infinity ? P_.TMAX : tr) - tc);   // the minutes the train gives back to those who take it
       }
       for (let k = order.length - 1; k > 0; k--) {
         const v = order[k], f = flow[v]; if (!f) continue;
@@ -413,12 +447,12 @@ export class Sim {
       let s = 0, c = 0; for (const j of this.nbrs[i]) if (searched[j]) { s += searched[j]; c++; }
       access[i] = c ? 0.6 * s / c : jobs[i];
     }
-    return { access, segLoad, boards, trips, transit, changes, origins: origins.length };
+    return { access, segLoad, boards, trips, transit, changes, saved, origins: origins.length };
   }
 
   lineStats(net, dem) {
     let stranded = 0;
-    const per = this.lines.map((L) => ({ id: L.id, riders: 0, peak: 0, cap: L._cap || 0, crowd: 0, stranded: 0, headway: L._headway || 0, segs: [], km: 0, fare: 0 }));
+    const per = this.lines.map((L) => ({ id: L.id, riders: 0, peak: 0, cap: L._cap || 0, crowd: 0, stranded: 0, headway: L._headway || 0, running: L._running || 0, segs: [], km: 0, fare: 0 }));
     net.segs.forEach((s, k) => {
       const load = 2 * dem.segLoad[k];           // the morning flow, and its evening return the other way
       const L = per[s.line], c = load / Math.max(1, L.cap);
@@ -435,7 +469,7 @@ export class Sim {
        is shared between lines by their boardings; each keeps its own km. */
     const journeys = 2 * dem.transit, boardings = per.reduce((s, L) => s + L.riders, 0);
     per.forEach((L) => { L.fare = P_.FARE_KM * L.km + (boardings > 0 ? P_.FARE_TRIP * journeys * L.riders / boardings : 0); });
-    this.stats = { riders: journeys, boardings, transfers: 2 * (dem.changes || 0), hubs: (this.hubs || []).length, share: dem.trips ? dem.transit / dem.trips : 0, stranded, origins: dem.origins, lines: per,
+    this.stats = { riders: journeys, boardings, transfers: 2 * (dem.changes || 0), hoursSaved: 2 * (dem.saved || 0) / 60, hubs: (this.hubs || []).length, share: dem.trips ? dem.transit / dem.trips : 0, stranded, origins: dem.origins, lines: per,
       riderKm: per.reduce((s, L) => s + L.km, 0) };
   }
 
@@ -515,6 +549,13 @@ export class Sim {
   }
 
   /* What the page draws. */
+  /* What the world adds up to, for the century's score: people, GDP at start prices (the index divided out, since each world's prices follow its own wealth), and how well it eats. */
+  legacy() {
+    let gdp = 0, need = 0, ate = 0;
+    for (const t of this.towns) gdp += t.gdp || 0;
+    if (this.fr) this.towns.forEach((t, k) => { if (k < this.fr.need.length) { need += this.fr.need[k]; ate += this.fr.food[k] * this.fr.need[k]; } });
+    return { year: this.year, pop: this.stats.pop || 0, gdp: gdp / (this.index || 1), fed: need ? ate / need : 1, index: this.index || 1, hours: this.hours || 0, hoursDay: this.stats.hoursSaved || 0 };
+  }
   snapshot() {
     return { n: this.n, P: this.P, verts: this.verts, polys: this.polys, geo: Int32Array.from(this.geo), pop: Float64Array.from(this.pop),
       area: this.area, land: this.land, stats: this.stats, credits: this.credits, year: this.year,
@@ -526,7 +567,8 @@ export class Sim {
       hubs: this.hubs || [],
       home: this.home != null ? this.towns[this.home].p : null, homeName: this.home != null ? this.towns[this.home].name : "", tier: this.tier || 0,
       charterKm: this.home != null ? TIERS[this.tier].km : Infinity, charterReady: this.home != null && this.charterReady(), charterFee: this.home != null ? this.charterFee() : 0,
-      nextRiders: this.home != null && TIERS[this.tier + 1] ? TIERS[this.tier + 1].riders : 0, index: this.index || 1 };
+      nextRiders: this.home != null && TIERS[this.tier + 1] ? TIERS[this.tier + 1].riders : 0, index: this.index || 1,
+      cal: this.cal(), road: roadKmh(this.cal()), legacy: this.legacy() };
   }
 }
 

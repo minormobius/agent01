@@ -158,3 +158,18 @@ button:disabled { opacity: 0.4; cursor: default; }
 .lg-ticks { display: flex; justify-content: space-between; margin-top: 2px; color: var(--text); }
 .lg-unit { margin-top: 1px; }
 .ev.tech .t { color: var(--accent2); }
+
+/* the century: a line above the charter, and the report at 2000 */
+#legacy { font-family: var(--mono); font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#legacy b { color: var(--text); }
+#legacy .up { color: var(--accent2); } #legacy .down { color: var(--warn); }
+.ptrack { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--dim); }
+.ptrack span { flex: 1; } .ptrack b { color: var(--text); }
+#p-head.warn { color: var(--warn); }
+#end-table { font-family: var(--mono); font-size: 13px; border-collapse: collapse; max-width: 32em; width: 100%; }
+#end-table th { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); font-weight: 400; text-align: right; padding: 4px 6px; }
+#end-table td { text-align: right; padding: 6px; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+#end-table td:first-child, #end-table th:first-child { text-align: left; color: var(--dim); }
+#end-table td.up { color: var(--accent2); font-weight: 700; } #end-table td.down { color: var(--warn); font-weight: 700; }
+.end-btns { display: flex; gap: 10px; }
+.ev.car .t { color: #9fb7ff; }

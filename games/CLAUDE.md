@@ -138,7 +138,11 @@ Three things live here:
   boundaries and end at the coast, and deep zoom shows a city's blocks and
   buildings. Lines are shaped as you go: build from either end, stops put in
   on the track, loops (no turnbacks), and interchanges where two lines share a
-  stop (a quick change, and jobs gather there). See
+  stop (a quick change, and jobs gather there). A run is a century
+  (1900–2000) scored by the hours its trains give back against the road,
+  with a report against the same planet run without a railway in a second
+  worker; track grades cap how closely trains follow (single, double,
+  electric, rapid), and from 1912 the car speeds up the roads. See
   [`ecumene/README.md`](ecumene/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
@@ -224,7 +228,7 @@ node games/fathom/test/fathom.selftest.mjs       # the onion's layers, flood and
 node games/oneside/test/oneside.selftest.mjs     # the surface and its back, the maze, the through-the-paper rules
 node games/bucky/test/bucky.selftest.mjs         # C60, the clock's claims, every level's par design passes
 node games/bucky/tools/bake.mjs                  # re-bake Bucky's pars (minutes)
-node games/ecumene/test/ecumene.selftest.mjs     # mappa copy current, mesh and splits, determinism, crowding, no runaway, the log, a line's reach, the economy's rules, fares, loops and interchanges
+node games/ecumene/test/ecumene.selftest.mjs     # mappa copy current, mesh and splits, determinism, crowding, no runaway, the log, a line's reach, the economy's rules, fares, loops and interchanges, track grades, the car, the century's score
 node games/ecumene/test/loop.selftest.mjs        # the claim: a line grows the city along it, on three worlds
 node games/ecumene/test/market.selftest.mjs      # freight feeding a hungry city, the market's prices and tolls, farms answering the price
 node games/ecumene/test/farms.selftest.mjs       # farm know-how: a century on the planet still eats; know-how travels by rail

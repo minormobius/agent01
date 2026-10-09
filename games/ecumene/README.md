@@ -189,6 +189,68 @@ the line's growth made its home city hungry, and hunger slows growth, so
 dear food ate the gain. Farms that answer dear food gave it back. Feed a
 city as well as move it.
 
+## The century
+
+A run is a century: you arrive in 1900 and it ends in 2000 with a report,
+after which you can keep playing (`js/main.js` `century`, `report`).
+
+**The score is the time your trains give back.** Each year, every commuter
+who takes a train because it beats the road saves the difference (the road-only
+time less the train's, counted for the share who ride, both ways, every day);
+the sum over the century is the score, in hours (`demand` → `stats.hoursSaved`,
+summed into `sim.hours`). It is what transport appraisal counts, it is what
+your lines actually do, the car erodes it, and hoarding money can't buy it. On
+world 3 over a century, the oracle's metro bot gives back 6.4 billion hours;
+scattering short lines, 10 million.
+
+**Against the world without you.** A second worker runs the same seed with no
+railway (`worker.js`, `twin`), stepped to each year you reach, and the report
+sets the two planets side by side: people, GDP at 1900 prices, how well fed.
+A world with no railway is exactly its twin, which the selftest checks. This
+is context, not the score: the planet's people are set by its food, so a
+railway mostly moves them (into the cities it serves) rather than adds them,
+and the difference is a few percent either way (the oracle's bots: −9% to +3%
+GDP at year 100). GDP now rises with reach as reach^0.25 (agglomeration); it
+was capped at a reach of 1, which every downtown passes, so no railway could
+show in it.
+
+**Fares follow prices.** Everything you paid already rose with the world's
+wealth (the index) and fares didn't, so over a full century every railway
+went broke as the planet got rich: the oracle's bots ran ₵1–2k a year in the
+red by 2000 with a million riders a day. Fares and freight earnings are
+indexed now, and the same bots end the century in profit.
+
+### Track
+
+Every line has a grade (`GRADES` in `js/sim.js`), which sets how fast its
+trains run and how closely they can follow each other:
+
+| grade | speed | a train every | from | to upgrade | upkeep |
+|---|---|---|---|---|---|
+| single | 70 km/h | 8 min | — | — | ×1 |
+| double | 85 km/h | 3 min | — | 0.7 × the track's price | ×1.6 |
+| electric | 100 km/h | 1.5 min | 1925 | 0.9 × | ×2.2 |
+| rapid | 140 km/h | 1.5 min | 1960 | 1.6 × | ×3 |
+
+So track has a carrying capacity: trains past what it takes wait in the
+sidings and carry nothing (the panel counts them as idle), and upgrading is
+how a busy line grows. Before, capacity was trains × runs, with no limit at
+all. On the selftest's 15 km line, forty trains on single track carry what
+4.7 do; double track carries 94k a day where single carried 35k, electric
+140k. Trains come five at a time with **+5**. The oracle's bots upgrade a
+line when it is full and has idle trains.
+
+### The car
+
+Roads ran at 40 km/h for the whole game. Now motor cars come in 1912, and the
+open road's speed climbs toward 90 km/h, half way by 1950 (`roadKmh`). A
+dense city still jams (speed ÷ (1 + density/250)), so the car takes the
+countryside first, then the suburbs, and the downtowns last. On the same line
+in the same city, 2.27% of trips went by train on 1900's roads and 0.46% on
+1970's. The second half of the century is spent answering it: faster track,
+lines where the roads are jammed. The log marks the car's arrival and the
+open road passing 55, 70 and 85 km/h.
+
 ## Shaping a line
 
 Pick a line and tap:
@@ -403,7 +465,11 @@ Next:
 
 A sandbox purse: `?funds=5000` starts you with that much.
 
-Also missing: saving a game and a fail state. Saving should follow hoop's
+Next for the century: a fail state (the cities revoking your charter after
+years of stranded riders or debt), a daily world (one seed for everyone, the
+hours given back compared), and road freight getting better with the trucks.
+
+Also missing: saving a game. Saving should follow hoop's
 pattern (`hoop/lexicons/story.save.json`): a record in the player's own
 repo, localStorage for the hot path, and here the event-sourced variant
 its lexicon names, since the sim is deterministic: the seed and the

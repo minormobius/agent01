@@ -22,6 +22,8 @@
    in a year or two, is a game with no economy. */
 import { loadEcumene } from "./harness.mjs";
 const E = await loadEcumene(), P = E.P_;
+// what-ifs without editing the sources: PX and FX are JSON merged into P_ (sim.js) and F_ (freight.js)
+{ const F = await import("../js/freight.js"); if (process.env.PX) Object.assign(P, JSON.parse(process.env.PX)); if (process.env.FX) Object.assign(F.F_, JSON.parse(process.env.FX)); }
 const YEARS = +(process.argv[2] || 40);
 const SEEDS = (process.argv[3] || "3,11,896933214").split(",").map(Number);
 const BOTS = (process.argv[4] || "idle,metro,greedy,freight,sprinkle").split(",");
@@ -30,6 +32,7 @@ const pt = (s, i) => [s.P[3 * i], s.P[3 * i + 1], s.P[3 * i + 2]];
 const may = (s, p) => !s.canBuild || s.canBuild(p);
 
 const trainC = (s) => s.trainCost ? s.trainCost() : P.COST_TRAIN, wagonC = (s) => s.wagonCost ? s.wagonCost() : P.COST_WAGON;
+function gradeC(s, L) { const N = E.GRADES[(L.grade || 0) + 1]; let c = 0; for (let k = 0; k + 1 < L.stops.length; k++) c += s.trackCost(L.stops[k], L.stops[k + 1]) * N.cost; return c; }
 function lineCost(s, stops, trains, wagons) {
   let c = trainC(s) * trains + wagonC(s) * (wagons || 0);
   stops.forEach((p, k) => { c += s.stopCost ? s.stopCost(p) : P.COST_STOP; if (k) c += s.trackCost(stops[k - 1], p); });
@@ -123,7 +126,10 @@ function play(seed, bot) {
       for (const L of lines) {
         const st = s.stats.lines && s.stats.lines.find((x) => x.id === L.id);
         const keen = bot === "greedy" || bot === "sprinkle+" || bot === "core";
-        if (st && (st.crowd > 0.9 || (keen && st.headway > 3)) && s.credits > trainC(s) * (keen ? 1 : 2)) { L.trains++; s.credits -= trainC(s); }
+        const idle = st && st.running != null && st.running < L.trains - 0.5, G = E.GRADES, up = G[(L.grade || 0) + 1];
+        // trains past what the track takes only wait in the sidings: upgrade the track first, when the year allows
+        if (st && idle && st.crowd > 0.9 && up && s.cal() >= up.from) { const c = gradeC(s, L); if (s.credits > c * 1.2) { L.grade = (L.grade || 0) + 1; s.credits -= c; } continue; }
+        if (st && !idle && (st.crowd > 0.9 || (keen && st.headway > 3)) && s.credits > trainC(s) * (keen ? 1 : 2)) { L.trains++; s.credits -= trainC(s); }
       }
       CHAIN = bot === "core";
       const c = bot.startsWith("sprinkle") || bot === "core" ? shortLine(s, lines) : cityLine(s, served, lines);
@@ -146,24 +152,29 @@ function play(seed, bot) {
     if (first) {
       const st = s.stats.lines.find((x) => x.id === first), L = lines.find((x) => x.id === first);
       let km = 0; for (let k = 0; k + 1 < L.stops.length; k++) km += E.arc(L.stops[k], L.stops[k + 1]) * E.R;
-      firstNet = (st ? st.fare : 0) * 365 - (P.TRAIN_UPKEEP * L.trains + P.TRACK_UPKEEP * km) * (s.index || 1);
+      firstNet = ((st ? st.fare : 0) * 365 - (P.TRAIN_UPKEEP * L.trains + P.TRACK_UPKEEP * km)) * (s.index || 1);
     }
     rows.push({ y, credits: s.credits, net: (s.stats.fares || 0) - (s.stats.upkeep || 0), cargo: s.stats.cargo || 0, riders: s.stats.riders, pop: s.stats.pop, lines: lines.length,
-      trains: lines.reduce((t, L) => t + L.trains, 0), firstNet, tier: s.tier != null ? s.tier : null });
+      trains: lines.reduce((t, L) => t + L.trains, 0), firstNet, tier: s.tier != null ? s.tier : null, legacy: s.legacy(), grades: lines.map((L) => L.grade || 0) });
   }
   let cum = 0, payback = null;
   for (const r of rows) { cum += r.firstNet; if (payback == null && first && cum >= spentFirst) payback = r.y; }
   return { rows, payback, spentFirst };
 }
 
-const MARK = [1, 3, 5, 10, 20, 30, 40, 60].filter((y) => y <= YEARS);
+const MARK = [1, 5, 10, 20, 30, 40, 60, 80, 100].filter((y) => y <= YEARS);
 for (const seed of SEEDS) {
   console.log("\nworld " + seed);
-  console.log("  bot      " + MARK.map((y) => ("y" + y).padStart(8)).join("") + "   net/yr@end  riders@end  lines trains  payback");
+  console.log("  bot      " + MARK.map((y) => ("y" + y).padStart(8)).join("") + "   net/yr@end  riders@end  lines trains  GDP vs idle  hours given  payback");
+  let idleEnd = null;
   for (const bot of BOTS) {
     const t0 = Date.now(), r = play(seed, bot), last = r.rows[r.rows.length - 1];
+    if (bot === "idle") idleEnd = last.legacy;
+    // the legacy: this bot's planet against the idle one's, as the game's century scores it
+    const leg = idleEnd ? (last.legacy.gdp / idleEnd.gdp - 1) * 100 : 0;
+    if (process.env.LEGACY && idleEnd) console.log("    legacy " + bot + ": hours given back " + f(last.legacy.hours) + " (" + f(last.legacy.hoursDay) + " a day at the end), people " + f(last.legacy.pop) + " vs " + f(idleEnd.pop) + ", real GDP " + last.legacy.gdp.toFixed(0) + " vs " + idleEnd.gdp.toFixed(0) + ", index " + (last.legacy.index || 0).toFixed(2) + " vs " + (idleEnd.index || 0).toFixed(2) + ", fed " + last.legacy.fed.toFixed(2) + " vs " + idleEnd.fed.toFixed(2));
     console.log("  " + bot.padEnd(8) + MARK.map((y) => ("₵" + f(r.rows[y - 1].credits)).padStart(8)).join("") +
-      ("₵" + f(last.net)).padStart(13) + f(last.riders).padStart(12) + String(last.lines).padStart(7) + String(last.trains).padStart(7) +
+      ("₵" + f(last.net)).padStart(13) + f(last.riders).padStart(12) + String(last.lines).padStart(7) + String(last.trains).padStart(7) + ((leg >= 0 ? "+" : "") + leg.toFixed(1) + "%").padStart(13) + f(last.legacy.hours || 0).padStart(13) +
       (r.payback ? ("  " + r.payback + " yr (₵" + Math.round(r.spentFirst) + ")") : "  —") + (last.tier != null ? "  tier " + last.tier : "") + "  [" + ((Date.now() - t0) / 1000).toFixed(0) + "s]");
   }
 }

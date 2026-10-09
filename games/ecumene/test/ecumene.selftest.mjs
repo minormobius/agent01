@@ -156,6 +156,30 @@ ok(city.length >= 8 && km > 8, "the start has a city worth a line (" + city.leng
   const L = one.lines[0];
   ok(Math.abs(L.fare - (P.FARE_KM * L.km + P.FARE_TRIP * one.riders)) < 1e-9, "a lone line's fares are its journeys and its km");
 }
+/* ---- track, the car, and the century's score */
+{
+  const t = new E.Sim(E.makeWorld(3), 3); t.warmup();
+  const home = t.towns[t.home].p, e1 = [home[1], -home[0], 0], l = Math.hypot(...e1), off = (km) => E.slerp(home, [e1[0] / l, e1[1] / l, e1[2] / l], km / (E.R * Math.PI / 2));
+  const st = [off(-8), off(-3), off(2), off(7)];
+  const lineAt = (grade, trains) => { t.setLines([{ id: 1, color: "#f00", stops: st, trains, grade }]); t.network(); return t.lines[0]; };
+  const s1 = lineAt(0, 2), s40 = lineAt(0, 40), d40 = lineAt(1, 40), e40 = lineAt(2, 40);
+  ok(Math.abs(s40._cap - (P.SERVICE_MIN / E.GRADES[0].headway) * P.TRAIN_CAP) < 1e-6 && s40._running < 40 && s1._cap < s40._cap, "single track takes a train every " + E.GRADES[0].headway + " min: forty trains carry what " + s40._running.toFixed(1) + " do, the rest wait in the sidings");
+  ok(d40._cap > 2 * s40._cap && e40._cap > d40._cap && d40._cycle < s40._cycle && e40._cycle < d40._cycle, "better track carries more and runs faster (" + Math.round(s40._cap / 1e3) + "k → " + Math.round(d40._cap / 1e3) + "k → " + Math.round(e40._cap / 1e3) + "k a day)");
+  // the car: the roads speed up from the 1910s, and the same line keeps fewer riders
+  ok(E.roadKmh(1900) === P.ROAD_KMH && E.roadKmh(1911) === P.ROAD_KMH && E.roadKmh(1950) > 60 && E.roadKmh(1975) > 85 && [1915, 1930, 1950, 1970, 1990].every((y, k, A) => !k || E.roadKmh(y) > E.roadKmh(A[k - 1])), "the car: roads at " + P.ROAD_KMH + " km/h until " + P.CAR_FROM + ", " + Math.round(E.roadKmh(1950)) + " by 1950, " + Math.round(E.roadKmh(1975)) + " by 1975");
+  lineAt(1, 6);
+  const share = () => { const net = t.network(), d = t.demand(net); return d.transit / d.trips; };
+  const y0 = t.year, before = share(); t.year = y0 + 70; const after = share(); t.year = y0;
+  ok(after < 0.8 * before, "with the same line, the car takes riders: " + (100 * before).toFixed(2) + "% go by train in 1900, " + (100 * after).toFixed(2) + "% on 1970's roads");
+  // the score: the hours the trains give back, against the road
+  t.setLines([{ id: 1, color: "#f00", stops: st, trains: 6, grade: 1 }]); t.step(); t.step();
+  ok(t.stats.hoursSaved > 0 && t.hours > t.stats.hoursSaved * 365 * 0.5 && t.legacy().hours === t.hours, "a line gives back time: " + Math.round(t.stats.hoursSaved) + " hours a day, " + Math.round(t.hours / 1e3) + "k since 1900");
+  // the century's score: a world with no railway scores exactly nothing against its twin
+  const a = new E.Sim(E.makeWorld(3), 3), b = new E.Sim(E.makeWorld(3), 3); a.warmup(); b.warmup(); b.setLines([]);
+  for (let y = 0; y < 3; y++) { a.step(); b.step(); }
+  const la = a.legacy(), lb = b.legacy();
+  ok(la.pop === lb.pop && la.gdp === lb.gdp && la.fed === lb.fed && la.hours === 0 && a.cal() === 1903, "with no railway, the world and its twin are the same world (the century scores nothing)");
+}
 function pt2(s, i) { return [s.P[3 * i], s.P[3 * i + 1], s.P[3 * i + 2]]; }
 
 /* ---- sculpting: loops and interchanges */

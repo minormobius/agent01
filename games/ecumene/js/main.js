@@ -12,7 +12,7 @@
    worker between years. */
 import { View, CHORO, ramp } from "./view.js";
 import { GLGround } from "./gl.js";
-import { trackCost, arc, legs, slerp } from "./sim.js";
+import { trackCost, arc, legs, slerp, GRADES } from "./sim.js";
 import { R } from "./world.js";
 
 const $ = (id) => document.getElementById(id);
@@ -40,12 +40,25 @@ worker.onmessage = (e) => {
     // spends the worker hasn't seen yet still count against what this year's snapshot says
     while (inflight.length && inflight[0].seq <= snap.seq) inflight.shift();
     credits = snap.credits - inflight.reduce((a, x) => a + x.spend, 0);
-    if (first) { lookAtBiggest(); $("loading").hidden = true; $("start-btn").disabled = false; $("start-btn").textContent = "BUILD"; }
-    hud();
+    if (first) { lookAtBiggest(); $("loading").hidden = true; $("start-btn").disabled = false; $("start-btn").textContent = "BUILD"; startTwin(); }
+    if (snap.legacy) { mine.set(snap.legacy.year, snap.legacy); if (twin) twin.postMessage({ type: "to", year: snap.legacy.year }); }
+    if (!ended && snap.cal >= 1900 + P.CENTURY) { running = false; playBtn(); }   // the century is up: wait for the twin, then the report
+    hud(); century();
   }
 };
 let log = [], unread = 0;
 worker.postMessage({ type: "init", seed, funds: fundsQ ? +fundsQ[1] : 0 });
+/* The twin: this planet without your railway, in a second worker, stepped to
+   each year you reach. Started once the game has loaded, so the two don't
+   compete for the first few seconds. */
+let twin = null, twinAt = null, ended = false;
+const mine = new Map();   // year → this world's legacy
+function startTwin() {
+  if (twin) return;
+  twin = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
+  twin.onmessage = (e) => { if (e.data.type === "twin") { twinAt = e.data.legacy; century(); } };
+  twin.postMessage({ type: "twin", seed });
+}
 $("seed").textContent = seed;
 
 function yearLabel() { return snap ? 1900 + snap.year - warm : 1900; }
@@ -81,6 +94,37 @@ function hud() {
   $("net").classList.toggle("neg", net < 0);
   bar(); panel(); charter();
 }
+/* The century: years left, and the world with you against the world without. */
+const pct = (a, b) => b > 0 ? (a / b - 1) * 100 : 0, sgn = (x) => (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(Math.abs(x) < 10 ? 1 : 0) + "%";
+function century() {
+  if (!snap) return;
+  const left = 1900 + P.CENTURY - snap.cal, me = twinAt && mine.get(twinAt.year);
+  const L = snap.legacy || {};
+  // one line, so the dock keeps its room: years left, hours given back, GDP against the twin, the roads
+  let html = left > 0 ? "<b>" + left + "</b> yrs left" : ended ? "past 2000" : "<b>2000</b>";
+  if (L.hours > 0) html += " · <b>" + fmt(L.hours) + "</b> hours given back";
+  if (me && twinAt.year > P.WARMUP) {
+    const dg = pct(me.gdp, twinAt.gdp);
+    html += " · GDP <span class='" + (dg >= 0 ? "up" : "down") + "'>" + sgn(dg) + "</span>";
+  }
+  $("legacy").innerHTML = html + " · roads " + Math.round(snap.road || P.ROAD_KMH);
+  $("legacy").title = "your century, 1900–2000: the hours your trains gave back against the road; the planet's GDP against the same planet without you; how fast the roads run (km/h)";
+  if (!ended && left <= 0 && me && twinAt.year >= snap.year) report(me, twinAt);
+}
+const big = (x) => x >= 1e9 ? (x / 1e9).toFixed(x >= 1e10 ? 0 : 1) + " billion" : x >= 1e6 ? (x / 1e6).toFixed(x >= 1e7 ? 0 : 1) + " million" : fmt(x);
+function report(me, tw) {
+  ended = true;
+  const rows = [["people", fmt(me.pop), fmt(tw.pop), pct(me.pop, tw.pop)], ["GDP a year (1900 prices)", "₵" + fmt(me.gdp), "₵" + fmt(tw.gdp), pct(me.gdp, tw.gdp)], ["fed", Math.round(100 * me.fed) + "%", Math.round(100 * tw.fed) + "%", 100 * (me.fed - tw.fed)]];
+  $("end-rows").innerHTML = rows.map((r, k) => "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td><td>" + r[2] + "</td><td class='" + (r[3] >= 0 ? "up" : "down") + "'>" + (k === 2 ? (r[3] >= 0 ? "+" : "−") + Math.abs(r[3]).toFixed(1) + " pts" : sgn(r[3])) + "</td></tr>").join("");
+  const dg = pct(me.gdp, tw.gdp), km = lines.reduce((a, L) => a + legs(L).reduce((b, [x, y]) => b + arc(L.stops[x], L.stops[y]) * R, 0), 0);
+  // the score: the hours your trains gave back, against the road, over the century; and what the planet became, against the same planet without you
+  const h = (snap.legacy && snap.legacy.hours) || 0;
+  $("end-lead").innerHTML = h > 0 ? "Your railway gave the world back <b>" + big(h) + " hours</b>: some " + big(h / (70 * 8760)) + " lifetimes of travel. " + (dg > 0.5 ? "The planet is " + sgn(dg) + " richer than it would have been without you." : "It is no richer than it would have been without you.") : "Your railway gave the world back no time at all.";
+  $("end-line").textContent = big((snap.legacy && snap.legacy.hoursDay) || 0) + " hours a day by 2000 · " + lines.length + (lines.length === 1 ? " line," : " lines,") " + Math.round(km) + " km of track, " + fmt(snap.stats.riders || 0) + " riders a day, ₵" + Math.floor(credits) + " in the bank · world " + seed;
+  $("end").hidden = false;
+}
+$("end-more").onclick = () => { $("end").hidden = true; running = true; playBtn(); century(); };
+$("end-new").onclick = () => { location.search = "?seed=" + ((Math.random() * 1e9) >>> 0); };
 function bar() {
   const el = $("linebar"); el.innerHTML = "";
   lines.forEach((L, i) => {
@@ -120,7 +164,7 @@ function panel() {
   el.hidden = false; el.style.setProperty("--c", L.color);
   let km = 0; for (const [a, b] of legs(L)) km += arc(L.stops[a], L.stops[b]) * R;
   const hubs = (snap.hubs || []).filter((h) => h.lines.includes(L.id)).length;
-  $("p-title").textContent = L.stops.length < 2 ? "tap land to lay stops" : km.toFixed(0) + " km · " + L.stops.length + " stops" + (L.loop ? " · loop" : "") + (hubs ? " · " + hubs + " ◎" : "") + (info && info.fare ? " · fares ₵" + Math.round(info.fare * 365) + "/yr" : "");
+  $("p-title").textContent = L.stops.length < 2 ? "tap land to lay stops" : km.toFixed(0) + " km · " + L.stops.length + " stops" + (L.loop ? " · loop" : "") + (hubs ? " · " + hubs + " ◎" : "") + (info && info.fare ? " · fares ₵" + Math.round(info.fare * 365 * ix()) + "/yr" : "");
   $("p-end").hidden = L.loop || L.stops.length < 2;
   $("p-end").textContent = L.end === 0 ? "◀ from start" : "from end ▶";
   $("p-loop").hidden = L.stops.length < 3;
@@ -131,7 +175,13 @@ function panel() {
   $("p-riders").textContent = info && info.riders ? fmt(info.riders) + "/day" : "—";
   $("p-load").textContent = info && info.cap ? Math.round(100 * info.crowd) + "%" : "—";
   $("p-load").classList.toggle("warn", !!(info && info.crowd > 1));
-  $("p-head").textContent = info && info.headway ? info.headway.toFixed(0) + " min" : "—";
+  const idle = info && info.running != null ? L.trains - info.running : 0;
+  $("p-head").textContent = info && info.headway ? info.headway.toFixed(info.headway < 3 ? 1 : 0) + " min" + (idle >= 1 ? " · " + Math.floor(idle) + " idle" : "") : "—";
+  $("p-head").classList.toggle("warn", idle >= 1);
+  const G = GRADES[L.grade || 0], N = GRADES[(L.grade || 0) + 1];
+  $("p-track").innerHTML = "track <b>" + G.name + "</b> · " + G.kmh + " km/h · a train every " + G.headway + " min at best";
+  $("p-grade").hidden = !N || L.stops.length < 2;
+  if (N) { const c = gradePrice(L), open = snap.cal >= N.from; $("p-grade").disabled = !open; $("p-grade").textContent = open ? "▲ " + N.name + " · ₵" + Math.ceil(c) : N.name + " from " + N.from; }
   $("p-trains").textContent = L.trains;
   $("p-wagons").textContent = L.wagons || 0;
   const c = snap.cargo && snap.cargo.find((x) => x.id === L.id);
@@ -153,7 +203,7 @@ function chartered(p) { return !snap.home || arc(p, snap.home) * R <= snap.chart
 function newLine() {
   if (!spend(trainPrice())) return;
   const used = new Set(lines.map((l) => l.color)), color = COLORS.find((c) => !used.has(c));
-  lines.push({ id: nextId++, color, stops: [], trains: 1, wagons: 0, paid: [], end: 1, loop: false });
+  lines.push({ id: nextId++, color, stops: [], trains: 1, wagons: 0, paid: [], end: 1, loop: false, grade: 0 });
   sel = lines.length - 1; pick = -1; push();
   note("new line: tap land to lay its stops");
 }
@@ -246,6 +296,15 @@ $("p-loop").onclick = () => {
   const c = trackPrice(A, B); if (!spend(c)) return;
   L.loop = true; L.loopPaid = c; pick = -1; push(); note("loop closed · ₵" + Math.ceil(c) + " (" + (arc(A, B) * R).toFixed(0) + " km of track)");
 };
+/* Upgrading a line's track: the next grade's share of the track's own price, leg by leg (dear through a city, as laying it was). */
+function gradePrice(L) { const N = GRADES[(L.grade || 0) + 1]; if (!N) return Infinity; let c = 0; for (const [a, b] of legs(L)) c += trackPrice(L.stops[a], L.stops[b]) * N.cost; return c; }
+$("p-grade").onclick = () => {
+  const L = lines[sel], N = L && GRADES[(L.grade || 0) + 1]; if (!N || snap.cal < N.from) return;
+  const c = gradePrice(L); if (!spend(c)) return;
+  L.grade = (L.grade || 0) + 1; (L.gradePaid = L.gradePaid || []).push(c); push();
+  note("track upgraded to " + N.name + " · ₵" + Math.ceil(c) + ": " + N.kmh + " km/h, a train every " + N.headway + " min");
+};
+$("p-plus5").onclick = () => { const L = lines[sel]; if (!L) return; let k = 0; for (; k < 5; k++) { const c = trainPrice(); if (c > credits + 1e-9) break; credits -= c; pendingSpend += c; L.trains++; (L.trainPaid = L.trainPaid || []).push(c); } if (!k) { note("not enough: a train costs ₵" + Math.ceil(trainPrice())); return; } push(); if (k < 5) note(k + " trains: all you could afford"); };
 $("p-plus").onclick = () => { const L = lines[sel], c = trainPrice(); if (L && spend(c)) { L.trains++; (L.trainPaid = L.trainPaid || []).push(c); push(); } };
 $("p-minus").onclick = () => { const L = lines[sel]; if (L && L.trains > 1) { L.trains--; const c = (L.trainPaid && L.trainPaid.pop()) || P.COST_TRAIN; credits += c / 2; pendingSpend -= c / 2; push(); } };
 $("w-plus").onclick = () => { const L = lines[sel], c = wagonPrice(); if (L && spend(c)) { L.wagons = (L.wagons || 0) + 1; (L.wagonPaid = L.wagonPaid || []).push(c); push(); } };
@@ -276,7 +335,7 @@ document.addEventListener("dblclick", (e) => e.preventDefault());
 $("p-del").onclick = () => {
   const L = lines[sel]; if (!L) return;
   const sum = (a) => (a || []).reduce((x, y) => x + y, 0);
-  const back = (sum(L.paid) + (L.loopPaid || 0) + sum(L.trainPaid) + P.COST_TRAIN * ix() * Math.max(0, L.trains - (L.trainPaid || []).length) + sum(L.wagonPaid)) / 2;
+  const back = (sum(L.paid) + (L.loopPaid || 0) + sum(L.gradePaid) + sum(L.trainPaid) + P.COST_TRAIN * ix() * Math.max(0, L.trains - (L.trainPaid || []).length) + sum(L.wagonPaid)) / 2;
   credits += back; pendingSpend -= back; lines.splice(sel, 1); sel = -1; pick = -1; push(); note("line closed: half its cost back");
 };
 $("p-done").onclick = () => { sel = -1; pick = -1; hud(); };
@@ -375,7 +434,7 @@ function evPoint(ev) {
   if (ev.p) return ev.p;
   const L = lines.find((l) => l.id === ev.line); return L && L.stops.length ? L.stops[L.stops.length >> 1] : null;
 }
-function toast(ev) { if (["tech", "dear", "hub", "town", "full", "money", "planet", "hunger", "mine", "charter"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
+function toast(ev) { if (["car", "tech", "dear", "hub", "town", "full", "money", "planet", "hunger", "mine", "charter"].includes(ev.kind) || (ev.kind === "city" && /passes|largest/.test(ev.text))) note(evText(ev), evPoint(ev)); }
 function renderLog() {
   $("logbtn").textContent = "log" + (unread && $("log").hidden ? " ·" + unread : "");
   if ($("log").hidden) return;
@@ -407,4 +466,4 @@ window.addEventListener("resize", () => view.resize());
 if (window.ResizeObserver) new ResizeObserver(() => view.resize()).observe(cv);
 view.resize();
 requestAnimationFrame(frame);
-window.ECUMENE = { view, get snap() { return snap; }, get lines() { return lines; }, addStop, lineTap, removeStop, newLine, site, zoneAt, get credits() { return credits; } }; // for tests
+window.ECUMENE = { view, years: (n) => { for (let k = 0; k < n; k++) worker.postMessage({ type: "step" }); }, get snap() { return snap; }, get lines() { return lines; }, addStop, lineTap, removeStop, newLine, site, zoneAt, get credits() { return credits; } }; // for tests

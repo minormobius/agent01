@@ -12,13 +12,26 @@ function snap() {
   let tot = 0; for (let i = 0; i < s.n; i++) { off[i] = tot; tot += s.polys[i].length; } off[s.n] = tot;
   const ring = new Int32Array(tot); for (let i = 0, k = 0; i < s.n; i++) for (const v of s.polys[i]) ring[k++] = v;
   return { n: s.n, P: s.P, verts: s.verts, off, ring, geo: s.geo, pop: s.pop, area: s.area, land: s.land, stats: s.stats, credits: s.credits, year: s.year, seq, home: s.home, homeName: s.homeName, tier: s.tier, charterKm: s.charterKm, charterReady: s.charterReady,
-    charterFee: s.charterFee, nextRiders: s.nextRiders, index: s.index,
+    charterFee: s.charterFee, nextRiders: s.nextRiders, index: s.index, cal: s.cal, road: s.road, legacy: s.legacy,
     u: sim.u ? Float64Array.from(sim.u) : null, gdpZ: s.gdpZ, K: sim.K ? Float64Array.from(sim.K) : null, lastTown: sim.lastTown,
     events: sim.events, towns: sim.towns.map((t, k) => ({ name: t.name, p: t.p, pop: t.pop, rural: t.rural || 0, gdp: t.gdp || 0, food: s.food[k] ?? 1, short: s.short[k] || 0, ore: s.ore[k] || 0, price: s.price[k] ?? 1, orePrice: s.orePrice[k] ?? 1, tech: s.tech[k] ?? 1 })), nbrs: sim.nbrs,
     mines: s.mines, cargo: s.cargo, runs: s.runs, hubs: s.hubs };
 }
 self.onmessage = (e) => {
   const m = e.data;
+  /* The twin: the same planet, the same seed, and no railway. The page runs
+     one in a second worker and steps it to each year the game reaches, so
+     the century can be scored against the world without you. */
+  if (m.type === "twin") {
+    sim = new Sim(makeWorld(m.seed), m.seed); sim.warmup(); sim.setLines([]);
+    self.postMessage({ type: "twin", legacy: sim.legacy() });
+    return;
+  }
+  if (m.type === "to") {
+    while (sim && sim.year < m.year) sim.step();
+    if (sim) self.postMessage({ type: "twin", legacy: sim.legacy() });
+    return;
+  }
   if (m.type === "init") {
     const world = makeWorld(m.seed);
     sim = new Sim(world, m.seed);
