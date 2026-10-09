@@ -178,10 +178,11 @@ function panel() {
   $("p-load").textContent = info && info.cap ? Math.round(100 * info.crowd) + "%" : "—";
   $("p-load").classList.toggle("warn", !!(info && info.crowd > 1));
   const idle = info && info.running != null ? L.trains - info.running : 0;
-  $("p-head").textContent = info && info.headway ? info.headway.toFixed(info.headway < 3 ? 1 : 0) + " min" + (idle >= 1 ? " · " + Math.floor(idle) + " idle" : "") : "—";
+  // the headway alone: the idle count lives on the track line below, so this row never changes width under your thumb
+  $("p-head").textContent = info && info.headway ? info.headway.toFixed(info.headway < 3 ? 1 : 0) + " min" : "—";
   $("p-head").classList.toggle("warn", idle >= 1);
   const G = GRADES[L.grade || 0], N = GRADES[(L.grade || 0) + 1];
-  $("p-track").innerHTML = "track <b>" + G.name + "</b> · " + G.kmh + " km/h · a train every " + G.headway + " min at best";
+  $("p-track").innerHTML = "track <b>" + G.name + "</b> · " + G.kmh + " km/h · a train every " + G.headway + " min at best" + (idle >= 1 ? " · <em>" + Math.floor(idle) + " idle</em>" : "");
   $("p-grade").hidden = !N || L.stops.length < 2;
   if (N) { const c = gradePrice(L), open = snap.cal >= N.from; $("p-grade").disabled = !open; $("p-grade").textContent = open ? "▲ " + N.name + " · ₵" + Math.ceil(c) : N.name + " from " + N.from; }
   $("p-trains").textContent = L.trains;

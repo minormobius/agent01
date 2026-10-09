@@ -166,6 +166,9 @@ button:disabled { opacity: 0.4; cursor: default; }
 .ptrack { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--dim); }
 .ptrack span { flex: 1; } .ptrack b { color: var(--text); }
 #p-head.warn { color: var(--warn); }
+/* fixed widths: the train buttons beside these never move as the numbers change */
+#p-trains, #p-wagons { display: inline-block; min-width: 3ch; text-align: center; } #p-riders { display: inline-block; min-width: 9ch; } #p-load { display: inline-block; min-width: 4ch; } #p-head { display: inline-block; min-width: 7ch; }
+.ptrack em { color: var(--warn); font-style: normal; font-weight: 700; }
 #end-table { font-family: var(--mono); font-size: 13px; border-collapse: collapse; max-width: 32em; width: 100%; }
 #end-table th { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); font-weight: 400; text-align: right; padding: 4px 6px; }
 #end-table td { text-align: right; padding: 6px; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
