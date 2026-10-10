@@ -33,9 +33,9 @@ _Regenerated 2026-10-10 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-10, 99 members / 201 posts):
+**Neighborhood spark** (bisk 2026-10-10, 99 members / 185 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: anthropic, llms, llm
+- Distinctive words: anthropic, llm, delvetown
 - Top post: "saying that LLMs makes you lazy is mostly incorrect, and ignores one of the actually harmful things about them: it means" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
