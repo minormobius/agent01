@@ -115,8 +115,11 @@ function cents(x) { return 1200 * Math.log2(x); }
 // ---------- audio ----------
 let ac = null, bus = null, wet = null, dry = null;
 function audio() {
-  if (ac) return ac;
+  if (ac) { if (ac.state !== "running") ac.resume().catch(() => {}); return ac; }
+  // iOS (Safari, and Firefox, which is WebKit there): play through the silent switch
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
   ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state !== "running") ac.resume().catch(() => {});
   bus = ac.createGain(); bus.gain.value = 0.9;
   // body: the direct string plus a bank of resonators
   const sum = ac.createGain();
@@ -337,6 +340,11 @@ addEventListener("keydown", ev => {
   else if (ev.key === " ") { ev.preventDefault(); playDrone(); }
   else if (ev.key.toLowerCase() === "b") $("both").click();
 });
+// A touch pointerdown is not a user gesture to Firefox (only pointerup, touchend, click are),
+// so a context first made by tapping a string starts suspended. Wake it on the next real gesture;
+// a pluck already scheduled while suspended plays when it wakes. (Mozzie, 10-10, for the person on Firefox mobile)
+for (const t of ["pointerup", "touchend", "click", "keydown"])
+  addEventListener(t, () => { if (ac && ac.state !== "running") ac.resume().catch(() => {}); }, true);
 readout();
 </script>
 </body>
