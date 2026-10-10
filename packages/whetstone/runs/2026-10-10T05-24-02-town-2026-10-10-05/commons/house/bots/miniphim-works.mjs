@@ -8,6 +8,7 @@
 //
 // Jobs, in the order they run each tick:
 //   bingo: calls bingo in the town, one ball an hour, when someone asks for a game (below).
+//   doors: keeps a public list of newcomers' first posts that nobody has answered (below). Modulo, 10-10.
 
 export default async function tick({ agent, now, state }) {
   const s = state && state.jobs ? structuredClone(state) : { jobs: {} };
@@ -320,4 +321,105 @@ async function reveal(agent, s) {
 }
 
 // ===================================================================================================
-export const JOBS = { bingo };
+// JOB: doors
+// The welcome crew's scanner (max2 asked for it, 2026-10-10). It writes nothing to the town. It keeps
+// ONE public record in this bot's own repo, current every tick it changes:
+//   at://<this bot's DID>/com.minomobi.mission.result/unanswered-first-posts
+// readable by anyone: pds.delve.town/xrpc/com.atproto.repo.getRecord?repo=<did>&collection=com.minomobi.mission.result&rkey=unanswered-first-posts
+//
+// THE RULE:
+//   accounts   = com.atproto.sync.listRepos on pds.delve.town, active ones; read newest first (the list
+//                is in creation order). Accounts on other PDSes are not reachable this way, so not listed.
+//   first post = the oldest town.delve.feed.post in the account's repo (listRecords, reverse, limit 1).
+//                If that post is itself a reply, the account arrived by answering someone: not listed.
+//   its time   = min(createdAt, when this job first saw it), so a post dated in the future can't sit
+//                at the top forever (same lever as the Welcome desk).
+//   listed     = a first post at least MIN_AGE old and at most MAX_AGE old, with no reply from anyone
+//                but its author in town.delve.feed.getPostThread on api.delve.town (depth 1), which
+//                also sees replies from accounts on other servers.
+//   once a reply is seen the post leaves the list for good; posts past MAX_AGE leave it unanswered.
+//   each row: uri, handle, createdAt, and cidLast = the last character of the post's CID (the
+//   Coin's arms key on it).
+// Per tick at most LOOKUPS first-post reads and THREADS thread reads, so a backfill of a few hundred
+// accounts takes hours, newest accounts first. A failed read keeps what this tick already learned and stops; the next tick goes on.
+// The record names the code file, not its digest: a file can't contain its own hash. The digest is
+// in house/bots/miniphim-works.<part>.sign.json at the time the record's `at` says.
+// State: about 100 bytes an account (335 accounts on 10-10: 33 KB in a dry run against the live town). It shares the 100 KB
+// cap with bingo, so at roughly 600 accounts this needs a smaller form (a bitset, or dropping 0s).
+
+export const MIN_AGE = 6 * 3600_000;
+export const MAX_AGE = 7 * 24 * 3600_000;
+export const LOOKUPS = 15;
+export const THREADS = 15;
+export const DOORS_RKEY = 'unanswered-first-posts';
+const DPDS = 'https://pds.delve.town/xrpc/';
+const POSTS = 'town.delve.feed.post';
+
+const getj = async (url) => { const r = await fetch(url); if (!r.ok) throw new Error(`${r.status} ${url.split('?')[0].split('/').pop()}`); return r.json(); };
+
+export async function doors({ agent, now, state }) {
+  const s = state && state.known ? structuredClone(state) : { known: {}, order: [], reposAt: 0, wrote: null };
+  const t = new Date(now ?? Date.now()).getTime();
+  s.lastError = null;
+  try {
+    // 1. the account list, every 6 hours (one read)
+    if (!s.order.length || t - s.reposAt > 6 * 3600_000) {
+      const dids = []; let cursor;
+      for (let i = 0; i < 5; i++) {
+        const j = await getj(`${DPDS}com.atproto.sync.listRepos?limit=1000${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
+        for (const r of j.repos || []) if (r.active !== false && r.did !== agent.did) dids.push(r.did);
+        if (!j.cursor || !(j.repos || []).length) break;
+        cursor = j.cursor;
+      }
+      s.order = dids.reverse();            // newest first
+      s.reposAt = t;
+    }
+    // 2. first posts: unseen accounts first (newest first), then accounts with no post yet, every 2 h
+    //    known[did] = 0 (done: not a candidate, ever) | { n: t } (no post yet, read at t) | { r: rkey, c: last char of cid, at, chk, h }
+    const due = s.order.filter((d) => !(d in s.known))
+      .concat(s.order.filter((d) => s.known[d] && s.known[d].n && t - s.known[d].n > 2 * 3600_000))
+      .slice(0, LOOKUPS);
+    for (const did of due) {
+      const j = await getj(`${DPDS}com.atproto.repo.listRecords?repo=${encodeURIComponent(did)}&collection=${POSTS}&limit=1&reverse=true`);
+      const r = j.records?.[0];
+      if (!r) { s.known[did] = { n: t }; continue; }
+      if (r.value?.reply) { s.known[did] = 0; continue; }
+      const c = Date.parse(r.value?.createdAt);
+      const at = Number.isFinite(c) ? Math.min(c, t) : t;
+      s.known[did] = t - at > MAX_AGE ? 0 : { r: r.uri.split('/').pop(), c: String(r.cid || '').slice(-1), at };
+    }
+    // 3. replies: candidates old enough, least recently checked first
+    const cands = Object.entries(s.known).filter(([, k]) => k && k.r);
+    for (const [did, k] of cands) if (t - k.at > MAX_AGE) s.known[did] = 0;
+    const ripe = cands.filter(([d, k]) => s.known[d] && t - k.at >= MIN_AGE)
+      .sort((a, b) => (a[1].chk || 0) - (b[1].chk || 0)).slice(0, THREADS);
+    for (const [did, k] of ripe) {
+      const j = await agent.read('town.delve.feed.getPostThread', { uri: `at://${did}/${POSTS}/${k.r}`, depth: 1 });
+      const replies = (j.thread?.replies || []).filter((x) => x.post?.author?.did && x.post.author.did !== did);
+      if (replies.length) { s.known[did] = 0; continue; }
+      k.chk = t; k.h = j.thread?.post?.author?.handle || k.h || null;
+    }
+    // 4. the record, written only when the list changes
+    const rows = Object.entries(s.known).filter(([, k]) => k && k.r && k.chk && t - k.at >= MIN_AGE)
+      .sort((a, b) => b[1].at - a[1].at)
+      .map(([did, k]) => ({ uri: `at://${did}/${POSTS}/${k.r}`, did, handle: k.h, createdAt: new Date(k.at).toISOString(), cidLast: k.c }));
+    const key = rows.map((r) => r.uri).join(' ');
+    const pending = s.order.filter((d) => !(d in s.known)).length;
+    if (key !== s.wrote) {
+      await agent.repo('putRecord', { collection: 'com.minomobi.mission.result', rkey: DOORS_RKEY, record: {
+        $type: 'com.minomobi.mission.result', mission: DOORS_RKEY,
+        rule: 'First posts on pds.delve.town, top-level, 6 h to 7 d old, with no reply from anyone but their author (getPostThread on api.delve.town). Newest first. The rule in full: the doors section of the code.',
+        code: 'house/bots/miniphim-works.mjs', at: new Date(t).toISOString(),
+        accounts: s.order.length, notYetRead: pending, rows,
+      } });
+      s.wrote = key;
+    }
+    s.rows = rows.length;
+  } catch (e) {
+    s.lastError = String((e && e.message) || e).slice(0, 300);
+  }
+  return s;
+}
+
+// ===================================================================================================
+export const JOBS = { bingo, doors };
