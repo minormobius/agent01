@@ -22,17 +22,23 @@
       <div class="h"><span class="lab">stranded</span><span id="stranded" class="val">0</span></div>
       <div class="h right"><span class="lab">funds</span><span id="credits" class="val">—</span><span id="net" class="sub">—</span></div>
     </div>
+    <div id="strip"><div id="legacy">—</div><div id="charter"><span id="ch-text">—</span><button type="button" id="ch-buy" class="mini buy" hidden>—</button></div></div>
     <div id="info" hidden></div>
     <div id="legend" hidden></div>
     <div id="note"></div>
+    <div id="actions">
+      <button class="ghost" id="play" type="button" title="Pause / run (space)">▶</button>
+      <button class="ghost" id="fast" type="button" title="Faster">▶▶</button>
+      <button class="ghost" id="layer" type="button" title="Map: terrain, people, GDP, food, or towns">terrain</button>
+      <button class="ghost" id="logbtn" type="button" title="What happened in the world">log</button>
+      <button class="ghost" id="help" type="button" aria-label="How to play">?</button>
+    </div>
     <div id="log" hidden>
       <div class="ptop"><span>what happened</span><button type="button" id="logclose" class="mini">close</button></div>
       <div id="loglist"></div>
     </div>
   </div>
   <div id="dock">
-    <div id="legacy">—</div>
-    <div id="charter"><span id="ch-text">—</span><button type="button" id="ch-buy" class="mini buy" hidden>—</button></div>
     <div id="linebar"></div>
     <div id="dockbody">
       <div id="panel" hidden>
@@ -55,14 +61,6 @@
         <table><thead><tr><th>town</th><th>people</th><th>farms</th><th>food price</th><th>GDP</th></tr></thead><tbody id="c-rows"></tbody></table>
       </div>
     </div>
-    <div id="actions">
-      <button class="ghost" id="play" type="button" title="Pause / run (space)">▶</button>
-      <button class="ghost" id="fast" type="button" title="Faster">▶▶</button>
-      <button class="ghost" id="layer" type="button" title="Map: terrain, food, or towns (whose land is whose)">terrain</button>
-      <button class="ghost" id="logbtn" type="button" title="What happened in the world">log</button>
-      <button class="ghost" id="help" type="button" aria-label="How to play">?</button>
-    </div>
-    <p class="foot">world <code id="seed">—</code> · <a href="#" id="newworld">new world</a> · drag to turn · pinch to zoom · a planet from <a href="https://mappa.mino.mobi/">mappa</a></p>
   </div>
 </div>
 
@@ -121,7 +119,7 @@
   <p class="accent">Drag to turn, pinch to zoom. Pick <b>+ line</b>, then tap land to lay stops; tap on its track to add one between.</p>
   <p id="loading" class="dim">growing a world…</p>
   <button class="primary" id="start-btn" type="button" style="flex:none" disabled>…</button>
-  <p class="foot"><a href="./README.md">how it works</a> · one of the <a href="../pressure/">games</a></p>
+  <p class="foot">world <code id="seed">—</code> · <a href="#" id="newworld">new world</a> · <a href="./README.md">how it works</a> · one of the <a href="../pressure/">games</a> · a planet from <a href="https://mappa.mino.mobi/">mappa</a></p>
 </div>
 
 <div class="overlay" id="end" hidden>

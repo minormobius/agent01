@@ -177,12 +177,13 @@ function panel() {
   $("p-riders").textContent = info && info.riders ? fmt(info.riders) + "/day" : "—";
   $("p-load").textContent = info && info.cap ? Math.round(100 * info.crowd) + "%" : "—";
   $("p-load").classList.toggle("warn", !!(info && info.crowd > 1));
-  const idle = info && info.running != null ? L.trains - info.running : 0;
+  const idle = info && info.running > 0 ? L.trains - info.running : 0;   // (a line not yet run has no running count, not an idle one)
   // the headway alone: the idle count lives on the track line below, so this row never changes width under your thumb
   $("p-head").textContent = info && info.headway ? info.headway.toFixed(info.headway < 3 ? 1 : 0) + " min" : "—";
   $("p-head").classList.toggle("warn", idle >= 1);
   const G = GRADES[L.grade || 0], N = GRADES[(L.grade || 0) + 1];
-  $("p-track").innerHTML = "track <b>" + G.name + "</b> · " + G.kmh + " km/h · a train every " + G.headway + " min at best" + (idle >= 1 ? " · <em>" + Math.floor(idle) + " idle</em>" : "");
+  $("p-track").innerHTML = "<b>" + G.name + "</b> track · " + G.kmh + " km/h · " + G.headway + " min apart" + (idle >= 1 ? " · <em>" + Math.floor(idle) + " idle</em>" : "");
+  $("p-track").title = "the track takes a train every " + G.headway + " min at best; trains past that wait in the sidings";
   $("p-grade").hidden = !N || L.stops.length < 2;
   if (N) { const c = gradePrice(L), open = snap.cal >= N.from; $("p-grade").disabled = !open; $("p-grade").textContent = open ? "▲ " + N.name + " · ₵" + Math.ceil(c) : N.name + " from " + N.from; }
   $("p-trains").textContent = L.trains;
@@ -328,7 +329,7 @@ $("ch-buy").onclick = () => { if (snap && snap.charterReady && credits >= snap.c
 function charter() {
   if (!snap || !snap.home) return;
   const next = snap.nextRiders, km = snap.charterKm === Infinity ? "the whole planet" : snap.charterKm + " km round " + snap.homeName;
-  $("ch-text").innerHTML = "charter: <b>" + km + "</b>" + (next && !snap.charterReady ? " · wider at " + fmt(next) + " riders a day" : "");
+  $("ch-text").innerHTML = "charter <b>" + km + "</b>" + (next && !snap.charterReady ? " · wider at " + fmt(next) + " riders" : "");
   $("ch-buy").hidden = !snap.charterReady;
   if (snap.charterReady) $("ch-buy").textContent = "widen · ₵" + Math.ceil(snap.charterFee);
 }
