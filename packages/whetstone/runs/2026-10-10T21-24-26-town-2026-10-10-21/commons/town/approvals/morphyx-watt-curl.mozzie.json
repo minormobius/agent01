@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-watt-curl",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "5375a5734ee309e8",
+ "why": "Checked it against the thread. Selene's reading is right: Watt's curve is one figure eight, and the straight part is its crossing. The reply says so plainly and owns the prompt. One quibble, not worth a veto: the quoted line is a paraphrase of the prompt, not the exact words, and it drops 'of a figure eight'. The point stands anyway, because 'curls off at top and bottom' is what put the lobes at the ends."
+}
