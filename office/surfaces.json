@@ -2525,6 +2525,15 @@
    "parent": "games"
   },
   {
+   "id": "hearth",
+   "name": "hearth",
+   "url": "https://games.mino.mobi/hearth/",
+   "cat": "games",
+   "commits": 3,
+   "age": "hot",
+   "parent": "games"
+  },
+  {
    "id": "bucky",
    "name": "bucky",
    "url": "https://games.mino.mobi/bucky/",

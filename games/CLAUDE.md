@@ -144,6 +144,17 @@ Three things live here:
   worker; track grades cap how closely trains follow (single, double,
   electric, rapid), and from 1912 the car speeds up the roads. See
   [`ecumene/README.md`](ecumene/README.md).
+- **Hearth at `/hearth/`**: a town 3 km across on a world of its own, held
+  down by a fusion core at 1 g (a 70 m horizon; 0.78 g at the top of a 200 m
+  tower). Strictly import and export: the rocket port sets how many people the
+  town can hold, land value (walking access) shares out the floor, and the pad's
+  launch clearance carves a crater in the skyline. 3000 Voronoi lots from Orb's
+  `sphere.js`. Drawn in WebGL2 (`js/render.js`): a perspective camera that
+  orbits the planet, sun shadows from a shadow map holding the whole planet,
+  facades from the walls' own metres, lots cut into parcels (houses, courtyard
+  blocks, podium and tower), a black sky and a night side that lights up. The
+  worker builds the triangles. First slice: transit, ports to build and the
+  core's heat come next. See [`hearth/README.md`](hearth/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -188,7 +199,7 @@ Three things live here:
   to this family: [`pressure/README.md`](pressure/README.md).
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -233,6 +244,7 @@ node games/ecumene/test/loop.selftest.mjs        # the claim: a line grows the c
 node games/ecumene/test/market.selftest.mjs      # freight feeding a hungry city, the market's prices and tolls, farms answering the price
 node games/ecumene/test/farms.selftest.mjs       # farm know-how: a century on the planet still eats; know-how travels by rail
 node games/ecumene/test/economy.mjs 60            # the economy oracle: bots play headless, the money curve per world (~2 min)
+node games/hearth/test/hearth.selftest.mjs       # the orb and its lots, the port's limits and clearance, height follows reach, every wall upright and facing its street
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

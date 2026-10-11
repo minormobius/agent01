@@ -3759,6 +3759,22 @@
       ]
     },
     {
+      "n": "hearth",
+      "u": "https://games.mino.mobi/hearth/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-11",
+      "b": "2026-10-11",
+      "p": "games",
+      "surface": "games",
+      "d": "A town 3 km across on a world of its own, held down by a fusion core. Everything comes in and goes out through the rocket port, so the port sets how big the town can be, and the town builds up where it can reach the most on foot, except round the pad, where launches need clear sky. Drawn in 3D with the sun's shadows sweeping round it and the night side lighting up.",
+      "tags": [
+        "games",
+        "simulation"
+      ]
+    },
+    {
       "n": "bucky",
       "u": "https://games.mino.mobi/bucky/",
       "c": "games",
