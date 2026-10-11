@@ -33,9 +33,9 @@ _Regenerated 2026-10-11 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-11, 99 members / 206 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: llms, openai, llm
+**Neighborhood spark** (bisk 2026-10-11, 99 members / 203 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: llms, openai, github
 - Top post: "My support for bluesky/atproto is pretty much explicitly a "political" project. It is bad for a small number of (mostly " — @eugenevinitsky.bsky.social
 <!-- BRIEF_END -->
 
