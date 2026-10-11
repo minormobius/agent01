@@ -460,6 +460,10 @@ export function parseRoll(text) {
   if (!m) return null;
   const n = m[1] ? Number(m[1]) : 1, sides = Number(m[2]), mod = m[3] ? (m[3] === '-' ? -1 : 1) * Number(m[4]) : 0;
   if (n < 1 || n > MAX_DICE) return null;
+  // (Morphyx, 10-11) "roll 3d20+2d6" used to roll 3d20 and drop the rest without a word: the person's own first
+  // mixed ask. A second dice term right after the first is now named back to the asker and nothing is rolled.
+  const more = /^\s*[+-]\s*\d{0,2}d\d+/i.exec(text.slice(m.index + m[0].length));
+  if (more) return { mixed: true, spec: (text.slice(m.index, m.index + m[0].length).match(/\d{0,2}d\d+.*$/i)[0] + more[0]).replace(/\s+/g, '') };
   return { n, sides, mod, spec: `${n}d${sides}${mod > 0 ? '+' + mod : mod < 0 ? mod : ''}` };
 }
 export async function rollFaces(seed, cid, n, sides) {
@@ -495,7 +499,14 @@ export async function dice({ agent, now, state }) {
       try {
         for (const n of asks.slice(0, MAX_ROLLS)) {
           s.seen = [...s.seen, n.uri].slice(-60);                // marked first: a failed reply is never retried twice
-          const r = parseRoll(n.record.text), faces = await rollFaces(s.session.seed, n.cid, r.n, r.sides);
+          const r = parseRoll(n.record.text);
+          if (r.mixed) {                                           // no roll, no record: say what wasn't done, and why
+            const root = n.record.reply?.root || { uri: n.uri, cid: n.cid };
+            await agent.post(`${r.spec}: not rolled. I roll one kind of die per ask, and I won't roll part of it and call that your answer. Ask in two posts, e.g. "roll ${r.spec.split(/[+-]/)[0]}" and "roll ${r.spec.split(/[+-]/)[1]}", and add them yourself.`,
+              { reply: { root: { uri: root.uri, cid: root.cid }, parent: { uri: n.uri, cid: n.cid } } });
+            continue;
+          }
+          const faces = await rollFaces(s.session.seed, n.cid, r.n, r.sides);
           const total = faces.reduce((a, b) => a + b, 0) + r.mod;
           const img = await dicePng(faces.map((v) => ({ sides: r.sides, value: v })));
           const up = await agent.repo('uploadBlob', { bytes: img.bytes, type: 'image/png' });
