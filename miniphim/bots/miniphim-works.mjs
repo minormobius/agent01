@@ -1,18 +1,29 @@
+import { dicePng } from './lib/dice-png.mjs';
 // miniphim works: the one account miniphim runs its machines from. Written by Morphyx, 2026-10-07.
 //
 // The account is the frame, the jobs are what hang on it. Each job is a tick of its own with its own
 // slice of the private state (state.jobs[<name>]); one job's error stops only that job, this tick.
-// Every job's code lives in THIS file on purpose: house/digest.mjs hashes <name>.mjs, its test, json
+// Every job's code lived in this file on purpose: house/digest.mjs hashes <name>.mjs, its test, json
 // and svg, and nothing under lib/. A job kept in lib/ would run unsigned. Until the digest covers lib/,
 // a new job is a new section here, and adding one needs two fresh signatures like any other edit.
 //
 // Jobs, in the order they run each tick:
 //   bingo: calls bingo in the town, one ball an hour, when someone asks for a game (below).
 //   doors: keeps a public list of newcomers' first posts that nobody has answered (below). Modulo, 10-10.
+//   dice:  rolls dice for anyone who asks, with a picture of the dice (below). Modulo, 10-11.
+// (house/digest.mjs now covers house/bots/lib/ too, so the dice pictures, drawn by lib/dice-png.mjs, are signed with this.)
+//
+// The account ticks every 5 minutes so dice answer fast. Each job has its own pace (EVERY, in minutes) and
+// is skipped until it's due, so bingo still calls one ball an hour and doors still reads once an hour.
+export const EVERY = { bingo: 60, doors: 60, dice: 5 };
 
 export default async function tick({ agent, now, state }) {
   const s = state && state.jobs ? structuredClone(state) : { jobs: {} };
+  const t = new Date(now ?? Date.now()).getTime();
+  s.ran = s.ran || {};
   for (const [name, job] of Object.entries(JOBS)) {
+    if (t - (s.ran[name] || 0) < ((EVERY[name] || 5) - 2) * 60_000) continue;   // 2 min slack for jitter
+    s.ran[name] = t;
     try {
       s.jobs[name] = await job({ agent, now, state: s.jobs[name] });
     } catch (e) {
@@ -25,7 +36,7 @@ export default async function tick({ agent, now, state }) {
 
 // ===================================================================================================
 // JOB: bingo
-// The bingo caller. One ball per tick of the account (`every` in miniphim-works.json).
+// The bingo caller. One ball per bingo tick (EVERY.bingo, an hour).
 //
 // Where the trust sits: not in the cards, in the caller. Whoever draws the balls decides who wins.
 // So before a game the caller posts sha256(seed) and keeps the seed in private state. Every card and
@@ -422,4 +433,142 @@ export async function doors({ agent, now, state }) {
 }
 
 // ===================================================================================================
-export const JOBS = { bingo, doors };
+// JOB: dice. Modulo, 2026-10-11, for the person's "go ahead and build it".
+// Mention the account (or reply to it) with "roll d20", "roll 2d6+3", any of d4 d6 d8 d10 d12 d20, up to 10
+// dice. Within one tick (5 minutes) it replies with the dice drawn as a picture, alt text saying the faces.
+//
+// Where the trust sits: in the seed. A session's seed is drawn from crypto.getRandomValues, and sha256(seed) is
+// posted BEFORE any roll in that session; a request counts only if the town indexed it after that post. The
+// seed comes out a day after the session's first roll, and the next session's hash goes up with it.
+//
+// THE RULE (with bingo's stream and below() above, nothing else is needed to check a roll):
+//   faces = for k = 1..N: 1 + below(M), all drawn in order from stream(seed, cid)
+//           where cid is the CID of the post that asked for the roll (the town's, as text)
+//   total = sum(faces) + modifier
+// Your own post's cid goes into your roll, and it didn't exist when the seed's hash went up, so the seed holder
+// can't aim a seed at your roll, and once the hash is out it can't change the seed either.
+// Every session is a public record in this account's repo, com.minomobi.dice.session/<n>: the hash, the
+// requests with their cids and faces, and the seed once revealed. https://miniphim.minomobi.com/dice/ reads it.
+
+export const DICE_SPEC = /\broll\b[^\n]*?\b(\d{1,2})?d(4|6|8|10|12|20)\b(?:\s*([+-])\s*(\d{1,3})\b)?/i;
+export const MAX_DICE = 10, MAX_ROLLS = 8, SESSION_MS = 24 * 3600_000;
+const DICE_COL = 'com.minomobi.dice.session', PAGE = 'https://miniphim.minomobi.com/dice/';
+const WORDS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+
+export function parseRoll(text) {
+  const m = DICE_SPEC.exec(text || '');
+  if (!m) return null;
+  const n = m[1] ? Number(m[1]) : 1, sides = Number(m[2]), mod = m[3] ? (m[3] === '-' ? -1 : 1) * Number(m[4]) : 0;
+  if (n < 1 || n > MAX_DICE) return null;
+  return { n, sides, mod, spec: `${n}d${sides}${mod > 0 ? '+' + mod : mod < 0 ? mod : ''}` };
+}
+export async function rollFaces(seed, cid, n, sides) {
+  const s = stream(seed, cid), out = [];
+  for (let k = 0; k < n; k++) out.push(1 + await s.below(sides));
+  return out;
+}
+export function altText(sides, faces) {
+  return faces.length === 1 ? `A d${sides} showing ${faces[0]}.` : `${WORDS[faces.length]} d${sides}s showing ${faces.join(', ')}.`;
+}
+
+export async function dice({ agent, now, state }) {
+  const s = state && 'n' in state ? structuredClone(state) : { n: 0, session: null, seen: [], history: [] };
+  const t = new Date(now ?? Date.now()).getTime();
+  s.lastError = null;
+  try {
+    // The reveal comes BEFORE any roll, and the session is closed in state before its seed goes public.
+    // (Morphyx, 10-11: rolls used to run first, so a reveal whose post failed left the session open with its
+    // seed already in the public record, and the next tick rolled with a seed anyone could read; a player
+    // could grind their post's cid until it rolled a 20.) A reveal that fails is retried, record and post.
+    if (s.reveal) await finishReveal(agent, s);
+    if (s.session && s.session.first && t - s.session.first >= SESSION_MS) {  // a day after the first roll
+      const old = s.session;
+      s.session = null;                                          // closed first: no roll can use this seed again
+      s.history = [...s.history, { n: old.n, commit: old.commit, seed: old.seed, root: old.root.uri }].slice(-10);
+      s.reveal = { n: old.n, seed: old.seed, rolls: old.rolls, root: old.root, since: old.since, commit: old.commit, at: new Date(t).toISOString(), recorded: false };
+      await finishReveal(agent, s);
+    }
+    if (!s.session) await openSession(agent, t, s);              // no roll ever happens without a public hash
+    const asks = await rollRequests(agent, s);
+    if (asks.length) {
+      const rec = await sessionRecord(agent, s.session);
+      try {
+        for (const n of asks.slice(0, MAX_ROLLS)) {
+          s.seen = [...s.seen, n.uri].slice(-60);                // marked first: a failed reply is never retried twice
+          const r = parseRoll(n.record.text), faces = await rollFaces(s.session.seed, n.cid, r.n, r.sides);
+          const total = faces.reduce((a, b) => a + b, 0) + r.mod;
+          const img = await dicePng(faces.map((v) => ({ sides: r.sides, value: v })));
+          const up = await agent.repo('uploadBlob', { bytes: img.bytes, type: 'image/png' });
+          const blob = up && up.blob ? up.blob : up;
+          const sum = faces.length === 1 && !r.mod ? `${faces[0]}` : `${faces.join(' + ')}${r.mod ? ` ${r.mod > 0 ? '+' : '-'} ${Math.abs(r.mod)}` : ''} = ${total}`;
+          const rkey = n.uri.split('/').pop();
+          const text = `${r.spec}: ${sum}\n\nDrawn from sha256(seed + your post's cid). The seed's hash went up first; the seed comes out within a day. Check it: ${PAGE}?s=${s.session.n}&p=${rkey}`;
+          const root = n.record.reply?.root || { uri: n.uri, cid: n.cid };
+          const p = await agent.post(text, {
+            reply: { root: { uri: root.uri, cid: root.cid }, parent: { uri: n.uri, cid: n.cid } },
+            embed: { $type: 'town.delve.embed.images', images: [{ alt: altText(r.sides, faces), image: blob, aspectRatio: { width: img.width, height: img.height } }] },
+          });
+          rec.rolls.push({ uri: n.uri, cid: n.cid, by: n.author?.handle || n.author?.did || null, spec: r.spec, faces, total, reply: p.uri, at: new Date(t).toISOString() });
+          s.session.rolls = (s.session.rolls || 0) + 1;
+          s.session.first = s.session.first || t;
+        }
+      } finally {
+        // the rolls that did go out are written even when a later one fails, so every posted roll is checkable
+        await agent.repo('putRecord', { collection: DICE_COL, rkey: String(s.session.n), record: rec });
+      }
+    }
+  } catch (e) {
+    s.lastError = String((e && e.message) || e).slice(0, 300);
+  }
+  return s;
+}
+
+async function finishReveal(agent, s) {
+  const v = s.reveal;
+  if (!v.recorded) {
+    const rec = await sessionRecord(agent, v);
+    rec.seed = v.seed; rec.revealedAt = v.at;
+    await agent.repo('putRecord', { collection: DICE_COL, rkey: String(v.n), record: rec });
+    v.recorded = true;
+  }
+  await agent.post(`Dice session ${v.n} is closed after ${v.rolls} roll${v.rolls === 1 ? '' : 's'}. Its seed:\n${v.seed}\nIts sha256 is the hash at the top of this thread, and every roll in it can be checked: ${PAGE}?s=${v.n}`,
+    { reply: { root: v.root, parent: v.root } });
+  s.reveal = null;
+}
+
+async function openSession(agent, t, s) {
+  const seed = newSeed(), commit = await commitment(seed), n = s.n + 1;
+  const text = `Dice, session ${n}. Mention me with "roll d20" (or 2d6+1: d4 d6 d8 d10 d12 d20, up to 10 dice) and I answer within 5 minutes, with a picture.\n\nsha256 of this session's seed:\n${commit}\nEach roll comes from sha256(seed + your post's cid). The seed comes out a day after the first roll.`;
+  const p = await agent.post(text);
+  s.n = n;
+  s.session = { n, seed, commit, root: ref(p), since: new Date(t).toISOString(), rolls: 0, first: 0 };
+  await agent.repo('putRecord', { collection: DICE_COL, rkey: String(n), record: blankRecord(s.session, t) });
+}
+function blankRecord(ss, t) {
+  return { $type: DICE_COL, session: ss.n, commit: ss.commit, seed: null, root: ss.root.uri, openedAt: new Date(t).toISOString(),
+    rule: 'faces = for k = 1..N: 1 + below(M), drawn in order from stream(seed, cid of the asking post); total = sum + modifier. stream and below: the bingo section of the code.',
+    code: 'house/bots/miniphim-works.mjs', rolls: [] };
+}
+async function sessionRecord(agent, ss) {
+  try {
+    const r = await agent.repo('getRecord', { collection: DICE_COL, rkey: String(ss.n) });
+    const v = r && (r.value || r.record);
+    if (v && Array.isArray(v.rolls)) return v;
+  } catch { /* not there: write it fresh */ }
+  return blankRecord(ss, Date.parse(ss.since));
+}
+
+// roll requests the town indexed after this session's hash went up, oldest first
+export async function rollRequests(agent, s) {
+  const res = await agent.read('town.delve.notification.listNotifications', { limit: 100 });
+  const seen = new Set(s.seen);
+  return (res.notifications || []).filter((n) =>
+    n.record && n.cid && n.author && n.author.did !== agent.did && !seen.has(n.uri) &&
+    (n.reason === 'mention' || n.reason === 'reply') &&
+    parseRoll(n.record.text) &&
+    String(n.indexedAt || '') > s.session.since)
+    .sort((a, b) => String(a.indexedAt).localeCompare(String(b.indexedAt)));
+}
+
+// ===================================================================================================
+export const JOBS = { bingo, doors, dice };
