@@ -1,10 +1,10 @@
 {
- "generated": "2026-10-10T11:12:19.141Z",
+ "generated": "2026-10-11T11:25:36.857Z",
  "span": {
   "from": 1683849600000,
-  "to": 1791630000000,
-  "hours": 29370,
-  "years": 3.353
+  "to": 1791716400000,
+  "hours": 29394,
+  "years": 3.355
  },
  "parameters": {
   "baseline": 0.0000125,
@@ -12,31 +12,31 @@
   "note": "Hyperliquid, per hour"
  },
  "premium": {
-  "mean": 0.00004727,
+  "mean": 0.00004681,
   "distribution": {
    "0": -0.0016246,
    "1": 0.00528466,
-   "0.01": -0.00067123,
-   "0.05": -0.00055108,
-   "0.25": -0.00039172,
-   "0.5": -0.00007851,
-   "0.75": 0.00041833,
-   "0.95": 0.00098862,
-   "0.99": 0.00144057
+   "0.01": -0.00067122,
+   "0.05": -0.00055139,
+   "0.25": -0.00039211,
+   "0.5": -0.00007883,
+   "0.75": 0.0004178,
+   "0.95": 0.00098839,
+   "0.99": 0.00144031
   },
-  "sharePositive": 0.4526
+  "sharePositive": 0.4522
  },
  "clamp": {
-  "sharePinnedAtBaseline": 0.5166,
-  "shareOutsideBand": 0.3108,
-  "modelErrorMedian": 9.5e-7,
-  "modelErrorP99": 0.0008237757,
+  "sharePinnedAtBaseline": 0.5162,
+  "shareOutsideBand": 0.3111,
+  "modelErrorMedian": 9.8e-7,
+  "modelErrorP99": 0.0008236629,
   "modelErrorMax": 0.00418658,
   "pinRateByDepth": [
    {
     "withinBp": 5,
-    "hours": 19902,
-    "pinned": 0.721
+    "hours": 19909,
+    "pinned": 0.7207
    },
    {
     "withinBp": 3.5,
@@ -56,9 +56,9 @@
   ]
  },
  "carry": {
-  "cumulative": 0.475344,
-  "annualised": 0.141778,
-  "shareLongsPaid": 0.8726
+  "cumulative": 0.475279,
+  "annualised": 0.141643,
+  "shareLongsPaid": 0.8722
  },
  "correlation": {
   "note": "premium_t vs log return. lag<0 = past, lag>0 = future.",
@@ -69,24 +69,24 @@
    "6": 0.0041,
    "24": 0.0057,
    "-6": 0.008,
-   "-3": 0.0258,
+   "-3": 0.0257,
    "-1": 0.0528
   },
   "trailing": {
    "1": 0.0025,
-   "6": 0.0658,
-   "24": 0.0871,
+   "6": 0.0657,
+   "24": 0.087,
    "72": 0.2085,
-   "168": 0.3374
+   "168": 0.3376
   },
   "forward": {
-   "1": 0.0042,
+   "1": 0.0041,
    "6": 0.0077,
-   "24": 0.0196,
+   "24": 0.0195,
    "72": 0.0163,
-   "168": 0.024
+   "168": 0.0244
   },
-  "samples": 29360
+  "samples": 29384
  },
  "regimes": [
   {
@@ -115,11 +115,11 @@
   },
   {
    "year": 2026,
-   "hours": 6780,
-   "meanPremium": -0.00035652,
-   "fundingPaid": 0.040176,
-   "annualised": 0.051909,
-   "sharePositive": 0.0642
+   "hours": 6804,
+   "meanPremium": -0.0003571,
+   "fundingPaid": 0.040112,
+   "annualised": 0.051643,
+   "sharePositive": 0.0639
   }
  ]
 }
