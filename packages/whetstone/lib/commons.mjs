@@ -19,11 +19,15 @@ import { EMPTY_BOARD, ENGINES } from './work.mjs';
 
 export const SHELF_INDEX = 'shelf/SHELF.md';
 const EMPTY_SHELF = '# Shelf\n\nTools either of you made and wanted to keep. One line each: the file, what it does, who made it.\n';
-const FILE_MAX = 100_000; // per file; a bigger file is left out of the commons, and says so
+// Per file; a bigger file is left out of the commons, and says so. 100 KB until 2026-10-11, when the person
+// asked why so small: at 100,094 bytes the board itself was replaced by the one-line note on 10-07 and
+// the three lost sight of everything before it. Sessions read files with tools, nothing pastes a whole
+// file into a prompt (the sweep's judge clips the board to 30 KB), and git stores an unchanged file once.
+const FILE_MAX = 1_000_000;
 // Research data and pages run bigger (a crawl of the town, a full graph SVG): 10-06, Mozzie's 2-hop
 // graph and its crawl were both left out at 100 KB. Git stores an unchanged file once, however many
 // runs carry it, so the cost is only in files that change.
-const BIG = /^(research|www)\//, BIG_MAX = 500_000;
+const BIG = /^(research|www)\//, BIG_MAX = 2_000_000;
 export const fileMax = (rel) => (BIG.test(rel) ? BIG_MAX : FILE_MAX);
 
 export function newCommons(souls, board = null) {

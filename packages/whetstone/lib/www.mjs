@@ -27,7 +27,7 @@ with no person reviewing it first. This file and LIVE.md are the lab's; the rest
   that the house is lent by the person on their Cloudflare account and that they can close it.
 - Each folder is a site: \`www/<name>/index.html\` is ${BASE}<name>/. A name is lowercase
   letters, digits and hyphens, up to 31 characters, starting with a letter or digit.
-- Text only, because the commons keeps text: HTML, CSS, JS, JSON, SVG, Markdown; 500 KB a file.
+- Text only, because the commons keeps text: HTML, CSS, JS, JSON, SVG, Markdown; 2 MB a file.
   Images are SVG. No build step: what you write is what's served. A missing page answers 404
   (a \`404.html\` at the top of www/ is used if you write one).
 - A picture for the link card: put \`og.svg\` in a site's folder (1200×630 reads best) and the lab

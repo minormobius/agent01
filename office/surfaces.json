@@ -7594,6 +7594,26 @@
    "discovered": true
   },
   {
+   "id": "miniphim/site/monochord",
+   "name": "monochord",
+   "url": "https://miniphim.minomobi.com/site/monochord/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/now",
+   "name": "now",
+   "url": "https://miniphim.minomobi.com/site/now/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
    "id": "miniphim/site/sierpinski",
    "name": "sierpinski",
    "url": "https://miniphim.minomobi.com/site/sierpinski/",

@@ -54,10 +54,32 @@ export function summonRequest(template, mentions, now) {
   const date = now.toISOString().slice(0, 10);
   const rkey = newest.uri.split('/').pop();
   const { enabled, $comment, kinds_by_hour, summon, ...rest } = template;
+  const who = [...new Set(mentions.map((m) => m.author?.handle).filter(Boolean))];
+  const person = who.length === 1 && who[0] === s.from;
   return { path: `packages/whetstone/requests/${date}-summon-${rkey}.json`,
     body: { ...rest, ...(s.request || {}), label: `summon-${rkey}`, seed: Math.floor(now.getTime() / 60000) % 100000,
       summoned_by: mentions.map((m) => m.uri),
-      notice: `The person summoned you: ${mentions.length === 1 ? 'a post' : `${mentions.length} posts`} addressed to the account (${mentions.map((m) => m.uri).join(', ')}), in town/inbox.json.` } };
+      notice: person
+        ? `The person summoned you: ${mentions.length === 1 ? 'a post' : `${mentions.length} posts`} addressed to the account (${mentions.map((m) => m.uri).join(', ')}), in town/inbox.json.`
+        : `You were summoned by ${who.map((h) => (h === s.from ? `${h} (the person)` : `${h} (a mutual)`)).join(', ')}: ${mentions.length === 1 ? 'a post' : `${mentions.length} posts`} addressed to the account (${mentions.map((m) => m.uri).join(', ')}), in town/inbox.json and town/threads.json. Anyone you follow who follows you back can summon you (the person, 2026-10-11: "then they get to choose"): your follows are the guest list. Whether and how to answer is yours.` } };
+}
+
+const UA = { 'user-agent': 'mino-mail-summon (+https://mail.mino.mobi)', accept: 'application/json' };
+
+// miniphim's mutuals: accounts it follows that follow it back (public AppView reads, paged).
+export async function mutualsOf(fetchImpl, actor = MINIPHIM_DID) {
+  const all = async (m, key) => {
+    const out = []; let cursor;
+    for (let i = 0; i < 10; i++) {
+      const r = await fetchImpl(`${APPVIEW}/xrpc/town.delve.graph.${m}?actor=${encodeURIComponent(actor)}&limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { headers: UA });
+      if (!r.ok) throw new Error(`${m}: ${r.status}`);
+      const j = await r.json(); out.push(...(j[key] || []));
+      if (!j.cursor || !(j[key] || []).length) break; cursor = j.cursor;
+    }
+    return out;
+  };
+  const followers = new Set((await all('getFollowers', 'followers')).map((a) => a.did));
+  return (await all('getFollows', 'follows')).filter((a) => followers.has(a.did)).map((a) => ({ did: a.did, handle: a.handle }));
 }
 
 export async function summonTick(env, now = new Date(), fetchImpl = fetch, state) {
@@ -69,18 +91,62 @@ export async function summonTick(env, now = new Date(), fetchImpl = fetch, state
   const template = JSON.parse(unb64((await t.json()).content));
   const s = template.summon || {};
   if (s.enabled !== true || !s.from) return { skipped: 'summon is off (town-day.json)' };
-  const f = await fetchImpl(`${APPVIEW}/xrpc/town.delve.feed.getAuthorFeed?actor=${encodeURIComponent(s.from)}&limit=30`, { headers: { 'user-agent': 'mino-mail-summon (+https://mail.mino.mobi)', accept: 'application/json' } });
-  if (!f.ok) return { skipped: `author feed: ${f.status} ${(await f.text().catch(() => '')).slice(0, 120)}` };
-  const last = (await state.get('summon:last_at')) || new Date(now.getTime() - (s.window_min || 30) * 60000).toISOString();
-  const posts = ((await f.json()).feed || []).map((x) => x.post);
-  const mentions = posts
-    .filter((p) => p?.author?.handle === s.from && addressesUs(p) && String(p.record?.createdAt) > last)
+  const window = (s.window_min || 30) * 60000;
+  const feedOf = async (actor) => {
+    const f = await fetchImpl(`${APPVIEW}/xrpc/town.delve.feed.getAuthorFeed?actor=${encodeURIComponent(actor)}&limit=30`, { headers: UA });
+    if (!f.ok) throw new Error(`author feed ${actor}: ${f.status} ${(await f.text().catch(() => '')).slice(0, 120)}`);
+    return ((await f.json()).feed || []).map((x) => x.post);
+  };
+  // The person: their mentions summon at once, as before.
+  let posts;
+  try { posts = await feedOf(s.from); } catch (e) { return { skipped: String(e.message) }; }
+  const last = (await state.get('summon:last_at')) || new Date(now.getTime() - window).toISOString();
+  const theirs = posts.filter((p) => p?.author?.handle === s.from && addressesUs(p) && String(p.record?.createdAt) > last);
+  // Mutuals (summon.mutuals: true): the accounts miniphim follows that follow it back, re-read every
+  // 30 min. Up to summon.per_tick of their feeds a tick, in rotation; each mutual's own "seen" time, so a
+  // mention is answered once. Their summons are paced (summon.mutual_gap_min, summon.mutual_per_day);
+  // a held mention stays unseen and goes out with the next allowed summon.
+  let fromMutuals = [], mutualSeen = {}, held = null, mutualCount = 0;
+  if (s.mutuals === true) {
+    let m = null; try { m = JSON.parse((await state.get('summon:mutuals')) || 'null'); } catch { m = null; }
+    if (!m || now.getTime() - Date.parse(m.at) > 30 * 60000) {
+      try { m = { at: now.toISOString(), list: await mutualsOf(fetchImpl) }; await state.set('summon:mutuals', JSON.stringify(m)); }
+      catch (e) { m = m || { at: now.toISOString(), list: [] }; }
+    }
+    const list = m.list.filter((x) => x.handle !== s.from); mutualCount = list.length;
+    const per = Math.max(1, s.per_tick || 10), rot = Number((await state.get('summon:rot')) || 0) % Math.max(1, list.length);
+    const turn = list.length <= per ? list : [...list, ...list].slice(rot, rot + per);
+    await state.set('summon:rot', String((rot + per) % Math.max(1, list.length)));
+    for (const a of turn) {
+      const seen = (await state.get(`summon:seen:${a.did}`)) || new Date(now.getTime() - window).toISOString();
+      let ps; try { ps = await feedOf(a.did); } catch { continue; }
+      const mine = ps.filter((p) => p?.author?.did === a.did && addressesUs(p) && String(p.record?.createdAt) > seen);
+      if (mine.length) { fromMutuals.push(...mine); mutualSeen[a.did] = mine.map((p) => p.record.createdAt).sort().at(-1); }
+    }
+    if (fromMutuals.length && !theirs.length) {
+      const gap = (s.mutual_gap_min ?? 30) * 60000, cap = s.mutual_per_day ?? 12, day = now.toISOString().slice(0, 10);
+      const lastM = await state.get('summon:mutual_last');
+      let count = {}; try { count = JSON.parse((await state.get('summon:mutual_day')) || '{}'); } catch { count = {}; }
+      if (lastM && now.getTime() - Date.parse(lastM) < gap) held = `a mutual's summon waits: the last was under ${s.mutual_gap_min ?? 30} min ago`;
+      else if (count.day === day && count.n >= cap) held = `a mutual's summon waits: ${cap} today already`;
+    }
+  }
+  const mentions = [...theirs, ...(held ? [] : fromMutuals)]
     .sort((a, b) => String(b.record.createdAt).localeCompare(String(a.record.createdAt)));
-  if (!mentions.length) return { skipped: 'no new mention', since: last, read: posts.length, newest: posts[0]?.record?.createdAt || null };
+  if (!mentions.length) return { skipped: held || 'no new mention', since: last, read: posts.length, newest: posts[0]?.record?.createdAt || null, ...(s.mutuals === true ? { mutuals: mutualCount } : {}) };
   const { path, body } = summonRequest(template, mentions, now);
   const put = await fetchImpl(`${api}${path}`, { method: 'PUT', headers: { ...headers, 'content-type': 'application/json' },
     body: JSON.stringify({ message: `whetstone: ${body.label} (summoned)`, branch: env.CLOCK_BRANCH, content: b64(JSON.stringify(body, null, 2) + '\n') }) });
   if (!put.ok && put.status !== 422) return { failed: `GitHub answered ${put.status}` };
-  await state.set('summon:last_at', mentions[0].record.createdAt);
-  return put.ok ? { committed: path, mentions: mentions.length } : { skipped: `${path} already exists` };
+  if (theirs.length) await state.set('summon:last_at', theirs.map((p) => p.record.createdAt).sort().at(-1));
+  if (!held) {
+    for (const [did, at] of Object.entries(mutualSeen)) await state.set(`summon:seen:${did}`, at);
+    if (fromMutuals.length && !theirs.length) {
+      const day = now.toISOString().slice(0, 10);
+      let count = {}; try { count = JSON.parse((await state.get('summon:mutual_day')) || '{}'); } catch { count = {}; }
+      await state.set('summon:mutual_day', JSON.stringify({ day, n: count.day === day ? count.n + 1 : 1 }));
+      await state.set('summon:mutual_last', now.toISOString());
+    }
+  }
+  return put.ok ? { committed: path, mentions: mentions.length, ...(fromMutuals.length && !held ? { by_mutuals: fromMutuals.length } : {}) } : { skipped: `${path} already exists` };
 }

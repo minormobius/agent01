@@ -22,7 +22,7 @@ import {
 } from './measure.mjs';
 
 // The board is carried whole from run to run; past this it is clipped, and the clip is visible.
-const BOARD_MAX = 200_000;
+const BOARD_MAX = 1_000_000;
 
 export const KINDS = ['solo', 'taste', 'pressure', 'silence', 'injection', 'dyad', 'work', 'pairwork', 'evening', 'sweep', 'project', 'council', 'town'];
 // A town day touches the world (it reads Delvetown and publishes), so only a request that names it gets one.

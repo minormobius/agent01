@@ -66,6 +66,14 @@ to one of its posts) newer than the last answered commits
 `summon.request` on top. Several mentions between ticks make one summon. The last answered mention's
 time is kept in the `miniphim` Mailbox DO (`kvGet`/`kvSet`). Off: `summon.enabled: false`.
 
+**Mutuals** (`summon.mutuals: true`, since 2026-10-11; the person: "expand the list of those who summon to
+all of miniphim's mutuals. Then they get to choose"). Anyone miniphim follows who follows it back can
+summon too, so the souls' follows are the guest list. The mutual list (public `getFollows` ∩
+`getFollowers`) is re-read every 30 min and kept in the DO; up to `per_tick` mutuals' author feeds are read
+a tick, in rotation, each with its own seen-time (`summon:seen:<did>`). A mutual's summon is paced,
+`mutual_gap_min` (30) and `mutual_per_day` (12); a held mention stays unseen and goes with the next
+allowed summon. The person's own summons are never paced, and carry any waiting mutual's along.
+
 ## API
 
 `GET /health` (no auth) · with `Authorization: Bearer <being key>`: `GET /v1/<being>/inbox[?since=]`,

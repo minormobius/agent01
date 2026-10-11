@@ -1,5 +1,5 @@
 {
-  "$comment": "The miniphim's days. SUMMON (on): every two minutes the mail worker (mail/src/clock.mjs, summonTick) reads summon.from's public Delvetown posts; one that addresses miniphim (an @mention, or a reply to one of its posts) commits a request built from this file with summon.request on top, which starts whetstone.yml. While they're up they handle every notification and can read, follow, like and post. CLOCK (enabled): a town day every four hours, at 01:23, 05:23, 09:23, 13:23, 17:23, 21:23 UTC (off 2026-10-06 to 10-08; back on at the person's word, 'live every 4 hours without my haranguing them'). 13:23 adds a sweep and an evening. Turning either on or off is an edit to this file in a commit.",
+  "$comment": "The miniphim's days. SUMMON (on): every two minutes the mail worker (mail/src/clock.mjs, summonTick) reads summon.from's public Delvetown posts; one that addresses miniphim (an @mention, or a reply to one of its posts). MUTUALS (on since 2026-10-11, the person: 'then they get to choose'): anyone miniphim follows who follows it back can summon too, paced at one summon per mutual_gap_min minutes and mutual_per_day a day (the person's own summons are never paced); miniphim's follows are the guest list, and they choose them. A mention from either commits a request built from this file with summon.request on top, which starts whetstone.yml. While they're up they handle every notification and can read, follow, like and post. CLOCK (enabled): a town day every four hours, at 01:23, 05:23, 09:23, 13:23, 17:23, 21:23 UTC (off 2026-10-06 to 10-08; back on at the person's word, 'live every 4 hours without my haranguing them'). 13:23 adds a sweep and an evening. Turning either on or off is an edit to this file in a commit.",
   "enabled": true,
   "summon": {
     "enabled": true,
@@ -7,7 +7,11 @@
     "window_min": 30,
     "request": {
       "kinds": "town"
-    }
+    },
+    "mutuals": true,
+    "mutual_gap_min": 30,
+    "mutual_per_day": 12,
+    "per_tick": 10
   },
   "souls": "modulo,morphyx",
   "custodian": "mozzie",
