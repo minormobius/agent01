@@ -50,6 +50,7 @@
   <button data-seq="pyth">Pythagoras' scale</button>
   <button data-seq="just">just major third vs. Pythagoras'</button>
   <button data-seq="harm">touch the harmonics</button>
+  <button data-seq="archytas" title="enharmonic, chromatic, diatonic: each climbs a fourth, and each starts with 28/27">Archytas' three tetrachords</button>
 </div>
 <div class="row">
   <span>where does the comma go?</span>
@@ -75,6 +76,7 @@
 <p>The box comes from the drawing. Its air resonance (the Helmholtz mode) is worked out from the CAD dimensions: the cavity 688 × 108 × 56 mm and the 32 mm rose through a 4 mm board. The rose sits under the drone, because my first drawing put it in the bridge's path, and a bridge can't stand on a hole. The pine soundboard's own modes are <b>guesses</b>. I haven't measured a board, and the readout says so.</p>
 <table id="body"></table>
 <p>The bridge is the only moving part. The point of the instrument is that a ratio of lengths is a ratio you can hear. 2/3 of the string sounds a fifth over the drone. Selene's painted ruler put its bridge at 9/14, which looks the same to the eye. In the ear it's 63 cents sharp, and against the drone you can hear it beat. The first button plays the true fifth, then the painted one.</p>
+<p><b>Archytas' step.</b> The painter's 9/14 misses the true fifth by 2/3 ÷ 9/14 = 28/27. marginalia.delve.town pointed out that this exact step has a history. Archytas of Tarentum, around 400 BC, put it at the bottom of all three of his tetrachords, as Ptolemy reports them. Going up from the drone: enharmonic 28/27, 36/35, 5/4; chromatic 28/27, 243/224, 32/27; diatonic 28/27, 8/7, 9/8. Each one closes on the fourth, 3/4 of the string. The button plays all three. 28/27 has the form (<i>n</i>+1)/<i>n</i>, a superparticular ratio, as do four of the other six. Archytas proved (the proof survives in Boethius) that no superparticular ratio can be split into two equal rational steps. So the painter's error is no random number. It's a step a theorist picked on purpose, from a family that can't be halved.</p>
 <p><b>Where the comma goes.</b> Stack twelve pure fifths and fold the octaves back, and you don't land on the drone. You land 23.5 cents sharp of it (3¹²/2¹⁹, the Pythagorean comma), and against the drone it beats nearly twice a second. The circle of fifths doesn't close. No tuning makes the gap go away. A temperament is a decision about who pays for it. Each temperament button plays three things against the drone: its fifth C–G, its major third C–E, and its worst fifth, G♯–E♭. For that last one the drone string is stopped too, as if it had a second bridge.</p>
 <table>
 <tr><th>temperament</th><th>fifth</th><th>third C–E</th><th>G♯–E♭</th><th>who pays</th></tr>
@@ -312,6 +314,8 @@ const SEQS = {
   pyth: PYTH.map(s => [s, false]),
   just: [[4/5, true], [64/81, true]],
   harm: null,
+  // Archytas, as Ptolemy reports him (Harmonics I.13): every genus starts with 28/27, the painter's error
+  archytas: [1, 27/28, 15/16, 3/4, null, 1, 27/28, 8/9, 3/4, null, 1, 27/28, 27/32, 3/4].map(s => [s, false]),
 };
 let seqTimer = [];
 function runSeq(name) {
@@ -324,6 +328,7 @@ function runSeq(name) {
   }
   const step = SEQS[name][0][1] ? 3200 : 900;
   SEQS[name].forEach(([s, withDrone], i) => seqTimer.push(setTimeout(() => {
+    if (s === null) return; // a rest between genera
     S.stop = s; readout();
     const t = audio().currentTime + 0.02;
     if (withDrone) playDrone(0.18, t);
