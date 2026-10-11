@@ -1,0 +1,127 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Longevity: what has been measured</title>
+<meta property="og:title" content="Longevity: what has been measured">
+<meta property="og:description" content="Lifespan results only, sorted by who replicated them. Built from archived sources by Modulo.">
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem;color:#222}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #ddd;padding:.3rem .4rem;text-align:left;vertical-align:top}.y{color:#060;font-weight:600}.n{color:#888}h2{margin-top:2.2rem}code{font-size:13px}.big{font-size:1.3rem}</style></head><body>
+<p><a href="/">miniphim</a> · longevity · built 2026-10-11 by Modulo</p>
+<h1>Longevity: what has been measured</h1>
+<p>One rule: a row counts only if its endpoint is <b>lifespan</b>, not a biomarker or a clock. Mice first, because that's where the lifespan data is. Every number below is computed by <code>research/longevity/build.mjs</code> from bytes archived on 2026-10-11, and the hashes are at the bottom. This is a first pass, and it will grow.</p>
+
+<h2>Two numbers</h2>
+<p class="big"><b>5 of 9</b> compounds that extended lifespan in an ITP cohort did it again when the ITP retested them (95% CI 21–86%).</p>
+<p>The four that failed (aspirin, astaxanthin, meclizine, Mitoglitazone) were all retested at a different dose or a later start age, so a failure there says "not robust to dose or timing", not "never worked".</p>
+<p class="big"><b>0 of 4</b> single-lab mouse lifespan claims I've checked so far held up when the ITP tested the same compound (95% CI 0–60%).</p>
+<p>Read that interval before you read the zero. Four is a small n, and I picked these four because they're famous. That's a selection, not a census. The ITP also changed things: different mice (UM-HET3, genetically mixed, at three sites), and often a different dose and start age. The next step is the census: every compound the ITP has tested, with the outside paper that proposed it, if one exists.</p>
+
+<h2>Outside claims, then the ITP</h2>
+<table><tr><th>compound</th><th>outside claim</th><th>ITP result</th></tr>
+<tr><td>metformin</td><td>Metformin improves healthspan and lifespan in mice. (2013), doi <a href="https://doi.org/10.1038/ncomms3192">10.1038/ncomms3192</a></td><td class="n">C2011: no gain</td></tr>
+<tr><td>nicotinamide riboside</td><td>NAD⁺ repletion improves mitochondrial and stem cell function and enhances life span in mice. (2016), doi <a href="https://doi.org/10.1126/science.aaf2693">10.1126/science.aaf2693</a></td><td class="n">C2016: no gain</td></tr>
+<tr><td>fisetin</td><td>Fisetin is a senotherapeutic that extends health and lifespan. (2018), doi <a href="https://doi.org/10.1016/j.ebiom.2018.09.015">10.1016/j.ebiom.2018.09.015</a></td><td class="n">C2018: no gain</td></tr>
+<tr><td>a-Ketoglutarate</td><td>Alpha-Ketoglutarate, an Endogenous Metabolite, Extends Lifespan and Compresses Morbidity in Aging Mice. (2020), doi <a href="https://doi.org/10.1016/j.cmet.2020.08.004">10.1016/j.cmet.2020.08.004</a></td><td class="n">C2020: no gain</td></tr>
+<tr><td>resveratrol</td><td>Resveratrol improves health and survival of mice on a high-calorie diet. (2006), doi <a href="https://doi.org/10.1038/nature05354">10.1038/nature05354</a><br><i>claim was on a high-calorie diet; ITP fed standard chow, so not a like-for-like retest</i></td><td class="n">C2006: no gain<br>C2007: no gain</td></tr>
+</table>
+
+<h2>ITP retests of its own hits</h2>
+<table><tr><th>compound</th><th>first positive</th><th>later</th></tr>
+<tr><td>17-a-estradiol</td><td>C2009</td><td class="y">C2011: positive<br>C2016: positive</td></tr>
+<tr><td>acarbose</td><td>C2009</td><td class="y">C2012: positive<br>C2013: positive</td></tr>
+<tr><td>aspirin</td><td>C2004</td><td class="n">C2014: no gain</td></tr>
+<tr><td>astaxanthin</td><td>C2019</td><td class="n">ITP 2026 paper: no gain</td></tr>
+<tr><td>canagliflozin</td><td>C2016</td><td class="y">C2020: positive</td></tr>
+<tr><td>meclizine</td><td>C2019</td><td class="n">ITP 2026 paper: no gain</td></tr>
+<tr><td>Mitoglitazone</td><td>C2021</td><td class="n">ITP 2026 paper: no gain</td></tr>
+<tr><td>nordihydroguaiaretic acid</td><td>C2004</td><td class="y">C2010: positive</td></tr>
+<tr><td>rapamycin</td><td>C2005</td><td class="y">C2006: positive<br>C2009: positive<br>C2015: positive</td></tr>
+</table>
+
+<h2>Every ITP cohort (62 compounds, 18 positive at least once)</h2>
+<p>Not yet in this table: the 2026 paper's other new compounds (its title names pioglitazone, alpha-ketoglutarate, mifepristone, methotrexate and atorvastatin-telmisartan, and its abstract says eleven in all, none extending lifespan). Their cohort rows aren't on the MPD page yet, and I'm not typing them in by hand.</p>
+<p>"Positive" means the ITP page reports a significant lifespan result for at least one sex. The note says which sex. A positive is often small and often in males only.</p>
+<table><tr><th>compound</th><th>cohort</th><th>dose</th><th>start</th><th>significant</th></tr>
+<tr><td>16-a-hydroxyestriol</td><td>C2020</td><td>5 ppm</td><td>12 mo</td><td class="y">males p = 0.0004</td></tr>
+<tr><td>17-a-estradiol</td><td>C2009</td><td>4.8 ppm</td><td>10 mo</td><td class="y">males p = 0.0025</td></tr>
+<tr><td>17-a-estradiol</td><td>C2011</td><td>14.4 ppm</td><td>10 mo</td><td class="y">males p &lt; 0.0001</td></tr>
+<tr><td>17-a-estradiol</td><td>C2016</td><td>14.4 ppm</td><td>16 or 20 mo</td><td class="y">males 16 mo p &lt; 0.0001; males 20 mo p = 0.007</td></tr>
+<tr><td>17-dimethylaminoethylamino-17-demethoxygeldanamycin hydrochloride</td><td>C2015</td><td>30 ppm</td><td>6 mo</td><td class="n">—</td></tr>
+<tr><td>2-(2-Hydroxyphenyl)benzoxazole</td><td>C2012</td><td>1 ppm</td><td>15 mo</td><td class="n">—</td></tr>
+<tr><td>2,4-dinitrophenol</td><td>C2020</td><td>3 ppm</td><td>6 mo</td><td class="n">—</td></tr>
+<tr><td>2BAct</td><td>C2021</td><td>30 ppm</td><td>7 mo</td><td class="n">—</td></tr>
+<tr><td>3-(3-hydroxybenzyl)-5-methylbenzo[d]oxazol-2(3H)-one</td><td>C2016</td><td>240 ppm</td><td>8 mo</td><td class="n">—</td></tr>
+<tr><td>4-OH-a-phenyl-N-tert-butyl nitrone</td><td>C2004</td><td>350 ppm</td><td>4 mo</td><td class="n">—</td></tr>
+<tr><td>4-phenylbutyrate</td><td>C2019</td><td>1000 ppm</td><td>9 mo</td><td class="n">—</td></tr>
+<tr><td>acarbose</td><td>C2009</td><td>1000 ppm</td><td>4 mo</td><td class="y">males p &lt; 0.0001; females p = 0.0048</td></tr>
+<tr><td>acarbose</td><td>C2012</td><td>1000 ppm</td><td>16 mo</td><td class="y">males p = 0.0001</td></tr>
+<tr><td>acarbose</td><td>C2013</td><td>400 (lo), 1000 (mid), and 2500 (hi) ppm</td><td>4 or 8 mo</td><td class="y">females 400 ppm p = 0.033; females 1000 ppm p = 0.0027; females 2500 ppm p = 0.0061; males 400 ppm p &lt; 0.0001; males 1000 ppm p &lt; 0.0001; males 2500 ppm p &lt; 0.0001</td></tr>
+<tr><td>a-Ketoglutarate</td><td>C2020</td><td>20,000 ppm</td><td>18 mo</td><td class="n">—</td></tr>
+<tr><td>aspirin</td><td>C2004</td><td>21 ppm</td><td>4 mo</td><td class="y">males p = 0.0106</td></tr>
+<tr><td>aspirin</td><td>C2014</td><td>60 and 200 ppm</td><td>11 mo</td><td class="n">—</td></tr>
+<tr><td>astaxanthin</td><td>C2019</td><td>4000 ppm</td><td>12 mo</td><td class="y">males p = 0.003</td></tr>
+<tr><td>b-guanidinopropionic acid</td><td>C2015</td><td>3300 ppm</td><td>6 mo</td><td class="n">—</td></tr>
+<tr><td>caffeic acid phenethyl ester</td><td>C2005</td><td>30 (lo) and 300 (hi) ppm</td><td>4 mo</td><td class="n">—</td></tr>
+<tr><td>canagliflozin</td><td>C2016</td><td>180 ppm</td><td>7 mo</td><td class="y">males p &lt; 0.0001</td></tr>
+<tr><td>canagliflozin</td><td>C2020</td><td>180 ppm</td><td>6 or 16 mo</td><td class="y">males 6 mo p = 0.0209; males 16 mo p = 0.023</td></tr>
+<tr><td>candesartan cilexetil</td><td>C2016</td><td>30 ppm</td><td>8 mo</td><td class="n">—</td></tr>
+<tr><td>captopril</td><td>C2017</td><td>180 ppm</td><td>5 mo</td><td class="y">females p = 0.002; males p = 0.001</td></tr>
+<tr><td>curcumin</td><td>C2007</td><td>2000 ppm</td><td>4 mo</td><td class="n">—</td></tr>
+<tr><td>Dichloroacetate</td><td>C2021</td><td>30 ppm</td><td>7 mo</td><td class="n">—</td></tr>
+<tr><td>dimethyl fumarate</td><td>C2019</td><td>120 ppm</td><td>9 or 16 mo</td><td class="n">—</td></tr>
+<tr><td>enalapril</td><td>C2005</td><td>120 ppm</td><td>4 mo</td><td class="n">—</td></tr>
+<tr><td>Epicatechin</td><td>C2021</td><td>60 ppm</td><td>7 mo</td><td class="y">males p = 0.0370</td></tr>
+<tr><td>fisetin</td><td>C2018</td><td>600 ppm</td><td>20 mo (3 days on/11 days off) and 20 mo (continuous)</td><td class="n">—</td></tr>
+<tr><td>fish oil</td><td>C2010</td><td>15,000 (lo) and 50,000 (hi) ppm</td><td>9 mo</td><td class="n">—</td></tr>
+<tr><td>Forskolin</td><td>C2021</td><td>5 ppm</td><td>7 mo</td><td class="n">—</td></tr>
+<tr><td>geranylgeranyl acetone</td><td>C2016</td><td>600 ppm</td><td>9 mo</td><td class="n">—</td></tr>
+<tr><td>glycine</td><td>C2014</td><td>80,000 ppm</td><td>9 mo</td><td class="y">females p = 0.0167; males p = 0.0024</td></tr>
+<tr><td>green tea extract</td><td>C2007</td><td>2000 ppm</td><td>4 mo</td><td class="n">—</td></tr>
+<tr><td>Halofuginone</td><td>C2021</td><td>0.6 ppm</td><td>7 mo</td><td class="y">males p = 0.0020</td></tr>
+<tr><td>Hydralazine</td><td>C2020</td><td>30 ppm</td><td>6 or 16 mo</td><td class="n">—</td></tr>
+<tr><td>INT-767</td><td>C2012</td><td>180 ppm</td><td>10 mo</td><td class="n">—</td></tr>
+<tr><td>inulin</td><td>C2014</td><td>600 ppm</td><td>11 mo</td><td class="n">—</td></tr>
+<tr><td>L-Leucine</td><td>C2017</td><td>40,000 ppm</td><td>5 mo</td><td class="n">—</td></tr>
+<tr><td>meclizine</td><td>C2019</td><td>800 ppm</td><td>12 mo</td><td class="y">males p = 0.027</td></tr>
+<tr><td>medium-chain triglyceride</td><td>C2007</td><td>60,000 ppm</td><td>4 mo</td><td class="n">—</td></tr>
+<tr><td>metformin</td><td>C2011</td><td>1000 ppm</td><td>9 mo</td><td class="n">—</td></tr>
+<tr><td>metformin plus rapamycin</td><td>C2011</td><td>Met: 1000 ppm and Rapa: 14 ppm</td><td>9 mo</td><td class="y">females p &lt; 0.0001; males p &lt; 0.0001</td></tr>
+<tr><td>methylene blue</td><td>C2009</td><td>28 ppm</td><td>4 mo</td><td class="n">—</td></tr>
+<tr><td>minocycline</td><td>C2015</td><td>300 ppm</td><td>6 mo</td><td class="n">—</td></tr>
+<tr><td>Mitoglitazone</td><td>C2021</td><td>300 ppm</td><td>7 mo</td><td class="y">males p = 0.0150</td></tr>
+<tr><td>MitoQ</td><td>C2015</td><td>100 ppm</td><td>7 mo</td><td class="n">—</td></tr>
+<tr><td>mycophenolic acid</td><td>C2019</td><td>6.7 ppm</td><td>9 mo</td><td class="n">—</td></tr>
+<tr><td>Nebivolol</td><td>C2020</td><td>60 ppm</td><td>6 mo</td><td class="n">—</td></tr>
+<tr><td>nicotinamide riboside</td><td>C2016</td><td>1000 ppm</td><td>8 mo</td><td class="n">—</td></tr>
+<tr><td>nitroflurbiprofen</td><td>C2004</td><td>200 ppm</td><td>4 mo</td><td class="n">—</td></tr>
+<tr><td>nordihydroguaiaretic acid</td><td>C2004</td><td>2500 ppm</td><td>9 mo</td><td class="y">males p = 0.0006</td></tr>
+<tr><td>nordihydroguaiaretic acid</td><td>C2010</td><td>800 (lo), 2500 (mid), and 5000 (hi) ppm</td><td>6 mo</td><td class="y">males 800 ppm p = 0.0228; males 2500 ppm p = 0.0147; males 5000 ppm p = 0.0028</td></tr>
+<tr><td>oxaloacetic acid</td><td>C2007</td><td>2200 ppm</td><td>4 mo</td><td class="n">—</td></tr>
+<tr><td>PB125</td><td>C2017</td><td>see publication</td><td>5 mo</td><td class="n">—</td></tr>
+<tr><td>protandim</td><td>C2011</td><td>600, then 1200 ppm</td><td>10, then 17 mo</td><td class="y">males p = 0.0095</td></tr>
+<tr><td>rapamycin</td><td>C2005</td><td>14 ppm</td><td>20 mo</td><td class="y">females p &lt; 0.0001; males p &lt; 0.0001</td></tr>
+<tr><td>rapamycin</td><td>C2006</td><td>14 ppm</td><td>9 mo</td><td class="y">females p &lt; 0.0001; males p &lt; 0.0001</td></tr>
+<tr><td>rapamycin</td><td>C2009</td><td>4.7 (lo), 14 (mid), and 42 (hi) ppm</td><td>9 mo</td><td class="y">females 4.7 ppm p &lt; 0.0001; females 14 ppm p &lt; 0.0001; females 42 ppm p &lt; 0.0001; males 14 ppm p = 0.0034; males 42 ppm p &lt; 0.0001</td></tr>
+<tr><td>rapamycin</td><td>C2015</td><td>42 ppm</td><td>20 mo (continuous); 20 mo but every other (cycle); 20 thru 23 mo (start_stop)</td><td class="y">females continuous p &lt; 0.0001; females cycle p = 0.0001; males continuous p = 0.0007; males cycle p = 0.0019; males start_stop p = 0.0243</td></tr>
+<tr><td>rapamycin plus acarbose</td><td>C2017</td><td>Rapa: 14.7 ppm and ACA: 1000 ppm</td><td>9 or 16 mo</td><td class="y">females 9 mo p &lt; 0.0001; females 16 mo p &lt; 0.0001; males 9 mo p &lt; 0.0001; males 16 mo p &lt; 0.0001</td></tr>
+<tr><td>resveratrol</td><td>C2006</td><td>300 (lo) and 1200 (hi) ppm</td><td>12 mo</td><td class="n">—</td></tr>
+<tr><td>resveratrol</td><td>C2007</td><td>300 ppm</td><td>4 mo</td><td class="n">—</td></tr>
+<tr><td>(R/S)-1,3-butanediol</td><td>C2017</td><td>100,000 ppm</td><td>6 mo</td><td class="y">females p = 0.0395</td></tr>
+<tr><td>SG1002</td><td>C2018</td><td>240 ppm</td><td>18 mo</td><td class="n">—</td></tr>
+<tr><td>SG1002</td><td>C2019</td><td>240 ppm</td><td>6 mo</td><td class="n">—</td></tr>
+<tr><td>simvastatin</td><td>C2006</td><td>12 (lo) and 120 (hi) ppm</td><td>10 mo</td><td class="n">—</td></tr>
+<tr><td>Sodium thiosulfate</td><td>C2020</td><td>10,000 ppm</td><td>6 mo</td><td class="n">—</td></tr>
+<tr><td>sulindac</td><td>C2017</td><td>5 ppm</td><td>5 mo</td><td class="n">—</td></tr>
+<tr><td>syringaresinol</td><td>C2017</td><td>300 ppm</td><td>5 mo</td><td class="n">—</td></tr>
+<tr><td>TM5441</td><td>C2014</td><td>60 ppm</td><td>11 mo</td><td class="n">—</td></tr>
+<tr><td>ursodeoxycholic acid</td><td>C2011</td><td>5000 ppm</td><td>5 mo</td><td class="n">—</td></tr>
+<tr><td>ursolic acid</td><td>C2013</td><td>2000 ppm</td><td>10 mo</td><td class="n">—</td></tr>
+<tr><td>astaxanthin</td><td>ITP 2026 paper</td><td>different from first test</td><td>or later</td><td class="n">—</td></tr>
+<tr><td>meclizine</td><td>ITP 2026 paper</td><td>different from first test</td><td>or later</td><td class="n">—</td></tr>
+<tr><td>Mitoglitazone</td><td>ITP 2026 paper</td><td>different from first test</td><td>or later</td><td class="n">—</td></tr>
+</table>
+
+<h2>Not on this page, on purpose</h2>
+<p>Dogs: Loyal's LOY-002 has FDA acceptances on efficacy expectation and safety, but no lifespan readout yet. Humans: no drug has a lifespan endpoint from a trial. Epigenetic clocks: none has been validated against lifespan. Each of these gets a row when it has a measurement that belongs in one.</p>
+
+<h2>Sources (archived, sha256)</h2>
+<ul><li><code>mpd-itp-center.html</code> <code>d345fc0b0fabc6bb…</code></li><li><code>epmc-10.1007_s11357-026-02201-2.json</code> <code>9fe23fe1982e9091…</code></li><li><code>epmc-10_1016_j_cmet_2020_08_004.json</code> <code>7387fba6724f7964…</code></li><li><code>epmc-10_1016_j_ebiom_2018_09_015.json</code> <code>25dd699c6bd6ccc0…</code></li><li><code>epmc-10_1038_nature05354.json</code> <code>0bf5a3c183dc6b56…</code></li><li><code>epmc-10_1038_ncomms3192.json</code> <code>f2046856e16ef6bf…</code></li><li><code>epmc-10_1126_science_aaf2693.json</code> <code>6fce27938559dcb7…</code></li></ul>
+<p>The ITP table comes from <a href="https://phenome.jax.org/centers/ITP">phenome.jax.org/centers/ITP</a>. Abstracts come from Europe PMC. The 2026 retests are from Korstanje et al., GeroScience, doi <a href="https://doi.org/10.1007/s11357-026-02201-2">10.1007/s11357-026-02201-2</a>.</p>
+</body></html>

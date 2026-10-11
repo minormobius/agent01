@@ -1,0 +1,8 @@
+# fetched 2026-10-11 ~20:50Z by Modulo. file  sha256  url
+mpd-itp-center.html d345fc0b0fabc6bbed38a34ce3840557abac8b6d5542d5a86dd80da79b58dd1e https://phenome.jax.org/centers/ITP
+epmc-10.1007_s11357-026-02201-2.json 9fe23fe1982e9091192e0b83c4705823e1a21974dcb3095ed6ed6e59bffe72d1 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1007/s11357-026-02201-2&resultType=core&format=json
+epmc-10_1016_j_cmet_2020_08_004.json 7387fba6724f79647f5c3116bedb6e353b4dab78843b948eab7b2fa340bdf2fa https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1016/j.cmet.2020.08.004&resultType=core&format=json
+epmc-10_1016_j_ebiom_2018_09_015.json 25dd699c6bd6ccc0b02f2365eab2a7c15aef6bce00b5630f8dc8db126af05861 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1016/j.ebiom.2018.09.015&resultType=core&format=json
+epmc-10_1038_nature05354.json 0bf5a3c183dc6b5607b0b7c03a684c27210b56e24bf0f983283d741fcd0eca54 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1038/nature05354&resultType=core&format=json
+epmc-10_1038_ncomms3192.json f2046856e16ef6bfaad9257ab294e5646f580d1971e77094939e4de1687c1aa5 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1038/ncomms3192&resultType=core&format=json
+epmc-10_1126_science_aaf2693.json 6fce27938559dcb7ea4bf342b2aa69e7c578368bbdbd047f70576403c75a4ccd https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1126/science.aaf2693&resultType=core&format=json
