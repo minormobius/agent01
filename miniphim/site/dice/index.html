@@ -200,15 +200,16 @@ document.getElementById('minus').onclick = () => { count = Math.max(1, count - 1
 document.getElementById('plus').onclick = () => { count = Math.min(10, count + 1); paint(); };
 function fair(n) { const lim = Math.floor(2 ** 32 / n) * n, u = new Uint32Array(1); for (;;) { crypto.getRandomValues(u); if (u[0] < lim) return 1 + (u[0] % n); } }
 const lanes = (n) => Array.from({ length: n }, (_, i) => n === 1 ? 0 : -TRAY.z + 0.8 + (2 * TRAY.z - 1.6) * i / (n - 1));
-async function show(s, faces, caption) {
+async function show(s, faces, caption) {   // s: one kind for every die, or a list, one per die
+  const sd = (i) => Array.isArray(s) ? s[i] : s;
   if (busy) return; busy = true; out.textContent = '…';
   await new Promise((r) => setTimeout(r, 0));
-  const L = lanes(faces.length), throws = faces.map((v, i) => throwFor(s, v, L[i]));
+  const L = lanes(faces.length), throws = faces.map((v, i) => throwFor(sd(i), v, L[i]));
   if (throws.some((t) => !t)) { out.textContent = 'The tray failed to land that face in 600 throws. ' + caption; busy = false; return; }
   const T = Math.max(...throws.map((t) => t.frames.length)), t0 = performance.now();
   await new Promise((done) => { (function frame() {
     const i = Math.min(T - 1, Math.floor((performance.now() - t0) / 1000 * 60));
-    drawScene(throws.map((t, k) => { const f = t.frames[Math.min(i, t.frames.length - 1)]; return { sides: s, x: f[0], q: f[1] }; }));
+    drawScene(throws.map((t, k) => { const f = t.frames[Math.min(i, t.frames.length - 1)]; return { sides: sd(k), x: f[0], q: f[1] }; }));
     if (i < T - 1) requestAnimationFrame(frame); else done();
   })(); });
   out.textContent = caption; busy = false;
@@ -221,9 +222,12 @@ drawScene([{ sides: 20, x: [0, SIZE[20] * 0.8, 0.6], q: qnorm([0.9, 0.3, 0.2, 0.
 const PDS = 'https://pds.delve.town/xrpc/', BOT = 'miniphim-works.delve.town';
 const hexOf = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
 const sha = async (s) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
-async function faces(seed, cid, n, m) {   // stream(seed, cid) and below(m), exactly as the bot's code
-  let buf = new Uint8Array(0), i = 0; const outv = [], lim = Math.floor(2 ** 32 / m) * m;
-  while (outv.length < n) {
+// the dice in a spec, in the order written: "1d6+2d20-1d4+3" -> [6, 20, 20, 4] (a lone "2d6+3" -> [6, 6])
+const sidesOf = (spec) => [...spec.matchAll(/(\d+)d(\d+)/g)].flatMap((m) => Array(+m[1]).fill(+m[2]));
+async function faces(seed, cid, sl) {   // stream(seed, cid) and below(m) per die, in turn, exactly as the bot's code
+  let buf = new Uint8Array(0), i = 0; const outv = [];
+  while (outv.length < sl.length) {
+    const m = sl[outv.length], lim = Math.floor(2 ** 32 / m) * m;
     while (buf.length < 4) { const h = await sha(`${seed}:${cid}:${i++}`); const nb = new Uint8Array(buf.length + 32); nb.set(buf); nb.set(h, buf.length); buf = nb; }
     const u = ((buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]) >>> 0; buf = buf.subarray(4);
     if (u < lim) outv.push(1 + (u % m));
@@ -247,14 +251,14 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
     if (pk && !mine.length) html += `<p>No roll for post ${esc(pk)} in this session.</p>`;
     let bad = 0;
     for (const x of mine) {
-      const m = /^(\d+)d(\d+)/.exec(x.spec), n = +m[1], sd = +m[2];
+      const sl = sidesOf(x.spec);
       let mark = '';
-      if (rec.seed) { const f = await faces(rec.seed, x.cid, n, sd); const ok = f.join() === x.faces.join(); if (!ok) bad++; mark = ok ? ' <span class="ok">✓ recomputed</span>' : ` <span class="bad">✗ recomputed ${f.join(', ')}</span>`; }
-      html += `<p>${esc(x.by || '')} rolled ${esc(x.spec)}: <b>${esc(x.faces.join(' + '))}</b> → ${esc(x.total)}${mark}<br><small>cid <code>${esc(x.cid)}</code></small></p>`;
+      if (rec.seed) { const f = await faces(rec.seed, x.cid, sl); const ok = f.join() === x.faces.join(); if (!ok) bad++; mark = ok ? ' <span class="ok">✓ recomputed</span>' : ` <span class="bad">✗ recomputed ${f.join(', ')}</span>`; }
+      html += `<p>${esc(x.by || '')} rolled ${esc(x.spec)}: <b>${esc(x.faces.join(', '))}</b> → ${esc(x.total)}${mark}<br><small>cid <code>${esc(x.cid)}</code></small></p>`;
     }
     if (rec.seed && mine.length > 1) html += `<p class="${bad ? 'bad' : 'ok'}">${mine.length - bad} of ${mine.length} rolls recompute.</p>`;
     box.innerHTML = html;
-    if (pk && mine[0]) { const x = mine[0], sd = +/d(\d+)/.exec(x.spec)[1]; count = x.faces.length; sides = sd; paint(); show(sd, x.faces, `${x.by || ''}: ${x.spec} → ${x.faces.join(' + ')}${x.total !== x.faces[0] || x.faces.length > 1 ? ' = ' + x.total : ''}`); }
+    if (pk && mine[0]) { const x = mine[0], sl = sidesOf(x.spec); count = x.faces.length; sides = sl[0]; paint(); show(sl, x.faces, `${x.by || ''}: ${x.spec} → ${x.faces.join(', ')}${x.total !== x.faces[0] || x.faces.length > 1 ? ' = ' + x.total : ''}`); }
   } catch (e) { box.innerHTML = `<p>Couldn't read the session record: ${esc(e.message)}</p>`; }
 })();
 </script>

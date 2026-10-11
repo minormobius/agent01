@@ -442,37 +442,68 @@ export async function doors({ agent, now, state }) {
 // seed comes out a day after the session's first roll, and the next session's hash goes up with it.
 //
 // THE RULE (with bingo's stream and below() above, nothing else is needed to check a roll):
-//   faces = for k = 1..N: 1 + below(M), all drawn in order from stream(seed, cid)
-//           where cid is the CID of the post that asked for the roll (the town's, as text)
-//   total = sum(faces) + modifier
+//   faces = for each die in the spec, in the order written: 1 + below(its sides), all drawn in turn from
+//           stream(seed, cid), where cid is the CID of the post that asked for the roll (the town's, as text)
+//   total = sum(faces, a die in a "-" term counted negative) + modifier
+//   (a single kind, NdM, draws exactly as it did before mixed sets: N times below(M))
 // Your own post's cid goes into your roll, and it didn't exist when the seed's hash went up, so the seed holder
 // can't aim a seed at your roll, and once the hash is out it can't change the seed either.
 // Every session is a public record in this account's repo, com.minomobi.dice.session/<n>: the hash, the
 // requests with their cids and faces, and the seed once revealed. https://miniphim.minomobi.com/dice/ reads it.
 
-export const DICE_SPEC = /\broll\b[^\n]*?\b(\d{1,2})?d(4|6|8|10|12|20)\b(?:\s*([+-])\s*(\d{1,3})\b)?/i;
+export const DICE_SPEC = /\broll\b[^\n]*?\b(\d{1,2})?d(4|6|8|10|12|20)\b/i;
 export const MAX_DICE = 10, MAX_ROLLS = 8, SESSION_MS = 24 * 3600_000;
 const DICE_COL = 'com.minomobi.dice.session', PAGE = 'https://miniphim.minomobi.com/dice/';
 const WORDS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+const TERM = /^\s*([+-])\s*(?:(\d{0,2})d(\d+)\b|(\d{1,3})\b)/i;
 
+// (Modulo, 10-11, the person's ask: "heterogeneous dice sets, 1d6+2d20".) An ask is a chain of terms, dice or
+// numbers, joined by + or -: "roll 1d6+2d20", "roll d20 - d4 + 2". Up to MAX_DICE dice in all. A die the bot
+// doesn't have (d7) anywhere in the chain is named back and nothing is rolled: never half an answer.
+// terms: [{ n, sides, sign }] in the order written; that order is the order the faces are drawn.
 export function parseRoll(text) {
   const m = DICE_SPEC.exec(text || '');
   if (!m) return null;
-  const n = m[1] ? Number(m[1]) : 1, sides = Number(m[2]), mod = m[3] ? (m[3] === '-' ? -1 : 1) * Number(m[4]) : 0;
-  if (n < 1 || n > MAX_DICE) return null;
-  // (Morphyx, 10-11) "roll 3d20+2d6" used to roll 3d20 and drop the rest without a word: the person's own first
-  // mixed ask. A second dice term right after the first is now named back to the asker and nothing is rolled.
-  const more = /^\s*[+-]\s*\d{0,2}d\d+/i.exec(text.slice(m.index + m[0].length));
-  if (more) return { mixed: true, spec: (text.slice(m.index, m.index + m[0].length).match(/\d{0,2}d\d+.*$/i)[0] + more[0]).replace(/\s+/g, '') };
-  return { n, sides, mod, spec: `${n}d${sides}${mod > 0 ? '+' + mod : mod < 0 ? mod : ''}` };
+  const terms = [{ n: m[1] ? Number(m[1]) : 1, sides: Number(m[2]), sign: 1 }];
+  let mod = 0, rest = text.slice(m.index + m[0].length), t;
+  while ((t = TERM.exec(rest))) {
+    const sign = t[1] === '-' ? -1 : 1;
+    if (t[3] !== undefined) {
+      const n = t[2] ? Number(t[2]) : 1, sides = Number(t[3]);
+      if (![4, 6, 8, 10, 12, 20].includes(sides) || n < 1) return { bad: true, die: `${t[2] || ''}d${t[3]}` };
+      terms.push({ n, sides, sign });
+    } else mod += sign * Number(t[4]);
+    rest = rest.slice(t[0].length);
+  }
+  const n = terms.reduce((a, x) => a + x.n, 0);
+  if (terms[0].n < 1 || n > MAX_DICE) return null;
+  const spec = terms.map((x, i) => `${x.sign < 0 ? '-' : i ? '+' : ''}${x.n}d${x.sides}`).join('') + (mod > 0 ? '+' + mod : mod < 0 ? mod : '');
+  return { n, sides: terms.length === 1 ? terms[0].sides : null, mod, spec, terms };
 }
-export async function rollFaces(seed, cid, n, sides) {
+// each die in the order written, one after another from the same stream: 1 + below(its sides)
+export const sidesOf = (terms) => terms.flatMap((x) => Array(x.n).fill(x.sides));
+export const signsOf = (terms) => terms.flatMap((x) => Array(x.n).fill(x.sign));
+export async function rollSet(seed, cid, sidesList) {
   const s = stream(seed, cid), out = [];
-  for (let k = 0; k < n; k++) out.push(1 + await s.below(sides));
+  for (const m of sidesList) out.push(1 + await s.below(m));
   return out;
 }
+export async function rollFaces(seed, cid, n, sides) { return rollSet(seed, cid, Array(n).fill(sides)); }
 export function altText(sides, faces) {
   return faces.length === 1 ? `A d${sides} showing ${faces[0]}.` : `${WORDS[faces.length]} d${sides}s showing ${faces.join(', ')}.`;
+}
+export function altTextSet(terms, faces) {
+  if (terms.length === 1) return altText(terms[0].sides, faces);
+  let k = 0;
+  const parts = terms.map((x) => { const f = faces.slice(k, k += x.n); return (x.n === 1 ? `a d${x.sides} showing ${f[0]}` : `${WORDS[x.n].toLowerCase()} d${x.sides}s showing ${f.join(', ')}`) + (x.sign < 0 ? ' (taken away)' : ''); });
+  const s = parts.join('; ');
+  return s[0].toUpperCase() + s.slice(1) + '.';
+}
+export function sumLine(terms, faces, mod) {
+  const signs = signsOf(terms), total = faces.reduce((a, f, i) => a + signs[i] * f, 0) + mod;
+  if (faces.length === 1 && !mod && signs[0] > 0) return { total, line: `${faces[0]}` };
+  const line = faces.map((f, i) => (i ? (signs[i] < 0 ? ' - ' : ' + ') : signs[i] < 0 ? '-' : '') + f).join('') + (mod ? ` ${mod > 0 ? '+' : '-'} ${Math.abs(mod)}` : '') + ` = ${total}`;
+  return { total, line };
 }
 
 export async function dice({ agent, now, state }) {
@@ -500,24 +531,24 @@ export async function dice({ agent, now, state }) {
         for (const n of asks.slice(0, MAX_ROLLS)) {
           s.seen = [...s.seen, n.uri].slice(-60);                // marked first: a failed reply is never retried twice
           const r = parseRoll(n.record.text);
-          if (r.mixed) {                                           // no roll, no record: say what wasn't done, and why
+          if (r.bad) {                                             // no roll, no record: say what wasn't done, and why
             const root = n.record.reply?.root || { uri: n.uri, cid: n.cid };
-            await agent.post(`${r.spec}: not rolled. I roll one kind of die per ask, and I won't roll part of it and call that your answer. Ask in two posts, e.g. "roll ${r.spec.split(/[+-]/)[0]}" and "roll ${r.spec.split(/[+-]/)[1]}", and add them yourself.`,
+            await agent.post(`${r.die}: not rolled. I have d4 d6 d8 d10 d12 d20, and I won't roll part of an ask and call that your answer. Ask again without the ${r.die}.`,
               { reply: { root: { uri: root.uri, cid: root.cid }, parent: { uri: n.uri, cid: n.cid } } });
             continue;
           }
-          const faces = await rollFaces(s.session.seed, n.cid, r.n, r.sides);
-          const total = faces.reduce((a, b) => a + b, 0) + r.mod;
-          const img = await dicePng(faces.map((v) => ({ sides: r.sides, value: v })));
+          const sl = sidesOf(r.terms);
+          const faces = await rollSet(s.session.seed, n.cid, sl);
+          const { total, line: sum } = sumLine(r.terms, faces, r.mod);
+          const img = await dicePng(faces.map((v, i) => ({ sides: sl[i], value: v })));
           const up = await agent.repo('uploadBlob', { bytes: img.bytes, type: 'image/png' });
           const blob = up && up.blob ? up.blob : up;
-          const sum = faces.length === 1 && !r.mod ? `${faces[0]}` : `${faces.join(' + ')}${r.mod ? ` ${r.mod > 0 ? '+' : '-'} ${Math.abs(r.mod)}` : ''} = ${total}`;
           const rkey = n.uri.split('/').pop();
           const text = `${r.spec}: ${sum}\n\nDrawn from sha256(seed + your post's cid). The seed's hash went up first; the seed comes out within a day. Check it: ${PAGE}?s=${s.session.n}&p=${rkey}`;
           const root = n.record.reply?.root || { uri: n.uri, cid: n.cid };
           const p = await agent.post(text, {
             reply: { root: { uri: root.uri, cid: root.cid }, parent: { uri: n.uri, cid: n.cid } },
-            embed: { $type: 'town.delve.embed.images', images: [{ alt: altText(r.sides, faces), image: blob, aspectRatio: { width: img.width, height: img.height } }] },
+            embed: { $type: 'town.delve.embed.images', images: [{ alt: altTextSet(r.terms, faces), image: blob, aspectRatio: { width: img.width, height: img.height } }] },
           });
           rec.rolls.push({ uri: n.uri, cid: n.cid, by: n.author?.handle || n.author?.did || null, spec: r.spec, faces, total, reply: p.uri, at: new Date(t).toISOString() });
           s.session.rolls = (s.session.rolls || 0) + 1;
@@ -549,7 +580,7 @@ async function finishReveal(agent, s) {
 
 async function openSession(agent, t, s) {
   const seed = newSeed(), commit = await commitment(seed), n = s.n + 1;
-  const text = `Dice, session ${n}. Mention me with "roll d20" (or 2d6+1: d4 d6 d8 d10 d12 d20, up to 10 dice) and I answer within 5 minutes, with a picture.\n\nsha256 of this session's seed:\n${commit}\nEach roll comes from sha256(seed + your post's cid). The seed comes out a day after the first roll.`;
+  const text = `Dice, session ${n}. Mention me with "roll d20" (or 2d6+1, or 1d6+2d20: d4 d6 d8 d10 d12 d20, up to 10 dice) and I answer within 5 minutes, with a picture.\n\nsha256 of this session's seed:\n${commit}\nEach roll comes from sha256(seed + your post's cid). The seed comes out a day after the first roll.`;
   const p = await agent.post(text);
   s.n = n;
   s.session = { n, seed, commit, root: ref(p), since: new Date(t).toISOString(), rolls: 0, first: 0 };
@@ -557,7 +588,7 @@ async function openSession(agent, t, s) {
 }
 function blankRecord(ss, t) {
   return { $type: DICE_COL, session: ss.n, commit: ss.commit, seed: null, root: ss.root.uri, openedAt: new Date(t).toISOString(),
-    rule: 'faces = for k = 1..N: 1 + below(M), drawn in order from stream(seed, cid of the asking post); total = sum + modifier. stream and below: the bingo section of the code.',
+    rule: 'faces: for each die in the spec, in the order written, 1 + below(its sides), all drawn in turn from one stream(seed, cid of the asking post); total = signed sum + modifier. stream and below: the bingo section of the code.',
     code: 'house/bots/miniphim-works.mjs', rolls: [] };
 }
 async function sessionRecord(agent, ss) {
