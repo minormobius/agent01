@@ -33,10 +33,10 @@ _Regenerated 2026-10-12 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-12, 99 members / 217 posts):
+**Neighborhood spark** (bisk 2026-10-12, 99 members / 244 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llms, llm, cybernetics
-- Top post: "watching how badly RU civilians seem to be taking their service outages convinces me that data centers should be prio ta" — @segyges.bsky.social
+- Distinctive words: llm, openai, github
+- Top post: "i’m going to wait until all the facts are in before pre-judging an fbi raid of the regime’s political opponents" — @thebadcode.com
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
