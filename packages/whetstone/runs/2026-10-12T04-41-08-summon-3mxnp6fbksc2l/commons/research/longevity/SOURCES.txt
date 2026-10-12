@@ -1,0 +1,37 @@
+# fetched 2026-10-11 ~20:50Z by Modulo. file  sha256  url
+mpd-itp-center.html d345fc0b0fabc6bbed38a34ce3840557abac8b6d5542d5a86dd80da79b58dd1e https://phenome.jax.org/centers/ITP
+epmc-10.1007_s11357-026-02201-2.json 9fe23fe1982e9091192e0b83c4705823e1a21974dcb3095ed6ed6e59bffe72d1 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1007/s11357-026-02201-2&resultType=core&format=json
+epmc-10_1016_j_cmet_2020_08_004.json 7387fba6724f79647f5c3116bedb6e353b4dab78843b948eab7b2fa340bdf2fa https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1016/j.cmet.2020.08.004&resultType=core&format=json
+epmc-10_1016_j_ebiom_2018_09_015.json 25dd699c6bd6ccc0b02f2365eab2a7c15aef6bce00b5630f8dc8db126af05861 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1016/j.ebiom.2018.09.015&resultType=core&format=json
+epmc-10_1038_nature05354.json 0bf5a3c183dc6b5607b0b7c03a684c27210b56e24bf0f983283d741fcd0eca54 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1038/nature05354&resultType=core&format=json
+epmc-10_1038_ncomms3192.json f2046856e16ef6bfaad9257ab294e5646f580d1971e77094939e4de1687c1aa5 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1038/ncomms3192&resultType=core&format=json
+epmc-10_1126_science_aaf2693.json 6fce27938559dcb7ea4bf342b2aa69e7c578368bbdbd047f70576403c75a4ccd https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1126/science.aaf2693&resultType=core&format=json
+# fetched 2026-10-12 ~03:00Z by Morphyx (markers catalogue). file  sha256  url
+epmc-10_1186_gb-2013-14-10-r115.json d7c249b4b5bcc554b530d8f4083b69dc5eb57ddf913490565065cbd199cd0e6b https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1186/gb-2013-14-10-r115&resultType=core&format=json
+epmc-10_1016_j_molcel_2012_10_016.json 35cca58a92992f4318ec472a353e7196bfcc051716953288dc8e9c8917c8b8b7 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1016/j.molcel.2012.10.016&resultType=core&format=json
+epmc-10_18632_aging_101414.json 455d663d29b9da074e5d15c9a2a39d0754d901c9ccc0319538d3b22286528690 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.18632/aging.101414&resultType=core&format=json
+epmc-10_18632_aging_101684.json aa61a89661512a87935aa8f6fd710969572a2c2370151870f67ed37a62cd7aa0 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.18632/aging.101684&resultType=core&format=json
+epmc-10_7554_eLife_73420.json b8a406310ed453ecad4254f3ae90741d066486b0a39096fc36bb519153c25464 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.7554/eLife.73420&resultType=core&format=json
+epmc-10_1038_s43587-022-00357-y.json 02e1cb1161965a2874c2e2bbd2ca77b919dc4f6eb48bfc76e98ac2efa4e6fa12 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1038/s43587-022-00357-y&resultType=core&format=json
+epmc-10_1038_s41586-023-06802-1.json bc74b768647ded290317a259cadace799544ecf984b3784ab8f6fda4cbcbc59f https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1038/s41586-023-06802-1&resultType=core&format=json
+epmc-10_1038_s41591-024-03164-7.json b2547f27a7567e76f52eae7391360152a53d2669ff5626ff5adba58a58476551 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1038/s41591-024-03164-7&resultType=core&format=json
+epmc-10_1100_tsw_2001_58.json 404db11284ef7333031bb1208d67105cbd2c2b608543aa576431a01966546c90 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1100/tsw.2001.58&resultType=core&format=json
+epmc-10_1001_jama_2010_1923.json dd1da76523a517b71d85b76e60c261e1384b7ba7a59765ccb4609bb246d811cc https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1001/jama.2010.1923&resultType=core&format=json
+epmc-10_1001_jamanetworkopen_2018_3605.json 031a33f8fa2e516f7a1a197d27d7cdceab6dfb97d696d0c88004177968d3814e https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1001/jamanetworkopen.2018.3605&resultType=core&format=json
+epmc-10_1056_NEJMoa1408617.json ac20b68603f05085aa68de05e5c96a42ca17da766bef92c7a769021b981df93c https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1056/NEJMoa1408617&resultType=core&format=json
+epmc-10_1136_bmj_d548.json 19056eed79ccaad1bb7695a61b93a5c3796bf4e47623c7c5d1209ce4af2cc11e https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1136/bmj.d548&resultType=core&format=json
+epmc-10_1056_NEJMoa1511939.json a9c35f2c7b5fd8acb9744784ffb4f02f3c3760a45ec96a4a9e78a43b3342f9b2 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1056/NEJMoa1511939&resultType=core&format=json
+epmc-10_1056_NEJMoa0802743.json 26dc875ab2f6ca6932c8b16dce2da0b0a1ec498fb9215fb9deb86a424ab0de48 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1056/NEJMoa0802743&resultType=core&format=json
+epmc-10_1038_nature16932.json 0a1a330a32f26348ccec5c6bd8572dc081a31eb1b8ca4e538a1a4647fc22de5d https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1038/nature16932&resultType=core&format=json
+epmc-10_1016_j_cell_2023_08_003.json 2fd480c0ef2f938270e180ea00f65534e7cfe6f4a03ea190917fa0810d7eac5e https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1016/j.cell.2023.08.003&resultType=core&format=json
+epmc-10_1038_s43587-022-00248-2.json 497d0de57610b7f19d846af99ad54690c4d23561a19e426a8d94c9865a6d49ac https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1038/s43587-022-00248-2&resultType=core&format=json
+epmc-10_1001_jamaoncol_2016_5945.json 7f4ee6bc780cf7b180aacd2da3b22b29abbdad938066d5ec4c5e9f953e521dd7 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1001/jamaoncol.2016.5945&resultType=core&format=json
+epmc-pmid-25982160.json 76fff05ef48465baf884b23415cd8800dffc52149563d48e89ba31e913ead5c1 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:25982160%20AND%20SRC:MED&resultType=core&format=json
+epmc-pmid-20031199.json 80e2cd5a5b515bb6a8f2e713a04f8676b357ca9a2178a8af2837e37754c9c93d https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:20031199%20AND%20SRC:MED&resultType=core&format=json
+epmc-pmid-21067804.json fcbec0c00f82fb1c3cc66285e2a356c22b1844a7b8e8ecef8d87a30aef841ab8 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:21067804%20AND%20SRC:MED&resultType=core&format=json
+epmc-10_1186_s13059-015-0584-6.json 271f6ff8a2bef1802f73db3712a87a008596dcd210130de900aa4392fc3b51bb https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1186/s13059-015-0584-6&resultType=core&format=json
+# fetched 2026-10-12 ~04:50Z by Modulo (DunedinPACE zoom). file  sha256  url
+epmc-10_7554_eLife_54870.json 4a4dea34cc5d09a4f5cff9cf9ccbeb3cf76ecc0a0b76bd62d296877179e60702 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.7554/eLife.54870&resultType=core&format=json
+epmc-10_1073_pnas_1506264112.json 3de06a7a0af483e095c4addd1ca93010873123b75f5c4262484bf143cba385c0 https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:10.1073/pnas.1506264112&resultType=core&format=json
+epmc-full-PMC10148951.xml d53ddabbb64c2bbd674ff0ea1180e7c9e0b0572b346050c7ac3a5642074a97b4 https://www.ebi.ac.uk/europepmc/webservices/rest/PMC10148951/fullTextXML
+epmc-full-PMC8853656.xml dd24c21863993f6398cb4092d746217f145ed6080a75a950123cf0586d0200b7 https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8853656/fullTextXML
