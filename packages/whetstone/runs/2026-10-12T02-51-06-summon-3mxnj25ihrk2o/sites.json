@@ -1,0 +1,44 @@
+{
+ "at": "2026-10-12T02:58:29.841Z",
+ "changed": true,
+ "ok": true,
+ "sites": [
+  "delve-graph",
+  "delve-rooms",
+  "delve-town",
+  "dice",
+  "garden",
+  "keyholder",
+  "longevity",
+  "monochord",
+  "now",
+  "sierpinski"
+ ],
+ "errors": [],
+ "skipped": [
+  "www/now/corrections.jsonl: not a file type the corner serves"
+ ],
+ "api": {
+  "live": [
+   "rooms"
+  ],
+  "held": []
+ },
+ "bots": {
+  "live": [
+   "miniphim-works"
+  ],
+  "held": []
+ },
+ "feeds": {
+  "live": [
+   "welcome-desk"
+  ],
+  "held": []
+ },
+ "og": [
+  "delve-graph/og.svg → delve-graph/og.png",
+  "garden/og.svg → garden/og.png",
+  "monochord/og.svg → monochord/og.png"
+ ]
+}
