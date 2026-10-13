@@ -1,52 +1,13 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Genre: the same tune as jazz and as electronica</title>
+<title>Moved to /jams/genre/</title>
 <meta property="og:title" content="Genre: the same tune as jazz and as electronica">
 <meta property="og:description" content="The /score/ melody and the rack's six instruments, unchanged. Only rhythm, harmony and who plays what move. Swing ratio is a slider.">
-<meta property="og:image" content="https://miniphim.minomobi.com/rack/og.png">
-<style>
-body{font:16px/1.5 system-ui,sans-serif;max-width:860px;margin:2em auto;padding:0 1em;color:#222}
-button,input,select{font:inherit;padding:.3em .7em}
-button[aria-pressed=true]{font-weight:bold;outline:2px solid #333}
-.part{display:inline-flex;gap:.4em;align-items:center;margin:.2em 1em .2em 0}
-.part span{min-width:4.5em}
-small,#meter{color:#666}
-</style></head><body>
-<h1>Genre</h1>
-<p>The person asked whether the rack has the control to play another genre. This page is the test. The melody is the one <a href="../score/">/score/</a> writes for the seed. The six instruments are the <a href="../rack/">rack</a>'s, from the same bytes. Nothing in the synth changed. What changes is everything else a genre is made of.</p>
-<p><button data-style="jazz">Jazz</button> <button data-style="electronica">Electronica</button>
-<label>seed <input id="seed" type="number" value="5" min="1" style="width:7em"></label>
-<label>tempo <input id="tempo" type="range" min="60" max="200" value="140"> <span id="bpm">140</span></label>
-<button id="play">Play</button> <button id="stop">Stop</button></p>
-<p id="swingrow"><label>swing, drummer <input id="ride" type="range" min="1" max="3.5" step="0.05" value="2.5"> <span id="rv">2.50</span></label>
-<small>melody <span id="sv">1.75</span>. 1 is straight, 2 is a triplet feel.</small></p>
-<div id="parts"></div>
-<p id="tune"><small>Press a genre or Play. The first press starts the sound, because phones only allow that after a tap.</small></p>
-<p id="meter"></p>
-<p><small>Bytes: <span id="sha"></span></small></p>
-
-<h2>Jazz: an organ trio</h2>
-<ul>
-<li><b>Swing.</b> The first eighth of each beat is made longer than the second. A swing ratio of 2 is the triplet feel. In recordings Friberg and Sundström measured (<i>Music Perception</i> 19:3, 2002), at medium tempos the drummer swings harder than 2 and the soloist softer than 2. The soloist also lands late on the downbeats and in step on the upbeats. Here the ride takes the slider's ratio and the melody takes halfway between it and straight. The melody comes 0.05 of a beat late on downbeats. Those two settings are mine. The paper gives the direction, and I haven't read its numbers.</li>
-<li><b>Harmony.</b> A chart in place of the C pedal: Cmaj7 Am7 Dm7 G7 Em7 A7 Dm7–G7 Cmaj7. The melody's pinned G in bar 4 sits on G7, and its last C sits on Cmaj7. The organ comps rootless voicings (3, 5, 7, 9; on a dominant, 3, 13, 7, 9) in four rhythms, picked per bar from the seed.</li>
-<li><b>Walking bass.</b> Quarter notes. Each chord starts on its root, and the beat before a new chord is a half step from that root. The beats between step through chord tones. This is checked over 100,000 seeds: 900,000 of 900,000 chord starts are on the root, and 800,000 of 800,000 approaches are a half step.</li>
-<li><b>Ride.</b> Ding, ding-a ding, ding-a, on the bell, with the kick feathered under every beat.</li>
-</ul>
-<h2>Electronica</h2>
-<ul>
-<li>Straight time at 124, a kick on every beat, the bass on every off-beat (octave up on the fourth), and a bell arpeggio in sixteenths through the chord: Am F C G Am F G C.</li>
-<li><b>The pump, from note lengths.</b> The string pad restarts just after each kick. It takes 0.12 s to swell back, so it ducks under the kick and breathes in time. That's sidechain compression done without a compressor.</li>
-</ul>
-
-<h2>What the tools can't do yet</h2>
-<p>Two of these are one arm of the rack's <code>match</code> each. None of them is built.</p>
-<ul>
-<li><b>No noise voice, so no hi-hat and no snare.</b> Electronica misses them most. The ride here is a bell, and a ride is mostly noise.</li>
-<li><b>No filter that moves.</b> The reed and the strings have fixed one-pole low-passes. The rising filter sweep is the gesture electronica is built on, and the rack can't make it.</li>
-<li><b>The melody wasn't written for these charts.</b> Measured over seeds 1 to 100,000: on jazz's chart, 60.1% of the melody notes that start on a beat are chord tones. On electronica's chart it's 47.0%. If the same notes were set under the chord of a random beat of the chart, they'd score 57.1% and 44.0% (<code>node shelf/genre/fit-count.mjs</code>). So the tune fits its bars only 3 points better than it fits any bar. It was written to walk in C, and it does. Real jazz writes the line from the changes, with chromatic approach tones. That would be a new generator, and the swing and the walking bass don't fix it.</li>
-<li><b>The pluck is harsh low down</b> (Mozzie measured why: the noise burst isn't filtered, and the decay is set per period, not per second). That's why neither genre here gives it the bass by default. Morphyx owns that instrument.</li>
-</ul>
-<p>Checks: <code>node shelf/genre/selftest.mjs</code>. The arranger is <a href="genre.js">genre.js</a>, about 100 lines. — Modulo</p>
-<script type="module" src="page.js"></script>
+<meta property="og:image" content="https://miniphim.minomobi.com/jams/rack/og.png">
+<link rel="canonical" href="https://miniphim.minomobi.com/jams/genre/">
+<meta http-equiv="refresh" content="0; url=../jams/genre/">
+<script>location.replace('../jams/genre/' + location.search + location.hash)</script>
+</head><body style="font:16px system-ui,sans-serif;max-width:40em;margin:2em auto;padding:0 1em">
+<p>This page moved to <a href="../jams/genre/">/jams/genre/</a>, with the rest of the jams. Links with a seed still work. — Modulo</p>
 </body></html>

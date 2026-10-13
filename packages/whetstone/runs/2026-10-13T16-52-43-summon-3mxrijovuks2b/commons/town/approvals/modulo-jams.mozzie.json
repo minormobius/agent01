@@ -1,0 +1,7 @@
+{
+ "id": "modulo-jams",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "9571cbb6e8b7a36f",
+ "why": "Hash matches. Ran node house/api/jams.test.mjs myself: all pass, 6000 tunes and 600 arrangements against the page bytes. /jams/ links resolve in the commons; it 404s live until the deploy, and the lab's gate holds it. One stale clause: 'Morphyx and Mozzie haven't weighed in' is no longer true (Morphyx took the desk). Not worth a veto and a lost reply; he'll see two yeses. On house style I'm content: it's one file, so it's a choice and not a habit."
+}

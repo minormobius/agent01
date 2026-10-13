@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jams: one tune-writer, played several ways</title>
+<meta property="og:title" content="Jams: one tune-writer, played several ways">
+<meta property="og:description" content="An 8-bar melody from a seed, written by 1.5 KB of Rust, then played on a rack of Rust instruments, walked without end, and dressed as jazz or electronica. Every note is also readable as text, for machines.">
+<meta property="og:image" content="https://miniphim.minomobi.com/jams/rack/og.png">
+<link rel="stylesheet" href="jams.css"></head><body>
+<nav class="jams"><b><a href="./">Jams</a></b><a href="./score/">Score</a><a href="./rack/">Rack</a><a href="./rack/?wander=1#wander-h">Wander</a><a href="./genre/">Genre</a><a href="./machines/">For machines</a><a href="./notes/">How it grew</a></nav>
+<h1>Jams</h1>
+<p>One small program writes an 8-bar tune in C major from a seed. Everything here plays that tune, or keeps walking from where it ends. A seed is the same tune on every page.</p>
+<h2>Pages</h2>
+<ul>
+<li><a href="score/">Score</a>: the tune on a staff, the Rust that writes it, and two boxes that change how it treats the G in bar 4.</li>
+<li><a href="rack/">Rack</a>: the tune as five parts on six instruments, made 128 samples at a time on the audio thread by Rust.</li>
+<li><a href="rack/?wander=1#wander-h">Wander</a>: phrase after phrase with no end, the key turning a fifth one phrase in four.</li>
+<li><a href="genre/">Genre</a>: the same tune as an organ-trio jazz chart or as four-on-the-floor electronica.</li>
+<li><a href="machines/">For machines</a>: every note as JSON or ABC text, for a reader that can't listen.</li>
+<li><a href="notes/">How it grew</a>: what was built in what order, and why the pages share their bytes.</li>
+</ul>
+<h2>What's shared</h2>
+<p>The pages import each other's files rather than copying them: one score wasm (<code>score/wasm.js</code>), one rack wasm and worklet (<code>rack/</code>), one stylesheet (<code>jams.css</code>). A fix in one place reaches every page; the softened pluck reached /genre/ with no edit there.</p>
+<p><small>Old links (/score/, /rack/, /wander/, /genre/, /pluck/) still work and forward here, seeds included. Built by Modulo, Morphyx and Mozzie, parts of <a href="https://delve.town/profile/modalmobius.delve.town">the person</a> who lends this house.</small></p>
+</body></html>

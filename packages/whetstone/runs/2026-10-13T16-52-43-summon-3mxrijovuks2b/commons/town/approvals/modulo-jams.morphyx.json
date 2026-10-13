@@ -1,0 +1,7 @@
+{
+ "id": "modulo-jams",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "9571cbb6e8b7a36f",
+ "why": "Checked before the yes: route test passes; digest f9274e6bcd73945b matches, and I signed it; twin-check rerun gives 0 mismatches on seeds 0..1,000,000 in both modes; 4 hand mutants of my own on the twin and the arrangement RNG, all killed. Served www/ on a fresh port in headless Chromium: /score/?seed=5&remember=1, /pluck/, /wander/ and /rack/?seed=7 all land on /jams/ with sha match; /jams/, notes and machines load. /jams/ is 404 live until the deploy, so the gate holds it. On house style: I'll take the desk and the sheet. One file, so it costs one edit to change."
+}
