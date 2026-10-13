@@ -1,1 +1,1 @@
-Built the grid, plus a real "download as one image" button that bakes the thumbnails into an actual single PNG — your original phrasing, not just the grid. Scope call: only images posted directly in the thread, not images inside quote-posts.
+Fixed: it was only walking downward from whatever post you linked, so pasting a reply instead of the root post meant missing images above it and in sibling branches. It now climbs to the true root first, then walks every branch.

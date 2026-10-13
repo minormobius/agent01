@@ -145,6 +145,17 @@
     if (Array.isArray(replies)) for (const r of replies) walk(r, out, seen);
   }
 
+  // The visitor can paste a link to ANY post in the thread, not just the root —
+  // climb back up the parent chain first so every reply branch gets walked, not
+  // just the ones under the post they happened to link.
+  function findRoot(node) {
+    let cur = node;
+    while (cur && cur.parent && cur.parent.$type === 'app.bsky.feed.defs#threadViewPost') {
+      cur = cur.parent;
+    }
+    return cur;
+  }
+
   function renderGrid(items) {
     $grid.textContent = '';
     for (const it of items) {
@@ -190,7 +201,7 @@
       const uri = 'at://' + did + '/app.bsky.feed.post/' + parsed.rkey;
       $status.textContent = 'fetching the thread…';
       const data = await kit.bskyGet('app.bsky.feed.getPostThread', {
-        uri: uri, depth: 1000, parentHeight: 0,
+        uri: uri, depth: 1000, parentHeight: 1000,
       });
       const thread = data.thread;
       if (!thread || thread.$type === 'app.bsky.feed.defs#notFoundPost') {
@@ -203,7 +214,7 @@
       }
 
       const out = [];
-      walk(thread, out, new Set());
+      walk(findRoot(thread), out, new Set());
       found = out;
 
       if (!out.length) {

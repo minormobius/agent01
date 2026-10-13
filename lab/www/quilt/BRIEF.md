@@ -12,12 +12,39 @@ the same tiles into a real composited PNG.
 Shipped and working end to end: paste a `bsky.app/profile/.../post/...`
 link or an `at://` URI, it resolves the handle if needed
 (`resolveHandle`), fetches the **whole thread in one call**
-(`getPostThread` with `depth: 1000, parentHeight: 0`), walks the reply
-tree recursively, and collects every `app.bsky.embed.images` (and the
-images half of `recordWithMedia`) from every non-hidden post in it. Grid
+(`getPostThread` with `depth: 1000, parentHeight: 1000`, then climbs to the
+root — see this turn's fix below), walks the reply tree recursively, and
+collects every `app.bsky.embed.images` (and the images half of
+`recordWithMedia`) from every non-hidden post in it. Grid
 renders responsively (`auto-fill, minmax(140px, 1fr)`), each tile links to
 the fullsize image in a new tab and shows `@handle` as a permanent
 (non-hover) caption.
+
+## What this turn shipped
+
+A requester reported "No images anywhere in that thread — just words" on a
+thread that had plenty, in many chained replies. Root cause: the previous
+turn fetched with `parentHeight: 0`, which returns the linked post and
+everything *under* it, but nothing above it. If the visitor pastes a link
+to a reply partway down the thread (very normal — "threadtiles" was
+announced by a reply, not the root post, in the thread that spawned this
+site), the walker never saw the root, any other ancestor, or any sibling
+reply-branch off them. It would find images only in the one sub-branch
+under the exact post linked — on many real threads, none.
+
+Fixed by requesting `parentHeight: 1000` too, then climbing `thread.parent`
+back to the true root (the last node whose `.parent` is still a
+`threadViewPost`) before running the existing downward `walk()`. Now every
+branch gets visited regardless of which post in the thread the visitor
+linked. Not yet re-verified against a real multi-branch thread in a
+browser — the harness screenshot pass only drives whatever fixture/page
+state loads by default, so if the next report says images are *still*
+missing from certain branches, check whether `parentHeight: 1000` is
+actually the server's max (it's documented as max 1000, same as `depth`,
+but unverified live) and whether `findRoot` stops correctly on a
+`blockedPost`/`notFoundPost` ancestor (it does — the while loop's
+`$type === 'threadViewPost'` guard excludes both, so climbing stops one
+short of a blocked/deleted ancestor rather than throwing).
 
 ## Decisions
 
@@ -52,11 +79,12 @@ the fullsize image in a new tab and shows `@handle` as a permanent
 
 ## The plan (not built yet, in order)
 
-1. **Verify in a real browser** (the harness screenshot pass covers this,
-   but specifically check): does a long thread (50+ replies, mixed
-   images/videos/quotes) render without the page locking up? The walker
-   has a 4000-node safety cap but was never run against a real large
-   thread.
+1. **Verify the root-climb fix against a real multi-branch thread** — does
+   pasting a link to a reply buried in the middle of a thread now pull
+   images from branches the walker couldn't reach before this turn? Also
+   check: does a long thread (50+ replies, mixed images/videos/quotes)
+   render without the page locking up? The walker has a 4000-node safety
+   cap but was never run against a real large thread.
 2. **Video thumbnails** are currently skipped entirely (`embed.$type ===
    'app.bsky.embed.video#view'` is ignored). If a future report asks for
    them, the video view carries a `thumbnail` field — easy add, but decide
