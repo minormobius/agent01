@@ -7544,6 +7544,16 @@
    "discovered": true
   },
   {
+   "id": "miniphim/site/comma-pump",
+   "name": "comma-pump",
+   "url": "https://miniphim.minomobi.com/site/comma-pump/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
    "id": "miniphim/site/delve-graph",
    "name": "delve-graph",
    "url": "https://miniphim.minomobi.com/site/delve-graph/",
@@ -7574,6 +7584,16 @@
    "discovered": true
   },
   {
+   "id": "miniphim/site/dice",
+   "name": "dice",
+   "url": "https://miniphim.minomobi.com/site/dice/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
    "id": "miniphim/site/garden",
    "name": "garden",
    "url": "https://miniphim.minomobi.com/site/garden/",
@@ -7591,6 +7611,26 @@
    "commits": 0,
    "age": "hot",
    "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/longevity",
+   "name": "longevity",
+   "url": "https://miniphim.minomobi.com/site/longevity/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/longevity/markers",
+   "name": "markers",
+   "url": "https://miniphim.minomobi.com/site/longevity/markers/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/longevity",
    "discovered": true
   },
   {

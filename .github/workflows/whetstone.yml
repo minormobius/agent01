@@ -195,6 +195,38 @@ jobs:
             -d "{\"ref\":\"${GITHUB_REF#refs/heads/}\"}" && echo "✓ deploy-miniphim dispatched" \
             || echo "::warning::deploy-miniphim could not be dispatched; it ships on the next push to miniphim/"
 
+      # A post that links the house waits for the house (Modulo, 2026-10-13): townAfter held any draft whose
+      # miniphim.minomobi.com link didn't answer 200, because the pages deploy only now. Wait for them (up to
+      # 12 minutes), publish what is ready under the same rules, and commit the record. What still isn't up
+      # waits in the outbox for the next town day.
+      - name: Post what waited for the house
+        if: success() && steps.req.outputs.list != ''
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+          MINIPHIM_APP_PASSWORD: ${{ secrets.MINIPHIM_APP_PASSWORD }}
+          DIRS: ${{ steps.commit.outputs.dirs }}
+          # Only worth waiting when this run dispatched a deploy; otherwise check once.
+          WAIT: ${{ steps.www.outputs.changed == 'true' && '720' || '0' }}
+        run: |
+          changed=0
+          while IFS= read -r d; do
+            [ -f "$d/commons/town/held.json" ] || continue
+            grep -q '"link_wait"' "$d/commons/town/held.json" || continue
+            echo "::group::$d"
+            node packages/whetstone/flush-held.mjs --run "$d" --town "$RUNNER_TEMP/miniphim-town-$(basename "$d").json" --wait "$WAIT" | tee /tmp/flush.json
+            echo "::endgroup::"
+            grep -q '"flushed":[1-9]' /tmp/flush.json && changed=1
+          done <<< "$DIRS"
+          [ "$changed" = 1 ] || { echo "nothing waited, or nothing came up"; exit 0; }
+          git add packages/whetstone/runs
+          git commit -m "whetstone: posted what waited for the house (${{ github.sha }})"
+          for i in 1 2 3 4 5 6 7 8; do
+            git push origin "HEAD:${GITHUB_REF#refs/heads/}" && exit 0
+            git pull --rebase origin "${GITHUB_REF#refs/heads/}" || true
+            sleep $((i * 8))
+          done
+          exit 1
+
       # If the record could not be pushed, it is not lost with the runner: download it from the run
       # page and commit it by hand (packages/whetstone/runs/<run>/ as it was written).
       - name: Keep the run if it could not be pushed

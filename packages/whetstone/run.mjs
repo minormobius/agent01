@@ -14,7 +14,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, cpSync, mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { join, dirname, resolve, relative, sep } from 'node:path';
+import { join, dirname, resolve, relative, sep, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cliModel, fakeModel, compatModel, DEFAULT_MODEL } from './lib/model.mjs';
 import { runLab, loadSoul, applyGates, DEFAULT_KINDS } from './lib/lab.mjs';
@@ -293,6 +293,12 @@ try {
       published: res.published.map((d) => ({ kind: d.kind, uri: d.uri || d.target, writer: d.writer, approved_by: d.approved_by || null })),
       held: res.held, failed: res.failed, acts: (townProxy?.log || []).map(({ at, part, kind, subject, failed }) => ({ at, part, kind, subject, ...(failed ? { failed } : {}) })) };
     console.error(`· town: published ${res.published.length}, held ${res.held.length}, failed ${res.failed.length}`);
+    // A post held for a house link goes out after this run's deploy (flush-held.mjs, a later step of the
+    // same job), which needs the day's inbox to decide replies. The inbox is never kept in the repo: it
+    // goes to the runner's own temp dir, gone with the runner.
+    if (res.held.some((h) => h.link_wait) && process.env.RUNNER_TEMP && tb.town) {
+      writeFileSync(join(process.env.RUNNER_TEMP, `miniphim-town-${basename(out)}.json`), JSON.stringify({ inbox: tb.town.inbox }));
+    }
   }
   if (!fake) { const n = replyLetters(after); if (n) console.error(`· letters: ${n} file(s) of theirs copied to letters/from-the-miniphim/`); }
   if (!fake) { const tools = publishTools(after); if (tools.length) { scorecard.run.tools_published = tools.map((t) => t.name); console.error(`· tools published: ${tools.map((t) => t.name).join(', ')}`); } }

@@ -627,6 +627,37 @@ await t('a town day: each part keeps only its own drafts and approvals; the lab 
   assert.match(JSON.parse(C['town/held.json']).held.find((h) => h.id === 'x1').why, /waiting for another part/);
 });
 
+await t('a post that links the house waits until the link answers 200, then goes out after the deploy', async () => {
+  const { townAfter, houseLinks } = await import('./lib/town-run.mjs');
+  const { flushHeld } = await import('./flush-held.mjs');
+  const { draftHash } = await import('../miniphim-account/town.mjs');
+  const d = { id: 'p1', writer: 'modulo', kind: 'post', text: 'New: https://miniphim.minomobi.com/comma-pump/ — Modulo' };
+  const plain = { id: 'p2', writer: 'modulo', kind: 'post', text: 'No link here. — Modulo' };
+  assert.deepEqual(houseLinks(d), ['https://miniphim.minomobi.com/comma-pump/']);
+  assert.deepEqual(houseLinks({ text: 'see https://example.org/x' }), [], 'only our own house is checked');
+  const C = { 'town/outbox/p1.json': JSON.stringify(d), 'town/approvals/p1.morphyx.json': JSON.stringify({ id: 'p1', part: 'morphyx', verdict: 'yes', hash: draftHash(d) }),
+    'town/outbox/p2.json': JSON.stringify(plain), 'town/approvals/p2.morphyx.json': JSON.stringify({ id: 'p2', part: 'morphyx', verdict: 'yes', hash: draftHash(plain) }) };
+  const published = [];
+  const publishImpl = async (out) => out.map((x) => { published.push(x.id); return { id: x.id, kind: x.kind, uri: `at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/town.delve.feed.post/${x.id}`, at: 'now', writer: x.writer }; });
+  let up = false; const checkLink = async () => (up ? 200 : 404);
+  const res = await townAfter(C, { town: null, password: 'pw', now: '2026-10-13T03:28:00Z', publishImpl, checkLink });
+  assert.deepEqual(published, ['p2'], 'the post without a house link goes; the one whose page is not up yet waits');
+  const h = res.held.find((x) => x.id === 'p1');
+  assert.deepEqual(h.link_wait, ['https://miniphim.minomobi.com/comma-pump/']); assert.match(h.why, /waiting for the house:.*\(404\)/);
+  assert.ok(C['town/outbox/p1.json'] && C['town/approvals/p1.morphyx.json'], 'it keeps its place and its yes');
+  // After the deploy: flush-held.mjs, on the run's commons as written to disk.
+  const runDir = mkdtempSync(join(tmpdir(), 'flush-')); (await import('./lib/commons.mjs')).writeTree(join(runDir, 'commons'), C);
+  let r = await flushHeld({ runDir, password: 'pw', waitMs: 0, checkLink, publishImpl });
+  assert.equal(r.flushed, 0); assert.match(r.note, /wait for the next town day/);
+  up = true;
+  r = await flushHeld({ runDir, password: 'pw', waitMs: 0, checkLink, publishImpl, now: () => '2026-10-13T03:35:00Z' });
+  assert.equal(r.flushed, 1); assert.deepEqual(published, ['p2', 'p1']);
+  assert.ok(!existsSync(join(runDir, 'commons', 'town', 'outbox', 'p1.json')), 'it leaves the outbox on disk');
+  assert.match(readFileSync(join(runDir, 'commons', 'town', 'sent.jsonl'), 'utf8'), /"id":"p1"[\s\S]*comma-pump/);
+  assert.equal(JSON.parse(readFileSync(join(runDir, 'commons', 'town', 'held.json'), 'utf8')).held.length, 0);
+  assert.equal((await flushHeld({ runDir, password: 'pw', checkLink, publishImpl })).flushed, 0, 'nothing waits twice');
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';

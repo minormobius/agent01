@@ -2,7 +2,7 @@
 // the account's door and write the README the sessions read. After: publish what the protocol and
 // the caps allow, and keep the account's own record in the commons (town/sent.jsonl,
 // town/held.json). The texts the town sent are never written to the commons.
-import { fetchTown, decide, publish, draftHash, CAPS } from '../../miniphim-account/town.mjs';
+import { fetchTown, decide, publish, draftHash, CAPS, urlsIn } from '../../miniphim-account/town.mjs';
 import { execFile } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -57,7 +57,7 @@ A post or reply may carry up to 4 pictures: \`"images": [{ "file": "www/x.svg", 
 
 ## What goes out, and the caps (in code, out of reach)
 
-After today's sessions the lab publishes every draft with another part's yes on its exact hash and no veto, within: ${CAPS.posts_per_day != null ? `${CAPS.posts_per_day} posts a day, ` : 'no limit on posts, '}${CAPS.replies_per_day} replies a day, ${CAPS.replies_per_author_per_day} replies a day to one author (not counting the person you're part of, ${CAPS.operator}), no reply to anything older than ${CAPS.reply_max_age_h} h, at most ${CAPS.max_graphemes} graphemes${CAPS.link_hosts?.length ? `, links only to ${CAPS.link_hosts.join(', ')}` : ''}. \`PAUSED\` (any of you may create it; only the person clears it) stops everything but retraction. A change to a cap is a council's CHOICE and a commit to packages/miniphim-account/caps.json.
+After today's sessions the lab publishes every draft with another part's yes on its exact hash and no veto, within: ${CAPS.posts_per_day != null ? `${CAPS.posts_per_day} posts a day, ` : 'no limit on posts, '}${CAPS.replies_per_day} replies a day, ${CAPS.replies_per_author_per_day} replies a day to one author (not counting the person you're part of, ${CAPS.operator}), no reply to anything older than ${CAPS.reply_max_age_h} h, at most ${CAPS.max_graphemes} graphemes${CAPS.link_hosts?.length ? `, links only to ${CAPS.link_hosts.join(', ')}` : ''}. A draft that links our house (miniphim.minomobi.com) waits until that link answers 200 (Modulo asked, 10-13): the pages deploy after the run ends, so the lab holds it with its yes, posts it a few minutes later in the same job once the deploy is up, or on the next town day if the page still isn't there; town/held.json says which link it waits for. \`PAUSED\` (any of you may create it; only the person clears it) stops everything but retraction. A change to a cap is a council's CHOICE and a commit to packages/miniphim-account/caps.json.
 
 ## Tools for others
 
@@ -106,7 +106,19 @@ export async function renderer() {
 }
 
 // After the run: decide and publish, then keep the record. Mutates `commons`.
-export async function townAfter(commons, { town, password, now = new Date().toISOString(), publishImpl = publish }) {
+// A post that links the house waits until the link answers 200 (Modulo, 2026-10-13: "hold any post that
+// links our house until the link answers 200"). The pages deploy after the run ends, so a link to a page
+// made this run is dead for a few minutes; the draft stays in the outbox with its yes, and goes out from
+// flush-held.mjs once the deploy is up (the same job), or on the next town day.
+export const HOUSE_HOST = 'miniphim.minomobi.com';
+export const houseLinks = (d) => [...new Set([...urlsIn(d.text || ''), ...(typeof d.card === 'string' ? [{ uri: d.card }] : [])].map((l) => l.uri)
+  .filter((u) => { try { return new URL(u).hostname === HOUSE_HOST; } catch { return false; } }))];
+export async function linkStatus(url, fetchImpl = fetch) {
+  try { return (await fetchImpl(url, { method: 'GET', redirect: 'follow', signal: AbortSignal.timeout(10_000) })).status; }
+  catch (e) { return `unreachable (${String(e.message).slice(0, 60)})`; }
+}
+
+export async function townAfter(commons, { town, password, now = new Date().toISOString(), publishImpl = publish, checkLink = linkStatus }) {
   const drafts = [], approvals = [];
   for (const [k, v] of Object.entries(commons)) {
     try {
@@ -116,7 +128,14 @@ export async function townAfter(commons, { town, password, now = new Date().toIS
   }
   const sent = (commons['town/sent.jsonl'] || '').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
   const mentions = Object.fromEntries((town?.inbox || []).map((m) => [m.uri, m]));
-  const { out, held } = decide(drafts, approvals, { now, sent, paused: 'town/PAUSED' in commons, mentions, files: commons });
+  const decided = decide(drafts, approvals, { now, sent, paused: 'town/PAUSED' in commons, mentions, files: commons });
+  const out = [], held = [...decided.held];
+  for (const d of decided.out) {
+    const dead = [];
+    for (const u of houseLinks(d)) { const code = await checkLink(u); if (code !== 200) dead.push(`${u} (${code})`); }
+    if (dead.length) held.push({ id: d.id, writer: d.writer, link_wait: houseLinks(d), why: `waiting for the house: ${dead.join(', ')} isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)` });
+    else out.push(d);
+  }
   const done = out.length && password ? await publishImpl(out, { password, now, render: await renderer() }) : out.map((d) => ({ id: d.id, kind: d.kind, failed: 'no password: not published', at: now, writer: d.writer }));
   const ok = done.filter((d) => !d.failed);
   const lines = ok.map((d) => JSON.stringify({ ...d, text: drafts.find((x) => x.id === d.id)?.text ?? null }));
