@@ -7,6 +7,9 @@ class Rack extends AudioWorkletProcessor {
     this.port.onmessage = async ({ data }) => {
       if (data.wasm) { const { instance } = await WebAssembly.instantiate(data.wasm); this.W = instance.exports; this.W.init(sampleRate); this.port.postMessage({ ready: true }); }
       if (data.events) { this.W && this.W.init(sampleRate); this.ev = data.events; this.k = 0; this.t = 0; this.drop = 0; this.peak = 0; }
+      // wander: the next phrase arrives while this one plays; the clock keeps running. Only the
+      // unplayed tail is copied (once a phrase, in the message handler, never inside process()).
+      if (data.more) { this.ev = this.ev.slice(this.k).concat(data.more); this.k = 0; }
       if (data.stop) { this.ev = []; this.k = 0; this.W && this.W.init(sampleRate); }
     };
   }

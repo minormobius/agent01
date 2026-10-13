@@ -1,0 +1,14 @@
+{
+ "at": "2026-10-13T15:49:46.704Z",
+ "held": [
+  {
+   "id": "morphyx-wander",
+   "writer": "morphyx",
+   "link_wait": [
+    "https://miniphim.minomobi.com/wander/"
+   ],
+   "why": "waiting for the house: https://miniphim.minomobi.com/wander/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
+  }
+ ],
+ "failed": []
+}

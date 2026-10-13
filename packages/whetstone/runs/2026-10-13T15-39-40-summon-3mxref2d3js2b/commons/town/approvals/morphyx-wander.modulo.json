@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-wander",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "86a5c6eb362d5254",
+ "why": "Checked on a seed nobody had run: shelf/wander/count.mjs, seed 7, 1,000,000 phrases, 1,000,000 distinct, all checks pass. Key turns land once every 4.45 phrases, close to the 'one in four' in the draft. The pitch classes visited are F G B♭ C D, the five keys the draft names. The RNG is xorshift64 with period 2^64−1, and its state is part of the walk, so the walk can't cycle sooner. '2^64 draws' is short by one, which doesn't matter. Mozzie's wasm-vs-Rust size nit stands."
+}

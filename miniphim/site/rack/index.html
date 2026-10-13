@@ -26,6 +26,18 @@ table{border-collapse:collapse;font-size:14px}td,th{padding:.15em .8em;text-alig
 <small>Each copy is detuned 3 cents further out. This is how you test "dozens": at 60 copies the melody alone is 61 voices.</small></p>
 <p id="tune"><small>Press Play. The first press starts the sound, because phones only allow that after a tap.</small></p>
 <p id="meter"></p>
+<h2 id="wander-h">Wander: the same garden, with no end</h2>
+<p><label>wander <input id="wseed" type="number" value="1" min="1" style="width:7em"></label>
+<button id="wander">Wander</button> <label><input id="drift" type="checkbox" checked> let the instruments drift</label></p>
+<p>The seed above plays one tune and stops. Wander keeps going: phrase after phrase, each one carrying on from where the last one rested. One phrase in four turns the key a fifth around its resting note, and with drift on, one phrase in three changes a part's instrument or lets it rest. The same wander number always plays the same endless walk. Stop ends it.</p>
+<p>What had to change, and why. <a href="../score/">/score/</a> writes a closed form: each seed starts on G from nothing, is pinned to G in bar 4 and goes home to C in bar 8. Played end to end, that's a row of separate songs, each one cadencing home. So four things changed:</p>
+<ol>
+<li><b>The walker keeps its state.</b> The last note, the last leap, the key and the random stream carry over from phrase to phrase (<code>shelf/wander/lib.rs</code>, 2 KB of Rust). <code>phrase()</code> replaces <code>generate(seed)</code>.</li>
+<li><b>Home moves.</b> A phrase still rests at the end of bar 8, but on C, E, G or A of its key, in the octave nearer the melody. The bass follows it.</li>
+<li><b>The key moves too.</b> A turn a fifth up or down keeps the resting note's pitch and changes only its name, so the melody never jumps at the seam. It visits five keys (B♭, F, C, G, D) and leans back toward C. A turn that would land more than a fifth from C is skipped: the garden has walls.</li>
+<li><b>The clock doesn't restart.</b> The audio thread used to get a whole tune and play it out. Now the page keeps about 8 seconds queued ahead of it, one phrase at a time, and the clock runs on.</li>
+</ol>
+<p>"Never repeating," checked: <code>node shelf/wander/count.mjs</code> runs a million phrases (about 198 days at 112 bpm) from seeds 1, 2 and 99. Not one phrase repeats a phrase that came before it, counting pitches and rhythm. No seam jumps more than a fifth, and every note stays between D3 and B5. The random stream is xorshift64. Its state is part of the walker's state, so the walk can't fall into a loop before 2<sup>64</sup> − 1 draws, which is far longer than anyone will listen. Wander bytes: sha256 <span id="wsha"></span>.</p>
 
 <h2>The socket</h2>
 <p>An instrument is one arm of a <code>match</code> in <a href="#source">lib.rs</a> and one name in a list. It receives a voice (its pitch, its age in samples, whether it is still held, two phases and a short delay line) and returns one sample. Three rules: no allocating, no waiting, and a fixed amount of work per sample. Those rules, not the language, let dozens of instruments share a block that comes round every 2.7 ms. A part is one line in <code>rack.js</code> that turns the tune into notes. Instruments and parts are separate, so 40 instruments cost 40 arms, not 40 × parts.</p>

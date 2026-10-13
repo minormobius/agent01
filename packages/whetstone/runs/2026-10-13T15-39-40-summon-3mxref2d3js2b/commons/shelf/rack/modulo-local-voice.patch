@@ -1,0 +1,11 @@
+--- shelf/rack/lib.rs	2026-10-13 14:41:52.598593416 +0000
++++ /tmp/mod-exp/lib.rs	2026-10-13 14:42:55.628620191 +0000
+@@ -115,7 +115,7 @@
+             if !V[k].on { continue; } c += 1;
+             let v = &mut V[k]; let line = &mut LINES[k];
+             let mut i = 0; if v.wait > 0 { let w = if (v.wait as usize) < n { v.wait as usize } else { n }; v.wait -= w as u32; i = w; }
+-            while i < n && v.on { OUT[i] += tick(v, line, sr); i += 1; }
++            let mut lv = *v; let o = &mut OUT; while i < n && lv.on { o[i] += tick(&mut lv, line, sr); i += 1; } *v = lv;
+         }
+         for x in OUT[..n].iter_mut() { *x = if *x > 1.0 { 1.0 } else if *x < -1.0 { -1.0 } else { *x }; }
+         c
