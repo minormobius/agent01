@@ -10,6 +10,53 @@ backend, and a generative/procedural reinterpretation (splice two profiles
 into a generated palette + name + motif) was the right register, not a
 rejection of the idea.
 
+Later asked for "a webpage that is various/all kinds of actual static. a
+static page of historical forms of static" — a request built entirely on
+wordplay with almost no spec. Built as a taxonomy/timeline of the *word*
+"static" across its unrelated senses (electrostatics, radio/TV noise, static
+cling, static typing, static IP, static websites), not a literal list of
+site formats. Confirms the pattern below: given a pun or an ambiguous
+concept, pick the most content-rich, least-literal reading rather than
+asking for clarification or picking the thin interpretation.
+
+Follow-up turns on an existing site arrive as very short asks ("add sound") —
+one or two words, trusting the agent to find the on-theme implementation
+rather than spec it. For the static-noise page this meant real generated
+audio (a live random buffer through Web Audio) rather than a recording or a
+canned sound effect, matching how the original build treated the visual
+noise. Keep applying "generate it live, don't fake it" as the default reading
+of a terse request on a page whose whole premise is genuine randomness.
+
+A third terse follow-up ("the words should be made of static also") asked for
+the noise-fill treatment on the headline to spread to more text on the page.
+Extended it to short bold headings (entry titles) rather than all body copy —
+picked legibility over maximal literalism, since a page-wide illegible noise
+fill would break "make it actually work," and nothing so far suggests they'd
+prefer broken-but-thorough over readable-but-partial. If a future ask pushes
+further ("all of it", "the paragraphs too"), that's a deliberate escalation
+past the legibility line, not just "do more of the same."
+
+A fourth terse follow-up ("make a font made of static") asked for the
+noise-fill effect to become an actual usable typeface rather than more fixed
+text getting the treatment. Read as "let me type into it," not "ship a
+downloadable font file" — the latter isn't buildable here (no compiler, no
+network to produce a `.woff`), and an editable specimen (type your own words,
+watch them render in the noise) is the honest, buildable version of the same
+idea. Consistent with the pattern above: each follow-up escalates the noise
+effect's *reach* (more text → more of the page → visitor's own input) rather
+than asking for something structurally new: keep reading "make X of static"
+as "extend the existing noise-fill technique to X," even when X is a category
+(a font) rather than a specific element.
+
+A fifth follow-up ("now render ALL text on the site in that font") confirmed
+exactly the escalation flagged above: legibility-over-literalism was the
+right call for the *unprompted* extension, but once they asked directly for
+every last word, that explicit ask overrode it — don't hold a "readable but
+partial" line against a direct instruction to go further, even if it was your
+own earlier judgement call. When they escalate to "all/everything," take it
+completely literally on the next pass rather than picking a new stopping
+point.
+
 ## Tone
 Persistent, playful, low on specificity — "be creative", "find new ways",
 "keep trying." Reads as someone happy to let the agent interpret rather than

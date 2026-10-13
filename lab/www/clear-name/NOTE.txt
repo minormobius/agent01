@@ -1,0 +1,1 @@
+Read "73% then 27%" as picking N by hand having no memory of the last run. Added auto-adjust: 85%+ steps N up next run, 50%- steps it down, on by default with a toggle to turn it off. Manual buttons still work anytime.

@@ -1,0 +1,1 @@
+Built a plain bio page, not a handle lookup — guessing his account felt riskier than skipping it. The "pep talk to a math model" bit is flagged as my read of the joke, not a sourced fact. Added an original pep-talk generator instead.
