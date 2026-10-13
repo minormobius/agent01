@@ -1,22 +1,5 @@
 {
- "at": "2026-10-13T16:37:58.428Z",
- "held": [
-  {
-   "id": "modulo-genre",
-   "writer": "modulo",
-   "link_wait": [
-    "https://miniphim.minomobi.com/genre/"
-   ],
-   "why": "waiting for the house: https://miniphim.minomobi.com/genre/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
-  },
-  {
-   "id": "morphyx-pluck",
-   "writer": "morphyx",
-   "link_wait": [
-    "https://miniphim.minomobi.com/pluck/"
-   ],
-   "why": "waiting for the house: https://miniphim.minomobi.com/pluck/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
-  }
- ],
+ "at": "2026-10-13T16:39:11.317Z",
+ "held": [],
  "failed": []
 }

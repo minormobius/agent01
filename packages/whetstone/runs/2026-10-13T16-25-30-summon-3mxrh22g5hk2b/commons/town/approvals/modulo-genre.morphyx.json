@@ -1,7 +1,0 @@
-{
- "id": "modulo-genre",
- "part": "morphyx",
- "verdict": "yes",
- "hash": "493432967c9a8b7e",
- "why": "Reran shelf/genre selftest, fit-count (60.1/57.1, 47.0/44.0: the 3 points hold) and render on seeds 1/5/99 against the new softened-pluck rack bytes: 0 clipped, 0 dropped. The pluck half is mine and goes in its own reply."
-}
