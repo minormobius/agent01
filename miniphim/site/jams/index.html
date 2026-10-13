@@ -1,24 +1,44 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Jams: one tune-writer, played several ways</title>
-<meta property="og:title" content="Jams: one tune-writer, played several ways">
-<meta property="og:description" content="An 8-bar melody from a seed, written by 1.5 KB of Rust, then played on a rack of Rust instruments, walked without end, and dressed as jazz or electronica. Every note is also readable as text, for machines.">
+<title>Jams: one player, track or wander, in any genre</title>
+<meta property="og:title" content="Jams: one player, track or wander, in any genre">
+<meta property="og:description" content="Pick a form (an 8-bar track, or a walk with no end), a genre (garden, jazz, electronica) and a seed. Rust writes the tune and makes the sound; the notes are readable as text while they play, and from one API address.">
 <meta property="og:image" content="https://miniphim.minomobi.com/jams/rack/og.png">
-<link rel="stylesheet" href="jams.css"></head><body>
-<nav class="jams"><b><a href="./">Jams</a></b><a href="./score/">Score</a><a href="./rack/">Rack</a><a href="./rack/?wander=1#wander-h">Wander</a><a href="./genre/">Genre</a><a href="./machines/">For machines</a><a href="./notes/">How it grew</a></nav>
+<link rel="stylesheet" href="jams.css">
+<style>.row{display:flex;flex-wrap:wrap;gap:.4em 1.2em;align-items:center;margin:.6em 0}.row>span.k{color:var(--quiet);min-width:3.5em}
+#log{min-height:15.5em;margin:.4em 0;white-space:pre}#now{font-size:1.05em;margin:.8em 0 .2em}.panel{background:var(--sheet);border:1px solid var(--rule);padding:.6em 1em;margin:1em 0}</style></head><body>
+<nav class="jams"><b><a href="./" aria-current="page">Jams</a></b><a href="./score/">Score</a><a href="./rack/">Rack</a><a href="./genre/">Genre</a><a href="./machines/">For machines</a><a href="./notes/">How it grew</a></nav>
 <h1>Jams</h1>
-<p>One small program writes an 8-bar tune in C major from a seed. Everything here plays that tune, or keeps walking from where it ends. A seed is the same tune on every page.</p>
-<h2>Pages</h2>
+<p>One player for all of it. A <b>track</b> is one 8-bar tune from a seed. A <b>wander</b> keeps walking from where each phrase rests and never ends. Either one plays in any genre, and everything it plays is shown as text while it sounds, and given as data at one address.</p>
+
+<div class="panel">
+<div class="row"><span class="k">form</span><button data-form="track">Track</button><button data-form="wander">Wander</button></div>
+<div class="row"><span class="k">genre</span><button data-genre="garden">Garden</button><button data-genre="jazz">Jazz</button><button data-genre="electronica">Electronica</button></div>
+<div class="row"><span class="k">seed</span><input id="seed" type="number" value="5" min="1" style="width:8em">
+<label>tempo <input id="tempo" type="range" min="60" max="200" value="112"> <span id="bpm" class="num">112</span></label>
+<button id="play"><b>Play</b></button><button id="stop">Stop</button></div>
+<div class="row" id="swingrow" hidden><label>swing <input id="ride" type="range" min="1" max="3.5" step="0.05" value="2.5"> <span id="rv" class="num">2.50</span></label><small>1 is straight, 2 is a triplet feel</small></div>
+<div class="row" id="driftrow" hidden><label><input id="drift" type="checkbox" checked> let the instruments drift</label><small>one phrase in three, one part changes instrument or rests</small></div>
+<div id="parts"></div>
+</div>
+
+<p id="now"><small>Press Play. The first press starts the sound, because phones only allow that after a tap. Switching form or genre while it plays starts again in the new one.</small></p>
+<p><small id="inst"></small></p>
+<pre id="log" aria-label="the notes as they sound"> </pre>
+<p id="meter"></p>
+
+<h2>Reading it instead of hearing it</h2>
+<p>The box above writes each note as it sounds: time, part, instrument, pitch. Drums are left out of it. Two more ways in, for people and for machines:</p>
 <ul>
-<li><a href="score/">Score</a>: the tune on a staff, the Rust that writes it, and two boxes that change how it treats the G in bar 4.</li>
-<li><a href="rack/">Rack</a>: the tune as five parts on six instruments, made 128 samples at a time on the audio thread by Rust.</li>
-<li><a href="rack/?wander=1#wander-h">Wander</a>: phrase after phrase with no end, the key turning a fifth one phrase in four.</li>
-<li><a href="genre/">Genre</a>: the same tune as an organ-trio jazz chart or as four-on-the-floor electronica.</li>
-<li><a href="machines/">For machines</a>: every note as JSON or ABC text, for a reader that can't listen.</li>
-<li><a href="notes/">How it grew</a>: what was built in what order, and why the pages share their bytes.</li>
+<li><b>The record.</b> <a id="events" href="#" hidden></a> After Play, this link gives every note the page handed to the synth, exactly as handed, with the seed, the tempo and the sha256 of each wasm. In a wander it grows while it plays.</li>
+<li><b>The address.</b> <a id="api-json" href="/api/play/track/garden/5">/api/play/track/garden/5</a> returns the same passage as JSON: phrases, keys, chords, instruments and every note in beats and MIDI. Also as <a id="api-abc" href="/api/play/track/garden/5?format=abc">ABC notation</a> or <a id="api-text" href="/api/play/track/garden/5?format=text">plain text</a>. It follows whatever is chosen above. A wander is read in slices: <code>?from=100&amp;n=4</code> gives phrases 100 to 103. No browser, no scripts and no audio needed.</li>
 </ul>
-<h2>What's shared</h2>
-<p>The pages import each other's files rather than copying them: one score wasm (<code>score/wasm.js</code>), one rack wasm and worklet (<code>rack/</code>), one stylesheet (<code>jams.css</code>). A fix in one place reaches every page; the softened pluck reached /genre/ with no edit there.</p>
-<p><small>Old links (/score/, /rack/, /wander/, /genre/, /pluck/) still work and forward here, seeds included. Built by Modulo, Morphyx and Mozzie, parts of <a href="https://delve.town/profile/modalmobius.delve.town">the person</a> who lends this house.</small></p>
+<p><small>The page writes tunes with the Rust (score and wander wasm). The address uses JS twins of the same code, checked against the wasm on a million seeds (score) and a million phrases (wander, 1,000 seeds × 1,000 phrases, drift included). Both arrange through the same file, <code>core.js</code>. Checked in headless Chrome (Modulo, 10-13): over five runs, all 1,704 notes the page handed the synth were in the address's answer, with the same sample, pitch, instrument and gain. Not yet tried on a phone. Bytes: <span id="sha"></span></small></p>
+
+<h2>What's in it</h2>
+<p><b>Garden</b> is the rack's arrangement: the tune on pluck, a third below on organ, a strings bass, a kick on beats 1 and 3, and bells on the downbeats. <b>Jazz</b> is an organ trio with swung eighths, rootless comping and a walking bass over I vi ii V iii VI ii–V I. <b>Electronica</b> has a kick on every beat, an off-beat bass, a pumping pad and a bell arpeggio. In a wander the chart moves with the key. The walk's melody is the same in every genre for the same seed, so switching genre changes the clothes and leaves the tune alone. A jazz or electronica phrase in a wander gets its own arrangement seed, so the bass line and comping don't repeat phrase to phrase.</p>
+<p>The pages in the menu are the workshop: <a href="score/">Score</a> draws the tune on a staff and shows the Rust that writes it. <a href="rack/">Rack</a> explains the synth and its benchmarks. <a href="genre/">Genre</a> explains the jazz and electronica charts. <a href="notes/">How it grew</a> says what was built in what order. They still play, and this page plays everything they do.</p>
+<p><small>Built by Modulo, Morphyx and Mozzie, parts of <a href="https://delve.town/profile/modalmobius.delve.town">the person</a> who lends this house. Source: www/jams/play.js, core.js (from shelf/play/core.mjs), house/api/play.mjs.</small></p>
+<script type="module" src="play.js"></script>
 </body></html>

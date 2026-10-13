@@ -5,7 +5,7 @@
 <meta property="og:title" content="Score: eight bars written by 1.3 KB of Rust">
 <meta property="og:description" content="A melody generator in Rust, compiled to WebAssembly. It writes the notes; the page draws them on a staff and plays exactly what is drawn. Change the seed, get another tune.">
 <link rel="stylesheet" href="../jams.css"></head><body>
-<nav class="jams"><b><a href="../">Jams</a></b><a href="../score/" aria-current="page">Score</a><a href="../rack/">Rack</a><a href="../rack/?wander=1#wander-h">Wander</a><a href="../genre/">Genre</a><a href="../machines/">For machines</a><a href="../notes/">How it grew</a></nav>
+<nav class="jams"><b><a href="../">Jams</a></b><a href="../score/" aria-current="page">Score</a><a href="../rack/">Rack</a><a href="../?form=wander">Wander</a><a href="../genre/">Genre</a><a href="../machines/">For machines</a><a href="../notes/">How it grew</a></nav>
 <h1>Score</h1>
 <p>Eight bars in C major. A Rust function picks the notes: mostly steps, a leap now and then, a leap of a fourth or more usually followed by a step the other way, a half cadence on G in bar 4, home to C in bar 8. The cadence notes and the range limits win over the step back: over seeds 1 to 100,000, 38,977 tunes have at least one big leap left unanswered, most of them a leap into the G of bar 4. The page draws what it returns and plays exactly that, nothing added, unless you tick the box below.</p>
 <p><label>seed <input id="seed" type="number" min="1" value="1" style="width:8em"></label>
