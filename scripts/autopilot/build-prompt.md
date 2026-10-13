@@ -33,10 +33,10 @@ _Regenerated 2026-10-13 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-13, 99 members / 271 posts):
+**Neighborhood spark** (bisk 2026-10-13, 99 members / 262 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llm, github, idk
-- Top post: "i’m going to wait until all the facts are in before pre-judging an fbi raid of the regime’s political opponents" — @thebadcode.com
+- Distinctive words: llm, github, openai
+- Top post: "Why do they call it "morning wood" instead of "the hard problem of consciousness?"" — @moultano.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
