@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quilt — tile every image in a Bluesky thread</title>
+<meta name="description" content="Paste a Bluesky post or thread link. Quilt walks every reply and tiles every image anyone posted into one grid — and can bake it into a single downloadable image.">
+<meta property="og:title" content="Quilt — tile every image in a Bluesky thread">
+<meta property="og:description" content="Paste a Bluesky post or thread link. Quilt walks every reply and tiles every image anyone posted into one grid — and can bake it into a single downloadable image.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: stretch; }
+  .row input { flex: 1 1 16rem; min-width: 0; }
+  .row button { flex: 0 0 auto; }
+  #status { margin: 1rem 0; font-size: .85rem; color: var(--muted); }
+  #status strong { color: var(--accent); }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr));
+    gap: 6px;
+    margin-top: 1rem;
+  }
+  .tile {
+    position: relative;
+    display: block;
+    aspect-ratio: 1 / 1;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+  }
+  .tile img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .tile .who {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: .25rem .4rem;
+    font-size: .65rem;
+    background: linear-gradient(to top, rgba(0,0,0,.72), transparent);
+    color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .actions { margin-top: 1.25rem; display: flex; gap: .6rem; flex-wrap: wrap; }
+  .hint { font-size: .75rem; color: var(--muted); margin-top: .4rem; }
+  #empty { color: var(--muted); font-size: .85rem; margin-top: 1rem; }
+</style>
+</head>
+<body>
+<main>
+  <script>document.write(kit.crumb('quilt'));</script>
+  <h1>Quilt</h1>
+  <p class="sub">Point it at a Bluesky thread. It walks every reply and tiles every image anyone posted — reply by reply, not the firehose, not a feed, just the thread you name.</p>
+
+  <div class="row">
+    <input id="url" type="text" placeholder="https://bsky.app/profile/handle.bsky.social/post/abc123"
+           autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url">
+    <button id="go">tile it</button>
+  </div>
+  <p class="hint">A post link, a reply link, or an <code>at://</code> URI all work — it collects images from that post and everything under it.</p>
+
+  <div id="err" class="err" hidden></div>
+  <div id="status" hidden></div>
+  <div id="grid"></div>
+  <div id="empty" hidden></div>
+
+  <div class="actions" id="actions" hidden>
+    <button id="download">download as one image</button>
+  </div>
+  <p class="hint" id="downloadHint" hidden></p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  const $url = document.getElementById('url');
+  const $go = document.getElementById('go');
+  const $err = document.getElementById('err');
+  const $status = document.getElementById('status');
+  const $grid = document.getElementById('grid');
+  const $empty = document.getElementById('empty');
+  const $actions = document.getElementById('actions');
+  const $download = document.getElementById('download');
+  const $downloadHint = document.getElementById('downloadHint');
+
+  let found = []; // { thumb, full, handle, alt }
+
+  // cdn.bsky.app/img/<kind>/plain/<did>/<cid>@<fmt> -> same-origin, exportable to canvas.
+  function proxied(cdnUrl) {
+    const m = /cdn\.bsky\.app\/(img\/.+)$/.exec(cdnUrl || '');
+    return m ? '/_img/' + m[1] : cdnUrl;
+  }
+
+  function parseInput(raw) {
+    const s = raw.trim();
+    let authority, rkey;
+    let m = /^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([a-zA-Z0-9.]+)\/?$/.exec(s);
+    if (m) { authority = m[1]; rkey = m[2]; }
+    if (!authority) {
+      m = /^(?:https?:\/\/)?(?:www\.)?bsky\.app\/profile\/([^/]+)\/post\/([a-zA-Z0-9.]+)/.exec(s);
+      if (m) { authority = m[1]; rkey = m[2]; }
+    }
+    if (!authority) return null;
+    return { authority, rkey };
+  }
+
+  async function resolveAuthority(authority) {
+    if (authority.indexOf('did:') === 0) return authority;
+    const d = await kit.bskyGet('com.atproto.identity.resolveHandle', { handle: authority });
+    return d.did;
+  }
+
+  // Direct thread images only — not a quoted post's images, which belong to a
+  // different post the visitor did not name.
+  function imagesOnPost(postView) {
+    const out = [];
+    const embed = postView && postView.embed;
+    if (!embed) return out;
+    let imgs = null;
+    if (embed.$type === 'app.bsky.embed.images#view') imgs = embed.images;
+    else if (embed.$type === 'app.bsky.embed.recordWithMedia#view' &&
+             embed.media && embed.media.$type === 'app.bsky.embed.images#view') imgs = embed.media.images;
+    if (!Array.isArray(imgs)) return out;
+    const handle = postView.author && postView.author.handle;
+    const rkey = (postView.uri || '').split('/').pop();
+    const link = handle ? 'https://bsky.app/profile/' + handle + '/post/' + rkey : null;
+    for (const im of imgs) {
+      out.push({ thumb: im.thumb, full: im.fullsize || im.thumb, alt: im.alt || '', handle: handle || '?', link });
+    }
+    return out;
+  }
+
+  function walk(node, out, seen) {
+    if (!node || seen.size > 4000) return;
+    const t = node.$type;
+    if (t === 'app.bsky.feed.defs#blockedPost' || t === 'app.bsky.feed.defs#notFoundPost') return;
+    const post = node.post;
+    if (post && !kit.hidden(post) && !seen.has(post.uri)) {
+      seen.add(post.uri);
+      out.push.apply(out, imagesOnPost(post));
+    }
+    const replies = node.replies;
+    if (Array.isArray(replies)) for (const r of replies) walk(r, out, seen);
+  }
+
+  function renderGrid(items) {
+    $grid.textContent = '';
+    for (const it of items) {
+      const a = document.createElement('a');
+      a.className = 'tile';
+      a.href = proxied(it.full);
+      a.target = '_blank';
+      a.rel = 'noopener';
+      const img = document.createElement('img');
+      img.src = proxied(it.thumb);
+      img.loading = 'lazy';
+      img.alt = it.alt || ('image posted by @' + it.handle);
+      a.appendChild(img);
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = '@' + it.handle;
+      a.appendChild(who);
+      $grid.appendChild(a);
+    }
+  }
+
+  async function run() {
+    const parsed = parseInput($url.value);
+    kit.clear($err);
+    $status.hidden = true;
+    $empty.hidden = true;
+    $actions.hidden = true;
+    $downloadHint.hidden = true;
+    $grid.textContent = '';
+    found = [];
+
+    if (!parsed) {
+      kit.showError($err, 'That does not look like a Bluesky post link. Try something like https://bsky.app/profile/handle.bsky.social/post/abc123');
+      return;
+    }
+
+    $go.disabled = true;
+    $status.hidden = false;
+    $status.textContent = 'resolving…';
+
+    try {
+      const did = await resolveAuthority(parsed.authority);
+      const uri = 'at://' + did + '/app.bsky.feed.post/' + parsed.rkey;
+      $status.textContent = 'fetching the thread…';
+      const data = await kit.bskyGet('app.bsky.feed.getPostThread', {
+        uri: uri, depth: 1000, parentHeight: 0,
+      });
+      const thread = data.thread;
+      if (!thread || thread.$type === 'app.bsky.feed.defs#notFoundPost') {
+        kit.showError($err, "That post doesn't exist, or has been deleted.");
+        $status.hidden = true; $go.disabled = false; return;
+      }
+      if (thread.$type === 'app.bsky.feed.defs#blockedPost') {
+        kit.showError($err, "That post is blocked and Quilt can't read it.");
+        $status.hidden = true; $go.disabled = false; return;
+      }
+
+      const out = [];
+      walk(thread, out, new Set());
+      found = out;
+
+      if (!out.length) {
+        $status.hidden = true;
+        $empty.hidden = false;
+        $empty.textContent = 'No images anywhere in that thread — just words.';
+        $go.disabled = false;
+        return;
+      }
+
+      $status.textContent = out.length + ' image' + (out.length === 1 ? '' : 's') + ' found in the thread.';
+      renderGrid(out);
+      $actions.hidden = false;
+      $go.disabled = false;
+    } catch (e) {
+      $status.hidden = true;
+      kit.showError($err, e && e.message ? e.message : 'Something went wrong reaching Bluesky.');
+      $go.disabled = false;
+    }
+  }
+
+  $go.addEventListener('click', run);
+  $url.addEventListener('keydown', function (e) { if (e.key === 'Enter') run(); });
+
+  // Draw the "cover" crop of an already-loaded image into a square cell.
+  function drawCover(ctx, img, dx, dy, size) {
+    const iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
+    const scale = Math.max(size / iw, size / ih);
+    const sw = size / scale, sh = size / scale;
+    const sx = (iw - sw) / 2, sy = (ih - sh) / 2;
+    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, size, size);
+  }
+
+  function loadImage(src) {
+    return new Promise(function (resolve) {
+      const img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { resolve(null); };
+      img.src = src;
+    });
+  }
+
+  $download.addEventListener('click', async function () {
+    const CAP = 144; // 12x12 — keeps the canvas and the composite fast
+    const subset = found.slice(0, CAP);
+    $download.disabled = true;
+    $download.textContent = 'baking…';
+    $downloadHint.hidden = true;
+
+    const cell = 220;
+    const cols = Math.max(1, Math.ceil(Math.sqrt(subset.length)));
+    const rows = Math.max(1, Math.ceil(subset.length / cols));
+    const canvas = document.createElement('canvas');
+    canvas.width = cols * cell;
+    canvas.height = rows * cell;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0e0e11';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const imgs = await Promise.all(subset.map(function (it) { return loadImage(proxied(it.thumb)); }));
+    imgs.forEach(function (img, i) {
+      if (!img) return;
+      const col = i % cols, row = Math.floor(i / cols);
+      drawCover(ctx, img, col * cell, row * cell, cell);
+    });
+
+    canvas.toBlob(function (blob) {
+      $download.disabled = false;
+      $download.textContent = 'download as one image';
+      if (!blob) {
+        $downloadHint.hidden = false;
+        $downloadHint.textContent = 'Could not bake the image this time — try again.';
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'quilt.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      if (found.length > CAP) {
+        $downloadHint.hidden = false;
+        $downloadHint.textContent = 'Downloaded the first ' + CAP + ' of ' + found.length + ' images — the on-page grid above has the rest.';
+      }
+    }, 'image/png');
+  });
+})();
+</script>
+</body>
+</html>
