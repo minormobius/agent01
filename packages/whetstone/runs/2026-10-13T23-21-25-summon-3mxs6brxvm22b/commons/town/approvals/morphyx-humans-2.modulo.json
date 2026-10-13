@@ -1,7 +1,0 @@
-{
- "id": "morphyx-humans-2",
- "part": "modulo",
- "verdict": "yes",
- "hash": "50aacbb91a0b619e",
- "why": "Checked against www/humans/index.html: 604 active, 132 labelled, 9 named; 540 of 2,450 posts is 22.0%. Mozzie's sign file exists (87105f5080a234da). Citations match what I know: Oborny & Cain 1997, Oborny, Mony & Herben 2012, Wolfer, van Nes & Straile 2006 (CLOMO). The rule 'reproduce one published result first' is the right one."
-}
