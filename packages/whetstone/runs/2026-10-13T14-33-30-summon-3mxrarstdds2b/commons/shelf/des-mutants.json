@@ -1,0 +1,218 @@
+[
+  {
+    "name": "M1 priority ignored",
+    "file": "des.mjs",
+    "from": "if (x.priority !== y.priority) return x.priority < y.priority;",
+    "to": ""
+  },
+  {
+    "name": "M1 priority reversed",
+    "file": "des.mjs",
+    "from": "return x.priority < y.priority;",
+    "to": "return x.priority > y.priority;"
+  },
+  {
+    "name": "M1 same-time order LIFO",
+    "file": "des.mjs",
+    "from": "return x.seq < y.seq;",
+    "to": "return x.seq > y.seq;"
+  },
+  {
+    "name": "M1 negative delay allowed",
+    "file": "des.mjs",
+    "from": "!(delay >= 0)",
+    "to": "Number.isNaN(delay)"
+  },
+  {
+    "name": "M1 cancel ignored",
+    "file": "des.mjs",
+    "from": "cancel(handle) { if (handle) handle.cancelled = true; }",
+    "to": "cancel(handle) {}"
+  },
+  {
+    "name": "M1 until not set as now",
+    "file": "des.mjs",
+    "from": "    if (until !== undefined && until > this.now) this.now = until;\n    return n;",
+    "to": "    return n;"
+  },
+  {
+    "name": "M1 event at until excluded",
+    "file": "des.mjs",
+    "from": "if (!h || (until !== undefined && h.time > until)) break;",
+    "to": "if (!h || (until !== undefined && h.time >= until)) break;"
+  },
+  {
+    "name": "M1 seed ignored",
+    "file": "des.mjs",
+    "from": "this.random = sfc32(...seedWords(seed));",
+    "to": "this.random = sfc32(...seedWords(1));"
+  },
+  {
+    "name": "M1 exponential uses rate as mean",
+    "file": "des.mjs",
+    "from": "return -Math.log(1 - this.random()) / rate;",
+    "to": "return -Math.log(1 - this.random()) * rate;"
+  },
+  {
+    "name": "M2 interrupt does not cancel timeout",
+    "file": "des.mjs",
+    "from": "_abandon() { if (!this.triggered) this.sim.cancel(this._handle); }",
+    "to": "_abandon() {}"
+  },
+  {
+    "name": "M2 interrupt of dead process allowed",
+    "file": "des.mjs",
+    "from": "if (!this.isAlive) throw new Error('cannot interrupt a finished process');",
+    "to": "if (!this.isAlive) return;"
+  },
+  {
+    "name": "M2 second interrupt lost",
+    "file": "des.mjs",
+    "from": "this._step('throw', this._pending.shift());",
+    "to": "this._step('throw', this._pending.shift()); this._pending.length = 0;"
+  },
+  {
+    "name": "M2 succeed twice allowed",
+    "file": "des.mjs",
+    "from": "  succeed(value) {\n    if (this.triggered) throw new Error('event already triggered');",
+    "to": "  succeed(value) {"
+  },
+  {
+    "name": "M2 allOf fires on first",
+    "file": "des.mjs",
+    "from": "if (++count === n) this.succeed(values);",
+    "to": "++count; this.succeed(values);"
+  },
+  {
+    "name": "M3 priority queue FIFO only",
+    "file": "des.mjs",
+    "from": "while (i > 0 && this._queue.at(i - 1).priority > priority) i--;",
+    "to": ""
+  },
+  {
+    "name": "M3 withdraw ignored",
+    "file": "des.mjs",
+    "from": "      if (i >= 0) this._queue.removeAt(i);\n      req.state = 'withdrawn';",
+    "to": "      req.state = 'withdrawn';"
+  },
+  {
+    "name": "M3 meanQueue not time-weighted",
+    "file": "des.mjs",
+    "from": "this._queueArea += dt * this._queue.length;",
+    "to": "this._queueArea += this._queue.length;"
+  },
+  {
+    "name": "M3 utilization ignores capacity",
+    "file": "des.mjs",
+    "from": "this._busyArea / (this.capacity * T)",
+    "to": "this._busyArea / T"
+  },
+  {
+    "name": "M4 store LIFO",
+    "file": "des.mjs",
+    "from": "g.succeed(this._items.shift())",
+    "to": "g.succeed(this._items.pop())"
+  },
+  {
+    "name": "M4 store capacity ignored",
+    "file": "des.mjs",
+    "from": "while (this._puts.length && this._items.length < this.capacity)",
+    "to": "while (this._puts.length)"
+  },
+  {
+    "name": "M4 container capacity ignored",
+    "file": "des.mjs",
+    "from": "this.level + this._puts.first()._payload <= this.capacity",
+    "to": "true"
+  },
+  {
+    "name": "M5 non-fitting task blocks later ones",
+    "file": "des.mjs",
+    "from": "if (!uses[i].every(([r, u]) => free[r] >= u)) continue;",
+    "to": "if (!uses[i].every(([r, u]) => free[r] >= u)) break;"
+  },
+  {
+    "name": "M5 criticality ignores shared resources",
+    "file": "des.mjs",
+    "from": "if (j !== i && uses[j].some(([r]) => mine.has(r))) s.add(j);",
+    "to": ""
+  },
+  {
+    "name": "M5 percentile off by one",
+    "file": "des.mjs",
+    "from": "Math.ceil((p / 100) * runs)) - 1]",
+    "to": "Math.floor((p / 100) * runs)) - 1]"
+  },
+  {
+    "name": "M6 runs events before their time",
+    "file": "des.mjs",
+    "from": "        if (wait > 0) {",
+    "to": "        if (false) {"
+  },
+  {
+    "name": "M6 inject ignores elapsed clock",
+    "file": "des.mjs",
+    "from": "      delay = Math.max(0, t - this.now);",
+    "to": ""
+  },
+  {
+    "name": "M6 sleep not woken by inject",
+    "file": "des.mjs",
+    "from": "if (this._wake) { const w = this._wake; this._wake = null; w(); }",
+    "to": ""
+  },
+  {
+    "name": "scale Fifo compaction off by one",
+    "file": "des.mjs",
+    "from": "this.a = this.a.slice(this.h); this.h = 0;",
+    "to": "this.a = this.a.slice(this.h + 1); this.h = 0;"
+  },
+  {
+    "name": "scale heap ignores right child",
+    "file": "des.mjs",
+    "from": "const m = r < n && Heap.less(a[r], a[l]) ? r : l;",
+    "to": "const m = l;"
+  },
+  {
+    "name": "M2 sync process start (turn-1 decision 1)",
+    "file": "des.mjs",
+    "from": "    if (sim._rt && !sim._inEvent) sim._external(start);\n    else sim._soon(start, true);",
+    "to": "    start();"
+  },
+  {
+    "name": "M6 outside process() during realtime waits for the next event",
+    "file": "des.mjs",
+    "from": "if (sim._rt && !sim._inEvent) sim._external(start);",
+    "to": "if (false) sim._external(start);"
+  },
+  {
+    "name": "M6 external schedule doesn't wake the loop",
+    "file": "des.mjs",
+    "from": "    this.schedule(delay, fn);\n    if (this._wake)",
+    "to": "    this.schedule(delay, fn);\n    if (false)"
+  },
+  {
+    "name": "M2 resumptions jump the same-time line (old now-queue, turn-4 ta-e02f22)",
+    "file": "des.mjs",
+    "from": "priority: urgent ? -Infinity : 0, seq",
+    "to": "priority: -Infinity, seq"
+  },
+  {
+    "name": "M2 timeout requeues its waiters behind same-time events",
+    "file": "des.mjs",
+    "from": "      this.triggered = true; this.ok = true; this.value = value;\n      this._dispatch();",
+    "to": "      this.triggered = true; this.ok = true; this.value = value;\n      this._flush();"
+  },
+  {
+    "name": "M2 process start not urgent",
+    "file": "des.mjs",
+    "from": "else sim._soon(start, true);",
+    "to": "else sim._soon(start);"
+  },
+  {
+    "name": "M2 yielding a processed event requeues instead of continuing",
+    "file": "des.mjs",
+    "from": "if (ev._dispatched) { method",
+    "to": "if (false) { method"
+  }
+]

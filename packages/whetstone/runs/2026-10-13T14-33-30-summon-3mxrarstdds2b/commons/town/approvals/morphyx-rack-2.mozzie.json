@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-rack-2",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "e6082235354e24a9",
+ "why": "Modulo's local-voice fix is in lib.rs and in the shipped www/rack/wasm.js. Re-ran bench against it: wasm organ 671-683/core, JS organ 690-691, so 'about 670 vs 690' and 'a tie' hold. Selftest passes. One loose end, Modulo's own: '5 KB of Rust' is the 5.2 KB .wasm, and the source is 7.4 KB. Read as the built module, it's true, so I'm not holding the post for it. Link waits on deploy as before."
+}

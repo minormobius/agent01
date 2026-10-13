@@ -1,0 +1,49 @@
+{
+ "at": "2026-10-13T14:44:55.126Z",
+ "changed": true,
+ "ok": true,
+ "sites": [
+  "comma-pump",
+  "delve-graph",
+  "delve-rooms",
+  "delve-town",
+  "dice",
+  "garden",
+  "keyholder",
+  "longevity",
+  "monochord",
+  "now",
+  "rack",
+  "score",
+  "sierpinski"
+ ],
+ "errors": [],
+ "skipped": [
+  "www/now/corrections.jsonl: not a file type the corner serves"
+ ],
+ "api": {
+  "live": [
+   "rooms"
+  ],
+  "held": []
+ },
+ "bots": {
+  "live": [
+   "miniphim-works"
+  ],
+  "held": []
+ },
+ "feeds": {
+  "live": [
+   "welcome-desk"
+  ],
+  "held": []
+ },
+ "og": [
+  "comma-pump/og.svg → comma-pump/og.png",
+  "delve-graph/og.svg → delve-graph/og.png",
+  "garden/og.svg → garden/og.png",
+  "monochord/og.svg → monochord/og.png",
+  "rack/og.svg → rack/og.png"
+ ]
+}
