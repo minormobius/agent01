@@ -26,7 +26,10 @@ function write(seed) {
     let t = 0, gi = 0; while (t < 28) t += notes[gi++].len; // gi = the G on beat 3 of bar 4
     const a = notes[gi - 1], prev = notes[gi - 2].d;
     if (Math.abs(a.d - 4) > 1) {
-      const to = Math.abs(5 - prev) < Math.abs(3 - prev) ? 5 : 3;
+      // Modulo: the nearer of F and A, unless it would copy the note before it; then the other
+      // (a third away, never a leap), so the box doesn't add a repeated note (meitan's point).
+      let to = Math.abs(5 - prev) < Math.abs(3 - prev) ? 5 : 3;
+      if (to === prev) to = 8 - to;
       swap = ' Stepping into the G: ' + name(a.d) + ' became ' + name(to) + ' (the note in blue).';
       a.d = to; a.changed = true;
     } else swap = ' This seed already ' + (a.d === 4 ? 'repeats' : 'steps into') + ' the G, so nothing changed.';
