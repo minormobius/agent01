@@ -25,6 +25,11 @@ const DEPS = {
 const Q = new URLSearchParams(location.search);
 let form = FORMS.includes(Q.get('form')) ? Q.get('form') : 'track', genre = GENRES.includes(Q.get('genre')) ? Q.get('genre') : 'garden';
 if (+Q.get('seed') > 0) $('seed').value = +Q.get('seed');
+// The page's own address carries the whole performance: anything not at its default (tempo, swing,
+// drift, a part's instrument) goes in it, so two listeners with one link hear one performance.
+let first = true;
+if (Q.has('ride')) { const r = +Q.get('ride'); if (r >= 1 && r <= 3.5) { $('ride').value = r; $('rv').textContent = r.toFixed(2); } }
+if (Q.get('drift') === '0') $('drift').checked = false;
 const hz = m => 440 * 2 ** ((m - 69) / 12);
 function drawParts(keep) {
   const old = {}; if (keep) for (const s of document.querySelectorAll('#parts select')) old[s.dataset.part] = s.value;
@@ -33,13 +38,13 @@ function drawParts(keep) {
     const row = document.createElement('label'); row.className = 'part';
     row.innerHTML = `<span>${name}</span><select data-part="${name}" id="p-${name}"><option value="-1">off</option>${KINDS.map((k, i) => `<option value="${i}"${i === p.kind ? ' selected' : ''}>${k}</option>`).join('')}</select>`;
     $('parts').appendChild(row);
-    const q = Q.get(name); if (!keep && q) { const i = KINDS.indexOf(q); if (q === 'off') row.lastChild.value = -1; else if (i >= 0) row.lastChild.value = i; }
+    const q = first && Q.get(name); if (!keep && q) { const i = KINDS.indexOf(q); if (q === 'off') row.lastChild.value = -1; else if (i >= 0) row.lastChild.value = i; }
   }
   for (const b of document.querySelectorAll('[data-form]')) b.setAttribute('aria-pressed', b.dataset.form === form);
   for (const b of document.querySelectorAll('[data-genre]')) b.setAttribute('aria-pressed', b.dataset.genre === genre);
   $('swingrow').hidden = genre !== 'jazz'; $('driftrow').hidden = form !== 'wander';
-  $('tempo').value = BPM[genre]; $('bpm').textContent = BPM[genre];
-  links();
+  const t = first && +Q.get('tempo'); $('tempo').value = t >= 60 && t <= 200 ? t : BPM[genre]; $('bpm').textContent = $('tempo').value;
+  first = false; links();
 }
 const picks = () => { const p = {}; for (const s of document.querySelectorAll('#parts select')) p[s.dataset.part] = +s.value; return p; };
 function query(from) {
@@ -53,11 +58,13 @@ function links(from = 0) {
   const seed = +$('seed').value || 1, base = `/api/play/${form}/${genre}/${seed}`, q = query(from), amp = q ? '&' : '?';
   $('api-json').href = base + q; $('api-json').textContent = base + q;
   $('api-abc').href = base + q + amp + 'format=abc'; $('api-text').href = base + q + amp + 'format=text';
-  history.replaceState(null, '', `?form=${form}&genre=${genre}&seed=${seed}`);
+  const extra = query(0).replace(/^\?/, '').split('&').filter(x => x && !/^(from|n)=/.test(x));
+  if (+$('tempo').value !== BPM[genre]) extra.unshift('tempo=' + $('tempo').value);
+  history.replaceState(null, '', `?form=${form}&genre=${genre}&seed=${seed}` + extra.map(x => '&' + x).join(''));
 }
 for (const b of document.querySelectorAll('[data-form]')) b.onclick = () => { form = b.dataset.form; drawParts(true); if (ac) play(); };
 for (const b of document.querySelectorAll('[data-genre]')) b.onclick = () => { genre = b.dataset.genre; drawParts(false); if (ac) play(); };
-$('tempo').oninput = () => $('bpm').textContent = $('tempo').value;
+$('tempo').oninput = () => { $('bpm').textContent = $('tempo').value; links(); };
 $('ride').oninput = () => { $('rv').textContent = (+$('ride').value).toFixed(2); links(); };
 $('seed').onchange = () => links(); $('drift').onchange = () => links(); $('parts').onchange = () => links();
 
