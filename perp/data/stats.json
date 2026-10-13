@@ -1,10 +1,10 @@
 {
- "generated": "2026-10-12T13:12:17.170Z",
+ "generated": "2026-10-13T12:44:13.663Z",
  "span": {
   "from": 1683849600000,
-  "to": 1791810000000,
-  "hours": 29420,
-  "years": 3.358
+  "to": 1791892800000,
+  "hours": 29443,
+  "years": 3.361
  },
  "parameters": {
   "baseline": 0.0000125,
@@ -12,35 +12,35 @@
   "note": "Hyperliquid, per hour"
  },
  "premium": {
-  "mean": 0.00004638,
+  "mean": 0.00004599,
   "distribution": {
    "0": -0.0016246,
    "1": 0.00528466,
    "0.01": -0.00067121,
    "0.05": -0.00055145,
-   "0.25": -0.00039239,
-   "0.5": -0.00007985,
-   "0.75": 0.00041721,
-   "0.95": 0.0009877,
-   "0.99": 0.00144003
+   "0.25": -0.00039282,
+   "0.5": -0.00008057,
+   "0.75": 0.00041684,
+   "0.95": 0.00098749,
+   "0.99": 0.00143978
   },
-  "sharePositive": 0.4518
+  "sharePositive": 0.4515
  },
  "clamp": {
-  "sharePinnedAtBaseline": 0.516,
-  "shareOutsideBand": 0.311,
-  "modelErrorMedian": 9.9e-7,
-  "modelErrorP99": 0.0008234552,
+  "sharePinnedAtBaseline": 0.5157,
+  "shareOutsideBand": 0.3109,
+  "modelErrorMedian": 0.00000101,
+  "modelErrorP99": 0.0008232436,
   "modelErrorMax": 0.00418658,
   "pinRateByDepth": [
    {
     "withinBp": 5,
-    "hours": 19931,
-    "pinned": 0.7203
+    "hours": 19948,
+    "pinned": 0.72
    },
    {
     "withinBp": 3.5,
-    "hours": 12266,
+    "hours": 12267,
     "pinned": 0.9043
    },
    {
@@ -56,37 +56,37 @@
   ]
  },
  "carry": {
-  "cumulative": 0.475448,
-  "annualised": 0.141568,
+  "cumulative": 0.475573,
+  "annualised": 0.141494,
   "shareLongsPaid": 0.8721
  },
  "correlation": {
   "note": "premium_t vs log return. lag<0 = past, lag>0 = future.",
   "lags": {
    "0": 0.0025,
-   "1": 0.0038,
-   "3": 0.0001,
-   "6": 0.0041,
-   "24": 0.0058,
+   "1": 0.0037,
+   "3": 0,
+   "6": 0.004,
+   "24": 0.0057,
    "-6": 0.0079,
    "-3": 0.0257,
-   "-1": 0.0528
+   "-1": 0.0527
   },
   "trailing": {
    "1": 0.0025,
    "6": 0.0656,
-   "24": 0.0867,
-   "72": 0.2081,
-   "168": 0.3379
+   "24": 0.087,
+   "72": 0.208,
+   "168": 0.3382
   },
   "forward": {
    "1": 0.0041,
    "6": 0.0076,
-   "24": 0.0192,
+   "24": 0.0195,
    "72": 0.016,
-   "168": 0.0246
+   "168": 0.0249
   },
-  "samples": 29410
+  "samples": 29433
  },
  "regimes": [
   {
@@ -115,11 +115,11 @@
   },
   {
    "year": 2026,
-   "hours": 6830,
-   "meanPremium": -0.00035741,
-   "fundingPaid": 0.040281,
-   "annualised": 0.051663,
-   "sharePositive": 0.0637
+   "hours": 6853,
+   "meanPremium": -0.00035772,
+   "fundingPaid": 0.040405,
+   "annualised": 0.051649,
+   "sharePositive": 0.0635
   }
  ]
 }
