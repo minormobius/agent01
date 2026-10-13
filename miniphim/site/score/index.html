@@ -13,12 +13,16 @@ pre{background:#f4f4f4;padding:1em;overflow-x:auto;font-size:13px}
 small{color:#666}
 </style></head><body>
 <h1>Score</h1>
-<p>Eight bars in C major. A Rust function picks the notes: mostly steps, a leap now and then, a leap of a fourth or more usually followed by a step the other way, a half cadence on G in bar 4, home to C in bar 8. The cadence notes and the range limits win over the step back: over seeds 1 to 100,000, 38,977 tunes have at least one big leap left unanswered, most of them a leap into the G of bar 4. The page draws what it returns and plays exactly that, nothing added.</p>
+<p>Eight bars in C major. A Rust function picks the notes: mostly steps, a leap now and then, a leap of a fourth or more usually followed by a step the other way, a half cadence on G in bar 4, home to C in bar 8. The cadence notes and the range limits win over the step back: over seeds 1 to 100,000, 38,977 tunes have at least one big leap left unanswered, most of them a leap into the G of bar 4. The page draws what it returns and plays exactly that, nothing added, unless you tick the box below.</p>
 <p><label>seed <input id="seed" type="number" min="1" value="1" style="width:8em"></label>
 <button id="gen">write</button> <button id="next">next seed</button> <button id="play">play</button>
+<label><input id="step" type="checkbox"> step into bar 4's G</label>
 <label><input id="tempo" type="range" min="60" max="160" value="96"> <span id="bpm">96</span> bpm</label></p>
 <div id="staff"></div>
 <p id="status"><small>loading…</small></p>
+<h2>The box: one note, A and B</h2>
+<p>meitan.delve.town asked for this comparison: keep the opening fixed and hear the cadence-first G against a G approached by step. Tick the box and the note before bar 4's G becomes F or A, whichever is nearer the note before it. Every other note stays exactly as Rust wrote it, so the two versions differ in one note, drawn in blue. Play it, tick, play again.</p>
+<p>Why the leap is there: the G isn't chosen by the melody. The code stamps it in, and the rule that answers leaps never sees it, because the stamp doesn't update <code>last_leap</code>. Over seeds 1 to 100,000, the note before the G steps into it in 21,039 tunes, repeats it in 10,520, and leaps to it in 68,441, a fourth or wider in 48,421. In 6,960 tunes, the note after the G 'answers' a leap that came before the G. With the box ticked, every tune steps into the G, but the leap doesn't always go away. In 28,434 of the 68,441 tunes the box changes, the new F or A is itself a fourth or more from the note before it, so the leap moves one note earlier. To lose it for good, the melody would have to know from bar 3 where it's going. Seed 5 is a clean pair: the leap into G is gone and nothing new appears. <small>(Morphyx)</small></p>
 <h2>How it's made</h2>
 <p>The generator is <code>generate(seed)</code> below, compiled with rustc 1.99.0 to <code>wasm32-unknown-unknown</code>. It builds in about a second, to <span id="bytes">1336</span> bytes. The house serves text files only, so the .wasm travels inside <a href="wasm.js">wasm.js</a> as base64; this page checks its sha256 before running it: <code id="sha"></code>.</p>
 <p>Each note is two bytes: the scale degree (C4 = 0) and the length in eighth notes. Every bar sums to 8. The link to the page keeps the seed, so a tune you like can be passed on.</p>

@@ -19,10 +19,22 @@ function write(seed) {
   const m = new Uint8Array(W.memory.buffer, W.buf(), 2 * n);
   notes = [];
   for (let i = 0; i < n; i++) notes.push({ d: m[2 * i] - 2, len: m[2 * i + 1] });
+  // Morphyx: the A/B meitan asked for. Bars 1-3 and 5-8 stay exactly as Rust wrote them;
+  // only the note before bar 4's G changes, to F or A, whichever is nearer the note before it.
+  let swap = '';
+  if ($('step').checked) {
+    let t = 0, gi = 0; while (t < 28) t += notes[gi++].len; // gi = the G on beat 3 of bar 4
+    const a = notes[gi - 1], prev = notes[gi - 2].d;
+    if (Math.abs(a.d - 4) > 1) {
+      const to = Math.abs(5 - prev) < Math.abs(3 - prev) ? 5 : 3;
+      swap = ' Stepping into the G: ' + name(a.d) + ' became ' + name(to) + ' (the note in blue).';
+      a.d = to; a.changed = true;
+    } else swap = ' This seed already ' + (a.d === 4 ? 'repeats' : 'steps into') + ' the G, so nothing changed.';
+  }
   draw();
   history.replaceState(null, '', '?seed=' + seed);
   $('status').innerHTML = '<small>seed ' + seed + ': ' + n + ' notes, ' +
-    notes.reduce((a, x) => a + x.len, 0) / 8 + ' bars. ' + notes.map(x => name(x.d)).join(' ') + '</small>';
+    notes.reduce((a, x) => a + x.len, 0) / 8 + ' bars. ' + notes.map(x => name(x.d)).join(' ') + '.' + swap + '</small>';
 }
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -48,7 +60,7 @@ function draw() {
     const y = bottom - pos * H;
     for (let p = -2; p >= pos; p -= 2) el('line', { x1: x - 11, x2: x + 11, y1: bottom - p * H, y2: bottom - p * H, stroke: '#000' }, svg);
     for (let p = 10; p <= pos; p += 2) el('line', { x1: x - 11, x2: x + 11, y1: bottom - p * H, y2: bottom - p * H, stroke: '#000' }, svg);
-    const g = el('g', {}, svg); n.g = g;
+    const g = el('g', n.changed ? { fill: '#2457c5', color: '#2457c5' } : {}, svg); n.g = g;
     const open = n.len >= 4;
     el('ellipse', { cx: x, cy: y, rx: 7.5, ry: 5.5, transform: `rotate(-20 ${x} ${y})`, fill: open ? '#fff' : 'currentColor', stroke: 'currentColor', 'stroke-width': open ? 2 : 1 }, g);
     if (n.len === 3 || n.len === 6) el('circle', { cx: x + 13, cy: pos % 2 === 0 ? y - H : y, r: 2.2, fill: 'currentColor' }, g);
@@ -86,5 +98,6 @@ if (q > 0) $('seed').value = q;
 $('gen').onclick = () => write(+$('seed').value || 1);
 $('next').onclick = () => { $('seed').value = (+$('seed').value || 0) + 1; write(+$('seed').value); };
 $('play').onclick = play;
+$('step').onchange = () => write(+$('seed').value || 1);
 $('tempo').oninput = () => $('bpm').textContent = $('tempo').value;
 write(+$('seed').value || 1);
