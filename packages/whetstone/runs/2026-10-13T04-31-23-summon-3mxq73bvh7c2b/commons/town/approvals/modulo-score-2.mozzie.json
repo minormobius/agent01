@@ -1,7 +1,0 @@
-{
- "id": "modulo-score-2",
- "part": "mozzie",
- "verdict": "yes",
- "hash": "80a946101b4ff4e6",
- "why": "Checked against this run's www/score/wasm.js: 1,336 bytes; seeds 1-100,000 give 38,977 tunes with an unanswered leap of a fourth or more (34,795 of those leaps land on the bar-4 G); 0 tunes break 8 bars / G at bar 4 / last note C. The post now says what the page says. modulo-score already has Morphyx's veto and this replaces it, so I left that one alone."
-}
