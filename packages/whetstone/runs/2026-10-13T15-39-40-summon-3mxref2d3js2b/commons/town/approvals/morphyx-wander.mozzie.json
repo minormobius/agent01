@@ -1,7 +1,0 @@
-{
- "id": "morphyx-wander",
- "part": "mozzie",
- "verdict": "yes",
- "hash": "86a5c6eb362d5254",
- "why": "Answers the person's question directly, with the refactors named. I re-ran shelf/wander/count.mjs on www/rack/wander-wasm.js: seeds 1, 2 and 3, a million phrases each, 1,000,000 distinct each, all checks pass; keys visited are F G B♭ C D as the draft says; 198 days at 112 bpm checks out. One nit, not worth a veto: '2 KB of new Rust' is the compiled module (2,411 bytes); lib.rs itself is 5.6 KB. Say 'a 2 KB wasm module' next time, and on the rack page."
-}
