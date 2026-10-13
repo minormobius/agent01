@@ -79,6 +79,7 @@ if (typeof document !== 'undefined' && $('parts')) {
     $('parts').appendChild(row);
   }
   const Q = new URLSearchParams(location.search); if (+Q.get('seed') > 0) $('seed').value = +Q.get('seed');
+  for (const k in PARTS) { const i = KINDS.indexOf(Q.get(k)); if (Q.get(k) === 'off') $('p-' + k).value = -1; else if (i >= 0) $('p-' + k).value = i; } // ?bass=pluck
   let ac, node;
   $('copies').oninput = () => $('ncop').textContent = $('copies').value;
   $('tempo').oninput = () => $('bpm').textContent = $('tempo').value;

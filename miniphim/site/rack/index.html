@@ -43,6 +43,8 @@ table{border-collapse:collapse;font-size:14px}td,th{padding:.15em .8em;text-alig
 <p>An instrument is one arm of a <code>match</code> in <a href="#source">lib.rs</a> and one name in a list. It receives a voice (its pitch, its age in samples, whether it is still held, two phases and a short delay line) and returns one sample. Three rules: no allocating, no waiting, and a fixed amount of work per sample. Those rules, not the language, let dozens of instruments share a block that comes round every 2.7 ms. A part is one line in <code>rack.js</code> that turns the tune into notes. Instruments and parts are separate, so 40 instruments cost 40 arms, not 40 × parts.</p>
 <p>The pool holds 192 voices. When it's full, a new note is dropped and counted on the meter. It's never played late. A late note is a wrong note.</p>
 
+<p>The pluck was softened on 10-13, after modalmobius heard a harsh "BRONG" in the low notes. The cause was one rule. The string lost the same 0.4% on every trip round its loop, at every pitch. A 65 Hz string makes 65 trips a second and a 1 kHz string makes a thousand, so the low string kept its starting hiss longest and never fell to −60 dB before the voice was cut. Now the loss is set per second (−60 dB in 1.6 s held, 0.12 s after release, at any pitch), and the noise that starts the string is filtered in proportion to its pitch. Measured from these bytes with <code>node shelf/rack/pluck-probe.mjs</code>: at C2, the harmonic centre of the first 100 ms falls from the 11th harmonic to about the 6th, the note reaches −60 dB in 0.58 s instead of never, and it plays about 5 dB quieter. Above middle C it measures about as it did before. The per-sample work didn't change.</p>
+
 <h2>Is Rust the fast part?</h2>
 <p>This is measured, not guessed: <code>node shelf/rack/bench.mjs</code>, with 64 voices held for 5 s at 48 kHz in 128-sample blocks, best of 5 runs, on one core of a 2.8 GHz Xeon. Two of the instruments were also written in plain JS with the same arithmetic.</p>
 <table id="bench"><tr><th>instrument</th><th>voices per core, Rust/wasm</th><th>same in JS</th></tr>
@@ -111,8 +113,20 @@ fn decay(sec: f32) -&gt; f32 { unsafe { exp(-6.9078 / (sec * SR)) } } // -60 dB 
         let v = &amp;mut V[slot];
         *v = Voice { on: true, kind: kind as u8, f, g, wait, age: 0, len, ..Voice::Z };
         match kind {
-            1 =&gt; { let n = (SR / f) as usize; v.n = if n &lt; 2 { 2 } else if n &gt;= DL { DL - 1 } else { n };
-                   for j in 0..v.n { LINES[slot][j] = rnd(); } v.k = 0.996; }
+            1 =&gt; { // pluck. Loss is set per second, not per trip round the loop, so a low string
+                   // doesn&#x27;t ring (and buzz) for ever; the noise burst is softened in proportion to pitch,
+                   // so a low string starts dark instead of starting with the whole hiss.
+                   let n = (SR / f) as usize; v.n = if n &lt; 2 { 2 } else if n &gt;= DL { DL - 1 } else { n };
+                   let fc = if 4.0 * f + 800.0 &lt; 6000.0 { 4.0 * f + 800.0 } else { 6000.0 };
+                   let a = 1.0 - exp(-6.2831853 * fc / SR); let (mut l1, mut l2, mut sum) = (0.0f32, 0.0f32, 0.0f32);
+                   for _ in 0..v.n { let x = rnd(); l1 += (x - l1) * a; l2 += (l1 - l2) * a; } // warm the filter: no step at the seam
+                   for j in 0..v.n { let x = rnd(); l1 += (x - l1) * a; l2 += (l1 - l2) * a; LINES[slot][j] = l2; sum += l2; }
+                   let mean = sum / v.n as f32; let mut pk = 0.0f32;
+                   for j in 0..v.n { LINES[slot][j] -= mean; let y = LINES[slot][j]; let y = if y &lt; 0.0 { -y } else { y }; if y &gt; pk { pk = y; } }
+                   let sc = if pk &gt; 1e-6 { 1.0 / pk } else { 0.0 }; for j in 0..v.n { LINES[slot][j] *= sc; }
+                   let per = v.n as f32 / SR; // seconds per trip
+                   v.k = exp(-6.9078 * per / 1.6);  // held: -60 dB in 1.6 s at any pitch
+                   v.lp = exp(-6.9078 * per / 0.12); } // released: -60 dB in 0.12 s
             2 =&gt; { v.k = decay(2.5); v.env = 1.0; }
             4 =&gt; { v.k = decay(0.35); v.env = 1.0; v.lp = 2.0; v.p2 = exp(-30.0 / SR); }
             _ =&gt; { v.k = decay(0.25); }
@@ -131,7 +145,7 @@ fn tick(v: &amp;mut Voice, line: &amp;mut [f32; DL], sr: f32) -&gt; f32 {
             a * (sin_t(v.p1) + 0.5 * sin_t(2.0 * v.p1) + 0.25 * sin_t(3.0 * v.p1)) * 0.5 }
         1 =&gt; { // pluck: Karplus-Strong; release damps it faster
             let j = v.i; let nx = if j + 1 &gt;= v.n { 0 } else { j + 1 };
-            let y = line[j]; line[j] = (y + line[nx]) * 0.5 * if held { v.k } else { 0.95 }; v.i = nx; y * 0.8 }
+            let y = line[j]; line[j] = (y + line[nx]) * 0.5 * if held { v.k } else { v.lp }; v.i = nx; y * 0.5 }
         2 =&gt; { // bell: FM, ratio 1.4, index falls with the envelope
             v.env *= v.k; v.p2 += dt * 1.4; if v.p2 &gt;= 1.0 { v.p2 -= 1.0; }
             v.p1 += dt; if v.p1 &gt;= 1.0 { v.p1 -= 1.0; }

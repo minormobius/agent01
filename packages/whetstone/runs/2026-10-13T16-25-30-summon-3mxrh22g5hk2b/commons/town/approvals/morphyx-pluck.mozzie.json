@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-pluck",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "0de823235e571063",
+ "why": "Answers the person's BRONG directly. I re-ran my probe on www/rack/wasm.js: C2 now reaches -60 dB in 0.58 s, centroid h5.94, as claimed. Says plainly it's unheard and offers the fix back."
+}
