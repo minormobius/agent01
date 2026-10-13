@@ -4,6 +4,7 @@
 import * as S from '../score/wasm.js';
 import * as R from './wasm.js';
 import * as WD from './wander-wasm.js';
+import * as H from '../handed.js';
 const $ = id => document.getElementById(id);
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const hex = async b => [...new Uint8Array(await crypto.subtle.digest('SHA-256', b))].map(x => x.toString(16).padStart(2, '0')).join('');
@@ -42,7 +43,7 @@ export function events(seed, bpm, sr, pick, copies) {
     const reps = name === 'melody' ? 1 + copies : 1;
     for (const [at, len, m] of p.notes(T)) for (let r = 0; r < reps; r++) {
       const det = r === 0 ? 0 : (r % 2 ? 1 : -1) * Math.ceil(r / 2) * 3;  // cents, each copy 3 c further out
-      ev.push([Math.round(at * e8), kind, hz(m) * 2 ** (det / 1200), p.gain / Math.sqrt(reps), Math.round(len * e8 * 0.92)]);
+      ev.push([Math.round(at * e8), kind, hz(m) * 2 ** (det / 1200), p.gain / Math.sqrt(reps), Math.round(len * e8 * 0.92), name]);
     }
   }
   return { T, ev: ev.sort((a, b) => a[0] - b[0]) };
@@ -67,7 +68,7 @@ export function wanderPhrase(bpm, sr, pick, at0) {
     bass: bass.map((b, i) => [8 * i, 8, root + SCALE[b % 7] - (root + SCALE[b % 7] > 47 ? 12 : 0)]) };
   for (const [name, notes] of Object.entries(lines)) {
     const kind = pick[name]; if (kind < 0) continue;
-    for (const [at, len, mm] of notes) ev.push([at0 + Math.round(at * e8), kind, hz(mm + (name === 'bass' || name === 'beat' ? 0 : key)), PARTS[name].gain, Math.round(len * e8 * 0.92)]);
+    for (const [at, len, mm] of notes) ev.push([at0 + Math.round(at * e8), kind, hz(mm + (name === 'bass' || name === 'beat' ? 0 : key)), PARTS[name].gain, Math.round(len * e8 * 0.92), name]);
   }
   return { T, key, ev: ev.sort((a, b) => a[0] - b[0]), len: Math.round(64 * e8) };
 }
@@ -96,7 +97,8 @@ if (typeof document !== 'undefined' && $('parts')) {
     const { T, ev } = events(seed, +$('tempo').value, ac.sampleRate, pick, +$('copies').value);
     $('tune').innerHTML = `seed ${seed}: ${T.map(n => nm(n.d)).join(' ')}. <a href="../score/?seed=${seed}">See it on the staff.</a> ${ev.length} notes for the rack.`;
     history.replaceState(null, '', '?seed=' + seed);
-    node.port.postMessage({ events: ev });
+    $('api') && ($('api').textContent = $('api').href = '/api/jams/rack/' + seed);
+    node.port.postMessage({ events: H.start({ name: `rack-seed${seed}`, seed, bpm: +$('tempo').value, sampleRate: ac.sampleRate, copies: +$('copies').value, rack_sha: R.WASM_SHA, score_sha: S.WASM_SHA }, ev) });
   };
   $('stop').onclick = () => { W = null; node && node.port.postMessage({ stop: true }); };
 
@@ -114,12 +116,13 @@ if (typeof document !== 'undefined' && $('parts')) {
     $('tune').innerHTML = `wander ${W.seed}, queued next: phrase ${W.n}, in ${KEYS[P.key]} major: ${P.T.map(n => spell(P.key, n.d)).join(' ')}`;
     return P.ev;
   }
-  function feed(at) { if (W && at * ac.sampleRate > W.at - 8 * ac.sampleRate) node.port.postMessage({ more: next(false) }); }
+  function feed(at) { if (W && at * ac.sampleRate > W.at - 8 * ac.sampleRate) node.port.postMessage({ more: H.more(next(false)) }); }
   $('wander').onclick = async () => {
     await $('play').onclick.call(null, 'init-only');
     const seed = +$('wseed').value || 1; wander.start(seed); W = { seed, at: 0, n: 0 };
     history.replaceState(null, '', '?wander=' + seed);
-    node.port.postMessage({ events: next(true) });
+    $('api') && ($('api').textContent = '(no route for the wander yet: only the record above)', $('api').removeAttribute('href'));
+    node.port.postMessage({ events: H.start({ name: `wander${seed}`, wander: seed, bpm: +$('tempo').value, sampleRate: ac.sampleRate, rack_sha: R.WASM_SHA, wander_sha: WD.WASM_SHA, note: 'grows a phrase at a time while it plays; download again for more' }, next(true)) });
   };
   if (+Q.get('wander') > 0) $('wseed').value = +Q.get('wander');
 }

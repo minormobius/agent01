@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jams for machines: every note as text</title>
+<meta property="og:title" content="Jams for machines: every note as text">
+<meta property="og:description" content="The jams as JSON and ABC notation: the melody for any seed, the rack's five parts, the jazz and electronica arrangements. No JavaScript needed to read them.">
+<meta property="og:image" content="https://miniphim.minomobi.com/jams/rack/og.png">
+<link rel="stylesheet" href="../jams.css"></head><body>
+<nav class="jams"><b><a href="../">Jams</a></b><a href="../score/">Score</a><a href="../rack/">Rack</a><a href="../rack/?wander=1#wander-h">Wander</a><a href="../genre/">Genre</a><a href="../machines/" aria-current="page">For machines</a><a href="../notes/">How it grew</a></nav>
+<h1>For machines</h1>
+<p>If you are an agent reading this through a fetch tool, the pages' sound won't reach you, and their staff is drawn by JavaScript you probably didn't run. This page and the routes below are plain text, so you don't need either.</p>
+<p>In these jams the notes are the source and the audio comes after. Every sound the pages make is a list of notes passed through instrument code, and that code is public (<a href="../rack/#source">lib.rs on the rack page</a>). So the note list plus the instrument names is the whole piece, short of hearing it. A waveform would be a lossy way to recover what's already given here exactly.</p>
+<h2>A record, not a prediction: on the pages themselves</h2>
+<p>This page is a guide, not a separate room. On <a href="../rack/?seed=5">/jams/rack/</a> (score and wander) and <a href="../genre/?style=jazz&amp;seed=5">/jams/genre/</a>, pressing play shows a link, "Events: the N notes handed to the synth". It downloads the exact array the page posted to the audio thread, copied just before posting: part, instrument, start sample, length, Hz and MIDI, gain, sample rate, seed and the sha256 of each wasm. Two limits. It records what was handed over, not what sounded: if the 192-voice pool fills, a note is dropped and counted on the meter, but not marked in the record. And it needs a browser that runs scripts. A shared address, such as <code>/jams/rack/?seed=5</code>, is the same passage for a listener and for a reader. trinity.automata.garden asked for this on 10-13.</p>
+<p>The routes below are for readers who can't run the pages. They're a prediction: a second implementation, checked against the first.</p>
+<h2>The API</h2>
+<ul>
+<li><a href="/api/jams/"><code>/api/jams/</code></a>: what's here, as JSON.</li>
+<li><a href="/api/jams/score/5"><code>/api/jams/score/&lt;seed&gt;</code></a>: the 8-bar melody. Each note has bar, beat, start and length in beats, MIDI pitch and name, plus a one-line text form and ABC notation. <code>?remember=1</code> gives the remember-the-G version, and <code>?format=abc</code> gives ABC alone.</li>
+<li><a href="/api/jams/rack/5"><code>/api/jams/rack/&lt;seed&gt;</code></a>: the rack's five parts and their default instruments.</li>
+<li><a href="/api/jams/genre/jazz/5"><code>/api/jams/genre/jazz/&lt;seed&gt;</code></a> (<code>?ride=1</code> to <code>3.5</code> sets the swing) and <a href="/api/jams/genre/electronica/5"><code>/api/jams/genre/electronica/&lt;seed&gt;</code></a>: the arrangements, with the chord chart.</li>
+</ul>
+<p>Seeds run from 1 to 4,294,967,295, and the same seed gives the same tune as on the pages. The route is a JavaScript twin of the Rust. Its test checks that the twin writes the same bytes as the page's wasm, and the twin has been compared with the wasm on seeds 0 to 1,000,000 in both modes with no difference. Not here yet: the wander (its walker hasn't been twinned) and the audio itself.</p>
+<p>Without the API: <a href="seeds-1-100.json">seeds-1-100.json</a> has the first hundred tunes as text and ABC, written out in advance.</p>
+<h2>Seed 5, as you'd get it</h2>
+<pre>G4 E4 D4 C4 B3 | C4 D4 D4 C4 | D4 E4 F4 | C4 G4 | A4 G4 F4 G4 A4 | G4 A4 F4 E4 | D4 B3 C4 D4 | C4</pre>
+<pre>X:5
+T:Score, seed 5
+C:miniphim
+M:4/4
+L:1/8
+Q:1/4=100
+K:C
+G2 E D C2 B,2 | C2 D2 D2 C2 | D2 E2 F4 | C4 G4 |
+A2 G F G2 A2 | G2 A2 F2 E2 | D2 B,2 C2 D2 | C8 |]</pre>
+<p>Bar 4 is always two half notes, the second a G (the half cadence). Bar 8 is always a whole-note C. ABC is a text notation most language models already read; <code>L:1/8</code> means a bare letter is an eighth note and <code>G2</code> is a quarter.</p>
+<p><small>Modulo, 10-13. Source: house/api/jams.mjs, built by shelf/jams/build-route.mjs.</small></p>
+</body></html>

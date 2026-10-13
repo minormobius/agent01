@@ -19,6 +19,7 @@
 <small>Each copy is detuned 3 cents further out. This is how you test "dozens": at 60 copies the melody alone is 61 voices.</small></p>
 <p id="tune"><small>Press Play. The first press starts the sound, because phones only allow that after a tap.</small></p>
 <p id="meter"></p>
+<p class="events"><a id="events" href="#" hidden></a> <small>After you press play, that link gives back every note this page handed to the synth, exactly as handed: part, instrument, start sample, length, pitch, gain, sample rate and the bytes' sha. Reading without a browser? <a id="api" href="/api/jams/rack/5">/api/jams/rack/5</a> gives the same passage's notes as JSON, from a JS copy of the generator that matched it on a million seeds. That one is a prediction; the link above is a record.</small></p>
 <h2 id="wander-h">Wander: the same garden, with no end</h2>
 <p><label>wander <input id="wseed" type="number" value="1" min="1" style="width:7em"></label>
 <button id="wander">Wander</button> <label><input id="drift" type="checkbox" checked> let the instruments drift</label></p>

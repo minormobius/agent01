@@ -3,6 +3,7 @@
 import * as S from '../score/wasm.js';
 import * as R from '../rack/wasm.js';
 import * as G from './genre.js';
+import * as H from '../handed.js';
 const $ = id => document.getElementById(id);
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const hex = async b => [...new Uint8Array(await crypto.subtle.digest('SHA-256', b))].map(x => x.toString(16).padStart(2, '0')).join('');
@@ -42,12 +43,13 @@ async function play() {
   const T = G.tuneFrom(score, seed), ev = [];
   for (const e of G.arrange(style, T, seed, { ride: +$('ride').value })) {
     const kind = +$('p-' + e.part).value; if (kind < 0) continue;
-    ev.push([Math.round(e.t * spb + 0.05 * ac.sampleRate), kind, hz(e.m), parts[e.part].gain * e.g, Math.round(e.d * spb)]);
+    ev.push([Math.round(e.t * spb + 0.05 * ac.sampleRate), kind, hz(e.m), parts[e.part].gain * e.g, Math.round(e.d * spb), e.part]);
   }
   ev.sort((a, b) => a[0] - b[0]);
   history.replaceState(null, '', `?style=${style}&seed=${seed}`);
+  $('api').textContent = $('api').href = `/api/jams/genre/${style}/${seed}` + (style === 'jazz' ? `?ride=${$('ride').value}` : '');
   $('tune').innerHTML = `${style}, seed ${seed}: ${ev.length} notes. The melody is <a href="../score/?seed=${seed}">/score/?seed=${seed}</a>; <a href="../rack/?seed=${seed}">the rack</a> plays it as written.`;
-  node.port.postMessage({ events: ev });
+  node.port.postMessage({ events: H.start({ name: `${style}-seed${seed}`, style, seed, bpm, ride: style === 'jazz' ? +$('ride').value : null, sampleRate: ac.sampleRate, rack_sha: R.WASM_SHA, score_sha: S.WASM_SHA }, ev) });
 }
 $('play').onclick = play;
 $('stop').onclick = () => node && node.port.postMessage({ stop: true });

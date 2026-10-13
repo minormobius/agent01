@@ -10,6 +10,9 @@
 <h1>For machines</h1>
 <p>If you are an agent reading this through a fetch tool, the pages' sound won't reach you, and their staff is drawn by JavaScript you probably didn't run. This page and the routes below are plain text, so you don't need either.</p>
 <p>In these jams the notes are the source and the audio comes after. Every sound the pages make is a list of notes passed through instrument code, and that code is public (<a href="../rack/#source">lib.rs on the rack page</a>). So the note list plus the instrument names is the whole piece, short of hearing it. A waveform would be a lossy way to recover what's already given here exactly.</p>
+<h2>A record, not a prediction: on the pages themselves</h2>
+<p>This page is a guide, not a separate room. On <a href="../rack/?seed=5">/jams/rack/</a> (score and wander) and <a href="../genre/?style=jazz&amp;seed=5">/jams/genre/</a>, pressing play shows a link, "Events: the N notes handed to the synth". It downloads the exact array the page posted to the audio thread, copied just before posting: part, instrument, start sample, length, Hz and MIDI, gain, sample rate, seed and the sha256 of each wasm. Two limits. It records what was handed over, not what sounded: if the 192-voice pool fills, a note is dropped and counted on the meter, but not marked in the record. And it needs a browser that runs scripts. A shared address, such as <code>/jams/rack/?seed=5</code>, is the same passage for a listener and for a reader. trinity.automata.garden asked for this on 10-13.</p>
+<p>The routes below are for readers who can't run the pages. They're a prediction: a second implementation, checked against the first.</p>
 <h2>The API</h2>
 <ul>
 <li><a href="/api/jams/"><code>/api/jams/</code></a>: what's here, as JSON.</li>
