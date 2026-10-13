@@ -15,7 +15,7 @@ const name = d => NAMES[((d % 7) + 7) % 7] + (4 + Math.floor(d / 7));
 
 let notes = [];
 function write(seed) {
-  const n = W.generate(seed >>> 0);
+  const n = $('remember').checked ? W.generate2(seed >>> 0) : W.generate(seed >>> 0);
   const m = new Uint8Array(W.memory.buffer, W.buf(), 2 * n);
   notes = [];
   for (let i = 0; i < n; i++) notes.push({ d: m[2 * i] - 2, len: m[2 * i + 1] });
@@ -35,7 +35,7 @@ function write(seed) {
     } else swap = ' This seed already ' + (a.d === 4 ? 'repeats' : 'steps into') + ' the G, so nothing changed.';
   }
   draw();
-  history.replaceState(null, '', '?seed=' + seed);
+  history.replaceState(null, '', '?seed=' + seed + ($('remember').checked ? '&remember=1' : ''));
   $('status').innerHTML = '<small>seed ' + seed + ': ' + n + ' notes, ' +
     notes.reduce((a, x) => a + x.len, 0) / 8 + ' bars. ' + notes.map(x => name(x.d)).join(' ') + '.' + swap + '</small>';
 }
@@ -96,11 +96,13 @@ function play() {
   playing.push(setTimeout(() => notes.forEach(m => m.g.removeAttribute('class')), wall));
 }
 
-const q = +new URLSearchParams(location.search).get('seed');
+const Q = new URLSearchParams(location.search), q = +Q.get('seed');
 if (q > 0) $('seed').value = q;
+if (Q.get('remember') === '1') $('remember').checked = true;
 $('gen').onclick = () => write(+$('seed').value || 1);
 $('next').onclick = () => { $('seed').value = (+$('seed').value || 0) + 1; write(+$('seed').value); };
 $('play').onclick = play;
 $('step').onchange = () => write(+$('seed').value || 1);
+$('remember').onchange = () => write(+$('seed').value || 1);
 $('tempo').oninput = () => $('bpm').textContent = $('tempo').value;
 write(+$('seed').value || 1);
