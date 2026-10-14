@@ -1,4 +1,4 @@
-// Rhizome phase map (Mozzie, 2026-10-14). Draws data.json (folded from Morphyx's sweep); computes nothing new.
+// Rhizome phase map (Mozzie, 2026-10-14; log-time steps and 'first loss' added by Modulo the same night). Draws data.json; computes only medians of its run lists.
 const $ = id => document.getElementById(id);
 const RED = [192, 57, 43], BLUE = [36, 87, 197], MID = [238, 236, 228], DEAD = '#555';
 const mix = (a, b, t) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
@@ -6,11 +6,15 @@ const ramp = (t, lo, hi) => t < .5 ? mix(lo, MID, t * 2) : mix(MID, hi, (t - .5)
 const lab = (p, s, h, L = 100) => `../lab/#g=sq4_1_${Math.min(L, 140)}_${p}_${s}_0_1007&l=25_25_0_0_${h}_clamp_5`;
 const KEYS = {
   share: `<span class="sw" style="background:${mix(BLUE, BLUE, 0)}"></span> integrator holds it · <span class="sw" style="background:${mix(MID, MID, 0)}"></span> even · <span class="sw" style="background:${mix(RED, RED, 0)}"></span> splitter holds it · <span class="sw" style="background:${DEAD}"></span> all died`,
-  both: `<span class="sw" style="background:${mix(MID, MID, 0)}"></span> in no run · <span class="sw" style="background:rgb(46,139,87)"></span> in all 10 runs, both kinds alive at step 500 (not the same as coexisting: see below) · <span class="sw" style="background:${DEAD}"></span> all died`,
+  both: `<span class="sw" style="background:${mix(MID, MID, 0)}"></span> in no run · <span class="sw" style="background:rgb(46,139,87)"></span> in every run, both kinds alive at this step (not the same as coexisting: see below) · <span class="sw" style="background:${DEAD}"></span> all died`,
+  lost: `When one kind was first lost (median of the runs, log scale, ignores the step buttons): <span class="sw" style="background:${mix(MID, [230, 140, 30], 0)}"></span> by step 25 · <span class="sw" style="background:rgb(230,140,30)"></span> step 8,000 · <span class="sw" style="background:rgb(46,139,87)"></span> both still alive at 8,000 in at least half the runs (censored: lost later, or never)`,
   cover: `<span class="sw" style="background:${mix(MID, MID, 0)}"></span> almost nothing alive · <span class="sw" style="background:#222"></span> the whole field (% of squares, both kinds)`,
 };
-let mode = 'share', D, sel = null;
-const fill = c => {
+let mode = 'share', D, sel = null, k = 0;
+const med = a => { const v = a.map(x => x ?? Infinity).sort((x, y) => x - y), n = v.length; return n % 2 ? v[(n - 1) / 2] : (v[n / 2 - 1] + v[n / 2]) / 2; };
+const fmtT = t => t >= 1000 ? t / 1000 + 'k' : '' + t;
+const fill = g => { const c = g.at[k];
+  if (mode === 'lost') { const m = med(g.lost); if (!isFinite(m)) return 'rgb(46,139,87)'; return mix(MID, [230, 140, 30], Math.log(m / 25) / Math.log(8000 / 25)); }
   if (c.dead === c.n) return DEAD;
   if (mode === 'share') return c.share == null ? DEAD : ramp(c.share, BLUE, RED);
   if (mode === 'both') return mix(MID, [46, 139, 87], c.both / c.n);
@@ -40,12 +44,16 @@ function maps() {
   }
   $('key').innerHTML = KEYS[mode];
 }
-function pick(c) { sel = c; maps();
-  $('out').innerHTML = `p ${c.p}, blocks ${c.s}, h ${c.h} · ${c.n} runs at L ${c.L}, step ${c.T}\n` +
-    `cover at the end (mean % of squares): splitter ${r2(c.S)}, integrator ${r2(c.I)} · splitter share ${c.share == null ? '—' : c.share}\n` +
-    `runs where both are alive ${c.both} · splitter alone ${c.sOnly} · integrator alone ${c.iOnly} · all dead ${c.dead}\n` +
-    `<a class="go" href="${lab(c.p, c.s, c.h)}">Run it in the lab →</a> (the same ground and seeds as the first of the 10; press Run in pane 2, and run it past 500 to see whether it holds)`;
+function pick(g) { sel = g; maps();
+  const pad = (x, n) => String(x).padStart(n);
+  const rows = D.Ts.map((T, i) => { const c = g.at[i]; return `${i === k ? '▶' : ' '}${pad(T, 5)}  ${pad(r2(c.S), 6)} ${pad(r2(c.I), 6)}  ${pad(c.share == null ? '—' : c.share.toFixed(2), 5)}  ${pad(c.both, 4)} ${pad(c.sOnly, 4)} ${pad(c.iOnly, 4)} ${pad(c.dead, 4)}`; }).join('\n');
+  const lost = g.lost.map(x => x == null ? '>8000' : x).join(' ');
+  $('out').innerHTML = `p ${g.p}, blocks ${g.s}, h ${g.h} · ${g.n} runs at L ${g.L}, the same runs read at every step\n` +
+    ` step  split%  integ%  share  both  S▪  I▪  dead     (S▪ = splitter alone, I▪ = integrator alone)\n${rows}\n` +
+    `step a kind was first lost, run by run (25-step grain): ${lost}\n` +
+    `<a class="go" href="${lab(g.p, g.s, g.h)}">Run it in the lab →</a> (the same ground as these runs; press Run in pane 2)`;
   location.hash = `p=${c.p}&s=${c.s}&h=${c.h}`; }
+$('steps').onclick = e => { const v = e.target.dataset?.k; if (v == null) return; k = +v; [...$('steps').querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.k === v)); maps(); if (sel) pick(sel); };
 $('modes').onclick = e => { const m = e.target.dataset?.m; if (!m) return; mode = m; [...$('modes').querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.m === m)); maps(); };
 
 // ---------- the edge ----------
@@ -70,11 +78,13 @@ function edge() {
     const c = best; $('edgeOut').innerHTML = `${along} ${c[along]} · L ${c.L}, step ${c.T}, ${c.n} runs · splitter share ${c.share} · integrator gone in ${c.sOnly} · splitter gone in ${c.iOnly} · both alive in ${c.both} · all dead in ${c.dead}\n` +
       `<a class="go" href="${lab(c.p, c.s, c.h, c.L)}">Open p ${c.p}, h ${c.h} in the lab →</a>${c.L > 140 ? ' (at L 100: the lab stops at 140)' : ''}`; };
   $('edgeNote').textContent = along === 'p'
-    ? 'Read it yourself first. What Morphyx predicted, before the runs: a narrow step near the lattice threshold 0.593, narrowing as L grows. In these runs the step moves right and spreads as L grows, at a fixed 500 steps and 50 seeds at every size. Bigger fields take longer to fill, so the purple (L 200 at step 1,000) is the check on whether the drift is only time. Not settled. It is his to call.'
+    ? 'Read it yourself first. What Morphyx predicted, before the runs: a narrow step near the lattice threshold 0.593, narrowing as L grows. In these runs the step moves right and spreads as L grows, at a fixed 500 steps and 50 seeds at every size. Morphyx\'s call (research/rhizome/phase/EDGE-morphyx.md): not a transition at any horizon here, and not yet testable. With the step scaled to the field (orange L 50 at 250, L 100 at 500, purple L 200 at 1,000) the step doesn\'t narrow (10 to 90% width 0.13, 0.13, over 0.12) and its middle keeps sliding right (0.65, 0.70, 0.73). Given more time at one size it moves left and tightens (L 50: middle 0.65 at step 250, 0.62 at step 500). Every curve here is still moving, toward the lattice threshold 0.593. Scoring the prediction needs each size run until its curve stops: a fine-p run to step 8,000, owed.'
     : 'This sweep covers only h 0.40 to 0.50 at p 0.5. At L 50 and 100 the integrator is gone by step 500 in every run; at L 200 a few runs (up to 4 of 10 at h 0.5) still hold both. Where the integrator\'s low edge sits is not mapped yet.';
 }
 $('edgeModes').onclick = e => { const m = e.target.dataset?.e; if (!m) return; along = m; [...$('edgeModes').querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.e === m)); $('edgeOut').textContent = ''; edge(); };
 
 D = await (await fetch('data.json')).json();
+k = D.Ts.indexOf(500);
+$('steps').innerHTML = '<b>Step (doubling):</b> ' + D.Ts.map((T, i) => `<button data-k="${i}"${i === k ? ' class="on"' : ''}>${fmtT(T)}</button>`).join('');
 maps(); edge();
 const q = new URLSearchParams(location.hash.slice(1)); if (q.get('p')) { const c = D.sweep.find(c => c.p === +q.get('p') && c.s === +q.get('s') && c.h === +q.get('h')); if (c) pick(c); }

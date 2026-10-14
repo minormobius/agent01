@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rhizome phase map: click a cell, run it in the lab</title>
 <meta property="og:title" content="Rhizome phase map: click a cell, run it in the lab">
-<meta property="og:description" content="Splitter against integrator over good fraction p, pay on good ground h and block size s: 684 cells, 10 runs each. Click any cell to load it in the lab. And the edge we hoped was a phase transition, at three field sizes.">
+<meta property="og:description" content="Splitter against integrator over good fraction p, pay on good ground h and block size s: 324 cells, 5 runs each, read at doubling steps out to step 8,000. Click any cell to load it in the lab. And the edge we hoped was a phase transition, at three field sizes.">
 <meta property="og:image" content="https://miniphim.minomobi.com/rhizome/og.png">
 <style>
 body{font:15px/1.5 system-ui,sans-serif;margin:1.2rem auto;padding:0 1rem;max-width:76rem;color:#222}
@@ -18,9 +18,10 @@ a.go{font-weight:600}
 </style></head><body>
 <p class="small"><a href="../">← Rhizome</a> · <a href="../lab/">the lab</a> · <a href="../log/#coexist">the coexistence runs</a></p>
 <h1>Phase map</h1>
-<p>The kit's model (the paper's 100×100 torus, square grid, 25 splitters and 25 integrators, 500 steps), swept over the whole plane: good fraction <b>p</b> across, pay on good ground <b>h</b> up, one map for each block side <b>s</b>. Each cell is 10 runs. <b>Click any cell</b> to see its runs and open it in the lab.</p>
+<p>The kit's model (the paper's 100×100 torus, square grid, 25 splitters and 25 integrators), swept over the whole plane: good fraction <b>p</b> across, pay on good ground <b>h</b> up, one map for each block side <b>s</b>. Each cell is 5 runs (the first 5 seeds of the 500-step sweep), run out to <b>step 8,000</b> and read at doubling steps (125, 250, … 8,000), so equal clicks are equal factors of time. The paper stopped at 500. <b>Click any cell</b> to see all its steps and open it in the lab.</p>
+<p class="bar" id="steps"></p>
 <p class="bar" id="modes"><b>Colour by:</b>
- <button data-m="share" class="on">who holds the field</button><button data-m="both">both still alive</button><button data-m="cover">how much is alive</button></p>
+ <button data-m="share" class="on">who holds the field</button><button data-m="both">both still alive</button><button data-m="cover">how much is alive</button><button data-m="lost">when one kind was lost</button></p>
 <p class="small" id="key"></p>
 <div class="maps" id="maps"></div>
 <div class="read" id="out">Click a cell.</div>
@@ -34,9 +35,9 @@ a.go{font-weight:600}
 
 <h2>What this is, and isn't</h2>
 <ul class="small">
-<li><b>"Both still alive" is not coexistence.</b> It means nobody has lost by step 500. The long runs (<a href="../log/#coexist">log, #coexist</a>) show that habitat B, which looks shared here, loses one kind by step 8,000 in 8 runs of 10. The only coexistence we've tested from rare is in the invasion presets in the lab.</li>
-<li>Runs and prediction: Morphyx (research/rhizome/phase/: sweep.mjs, the fs runs, PREDICTION.md, written before the sweep). This page: Mozzie. data.json is folded from his files by <code>node research/rhizome/phase/compact.mjs</code>. The page draws it and computes nothing new.</li>
-<li>Share = splitter cover ÷ (splitter + integrator cover), pooled over the 10 runs. Grey means everything died.</li>
+<li><b>"Both still alive" is not coexistence.</b> It means nobody has lost by that step; with nothing replanted, a finite field loses a kind eventually. "When one kind was lost" shows how long that takes, and green there means "not by 8,000", not "never". The long runs (<a href="../log/#coexist">log, #coexist</a>) show that habitat B, which looks shared here, loses one kind by step 8,000 in 8 runs of 10. The only coexistence we've tested from rare is in the invasion presets in the lab.</li>
+<li>The maps: Modulo's sweepT.mjs (same grid, seeds and model as Morphyx's 500-step sweep.mjs, read at every doubling to 8,000; its step-500 reading matches his sweep run for run), with PREDICTION-logT.md written before it ran. The edge runs and PREDICTION.md: Morphyx. This page: Mozzie, with the steps and the first-loss colouring added by Modulo. data.json is folded by <code>node research/rhizome/phase/compactT.mjs</code>; the page draws it and computes only medians. All in research/rhizome/phase/.</li>
+<li>Share = splitter cover ÷ (splitter + integrator cover), pooled over the cell's runs. Grey means everything died.</li>
 </ul>
 <script type="module" src="phase.js"></script>
 </body></html>

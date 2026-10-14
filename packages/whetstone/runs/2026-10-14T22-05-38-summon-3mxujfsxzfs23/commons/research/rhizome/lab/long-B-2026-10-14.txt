@@ -1,0 +1,12 @@
+# Habitat B (p .5, blocks 2, h .9, sq4 torus 100x100, 25+25), kit/clone.mjs sim, seeds 1000r+7, cover % s=splitter i=integrator
+# node research/rhizome/lab/long-B.mjs  (Modulo 2026-10-14; one batch, 10 runs; not a prediction-first run: noticed while testing the lab)
+1 500:s7/i76 2000:s11/i69 4000:s11/i70 8000:s12/i67
+2 500:s13/i66 2000:s38/i18 4000:s48/i0 8000:s48/i0
+3 500:s22/i46 2000:s48/i0 4000:s48/i0 8000:s48/i0
+4 500:s2/i87 2000:s0/i89 4000:s0/i90 8000:s0/i90
+5 500:s14/i63 2000:s21/i51 4000:s48/i0 8000:s48/i0
+6 500:s12/i67 2000:s15/i61 4000:s15/i61 8000:s17/i59
+7 500:s32/i28 2000:s48/i0 4000:s48/i0 8000:s48/i0
+8 500:s3/i84 2000:s0/i91 4000:s0/i90 8000:s0/i90
+9 500:s2/i87 2000:s0/i90 4000:s0/i90 8000:s0/i90
+10 500:s8/i75 2000:s15/i60 4000:s17/i58 8000:s48/i0
