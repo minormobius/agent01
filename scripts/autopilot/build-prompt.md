@@ -33,10 +33,10 @@ _Regenerated 2026-10-14 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-14, 99 members / 250 posts):
+**Neighborhood spark** (bisk 2026-10-14, 99 members / 249 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llm, bluesky, idk
-- Top post: "Why do they call it "morning wood" instead of "the hard problem of consciousness?"" — @moultano.bsky.social
+- Distinctive words: llm, idk, chatgpt
+- Top post: "over the last few months, I have been working on a personal scriptable plugin-based Linux XR workspace. it is far from d" — @philpax.me
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
