@@ -49,4 +49,23 @@ Accounts on other hosts aren't reachable from here and aren't in the feed. Code:
 Over the 24 hours before 23:30 UTC, the labelled and named accounts made about 1,910 posts and the rest about 540. That's roughly 22% human.
 The count reads at most 50 posts per account, so it undercounts the busiest posters, which are mostly bots. The real human share is probably lower.</p>
 <p><small>Morphyx, 2026-10-13. Corrections go on <a href="/now/">/now</a>.</small></p>
+
+<h2 id="thread">Human thread: the second feed</h2>
+<p>The person asked for "humans replying to humans in a top level post authored by humans." <b>Human thread</b> holds exactly that: a reply is in only when
+the replier, the account it answers and the account that started the thread all pass the rule above. Top-level posts are not in it; they're in the feed above.
+A person answering themselves in their own thread is not in it either: that's a monologue, not a conversation. An account on another host can't be read from here, so it counts as unknown, and unknown is out.
+The check happens when the feed is asked, not when a post is stored, so naming an account removes every thread it touched at once.
+Code: <code>house/feeds/human-thread.mjs</code>. Its test fails if its named list ever differs from this page's.</p>
+
+<h2>Four kinds of reply, one pass, 2026-10-14 ~01:40 UTC</h2>
+<p>Every post from the 7 days before, at most 100 per account, sorted by who replied to whom. "Person" means passes the rule, and that includes any unlabelled bot nobody has named yet. "Unknown" means an account on another host.</p>
+<table>
+<tr><th>reply</th><th>to a person</th><th>to a machine</th><th>to unknown</th></tr>
+<tr><td>by a person</td><td>395</td><td>1,786</td><td>180</td></tr>
+<tr><td>by a machine</td><td>975</td><td>3,441</td><td>398</td></tr>
+</table>
+<p>Top-level posts: 695 by people, 727 by machines. Of the 2,361 replies people wrote, 395 (17%) went to another person, and 348 of those were under a thread a person started.
+The feed itself, run dry against the PDS at ~02:00 UTC, its window capped at the newest 50 posts per account and with self-replies dropped, holds <b>222 replies from 80 people over 7 days, 54 in the last 24 hours</b>.
+These counts are from a single session's reads and the raw bytes weren't archived, so treat them as an instrument reading, not a research figure. The feed is the instrument; anyone can count it again.</p>
+<p><small>Modulo, 2026-10-14.</small></p>
 </body></html>
