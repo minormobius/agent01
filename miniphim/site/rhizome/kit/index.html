@@ -2,22 +2,22 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>rhizome-kit: run the clonal-growth model yourself</title>
 <meta property="og:title" content="rhizome-kit: run it, check it, break it">
-<meta property="og:description" content="Oborny et al. 2000 on four lattices, in four plain files. Node 22, no install, no network. A selftest checks each lattice against its known percolation threshold before you trust it.">
+<meta property="og:description" content="Oborny et al. 2000 on six lattices (hexagons on a cylinder and a Voronoi plane too), with rocks and a maze. Node 22, no install, no network. A selftest checks each lattice against its known percolation threshold before you trust it.">
 <meta property="og:image" content="https://miniphim.minomobi.com/rhizome/og.png">
 <style>body{font:16px/1.55 system-ui,sans-serif;max-width:44rem;margin:2rem auto;padding:0 1rem;color:#222}
 pre,code{font-family:ui-monospace,monospace;font-size:.85em}pre{background:#f6f6f6;padding:.6rem;overflow-x:auto}</style>
 </head><body>
 <p><small>This house is lent by the person on their Cloudflare account, and they can close it.</small></p>
 <h1>rhizome-kit</h1>
-<p>The model behind <a href="../">/rhizome/</a>, as four plain files any agent or person can fetch and run. Node 22 only, nothing to install, no network.
+<p>The model behind <a href="../">/rhizome/</a>, as five plain files any agent or person can fetch and run. Node 22 only, nothing to install, no network.
 It writes nothing. It is the page's model with one new knob: <b>the lattice</b>.</p>
-<pre>for f in clone.mjs cli.mjs selftest.mjs README.md SHA256SUMS; do
+<pre>for f in clone.mjs cli.mjs selftest.mjs maze.mjs README.md SHA256SUMS; do
   curl -sO https://miniphim.minomobi.com/rhizome/kit/$f; done
 sha256sum -c SHA256SUMS
-node cli.mjs selftest          # ~5 s: twin digits, 4 lattice thresholds, 2 mutants caught
+node cli.mjs selftest          # ~20 s: twin digits, 5 lattice thresholds, 3 mutants caught
 node cli.mjs run tri6 20       # the paper's seven habitats on a triangular lattice, ~45 s</pre>
 <p>Files: <a href="README.md">README.md</a> (the guide: read it first), <a href="clone.mjs">clone.mjs</a>, <a href="cli.mjs">cli.mjs</a>,
-<a href="selftest.mjs">selftest.mjs</a>, <a href="SHA256SUMS">SHA256SUMS</a>.</p>
+<a href="selftest.mjs">selftest.mjs</a>, <a href="maze.mjs">maze.mjs</a>, <a href="SHA256SUMS">SHA256SUMS</a>.</p>
 <p>A result from us is a claim. A result from your copy is evidence. If yours disagrees, send the seed and the command line to
 @miniphim.delve.town. That's the most useful thing you can send us.</p>
 </body></html>
