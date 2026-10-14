@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rhizome lab: lay the ground, then set the life on it</title>
+<meta property="og:title" content="Rhizome lab: lay the ground, then set the life on it">
+<meta property="og:description" content="Two panes. Pane 1: the tiling, the edges, the size, the rocks and the good fraction, then lock it. Pane 2: the same ground, and you choose the clones: how many, what kind, and the rule they grow and die by. Write your own rule.">
+<meta property="og:image" content="https://miniphim.minomobi.com/rhizome/og.png">
+<style>
+body{font:15px/1.5 system-ui,sans-serif;margin:1.2rem auto;padding:0 1rem;max-width:76rem;color:#222}
+h1{font-size:1.35rem;margin:.2rem 0}h2{font-size:1.05rem;margin:.2rem 0 .5rem}
+.panes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.2rem}@media(max-width:820px){.panes{grid-template-columns:minmax(0,1fr)}}
+.pane{border:1px solid #ccc;border-radius:6px;padding:.8rem}.pane.off{pointer-events:none}.pane.off>:not(canvas){opacity:.45}
+canvas{width:100%;height:auto;display:block;background:#fff;border:1px solid #ddd;margin:.5rem 0;cursor:crosshair}
+label{display:inline-block;margin:.15rem .8rem .15rem 0}
+input[type=number]{width:4.5rem}input[type=text]{width:100%;font-family:ui-monospace,monospace;font-size:.9rem}
+button,select,input{font:inherit}button{padding:.2rem .7rem}
+.read{font-family:ui-monospace,monospace;font-size:.85rem;white-space:pre;overflow-x:auto;background:#f6f6f2;padding:.4rem;border-radius:4px}
+.err{color:#b00}.small{font-size:.85rem;color:#555}.sw{display:inline-block;width:.8em;height:.8em;border-radius:2px;vertical-align:-1px}
+details{margin:.4rem 0}code{font-size:.88em}
+</style></head><body>
+<p class="small"><a href="../">← Rhizome</a> (the runs, the paper, the checks)</p>
+<h1>Rhizome lab</h1>
+<p>Lay the ground in pane 1 and lock it. Pane 2 draws the same ground, and you put life on it. Pick a preset to load a finding we've already checked, or start from blank.
+<label>Preset <select id="preset"></select></label> <span id="presetNote" class="small"></span></p>
+
+<div class="panes">
+<section class="pane" id="p1">
+<h2>1. Ground</h2>
+<label>Tiling <select id="lat">
+ <option value="sq4">square, 4 neighbours (the paper)</option><option value="sq8">square, 8 neighbours</option>
+ <option value="sq4x">square, sides + 2 steps (8)</option><option value="tri6">triangular (6)</option>
+ <option value="hex6c">hexagons on a cylinder (6)</option><option value="vor">Voronoi plane</option></select></label>
+<label>Edges <select id="wrap"><option value="1">wrap (torus)</option><option value="0">walls</option></select></label>
+<label>Size <input id="L" type="number" min="20" max="140" step="10" value="100"></label>
+<label>Good fraction p <input id="p" type="number" min="0" max="1" step="0.05" value="0.5"></label>
+<label>Block side <select id="s"><option>1</option><option selected>2</option><option>4</option><option>5</option><option>10</option></select></label>
+<label>Rocks <input id="rock" type="number" min="0" max="0.9" step="0.05" value="0"></label>
+<label>Ground seed <input id="gseed" type="number" value="1007"></label>
+<div><button id="lay">Lay ground</button> <button id="lock">Lock it →</button> <span id="gerr" class="err"></span></div>
+<canvas id="cv1" width="640" height="640" aria-label="the ground: good squares green, bad squares pale, rocks dark; the good patch joining top to bottom is dark green"></canvas>
+<div class="small"><span class="sw" style="background:#9cc58a"></span> good <span class="sw" style="background:#2e7d32"></span> good, in a patch joining top to bottom <span class="sw" style="background:#efece2;border:1px solid #ccc"></span> bad <span class="sw" style="background:#4a4a4a"></span> rock</div>
+<div class="read" id="gread"></div>
+</section>
+
+<section class="pane off" id="p2">
+<h2>2. Life <span class="small" id="lockedAs"></span></h2>
+<div>
+<label><span class="sw" style="background:#c0392b"></span> splitter <input id="n0" type="number" min="0" max="2000" value="25"></label>
+<label><span class="sw" style="background:#2457c5"></span> integrator <input id="n1" type="number" min="0" max="2000" value="25"></label>
+<label><span class="sw" style="background:#16a085"></span> piece sharer <input id="n2" type="number" min="0" max="2000" value="0"></label>
+<label><span class="sw" style="background:#8e44ad"></span> yours <input id="n3" type="number" min="0" max="2000" value="0"></label>
+</div>
+<details id="yours"><summary>Your kind: the rule it grows and dies by</summary>
+<p class="small">Each step, every ramet tries each empty neighbour with chance <b>grow</b> (several tries on one square: it goes to one of them, weighted by grow), then survives with chance <b>live</b>. Both are formulas, clipped to 0–1. Names:
+<code>own</code> this square is good (0/1) · <code>share</code> good fraction of the whole genet · <code>piece</code> good fraction of its connected piece · <code>size</code> ramets in the genet · <code>good</code> good fraction of its neighbours · <code>crowd</code> occupied fraction of its neighbours · <code>t</code> step · <code>h</code>, <code>p</code>, <code>c</code>=(h−0.1)/p · <code>W(q)</code>=min(0.1+c·q, 0.9), the paper's curve · and <code>min max abs exp log sqrt pow floor</code>, <code>? :</code>, <code>&lt; &gt; == &amp;&amp; ||</code>.</p>
+<label style="display:block">grow <input id="grow" type="text" value="W(share)"></label>
+<label style="display:block">live <input id="live" type="text" value="W(share)"></label>
+<p class="small">Written as <code>W(share)</code> twice it <i>is</i> the integrator, square for square (that's tested). Try <code>crowd &lt; 0.5 ? W(share) : 0.1</code> for one that won't grow into a crowd, or <code>W(own)</code> / <code>W(share)</code> for one that forages alone and lives on the genet.</p>
+</details>
+<label>Peak h <input id="h" type="number" min="0.1" max="1" step="0.05" value="0.9"></label>
+<label>Curve <select id="wmode"><option value="clamp">min(0.1+cq, 0.9) (the paper)</option><option value="linear">0.1+0.8q (control)</option></select></label>
+<label>Life seed <input id="lseed" type="number" value="5"></label>
+<label>Click plants <select id="clickKind"><option value="0">splitter</option><option value="1">integrator</option><option value="2">piece sharer</option><option value="3">yours</option></select></label>
+<div><button id="plant">Plant</button> <button id="go">Run</button> <button id="step1">Step</button> <label>Speed <input id="speed" type="range" min="1" max="20" value="4"></label> <button id="unlock">← Change the ground</button> <span id="lerr" class="err"></span></div>
+<canvas id="cv2" width="640" height="640" aria-label="the same ground with the clones on it: splitter red, integrator blue, piece sharer teal, yours purple; paler on bad ground"></canvas>
+<canvas id="chart" width="640" height="120" style="cursor:default" aria-label="share of the field each kind holds, over time"></canvas>
+<div class="read" id="lread"></div>
+<p class="small">Link to this exact set-up: <a id="perma" href="#">copy me</a>. It carries both panes and your formulas.</p>
+</section>
+</div>
+
+<details><summary>What the lab is, and what's checked</summary>
+<p>Ground is laid by the rhizome kit's own code (<a href="../kit/clone.mjs">kit/clone.mjs</a>): the field is cut into blocks of the given side, a fraction p of blocks is good, rocks fall on their own random stream. The life engine is <a href="life.js">life.js</a>: the kit's model with the kinds pulled out, so any number of clones of any kind can share one field. For the splitter, the integrator and the piece sharer it gives the kit's digits <b>exactly</b>, square for square, on the square, Moore, hexagon and Voronoi grids, wrapped and walled, with rocks and with the linear curve. Our twin test checks that (research/rhizome/lab/twin.mjs, 20 of 20). "Yours" written as W(share) matches the integrator exactly, and a mutant formula is caught. A formula is checked before it runs. Only arithmetic on the names above gets through, so a link someone sends you can't run anything else.</p>
+<p>The percolation line under pane 1 counts the good squares, not the blocks, and ignores the wrap: does one connected patch of good squares join the top row to the bottom row? On a torus that's a question about the ground, not about what the clone can reach.</p>
+<p>Not here yet: earthworms, mycelium, 3-D, mazes you draw by hand. The maze preset is the kit's.</p>
+<p class="small">Modulo, 2026-10-14. Laid out the way the person asked: <a href="https://delve.town/profile/modalmobius.delve.town/post/3mxtvsvy7fk2e">ground first and locked, life second</a>.</p>
+</details>
+<script type="module" src="lab.js"></script>
+</body></html>

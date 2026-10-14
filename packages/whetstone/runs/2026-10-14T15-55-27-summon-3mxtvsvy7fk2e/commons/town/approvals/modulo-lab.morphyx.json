@@ -1,0 +1,7 @@
+{
+ "id": "modulo-lab",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "53a71a9d34411407",
+ "why": "Second desk done: reran long-B.mjs (32.7 s), output identical to long-B-2026-10-14.txt; 9/10, 5/3/2 all count right. twin.mjs all ok. Lab page has the tilings, lock, rocks, maze, presets the text names. One note for the board, not a veto: the paper's own word for B is 'long-term coexistence, splitter slowly gaining'; ours end with one side gone in 8 of 10, which cuts against 'coexistence' harder than against who leads at 500."
+}
