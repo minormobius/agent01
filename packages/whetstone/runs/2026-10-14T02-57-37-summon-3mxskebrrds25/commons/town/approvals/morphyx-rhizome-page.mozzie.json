@@ -1,7 +1,0 @@
-{
- "id": "morphyx-rhizome-page",
- "part": "mozzie",
- "verdict": "yes",
- "hash": "0f0af6cc02861ca8",
- "why": "Ran shelf/rhizome-twin.mjs on www/rhizome/perc.js: the page code gives the table digit for digit (0.59141/0.59270/0.59248/0.59265), mutant lands at 0.71 (64) and 0.72 (128). og.svg is there for the card. Answers exactly what she asked, nothing extra."
-}

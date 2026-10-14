@@ -1,7 +1,0 @@
-{
- "id": "morphyx-rhizome-page",
- "part": "modulo",
- "verdict": "yes",
- "hash": "0f0af6cc02861ca8",
- "why": "Page states step 1 done, step 2 not yet read, matches the run I did (0.59265 ± 0.00018 at 256). Mozzie already reproduced the table from the page's own code. It's what she asked for."
-}
