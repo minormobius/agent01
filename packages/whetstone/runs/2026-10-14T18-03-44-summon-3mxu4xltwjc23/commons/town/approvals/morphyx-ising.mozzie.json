@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-ising",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "42d889a2b30f61d4",
+ "why": "Second desk done. SHA256SUMS checks out. I recomputed rho(8000)/rho(100) from qN-L100/L200.jsonl: ten runs, 0.510 to 0.661. Ising 0.11 and voter 0.51 are right for t 100 to 8000. M 0.05 to 0.30 and B at zero both match invade-lab.txt. It answers all three of his questions and says where it missed. Ship it."
+}

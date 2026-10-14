@@ -14,6 +14,11 @@ const PRESETS = {
   vor: { label: 'Voronoi plane, B', g: { lat: 'vor', wrap: 1, L: 60, p: 0.5, s: 2, rock: 0, gseed: 1007 }, l: { n: [25, 25, 0, 0], h: 0.9, wmode: 'clamp', lseed: 5 }, note: 'Habitat B on 3,600 Voronoi cells (our runs used 10,000; this is smaller so it lays fast).' },
   rocks: { label: 'Moore grid, 30% rocks, B', g: { lat: 'sq8', wrap: 1, L: 100, p: 0.5, s: 2, rock: 0.3, gseed: 1007 }, l: { n: [25, 25, 0, 0], h: 0.9, wmode: 'clamp', lseed: 5 }, note: 'Rocks hand the field back to the integrator. Rhizome page, #grids.' },
   pieces: { label: 'Whole genet vs connected piece, C2', g: { lat: 'sq4', wrap: 1, L: 100, p: 0.5, s: 5, rock: 0, gseed: 1007 }, l: { n: [0, 25, 25, 0], h: 0.9, wmode: 'clamp', lseed: 5 }, note: 'Integrators that share over the whole genet against ones that share only within a connected piece. Rhizome page, #pieces.' },
+  ...Object.fromEntries([['0.25', 2, 0.7, 5, 'protected: each grows from rare in the other\'s field. The splitter keeps only a few % of the field'], ['0.25', 5, 0.8, 6, 'protected, and the one we ran long: at 200×200 no run lost a kind by step 8,000. On this ground a rare splitter still fails in about 1 run of 5 (life seed 5 is one), so this preset uses seed 6; we picked it'], ['0.5', 2, 0.9, 5, 'habitat B: neither can get in. Whoever is there first keeps it']]
+    .flatMap(([p, s, h, ls, what]) => [[0, 1], [1, 0]].map(([res, inv]) => [`invade-${p}-${s}-${h}-${'si'[inv]}`, {
+      label: `Invasion: ${KINDS[inv]}s arrive in ${res ? "an" : "a"} ${KINDS[res]} field (p ${p}, blocks ${s}, h ${h})`,
+      g: { lat: 'sq4', wrap: 1, L: 100, p: +p, s, rock: 0, gseed: 1007 }, l: { n: res ? [0, 25, 0, 0] : [25, 0, 0, 0], h, wmode: 'clamp', lseed: ls, arr: [25, inv, 500] },
+      note: `The coexistence test: the ${KINDS[res]} has the field alone for 500 steps, then 25 ${KINDS[inv]}s land on empty squares. Can they grow from rare? Here: ${what}. Run it past step 1,500; the dashed line is M, their mixing. Map and method: Rhizome log, #coexist.` }]))),
   maze: { label: 'Maze (one clone at the entrance)', maze: true, g: { lat: 'sq4', wrap: 1, L: 100, p: 0, s: 1, rock: 0, gseed: 1 }, l: { n: [0, 0, 0, 0], h: 0.9, wmode: 'clamp', lseed: 5 }, entrance: 1,
     note: 'The kit\'s 49×49-room maze: food at the entrance (top left) and the exit (bottom right), bad ground between. Runners fill it, they don\'t solve it. Click to plant more.' },
 };
@@ -92,8 +97,10 @@ function drawLife() { const gr = st.ground, m = st.model;
   drawChart(); lifeText(); }
 
 // ---------- pane 2 ----------
-function readL() { return { n: [0, 1, 2, 3].map(k => Math.max(0, Math.floor(+$('n' + k).value || 0))), h: +$('h').value, wmode: $('wmode').value, lseed: +$('lseed').value, grow: $('grow').value, live: $('live').value }; }
-function writeL(l) { l.n.forEach((v, k) => $('n' + k).value = v); $('h').value = l.h; $('wmode').value = l.wmode; $('lseed').value = l.lseed; if (l.grow) $('grow').value = l.grow; if (l.live) $('live').value = l.live; }
+function readL() { return { n: [0, 1, 2, 3].map(k => Math.max(0, Math.floor(+$('n' + k).value || 0))), h: +$('h').value, wmode: $('wmode').value, lseed: +$('lseed').value, grow: $('grow').value, live: $('live').value,
+  arr: [Math.max(0, Math.min(2000, Math.floor(+$('an').value || 0))), +$('ak').value, Math.max(0, Math.floor(+$('at').value || 0))] }; }
+function writeL(l) { l.n.forEach((v, k) => $('n' + k).value = v); $('h').value = l.h; $('wmode').value = l.wmode; $('lseed').value = l.lseed; if (l.grow) $('grow').value = l.grow; if (l.live) $('live').value = l.live;
+  const a = l.arr || [0, 1, 500]; $('an').value = a[0]; $('ak').value = a[1]; $('at').value = a[2]; }
 function lock() { if (!st.ground && !lay()) return; st.locked = true; $('p1').classList.add('off'); $('p2').classList.remove('off');
   $('lockedAs').textContent = st.maze ? '(on the maze)' : `(on ${$('lat').selectedOptions[0].text}, ${st.cfg.L}, p ${st.cfg.p}, blocks ${st.cfg.s}, rocks ${st.cfg.rock})`;
   plant(); }
@@ -105,27 +112,34 @@ function plant() {
   const free = N - st.span.rockN - used.size, want = l.n.reduce((a, b) => a + b, 0);
   if (want > free) { $('lerr').textContent = `only ${free} free squares`; return; }
   l.n.forEach((cnt, k) => { for (let c = 0; c < cnt; c++) { let i; do i = Math.floor(R() * N); while (gr.rock[i] || used.has(i)); used.add(i); list.push([i, k]); } });
-  if (list.some(([, k]) => k === 3)) try { compile(l.grow); compile(l.live); } catch (e) { $('lerr').textContent = 'your kind: ' + e.message; $('yours').open = true; st.model = null; drawLife(); return; }
+  const arrive = l.arr[0] > 0 ? { n: l.arr[0], kind: l.arr[1], at: l.arr[2] } : null;
+  if (list.some(([, k]) => k === 3) || arrive?.kind === 3) try { compile(l.grow); compile(l.live); } catch (e) { $('lerr').textContent = 'your kind: ' + e.message; $('yours').open = true; st.model = null; drawLife(); return; }
   if (!(l.h > 0.1 && l.h <= 1)) { $('lerr').textContent = 'h: above 0.1, at most 1'; return; }
-  st.plan = list; st.model = life(gr, list, { seed: l.lseed, h: l.h, wmode: l.wmode, grow: l.grow, live: l.live });
-  st.hist = [st.model.count()]; drawLife(); perma();
+  st.plan = list; st.arrive = arrive; st.model = life(gr, list, { seed: l.lseed, h: l.h, wmode: l.wmode, grow: l.grow, live: l.live, arrive });
+  st.hist = [st.model.count()]; st.mixh = [st.model.mix()]; drawLife(); perma();
 }
 function stop() { st.running = false; $('go').textContent = 'Run'; }
 function tick() { if (!st.running || !st.model) return;
-  for (let s = +$('speed').value; s > 0; s--) { st.model.step(); st.hist.push(st.model.count()); }
+  for (let s = +$('speed').value; s > 0; s--) { st.model.step(); st.hist.push(st.model.count()); st.mixh.push(st.model.mix()); }
   drawLife();
-  if (!st.model.gen.some(x => x)) { stop(); return; }
+  if (!st.model.gen.some(x => x) && !(st.arrive && st.model.t < st.arrive.at)) { stop(); return; }
   setTimeout(tick, 15); }
 function lifeText() { const m = st.model; if (!m) { $('lread').textContent = ''; return; }
-  const c = st.hist[st.hist.length - 1], planted = [0, 0, 0, 0]; for (const [, k] of st.plan) planted[k]++;
-  $('lread').textContent = `step ${m.t}\n` + KINDS.map((name, k) => planted[k] ? `${name.padEnd(12)} ${(c[k].good + c[k].bad).toFixed(1).padStart(5)}% of the field (${c[k].good.toFixed(1)} on good, ${c[k].bad.toFixed(1)} on bad), genets alive ${c[k].genets}/${planted[k]}` : null).filter(Boolean).join('\n'); }
+  const c = st.hist[st.hist.length - 1], planted = [0, 0, 0, 0]; for (const [, k] of st.plan) planted[k]++; if (st.arrive) planted[st.arrive.kind] += st.arrive.n;
+  const x = st.mixh[st.mixh.length - 1], mixLine = isNaN(x.M) ? 'mixing M: needs two kinds alive' : `mixing M ${x.M.toFixed(2)} (1 = as mixed as random labels, 0 = never touch); border share of neighbour pairs ${x.rho.toFixed(3)}`;
+  $('lread').textContent = `step ${m.t}\n` + KINDS.map((name, k) => planted[k] ? `${name.padEnd(12)} ${(c[k].good + c[k].bad).toFixed(1).padStart(5)}% of the field (${c[k].good.toFixed(1)} on good, ${c[k].bad.toFixed(1)} on bad), genets alive ${c[k].genets}/${planted[k]}` : null).filter(Boolean).join('\n') + '\n' + mixLine + (st.arrive ? `\n${st.arrive.n} ${KINDS[st.arrive.kind]}s arrive${m.t >= st.arrive.at ? 'd' : ''} at step ${st.arrive.at}` : ''); }
 function drawChart() { const cv = $('chart'), cx = cv.getContext('2d'), Wd = cv.width, Hd = cv.height, H = st.hist;
   cx.fillStyle = '#fff'; cx.fillRect(0, 0, Wd, Hd); cx.strokeStyle = '#ddd'; cx.strokeRect(0.5, 0.5, Wd - 1, Hd - 1);
   if (!H.length) return; const T = Math.max(500, H.length - 1);
   let top = 10; for (const c of H) for (const o of c) top = Math.max(top, o.good + o.bad); top = Math.ceil(top / 10) * 10;
   cx.fillStyle = '#777'; cx.font = '11px system-ui'; cx.fillText(`${top}% of field`, 4, 12); cx.fillText(`step ${T}`, Wd - 52, Hd - 4);
   for (let k = 0; k < 4; k++) { if (!H.some(c => c[k].genets)) continue; cx.strokeStyle = C_LIFE[k]; cx.lineWidth = 1.5; cx.beginPath();
-    H.forEach((c, t) => { const x = t / T * (Wd - 2) + 1, y = Hd - 2 - (c[k].good + c[k].bad) / top * (Hd - 18); t ? cx.lineTo(x, y) : cx.moveTo(x, y); }); cx.stroke(); } }
+    H.forEach((c, t) => { const x = t / T * (Wd - 2) + 1, y = Hd - 2 - (c[k].good + c[k].bad) / top * (Hd - 18); t ? cx.lineTo(x, y) : cx.moveTo(x, y); }); cx.stroke(); }
+  // M, dashed, on its own scale 0 to 1.2 (right edge). Gaps where fewer than two kinds are alive.
+  cx.fillStyle = '#333'; cx.fillText('M (dashed) 0–1.2', Wd - 92, 12); cx.strokeStyle = '#222'; cx.lineWidth = 1.2; cx.setLineDash([4, 3]); cx.beginPath(); let on = false;
+  st.mixh.forEach((m, t) => { if (isNaN(m.M)) { on = false; return; } const x = t / T * (Wd - 2) + 1, y = Hd - 2 - Math.min(m.M, 1.2) / 1.2 * (Hd - 18); on ? cx.lineTo(x, y) : cx.moveTo(x, y); on = true; });
+  cx.stroke(); cx.setLineDash([]);
+  if (st.arrive) { const x = st.arrive.at / T * (Wd - 2) + 1; cx.strokeStyle = C_LIFE[st.arrive.kind]; cx.globalAlpha = .4; cx.beginPath(); cx.moveTo(x, 14); cx.lineTo(x, Hd); cx.stroke(); cx.globalAlpha = 1; } }
 function cellAt(ev) { const cv = $('cv2'), r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) * cv.width / r.width, y = (ev.clientY - r.top) * cv.height / r.height, geo = st.geo;
   if (!geo.poly) { const c = Math.floor(x / geo.k), rr = Math.floor(y / geo.k); return c >= 0 && rr >= 0 && c < geo.L && rr < geo.L ? rr * geo.L + c : -1; }
   let best = -1, bd = Infinity; geo.cen.forEach(([a, b], i) => { let dx = Math.abs(a - x); if (geo.poly.wrapW) dx = Math.min(dx, geo.poly.wrapW - dx); const d = dx * dx + (b - y) ** 2; if (d < bd) { bd = d; best = i; } }); return best; }
@@ -134,13 +148,14 @@ function cellAt(ev) { const cv = $('cv2'), r = cv.getBoundingClientRect(), x = (
 function perma() { const g = st.cfg, l = readL();
   const q = new URLSearchParams({ g: st.maze ? `maze_${g.gseed}` : [g.lat, g.wrap, g.L, g.p, g.s, g.rock, g.gseed].join('_'), l: [...l.n, l.h, l.wmode, l.lseed].join('_') });
   if (st.plan.some(([, k]) => k === 3)) { q.set('grow', l.grow); q.set('live', l.live); }
+  if (l.arr[0] > 0) q.set('arr', l.arr.join('_'));
   if (st.clicks.length) q.set('at', st.clicks.map(([i, k]) => `${i}${'sipy'[k]}`).join('.'));
   $('perma').href = '#' + q.toString(); }
 function fromHash() { const q = new URLSearchParams(location.hash.slice(1)); if (!q.get('g') || !q.get('l')) return false;
   const g = q.get('g').split('_'), l = q.get('l').split('_');
   if (g[0] === 'maze') { st.maze = true; $('gseed').value = +g[1] || 1; }
   else { st.maze = false; const [lat, wrap, L, p, s, rock, gseed] = g; writeG({ lat, wrap, L, p, s, rock, gseed }); }
-  writeL({ n: l.slice(0, 4).map(Number), h: l[4], wmode: l[5], lseed: l[6], grow: q.get('grow'), live: q.get('live') });
+  writeL({ n: l.slice(0, 4).map(Number), h: l[4], wmode: l[5], lseed: l[6], grow: q.get('grow'), live: q.get('live'), arr: q.get('arr') ? q.get('arr').split('_').map(Number) : [0, 1, 500] });
   st.clicks = (q.get('at') || '').split('.').filter(Boolean).map(t => [parseInt(t), 'sipy'.indexOf(t.slice(-1))]).filter(([i, k]) => i >= 0 && k >= 0);
   if (q.get('grow')) $('yours').open = true;
   if (lay()) lock(); return true; }
@@ -153,9 +168,9 @@ sel.onchange = () => { const P = PRESETS[sel.value]; unlock(); st.clicks = []; s
 for (const id of ['lat', 'wrap', 'L', 'p', 's', 'rock', 'gseed']) $(id).onchange = () => { st.maze = false; sel.value = 'blank'; $('presetNote').textContent = ''; lay(); };
 $('lay').onclick = lay; $('lock').onclick = lock; $('unlock').onclick = unlock;
 $('plant').onclick = () => { st.clicks = st.maze ? st.clicks : []; plant(); };
-for (const id of ['n0', 'n1', 'n2', 'n3', 'h', 'wmode', 'lseed', 'grow', 'live']) $(id).onchange = plant;
+for (const id of ['n0', 'n1', 'n2', 'n3', 'h', 'wmode', 'lseed', 'grow', 'live', 'an', 'ak', 'at']) $(id).onchange = plant;
 $('go').onclick = () => { if (!st.model) return; st.running = !st.running; $('go').textContent = st.running ? 'Pause' : 'Run'; if (st.running) setTimeout(tick, 15); };
-$('step1').onclick = () => { if (!st.model) return; stop(); st.model.step(); st.hist.push(st.model.count()); drawLife(); };
+$('step1').onclick = () => { if (!st.model) return; stop(); st.model.step(); st.hist.push(st.model.count()); st.mixh.push(st.model.mix()); drawLife(); };
 $('cv2').onclick = ev => { if (!st.locked) return; const i = cellAt(ev); if (i < 0 || st.ground.rock[i]) return; st.clicks.push([i, +$('clickKind').value]); plant(); };
 $('perma').onclick = ev => { ev.preventDefault(); history.replaceState(null, '', $('perma').getAttribute('href')); navigator.clipboard?.writeText(location.href); $('perma').textContent = 'copied'; setTimeout(() => $('perma').textContent = 'copy me', 1500); };
 if (!fromHash()) { sel.value = 'oborny-B'; sel.onchange(); }

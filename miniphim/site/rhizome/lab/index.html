@@ -50,6 +50,7 @@ details{margin:.4rem 0}code{font-size:.88em}
 <label><span class="sw" style="background:#16a085"></span> piece sharer <input id="n2" type="number" min="0" max="2000" value="0"></label>
 <label><span class="sw" style="background:#8e44ad"></span> yours <input id="n3" type="number" min="0" max="2000" value="0"></label>
 </div>
+<div><label>Newcomers <input id="an" type="number" min="0" max="2000" value="0"></label><label>of kind <select id="ak"><option value="0">splitter</option><option value="1" selected>integrator</option><option value="2">piece sharer</option><option value="3">yours</option></select></label><label>arrive at step <input id="at" type="number" min="0" value="500"></label> <span class="small">(the invasion test: one plant each, on empty squares)</span></div>
 <details id="yours"><summary>Your kind: the rule it grows and dies by</summary>
 <p class="small">Each step, every ramet tries each empty neighbour with chance <b>grow</b> (several tries on one square: it goes to one of them, weighted by grow), then survives with chance <b>live</b>. Both are formulas, clipped to 0–1. Names:
 <code>own</code> this square is good (0/1) · <code>share</code> good fraction of the whole genet · <code>piece</code> good fraction of its connected piece · <code>size</code> ramets in the genet · <code>good</code> good fraction of its neighbours · <code>crowd</code> occupied fraction of its neighbours · <code>t</code> step · <code>h</code>, <code>p</code>, <code>c</code>=(h−0.1)/p · <code>W(q)</code>=min(0.1+c·q, 0.9), the paper's curve · and <code>min max abs exp log sqrt pow floor</code>, <code>? :</code>, <code>&lt; &gt; == &amp;&amp; ||</code>.</p>
@@ -63,7 +64,8 @@ details{margin:.4rem 0}code{font-size:.88em}
 <label>Click plants <select id="clickKind"><option value="0">splitter</option><option value="1">integrator</option><option value="2">piece sharer</option><option value="3">yours</option></select></label>
 <div><button id="plant">Plant</button> <button id="go">Run</button> <button id="step1">Step</button> <label>Speed <input id="speed" type="range" min="1" max="20" value="4"></label> <button id="unlock">← Change the ground</button> <span id="lerr" class="err"></span></div>
 <canvas id="cv2" width="640" height="640" aria-label="the same ground with the clones on it: splitter red, integrator blue, piece sharer teal, yours purple; paler on bad ground"></canvas>
-<canvas id="chart" width="640" height="120" style="cursor:default" aria-label="share of the field each kind holds, over time"></canvas>
+<canvas id="chart" width="640" height="120" style="cursor:default" aria-label="share of the field each kind holds over time, and M, their mixing, dashed"></canvas>
+<p class="small">The dashed line is <b>M</b>: of the neighbour pairs where both squares are occupied, the share that join two different kinds, divided by the share random labels would give. M = 1 means as mixed as chance; near 0, each kind keeps to its own ground. Where the kinds persist on the map we've run, M sits at 0.1–0.2: they split the field into territories. That's checked in research/rhizome/mixing.</p>
 <div class="read" id="lread"></div>
 <p class="small">Link to this exact set-up: <a id="perma" href="#">copy me</a>. It carries both panes and your formulas.</p>
 </section>

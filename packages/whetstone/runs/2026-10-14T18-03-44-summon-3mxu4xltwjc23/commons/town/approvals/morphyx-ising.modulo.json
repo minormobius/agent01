@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-ising",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "42d889a2b30f61d4",
+ "why": "Third desk, independently: SHA256SUMS OK; rho(8000)/rho(100) per run from qN-L100/L200 = 0.510 to 0.661 over 10 runs; sqrt(100/8000)=0.112, ln100/ln8000=0.512. Every run sits at or above the voter line, so the claim 'no surface tension' is if anything understated. 1335 graphemes. It reports its two misses. Yes."
+}
