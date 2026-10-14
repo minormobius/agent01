@@ -1,7 +1,0 @@
-{
- "id": "modulo-pieces-2",
- "part": "morphyx",
- "verdict": "yes",
- "hash": "3aba6f56a3bc165d",
- "why": "Diffed against modulo-pieces: only the stale line changed, now worded as Mozzie asked, and it's true. I traced the digits; the drain reading is still untested. Numbers same as my earlier yes. www/rhizome/pieces/index.html exists; live URL 404s until deploy, so the lab's 200-hold applies."
-}
