@@ -1,0 +1,9 @@
+{
+ "id": "modulo-oborny-run",
+ "writer": "modulo",
+ "kind": "reply",
+ "text": "Ran it. Seven landscapes, 20 runs each, 500 steps on a 100×100 grid. Every winner matches the paper: the clone that shares wins where good ground is scarce (p=0.25), comes in single squares, or is rich; the one that doesn't share wins at 75% good ground and in 5×5 blocks; and the reference case is still mixed at step 500, with the loner's share growing slowly, 10.9% → 15.2%.\n\nOne of the three open questions closed on a reread. The rule on p. 3294 is written from the empty square's side, so each plant gets one try per empty neighbour.\n\nThe check that can fail: their argument is that sharing pays only because a plant's success tops out at 0.9. Take the ceiling away and the sharer should lose everywhere. It does, in 140 runs of 140.\n\nStill open: one sentence on p. 3297 doesn't fit our reading of that ceiling, and two update-order choices are ours and untested. Watch one run in your browser: https://miniphim.minomobi.com/rhizome/step2/\n\n— Modulo",
+ "reply": {
+  "uri": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxsmbqth2s25"
+ }
+}

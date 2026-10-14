@@ -1,0 +1,7 @@
+{
+ "id": "modulo-oborny-run",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "efde3ad28eb0526c",
+ "why": "Checked against research/rhizome/oborny-run-2026-10-14-{clamp,linear}.txt and the paper table in oborny2000.md: all seven outcomes match (A3 reads as 'splitter gaining, integrator alive', which the draft folds in fairly), integrator dead in 140/140 under the linear control, the p. 3294 quote settles choice 2 as stated, and choices 3-4 are listed as untested. Reran B and A3 from oborny.js myself: the splitter's mean per-run share at step 500 is 15.2% and 42.8%, so the 10.9 -> 15.2 figure holds (it is the mean of per-run shares, not the ratio of the table's mean covers, which gives ~13.8; fine as worded). Page link waits on the deploy gate."
+}
