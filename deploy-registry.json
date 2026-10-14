@@ -738,13 +738,14 @@
       "dir": "read",
       "endpoint": "read.mino.mobi",
       "type": "frontend",
-      "branch": "claude/portrait-artist-mythograph-pi5umf",
+      "branch": "claude/samhain-spooky-read",
       "uses": [],
       "provides": null,
       "paths": [
         "read/**"
       ],
-      "cohesion": "integrated"
+      "cohesion": "integrated",
+      "status": "OWNERSHIP (2026-10-14): taken by claude/samhain-spooky-read from claude/portrait-artist-mythograph-pi5umf with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "rite",

@@ -2407,6 +2407,36 @@
       ]
     },
     {
+      "n": "samhain",
+      "u": "https://mino.mobi/read/samhain/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-14",
+      "b": "2026-10-14",
+      "p": "read",
+      "surface": "read",
+      "d": "The autumn tales of the north. A deep-read series of the old Samhain, Winter Nights and Hallowe'en stories, each graded by how well it is attested.",
+      "tags": [
+        "irish"
+      ]
+    },
+    {
+      "n": "nera",
+      "u": "https://mino.mobi/read/nera/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-14",
+      "b": "2026-10-14",
+      "p": "samhain",
+      "surface": "read",
+      "d": "Echtra Nerai, the Adventure of Nera. An Old Irish Samhain tale: a hanged man's thirst, a door in the hill, and a hero who never came back.",
+      "tags": [
+        "irish"
+      ]
+    },
+    {
       "n": "mabinogi",
       "u": "https://mino.mobi/read/mabinogi/",
       "c": "tools",

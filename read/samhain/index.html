@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Samhain — the autumn tales of the north</title>
+  <meta name="description" content="Samhain: a deep-read series of the old spooky tales of the northern autumn — the Irish Samhain tales, the Norse Winter Nights, the Scottish Hallowe'en ballads — each in its original language with an original facing translation, graded by how well it is attested. Opens with Echtra Nerai, the Adventure of Nera.">
+  <meta property="og:title" content="Samhain — the autumn tales of the north">
+  <meta property="og:description" content="“The fairy-mounds of Ireland are always open at Samhain.” The old spooky tales of the northern autumn, read deeply.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://read.mino.mobi/samhain/">
+  <meta property="og:site_name" content="Read">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕯️</text></svg>">
+  <style>
+    :root{
+      --bg:#0e0d12; --bg2:#15141b; --panel:#1b1a22; --ink:#e7e2d8; --soft:#b1aa9c;
+      --faint:#858091; --gold:#d9822b; --gold-soft:#f0b26b; --line:#2e2b38;
+      --green:#8fae6a; --blue:#6f9ac9; --mauve:#9c8fb8; --rust:#c96a5a;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--ink);
+      font:17px/1.65 Georgia,"Iowan Old Style","Palatino Linotype",serif;
+      -webkit-font-smoothing:antialiased}
+    .sans{font-family:"Helvetica Neue",Arial,sans-serif}
+    a{color:var(--gold-soft);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{max-width:980px;margin:0 auto;padding:0 22px}
+    /* topbar */
+    .topbar{position:sticky;top:0;z-index:20;background:rgba(14,13,18,.92);
+      backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+    .topbar-inner{max-width:980px;margin:0 auto;padding:11px 22px;display:flex;
+      align-items:center;gap:14px;flex-wrap:wrap}
+    .brand{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:700;
+      letter-spacing:.2px;font-size:15px}
+    .brand .sigil{margin-right:8px}
+    .topbar nav{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;
+      font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px}
+    .topbar nav a{color:var(--soft)}
+    /* hero */
+    .hero{padding:64px 0 40px;border-bottom:1px solid var(--line)}
+    .kicker{font-family:"Helvetica Neue",Arial,sans-serif;text-transform:uppercase;
+      letter-spacing:3px;font-size:12px;color:var(--gold);margin-bottom:18px}
+    h1{font-size:clamp(34px,6vw,58px);line-height:1.05;font-weight:400;
+      letter-spacing:.5px;margin-bottom:20px}
+    h1 .welsh{display:block;color:var(--gold-soft);font-style:italic;
+      font-size:.5em;margin-top:10px;letter-spacing:.3px}
+    .lede{font-size:20px;color:var(--soft);max-width:46em}
+    .lede em{color:var(--ink)}
+    /* sections */
+    section{padding:46px 0;border-bottom:1px solid var(--line)}
+    h2{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:700;font-size:14px;
+      text-transform:uppercase;letter-spacing:2.5px;color:var(--gold);margin-bottom:8px}
+    h2 .num{color:var(--faint);margin-right:10px}
+    .sub{color:var(--faint);font-size:14px;font-family:"Helvetica Neue",Arial,sans-serif;
+      margin-bottom:24px}
+    h3{font-size:23px;font-weight:400;margin:30px 0 8px;color:var(--gold-soft)}
+    p{margin:0 0 16px;max-width:42em}
+    p.full{max-width:46em}
+    strong{color:#fff;font-weight:600}
+    .small{font-size:14.5px;color:var(--soft)}
+    /* tale cards */
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:6px}
+    .card{display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+      padding:22px 20px;transition:.16s;border-left-width:4px}
+    .card:hover{text-decoration:none;transform:translateY(-3px);border-color:var(--gold)}
+    .card .ord{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;letter-spacing:2px;
+      text-transform:uppercase;color:var(--faint)}
+    .card h3{margin:8px 0 4px;color:var(--ink);font-size:21px}
+    .card .wl{font-style:italic;color:var(--gold-soft);font-size:14px;margin-bottom:10px}
+    .card p{font-size:14.5px;color:var(--soft);margin:0;max-width:none}
+    .card .go{display:block;margin-top:14px;font-family:"Helvetica Neue",Arial,sans-serif;
+      font-size:12.5px;color:var(--gold)}
+    .c1{border-left-color:var(--gold)} .c2{border-left-color:var(--blue)}
+    .c3{border-left-color:var(--mauve)} .c4{border-left-color:var(--green)}
+    /* table */
+    .tbl-scroll{overflow-x:auto;margin-top:8px;border:1px solid var(--line);border-radius:12px}
+    table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:680px}
+    th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+    thead th{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;text-transform:uppercase;
+      letter-spacing:1px;color:var(--gold);background:var(--bg2);position:sticky;top:0}
+    tbody th{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:600;color:var(--gold-soft);
+      font-size:13px;white-space:nowrap;background:var(--bg2)}
+    td{color:var(--soft)}
+    tr:last-child td,tr:last-child th{border-bottom:none}
+    /* timeline-ish list */
+    .ms{list-style:none;margin:10px 0 0}
+    .ms li{padding:14px 0 14px 130px;position:relative;border-top:1px solid var(--line)}
+    .ms li:first-child{border-top:none}
+    .ms .when{position:absolute;left:0;top:14px;font-family:"Helvetica Neue",Arial,sans-serif;
+      font-weight:700;color:var(--gold);font-size:14px}
+    .ms .what{color:var(--soft);font-size:15px}
+    .ms .what b{color:var(--ink);font-weight:600}
+    .note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);
+      border-radius:8px;padding:16px 18px;margin:20px 0;font-size:15px;color:var(--soft)}
+    .note b{color:var(--ink)}
+    footer{padding:40px 0 70px;color:var(--faint);font-size:14px}
+    footer a{color:var(--soft)}
+    @media(max-width:560px){.ms li{padding-left:0;padding-top:32px}.ms .when{top:8px}}
+      .card.soon{opacity:.82;border-style:dashed}
+    .card.soon:hover{transform:none;border-color:var(--line)}
+    .grade{display:inline-block;font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;font-weight:700;
+      letter-spacing:1px;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+    .gA{color:var(--green)} .gB{color:var(--gold-soft)} .gC{color:var(--mauve)} .gD{color:var(--rust)}
+    .c5{border-left-color:var(--rust)} .c6{border-left-color:var(--soft)}
+    blockquote{border-left:3px solid var(--gold);padding:4px 0 4px 18px;margin:18px 0;color:var(--ink);font-style:italic;max-width:40em}
+    blockquote .src{display:block;font-style:normal;color:var(--faint);font-size:13.5px;margin-top:6px;font-family:"Helvetica Neue",Arial,sans-serif}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">🕯️</span>Samhain</span>
+      <nav>
+        <a href="#tales">The tales</a>
+        <a href="#night">The night</a>
+        <a href="#calendar">The evidence</a>
+        <a href="#roster">The series</a>
+        <a href="#method">Method</a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="hero">
+      <div class="kicker">A deep-read hub · the autumn tales of the north</div>
+      <h1>Samhain<span class="welsh">ar it aursluicthi síde hÉrenn dogrés im samain</span></h1>
+      <p class="lede">“For the fairy-mounds of Ireland are always open at Samhain.” That line is in an Old Irish tale more than a thousand years old, and it is the plainest medieval statement of the belief behind modern Halloween. This hub collects the old <em>spooky</em> stories of the northern autumn: the Irish Samhain tales, the Norse Winter Nights, the Scottish Hallowe'en ballads and the dead who come home at Martinmas. They are read the way <a href="/pendragon/">Pendragon</a> reads the Arthurian tales: the original text with a facing translation, then the cast, the story graph, the motifs and a storybook. Each tale is graded by <strong>how well attested</strong> it is, so you always know whether you are reading a medieval manuscript or a Victorian's reconstruction.</p>
+    </div>
+
+    <!-- THE TALES -->
+    <section id="tales">
+      <h2><span class="num">01</span> The tales</h2>
+      <div class="sub">One tale is live, and the series roster below says what comes next and why.</div>
+      <div class="cards">
+        <a class="card c1" href="/nera/">
+          <div class="ord">I · Old Irish · Connacht · Samhain &nbsp;<span class="grade gA">A</span></div>
+          <h3>Echtra Nerai</h3>
+          <div class="wl">The Adventure of Nera</div>
+          <p>On Samhain night at Crúachan a dare sends Nera out to tie a withy on a hanged man's foot, and the hanged man asks for a drink. Then come three houses, a fort in flames, a road into the hill, a fairy wife, a crown kept in a well, the Morrígan's stolen cow, and a hero who <em>has not come out until now, nor will he come till Doom</em>.</p>
+          <span class="go">read.mino.mobi/nera →</span>
+        </a>
+        <div class="card c4 soon">
+          <div class="ord">II · Old Irish · Ulster &nbsp;<span class="grade gA">A</span></div>
+          <h3>Táin Bó Regamna</h3>
+          <div class="wl">The Cattle-Drive of Regamain</div>
+          <p>Nera's sister tale, from the same two manuscripts. Cú Chulainn stops a red woman driving a cow out of Ulster. She turns into a black bird on a branch and tells him how she will come against him in the war: as an eel, a wolf and a white heifer.</p>
+          <span class="go">next</span>
+        </div>
+        <div class="card c5 soon">
+          <div class="ord">III · Middle Irish · the Northern Uí Néill · Samhain &nbsp;<span class="grade gA">A</span></div>
+          <h3>Aided Muirchertaig meic Erca</h3>
+          <div class="wl">The Death of Muirchertach mac Erca</div>
+          <p>A king of the northern Uí Néill takes a woman from the síd into his house. She makes armies out of stones and ferns. On Samhain night the house burns, and he drowns in a vat of wine as it does. It is one of the most frightening tales in medieval Irish.</p>
+          <span class="go">planned</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- THE NIGHT -->
+    <section id="night">
+      <h2><span class="num">02</span> What the night is, in the oldest texts</h2>
+      <div class="sub">Before the evidence, here is the night as the tales themselves describe it.</div>
+      <blockquote>Great was the darkness of that night, and its horror; and demons would always appear on that night.<span class="src">Echtra Nerai §2 — <em>doaidbitis demnoi ind oidqi sin dogrés</em></span></blockquote>
+      <blockquote>This host cannot set out until the next Samhain … for the fairy-mounds of Ireland are always open at Samhain.<span class="src">Echtra Nerai §14</span></blockquote>
+      <p>Two things stand out. The first is the tense. The verbs are <em>habitual</em> (<em>dogrés</em>, “always”), so the tale is not describing one night but saying what Samhain is every year. The second is what comes out of the dark. It is the <strong>áes síde</strong>, the people of the hollow hills, and one dead man. The tales do <em>not</em> describe a festival of ancestral spirits. That idea came later, by way of the Church's All Souls (2 November) and of 19th-century folklorists. Below, the evidence is laid out in order of strength, so the two can be told apart.</p>
+      <div class="note"><b>The honest version.</b> We have no pagan Irish account of Samhain: every Irish text was written by Christians, centuries after conversion. What survives is (1) a Gaulish calendar month name, (2) medieval Irish tales that treat Samhain as an assembly, a quarter-day of the year and a night when the síde open, and (3) a great deal of modern folk practice recorded from the 18th century on. Ronald Hutton's <em>The Stations of the Sun</em> (1996) is the standard warning against joining these into a single ancient “Celtic festival of the dead”. The series keeps them apart and grades each tale.</div>
+    </section>
+
+    <!-- THE EVIDENCE -->
+    <section id="calendar">
+      <h2><span class="num">03</span> The evidence, strongest first</h2>
+      <div class="sub">Every early witness to the northern autumn festivals, dated and graded.</div>
+      <ul class="ms">
+        <li><span class="when">2nd c. AD</span><span class="what"><b>The Coligny calendar</b> (Gaul; a bronze tablet found near Coligny, Ain, in 1897). A month named <b>SAMON[IOS]</b>, with a notation usually read as “the three nights of Samonios”. It is the only pre-Christian written witness to the name, but it says nothing about what was done, and scholars still argue about where in the year the month fell.</span></li>
+        <li><span class="when">725</span><span class="what"><b>Bede, <em>De temporum ratione</em></b> ch. 15, on the English pagan months: November was <em>Blótmonath</em>, “month of sacrifice, because in it they devoted to their gods the cattle they were about to kill”. This is the earliest secure statement anywhere in the north that the beginning of winter was a pagan sacrificial season. Bede names a slaughter, not the dead.</span></li>
+        <li><span class="when">8th–10th c.</span><span class="what"><b>The Old Irish tales.</b> <em>Tochmarc Emire</em> names the four quarter-days (<em>Samuin, Imbolc, Beltaine, Brón Trogain</em>), with Samhain beginning winter. Royal assemblies, among them the Feast of Tara, are set at Samhain. <em>Echtra Nerai</em>, <em>Aislinge Óenguso</em> (the swan-maiden who changes shape every other Samhain) and <em>Serglige Con Culainn</em> (set at the Ulstermen's Samhain assembly) all make it the night when the otherworld comes through. The manuscripts are later, from c. 1100 to 1500, but the language of the oldest tales is Old Irish.</span></li>
+        <li><span class="when">c. 800–835</span><span class="what"><b>All Saints moves to 1 November.</b> It was already kept on that day in Alcuin's Northumbrian circle by 800, and made general in the Frankish church under Louis the Pious in 835. The Irish church meanwhile kept its feast of all saints in April. The popular claim that the Church moved the feast to swallow Samhain is not supported by the sources.</span></li>
+        <li><span class="when">c. 998</span><span class="what"><b>All Souls, 2 November</b>, instituted at Cluny under Abbot Odilo. Its spread through the following centuries is what ties the dead to the beginning of November, with bell-ringing, soul-cakes and the belief that the dead visit their old homes. It is the source of most of what people now call “Samhain lore”.</span></li>
+        <li><span class="when">c. 1019</span><span class="what"><b>Sigvatr Þórðarson, <em>Austrfararvísur</em></b>, contemporary skaldic verse by a Christian Icelandic poet travelling in Sweden. He is turned away from farm after farm because an <b>álfablót</b>, a sacrifice to the elves, is going on inside. It is the only eyewitness account from the Norse world of an autumn rite behind closed doors.</span></li>
+        <li><span class="when">13th–14th c.</span><span class="what"><b>The Icelandic sagas</b> (written two or three centuries after the events they describe) set feasts and hauntings at <b>vetrnætr</b>, the Winter Nights in mid-to-late October: the <em>dísablót</em>, the <em>haustboð</em> or autumn feast, and in <em>Þiðranda þáttr</em> the killing of a young man by supernatural women on Winter Nights.</span></li>
+        <li><span class="when">1549 →</span><span class="what"><b>The Scottish evidence begins.</b> <em>The Complaynt of Scotland</em> (1549) names “the tayl of the yong tamlene” among the tales shepherds told. The ballad itself, with Tam Lin rescued from the fairies on Hallowe'en night, is first written down in the 18th century. Burns's <em>Halloween</em> (1785) documents the divination customs of Ayrshire in detail.</span></li>
+        <li><span class="when">19th–20th c.</span><span class="what"><b>The folklore collections.</b> In Ireland: the bonfires, the guising, the turnip lanterns, foot-water thrown out with a warning call, and the door left unlatched for the dead on All Souls' night. The Irish Folklore Commission's Schools' Collection of 1937–39 recorded many of them in children's own hands. In Wales, the <em>Hwch Ddu Gwta</em>, the tailless black sow that takes the last one home from the Calan Gaeaf bonfire. In Brittany, Anatole Le Braz's <em>La Légende de la mort</em> (1893), with the dead walking on the Night of the Dead.</span></li>
+      </ul>
+      <p class="small" style="margin-top:18px">One thread runs from the top of this list to the bottom. The household rule in <em>Echtra Nerai</em> (don't leave washing-water standing overnight, and rake the fire) was still being recited by Irish schoolchildren in 1938. That is the strongest case in the series for a belief carried unbroken across a thousand years, and it is a rule about a <em>house</em>, not about a festival.</p>
+    </section>
+
+    <!-- THE SERIES -->
+    <section id="roster">
+      <h2><span class="num">04</span> The series</h2>
+      <div class="sub">The roster in reading order. The grade gives the strength of the text's attestation; the last column says whether a public-domain edition exists to translate from.</div>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Tale</th><th>Where · when</th><th>Grade</th><th>Why it's here</th><th>Source in hand</th></tr></thead>
+          <tbody>
+            <tr><th>I</th><td><a href="/nera/"><b>Echtra Nerai</b></a></td><td>Connacht · Samhain · Old Irish; Egerton 1782 and the Yellow Book of Lecan</td><td><span class="grade gA">A</span></td><td>The foundation of the series: the hanged man, the three houses, the síde open at Samhain, a hero who never comes back.</td><td>Meyer 1889 (PD) — <b>live</b></td></tr>
+            <tr><th>II</th><td><b>Táin Bó Regamna</b></td><td>Ulster · Old/Middle Irish; YBL and Egerton 1782</td><td><span class="grade gA">A</span></td><td>The companion piece Nera's own text points to, with the Morrígan face to face with Cú Chulainn. It is short and shares a manuscript with Nera.</td><td>Windisch 1887; Leahy 1906 (PD)</td></tr>
+            <tr><th>III</th><td><b>Aided Muirchertaig meic Erca</b></td><td>Cletech on the Boyne; a Cenél nEógain king of Tara · Samhain · Middle Irish; YBL</td><td><span class="grade gA">A</span></td><td>The darkest of the Irish tales. A síd-woman named Sín (“storm”) conjures phantom hosts out of stones and ferns. The king dies by fire and water together on Samhain night.</td><td>Stokes, <em>Revue Celtique</em> 23 (1902) (PD)</td></tr>
+            <tr><th>IV</th><td><b>Serglige Con Culainn</b></td><td>Ulster · the Samhain assembly · Lebor na hUidre (before 1106)</td><td><span class="grade gA">A</span></td><td>Two otherworld women horsewhip the hero in a dream, and he wastes away for a year. It is the Samhain otherworld as seduction, and the cost of it.</td><td>Windisch 1880; Leahy 1905 (PD)</td></tr>
+            <tr><th>V</th><td><b>Þiðranda þáttr ok Þórhalls</b></td><td>East Iceland · the Winter Nights · Flateyjarbók (1387–94)</td><td><span class="grade gB">B</span></td><td>The Norse north. Nine women in black ride from the north and nine in white from the south, and a young man who opens the door after dark is found dying. They are the dísir of the old faith claiming their last sacrifice.</td><td>Flateyjarbók, Vigfússon &amp; Unger ed. 1860–68 (PD)</td></tr>
+            <tr><th>VI</th><td><b>The Fróðá wonders</b> — <em>Eyrbyggja saga</em> 50–55</td><td>Snæfellsnes, Iceland · autumn to Yule · saga c. 1250, MS c. 1330–70</td><td><span class="grade gB">B</span></td><td>Saga literature's great haunted house. A dying woman's bed-linen, a seal's head rising through the floor, and the drowned coming in dripping to sit by the fire. The dead are finally evicted by a lawsuit.</td><td>Old Norse text (PD); Morris &amp; Magnússon 1892 (PD)</td></tr>
+            <tr><th>VII</th><td><b>Glámr</b> — <em>Grettis saga</em> 32–35</td><td>North Iceland · midwinter · saga c. 1310–20</td><td><span class="grade gB">B</span></td><td>The draugr against whom all others are measured. A shepherd killed on Christmas Eve rides the house roofs, and his eyes in the moonlight curse Grettir with a fear of the dark for the rest of his life.</td><td>Old Norse text (PD); Morris &amp; Magnússon 1869 (PD)</td></tr>
+            <tr><th>VIII</th><td><b>Tam Lin</b> — Child 39</td><td>Carterhaugh, the Scottish Borders · Hallowe'en · title 1549, texts from the 18th c.</td><td><span class="grade gC">C</span></td><td>The Hallowe'en tale proper: the fairy ride at midnight, the seven-year tithe to hell, and Janet holding on through every shape until the shape is a man.</td><td>Child, <em>English and Scottish Popular Ballads</em> (PD)</td></tr>
+            <tr><th>IX</th><td><b>The Wife of Usher's Well</b> — Child 79</td><td>Scotland · Martinmas · Scott's <em>Minstrelsy</em> 1802</td><td><span class="grade gC">C</span></td><td>Three drowned sons come home in the dark of November, wearing hats of birch from the gates of Paradise, and must leave at cockcrow. It is the gentlest ghost story in the list and the saddest.</td><td>Child (PD)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small" style="margin-top:16px">Further down the list, read more lightly: <b>Aillén mac Midgna</b>, who lulls Tara to sleep with music and burns it every Samhain until Fionn stays awake (<em>Acallam na Senórach</em>, c. 1200, <span class="grade gA">A</span>); <b>Allison Gross</b> (Child 35), a man turned to a worm and released by the Seelie Court riding on Hallowe'en (<span class="grade gC">C</span>); the Welsh <b>Hwch Ddu Gwta</b> (<span class="grade gD">D</span>, custom, not tale); and the Breton <b>Anaon</b>, Le Braz's dead of the Night of the Dead (<span class="grade gC">C</span>).</p>
+    </section>
+
+    <!-- METHOD -->
+    <section id="method">
+      <h2><span class="num">05</span> Method</h2>
+      <div class="sub">How a tale enters the series, and what the grades mean.</div>
+      <h3>The grades</h3>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Grade</th><th>Means</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><th><span class="grade gA">A</span></th><td>The tale itself survives in a medieval manuscript (before c. 1500), in the language it was composed in.</td><td><em>Echtra Nerai</em>: two manuscripts, 14th and 16th c., Old Irish language.</td></tr>
+            <tr><th><span class="grade gB">B</span></th><td>A medieval composition, but written down long after the events it describes and coloured by a later literary culture.</td><td>The sagas: composed in the 13th–14th c. about the 10th–11th.</td></tr>
+            <tr><th><span class="grade gC">C</span></th><td>First full text from the early-modern or Romantic collectors. The tale may be much older, but we only have it as they took it down.</td><td>Tam Lin: a title in 1549, full texts from the 18th c.</td></tr>
+            <tr><th><span class="grade gD">D</span></th><td>Custom or belief, not a narrative. It is context, not a tale for the reader.</td><td>The tailless black sow of Calan Gaeaf.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>The apparatus</h3>
+      <p>Each tale gets the seven layers the <a href="/pendragon/">Pendragon</a> tales have. The original text sits beside an original translation, movement by movement and with notes, alongside a cast, a character web, a Propp story graph, a Greimas desire diagram, a motif index and a storybook retelling. Layer six, the mythograph, is computed from the other five. The original text always comes from a public-domain edition, and the scan it was taken from is linked and kept.</p>
+      <h3>What the series is looking for</h3>
+      <p>Propp's morphology ends with the hero coming home and marrying. The first tale in this series breaks that ending: Nera marries on the far side of the hill, goes back in, and does not return. The working hypothesis of the series is that the northern autumn tales are the tales <strong>without a ↓ Return</strong>. Their heroes are taken, kept, made to waste away, or visited by the dead who can stay only until cockcrow. Each new tale's story graph tests that hypothesis, and the series will say so if a tale breaks it.</p>
+      <h3>What it will not do</h3>
+      <p>It will not call anything “pagan” without a source that says so, and it will not present 19th-century folk custom as Iron Age religion. When a modern Halloween belief appears in an old tale, as foot-water does in <em>Echtra Nerai</em>, both ends of the line are dated, and the gap between them is left visible.</p>
+    </section>
+
+    <footer>
+      <a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · samhain<br>
+      A companion track to <a href="/pendragon/">Pendragon</a> (the Arthurian tales) and <a href="/mabinogi/">the Four Branches</a> (the Welsh). All source texts are public-domain editions, and every translation is original.
+    </footer>
+  </div>
+</body>
+</html>

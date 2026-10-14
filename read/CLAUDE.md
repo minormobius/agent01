@@ -15,7 +15,7 @@ Adaptive speed reader for Project Gutenberg texts and poetry. Bionic formatting,
 | Dir | `read/` |
 | Endpoint | `read.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/portrait-artist-mythograph-pi5umf` |
+| Owning branch | `claude/samhain-spooky-read` |
 | Deploy | `.github/workflows/deploy-read.yml` |
 | Uses | — |
 | Provides | — |
@@ -26,9 +26,9 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 
 **Live at**: `read.mino.mobi/<tale>/` and `read.mino.mobi/pendragon/`
 **Stack**: Pure static HTML/JS (vanilla, no build step) + Cloudflare Workers for assets
-**Deploy**: `.github/workflows/deploy-read.yml` — a push to the owning branch (`claude/portrait-artist-mythograph-pi5umf`) touching `read/**` deploys automatically. `main` does not deploy anything; see the repo-root `CLAUDE.md`.
+**Deploy**: `.github/workflows/deploy-read.yml` — a push to the owning branch (`claude/samhain-spooky-read`) touching `read/**` deploys automatically. `main` does not deploy anything; see the repo-root `CLAUDE.md`.
 
-A family of deep-reading sub-sites for medieval tales — currently Welsh and Middle English. Nine annotated tales (`gawain/`, `culhwch/`, `orfeo/`, `pwyll/`, `branwen/`, `manawydan/`, `math/`, `owain/`, `vitamerlini/`) and a comparative hub (`pendragon/`). The pattern is intentionally rigid: each annotated tale carries the same seven layers and exposes the same shape of data, so the cross-tale layer at Pendragon can read across all of them without coupling.
+A family of deep-reading sub-sites for medieval tales — Welsh, Middle English, and (in the Samhain series) Old Irish. Nine annotated tales (`gawain/`, `culhwch/`, `orfeo/`, `pwyll/`, `branwen/`, `manawydan/`, `math/`, `owain/`, `vitamerlini/`) and a comparative hub (`pendragon/`). The pattern is intentionally rigid: each annotated tale carries the same seven layers and exposes the same shape of data, so the cross-tale layer at Pendragon can read across all of them without coupling.
 
 **There is now also a modernist branch: `portrait/`.** It is the same apparatus with four of the seven layers replaced, because they do not survive contact with a novel. It does not plug into Pendragon (Joyce is not Arthurian) and it does not use the illustration pipeline. Read [its own section below](#the-modernist-branch--portrait) before assuming anything about it from the medieval tales.
 
@@ -71,6 +71,44 @@ The cross-tale comparative layer. Pure-data reader over each tale's annotation f
 | `app.js` | Renders Method, Timeline, In-world, Constantine III theory, Evolutionary tree (SVG phylogeny), Wiki (search + cat filters), Fae, Papers, plus the home-page crosswalk. |
 
 The Method page (`#method`) is the documentation of this whole apparatus — read it before adding a new tale or refactoring the per-tale layers. It also explains the vision for why each layer is shaped the way it is. **If you change the per-tale apparatus shape, update the Method page to match.**
+
+## The Samhain series — `samhain/` and its tales
+
+A second comparative hub, **parallel to Pendragon**: the old spooky tales of the northern
+autumn (Irish Samhain tales, Norse Winter Nights, Scottish Hallowe'en ballads). It is a
+single self-contained page, `samhain/index.html`, in the `mabinogi/` hub's style, re-lit in
+ember-on-night. Its tales use the **unchanged seven-layer apparatus**: `nera/` is a
+copy of `pwyll/` re-pointed at `window.NERA`.
+
+| Path | What |
+|---|---|
+| `samhain/index.html` | Hub: tale cards, what the oldest texts say Samhain *is*, the evidence timeline (Coligny → Bede → Old Irish → All Saints/All Souls → Sigvatr → sagas → Scottish ballads → folklore collections), the series roster, and Method |
+| `nera/` | **I. Echtra Nerai**: Old Irish (Meyer, *Revue Celtique* 10, 1889, PD) + original translation, 8 movements / 47 segments; cast, web, Propp, desire, motifs, mythograph, storybook |
+| `nera/source/` | Raw OCR of both Internet Archive scans of Meyer's edition. The `w` column was hand-transcribed by reading the two against each other. Uncertain readings are flagged in the segment notes. |
+
+Rules:
+
+- **Every tale carries an attestation grade** (A medieval MS · B late medieval composition ·
+  C early-modern/Romantic collection · D custom, not tale). The grade appears on the hub
+  card and in the roster. Don't add a tale without one.
+- **Don't call anything pagan without a source that says so.** The hub's "honest version"
+  note (Hutton, *Stations of the Sun*) is the series' stance. Keep 19th-c. folk custom and
+  medieval text in separate, dated rows.
+- **The series hypothesis is in Method**: the northern autumn tales are the tales without
+  Propp's ↓ Return. Each new tale's `analysis.js` `absent.verdict` should test it and
+  say so if the tale breaks it.
+- **`nera` is deliberately not in the illustration pipeline.** `illustrate.yml` fires
+  on `main` and self-deploys `read/` from whatever branch it ran on. Registering a
+  tale there means a merge to main can redeploy this surface from main's tree. The
+  `illus` briefs are written and ready. Register the tale, then `workflow_dispatch`
+  from the owning branch, only once that hazard is dealt with.
+- `app.js` in `nera/` extends `toRoman` to XII and labels the source toggle "Old Irish only";
+  otherwise it is Pwyll's renderer. Web node sizes key on the roles `sid` / `cruachan`.
+- **Adding the next tale** (the roster's order: Táin Bó Regamna, Aided Muirchertaig meic
+  Erca, Serglige Con Culainn, Þiðranda þáttr, …): `cp -r nera/ <slug>/`, swap the
+  global, replace the data files, add a card to `samhain/index.html` (move it from
+  "planned" to live), mark the roster row live, add a `catalogue.json` entry with
+  `"p": "samhain"`.
 
 ## The modernist branch — `portrait/`
 
@@ -127,7 +165,7 @@ you what the other layers are for.
 
 ## Conventions and pitfalls
 
-- **Branch naming.** Read work has historically lived on `claude/arthurian-legend-history-*` (the medieval tales) or `claude/eye-tracking-exploration-*` (older work), and most recently on `claude/alchemist-garden-sources-9JYpE`. **The surface is now owned by `claude/portrait-artist-mythograph-pi5umf`** — one surface, exactly one owning branch, and the registry is the authority. Don't hand-edit `deploy-read.yml`'s `branches:` list; change `deploy-registry.json` and run `node scripts/gen-deploy-triggers.mjs --write`.
+- **Branch naming.** Read work has historically lived on `claude/arthurian-legend-history-*` (the medieval tales) or `claude/eye-tracking-exploration-*` (older work), and most recently on `claude/alchemist-garden-sources-9JYpE`. **The surface is now owned by `claude/samhain-spooky-read`** (taken over 2026-10-14 with `take-ownership.mjs`; before that `claude/portrait-artist-mythograph-pi5umf`) — one surface, exactly one owning branch, and the registry is the authority. Don't hand-edit `deploy-read.yml`'s `branches:` list; change `deploy-registry.json` and run `node scripts/gen-deploy-triggers.mjs --write`.
 - **The drop-cap regex.** `app.js`'s `dropCap` is `/^((?:<[^>]+>)*\s*[“"'(]?\s*)(\S)/` — the `(?:<[^>]+>)*` prefix is **load-bearing**: it skips over leading `<em>` / `<strong>` tags so the drop-cap lands on the first letter, not the `<`. The earlier version (without the tag-skip) silently corrupts any spread whose text begins with markup. Sister tales (`gawain`, `culhwch`, `orfeo`) currently have the older regex; they happen not to trigger the bug because none of their spreads start with `<em>`. Bring them into line if you touch their `app.js`.
 - **No PNGs by hand.** Storybook images come from the illustration pipeline. Pushing a `read/<slug>/storybook.js` change with new spreads (or deleting a PNG) causes the workflow to generate the missing image(s). Don't commit hand-drawn or manually downloaded PNGs into `img/` unless you also delete them from the workflow's purview.
 - **Edit `tale.js` movement by movement.** Each commit per movement deploys; each push gives you a live URL to proof against. Resist the urge to dump all of a translation in one commit — the proofing loop is part of the quality.
@@ -160,7 +198,7 @@ you what the other layers are for.
 
 ## Deploying
 
-Pushes to `claude/portrait-artist-mythograph-pi5umf` that touch this surface's paths trigger [`.github/workflows/deploy-read.yml`](../.github/workflows/deploy-read.yml).
+Pushes to `claude/samhain-spooky-read` that touch this surface's paths trigger [`.github/workflows/deploy-read.yml`](../.github/workflows/deploy-read.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

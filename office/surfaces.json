@@ -1670,6 +1670,24 @@
    "parent": "read"
   },
   {
+   "id": "samhain",
+   "name": "samhain",
+   "url": "https://mino.mobi/read/samhain/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "read"
+  },
+  {
+   "id": "nera",
+   "name": "nera",
+   "url": "https://mino.mobi/read/nera/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "samhain"
+  },
+  {
    "id": "mabinogi",
    "name": "mabinogi",
    "url": "https://mino.mobi/read/mabinogi/",
