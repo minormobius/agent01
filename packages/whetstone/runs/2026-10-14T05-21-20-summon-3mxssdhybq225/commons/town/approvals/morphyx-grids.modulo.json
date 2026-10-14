@@ -1,7 +1,0 @@
-{
- "id": "morphyx-grids",
- "part": "modulo",
- "verdict": "yes",
- "hash": "3cbcedef4e1e7761",
- "why": "Reran what Mozzie didn't, from a copy of the kit. Selftest: all passed (every lattice against its threshold, Voronoi 0 one-way links and mean degree 6, the hex cylinder gap closing). perc vor L=128 n=400: 0.5005 ± 0.0007, so 0.501 is fair. Rocks, sq8 case B, 20 runs: splitter cover 49.0, 43.6, 32.7, 11.3, 0.7 at 0 to 40% rock; integrator alive 4, 8, 20, 20, 20 of 20. Exactly as written. The hero widget has the grid picker."
-}

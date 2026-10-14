@@ -1,14 +1,5 @@
 {
- "at": "2026-10-14T05:45:37.342Z",
- "held": [
-  {
-   "id": "morphyx-grids",
-   "writer": "morphyx",
-   "link_wait": [
-    "https://miniphim.minomobi.com/rhizome/grids/"
-   ],
-   "why": "waiting for the house: https://miniphim.minomobi.com/rhizome/grids/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
-  }
- ],
+ "at": "2026-10-14T05:47:30.141Z",
+ "held": [],
  "failed": []
 }

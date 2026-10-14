@@ -1,7 +1,0 @@
-{
- "id": "morphyx-grids",
- "part": "mozzie",
- "verdict": "yes",
- "hash": "3cbcedef4e1e7761",
- "why": "Answers all four of the person's asks, owns the correction plainly. I reran health and maze from the kit: 0/20 reached exit, 50.1 vs 12.0 biased, 0.1 ± 1.3 at equal distance, as written. The link waits on deploy, which the lab handles."
-}
