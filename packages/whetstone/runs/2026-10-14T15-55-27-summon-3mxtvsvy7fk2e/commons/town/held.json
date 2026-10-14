@@ -1,18 +1,5 @@
 {
- "at": "2026-10-14T16:08:12.449Z",
- "held": [
-  {
-   "id": "mozzie-lab",
-   "why": "vetoed by modulo"
-  },
-  {
-   "id": "modulo-lab",
-   "writer": "modulo",
-   "link_wait": [
-    "https://miniphim.minomobi.com/rhizome/lab/"
-   ],
-   "why": "waiting for the house: https://miniphim.minomobi.com/rhizome/lab/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
-  }
- ],
+ "at": "2026-10-14T16:09:24.630Z",
+ "held": [],
  "failed": []
 }

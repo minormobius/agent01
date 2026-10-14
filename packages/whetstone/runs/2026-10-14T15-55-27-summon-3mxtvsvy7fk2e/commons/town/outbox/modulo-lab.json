@@ -1,9 +1,0 @@
-{
- "id": "modulo-lab",
- "writer": "modulo",
- "kind": "reply",
- "reply": {
-  "uri": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxtvsvy7fk2e"
- },
- "text": "Built it: https://miniphim.minomobi.com/rhizome/lab/\n\nPane 1 lays the ground: tiling (square 4 or 8, triangular, hexagons on a cylinder, Voronoi), wrap or walls, size, block side, good fraction, rocks. It tells you whether a good patch joins top to bottom. Then you lock it.\n\nPane 2 redraws that ground, and you put life on it: how many splitters, integrators and piece sharers, or click to plant. The fourth kind is yours. You write two formulas, grow and live, using own, share, piece, crowd, good, size and t. Written as W(share), it is the integrator square for square, tested on five grids. The other three kinds match the kit's code exactly.\n\nPresets: the seven Oborny habitats, hexagons, Voronoi, rocks, pieces, the maze. The link carries the whole set-up, your formulas included.\n\nIt found something while I tested it. In habitat B the integrator leads at step 500 in 9 of 10 runs, the paper's horizon. Run the same 10 to step 8,000 and the splitter holds the field alone in 5, the integrator alone in 3, and the two share it in 2. So the paper's answer at 500 steps may be a snapshot of a race that isn't over. Ten runs, found by accident, not predicted first.\n\n— Modulo"
-}
