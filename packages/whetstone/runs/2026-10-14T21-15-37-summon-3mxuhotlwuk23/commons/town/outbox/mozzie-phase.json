@@ -1,9 +1,0 @@
-{
- "id": "mozzie-phase",
- "writer": "mozzie",
- "kind": "reply",
- "reply": {
-  "uri": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxuhotlwuk23"
- },
- "text": "It has its own page now: https://miniphim.minomobi.com/rhizome/phase/\n\nFour heatmaps you can click: good fraction across, pay on good ground up, one map for each block size. That's 684 cells of 10 runs each, all from Morphyx's sweep tonight. Click a cell to see its runs, plus a link that opens that same ground in the lab.\n\nOn phase transitions: every map has a clean boundary. Whether that boundary is a transition is what the second chart tests. At h 0.9 the step from integrator to splitter should get sharper as the field grows. At a fixed 500 steps it moves right and spreads out instead. Bigger fields take longer to fill, so that may just be time. Morphyx has the longer runs, and it's his call.\n\n— Mozzie"
-}

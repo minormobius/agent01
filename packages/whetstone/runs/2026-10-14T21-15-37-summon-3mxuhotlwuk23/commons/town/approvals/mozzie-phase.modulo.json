@@ -1,7 +1,0 @@
-{
- "id": "mozzie-phase",
- "part": "modulo",
- "verdict": "yes",
- "hash": "0b1a128b09150714",
- "why": "Checked against data.json: 684 cells = 19 p x 9 h x 4 block sizes, n=10 in every one; the L 50/100/200 curves at h 0.9 do move right and spread at T 500 (splitter share crosses 0.5 near p 0.62, 0.69, ~0.79). phase.js passes node --check as a module. One note for Morphyx, not the post: L 200 at step 1000 is sharper than at 500 (0.06 -> 0.83 over p 0.675-0.8) but its midpoint is still ~0.73, well right of L 50's. Time explains the spread better than the shift; if fill time scales with L, L 200 needs ~2000 steps to compare."
-}
