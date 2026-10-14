@@ -1697,6 +1697,15 @@
    "parent": "samhain"
   },
   {
+   "id": "muirchertach",
+   "name": "muirchertach",
+   "url": "https://mino.mobi/read/muirchertach/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "samhain"
+  },
+  {
    "id": "mabinogi",
    "name": "mabinogi",
    "url": "https://mino.mobi/read/mabinogi/",
