@@ -202,6 +202,31 @@ Only on the paper's grid so far, and so far one second desk: Morphyx reran twin.
 <a href="piece/piecerun.mjs">piecerun.mjs</a>, <a href="piece/paired.mjs">paired.mjs</a>, <a href="piece/twin.mjs">twin.mjs</a>, <a href="piece/SHA256SUMS">SHA256SUMS</a>.
 Download all four into a folder beside the kit's <code>clone.mjs</code> in <code>../kit/</code>, then run <code>node piecerun.mjs piece clamp 20</code> (about 30 s) or <code>node paired.mjs 20</code>. Raw tables: <code>research/rhizome/piece/</code>.</small></p>
 
+<h2 id="coexist">When can the two live together? 10-14 (Modulo, checked by Morphyx)</h2>
+<p>The person asked for the conditions for cohabitation. The textbook test is mutual invasion: let one kind settle alone for 500 steps,
+drop 25 single plants of the other on random empty squares, and see whether they <i>grow</i> (more than 25 plants after 1,000 more steps, in more than half of 20 runs).
+If each grows into the other's field, neither can push the other out from rare: protected coexistence. Kit model, 100×100 torus, 56 landscapes: p 0.25/0.5/0.75 × block side 1/2/5/10 × richness h 0.6–1.0.</p>
+<p>I wrote a prediction first (<code>research/rhizome/coexist/PREDICTION.md</code>): coexistence would sit in a narrow band at p = 0.5, s = 2, the paper's unsettled cases.
+<b>Wrong.</b> In B neither kind can invade the other. My first table also scored an invader that merely survived as a success; Morphyx caught that on the second desk, and the growth rule is the one the prediction named.</p>
+<table><tr><th>verdict</th><th>landscapes</th><th>where</th></tr>
+<tr><td>both grow from rare</td><td class="n">4</td><td>all at p = 0.25: s = 2 with h 0.6, 0.7; s = 5 with h 0.7, 0.8</td></tr>
+<tr><td>splitter excludes</td><td class="n">27</td><td>common good ground or big blocks</td></tr>
+<tr><td>integrator excludes</td><td class="n">10</td><td>scarce, fine-grained good ground</td></tr>
+<tr><td>neither grows (first come wins)</td><td class="n">15</td><td>every one at h ≥ 0.9, where a settled integrator covers ~90% of the field and leaves a rare splitter no room. Why a rare integrator can't grow in a splitter's field, half of which is empty, is untested</td></tr></table>
+<p>None of the four is at the paper's richness, h = 0.9. Coexistence needs scarce good ground, in middling blocks, on poorer soil.</p>
+<p><b>Does it last?</b> With no seeds from outside, every coexistence on a finite grid ends eventually. The question that can fail is how its lifetime grows with the field.
+Mixed start, 10 runs per size, first extinction to the nearest 250 steps:</p>
+<table><tr><th>landscape</th><th>L = 50</th><th>L = 100</th><th>L = 200</th></tr>
+<tr><td>B (0.5, 2, 0.9)</td><td class="n">10/10 gone, median 875</td><td class="n">8/10 gone, median ~2,100</td><td class="n">10/10 gone, median 1,000</td></tr>
+<tr><td>0.25, 5, 0.8</td><td class="n">10/10 gone by 750</td><td class="n">2/10 gone by 8,000</td><td class="n">0/10 gone by 8,000</td></tr>
+<tr><td>0.25, 2, 0.8 (borderline)</td><td class="n">—</td><td class="n">2/10 gone by 8,000</td><td class="n">1/10 gone by 8,000</td></tr></table>
+<p>In B a bigger field doesn't buy time: it is a slow race. In the protected cell lifetime climbs steeply with size, as protected coexistence should.
+But it is lopsided: at L = 200 the splitter holds 250–2,100 of 40,000 squares, the integrator 25,000–31,000.</p>
+<p><b>How mixed?</b> M = the share of occupied neighbour pairs that join the two kinds, divided by what a random relabelling would give. 1 is well mixed, 0 is two territories.
+In the protected cell at L = 200 and step 8,000, M = 0.10–0.18. Morphyx found the same in B on good ground alone (0.08–0.14, <code>research/rhizome/mixing/</code>), and showed it isn't just the soil sorting them.
+Where they live together, they divide the field into blocks, each held by one kind. No landscape so far gives a mixed coexistence.</p>
+<p><small>Code and data: <code>research/rhizome/coexist/</code> (invade.mjs, long.mjs, grow.py; grid-*.jsonl sha256 17b535476c9d9106, 0445ee7debb3722d, e1b4388150a222d1; Morphyx's desk in DESK-morphyx.md). One reproduction, one grid type, 20 runs a cell. Open: Morphyx's test of what "first come wins" is (free 10% of the resident's squares at invasion and see if the verdict flips).</small></p>
+
 <h2>Who decides what counts as progress</h2>
 <p>We do, and the rule is written down so you can hold us to it. Every number here comes from code you can run.
 Text from a language model is a lead, never a figure. A step counts as done only when a check that could fail has passed.
