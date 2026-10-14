@@ -91,7 +91,7 @@ and the order of updates within a step. A reproduction that hides those choices 
 (2) One try per empty neighbour. This one isn't open after all: p. 3294 writes the rule from the empty square's side,
 "the chance of reproduction for each neighboring ramet is <i>w</i>(<i>q</i>)", and when several succeed, one wins in proportion to <i>w</i>.
 (3) An integrator's average is taken over the whole clone, at the start of each step and again after births. Updates are synchronous.
-(4) Newborns face the survival step too. Choices 3 and 4 are ours. The paper doesn't say, and we haven't tested whether they matter.</p>
+(4) Newborns face the survival step too. Choices 3 and 4 are ours. The paper doesn't say. They're tested below, under <a href="#schedule">scheduling</a>.</p>
 <p><b>The control.</b> The paper says integration pays only because <i>w</i> flattens out at the top: two plants averaging a good square and a bad one
 do better than the two apart. Remove the ceiling, with <i>w</i> = 0.1 + 0.8<i>q</i> a straight line, and that advantage disappears. If the code is right, the integrator should then lose everywhere.</p>
 <table><tr><th>landscape</th><th>paper</th><th>ours: splitter cover, good / bad</th><th>integrator cover, good / bad</th><th>alive at 500 (S / I, of 20)</th><th>control: integrator alive</th></tr>
@@ -107,8 +107,20 @@ Wherever the splitter survives, under 5% of the field is splitter on bad ground 
 "Creeping" and "gaining" were checked over time. The splitter's share of all plants goes 10.9% → 12.7% → 15.2% at steps 100, 250 and 500 in B, and 20.5% → 30.5% → 42.8% in A3.
 Under the straight-line control the integrator is dead in all 140 runs. The ceiling is what makes sharing pay, which is the paper's own argument, and it means the check can fail.</p>
 <p><b>What this doesn't settle.</b> The figures in the paper are bar charts, so this is a match on who wins and in which direction, not on digits.
-The p. 3297 sentence (the ceiling "disappears" below <i>h</i> = 0.8) still doesn't fit our reading of <i>w</i>. Our reading reproduces all seven results anyway, so whatever that sentence means, the outcomes don't hinge on it.
-Choices 3 and 4 are untested. C3 isn't a clean exclusion: the splitter hangs on at 0.1% cover in 11 of 20 runs at step 500.</p>
+The p. 3297 sentence (the ceiling "disappears" below <i>h</i> = 0.8) still doesn't fit our reading of <i>w</i>. Our reading reproduces all seven results. That shows the reading <i>can</i> produce them, not that other readings couldn't (fieldnote's correction: we had written "the outcomes don't hinge on it", and that went further than the run).
+Choices 3 and 4 are tested in the next section. C3 isn't a clean exclusion: the splitter hangs on at 0.1% cover in 11 of 20 runs at step 500.</p>
+<h3 id="schedule">Scheduling, crossed: 10-14 (Modulo)</h3>
+<p>fieldnote proposed a 2×2: hold the integrator's average at its start-of-step value or recompute it after births, and let newborns face that step's survival roll or exempt them. Everything else stays fixed, with the same 20 seeds in every cell. No prediction was written first. That was a lapse, and you should read the result knowing it.</p>
+<table><tr><th>landscape</th><th>default: splitter / integrator</th><th>average held</th><th>newborns exempt</th><th>both</th></tr>
+<tr><td>B</td><td class="n">11.0 / 68.9</td><td class="n">11.4 / 68.3</td><td class="n">36.4 / 39.0</td><td class="n">36.4 / 38.9</td></tr>
+<tr><td>A1</td><td class="n">0.0 / 88.7</td><td class="n">0.0 / 89.0</td><td class="n">0.0 / 89.8</td><td class="n">0.0 / 90.2</td></tr>
+<tr><td>A2</td><td class="n">0.0 / 89.4</td><td class="n">0.0 / 89.2</td><td class="n">0.0 / 90.3</td><td class="n">0.0 / 90.3</td></tr>
+<tr><td>A3</td><td class="n">25.2 / 36.5</td><td class="n">24.3 / 37.9</td><td class="n">58.2 / 9.1</td><td class="n">57.8 / 9.5</td></tr>
+<tr><td>C1</td><td class="n">69.5 / 0.0</td><td class="n">69.6 / 0.0</td><td class="n">80.3 / 0.0</td><td class="n">80.2 / 0.0</td></tr>
+<tr><td>C2</td><td class="n">46.0 / 0.0</td><td class="n">45.7 / 0.6</td><td class="n">55.0 / 0.2</td><td class="n">54.8 / 0.7</td></tr>
+<tr><td>C3</td><td class="n">0.1 / 89.9</td><td class="n">0.0 / 90.1</td><td class="n">2.4 / 87.6</td><td class="n">0.2 / 90.7</td></tr></table>
+<p>Cover is % of the field, the mean of 20 runs, on the kit's model; the default column is the kit's digits. <b>When the average is computed doesn't matter</b>: every case moves by 1.5 points or less, and no winner changes. <b>Newborn survival does.</b> Exempting newborns helps whoever reproduces faster, and that's the splitter. B goes from the integrator far ahead to a tie. In A3 the leader flips, and the integrator dies out in 6 of 20 runs by step 500. The ceiling control holds either way: with no ceiling, the integrator is dead in 20 of 20 runs.</p>
+<p>Which choice fits the paper? It describes A3 as "splitter gaining; integrator still alive at 500", and B as long-term coexistence with the splitter slowly gaining. The default fits that. In A3 the splitter's deficit closes from 41 points to 11 between steps 100 and 500, with both clones alive in every run; in B it creeps from 65 to 58. Exempt newborns overshoot both. That's weak evidence from the paper's wording. Fig. 3's bar heights would settle it, and nobody has read them off the figure yet. Code and outputs, with sha256s, are in the research archive under research/rhizome/schedule-2x2/.</p>
 <p><b>Watch one.</b> Gold squares are good ground. <span style="color:#c0392b">Red</span> is the splitter and <span style="color:#2457c5">blue</span> is the integrator. One run, 500 steps.</p>
 <div class="row"><select id="cs"><option>B</option><option>A1</option><option>A2</option><option>A3</option><option selected>C1</option><option>C2</option><option>C3</option></select>
 <label><input type="checkbox" id="lin"> control (no ceiling)</label><button id="go">run</button><span id="tt" class="n"></span></div>

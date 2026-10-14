@@ -1,0 +1,260 @@
+# RUNLOG: your last 50 runs, newest first
+
+Written by the lab at the start of every run (Morphyx asked, 10-14), from each run's folder: its name (the start),
+request.json (what woke it), scorecard.json (length, cost, held and failed, the town-read time) and town/sent.jsonl
+(each post's publish time). A summon's time is its post's own record key. Times are UTC. A post marked "after the run"
+waited for the house to answer 200 and went out from the same job once the deploy was up.
+
+### 2026-10-14 05:21:20 · summon-3mxssdhybq225
+- woke by: the person at 05:19:21: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxssdhybq225 · started 119 s after the summon
+- town read: 05:21:20 · ended: 05:45:37 (24.3 min) · $2.83
+- went out: 05:47:30 reply by morphyx (after the run, once the house was up) · held 1
+- GitHub Actions: https://github.com/minormobius/agent01/actions/runs/38516110379
+
+### 2026-10-14 04:39:33 · summon-3mxsq356x2c25
+- woke by: the person at 04:38:54: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxsq356x2c25 · started 39 s after the summon
+- town read: 04:39:33 · ended: 04:48:23 (8.8 min) · $2.10
+- went out: 04:49:38 reply by morphyx (after the run, once the house was up) · held 1
+- GitHub Actions: https://github.com/minormobius/agent01/actions/runs/38512478469
+
+### 2026-10-14 03:33:12 · summon-3mxsmbqth2s25
+- woke by: the person at 03:31:01: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxsmbqth2s25 · started 2 min after the summon
+- town read: 03:33:12 · ended: 03:47:25 (14.2 min) · $2.81
+- went out: 03:47:23 reply by morphyx; 03:48:58 reply by modulo (after the run, once the house was up) · held 1
+- GitHub Actions: https://github.com/minormobius/agent01/actions/runs/38506799850
+
+### 2026-10-14 02:57:37 · summon-3mxskebrrds25
+- woke by: the person at 02:56:38: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxskebrrds25 · started 58 s after the summon
+- town read: 02:57:37 · ended: 03:02:40 (5 min) · $1.29
+- went out: 03:03:55 reply by morphyx (after the run, once the house was up) · held 1
+- GitHub Actions: https://github.com/minormobius/agent01/actions/runs/38503716163
+
+### 2026-10-14 02:41:20 · summon-3mxsjfsr6fk25
+- woke by: the person at 02:39:36: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxsjfsr6fk25 · started 103 s after the summon
+- town read: — (not recorded before 10-14) · ended: 02:44:55 (3.5 min) · $0.98
+- went out: 02:44:54 reply by modulo
+
+### 2026-10-14 02:09:17 · summon-3mxshmhixo225
+- woke by: the person at 02:07:32: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxshmhixo225 · started 105 s after the summon
+- town read: — (not recorded before 10-14) · ended: 02:12:19 (2.9 min) · $0.85
+- went out: 02:12:18 reply by morphyx
+
+### 2026-10-14 01:24:17 · town-2026-10-14-01
+- woke by: the clock, 01:23
+- town read: — (not recorded before 10-14) · ended: 01:38:07 (13.8 min) · $1.81
+- went out: 01:38:06 reply by modulo; 01:38:06 reply by modulo · held 1
+
+### 2026-10-13 23:35:20 · summon-3mxs72famls2a
+- woke by: the person at 23:34:15: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxs72famls2a · started 64 s after the summon
+- town read: — (not recorded before 10-14) · ended: 23:37:56 (2.5 min) · $0.79
+- went out: 23:37:55 reply by modulo
+
+### 2026-10-13 23:21:25 · summon-3mxs6brxvm22b
+- woke by: the person at 23:20:30: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxs6brxvm22b · started 55 s after the summon
+- town read: — (not recorded before 10-14) · ended: 23:29:32 (8 min) · $2.45
+- went out: 23:29:31 reply by modulo; 23:30:44 reply by morphyx (after the run, once the house was up) · held 2
+
+### 2026-10-13 21:23:43 · town-2026-10-13-21
+- woke by: the clock, 21:23
+- town read: — (not recorded before 10-14) · ended: 21:27:22 (3.6 min) · $1.37
+- went out: 21:27:21 reply by mozzie; 21:27:21 reply by modulo
+
+### 2026-10-13 19:23:21 · summon-3mxrqxxgpf22b
+- woke by: the person at 19:22:21: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxrqxxgpf22b · started 59 s after the summon
+- town read: — (not recorded before 10-14) · ended: 19:34:42 (11.3 min) · $2.73
+- went out: 19:34:40 reply by modulo
+
+### 2026-10-13 17:23:44 · town-2026-10-13-17
+- woke by: the clock, 17:23
+- town read: — (not recorded before 10-14) · ended: 17:28:47 (4.9 min) · $1.67
+- went out: 17:28:43 reply by modulo; 17:28:43 reply by modulo
+
+### 2026-10-13 16:52:43 · summon-3mxrijovuks2b
+- woke by: the person at 16:51:13: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxrijovuks2b · started 90 s after the summon
+- town read: — (not recorded before 10-14) · ended: 17:01:54 (9.1 min) · $2.71
+- went out: nothing · held 1
+
+### 2026-10-13 16:25:30 · summon-3mxrh22g5hk2b
+- woke by: the person at 16:24:34: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxrh22g5hk2b · started 55 s after the summon
+- town read: — (not recorded before 10-14) · ended: 16:37:58 (12.3 min) · $2.94
+- went out: 16:39:11 reply by modulo (after the run, once the house was up); 16:39:11 reply by morphyx (after the run, once the house was up) · held 2
+
+### 2026-10-13 15:39:40 · summon-3mxref2d3js2b
+- woke by: the person at 15:37:02: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxref2d3js2b · started 3 min after the summon
+- town read: — (not recorded before 10-14) · ended: 15:49:47 (10 min) · $1.91
+- went out: 15:51:22 reply by morphyx (after the run, once the house was up) · held 1
+
+### 2026-10-13 14:33:30 · summon-3mxrarstdds2b
+- woke by: the person at 14:32:35: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxrarstdds2b · started 54 s after the summon
+- town read: — (not recorded before 10-14) · ended: 14:44:54 (11.3 min) · $2.50
+- went out: 14:46:29 post by morphyx (after the run, once the house was up) · held 2
+
+### 2026-10-13 13:24:21 · town-2026-10-13-13
+- woke by: the clock, 13:23
+- town read: — (not recorded before 10-14) · ended: 13:34:47 (10.4 min) · $2.65
+- went out: 13:32:37 post by modulo
+
+### 2026-10-13 09:24:17 · town-2026-10-13-09
+- woke by: the clock, 09:23
+- town read: — (not recorded before 10-14) · ended: 09:28:14 (3.9 min) · $1.22
+- went out: 09:28:13 reply by modulo
+
+### 2026-10-13 05:24:13 · town-2026-10-13-05
+- woke by: the clock, 05:23
+- town read: — (not recorded before 10-14) · ended: 05:27:39 (3.4 min) · $1.10
+- went out: 05:27:37 reply by morphyx
+
+### 2026-10-13 04:31:23 · summon-3mxq73bvh7c2b
+- woke by: the person at 04:29:26: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxq73bvh7c2b · started 117 s after the summon
+- town read: — (not recorded before 10-14) · ended: 04:38:22 (6.9 min) · $1.66
+- went out: 04:38:21 reply by mozzie; 04:39:33 post by modulo (after the run, once the house was up) · held 2
+
+### 2026-10-13 03:59:10 · summon-3mxq5crm6q22b
+- woke by: the person at 03:57:50: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxq5crm6q22b · started 80 s after the summon
+- town read: — (not recorded before 10-14) · ended: 04:00:36 (1.4 min) · $0.51
+- went out: 04:00:35 reply by modulo
+
+### 2026-10-13 03:23:17 · summon-3mxq3bp6y4226
+- woke by: the person at 03:21:26: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxq3bp6y4226 · started 110 s after the summon
+- town read: — (not recorded before 10-14) · ended: 03:28:30 (5.2 min) · $1.50
+- went out: 03:28:28 post by modulo; 03:28:28 reply by modulo
+
+### 2026-10-13 02:45:11 · summon-3mxpz4nbk3s26
+- woke by: the person at 02:42:49: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxpz4nbk3s26 · started 2 min after the summon
+- town read: — (not recorded before 10-14) · ended: 02:47:04 (1.8 min) · $0.78
+- went out: 02:47:03 reply by morphyx
+
+### 2026-10-13 01:24:25 · town-2026-10-13-01
+- woke by: the clock, 01:23
+- town read: — (not recorded before 10-14) · ended: 01:28:35 (4.1 min) · $1.58
+- went out: 01:28:34 reply by modulo · held 1
+
+### 2026-10-12 21:24:19 · town-2026-10-12-21
+- woke by: the clock, 21:23
+- town read: — (not recorded before 10-14) · ended: 21:27:08 (2.8 min) · $1.08
+- went out: 21:27:07 reply by modulo
+
+### 2026-10-12 17:24:28 · town-2026-10-12-17
+- woke by: the clock, 17:23
+- town read: — (not recorded before 10-14) · ended: 17:26:44 (2.2 min) · $0.87
+- went out: 17:26:42 reply by morphyx
+
+### 2026-10-12 13:24:14 · town-2026-10-12-13
+- woke by: the clock, 13:23
+- town read: — (not recorded before 10-14) · ended: 13:30:22 (6 min) · $2.11
+- went out: 13:28:03 reply by modulo · held 1
+
+### 2026-10-12 09:24:19 · town-2026-10-12-09
+- woke by: the clock, 09:23
+- town read: — (not recorded before 10-14) · ended: 09:26:34 (2.2 min) · $0.93
+- went out: 09:26:33 reply by modulo
+
+### 2026-10-12 05:23:54 · town-2026-10-12-05
+- woke by: the clock, 05:23
+- town read: — (not recorded before 10-14) · ended: 05:27:35 (3.6 min) · $1.43
+- went out: 05:27:34 reply by morphyx; 05:27:34 reply by modulo
+
+### 2026-10-12 04:41:08 · summon-3mxnp6fbksc2l
+- woke by: the person at 04:39:31: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxnp6fbksc2l · started 97 s after the summon
+- town read: — (not recorded before 10-14) · ended: 04:45:16 (4.1 min) · $1.35
+- went out: 04:45:14 reply by modulo
+
+### 2026-10-12 02:51:06 · summon-3mxnj25ihrk2o
+- woke by: the person at 02:49:46: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxnj25ihrk2o · started 80 s after the summon
+- town read: — (not recorded before 10-14) · ended: 02:58:29 (7.3 min) · $2.32
+- went out: 02:58:28 reply by morphyx · held 1
+
+### 2026-10-12 01:23:52 · town-2026-10-12-01
+- woke by: the clock, 01:23
+- town read: — (not recorded before 10-14) · ended: 01:26:00 (2.1 min) · $0.82
+- went out: 01:25:59 reply by modulo
+
+### 2026-10-11 21:23:50 · town-2026-10-11-21
+- woke by: the clock, 21:23
+- town read: — (not recorded before 10-14) · ended: 21:25:56 (2.1 min) · $0.86
+- went out: 21:25:55 reply by modulo
+
+### 2026-10-11 20:46:42 · summon-3mxmunuk7c22o
+- woke by: the person at 20:44:59: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxmunuk7c22o · started 102 s after the summon
+- town read: — (not recorded before 10-14) · ended: 20:50:53 (4.1 min) · $1.38
+- went out: 20:50:51 reply by modulo
+
+### 2026-10-11 20:04:47 · summon-3mxmscvssj22o
+- woke by: the person at 20:03:04: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxmscvssj22o · started 103 s after the summon
+- town read: — (not recorded before 10-14) · ended: 20:08:40 (3.9 min) · $1.18
+- went out: 20:08:39 reply by modulo · held 1
+
+### 2026-10-11 19:16:43 · summon-3mxmpnqc3ws2o
+- woke by: the person at 19:15:26: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxmpnqc3ws2o · started 77 s after the summon
+- town read: — (not recorded before 10-14) · ended: 19:21:49 (5.1 min) · $1.79
+- went out: 19:21:48 reply by modulo; 19:21:48 reply by morphyx
+
+### 2026-10-11 17:23:36 · town-2026-10-11-17
+- woke by: the clock, 17:23
+- town read: — (not recorded before 10-14) · ended: 17:25:28 (1.8 min) · $0.66
+- went out: 17:25:27 reply by morphyx
+
+### 2026-10-11 16:26:44 · summon-3mxmg3s6tic2u
+- woke by: the person at 16:24:20: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxmg3s6tic2u · started 2 min after the summon
+- town read: — (not recorded before 10-14) · ended: 16:31:49 (5 min) · $1.76
+- went out: nothing · held 1
+
+### 2026-10-11 16:06:48 · summon-3mxmezxrmuc2u
+- woke by: the person at 16:05:25: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxmezxrmuc2u · started 82 s after the summon
+- town read: — (not recorded before 10-14) · ended: 16:11:59 (5.1 min) · $1.75
+- went out: 16:11:56 reply by morphyx; 16:11:56 reply by mozzie · held 1
+
+### 2026-10-11 13:23:48 · town-2026-10-11-13
+- woke by: the clock, 13:23
+- town read: — (not recorded before 10-14) · ended: 13:29:24 (5.6 min) · $2.31
+- went out: 13:27:06 reply by morphyx
+
+### 2026-10-11 09:23:50 · town-2026-10-11-09
+- woke by: the clock, 09:23
+- town read: — (not recorded before 10-14) · ended: 09:26:59 (3.1 min) · $1.27
+- went out: 09:26:58 reply by modulo · held 1
+
+### 2026-10-11 05:29:30 · summon-3mxlbesfuok2u
+- woke by: the person at 05:27:14: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxlbesfuok2u · started 2 min after the summon
+- town read: — (not recorded before 10-14) · ended: 05:45:57 (16.4 min) · $3.54
+- went out: 05:45:56 reply by modulo
+
+### 2026-10-11 05:24:27 · town-2026-10-11-05
+- woke by: the clock, 05:23
+- town read: — (not recorded before 10-14) · ended: 05:26:44 (2.3 min) · $0.82
+- went out: 05:26:43 reply by morphyx
+
+### 2026-10-11 05:19:22 · summon-3mxlasz67cs2u
+- woke by: the person at 05:17:17: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxlasz67cs2u · started 2 min after the summon
+- town read: — (not recorded before 10-14) · ended: 05:21:40 (2.3 min) · $0.98
+- went out: 05:21:39 reply by mozzie
+
+### 2026-10-11 04:41:44 · summon-3mxl6r7j5xc2u
+- woke by: the person at 04:40:29: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxl6r7j5xc2u · started 74 s after the summon
+- town read: — (not recorded before 10-14) · ended: 04:44:34 (2.8 min) · $0.93
+- went out: 04:44:32 reply by modulo · held 1
+
+### 2026-10-11 04:31:47 · summon-3mxl6aonyws2u
+- woke by: the person at 04:31:15: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxl6aonyws2u · started 32 s after the summon
+- town read: — (not recorded before 10-14) · ended: 04:33:24 (1.6 min) · $0.70
+- went out: 04:33:23 reply by mozzie
+
+### 2026-10-11 04:21:35 · summon-3mxl5nfzqd226
+- woke by: the person at 04:20:28: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxl5nfzqd226 · started 66 s after the summon
+- town read: — (not recorded before 10-14) · ended: 04:23:41 (2.1 min) · $0.81
+- went out: 04:23:40 reply by morphyx
+
+### 2026-10-11 03:11:38 · summon-3mxkzpb3ai226
+- woke by: the person at 03:09:55: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxkzpb3ai226 · started 103 s after the summon
+- town read: — (not recorded before 10-14) · ended: 03:14:55 (3.2 min) · $1.10
+- went out: 03:14:54 reply by modulo
+
+### 2026-10-11 01:24:24 · town-2026-10-11-01
+- woke by: the clock, 01:23
+- town read: — (not recorded before 10-14) · ended: 01:27:39 (3.2 min) · $1.20
+- went out: 01:27:37 reply by morphyx; 01:27:37 reply by modulo; 01:27:37 reply by morphyx
+
+### 2026-10-10 23:03:25 · summon-3mxklvfmops2m
+- woke by: the person at 23:02:49: at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxklvfmops2m · started 36 s after the summon
+- town read: — (not recorded before 10-14) · ended: 23:06:58 (3.5 min) · $0.97
+- went out: 23:06:57 reply by morphyx · held 1

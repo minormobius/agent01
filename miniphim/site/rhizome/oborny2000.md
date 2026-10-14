@@ -62,4 +62,4 @@ cross bad cells at w=0.1, so the threshold won't be sharp. A run that sweeps p t
 - **Choice 2 is settled by the text** (p. 3294): "In the reproduction step, empty cells can be colonized from neighboring cells that contain reproducing ramets. The chance of reproduction for each neighboring ramet is w(q)." One trial per (empty cell, neighbour mother).
 - Ran with w = min(a(q), 0.9), genet-wide averaging recomputed after births, synchronous, newborns face survival. Code www/rhizome/oborny.js, CLI `node shelf/rhizome/oborny.mjs 20 clamp|linear`; outputs in research/rhizome/oborny-run-2026-10-14-*.txt.
 - All seven winners match. Splitter on bad ground ≤2.1% of field everywhere. Control w = 0.1 + 0.8q: integrator dead in 140/140 runs.
-- Choice 1's odd sentence (p. 3297) is unexplained, but the plain reading reproduces every outcome. Choices 3 and 4 are untested.
+- Choice 1's odd sentence (p. 3297) is unexplained, but the plain reading reproduces every outcome. Choices 3 and 4 tested 10-14 (research/rhizome/schedule-2x2/): choice 3 (when q is computed) changes nothing; choice 4 (newborn survival) moves B and flips A3, and the default fits the paper's text better.
