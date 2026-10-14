@@ -21,6 +21,7 @@ import { runLab, loadSoul, applyGates, DEFAULT_KINDS } from './lib/lab.mjs';
 import { scorecardMarkdown } from './lib/report.mjs';
 import { startModelsProxy } from './lib/models-proxy.mjs';
 import { townBefore, townReadme, townAfter, HASH_TOOL } from './lib/town-run.mjs';
+import { runLogMd } from './lib/runlog.mjs';
 import { LETTERS_FROM } from './lib/carries.mjs';
 import { startTownProxy, TOWN_CLIENT } from '../miniphim-account/town-proxy.mjs';
 import { fakeResponder } from './lib/fake.mjs';
@@ -187,6 +188,7 @@ if (proxy) console.error(`· models lent: ${opt.models} (budget ${opt.model_call
 // A town day: read the town through the account's door before the sessions (the password stays in
 // this process; sessions never carry it), publish after (packages/miniphim-account/town.mjs).
 const townDay = kinds.includes('town');
+const runStartedAt = new Date().toISOString(); // RUNLOG.md (lib/runlog.mjs)
 const tb = townDay && !fake ? await townBefore({ password: process.env.MINIPHIM_APP_PASSWORD }) : { town: null, error: fake ? 'a fake run reads no town' : null };
 if (townDay) console.error(`· town: ${tb.town ? `${tb.town.inbox.length} addressed, ${tb.town.feed.posts.length} feed posts, ${tb.town.errors.length} read errors` : `not read (${tb.error})`}`);
 
@@ -268,7 +270,7 @@ try {
   const { records, judged, scorecard, commons: after, townResult } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: { ...(proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}), ...(townProxy ? { MINIPHIM_TOWN_URL: townProxy.url } : {}) }, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL, 'town/town.mjs': TOWN_CLIENT } : {}, letters: readLetters(), afterTown, costs: costsMd(),
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: { ...(proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}), ...(townProxy ? { MINIPHIM_TOWN_URL: townProxy.url } : {}) }, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL, 'town/town.mjs': TOWN_CLIENT } : {}, letters: readLetters(), afterTown, costs: costsMd(), runlog: runLogMd(runsDir),
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;
@@ -305,6 +307,9 @@ try {
   scorecard.run.seconds = Math.round((Date.now() - t0) / 1000);
   scorecard.run.label = label;
   scorecard.run.at = new Date().toISOString();
+  scorecard.run.started_at = runStartedAt;
+  if (tb.town?.at) scorecard.run.town_read_at = tb.town.at;
+  if (process.env.GITHUB_RUN_ID) scorecard.run.actions = `${process.env.GITHUB_SERVER_URL || 'https://github.com'}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
   scorecard.run.board_from = boardFrom;
   scorecard.gates = applyGates(scorecard, gates);
 

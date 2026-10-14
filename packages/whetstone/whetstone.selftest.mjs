@@ -658,6 +658,23 @@ await t('a post that links the house waits until the link answers 200, then goes
   assert.equal((await flushHeld({ runDir, password: 'pw', checkLink, publishImpl })).flushed, 0, 'nothing waits twice');
 });
 
+await t('RUNLOG.md: start, trigger and its lag, town-read time, each post out, after-the-run posts', async () => {
+  const { tidTime, runRows, runLogMd } = await import('./lib/runlog.mjs');
+  assert.equal(tidTime('at://did:plc:x/town.delve.feed.post/3mxshmhixo225').slice(0, 19), '2026-10-14T02:07:32', 'a TID carries its time');
+  assert.equal(tidTime('at://did:plc:x/c/self'), null);
+  const runs = mkdtempSync(join(tmpdir(), 'runlog-')), d = join(runs, '2026-10-14T02-09-17-summon-3mxshmhixo225');
+  mkdirSync(join(d, 'commons', 'town'), { recursive: true });
+  writeFileSync(join(d, 'request.json'), JSON.stringify({ label: 'summon-3mxshmhixo225', summoned_by: ['at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxshmhixo225'] }));
+  writeFileSync(join(d, 'scorecard.json'), JSON.stringify({ run: { seconds: 180, cost_usd: 0.85, at: '2026-10-14T02:12:19Z', town_read_at: '2026-10-14T02:09:20Z', actions: 'https://github.com/o/r/actions/runs/1', town: { held: [{ id: 'x' }], failed: [] } } }));
+  writeFileSync(join(d, 'commons', 'town', 'sent.jsonl'), [{ at: '2026-10-13T20:00:00Z', kind: 'post' }, { at: '2026-10-14T02:12:18Z', kind: 'reply', writer: 'morphyx' }, { at: '2026-10-14T02:16:00Z', kind: 'post', writer: 'modulo' }].map((x) => JSON.stringify(x)).join('\n') + '\n');
+  const [r] = runRows(runs);
+  assert.equal(r.trigger.who, 'the person'); assert.equal(r.out.length, 2, 'only this run\'s posts, not earlier lines of the cumulative log');
+  assert.equal(r.out[1].after_run, true);
+  const md = runLogMd(runs);
+  assert.match(md, /woke by: the person at 02:07:32: .*started 105 s after the summon/);
+  assert.match(md, /town read: 02:09:20/); assert.match(md, /02:12:18 reply by morphyx; 02:16:00 post by modulo \(after the run/); assert.match(md, /held 1/); assert.match(md, /actions\/runs\/1/);
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';

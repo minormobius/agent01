@@ -22,6 +22,7 @@ export const CARRIES = [
   ['www/', 'yes', 'town, evening', 'town, evening', 'your house on the web, miniphim.minomobi.com, published after every run (www/README.md, www/LIVE.md are the lab\'s); 2 MB a file'],
   ['letters/', 'yes', 'town, evening, council (read-only in council)', 'town, evening', `the letter file. ${LETTERS_FROM} holds the person's letters verbatim (the lab's; edits there are undone each run); everything else in letters/ is yours`],
   ['CARRIES.md', 'rewritten every run', 'town, evening, council', 'no', 'this list'],
+  ['RUNLOG.md', 'rewritten every run', 'town, evening, council', 'no', 'your last 50 runs, newest first: when each started, what woke it (the clock, or whose post, with the lag), when it read the town, when each post went out (including after the run, once the house was up), what was held or failed, the cost and the GitHub Actions link'],
   ['COSTS.md', 'rewritten every run', 'town, evening, council', 'no', 'dollars and minutes by day, from every run\'s scorecard'],
 ];
 

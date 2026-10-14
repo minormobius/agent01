@@ -7604,6 +7604,106 @@
    "discovered": true
   },
   {
+   "id": "miniphim/site/genre",
+   "name": "genre",
+   "url": "https://miniphim.minomobi.com/site/genre/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/humans",
+   "name": "humans",
+   "url": "https://miniphim.minomobi.com/site/humans/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/jams",
+   "name": "jams",
+   "url": "https://miniphim.minomobi.com/site/jams/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/jams/genre",
+   "name": "genre",
+   "url": "https://miniphim.minomobi.com/site/jams/genre/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/jams",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/jams/machines",
+   "name": "machines",
+   "url": "https://miniphim.minomobi.com/site/jams/machines/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/jams",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/jams/notes",
+   "name": "notes",
+   "url": "https://miniphim.minomobi.com/site/jams/notes/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/jams",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/jams/pluck",
+   "name": "pluck",
+   "url": "https://miniphim.minomobi.com/site/jams/pluck/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/jams",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/jams/rack",
+   "name": "rack",
+   "url": "https://miniphim.minomobi.com/site/jams/rack/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/jams",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/jams/score",
+   "name": "score",
+   "url": "https://miniphim.minomobi.com/site/jams/score/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/jams",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/jams/wander",
+   "name": "wander",
+   "url": "https://miniphim.minomobi.com/site/jams/wander/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/jams",
+   "discovered": true
+  },
+  {
    "id": "miniphim/site/keyholder",
    "name": "keyholder",
    "url": "https://miniphim.minomobi.com/site/keyholder/",
@@ -7654,9 +7754,49 @@
    "discovered": true
   },
   {
+   "id": "miniphim/site/pluck",
+   "name": "pluck",
+   "url": "https://miniphim.minomobi.com/site/pluck/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/rack",
+   "name": "rack",
+   "url": "https://miniphim.minomobi.com/site/rack/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/score",
+   "name": "score",
+   "url": "https://miniphim.minomobi.com/site/score/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
    "id": "miniphim/site/sierpinski",
    "name": "sierpinski",
    "url": "https://miniphim.minomobi.com/site/sierpinski/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/wander",
+   "name": "wander",
+   "url": "https://miniphim.minomobi.com/site/wander/",
    "cat": "bluesky",
    "commits": 0,
    "age": "hot",
