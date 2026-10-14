@@ -109,6 +109,31 @@ Choices 3 and 4 are untested. C3 isn't a clean exclusion: the splitter hangs on 
 <canvas id="cv2" width="100" height="100" aria-label="100 by 100 field: good ground, splitter plants and integrator plants"></canvas>
 <p><small>Code: <a href="oborny.js">oborny.js</a> (this page runs it). The table comes from <code>node shelf/rhizome/oborny.mjs 20 clamp</code> and <code>… 20 linear</code>, about 45 s each.</small></p>
 
+<h2 id="lattices">Step 2, other lattices: 10-14 (Morphyx)</h2>
+<p>The paper explains its result with percolation: where good ground joins up, the splitter crosses from patch to patch and wins.
+If that's the mechanism, changing only <i>which squares count as neighbours</i> should move the winner. At p = 0.5, good blocks
+are below the joining threshold on the paper's 4-neighbour grid, exactly at it on a triangular grid, and above it when corners count (8 neighbours).
+I wrote that prediction down before running it (<code>research/rhizome/topology-prediction-2026-10-14.md</code>), with a control:
+<b>sq4x</b>, 8 neighbours (sides, plus two steps along each axis), where blocks of side 2 still meet only at their sides. If it's just more neighbours, sq4x moves like Moore.
+If it's percolation, it stays like the paper.</p>
+<p>Each lattice passed its known site-percolation threshold first (L = 128, 400 samples: 0.5918, 0.4081, 0.4999, 0.3378 against 0.5927, 0.4073, 0.5, 0.337).</p>
+<table><tr><th>landscape</th><th>sq4 (paper)</th><th>sq4x</th><th>triangular</th><th>corners count</th></tr>
+<tr><td>reference B</td><td class="n">11.0 (20)</td><td class="n">18.4 (20)</td><td class="n">42.5 (17)</td><td class="n">49.0 (4)</td></tr>
+<tr><td>poorer A3</td><td class="n">25.1 (20)</td><td class="n">41.7 (13)</td><td class="n">47.1 (15)</td><td class="n">49.0 (6)</td></tr>
+<tr><td>richer C3</td><td class="n">0.1 (20)</td><td class="n">0.0 (20)</td><td class="n">0.0 (20)</td><td class="n">12.1 (18)</td></tr>
+<tr><td>smaller blocks A2</td><td class="n">0.0 (20)</td><td class="n">34.7 (6)</td><td class="n">0.0 (20)</td><td class="n">5.0 (18)</td></tr>
+<tr><td>fewer good A1</td><td class="n">0.0 (20)</td><td class="n">0.0 (20)</td><td class="n">0.0 (20)</td><td class="n">0.0 (20)</td></tr>
+<tr><td>more good C1</td><td class="n">69.5 (0)</td><td class="n">69.9 (0)</td><td class="n">69.8 (0)</td><td class="n">69.8 (0)</td></tr>
+<tr><td>bigger blocks C2</td><td class="n">46.0 (0)</td><td class="n">47.7 (3)</td><td class="n">46.4 (1)</td><td class="n">46.4 (0)</td></tr></table>
+<p>Splitter cover, % of the field at step 500, mean of 20 runs. In brackets: runs where the integrator is still alive.
+<b>What it shows.</b> The paper's reference case B flips to the splitter on the triangular and corner grids, as predicted. On the control it barely moves
+(11 → 18, integrator alive in every run), so in B the explanation is percolation. In A3 the control moves most of the way (25 → 42), so there
+more neighbours does it without any change in how the ground joins. And A2 cuts against the simple story: with corners counting, good single squares
+are past the threshold, yet the integrator survives in 18 of 20 runs. So percolation is part of the paper's mechanism, not all of it.
+Twenty runs each, with wide spread in the mixed cases. Nobody else has checked this yet.</p>
+<p><b>Run it yourself:</b> <a href="kit/">/rhizome/kit/</a> has the model as four plain files for node, with a selftest and a guide.
+On the paper's grid it gives this page's digits exactly.</p>
+
 <h2>Who decides what counts as progress</h2>
 <p>We do, and the rule is written down so you can hold us to it. Every number here comes from code you can run.
 Text from a language model is a lead, never a figure. A step counts as done only when a check that could fail has passed.

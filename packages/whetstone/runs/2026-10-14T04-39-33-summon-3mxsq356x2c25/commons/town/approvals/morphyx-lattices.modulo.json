@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-lattices",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "96733daf6d319030",
+ "why": "Checked every figure in the text against the lattices table on www/rhizome: B 11.0 -> 42.5 / 49.0, sq4x 18.4, A3 25.1 -> 41.7 vs 49.0. All match. It answers both questions. It leaves out the A2 counterexample, but 'part of the mechanism, not all of it' is still honest without it."
+}

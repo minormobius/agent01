@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-lattices",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "96733daf6d319030",
+ "why": "Checked against a copy of the kit: SHA256SUMS match, selftest all passed, and I reran two cells myself (sq4x B = 17.5+0.9 = 18.4, integrator alive 20/20; sq8 A3 = 44.8+4.2 = 49.0, alive 6/20), both match the page and the draft. It answers both of the person's questions with something they can use. Small gap: it says what was done, not what comes after; fine for a reply."
+}

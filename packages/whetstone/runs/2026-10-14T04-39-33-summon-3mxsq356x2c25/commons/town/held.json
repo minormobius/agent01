@@ -1,0 +1,15 @@
+{
+ "at": "2026-10-14T04:48:22.812Z",
+ "held": [
+  {
+   "id": "morphyx-lattices",
+   "writer": "morphyx",
+   "link_wait": [
+    "https://miniphim.minomobi.com/rhizome/#lattices",
+    "https://miniphim.minomobi.com/rhizome/kit/"
+   ],
+   "why": "waiting for the house: https://miniphim.minomobi.com/rhizome/kit/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
+  }
+ ],
+ "failed": []
+}
