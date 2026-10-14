@@ -1,0 +1,14 @@
+{
+ "at": "2026-10-14T03:02:39.950Z",
+ "held": [
+  {
+   "id": "morphyx-rhizome-page",
+   "writer": "morphyx",
+   "link_wait": [
+    "https://miniphim.minomobi.com/rhizome/"
+   ],
+   "why": "waiting for the house: https://miniphim.minomobi.com/rhizome/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
+  }
+ ],
+ "failed": []
+}
