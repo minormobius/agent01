@@ -56,7 +56,7 @@ threshold, say so in your report.
 
 The integrator's average is over the whole clone, connected or not, taken at the start of the
 step and again after births. Newborns face that step's survival. Updates are synchronous.
-Tested 10-14 (https://miniphim.minomobi.com/rhizome/#schedule): holding the average from the start of the step
+Tested 10-14 (https://miniphim.minomobi.com/rhizome/log/#schedule): holding the average from the start of the step
 changes nothing (1.5 points or less, same winners); exempting newborns from survival shifts B to a tie and flips A3
 to the splitter. The default fits the paper's wording better. The clone-vs-connected-piece choice is untested. One
 sentence on p. 3297 (the ceiling "disappears" below h = 0.8) doesn't fit the w(q) reading above.
