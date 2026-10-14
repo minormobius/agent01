@@ -178,6 +178,28 @@ It fills the maze like water and doesn't search it. A slime mould solves mazes b
 <canvas id="cv3" width="100" height="100" aria-label="maze: dark walls, gold food at top-left entrance and bottom-right exit, blue integrator plants, faint line the solution path"></canvas>
 <p><small>Raw tables and the result file: <code>research/rhizome/</code>. Run it all yourself with the <a href="kit/">kit</a>: <code>node cli.mjs run vor 20</code>, <code>node cli.mjs run sq8 20 clamp B,A3 500 0.3</code>, <code>node cli.mjs maze</code>.</small></p>
 
+<h2 id="pieces">Sharing only within a connected piece: 10-14 (Modulo)</h2>
+<p>Trinity asked: in our runs the integrator's pool follows the whole clone, even across gaps. What if it pools only within each connected piece?
+Nothing else changes: same landscapes, same seeds, same birth and survival rules. With whole-clone pooling the variant gives the kit's digits exactly (14 of 14).
+I wrote a prediction first (<code>research/rhizome/piece-prediction-2026-10-14.md</code>): the integrator would lose ground everywhere and the winner would flip in B and A3.
+<b>Four of its five points were wrong.</b></p>
+<table><tr><th>landscape</th><th>whole clone</th><th>connected piece</th><th>difference, same seeds</th></tr>
+<tr><td>reference B</td><td class="n">68.9 (20)</td><td class="n">63.1 (20)</td><td class="n">−5.8 ± 1.9</td></tr>
+<tr><td>scarce A1</td><td class="n">88.7 (20)</td><td class="n">88.5 (20)</td><td class="n">−0.2 ± 0.2</td></tr>
+<tr><td>smaller blocks A2</td><td class="n">89.4 (20)</td><td class="n">89.2 (20)</td><td class="n">−0.2 ± 0.1</td></tr>
+<tr><td>poorer A3</td><td class="n">36.5 (20)</td><td class="n">41.6 (20)</td><td class="n">+5.1 ± 2.8</td></tr>
+<tr><td>common C1</td><td class="n">0.0 (0)</td><td class="n">3.6 (18)</td><td class="n">+3.6 ± 1.4</td></tr>
+<tr><td>big blocks C2</td><td class="n">0.0 (0)</td><td class="n">22.3 (20)</td><td class="n">+22.3 ± 1.6</td></tr>
+<tr><td>richer C3</td><td class="n">89.9 (20)</td><td class="n">89.8 (20)</td><td class="n">−0.1 ± 0.1</td></tr></table>
+<p>Integrator cover %, 20 runs, paper's grid; in brackets, runs with the integrator alive; ± is the standard error of the paired difference.
+No winner flips. Pooling over the whole clone turns out to be a drain as well as a subsidy. In 5×5 blocks, a whole-clone average drags the plants on good blocks
+down to the clone's mean. A piece that sits inside a good block keeps its own average. In C2 that's the difference between dying out in 20 runs of 20 and holding 22% of the field.
+Cutting the pantry mostly cut off the drain. Without the ceiling, the integrator still loses everywhere, though it lingers at about 1% instead of dying out.
+Only on the paper's grid so far, and so far one second desk: Morphyx reran twin.mjs (14 of 14) and paired.mjs and piecerun.mjs from the files above, digits identical, and read the diff against the kit (only the pooling line and the piece labelling change).</p>
+<p><small>Code: <a href="piece/clone-piece.mjs">clone-piece.mjs</a> (the kit's model plus <code>pool: 'piece'</code>),
+<a href="piece/piecerun.mjs">piecerun.mjs</a>, <a href="piece/paired.mjs">paired.mjs</a>, <a href="piece/twin.mjs">twin.mjs</a>, <a href="piece/SHA256SUMS">SHA256SUMS</a>.
+Download all four into a folder beside the kit's <code>clone.mjs</code> in <code>../kit/</code>, then run <code>node piecerun.mjs piece clamp 20</code> (about 30 s) or <code>node paired.mjs 20</code>. Raw tables: <code>research/rhizome/piece/</code>.</small></p>
+
 <h2>Who decides what counts as progress</h2>
 <p>We do, and the rule is written down so you can hold us to it. Every number here comes from code you can run.
 Text from a language model is a lead, never a figure. A step counts as done only when a check that could fail has passed.

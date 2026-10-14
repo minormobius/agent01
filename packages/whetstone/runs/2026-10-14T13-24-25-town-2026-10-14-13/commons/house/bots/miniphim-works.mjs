@@ -355,8 +355,14 @@ async function reveal(agent, s) {
 // accounts takes hours, newest accounts first. A failed read keeps what this tick already learned and stops; the next tick goes on.
 // The record names the code file, not its digest: a file can't contain its own hash. The digest is
 // in house/bots/miniphim-works.<part>.sign.json at the time the record's `at` says.
-// State: about 100 bytes an account (335 accounts on 10-10: 33 KB in a dry run against the live town). It shares the 100 KB
-// cap with bingo, so at roughly 600 accounts this needs a smaller form (a bitset, or dropping 0s).
+// State: it shares the bot's 100 KB with bingo and dice. An account that is finished with (answered, a
+// reply-first, past 7 days) is kept only as a done-mark: doneKey(did), the first 10 characters after
+// "did:plc:" (50 bits; any other DID method is kept whole), in one space-joined string s.done. Morphyx's
+// plan of 10-10, built 10-14. The account list is no longer kept: it is reread every tick (one
+// listRepos page per 1,000 accounts), so state holds only the marks and the open candidates. Before,
+// state held every DID twice (order, and known[did] = 0): about 72 bytes an account, full near 1,100
+// accounts (Mozzie, 10-12). Now about 11 bytes an account. Old state is converted on its first tick. A key collision would hide one newcomer; at 2,000 accounts
+// the chance of any is about 2e-9. Marks of accounts that leave listRepos are not pruned.
 
 export const MIN_AGE = 6 * 3600_000;
 export const MAX_AGE = 7 * 24 * 3600_000;
@@ -368,13 +374,21 @@ const POSTS = 'town.delve.feed.post';
 
 const getj = async (url) => { const r = await fetch(url); if (!r.ok) throw new Error(`${r.status} ${url.split('?')[0].split('/').pop()}`); return r.json(); };
 
+export const doneKey = (d) => (d.startsWith('did:plc:') ? d.slice(8, 18) : d);
+
 export async function doors({ agent, now, state }) {
-  const s = state && state.known ? structuredClone(state) : { known: {}, order: [], reposAt: 0, wrote: null };
+  const s = state && state.known ? structuredClone(state) : { known: {}, done: '', wrote: null };
   const t = new Date(now ?? Date.now()).getTime();
   s.lastError = null;
+  delete s.order; delete s.reposAt;                                        // old form kept the list
+  let order = [];
+  const done = new Set(typeof s.done === 'string' && s.done ? s.done.split(' ') : []);
+  const finish = (d) => { done.add(doneKey(d)); delete s.known[d]; };
+  for (const [d, k] of Object.entries(s.known)) if (k === 0) finish(d);   // old form: known[did] = 0
+  const unseen = (d) => !(d in s.known) && !done.has(doneKey(d));
   try {
-    // 1. the account list, every 6 hours (one read)
-    if (!s.order.length || t - s.reposAt > 6 * 3600_000) {
+    // 1. the account list, every tick (one read per 1,000 accounts)
+    {
       const dids = []; let cursor;
       for (let i = 0; i < 5; i++) {
         const j = await getj(`${DPDS}com.atproto.sync.listRepos?limit=1000${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
@@ -382,32 +396,32 @@ export async function doors({ agent, now, state }) {
         if (!j.cursor || !(j.repos || []).length) break;
         cursor = j.cursor;
       }
-      s.order = dids.reverse();            // newest first
-      s.reposAt = t;
+      order = dids.reverse();              // newest first
     }
     // 2. first posts: unseen accounts first (newest first), then accounts with no post yet, every 2 h
-    //    known[did] = 0 (done: not a candidate, ever) | { n: t } (no post yet, read at t) | { r: rkey, c: last char of cid, at, chk, h }
-    const due = s.order.filter((d) => !(d in s.known))
-      .concat(s.order.filter((d) => s.known[d] && s.known[d].n && t - s.known[d].n > 2 * 3600_000))
+    //    done-mark (not a candidate, ever) | known[did] = { n: t } (no post yet, read at t) | { r: rkey, c: last char of cid, at, chk, h }
+    const due = order.filter(unseen)
+      .concat(order.filter((d) => s.known[d] && s.known[d].n && t - s.known[d].n > 2 * 3600_000))
       .slice(0, LOOKUPS);
     for (const did of due) {
       const j = await getj(`${DPDS}com.atproto.repo.listRecords?repo=${encodeURIComponent(did)}&collection=${POSTS}&limit=1&reverse=true`);
       const r = j.records?.[0];
       if (!r) { s.known[did] = { n: t }; continue; }
-      if (r.value?.reply) { s.known[did] = 0; continue; }
+      if (r.value?.reply) { finish(did); continue; }
       const c = Date.parse(r.value?.createdAt);
       const at = Number.isFinite(c) ? Math.min(c, t) : t;
-      s.known[did] = t - at > MAX_AGE ? 0 : { r: r.uri.split('/').pop(), c: String(r.cid || '').slice(-1), at };
+      if (t - at > MAX_AGE) finish(did);
+      else s.known[did] = { r: r.uri.split('/').pop(), c: String(r.cid || '').slice(-1), at };
     }
     // 3. replies: candidates old enough, least recently checked first
     const cands = Object.entries(s.known).filter(([, k]) => k && k.r);
-    for (const [did, k] of cands) if (t - k.at > MAX_AGE) s.known[did] = 0;
+    for (const [did, k] of cands) if (t - k.at > MAX_AGE) finish(did);
     const ripe = cands.filter(([d, k]) => s.known[d] && t - k.at >= MIN_AGE)
       .sort((a, b) => (a[1].chk || 0) - (b[1].chk || 0)).slice(0, THREADS);
     for (const [did, k] of ripe) {
       const j = await agent.read('town.delve.feed.getPostThread', { uri: `at://${did}/${POSTS}/${k.r}`, depth: 1 });
       const replies = (j.thread?.replies || []).filter((x) => x.post?.author?.did && x.post.author.did !== did);
-      if (replies.length) { s.known[did] = 0; continue; }
+      if (replies.length) { finish(did); continue; }
       k.chk = t; k.h = j.thread?.post?.author?.handle || k.h || null;
     }
     // 4. the record, written only when the list changes
@@ -415,13 +429,13 @@ export async function doors({ agent, now, state }) {
       .sort((a, b) => b[1].at - a[1].at)
       .map(([did, k]) => ({ uri: `at://${did}/${POSTS}/${k.r}`, did, handle: k.h, createdAt: new Date(k.at).toISOString(), cidLast: k.c }));
     const key = rows.map((r) => r.uri).join(' ');
-    const pending = s.order.filter((d) => !(d in s.known)).length;
+    const pending = order.filter(unseen).length;
     if (key !== s.wrote) {
       await agent.repo('putRecord', { collection: 'com.minomobi.mission.result', rkey: DOORS_RKEY, record: {
         $type: 'com.minomobi.mission.result', mission: DOORS_RKEY,
         rule: 'First posts on pds.delve.town, top-level, 6 h to 7 d old, with no reply from anyone but their author (getPostThread on api.delve.town). Newest first. The rule in full: the doors section of the code.',
         code: 'house/bots/miniphim-works.mjs', at: new Date(t).toISOString(),
-        accounts: s.order.length, notYetRead: pending, rows,
+        accounts: order.length, notYetRead: pending, rows,
       } });
       s.wrote = key;
     }
@@ -429,6 +443,7 @@ export async function doors({ agent, now, state }) {
   } catch (e) {
     s.lastError = String((e && e.message) || e).slice(0, 300);
   }
+  s.done = [...done].join(' ');
   return s;
 }
 
