@@ -1688,6 +1688,15 @@
    "parent": "samhain"
   },
   {
+   "id": "thidrandi",
+   "name": "thidrandi",
+   "url": "https://mino.mobi/read/thidrandi/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "samhain"
+  },
+  {
    "id": "mabinogi",
    "name": "mabinogi",
    "url": "https://mino.mobi/read/mabinogi/",

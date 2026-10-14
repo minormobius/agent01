@@ -28,7 +28,7 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 **Stack**: Pure static HTML/JS (vanilla, no build step) + Cloudflare Workers for assets
 **Deploy**: `.github/workflows/deploy-read.yml` — a push to the owning branch (`claude/samhain-spooky-read`) touching `read/**` deploys automatically. `main` does not deploy anything; see the repo-root `CLAUDE.md`.
 
-A family of deep-reading sub-sites for medieval tales — Welsh, Middle English, and (in the Samhain series) Old Irish. Nine annotated tales (`gawain/`, `culhwch/`, `orfeo/`, `pwyll/`, `branwen/`, `manawydan/`, `math/`, `owain/`, `vitamerlini/`) and a comparative hub (`pendragon/`). The pattern is intentionally rigid: each annotated tale carries the same seven layers and exposes the same shape of data, so the cross-tale layer at Pendragon can read across all of them without coupling.
+A family of deep-reading sub-sites for medieval tales — Welsh, Middle English, and (in the Samhain series) Old Irish and Old Norse. Nine annotated tales (`gawain/`, `culhwch/`, `orfeo/`, `pwyll/`, `branwen/`, `manawydan/`, `math/`, `owain/`, `vitamerlini/`) and a comparative hub (`pendragon/`). The pattern is intentionally rigid: each annotated tale carries the same seven layers and exposes the same shape of data, so the cross-tale layer at Pendragon can read across all of them without coupling.
 
 **There is now also a modernist branch: `portrait/`.** It is the same apparatus with four of the seven layers replaced, because they do not survive contact with a novel. It does not plug into Pendragon (Joyce is not Arthurian) and it does not use the illustration pipeline. Read [its own section below](#the-modernist-branch--portrait) before assuming anything about it from the medieval tales.
 
@@ -78,13 +78,18 @@ A second comparative hub, **parallel to Pendragon**: the old spooky tales of the
 autumn (Irish Samhain tales, Norse Winter Nights, Scottish Hallowe'en ballads). It is a
 single self-contained page, `samhain/index.html`, in the `mabinogi/` hub's style, re-lit in
 ember-on-night. Its tales use the **unchanged seven-layer apparatus**: `nera/` is a
-copy of `pwyll/` re-pointed at `window.NERA`.
+copy of `pwyll/` re-pointed at `window.NERA`, and `thidrandi/` a copy of `nera/` re-pointed at `window.THIDRANDI`.
+The hub's **Compared** section is hand-written (not generated): a two-column crosswalk
+and five *candidate* layers (Rule, Threshold, Dread, Two readings, Truth claim) that the
+spooky tales seem to need and the Pendragon apparatus lacks. None is built as a tab yet —
+extend the table when a tale lands, and promote a candidate to a tab only once a third tale confirms it.
 
 | Path | What |
 |---|---|
 | `samhain/index.html` | Hub: tale cards, what the oldest texts say Samhain *is*, the evidence timeline (Coligny → Bede → Old Irish → All Saints/All Souls → Sigvatr → sagas → Scottish ballads → folklore collections), the series roster, and Method |
 | `nera/` | **I. Echtra Nerai**: Old Irish (Meyer, *Revue Celtique* 10, 1889, PD) + original translation, 8 movements / 47 segments; cast, web, Propp, desire, motifs, mythograph, storybook |
 | `nera/source/` | Raw OCR of both Internet Archive scans of Meyer's edition. The `w` column was hand-transcribed by reading the two against each other. Uncertain readings are flagged in the segment notes. |
+| `thidrandi/` | **II. Þiðranda þáttr**: Old Norse (Flateyjarbók, Vigfússon & Unger ed. I, 1860, pp. 418–421, PD) + original translation, 7 movements / 31 segments; same layers. Palette: frost on night. Web node sizes key on the roles `disir` / `hof`. Raw OCR in `source/`. |
 
 Rules:
 
@@ -97,15 +102,19 @@ Rules:
 - **The series hypothesis is in Method**: the northern autumn tales are the tales without
   Propp's ↓ Return. Each new tale's `analysis.js` `absent.verdict` should test it and
   say so if the tale breaks it.
-- **`nera` is deliberately not in the illustration pipeline.** `illustrate.yml` fires
+- **The type-scene box needs its CSS.** `pwyll/styles.css` lacks the `.propp-themes` rules
+  (they live in `culhwch/`, `math/`, …), so tales copied from it render the box unstyled.
+  `nera/` and `thidrandi/` carry the block at the end of their `styles.css`; `pwyll/` itself
+  still lacks it.
+- **`nera` and `thidrandi` are deliberately not in the illustration pipeline.** `illustrate.yml` fires
   on `main` and self-deploys `read/` from whatever branch it ran on. Registering a
   tale there means a merge to main can redeploy this surface from main's tree. The
   `illus` briefs are written and ready. Register the tale, then `workflow_dispatch`
   from the owning branch, only once that hazard is dealt with.
-- `app.js` in `nera/` extends `toRoman` to XII and labels the source toggle "Old Irish only";
+- `app.js` in `nera/` (and `thidrandi/`) extends `toRoman` to XII and labels the source toggle "Old Irish only" ("Old Norse only");
   otherwise it is Pwyll's renderer. Web node sizes key on the roles `sid` / `cruachan`.
 - **Adding the next tale** (the roster's order: Táin Bó Regamna, Aided Muirchertaig meic
-  Erca, Serglige Con Culainn, Þiðranda þáttr, …): `cp -r nera/ <slug>/`, swap the
+  Erca, Serglige Con Culainn, the Fróðá wonders, …): `cp -r nera/ <slug>/`, swap the
   global, replace the data files, add a card to `samhain/index.html` (move it from
   "planned" to live), mark the roster row live, add a `catalogue.json` entry with
   `"p": "samhain"`.
