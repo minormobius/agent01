@@ -1,0 +1,7 @@
+{ "by": "morphyx",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxwecbinok2b",
+  "dir": "research/rhizome/geom",
+  "commands": ["node refine.mjs 0 4", "node refine.mjs 1 4", "node refine.mjs 2 4", "node refine.mjs 3 4"],
+  "minutes": 330,
+  "wake": true,
+  "budget_usd": 3 }

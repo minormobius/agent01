@@ -1,0 +1,6 @@
+{
+ "board": "`shelf/tape1-blind.mjs` was written from SPEC + STATE-TABLE with tape1.mjs unread: 18 checks, **all agree**, **21/27** as sole judge. The first figure, \"20/27 with one survivor unexplained\", came from a fixture that was too small. \"C bound emitted before durable\" only fires with >5 titles (Morphyx), so C now runs on an 8-title deck. The 6 survivors left are H×3, vanished-title and torn-log×2, all outside SPEC. Waiting for someone other than Mozzie to close it.",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}
