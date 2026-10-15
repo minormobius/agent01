@@ -1,6 +1,5 @@
 /* Samhain hub — the analysis section. Reads each tale's night.js
-   (window.NERA.night, window.THIDRANDI.night, window.MUIRCHERTACH.night)
-   and draws the five instruments side by side. No data lives here: add a
+   (window.<TALE>.night) and draws the six instruments side by side. No data lives here: add a
    tale by giving it a night.js and adding it to TALES. */
 (function () {
   "use strict";
@@ -8,6 +7,7 @@
     { key: "NERA", slug: "nera", short: "Nera" },
     { key: "THIDRANDI", slug: "thidrandi", short: "Þiðrandi" },
     { key: "MUIRCHERTACH", slug: "muirchertach", short: "Muirchertach" },
+    { key: "REGAMNA", slug: "regamna", short: "Regamna" },
   ].filter((t) => window[t.key] && window[t.key].night).map((t) => Object.assign(t, { N: window[t.key].night }));
 
   // Validated (dataviz validator, dark surface, --pairs all): fatal / lost / stopped. Safe is neutral ink.
@@ -35,7 +35,9 @@
     } else {
       const x1 = x(c.from), x2 = x(c.to), dir = Math.sign(x2 - x1);
       s.appendChild(svg("line", { x1, y1: y, x2: x2 - dir * 6, y2: y, stroke: col, "stroke-width": 3, "stroke-linecap": "round" }));
-      s.appendChild(svg("path", { d: `M ${x2} ${y} L ${x2 - dir * 9} ${y - 6} L ${x2 - dir * 9} ${y + 6} Z`, fill: col }));
+      // deferred: safe tonight, fatal later — a hollow arrowhead in the fatal colour
+      if (c.deferred) s.appendChild(svg("path", { d: `M ${x2} ${y} L ${x2 - dir * 9} ${y - 6} L ${x2 - dir * 9} ${y + 6} Z`, fill: "var(--bg)", stroke: OUT.fatal.color, "stroke-width": 2, "stroke-linejoin": "round" }));
+      else s.appendChild(svg("path", { d: `M ${x2} ${y} L ${x2 - dir * 9} ${y - 6} L ${x2 - dir * 9} ${y + 6} Z`, fill: col }));
       if (c.back) s.appendChild(svg("path", { d: `M ${x2 - dir * 2} ${y + 8} Q ${(x1 + x2) / 2} ${y + 14} ${x1} ${y + 8}`, fill: "none", stroke: col, "stroke-width": 1.5, "stroke-dasharray": "3 3" }));
     }
     return s;
@@ -46,18 +48,19 @@
     const host = $("an-threshold"); if (!host) return;
     const leg = $("an-threshold-legend");
     leg.innerHTML = Object.keys(OUT).map((k) => `<span class="li"><span class="sw" style="background:${OUT[k].color}"></span>${OUT[k].glyph} ${OUT[k].label}</span>`).join("") +
+      `<span class="li"><span class="sw-hollow"></span><span style="color:${OUT.fatal.color}">⌛</span> safe tonight, fatal later</span>` +
       `<span class="li"><span class="sw-dash"></span>there and back</span>`;
     host.innerHTML = "";
     TALES.forEach((t) => {
       const col = document.createElement("div"); col.className = "lane";
-      col.innerHTML = `<div class="lane-head"><a href="/${t.slug}/">${esc(t.N.title)}</a><span>${esc(t.N.festival.name)}</span></div>` +
+      col.innerHTML = `<div class="lane-head"><a href="/${t.slug}/">${esc(t.N.title)}</a><span>${t.N.festival ? esc(t.N.festival.name) : "no festival — " + esc(t.N.night || "night")}</span></div>` +
         `<div class="lane-axis">${RINGS.map((r, i) => `<span title="${esc(t.N.places[i])}">${r}</span>`).join("")}</div>`;
       t.N.crossings.forEach((c) => {
         const row = document.createElement("div"); row.className = "xrow o-" + c.outcome;
-        row.title = `${c.who} — ${c.label}\n${t.N.places[c.from]} → ${t.N.places[c.to]} · ${OUT[c.outcome].label} · movement ${c.passage}`;
+        row.title = `${c.who} — ${c.label}\n${t.N.places[c.from]} → ${t.N.places[c.to]} · ${OUT[c.outcome].label}${c.deferred ? " tonight; fatal later" : ""} · movement ${c.passage}`;
         row.appendChild(track(c));
         const txt = document.createElement("div"); txt.className = "xtxt";
-        txt.innerHTML = `<b>${esc(c.who)}</b> <span class="xg" style="color:${OUT[c.outcome].color}">${OUT[c.outcome].glyph}</span> ${esc(c.label)}`;
+        txt.innerHTML = `<b>${esc(c.who)}</b> <span class="xg" style="color:${OUT[c.outcome].color}">${OUT[c.outcome].glyph}</span>${c.deferred ? `<span class="xg" style="color:${OUT.fatal.color}" title="safe tonight, fatal later">⌛</span>` : ""} ${esc(c.label)}`;
         row.appendChild(txt); col.appendChild(row);
       });
       host.appendChild(col);
@@ -68,10 +71,11 @@
       const f = t.N.crossings.filter((c) => c.outcome === "fatal");
       const out = f.filter((c) => direction(c) === "outward").length, inn = f.filter((c) => direction(c) === "inward").length;
       const lost = t.N.crossings.filter((c) => c.outcome === "lost").length;
+      const later = t.N.crossings.filter((c) => c.deferred).length;
       const door = t.N.crossings.filter((c) => Math.min(c.from, c.to) <= 2 && Math.max(c.from, c.to) >= 2 && c.from !== c.to).length;
-      return `<tr><th>${esc(t.short)}</th><td>${t.N.crossings.length}</td><td>${door}</td><td>${out}</td><td>${inn}</td><td>${lost}</td></tr>`;
+      return `<tr><th>${esc(t.short)}</th><td>${t.N.crossings.length}</td><td>${door}</td><td>${out}</td><td>${inn}</td><td>${later}</td><td>${lost}</td></tr>`;
     }).join("");
-    $("an-threshold-table").innerHTML = `<table><thead><tr><th></th><th>crossings</th><th>through the door</th><th>fatal, going out</th><th>fatal, coming in</th><th>lost for good</th></tr></thead><tbody>${rows}</tbody></table>`;
+    $("an-threshold-table").innerHTML = `<table><thead><tr><th></th><th>crossings</th><th>through the door</th><th>fatal, going out</th><th>fatal, coming in</th><th>fatal later ⌛</th><th>lost for good</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   /* ---------- 2 · the rules ---------- */
@@ -90,7 +94,8 @@
     ["surprise", "Surprise", "the impossible, unremarked"],
     ["explain", "The reasonable explanation", "the victim's own sensible account"],
     ["repeat", "Repetition", "it happens again, and again"],
-    ["invert", "Inversion", "summer in winter, the weather as a name"],
+    ["invert", "Inversion", "summer in winter, the weather as a name, an impossible body"],
+    ["vanish", "Vanishing", "it is gone the moment it is reached for"],
   ];
   function renderDread() {
     const host = $("an-dread"); if (!host) return;
@@ -114,11 +119,30 @@
     host.innerHTML = `<table><thead><tr><th></th><th>What</th><th>The older reading the story carries</th><th>The reading laid over it</th></tr></thead><tbody>${body}</tbody></table>`;
   }
 
+  /* ---------- 6 · names ---------- */
+  const KINDS = {
+    withheld: "never named", weather: "named as weather", mockery: "named in mockery", false: "a false name",
+    forbidden: "a name that must not be spoken", late: "named only at the end", decoy: "a name that misleads",
+  };
+  function renderNames() {
+    const host = $("an-names"); if (!host) return;
+    const kinds = Object.keys(KINDS);
+    const head = `<thead><tr><th>How the otherworld is named</th>${TALES.map((t) => `<th>${esc(t.short)}</th>`).join("")}</tr></thead>`;
+    const body = kinds.map((k) => {
+      const cells = TALES.map((t) => {
+        const hits = (t.N.names || []).filter((n) => n.kind === k);
+        return `<td>${hits.map((h) => `<div class="dq"><span class="dot"></span><span><b>${esc(h.who)}</b>${h.name && h.name !== "—" && h.name !== "(any of them)" ? `: <i>${esc(h.name)}</i>` : ""} — ${esc(h.gloss)}</span></div>`).join("") || `<span class="none">—</span>`}</td>`;
+      }).join("");
+      return `<tr><th>${esc(KINDS[k])}</th>${cells}</tr>`;
+    }).join("");
+    host.innerHTML = `<table class="dread">${head}<tbody>${body}</tbody></table>`;
+  }
+
   /* ---------- 5 · truth claims ---------- */
   function renderTruth() {
     const host = $("an-truth"); if (!host) return;
     host.innerHTML = TALES.map((t) => `<div class="tcard"><div class="tmode">${esc(t.N.truth.mode)}</div><h4>${esc(t.N.title)}</h4><p><b>Vouched for by:</b> ${esc(t.N.truth.vouch)}</p><p class="small">${esc(t.N.truth.note)}</p></div>`).join("");
   }
 
-  renderThreshold(); renderRules(); renderDread(); renderReadings(); renderTruth();
+  renderThreshold(); renderRules(); renderDread(); renderReadings(); renderTruth(); renderNames();
 })();

@@ -21,6 +21,7 @@ window.THIDRANDI.night = {
     { rule: "Too much praise invites harm", kind: "speech", giver: "custom", keptBy: "Þórhallr (falls silent)", brokenBy: "everyone who praises him", why: "love", cost: "—", passage: 2 },
   ],
   dread: [
+    { device: "vanish", text: "“He saw no one.”", passage: 4 },
     { device: "foreknow", text: "“A seer will be killed at the feast”, and the ox called Seer changes nothing.", passage: 2 },
     { device: "silence", text: "The seer falls silent whenever the boy is praised.", passage: 2 },
     { device: "count", text: "Three knocks, and nobody moves until the third.", passage: 4 },
@@ -30,6 +31,12 @@ window.THIDRANDI.night = {
   readings: [
     { what: "The nine in black", older: "the family's own fylgjur / dísir, taking a last tribute", newer: "the Devil, raging as he loses Iceland (the compiler's sermon)", passage: 6 },
     { what: "The nine in white", older: "the “better dísir” of the coming faith", newer: "—", passage: 6 },
+  ],
+  names: [
+    { who: "the nine in black", name: "—", gloss: "never named; the seer offers a kind, “fylgjur… dísir”", kind: "withheld", passage: 6 },
+    { who: "the nine in white", name: "—", gloss: "“the better dísir”", kind: "withheld", passage: 6 },
+    { who: "the ox", name: "Spámaðr", gloss: "“Seer”: the name through which the prophecy is meant to be dodged", kind: "decoy", passage: 2 },
+    { who: "the hill-folk", name: "—", gloss: "“every living creature, small and great”", kind: "withheld", passage: 7 },
   ],
   truth: { mode: "legend", vouch: "a named family of real people; the dying man's own testimony", note: "Told as true, filed in a king's saga as a sign before the conversion. Njáls saga already remembers him as the man the dísir slew." },
 };

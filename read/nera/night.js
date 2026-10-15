@@ -10,9 +10,15 @@
           the one who crosses: safe · fatal · lost (gone into the
           otherworld for good) · stopped (held at the door, or a harm
           that crossed in vision only and was undone).
-   rules[].giver: helper · seer · villain · custom · the dead.
+   crossings[].deferred: true when the crossing is safe tonight but
+          seals a death that comes later (added with Táin Bó Regamna).
+   festival: may be null, with `night` describing the night instead.
+   rules[].giver: helper · seer · villain · custom · the dead · geis · hero.
    dread[].device: count · withhold · foreknow · surprise · explain ·
-          repeat · silence · invert.
+          repeat · silence · invert · vanish.
+   names[]: how the tale names its otherworld figures. kind: withheld
+          (never named) · weather · mockery · false · forbidden ·
+          late (named only at the end) · decoy (a name that misleads).
    Attaches to window.NERA. */
 window.NERA = window.NERA || {};
 window.NERA.night = {
@@ -46,6 +52,12 @@ window.NERA.night = {
   readings: [
     { what: "What comes out on Samhain night", older: "the people of the síd, with a king, a crown and a household", newer: "“demons” (demnai), in the scribe's word", passage: 1 },
     { what: "The vision of the burning", older: "a forecast by the síd host, undone by speech", newer: "—", passage: 5 },
+  ],
+  names: [
+    { who: "the woman of the síd", name: "—", gloss: "never named in the tale; a gloss (§17) offers “Bé Aingeni”", kind: "withheld", passage: 3 },
+    { who: "the king of the síd", name: "—", gloss: "never named", kind: "withheld", passage: 3 },
+    { who: "the hanged man", name: "—", gloss: "never named; only “the captive”", kind: "withheld", passage: 1 },
+    { who: "the host", name: "slúag síabrae", gloss: "“a phantom host”, a kind, not a name", kind: "withheld", passage: 5 },
   ],
   truth: { mode: "tale", vouch: "none named; it explains a household custom (“that is why it is not good…”)", note: "Told as a story with an aetiology. It does not ask to be believed, but it asks to be obeyed." },
 };
