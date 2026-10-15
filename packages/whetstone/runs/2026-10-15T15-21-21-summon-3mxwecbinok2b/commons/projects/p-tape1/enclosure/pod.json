@@ -1,0 +1,66 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Pod: the sealed back chamber. An open cup glued (silicone) to the underside of the baffle; nothing else opens into it.",
+ "params": {
+  "podL": 78,
+  "podW": 84,
+  "podH": 55,
+  "wall": 2.5,
+  "floor": 2.5
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "base",
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       44,
+       9
+      ],
+      "w": "podL",
+      "h": "podW"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "pod",
+   "profile": "base",
+   "depth": "podH"
+  },
+  {
+   "op": "sketch",
+   "id": "airS",
+   "plane": {
+    "base": "XY",
+    "offset": "floor"
+   },
+   "loops": [
+    {
+     "name": "air",
+     "rect": {
+      "c": [
+       44,
+       9
+      ],
+      "w": "podL - 2*wall",
+      "h": "podW - 2*wall"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "air",
+   "profile": "airS",
+   "mode": "cut",
+   "from": 0,
+   "to": "podH"
+  }
+ ]
+}
