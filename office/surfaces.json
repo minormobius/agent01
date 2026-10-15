@@ -7774,6 +7774,106 @@
    "discovered": true
   },
   {
+   "id": "miniphim/site/rhizome",
+   "name": "rhizome",
+   "url": "https://miniphim.minomobi.com/site/rhizome/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/rhizome/grids",
+   "name": "grids",
+   "url": "https://miniphim.minomobi.com/site/rhizome/grids/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/rhizome",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/rhizome/invade",
+   "name": "invade",
+   "url": "https://miniphim.minomobi.com/site/rhizome/invade/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/rhizome",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/rhizome/ising",
+   "name": "ising",
+   "url": "https://miniphim.minomobi.com/site/rhizome/ising/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/rhizome",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/rhizome/kit",
+   "name": "kit",
+   "url": "https://miniphim.minomobi.com/site/rhizome/kit/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/rhizome",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/rhizome/lab",
+   "name": "lab",
+   "url": "https://miniphim.minomobi.com/site/rhizome/lab/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/rhizome",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/rhizome/log",
+   "name": "log",
+   "url": "https://miniphim.minomobi.com/site/rhizome/log/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/rhizome",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/rhizome/phase",
+   "name": "phase",
+   "url": "https://miniphim.minomobi.com/site/rhizome/phase/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/rhizome",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/rhizome/pieces",
+   "name": "pieces",
+   "url": "https://miniphim.minomobi.com/site/rhizome/pieces/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/rhizome",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/rhizome/step2",
+   "name": "step2",
+   "url": "https://miniphim.minomobi.com/site/rhizome/step2/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site/rhizome",
+   "discovered": true
+  },
+  {
    "id": "miniphim/site/score",
    "name": "score",
    "url": "https://miniphim.minomobi.com/site/score/",

@@ -111,7 +111,14 @@ function workFake(soul, meta, collapsed, cwd) {
       writeFileSync(join(cwd, 'house', 'bots', 'b.mozzie.sign.json'), JSON.stringify({ digest: bd }));
       mkdirSync(join(cwd, 'house', 'feeds'), { recursive: true });
       for (const [f, v] of [['w.mjs', 'export default async () => ({ feed: [] });\n'], ['w.test.mjs', '\n'], ['w.json', '{"displayName":"W"}\n']]) writeFileSync(join(cwd, 'house', 'feeds', f), v);
-      writeFileSync(join(cwd, 'house', 'feeds', 'w.modulo.sign.json'), JSON.stringify({ digest: execFileSync('node', [join(cwd, 'house', 'digest.mjs'), 'feeds/w'], { encoding: 'utf8' }).trim() })); }
+      writeFileSync(join(cwd, 'house', 'feeds', 'w.modulo.sign.json'), JSON.stringify({ digest: execFileSync('node', [join(cwd, 'house', 'digest.mjs'), 'feeds/w'], { encoding: 'utf8' }).trim() }));
+      // A job: signed with the lent tool, and one signature forged in Mozzie's name.
+      mkdirSync(join(cwd, 'research', 'jobs'), { recursive: true }); mkdirSync(join(cwd, 'research', 'sweep'), { recursive: true });
+      writeFileSync(join(cwd, 'research', 'sweep', 'go.mjs'), '// go\n');
+      writeFileSync(join(cwd, 'research', 'jobs', 'sweep.json'), JSON.stringify({ by: 'modulo', dir: 'research/sweep', commands: ['node go.mjs'], minutes: 10 }));
+      const jd = execFileSync('node', [join(cwd, 'research', 'jobs', 'digest.mjs'), 'sweep'], { encoding: 'utf8' }).trim();
+      writeFileSync(join(cwd, 'research', 'jobs', 'sweep.modulo.sign.json'), JSON.stringify({ digest: jd }));
+      writeFileSync(join(cwd, 'research', 'jobs', 'sweep.mozzie.sign.json'), JSON.stringify({ digest: jd })); }
     if (soul === 'modulo') { mkdirSync(join(cwd, 'letters', 'from-the-person'), { recursive: true });
       writeFileSync(join(cwd, 'letters', 'REPLIES.md'), 'Dear person: yes. — Modulo\n');
       writeFileSync(join(cwd, 'letters', 'from-the-person', '2026-10-05-hello.md'), 'tampered'); }

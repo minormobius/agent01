@@ -15,6 +15,7 @@ import {
 import { WWW_README, README as WWW_README_PATH } from './www.mjs';
 import { carriesMd, LETTERS_FROM } from './carries.mjs';
 import { HOUSE_README, DIGEST_TOOL } from './house.mjs';
+import { JOBS_README, JOBS_DIGEST_TOOL } from './jobs.mjs';
 import { draftHash } from '../../miniphim-account/town.mjs';
 import { parseLines, fold, mintId } from './ledger.mjs';
 import {
@@ -42,7 +43,7 @@ export function loadSoul(path) {
 
 export async function runLab({
   souls, bank, call, judge = call, reps = 3, seed = 1, concurrency = 4,
-  kinds = DEFAULT_KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null, net = false, sessionEnv = {}, town = null, townReadme = '', townFiles = {}, letters = null, afterTown = null, costs = null, runlog = null,
+  kinds = DEFAULT_KINDS, log = () => {}, work = [], board = null, commons = null, custodian = null, notice = null, refs = null, engines = null, councilQuestion = null, net = false, sessionEnv = {}, town = null, townReadme = '', townFiles = {}, letters = null, afterTown = null, costs = null, runlog = null, jobResults = null,
 }) {
   if (souls.length < 2) throw new Error('the whetstone needs at least two souls: contrast is the measurement');
   const R = rng(seed);
@@ -160,17 +161,22 @@ export async function runLab({
   // house/ (their API, lib/house.mjs): kept like the shelf, except that a signature file
   // (house/api/<name>.<part>.sign.json, house/bots/<name>.<part>.sign.json) can be written only by that part; the README and the digest
   // tool are the lab's, lent each session.
-  const HOUSE_LENT = { 'house/README.md': HOUSE_README, 'house/digest.mjs': DIGEST_TOOL };
-  const harvestHouse = (soul, dir) => {
-    const before = pick(C, (k) => k.startsWith('house/'));
-    harvest(C, dir, 'house/');
+  const HOUSE_LENT = { 'house/README.md': HOUSE_README, 'house/digest.mjs': DIGEST_TOOL, 'research/jobs/README.md': JOBS_README, 'research/jobs/digest.mjs': JOBS_DIGEST_TOOL };
+  // Job results (packages/whetstone/jobs/<name>/, from miniphim-job.yml), lent read-only as jobs/<name>/:
+  // set fresh every run, never harvested back.
+  for (const k of Object.keys(C)) if (k.startsWith('jobs/')) delete C[k];
+  for (const [k, v] of Object.entries(jobResults || {})) C[`jobs/${k}`] = v;
+  const harvestHouse = (soul, dir, prefix = 'house/') => {
+    const before = pick(C, (k) => k.startsWith(prefix));
+    harvest(C, dir, prefix);
     for (const k of Object.keys(HOUSE_LENT)) delete C[k];
     for (const k of Object.keys(C)) {
-      const m = k.match(/^house\/.+\.([a-z]+)\.sign\.json$/);
+      if (!k.startsWith(prefix)) continue;
+      const m = k.match(/^(?:house|research\/jobs)\/.+\.([a-z]+)\.sign\.json$/);
       if (!m || m[1] === soul.key || before[k] === C[k]) continue;
       if (k in before) C[k] = before[k]; else delete C[k]; // another part's signature: not this session's to write
     }
-    for (const k of Object.keys(before)) if (/\.sign\.json$/.test(k) && !(k in C) && !k.includes(`.${soul.key}.sign.json`)) C[k] = before[k];
+    for (const k of Object.keys(before)) if (/\.sign\.json$/.test(k) && !(k in C) && !k.includes(`.${soul.key}.sign.json`) && (prefix === 'house/' || k.startsWith('research/jobs/'))) C[k] = before[k];
   };
   const lettersFrom = () => {
     if (!letters) return;
@@ -406,7 +412,7 @@ export async function runLab({
     const k = seed % everyone.length, townOrder = [...everyone.slice(k), ...everyone.slice(0, k)];
     const townTurn = async (soul, prompt, trial) => {
       const keptTown = pick(C, (k) => k.startsWith('town/'));
-      const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/') || k.startsWith('www/') || k === 'CARRIES.md' || k === 'COSTS.md' || k === 'RUNLOG.md' || k.startsWith('letters/') || k.startsWith('research/') || k.startsWith('house/')),
+      const files = { ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === `journal/${soul.key}.md` || k.startsWith('council/') || k.startsWith('www/') || k === 'CARRIES.md' || k === 'COSTS.md' || k === 'RUNLOG.md' || k.startsWith('letters/') || k.startsWith('research/') || k.startsWith('house/') || k.startsWith('jobs/')),
         ...HOUSE_LENT, ...keptTown, ...lent, 'town/README.md': townReadme, [WWW_README_PATH]: WWW_README, ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
       const dirs = prep({ id: 'town' }, { extra: files });
       const sess = await session(soul, prompt, { kind: 'town', trial }, dirs);
@@ -443,7 +449,7 @@ export async function runLab({
       }
       if ('town/PAUSED' in now && !('town/PAUSED' in C)) { C['town/PAUSED'] = now['town/PAUSED']; kept.paused = true; }
       harvest(C, dirs.work, 'BOARD.md'); harvest(C, dirs.work, 'shelf/'); harvest(C, dirs.work, `journal/${soul.key}.md`);
-      harvest(C, dirs.work, 'research/'); harvestHouse(soul, dirs.work);
+      harvestHouse(soul, dirs.work, 'research/'); harvestHouse(soul, dirs.work);
       harvest(C, dirs.work, 'letters/'); lettersFrom(); // the person's letters are the lab's; the rest of letters/ is theirs
       harvest(C, dirs.work, 'www/'); delete C[WWW_README_PATH]; // their corner of the web (lib/www.mjs); the README is the lab's
       takeLedger(soul, dirs, 'town');
@@ -506,7 +512,7 @@ export async function runLab({
     // evening can rerun its tests and close what the day left open (fourteenth light: it couldn't).
     const projectTools = Object.fromEntries(work.filter((t) => t.mode === 'project' && t.tools && Object.keys(C).some((k) => k.startsWith(`projects/${t.id}/`)))
       .flatMap((t) => Object.entries(toolsAndCouncil()).filter(([k]) => k.startsWith('tools/')).map(([k, v]) => [`projects/${t.id}/${k}`, v])));
-    const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/') || k.startsWith('town/') || k.startsWith('www/') || (k.startsWith('council/') && !k.startsWith('council/past/')) || k === 'CARRIES.md' || k === 'COSTS.md' || k === 'RUNLOG.md' || k.startsWith('letters/') || k.startsWith('research/') || k.startsWith('house/')),
+    const files = { ...projectTools, ...pick(C, (k) => k === 'BOARD.md' || k.startsWith('shelf/') || k === journal || k.startsWith('projects/') || k.startsWith('town/') || k.startsWith('www/') || (k.startsWith('council/') && !k.startsWith('council/past/')) || k === 'CARRIES.md' || k === 'COSTS.md' || k === 'RUNLOG.md' || k.startsWith('letters/') || k.startsWith('research/') || k.startsWith('house/') || k.startsWith('jobs/')),
       ...HOUSE_LENT, [WWW_README_PATH]: WWW_README, ...(on.has('town') ? townFiles : {}), ...(ledgerOn ? { ...archive(), ...ledgerMount(soul) } : {}), 'TODAY.md': today(records, work, sweeps, notice, Object.keys(engineDirs)), ...noticeFile };
     const dirs = prep({ id: 'evening' }, { extra: files });
     // The engines too: a project's own scripts find them at <project>/engines/, as they do by day
@@ -520,7 +526,7 @@ export async function runLab({
     harvest(C, dirs.work, 'shelf/');
     harvest(C, dirs.work, journal);
     harvest(C, dirs.work, 'www/'); delete C[WWW_README_PATH];
-    harvest(C, dirs.work, 'letters/'); lettersFrom(); harvest(C, dirs.work, 'research/'); harvestHouse(soul, dirs.work);
+    harvest(C, dirs.work, 'letters/'); lettersFrom(); harvestHouse(soul, dirs.work, 'research/'); harvestHouse(soul, dirs.work);
     const before = ledgerOut.length;
     takeLedger(soul, dirs, 'evening');  // the soul's own ledger lines first: the lab's sweep record goes after
     const rm = recordRemoval(soul, 'evening', boardWas, C['BOARD.md'], shelfWas, C);

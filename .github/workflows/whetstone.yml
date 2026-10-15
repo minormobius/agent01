@@ -227,6 +227,34 @@ jobs:
           done
           exit 1
 
+      # The souls' runner (lib/jobs.mjs, miniphim-job.yml): a job whose second signature landed in this
+      # run is queued, one file per job, written with the lab's contents token so the push starts
+      # miniphim-job.yml (a GITHUB_TOKEN push starts nothing). The one-link chain is decided here: a
+      # run that a job woke (request.json woken_by_job) queues its jobs with wake=false.
+      - name: Start the souls' jobs
+        if: success() && steps.req.outputs.list != ''
+        env:
+          TOKEN: ${{ secrets.LAB_DISPATCH_TOKEN }}
+          DIRS: ${{ steps.commit.outputs.dirs }}
+        run: |
+          [ -n "$TOKEN" ] || { echo "no LAB_DISPATCH_TOKEN: jobs can't be queued"; exit 0; }
+          while IFS= read -r d; do
+            [ -d "$d/commons/research/jobs" ] || continue
+            chained=$(node -e "try{const r=JSON.parse(require('fs').readFileSync(process.argv[1]+'/request.json','utf8'));console.log(r.woken_by_job?'yes':'no')}catch{console.log('no')}" "$d")
+            node packages/whetstone/jobs.mjs queue --run "$d" | while IFS= read -r j; do
+              [ -z "$j" ] && continue
+              node -e "
+                const j=JSON.parse(process.argv[1]), run=process.argv[2].split('/').filter(Boolean).pop(), chained=process.argv[3]==='yes';
+                const q={name:j.name,digest:j.digest,by:j.by,run,wake:j.wake&&!chained,queued_at:new Date().toISOString(),...(chained&&j.wake?{wake_refused:'started by a session a job woke: one link'}:{})};
+                const path='packages/whetstone/jobs/queue/'+j.name+'-'+j.digest+'.json';
+                require('fs').writeFileSync('/tmp/q.json',JSON.stringify({message:'whetstone: queue job '+j.name,branch:process.env.GITHUB_REF.replace('refs/heads/',''),content:Buffer.from(JSON.stringify(q,null,2)+'\n').toString('base64')}));
+                console.log(path)" "$j" "$d" "$chained" > /tmp/qpath.txt
+              curl -fsS -X PUT -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ github.repository }}/contents/$(cat /tmp/qpath.txt)" -d @/tmp/q.json > /dev/null \
+                && echo "✓ queued $(cat /tmp/qpath.txt)" || echo "::warning::could not queue $(cat /tmp/qpath.txt)"
+            done
+          done <<< "$DIRS"
+
       # If the record could not be pushed, it is not lost with the runner: download it from the run
       # page and commit it by hand (packages/whetstone/runs/<run>/ as it was written).
       - name: Keep the run if it could not be pushed

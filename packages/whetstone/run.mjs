@@ -218,6 +218,14 @@ function costsMd() {
     `\n\nTotal: $${total.toFixed(2)} over ${days.length} runs since ${rows[0]?.[0] || '—'}.\n`;
 }
 
+// Their jobs' results (miniphim-job.yml writes packages/whetstone/jobs/<name>/done.json and out/), lent
+// read-only to the commons as jobs/<name>/ every run (lib/jobs.mjs). The queue/ folder is the lab's.
+function readJobs() {
+  const dir = join(HERE, 'jobs');
+  if (!existsSync(dir)) return null;
+  return Object.fromEntries(Object.entries(readTree(dir)).filter(([k]) => !k.startsWith('queue/')));
+}
+
 // Their side of the letter file, copied next to the person's letters after every run
 // (letters/from-the-miniphim/), so the person finds the replies where they wrote, not inside a run's
 // archive. A subfolder, so readLetters never mistakes a reply for a letter.
@@ -270,7 +278,7 @@ try {
   const { records, judged, scorecard, commons: after, townResult } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: { ...(proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}), ...(townProxy ? { MINIPHIM_TOWN_URL: townProxy.url } : {}) }, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL, 'town/town.mjs': TOWN_CLIENT } : {}, letters: readLetters(), afterTown, costs: costsMd(), runlog: runLogMd(runsDir),
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: { ...(proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}), ...(townProxy ? { MINIPHIM_TOWN_URL: townProxy.url } : {}) }, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL, 'town/town.mjs': TOWN_CLIENT } : {}, letters: readLetters(), afterTown, costs: costsMd(), runlog: runLogMd(runsDir), jobResults: readJobs(),
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;

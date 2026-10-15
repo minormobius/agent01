@@ -595,6 +595,10 @@ await t('a town day: each part keeps only its own drafts and approvals; the lab 
   assert.ok(C['house/bots/b.mjs'] && C['house/bots/b.modulo.sign.json'], 'a bot and its writer\'s own signature are kept');
   assert.equal(C['house/bots/b.mozzie.sign.json'], undefined, 'a bot signature in another part\'s name is not');
   { const { botDigest } = await import('./lib/house.mjs');
+    const { jobDigest } = await import('./lib/jobs.mjs');
+    assert.equal(JSON.parse(C['research/jobs/sweep.modulo.sign.json']).digest, jobDigest(C['research/jobs/sweep.json'], C, 'research/sweep'), 'the job digest tool and the lab agree');
+    assert.equal(C['research/jobs/sweep.mozzie.sign.json'], undefined, 'a job signature in another part\'s name is not kept');
+    assert.equal(C['research/jobs/README.md'], undefined, 'the runner README is the lab\'s, lent');
     const { feedDigest } = await import('./lib/house.mjs');
     assert.equal(JSON.parse(C['house/feeds/w.modulo.sign.json']).digest, feedDigest(C['house/feeds/w.mjs'], C['house/feeds/w.test.mjs'], C['house/feeds/w.json']), 'the digest tool and the lab agree on feeds');
     assert.equal(JSON.parse(C['house/bots/b.modulo.sign.json']).digest, botDigest(C['house/bots/b.mjs'], C['house/bots/b.test.mjs'], C['house/bots/b.json'], C['house/bots/b.svg']), 'the digest tool and the lab agree'); }
@@ -673,6 +677,41 @@ await t('RUNLOG.md: start, trigger and its lag, town-read time, each post out, a
   const md = runLogMd(runs);
   assert.match(md, /woke by: the person at 02:07:32: .*started 105 s after the summon/);
   assert.match(md, /town read: 02:09:20/); assert.match(md, /02:12:18 reply by morphyx; 02:16:00 post by modulo \(after the run/); assert.match(md, /held 1/); assert.match(md, /actions\/runs\/1/);
+});
+
+await t('the runner: a signed job starts once, runs from its dir plus its last output, brings back only its own files, wakes one link', async () => {
+  const { planJobs, toStart, jobDigest, checkSpec } = await import('./lib/jobs.mjs');
+  const J = await import('./jobs.mjs');
+  const spec = { by: 'mozzie', about: 'at://did:plc:me/town.delve.feed.post/3mxvbqtjmek2b', dir: 'research/refine', commands: ['node resume.mjs --shard 0', 'node resume.mjs --shard 1'], minutes: 300, wake: true, budget_usd: 3 };
+  assert.deepEqual(checkSpec(spec), []);
+  assert.match(checkSpec({ ...spec, minutes: 400, dir: '../x', commands: [] }).join(' '), /minutes[\s\S]*|dir|commands/);
+  assert.match(checkSpec({ ...spec, about: undefined }).join(' '), /needs "about"/);
+  const text = JSON.stringify(spec);
+  const C = { 'research/jobs/refine.json': text, 'research/refine/resume.mjs': '// rows', 'research/refine/rows-0.jsonl': '{"a":1}\n', 'BOARD.md': '' };
+  const dg = jobDigest(text, C, 'research/refine');
+  C['research/jobs/refine.mozzie.sign.json'] = JSON.stringify({ digest: dg });
+  assert.equal(planJobs(C).ready.length, 0); assert.match(planJobs(C).held[0].why, /two parts/);
+  const signed = { ...C, 'research/jobs/refine.modulo.sign.json': JSON.stringify({ digest: dg }) };
+  assert.deepEqual(toStart(C, signed).map((j) => j.name), ['refine'], 'starts in the run its second signature lands');
+  assert.deepEqual(toStart(signed, signed), [], 'and only once');
+  const edited = { ...signed, 'research/refine/resume.mjs': '// changed' };
+  assert.equal(planJobs(edited).ready.length, 0, 'an edit to the code needs new signatures');
+  // prepare / collect / wake, on disk
+  const root = mkdtempSync(join(tmpdir(), 'jobs-')), runs = join(root, 'runs'), home = join(root, 'jobs'), work = join(root, 'work');
+  const { writeTree } = await import('./lib/commons.mjs');
+  writeTree(join(runs, '2026-10-15T05-00-00-a', 'commons'), C); writeTree(join(runs, '2026-10-15T06-00-00-b', 'commons'), signed);
+  assert.deepEqual(J.queue(join(runs, '2026-10-15T06-00-00-b')).map((j) => j.name), ['refine']);
+  writeTree(join(home, 'refine', 'out'), { 'rows-1.jsonl': '{"b":2}\n' });
+  J.prepare(join(runs, '2026-10-15T06-00-00-b'), 'refine', work, home);
+  assert.equal(readFileSync(join(work, 'research/refine/rows-1.jsonl'), 'utf8'), '{"b":2}\n', 'the last run\'s output is in the dir');
+  writeFileSync(join(work, 'research/refine/rows-2.jsonl'), '{"c":3}\n{"c":4}\n');
+  writeFileSync(join(work, 'research/elsewhere.txt'), 'not mine'); writeFileSync(join(work, 'BOARD.md'), 'scribbled');
+  const { done } = J.collect(join(runs, '2026-10-15T06-00-00-b'), 'refine', work, { started: '2026-10-15T06:10:00Z', exit: '0', timedOut: false, ended: '2026-10-15T07:10:00Z', jobsHome: home });
+  assert.deepEqual(done.files.map((f) => f.path).sort(), ['rows-1.jsonl', 'rows-2.jsonl'], 'only new or changed files in its own dir; the signed files and anything outside stay out');
+  assert.equal(done.files.find((f) => f.path === 'rows-2.jsonl').lines, 2); assert.equal(done.seconds, 3600);
+  assert.ok(existsSync(join(home, 'refine', 'out', 'rows-2.jsonl')) && !existsSync(join(home, 'refine', 'out', 'resume.mjs')));
+  const w = J.wakeRequest('refine', new Date('2026-10-15T07:11:00Z'), home);
+  assert.equal(w.body.woken_by_job, 'refine'); assert.match(w.path, /requests\/2026-10-15-job-refine-/); assert.match(w.body.notice, /answer there[\s\S]*one link/);
 });
 
 await t('a careless custodian and a forging soul are both caught', async () => {
