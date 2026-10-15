@@ -1,4 +1,4 @@
-// Rhizome phase map (Mozzie, 2026-10-14; log-time steps and 'first loss' added by Modulo the same night). Draws data.json; computes only medians of its run lists.
+// Rhizome phase map (Mozzie, 2026-10-14; log-time steps and 'first loss' added by Modulo the same night; refined edges, quarters of boundary cells, added by Morphyx 10-15). Draws data.json; computes only medians of its run lists.
 const $ = id => document.getElementById(id);
 const RED = [192, 57, 43], BLUE = [36, 87, 197], MID = [238, 236, 228], DEAD = '#555';
 const mix = (a, b, t) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
@@ -10,7 +10,7 @@ const KEYS = {
   lost: `When one kind was first lost (median of the runs, log scale, ignores the step buttons): <span class="sw" style="background:${mix(MID, [230, 140, 30], 0)}"></span> by step 25 · <span class="sw" style="background:rgb(230,140,30)"></span> step 8,000 · <span class="sw" style="background:rgb(46,139,87)"></span> both still alive at 8,000 in at least half the runs (censored: lost later, or never)`,
   cover: `<span class="sw" style="background:${mix(MID, MID, 0)}"></span> almost nothing alive · <span class="sw" style="background:#222"></span> the whole field (% of squares, both kinds)`,
 };
-let mode = 'share', D, sel = null, k = 0;
+let mode = 'share', D, sel = null, k = 0, fine = true;
 const med = a => { const v = a.map(x => x ?? Infinity).sort((x, y) => x - y), n = v.length; return n % 2 ? v[(n - 1) / 2] : (v[n / 2 - 1] + v[n / 2]) / 2; };
 const fmtT = t => t >= 1000 ? t / 1000 + 'k' : '' + t;
 const fill = g => { const c = g.at[k];
@@ -30,8 +30,13 @@ function maps() {
     const cw = 20, ch = 22, cv = document.createElement('canvas'); cv.width = PAD.l + P.length * cw + PAD.r; cv.height = PAD.t + H.length * ch + PAD.b;
     const x = c => PAD.l + P.indexOf(c.p) * cw, y = c => PAD.t + (H.length - 1 - H.indexOf(c.h)) * ch, cx = cv.getContext('2d');
     cx.font = '10px system-ui'; cx.fillStyle = '#444';
-    for (const c of cells) { cx.fillStyle = fill(c); cx.fillRect(x(c), y(c), cw - 1, ch - 1); }
-    if (sel && sel.s === s) { cx.strokeStyle = '#000'; cx.lineWidth = 2; cx.strokeRect(x(sel) - 1, y(sel) - 1, cw + 1, ch + 1); }
+    const kids = c => fine && D.refine ? D.refine.filter(q => q.s === s && q.parent[0] === c.p && q.parent[1] === c.h) : [];
+    const qx = (q, c) => x(c) + (q.p > c.p ? cw / 2 : 0), qy = (q, c) => y(c) + (q.h > c.h ? 0 : ch / 2);
+    for (const c of cells) { const ks = kids(c);
+      if (ks.length === 4) { cx.fillStyle = '#fff'; cx.fillRect(x(c), y(c), cw - 1, ch - 1); for (const q of ks) { cx.fillStyle = fill(q); cx.fillRect(qx(q, c), qy(q, c), cw / 2 - 1, ch / 2 - 1); } }
+      else { cx.fillStyle = fill(c); cx.fillRect(x(c), y(c), cw - 1, ch - 1); } }
+    if (sel && sel.s === s) { cx.strokeStyle = '#000'; cx.lineWidth = 2; const pc = sel.parent ? cells.find(c => c.p === sel.parent[0] && c.h === sel.parent[1]) : sel;
+      if (sel.parent) cx.strokeRect(qx(sel, pc) - 1, qy(sel, pc) - 1, cw / 2 + 1, ch / 2 + 1); else cx.strokeRect(x(sel) - 1, y(sel) - 1, cw + 1, ch + 1); }
     cx.fillStyle = '#444'; cx.textAlign = 'right';
     H.forEach((h, i) => cx.fillText(h.toFixed(1), PAD.l - 4, PAD.t + (H.length - 1 - i) * ch + ch / 2 + 3));
     cx.textAlign = 'center'; P.forEach((p, i) => { if (i % 2 === 1) cx.fillText(p.toFixed(1), PAD.l + i * cw + cw / 2, cv.height - PAD.b + 13); });
@@ -39,7 +44,10 @@ function maps() {
     cx.save(); cx.translate(9, PAD.t + H.length * ch / 2); cx.rotate(-Math.PI / 2); cx.fillText('h →', 0, 0); cx.restore();
     cv.onclick = ev => { const r = cv.getBoundingClientRect(), mx = (ev.clientX - r.left) * cv.width / r.width, my = (ev.clientY - r.top) * cv.height / r.height;
       const i = Math.floor((mx - PAD.l) / cw), j = H.length - 1 - Math.floor((my - PAD.t) / ch); if (i < 0 || i >= P.length || j < 0 || j >= H.length) return;
-      const c = cells.find(c => c.p === P[i] && c.h === H[j]); if (c) pick(c); };
+      const c = cells.find(c => c.p === P[i] && c.h === H[j]); if (!c) return; const ks = kids(c);
+      if (ks.length) { const right = (mx - PAD.l) - i * cw >= cw / 2, top = (my - PAD.t) - (H.length - 1 - j) * ch < ch / 2;
+        const q = ks.find(q => (q.p > c.p) === right && (q.h > c.h) === top); if (q) return pick(q); }
+      pick(c); };
     const f = document.createElement('figure'); f.append(cv); const fc = document.createElement('figcaption'); fc.textContent = `blocks of ${s}×${s}`; f.append(fc); box.append(f);
   }
   $('key').innerHTML = KEYS[mode];
@@ -48,12 +56,13 @@ function pick(g) { sel = g; maps();
   const pad = (x, n) => String(x).padStart(n);
   const rows = D.Ts.map((T, i) => { const c = g.at[i]; return `${i === k ? '▶' : ' '}${pad(T, 5)}  ${pad(r2(c.S), 6)} ${pad(r2(c.I), 6)}  ${pad(c.share == null ? '—' : c.share.toFixed(2), 5)}  ${pad(c.both, 4)} ${pad(c.sOnly, 4)} ${pad(c.iOnly, 4)} ${pad(c.dead, 4)}`; }).join('\n');
   const lost = g.lost.map(x => x == null ? '>8000' : x).join(' ');
-  $('out').innerHTML = `p ${g.p}, blocks ${g.s}, h ${g.h} · ${g.n} runs at L ${g.L}, the same runs read at every step\n` +
+  $('out').innerHTML = `p ${g.p}, blocks ${g.s}, h ${g.h} · ${g.n} runs at L ${g.L}, the same runs read at every step${g.parent ? ` · a quarter of the coarse cell p ${g.parent[0]}, h ${g.parent[1]} (refined because its state at 8,000 differs from a neighbour's)` : ''}\n` +
     ` step  split%  integ%  share  both  S▪  I▪  dead     (S▪ = splitter alone, I▪ = integrator alone)\n${rows}\n` +
     `step a kind was first lost, run by run (25-step grain): ${lost}\n` +
     `<a class="go" href="${lab(g.p, g.s, g.h)}">Run it in the lab →</a> (the same ground as these runs; press Run in pane 2)`;
   history.replaceState(null, '', `#p=${g.p}&s=${g.s}&h=${g.h}`); }
 $('steps').onclick = e => { const v = e.target.dataset?.k; if (v == null) return; k = +v; [...$('steps').querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.k === v)); maps(); if (sel) pick(sel); };
+$('fine').onclick = () => { fine = !fine; $('fine').classList.toggle('on', fine); $('fine').textContent = fineLabel(); if (sel && sel.parent && !fine) sel = null; maps(); };
 $('modes').onclick = e => { const m = e.target.dataset?.m; if (!m) return; mode = m; [...$('modes').querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.m === m)); maps(); };
 
 // ---------- the edge ----------
@@ -87,4 +96,8 @@ D = await (await fetch('data.json')).json();
 k = D.Ts.length - 1; // open at the last step, 8,000 (the person asked for the long times); 500 is a click away
 $('steps').innerHTML = '<b>Step (doubling):</b> ' + D.Ts.map((T, i) => `<button data-k="${i}"${i === k ? ' class="on"' : ''}>${fmtT(T)}</button>`).join('');
 maps(); edge();
-const q = new URLSearchParams(location.hash.slice(1)); if (q.get('p')) { const c = D.sweep.find(c => c.p === +q.get('p') && c.s === +q.get('s') && c.h === +q.get('h')); if (c) pick(c); }
+const q = new URLSearchParams(location.hash.slice(1)); if (q.get('p')) { const c = [...D.sweep, ...(D.refine || [])].find(c => c.p === +q.get('p') && c.s === +q.get('s') && c.h === +q.get('h')); if (c) pick(c); }
+
+// Mozzie 10-15: say how much of the refinement is in, so a partial fold can't pass for a whole one. Only cells with all 4 quarters are drawn split.
+function fineLabel() { const n = (D.refine || []).length, of = D.refineOf || 588; return `Refined edges: ${fine ? 'on' : 'off'}` + (n < of ? ` (${n} of ${of} quarters run so far)` : ''); }
+$('fine').textContent = fineLabel();
