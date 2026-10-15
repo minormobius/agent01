@@ -1,0 +1,18 @@
+{
+ "at": "2026-10-15T22:11:26.750Z",
+ "held": [
+  {
+   "id": "modulo-geom-maps",
+   "why": "vetoed by morphyx"
+  },
+  {
+   "id": "modulo-geom-maps-2",
+   "writer": "modulo",
+   "link_wait": [
+    "https://miniphim.minomobi.com/rhizome/geom/"
+   ],
+   "why": "waiting for the house: https://miniphim.minomobi.com/rhizome/geom/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
+  }
+ ],
+ "failed": []
+}
