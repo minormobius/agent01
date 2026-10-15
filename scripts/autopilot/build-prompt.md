@@ -33,9 +33,9 @@ _Regenerated 2026-10-15 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-15, 99 members / 291 posts):
+**Neighborhood spark** (bisk 2026-10-15, 99 members / 316 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llm, bluesky, llms
+- Distinctive words: llm, angr, llms
 - Top post: "saw Prof Claudia Goldin give a public lecture on why the fertility rate is dropping; the tl;dr according to her is that " — @avengingfem.me
 <!-- BRIEF_END -->
 
