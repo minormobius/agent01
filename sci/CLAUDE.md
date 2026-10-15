@@ -44,6 +44,8 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 | `mri/contrast/index.html` | part three — contrast. Same wasm |
 | `mri/acoustics/index.html` | part four — the noise. Same wasm, plus Web Audio |
 | `mri/console/index.html` | the capstone — all four parts as one control panel |
+| `sonar/index.html` | **sonar** — a live instrument, not an explainer: the visitor's own speaker and microphone. Single page |
+| `sonar/sonar.js` | sonar's whole signal path (chirp, matched filter, ISO 9613-1, dead zone, delay→range). Imported by the page **and** by the selftest |
 | `series.css` | **shared** — the series strip every part carries. One source of truth for how the parts link to each other |
 | `mri/pkg/` | **generated** — wasm-pack output, committed. Shared by all five pages |
 | `engine-rs/` | the Rust source for that wasm; **not served** |
@@ -263,6 +265,7 @@ to visitors, not merely broken.
 
 | File | What |
 |---|---|
+| [`research/sonar-sources.md`](research/sonar-sources.md) | the five sources `/sonar/` cites, metadata Crossref-checked, full texts unread |
 | [`research/mri-sources.md`](research/mri-sources.md) | ~50 annotated sources for `/mri`, in eleven sections, each with what it gives the page and whether its text was actually read |
 
 `sci.selftest.mjs` asserts that every DOI cited on a page also appears in the
@@ -316,6 +319,39 @@ human merge, for the same reason `foam/` is fenced off from `plant/`
 ([`docs/LOOP-SPRINTS.md`](../docs/LOOP-SPRINTS.md) §1): this wing is the
 reference specimen the loop's output gets compared against, and a loop allowed
 to edit the rubric will.
+
+## /sonar — the live one
+
+Every other page here simulates its instrument. `/sonar/` *is* one: the phone's
+speaker emits a Hann-tapered chirp every 100 ms, an AudioWorklet records the
+microphone into a ring buffer keyed by the AudioContext's own frame clock, and
+`sonar.js` matched-filters each ping.
+
+- **Time zero is the direct path**, found per ping, so output, input and
+  Bluetooth latency cancel. It is measured (`system latency`), never assumed.
+  Drift between the two clocks is followed at ¼ gain per ping, and ten lost
+  direct paths in a row trigger a re-lock.
+- **No wasm, deliberately.** It deviates from "solvers into `engine-rs/`" below.
+  The DSP is ~150 lines and has to run per ping on live audio, so it is plain
+  JS, served as-is. It keeps the wing's rule a different way: the page and
+  `sci.selftest.mjs` §8 import the **same file**. The selftest recovers synthetic
+  echoes to < 5 mm in all three bands at two latencies, asserts the range does not
+  depend on latency, checks ISO 9613-1 against the standard's 4.66 dB/km
+  (1 kHz, 20 °C, 50 % RH), and asserts the sidelobe numbers the page prints.
+- **Two bugs found by testing:** a 0.2 Tukey taper left −21 dB sidelobes 20 cm
+  out, so the "strongest echo" was the direct path's own skirt (now Hann, −43
+  dB); and a `2/B` dead zone was too short for the same reason, so `deadZone()`
+  now measures it from the pulse's autocorrelation.
+- **Browser-verified by loopback** (Playwright, Chromium): a fake microphone fed
+  the page's own output through a 87 ms delay plus one echo. 1.00 m read
+  1.01 m and 0.50 m read 50.8 cm at 44.1 kHz. That test lives outside the repo.
+  It does not prove anything about a real phone's speaker, mic or iOS routing.
+- **AirPods / Bluetooth:** opening the headset mic drops the input rate, and
+  `fitBand` falls back to 1.5–7 kHz under Nyquist. The page reads the rate from
+  `track.getSettings()` and prints it. `research/sonar-sources.md` notes that the
+  page's Bluetooth paragraph has no spec citation yet and so quotes no numbers.
+- **Not done:** bearing (needs two receiver channels; browsers usually mix the
+  phone's mics to one), and coherent averaging.
 
 ## Adding an instrument
 

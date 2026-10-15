@@ -309,6 +309,85 @@ for (const junk of ["mri/pkg/.gitignore", "mri/pkg/package.json"]) {
     `${junk} removed — wasm-pack writes it and it would exclude pkg/ from git`);
 }
 
+// ---- 8. sonar: the signal path against synthetic echoes ------------------
+// /sonar/ has no wasm: its DSP is sonar/sonar.js, small enough to run live on
+// the main thread, and shared verbatim by the page and this test. Every
+// number the page computes from a recording goes through these functions, so
+// they are checked here against echoes whose delay is known exactly.
+{
+  // Imported as a data: URL so node does not guess its module type; the page
+  // loads the same bytes over http.
+  const S = await import("data:text/javascript;base64," + Buffer.from(read("sonar/sonar.js")).toString("base64"));
+  const spage = read("sonar/index.html");
+  const ssources = read("research/sonar-sources.md");
+
+  const imported = (spage.match(/import\s*\{([\s\S]*?)\}\s*from\s*"\.\/sonar\.js"/) || [, ""])[1]
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  ok(imported.length > 0, "sonar page imports from ./sonar.js");
+  for (const name of imported) ok(typeof S[name] !== "undefined", `sonar.js exports ${name}`);
+
+  const dois = [...spage.matchAll(/href=["']https?:\/\/doi\.org\/([^"']+)["']/g)].map((m) => decodeURIComponent(m[1]));
+  ok(dois.length >= 4, `sonar cites at least 4 DOIs (found ${dois.length})`);
+  for (const doi of new Set(dois)) ok(ssources.includes(doi), `sonar cites ${doi}; it must be in research/sonar-sources.md`);
+  ok(landing.includes('href="/sonar/"'), "the wing landing links to /sonar/");
+
+  // The medium. ISO 9613-1 tabulates 4.66 dB/km at 1 kHz, 20 °C, 50 % RH.
+  ok(Math.abs(S.speedOfSound(0) - 331.3) < 1e-9, "c(0 °C) = 331.3 m/s");
+  const a1k = S.absorptionDbPerM(1000, 20, 50) * 1000;
+  ok(Math.abs(a1k - 4.66) < 0.05, `ISO 9613-1 at 1 kHz, 20 °C, 50 % RH = 4.66 dB/km (got ${a1k.toFixed(3)})`);
+  ok(S.absorptionDbPerM(20000, 20, 50) > 10 * S.absorptionDbPerM(4000, 20, 50) / 4,
+    "absorption rises steeply with frequency");
+
+  // Known-answer: a direct path plus one echo at a known range, in noise, at
+  // two different system latencies. The range must come back to well under a
+  // centimetre, and must not depend on the latency (the page's central claim).
+  const fs = 48000, c = 343.2, s = 0.12;
+  let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5);
+  for (const name of ["quiet", "voice", "wide"]) {
+    const b = S.fitBand(name, fs);
+    const p = S.chirp(fs, b.f0, b.f1, 0.005);
+    for (const d of [0.4, 0.9, 1.7]) {
+      const got = [];
+      for (const lat of [777, 6001]) {
+        // The same recording, preceded by `lat` samples of silence.
+        seed = 11;
+        const y = new Float32Array(4000 + p.n);
+        const E = Math.round(S.delayFromRange(d, c, s) * fs);
+        for (let j = 0; j < p.n; j++) { y[j] += p.i[j]; y[E + j] += 0.03 * p.i[j]; }
+        for (let j = 0; j < y.length; j++) y[j] += 0.01 * rnd();
+        const x = new Float32Array(lat + y.length); x.set(y, lat);
+        const env = S.matchedEnvelope(x, p);
+        const lo = S.argmax(env);            // the direct path is the loudest thing
+        const r = S.profileAfterPeak(env, lo - 5, lo + 5, 4000);
+        const e = S.strongestEcho(r.profile.map((v) => v / r.direct), fs, c, s, S.deadZone(p, fs, c, s), 0.003);
+        got.push(e ? e.range : NaN);
+        ok(e && Math.abs(e.range - d) < 0.005, `${name}: echo at ${d} m recovered (got ${e ? e.range.toFixed(4) : "nothing"}) with latency ${lat}`);
+      }
+      ok(Math.abs(got[0] - got[1]) < 1e-9, `${name}: the range at ${d} m does not depend on system latency`);
+    }
+  }
+
+  // The window claim on the page: Tukey-0.2 sidelobes at −21 dB 20 cm out,
+  // Hann at −43 dB, for the near-ultrasonic chirp.
+  const side = (taper) => {
+    const p = S.chirp(fs, 17000, 20500, 0.005, taper);
+    const x = new Float32Array(6000); for (let j = 0; j < p.n; j++) x[500 + j] = p.i[j];
+    const r = S.profileAfterPeak(S.matchedEnvelope(x, p), 0, 2000, 3000);
+    let m = 0; for (let j = 0; j < r.profile.length; j++) if (S.rangeFromDelay(j / fs, c, s) > 0.2) m = Math.max(m, r.profile[j]);
+    return Math.round(-20 * Math.log10(m / r.direct));
+  };
+  const tk = side(0.2), hn = side(1);
+  ok(spage.includes(`−${tk} dB`) && spage.includes(`−${hn} dB`),
+    `the page states the measured sidelobes (Tukey −${tk} dB, Hann −${hn} dB)`);
+  ok(hn > tk + 15, "the Hann taper buys at least 15 dB of sidelobe");
+
+  // A Bluetooth headset's 16 kHz microphone cannot carry near-ultrasound.
+  const bt = S.fitBand("quiet", 16000);
+  ok(bt.fellBack && bt.f1 <= 7200, "at 16 kHz the near-ultrasonic band falls back under Nyquist");
+  const cd = S.fitBand("quiet", 44100);
+  ok(!cd.fellBack && cd.f0 === 17000 && cd.f1 <= 0.45 * 44100, "at 44.1 kHz it stays near-ultrasonic, clipped under Nyquist");
+}
+
 if (failures) {
   console.error(`\nsci selftest: ${failures} failure(s)`);
   process.exit(1);
