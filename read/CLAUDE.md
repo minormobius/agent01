@@ -98,6 +98,7 @@ When you add a tale or change a `night.js`, re-read them and fix any the data no
 | `nera/source/` | Raw OCR of both Internet Archive scans of Meyer's edition. The `w` column was hand-transcribed by reading the two against each other. Uncertain readings are flagged in the segment notes. |
 | `muirchertach/` | **III. Aided Muirchertaig meic Erca**: Middle Irish (Stokes, *Revue Celtique* 23, 1902, PD; YBL with H. 2. 7 for its lacuna) + original translation, 9 movements / 60 segments; same layers. Stokes printed only first lines of most poems, and so does `tale.js`. Palette: fire on soot. Web node sizes key on `cletech` / `church`. |
 | `regamna/` | **IV. Táin Bó Regamna**: Old Irish (Windisch, *Irische Texte* II.2, 1887, pp. 239–254, PD; YBL with Egerton readings) + original translation, 5 movements / 22 segments; same layers. The Morrígan's rosc is printed and, as by Windisch, left untranslated. Palette: red on crow-black. Web node sizes key on `otherworld` / `ulster`. **No festival**, and the tale that showed it. |
+| `serglige/` | **V. Serglige Con Culainn**: Old/Middle Irish (Windisch, *Irische Texte* I, 1880, pp. 205–227, PD; Lebor na hUidre) + original translation, 10 movements / 62 segments; same layers. Prose complete, longer poems abridged and marked. Palette: sea-green on deep water. Web node sizes key on `magmell` / `emain`. The first tale where no crossing is fatal, and the one that broke the Names finding (added the `given` kind). |
 | `<tale>/night.js` | **The Samhain analysis layer**, the series' own: `window.<TALE>.night = { festival|null, night?, places, crossings, rules, dread, readings, names, truth }`. Schema documented at the top of `nera/night.js`. The tale page does not load it. The hub does, via `samhain/analysis.js`, which draws the threshold map, rules ledger, dread grid, readings, names and truth claims for all tales in its `TALES` list. Crossings may carry `deferred: true` (safe tonight, fatal later: hollow arrowhead and ⌛). |
 | `thidrandi/` | **II. Þiðranda þáttr**: Old Norse (Flateyjarbók, Vigfússon & Unger ed. I, 1860, pp. 418–421, PD) + original translation, 7 movements / 31 segments; same layers. Palette: frost on night. Web node sizes key on the roles `disir` / `hof`. Raw OCR in `source/`. |
 
@@ -112,21 +113,21 @@ Rules:
 - **The series hypothesis is in Method**, and it has already been broken once. As first
   stated (the tales without a ↓ Return), it failed on Muirchertach, whose return kills
   him. After Táin Bó Regamna (no festival) it reads: the danger is at the threshold, at night,
-  in either direction. Each new tale's `analysis.js` `absent.verdict` and its `night.js`
+  in either direction. Serglige Con Culainn held it and added a corollary: nobody comes back
+  across it unmarked (dead, kept, given a deadline, or made to forget). Each new tale's `analysis.js` `absent.verdict` and its `night.js`
   crossings should test it, and say so if the tale breaks it.
 - **The type-scene box needs its CSS.** `pwyll/styles.css` lacks the `.propp-themes` rules
   (they live in `culhwch/`, `math/`, …), so tales copied from it render the box unstyled.
-  `nera/`, `thidrandi/`, `muirchertach/` and `regamna/` carry the block at the end of their `styles.css`; `pwyll/` itself
+  `nera/`, `thidrandi/`, `muirchertach/`, `regamna/` and `serglige/` carry the block at the end of their `styles.css`; `pwyll/` itself
   still lacks it.
-- **`nera`, `thidrandi`, `muirchertach` and `regamna` are deliberately not in the illustration pipeline.** `illustrate.yml` fires
+- **`nera`, `thidrandi`, `muirchertach`, `regamna` and `serglige` are deliberately not in the illustration pipeline.** `illustrate.yml` fires
   on `main` and self-deploys `read/` from whatever branch it ran on. Registering a
   tale there means a merge to main can redeploy this surface from main's tree. The
   `illus` briefs are written and ready. Register the tale, then `workflow_dispatch`
   from the owning branch, only once that hazard is dealt with.
 - `app.js` in `nera/` (and `thidrandi/`) extends `toRoman` to XII and labels the source toggle "Old Irish only" ("Old Norse only");
   otherwise it is Pwyll's renderer. Web node sizes key on the roles `sid` / `cruachan`.
-- **Adding the next tale** (the roster's order: Serglige Con Culainn, the Fróðá wonders,
-  Glámr, …): `cp -r nera/ <slug>/`, swap the global, replace the data files
+- **Adding the next tale** (the roster's order: the Fróðá wonders, Glámr, Tam Lin, …): `cp -r nera/ <slug>/`, swap the global, replace the data files
   (including `night.js`), add the tale to `TALES` in `samhain/analysis.js` and its `<script>` to the hub, add a card to `samhain/index.html` (move it from
   "planned" to live), mark the roster row live, add a `catalogue.json` entry with
   `"p": "samhain"`.

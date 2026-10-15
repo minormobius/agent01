@@ -18,7 +18,8 @@
           repeat · silence · invert · vanish.
    names[]: how the tale names its otherworld figures. kind: withheld
           (never named) · weather · mockery · false · forbidden ·
-          late (named only at the end) · decoy (a name that misleads).
+          late (named only at the end) · decoy (a name that misleads) ·
+          given (named freely, with a father: added with Serglige).
    Attaches to window.NERA. */
 window.NERA = window.NERA || {};
 window.NERA.night = {

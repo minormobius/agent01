@@ -8,6 +8,7 @@
     { key: "THIDRANDI", slug: "thidrandi", short: "Þiðrandi" },
     { key: "MUIRCHERTACH", slug: "muirchertach", short: "Muirchertach" },
     { key: "REGAMNA", slug: "regamna", short: "Regamna" },
+    { key: "SERGLIGE", slug: "serglige", short: "Serglige" },
   ].filter((t) => window[t.key] && window[t.key].night).map((t) => Object.assign(t, { N: window[t.key].night }));
 
   // Validated (dataviz validator, dark surface, --pairs all): fatal / lost / stopped. Safe is neutral ink.
@@ -123,6 +124,7 @@
   const KINDS = {
     withheld: "never named", weather: "named as weather", mockery: "named in mockery", false: "a false name",
     forbidden: "a name that must not be spoken", late: "named only at the end", decoy: "a name that misleads",
+    given: "named freely, with a father",
   };
   function renderNames() {
     const host = $("an-names"); if (!host) return;

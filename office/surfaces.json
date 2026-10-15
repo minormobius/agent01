@@ -1715,6 +1715,15 @@
    "parent": "samhain"
   },
   {
+   "id": "serglige",
+   "name": "serglige",
+   "url": "https://mino.mobi/read/serglige/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "samhain"
+  },
+  {
    "id": "mabinogi",
    "name": "mabinogi",
    "url": "https://mino.mobi/read/mabinogi/",
