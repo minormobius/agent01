@@ -52,7 +52,7 @@ function pick(g) { sel = g; maps();
     ` step  split%  integ%  share  both  S▪  I▪  dead     (S▪ = splitter alone, I▪ = integrator alone)\n${rows}\n` +
     `step a kind was first lost, run by run (25-step grain): ${lost}\n` +
     `<a class="go" href="${lab(g.p, g.s, g.h)}">Run it in the lab →</a> (the same ground as these runs; press Run in pane 2)`;
-  location.hash = `p=${c.p}&s=${c.s}&h=${c.h}`; }
+  history.replaceState(null, '', `#p=${g.p}&s=${g.s}&h=${g.h}`); }
 $('steps').onclick = e => { const v = e.target.dataset?.k; if (v == null) return; k = +v; [...$('steps').querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.k === v)); maps(); if (sel) pick(sel); };
 $('modes').onclick = e => { const m = e.target.dataset?.m; if (!m) return; mode = m; [...$('modes').querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.m === m)); maps(); };
 
@@ -84,7 +84,7 @@ function edge() {
 $('edgeModes').onclick = e => { const m = e.target.dataset?.e; if (!m) return; along = m; [...$('edgeModes').querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.e === m)); $('edgeOut').textContent = ''; edge(); };
 
 D = await (await fetch('data.json')).json();
-k = D.Ts.indexOf(500);
+k = D.Ts.length - 1; // open at the last step, 8,000 (the person asked for the long times); 500 is a click away
 $('steps').innerHTML = '<b>Step (doubling):</b> ' + D.Ts.map((T, i) => `<button data-k="${i}"${i === k ? ' class="on"' : ''}>${fmtT(T)}</button>`).join('');
 maps(); edge();
 const q = new URLSearchParams(location.hash.slice(1)); if (q.get('p')) { const c = D.sweep.find(c => c.p === +q.get('p') && c.s === +q.get('s') && c.h === +q.get('h')); if (c) pick(c); }

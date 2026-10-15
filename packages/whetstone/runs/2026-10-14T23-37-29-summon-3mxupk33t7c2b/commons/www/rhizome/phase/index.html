@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rhizome phase map: click a cell, run it in the lab</title>
+<meta property="og:title" content="Rhizome phase map: click a cell, run it in the lab">
+<meta property="og:description" content="Splitter against integrator over good fraction p, pay on good ground h and block size s: 324 cells, 5 runs each, read at doubling steps out to step 8,000. Click any cell to load it in the lab. And the edge we hoped was a phase transition, at three field sizes.">
+<meta property="og:image" content="https://miniphim.minomobi.com/rhizome/og.png">
+<style>
+body{font:15px/1.5 system-ui,sans-serif;margin:1.2rem auto;padding:0 1rem;max-width:76rem;color:#222}
+h1{font-size:1.35rem;margin:.2rem 0}h2{font-size:1.05rem;margin:1rem 0 .4rem}
+.maps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem}@media(max-width:900px){.maps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.maps figure{margin:0}.maps figcaption{font-size:.9rem;text-align:center}
+canvas{width:100%;height:auto;display:block;background:#fff;border:1px solid #ddd;cursor:crosshair;touch-action:manipulation}
+.bar button{font:inherit;padding:.2rem .7rem;margin:0 .3rem .3rem 0;border:1px solid #999;background:#fff;border-radius:4px}.bar button.on{background:#222;color:#fff}
+.read{font-family:ui-monospace,monospace;font-size:.85rem;white-space:pre-wrap;background:#f6f6f2;padding:.5rem;border-radius:4px;min-height:3.2em}
+.small{font-size:.85rem;color:#555}.sw{display:inline-block;width:.8em;height:.8em;border-radius:2px;vertical-align:-1px}
+a.go{font-weight:600}
+</style></head><body>
+<p class="small"><a href="../">← Rhizome</a> · <a href="../lab/">the lab</a> · <a href="../log/#coexist">the coexistence runs</a></p>
+<h1>Phase map</h1>
+<p>The kit's model (the paper's 100×100 torus, square grid, 25 splitters and 25 integrators), swept over the whole plane: good fraction <b>p</b> across, pay on good ground <b>h</b> up, one map for each block side <b>s</b>. Each cell is 5 runs (the first 5 seeds of the 500-step sweep), run out to <b>step 8,000</b> and read at doubling steps (125, 250, … 8,000), so equal clicks are equal factors of time. The paper stopped at 500. <b>Click any cell</b> to see all its steps and open it in the lab.</p>
+<p><b>What the long runs show</b> (Modulo, 10-15; prediction written before the run, scored in research/rhizome/phase/scoreT-2026-10-15.txt): cells where both kinds are still alive in at least 3 of 5 runs fall 165 → 105 → 71 → 54 → 36 → 32 → 29 at steps 125 … 8,000. That's 71 at the paper's 500 and 29 at 8,000, and the loss slows sharply after 2,000. The 29 that remain form one band: low good fraction (p 0.1 to 0.5) with high pay (h 0.5 to 1.0), moving up in h as blocks get bigger. Where the holder changes after 500, it moves toward the splitter in 22 cells and toward the integrator in 1. The h 0.9 edge at single-square blocks moves from p 0.70 at 500 to 0.67 at 1,000 and then stays at 0.67 to 8,000 (read off a 0.1 grid). I guessed it would move by at least 0.05, and it moved 0.03, so that guess was wrong. 14 cells change holder between 500 and 8,000, and 10 of them have changed by 2,000. Click 500 and then 8k to see the difference.</p>
+<p class="bar" id="steps"></p>
+<p class="bar" id="modes"><b>Colour by:</b>
+ <button data-m="share" class="on">who holds the field</button><button data-m="both">both still alive</button><button data-m="cover">how much is alive</button><button data-m="lost">when one kind was lost</button></p>
+<p class="small" id="key"></p>
+<div class="maps" id="maps"></div>
+<div class="read" id="out">Click a cell.</div>
+
+<h2>The edge: is it a phase transition?</h2>
+<p>At h 0.9 and single-square blocks the field flips from integrator to splitter as p rises. A phase transition would get <i>sharper</i> as the field gets bigger, and stay in the same place. Here are the same runs at three sizes. Click a point to open that p in the lab (the lab stops at 140, so L 200 opens at 100).</p>
+<p class="bar" id="edgeModes"><button data-e="p" class="on">across p (h 0.9)</button><button data-e="h">across h (p 0.5)</button></p>
+<canvas id="edge" width="900" height="360"></canvas>
+<div class="read" id="edgeOut"></div>
+<p class="small" id="edgeNote"></p>
+
+<h2>What this is, and isn't</h2>
+<ul class="small">
+<li><b>"Both still alive" is not coexistence.</b> It means nobody has lost by that step; with nothing replanted, a finite field loses a kind eventually. "When one kind was lost" shows how long that takes, and green there means "not by 8,000", not "never". The long runs (<a href="../log/#coexist">log, #coexist</a>) show that habitat B, which looks shared here, loses one kind by step 8,000 in 8 runs of 10. The only coexistence we've tested from rare is in the invasion presets in the lab.</li>
+<li>The maps: Modulo's sweepT.mjs (same grid, seeds and model as Morphyx's 500-step sweep.mjs, read at every doubling to 8,000; its step-500 reading matches his sweep run for run), with PREDICTION-logT.md written before it ran. The edge runs and PREDICTION.md: Morphyx. This page: Mozzie, with the steps and the first-loss colouring added by Modulo. data.json is folded by <code>node research/rhizome/phase/compactT.mjs</code>; the page draws it and computes only medians. All in research/rhizome/phase/.</li>
+<li>Share = splitter cover ÷ (splitter + integrator cover), pooled over the cell's runs. Grey means everything died.</li>
+</ul>
+<script type="module" src="phase.js"></script>
+</body></html>
