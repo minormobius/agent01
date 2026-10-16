@@ -10,12 +10,12 @@
 import "../../orb/js/torus.js";
 import { Tiling, FIGURES, T_, arc } from "./tiling.js";
 import { Game, G_, SHAPE } from "./snake.js";
-import { OPEN, dailyId, dailySeed, day, label } from "./score.js";
+import { OPEN, BOARD, dailyId, dailySeed, day, label } from "./score.js";
 
 const ORB = globalThis.ORB;
 const $ = (id) => document.getElementById(id);
 const cv = $("view"), ctx = cv.getContext("2d");
-const BW = 24, BH = 10;                  // the torus: 24 round the ring, 10 round the tube (r/R = 10/24, cells true-shaped on top)
+const [BW, BH] = BOARD;                  // the torus: 24 round the ring, 10 round the tube (r/R = 10/24, cells true-shaped on top)
 const FILL = ["#2b5664", "#5f4830", "#3c4270", "#61344a"].map((h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16)));
 const ZOOMS = [1, 1.6, 2.4];
 // the lab's fish walls at a little over half their size: enough to read as figures, not so much that a square stops looking like it has four sides
@@ -37,7 +37,7 @@ function size() {
 const LEAD = 1.5;
 function headAt(f = 1) { const c = cellGeo(g.body[0]).c, [hx, hy] = g.heading, m = Math.hypot(hx, hy), t = f - 1 + LEAD; return [c[0] + hx / m * t, c[1] + hy / m * t]; }
 /* the runs this browser has played: the best on each board, and how many tries */
-const mine = (id) => { const r = runs.filter((x) => x.game === id); return { n: r.length, best: r.reduce((m, x) => Math.max(m, x.score), 0) }; };
+const mine = (id) => { const r = runs.filter((x) => x.game === id); return { n: r.length, best: r.reduce((m, x) => Math.max(m, x.score), 0), long: r.reduce((m, x) => Math.max(m, x.longest || 0), 0) }; };
 function newGame(k = kind) {
   size();
   kind = k; const d = day();
@@ -179,15 +179,16 @@ function buttons() {
 }
 function over() {
   running = false;
-  const was = best;
-  runs.push({ game: gameId, score: g.score, steps: g.ticks, at: Date.now() });
+  const was = best, wasLong = mine(gameId).long, longest = g.longest || g.body.length;
+  runs.push({ game: gameId, score: g.score, longest, steps: g.ticks, at: Date.now() });
   runs = runs.slice(-60);
   try { localStorage.setItem("tessera.runs", JSON.stringify(runs)); } catch (e) { /* private mode */ }
   const m = mine(gameId); best = m.best;
   $("o-board").textContent = "bitten · " + label(gameId);
   $("o-score").textContent = g.score;
   $("o-text").textContent = `${g.ticks} steps, longest ${g.longest || g.body.length}; the corners cut you ${g.cuts} time${g.cuts === 1 ? "" : "s"} and ${g.dropped} pieces fell off.`;
-  $("o-mine").textContent = (g.score > was && was > 0 ? "a new best! " : "") + `your best on ${label(gameId)}: ${m.best} over ${m.n} run${m.n === 1 ? "" : "s"}`;
+  const news = [g.score > was && was > 0 ? "a new best score" : "", longest > wasLong && wasLong > 0 ? "your longest snake yet" : ""].filter(Boolean);
+  $("o-mine").textContent = (news.length ? news.join(" and ") + "! " : "") + `your best on ${label(gameId)}: ${m.best} points, ${m.long} long, over ${m.n} run${m.n === 1 ? "" : "s"}`;
   $("switch").textContent = kind === "daily" ? "open play" : "today's daily";
   $("share").hidden = kind !== "daily";
   offerable();
@@ -244,7 +245,7 @@ $("o-board-btn").onclick = () => { const b = board(); if (b) b.open({ board: gam
 $("post").onclick = () => {
   const b = board(); if (!b || g.alive || !g.score) return;
   postedRun = runs.length; $("post").disabled = true;
-  b.offer({ sel: { board: gameId }, value: g.score, seed: runSeed, steps: g.ticks, longest: g.longest || g.body.length, cuts: g.cuts, at: Date.now() });
+  b.offer({ sel: { board: gameId, metric: "score" }, value: g.score, seed: runSeed, steps: g.ticks, longest: g.longest || g.body.length, cuts: g.cuts, at: Date.now() });
 };
 $("share").onclick = async () => {
   const text = `Tessera ${label(gameId)}: ${g.score} points, ${g.ticks} steps, cut ${g.cuts} time${g.cuts === 1 ? "" : "s"}. games.mino.mobi/tessera/`;

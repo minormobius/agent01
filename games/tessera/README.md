@@ -51,9 +51,16 @@ A prototype in two pages:
 
 ### The leaderboard
 
-- **Two boards.** *Today's daily* is one seed for everyone, new each UTC
-  day, so players compete on the same board. *Open play* is any seed. Each
-  board shows all time, week and today, one row per player.
+- **Two boards, ranked two ways.** *Today's daily* is one seed for
+  everyone, new each UTC day, so players compete on the same board. *Open
+  play* is any seed. Each is ranked by **score** and by the **longest
+  snake**, all time / week / today, one row per player. One tap on "post"
+  writes both records, the score to `daily-v1-…` / `open-v1` and the
+  length to `len-daily-v1-…` / `len-open-v1` (unit `cells`).
+- **The sign-in field suggests handles as you type.** This is the repo's
+  shared `packages/oauth-client/typeahead.js`, vendored into `games/lib/`
+  by the deploy, asking the public appview. It is built into Orb's board
+  kit, so every game on the kit has it.
 - **Scores live in the player's own repo** as `com.minomobi.lab.score`
   records, the same stack as Orb, Fathom and One Side. Tessera mounts
   Orb's portable board (`../orb/js/board-kit.js`). Posting needs one
@@ -68,9 +75,12 @@ A prototype in two pages:
   ```
 
 - **The board refuses the impossible.** Food is worth 5 points and a
-  pellet 1, so no game scores more than 5 points a step. `accept()` drops
-  any record above 5 × its steps, and the selftest checks that no played
-  game exceeds it. Otherwise the board trusts the record. The seed in
+  pellet 1, so no game scores more than 5 points a step. A snake starts 4
+  long and grows at most a cell a step, and can't be longer than the
+  board's 240 cells. `accept()` drops any score above 5 × its steps, and
+  any length above min(240, 4 + steps) or not equal to the `longest` in
+  its own `detail`. The selftest checks that no played game breaks either
+  ceiling. Otherwise the board trusts the record. The seed in
   `detail` pins the board, so a full replay check needs only a replay
   store; the inputs don't fit in a record's 100-grapheme `detail`.
 - **Versioned.** The game ids carry `v1`. Change anything that moves
@@ -179,7 +189,7 @@ In the game, a pinch cuts and the tail beyond the cut falls off as pellets.
   adjacency.
 - `test/tessera.selftest.mjs`: the tiling's laws, 22 checks, about 1 s.
 - `test/snake.selftest.mjs`: the game's invariants, the parts of Orb's
-  `TorusCam` the page leans on, and the score records. 17 checks, about
+  `TorusCam` the page leans on, and the score records. 19 checks, about
   2 s.
 
 ## Next

@@ -21,6 +21,7 @@
    packages/oauth-client/ at deploy time. */
 import { AuthClient } from "../../lib/auth.js";
 import { Corpus, COLLECTION, accept } from "./corpus.js";
+import { handleTypeahead } from "./board-kit.js";
 
 const O = window.ORB;
 const SCOPE = "repo:" + COLLECTION;
@@ -163,7 +164,8 @@ for (const b of document.querySelectorAll("[data-board-size]")) b.onclick = () =
 for (const b of document.querySelectorAll("[data-board-hard]")) b.onclick = () => { view.hard = b.dataset.boardHard === "1"; render(); };
 for (const b of document.querySelectorAll("[data-board-period]")) b.onclick = () => { view.period = b.dataset.boardPeriod; render(); };
 $("board-go").onclick = signIn;
-$("board-handle").onkeydown = (e) => { if (e.key === "Enter") signIn(); };
+const picking = handleTypeahead($("board-handle"));
+$("board-handle").onkeydown = (e) => { if (e.key === "Enter" && !picking()) signIn(); };
 $("board-signout").onclick = async (e) => { e.preventDefault(); await auth.logout(); renderAccount(); render(); status("signed out"); };
 $("board-close").onclick = () => { $("board").hidden = true; };
 

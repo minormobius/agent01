@@ -142,7 +142,7 @@ without changing the format.
 | `js/main.js` | input (drag vs tap vs hold vs pinch), the guess readout, overlays |
 | `js/corpus.js` | the score corpus: relay + PDS backfill, Jetstream live, per-player ranking (ES module, no DOM) |
 | `js/forge.js` | hard mode's Web Worker: loads the engine, rebuilds the mesh, runs the climb, reports progress |
-| `js/board-kit.js` | the same leaderboard, portable: `mountBoard(config)` builds its own overlay; Fathom and One Side mount it (a score board ranks highest first: `corpus.top(…, higher)`) |
+| `js/board-kit.js` | the same leaderboard, portable: `mountBoard(config)` builds its own overlay; Fathom, One Side and Tessera mount it (a score board ranks highest first: `corpus.top(…, higher)`; `config.records` lets one run post to several boards). `handleTypeahead(input)` suggests handles under a sign-in field (the shared `packages/oauth-client/typeahead.js`, which the deploy vendors to `games/lib/`); Orb's own board uses it too |
 | `js/board.js` | the leaderboard UI and the write path (ES module; imports `../../lib/auth.js`, which the deploy vendors) |
 
 A board is a pure function of `(seed, size, first cell)`. `?seed=…&size=s|m|l|x|ts|tm|tl`

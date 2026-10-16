@@ -164,8 +164,11 @@ Three things live here:
   so the head always faces you, and a flat wrapped map is one tap away. The
   snake selftest checks the parts of `TorusCam` it uses. Leaderboards
   through Orb's `board-kit.js`: today's daily (one seed for everyone per UTC
-  day) and open play, scores as `com.minomobi.lab.score` records in the
-  player's repo, refusing more than 5 points a step (`js/score.js`). `js/snake.js` is the
+  day) and open play, each by score and by longest snake (a run posts both
+  records), as `com.minomobi.lab.score` records in the player's repo,
+  refusing the impossible (`js/score.js`). The kit's sign-in field suggests
+  handles (`handleTypeahead`: the shared `packages/oauth-client/typeahead.js`,
+  vendored into `games/lib/` with `auth.js` by the deploy). `js/snake.js` is the
   game with no DOM. The tiling underneath (`js/tiling.js`) is a fixed square
   lattice whose corners split: every wall is one curve owned by the wall, so
   coverage holds by construction. `lab.html` checks the laws live (Euler,

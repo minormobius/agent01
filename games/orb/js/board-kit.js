@@ -14,13 +14,38 @@
      config.gameId    sel → the record's game id (sel: { [group key]: value })
      config.accept    value → true for this game's records
      config.higher    true when a higher value is better (a score, not a time)
-     config.format    value → its text on the board
+     config.format    (value, sel) → its text on the board
      config.record    result → the record's extra fields (value, unit, detail …)
-   A result is { sel, value, at, … } (whatever config.record reads). */
+     config.records   optional: result → several records, each with its own
+                      game (one run, more than one board: Tessera posts its
+                      score and its longest snake); replaces config.record
+   A result is { sel, value, at, … } (whatever config.record reads).
+
+   The sign-in field suggests handles as you type (handleTypeahead, below). */
 import { AuthClient } from "../../lib/auth.js";
 import { Corpus, COLLECTION } from "./corpus.js";
 
 const SCOPE = "repo:" + COLLECTION;
+
+/* Handle suggestions under a sign-in field: the repo's shared typeahead
+   (packages/oauth-client/typeahead.js, vendored into lib/ by the deploy like
+   auth.js), asked of the public appview, which is CORS-open. Loaded lazily,
+   so a page whose lib/ lacks it just keeps a plain field. Returns busy():
+   true while a suggestion is highlighted, so the field's own Enter (sign in)
+   waits for the pick. The wrapper takes over the field's place in its row. */
+export function handleTypeahead(input) {
+  let list = null;
+  const cs = getComputedStyle(input), flex = cs.flex, grow = parseFloat(cs.flexGrow) > 0, width = /px$/.test(cs.width) ? cs.width : "";
+  import("../../lib/typeahead.js").then((m) => {
+    list = m.attachHandleTypeahead(input, { gateway: "https://public.api.bsky.app" });
+    const w = input.parentElement; if (!w) return;
+    w.style.colorScheme = "dark";
+    if (list) Object.assign(list.style, { right: "auto", minWidth: "100%", width: "max-content", maxWidth: "min(340px, 86vw)" }); // a narrow field still shows whole handles
+    // the wrapper stands where the field stood: its flex if it had one (keeping the field's own minimum width), else its width
+    if (grow) { w.style.flex = flex; w.style.minWidth = "auto"; } else if (width) w.style.width = width;
+  }).catch(() => { /* no typeahead: a plain field */ });
+  return () => !!list && !list.hidden && !!list.querySelector("li.on");
+}
 const PERIOD_MS = { all: 0, week: 7 * 86400e3, today: 86400e3 };
 const CSS = `
 .lbk { position: fixed; inset: 0; z-index: 30; background: rgba(5,6,12,0.95); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 16px; overflow-y: auto; font-family: ui-monospace, Menlo, Consolas, monospace; color: #e6e6ee; text-align: center; }
@@ -84,7 +109,7 @@ export function mountBoard(config) {
       const li = document.createElement("li");
       if ((me && r.did === me) || r.uri === posted) li.className = "me";
       li.innerHTML = "<span class='rk'>" + (k + 1) + "</span><a class='h' target='_blank' rel='noopener'><span class='av'></span><span class='nm'></span></a><span class='t'></span>";
-      li.querySelector(".t").textContent = config.format(r.value);
+      li.querySelector(".t").textContent = config.format(r.value, sel);
       const a = li.querySelector(".h"), av = li.querySelector(".av");
       a.href = "https://bsky.app/profile/" + r.did; if (r.name) a.title = r.name;
       li.querySelector(".nm").textContent = r.handle ? "@" + r.handle : "resolving " + r.did.slice(8, 16) + "…";
@@ -104,16 +129,20 @@ export function mountBoard(config) {
     render();
   }
   async function post(r) {
-    const record = Object.assign({ $type: COLLECTION, site: config.site, game: config.gameId(r.sel), createdAt: new Date(r.at || Date.now()).toISOString() }, config.record(r));
-    const res = await auth.pds.createRecord(COLLECTION, record), me = auth.getUser();
-    corpus.upsert(res.uri, me.did, record, me.handle); posted = res.uri;
+    const extra = config.records ? config.records(r) : [Object.assign({ game: config.gameId(r.sel) }, config.record(r))], me = auth.getUser();
+    for (const x of extra) {
+      const record = Object.assign({ $type: COLLECTION, site: config.site, createdAt: new Date(r.at || Date.now()).toISOString() }, x);
+      const res = await auth.pds.createRecord(COLLECTION, record);
+      corpus.upsert(res.uri, me.did, record, me.handle);
+      if (record.game === config.gameId(r.sel)) posted = res.uri;
+    }
   }
   const park = (r) => { try { localStorage.setItem(PENDING, JSON.stringify(r)); } catch (e) { /* private mode */ } };
   async function offer(r) {
     await ready; open(r.sel);
-    if (canPost()) { try { await post(r); status("posted " + config.format(r.value) + " to your repo"); } catch (e) { status("couldn't post: " + e.message); } }
+    if (canPost()) { try { await post(r); status("posted " + config.format(r.value, r.sel) + " to your repo"); } catch (e) { status("couldn't post: " + e.message); } }
     else if (auth.isLoggedIn()) { park(r); status("posting needs one more permission (write score records). Taking you to Bluesky…"); setTimeout(() => auth.ensureScope([SCOPE]).catch((e) => status(e.message)), 1200); }
-    else { park(r); status("sign in with Bluesky to post " + config.format(r.value) + ". It'll be waiting when you get back"); }
+    else { park(r); status("sign in with Bluesky to post " + config.format(r.value, r.sel) + ". It'll be waiting when you get back"); }
     render();
   }
   async function signIn() {
@@ -129,13 +158,14 @@ export function mountBoard(config) {
     try { localStorage.removeItem(PENDING); } catch (e) { /* ignore */ }
     if (Date.now() - (r.at || 0) > 3600e3) return; // stale: don't post an hour-old run silently
     open(r.sel);
-    try { await post(r); status("posted " + config.format(r.value) + " to your repo"); } catch (e) { status("couldn't post: " + e.message); }
+    try { await post(r); status("posted " + config.format(r.value, r.sel) + " to your repo"); } catch (e) { status("couldn't post: " + e.message); }
     render();
   }
   groups.forEach((g) => el.querySelectorAll(`[data-g="${g.key}"] button`).forEach((b) => { b.onclick = () => { sel[g.key] = b.dataset.v; render(); }; }));
   el.querySelectorAll("[data-p] button").forEach((b) => { b.onclick = () => { period = b.dataset.v; render(); }; });
   $(".go").onclick = signIn;
-  $("input").onkeydown = (e) => { if (e.key === "Enter") signIn(); };
+  const picking = handleTypeahead($("input"));
+  $("input").onkeydown = (e) => { if (e.key === "Enter" && !picking()) signIn(); };
   $(".who a").onclick = async (e) => { e.preventDefault(); await auth.logout(); render(); status("signed out"); };
   $(".close").onclick = () => { el.hidden = true; };
   resume();
