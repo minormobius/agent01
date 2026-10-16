@@ -60,7 +60,7 @@ jobs:
                && curl -fsSL https://sci.mino.mobi/sonar/ | grep -qi 'matched filter' \
                && curl -fsSL https://sci.mino.mobi/sonar/sonar.js | grep -q 'export function twoWayRange' \
                && curl -fsSL https://sci.mino.mobi/sonar/lobby/ | grep -qi 'two-way' \
-               && [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' -H 'Upgrade: websocket' -H 'Connection: Upgrade' -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' 'https://sci.mino.mobi/sonar/lobby/ws?room=PROBE')" = 101 ]; then
+               && [ "$(curl --http1.1 -s -m 5 -o /dev/null -w '%{http_code}' -H 'Upgrade: websocket' -H 'Connection: Upgrade' -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' 'https://sci.mino.mobi/sonar/lobby/ws?room=PROBE')" = 101 ]; then
               echo "✓ sci is live"; exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 5
