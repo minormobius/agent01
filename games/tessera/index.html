@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#06070b" />
+<meta name="description" content="Tessera — a tiling of the torus that changes shape without breaking: squares become hexagons and back, walls bend into figures, and the laws that keep it a tiling are checked live on every frame." />
+<title>Tessera — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/tessera.css" />
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="view" aria-label="The tiling: tap a cell to follow its neighbours"></canvas>
+    <div id="actions">
+      <button class="ghost" id="play" type="button" title="Pause / run (space)">❚❚</button>
+      <button class="ghost" id="mode" type="button" title="How the board morphs">breathe</button>
+      <button class="ghost" id="fig" type="button" title="What the walls do">fish</button>
+      <button class="ghost" id="graph" type="button" title="Show who touches whom">graph</button>
+      <button class="ghost" id="help" type="button" aria-label="How it works">?</button>
+    </div>
+  </div>
+  <div id="dock">
+    <input id="scrub" type="range" min="0" max="2040" step="1" value="0" aria-label="time" />
+    <div id="laws"></div>
+    <p id="say" class="dim">—</p>
+  </div>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi · prototype</h2>
+  <h1>TESSERA</h1>
+  <p>
+    A tiling that changes shape without ever stopping being a tiling. The
+    cells sit on a fixed lattice and never move, appear or vanish; only the
+    <b>walls</b> between them change. Squares open into hexagons when a
+    corner splits into a short new wall, and the two cells it separates
+    become neighbours. When the wall shrinks back to nothing they stop being
+    neighbours.
+  </p>
+  <p>
+    The panel underneath checks the laws that hold the tiling together on
+    every frame. Most of them hold automatically because of how the tiling
+    is built. One of them can fail: no wall may cross another. Try
+    <b>tangle</b> to see it fail.
+  </p>
+  <p class="accent">Tap a cell to follow its neighbours. This is the board a snake will run on.</p>
+  <button class="primary" id="go" type="button">watch it morph</button>
+  <p class="foot"><a href="./README.md">the laws, worked out</a> · one of the <a href="../pressure/">games</a></p>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

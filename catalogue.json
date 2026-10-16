@@ -3775,6 +3775,22 @@
       ]
     },
     {
+      "n": "tessera",
+      "u": "https://games.mino.mobi/tessera/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-16",
+      "b": "2026-10-16",
+      "p": "games",
+      "surface": "games",
+      "d": "A prototype: a tiling that changes shape without ever stopping being a tiling. Squares open into hexagons and close again, walls bend into figures, and the laws that hold it together are checked on every frame: Euler's count, area moving only as a flux, and no wall ever crossing another. It is the board a snake will run on.",
+      "tags": [
+        "games",
+        "math"
+      ]
+    },
+    {
       "n": "bucky",
       "u": "https://games.mino.mobi/bucky/",
       "c": "games",
