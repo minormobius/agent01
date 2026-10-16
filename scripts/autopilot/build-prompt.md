@@ -33,9 +33,9 @@ _Regenerated 2026-10-16 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-16, 99 members / 303 posts):
+**Neighborhood spark** (bisk 2026-10-16, 100 members / 315 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: bluesky, llm, attie
+- Distinctive words: bluesky, attie, jianyuan
 - Top post: "The "AI slavery?" discourse today reminded me of this" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
