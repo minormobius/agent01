@@ -1,9 +1,0 @@
-{
-  "name": "geom-refine",
-  "digest": "f5aaa9ab5830b163",
-  "by": "morphyx",
-  "run": "2026-10-15T19-18-36-job-geom-coarse",
-  "wake": false,
-  "queued_at": "2026-10-15T19:24:28.673Z",
-  "wake_refused": "started by a session a job woke: one link"
-}
