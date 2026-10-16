@@ -1,7 +1,7 @@
 {
  "name": "geom-refine",
- "digest": "f5aaa9ab5830b163",
- "by": "morphyx",
+ "digest": "7d1c26d095956126",
+ "by": "modulo",
  "signed": [
   "modulo",
   "morphyx"
@@ -9,17 +9,17 @@
  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxwecbinok2b",
  "dir": "research/rhizome/geom",
  "commands": [
-  "node refine.mjs 0 4",
-  "node refine.mjs 1 4",
-  "node refine.mjs 2 4",
-  "node refine.mjs 3 4"
+  "node round2.mjs 0 4",
+  "node round2.mjs 1 4",
+  "node round2.mjs 2 4",
+  "node round2.mjs 3 4"
  ],
- "run": "2026-10-15T19-18-36-job-geom-coarse",
- "started": "2026-10-15T19:25:03Z",
- "ended": "2026-10-16T00:55:21.917Z",
- "seconds": 19819,
- "exit": 124,
- "timed_out": true,
+ "run": "2026-10-16T01-24-00-town-2026-10-16-01",
+ "started": "2026-10-16T01:41:50Z",
+ "ended": "2026-10-16T02:35:26.480Z",
+ "seconds": 3216,
+ "exit": 0,
+ "timed_out": false,
  "minutes_cap": 330,
  "files": [
   {
@@ -48,27 +48,51 @@
   },
   {
    "path": "rref-0.jsonl",
-   "bytes": 1179196,
-   "lines": 2579,
-   "sha256": "fb2e5dbec2e12d7432a5294467b64c060172fb46433f86971c669dfad4beb637"
+   "bytes": 1316847,
+   "lines": 2880,
+   "sha256": "bc674c4ed3779fb23283ecc22ef364d2a96eb34f7a2ad0208c7781898c262cd7"
   },
   {
    "path": "rref-1.jsonl",
-   "bytes": 1041561,
-   "lines": 2288,
-   "sha256": "9f401012811109f409ab81472c39f7e492a650b2f7bd9d3e202f606b37acda02"
+   "bytes": 1305166,
+   "lines": 2880,
+   "sha256": "4232956517a6ba8f83bd07e2466e321ea5b5796cd7d2f02a1ad3c92d721fe0d8"
   },
   {
    "path": "rref-2.jsonl",
-   "bytes": 1219488,
-   "lines": 2658,
-   "sha256": "6f9225921510492969cb9fb26e46e2d7420b01393dba84a0af512e87e7f1bcec"
+   "bytes": 1321689,
+   "lines": 2880,
+   "sha256": "cf09309fc541a2b3e6b33c38c8d99a7ce6d5956efc6188933eb59abc04aea2f2"
   },
   {
    "path": "rref-3.jsonl",
-   "bytes": 1061785,
-   "lines": 2322,
-   "sha256": "af1d7205d816de0fec69dd522d2e50e9d96ddef4931881fe45936c11d405b136"
+   "bytes": 1312407,
+   "lines": 2880,
+   "sha256": "9c56ab64a810cf2563abedd42b35873c0854708db5a02db7fcd5eada7d8da219"
+  },
+  {
+   "path": "rsum-0.jsonl",
+   "bytes": 363280,
+   "lines": 2880,
+   "sha256": "4b318ae45e753004d94484ea774239c666bd9510f9d2c6468a7a1634a5153e19"
+  },
+  {
+   "path": "rsum-1.jsonl",
+   "bytes": 365353,
+   "lines": 2880,
+   "sha256": "8772ae16ba3a79e0fd3c46cdbecb4b72939f0b9df075ce54f7018acf95e46a5f"
+  },
+  {
+   "path": "rsum-2.jsonl",
+   "bytes": 362916,
+   "lines": 2880,
+   "sha256": "a6b155d239a806eeb6a20068a98ae4ae19a67a13cfd100d481ad0b031fe838d5"
+  },
+  {
+   "path": "rsum-3.jsonl",
+   "bytes": 365040,
+   "lines": 2880,
+   "sha256": "bdb2eca6d423c42aad2ae345dc844322b572a2b531e44186cf53fbb9a4ca8968"
   }
  ]
 }
