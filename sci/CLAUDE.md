@@ -350,8 +350,25 @@ microphone into a ring buffer keyed by the AudioContext's own frame clock, and
   `fitBand` falls back to 1.5–7 kHz under Nyquist. The page reads the rate from
   `track.getSettings()` and prints it. `research/sonar-sources.md` notes that the
   page's Bluetooth paragraph has no spec citation yet and so quotes no numbers.
+- **Removing the room** (2026-10-16, after the first real-phone use found the
+  envelope baseline too noisy). A `ClutterMap` holds a trailing average of the
+  *complex* correlation: learned as a plain mean over 20 pings, then an EMA with
+  the "room memory" time constant. The residual is averaged as a **magnitude**
+  over the last N pings ("averaging"). The selftest measured the three options on
+  a hand moving at 5 cm/s: complex-residual averaging found it 0/12 times,
+  envelope 11/12, hybrid 12/12. On a still hand all three were 12/12.
+- **Foreground is learned 10× slower** (bins above 3× the residual's median).
+  Without that, a hand that sat in view left a ghost behind when it left:
+  −12.5 dB measured, −11.7 predicted by `1 − 0.99³⁰`. With it, −29.6 dB.
+  Browser loopback: the wall vanishes on baseline, a −40 dB hand at 0.50 m
+  reads 51.1 cm, and removing it reads "nothing has changed".
+- **The anchor holds still** on one clock (`Anchor`): it moves only when the
+  median of the last 9 direct-path offsets moves, because a one-sample flip
+  misaligns the complex map by a third of a cycle at 19 kHz. A link whose
+  offsets scatter by more than a sample (Bluetooth) is aligned per ping instead,
+  and the latency readout says "jitter".
 - **Not done:** bearing (needs two receiver channels; browsers usually mix the
-  phone's mics to one), and coherent averaging.
+  phone's mics to one).
 
 ## Adding an instrument
 

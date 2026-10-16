@@ -143,3 +143,91 @@ export function strongestEcho(profile, fs, c, s, deadZone, threshold) {
   }
   return best < 0 ? null : { range: rangeFromDelay(best / fs, c, s), level: v, bin: best };
 }
+
+// ---- removing the room ----------------------------------------------------
+//
+// A room returns the same echoes on every ping. On a phone the speaker and
+// microphone share one clock, so those echoes repeat sample for sample, phase
+// included. Subtracting a trailing average of the *complex* correlation (I and
+// Q, before taking a magnitude) cancels them far more completely than
+// subtracting envelopes, because an envelope keeps the noise's magnitude and
+// loses its sign.
+//
+// What is left is then averaged as a *magnitude* across pings. A moving hand
+// shifts by a wavelength (1.8 cm at 19 kHz) within a few pings, so averaging
+// the complex residual would cancel the hand along with the noise. The
+// selftest (§8) measures all three choices on a moving target.
+
+// The matched filter without the magnitude: I and Q correlations.
+export function matchedIQ(x, pulse, outI, outQ) {
+  const { i, q, n } = pulse;
+  const m = Math.max(0, x.length - n + 1);
+  const I = outI && outI.length >= m ? outI : new Float32Array(m);
+  const Q = outQ && outQ.length >= m ? outQ : new Float32Array(m);
+  for (let a = 0; a < m; a++) {
+    let si = 0, sq = 0;
+    for (let b = 0; b < n; b++) { const v = x[a + b]; si += v * i[b]; sq += v * q[b]; }
+    I[a] = si; Q[a] = sq;
+  }
+  return { I, Q };
+}
+
+// A trailing average of the complex echo profile: the room map.
+// The first `warm` profiles form a plain mean, so the map is usable after a
+// couple of seconds. After that each profile moves it by `alpha`, an
+// exponential trailing average with a time constant of 1/alpha pings. A
+// target that stays still long enough becomes part of the room.
+export class ClutterMap {
+  constructor(bins) { this.I = new Float64Array(bins); this.Q = new Float64Array(bins); this.n = 0; }
+  get bins() { return this.I.length; }
+  // Profile bins are I[off + j], scaled by `scale` (1 / the direct-path amplitude).
+  // `res` is this ping's residual. Bins standing well above the residual's
+  // median are foreground (a hand) and are learned ten times more slowly.
+  // Otherwise the map absorbs part of the hand while it is there, and leaves
+  // a ghost of it behind when it goes.
+  add(I, Q, off, scale, alpha, warm, res) {
+    const warming = this.n < warm, a = warming ? 1 / (this.n + 1) : alpha;
+    let thr = Infinity;
+    if (!warming && res) { const t = Float32Array.from(res).sort(); thr = 3 * t[t.length >> 1]; }
+    for (let j = 0; j < this.I.length; j++) {
+      const aj = res && res[j] > thr ? a * 0.1 : a;
+      this.I[j] += aj * (I[off + j] * scale - this.I[j]);
+      this.Q[j] += aj * (Q[off + j] * scale - this.Q[j]);
+    }
+    this.n++;
+  }
+  residual(I, Q, off, scale, out = new Float32Array(this.I.length)) {
+    for (let j = 0; j < this.I.length; j++) out[j] = Math.hypot(I[off + j] * scale - this.I[j], Q[off + j] * scale - this.Q[j]);
+    return out;
+  }
+}
+
+// An exponential trailing average of magnitudes, in place. alpha = 1/N
+// averages over roughly the last N pings.
+export function trail(acc, x, alpha) {
+  for (let j = 0; j < acc.length; j++) acc[j] += alpha * (x[j] - acc[j]);
+  return acc;
+}
+
+// Where the direct path sits in each ping's window, robustly. On one clock it
+// never moves; a single noisy ping can still flip the argmax of a broad peak
+// by a sample, which would misalign the room map by a third of a cycle. So the
+// anchor moves only when the median of the recent offsets does, and a link
+// whose offsets scatter (Bluetooth) is reported as jittery.
+export class Anchor {
+  constructor(keep = 9) { this.keep = keep; this.hist = []; }
+  push(offset) { this.hist.push(offset); if (this.hist.length > this.keep) this.hist.shift(); }
+  // The shift to apply to the anchor, in samples (0 while the median is 0).
+  shift() {
+    if (this.hist.length < Math.min(5, this.keep)) return 0;
+    const s = [...this.hist].sort((a, b) => a - b), m = s[s.length >> 1];
+    if (m !== 0) this.hist = this.hist.map((v) => v - m);
+    return m;
+  }
+  spread() {
+    if (this.hist.length < 3) return 0;
+    const s = [...this.hist].sort((a, b) => a - b), m = s[s.length >> 1];
+    const d = s.map((v) => Math.abs(v - m)).sort((a, b) => a - b);
+    return d[d.length >> 1];
+  }
+}

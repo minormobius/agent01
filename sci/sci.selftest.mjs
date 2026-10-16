@@ -381,6 +381,79 @@ for (const junk of ["mri/pkg/.gitignore", "mri/pkg/package.json"]) {
     `the page states the measured sidelobes (Tukey −${tk} dB, Hann −${hn} dB)`);
   ok(hn > tk + 15, "the Hann taper buys at least 15 dB of sidelobe");
 
+  // Removing the room. A fixed room (direct path, three surfaces) in noise; the
+  // room map is learned from 30 pings, then a hand appears and the last 10
+  // pings are combined three ways:
+  //   envelope — average envelopes, subtract the averaged room envelope
+  //   coherent — subtract the complex room map, average the complex residual
+  //   hybrid   — subtract the complex room map, average residual magnitudes
+  // The page uses hybrid. The claims it makes: hybrid is not worse than
+  // envelope on a still hand, and a moving hand defeats coherent averaging
+  // while hybrid keeps it.
+  {
+    const p = S.chirp(fs, 17000, 20500, 0.005), N = 1100, OFF = 40;
+    let sd = 5; const gauss = () => { let u = 0; for (let k = 0; k < 6; k++) u += (sd = (sd * 16807) % 2147483647) / 2147483647; return u - 3; };
+    const rec = (td, ta, noise = 0.03) => {
+      const x = new Float32Array(N + p.n + 2);
+      const add = (d, a) => { const at = S.delayFromRange(d, c, s) * fs + OFF, i0 = Math.floor(at), fr = at - i0;
+        for (let j = 0; j < p.n; j++) { x[i0 + j] += a * (1 - fr) * p.i[j]; x[i0 + j + 1] += a * fr * p.i[j]; } };
+      add(s / 2, 1); add(0.9, 0.05); add(1.4, 0.03); add(0.3, 0.02); if (ta) add(td, ta);
+      for (let j = 0; j < x.length; j++) x[j] += noise * gauss();
+      return S.matchedIQ(x, p);
+    };
+    const lo = Math.round(S.delayFromRange(0.15, c, s) * fs) + OFF;
+    const trial = (v, amp) => {
+      const map = new S.ClutterMap(N), envMap = new Float64Array(N);
+      for (let k = 0; k < 30; k++) { const r = rec(0, 0); map.add(r.I, r.Q, 0, 1, 0, 30);
+        for (let j = 0; j < N; j++) envMap[j] += Math.hypot(r.I[j], r.Q[j]) / 30; }
+      const env = new Float64Array(N), cI = new Float64Array(N), cQ = new Float64Array(N), hyb = new Float64Array(N);
+      for (let k = 0; k < 10; k++) {
+        const r = rec(0.6 + v * 0.1 * k, amp), res = map.residual(r.I, r.Q, 0, 1);
+        for (let j = 0; j < N; j++) { env[j] += Math.hypot(r.I[j], r.Q[j]) - envMap[j]; cI[j] += r.I[j] - map.I[j]; cQ[j] += r.Q[j] - map.Q[j]; hyb[j] += res[j]; }
+      }
+      const jT = Math.round(S.delayFromRange(0.6 + v * 0.45, c, s) * fs) + OFF;
+      const tol = 15 + Math.round(v * 0.1 * 10 / c * fs);
+      const hit = (f) => { let b = lo, m = -Infinity; for (let j = lo; j < N; j++) { const z = f(j); if (z > m) { m = z; b = j; } } return Math.abs(b - jT) <= tol ? 1 : 0; };
+      return { env: hit((j) => env[j]), coh: hit((j) => Math.hypot(cI[j], cQ[j])), hyb: hit((j) => hyb[j]) };
+    };
+    const score = (v, amp, T = 12) => { const t = { env: 0, coh: 0, hyb: 0 }; for (let n = 0; n < T; n++) { const r = trial(v, amp); t.env += r.env; t.coh += r.coh; t.hyb += r.hyb; } return t; };
+    const still = score(0, 0.01), moving = score(0.05, 0.01);
+    ok(still.hyb >= still.env - 1, `room removal, still hand at −40 dB: hybrid ${still.hyb}/12 is not worse than envelope ${still.env}/12`);
+    ok(moving.hyb >= moving.coh + 5, `moving hand (5 cm/s): hybrid ${moving.hyb}/12 keeps what coherent averaging ${moving.coh}/12 cancels`);
+    ok(moving.hyb >= moving.env - 1, `moving hand: hybrid ${moving.hyb}/12 is not worse than envelope ${moving.env}/12`);
+    ok(/averaging the raw signal would cancel the hand/.test(spage), "the page states why the residual is averaged as a magnitude");
+
+    // The ghost: a hand that sits in view for 3 s under a 10 s room memory,
+    // then leaves. Learning foreground slowly must keep the ghost it leaves
+    // behind well under the hand itself.
+    {
+      const ghost = (useRes) => {
+        const map = new S.ClutterMap(N);
+        for (let k = 0; k < 20; k++) { const r = rec(0, 0, 0.003); map.add(r.I, r.Q, 0, 1, 0, 20); }
+        for (let k = 0; k < 30; k++) { const r = rec(0.6, 0.02, 0.003); const res = map.residual(r.I, r.Q, 0, 1); map.add(r.I, r.Q, 0, 1, 0.01, 20, useRes ? res : undefined); }
+        const jT = Math.round(S.delayFromRange(0.6, c, s) * fs) + OFF;
+        const hand = Math.hypot(...(() => { const x = new Float32Array(p.n * 3); for (let j = 0; j < p.n; j++) x[p.n + j] = 0.02 * p.i[j]; const r = S.matchedIQ(x, p); return [r.I[p.n], r.Q[p.n]]; })());
+        // The ghost is what the map now holds at the hand's range beyond the room,
+        // measured against a second room-only map (so it includes that map's noise).
+        let g = 0;
+        const ref = new S.ClutterMap(N); for (let k = 0; k < 20; k++) { const r = rec(0, 0, 0.003); ref.add(r.I, r.Q, 0, 1, 0, 20); }
+        for (let j = jT - 5; j <= jT + 5; j++) g = Math.max(g, Math.hypot(map.I[j] - ref.I[j], map.Q[j] - ref.Q[j]));
+        return 20 * Math.log10(g / hand);
+      };
+      const plain = ghost(false), held = ghost(true);
+      // 30 pings at alpha 0.01 absorb 1 − 0.99³⁰ = 26 % of the hand (−11.7 dB);
+      // at a tenth of that, 3 % (−30.6 dB).
+      ok(Math.abs(plain + 11.7) < 1.5 && held < -26, `foreground learned slowly: ghost ${held.toFixed(1)} dB re the hand, vs ${plain.toFixed(1)} dB without`);
+    }
+
+    // The anchor: noise flips do not move it; a real shift does, once.
+    const a = new S.Anchor();
+    let moved = 0; for (const o of [0, 0, 1, 0, 0, -1, 0, 0, 1]) { a.push(o); moved += a.shift(); }
+    ok(moved === 0, `single-sample flips do not move the anchor (moved ${moved})`);
+    const b2 = new S.Anchor(); let m2 = 0; for (let k = 0; k < 9; k++) { b2.push(m2 === 1 ? 0 : 1); m2 += b2.shift(); }
+    ok(m2 === 1, `a real one-sample drift moves it exactly once (moved ${m2})`);
+  }
+
   // A Bluetooth headset's 16 kHz microphone cannot carry near-ultrasound.
   const bt = S.fitBand("quiet", 16000);
   ok(bt.fellBack && bt.f1 <= 7200, "at 16 kHz the near-ultrasonic band falls back under Nyquist");

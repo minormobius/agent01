@@ -151,6 +151,10 @@ ol.refs li { margin: 0.45rem 0; }
         <option value="1" selected>× r — a wall (spreading 1/r)</option>
         <option value="2">× r² — a small target (1/r²)</option>
       </select></div>
+    <div class="ctrl"><label for="avg">averaging</label>
+      <select id="avg"><option value="3">last 3 pings — fast</option><option value="10" selected>last 10 pings — 1 s</option><option value="30">last 30 pings — steady</option></select></div>
+    <div class="ctrl"><label for="mem">room memory (baseline)</label>
+      <select id="mem"><option value="10">trailing 10 s</option><option value="30" selected>trailing 30 s</option><option value="120">trailing 2 min</option><option value="0">frozen</option></select></div>
     <div class="ctrl"><label for="vol">volume <output id="o-vol"></output></label><input id="vol" type="range" min="0.05" max="1" step="0.05" value="0.6"></div>
     <div class="ctrl"><label for="sep">speaker–mic spacing <output id="o-sep"></output></label><input id="sep" type="range" min="0" max="30" step="0.5" value="12"></div>
     <div class="ctrl"><label for="temp">air temperature <output id="o-temp"></output></label><input id="temp" type="range" min="-10" max="40" step="1" value="20"></div>
@@ -186,12 +190,26 @@ direct path is therefore at <span class="m">d = (cτ + s)/2</span>. Set the spac
 phone. On most phones the bottom speaker and bottom microphone are 1–3 cm apart, and the earpiece
 and top microphone sit at the other end.</p>
 
-<p><b>Baseline.</b> A room returns echoes from every surface, all the time. Hold the phone still,
-tap <b>Set baseline</b>, and the page subtracts the room. What remains is whatever has
-<em>changed</em>: a hand, a door, a person walking past. Phone-based acoustic sensing works the same
-way, from ranging between two phones (<a href="https://doi.org/10.1145/1322263.1322265">Peng et al.
-2007</a>) to tracking a finger to the centimetre (<a href="https://doi.org/10.1145/2858036.2858580">Nandakumar
-et al. 2016</a>).</p>
+<p><b>Baseline.</b> A room returns echoes from every surface, all the time. Hold the phone still
+and tap <b>Set baseline</b>. For two seconds the page learns the room. After that it keeps a
+<em>trailing average</em> of it, so slow changes such as a door left open or the phone settling in
+your hand are absorbed after the <b>room memory</b> time. What remains is whatever has changed: a
+hand, a person walking past. Whatever stands out is learned ten times more slowly than the rest,
+so a hand that leaves does not leave a ghost behind. A hand held still long enough still becomes
+part of the room.</p>
+
+<p>Two choices make the subtraction work. First, the room is subtracted <em>before</em> the
+envelope is taken, from the raw correlation including its phase. The speaker and microphone share
+one clock, so a wall's echo repeats sample for sample and cancels almost completely. Envelopes
+keep the noise's magnitude and lose its sign, so subtracting them never quite cancels. Second, what
+is left is averaged as a <em>magnitude</em> over the last few pings (<b>averaging</b>), not as a
+raw signal. A moving hand shifts by a wavelength, 1.8 cm at 19 kHz, within a few pings, and
+averaging the raw signal would cancel the hand along with the noise. The selftest measures all three
+ways of combining pings on a moving target, and the page uses the one that wins.</p>
+
+<p>Phone-based acoustic sensing works the same way, from ranging between two phones
+(<a href="https://doi.org/10.1145/1322263.1322265">Peng et al. 2007</a>) to tracking a finger to
+the centimetre (<a href="https://doi.org/10.1145/2858036.2858580">Nandakumar et al. 2016</a>).</p>
 
 <h2 class="sec">The medium, computed</h2>
 
@@ -259,18 +277,20 @@ synthetic echoes · <a href="/">sci</a> · <a href="https://mino.mobi">mino.mobi
 <script type="module">
 import { speedOfSound, absorptionDbPerM, chirp, matchedEnvelope, argmax, rangeFromDelay,
   delayFromRange, rangeResolution, unambiguousRange, fitBand, BANDS, profileAfterPeak,
-  strongestEcho, deadZone } from "./sonar.js";
+  strongestEcho, deadZone, matchedIQ, ClutterMap, trail, Anchor } from "./sonar.js";
 
 const $ = (id) => document.getElementById(id);
 const PULSE_S = 0.005;      // chirp length
 const INTERVAL = 0.1;       // seconds between pings
-const GROUP = 3;            // pings averaged per displayed profile
+const RENDER = 2;           // pings per screen update
+const WARM = 20;            // pings that form the first room map (2 s)
 const DB_FLOOR = -70;
 
 // ---- settings --------------------------------------------------------------
 const cfg = () => ({
   band: $("band").value, rmax: +$("rmax").value, tvg: +$("tvg").value,
   vol: +$("vol").value, s: +$("sep").value / 100, tC: +$("temp").value, rh: +$("rh").value,
+  avgN: +$("avg").value, memS: +$("mem").value,
 });
 const fmt = (x, d = 2) => Number.isFinite(x) ? x.toFixed(d) : "—";
 const fmtRange = (m) => m < 1 ? `${(m * 100).toFixed(1)} cm` : `${m.toFixed(2)} m`;
@@ -280,7 +300,8 @@ const st = {
   running: false, ctx: null, stream: null, track: null, rec: null, gain: null, mute: null,
   fs: 48000, fsIn: null, fsEff: 48000, band: null, pulse: null, pingBuf: null,
   ring: null, L: 0, Lf: 0, direct: 0, snr: NaN, queue: [], nextT: 0, timer: null,
-  sum: null, count: 0, lost: 0, base: null, baseAcc: null, baseN: 0, wake: null, channels: 1,
+  lost: 0, wake: null, channels: 1, norm: 0, anchor: null, jitter: 0, k: 0,
+  mapping: false, map: null, disp: null,
 };
 
 class Ring {
@@ -437,21 +458,28 @@ function readouts() {
 // ---- one averaged profile → screen -----------------------------------------
 function show(avg, fs, label) {
   const c0 = cfg(), p = physics(c0);
-  let lin = avg;
-  if (st.base && st.base.length === avg.length) lin = avg.map((v, j) => Math.max(0, v - st.base[j]));
+  const lin = avg, mapped = !label && roomReady();
   const out = new Float32Array(lin.length);
   const k = Math.LN10 / 20;
   for (let j = 0; j < lin.length; j++) {
     const r = Math.max(0.05, rangeFromDelay(j / fs, p.c, c0.s));
     out[j] = lin[j] * Math.pow(r, c0.tvg) * Math.exp(2 * r * p.alpha * k);
   }
-  const echo = strongestEcho(out, fs, p.c, c0.s, p.dead, Math.pow(10, (st.base ? -60 : -50) / 20));
+  // With the room removed, what is left sits on a noise floor; ask for an echo
+  // well clear of that floor rather than a fixed level.
+  let thr = Math.pow(10, -50 / 20);
+  if (mapped) {
+    const live = [];
+    for (let j = 0; j < out.length; j++) if (rangeFromDelay(j / fs, p.c, c0.s) >= p.dead && rangeFromDelay(j / fs, p.c, c0.s) <= c0.rmax) live.push(out[j]);
+    thr = Math.max(Math.pow(10, -65 / 20), 2.5 * median(live));
+  }
+  const echo = strongestEcho(out.subarray(0, Math.ceil(delayFromRange(c0.rmax, p.c, c0.s) * fs)), fs, p.c, c0.s, p.dead, thr);
   const dB = out.map((v) => 20 * Math.log10(Math.max(v, 1e-9)));
   const meta = { fs, c: p.c, s: c0.s, rmax: c0.rmax, dead: p.dead, echo };
   drawAscan(dB, meta); pushColumn(dB, meta);
   $("r-echo").textContent = echo ? fmtRange(echo.range) : "—";
-  $("r-echo-note").textContent = label || (echo ? `${fmt(20 * Math.log10(echo.level), 0)} dB re direct path${st.base ? ", baseline removed" : ""}` : "nothing above the floor");
-  $("ascan-lbl").textContent = st.base ? "a-scan · change since baseline" : "a-scan · echo level vs range";
+  $("r-echo-note").textContent = label || (echo ? `${fmt(20 * Math.log10(echo.level), 0)} dB re direct path${mapped ? ", room removed" : ""}` : mapped ? "nothing has changed" : "nothing above the floor");
+  $("ascan-lbl").textContent = mapped ? "a-scan · change from the room" : "a-scan · echo level vs range";
 }
 
 // ---- the resting state: a simulated room through the same signal path -------
@@ -522,38 +550,60 @@ async function lock() {
   return true;
 }
 
-function stopPinging() { if (st.timer) clearInterval(st.timer); st.timer = null; st.queue = []; st.sum = null; st.count = 0; }
+function stopPinging() { if (st.timer) clearInterval(st.timer); st.timer = null; st.queue = []; }
 
 function startPinging() {
-  st.nextT = st.ctx.currentTime + 0.1; st.lost = 0;
+  st.nextT = st.ctx.currentTime + 0.1; st.lost = 0; st.anchor = new Anchor(); st.norm = st.direct;
+  st.disp = null; st.k = 0;
+  if (st.mapping) st.map = null;            // a relock may have moved everything; relearn the room
   st.timer = setInterval(tick, 25);
 }
+
+const roomReady = () => st.mapping && st.map && st.map.n >= WARM;
+
+// Bins depend only on the max range (at a conservative c), so moving the
+// temperature or spacing sliders does not throw the room map away.
+const binsFor = (rmax, fs) => Math.ceil(delayFromRange(rmax + 0.15, 325, 0) * fs) + 1;
 
 function tick() {
   if (!st.running) return;
   while (st.nextT < st.ctx.currentTime + 0.3) { st.queue.push(ping(st.nextT)); st.nextT += INTERVAL; }
-  const c0 = cfg(), p = physics(c0), fs = st.fs, J = Math.round(0.004 * fs);
-  const bins = Math.ceil(delayFromRange(c0.rmax + 0.1, p.c, c0.s) * fs) + 1;
+  const c0 = cfg(), fs = st.fs, J = Math.round(0.004 * fs);
+  const bins = binsFor(c0.rmax, fs);
   const len = 2 * J + bins + st.pulse.n;
   while (st.queue.length && st.ring.end >= st.queue[0] + st.L - J + len) {
     const f = st.queue.shift();
     const x = st.ring.read(f + st.L - J, len);
-    const env = matchedEnvelope(x, st.pulse);
-    const r = profileAfterPeak(env, 0, 2 * J + 1, bins);
-    if (r.direct < 0.25 * st.direct) { if (++st.lost > 10) { relock(); return; } continue; }
+    const { I, Q } = matchedIQ(x, st.pulse);
+    let pk = 0, direct = -1;
+    for (let j = 0; j <= 2 * J; j++) { const v = Math.hypot(I[j], Q[j]); if (v > direct) { direct = v; pk = j; } }
+    if (direct < 0.25 * st.norm) { if (++st.lost > 10) { relock(); return; } continue; }
     st.lost = 0;
-    st.Lf += 0.25 * (r.peak - J); st.L = Math.round(st.Lf);            // follow clock drift
-    if (!st.sum || st.sum.length !== bins) { st.sum = new Float32Array(bins); st.count = 0; }
-    for (let j = 0; j < bins; j++) st.sum[j] += r.profile[j] / r.direct;
-    if (++st.count >= GROUP) {
-      const avg = st.sum.map((v) => v / st.count); st.sum = null; st.count = 0;
-      if (st.baseAcc) {
-        if (st.baseAcc.length !== avg.length) { st.baseAcc = new Float32Array(avg.length); st.baseN = 0; }
-        for (let j = 0; j < avg.length; j++) st.baseAcc[j] += avg[j];
-        if (++st.baseN >= 6) { st.base = st.baseAcc.map((v) => v / st.baseN); st.baseAcc = null; $("base").textContent = "Clear baseline"; say("Baseline set. Only changes show now."); }
-      }
-      if (st.base && st.base.length !== avg.length) st.base = null;
-      show(avg, fs);
+    st.norm += 0.05 * (direct - st.norm);
+    // One clock: hold the anchor still and move it only when the recent
+    // offsets agree it moved. A jittery link: align every ping on its own peak.
+    st.anchor.push(pk - J);
+    const sh = st.anchor.shift();
+    st.L += sh;
+    st.jitter = st.anchor.spread();
+    const off = st.jitter > 1 ? pk : J + sh;
+    const scale = 1 / st.norm;
+    let mag;
+    if (st.mapping) {
+      if (!st.map || st.map.bins !== bins) { st.map = new ClutterMap(bins); st.disp = null; }
+      mag = st.map.residual(I, Q, off, scale);
+      st.map.add(I, Q, off, scale, c0.memS > 0 ? INTERVAL / c0.memS : 0, WARM, mag);
+      if (st.map.n < WARM) { $("base").textContent = `Learning ${st.map.n}/${WARM}`; continue; }
+      if (st.map.n === WARM) { st.disp = null; $("base").textContent = "Clear baseline"; say(`Room learned. It updates over ${c0.memS > 0 ? `the last ${c0.memS} s` : "nothing; it is frozen"}. Only changes show now.`); }
+    } else {
+      mag = new Float32Array(bins);
+      for (let j = 0; j < bins; j++) mag[j] = Math.hypot(I[off + j], Q[off + j]) * scale;
+    }
+    if (!st.disp || st.disp.length !== bins) st.disp = Float32Array.from(mag);
+    else trail(st.disp, mag, 1 / c0.avgN);
+    if (++st.k % RENDER === 0) {
+      show(st.disp, fs);
+      if (st.jitter > 1) $("r-lat").innerHTML = `${fmt(st.L / fs * 1000, 1)} <small>ms, jitter ±${fmt(st.jitter / fs * 1000, 2)}</small>`;
     }
   }
 }
@@ -607,7 +657,7 @@ async function start() {
     st.mute = st.ctx.createGain(); st.mute.gain.value = 0;
     src.connect(st.rec); st.rec.connect(st.mute); st.mute.connect(st.ctx.destination);
     st.gain = st.ctx.createGain(); st.gain.gain.value = cfg().vol; st.gain.connect(st.ctx.destination);
-    st.running = true; st.base = null; st.baseAcc = null; $("base").textContent = "Set baseline";
+    st.running = true; st.mapping = false; st.map = null; $("base").textContent = "Set baseline";
     $("go").textContent = "Stop"; $("go").classList.add("on"); $("go").disabled = false; $("base").disabled = false;
     try { st.wake = await navigator.wakeLock?.request("screen"); } catch {}
     listDevices();
@@ -637,15 +687,15 @@ function stop() {
 // ---- wiring ------------------------------------------------------------------
 $("go").addEventListener("click", () => (st.running ? stop() : start()));
 $("base").addEventListener("click", () => {
-  if (st.base || st.baseAcc) { st.base = null; st.baseAcc = null; $("base").textContent = "Set baseline"; say("Baseline cleared. Showing every echo."); }
-  else { st.baseAcc = new Float32Array(0); st.baseN = 0; $("base").textContent = "Setting…"; say("Hold still. Recording the room…"); }
+  if (st.mapping) { st.mapping = false; st.map = null; st.disp = null; $("base").textContent = "Set baseline"; say("Baseline cleared. Showing every echo."); }
+  else { st.mapping = true; st.map = null; $("base").textContent = `Learning 0/${WARM}`; say("Hold still for two seconds. Learning the room…"); }
 });
 $("vol").addEventListener("input", () => { readouts(); if (st.gain) st.gain.gain.value = cfg().vol; });
 let simT = 0;
 const resim = () => { clearTimeout(simT); simT = setTimeout(() => { if (!st.running) simulate(); }, 150); };
 for (const id of ["sep", "temp", "rh", "tvg"]) $(id).addEventListener("input", () => { readouts(); resim(); });
-$("rmax").addEventListener("change", () => { st.base = null; st.baseAcc = null; $("base").textContent = "Set baseline"; readouts(); resim(); });
-$("band").addEventListener("change", () => { readouts(); if (st.running) { st.base = null; relock(); } else resim(); });
+$("rmax").addEventListener("change", () => { if (st.mapping) { st.map = null; say("Range changed. Hold still, relearning the room…"); } readouts(); resim(); });
+$("band").addEventListener("change", () => { readouts(); if (st.running) relock(); else resim(); });
 $("mic").addEventListener("change", () => { if (st.running) { stop(); start(); } });
 $("spk").addEventListener("change", async () => { if (st.ctx?.setSinkId) { try { await st.ctx.setSinkId($("spk").value); relock(); } catch { say("That speaker could not be selected.", "warn"); } } });
 document.addEventListener("visibilitychange", () => { if (document.hidden && st.running) stop(); });
