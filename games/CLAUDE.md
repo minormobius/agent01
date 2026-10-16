@@ -159,7 +159,10 @@ Three things live here:
   prototype. The board cycles hexagons ↗ → squares → hexagons ↘ → squares on
   a visible clock (36 ticks each, the change in one tick); when the corners
   close, the snake is cut at its first diagonal joint and the rest falls off
-  as pellets (length is conserved through the cut). `js/snake.js` is the
+  as pellets (length is conserved through the cut). Drawn on a real torus
+  (24 × 10) through Orb's `TorusCam` (`../orb/js/torus.js`): the skin slides
+  so the head always faces you, and a flat wrapped map is one tap away. The
+  snake selftest checks the parts of `TorusCam` it uses. `js/snake.js` is the
   game with no DOM. The tiling underneath (`js/tiling.js`) is a fixed square
   lattice whose corners split: every wall is one curve owned by the wall, so
   coverage holds by construction. `lab.html` checks the laws live (Euler,

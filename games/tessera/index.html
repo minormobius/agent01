@@ -23,6 +23,8 @@
     <div id="note"></div>
     <div id="actions">
       <button class="ghost" id="play" type="button" title="Pause (space)">❚❚</button>
+      <button class="ghost" id="viewbtn" type="button" title="The torus, or the flat map (V)">flat</button>
+      <button class="ghost" id="zoom" type="button" title="Zoom">×1.6</button>
       <button class="ghost" id="help" type="button" aria-label="How it works">?</button>
     </div>
   </div>
@@ -32,7 +34,9 @@
   <h2>games.mino.mobi · prototype</h2>
   <h1>TESSERA</h1>
   <p>
-    A snake on a board that changes shape. It goes from <b>hexagons</b> to
+    A snake on a board that changes shape, wrapped round a <b>torus</b>:
+    the surface slides under you so your head always faces you. There are no
+    edges: go far enough any way and you come round again. The board goes from <b>hexagons</b> to
     <b>squares</b> to hexagons leaning <b>the other way</b> to squares,
     and round again. The bar at the top counts down to each change, and the
     change itself is over in a single step.
@@ -44,7 +48,7 @@
     Gather them again before they fade. Joints at risk light up red before
     the change.
   </p>
-  <p class="accent">Tap the left or right half of the board to turn (or use ← → / A D). Eat the pink, gather the gold, don't bite yourself.</p>
+  <p class="accent">Tap the left or right half of the board to turn (or use ← → / A D; V for the flat map). Eat the pink, gather the gold, don't bite yourself.</p>
   <button class="primary" id="go" type="button">play</button>
   <p class="foot"><a href="./lab.html">the lab: the laws that keep the board a tiling</a> · <a href="./README.md">how it works</a> · one of the <a href="../pressure/">games</a></p>
 </div>

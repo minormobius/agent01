@@ -34,6 +34,17 @@ A prototype in two pages:
   ← → / A D. A heading the board takes away (a diagonal at a pinch) falls
   to the nearest step that still exists, ties broken by where the snake
   has been going.
+- **The board is a real torus** (24 cells round the ring, 10 round the
+  tube, so r/R = 10/24 and cells are true-shaped along the top). It uses
+  Orb's `TorusCam` (`../orb/js/torus.js`). The camera is fixed, and the
+  **skin slides** round the ring and the tube so the head always sits at
+  the front, facing you. It's a lead camera: it aims 1.5 cells ahead of
+  the head and eases (τ = 90 ms), so turns swing the view rather than jerk
+  it. The view is drawn back to front, each cell shaded by how squarely it
+  faces you, with the walls sampled along the surface. A tall screen gets
+  the donut on its side (a rotation, so left is still left). The zoom
+  steps are ×1, ×1.6 and ×2.4. **flat** (or V) shows the wrapped rectangle
+  instead, following the head the same way.
 - **Walls are the lab's fish S-curves at 0.55× size,** strong enough to
   read as figures, mild enough that a square still reads as having four
   sides.
@@ -126,13 +137,15 @@ In the game, a pinch cuts and the tail beyond the cut falls off as pellets.
 - `js/snake.js`: the game. The clock, the three shapes, steering, the cut,
   pellets and food, and the split the renderer should draw mid-tick. It has
   no DOM.
-- `js/game.js`: the game page. It draws the board, the snake's spine, the
-  joints at risk and the ghosts of walls about to open.
+- `js/game.js`: the game page. The torus view through Orb's `TorusCam` and
+  the flat view; the board, the snake's spine, the joints at risk and the
+  ghosts of walls about to open.
 - `js/lab.js`: the lab page. The canvas, the live laws panel, joins and
   pinches, tap a cell to follow its neighbours, and `graph` to draw the
   adjacency.
 - `test/tessera.selftest.mjs`: the tiling's laws, 22 checks, about 1 s.
-- `test/snake.selftest.mjs`: the game's invariants, 12 checks, about 2 s.
+- `test/snake.selftest.mjs`: the game's invariants, plus the parts of Orb's
+  `TorusCam` the page leans on. 13 checks, about 2 s.
 
 ## Next
 

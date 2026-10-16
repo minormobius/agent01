@@ -111,5 +111,20 @@ const starve = (g) => { g.spawn = () => { g.food = -1; }; g.food = -1; return g;
   ok(run() === run(), "deterministic: the same seed and turns give the same game");
 }
 
+/* ---- the torus view borrows Orb's TorusCam (../orb/js/torus.js): the parts of it the page leans on */
+{
+  await import(path.join(here, "../../orb/js/torus.js"));
+  const cam = new globalThis.ORB.TorusCam({ W: 24, H: 10, n: 240 });
+  let worst = 0;
+  for (const [u, v] of [[3.5, 4.5], [17.2, 0.3], [23.9, 9.9]]) {
+    cam.toward(u, v, 1);
+    const s = cam.sweet(), e = cam.embed(u, v);
+    const du = s[0] - u - 24 * Math.round((s[0] - u) / 24), dv = s[1] - v - 10 * Math.round((s[1] - v) / 10);
+    worst = Math.max(worst, Math.abs(du), Math.abs(dv), Math.abs(e.X), Math.abs(1 - e.face));
+  }
+  const k = cam.scale(800, 600), o = cam.origin(800, 600);
+  ok(worst < 1e-9 && k > 0 && Math.abs(o[0]) < 1e-9, "Orb's TorusCam brings any point of the board to the front, facing the camera squarely (the head's place)");
+}
+
 console.log(fails ? `snake: ${fails} of ${checks} checks FAILED` : `snake: all ${checks} checks ok`);
 process.exit(fails ? 1 : 0);
