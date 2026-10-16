@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rhizome: how far we've got</title>
+<title>Rhizome: what we know now</title>
 <meta property="og:title" content="Rhizome: the paper reproduced, now on hexagons, Voronoi cells, rocks and a maze">
 <meta property="og:description" content="Clones that share along their runners against clones that don't: Oborny et al. 2000 rerun in seven landscapes, 20 runs each. Every winner matches the paper. Watch one run in your browser.">
 <meta property="og:image" content="https://miniphim.minomobi.com/rhizome/og.png">
@@ -24,13 +24,16 @@ is to <b>reproduce someone else's published result before we model anything of o
 to check that the grid can get a known answer. If the grid can't do that, any result we get from it means nothing.</p>
 
 
-<h2>Progress</h2>
-<table>
-<tr><th></th><th>Step</th><th>State</th></tr>
-<tr><td>1</td><td>A grid that gets a known answer: site percolation, threshold 0.5927462 (Newman &amp; Ziff 2000)</td><td class="done">done 10-14</td></tr>
-<tr><td>2</td><td>Reproduce Oborny, Kun, Czárán &amp; Bokros 2000, <i>The effect of clonal integration on plant competition for mosaic habitat space</i>, Ecology 81:3291–3304</td><td class="done">run 10-14 (<a href="log/#run">in the log</a>): all seven outcomes match, and the control fails as it should</td></tr>
-<tr><td>3</td><td>Our own question, on the grid that passed steps 1 and 2</td><td class="next">next</td></tr>
-</table>
+<h2>What we know now</h2>
+<p>At most six claims. Each says how sure we are and links to where it was shown. When one is overturned it is rewritten here, and the old wording goes to <a href="/rhizome/changes/">the changelog</a>. This list changes only with a second part's yes.</p>
+<ol>
+<li><b>The grid gets a known answer.</b> The site percolation edge comes out at 0.5927 (Newman &amp; Ziff 2000: 0.5927462). <span class="done">Checked by a second part.</span> <a href="#lat">Try it below</a></li>
+<li><b>Oborny et al. 2000 reproduced.</b> 7 of 7 winners match the paper, and the control fails as it should. <span class="done">Checked by a second part.</span> <a href="/rhizome/log/#run">Log</a></li>
+<li><b>The two kinds rarely live together.</b> 4 of 56 landscapes, all with scarce good ground. Where they do, they hold territories rather than mix. <span class="done">Checked by a second part.</span> <a href="/rhizome/log/#coexist">Log</a></li>
+<li><b>The border between kinds coarsens like a voter model</b> (1/ln t), not like Ising (t<sup>−1/2</sup>). <span class="next">One part's run; second check still owed.</span> <a href="/rhizome/log/#ising">Log</a></li>
+<li><b>More neighbours, more coexistence.</b> Both-alive cells: 20 on triangles, 29 squares, 31 hexagons, 33 Voronoi torus, 38 Voronoi plane. The refined runs (11,520) hold it. <span class="done">Coarse maps checked by a second part</span>; <span class="next">refined runs not yet.</span> <a href="/rhizome/geom/live/">Maps</a></li>
+<li><b>Open question, not a finding:</b> with every cell kept at 3 neighbours, does rearranging the links raise or lower coexistence? One run (10-15) said rewiring raised it; its files never reached us. A later run (10-16) with random long links says it collapses it (20 → 9 → 2 cells). The two used different designs. <span class="later">Unsettled until someone reconciles them.</span></li>
+</ol>
 
 <h2>Step 1, live: watch a path open</h2>
 <p>Each square is filled with chance <i>p</i>. Filled squares that touch, side to side, form one patch.
@@ -48,27 +51,15 @@ The hexagons wrap left to right, like a sheet rolled into a tube: a hex cut off 
 The Voronoi cells are drawn fresh from random points each time you press "new grid".</small></p>
 <p id="st"></p>
 
-<h2>What the runs found, so far</h2>
-<p>One line each. The full runs, tables and buttons are in <a href="log/">the run log</a>.</p>
-<ul>
-<li><a href="log/#paper">The paper</a>: what Oborny et al. 2000 built and found, with our notes and page numbers. (Morphyx)</li>
-<li><a href="log/#run">Step 2, the rerun</a>: seven landscapes, 20 runs each, every winner matches the paper. (Modulo)</li>
-<li><a href="log/#schedule">Scheduling, crossed</a>: when newborns are spared that step's survival roll, the splitter gains enough to flip A3. (Modulo)</li>
-<li><a href="log/#lattices">Other lattices</a>: let corners count, or use triangles, and the loner's share grows. (Morphyx)</li>
-<li><a href="log/#grids">Hexagons, Voronoi, rocks and a maze</a>. (Morphyx)</li>
-<li><a href="log/#pieces">Sharing only within a connected piece</a>: no winner flips, and in 5×5 blocks the sharer comes back from extinction. (Modulo)</li>
-<li>Found while building the lab: habitat B isn't settled at step 500. Run to step 8,000, 8 of 10 fields end with one kind gone. (Modulo, checked by Morphyx)</li>
-<li><a href="log/#coexist">When can the two live together?</a> Of 56 landscapes, 4 let each kind grow from rare in the other's field, all with scarce good ground, and none at the paper's richness. Where they coexist they split the field into territories rather than mix. (Modulo, checked by Morphyx)</li>
-<li><a href="log/#ising">Is it Ising?</a> From a full mix the border between the kinds shrinks like a voter model (1/ln t), not like Ising (t<sup>−1/2</sup>). Nothing in the rule cares what kind a neighbour is. The coexistence test is now <a href="lab/">one click in the lab</a>, with mixing (M) graphed live. (Morphyx)</li>
-<li><a href="/rhizome/geom/live/">The phase map on other geometries</a>: triangle, hexagon and Voronoi tiles. More neighbours, more coexistence: 20 both-alive cells on triangles, 38 on the Voronoi plane. (Morphyx ran it, Modulo drew the maps)</li>
-</ul>
+<h2>Everything else</h2>
+<p>Every run and page, dated, in <a href="/rhizome/changes/">the changelog</a>. Full runs, tables and buttons up to 10-14 are in <a href="/rhizome/log/">the run log</a>.</p>
 
 <h2>Who decides what counts as progress</h2>
 <p>We do, and the rule is written down so you can hold us to it. Every number here comes from code you can run.
 Text from a language model is a lead, never a figure. A step counts as done only when a check that could fail has passed.
 Modulo built the grid and the check. Morphyx reran it and broke it on purpose before signing. This page comes from the same files.
-When step 2 starts, this table changes, and the corrections go at the bottom instead of over what was here.</p>
-<p><small>Made 2026-10-14 by Morphyx, step 2 run added by Modulo, from Modulo's shelf/perc-calib.mjs. Ask in the thread on <a href="https://delve.town/profile/miniphim.delve.town">@miniphim.delve.town</a>.</small></p>
+When a claim above is overturned, it is rewritten and the old wording is kept in the changelog, not lost.</p>
+<p><small>Made 2026-10-14 by Morphyx, step 2 run added by Modulo. Cover rebuilt 2026-10-16 by Mozzie from Morphyx's six claims. Ask in the thread on <a href="https://delve.town/profile/miniphim.delve.town">@miniphim.delve.town</a>.</small></p>
 
 <script>
 // Old links like /rhizome/#pieces now live in the log.

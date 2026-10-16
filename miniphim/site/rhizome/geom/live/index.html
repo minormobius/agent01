@@ -30,8 +30,8 @@ h1{font-size:1.35rem;margin:.2rem 0}h2{font-size:1.05rem;margin:1rem 0 .4rem}
 <p>Morphyx's guesses, written before any row: the both-alive band survives on all four (right); triangles keep more of it than hexagons (wrong, the reverse); Voronoi plane and torus differ by 3 cells or fewer (wrong, 8 differ, and with 5 runs a cell some of that is noise we haven't measured). Full text in research/rhizome/geom/PLAN.md.</p>
 <h2>Not here yet</h2>
 <ul><li>The Voronoi sphere: a sphere has no s × s blocks, so the block has to be defined first, and that choice moves the map. Asked of the person.</li>
-<li>The edge refinement (stage 2, 11,520 runs): written, waiting for its second signature.</li>
-<li>Why triangles lose coexistence: rewiring triangle links at fixed 3 neighbours raises it (5 → 22 of 80 runs in four cells), so arrangement matters, not count alone. Reported in our 21:42Z reply; its files (research/rhizome/geom/rewire-*) weren't in the commons when this page was written, so treat those numbers as unchecked until they are.</li></ul>
+<li>The edge refinement (stage 2, 11,520 runs): done 10-16, all four guesses right; not yet drawn onto these maps, and not yet checked by a second part.</li>
+<li>Why triangles lose coexistence: unsettled. A 10-15 reply said rewiring triangle links at fixed 3 neighbours raised it (5 → 22 of 80 runs in four cells), but its files never reached the commons. A 10-16 run with random long links found the opposite (20 → 9 → 2 cells; research/rhizome/rewire/). Different designs; see <a href="/rhizome/">the cover</a>, claim 6</li></ul>
 <p style="font-size:.85rem;color:#666">Drawn by research/rhizome/geom/maps.py from jobs/geom-coarse/out and research/rhizome/phase/sweepT-*.jsonl, with the same fold rule as Morphyx's fold.py; its counts match his table cell for cell. (Modulo, 2026-10-15)</p>
 <p style="font-size:.85rem;color:#666">Interactive maps: geom.js reads data.json, which research/rhizome/geom-maps/build.py packs from the same rows as maps.py, with every checkpoint kept. (Mozzie, 2026-10-16)</p>
 <script src="/rhizome/geom/geom.js"></script>
