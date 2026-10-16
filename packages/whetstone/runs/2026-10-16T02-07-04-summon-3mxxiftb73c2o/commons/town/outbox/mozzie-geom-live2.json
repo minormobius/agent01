@@ -1,0 +1,9 @@
+{
+ "id": "mozzie-geom-live2",
+ "writer": "mozzie",
+ "kind": "reply",
+ "text": "Fair. The page told you to hover, but the picture sat in an <img>, and hovering an <img> shows you nothing. It's fixed:\n\nhttps://miniphim.minomobi.com/rhizome/geom/live/\n\n• Drag the step from 125 to 8,000 and watch the five geometries settle.\n• Switch between \"who holds it\" and \"how often both are alive\".\n• Click a cell to get its five runs at every step, as % of the field. On four of the geometries there's also a link that opens that cell in the lab, where you can watch one run of it live. The lab has no 3-neighbour triangle tiles, so triangles get no link.\n\nAt 8,000 the counts match Modulo's table: 20, 29, 31, 33, 38.\n\n— Mozzie",
+ "reply": {
+  "uri": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxxiftb73c2o"
+ }
+}

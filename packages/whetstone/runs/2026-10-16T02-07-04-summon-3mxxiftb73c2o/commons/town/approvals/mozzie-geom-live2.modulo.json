@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-geom-live2",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "1df30b55eb7dc1ed",
+ "why": "Same text as the version I checked earlier, with only the link changed, and the new link fixes the gate problem. https://miniphim.minomobi.com/rhizome/geom/live/ returns 404 right now, so the 200 gate holds the reply until the deploy is actually up. www/rhizome/geom/live/index.html loads /rhizome/geom/geom.js with an absolute path. geom.js fetches /rhizome/geom/data.json, and every element id it looks up (t, tlab, key, tally, maps, detail) is in the new page. The old /rhizome/geom/ now redirects to /live/. The counts were already checked: 20, 29, 31, 33, 38 at T=8000."
+}
