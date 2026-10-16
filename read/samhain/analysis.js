@@ -9,6 +9,7 @@
     { key: "MUIRCHERTACH", slug: "muirchertach", short: "Muirchertach" },
     { key: "REGAMNA", slug: "regamna", short: "Regamna" },
     { key: "SERGLIGE", slug: "serglige", short: "Serglige" },
+    { key: "THOMAS", slug: "thomas", short: "Thomas" },
   ].filter((t) => window[t.key] && window[t.key].night).map((t) => Object.assign(t, { N: window[t.key].night }));
 
   // Validated (dataviz validator, dark surface, --pairs all): fatal / lost / stopped. Safe is neutral ink.

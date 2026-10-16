@@ -99,6 +99,7 @@ When you add a tale or change a `night.js`, re-read them and fix any the data no
 | `muirchertach/` | **III. Aided Muirchertaig meic Erca**: Middle Irish (Stokes, *Revue Celtique* 23, 1902, PD; YBL with H. 2. 7 for its lacuna) + original translation, 9 movements / 60 segments; same layers. Stokes printed only first lines of most poems, and so does `tale.js`. Palette: fire on soot. Web node sizes key on `cletech` / `church`. |
 | `regamna/` | **IV. Táin Bó Regamna**: Old Irish (Windisch, *Irische Texte* II.2, 1887, pp. 239–254, PD; YBL with Egerton readings) + original translation, 5 movements / 22 segments; same layers. The Morrígan's rosc is printed and, as by Windisch, left untranslated. Palette: red on crow-black. Web node sizes key on `otherworld` / `ulster`. **No festival**, and the tale that showed it. |
 | `serglige/` | **V. Serglige Con Culainn**: Old/Middle Irish (Windisch, *Irische Texte* I, 1880, pp. 205–227, PD; Lebor na hUidre) + original translation, 10 movements / 62 segments; same layers. Prose complete, longer poems abridged and marked. Palette: sea-green on deep water. Web node sizes key on `magmell` / `emain`. The first tale where no crossing is fatal, and the one that broke the Names finding (added the `given` kind). |
+| `thomas/` | **VI. Thomas of Erceldoune**: Middle English verse (Murray, EETS o.s. 61, 1875, PD; Thornton MS with gaps from Cambridge and Lansdowne) + original translation, 10 movements / 46 segments (one per 8 lines, Murray's line numbers in bold); same layers. Fytte I complete, the prophecies of Fyttes II–III abridged and marked. Palette: heather on dusk. Web node sizes key on `elfland` / `erceldoune`. **No festival and no house**: it begins on a May morning, which turned "at night" into "in the dark". |
 | `<tale>/night.js` | **The Samhain analysis layer**, the series' own: `window.<TALE>.night = { festival|null, night?, places, crossings, rules, dread, readings, names, truth }`. Schema documented at the top of `nera/night.js`. The tale page does not load it. The hub does, via `samhain/analysis.js`, which draws the threshold map, rules ledger, dread grid, readings, names and truth claims for all tales in its `TALES` list. Crossings may carry `deferred: true` (safe tonight, fatal later: hollow arrowhead and ⌛). |
 | `thidrandi/` | **II. Þiðranda þáttr**: Old Norse (Flateyjarbók, Vigfússon & Unger ed. I, 1860, pp. 418–421, PD) + original translation, 7 movements / 31 segments; same layers. Palette: frost on night. Web node sizes key on the roles `disir` / `hof`. Raw OCR in `source/`. |
 
@@ -114,13 +115,15 @@ Rules:
   stated (the tales without a ↓ Return), it failed on Muirchertach, whose return kills
   him. After Táin Bó Regamna (no festival) it reads: the danger is at the threshold, at night,
   in either direction. Serglige Con Culainn held it and added a corollary: nobody comes back
-  across it unmarked (dead, kept, given a deadline, or made to forget). Each new tale's `analysis.js` `absent.verdict` and its `night.js`
+  across it unmarked (dead, kept, given a deadline, or made to forget). Thomas of Erceldoune
+  (a May morning, in daylight) changed "at night" to "in the dark": the danger is at the
+  threshold of the dark. Each new tale's `analysis.js` `absent.verdict` and its `night.js`
   crossings should test it, and say so if the tale breaks it.
 - **The type-scene box needs its CSS.** `pwyll/styles.css` lacks the `.propp-themes` rules
   (they live in `culhwch/`, `math/`, …), so tales copied from it render the box unstyled.
-  `nera/`, `thidrandi/`, `muirchertach/`, `regamna/` and `serglige/` carry the block at the end of their `styles.css`; `pwyll/` itself
+  `nera/`, `thidrandi/`, `muirchertach/`, `regamna/`, `serglige/` and `thomas/` carry the block at the end of their `styles.css`; `pwyll/` itself
   still lacks it.
-- **`nera`, `thidrandi`, `muirchertach`, `regamna` and `serglige` are deliberately not in the illustration pipeline.** `illustrate.yml` fires
+- **`nera`, `thidrandi`, `muirchertach`, `regamna`, `serglige` and `thomas` are deliberately not in the illustration pipeline.** `illustrate.yml` fires
   on `main` and self-deploys `read/` from whatever branch it ran on. Registering a
   tale there means a merge to main can redeploy this surface from main's tree. The
   `illus` briefs are written and ready. Register the tale, then `workflow_dispatch`
