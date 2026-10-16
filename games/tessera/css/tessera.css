@@ -58,3 +58,7 @@ body.game #stage { flex: 1 1 auto; }
   font-family: var(--mono); font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; width: max-content; max-width: calc(100% - 16px); text-align: center; }
 #note.show { opacity: 1; }
 @media (max-width: 420px) { #top { gap: 10px; } #top .val { font-size: 14px; } }
+.overlay .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.overlay .small { font-size: 12px; font-family: var(--mono); }
+.overlay button.ghost { padding: 10px 14px; font-size: 13px; }
+#trophy { font-size: 13px; }

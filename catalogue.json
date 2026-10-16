@@ -3784,7 +3784,7 @@
       "b": "2026-10-16",
       "p": "games",
       "surface": "games",
-      "d": "A snake on a board that changes shape: hexagons, squares, hexagons leaning the other way, on a clock you can see. When the corners close, any joint of the snake that crossed a diagonal is cut, and the tail falls off as pellets to gather again. A prototype, with a lab page that checks the laws keeping the board a tiling on every frame.",
+      "d": "A snake on a torus whose board changes shape: hexagons, squares, hexagons leaning the other way, on a clock you can see. When the corners close, any joint of the snake that crossed a diagonal is cut, and the tail falls off as pellets to gather again. The surface slides so your head always faces you. A daily board, the same for everyone, and leaderboards read live off ATProto. A lab page checks the laws keeping the board a tiling on every frame.",
       "tags": [
         "games",
         "canvas",

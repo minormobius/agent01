@@ -14,7 +14,7 @@
   <div id="top">
     <div class="h"><span class="lab">score</span><span id="score" class="val">0</span></div>
     <div class="h"><span class="lab">length</span><span id="len" class="val">4</span></div>
-    <div class="h"><span class="lab">best</span><span id="best" class="val">—</span></div>
+    <div class="h"><span class="lab" id="bestlab">best</span><span id="best" class="val">—</span></div>
     <div class="h grow"><span class="lab" id="nextlab">next</span><span id="next" class="val">—</span></div>
   </div>
   <div id="clockbar"><div id="clockfill"></div></div>
@@ -25,6 +25,7 @@
       <button class="ghost" id="play" type="button" title="Pause (space)">❚❚</button>
       <button class="ghost" id="viewbtn" type="button" title="The torus, or the flat map (V)">flat</button>
       <button class="ghost" id="zoom" type="button" title="Zoom">×1.6</button>
+      <button class="ghost" id="trophy" type="button" aria-label="Leaderboard" title="Leaderboard">🏆</button>
       <button class="ghost" id="help" type="button" aria-label="How it works">?</button>
     </div>
   </div>
@@ -49,17 +50,31 @@
     the change.
   </p>
   <p class="accent">Tap the left or right half of the board to turn (or use ← → / A D; V for the flat map). Eat the pink, gather the gold, don't bite yourself.</p>
-  <button class="primary" id="go" type="button">play</button>
+  <div class="row">
+    <button class="primary" id="go" type="button">today's daily</button>
+    <button class="ghost" id="go-open" type="button">open play</button>
+  </div>
+  <p class="dim small" id="dailynote">the daily is the same board for everyone today, with its own leaderboard</p>
   <p class="foot"><a href="./lab.html">the lab: the laws that keep the board a tiling</a> · <a href="./README.md">how it works</a> · one of the <a href="../pressure/">games</a></p>
 </div>
 
 <div class="overlay" id="over" hidden>
-  <h2>bitten</h2>
+  <h2 id="o-board">bitten</h2>
   <h1 id="o-score">0</h1>
   <p id="o-text">—</p>
-  <button class="primary" id="again" type="button">again</button>
+  <p id="o-mine" class="dim small">—</p>
+  <div class="row">
+    <button class="primary" id="post" type="button">post to the board</button>
+    <button class="ghost" id="o-board-btn" type="button">🏆 board</button>
+  </div>
+  <div class="row">
+    <button class="ghost" id="again" type="button">again</button>
+    <button class="ghost" id="switch" type="button">open play</button>
+    <button class="ghost" id="share" type="button">share</button>
+  </div>
 </div>
 
 <script type="module" src="js/game.js"></script>
+<script type="module" src="js/board.js"></script>
 </body>
 </html>

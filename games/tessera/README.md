@@ -49,6 +49,36 @@ A prototype in two pages:
   read as figures, mild enough that a square still reads as having four
   sides.
 
+### The leaderboard
+
+- **Two boards.** *Today's daily* is one seed for everyone, new each UTC
+  day, so players compete on the same board. *Open play* is any seed. Each
+  board shows all time, week and today, one row per player.
+- **Scores live in the player's own repo** as `com.minomobi.lab.score`
+  records, the same stack as Orb, Fathom and One Side. Tessera mounts
+  Orb's portable board (`../orb/js/board-kit.js`). Posting needs one
+  narrow permission (`repo:com.minomobi.lab.score`) through the shared
+  auth worker; a score waiting on sign-in is parked and posted on return.
+  Nobody hosts the board: every browser rebuilds it from the relay and the
+  players' PDSes, then follows Jetstream live.
+
+  ```json
+  { "site": "tessera", "game": "daily-v1-2026-10-16", "value": 120, "unit": "points",
+    "higherIsBetter": true, "detail": "seed=1317305174 steps=300 longest=30 cuts=2", "createdAt": "…" }
+  ```
+
+- **The board refuses the impossible.** Food is worth 5 points and a
+  pellet 1, so no game scores more than 5 points a step. `accept()` drops
+  any record above 5 × its steps, and the selftest checks that no played
+  game exceeds it. Otherwise the board trusts the record. The seed in
+  `detail` pins the board, so a full replay check needs only a replay
+  store; the inputs don't fit in a record's 100-grapheme `detail`.
+- **Versioned.** The game ids carry `v1`. Change anything that moves
+  scores (the clock, the tick, what food is worth) and bump `VERSION` in
+  `js/score.js`, so old scores stop being ranked with new ones.
+- **This browser's runs** (the last 60, kept locally) give the "daily best"
+  in the header and the game-over line. **share** copies the daily result.
+
 `js/snake.js` is the game with no DOM. The selftest plays about 250 games
 with a bot (40k ticks, a few hundred cuts) and checks the invariants on
 every tick.
@@ -140,12 +170,17 @@ In the game, a pinch cuts and the tail beyond the cut falls off as pellets.
 - `js/game.js`: the game page. The torus view through Orb's `TorusCam` and
   the flat view; the board, the snake's spine, the joints at risk and the
   ghosts of walls about to open.
+- `js/score.js`: the score records. The two boards' ids, the daily seed,
+  `accept()` and the record's `detail`. No imports.
+- `js/board.js`: mounts Orb's board kit. A separate module, so the game
+  still runs if the vendored auth client can't load.
 - `js/lab.js`: the lab page. The canvas, the live laws panel, joins and
   pinches, tap a cell to follow its neighbours, and `graph` to draw the
   adjacency.
 - `test/tessera.selftest.mjs`: the tiling's laws, 22 checks, about 1 s.
-- `test/snake.selftest.mjs`: the game's invariants, plus the parts of Orb's
-  `TorusCam` the page leans on. 13 checks, about 2 s.
+- `test/snake.selftest.mjs`: the game's invariants, the parts of Orb's
+  `TorusCam` the page leans on, and the score records. 17 checks, about
+  2 s.
 
 ## Next
 

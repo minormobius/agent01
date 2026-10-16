@@ -126,5 +126,22 @@ const starve = (g) => { g.spawn = () => { g.food = -1; }; g.food = -1; return g;
   ok(worst < 1e-9 && k > 0 && Math.abs(o[0]) < 1e-9, "Orb's TorusCam brings any point of the board to the front, facing the camera squarely (the head's place)");
 }
 
+/* ---- the score records: what the board will read back, and what it refuses */
+{
+  const S = await import(path.join(here, "../js/score.js"));
+  ok(S.FOOD_PTS === G_.FOOD_PTS && G_.PELLET_PTS <= S.FOOD_PTS, "the board's ceiling (" + S.FOOD_PTS + " points a step) is what food is actually worth");
+  const a = S.dailySeed("2026-10-16"), b = S.dailySeed("2026-10-17");
+  ok(a === S.dailySeed("2026-10-16") && a !== b && a >= 1 && a < 2147483647 && S.dailyId("2026-10-16") === "daily-" + S.VERSION + "-2026-10-16",
+    "the daily seed is the same for everyone on a date and new the next day (" + a + ", " + b + ")");
+  const good = { site: "tessera", game: S.dailyId("2026-10-16"), value: 120, unit: "points", higherIsBetter: true, detail: S.detail({ seed: a, steps: 300, longest: 30, cuts: 2 }), createdAt: "2026-10-16T12:00:00Z" };
+  const bad = [{ ...good, site: "orb" }, { ...good, game: "daily-v0-2026-10-16" }, { ...good, game: "open" }, { ...good, higherIsBetter: false }, { ...good, unit: "ms" },
+    { ...good, value: 0 }, { ...good, value: 12.5 }, { ...good, value: 1501 }, { ...good, detail: "seed=1" }, { ...good, createdAt: "nope" }];
+  ok(S.accept(good) && S.accept({ ...good, game: S.OPEN, value: 1500 }) && bad.every((v) => !S.accept(v)),
+    "the board reads back a daily or open score, and refuses another site's, another version's, a time, a zero, a fraction, more points than steps allow, no steps, a bad date");
+  let within = true;
+  for (let s = 1; s <= 30; s++) { const g = new Game(24, 10, s * 104729); for (let t = 0; t < 3000 && g.alive; t++) { bot(g, true); g.tick(); } if (g.score > S.FOOD_PTS * g.ticks) within = false; }
+  ok(within, "no played game scores more than the ceiling the board enforces");
+}
+
 console.log(fails ? `snake: ${fails} of ${checks} checks FAILED` : `snake: all ${checks} checks ok`);
 process.exit(fails ? 1 : 0);

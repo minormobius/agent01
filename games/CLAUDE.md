@@ -162,7 +162,10 @@ Three things live here:
   as pellets (length is conserved through the cut). Drawn on a real torus
   (24 × 10) through Orb's `TorusCam` (`../orb/js/torus.js`): the skin slides
   so the head always faces you, and a flat wrapped map is one tap away. The
-  snake selftest checks the parts of `TorusCam` it uses. `js/snake.js` is the
+  snake selftest checks the parts of `TorusCam` it uses. Leaderboards
+  through Orb's `board-kit.js`: today's daily (one seed for everyone per UTC
+  day) and open play, scores as `com.minomobi.lab.score` records in the
+  player's repo, refusing more than 5 points a step (`js/score.js`). `js/snake.js` is the
   game with no DOM. The tiling underneath (`js/tiling.js`) is a fixed square
   lattice whose corners split: every wall is one curve owned by the wall, so
   coverage holds by construction. `lab.html` checks the laws live (Euler,

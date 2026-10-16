@@ -10,6 +10,7 @@
 import "../../orb/js/torus.js";
 import { Tiling, FIGURES, T_, arc } from "./tiling.js";
 import { Game, G_, SHAPE } from "./snake.js";
+import { OPEN, dailyId, dailySeed, day, label } from "./score.js";
 
 const ORB = globalThis.ORB;
 const $ = (id) => document.getElementById(id);
@@ -20,8 +21,9 @@ const ZOOMS = [1, 1.6, 2.4];
 // the lab's fish walls at a little over half their size: enough to read as figures, not so much that a square stops looking like it has four sides
 const WALLS = { A: FIGURES.fish.A.map((v) => v * 0.55), B: FIGURES.fish.B.map((v) => v * 0.55) };
 let g, R, cam, fu = 0, fv = 0, s = 40, dpr = 1, cw = 0, ch = 0, acc = 0, last = 0, running = false, best = 0, noteT = 0;
-let mode = "donut", zi = 1;
-try { best = +localStorage.getItem("tessera.best") || 0; mode = localStorage.getItem("tessera.view") || "donut"; zi = +(localStorage.getItem("tessera.zoom") ?? 1); } catch (e) { /* private mode */ }
+let mode = "donut", zi = 1, kind = "daily", gameId = dailyId(), runSeed = 1, runs = [];
+try { mode = localStorage.getItem("tessera.view") || "donut"; zi = +(localStorage.getItem("tessera.zoom") ?? 1); runs = JSON.parse(localStorage.getItem("tessera.runs") || "[]"); } catch (e) { /* private mode */ }
+if (!Array.isArray(runs)) runs = [];
 if (!(zi in ZOOMS)) zi = 1;
 
 function size() {
@@ -34,9 +36,15 @@ function size() {
    there's more board ahead of you than behind */
 const LEAD = 1.5;
 function headAt(f = 1) { const c = cellGeo(g.body[0]).c, [hx, hy] = g.heading, m = Math.hypot(hx, hy), t = f - 1 + LEAD; return [c[0] + hx / m * t, c[1] + hy / m * t]; }
-function newGame() {
+/* the runs this browser has played: the best on each board, and how many tries */
+const mine = (id) => { const r = runs.filter((x) => x.game === id); return { n: r.length, best: r.reduce((m, x) => Math.max(m, x.score), 0) }; };
+function newGame(k = kind) {
   size();
-  g = new Game(BW, BH, (Date.now() % 2147483646) + 1);
+  kind = k; const d = day();
+  gameId = kind === "daily" ? dailyId(d) : OPEN;
+  runSeed = kind === "daily" ? dailySeed(d) : (Date.now() % 2147483646) + 1;
+  best = mine(gameId).best;
+  g = new Game(BW, BH, runSeed);
   R = new Tiling(BW, BH); R.fig1 = WALLS; R.phiA.fill(1); R.phiB.fill(1);
   cam = new ORB.TorusCam({ W: BW, H: BH, n: BW * BH });
   cam.zoom = ZOOMS[zi];
@@ -156,7 +164,8 @@ function follow(dt, f) {
 
 function note(t) { const el = $("note"); el.textContent = t; el.classList.add("show"); clearTimeout(noteT); noteT = setTimeout(() => el.classList.remove("show"), 1600); }
 function hud() {
-  $("score").textContent = g.score; $("len").textContent = g.body.length; $("best").textContent = best || "—";
+  $("score").textContent = g.score; $("len").textContent = g.body.length; $("best").textContent = Math.max(best, g.score) || "—";
+  $("bestlab").textContent = kind === "daily" ? "daily best" : "best";
   const secs = ((g.clock - acc / G_.TICK) * G_.TICK / 1000).toFixed(1), risk = g.pinchNext ? g.atRisk().length : 0;
   $("nextlab").textContent = g.pinchNext ? (risk ? risk + " joint" + (risk > 1 ? "s" : "") + " at risk" : "corners close") : "corners open";
   $("next").textContent = SHAPE[g.next] + " in " + secs + "s";
@@ -170,11 +179,25 @@ function buttons() {
 }
 function over() {
   running = false;
-  if (g.score > best) { best = g.score; try { localStorage.setItem("tessera.best", String(best)); } catch (e) { /* private mode */ } }
+  const was = best;
+  runs.push({ game: gameId, score: g.score, steps: g.ticks, at: Date.now() });
+  runs = runs.slice(-60);
+  try { localStorage.setItem("tessera.runs", JSON.stringify(runs)); } catch (e) { /* private mode */ }
+  const m = mine(gameId); best = m.best;
+  $("o-board").textContent = "bitten · " + label(gameId);
   $("o-score").textContent = g.score;
-  $("o-text").textContent = `${g.ticks} steps, longest ${g.longest || g.body.length}; the corners cut you ${g.cuts} time${g.cuts === 1 ? "" : "s"} and ${g.dropped} pieces fell off. Best: ${best}.`;
+  $("o-text").textContent = `${g.ticks} steps, longest ${g.longest || g.body.length}; the corners cut you ${g.cuts} time${g.cuts === 1 ? "" : "s"} and ${g.dropped} pieces fell off.`;
+  $("o-mine").textContent = (g.score > was && was > 0 ? "a new best! " : "") + `your best on ${label(gameId)}: ${m.best} over ${m.n} run${m.n === 1 ? "" : "s"}`;
+  $("switch").textContent = kind === "daily" ? "open play" : "today's daily";
+  $("share").hidden = kind !== "daily";
+  offerable();
   $("over").hidden = false;
 }
+/* the board loads on its own (it needs the vendored auth client); the post button shows once it's there */
+const board = () => window.TESSERA_BOARD || null;
+let postedRun = -1;
+function offerable() { const p = $("post"); p.hidden = !board() || !g || g.alive || !g.score; p.disabled = postedRun === runs.length; $("trophy").hidden = $("o-board-btn").hidden = !board(); }
+window.addEventListener("tessera-board", offerable);
 
 function loop(now) {
   const dt = Math.min(250, now - (last || now)); last = now;
@@ -211,11 +234,27 @@ $("play").onclick = () => { if (!g.alive) return; running = !running; $("play").
 $("viewbtn").onclick = () => { mode = mode === "donut" ? "flat" : "donut"; buttons(); save(); };
 $("zoom").onclick = () => { zi = (zi + 1) % ZOOMS.length; cam.zoom = ZOOMS[zi]; buttons(); save(); };
 $("help").onclick = () => { running = false; $("play").textContent = "▶"; $("start").hidden = false; };
-$("go").onclick = () => { $("start").hidden = true; if (!g.alive) newGame(); running = true; $("play").textContent = "❚❚"; last = 0; };
-$("again").onclick = () => { $("over").hidden = true; newGame(); running = true; };
+const start = (k) => { $("start").hidden = true; $("over").hidden = true; if (!g.alive || g.ticks === 0 || k !== kind) newGame(k); running = true; $("play").textContent = "❚❚"; last = 0; };
+$("go").onclick = () => start("daily");
+$("go-open").onclick = () => start("open");
+$("again").onclick = () => { $("over").hidden = true; newGame(); running = true; last = 0; };
+$("switch").onclick = () => { $("over").hidden = true; newGame(kind === "daily" ? "open" : "daily"); running = true; last = 0; };
+$("trophy").onclick = () => { const b = board(); if (!b) return; if (running) $("play").click(); b.open({ board: gameId }); };
+$("o-board-btn").onclick = () => { const b = board(); if (b) b.open({ board: gameId }); };
+$("post").onclick = () => {
+  const b = board(); if (!b || g.alive || !g.score) return;
+  postedRun = runs.length; $("post").disabled = true;
+  b.offer({ sel: { board: gameId }, value: g.score, seed: runSeed, steps: g.ticks, longest: g.longest || g.body.length, cuts: g.cuts, at: Date.now() });
+};
+$("share").onclick = async () => {
+  const text = `Tessera ${label(gameId)}: ${g.score} points, ${g.ticks} steps, cut ${g.cuts} time${g.cuts === 1 ? "" : "s"}. games.mino.mobi/tessera/`;
+  try { if (navigator.share) { await navigator.share({ text }); return; } await navigator.clipboard.writeText(text); $("o-mine").textContent = "copied: " + text; }
+  catch (e) { $("o-mine").textContent = text; }
+};
 document.addEventListener("visibilitychange", () => { if (document.hidden && running) $("play").click(); });
 window.addEventListener("resize", size);
 
-newGame();
+newGame("daily");
+offerable();
 requestAnimationFrame(loop);
 window.TESSERA = { get g() { return g; }, get cam() { return cam; }, set running(v) { running = v; }, set mode(v) { mode = v; buttons(); } };
