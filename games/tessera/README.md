@@ -1,8 +1,48 @@
-# Tessera — a tiling that morphs without breaking
+# Tessera — a snake on a tiling that changes shape
 
-A prototype, and the board a snake will eventually run on. The question it
-answers first is what has to be conserved while a tiling changes shape, so
-that a game played on its cells stays well defined.
+A prototype in two pages:
+
+- **`/tessera/`, the game.** A snake on a board that cycles hexagons ↗ →
+  squares → hexagons ↘ → squares. Any joint of the snake that crossed a
+  diagonal is cut when the corners close.
+- **`/tessera/lab.html`, the lab.** The same tiling with the conservation
+  laws checked live on every frame. It answers the question that came first:
+  what has to be conserved while a tiling changes shape, so that a game
+  played on its cells stays well defined.
+
+## The game
+
+- **Three shapes on a visible clock.** Each shape holds for 36 ticks (5 s at
+  140 ms per tick). A bar and a countdown at the top show what comes next;
+  it is red when the change is a pinch and some of your joints are at risk.
+  The change itself takes **one tick**. A closing wall shrinks to nothing in
+  the tick before the pinch, and an opening one grows from nothing in the
+  tick after the join, so the drawn walls obey the same law as the graph.
+- **Joins are free; pinches cut.** Going from squares to hexagons gives
+  every cell two more neighbours on one diagonal. Going back closes that
+  diagonal. The snake is cut at its first joint (counting from the head)
+  that ran across a diagonal, and everything behind the cut falls off as
+  **pellets**. In the last stretch before a pinch the joints at risk show
+  red and the closing walls pulse amber.
+- **Nothing is lost in the pinch.** The snake's length before the cut
+  equals the length it keeps plus the pellets it drops, cell for cell.
+  Pellets fade after about 20 s. Gathering one gives +1 length and +1
+  point; food gives +3 length and +5 points.
+- **Relative steering.** Left turns to the next neighbour
+  counter-clockwise, right to the next clockwise: 90° on squares, 45° or
+  90° on these hexagons. Steering is the left/right half of the board, or
+  ← → / A D. A heading the board takes away (a diagonal at a pinch) falls
+  to the nearest step that still exists, ties broken by where the snake
+  has been going.
+- **Walls are the lab's fish S-curves at 0.55× size,** strong enough to
+  read as figures, mild enough that a square still reads as having four
+  sides.
+
+`js/snake.js` is the game with no DOM. The selftest plays about 250 games
+with a bot (40k ticks, a few hundred cuts) and checks the invariants on
+every tick.
+
+## The lab
 
 ## The construction
 
@@ -67,7 +107,7 @@ Two things show up:
   bulge into the same cell near it. Flipping one sign of the top wall's c₂
   took the fish from tangling to clean.
 
-## Joins and pinches: the snake's problem
+### Joins and pinches
 
 A **join** happens when a corner opens and two cells become neighbours.
 That is always safe for a snake. A **pinch** happens when a corner closes
@@ -76,20 +116,28 @@ snake's body, the snake is cut. The page counts both and draws a short
 wall amber while it is shrinking towards a pinch, so the countdown is
 visible.
 
-The prototype doesn't decide what a pinch does to a snake. The proposal is
-to sever: the tail beyond the cut turns to stone (or food).
+In the game, a pinch cuts and the tail beyond the cut falls off as pellets.
 
 ## Files
 
 - `js/tiling.js`: the tiling, its ports and walls, exact area, the census,
   the simplicity check, and the morph fields (breathe, wave, ripple). It
   has no DOM, so node runs it.
-- `js/main.js`: the canvas, the live laws panel, joins and pinches, tap a
-  cell to follow its neighbours, and `graph` to draw the adjacency the game
-  will use.
-- `test/tessera.selftest.mjs`: 22 checks, about 1 s.
+- `js/snake.js`: the game. The clock, the three shapes, steering, the cut,
+  pellets and food, and the split the renderer should draw mid-tick. It has
+  no DOM.
+- `js/game.js`: the game page. It draws the board, the snake's spine, the
+  joints at risk and the ghosts of walls about to open.
+- `js/lab.js`: the lab page. The canvas, the live laws panel, joins and
+  pinches, tap a cell to follow its neighbours, and `graph` to draw the
+  adjacency.
+- `test/tessera.selftest.mjs`: the tiling's laws, 22 checks, about 1 s.
+- `test/snake.selftest.mjs`: the game's invariants, 12 checks, about 2 s.
 
 ## Next
 
-The snake. It needs heading carried as a vector rather than as an edge
-index, a rule for pinches, and then figures that read as figures.
+- Tuning: the hold length, the tick, and food growth (+3 makes the snake
+  long fast on a small board).
+- Fronts instead of the whole board at once. The lab shows that straight
+  fronts keep every cell at area 1.
+- Figures that read as figures.

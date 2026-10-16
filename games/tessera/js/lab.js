@@ -1,5 +1,5 @@
-/* Tessera — the page: draws the tiling, runs the morph, and checks the laws
-   on every frame. The tiling itself is js/tiling.js. */
+/* Tessera lab — the laws page: draws the tiling, runs the morph, and checks the laws
+   on every frame. The tiling itself is js/tiling.js; the game is js/game.js. */
 import { Tiling, morph, FIGURES, MODES, T_ } from "./tiling.js";
 
 const $ = (id) => document.getElementById(id);

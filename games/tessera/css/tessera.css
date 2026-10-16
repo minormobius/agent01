@@ -39,3 +39,22 @@ button.primary { background: var(--accent); color: #1a1000; border-color: var(--
 .overlay .accent { color: var(--accent2); }
 .overlay .foot { font-family: var(--mono); font-size: 12px; }
 .overlay a { color: var(--dim); }
+
+/* the game page: a score strip, the countdown bar, the board */
+body.game #stage { flex: 1 1 auto; }
+#top { display: flex; gap: 16px; align-items: flex-end; padding: 8px 12px 6px; font-family: var(--mono); }
+#top .h { display: flex; flex-direction: column; gap: 2px; min-width: 5ch; }
+#top .h.grow { margin-left: auto; align-items: flex-end; text-align: right; }
+#top .lab { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+#top .val { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#next { color: var(--accent2); }
+#next.pinch { color: var(--accent); }
+#next.risk { color: var(--warn); }
+#clockbar { height: 4px; margin: 0 12px 6px; background: var(--surface); border-radius: 2px; overflow: hidden; }
+#clockfill { height: 100%; width: 100%; background: var(--accent2); transform-origin: left; }
+#clockfill.pinch { background: var(--accent); }
+#clockfill.risk { background: var(--warn); }
+#note { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 4; opacity: 0; transition: opacity .25s; pointer-events: none;
+  font-family: var(--mono); font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; width: max-content; max-width: calc(100% - 16px); text-align: center; }
+#note.show { opacity: 1; }
+@media (max-width: 420px) { #top { gap: 10px; } #top .val { font-size: 14px; } }

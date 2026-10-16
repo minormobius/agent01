@@ -7375,6 +7375,16 @@
    "discovered": true
   },
   {
+   "id": "tessera/lab.html",
+   "name": "lab",
+   "url": "https://games.mino.mobi/tessera/lab.html",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "tessera",
+   "discovered": true
+  },
+  {
    "id": "golf/play.html",
    "name": "play",
    "url": "https://duck.mino.mobi/golf/play.html",

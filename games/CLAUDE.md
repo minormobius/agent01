@@ -155,14 +155,16 @@ Three things live here:
   blocks, podium and tower), a black sky and a night side that lights up. The
   worker builds the triangles. First slice: transit, ports to build and the
   core's heat come next. See [`hearth/README.md`](hearth/README.md).
-- **Tessera at `/tessera/`**: a prototype, the board a snake will run on. A
-  tiling of the torus that morphs without breaking: the cells are a fixed
-  square lattice and never move, appear or vanish; each lattice point carries
-  a split `h` (0 is a square corner, ± opens a short wall between one diagonal
-  pair), and every wall is one curve owned by the wall, so coverage holds by
-  construction. The page checks the laws live (Euler, 1/f̄ + 1/v̄ = 1/2, area as
-  a flux, walls that never cross) and counts joins and pinches, the T1 moves
-  that would cut a snake. See [`tessera/README.md`](tessera/README.md).
+- **Tessera at `/tessera/`**: a snake on a tiling that changes shape, a
+  prototype. The board cycles hexagons ↗ → squares → hexagons ↘ → squares on
+  a visible clock (36 ticks each, the change in one tick); when the corners
+  close, the snake is cut at its first diagonal joint and the rest falls off
+  as pellets (length is conserved through the cut). `js/snake.js` is the
+  game with no DOM. The tiling underneath (`js/tiling.js`) is a fixed square
+  lattice whose corners split: every wall is one curve owned by the wall, so
+  coverage holds by construction. `lab.html` checks the laws live (Euler,
+  1/f̄ + 1/v̄ = 1/2, area as a flux, walls that never cross). See
+  [`tessera/README.md`](tessera/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -254,6 +256,7 @@ node games/ecumene/test/farms.selftest.mjs       # farm know-how: a century on t
 node games/ecumene/test/economy.mjs 60            # the economy oracle: bots play headless, the money curve per world (~2 min)
 node games/hearth/test/hearth.selftest.mjs       # the orb and its lots, the port's limits and clearance, height follows reach, every wall upright and facing its street
 node games/tessera/test/tessera.selftest.mjs     # the morphing tiling: Euler, coverage, shared walls, area as a flux, topology changes only at zero length
+node games/tessera/test/snake.selftest.mjs       # the snake: the clock, cuts only at pinches, length conserved through a cut, the body always a path
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

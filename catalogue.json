@@ -3784,9 +3784,10 @@
       "b": "2026-10-16",
       "p": "games",
       "surface": "games",
-      "d": "A prototype: a tiling that changes shape without ever stopping being a tiling. Squares open into hexagons and close again, walls bend into figures, and the laws that hold it together are checked on every frame: Euler's count, area moving only as a flux, and no wall ever crossing another. It is the board a snake will run on.",
+      "d": "A snake on a board that changes shape: hexagons, squares, hexagons leaning the other way, on a clock you can see. When the corners close, any joint of the snake that crossed a diagonal is cut, and the tail falls off as pellets to gather again. A prototype, with a lab page that checks the laws keeping the board a tiling on every frame.",
       "tags": [
         "games",
+        "canvas",
         "math"
       ]
     },
