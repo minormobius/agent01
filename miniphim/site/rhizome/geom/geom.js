@@ -39,7 +39,7 @@ function detail({ g, si, pi, hi }) {
     return `<td${i === ti ? ' class=on' : ''} title="splitter ${v[2 * i]}%, integrator ${v[2 * i + 1]}% of the field"><span class=sw style="background:${COL[k]}"></span>${v[2 * i]}/${v[2 * i + 1]}</td>`; }).join('')}</tr>`; });
   t += '</table><p class=small>Each entry is the % of the field held, splitter/integrator.';
   if (LAB[g]) { const [lat, wrap] = LAB[g];
-    t += ` <a href="../lab/#g=${lat}_${wrap}_100_${p}_${s}_0_1007&l=25_25_0_0_${h}_clamp_5">Watch one run of this cell in the lab</a> (its own seeds, so it can end differently from the five above).`; }
+    t += ` <a href="/rhizome/lab/#g=${lat}_${wrap}_100_${p}_${s}_0_1007&l=25_25_0_0_${h}_clamp_5">Watch one run of this cell in the lab</a> (its own seeds, so it can end differently from the five above).`; }
   else t += ' The lab has no 3-neighbour triangle tiles yet, so this cell can\'t be watched there.';
   $('detail').innerHTML = t + '</p>';
 }
