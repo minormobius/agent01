@@ -25,7 +25,7 @@ does not ship. The MRI page exists precisely because the usual pictures
 | Surface | `sci` |
 | Dir | `sci/` |
 | Endpoint | `sci.mino.mobi` |
-| Type | frontend (assets-only worker, no build step for the HTML) |
+| Type | fullstack: static assets, plus one script with one Durable Object (`SonarLobby`, the sonar lobby). No build step for the HTML |
 | Owning branch | `claude/sci-surface-mri-research-ji1xf9` |
 | Deploy | `.github/workflows/deploy-sci.yml` |
 | Engine build | `.github/workflows/build-sci-engine.yml` |
@@ -46,14 +46,17 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 | `mri/console/index.html` | the capstone — all four parts as one control panel |
 | `sonar/index.html` | **sonar** — a live instrument, not an explainer: the visitor's own speaker and microphone. Single page |
 | `sonar/sonar.js` | sonar's whole signal path (chirp, matched filter, ISO 9613-1, dead zone, delay→range). Imported by the page **and** by the selftest |
+| `sonar/lobby/index.html` | **the lobby**: phones ranging each other by two-way ranging, joined by room code |
+| `worker/index.js` | the script: `/sonar/lobby/ws` → one `SonarLobby` Durable Object per room; everything else → assets. **Not served** (excluded from the stage) |
 | `series.css` | **shared** — the series strip every part carries. One source of truth for how the parts link to each other |
 | `mri/pkg/` | **generated** — wasm-pack output, committed. Shared by all five pages |
 | `engine-rs/` | the Rust source for that wasm; **not served** |
 | `research/` | literature scans, one per instrument; **not served** |
 | `sci.selftest.mjs` | guards the wiring preflight can't see |
 
-`engine-rs/` and `research/` are excluded from the asset stage by
-`deploy-sci.yml`. Everything else under `sci/` ships.
+`engine-rs/`, `research/` and `worker/` are excluded from the asset stage by
+`deploy-sci.yml`. Everything else under `sci/` ships. `worker/index.js` ships
+as the script, not as an asset.
 
 ## The domain
 
@@ -369,6 +372,47 @@ microphone into a ring buffer keyed by the AudioContext's own frame clock, and
   and the latency readout says "jitter".
 - **Not done:** bearing (needs two receiver channels; browsers usually mix the
   phone's mics to one).
+
+## /sonar/lobby — phones that measure each other (2026-10-16)
+
+Two-way ranging (BeepBeep, Peng et al. 2007). Each phone chirps once per round
+in its own 300 ms slot and times **every** chirp, its own included, on its own
+clock. `twoWayRange()` turns the four times into a distance. Clock offsets and
+every output/input latency cancel. What is left is the crystal-rate difference
+over one slot (a few mm) and the speaker–mic spacings, which each phone sets.
+
+- **The server carries no audio.** `SonarLobby` holds the roster (join order =
+  slot order), stores the schedule (`T0`, ordered ids) so it survives
+  hibernation, answers `sync` pings (the client keeps the minimum-RTT estimate),
+  and relays `report` messages: `{T0, r, arr: {id: seconds on the sender's
+  clock}}`. 12 phones max per room. Hibernating WebSocket API; SQLite-backed
+  class (`new_sqlite_classes`, migration `v1`), so any plan can create it.
+- **Slots alternate rising/falling chirps** (17–19.8 kHz, 10 ms). A detection
+  is rejected if the opposite sweep matches at least 0.7× as well, so a slow
+  phone's chirp is not taken for its neighbour's. Detection takes the **first**
+  arrival ≥ ½ the window's peak, not the loudest, with a parabolic sub-sample
+  refinement. Each phone starts early by half its measured self-delay, so
+  others find its chirp near the slot.
+- **Window limit.** A chirp must land within −80…+220 ms of its slot on the
+  listener's clock (sync error plus emitter output latency plus listener input
+  latency, less the pre-shift). That is fine for iPhones. A phone with a very
+  long audio path may sit at the edge; it shows as "not heard".
+- **Tested.** `sci.selftest.mjs` §9 synthesises two phones at the sample
+  level (48 k / 44.1 k, +40 / −55 ppm, 21 / 136 ms latencies, different clock
+  zeros, a wall, noise). The range comes back within 1 cm at 0.5, 1.7 and
+  4.2 m, with a +4 mm bias that is the predicted ppm term (0.3 s × 95 ppm).
+  Swapping latencies leaves it unchanged. End to end, under `wrangler dev`
+  with the real Durable Object: two Chromium pages with a fake air channel
+  (BroadcastChannel delivering each chirp into the other page's mic) read
+  0.60 → 60.1 cm, 1.50 → 1.500 m, 3.20 → 3.201 m. Three pages read
+  0.80 / 2.50 / 1.70 → 79.9 cm / 2.500 / 1.699, with all three agreeing.
+  Leave/rejoin reschedules. The harness lives outside the repo, and none of
+  it touches a real speaker, a real room or iOS.
+- **Local dev:** stage `sci/` into `../.sci-stage` with the deploy's
+  excludes, then `wrangler dev --config sci/wrangler.jsonc`. The stage is
+  build output; never commit it.
+- **Next:** fit the distance matrix into a map (classical MDS, ≥3 phones),
+  then multistatic tracking from the cross-phone echoes.
 
 ## Adding an instrument
 

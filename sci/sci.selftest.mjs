@@ -461,6 +461,87 @@ for (const junk of ["mri/pkg/.gitignore", "mri/pkg/package.json"]) {
   ok(!cd.fellBack && cd.f0 === 17000 && cd.f1 <= 0.45 * 44100, "at 44.1 kHz it stays near-ultrasonic, clipped under Nyquist");
 }
 
+// ---- 9. the lobby: two-way ranging between phones that share nothing -----
+// Two synthetic phones on a line. Each has its own sample rate, a crystal
+// error in ppm, its own clock zero, output and input latencies, and a
+// speaker-to-mic spacing. Each records the whole exchange on its own clock,
+// with a wall reflection and noise. The chirps are synthesised at exact
+// fractional arrival times, so nothing about the answer is built in.
+{
+  const S = await import("data:text/javascript;base64," + Buffer.from(read("sonar/sonar.js")).toString("base64"));
+  const lpage = read("sonar/lobby/index.html");
+  const imported = (lpage.match(/import\s*\{([\s\S]*?)\}\s*from\s*"\.\.\/sonar\.js"/) || [, ""])[1]
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  ok(imported.length > 0, "lobby page imports from ../sonar.js");
+  for (const name of imported) ok(typeof S[name] !== "undefined", `sonar.js exports ${name} (lobby)`);
+  ok(landing.includes('href="/sonar/lobby/"') || read("sonar/index.html").includes('href="lobby/"'), "the lobby is linked from the sonar page");
+
+  const c = 343.2, L = S.LOBBY;
+  let sd = 9; const gauss = () => { let u = 0; for (let k = 0; k < 6; k++) u += (sd = (sd * 16807) % 2147483647) / 2147483647; return u - 3; };
+  const phone = (o) => ({ ...o, rate: o.fs * (1 + o.ppm * 1e-6) });   // true samples per second
+  const run = (D, A, B, wall = 3.1) => {
+    // positions: A's speaker at 0, A's mic at sA; B's speaker at D, mic at D + sB
+    A.spk = 0; A.mic = A.s; B.spk = D; B.mic = D + B.s;
+    const T0 = 10.0;                                   // lobby time of round 0, seconds
+    const emits = [A, B].map((P, slot) => ({ P, slot,
+      t: S.slotTime(T0 * 1000, 2, 0, slot) / 1000 + P.out }));   // acoustic emission, absolute
+    const dur = L.dur, kRate = (f0, f1) => (f1 - f0) / dur;
+    const rec = (X) => {
+      const n = Math.ceil((T0 + 1.2 - X.zero) * X.rate), x = new Float32Array(n);
+      for (const { P, slot, t } of emits) {
+        const [f0, f1] = slot % 2 ? [L.f1, L.f0] : [L.f0, L.f1], k = kRate(f0, f1);
+        const paths = [[Math.abs(X.mic - P.spk), 1 / Math.max(0.05, Math.abs(X.mic - P.spk))],
+                       [Math.abs(wall - P.spk) + Math.abs(wall - X.mic), 0.4 / (Math.abs(wall - P.spk) + Math.abs(wall - X.mic))]];
+        for (const [p, a] of paths) {
+          const t0 = t + p / c + X.in;                    // reaches the converter
+          const n0 = Math.floor((t0 - X.zero) * X.rate), n1 = Math.ceil((t0 + dur - X.zero) * X.rate);
+          for (let m = Math.max(0, n0); m < Math.min(n, n1); m++) {
+            const tau = (X.zero + m / X.rate) - t0;
+            if (tau < 0 || tau >= dur) continue;
+            const w = 0.5 - 0.5 * Math.cos(2 * Math.PI * tau / dur);
+            x[m] += a * w * Math.sin(2 * Math.PI * (f0 * tau + 0.5 * k * tau * tau));
+          }
+        }
+      }
+      for (let m = 0; m < n; m++) x[m] += 0.002 * gauss();
+      return x;
+    };
+    // Each phone times both chirps on its own clock (nominal fs), searching
+    // where its approximate schedule says to look.
+    const times = (X) => {
+      const x = rec(X), out = [];
+      for (const slot of [0, 1]) {
+        const p = S.slotChirp(X.fs, slot), env = S.matchedEnvelope(x, p);
+        const exp = (S.slotTime(T0 * 1000, 2, 0, slot) / 1000 - X.zero) * X.fs + X.syncErr * X.fs;
+        const a = S.firstArrival(env, exp - 0.1 * X.fs, exp + 0.25 * X.fs);
+        out.push(a ? a.idx / X.fs : NaN);
+      }
+      return out;
+    };
+    const [tAA, tAB] = times(A), [tBA, tBB] = times(B);
+    const d = S.twoWayRange(tAA, tAB, tBB, tBA, c, A.s, B.s);
+    const truth = (Math.abs(A.mic - B.spk) + Math.abs(B.mic - A.spk)) / 2;
+    return { d, truth };
+  };
+  const A = phone({ fs: 48000, ppm: 40, zero: 3.217, out: 0.012, in: 0.009, s: 0.02, syncErr: 0.03 });
+  const B = phone({ fs: 44100, ppm: -55, zero: 7.901, out: 0.095, in: 0.041, s: 0.015, syncErr: -0.04 });
+  for (const D of [0.5, 1.7, 4.2]) {
+    const { d, truth } = run(D, { ...A }, { ...B });
+    ok(Math.abs(d - truth) < 0.01, `two-way range at ${D} m: ${d.toFixed(4)} vs ${truth.toFixed(4)} (clocks 48 k/44.1 k, +40/−55 ppm, latencies 21/136 ms)`);
+  }
+  // Swapping the latencies must not move the answer: they cancel.
+  const r1 = run(2.0, { ...A }, { ...B }), r2 = run(2.0, { ...A, out: 0.10, in: 0.002 }, { ...B, out: 0.003, in: 0.07 });
+  ok(Math.abs(r1.d - r2.d) < 0.005, `latencies cancel: ${r1.d.toFixed(4)} vs ${r2.d.toFixed(4)}`);
+  // A reflection louder than the direct path must not win: first arrival, not the loudest.
+  {
+    const env = new Float32Array(400); env[100] = 1; env[99] = env[101] = 0.6; env[250] = 3; env[249] = env[251] = 2;
+    for (let j = 0; j < env.length; j++) env[j] += 0.01;
+    const a = S.firstArrival(env, 0, 400, 0.3);
+    ok(a && Math.abs(a.idx - 100) < 0.5, `first arrival beats a louder reflection (got ${a && a.idx})`);
+  }
+  ok(S.slotChirp(48000, 0).i[200] !== S.slotChirp(48000, 1).i[200], "neighbouring slots use opposite chirps");
+}
+
 if (failures) {
   console.error(`\nsci selftest: ${failures} failure(s)`);
   process.exit(1);

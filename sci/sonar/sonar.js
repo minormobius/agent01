@@ -231,3 +231,58 @@ export class Anchor {
     return d[d.length >> 1];
   }
 }
+
+// ---- many phones: two-way ranging ------------------------------------------
+//
+// Two phones cannot share a clock, but each can hear both chirps on its own.
+// Phone A hears its own chirp at t_AA and B's at t_AB, both on A's clock;
+// B hears A's at t_BA and its own at t_BB, on B's clock. Then
+//
+//   d = (c/2)·[(t_AB − t_AA) − (t_BB − t_BA)] + (s_A + s_B)/2
+//
+// Each bracket is a difference on one clock, so the offset between the two
+// clocks cancels. So do the latencies: each emission is heard by both phones,
+// so its output delay appears in both brackets, and each phone's input delay
+// applies to both of the arrivals it times.
+// s is each phone's own speaker-to-microphone spacing, which its self-hearing
+// adds. What comes out is the mean of the two speaker-to-microphone paths
+// between the phones (Peng et al. 2007). The selftest (§9) synthesises two
+// phones with different sample rates, clock errors, latencies and offsets.
+
+export function twoWayRange(tAA, tAB, tBB, tBA, c, sA, sB) {
+  return (c / 2) * ((tAB - tAA) - (tBB - tBA)) + (sA + sB) / 2;
+}
+
+// The direct path is the first arrival, not the loudest: with no line of
+// sight a reflection can be louder. Take the first local maximum, inside
+// [lo, hi), that reaches `frac` of the window's peak, and refine it to a
+// fraction of a sample with a parabola through its neighbours. Returns null
+// unless the peak stands `minSnr` above the window's median.
+export function firstArrival(env, lo, hi, frac = 0.5, minSnr = 8) {
+  lo = Math.max(1, lo | 0); hi = Math.min(env.length - 1, hi | 0);
+  if (hi - lo < 3) return null;
+  let max = 0;
+  for (let j = lo; j < hi; j++) if (env[j] > max) max = env[j];
+  const w = Float32Array.from(env.subarray(lo, hi)).sort();
+  const med = w[w.length >> 1] || 1e-30;
+  if (max < minSnr * med) return null;
+  for (let j = lo; j < hi; j++) {
+    if (env[j] >= frac * max && env[j] >= env[j - 1] && env[j] >= env[j + 1]) {
+      const a = env[j - 1], b = env[j], g = env[j + 1], den = a - 2 * b + g;
+      const dj = den < 0 ? 0.5 * (a - g) / den : 0;
+      return { idx: j + Math.max(-0.5, Math.min(0.5, dj)), peak: b, snr: max / med };
+    }
+  }
+  return null;
+}
+
+// The lobby's schedule. Every phone chirps once per round, in its own slot,
+// alternating rising and falling chirps so that a late chirp is not mistaken
+// for its neighbour's. Times are the lobby's (server) milliseconds.
+export const LOBBY = { slotMs: 300, leadMs: 40, f0: 17000, f1: 19800, dur: 0.01 };
+export function slotTime(T0, n, round, slot, L = LOBBY) {
+  return T0 + (round * n + slot) * L.slotMs + L.leadMs;
+}
+export function slotChirp(fs, slot, L = LOBBY) {
+  return slot % 2 ? chirp(fs, L.f1, L.f0, L.dur) : chirp(fs, L.f0, L.f1, L.dur);
+}
