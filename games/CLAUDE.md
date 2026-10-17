@@ -174,6 +174,15 @@ Three things live here:
   coverage holds by construction. `lab.html` checks the laws live (Euler,
   1/f̄ + 1/v̄ = 1/2, area as a flux, walls that never cross). See
   [`tessera/README.md`](tessera/README.md).
+- **Molt at `/molt/`**: snake on the snake. The world is the surface of a
+  snake's body made of cubes (one per body cell, every face a 3 × 3 grid),
+  built from the body's word of turns alone (`js/duct.js`): always a sphere,
+  C²(4L + 2) cells whatever the shape, every cell a square with 4
+  neighbours, the curvature at the cube corners (3 squares meet outside a
+  bend, 5 inside). Once 8 long you molt: your body becomes the next world.
+  Played on the surface unfolded flat round the head (re-laid per face,
+  orientation carried over the fold, so arrows and swipes stay classic);
+  the molt is shown in 3D. See [`molt/README.md`](molt/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -218,7 +227,7 @@ Three things live here:
   to this family: [`pressure/README.md`](pressure/README.md).
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -266,6 +275,7 @@ node games/ecumene/test/economy.mjs 60            # the economy oracle: bots pla
 node games/hearth/test/hearth.selftest.mjs       # the orb and its lots, the port's limits and clearance, height follows reach, every wall upright and facing its street
 node games/tessera/test/tessera.selftest.mjs     # the morphing tiling: Euler, coverage, shared walls, area as a flux, topology changes only at zero length
 node games/tessera/test/snake.selftest.mjs       # the snake: the clock, cuts only at pinches, length conserved through a cut, the body always a path
+node games/molt/test/molt.selftest.mjs           # body → world: always a sphere, 720° of curvature, C²(4L+2) cells, 4 neighbours each; the game dives 5 deep
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

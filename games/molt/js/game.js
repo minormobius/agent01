@@ -1,0 +1,82 @@
+/* Molt — the rules, headless (node runs them; js/main.js draws them).
+
+   Classic snake on a closed surface: the world is the skin of a snake's body
+   (js/duct.js), every cell a square with four neighbours, no walls. Eat and
+   grow. Bite yourself and the run ends.
+
+   MOLT: once you're MOLT_MIN long you may shed this world and dive into your
+   own body. Your snake, read tail to head as a word of turns, becomes the
+   next world: a longer, twistier snake makes a bigger, stranger one. Points
+   are multiplied by depth, so staying to grow is the bet.
+
+   Steering is by neighbour (the side of the head's cell to leave by); turning
+   screen directions into sides is the page's job, since only it knows where
+   the camera is. With no steer the snake goes straight on: out through the
+   side opposite the one it came in by. */
+import { buildDuct, wordOf, sideTo } from "./duct.js";
+
+export const M_ = { TICK: 150, START: 3, MOLT_MIN: 8, FIRST: 12, FOOD_EVERY: 260 };
+
+export class Game {
+  constructor(seed = 1, word = "S".repeat(M_.FIRST - 2)) {
+    this.seed = seed >>> 0 || 1;
+    this.depth = 0; this.score = 0; this.eaten = 0; this.ticks = 0; this.alive = true; this.history = [];
+    this.enter(buildDuct(word));
+  }
+  rnd() { this.seed = (this.seed * 16807) % 2147483647; return this.seed / 2147483647; }
+
+  /* start on a world: in the middle of its head cap, crawling out over the head */
+  enter(world) {
+    this.world = world;
+    const cap = world.faces.findIndex((F) => F.k === world.L - 1 && F.d === world.dout[world.L - 1]);
+    const C = world.C, mid = (C - 1) >> 1;
+    this.body = [cap * C * C + mid * C + mid];
+    this.inSide = 2; this.next = -1; this.pending = M_.START - 1; this.longest = 1;
+    this.food = new Set(); this.spawn();
+  }
+  get head() { return this.body[0]; }
+  get canMolt() { return this.alive && this.body.length >= M_.MOLT_MIN; }
+  /* the next world, if you molted now: how many cells, how many bends */
+  preview() { const w = wordOf(this.world, this.body); return { cells: this.world.C ** 2 * (4 * (w.length + 2) + 2), bends: w.replace(/S/g, "").length, word: w }; }
+
+  spawn() {
+    const want = Math.max(1, Math.round(this.world.N / M_.FOOD_EVERY)), busy = new Set(this.body);
+    for (let tries = 0; this.food.size < want && tries < 2000; tries++) {
+      const c = Math.floor(this.rnd() * this.world.N);
+      if (!busy.has(c) && !this.food.has(c)) this.food.add(c);
+    }
+  }
+  /* leave the head's cell by side s next tick (ignored if that's back onto the neck) */
+  steer(s) { if (!this.alive || s < 0 || s > 3) return; if (this.body.length > 1 && this.world.nb[this.head * 4 + s] === this.body[1]) return; this.next = s; }
+  straight() { return (this.inSide + 2) % 4; }
+
+  tick() {
+    this.events = [];
+    if (!this.alive) return;
+    this.ticks++;
+    const s = this.next >= 0 ? this.next : this.straight(); this.next = -1;
+    const to = this.world.nb[this.head * 4 + s], tailMoves = this.pending === 0;
+    const hit = this.body.indexOf(to);
+    if (hit >= 0 && !(tailMoves && hit === this.body.length - 1)) { this.alive = false; this.events.push({ kind: "dead" }); return; }
+    this.inSide = this.world.back[this.head * 4 + s];
+    this.body.unshift(to);
+    if (this.pending > 0) this.pending--; else this.body.pop();
+    this.longest = Math.max(this.longest, this.body.length);
+    if (this.food.has(to)) {
+      this.food.delete(to); this.pending++; this.eaten++; this.score += this.depth + 1;
+      this.events.push({ kind: "eat" }); this.spawn();
+    }
+  }
+
+  /* shed this world: the body becomes the next one */
+  molt() {
+    if (!this.canMolt) return null;
+    const word = wordOf(this.world, this.body);
+    this.history.push({ depth: this.depth, length: this.body.length, word, cells: this.world.N });
+    this.depth++;
+    this.enter(buildDuct(word));
+    this.events = [{ kind: "molt", depth: this.depth }];
+    return this.world;
+  }
+}
+export { sideTo };
