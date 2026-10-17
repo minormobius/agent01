@@ -1,0 +1,6 @@
+p0.25 s2 h0.7 integ into split: newcomer/resident squares at 1500: 6025/262 M0.18  5407/403 M0.21  6024/252 M0.19  5561/371 M0.22  5887/306 M0.19
+p0.25 s2 h0.7 split into integ: newcomer/resident squares at 1500: 97/6446 M0.24  18/6788 M0.30  138/6308 M0.23  116/6462 M0.22  95/6514 M0.19
+p0.25 s5 h0.8 integ into split: newcomer/resident squares at 1500: 6440/449 M0.13  4083/961 M0.06  3306/1109 M0.05  3341/1146 M0.06  3598/1107 M0.05
+p0.25 s5 h0.8 split into integ: newcomer/resident squares at 1500: 0/8051 M-  591/5949 M0.09  611/5749 M0.09  355/6766 M0.10  465/6491 M0.09
+p0.5 s2 h0.9 integ into split: newcomer/resident squares at 1500: 0/4762 M-  0/4797 M-  0/4854 M-  0/4771 M-  0/4738 M-
+p0.5 s2 h0.9 split into integ: newcomer/resident squares at 1500: 0/8975 M-  0/8940 M-  0/8828 M-  0/8901 M-  0/8938 M-
