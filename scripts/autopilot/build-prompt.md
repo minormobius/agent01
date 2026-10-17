@@ -33,10 +33,10 @@ _Regenerated 2026-10-17 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-17, 100 members / 241 posts):
+**Neighborhood spark** (bisk 2026-10-17, 100 members / 249 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: jevbot, llms, deepseek
-- Top post: "the number of people i see expressing the desire that AI should be conscious so they can torture it convinces me that 1)" — @segyges.bsky.social
+- Distinctive words: deepseek, jevbot, openai
+- Top post: "[blameless retrospective voice]: it turns out that the people who design systems for the entire world living in a dysfun" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
