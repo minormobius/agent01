@@ -185,3 +185,50 @@ export function wordOf(M, body) {
   }
   return w;
 }
+
+/* ---- the rounded tube, for drawing.
+   The body's centreline runs through the cells it crossed: straight through a
+   straight cell, a quarter circle (radius 1/2, round the cell's inside corner)
+   through a turning one, and stopping at the middle of the two end cells. Every
+   point of the blocky surface is pushed out to radius R round its nearest point
+   on that line, so square cross-sections become circles, corners become bends
+   and the caps become hemispheres. Only the drawing changes: the cells, their
+   neighbours and every count above stay exactly what they were. */
+export function centreline(M) {
+  const out = [];
+  for (let k = 0; k < M.L; k++) {
+    const P = M.P[k], di = VEC[M.din[k]], dO = VEC[M.dout[k]];
+    const E = [P[0] - 0.5 * di[0], P[1] - 0.5 * di[1], 0], X = [P[0] + 0.5 * dO[0], P[1] + 0.5 * dO[1], 0];
+    if (k === 0) out.push({ k, a: [P[0], P[1], 0], b: X });
+    else if (k === M.L - 1) out.push({ k, a: E, b: [P[0], P[1], 0] });
+    else if (M.din[k] === M.dout[k]) out.push({ k, a: E, b: X });
+    else {
+      const O = [P[0] - 0.5 * di[0] + 0.5 * dO[0], P[1] - 0.5 * di[1] + 0.5 * dO[1], 0];
+      const t0 = Math.atan2(E[1] - O[1], E[0] - O[0]), t1 = Math.atan2(X[1] - O[1], X[0] - O[0]);
+      let sw = t1 - t0; while (sw > Math.PI) sw -= 2 * Math.PI; while (sw < -Math.PI) sw += 2 * Math.PI;
+      out.push({ k, O, t0, sw });
+    }
+  }
+  return out;
+}
+function nearestOn(piece, x) {
+  if (piece.O) {
+    let t = Math.atan2(x[1] - piece.O[1], x[0] - piece.O[0]) - piece.t0;
+    while (t > Math.PI) t -= 2 * Math.PI; while (t < -Math.PI) t += 2 * Math.PI;
+    const u = Math.max(0, Math.min(1, t / piece.sw)), a = piece.t0 + u * piece.sw;
+    return [piece.O[0] + 0.5 * Math.cos(a), piece.O[1] + 0.5 * Math.sin(a), 0];
+  }
+  const { a, b } = piece, d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L2 = dot(d, d);
+  const u = L2 ? Math.max(0, Math.min(1, dot([x[0] - a[0], x[1] - a[1], x[2] - a[2]], d) / L2)) : 0;
+  return [a[0] + u * d[0], a[1] + u * d[1], a[2] + u * d[2]];
+}
+/* a point of the blocky surface (on a face of cube k) pushed out onto the tube: [position, outward normal] */
+export function roundPoint(line, k, x, R) {
+  let best = null, bd = Infinity;
+  for (let j = Math.max(0, k - 2); j <= Math.min(line.length - 1, k + 2); j++) {
+    const c = nearestOn(line[j], x), d = (x[0] - c[0]) ** 2 + (x[1] - c[1]) ** 2 + (x[2] - c[2]) ** 2;
+    if (d < bd - 1e-12) { bd = d; best = c; }
+  }
+  const v = [x[0] - best[0], x[1] - best[1], x[2] - best[2]], m = Math.hypot(v[0], v[1], v[2]) || 1, n = [v[0] / m, v[1] / m, v[2] / m];
+  return [[best[0] + R * n[0], best[1] + R * n[1], best[2] + R * n[2]], n];
+}

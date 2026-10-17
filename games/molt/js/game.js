@@ -25,13 +25,15 @@ export class Game {
   }
   rnd() { this.seed = (this.seed * 16807) % 2147483647; return this.seed / 2147483647; }
 
-  /* start on a world: in the middle of its head cap, crawling out over the head */
+  /* start on a world: on top of its head end, crawling back along it towards the tail, so the world opens out ahead */
   enter(world) {
     this.world = world;
-    const cap = world.faces.findIndex((F) => F.k === world.L - 1 && F.d === world.dout[world.L - 1]);
-    const C = world.C, mid = (C - 1) >> 1;
-    this.body = [cap * C * C + mid * C + mid];
-    this.inSide = 2; this.next = -1; this.pending = M_.START - 1; this.longest = 1;
+    const top = world.faces.findIndex((F) => F.k === world.L - 1 && F.d === 4);
+    const C = world.C, mid = (C - 1) >> 1, c = top * C * C + mid * C + mid, F = world.faces[top];
+    // come in from the side that faces the head cap, so straight on leads away from it
+    const dirs = [F.p, F.r, F.p ^ 1, F.r ^ 1];
+    this.body = [c];
+    this.inSide = dirs.indexOf(world.dout[world.L - 1]); this.next = -1; this.pending = M_.START - 1; this.longest = 1;
     this.food = new Set(); this.spawn();
   }
   get head() { return this.body[0]; }

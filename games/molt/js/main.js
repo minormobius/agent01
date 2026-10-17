@@ -10,7 +10,7 @@ const queue = [];                                   // screen directions waiting
 try { best = +localStorage.getItem("molt.best") || 0; } catch (e) { /* private mode */ }
 const touch = matchMedia("(hover: none)").matches;
 let pad = touch;
-try { const p = localStorage.getItem("molt.pad"); if (p != null) pad = p === "1"; } catch (e) { /* private mode */ }
+try { const p = localStorage.getItem("molt.pad"); if (p != null) pad = p === "1"; const v = localStorage.getItem("molt.view"); if (v === "net" || v === "tube") view.mode = v; } catch (e) { /* private mode */ }
 
 function newGame() {
   g = new Game((Date.now() % 2147483646) + 1);
@@ -45,7 +45,7 @@ function molt() {
 function stepMolt(dt) {
   seq.t += dt;
   if (seq.phase === "dive") {
-    const k = Math.min(1, seq.t / MOLT_T.dive); view.zoom = 1 + 9 * k * k * k; seq.fade = k * k;
+    const k = Math.min(1, seq.t / MOLT_T.dive); view.zoom = view.mode === "tube" ? 1 - 0.88 * k * k : 1 + 9 * k * k * k; seq.fade = k * k;
     if (k >= 1) {
       const from = g.body.length;
       g.molt(); view.setWorld(g.world, g); view.zoom = 1; view.mix = 1;
@@ -79,9 +79,11 @@ function loop(now) {
   const f = running && !seq ? Math.min(1, acc / M_.TICK) : 1;
   view.track(g, f, dt);
   if (seq && seq.phase !== "dive") {
-    view.draw3(g, now);
-    if (seq.phase === "swoop" && view.mix < 0.4) view.drawNet(g, now, 1 - view.mix / 0.4);   // the net fades in as the camera lands
-  } else view.drawNet(g, now);
+    view.drawTube(g, now);
+    if (view.mode === "net" && seq.phase === "swoop" && view.mix < 0.4) view.drawNet(g, now, 1 - view.mix / 0.4);   // the net fades in as the camera lands
+  } else if (view.mode === "tube") view.drawTube(g, now);
+  else view.drawNet(g, now);
+  if (!seq) view.drawMini(g);
   if (seq && seq.fade) { const c = view.ctx; c.setTransform(view.dpr, 0, 0, view.dpr, 0, 0); c.fillStyle = `rgba(5,6,10,${seq.fade})`; c.fillRect(0, 0, view.w, view.h); }
   requestAnimationFrame(loop);
 }
@@ -93,6 +95,7 @@ window.addEventListener("keydown", (e) => {
   if (KEYS[e.key]) { e.preventDefault(); push(KEYS[e.key]); }
   else if (e.key === " ") { e.preventDefault(); $("play").click(); }
   else if (e.key === "m" || e.key === "M") molt();
+  else if (e.key === "v" || e.key === "V") $("viewbtn").click();
 });
 let anchor = null;
 const SWIPE = 22;
@@ -113,6 +116,8 @@ for (const b of document.querySelectorAll("#pad button")) {
 function padState() { document.body.classList.toggle("pad", pad); $("padbtn").classList.toggle("on", pad); }
 $("padbtn").onclick = () => { pad = !pad; padState(); try { localStorage.setItem("molt.pad", pad ? "1" : "0"); } catch (e) { /* private mode */ } };
 $("molt").onclick = molt;
+function viewState() { $("viewbtn").textContent = view.mode === "tube" ? "net" : "tube"; }
+$("viewbtn").onclick = () => { view.mode = view.mode === "tube" ? "net" : "tube"; queue.length = 0; viewState(); try { localStorage.setItem("molt.view", view.mode); } catch (e) { /* private mode */ } };
 $("play").onclick = () => { if (!g.alive) return; running = !running; $("play").textContent = running ? "❚❚" : "▶"; };
 $("help").onclick = () => { running = false; $("play").textContent = "▶"; $("start").hidden = false; };
 $("go").onclick = () => { $("start").hidden = true; if (!g.alive) newGame(); running = true; $("play").textContent = "❚❚"; last = 0; };
@@ -120,7 +125,7 @@ $("again").onclick = () => { $("over").hidden = true; newGame(); running = true;
 document.addEventListener("visibilitychange", () => { if (document.hidden && running) $("play").click(); });
 window.addEventListener("resize", () => { view.resize(); view.setWorld(g.world, g); });
 
-padState();
+padState(); viewState();
 newGame();
 requestAnimationFrame(loop);
 window.MOLT = { get g() { return g; }, view, molt, push, set running(v) { running = v; } };

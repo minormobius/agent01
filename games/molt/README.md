@@ -37,27 +37,49 @@ including coils and spirals whose flat layout overlaps itself:
   started: round the tube after 12 cells, or along it and over both caps
   after 2C(L + 1).
 
-## Seeing it: the net
+## Seeing it: the tube, the minimap, the net
 
-From outside a square tube you can only see one face at a time, and every
-turn to the side would take you out of view. So while you play, the
-surface around the head is **unfolded flat**, the way a cube's net lies
-flat. The head's face sits in the middle, with its neighbours laid out
-across the edges they share, and theirs beyond, out to the edge of the
-screen (`js/view.js`).
+**The tube (default).** The body's cubes are rounded into a smooth tube
+for drawing (`roundPoint` in `js/duct.js`). The body's centreline runs
+straight through straight cells and along a quarter circle (radius ½)
+through turning ones, and every point of the blocky surface is pushed out
+to radius 0.38 around its nearest point on that line. Square
+cross-sections become circles, corners become bends, and the caps become
+hemispheres. Only the drawing changes: the cells, their neighbours and
+every count above stay exactly as they were.
+
+The selftest checks that the tube is watertight (every edge two cells
+share lands on the same points from both sides) and that every cell faces
+outward. The one exception is a body that spirals three or more turns the
+same way (LLL). Laid flat to be drawn, that lands on itself; it's possible
+on a curved world, by circling a cube's corner. Those few cells are
+skipped.
+
+A camera rides above the head, looking down at it. Its "up" is carried
+from cell to cell as the surface curves. Where a straight line of cells
+bends (round a cube's corner, 90°), the camera turns with it, so the way
+the snake is going always sits exactly up, down, left or right on screen.
+That keeps the arrow keys classic snake: the selftest's browser run checks
+right, right (all the way round the tube), up, left and down, each landing
+where the screen says.
+
+**The minimap** (top right) shows the whole world from above, with your
+snake on it (bright on top of the tube, dim underneath), your head and
+the food.
+
+**The net** (the `net` button, or V) is the surface around the head
+unfolded flat, the way a cube's net lies flat:
 
 - On a straight stretch you see the whole tube unrolled around you.
-- Where the world curves, the net can't lie flat, and it shows it. A 90°
-  gap opens at a cube's corner. A face that would overlap at the inside of
-  a bend is left out until you get closer.
-- The net is laid out again every time the head crosses onto another face.
-  It keeps its orientation (parallel transport over the fold), so a
-  direction on screen means the same thing on both sides of the fold.
-  That's what keeps the controls classic snake on a world full of corners.
+- Where the world curves, a 90° gap opens at a cube's corner, and a face
+  that would overlap at the inside of a bend is left out until you get
+  closer.
+- It is laid out again on every face change, keeping its orientation.
 
-The molt is shown in 3D: the screen fades as you dive into your head, the
-whole new world appears (the shape of the body you just left, every bend in
-place), then the camera swoops down onto your head and the net fades back in.
+The molt is shown in 3D: you dive into your head, the whole new world
+appears (the shape of the body you just left, every bend in place), and
+then the camera lands on your new head, on top of its head end, crawling
+back towards the tail.
 
 ## Playing
 
@@ -67,8 +89,8 @@ place), then the camera swoops down onto your head and the net fades back in.
   thumb pad (`pad` toggles it). Turns queue two deep.
 - **Molt:** M, or the MOLT button. It appears at length 8 and shows the
   next world's size and bends.
-- You start each world at the middle of its head cap, crawling out over
-  the head of the snake you were.
+- You start each world on top of its head end, crawling back towards the
+  tail, so the world opens out ahead of you.
 - Food grows you by one cell and is worth (depth + 1) points. The bigger
   the world, the more food there is.
 - Haptics: a tap when you eat, a thump when you molt, a buzz when you bite.
@@ -76,16 +98,16 @@ place), then the camera swoops down onto your head and the net fades back in.
 ## Files
 
 - `js/duct.js`: word → surface. It builds faces, cells, neighbours, face
-  links for unfolding, the curvature census, a drawing embedding (a duct
-  0.72 wide down the middle of each body cell, so coils show a gap), and
-  `wordOf` (body → word). No DOM.
+  links for unfolding, the curvature census, the blocky drawing embedding
+  (a duct 0.72 wide down the middle of each body cell), the rounded tube
+  (`centreline`, `roundPoint`), and `wordOf` (body → word). No DOM.
 - `js/game.js`: the rules. Steering by side, straight on by default,
   growth, food, death, and molting. No DOM.
-- `js/view.js`: the net, the camera that follows the head, and the 3D
+- `js/view.js`: the tube and its camera, the minimap, the net, and the 3D
   reveal.
 - `js/main.js`: the clock, input (keys, swipes, pad), the HUD, and the
   molt sequence.
-- `test/molt.selftest.mjs`: 18 checks, under a second.
+- `test/molt.selftest.mjs`: 21 checks, about a second.
 
 ## Next
 

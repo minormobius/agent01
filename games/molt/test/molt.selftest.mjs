@@ -65,6 +65,48 @@ function check(M) {
   ok(turn === "0,3,4,5" && straight === "2,3,4,5", "extra tiles on the wide end: the turning cube shows both outer walls (+x, −y) and no inner wall; a straight one shows both side walls");
 }
 
+/* ---- the rounded tube the player sees */
+{
+  const R = 0.38, corners = [[1, 0, 1, 1], [0, 1, 1, 1], [0, 0, 0, 1], [0, 0, 1, 0]];
+  let crack = 0, flipped = 0, spiral = 0, cells = 0, worstW = "";
+  const words = ["SSSS", "SSLSS", "SLLS", "SRRSLLS", "LRLRLRLR", "SSLLSSRRSS"];
+  for (let k = 0; k < 20; k++) { let w = ""; const n = 4 + ((rnd() * 30) | 0); for (let i = 0; i < n; i++) w += "SSLR"[(rnd() * 4) | 0]; words.push(w); }
+  for (const w of words) {
+    const M = D.buildDuct(w), line = D.centreline(M), CC = C * C;
+    const rp = (c, u, v) => D.roundPoint(line, M.faces[(c / CC) | 0].k, D.cellPoint(M, c, u, v), R);
+    const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    for (let c = 0; c < M.N; c++) {
+      cells++;
+      for (let s = 0; s < 4; s++) {
+        const d = M.nb[c * 4 + s], t = M.back[c * 4 + s], [a1, b1, a2, b2] = corners[s], [e1, f1, e2, f2] = corners[t];
+        const P = [rp(c, a1, b1)[0], rp(c, a2, b2)[0]], Q = [rp(d, e1, f1)[0], rp(d, e2, f2)[0]];
+        const m = Math.min(Math.max(dist(P[0], Q[0]), dist(P[1], Q[1])), Math.max(dist(P[0], Q[1]), dist(P[1], Q[0])));
+        if (m > crack) { crack = m; worstW = w; }
+      }
+      // the cell's corners, in order round it, wind the same way as its outward normal
+      const q = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => rp(c, u, v)[0]), n = rp(c, 0.5, 0.5)[1];
+      const e1 = q.map((p, i) => q[(i + 1) % 4].map((x, j) => x - p[j]));
+      let wind = [0, 0, 0];
+      for (let i = 0; i < 4; i++) { const a = q[i], b2_ = q[(i + 1) % 4]; wind = [wind[0] + a[1] * b2_[2] - a[2] * b2_[1], wind[1] + a[2] * b2_[0] - a[0] * b2_[2], wind[2] + a[0] * b2_[1] - a[1] * b2_[0]]; }
+      if (wind[0] * n[0] + wind[1] * n[1] + wind[2] * n[2] <= 0 && e1.length) {
+        // allowed only where the body, laid flat to be drawn, lands on itself (a spiral of 3+ turns the same way: possible on a curved world)
+        const k = M.faces[(c / CC) | 0].k, key = (j) => M.P[j][0] + "," + M.P[j][1];
+        let overlaps = false;
+        for (let j = 0; j < M.L; j++) if (j !== k && Math.abs(j - k) <= 6 && key(j) === key(k)) overlaps = true;
+        for (let j = Math.max(0, k - 2); j <= Math.min(M.L - 1, k + 2); j++) for (let i = 0; i < M.L; i++) if (i !== j && Math.abs(i - j) > 2 && key(i) === key(j)) overlaps = true;
+        if (overlaps) spiral++; else flipped++;
+      }
+    }
+  }
+  ok(crack < 1e-9, "the rounded tube is watertight: every edge two cells share lands on the same points from both sides, on " + words.length + " bodies" + (crack < 1e-9 ? "" : " — " + crack.toExponential(2) + " on " + worstW));
+  ok(flipped === 0, "every one of " + cells + " rounded cells faces outward, except " + spiral + " where the body laid flat lands on itself (a spiral the drawing can't untangle; the page skips them)" + (flipped ? " — " + flipped + " others don't" : ""));
+}
+{
+  const g = new Game(3), M = g.world, F = M.faces[(g.head / (C * C)) | 0], ahead = M.nb[g.head * 4 + g.straight()];
+  const a = D.cellPoint(M, g.head, 0.5, 0.5), b = D.cellPoint(M, ahead, 0.5, 0.5), cap = M.dout[M.L - 1];
+  ok(F.k === M.L - 1 && F.d === 4 && (cap === 0 ? b[0] < a[0] : cap === 1 ? b[0] > a[0] : cap === 2 ? b[1] < a[1] : b[1] > a[1]), "a world starts on top of its head end, crawling back towards the tail");
+}
+
 /* ---- the word read back from a snake */
 {
   const M = D.buildDuct("SSSSSS"), CC = C * C, top = M.faces.findIndex((F) => F.k === 3 && F.d === 4);

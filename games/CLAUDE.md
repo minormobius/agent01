@@ -180,9 +180,11 @@ Three things live here:
   C²(4L + 2) cells whatever the shape, every cell a square with 4
   neighbours, the curvature at the cube corners (3 squares meet outside a
   bend, 5 inside). Once 8 long you molt: your body becomes the next world.
-  Played on the surface unfolded flat round the head (re-laid per face,
-  orientation carried over the fold, so arrows and swipes stay classic);
-  the molt is shown in 3D. See [`molt/README.md`](molt/README.md).
+  Drawn as a smooth tube (every point pushed onto a circle round the
+  body's centreline; watertight, checked), a camera riding above the head
+  whose up turns with the snake's straight lines so arrows and swipes stay
+  classic; a minimap of the whole world; the surface unfolded flat (a cube's
+  net) is a toggle. The molt dives into the head and shows the new world whole. See [`molt/README.md`](molt/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
