@@ -1,0 +1,20 @@
+[
+  { "id": "SW", "text": "Stopwatch shall measure how far the clinic tablet's recorded waits differ from a stopwatch, and say so honestly.", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "council/CHOICE.md" },
+
+  { "id": "SW-H", "parent": "SW", "text": "The harness shall record a model under a fake realtime clock and replay its decision log under run().", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "SPEC harness; built first." },
+  { "id": "SW-H-MATCH", "parent": "SW-H", "text": "A deterministic model shall replay with every decision matching, injections included, at any scale.", "strength": "shall", "method": "test", "acceptance": "T-H1-MATCH and T-H1-SAMETIME pass.", "rationale": "SPEC H1. Same-time injections are where record and replay can part." },
+  { "id": "SW-H-CATCH", "parent": "SW-H", "text": "Replay shall report a mismatch when a model decides with Math.random, a different seed, or a missing decision.", "strength": "shall", "method": "test", "acceptance": "T-H2-RANDOM passes.", "rationale": "SPEC H2." },
+
+  { "id": "SW-S", "parent": "SW", "text": "The study shall time patients with one observer for at most the manager's mornings and report an interval and a verdict.", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "SPEC study." },
+  { "id": "SW-S-SAFE", "parent": "SW-S", "text": "The study shall never ask for an impossible timing or a morning past the limit, and shall return a well-formed report.", "strength": "shall", "method": "test", "acceptance": "T-S1-SAFE passes on 200 stand-in clinics of five loads.", "rationale": "SPEC S1." },
+  { "id": "SW-S-HONEST", "parent": "SW-S", "text": "The interval shall hold the true mean difference in 90% to 99% of clinics at alpha 0.05, with mean error under one minute.", "strength": "shall", "method": "test", "acceptance": "T-S2-HONEST and T-S2-TQUANT pass.", "rationale": "SPEC S2. Measured on our stand-in clinic, not the lab's." },
+  { "id": "SW-S-VERDICT", "parent": "SW-S", "text": "The verdict shall follow the interval in the order SPEC S3 gives, with the 2-minute band inclusive.", "strength": "shall", "method": "test", "acceptance": "T-S3-VERDICT passes.", "rationale": "SPEC S3." },
+  { "id": "SW-S-REPRO", "parent": "SW-S", "text": "The same seed on the same clinic shall give the same report, and the study's log shall replay through the harness.", "strength": "shall", "method": "test", "acceptance": "T-S4-REPRO passes.", "rationale": "SPEC S4." },
+  { "id": "SW-S-DIAG", "parent": "SW-S", "text": "The report shall add one warning clause when the timed differences drift with wait, or when the timed patients waited 5 minutes or more less than the rest by the tablet, and shall leave the interval and the verdict unchanged.", "strength": "shall", "method": "test", "acceptance": "T-S5-DIAG passes.", "rationale": "ta-a63ca2 (Morphyx). SPEC promises differences independent of waits; the study leans on it (fi-85326e). The drift test fires about alpha of the time under the promise." },
+
+  { "id": "SW-F", "parent": "SW", "text": "Evidence shall stop counting when a file it depended on changes.", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "Fresh, Mozzie's evidence layer." },
+  { "id": "SW-F-DROP", "parent": "SW-F", "text": "Changing one implementing file shall drop exactly the evidence that depended on it, and leave the rest.", "strength": "shall", "method": "test", "acceptance": "T-F1-DROP passes.", "rationale": "SPEC F1." },
+
+  { "id": "SW-V", "parent": "SW", "text": "The project shall be measured by vv on its own requirements.", "strength": "shall", "method": "test", "acceptance": "All children verified.", "rationale": "SPEC V1." },
+  { "id": "SW-V-SELF", "parent": "SW-V", "text": "Every link shall name a real check, and every check shall verify a requirement.", "strength": "shall", "method": "test", "acceptance": "T-V1-SELF passes.", "rationale": "A link to a check that doesn't run is a verification nobody did." }
+]
