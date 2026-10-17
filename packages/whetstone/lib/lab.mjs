@@ -368,7 +368,10 @@ export async function runLab({
     }
     const live = () => pick(C, (k) => k.startsWith('council/'));
     const mount = (soul) => ({ ...tools, ...Object.fromEntries(Object.entries(live()).map(([k, v]) => [k.slice('council/'.length), v])),
-      'BOARD.md': C['BOARD.md'], ...shelfOf(C), ...ledgerMount(soul), 'CARRIES.md': C['CARRIES.md'], 'COSTS.md': C['COSTS.md'] || '', 'RUNLOG.md': C['RUNLOG.md'] || '', ...pick(C, (k) => k.startsWith('letters/')) });
+      'BOARD.md': C['BOARD.md'], ...shelfOf(C), ...ledgerMount(soul), 'CARRIES.md': C['CARRIES.md'], 'COSTS.md': C['COSTS.md'] || '', 'RUNLOG.md': C['RUNLOG.md'] || '', ...pick(C, (k) => k.startsWith('letters/')),
+      // research/, read-only (keep() takes back only COUNCIL.md, CHOICE.md and proposals/): councils argue from
+      // their own sketches and counts (10-17: the dice route sketch, the summons counts).
+      ...pick(C, (k) => k.startsWith('research/')) });
     const keep = (dirs) => {
       for (const k of Object.keys(C)) if (k.startsWith('council/') && !PAST.test(k)) delete C[k];
       for (const [k, v] of Object.entries(readTree(dirs.work))) {
