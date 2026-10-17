@@ -6,15 +6,19 @@ import { bends } from "./duct.js";
 
 const $ = (id) => document.getElementById(id);
 const view = new View($("view"));
-let g, acc = 0, last = 0, running = false, best = 0, noteT = 0, seq = null;
+let g, acc = 0, last = 0, running = false, best = 0, noteT = 0, seq = null, runSeed = 1, posted = false;
+let mine = { score: 0, length: 0, depth: 0 };
+try { mine = Object.assign(mine, JSON.parse(localStorage.getItem("molt.mine") || "{}")); } catch (e) { /* private mode */ }
 const queue = [];                                   // screen directions waiting for their tick (two at most)
 try { best = +localStorage.getItem("molt.best") || 0; } catch (e) { /* private mode */ }
+mine.score = Math.max(mine.score, best);
 const touch = matchMedia("(hover: none)").matches;
 let pad = touch;
 try { const p = localStorage.getItem("molt.pad"); if (p != null) pad = p === "1"; const v = localStorage.getItem("molt.view"); if (v === "net" || v === "tube") view.mode = v; } catch (e) { /* private mode */ }
 
 function newGame() {
-  g = new Game((Date.now() % 2147483646) + 1);
+  runSeed = (Date.now() % 2147483646) + 1; posted = false;
+  g = new Game(runSeed);
   view.setWorld(g.world, g); queue.length = 0; acc = 0; seq = null; view.mix = 0; view.zoom = 1;
   hud();
 }
@@ -33,8 +37,25 @@ function over() {
   $("o-head").textContent = "bitten at depth " + g.depth;
   $("o-score").textContent = g.score;
   const molts = g.history.map((h) => h.length).join(" → ");
-  $("o-text").textContent = `${g.eaten} eaten, ${g.ticks} steps, longest ${g.longest} this world.` + (g.history.length ? ` You molted at length ${molts}.` : " You never molted.") + ` Best: ${best}.`;
+  $("o-text").textContent = `${g.eaten} eaten, ${g.ticks} steps, ${g.maxLength} long at your longest.` + (g.history.length ? ` You molted at length ${molts}.` : " You never molted.");
+  // this browser's bests on each board
+  const news = [];
+  if (g.score > mine.score) { mine.score = g.score; news.push("score"); }
+  if (g.maxLength > mine.length) { mine.length = g.maxLength; news.push("longest snake"); }
+  if (g.depth > mine.depth) { mine.depth = g.depth; news.push("deepest"); }
+  try { localStorage.setItem("molt.mine", JSON.stringify(mine)); } catch (e) { /* private mode */ }
+  $("o-mine").textContent = (news.length ? "new best: " + news.join(", ") + ". " : "") + `Your bests: ${mine.score} points, ${mine.length} long, depth ${mine.depth}.`;
+  offerable();
   $("over").hidden = false;
+}
+/* the boards load on their own (they need the vendored auth client); their buttons show once they're there */
+const board = () => window.MOLT_BOARD || null;
+function offerable() { const b = !!board(); $("trophy").hidden = $("o-board").hidden = !b; $("post").hidden = !b || !g || g.alive || !g.score; $("post").disabled = posted; }
+window.addEventListener("molt-board", offerable);
+function postRun() {
+  const b = board(); if (!b || g.alive || !g.score || posted) return;
+  posted = true; $("post").disabled = true;
+  b.offer({ sel: { metric: "score" }, value: g.score, seed: runSeed, steps: g.ticks, eaten: g.eaten, longest: g.maxLength, depth: g.depth, at: Date.now() });
 }
 
 /* the molt: dive into the head, swap worlds, show the new one whole (your old body), swoop down to the new head */
@@ -93,6 +114,8 @@ function loop(now) {
 const KEYS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right", W: "up", S: "down", A: "left", D: "right" };
 function push(dir) { if (!running || seq || !g.alive) return; if (queue.length < 2 && queue[queue.length - 1] !== dir) queue.push(dir); }
 window.addEventListener("keydown", (e) => {
+  // keys typed into a field (the leaderboard's handle) belong to the field, not the game; and leave browser shortcuts alone
+  if (e.ctrlKey || e.metaKey || e.altKey || (e.target && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)))) return;
   if (KEYS[e.key]) { e.preventDefault(); push(KEYS[e.key]); }
   else if (e.key === " ") { e.preventDefault(); $("play").click(); }
   else if (e.key === "m" || e.key === "M") molt();
@@ -117,6 +140,9 @@ for (const b of document.querySelectorAll("#pad button")) {
 function padState() { document.body.classList.toggle("pad", pad); $("padbtn").classList.toggle("on", pad); }
 $("padbtn").onclick = () => { pad = !pad; padState(); try { localStorage.setItem("molt.pad", pad ? "1" : "0"); } catch (e) { /* private mode */ } };
 $("molt").onclick = molt;
+$("post").onclick = postRun;
+$("o-board").onclick = () => { const b = board(); if (b) b.open({ metric: "score" }); };
+$("trophy").onclick = () => { const b = board(); if (!b) return; if (running) $("play").click(); b.open({ metric: "score" }); };
 function viewState() { $("viewbtn").textContent = view.mode === "tube" ? "net" : "tube"; }
 $("viewbtn").onclick = () => { view.mode = view.mode === "tube" ? "net" : "tube"; queue.length = 0; viewState(); try { localStorage.setItem("molt.view", view.mode); } catch (e) { /* private mode */ } };
 $("play").onclick = () => { if (!g.alive) return; running = !running; $("play").textContent = running ? "❚❚" : "▶"; };
@@ -127,6 +153,6 @@ document.addEventListener("visibilitychange", () => { if (document.hidden && run
 window.addEventListener("resize", () => { view.resize(); view.setWorld(g.world, g); });
 
 padState(); viewState();
-newGame();
+newGame(); offerable();
 requestAnimationFrame(loop);
 window.MOLT = { get g() { return g; }, view, molt, push, set running(v) { running = v; } };

@@ -119,6 +119,32 @@ back towards the tail.
   the world, the more food there is.
 - Haptics: a tap when you eat, a thump when you molt, a buzz when you bite.
 
+## Leaderboards
+
+There are three boards, each showing all time, week and today, one row per
+player:
+
+- **score** (food is worth depth + 1);
+- **longest snake**, in any world;
+- **deepest**: how many times you molted.
+
+One tap on "post" writes all three (no depth record if you never molted)
+as `com.minomobi.lab.score` records in your own repo, through Orb's board
+kit (`../orb/js/board-kit.js`), the same stack as Orb, Fathom, One Side and
+Tessera. The detail field carries `seed steps eaten longest depth`.
+
+The boards trust the record but refuse the impossible:
+
+- a snake grows only by eating, starting each world 3 long;
+- each molt takes at least 5 food (you must reach 8);
+- no food is worth more than (depth + 1);
+- the record's value must match its own detail.
+
+The selftest checks the refusals, and checks that bot runs down to depth 5
+post records the boards accept. The ids carry `v1`: bump `VERSION` in
+`js/score.js` if the rules change in a way that moves the numbers. The
+game-over screen also shows this browser's bests on all three.
+
 ## Files
 
 - `js/duct.js`: word → surface. It builds faces, cells, neighbours, face
@@ -131,11 +157,13 @@ back towards the tail.
   reveal.
 - `js/main.js`: the clock, input (keys, swipes, pad), the HUD, and the
   molt sequence.
-- `test/molt.selftest.mjs`: 24 checks, about a second.
+- `js/score.js`: the three boards' records, and what they refuse. No imports.
+- `js/board.js`: mounts the board kit. A separate module, so the game
+  still runs if the vendored auth client can't load.
+- `test/molt.selftest.mjs`: 29 checks, about a second.
 
 ## Next
 
-- Leaderboards: depth and score, through the board kit.
 - A treadmill mode, where the parent keeps crawling while you're inside
   it, so rings appear at its head and vanish at its tail.
 - Portals where the parent lay against itself.

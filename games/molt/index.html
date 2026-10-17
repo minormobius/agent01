@@ -33,6 +33,7 @@
       <button class="ghost" id="play" type="button" title="Pause (space)">❚❚</button>
       <button class="ghost" id="viewbtn" type="button" title="The tube, or the surface unfolded flat (V)">net</button>
       <button class="ghost" id="padbtn" type="button" title="Show or hide the pad">pad</button>
+      <button class="ghost" id="trophy" type="button" aria-label="Leaderboard" title="Leaderboard">🏆</button>
       <button class="ghost" id="help" type="button" aria-label="How it works">?</button>
     </div>
   </div>
@@ -62,9 +63,15 @@
   <h2 id="o-head">bitten</h2>
   <h1 id="o-score">0</h1>
   <p id="o-text">—</p>
-  <button class="primary" id="again" type="button">again</button>
+  <p id="o-mine" class="small">—</p>
+  <div class="row">
+    <button class="primary" id="post" type="button">post to the board</button>
+    <button class="ghost" id="o-board" type="button">🏆 board</button>
+  </div>
+  <button class="ghost" id="again" type="button">again</button>
 </div>
 
 <script type="module" src="js/main.js"></script>
+<script type="module" src="js/board.js"></script>
 </body>
 </html>

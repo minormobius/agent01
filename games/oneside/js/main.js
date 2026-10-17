@@ -23,6 +23,8 @@
   /* ---------------------------------------------------------------- input */
   var DIRS = { ArrowUp: 0, KeyW: 0, ArrowLeft: 1, KeyA: 1, ArrowDown: 2, KeyS: 2, ArrowRight: 3, KeyD: 3 };
   document.addEventListener("keydown", function (e) {
+    // keys typed into a field (the leaderboard's handle) belong to the field, not the game; and leave browser shortcuts alone
+    if (e.ctrlKey || e.metaKey || e.altKey || (e.target && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)))) return;
     if (e.code in DIRS) { dir(DIRS[e.code]); e.preventDefault(); }
     else if (e.code === "Space" || e.code === "KeyP") { paused = !paused; say(paused ? "paused" : ""); e.preventDefault(); }
     else if (e.code === "KeyB") $("band").click();

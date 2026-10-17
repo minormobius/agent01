@@ -180,5 +180,29 @@ function bot(g, wild) {
   ok(run() === run(), "deterministic: the same seed and the same steering play the same game");
 }
 
+/* ---- the leaderboards: three records a run, and what the boards refuse */
+{
+  const S = await import(path.join(here, "../js/score.js"));
+  ok(S.START === M_.START && S.MOLT_MIN === M_.MOLT_MIN, "the boards' ceilings use the game's own numbers: a snake starts " + S.START + " long and molts at " + S.MOLT_MIN);
+  const run = { value: 40, seed: 7, steps: 900, eaten: 22, longest: 14, depth: 2 }, at = "2026-10-18T12:00:00Z";
+  const recs = S.records(run).map((r) => ({ site: "molt", createdAt: at, ...r }));
+  ok(recs.length === 3 && recs.every(S.accept) && recs.map((r) => r.value).join() === "40,14,2", "a run posts its score, its longest snake and its depth, and the boards read all three back");
+  ok(S.records({ ...run, depth: 0, value: 12 }).length === 2, "a run that never molted posts no depth");
+  const [sc, ln, dp] = recs, d = (o) => S.detail({ ...run, ...o });
+  const bad = [{ ...sc, site: "tessera" }, { ...sc, game: "score-v0" }, { ...sc, unit: "cells" }, { ...sc, higherIsBetter: false }, { ...sc, value: 0 }, { ...sc, value: 2.5 },
+    { ...sc, value: 67 }, { ...ln, value: 15 }, { ...ln, value: 26, detail: d({ longest: 26 }) }, { ...dp, value: 3 }, { ...dp, value: 5, detail: d({ depth: 5 }) },
+    { ...sc, detail: d({ eaten: 901 }) }, { ...sc, detail: "seed=7" }, { ...sc, createdAt: "never" }];
+  ok(bad.every((v) => !S.accept(v)), "the boards refuse another site's, another version's, the wrong unit, a time, a zero, a fraction, more points than the food allows, a length or depth the record's own detail contradicts, a snake longer than its food could grow it, more molts than its food could pay for, and a bad date");
+  let within = true, deepest = 0;
+  for (let s2 = 1; s2 <= 12; s2++) {
+    const g = new Game(s2 * 4241);
+    for (let t = 0; t < 5000 && g.alive && g.depth < 5; t++) { bot(g, true); g.tick(); if (g.canMolt && g.body.length >= M_.MOLT_MIN + 3) g.molt(); }
+    const r = S.records({ value: g.score, seed: 1, steps: g.ticks, eaten: g.eaten, longest: g.maxLength, depth: g.depth }).map((x) => ({ site: "molt", createdAt: at, ...x }));
+    if (!r.every(S.accept)) within = false;
+    deepest = Math.max(deepest, g.depth);
+  }
+  ok(within, "every bot run, down to depth " + deepest + ", posts records the boards accept");
+}
+
 console.log(fails ? `molt: ${fails} of ${checks} checks FAILED` : `molt: all ${checks} checks ok`);
 process.exit(fails ? 1 : 0);

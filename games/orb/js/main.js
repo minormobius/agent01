@@ -318,6 +318,8 @@
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
   document.addEventListener("keydown", function (e) {
+    // keys typed into a field (the leaderboard's handle) belong to the field, not the game; and leave browser shortcuts alone
+    if (e.ctrlKey || e.metaKey || e.altKey || (e.target && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)))) return;
     if (e.key === "f" || e.key === " ") { tapDigs = !tapDigs; hud(); e.preventDefault(); }
     else if (e.key === "h" || e.key === "?") hint();
     else if (e.key === "n") newGame(O.randomSeed(), game.size);

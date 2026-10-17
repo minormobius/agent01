@@ -226,6 +226,8 @@ const turn = (d) => { if (running) g.turn(d); };
 const save = () => { try { localStorage.setItem("tessera.view", mode); localStorage.setItem("tessera.zoom", String(zi)); } catch (e) { /* private mode */ } };
 cv.addEventListener("pointerdown", (e) => { const r = cv.getBoundingClientRect(); turn(e.clientX - r.left < r.width / 2 ? 1 : -1); });
 window.addEventListener("keydown", (e) => {
+  // keys typed into a field (the leaderboard's handle) belong to the field, not the game; and leave browser shortcuts alone
+  if (e.ctrlKey || e.metaKey || e.altKey || (e.target && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)))) return;
   if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") { e.preventDefault(); turn(1); }
   else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") { e.preventDefault(); turn(-1); }
   else if (e.key === " ") { e.preventDefault(); $("play").click(); }

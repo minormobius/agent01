@@ -164,6 +164,8 @@ export function mountBoard(config) {
   groups.forEach((g) => el.querySelectorAll(`[data-g="${g.key}"] button`).forEach((b) => { b.onclick = () => { sel[g.key] = b.dataset.v; render(); }; }));
   el.querySelectorAll("[data-p] button").forEach((b) => { b.onclick = () => { period = b.dataset.v; render(); }; });
   $(".go").onclick = signIn;
+  // keys pressed in the board (typing a handle) never reach the game underneath, whatever keys it listens for
+  el.addEventListener("keydown", (e) => e.stopPropagation());
   const picking = handleTypeahead($("input"));
   $("input").onkeydown = (e) => { if (e.key === "Enter" && !picking()) signIn(); };
   $(".who a").onclick = async (e) => { e.preventDefault(); await auth.logout(); render(); status("signed out"); };

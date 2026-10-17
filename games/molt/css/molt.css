@@ -51,3 +51,6 @@ button.primary { background: var(--accent); color: #1a1000; border-color: var(--
 .overlay .accent { color: var(--accent2); }
 .overlay .foot { font-family: var(--mono); font-size: 12px; }
 .overlay a { color: var(--dim); }
+.overlay .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.overlay .small { font-family: var(--mono); font-size: 12px; }
+.overlay button.ghost { padding: 10px 14px; font-size: 13px; }

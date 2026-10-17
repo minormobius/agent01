@@ -20,7 +20,7 @@ export const M_ = { TICK: 150, START: 3, MOLT_MIN: 8, FIRST: 12, FOOD_EVERY: 260
 export class Game {
   constructor(seed = 1, word = "S".repeat(M_.FIRST - 2)) {
     this.seed = seed >>> 0 || 1;
-    this.depth = 0; this.score = 0; this.eaten = 0; this.ticks = 0; this.alive = true; this.history = [];
+    this.depth = 0; this.score = 0; this.eaten = 0; this.ticks = 0; this.alive = true; this.history = []; this.maxLength = 1;
     this.enter(buildDuct(word));
   }
   rnd() { this.seed = (this.seed * 16807) % 2147483647; return this.seed / 2147483647; }
@@ -63,7 +63,7 @@ export class Game {
     this.inSide = this.world.back[this.head * 4 + s];
     this.body.unshift(to);
     if (this.pending > 0) this.pending--; else this.body.pop();
-    this.longest = Math.max(this.longest, this.body.length);
+    this.longest = Math.max(this.longest, this.body.length); this.maxLength = Math.max(this.maxLength, this.longest);
     if (this.food.has(to)) {
       this.food.delete(to); this.pending++; this.eaten++; this.score += this.depth + 1;
       this.events.push({ kind: "eat" }); this.spawn();

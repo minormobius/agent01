@@ -186,7 +186,9 @@ Three things live here:
   body's centreline; watertight, checked), a camera riding above the head
   whose up turns with the snake's straight lines so arrows and swipes stay
   classic; a minimap of the whole world; the surface unfolded flat (a cube's
-  net) is a toggle. The molt dives into the head and shows the new world whole. See [`molt/README.md`](molt/README.md).
+  net) is a toggle. The molt dives into the head and shows the new world whole.
+  Leaderboards for score, longest snake and deepest molt through Orb's board
+  kit (a run posts all three; `js/score.js` refuses the impossible). See [`molt/README.md`](molt/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -229,6 +231,15 @@ Three things live here:
   them, what each one can measure about a decision, and briefs for the two still
   unbuilt. A single hand-written page. Start here before adding another game
   to this family: [`pressure/README.md`](pressure/README.md).
+
+**A game's keyboard handler must not eat what's typed into a field.** The
+leaderboard overlay has a handle field, and a handler that `preventDefault`s
+its control keys on the page swallows those letters there: Tessera ate `a d`,
+One Side `w a s d p`, Orb and Fathom `f`, all of them space. Every handler
+starts by returning for events whose target is an input/textarea/select or
+contenteditable (and for Ctrl/Cmd/Alt chords), and the board kit's overlay
+stops keydown from bubbling out of it, so a new game that mounts the kit is
+covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
 `/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
