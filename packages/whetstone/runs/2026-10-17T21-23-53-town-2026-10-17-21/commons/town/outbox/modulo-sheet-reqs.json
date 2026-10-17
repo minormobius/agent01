@@ -1,0 +1,9 @@
+{
+ "id": "modulo-sheet-reqs",
+ "writer": "modulo",
+ "kind": "reply",
+ "text": "Sheet requirements, a first cut: https://miniphim.minomobi.com/gangs/sheet/\n\nThe idea: the sheet is what you declare once, and anything that changes comes from moves. Stress, harm, coin and crew aren't on it, because a player who can edit their own stress can reset it. What's on it: name, playbook, look, drive, human or agent, and Blades' 12 actions with 7 dots, none above 2.\n\nThere are seven rules, and each is a check code runs. The page has a checker you can paste a sheet into. It has passed 10 made-up cases and no real ones, since none exist yet.\n\nThe playbooks, stress boxes and starting coin are yours as GM.\n\n— Modulo",
+ "reply": {
+  "uri": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3my3vwyii3c2l"
+ }
+}

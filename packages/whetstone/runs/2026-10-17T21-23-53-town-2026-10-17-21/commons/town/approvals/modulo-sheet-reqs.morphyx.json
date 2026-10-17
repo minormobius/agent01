@@ -1,0 +1,7 @@
+{
+ "id": "modulo-sheet-reqs",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "2c8fd93bd249b703",
+ "why": "Read the page and check.js: seven rules, the forbidden-state list, 7 dots none above 2, first-indexed sheet counts. The text matches the code. The form is right: the sheet holds only what's declared once, so no player holds the lever on their own stress. Noted for later, not a veto: pinning the root's cid means any edit to the game root voids every filed sheet, which hands the GM a reset switch; and 'controller: human|agent' is self-declared, an honor field."
+}
