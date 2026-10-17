@@ -22,7 +22,7 @@
 
    MOLTING: the whole new world in 3D (it's the shape of the body you just
    left), then down onto your head, where the net takes over. */
-import { cellPoint, faceNormal, centreline, roundPoint } from "./duct.js";
+import { cellPoint, faceNormal, centreline, roundPoint, linePoint } from "./duct.js";
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -35,7 +35,7 @@ const tangent3 = (v, n) => sub(v, mul(n, dot(v, n)));
 function rotate3(v, k, ang) { const c = Math.cos(ang), s = Math.sin(ang); return add(add(mul(v, c), mul(cross(k, v), s)), mul(k, dot(k, v) * (1 - c))); }
 const at = (pl, x) => [pl.o[0] + x[0] * pl.ex[0] + x[1] * pl.ey[0], pl.o[1] + x[0] * pl.ex[1] + x[1] * pl.ey[1]];
 const edgePt = (s, a) => (s === 0 ? [1, a] : s === 1 ? [a, 1] : s === 2 ? [0, a] : [a, 0]);
-export const V_ = { CELL: 42, LEAD: 1.2, TAU: 70, DIST: 3.3, R: 0.38, TD: 1.3, TTILT: 0.42, TLEAD: 0.42, WINDOW: 9 };
+export const V_ = { CELL: 42, LEAD: 1.2, TAU: 70, DIST: 3.3, R: 0.46, TD: 1.4, TTILT: 0.42, TLEAD: 0.42, WINDOW: 9 };
 const LIGHT = norm([0.35, -0.45, 0.82]);
 
 export class View {
@@ -71,12 +71,15 @@ export class View {
       if (dot(w, this.rn[c]) <= 0) this.flip[c] = 1;
     }
     // the minimap's frame: the centreline from above
+    // seen from above and a little to the side, so a body that rose or dived still reads
+    const flat = (p) => [p[0] + 0.42 * p[2], p[1] + 0.3 * p[2]];
+    this.flat = flat;
     const pts = [];
-    for (const pc of this.line) for (let t = 0; t <= 6; t++) pts.push(pc.O ? [pc.O[0] + 0.5 * Math.cos(pc.t0 + pc.sw * t / 6), pc.O[1] + 0.5 * Math.sin(pc.t0 + pc.sw * t / 6)] : [pc.a[0] + (pc.b[0] - pc.a[0]) * t / 6, pc.a[1] + (pc.b[1] - pc.a[1]) * t / 6]);
+    for (const pc of this.line) for (let t = 0; t <= 6; t++) pts.push(flat(linePoint(pc, t / 6)));
     this.mini = { pts, lo: [Math.min(...pts.map((p) => p[0])) - 0.6, Math.min(...pts.map((p) => p[1])) - 0.6], hi: [Math.max(...pts.map((p) => p[0])) + 0.6, Math.max(...pts.map((p) => p[1])) + 0.6] };
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
     for (const g of this.rgrid) for (const [p] of g) for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], p[a]); hi[a] = Math.max(hi[a], p[a]); }
-    const mid = lerp(lo, hi, 0.5), ext = Math.max(hi[0] - lo[0], hi[1] - lo[1], 1.5) / 2, D = (ext / (0.5 * Math.min(this.w, this.h) / this.focal)) * 1.25;
+    const mid = lerp(lo, hi, 0.5), ext = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2], 1.5) / 2, D = (ext / (0.5 * Math.min(this.w, this.h) / this.focal)) * 1.25 + (hi[2] - lo[2]) / 2;
     this.over = { eye: add(mid, [0, -D * 0.38, D * 0.95]), target: mid, up: [0, 1, 0] };
     if (game) this.reframe(game);
   }
@@ -296,9 +299,9 @@ export class View {
     ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x0, y0, size, size, 10) : ctx.rect(x0, y0, size, size); ctx.fill(); ctx.stroke();
     ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(120,110,190,0.55)"; ctx.lineWidth = Math.max(3, 2 * V_.R * k);
     ctx.beginPath(); mm.pts.forEach((p, i) => { const q = X(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke();
-    for (const c of g.food) { const q = X(this.rc[c]); ctx.fillStyle = "#ff7eb6"; ctx.beginPath(); ctx.arc(q[0], q[1], 2.2, 0, 7); ctx.fill(); }
+    for (const c of g.food) { const q = X(this.flat(this.rc[c])); ctx.fillStyle = "#ff7eb6"; ctx.beginPath(); ctx.arc(q[0], q[1], 2.2, 0, 7); ctx.fill(); }
     for (let i = g.body.length - 1; i >= 0; i--) {
-      const c = g.body[i], q = X(this.rc[c]), top = this.rc[c][2] > 0.05, under = this.rc[c][2] < -0.05;
+      const c = g.body[i], q = X(this.flat(this.rc[c])), top = this.rn[c][2] > 0.3, under = this.rn[c][2] < -0.3;
       ctx.fillStyle = i === 0 ? "#f2b84b" : under ? "rgba(63,210,154,0.35)" : top ? "#3fd29a" : "rgba(63,210,154,0.7)";
       ctx.beginPath(); ctx.arc(q[0], q[1], i === 0 ? 3.6 : 2, 0, 7); ctx.fill();
     }

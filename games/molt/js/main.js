@@ -2,6 +2,7 @@
    js/game.js, the world js/duct.js, the camera and drawing js/view.js. */
 import { Game, M_ } from "./game.js";
 import { View } from "./view.js";
+import { bends } from "./duct.js";
 
 const $ = (id) => document.getElementById(id);
 const view = new View($("view"));
@@ -21,7 +22,7 @@ function note(t) { const el = $("note"); el.textContent = t; el.classList.add("s
 function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { /* no haptics */ } }
 function hud() {
   $("depth").textContent = g.depth; $("len").textContent = g.body.length; $("score").textContent = g.score; $("best").textContent = Math.max(best, g.score) || "—";
-  $("world").textContent = g.world.N + " cells" + (g.depth ? " · " + (g.world.word.replace(/S/g, "").length) + " bends" : "");
+  $("world").textContent = g.world.N + " cells" + (g.depth ? " · " + bends(g.world.word) + " bends" : "");
   const m = $("molt");
   if (g.canMolt && !seq) { m.hidden = false; const p = g.preview(); $("molt-sub").textContent = "→ " + p.cells + " cells, " + p.bends + " bend" + (p.bends === 1 ? "" : "s"); }
   else if (!seq) { m.hidden = true; }
@@ -50,7 +51,7 @@ function stepMolt(dt) {
       const from = g.body.length;
       g.molt(); view.setWorld(g.world, g); view.zoom = 1; view.mix = 1;
       seq = { t: 0, phase: "show", fade: 1 };
-      const b = $("banner"); b.innerHTML = "DEPTH " + g.depth + "<small>this world is the snake you just were: " + from + " long, " + g.world.word.replace(/S/g, "").length + " bends, " + g.world.N + " cells</small>"; b.hidden = false;
+      const b = $("banner"); b.innerHTML = "DEPTH " + g.depth + "<small>this world is the snake you just were: " + from + " long, " + bends(g.world.word) + " bends, " + g.world.N + " cells</small>"; b.hidden = false;
       hud();
     }
   } else if (seq.phase === "show") {

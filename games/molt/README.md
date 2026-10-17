@@ -7,8 +7,22 @@ worth one more point.
 
 ## The world is a body
 
-A snake's body, read from tail to head, is a word of turns: `S`, `L` or
-`R`, one letter for each cell between the two ends. Turn every cell of the
+A snake's body, read from tail to head, is a word of turns, one token for
+each cell between the two ends. A token is a **yaw**, `S` (straight on),
+`L` or `R`, turning about the snake's own "up" (the normal of the surface
+it lay on). It can be preceded by a **pitch**, `U` or `D`, turning about
+its short axis, up or down over a fold of the world it lay on:
+
+- `D` going over an outside edge;
+- `U` into an inside corner.
+
+So a snake that crawled straight round the tube comes back as a ring
+(`SDSSSDSSSDSSS`), and one that went straight on over a cap comes back as
+a hook folded under itself. A cube turns at most 90°, so the 180° fold of
+a zero-width slot between two coils is carried as two pitches, the second
+riding on to the next cell.
+
+Turn every cell of the
 body into a cube and glue consecutive cubes face to face. The world is the
 **surface of that chain of cubes**, with every face cut into a 3 × 3 grid
 (C = 3).
@@ -19,7 +33,8 @@ side stay two separate walls, as they would on a real snake. So the
 surface is always a sphere: a capsule with a cap at the head and one at
 the tail.
 
-What follows from that, and what the selftest checks on 131 bodies,
+What follows from that, and what the selftest checks on 135 bodies (half
+of them bending in 3D),
 including coils and spirals whose flat layout overlaps itself:
 
 - **The same size whatever the shape.** Every body cube shows exactly 4
@@ -43,17 +58,26 @@ including coils and spirals whose flat layout overlaps itself:
 for drawing (`roundPoint` in `js/duct.js`). The body's centreline runs
 straight through straight cells and along a quarter circle (radius ½)
 through turning ones, and every point of the blocky surface is pushed out
-to radius 0.38 around its nearest point on that line. Square
-cross-sections become circles, corners become bends, and the caps become
-hemispheres. Only the drawing changes: the cells, their neighbours and
+to radius 0.46 around its nearest point on that line: as thick as the
+tube can be while the two arms of a U-turn, one cell apart, stay clear of
+each other. Square cross-sections become circles, corners become bends
+(in any direction, so a body that pitched bends that way too), and the
+caps become hemispheres. Only the drawing changes: the cells, their neighbours and
 every count above stay exactly as they were.
 
-The selftest checks that the tube is watertight (every edge two cells
-share lands on the same points from both sides) and that every cell faces
-outward. The one exception is a body that spirals three or more turns the
-same way (LLL). Laid flat to be drawn, that lands on itself; it's possible
-on a curved world, by circling a cube's corner. Those few cells are
-skipped.
+The selftest checks that the tube is watertight on flat and 3D bodies
+(every edge two cells share lands on the same points from both sides) and
+that every cell faces outward. There are two exceptions:
+
+- the zero-width slots where two arms of a body lie against each other,
+  which are hidden there anyway;
+- bodies whose layout runs into itself, such as a spiral of three or more
+  turns the same way, or a closed ring.
+
+Inside-out cells in those places are skipped when drawing. Worlds made by
+real play haven't run into themselves: none did in the selftest's bot runs
+or in 25 more molts tried by hand. About a third have arms lying against
+each other.
 
 A camera rides above the head, looking down at it. Its "up" is carried
 from cell to cell as the surface curves. Where a straight line of cells
@@ -107,7 +131,7 @@ back towards the tail.
   reveal.
 - `js/main.js`: the clock, input (keys, swipes, pad), the HUD, and the
   molt sequence.
-- `test/molt.selftest.mjs`: 21 checks, about a second.
+- `test/molt.selftest.mjs`: 24 checks, about a second.
 
 ## Next
 

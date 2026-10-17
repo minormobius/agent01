@@ -176,7 +176,9 @@ Three things live here:
   [`tessera/README.md`](tessera/README.md).
 - **Molt at `/molt/`**: snake on the snake. The world is the surface of a
   snake's body made of cubes (one per body cell, every face a 3 × 3 grid),
-  built from the body's word of turns alone (`js/duct.js`): always a sphere,
+  built from the body's word of turns alone (`js/duct.js`; yaw S/L/R about
+  the snake's up and pitch U/D over the folds of the world it lay on, so a
+  body that wrapped round a tube comes back as a ring): always a sphere,
   C²(4L + 2) cells whatever the shape, every cell a square with 4
   neighbours, the curvature at the cube corners (3 squares meet outside a
   bend, 5 inside). Once 8 long you molt: your body becomes the next world.

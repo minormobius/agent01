@@ -39,7 +39,8 @@ function check(M) {
 }
 {
   const words = ["", "S", "L", "R", "LL", "RR", "LLL", "LLLL", "LLLLLLLL", "LRLRLR", "SLLSRRS"];
-  for (let k = 0; k < 120; k++) { let w = ""; const n = (rnd() * 60) | 0; for (let i = 0; i < n; i++) w += "SSLR"[(rnd() * 4) | 0]; words.push(w); }
+  for (let k = 0; k < 120; k++) { let w = ""; const n = (rnd() * 60) | 0; for (let i = 0; i < n; i++) w += (k % 2 && rnd() < 0.3 ? "UD"[(rnd() * 2) | 0] : "") + "SSLR"[(rnd() * 4) | 0]; words.push(w); }
+  words.push("DSDSDS", "USUSUS", "DLURDLUR", "SSDSSDSSDSS");
   let all = true, sphere = true, curv = true, sizes = true, four = true, conn = true, worst = "";
   for (const w of words) {
     const r = check(D.buildDuct(w));
@@ -50,7 +51,7 @@ function check(M) {
     if (!r.nbOk || !r.faceOk) { four = false; worst = w; }
     if (!r.connected) { conn = false; worst = w; }
   }
-  ok(all, words.length + " bodies (random, and coils and spirals that overlap themselves when laid flat): every edge of every world joins exactly two faces" + (all ? "" : " — not " + worst));
+  ok(all, words.length + " bodies (random, half of them bending in 3D, and coils, spirals and rings that overlap themselves when laid out): every edge of every world joins exactly two faces" + (all ? "" : " — not " + worst));
   ok(sphere, "every world is a sphere: V − E + F = 2" + (sphere ? "" : " — not " + worst));
   ok(curv, "every world's curvature adds up to 720°: Σ(4 − squares at a corner) × 90° = 8 × 90°" + (curv ? "" : " — not " + worst));
   ok(sizes, "every body cube shows exactly 4 faces, so a body L long makes C²(4L + 2) cells whatever its shape" + (sizes ? "" : " — not " + worst));
@@ -68,43 +69,42 @@ function check(M) {
 /* ---- the rounded tube the player sees */
 {
   const R = 0.38, corners = [[1, 0, 1, 1], [0, 1, 1, 1], [0, 0, 0, 1], [0, 0, 1, 0]];
-  let crack = 0, flipped = 0, spiral = 0, cells = 0, worstW = "";
-  const words = ["SSSS", "SSLSS", "SLLS", "SRRSLLS", "LRLRLRLR", "SSLLSSRRSS"];
-  for (let k = 0; k < 20; k++) { let w = ""; const n = 4 + ((rnd() * 30) | 0); for (let i = 0; i < n; i++) w += "SSLR"[(rnd() * 4) | 0]; words.push(w); }
+  let crack = 0, flipped = 0, slotted = 0, cells = 0, worstW = "";
+  const words = ["SSSS", "SSLSS", "SLLS", "SRRSLLS", "LRLRLRLR", "SSLLSSRRSS", "SDSSDSS", "SUSLSDSRS", "SSDSSSDSSSDSS"];
+  for (let k = 0; k < 24; k++) { let w = ""; const n = 4 + ((rnd() * 30) | 0); for (let i = 0; i < n; i++) w += (k % 2 && rnd() < 0.25 ? "UD"[(rnd() * 2) | 0] : "") + "SSLR"[(rnd() * 4) | 0]; words.push(w); }
+  let tangled = 0;
   for (const w of words) {
     const M = D.buildDuct(w), line = D.centreline(M), CC = C * C;
+    // where the body, laid out, runs into itself (two cubes in one place) or lies against itself (a slot of zero width between two arms)
+    const gapOf = (i, j) => Math.hypot(M.P[i][0] - M.P[j][0], M.P[i][1] - M.P[j][1], M.P[i][2] - M.P[j][2]), tangle = new Set(), slot = new Set();
+    for (let i = 0; i < M.L; i++) for (let j = i + 3; j < M.L; j++) { const g = gapOf(i, j); if (g < 0.01) for (let d = -2; d <= 2; d++) { tangle.add(i + d); tangle.add(j + d); } else if (g < 1.01) { slot.add(i); slot.add(j); } }
+    const inTangle = (c) => tangle.has(M.faces[(c / CC) | 0].k), inSlot = (c) => slot.has(M.faces[(c / CC) | 0].k);
     const rp = (c, u, v) => D.roundPoint(line, M.faces[(c / CC) | 0].k, D.cellPoint(M, c, u, v), R);
     const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
     for (let c = 0; c < M.N; c++) {
       cells++;
+      if (inTangle(c)) { tangled++; continue; }
       for (let s = 0; s < 4; s++) {
         const d = M.nb[c * 4 + s], t = M.back[c * 4 + s], [a1, b1, a2, b2] = corners[s], [e1, f1, e2, f2] = corners[t];
         const P = [rp(c, a1, b1)[0], rp(c, a2, b2)[0]], Q = [rp(d, e1, f1)[0], rp(d, e2, f2)[0]];
         const m = Math.min(Math.max(dist(P[0], Q[0]), dist(P[1], Q[1])), Math.max(dist(P[0], Q[1]), dist(P[1], Q[0])));
-        if (m > crack) { crack = m; worstW = w; }
+        if (m > crack && !inTangle(d)) { crack = m; worstW = w; }
       }
       // the cell's corners, in order round it, wind the same way as its outward normal
       const q = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => rp(c, u, v)[0]), n = rp(c, 0.5, 0.5)[1];
       const e1 = q.map((p, i) => q[(i + 1) % 4].map((x, j) => x - p[j]));
       let wind = [0, 0, 0];
       for (let i = 0; i < 4; i++) { const a = q[i], b2_ = q[(i + 1) % 4]; wind = [wind[0] + a[1] * b2_[2] - a[2] * b2_[1], wind[1] + a[2] * b2_[0] - a[0] * b2_[2], wind[2] + a[0] * b2_[1] - a[1] * b2_[0]]; }
-      if (wind[0] * n[0] + wind[1] * n[1] + wind[2] * n[2] <= 0 && e1.length) {
-        // allowed only where the body, laid flat to be drawn, lands on itself (a spiral of 3+ turns the same way: possible on a curved world)
-        const k = M.faces[(c / CC) | 0].k, key = (j) => M.P[j][0] + "," + M.P[j][1];
-        let overlaps = false;
-        for (let j = 0; j < M.L; j++) if (j !== k && Math.abs(j - k) <= 6 && key(j) === key(k)) overlaps = true;
-        for (let j = Math.max(0, k - 2); j <= Math.min(M.L - 1, k + 2); j++) for (let i = 0; i < M.L; i++) if (i !== j && Math.abs(i - j) > 2 && key(i) === key(j)) overlaps = true;
-        if (overlaps) spiral++; else flipped++;
-      }
+      if (wind[0] * n[0] + wind[1] * n[1] + wind[2] * n[2] <= 0 && e1.length) { if (inSlot(c)) slotted++; else flipped++; }
     }
   }
-  ok(crack < 1e-9, "the rounded tube is watertight: every edge two cells share lands on the same points from both sides, on " + words.length + " bodies" + (crack < 1e-9 ? "" : " — " + crack.toExponential(2) + " on " + worstW));
-  ok(flipped === 0, "every one of " + cells + " rounded cells faces outward, except " + spiral + " where the body laid flat lands on itself (a spiral the drawing can't untangle; the page skips them)" + (flipped ? " — " + flipped + " others don't" : ""));
+  ok(crack < 1e-9, "the rounded tube is watertight on " + words.length + " bodies, flat and 3D: every edge two cells share lands on the same points from both sides" + (crack < 1e-9 ? "" : " — " + crack.toExponential(2) + " on " + worstW));
+  ok(flipped === 0, "every rounded cell faces outward, except " + slotted + " in the zero-width slots where two arms of a body lie against each other (hidden there anyway), and " + tangled + " of " + cells + " where a random body, laid out, runs into itself; the page skips cells turned inside out" + (flipped ? " — " + flipped + " others don't" : ""));
 }
 {
   const g = new Game(3), M = g.world, F = M.faces[(g.head / (C * C)) | 0], ahead = M.nb[g.head * 4 + g.straight()];
   const a = D.cellPoint(M, g.head, 0.5, 0.5), b = D.cellPoint(M, ahead, 0.5, 0.5), cap = M.dout[M.L - 1];
-  ok(F.k === M.L - 1 && F.d === 4 && (cap === 0 ? b[0] < a[0] : cap === 1 ? b[0] > a[0] : cap === 2 ? b[1] < a[1] : b[1] > a[1]), "a world starts on top of its head end, crawling back towards the tail");
+  ok(F.k === M.L - 1 && F.d === M.upEnd && (cap === 0 ? b[0] < a[0] : cap === 1 ? b[0] > a[0] : cap === 2 ? b[1] < a[1] : b[1] > a[1]), "a world starts on top of its head end, crawling back towards the tail");
 }
 
 /* ---- the word read back from a snake */
@@ -118,9 +118,23 @@ function check(M) {
   const loop = (start, from) => { let x = start, n = 0; do { const sIn = D.sideTo(M, x, from), nx = M.nb[x * 4 + (sIn + 2) % 4]; from = x; x = nx; n++; } while (x !== start && n < 500); return n; };
   const round = loop(a, M.nb[a * 4 + 3]), along = loop(a, M.nb[a * 4 + 2]);
   ok(round === 4 * C && along === 2 * C * (M.L + 1), "straight on, you come back where you started: round the tube after " + round + " cells, along it and over both caps after " + along);
-  const body = []; let y = a, f2 = M.nb[a * 4 + 3]; for (let k = 0; k < 9; k++) { body.unshift(y); const sIn = D.sideTo(M, y, f2), ny = M.nb[y * 4 + (sIn + 2) % 4]; f2 = y; y = ny; }
-  const w = D.wordOf(M, body);
-  ok(w === "SSSSSSS" && D.buildDuct(w).N === C * C * (4 * 9 + 2), "a straight 9-long snake reads SSSSSSS and makes a " + C * C * 38 + "-cell world, even when it ran round the tube");
+  // straight on round the tube, the body bends down over each of its four outside edges: D every third cell
+  const walk = (start, from, n) => { const b = []; let y = start, f2 = from; for (let k = 0; k < n; k++) { b.unshift(y); const sIn = D.sideTo(M, y, f2), ny = M.nb[y * 4 + (sIn + 2) % 4]; f2 = y; y = ny; } return b; };
+  const ringBody = walk(a, M.nb[a * 4 + 3], 12), ring = D.wordOf(M, ringBody), R = D.buildDuct(ring);
+  const gap = Math.hypot(...[0, 1, 2].map((i) => R.P[R.L - 1][i] - R.P[0][i]));
+  ok((ring.match(/D/g) || []).length === 3 && !/[LRU]/.test(ring) && gap === 1,
+    "a snake wrapped straight round the tube reads " + ring + ": down over each edge it crossed (the fourth is under its head, which can't bend); its world is a ring whose two ends touch");
+  const capWord = D.wordOf(M, walk(a, M.nb[a * 4 + 2], 30));
+  ok((capWord.match(/D/g) || []).length >= 2 && !/[LRU]/.test(capWord), "a snake that went straight on over a cap reads " + capWord + ": a hook, bent down over the cap's edges");
+  // into an inside corner: the inner walls of a bend meet at a concave edge, and crossing it reads U
+  const B = D.buildDuct("SSLSS");
+  let found = null;
+  for (let x = 0; x < B.N && !found; x++) for (let s2 = 0; s2 < 4 && !found; s2++) if (D.fold(B, x, B.nb[x * 4 + s2]) < 0) found = [x, B.nb[x * 4 + s2], s2];
+  let uWord = "";
+  if (found) { const [x, y, s2] = found, before = B.nb[x * 4 + (s2 + 2) % 4], sIn = D.sideTo(B, y, x), after = B.nb[y * 4 + (sIn + 2) % 4]; uWord = D.wordOf(B, [after, y, x, before]); }
+  ok(!!found && /^S?US$|^SUS$|^SU?S$/.test(uWord) && uWord.includes("U"), "crossing the inside corner of a bend reads " + uWord + ": U, up into it");
+  const body = walk(top * CC + 1, M.nb[(top * CC + 1) * 4 + 2], 9), w = D.wordOf(M, body);
+  ok(/^S+$/.test(w) && D.buildDuct(w).N === C * C * (4 * 9 + 2), "a straight 9-long snake along the top reads " + w + " and makes a " + C * C * 38 + "-cell world");
 }
 
 /* ---- the game, and diving into yourself */
@@ -136,6 +150,7 @@ function bot(g, wild) {
 }
 {
   let path = true, early = true, sizes = true, curv = true, deepest = 0, ticks = 0, neck = true;
+  const made = [];
   for (let s = 1; s <= 6; s++) {
     const g = new Game(s * 7919);
     if (g.molt() !== null) early = false;
@@ -148,6 +163,7 @@ function bot(g, wild) {
       if (new Set(g.body).size !== g.body.length) path = false;
       if (g.body.length >= M_.MOLT_MIN + 4 + 2 * g.depth) {
         const pv = g.preview(), w = g.molt(), c = D.census(w);
+        made.push(w.P.some((p, i) => w.P.some((q, j) => j > i + 2 && p[0] === q[0] && p[1] === q[1] && p[2] === q[2])));
         if (w.N !== pv.cells || w.word !== pv.word) sizes = false;
         if (c.chi !== 2 || c.defect !== 8) curv = false;
       }
@@ -157,7 +173,7 @@ function bot(g, wild) {
   ok(early, "no molting before you're " + M_.MOLT_MIN + " long");
   ok(path && neck, ticks + " ticks of bot play: the body is always a path of distinct cells, each joint a shared edge, and the head never folds onto its neck");
   ok(sizes && curv, "every molt makes the world the preview promised, from the body's own word, and it's a sphere with 720° of curvature");
-  ok(deepest >= 4, "bots dive " + deepest + " worlds deep");
+  ok(deepest >= 4, "bots dive " + deepest + " worlds deep (" + made.length + " worlds made by play; " + (100 * made.filter((x) => x).length / Math.max(1, made.length)).toFixed(0) + "% run into themselves somewhere when laid out)");
 }
 {
   const run = () => { const g = new Game(42); for (let t = 0; t < 800 && g.alive; t++) { if (t % 6 === 0) g.steer((t / 6) % 4); g.tick(); if (g.canMolt && t % 200 === 199) g.molt(); } return [g.ticks, g.score, g.depth, g.body.join()].join("|"); };

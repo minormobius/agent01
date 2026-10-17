@@ -13,7 +13,7 @@
    screen directions into sides is the page's job, since only it knows where
    the camera is. With no steer the snake goes straight on: out through the
    side opposite the one it came in by. */
-import { buildDuct, wordOf, sideTo } from "./duct.js";
+import { buildDuct, wordOf, sideTo, bends } from "./duct.js";
 
 export const M_ = { TICK: 150, START: 3, MOLT_MIN: 8, FIRST: 12, FOOD_EVERY: 260 };
 
@@ -28,7 +28,7 @@ export class Game {
   /* start on a world: on top of its head end, crawling back along it towards the tail, so the world opens out ahead */
   enter(world) {
     this.world = world;
-    const top = world.faces.findIndex((F) => F.k === world.L - 1 && F.d === 4);
+    const top = world.faces.findIndex((F) => F.k === world.L - 1 && F.d === world.upEnd);
     const C = world.C, mid = (C - 1) >> 1, c = top * C * C + mid * C + mid, F = world.faces[top];
     // come in from the side that faces the head cap, so straight on leads away from it
     const dirs = [F.p, F.r, F.p ^ 1, F.r ^ 1];
@@ -39,7 +39,7 @@ export class Game {
   get head() { return this.body[0]; }
   get canMolt() { return this.alive && this.body.length >= M_.MOLT_MIN; }
   /* the next world, if you molted now: how many cells, how many bends */
-  preview() { const w = wordOf(this.world, this.body); return { cells: this.world.C ** 2 * (4 * (w.length + 2) + 2), bends: w.replace(/S/g, "").length, word: w }; }
+  preview() { const w = wordOf(this.world, this.body), n = this.body.length; return { cells: this.world.C ** 2 * (4 * n + 2), bends: bends(w), word: w }; }
 
   spawn() {
     const want = Math.max(1, Math.round(this.world.N / M_.FOOD_EVERY)), busy = new Set(this.body);

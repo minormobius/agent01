@@ -1,7 +1,12 @@
 /* Molt — the world made from a snake's body.
 
    A snake is a path of cells; its body, read from tail to head, is a word of
-   turns: S (straight on), L, R, one letter per cell between the two ends.
+   turns, one token per cell between the two ends. A token is a YAW, S
+   (straight on), L or R, turning about the snake's own "up" (the normal of
+   the surface it lay on), optionally after a PITCH, U or D, turning about its
+   short axis: up or down over a fold of the world it lay on (D going over an
+   outside edge, U into an inside corner). So a snake that crawled straight
+   round a tube comes back as a ring, and one that went over a cap as a hook.
    Turn each cell of the body into a cube and glue consecutive cubes face to
    face. The next world is the SURFACE of that chain of cubes, every face cut
    into a C × C grid.
@@ -23,13 +28,23 @@
      720° a sphere needs
 
    Directions are global unit axes 0..5 = +x −x +y −y +z −z. The body is laid
-   out flat (+z up) only to name each cube's faces; gluing goes by those names
-   and ignores where things land, so a layout that overlaps itself is fine. */
+   out in space (starting along +x with +z up, its frame turned by every
+   token) only to name each cube's faces; gluing goes by those names and
+   ignores where things land, so a layout that overlaps itself is fine. */
 
-export const D_ = { C: 3, W: 0.72, H: 0.72 };
+export const D_ = { C: 3, W: 0.72 };
 const VEC = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
 const neg = (d) => d ^ 1, axis = (d) => d >> 1, positive = (d) => (d & 1) === 0;
-const TURN = { S: [0, 1, 2, 3], L: [2, 3, 1, 0], R: [3, 2, 0, 1] };   // a heading (+x −x +y −y) after the turn
+const dirOf = (v) => VEC.findIndex((w) => w[0] === v[0] && w[1] === v[1] && w[2] === v[2]);
+const crossD = (a, b) => dirOf(cross(VEC[a], VEC[b]));
+/* a word as its tokens: [pitch "" | "U" | "D", yaw "S" | "L" | "R"]; a bend is any token but a plain S */
+export function tokens(word) {
+  const out = [], re = /([UD]?)([SLR])/gy;
+  let m, at = 0;
+  while (at < word.length) { re.lastIndex = at; m = re.exec(word); if (!m) throw new Error("a body is a word of turns: [U|D]?[S|L|R] per cell"); out.push([m[1], m[2]]); at = re.lastIndex; }
+  return out;
+}
+export const bends = (word) => tokens(word).filter((t) => t[0] || t[1] !== "S").length;
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const perp = (d) => [0, 1, 2, 3, 4, 5].filter((q) => axis(q) !== axis(d));
@@ -41,17 +56,22 @@ class UF {
 }
 
 export function buildDuct(word, C = D_.C) {
-  if (!/^[SLR]*$/.test(word)) throw new Error("a body is a word of S, L, R");
-  const L = word.length + 2;
-  // the body laid flat, to name faces: where each cube is, which way it was entered and left
+  const tk = tokens(word), L = tk.length + 2;
+  // the body laid out in space, to name faces: where each cube is, which way it was entered and left.
+  // The frame is (forward f, up u); a pitch turns f about the short axis, a yaw about u.
   const P = [], din = [], dout = [];
-  let x = 0, y = 0, h = 0;
+  let pos = [0, 0, 0], f = 0, u = 4;
   for (let k = 0; k < L; k++) {
-    din.push(h);
-    const o = k > 0 && k < L - 1 ? TURN[word[k - 1]][h] : h;
-    dout.push(o); P.push([x, y, 0]);
-    x += VEC[o][0]; y += VEC[o][1]; h = o;
+    din.push(f);
+    if (k > 0 && k < L - 1) {
+      const [p, y] = tk[k - 1];
+      if (p === "D") [f, u] = [neg(u), f]; else if (p === "U") [f, u] = [u, neg(f)];
+      if (y === "L") f = crossD(u, f); else if (y === "R") f = crossD(f, u);
+    }
+    dout.push(f); P.push(pos.slice());
+    pos = [pos[0] + VEC[f][0], pos[1] + VEC[f][1], pos[2] + VEC[f][2]];
   }
+  const upEnd = u;
   const attached = (k, d) => (k > 0 && d === neg(din[k])) || (k < L - 1 && d === dout[k]);
 
   // the faces left showing, each with axes p, r such that p × r is its outward normal
@@ -103,16 +123,16 @@ export function buildDuct(word, C = D_.C) {
     }
   }
 
-  // where each corner sits, for drawing: a duct W wide and H tall down the middle of each cell of the body.
-  // A corner between a face that's glued on and one that shows reaches the cell's edge (0.5); every other
-  // corner sits on the duct's own walls (W/2). Where a corner is shared, the inside of a turn wins.
-  const { W, H } = D_;
+  // where each corner sits, for drawing: a duct W thick down the middle of each cell of the body.
+  // Along a face that's glued on, a corner reaches the cell's edge (0.5), unless the corner touches the
+  // other glued face too (the inside of a turn); every other corner sits on the duct's own walls (W/2).
+  // Where a corner is shared, the inside of a turn wins.
+  const { W } = D_;
   const cornerPos = (k, s) => {
-    const out = [P[k][0], P[k][1], sgn(s, 2) * H / 2], dx = sgn(s, 0) > 0 ? 0 : 1, dy = sgn(s, 1) > 0 ? 2 : 3;
-    const ax = attached(k, dx), ay = attached(k, dy);
-    out[0] += sgn(s, 0) * (ax && !ay ? 0.5 : W / 2);
-    out[1] += sgn(s, 1) * (ay && !ax ? 0.5 : W / 2);
-    return { pos: out, inner: ax && ay };
+    const ds = [0, 1, 2].map((ax) => ax * 2 + (sgn(s, ax) > 0 ? 0 : 1)), att = ds.map((d) => attached(k, d)), n = att.filter(Boolean).length;
+    const out = P[k].slice();
+    for (let ax = 0; ax < 3; ax++) out[ax] += sgn(s, ax) * (att[ax] && n === 1 ? 0.5 : W / 2);
+    return { pos: out, inner: n === 2 };
   };
   const groups = new Map();
   for (let k = 0; k < L; k++) for (let s = 0; s < 8; s++) {
@@ -146,7 +166,7 @@ export function buildDuct(word, C = D_.C) {
     const G = faces[o.f], s2 = dirs(G).indexOf(o.q), m = s % 2 === 0 ? F.r : F.p, m2 = s2 % 2 === 0 ? G.r : G.p;
     fn[f * 4 + s] = o.f; fs[f * 4 + s] = s2; flip[f * 4 + s] = positive(m) !== positive(m2) ? 1 : 0;
   }));
-  return { word, L, C, N, faces, nb, back, fn, fs, flip, P, din, dout, edgeFaces, vertexOf: (F, a, b) => F["v" + a + b] };
+  return { word, L, C, N, faces, nb, back, fn, fs, flip, P, din, dout, upEnd, edgeFaces, vertexOf: (F, a, b) => F["v" + a + b] };
 }
 
 /* a point of a cell, (u, v) ∈ [0,1]² across it, on the drawn surface */
@@ -175,13 +195,27 @@ export function census(M) {
   return { V, E, F: Fc, chi: V - E + Fc, defect, hist, manifold: two };
 }
 
-/* a snake's body, head first, read back as the word of turns that builds the next world */
+/* a snake's body, head first, read back as the word of turns that builds the next world.
+   Yaw from the cell itself (which side it was entered by, which left by); pitch from the fold between two
+   cells, measured on the world as it's drawn (the duct): flat, an outside edge (D: the body bends down over
+   it) or an inside corner (U). A zero-width slot between two coils is a fold of 180°: two pitches, and a
+   cube turns at most 90°, so the second rides on to the next cell. */
 export function sideTo(M, a, b) { for (let s = 0; s < 4; s++) if (M.nb[a * 4 + s] === b) return s; return -1; }
+export function fold(M, a, b) {
+  const CC = M.C * M.C, Fa = M.faces[(a / CC) | 0], Fb = M.faces[(b / CC) | 0];
+  if (Fa.d === Fb.d) return 0;
+  const na = VEC[Fa.d], ca = cellPoint(M, a, 0.5, 0.5), cb = cellPoint(M, b, 0.5, 0.5);
+  const inside = dot([cb[0] - ca[0], cb[1] - ca[1], cb[2] - ca[2]], na) > 0;
+  const n = Fa.d === neg(Fb.d) ? 2 : 1;
+  return inside ? -n : n;   // + down over an outside edge, − up into an inside corner
+}
 export function wordOf(M, body) {
-  let w = "";
-  for (let k = body.length - 2; k >= 1; k--) {      // tail end to head end
+  let w = "", carry = 0;
+  for (let k = body.length - 2; k >= 1; k--) {      // tail end to head end: cell k, entered from k+1, left for k-1
     const cell = body[k], sIn = sideTo(M, cell, body[k + 1]), sOut = sideTo(M, cell, body[k - 1]), d = (sOut - sIn + 4) % 4;
-    w += d === 2 ? "S" : d === 3 ? "L" : "R";
+    let p = carry + fold(M, body[k + 1], cell);
+    const now = Math.sign(p); carry = p - now;
+    w += (now > 0 ? "D" : now < 0 ? "U" : "") + (d === 2 ? "S" : d === 3 ? "L" : "R");
   }
   return w;
 }
@@ -195,28 +229,26 @@ export function wordOf(M, body) {
    and the caps become hemispheres. Only the drawing changes: the cells, their
    neighbours and every count above stay exactly what they were. */
 export function centreline(M) {
-  const out = [];
+  const out = [], add = (a, b, t) => [a[0] + b[0] * t, a[1] + b[1] * t, a[2] + b[2] * t];
   for (let k = 0; k < M.L; k++) {
-    const P = M.P[k], di = VEC[M.din[k]], dO = VEC[M.dout[k]];
-    const E = [P[0] - 0.5 * di[0], P[1] - 0.5 * di[1], 0], X = [P[0] + 0.5 * dO[0], P[1] + 0.5 * dO[1], 0];
-    if (k === 0) out.push({ k, a: [P[0], P[1], 0], b: X });
-    else if (k === M.L - 1) out.push({ k, a: E, b: [P[0], P[1], 0] });
+    const P = M.P[k], di = VEC[M.din[k]], dO = VEC[M.dout[k]], E = add(P, di, -0.5), X = add(P, dO, 0.5);
+    if (k === 0) out.push({ k, a: P.slice(), b: X });
+    else if (k === M.L - 1) out.push({ k, a: E, b: P.slice() });
     else if (M.din[k] === M.dout[k]) out.push({ k, a: E, b: X });
-    else {
-      const O = [P[0] - 0.5 * di[0] + 0.5 * dO[0], P[1] - 0.5 * di[1] + 0.5 * dO[1], 0];
-      const t0 = Math.atan2(E[1] - O[1], E[0] - O[0]), t1 = Math.atan2(X[1] - O[1], X[0] - O[0]);
-      let sw = t1 - t0; while (sw > Math.PI) sw -= 2 * Math.PI; while (sw < -Math.PI) sw += 2 * Math.PI;
-      out.push({ k, O, t0, sw });
-    }
+    // a quarter circle round the cell's inside corner, from the entry face's middle (−dout from the centre O) to the exit's (+din)
+    else out.push({ k, O: add(add(P, di, -0.5), dO, 0.5), ea: dO.map((v) => -v), eb: di.slice() });
   }
   return out;
 }
+export function linePoint(pc, t) {   // t ∈ [0, 1] along a piece of the centreline
+  if (pc.O) { const a = t * Math.PI / 2, c = 0.5 * Math.cos(a), s = 0.5 * Math.sin(a); return [0, 1, 2].map((i) => pc.O[i] + c * pc.ea[i] + s * pc.eb[i]); }
+  return [0, 1, 2].map((i) => pc.a[i] + (pc.b[i] - pc.a[i]) * t);
+}
 function nearestOn(piece, x) {
   if (piece.O) {
-    let t = Math.atan2(x[1] - piece.O[1], x[0] - piece.O[0]) - piece.t0;
-    while (t > Math.PI) t -= 2 * Math.PI; while (t < -Math.PI) t += 2 * Math.PI;
-    const u = Math.max(0, Math.min(1, t / piece.sw)), a = piece.t0 + u * piece.sw;
-    return [piece.O[0] + 0.5 * Math.cos(a), piece.O[1] + 0.5 * Math.sin(a), 0];
+    const v = [x[0] - piece.O[0], x[1] - piece.O[1], x[2] - piece.O[2]];
+    const a = Math.max(0, Math.min(Math.PI / 2, Math.atan2(dot(v, piece.eb), dot(v, piece.ea))));
+    return linePoint(piece, a / (Math.PI / 2));
   }
   const { a, b } = piece, d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L2 = dot(d, d);
   const u = L2 ? Math.max(0, Math.min(1, dot([x[0] - a[0], x[1] - a[1], x[2] - a[2]], d) / L2)) : 0;
