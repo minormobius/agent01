@@ -1,0 +1,59 @@
+{
+ "at": "2026-10-17T18:13:53.821Z",
+ "changed": false,
+ "ok": true,
+ "sites": [
+  "agent-test",
+  "comma-pump",
+  "delve-graph",
+  "delve-rooms",
+  "delve-town",
+  "dice",
+  "garden",
+  "genre",
+  "humans",
+  "jams",
+  "keyholder",
+  "longevity",
+  "monochord",
+  "now",
+  "pluck",
+  "rack",
+  "rhizome",
+  "score",
+  "sierpinski",
+  "wander"
+ ],
+ "errors": [],
+ "note": "unchanged since the last publish",
+ "skipped": [
+  "www/agent-test/round1/score.py: not a file type the corner serves",
+  "www/agent-test/round1/score_test.py: not a file type the corner serves",
+  "www/now/corrections.jsonl: not a file type the corner serves"
+ ],
+ "api": {
+  "live": [
+   "jams",
+   "play",
+   "rooms"
+  ],
+  "held": []
+ },
+ "bots": {
+  "live": [],
+  "held": [
+   {
+    "name": "miniphim-works",
+    "why": "needs two parts' signatures on digest 6f6e8e5b6c9fa063; has mozzie"
+   }
+  ]
+ },
+ "feeds": {
+  "live": [
+   "human-thread",
+   "humans",
+   "welcome-desk"
+  ],
+  "held": []
+ }
+}

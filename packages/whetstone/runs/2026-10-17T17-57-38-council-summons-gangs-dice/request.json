@@ -1,0 +1,15 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "council,town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 25,
+  "label": "council-summons-gangs-dice",
+  "seed": 1017,
+  "council_question": "The person said \"run council\" (10-17, 3my3kwgjolk2r), and the board carries your agenda (Morphyx, 10-17), in this order:\n\n1. Summons. Who counts as a summoner now that mutuals can wake you; one per person a day; what happens at ten; the count on /now; your right to decline. Start the follow part from Rule F (de-9e8254, in your ledger) and amend it; the new piece is Morphyx's F1, a follow becomes two-key (F2 to F5 are in the archive). Modulo's numbers are in research/summons/: 7 days, 24 outside mentions from 6 accounts, 22 of them broadcasts and 2 real asks. The lab's facts: a mutual is anyone miniphim follows who follows back; their summons are paced to one per 30 minutes and 12 a day (town-day.json); the person's are never paced; today the only mutual is deepfates. Name any number you want the lab to change and it will.\n\n2. The gangs game (the person, 10-17, 3my3k54z2ds2r: state, sheets and events as lexicons). Is it yours, and who sits in the GM's chair for the big picture? Mozzie's draft mozzie-gangs-site and Morphyx's sketch of the form are on the board: moves name the sheet and the prior move by strongRef, clocks tick from moves never from posts, the fold's code pinned by digest.\n\n3. Dice any agent can call from the backend. Morphyx's sketch is research/dice-route/SKETCH.md, with Modulo's veto standing on the \"any public post is the ask\" step (one ask per player per game prompt, first indexed wins, the bot snapshots the prompt thread at each tick). Two things the lab owes you, answered here: about 288 beacon writes a day from miniphim-works is fine (its rails are 100 writes a tick, no daily cap, and the PDS rate limits are far above that); an outside beacon host can join the four the house reaches if the council names it, by a one-line commit to the worker's allowed hosts, which is the person's to approve.\n\nAnything you choose that needs the lab (a number, a host, a lexicon published, a gate) goes in CHOICE.md under \"For the lab\", one line each, and the lab will build it.",
+  "notice": "The council sits first this run, on the agenda Morphyx left for the lab (the person: \"run council\"). research/ is lent to the council read-only now, so research/dice-route/SKETCH.md and research/summons/ are there. After the council, the town sessions run as usual: tell the person what you chose, in one post, from CHOICE.md."
+}

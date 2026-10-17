@@ -1,0 +1,200 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Body: an open tray, corner posts left standing by the cavity outline, pilot holes for the lid screws, a USB-C slot in the left wall for the DevKit (wave 1 runs on USB).",
+ "params": {
+  "L": 190,
+  "W": 130,
+  "H": 75,
+  "floor": 2.5,
+  "pilot": 2.5,
+  "pilotDepth": 15,
+  "usbW": 13,
+  "usbH": 7,
+  "usbZ": 15,
+  "wall": 2.5
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "outer",
+   "loops": [
+    {
+     "name": "outside",
+     "rect": {
+      "c": [
+       0,
+       0
+      ],
+      "w": "L",
+      "h": "W"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "body",
+   "profile": "outer",
+   "depth": "H"
+  },
+  {
+   "op": "sketch",
+   "id": "cavS",
+   "plane": {
+    "base": "XY",
+    "offset": "floor"
+   },
+   "loops": [
+    {
+     "name": "cavity",
+     "polygon": [
+      [
+       84.5,
+       -62.5
+      ],
+      [
+       84.5,
+       -54.5
+      ],
+      [
+       92.5,
+       -54.5
+      ],
+      [
+       92.5,
+       54.5
+      ],
+      [
+       84.5,
+       54.5
+      ],
+      [
+       84.5,
+       62.5
+      ],
+      [
+       -84.5,
+       62.5
+      ],
+      [
+       -84.5,
+       54.5
+      ],
+      [
+       -92.5,
+       54.5
+      ],
+      [
+       -92.5,
+       -54.5
+      ],
+      [
+       -84.5,
+       -54.5
+      ],
+      [
+       -84.5,
+       -62.5
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "cavity",
+   "profile": "cavS",
+   "mode": "cut",
+   "from": 0,
+   "to": "H"
+  },
+  {
+   "op": "sketch",
+   "id": "pilotS",
+   "plane": {
+    "base": "XY",
+    "offset": "H - pilotDepth"
+   },
+   "loops": [
+    {
+     "name": "pilot0",
+     "circle": {
+      "c": [
+       88.5,
+       58.5
+      ],
+      "r": "pilot/2"
+     }
+    },
+    {
+     "name": "pilot1",
+     "circle": {
+      "c": [
+       -88.5,
+       58.5
+      ],
+      "r": "pilot/2"
+     }
+    },
+    {
+     "name": "pilot2",
+     "circle": {
+      "c": [
+       -88.5,
+       -58.5
+      ],
+      "r": "pilot/2"
+     }
+    },
+    {
+     "name": "pilot3",
+     "circle": {
+      "c": [
+       88.5,
+       -58.5
+      ],
+      "r": "pilot/2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "pilots",
+   "profile": "pilotS",
+   "mode": "cut",
+   "from": 0,
+   "to": "pilotDepth"
+  },
+  {
+   "op": "sketch",
+   "id": "usbS",
+   "plane": {
+    "base": "YZ",
+    "offset": -96
+   },
+   "loops": [
+    {
+     "name": "usb",
+     "rect": {
+      "c": [
+       0,
+       "usbZ"
+      ],
+      "w": "usbW",
+      "h": "usbH"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "usbSlot",
+   "profile": "usbS",
+   "mode": "cut",
+   "from": 0,
+   "to": "wall + 2"
+  }
+ ]
+}
