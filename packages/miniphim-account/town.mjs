@@ -105,6 +105,13 @@ export function flattenThread(view, max = THREAD_MAX) {
   return { posts: out, truncated: out.length >= max };
 }
 
+export const WORKS_DID = 'did:plc:ecqgihbmc6jhoybrr3dthvsi', WORKS_HANDLE = 'miniphim-works.delve.town';
+export function addressesWorks(r = {}) {
+  if (String(r.reply?.parent?.uri || '').startsWith(`at://${WORKS_DID}/`)) return true;
+  if ((r.facets || []).some((f) => (f.features || []).some((x) => /#mention$/.test(x.$type || '') && x.did === WORKS_DID))) return true;
+  return /(^|\s)@miniphim-works(\.delve\.town)?\b/i.test(r.text || '');
+}
+
 export async function fetchTown({ password, now = new Date().toISOString(), fetchImpl = fetch } = {}) {
   const token = await session(password, fetchImpl);
   const errors = [];
@@ -141,6 +148,33 @@ export async function fetchTown({ password, now = new Date().toISOString(), fetc
   const addressed = new Set(inbox.map((m) => m.uri));
   for (const t of Object.values(threads)) for (const p of t.posts) { if (addressed.has(p.uri)) p.to_us = true; if (p.author === HANDLE) p.ours = true; }
   const other = notes.filter((n) => !['mention', 'reply', 'quote'].includes(n.reason)).map((n) => ({ reason: n.reason, author: n.author?.handle, at: n.indexedAt }));
+  // miniphim-works is addressed too (council 10-17, first item for the lab: "mentions of miniphim-works
+  // by the person or a mutual go into town/inbox.json as summonses"). Its notifications need its own
+  // password, which the lab doesn't hold, so they're read from the summoners' public posts: the
+  // person's and each mutual's last 30, any that mention the bot, reply to it or name @miniphim-works,
+  // up to reply_max_age_h old. Each lands in the inbox with "to": "miniphim-works".
+  let mutuals = [];
+  try {
+    const all = async (m, key) => { const out = []; let cursor; for (let i = 0; i < 10; i++) { const j = await read(`town.delve.graph.${m}`, { actor: DID, limit: 100, ...(cursor ? { cursor } : {}) }, token, fetchImpl); out.push(...(j[key] || [])); if (!j.cursor || !(j[key] || []).length) break; cursor = j.cursor; } return out; };
+    const followers = new Set((await all('getFollowers', 'followers')).map((a) => a.did));
+    mutuals = (await all('getFollows', 'follows')).filter((a) => followers.has(a.did)).map((a) => ({ did: a.did, handle: a.handle }));
+  } catch (e) { errors.push(`mutuals: ${e.message}`); }
+  const summoners = [{ did: CAPS.operator_did, handle: CAPS.operator }, ...mutuals.filter((m) => m.did !== CAPS.operator_did)];
+  const have = new Set(inbox.map((m) => m.uri));
+  for (const a of summoners) {
+    const posts = (await tryRead('town.delve.feed.getAuthorFeed', { actor: a.did, limit: 30 }))?.feed?.map((f) => f.post) || [];
+    for (const p of posts) {
+      if (!p?.uri || have.has(p.uri) || p.author?.did !== a.did || !addressesWorks(p.record)) continue;
+      if (hours(p.indexedAt || p.record?.createdAt, now) > CAPS.reply_max_age_h) continue;
+      have.add(p.uri);
+      const n = { ...p, reason: 'mention' };
+      const facts = factsOf(n, { now, ours, repliedToday }); facts.repeat = false; facts.to = 'miniphim-works';
+      const v = postView(n);
+      inbox.push({ uri: p.uri, cid: p.cid, url: v.url, author: p.author?.handle, author_did: p.author?.did, at: p.indexedAt, to: 'miniphim-works',
+        text: p.record?.text || '', ...(v.links ? { links: v.links } : {}), reply_root: p.record?.reply?.root || { uri: p.uri, cid: p.cid },
+        thread: p.record?.reply?.root?.uri || p.uri, facts });
+    }
+  }
   let feed = (await tryRead('town.delve.feed.getTimeline', { limit: 50 }))?.feed || [];
   let feedSource = 'timeline';
   if (feed.length < 20) {
@@ -158,7 +192,7 @@ export async function fetchTown({ password, now = new Date().toISOString(), fetc
   }
   return {
     at: now, account: HANDLE, errors,
-    inbox, other, threads,
+    inbox, other, threads, mutuals: mutuals.length,
     ours: mine.map((f) => ({ uri: f.post.uri, cid: f.post.cid, at: f.post.record?.createdAt, text: f.post.record?.text, reply: !!f.post.record?.reply, likes: f.post.likeCount || 0, replies: f.post.replyCount || 0 })),
     feed: { source: feedSource, posts: feed.map((f) => ({ uri: f.post?.uri, cid: f.post?.cid, url: f.post?.uri ? webUrl(f.post.uri, f.post?.author?.handle) : null, author: f.post?.author?.handle, at: f.post?.record?.createdAt, text: f.post?.record?.text || '', likes: f.post?.likeCount || 0, replies: f.post?.replyCount || 0 })) },
   };

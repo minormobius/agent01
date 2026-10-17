@@ -41,11 +41,15 @@ export const SUMMON_CRON = '*/2 * * * *';
 const APPVIEW = 'https://api.delve.town';
 export const MINIPHIM_DID = 'did:plc:a3vq3hjlkz2nbf67bpv5z6qs';
 
-export function addressesUs(post, did = MINIPHIM_DID) {
+// miniphim, and its bot account miniphim-works (council 10-17: a mention of the bot by the person or a
+// mutual is a summons too).
+export const WORKS_DID = 'did:plc:ecqgihbmc6jhoybrr3dthvsi';
+export function addressesUs(post, dids = [MINIPHIM_DID, WORKS_DID]) {
   const r = post?.record || {};
-  if (String(r.reply?.parent?.uri || '').startsWith(`at://${did}/`)) return true;
-  if ((r.facets || []).some((f) => (f.features || []).some((x) => String(x.$type).endsWith('#mention') && x.did === did))) return true;
-  return /(^|\s)@miniphim(\.delve\.town)?\b/i.test(r.text || '');
+  const list = [].concat(dids);
+  if (list.some((d) => String(r.reply?.parent?.uri || '').startsWith(`at://${d}/`))) return true;
+  if ((r.facets || []).some((f) => (f.features || []).some((x) => String(x.$type).endsWith('#mention') && list.includes(x.did)))) return true;
+  return /(^|\s)@miniphim(-works)?(\.delve\.town)?\b/i.test(r.text || '');
 }
 
 export function summonRequest(template, mentions, now) {
@@ -106,7 +110,7 @@ export async function summonTick(env, now = new Date(), fetchImpl = fetch, state
   // 30 min. Up to summon.per_tick of their feeds a tick, in rotation; each mutual's own "seen" time, so a
   // mention is answered once. Their summons are paced (summon.mutual_gap_min, summon.mutual_per_day);
   // a held mention stays unseen and goes out with the next allowed summon.
-  let fromMutuals = [], mutualSeen = {}, held = null, mutualCount = 0;
+  let fromMutuals = [], mutualSeen = {}, held = null, mutualCount = 0, dropped = [];
   if (s.mutuals === true) {
     let m = null; try { m = JSON.parse((await state.get('summon:mutuals')) || 'null'); } catch { m = null; }
     if (!m || now.getTime() - Date.parse(m.at) > 30 * 60000) {
@@ -118,22 +122,34 @@ export async function summonTick(env, now = new Date(), fetchImpl = fetch, state
     const turn = list.length <= per ? list : [...list, ...list].slice(rot, rot + per);
     await state.set('summon:rot', String((rot + per) % Math.max(1, list.length)));
     for (const a of turn) {
-      const seen = (await state.get(`summon:seen:${a.did}`)) || new Date(now.getTime() - window).toISOString();
+      // The first look at a mutual stores its starting point, so a mention held for the 30-minute spacing
+      // can't age out of the window before it is allowed to go.
+      let seen = await state.get(`summon:seen:${a.did}`);
+      if (!seen) { seen = new Date(now.getTime() - window).toISOString(); await state.set(`summon:seen:${a.did}`, seen); }
       let ps; try { ps = await feedOf(a.did); } catch { continue; }
       const mine = ps.filter((p) => p?.author?.did === a.did && addressesUs(p) && String(p.record?.createdAt) > seen);
       if (mine.length) { fromMutuals.push(...mine); mutualSeen[a.did] = mine.map((p) => p.record.createdAt).sort().at(-1); }
     }
+    // Council 10-17: at most one wake per mutual per UTC day and summon.mutual_per_day (10) across them,
+    // 30 min apart. Past a cap a mention is NOT queued: it is marked seen here and is an ordinary inbox item
+    // for the next town day. Only the 30-minute spacing holds one back to go with the next allowed summon.
     if (fromMutuals.length && !theirs.length) {
-      const gap = (s.mutual_gap_min ?? 30) * 60000, cap = s.mutual_per_day ?? 12, day = now.toISOString().slice(0, 10);
-      const lastM = await state.get('summon:mutual_last');
+      const day = now.toISOString().slice(0, 10), cap = s.mutual_per_day ?? 10, gap = (s.mutual_gap_min ?? 30) * 60000;
+      const fresh = [];
+      for (const p of fromMutuals) ((await state.get(`summon:acct:${p.author?.did}`)) === day ? dropped : fresh).push(p);
+      fromMutuals = fresh;
       let count = {}; try { count = JSON.parse((await state.get('summon:mutual_day')) || '{}'); } catch { count = {}; }
-      if (lastM && now.getTime() - Date.parse(lastM) < gap) held = `a mutual's summon waits: the last was under ${s.mutual_gap_min ?? 30} min ago`;
-      else if (count.day === day && count.n >= cap) held = `a mutual's summon waits: ${cap} today already`;
+      if (fromMutuals.length && count.day === day && count.n >= cap) { dropped.push(...fromMutuals); fromMutuals = []; }
+      const lastM = await state.get('summon:mutual_last');
+      if (fromMutuals.length && lastM && now.getTime() - Date.parse(lastM) < gap) held = `a mutual's summon waits: the last was under ${s.mutual_gap_min ?? 30} min ago`;
     }
   }
   const mentions = [...theirs, ...(held ? [] : fromMutuals)]
     .sort((a, b) => String(b.record.createdAt).localeCompare(String(a.record.createdAt)));
-  if (!mentions.length) return { skipped: held || 'no new mention', since: last, read: posts.length, newest: posts[0]?.record?.createdAt || null, ...(s.mutuals === true ? { mutuals: mutualCount } : {}) };
+  if (!mentions.length) {
+    if (dropped.length && !held) for (const [did, at] of Object.entries(mutualSeen)) await state.set(`summon:seen:${did}`, at);
+    return { skipped: held || (dropped.length ? `${dropped.length} mention(s) past a cap: inbox items for the next town day, not summons` : 'no new mention'), since: last, read: posts.length, newest: posts[0]?.record?.createdAt || null, ...(s.mutuals === true ? { mutuals: mutualCount } : {}) };
+  }
   const { path, body } = summonRequest(template, mentions, now);
   const put = await fetchImpl(`${api}${path}`, { method: 'PUT', headers: { ...headers, 'content-type': 'application/json' },
     body: JSON.stringify({ message: `whetstone: ${body.label} (summoned)`, branch: env.CLOCK_BRANCH, content: b64(JSON.stringify(body, null, 2) + '\n') }) });
@@ -146,6 +162,7 @@ export async function summonTick(env, now = new Date(), fetchImpl = fetch, state
       let count = {}; try { count = JSON.parse((await state.get('summon:mutual_day')) || '{}'); } catch { count = {}; }
       await state.set('summon:mutual_day', JSON.stringify({ day, n: count.day === day ? count.n + 1 : 1 }));
       await state.set('summon:mutual_last', now.toISOString());
+      for (const p of fromMutuals) await state.set(`summon:acct:${p.author?.did}`, day);
     }
   }
   return put.ok ? { committed: path, mentions: mentions.length, ...(fromMutuals.length && !held ? { by_mutuals: fromMutuals.length } : {}) } : { skipped: `${path} already exists` };

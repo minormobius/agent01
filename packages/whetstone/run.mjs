@@ -226,6 +226,28 @@ function readJobs() {
   return Object.fromEntries(Object.entries(readTree(dir)).filter(([k]) => !k.startsWith('queue/')));
 }
 
+// The summons count for /now (council 10-17: "summons today n/10, the reset time, 7-day counts, mutuals
+// today; no handles"), lent each town day as town/summons.json. Counted from the summon requests the
+// mail worker committed (requests/<date>-summon-*.json): a wake with any of the person's posts in it is
+// theirs; the rest are outside wakes. Taken and declined are the three's own labels, not the lab's.
+function summonsJson(town, now = new Date()) {
+  const dir = join(HERE, 'requests'), op = 'did:plc:nhlcvrqwh7hwhvmgxbut6c2f';
+  let tpl = {}; try { tpl = JSON.parse(readFileSync(join(HERE, 'town-day.json'), 'utf8')).summon || {}; } catch { tpl = {}; }
+  const days = Array.from({ length: 7 }, (_, i) => new Date(now.getTime() - i * 864e5).toISOString().slice(0, 10)).reverse();
+  const by = Object.fromEntries(days.map((d) => [d, { day: d, person: 0, outside: 0 }]));
+  for (const f of existsSync(dir) ? readdirSync(dir) : []) {
+    const m = f.match(/^(\d{4}-\d{2}-\d{2})-summon-/); if (!m || !by[m[1]]) continue;
+    let r; try { r = JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { continue; }
+    const person = (r.summoned_by || []).some((u) => u.split('/')[2] === op);
+    by[m[1]][person ? 'person' : 'outside']++;
+  }
+  const today = days.at(-1), reset = new Date(`${today}T00:00:00Z`); reset.setUTCDate(reset.getUTCDate() + 1);
+  return JSON.stringify({ at: now.toISOString(),
+    rules: { outside_per_day: tpl.mutual_per_day ?? 10, per_account_per_day: 1, gap_min: tpl.mutual_gap_min ?? 30, person: 'never paced or counted' },
+    today: { day: today, outside: by[today].outside, cap: tpl.mutual_per_day ?? 10, person: by[today].person, resets_at: reset.toISOString() },
+    last7: Object.values(by), mutuals_today: town?.mutuals ?? null }, null, 1) + '\n';
+}
+
 // Their side of the letter file, copied next to the person's letters after every run
 // (letters/from-the-miniphim/), so the person finds the replies where they wrote, not inside a run's
 // archive. A subfolder, so readLetters never mistakes a reply for a letter.
@@ -278,7 +300,7 @@ try {
   const { records, judged, scorecard, commons: after, townResult } = await runLab({
     souls, bank, call, judge, kinds,
     reps: Number(opt.reps || 3), seed: Number(opt.seed || 1), concurrency: Number(opt.concurrency || 4),
-    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: { ...(proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}), ...(townProxy ? { MINIPHIM_TOWN_URL: townProxy.url } : {}) }, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL, 'town/town.mjs': TOWN_CLIENT } : {}, letters: readLetters(), afterTown, costs: costsMd(), runlog: runLogMd(runsDir), jobResults: readJobs(),
+    work, board, commons, custodian, notice: opt.notice || null, refs: readRefs(opt.refs), engines: { ...(stageEngines(opt.engines) || {}), ...(opt.lend_repo ? await stageRepo(opt.lend_repo) : {}) }, councilQuestion: opt.council_question || null, net: opt.net === true || opt.net === 'true', sessionEnv: { ...(proxy ? { MINIPHIM_MODELS_URL: proxy.url } : {}), ...(townProxy ? { MINIPHIM_TOWN_URL: townProxy.url } : {}) }, town: tb.town, townReadme: townDay ? townReadme(tb) : '', townFiles: townDay ? { 'town/hash.mjs': HASH_TOOL, 'town/town.mjs': TOWN_CLIENT, 'town/summons.json': summonsJson(tb.town) } : {}, letters: readLetters(), afterTown, costs: costsMd(), runlog: runLogMd(runsDir), jobResults: readJobs(),
     log: (m) => console.error(`· ${m}`),
   });
   scorecard.run.model = fake ? 'fake' : model;

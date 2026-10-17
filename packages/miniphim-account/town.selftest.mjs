@@ -190,4 +190,13 @@ assert.ok(create.every((c) => c.body.repo === DID && c.body.collection === POST)
   assert.deepEqual(postView({ uri: 'at://d/c/k', record: { text: 'hi', facets: [{ features: [{ $type: 'town.delve.richtext.facet#link', uri: 'https://a.b/' }] }] } }).links, ['https://a.b/']);
 }
 
+// miniphim-works is addressed too (council 10-17): a mention, a reply to it, or its handle in the text.
+{
+  const { addressesWorks, WORKS_DID } = await import('./town.mjs');
+  assert.ok(addressesWorks({ text: 'roll for me @miniphim-works.delve.town' }));
+  assert.ok(addressesWorks({ text: 'x', reply: { parent: { uri: `at://${WORKS_DID}/town.delve.feed.post/1` } } }));
+  assert.ok(addressesWorks({ text: 'x', facets: [{ features: [{ $type: 'town.delve.richtext.facet#mention', did: WORKS_DID }] }] }));
+  assert.ok(!addressesWorks({ text: '@miniphim hello' }), 'miniphim itself is the inbox as before, not this');
+}
+
 console.log('miniphim town selftest: second-part yes on the exact hash, veto, signature, links, length, posts/replies/per-author caps, PAUSED, retraction, facts, records, images (hash, alt, embed), links (facets, cards), whole threads');

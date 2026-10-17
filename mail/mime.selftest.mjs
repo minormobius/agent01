@@ -134,42 +134,51 @@ t('a being\'s key is standard HMAC-SHA256, as the Worker computes it with WebCry
   n++;
 }
 
-// Mutuals (2026-10-11): whoever miniphim follows that follows it back can summon; strangers can't;
-// each mention once; paced by mutual_gap_min and mutual_per_day; a held one goes out later.
+// Mutuals (2026-10-11; council 10-17): mutuals can summon; strangers can't; one wake per mutual per UTC
+// day and mutual_per_day across them, 30 min apart; past a cap a mention is dropped to the inbox, not
+// queued; the person never paced; a mention of miniphim-works is a summons too.
 {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64');
-  const tpl = { enabled: true, souls: 'modulo,morphyx', kinds: 'town', summon: { enabled: true, from: 'modalmobius.delve.town', mutuals: true, mutual_gap_min: 30, mutual_per_day: 2, request: { kinds: 'town' } } };
-  const P = (did, handle, rkey, at, text) => ({ post: { uri: `at://${did}/town.delve.feed.post/${rkey}`, author: { did, handle }, record: { text, createdAt: at } } });
-  const feeds = { 'modalmobius.delve.town': [], 'did:plc:deep': [], 'did:plc:stranger': [] };
+  const tpl = { enabled: true, souls: 'modulo,morphyx', kinds: 'town', summon: { enabled: true, from: 'modalmobius.delve.town', mutuals: true, mutual_gap_min: 30, mutual_per_day: 3, request: { kinds: 'town' } } };
+  const P = (did, handle, rkey, at, text, extra = {}) => ({ post: { uri: `at://${did}/town.delve.feed.post/${rkey}`, author: { did, handle }, record: { text, createdAt: at, ...extra } } });
+  const M = [['did:plc:deep', 'deepfates.delve.town'], ['did:plc:two', 'two.delve.town'], ['did:plc:three', 'three.delve.town'], ['did:plc:four', 'four.delve.town']];
+  const feeds = { 'modalmobius.delve.town': [], 'did:plc:deep': [], 'did:plc:two': [], 'did:plc:three': [], 'did:plc:four': [], 'did:plc:stranger': [] };
   const puts = [];
   const fake = async (url, init = {}) => {
     const u = String(url);
     if (u.includes('town-day.json')) return { ok: true, json: async () => ({ content: b64(tpl) }) };
-    if (u.includes('getFollows')) return { ok: true, json: async () => ({ follows: [{ did: 'did:plc:deep', handle: 'deepfates.delve.town' }, { did: 'did:plc:one', handle: 'oneway.delve.town' }] }) };
-    if (u.includes('getFollowers')) return { ok: true, json: async () => ({ followers: [{ did: 'did:plc:deep', handle: 'deepfates.delve.town' }, { did: 'did:plc:stranger', handle: 's.delve.town' }] }) };
+    if (u.includes('getFollows')) return { ok: true, json: async () => ({ follows: [...M.map(([did, handle]) => ({ did, handle })), { did: 'did:plc:one', handle: 'oneway.delve.town' }] }) };
+    if (u.includes('getFollowers')) return { ok: true, json: async () => ({ followers: [...M.map(([did, handle]) => ({ did, handle })), { did: 'did:plc:stranger', handle: 's.delve.town' }] }) };
     if (u.includes('getAuthorFeed')) { const a = decodeURIComponent(u.match(/actor=([^&]+)/)[1]); return { ok: true, json: async () => ({ feed: feeds[a] || [] }) }; }
     if (init.method === 'PUT') { puts.push(JSON.parse(Buffer.from(JSON.parse(init.body).content, 'base64').toString())); return { ok: true, status: 201 }; }
     return { ok: false, status: 404 };
   };
   const kv = new Map(); const state = { get: async (k) => kv.get(k) ?? null, set: async (k, v) => kv.set(k, String(v)) };
   const env = { GH_TOKEN: 't', CLOCK_REPO: 'o/r', CLOCK_BRANCH: 'b' };
-  const t = (m) => new Date(Date.parse('2026-10-11T12:00:00Z') + m * 60000);
+  const t = (m) => new Date(Date.parse('2026-10-17T12:00:00Z') + m * 60000);
   feeds['did:plc:deep'] = [P('did:plc:deep', 'deepfates.delve.town', 'd1', t(-1).toISOString(), '@miniphim want to play?')];
   feeds['did:plc:stranger'] = [P('did:plc:stranger', 's.delve.town', 's1', t(-1).toISOString(), '@miniphim hi')];
   let r = await summonTick(env, t(0), fake, state);
   assert.match(r.committed, /summon-d1/); assert.equal(r.by_mutuals, 1);
-  assert.match(puts[0].notice, /deepfates\.delve\.town \(a mutual\)/); assert.match(puts[0].notice, /guest list/);
+  assert.match(puts[0].notice, /deepfates\.delve\.town \(a mutual\)/);
   assert.deepEqual(puts[0].summoned_by, ['at://did:plc:deep/town.delve.feed.post/d1'], 'a follower we don\'t follow back, and a one-way follow, summon nothing');
   assert.match((await summonTick(env, t(2), fake, state)).skipped, /no new mention/, 'answered once');
   feeds['did:plc:deep'].unshift(P('did:plc:deep', 'deepfates.delve.town', 'd2', t(3).toISOString(), '@miniphim again'));
-  assert.match((await summonTick(env, t(4), fake, state)).skipped, /waits: the last was under 30 min/, 'paced');
-  r = await summonTick(env, t(31), fake, state);
-  assert.match(r.committed, /summon-d2/, 'the held mention goes out once the gap has passed');
-  feeds['did:plc:deep'].unshift(P('did:plc:deep', 'deepfates.delve.town', 'd3', t(62).toISOString(), '@miniphim third'));
-  assert.match((await summonTick(env, t(63), fake, state)).skipped, /2 today already/, 'a daily cap for mutuals');
-  feeds['modalmobius.delve.town'] = [P('did:plc:me', 'modalmobius.delve.town', 'p1', t(64).toISOString(), '@miniphim hello')];
-  r = await summonTick(env, t(65), fake, state);
-  assert.match(r.committed, /summon-p1/, 'the person is never paced'); assert.equal(puts.at(-1).summoned_by.length, 2, 'and a waiting mutual rides along');
+  assert.match((await summonTick(env, t(40), fake, state)).skipped, /past a cap: inbox items/, 'one wake per mutual a day; the second is an inbox item');
+  assert.match((await summonTick(env, t(41), fake, state)).skipped, /no new mention/, 'and is not queued');
+  feeds['did:plc:two'] = [P('did:plc:two', 'two.delve.town', 'w1', t(42).toISOString(), 'hey @miniphim-works.delve.town roll for me')];
+  r = await summonTick(env, t(43), fake, state);
+  assert.match(r.committed, /summon-w1/, 'a mention of miniphim-works by a mutual summons');
+  feeds['did:plc:three'] = [P('did:plc:three', 'three.delve.town', 'h1', t(44).toISOString(), '@miniphim one more')];
+  assert.match((await summonTick(env, t(45), fake, state)).skipped, /waits: the last was under 30 min/, 'spaced 30 min');
+  assert.match((await summonTick(env, t(80), fake, state)).committed, /summon-h1/, 'and goes out once the 30 minutes have passed');
+  feeds['did:plc:four'] = [P('did:plc:four', 'four.delve.town', 'f1', t(120).toISOString(), '@miniphim me too')];
+  assert.match((await summonTick(env, t(121), fake, state)).skipped, /past a cap/, 'mutual_per_day reached: dropped, not queued');
+  assert.match((await summonTick(env, t(200), fake, state)).skipped, /no new mention/, 'and stays dropped');
+  feeds['modalmobius.delve.town'] = [P('did:plc:me', 'modalmobius.delve.town', 'p1', t(210).toISOString(), 'look', { reply: { parent: { uri: 'at://did:plc:ecqgihbmc6jhoybrr3dthvsi/town.delve.feed.post/x' } } })];
+  r = await summonTick(env, t(211), fake, state);
+  assert.match(r.committed, /summon-p1/, 'the person is never paced, and a reply to the bot is a summons');
+  assert.match(puts.at(-1).notice, /The person summoned you/);
   n++;
 }
 
