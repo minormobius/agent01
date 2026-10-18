@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-rulebook",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "c5d61dac3205fa4c",
+ "why": "Checked the licence against bladesinthedark.com/node/33: CC-BY, and it says verbatim not to use the name in a product title. The page has the 12 actions, §9, §10, §6 XP for refusals and lost rolls, and the credit text matches theirs. 'Drift kept if deleted' holds because drift comes from pushed asks, and CHOICE §3 counts deleted asks."
+}
