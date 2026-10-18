@@ -30,7 +30,7 @@
     prevBest = game.best();
     $("over").hidden = true;
     note(game.canMove() ? "swipe toward a drain · or tap one" : "", "");
-    persist(); hud(); dirty = true;
+    persist(); hud(); dirty = true; offerable();
     if (!game.canMove()) finish();
   }
   function persist() { save_("twelve-game-" + slot(game.key, game.flow), game.save()); }
@@ -75,8 +75,26 @@
     var b = bestScore();
     $("over-body").innerHTML = "<b>" + game.score + "</b> points in <b>" + game.moves + "</b> moves on " + game.s.name.toUpperCase() + " (" + game.flow + (game.mode.rain ? ", rain " + game.rain() + " a move at the end" : "") + "). Every drain is blocked." +
       (game.score >= b ? "<br><b>best on " + game.s.name.toUpperCase() + "</b>" : "<br>best: " + b);
+    offerable();
     $("over").hidden = false;
   }
+
+  /* the boards load on their own (they need the vendored auth client); their buttons show once they're there.
+     Only a finished ball posts, and only once: which one was posted is kept per slot, so a reload doesn't post it twice. */
+  function board() { return window.TWELVE_BOARD || null; }
+  function runId() { return game.seed + ":" + game.moves; }
+  function posted() { return load_("twelve-posted-" + slot(game.key, game.flow), "") === runId(); }
+  function offerable() {
+    var b = !!board(), done = !!game && !game.canMove() && game.score > 0;
+    $("trophy").hidden = $("o-board").hidden = !b;
+    $("post").hidden = !b || !done; $("post").disabled = done && posted();
+  }
+  function postRun() {
+    var b = board(); if (!b || !game || game.canMove() || !game.score || posted()) return;
+    save_("twelve-posted-" + slot(game.key, game.flow), runId()); $("post").disabled = true;
+    b.offer({ sel: { board: slot(game.key, game.flow) }, value: game.score, seed: game.seed, moves: game.moves, top: game.best(), at: Date.now() });
+  }
+  window.addEventListener("twelve-board", offerable);
 
   /* ---------------------------------------------------------------- input */
   var ptrs = new Map(), two = null, last = null, start0 = null, turning = false, swiping = false, moved = false, turnTo = null;
@@ -122,6 +140,8 @@
   cv.addEventListener("pointercancel", up);
   cv.addEventListener("wheel", function (e) { e.preventDefault(); view.zoom = Math.max(0.7, Math.min(3, view.zoom * Math.exp(-e.deltaY * 0.0015))); dirty = true; }, { passive: false });
   document.addEventListener("keydown", function (e) {
+    // keys typed into a field (the leaderboard's handle, the board picker) belong to it, not the game; and leave browser shortcuts alone
+    if (e.ctrlKey || e.metaKey || e.altKey || (e.target && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)))) return;
     if (e.key === "v") $("viewmode").click();
     else if (e.key === "f") $("flow").click();
     else if (e.key === "t") $("turn").click();
@@ -137,6 +157,9 @@
   $("new").onclick = function () { start($("mode").value, randomSeed()); };
   $("again").onclick = function () { start(game.key, randomSeed()); };
   $("look").onclick = function () { $("over").hidden = true; };
+  $("post").onclick = postRun;
+  $("o-board").onclick = function () { var b = board(); if (b) b.open({ board: slot(game.key, game.flow) }); };
+  $("trophy").onclick = function () { var b = board(); if (b) b.open({ board: slot(game.key, game.flow) }); };
   $("mode").onchange = function () { resume(this.value); };
   $("flow").onclick = function () {
     if (T.flows(game.key).length < 2) return;

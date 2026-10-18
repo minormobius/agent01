@@ -104,9 +104,28 @@ game, exactly 2048's rule on every arm.
 - Games are seeded (`?seed=…&m=c60&f=vortex`). Each board and flow keeps its
   own game in progress and best score in `localStorage`.
 
+## Leaderboards
+
+🏆 opens the boards: the highest score on each board and flow (C60 ⇣/◎, C80
+⇣/◎, C180, C240), all time, this week and today, read live off ATProto through
+Orb's portable kit (`../orb/js/board-kit.js`). A finished ball (no pour left)
+can be posted once from the game-over screen, as a `com.minomobi.lab.score`
+record in the player's own repo (`js/board.js`, its own module so the game
+runs without it). The game remembers which ball each slot posted, so a reload
+doesn't post the same ball twice.
+
+`js/score.js` builds the record (`score-<board>-<flow>-v1`, detail
+`seed=… moves=… top=…`) and refuses the impossible. A ball that has made m
+moves has dealt at most `drop + 1 + Σ rain(k)` tiles of 2 or 4, so its tiles
+sum to at most 4 × that. A tile of 2^k scores (k − 1) · 2^k on its way up from
+twos, so the score is at most that sum × (log2 top − 1). The top tile must be a
+power of two, at least 4, and no bigger than the sum. The selftest checks the
+constants against the engine and plays a dozen balls to the end on every
+board. Each one is accepted, and each kind of tampering is refused.
+
 ## Tests
 
 ```bash
-node games/twelve/test/twelve.selftest.mjs   # drains per board, gravity and vortex invariants, 2048 row cases, rain, saves, the balance claim
+node games/twelve/test/twelve.selftest.mjs   # drains per board, gravity and vortex invariants, 2048 row cases, rain, saves, the balance claim, the board's records
 node games/twelve/test/analysis.mjs 40       # the table above (~30 s)
 ```

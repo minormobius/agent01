@@ -289,5 +289,42 @@ console.log("\n— the difficulty curve still has a shape —");
   ck(rotate >= 8 && rotate <= 30, `a competent run lasts a sensible number of waves (${rotate})`);
 }
 
+console.log("\n— the leaderboard: real runs in, the impossible out —");
+{
+  const S = await import("../js/score.js");
+  const C = H.CONFIG, Z = H.ZOMBIES;
+  // score.js carries its own copy of the rules it checks against; they must be the game's
+  const speeds = Object.values(Z).map((z) => z.speed), dmgs = Object.values(Z).map((z) => z.dmg);
+  const perPt = Object.values(Z).map((z) => 1 / z.pts);
+  const tarFloor = (() => { const r = H.newRun("tar", { quiet: true }); const u = H.UPGRADES.find((x) => x.id === "tar"); for (let i = 0; i < 20; i++) u.apply(r); return r.mods.speedMul; })();
+  ck(S.WALL_MAX === C.wallMax && S.BRIEF === C.briefTime && S.GATE === C.gateTime && S.MAX_DMG === Math.max(...dmgs),
+    "score.js's wall, beats and leak damage are config.js's");
+  ck(Math.abs(S.SLOWEST - Math.min(...speeds) * tarFloor) < 1e-12, `the slowest walk is the slowest zombie at the tar floor (${tarFloor})`);
+  ck(S.MIN_PER_PT <= Math.min(...perPt) && S.MAX_PER_PT >= Math.max(...perPt), "zombies-per-point bounds cover the bestiary");
+  ck([1, 5, 12, 30, 60].every((w) => S.budget(w) === C.waveBudget(w) && S.duration(w) === C.waveDuration(w)), "budget and duration curves are config.js's");
+
+  const asRecord = (res, over = {}) => Object.assign({ $type: "com.minomobi.lab.score", site: "horde", game: S.GAME, createdAt: new Date().toISOString() },
+    S.record({ value: res.diedOn, seed: res.seed, kills: res.kills, leaks: res.leaks, t: res.seconds, taken: res.taken.length }), over);
+  const runs = ["board-1", "board-2", "board-3", "board-4"].map((s) => playRun(H, s, { policy: "rotate" }))
+    .concat(["board-5", "board-6"].map((s) => playRun(H, s, { policy: "sweep", cards: "worst" })))
+    .concat([playRun(H, "board-7", { policy: "rotate", instantCards: true })]);
+  ck(runs.every((r) => r.diedOn && S.accept(asRecord(r))), `real runs are accepted (waves ${runs.map((r) => r.diedOn).join(", ")})`);
+  const r = runs[0], ok = asRecord(r);
+  const bad = {
+    "another site": { site: "molt" }, "another version": { game: "wave-v0" }, "another unit": { unit: "points" },
+    "lower is better": { higherIsBetter: false }, "no date": { createdAt: "soon" },
+    "a wave the detail doesn't back": { value: r.diedOn + 5 },
+    "no seed": { detail: ok.detail.replace(/seed=\S+ /, "") },
+    "too few cards": { detail: ok.detail.replace(/taken=\d+/, "taken=" + (r.taken.length - 1)) },
+    "too few leaks to fall": { detail: ok.detail.replace(/leaks=\d+/, "leaks=2") },
+    "too fast": { detail: ok.detail.replace(/t=\d+/, "t=" + Math.floor(r.diedOn * C.briefTime - 1)) },
+    "too slow": { detail: ok.detail.replace(/t=\d+/, "t=99999") },
+    "too few zombies": { detail: ok.detail.replace(/kills=\d+/, "kills=0") },
+    "too many kills": { detail: ok.detail.replace(/kills=\d+/, "kills=999999") },
+  };
+  const leaked = Object.entries(bad).filter(([, o]) => S.accept(Object.assign({}, ok, o))).map(([k]) => k);
+  ck(!leaked.length, "the impossible is refused" + (leaked.length ? ": accepted " + leaked.join(", ") : ` (${Object.keys(bad).length} ways)`));
+}
+
 console.log(failures ? `\n${failures} FAILED\n` : "\nall good\n");
 process.exit(failures ? 1 : 0);

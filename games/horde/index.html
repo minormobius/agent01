@@ -70,6 +70,7 @@
       Freeze, and the game picks the worst one for you.
     </p>
     <button class="primary" id="start-btn" type="button">HOLD THE LINE</button>
+    <button class="ghost" id="s-board" type="button" hidden>🏆 leaderboard</button>
     <p class="seed-line">seed <code id="start-seed">—</code></p>
   </div>
 
@@ -91,6 +92,10 @@
       <button class="primary" id="again" type="button">NEW HORDE</button>
       <button class="ghost" id="replay" type="button">SAME SEED (R)</button>
     </div>
+    <div class="btn-row">
+      <button class="primary" id="post" type="button" hidden>POST TO THE BOARD</button>
+      <button class="ghost" id="d-board" type="button" hidden>🏆 BOARD</button>
+    </div>
     <p class="seed-line">
       best: wave <code id="dead-best">0</code> · this run: <code id="dead-seed">—</code><br />
       the seed is in the URL — share it and your friends fight the same horde
@@ -105,5 +110,6 @@
 <script src="js/render.js"></script>
 <script src="js/sfx.js"></script>
 <script src="js/main.js"></script>
+<script type="module" src="js/board.js"></script>
 </body>
 </html>

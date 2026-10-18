@@ -10,6 +10,8 @@
  *     walks; each arm is exactly a row of 2048;
  *   - gravity is the default, contested cells go to the nearer tile, rain
  *     rises every 100 moves, games are deterministic and saves round-trip;
+ *   - the leaderboard's records (js/score.js): real finished balls on every
+ *     board are accepted, its constants match the engine, tampering is refused;
  *   - the balance claim: on C60 (both flows) random play stays near 2048's
  *     floor while greedy gets well past it; on C180/C240 rain ends every game.
  */
@@ -144,6 +146,50 @@ console.log("the balance claim");
     line.push(`${k} random ${med(rnd)} / greedy ${med(grd)}`);
   }
   console.log("  C60 " + line.join(" · ") + ` · classic 4×4 random ${med(classic)}`);
+}
+
+console.log("the leaderboard's records");
+{
+  const S = await import("../js/score.js"), { greedy, random } = await import("./harness.mjs");
+  for (const k of Object.keys(T.MODES)) {
+    ok(S.MODES[k] && S.MODES[k].drop === T.MODES[k].drop && S.MODES[k].rain === T.MODES[k].rain, `score.js: ${k}'s drop and rain match the engine`);
+    ok(JSON.stringify(S.FLOWS[k]) === JSON.stringify(T.flows(k)), `score.js: ${k}'s flows match the engine`);
+  }
+  ok(Object.keys(S.MODES).length === Object.keys(T.MODES).length, "score.js knows every board");
+  // finished balls, every slot, played out by greedy and random: each record is accepted, and the bounds behind accept() hold
+  const rec = (G) => ({ $type: "com.minomobi.lab.score", site: "twelve", createdAt: new Date().toISOString(), ...S.records({ sel: { board: G.key + "-" + G.flow }, value: G.score, seed: G.seed, moves: G.moves, top: G.best() })[0] });
+  const finished = [];
+  for (const slot of S.SLOTS) {
+    const [k, f] = slot.split("-");
+    for (const [name, pol] of [["greedy", greedy], ["random", random]]) {
+      const G = new T.Game(k, "lb-" + name + "-" + slot, f), pick = T.rngFrom("lb:" + slot + name);
+      let tiles = G.spawned.length;
+      while (G.moves < 6000) {
+        const opts = []; G.env.drains.forEach((_, w) => { const r = G.preview(w); if (r.moved) { r.w = w; opts.push(r); } });
+        if (!opts.length) break;
+        const r = G.move(pol(opts, pick).w); tiles += r.spawned.length;
+      }
+      ok(!G.canMove(), `${slot} ${name}: the ball finishes`);
+      ok(tiles <= S.dealt(k, G.moves) && (k !== "c60" || tiles === S.dealt(k, G.moves)), `${slot} ${name}: ${tiles} tiles dealt, within dealt() = ${S.dealt(k, G.moves)}`);
+      ok(G.g.reduce((a, b) => a + b, 0) <= 4 * S.dealt(k, G.moves), `${slot} ${name}: the ball's sum is within 4 × dealt`);
+      ok(S.accept(rec(G)), `${slot} ${name}: a real finished ball's record (${G.score} in ${G.moves}, top ${G.best()}) is accepted`);
+      finished.push(G);
+    }
+  }
+  const G = finished[0], good = rec(G), bad = (patch, why) => ok(!S.accept({ ...good, ...patch }), "refused: " + why);
+  ok(good.game === "score-c60-gravity-v1" && good.unit === "points", "c60 gravity posts to score-c60-gravity-v1");
+  bad({ value: G.score * 50 }, "a score no ball of that many moves could make");
+  bad({ detail: `seed=${G.seed} moves=3 top=${G.best()}` }, "a big tile in three moves");
+  bad({ detail: `seed=${G.seed} moves=${G.moves} top=96` }, "a top tile that isn't a power of two");
+  bad({ detail: `seed=${G.seed} moves=${G.moves} top=2` }, "points with nothing ever merged");
+  bad({ detail: "seed=x" }, "no moves or top in the detail");
+  bad({ game: "score-c180-vortex-v1" }, "a slot that doesn't exist (C180 has no vortex)");
+  bad({ game: "score-c60-gravity-v0" }, "another version's board");
+  bad({ site: "molt" }, "another site's record");
+  bad({ value: 0 }, "a zero score"); bad({ value: 12.5 }, "a fractional score"); bad({ unit: "moves" }, "the wrong unit");
+  bad({ higherIsBetter: false }, "lower-is-better"); bad({ createdAt: "soon" }, "no date");
+  ok(S.records({ sel: { board: "c60-gravity" }, value: 0, seed: "s", moves: 1, top: 2 }).length === 0, "a scoreless ball posts nothing");
+  console.log(`  ${finished.length} finished balls across ${S.SLOTS.length} boards accepted; tampering refused`);
 }
 
 console.log(fails ? `\n✗ ${fails} failed` : "\n✓ twelve selftest passed");

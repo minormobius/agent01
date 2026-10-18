@@ -25,6 +25,7 @@
       <button type="button" id="flow" class="tog">⇣ gravity</button>
       <button type="button" id="turn" class="tog icon" title="↘ pour: one finger swipes toward a drain. ✥ turn: one finger turns the ball, taps pour. (t)">↘</button>
       <button type="button" id="viewmode" class="tog icon" title="◯ the whole sphere, or ◐ the globe (v)">◯</button>
+      <button type="button" id="trophy" class="tog icon" title="Leaderboard" aria-label="Leaderboard" hidden>🏆</button>
     </div>
   </div>
   <div id="stat">
@@ -68,11 +69,16 @@
     <button class="primary" id="again" type="button">NEW BALL</button>
     <button class="ghost" id="look" type="button">LOOK</button>
   </div>
+  <div class="row">
+    <button class="primary" id="post" type="button" hidden>POST TO THE BOARD</button>
+    <button class="ghost" id="o-board" type="button" hidden>🏆 BOARD</button>
+  </div>
 </div>
 
 <script src="../onecoast/js/geo.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/view.js"></script>
 <script src="js/main.js"></script>
+<script type="module" src="js/board.js"></script>
 </body>
 </html>

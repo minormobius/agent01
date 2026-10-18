@@ -103,10 +103,32 @@ the histogram. The knobs with the most leverage:
 | `waveBudget` | bodies on screen — readability, not difficulty |
 | `gateTime` | how much the choice hurts |
 
+## Leaderboard
+
+The furthest wave, all time / week / today, read live off ATProto through
+Orb's portable board (`../orb/js/board-kit.js`): nobody hosts it. A run posts
+one `com.minomobi.lab.score` record to the player's own repo — game
+`wave-v1`, unit `wave`, detail `seed=… wave=… kills=… leaks=… t=… taken=…` —
+from the death screen ("POST TO THE BOARD"), after a Bluesky sign-in with
+the one narrow `repo:com.minomobi.lab.score` permission. The board buttons
+sit on the start and death screens only, because the horde doesn't pause.
+
+`js/score.js` builds the record and refuses the impossible from the game's
+own rules: one card per cleared wave, enough leaks to bring a 10-point wall
+down (at most 3 a leak), a run time between the waves' briefing beats and
+their longest possible walk-ins, and a body count the cleared waves' budgets
+could have bought. The selftest checks its constants against `config.js`,
+feeds it real bot runs (accepted) and thirteen kinds of forgery (refused).
+Change anything that moves how far a run gets and bump `VERSION`.
+
+`js/board.js` is its own module because it needs `../lib/auth.js`, which the
+deploy vendors; if it fails to load the game plays on without the buttons.
+
 ## Known gaps
 
 - Never tested on a real phone; verified in Chromium at 390×844, 844×390 and
   1280×900 via a Playwright driver.
 - Only three of the four bodies get distinct silhouettes — walker, runner and
   swarm are all circles at different sizes, distinguished by colour.
-- No persistence beyond a best-wave number in `localStorage`.
+- The board checks a record is possible, not that it happened: it doesn't
+  replay the seed.
