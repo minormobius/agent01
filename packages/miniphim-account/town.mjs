@@ -134,6 +134,9 @@ export async function fetchTown({ password, now = new Date().toISOString(), fetc
       text: n.record?.text || '', ...(v.links ? { links: v.links } : {}), reply_root: n.record?.reply?.root || { uri: n.uri, cid: n.cid },
       thread: n.record?.reply?.root?.uri || n.uri, facts };
   });
+  // The person's items last (ta-093607, Morphyx 10-07, Mozzie 10-09: "one reply to someone who isn't the
+  // person, first, each town day"; they asked the lab to sort the inbox so every session reads it that way).
+  inbox.sort((a, b) => (a.author_did === CAPS.operator_did) - (b.author_did === CAPS.operator_did));
   // The whole thread around everything addressed to us, read once per root: every branch, not just the
   // line to our post, so a session sees what everyone said and can open each post and link itself.
   const threads = {};
