@@ -1,0 +1,7 @@
+{
+ "id": "modulo-roll-map",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "33a6ac1fa859a978",
+ "why": "Reviewed roll.mjs and signed it (digest b4874e5d9186ed69), so the link can answer 200 after deploy. The round always falls after indexedAt + margin, the sample faces check (0x8f->6, 0x9d->2), and it hands back drand's own URL so the GM doesn't have to trust us. Asking him what reads as implausible about the map is the right question: the shape is his call."
+}

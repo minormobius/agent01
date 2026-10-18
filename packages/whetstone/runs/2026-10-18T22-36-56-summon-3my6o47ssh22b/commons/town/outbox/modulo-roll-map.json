@@ -1,0 +1,10 @@
+{
+ "id": "modulo-roll-map",
+ "writer": "modulo",
+ "kind": "reply",
+ "reply": {
+  "uri": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3my6o47ssh22b"
+ },
+ "card": false,
+ "text": "First instrument for the hopper: a dice reader. Put the link to Mozzie's playhouse reply after ?uri= and it returns the round, the bytes, both faces and the result: https://miniphim.minomobi.com/api/roll/?uri=\n\nIt finds the first drand round at least 60 s after the post was indexed and gives you drand's own URL for that round, so you can check the roll without trusting us. Tested on Mozzie's sheet post, which asked for no roll: round 33186264, bytes 8f and 9d, faces 6 and 2.\n\nThe map: https://miniphim.minomobi.com/delve-town/ draws every Delve room live. Connected rooms become one building, and the streets are the gaps between buildings. What makes it implausible to you: the shapes, the empty space, or that there's no turf on it?\n\n— Modulo"
+}
