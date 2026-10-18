@@ -23,11 +23,13 @@
     over: $("over"), overTitle: $("over-title"), overHead: $("over-head"),
     overBody: $("over-body"), overStats: $("over-stats"), overSeed: $("over-seed"),
     overBest: $("over-best"), again: $("again"), replay: $("replay"), onward: $("onward"),
+    trophy: $("trophy"), sBoard: $("s-board"), post: $("post"), oBoard: $("o-board"),
   };
 
   var state = null, routeStart = null, memo = null, busy = false;
   var reduced = NS.matchMedia && NS.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var run = { routes: 0, spent: 0, walked: 0, scrapped: 0 };
+  var ended = null, posted = false;   // the finished run, offered to the board once
   var D = { walk: reduced ? 0 : 340, fly: reduced ? 0 : 330, beat: reduced ? 0 : 120 };
 
   function wait(ms) { return ms ? new Promise(function (r) { setTimeout(r, ms); }) : Promise.resolve(); }
@@ -44,12 +46,27 @@
   function best() { try { return parseInt(NS.localStorage.getItem("ratchet.best") || "0", 10) || 0; } catch (e) { return 0; } }
   function saveBest(n) { try { if (n > best()) NS.localStorage.setItem("ratchet.best", String(n)); } catch (e) { /* ignore */ } }
 
+  // ----------------------------------------------------------------- board --
+  /* The leaderboard loads on its own (js/board.js needs the vendored auth
+     client); its buttons show once it's there. A run is offered when it ends:
+     routes crossed, with the counts the game-over screen shows. */
+  function board() { return R.board || null; }
+  function offerable() {
+    var b = !!board();
+    el.trophy.hidden = el.sBoard.hidden = el.oBoard.hidden = !b;
+    el.post.hidden = !b || !ended || !ended.value;
+    el.post.disabled = posted;
+    el.post.textContent = posted ? "POSTED" : "POST TO THE BOARD";
+  }
+  NS.addEventListener("ratchet-board", offerable);
+
   // ------------------------------------------------------------------- run --
 
   function newRun(seed) {
     state = R.newGame(seed || R.randomSeed());
     setUrlSeed(state.seed);
     run = { routes: 0, spent: 0, walked: 0, scrapped: 0 };
+    ended = null; posted = false;
     busy = false;
     el.over.hidden = true;
     beginRoute();
@@ -356,6 +373,9 @@
     });
     el.overSeed.textContent = state.seed;
     el.overBest.textContent = best();
+    ended = { sel: {}, value: run.routes, routes: run.routes, seed: state.seed, walked: run.walked, spent: run.spent, scrapped: run.scrapped, at: Date.now() };
+    posted = false;
+    offerable();
     el.onward.hidden = true;
     el.again.textContent = "NEW ROAD";
     el.over.hidden = false;
@@ -376,9 +396,22 @@
   el.again.addEventListener("click", function () { newRun(); });
   el.replay.addEventListener("click", function () { newRun(state.seed); });
   el.onward.addEventListener("click", onward);
+  el.post.addEventListener("click", function () {
+    var b = board(); if (!b || !ended || !ended.value || posted) return;
+    posted = true; offerable(); b.offer(ended);
+  });
+  function openBoard() { var b = board(); if (b) b.open({}); }
+  el.trophy.addEventListener("click", openBoard);
+  el.sBoard.addEventListener("click", openBoard);
+  el.oBoard.addEventListener("click", openBoard);
   NS.addEventListener("resize", function () { if (state) moveWalker(false); });
 
   document.addEventListener("keydown", function (e) {
+    // keys typed into a field (the leaderboard's handle) belong to the field; leave browser shortcuts alone
+    var t = e.target;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (document.querySelector(".lbk:not([hidden])")) return;   // the board is open over the game
     if (!el.start.hidden) { if (e.key === "Enter" || e.key === " ") { el.start.hidden = true; e.preventDefault(); } return; }
     if (!el.over.hidden) {
       if (e.key === "Enter") { (el.onward.hidden ? el.again : el.onward).click(); e.preventDefault(); }
@@ -398,5 +431,6 @@
   R.uiChoose = choose;
 
   newRun(urlSeed());
+  offerable();
   el.startSeed.textContent = state.seed;
 })();
