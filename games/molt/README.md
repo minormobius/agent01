@@ -209,7 +209,14 @@ what happened and why.
   choose.
 
 The world is anchored on the cube under your head (same place, same
-frame), so it writhes round you instead of jumping. `whole` shows all of it.
+frame), so it writhes round you instead of jumping. The camera has four
+distances (V cycles them): ride, far and high all ride your head, so the
+arrows still steer, and whole shows the world from outside. A wheel, a pinch
+or + and − fine-tune it. **Grain** is the zoomed-out game: 3, 2 or 1 cells
+across each face of a cube, so the world is nearer your own size. It is
+tighter: 1.7, 2.7 and 8 cuts per 100 steps. At 1 every step crosses a fold,
+so every step is a pitch and the world coils up and down in 3D. Notes in the
+log dismiss with a tap (Esc clears them all), and cuts fade by themselves.
 The word strip along the bottom is the world's word, tail to head; watch
 your turns enter on the right and slide left.
 
@@ -237,8 +244,8 @@ of the world should pull you along.
 - `ouro.html`, `js/ouro.js` (the rules, headless: names for every cell of
   the skin, carrying them from world to world, laying a body by its turns,
   cuts, an autopilot), `js/ouro-lab.js` (the page; it draws with
-  `js/view.js`), `css/ouro.css`, and `test/ouro.selftest.mjs` (15 checks,
-  ~6 s: the invariants under five rule sets, and the findings above).
+  `js/view.js`), `css/ouro.css`, and `test/ouro.selftest.mjs` (16 checks,
+  ~8 s: the invariants under seven rule sets and grains, and the findings above).
 
 ## Next
 

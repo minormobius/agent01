@@ -32,7 +32,7 @@
     <div id="actions">
       <button class="ghost" id="play" type="button" title="Pause (space)">❚❚</button>
       <button class="ghost" id="stepbtn" type="button" title="One step (.)">step</button>
-      <button class="ghost" id="viewbtn" type="button" title="Ride your head, or watch the whole world (V)">whole</button>
+      <button class="ghost" id="viewbtn" type="button" title="How far out: ride, far, high, or the whole world (V; + and − or a wheel or pinch to fine-tune)">ride</button>
       <button class="ghost" id="autobtn" type="button" title="Let the autopilot play (Shift+A)">auto</button>
       <button class="ghost" id="rulesbtn" type="button" title="The rules">rules</button>
       <button class="ghost" id="padbtn" type="button" title="Show or hide the pad">pad</button>
@@ -64,6 +64,11 @@
     <div class="seg" data-rule="bite"><button data-v="cut">bites off</button><button data-v="die">kills</button></div>
   </div>
   <div class="rule">
+    <span class="rl">grain</span>
+    <div class="seg" data-rule="grain"><button data-v="3">fine</button><button data-v="2">medium</button><button data-v="1">coarse</button></div>
+    <p>How many cells across each face of a cube of world: 3, 2 or 1. Coarser is a more zoomed-out game: the world is nearer your own size and shape, so it's tighter, and a bend has fewer ways round you (measured: 1.7, 2.7 and 8 cuts per 100 steps). At 1, every step crosses a fold, so every step is a pitch and the world coils up and down in 3D.</p>
+  </div>
+  <div class="rule">
     <span class="rl">speed</span>
     <div class="seg" data-rule="speed"><button data-v="320">slow</button><button data-v="180">normal</button><button data-v="110">fast</button></div>
   </div>
@@ -89,7 +94,7 @@
     decides what "the same place" means on a world that changed is a toggle
     (<b>rules</b>), and the log says what happened and why.
   </p>
-  <p class="accent">Arrows or WASD, or swipe. Space pauses, . takes one step, V watches the whole world, Shift+A hands it to the autopilot.</p>
+  <p class="accent">Arrows or WASD, or swipe. Space pauses, . takes one step, V zooms out (ride, far, high, the whole world; + and −, a wheel or a pinch fine-tune), Shift+A hands it to the autopilot. Tap a note to dismiss it.</p>
   <div class="row">
     <button class="primary" id="go" type="button">crawl</button>
     <button class="ghost" id="watch" type="button">watch the autopilot</button>

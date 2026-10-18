@@ -65,6 +65,8 @@ const RULESETS = [
   { ground: "skin", body: "carry", shrink: "keep", bite: "cut" },
   { ground: "skin", body: "carry", shrink: "body", bite: "cut" },
   { ground: "space", body: "retrace", shrink: "keep", bite: "cut" },
+  { ground: "skin", body: "retrace", shrink: "keep", bite: "cut", C: 2 },
+  { ground: "skin", body: "retrace", shrink: "keep", bite: "cut", C: 1 },
 ];
 const stats = {};
 {
@@ -84,14 +86,14 @@ const stats = {};
         if (B.length > 1 && W.nb[B[0] * 4 + g.inSide] !== B[1]) neck = false;
         if (rules.shrink === "body" ? W.L !== Math.max(2, B.length) : W.L < B.length) sized = false;
         if (B.some((c) => g.food.has(c))) fed = false;
-        if (t % 50 === 0) { const c = D.census(W); if (c.chi !== 2 || c.defect !== 8 || !c.manifold || W.N !== 9 * (4 * W.L + 2)) sphere = false; }
+        if (t % 50 === 0) { const c = D.census(W); if (c.chi !== 2 || c.defect !== 8 || !c.manifold || W.N !== W.C * W.C * (4 * W.L + 2)) sphere = false; }
       }
       st.ticks += g.ticks; st.cuts += cuts; st.runs++; if (g.cause === "fell") { st.falls++; st.deathAt.push(g.ticks); }
     }
   }
   ok(path && neck, ticks + " steps under " + RULESETS.length + " rule sets: the body is always a path of distinct cells, each joint a shared edge, and the head always knows which side its neck is on");
   ok(sized, "the world always has a cube for each cell of you (when cut, the world shrinks with you, or keeps its length and is never shorter than you)");
-  ok(sphere, "every world along the way is a sphere of squares with 720° of curvature and C²(4L + 2) cells");
+  ok(sphere, "every world along the way, at every grain (3, 2 and 1 cells a side), is a sphere of squares with 720° of curvature and C²(4L + 2) cells");
   ok(fed, "food never lies under the body (a body laid over food presses it flat)");
 }
 
@@ -103,23 +105,17 @@ const stats = {};
   ok(per100(carry) >= 8, "carrying each cell of you over by name: a bend sweeping under a joint breaks it, " + per100(carry).toFixed(1) + " cuts per 100 steps (a bent cube's inside lane has 1 cell where a straight one has 3: no naming keeps every joint)");
   ok(per100(retrace) <= 4 && mean(retrace) >= 2 * mean(carry), "laying your body back down by its own turns: " + per100(retrace).toFixed(1) + " cuts per 100 steps, and the snake averages " + mean(retrace).toFixed(1) + " long against " + mean(carry).toFixed(1));
   ok(retrace.falls === 0 && shrink.falls === shrink.runs, "with the world keeping its length nobody falls; shrinking it with you drops the ground from under a snake that crawls at the world's tail end (" + shrink.falls + " of " + shrink.runs + ")");
+  const g2 = S(RULESETS[5]), g1 = S(RULESETS[6]);
+  ok(per100(g1) > per100(g2) && per100(g2) > per100(retrace), "a coarser grain is a tighter world: " + [retrace, g2, g1].map((x) => per100(x).toFixed(1)).join(", ") + " cuts per 100 steps at 3, 2 and 1 cells a side");
   ok(DEFAULTS.ground === "skin" && DEFAULTS.body === "retrace" && DEFAULTS.shrink === "keep", "the lab opens on the rules that measured best: skin, retrace, keep");
 }
 
 /* ---- bites, and the same game twice */
 {
-  let bitOff = 0, aliveAfter = true, diedOfBite = 0;
-  for (let s = 1; s <= 8; s++) {
-    const g = new Ouro(s * 104729, { bite: "cut" }), h = new Ouro(s * 104729, { bite: "die" });
-    for (let t = 0; t < 400 && g.alive; t++) {
-      autopilot(g, rnd, 0.2); g.tick();
-      if (g.events.some((e) => e.why === "bite")) { bitOff++; if (!g.alive) aliveAfter = false; }
-    }
-    if (g.cause === "bitten") aliveAfter = false;
-    for (let t = 0; t < 400 && h.alive; t++) { autopilot(h, rnd, 0.2); h.tick(); }
-    if (h.cause === "bitten") diedOfBite++;
-  }
-  ok(bitOff > 0 && aliveAfter && diedOfBite > 0, "a bite bites off your tail as food (" + bitOff + " bites, nobody died of one), or kills you when bites kill (" + diedOfBite + " of 8 wandering runs)");
+  // a snake that turns the same way every step runs round a tight square into its own body
+  const spin = (bite) => { const g = new Ouro(5, { bite, start: 9 }); for (let t = 0; t < 20 && g.alive && !g.log.some((e) => e.why === "bite"); t++) { if (t >= 8) g.steer((g.inSide + 1) % 4); g.tick(); } return g; };
+  const a = spin("cut"), b = spin("die"), bite = a.log.find((e) => e.why === "bite");
+  ok(bite && bite.lost > 2 && a.alive && bite.food === bite.lost - 1 && b.cause === "bitten", "a bite bites off what's behind it (" + (bite ? bite.lost : 0) + " cells, all but the bitten one left as food) and you live, or it kills you when bites kill");
   const run = () => { const g = new Ouro(99); let r = 5; const rr = () => (r = (r * 16807) % 2147483647) / 2147483647; for (let t = 0; t < 300 && g.alive; t++) { autopilot(g, rr); g.tick(); } return [g.ticks, g.cuts, g.eaten, g.word.join(""), g.body.join()].join("|"); };
   ok(run() === run(), "deterministic: the same seed and the same steering play the same game");
 }
