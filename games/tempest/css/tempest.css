@@ -362,6 +362,23 @@ body[data-phase="playing"] .overlay { display: none; }
 }
 body[data-phase="error"] .cta { display: none; }
 
+/* the end-of-run board buttons (they show once js/board.js has loaded) */
+.board-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 14px 0 0; }
+.board-row button {
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.board-row[hidden], .hud button[hidden], .board-row button[hidden] { display: none; }
+.board-row button.post { background: var(--hot); border-color: var(--hot); color: #1a1400; font-weight: 700; }
+.board-row button:disabled { opacity: 0.45; cursor: default; }
+
 /* ----------------------------------------------------------------- foot -- */
 
 .foot {
