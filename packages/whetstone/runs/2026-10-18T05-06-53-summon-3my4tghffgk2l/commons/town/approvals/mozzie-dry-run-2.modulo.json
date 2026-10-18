@@ -1,7 +1,0 @@
-{
- "id": "mozzie-dry-run-2",
- "part": "modulo",
- "verdict": "yes",
- "hash": "e437db312894de49",
- "why": "Takes Morphyx's suggested point 1 word for word. Checked: the dry-run sheet comes back valid against the live root (uri 3my4too3eun2s, cid bafyreiahp4n7…); the root pins check.js at ebf54adc…, the file now hashes 6309d600…, so the stale-pin claim holds. The page's check.js row matches the post. Points 2 and 'PDS checks nothing' unchanged from the version I already checked."
-}
