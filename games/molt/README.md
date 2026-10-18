@@ -225,6 +225,60 @@ the four ways to turn the swallowed wall onto the front measured within a
 cut per 100 steps of each other), a scoring rule, and whether the head end
 of the world should pull you along.
 
+## Cascade: snake on snake on snake
+
+`cascade.html` is the next layer: a constant zoom. The world is your body,
+you crawl on it, and on your body, a third the size, crawls **you again**,
+on the same cells, making the same moves. On that one crawls you again. The
+camera falls inwards forever. At any moment three or four snakes are in
+view, each lying on the back of the one before.
+
+Nothing keeps track of the layers, because they are all the same snake: one
+game (`js/ouro.js`), drawn several times. That's "as above, so below":
+
+- **Every snake is a tube with volume and a tiled skin, and it's the same
+  skin.** Every point of the world's tube gets *tube coordinates*: which
+  piece of the centreline it's nearest (one per cube, so one per cell of
+  you), how far along, and its direction from the line (from the way ahead,
+  and round from the snake's up). Sweep those coordinates round any spine,
+  at any radius, and you get that skin on that snake (`js/cascade.js`).
+- **Layer 0** is the skin swept round the world's own centreline. That's
+  exactly Molt's rounded tube, point for point (checked).
+- **Layer j + 1** is swept round a spine through your body's cells on layer
+  j, lifted one radius off the skin, at a third of the radius. Its up is the
+  skin's normal under it, which is how Molt reads a body. The spine runs
+  from the middle of each joint to the middle of the next, bending at each
+  cell, like the world's centreline does at each cube.
+- **The heads close in on one point.** Layer j + 1's head lies on layer j at
+  your head's cell, which is somewhere along your body, so each layer's head
+  is a third as far from the next. Measured, the steps shrink by 0.33 on
+  average. The camera falls towards that point, turning from one layer's
+  frame to the next so the way ahead stays up the screen.
+- **The zoom is a loop.** Over one cycle the camera goes from riding layer 1
+  on layer 0 to riding layer 2 on layer 1, a third of the distance, then
+  steps back to the start. Because every layer is the same snake on the same
+  skin, that's the same picture. The outermost layer fades out as each cycle
+  ends and the next one in fades in as it begins, so the step doesn't show.
+  Each layer's colour slides with the zoom for the same reason.
+
+The game is Ouroboros with the world exactly as long as you, since every
+cube of it is a cell of you. A cut shrinks the world from its tail end. If
+the ground under your head goes with it, you **slide** onto the world's new
+tail end rather than falling (a new rule, `fall: "slide"`, also in the lab).
+Biting yourself ends it. Steering is relative, because the camera turns
+with you: ◀ ▶, A D, a tap on either half of the screen, or a swipe. Z sets
+how fast you fall in.
+
+`test/cascade.selftest.mjs` (8 checks, ~2 s) checks:
+
+- layer 0 is Molt's tube;
+- every layer is watertight and a third the size of the last;
+- every spine's frame is orthonormal;
+- each snake lies on the one before (99.6% of cells within half a radius;
+  the rest are where a body crosses a slot);
+- the heads converge;
+- with the world shrinking and sliding on, nobody ever falls.
+
 ## Files
 
 - `js/duct.js`: word → surface. It builds faces, cells, neighbours, face
@@ -241,6 +295,9 @@ of the world should pull you along.
 - `js/board.js`: mounts the board kit. A separate module, so the game
   still runs if the vendored auth client can't load.
 - `test/molt.selftest.mjs`: 33 checks, about a second.
+- `cascade.html`, `js/cascade.js` (tube coordinates, spines, the stack of
+  layers; no DOM), `js/cascade-page.js` (the camera and the drawing),
+  `css/cascade.css`, `test/cascade.selftest.mjs`.
 - `ouro.html`, `js/ouro.js` (the rules, headless: names for every cell of
   the skin, carrying them from world to world, laying a body by its turns,
   cuts, an autopilot), `js/ouro-lab.js` (the page; it draws with

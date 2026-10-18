@@ -7364,6 +7364,16 @@
    "discovered": true
   },
   {
+   "id": "molt/cascade.html",
+   "name": "cascade",
+   "url": "https://games.mino.mobi/molt/cascade.html",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "molt",
+   "discovered": true
+  },
+  {
    "id": "molt/ouro.html",
    "name": "ouro",
    "url": "https://games.mino.mobi/molt/ouro.html",

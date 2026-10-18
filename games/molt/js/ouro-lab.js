@@ -7,7 +7,7 @@ import { tokens } from "./duct.js";
 
 const $ = (id) => document.getElementById(id);
 const view = new View($("view"));
-const RULES = { ground: ["skin", "space"], body: ["retrace", "carry"], shrink: ["keep", "body"], bite: ["cut", "die"], grain: ["3", "2", "1"], speed: ["320", "180", "110"] };
+const RULES = { ground: ["skin", "space"], body: ["retrace", "carry"], shrink: ["keep", "body"], fall: ["die", "slide"], bite: ["cut", "die"], grain: ["3", "2", "1"], speed: ["320", "180", "110"] };
 const BASE = { ...DEFAULTS, grain: String(O_.C), speed: String(O_.TICK) };
 const rules = { ...BASE };
 const params = new URLSearchParams(location.search);
@@ -30,7 +30,7 @@ let arnd = 7;
 const rnd = () => (arnd = (arnd * 16807) % 2147483647) / 2147483647;
 
 function newRun() {
-  g = new Ouro(seed, { ground: rules.ground, body: rules.body, shrink: rules.shrink, bite: rules.bite, C: +rules.grain });
+  g = new Ouro(seed, { ground: rules.ground, body: rules.body, shrink: rules.shrink, fall: rules.fall, bite: rules.bite, C: +rules.grain });
   arnd = seed % 1000 + 7;
   view.setWorld(g.world, g); view.mix = wide() ? 1 : 0; queue.length = 0; acc = 0;
   clearLog(); lastWord = "";

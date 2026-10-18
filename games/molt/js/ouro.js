@@ -51,7 +51,7 @@
 import { buildDuct, VEC, neg, crossD, sideTo, fold, census } from "./duct.js";
 
 export const O_ = { TICK: 180, START: 6, FOOD_EVERY: 200, C: 3 };
-export const DEFAULTS = { ground: "skin", body: "retrace", shrink: "keep", bite: "cut", turn: [-1, 1] };
+export const DEFAULTS = { ground: "skin", body: "retrace", shrink: "keep", bite: "cut", fall: "die", turn: [-1, 1] };
 const SLOTS = 5;                    // a cube's skin: up, down, left and right walls, and (at either end) a cap
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -186,9 +186,17 @@ export class Ouro {
 
   /* put the body on the new world (r: what reshape returned) */
   place(r) {
-    const { map, Old, oldNames } = r, W = this.world, old = this.body, h = map(old[0]);
-    if (h < 0) { this.die("fell", "the ground under your head went with your tail"); this.body = [0]; return false; }
-    const neck = sideByName(W, this.names, h, sideName(Old, oldNames, old[0], this.inSide));
+    const { map, Old, oldNames } = r, W = this.world, old = this.body;
+    let h = map(old[0]);
+    let neck;
+    if (h < 0) {
+      if (this.opts.fall !== "slide") { this.die("fell", "the ground under your head went with your tail"); this.body = [0]; return false; }
+      // slide: the world's tail end pulls you in with it, onto the middle of its new cap, facing back along it
+      const C = W.C, mid = (C - 1) >> 1, cap = W.faces.findIndex((F) => F.k === 0 && F.d === neg(W.dout[0])), F = W.faces[cap];
+      h = cap * C * C + mid * C + mid;
+      neck = [F.p, F.r, neg(F.p), neg(F.r)].indexOf(W.uin[0]);
+      this.note("cut", "the world shrank from under your head: you slid down onto its new tail end", { lost: 0, food: 0, why: "slide" });
+    } else neck = sideByName(W, this.names, h, sideName(Old, oldNames, old[0], this.inSide));
     if (neck >= 0) this.inSide = neck;
     let body = [h], cut = -1, why = "fold";
     if (this.opts.body === "retrace") {
