@@ -3792,6 +3792,23 @@
       ]
     },
     {
+      "n": "naught",
+      "u": "https://games.mino.mobi/naught/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-18",
+      "b": "2026-10-18",
+      "p": "games",
+      "surface": "games",
+      "d": "Noughts and crosses on the n-dimensional torus (ℤ₃)ⁿ, from 9 cells to 729, where three cells make a line exactly when they sum to zero. Shown three ways: nested grids that wrap, a deck of cards whose attributes are the coordinates (a line is three cards with every attribute all the same or all different), and a real donut for any two-dimensional slice. Making a line is a fast race there; avoiding one is the deep game, each side building a cap set under pressure; and the cap puzzle is the research problem itself.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "tessera",
       "u": "https://games.mino.mobi/tessera/",
       "c": "games",

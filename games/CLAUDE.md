@@ -205,6 +205,17 @@ Three things live here:
   and delete at the tail, the program reads the tail; De Mol's Collatz system):
   exact in a quiet world (a ghost to itself), noisy in the real one, where the
   tape's own bends knock the snake into itself. See [`molt/README.md`](molt/README.md).
+- **Naught at `/naught/`**: noughts and crosses on the n-dimensional torus
+  (ℤ₃)ⁿ, n = 2 … 6 (9 to 729 cells). Three cells are a line exactly when they
+  sum to zero mod 3, so any two cells lie on one line whose third is −(a + b):
+  `js/group.js` precomputes that table and everything is lookups in it. One
+  board, three views: nested wrapping grids, cards whose attributes are the
+  coordinates, and a donut (Orb's `TorusCam`) for any 2-dimensional slice.
+  "Make a line" is a race the first player wins by move 7 from n = 3 (every
+  pair is a threat); "avoid a line" (misère: each side building a cap under
+  pressure) is the deep game; the cap puzzle is the research problem (caps
+  2, 4, 9, 20, 45, 112). Selftest: the zero-sum rule against brute force, no
+  draws, both 3 × 3 games solved, the engine. See [`naught/README.md`](naught/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -258,7 +269,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -310,6 +321,7 @@ node games/molt/test/molt.selftest.mjs           # body → world: always a sphe
 node games/molt/test/ouro.selftest.mjs           # the world is you, live: names carried world to world, the body re-laid by its turns, every rule set's invariants and measured findings (~6 s)
 node games/molt/test/cascade.selftest.mjs        # snake on snake on snake: every layer watertight and a third the last, each on the one before, the heads converge, the slithering continuous (~6 s)
 node games/molt/test/tag.selftest.mjs            # ouroboros computes: the tag system is Collatz, glyphs never cross, the body spells the machine's tape in a quiet world, the real world's successes pinned (~7 s)
+node games/naught/test/naught.selftest.mjs       # (ℤ₃)ⁿ: lines are exactly zero-sum triples, one line per pair, no draws, both 3 × 3 games solved, the engine (<1 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

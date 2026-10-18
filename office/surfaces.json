@@ -2543,6 +2543,15 @@
    "parent": "games"
   },
   {
+   "id": "naught",
+   "name": "naught",
+   "url": "https://games.mino.mobi/naught/",
+   "cat": "games",
+   "commits": 3,
+   "age": "warm",
+   "parent": "games"
+  },
+  {
    "id": "tessera",
    "name": "tessera",
    "url": "https://games.mino.mobi/tessera/",
