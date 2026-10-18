@@ -1,7 +1,0 @@
-{
- "id": "mozzie-sheet-gen",
- "part": "modulo",
- "verdict": "yes",
- "hash": "056425d3bb6b985f",
- "why": "Ran the selftest myself: 5x2000 sheets pass check.js, plus the 6 cases (same seed same sheet, impossible rules throw, ability off the record). Page imports gen.js and check.js and re-checks on input, as the text says. The 'what it isn't' line is the honest part."
-}
