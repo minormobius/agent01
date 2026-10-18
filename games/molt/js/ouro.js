@@ -51,7 +51,7 @@
 import { buildDuct, VEC, neg, crossD, sideTo, fold, census } from "./duct.js";
 
 export const O_ = { TICK: 180, START: 6, FOOD_EVERY: 200, C: 3 };
-export const DEFAULTS = { ground: "skin", body: "retrace", shrink: "keep", bite: "cut", fall: "die", anchor: "head", turn: [-1, 1] };
+export const DEFAULTS = { ground: "skin", body: "retrace", shrink: "keep", bite: "cut", fall: "die", anchor: "head", food: true, turn: [-1, 1] };
 const SLOTS = 5;                    // a cube's skin: up, down, left and right walls, and (at either end) a cap
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -89,12 +89,12 @@ function sideByName(M, names, c, n) { for (let s = 0; s < 4; s++) if (sideName(M
 /* a body laid down from its head by its own turns: out of the head by side neck, then at each cell turn as
    joints says (2 straight on, 3 left, 1 right: the side left by, less the side come in by). Where it would
    run into itself it stops, and cut says where. */
-export function lay(W, head, neck, joints, n) {
+export function lay(W, head, neck, joints, n, ghost = false) {
   const body = [head], busy = new Set(body);
   let prev = head, side = neck;
   for (let i = 1; i < n; i++) {
     const c = W.nb[prev * 4 + side];
-    if (busy.has(c)) return { body, cut: i };
+    if (busy.has(c) && !ghost) return { body, cut: i };
     body.push(c); busy.add(c);
     if (i < n - 1) side = (W.back[prev * 4 + side] - joints[i - 1] + 4) % 4;
     prev = c;
@@ -144,7 +144,7 @@ export class Ouro {
     const W = this.world, top = W.faces.findIndex((F) => F.k === W.L - 1 && F.d === W.uin[W.L - 1]);
     const C = W.C, mid = (C - 1) >> 1, F = W.faces[top];
     this.body = [top * C * C + mid * C + mid];
-    this.inSide = [F.p, F.r, neg(F.p), neg(F.r)].indexOf(W.dout[W.L - 1]);
+    this.inSide = [F.p, F.r, neg(F.p), neg(F.r)].indexOf(this.opts.facing === "head" ? neg(W.dout[W.L - 1]) : W.dout[W.L - 1]);
     this.next = -1; this.pending = this.opts.start - 1;
     this.food = new Set(); this.spawn();
   }
@@ -153,6 +153,7 @@ export class Ouro {
   straight() { return (this.inSide + 2) % 4; }
   steer(s) { if (!this.alive || s < 0 || s > 3) return; if (this.body.length > 1 && this.world.nb[this.head * 4 + s] === this.body[1]) return; this.next = s; }
   spawn() {
+    if (!this.opts.food) return;
     const want = Math.max(1, Math.round(this.world.N / O_.FOOD_EVERY)), busy = new Set(this.body);
     for (let tries = 0; this.food.size < want && tries < 2000; tries++) {
       const c = Math.floor(this.rnd() * this.world.N);
@@ -206,7 +207,7 @@ export class Ouro {
     if (neck >= 0) this.inSide = neck;
     let body = [h], cut = -1, why = "fold";
     if (this.opts.body === "retrace") {
-      ({ body, cut } = lay(W, h, this.inSide, this.joints, old.length));
+      ({ body, cut } = lay(W, h, this.inSide, this.joints, old.length, this.opts.bite === "pass"));
       why = "knot";
     } else {
       body = old.map(map);
@@ -228,6 +229,14 @@ export class Ouro {
   }
 
   /* after a cut the world is as long as you are (shrink "body"): cubes off its tail end, which can cut again */
+  /* drop the last m cells of your tail on purpose (a program's "delete"); the world goes with them when it shrinks with you */
+  shed(m) {
+    if (!this.alive || m <= 0) return;
+    m = Math.min(m, this.body.length - 1);
+    this.body.splice(this.body.length - m, m); this.joints.length = Math.max(0, this.body.length - 2);
+    this.fit();
+  }
+
   fit() {
     for (let round = 0; this.alive && this.opts.shrink === "body"; round++) {
       const m = this.word.length - Math.max(0, this.body.length - 2);
@@ -244,7 +253,7 @@ export class Ouro {
     this.ticks++;
     const W = this.world, s = this.next >= 0 ? this.next : this.straight(); this.next = -1;
     const a = this.head, b = W.nb[a * 4 + s], tailMoves = this.pending === 0;
-    const hit = this.body.indexOf(b);
+    const hit = this.opts.bite === "pass" ? -1 : this.body.indexOf(b);   // "pass": a ghost to yourself, no bites and no knots
     let bitten = 0;
     if (hit >= 0 && !(tailMoves && hit === this.body.length - 1)) {
       if (this.opts.bite !== "cut" || hit < 2) { this.die("bitten", "you bit yourself"); return; }

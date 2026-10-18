@@ -315,6 +315,69 @@ the ones that sweep through you and cut you. The HUD shows the rate.
 - the heads converge;
 - the slithering is continuous at both ends of every step.
 
+## Ouroboros computes
+
+`compute.html` runs a program on the snake's own body. A **tag system** is a
+queue and a table: read the front symbol, delete d symbols from the front,
+append the word the table gives for what you read, and stop when fewer than
+d are left. Two-tag systems can compute anything a computer can (Cocke and
+Minsky, 1964). Ouroboros is already one:
+
+- **the tape** is the world's word, which is the snake's own body: one turn
+  for each joint, oldest at the tail end;
+- **writing** happens at the head: every move appends the turn just made;
+- **deleting** happens at the tail: every move drops the oldest turn. To
+  delete more, the snake sheds tail segments (`shed` in `js/ouro.js`); to
+  delete fewer, it swallows and grows, so its tail stays put;
+- **reading** happens at the tail too: the ouroboros reads its own tail. The
+  program reads the tail's bends straight off the word rather than crawling
+  round to look. That is the one thing here that isn't the snake's own
+  geometry.
+
+A symbol is a **glyph** of two moves that ends facing the way it began:
+
+- a = straight, straight;
+- b = left, right;
+- c = right, left.
+
+Every row along the tube then holds at most two cells of the path, so the
+program's own moves can't cross themselves on a flat tube (checked on 400
+random tapes). Only the yaw counts: the pitch the world adds when a move
+crosses a fold is not part of the symbol.
+
+The program is De Mol's tag system for Collatz: a → bc, b → a, c → aaa,
+deleting 2 a step. Started as a × n, the tape is a × m exactly when the
+machine has arrived at m. It halves even numbers, takes odd ones to
+(3n + 1)/2, and halts at a single a, which is 1. After every tag step the
+body is checked against the same tag system run on its own, so the snake
+has to spell exactly what the machine says. You can also write your own
+table over a, b and c.
+
+**What the selftest found** (`test/tag.selftest.mjs`, 4 checks, ~7 s):
+
+- **Logically it is exact.** In a quiet world, where the snake is a ghost to
+  itself (`bite: "pass"`: no bites, no knots, but the world is still its body
+  and still reshapes with the tape), every start from 2 to 12 computes its
+  whole Collatz path and halts at 1: 568 tag steps, the body spelling the
+  machine's tape after every one. In the browser 7 goes 7 → 11 → 17 → 26 →
+  13 → 20 → 10 → 5 → 8 → 4 → 2 → 1 in 128 tag steps.
+- **Geometrically it is noisy.** In the real world every b and c on the tape
+  is a bend in the world. A straight line across the top of a bent cube
+  doesn't follow the bend: it runs off the outside wall. So the snake's own
+  past turns deflect it round the tube, where it winds into itself. From 2
+  to 26, the starts that compute their way to 1 are 2, 3, 4, 5, 6, 8, 10
+  and 12 (the longest, 12 → 6 → 3 → 5 → 8 → 4 → 2 → 1, is the page's
+  default). The rest bite themselves or are cut by the world, and the check
+  catches every one. Starting towards the world's head end (where it grows)
+  rather than its tail helped a little (8 of 24 against 6). Padding the
+  glyphs with straight moves made it worse.
+
+So: a snake whose body is its tape and its world is, logically, a universal
+machine. Whether one can compute *robustly* in its own contorting world, and
+whether it can read its tail by crawling there rather than by looking, are
+open. "Will this snake ever bite itself?" is, for a universal machine, the
+halting problem.
+
 ## Files
 
 - `js/duct.js`: word → surface. It builds faces, cells, neighbours, face
@@ -331,6 +394,10 @@ the ones that sweep through you and cut you. The HUD shows the rate.
 - `js/board.js`: mounts the board kit. A separate module, so the game
   still runs if the vendored auth client can't load.
 - `test/molt.selftest.mjs`: 33 checks, about a second.
+- `compute.html`, `js/tag.js` (the tag system, the glyphs, and `TagSnake`,
+  which runs one on the Ouroboros engine and checks the body against the
+  machine; no DOM), `js/compute-page.js`, `css/compute.css`,
+  `test/tag.selftest.mjs`.
 - `cascade.html`, `js/cascade.js` (tube coordinates, spines, the stack of
   layers; no DOM), `js/cascade-page.js` (the camera and the drawing),
   `css/cascade.css`, `test/cascade.selftest.mjs`.
