@@ -730,8 +730,11 @@ if (!quick) {
       try {
         // no `...HEAD`: diff the WORKING TREE against the base, so uncommitted
         // edits count too — locally that's the whole point.
+        // maxBuffer: a long-lived branch's file list runs to megabytes (9 MB on
+        // claude/agent-social-media-drlzxn, 2026-10-18); past node's 1 MB default
+        // this threw ENOBUFS, the catch fell through, and every selftest ran.
         const out = execFileSync('git', ['diff', '--name-only', base],
-          { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+          { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
         // Documentation-only changes cannot affect a node selftest, and every
         // surface now carries a <dir>/CLAUDE.md — so counting .md edits would
         // run a surface's whole suite every time someone writes a sentence
