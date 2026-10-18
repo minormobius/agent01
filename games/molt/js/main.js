@@ -1,17 +1,17 @@
 /* Molt — the page: the clock, the input, the molt sequence. The rules are
    js/game.js, the world js/duct.js, the camera and drawing js/view.js. */
-import { Game, M_ } from "./game.js";
+import { Game } from "./game.js";
 import { View } from "./view.js";
 import { bends } from "./duct.js";
 
 const $ = (id) => document.getElementById(id);
 const view = new View($("view"));
 let g, acc = 0, last = 0, running = false, best = 0, noteT = 0, seq = null, runSeed = 1, posted = false;
-let mine = { score: 0, length: 0, depth: 0 };
-try { mine = Object.assign(mine, JSON.parse(localStorage.getItem("molt.mine") || "{}")); } catch (e) { /* private mode */ }
+// this browser's bests, under these rules (the v1 game molted when you chose; its bests stay in molt.mine)
+let mine = { score: 0, depth: 0 };
+try { mine = Object.assign(mine, JSON.parse(localStorage.getItem("molt.mine.v2") || "{}")); } catch (e) { /* private mode */ }
+best = mine.score;
 const queue = [];                                   // screen directions waiting for their tick (two at most)
-try { best = +localStorage.getItem("molt.best") || 0; } catch (e) { /* private mode */ }
-mine.score = Math.max(mine.score, best);
 const touch = matchMedia("(hover: none)").matches;
 let pad = touch;
 try { const p = localStorage.getItem("molt.pad"); if (p != null) pad = p === "1"; const v = localStorage.getItem("molt.view"); if (v === "net" || v === "tube") view.mode = v; } catch (e) { /* private mode */ }
@@ -25,26 +25,29 @@ function newGame() {
 function note(t) { const el = $("note"); el.textContent = t; el.classList.add("show"); clearTimeout(noteT); noteT = setTimeout(() => el.classList.remove("show"), 1600); }
 function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { /* no haptics */ } }
 function hud() {
-  $("depth").textContent = g.depth; $("len").textContent = g.body.length; $("score").textContent = g.score; $("best").textContent = Math.max(best, g.score) || "—";
+  $("depth").textContent = g.depth; $("len").textContent = g.body.length + "/" + g.moltAt; $("score").textContent = g.score; $("best").textContent = Math.max(best, g.score) || "—";
   $("world").textContent = g.world.N + " cells" + (g.depth ? " · " + bends(g.world.word) + " bends" : "");
-  const m = $("molt");
-  if (g.canMolt && !seq) { m.hidden = false; const p = g.preview(); $("molt-sub").textContent = "→ " + p.cells + " cells, " + p.bends + " bend" + (p.bends === 1 ? "" : "s"); }
-  else if (!seq) { m.hidden = true; }
 }
+/* the clock, every frame: game time left, less the part of this step already shown */
+function clock() {
+  const ms = Math.max(0, g.clock - (running && !seq && g.alive ? acc : 0)), s = Math.ceil(ms / 1000), el = $("clock");
+  el.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  el.classList.toggle("low", s <= 10 && g.alive);
+}
+function bonus() { const el = $("clock"); el.classList.remove("plus"); void el.offsetWidth; el.classList.add("plus"); }
 function over() {
   running = false;
-  if (g.score > best) { best = g.score; try { localStorage.setItem("molt.best", String(best)); } catch (e) { /* private mode */ } }
-  $("o-head").textContent = "bitten at depth " + g.depth;
+  best = Math.max(best, g.score);
+  $("o-head").textContent = (g.cause === "time" ? "out of time" : "bitten") + " at depth " + g.depth;
   $("o-score").textContent = g.score;
   const molts = g.history.map((h) => h.length).join(" → ");
-  $("o-text").textContent = `${g.eaten} eaten, ${g.ticks} steps, ${g.maxLength} long at your longest.` + (g.history.length ? ` You molted at length ${molts}.` : " You never molted.");
+  $("o-text").textContent = `${g.eaten} eaten in ${g.ticks} steps.` + (g.history.length ? ` You molted at length ${molts}.` : " You never molted.") + ` ${g.moltAt - g.body.length} short of the next.`;
   // this browser's bests on each board
   const news = [];
   if (g.score > mine.score) { mine.score = g.score; news.push("score"); }
-  if (g.maxLength > mine.length) { mine.length = g.maxLength; news.push("longest snake"); }
   if (g.depth > mine.depth) { mine.depth = g.depth; news.push("deepest"); }
-  try { localStorage.setItem("molt.mine", JSON.stringify(mine)); } catch (e) { /* private mode */ }
-  $("o-mine").textContent = (news.length ? "new best: " + news.join(", ") + ". " : "") + `Your bests: ${mine.score} points, ${mine.length} long, depth ${mine.depth}.`;
+  try { localStorage.setItem("molt.mine.v2", JSON.stringify(mine)); } catch (e) { /* private mode */ }
+  $("o-mine").textContent = (news.length ? "new best: " + news.join(", ") + ". " : "") + `Your bests: ${mine.score} points, depth ${mine.depth}.`;
   offerable();
   $("over").hidden = false;
 }
@@ -55,14 +58,15 @@ window.addEventListener("molt-board", offerable);
 function postRun() {
   const b = board(); if (!b || g.alive || !g.score || posted) return;
   posted = true; $("post").disabled = true;
-  b.offer({ sel: { metric: "score" }, value: g.score, seed: runSeed, steps: g.ticks, eaten: g.eaten, longest: g.maxLength, depth: g.depth, at: Date.now() });
+  b.offer({ sel: { metric: "score" }, value: g.score, seed: runSeed, steps: g.ticks, eaten: g.eaten, depth: g.depth, at: Date.now() });
 }
 
-/* the molt: dive into the head, swap worlds, show the new one whole (your old body), swoop down to the new head */
-const MOLT_T = { dive: 650, show: 1500, swoop: 1100 };
+/* the molt, the moment you're long enough: dive into the head, swap worlds, show the new one whole (your old body),
+   swoop down to the new head. The clock stops while it plays. */
+const MOLT_T = { dive: 550, show: 1200, swoop: 950 };
 function molt() {
   if (!g.canMolt || seq) return;
-  seq = { t: 0, phase: "dive" }; $("molt").hidden = true; queue.length = 0; buzz(30);
+  seq = { t: 0, phase: "dive" }; queue.length = 0; acc = 0; buzz(30);
 }
 function stepMolt(dt) {
   seq.t += dt;
@@ -80,7 +84,7 @@ function stepMolt(dt) {
     if (seq.t >= MOLT_T.show) { seq = { t: 0, phase: "swoop" }; $("banner").hidden = true; }
   } else {
     const k = Math.min(1, seq.t / MOLT_T.swoop); view.mix = 1 - k;
-    if (k >= 1) { seq = null; view.mix = 0; acc = 0; hud(); note("depth " + g.depth + ": food is worth " + (g.depth + 1)); }
+    if (k >= 1) { seq = null; view.mix = 0; acc = 0; hud(); note("depth " + g.depth + ": faster, food worth " + (g.depth + 1) + ", molt at " + g.moltAt); }
   }
 }
 
@@ -89,16 +93,21 @@ function loop(now) {
   if (running && seq) stepMolt(dt);
   else if (running && g.alive) {
     acc += dt;
-    while (acc >= M_.TICK && g.alive) {
-      acc -= M_.TICK;
+    while (acc >= g.tickMs && g.alive && !seq) {
+      acc -= g.tickMs;
       // the next queued direction, as a side of the head's cell, in the camera's frame as it stands
       while (queue.length) { const s = view.sideFor(g, queue.shift()); if (s >= 0) { g.steer(s); break; } }
       g.tick();
-      for (const e of g.events) { if (e.kind === "eat") buzz(8); if (e.kind === "dead") { buzz([40, 30, 40]); over(); } }
+      for (const e of g.events) {
+        if (e.kind === "eat") { buzz(8); bonus(); }
+        if (e.kind === "dead") { buzz([40, 30, 40]); over(); }
+        if (e.kind === "ripe") molt();
+      }
       hud();
     }
   }
-  const f = running && !seq ? Math.min(1, acc / M_.TICK) : 1;
+  const f = running && !seq ? Math.min(1, acc / g.tickMs) : 1;
+  clock();
   view.track(g, f, dt);
   if (seq && seq.phase !== "dive") {
     view.drawTube(g, now);
@@ -118,7 +127,6 @@ window.addEventListener("keydown", (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey || (e.target && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)))) return;
   if (KEYS[e.key]) { e.preventDefault(); push(KEYS[e.key]); }
   else if (e.key === " ") { e.preventDefault(); $("play").click(); }
-  else if (e.key === "m" || e.key === "M") molt();
   else if (e.key === "v" || e.key === "V") $("viewbtn").click();
 });
 let anchor = null;
@@ -139,7 +147,6 @@ for (const b of document.querySelectorAll("#pad button")) {
 }
 function padState() { document.body.classList.toggle("pad", pad); $("padbtn").classList.toggle("on", pad); }
 $("padbtn").onclick = () => { pad = !pad; padState(); try { localStorage.setItem("molt.pad", pad ? "1" : "0"); } catch (e) { /* private mode */ } };
-$("molt").onclick = molt;
 $("post").onclick = postRun;
 $("o-board").onclick = () => { const b = board(); if (b) b.open({ metric: "score" }); };
 $("trophy").onclick = () => { const b = board(); if (!b) return; if (running) $("play").click(); b.open({ metric: "score" }); };

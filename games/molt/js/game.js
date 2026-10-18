@@ -4,10 +4,15 @@
    (js/duct.js), every cell a square with four neighbours, no walls. Eat and
    grow. Bite yourself and the run ends.
 
-   MOLT: once you're MOLT_MIN long you may shed this world and dive into your
-   own body. Your snake, read tail to head as a word of turns, becomes the
-   next world: a longer, twistier snake makes a bigger, stranger one. Points
-   are multiplied by depth, so staying to grow is the bet.
+   MOLT: the moment you're MOLT_AT + depth long you shed this world and dive
+   into your own body (8, then 9, 10, …). Your snake, read tail to head as a
+   word of turns, becomes the next world: each one longer and twistier than
+   the last. Every level down the clock ticks a little faster and food is
+   worth one more point.
+
+   THE CLOCK: a run starts with CLOCK ms and every food adds BONUS. Each step
+   spends one tick of game time, so the clock is part of the rules (headless
+   and deterministic), not the page's wall clock; it stops while you molt.
 
    Steering is by neighbour (the side of the head's cell to leave by); turning
    screen directions into sides is the page's job, since only it knows where
@@ -15,12 +20,13 @@
    side opposite the one it came in by. */
 import { buildDuct, wordOf, sideTo, bends } from "./duct.js";
 
-export const M_ = { TICK: 150, START: 3, MOLT_MIN: 8, FIRST: 12, FOOD_EVERY: 260 };
+export const M_ = { TICK: 150, SPEEDUP: 0.95, TICK_MIN: 70, START: 3, MOLT_AT: 8, FIRST: 12, FOOD_EVERY: 260, CLOCK: 60000, BONUS: 10000 };
 
 export class Game {
   constructor(seed = 1, word = "S".repeat(M_.FIRST - 2)) {
     this.seed = seed >>> 0 || 1;
     this.depth = 0; this.score = 0; this.eaten = 0; this.ticks = 0; this.alive = true; this.history = []; this.maxLength = 1;
+    this.clock = M_.CLOCK; this.cause = null;
     this.enter(buildDuct(word));
   }
   rnd() { this.seed = (this.seed * 16807) % 2147483647; return this.seed / 2147483647; }
@@ -37,7 +43,10 @@ export class Game {
     this.food = new Set(); this.spawn();
   }
   get head() { return this.body[0]; }
-  get canMolt() { return this.alive && this.body.length >= M_.MOLT_MIN; }
+  /* how long you must get to molt out of this world, and how long a step takes in it */
+  get moltAt() { return M_.MOLT_AT + this.depth; }
+  get tickMs() { return Math.max(M_.TICK_MIN, Math.round(M_.TICK * M_.SPEEDUP ** this.depth)); }
+  get canMolt() { return this.alive && this.body.length >= this.moltAt; }
   /* the next world, if you molted now: how many cells, how many bends */
   preview() { const w = wordOf(this.world, this.body), n = this.body.length; return { cells: this.world.C ** 2 * (4 * n + 2), bends: bends(w), word: w }; }
 
@@ -55,20 +64,23 @@ export class Game {
   tick() {
     this.events = [];
     if (!this.alive) return;
-    this.ticks++;
+    this.ticks++; this.clock -= this.tickMs;
     const s = this.next >= 0 ? this.next : this.straight(); this.next = -1;
     const to = this.world.nb[this.head * 4 + s], tailMoves = this.pending === 0;
     const hit = this.body.indexOf(to);
-    if (hit >= 0 && !(tailMoves && hit === this.body.length - 1)) { this.alive = false; this.events.push({ kind: "dead" }); return; }
+    if (hit >= 0 && !(tailMoves && hit === this.body.length - 1)) { this.die("bitten"); return; }
     this.inSide = this.world.back[this.head * 4 + s];
     this.body.unshift(to);
     if (this.pending > 0) this.pending--; else this.body.pop();
     this.longest = Math.max(this.longest, this.body.length); this.maxLength = Math.max(this.maxLength, this.longest);
     if (this.food.has(to)) {
-      this.food.delete(to); this.pending++; this.eaten++; this.score += this.depth + 1;
+      this.food.delete(to); this.pending++; this.eaten++; this.score += this.depth + 1; this.clock += M_.BONUS;
       this.events.push({ kind: "eat" }); this.spawn();
     }
+    if (this.clock <= 0) { this.clock = 0; this.die("time"); return; }      // food on the very last step still saves you
+    if (this.canMolt) this.events.push({ kind: "ripe" });                    // the page plays the dive, then calls molt()
   }
+  die(cause) { this.alive = false; this.cause = cause; this.events.push({ kind: "dead", cause }); }
 
   /* shed this world: the body becomes the next one */
   molt() {

@@ -1,9 +1,11 @@
 # Molt: snake on the snake
 
-Classic snake, played on the skin of a snake's body. Once you're 8 long you
-can **molt**: you dive into your own body, and it becomes the next world.
-A long, twisty snake makes a big, strange world. Each level down, food is
-worth one more point.
+Arcade snake, played on the skin of a snake's body, against the clock. The
+moment you're 8 long you **molt**: you dive into your own body, and it
+becomes the next world. Each world down you molt one cell longer, the snake
+runs a little faster and food is worth one more point, so you navigate ever
+bigger, twistier surfaces at speed. You have a minute, and every food adds
+ten seconds.
 
 ## The world is a body
 
@@ -111,39 +113,48 @@ back towards the tail.
   enough, and you don't have to lift your finger between turns, so right
   then up in one gesture queues both turns. On touch screens there's also a
   thumb pad (`pad` toggles it). Turns queue two deep.
-- **Molt:** M, or the MOLT button. It appears at length 8 and shows the
-  next world's size and bends.
+- **Molt:** automatic, the moment you're 8 + depth long (8, then 9, 10, …).
+  The HUD shows length / that target.
+- **The clock:** 1:00 to start, +10 s for every food; it runs out and the
+  run is over. It counts game time (one step's worth a step), so it's part of
+  the rules and the selftest, and it stops while you molt. Food on your very
+  last step still saves you.
+- **Speed:** each world down a step takes 5% less time (150 ms at depth 0,
+  116 ms at 5, 90 ms at 10), never under 70 ms.
 - You start each world on top of its head end, crawling back towards the
   tail, so the world opens out ahead of you.
 - Food grows you by one cell and is worth (depth + 1) points. The bigger
   the world, the more food there is.
-- Haptics: a tap when you eat, a thump when you molt, a buzz when you bite.
+- Haptics: a tap when you eat, a thump when you molt, a buzz when you die.
 
 ## Leaderboards
 
-There are three boards, each showing all time, week and today, one row per
+There are two boards, each showing all time, week and today, one row per
 player:
 
 - **score** (food is worth depth + 1);
-- **longest snake**, in any world;
 - **deepest**: how many times you molted.
 
-One tap on "post" writes all three (no depth record if you never molted)
-as `com.minomobi.lab.score` records in your own repo, through Orb's board
-kit (`../orb/js/board-kit.js`), the same stack as Orb, Fathom, One Side and
-Tessera. The detail field carries `seed steps eaten longest depth`.
+One tap on "post" writes both (no depth record if you never molted) as
+`com.minomobi.lab.score` records in your own repo, through Orb's board kit
+(`../orb/js/board-kit.js`), the same stack as Orb, Fathom, One Side and
+Tessera. The detail field carries `seed steps eaten depth`.
 
 The boards trust the record but refuse the impossible:
 
-- a snake grows only by eating, starting each world 3 long;
-- each molt takes at least 5 food (you must reach 8);
+- molt d happens at length 8 + d and every world starts you 3 long, so
+  reaching depth d takes 5 + 6 + … + (4 + d) food;
+- every step spends at least 70 ms of a clock that starts at 60 s and only
+  food refills;
 - no food is worth more than (depth + 1);
 - the record's value must match its own detail.
 
 The selftest checks the refusals, and checks that bot runs down to depth 5
-post records the boards accept. The ids carry `v1`: bump `VERSION` in
-`js/score.js` if the rules change in a way that moves the numbers. The
-game-over screen also shows this browser's bests on all three.
+post records the boards accept. The ids carry `v2`: bump `VERSION` in
+`js/score.js` if the rules change in a way that moves the numbers. `v1` was
+the game before the clock, when you molted when you chose; it also had a
+longest-snake board, which auto-molting makes just depth + 7. The
+game-over screen also shows this browser's bests.
 
 ## Files
 
@@ -152,15 +163,15 @@ game-over screen also shows this browser's bests on all three.
   (a duct 0.72 wide down the middle of each body cell), the rounded tube
   (`centreline`, `roundPoint`), and `wordOf` (body → word). No DOM.
 - `js/game.js`: the rules. Steering by side, straight on by default,
-  growth, food, death, and molting. No DOM.
+  growth, food, death, molting, the clock and the speed. No DOM.
 - `js/view.js`: the tube and its camera, the minimap, the net, and the 3D
   reveal.
 - `js/main.js`: the clock, input (keys, swipes, pad), the HUD, and the
   molt sequence.
-- `js/score.js`: the three boards' records, and what they refuse. No imports.
+- `js/score.js`: the two boards' records, and what they refuse. No imports.
 - `js/board.js`: mounts the board kit. A separate module, so the game
   still runs if the vendored auth client can't load.
-- `test/molt.selftest.mjs`: 29 checks, about a second.
+- `test/molt.selftest.mjs`: 33 checks, about a second.
 
 ## Next
 

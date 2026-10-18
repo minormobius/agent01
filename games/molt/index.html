@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#05060a" />
-<meta name="description" content="Molt — snake on the snake. Play classic snake on the skin of a snake's body; grow long enough and dive into your own body, which becomes the next world." />
+<meta name="description" content="Molt — snake on the snake. Arcade snake on the skin of a snake's body, against the clock; grow long enough and you dive into your own body, which becomes the next world." />
 <title>Molt — games.mino.mobi</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="css/molt.css" />
@@ -12,8 +12,9 @@
 <body>
 <div id="app">
   <div id="top">
+    <div class="h"><span class="lab">time</span><span id="clock" class="val">1:00</span></div>
     <div class="h"><span class="lab">depth</span><span id="depth" class="val">0</span></div>
-    <div class="h"><span class="lab">length</span><span id="len" class="val">1</span></div>
+    <div class="h"><span class="lab" title="length / the length you molt at">length</span><span id="len" class="val">1/8</span></div>
     <div class="h"><span class="lab">score</span><span id="score" class="val">0</span></div>
     <div class="h"><span class="lab">best</span><span id="best" class="val">—</span></div>
     <div class="h grow"><span class="lab" id="worldlab">this world</span><span id="world" class="val">—</span></div>
@@ -22,7 +23,6 @@
     <canvas id="view" aria-label="The world: swipe or use the arrow keys to steer"></canvas>
     <div id="note"></div>
     <div id="banner" hidden></div>
-    <button id="molt" type="button" hidden>MOLT<small id="molt-sub">—</small></button>
     <div id="pad" aria-hidden="true">
       <button type="button" data-dir="up" class="u">▲</button>
       <button type="button" data-dir="left" class="l">◀</button>
@@ -49,12 +49,17 @@
     other side.
   </p>
   <p>
-    Once you're <b>8 long</b> you can <b>molt</b>. You dive into your own
+    The moment you're <b>8 long</b> you <b>molt</b>: you dive into your own
     body, and it becomes the next world, every cell of you a cube, every
-    bend you made a bend in the tube. A long, twisty snake makes a big,
-    strange world. Each level down, food is worth one more point.
+    bend you made a bend in the tube. Each world down you molt one cell
+    longer (9, 10, …), the snake runs a little faster, and food is worth
+    one more point.
   </p>
-  <p class="accent">Arrow keys or WASD, or swipe anywhere (no need to lift between turns). M to molt; V flips between the tube and the surface unfolded flat.</p>
+  <p>
+    You have <b>1:00</b>, and every food adds <b>10 seconds</b>. The clock
+    stops while you molt.
+  </p>
+  <p class="accent">Arrow keys or WASD, or swipe anywhere (no need to lift between turns). V flips between the tube and the surface unfolded flat.</p>
   <button class="primary" id="go" type="button">crawl</button>
   <p class="foot"><a href="./README.md">how it works</a> · one of the <a href="../pressure/">games</a></p>
 </div>

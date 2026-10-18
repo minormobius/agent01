@@ -149,19 +149,22 @@ function bot(g, wild) {
   if (free.length) g.steer(free[(rnd() * free.length) | 0]);
 }
 {
-  let path = true, early = true, sizes = true, curv = true, deepest = 0, ticks = 0, neck = true;
+  let path = true, early = true, sizes = true, curv = true, deepest = 0, ticks = 0, neck = true, ripe = true;
   const made = [];
   for (let s = 1; s <= 6; s++) {
     const g = new Game(s * 7919);
+    g.clock = Infinity;                       // these bots test the worlds, not the clock
     if (g.molt() !== null) early = false;
     for (let t = 0; t < 6000 && g.alive && g.depth < 5; t++) {
       const before = g.body.slice();
       bot(g, true); g.tick(); ticks++;
       if (!g.alive) break;
+      if (g.canMolt !== g.events.some((e) => e.kind === "ripe")) ripe = false;
       if (g.body.length > 1 && g.body[0] === before[1]) neck = false;
       for (let k = 0; k + 1 < g.body.length; k++) if (D.sideTo(g.world, g.body[k], g.body[k + 1]) < 0) path = false;
       if (new Set(g.body).size !== g.body.length) path = false;
-      if (g.body.length >= M_.MOLT_MIN + 4 + 2 * g.depth) {
+      if (g.events.some((e) => e.kind === "ripe")) {
+        if (g.body.length !== M_.MOLT_AT + g.depth) ripe = false;
         const pv = g.preview(), w = g.molt(), c = D.census(w);
         made.push(w.P.some((p, i) => w.P.some((q, j) => j > i + 2 && p[0] === q[0] && p[1] === q[1] && p[2] === q[2])));
         if (w.N !== pv.cells || w.word !== pv.word) sizes = false;
@@ -170,34 +173,50 @@ function bot(g, wild) {
     }
     deepest = Math.max(deepest, g.depth);
   }
-  ok(early, "no molting before you're " + M_.MOLT_MIN + " long");
+  ok(early && ripe, "the game calls the molt exactly when the snake is " + M_.MOLT_AT + " + depth long, and refuses it before");
   ok(path && neck, ticks + " ticks of bot play: the body is always a path of distinct cells, each joint a shared edge, and the head never folds onto its neck");
   ok(sizes && curv, "every molt makes the world the preview promised, from the body's own word, and it's a sphere with 720° of curvature");
   ok(deepest >= 4, "bots dive " + deepest + " worlds deep (" + made.length + " worlds made by play; " + (100 * made.filter((x) => x).length / Math.max(1, made.length)).toFixed(0) + "% run into themselves somewhere when laid out)");
 }
 {
-  const run = () => { const g = new Game(42); for (let t = 0; t < 800 && g.alive; t++) { if (t % 6 === 0) g.steer((t / 6) % 4); g.tick(); if (g.canMolt && t % 200 === 199) g.molt(); } return [g.ticks, g.score, g.depth, g.body.join()].join("|"); };
+  const run = () => { const g = new Game(42); for (let t = 0; t < 800 && g.alive; t++) { if (t % 6 === 0) g.steer((t / 6) % 4); g.tick(); if (g.canMolt) g.molt(); } return [g.ticks, g.score, g.depth, g.clock, g.body.join()].join("|"); };
   ok(run() === run(), "deterministic: the same seed and the same steering play the same game");
 }
 
-/* ---- the leaderboards: three records a run, and what the boards refuse */
+/* ---- the arcade: the clock, the speed-up */
+{
+  // a snake that only goes straight round the tube never eats (no food on its ring, or it dies of the bite first)
+  const g = new Game(5); g.food.clear(); g.spawn = () => {};
+  let steps = 0; while (g.alive && steps < 10000) { g.tick(); steps++; }
+  ok(!g.alive && g.cause === "time" && g.clock === 0 && steps === Math.ceil(M_.CLOCK / M_.TICK), "with nothing eaten, the clock runs out after " + M_.CLOCK / 1000 + " s of steps (" + steps + " at " + M_.TICK + " ms)");
+  const h = new Game(5); h.food = new Set([h.world.nb[h.head * 4 + h.straight()]]);
+  const before = h.clock; h.tick();
+  ok(h.eaten === 1 && h.clock === before - M_.TICK + M_.BONUS, "food adds " + M_.BONUS / 1000 + " s");
+  const k = new Game(5); k.clock = M_.TICK; k.food = new Set([k.world.nb[k.head * 4 + k.straight()]]); k.tick();
+  ok(k.alive && k.clock === M_.BONUS, "food on the very last step still saves you");
+  const t = [0, 1, 5, 10, 40].map((d) => { const x = new Game(1); x.depth = d; return x.tickMs; });
+  ok(t.every((v, i) => i === 0 || v <= t[i - 1]) && t[0] === M_.TICK && t[t.length - 1] === M_.TICK_MIN && t[1] < t[0], "every molt the snake runs a little faster (" + t.join(", ") + " ms a step at depth 0, 1, 5, 10, 40), never faster than " + M_.TICK_MIN);
+}
+
+/* ---- the leaderboards: two records a run, and what the boards refuse */
 {
   const S = await import(path.join(here, "../js/score.js"));
-  ok(S.START === M_.START && S.MOLT_MIN === M_.MOLT_MIN, "the boards' ceilings use the game's own numbers: a snake starts " + S.START + " long and molts at " + S.MOLT_MIN);
-  const run = { value: 40, seed: 7, steps: 900, eaten: 22, longest: 14, depth: 2 }, at = "2026-10-18T12:00:00Z";
+  ok(S.START === M_.START && S.MOLT_AT === M_.MOLT_AT && S.TICK_MIN === M_.TICK_MIN && S.CLOCK === M_.CLOCK && S.BONUS === M_.BONUS,
+    "the boards' ceilings use the game's own numbers: a snake starts " + S.START + " long, molts at " + S.MOLT_AT + " + depth, and has " + S.CLOCK / 1000 + " s plus " + S.BONUS / 1000 + " a food");
+  const run = { value: 40, seed: 7, steps: 900, eaten: 22, depth: 2 }, at = "2026-10-18T12:00:00Z";
   const recs = S.records(run).map((r) => ({ site: "molt", createdAt: at, ...r }));
-  ok(recs.length === 3 && recs.every(S.accept) && recs.map((r) => r.value).join() === "40,14,2", "a run posts its score, its longest snake and its depth, and the boards read all three back");
-  ok(S.records({ ...run, depth: 0, value: 12 }).length === 2, "a run that never molted posts no depth");
-  const [sc, ln, dp] = recs, d = (o) => S.detail({ ...run, ...o });
-  const bad = [{ ...sc, site: "tessera" }, { ...sc, game: "score-v0" }, { ...sc, unit: "cells" }, { ...sc, higherIsBetter: false }, { ...sc, value: 0 }, { ...sc, value: 2.5 },
-    { ...sc, value: 67 }, { ...ln, value: 15 }, { ...ln, value: 26, detail: d({ longest: 26 }) }, { ...dp, value: 3 }, { ...dp, value: 5, detail: d({ depth: 5 }) },
-    { ...sc, detail: d({ eaten: 901 }) }, { ...sc, detail: "seed=7" }, { ...sc, createdAt: "never" }];
-  ok(bad.every((v) => !S.accept(v)), "the boards refuse another site's, another version's, the wrong unit, a time, a zero, a fraction, more points than the food allows, a length or depth the record's own detail contradicts, a snake longer than its food could grow it, more molts than its food could pay for, and a bad date");
+  ok(recs.length === 2 && recs.every(S.accept) && recs.map((r) => r.value).join() === "40,2", "a run posts its score and its depth, and the boards read both back");
+  ok(S.records({ ...run, depth: 0, value: 12 }).length === 1, "a run that never molted posts no depth");
+  const [sc, dp] = recs, d = (o) => S.detail({ ...run, ...o });
+  const bad = [{ ...sc, site: "tessera" }, { ...sc, game: "score-v1" }, { ...sc, unit: "cells" }, { ...sc, higherIsBetter: false }, { ...sc, value: 0 }, { ...sc, value: 2.5 },
+    { ...sc, value: 67 }, { ...dp, value: 3 }, { ...dp, value: 3, detail: d({ depth: 3, eaten: 17 }) }, { ...dp, value: 2, detail: d({ eaten: 10 }) },
+    { ...sc, detail: d({ eaten: 901 }) }, { ...sc, detail: d({ steps: 5000 }) }, { ...sc, detail: "seed=7" }, { ...sc, createdAt: "never" }];
+  ok(bad.every((v) => !S.accept(v)), "the boards refuse another site's, another version's, the wrong unit, a time, a zero, a fraction, more points than the food allows, a depth the record's own detail contradicts, more molts than its food could pay for (" + S.foodFor(3) + " food for depth 3), more steps than its clock allowed, and a bad date");
   let within = true, deepest = 0;
   for (let s2 = 1; s2 <= 12; s2++) {
     const g = new Game(s2 * 4241);
-    for (let t = 0; t < 5000 && g.alive && g.depth < 5; t++) { bot(g, true); g.tick(); if (g.canMolt && g.body.length >= M_.MOLT_MIN + 3) g.molt(); }
-    const r = S.records({ value: g.score, seed: 1, steps: g.ticks, eaten: g.eaten, longest: g.maxLength, depth: g.depth }).map((x) => ({ site: "molt", createdAt: at, ...x }));
+    for (let t = 0; t < 5000 && g.alive && g.depth < 5; t++) { bot(g, true); g.tick(); if (g.canMolt) g.molt(); }
+    const r = S.records({ value: g.score, seed: 1, steps: g.ticks, eaten: g.eaten, depth: g.depth }).map((x) => ({ site: "molt", createdAt: at, ...x }));
     if (!r.every(S.accept)) within = false;
     deepest = Math.max(deepest, g.depth);
   }

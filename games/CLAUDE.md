@@ -181,14 +181,16 @@ Three things live here:
   body that wrapped round a tube comes back as a ring): always a sphere,
   C²(4L + 2) cells whatever the shape, every cell a square with 4
   neighbours, the curvature at the cube corners (3 squares meet outside a
-  bend, 5 inside). Once 8 long you molt: your body becomes the next world.
+  bend, 5 inside). Arcade rules: at 8 + depth long you molt automatically
+  (your body becomes the next world), each world a step is 5% quicker, and a
+  1:00 clock gains 10 s a food (game time, so it's in the rules and the selftest).
   Drawn as a smooth tube (every point pushed onto a circle round the
   body's centreline; watertight, checked), a camera riding above the head
   whose up turns with the snake's straight lines so arrows and swipes stay
   classic; a minimap of the whole world; the surface unfolded flat (a cube's
   net) is a toggle. The molt dives into the head and shows the new world whole.
-  Leaderboards for score, longest snake and deepest molt through Orb's board
-  kit (a run posts all three; `js/score.js` refuses the impossible). See [`molt/README.md`](molt/README.md).
+  Leaderboards (v2) for score and deepest molt through Orb's board kit (a run
+  posts both; `js/score.js` refuses the impossible, clock included). See [`molt/README.md`](molt/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -290,7 +292,7 @@ node games/ecumene/test/economy.mjs 60            # the economy oracle: bots pla
 node games/hearth/test/hearth.selftest.mjs       # the orb and its lots, the port's limits and clearance, height follows reach, every wall upright and facing its street
 node games/tessera/test/tessera.selftest.mjs     # the morphing tiling: Euler, coverage, shared walls, area as a flux, topology changes only at zero length
 node games/tessera/test/snake.selftest.mjs       # the snake: the clock, cuts only at pinches, length conserved through a cut, the body always a path
-node games/molt/test/molt.selftest.mjs           # body → world: always a sphere, 720° of curvature, C²(4L+2) cells, 4 neighbours each; the game dives 5 deep
+node games/molt/test/molt.selftest.mjs           # body → world: always a sphere, 720° of curvature, C²(4L+2) cells, 4 neighbours each; the game dives 5 deep; the clock and the speed-up
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

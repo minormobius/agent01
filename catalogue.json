@@ -3780,11 +3780,11 @@
       "c": "games",
       "k": 3,
       "a": "warm",
-      "t": "2026-10-17",
+      "t": "2026-10-18",
       "b": "2026-10-17",
       "p": "games",
       "surface": "games",
-      "d": "Snake on the snake. Classic snake played on the skin of a snake's body: a capsule of cubes, every face cut into squares, every bend of the body a bend in the world. Grow long enough and molt: dive into your own body, which becomes the next world, as big and twisty as you made it. Played on the surface unfolded flat round your head, so the arrow keys stay classic on a world full of corners.",
+      "d": "Snake on the snake, against the clock. Arcade snake on the skin of a snake's body: a tube of cubes, every face cut into squares, every bend of the body a bend in the world. The moment you're long enough you molt: you dive into your own body, which becomes the next world, as twisty as you made it. Each world down you molt a cell longer and run a little faster; you get a minute, plus ten seconds a food. The camera rides your head round the tube, so the arrow keys stay classic on a world full of corners.",
       "tags": [
         "games",
         "canvas",
