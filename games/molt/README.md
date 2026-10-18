@@ -291,6 +291,19 @@ yourself ends it. Steering is relative, because the camera turns with you:
 you fall in. Four layers are drawn at 60 frames a second, rebuilt every
 frame (about 6 ms).
 
+**Time slows as the world bends** (here and in the lab, where it's a rule).
+Every bend sweeps a cube a step, so the more of the world is bent, the more
+of it changes under you each step, and the harder it is to read. A step
+takes longer the more of the world bends: full speed while no more than a
+fifth of its cubes do, up to twice as long when all of them do. That's the
+share of the world, not the count, so a long snake isn't slowed for its
+length. Going round the tube crosses a fold every three cells, and every
+fold is a bend, hence the allowance. The change is eased in and out, and in
+Cascade the fall inwards slows with it. Measured: a calm player (steering
+every seventh step) runs at 1.13× median, a twisty food-chasing autopilot at
+1.64× (1.31 to 2.0). Curling up buys you time, and the bends that buy it are
+the ones that sweep through you and cut you. The HUD shows the rate.
+
 `test/cascade.selftest.mjs` (10 checks, ~6 s) checks:
 
 - the world stays as long as you, nobody falls, and the path stays put;

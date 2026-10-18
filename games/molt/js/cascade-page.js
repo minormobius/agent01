@@ -12,7 +12,7 @@
    skin: as above, so below. The layer that has swollen past the screen fades
    out as the cycle ends, and the next one in fades in as it begins, so the
    step back doesn't show. */
-import { Ouro, autopilot } from "./ouro.js";
+import { Ouro, autopilot, pace } from "./ouro.js";
 import { skinOf, buildStack, motionOf, frameTurn, rotate, K_ } from "./cascade.js";
 
 const $ = (id) => document.getElementById(id);
@@ -31,7 +31,7 @@ const ortho = (v, n) => norm(sub(v, mul(n, dot(v, n))));
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const LIGHT = norm([0.3, -0.4, 0.86]);
 
-let g, skin, motion, capHead, stack, acc = 0, last = 0, running = false, auto = false, phi = 0, depth = 0, noteT = 0, seed = 1;
+let g, dil = 1, skin, motion, capHead, stack, acc = 0, last = 0, running = false, auto = false, phi = 0, depth = 0, noteT = 0, seed = 1;
 let cam = null;                                   // the smoothed things the camera is made from
 const turns = [];
 let arnd = 9;
@@ -41,6 +41,7 @@ function resize() { const r = cv.getBoundingClientRect(); dpr = Math.min(2, wind
 
 function newRun() {
   seed = (Date.now() % 2147483646) + 1; arnd = seed % 1000 + 9;
+  dil = 1;
   g = new Ouro(seed, { shrink: "body", fall: "slide", bite: "die", anchor: "path" });
   for (let i = 0; i < C_.START - 1; i++) g.tick();     // crawl out to full length first: the world is only ever as long as you
   rebuild(); cam = null; phi = 0; depth = 0; turns.length = 0; acc = 0;
@@ -59,7 +60,7 @@ function note(t) { const el = $("note"); el.textContent = t; el.classList.add("s
 function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { /* no haptics */ } }
 function hud() {
   $("depth").textContent = depth; $("len").textContent = g.body.length; $("eaten").textContent = g.eaten; $("cuts").textContent = g.cuts;
-  $("rate").textContent = RATES[ri][1] ? "a layer every " + RATES[ri][1] + " s" : "held";
+  $("rate").textContent = RATES[ri][1] ? RATES[ri][1] + " s a layer" : "held";
 }
 function over() {
   running = false; $("play").textContent = "▶";
@@ -150,10 +151,14 @@ function draw(now) {
 function loop(now) {
   const dt = Math.min(100, now - (last || now)); last = now;
   if (running && g.alive) {
-    acc += dt; while (acc >= C_.TICK && g.alive) { acc -= C_.TICK; step(); }
-    if (g.alive && motion) frame(Math.min(1, acc / C_.TICK));
+    // time slows as the world bends: the steps and the fall inwards both (eased, so it never jerks)
+    dil += (pace(g) - dil) * (1 - Math.exp(-dt / 500));
+    const tick = C_.TICK * dil, tt = "×" + (1 / dil).toFixed(2);
+    if ($("time").textContent !== tt) $("time").textContent = tt;
+    acc += dt; while (acc >= tick && g.alive) { acc -= tick; step(); }
+    if (g.alive && motion) frame(Math.min(1, acc / tick));
     const T = RATES[ri][1];
-    if (T) { phi += dt / 1000 / T; if (phi >= 1) { phi -= 1; depth++; hud(); } }
+    if (T) { phi += dt / 1000 / T / dil; if (phi >= 1) { phi -= 1; depth++; hud(); } }
   }
   follow(dt);
   draw(now);

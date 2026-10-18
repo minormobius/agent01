@@ -279,6 +279,18 @@ export class Ouro {
 }
 export { census };
 
+/* time slows as the world bends. Every bend sweeps a cube a step, so the more of the world is bent, the more of it
+   changes under you each step, and a step takes longer: full speed while no more than EASY of the world's cubes
+   bend (a snake going round its tube crosses a fold every C cells, and every fold is a bend), up to 1 + SLOW times
+   as long when every cube does. The share of the world, not the count, so a long snake isn't slowed for its length. */
+export const SLOW = 1, EASY = 0.2;
+export function pace(g) {
+  const w = g.word;
+  if (!w.length) return 1;
+  const bent = w.filter((t) => t !== "S").length / w.length;
+  return 1 + SLOW * Math.max(0, bent - EASY) / (1 - EASY);
+}
+
 /* a simple player for the lab and the selftest: the shortest way to food round your own body, sometimes a random free turn */
 export function autopilot(g, rnd = Math.random, focus = 0.85) {
   const W = g.world, busy = new Set(g.pending ? g.body : g.body.slice(0, -1)), prev = new Map([[g.head, -1]]), q = [g.head];

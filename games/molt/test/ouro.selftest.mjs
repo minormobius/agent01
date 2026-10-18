@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const D = await import(path.join(here, "../js/duct.js"));
-const { Ouro, namesOf, lay, autopilot, DEFAULTS } = await import(path.join(here, "../js/ouro.js"));
+const { Ouro, namesOf, lay, autopilot, DEFAULTS, pace, SLOW, EASY } = await import(path.join(here, "../js/ouro.js"));
 let fails = 0, checks = 0;
 const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok   " : "FAIL ") + m); if (!c) { fails++; console.error("FAIL " + m); } };
 let seed = 13;
@@ -118,6 +118,14 @@ const stats = {};
   ok(bite && bite.lost > 2 && a.alive && bite.food === bite.lost - 1 && b.cause === "bitten", "a bite bites off what's behind it (" + (bite ? bite.lost : 0) + " cells, all but the bitten one left as food) and you live, or it kills you when bites kill");
   const run = () => { const g = new Ouro(99); let r = 5; const rr = () => (r = (r * 16807) % 2147483647) / 2147483647; for (let t = 0; t < 300 && g.alive; t++) { autopilot(g, rr); g.tick(); } return [g.ticks, g.cuts, g.eaten, g.word.join(""), g.body.join()].join("|"); };
   ok(run() === run(), "deterministic: the same seed and the same steering play the same game");
+}
+
+/* ---- time slows as the world bends */
+{
+  const w = (bent, n = 10) => ({ word: Array.from({ length: n }, (_, i) => (i < bent ? (i % 2 ? "L" : "DS") : "S")) });
+  const ps = [0, 1, 2, 4, 6, 8, 10].map((b) => pace(w(b)));
+  ok(pace({ word: [] }) === 1 && ps[0] === 1 && ps[2] === 1 && Math.abs(ps[6] - (1 + SLOW)) < 1e-12 && ps.every((p, i) => i === 0 || p >= ps[i - 1]) && pace(w(5, 10)) === pace(w(10, 20)),
+    "a step takes " + ps.map((p) => p.toFixed(2)).join(", ") + " as long with 0, 1, 2, 4, 6, 8, 10 of 10 cubes bent: full speed up to " + EASY * 100 + "% bent, never more than " + (1 + SLOW) + "×, and by the share of the world, not its length");
 }
 
 console.log(fails ? `ouro: ${fails} of ${checks} checks FAILED` : `ouro: all ${checks} checks ok`);

@@ -1,19 +1,19 @@
 /* Ouroboros lab — the page: the clock, the input, the rules, the log. The
    rules of the world are js/ouro.js; the drawing is Molt's own (js/view.js),
    handed a new world every step. */
-import { Ouro, O_, DEFAULTS, autopilot } from "./ouro.js";
+import { Ouro, O_, DEFAULTS, autopilot, pace } from "./ouro.js";
 import { View, V_ } from "./view.js";
 import { tokens } from "./duct.js";
 
 const $ = (id) => document.getElementById(id);
 const view = new View($("view"));
-const RULES = { ground: ["skin", "space"], body: ["retrace", "carry"], shrink: ["keep", "body"], fall: ["die", "slide"], bite: ["cut", "die"], grain: ["3", "2", "1"], speed: ["320", "180", "110"] };
-const BASE = { ...DEFAULTS, grain: String(O_.C), speed: String(O_.TICK) };
+const RULES = { ground: ["skin", "space"], body: ["retrace", "carry"], shrink: ["keep", "body"], fall: ["die", "slide"], bite: ["cut", "die"], grain: ["3", "2", "1"], time: ["slows", "steady"], speed: ["320", "180", "110"] };
+const BASE = { ...DEFAULTS, grain: String(O_.C), time: "slows", speed: String(O_.TICK) };
 const rules = { ...BASE };
 const params = new URLSearchParams(location.search);
 for (const k of Object.keys(RULES)) if (RULES[k].includes(params.get(k))) rules[k] = params.get(k);
 let seed = +params.get("seed") || ((Date.now() % 2147483646) + 1);
-let g, acc = 0, last = 0, running = false, auto = false, noteT = 0, lastWord = "";
+let g, dil = 1, acc = 0, last = 0, running = false, auto = false, noteT = 0, lastWord = "";
 /* how far out the camera sits. ride, far and high all ride your head (up the screen is still the way you're going,
    so the arrows still steer); whole is the whole world from outside, for watching. A wheel or a pinch fine-tunes. */
 const ZOOMS = [["ride", 1], ["far", 2.6], ["high", 5], ["whole", 0]];
@@ -30,6 +30,7 @@ let arnd = 7;
 const rnd = () => (arnd = (arnd * 16807) % 2147483647) / 2147483647;
 
 function newRun() {
+  dil = 1;
   g = new Ouro(seed, { ground: rules.ground, body: rules.body, shrink: rules.shrink, fall: rules.fall, bite: rules.bite, C: +rules.grain });
   arnd = seed % 1000 + 7;
   view.setWorld(g.world, g); view.mix = wide() ? 1 : 0; queue.length = 0; acc = 0;
@@ -93,7 +94,10 @@ function step() {
 }
 function loop(now) {
   const dt = Math.min(100, now - (last || now)); last = now;
-  const tick = +rules.speed;
+  // time slows as the world bends (eased, so it never jerks)
+  dil += ((rules.time === "slows" ? pace(g) : 1) - dil) * (1 - Math.exp(-dt / 500));
+  const tick = +rules.speed * dil, tt = "×" + (1 / dil).toFixed(2);
+  if ($("time").textContent !== tt) $("time").textContent = tt;
   if (running && g.alive) { acc += dt; while (acc >= tick && g.alive) { acc -= tick; step(); } }
   view.track(g, running ? Math.min(1, acc / tick) : 1, dt);
   // ease the camera out (or in) to where it's asked to be, and towards the whole world

@@ -17,6 +17,7 @@
     <div class="h"><span class="lab">length</span><span id="len" class="val">1</span></div>
     <div class="h"><span class="lab">cuts</span><span id="cuts" class="val">0</span></div>
     <div class="h"><span class="lab">eaten</span><span id="eaten" class="val">0</span></div>
+    <div class="h"><span class="lab">time</span><span id="time" class="val">×1.00</span></div>
     <div class="h grow"><span class="lab">the world (you)</span><span id="world" class="val">—</span></div>
   </div>
   <div id="stage">
@@ -72,6 +73,11 @@
     <span class="rl">grain</span>
     <div class="seg" data-rule="grain"><button data-v="3">fine</button><button data-v="2">medium</button><button data-v="1">coarse</button></div>
     <p>How many cells across each face of a cube of world: 3, 2 or 1. Coarser is a more zoomed-out game: the world is nearer your own size and shape, so it's tighter, and a bend has fewer ways round you (measured: 1.7, 2.7 and 8 cuts per 100 steps). At 1, every step crosses a fold, so every step is a pitch and the world coils up and down in 3D.</p>
+  </div>
+  <div class="rule">
+    <span class="rl">time</span>
+    <div class="seg" data-rule="time"><button data-v="slows">slows with bends</button><button data-v="steady">steady</button></div>
+    <p>The more of the world is bent, the more of it changes under you every step (each bend moves a cube a step). With time slowing, a step takes longer the more of the world bends: full speed up to a fifth of it, twice as long when all of it does, eased in and out. Curling up buys you time, and the bends that buy it are the ones that cut you.</p>
   </div>
   <div class="rule">
     <span class="rl">speed</span>
