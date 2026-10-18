@@ -50,6 +50,7 @@
     overSeed: $("over-seed"), overBest: $("over-best"),
     ceiling: $("ceiling"), ceilingKey: $("ceiling-key"), ceilingWrap: $("ceiling-wrap"),
     again: $("again"), replay: $("replay"), onward: $("onward"),
+    trophy: $("trophy"), post: $("post"), oBoard: $("o-board"),
   };
 
   var state = null, legStart = null, memo = null, busy = false;
@@ -77,6 +78,27 @@
   function best() { try { return parseInt(NS.localStorage.getItem("outbound.best") || "0", 10) || 0; } catch (e) { return 0; } }
   function saveBest(n) { try { if (n > best()) NS.localStorage.setItem("outbound.best", String(n)); } catch (e) { /* ignore */ } }
 
+  // ------------------------------------------------------------- the board --
+  /* The leaderboard is its own module (js/board.js: it needs the vendored
+     auth client), so its buttons show only once it has loaded, and the game
+     runs the same without it. A run is offered once, from the STRANDED
+     screen, and only if it made a depot. */
+  var ended = null, posted = false;
+  function board() { return NS.OUTBOUND_BOARD || null; }
+  function offerable() {
+    var b = !!board();
+    el.trophy.hidden = el.oBoard.hidden = !b;
+    el.post.hidden = !b || !ended || ended.value < 1;
+    el.post.disabled = posted;
+  }
+  NS.addEventListener("outbound-board", offerable);
+  function postRun() {
+    var b = board();
+    if (!b || !ended || ended.value < 1 || posted) return;
+    posted = true; el.post.disabled = true;
+    b.offer(ended);
+  }
+
   // ------------------------------------------------------------------- run --
 
   function newRun(seed) {
@@ -84,6 +106,7 @@
     setUrlSeed(state.seed);
     haul = { legs: 0, sent: 0, burned: 0, rested: 0, buried: [] };
     busy = false; held = null;
+    ended = null; posted = false; offerable();
     el.over.hidden = true;
     el.log.innerHTML = '<div class="empty">The log is empty. Nothing has happened yet.</div>';
     beginLeg(false);
@@ -605,6 +628,7 @@
     el.overSeed.textContent = state.seed;
     el.overBest.textContent = best();
     el.onward.hidden = false;
+    offerable();
     el.over.hidden = false;
     el.onward.focus();
   }
@@ -662,6 +686,9 @@
     el.overSeed.textContent = state.seed;
     el.overBest.textContent = best();
     el.onward.hidden = true;
+    ended = { sel: {}, value: haul.legs, seed: state.seed, crossings: haul.sent + haul.burned, sent: haul.sent,
+      rested: haul.rested, lost: haul.buried.length, at: Date.now() };
+    offerable();
     el.over.hidden = false;
     el.again.focus();
   }
@@ -705,11 +732,19 @@
   el.again.addEventListener("click", function () { newRun(); });
   el.replay.addEventListener("click", function () { newRun(state.seed); });
   el.onward.addEventListener("click", onward);
+  el.post.addEventListener("click", postRun);
+  el.oBoard.addEventListener("click", function () { var b = board(); if (b) b.open({}); });
+  el.trophy.addEventListener("click", function () { var b = board(); if (b) b.open({}); });
   NS.addEventListener("resize", function () { if (state) placeHorizon(false); });
 
   document.addEventListener("keydown", function (e) {
+    // keys typed into a field (the leaderboard's handle) belong to the field, not the game; and leave browser shortcuts alone
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
     if (!el.start.hidden) { if (e.key === "Enter" || e.key === " ") { el.start.hidden = true; e.preventDefault(); } return; }
     if (!el.over.hidden) {
+      if (e.key === "Enter" && t && t.tagName === "BUTTON") return; // a focused button takes its own Enter
       if (e.key === "Enter") { (el.onward.hidden ? el.again : el.onward).click(); e.preventDefault(); }
       return;
     }
@@ -734,6 +769,7 @@
   O.uiBusy = function () { return busy; };
   O.uiCommit = commit;
   O.uiLegal = legal;
+  O.uiEnded = function () { return ended; };
 
   newRun(urlSeed());
   el.startSeed.textContent = state.seed;
