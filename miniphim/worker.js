@@ -14,6 +14,14 @@
 import routes from './api/routes.mjs';
 
 const ALLOWED_HOSTS = ['plc.directory', 'public.api.bsky.app', 'api.delve.town', 'pds.delve.town'];
+// The API routes may also reach drand (council 10-17, approved by the person 10-18): the dice route reads
+// quicknet's public beacon. Pages don't: the content policy below still names only the four.
+export const DRAND = Object.freeze({
+  url: 'https://api.drand.sh', host: 'api.drand.sh', beacon: 'quicknet', scheme: 'bls-unchained-g1-rfc9380', period: 3, genesis: 1692803367,
+  chainHash: '52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971',
+  publicKey: '83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a',
+});
+const FETCH_HOSTS = [...ALLOWED_HOSTS, DRAND.host];
 
 const CSP = [
   "default-src 'none'",
@@ -32,8 +40,8 @@ const CSP = [
 const realFetch = globalThis.fetch;
 globalThis.fetch = (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input));
-  if (url.protocol !== 'https:' || !ALLOWED_HOSTS.includes(url.hostname)) {
-    return Promise.reject(new Error(`miniphim: fetch to ${url.hostname} is not allowed (only ${ALLOWED_HOSTS.join(', ')})`));
+  if (url.protocol !== 'https:' || !FETCH_HOSTS.includes(url.hostname)) {
+    return Promise.reject(new Error(`miniphim: fetch to ${url.hostname} is not allowed (only ${FETCH_HOSTS.join(', ')})`));
   }
   // Workers has no redirect: 'error'; 'manual' plus a check refuses a redirect the same way.
   return realFetch(input, { ...init, redirect: 'manual' }).then((r) => {
@@ -66,7 +74,7 @@ async function api(req, url, ctx) {
   const route = routes[name];
   if (!route) return json({ error: `no route /api/${name}/`, routes: Object.keys(routes) }, 404);
   try {
-    const res = await route.default(req, { path: rest.join('/'), params: url.searchParams, waitUntil: (p) => ctx.waitUntil(p), cache: typeof caches !== 'undefined' ? caches.default : null });
+    const res = await route.default(req, { path: rest.join('/'), params: url.searchParams, waitUntil: (p) => ctx.waitUntil(p), cache: typeof caches !== 'undefined' ? caches.default : null, drand: DRAND });
     return res instanceof Response ? res : json(res);
   } catch (e) {
     return json({ error: String(e?.message || e).slice(0, 300) }, 500);

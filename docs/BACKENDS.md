@@ -71,7 +71,7 @@ Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party h
 | `hopper` | hopper | api | — | — | — | — |
 | `idol` | idol | api | — | — | ELEVENLABS_API_KEY, ELEVENLABS_VOICES, GEMINI_API_KEY | api.elevenlabs.io, generativelanguage.googleapis.com |
 | `lab` | lab | api | — | — | — | cdn.bsky.app, plc.directory, public.api.bsky.app |
-| `miniphim` | miniphim | api | — | — | — | api.delve.town, cdn.bsky.app, delve.town, fonts.googleapis.com, fonts.gstatic.com |
+| `miniphim` | miniphim | api | — | — | — | api.delve.town, api.drand.sh, cdn.bsky.app, delve.town, fonts.googleapis.com, fonts.gstatic.com |
 | `minomobi-cron` | cron | api | — | 0 13 * * *, 30 13 * * *, 30 21 * * 1-5, 0 6 1 * *, 0 * * * *, 0 */6 * * *, 0 6 * * *, 10,30,50 * * * * | ADMIN_KEY, GITHUB_PAT | api.github.com |
 | `ocr` | ocr | api | — | — | GEMINI_API_KEY, GEMINI_MODEL | generativelanguage.googleapis.com, ocrs-models.s3-accelerate.amazonaws.com |
 | `photo` | photo | api | — | — | — | plc.directory, public.api.bsky.app |

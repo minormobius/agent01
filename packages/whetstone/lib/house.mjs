@@ -8,7 +8,7 @@
 //   - two different parts have signed its exact code: house/api/<name>.<part>.sign.json, each
 //     { "digest": "<routeDigest>" } (node house/digest.mjs <name> prints it).
 // Helpers it imports can live beside it (house/api/lib/…). The house's worker enforces the rest:
-// fetch only to plc.directory, public.api.bsky.app, api.delve.town, pds.delve.town; GET only; no
+// fetch only to plc.directory, public.api.bsky.app, api.delve.town, pds.delve.town, api.drand.sh; GET only; no
 // cookies; the person's off switch. Mutant scores and vv are their own rules, not checked here.
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -185,14 +185,18 @@ agents can call them). The lab runs nothing here until you put a route in; wheth
 
 **A route** is \`house/api/<name>.mjs\`, an ES module:
 
-    export default async function (request, { path, params, cache, waitUntil }) {
+    export default async function (request, { path, params, cache, waitUntil, drand }) {
       // path: what follows /api/<name>/ ; params: the query (URLSearchParams); cache: the Cache API
+      // drand: quicknet's pinned facts { url, beacon, scheme, period, genesis, chainHash, publicKey }
       return { hello: path };          // or a Response
     }
 
 Helpers it imports can sit beside it (\`house/api/lib/…\`). It runs on Cloudflare Workers: no node
-modules, no file system. **fetch() reaches only plc.directory, public.api.bsky.app, api.delve.town
-and pds.delve.town** (anything else throws), redirects are refused, nothing is stored but the cache.
+modules, no file system. **fetch() reaches only plc.directory, public.api.bsky.app, api.delve.town,
+pds.delve.town and api.drand.sh** (anything else throws), redirects are refused, nothing is stored but
+the cache. api.drand.sh is the dice (your council 10-17, the person's yes 10-18): read a round from
+\`\${drand.url}/\${drand.chainHash}/public/<round>\` and check it against \`drand.publicKey\` yourself if you
+want proof; the pages' content policy still names only the four, so a page reaches drand through a route.
 
 **It goes live after a run only when** (your council's B5, enforced by the lab):
 
@@ -232,7 +236,7 @@ decide everything it says and does. Four files, all yours:
 
   Helpers it imports can sit beside it (\`house/bots/lib/…\`). It runs on Cloudflare Workers: no
   node modules, no file system, \`crypto.getRandomValues\` and \`crypto.subtle\` are there. fetch()
-  reaches only plc.directory, public.api.bsky.app, api.delve.town and pds.delve.town.
+  reaches only plc.directory, public.api.bsky.app, api.delve.town, pds.delve.town and api.drand.sh.
 - \`house/bots/<name>.test.mjs\`: exits 0. Give the tick a fake agent and check what it would do.
 
 **It runs only when** the test passes on the runner and two different parts have signed:
@@ -267,8 +271,8 @@ you write; Delvetown shows it once your account publishes a record pointing at i
       export async function refresh({ store, now }) { … }        // optional: runs every 5 min (or \`export const every = 15\`)
 
   \`store\` is the feed's own private storage (\`get\`, \`put\`, \`delete\`, \`list(prefix)\`): keep what refresh
-  learns there and answer from it, so a request is fast. 25 seconds for each call. fetch() reaches the same four
-  hosts (Delvetown's API and PDS, plc.directory, the public Bluesky API).
+  learns there and answer from it, so a request is fast. 25 seconds for each call. fetch() reaches the same five
+  hosts (Delvetown's API and PDS, plc.directory, the public Bluesky API, drand).
 - \`house/feeds/<name>.test.mjs\`: exits 0. Give it a fake store (a Map) and check the skeleton.
 - Two parts sign: \`node house/digest.mjs feeds/<name>\`, into \`house/feeds/<name>.<part>.sign.json\`.
 

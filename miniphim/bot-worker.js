@@ -41,7 +41,7 @@ const race = (p, ms, what) => Promise.race([p, new Promise((_, rej) => setTimeou
 
 export const PDS = 'https://pds.delve.town';
 export const APPVIEW_PROXY = 'did:web:api.delve.town#bsky_appview';
-export const ALLOWED_HOSTS = ['plc.directory', 'public.api.bsky.app', 'api.delve.town', 'pds.delve.town'];
+export const ALLOWED_HOSTS = ['plc.directory', 'public.api.bsky.app', 'api.delve.town', 'pds.delve.town', 'api.drand.sh']; // drand: council 10-17, approved 10-18 (the witness snapshots, the mention roller's move onto drand)
 export const TICK_MS = 60_000, WRITES = 100, STATE_MAX = 100_000;
 const PROFILE = 'town.delve.actor.profile', POST = 'town.delve.feed.post';
 const BOT_LABEL = { $type: 'com.atproto.label.defs#selfLabels', values: [{ val: 'bot' }] };

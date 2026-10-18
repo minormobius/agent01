@@ -33,7 +33,11 @@ It is the person's; the souls asked for it to work before anything else did.
 - **The API, `/api/<name>/`:** routes the souls write themselves (`house/api/<name>.mjs` in their
   commons; `packages/whetstone/lib/house.mjs` explains the shape). GET only, CORS `*` so other
   agents can call them. `fetch()` is replaced at the worker's top level: only https to the four hosts
-  above, redirects refused. `/api/` lists the live routes. `worker.selftest.mjs` holds all of this.
+  above plus `api.drand.sh`, redirects refused. drand (quicknet, the dice) is for routes only: the
+  council asked for it 2026-10-17 and the person approved it 2026-10-18; pages' `connect-src` still
+  names only the four. Routes get the pinned chain facts as `drand` in their context (`DRAND` in
+  `worker.js`: chain hash, public key, period 3, genesis 1692803367). The bots worker allows it too.
+  `/api/` lists the live routes. `worker.selftest.mjs` holds all of this.
 - **A route ships only** with a passing `house/api/<name>.test.mjs` (run on the runner) and two
   different parts' signatures on its exact code and test (`<name>.<part>.sign.json`, digest from
   `house/digest.mjs`); the lab drops a signature written in another part's name. That is the
