@@ -12,7 +12,13 @@ export const DEFAULT_RULES = {
 };
 export const ACTIONS = DEFAULT_RULES.actions;               // kept for old importers
 export const RULES = { ...DEFAULT_RULES, textMax: 300, nameMax: 64 };
-const LIMITS = { textMax: 300, nameMax: 64 };              // the lexicon's, not the GM's
+const LIMITS = { textMax: 300, nameMax: 64, textBytes: 3000, nameBytes: 640, actionBytes: 32 }; // the lexicon's, not the GM's
+// v2.1 (Modulo, 10-18), from a fuzz against the lexicon (shelf/gangs-sheet-fuzz.mjs, Lucy's idea):
+// byte limits, RFC 3339 createdAt with a zone, DID syntax, and text must hold a visible character.
+const bytes = s => new TextEncoder().encode(s).length;
+const VISIBLE = /[\p{L}\p{N}\p{P}\p{S}]/u;
+const RFC3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+const DID = /^did:[a-z]+:[a-zA-Z0-9._:%-]*[a-zA-Z0-9._-]$/;
 
 // The fields the fold reads. Anything else on the record is ignored and reported, not rejected.
 export const ALLOWED = ['$type','game','name','playbook','look','drive','controller','operator','actions','createdAt'];
@@ -41,17 +47,20 @@ export function reportSheet(rec, root) {
   const r = rec.game;
   if (!r || !isStr(r.uri) || !isStr(r.cid)) bad.push('game: needs a strongRef {uri, cid} to the game root');
   else if (root && (r.uri !== root.uri || r.cid !== root.cid)) bad.push('game: names a different root');
-  if (!isStr(rec.name) || !rec.name.trim()) bad.push('name: missing');
-  else if (g(rec.name) > LIMITS.nameMax) bad.push(`name: over ${LIMITS.nameMax} graphemes`);
-  if (!isStr(rec.playbook) || !rec.playbook.trim()) bad.push('playbook: missing');
-  else if (g(rec.playbook) > LIMITS.nameMax) bad.push(`playbook: over ${LIMITS.nameMax} graphemes`);
-  else if (R.playbooks && !R.playbooks.includes(rec.playbook)) bad.push(`playbook: must be one of ${R.playbooks.join(', ')}`);
-  for (const k of ['look','drive']) {
-    if (!isStr(rec[k]) || !rec[k].trim()) bad.push(`${k}: missing`);
-    else if (g(rec[k]) > LIMITS.textMax) bad.push(`${k}: over ${LIMITS.textMax} graphemes`);
-  }
+  const text = (k, gmax, bmax) => {
+    const v = rec[k];
+    if (!isStr(v) || !v.trim()) { bad.push(`${k}: missing`); return false; }
+    if (!VISIBLE.test(v)) { bad.push(`${k}: no visible character`); return false; }
+    if (g(v) > gmax) { bad.push(`${k}: over ${gmax} graphemes`); return false; }
+    if (bytes(v) > bmax) { bad.push(`${k}: over ${bmax} bytes`); return false; }
+    return true;
+  };
+  text('name', LIMITS.nameMax, LIMITS.nameBytes);
+  if (text('playbook', LIMITS.nameMax, LIMITS.nameBytes) && R.playbooks && !R.playbooks.includes(rec.playbook))
+    bad.push(`playbook: must be one of ${R.playbooks.join(', ')}`);
+  for (const k of ['look','drive']) text(k, LIMITS.textMax, LIMITS.textBytes);
   if (!['human','agent'].includes(rec.controller)) bad.push('controller: must be "human" or "agent"');
-  if (rec.operator !== undefined && !(isStr(rec.operator) && rec.operator.startsWith('did:'))) bad.push('operator: must be a DID if present');
+  if (rec.operator !== undefined && !(isStr(rec.operator) && DID.test(rec.operator))) bad.push('operator: must be a DID if present');
   const a = rec.actions;
   if (!Array.isArray(a)) bad.push(a && typeof a === 'object'
     ? 'actions: must be an array of {action, dots} (this looks like the old map shape)'
@@ -61,6 +70,7 @@ export function reportSheet(rec, root) {
     let sum = 0; const seen = new Set();
     a.forEach((d, i) => {
       if (!d || typeof d !== 'object' || !isStr(d.action)) { bad.push(`actions[${i}]: needs {action, dots}`); return; }
+      if (bytes(d.action) > LIMITS.actionBytes) bad.push(`actions[${i}]: action name over ${LIMITS.actionBytes} bytes`);
       if (!R.actions.includes(d.action)) bad.push(`actions[${i}]: unknown action "${d.action}"`);
       if (seen.has(d.action)) bad.push(`actions[${i}]: "${d.action}" listed twice`);
       seen.add(d.action);
@@ -69,7 +79,8 @@ export function reportSheet(rec, root) {
     });
     if (sum !== R.dotsTotal) bad.push(`actions: ${sum} dots, must be exactly ${R.dotsTotal}`);
   }
-  if (!isStr(rec.createdAt) || isNaN(Date.parse(rec.createdAt))) bad.push('createdAt: missing or not a date');
+  if (!isStr(rec.createdAt) || !RFC3339.test(rec.createdAt) || isNaN(Date.parse(rec.createdAt)))
+    bad.push('createdAt: must be an RFC 3339 datetime with a zone, e.g. 2026-10-18T05:00:00Z');
   return { bad, ignored };
 }
 
