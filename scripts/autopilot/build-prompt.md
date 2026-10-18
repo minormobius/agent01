@@ -33,9 +33,9 @@ _Regenerated 2026-10-18 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-18, 100 members / 267 posts):
+**Neighborhood spark** (bisk 2026-10-18, 100 members / 258 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: forking, idk, jev
+- Distinctive words: opencode, imo, idk
 - Top post: "too good not to post even though it isn't kirkmas" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
