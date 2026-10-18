@@ -236,48 +236,71 @@ view, each lying on the back of the one before.
 Nothing keeps track of the layers, because they are all the same snake: one
 game (`js/ouro.js`), drawn several times. That's "as above, so below":
 
-- **Every snake is a tube with volume and a tiled skin, and it's the same
-  skin.** Every point of the world's tube gets *tube coordinates*: which
-  piece of the centreline it's nearest (one per cube, so one per cell of
-  you), how far along, and its direction from the line (from the way ahead,
-  and round from the snake's up). Sweep those coordinates round any spine,
-  at any radius, and you get that skin on that snake (`js/cascade.js`).
-- **Layer 0** is the skin swept round the world's own centreline. That's
-  exactly Molt's rounded tube, point for point (checked).
-- **Layer j + 1** is swept round a spine through your body's cells on layer
-  j, lifted one radius off the skin, at a third of the radius. Its up is the
-  skin's normal under it, which is how Molt reads a body. The spine runs
-  from the middle of each joint to the middle of the next, bending at each
-  cell, like the world's centreline does at each cube.
+- **Every snake is a tube with volume, and every skin is the same skin.**
+  Every cell of the world has a name on the skin (`namesOf`): which cube of
+  the body (one per cell of you), which wall (up, down, left, right, or a
+  cap at an end) and where on it. Here every cube is drawn as a cube: four
+  walls of C × C cells and the caps, each cell a fixed patch of a fixed
+  segment of the snake. It's laid round the spine at that segment's place
+  along it (gnomonic, as Molt rounds its tube), and past an end it's pushed
+  round the end into a dome. The spine does all the bending, so the inside
+  of a bend is simply squeezed, as a real snake's is (`js/cascade.js`).
+- **Layer 0** is that skin round the world's centreline. On a straight
+  stretch it's Molt's rounded tube, cell for cell (checked).
+- **Layer j + 1** is the same skin round a spine through your body's cells
+  on layer j, lifted one radius off the skin, at a third of the radius. Its
+  up is the skin's normal under it, which is how Molt reads a body. The
+  spine runs from the middle of each joint to the middle of the next,
+  bending at each cell, as the world's centreline does at each cube.
 - **The heads close in on one point.** Layer j + 1's head lies on layer j at
-  your head's cell, which is somewhere along your body, so each layer's head
-  is a third as far from the next. Measured, the steps shrink by 0.33 on
-  average. The camera falls towards that point, turning from one layer's
-  frame to the next so the way ahead stays up the screen.
+  your head's cell, which is somewhere along your body. So each layer's head
+  is about a third as far from the next: measured, 0.35 on average, and in
+  144 steps never further. The camera falls towards that point, turning
+  from one layer's frame to the next so the way ahead stays up the screen.
+- **Everything slithers.** The world moves along a path that stays put in
+  space (`anchor: "path"` in `js/ouro.js`): each step every cube moves to
+  where the one ahead of it was and the head grows into new space, as a
+  real snake moves. Each frame is drawn at its fraction of the way through
+  the step:
+  - the world's skin slides a cube along its path;
+  - each segment of each body moves from the cell it lay on before the step
+    to the one it lies on after: the next one along when it simply
+    slithered, wherever the game re-laid it when a bend swept under it;
+  - the world's tail cube straightens as it slides.
+
+  The selftest checks that every layer, at the start of a step, is exactly
+  where it was at the end of the last, and at the end exactly where the step
+  put it. So the point the zoom falls into moves smoothly (1.2 a step) and
+  the camera can hold it: in the browser it stays within about 20 px of its
+  place on screen.
 - **The zoom is a loop.** Over one cycle the camera goes from riding layer 1
   on layer 0 to riding layer 2 on layer 1, a third of the distance, then
-  steps back to the start. Because every layer is the same snake on the same
-  skin, that's the same picture. The outermost layer fades out as each cycle
+  steps back to the start. Every layer is the same snake on the same skin,
+  so that's the same picture. The outermost layer fades out as each cycle
   ends and the next one in fades in as it begins, so the step doesn't show.
-  Each layer's colour slides with the zoom for the same reason.
+  Each layer's colour slides with the zoom for the same reason. Anything
+  well in front of where the camera looks is cut away, since another coil
+  of a world can pass between it and you.
 
 The game is Ouroboros with the world exactly as long as you, since every
 cube of it is a cell of you. A cut shrinks the world from its tail end. If
 the ground under your head goes with it, you **slide** onto the world's new
-tail end rather than falling (a new rule, `fall: "slide"`, also in the lab).
-Biting yourself ends it. Steering is relative, because the camera turns
-with you: ◀ ▶, A D, a tap on either half of the screen, or a swipe. Z sets
-how fast you fall in.
+tail end rather than falling (`fall: "slide"`, also in the lab). Biting
+yourself ends it. Steering is relative, because the camera turns with you:
+◀ ▶, A D, a tap on either half of the screen, or a swipe. Z sets how fast
+you fall in. Four layers are drawn at 60 frames a second, rebuilt every
+frame (about 6 ms).
 
-`test/cascade.selftest.mjs` (8 checks, ~2 s) checks:
+`test/cascade.selftest.mjs` (10 checks, ~6 s) checks:
 
-- layer 0 is Molt's tube;
+- the world stays as long as you, nobody falls, and the path stays put;
+- on straight stretches layer 0 is Molt's tube;
 - every layer is watertight and a third the size of the last;
-- every spine's frame is orthonormal;
-- each snake lies on the one before (99.6% of cells within half a radius;
-  the rest are where a body crosses a slot);
+- every spine's frame is orthonormal, with a fallback where a body crosses
+  a slot and the skin folds right over;
+- each snake lies on the one before (96.8% of cells within half a radius);
 - the heads converge;
-- with the world shrinking and sliding on, nobody ever falls.
+- the slithering is continuous at both ends of every step.
 
 ## Files
 

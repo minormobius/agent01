@@ -51,7 +51,7 @@
 import { buildDuct, VEC, neg, crossD, sideTo, fold, census } from "./duct.js";
 
 export const O_ = { TICK: 180, START: 6, FOOD_EVERY: 200, C: 3 };
-export const DEFAULTS = { ground: "skin", body: "retrace", shrink: "keep", bite: "cut", fall: "die", turn: [-1, 1] };
+export const DEFAULTS = { ground: "skin", body: "retrace", shrink: "keep", bite: "cut", fall: "die", anchor: "head", turn: [-1, 1] };
 const SLOTS = 5;                    // a cube's skin: up, down, left and right walls, and (at either end) a cap
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -171,10 +171,16 @@ export class Ouro {
   /* the world as the word now says; returns how to carry a cell of the old world onto it (-1: gone) */
   reshape(word, kind, m) {
     const ground = this.opts.ground, Old = this.world, C = Old.C, CC = C * C, oldNames = this.names;
-    // keep the cube under the head where it was (same place, same frame), so the world bends round you
-    const off = kind === "cut" ? m : ground === "space" && kind === "step" ? 1 : 0;
-    const nk = Math.max(0, Math.min(word.length + 1, Old.faces[(this.head / CC) | 0].k - off)), ok = Math.min(Old.L - 1, nk + off);
-    const W = anchored(word.join(""), C, nk, { f: Old.din[ok], u: Old.uin[ok], pos: Old.P[ok] });
+    // anchor "head": keep the cube under the head where it was (same place, same frame), so the world bends round you.
+    // anchor "path": keep the path where it was, so the world slithers along it like a snake, a cube a step, its
+    // bends staying put in space (the new tail cube sits where the old cube behind it was, leaving the way that one did)
+    const off = kind === "cut" ? m : (ground === "space" || this.opts.anchor === "path") && kind === "step" ? 1 : 0;
+    let W;
+    if (this.opts.anchor === "path") { const ok = Math.min(Old.L - 1, off); W = anchored(word.join(""), C, 0, { f: Old.dout[ok], u: Old.uin[Math.min(Old.L - 1, ok + 1)], pos: Old.P[ok] }); }
+    else {
+      const nk = Math.max(0, Math.min(word.length + 1, Old.faces[(this.head / CC) | 0].k - off)), ok = Math.min(Old.L - 1, nk + off);
+      W = anchored(word.join(""), C, nk, { f: Old.din[ok], u: Old.uin[ok], pos: Old.P[ok] });
+    }
     const names = namesOf(W, ground, this.opts.turn);
     const map = (c) => { if (c < 0) return -1; const n = carry(oldNames.key[c], kind, m, ground, Old.L, CC, W); return n >= 0 && names.at.has(n) ? names.at.get(n) : -1; };
     // how many cubes changed shape: each cube's bend, before and after
@@ -248,6 +254,7 @@ export class Ouro {
       this.lose(off.map((c) => (c === b ? -1 : c)), "bite", `you bit off ${off.length} of your tail`);
     }
     // the turn you make here, read off the world as Molt reads a body: yaw from the cell's sides, pitch from the fold behind it
+    const before = this.body.slice();
     const d = (s - this.inSide + 4) % 4, y = d === 2 ? "S" : d === 3 ? "L" : "R";
     const p = this.carry + (this.body.length > 1 ? fold(W, this.body[1], a) : 0), now = Math.sign(p);
     this.carry = p - now;
@@ -263,7 +270,10 @@ export class Ouro {
     const tokensNow = Math.max(this.opts.shrink === "keep" ? this.word.length : 0, this.body.length + bitten - 2);
     const w = tokensNow ? [...this.word, tok].slice(-tokensNow) : [];
     const kind = !this.word.length && !w.length ? "same" : w.length > this.word.length ? "grow" : "step";
+    // what this step did to the world, for anything drawing it in motion: the world before, the turn, how it moved
+    this.last = { kind, prev: this.world, prevNames: this.names, prevBody: before, tok, cuts: this.cuts };
     if (this.place(this.reshape(w, kind, 0))) this.fit();
+    this.last.cut = this.cuts !== this.last.cuts;
     if (this.alive) this.spawn();
   }
 }

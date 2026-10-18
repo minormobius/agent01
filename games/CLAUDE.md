@@ -199,7 +199,7 @@ Three things live here:
   against 14). `cascade.html` zooms forever into snake on snake on snake: every
   layer is the same game, its tube swept from the world's skin in tube
   coordinates (`js/cascade.js`; layer 0 is Molt's tube exactly, each next one a
-  third the size on the last one's back, the heads closing in at 0.33 a layer),
+  third the size on the last one's back, the heads closing in at about a third a layer, every layer slithering continuously along its own path),
   and the zoom loops a layer at a time. See [`molt/README.md`](molt/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
@@ -304,7 +304,7 @@ node games/tessera/test/tessera.selftest.mjs     # the morphing tiling: Euler, c
 node games/tessera/test/snake.selftest.mjs       # the snake: the clock, cuts only at pinches, length conserved through a cut, the body always a path
 node games/molt/test/molt.selftest.mjs           # body → world: always a sphere, 720° of curvature, C²(4L+2) cells, 4 neighbours each; the game dives 5 deep; the clock and the speed-up
 node games/molt/test/ouro.selftest.mjs           # the world is you, live: names carried world to world, the body re-laid by its turns, every rule set's invariants and measured findings (~6 s)
-node games/molt/test/cascade.selftest.mjs        # snake on snake on snake: layer 0 is Molt's tube, every layer watertight and a third the last, each on the one before, the heads converge (~2 s)
+node games/molt/test/cascade.selftest.mjs        # snake on snake on snake: every layer watertight and a third the last, each on the one before, the heads converge, the slithering continuous (~6 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

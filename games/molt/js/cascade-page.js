@@ -13,11 +13,11 @@
    out as the cycle ends, and the next one in fades in as it begins, so the
    step back doesn't show. */
 import { Ouro, autopilot } from "./ouro.js";
-import { tubeCoords, buildStack, frameTurn, rotate, K_ } from "./cascade.js";
+import { skinOf, buildStack, motionOf, frameTurn, rotate, K_ } from "./cascade.js";
 
 const $ = (id) => document.getElementById(id);
 const cv = $("view"), ctx = cv.getContext("2d");
-const C_ = { TICK: 190, D0: 2.3, TILT: 0.32, LEAD: 0.22, TAU: 150, START: 6 };
+const C_ = { TICK: 190, D0: 2.3, TILT: 0.32, LEAD: 0.22, TAU: 150, TAUP: 25, START: 6 };
 const RATES = [["normal", 6], ["fast", 3.5], ["slow", 11], ["hold", 0]];
 let ri = 0;
 try { const r = +localStorage.getItem("cascade.rate"); if (r >= 0 && r < RATES.length) ri = r; } catch (e) { /* private mode */ }
@@ -31,7 +31,7 @@ const ortho = (v, n) => norm(sub(v, mul(n, dot(v, n))));
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const LIGHT = norm([0.3, -0.4, 0.86]);
 
-let g, coords, stack, acc = 0, last = 0, running = false, auto = false, phi = 0, depth = 0, noteT = 0, seed = 1;
+let g, skin, motion, capHead, stack, acc = 0, last = 0, running = false, auto = false, phi = 0, depth = 0, noteT = 0, seed = 1;
 let cam = null;                                   // the smoothed things the camera is made from
 const turns = [];
 let arnd = 9;
@@ -41,12 +41,20 @@ function resize() { const r = cv.getBoundingClientRect(); dpr = Math.min(2, wind
 
 function newRun() {
   seed = (Date.now() % 2147483646) + 1; arnd = seed % 1000 + 9;
-  g = new Ouro(seed, { shrink: "body", fall: "slide", bite: "die" });
+  g = new Ouro(seed, { shrink: "body", fall: "slide", bite: "die", anchor: "path" });
   for (let i = 0; i < C_.START - 1; i++) g.tick();     // crawl out to full length first: the world is only ever as long as you
   rebuild(); cam = null; phi = 0; depth = 0; turns.length = 0; acc = 0;
   hud();
 }
-function rebuild() { coords = tubeCoords(g.world); stack = buildStack(g.world, g.body, K_.DEPTH, coords); }
+/* once a step: the skin by name, the head's cap, and how this step moves; then the stack, every frame, part way through it */
+function rebuild() {
+  const W = g.world, CC = W.C * W.C, per = 5 * CC;
+  skin = skinOf(W, g.names); motion = motionOf(g);
+  capHead = new Uint8Array(W.N);
+  for (let c = 0; c < W.N; c++) { const key = g.names.key[c]; if (Math.floor(key / per) === W.L - 1 && Math.floor((key % per) / CC) === 4) capHead[c] = 1; }
+  frame(1);
+}
+function frame(f) { stack = buildStack(g.world, g.body, K_.DEPTH, skin, motion ? { ...motion, f } : null); }
 function note(t) { const el = $("note"); el.textContent = t; el.classList.add("show"); clearTimeout(noteT); noteT = setTimeout(() => el.classList.remove("show"), 1800); }
 function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { /* no haptics */ } }
 function hud() {
@@ -85,8 +93,8 @@ function follow(dt) {
   const a = aims();
   if (!cam) { cam = a; return; }
   const k = 1 - Math.exp(-dt / C_.TAU);
-  // the point is followed as closely on screen at every depth: the nearer the camera, the shorter its lag
-  cam.P = lerp(cam.P, a.P, 1 - Math.exp(-dt / (C_.TAU * Math.pow(stack.s, phi))));
+  // everything slithers continuously, so the point can be followed closely (and as closely on screen at every depth)
+  cam.P = lerp(cam.P, a.P, 1 - Math.exp(-dt / (C_.TAUP * Math.pow(stack.s, phi))));
   for (const [nk, hk] of [["n0", "h0"], ["n1", "h1"]]) { cam[nk] = norm(lerp(cam[nk], a[nk], k)); cam[hk] = ortho(lerp(cam[hk], a[hk], k), cam[nk]); }
 }
 function camera() {
@@ -105,28 +113,23 @@ function draw(now) {
   if (!cam) return;
   const K = camera(), cx = W / 2, cy = H / 2, list = [];
   const P = (x, y, z) => { const v = [x - K.eye[0], y - K.eye[1], z - K.eye[2]], d = dot(v, K.fwd); return d < K.near ? null : [cx + focal * dot(v, K.right) / d, cy - focal * dot(v, K.up) / d, d]; };
-  const Wd = g.world, C = Wd.C, G = stack.G, L = Wd.L, headCap = Wd.din[L - 1];
+  const Wd = g.world, C = Wd.C, L = Wd.L;
   const alphaOf = (j) => (j === 0 ? 1 - smooth(0.55, 1, phi) : j === 3 ? smooth(0, 0.45, phi) : 1);
   for (const layer of stack.layers) {
     const a = alphaOf(layer.j); if (a <= 0.01) continue;
     const x = layer.j - phi, hue = 220 + 120 * x;                                  // each layer its own colour, sliding as it falls past
-    for (let f = 0; f < Wd.faces.length; f++) {
-      const F = Wd.faces[f], cap = F.k === L - 1 && F.d === headCap;
-      for (let i = 0; i < C; i++) for (let j = 0; j < C; j++) {
-        const c = f * C * C + i * C + j;
-        if (!layer.live[c]) continue;
-        const m = [layer.mid[c * 3], layer.mid[c * 3 + 1], layer.mid[c * 3 + 2]], nn = [layer.nrm[c * 3], layer.nrm[c * 3 + 1], layer.nrm[c * 3 + 2]];
-        const toEye = sub(K.eye, m); if (dot(nn, toEye) <= 0) continue;
-        const ids = [(f * G + i) * G + j, (f * G + i + 1) * G + j, (f * G + i + 1) * G + j + 1, (f * G + i) * G + j + 1];
-        const q = ids.map((id) => P(layer.pts[id * 3], layer.pts[id * 3 + 1], layer.pts[id * 3 + 2]));
-        if (q.some((p) => !p)) continue;
-        const minx = Math.min(q[0][0], q[1][0], q[2][0], q[3][0]), maxx = Math.max(q[0][0], q[1][0], q[2][0], q[3][0]);
-        const miny = Math.min(q[0][1], q[1][1], q[2][1], q[3][1]), maxy = Math.max(q[0][1], q[1][1], q[2][1], q[3][1]);
-        if (maxx < 0 || minx > W || maxy < 0 || miny > H || (maxx - minx) * (maxy - miny) < 0.4) continue;
-        const lit = 0.35 + 0.65 * Math.max(0, dot(nn, LIGHT)) * 0.6 + 0.4 * Math.max(0, dot(nn, norm(toEye))) * 0.65;
-        const food = g.food.has(c);
-        list.push([dot(sub(m, K.eye), K.fwd), q, a, cap ? `hsl(42 90% ${Math.round(32 + 30 * lit)}%)` : `hsl(${(hue + 18 * (F.k / L) + 3600) % 360} ${34 + 8 * ((i + j) & 1)}% ${Math.round(10 + 34 * lit + 3 * ((i + j) & 1))}%)`, food ? [m, nn, layer.r] : null]);
-      }
+    for (let c = 0; c < Wd.N; c++) {
+      if (!layer.live[c]) continue;
+      const m = [layer.mid[c * 3], layer.mid[c * 3 + 1], layer.mid[c * 3 + 2]], nn = [layer.nrm[c * 3], layer.nrm[c * 3 + 1], layer.nrm[c * 3 + 2]];
+      const toEye = sub(K.eye, m); if (dot(nn, toEye) <= 0) continue;
+      const q = [0, 1, 2, 3].map((i) => P(layer.pts[c * 12 + i * 3], layer.pts[c * 12 + i * 3 + 1], layer.pts[c * 12 + i * 3 + 2]));
+      if (q.some((p) => !p)) continue;
+      const minx = Math.min(q[0][0], q[1][0], q[2][0], q[3][0]), maxx = Math.max(q[0][0], q[1][0], q[2][0], q[3][0]);
+      const miny = Math.min(q[0][1], q[1][1], q[2][1], q[3][1]), maxy = Math.max(q[0][1], q[1][1], q[2][1], q[3][1]);
+      if (maxx < 0 || minx > W || maxy < 0 || miny > H || (maxx - minx) * (maxy - miny) < 0.4) continue;
+      const lit = 0.35 + 0.65 * Math.max(0, dot(nn, LIGHT)) * 0.6 + 0.4 * Math.max(0, dot(nn, norm(toEye))) * 0.65;
+      const k = skin.cube[c], i = c % C, j = ((c / C) | 0) % C;
+      list.push([dot(sub(m, K.eye), K.fwd), q, a, capHead[c] ? `hsl(42 90% ${Math.round(32 + 30 * lit)}%)` : `hsl(${(hue + 18 * (k / L) + 3600) % 360} ${34 + 8 * ((i + j) & 1)}% ${Math.round(10 + 34 * lit + 3 * ((i + j) & 1))}%)`, g.food.has(c) ? [m, nn, layer.r] : null]);
     }
   }
   list.sort((u, v) => v[0] - u[0]);
@@ -148,6 +151,7 @@ function loop(now) {
   const dt = Math.min(100, now - (last || now)); last = now;
   if (running && g.alive) {
     acc += dt; while (acc >= C_.TICK && g.alive) { acc -= C_.TICK; step(); }
+    if (g.alive && motion) frame(Math.min(1, acc / C_.TICK));
     const T = RATES[ri][1];
     if (T) { phi += dt / 1000 / T; if (phi >= 1) { phi -= 1; depth++; hud(); } }
   }
