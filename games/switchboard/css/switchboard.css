@@ -136,3 +136,8 @@ button.ghost:hover { color: var(--text); border-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   .line, .flash, .flash-bad, .float { animation: none !important; transition: none !important; }
 }
+
+/* the leaderboard: the kit's overlay must sit over this game's own (z 40) */
+body .lbk { z-index: 50; }
+#hud .trophy { padding: 5px 9px; font-size: 14px; line-height: 1; flex: none; }
+#hud .trophy[hidden] { display: none; }

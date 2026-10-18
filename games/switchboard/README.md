@@ -15,6 +15,8 @@ js/rules.js           the rules — pure, headless, no DOM or wall clock
 js/solve.js           the exact scheduling solver
 js/generate.js        (seed, shift) -> a board
 js/main.js            fixed-timestep loop, hold input, the gap readout
+js/score.js           the leaderboard records and what they may claim
+js/board.js           the leaderboards (Orb's board kit), loaded on its own
 test/harness.mjs      engine loader + scheduling policies
 test/switchboard.selftest.mjs   invariants — run by scripts/preflight.mjs
 test/analysis.mjs     difficulty + shortfall report (on pressure-lab)
@@ -119,6 +121,35 @@ of.
 
 Boards force triage by construction: the optimum is 30–40% below the value on
 the board, so something must always be abandoned.
+
+## Leaderboards
+
+Two boards, read live off ATProto through Orb's board kit
+(`../orb/js/board-kit.js`): scores are `com.minomobi.lab.score` records in
+each player's own repo, posted from the shift-over screen (🏆 in the HUD
+opens them; the clock stops while they're open).
+
+- **points** (`points-v1`): the run's total, the "best run" the game already
+  keeps.
+- **sharpest** (`sharp-v1`): the run's points as a share of the exact optimum
+  of every shift it played, in tenths of a percent; 100.0% is a run that left
+  nothing on the table. Runs of 3 shifts or more only.
+
+Why both. A run never ends on its own (NEXT SHIFT goes on as long as you do),
+so points alone grow with every shift you sit through and mostly measure
+stamina. What this game is about is the gap to the best possible shift, and
+the solver knows that exactly, so the second board ranks it. A run is posted
+as it stands when a shift closes; each closed shift can be posted once, and
+the board keeps each player's best.
+
+`js/score.js` refuses the impossible without re-solving anything: the value
+must be what the detail (`seed shifts score optimum`) says, the score can't
+beat the optimum, and the optimum can't exceed what that many shifts of the
+generator can hold (each shift k has at most min(14, 7 + k) calls worth at
+most 6). Re-deriving the optimum from the seed would make the claim exact, but
+it costs several milliseconds a shift for every record in the corpus. The
+selftest checks those constants against `generate.js`, accepts real runs
+(including a perfect one) and refuses tampered ones.
 
 ## Known gaps
 
