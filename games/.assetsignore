@@ -26,3 +26,6 @@ skein/tools/
 
 # /twelve/ test harness and measurements: node-only, not part of the site.
 twelve/test/
+
+# The arcade's clip recorder (node + playwright + ffmpeg): not part of the site.
+tools/

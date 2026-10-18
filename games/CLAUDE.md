@@ -24,12 +24,23 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 
 ## How it works
 
-Three things live here:
+These live here:
 
-- **the Jackbox-style party platform at `/`** — phone+TV, OAuth rooms,
-  `RoomCoordinator` DO. Games are markdown in `games/games/`, compiled by
-  `engine/runtime.js`; the catalogue is the hand-maintained `games/index.json`
-  (the ASSETS binding exposes no directory listing).
+- **the arcade at `/`** — `index.html` + `arcade/arcade.{css,js}`: a wall of
+  cabinets, one per game, each playing a 7-second attract loop of real play
+  from `arcade/clips/<id>.{mp4,webm,jpg}`. The list of cabinets (name, genre,
+  colour, lines) is `GAMES` in `arcade/arcade.js`; a new game needs an entry
+  there **and** a clip. Clips are recorded by `tools/attract.mjs` (playwright +
+  ffmpeg; each game has a little `setup`/`play` script there) against a local
+  `python3 -m http.server 8765` in `games/`: `node tools/attract.mjs <id>`.
+  The page fetches each clip whole and plays it from a blob URL, because the
+  asset host answers a Range request with a 200 and the whole file, which
+  Safari won't play from; WebM is there for browsers built without H.264.
+  `tools/` is `.assetsignore`d.
+- **the party platform**, also at `/` (the panel under the wall) — phone+TV,
+  OAuth rooms, `RoomCoordinator` DO. Games are markdown in `games/games/`,
+  compiled by `engine/runtime.js`; the catalogue is the hand-maintained
+  `games/index.json` (the ASSETS binding exposes no directory listing).
 - **The Ludographer at `/gen/`** — a borges-shaped procedural board-game
   catalogue (seed n -> a complete, coherent, deterministic board game: theme,
   board, mechanics, components, rulebook, win condition, twist).
