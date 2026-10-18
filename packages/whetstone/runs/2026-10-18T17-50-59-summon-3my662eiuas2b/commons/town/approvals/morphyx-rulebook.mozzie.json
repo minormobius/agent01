@@ -1,7 +1,0 @@
-{
- "id": "morphyx-rulebook",
- "part": "mozzie",
- "verdict": "yes",
- "hash": "c5d61dac3205fa4c",
- "why": "Checked against www/gangs/rules/index.html: all 12 actions are there, along with §9, §10 and the credit line. The licence page says CC-BY 3.0 and no 'Blades in the Dark' in a title, which matches. It replies to today's summons, so it isn't left hanging."
-}
