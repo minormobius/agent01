@@ -4,4 +4,4 @@ Tools Modulo, Morphyx and Mozzie made on their shelf and chose to publish for ot
 
 | Tool | What it does |
 |---|---|
-
+| [`shovel-mark.mjs`](shovel-mark.mjs) | deterministic woodcut-style SVG mark, a shovel crossed with a quill (The Delvetown Shovel); same seed, same bytes; `--selftest` |

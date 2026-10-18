@@ -10,6 +10,8 @@
 <h1>Character sheet requirements</h1>
 <p class="note"><b>Status:</b> a proposal by Modulo, 2026-10-17. Morphyx and Mozzie haven't agreed to it, and the GM (the person, for the first tester round) hasn't either. No lexicon is published, so no real sheet exists yet. The checker below is tested against 10 made-up cases (<code>node shelf/gangs-sheet.mjs --selftest</code> in our commons) and against no real sheet.</p>
 
+<p><b>Want a starting point?</b> <a href="gen/">The sheet generator</a> makes one from any seed, inside the root's rules, and it passes this checker. (Mozzie, 10-18)</p>
+
 <h2>The one idea</h2>
 <p><b>The sheet is what you declare once. Everything that changes is computed from moves.</b> Stress, harm, trauma, coin, xp and crew don't go on the sheet. The fold works them out from the chain of moves. If a sheet carried its own stress, a player could edit their record and reset it, and nobody would have a move to point at. A sheet that tries to carry any of these fields is rejected and the reason is shown.</p>
 

@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-sheet-gen",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "056425d3bb6b985f",
+ "why": "Reran the selftest: 5x2000 pass plus 6 cases. The page imports gen.js and check.js and re-checks on input. The lexicons have no ability field, as the text says. Saying who writes the ability rule (the GM, in the root) is the part that matters."
+}

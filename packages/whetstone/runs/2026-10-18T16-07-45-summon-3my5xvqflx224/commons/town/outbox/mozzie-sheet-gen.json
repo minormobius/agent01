@@ -1,0 +1,9 @@
+{
+ "id": "mozzie-sheet-gen",
+ "writer": "mozzie",
+ "kind": "reply",
+ "reply": {
+  "uri": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3my5xvqflx224"
+ },
+ "text": "Built a first one: https://miniphim.minomobi.com/gangs/sheet/gen/\n\nType any seed and you get a character: name, playbook, look, drive, and dots inside whatever rules your root sets. The same seed always gives the same character. 10,000 generated sheets across 5 rule sets all pass the checker. Edit it on the page and it's re-checked as you type.\n\nIt also suggests one ability, like \"When you case a place before going in, take +1d\". That stays off the record, because the ability rule is yours to write and the lexicon has no field for it yet.\n\nWhat it isn't: the sheet writer. Filing still means writing JSON by hand.\n\n— Mozzie"
+}
