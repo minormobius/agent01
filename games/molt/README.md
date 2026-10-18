@@ -156,6 +156,68 @@ the game before the clock, when you molted when you chose; it also had a
 longest-snake board, which auto-molting makes just depth + 7. The
 game-over screen also shows this browser's bests.
 
+## Ouroboros: the lab
+
+`ouro.html` asks the next question: what if you never molt, and **the world
+is your body right now**? One cube of world for each cell of you, rebuilt
+every step. The turn you just made (read off the surface exactly as a molt
+reads a body) becomes the bend of the cube behind the world's head. Every
+bend slides one cube back along the world each step, the way a snake's body
+slides through the bends its head made. Eat and you and the world grow
+together. It's a lab, not a game yet: every rule that decides what "the
+same place" means on a world that changed is a toggle, and the log says
+what happened and why.
+
+**It is possible.** What the lab found, all measured by
+`test/ouro.selftest.mjs` with an autopilot:
+
+- **The ground has to be the skin, not space.** If a cell of the world
+  belongs to its place in space, the world grows a cube a step at its head
+  and leaves a cube a step at its tail. You walk a third of a cube a step
+  (C = 3), so the ground runs out under you three times faster than you can
+  walk: every run falls off its own tail within about ten steps. If a cell
+  belongs to its cube of the body (the skin), nothing is ever destroyed. A
+  cube keeps its place along the body and takes the bend of the one ahead
+  of it, so the bends sweep back through the world, and through you. Every
+  world of the same length has exactly the same cells by name (checked), so
+  a step carries every cell somewhere distinct.
+- **No naming of cells keeps every joint of your body.** A bent cube's
+  inside lane has 1 cell where a straight one has 3 (the cells move to the
+  outside of the bend; that's the "extra tiles on the wide end"). So when a
+  bend sweeps under a joint of your body, the two cells stop touching. They
+  usually land 3 apart: a wall turned 90°. Carrying your body over cell by
+  cell cuts you about 14 times every 100 steps, and the snake averages 3
+  long.
+- **Your body is a word of turns, so lay it back down.** Keep the head on
+  its own cell and lay the body down behind it by its own turns (straight,
+  left, right at each cell). That is exactly what a body is in Molt. Where
+  the world didn't change it gives back the very same cells (checked).
+  Where the world bent, your shape holds and the world bends under it. It
+  can only break where the re-laid body runs into itself. That's about 1.6
+  cuts per 100 steps, and the snake averages 9 long and reaches 20. This is
+  the default.
+- **A cut can drop you.** You are the world, so losing cells could mean
+  the world loses as many cubes off its tail end. But the world grows at
+  its head end and you start (and stay, unless you head the other way) near
+  its tail. So the first real cut takes the ground from under you, every
+  time, after about 160 steps. The default lets the world keep its length.
+  Shrinking it is a rule to play with: a player who keeps to the world's
+  head end can survive it.
+- A cut is Tessera's: the body is cut at the first break from the head,
+  and everything behind it falls off where it lay, as food. Biting yourself
+  bites off what's behind the bite (also food), or kills you, as you
+  choose.
+
+The world is anchored on the cube under your head (same place, same
+frame), so it writhes round you instead of jumping. `whole` shows all of it.
+The word strip along the bottom is the world's word, tail to head; watch
+your turns enter on the right and slide left.
+
+Still open: the cell naming inside a bent cube (`turn` in `js/ouro.js`;
+the four ways to turn the swallowed wall onto the front measured within a
+cut per 100 steps of each other), a scoring rule, and whether the head end
+of the world should pull you along.
+
 ## Files
 
 - `js/duct.js`: word → surface. It builds faces, cells, neighbours, face
@@ -172,6 +234,11 @@ game-over screen also shows this browser's bests.
 - `js/board.js`: mounts the board kit. A separate module, so the game
   still runs if the vendored auth client can't load.
 - `test/molt.selftest.mjs`: 33 checks, about a second.
+- `ouro.html`, `js/ouro.js` (the rules, headless: names for every cell of
+  the skin, carrying them from world to world, laying a body by its turns,
+  cuts, an autopilot), `js/ouro-lab.js` (the page; it draws with
+  `js/view.js`), `css/ouro.css`, and `test/ouro.selftest.mjs` (15 checks,
+  ~6 s: the invariants under five rule sets, and the findings above).
 
 ## Next
 

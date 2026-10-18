@@ -7364,6 +7364,16 @@
    "discovered": true
   },
   {
+   "id": "molt/ouro.html",
+   "name": "ouro",
+   "url": "https://games.mino.mobi/molt/ouro.html",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "molt",
+   "discovered": true
+  },
+  {
    "id": "games/play.html",
    "name": "play",
    "url": "https://games.mino.mobi/play.html",

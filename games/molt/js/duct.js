@@ -33,10 +33,11 @@
    ignores where things land, so a layout that overlaps itself is fine. */
 
 export const D_ = { C: 3, W: 0.72 };
-const VEC = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
-const neg = (d) => d ^ 1, axis = (d) => d >> 1, positive = (d) => (d & 1) === 0;
+export const VEC = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+export const neg = (d) => d ^ 1;
+const axis = (d) => d >> 1, positive = (d) => (d & 1) === 0;
 const dirOf = (v) => VEC.findIndex((w) => w[0] === v[0] && w[1] === v[1] && w[2] === v[2]);
-const crossD = (a, b) => dirOf(cross(VEC[a], VEC[b]));
+export const crossD = (a, b) => dirOf(cross(VEC[a], VEC[b]));
 /* a word as its tokens: [pitch "" | "U" | "D", yaw "S" | "L" | "R"]; a bend is any token but a plain S */
 export function tokens(word) {
   const out = [], re = /([UD]?)([SLR])/gy;
@@ -55,14 +56,15 @@ class UF {
   union(a, b) { const x = this.find(a), y = this.find(b); if (x !== y) this.p.set(x, y); if (!this.p.has(y)) this.p.set(y, y); }
 }
 
-export function buildDuct(word, C = D_.C) {
+/* the body laid out in space, to name faces: where each cube is, which way it was entered (din, with the
+   frame's up then, uin) and left (dout). The frame is (forward f, up u); a pitch turns f about the short
+   axis, a yaw about u. It starts at start.pos facing start.f with start.u up (default: the origin, +x, +z). */
+export function layout(word, start = null) {
   const tk = tokens(word), L = tk.length + 2;
-  // the body laid out in space, to name faces: where each cube is, which way it was entered and left.
-  // The frame is (forward f, up u); a pitch turns f about the short axis, a yaw about u.
-  const P = [], din = [], dout = [];
-  let pos = [0, 0, 0], f = 0, u = 4;
+  const P = [], din = [], dout = [], uin = [];
+  let pos = start ? start.pos.slice() : [0, 0, 0], f = start ? start.f : 0, u = start ? start.u : 4;
   for (let k = 0; k < L; k++) {
-    din.push(f);
+    din.push(f); uin.push(u);
     if (k > 0 && k < L - 1) {
       const [p, y] = tk[k - 1];
       if (p === "D") [f, u] = [neg(u), f]; else if (p === "U") [f, u] = [u, neg(f)];
@@ -71,7 +73,11 @@ export function buildDuct(word, C = D_.C) {
     dout.push(f); P.push(pos.slice());
     pos = [pos[0] + VEC[f][0], pos[1] + VEC[f][1], pos[2] + VEC[f][2]];
   }
-  const upEnd = u;
+  return { L, P, din, dout, uin, upEnd: u };
+}
+
+export function buildDuct(word, C = D_.C, start = null) {
+  const { L, P, din, dout, uin, upEnd } = layout(word, start);
   const attached = (k, d) => (k > 0 && d === neg(din[k])) || (k < L - 1 && d === dout[k]);
 
   // the faces left showing, each with axes p, r such that p × r is its outward normal
@@ -166,7 +172,7 @@ export function buildDuct(word, C = D_.C) {
     const G = faces[o.f], s2 = dirs(G).indexOf(o.q), m = s % 2 === 0 ? F.r : F.p, m2 = s2 % 2 === 0 ? G.r : G.p;
     fn[f * 4 + s] = o.f; fs[f * 4 + s] = s2; flip[f * 4 + s] = positive(m) !== positive(m2) ? 1 : 0;
   }));
-  return { word, L, C, N, faces, nb, back, fn, fs, flip, P, din, dout, upEnd, edgeFaces, vertexOf: (F, a, b) => F["v" + a + b] };
+  return { word, L, C, N, faces, nb, back, fn, fs, flip, P, din, dout, uin, upEnd, edgeFaces, vertexOf: (F, a, b) => F["v" + a + b] };
 }
 
 /* a point of a cell, (u, v) ∈ [0,1]² across it, on the drawn surface */

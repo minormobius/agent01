@@ -190,7 +190,13 @@ Three things live here:
   classic; a minimap of the whole world; the surface unfolded flat (a cube's
   net) is a toggle. The molt dives into the head and shows the new world whole.
   Leaderboards (v2) for score and deepest molt through Orb's board kit (a run
-  posts both; `js/score.js` refuses the impossible, clock included). See [`molt/README.md`](molt/README.md).
+  posts both; `js/score.js` refuses the impossible, clock included). `ouro.html` is
+  a lab for the fully recursive version (`js/ouro.js`): the world is your body
+  live, one cube per cell of you, your turns bending it every step. Every
+  "same place" rule is a toggle; measured, the ground must be the skin (space
+  falls away three times faster than you walk), and the body must be re-laid
+  by its own turns rather than carried cell by cell (1.6 cuts per 100 steps
+  against 14). See [`molt/README.md`](molt/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -293,6 +299,7 @@ node games/hearth/test/hearth.selftest.mjs       # the orb and its lots, the por
 node games/tessera/test/tessera.selftest.mjs     # the morphing tiling: Euler, coverage, shared walls, area as a flux, topology changes only at zero length
 node games/tessera/test/snake.selftest.mjs       # the snake: the clock, cuts only at pinches, length conserved through a cut, the body always a path
 node games/molt/test/molt.selftest.mjs           # body → world: always a sphere, 720° of curvature, C²(4L+2) cells, 4 neighbours each; the game dives 5 deep; the clock and the speed-up
+node games/molt/test/ouro.selftest.mjs           # the world is you, live: names carried world to world, the body re-laid by its turns, every rule set's invariants and measured findings (~6 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies
