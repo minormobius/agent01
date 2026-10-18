@@ -153,6 +153,27 @@ puzzle.
 The guarantee covers the *opening* only. Later turns can absolutely corner you —
 that is the game.
 
+## The leaderboard
+
+One board: **most sectors held**, the number the game already kept as your
+best. It is Orb's portable board (`../orb/js/board-kit.js`), so a score is a
+`com.minomobi.lab.score` record in the player's own repo, read back live off
+ATProto; nobody hosts it. `js/board.js` mounts it (it needs the vendored
+`../lib/auth.js`, so the 🏆 and post buttons only appear once it has loaded,
+and the game runs without it). A run is offered once, from the game-over
+screen, if it held at least one sector.
+
+`js/score.js` builds the record (`sectors-v1`, unit `sectors`, detail
+`seed=… turns=… flawless=… clean=… missed=… forced=…`) and refuses the
+impossible. Sectors last a fixed number of turns (`levelPlan`) and a run always
+ends inside the sector after the last one held, so the turns played pin the
+sectors held exactly: more than the turns of the first *n* sectors, no more than
+those of the first *n + 1*. The four grades must add up to the turns. The
+selftest checks score.js's copy of the sector lengths against the generator,
+plays a real run to its end and has its record accepted, and tampers with it
+every way it can. Change how long a sector lasts or how a run ends, and bump
+`VERSION`.
+
 ## Things the tests caught
 
 - **Resolution disagreed with the forecast.** Victims were looked up as damage
