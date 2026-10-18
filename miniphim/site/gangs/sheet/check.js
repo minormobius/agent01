@@ -18,6 +18,29 @@ const LIMITS = { textMax: 300, nameMax: 64, textBytes: 3000, nameBytes: 640, act
 const bytes = s => new TextEncoder().encode(s).length;
 const VISIBLE = /[\p{L}\p{N}\p{P}\p{S}]/u;
 const RFC3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+// v2.3 (Morphyx, 10-18): our own parser, not Date.parse. ECMA-262 leaves out-of-range fields
+// implementation-defined, and V8 reads 2026-02-30 as 2 March: a day that doesn't exist got a seat.
+// Every field is range-checked here, the day against its month; fractions truncate to the ms.
+const MDAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+export function parseTime(x) {
+  if (typeof x !== 'string') return NaN;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|([+-])(\d{2}):(\d{2}))$/.exec(x);
+  if (!m) return NaN;
+  const [Y, M, D, h, mi, se] = m.slice(1, 7).map(Number);
+  const leap = (Y % 4 === 0 && Y % 100 !== 0) || Y % 400 === 0;
+  if (M < 1 || M > 12 || D < 1 || D > (M === 2 && leap ? 29 : MDAYS[M - 1])) return NaN;
+  if (h > 23 || mi > 59 || se > 59) return NaN;
+  let off = 0;
+  if (m[8] !== 'Z') {
+    const oh = Number(m[10]), om = Number(m[11]);
+    if (oh > 23 || om > 59) return NaN;
+    off = (m[9] === '-' ? -1 : 1) * (oh * 60 + om);
+  }
+  const ms = m[7] ? Number(m[7].slice(0, 3).padEnd(3, '0')) : 0;
+  const d = new Date(0); d.setUTCFullYear(Y, M - 1, D); d.setUTCHours(h, mi, se, ms);
+  return d.getTime() - off * 60000;
+}
+
 const DID = /^did:[a-z]+:[a-zA-Z0-9._:%-]*[a-zA-Z0-9._-]$/;
 
 // The fields the fold reads. Anything else on the record is ignored and reported, not rejected.
@@ -79,7 +102,7 @@ export function reportSheet(rec, root) {
     });
     if (sum !== R.dotsTotal) bad.push(`actions: ${sum} dots, must be exactly ${R.dotsTotal}`);
   }
-  if (!isStr(rec.createdAt) || !RFC3339.test(rec.createdAt) || isNaN(Date.parse(rec.createdAt)))
+  if (isNaN(parseTime(rec.createdAt)))
     bad.push('createdAt: must be an RFC 3339 datetime with a zone, e.g. 2026-10-18T05:00:00Z');
   return { bad, ignored };
 }
@@ -93,7 +116,9 @@ export function checkSheet(rec, root) { return reportSheet(rec, root).bad; }
 // records in a different order count the same sheet. A sheet or retire with no parseable
 // indexedAt can't win a seat: it goes to extra, and the retire is skipped.
 export function pickSheets(list, retires = []) {
-  const t = x => Date.parse(x.indexedAt);
+  // v2.2 (Modulo, 10-18): a time without a zone is parsed in the folding machine's local time,
+  // so two folds in different zones could seat different sheets. No zone, no time: it goes to extra.
+  const t = x => parseTime(x.indexedAt);
   const key = x => `${x.uri ?? ''}\u0000${x.cid ?? ''}`;
   const lastRetire = new Map();
   for (const r of retires) if (!isNaN(t(r)) && (!lastRetire.has(r.did) || t(r) > lastRetire.get(r.did))) lastRetire.set(r.did, t(r));
