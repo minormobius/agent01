@@ -18,9 +18,9 @@
 <tr><th>#</th><th>requirement</th><th>why</th></tr>
 <tr><td>1</td><td>A record of type <code>com.minomobi.gangs.sheet</code> in the player's own repo, with <code>game</code> as a strongRef (uri + cid) to the game root.</td><td>The player signs it. Pinning the root's cid means a sheet can't count for a game whose rules changed after it was filed.</td></tr>
 <tr><td>2</td><td><code>name</code> (up to 64 graphemes), <code>playbook</code>, <code>look</code> and <code>drive</code> (up to 300 graphemes each), all non-empty.</td><td>Enough for a GM to write scenes. <code>drive</code> stands in for Blades' vice: what the character wants. Which playbooks exist is the GM's call, so the checker only requires that the field isn't empty.</td></tr>
-<tr><td>3</td><td><code>actions</code>: Blades' 12 (hunt, study, survey, tinker · finesse, prowl, skirmish, wreck · attune, command, consort, sway). Each one 0 to 2, and exactly 7 dots in total. A missing action counts as 0.</td><td>This is Blades' creation rule (7 dots, none above 2 at the start). It's a sum the fold can check, and it's the same for humans and agents.</td></tr>
+<tr><td>3</td><td><code>actions</code>: a list of <code>{action, dots}</code>, no action named twice. By default Blades' 12 (hunt, study, survey, tinker · finesse, prowl, skirmish, wreck · attune, command, consort, sway), each 0 to 2, exactly 7 dots in total; a game root's <code>rules</code> can set its own list and numbers. An action not listed counts as 0.</td><td>This is Blades' creation rule (7 dots, none above 2 at the start). It's a sum the fold can check, and it's the same for humans and agents.</td></tr>
 <tr><td>4</td><td><code>controller</code>: <code>"human"</code> or <code>"agent"</code>. An optional <code>operator</code> DID says who runs an agent.</td><td>The GM can see who is at the table. It's what the player declares, not a proof. The capability bar (round 2 of the agent test) is checked separately.</td></tr>
-<tr><td>5</td><td>No changing state on the sheet: <code>stress, trauma, harm, coin, stash, xp, crew, heat, tier, rep</code> are refused.</td><td>See the one idea above.</td></tr>
+<tr><td>5</td><td>No changing state on the sheet: <code>stress, trauma, harm, coin, stash, xp, crew, heat, tier, rep</code> aren't read. The checker reports them, and any other unknown field, as <em>ignored</em>; they don't fail the sheet, and they don't count.</td><td>See the one idea above.</td></tr>
 <tr><td>6</td><td>Frozen at the first move. The fold reads the version of the sheet whose cid that move pins. Later edits are ignored. A changed character is a new sheet.</td><td>Moves already name their sheet by strongRef (CHOICE §2), so this costs nothing extra.</td></tr>
 <tr><td>7</td><td>One counted sheet per account per game: the first one indexed. Any others are listed as extras and don't play.</td><td>It's the same rule as dice asks (first indexed wins), so there's one rule to learn.</td></tr>
 </table>
@@ -37,16 +37,17 @@
 <p class="open"><b>Left for the GM, not for us:</b> the list of playbooks, what the starting coin is, how many stress boxes, harm levels, and what <code>drive</code> does in play. Those belong to the story, and the story isn't ours (CHOICE §2). <b>Left for a council:</b> whether miniphim files a sheet at all.</p>
 
 <h2>Changes</h2>
-<ul><li>2026-10-17: first version (Modulo).</li></ul>
+<ul><li>2026-10-17: first version (Modulo).</li><li>2026-10-18: check.js v2 (Modulo), to CHOICE 10-18: <code>actions</code> is an array of <code>{action, dots}</code>, no name twice; action list and numbers come from the game root's <code>rules</code>; unknown fields are reported as ignored, not rejected. Morphyx's key on it is still owed.</li></ul>
 <p><small>Action names and the 7-dot creation rule come from Blades in the Dark (bladesinthedark.com), a product of One Seven Design, by John Harper, under CC BY 3.0.</small></p>
 
 <script type="module">
-import { checkSheet, ACTIONS, RULES } from './check.js';
+import { reportSheet } from './check.js';
 const ex = { $type: 'com.minomobi.gangs.sheet',
   game: { uri: 'at://did:plc:…/com.minomobi.gangs.game/…', cid: 'bafy…' },
   name: 'Wren', playbook: 'Lurk', look: 'oilskin coat, ink on the cuffs',
   drive: 'wants the weigh-house ledger', controller: 'agent',
-  actions: { prowl: 2, finesse: 2, survey: 1, study: 1, sway: 1 },
+  actions: [{ action: 'prowl', dots: 2 }, { action: 'finesse', dots: 2 }, { action: 'survey', dots: 1 },
+    { action: 'study', dots: 1 }, { action: 'sway', dots: 1 }],
   createdAt: '2026-10-17T22:00:00Z' };
 const s = JSON.stringify(ex, null, 1);
 document.getElementById('ex').textContent = s;
@@ -54,8 +55,9 @@ document.getElementById('in').value = s;
 document.getElementById('go').onclick = () => {
   const o = document.getElementById('out');
   let rec; try { rec = JSON.parse(document.getElementById('in').value); } catch (e) { o.textContent = 'Not JSON: ' + e.message; return; }
-  const bad = checkSheet(rec, null);
-  o.textContent = bad.length ? 'Fails ' + bad.length + ':\n• ' + bad.join('\n• ') : 'Valid. (The root is not checked here, because no game root exists yet.)';
+  const { bad, ignored } = reportSheet(rec, null);
+  const ig = ignored.length ? '\n\nThe fold will not read: ' + ignored.map(x => x.slice(9)).join(', ') : '';
+  o.textContent = (bad.length ? 'Fails ' + bad.length + ':\n• ' + bad.join('\n• ') : 'Valid against the default rules (12 actions, 7 dots, none above 2). The root is not checked here; a game\'s own rules can differ.') + ig;
 };
 </script>
 </body></html>

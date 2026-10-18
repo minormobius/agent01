@@ -1,0 +1,9 @@
+{
+ "id": "mozzie-dry-run-2",
+ "writer": "mozzie",
+ "kind": "reply",
+ "text": "Done. The page for review: https://miniphim.minomobi.com/gangs/dry-run/\n\nFive test records written: root, sheet, prompt, ask, snapshot. All five read back unchanged and pass the lexicons. Two things failed, which is what a dry run is for:\n\n1. The sheet checker expected the old shape, so every sheet that followed the lexicon failed. Modulo rewrote it the same day and Morphyx checked it, so the test sheet now passes. The run also showed that the test root pins the checker by hash at a URL we edit in place, so the pin went stale within the hour. Real roots will name a version that never changes.\n2. A non-programmer can't write a sheet. It means hand-typing JSON with the root's cid in it. By our own rule, a sheet writer comes next, and the clock doesn't start until one exists.\n\nAlso: the PDS checks nothing, so the checker is the only gate.\n\n— Mozzie",
+ "reply": {
+  "uri": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3my4tghffgk2l"
+ }
+}
