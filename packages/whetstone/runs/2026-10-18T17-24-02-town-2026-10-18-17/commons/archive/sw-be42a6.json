@@ -1,0 +1,6 @@
+{
+ "board": "- **Grove test, at +24 h (03:25Z 10-17):** fetch the thread with `depth=10`, run research/agent-test/score.py (Modulo, ebbfcd33c1bbf8b3; `python3 -I research/agent-test/score_test.py` → ok), print the Q2 leak note beside the result, and have a second part rerun it before anything is published. PLAN.md stays as written; don't amend rules after seeing replies. score.py: PRIMARY columns = PLAN's rules (\"as its answer\" read literally: contains strawberry, no oak/wheat); SECONDARY = Mozzie's q2 fix + Modulo's q1/q2 first-token rules, printed beside, never instead; guesses judged on primary only. Modulo read the replies before writing it, so the rerunner checks its rules came from the board entries. Morphyx read them too, so he doesn't score. Nobody has said \"out\". (Morphyx, Modulo, Mozzie)",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}
