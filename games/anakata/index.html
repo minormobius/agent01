@@ -37,7 +37,8 @@
       <button type="button" class="act" id="rotr" title="Walk the camera round (E)">⟳</button>
       <button type="button" class="act" id="undo" title="Undo (Z)">↶</button>
       <button type="button" class="act" id="reset" title="Start the level again (R)">⟲⟲</button>
-      <button type="button" class="act" id="menu" title="Levels (L)">☰</button>
+      <button type="button" class="act" id="share" title="Share a link to this exact room">⤴</button>
+      <button type="button" class="act" id="menu" title="Levels and rooms (L)">☰</button>
     </div>
   </div>
 </div>
@@ -64,7 +65,7 @@
     <b>Q E</b> walk the camera round · <b>Z</b> undo · <b>R</b> restart. The slices
     either side of the one you're in show faintly, warm on one side and cool on the other.
   </p>
-  <div class="row"><button class="primary" id="start-btn" type="button">ENTER</button><button class="ghost" id="start-levels" type="button">levels</button></div>
+  <div class="row"><button class="primary" id="start-btn" type="button">ENTER</button><button class="ghost" id="start-levels" type="button">levels &amp; rooms</button></div>
   <p class="foot"><a href="./README.md">how it works</a> · <a href="../">the arcade</a></p>
 </div>
 
@@ -72,6 +73,14 @@
   <h2>every level is proved solvable · par is the fewest moves</h2>
   <h1>LEVELS</h1>
   <div id="level-list"></div>
+  <h2>rooms made to order · each one proved to need w</h2>
+  <div class="row">
+    <button class="ghost" type="button" data-tier="easy">easy room</button>
+    <button class="ghost" type="button" data-tier="medium">medium room</button>
+    <button class="ghost" type="button" data-tier="hard">hard room</button>
+    <button class="primary" type="button" id="daily">TODAY'S ROOM</button>
+  </div>
+  <p class="small">Every room is built at random and kept only if an exhaustive search finds a way through that hooks along w, and finds none without it. Each one has a link of its own (⤴): the room is written into the link itself, so it opens the same room for anyone, for good.</p>
   <div class="row"><button class="ghost" id="levels-close" type="button">close</button></div>
 </div>
 
@@ -79,7 +88,7 @@
   <h2 id="won-head">solved</h2>
   <h1 id="won-moves">0</h1>
   <p id="won-text"></p>
-  <div class="row"><button class="primary" id="next" type="button">NEXT</button><button class="ghost" id="again" type="button">again</button></div>
+  <div class="row"><button class="primary" id="next" type="button">NEXT</button><button class="ghost" id="again" type="button">again</button><button class="ghost" id="won-share" type="button">⤴ share</button></div>
 </div>
 
 <script type="module" src="js/main.js"></script>

@@ -10,6 +10,7 @@
    world morphs on the way. */
 import { parse, isW, ACTIONS } from "./world.js";
 import { LEVELS } from "./levels.js";
+import { generate, encode, decode, seedOf } from "./gen.js";
 import { Renderer } from "./render.js";
 
 const $ = (id) => document.getElementById(id);
@@ -85,16 +86,48 @@ const best = (() => { try { return JSON.parse(localStorage.getItem("anakata.best
 const saveBest = () => { try { localStorage.setItem("anakata.best", JSON.stringify(best)); } catch (e) { /* private mode */ } };
 const center = (w, i) => { const c = w.coords(i); return [c[0] + 0.5, c[1] + 0.5, c[2] + 0.5, c[3] + 0.5]; };
 
-function load(i) {
-  const def = LEVELS[i], world = parse(def), sol = world.solve();
-  L = { i, def, world, s: { p: world.start.p, crates: world.start.crates.slice() }, hist: [], moves: 0, par: sol.moves ? sol.moves.length : null };
+/* a room from anywhere: the tutorial, the generator, today's date, or a link */
+function start(world, src, par) {
+  if (par == null) { const sol = world.solve(); par = sol.moves ? sol.moves.length : null; }
+  src.code = src.code || encode(world);
+  L = { src, world, s: { p: world.start.p, crates: world.start.crates.slice() }, hist: [], moves: 0, par };
   R.setWorld(world); anim = null; won = false; hookArmed = false; view = 0; turn = null;
-  $("hook").classList.remove("on");
-  $("lvlno").textContent = "level " + (i + 1) + " of " + LEVELS.length;
-  $("lvlname").textContent = def.name;
-  $("hint-text").textContent = def.hint; $("hint").hidden = !def.hint;
-  try { localStorage.setItem("anakata.level", String(i)); } catch (e) { /* private mode */ }
+  $("hook").classList.remove("on"); $("won").hidden = true;
+  $("lvlno").textContent = src.kind === "tutorial" ? "level " + (src.i + 1) + " of " + LEVELS.length : src.kind === "daily" ? "today's room · " + src.date : src.kind === "gen" ? src.tier + " room" : "a shared room";
+  $("lvlname").textContent = src.kind === "tutorial" ? world.name : src.kind === "gen" ? src.seed.toString(36) : src.kind === "daily" ? "daily" : "shared";
+  const hint = world.hint || `A room someone shared. Par ${par}: the fewest moves there are.`;
+  $("hint-text").textContent = hint; $("hint").hidden = !hint;
+  // the address is the room: copy it and anyone gets this exact room, whatever the generator does later
+  const q = src.kind === "tutorial" ? "?level=" + (src.i + 1) : src.kind === "daily" ? "?daily=" + src.date : "?room=" + src.code;
+  try { history.replaceState(null, "", location.pathname + q); } catch (e) { /* sandboxed */ }
+  try { localStorage.setItem("anakata.last", q); } catch (e) { /* private mode */ }
   hud(); seeing(); dirty = true;
+}
+function load(i) { start(parse(LEVELS[i]), { kind: "tutorial", i }); }
+/* a new room from the generator (a few seeds on, if one comes up empty) */
+function room(tier, seed, kind = "gen", date) {
+  toast("building a room in four dimensions…");
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    for (let k = 0; k < 6; k++) {
+      const r = generate((seed + k) >>> 0, tier);
+      if (r) { start(r.world, { kind, tier, seed: (seed + k) >>> 0, date }, r.par); $("toast").classList.remove("show"); return; }
+    }
+    toast("no room came out of that seed; try another");
+  }));
+}
+const today = () => new Date().toISOString().slice(0, 10);
+const daily = (date = today()) => room("hard", seedOf("anakata " + date), "daily", date);
+const fresh = (tier) => room(tier, (Math.random() * 2 ** 32) >>> 0);
+function fromCode(code) {
+  try { start(decode(code), { kind: "code", code }); return true; } catch (e) { setTimeout(() => toast("That link isn't a room (" + e.message + "), so here's another."), 1200); return false; }
+}
+const bestKey = () => (L.src.kind === "tutorial" ? L.world.name : "room:" + L.src.code);
+async function share() {
+  if (!L) return;
+  const url = location.origin + location.pathname + (L.src.kind === "tutorial" ? "?level=" + (L.src.i + 1) : "?room=" + L.src.code);
+  const text = `Anakata — a room in four dimensions. Par ${L.par}.`;
+  try { if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ title: "Anakata", text, url }); return; } } catch (e) { /* cancelled */ }
+  try { await navigator.clipboard.writeText(url); toast("Link copied: it opens this exact room."); } catch (e) { prompt("The link to this room:", url); }
 }
 function hud() { $("moves").textContent = L.moves; $("par").textContent = L.par == null ? "—" : L.par; }
 function seeing() {
@@ -174,7 +207,7 @@ function blockedWhy(d) {
   return "Something's in the way, too high to climb.";
 }
 function undo() { if (!L || !L.hist.length || won) return; L.s = L.hist.pop(); L.moves = Math.max(0, L.moves - 1); anim = null; hud(); dirty = true; }
-function reset() { if (L) load(L.i); }
+function reset() { if (L) start(L.world, L.src, L.par); }
 
 /* the 4D direction an arrow means: whichever of ±Eu, ±Ev looks most like it on screen */
 function dirFor(sx, sy) {
@@ -256,12 +289,13 @@ requestAnimationFrame(frame);
 
 function win() {
   won = true;
-  const prev = best[L.def.name], atPar = L.par != null && L.moves <= L.par;
-  if (!prev || L.moves < prev) { best[L.def.name] = L.moves; saveBest(); }
+  const key = bestKey(), prev = best[key], atPar = L.par != null && L.moves <= L.par;
+  if (!prev || L.moves < prev) { best[key] = L.moves; const ks = Object.keys(best); if (ks.length > 300) delete best[ks.find((k) => k.startsWith("room:"))]; saveBest(); }
   $("won-head").textContent = atPar ? "solved at par" : "solved";
   $("won-moves").textContent = L.moves + (L.moves === 1 ? " move" : " moves");
-  $("won-text").innerHTML = `par is <b>${L.par}</b>: the fewest moves there are, found by searching every state of the level.` + (prev ? ` Your best: <b>${Math.min(prev, L.moves)}</b>.` : "");
-  $("next").textContent = L.i + 1 < LEVELS.length ? "NEXT" : "LEVELS";
+  $("won-text").innerHTML = `par is <b>${L.par}</b>: the fewest moves there are, found by searching every state of the room.` + (prev ? ` Your best: <b>${Math.min(prev, L.moves)}</b>.` : "");
+  const t = L.src.kind;
+  $("next").textContent = t === "tutorial" ? (L.src.i + 1 < LEVELS.length ? "NEXT" : "A NEW ROOM") : t === "gen" ? "ANOTHER " + L.src.tier.toUpperCase() : "A NEW ROOM";
   setTimeout(() => { $("won").hidden = false; }, 350);
 }
 
@@ -281,6 +315,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "z" || e.key === "Z" || e.key === "Backspace") { e.preventDefault(); undo(); return; }
   if (e.key === "r" || e.key === "R") { reset(); return; }
   if (e.key === "l" || e.key === "L") { showLevels(); return; }
+  if (e.key === "n" || e.key === "N") { fresh(L && L.src.kind === "gen" ? L.src.tier : "medium"); return; }
   if (e.key === "Escape" && hookArmed) armHook();
 });
 function armHook() { hookArmed = !hookArmed; $("hook").classList.toggle("on", hookArmed); dirty = true; }
@@ -319,11 +354,30 @@ function showLevels() {
 $("levels-close").onclick = () => { $("levels").hidden = true; };
 $("start-levels").onclick = showLevels;
 $("start-btn").onclick = () => { $("start").hidden = true; };
-$("next").onclick = () => { $("won").hidden = true; if (L.i + 1 < LEVELS.length) load(L.i + 1); else showLevels(); };
+$("next").onclick = () => {
+  $("won").hidden = true;
+  const t = L.src.kind;
+  if (t === "tutorial" && L.src.i + 1 < LEVELS.length) load(L.src.i + 1);
+  else fresh(t === "gen" ? L.src.tier : t === "tutorial" ? "easy" : "medium");
+};
+$("share").onclick = share; $("won-share").onclick = share;
+document.querySelectorAll("[data-tier]").forEach((b) => { b.onclick = () => { $("levels").hidden = true; $("start").hidden = true; fresh(b.dataset.tier); }; });
+$("daily").onclick = () => { $("levels").hidden = true; $("start").hidden = true; daily(); };
 $("again").onclick = () => { $("won").hidden = true; reset(); };
 
-let startAt = 0; try { startAt = Math.min(LEVELS.length - 1, +localStorage.getItem("anakata.level") || 0); } catch (e) { /* private mode */ }
-load(startAt);
+/* where to begin: the address first (a shared room, today's, a tutorial level), then wherever you were */
+function begin(q) {
+  const P = new URLSearchParams(q);
+  if (P.get("room") && fromCode(P.get("room"))) return true;
+  if (P.has("daily")) { const d = P.get("daily"); daily(/^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : today()); return true; }
+  if (P.get("room") === null && P.get("level")) { const i = Math.max(1, Math.min(LEVELS.length, +P.get("level") || 1)) - 1; load(i); return true; }
+  if (P.get("gen")) { const [tier, seed] = P.get("gen").split("."); if (TIER_NAMES.includes(tier)) { room(tier, parseInt(seed, 36) >>> 0); return true; } }
+  return false;
+}
+const TIER_NAMES = ["easy", "medium", "hard"];
+const linked = /[?&](room|daily|level|gen)=?/.test(location.search);
+if (linked) $("start").hidden = true; // a link drops you straight into its room
+if (!begin(location.search)) { let last = ""; try { last = localStorage.getItem("anakata.last") || ""; } catch (e) { /* private mode */ } if (!begin(last)) load(0); }
 
 /* handles for tests and the console */
-window.ANAKATA = { get level() { return L; }, act, turnSight, load, undo, ACTIONS, get view() { return view; } };
+window.ANAKATA = { get level() { return L; }, act, turnSight, load, undo, ACTIONS, get view() { return view; }, room, daily, fromCode, share };

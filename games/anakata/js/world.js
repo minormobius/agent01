@@ -76,16 +76,23 @@ export class World {
     this.start = { p: start, crates: crates.slice().sort((a, b) => a - b) };
     this.plates = []; this.goals = [];
     for (let i = 0; i < this.N; i++) { if (cells[i] === PLATE) this.plates.push(i); if (cells[i] === GOAL) this.goals.push(i); }
+    // every cell's neighbours, one step along each of ±x ±y ±z ±w (−1 off the sides and top, −2 below the floor)
+    this.nb = new Int32Array(this.N * 8);
+    for (let i = 0; i < this.N; i++) {
+      const c = this.coords(i), lim = [X, Y, Z, W];
+      for (let a = 0; a < 4; a++) for (let sgn = 0; sgn < 2; sgn++) {
+        const v = c[a] + (sgn ? -1 : 1);
+        this.nb[i * 8 + a * 2 + sgn] = a === 2 && v < 0 ? -2 : v < 0 || v >= lim[a] ? -1 : i + (sgn ? -1 : 1) * [1, X, X * Y, X * Y * Z][a];
+      }
+    }
     this.settle(this.start); // a start in mid-air falls
   }
   idx(x, y, z, w) { return x + this.X * (y + this.Y * (z + this.Z * w)); }
   coords(i) { const X = this.X, Y = this.Y, Z = this.Z; return [i % X, Math.floor(i / X) % Y, Math.floor(i / (X * Y)) % Z, Math.floor(i / (X * Y * Z))]; }
   /* the cell one step along d from i, or −1 off the sides and top, or −2 below the floor of the world */
   step(i, d) {
-    const c = this.coords(i), x = c[0] + d[0], y = c[1] + d[1], z = c[2] + d[2], w = c[3] + d[3];
-    if (z < 0) return -2;
-    if (x < 0 || y < 0 || w < 0 || x >= this.X || y >= this.Y || z >= this.Z || w >= this.W) return -1;
-    return this.idx(x, y, z, w);
+    const a = d[0] ? 0 : d[1] ? 1 : d[2] ? 2 : 3;
+    return this.nb[i * 8 + a * 2 + (d[a] < 0 ? 1 : 0)];
   }
 
   /* the doors are open when every plate has someone or something on it */
@@ -107,7 +114,7 @@ export class World {
     for (let guard = 0; guard < 64; guard++) {
       let moved = false;
       const open = this.doorsOpen(s);
-      const order = s.crates.slice().sort((a, b) => this.coords(a)[2] - this.coords(b)[2]);
+      const XY = this.X * this.Y, order = s.crates.length > 1 ? s.crates.slice().sort((a, b) => Math.floor(a / XY) % this.Z - Math.floor(b / XY) % this.Z) : s.crates;
       for (const c of order) {
         const below = this.step(c, [0, 0, -1, 0]);
         if (below === -2) { s.crates = s.crates.filter((x) => x !== c); moved = true; continue; }
@@ -164,7 +171,47 @@ export class World {
     n.p = up; return true;
   }
   won(s) { return !s.dead && this.cells[s.p] === GOAL; }
-  key(s) { return s.p + ":" + s.crates.join(","); }
+  key(s) { let k = s.p, m = this.N; for (const c of s.crates) { k += (c + 1) * m; m *= this.N + 1; } return k; }
+
+  /* Could you reach the goal under looser rules? A search over where you
+     stand alone, with every door open and the crates gone, but with
+     everything a crate might do for you granted for free (it could be under
+     you anywhere, so you never have to fall, and can always step up).  Anything the real
+     rules allow, these allow, so false here is a proof of no solution, and
+     costs a few hundred states, not tens of thousands. */
+  relaxedReach(allowW = true) {
+    const helped = this.start.crates.length > 0, seen = new Uint8Array(this.N), queue = [this.start.p];
+    const solid = (i) => i < 0 || (this.cells[i] !== EMPTY && this.cells[i] !== GOAL && this.cells[i] !== DOOR);
+    const land = (i) => { // fall from i to where you'd stop; −1 if out of the world
+      for (let g = 0; g < this.Z + 1; g++) { const b = this.nb[i * 8 + 5]; if (b === -2) return helped ? i : -1; if (solid(b)) return i; if (helped && this.nb[b * 8 + 5] === -2) return i; i = b; }
+      return i;
+    };
+    seen[this.start.p] = 1;
+    for (let h = 0; h < queue.length; h++) {
+      const p = queue[h];
+      if (this.cells[p] === GOAL) return true;
+      const next = [];
+      for (let a = 0; a < 4; a++) { // walk ±x ±y, climbing one (or two, if a crate could help)
+        const t = this.nb[p * 8 + a]; if (t < 0) continue;
+        if (!solid(t)) { next.push(t); continue; }
+        const up = this.nb[t * 8 + 4], head = this.nb[p * 8 + 4];
+        if (up >= 0 && head >= 0 && !solid(up) && !solid(head)) { next.push(up); continue; }
+        if (helped && up >= 0 && head >= 0 && !solid(head)) { const up2 = this.nb[up * 8 + 4], head2 = this.nb[head * 8 + 4]; if (up2 >= 0 && head2 >= 0 && !solid(up2) && !solid(head2)) next.push(up2); }
+      }
+      for (let a = 0; a < 8; a++) { // the hook, to anchors
+        if (a === 4 || a === 5 || (!allowW && a >= 6)) continue;
+        let q = p, prev = p;
+        for (let k = 1; k <= RANGE; k++) { prev = q; q = this.nb[q * 8 + a]; if (q < 0) break; if (this.cells[q] === ANCHOR) { if (k > 1) next.push(prev); break; } if (solid(q)) break; }
+      }
+      if (helped) { const head = this.nb[p * 8 + 4]; if (head >= 0 && !solid(head)) next.push(head); } // a crate could lift you anywhere
+      for (const t of next) {
+        const l = land(t);
+        if (l >= 0 && !seen[l]) { seen[l] = 1; queue.push(l); }
+        if (helped && !seen[t]) { seen[t] = 1; queue.push(t); } // or hold you up where you are
+      }
+    }
+    return false;
+  }
 
   /* the shortest solution, by breadth-first search over states. `allow`
      filters actions (e.g. no hooks along w, to prove a level needs w) */

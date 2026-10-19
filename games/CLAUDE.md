@@ -263,8 +263,12 @@ These live here:
   (4D DDA through a `X × Y × (Z·W)` texture; crates and you as 4D box/ball;
   neighbouring slices ghosted; tint by slice). Levels are text in
   `js/levels.js`; the selftest pins every par and proves the `needsW` ones
-  impossible without w. Next: a generator on that proof, w-ramps. See
-  [`anakata/README.md`](anakata/README.md).
+  impossible without w. `js/gen.js` generates rooms (easy/medium/hard) kept
+  only when proved solvable, impossible without w and in band; a sound cheap
+  pre-check (`World.relaxedReach`: you alone, crates granted for free) does
+  most of the rejecting. Every room's link IS the room (`?room=CODE`,
+  run-length + base64url), so shares survive generator changes; `?daily` is a
+  hard room seeded by the date. See [`anakata/README.md`](anakata/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -372,7 +376,7 @@ node games/molt/test/cascade.selftest.mjs        # snake on snake on snake: ever
 node games/molt/test/tag.selftest.mjs            # ouroboros computes: the tag system is Collatz, glyphs never cross, the body spells the machine's tape in a quiet world, the real world's successes pinned (~7 s)
 node games/naught/test/naught.selftest.mjs       # (ℤ₃)ⁿ: lines are exactly zero-sum triples, one line per pair, no draws, both 3 × 3 games solved, the engine (<1 s)
 node games/ziggurat/test/ziggurat.selftest.mjs   # the pile and its slices, the hops, the colour rules, the enemies and the lure, an autopilot that clears it, the board's records (<1 s)
-node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds (walk, climb, push, fall, the hook through w, plates and doors); every level solved, par pinned, and proved impossible without w where it says so (<1 s)
+node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds; every level solved, par pinned, proved impossible without w where it says so; room codes round-trip; generated rooms deterministic, in band, proved to need w; the cheap proof sound (~6 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

@@ -92,12 +92,67 @@ w-slice, one row per y, and the z layers side by side. The selftest:
 | plate | 7×3×3×3 | 5 | ✓ |
 | relay | 7×3×3×4 | 17 | ✓ |
 
+## Rooms made to order
+
+`js/gen.js` builds rooms from a seed in three tiers (easy, medium, hard), from
+the parts a 4D puzzle needs:
+- **barriers:** a two-high wall or a chasm right across a slice, present in
+  some slices and not others, so the way round is through w. Hard rooms
+  usually have a second one across y, with its gaps in other slices.
+- **anchor posts**, mostly in the outermost slices, so the hook can reach them
+  along w from the slices between.
+- **steps, crates, a ledge,** and sometimes a **plate** with a **door** across
+  one of the barrier's gaps.
+- The **start and goal** go on opposite sides of the barriers.
+
+A room is kept only when the solver proves three things:
+- it is **solvable**;
+- it is **impossible without hooking along w**, shown by an exhaustive search
+  of every state reachable in 3D;
+- its shortest solution uses at least the tier's number of w-hooks (1, 2 or
+  3) and falls in the tier's band of moves.
+
+Of the first few rooms that pass, the one whose solution does the most wins.
+It is scored by moves, w-hooks, crates moved and slices visited.
+
+**The cheap proof.** Most random rooms are hopeless, and proving that by the
+full search costs tens of thousands of states. `World.relaxedReach` searches
+only where you stand, with every door open, the crates gone, and everything a
+crate could do for you granted for free: one could be under you anywhere, so
+you never have to fall and can always step up. Anything the real rules allow,
+these allow too. So when it says no, the room is unsolvable, after a few
+hundred states. Run without w, it is also the proof that a room needs w, with
+the full search as the fallback when the cheap one can't decide. The selftest
+checks that it never says no where the exact search finds a way. It made hard
+rooms six times faster: median about 0.8 s, medium about 40 ms, easy a few ms.
+
+### Links
+
+Every room's address is the room, written into the URL as `?room=CODE`:
+- an `A`;
+- the four sizes in base 36;
+- the cells run-length coded, one byte per run (cell type, crate or you, and
+  the run length);
+- all of it in base64url. That's 40 to 200 characters.
+
+A shared link opens that exact room for anyone, for good, **whatever later
+changes to the generator do to its seeds**. The ⤴ button copies it, or opens
+the share sheet on a phone. Other addresses:
+
+| | |
+|---|---|
+| `?room=CODE` | that exact room |
+| `?daily` or `?daily=YYYY-MM-DD` | today's room (or that day's): a hard room seeded by the date, the same for everyone |
+| `?gen=hard.SEED` | the generator's room for that seed (base 36): stable only while `GEN` in gen.js is unchanged |
+| `?level=N` | tutorial level N |
+
+A link drops you straight into its room. Without one you land where you last
+were. **N** builds a new room in the current tier.
+
 ## Next
 
-- **A generator.** Random 4D rooms, kept only when the solver finds them
-  solvable with w and unsolvable without, on a difficulty band of measured
-  numbers: w-hooks in the shortest solution, slices visited, views needed to
-  see the route. Then a daily level, and a leaderboard by moves.
+- **A leaderboard for today's room:** fewest moves, through Orb's board kit.
+  Moves can be checked exactly, by replaying the posted solution.
 - **w-ramps:** floors tilted between x and w, so walking also drifts you
   through w. Four round a room make a loop that comes back a slice over:
   Penrose stairs, for real.
@@ -108,11 +163,12 @@ w-slice, one row per y, and the z layers side by side. The selftest:
 | | |
 |---|---|
 | `js/world.js` | the rules and the solver, no DOM |
-| `js/levels.js` | the levels |
+| `js/levels.js` | the tutorial levels |
+| `js/gen.js` | the generator, its tiers, and the room codes |
 | `js/render.js` | the 4D ray tracer |
 | `js/main.js` | input, the view frames and their turns, the camera, animation, the overlay |
-| `test/anakata.selftest.mjs` | the rules on small worlds, and every level solved, pinned and proved |
+| `test/anakata.selftest.mjs` | the rules on small worlds; every level solved, pinned and proved; the codes round-trip; generated rooms deterministic, in band and proved to need w; the cheap proof sound |
 
 ```bash
-node games/anakata/test/anakata.selftest.mjs   # < 1 s
+node games/anakata/test/anakata.selftest.mjs   # ~6 s
 ```

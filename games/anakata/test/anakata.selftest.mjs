@@ -126,5 +126,45 @@ const PAR = { reach: 1, fetch: 8, ana: 6, kata: 6, elsewhere: 15, plate: 5, rela
   ok(LEVELS.filter((d) => d.needsW).length >= 5, "most levels need the fourth dimension");
 }
 
+/* ---- the generator and the codes */
+{
+  const G = await import(path.join(here, "../js/gen.js"));
+  const t0 = Date.now();
+  // the codes: every level survives the round trip, cell for cell
+  ok(LEVELS.every((def) => { const w = parse(def), c = G.encode(w), b = G.decode(c); return G.encode(b) === c && b.cells.every((v, i) => v === w.cells[i]) && b.start.p === w.start.p && b.start.crates.join() === w.start.crates.join(); }), "every level survives encode → decode cell for cell");
+  let bad = 0; for (const junk of ["", "B1234AAAA", "A0000AA", "A7534", "A7534!!!!", "A7534AAAA"]) { try { G.decode(junk); } catch (e) { bad++; } }
+  ok(bad === 6, "codes that aren't rooms are refused, not half-built");
+  // rooms: same seed, same room; every one solvable, needing w (proved by the exact search), in its tier's band
+  const rooms = [];
+  for (const tier of ["easy", "medium", "hard"]) for (const seed of [11, 12, 13]) {
+    const r = G.generate(seed, tier);
+    if (!r) { ok(false, `${tier} ${seed}: a room`); continue; }
+    rooms.push(r);
+    const T = G.TIERS[tier], sol = r.world.solve(), flat = r.world.solve((a) => !isW(a), 2e6);
+    const wh = sol.moves.filter((ai) => isW(ACTIONS[ai])).length;
+    ok(sol.moves.length === r.par && r.par >= T.len[0] && r.par <= T.len[1] && wh >= T.minW, `${tier} ${seed}: par ${r.par}, ${wh} w-hooks, in the tier's band`);
+    ok(!flat.moves, `${tier} ${seed}: impossible without w (an exhaustive search of ${flat.states} states)`);
+    const again = G.generate(seed, tier);
+    ok(G.encode(again.world) === G.encode(r.world), `${tier} ${seed}: the same seed makes the same room`);
+    const back = G.decode(G.encode(r.world));
+    ok(back.solve().moves.length === r.par, `${tier} ${seed}: its link opens a room with the same par`);
+  }
+  // the cheap proof never lies: wherever the exact search finds a way, the loose one does too
+  let sound = true, tested = 0;
+  for (const tier of ["easy", "medium", "hard"]) {
+    const rnd = G.rng(99);
+    for (let k = 0; k < 120; k++) {
+      const c = G.candidate(rnd, G.TIERS[tier]); if (!c) continue;
+      const w = new W.World(Object.assign({ name: "", hint: "" }, c));
+      for (const allowW of [true, false]) {
+        const ex = w.solve(allowW ? () => true : (a) => !isW(a), 30000);
+        if (ex.moves) { tested++; if (!w.relaxedReach(allowW)) sound = false; }
+      }
+    }
+  }
+  ok(sound && tested > 20, `the loose search finds a way wherever the exact one does (${tested} solvable rooms, with and without w)`);
+  if (process.env.VERBOSE) console.log("   generator checks in " + (Date.now() - t0) + " ms");
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} anakata checks failed` : `anakata: ${checks} checks · ${LEVELS.length} levels, pars ${LEVELS.map((d) => PAR[d.name]).join(" ")}\n\n✓ anakata selftest passed`);
 process.exit(fails ? 1 : 0);
