@@ -18,6 +18,9 @@ const GAMES = [
   { id: "cascade", url: "molt/cascade.html", name: "CASCADE", genre: "ZOOM", c: "#ff4fa3",
     line: "Snake on snake on snake, and the camera never stops falling in.",
     blurb: "The world is your body, you crawl on it, and on your body crawls you again, smaller, for ever. A constant zoom into a snake that is its own world." },
+  { id: "ziggurat", url: "ziggurat/", name: "ZIGGURAT", genre: "ARCADE", c: "#ffc93a",
+    line: "The hopping pyramid, one dimension up: every slice of the pile is a pyramid, and you play them all at once.",
+    blurb: "The top of a staircase of tesseracts is a tetrahedral pile of cubes, and its slices are pyramids, one smaller each step in. Turn every cube gold: four hops round a pyramid, two to the one beside it. The coil chases you through all of them." },
   { id: "tessera", url: "tessera/", name: "TESSERA", genre: "ARCADE", c: "#ffb347",
     line: "A snake on a tiling that changes shape under you.",
     blurb: "Hexagons, squares, hexagons the other way. When the corners close, any joint that ran across a diagonal is cut, and the tail falls off as food." },
@@ -78,7 +81,7 @@ const GAMES = [
 ];
 
 /* the games with a global leaderboard (Orb's board kit, or Orb's own board) */
-const BOARDS = new Set(["molt", "tessera", "orb", "fathom", "oneside", "twelve", "horde", "telegraph", "ratchet", "outbound", "switchboard", "tempest"]);
+const BOARDS = new Set(["molt", "ziggurat", "tessera", "orb", "fathom", "oneside", "twelve", "horde", "telegraph", "ratchet", "outbound", "switchboard", "tempest"]);
 
 const $ = (id) => document.getElementById(id);
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;

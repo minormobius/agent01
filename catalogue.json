@@ -3809,6 +3809,23 @@
       ]
     },
     {
+      "n": "ziggurat",
+      "u": "https://games.mino.mobi/ziggurat/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-19",
+      "b": "2026-10-19",
+      "p": "games",
+      "surface": "games",
+      "d": "The hopping-pyramid arcade game one dimension up. The top of a staircase of tesseracts is a tetrahedral pile of cubes, and every slice of the pile is an ordinary pyramid, one smaller each step in, so you play on all of them at once: four hops round a pyramid, two to the same spot on the pyramid beside it. Turn every cube gold while red balls bounce down and a coil chases you through every dimension; a disc carries you home and lures it off. Turning the tesseract re-slices the pile along another axis, and every cube glides to its new pyramid.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "tessera",
       "u": "https://games.mino.mobi/tessera/",
       "c": "games",

@@ -47,7 +47,7 @@ These live here:
   `js/board.js` (mounts it, fires `<game>-board` so the 🏆 and post buttons
   appear only once it loads). Boards: molt, tessera, orb (its own older
   board), fathom, oneside, twelve, horde, telegraph, ratchet, outbound,
-  switchboard, tempest. None yet: naught, strand, skein, bucky, onecoast,
+  switchboard, tempest, ziggurat. None yet: naught, strand, skein, bucky, onecoast,
   ecumene, hearth. The kit's overlay sits at z-index 60, over every game's
   own overlays. Bump a game's score `VERSION` whenever its rules change what
   a number means.
@@ -241,6 +241,17 @@ These live here:
   pressure) is the deep game; the cap puzzle is the research problem (caps
   2, 4, 9, 20, 45, 112). Selftest: the zero-sum rule against brute force, no
   draws, both 3 × 3 games solved, the engine. See [`naught/README.md`](naught/README.md).
+- **Ziggurat at `/ziggurat/`**: the hopping-pyramid arcade game one dimension
+  up. The top of a staircase of tesseracts is a tetrahedral pile of cubes
+  ((a, b, c) ≥ 0, a + b + c ≤ N − 1; six hops ±a ±b ±c), and every slice of it is
+  an ordinary pyramid one smaller each step in, so it's drawn as N pyramids side
+  by side: four hops round a pyramid, two to the same spot on the next. Which
+  axis it's sliced along is a view choice (T turns it; cubes glide between
+  pyramids), never the game. Red balls, a coil that hatches at the bottom and
+  chases by hop distance, discs that lure it off, green freeze, a cyan reverter;
+  colour rules by level as the classic. `js/zig.js` is the game with no DOM and
+  an `autopilot()` (the selftest's player and the attract loop's). Leaderboard
+  through Orb's board kit. See [`ziggurat/README.md`](ziggurat/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -294,7 +305,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -347,6 +358,7 @@ node games/molt/test/ouro.selftest.mjs           # the world is you, live: names
 node games/molt/test/cascade.selftest.mjs        # snake on snake on snake: every layer watertight and a third the last, each on the one before, the heads converge, the slithering continuous (~6 s)
 node games/molt/test/tag.selftest.mjs            # ouroboros computes: the tag system is Collatz, glyphs never cross, the body spells the machine's tape in a quiet world, the real world's successes pinned (~7 s)
 node games/naught/test/naught.selftest.mjs       # (ℤ₃)ⁿ: lines are exactly zero-sum triples, one line per pair, no draws, both 3 × 3 games solved, the engine (<1 s)
+node games/ziggurat/test/ziggurat.selftest.mjs   # the pile and its slices, the hops, the colour rules, the enemies and the lure, an autopilot that clears it, the board's records (<1 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

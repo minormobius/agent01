@@ -1,0 +1,44 @@
+/* Ziggurat — lapis and gold on sandstone, at dusk. */
+:root {
+  --bg: #0b0716; --surface: #171028; --border: #2f2548; --text: #f3ecdf; --dim: #9a8fae;
+  --gold: #ffc93a; --lapis: #2a4cb0; --turq: #3cc6b0; --sand: #c9893f; --warn: #ff5d62;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overscroll-behavior: none; overflow: hidden;
+  -webkit-user-select: none; user-select: none; touch-action: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+#app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top);
+  background: radial-gradient(900px 520px at 50% 110%, rgba(201, 137, 63, 0.22), transparent 70%), radial-gradient(1200px 700px at 50% -20%, #22163d, var(--bg) 70%); }
+#top { display: flex; gap: 14px; align-items: flex-end; padding: 8px 12px 6px; font-family: var(--mono); max-width: 1200px; width: 100%; margin: 0 auto; }
+#top .h { display: flex; flex-direction: column; gap: 2px; min-width: 3ch; }
+#top .h.grow { margin-left: auto; }
+#top .lab { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+#top .val { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#lives { color: var(--gold); letter-spacing: 0.1em; }
+#target { display: flex; gap: 3px; align-items: center; height: 19px; }
+#target i { display: inline-block; width: 14px; height: 9px; transform: skewX(-30deg); border-radius: 1px; }
+#target b { color: var(--dim); font-size: 10px; font-weight: 400; }
+.btns { display: flex; gap: 6px; }
+#stage { position: relative; flex: 1 1 auto; min-height: 0; }
+#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#keys { position: absolute; left: 0; right: 0; bottom: calc(8px + env(safe-area-inset-bottom)); text-align: center; font-family: var(--mono); font-size: 11px; color: var(--dim); pointer-events: none; }
+@media (hover: none), (max-width: 640px) { #keys { display: none; } }
+@media (max-width: 440px) { #top { gap: 9px; padding: 6px 8px; } #top .val { font-size: 13px; } .btns { gap: 4px; } button.ghost { padding: 6px 8px !important; } }
+button.ghost, button.primary { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; padding: 7px 11px; border-radius: 8px; border: 1px solid rgba(154, 143, 174, 0.35); cursor: pointer; white-space: nowrap; }
+button.ghost { background: rgba(11, 7, 22, 0.7); color: var(--text); }
+button.primary { background: var(--gold); color: #1d1300; border-color: var(--gold); font-size: 15px; padding: 11px 24px; letter-spacing: 0.12em; }
+button.primary:disabled { opacity: 0.45; cursor: default; }
+.overlay { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 24px 18px; text-align: center; background: rgba(11, 7, 22, 0.93); backdrop-filter: blur(3px); overflow-y: auto; }
+.overlay > :first-child { margin-top: auto; } .overlay > :last-child { margin-bottom: auto; }
+.overlay h1 { font-family: var(--mono); font-size: clamp(34px, 11vw, 60px); margin: 0; color: var(--gold); letter-spacing: 0.2em; text-shadow: 0 0 22px rgba(255, 201, 58, 0.45); }
+.overlay h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin: 0; font-weight: 600; }
+.overlay p { margin: 0; color: var(--dim); font-size: 14.5px; line-height: 1.65; max-width: 36em; }
+.overlay p b { color: var(--text); }
+.overlay p b.gold { color: var(--gold); }
+.overlay .small { font-size: 13px; }
+.overlay .foot { font-family: var(--mono); font-size: 12px; }
+.overlay a { color: var(--dim); }
+.overlay .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+#start { background: rgba(11, 7, 22, 0.8); }
