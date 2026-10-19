@@ -77,6 +77,9 @@ const GAMES = [
     blurb: "Every number resolves to the same complete game — theme, board, mechanics, components, rulebook, designer — for ever." },
 ];
 
+/* the games with a global leaderboard (Orb's board kit, or Orb's own board) */
+const BOARDS = new Set(["molt", "tessera", "orb", "fathom", "oneside", "twelve", "horde", "telegraph", "ratchet", "outbound", "switchboard", "tempest"]);
+
 const $ = (id) => document.getElementById(id);
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
@@ -107,7 +110,7 @@ GAMES.forEach((g, i) => {
   a.innerHTML =
     (g.big ? '<span class="ribbon">★ PLAYER’S PICK</span>' : "") +
     `<div class="screen" style="background-image:url(arcade/clips/${g.id}.jpg)"><video muted loop playsinline preload="none" aria-hidden="true"></video>` +
-    `<span class="no">${String(i + 1).padStart(2, "0")}</span><span class="genre">${esc(g.genre)}</span></div>` +
+    `<span class="no">${BOARDS.has(g.id) ? '<i title="global leaderboard">🏆</i> ' : ""}${String(i + 1).padStart(2, "0")}</span><span class="genre">${esc(g.genre)}</span></div>` +
     `<div class="plate"><b>${esc(g.name)}</b><small>${esc(g.line)}</small></div>`;
   wall.appendChild(a);
 });
@@ -135,7 +138,7 @@ function select(id, how) {
   mon.bezel.style.setProperty("--c", g.c);
   $("m-name").textContent = g.name;
   $("m-genre").textContent = g.genre;
-  $("m-no").textContent = "NO. " + String(GAMES.indexOf(g) + 1).padStart(2, "0");
+  $("m-no").textContent = "NO. " + String(GAMES.indexOf(g) + 1).padStart(2, "0") + (BOARDS.has(g.id) ? " · 🏆 HI-SCORES" : "");
   $("m-blurb").textContent = g.blurb;
   $("m-doors").innerHTML = (g.doors || []).map(([t, u]) => `<a href="${u}">${esc(t)} →</a>`).join("");
   $("m-play").href = g.url;

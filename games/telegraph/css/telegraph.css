@@ -372,4 +372,3 @@ button.ghost:disabled { opacity: 0.35; cursor: default; }
   .piece.dying { transition: none !important; }
 }
 button.primary:disabled { opacity: 0.45; cursor: default; }
-.lbk button.ghost { flex: none; } /* the leaderboard overlay (orb/js/board-kit.js) is a column: the page's flex: 1 would stretch its CLOSE */

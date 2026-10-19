@@ -48,13 +48,13 @@ export function handleTypeahead(input) {
 }
 const PERIOD_MS = { all: 0, week: 7 * 86400e3, today: 86400e3 };
 const CSS = `
-.lbk { position: fixed; inset: 0; z-index: 30; background: rgba(5,6,12,0.95); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 16px; overflow-y: auto; font-family: ui-monospace, Menlo, Consolas, monospace; color: #e6e6ee; text-align: center; }
+.lbk { position: fixed; inset: 0; z-index: 60; background: rgba(5,6,12,0.95); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 16px; overflow-y: auto; font-family: ui-monospace, Menlo, Consolas, monospace; color: #e6e6ee; text-align: center; }
 .lbk[hidden] { display: none; }
 .lbk > :first-child { margin-top: auto; } .lbk > :last-child { margin-bottom: auto; }
 .lbk h1 { margin: 0; font-size: 34px; letter-spacing: 0.08em; }
 .lbk h2 { margin: 0; font-size: 11px; color: #8a8aa8; letter-spacing: 0.16em; font-weight: 600; }
 .lbk .tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-.lbk .tabs button, .lbk .ghost { background: transparent; color: #c8c8da; border: 1px solid #2a2a44; border-radius: 9px; padding: 6px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.lbk .tabs button, .lbk .ghost { flex: none; background: transparent; color: #c8c8da; border: 1px solid #2a2a44; border-radius: 9px; padding: 6px 10px; font: inherit; font-size: 12px; cursor: pointer; }
 .lbk .tabs button.on { border-color: #5ee8c1; color: #e6fff8; }
 .lbk ol { list-style: none; margin: 4px 0; padding: 0; width: min(420px, 100%); }
 .lbk li { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-bottom: 1px solid #16162a; font-size: 14px; }

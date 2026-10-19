@@ -36,7 +36,21 @@ These live here:
   The page fetches each clip whole and plays it from a blob URL, because the
   asset host answers a Range request with a 200 and the whole file, which
   Safari won't play from; WebM is there for browsers built without H.264.
-  `tools/` is `.assetsignore`d.
+  `tools/` is `.assetsignore`d. `BOARDS` there marks the cabinets with a
+  global leaderboard (a 🏆 on the cabinet); keep it in step.
+- **leaderboards** — every game with a board mounts Orb's portable kit
+  (`orb/js/board-kit.js`, `mountBoard`): records are
+  `com.minomobi.lab.score` in each player's own repo, read back live. Each
+  game has `js/score.js` (no imports: the record builder and a strict
+  `accept()` that refuses what the game's own rules make impossible, its
+  constants cross-checked against the source in that game's selftest) and
+  `js/board.js` (mounts it, fires `<game>-board` so the 🏆 and post buttons
+  appear only once it loads). Boards: molt, tessera, orb (its own older
+  board), fathom, oneside, twelve, horde, telegraph, ratchet, outbound,
+  switchboard, tempest. None yet: naught, strand, skein, bucky, onecoast,
+  ecumene, hearth. The kit's overlay sits at z-index 60, over every game's
+  own overlays. Bump a game's score `VERSION` whenever its rules change what
+  a number means.
 - **the party platform**, also at `/` (the panel under the wall) — phone+TV,
   OAuth rooms, `RoomCoordinator` DO. Games are markdown in `games/games/`,
   compiled by `engine/runtime.js`; the catalogue is the hand-maintained

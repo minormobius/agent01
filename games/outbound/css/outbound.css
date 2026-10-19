@@ -420,8 +420,6 @@ button.primary:hover { background: var(--accent2); border-color: var(--accent2);
 button.ghost { background: transparent; color: var(--dim); }
 button.ghost:hover { color: var(--text); border-color: var(--accent); }
 button.primary[hidden], button.ghost[hidden] { display: none; }
-/* the leaderboard (Orb's board kit) opens over the end screen, which sits at 40 */
-.lbk { z-index: 50 !important; }
 button.primary:disabled { opacity: 0.45; cursor: default; }
 .seed-line { font-family: var(--mono); font-size: 11px; color: var(--dim); }
 .seed-line code { color: var(--accent2); }

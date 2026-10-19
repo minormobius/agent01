@@ -189,6 +189,4 @@ button.ghost:hover { color: var(--text); border-color: var(--accent); }
   .flyer { transition: none !important; }
 }
 
-/* the leaderboard (Orb's board kit) opens over the game-over screen */
-body > .lbk { z-index: 60; }
 #hud .trophy { padding: 6px 9px; font-size: 14px; line-height: 1; flex: none; }

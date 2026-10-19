@@ -80,6 +80,7 @@ a { color: inherit; }
   background: repeating-linear-gradient(0deg, rgba(0,0,0,0.22) 0 1px, transparent 1px 3px),
               radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0,0,0,0.55)); }
 .screen .no { position: absolute; z-index: 1; right: 6px; top: 6px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: rgba(255,255,255,0.85); background: rgba(7, 6, 13, 0.8); padding: 2px 5px; border-radius: 3px; }
+.screen .no i { font-style: normal; }
 .screen .genre { position: absolute; z-index: 1; left: 8px; bottom: 7px; font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em;
   color: var(--c); background: rgba(7, 6, 13, 0.8); padding: 2px 6px; border-radius: 3px; }
 .screen.tune video { animation: tune .32s ease-out; }
