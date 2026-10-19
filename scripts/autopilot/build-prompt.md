@@ -33,9 +33,9 @@ _Regenerated 2026-10-19 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-19, 100 members / 219 posts):
+**Neighborhood spark** (bisk 2026-10-19, 100 members / 245 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: personhood, bcz, idk
+- Distinctive words: imo, deepseek, api
 - Top post: "if you refuse to pay taxes the way we fund things is via inflation actually sooo" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
