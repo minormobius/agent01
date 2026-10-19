@@ -27,7 +27,15 @@ Turn 4 asked for a visible, user-facing override of an accessibility
 default (reduced motion: system/on/off) rather than leaving it purely
 automatic — cares that a visitor can see and control a behavior the page
 would otherwise infer silently from the OS, not just that the automatic
-default is correct.
+default is correct. Applied again unprompted on the pipedream-screensaver
+build (a reduced-motion auto/on/off select), so treat this as a standing
+default for any site with continuous motion, not a one-off request.
+
+Requests arrive as riffs on real-world references ("screensavers ... after
+microblogging") rather than spec-shaped asks — read the linked thread for
+the vibe, not a checklist. Comfortable with a scoped-down interpretation of
+"actual Bluesky posts" (a named handle's own feed, not a live/global
+stream) when the brief itself already flagged that as a fallback path.
 
 ## Said no to
 Nothing yet — no rejections so far across two turns.

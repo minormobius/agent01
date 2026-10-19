@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confluence — a layered history of Kansas City</title>
+<meta property="og:title" content="Confluence — a layered history of Kansas City">
+<meta property="og:description" content="Timeline, population, economy and the plans that never got built: a detailed history of Kansas City from the Osage confluence to the 2026 World Cup, laid out as strata you can filter by kind.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root{
+    --c-geo:#7ac387; --c-gov:#e8a33d; --c-infra:#5b9bd5;
+    --c-econ:#e0c14c; --c-culture:#c98bd9; --c-crisis:#f2777a; --c-ghost:#8b8792;
+  }
+  main{max-width:52rem;}
+  .lede{color:var(--fg); font-size:.95rem; margin:0 0 .5rem;}
+  .caveat{font-size:.78rem; border:1px dashed var(--border); border-radius:var(--radius);
+          padding:.6rem .8rem; color:var(--muted); margin:1rem 0 2rem;}
+  .legend{display:flex; flex-wrap:wrap; gap:.25rem; margin:0 0 1.5rem; padding:.5rem;
+          background:var(--bg-raised); border:1px solid var(--border); border-radius:var(--radius);}
+  .legend label{display:inline-flex; align-items:center; gap:.4rem; padding:.55rem .7rem;
+                min-height:44px; font-size:.78rem; color:var(--fg); cursor:pointer; border-radius:var(--radius);}
+  .legend label:hover{background:var(--bg);}
+  .legend input{width:16px; height:16px; margin:0; accent-color:var(--dot,var(--accent));}
+  .swatch{width:.85rem; height:.85rem; border-radius:50%; flex:none; background:var(--dot);}
+  .swatch.ghost{border-radius:2px; background:none; border:2px dashed var(--dot);}
+
+  .timeline{position:relative; padding:.75rem .25rem; margin:0 0 2.5rem; border-radius:var(--radius);
+            background:linear-gradient(180deg, rgba(91,155,213,.10), rgba(122,195,135,.06));}
+  .event{--depth:0; border-left:4px solid var(--dot); background:var(--bg-raised);
+         border-radius:0 var(--radius) var(--radius) 0; padding:.75rem 1rem;
+         margin:0 0 .85rem calc(var(--depth) * .5rem); transition:opacity .15s;}
+  .event.ghost{border-left-style:dashed;}
+  .event.is-hidden{display:none;}
+  .ev-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:.5rem; margin-bottom:.3rem;}
+  .ev-year{font-family:var(--mono); color:var(--dot); font-weight:700; font-size:.85rem; white-space:nowrap;}
+  .ev-cat{font-size:.65rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);
+          border:1px solid var(--border); border-radius:1em; padding:.1rem .5rem;}
+  .ev-title{font-size:.95rem; color:var(--fg); font-weight:700; margin:0;}
+  .ev-text{margin:.2rem 0 0; font-size:.85rem; color:var(--muted); line-height:1.55;}
+
+  .chart-wrap{margin:1rem 0;}
+  canvas#popChart{width:100%; height:auto; display:block; background:var(--bg-raised);
+                  border:1px solid var(--border); border-radius:var(--radius);}
+  .chart-actions{display:flex; flex-wrap:wrap; gap:.6rem; margin:.75rem 0;}
+  #copyChartBtn{background:linear-gradient(180deg, var(--accent), #b97e1f); color:#1a1206;
+                border:none; font-weight:700; box-shadow:0 0 0 1px var(--accent), 0 4px 16px -4px var(--accent);}
+  #copyChartBtn:hover{filter:brightness(1.08);}
+  #dlChartLink{align-self:center; font-size:.8rem; color:var(--muted); text-decoration:underline;}
+  #chartMsg{font-size:.8rem;}
+
+  .tbl-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:1rem 0;
+            border:1px solid var(--border); border-radius:var(--radius);}
+  table{border-collapse:collapse; width:100%; min-width:32rem; font-size:.82rem;}
+  th, td{text-align:left; padding:.55rem .8rem; border-bottom:1px solid var(--border); color:var(--muted);}
+  th{color:var(--fg); background:var(--bg-raised); position:sticky; top:0;}
+  tr:last-child td{border-bottom:none;}
+
+  details{margin:.75rem 0;}
+  summary{cursor:pointer; color:var(--accent); font-size:.85rem; padding:.5rem 0;}
+
+  footer{margin-top:3rem; font-size:.75rem; color:var(--muted); border-top:1px solid var(--border); padding-top:1rem;}
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / testing-this</div>
+
+  <h1>Confluence</h1>
+  <p class="sub">A layered history of Kansas City — timeline, population, economy, and the plans that never got built.</p>
+
+  <p class="lede">Two rivers meet here — the Kansas (Kaw) into the Missouri — and almost
+  everything below follows from that one geographic fact: who controlled the
+  confluence, who bridged it first, what got built along it, and what got
+  proposed and quietly dropped. Toggle the layers below to follow one thread
+  at a time — infrastructure alone traces the city's transport spine;
+  <em>Paths Not Taken</em> alone is a small museum of things that almost
+  happened.</p>
+
+  <p class="caveat">Compiled from general historical knowledge, not fetched from a live
+  source — there was no network available while building this page. Dates are
+  as accurate as memory allows; ranges marked "circa" or with a decade span are
+  genuinely approximate. Treat this as a detailed sketch, not a citation.</p>
+
+  <h2>Filter the layers</h2>
+  <div class="legend" id="legend"></div>
+
+  <div class="timeline" id="timeline" aria-label="Kansas City historical timeline"></div>
+
+  <h2>Population, 1860–2020</h2>
+  <p>City of Kansas City, Missouri, decennial census counts (city proper — the
+  metro area wasn't tracked as one unit for most of this range). By 2020 the
+  wider Kansas City metropolitan statistical area — spanning both states —
+  runs to roughly 2.2 million people, about four times the city-proper figure
+  charted below.</p>
+  <div class="chart-wrap">
+    <canvas id="popChart" width="900" height="440" role="img"
+            aria-label="Line chart of Kansas City, Missouri population by decade, rising from about 4,400 in 1860 to a peak near 507,000 in 1970, dipping through the 1980s-90s, and recovering to about 508,000 by 2020."></canvas>
+  </div>
+  <div class="chart-actions">
+    <button id="copyChartBtn" type="button">Copy chart image</button>
+    <a id="dlChartLink" download="kansas-city-population.png">Download PNG</a>
+    <span id="chartMsg" role="status"></span>
+  </div>
+  <details>
+    <summary>Show the numbers</summary>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Year</th><th>Population</th><th>Change from prior decade</th></tr></thead>
+        <tbody id="popTableBody"></tbody>
+      </table>
+    </div>
+  </details>
+
+  <h2>Economy</h2>
+  <p>Kansas City grew up on livestock and rail freight, then diversified hard;
+  the metro's annual economic output today is on the rough order of
+  $150–160 billion — a ballpark figure, not a verified live number.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Employer / sector</th><th>Since</th><th>Note</th></tr></thead>
+      <tbody id="econTableBody"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    Built for the mino.mobi lab, from general historical knowledge rather than
+    a live search — see the caveat above. "Paths Not Taken" entries above are
+    genuinely unbuilt proposals, not just old news.
+  </footer>
+</main>
+
+<script>
+(function(){
+  var CATS = {
+    geo:     { label: 'Land & Peoples',        color: 'var(--c-geo)' },
+    gov:     { label: 'Governance & Conflict',  color: 'var(--c-gov)' },
+    infra:   { label: 'Transportation & Infrastructure', color: 'var(--c-infra)' },
+    econ:    { label: 'Economy & Industry',     color: 'var(--c-econ)' },
+    culture: { label: 'Culture & Society',      color: 'var(--c-culture)' },
+    crisis:  { label: 'Crises & Disasters',     color: 'var(--c-crisis)' },
+    ghost:   { label: 'Paths Not Taken',        color: 'var(--c-ghost)', dashed: true }
+  };
+  var DEPTH = { geo:0, gov:1, infra:2, econ:3, culture:4, crisis:5, ghost:6 };
+
+  var EVENTS = [
+    { y:-1000, label:'before ~1800', cat:'geo', title:'People of the confluence',
+      text:'Hopewell-tradition and later Osage, Kaw (Kansa) and Missouria peoples lived at and traded through the meeting of the Missouri and Kansas Rivers for thousands of years before European contact. By the 1700s the Osage were the dominant regional power, controlling trade along the lower Missouri.' },
+    { y:1803, label:'1803', cat:'gov', title:'Louisiana Purchase',
+      text:'The United States claims the region from France, on paper — the land itself is still Osage and Kansa territory.' },
+    { y:1804, label:'1804', cat:'geo', title:'Lewis and Clark pass through',
+      text:'The Corps of Discovery camps near the confluence on its way up the Missouri River.' },
+    { y:1808, label:'1808 & 1825', cat:'gov', title:'Osage treaties',
+      text:'Treaties cede the Osage Nation’s claims to the region to the United States, opening it to non-Native settlement — a dispossession, not an empty frontier.' },
+    { y:1821, label:'1821', cat:'econ', title:'Chouteau’s trading post',
+      text:'François Chouteau opens a fur-trading post near the river landing — conventionally marked as the first permanent non-Native settlement at the site.' },
+    { y:1833, label:'1833', cat:'infra', title:'Westport founded',
+      text:'A few miles inland from the river, Westport becomes the last supply stop on the Santa Fe, Oregon and California Trails — the region’s first boom industry is outfitting westbound wagons.' },
+    { y:1838, label:'1838', cat:'gov', title:'The "Town of Kansas" platted',
+      text:'A landing company plats a townsite at the river bluffs below Westport — today’s River Market.' },
+    { y:1853, label:'1853', cat:'gov', title:'Incorporated as the City of Kansas',
+      text:'The river landing settlement is formally incorporated.' },
+    { y:1854, label:'1854–1861', cat:'gov', title:'Bleeding Kansas',
+      text:'Pro-slavery Missourians and free-state Kansans fight for control of the new Kansas Territory across this border; the shooting war starts years before Fort Sumter.' },
+    { y:1863, label:'1863', cat:'crisis', title:'General Order No. 11',
+      text:'In retaliation for Quantrill’s raid on Lawrence, Union forces forcibly depopulate rural counties south of the city — one of the harshest civilian punishments of the entire war.' },
+    { y:1864, label:'1864', cat:'gov', title:'Battle of Westport',
+      text:'Called "the Gettysburg of the West," it is the largest Civil War battle fought west of the Mississippi and ends the last major Confederate offensive into Missouri.' },
+    { y:1869, label:'1869', cat:'infra', title:'Hannibal Bridge',
+      text:'The first permanent bridge across the lower Missouri River opens here rather than at rival Leavenworth — the single decision that makes Kansas City, not its neighbor, the region’s rail hub.' },
+    { y:1871, label:'1871', cat:'econ', title:'Kansas City Stockyards open',
+      text:'In the West Bottoms; within a generation it is the second-largest livestock market in the country, after Chicago’s.' },
+    { y:1878, label:'1878', cat:'infra', title:'Union Depot',
+      text:'Opens in the West Bottoms to serve the growing rail traffic converging on the bridge.' },
+    { y:1886, label:'1886', cat:'gov', title:'Renamed Kansas City',
+      text:'The City of Kansas formally becomes Kansas City.' },
+    { y:1893, label:'1893', cat:'infra', title:'Parks and boulevards',
+      text:'A City Beautiful-era park and boulevard system, designed largely by George Kessler and championed by newspaper publisher William Rockhill Nelson, begins — its parkways still trace the street grid today.' },
+    { y:1903, label:'1903', cat:'crisis', title:'Great Flood of 1903',
+      text:'The Missouri and Kansas Rivers drown the West Bottoms stockyards district.' },
+    { y:1905, label:'1905–1920s', cat:'econ', title:'Country Club District',
+      text:'Developer J.C. Nichols builds one of the first master-planned suburbs in the country — and writes racially restrictive covenants into its deeds that later help shape federal mortgage-underwriting standards nationwide. A landmark of design and a template for exclusion, in the same development.' },
+    { y:1914, label:'1914', cat:'infra', title:'Union Station opens',
+      text:'For decades one of the largest and busiest passenger terminals in the country.' },
+    { y:1918, label:'1918–1926', cat:'culture', title:'Liberty Memorial',
+      text:'Built by public subscription as a WWI memorial, dedicated in 1921; its museum opens in 1926 — the first WWI museum in the nation.' },
+    { y:1920, label:'1920', cat:'culture', title:'Kansas City Monarchs founded',
+      text:'A charter team of the Negro National League; Buck O’Neil and, later, a young Satchel Paige play here.' },
+    { y:1925, label:'1920s–1930s', cat:'gov', title:'The Pendergast machine',
+      text:'Boss Tom Pendergast’s political machine runs city hall — corrupt, and also the engine behind a decade of major public works, much of it built with concrete from Pendergast’s own company.' },
+    { y:1926, label:'1920s–1930s', cat:'culture', title:'18th & Vine jazz district',
+      text:'The machine’s permissive nightlife policy, ironically, is what lets the jazz scene flourish here — Count Basie, Bennie Moten and a young Charlie Parker all come up through it.' },
+    { y:1931, label:'1931', cat:'gov', title:'City Hall (443 ft) completed',
+      text:'Part of the Pendergast-era "Ten Year Plan" of public works.' },
+    { y:1933, label:'1933', cat:'crisis', title:'Union Station Massacre',
+      text:'An ambush meant to free a prisoner leaves four officers and the prisoner dead — a shock that helps push Congress to arm FBI agents nationally.' },
+    { y:1939, label:'1939', cat:'gov', title:'Pendergast convicted',
+      text:'Tax evasion; the machine collapses within months. His protégé, Sen. Harry Truman, becomes president six years later.' },
+    { y:1945, label:'1945–1951', cat:'econ', title:'Auto assembly arrives',
+      text:'General Motors’ Fairfax plant (Kansas City, Kansas) and Ford’s Claycomo plant open, anchoring the region as a major auto-manufacturing center — both are still running today.' },
+    { y:1951, label:'1951', cat:'crisis', title:'Great Flood of 1951',
+      text:'Catastrophic Missouri and Kansas River flooding devastates the West Bottoms industrial district; the stockyards never fully recover.' },
+    { y:1956, label:'1950s–1960s', cat:'crisis', title:'Highways through the Vine',
+      text:'Interstate construction (I-70, I-35, the I-29/I-635 corridor) is routed straight through the 18th & Vine and Paseo neighborhoods, displacing Black residents and businesses and hastening the jazz district’s decline — "urban renewal" that mostly renewed the land for the highway.' },
+    { y:1962, label:'1960s', cat:'ghost', title:'The domed stadium that wasn’t',
+      text:'A domed, multi-purpose downtown stadium appears in the city’s master plan and never gets funded. The region builds two open-air stadiums side by side, out on the eastern edge, instead.' },
+    { y:1968, label:'1968', cat:'crisis', title:'Riots after King’s assassination',
+      text:'Days of unrest on the city’s east side leave six people dead.' },
+    { y:1972, label:'1972–1974', cat:'infra', title:'Truman Sports Complex & Kemper Arena',
+      text:'Arrowhead and Kauffman (Royals) Stadiums open on the city’s eastern edge — the compromise site after downtown and several suburban proposals were fought over and dropped. Kemper Arena opens nearby, in the West Bottoms, in 1974.' },
+    { y:1979, label:'1979', cat:'crisis', title:'Kemper Arena roof collapse',
+      text:'The roof fails under a storm just hours after an event ends — no one is hurt, purely by timing — and it becomes a structural-engineering case study.' },
+    { y:1981, label:'1981', cat:'crisis', title:'Hyatt Regency walkway collapse',
+      text:'Two suspended walkways fail during a hotel tea dance, killing 114 people — still one of the deadliest structural failures in U.S. history, and a turning point for how engineers are professionally licensed and held liable.' },
+    { y:1991, label:'1991', cat:'econ', title:'Stockyards close',
+      text:'After 120 years, the Kansas City Stockyards shut down for good.' },
+    { y:1980, label:'1920s–2010s', cat:'ghost', title:'A rapid-transit line, proposed and dropped, again and again',
+      text:'Roughly once a generation — 1920s interurban expansion, a 1970s light-rail study, ballot fights in 2001 and 2014 — Kansas City floats a real rapid-transit system, and each round stalls short of a full network. Only a short downtown streetcar loop, a small fraction of what was repeatedly proposed, is ever actually built.' },
+    { y:2007, label:'2007–2008', cat:'econ', title:'Sprint Center & Power and Light',
+      text:'A new downtown arena opens without a professional sports tenant lined up — a bet that a big venue would itself attract one — alongside the Power & Light entertainment district. As of this page, no NHL or NBA team has relocated to fill it.' },
+    { y:2016, label:'2016', cat:'infra', title:'KC Streetcar opens',
+      text:'A free, 2.2-mile downtown line — modest next to the rail networks proposed and rejected over the previous century, but the first of them actually built.' },
+    { y:2020, label:'2020', cat:'crisis', title:'COVID-19 and the summer of protest',
+      text:'The pandemic, and that summer, protests over the murder of George Floyd reach downtown Kansas City.' },
+    { y:2022, label:'2022', cat:'econ', title:'Cerner becomes Oracle Health',
+      text:'The health-IT company, founded in Kansas City in 1979 and by then one of the region’s largest employers, is acquired by Oracle.' },
+    { y:2023, label:'2023', cat:'culture', title:'Super Bowl LVII',
+      text:'The Kansas City Chiefs win the city’s first Super Bowl title since 1970.' },
+    { y:2024, label:'2024', cat:'crisis', title:'Back-to-back title, then a rally shooting',
+      text:'The Chiefs win a second straight Super Bowl (LVIII). Days later, a shooting at the victory rally near Union Station kills one person and wounds more than twenty — tragedy landing in the same square as the celebration.' },
+    { y:2026, label:'2026', cat:'culture', title:'World Cup at Arrowhead',
+      text:'This past summer, Kansas City hosted World Cup matches at Arrowhead Stadium as one of the tournament’s U.S. venues.' }
+  ];
+
+  var POP = [
+    [1860,4418],[1870,32260],[1880,55785],[1890,132716],[1900,163752],
+    [1910,248381],[1920,324410],[1930,399746],[1940,399178],[1950,456622],
+    [1960,475539],[1970,507087],[1980,448159],[1990,435146],[2000,441545],
+    [2010,459787],[2020,508090]
+  ];
+
+  var ECON = [
+    ['Federal Reserve Bank of Kansas City', '1914', 'One of 12 regional Reserve Banks; its district covers seven Midwest and Mountain states.'],
+    ['Hallmark Cards', '1910', 'Family-owned, still headquartered downtown at Crown Center — the world’s largest greeting-card maker.'],
+    ['H&R Block', '1955', 'Tax-preparation company, founded and still headquartered in Kansas City.'],
+    ['Ford Kansas City Assembly (Claycomo)', '1951', 'One of Ford’s highest-volume North American truck plants.'],
+    ['GM Fairfax Assembly (Kansas City, KS)', '1945', 'Still building Cadillacs and Chevrolets today.'],
+    ['Cerner / Oracle Health', '1979', 'Founded locally; became one of the region’s largest employers before its 2022 acquisition by Oracle.'],
+    ['Sprint / T-Mobile', '1899', 'Sprint’s roots run back to a local phone company; its 2020 merger into T-Mobile kept a large regional workforce.'],
+    ['Rail freight', '1869 onward', 'Kansas City is the second-largest rail freight hub in the U.S. by tonnage, after Chicago — a direct legacy of winning the Hannibal Bridge.']
+  ];
+
+  // ---- legend + timeline ----
+  var legend = document.getElementById('legend');
+  var timeline = document.getElementById('timeline');
+
+  Object.keys(CATS).forEach(function(key){
+    var c = CATS[key];
+    var lab = document.createElement('label');
+    lab.style.setProperty('--dot', c.color);
+    lab.innerHTML = '<input type="checkbox" data-cat="' + key + '" checked>' +
+      '<span class="swatch' + (c.dashed ? ' ghost' : '') + '"></span>' + c.label;
+    legend.appendChild(lab);
+  });
+
+  EVENTS.slice().sort(function(a,b){ return a.y - b.y; }).forEach(function(ev){
+    var c = CATS[ev.cat];
+    var div = document.createElement('div');
+    div.className = 'event' + (c.dashed ? ' ghost' : '');
+    div.dataset.cat = ev.cat;
+    div.style.setProperty('--dot', c.color);
+    div.style.setProperty('--depth', DEPTH[ev.cat]);
+    div.innerHTML =
+      '<div class="ev-head"><span class="ev-year">' + ev.label + '</span>' +
+      '<span class="ev-cat">' + c.label + '</span></div>' +
+      '<p class="ev-title">' + ev.title + '</p>' +
+      '<p class="ev-text">' + ev.text + '</p>';
+    timeline.appendChild(div);
+  });
+
+  legend.addEventListener('change', function(){
+    var on = {};
+    legend.querySelectorAll('input[type=checkbox]').forEach(function(cb){ on[cb.dataset.cat] = cb.checked; });
+    timeline.querySelectorAll('.event').forEach(function(div){
+      div.classList.toggle('is-hidden', !on[div.dataset.cat]);
+    });
+  });
+
+  // ---- population table ----
+  var tbody = document.getElementById('popTableBody');
+  POP.forEach(function(row, i){
+    var prev = i > 0 ? POP[i-1][1] : null;
+    var delta = prev ? (row[1] - prev) : null;
+    var pct = prev ? Math.round((delta / prev) * 1000) / 10 : null;
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + row[0] + '</td><td>' + row[1].toLocaleString() + '</td><td>' +
+      (delta === null ? '—' : (delta >= 0 ? '+' : '') + delta.toLocaleString() + ' (' + (pct >= 0 ? '+' : '') + pct + '%)') +
+      '</td>';
+    tbody.appendChild(tr);
+  });
+
+  // ---- economy table ----
+  var etbody = document.getElementById('econTableBody');
+  ECON.forEach(function(row){
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + row[0] + '</td><td>' + row[1] + '</td><td>' + row[2] + '</td>';
+    etbody.appendChild(tr);
+  });
+
+  // ---- population chart, drawn once as a flat raster (native long-press works) ----
+  var canvas = document.getElementById('popChart');
+  var ctx = canvas.getContext('2d');
+  var cs = getComputedStyle(document.documentElement);
+  var COL = {
+    bg:    cs.getPropertyValue('--bg-raised').trim() || '#16161b',
+    fg:    cs.getPropertyValue('--fg').trim() || '#e8e6e3',
+    muted: cs.getPropertyValue('--muted').trim() || '#8b8792',
+    accent:cs.getPropertyValue('--accent').trim() || '#e8a33d',
+    border:cs.getPropertyValue('--border').trim() || '#26242c'
+  };
+
+  function drawChart(){
+    var W = canvas.width, H = canvas.height;
+    var pad = { l:70, r:20, t:20, b:50 };
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = COL.bg; ctx.fillRect(0,0,W,H);
+
+    var years = POP.map(function(r){return r[0];});
+    var pops = POP.map(function(r){return r[1];});
+    var minY = years[0], maxY = years[years.length-1];
+    var maxP = Math.max.apply(null, pops) * 1.1;
+
+    function px(year){ return pad.l + (year - minY) / (maxY - minY) * (W - pad.l - pad.r); }
+    function py(pop){ return H - pad.b - (pop / maxP) * (H - pad.t - pad.b); }
+
+    // gridlines + y labels
+    ctx.strokeStyle = COL.border; ctx.fillStyle = COL.muted;
+    ctx.font = '12px monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (var g=0; g<=5; g++){
+      var val = Math.round(maxP * g / 5 / 1000) * 1000;
+      var y = py(val);
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+      ctx.fillText(val.toLocaleString(), pad.l - 10, y);
+    }
+
+    // x labels (every other decade to avoid crowding)
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    years.forEach(function(yr, i){
+      if (i % 2 !== 0 && yr !== maxY) return;
+      ctx.fillText(yr, px(yr), H - pad.b + 10);
+    });
+
+    // line
+    ctx.beginPath();
+    POP.forEach(function(r, i){
+      var x = px(r[0]), y = py(r[1]);
+      if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = COL.accent; ctx.lineWidth = 3; ctx.stroke();
+
+    // points
+    ctx.fillStyle = COL.accent;
+    POP.forEach(function(r){
+      ctx.beginPath(); ctx.arc(px(r[0]), py(r[1]), 4, 0, Math.PI*2); ctx.fill();
+    });
+
+    // title
+    ctx.fillStyle = COL.fg; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('Kansas City, Missouri — population by decade', pad.l, 2);
+  }
+  drawChart();
+
+  // download link, always available
+  var dl = document.getElementById('dlChartLink');
+  dl.href = canvas.toDataURL('image/png');
+
+  // copy-image button, per house style: big, shiny, primary
+  var msg = document.getElementById('chartMsg');
+  document.getElementById('copyChartBtn').addEventListener('click', function(){
+    var btn = this, was = btn.textContent;
+    canvas.toBlob(function(blob){
+      if (!blob) { kit.showError(msg, 'could not render the image'); return; }
+      if (navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]).then(function(){
+          btn.textContent = 'copied!'; kit.clear(msg);
+          setTimeout(function(){ btn.textContent = was; }, 1200);
+        }).catch(function(){
+          kit.showError(msg, 'copy blocked by the browser — use "Download PNG" instead.');
+        });
+      } else {
+        kit.showError(msg, 'this browser can’t copy images — use "Download PNG" instead.');
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+Added "Run automatically" — it repeats the same weld search you'd do by hand until it's stuck or hits a safety cap. It's a random search, not a proof, so "no move found" isn't quite the same as "stuck."

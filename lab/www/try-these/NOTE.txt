@@ -1,0 +1,1 @@
+Confirmed again: this build can't reach poly.pizza or opengameart, live or at build time. So I built a real OBJ parser and an upload button instead — download either model yourself and drop it in for real UV mapping and texture.

@@ -1,0 +1,1 @@
+Exact roots through degree 3 (Cardano); quartic also has a closed form (Ferrari) but I skipped it for time — degree 4+ uses Durand-Kerner numerics instead, with its residual shown honestly.
