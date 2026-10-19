@@ -2561,6 +2561,15 @@
    "parent": "games"
   },
   {
+   "id": "anakata",
+   "name": "anakata",
+   "url": "https://games.mino.mobi/anakata/",
+   "cat": "games",
+   "commits": 3,
+   "age": "warm",
+   "parent": "games"
+  },
+  {
    "id": "tessera",
    "name": "tessera",
    "url": "https://games.mino.mobi/tessera/",

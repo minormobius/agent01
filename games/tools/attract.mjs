@@ -46,6 +46,13 @@ export const GAMES = [
   { id: "naught", url: "naught/",
     setup: async (p) => { await click(p, '#nsel [data-v="4"]'); await click(p, '[data-game="avoid"]'); await sleep(300); },
     play: async (p, t0) => { while (until(t0)) { await sleep(650); await p.evaluate(() => { const g = window.NAUGHT.game; const cs = []; for (let c = 0; c < g.B.N; c++) if (g.owner[c] === 0 && !g.threats(g.turn).has(c)) cs.push(c); if (cs.length) window.NAUGHT.tryPlay(cs[(Math.random() * cs.length) | 0]); }); } } },
+  { id: "anakata", url: "anakata/", setup: async (p) => { await click(p, "#start-btn"); await p.evaluate(() => { window.ANAKATA.load(2); document.getElementById("hint").hidden = true; }); await sleep(600); },
+    play: async (p, t0) => {
+      const A = (d, hook) => p.evaluate(([d, hook]) => window.ANAKATA.act(d, hook), [d, hook]), T = () => p.evaluate(() => window.ANAKATA.turnSight(1));
+      await sleep(500); await T(); await sleep(1100); await A([0, 0, 0, 1], true); await sleep(1100); await T(); await sleep(800); await T(); await sleep(900);
+      for (let i = 0; i < 4; i++) { await A([1, 0, 0, 0], false); await sleep(330); }
+      await T(); await sleep(1000); await A([0, 0, 0, -1], true); while (until(t0)) await sleep(200);
+    } },
   { id: "ziggurat", url: "ziggurat/", setup: async (p) => { await click(p, "#start-btn"); await p.evaluate(() => { window.ZIG.mute(); window.ZIG.auto.on = true; }); await sleep(2500); },
     play: async (p, t0) => { while (until(t0)) { await sleep(200); if (Date.now() - t0 > 4800 && Date.now() - t0 < 5000) await p.evaluate(() => window.ZIG.turn()); } } },
   { id: "tessera", url: "tessera/", setup: (p) => click(p, "#go-open"), play: wander(450, 450) },
@@ -97,7 +104,7 @@ async function record(b, g) {
 
 const want = process.argv.slice(2);
 if (want[0] === "--webm") { for (const g of GAMES) if (fs.existsSync(path.join(OUT, g.id + ".mp4"))) webm(g.id); process.exit(0); }
-const b = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
+const b = await chromium.launch(Object.assign({ args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] }, process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {}));
 for (const g of GAMES) if (!want.length || want.includes(g.id)) await record(b, g);
 await b.close();
 fs.rmSync(TMP, { recursive: true, force: true });

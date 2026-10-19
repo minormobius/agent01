@@ -253,6 +253,18 @@ These live here:
   colour rules by level as the classic. `js/zig.js` is the game with no DOM and
   an `autopilot()` (the selftest's player and the attract loop's). Leaderboard
   through Orb's board kit. See [`ziggurat/README.md`](ziggurat/README.md).
+- **Anakata at `/anakata/`**: a puzzle game in four spatial dimensions. Walk
+  in x and y (z up), see w only by turning your sight (three frames: x·y,
+  x·w, w·y, each a right-handed frame of x-y-w, turned by quaternion slerp so
+  the slice sweeps through 4D), and cross w only with the hook (fires along
+  any visible axis, ≤ 6 cells: an anchor pulls you, a crate comes to you).
+  Crates, plates and doors; a state is you + the crates, so `World.solve` is
+  an exact BFS. `js/render.js` ray-traces the 4D grid in one WebGL2 shader
+  (4D DDA through a `X × Y × (Z·W)` texture; crates and you as 4D box/ball;
+  neighbouring slices ghosted; tint by slice). Levels are text in
+  `js/levels.js`; the selftest pins every par and proves the `needsW` ones
+  impossible without w. Next: a generator on that proof, w-ramps. See
+  [`anakata/README.md`](anakata/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -306,7 +318,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -360,6 +372,7 @@ node games/molt/test/cascade.selftest.mjs        # snake on snake on snake: ever
 node games/molt/test/tag.selftest.mjs            # ouroboros computes: the tag system is Collatz, glyphs never cross, the body spells the machine's tape in a quiet world, the real world's successes pinned (~7 s)
 node games/naught/test/naught.selftest.mjs       # (ℤ₃)ⁿ: lines are exactly zero-sum triples, one line per pair, no draws, both 3 × 3 games solved, the engine (<1 s)
 node games/ziggurat/test/ziggurat.selftest.mjs   # the pile and its slices, the hops, the colour rules, the enemies and the lure, an autopilot that clears it, the board's records (<1 s)
+node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds (walk, climb, push, fall, the hook through w, plates and doors); every level solved, par pinned, and proved impossible without w where it says so (<1 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

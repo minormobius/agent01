@@ -3826,6 +3826,23 @@
       ]
     },
     {
+      "n": "anakata",
+      "u": "https://games.mino.mobi/anakata/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-19",
+      "b": "2026-10-19",
+      "p": "games",
+      "surface": "games",
+      "d": "A puzzle game in four spatial dimensions. You walk in x and y (z is up), you can only see w, by turning your sight so one walking direction swings away and w takes its place, and the only way through w is a hook you fire along anything you can see: an anchor pulls you, a crate comes to you, from slices you can't walk to. Ray-traced through the 4D grid in WebGL2, so turning your sight morphs the world as the slice sweeps through 4D. Every level proved solvable by an exact search, its par the fewest moves, and the ones that need w proved impossible without it.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "tessera",
       "u": "https://games.mino.mobi/tessera/",
       "c": "games",
