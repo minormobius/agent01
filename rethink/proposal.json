@@ -2244,6 +2244,11 @@
               "u": "henderhead.mino.mobi/sand",
               "action": "new",
               "note": "sand at the angle of repose, and the conic sections that appear where two sand surfaces meet; a parabola needs a slot, not a hole"
+            },
+            {
+              "u": "henderhead.mino.mobi/bzip",
+              "action": "new",
+              "note": "a real bzip2 asked which of 151 generated monsters look alike, and whether it can find their evolutions; mostly it matches size"
             }
           ],
           "wing": "study"

@@ -60,6 +60,7 @@ on the next deploy. Do not argue the point on his behalf in a commit message.
 | `wheel/` | demo #3 — a leaky waterwheel that is the Lorenz system |
 | `ball/` | demo #4 — a ball bouncing under gravity in a circle |
 | `sand/` | demo #5 — conic sections out of sand at the angle of repose |
+| `bzip/` | demo #6 — which critters bzip thinks are alike (compression distance) |
 | `.assetsignore` | keeps `CLAUDE.md` and `cf/engine/` off the public site |
 
 ## `cf/` — continued fraction Fourier
@@ -447,6 +448,76 @@ node henderhead/sand/sand.selftest.mjs
 - **Readings taken while the sand is still moving are not readings.** The page
   dims them when `oversteep > 2%`; the same table read e = 53.2 mid-drain and
   1.001 once settled.
+
+## `bzip/` — which critters bzip thinks are alike
+
+After [his post of 2026-10-19](https://bsky.app/profile/matthen.com/post/3myaxdyawls2t):
+*"Which Pokémon does a compression algorithm think are most similar?"* and, in
+the replies, *"bzip's top pick is from the same evolution line about 8% of the
+time, vs ~1% if you picked at random … mostly it's matching size and how much
+of the square is drawn in."*
+
+    NCD(x, y) = (C(xy) − min(C(x), C(y))) / max(C(x), C(y))     C = bzip2 -9 length
+
+**There are no Pokémon on this page and there must never be.** The sprites
+are Nintendo's; the dex here is 151 monsters drawn by `critters.js` from a
+seed, in evolution lines whose membership is known — which is what lets the
+page score bzip at all.
+
+| File | What |
+|---|---|
+| `bzip/engine/src/bzip2.rs` | **a real bzip2 compressor**: RLE1, BWT (prefix doubling over cyclic shifts), MTF/RUNA-RUNB, the reference's table selection and Huffman code-length routine |
+| `bzip/engine/src/lib.rs` | the NCD set, stepped a slice at a time, plus the C ABI |
+| `bzip/engine/src/tests.rs` | every output decompressed by the system `bzip2 -d`, every length compared with `bzip2 -9` |
+| `bzip/bzncd.wasm` | the built module, **committed**; CI rebuilds it and ships what it built |
+| `bzip/critters.js` | **the dex**: genomes, the rasteriser, the names, the byte representations bzip is handed, the scoring and the non-compression baselines. No DOM — the selftest imports it |
+| `bzip/app.js` | the dex grid, scoreboard, matrix, one-critter view and drawing pad |
+| `bzip/bzip.selftest.mjs` | node, over the ABI — **measures every number the prose states**, on six seeds where the prose says "every seed we have tried" |
+
+```bash
+cargo test --manifest-path henderhead/bzip/engine/Cargo.toml       # needs bzip2 on PATH
+cargo build --release --target wasm32-unknown-unknown \
+  --manifest-path henderhead/bzip/engine/Cargo.toml
+cp henderhead/bzip/engine/target/wasm32-unknown-unknown/release/bzncd.wasm \
+   henderhead/bzip/bzncd.wasm
+node henderhead/bzip/bzip.selftest.mjs
+```
+
+### Things that will bite you
+
+- **The compressor's output is the reference's, byte for byte — keep it
+  that way.** Lengths are what NCD measures, so "close to bzip2" would be
+  answering a different question. Every step of `sendMTFValues` that changes
+  the length is transcribed: the initial band partition (including its odd
+  `(nGroups − nPart) % 2` rule), the first-strictly-cheapest table tie-break,
+  four refinement passes, max code length 17, and `hbMakeCodeLengths`' weight
+  packing and frequency-halving retry. The only licensed difference is the
+  origin pointer of a block that equals one of its own rotations; the test
+  asserts any other mismatch is a bug.
+- **`(0..n as u8)` is empty when n is 256.** That was the first bug: a block
+  using every byte value had an empty MTF list. The alphabet-256 cases in the
+  corpus are there for it.
+- **NCD is never 0 or 1 here, and that is bzip, not a bug.** A copy of 3 KB of
+  noise still costs about a sixth; two unrelated sprites share a few hundred
+  bytes of header and tables. Both are pinned in `tests.rs`, and the page says
+  so — do not "normalise" them away.
+- **The numbers depend on the dex, and the prose depends on the numbers.** The
+  first draft let horns and wings run off the frame; fixing that moved the hit
+  rate from 2% to 4% and turned "cropping to fit doubles it" into "cropping to
+  fit barely helps". The selftest now measures every claim in *What it finds*.
+  If you change `critters.js` and a claim fails, rewrite the claim; do not
+  loosen the threshold to keep the old sentence.
+- **Drawing at equal size and rescaling to equal size are different
+  experiments.** `growth` re-rasterises each shape at the last form's size;
+  `fitted` crops and nearest-neighbour-scales the pixels. The first triples the
+  hit rate, the second barely moves it, and that contrast is the page's best
+  finding. Keep both.
+- **Rows are coloured by rank in the matrix, not by value.** Each measure has
+  its own scale (NCD, pixels, ink fraction); rank is the only thing comparable
+  across the buttons.
+- **The drawing pad queries in the current representation.** The set held by
+  the engine is built from `REPRESENTATIONS[rep].of(px)`; a probe has to go in
+  the same way or its distances are to a different set.
 
 ## Adding a demo
 

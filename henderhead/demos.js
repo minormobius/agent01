@@ -27,6 +27,18 @@ export const postURL = (rkey) => `${AUTHOR.bsky}/post/${rkey}`;
 
 export const DEMOS = [
   {
+    id: 'bzip',
+    state: 'built',
+    href: '/bzip/',
+    date: '2026-10-19',
+    post: '3myaxdyawls2t',
+    title: 'Which Pokémon does a compression algorithm think are most similar?',
+    quote: 'bzip’s top pick is from the same evolution line about 8% of the time, vs ~1% if you picked at random. So weak, but it knows nothing about pokemon.',
+    what: 'Squeeze every sprite with bzip2, then squeeze every pair glued together: if two pictures compress better together than apart, the compressor has found something they share. Each one’s closest match is whatever it shares the most with — and the question is whether that is ever its own evolution.',
+    built: 'A real bzip2 in Rust→WASM — byte for byte the reference’s output, checked against the system binary — run over a dex of 151 monsters of our own drawing, since the real sprites are Nintendo’s. Our dex comes out in the same shape as his: four times chance against his eight, and one critter everybody picks. The knobs test his explanation, that bzip is mostly matching size and ink, and it holds: draw every evolution at the same size and the hit rate goes from 4% to over 20%. Rescaling them to fit afterwards does not do it.',
+    tags: ['rust', 'wasm', 'compression'],
+  },
+  {
     id: 'sand',
     state: 'built',
     href: './sand/',
