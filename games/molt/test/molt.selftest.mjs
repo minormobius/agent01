@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const D = await import(path.join(here, "../js/duct.js"));
-const { Game, M_ } = await import(path.join(here, "../js/game.js"));
+const { Game, M_, foodAt } = await import(path.join(here, "../js/game.js"));
 let fails = 0, checks = 0;
 const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok   " : "FAIL ") + m); if (!c) { fails++; console.error("FAIL " + m); } };
 let seed = 11;
@@ -149,7 +149,7 @@ function bot(g, wild) {
   if (free.length) g.steer(free[(rnd() * free.length) | 0]);
 }
 {
-  let path = true, early = true, sizes = true, curv = true, deepest = 0, ticks = 0, neck = true, ripe = true;
+  let path = true, early = true, sizes = true, curv = true, deepest = 0, ticks = 0, neck = true, ripe = true, food = true;
   const made = [];
   for (let s = 1; s <= 6; s++) {
     const g = new Game(s * 7919);
@@ -163,6 +163,7 @@ function bot(g, wild) {
       if (g.body.length > 1 && g.body[0] === before[1]) neck = false;
       for (let k = 0; k + 1 < g.body.length; k++) if (D.sideTo(g.world, g.body[k], g.body[k + 1]) < 0) path = false;
       if (new Set(g.body).size !== g.body.length) path = false;
+      if (g.food.size !== foodAt(g.depth)) food = false;
       if (g.events.some((e) => e.kind === "ripe")) {
         if (g.body.length !== M_.MOLT_AT + g.depth) ripe = false;
         const pv = g.preview(), w = g.molt(), c = D.census(w);
@@ -173,6 +174,7 @@ function bot(g, wild) {
     }
     deepest = Math.max(deepest, g.depth);
   }
+  ok(food, "there is always as much food about as the level says");
   ok(early && ripe, "the game calls the molt exactly when the snake is " + M_.MOLT_AT + " + depth long, and refuses it before");
   ok(path && neck, ticks + " ticks of bot play: the body is always a path of distinct cells, each joint a shared edge, and the head never folds onto its neck");
   ok(sizes && curv, "every molt makes the world the preview promised, from the body's own word, and it's a sphere with 720° of curvature");
@@ -194,6 +196,8 @@ function bot(g, wild) {
   ok(h.eaten === 1 && h.clock === before - M_.TICK + M_.BONUS, "food adds " + M_.BONUS / 1000 + " s");
   const k = new Game(5); k.clock = M_.TICK; k.food = new Set([k.world.nb[k.head * 4 + k.straight()]]); k.tick();
   ok(k.alive && k.clock === M_.BONUS, "food on the very last step still saves you");
+  const want = [2, 2, 3, 3, 3, 4, 4, 4, 5], got = want.map((_, d) => foodAt(d));
+  ok(got.join() === want.join(), "food about by level: " + got.join(", ") + " (2 on levels 1 and 2, 3 from level 3, one more every third level)");
   const t = [0, 1, 5, 10, 40].map((d) => { const x = new Game(1); x.depth = d; return x.tickMs; });
   ok(t.every((v, i) => i === 0 || v <= t[i - 1]) && t[0] === M_.TICK && t[t.length - 1] === M_.TICK_MIN && t[1] < t[0], "every molt the snake runs a little faster (" + t.join(", ") + " ms a step at depth 0, 1, 5, 10, 40), never faster than " + M_.TICK_MIN);
 }

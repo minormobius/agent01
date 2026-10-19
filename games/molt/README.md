@@ -123,8 +123,10 @@ back towards the tail.
   116 ms at 5, 90 ms at 10), never under 70 ms.
 - You start each world on top of its head end, crawling back towards the
   tail, so the world opens out ahead of you.
-- Food grows you by one cell and is worth (depth + 1) points. The bigger
-  the world, the more food there is.
+- Food grows you by one cell and is worth (depth + 1) points. There are 2
+  pieces about on levels 1 and 2, 3 from level 3, and one more every third
+  level after (4 at level 6, 5 at level 9): the molt length climbs by one a
+  level, so deeper worlds need more food in less time.
 - Haptics: a tap when you eat, a thump when you molt, a buzz when you die.
 
 ## Leaderboards
@@ -150,10 +152,11 @@ The boards trust the record but refuse the impossible:
 - the record's value must match its own detail.
 
 The selftest checks the refusals, and checks that bot runs down to depth 5
-post records the boards accept. The ids carry `v2`: bump `VERSION` in
+post records the boards accept. The ids carry `v3`: bump `VERSION` in
 `js/score.js` if the rules change in a way that moves the numbers. `v1` was
 the game before the clock, when you molted when you chose; it also had a
-longest-snake board, which auto-molting makes just depth + 7. The
+longest-snake board, which auto-molting makes just depth + 7. `v2` tied
+the food to the world's size, which left levels 2–4 with one piece. The
 game-over screen also shows this browser's bests.
 
 ## Ouroboros: the lab

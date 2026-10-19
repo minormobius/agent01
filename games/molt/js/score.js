@@ -1,12 +1,14 @@
 /* Molt's score records (com.minomobi.lab.score, in the player's own repo). One
    run posts two, one per board:
-     score-v2    points (food is worth depth + 1)           unit "points"
-     depth-v2    how many times it molted                   unit "molts"  (only if it did)
+     score-v3    points (food is worth depth + 1)           unit "points"
+     depth-v3    how many times it molted                   unit "molts"  (only if it did)
    each with detail "seed=… steps=… eaten=… depth=…". The version is the
    rules': change anything that moves these numbers (what food is worth, when
    you molt, the clock) and bump it. v1 was the free-molt game, with a
    longest-snake board; v2 molts you automatically at 8 + depth, which makes
-   the longest snake just depth + 7, so that board went.
+   the longest snake just depth + 7, so that board went. v3 lays out more
+   food on deeper levels (2, 2, 3, 3, 3, 4, …) where v2 tied it to the
+   world's size, which left levels 2–4 with one.
 
    The boards trust the record but refuse the impossible: a snake grows only by
    eating (it starts each world START long), molt d happens at MOLT_AT + d (so
@@ -14,7 +16,7 @@
    was eaten at, plus one, and every step spends at least TICK_MIN of a clock
    that only food refills. No imports, so the selftest reads this in node; the
    constants are checked against game.js there. */
-export const VERSION = "v2";
+export const VERSION = "v3";
 export const START = 3, MOLT_AT = 8, TICK_MIN = 70, CLOCK = 60000, BONUS = 10000;
 export const BOARDS = { score: "score-" + VERSION, depth: "depth-" + VERSION };
 const UNIT = { score: "points", depth: "molts" };

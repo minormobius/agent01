@@ -9,7 +9,7 @@ const view = new View($("view"));
 let g, acc = 0, last = 0, running = false, best = 0, noteT = 0, seq = null, runSeed = 1, posted = false;
 // this browser's bests, under these rules (the v1 game molted when you chose; its bests stay in molt.mine)
 let mine = { score: 0, depth: 0 };
-try { mine = Object.assign(mine, JSON.parse(localStorage.getItem("molt.mine.v2") || "{}")); } catch (e) { /* private mode */ }
+try { mine = Object.assign(mine, JSON.parse(localStorage.getItem("molt.mine.v3") || "{}")); } catch (e) { /* private mode */ }
 best = mine.score;
 const queue = [];                                   // screen directions waiting for their tick (two at most)
 const touch = matchMedia("(hover: none)").matches;
@@ -46,7 +46,7 @@ function over() {
   const news = [];
   if (g.score > mine.score) { mine.score = g.score; news.push("score"); }
   if (g.depth > mine.depth) { mine.depth = g.depth; news.push("deepest"); }
-  try { localStorage.setItem("molt.mine.v2", JSON.stringify(mine)); } catch (e) { /* private mode */ }
+  try { localStorage.setItem("molt.mine.v3", JSON.stringify(mine)); } catch (e) { /* private mode */ }
   $("o-mine").textContent = (news.length ? "new best: " + news.join(", ") + ". " : "") + `Your bests: ${mine.score} points, depth ${mine.depth}.`;
   offerable();
   $("over").hidden = false;

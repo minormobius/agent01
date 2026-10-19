@@ -8,7 +8,8 @@
    into your own body (8, then 9, 10, …). Your snake, read tail to head as a
    word of turns, becomes the next world: each one longer and twistier than
    the last. Every level down the clock ticks a little faster and food is
-   worth one more point.
+   worth one more point, and every third level there's one more of it about
+   (foodAt).
 
    THE CLOCK: a run starts with CLOCK ms and every food adds BONUS. Each step
    spends one tick of game time, so the clock is part of the rules (headless
@@ -20,7 +21,10 @@
    side opposite the one it came in by. */
 import { buildDuct, wordOf, sideTo, bends } from "./duct.js";
 
-export const M_ = { TICK: 150, SPEEDUP: 0.95, TICK_MIN: 70, START: 3, MOLT_AT: 8, FIRST: 12, FOOD_EVERY: 260, CLOCK: 60000, BONUS: 10000 };
+export const M_ = { TICK: 150, SPEEDUP: 0.95, TICK_MIN: 70, START: 3, MOLT_AT: 8, FIRST: 12, CLOCK: 60000, BONUS: 10000 };
+/* how much food lies about at once, by level (depth + 1): 2 on the first two
+   levels, 3 from level 3, and one more every third level after (4 at 6, 5 at 9) */
+export const foodAt = (depth) => (depth + 1 < 3 ? 2 : 2 + Math.floor((depth + 1) / 3));
 
 export class Game {
   constructor(seed = 1, word = "S".repeat(M_.FIRST - 2)) {
@@ -51,7 +55,7 @@ export class Game {
   preview() { const w = wordOf(this.world, this.body), n = this.body.length; return { cells: this.world.C ** 2 * (4 * n + 2), bends: bends(w), word: w }; }
 
   spawn() {
-    const want = Math.max(1, Math.round(this.world.N / M_.FOOD_EVERY)), busy = new Set(this.body);
+    const want = foodAt(this.depth), busy = new Set(this.body);
     for (let tries = 0; this.food.size < want && tries < 2000; tries++) {
       const c = Math.floor(this.rnd() * this.world.N);
       if (!busy.has(c) && !this.food.has(c)) this.food.add(c);

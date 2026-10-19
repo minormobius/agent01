@@ -214,7 +214,8 @@ These live here:
   whose up turns with the snake's straight lines so arrows and swipes stay
   classic; a minimap of the whole world; the surface unfolded flat (a cube's
   net) is a toggle. The molt dives into the head and shows the new world whole.
-  Leaderboards (v2) for score and deepest molt through Orb's board kit (a run
+  Food about: 2, then 3 from level 3 and one more every third level (`foodAt`).
+  Leaderboards (v3) for score and deepest molt through Orb's board kit (a run
   posts both; `js/score.js` refuses the impossible, clock included). `ouro.html` is
   a lab for the fully recursive version (`js/ouro.js`): the world is your body
   live, one cube per cell of you, your turns bending it every step. Every
