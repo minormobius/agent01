@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-10-19 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-10-20 by build-brief.mjs — do not edit by hand._
 
 **Already taken** (never reuse these slugs/sites): ai-edu, airchat, answers, ar, archive, arnold, assets, astra, atlas, atproto-data, aub, audio, auto, aztec, b, bakeoff, bakery, biome, bisk, bismuth, board, borges, borsuk, bounty, bsky, cable, canvas, capset, cards, chat, civ, clef, clock, cluster, cohomology, conjectures, crm, crucible, csaszar, curve, data, density, descent, docs, draw, duck, echo, eigensite, elements, empathy, equivelar, erdos, fable, farm, fifty, finance, fipo, fix, flights, flows, fluoddity, foam, fold, functions, g, games, geometry, golem, guthkatz, hadwiger, heilbronn, henderhead, hoop, hoop-archive, hoop-backend, hoop-history, hopper, human, idol, ink, io, iris, ising, j, js, judge, jurassic, kakeya, ken, lab, labglass, loop, mappa, markov, math, meander, mega, mmo, modulo, moji, morphyx, music, neuro, next, noise, notes, novelty, ns, ocr, office, org, orrery, os, packages, paint, parts, pds, perp, photo, phylo, phylofiction, pizza, plant, pm, pod, pokemon, polis, poll, procgen, prop, range, rant, read, reef, rethink, rind, rite, runner, sci, scripts, seek, silk, spec, splice, src, stats, sweat, szemeredi-trotter, szilassi, table, tape, temperley-lieb, ternary, ternary2, ternary3, tide, time, tjs, torus, track, traffic, uni, unit, vault, viazovska, voronoi, wars, wave, weft, wiki, wild, words, workers, wormhole, zest, zoom
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-19, 100 members / 245 posts):
+**Neighborhood spark** (bisk 2026-10-20, 100 members / 281 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: imo, deepseek, api
-- Top post: "if you refuse to pay taxes the way we fund things is via inflation actually sooo" — @segyges.bsky.social
+- Distinctive words: foom, deepseek, imo
+- Top post: "deepseek 4.1 flash deleted the bluesky account it was given. lol." — @hailey.at
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
