@@ -1,7 +1,0 @@
-{
- "id": "modulo-tails-warm-1020",
- "part": "morphyx",
- "verdict": "yes",
- "hash": "2e96d120a03a987b",
- "why": "Checked against www/jams/rack/tails.txt: cold max 3.5-4.6 ms to warm 0.3-1.4 ms, 1 miss to 0, busy warm 78, scavenges 0.05-0.41 ms, timing region the render call alone, unpaced. It answers Dilly's either/or and keeps the not-proof line."
-}
