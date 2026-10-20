@@ -141,12 +141,17 @@ void main() {
   if (h.kind != 0) { col = shade(h, rd3); far = h.t; col = mix(col, vec3(0.05, 0.04, 0.1), smoothstep(uFog + 3.0, uFog + 16.0, h.t)); }
   // the goal glows wherever the ray passed through it
   col += vec3(0.4, 1.0, 0.55) * (1.0 - exp(-h.glow * 1.6)) * (0.75 + 0.25 * sin(uTime * 4.0));
-  // the slices either side, faintly
+  // the slices either side, through the thickness of yours: each one drawn as itself (a ramp with its
+  // gradient, so the next stepping stone reads either way), tinted ana-warm or kata-cool, and fading in
+  // as you near its side of your slice, so moving through w crossfades instead of jumping
+  float f = fract(dot(uC, uN)) - 0.5; // where you are across your slice's thickness, −½ … ½
   for (int s = -1; s <= 1; s += 2) {
     Hit g = trace(o + uN * float(s), d);
     if (g.kind != 0 && g.kind != 17 && g.t < far - 0.05) {
-      vec3 gc = s > 0 ? vec3(1.0, 0.55, 0.3) : vec3(0.35, 0.6, 1.0);
-      col = mix(col, gc * (0.45 + 0.4 * max(dot(normalize(toView(axisVec(g.axis) * g.sgn) + 1e-5), normalize(vec3(-0.45, -0.6, 0.85))), 0.0)), 0.2);
+      vec3 tint = s > 0 ? vec3(1.0, 0.6, 0.35) : vec3(0.45, 0.68, 1.0);
+      float base = (g.kind >= 6 && g.kind <= 9) ? 0.5 : g.kind == 2 ? 0.32 : 0.2;
+      float a = clamp(base + max(0.0, float(s) * f) * 1.3, 0.0, 0.88);
+      col = mix(col, mix(shade(g, rd3), tint, 0.3), a);
     }
   }
   frag = vec4(pow(col, vec3(0.9)), 1.0);
