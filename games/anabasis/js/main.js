@@ -127,7 +127,11 @@ async function share() {
   try { if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ title: "Anabasis", text, url }); return; } } catch (e) { /* cancelled */ }
   try { await navigator.clipboard.writeText(url); toast("Link copied: it opens this exact room."); } catch (e) { prompt("The link to this room:", url); }
 }
-function hud() { $("moves").textContent = L.moves; $("par").textContent = L.par == null ? "—" : L.par; }
+function hud() {
+  $("moves").textContent = L.moves; $("par").textContent = L.par == null ? "—" : L.par;
+  const c = L.world.coords(L.s.p); // how high you are, both ways: a climb ana shows here whatever you're looking at
+  $("alt").innerHTML = `<i style="color:var(--z)">z</i>${c[2]} <i style="color:var(--w)">w</i>${c[3]}`;
+}
 const axisName = (v) => (Math.abs(v[0]) > 0.5 ? "x" : Math.abs(v[1]) > 0.5 ? "y" : Math.abs(v[2]) > 0.5 ? "z" : "w");
 function seeing() {
   const F = FRAMES[view], colour = { x: "var(--x)", y: "var(--y)", z: "var(--z)", w: "var(--w)" }, n = (v) => axisName(to4(v)), i = (a) => `<i style="color:${colour[a]}">${a}</i>`;
@@ -154,8 +158,8 @@ function path(A, B) {
   for (const p of [up, over, B]) if (p.some((v, j) => Math.abs(v - pts[pts.length - 1][j]) > 0.01)) pts.push(p);
   const durs = [];
   for (let k = 0; k + 1 < pts.length; k++) {
-    const a = pts[k], b = pts[k + 1], dv = Math.hypot(b[2] - a[2], b[3] - a[3]), dh = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    durs.push(dh > 0.01 ? dh * 150 : dv * 95 + 30);
+    const a = pts[k], b = pts[k + 1], dz = Math.abs(b[2] - a[2]), dw = Math.abs(b[3] - a[3]), dh = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    durs.push(dh > 0.01 ? dh * 150 : Math.max(dz * 95, dw * 280) + 30); // w slowly: with w hidden, the rise is the crossfade, and you should see the block go
   }
   return { pts, durs, total: durs.reduce((x, y) => x + y, 0) };
 }

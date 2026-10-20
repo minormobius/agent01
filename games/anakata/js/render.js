@@ -14,7 +14,9 @@
 
    The cells one step either side of the slice along the axis you can't see
    are traced too and laid over faintly (warm on the + side, cool on the −),
-   so the slices next door are never quite invisible. */
+   so the slices next door are never quite invisible; and moving across that
+   axis, the next slice crossfades in through the thickness of yours, so
+   nothing pops in or out as you cross. */
 
 const VS = `#version 300 es
 in vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`;
@@ -41,10 +43,10 @@ vec4 axisVec(int a) { return a == 0 ? vec4(1,0,0,0) : a == 1 ? vec4(0,1,0,0) : a
 vec4 safeD(vec4 d) { return mix(d, sign(d + 1e-12) * 1e-6, vec4(lessThan(abs(d), vec4(1e-6)))); }
 
 /* the nearest thing along o + t·d: kind 1 solid, 2 anchor, 3 plate, 4 door, 6–9 ramps, 16 crate, 17 you; glow = length through goal cells before it */
-struct Hit { float t; int kind; int axis; float sgn; vec4 p; float glow; };
+struct Hit { float t; int kind; int axis; float sgn; vec4 p; float glow; vec4 pl; };
 
-Hit trace(vec4 o, vec4 d) {
-  Hit h; h.t = 1e9; h.kind = 0; h.axis = 2; h.sgn = 1.0; h.glow = 0.0;
+Hit trace(vec4 o, vec4 d, vec4 pl) { // pl: where you are, as this ray sees you
+  Hit h; h.t = 1e9; h.pl = pl; h.kind = 0; h.axis = 2; h.sgn = 1.0; h.glow = 0.0;
   vec4 dims = vec4(uDims);
   vec4 inv = 1.0 / d;
   vec4 t0 = (vec4(0.0) - o) * inv, t1 = (dims - o) * inv;
@@ -88,7 +90,7 @@ Hit trace(vec4 o, vec4 d) {
     if (a < b && a > 0.0 && a < h.t) { h.t = a; h.kind = 16; h.axis = bn.x == a ? 0 : bn.y == a ? 1 : bn.z == a ? 2 : 3; h.sgn = -sign(d[h.axis]); }
   }
   // you: a 4D ball
-  vec4 oc = o - uPlayer;
+  vec4 oc = o - pl;
   float B = dot(oc, d), Cc = dot(oc, oc) - 0.36 * 0.36, A = dot(d, d), disc = B * B - A * Cc;
   if (disc > 0.0) { float t = (-B - sqrt(disc)) / A; if (t > 0.0 && t < h.t) { h.t = t; h.kind = 17; } }
   h.p = o + d * h.t;
@@ -100,7 +102,7 @@ vec3 shade(Hit h, vec3 rd3) {
   vec3 L = normalize(vec3(-0.45, -0.6, 0.85));
   vec3 n3; vec3 col;
   if (h.kind == 17) {
-    vec4 n4 = normalize(h.p - uPlayer); n3 = normalize(toView(n4) + 1e-5);
+    vec4 n4 = normalize(h.p - h.pl); n3 = normalize(toView(n4) + 1e-5);
     col = vec3(1.0, 0.86, 0.42);
     float dif = max(dot(n3, L), 0.0), rim = pow(1.0 - max(dot(n3, -rd3), 0.0), 2.0);
     return col * (0.35 + 0.75 * dif) + vec3(1.0, 0.7, 0.3) * rim * 0.6;
@@ -138,31 +140,43 @@ vec3 shade(Hit h, vec3 rd3) {
   return col;
 }
 
+/* what a ray sees: the hit, shaded and fogged (or the sky), and the goal's glow along the way */
+vec3 look(Hit h, vec3 rd3, vec3 sky) {
+  vec3 col = sky;
+  if (h.kind != 0) col = mix(shade(h, rd3), uHaze, smoothstep(uFog + 3.0, uFog + 16.0, h.t));
+  return col + vec3(0.4, 1.0, 0.55) * (1.0 - exp(-h.glow * 1.6)) * (0.75 + 0.25 * sin(uTime * 4.0));
+}
+
 void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / (0.5 * uRes.y);
   vec3 rd3 = normalize(uCamF + uv.x * uTan * uCamR + uv.y * uTan * uCamU);
   vec4 o = uC + uCamPos.x * uEu + uCamPos.y * uEv + uCamPos.z * uEz;
   vec4 d = safeD(rd3.x * uEu + rd3.y * uEv + rd3.z * uEz);
   // sky: dusk above, void below (each game picks its own)
-  vec3 col = mix(uSkyLo, uSkyHi, smoothstep(-0.4, 0.6, rd3.z));
-  Hit h = trace(o, d);
-  float far = 1e8;
-  if (h.kind != 0) { col = shade(h, rd3); far = h.t; col = mix(col, uHaze, smoothstep(uFog + 3.0, uFog + 16.0, h.t)); }
-  // the goal glows wherever the ray passed through it
-  col += vec3(0.4, 1.0, 0.55) * (1.0 - exp(-h.glow * 1.6)) * (0.75 + 0.25 * sin(uTime * 4.0));
-  // the slices either side, through the thickness of yours: each one drawn as itself (a ramp with its
-  // gradient, so the next stepping stone reads either way), tinted ana-warm or kata-cool, and fading in
-  // as you near its side of your slice, so moving through w crossfades instead of jumping
+  vec3 sky = mix(uSkyLo, uSkyHi, smoothstep(-0.4, 0.6, rd3.z));
+  Hit h = trace(o, d, uPlayer);
+  vec3 col = look(h, rd3, sky);
+  float far = h.kind != 0 ? h.t : 1e8;
+  // the slices either side. At rest, each is laid over faintly as itself (a ramp with its gradient, so
+  // the next stepping stone reads either way), tinted ana-warm or kata-cool, wherever it's in front of
+  // what's really there; but never as a box round you, since what's beside you in w isn't where you are.
+  // Moving through w, the slice you're heading into crossfades in through the thickness of yours, half
+  // and half at the boundary, so a block in the way dissolves as you rise past it instead of vanishing
+  // as you cross (and you, carried along, stay solid throughout)
   float f = fract(dot(uC, uN)) - 0.5; // where you are across your slice's thickness, −½ … ½
+  ivec4 me = ivec4(floor(uPlayer));
+  vec3 next = col; float cw = 0.0;
   for (int s = -1; s <= 1; s += 2) {
-    Hit g = trace(o + uN * float(s), d);
-    if (g.kind != 0 && g.kind != 17 && g.t < far - 0.05) {
+    vec4 sh = uN * float(s);
+    Hit g = trace(o + sh, d, uPlayer + sh);
+    if (g.kind != 0 && g.kind != 17 && g.t < far - 0.05 && ivec4(floor(g.p - axisVec(g.axis) * g.sgn * 0.5 - sh)) != me) {
       vec3 tint = s > 0 ? vec3(1.0, 0.6, 0.35) : vec3(0.45, 0.68, 1.0);
       float base = (g.kind >= 6 && g.kind <= 9) ? 0.5 : g.kind == 2 ? 0.32 : 0.2;
-      float a = clamp(base + max(0.0, float(s) * f) * 1.3, 0.0, 0.88);
-      col = mix(col, mix(shade(g, rd3), tint, 0.3), a);
+      col = mix(col, mix(shade(g, rd3), tint, 0.3), base);
     }
+    if (float(s) * f > 0.0) { cw = float(s) * f; next = look(g, rd3, sky); }
   }
+  col = mix(col, next, cw);
   frag = vec4(pow(col, vec3(0.9)), 1.0);
 }`;
 

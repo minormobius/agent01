@@ -55,6 +55,14 @@ takes two cutaways:
 In the wrapped room, w drawn upward is a tower that repeats for ever, and
 without the cutaways the camera would be inside it.
 
+With w hidden (the first view), a climb ana carries you into a block that
+is solid in your slice and empty in the next. You rise in w before you
+move across, and slowly, while the next slice crossfades in, so the block
+dissolves before you step into it. The slice kata of you always has a block
+right where you stand (it's what holds you), and its ghost isn't drawn round
+you. The **height** readout shows z and w, so a climb in either shows up
+whatever you're looking at.
+
 ## Levels
 
 Eight levels in `js/levels.js`, in Anakata's text format: one block per

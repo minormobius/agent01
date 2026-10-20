@@ -21,6 +21,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 #top .val { font-size: 16px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 #seeing { font-size: 14px !important; }
 #seeing i { font-style: normal; }
+#alt i { font-style: normal; font-weight: 400; margin: 0 1px 0 3px; }
 #hint { position: absolute; left: 50%; transform: translateX(-50%); top: calc(58px + env(safe-area-inset-top)); width: max-content; max-width: min(560px, calc(100% - 24px)); display: flex; gap: 10px; align-items: flex-start;
   background: rgba(29, 16, 22, 0.9); border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px 9px 13px; font-size: 13.5px; line-height: 1.5; color: #f2dcc9; }
 #hint button { background: none; border: 0; color: var(--dim); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 2px; }

@@ -98,7 +98,10 @@ Readability rules:
 - Cells are tinted by which slice they're in, relative to yours: warm for
   ana, cool for kata.
 - The slices one cell either side of yours, along the axis you can't see,
-  are traced too and laid over faintly.
+  are traced too and laid over faintly (but never as a box round you).
+  Moving along that axis, the next slice crossfades in through the thickness
+  of yours, half and half at the boundary, so a block dissolves as you pass
+  it in w instead of vanishing as you cross.
 - The gnomon in the corner shows where x, y, z and w point on screen, with
   the hidden axis as a ring.
 
