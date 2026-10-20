@@ -11,9 +11,17 @@
      an anchor   pulls YOU to the cell before it;
      a crate     comes to YOU, to the cell next to you;
      anything else, or nothing, and it comes back empty.
-   Then everything falls. So the hook is the only way through w: to a slice
-   where the wall has a gap, or bringing a crate out of a slice where it's
-   no use into one where it is.
+   Then everything falls. So the hook is a way through w: to a slice where
+   the wall has a gap, or bringing a crate out of a slice where it's no use
+   into one where it is.
+
+   The other way through w is a RAMP: a floor tilted between x (or y) and w,
+   like a staircase whose steps go ana instead of up. The rule is one line:
+   on a ramp, the floor continues one slice over. You walk as usual while
+   there's floor ahead in your slice; when there isn't, and you're standing
+   on a ramp or stepping onto one, the step carries you one slice along w
+   as well, the way the ramp leans. So a run of ramp tiles is a diagonal path
+   through the x-w plane, walkable both ways. Crates don't take ramps.
 
    Cells: empty, solid, anchor (a solid you can hook), plate (a solid you
    can press by standing on it or leaving a crate on it), door (solid until
@@ -28,6 +36,10 @@
    an exact solver. */
 
 export const EMPTY = 0, SOLID = 1, ANCHOR = 2, PLATE = 3, DOOR = 4, GOAL = 5;
+/* w-ramps: floor tiles tilted between a walking axis and w. RAMPS[type] =
+   { axis, s }: walking +axis off (or onto) one carries you s along w */
+export const RAMP_XA = 6, RAMP_XK = 7, RAMP_YA = 8, RAMP_YK = 9;
+export const RAMPS = { 6: { axis: 0, s: 1 }, 7: { axis: 0, s: -1 }, 8: { axis: 1, s: 1 }, 9: { axis: 1, s: -1 } };
 export const RANGE = 6;
 export const AXES = ["x", "y", "z", "w"];
 /* the moves: walking ±x ±y, and the hook along ±x ±y ±w */
@@ -40,8 +52,10 @@ export const ACTIONS = WALKS.map((d) => ({ kind: "walk", d })).concat(HOOKS.map(
    Y rows (y = 0 first), each row the Z layers side by side (z = 0 first),
    X cells each, separated by spaces:
      #  solid     A  anchor    P  plate     D  door
-     .  empty     G  goal      C  a crate   @  you (start)                 */
-const CH = { ".": EMPTY, "#": SOLID, A: ANCHOR, P: PLATE, D: DOOR, G: GOAL, C: EMPTY, "@": EMPTY };
+     .  empty     G  goal      C  a crate   @  you (start)
+     > < v ^  ramps, the arrow pointing the way that goes ana: > (+x is
+              ana), < (−x is ana), v (+y is ana), ^ (−y is ana)          */
+const CH = { ".": EMPTY, "#": SOLID, A: ANCHOR, P: PLATE, D: DOOR, G: GOAL, C: EMPTY, "@": EMPTY, ">": RAMP_XA, "<": RAMP_XK, v: RAMP_YA, "^": RAMP_YK };
 
 export function parse(def) {
   const blocks = def.map.trim().split(/\n\s*\n/).map((b) => b.trim().split("\n").map((r) => r.trim().split(/\s+/)));
@@ -105,7 +119,7 @@ export class World {
   blocked(s, i, open) {
     if (i < 0) return true;
     const t = this.cells[i];
-    if (t === SOLID || t === ANCHOR || t === PLATE) return true;
+    if (t === SOLID || t === ANCHOR || t === PLATE || t >= RAMP_XA) return true;
     if (t === DOOR) return !(open || s.p === i || s.crates.includes(i));
     return s.crates.includes(i);
   }
@@ -134,6 +148,8 @@ export class World {
     const n = { p: s.p, crates: s.crates.slice() }, open = this.doorsOpen(s);
     if (a.kind === "walk") {
       const t = this.step(s.p, a.d);
+      const r = this.rampsOff || (t >= 0 && this.standable(n, t, open)) ? -1 : this.rampStep(n, a.d, open);
+      if (r >= 0) { n.p = r; this.settle(n); return n; }
       if (t < 0) return null;
       if (!this.blocked(n, t, open)) n.p = t;
       else if (n.crates.includes(t)) {
@@ -150,6 +166,20 @@ export class World {
     this.settle(n);
     if (n.dead) return n;
     return n.p === s.p && n.crates.join() === s.crates.join() ? null : n;
+  }
+  /* could you stand in cell c: free, with something under it */
+  standable(n, c, open) { if (c < 0 || this.blocked(n, c, open)) return false; const b = this.nb[c * 8 + 5]; return b >= 0 && this.blocked(n, b, open); }
+  /* the ramp step along d, if there is one: one cell along d and one slice along w, onto somewhere you can
+     stand, when the ramp under you or under where you'd land leans that way. −1 if none */
+  rampStep(n, d, open) {
+    const axis = d[0] ? 0 : 1, dir = d[axis], under = this.nb[n.p * 8 + 5], ru = under >= 0 ? RAMPS[this.cells[under]] : null;
+    for (const sw of [1, -1]) {
+      const side = this.nb[n.p * 8 + (sw > 0 ? 6 : 7)]; if (side < 0) continue;
+      const q = this.step(side, d); if (q < 0 || !this.standable(n, q, open)) continue;
+      const uq = this.nb[q * 8 + 5], rq = uq >= 0 ? RAMPS[this.cells[uq]] : null;
+      if ((ru && ru.axis === axis && ru.s === dir * sw) || (rq && rq.axis === axis && rq.s === dir * sw)) return q;
+    }
+    return -1;
   }
   /* where the hook catches along d: { what: "anchor" | "crate" | "miss", k: cells out, cell } */
   reach(s, d) {
@@ -198,6 +228,12 @@ export class World {
         if (up >= 0 && head >= 0 && !solid(up) && !solid(head)) { next.push(up); continue; }
         if (helped && up >= 0 && head >= 0 && !solid(head)) { const up2 = this.nb[up * 8 + 4], head2 = this.nb[head * 8 + 4]; if (up2 >= 0 && head2 >= 0 && !solid(up2) && !solid(head2)) next.push(up2); }
       }
+      if (allowW) for (let a = 0; a < 4; a++) for (const wd of [6, 7]) { // ramps (any lean: looser is fine)
+        const side = this.nb[p * 8 + wd]; if (side < 0) continue;
+        const q = this.nb[side * 8 + a]; if (q < 0 || solid(q)) continue;
+        const up = this.nb[p * 8 + 5], uq = this.nb[q * 8 + 5];
+        if ((up >= 0 && RAMPS[this.cells[up]] && RAMPS[this.cells[up]].axis === a >> 1) || (uq >= 0 && RAMPS[this.cells[uq]] && RAMPS[this.cells[uq]].axis === a >> 1)) next.push(q);
+      }
       for (let a = 0; a < 8; a++) { // the hook, to anchors
         if (a === 4 || a === 5 || (!allowW && a >= 6)) continue;
         let q = p, prev = p;
@@ -212,6 +248,9 @@ export class World {
     }
     return false;
   }
+
+  /* the same search with no way through w at all: no hooking along it, and the ramps just floor */
+  solveFlat(limit) { this.rampsOff = true; try { return this.solve((a) => !isW(a), limit); } finally { this.rampsOff = false; } }
 
   /* the shortest solution, by breadth-first search over states. `allow`
      filters actions (e.g. no hooks along w, to prove a level needs w) */

@@ -104,8 +104,39 @@ const at = (w, s) => w.coords(s.p).join();
   ok(!t.doorsOpen(t.start) && t.coords(s2.crates[0]).join() === "3,0,1,0" && t.doorsOpen(s2), "a crate left on the plate keeps the doors open");
 }
 
+{ // ramps: on a ramp, the floor continues one slice over
+  const w = parse({ name: "t", map: `
+#>...  @....
+
+..#..  .....` });
+  let s = w.act(w.start, walk(X)); ok(at(w, s) === "1,0,1,0", "you walk onto a ramp like any floor");
+  s = w.act(s, walk(X)); ok(at(w, s) === "2,0,1,1", "off its end, the floor carries on a slice over: you step ana as you step forward");
+  const back = w.act(s, walk(NX)); ok(at(w, back) === "1,0,1,0", "and back down the same way");
+  w.rampsOff = true; ok(w.act(w.act(w.start, walk(X)), walk(X)).dead, "with the ramps taken as plain floor, the same step is a fall"); w.rampsOff = false;
+  const flat = parse({ name: "t", map: `
+#>#..  @....
+
+..#..  .....` });
+  const f = flat.act(flat.act(flat.start, walk(X)), walk(X)); ok(at(flat, f) === "2,0,1,0", "while there's floor ahead in your slice, a ramp does nothing");
+  const lean = parse({ name: "t", map: `
+..#..  .....
+
+#<...  @....` });
+  const k = lean.act(lean.act(lean.start, walk(X)), walk(X)); ok(at(lean, k) === "2,0,1,0", "a ramp leaning the other way (+x is kata) carries you kata");
+  const c = parse({ name: "t", map: `
+#>...  .@C..
+
+.....  .....` });
+  const cs = c.act(c.start, walk(X)); ok(cs.crates.length === 0, "crates don't take ramps: pushed off the end, one falls");
+}
+{ // the first links, from before ramps, still open
+  const G = await import(path.join(here, "../js/gen.js"));
+  const old = G.decode("A7534IwAlACUAJQAlACEFIAUgBSABQAIgAUACIAUgDCAFIAU_ACIfHwUjACUAJQAlASQAIQRACqACQB8PPyIFQAfAA-AfEA");
+  ok(old.solve().moves.length === 21, "a room shared before ramps (an \"A\" code) still opens, par 21");
+}
+
 /* ---- the levels */
-const PAR = { reach: 1, fetch: 8, ana: 6, kata: 6, elsewhere: 15, plate: 5, relay: 17 };
+const PAR = { walk: 5, reach: 1, fetch: 8, glimpse: 1, ana: 6, kata: 6, elsewhere: 15, plate: 5, relay: 17, ramp: 5, penrose: 12, downhill: 29 };
 {
   const names = new Set();
   for (const def of LEVELS) {
@@ -117,13 +148,14 @@ const PAR = { reach: 1, fetch: 8, ana: 6, kata: 6, elsewhere: 15, plate: 5, rela
     // replaying the solution through act() wins
     let s = w.start; for (const ai of sol.moves) s = w.act(s, ACTIONS[ai]);
     ok(w.won(s), `${def.name}: its solution replays to the goal`);
-    const no = w.solve((a) => !isW(a));
-    if (def.needsW) ok(!no.moves && sol.moves.some((ai) => isW(ACTIONS[ai])), `${def.name}: impossible without hooking along w (searched ${no.states} states)`);
+    const no = w.solveFlat();
+    if (def.needsW) { let st = w.start, wm = 0; for (const ai of sol.moves) { const n = w.act(st, ACTIONS[ai]); if (isW(ACTIONS[ai]) || w.coords(n.p)[3] !== w.coords(st.p)[3]) wm++; st = n; } ok(!no.moves && wm > 0, `${def.name}: impossible without moving through w (searched ${no.states} states); its solution moves through w ${wm} time${wm > 1 ? "s" : ""}`); }
     else ok(!!no.moves, `${def.name}: a 3D level, solvable without w`);
     ok(w.X * w.Y * w.Z * w.W <= 4096 && w.W <= 8, `${def.name}: small enough to draw (${w.X}×${w.Y}×${w.Z}×${w.W})`);
   }
   ok(names.size === LEVELS.length, "every level has its own name");
-  ok(LEVELS.filter((d) => d.needsW).length >= 5, "most levels need the fourth dimension");
+  ok(LEVELS.filter((d) => d.needsW).length >= 8, "most levels need the fourth dimension");
+  ok(LEVELS.some((d) => /[<>v^]/.test(d.map)) && LEVELS[0].name === "walk", "the onboarding starts on foot and gets to ramps");
 }
 
 /* ---- the generator and the codes */
@@ -140,9 +172,10 @@ const PAR = { reach: 1, fetch: 8, ana: 6, kata: 6, elsewhere: 15, plate: 5, rela
     const r = G.generate(seed, tier);
     if (!r) { ok(false, `${tier} ${seed}: a room`); continue; }
     rooms.push(r);
-    const T = G.TIERS[tier], sol = r.world.solve(), flat = r.world.solve((a) => !isW(a), 2e6);
-    const wh = sol.moves.filter((ai) => isW(ACTIONS[ai])).length;
-    ok(sol.moves.length === r.par && r.par >= T.len[0] && r.par <= T.len[1] && wh >= T.minW, `${tier} ${seed}: par ${r.par}, ${wh} w-hooks, in the tier's band`);
+    const T = G.TIERS[tier], sol = r.world.solve(), flat = r.world.solveFlat(2e6);
+    let st = r.world.start, wm = 0, wh = 0;
+    for (const ai of sol.moves) { const n = r.world.act(st, ACTIONS[ai]); if (isW(ACTIONS[ai])) { wm++; wh++; } else if (r.world.coords(n.p)[3] !== r.world.coords(st.p)[3]) wm++; st = n; }
+    ok(sol.moves.length === r.par && r.par >= T.len[0] && r.par <= T.len[1] && wm >= T.minW && wh >= T.minHooks, `${tier} ${seed}: par ${r.par}, ${wm} moves through w (${wh} by the hook), in the tier's band`);
     ok(!flat.moves, `${tier} ${seed}: impossible without w (an exhaustive search of ${flat.states} states)`);
     const again = G.generate(seed, tier);
     ok(G.encode(again.world) === G.encode(r.world), `${tier} ${seed}: the same seed makes the same room`);
@@ -157,7 +190,7 @@ const PAR = { reach: 1, fetch: 8, ana: 6, kata: 6, elsewhere: 15, plate: 5, rela
       const c = G.candidate(rnd, G.TIERS[tier]); if (!c) continue;
       const w = new W.World(Object.assign({ name: "", hint: "" }, c));
       for (const allowW of [true, false]) {
-        const ex = w.solve(allowW ? () => true : (a) => !isW(a), 30000);
+        const ex = allowW ? w.solve(() => true, 30000) : w.solveFlat(30000);
         if (ex.moves) { tested++; if (!w.relaxedReach(allowW)) sound = false; }
       }
     }

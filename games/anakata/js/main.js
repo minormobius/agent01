@@ -104,15 +104,25 @@ function start(world, src, par) {
   hud(); seeing(); dirty = true;
 }
 function load(i) { start(parse(LEVELS[i]), { kind: "tutorial", i }); }
-/* a new room from the generator (a few seeds on, if one comes up empty) */
+/* a new room from the generator (a few seeds on, if one comes up empty), built in a worker so the page
+   keeps drawing; where module workers aren't to be had, built right here */
+let worker = null, asked = 0;
+try { worker = new Worker(new URL("./gen-worker.js", import.meta.url), { type: "module" }); } catch (e) { worker = null; }
 function room(tier, seed, kind = "gen", date) {
   toast("building a room in four dimensions…");
+  const id = ++asked;
+  const done = (res) => {
+    if (id !== asked) return; // a newer request came in meanwhile
+    if (!res || !res.code) { toast("no room came out of that seed; try another"); return; }
+    const world = decode(res.code, tier + " " + res.seed.toString(36));
+    world.hint = res.hint;
+    start(world, { kind, tier, seed: res.seed, date, code: res.code }, res.par);
+    $("toast").classList.remove("show");
+  };
+  if (worker) { worker.onmessage = (e) => done(e.data); worker.onerror = () => { worker = null; room(tier, seed, kind, date); }; worker.postMessage({ tier, seed, id }); return; }
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    for (let k = 0; k < 6; k++) {
-      const r = generate((seed + k) >>> 0, tier);
-      if (r) { start(r.world, { kind, tier, seed: (seed + k) >>> 0, date }, r.par); $("toast").classList.remove("show"); return; }
-    }
-    toast("no room came out of that seed; try another");
+    for (let k = 0; k < 6; k++) { const r = generate((seed + k) >>> 0, tier); if (r) return done({ code: encode(r.world), par: r.par, seed: (seed + k) >>> 0, hint: r.world.hint }); }
+    done(null);
   }));
 }
 const today = () => new Date().toISOString().slice(0, 10);

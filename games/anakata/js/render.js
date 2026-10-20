@@ -37,7 +37,7 @@ uint cellAt(ivec4 c) {
 vec4 axisVec(int a) { return a == 0 ? vec4(1,0,0,0) : a == 1 ? vec4(0,1,0,0) : a == 2 ? vec4(0,0,1,0) : vec4(0,0,0,1); }
 vec4 safeD(vec4 d) { return mix(d, sign(d + 1e-12) * 1e-6, vec4(lessThan(abs(d), vec4(1e-6)))); }
 
-/* the nearest thing along o + t·d: kind 1 solid, 2 anchor, 3 plate, 4 door, 6 crate, 7 you; glow = length through goal cells before it */
+/* the nearest thing along o + t·d: kind 1 solid, 2 anchor, 3 plate, 4 door, 6–9 ramps, 16 crate, 17 you; glow = length through goal cells before it */
 struct Hit { float t; int kind; int axis; float sgn; vec4 p; float glow; };
 
 Hit trace(vec4 o, vec4 d) {
@@ -75,12 +75,12 @@ Hit trace(vec4 o, vec4 d) {
     vec4 b0 = (c - 0.43 - o) * inv, b1 = (c + 0.43 - o) * inv;
     vec4 bn = min(b0, b1), bf = max(b0, b1);
     float a = max(max(bn.x, bn.y), max(bn.z, bn.w)), b = min(min(bf.x, bf.y), min(bf.z, bf.w));
-    if (a < b && a > 0.0 && a < h.t) { h.t = a; h.kind = 6; h.axis = bn.x == a ? 0 : bn.y == a ? 1 : bn.z == a ? 2 : 3; h.sgn = -sign(d[h.axis]); }
+    if (a < b && a > 0.0 && a < h.t) { h.t = a; h.kind = 16; h.axis = bn.x == a ? 0 : bn.y == a ? 1 : bn.z == a ? 2 : 3; h.sgn = -sign(d[h.axis]); }
   }
   // you: a 4D ball
   vec4 oc = o - uPlayer;
   float B = dot(oc, d), Cc = dot(oc, oc) - 0.36 * 0.36, A = dot(d, d), disc = B * B - A * Cc;
-  if (disc > 0.0) { float t = (-B - sqrt(disc)) / A; if (t > 0.0 && t < h.t) { h.t = t; h.kind = 7; } }
+  if (disc > 0.0) { float t = (-B - sqrt(disc)) / A; if (t > 0.0 && t < h.t) { h.t = t; h.kind = 17; } }
   h.p = o + d * h.t;
   return h;
 }
@@ -90,7 +90,7 @@ vec3 toView(vec4 n) { return vec3(dot(n, uEu), dot(n, uEv), n.z); }
 vec3 shade(Hit h, vec3 rd3) {
   vec3 L = normalize(vec3(-0.45, -0.6, 0.85));
   vec3 n3; vec3 col;
-  if (h.kind == 7) {
+  if (h.kind == 17) {
     vec4 n4 = normalize(h.p - uPlayer); n3 = normalize(toView(n4) + 1e-5);
     col = vec3(1.0, 0.86, 0.42);
     float dif = max(dot(n3, L), 0.0), rim = pow(1.0 - max(dot(n3, -rd3), 0.0), 2.0);
@@ -112,6 +112,12 @@ vec3 shade(Hit h, vec3 rd3) {
   else if (h.kind == 2) col = vec3(0.2, 0.85, 0.95) * (0.8 + 0.2 * sin(uTime * 3.0));
   else if (h.kind == 3) col = n3.z > 0.5 ? (uOpen == 1 ? vec3(1.0, 0.82, 0.3) : vec3(0.8, 0.55, 0.15)) : vec3(0.42, 0.36, 0.3);
   else if (h.kind == 4) col = mix(vec3(0.75, 0.18, 0.22), vec3(0.95, 0.35, 0.3), step(0.5, fract((h.p.x + h.p.y + h.p.z + h.p.w) * 2.0)));
+  else if (h.kind >= 6 && h.kind <= 9) { // a ramp: its top runs from kata-cool to ana-warm the way it leans
+    int ax = h.kind < 8 ? 0 : 1; float s = (h.kind == 6 || h.kind == 8) ? 1.0 : -1.0;
+    float u = fract(h.p[ax] + 1e-4), lean = s > 0.0 ? u : 1.0 - u;
+    vec3 cool = vec3(0.3, 0.5, 0.95), warm = vec3(1.0, 0.6, 0.3);
+    col = n3.z > 0.5 ? mix(cool, warm, lean) * (0.9 + 0.1 * step(0.5, fract(lean * 3.0))) : mix(cool, warm, 0.5) * 0.6;
+  }
   else col = vec3(0.72, 0.5, 0.28); // a crate
   // which slice it's in, relative to yours: ana warm, kata cool
   float wr = clamp(float(c.w) + 0.5 - uPW, -2.5, 2.5);
@@ -138,7 +144,7 @@ void main() {
   // the slices either side, faintly
   for (int s = -1; s <= 1; s += 2) {
     Hit g = trace(o + uN * float(s), d);
-    if (g.kind != 0 && g.kind != 7 && g.t < far - 0.05) {
+    if (g.kind != 0 && g.kind != 17 && g.t < far - 0.05) {
       vec3 gc = s > 0 ? vec3(1.0, 0.55, 0.3) : vec3(0.35, 0.6, 1.0);
       col = mix(col, gc * (0.45 + 0.4 * max(dot(normalize(toView(axisVec(g.axis) * g.sgn) + 1e-5), normalize(vec3(-0.45, -0.6, 0.85))), 0.0)), 0.2);
     }

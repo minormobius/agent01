@@ -46,12 +46,13 @@ export const GAMES = [
   { id: "naught", url: "naught/",
     setup: async (p) => { await click(p, '#nsel [data-v="4"]'); await click(p, '[data-game="avoid"]'); await sleep(300); },
     play: async (p, t0) => { while (until(t0)) { await sleep(650); await p.evaluate(() => { const g = window.NAUGHT.game; const cs = []; for (let c = 0; c < g.B.N; c++) if (g.owner[c] === 0 && !g.threats(g.turn).has(c)) cs.push(c); if (cs.length) window.NAUGHT.tryPlay(cs[(Math.random() * cs.length) | 0]); }); } } },
-  { id: "anakata", url: "anakata/", setup: async (p) => { await click(p, "#start-btn"); await p.evaluate(() => { window.ANAKATA.load(2); document.getElementById("hint").hidden = true; }); await sleep(600); },
+  { id: "anakata", url: "anakata/?level=10", setup: async (p) => { await p.evaluate(() => { document.getElementById("hint").hidden = true; }); await sleep(600); },
     play: async (p, t0) => {
-      const A = (d, hook) => p.evaluate(([d, hook]) => window.ANAKATA.act(d, hook), [d, hook]), T = () => p.evaluate(() => window.ANAKATA.turnSight(1));
-      await sleep(500); await T(); await sleep(1100); await A([0, 0, 0, 1], true); await sleep(1100); await T(); await sleep(800); await T(); await sleep(900);
-      for (let i = 0; i < 4; i++) { await A([1, 0, 0, 0], false); await sleep(330); }
-      await T(); await sleep(1000); await A([0, 0, 0, -1], true); while (until(t0)) await sleep(200);
+      const A = (d) => p.evaluate((d) => window.ANAKATA.act(d, false), d), T = () => p.evaluate(() => window.ANAKATA.turnSight(1));
+      await sleep(500); await A([1, 0, 0, 0]); await sleep(900); await A([1, 0, 0, 0]); await sleep(1200);
+      await T(); await sleep(1500);
+      for (let i = 0; i < 2; i++) { await A([1, 0, 0, 0]); await sleep(1300); } // stop one short of the goal: the clip ends on the staircase
+      while (until(t0)) await sleep(200);
     } },
   { id: "ziggurat", url: "ziggurat/", setup: async (p) => { await click(p, "#start-btn"); await p.evaluate(() => { window.ZIG.mute(); window.ZIG.auto.on = true; }); await sleep(2500); },
     play: async (p, t0) => { while (until(t0)) { await sleep(200); if (Date.now() - t0 > 4800 && Date.now() - t0 < 5000) await p.evaluate(() => window.ZIG.turn()); } } },

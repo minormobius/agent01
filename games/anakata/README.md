@@ -34,9 +34,26 @@ The world is a small 4D grid of cells `(x, y, z, w)`, with gravity along −z.
   you or a crate on it. The plates and doors are often in different slices.
 - **Goal:** reach the glowing cell.
 
+- **Ramps** are floor tiles that lean between x (or y) and w, like a
+  staircase whose steps go ana instead of up. The rule is one line: **on a
+  ramp, the floor continues one slice over.**
+  - You walk as usual while there's floor ahead in your slice.
+  - When there isn't, and you're standing on a ramp or stepping onto one, the
+    step carries you one slice along w as well, the way the ramp leans.
+  - So a run of ramp tiles is a diagonal path through the x-w plane, and you
+    can walk it both ways.
+  - In walking view, a ramp is a lone tile with the next one ghosted beside
+    it. With your sight turned to (x, w), it's a plain diagonal staircase.
+  - Crates don't take ramps: push one off the end and it falls.
+
+  In the level text, the arrow points the way that goes ana: `>` (+x is ana),
+  `<` (−x), `v` (+y), `^` (−y).
+
 A level's state is just where you are and where the crates are, so a
-breadth-first search over states is an exact solver (`World.solve`). **Par**
-is the fewest moves there are. A view change isn't a move.
+breadth-first search over states is an exact solver (`World.solve`).
+`World.solveFlat` is the same search with no way through w at all: no
+hooking along it, and the ramps just floor. **Par** is the fewest moves
+there are. A view change isn't a move.
 
 ## Sight
 
@@ -73,24 +90,30 @@ Readability rules:
 - The gnomon in the corner shows where x, y, z and w point on screen, with
   the hidden axis as a ring.
 
-## Levels
+## Levels: the onboarding
 
-Seven hand-built levels in `js/levels.js`, written as text: one block per
-w-slice, one row per y, and the z layers side by side. The selftest:
+Twelve hand-built levels in `js/levels.js`, one idea each. They're written as
+text: one block per w-slice, one row per y, and the z layers side by side.
+The selftest:
 - solves every level and pins its par;
 - replays each solution;
-- **proves** that every level marked `needsW` is impossible without hooking
-  along w, by searching every state reachable in 3D.
+- **proves** that every level marked `needsW` is impossible without moving
+  through w (`solveFlat`, searching every state reachable in 3D).
 
-| level | size | par | needs w |
-|---|---|---|---|
-| reach | 7×3×2×1 | 1 | |
-| fetch | 7×4×4×1 | 8 | |
-| ana | 7×3×3×4 | 6 | ✓ |
-| kata | 7×3×2×4 | 6 | ✓ |
-| elsewhere | 7×3×4×3 | 15 | ✓ |
-| plate | 7×3×3×3 | 5 | ✓ |
-| relay | 7×3×3×4 | 17 | ✓ |
+| # | level | teaches | par | needs w |
+|---|---|---|---|---|
+| 1 | walk | walking, climbing one step | 5 | |
+| 2 | reach | the hook pulls you to an anchor | 1 | |
+| 3 | fetch | the hook pulls a crate to you; push, climb | 8 | |
+| 4 | glimpse | turn your sight; your first hook along w | 1 | ✓ |
+| 5 | ana | a gap in another slice, there and back | 6 | ✓ |
+| 6 | kata | the other way along w | 6 | ✓ |
+| 7 | elsewhere | a crate brought through w | 15 | ✓ |
+| 8 | plate | a plate in another slice opens your doors | 5 | ✓ |
+| 9 | relay | all of it: you go ana, the crate comes kata | 17 | ✓ |
+| 10 | ramp | walking through w | 5 | ✓ |
+| 11 | penrose | walk round a room and arrive four slices ana, beside where you started | 12 | ✓ |
+| 12 | downhill | the ramp won't carry a crate; the hook will | 29 | ✓ |
 
 ## Rooms made to order
 
@@ -103,17 +126,27 @@ the parts a 4D puzzle needs:
   along w from the slices between.
 - **steps, crates, a ledge,** and sometimes a **plate** with a **door** across
   one of the barrier's gaps.
+- **ramps:** often a diagonal run across the barrier through the x-w plane,
+  with the floor carved away beside it so it carries you.
 - The **start and goal** go on opposite sides of the barriers.
 
 A room is kept only when the solver proves three things:
 - it is **solvable**;
-- it is **impossible without hooking along w**, shown by an exhaustive search
-  of every state reachable in 3D;
-- its shortest solution uses at least the tier's number of w-hooks (1, 2 or
-  3) and falls in the tier's band of moves.
+- it is **impossible without moving through w** (`solveFlat`: no hooks along
+  w, ramps as plain floor), shown by an exhaustive search of every state
+  reachable in 3D;
+- its shortest solution moves through w at least the tier's number of times
+  (1, 2 or 3), counting hooks along w and steps a ramp carried you. Medium and
+  hard rooms must also use the hook along w at least once and twice;
+- the solution falls in the tier's band of moves.
 
 Of the first few rooms that pass, the one whose solution does the most wins.
-It is scored by moves, w-hooks, crates moved and slices visited.
+It is scored by moves, w-hooks, ramp steps, crates moved and slices visited.
+About two rooms in three end up using a ramp.
+
+Rooms are built in a Web Worker (`js/gen-worker.js`), so the page keeps
+drawing while a hard room's searches run (about 2 s). Where module workers
+aren't available, they're built on the page.
 
 **The cheap proof.** Most random rooms are hopeless, and proving that by the
 full search costs tens of thousands of states. `World.relaxedReach` searches
@@ -124,16 +157,20 @@ these allow too. So when it says no, the room is unsolvable, after a few
 hundred states. Run without w, it is also the proof that a room needs w, with
 the full search as the fallback when the cheap one can't decide. The selftest
 checks that it never says no where the exact search finds a way. It made hard
-rooms six times faster: median about 0.8 s, medium about 40 ms, easy a few ms.
+hard rooms six times faster. With ramps in the mix, a hard room takes a
+median of about 2 s, medium about 40 ms, easy a few ms.
 
 ### Links
 
 Every room's address is the room, written into the URL as `?room=CODE`:
-- an `A`;
+- a version letter;
 - the four sizes in base 36;
-- the cells run-length coded, one byte per run (cell type, crate or you, and
-  the run length);
-- all of it in base64url. That's 40 to 200 characters.
+- the cells run-length coded, one byte per run, all of it in base64url. That's
+  40 to 220 characters.
+
+`B` codes (now) use 4-bit symbols: cell types 0–9 with the ramps, 14 a crate,
+15 you, runs up to 16. `A` codes, the links from before ramps, used 3-bit
+symbols. They're still read, so every link ever shared still opens.
 
 A shared link opens that exact room for anyone, for good, **whatever later
 changes to the generator do to its seeds**. The ⤴ button copies it, or opens
@@ -153,9 +190,9 @@ were. **N** builds a new room in the current tier.
 
 - **A leaderboard for today's room:** fewest moves, through Orb's board kit.
   Moves can be checked exactly, by replaying the posted solution.
-- **w-ramps:** floors tilted between x and w, so walking also drifts you
-  through w. Four round a room make a loop that comes back a slice over:
-  Penrose stairs, for real.
+- **Ramps along y** in the generator, and ramp runs that cross each other.
+- **w that wraps around:** a periodic fourth dimension, so a ramp loop really
+  can go on rising forever. The hook would wrap too.
 - **A second tool**, and then a fifth dimension for it.
 
 ## Files
@@ -165,10 +202,11 @@ were. **N** builds a new room in the current tier.
 | `js/world.js` | the rules and the solver, no DOM |
 | `js/levels.js` | the tutorial levels |
 | `js/gen.js` | the generator, its tiers, and the room codes |
+| `js/gen-worker.js` | builds rooms off the page's thread |
 | `js/render.js` | the 4D ray tracer |
 | `js/main.js` | input, the view frames and their turns, the camera, animation, the overlay |
-| `test/anakata.selftest.mjs` | the rules on small worlds; every level solved, pinned and proved; the codes round-trip; generated rooms deterministic, in band and proved to need w; the cheap proof sound |
+| `test/anakata.selftest.mjs` | the rules on small worlds (ramps included); every level solved, pinned and proved; the codes round-trip and old links still open; generated rooms deterministic, in band and proved to need w; the cheap proof sound |
 
 ```bash
-node games/anakata/test/anakata.selftest.mjs   # ~6 s
+node games/anakata/test/anakata.selftest.mjs   # ~12 s
 ```
