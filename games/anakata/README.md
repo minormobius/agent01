@@ -210,8 +210,9 @@ were. **N** builds a new room in the current tier.
 - **A leaderboard for today's room:** fewest moves, through Orb's board kit.
   Moves can be checked exactly, by replaying the posted solution.
 - **Ramps along y** in the generator, and ramp runs that cross each other.
-- **Gravity in w:** w as a second "down", for a climbing game. See the notes
-  in the conversation that led to it.
+- **Gravity in w:** w as a second "down" instead of a second sideways, for a
+  game about climbing: you'd rest only where you're held up along both z and
+  w, ramps become real slopes, and a wrapped w makes the climb endless.
 - **A second tool**, and then a fifth dimension for it.
 
 ## Files
