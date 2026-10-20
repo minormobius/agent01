@@ -63,3 +63,5 @@ button.ghost { background: transparent; color: var(--text); border: 1px solid va
 #level-list button:disabled { opacity: 0.4; cursor: default; }
 @media (max-width: 480px) { #top { gap: 11px; } #top .val { font-size: 14px; } .cluster { grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 42px); } button.act { min-width: 80px; padding: 11px 12px; } }
 #levels, #won { background: rgba(11, 6, 8, 0.97); }
+#seeing .hid { color: var(--dim); font-weight: 400; }
+@media (max-width: 520px) { #seeing .hid { display: none; } }

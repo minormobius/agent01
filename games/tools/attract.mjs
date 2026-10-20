@@ -54,7 +54,7 @@ export const GAMES = [
       for (let i = 0; i < 2; i++) { await A([1, 0, 0, 0]); await sleep(1300); } // stop one short of the goal: the clip ends on the staircase
       while (until(t0)) await sleep(200);
     } },
-  { id: "anabasis", url: "anabasis/?level=6", setup: async (p) => { await p.evaluate(() => { document.getElementById("hint").hidden = true; window.ANABASIS.turnSight(1); }); await sleep(1200); },
+  { id: "anabasis", url: "anabasis/?level=7", setup: async (p) => { await p.evaluate(() => { document.getElementById("hint").hidden = true; window.ANABASIS.turnSight(1); }); await sleep(1200); },
     play: async (p, t0) => { // round the wrapped staircase, with w drawn up: a tower that climbs for ever
       const A = (d) => p.evaluate((d) => window.ANABASIS.act(d), d), X = [1, 0, 0, 0], Y = [0, 1, 0, 0], NX = [-1, 0, 0, 0];
       for (const d of [X, X, X, Y, Y, Y, NX, NX]) { await A(d); await sleep(800); if (!until(t0)) break; }

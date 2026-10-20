@@ -31,9 +31,12 @@
 
    A world can also have GRAVITY IN W (gravW, Anabasis's worlds): w is a
    second down, so things fall along −z and along −w (kata), and you rest
-   only where you're held from below AND from kata, in a corner of the z-w
-   plane. Walking into a block you climb onto it in z or ana onto it in w,
-   whichever holds you. Off the kata end of the world you fall out, as off
+   only where you're held from below AND from kata: by a block in the slice
+   kata of you, or by the ramp you stand on (a ramp leans into w, so it holds
+   you against w's gravity the way a step holds you against z's). Gravity
+   takes you kata; nothing but a ramp takes you ana. You climb a step in z as
+   ever, never in w: a block in your slice is in your way, unless a ramp
+   carries you round it. Off the kata end of the world you fall out, as off
    the bottom; round a wrapped w with nothing to land on, you fall for ever,
    which loses you the level just the same.
 
@@ -148,11 +151,13 @@ export class World {
       const order = s.crates.length > 1 ? s.crates.slice().sort((a, b) => h(a) - h(b)) : s.crates;
       for (const c of order) for (const d of down) {
         const at = s.crates.includes(c) ? c : -1; if (at < 0) break;
+        if (d[3] && this.onRamp(c)) break; // a ramp holds against w's gravity
         const b = this.step(c, d);
         if (b === -2) { s.crates = s.crates.filter((x) => x !== c); moved = true; break; }
         if (!this.blocked(s, b, open) && b !== s.p) { s.crates = s.crates.map((x) => (x === c ? b : x)); moved = true; break; }
       }
       for (const d of down) {
+        if (d[3] && this.onRamp(s.p)) break;
         const b = this.step(s.p, d);
         if (b === -2) { s.dead = true; return false; }
         if (!this.blocked(s, b, open)) {
@@ -166,12 +171,14 @@ export class World {
     s.crates.sort((a, b) => a - b);
     return true;
   }
-  /* held where you are: something under you, and (where w has gravity too) something kata of you */
+  /* held where you are: something under you, and (where w has gravity too) something kata of you, or a ramp under you */
   resting(n, c, open) {
     const b = this.step(c, [0, 0, -1, 0]); if (b < 0 || !this.blocked(n, b, open)) return false;
-    if (!this.gravW) return true;
+    if (!this.gravW || this.onRamp(c)) return true;
     const k = this.step(c, [0, 0, 0, -1]); return k >= 0 && this.blocked(n, k, open);
   }
+  /* standing on a ramp tile */
+  onRamp(c) { const u = this.nb[c * 8 + 5]; return !this.rampsOff && u >= 0 && !!RAMPS[this.cells[u]]; }
 
   /* one action from state s: a new state, or null if it does nothing */
   act(s, a) {
@@ -225,15 +232,10 @@ export class World {
     return { what: "miss", k: RANGE, cell: -1 };
   }
   /* step up onto t: the cell above it and the cell above you must both be free */
-  climb(n, t, open) {
-    const over = (axis) => { const u = [0, 0, 0, 0]; u[axis] = 1; const dst = this.step(t, u), head = this.step(n.p, u); return dst < 0 || head < 0 || this.blocked(n, dst, open) || this.blocked(n, head, open) ? -1 : dst; };
-    const up = over(2);
-    if (!this.gravW) { if (up < 0) return false; n.p = up; return true; }
-    // with two downs there are two ups: onto the block in z, or ana onto it in w. Take whichever
-    // holds you (z if both do); if neither does, z, then w, and fall from there
-    const ana = over(3), pickd = [up, ana].find((c) => c >= 0 && this.resting(n, c, open)) ?? (up >= 0 ? up : ana);
-    if (pickd < 0) return false;
-    n.p = pickd; return true;
+  climb(n, t, open) { // in z only, even where w is a down too: nothing takes you ana but a ramp
+    const up = this.step(t, [0, 0, 1, 0]), head = this.step(n.p, [0, 0, 1, 0]);
+    if (up < 0 || head < 0 || this.blocked(n, up, open) || this.blocked(n, head, open)) return false;
+    n.p = up; return true;
   }
   won(s) { return !s.dead && this.cells[s.p] === GOAL; }
   key(s) { let k = s.p, m = this.N; for (const c of s.crates) { k += (c + 1) * m; m *= this.N + 1; } return k; }

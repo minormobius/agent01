@@ -21,7 +21,7 @@ const glc = $("gl"), oc = $("over"), octx = oc.getContext("2d");
 let R = null;
 try { R = new Renderer(glc); } catch (e) { $("start").innerHTML = `<h1>ANABASIS</h1><p>This needs WebGL2, which this browser doesn't have: ${String(e.message || e)}</p>`; throw e; }
 
-/* the only moves here are steps: you climb, you fall, you push. No hook yet */
+/* the only moves here are steps: you walk, you climb a step in z, you fall, you push, and ramps carry you. No hook yet */
 const WALKING = (a) => a.kind === "walk";
 const solveWalk = (world) => world.solve(WALKING);
 
@@ -135,7 +135,7 @@ function hud() {
 const axisName = (v) => (Math.abs(v[0]) > 0.5 ? "x" : Math.abs(v[1]) > 0.5 ? "y" : Math.abs(v[2]) > 0.5 ? "z" : "w");
 function seeing() {
   const F = FRAMES[view], colour = { x: "var(--x)", y: "var(--y)", z: "var(--z)", w: "var(--w)" }, n = (v) => axisName(to4(v)), i = (a) => `<i style="color:${colour[a]}">${a}</i>`;
-  $("seeing").innerHTML = `x · ${i(n(F.Ev))} · ↑${i(n(F.Ez))} <span style="color:var(--dim);font-weight:400">(${n(F.N)} hidden)</span>`;
+  $("seeing").innerHTML = `x · ${i(n(F.Ev))} · ↑${i(n(F.Ez))} <span class="hid">(${n(F.N)} hidden)</span>`;
 }
 let toastT = 0;
 function toast(msg) { $("toast").textContent = msg; $("toast").classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => $("toast").classList.remove("show"), 2400); }
@@ -149,17 +149,17 @@ function track(pts, durs, t) {
   }
   return pts[pts.length - 1];
 }
-/* up first (in z and w, whichever rises), then across, then down: a climb goes up and over, a fall goes
-   over and down, and a step off a ledge in one gravity and onto a step in the other does both */
-function path(A, B) {
+/* up first, then across, then down: a climb goes up and over, a fall goes over and down. A ramp step goes
+   straight, across and through w at once, the way the ramp leans */
+function path(A, B, diag) {
   if (L && L.world.wrap && Math.abs(B[3] - A[3]) > L.world.W / 2) B = [B[0], B[1], B[2], B[3] + (B[3] < A[3] ? L.world.W : -L.world.W)]; // across the seam, the short way
   const up = [A[0], A[1], Math.max(A[2], B[2]), Math.max(A[3], B[3])], over = [B[0], B[1], up[2], up[3]];
   const pts = [A];
-  for (const p of [up, over, B]) if (p.some((v, j) => Math.abs(v - pts[pts.length - 1][j]) > 0.01)) pts.push(p);
+  for (const p of diag ? [B] : [up, over, B]) if (p.some((v, j) => Math.abs(v - pts[pts.length - 1][j]) > 0.01)) pts.push(p);
   const durs = [];
   for (let k = 0; k + 1 < pts.length; k++) {
     const a = pts[k], b = pts[k + 1], dz = Math.abs(b[2] - a[2]), dw = Math.abs(b[3] - a[3]), dh = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    durs.push(dh > 0.01 ? dh * 150 : Math.max(dz * 95, dw * 280) + 30); // w slowly: with w hidden, the rise is the crossfade, and you should see the block go
+    durs.push(Math.max(dh * 150, dz * 95 + 30, dw * 280 + 30)); // w slowly: with w hidden, moving through it is the crossfade, and you should see it
   }
   return { pts, durs, total: durs.reduce((x, y) => x + y, 0) };
 }
@@ -176,12 +176,13 @@ function act(d) {
   if (!L || won || turn || (anim && performance.now() < anim.t0 + anim.len)) return;
   anim = null;
   const a = { kind: "walk", d };
-  if (isW(a)) { toast("You can't step in w, only climb it: walk into a wall and you go up onto it, ana, if that holds you."); return; }
+  if (isW(a)) { toast("You can't step in w. Gravity takes you kata; only a ramp takes you ana."); return; }
   const w = L.world, s = L.s, n = w.act(s, a), now = performance.now();
   if (!n) { toast(blockedWhy(d)); return; }
   const P0 = center(w, s.p);
   L.hist.push(s); L.s = n; L.moves++;
-  const pTrack = path(P0, center(w, n.p));
+  const c0 = w.coords(s.p), c1 = w.coords(n.p), ramped = c1[2] === c0[2] && c1[3] !== c0[3] && Math.abs(c1[0] - c0[0]) + Math.abs(c1[1] - c0[1]) === 1 && (w.onRamp(s.p) || w.onRamp(n.p));
+  const pTrack = path(P0, center(w, n.p), ramped);
   const olds = s.crates.map((c) => center(w, c)), news = n.crates.map((c) => center(w, c)), used = new Set(), crates = [], pairs = [];
   olds.forEach((o, i) => news.forEach((q, j) => pairs.push([Math.hypot(o[0] - q[0], o[1] - q[1], o[2] - q[2], o[3] - q[3]), i, j])));
   pairs.sort((x, y) => x[0] - y[0]);
@@ -196,7 +197,7 @@ function act(d) {
 function blockedWhy(d) {
   const t = L.world.step(L.s.p, d);
   if (t === -1) return "That's the edge of the world.";
-  return "Too high to climb, in z and in w: nothing to stand on up there.";
+  return "Something's in your way. You can't step round it in w: only a ramp takes you ana.";
 }
 function undo() { if (!L || !L.hist.length || won) return; L.s = L.hist.pop(); L.moves = Math.max(0, L.moves - 1); anim = null; hud(); dirty = true; }
 function reset() { if (L) start(L.world, L.src, L.par); }

@@ -3852,7 +3852,7 @@
       "b": "2026-10-20",
       "p": "games",
       "surface": "games",
-      "d": "A climb in four spatial dimensions with two gravities: things fall down in z and kata in w, so you only stand where you're held from below and from kata, tucked into a corner of the z-w plane. Walk into a block and you climb it, up in z or ana in w, whichever holds you. Turn your sight to draw w as up instead of z. Anakata's engine and 4D ray tracer; one room's stairs climb round a wrapped w for ever. Every level proved solvable by an exact search, its par pinned, and most proved impossible with only one down.",
+      "d": "A climb in four spatial dimensions with two gravities: things fall down in z and kata in w, so you only stand where you're held from below and from kata, and you slip down a slice wherever nothing holds you. Falling is free; nothing lifts you ana but a ramp, which carries you a slice up in w, round whatever is in your way. Anakata's engine and 4D ray tracer; one room's ramps climb round a wrapped w for ever. Every level proved solvable by an exact search, its par pinned, and proved impossible without what it's about.",
       "tags": [
         "games",
         "canvas",

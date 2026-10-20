@@ -1,6 +1,7 @@
-/* Anabasis's laws: two downs, on little worlds; and every level solved
-   walking, its par pinned, and the ones that need the second down (or the
-   wrap) proved impossible without it.
+/* Anabasis's laws: two downs, on little worlds (gravity takes you kata,
+   only a ramp takes you ana); and every level solved walking, its par
+   pinned, and each proved impossible without what it's about: the second
+   down, its ramps, its crates, its wrap.
      node games/anabasis/test/anabasis.selftest.mjs   (< 1 s) */
 import path from "node:path";
 import fs from "node:fs";
@@ -24,7 +25,7 @@ const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok  
 }
 
 /* ---- two downs, on little worlds */
-const walk = (d) => ({ kind: "walk", d }), X = [1, 0, 0, 0];
+const walk = (d) => ({ kind: "walk", d }), X = [1, 0, 0, 0], NX = [-1, 0, 0, 0];
 const at = (w, s) => w.coords(s.p).join();
 const two = (map, more) => parse(Object.assign({ name: "t", gravW: true, map }, more));
 {
@@ -71,31 +72,44 @@ const two = (map, more) => parse(Object.assign({ name: "t", gravW: true, map }, 
 ####  @#..
 
 ####  ....`);
-  const s = w.act(w.start, walk(X));
-  ok(s && at(w, s) === "1,0,1,2", "a block too tall in z you climb ana, onto it in w");
-  const t = two(`
-####  ####
-
-####  @#..
-
-####  .#..`);
-  ok(t.act(t.start, walk(X)) === null, "two slices high in w stops you, as two cells high in z does");
-}
-{
-  const both = two(`
+  ok(w.act(w.start, walk(X)) === null, "a block in your slice stops you: you never climb in w, however clear it is a slice ana");
+  const z = two(`
 ###  ###  ###
 
-###  @#.  ...
+###  @#.  ...`);
+  ok(at(z, z.act(z.start, walk(X))) === "1,0,2,1", "a step in z you still climb, held kata by what's beside it");
+}
+{
+  const w = two(`
+######  ######
 
-###  ...  ...`);
-  ok(at(both, both.act(both.start, walk(X))) === "1,0,2,1", "where both ways up hold you, you climb in z");
-  const wOnly = two(`
-###  ###  #.#
+##>###  @..###
 
-###  @#.  ...
+######  ......`);
+  let s = w.act(w.act(w.start, walk(X)), walk(X));
+  ok(at(w, s) === "2,0,1,1", "you walk onto a ramp");
+  s = w.act(s, walk(X));
+  ok(s && at(w, s) === "3,0,1,2", "walking off it toward a wall, the ramp carries you a slice ana, round the wall: now kata of you, holding you up");
+  ok(at(w, w.act(s, walk(NX))) === "2,0,1,1", "and back down it the other way");
+}
+{
+  const ramp = two(`
+#####  #####
 
-###  ...  ...`);
-  ok(at(wOnly, wOnly.act(wOnly.start, walk(X))) === "1,0,1,2", "where only ana holds you, you climb ana");
+#>...  @....
+
+..>..  .....`);
+  let s = ramp.act(ramp.act(ramp.start, walk(X)), walk(X));
+  ok(at(ramp, s) === "2,0,1,2", "over a drop, the ramp carries you onto a ramp a slice ana");
+  ok(ramp.resting(s, s.p, false), "and the ramp holds you there against w's gravity, with nothing kata of you");
+  const floor = two(`
+#####  #####
+
+#>...  @....
+
+..#..  .....`);
+  s = floor.act(floor.act(floor.start, walk(X)), walk(X));
+  ok(s && s.dead, "plain floor there doesn't hold you: you slip back kata, into the drop you were carried over");
 }
 {
   const w = two(`
@@ -111,7 +125,7 @@ const two = (map, more) => parse(Object.assign({ name: "t", gravW: true, map }, 
 }
 
 /* ---- the levels: solved walking (the only moves the page has), par pinned, proofs */
-const PAR = { held: 5, slip: 6, ledge: 5, stair: 6, boost: 6, ascending: 11, hoist: 13, cairn: 19 };
+const PAR = { held: 5, slip: 6, around: 5, stair: 4, bridge: 6, plumb: 10, ascending: 11 };
 const WALKING = (a) => a.kind === "walk";
 ok(LEVELS.length === Object.keys(PAR).length, "every level has its par pinned");
 for (const def of LEVELS) {
@@ -126,6 +140,7 @@ for (const def of LEVELS) {
   const any = w.solve();
   ok(any.moves && any.moves.length === sol.moves.length, `${def.name}: nothing beats walking (the hook, which the page doesn't offer, saves nothing)`);
   if (def.needsDown) ok(parse(Object.assign({}, def, { gravW: false })).solve().moves === null, `${def.name}: impossible with z the only down (searched exhaustively)`);
+  if (def.needsRamp) { w.rampsOff = true; ok(w.solve(WALKING).moves === null, `${def.name}: impossible without its ramps`); w.rampsOff = false; }
   if (def.wrap) ok(w.withWrap(false).solve(WALKING).moves === null, `${def.name}: impossible if w didn't wrap round`);
   const back = decode(encode(w));
   ok(back.gravW === true && back.wrap === !!def.wrap && back.solve(WALKING).moves.length === PAR[def.name], `${def.name}: its room code (${encode(w)[0]}…) opens the same room`);
