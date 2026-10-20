@@ -155,6 +155,8 @@ export function generate(seed, tierName = "medium") {
      "B" (now): symbol << 4 | run − 1 (runs up to 16); symbols are the cell
          types (0–9, ramps included), 14 a crate, 15 you.
      "C" the same, for a room whose w wraps round.
+     "D" and "E" the same again, for Anabasis's rooms (w a second down),
+         without and with the wrap.
      "A" (the first links): symbol << 5 | run − 1 (runs up to 32); cell
          types 0–5, 6 a crate, 7 you. Still read, so old links still open. */
 const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -182,10 +184,10 @@ export function encode(world) {
   sym[world.start.p] = 15;
   const bytes = [];
   for (let i = 0; i < sym.length;) { let r = 1; while (i + r < sym.length && sym[i + r] === sym[i] && r < 16) r++; bytes.push((sym[i] << 4) | (r - 1)); i += r; }
-  return (world.wrap ? "C" : "B") + [world.X, world.Y, world.Z, world.W].map((n) => n.toString(36)).join("") + b64(bytes);
+  return (world.gravW ? (world.wrap ? "E" : "D") : world.wrap ? "C" : "B") + [world.X, world.Y, world.Z, world.W].map((n) => n.toString(36)).join("") + b64(bytes);
 }
 export function decode(code, name = "a shared room") {
-  if (!/^[ABC][0-9a-z]{4}[A-Za-z0-9_-]+$/.test(code)) throw new Error("not a room code");
+  if (!/^[A-E][0-9a-z]{4}[A-Za-z0-9_-]+$/.test(code)) throw new Error("not a room code");
   const v = code[0], bits = v === "A" ? 5 : 4, CRATE = v === "A" ? 6 : 14, YOU = v === "A" ? 7 : 15, top = v === "A" ? 5 : 9;
   const [X, Y, Zz, W] = code.slice(1, 5).split("").map((c) => parseInt(c, 36)), N = X * Y * Zz * W;
   if (!(X && Y && Zz && W) || N > 4096) throw new Error("not a room code");
@@ -196,5 +198,5 @@ export function decode(code, name = "a shared room") {
   let start = -1;
   for (let i = 0; i < N; i++) { const t = sym[i]; if (t === CRATE) crates.push(i); else if (t === YOU) start = i; else if (t <= top) cells[i] = t; else throw new Error("not a room code"); }
   if (start < 0 || !cells.includes(GOAL)) throw new Error("a room with no start or no goal");
-  return new World({ name, hint: "", X, Y, Z: Zz, W, cells, start, crates, wrap: v === "C" });
+  return new World({ name, hint: "", X, Y, Z: Zz, W, cells, start, crates, wrap: v === "C" || v === "E", gravW: v === "D" || v === "E" });
 }

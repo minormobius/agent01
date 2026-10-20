@@ -278,6 +278,22 @@ These live here:
   the shader reads cells mod W and repeats the room along w. Fourteen
   onboarding levels, walk → penrose → downhill → round → behind. See
   [`anakata/README.md`](anakata/README.md).
+- **Anabasis at `/anabasis/`**: Anakata's engine with w made a second down
+  (`gravW: true` on a world; "D"/"E" room codes, without/with wrap). Things
+  settle along −z then −w; you rest only where held from below *and* kata
+  (`World.resting`); walking into a block climbs it in z or ana in w,
+  whichever holds you, z first (`World.climb`); off the kata end you fall
+  out, and round a wrapped w with nothing to land on you fall for ever (both
+  lose). The page (`anabasis/js/main.js`) imports `../../anakata/js/` for
+  the world, codes and renderer: one engine, two cabinets. Views keep x and
+  rotate y-z-w: z up, w up, or (x, w) across with z up; the renderer takes
+  `Ez` (which way is up), a sky, and two cutaways (`ceil`, `cut`) so a
+  wrapped w drawn upward isn't a tower the camera is buried in. Walking
+  only, no hook yet (the selftest proves the hook would save nothing).
+  Eight levels, held → ascending (a Penrose staircase round a wrapped w) →
+  two crate climbs from a random search. See
+  [`anabasis/README.md`](anabasis/README.md). **Changing `anakata/js/world.js`,
+  `gen.js` or `render.js` changes both games: run both selftests.**
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -331,7 +347,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -386,6 +402,7 @@ node games/molt/test/tag.selftest.mjs            # ouroboros computes: the tag s
 node games/naught/test/naught.selftest.mjs       # (ℤ₃)ⁿ: lines are exactly zero-sum triples, one line per pair, no draws, both 3 × 3 games solved, the engine (<1 s)
 node games/ziggurat/test/ziggurat.selftest.mjs   # the pile and its slices, the hops, the colour rules, the enemies and the lure, an autopilot that clears it, the board's records (<1 s)
 node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds; every level solved, par pinned, proved impossible without w where it says so; ramps; room codes round-trip, old links still open; generated rooms deterministic, in band, proved to need w; the cheap proof sound (~12 s)
+node games/anabasis/test/anabasis.selftest.mjs   # two downs on small worlds (held, slip, climb ana, z first, fall out, fall for ever, crates); every level solved walking, par pinned, proved impossible with one down / without the wrap / without its crates (<1 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

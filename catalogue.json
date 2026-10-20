@@ -3843,6 +3843,23 @@
       ]
     },
     {
+      "n": "anabasis",
+      "u": "https://games.mino.mobi/anabasis/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-20",
+      "b": "2026-10-20",
+      "p": "games",
+      "surface": "games",
+      "d": "A climb in four spatial dimensions with two gravities: things fall down in z and kata in w, so you only stand where you're held from below and from kata, tucked into a corner of the z-w plane. Walk into a block and you climb it, up in z or ana in w, whichever holds you. Turn your sight to draw w as up instead of z. Anakata's engine and 4D ray tracer; one room's stairs climb round a wrapped w for ever. Every level proved solvable by an exact search, its par pinned, and most proved impossible with only one down.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "tessera",
       "u": "https://games.mino.mobi/tessera/",
       "c": "games",

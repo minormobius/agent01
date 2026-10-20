@@ -29,6 +29,14 @@
    kata once, and the hook flies round w (coming back empty if it would
    reach you). Only the neighbour table knows: everything else follows.
 
+   A world can also have GRAVITY IN W (gravW, Anabasis's worlds): w is a
+   second down, so things fall along −z and along −w (kata), and you rest
+   only where you're held from below AND from kata, in a corner of the z-w
+   plane. Walking into a block you climb onto it in z or ana onto it in w,
+   whichever holds you. Off the kata end of the world you fall out, as off
+   the bottom; round a wrapped w with nothing to land on, you fall for ever,
+   which loses you the level just the same.
+
    Cells: empty, solid, anchor (a solid you can hook), plate (a solid you
    can press by standing on it or leaving a crate on it), door (solid until
    every plate in the world is pressed, or while something stands in it),
@@ -86,12 +94,12 @@ export function parse(def) {
     });
   });
   if (start == null) throw new Error(def.name + ": no start");
-  return new World({ name: def.name, hint: def.hint || "", X, Y, Z, W, cells, start, crates, wrap: !!def.wrap });
+  return new World({ name: def.name, hint: def.hint || "", X, Y, Z, W, cells, start, crates, wrap: !!def.wrap, gravW: !!def.gravW });
 }
 
 export class World {
-  constructor({ name, hint, X, Y, Z, W, cells, start, crates, wrap = false }) {
-    Object.assign(this, { name, hint, X, Y, Z, W, cells, wrap: !!wrap });
+  constructor({ name, hint, X, Y, Z, W, cells, start, crates, wrap = false, gravW = false }) {
+    Object.assign(this, { name, hint, X, Y, Z, W, cells, wrap: !!wrap, gravW: !!gravW });
     this.N = X * Y * Z * W;
     this.start = { p: start, crates: crates.slice().sort((a, b) => a - b) };
     this.plates = []; this.goals = [];
@@ -103,7 +111,7 @@ export class World {
       for (let a = 0; a < 4; a++) for (let sgn = 0; sgn < 2; sgn++) {
         const v = c[a] + (sgn ? -1 : 1), str = [1, X, X * Y, X * Y * Z][a];
         if (a === 3 && this.wrap && (v < 0 || v >= W)) { this.nb[i * 8 + a * 2 + sgn] = i + (v < 0 ? W - 1 : 1 - W) * str; continue; } // w goes round
-        this.nb[i * 8 + a * 2 + sgn] = a === 2 && v < 0 ? -2 : v < 0 || v >= lim[a] ? -1 : i + (sgn ? -1 : 1) * str;
+        this.nb[i * 8 + a * 2 + sgn] = (a === 2 || (a === 3 && this.gravW)) && v < 0 ? -2 : v < 0 || v >= lim[a] ? -1 : i + (sgn ? -1 : 1) * str; // −2: below the world, the way you fall out
       }
     }
     this.settle(this.start); // a start in mid-air falls
@@ -132,22 +140,37 @@ export class World {
   }
   /* everything falls until it rests: crates bottom-up, then you. Returns false if you fell out of the world */
   settle(s) {
-    for (let guard = 0; guard < 64; guard++) {
+    const down = this.gravW ? [[0, 0, -1, 0], [0, 0, 0, -1]] : [[0, 0, -1, 0]], seen = this.gravW ? new Set([s.p]) : null;
+    for (let guard = 0; guard < 256; guard++) {
       let moved = false;
       const open = this.doorsOpen(s);
-      const XY = this.X * this.Y, order = s.crates.length > 1 ? s.crates.slice().sort((a, b) => Math.floor(a / XY) % this.Z - Math.floor(b / XY) % this.Z) : s.crates;
-      for (const c of order) {
-        const below = this.step(c, [0, 0, -1, 0]);
-        if (below === -2) { s.crates = s.crates.filter((x) => x !== c); moved = true; continue; }
-        if (!this.blocked(s, below, open) && below !== s.p) { s.crates = s.crates.map((x) => (x === c ? below : x)); moved = true; }
+      const XY = this.X * this.Y, h = (c) => Math.floor(c / XY) % this.Z + (this.gravW ? Math.floor(c / (XY * this.Z)) : 0);
+      const order = s.crates.length > 1 ? s.crates.slice().sort((a, b) => h(a) - h(b)) : s.crates;
+      for (const c of order) for (const d of down) {
+        const at = s.crates.includes(c) ? c : -1; if (at < 0) break;
+        const b = this.step(c, d);
+        if (b === -2) { s.crates = s.crates.filter((x) => x !== c); moved = true; break; }
+        if (!this.blocked(s, b, open) && b !== s.p) { s.crates = s.crates.map((x) => (x === c ? b : x)); moved = true; break; }
       }
-      const below = this.step(s.p, [0, 0, -1, 0]);
-      if (below === -2) { s.dead = true; return false; }
-      if (!this.blocked(s, below, open)) { s.p = below; moved = true; }
+      for (const d of down) {
+        const b = this.step(s.p, d);
+        if (b === -2) { s.dead = true; return false; }
+        if (!this.blocked(s, b, open)) {
+          s.p = b; moved = true;
+          if (seen) { if (seen.has(b)) { s.dead = true; return false; } seen.add(b); } // round and round a wrapped w, never landing
+          break;
+        }
+      }
       if (!moved) break;
     }
     s.crates.sort((a, b) => a - b);
     return true;
+  }
+  /* held where you are: something under you, and (where w has gravity too) something kata of you */
+  resting(n, c, open) {
+    const b = this.step(c, [0, 0, -1, 0]); if (b < 0 || !this.blocked(n, b, open)) return false;
+    if (!this.gravW) return true;
+    const k = this.step(c, [0, 0, 0, -1]); return k >= 0 && this.blocked(n, k, open);
   }
 
   /* one action from state s: a new state, or null if it does nothing */
@@ -203,9 +226,14 @@ export class World {
   }
   /* step up onto t: the cell above it and the cell above you must both be free */
   climb(n, t, open) {
-    const up = this.step(t, [0, 0, 1, 0]), head = this.step(n.p, [0, 0, 1, 0]);
-    if (up < 0 || head < 0 || this.blocked(n, up, open) || this.blocked(n, head, open)) return false;
-    n.p = up; return true;
+    const over = (axis) => { const u = [0, 0, 0, 0]; u[axis] = 1; const dst = this.step(t, u), head = this.step(n.p, u); return dst < 0 || head < 0 || this.blocked(n, dst, open) || this.blocked(n, head, open) ? -1 : dst; };
+    const up = over(2);
+    if (!this.gravW) { if (up < 0) return false; n.p = up; return true; }
+    // with two downs there are two ups: onto the block in z, or ana onto it in w. Take whichever
+    // holds you (z if both do); if neither does, z, then w, and fall from there
+    const ana = over(3), pickd = [up, ana].find((c) => c >= 0 && this.resting(n, c, open)) ?? (up >= 0 ? up : ana);
+    if (pickd < 0) return false;
+    n.p = pickd; return true;
   }
   won(s) { return !s.dead && this.cells[s.p] === GOAL; }
   key(s) { let k = s.p, m = this.N; for (const c of s.crates) { k += (c + 1) * m; m *= this.N + 1; } return k; }
@@ -217,6 +245,7 @@ export class World {
      rules allow, these allow, so false here is a proof of no solution, and
      costs a few hundred states, not tens of thousands. */
   relaxedReach(allowW = true) {
+    if (this.gravW) return true; // not written for two gravities yet: "maybe" is always sound
     const helped = this.start.crates.length > 0, seen = new Uint8Array(this.N), queue = [this.start.p];
     const solid = (i) => i < 0 || (this.cells[i] !== EMPTY && this.cells[i] !== GOAL && this.cells[i] !== DOOR);
     const land = (i) => { // fall from i to where you'd stop; −1 if out of the world
@@ -257,7 +286,7 @@ export class World {
   }
 
   /* this world with w made ends again, or round again: for proving a room needs its wrap */
-  withWrap(wrap) { return new World({ name: this.name, hint: this.hint, X: this.X, Y: this.Y, Z: this.Z, W: this.W, cells: this.cells, start: this.start.p, crates: this.start.crates, wrap }); }
+  withWrap(wrap) { return new World({ name: this.name, hint: this.hint, X: this.X, Y: this.Y, Z: this.Z, W: this.W, cells: this.cells, start: this.start.p, crates: this.start.crates, wrap, gravW: this.gravW }); }
   /* the same search with no way through w at all: no hooking along it, and the ramps just floor */
   solveFlat(limit) { this.rampsOff = true; try { return this.solve((a) => !isW(a), limit); } finally { this.rampsOff = false; } }
 

@@ -2570,6 +2570,15 @@
    "parent": "games"
   },
   {
+   "id": "anabasis",
+   "name": "anabasis",
+   "url": "https://games.mino.mobi/anabasis/",
+   "cat": "games",
+   "commits": 3,
+   "age": "warm",
+   "parent": "games"
+  },
+  {
    "id": "tessera",
    "name": "tessera",
    "url": "https://games.mino.mobi/tessera/",

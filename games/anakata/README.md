@@ -188,7 +188,7 @@ Every room's address is the room, written into the URL as `?room=CODE`:
   40 to 220 characters.
 
 `B` codes (now) use 4-bit symbols: cell types 0–9 with the ramps, 14 a crate,
-15 you, runs up to 16. `C` is the same for a room whose w wraps. `A` codes,
+15 you, runs up to 16. `C` is the same for a room whose w wraps; `D` and `E` are Anabasis's rooms (w a second down), without and with the wrap. `A` codes,
 the links from before ramps, used 3-bit symbols. They're still read, so every link ever shared still opens.
 
 A shared link opens that exact room for anyone, for good, **whatever later
@@ -210,16 +210,16 @@ were. **N** builds a new room in the current tier.
 - **A leaderboard for today's room:** fewest moves, through Orb's board kit.
   Moves can be checked exactly, by replaying the posted solution.
 - **Ramps along y** in the generator, and ramp runs that cross each other.
-- **Gravity in w:** w as a second "down" instead of a second sideways, for a
-  game about climbing: you'd rest only where you're held up along both z and
-  w, ramps become real slopes, and a wrapped w makes the climb endless.
+- **Gravity in w** is built, as a cabinet of its own:
+  [Anabasis](../anabasis/), on this engine (`gravW` in `js/world.js`, "D" and
+  "E" room codes, and `Ez`, the sky and the cutaways in `js/render.js`).
 - **A second tool**, and then a fifth dimension for it.
 
 ## Files
 
 | | |
 |---|---|
-| `js/world.js` | the rules and the solver, no DOM |
+| `js/world.js` | the rules and the solver, no DOM (Anabasis's two gravities too) |
 | `js/levels.js` | the tutorial levels |
 | `js/gen.js` | the generator, its tiers, and the room codes |
 | `js/gen-worker.js` | builds rooms off the page's thread |

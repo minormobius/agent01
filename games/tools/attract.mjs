@@ -54,6 +54,12 @@ export const GAMES = [
       for (let i = 0; i < 2; i++) { await A([1, 0, 0, 0]); await sleep(1300); } // stop one short of the goal: the clip ends on the staircase
       while (until(t0)) await sleep(200);
     } },
+  { id: "anabasis", url: "anabasis/?level=6", setup: async (p) => { await p.evaluate(() => { document.getElementById("hint").hidden = true; window.ANABASIS.turnSight(1); }); await sleep(1200); },
+    play: async (p, t0) => { // round the wrapped staircase, with w drawn up: a tower that climbs for ever
+      const A = (d) => p.evaluate((d) => window.ANABASIS.act(d), d), X = [1, 0, 0, 0], Y = [0, 1, 0, 0], NX = [-1, 0, 0, 0];
+      for (const d of [X, X, X, Y, Y, Y, NX, NX]) { await A(d); await sleep(800); if (!until(t0)) break; }
+      while (until(t0)) await sleep(200);
+    } },
   { id: "ziggurat", url: "ziggurat/", setup: async (p) => { await click(p, "#start-btn"); await p.evaluate(() => { window.ZIG.mute(); window.ZIG.auto.on = true; }); await sleep(2500); },
     play: async (p, t0) => { while (until(t0)) { await sleep(200); if (Date.now() - t0 > 4800 && Date.now() - t0 < 5000) await p.evaluate(() => window.ZIG.turn()); } } },
   { id: "tessera", url: "tessera/", setup: (p) => click(p, "#go-open"), play: wander(450, 450) },

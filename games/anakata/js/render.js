@@ -2,7 +2,8 @@
 
    What you see is a 3D slice of the 4D world through the point you stand on.
    The slice's three axes are the view frame: two horizontal ones, Eu and Ev,
-   and z, always up. Every pixel's ray is a straight line in that 3D slice,
+   and one drawn up the screen, Ez (z in Anakata; z or w in Anabasis, where
+   both are downs). Every pixel's ray is a straight line in that 3D slice,
    which is a straight line in 4D (o + t·d, with o and d written in the
    frame), so it can step through the 4D grid cell by cell exactly like a 3D
    voxel ray, with four coordinates instead of three. Turning your sight is
@@ -22,19 +23,20 @@ const FS = `#version 300 es
 precision highp float; precision highp int; precision highp usampler3D;
 uniform usampler3D uGrid;
 uniform ivec4 uDims;
-uniform vec4 uC, uEu, uEv, uN;
+uniform vec4 uC, uEu, uEv, uEz, uN;
 uniform vec3 uCamPos, uCamR, uCamU, uCamF;
 uniform vec2 uRes; uniform float uTan;
 uniform vec4 uPlayer; uniform vec4 uCrates[8]; uniform int uNC;
 uniform int uOpen; uniform int uWrap; uniform float uTime; uniform float uPW; uniform float uHook; uniform float uFog;
+uniform vec3 uSkyLo, uSkyHi, uHaze; uniform float uCeil, uCut;
 out vec4 frag;
 
-const vec4 EZ = vec4(0.0, 0.0, 1.0, 0.0);
 uint cellAt(ivec4 c) {
   if (uWrap == 1) c.w = ((c.w % uDims.w) + uDims.w) % uDims.w; // w goes round
   if (any(lessThan(c, ivec4(0))) || any(greaterThanEqual(c, uDims))) return 0u;
   return texelFetch(uGrid, ivec3(c.x, c.y, c.z + uDims.z * c.w), 0).r;
 }
+vec3 toView(vec4 n) { return vec3(dot(n, uEu), dot(n, uEv), dot(n, uEz)); }
 vec4 axisVec(int a) { return a == 0 ? vec4(1,0,0,0) : a == 1 ? vec4(0,1,0,0) : a == 2 ? vec4(0,0,1,0) : vec4(0,0,0,1); }
 vec4 safeD(vec4 d) { return mix(d, sign(d + 1e-12) * 1e-6, vec4(lessThan(abs(d), vec4(1e-6)))); }
 
@@ -60,6 +62,12 @@ Hit trace(vec4 o, vec4 d) {
     vec4 dl = abs(inv);
     for (int i = 0; i < 96; i++) {
       uint v = cellAt(cell);
+      if (v != 0u && (uCeil < 1e8 || uCut > 0.0)) { // the cutaways, where a game asks for them
+        vec3 q = toView(vec4(cell) + 0.5 - uC);
+        if (q.z > uCeil) v = 0u; // above the ceiling: not drawn, so the camera can see down into a tower
+        float k = clamp(dot(q, uCamPos) / dot(uCamPos, uCamPos), 0.0, 1.0);
+        if (q.z > 0.6 && length(q - k * uCamPos) < uCut) v = 0u; // above you and between you and the camera
+      }
       float tnext = min(min(nx.x, nx.y), min(nx.z, nx.w));
       if (v == 5u) h.glow += max(0.0, tnext - t);
       else if (v != 0u && !(v == 4u && uOpen == 1)) { h.t = t; h.kind = int(v); h.axis = ax; h.sgn = -st[ax]; break; }
@@ -87,7 +95,6 @@ Hit trace(vec4 o, vec4 d) {
   return h;
 }
 
-vec3 toView(vec4 n) { return vec3(dot(n, uEu), dot(n, uEv), n.z); }
 
 vec3 shade(Hit h, vec3 rd3) {
   vec3 L = normalize(vec3(-0.45, -0.6, 0.85));
@@ -134,13 +141,13 @@ vec3 shade(Hit h, vec3 rd3) {
 void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / (0.5 * uRes.y);
   vec3 rd3 = normalize(uCamF + uv.x * uTan * uCamR + uv.y * uTan * uCamU);
-  vec4 o = uC + uCamPos.x * uEu + uCamPos.y * uEv + uCamPos.z * EZ;
-  vec4 d = safeD(rd3.x * uEu + rd3.y * uEv + rd3.z * EZ);
-  // sky: dusk above, void below
-  vec3 col = mix(vec3(0.02, 0.015, 0.05), vec3(0.09, 0.06, 0.16), smoothstep(-0.4, 0.6, rd3.z));
+  vec4 o = uC + uCamPos.x * uEu + uCamPos.y * uEv + uCamPos.z * uEz;
+  vec4 d = safeD(rd3.x * uEu + rd3.y * uEv + rd3.z * uEz);
+  // sky: dusk above, void below (each game picks its own)
+  vec3 col = mix(uSkyLo, uSkyHi, smoothstep(-0.4, 0.6, rd3.z));
   Hit h = trace(o, d);
   float far = 1e8;
-  if (h.kind != 0) { col = shade(h, rd3); far = h.t; col = mix(col, vec3(0.05, 0.04, 0.1), smoothstep(uFog + 3.0, uFog + 16.0, h.t)); }
+  if (h.kind != 0) { col = shade(h, rd3); far = h.t; col = mix(col, uHaze, smoothstep(uFog + 3.0, uFog + 16.0, h.t)); }
   // the goal glows wherever the ray passed through it
   col += vec3(0.4, 1.0, 0.55) * (1.0 - exp(-h.glow * 1.6)) * (0.75 + 0.25 * sin(uTime * 4.0));
   // the slices either side, through the thickness of yours: each one drawn as itself (a ramp with its
@@ -159,6 +166,8 @@ void main() {
   frag = vec4(pow(col, vec3(0.9)), 1.0);
 }`;
 
+const SKY = [[0.02, 0.015, 0.05], [0.09, 0.06, 0.16], [0.05, 0.04, 0.1]]; // Anakata's dusk
+
 export class Renderer {
   constructor(canvas) {
     const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, preserveDrawingBuffer: false });
@@ -173,7 +182,7 @@ export class Renderer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, "aPos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ["uGrid", "uDims", "uC", "uEu", "uEv", "uN", "uCamPos", "uCamR", "uCamU", "uCamF", "uRes", "uTan", "uPlayer", "uCrates", "uNC", "uOpen", "uTime", "uPW", "uHook", "uFog", "uWrap"]) this.u[n] = gl.getUniformLocation(p, n);
+    for (const n of ["uGrid", "uDims", "uC", "uEu", "uEv", "uEz", "uN", "uCamPos", "uCamR", "uCamU", "uCamF", "uRes", "uTan", "uPlayer", "uCrates", "uNC", "uOpen", "uTime", "uPW", "uHook", "uFog", "uWrap", "uSkyLo", "uSkyHi", "uHaze", "uCeil", "uCut"]) this.u[n] = gl.getUniformLocation(p, n);
     this.tex = gl.createTexture();
   }
   /* the static cells of a world, into a 3D texture X × Y × (Z·W) */
@@ -186,7 +195,10 @@ export class Renderer {
     gl.uniform4i(this.u.uDims, world.X, world.Y, world.Z, world.W);
     gl.uniform1i(this.u.uWrap, world.wrap ? 1 : 0);
   }
-  /* f: { C, Eu, Ev, N (4D), cam: {pos, R, U, F, tan} (3D, view coords), player (4D), crates [4D], open, time, pw } */
+  /* f: { C, Eu, Ev, Ez (optional: z), N (4D), cam: {pos, R, U, F, tan} (3D, view coords), player (4D), crates [4D], open, time, pw,
+        sky (optional: [below, above, haze], the colours of the void, the sky and the distance),
+        ceil (optional: cells whose centre is more than this far above C, along Ez, aren't drawn),
+        cut (optional: cells above C within this far of the line from C to the camera aren't drawn) } */
   draw(f, scale) {
     const gl = this.gl, c = this.canvas;
     const w = Math.max(1, Math.round(c.clientWidth * scale)), h = Math.max(1, Math.round(c.clientHeight * scale));
@@ -194,13 +206,15 @@ export class Renderer {
     gl.viewport(0, 0, w, h);
     const u = this.u;
     gl.uniform1i(u.uGrid, 0); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_3D, this.tex);
-    gl.uniform4fv(u.uC, f.C); gl.uniform4fv(u.uEu, f.Eu); gl.uniform4fv(u.uEv, f.Ev); gl.uniform4fv(u.uN, f.N);
+    gl.uniform4fv(u.uC, f.C); gl.uniform4fv(u.uEu, f.Eu); gl.uniform4fv(u.uEv, f.Ev); gl.uniform4fv(u.uEz, f.Ez || [0, 0, 1, 0]); gl.uniform4fv(u.uN, f.N);
     gl.uniform3fv(u.uCamPos, f.cam.pos); gl.uniform3fv(u.uCamR, f.cam.R); gl.uniform3fv(u.uCamU, f.cam.U); gl.uniform3fv(u.uCamF, f.cam.F);
     gl.uniform2f(u.uRes, w, h); gl.uniform1f(u.uTan, f.cam.tan);
     gl.uniform4fv(u.uPlayer, f.player);
     const cr = new Float32Array(32); f.crates.slice(0, 8).forEach((p, i) => cr.set(p, i * 4));
     gl.uniform4fv(u.uCrates, cr); gl.uniform1i(u.uNC, Math.min(8, f.crates.length));
     gl.uniform1i(u.uOpen, f.open ? 1 : 0); gl.uniform1f(u.uTime, f.time); gl.uniform1f(u.uPW, f.pw); gl.uniform1f(u.uHook, 0); gl.uniform1f(u.uFog, f.cam.dist || 9);
+    const sky = f.sky || SKY; gl.uniform3fv(u.uSkyLo, sky[0]); gl.uniform3fv(u.uSkyHi, sky[1]); gl.uniform3fv(u.uHaze, sky[2]);
+    gl.uniform1f(u.uCeil, f.ceil == null ? 1e9 : f.ceil); gl.uniform1f(u.uCut, f.cut || 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }
