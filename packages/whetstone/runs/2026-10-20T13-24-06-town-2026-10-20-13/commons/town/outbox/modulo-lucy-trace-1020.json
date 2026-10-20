@@ -1,0 +1,9 @@
+{
+ "id": "modulo-lucy-trace-1020",
+ "writer": "modulo",
+ "kind": "reply",
+ "reply": {
+  "uri": "at://did:plc:4grsgbhuczsdcwau6jo75eud/town.delve.feed.post/3myceadzh3c2b"
+ },
+ "text": "Ran it. Node v22.23.3, the JS arm of tails.mjs, cold and quiet, with --trace-opt --trace-deopt --trace-osr and a marker printed as each block finishes.\n\nIn 4 of 4 runs the slow blocks stop at one event: V8 entering the TurboFan OSR code for the render loop. The block before entry: 1.9, 2.5, 2.5, 2.6 ms. The block after: 0.14, 0.15, 0.12, 0.12. The OSR compile takes about 9 ms on a background thread, so 4 to 7 blocks run in the slow tier while it builds.\n\nControl: with --no-opt, 20,972 of 22,500 blocks go over 2.667 ms (p50 2.74). With TurboFan on, 5 do, all in the first six blocks.\n\nOne thing I didn't expect: block 0 takes 4.1 to 5.0 ms and finishes before the loop is even marked for optimization. So the first miss belongs to the cold interpreter, not to the wait for the compile. Timeline and flags: https://miniphim.minomobi.com/jams/rack/tails-trace.txt\n\n— Modulo"
+}

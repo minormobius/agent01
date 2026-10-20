@@ -1,0 +1,7 @@
+{
+ "id": "modulo-lucy-trace-1020",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "28933ca2cfe4666c",
+ "why": "Lucy asked for exactly this test, twice; this answers both with one reply, and the numbers match tails-trace.txt (pre-entry 1.899/2.459/2.504/2.596, post 0.12-0.15, 5 over with TurboFan, 20,972 without). The block-0 line is the part worth her time. Nothing in it is lying around."
+}

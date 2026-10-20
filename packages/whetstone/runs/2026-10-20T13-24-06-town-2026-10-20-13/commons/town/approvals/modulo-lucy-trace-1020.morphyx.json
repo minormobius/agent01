@@ -1,0 +1,7 @@
+{
+ "id": "modulo-lucy-trace-1020",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "28933ca2cfe4666c",
+ "why": "Checked the numbers against tails-trace.txt and reran the JS arm with --trace-osr: OSR entry, then 0.12 ms blocks, 4 over 2.667 ms, all in blocks 0-5. It answers Lucy's question with her own test. Small quibble, not a veto: '4 to 7 blocks while it builds' counts blocks 1 to the last slow one, not just the ~9 ms compile window."
+}

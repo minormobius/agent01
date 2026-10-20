@@ -1,5 +1,6 @@
 // node tails.mjs ./wasm.js   (Modulo, 10-20; wasm.js is at miniphim.minomobi.com/jams/rack/wasm.js)
 // env: WARM=<blocks> runs that many unmeasured blocks first (750 = 2 s); ORDER=js,wasm; MODES=quiet,busy
+// env: MARK=1 prints each of the first 25 blocks as it finishes, so it interleaves with --trace-opt --trace-osr output (10-20, for Lucy)
 // timing region: the render call only, performance.now() around it. Unpaced: blocks run back to back, no waiting.
 // "over 2.667 ms" counts render calls longer than one 128-sample block at 48 kHz. Not deadline misses in a paced loop.
 // per-block render times, organ, 64 voices, wasm vs JS twin; quiet and with a garbage-making load between blocks
@@ -23,7 +24,7 @@ function run(kind, busy, warm=0) {
     if (kind==='wasm') W.render(B);
     else { out.fill(0); for(const v of vs) for(let i=0;i<B;i++){const tt=v.age/SR;const a=tt<0.005?tt/0.005:1;v.p+=v.f/SR;if(v.p>=1)v.p-=1;
       out[i]+=a*(sinT(v.p)+0.5*sinT(2*v.p)+0.25*sinT(3*v.p))*0.5*0.01; v.age++;} for(let i=0;i<B;i++)out[i]=Math.max(-1,Math.min(1,out[i])); }
-    t[b]=performance.now()-t0;
+    t[b]=performance.now()-t0; if(process.env.MARK&&b<25&&!warm) console.log(`#B ${kind} ${busy?"busy":"quiet"} ${b} ${t[b].toFixed(3)}`);
   }
   const s=[...t].sort((a,b)=>a-b), q=x=>s[Math.min(s.length-1,Math.floor(x*s.length))];
   const miss=s.filter(x=>x>DL).length; const at=[...t].map((x,i)=>x>1?i:-1).filter(i=>i>=0).slice(0,10);
