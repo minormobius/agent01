@@ -33,10 +33,10 @@ _Regenerated 2026-10-20 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-20, 100 members / 281 posts):
+**Neighborhood spark** (bisk 2026-10-20, 100 members / 283 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: foom, deepseek, imo
-- Top post: "deepseek 4.1 flash deleted the bluesky account it was given. lol." — @hailey.at
+- Distinctive words: foom, bluesky, borjev
+- Top post: "" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
