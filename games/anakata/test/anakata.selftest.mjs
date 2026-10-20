@@ -129,6 +129,28 @@ const at = (w, s) => w.coords(s.p).join();
 .....  .....` });
   const cs = c.act(c.start, walk(X)); ok(cs.crates.length === 0, "crates don't take ramps: pushed off the end, one falls");
 }
+{ // w that wraps round
+  const w = parse({ name: "t", wrap: true, map: `
+###  @..
+
+###  ...
+
+###  A..
+
+###  ...` });
+  const s = w.act(w.start, hook(KATA)); ok(at(w, s) === "0,0,1,3", "where w wraps, the hook flies kata off the end and comes round: the anchor in slice 2 pulls you to slice 3");
+  ok(w.withWrap(false).act(w.start, hook(KATA)) === null, "where it doesn't, the same hook comes back empty");
+  const loop = parse({ name: "t", wrap: true, map: `
+###  @..
+
+###  ...` });
+  ok(loop.act(loop.start, hook(ANA)) === null, "a hook that would go all the way round w comes back to you, empty");
+  const r = parse({ name: "t", wrap: true, map: `
+..#..  .....
+
+#>...  @....` });
+  const rs = r.act(r.act(r.start, walk(X)), walk(X)); ok(at(r, rs) === "2,0,1,0", "a ramp leaning ana off the last slice carries you round to the first");
+}
 { // the first links, from before ramps, still open
   const G = await import(path.join(here, "../js/gen.js"));
   const old = G.decode("A7534IwAlACUAJQAlACEFIAUgBSABQAIgAUACIAUgDCAFIAU_ACIfHwUjACUAJQAlASQAIQRACqACQB8PPyIFQAfAA-AfEA");
@@ -136,7 +158,7 @@ const at = (w, s) => w.coords(s.p).join();
 }
 
 /* ---- the levels */
-const PAR = { walk: 5, reach: 1, fetch: 8, glimpse: 1, ana: 6, kata: 6, elsewhere: 15, plate: 5, relay: 17, ramp: 5, penrose: 12, downhill: 29 };
+const PAR = { walk: 5, reach: 1, fetch: 8, glimpse: 1, ana: 6, kata: 6, elsewhere: 15, plate: 5, relay: 17, ramp: 5, penrose: 12, downhill: 29, round: 8, behind: 6 };
 {
   const names = new Set();
   for (const def of LEVELS) {
@@ -151,6 +173,7 @@ const PAR = { walk: 5, reach: 1, fetch: 8, glimpse: 1, ana: 6, kata: 6, elsewher
     const no = w.solveFlat();
     if (def.needsW) { let st = w.start, wm = 0; for (const ai of sol.moves) { const n = w.act(st, ACTIONS[ai]); if (isW(ACTIONS[ai]) || w.coords(n.p)[3] !== w.coords(st.p)[3]) wm++; st = n; } ok(!no.moves && wm > 0, `${def.name}: impossible without moving through w (searched ${no.states} states); its solution moves through w ${wm} time${wm > 1 ? "s" : ""}`); }
     else ok(!!no.moves, `${def.name}: a 3D level, solvable without w`);
+    if (def.wrap) { const nw = w.withWrap(false).solve(); ok(!nw.moves, `${def.name}: impossible if w didn't wrap round (${nw.states} states)`); }
     ok(w.X * w.Y * w.Z * w.W <= 4096 && w.W <= 8, `${def.name}: small enough to draw (${w.X}×${w.Y}×${w.Z}×${w.W})`);
   }
   ok(names.size === LEVELS.length, "every level has its own name");
@@ -163,6 +186,7 @@ const PAR = { walk: 5, reach: 1, fetch: 8, glimpse: 1, ana: 6, kata: 6, elsewher
   const G = await import(path.join(here, "../js/gen.js"));
   const t0 = Date.now();
   // the codes: every level survives the round trip, cell for cell
+  ok(LEVELS.filter((d) => d.wrap).every((def) => { const c = G.encode(parse(def)); return c[0] === "C" && G.decode(c).wrap; }) && G.encode(parse(LEVELS[0]))[0] === "B", "a room whose w wraps carries it in its code (C), and one that doesn't, doesn't (B)");
   ok(LEVELS.every((def) => { const w = parse(def), c = G.encode(w), b = G.decode(c); return G.encode(b) === c && b.cells.every((v, i) => v === w.cells[i]) && b.start.p === w.start.p && b.start.crates.join() === w.start.crates.join(); }), "every level survives encode → decode cell for cell");
   let bad = 0; for (const junk of ["", "B1234AAAA", "A0000AA", "A7534", "A7534!!!!", "A7534AAAA"]) { try { G.decode(junk); } catch (e) { bad++; } }
   ok(bad === 6, "codes that aren't rooms are refused, not half-built");

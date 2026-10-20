@@ -159,6 +159,7 @@ function track(pts, durs, t) {
   return pts[pts.length - 1];
 }
 function path(A, B, pull) { // across first then down, or up first then across
+  if (L && L.world.wrap && Math.abs(B[3] - A[3]) > L.world.W / 2) B = [B[0], B[1], B[2], B[3] + (B[3] < A[3] ? L.world.W : -L.world.W)]; // across the seam, the short way
   const pts = B[2] < A[2] - 0.01 ? [A, [B[0], B[1], A[2], B[3]], B] : B[2] > A[2] + 0.01 ? [A, [A[0], A[1], B[2], A[3]], B] : [A, B];
   const durs = [];
   for (let k = 0; k + 1 < pts.length; k++) {
@@ -169,9 +170,11 @@ function path(A, B, pull) { // across first then down, or up first then across
 }
 function playerAt(now) { return anim ? track(anim.player.pts, anim.player.durs, Math.max(0, now - anim.t0 - anim.delay)) : center(L.world, L.s.p); }
 function cratesAt(now) {
-  if (!anim) return L.s.crates.map((c) => center(L.world, c));
-  const t = Math.max(0, now - anim.t0 - anim.delay);
-  return anim.crates.map((c) => track(c.pts, c.durs, t));
+  const t = Math.max(0, now - (anim ? anim.t0 + anim.delay : 0));
+  const at = anim ? anim.crates.map((c) => track(c.pts, c.durs, t)) : L.s.crates.map((c) => center(L.world, c));
+  if (!L.world.wrap) return at;
+  const P = playerAt(now), W = L.world.W; // where w goes round, draw each crate in its copy nearest you
+  return at.map((c) => [c[0], c[1], c[2], c[3] + W * Math.round((P[3] - c[3]) / W)]);
 }
 
 function act(d, hooking) {
@@ -203,8 +206,8 @@ function act(d, hooking) {
   olds.forEach((o, i) => { if (matched.has(i)) crates.push(path(o, news[matched.get(i)], hooking)); else crates.push(path(o, [o[0], o[1], -4, o[3]], false)); });
   let beam = null, delay = 0;
   if (hooking) {
-    const r = w.reach(s, d), end = center(w, r.cell);
-    delay = r.k * 45; beam = { end, crate: r.what === "crate" ? olds.findIndex((o) => o.every((v, j) => Math.abs(v - end[j]) < 0.01)) : -1 };
+    const r = w.reach(s, d), end = P0.map((v, j) => v + d[j] * r.k); // straight out k cells, even round w
+    delay = r.k * 45; beam = { end, crate: r.what === "crate" ? s.crates.indexOf(r.cell) : -1 };
   }
   const dead = n.dead ? path(P0, [P0[0], P0[1], -5, P0[3]], false) : null;
   anim = { t0: now, delay, player: dead || pTrack, crates, beam, len: Math.max(dead ? dead.total : pTrack.total, ...crates.map((c) => c.total), 0) };

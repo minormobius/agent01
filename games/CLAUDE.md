@@ -273,7 +273,10 @@ These live here:
   (`> < v ^` in level text): on a ramp, the floor continues one slice over, so
   walking off one carries you a slice along w (`World.rampStep`); crates
   don't take them; `solveFlat` treats them as plain floor for the needs-w
-  proof. Twelve onboarding levels, walk → penrose → downhill. See
+  proof. **Wrapped w** (`wrap: true`; "C" codes): slice W−1 neighbours slice 0
+  in the neighbour table, so ramps climb for ever and the hook flies round;
+  the shader reads cells mod W and repeats the room along w. Fourteen
+  onboarding levels, walk → penrose → downhill → round → behind. See
   [`anakata/README.md`](anakata/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and

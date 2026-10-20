@@ -20,15 +20,16 @@
      crates    to fetch through w, to stand on, to leave on plates
      plates    with doors across another slice's gap
      ramps     a diagonal run through the x-w plane across the barrier, the
-               floor carved away beside it so it carries you                */
+               floor carved away beside it so it carries you
+   and sometimes, on the harder tiers, w wraps round.                       */
 import { World, EMPTY, SOLID, ANCHOR, PLATE, DOOR, GOAL, RAMP_XA, RAMP_XK, isW, ACTIONS } from "./world.js";
 
-export const GEN = "g2"; // bump when a change here changes what a seed makes
+export const GEN = "g3"; // bump when a change here changes what a seed makes
 
 export const TIERS = {
-  easy: { X: [5, 6], Y: [3, 4], W: [3, 3], anchors: [3, 5], crates: [0, 1], plates: 0, second: 0, ramps: 0.35, minW: 1, minHooks: 0, len: [5, 14], tries: 300, keep: 3, limit: 20000 },
-  medium: { X: [6, 7], Y: [4, 5], W: [3, 4], anchors: [4, 6], crates: [1, 1], plates: 0.4, second: 0.35, ramps: 0.45, minW: 2, minHooks: 1, len: [10, 26], tries: 400, keep: 4, limit: 40000 },
-  hard: { X: [6, 7], Y: [5, 6], W: [4, 4], anchors: [5, 8], crates: [1, 2], plates: 0.6, second: 0.85, ramps: 0.45, minW: 3, minHooks: 2, len: [16, 44], tries: 500, keep: 3, limit: 60000 },
+  easy: { X: [5, 6], Y: [3, 4], W: [3, 3], anchors: [3, 5], crates: [0, 1], plates: 0, second: 0, ramps: 0.35, wrap: 0, minW: 1, minHooks: 0, len: [5, 14], tries: 300, keep: 3, limit: 20000 },
+  medium: { X: [6, 7], Y: [4, 5], W: [3, 4], anchors: [4, 6], crates: [1, 1], plates: 0.4, second: 0.35, ramps: 0.45, wrap: 0.1, minW: 2, minHooks: 1, len: [10, 26], tries: 400, keep: 4, limit: 40000 },
+  hard: { X: [6, 7], Y: [5, 6], W: [4, 4], anchors: [5, 8], crates: [1, 2], plates: 0.6, second: 0.85, ramps: 0.45, wrap: 0.15, minW: 3, minHooks: 2, len: [16, 44], tries: 500, keep: 3, limit: 60000 },
 };
 
 export function rng(seed) { // mulberry32
@@ -104,7 +105,7 @@ export function candidate(rnd, T) {
   const si = at(...s), gi = at(...g);
   if (si === gi || crates.includes(si) || crates.includes(gi) || side(s[0], s[1]) === side(g[0], g[1]) && bars.length === 1) return null;
   cells[gi] = GOAL;
-  return { X, Y, Z, W, cells, start: si, crates };
+  return { X, Y, Z, W, cells, start: si, crates, wrap: W >= 4 && rnd() < T.wrap };
 }
 
 /* what a solution does, for choosing the best of the rooms that pass */
@@ -153,6 +154,7 @@ export function generate(seed, tierName = "medium") {
    cells run-length coded, a byte per run, then base64url.
      "B" (now): symbol << 4 | run − 1 (runs up to 16); symbols are the cell
          types (0–9, ramps included), 14 a crate, 15 you.
+     "C" the same, for a room whose w wraps round.
      "A" (the first links): symbol << 5 | run − 1 (runs up to 32); cell
          types 0–5, 6 a crate, 7 you. Still read, so old links still open. */
 const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -180,10 +182,10 @@ export function encode(world) {
   sym[world.start.p] = 15;
   const bytes = [];
   for (let i = 0; i < sym.length;) { let r = 1; while (i + r < sym.length && sym[i + r] === sym[i] && r < 16) r++; bytes.push((sym[i] << 4) | (r - 1)); i += r; }
-  return "B" + [world.X, world.Y, world.Z, world.W].map((n) => n.toString(36)).join("") + b64(bytes);
+  return (world.wrap ? "C" : "B") + [world.X, world.Y, world.Z, world.W].map((n) => n.toString(36)).join("") + b64(bytes);
 }
 export function decode(code, name = "a shared room") {
-  if (!/^[AB][0-9a-z]{4}[A-Za-z0-9_-]+$/.test(code)) throw new Error("not a room code");
+  if (!/^[ABC][0-9a-z]{4}[A-Za-z0-9_-]+$/.test(code)) throw new Error("not a room code");
   const v = code[0], bits = v === "A" ? 5 : 4, CRATE = v === "A" ? 6 : 14, YOU = v === "A" ? 7 : 15, top = v === "A" ? 5 : 9;
   const [X, Y, Zz, W] = code.slice(1, 5).split("").map((c) => parseInt(c, 36)), N = X * Y * Zz * W;
   if (!(X && Y && Zz && W) || N > 4096) throw new Error("not a room code");
@@ -194,5 +196,5 @@ export function decode(code, name = "a shared room") {
   let start = -1;
   for (let i = 0; i < N; i++) { const t = sym[i]; if (t === CRATE) crates.push(i); else if (t === YOU) start = i; else if (t <= top) cells[i] = t; else throw new Error("not a room code"); }
   if (start < 0 || !cells.includes(GOAL)) throw new Error("a room with no start or no goal");
-  return new World({ name, hint: "", X, Y, Z: Zz, W, cells, start, crates });
+  return new World({ name, hint: "", X, Y, Z: Zz, W, cells, start, crates, wrap: v === "C" });
 }

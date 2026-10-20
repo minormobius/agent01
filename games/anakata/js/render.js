@@ -26,11 +26,12 @@ uniform vec4 uC, uEu, uEv, uN;
 uniform vec3 uCamPos, uCamR, uCamU, uCamF;
 uniform vec2 uRes; uniform float uTan;
 uniform vec4 uPlayer; uniform vec4 uCrates[8]; uniform int uNC;
-uniform int uOpen; uniform float uTime; uniform float uPW; uniform float uHook; uniform float uFog;
+uniform int uOpen; uniform int uWrap; uniform float uTime; uniform float uPW; uniform float uHook; uniform float uFog;
 out vec4 frag;
 
 const vec4 EZ = vec4(0.0, 0.0, 1.0, 0.0);
 uint cellAt(ivec4 c) {
+  if (uWrap == 1) c.w = ((c.w % uDims.w) + uDims.w) % uDims.w; // w goes round
   if (any(lessThan(c, ivec4(0))) || any(greaterThanEqual(c, uDims))) return 0u;
   return texelFetch(uGrid, ivec3(c.x, c.y, c.z + uDims.z * c.w), 0).r;
 }
@@ -45,6 +46,7 @@ Hit trace(vec4 o, vec4 d) {
   vec4 dims = vec4(uDims);
   vec4 inv = 1.0 / d;
   vec4 t0 = (vec4(0.0) - o) * inv, t1 = (dims - o) * inv;
+  if (uWrap == 1) { t0.w = -1e9; t1.w = 1e9; } // and the room repeats along it for ever
   vec4 tn = min(t0, t1), tf = max(t0, t1);
   float tin = max(max(tn.x, tn.y), max(tn.z, tn.w)), tout = min(min(tf.x, tf.y), min(tf.z, tf.w));
   if (tin < tout && tout > 0.0) {
@@ -52,7 +54,7 @@ Hit trace(vec4 o, vec4 d) {
     float t = max(tin, 0.0) + 1e-4;
     vec4 p = o + d * t;
     ivec4 cell = ivec4(floor(p));
-    cell = clamp(cell, ivec4(0), uDims - 1);
+    cell.xyz = clamp(cell.xyz, ivec3(0), uDims.xyz - 1); if (uWrap == 0) cell.w = clamp(cell.w, 0, uDims.w - 1);
     vec4 st = sign(d);
     vec4 nx = (vec4(cell) + max(st, 0.0) - o) * inv;
     vec4 dl = abs(inv);
@@ -65,7 +67,7 @@ Hit trace(vec4 o, vec4 d) {
       else if (nx.y <= tnext) { ax = 1; cell.y += int(st.y); t = nx.y; nx.y += dl.y; }
       else if (nx.z <= tnext) { ax = 2; cell.z += int(st.z); t = nx.z; nx.z += dl.z; }
       else { ax = 3; cell.w += int(st.w); t = nx.w; nx.w += dl.w; }
-      if (any(lessThan(cell, ivec4(0))) || any(greaterThanEqual(cell, uDims))) break;
+      if (any(lessThan(cell.xyz, ivec3(0))) || any(greaterThanEqual(cell.xyz, uDims.xyz)) || (uWrap == 0 && (cell.w < 0 || cell.w >= uDims.w))) break;
     }
   }
   // the crates: 4D boxes
@@ -171,7 +173,7 @@ export class Renderer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, "aPos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ["uGrid", "uDims", "uC", "uEu", "uEv", "uN", "uCamPos", "uCamR", "uCamU", "uCamF", "uRes", "uTan", "uPlayer", "uCrates", "uNC", "uOpen", "uTime", "uPW", "uHook", "uFog"]) this.u[n] = gl.getUniformLocation(p, n);
+    for (const n of ["uGrid", "uDims", "uC", "uEu", "uEv", "uN", "uCamPos", "uCamR", "uCamU", "uCamF", "uRes", "uTan", "uPlayer", "uCrates", "uNC", "uOpen", "uTime", "uPW", "uHook", "uFog", "uWrap"]) this.u[n] = gl.getUniformLocation(p, n);
     this.tex = gl.createTexture();
   }
   /* the static cells of a world, into a 3D texture X × Y × (Z·W) */
@@ -182,6 +184,7 @@ export class Renderer {
     gl.texImage3D(gl.TEXTURE_3D, 0, gl.R8UI, world.X, world.Y, world.Z * world.W, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, world.cells);
     gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.uniform4i(this.u.uDims, world.X, world.Y, world.Z, world.W);
+    gl.uniform1i(this.u.uWrap, world.wrap ? 1 : 0);
   }
   /* f: { C, Eu, Ev, N (4D), cam: {pos, R, U, F, tan} (3D, view coords), player (4D), crates [4D], open, time, pw } */
   draw(f, scale) {

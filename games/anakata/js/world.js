@@ -23,6 +23,12 @@
    as well, the way the ramp leans. So a run of ramp tiles is a diagonal path
    through the x-w plane, walkable both ways. Crates don't take ramps.
 
+   A world can WRAP in w: slice W−1 and slice 0 are neighbours, the way the
+   two ends of a ring are. Then a ramp can climb ana for ever (a loop of
+   them round a room is a true Penrose staircase), ana three times can be
+   kata once, and the hook flies round w (coming back empty if it would
+   reach you). Only the neighbour table knows: everything else follows.
+
    Cells: empty, solid, anchor (a solid you can hook), plate (a solid you
    can press by standing on it or leaving a crate on it), door (solid until
    every plate in the world is pressed, or while something stands in it),
@@ -80,12 +86,12 @@ export function parse(def) {
     });
   });
   if (start == null) throw new Error(def.name + ": no start");
-  return new World({ name: def.name, hint: def.hint || "", X, Y, Z, W, cells, start, crates });
+  return new World({ name: def.name, hint: def.hint || "", X, Y, Z, W, cells, start, crates, wrap: !!def.wrap });
 }
 
 export class World {
-  constructor({ name, hint, X, Y, Z, W, cells, start, crates }) {
-    Object.assign(this, { name, hint, X, Y, Z, W, cells });
+  constructor({ name, hint, X, Y, Z, W, cells, start, crates, wrap = false }) {
+    Object.assign(this, { name, hint, X, Y, Z, W, cells, wrap: !!wrap });
     this.N = X * Y * Z * W;
     this.start = { p: start, crates: crates.slice().sort((a, b) => a - b) };
     this.plates = []; this.goals = [];
@@ -95,8 +101,9 @@ export class World {
     for (let i = 0; i < this.N; i++) {
       const c = this.coords(i), lim = [X, Y, Z, W];
       for (let a = 0; a < 4; a++) for (let sgn = 0; sgn < 2; sgn++) {
-        const v = c[a] + (sgn ? -1 : 1);
-        this.nb[i * 8 + a * 2 + sgn] = a === 2 && v < 0 ? -2 : v < 0 || v >= lim[a] ? -1 : i + (sgn ? -1 : 1) * [1, X, X * Y, X * Y * Z][a];
+        const v = c[a] + (sgn ? -1 : 1), str = [1, X, X * Y, X * Y * Z][a];
+        if (a === 3 && this.wrap && (v < 0 || v >= W)) { this.nb[i * 8 + a * 2 + sgn] = i + (v < 0 ? W - 1 : 1 - W) * str; continue; } // w goes round
+        this.nb[i * 8 + a * 2 + sgn] = a === 2 && v < 0 ? -2 : v < 0 || v >= lim[a] ? -1 : i + (sgn ? -1 : 1) * str;
       }
     }
     this.settle(this.start); // a start in mid-air falls
@@ -187,7 +194,7 @@ export class World {
     let q = s.p;
     for (let k = 1; k <= RANGE; k++) {
       q = this.step(q, d);
-      if (q < 0) return { what: "miss", k, cell: -1 };
+      if (q < 0 || q === s.p) return { what: "miss", k, cell: -1 }; // off the world, or all the way round w back to you
       if (s.crates.includes(q)) return { what: "crate", k, cell: q };
       if (this.cells[q] === ANCHOR) return { what: "anchor", k, cell: q };
       if (this.blocked(s, q, open)) return { what: "miss", k, cell: q };
@@ -249,6 +256,8 @@ export class World {
     return false;
   }
 
+  /* this world with w made ends again, or round again: for proving a room needs its wrap */
+  withWrap(wrap) { return new World({ name: this.name, hint: this.hint, X: this.X, Y: this.Y, Z: this.Z, W: this.W, cells: this.cells, start: this.start.p, crates: this.start.crates, wrap }); }
   /* the same search with no way through w at all: no hooking along it, and the ramps just floor */
   solveFlat(limit) { this.rampsOff = true; try { return this.solve((a) => !isW(a), limit); } finally { this.rampsOff = false; } }
 

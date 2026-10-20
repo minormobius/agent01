@@ -48,6 +48,18 @@ The world is a small 4D grid of cells `(x, y, z, w)`, with gravity along −z.
 
   In the level text, the arrow points the way that goes ana: `>` (+x is ana),
   `<` (−x), `v` (+y), `^` (−y).
+- **w can wrap round.** In a room marked `wrap: true`, slice W−1 and slice 0
+  are neighbours, like the two ends of a ring:
+  - a ramp can climb ana for ever, so a ramp loop round a room is a true
+    Penrose staircase;
+  - ana three times can be kata once;
+  - the hook flies round w, and comes back empty if it would reach you.
+
+  Only the neighbour table knows about the wrap; everything else follows from
+  it. In the (x, w) view a wrapped room repeats along w without end: the
+  ray tracer's w-slab is unbounded and cells are read mod W. Crates are drawn
+  in their copy nearest you, and a step across the seam animates the short
+  way round.
 
 A level's state is just where you are and where the crates are, so a
 breadth-first search over states is an exact solver (`World.solve`).
@@ -92,7 +104,7 @@ Readability rules:
 
 ## Levels: the onboarding
 
-Twelve hand-built levels in `js/levels.js`, one idea each. They're written as
+Fourteen hand-built levels in `js/levels.js`, one idea each. They're written as
 text: one block per w-slice, one row per y, and the z layers side by side.
 The selftest:
 - solves every level and pins its par;
@@ -114,6 +126,10 @@ The selftest:
 | 10 | ramp | walking through w | 5 | ✓ |
 | 11 | penrose | walk round a room and arrive four slices ana, beside where you started | 12 | ✓ |
 | 12 | downhill | the ramp won't carry a crate; the hook will | 29 | ✓ |
+| 13 | round | w wraps: ana three times is kata once | 8 | ✓ wrap |
+| 14 | behind | w wraps: the hook flies off one end and comes round | 6 | ✓ wrap |
+
+The two wrapped levels are also proved impossible if w didn't wrap.
 
 ## Rooms made to order
 
@@ -128,6 +144,9 @@ the parts a 4D puzzle needs:
   one of the barrier's gaps.
 - **ramps:** often a diagonal run across the barrier through the x-w plane,
   with the floor carved away beside it so it carries you.
+- **wrap:** sometimes, on medium and hard, w wraps round. Wrapped rooms win
+  the best-of often: they open more ways through, and almost all of them turn
+  out impossible without the wrap.
 - The **start and goal** go on opposite sides of the barriers.
 
 A room is kept only when the solver proves three things:
@@ -169,8 +188,8 @@ Every room's address is the room, written into the URL as `?room=CODE`:
   40 to 220 characters.
 
 `B` codes (now) use 4-bit symbols: cell types 0–9 with the ramps, 14 a crate,
-15 you, runs up to 16. `A` codes, the links from before ramps, used 3-bit
-symbols. They're still read, so every link ever shared still opens.
+15 you, runs up to 16. `C` is the same for a room whose w wraps. `A` codes,
+the links from before ramps, used 3-bit symbols. They're still read, so every link ever shared still opens.
 
 A shared link opens that exact room for anyone, for good, **whatever later
 changes to the generator do to its seeds**. The ⤴ button copies it, or opens
@@ -191,8 +210,8 @@ were. **N** builds a new room in the current tier.
 - **A leaderboard for today's room:** fewest moves, through Orb's board kit.
   Moves can be checked exactly, by replaying the posted solution.
 - **Ramps along y** in the generator, and ramp runs that cross each other.
-- **w that wraps around:** a periodic fourth dimension, so a ramp loop really
-  can go on rising forever. The hook would wrap too.
+- **Gravity in w:** w as a second "down", for a climbing game. See the notes
+  in the conversation that led to it.
 - **A second tool**, and then a fifth dimension for it.
 
 ## Files
