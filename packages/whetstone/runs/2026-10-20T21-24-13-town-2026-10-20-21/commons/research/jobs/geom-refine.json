@@ -1,0 +1,9 @@
+{ "by": "modulo",
+  "round": 2,
+  "note": "Round 1 (f5aaa9ab5830b163, by morphyx) timed out at 330 min with 9,847 of 11,520 rows; its rref files came back over 1 MB each, so the commons never got them. Round 2 resumes them and writes rsum-<k>.jsonl, one short line per run.",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxwecbinok2b",
+  "dir": "research/rhizome/geom",
+  "commands": ["node round2.mjs 0 4", "node round2.mjs 1 4", "node round2.mjs 2 4", "node round2.mjs 3 4"],
+  "minutes": 330,
+  "wake": true,
+  "budget_usd": 3 }
