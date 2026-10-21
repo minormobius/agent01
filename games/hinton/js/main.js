@@ -279,6 +279,23 @@ function overlay(now, F, cam) {
 }
 
 /* ------------------------------------------------------------- the loop */
+/* how many pixels to trace: as sharp as the device can keep up with. Starts high, and steps down (or back
+   up) when the frames run slow (or fast), in steps, at most twice a second, so the canvas isn't
+   reallocated every frame */
+let res = 0, ema = 1 / 60, resT = 0;
+function resolution(dt) {
+  const dpr = Math.min(2, devicePixelRatio || 1), cap = Math.min(dpr, Math.sqrt(2.6e6 / Math.max(1, glc.clientWidth * glc.clientHeight)));
+  const fixed = +new URLSearchParams(location.search).get("res"); // ?res=1.5: fixed, for screenshots and slow machines
+  if (fixed > 0) return Math.min(3, fixed);
+  if (!res) res = Math.min(cap, coarse ? dpr * 0.8 : cap);
+  ema += (dt - ema) * 0.08; resT += dt;
+  if (resT > 0.5) {
+    resT = 0;
+    if (ema > 1 / 38 && res > 0.5) res = Math.max(0.5, res * 0.88);
+    else if (ema < 1 / 56 && res < cap) res = Math.min(cap, res * 1.08);
+  }
+  return Math.round(res * 20) / 20;
+}
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
@@ -290,14 +307,14 @@ function frame(now) {
   if (!won && L.W.won()) win();
   const cam = camera(), P = L.W.P, Wn = L.world.W;
   const crates = L.W.crates.map((c) => (L.world.wrap ? [c.at[0], c.at[1], c.at[2], c.at[3] + Wn * Math.round((P[3] - c.at[3]) / Wn)] : c.at));
-  const scale = matchMedia("(pointer: coarse)").matches ? 0.55 : Math.min(1, 1300 / Math.max(1, glc.clientWidth));
-  Rd.draw({ C: P, Eu: F.Eu, Ev: F.Ev, Ez: F.Ez, N: F.N, cam, player: P, crates, open: L.world.doorsOpen(L.W.s), time: now / 1000, pw: P[3], sky: LANES[L.lane].sky, hideYou: true, ghostNear: 0.45 }, scale * Math.min(2, devicePixelRatio || 1));
+  const scale = resolution(dt);
+  Rd.draw({ C: P, Eu: F.Eu, Ev: F.Ev, Ez: F.Ez, N: F.N, cam, player: P, crates, open: L.world.doorsOpen(L.W.s), time: now / 1000, pw: P[3], sky: LANES[L.lane].sky, hideYou: true, ghostNear: 0.45, style: 1 }, scale);
   overlay(now, F, cam);
 }
 requestAnimationFrame(frame);
 
 function win() {
-  won = true; keys.clear(); stick = null;
+  won = true; keys.clear(); stick = null; touches.clear(); stickRest();
   if (document.pointerLockElement) document.exitPointerLock();
   const key = bestKey(), prev = best[key], m = L.W.moves, atPar = L.par != null && m <= L.par;
   if (!prev || m < prev) { best[key] = m; const ks = Object.keys(best); if (ks.length > 300) delete best[ks.find((k) => k.startsWith("room:"))]; saveBest(); }
@@ -337,21 +354,37 @@ document.addEventListener("mousemove", (e) => {
   if (document.pointerLockElement !== glc) return;
   yaw += e.movementX * 0.0025; pitch = Math.max(-1.45, Math.min(1.45, pitch - e.movementY * 0.0025));
 });
-// touch: the left half is a stick, the right half looks
-const touches = new Map();
-glc.addEventListener("pointerdown", (e) => {
-  if (e.pointerType === "mouse") return;
-  glc.setPointerCapture(e.pointerId);
-  touches.set(e.pointerId, { left: e.clientX < innerWidth / 2, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY });
-});
-glc.addEventListener("pointermove", (e) => {
-  const t = touches.get(e.pointerId); if (!t) return;
-  if (t.left) { const dx = e.clientX - t.x0, dy = e.clientY - t.y0, m = Math.max(1, Math.hypot(dx, dy) / 55); stick = { x: dx / 55 / m, y: dy / 55 / m }; }
-  else { yaw += (e.clientX - t.x) * 0.006; pitch = Math.max(-1.45, Math.min(1.45, pitch - (e.clientY - t.y) * 0.006)); }
-  t.x = e.clientX; t.y = e.clientY;
-});
-const lift = (e) => { const t = touches.get(e.pointerId); if (!t) return; if (t.left) stick = null; touches.delete(e.pointerId); };
-glc.addEventListener("pointerup", lift); glc.addEventListener("pointercancel", lift);
+/* touch: a stick on the left (drawn, so you can find it; it follows your thumb wherever on the left half it
+   lands), and the right half looks. Pointer events where there are any, touch events where there aren't */
+const STICK_R = 52, touches = new Map(), coarse = matchMedia("(pointer: coarse)").matches;
+const stickEl = $("stick"), knobEl = $("knob");
+function stickRest() { stickEl.style.left = ""; stickEl.style.top = ""; stickEl.classList.remove("live"); knobEl.style.transform = ""; }
+function press(id, x, y) {
+  const left = x < innerWidth / 2;
+  touches.set(id, { left, x0: x, y0: y, x, y });
+  if (left) { stickEl.style.left = x - STICK_R + "px"; stickEl.style.top = y - STICK_R + "px"; stickEl.classList.add("live"); stick = { x: 0, y: 0 }; }
+}
+function drag(id, x, y) {
+  const t = touches.get(id); if (!t) return;
+  if (t.left) {
+    const dx = x - t.x0, dy = y - t.y0, m = Math.hypot(dx, dy), k = m > STICK_R ? STICK_R / m : 1;
+    knobEl.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
+    const dead = 6, s = m < dead ? 0 : Math.min(1, (m - dead) / (STICK_R - dead)) / (m || 1);
+    stick = { x: dx * s, y: dy * s };
+  } else { yaw += (x - t.x) * 0.006; pitch = Math.max(-1.45, Math.min(1.45, pitch - (y - t.y) * 0.006)); }
+  t.x = x; t.y = y;
+}
+function release(id) { const t = touches.get(id); if (!t) return; if (t.left) { stick = null; stickRest(); } touches.delete(id); }
+if (window.PointerEvent) {
+  glc.addEventListener("pointerdown", (e) => { if (e.pointerType === "mouse") return; try { glc.setPointerCapture(e.pointerId); } catch (err) { /* fine without */ } press(e.pointerId, e.clientX, e.clientY); e.preventDefault(); });
+  glc.addEventListener("pointermove", (e) => { if (e.pointerType !== "mouse") { drag(e.pointerId, e.clientX, e.clientY); e.preventDefault(); } });
+  for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) glc.addEventListener(ev, (e) => release(e.pointerId));
+} else {
+  glc.addEventListener("touchstart", (e) => { for (const t of e.changedTouches) press(t.identifier, t.clientX, t.clientY); e.preventDefault(); }, { passive: false });
+  glc.addEventListener("touchmove", (e) => { for (const t of e.changedTouches) drag(t.identifier, t.clientX, t.clientY); e.preventDefault(); }, { passive: false });
+  for (const ev of ["touchend", "touchcancel"]) glc.addEventListener(ev, (e) => { for (const t of e.changedTouches) release(t.identifier); });
+}
+if (coarse) document.body.classList.add("touch");
 $("hook").onclick = hookFire;
 $("view").onclick = () => turnSight(1);
 $("undo").onclick = undo;
@@ -363,7 +396,7 @@ $("hint-x").onclick = () => { $("hint").hidden = true; };
 /* ------------------------------------------------------------- menus */
 function showLevels() {
   if (document.pointerLockElement) document.exitPointerLock();
-  keys.clear(); stick = null;
+  keys.clear(); stick = null; touches.clear(); stickRest();
   for (const lane of Object.keys(LANES)) {
     const list = $("list-" + lane); list.innerHTML = "";
     LANES[lane].levels.forEach((def, i) => {

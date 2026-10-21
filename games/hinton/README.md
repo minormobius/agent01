@@ -46,6 +46,15 @@ move.
 
 ## Seeing
 
+- **The blocks** are drawn for a camera up close (the renderer's
+  `style: 1`, which only Hinton uses). Each face is shaded by which way it
+  looks, top brightest, as block worlds do. A grain of 8 texels per cell
+  edge gives one shade per texel, and crates get planks. Top faces have a
+  bevel, and an outline stays a pixel or two wide at any distance.
+- **Resolution adapts.** It starts sharp (about 0.8× the device's pixels on
+  a phone) and steps down when frames run slow, or back up when they run
+  fast, at most twice a second. `?res=1.5` fixes it, for screenshots or a
+  slow machine.
 - **Your eye** sits just above the centre of your cell: you're one cell
   tall. The view is Anakata's 4D ray tracer (`../anakata/js/render.js`), with
   the camera behind your eyes. Your own ball isn't drawn, and the slices
@@ -73,7 +82,7 @@ move.
 
 | | desktop | phone |
 |---|---|---|
-| walk | WASD or arrows | the left of the screen is a stick |
+| walk | WASD or arrows | the stick: drawn at the bottom left, it jumps to wherever your thumb lands on the left half |
 | look | click, then the mouse | drag the right of the screen |
 | hook | click again, or Space | HOOK |
 | sight | V | SIGHT |

@@ -30,7 +30,7 @@ uniform vec3 uCamPos, uCamR, uCamU, uCamF;
 uniform vec2 uRes; uniform float uTan;
 uniform vec4 uPlayer; uniform vec4 uCrates[8]; uniform int uNC;
 uniform int uOpen; uniform int uWrap; uniform float uTime; uniform float uPW; uniform float uHook; uniform float uFog;
-uniform vec3 uSkyLo, uSkyHi, uHaze; uniform float uCeil, uCut; uniform int uShowYou; uniform float uGhostNear;
+uniform vec3 uSkyLo, uSkyHi, uHaze; uniform float uCeil, uCut; uniform int uShowYou; uniform float uGhostNear; uniform int uStyle;
 out vec4 frag;
 
 uint cellAt(ivec4 c) {
@@ -39,6 +39,7 @@ uint cellAt(ivec4 c) {
   return texelFetch(uGrid, ivec3(c.x, c.y, c.z + uDims.z * c.w), 0).r;
 }
 vec3 toView(vec4 n) { return vec3(dot(n, uEu), dot(n, uEv), dot(n, uEz)); }
+float hash4(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.581))) * 43758.5453); }
 vec4 axisVec(int a) { return a == 0 ? vec4(1,0,0,0) : a == 1 ? vec4(0,1,0,0) : a == 2 ? vec4(0,0,1,0) : vec4(0,0,0,1); }
 vec4 safeD(vec4 d) { return mix(d, sign(d + 1e-12) * 1e-6, vec4(lessThan(abs(d), vec4(1e-6)))); }
 
@@ -133,6 +134,22 @@ vec3 shade(Hit h, vec3 rd3) {
   // which slice it's in, relative to yours: ana warm, kata cool
   float wr = clamp(float(c.w) + 0.5 - uPW, -2.5, 2.5);
   col *= mix(vec3(1.0), wr > 0.0 ? vec3(1.28, 0.92, 0.72) : vec3(0.72, 0.9, 1.3), clamp(abs(wr) / 2.0, 0.0, 1.0) * 0.9);
+  if (uStyle == 1) { // blocks with faces of their own, for a camera up close (Hinton)
+    // shaded by which way the face looks, top brightest, as block worlds do, and a little by the sun
+    float face = n3.z > 0.6 ? 1.0 : n3.z < -0.6 ? 0.52 : 0.6 + 0.2 * abs(n3.x) + 0.08 * abs(n3.y);
+    col *= face * (0.82 + 0.3 * max(dot(n3, L), 0.0));
+    // a grain of 8 texels a cell along the face, one hash per texel; crates get planks
+    vec4 tx = floor(fract(h.p + 1e-4) * 8.0); tx[h.axis] = 0.0;
+    float g = hash4(vec4(c) * 7.31 + tx * 1.17);
+    col *= 0.9 + 0.16 * g;
+    if (h.kind == 16) { float u = fract(dot(fract(h.p), vec4(0.0, 0.0, 1.0, 0.0)) * 3.0); col *= 0.82 + 0.18 * smoothstep(0.0, 0.08, min(u, 1.0 - u)); }
+    // a bevel on the top faces, and an outline that stays a pixel or two wide at any distance
+    float px = h.t * 2.0 * uTan / uRes.y, lw = max(0.01, px * 1.1);
+    if (n3.z > 0.6) col *= 1.0 + 0.14 * (1.0 - smoothstep(lw, lw + 0.09, edge));
+    col *= mix(0.42, 1.0, smoothstep(lw, lw + 1.5 * px + 0.006, edge));
+    if (h.kind == 2) col += vec3(0.05, 0.25, 0.3);
+    return col;
+  }
   float dif = max(dot(n3, L), 0.0);
   col = col * (0.42 + 0.68 * dif);
   if (h.kind == 2) col += vec3(0.05, 0.25, 0.3);
@@ -196,7 +213,7 @@ export class Renderer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, "aPos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ["uGrid", "uDims", "uC", "uEu", "uEv", "uEz", "uN", "uCamPos", "uCamR", "uCamU", "uCamF", "uRes", "uTan", "uPlayer", "uCrates", "uNC", "uOpen", "uTime", "uPW", "uHook", "uFog", "uWrap", "uSkyLo", "uSkyHi", "uHaze", "uCeil", "uCut", "uShowYou", "uGhostNear"]) this.u[n] = gl.getUniformLocation(p, n);
+    for (const n of ["uGrid", "uDims", "uC", "uEu", "uEv", "uEz", "uN", "uCamPos", "uCamR", "uCamU", "uCamF", "uRes", "uTan", "uPlayer", "uCrates", "uNC", "uOpen", "uTime", "uPW", "uHook", "uFog", "uWrap", "uSkyLo", "uSkyHi", "uHaze", "uCeil", "uCut", "uShowYou", "uGhostNear", "uStyle"]) this.u[n] = gl.getUniformLocation(p, n);
     this.tex = gl.createTexture();
   }
   /* the static cells of a world, into a 3D texture X × Y × (Z·W) */
@@ -214,7 +231,8 @@ export class Renderer {
         ceil (optional: cells whose centre is more than this far above C, along Ez, aren't drawn),
         cut (optional: cells above C within this far of the line from C to the camera aren't drawn),
         hideYou (optional: don't draw your ball, for a camera behind your eyes), ghostNear (optional: the
-        slices either side are traced from this far out) } */
+        slices either side are traced from this far out), style (optional: 1 for blocks with textured, bevelled,
+        outlined faces, for a camera up close) } */
   draw(f, scale) {
     const gl = this.gl, c = this.canvas;
     const w = Math.max(1, Math.round(c.clientWidth * scale)), h = Math.max(1, Math.round(c.clientHeight * scale));
@@ -230,7 +248,7 @@ export class Renderer {
     gl.uniform4fv(u.uCrates, cr); gl.uniform1i(u.uNC, Math.min(8, f.crates.length));
     gl.uniform1i(u.uOpen, f.open ? 1 : 0); gl.uniform1f(u.uTime, f.time); gl.uniform1f(u.uPW, f.pw); gl.uniform1f(u.uHook, 0); gl.uniform1f(u.uFog, f.cam.dist || 9);
     const sky = f.sky || SKY; gl.uniform3fv(u.uSkyLo, sky[0]); gl.uniform3fv(u.uSkyHi, sky[1]); gl.uniform3fv(u.uHaze, sky[2]);
-    gl.uniform1f(u.uCeil, f.ceil == null ? 1e9 : f.ceil); gl.uniform1f(u.uCut, f.cut || 0); gl.uniform1i(u.uShowYou, f.hideYou ? 0 : 1); gl.uniform1f(u.uGhostNear, f.ghostNear || 0);
+    gl.uniform1f(u.uCeil, f.ceil == null ? 1e9 : f.ceil); gl.uniform1f(u.uCut, f.cut || 0); gl.uniform1i(u.uShowYou, f.hideYou ? 0 : 1); gl.uniform1f(u.uGhostNear, f.ghostNear || 0); gl.uniform1i(u.uStyle, f.style || 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }

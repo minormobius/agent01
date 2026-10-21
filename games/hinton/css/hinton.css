@@ -85,3 +85,12 @@ button.ghost { background: transparent; color: var(--text); border: 1px solid va
   #top .h.grow { margin-left: 0; align-items: flex-start; flex-basis: 100%; }
   #hint { top: calc(96px + env(safe-area-inset-top)); }
 }
+/* the touch stick: drawn where it rests, and under your thumb while you hold it */
+#stick, #lookpad { display: none; }
+body.touch #stick { display: block; position: absolute; left: 22px; top: calc(100% - 190px - env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%;
+  border: 2px solid rgba(87, 230, 200, 0.45); background: radial-gradient(rgba(87, 230, 200, 0.10), rgba(87, 230, 200, 0.03)); pointer-events: none; opacity: 0.75; transition: opacity .15s; }
+body.touch #stick.live { opacity: 1; transition: none; }
+#knob { position: absolute; left: 32px; top: 32px; width: 40px; height: 40px; border-radius: 50%; background: rgba(87, 230, 200, 0.55); box-shadow: 0 0 14px rgba(87, 230, 200, 0.5); }
+#stick span { position: absolute; left: 0; right: 0; top: 108px; text-align: center; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; color: var(--dim); text-transform: uppercase; }
+#stick.live span { display: none; }
+body.touch #lookpad { display: block; position: absolute; right: 18px; top: 45%; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); opacity: 0.6; pointer-events: none; }
