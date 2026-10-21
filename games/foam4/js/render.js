@@ -34,11 +34,11 @@ uint hashU(ivec4 g, uint k) {
   n ^= n >> 16u; n *= 0x7feb352du; n ^= n >> 15u; n *= 0x846ca68bu; n ^= n >> 16u;
   return n;
 }
-float hashF(ivec4 g, uint k) { return float(hashU(g, k)) / 4294967296.0; }
+float jit(uint n, uint k) { uint m = n ^ ((k + 1u) * 0x9e3779b9u); m ^= m >> 16u; m *= 0x7feb352du; m ^= m >> 15u; return float(m) / 4294967296.0; }
 vec4 seedOf(vec4 id) {
   if (uLattice == 1) return uB * id;
-  ivec4 g = ivec4(id);
-  return id + 0.5 + uJitter * (vec4(hashF(g, 0u), hashF(g, 1u), hashF(g, 2u), hashF(g, 3u)) - 0.5);
+  uint n = hashU(ivec4(id), 0u); // one full hash a seed, remixed cheaply for its four coordinates, as foam.js does
+  return id + 0.5 + uJitter * (vec4(jit(n, 0u), jit(n, 1u), jit(n, 2u), jit(n, 3u)) - 0.5);
 }
 vec4 nbId(vec4 id, int j) { // the j-th neighbour (lattice: < uNRel; random: < 80)
   if (uLattice == 1) return id + uRelK[j];

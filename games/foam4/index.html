@@ -14,8 +14,8 @@
 <canvas id="over" aria-hidden="true"></canvas>
 <div id="panel">
   <div id="title"><b>FOAM⁴</b> <span>a 4D Voronoi foam, one 3D slice at a time</span></div>
-  <div id="readout"></div>
-  <div id="log"></div>
+  <div id="readout"><b id="r-cells">0</b> cells in the box, <b id="r-in">0</b> clear of its walls (mean <b id="r-mean">—</b> faces), <b id="r-pairs">0</b> faces between cells.<br>The <b>centre cell</b><span id="r-fcut"></span>: <b id="r-ff">0</b> faces (<span id="r-fk">—</span>), <b id="r-fv">0</b> corners; its seed is <b id="r-fh">0</b> off the slice.<br>As w moved: <b id="r-b">0</b> born · <b id="r-d">0</b> died · <b id="r-f">0</b> flips <span class="dim">(<span id="r-o">0</span> edge→face, <span id="r-c">0</span> face→edge)</span> <button type="button" id="zero" class="tiny">reset</button></div>
+  <div id="log"><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
   <h3>species</h3>
   <div class="seg species">
     <button type="button" data-species="random">random</button>

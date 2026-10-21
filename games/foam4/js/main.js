@@ -45,7 +45,8 @@ function project(q, cam) {
 const worker = new Worker(new URL("./slice-worker.js", import.meta.url), { type: "module" });
 let asked = 0, busy = false, pending = false, last = null, lastSig = "";
 const tally = { births: 0, deaths: 0, opened: 0, closed: 0 }, log = [];
-function want() { if (busy) { pending = true; return; } busy = true; pending = false; const { F, C } = sliceNow(); worker.postMessage({ id: ++asked, species: S.species, jitter: S.jitter, C, F, B: S.box, w: S.w }); }
+let lastAsk = 0;
+function want() { if (busy) { pending = true; return; } busy = true; pending = false; lastAsk = performance.now(); const { F, C } = sliceNow(); worker.postMessage({ id: ++asked, species: S.species, jitter: S.jitter, C, F, B: S.box, w: S.w }); }
 worker.onmessage = (e) => {
   busy = false;
   const r = e.data, pairs = new Set(r.pairs), sig = [S.species, S.jitter, S.tilt.join(), S.box].join("|");
@@ -70,40 +71,77 @@ function resetTally() { Object.keys(tally).forEach((k) => (tally[k] = 0)); log.l
 
 /* ------------------------------------------------------------- readouts */
 const NAMES = { 3: "triangles", 4: "quadrilaterals", 5: "pentagons", 6: "hexagons", 7: "heptagons", 8: "octagons" };
+/* the readout is built once in the page; only its text changes. A sweep updates it many times a second, and
+   Safari on a phone cancels a tap if it sees new elements appear just after it, which is what rebuilding
+   the readout used to do */
+const put = (id, v) => { const el = $(id), t = String(v); if (el.textContent !== t) el.textContent = t; };
 function readout() {
   if (!last) return;
   const inside = last.cells.filter((c) => c.inside), f = last.cells.find((c) => c.key === last.focusKey);
-  const mean = inside.length ? (inside.reduce((s, c) => s + c.faces, 0) / inside.length).toFixed(1) : "—";
-  let html = `<b>${last.cells.length}</b> cells in the box, <b>${inside.length}</b> clear of its walls (mean <b>${mean}</b> faces), <b>${last.pairs.size}</b> faces between cells.`;
+  put("r-cells", last.cells.length); put("r-in", inside.length); put("r-pairs", last.pairs.size);
+  put("r-mean", inside.length ? (inside.reduce((s, c) => s + c.faces, 0) / inside.length).toFixed(1) : "—");
   if (f) {
     const kinds = Object.entries(f.kinds).sort((a, b) => a[0] - b[0]).map(([n, k]) => `${k} ${k === 1 ? (NAMES[n] || n + "-gons").replace(/s$/, "") : NAMES[n] || n + "-gons"}`).join(", ");
-    html += `<br>The <b>centre cell</b>${f.inside ? "" : " (cut by the box)"}: <b>${f.faces}</b> faces (${kinds || "—"}), <b>${f.verts}</b> corners; its seed is <b>${f.h.toFixed(2)}</b> off the slice.`;
+    put("r-fcut", f.inside ? "" : " (cut by the box)"); put("r-ff", f.faces); put("r-fk", kinds || "—"); put("r-fv", f.verts); put("r-fh", f.h.toFixed(2));
   }
-  html += `<br>As w moved: <b>${tally.births}</b> born · <b>${tally.deaths}</b> died · <b>${tally.opened + tally.closed}</b> flips <span class="dim">(${tally.opened} edge→face, ${tally.closed} face→edge)</span> <button type="button" id="zero" class="tiny">reset</button>`;
-  $("readout").innerHTML = html;
-  $("zero").onclick = resetTally;
-  $("log").innerHTML = log.map((s) => `<div>${s}</div>`).join("");
+  put("r-b", tally.births); put("r-d", tally.deaths); put("r-f", tally.opened + tally.closed); put("r-o", tally.opened); put("r-c", tally.closed);
+  [...$("log").children].forEach((el, i) => { const t = log[i] || ""; if (el.textContent !== t) el.textContent = t; });
 }
+$("zero").onclick = () => resetTally();
+
+/* taps: a finger lifted on the button it went down on, without moving far, presses it at once. Safari can
+   swallow the click that would follow when the page is changing as fast as a sweep makes it, so the click
+   isn't waited for (and if it does come, it's ignored, so nothing is pressed twice) */
+const downs = new Map(); let tappedAt = 0;
+document.addEventListener("pointerdown", (e) => { if (e.pointerType === "mouse") return; const b = e.target.closest && e.target.closest("button"); if (b) downs.set(e.pointerId, { b, x: e.clientX, y: e.clientY }); }, true);
+document.addEventListener("pointercancel", (e) => downs.delete(e.pointerId), true);
+document.addEventListener("pointerup", (e) => {
+  const d = downs.get(e.pointerId); downs.delete(e.pointerId);
+  if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12) return;
+  tappedAt = performance.now(); d.b.click();
+}, true);
+document.addEventListener("click", (e) => { if (e.isTrusted && performance.now() - tappedAt < 700 && e.target.closest && e.target.closest("button")) { e.stopPropagation(); e.preventDefault(); } }, true);
 
 /* ------------------------------------------------------------- drawing */
 let res = 0, ema = 1 / 60, resT = 0;
-function resolution(dt) { // as sharp as the device keeps up with
+/* as sharp as the device keeps up with: dt is the time between finished frames while it's drawing
+   continuously (a gap means it was idle, which says nothing about speed) */
+function resolution(dt) {
   const dpr = Math.min(2, devicePixelRatio || 1), cap = Math.min(dpr, Math.sqrt(2.2e6 / Math.max(1, glc.clientWidth * glc.clientHeight)));
   if (!res) res = cap * 0.7;
-  ema += (dt - ema) * 0.1; resT += dt;
-  if (resT > 0.5) { resT = 0; if (ema > 1 / 30 && res > 0.35) res *= 0.85; else if (ema < 1 / 50 && res < cap) res = Math.min(cap, res * 1.1); }
+  if (dt > 0.4) return Math.round(res * 20) / 20;
+  ema += (dt - ema) * 0.15; resT += dt;
+  if (resT > 0.3) {
+    resT = 0;
+    if (ema > 1 / 20 && res > 0.2) res = Math.max(0.2, res * 0.75);
+    else if (ema > 1 / 32 && res > 0.2) res = Math.max(0.2, res * 0.88);
+    else if (ema < 1 / 50 && res < cap) res = Math.min(cap, res * 1.08);
+  }
   return Math.round(res * 20) / 20;
 }
+/* never more than one frame on the GPU: a new one is drawn only once the last has finished (a fence),
+   so the page never blocks waiting on the GPU, and taps on the panel get through even while sweeping */
+let fence = null, lastDraw = performance.now();
 let prevT = performance.now(), dirty = true;
 function frameLoop(now) {
   requestAnimationFrame(frameLoop);
   const dt = Math.min(0.1, (now - prevT) / 1000); prevT = now;
-  if (S.playing) { S.w += S.speed * dt; if (S.w > 2) S.w -= 4; $("w").value = S.w; $("wv").textContent = S.w.toFixed(2); want(); dirty = true; }
+  // sweeping: w moves every frame, but the foam is drawn at most 30 times a second and sliced at most 8, so
+  // there's always time left over for a tap on the panel
+  if (S.playing) {
+    S.w += S.speed * dt; if (S.w > 2) S.w -= 4; $("w").value = S.w; $("wv").textContent = S.w.toFixed(2);
+    if (now - lastAsk > 125) want();
+    if (now - lastDraw > 33) dirty = true;
+  }
   if (!dirty && !dragging) return;
+  const gl = R.gl;
+  if (fence) { if (gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) return; gl.deleteSync(fence); fence = null; }
   dirty = false;
+  const ddt = (now - lastDraw) / 1000; lastDraw = now;
   const { F, C } = sliceNow(), cam = camera(), sp = species();
   const focus = S.mode === 2 ? nearest(sp, C).id : null;
-  R.draw({ C, F, cam, box: S.box, mode: S.mode, focus }, resolution(dt));
+  R.draw({ C, F, cam, box: S.box, mode: S.mode, focus }, resolution(ddt));
+  fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
   overlay(cam);
 }
 function overlay(cam) {

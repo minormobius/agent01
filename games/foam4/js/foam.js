@@ -97,7 +97,10 @@ export function hashU(ix, iy, iz, iw, k) {
   n ^= n >>> 16; n = Math.imul(n, 0x7feb352d) >>> 0; n ^= n >>> 15; n = Math.imul(n, 0x846ca68b) >>> 0; n ^= n >>> 16;
   return (n >>> 0) / 4294967296;
 }
-const gridSeed = (g, jitter) => g.map((v, k) => v + 0.5 + jitter * (hashU(g[0], g[1], g[2], g[3], k) - 0.5));
+/* one full hash per seed, and its four coordinates' jitter drawn from it by a cheap remix: the shader does
+   this for 80 seeds at every membrane, so it has to be cheap */
+const jit = (n, k) => { let m = (n ^ Math.imul(k + 1, 0x9e3779b9 | 0)) >>> 0; m ^= m >>> 16; m = Math.imul(m, 0x7feb352d) >>> 0; m ^= m >>> 15; return m / 4294967296; };
+const gridSeed = (g, jitter) => { const n = Math.floor(hashU(g[0], g[1], g[2], g[3], 0) * 4294967296) >>> 0; return g.map((v, k) => v + 0.5 + jitter * (jit(n, k) - 0.5)); };
 const OFFS = []; for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) for (let d = -1; d <= 1; d++) if (a || b || c || d) OFFS.push([a, b, c, d]);
 
 /* a seed by its id (lattice: basis coordinates; random: grid cell), and its neighbours */
