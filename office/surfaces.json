@@ -2579,6 +2579,15 @@
    "parent": "games"
   },
   {
+   "id": "hinton",
+   "name": "hinton",
+   "url": "https://games.mino.mobi/hinton/",
+   "cat": "games",
+   "commits": 3,
+   "age": "warm",
+   "parent": "games"
+  },
+  {
    "id": "tessera",
    "name": "tessera",
    "url": "https://games.mino.mobi/tessera/",

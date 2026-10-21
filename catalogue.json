@@ -3860,6 +3860,23 @@
       ]
     },
     {
+      "n": "hinton",
+      "u": "https://games.mino.mobi/hinton/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-21",
+      "b": "2026-10-21",
+      "p": "games",
+      "surface": "games",
+      "d": "Four-dimensional rooms in first person: you walk them from behind your own eyes, and turning your sight swings the slice you see through the fourth dimension. Two lanes on one engine, Anakata's rooms (w a direction you hook across) and Anabasis's (w a second down, falling kata, ramps the only way ana), with their levels, generators and daily rooms. Movement is free, but every cell you cross is one of the rules' own moves, so every room is the same proved puzzle at the same par; the selftest walks every level to prove it.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "tessera",
       "u": "https://games.mino.mobi/tessera/",
       "c": "games",

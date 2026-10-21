@@ -30,7 +30,7 @@ uniform vec3 uCamPos, uCamR, uCamU, uCamF;
 uniform vec2 uRes; uniform float uTan;
 uniform vec4 uPlayer; uniform vec4 uCrates[8]; uniform int uNC;
 uniform int uOpen; uniform int uWrap; uniform float uTime; uniform float uPW; uniform float uHook; uniform float uFog;
-uniform vec3 uSkyLo, uSkyHi, uHaze; uniform float uCeil, uCut;
+uniform vec3 uSkyLo, uSkyHi, uHaze; uniform float uCeil, uCut; uniform int uShowYou; uniform float uGhostNear;
 out vec4 frag;
 
 uint cellAt(ivec4 c) {
@@ -45,7 +45,7 @@ vec4 safeD(vec4 d) { return mix(d, sign(d + 1e-12) * 1e-6, vec4(lessThan(abs(d),
 /* the nearest thing along o + t·d: kind 1 solid, 2 anchor, 3 plate, 4 door, 6–9 ramps, 16 crate, 17 you; glow = length through goal cells before it */
 struct Hit { float t; int kind; int axis; float sgn; vec4 p; float glow; vec4 pl; };
 
-Hit trace(vec4 o, vec4 d, vec4 pl) { // pl: where you are, as this ray sees you
+Hit trace(vec4 o, vec4 d, vec4 pl, float near) { // pl: where you are, as this ray sees you; nothing nearer than near is hit
   Hit h; h.t = 1e9; h.pl = pl; h.kind = 0; h.axis = 2; h.sgn = 1.0; h.glow = 0.0;
   vec4 dims = vec4(uDims);
   vec4 inv = 1.0 / d;
@@ -72,7 +72,7 @@ Hit trace(vec4 o, vec4 d, vec4 pl) { // pl: where you are, as this ray sees you
       }
       float tnext = min(min(nx.x, nx.y), min(nx.z, nx.w));
       if (v == 5u) h.glow += max(0.0, tnext - t);
-      else if (v != 0u && !(v == 4u && uOpen == 1)) { h.t = t; h.kind = int(v); h.axis = ax; h.sgn = -st[ax]; break; }
+      else if (v != 0u && !(v == 4u && uOpen == 1) && t >= near) { h.t = t; h.kind = int(v); h.axis = ax; h.sgn = -st[ax]; break; }
       if (nx.x <= tnext) { ax = 0; cell.x += int(st.x); t = nx.x; nx.x += dl.x; }
       else if (nx.y <= tnext) { ax = 1; cell.y += int(st.y); t = nx.y; nx.y += dl.y; }
       else if (nx.z <= tnext) { ax = 2; cell.z += int(st.z); t = nx.z; nx.z += dl.z; }
@@ -87,12 +87,12 @@ Hit trace(vec4 o, vec4 d, vec4 pl) { // pl: where you are, as this ray sees you
     vec4 b0 = (c - 0.43 - o) * inv, b1 = (c + 0.43 - o) * inv;
     vec4 bn = min(b0, b1), bf = max(b0, b1);
     float a = max(max(bn.x, bn.y), max(bn.z, bn.w)), b = min(min(bf.x, bf.y), min(bf.z, bf.w));
-    if (a < b && a > 0.0 && a < h.t) { h.t = a; h.kind = 16; h.axis = bn.x == a ? 0 : bn.y == a ? 1 : bn.z == a ? 2 : 3; h.sgn = -sign(d[h.axis]); }
+    if (a < b && a > near && a < h.t) { h.t = a; h.kind = 16; h.axis = bn.x == a ? 0 : bn.y == a ? 1 : bn.z == a ? 2 : 3; h.sgn = -sign(d[h.axis]); }
   }
   // you: a 4D ball
   vec4 oc = o - pl;
   float B = dot(oc, d), Cc = dot(oc, oc) - 0.36 * 0.36, A = dot(d, d), disc = B * B - A * Cc;
-  if (disc > 0.0) { float t = (-B - sqrt(disc)) / A; if (t > 0.0 && t < h.t) { h.t = t; h.kind = 17; } }
+  if (disc > 0.0 && uShowYou == 1) { float t = (-B - sqrt(disc)) / A; if (t > near && t < h.t) { h.t = t; h.kind = 17; } }
   h.p = o + d * h.t;
   return h;
 }
@@ -154,7 +154,7 @@ void main() {
   vec4 d = safeD(rd3.x * uEu + rd3.y * uEv + rd3.z * uEz);
   // sky: dusk above, void below (each game picks its own)
   vec3 sky = mix(uSkyLo, uSkyHi, smoothstep(-0.4, 0.6, rd3.z));
-  Hit h = trace(o, d, uPlayer);
+  Hit h = trace(o, d, uPlayer, 0.0);
   vec3 col = look(h, rd3, sky);
   float far = h.kind != 0 ? h.t : 1e8;
   // the slices either side. At rest, each is laid over faintly as itself (a ramp with its gradient, so
@@ -168,7 +168,7 @@ void main() {
   vec3 next = col; float cw = 0.0;
   for (int s = -1; s <= 1; s += 2) {
     vec4 sh = uN * float(s);
-    Hit g = trace(o + sh, d, uPlayer + sh);
+    Hit g = trace(o + sh, d, uPlayer + sh, uGhostNear); // seen from inside a room, skip what's at the eye: the slice beside yours is solid right where you stand
     if (g.kind != 0 && g.kind != 17 && g.t < far - 0.05 && ivec4(floor(g.p - axisVec(g.axis) * g.sgn * 0.5 - sh)) != me) {
       vec3 tint = s > 0 ? vec3(1.0, 0.6, 0.35) : vec3(0.45, 0.68, 1.0);
       float base = (g.kind >= 6 && g.kind <= 9) ? 0.5 : g.kind == 2 ? 0.32 : 0.2;
@@ -196,7 +196,7 @@ export class Renderer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, "aPos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ["uGrid", "uDims", "uC", "uEu", "uEv", "uEz", "uN", "uCamPos", "uCamR", "uCamU", "uCamF", "uRes", "uTan", "uPlayer", "uCrates", "uNC", "uOpen", "uTime", "uPW", "uHook", "uFog", "uWrap", "uSkyLo", "uSkyHi", "uHaze", "uCeil", "uCut"]) this.u[n] = gl.getUniformLocation(p, n);
+    for (const n of ["uGrid", "uDims", "uC", "uEu", "uEv", "uEz", "uN", "uCamPos", "uCamR", "uCamU", "uCamF", "uRes", "uTan", "uPlayer", "uCrates", "uNC", "uOpen", "uTime", "uPW", "uHook", "uFog", "uWrap", "uSkyLo", "uSkyHi", "uHaze", "uCeil", "uCut", "uShowYou", "uGhostNear"]) this.u[n] = gl.getUniformLocation(p, n);
     this.tex = gl.createTexture();
   }
   /* the static cells of a world, into a 3D texture X × Y × (Z·W) */
@@ -212,7 +212,9 @@ export class Renderer {
   /* f: { C, Eu, Ev, Ez (optional: z), N (4D), cam: {pos, R, U, F, tan} (3D, view coords), player (4D), crates [4D], open, time, pw,
         sky (optional: [below, above, haze], the colours of the void, the sky and the distance),
         ceil (optional: cells whose centre is more than this far above C, along Ez, aren't drawn),
-        cut (optional: cells above C within this far of the line from C to the camera aren't drawn) } */
+        cut (optional: cells above C within this far of the line from C to the camera aren't drawn),
+        hideYou (optional: don't draw your ball, for a camera behind your eyes), ghostNear (optional: the
+        slices either side are traced from this far out) } */
   draw(f, scale) {
     const gl = this.gl, c = this.canvas;
     const w = Math.max(1, Math.round(c.clientWidth * scale)), h = Math.max(1, Math.round(c.clientHeight * scale));
@@ -228,7 +230,7 @@ export class Renderer {
     gl.uniform4fv(u.uCrates, cr); gl.uniform1i(u.uNC, Math.min(8, f.crates.length));
     gl.uniform1i(u.uOpen, f.open ? 1 : 0); gl.uniform1f(u.uTime, f.time); gl.uniform1f(u.uPW, f.pw); gl.uniform1f(u.uHook, 0); gl.uniform1f(u.uFog, f.cam.dist || 9);
     const sky = f.sky || SKY; gl.uniform3fv(u.uSkyLo, sky[0]); gl.uniform3fv(u.uSkyHi, sky[1]); gl.uniform3fv(u.uHaze, sky[2]);
-    gl.uniform1f(u.uCeil, f.ceil == null ? 1e9 : f.ceil); gl.uniform1f(u.uCut, f.cut || 0);
+    gl.uniform1f(u.uCeil, f.ceil == null ? 1e9 : f.ceil); gl.uniform1f(u.uCut, f.cut || 0); gl.uniform1i(u.uShowYou, f.hideYou ? 0 : 1); gl.uniform1f(u.uGhostNear, f.ghostNear || 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }

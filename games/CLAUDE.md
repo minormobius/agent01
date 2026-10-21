@@ -303,6 +303,20 @@ These live here:
   `?daily`, `?gen=tier.seed`, built in a worker; made rooms open with w up. See
   [`anabasis/README.md`](anabasis/README.md). **Changing `anakata/js/world.js`,
   `gen.js` or `render.js` changes both games: run both selftests.**
+- **Hinton at `/hinton/`**: Anakata's and Anabasis's rooms in first person,
+  as two lanes of one cabinet (the same levels, generators, dailies, pars;
+  a room code's letter gives its lane). `hinton/js/walker.js` (no DOM) moves
+  you continuously in x and y but asks `World.act` at every cell boundary:
+  blocked → stopped `R` short; a step/push/fall commits when your centre
+  crosses, then you land under gravity; a climb or ramp step commits at once
+  and glides; the hook pulls you along its line. One rules move per cell
+  crossed, so the selftest walks every level of both lanes along the
+  solver's solution and requires par and the solver's state after each move.
+  The camera sits behind your eyes in the lane's frame (sight turns as in
+  each game); the renderer's `hideYou` and `ghostNear` keep your own ball
+  and the solid slice kata of you out of your face. A w strip on the HUD
+  shows the slices where you stand and ahead. See
+  [`hinton/README.md`](hinton/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -356,7 +370,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -412,6 +426,7 @@ node games/naught/test/naught.selftest.mjs       # (ℤ₃)ⁿ: lines are exactl
 node games/ziggurat/test/ziggurat.selftest.mjs   # the pile and its slices, the hops, the colour rules, the enemies and the lure, an autopilot that clears it, the board's records (<1 s)
 node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds; every level solved, par pinned, proved impossible without w where it says so; ramps; room codes round-trip, old links still open; generated rooms deterministic, in band, proved to need w; the cheap proof sound (~12 s)
 node games/anabasis/test/anabasis.selftest.mjs   # two downs on small worlds (held, slip, no climbing in w, ramps round walls and holding you up, fall out, fall for ever, crates); every level solved walking, par pinned, proved impossible without its gravity / ramps / crates / wrap; generated rooms deterministic, in band, proved, opened from their codes (<1 s)
+node games/hinton/test/hinton.selftest.mjs       # every level of both lanes walked continuously to the goal at par, the solver's state after every move; walls stop you short; landing keeps you in your cell (a few s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

@@ -60,6 +60,12 @@ export const GAMES = [
       for (const d of [X, X, X, Y, Y, Y, NX, NX]) { await A(d); await sleep(800); if (!until(t0)) break; }
       while (until(t0)) await sleep(200);
     } },
+  { id: "hinton", url: "hinton/?lane=anakata&level=11", setup: async (p) => { await p.evaluate(() => { document.getElementById("hint").hidden = true; window.HINTON.look(Math.PI / 2, -0.3); }); await sleep(900); },
+    play: async (p, t0) => { // turn your sight on camera, so the slice sweeps through w, then look round the room you're in now
+      await sleep(700); await p.evaluate(() => window.HINTON.turnSight(1)); await sleep(2200);
+      for (let k = 0; k < 30 && until(t0); k++) { await p.evaluate((k) => window.HINTON.look(Math.PI / 2 - Math.sin(k / 9) * 0.9, -0.3 - k * 0.004), k); await sleep(130); }
+      while (until(t0)) await sleep(200);
+    } },
   { id: "ziggurat", url: "ziggurat/", setup: async (p) => { await click(p, "#start-btn"); await p.evaluate(() => { window.ZIG.mute(); window.ZIG.auto.on = true; }); await sleep(2500); },
     play: async (p, t0) => { while (until(t0)) { await sleep(200); if (Date.now() - t0 > 4800 && Date.now() - t0 < 5000) await p.evaluate(() => window.ZIG.turn()); } } },
   { id: "tessera", url: "tessera/", setup: (p) => click(p, "#go-open"), play: wander(450, 450) },
