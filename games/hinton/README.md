@@ -82,8 +82,8 @@ move.
 
 | | desktop | phone |
 |---|---|---|
-| walk | WASD or arrows | the stick: drawn at the bottom left, it jumps to wherever your thumb lands on the left half |
-| look | click, then the mouse | drag the right of the screen |
+| walk | WASD or arrows | the stick, drawn at the bottom left: a touch on it (or near it) walks |
+| look | click, then the mouse | drag anywhere else |
 | hook | click again, or Space | HOOK |
 | sight | V | SIGHT |
 | undo, restart, levels, new room | Z, R, L, N | ↶ ⟲⟲ ☰ |

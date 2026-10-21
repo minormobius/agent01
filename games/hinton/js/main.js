@@ -354,15 +354,17 @@ document.addEventListener("mousemove", (e) => {
   if (document.pointerLockElement !== glc) return;
   yaw += e.movementX * 0.0025; pitch = Math.max(-1.45, Math.min(1.45, pitch - e.movementY * 0.0025));
 });
-/* touch: a stick on the left (drawn, so you can find it; it follows your thumb wherever on the left half it
-   lands), and the right half looks. Pointer events where there are any, touch events where there aren't */
+/* touch: a stick, drawn at the bottom left and staying there: a touch that lands on it (or near it) moves
+   you, and any other touch, anywhere, looks. Pointer events where there are any, touch events where there
+   aren't */
 const STICK_R = 52, touches = new Map(), coarse = matchMedia("(pointer: coarse)").matches;
 const stickEl = $("stick"), knobEl = $("knob");
-function stickRest() { stickEl.style.left = ""; stickEl.style.top = ""; stickEl.classList.remove("live"); knobEl.style.transform = ""; }
+function stickRest() { stickEl.classList.remove("live"); knobEl.style.transform = ""; }
 function press(id, x, y) {
-  const left = x < innerWidth / 2;
-  touches.set(id, { left, x0: x, y0: y, x, y });
-  if (left) { stickEl.style.left = x - STICK_R + "px"; stickEl.style.top = y - STICK_R + "px"; stickEl.classList.add("live"); stick = { x: 0, y: 0 }; }
+  const r = stickEl.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const onStick = r.width > 0 && Math.hypot(x - cx, y - cy) <= STICK_R * 1.7 && ![...touches.values()].some((t) => t.left);
+  touches.set(id, onStick ? { left: true, x0: cx, y0: cy, x, y } : { left: false, x0: x, y0: y, x, y });
+  if (onStick) { stickEl.classList.add("live"); stick = { x: 0, y: 0 }; drag(id, x, y); }
 }
 function drag(id, x, y) {
   const t = touches.get(id); if (!t) return;
