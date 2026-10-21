@@ -21,7 +21,7 @@ button.tiny { font: inherit; font-size: 11px; background: none; color: var(--dim
 #panel h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin: 14px 0 7px; font-weight: 600; }
 .seg { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .seg button, #panel > .seg button { font-family: var(--mono); font-size: 12px; background: #0e1726; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; cursor: pointer; }
-.seg button.on { background: var(--accent); color: #04121c; border-color: var(--accent); font-weight: 700; }
+.seg button.on, #panel .seg button.on { background: var(--accent); color: #04121c; border-color: var(--accent); font-weight: 700; }
 .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-family: var(--mono); font-size: 12px; color: var(--dim); }
 .row input[type=range] { flex: 1; accent-color: var(--accent); min-width: 0; }
 .row output { width: 3.6em; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
@@ -35,13 +35,24 @@ details b { color: var(--text); }
 details ul { padding-left: 18px; }
 .foot { font-family: var(--mono); font-size: 11px; margin-top: 14px; }
 .foot a { color: var(--dim); }
-#panel-toggle { display: none; position: fixed; right: 12px; top: calc(10px + env(safe-area-inset-top)); z-index: 5; font-size: 18px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 6px 11px; }
+/* a phone: the foam in the top two thirds, the controls in the bottom third, the most used first */
 @media (max-width: 760px) {
-  #panel-toggle { display: block; }
-  #panel { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; max-height: 52%; }
-  body.panel-closed #panel { transform: translateY(calc(100% + 20px)); }
-  #readout { max-width: calc(100% - 70px); font-size: 12px; }
+  #gl, #over { bottom: auto; height: 66.6vh; height: 66.6dvh; }
+  #panel { left: 0; right: 0; bottom: 0; top: auto; width: auto; height: 33.4vh; height: 33.4dvh; border-radius: 14px 14px 0 0; border-width: 1px 0 0;
+    padding: 2px 14px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; -webkit-overflow-scrolling: touch; }
+  #panel > * { flex: none; }
+  #panel .k-first { order: -2; }
+  #panel h3 { margin: 10px 0 5px; }
+  #panel .about { display: none; }
+  .seg button { padding: 8px 9px; }
+  .row { margin: 4px 0; }
+  .row input[type=range] { height: 28px; }
+  #readout { left: 8px; right: 8px; max-width: none; top: calc(34px + env(safe-area-inset-top)); font-size: 11.5px; line-height: 1.45; padding: 6px 9px; }
+  #panel .species { display: grid; grid-template-columns: repeat(4, 1fr); }
+  #panel .species button { padding: 8px 2px; font-size: 11px; }
+  #readout .dim { display: none; }
   #log { display: none; }
+  #title { left: 10px; }
   #title span { display: none; }
 }
 [hidden] { display: none !important; }

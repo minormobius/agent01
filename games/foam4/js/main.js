@@ -157,7 +157,6 @@ $("square").onclick = () => setTilt([0, 0, 0]);
 $("diag").onclick = () => setTilt(DIAG);
 $("play").onclick = () => { S.playing = !S.playing; $("play").textContent = S.playing ? "❚❚ pause" : "▶ sweep w"; };
 $("seeds").onchange = (e) => { S.seeds = e.target.checked; dirty = true; };
-$("panel-toggle").onclick = () => document.body.classList.toggle("panel-closed");
 // orbit: drag, wheel, pinch
 let dragging = false, px0 = 0, py0 = 0, pinch = 0;
 const pts = new Map();
