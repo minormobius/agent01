@@ -3877,6 +3877,23 @@
       ]
     },
     {
+      "n": "foam4",
+      "u": "https://games.mino.mobi/foam4/",
+      "c": "games",
+      "k": 2,
+      "a": "warm",
+      "t": "2026-10-21",
+      "b": "2026-10-21",
+      "p": "games",
+      "surface": "games",
+      "d": "A toy for seeing a four-dimensional Voronoi foam one 3D slice at a time. Four species: a random foam, the 4D Kelvin foam A₄* (permutohedra; sliced square to w it is Kelvin's foam), the 24-cell foam D₄ and the tesseract foam Z⁴. Each slice is a power diagram, computed exactly and ray-traced membrane by membrane; sweep it through w and tilt it, and count the cells born, the cells that die and the faces that flip.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "tessera",
       "u": "https://games.mino.mobi/tessera/",
       "c": "games",

@@ -2588,6 +2588,15 @@
    "parent": "games"
   },
   {
+   "id": "foam4",
+   "name": "foam4",
+   "url": "https://games.mino.mobi/foam4/",
+   "cat": "games",
+   "commits": 2,
+   "age": "warm",
+   "parent": "games"
+  },
+  {
    "id": "tessera",
    "name": "tessera",
    "url": "https://games.mino.mobi/tessera/",

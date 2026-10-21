@@ -317,6 +317,16 @@ These live here:
   and the solid slice kata of you out of your face. A w strip on the HUD
   shows the slices where you stand and ahead. See
   [`hinton/README.md`](hinton/README.md).
+- **Foam⁴ at `/foam4/`**: an understanding toy, not a game (no arcade cabinet):
+  a 4D Voronoi foam seen one 3D slice at a time. Four species at unit
+  density, random (jittered Z⁴, jitter ≤ 0.5 so the 80 surrounding seeds are
+  exactly the possible neighbours), A₄* (permutohedra: the 4D Kelvin foam),
+  D₄ (24-cells), Z⁴ (tesseracts). `foam4/js/foam.js` (no DOM) has the exact
+  slice: each cell clipped from the box by its bisectors in slice coordinates
+  (a power diagram: a seed h off the slice carries h²), run in a worker; the
+  shader steps rays membrane to membrane. Sweep and tilt the slice; births,
+  deaths and flips are counted exactly between successive slices. See
+  [`foam4/README.md`](foam4/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -370,7 +380,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -427,6 +437,7 @@ node games/ziggurat/test/ziggurat.selftest.mjs   # the pile and its slices, the 
 node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds; every level solved, par pinned, proved impossible without w where it says so; ramps; room codes round-trip, old links still open; generated rooms deterministic, in band, proved to need w; the cheap proof sound (~12 s)
 node games/anabasis/test/anabasis.selftest.mjs   # two downs on small worlds (held, slip, no climbing in w, ramps round walls and holding you up, fall out, fall for ever, crates); every level solved walking, par pinned, proved impossible without its gravity / ramps / crates / wrap; generated rooms deterministic, in band, proved, opened from their codes (<1 s)
 node games/hinton/test/hinton.selftest.mjs       # every level of both lanes walked continuously to the goal at par, the solver's state after every move; walls stop you short; landing keeps you in your cell (a few s)
+node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies
