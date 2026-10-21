@@ -33,10 +33,10 @@ _Regenerated 2026-10-21 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-21, 99 members / 277 posts):
+**Neighborhood spark** (bisk 2026-10-21, 99 members / 278 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: php, llm, typescript
-- Top post: "" — @sneptech.bsky.social
+- Distinctive words: php, certs, llm
+- Top post: "In case anybody needs social proof/thinks I'm exaggerating." — @jdp.extropian.net
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
