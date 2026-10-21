@@ -103,19 +103,20 @@ document.addEventListener("pointerup", (e) => {
 document.addEventListener("click", (e) => { if (e.isTrusted && performance.now() - tappedAt < 700 && e.target.closest && e.target.closest("button")) { e.stopPropagation(); e.preventDefault(); } }, true);
 
 /* ------------------------------------------------------------- drawing */
-let res = 0, ema = 1 / 60, resT = 0;
-/* as sharp as the device keeps up with: dt is the time between finished frames while it's drawing
-   continuously (a gap means it was idle, which says nothing about speed) */
-function resolution(dt) {
+/* as sharp as the device keeps up with. The measure is how often the GPU is still busy with the last frame
+   when the next one is due: a frame waiting on the fence for a tick or two is normal (the fence's state only
+   updates between ticks, and the sweep paces itself), waiting longer means the GPU really is behind. Time
+   between frames would be the wrong measure: the pacing alone stretches it, and the sharpness would sink
+   for nothing */
+let res = 0, lag = 0, resN = 0, waits = 0;
+function resolution(w) {
   const dpr = Math.min(2, devicePixelRatio || 1), cap = Math.min(dpr, Math.sqrt(2.2e6 / Math.max(1, glc.clientWidth * glc.clientHeight)));
-  if (!res) res = cap * 0.7;
-  if (dt > 0.4) return Math.round(res * 20) / 20;
-  ema += (dt - ema) * 0.15; resT += dt;
-  if (resT > 0.3) {
-    resT = 0;
-    if (ema > 1 / 20 && res > 0.2) res = Math.max(0.2, res * 0.75);
-    else if (ema > 1 / 32 && res > 0.2) res = Math.max(0.2, res * 0.88);
-    else if (ema < 1 / 50 && res < cap) res = Math.min(cap, res * 1.08);
+  if (!res) res = cap;
+  lag += (w - lag) * 0.2;
+  if (++resN >= 8) {
+    resN = 0;
+    if (lag > 2.5 && res > 0.6) res = Math.max(0.6, res * 0.85);
+    else if (lag < 1.2 && res < cap) res = Math.min(cap, res * 1.1);
   }
   return Math.round(res * 20) / 20;
 }
@@ -135,12 +136,12 @@ function frameLoop(now) {
   }
   if (!dirty && !dragging) return;
   const gl = R.gl;
-  if (fence) { if (gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) return; gl.deleteSync(fence); fence = null; }
+  if (fence) { if (gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) { waits++; return; } gl.deleteSync(fence); fence = null; }
   dirty = false;
-  const ddt = (now - lastDraw) / 1000; lastDraw = now;
+  lastDraw = now;
   const { F, C } = sliceNow(), cam = camera(), sp = species();
   const focus = S.mode === 2 ? nearest(sp, C).id : null;
-  R.draw({ C, F, cam, box: S.box, mode: S.mode, focus }, resolution(ddt));
+  R.draw({ C, F, cam, box: S.box, mode: S.mode, focus }, resolution(waits)); waits = 0;
   fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
   overlay(cam);
 }
