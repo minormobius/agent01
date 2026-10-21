@@ -112,12 +112,62 @@ The selftest:
   its wrap;
 - round-trips every level through its room code.
 
+## Rooms made to order
+
+`js/gen.js` builds rooms from a seed, in three tiers (easy, medium, hard).
+Random terrain hardly ever has a way up that connects, so a room is built
+round its climb:
+- **The spine:** a winding path from start to goal that never touches
+  itself, so nothing but its own heights joins it. It's given a height
+  profile in w: rises (each one a ramp), drops (each one a slip), and on the
+  harder tiers **dips**. A dip is a cell sunk a slice below the ones either
+  side of it, with no ramp out, so only a crate pushed into it gets you
+  across. It ends higher than it starts.
+- **Around it,** every other column takes its height from the spine cells
+  beside it:
+  - mostly a slice above all of them: a wall in your way;
+  - sometimes below them all: a hole in w that you slip into and can't
+    climb out of;
+  - sometimes level with its nearest: room to move a crate in, and maybe a
+    shortcut, which the search finds and the band of moves judges;
+  - now and then solid right through, or a drop through the floor.
+- **Crates:** one for each dip, either just before it in line (push it in as
+  you go) or somewhere else on the ground, to be fetched. On the harder tiers
+  there are more on the ground besides.
+
+A room is kept only when the solver proves that it is:
+- **solvable walking**, the only moves the page has;
+- **in the tier's band of moves**: easy 5–12, medium 9–20, hard 13–36;
+- **impossible without its ramps**, by an exhaustive search with ramps as
+  plain floor;
+- **impossible without its crates**, for most medium and nearly all hard
+  rooms. This is also an exhaustive search, and the hint says when it holds.
+
+Its shortest solution must also take the tier's number of ramps up and
+slips down (1 and 1, 2 and 2, 3 and 3). Of the first few rooms that pass,
+the one whose solution does the most wins: it is scored by moves, ramps,
+slips, crate pushes and heights visited. Rooms build in a Web Worker
+(`js/gen-worker.js`), in a few milliseconds to a few tens.
+
+A made room opens with **w drawn up** (z hidden). Its terraces then read as
+a landscape: higher ground in the way, holes below, ramps up the edges. The
+tutorial levels open the way you'd stand.
+
 ## Links
+
+Every room's address is the room, in Anakata's room codes (`D` for a room
+with two downs, `E` with the wrap too). A shared link opens that exact room
+for anyone, for good, whatever later changes to the generator do to its
+seeds.
 
 | | |
 |---|---|
 | `?level=N` | level N |
-| `?room=CODE` | a room written into the link, in Anakata's room codes: `D` for a room with two downs, `E` with the wrap too |
+| `?room=CODE` | that exact room |
+| `?daily` or `?daily=YYYY-MM-DD` | today's room (or that day's): a hard room seeded by the date, the same for everyone |
+| `?gen=hard.SEED` | the generator's room for that seed (base 36): stable only while `GEN` in `js/gen.js` is unchanged |
+
+**N** builds a new room in the current tier.
 
 ## The engine
 
@@ -129,8 +179,10 @@ Both games run on Anakata's engine, so there's one engine for two cabinets:
 | `../anakata/js/gen.js` | room codes (and Anakata's generator) |
 | `../anakata/js/render.js` | the 4D ray tracer |
 | `js/levels.js` | Anabasis's levels |
+| `js/gen.js` | the generator: the spine, the terraces round it, the crates, the proofs |
+| `js/gen-worker.js` | builds rooms off the page's thread |
 | `js/main.js` | input, the views and their turns, the camera, animation, the axes |
-| `test/anabasis.selftest.mjs` | the two downs on small worlds, and every level solved and proved |
+| `test/anabasis.selftest.mjs` | the two downs on small worlds; every level solved and proved; generated rooms deterministic, in band, proved, and opened from their codes |
 
 ```bash
 node games/anabasis/test/anabasis.selftest.mjs   # < 1 s
@@ -139,12 +191,11 @@ node games/anakata/test/anakata.selftest.mjs     # the shared engine, the other 
 
 ## Next
 
-- **A generator**, with Anakata's room codes for links. A first random
-  search over rooms with ramps, pits and crates found solvable rooms easily,
-  but scattered ones; it needs Anakata's structured parts (barriers, ramp
-  runs, shafts) to make rooms worth playing. The cheap proof
-  (`World.relaxedReach`) isn't written for two gravities yet, and says
-  "maybe" to everything.
+- **Crate puzzles with more to them.** Most kept rooms still put a dip's
+  crate just before it, so pushing it in is part of walking the spine. A
+  crate fetched from elsewhere usually makes a room unsolvable; side shelves
+  shaped for moving crates round would let more of those through.
+- **A leaderboard for today's room**: fewest moves, checked by replaying.
 - **The hook** back. Straight ana it can't lift you (you'd fall back down
   its line), but it can still fetch a crate from the slice ana of you, which
   then rests on your head in w until you step away.

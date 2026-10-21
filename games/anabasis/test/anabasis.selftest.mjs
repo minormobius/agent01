@@ -1,7 +1,8 @@
 /* Anabasis's laws: two downs, on little worlds (gravity takes you kata,
    only a ramp takes you ana); and every level solved walking, its par
    pinned, and each proved impossible without what it's about: the second
-   down, its ramps, its crates, its wrap.
+   down, its ramps, its crates, its wrap; and the generator's rooms, the
+   same from the same seed, in band and proved the same way.
      node games/anabasis/test/anabasis.selftest.mjs   (< 1 s) */
 import path from "node:path";
 import fs from "node:fs";
@@ -144,6 +145,29 @@ for (const def of LEVELS) {
   if (def.wrap) ok(w.withWrap(false).solve(WALKING).moves === null, `${def.name}: impossible if w didn't wrap round`);
   const back = decode(encode(w));
   ok(back.gravW === true && back.wrap === !!def.wrap && back.solve(WALKING).moves.length === PAR[def.name], `${def.name}: its room code (${encode(w)[0]}…) opens the same room`);
+}
+
+/* ---- the generator: the same seed makes the same room; every room in band and proved */
+{
+  const G = await import(path.join(here, "../js/gen.js")), t0 = Date.now();
+  ok(G.encode(G.generate(42, "medium").world) === G.encode(G.generate(42, "medium").world), "the same seed makes the same room");
+  let rooms = 0, good = true, slow = 0;
+  for (const tier of ["easy", "medium", "hard"]) for (let k = 1; k <= 8; k++) {
+    const t = Date.now(), r = G.generate(k * 7919, tier); slow = Math.max(slow, Date.now() - t);
+    if (!r) { good = false; console.error(`no ${tier} room from seed ${k * 7919}`); continue; }
+    rooms++;
+    const w = G.decode(G.encode(r.world)), T = G.TIERS[tier], sol = w.solve(WALKING, T.limit);
+    const fail = (m) => { good = false; console.error(`${tier} ${k * 7919}: ${m}`); };
+    if (!w.gravW) fail("its code lost w's gravity");
+    if (!sol.moves || sol.moves.length !== r.par) fail(`par ${r.par}, but the code's room solves in ${sol.moves && sol.moves.length}`);
+    if (r.par < T.len[0] || r.par > T.len[1]) fail(`par ${r.par} out of band`);
+    w.rampsOff = true; if (w.solve(WALKING, T.limit).moves) fail("solvable without its ramps"); w.rampsOff = false;
+    if (r.m.needsCrates && new World(Object.assign({}, w, { start: w.start.p, crates: [] })).solve(WALKING, T.limit).moves) fail("solvable without the crates it says it needs");
+    if (r.m.ramps < T.minRamps || r.m.slips < T.minSlips) fail("too few ramps or slips");
+  }
+  ok(good && rooms === 24, `24 generated rooms (8 a tier): each solved at its par from its own code, in band, proved impossible without its ramps (and its crates, where it says)`);
+  ok(slow < 3000, `a room builds in under 3 s (slowest ${slow} ms)`);
+  if (process.env.VERBOSE) console.log("   generator checks in " + (Date.now() - t0) + " ms");
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} anabasis checks failed` : `anabasis: ${checks} checks · ${LEVELS.length} levels, pars ${LEVELS.map((d) => PAR[d.name]).join(" ")}\n\n✓ anabasis selftest passed`);

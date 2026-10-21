@@ -23,7 +23,7 @@ const GAMES = [
     blurb: "Four-dimensional rooms. You can step in x and y; w you can only see, by turning your sight, and only cross with a hook that catches the first thing it meets. Every level is proved solvable, and proved impossible without w." },
   { id: "anabasis", url: "anabasis/", name: "ANABASIS", genre: "CLIMB 4D", c: "#ff8a5c",
     line: "Two gravities: down in z, and kata in w. Falling is free; only a ramp takes you ana.",
-    blurb: "Four-dimensional rooms where w is a second down. You stand only where you're held from below and from kata, you slip a slice wherever nothing holds you, and nothing lifts you ana but a ramp. One room's ramps climb round a wrapped w for ever. Every level is proved solvable, and proved impossible without what it's about." },
+    blurb: "Four-dimensional rooms where w is a second down. You stand only where you're held from below and from kata, you slip a slice wherever nothing holds you, and nothing lifts you ana but a ramp. One room's ramps climb round a wrapped w for ever. Every level is proved solvable, and proved impossible without what it's about, and there are rooms made to order, and one for today." },
   { id: "ziggurat", url: "ziggurat/", name: "ZIGGURAT", genre: "ARCADE", c: "#ffc93a",
     line: "The hopping pyramid, one dimension up: every slice of the pile is a pyramid, and you play them all at once.",
     blurb: "The top of a staircase of tesseracts is a tetrahedral pile of cubes, and its slices are pyramids, one smaller each step in. Turn every cube gold: four hops round a pyramid, two to the one beside it. The coil chases you through all of them." },

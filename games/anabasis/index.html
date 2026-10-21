@@ -38,7 +38,7 @@
       <button type="button" class="act" id="undo" title="Undo (Z)">↶</button>
       <button type="button" class="act" id="reset" title="Start the level again (R)">⟲⟲</button>
       <button type="button" class="act" id="share" title="Share a link to this room">⤴</button>
-      <button type="button" class="act" id="menu" title="Levels (L)">☰</button>
+      <button type="button" class="act" id="menu" title="Levels and rooms (L)">☰</button>
     </div>
   </div>
 </div>
@@ -63,9 +63,9 @@
   <p class="small">
     <b>Arrows</b> walk · <b>V</b> or <b>Space</b> turns your sight: z up, then w up, then
     both downs side by side · <b>Q E</b> walk the camera round · <b>Z</b> undo ·
-    <b>R</b> restart. The slices either side of yours show faintly.
+    <b>R</b> restart · <b>N</b> a new room. The slices either side of yours show faintly.
   </p>
-  <div class="row"><button class="primary" id="start-btn" type="button">CLIMB</button><button class="ghost" id="start-levels" type="button">levels</button></div>
+  <div class="row"><button class="primary" id="start-btn" type="button">CLIMB</button><button class="ghost" id="start-levels" type="button">levels &amp; rooms</button></div>
   <p class="foot"><a href="./README.md">how it works</a> · <a href="../anakata/">anakata, its sideways sibling</a> · <a href="../">the arcade</a></p>
 </div>
 
@@ -73,6 +73,14 @@
   <h2>every level is proved solvable · par is the fewest moves</h2>
   <h1>LEVELS</h1>
   <div id="level-list"></div>
+  <h2>rooms made to order · each one proved to need its ramps</h2>
+  <div class="row">
+    <button class="ghost" type="button" data-tier="easy">easy room</button>
+    <button class="ghost" type="button" data-tier="medium">medium room</button>
+    <button class="ghost" type="button" data-tier="hard">hard room</button>
+    <button class="primary" type="button" id="daily">TODAY'S ROOM</button>
+  </div>
+  <p class="small">Every room is built at random round a climb, and kept only if an exhaustive search finds a way up, finds none without its ramps, and (where it says so) none without its crates. Each one has a link of its own (⤴): the room is written into the link itself, so it opens the same room for anyone, for good.</p>
   <div class="row"><button class="ghost" id="levels-close" type="button">close</button></div>
 </div>
 

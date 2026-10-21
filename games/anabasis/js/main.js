@@ -12,7 +12,7 @@
        the wall kata of you is the floor you stand on.
      · (x, w) across, z up: y hidden. Both downs at once, a corner you lean in. */
 import { parse, isW, ACTIONS } from "../../anakata/js/world.js";
-import { encode, decode } from "../../anakata/js/gen.js";
+import { generate, encode, decode, seedOf } from "./gen.js";
 import { Renderer } from "../../anakata/js/render.js";
 import { LEVELS } from "./levels.js";
 
@@ -100,18 +100,45 @@ function start(world, src, par) {
   if (par == null) { const sol = solveWalk(world); par = sol.moves ? sol.moves.length : null; }
   src.code = src.code || encode(world);
   L = { src, world, s: { p: world.start.p, crates: world.start.crates.slice() }, hist: [], moves: 0, par };
-  R.setWorld(world); anim = null; won = false; view = 0; turn = null;
+  // a level starts the way you'd stand; a made room starts with w up, where its terraces read as a landscape
+  R.setWorld(world); anim = null; won = false; view = src.kind === "tutorial" ? 0 : 1; turn = null;
   $("won").hidden = true;
-  $("lvlno").textContent = src.kind === "tutorial" ? "level " + (src.i + 1) + " of " + LEVELS.length : "a shared room";
-  $("lvlname").textContent = src.kind === "tutorial" ? world.name : "shared";
+  $("lvlno").textContent = src.kind === "tutorial" ? "level " + (src.i + 1) + " of " + LEVELS.length : src.kind === "daily" ? "today's room · " + src.date : src.kind === "gen" ? src.tier + " room" : "a shared room";
+  $("lvlname").textContent = src.kind === "tutorial" ? world.name : src.kind === "gen" ? src.seed.toString(36) : src.kind === "daily" ? "daily" : "shared";
   const hint = world.hint || (par == null ? "A room someone shared. No way up has been found in it." : `A room someone shared. Par ${par}: the fewest moves there are.`);
   $("hint-text").textContent = hint; $("hint").hidden = !hint;
-  const q = src.kind === "tutorial" ? "?level=" + (src.i + 1) : "?room=" + src.code;
+  // the address is the room: copy it and anyone gets this exact room, whatever the generator does later
+  const q = src.kind === "tutorial" ? "?level=" + (src.i + 1) : src.kind === "daily" ? "?daily=" + src.date : "?room=" + src.code;
   try { history.replaceState(null, "", location.pathname + q); } catch (e) { /* sandboxed */ }
   try { localStorage.setItem("anabasis.last", q); } catch (e) { /* private mode */ }
   hud(); seeing(); dirty = true;
 }
 function load(i) { start(parse(LEVELS[i]), { kind: "tutorial", i }); }
+/* a new room from the generator (a few seeds on, if one comes up empty), built in a worker so the page
+   keeps drawing; where module workers aren't to be had, built right here */
+let worker = null, asked = 0;
+try { worker = new Worker(new URL("./gen-worker.js", import.meta.url), { type: "module" }); } catch (e) { worker = null; }
+function room(tier, seed, kind = "gen", date) {
+  toast("building a room with two downs…");
+  const id = ++asked;
+  const done = (res) => {
+    if (id !== asked) return; // a newer request came in meanwhile
+    if (!res || !res.code) { toast("no room came out of that seed; try another"); return; }
+    const world = decode(res.code, tier + " " + res.seed.toString(36));
+    world.hint = res.hint;
+    start(world, { kind, tier, seed: res.seed, date, code: res.code }, res.par);
+    $("toast").classList.remove("show");
+  };
+  if (worker) { worker.onmessage = (e) => done(e.data); worker.onerror = () => { worker = null; room(tier, seed, kind, date); }; worker.postMessage({ tier, seed, id }); return; }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    for (let k = 0; k < 6; k++) { const r = generate((seed + k) >>> 0, tier); if (r) return done({ code: encode(r.world), par: r.par, seed: (seed + k) >>> 0, hint: r.world.hint }); }
+    done(null);
+  }));
+}
+const today = () => new Date().toISOString().slice(0, 10);
+const daily = (date = today()) => room("hard", seedOf("anabasis " + date), "daily", date);
+const fresh = (tier) => room(tier, (Math.random() * 2 ** 32) >>> 0);
+const TIER_NAMES = ["easy", "medium", "hard"];
 function fromCode(code) {
   try {
     const world = decode(code);
@@ -249,8 +276,8 @@ function overlay(F, cam) {
 
 /* ------------------------------------------------------------- the loop */
 const SKY = [[0.03, 0.012, 0.03], [0.24, 0.1, 0.12], [0.1, 0.05, 0.07]]; // dawn: rose above, the dark below
-/* the cutaways. Nothing more than two cells above you is drawn: with w up in a room whose w wraps, the
-   room repeats upward for ever, and the camera would be inside the tower. And nothing above you in a
+/* the cutaways. Where w wraps, nothing more than two cells above you is drawn: with w up, the room
+   repeats upward for ever, and the camera would be inside the tower. And nothing above you in a
    tunnel from you to the camera, so the steps over your head never hide you */
 const CEIL = 2.2, CUT = 1.4;
 let frames = 0;
@@ -267,7 +294,7 @@ function frame(now) {
     if (L.world.won(L.s) && !won) win();
   }
   const scale = matchMedia("(pointer: coarse)").matches ? 0.62 : Math.min(1, 1500 / Math.max(1, glc.clientWidth));
-  R.draw({ C: P, Eu: F.Eu, Ev: F.Ev, Ez: F.Ez, N: F.N, cam, player: P, crates: cratesAt(now), open: L.world.doorsOpen(L.s), time: now / 1000, pw: P[3], sky: SKY, ceil: CEIL, cut: CUT }, scale * Math.min(2, devicePixelRatio || 1));
+  R.draw({ C: P, Eu: F.Eu, Ev: F.Ev, Ez: F.Ez, N: F.N, cam, player: P, crates: cratesAt(now), open: L.world.doorsOpen(L.s), time: now / 1000, pw: P[3], sky: SKY, ceil: L.world.wrap ? CEIL : null, cut: CUT }, scale * Math.min(2, devicePixelRatio || 1));
   overlay(F, cam);
 }
 requestAnimationFrame(frame);
@@ -279,8 +306,8 @@ function win() {
   $("won-head").textContent = atPar ? "summit at par" : "summit";
   $("won-moves").textContent = L.moves + (L.moves === 1 ? " move" : " moves");
   $("won-text").innerHTML = `par is <b>${L.par}</b>: the fewest moves there are, found by searching every state of the room.` + (prev ? ` Your best: <b>${Math.min(prev, L.moves)}</b>.` : "");
-  const last = L.src.kind !== "tutorial" || L.src.i + 1 >= LEVELS.length;
-  $("next").textContent = last ? "LEVELS" : "NEXT";
+  const t = L.src.kind;
+  $("next").textContent = t === "tutorial" ? (L.src.i + 1 < LEVELS.length ? "NEXT" : "A NEW ROOM") : t === "gen" ? "ANOTHER " + L.src.tier.toUpperCase() : "A NEW ROOM";
   setTimeout(() => { $("won").hidden = false; }, 350);
 }
 
@@ -299,6 +326,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "z" || e.key === "Z" || e.key === "Backspace") { e.preventDefault(); undo(); return; }
   if (e.key === "r" || e.key === "R") { reset(); return; }
   if (e.key === "l" || e.key === "L") { showLevels(); return; }
+  if (e.key === "n" || e.key === "N") { fresh(L && L.src.kind === "gen" ? L.src.tier : "medium"); return; }
 });
 const DPAD = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 document.querySelectorAll("#pad .key").forEach((b) => b.addEventListener("click", () => { const v = DPAD[b.dataset.k]; go(v[0], v[1]); }));
@@ -335,21 +363,27 @@ $("start-levels").onclick = showLevels;
 $("start-btn").onclick = () => { $("start").hidden = true; };
 $("next").onclick = () => {
   $("won").hidden = true;
-  if (L.src.kind === "tutorial" && L.src.i + 1 < LEVELS.length) load(L.src.i + 1); else showLevels();
+  const t = L.src.kind;
+  if (t === "tutorial" && L.src.i + 1 < LEVELS.length) load(L.src.i + 1);
+  else fresh(t === "gen" ? L.src.tier : t === "tutorial" ? "easy" : "medium");
 };
 $("share").onclick = share; $("won-share").onclick = share;
 $("again").onclick = () => { $("won").hidden = true; reset(); };
+document.querySelectorAll("[data-tier]").forEach((b) => { b.onclick = () => { $("levels").hidden = true; $("start").hidden = true; fresh(b.dataset.tier); }; });
+$("daily").onclick = () => { $("levels").hidden = true; $("start").hidden = true; daily(); };
 
-/* where to begin: the address first (a shared room, a level), then wherever you were */
+/* where to begin: the address first (a shared room, today's, a level), then wherever you were */
 function begin(q) {
   const P = new URLSearchParams(q);
   if (P.get("room") && fromCode(P.get("room"))) return true;
+  if (P.has("daily")) { const d = P.get("daily"); daily(/^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : today()); return true; }
   if (P.get("room") === null && P.get("level")) { const i = Math.max(1, Math.min(LEVELS.length, +P.get("level") || 1)) - 1; load(i); return true; }
+  if (P.get("gen")) { const [tier, seed] = P.get("gen").split("."); if (TIER_NAMES.includes(tier)) { room(tier, parseInt(seed, 36) >>> 0); return true; } }
   return false;
 }
-const linked = /[?&](room|level)=/.test(location.search);
+const linked = /[?&](room|daily|level|gen)=?/.test(location.search);
 if (linked) $("start").hidden = true; // a link drops you straight into its room
 if (!begin(location.search)) { let last = ""; try { last = localStorage.getItem("anabasis.last") || ""; } catch (e) { /* private mode */ } if (!begin(last)) load(0); }
 
 /* handles for tests and the console */
-window.ANABASIS = { get level() { return L; }, act, turnSight, load, undo, ACTIONS, get view() { return view; }, fromCode, share };
+window.ANABASIS = { get level() { return L; }, act, turnSight, load, undo, ACTIONS, get view() { return view; }, fromCode, share, room, daily };

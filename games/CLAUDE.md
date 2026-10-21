@@ -295,7 +295,12 @@ These live here:
   only, no hook yet (the selftest proves the hook would save nothing).
   Seven levels, held → slip → around → stair → bridge → plumb → ascending (a
   Penrose staircase of ramps round a wrapped w), each proved impossible
-  without what it's about. See
+  without what it's about. `anabasis/js/gen.js` builds rooms round a
+  **spine** (a self-avoiding path with a height profile in w: ramps at its
+  rises, slips at its drops, crate-filled dips), the rest of the room walls
+  and holes relative to it; kept only when proved solvable walking, in band,
+  impossible without its ramps (and its crates, mostly); `?room=` (D codes),
+  `?daily`, `?gen=tier.seed`, built in a worker; made rooms open with w up. See
   [`anabasis/README.md`](anabasis/README.md). **Changing `anakata/js/world.js`,
   `gen.js` or `render.js` changes both games: run both selftests.**
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
@@ -406,7 +411,7 @@ node games/molt/test/tag.selftest.mjs            # ouroboros computes: the tag s
 node games/naught/test/naught.selftest.mjs       # (ℤ₃)ⁿ: lines are exactly zero-sum triples, one line per pair, no draws, both 3 × 3 games solved, the engine (<1 s)
 node games/ziggurat/test/ziggurat.selftest.mjs   # the pile and its slices, the hops, the colour rules, the enemies and the lure, an autopilot that clears it, the board's records (<1 s)
 node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds; every level solved, par pinned, proved impossible without w where it says so; ramps; room codes round-trip, old links still open; generated rooms deterministic, in band, proved to need w; the cheap proof sound (~12 s)
-node games/anabasis/test/anabasis.selftest.mjs   # two downs on small worlds (held, slip, no climbing in w, ramps round walls and holding you up, fall out, fall for ever, crates); every level solved walking, par pinned, proved impossible without its gravity / ramps / crates / wrap (<1 s)
+node games/anabasis/test/anabasis.selftest.mjs   # two downs on small worlds (held, slip, no climbing in w, ramps round walls and holding you up, fall out, fall for ever, crates); every level solved walking, par pinned, proved impossible without its gravity / ramps / crates / wrap; generated rooms deterministic, in band, proved, opened from their codes (<1 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies
