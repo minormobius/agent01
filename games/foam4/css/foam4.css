@@ -3,20 +3,20 @@
   --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; overscroll-behavior: none; }
-#gl, #over { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+/* nothing over the foam: it has its own part of the window, and everything else is in the panel */
+#gl, #over { position: fixed; left: 0; top: 0; bottom: 0; right: 360px; width: calc(100% - 360px); height: 100%; display: block; }
 #gl { touch-action: none; cursor: grab; }
 #over { pointer-events: none; }
-#title { position: fixed; left: 14px; top: calc(10px + env(safe-area-inset-top)); font-family: var(--mono); font-size: 13px; letter-spacing: 0.06em; pointer-events: none; }
+#title { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; margin: 8px 0 6px; }
 #title b { font-size: 17px; letter-spacing: 0.2em; color: var(--accent); }
 #title span { color: var(--dim); margin-left: 6px; }
-#readout { position: fixed; left: 14px; top: calc(38px + env(safe-area-inset-top)); max-width: min(560px, calc(100% - 380px)); font-size: 13px; line-height: 1.55; color: #cfdbe8;
-  background: rgba(5, 8, 13, 0.6); border: 1px solid var(--border); border-radius: 10px; padding: 8px 11px; }
+#readout { font-size: 12.5px; line-height: 1.55; color: #cfdbe8; background: rgba(5, 8, 13, 0.5); border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; }
 #readout b { color: var(--text); font-variant-numeric: tabular-nums; }
 #readout .dim { color: var(--dim); }
-#log { position: fixed; left: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); max-width: min(560px, calc(100% - 380px)); font-family: var(--mono); font-size: 11.5px; line-height: 1.6; color: var(--dim); pointer-events: none; }
+#log { font-family: var(--mono); font-size: 11px; line-height: 1.55; color: var(--dim); margin-top: 6px; min-height: 1.55em; }
 #log div:first-child { color: var(--gold); }
 button.tiny { font: inherit; font-size: 11px; background: none; color: var(--dim); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; cursor: pointer; margin-left: 4px; }
-#panel { position: fixed; right: 12px; top: 12px; bottom: 12px; width: 340px; overflow-y: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 6px 16px 14px;
+#panel { position: fixed; right: 0; top: 0; bottom: 0; width: 360px; overflow-y: auto; background: var(--panel); border-left: 1px solid var(--border); padding: 4px 16px 14px;
   font-size: 13px; transition: transform .2s; }
 #panel h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin: 14px 0 7px; font-weight: 600; }
 .seg { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
@@ -36,23 +36,25 @@ details ul { padding-left: 18px; }
 .foot { font-family: var(--mono); font-size: 11px; margin-top: 14px; }
 .foot a { color: var(--dim); }
 /* a phone: the foam in the top two thirds, the controls in the bottom third, the most used first */
+/* a phone: the foam in the top two thirds, everything else in the bottom third, the readout and the most-used controls first */
 @media (max-width: 760px) {
-  #gl, #over { bottom: auto; height: 66.6vh; height: 66.6dvh; }
-  #panel { left: 0; right: 0; bottom: 0; top: auto; width: auto; height: 33.4vh; height: 33.4dvh; border-radius: 14px 14px 0 0; border-width: 1px 0 0;
-    padding: 2px 14px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; -webkit-overflow-scrolling: touch; }
+  #gl, #over { right: 0; width: 100%; bottom: auto; height: 66.6vh; height: 66.6dvh; }
+  #panel { left: 0; right: 0; bottom: 0; top: auto; width: auto; height: 33.4vh; height: 33.4dvh; border-left: 0; border-top: 1px solid var(--border);
+    padding: 0 12px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; -webkit-overflow-scrolling: touch; }
   #panel > * { flex: none; }
+  #panel #title, #panel #readout, #panel #log { order: -3; }
   #panel .k-first { order: -2; }
   #panel h3 { margin: 10px 0 5px; }
   #panel .about { display: none; }
+  #panel .species { display: grid; grid-template-columns: repeat(4, 1fr); }
+  #panel .species button { padding: 8px 2px; font-size: 11px; }
   .seg button { padding: 8px 9px; }
   .row { margin: 4px 0; }
   .row input[type=range] { height: 28px; }
-  #readout { left: 8px; right: 8px; max-width: none; top: calc(34px + env(safe-area-inset-top)); font-size: 11.5px; line-height: 1.45; padding: 6px 9px; }
-  #panel .species { display: grid; grid-template-columns: repeat(4, 1fr); }
-  #panel .species button { padding: 8px 2px; font-size: 11px; }
-  #readout .dim { display: none; }
-  #log { display: none; }
-  #title { left: 10px; }
+  #title { margin: 6px 0 4px; }
   #title span { display: none; }
+  #readout { font-size: 11.5px; line-height: 1.45; padding: 5px 8px; }
+  #readout .dim { display: none; }
+  #log { margin-top: 3px; height: 1.55em; overflow: hidden; }
 }
 [hidden] { display: none !important; }
