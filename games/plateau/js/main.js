@@ -104,9 +104,10 @@ document.addEventListener("click", (e) => { if (e.isTrusted && performance.now()
 /* ------------------------------------------------------------- the loop */
 // the attract loop's autopilot looks less far and tries fewer inputs than the balance report's, to fit in a frame
 const AUTO = { ahead: 0.45, step: 0.15, cands: [[0, 0, 0], [1, 0, 0], [-1, 0, 0], ...[-1, 0, 1].flatMap((p) => [-1, 0, 1].map((y) => [0, p, y])).filter((k) => k[1] || k[2])] };
-let res = 0, lag = 0, resN = 0, waits = 0, fence = null, flash = 0, prev = performance.now();
+let res = 0, lag = 0, resN = 0, waits = 0, fence = null, flash = 0, prev = performance.now(), frames = 0;
+const Q = new URLSearchParams(location.search), FIXED = 1 / (+Q.get("dt") || Infinity), RES = +Q.get("res") || Infinity; // ?dt=24: step 1/24 s a frame whatever the clock says (the attract loop films in time-lapse); ?res= caps the resolution
 function resolution(w) { // as sharp as the GPU keeps up with: judged by frames left waiting on it, not by time
-  const dpr = Math.min(2, devicePixelRatio || 1), cap = Math.min(dpr, Math.sqrt(1.6e6 / Math.max(1, glc.clientWidth * glc.clientHeight)));
+  const dpr = Math.min(2, devicePixelRatio || 1), cap = Math.min(dpr, RES, Math.sqrt(1.6e6 / Math.max(1, glc.clientWidth * glc.clientHeight)));
   if (!res) res = cap * 0.8;
   lag += (w - lag) * 0.2;
   if (++resN >= 8) { resN = 0; if (lag > 2.5 && res > 0.5) res = Math.max(0.5, res * 0.85); else if (lag < 1.2 && res < cap) res = Math.min(cap, res * 1.08); }
@@ -114,7 +115,8 @@ function resolution(w) { // as sharp as the GPU keeps up with: judged by frames 
 }
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.05, (now - prev) / 1000); prev = now;
+  if (FIXED && fence && Rd.gl.getSyncParameter(fence, Rd.gl.SYNC_STATUS) !== Rd.gl.SIGNALED) { waits++; return; } // in time-lapse the clock waits for the GPU too
+  const dt = FIXED || Math.min(0.05, (now - prev) / 1000); prev = now;
   if (run && !run.over && $("start").hidden && !paused()) {
     if (run.auto && (run.autoT -= dt) <= 0) { run.autoK = autopilot(run.foam, run.d, run.craft, AUTO); run.autoT = 0.12; } // the attract loop's pilot
     const [roll, pitch, yaw] = run.auto ? run.autoK : inputs(dt), v = speedAt(run.d);
@@ -132,7 +134,7 @@ function frame(now) {
   if (fence) { if (gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) { waits++; return; } gl.deleteSync(fence); fence = null; }
   const F = fieldAt(run.d);
   Rd.draw({ field: F, seed: run.seed, craft: run.craft, here: run.cell, far: 7 * F.scale, edge: R_EDGE, time: now / 1000, flash }, resolution(waits)); waits = 0;
-  fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+  fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush(); frames++;
   overlay();
 }
 const paused = () => !$("dead").hidden;
@@ -182,4 +184,4 @@ $("post").onclick = () => {
 };
 $("board-btn").onclick = $("dead-board").onclick = () => { const b = board(); if (b) { b.open(); } };
 
-window.PLATEAU = { get run() { return run; }, begin, crash, keys, setStick: (s) => (stick = s) };
+window.PLATEAU = { get run() { return run; }, get frames() { return frames; }, begin, crash, keys, setStick: (s) => (stick = s) };

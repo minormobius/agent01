@@ -33,6 +33,9 @@ These live here:
   there **and** a clip. Clips are recorded by `tools/attract.mjs` (playwright +
   ffmpeg; each game has a little `setup`/`play` script there) against a local
   `python3 -m http.server 8765` in `games/`: `node tools/attract.mjs <id>`.
+  A game too heavy for the recorder's software GL films in time-lapse: its
+  entry's `slow(p)` measures how many times slower than real time it runs
+  with a fixed step a frame (PLATEAU's `?dt=24`), and ffmpeg speeds it back up.
   The page fetches each clip whole and plays it from a blob URL, because the
   asset host answers a Range request with a 200 and the whole file, which
   Safari won't play from; WebM is there for browsers built without H.264.

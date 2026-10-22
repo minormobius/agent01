@@ -66,8 +66,13 @@ export const GAMES = [
       for (let k = 0; k < 30 && until(t0); k++) { await p.evaluate((k) => window.HINTON.look(Math.PI / 2 - Math.sin(k / 9) * 0.9, -0.3 - k * 0.004), k); await sleep(130); }
       while (until(t0)) await sleep(200);
     } },
-  { id: "plateau", url: "plateau/", setup: async (p) => { await p.evaluate(() => { const P = window.PLATEAU; P.begin(false, 4242); Object.assign(P.run, { d: 230, grace: 1e9, auto: true }); }); await sleep(1500); },
-    play: async (p, t0) => { while (until(t0)) await sleep(200); } }, // the autopilot flies it, through the melt
+  { id: "plateau", url: "plateau/?dt=24&res=0.75", setup: async (p) => { await p.evaluate(() => { const P = window.PLATEAU; P.begin(false, 4242); Object.assign(P.run, { d: 230, grace: 1e9, auto: true }); }); await sleep(6000); },
+    // the autopilot flies it, through the melt, in time-lapse: frames a second over 24 is how much slower than real time it runs
+    slow: (p) => p.evaluate(() => new Promise((res, rej) => { // over at least four drawn frames (software GL draws about one in two seconds)
+      const n0 = window.PLATEAU.frames, t0 = performance.now();
+      const tick = () => { const n = window.PLATEAU.frames - n0, s = (performance.now() - t0) / 1000; if (n >= 4 && s >= 4) res(Math.max(1, 24 / (n / s))); else if (s > 60) rej(new Error("no frames")); else setTimeout(tick, 250); };
+      tick();
+    })) },
   { id: "ziggurat", url: "ziggurat/", setup: async (p) => { await click(p, "#start-btn"); await p.evaluate(() => { window.ZIG.mute(); window.ZIG.auto.on = true; }); await sleep(2500); },
     play: async (p, t0) => { while (until(t0)) { await sleep(200); if (Date.now() - t0 > 4800 && Date.now() - t0 < 5000) await p.evaluate(() => window.ZIG.turn()); } } },
   { id: "tessera", url: "tessera/", setup: (p) => click(p, "#go-open"), play: wander(450, 450) },
@@ -103,13 +108,16 @@ async function record(b, g) {
   await sleep(700);
   if (g.setup) await g.setup(p).catch((e) => console.error(g.id, "setup", e.message));
   await sleep(300);
+  // a game too heavy for the recorder's software GL films in time-lapse: it steps a fixed 1/24 s a frame,
+  // `slow(p)` says how many times slower than real time that runs, and the clip is sped back up
+  const slow = g.slow ? await g.slow(p) : 1;
   const t0 = Date.now();
-  await g.play(p, t0).catch((e) => console.error(g.id, e.message));
+  await (g.slow ? sleep((SECS + 1.2) * slow * 1000) : g.play(p, t0)).catch((e) => console.error(g.id, e.message));
   const offset = (t0 - born) / 1000 + 0.8;
   await p.close(); await ctx.close();
   const raw = await p.video().path();
   const mp4 = path.join(OUT, g.id + ".mp4"), jpg = path.join(OUT, g.id + ".jpg");
-  const enc = spawnSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(offset), "-i", raw, "-t", String(SECS), "-vf", "scale=300:400:flags=lanczos,fps=24", "-c:v", "libx264", "-preset", "slow", "-crf", "31", "-pix_fmt", "yuv420p", "-an", "-movflags", "+faststart", mp4]);
+  const enc = spawnSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(offset), "-i", raw, "-t", String(SECS), "-vf", (slow > 1 ? `setpts=PTS/${slow.toFixed(3)},` : "") + "scale=300:400:flags=lanczos,fps=24", "-c:v", "libx264", "-preset", "slow", "-crf", "31", "-pix_fmt", "yuv420p", "-an", "-movflags", "+faststart", mp4]);
   if (enc.status) throw new Error(enc.stderr.toString());
   webm(g.id);
   spawnSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", "3.5", "-i", mp4, "-frames:v", "1", "-q:v", "6", jpg]);

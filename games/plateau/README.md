@@ -113,4 +113,6 @@ The selftest checks:
 - the board's speed limit is the game's.
 
 The autopilot (`autopilot` in `flight.js`) also flies the arcade's attract
-loop.
+loop. That loop is filmed in time-lapse, because the recorder's software GL
+draws about one frame a second: `?dt=24` steps a fixed 1/24 s a frame, and
+`?res=` caps the resolution.
