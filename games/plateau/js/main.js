@@ -133,7 +133,7 @@ function frame(now) {
   const gl = Rd.gl;
   if (fence) { if (gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) { waits++; return; } gl.deleteSync(fence); fence = null; }
   const F = fieldAt(run.d);
-  Rd.draw({ field: F, seed: run.seed, craft: run.craft, here: run.cell, far: 7 * F.scale, edge: R_EDGE, time: now / 1000, flash }, resolution(waits)); waits = 0;
+  Rd.draw({ foam: run.foam, field: F, craft: run.craft, here: run.cell, far: 7 * F.scale, edge: R_EDGE, time: now / 1000, flash }, resolution(waits)); waits = 0;
   fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush(); frames++;
   overlay();
 }

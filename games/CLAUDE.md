@@ -337,7 +337,7 @@ These live here:
   plane perpendicular to it (roll R→U with F→N, so rolling tips your nose
   into w and flying forward drives you through it). Don't touch the edges
   (the slice's Plateau borders) or a solid cell's walls. `plateau/js/flight.js`
-  (no DOM) has the craft, the seeds (an integer hash the shader repeats),
+  (no DOM) has the craft, the seeds (`Foam.rand`: five numbers a grid cell, which the shader reads from a 24⁴ texture window round you, refilled a strip at a time),
   the exact in-slice `clearance` (your cell clipped by its bisectors with
   Foam⁴'s `clip`; the cell you're in is never solid) and the phases by
   distance (crystal, melt, clot, press, deep: jitter, solid fraction and
@@ -457,7 +457,7 @@ node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds; ev
 node games/anabasis/test/anabasis.selftest.mjs   # two downs on small worlds (held, slip, no climbing in w, ramps round walls and holding you up, fall out, fall for ever, crates); every level solved walking, par pinned, proved impossible without its gravity / ramps / crates / wrap; generated rooms deterministic, in band, proved, opened from their codes (<1 s)
 node games/hinton/test/hinton.selftest.mjs       # every level of both lanes walked continuously to the goal at par, the solver's state after every move; walls stop you short; landing keeps you in your cell (a few s)
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
-node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force and the shader's hash, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~1 s)
+node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)

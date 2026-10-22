@@ -70,7 +70,16 @@ const U32 = 4294967296;
 export class Foam {
   constructor(seed) { this.seed = seed >>> 0; }
   base(g) { return remix(hashU(g[0], g[1], g[2], g[3], 0), this.seed); }
-  pos(g, F) { const n = this.base(g); return g.map((v, k) => F.scale * (v + 0.5 + F.jitter * (remix(n, Math.imul(k + 1, 0x9e3779b9 | 0)) / U32 - 0.5))); }
+  /* a grid cell's five random numbers in [0, 1): where its seed sits in its cell (four), and when it turns
+     solid. Everything else is the field (scale, jitter, solid fraction), so these never change in a run:
+     the renderer keeps them in a texture, filled by this same function */
+  rand(g, out = new Array(5)) {
+    const n = this.base(g);
+    for (let k = 0; k < 4; k++) out[k] = remix(n, Math.imul(k + 1, 0x9e3779b9 | 0)) / U32;
+    out[4] = remix(n, 0x5bd1e995) / U32;
+    return out;
+  }
+  pos(g, F) { const r = this.rand(g); return g.map((v, k) => F.scale * (v + 0.5 + F.jitter * (r[k] - 0.5))); }
   solid(g, F) { return remix(this.base(g), 0x5bd1e995) / U32 < F.solid; }
   nearest(p, F) {
     const g0 = p.map((v) => Math.floor(v / F.scale));

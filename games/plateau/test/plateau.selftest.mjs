@@ -15,6 +15,8 @@ const { Foam, Craft, clearance, fieldAt, speedAt, phaseAt, PHASES, RATES, R_EDGE
 let fails = 0, checks = 0;
 const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok   " : "FAIL ") + m); if (!c) { fails++; console.error("FAIL " + m); } };
 let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const NEIGH4 = []; for (let k = 0; k < 81; k++) if (k !== 40) NEIGH4.push([k % 3 - 1, ((k / 3) | 0) % 3 - 1, ((k / 9) | 0) % 3 - 1, ((k / 27) | 0) - 1]);
+const dirs4 = () => { const o = []; for (let i = 0; i < 50; i++) o.push([0, 1, 2, 3].map(() => Math.floor(rnd() * 40) - 20)); return o; };
 const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
 
 {
@@ -63,11 +65,60 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
     }
   }
   ok(good, "the nearest seed from the 81 cells round you is the nearest of 625, in every phase");
-  const glsl = fs.readFileSync(path.join(here, "../js/render.js"), "utf8");
-  const ks = [0, 1, 2, 3].map((k) => "0x" + (Math.imul(k + 1, 0x9e3779b9 | 0) >>> 0).toString(16) + "u");
-  ok(ks.every((k) => glsl.includes(k)) && ["73856093u", "19349663u", "83492791u", "2654435761u", "374761393u", "0x5bd1e995u", "0x7feb352du", "0x846ca68bu"].every((k) => glsl.includes(k)),
-    "the shader hashes seeds and solids with the same constants as flight.js");
+  ok(dirs4().every((g) => { const r = foam.rand(g), F = fieldAt(400), p = foam.pos(g, F); return p.every((v, k) => Math.abs(v - F.scale * (g[k] + 0.5 + F.jitter * (r[k] - 0.5))) < 1e-12) && foam.solid(g, { ...F, solid: r[4] + 1e-9 }) && !foam.solid(g, { ...F, solid: r[4] }); }),
+    "a cell's seed and its turning solid are its five random numbers (Foam.rand) and the field, nothing else");
   ok(fieldAt(1e6).jitter <= 0.5 + 1e-12, "jitter never passes half a cell (where the 80 seeds round a cell are all its possible neighbours)");
+}
+
+/* the renderer's seed texture: a 24⁴ window of grid cells round you, addressed by g mod 24, refilled a strip
+   at a time as you move. Run against a stand-in for WebGL that keeps what's uploaded: after every move, every
+   cell a ray can reach (within ±10 of yours) holds its own five numbers from flight.js */
+{
+  const { Renderer, M } = await import(path.join(here, "../js/render.js"));
+  const store = new Map(); let bound = null;
+  const gl = { TEXTURE0: 0, TEXTURE1: 1, TEXTURE_2D: 1, RGBA: 4, RED: 1, FLOAT: 0, activeTexture() {}, bindTexture(_, t) { bound = t; },
+    texSubImage2D(_, __, X0, Y0, w, h, fmt, ___, data) { const a = store.get(bound) || store.set(bound, new Float32Array(M * M * M * M * fmt)).get(bound); for (let j = 0; j < h; j++) for (let k = 0; k < w; k++) for (let c = 0; c < fmt; c++) a[((Y0 + j) * M * M + X0 + k) * fmt + c] = data[(j * w + k) * fmt + c]; } };
+  const R = Object.create(Renderer.prototype); Object.assign(R, { gl, randTex: "rand", solidTex: "solid", lo: null, seed: null });
+  const foam = new Foam(31337), mod = (v) => ((v % M) + M) % M;
+  let gc = [5, -3, 0, 12], good = true, strips = 0, fills = 0, checked = 0;
+  const count = { rect: R.rect }; R.rect = function (...a) { if (a[3] === M * M && a[4] === M * M) fills++; else strips++; return count.rect.apply(this, a); };
+  for (let step = 0; step < 60 && good; step++) {
+    const k = step % 4; gc = gc.map((v, i) => v + (i === k ? (step % 7 === 3 ? -2 : 1) : 0));
+    if (step === 40) gc = gc.map((v) => v + 30); // a jump: the whole window again
+    R.sync(foam, gc);
+    for (let i = 0; i < 300; i++) {
+      const g = gc.map((v) => v + Math.floor(rnd() * 21) - 10), r = foam.rand(g), X = mod(g[0]) + M * mod(g[1]), Y = mod(g[2]) + M * mod(g[3]), at = Y * M * M + X;
+      const t4 = store.get("rand"), t1 = store.get("solid");
+      if (![0, 1, 2, 3].every((c) => t4[at * 4 + c] === Math.fround(r[c])) || t1[at] !== Math.fround(r[4])) good = false;
+      checked++;
+    }
+  }
+  // and what reach is: the shader's march, run here, through the far fog in every direction, never reads a cell further
+  let reach = 0;
+  for (const d of [0, 200, 450, 800, 1500]) {
+    const F = fieldAt(d), far = 7 * F.scale;
+    for (let i = 0; i < 6; i++) {
+      const c = new Craft([0, 1, 2, 3].map(() => rnd() * 20 - 10)); for (let k = 0; k < 20; k++) c.steer(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1, 0.2);
+      const g0 = c.P.map((v) => Math.floor(v / F.scale)), here = foam.nearest(c.P, F);
+      for (let r = 0; r < 40; r++) {
+        const u = [rnd() - 0.5, rnd() - 0.5, rnd() - 0.5], ul = Math.hypot(...u), d4 = [0, 1, 2, 3].map((k) => (u[0] * c.R[k] + u[1] * c.U[k] + u[2] * c.F[k]) / ul);
+        let g = here, t = 0;
+        for (let step = 0; step <= 30; step++) {
+          const sd = foam.pos(g, F); let best = Infinity, bg = null;
+          for (const o of NEIGH4) {
+            const gn = g.map((v, k) => v + o[k]); reach = Math.max(reach, ...gn.map((v, k) => Math.abs(v - g0[k])));
+            const sn = foam.pos(gn, F), n = sn.map((v, k) => v - sd[k]), den = dot(d4, n), v0 = 0.5 * (dot(sn, sn) - dot(sd, sd)) - dot(c.P, n);
+            if (den > 1e-7 && v0 / den > t + 1e-5 && v0 / den < best) { best = v0 / den; bg = gn; }
+          }
+          if (!bg || best > far) break;
+          g = bg; t = best;
+        }
+      }
+    }
+  }
+  ok(reach <= 10, `a ray's march through the fog reads no cell more than 10 from yours (furthest ${reach})`);
+  ok(good, `every cell within reach of a ray holds its own numbers, through 60 moves and a jump (${checked} cells checked)`);
+  ok(fills === 2 && strips > 0, `a run fills the window once, a jump once more, and moving refills strips (${fills} fills, ${strips} strips)`);
 }
 
 /* clearance */
