@@ -41,6 +41,12 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
   const th = 0.3, dt = th / RATES.roll;
   const r = new Craft([0, 0, 0, 0]); r.steer(1, 0, 0, dt);
   ok(Math.abs(r.wNose - Math.sin(FL.COUPLING * th)) < 1e-12, `a roll of θ tips the nose sin(kθ) into w (${r.wNose.toFixed(4)})`);
+  ok(RATES.roll <= RATES.pitch && RATES.roll <= RATES.yaw, "roll, the turn that drives you through w, turns no faster than pitch or yaw");
+  { let r = 0; const seq = []; for (let i = 0; i < 30; i++) seq.push(r = FL.easeRoll(r, 1, 1 / 60));
+    const tap = new Craft([0, 0, 0, 0]); r = 0; for (let i = 0; i < 6; i++) { r = FL.easeRoll(r, 1, 1 / 60); tap.steer(r, 0, 0, 1 / 60); }
+    ok(seq[0] < 0.1 && seq[17] === 1 && seq.every((v, i) => !i || v >= seq[i - 1]) && FL.easeRoll(0.7, -1, 1 / 60) < 0 && FL.easeRoll(0.7, -1, 1 / 60) > -0.1 && FL.easeRoll(0.7, 0, 1 / 60) === 0,
+      "a held roll eases in to full over ROLL_EASE; reversing or letting go starts again from nothing");
+    ok(tap.wNose < 0.025, `a tenth-of-a-second tap is a nudge: the nose tips ${tap.wNose.toFixed(4)} into w (at launch, full roll at once and 2.4 rad/s, 0.12)`); }
   const p = new Craft([0, 0, 0, 0]); p.steer(0, 1, 0, th / RATES.pitch);
   ok(Math.abs(p.wNose) < 1e-12 && Math.abs(p.R[3] - Math.sin(FL.COUPLING * th)) < 1e-12 && Math.abs(p.F[2] - Math.sin(th)) < 1e-12, "a pitch lifts the nose and tips the wings into w, not the nose");
   const y = new Craft([0, 0, 0, 0]); y.steer(0, 0, 1, th / RATES.yaw);

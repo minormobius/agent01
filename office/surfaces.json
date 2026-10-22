@@ -7457,6 +7457,16 @@
    "discovered": true
   },
   {
+   "id": "plateau/foam.html",
+   "name": "foam",
+   "url": "https://games.mino.mobi/plateau/foam.html",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "plateau",
+   "discovered": true
+  },
+  {
    "id": "games/play.html",
    "name": "play",
    "url": "https://games.mino.mobi/play.html",

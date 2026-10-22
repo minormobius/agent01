@@ -2,7 +2,7 @@
    The physics and the collision are ./flight.js, the drawing ./render.js,
    the leaderboard ./board.js (loaded apart). This file is the run: input,
    the clock, the phases, the crash, the overlays. */
-import { Foam, Craft, clearance, fieldAt, speedAt, phaseAt, autopilot, PHASES, R_EDGE, R_BODY, RATES } from "./flight.js";
+import { Foam, Craft, clearance, fieldAt, speedAt, phaseAt, autopilot, PHASES, R_EDGE, R_BODY, RATES, easeRoll } from "./flight.js";
 import { Renderer } from "./render.js";
 import { OPEN, dailyId, dailySeed, METRES } from "./score.js";
 
@@ -43,7 +43,7 @@ function banner(name, line) { $("banner-name").textContent = name; $("banner-lin
 
 /* ------------------------------------------------------------- input: keys, mouse, a stick and roll buttons */
 const keys = new Set();
-let stick = null, rollHeld = 0, mouse = { x: 0, y: 0 };
+let stick = null, rollHeld = 0, rollEased = 0, mouse = { x: 0, y: 0 };
 function inputs(dt) {
   let roll = 0, pitch = 0, yaw = 0;
   if (keys.has("a") || keys.has("q")) roll -= 1;
@@ -53,7 +53,8 @@ function inputs(dt) {
   if (keys.has("arrowleft")) yaw -= 1;
   if (keys.has("arrowright")) yaw += 1;
   if (stick) { yaw += stick.x; pitch -= stick.y; }
-  roll += rollHeld;
+  roll = Math.max(-1, Math.min(1, roll + rollHeld));
+  roll = rollEased = easeRoll(rollEased, roll, dt); // a held roll eases in: a tap is a nudge
   // the mouse turns you by how far it moved, like looking round
   if (dt > 0) { yaw += mouse.x * 0.0026 / (RATES.yaw * dt); pitch -= mouse.y * 0.0026 / (RATES.pitch * dt); }
   mouse.x = mouse.y = 0;

@@ -8,6 +8,12 @@ is how far you get, and there's a leaderboard for it.
 
 The companion to [Foam⁴](../foam4/), the toy for looking at the same foam.
 
+**[The foam, phase by phase](foam.html)** (`foam.html`) is the page for
+players: each phase with a picture of the same spot, the numbers, why w feels
+jumpy in the crystal (measured), and which controls drive you through w.
+Its pictures (`img/`) are the game's own renderer at seed 4242, with the craft
+at a cell's seed at 400 m, 2.2, 4.5, 7.5 and 13 km.
+
 ## Flying in four dimensions
 
 You're a rigid body in 4D: a point `P` and four orthonormal directions, right

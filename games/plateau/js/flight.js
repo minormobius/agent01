@@ -32,7 +32,17 @@
 import { clip, boxPoly } from "../../foam4/js/foam.js";
 
 export const COUPLING = 0.5, R_EDGE = 0.05, R_BODY = 0.07;
-export const RATES = { roll: 2.4, pitch: 1.7, yaw: 1.7 }; // radians a second at full stick
+export const RATES = { roll: 1.7, pitch: 1.7, yaw: 1.7 }; // radians a second at full stick
+/* roll is the one turn that drives you through w (it tips your nose there), so it was the one that felt far
+   too quick at 2.4: it now turns no faster than the others, and a held roll key eases in over ROLL_EASE s,
+   so a tap is a nudge */
+export const ROLL_EASE = 0.3;
+/* the roll you get this frame from a held roll input (target, −1 … 1) and last frame's (prev): it eases in,
+   and letting go or reversing starts it again from nothing */
+export function easeRoll(prev, target, dt) {
+  if (!target || Math.sign(target) !== Math.sign(prev)) prev = 0;
+  return target ? Math.sign(target) * Math.min(Math.abs(target), Math.abs(prev) + dt / ROLL_EASE) : 0;
+}
 
 /* ---------------------------------------------------------------- the phases */
 export const PHASES = [
