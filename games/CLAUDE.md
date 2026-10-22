@@ -335,7 +335,10 @@ These live here:
   cockpit. You're a rigid body in 4D (P and R, U, F, N); every turn is a
   double rotation that turns its plane and, by `COUPLING` (0.5) as much, the
   plane perpendicular to it (roll R→U with F→N, so rolling tips your nose
-  into w and flying forward drives you through it). Don't touch the edges
+  into w and flying forward drives you through it); pitch and yaw turn the
+  nose in a plane tilted `W_TILT` (30°) into w (up-and-ana, right-and-ana),
+  since their perpendicular planes don't hold the nose and couldn't move it
+  into w. Don't touch the edges
   (the slice's Plateau borders) or a solid cell's walls. `plateau/js/flight.js`
   (no DOM) has the craft, the seeds (`Foam.rand`: five numbers a grid cell, which the shader reads from a 26⁴ texture window round you, refilled a strip at a time),
   the exact in-slice `clearance` (your cell clipped by its bisectors with

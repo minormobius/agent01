@@ -36,8 +36,8 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
   for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) worst = Math.max(worst, Math.abs(dot(B[i], B[j]) - (i === j ? 1 : 0)));
   ok(worst < 1e-12, `after 20000 random turns the frame is still orthonormal (worst ${worst.toExponential(1)})`);
   const z = new Craft([0, 0, 0, 0]);
-  for (let i = 0; i < 5000; i++) z.steer(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1, 1 / 60, 0);
-  ok(Math.abs(z.N[3] - 1) < 1e-12 && [z.R, z.U, z.F].every((v) => Math.abs(v[3]) < 1e-12), "at coupling 0 you never leave your slice: N stays w");
+  for (let i = 0; i < 5000; i++) z.steer(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1, 1 / 60, 0, 0);
+  ok(Math.abs(z.N[3] - 1) < 1e-12 && [z.R, z.U, z.F].every((v) => Math.abs(v[3]) < 1e-12), "at coupling 0 and tilt 0 you never leave your slice: N stays w");
   const th = 0.3, dt = th / RATES.roll;
   const r = new Craft([0, 0, 0, 0]); r.steer(1, 0, 0, dt);
   ok(Math.abs(r.wNose - Math.sin(FL.COUPLING * th)) < 1e-12, `a roll of θ tips the nose sin(kθ) into w (${r.wNose.toFixed(4)})`);
@@ -48,9 +48,18 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
       "a held roll eases in to full over ROLL_EASE; reversing or letting go starts again from nothing");
     ok(tap.wNose < 0.025, `a tenth-of-a-second tap is a nudge: the nose tips ${tap.wNose.toFixed(4)} into w (at launch, full roll at once and 2.4 rad/s, 0.12)`); }
   const p = new Craft([0, 0, 0, 0]); p.steer(0, 1, 0, th / RATES.pitch);
-  ok(Math.abs(p.wNose) < 1e-12 && Math.abs(p.R[3] - Math.sin(FL.COUPLING * th)) < 1e-12 && Math.abs(p.F[2] - Math.sin(th)) < 1e-12, "a pitch lifts the nose and tips the wings into w, not the nose");
+  const ca = Math.cos(FL.W_TILT), sa = Math.sin(FL.W_TILT);
+  ok(Math.abs(p.wNose - Math.sin(th) * sa) < 1e-12 && Math.abs(p.F[2] - Math.sin(th) * ca) < 1e-12 && Math.abs(p.R[3] - Math.sin(FL.COUPLING * th) * ca) < 1e-12,
+    `a pitch of θ turns the nose toward up tilted ${(FL.W_TILT * 180 / Math.PI).toFixed(0)}° into w: up by sin θ cos tilt, ana by sin θ sin tilt (${p.wNose.toFixed(4)}), and the wings into w by k`);
   const y = new Craft([0, 0, 0, 0]); y.steer(0, 0, 1, th / RATES.yaw);
-  ok(Math.abs(y.wNose) < 1e-12 && Math.abs(y.U[3] - Math.sin(FL.COUPLING * th)) < 1e-12 && Math.abs(y.F[0] - Math.sin(th)) < 1e-12, "a yaw swings the nose right and tips up into w");
+  ok(Math.abs(y.wNose - Math.sin(th) * sa) < 1e-12 && Math.abs(y.F[0] - Math.sin(th) * ca) < 1e-12 && Math.abs(y.U[3] + Math.sin(FL.COUPLING * th) * ca) < 1e-12, "a yaw swings the nose right and ana by the same tilt, and tips up kata by k");
+  { let fine = true; // every stick, full and diagonal, the frame stays whole (pitch up and yaw left once made a NaN)
+    for (const st of [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [0, -1], [0.3, -0.3], [3, -3]]) { const c = new Craft([0, 0, 0, 0]); for (let i = 0; i < 50; i++) c.steer(0.2, st[0], st[1], 1 / 60);
+      if (![c.R, c.U, c.F, c.N, c.P].every((v) => v.every(Number.isFinite)) || Math.abs(dot(c.F, c.F) - 1) > 1e-12) fine = false; }
+    ok(fine, "every stick, straight and diagonal, keeps the frame whole"); }
+  { const p0 = new Craft([0, 0, 0, 0]); p0.steer(0, 1, 0, th / RATES.pitch, FL.COUPLING, 0); const n0 = new Craft([0, 0, 0, 0]); n0.steer(0, -1, 0, th / RATES.pitch);
+    ok(Math.abs(p0.wNose) < 1e-12 && Math.abs(p0.R[3] - Math.sin(FL.COUPLING * th)) < 1e-12 && Math.abs(n0.wNose + Math.sin(th) * sa) < 1e-12,
+      "untilted, a pitch can't move the nose into w at all (only the wings, by k); tilted, down goes kata as up goes ana"); }
   const f = new Craft([1, 2, 3, 4]); f.F = [0.6, 0, 0, 0.8]; f.fly(2, 0.5);
   ok(f.P.every((v, i) => Math.abs(v - [1.6, 2, 3, 4.8][i]) < 1e-12), "you fly along your nose, through w as much as it points there");
 }
@@ -222,7 +231,7 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
   // a Kelvin run opens square to w, and at jitter 0 its cell is one of Kelvin's truncated octahedra
   {
     const foam = new Foam(4242, "kelvin"), F = { ...fieldAt(0, "kelvin"), jitter: 0 }, c = new Craft(foam.pos([0, 0, 0, 0], F));
-    c.steer(0, 0.4, 0.3, 0.4, 0); c.steer(0.2, 0, 0, 0.4, 0);
+    c.steer(0, 0.4, 0.3, 0.4, 0, 0); c.steer(0.2, 0, 0, 0.4, 0, 0);
     const kinds = {}; for (const f of FL.cellOf(foam, F, c, foam.nearest(c.P, F), 3)) if (f.nb !== "box") kinds[f.pts.length] = (kinds[f.pts.length] || 0) + 1;
     ok(kinds[4] === 6 && kinds[6] === 8 && Object.keys(kinds).length === 2, "a Kelvin run opens in Kelvin's foam: truncated octahedra (6 squares, 8 hexagons)");
   }

@@ -37,6 +37,9 @@ export const RATES = { roll: 1.7, pitch: 1.7, yaw: 1.7 }; // radians a second at
    too quick at 2.4: it now turns no faster than the others, and a held roll key eases in over ROLL_EASE s,
    so a tap is a nudge */
 export const ROLL_EASE = 0.3;
+/* how far pitch and yaw tilt into w: pitching up turns your nose toward up-and-ana, yawing right toward
+   right-and-ana, by this angle (see Craft.steer). 0 would leave roll the only way through w */
+export const W_TILT = 30 * Math.PI / 180;
 /* the roll you get this frame from a held roll input (target, −1 … 1) and last frame's (prev): it eases in,
    and letting go or reversing starts it again from nothing */
 export function easeRoll(prev, target, dt) {
@@ -162,11 +165,36 @@ export class Craft {
     const c = Math.cos(th), s = Math.sin(th), A = this[a], B = this[b];
     this[a] = A.map((v, i) => c * v + s * B[i]); this[b] = B.map((v, i) => c * v - s * A[i]);
   }
-  /* inputs in −1 … 1: roll (right wing down), pitch (nose up), yaw (nose right) */
-  steer(roll, pitch, yaw, dt, k = COUPLING) {
+  /* turn every frame direction in the plane of the orthonormal pair a, b (a toward b) by th */
+  spin(a, b, th) {
+    const c = Math.cos(th) - 1, sn = Math.sin(th);
+    for (const k of ["R", "U", "F", "N"]) {
+      const v = this[k], va = dot(v, a), vb = dot(v, b);
+      this[k] = v.map((x, i) => x + c * (va * a[i] + vb * b[i]) + sn * (va * b[i] - vb * a[i]));
+    }
+  }
+  /* inputs in −1 … 1: roll (right wing down), pitch (nose up), yaw (nose right).
+     Roll banks (R→U) and, by k as much, turns the nose into w (F→N): the plane perpendicular to the bank.
+     Pitch and yaw turn the nose toward up or right, TILTED by tilt into w (ana): up-and-a-little-ana,
+     right-and-a-little-ana. Without the tilt they couldn't move your nose into w at all, however strongly
+     coupled: the plane perpendicular to (nose, up) is (right, w), which doesn't hold the nose. With it,
+     every turn carries you through w a little (down and left go kata), and, by k as much, they turn the
+     plane perpendicular to the nose's turn as before. tilt 0 and k 0 is ordinary flight in one slice */
+  steer(roll, pitch, yaw, dt, k = COUPLING, tilt = W_TILT) {
     if (roll) { const th = roll * RATES.roll * dt; this.turn("R", "U", -th); this.turn("F", "N", k * th); }
-    if (pitch) { const th = pitch * RATES.pitch * dt; this.turn("F", "U", th); this.turn("R", "N", k * th); }
-    if (yaw) { const th = yaw * RATES.yaw * dt; this.turn("F", "R", th); this.turn("U", "N", k * th); }
+    if (pitch || yaw) {
+      const th = Math.hypot(pitch * RATES.pitch, yaw * RATES.yaw) * dt, ct = Math.cos(tilt), st = Math.sin(tilt);
+      // where the nose turns: the stick's direction in the cockpit (up, right), tilted toward N
+      const D = [0, 1, 2, 3].map((i) => pitch * (ct * this.U[i] + st * this.N[i]) + yaw * (ct * this.R[i] + st * this.N[i]));
+      const unit = (v) => { const n = Math.hypot(...v); return n > 1e-12 ? v.map((x) => x / n) : [NaN]; };
+      const perp = (v, us) => { let w = v.slice(); for (const u of us) { const d = dot(w, u); w = w.map((x, i) => x - d * u[i]); } return w; };
+      const F = this.F, d = unit(perp(D, [F]));
+      // the perpendicular plane: the cockpit direction square to the stick's (pitch R - yaw U), toward N, both
+      // made perpendicular to the nose's plane
+      const c1 = unit(perp([0, 1, 2, 3].map((i) => pitch * this.R[i] - yaw * this.U[i]), [F, d])), c2 = unit(perp(this.N, [F, d, c1]));
+      if (d.every(Number.isFinite)) this.spin(F.slice(), d, th);
+      if (k && c1.every(Number.isFinite) && c2.every(Number.isFinite)) this.spin(c1, c2, k * th);
+    }
     this.orthonormalize();
   }
   fly(speed, dt) { this.P = this.P.map((v, i) => v + speed * dt * this.F[i]); }

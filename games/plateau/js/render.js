@@ -17,14 +17,36 @@ in vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`;
 
 export const M = 26; // the seed texture holds a 26⁴ window of grid cells, addressed by g mod 26 (a ray needs ±11 round you, in a lattice's own coordinates)
 
+/* every seed in the window, in your slice's coordinates, worked out once a frame: a pre-pass draws one
+   texel per grid cell, (x right, y forward, z up, relative to you; and the seed's power, its squared distance
+   with its height h off the slice: |q|² + h²). The march then reads a seed with one fetch and crosses its
+   bisector with a dot product, where it used to rebuild the seed from its numbers (jitter, the crystal's
+   basis, the scale) and take four 4D dot products, for every one of the 80 neighbours at every step */
+const prepassFor = (lattice) => `#version 300 es
+precision highp float; precision highp int; precision highp sampler2D;
+uniform sampler2D uRand; uniform vec4 uLo; uniform float uScale, uJitter; uniform mat4 uB;
+uniform vec4 uP, uR, uU, uF, uN;
+out vec4 o;
+const float M = ${M}.0;
+void main() {
+  ivec2 X = ivec2(gl_FragCoord.xy);
+  vec4 m = vec4(float(X.x % ${M}), float(X.x / ${M}), float(X.y % ${M}), float(X.y / ${M}));
+  vec4 g = uLo + mod(m - uLo, M); // the grid cell in the window with these residues
+  vec4 k = g + 0.5 + uJitter * (texelFetch(uRand, X, 0) - 0.5);
+  vec4 s = uScale * ${lattice ? "(uB * k)" : "k"} - uP;
+  vec3 q = vec3(dot(s, uR), dot(s, uF), dot(s, uU)); float h = dot(s, uN);
+  o = vec4(q, dot(q, q) + h * h);
+}`;
+
 /* the fragment shader for a mode: the tesseract foam's is the grid itself; a lattice mode multiplies by its
    basis (uB) and reads its few extra neighbours (uExtra: the offsets beyond the 80 that its melt can make
-   neighbours, flight.js's MODES[mode].extra) */
-const fsFor = (lattice, nx) => `#version 300 es
+   neighbours, flight.js's MODES[mode].extra). With the pre-pass (sliced) a seed is one fetch; without it
+   (no float render targets) the shader works the same numbers out itself */
+const fsFor = (lattice, nx, sliced) => `#version 300 es
 precision highp float; precision highp int; precision highp sampler2D;
-uniform sampler2D uRand, uSolidR; // per grid cell: where its seed sits (rgba) and when it turns solid (r), from flight.js
+uniform sampler2D uRand, uSolidR, uSlice; // per grid cell: where its seed sits (rgba) and when it turns solid (r), from flight.js; the seeds in your slice (the pre-pass)
 uniform float uScale, uJitter, uSolid;
-uniform vec4 uP, uR, uU, uF; uniform vec4 uHere;
+uniform vec4 uP, uR, uU, uF, uN; uniform vec4 uHere;
 uniform vec2 uRes; uniform float uTan, uFar, uEdge, uFlash;
 uniform mat4 uB; uniform vec4 uExtra[${Math.max(1, nx)}];
 out vec4 frag;
@@ -34,10 +56,26 @@ const float M = ${M}.0;
    2-3 times slower (some GPUs keep such tables in memory), and four nested loops were slower too */
 vec4 nbo(int j) { int k = j < 40 ? j : j + 1; return vec4(float(k % 3) - 1.0, float((k / 3) % 3) - 1.0, float((k / 9) % 3) - 1.0, float(k / 27) - 1.0); }
 ivec2 texel(vec4 g) { vec4 m = g - M * floor(g / M); return ivec2(int(m.x + M * m.y), int(m.z + M * m.w)); }
+/* the 80 offsets in order (x fastest, the centre skipped), as an odometer: one call moves o to the next */
+void tick(inout vec4 o) {
+  o.x += 1.0;
+  if (o.x > 1.0) { o.x = -1.0; o.y += 1.0; if (o.y > 1.0) { o.y = -1.0; o.z += 1.0; if (o.z > 1.0) { o.z = -1.0; o.w += 1.0; } } }
+  if (o == vec4(0.0)) o.x = 1.0;
+}
 vec4 nb(int j) { ${nx ? "return j < 80 ? nbo(j) : uExtra[j - 80];" : "return nbo(j);"} }
-vec4 seedOf(vec4 g) { vec4 k = g + 0.5 + uJitter * (texelFetch(uRand, texel(g), 0) - 0.5); return uScale * ${lattice ? "(uB * k)" : "k"}; }
 bool solidCell(vec4 g) { return !all(equal(g, uHere)) && texelFetch(uSolidR, texel(g), 0).r < uSolid; }
-vec3 to3(vec4 v) { return vec3(dot(v, uR), dot(v, uF), dot(v, uU)); } // view space: x right, y forward, z up
+/* g's residues mod M (g is whole: g + ½ over M is never a whole number, so floor is exact); and a residue
+   moved by an offset (a step or two either way), wrapped back into 0 … M - 1 by comparison, not division */
+vec4 res(vec4 g) { return g - M * floor((g + 0.5) * (1.0 / M)); }
+vec4 wrap(vec4 m) { return m + M * (vec4(lessThan(m, vec4(0.0))) - vec4(greaterThanEqual(m, vec4(M)))); }
+ivec2 at(vec4 m) { return ivec2(int(m.x + M * m.y), int(m.z + M * m.w)); }
+/* a seed in view space, relative to you (x right, y forward, z up), and its power |q|² + h²: g the grid
+   cell, m its residues */
+vec4 Q(vec4 g, vec4 m) {
+${sliced ? "  return texelFetch(uSlice, at(m), 0);" : `  vec4 k = g + 0.5 + uJitter * (texelFetch(uRand, at(m), 0) - 0.5), s = uScale * ${lattice ? "(uB * k)" : "k"} - uP;
+  vec3 q = vec3(dot(s, uR), dot(s, uF), dot(s, uU)); float h = dot(s, uN);
+  return vec4(q, dot(q, q) + h * h);`}
+}
 
 /* how near x, on the face of the cell g (seed s) that faces neighbour skip (unit normal m, in view space),
    is to the face's rim, measured IN the face: a bisector j cuts the face along a line, and x's distance to
@@ -46,13 +84,14 @@ vec3 to3(vec4 v) { return vec3(dot(v, uR), dot(v, uF), dot(v, uU)); } // view sp
    it near x, counts for nothing. .x the distance; .yzw the direction in the face it grows in.
    The march below does this for free for every face it passes through (the face's rim seen from the far
    cell, whose planes it is reading anyway); this is for the one it stops at, a solid cell's */
-vec4 rimFrom(vec4 g, vec4 s, vec4 x, int skip, vec3 m) {
-  vec4 r = vec4(1e9, 0.0, 0.0, 0.0);
+vec4 rimFrom(vec4 g, vec4 qs, vec3 x, int skip, vec3 m) {
+  vec4 r = vec4(1e9, 0.0, 0.0, 0.0), mg = res(g), o = vec4(-1.0);
   for (int j = 0; j < ${80 + nx}; j++) {
+    vec4 off = ${nx ? "j < 80 ? o : uExtra[j - 80]" : "o"}; tick(o);
     if (j == skip) continue;
-    vec4 sn = seedOf(g + nb(j)), n = sn - s; vec3 n3 = to3(n); float L = length(n3); if (L < 1e-5) continue;
+    vec4 qn = Q(g + off, wrap(mg + off)); vec3 n3 = qn.xyz - qs.xyz; float L = length(n3); if (L < 1e-5) continue;
     vec3 u = n3 / L; float c = dot(u, m), q = 1.0 - c * c; if (q < 1e-4) continue;
-    float iq = inversesqrt(q), d = (0.5 * (dot(sn, sn) - dot(s, s)) - dot(x, n)) / L * iq;
+    float iq = inversesqrt(q), d = (0.5 * (qn.w - qs.w) - dot(x, n3)) / L * iq;
     if (d < r.x) r = vec4(d, -(u - c * m) * iq);
   }
   return r;
@@ -84,21 +123,23 @@ void shade(inout vec3 acc, inout float A, vec3 bg, vec3 rd, float px, float best
 void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / (0.5 * uRes.y);
   vec3 rd = normalize(vec3(uv.x * uTan, 1.0, uv.y * uTan));
-  vec4 d4 = rd.x * uR + rd.y * uF + rd.z * uU, o4 = uP;
   vec3 bg = mix(vec3(0.01, 0.015, 0.03), vec3(0.04, 0.06, 0.11), smoothstep(-0.6, 0.8, rd.z));
   vec3 acc = vec3(0.0); float A = 0.0, t = 0.0, px = 2.0 * uTan / uRes.y;
-  // the march: in each cell, one pass over the 80 seeds round it finds where the ray leaves (the nearest
-  // bisector ahead) AND the rim of the face it came in through, at the entry point (that face is one of
-  // this cell's too, bounded by this cell's planes), so the face is shaded a step late, for nothing
+  // the march, in view space with your eye at the origin: a bisector between seeds s and n is the plane
+  // 2 (qn - qs)·x = pn - ps (their powers), so along the ray it's crossed at t = ½ (pn - ps) / (rd·(qn - qs)).
+  // In each cell, one pass over the 80 seeds round it finds where the ray leaves (the nearest bisector ahead)
+  // AND the rim of the face it came in through, at the entry point (that face is one of this cell's too,
+  // bounded by this cell's planes), so the face is shaded a step late, for nothing
   vec4 g = uHere, gp = uHere; vec3 mp = vec3(0.0, 1.0, 0.0); bool pend = false;
   for (int step = 0; step <= 30; step++) {
-    vec4 s = seedOf(g); float ss = dot(s, s), best = 1e9; int bj = -1; vec4 rim = vec4(1e9, 0.0, 0.0, 0.0);
+    vec4 mg = res(g), qs = Q(g, mg), o = vec4(-1.0); float best = 1e9; int bj = -1; vec4 rim = vec4(1e9, 0.0, 0.0, 0.0);
     for (int j = 0; j < ${80 + nx}; j++) {
-      vec4 gn = g + nb(j), sn = seedOf(gn), n = sn - s;
-      float v0 = 0.5 * (dot(sn, sn) - ss) - dot(o4, n), den = dot(d4, n); // the plane's value at the eye, and its rate along the ray
+      vec4 off = ${nx ? "j < 80 ? o : uExtra[j - 80]" : "o"}; tick(o);
+      vec4 gn = g + off, qn = Q(gn, wrap(mg + off)); vec3 n3 = qn.xyz - qs.xyz;
+      float v0 = 0.5 * (qn.w - qs.w), den = dot(rd, n3); // the plane's value at the eye, and its rate along the ray
       if (den > 1e-7) { float tj = v0 / den; if (tj > t + 1e-5 && tj < best) { best = tj; bj = j; } }
       if (pend && any(notEqual(gn, gp))) {
-        vec3 n3 = to3(n); float Ln = length(n3);
+        float Ln = length(n3);
         if (Ln > 1e-5) {
           vec3 u = n3 / Ln; float c = dot(u, mp), q = 1.0 - c * c;
           if (q > 1e-4) { float iq = inversesqrt(q), d = (v0 - t * den) / Ln * iq; if (d < rim.x) rim = vec4(d, -(u - c * mp) * iq); }
@@ -108,8 +149,8 @@ void main() {
     if (pend) { shade(acc, A, bg, rd, px, t, mp, rim, false); if (A > 0.97) break; }
     if (step == 30 || bj < 0 || best > uFar) break;
     vec4 ng = g + nb(bj);
-    vec3 n3 = normalize(to3(seedOf(ng) - s)); if (dot(n3, rd) > 0.0) n3 = -n3;
-    if (solidCell(ng)) { shade(acc, A, bg, rd, px, best, n3, rimFrom(g, s, o4 + d4 * best, bj, n3), true); break; }
+    vec3 n3 = normalize(Q(ng, res(ng)).xyz - qs.xyz); if (dot(n3, rd) > 0.0) n3 = -n3;
+    if (solidCell(ng)) { shade(acc, A, bg, rd, px, best, n3, rimFrom(g, qs, rd * best, bj, n3), true); break; }
     pend = true; gp = g; mp = n3; g = ng; t = best;
   }
   vec3 col = acc + (1.0 - A) * bg;
@@ -135,23 +176,35 @@ export class Renderer {
     };
     this.randTex = tex(0, gl.RGBA32F); this.solidTex = tex(1, gl.R32F);
     this.lo = null; this.seed = null;
+    // the pre-pass's target: the seeds in your slice, one texel a cell. It needs float render targets; without
+    // them (or ?slice=0, for comparing) the march works the seeds out itself, to the same numbers
+    this.sliced = !!gl.getExtension("EXT_color_buffer_float") && new URLSearchParams(location.search).get("slice") !== "0";
+    if (this.sliced) {
+      this.sliceTex = tex(2, gl.RGBA32F); this.fbo = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.sliceTex, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) this.sliced = false;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
     this.prog(null); // the tesseract foam's, now: a shader error shows at once
   }
-  /* the program for a foam's mode, compiled the first time it's needed */
+  /* the programs for a foam's mode (the march, and its pre-pass), compiled the first time they're needed */
   prog(foam) {
     const key = foam ? foam.mode : "tesseract"; if (this.progs[key]) return this.progs[key];
     const gl = this.gl, B = foam && foam.B, extra = (foam && foam.neigh.slice(80)) || [];
     const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
-    const p = gl.createProgram();
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsFor(!!B, extra.length))); gl.bindAttribLocation(p, 0, "aPos"); gl.linkProgram(p);
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
-    const u = {};
-    for (const n of ["uRand", "uSolidR", "uScale", "uJitter", "uSolid", "uP", "uR", "uU", "uF", "uHere", "uRes", "uTan", "uFar", "uEdge", "uFlash", "uB", "uExtra"]) u[n] = gl.getUniformLocation(p, n);
-    gl.useProgram(p); this.cur = p;
-    gl.uniform1i(u.uRand, 0); gl.uniform1i(u.uSolidR, 1);
-    if (B) gl.uniformMatrix4fv(u.uB, false, B.flat()); // B's rows are the basis vectors: GL's columns
-    if (extra.length) gl.uniform4fv(u.uExtra, extra.flat());
-    return (this.progs[key] = { p, u });
+    const link = (fs) => {
+      const p = gl.createProgram();
+      gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.bindAttribLocation(p, 0, "aPos"); gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+      const u = {};
+      for (const n of ["uRand", "uSolidR", "uSlice", "uScale", "uJitter", "uSolid", "uP", "uR", "uU", "uF", "uN", "uHere", "uRes", "uTan", "uFar", "uEdge", "uFlash", "uB", "uExtra", "uLo"]) u[n] = gl.getUniformLocation(p, n);
+      gl.useProgram(p); this.cur = p;
+      gl.uniform1i(u.uRand, 0); gl.uniform1i(u.uSolidR, 1); gl.uniform1i(u.uSlice, 2);
+      if (B) gl.uniformMatrix4fv(u.uB, false, B.flat()); // B's rows are the basis vectors: GL's columns
+      if (extra.length) gl.uniform4fv(u.uExtra, extra.flat());
+      return { p, u };
+    };
+    return (this.progs[key] = { march: link(fsFor(!!B, extra.length, this.sliced)), pre: this.sliced ? link(prepassFor(!!B)) : null });
   }
   /* keep the window of grid cells round gc (your grid cell) in the textures: a new foam fills it whole, and
      moving refills only the strips that came into it. The numbers are flight.js's own (foam.rand) */
@@ -190,14 +243,19 @@ export class Renderer {
   }
   /* f: { foam, field: { scale, jitter, solid }, craft (P, R, U, F), here (the grid cell you're in), far, edge, flash } */
   draw(f, scale) {
-    const gl = this.gl, c = this.canvas, P = this.prog(f.foam), u = P.u;
-    if (this.cur !== P.p) { gl.useProgram(P.p); this.cur = P.p; }
-    this.sync(f.foam, f.foam.cellCoords(f.craft.P, f.field).map(Math.floor));
+    const gl = this.gl, c = this.canvas, progs = this.prog(f.foam), P = progs.march, u = P.u, k = f.craft;
+    this.sync(f.foam, f.foam.cellCoords(k.P, f.field).map(Math.floor));
+    const use = (q) => { if (this.cur !== q.p) { gl.useProgram(q.p); this.cur = q.p; } };
+    const frame = (u) => { gl.uniform1f(u.uScale, f.field.scale); gl.uniform1f(u.uJitter, f.field.jitter); gl.uniform4fv(u.uP, k.P); gl.uniform4fv(u.uR, k.R); gl.uniform4fv(u.uU, k.U); gl.uniform4fv(u.uF, k.F); gl.uniform4fv(u.uN, k.N); };
+    if (progs.pre) { // the seeds into your slice, one texel a cell
+      use(progs.pre); frame(progs.pre.u); gl.uniform4fv(progs.pre.u.uLo, this.lo);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo); gl.viewport(0, 0, M * M, M * M); gl.drawArrays(gl.TRIANGLES, 0, 3); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+    use(P);
     const w = Math.max(1, Math.round(c.clientWidth * scale)), h = Math.max(1, Math.round(c.clientHeight * scale));
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     gl.viewport(0, 0, w, h);
-    gl.uniform1f(u.uScale, f.field.scale); gl.uniform1f(u.uJitter, f.field.jitter); gl.uniform1f(u.uSolid, f.field.solid);
-    gl.uniform4fv(u.uP, f.craft.P); gl.uniform4fv(u.uR, f.craft.R); gl.uniform4fv(u.uU, f.craft.U); gl.uniform4fv(u.uF, f.craft.F);
+    frame(u); gl.uniform1f(u.uSolid, f.field.solid);
     gl.uniform4fv(u.uHere, f.here);
     gl.uniform2f(u.uRes, w, h); gl.uniform1f(u.uTan, 0.62); gl.uniform1f(u.uFar, f.far); gl.uniform1f(u.uEdge, f.edge);
     gl.uniform1f(u.uFlash, f.flash || 0);

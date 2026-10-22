@@ -26,11 +26,31 @@ Every turn is a **double rotation**: it turns its plane of the body and, by
 | input | turns | and, coupled | so |
 |---|---|---|---|
 | roll | R → U | F → N | your nose tips into w |
-| pitch | F → U | R → N | your wings tip into w |
-| yaw | F → R | U → N | your up tips into w |
+| pitch | F → (U cos τ + N sin τ) | R′ → N′ | your nose turns up and a little ana |
+| yaw | F → (R cos τ + N sin τ) | U′ → N′ | your nose turns right and a little ana |
 
-At coupling 1 these would be isoclinic (Clifford) rotations, multiplication by
-unit quaternions; at 0 it would be ordinary flight in one slice. Once your nose
+τ is `W_TILT`, 30°. Pitch and yaw turn the nose in a plane tilted into w
+because otherwise they couldn't move it there at all. A double rotation's
+second plane is perpendicular to its first. Pitch's first plane is
+(nose, up), so its second is (right, w), which doesn't contain the nose: pitch
+could tilt the wings into w at any coupling, but never the nose. Only roll's
+second plane, (nose, w), holds the nose. Tilting the turn plane by τ makes
+every manoeuvre carry you through w: down and left go kata. The coupled plane
+is still the one perpendicular to the nose's turn.
+
+A quarter-second tap from level flight carries you through w in the next 2 s
+by:
+
+| tap | cells |
+|---|---|
+| pitch or yaw | 1.03 |
+| roll | 0.47 |
+| pitch or yaw, before the tilt | 0 |
+
+At coupling 1 and tilt 0 these would be isoclinic (Clifford) rotations,
+multiplication by unit quaternions. At coupling 0 and tilt 0 it is ordinary
+flight in one slice; a run's opening heading is set that way, so a run starts
+square to w. Once your nose
 points into w, flying forward drives you through w. The slice you're in moves,
 and the foam you see changes round you: cells are born, shrink away, and flip.
 The gauge on the right shows how far your nose points ana or kata.
@@ -93,6 +113,33 @@ That is about 2.5× in all. Three things measured slower and were left out:
 Lists of each cell's faces in your slice would be shorter. But rolling turns
 the slice through w, so a cell 7 away moves about 0.8 cells in w in a tenth of
 a second, and the lists would go stale at once.
+
+After those, three more changes:
+
+- **A pre-pass, once a frame.** One texel per grid cell turns every seed in
+  the window into slice coordinates relative to you (x, y, z and its power
+  |q|² + h²). The march reads a seed with one fetch and crosses its bisector
+  with a dot product. It no longer rebuilds the seed (jitter, the crystal's
+  basis, the scale) and takes four 4D dot products for each of 80
+  neighbours at every step. Where float render targets are missing, the
+  march computes the same numbers itself.
+- **An odometer for the neighbour offsets and their texels.** No integer
+  division or remainder, which many phone GPUs emulate.
+- **Pixel-identical.** Mean difference 0.001/255. On the sandbox's software
+  GL the lattice modes and the melted foam render 15–26% faster; the crystal
+  view is unchanged.
+
+**The resolution governor** keeps up with the display at whatever rate it
+runs (60 Hz, 120 Hz, or a phone's low-power 30 Hz). It is judged by frames
+left waiting on the GPU, never by the clock.
+
+- **What was wrong.** It used to give way only when frames ran 2.5 refreshes
+  late on average, which is a third of the display's rate. At 30 Hz that is
+  9 frames a second, still sharpening.
+- **Now.** It gives way when one frame in three misses a refresh, by a quarter
+  when it's far behind, down to 0.35 of the screen's pixels. It sharpens only
+  after 2.5 s without dropping.
+- **`?hud=1`** shows frames a second, resolution, lateness and pixels a frame.
 
 ## The phases
 

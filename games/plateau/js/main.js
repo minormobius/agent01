@@ -29,7 +29,7 @@ function begin(daily, fixed) {
   const craft = new Craft(foam.pos([0, 0, 0, 0], F));
   // a heading off the crystal's axes, the same for everyone on a seed: the safe lanes are yours to find
   const h = (k) => (((seed >>> (k * 5)) & 31) / 31) * 2 - 1;
-  craft.steer(0, 0.35 + 0.2 * h(0), 0.4 + 0.3 * h(1), 0.4, 0); craft.steer(0.3 * h(2), 0, 0, 0.4, 0);
+  craft.steer(0, 0.35 + 0.2 * h(0), 0.4 + 0.3 * h(1), 0.4, 0, 0); craft.steer(0.3 * h(2), 0, 0, 0.4, 0, 0); // turned in the slice: a run starts square to w
   run = { foam, craft, mode, d: 0, time: 0, seed, daily, over: false, phase: PHASES[0], cell: [0, 0, 0, 0], grace: 1.2, near: 0, posted: false, auto: false, autoT: 0, autoK: [0, 0, 0] };
   $("start").hidden = true; $("dead").hidden = true; banner(PHASES[0].name, MODES[mode].line); offerable();
   if (!matchMedia("(pointer: coarse)").matches) lock();
@@ -116,13 +116,26 @@ document.addEventListener("click", (e) => { if (e.isTrusted && performance.now()
 const AUTO = { ahead: 0.45, step: 0.15, cands: [[0, 0, 0], [1, 0, 0], [-1, 0, 0], ...[-1, 0, 1].flatMap((p) => [-1, 0, 1].map((y) => [0, p, y])).filter((k) => k[1] || k[2])] };
 let res = 0, lag = 0, resN = 0, waits = 0, fence = null, flash = 0, prev = performance.now(), frames = 0;
 const Q = new URLSearchParams(location.search), FIXED = 1 / (+Q.get("dt") || Infinity), RES = +Q.get("res") || Infinity; // ?dt=24: step 1/24 s a frame whatever the clock says (the attract loop films in time-lapse); ?res= caps the resolution
-function resolution(w) { // as sharp as the GPU keeps up with: judged by frames left waiting on it, not by time
+/* as sharp as the GPU keeps up with the display at, judged by frames left waiting on it (never by time: the
+   display's own rate, 60 or 120 or a low-power 30, isn't the GPU's fault). It used to give way only when frames
+   averaged 2.5 refreshes late, which is a third of the display's rate: at the 30 Hz of a phone's low-power
+   mode, 9 frames a second, and still sharpening. Now a frame that misses one refresh in three gives way, fast
+   when it's far behind; it sharpens only after a while with none missed, and never right after giving way */
+let lastDrop = 0;
+function resolution(w, now) {
   const dpr = Math.min(2, devicePixelRatio || 1), cap = Math.min(dpr, RES, Math.sqrt(1.6e6 / Math.max(1, glc.clientWidth * glc.clientHeight)));
-  if (!res) res = cap * 0.8;
-  lag += (w - lag) * 0.2;
-  if (++resN >= 8) { resN = 0; if (lag > 2.5 && res > 0.5) res = Math.max(0.5, res * 0.85); else if (lag < 1.2 && res < cap) res = Math.min(cap, res * 1.08); }
-  return Math.round(res * 20) / 20;
+  if (!res) res = cap * (matchMedia("(pointer: coarse)").matches ? 0.6 : 0.8);
+  lag += (w - lag) * 0.25;
+  if (++resN >= 6) {
+    resN = 0;
+    if (lag > 0.35 && res > 0.35) { res = Math.max(0.35, res * (lag > 1.5 ? 0.75 : 0.88)); lastDrop = now; }
+    else if (lag < 0.08 && res < cap && now - lastDrop > 2500) res = Math.min(cap, res * 1.05);
+  }
+  return Math.round(res * 40) / 40;
 }
+/* ?hud=1: what the renderer is doing (frames a second, resolution, how late frames are, pixels a frame) */
+const HUD = Q.get("hud") === "1" ? document.body.appendChild(Object.assign(document.createElement("pre"), { style: "position:fixed;left:8px;bottom:8px;margin:0;font:11px ui-monospace,monospace;color:#9fd;background:rgba(0,0,0,.5);padding:4px 6px;pointer-events:none;z-index:5" })) : null;
+let hudT = 0, hudN = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   if (FIXED && fence && Rd.gl.getSyncParameter(fence, Rd.gl.SYNC_STATUS) !== Rd.gl.SIGNALED) { waits++; return; } // in time-lapse the clock waits for the GPU too
@@ -143,7 +156,8 @@ function frame(now) {
   const gl = Rd.gl;
   if (fence) { if (gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) { waits++; return; } gl.deleteSync(fence); fence = null; }
   const F = fieldAt(run.d, run.mode);
-  Rd.draw({ foam: run.foam, field: F, craft: run.craft, here: run.cell, far: 7 * F.scale, edge: R_EDGE, time: now / 1000, flash }, resolution(waits)); waits = 0;
+  Rd.draw({ foam: run.foam, field: F, craft: run.craft, here: run.cell, far: 7 * F.scale, edge: R_EDGE, time: now / 1000, flash }, resolution(waits, now)); waits = 0;
+  if (HUD) { hudN++; if (now - hudT > 500) { HUD.textContent = `${(hudN * 1000 / (now - hudT)).toFixed(0)} fps · res ${res.toFixed(2)} · late ${lag.toFixed(2)} · ${glc.width}×${glc.height}${Rd.sliced ? " · sliced" : ""}`; hudT = now; hudN = 0; } }
   fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush(); frames++;
   overlay();
 }
