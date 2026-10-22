@@ -17,7 +17,7 @@ const best = (() => { try { return JSON.parse(localStorage.getItem("plateau.best
 const saveBest = () => { try { localStorage.setItem("plateau.best", JSON.stringify(best)); } catch (e) { /* private mode */ } };
 /* the seed crystal you fly from (the game's modes), remembered */
 let mode = "tesseract";
-try { const m = localStorage.getItem("plateau.mode"); if (MODES[m] && !$("modes").hidden) mode = m; } catch (e) { /* private mode */ } // the picker is hidden until the other crystals are ready
+try { const m = localStorage.getItem("plateau.mode"); if (MODES[m]) mode = m; } catch (e) { /* private mode */ }
 function setMode(m) {
   if (!MODES[m]) return; mode = m;
   try { localStorage.setItem("plateau.mode", m); } catch (e) { /* private mode */ }
@@ -25,7 +25,7 @@ function setMode(m) {
   $("mode-line").textContent = MODES[m].line;
 }
 function begin(daily, fixed) {
-  const seed = daily ? dailySeed(undefined, mode) : fixed !== undefined ? fixed >>> 0 : (Math.random() * 2 ** 32) >>> 0, foam = new Foam(seed, mode), F = fieldAt(0);
+  const seed = daily ? dailySeed(undefined, mode) : fixed !== undefined ? fixed >>> 0 : (Math.random() * 2 ** 32) >>> 0, foam = new Foam(seed, mode), F = fieldAt(0, mode);
   const craft = new Craft(foam.pos([0, 0, 0, 0], F));
   // a heading off the crystal's axes, the same for everyone on a seed: the safe lanes are yours to find
   const h = (k) => (((seed >>> (k * 5)) & 31) / 31) * 2 - 1;
@@ -131,9 +131,9 @@ function frame(now) {
     if (run.auto && (run.autoT -= dt) <= 0) { run.autoK = autopilot(run.foam, run.d, run.craft, AUTO); run.autoT = 0.12; } // the attract loop's pilot
     const [roll, pitch, yaw] = run.auto ? run.autoK : inputs(dt), v = speedAt(run.d);
     run.craft.steer(roll, pitch, yaw, dt); run.craft.fly(v, dt); run.d += v * dt; run.time += dt; run.grace -= dt;
-    const F = fieldAt(run.d), cl = clearance(run.foam, F, run.craft);
+    const F = fieldAt(run.d, run.mode), cl = clearance(run.foam, F, run.craft);
     run.cell = cl.cell.split(",").map(Number); run.near = Math.min(cl.edge - R_EDGE, cl.solid - R_BODY);
-    const ph = phaseAt(run.d); if (ph !== run.phase) { run.phase = ph; banner(ph.name, ph.line); }
+    const ph = phaseAt(run.d); if (ph !== run.phase) { run.phase = ph; banner(ph.name, ph.name === "melt" ? MODES[run.mode].melt : ph.line); }
     if (run.grace <= 0 && cl.edge < R_EDGE) crash("you touched an edge");
     else if (run.grace <= 0 && cl.solid < R_BODY) crash("you hit a solid cell");
     hud();
@@ -142,7 +142,7 @@ function frame(now) {
   flash = Math.max(0, flash - dt * 2);
   const gl = Rd.gl;
   if (fence) { if (gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) { waits++; return; } gl.deleteSync(fence); fence = null; }
-  const F = fieldAt(run.d);
+  const F = fieldAt(run.d, run.mode);
   Rd.draw({ foam: run.foam, field: F, craft: run.craft, here: run.cell, far: 7 * F.scale, edge: R_EDGE, time: now / 1000, flash }, resolution(waits)); waits = 0;
   fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush(); frames++;
   overlay();

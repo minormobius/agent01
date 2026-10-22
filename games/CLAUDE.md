@@ -337,14 +337,21 @@ These live here:
   plane perpendicular to it (roll R→U with F→N, so rolling tips your nose
   into w and flying forward drives you through it). Don't touch the edges
   (the slice's Plateau borders) or a solid cell's walls. `plateau/js/flight.js`
-  (no DOM) has the craft, the seeds (`Foam.rand`: five numbers a grid cell, which the shader reads from a 24⁴ texture window round you, refilled a strip at a time),
+  (no DOM) has the craft, the seeds (`Foam.rand`: five numbers a grid cell, which the shader reads from a 26⁴ texture window round you, refilled a strip at a time),
   the exact in-slice `clearance` (your cell clipped by its bisectors with
   Foam⁴'s `clip`; the cell you're in is never solid) and the phases by
   distance (crystal, melt, clot, press, deep: jitter, solid fraction and
   scale, all continuous), and an `autopilot` (lookahead) that the balance
   report and the attract loop fly. The shader draws each edge as a tube of
   the collision radius from the exact in-face distance to the face's rim.
-  Leaderboard for distance (today's foam and any foam). See
+  Three modes by seed crystal (`MODES`): tesseract (Z⁴, the grid, the
+  launch game), kelvin (A₄*: a run opens in Kelvin's truncated octahedra)
+  and cell24 (D₄): a seed sits at B (g + ½ + jitter), each basis chosen so
+  every neighbour is within one step (D₄ also lists 8 corner contacts), and the
+  lattices melt only to 0.2 / 0.25, short of where they'd grow faces two steps
+  away (measured; the selftest checks the lists). Leaderboards for distance
+  per mode (today's foam and any foam; tesseract keeps its launch board names).
+  `foam.html` is the players' page on the phases and crystals. See
   [`plateau/README.md`](plateau/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and

@@ -48,8 +48,8 @@ carries a handicap of `h²`.
 
 - **The shader** (`js/render.js`) steps each ray from membrane to membrane. A
   ray leaves a cell where it first crosses a bisector with one of the 80 seeds
-  round it. It reads the seeds' random numbers from a texture holding a 24⁴
-  window of grid cells round you, addressed by `g mod 24` and filled by
+  round it. It reads the seeds' random numbers from a texture holding a 26⁴
+  window of grid cells round you, addressed by `g mod 26` and filled by
   `Foam.rand` itself. The texture is filled once a run; as you move, only the
   strips that come into the window are refilled.
 - **The edges** are drawn as tubes of the collision radius. On each face, the
@@ -101,8 +101,8 @@ The foam changes with distance, continuously, so nothing jumps
 
 | phase | from | what happens |
 |---|---|---|
-| crystal | 0 | a nearly perfect tesseract foam (jitter 0.08) |
-| melt | 120 | the crystal melts into a random foam (jitter to 0.5) |
+| crystal | 0 | a nearly perfect crystal: tesseract (jitter 0.08), Kelvin or 24-cell (0.04) |
+| melt | 120 | the crystal melts: the tesseract foam into a random foam (jitter to 0.5), the others part way |
 | clot | 320 | cells turn solid |
 | press | 560 | more turn solid, and the cells press smaller (scale to 0.75) |
 | deep | 900 | as far as the foam goes; only the speed still climbs |
@@ -110,13 +110,60 @@ The foam changes with distance, continuously, so nothing jumps
 Distances are in cells. A cell is 10 m on the board. Speed climbs from 2 to 4.2
 cells a second.
 
+## The seed crystals (modes)
+
+You pick the crystal you start in (`MODES` in `flight.js`). The seed of grid
+cell g sits at B (g + ½ + jitter), where B is the crystal's basis, scaled to
+one seed per unit of 4D volume.
+
+| mode | lattice | basis | melts to | neighbour list |
+|---|---|---|---|---|
+| tesseract | Z⁴ | the grid itself | 0.5 (random) | the 80 round a cell |
+| kelvin | A₄* (permutohedra) | Foam⁴'s obtuse superbase | 0.2 | the 80 |
+| cell24 | D₄ (24-cells) | roots (1,1,0,0) (1,−1,0,0) (1,0,1,0) (1,0,0,1) | 0.25 | the 80 and 8 corner contacts |
+
+- **The bases.** Each basis is chosen so that every Voronoi neighbour of a cell
+  is within one step in every coordinate. Foam⁴'s own D₄ basis puts some at
+  two steps. In the one used here, all 24 roots are within one step. The
+  perfect D₄ foam's corners are shared so widely that 8 cells two steps away
+  touch each cell at a point, and any jitter grows those contacts into faces,
+  so they are listed too.
+- **Why the lattices only melt part way.** Past about a quarter of a cell, a
+  melting lattice grows faces with cells two steps away in its own
+  coordinates. Measured against every seed two steps away: A₄* first at
+  jitter 0.3, D₄ (with its contacts) not by 0.35. So each crystal stays in its
+  foam to the end. The selftest checks the lists, crystal to fully melted.
+- **The tesseract foam** is the game as it launched, seed for seed.
+- **Kelvin's opening.** A run starts square to w, and there the Kelvin mode's
+  slice is Kelvin's foam: truncated octahedra (checked at jitter 0).
+- **The renderer** compiles a program per mode. The basis is a uniform matrix
+  and the extra neighbours a uniform array; the tesseract program is the
+  shader as it was. In lattice coordinates a ray reaches ±11 cells, so the
+  seed texture's window is 26⁴ (±12).
+
+How each crystal moves through w, per fiftieth of a cell (the measure on
+the foam page):
+
+| crystal | mean change | worst step | steps with almost no change |
+|---|---|---|---|
+| tesseract | 2.1% | 33% | 87 of 100 |
+| Kelvin | 2.8% | 14% | 2 of 100 |
+| 24-cell | 2.3% | 8% | 37 of 100 |
+
+The tesseract crystal jolts. Kelvin's foam flows, and the 24-cell foam is in
+between.
+
 ## The boards
 
 `js/score.js` and `js/board.js` mount Orb's board kit, with records stored as
-`com.minomobi.lab.score`. There are two boards:
+`com.minomobi.lab.score`. There are two boards per mode:
 
-- **today's foam:** one seed for everyone each UTC day, `daily-v1-YYYY-MM-DD`.
-- **any foam:** `open-v1`.
+- **today's foam:** one seed for everyone each UTC day.
+- **any foam.**
+
+The tesseract boards keep their launch names, `daily-v1-YYYY-MM-DD` and
+`open-v1`, and today's tesseract seed is the same as before. The others carry
+their mode: `daily-v1-kelvin-YYYY-MM-DD`, `open-v1-cell24`.
 
 `accept()` refuses a run longer than `VMAX × time` allows, because nobody
 flies faster than the craft. Bump `VERSION` whenever anything that moves

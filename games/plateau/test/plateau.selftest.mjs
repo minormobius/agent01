@@ -76,9 +76,9 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
   ok(fieldAt(1e6).jitter <= 0.5 + 1e-12, "jitter never passes half a cell (where the 80 seeds round a cell are all its possible neighbours)");
 }
 
-/* the renderer's seed texture: a 24⁴ window of grid cells round you, addressed by g mod 24, refilled a strip
+/* the renderer's seed texture: a 26⁴ window of grid cells round you, addressed by g mod 26, refilled a strip
    at a time as you move. Run against a stand-in for WebGL that keeps what's uploaded: after every move, every
-   cell a ray can reach (within ±10 of yours) holds its own five numbers from flight.js */
+   cell a ray can reach (within ±12 of yours) holds its own five numbers from flight.js */
 {
   const { Renderer, M } = await import(path.join(here, "../js/render.js"));
   const store = new Map(); let bound = null;
@@ -93,7 +93,7 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
     if (step === 40) gc = gc.map((v) => v + 30); // a jump: the whole window again
     R.sync(foam, gc);
     for (let i = 0; i < 300; i++) {
-      const g = gc.map((v) => v + Math.floor(rnd() * 21) - 10), r = foam.rand(g), X = mod(g[0]) + M * mod(g[1]), Y = mod(g[2]) + M * mod(g[3]), at = Y * M * M + X;
+      const g = gc.map((v) => v + Math.floor(rnd() * 25) - 12), r = foam.rand(g), X = mod(g[0]) + M * mod(g[1]), Y = mod(g[2]) + M * mod(g[3]), at = Y * M * M + X;
       const t4 = store.get("rand"), t1 = store.get("solid");
       if (![0, 1, 2, 3].every((c) => t4[at * 4 + c] === Math.fround(r[c])) || t1[at] !== Math.fround(r[4])) good = false;
       checked++;
@@ -101,17 +101,17 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
   }
   // and what reach is: the shader's march, run here, through the far fog in every direction, never reads a cell further
   let reach = 0;
-  for (const d of [0, 200, 450, 800, 1500]) {
-    const F = fieldAt(d), far = 7 * F.scale;
+  for (const [mode, d] of [["tesseract", 0], ["tesseract", 200], ["tesseract", 450], ["tesseract", 800], ["tesseract", 1500], ["kelvin", 0], ["kelvin", 800], ["cell24", 0], ["cell24", 800]]) {
+    const foam = new Foam(31337, mode), F = fieldAt(d, mode), far = 7 * F.scale;
     for (let i = 0; i < 6; i++) {
       const c = new Craft([0, 1, 2, 3].map(() => rnd() * 20 - 10)); for (let k = 0; k < 20; k++) c.steer(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1, 0.2);
-      const g0 = c.P.map((v) => Math.floor(v / F.scale)), here = foam.nearest(c.P, F);
+      const g0 = foam.cellCoords(c.P, F).map(Math.floor), here = foam.nearest(c.P, F);
       for (let r = 0; r < 40; r++) {
         const u = [rnd() - 0.5, rnd() - 0.5, rnd() - 0.5], ul = Math.hypot(...u), d4 = [0, 1, 2, 3].map((k) => (u[0] * c.R[k] + u[1] * c.U[k] + u[2] * c.F[k]) / ul);
         let g = here, t = 0;
         for (let step = 0; step <= 30; step++) {
           const sd = foam.pos(g, F); let best = Infinity, bg = null;
-          for (const o of NEIGH4) {
+          for (const o of foam.neigh) {
             const gn = g.map((v, k) => v + o[k]); reach = Math.max(reach, ...gn.map((v, k) => Math.abs(v - g0[k])));
             const sn = foam.pos(gn, F), n = sn.map((v, k) => v - sd[k]), den = dot(d4, n), v0 = 0.5 * (dot(sn, sn) - dot(sd, sd)) - dot(c.P, n);
             if (den > 1e-7 && v0 / den > t + 1e-5 && v0 / den < best) { best = v0 / den; bg = gn; }
@@ -122,8 +122,8 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
       }
     }
   }
-  ok(reach <= 10, `a ray's march through the fog reads no cell more than 10 from yours (furthest ${reach})`);
-  ok(good, `every cell within reach of a ray holds its own numbers, through 60 moves and a jump (${checked} cells checked)`);
+  ok(reach <= 11, `a ray's march through the fog reads no cell more than 11 from yours, in every crystal (furthest ${reach}); the window holds ±12`);
+  ok(good, `every cell within ±12 holds its own numbers, through 60 moves and a jump (${checked} cells checked)`);
   ok(fills === 2 && strips > 0, `a run fills the window once, a jump once more, and moving refills strips (${fills} fills, ${strips} strips)`);
 }
 
@@ -186,6 +186,46 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
   }
   ok(safe, `no solid cell is ever nearer than the clearance says${safe ? "" : ` (off by ${worst.toFixed(3)})`}`);
   ok(n >= 5 && tight >= n - 1, `and it's tight: within 0.03 of the nearest a ray finds (${tight} of ${n})`);
+}
+
+/* the seed crystals (the modes): each lattice, crystal to as melted as it gets, keeps every Voronoi neighbour
+   of a cell inside its neighbour list (the 80 round it, and D₄'s eight corner contacts), checked against every
+   seed two steps away; the nearest seed is always found; a ray never reads outside the texture window; and a
+   Kelvin run opens in Kelvin's foam */
+{
+  const { clip, boxPoly } = await import(path.join(here, "../../foam4/js/foam.js"));
+  const basis3 = (n) => { const out = []; for (const e of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { let v = e.slice(); for (const u of [n, ...out]) { const d = dot(v, u); v = v.map((x, i) => x - d * u[i]); } const l = Math.hypot(...v); if (l > 1e-6 && out.length < 3) out.push(v.map((x) => x / l)); } return out; };
+  const R2 = []; for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) for (let c = -2; c <= 2; c++) for (let e = -2; e <= 2; e++) if (a || b || c || e) R2.push([a, b, c, e]);
+  // the offsets (within ±2) of the cells whose Voronoi facet with g's is non-empty: the bisector, cut by every other halfspace
+  const facets = (foam, F, g) => {
+    const s = foam.pos(g, F), others = R2.map((o) => ({ o, p: foam.pos(g.map((v, i) => v + o[i]), F) })), out = [];
+    for (const u of others) {
+      const n = u.p.map((v, i) => v - s[i]), nl = Math.hypot(...n), m = s.map((v, i) => (v + u.p[i]) / 2), Bs = basis3(n.map((x) => x / nl)); let poly = boxPoly(4);
+      for (const w of others) { if (w === u) continue; const d4 = w.p.map((v, i) => v - s[i]), nn = Bs.map((b) => 2 * dot(b, d4)), dd = dot(w.p, w.p) - dot(s, s) - 2 * dot(m, d4); if (Math.hypot(...nn) < 1e-12) { if (dd < 0) { poly = null; break; } continue; } poly = clip(poly, nn, dd, "x"); if (!poly) break; }
+      if (poly) out.push(u.o);
+    }
+    return out;
+  };
+  for (const mode of ["kelvin", "cell24"]) {
+    const foam = new Foam(2718, mode), listed = new Set(foam.neigh.map((o) => o.join(",")));
+    let inList = true, count = 0;
+    for (const [d, g] of [[0, [3, -1, 4, 1]], [400, [-5, 9, 2, 6]], [400, [8, 2, -7, 3]]]) for (const o of facets(foam, fieldAt(d, mode), g)) { count++; if (!listed.has(o.join(","))) inList = false; }
+    ok(inList && count > 60, `${mode}: every Voronoi neighbour of a cell, crystal and fully melted, is in its list of ${foam.neigh.length} (${count} faces checked against every seed two steps away)`);
+    let near = true;
+    for (const d of [0, 200, 400]) { const F = fieldAt(d, mode); for (let i = 0; i < 80; i++) {
+      const p = [0, 1, 2, 3].map(() => rnd() * 8 - 4), g = foam.nearest(p, F), g0 = foam.cellCoords(p, F).map(Math.floor); let bd = Infinity, bg = null;
+      for (const o of [[0, 0, 0, 0], ...R2]) { const h = g0.map((v, k) => v + o[k]), q = foam.pos(h, F), dd = q.reduce((t, v, k) => t + (v - p[k]) ** 2, 0); if (dd < bd) { bd = dd; bg = h; } }
+      if (FL.key(bg) !== FL.key(g)) near = false; } }
+    ok(near, `${mode}: the nearest seed is always found among the cells round a point (against every cell two steps away)`);
+    ok(fieldAt(1e6, mode).jitter === FL.MODES[mode].j1 && FL.MODES[mode].j1 <= 0.25 && fieldAt(0, mode).jitter === FL.MODES[mode].j0, `${mode}: the melt stops at jitter ${FL.MODES[mode].j1}, short of where a lattice grows faces two steps away`);
+  }
+  // a Kelvin run opens square to w, and at jitter 0 its cell is one of Kelvin's truncated octahedra
+  {
+    const foam = new Foam(4242, "kelvin"), F = { ...fieldAt(0, "kelvin"), jitter: 0 }, c = new Craft(foam.pos([0, 0, 0, 0], F));
+    c.steer(0, 0.4, 0.3, 0.4, 0); c.steer(0.2, 0, 0, 0.4, 0);
+    const kinds = {}; for (const f of FL.cellOf(foam, F, c, foam.nearest(c.P, F), 3)) if (f.nb !== "box") kinds[f.pts.length] = (kinds[f.pts.length] || 0) + 1;
+    ok(kinds[4] === 6 && kinds[6] === 8 && Object.keys(kinds).length === 2, "a Kelvin run opens in Kelvin's foam: truncated octahedra (6 squares, 8 hexagons)");
+  }
 }
 
 /* the phases */

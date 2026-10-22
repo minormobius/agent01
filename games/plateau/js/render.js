@@ -15,7 +15,7 @@
 const VS = `#version 300 es
 in vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`;
 
-export const M = 24; // the seed texture holds a 24⁴ window of grid cells, addressed by g mod 24 (a ray needs ±10 round you)
+export const M = 26; // the seed texture holds a 26⁴ window of grid cells, addressed by g mod 26 (a ray needs ±11 round you, in a lattice's own coordinates)
 
 /* the fragment shader for a mode: the tesseract foam's is the grid itself; a lattice mode multiplies by its
    basis (uB) and reads its few extra neighbours (uExtra: the offsets beyond the 80 that its melt can make
@@ -156,7 +156,7 @@ export class Renderer {
   /* keep the window of grid cells round gc (your grid cell) in the textures: a new foam fills it whole, and
      moving refills only the strips that came into it. The numbers are flight.js's own (foam.rand) */
   sync(foam, gc) {
-    const R = 10; // a ray reaches its cells' neighbours within ±10 grid cells of yours (7 to the fog, 1.5 seed to region, 1 neighbour)
+    const R = 12; // a ray reaches its cells' neighbours within ±11 cells of yours (the selftest measures it in every crystal); one spare
     const want = gc.map((v, a) => (this.lo && v - R >= this.lo[a] && v + R <= this.lo[a] + M - 1 ? this.lo[a] : v - R - 1));
     if (this.seed !== foam.seed || !this.lo || want.some((v, a) => Math.abs(v - this.lo[a]) >= M)) { // a new foam, or a jump: all of it
       this.seed = foam.seed; this.lo = want; this.rect(foam, 0, 0, M * M, M * M); return;

@@ -114,6 +114,48 @@ details { margin: 6px 0 0; } summary { cursor: pointer; color: var(--dim); font-
 </table></div>
 <p class="small dim">Jitter is how far a seed may sit from the centre of its grid cell, as a share of a cell; at half a cell the foam is fully random. Solid is the share of cells that are solid.</p>
 
+<h2>Three crystals to start from</h2>
+<p>The phases above are the <b>tesseract</b> foam, the one PLATEAU launched with: a grid of 4D cubes. Two more seed crystals are modes of their own, each with its own boards:</p>
+<section class="phase">
+  <img src="img/kelvin-crystal.jpg" alt="Kelvin's foam from the cockpit: hexagonal and square windows" width="720" height="450" loading="lazy" />
+  <div>
+    <h3>Kelvin</h3><p class="at">A₄*, the permutohedral lattice</p>
+    <p>The 4D Kelvin foam: every cell a permutohedron, the 4D cousin of the truncated octahedron. Every run starts square to w, and there its slice <b>is</b> Kelvin's foam: truncated octahedra, six square faces and eight hexagons: Kelvin's 1887 answer to how to split space into equal cells with the least wall (bettered in 1993, by Weaire and Phelan). Roll, and the slice tips into 4D and the hexagons start to shear.</p>
+    <ul class="facts"><li>jitter <b>0.04 → 0.2</b></li><li>30 neighbours a cell</li></ul>
+  </div>
+</section>
+<section class="phase">
+  <img src="img/kelvin-melt.jpg" alt="The loosened Kelvin foam, still made of hexagons and pentagons" width="720" height="450" loading="lazy" />
+  <div>
+    <h3>Kelvin, loosened</h3><p class="at">from 3 km</p>
+    <p>A lattice only melts part way. Past about a quarter of a cell, a melting lattice starts to grow faces between cells two steps apart in its own coordinates, beyond what the game reads exactly. So Kelvin stops at 0.2, and the crystal stays in the foam all the way down: loosened, never random.</p>
+  </div>
+</section>
+<section class="phase">
+  <img src="img/cell24-crystal.jpg" alt="The 24-cell foam from the cockpit: many edges meeting at each corner" width="720" height="450" loading="lazy" />
+  <div>
+    <h3>24-cell</h3><p class="at">D₄, the checkerboard lattice</p>
+    <p>A foam of 24-cells, the regular 4D solid with no 3D counterpart. Its corners are shared by more cells than any foam's should be, so a slice through them comes out knotted: many edges meeting at a point, which the crystal's small jitter has only just pulled apart. It melts to 0.25.</p>
+    <ul class="facts"><li>jitter <b>0.04 → 0.25</b></li><li>24 neighbours a cell, and 8 more by a corner</li></ul>
+  </div>
+</section>
+<section class="phase">
+  <img src="img/cell24-melt.jpg" alt="The loosened 24-cell foam" width="720" height="450" loading="lazy" />
+  <div>
+    <h3>24-cell, loosened</h3><p class="at">from 3 km</p>
+    <p>The knots untie into ordinary corners as it loosens. The clot, the press and the deep come after, as in every mode.</p>
+  </div>
+</section>
+<p>Each crystal moves through w differently. Here is the same measure as below (how much of the view changes cell per fiftieth of a cell of w), for each crystal:</p>
+<div class="wide"><table>
+<thead><tr><th>crystal</th><th>mean change per step</th><th>worst single step</th><th>steps that change almost nothing</th></tr></thead>
+<tbody>
+<tr><td>tesseract</td><td class="n">2.1%</td><td class="n">33%</td><td class="n">87 of 100</td></tr>
+<tr><td>Kelvin</td><td class="n">2.8%</td><td class="n">14%</td><td class="n">2 of 100</td></tr>
+<tr><td>24-cell</td><td class="n">2.3%</td><td class="n">8%</td><td class="n">37 of 100</td></tr>
+</tbody></table></div>
+<p>The tesseract crystal jolts. Kelvin's foam flows: it never sits still in w, and it never flips much at once. The 24-cell foam is in between.</p>
+
 <h2>Why w feels so jumpy at the start</h2>
 <p>Move through w and the slice you see moves through the foam: cells shrink away, new ones are born, faces flip. On average the foam changes <b>just as fast in every phase</b>: per fiftieth of a cell of w, about 2–2.6% of what you see changes cell. What differs is <b>when</b>.</p>
 <p>In the crystal, nothing happens, and nothing, and then a third of the view flips at once: once a cell of w, half-way between one layer of the 4D lattice and the next. You've crossed into the next layer, and every cell in sight crosses with you. Deep in the random foam the same amount of change comes in small, steady pieces. That's why early w feels hair-trigger and later w feels calmer, even though the foam is changing as much.</p>
@@ -153,7 +195,7 @@ details { margin: 6px 0 0; } summary { cursor: pointer; color: var(--dim); font-
 <p class="small dim">Roll used to turn faster than the other two and all at once on a key or button, so a tap threw the nose three times further into w. It now turns at the same rate as pitch and yaw and eases in over 0.3 s, so a tap is a nudge.</p>
 
 <h2>What ends runs</h2>
-<p>A lookahead autopilot that tests 27 stick inputs half a second ahead, ten times a second, gets from <b>5.6 to 5.9 km</b>: every run ends early in the press, as often on a solid cell as on an edge. That's where the gaps narrow for the same craft and about one cell in sixteen is solid. A human sees further ahead than half a second and turns less perfectly.</p>
+<p>A lookahead autopilot that tests 27 stick inputs half a second ahead, ten times a second, gets from <b>5.6 to 5.9 km</b> in the tesseract foam (four runs): every run ends early in the press, as often on a solid cell as on an edge. That's where the gaps narrow for the same craft and about one cell in sixteen is solid. In the other crystals it does about as well (two runs each): <b>5.0 and 6.0 km</b> in Kelvin's foam, <b>4.8 and 5.6 km</b> in the 24-cell foam, ended in the clot or the press. A human sees further ahead than half a second and turns less perfectly.</p>
 
 <p class="foot"><a href="./">fly PLATEAU</a> · <a href="./README.md">how it works</a> · <a href="../foam4/">Foam⁴, the toy for looking at the same foam</a> · <a href="../">the arcade</a></p>
 </main>

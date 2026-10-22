@@ -53,9 +53,10 @@ export const PHASES = [
   { from: 900, name: "deep", line: "as far as the foam goes" },
 ];
 const ramp = (d, a, b) => Math.max(0, Math.min(1, (d - a) / (b - a)));
-export function fieldAt(d) {
+export function fieldAt(d, mode = "tesseract") {
+  const m = MODES[mode] || MODES.tesseract;
   return {
-    jitter: 0.08 + 0.42 * ramp(d, 120, 300),
+    jitter: m.j0 + (m.j1 - m.j0) * ramp(d, 120, 300),
     solid: 0.06 * ramp(d, 320, 560) + 0.05 * ramp(d, 560, 1000),
     scale: 1 - 0.25 * ramp(d, 560, 900),
   };
@@ -86,7 +87,10 @@ const U32 = 4294967296;
      tesseract: Z⁴, the grid itself (the game as it launched; its boards keep their names)
      kelvin:    A₄*, the permutohedral lattice: the 4D Kelvin foam. Cut square to w, as every run starts,
                 its cells are Kelvin's truncated octahedra (Foam⁴'s selftest)
-     cell24:    D₄, the 24-cell foam, in a basis of four roots in which all 24 roots are within one step */
+     cell24:    D₄, the 24-cell foam, in a basis of four roots in which all 24 roots are within one step
+   The lattices melt only part way (jitter j1): beyond about a quarter, a melting lattice starts to grow
+   faces with cells two steps away in its own coordinates (measured: A₄* first at 0.3, D₄ none to 0.3 with
+   its eight contacts), so its crystal stays in it to the end. The tesseract foam melts all the way. */
 const unit = (rows) => { const d = det4(rows), f = Math.pow(Math.abs(d), -1 / 4); return rows.map((r) => r.map((x) => x * f)); };
 function det4(m) {
   const d3 = (a) => a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
@@ -102,9 +106,12 @@ function inv4(rows) { // the matrix taking a point to its lattice coordinates (r
   return a.map((r) => r.slice(4));
 }
 export const MODES = {
-  tesseract: { name: "tesseract", title: "TESSERACT", B: null, line: "a nearly perfect tesseract foam" },
-  kelvin: { name: "kelvin", title: "KELVIN", B: SPECIES.a4.B, line: "Kelvin's foam: truncated octahedra, cut from 4D permutohedra" },
-  cell24: { name: "24-cell", title: "24-CELL", B: unit([[1, 1, 0, 0], [1, -1, 0, 0], [1, 0, 1, 0], [1, 0, 0, 1]]), line: "a foam of 24-cells, cut through" },
+  tesseract: { name: "tesseract", title: "TESSERACT", B: null, j0: 0.08, j1: 0.5, line: "a nearly perfect tesseract foam", melt: "the crystal melts into a random foam" },
+  kelvin: { name: "kelvin", title: "KELVIN", B: SPECIES.a4.B, j0: 0.04, j1: 0.2, line: "Kelvin's foam: truncated octahedra, cut from 4D permutohedra", melt: "the crystal loosens, but never forgets itself" },
+  cell24: { name: "24-cell", title: "24-CELL", B: unit([[1, 1, 0, 0], [1, -1, 0, 0], [1, 0, 1, 0], [1, 0, 0, 1]]), j0: 0.04, j1: 0.25, line: "a foam of 24-cells, cut through", melt: "the crystal loosens, but never forgets itself",
+    // the perfect D₄ foam's corners are shared so widely that eight cells two steps away touch each cell there
+    // (zero-size faces); any melt grows those into faces, so they're neighbours too
+    extra: [[2, 1, -1, -1], [-2, -1, 1, 1], [1, 2, -1, -1], [-1, -2, 1, 1], [1, 1, 0, -2], [-1, -1, 0, 2], [1, 1, -2, 0], [-1, -1, 2, 0]] },
 };
 for (const m of Object.values(MODES)) m.Bi = m.B && inv4(m.B);
 export const MODE_IDS = Object.keys(MODES);
@@ -195,7 +202,7 @@ function polyDist(pts, n) { // distance from the origin to a convex polygon in 3
   return m;
 }
 /* the slice cell of seed g, round the craft (slice coordinates: origin at P, axes R, U, F) */
-function cellOf(foam, F, craft, g, B) {
+export function cellOf(foam, F, craft, g, B) {
   const P = craft.P, to = (s) => { const r = s.map((v, i) => v - P[i]); return { q: [dot(r, craft.R), dot(r, craft.U), dot(r, craft.F)], h: dot(r, craft.N) }; };
   const a = to(foam.pos(g, F));
   let poly = boxPoly(B);
@@ -258,7 +265,7 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3]];
 const CANDS = [[0, 0, 0]]; for (const r of [-1, 0, 1]) for (const p of [-1, 0, 1]) for (const y of [-1, 0, 1]) if (r || p || y) CANDS.push([r, p, y]);
 export const margin = (cl) => Math.min(cl.edge - R_EDGE, cl.solid - R_BODY);
 export function autopilot(foam, d, craft, { ahead = 0.5, step = 0.1, cands = CANDS } = {}) {
-  const F = fieldAt(d), v = speedAt(d);
+  const F = fieldAt(d, foam.mode), v = speedAt(d);
   let best = -Infinity, choice = cands[0];
   for (const k of cands) {
     const g = new Craft(craft.P); Object.assign(g, { R: craft.R, U: craft.U, F: craft.F, N: craft.N });

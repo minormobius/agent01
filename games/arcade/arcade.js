@@ -29,7 +29,7 @@ const GAMES = [
     blurb: "Anakata's and Anabasis's rooms in first person: walk them freely, look round, turn your sight through the fourth dimension, hook along w or fall kata through it. Every move is still the rules' own, so every room is the same proved puzzle, at the same par." },
   { id: "plateau", url: "plateau/", name: "PLATEAU", genre: "FLIGHT 4D", c: "#ff9f5a",
     line: "Fly through a four-dimensional foam. Roll, and your nose tips into w: the foam you see changes as you go.",
-    blurb: "A Voronoi foam in four dimensions, flown one 3D slice at a time. Every turn of your craft turns it through w as well, so steering is how you move through the fourth dimension. Don't touch the edges where three cells meet. The foam melts, clots and presses smaller the further you get; how far is the leaderboard." },
+    blurb: "A Voronoi foam in four dimensions, flown one 3D slice at a time. Every turn of your craft turns it through w as well, so steering is how you move through the fourth dimension. Don't touch the edges where three cells meet. Start in a tesseract crystal, Kelvin's foam or a foam of 24-cells; it melts, clots and presses smaller the further you get, and how far is the leaderboard." },
   { id: "ziggurat", url: "ziggurat/", name: "ZIGGURAT", genre: "ARCADE", c: "#ffc93a",
     line: "The hopping pyramid, one dimension up: every slice of the pile is a pyramid, and you play them all at once.",
     blurb: "The top of a staircase of tesseracts is a tetrahedral pile of cubes, and its slices are pyramids, one smaller each step in. Turn every cube gold: four hops round a pyramid, two to the one beside it. The coil chases you through all of them." },
