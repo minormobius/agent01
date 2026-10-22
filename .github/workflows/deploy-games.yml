@@ -10,6 +10,12 @@ on:
       - '.github/workflows/deploy-games.yml'
   workflow_dispatch:
 
+# one deploy at a time, in push order: two quick pushes once raced, and the older run finished last and
+# republished the older tree over the newer one (Static Assets replaces the whole manifest)
+concurrency:
+  group: deploy-games
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
