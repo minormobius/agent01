@@ -3894,6 +3894,23 @@
       ]
     },
     {
+      "n": "plateau",
+      "u": "https://games.mino.mobi/plateau/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-22",
+      "b": "2026-10-22",
+      "p": "games",
+      "surface": "games",
+      "d": "A flight game through a four-dimensional Voronoi foam, seen from the cockpit one 3D slice at a time. Every turn of the craft is a double rotation, so rolling tips your nose into w and flying forward drives you through the fourth dimension, and the foam changes round you as you go. Don't touch the edges where three cells meet (Plateau borders) or the solid cells: collision is exact, in the slice you see. The foam melts, clots and presses smaller with distance; a daily foam and a leaderboard for how far you get.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "tessera",
       "u": "https://games.mino.mobi/tessera/",
       "c": "games",

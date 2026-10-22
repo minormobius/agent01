@@ -47,7 +47,7 @@ These live here:
   `js/board.js` (mounts it, fires `<game>-board` so the 🏆 and post buttons
   appear only once it loads). Boards: molt, tessera, orb (its own older
   board), fathom, oneside, twelve, horde, telegraph, ratchet, outbound,
-  switchboard, tempest, ziggurat. None yet: naught, strand, skein, bucky, onecoast,
+  switchboard, tempest, ziggurat, plateau. None yet: naught, strand, skein, bucky, onecoast,
   ecumene, hearth. The kit's overlay sits at z-index 60, over every game's
   own overlays. Bump a game's score `VERSION` whenever its rules change what
   a number means.
@@ -325,8 +325,24 @@ These live here:
   slice: each cell clipped from the box by its bisectors in slice coordinates
   (a power diagram: a seed h off the slice carries h²), run in a worker; the
   shader steps rays membrane to membrane. Sweep and tilt the slice; births,
-  deaths and flips are counted exactly between successive slices. See
+  deaths and flips are counted exactly between successive slices. PLATEAU
+  borrows its `clip` and `boxPoly`, so run both selftests after a change there. See
   [`foam4/README.md`](foam4/README.md).
+- **PLATEAU at `/plateau/`**: flight through Foam⁴'s foam, from the
+  cockpit. You're a rigid body in 4D (P and R, U, F, N); every turn is a
+  double rotation that turns its plane and, by `COUPLING` (0.5) as much, the
+  plane perpendicular to it (roll R→U with F→N, so rolling tips your nose
+  into w and flying forward drives you through it). Don't touch the edges
+  (the slice's Plateau borders) or a solid cell's walls. `plateau/js/flight.js`
+  (no DOM) has the craft, the seeds (an integer hash the shader repeats),
+  the exact in-slice `clearance` (your cell clipped by its bisectors with
+  Foam⁴'s `clip`; the cell you're in is never solid) and the phases by
+  distance (crystal, melt, clot, press, deep: jitter, solid fraction and
+  scale, all continuous), and an `autopilot` (lookahead) that the balance
+  report and the attract loop fly. The shader draws each edge as a tube of
+  the collision radius from the exact in-face distance to the face's rim.
+  Leaderboard for distance (today's foam and any foam). See
+  [`plateau/README.md`](plateau/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -380,7 +396,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/plateau/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -438,6 +454,8 @@ node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds; ev
 node games/anabasis/test/anabasis.selftest.mjs   # two downs on small worlds (held, slip, no climbing in w, ramps round walls and holding you up, fall out, fall for ever, crates); every level solved walking, par pinned, proved impossible without its gravity / ramps / crates / wrap; generated rooms deterministic, in band, proved, opened from their codes (<1 s)
 node games/hinton/test/hinton.selftest.mjs       # every level of both lanes walked continuously to the goal at par, the solver's state after every move; walls stop you short; landing keeps you in your cell (a few s)
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
+node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force and the shader's hash, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~1 s)
+node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

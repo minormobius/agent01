@@ -139,7 +139,7 @@ export function frame(a = 0, b = 0, c = 0) {
 
 /* ---------------------------------------------------------------- convex polyhedra, by clipping */
 /* a polyhedron is its faces: { nb (what's across: a seed key, or "box"), pts: [[x,y,z]…] } */
-function boxPoly(B) {
+export function boxPoly(B) {
   const P = (x, y, z) => [x * B, y * B, z * B];
   return [
     { nb: "box", pts: [P(-1, -1, -1), P(-1, 1, -1), P(1, 1, -1), P(1, -1, -1)] }, { nb: "box", pts: [P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1)] },
@@ -151,7 +151,7 @@ const d3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const EPS = 1e-9;
 /* keep the side n·x ≤ d; the cut becomes a face across to nb */
-function clip(poly, n, d, nb) {
+export function clip(poly, n, d, nb) {
   let any = false, all = true;
   for (const f of poly) for (const p of f.pts) { const v = d3(n, p) - d; if (v > EPS) any = true; else all = false; }
   if (!any) return poly;          // wholly inside

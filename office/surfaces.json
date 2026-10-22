@@ -2597,6 +2597,15 @@
    "parent": "games"
   },
   {
+   "id": "plateau",
+   "name": "plateau",
+   "url": "https://games.mino.mobi/plateau/",
+   "cat": "games",
+   "commits": 3,
+   "age": "warm",
+   "parent": "games"
+  },
+  {
    "id": "tessera",
    "name": "tessera",
    "url": "https://games.mino.mobi/tessera/",

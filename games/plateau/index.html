@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#03060c" />
+<meta name="description" content="PLATEAU — fly through a four-dimensional foam and don't touch its edges. Every turn you make turns you through the fourth dimension too, and the foam you see changes as you go. A daily foam and a leaderboard for distance." />
+<title>PLATEAU — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/plateau.css" />
+</head>
+<body>
+<canvas id="gl" aria-label="Your 3D slice of a 4D foam, from the cockpit"></canvas>
+<canvas id="over" aria-hidden="true"></canvas>
+<div id="hud"><span id="dist">0 m</span><span id="phase">crystal</span><span id="speed"></span><button type="button" id="board-btn" class="tiny" hidden>🏆</button></div>
+<div id="banner"><b id="banner-name"></b><span id="banner-line"></span></div>
+<div id="stick" aria-hidden="true"><div id="knob"></div></div>
+<div id="rolls"><button type="button" class="hold" id="roll-l" aria-label="Roll left">⟲</button><button type="button" class="hold" id="roll-r" aria-label="Roll right">⟳</button></div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi · flight in four dimensions</h2>
+  <h1>PLATEAU</h1>
+  <p>You're flying through a <b>four-dimensional foam</b>, seeing the 3D slice of it you're in. Fly through its membranes freely. Don't touch its <b class="hot">edges</b>, the lines where three cells meet, called Plateau borders in real foam, or the walls of the <b class="solid">solid cells</b>.</p>
+  <p>Every turn turns you through <b>w</b> too: <b>roll</b> and your nose tips into w (the gauge on the right shows how far), so flying forward drives you through the fourth dimension, and the foam around you changes as you go. The crystal at the start <b>melts</b>, then cells <b>clot</b> solid, then the foam <b>presses</b> smaller. How far can you get?</p>
+  <p class="small"><b>Mouse</b> (click to grab it) or <b>arrows</b> steer · <b>A D</b> or <b>Q E</b> roll · on a phone, the stick steers and ⟲ ⟳ roll.</p>
+  <div class="row"><button class="primary" id="go" type="button">FLY</button><button class="ghost" id="go-daily" type="button">today's foam</button></div>
+  <div class="row"><button class="ghost small" id="invert" type="button">up = nose up</button></div>
+  <p class="foot"><a href="./README.md">how it works</a> · <a href="../foam4/">foam⁴, the toy</a> · <a href="../">the arcade</a></p>
+</div>
+
+<div class="overlay" id="dead" hidden>
+  <h2 id="dead-head">you touched an edge</h2>
+  <h1 id="dead-m">0 m</h1>
+  <p id="dead-text"></p>
+  <div class="row"><button class="primary" id="again" type="button">AGAIN</button><button class="ghost" id="again-open" type="button">a new foam</button></div>
+  <div class="row"><button class="ghost" id="post" type="button" hidden>post to the board</button><button class="ghost" id="dead-board" type="button" hidden>🏆 board</button></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+<script type="module" src="js/board.js"></script>
+</body>
+</html>

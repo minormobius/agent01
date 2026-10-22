@@ -66,6 +66,8 @@ export const GAMES = [
       for (let k = 0; k < 30 && until(t0); k++) { await p.evaluate((k) => window.HINTON.look(Math.PI / 2 - Math.sin(k / 9) * 0.9, -0.3 - k * 0.004), k); await sleep(130); }
       while (until(t0)) await sleep(200);
     } },
+  { id: "plateau", url: "plateau/", setup: async (p) => { await p.evaluate(() => { const P = window.PLATEAU; P.begin(false, 4242); Object.assign(P.run, { d: 230, grace: 1e9, auto: true }); }); await sleep(1500); },
+    play: async (p, t0) => { while (until(t0)) await sleep(200); } }, // the autopilot flies it, through the melt
   { id: "ziggurat", url: "ziggurat/", setup: async (p) => { await click(p, "#start-btn"); await p.evaluate(() => { window.ZIG.mute(); window.ZIG.auto.on = true; }); await sleep(2500); },
     play: async (p, t0) => { while (until(t0)) { await sleep(200); if (Date.now() - t0 > 4800 && Date.now() - t0 < 5000) await p.evaluate(() => window.ZIG.turn()); } } },
   { id: "tessera", url: "tessera/", setup: (p) => click(p, "#go-open"), play: wander(450, 450) },
