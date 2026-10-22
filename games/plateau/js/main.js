@@ -180,7 +180,8 @@ window.addEventListener("plateau-board", offerable);
 $("post").onclick = () => {
   const b = board(); if (!b || !run || !run.over || run.posted) return;
   run.posted = true; offerable();
-  b.offer({ sel: { board: run.daily ? dailyId() : OPEN }, at: Date.now(), cells: run.d, time: run.time, seed: run.seed, phase: run.phase.name });
+  // value is what the board shows while it posts (the kit formats it); the record is built from cells by score.js
+  b.offer({ sel: { board: run.daily ? dailyId() : OPEN }, at: Date.now(), value: Math.floor(run.d * METRES), cells: run.d, time: run.time, seed: run.seed, phase: run.phase.name });
 };
 $("board-btn").onclick = $("dead-board").onclick = () => { const b = board(); if (b) { b.open(); } };
 

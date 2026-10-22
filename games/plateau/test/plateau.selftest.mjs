@@ -154,6 +154,8 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
   ok(rec.value === 1234 && SC.accept(rec), "a real run's record is accepted (123.4 cells is 1234 m)");
   ok(!SC.accept({ ...rec, value: Math.ceil(FL.VMAX * 10 * 40.1) + 2 }), "a run faster than the craft can fly is refused");
   ok(!SC.accept({ ...rec, game: "daily-v0-2026-10-22" }) && !SC.accept({ ...rec, site: "molt" }) && !SC.accept({ ...rec, value: 12.5 }) && !SC.accept({ ...rec, detail: "seed=1" }), "wrong rules version, wrong site, a fraction, no time: all refused");
+  const offer = /b\.offer\(\{([^\n]*)\}\);/.exec(fs.readFileSync(path.join(here, "../js/main.js"), "utf8"));
+  ok(offer && /\bvalue:/.test(offer[1]), "the page offers the board a value (the kit formats it while it posts: without one, Safari's 'undefined is not an object')");
   ok(SC.dailySeed(day) === SC.dailySeed(day) && SC.dailySeed(day) !== SC.dailySeed("2026-10-23"), "today's foam is one seed for everyone, new each day");
 }
 
