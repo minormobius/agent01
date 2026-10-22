@@ -29,7 +29,7 @@
    melts, cells that clot solid, cells that press smaller, all of it
    continuous, so nothing jumps. The same field drives the shader, which
    hashes seeds exactly as this file does. */
-import { clip, boxPoly } from "../../foam4/js/foam.js";
+import { clip, boxPoly, SPECIES } from "../../foam4/js/foam.js";
 
 export const COUPLING = 0.5, R_EDGE = 0.05, R_BODY = 0.07;
 export const RATES = { roll: 1.7, pitch: 1.7, yaw: 1.7 }; // radians a second at full stick
@@ -77,8 +77,47 @@ export function remix(n, s) {
   return m >>> 0;
 }
 const U32 = 4294967296;
+/* ---------------------------------------------------------------- the seed crystals: the game's modes
+   Each grid cell g holds one seed, at B (g + ½ + jitter): B is the crystal's basis (rows, scaled to one seed
+   per unit of 4D volume), so the crystal phase is that lattice nearly perfect, and the melt jitters it in its
+   own coordinates. Each basis is chosen so every Voronoi neighbour of a seed is within one step in every
+   coordinate: the 80 cells round a cell are all its possible neighbours, as with the grid, so everything
+   stays exact (the selftest checks it, crystal to fully melted, against seeds two steps away).
+     tesseract: Z⁴, the grid itself (the game as it launched; its boards keep their names)
+     kelvin:    A₄*, the permutohedral lattice: the 4D Kelvin foam. Cut square to w, as every run starts,
+                its cells are Kelvin's truncated octahedra (Foam⁴'s selftest)
+     cell24:    D₄, the 24-cell foam, in a basis of four roots in which all 24 roots are within one step */
+const unit = (rows) => { const d = det4(rows), f = Math.pow(Math.abs(d), -1 / 4); return rows.map((r) => r.map((x) => x * f)); };
+function det4(m) {
+  const d3 = (a) => a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
+  let d = 0; for (let c = 0; c < 4; c++) d += (c % 2 ? -1 : 1) * m[0][c] * d3([1, 2, 3].map((r) => m[r].filter((_, j) => j !== c))); return d;
+}
+function inv4(rows) { // the matrix taking a point to its lattice coordinates (rows of B are the basis vectors)
+  const m = [0, 1, 2, 3].map((j) => rows.map((b) => b[j])), a = m.map((r, i) => [...r, ...[0, 1, 2, 3].map((j) => (i === j ? 1 : 0))]);
+  for (let c = 0; c < 4; c++) {
+    let p = c; for (let r = c + 1; r < 4; r++) if (Math.abs(a[r][c]) > Math.abs(a[p][c])) p = r;
+    [a[c], a[p]] = [a[p], a[c]]; const v = a[c][c]; for (let j = 0; j < 8; j++) a[c][j] /= v;
+    for (let r = 0; r < 4; r++) if (r !== c) { const f = a[r][c]; for (let j = 0; j < 8; j++) a[r][j] -= f * a[c][j]; }
+  }
+  return a.map((r) => r.slice(4));
+}
+export const MODES = {
+  tesseract: { name: "tesseract", title: "TESSERACT", B: null, line: "a nearly perfect tesseract foam" },
+  kelvin: { name: "kelvin", title: "KELVIN", B: SPECIES.a4.B, line: "Kelvin's foam: truncated octahedra, cut from 4D permutohedra" },
+  cell24: { name: "24-cell", title: "24-CELL", B: unit([[1, 1, 0, 0], [1, -1, 0, 0], [1, 0, 1, 0], [1, 0, 0, 1]]), line: "a foam of 24-cells, cut through" },
+};
+for (const m of Object.values(MODES)) m.Bi = m.B && inv4(m.B);
+export const MODE_IDS = Object.keys(MODES);
+
 export class Foam {
-  constructor(seed) { this.seed = seed >>> 0; }
+  constructor(seed, mode = "tesseract") {
+    this.seed = seed >>> 0; this.mode = MODES[mode] ? mode : "tesseract";
+    const m = MODES[this.mode]; this.B = m.B; this.Bi = m.Bi;
+    this.neigh = NEIGH.concat(m.extra || []); // every cell that can be a seed's Voronoi neighbour, as offsets
+    this.around = AROUND.concat(m.extra || []);
+  }
+  /* a point's grid cell coordinates (lattice coordinates over the scale), not yet floored */
+  cellCoords(p, F) { const q = p.map((v) => v / F.scale); return this.Bi ? this.Bi.map((r) => r[0] * q[0] + r[1] * q[1] + r[2] * q[2] + r[3] * q[3]) : q; }
   base(g) { return remix(hashU(g[0], g[1], g[2], g[3], 0), this.seed); }
   /* a grid cell's five random numbers in [0, 1): where its seed sits in its cell (four), and when it turns
      solid. Everything else is the field (scale, jitter, solid fraction), so these never change in a run:
@@ -89,12 +128,16 @@ export class Foam {
     out[4] = remix(n, 0x5bd1e995) / U32;
     return out;
   }
-  pos(g, F) { const r = this.rand(g); return g.map((v, k) => F.scale * (v + 0.5 + F.jitter * (r[k] - 0.5))); }
+  pos(g, F) {
+    const r = this.rand(g), k = g.map((v, i) => v + 0.5 + F.jitter * (r[i] - 0.5));
+    if (!this.B) return k.map((v) => F.scale * v);
+    const B = this.B; return [0, 1, 2, 3].map((j) => F.scale * (k[0] * B[0][j] + k[1] * B[1][j] + k[2] * B[2][j] + k[3] * B[3][j]));
+  }
   solid(g, F) { return remix(this.base(g), 0x5bd1e995) / U32 < F.solid; }
   nearest(p, F) {
-    const g0 = p.map((v) => Math.floor(v / F.scale));
+    const g0 = this.cellCoords(p, F).map(Math.floor);
     let best = null, bd = Infinity;
-    for (const o of AROUND) { const g = g0.map((v, i) => v + o[i]), s = this.pos(g, F), d = dist2(p, s); if (d < bd) { bd = d; best = g; } }
+    for (const o of this.around) { const g = g0.map((v, i) => v + o[i]), s = this.pos(g, F), d = dist2(p, s); if (d < bd) { bd = d; best = g; } }
     return best;
   }
 }
@@ -157,7 +200,7 @@ function cellOf(foam, F, craft, g, B) {
   const a = to(foam.pos(g, F));
   let poly = boxPoly(B);
   const planes = new Map(); // what's across each face: its plane's normal and the neighbour's grid cell
-  for (const o of NEIGH) {
+  for (const o of foam.neigh) {
     const ng = g.map((v, i) => v + o[i]), t = to(foam.pos(ng, F));
     const n = [2 * (t.q[0] - a.q[0]), 2 * (t.q[1] - a.q[1]), 2 * (t.q[2] - a.q[2])];
     const d = t.q[0] ** 2 + t.q[1] ** 2 + t.q[2] ** 2 + t.h * t.h - a.q[0] ** 2 - a.q[1] ** 2 - a.q[2] ** 2 - a.h * a.h;
@@ -194,7 +237,7 @@ export function clearance(foam, F, craft) {
   for (const f of poly) if (f.nb !== "box" && f.g && polyDist(f.pts, f.n) < 3 * R_EDGE) { const p2 = cellOf(foam, F, craft, f.g, B); if (p2) look(p2); }
   if (F.solid > 0) {
     const P = craft.P, s = foam.pos(g, F), sq = [dot(sub(s, P), craft.R), dot(sub(s, P), craft.U), dot(sub(s, P), craft.F)], sh = dot(sub(s, P), craft.N);
-    for (const o of NEIGH) {
+    for (const o of foam.neigh) {
       const ng = g.map((v, i) => v + o[i]); if (!foam.solid(ng, F)) continue;
       const t = sub(foam.pos(ng, F), P), tq = [dot(t, craft.R), dot(t, craft.U), dot(t, craft.F)], th = dot(t, craft.N);
       const n = [2 * (tq[0] - sq[0]), 2 * (tq[1] - sq[1]), 2 * (tq[2] - sq[2])], nl = Math.hypot(...n);

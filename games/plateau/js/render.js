@@ -17,12 +17,16 @@ in vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`;
 
 export const M = 24; // the seed texture holds a 24⁴ window of grid cells, addressed by g mod 24 (a ray needs ±10 round you)
 
-const FS = `#version 300 es
+/* the fragment shader for a mode: the tesseract foam's is the grid itself; a lattice mode multiplies by its
+   basis (uB) and reads its few extra neighbours (uExtra: the offsets beyond the 80 that its melt can make
+   neighbours, flight.js's MODES[mode].extra) */
+const fsFor = (lattice, nx) => `#version 300 es
 precision highp float; precision highp int; precision highp sampler2D;
 uniform sampler2D uRand, uSolidR; // per grid cell: where its seed sits (rgba) and when it turns solid (r), from flight.js
 uniform float uScale, uJitter, uSolid;
 uniform vec4 uP, uR, uU, uF; uniform vec4 uHere;
 uniform vec2 uRes; uniform float uTan, uFar, uEdge, uFlash;
+uniform mat4 uB; uniform vec4 uExtra[${Math.max(1, nx)}];
 out vec4 frag;
 const float M = ${M}.0;
 
@@ -30,7 +34,8 @@ const float M = ${M}.0;
    2-3 times slower (some GPUs keep such tables in memory), and four nested loops were slower too */
 vec4 nbo(int j) { int k = j < 40 ? j : j + 1; return vec4(float(k % 3) - 1.0, float((k / 3) % 3) - 1.0, float((k / 9) % 3) - 1.0, float(k / 27) - 1.0); }
 ivec2 texel(vec4 g) { vec4 m = g - M * floor(g / M); return ivec2(int(m.x + M * m.y), int(m.z + M * m.w)); }
-vec4 seedOf(vec4 g) { return uScale * (g + 0.5 + uJitter * (texelFetch(uRand, texel(g), 0) - 0.5)); }
+vec4 nb(int j) { ${nx ? "return j < 80 ? nbo(j) : uExtra[j - 80];" : "return nbo(j);"} }
+vec4 seedOf(vec4 g) { vec4 k = g + 0.5 + uJitter * (texelFetch(uRand, texel(g), 0) - 0.5); return uScale * ${lattice ? "(uB * k)" : "k"}; }
 bool solidCell(vec4 g) { return !all(equal(g, uHere)) && texelFetch(uSolidR, texel(g), 0).r < uSolid; }
 vec3 to3(vec4 v) { return vec3(dot(v, uR), dot(v, uF), dot(v, uU)); } // view space: x right, y forward, z up
 
@@ -43,9 +48,9 @@ vec3 to3(vec4 v) { return vec3(dot(v, uR), dot(v, uF), dot(v, uU)); } // view sp
    cell, whose planes it is reading anyway); this is for the one it stops at, a solid cell's */
 vec4 rimFrom(vec4 g, vec4 s, vec4 x, int skip, vec3 m) {
   vec4 r = vec4(1e9, 0.0, 0.0, 0.0);
-  for (int j = 0; j < 80; j++) {
+  for (int j = 0; j < ${80 + nx}; j++) {
     if (j == skip) continue;
-    vec4 sn = seedOf(g + nbo(j)), n = sn - s; vec3 n3 = to3(n); float L = length(n3); if (L < 1e-5) continue;
+    vec4 sn = seedOf(g + nb(j)), n = sn - s; vec3 n3 = to3(n); float L = length(n3); if (L < 1e-5) continue;
     vec3 u = n3 / L; float c = dot(u, m), q = 1.0 - c * c; if (q < 1e-4) continue;
     float iq = inversesqrt(q), d = (0.5 * (dot(sn, sn) - dot(s, s)) - dot(x, n)) / L * iq;
     if (d < r.x) r = vec4(d, -(u - c * m) * iq);
@@ -88,8 +93,8 @@ void main() {
   vec4 g = uHere, gp = uHere; vec3 mp = vec3(0.0, 1.0, 0.0); bool pend = false;
   for (int step = 0; step <= 30; step++) {
     vec4 s = seedOf(g); float ss = dot(s, s), best = 1e9; int bj = -1; vec4 rim = vec4(1e9, 0.0, 0.0, 0.0);
-    for (int j = 0; j < 80; j++) {
-      vec4 gn = g + nbo(j), sn = seedOf(gn), n = sn - s;
+    for (int j = 0; j < ${80 + nx}; j++) {
+      vec4 gn = g + nb(j), sn = seedOf(gn), n = sn - s;
       float v0 = 0.5 * (dot(sn, sn) - ss) - dot(o4, n), den = dot(d4, n); // the plane's value at the eye, and its rate along the ray
       if (den > 1e-7) { float tj = v0 / den; if (tj > t + 1e-5 && tj < best) { best = tj; bj = j; } }
       if (pend && any(notEqual(gn, gp))) {
@@ -102,7 +107,7 @@ void main() {
     }
     if (pend) { shade(acc, A, bg, rd, px, t, mp, rim, false); if (A > 0.97) break; }
     if (step == 30 || bj < 0 || best > uFar) break;
-    vec4 ng = g + nbo(bj);
+    vec4 ng = g + nb(bj);
     vec3 n3 = normalize(to3(seedOf(ng) - s)); if (dot(n3, rd) > 0.0) n3 = -n3;
     if (solidCell(ng)) { shade(acc, A, bg, rd, px, best, n3, rimFrom(g, s, o4 + d4 * best, bj, n3), true); break; }
     pend = true; gp = g; mp = n3; g = ng; t = best;
@@ -116,18 +121,12 @@ export class Renderer {
   constructor(canvas) {
     const gl = canvas.getContext("webgl2", { antialias: false, alpha: false });
     if (!gl) throw new Error("WebGL2 isn't available here");
-    this.gl = gl; this.canvas = canvas;
-    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
-    const p = gl.createProgram();
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(p);
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
-    gl.useProgram(p);
+    this.gl = gl; this.canvas = canvas; this.progs = {};
     const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(p, "aPos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    this.u = {};
-    for (const n of ["uRand", "uSolidR", "uScale", "uJitter", "uSolid", "uP", "uR", "uU", "uF", "uHere", "uRes", "uTan", "uFar", "uEdge", "uFlash"]) this.u[n] = gl.getUniformLocation(p, n);
-    // the seed textures: M² × M² texels, (g mod M) laid out as (x + M y, z + M w)
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    // the seed textures: M² × M² texels, (g mod M) laid out as (x + M y, z + M w). The same in every mode:
+    // a cell's numbers are the foam's, whatever crystal they're read against
     const tex = (unit, fmt) => {
       const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
       for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
@@ -135,8 +134,24 @@ export class Renderer {
       return t;
     };
     this.randTex = tex(0, gl.RGBA32F); this.solidTex = tex(1, gl.R32F);
-    gl.uniform1i(this.u.uRand, 0); gl.uniform1i(this.u.uSolidR, 1);
     this.lo = null; this.seed = null;
+    this.prog(null); // the tesseract foam's, now: a shader error shows at once
+  }
+  /* the program for a foam's mode, compiled the first time it's needed */
+  prog(foam) {
+    const key = foam ? foam.mode : "tesseract"; if (this.progs[key]) return this.progs[key];
+    const gl = this.gl, B = foam && foam.B, extra = (foam && foam.neigh.slice(80)) || [];
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+    const p = gl.createProgram();
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsFor(!!B, extra.length))); gl.bindAttribLocation(p, 0, "aPos"); gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    const u = {};
+    for (const n of ["uRand", "uSolidR", "uScale", "uJitter", "uSolid", "uP", "uR", "uU", "uF", "uHere", "uRes", "uTan", "uFar", "uEdge", "uFlash", "uB", "uExtra"]) u[n] = gl.getUniformLocation(p, n);
+    gl.useProgram(p); this.cur = p;
+    gl.uniform1i(u.uRand, 0); gl.uniform1i(u.uSolidR, 1);
+    if (B) gl.uniformMatrix4fv(u.uB, false, B.flat()); // B's rows are the basis vectors: GL's columns
+    if (extra.length) gl.uniform4fv(u.uExtra, extra.flat());
+    return (this.progs[key] = { p, u });
   }
   /* keep the window of grid cells round gc (your grid cell) in the textures: a new foam fills it whole, and
      moving refills only the strips that came into it. The numbers are flight.js's own (foam.rand) */
@@ -175,8 +190,9 @@ export class Renderer {
   }
   /* f: { foam, field: { scale, jitter, solid }, craft (P, R, U, F), here (the grid cell you're in), far, edge, flash } */
   draw(f, scale) {
-    const gl = this.gl, c = this.canvas, u = this.u;
-    this.sync(f.foam, f.craft.P.map((v) => Math.floor(v / f.field.scale)));
+    const gl = this.gl, c = this.canvas, P = this.prog(f.foam), u = P.u;
+    if (this.cur !== P.p) { gl.useProgram(P.p); this.cur = P.p; }
+    this.sync(f.foam, f.foam.cellCoords(f.craft.P, f.field).map(Math.floor));
     const w = Math.max(1, Math.round(c.clientWidth * scale)), h = Math.max(1, Math.round(c.clientHeight * scale));
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     gl.viewport(0, 0, w, h);

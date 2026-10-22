@@ -2,9 +2,9 @@
    The physics and the collision are ./flight.js, the drawing ./render.js,
    the leaderboard ./board.js (loaded apart). This file is the run: input,
    the clock, the phases, the crash, the overlays. */
-import { Foam, Craft, clearance, fieldAt, speedAt, phaseAt, autopilot, PHASES, R_EDGE, R_BODY, RATES, easeRoll } from "./flight.js";
+import { MODES, Foam, Craft, clearance, fieldAt, speedAt, phaseAt, autopilot, PHASES, R_EDGE, R_BODY, RATES, easeRoll } from "./flight.js";
 import { Renderer } from "./render.js";
-import { OPEN, dailyId, dailySeed, METRES } from "./score.js";
+import { openId, dailyId, dailySeed, METRES, MODE_LABEL } from "./score.js";
 
 const $ = (id) => document.getElementById(id);
 const glc = $("gl"), oc = $("over"), octx = oc.getContext("2d");
@@ -15,14 +15,23 @@ try { Rd = new Renderer(glc); } catch (e) { $("start").innerHTML = `<h1>PLATEAU<
 let run = null; // { foam, craft, d, time, seed, daily, over, phase, cell, grace }
 const best = (() => { try { return JSON.parse(localStorage.getItem("plateau.best") || "{}"); } catch (e) { return {}; } })();
 const saveBest = () => { try { localStorage.setItem("plateau.best", JSON.stringify(best)); } catch (e) { /* private mode */ } };
+/* the seed crystal you fly from (the game's modes), remembered */
+let mode = "tesseract";
+try { const m = localStorage.getItem("plateau.mode"); if (MODES[m] && !$("modes").hidden) mode = m; } catch (e) { /* private mode */ } // the picker is hidden until the other crystals are ready
+function setMode(m) {
+  if (!MODES[m]) return; mode = m;
+  try { localStorage.setItem("plateau.mode", m); } catch (e) { /* private mode */ }
+  for (const b of document.querySelectorAll("#modes button")) b.classList.toggle("on", b.dataset.m === m);
+  $("mode-line").textContent = MODES[m].line;
+}
 function begin(daily, fixed) {
-  const seed = daily ? dailySeed() : fixed !== undefined ? fixed >>> 0 : (Math.random() * 2 ** 32) >>> 0, foam = new Foam(seed), F = fieldAt(0);
+  const seed = daily ? dailySeed(undefined, mode) : fixed !== undefined ? fixed >>> 0 : (Math.random() * 2 ** 32) >>> 0, foam = new Foam(seed, mode), F = fieldAt(0);
   const craft = new Craft(foam.pos([0, 0, 0, 0], F));
   // a heading off the crystal's axes, the same for everyone on a seed: the safe lanes are yours to find
   const h = (k) => (((seed >>> (k * 5)) & 31) / 31) * 2 - 1;
   craft.steer(0, 0.35 + 0.2 * h(0), 0.4 + 0.3 * h(1), 0.4, 0); craft.steer(0.3 * h(2), 0, 0, 0.4, 0);
-  run = { foam, craft, d: 0, time: 0, seed, daily, over: false, phase: PHASES[0], cell: [0, 0, 0, 0], grace: 1.2, near: 0, posted: false, auto: false, autoT: 0, autoK: [0, 0, 0] };
-  $("start").hidden = true; $("dead").hidden = true; banner(PHASES[0].name, PHASES[0].line); offerable();
+  run = { foam, craft, mode, d: 0, time: 0, seed, daily, over: false, phase: PHASES[0], cell: [0, 0, 0, 0], grace: 1.2, near: 0, posted: false, auto: false, autoT: 0, autoK: [0, 0, 0] };
+  $("start").hidden = true; $("dead").hidden = true; banner(PHASES[0].name, MODES[mode].line); offerable();
   if (!matchMedia("(pointer: coarse)").matches) lock();
 }
 function lock() { // the mouse steers once it's caught (a promise in some browsers, refused without a gesture)
@@ -31,11 +40,11 @@ function lock() { // the mouse steers once it's caught (a promise in some browse
 function crash(why) {
   run.over = true; flash = 1;
   if (document.pointerLockElement) document.exitPointerLock();
-  const m = Math.floor(run.d * METRES), k = run.daily ? dailyId() : OPEN, prev = best[k] || 0;
+  const m = Math.floor(run.d * METRES), k = run.daily ? dailyId(undefined, run.mode) : openId(run.mode), prev = best[k] || 0;
   if (m > prev) { best[k] = m; saveBest(); }
   $("dead-head").textContent = why;
   $("dead-m").textContent = m.toLocaleString("en") + " m";
-  $("dead-text").innerHTML = `${run.daily ? "today's foam" : "a foam of your own"} · reached <b>${run.phase.name}</b> · ${run.time.toFixed(1)} s` + (prev ? ` · your best <b>${Math.max(prev, m).toLocaleString("en")} m</b>` : "");
+  $("dead-text").innerHTML = `${MODE_LABEL[run.mode]} · ${run.daily ? "today's foam" : "a foam of your own"} · reached <b>${run.phase.name}</b> · ${run.time.toFixed(1)} s` + (prev ? ` · your best <b>${Math.max(prev, m).toLocaleString("en")} m</b>` : "");
   setTimeout(() => { $("dead").hidden = false; offerable(); }, 650);
 }
 let bannerT = 0;
@@ -141,7 +150,7 @@ function frame(now) {
 const paused = () => !$("dead").hidden;
 function hud() {
   $("dist").textContent = Math.floor(run.d * METRES).toLocaleString("en") + " m";
-  $("phase").textContent = run.phase.name;
+  $("phase").textContent = (run.mode !== "tesseract" ? MODE_LABEL[run.mode] + " · " : "") + run.phase.name;
   $("speed").textContent = (speedAt(run.d) * METRES).toFixed(0) + " m/s";
 }
 /* the overlay: a crosshair, and the w gauge (how far your nose points ana or kata, which is how fast
@@ -182,8 +191,10 @@ $("post").onclick = () => {
   const b = board(); if (!b || !run || !run.over || run.posted) return;
   run.posted = true; offerable();
   // value is what the board shows while it posts (the kit formats it); the record is built from cells by score.js
-  b.offer({ sel: { board: run.daily ? dailyId() : OPEN }, at: Date.now(), value: Math.floor(run.d * METRES), cells: run.d, time: run.time, seed: run.seed, phase: run.phase.name });
+  b.offer({ sel: { mode: run.mode, board: run.daily ? "daily" : "open" }, at: Date.now(), value: Math.floor(run.d * METRES), cells: run.d, time: run.time, seed: run.seed, phase: run.phase.name });
 };
-$("board-btn").onclick = $("dead-board").onclick = () => { const b = board(); if (b) { b.open(); } };
+$("board-btn").onclick = $("dead-board").onclick = () => { const b = board(); if (b) b.open({ mode: run ? run.mode : mode, board: run && !run.daily ? "open" : "daily" }); };
+for (const b of document.querySelectorAll("#modes button")) b.onclick = () => setMode(b.dataset.m);
+setMode(mode);
 
-window.PLATEAU = { get run() { return run; }, get frames() { return frames; }, begin, crash, keys, setStick: (s) => (stick = s) };
+window.PLATEAU = { get run() { return run; }, setMode, get frames() { return frames; }, begin, crash, keys, setStick: (s) => (stick = s) };

@@ -39,6 +39,8 @@ button.tiny { font: inherit; background: none; color: var(--text); border: 1px s
 .overlay .foot { font-family: var(--mono); font-size: 12px; }
 .overlay a { color: var(--dim); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.seg button.on { background: rgba(116, 212, 255, 0.18); border-color: var(--ice); color: var(--ice); }
+#mode-line { min-height: 1.4em; margin: 6px 0 10px; color: var(--dim); }
 button.primary, button.ghost { font-family: var(--mono); font-weight: 800; letter-spacing: 0.12em; border-radius: 10px; cursor: pointer; }
 button.primary { background: linear-gradient(90deg, var(--ice), #b8a2ff, var(--hot)); color: #08101c; border: 0; font-size: 15px; padding: 12px 28px; }
 button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); font-size: 13px; padding: 11px 18px; }
