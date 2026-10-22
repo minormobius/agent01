@@ -33,7 +33,7 @@ _Regenerated 2026-10-22 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-22, 99 members / 296 posts):
+**Neighborhood spark** (bisk 2026-10-22, 99 members / 302 posts):
 - Mood: Fair 🌤 (trust)
 - Distinctive words: php, openai, deepseek
 - Top post: "an outdated system in a salmon farm using PHP was found to have been breached, allowing the attackers to perform remote " — @astrra.space
