@@ -13,6 +13,8 @@ button.tiny { font: inherit; background: none; color: var(--text); border: 1px s
 #line { position: fixed; left: 14px; right: 14px; top: calc(34px + env(safe-area-inset-top)); margin: 0; font-size: 13px; color: var(--dim); pointer-events: none; }
 #msg { position: fixed; left: 50%; bottom: 22%; transform: translateX(-50%); max-width: 86vw; text-align: center; font-size: 14px; color: var(--warm); background: rgba(5, 5, 5, 0.7); padding: 6px 12px; border-radius: 8px; opacity: 0; transition: opacity .3s; pointer-events: none; }
 #msg.show { opacity: 1; }
+#carving { position: fixed; left: 50%; top: 42%; transform: translateX(-50%); font: 600 14px var(--mono); letter-spacing: 0.08em; color: var(--ice); background: rgba(5, 5, 5, 0.75); padding: 10px 16px; border-radius: 10px; pointer-events: none; z-index: 5; }
+#made { margin-top: 4px; }
 #stick { display: none; }
 #flips { position: fixed; right: 14px; bottom: calc(18px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(3, 52px); gap: 6px; }
 #flips button { height: 44px; border-radius: 10px; border: 1px solid var(--border); background: rgba(10, 9, 8, 0.6); color: var(--text); font: 600 13px var(--mono); cursor: pointer; touch-action: none; }

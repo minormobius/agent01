@@ -4,11 +4,12 @@
    and asks the rules (flipFrom) whether it's allowed and where you'll land, so you can never flip where the
    solver couldn't. Your view turns freely in the three directions that aren't up (./body.js: turn, in a
    plane tilted into w, and twist), and a flip puts under you the wall nearest the way you name. */
-import { ORIENTATIONS, FLIP_R, axisVec } from "./cave.js";
+import { ORIENTATIONS, FLIP_R, axisVec, Cave } from "./cave.js";
 import { LEVELS, build } from "./levels.js";
 import { Renderer } from "./render.js";
 import { Body, SPEED, TILT, turn, twist, tip, tidy, flipUp } from "./body.js";
 import { decorate } from "./grotto.js";
+import { seedOf } from "./gen.js";
 
 const $ = (id) => document.getElementById(id);
 const glc = $("gl");
@@ -21,18 +22,56 @@ const Q = new URLSearchParams(location.search), tilt = Q.has("tilt") ? (+Q.get("
 const TWIST = 1.1; // radians a second, held
 
 /* ------------------------------------------------------------- the run */
-let lv = null, li = 0, cave = null, me = null; // me: your Body, your view frame fr (R, U, F, N), pitch, and whether you've won
+let lv = null, cave = null, me = null; // lv: the cave you're in ({ cave, start, par, line, title, key, deco }); me: your Body, your view frame fr (R, U, F, N), pitch, and whether you've won
+let src = { kind: "level", i: 0 }; // where it came from: a level, a made cave (tier, seed), or the day's
 const best = (() => { try { return JSON.parse(localStorage.getItem("katabasis.best") || "{}"); } catch (e) { return {}; } })();
-function load(i) {
-  li = (i + LEVELS.length) % LEVELS.length; lv = LEVELS[li]; const b = build(lv); cave = b.cave; Rd.load(cave, decorate(cave, li * 97 + 13));
+function play(L, from) {
+  lv = L; src = from; cave = L.cave; Rd.load(cave, decorate(cave, L.deco));
   const O = ORIENTATIONS[0], fr = { R: axisVec(O, 0), U: axisVec(O, 1), F: axisVec(O, 2), N: axisVec(O, 3) };
-  me = Object.assign(new Body(cave, b.start.c, 0), { fr, pitch: -0.15, won: false });
-  $("lvl").textContent = `${li + 1}. ${lv.name}`; $("line").textContent = lv.line; $("won").hidden = true; hud();
+  me = Object.assign(new Body(cave, L.start.c, 0), { fr, pitch: -0.15, won: false });
+  $("lvl").textContent = L.title; $("line").textContent = L.line; $("won").hidden = true; hud(); link();
+}
+function load(i) {
+  const li = (i + LEVELS.length) % LEVELS.length, L = LEVELS[li], b = build(L);
+  play({ cave: b.cave, start: b.start, par: L.par, line: L.line, title: `${li + 1}. ${L.name}`, key: L.name, deco: li * 97 + 13 }, { kind: "level", i: li });
+}
+const restart = () => play(lv, src);
+function next() {
+  if (src.kind === "level" && src.i + 1 < LEVELS.length) load(src.i + 1);
+  else made(src.kind === "gen" ? src.tier : src.kind === "daily" ? "hard" : "medium");
+}
+/* made caves: carved in a worker (./gen-worker.js), proved there, and played when they arrive */
+let worker = null, asked = 0;
+try { worker = new Worker(new URL("./gen-worker.js", import.meta.url), { type: "module" }); worker.onmessage = (e) => arrived(e.data); } catch (e) { worker = null; }
+const today = () => new Date().toISOString().slice(0, 10);
+function made(tier, seed = (Math.random() * 4294967296) >>> 0, daily = null) {
+  const id = ++asked, msg = { id, tier, seed, daily };
+  $("carving").hidden = !$("start").hidden; $("carving").textContent = daily ? `carving today's cave…` : `carving a ${tier} cave…`;
+  pending.set(id, msg);
+  if (worker) worker.postMessage({ id, tier, seed });
+  else import("./gen.js").then(({ generate }) => { const g = generate(tier, seed); arrived(g ? { id, dims: g.cave.dims, v: g.cave.v.buffer, start: g.start, par: g.par, line: g.line, tier, seed } : { id, fail: true }); });
+}
+const pending = new Map();
+function arrived(d) {
+  const m = pending.get(d.id); pending.delete(d.id);
+  if (!m || d.id !== asked) return; // something newer was asked for
+  if (d.fail) { made(m.tier, (m.seed + 1) >>> 0, m.daily); return; }
+  $("carving").hidden = true;
+  const c = new Cave(...d.dims); c.v = new Uint8Array(d.v);
+  const s36 = m.seed.toString(36), title = m.daily ? `today · ${m.daily}` : `made · ${m.tier}`;
+  play({ cave: c, start: d.start, par: d.par, line: m.daily ? d.line.replace("A made cave.", "Today's cave, the same for everyone.") : d.line, title, key: m.daily ? `daily:${m.daily}` : `gen:${m.tier}.${s36}`, deco: m.seed }, m.daily ? { kind: "daily", date: m.daily } : { kind: "gen", tier: m.tier, seed: m.seed });
+}
+const daily = (date = today()) => made("hard", seedOf("katabasis " + date), date);
+/* the address bar names the cave you're in, so a link to it is the cave */
+function link() {
+  const P = new URLSearchParams(location.search); for (const k of ["gen", "daily", "level"]) P.delete(k);
+  if (src.kind === "gen") P.set("gen", `${src.tier}.${src.seed.toString(36)}`); else if (src.kind === "daily") P.set("daily", src.date); else if (src.i) P.set("level", String(src.i + 1));
+  const q = P.toString(); try { history.replaceState(null, "", location.pathname + (q ? "?" + q.replace(/%2C/g, ",") : "")); } catch (e) { /* fine */ }
 }
 function walk(dt, mv) { // your stick as a world velocity: where you face, w and all
   me.move(dt, add(me.fr.F.map((v) => v * mv[1] * SPEED), me.fr.R, mv[0] * SPEED));
   if (me.atGoal()) win();
-  if (me.p.some((v, i) => v < -20 || v > cave.dims[i] + 20)) load(li);
+  if (me.p.some((v, i) => v < -20 || v > cave.dims[i] + 20)) restart();
 }
 function tryFlip(name) {
   if (!me || me.won) return;
@@ -51,8 +90,8 @@ document.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   if (!$("start").hidden && (k === "enter" || k === " ")) { e.preventDefault(); go(); return; }
   if (FLIPKEYS[k]) { e.preventDefault(); if (!e.repeat) tryFlip(FLIPKEYS[k]); return; }
-  if (k === "r") { load(li); return; }
-  if (k === "n" && me && me.won) { load(li + 1); return; }
+  if (k === "r") { restart(); return; }
+  if (k === "n" && me && me.won) { next(); return; }
   if (["w", "a", "s", "d", "z", "c"].includes(k)) { e.preventDefault(); keys.add(k); }
 });
 document.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
@@ -96,7 +135,7 @@ function wName() { // the grid direction your w is nearest, and how far it leans
 }
 function win() {
   if (me.won) return; me.won = true; flash = 1;
-  const k = lv.name, prev = best[k]; if (prev === undefined || me.flips < prev) { best[k] = me.flips; try { localStorage.setItem("katabasis.best", JSON.stringify(best)); } catch (e) { /* private */ } }
+  const k = lv.key, prev = best[k]; if (prev === undefined || me.flips < prev) { best[k] = me.flips; try { localStorage.setItem("katabasis.best", JSON.stringify(best)); } catch (e) { /* private */ } }
   $("won-text").textContent = `${me.flips} flip${me.flips === 1 ? "" : "s"} · par ${lv.par}` + (me.flips === lv.par ? " · at par" : "");
   $("won").hidden = false;
 }
@@ -145,13 +184,21 @@ function step(now) {
 requestAnimationFrame(step);
 
 /* ------------------------------------------------------------- screens */
-function go() { $("start").hidden = true; if (!me) load(0); if (!coarse) { try { const r = glc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* fine */ } } }
+function go() { $("start").hidden = true; if (pending.size) $("carving").hidden = false; else if (!me) load(0); if (!coarse) { try { const r = glc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* fine */ } } }
 $("go").onclick = go;
-$("next").onclick = () => load(li + 1);
-$("again").onclick = () => load(li);
-$("restart").onclick = () => load(li);
-const sel = $("levels");
-LEVELS.forEach((L, i) => { const b = document.createElement("button"); b.type = "button"; b.className = "ghost small"; b.textContent = `${i + 1}. ${L.name}`; b.onclick = () => { load(i); go(); }; sel.appendChild(b); });
-load(0);
+$("next").onclick = next;
+$("again").onclick = restart;
+$("restart").onclick = restart;
+const button = (box, text, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "ghost small"; b.textContent = text; b.onclick = () => { fn(); go(); }; $(box).appendChild(b); };
+LEVELS.forEach((L, i) => button("levels", `${i + 1}. ${L.name}`, () => load(i)));
+button("made", "today's cave", () => daily());
+for (const t of ["easy", "medium", "hard"]) button("made", `made · ${t}`, () => made(t));
+// a link to a cave opens it
+{
+  const g = /^(easy|medium|hard)\.([0-9a-z]{1,7})$/.exec(Q.get("gen") || ""), d = Q.get("daily"), n = +Q.get("level");
+  if (g) made(g[1], parseInt(g[2], 36) >>> 0);
+  else if (Q.has("daily")) daily(/^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : today());
+  else load(n >= 1 && n <= LEVELS.length ? n - 1 : 0);
+}
 
-window.KATABASIS = { get me() { return me; }, load, tryFlip, keys, turn: (phi) => { me.fr = tidy(turn(me.fr, phi, tilt)); }, twist: (phi) => { me.fr = tidy(twist(me.fr, phi)); }, get cave() { return cave; }, get frames() { return frames; }, at: (s, fn) => { queue.push({ t: simT + s, fn }); queue.sort((a, b) => a.t - b.t); } };
+window.KATABASIS = { get me() { return me; }, load, made, daily, get lv() { return lv; }, tryFlip, keys, turn: (phi) => { me.fr = tidy(turn(me.fr, phi, tilt)); }, twist: (phi) => { me.fr = tidy(twist(me.fr, phi)); }, get cave() { return cave; }, get frames() { return frames; }, at: (s, fn) => { queue.push({ t: simT + s, fn }); queue.sort((a, b) => a.t - b.t); } };

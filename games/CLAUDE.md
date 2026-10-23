@@ -373,10 +373,17 @@ These live here:
   (step along ±R ±F ±N with a one-voxel step-up, fall, flip, `flipToward`),
   `solve` (BFS; `steps: 4` walks only the starting slice) and `fewestFlips`
   (0-1 BFS, par in flips; `noW` never stands on a wall in w), which prove
-  each level's par and what it's about (walking, turning, flipping, w); the
+  each level's par and what it's about (walking, turning, flipping, w); both
+  run on `explore`, a layered search over (box, up) at ~10 µs a state. The
   body's flip asks the solver's own `flipFrom`, and the selftest drives the
-  body along every level's solution and requires the solver's state after
-  every move.
+  body along a par solution of every level (and of made caves) and requires
+  the solver's state after every move. `js/gen.js` (no DOM; run in
+  `js/gen-worker.js`) makes caves of par 1/2/3 (easy/medium/hard): rooms,
+  passages, wall-flush shafts, pillars and, for hard, a loft reachable only by
+  falling up a 3-voxel hole (two flips in); one `reach` search gives every
+  voxel's fewest flips, and the crystal goes on a voxel at exactly par with
+  nothing within a voxel reachable sooner, then the solver re-proves it.
+  `?gen=tier.seed36`, `?daily` (hard, seeded by the date), `?level=n`.
   `js/render.js` is a 4D voxel DDA (the cave in a 2D R8UI texture, kind |
   deco << 2) lit by a fae grotto's ray-traced 4D point lights: falloff 1/r³
   (light spreads over a 3-sphere), a shadow ray through the 4D grid per light,
@@ -499,7 +506,7 @@ node games/hinton/test/hinton.selftest.mjs       # every level of both lanes wal
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
-node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along every solver solution, the grotto's lights in open air and the cave untouched by it (~45 s)
+node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the grotto's lights in open air and the cave untouched by it (~17 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

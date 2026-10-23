@@ -64,6 +64,9 @@ export const ORIENTATIONS = [], OKEY = new Map();
   while (q.length) { const o = q.shift(); for (const n of FLIP_NAMES) { const t = turned(o, FLIPS[n]), k = okey(t); if (!OKEY.has(k)) { OKEY.set(k, ORIENTATIONS.length); ORIENTATIONS.push(t); q.push(t); } } }
 }
 export const FLIP_TO = ORIENTATIONS.map((o) => FLIP_NAMES.map((n) => OKEY.get(okey(turned(o, FLIPS[n])))));
+/* the first orientation with the same up: the rules only ever ask about up, so a search over (box, CANON[o])
+   is exact and half the size */
+export const CANON = ORIENTATIONS.map((o) => ORIENTATIONS.findIndex((p) => p[1][0] === o[1][0] && p[1][1] === o[1][1]));
 /* a body axis as a world vector */
 export const axisVec = (o, b) => { const v = [0, 0, 0, 0]; v[o[b][0]] = o[b][1]; return v; };
 /* the body's extent along each world axis, in this orientation */
@@ -111,17 +114,30 @@ export class Cave {
     }
   }
   /* is every voxel of the box at corner c, extent d, free of rock? (the goal is walked into, not on) */
-  clear(c, d) {
-    for (let w = c[3]; w < c[3] + d[3]; w++) for (let z = c[2]; z < c[2] + d[2]; z++) for (let y = c[1]; y < c[1] + d[1]; y++) for (let x = c[0]; x < c[0] + d[0]; x++) if (this.at(x, y, z, w) === 1) return false;
-    return true;
+  clear(c, d) { return !this.rockIn(c[0], c[1], c[2], c[3], c[0] + d[0], c[1] + d[1], c[2] + d[2], c[3] + d[3]); }
+  /* any rock in [x0, x1) × … × [w0, w1)? Outside the cave is rock. (The solver's inner loop: no allocation.) */
+  rockIn(x0, y0, z0, w0, x1, y1, z1, w1) {
+    const [X, Y, Z, W] = this.dims, v = this.v;
+    if (x0 < 0 || y0 < 0 || z0 < 0 || w0 < 0 || x1 > X || y1 > Y || z1 > Z || w1 > W) return true;
+    for (let w = w0; w < w1; w++) for (let z = z0; z < z1; z++) for (let y = y0; y < y1; y++) { let i = x0 + X * (y + Y * (z + Z * w)); for (let x = x0; x < x1; x++, i++) if (v[i] === 1) return true; }
+    return false;
   }
   /* does the box touch the goal? */
   goal(c, d) {
     for (let w = c[3]; w < c[3] + d[3]; w++) for (let z = c[2]; z < c[2] + d[2]; z++) for (let y = c[1]; y < c[1] + d[1]; y++) for (let x = c[0]; x < c[0] + d[0]; x++) if (this.at(x, y, z, w) === 2) return true;
     return false;
   }
-  /* is the ball of radius r round centre p clear (no rock voxel within r of p)? */
+  /* is the ball of radius r round centre p clear (no rock voxel within r of p)? A whole-voxel centre (every
+     flip's is) uses a list of the voxels the ball reaches, made once per radius */
   ballClear(p, r) {
+    if (p.every(Number.isInteger)) {
+      const offs = ballOffsets(r), [X, Y, Z, W] = this.dims, v = this.v;
+      for (let k = 0; k < offs.length; k += 4) {
+        const x = p[0] + offs[k], y = p[1] + offs[k + 1], z = p[2] + offs[k + 2], w = p[3] + offs[k + 3];
+        if (x < 0 || y < 0 || z < 0 || w < 0 || x >= X || y >= Y || z >= Z || w >= W || v[x + X * (y + Y * (z + Z * w))] === 1) return false;
+      }
+      return true;
+    }
     const lo = p.map((v) => Math.floor(v - r)), hi = p.map((v) => Math.ceil(v + r));
     for (let w = lo[3]; w < hi[3]; w++) for (let z = lo[2]; z < hi[2]; z++) for (let y = lo[1]; y < hi[1]; y++) for (let x = lo[0]; x < hi[0]; x++) {
       if (this.at(x, y, z, w) !== 1) continue;
@@ -133,25 +149,39 @@ export class Cave {
   }
 }
 
+/* the voxels (as offsets from a whole-voxel point) whose cube comes within r of it */
+const BALLS = new Map();
+function ballOffsets(r) {
+  if (BALLS.has(r)) return BALLS.get(r);
+  const out = [], n = Math.ceil(r);
+  for (let w = -n; w < n; w++) for (let z = -n; z < n; z++) for (let y = -n; y < n; y++) for (let x = -n; x < n; x++) {
+    let d2 = 0; for (const t of [x, y, z, w]) { const e = Math.max(t, 0, -t - 1); d2 += e * e; }
+    if (d2 < r * r - 1e-9) out.push(x, y, z, w);
+  }
+  const a = Int8Array.from(out); BALLS.set(r, a); return a;
+}
+
 /* ---------------------------------------------------------------- the rules, on whole-voxel positions
    A state: c, the corner of your body's box (its least coordinate on every world axis), and o, the index
    of your orientation. You stand where your box is clear of rock and there is rock right under your feet. */
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]);
 export function supported(cave, c, o) {
   const O = ORIENTATIONS[o], d = dimsOf(O), [a, s] = O[1]; // up is world axis a, sign s; down is −s
-  const at = s > 0 ? c[a] - 1 : c[a] + d[a]; // the layer under your feet
-  const lo = c.slice(), hi = c.map((v, i) => v + d[i]); lo[a] = at; hi[a] = at + 1;
-  for (let w = lo[3]; w < hi[3]; w++) for (let z = lo[2]; z < hi[2]; z++) for (let y = lo[1]; y < hi[1]; y++) for (let x = lo[0]; x < hi[0]; x++) if (cave.at(x, y, z, w) === 1) return true;
-  return false;
+  return slab(cave, c, d, a, s > 0 ? c[a] - 1 : c[a] + d[a]); // the layer under your feet
 }
-/* fall toward your feet until there's ground (null: out of the cave, gone) */
+/* any rock in the box's layer at coordinate `at` along axis a? */
+function slab(cave, c, d, a, at) {
+  const lo = [c[0], c[1], c[2], c[3]], hi = [c[0] + d[0], c[1] + d[1], c[2] + d[2], c[3] + d[3]]; lo[a] = at; hi[a] = at + 1;
+  return cave.rockIn(lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]);
+}
+/* fall toward your feet until there's ground. Outside the cave is rock, so you always land; null is kept for a
+   fall that somehow doesn't */
 export function settle(cave, c, o) {
-  const down = axisVec(ORIENTATIONS[o], 1).map((v) => -v), d = dimsOf(ORIENTATIONS[o]);
+  const O = ORIENTATIONS[o], d = dimsOf(O), [a, s] = O[1];
+  c = c.slice();
   for (let n = 0; n < 4096; n++) {
-    if (supported(cave, c, o)) return c;
-    const nc = add(c, down); if (!cave.clear(nc, d)) return c; // (can't happen: unsupported means the layer below is clear)
-    c = nc;
-    if (c.some((v, i) => v < -8 || v > cave.dims[i] + 8)) return null;
+    if (slab(cave, c, d, a, s > 0 ? c[a] - 1 : c[a] + d[a])) return c;
+    c[a] -= s;
   }
   return null;
 }
@@ -174,6 +204,17 @@ export function flipFrom(cave, c, o, f) {
   const o2 = FLIP_TO[o][f], d2 = dimsOf(ORIENTATIONS[o2]), c2 = ctr.map((v, i) => v - d2[i] / 2);
   const s = settle(cave, c2, o2);
   return s && { c: s, o: o2 };
+}
+
+/* every flip from (c, o) at once: the hop and the ball are the same for all six, so they're tested once */
+export function flipsFrom(cave, c, o) {
+  const O = ORIENTATIONS[o], d = dimsOf(O), h = add(c, axisVec(O, 1));
+  if (!cave.clear(h, d)) return [];
+  const ctr = h.map((v, i) => v + d[i] / 2);
+  if (!cave.ballClear(ctr, FLIP_R)) return [];
+  const out = [];
+  for (let f = 0; f < FLIP_NAMES.length; f++) { const o2 = FLIP_TO[o][f], d2 = dimsOf(ORIENTATIONS[o2]), s = settle(cave, ctr.map((v, i) => v - d2[i] / 2), o2); if (s) out.push({ f, c: s, o: o2 }); }
+  return out;
 }
 
 /* the flip from orientation o that makes world vector up2 (a grid direction perpendicular to your up) your up,
@@ -206,24 +247,36 @@ export function solve(level, { flips = true, steps = STEPS.length, limit = 3e6 }
   return null;
 }
 
-/* the fewest FLIPS to the goal, walking free (a 0-1 search: steps cost nothing, flips one). Par is in flips:
-   walking is continuous in the game, so its steps aren't a count anyone makes. noW: never standing on a wall
-   in w (no up along w), which is how a level proves its route needs one */
-export function fewestFlips(level, { limit = 3e6, noW = false } = {}) {
-  const { cave, start } = level, X = cave.dims;
-  const key = (c, o) => ((((c[3] + 8) * (X[2] + 16) + c[2] + 8) * (X[1] + 16) + c[1] + 8) * (X[0] + 16) + c[0] + 8) * ORIENTATIONS.length + o;
-  const s0 = settle(cave, start.c, start.o); if (!s0) return null;
-  const best = new Map([[key(s0, start.o), 0]]); let cur = [{ c: s0, o: start.o }], n = 0, seen = 1;
-  while (cur.length && seen < limit) {
+/* a layered search over (box, up): everything reachable on foot with no flips, then everything one flip from
+   that, and so on. visit(state, flips) is called once per state, in order of flips; returning true stops it
+   there. noW: never standing on a wall in w (no up along w); maxFlips: stop after that many; trace: keep how
+   each state was reached, so a stop comes with the path to it ("step<dir>", "flip:<name>", from CANON states) */
+export function explore(cave, start, { noW = false, maxFlips = Infinity, limit = 3e6, visit, trace = false } = {}) {
+  const X = cave.dims;
+  const key = (c, o) => ((((c[3] + 8) * (X[2] + 16) + c[2] + 8) * (X[1] + 16) + c[1] + 8) * (X[0] + 16) + c[0] + 8) * 8 + o;
+  const o0 = CANON[start.o], s0 = settle(cave, start.c, o0); if (!s0) return { flips: null, states: 0 };
+  const seen = new Set([key(s0, o0)]), prev = trace ? new Map() : null; let cur = [{ c: s0, o: o0 }], n = 0;
+  const path = (s) => { const out = []; let k = key(s.c, s.o); while (prev.has(k)) { const p = prev.get(k); out.push(p.move); k = p.from; } return out.reverse(); };
+  while (cur.length && seen.size < limit) {
     // spread everything reachable on foot at this many flips, then flip once from all of it
     for (let i = 0; i < cur.length; i++) {
       const s = cur[i];
-      if (cave.goal(s.c, dimsOf(ORIENTATIONS[s.o]))) return { flips: n, states: seen };
-      for (let dir = 0; dir < STEPS.length; dir++) { const c = step(cave, s.c, s.o, dir); if (!c) continue; const k = key(c, s.o); if (!best.has(k)) { best.set(k, n); cur.push({ c, o: s.o }); seen++; } }
+      if (visit && visit(s, n)) return { flips: n, states: seen.size, end: s, path: trace ? path(s) : null };
+      for (let dir = 0; dir < STEPS.length; dir++) { const c = step(cave, s.c, s.o, dir); if (!c) continue; const k = key(c, s.o); if (!seen.has(k)) { seen.add(k); cur.push({ c, o: s.o }); if (trace) prev.set(k, { from: key(s.c, s.o), move: "step" + dir }); } }
     }
+    if (n >= maxFlips) break;
     const next = [];
-    for (const s of cur) for (let f = 0; f < FLIP_NAMES.length; f++) { const r = flipFrom(cave, s.c, s.o, f); if (!r || (noW && ORIENTATIONS[r.o][1][0] === 3)) continue; const k = key(r.c, r.o); if (!best.has(k)) { best.set(k, n + 1); next.push(r); seen++; } }
+    for (const s of cur) for (const r of flipsFrom(cave, s.c, s.o)) { const o = CANON[r.o]; if (noW && ORIENTATIONS[o][1][0] === 3) continue; const k = key(r.c, o); if (!seen.has(k)) { seen.add(k); next.push({ c: r.c, o }); if (trace) prev.set(k, { from: key(s.c, s.o), move: "flip:" + FLIP_NAMES[r.f] }); } }
     cur = next; n++;
   }
-  return null;
+  return { flips: null, states: seen.size };
+}
+
+/* the fewest FLIPS to the goal, walking free (steps cost nothing, flips one), or null. Par is in flips: walking
+   is continuous in the game, so its steps aren't a count anyone makes. noW: never standing on a wall in w,
+   which is how a level proves its route needs one */
+export function fewestFlips(level, { limit = 3e6, noW = false, maxFlips = Infinity, path = false } = {}) {
+  const { cave, start } = level;
+  const r = explore(cave, start, { noW, limit, maxFlips, trace: path, visit: (s) => cave.goal(s.c, dimsOf(ORIENTATIONS[s.o])) });
+  return r.flips === null ? null : { flips: r.flips, states: r.states, path: r.path };
 }

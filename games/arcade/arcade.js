@@ -29,7 +29,7 @@ const GAMES = [
     blurb: "Anakata's and Anabasis's rooms in first person: walk them freely, look round, turn your sight through the fourth dimension, hook along w or fall kata through it. Every move is still the rules' own, so every room is the same proved puzzle, at the same par." },
   { id: "katabasis", url: "katabasis/", name: "KATABASIS", genre: "CAVE 4D", c: "#ffb46b",
     line: "A fae grotto in four dimensions. Turn round and w turns with you; flip, and a wall becomes your floor.",
-    blurb: "Walk a crystal-lit grotto in four dimensions. You turn in a plane that leans into w, so turning round swings the fourth dimension into view, and you walk where you face. Then flip: any wall, even one in w, becomes your floor. Every cave is proved solvable, and par is the fewest flips." },
+    blurb: "Walk a crystal-lit grotto in four dimensions. You turn in a plane that leans into w, so turning round swings the fourth dimension into view, and you walk where you face. Then flip: any wall, even one in w, becomes your floor. Six caves to learn it, then made caves and a daily one, every one proved, par the fewest flips." },
   { id: "plateau", url: "plateau/", name: "PLATEAU", genre: "FLIGHT 4D", c: "#ff9f5a",
     line: "Fly through a four-dimensional foam. Roll, and your nose tips into w: the foam you see changes as you go.",
     blurb: "A Voronoi foam in four dimensions, flown one 3D slice at a time. Every turn of your craft turns it through w as well, so steering is how you move through the fourth dimension. Don't touch the edges where three cells meet. Start in a tesseract crystal, Kelvin's foam or a foam of 24-cells; it melts, clots and presses smaller the further you get, and how far is the leaderboard." },

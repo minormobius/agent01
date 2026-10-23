@@ -14,6 +14,7 @@
 <div id="hud"><span id="lvl"></span><span class="sep">·</span><span>flips <b id="flipsN">0</b> / par <b id="par">0</b></span><span class="sep">·</span><span>up <b id="upIs">+y</b></span><span class="sep">·</span><span>w <b id="wIs">+w</b></span><button type="button" class="tiny" id="restart" aria-label="Restart the cave">↺</button></div>
 <p id="line"></p>
 <div id="msg"></div>
+<div id="carving" hidden></div>
 <div id="stick" aria-hidden="true"><div id="knob"></div></div>
 <div id="flips" aria-label="Flip">
   <button type="button" data-f="ana" aria-label="Flip ana">ana</button>
@@ -36,6 +37,7 @@
   <p class="small"><b>WASD</b> walk · <b>mouse</b> turns and looks (click to grab it) · <b>Z</b> / <b>C</b> twist · <b>arrows</b> flip ahead, behind, left, right · <b>Q</b> kata, <b>E</b> ana · <b>R</b> restart. On a phone: the stick walks, drag to turn and look, the pad flips and twists.</p>
   <div class="row"><button class="primary" id="go" type="button">ENTER</button></div>
   <div class="row" id="levels"></div>
+  <div class="row" id="made"></div>
   <p class="foot"><a href="./README.md">how it works</a> · <a href="../plateau/">PLATEAU</a> · <a href="../">the arcade</a></p>
 </div>
 <div class="overlay" id="won" hidden>

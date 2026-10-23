@@ -96,10 +96,18 @@ matters). The moves are:
 - **flip:** as above, then falling toward your new feet.
 
 `solve` is a breadth-first search over moves. `fewestFlips` is a 0-1 search
-in which steps cost nothing and flips cost one. `solve` with `steps: 4` walks
-only in the slice you start in, and `fewestFlips` with `noW` never stands on a
-wall in w; those are how a level proves it needs turning, or w. Par is in flips, because
-walking is continuous in the game and its steps aren't a count anyone makes.
+in which steps cost nothing and flips cost one; it runs on `explore`, a layered
+search over (box, up): everything reachable on foot, then everything one flip
+from that, and so on. `solve` with `steps: 4` walks only in the slice you start
+in, and `fewestFlips` with `noW` never stands on a wall in w; those are how a
+level proves it needs turning, or w. Par is in flips, because walking is
+continuous in the game and its steps aren't a count anyone makes.
+
+The search is about 10 µs a state. The rules only ask about up, so it searches
+8 ups rather than 16 orientations (`CANON`). The hop and the flip ball are the
+same for all six flips from a state, so they're tested once (`flipsFrom`).
+The flip ball's centre is always a whole voxel, so its voxels are a list
+made once. Box tests run on raw indices without allocating.
 
 ## The body (`js/body.js`)
 
@@ -165,6 +173,44 @@ Caves are recipes of 4D boxes, balls and tubes, then weathered.
 | 5 | ceiling | 2 | no one flip puts the ceiling under you |
 | 6 | shaft | 1 | a crystal up a shaft too narrow to flip in, flush with the ana wall: climb it on that wall. Without a wall in w it takes 2 flips (via the ceiling) |
 
+## Made caves (`js/gen.js`)
+
+**Made · easy / medium / hard** carves a cave with par 1, 2 or 3. **Today's
+cave** is a hard one seeded by the date, the same for everyone. The address bar
+names the cave you're in (`?gen=hard.1l8vmrm`, `?daily=2026-10-23`,
+`?level=4`), so a link is the cave.
+
+A cave is carved from a seed:
+
+- 3 to 5 rooms, and passages between them wide enough to walk;
+- shafts up from a ceiling, flush with one wall, too narrow to flip in;
+- pillars standing on the floors;
+- for hard caves, and some medium ones, a **loft**. That's a sealed room above
+  the rest, whose only way in is a hole 3 voxels square in a ceiling below. A
+  body needs 4 voxels across its up to stand in the hole, so nobody can climb
+  it on a wall. You fall up it, which is two flips in.
+
+The crystal is then **placed, not hoped for**:
+
+1. One layered search (`reach`) finds, for every voxel, the fewest flips after
+   which your body can touch it.
+2. The crystal goes on a voxel that takes exactly the tier's par, on the floor
+   of the up that reaches it.
+3. Nothing within a voxel of it, diagonals included, can be reachable sooner.
+   A body straddling a ledge between two whole-voxel places touches voxels at
+   most one away from a place the solver knows, so this margin keeps it from
+   reaching the crystal early.
+
+Then the solver proves the finished cave again. Half the caves are asked to
+need a wall in w (for their first 12 tries; after that any cave will do), and
+say so in their line. Without the loft, hard caves never come out: in an open
+cave any surface is within two flips, since one reaches any wall and two the
+ceiling.
+
+Caves are carved in a worker (`js/gen-worker.js`) and take about a second. The
+noise is integer hashing and polynomials with no transcendental functions, so a
+seed makes the same cave in every browser.
+
 ## Controls
 
 - **Desktop:** WASD walk, the mouse turns and looks (click to grab it), Z and
@@ -176,7 +222,7 @@ Caves are recipes of 4D boxes, balls and tubes, then weathered.
 ## Checks
 
 ```bash
-node games/katabasis/test/katabasis.selftest.mjs   # ~45 s
+node games/katabasis/test/katabasis.selftest.mjs   # ~17 s
 ```
 
 The selftest checks that:
@@ -193,14 +239,17 @@ The selftest checks that:
 - every level's par is the fewest flips, the flipping levels can't be done on
   foot, the turning level can't be walked in the starting slice, and the w
   levels need a wall in w;
-- the body follows the solver's solution exactly;
+- the game's body walks a par solution of every level into the crystal,
+  standing where the solver says with the up it says after every move;
+- made caves: the same seed makes the same cave, par is the tier's and the
+  fewest flips, none is walkable, the ones that say they need a wall in w do,
+  nothing near the crystal is reachable sooner, and the body walks a par
+  solution of one cave per tier;
 - there's no flipping in a closet;
 - the grotto's lights hang in open air and leave the cave unchanged.
 
 ## Next
 
-- **A cave generator, with a daily cave:** chambers and passages carved round a
-  route the solver proves needs its flips.
 - **The 24-cell world.** Its 24 quaternion turns (60°, 90°, 120°) preserve that
   lattice exactly, which allows 288 orientations and finer detents.
 - **Kelvin's five-fold turns.** Those are double rotations of 144° and 72°, a

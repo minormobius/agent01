@@ -14,6 +14,7 @@ const K = await import(path.join(here, "../js/cave.js"));
 const { LEVELS, build } = await import(path.join(here, "../js/levels.js"));
 const { Body, SPEED, TILT, turn, twist, tip, tidy, snap, flipUp } = await import(path.join(here, "../js/body.js"));
 const { decorate } = await import(path.join(here, "../js/grotto.js"));
+const G = await import(path.join(here, "../js/gen.js"));
 let fails = 0, checks = 0;
 const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok   " : "FAIL ") + m); if (!c) { fails++; console.error("FAIL " + m); } };
 const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
@@ -62,12 +63,13 @@ for (const L of LEVELS) {
   if (L.needs === "w") { const nw = K.fewestFlips(lv, { noW: true }); ok(!nw || nw.flips > L.par, `${L.name}: without a wall in w under you it takes ${nw ? nw.flips + " flips" : "for ever"}, not ${L.par}`); }
 }
 
-/* the body, along the solver's solutions: after every move it stands where the solver says, and at the end
-   it's in the crystal */
+/* the body, along the solver's par solutions: after every move it stands where the solver says, with the up the
+   solver says, and at the end it's in the crystal, at par */
 const DT = 1 / 60;
 function settleBody(b) { for (let i = 0; i < 600; i++) { b.move(DT, [0, 0, 0, 0]); if (!b.flip && b.vy === 0 && b.grounded()) return true; } return false; }
-for (const L of LEVELS) {
-  const lv = build(L), sol = K.solve(lv); if (!sol) { ok(false, `${L.name}: solvable`); continue; }
+const upOf = (o) => K.axisVec(K.ORIENTATIONS[o], 1).join();
+function walkPar(name, lv, par) {
+  const sol = K.fewestFlips(lv, { path: true }); if (!sol) { ok(false, `${name}: solvable`); return; }
   const b = new Body(lv.cave, lv.start.c, 0); settleBody(b);
   let c = K.settle(lv.cave, lv.start.c, 0), o = 0, good = true, why = "";
   for (const m of sol.path) {
@@ -77,15 +79,16 @@ for (const L of LEVELS) {
       for (let i = 0; i < 200; i++) { const left = next[a] - b.p[a]; if (Math.abs(left) < 1e-9) break; const dt = Math.min(DT, Math.abs(left) / SPEED); b.move(dt, ax.map((v) => v * SPEED)); }
       c = next;
     } else {
-      const name = m.slice(5), r = K.flipFrom(lv.cave, c, o, K.FLIP_NAMES.indexOf(name)), why2 = b.tryFlip(name);
-      if (why2) { good = false; why = `the body may not flip ${name}: ${why2}`; break; }
-      c = r.c; o = r.o;
+      const fname = m.slice(5), r = K.flipFrom(lv.cave, c, o, K.FLIP_NAMES.indexOf(fname)), why2 = b.tryFlipTo(K.axisVec(K.ORIENTATIONS[r.o], 1), fname);
+      if (why2) { good = false; why = `the body may not flip to ${upOf(r.o)}: ${why2}`; break; }
+      c = r.c; o = K.CANON[r.o];
     }
     settleBody(b);
-    if (b.o !== o || b.p.some((v, i) => Math.abs(v - c[i]) > 1e-6)) { good = false; why = `after ${m} the body is at ${b.p.map((v) => +v.toFixed(3))} (${b.o}), the solver at ${c} (${o})`; break; }
+    if (upOf(b.o) !== upOf(o) || b.p.some((v, i) => Math.abs(v - c[i]) > 1e-6)) { good = false; why = `after ${m} the body is at ${b.p.map((v) => +v.toFixed(3))} up ${upOf(b.o)}, the solver at ${c} up ${upOf(o)}`; break; }
   }
-  ok(good && b.atGoal() && b.flips === sol.flips, `${L.name}: the game's body, on the solver's solution (${sol.path.length} moves, ${sol.flips} flips), stands where the solver says after every move and reaches the crystal${why ? " — " + why : ""}`);
+  ok(good && b.atGoal() && b.flips === par, `${name}: the game's body, on a par solution (${sol.path.length} moves, ${par} flips), stands where the solver says after every move and reaches the crystal${why ? " — " + why : ""}`);
 }
+for (const L of LEVELS) walkPar(L.name, build(L), L.par);
 
 /* no room, no flip */
 {
@@ -125,6 +128,28 @@ for (const L of LEVELS) {
   }
   ok(good, `from 200 random ways of facing, the six flips name six different walls, and the body and the view both land with the named one under them${why ? " — " + why : ""}`);
 }
+
+/* made caves: the same seed makes the same cave; par is the tier's and the fewest flips, none on foot; a cave
+   that says it needs a wall in w does; nothing within a voxel of the crystal is reachable sooner; and the
+   game's body walks a par solution into the crystal */
+for (const tier of G.TIER_NAMES) for (const seed of [7919, 5 * 7919]) {
+  const g = G.generate(tier, seed), par = G.TIERS[tier], name = `made ${tier} ${seed}`;
+  if (!g) { ok(false, `${name}: a cave`); continue; }
+  const again = G.generate(tier, seed), same = again && again.cave.v.every((v, i) => v === g.cave.v[i]) && again.start.c.join() === g.start.c.join();
+  const f = K.fewestFlips(g), foot = K.fewestFlips(g, { maxFlips: 0 }), nw = g.needs === "w" ? K.fewestFlips(g, { noW: true }) : null;
+  const { touch } = G.reach(g.cave, g.start, { maxFlips: par }), [X, Y, Z, W] = g.cave.dims;
+  let early = 0;
+  for (let i = 0; i < g.cave.v.length; i++) {
+    if (g.cave.v[i] !== 2) continue;
+    const x = i % X, y = Math.floor(i / X) % Y, z = Math.floor(i / (X * Y)) % Z, w = Math.floor(i / (X * Y * Z));
+    for (let dw = -1; dw <= 1; dw++) for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
+      if (g.cave.in(x + dx, y + dy, z + dz, w + dw) && touch[g.cave.idx(x + dx, y + dy, z + dz, w + dw)] < par) early++;
+  }
+  ok(same && g.par === par && f && f.flips === par && !foot && (g.needs !== "w" || !nw || nw.flips > par) && early === 0,
+    `${name}: the same cave every time; par ${par} is the fewest flips (${f && f.flips}), none on foot${g.needs === "w" ? `, and it needs a wall in w (${nw ? nw.flips + " flips without" : "impossible without"})` : ""}; nothing near the crystal sooner${early ? ` (${early} voxels)` : ""}`);
+  if (seed === 7919) walkPar(name, g, par);
+}
+ok(G.seedOf("katabasis 2026-10-23") === G.seedOf("katabasis 2026-10-23") && G.seedOf("katabasis 2026-10-23") !== G.seedOf("katabasis 2026-10-24"), "the daily seed is the date's, and changes with it");
 
 /* the grotto dresses the cave and changes nothing: its lights hang in open air, apart, and decoration lies only on rock */
 for (const [li, L] of LEVELS.entries()) {
