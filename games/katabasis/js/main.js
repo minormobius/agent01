@@ -59,21 +59,58 @@ function guideAsk() { // when you stand somewhere new, ask again
   gKey = s.key; gBusy = true; gw.postMessage({ id: ++gAsked, c: s.c, o: me.o, gen: gCave });
 }
 const FLIPKEY = { ahead: "↑", behind: "↓", left: "←", right: "→", kata: "Q", ana: "E" };
-let guideWas = "";
+let guideWas = "", wallTo = null; // wallTo: the wall the guide says to flip onto right here (a world direction), for the reticle
 function guideShow() { // the line under the cave's own, and the wisp
-  let text = "", wisp = null, hint = "";
+  let text = "", wisp = null, hint = ""; wallTo = null;
   if (guideOn && me && !me.won && !me.flip && tip0 && tip0.flips !== null) {
     const s = spot(), fresh = s && s.key === tip0.key; // the answer is about exactly where you are
     const here = fresh ? tip0.here.map((u) => u.join()) : [], name = ["ahead", "behind", "left", "right", "kata", "ana"].find((n) => here.includes(flipUp(me.fr, n).join()));
     const n = tip0.flips, left = `${n} flip${n === 1 ? "" : "s"} from here`;
     if (n === 0) text = crystalAt() ? `No more flips: the crystal is ${whereIs(crystalAt())}` : "";
-    else if (name) { text = `${left}. Flip ${name.toUpperCase()} (${FLIPKEY[name]}) here`; hint = name; }
+    else if (name) { text = `${left}. Flip ${name.toUpperCase()} (${FLIPKEY[name]}) here`; hint = name; wallTo = flipUp(me.fr, name).map((v) => -v); }
     // the wisp: where your middle would be, at the next flip, bobbing
     else { wisp = tip0.at.map((v, i) => v + tip0.atDims[i] / 2 + tip0.atUp[i] * 0.25 * Math.sin(performance.now() / 420)); text = `${left}. Follow the wisp: ${whereIs(wisp)}`; }
   }
   if (text !== guideWas) { guideWas = text; $("guide").textContent = text; }
   for (const b of document.querySelectorAll("#flips button[data-f]")) b.classList.toggle("hint", b.dataset.f === hint);
   return wisp;
+}
+
+/* the reticle: the cave's four axes as you see them now. Each is drawn where it points in your slice, so one in
+   it is a full line and one turned into w shrinks toward the middle; the ring at its tip grows with how
+   much of it is off in w (all ring, no line: the axis you can't see). Your up is the heavy one; when the guide
+   says to flip here, a gold mark points at the wall you'll land on. V hides it */
+const ret = $("ret"), rc = ret.getContext("2d"), AXC = ["#ff8a7a", "#8ef0a0", "#7ab8ff", "#c79bff"];
+let retOn = store("reticle") !== "0";
+function reticle(R, U, F, N, up) {
+  const dpr = Math.min(2, devicePixelRatio || 1), S = 140, L = 46;
+  if (ret.width !== S * dpr) { ret.width = ret.height = S * dpr; }
+  rc.setTransform(dpr, 0, 0, dpr, 0, 0); rc.clearRect(0, 0, S, S);
+  if (!retOn || !me) return;
+  // depth drawn on a slant (into the screen is up and to the right), so your forward is a line too and only
+  // what's in w shrinks to the middle
+  const c = S / 2, dot = (e, A) => e.reduce((t, v, i) => t + v * A[i], 0);
+  const pt = (e, k = 1) => { const f = dot(e, F) * 0.45; return [c + (dot(e, R) + 0.8 * f) * L * k, c - (dot(e, U) + 0.6 * f) * L * k]; };
+  rc.lineCap = "round"; rc.font = "600 10px ui-monospace, Menlo, monospace"; rc.textAlign = "center"; rc.textBaseline = "middle";
+  // nearest last, so what points at you is drawn on top
+  const order = [0, 1, 2, 3].sort((a, b) => F[b] - F[a]);
+  for (const a of order) {
+    const e = [0, 0, 0, 0]; e[a] = 1;
+    const [x, y] = pt(e), [x2, y2] = pt(e, -0.45), w = Math.abs(N[a]), toward = -F[a], isUp = up[a] !== 0, sgn = up[a] || 1;
+    rc.globalAlpha = 0.35; rc.strokeStyle = AXC[a]; rc.lineWidth = 1; rc.beginPath(); rc.moveTo(c, c); rc.lineTo(x2, y2); rc.stroke(); // the − end, faint
+    rc.globalAlpha = 0.55 + 0.4 * Math.max(0, toward) + 0.05; rc.lineWidth = isUp ? 3 : 1.6;
+    rc.beginPath(); rc.moveTo(c, c); rc.lineTo(x, y); rc.stroke();
+    if (w > 0.08) { rc.beginPath(); rc.arc(x, y, 2 + 9 * w, 0, 2 * Math.PI); rc.setLineDash([2, 2]); rc.stroke(); rc.setLineDash([]); }
+    const lx = x + (x - c) * 0.32 + (Math.hypot(x - c, y - c) < 6 ? 10 + 9 * w : 0), ly = y + (y - c) * 0.32;
+    rc.globalAlpha = 0.9; rc.fillStyle = AXC[a]; rc.fillText((isUp ? (sgn > 0 ? "↑" : "↓") : "") + "xyzw"[a], lx, ly);
+  }
+  if (wallTo) { // the gold mark: toward the wall the guide would put under you
+    const [x, y] = pt(wallTo, 1.2), dx = x - c, dy = y - c, m = Math.hypot(dx, dy) || 1, ux = dx / m, uy = dy / m;
+    rc.globalAlpha = 0.95; rc.fillStyle = "#ffd27a"; rc.beginPath();
+    rc.moveTo(c + ux * (m + 7), c + uy * (m + 7)); rc.lineTo(c + ux * m - uy * 5, c + uy * m + ux * 5); rc.lineTo(c + ux * m + uy * 5, c + uy * m - ux * 5); rc.fill();
+  }
+  rc.globalAlpha = 0.8; rc.fillStyle = "#ece6dc"; rc.beginPath(); rc.arc(c, c, 1.6, 0, 2 * Math.PI); rc.fill(); // the crosshair's dot
+  rc.globalAlpha = 1;
 }
 function whereIs(p) { // which way something is, from your eye, in words: how far, which way round, and whether it's off in w
   const e = add(me.frame().ctr, me.fr.U, EYE), d = p.map((v, i) => v - e[i]), dot = (u) => d.reduce((t, v, i) => t + v * u[i], 0);
@@ -162,6 +199,7 @@ document.addEventListener("keydown", (e) => {
   if (me && me.won && (k === " " || k === "enter" || k === "n")) { e.preventDefault(); next(); return; }
   if (k === "r") { restart(); return; }
   if (k === "x") { squareUp(); return; }
+  if (k === "v") { retOn = !retOn; store("reticle", retOn ? "1" : "0"); return; }
   if (k === "h" || k === "g") { setGuide(!guideOn); return; }
   if (["w", "a", "s", "d", "z", "c"].includes(k)) { e.preventDefault(); keys.add(k); }
 });
@@ -262,6 +300,7 @@ function step(now) {
   if (fence) { if (gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) { waits++; return; } gl.deleteSync(fence); fence = null; }
   const f = me.frame(), v = f.th ? tip(me.fr, f.U0, f.U1, f.th) : me.fr, cp = Math.cos(me.pitch), sp = Math.sin(me.pitch);
   const camF = add(v.F.map((x) => x * cp), v.U, sp), camU = add(v.U.map((x) => x * cp), v.F, -sp);
+  reticle(v.R, camU, camF, v.N, v.U.map(Math.round));
   guideAsk(); const wisp = guideShow();
   Rd.draw({ eye: add(f.ctr, v.U, EYE), R: v.R, U: camU, F: camF, up: v.U, time: now / 1000, flash, extra: wisp ? [{ p: wisp, color: [1, 0.8, 0.38], power: 2.8 + 0.6 * Math.sin(now / 260) }] : [] }, resolution(waits)); waits = 0;
   const wn = wName(); if (wn !== wWas) { wWas = wn; $("wIs").textContent = wn; }

@@ -25,6 +25,7 @@ button.tiny { font: inherit; background: none; color: var(--text); border: 1px s
 @keyframes hint { 50% { box-shadow: 0 0 4px rgba(255, 210, 122, 0.2); } }
 #guide { margin: 4px 0 0; font: 600 13px var(--mono); color: #ffd27a; pointer-events: none; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
 #hud #guideBtn { margin-left: auto; color: var(--dim); } #hud #guideBtn.on { color: #ffd27a; border-color: #6b5a33; } #hud #guideBtn + #restart { margin-left: 0; }
+#ret { position: fixed; left: 50%; top: 50%; width: 140px; height: 140px; transform: translate(-50%, -50%); pointer-events: none; z-index: 2; }
 #lean button.on { border-color: var(--ice); color: var(--ice); }
 @media (pointer: fine) { #flips { opacity: 0.55; } #flips:hover { opacity: 1; } }
 @media (pointer: coarse) {

@@ -32,8 +32,15 @@ turns freely in it. Two controls turn it:
   grid directions it's nearest, w along an axis again. It's the cure for
   being lost.
 
-The HUD's `w` readout names the grid direction your w is nearest and how far
-it leans off it. `?tilt=30` sets any lean: a half turn then moves w by 60°.
+The **reticle** round the crosshair shows the cave's four axes (x, y, z, w) as
+they lie in your view now. Each is drawn where it points in your slice, with
+depth on a slant so your forward is a line too. An axis in your slice is a
+full line. One turned into w shrinks toward the middle, and the dashed ring at
+its tip grows with how much of it is off in w, so the axis you can't see at
+all is just a ring at the centre. Your up is the heavy line, marked ↑ (or ↓).
+When the guide says to flip here, a gold mark points at the wall you'll land
+on. V hides it. The HUD's `w` readout names the grid direction your w is
+nearest and how far it leans off it. `?tilt=30` sets any lean: a half turn then moves w by 60°.
 
 Floors stay exact whichever way you face, because gravity falls along the
 grid. What you see at a slant is the cave's voxels cut on a slant: the floor is
@@ -246,7 +253,7 @@ meanwhile, and "flip here" waits for an answer about exactly where you are.
 - **Desktop:** WASD walk; the mouse turns and looks (click to grab it); hold
   the left or right button, roll the wheel, or hold Z or C to twist; X squares
   up; the arrows flip ahead, behind, left and right; Q flips kata and E ana; H
-  toggles the guide; R restarts; space (or enter, or N) goes on to the next
+  toggles the guide; V the reticle; R restarts; space (or enter, or N) goes on to the next
   cave once you've found the crystal.
 - **Phone:** the stick walks, drag to turn and look, and the pad flips, twists
   and squares up (▣). ✦ in the corner is the guide.

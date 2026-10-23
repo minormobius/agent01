@@ -390,7 +390,10 @@ These live here:
   on a fewest-flips route from right here ("Flip KATA (Q) here", the pad
   button glowing). Lean into w is a start-screen setting (off/gentle 20°/full
   45°, default gentle); the mouse buttons and wheel twist, X squares up to the
-  grid, space goes on to the next cave.
+  grid, space goes on to the next cave. The reticle (`reticle()` in
+  `js/main.js`, a 2D canvas over the crosshair, V hides it) draws x, y, z, w as
+  they lie in your view (depth on a slant), with a ring growing with each
+  axis's part in w, up heavy, and a gold mark at the wall a "flip here" lands on.
   `js/render.js` is a 4D voxel DDA (the cave in a 2D R8UI texture, kind |
   deco << 2) lit by a fae grotto's ray-traced 4D point lights: falloff 1/r³
   (light spreads over a 3-sphere), a shadow ray through the 4D grid per light,
