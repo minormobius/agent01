@@ -1,0 +1,661 @@
+{
+ "rungs": [
+  [
+   "0",
+   "tracks age",
+   "It changes with chronological age, or was trained to."
+  ],
+  [
+   "1",
+   "predicts death",
+   "In people followed forward, it predicts death or disease beyond what age alone does."
+  ],
+  [
+   "2",
+   "causal test",
+   "Genetics (MR) or a direct manipulation asks whether the marker itself drives the outcome."
+  ],
+  [
+   "3",
+   "movable in a trial",
+   "A randomized trial has moved it."
+  ],
+  [
+   "4",
+   "moving it moved outcomes",
+   "A randomized trial moved it AND changed hard outcomes. Only this rung makes a surrogate."
+  ]
+ ],
+ "markers": [
+  {
+   "name": "Horvath pan-tissue clock",
+   "kind": "DNAm clock (1st generation)",
+   "year": 2013,
+   "link": "DNA methylation age measures the work of an \"epigenetic maintenance system\"; a clock running ahead of the calendar would mean that system is wearing out faster.",
+   "ev": [
+    [
+     0,
+     "+",
+     "epmc-10_1186_gb-2013-14-10-r115.json",
+     "multi-tissue predictor of age",
+     "Built to predict calendar age across 51 tissues; near zero in stem cells."
+    ],
+    [
+     0,
+     "+",
+     "epmc-10_1186_gb-2013-14-10-r115.json",
+     "highly heritable measure of age acceleration",
+     "Running ahead of the calendar is heritable, so it is not just noise."
+    ],
+    [
+     1,
+     "+",
+     "epmc-10_1186_s13059-015-0584-6.json",
+     "A 5-year higher Δage is associated with a 21% higher mortality risk",
+     "Four cohorts of older people; 16% after adjusting for health, IQ, class and APOE. The abstract says \"DNA methylation age\"; the paper computed it with the Horvath and Hannum clocks (full text, not archived)."
+    ]
+   ],
+   "strength": {
+    "rung": 1,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "DNA methylation age of human tissues and cell types.",
+     "year": "2013",
+     "doi": "10.1186/gb-2013-14-10-r115",
+     "pmid": "24138928",
+     "journal": "Genome biology"
+    },
+    {
+     "title": "DNA methylation age of blood predicts all-cause mortality in later life.",
+     "year": "2015",
+     "doi": "10.1186/s13059-015-0584-6",
+     "pmid": "25633388",
+     "journal": "Genome biology"
+    }
+   ]
+  },
+  {
+   "name": "Hannum blood clock",
+   "kind": "DNAm clock (1st generation)",
+   "year": 2013,
+   "link": "Each person's methylome ages at a rate, and a faster rate is a faster-aging body.",
+   "ev": [
+    [
+     0,
+     "+",
+     "epmc-10_1016_j_molcel_2012_10_016.json",
+     "measures the rate at which an individual's methylome ages",
+     "656 people, aged 19 to 101; the rate differs by sex and gene variants."
+    ],
+    [
+     1,
+     "+",
+     "epmc-10_1186_s13059-015-0584-6.json",
+     "A 5-year higher Δage is associated with a 21% higher mortality risk",
+     "Four cohorts of older people; 16% after adjusting for health, IQ, class and APOE. The abstract says \"DNA methylation age\"; the paper computed it with the Horvath and Hannum clocks (full text, not archived)."
+    ]
+   ],
+   "strength": {
+    "rung": 1,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "Genome-wide methylation profiles reveal quantitative views of human aging rates.",
+     "year": "2013",
+     "doi": "10.1016/j.molcel.2012.10.016",
+     "pmid": "23177740",
+     "journal": "Molecular cell"
+    },
+    {
+     "title": "DNA methylation age of blood predicts all-cause mortality in later life.",
+     "year": "2015",
+     "doi": "10.1186/s13059-015-0584-6",
+     "pmid": "25633388",
+     "journal": "Genome biology"
+    }
+   ]
+  },
+  {
+   "name": "PhenoAge (DNAm)",
+   "kind": "DNAm clock (2nd generation)",
+   "year": 2018,
+   "link": "Trained on a clinical score that predicts death, not on calendar age, so the methylation it picks up should be the part that matters for lifespan.",
+   "ev": [
+    [
+     1,
+     "+",
+     "epmc-10_18632_aging_101414.json",
+     "including all-cause mortality",
+     "Predicts all-cause mortality, cancers, physical function, Alzheimer's."
+    ],
+    [
+     3,
+     "-",
+     "epmc-10_1038_s43587-022-00357-y.json",
+     "did not lead to significant changes in biological age estimates measured by various DNAm clocks including PhenoAge and GrimAge",
+     "Two years of 25% calorie restriction (CALERIE, randomized, n = 220) did not move it."
+    ]
+   ],
+   "strength": {
+    "rung": 3,
+    "verdict": "-"
+   },
+   "sources": [
+    {
+     "title": "An epigenetic biomarker of aging for lifespan and healthspan.",
+     "year": "2018",
+     "doi": "10.18632/aging.101414",
+     "pmid": "29676998",
+     "journal": "Aging"
+    },
+    {
+     "title": "Effect of long-term caloric restriction on DNA methylation measures of biological aging in healthy adults from the CALERIE trial.",
+     "year": "2023",
+     "doi": "10.1038/s43587-022-00357-y",
+     "pmid": "37118425",
+     "journal": "Nature aging"
+    }
+   ]
+  },
+  {
+   "name": "GrimAge",
+   "kind": "DNAm clock (2nd generation)",
+   "year": 2019,
+   "link": "Methylation stand-ins for seven plasma proteins and for smoking pack-years, combined into a \"predictor of lifespan\".",
+   "ev": [
+    [
+     1,
+     "+",
+     "epmc-10_18632_aging_101684.json",
+     "time-to-death (Cox regression P=2.0E-75)",
+     "The strongest death predictor among the clocks of its time."
+    ],
+    [
+     3,
+     "-",
+     "epmc-10_1038_s43587-022-00357-y.json",
+     "did not lead to significant changes in biological age estimates measured by various DNAm clocks including PhenoAge and GrimAge",
+     "CALERIE did not move it either."
+    ]
+   ],
+   "strength": {
+    "rung": 3,
+    "verdict": "-"
+   },
+   "sources": [
+    {
+     "title": "DNA methylation GrimAge strongly predicts lifespan and healthspan.",
+     "year": "2019",
+     "doi": "10.18632/aging.101684",
+     "pmid": "30669119",
+     "journal": "Aging"
+    },
+    {
+     "title": "Effect of long-term caloric restriction on DNA methylation measures of biological aging in healthy adults from the CALERIE trial.",
+     "year": "2023",
+     "doi": "10.1038/s43587-022-00357-y",
+     "pmid": "37118425",
+     "journal": "Nature aging"
+    }
+   ]
+  },
+  {
+   "name": "DunedinPACE",
+   "kind": "DNAm pace-of-aging (3rd generation)",
+   "year": 2022,
+   "link": "Not \"how old\" but \"how fast\": trained on 20 years of decline in 19 organ measures in one 1972–73 birth cohort.",
+   "ev": [
+    [
+     1,
+     "+",
+     "epmc-10_7554_eLife_73420.json",
+     "was associated with morbidity, disability, and mortality",
+     "Also adds prediction beyond GrimAge; high test-retest reliability."
+    ],
+    [
+     3,
+     "+",
+     "epmc-10_1038_s43587-022-00357-y.json",
+     "CALERIE intervention slowed the pace of aging, as measured by the DunedinPACE DNAm algorithm",
+     "The only clock here moved in a randomized trial, and the paper says \"Treatment effect sizes were small\"."
+    ],
+    [
+     4,
+     "?",
+     "epmc-10_1038_s43587-022-00357-y.json",
+     "will require trials with long-term follow-up to establish effects of intervention on primary healthy-aging endpoints",
+     "No trial has shown that slowing it changes disease or death. The CALERIE authors say so themselves."
+    ]
+   ],
+   "strength": {
+    "rung": 3,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "DunedinPACE, a DNA methylation biomarker of the pace of aging.",
+     "year": "2022",
+     "doi": "10.7554/elife.73420",
+     "pmid": "35029144",
+     "journal": "eLife"
+    },
+    {
+     "title": "Effect of long-term caloric restriction on DNA methylation measures of biological aging in healthy adults from the CALERIE trial.",
+     "year": "2023",
+     "doi": "10.1038/s43587-022-00357-y",
+     "pmid": "37118425",
+     "journal": "Nature aging"
+    }
+   ]
+  },
+  {
+   "name": "Proteomic aging clock (204 proteins)",
+   "kind": "plasma protein clock",
+   "year": 2024,
+   "link": "The blood's protein mix shifts with age across many organ systems, so a protein age ahead of the calendar flags a body ahead of the calendar.",
+   "ev": [
+    [
+     1,
+     "+",
+     "epmc-10_1038_s41591-024-03164-7.json",
+     "as well as with multimorbidity and all-cause mortality risk",
+     "UK Biobank n = 45,441; 18 chronic diseases; age prediction held up in China and Finland."
+    ]
+   ],
+   "strength": {
+    "rung": 1,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "Proteomic aging clock predicts mortality and risk of common age-related diseases in diverse populations.",
+     "year": "2024",
+     "doi": "10.1038/s41591-024-03164-7",
+     "pmid": "39117878",
+     "journal": "Nature medicine"
+    }
+   ]
+  },
+  {
+   "name": "Organ-specific proteomic ages",
+   "kind": "plasma protein clock, per organ",
+   "year": 2023,
+   "link": "Organs age at different speeds in one person; proteins shed by one organ date that organ.",
+   "ev": [
+    [
+     1,
+     "+",
+     "epmc-10_1038_s41586-023-06802-1.json",
+     "Accelerated organ aging confers 20-50% higher mortality risk",
+     "About 20% of people have one organ aging fast; accelerated heart age raises heart failure risk by 250%."
+    ]
+   ],
+   "strength": {
+    "rung": 1,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "Organ aging signatures in the plasma proteome track health and disease.",
+     "year": "2023",
+     "doi": "10.1038/s41586-023-06802-1",
+     "pmid": "38057571",
+     "journal": "Nature"
+    }
+   ]
+  },
+  {
+   "name": "Telomere length",
+   "kind": "chromosome-end length",
+   "year": 2017,
+   "link": "Telomeres shorten with each division, so short telomeres were read as a worn-out body and long ones as a young one.",
+   "ev": [
+    [
+     2,
+     "~",
+     "epmc-10_1001_jamaoncol_2016_5945.json",
+     "longer telomeres increase risk for several cancers but reduce risk for some non-neoplastic diseases",
+     "MR (420,081 cases): genetically longer telomeres raise glioma, lung adenocarcinoma and melanoma risk and lower heart disease risk. Longer is not simply better."
+    ]
+   ],
+   "strength": {
+    "rung": 2,
+    "verdict": "~"
+   },
+   "sources": [
+    {
+     "title": "Association Between Telomere Length and Risk of Cancer and Non-Neoplastic Diseases: A Mendelian Randomization Study.",
+     "year": "2017",
+     "doi": "10.1001/jamaoncol.2016.5945",
+     "pmid": "28241208",
+     "journal": "JAMA oncology"
+    }
+   ]
+  },
+  {
+   "name": "Senescent cells (p16Ink4a+)",
+   "kind": "cell-state marker",
+   "year": 2016,
+   "link": "Cells that stop dividing but keep secreting inflammatory signals pile up with age and damage the tissue around them.",
+   "ev": [
+    [
+     2,
+     "+",
+     "epmc-10_1038_nature16932.json",
+     "extended median lifespan in both male and female mice of two distinct genetic backgrounds",
+     "Killing p16+ cells with a transgene, from one year of age: the strongest causal result in this table. It is in mice, with a genetic switch no drug has."
+    ]
+   ],
+   "strength": {
+    "rung": 2,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "Naturally occurring p16(Ink4a)-positive cells shorten healthy lifespan.",
+     "year": "2016",
+     "doi": "10.1038/nature16932",
+     "pmid": "26840489",
+     "journal": "Nature"
+    }
+   ]
+  },
+  {
+   "name": "Clonal hematopoiesis (CHIP)",
+   "kind": "somatic mutation in blood",
+   "year": 2014,
+   "link": "Blood stem cells with cancer-linked mutations take over a share of the blood, and those cells may drive vessel disease as well as cancer.",
+   "ev": [
+    [
+     0,
+     "+",
+     "epmc-10_1056_NEJMoa1408617.json",
+     "18.4% (19 of 103)",
+     "Rare under 40; 9.5% at 70–79, 18.4% at 90–108."
+    ],
+    [
+     1,
+     "+",
+     "epmc-10_1056_NEJMoa1408617.json",
+     "an increase in all-cause mortality (hazard ratio, 1.4; 95% CI, 1.1 to 1.8)",
+     "The authors say \"possibly due to\" heart disease: a hypothesis, not a test."
+    ]
+   ],
+   "strength": {
+    "rung": 1,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "Age-related clonal hematopoiesis associated with adverse outcomes.",
+     "year": "2014",
+     "doi": "10.1056/nejmoa1408617",
+     "pmid": "25426837",
+     "journal": "The New England journal of medicine"
+    }
+   ]
+  },
+  {
+   "name": "C-reactive protein (CRP)",
+   "kind": "inflammation marker",
+   "year": 2010,
+   "link": "\"Inflammaging\": low-grade inflammation rises with age and drives disease.",
+   "ev": [
+    [
+     1,
+     "+",
+     "epmc-pmid-20031199.json",
+     "non-vascular mortality",
+     "In 160,309 people, each SD of log CRP carried an RR of about 1.5 for vascular and for non-vascular death."
+    ],
+    [
+     2,
+     "-",
+     "epmc-10_1136_bmj_d548.json",
+     "unlikely to be even a modest causal factor in coronary heart disease",
+     "MR in 194,418 people: CRP marks heart risk, it doesn't cause it. A gauge, not a lever."
+    ]
+   ],
+   "strength": {
+    "rung": 2,
+    "verdict": "-"
+   },
+   "sources": [
+    {
+     "title": "C-reactive protein concentration and risk of coronary heart disease, stroke, and mortality: an individual participant meta-analysis.",
+     "year": "2010",
+     "doi": "10.1016/s0140-6736(09)61717-7",
+     "pmid": "20031199",
+     "journal": "Lancet (London, England)"
+    },
+    {
+     "title": "Association between C reactive protein and coronary heart disease: mendelian randomisation analysis based on individual participant data.",
+     "year": "2011",
+     "doi": "10.1136/bmj.d548",
+     "pmid": "21325005",
+     "journal": "BMJ (Clinical research ed.)"
+    }
+   ]
+  },
+  {
+   "name": "Frailty index",
+   "kind": "count of deficits",
+   "year": 2001,
+   "link": "Aging is the accumulation of many small failures, so the share of deficits a person has reflects how close they are to death, whichever deficits they are.",
+   "ev": [
+    [
+     0,
+     "+",
+     "epmc-10_1100_tsw_2001_58.json",
+     "deficits accumulated at 3% per year",
+     "In elderly Canadians."
+    ],
+    [
+     1,
+     "+",
+     "epmc-10_1100_tsw_2001_58.json",
+     "serves as an important prognostic factor for life expectancy",
+     "The founding paper; widely re-tested since (not archived here)."
+    ]
+   ],
+   "strength": {
+    "rung": 1,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "Accumulation of deficits as a proxy measure of aging.",
+     "year": "2001",
+     "doi": "10.1100/tsw.2001.58",
+     "pmid": "12806071",
+     "journal": "TheScientificWorldJournal"
+    }
+   ]
+  },
+  {
+   "name": "Gait speed",
+   "kind": "physical function",
+   "year": 2011,
+   "link": "Walking speed integrates heart, lungs, muscle, nerves and balance, so it reads the whole system at once.",
+   "ev": [
+    [
+     1,
+     "+",
+     "epmc-10_1001_jama_2010_1923.json",
+     "pooled hazard ratio per 0.1 m/s, 0.88",
+     "9 cohorts, 34,485 people aged 65+."
+    ]
+   ],
+   "strength": {
+    "rung": 1,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "Gait speed and survival in older adults.",
+     "year": "2011",
+     "doi": "10.1001/jama.2010.1923",
+     "pmid": "21205966",
+     "journal": "JAMA"
+    }
+   ]
+  },
+  {
+   "name": "Grip strength",
+   "kind": "physical function",
+   "year": 2015,
+   "link": "Muscle strength stands for the body's reserve.",
+   "ev": [
+    [
+     1,
+     "+",
+     "epmc-pmid-25982160.json",
+     "hazard ratio per 5 kg reduction in grip strength 1.16",
+     "PURE, 139,691 people in 17 countries."
+    ],
+    [
+     3,
+     "?",
+     "epmc-pmid-25982160.json",
+     "to test whether improvement in strength reduces mortality",
+     "The authors' own open question: nobody has shown that getting stronger moves the death rate."
+    ]
+   ],
+   "strength": {
+    "rung": 1,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "Prognostic value of grip strength: findings from the Prospective Urban Rural Epidemiology (PURE) study.",
+     "year": "2015",
+     "doi": "10.1016/s0140-6736(14)62000-6",
+     "pmid": "25982160",
+     "journal": "Lancet (London, England)"
+    }
+   ]
+  },
+  {
+   "name": "Cardiorespiratory fitness (VO2max, METs)",
+   "kind": "physical function",
+   "year": 2018,
+   "link": "Peak oxygen use sets how much the whole body can do.",
+   "ev": [
+    [
+     1,
+     "+",
+     "epmc-10_1001_jamanetworkopen_2018_3605.json",
+     "adjusted hazard ratio [HR], 0.20",
+     "Elite vs low fitness, 122,007 patients referred for treadmill tests; no upper limit seen. Retrospective, and people who were already sick were sent for testing."
+    ]
+   ],
+   "strength": {
+    "rung": 1,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "Association of Cardiorespiratory Fitness With Long-term Mortality Among Adults Undergoing Exercise Treadmill Testing.",
+     "year": "2018",
+     "doi": "10.1001/jamanetworkopen.2018.3605",
+     "pmid": "30646252",
+     "journal": "JAMA network open"
+    }
+   ]
+  },
+  {
+   "name": "LDL cholesterol",
+   "kind": "blood lipid (comparison row)",
+   "year": 2010,
+   "link": "Not an aging marker. It is here as the template: what a validated surrogate looks like.",
+   "ev": [
+    [
+     4,
+     "+",
+     "epmc-pmid-21067804.json",
+     "each 1·0 mmol/L reduction reducing the annual rate of these major vascular events by just over a fifth",
+     "26 randomized trials, about 170,000 people. On FDA's surrogate table."
+    ]
+   ],
+   "strength": {
+    "rung": 4,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "Efficacy and safety of more intensive lowering of LDL cholesterol: a meta-analysis of data from 170,000 participants in 26 randomised trials.",
+     "year": "2010",
+     "doi": "10.1016/s0140-6736(10)61350-5",
+     "pmid": "21067804",
+     "journal": "Lancet (London, England)"
+    }
+   ]
+  },
+  {
+   "name": "Systolic blood pressure",
+   "kind": "vital sign (comparison row)",
+   "year": 2015,
+   "link": "Not an aging marker; a second validated surrogate.",
+   "ev": [
+    [
+     4,
+     "+",
+     "epmc-10_1056_NEJMoa1511939.json",
+     "death from any cause",
+     "SPRINT: aiming for <120 instead of <140 mm Hg cut major events and deaths from all causes. On FDA's surrogate table."
+    ]
+   ],
+   "strength": {
+    "rung": 4,
+    "verdict": "+"
+   },
+   "sources": [
+    {
+     "title": "A Randomized Trial of Intensive versus Standard Blood-Pressure Control.",
+     "year": "2015",
+     "doi": "10.1056/nejmoa1511939",
+     "pmid": "26551272",
+     "journal": "The New England journal of medicine"
+    }
+   ]
+  },
+  {
+   "name": "HbA1c",
+   "kind": "blood sugar average (comparison row)",
+   "year": 2008,
+   "link": "Not an aging marker. It is here as the warning: an accepted surrogate, moved hard, and more people died.",
+   "ev": [
+    [
+     4,
+     "-",
+     "epmc-10_1056_NEJMoa0802743.json",
+     "increased mortality and did not significantly reduce major cardiovascular events",
+     "ACCORD: aiming for HbA1c <6.0% in high-risk type 2 diabetes raised deaths (HR 1.22). HbA1c is still on FDA's surrogate table for diabetes drugs."
+    ]
+   ],
+   "strength": {
+    "rung": 4,
+    "verdict": "-"
+   },
+   "sources": [
+    {
+     "title": "Effects of intensive glucose lowering in type 2 diabetes.",
+     "year": "2008",
+     "doi": "10.1056/nejmoa0802743",
+     "pmid": "18539917",
+     "journal": "The New England journal of medicine"
+    }
+   ]
+  }
+ ],
+ "tally": [
+  0,
+  9,
+  3,
+  3,
+  0
+ ]
+}
