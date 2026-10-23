@@ -33,10 +33,10 @@ _Regenerated 2026-10-23 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-23, 99 members / 231 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: llms, llm, wiki
-- Top post: "this is temporary and it will end. it's fine. we just need to not bungle it for the next year or three." — @segyges.bsky.social
+**Neighborhood spark** (bisk 2026-10-23, 100 members / 208 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: llms, sigh, wiki
+- Top post: "" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
