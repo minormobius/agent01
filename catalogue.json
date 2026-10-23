@@ -4602,6 +4602,11 @@
       "reason": "in-game routes of the mega sprite demos"
     },
     {
+      "glob": "rite/pumpkin/live",
+      "kind": "content",
+      "reason": "the pumpkin patch's live/vtuber stage, a page of the listed /pumpkin site"
+    },
+    {
       "glob": "mega/bees/**",
       "kind": "content",
       "reason": "in-game routes of mega/bees"

@@ -318,20 +318,30 @@ export function carve(seed = '', opts = {}) {
   if (stem.kind === 'stubby') stem.h *= 0.55;
   if (stem.kind === 'tall') stem.h *= 1.35;
 
-  // The face, re-carved smaller until it passes.
-  let face = null;
-  for (let attempt = 0; attempt < 14; attempt++) {
-    face = carveFace(rng(`face|${seed}|${attempt}`), MOODS[mood], body, 1 - attempt * 0.05, attempt);
-    face.attempt = attempt;
-    const c = check(face.cuts, body);
-    if (opts.trace) opts.trace.push(c.problems);
-    if (c.ok) break;
-  }
+  const face = faceFor(seed, mood, body, opts.trace);
   const res = check(face.cuts, body);
   return {
     seed, mood, variety: vk, body, stem, cuts: face.cuts, genes: { ...face.genes, attempt: face.attempt }, ok: res.ok, problems: res.problems,
     title: `${MOODS[mood].label} ${V.label}`,
   };
+}
+
+/**
+ * Carve a face for `mood` onto an existing `body`, re-carved smaller until it
+ * passes. `carve` uses it for a pumpkin's own face; the live rig (rig.js) uses
+ * it to carve every mood onto one pumpkin, so its expressions are all faces it
+ * could really have.
+ */
+export function faceFor(seed, mood, body, trace) {
+  let face = null;
+  for (let attempt = 0; attempt < 14; attempt++) {
+    face = carveFace(rng(`face|${seed}|${attempt}`), MOODS[mood], body, 1 - attempt * 0.05, attempt);
+    face.attempt = attempt;
+    const c = check(face.cuts, body);
+    if (trace) trace.push(c.problems);
+    if (c.ok) break;
+  }
+  return face;
 }
 
 function carveFace(R, M, body, scale, attempt) {
@@ -520,6 +530,8 @@ export function check(cuts, body) {
 // ---------- rendering ----------
 
 const f1 = (n) => Math.round(n * 10) / 10;
+/** The candle's colours, white-hot middle to ember rim. */
+export const FIRE = ['#fffbe0', '#ffe066', '#ff9a1a', '#b8320a'];
 const pathOf = (pts) => 'M' + pts.map(([x, y]) => f1(x) + ' ' + f1(y)).join('L') + 'Z';
 const hsl = (h, s, l, a) => a === undefined ? `hsl(${f1(h)} ${f1(s)}% ${f1(l)}%)` : `hsl(${f1(h)} ${f1(s)}% ${f1(l)}% / ${a})`;
 
@@ -549,10 +561,16 @@ function stemPath(st, top) {
  *   bg        paint the night behind it (default true)
  *   stencil   a printable cutting stencil instead of a picture
  *   id        a prefix for gradient ids, unique per pumpkin on a page
+ *   rig       mark the parts the live rig moves (rig.js): the body group, the
+ *             ground, the halo, the spill, the fire stops, and every cut's
+ *             elements by slot. No CSS flicker — the rig flickers itself.
  */
 export function render(p, o = {}) {
   const { lit = true, bg = true, stencil = false } = o;
-  const flicker = o.flicker ?? lit;
+  const rig = !!o.rig;
+  const flicker = rig ? false : (o.flicker ?? lit);
+  const R_ = (name) => rig ? ` data-rig="${name}"` : '';
+  const S_ = (i) => rig ? ` data-slot="${i}"` : '';
   const id = (o.id || 'pk') + '-' + (p.seed.replace(/[^a-z0-9]/gi, '').slice(0, 12) || 'x');
   const { cx, cy, rx, ry, lobes, color } = p.body;
   const top = cy - ry * 0.94;
@@ -581,7 +599,7 @@ export function render(p, o = {}) {
   // The candle, as seen through the cuts: white-hot at the middle, ember at the rim.
   out.push(`<radialGradient id="${id}-fire" gradientUnits="userSpaceOnUse" cx="${f1(cx)}" cy="${f1(cy + ry * 0.15)}" r="${f1(rx * 0.95)}">` +
     (lit
-      ? '<stop offset="0" stop-color="#fffbe0"/><stop offset="0.3" stop-color="#ffe066"/><stop offset="0.62" stop-color="#ff9a1a"/><stop offset="1" stop-color="#b8320a"/>'
+      ? FIRE.map((c, i) => `<stop offset="${[0, 0.3, 0.62, 1][i]}" stop-color="${c}"${R_('stop')}/>`).join('')
       : '<stop offset="0" stop-color="#3a2310"/><stop offset="1" stop-color="#140904"/>') +
     '</radialGradient>');
   // Cut flesh: the pale wall of each cut.
@@ -594,7 +612,7 @@ export function render(p, o = {}) {
   out.push(`<radialGradient id="${id}-sky" cx="0.5" cy="0.35" r="0.8"><stop offset="0" stop-color="#2d1b3d"/><stop offset="1" stop-color="#0d0812"/></radialGradient>`);
   out.push(`<filter id="${id}-blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7"/></filter>`);
   out.push(`<clipPath id="${id}-body"><ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(rx)}" ry="${f1(ry)}"/></clipPath>`);
-  p.cuts.forEach((c, i) => out.push(`<clipPath id="${id}-c${i}"><path d="${pathOf(c.pts)}"/></clipPath>`));
+  p.cuts.forEach((c, i) => out.push(`<clipPath id="${id}-c${i}"><path d="${pathOf(c.pts)}"${S_(i)}/></clipPath>`));
   out.push('</defs>');
   if (flicker) {
     out.push(`<style>@keyframes pkf{0%,100%{opacity:1}12%{opacity:.86}20%{opacity:.97}37%{opacity:.8}45%{opacity:1}63%{opacity:.9}71%{opacity:.98}86%{opacity:.84}}` +
@@ -604,11 +622,12 @@ export function render(p, o = {}) {
 
   if (bg) out.push(`<rect width="${SIZE}" height="${SIZE}" fill="url(#${id}-sky)"/>`);
   // Shadow on the ground, and the glow the candle throws onto it.
-  out.push(`<ellipse cx="${f1(cx)}" cy="${f1(cy + ry * 0.97)}" rx="${f1(rx * 1.05)}" ry="${f1(ry * 0.12)}" fill="#000" opacity="0.45"/>`);
+  out.push(`<ellipse cx="${f1(cx)}" cy="${f1(cy + ry * 0.97)}" rx="${f1(rx * 1.05)}" ry="${f1(ry * 0.12)}" fill="#000" opacity="0.45"${R_('shadow')}/>`);
   // (The flicker animates opacity, so it goes on a wrapper: on the element
   // itself it would override the element's own, fainter opacity.)
   const fl = (inner) => flicker ? `<g class="${id}-f">${inner}</g>` : inner;
-  if (lit) out.push(fl(`<ellipse cx="${f1(cx)}" cy="${f1(cy + ry * 0.98)}" rx="${f1(rx * 1.5)}" ry="${f1(ry * 0.22)}" fill="#ff8a1f" opacity="0.13" filter="url(#${id}-blur)"/>`));
+  if (lit) out.push(fl(`<ellipse cx="${f1(cx)}" cy="${f1(cy + ry * 0.98)}" rx="${f1(rx * 1.5)}" ry="${f1(ry * 0.22)}" fill="#ff8a1f" opacity="0.13" filter="url(#${id}-blur)"${R_('glow')}/>`));
+  if (rig) out.push('<g data-rig="body">');
 
   // The stem, behind the top lobes.
   out.push(`<path d="${pathOf(stemPath(p.stem, top + 6))}" fill="url(#${id}-stem)" stroke="${hsl(p.stem.hue, p.stem.sat, p.stem.lit * 0.5)}" stroke-width="1.2" stroke-linejoin="round"/>`);
@@ -628,20 +647,21 @@ export function render(p, o = {}) {
     out.push(`<ellipse cx="${f1(lx)}" cy="${f1(cy + (1 - lh / ry) * ry * 0.3)}" rx="${f1(lw * kx)}" ry="${f1(lh)}" fill="url(#${id}-lobe)" stroke="${hsl(color.h - 8, color.s, color.l * 0.5)}" stroke-width="1.4" stroke-opacity="0.55"/>`);
   }
   // Light spilling onto the rind around the face.
-  if (lit) out.push(fl(`<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(rx)}" ry="${f1(ry)}" fill="url(#${id}-spill)" clip-path="url(#${id}-body)"/>`));
+  if (lit) out.push(fl(`<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(rx)}" ry="${f1(ry)}" fill="url(#${id}-spill)" clip-path="url(#${id}-body)"${R_('spill')}/>`));
 
   // The cuts. Under them, a blurred halo; in each, the cut flesh wall, and the
   // candle seen through it — shifted toward the middle, so the wall shows on
   // the side away from the light, thicker toward the pumpkin's edge.
-  if (lit) out.push(fl(`<g filter="url(#${id}-blur)" opacity="0.75">` + p.cuts.map((c) => `<path d="${pathOf(c.pts)}" fill="#ffae2b"/>`).join('') + '</g>'));
+  if (lit) out.push(fl(`<g filter="url(#${id}-blur)" opacity="0.75"${R_('halo')}>` + p.cuts.map((c, i) => `<path d="${pathOf(c.pts)}" fill="#ffae2b"${S_(i)}/>`).join('') + '</g>'));
   p.cuts.forEach((c, i) => {
     const [x0, y0, x1, y1] = bbox(c.pts);
     const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
     const k = 0.07, th = 2.2;
     const dx = -(mx - cx) * k - Math.sign(mx - cx) * th * 0.3, dy = -(my - cy) * k + th;
-    out.push(`<path d="${pathOf(c.pts)}" fill="url(#${id}-flesh)" stroke="${hsl(color.h - 10, color.s, color.l * 0.45)}" stroke-width="1"/>`);
-    out.push(`<g clip-path="url(#${id}-c${i})"><path class="${flicker ? id + '-f' : ''}" d="${pathOf(c.pts)}" transform="translate(${f1(dx)} ${f1(dy)})" fill="url(#${id}-fire)"/></g>`);
+    out.push(`<path d="${pathOf(c.pts)}" fill="url(#${id}-flesh)" stroke="${hsl(color.h - 10, color.s, color.l * 0.45)}" stroke-width="1"${S_(i)}/>`);
+    out.push(`<g clip-path="url(#${id}-c${i})"><path class="${flicker ? id + '-f' : ''}" d="${pathOf(c.pts)}" transform="translate(${f1(dx)} ${f1(dy)})" fill="url(#${id}-fire)"${S_(i)}${R_('fire')}/></g>`);
   });
+  if (rig) out.push('</g>');
   out.push('</svg>');
   return out.join('');
 }

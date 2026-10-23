@@ -3044,6 +3044,16 @@
    "discovered": true
   },
   {
+   "id": "pumpkin/live",
+   "name": "live",
+   "url": "https://rite.mino.mobi/pumpkin/live/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "pumpkin",
+   "discovered": true
+  },
+  {
    "id": "gc/api",
    "name": "api",
    "url": "https://b.mino.mobi/gc/api/",

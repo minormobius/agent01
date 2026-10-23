@@ -43,6 +43,8 @@ h1 {
 .caption .d { color: var(--muted); font-size: 0.92rem; }
 .caption .s { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
 .panel { display: flex; flex-direction: column; gap: 0.9rem; }
+.live { display: block; text-align: center; padding: 0.6rem; border: 1px dashed var(--accent); border-radius: 8px; color: var(--accent); font-weight: 700; text-decoration: none; }
+.live:hover { background: rgba(255, 138, 31, 0.1); }
 .panel h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); margin: 0 0 0.4rem; font-weight: 400; }
 button {
   font: inherit; font-weight: 700; padding: 0.55rem 0.95rem; border-radius: 8px; cursor: pointer;
@@ -111,6 +113,7 @@ body.stencil #stencil { display: block; position: fixed; inset: 0; background: #
 
     <div class="panel">
       <button class="primary" id="roll" title="Roll (R)">Roll a pumpkin</button>
+      <a class="live" id="livelink" href="live/">Bring it to life &rarr;</a>
       <div>
         <h2>Mood</h2>
         <div class="chips" id="moods"></div>
@@ -197,6 +200,7 @@ function show(push = true) {
   $('title').textContent = current.title;
   $('desc').textContent = describe(current);
   $('seedline').textContent = `seed ${state.seed}`;
+  $('livelink').href = `live/?s=${encodeURIComponent(state.seed)}`;
   for (const b of $('moods').children) b.setAttribute('aria-pressed', String(b.dataset.mood === state.mood));
   for (const b of $('patch').children) b.setAttribute('aria-current', String(b.dataset.seed === state.seed));
   if (push) {

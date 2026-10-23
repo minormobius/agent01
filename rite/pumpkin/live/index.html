@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pumpkin live &mdash; jack-o'-lantern vtubers</title>
+<meta name="description" content="Jack-o'-lanterns that talk. Drive one with your microphone, type lines for it to say, or let a cast of three chatter on its own, rolling through moods, blinking, bobbing and shifting in their seats.">
+<meta property="og:title" content="pumpkin live">
+<meta property="og:description" content="Jack-o'-lantern vtubers: your mic, their mouths.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/pumpkin/live/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #120d17; --bg2: #1c1424; --text: #ece4d8; --muted: #9a8fa6; --rule: #352a40;
+  --accent: #ff8a1f; --slime: #9be564;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; padding: 0; }
+body { color: var(--text); font-family: var(--serif); font-size: 16px; line-height: 1.45; min-height: 100vh; }
+body.bg-night { background: radial-gradient(ellipse at 50% 20%, #2b1838 0%, var(--bg) 65%) fixed, var(--bg); }
+body.bg-green { background: #00b140; }
+html.bg-clear, body.bg-clear { background: transparent; }
+
+.stage {
+  display: flex; justify-content: center; align-items: flex-end; gap: 0;
+  padding: 0 1rem; margin-top: 0.5rem; position: relative;
+}
+body.bare .stage { height: 100vh; margin: 0; align-items: center; }
+/* Square puppets, as big as the height allows and the width can share. */
+.puppet { position: relative; aspect-ratio: 1; cursor: pointer; width: min(70vh, 640px, calc((100vw - 2rem) / var(--cast, 1) * 1.06)); }
+body.bare .puppet { width: min(100vh, calc(100vw / var(--cast, 1) * 1.06)); }
+.cast-2 .puppet, .cast-3 .puppet { margin: 0 -3%; }
+.puppet svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.puppet .tag {
+  position: absolute; left: 0; right: 0; bottom: 2%; text-align: center; font-size: 0.8rem; color: var(--muted);
+  pointer-events: none;
+}
+.puppet.sel .tag { color: var(--accent); }
+.puppet.sel .tag::before { content: '▲ '; }
+body.bare .tag, body.nocap .bubble { display: none; }
+.bubble {
+  position: absolute; left: 50%; top: 4%; transform: translate(-50%, -6px) scale(0.96); max-width: 90%;
+  background: #fff8ec; color: #1a0f05; border-radius: 14px; padding: 0.35rem 0.75rem; font-size: clamp(0.8rem, 2.2vh, 1.05rem);
+  opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; text-align: center;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+.bubble.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.bubble::after { content: ''; position: absolute; left: 50%; bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-top-color: #fff8ec; border-bottom: 0; }
+
+.panel { max-width: 1000px; margin: 0.6rem auto 2rem; padding: 0 1rem; }
+body.bare .panel, body.bare header { display: none; }
+header { display: flex; align-items: baseline; justify-content: space-between; max-width: 1000px; margin: 0 auto; padding: 0.9rem 1rem 0; gap: 1rem; flex-wrap: wrap; }
+h1 { font-family: 'Creepster', var(--serif); font-weight: 400; font-size: 2.2rem; letter-spacing: 0.04em; margin: 0; color: var(--accent); line-height: 1; }
+header a { color: var(--muted); font-size: 0.9rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 0.9rem 1.4rem; }
+.box h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); margin: 0 0 0.4rem; font-weight: 400; }
+button, select {
+  font: inherit; font-size: 0.9rem; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--rule); background: transparent; color: var(--text);
+}
+button:hover { border-color: var(--accent); }
+button[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: #1a0f05; font-weight: 700; }
+button.go { background: var(--accent); border-color: var(--accent); color: #1a0f05; font-weight: 700; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--slime); outline-offset: 2px; }
+select { background: var(--bg2); }
+.row { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+form { display: flex; gap: 0.4rem; }
+input[type=text] { flex: 1; min-width: 0; font: inherit; padding: 0.45rem 0.7rem; background: var(--bg2); color: var(--text); border: 1px solid var(--rule); border-radius: 8px; }
+input[type=range] { accent-color: var(--accent); width: 9rem; }
+.hint { color: var(--muted); font-size: 0.8rem; margin: 0.35rem 0 0; }
+.hint kbd { font-family: var(--mono); font-size: 0.75rem; border: 1px solid var(--rule); border-radius: 4px; padding: 0 0.3rem; }
+.err { color: #ff8f8f; }
+</style>
+</head>
+<body class="bg-night">
+<header>
+  <h1>Pumpkin Live</h1>
+  <a href="../">&larr; back to the patch</a>
+</header>
+
+<div class="stage" id="stage" aria-label="The cast"></div>
+
+<div class="panel">
+  <div class="grid">
+    <div class="box">
+      <h2>Cast</h2>
+      <div class="row">
+        <button data-cast="1">One</button><button data-cast="2">Two</button><button data-cast="3">Three</button>
+        <button id="recast" title="New pumpkins (R)">Roll cast</button>
+      </div>
+      <p class="hint">Click a pumpkin to pick who you're steering.</p>
+    </div>
+
+    <div class="box">
+      <h2>Who talks</h2>
+      <div class="row">
+        <button data-src="chatter">Chatter</button><button data-src="mic">My mic</button><button data-src="quiet">Quiet</button>
+      </div>
+      <div class="row" id="microw" hidden style="margin-top:0.4rem">
+        <label for="sens" class="hint" style="margin:0">mic sensitivity</label><input type="range" id="sens" min="0.3" max="3" step="0.1" value="1">
+      </div>
+      <p class="hint" id="srcnote">The cast talks among themselves.</p>
+    </div>
+
+    <div class="box">
+      <h2>Make it say</h2>
+      <form id="sayform" autocomplete="off">
+        <input type="text" id="line" placeholder="Happy Halloween!" aria-label="Line to say" maxlength="300">
+        <button class="go" type="submit">Say</button>
+      </form>
+      <div class="row" style="margin-top:0.4rem">
+        <select id="voice" aria-label="Voice"><option value="blips">Blip voice</option><option value="tts">Browser voice</option></select>
+        <button id="sound" aria-pressed="false">Sound off</button>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2>Mood</h2>
+      <div class="row" id="moods"></div>
+      <div class="row" style="margin-top:0.4rem"><button id="auto" aria-pressed="true">Roll through moods</button></div>
+    </div>
+
+    <div class="box">
+      <h2>Scene</h2>
+      <div class="row">
+        <button data-bg="night">Night</button><button data-bg="green">Green screen</button><button data-bg="clear">Transparent</button>
+      </div>
+      <div class="row" style="margin-top:0.4rem">
+        <button id="lit" aria-pressed="true">Candle lit</button><button id="caps" aria-pressed="true">Captions</button><button id="bare">Hide controls</button>
+      </div>
+      <p class="hint"><kbd>H</kbd> hides the controls for capture · <kbd>1</kbd>–<kbd>8</kbd> moods · <kbd>Space</kbd> hop · <kbd>R</kbd> new cast · double-tap the stage to toggle</p>
+    </div>
+  </div>
+  <p class="hint" style="margin-top:1rem">For OBS: add this page as a Browser Source with <i>Transparent</i> and <kbd>H</kbd>,
+    or use Window Capture with <i>Green screen</i> (a Browser Source can't use your mic). Every expression is a face this
+    pumpkin could really be carved with. Link: <a id="permalink" href="#" style="color:var(--accent)"></a></p>
+</div>
+
+<script type="module">
+import { Puppet } from '../rig.js';
+import { Player, Mic, Speaker, babble } from '../voice.js';
+import { MOODS, MOOD_KEYS } from '../engine.js';
+
+const $ = (id) => document.getElementById(id);
+const q = new URLSearchParams(location.search);
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const word = () => Math.random().toString(36).slice(2, 7);
+const hash = (s) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
+
+const st = {
+  seeds: (q.get('s') || '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 3),
+  src: 'chatter', auto: true, lit: q.get('lit') !== '0', caps: true, sound: false, sel: 0,
+  bg: ['night', 'green', 'clear'].includes(q.get('bg')) ? q.get('bg') : 'night',
+};
+if (!st.seeds.length) st.seeds = [word()];
+if (q.get('bare') === '1') document.body.classList.add('bare');
+let cast = [], ctx = null, mic = null, speaker = null;
+let nextLine = 1.2, nextMood = 5, lastSpeaker = -1;
+
+// ---------- the cast ----------
+
+function build() {
+  const stage = $('stage');
+  stage.innerHTML = '';
+  stage.className = `stage cast-${st.seeds.length}`;
+  stage.style.setProperty('--cast', st.seeds.length);
+  cast = st.seeds.map((seed, i) => {
+    const el = document.createElement('div');
+    el.className = 'puppet';
+    el.innerHTML = '<div class="svg"></div><div class="bubble"></div><div class="tag"></div>';
+    stage.appendChild(el);
+    const pup = new Puppet(el.querySelector('.svg'), seed, { id: 'pp' + i, lit: st.lit, calm });
+    const h = hash(seed);
+    const player = new Player({ ctx, pitch: 170 + (h % 230), rate: 0.9 + ((h >> 8) % 30) / 100 });
+    player.onEvent = (k) => k === 'hop' ? pup.jump(0.8) : pup.cock(i % 2 ? -1 : 1);
+    el.addEventListener('click', () => select(i));
+    return { pup, player, el, bubble: el.querySelector('.bubble'), tag: el.querySelector('.tag'), seed };
+  });
+  st.sel = Math.min(st.sel, cast.length - 1);
+  select(st.sel);
+  sync();
+}
+
+function select(i) {
+  st.sel = i;
+  cast.forEach((c, j) => c.el.classList.toggle('sel', j === i && cast.length > 1));
+  sync();
+}
+
+function sync() {
+  for (const b of document.querySelectorAll('[data-cast]')) b.setAttribute('aria-pressed', String(+b.dataset.cast === cast.length));
+  for (const b of document.querySelectorAll('[data-src]')) b.setAttribute('aria-pressed', String(b.dataset.src === st.src));
+  for (const b of document.querySelectorAll('[data-bg]')) b.setAttribute('aria-pressed', String(b.dataset.bg === st.bg));
+  for (const b of $('moods').children) b.setAttribute('aria-pressed', String(cast[st.sel] && b.dataset.mood === cast[st.sel].pup.mood));
+  $('auto').setAttribute('aria-pressed', String(st.auto));
+  $('lit').setAttribute('aria-pressed', String(st.lit));
+  $('caps').setAttribute('aria-pressed', String(st.caps));
+  $('sound').setAttribute('aria-pressed', String(st.sound));
+  $('sound').textContent = st.sound ? 'Sound on' : 'Sound off';
+  $('microw').hidden = st.src !== 'mic';
+  document.body.className = document.body.className.replace(/\bbg-\w+/g, '').trim() + ` bg-${st.bg}`;
+  document.documentElement.classList.toggle('bg-clear', st.bg === 'clear');
+  document.body.classList.toggle('nocap', !st.caps);
+  for (const c of cast) { c.tag.textContent = c.pup.title; c.player.ctx = st.sound ? ctx : null; }
+  const u = new URL(location.href);
+  u.searchParams.set('s', st.seeds.join(','));
+  st.lit ? u.searchParams.delete('lit') : u.searchParams.set('lit', '0');
+  st.bg === 'night' ? u.searchParams.delete('bg') : u.searchParams.set('bg', st.bg);
+  history.replaceState(null, '', u);
+  $('permalink').href = u.href; $('permalink').textContent = u.pathname + u.search;
+}
+
+function bubble(c, text) {
+  if (!text) { c.bubble.classList.remove('on'); return; }
+  c.bubble.textContent = text;
+  c.bubble.classList.add('on');
+}
+
+// ---------- talking ----------
+
+function say(c, text) {
+  const now = performance.now() / 1000;
+  if ($('voice').value === 'tts' && Speaker.available()) {
+    speaker ||= new Speaker();
+    const h = hash(c.seed);
+    speaker.pitch = 0.6 + (h % 100) / 100; speaker.rate = 0.95 + ((h >> 8) % 20) / 100;
+    speaker.onEvent = (k) => k === 'hop' ? c.pup.jump(0.8) : c.pup.cock();
+    speaker.owner = c;
+    speaker.say(text, () => performance.now() / 1000);
+  } else {
+    c.player.say(text, now);
+  }
+  bubble(c, text);
+  c.until = now + Math.max(1.2, text.length * 0.075);
+}
+
+function talking(c) { return !c.player.done || (speaker && speaker.owner === c && speaker.speaking); }
+
+async function ensureAudio() {
+  if (!ctx) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (ctx.state !== 'running') await ctx.resume();
+  return ctx;
+}
+
+// ---------- the loop ----------
+
+let last = performance.now() / 1000;
+function loop() {
+  const now = performance.now() / 1000, dt = now - last;
+  last = now;
+  const anyTalk = cast.findIndex((c) => talking(c));
+
+  // Chatter: someone says something every so often, the others turn to look.
+  if (st.src === 'chatter' && anyTalk < 0 && now > nextLine) {
+    let i = Math.floor(Math.random() * cast.length);
+    if (cast.length > 1 && i === lastSpeaker) i = (i + 1 + Math.floor(Math.random() * (cast.length - 1))) % cast.length;
+    lastSpeaker = i;
+    const c = cast[i];
+    if (st.auto && Math.random() < 0.55) c.pup.feel(pickMood(c.pup.mood));
+    say(c, babble());
+    nextLine = Infinity;
+  }
+  if (st.src === 'chatter' && anyTalk < 0 && nextLine === Infinity) nextLine = now + 0.5 + Math.random() * 1.4;
+
+  // Roll through moods, for whoever is selected (or anyone, in a crowd).
+  if (st.auto && now > nextMood) {
+    const c = cast.length > 1 && st.src === 'chatter' ? cast[Math.floor(Math.random() * cast.length)] : cast[st.sel];
+    c.pup.feel(pickMood(c.pup.mood));
+    nextMood = now + 4 + Math.random() * 4;
+    sync();
+  }
+
+  const mlvl = st.src === 'mic' && mic ? mic.read() : null;
+  const speakerIdx = mlvl?.talking ? st.sel : anyTalk;
+  cast.forEach((c, i) => {
+    let m = { open: 0, round: 0 };
+    if (!c.player.done) m = c.player.update(now);
+    else if (speaker && speaker.owner === c && speaker.speaking) m = speaker.update(now);
+    else if (mlvl && i === st.sel) m = mlvl;
+    c.pup.talk = m;
+    // Listeners face the speaker; the speaker faces out (or at a listener).
+    if (speakerIdx >= 0 && speakerIdx !== i) c.pup.lookAt = Math.sign(speakerIdx - i) * 0.8;
+    else if (speakerIdx === i && cast.length > 1) c.pup.lookAt = (i === 0 ? 0.35 : i === cast.length - 1 ? -0.35 : 0);
+    else c.pup.lookAt = null;
+    if (c.bubble.classList.contains('on') && !talking(c) && now > (c.until || 0)) bubble(c, '');
+    c.pup.frame(dt, now);
+  });
+  requestAnimationFrame(loop);
+}
+
+function pickMood(cur) {
+  const others = MOOD_KEYS.filter((m) => m !== cur);
+  return others[Math.floor(Math.random() * others.length)];
+}
+
+// ---------- controls ----------
+
+for (const [i, k] of MOOD_KEYS.entries()) {
+  const b = document.createElement('button');
+  b.dataset.mood = k; b.textContent = MOODS[k].label; b.title = `${k} (${i + 1})`;
+  b.addEventListener('click', () => { cast[st.sel].pup.feel(k); sync(); });
+  $('moods').appendChild(b);
+}
+for (const b of document.querySelectorAll('[data-cast]')) b.addEventListener('click', () => {
+  const n = +b.dataset.cast;
+  while (st.seeds.length < n) st.seeds.push(word());
+  st.seeds = st.seeds.slice(0, n);
+  build();
+});
+$('recast').addEventListener('click', () => { st.seeds = st.seeds.map(() => word()); build(); });
+for (const b of document.querySelectorAll('[data-src]')) b.addEventListener('click', async () => {
+  st.src = b.dataset.src;
+  $('srcnote').classList.remove('err');
+  if (st.src === 'mic' && !mic) {
+    try {
+      await ensureAudio();
+      mic = await Mic.open(ctx);
+      mic.sensitivity = +$('sens').value;
+    } catch (e) {
+      st.src = 'quiet';
+      $('srcnote').textContent = 'The microphone was refused or is missing. Check the browser’s permission for this site.';
+      $('srcnote').classList.add('err');
+      sync(); return;
+    }
+  }
+  if (st.src !== 'chatter') for (const c of cast) { c.player.stop(); bubble(c, ''); }
+  $('srcnote').textContent = { chatter: 'The cast talks among themselves.', mic: 'Talk, and the selected pumpkin talks with you. Nothing is recorded or sent anywhere.', quiet: 'Only what you type.' }[st.src];
+  nextLine = performance.now() / 1000 + 0.6;
+  sync();
+});
+$('sens').addEventListener('input', (e) => { if (mic) mic.sensitivity = +e.target.value; });
+$('sayform').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = $('line').value.trim() || $('line').placeholder;
+  if (st.sound) await ensureAudio();
+  const c = cast[st.sel];
+  for (const o of cast) if (o !== c) { o.player.stop(); bubble(o, ''); }
+  say(c, text);
+  if (st.src === 'chatter') nextLine = Infinity;
+});
+$('sound').addEventListener('click', async () => {
+  st.sound = !st.sound;
+  // Off only gates the blips: the context stays up, since the mic needs it.
+  if (st.sound) await ensureAudio();
+  sync();
+});
+$('auto').addEventListener('click', () => { st.auto = !st.auto; sync(); });
+$('lit').addEventListener('click', () => { st.lit = !st.lit; build(); });
+$('caps').addEventListener('click', () => { st.caps = !st.caps; sync(); });
+$('bare').addEventListener('click', () => document.body.classList.add('bare'));
+// No keyboard on a phone: a double-tap on the stage brings the controls back.
+$('stage').addEventListener('dblclick', () => document.body.classList.toggle('bare'));
+for (const b of document.querySelectorAll('[data-bg]')) b.addEventListener('click', () => { st.bg = b.dataset.bg; sync(); });
+document.addEventListener('keydown', (e) => {
+  if (/input|textarea|select/i.test(document.activeElement.tagName)) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === 'h') document.body.classList.toggle('bare');
+  else if (k === 'r') $('recast').click();
+  else if (k === ' ') { e.preventDefault(); cast[st.sel].pup.jump(1); }
+  else if (/^[1-8]$/.test(k)) { cast[st.sel].pup.feel(MOOD_KEYS[+k - 1]); sync(); }
+});
+
+build();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
