@@ -1,0 +1,123 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.gangs.sheet",
+  "description": "A character as created: a birth certificate, not a status board. Changing state (stress, harm, coin, xp, advances) is computed by the fold from moves. The fold uses the cid the character's first move pins; later edits to this record are ignored and reported.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": [
+          "game",
+          "name",
+          "playbook",
+          "look",
+          "drive",
+          "controller",
+          "actions",
+          "createdAt"
+        ],
+        "properties": {
+          "game": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef"
+          },
+          "name": {
+            "type": "string",
+            "maxGraphemes": 64,
+            "maxLength": 640
+          },
+          "playbook": {
+            "type": "string",
+            "maxGraphemes": 64,
+            "maxLength": 640
+          },
+          "look": {
+            "type": "string",
+            "maxGraphemes": 300,
+            "maxLength": 3000
+          },
+          "drive": {
+            "type": "string",
+            "maxGraphemes": 300,
+            "maxLength": 3000
+          },
+          "controller": {
+            "type": "string",
+            "knownValues": [
+              "human",
+              "agent"
+            ]
+          },
+          "operator": {
+            "type": "string",
+            "format": "did",
+            "description": "For an agent: the DID of the person who runs it. The fold's gate counts operators, not accounts."
+          },
+          "actions": {
+            "type": "array",
+            "minLength": 1,
+            "maxLength": 24,
+            "items": {
+              "type": "ref",
+              "ref": "#dot"
+            },
+            "description": "Dots per action. Names, total and per-action cap come from the game root's rules, so the lexicon names no action; check.js enforces the root's numbers and rejects a name listed twice. Actions not listed have 0."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "abilities": {
+            "type": "array",
+            "maxLength": 8,
+            "items": {
+              "type": "ref",
+              "ref": "#ability"
+            },
+            "description": "Abilities in the player's own words, at creation. How many is the root's rules.abilities.atStart (default 1, so 0 or 1); more come by advance moves. Code checks the count, the shape and duplicate names; whether the words are allowed is the GM's ruling (a 'strike' move), never the code's."
+          }
+        }
+      }
+    },
+    "dot": {
+      "type": "object",
+      "required": [
+        "action",
+        "dots"
+      ],
+      "properties": {
+        "action": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "dots": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        }
+      }
+    },
+    "ability": {
+      "type": "object",
+      "required": [
+        "name",
+        "text"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxGraphemes": 64,
+          "maxLength": 640
+        },
+        "text": {
+          "type": "string",
+          "maxGraphemes": 300,
+          "maxLength": 3000,
+          "description": "What it lets you do, in the fiction and at the table. Read against the root's rules.abilities.guide."
+        }
+      }
+    }
+  }
+}
