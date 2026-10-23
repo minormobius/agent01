@@ -66,7 +66,7 @@ export const GAMES = [
       for (let k = 0; k < 30 && until(t0); k++) { await p.evaluate((k) => window.HINTON.look(Math.PI / 2 - Math.sin(k / 9) * 0.9, -0.3 - k * 0.004), k); await sleep(130); }
       while (until(t0)) await sleep(200);
     } },
-  { id: "katabasis", url: "katabasis/?dt=24", setup: async (p) => { await click(p, "#go"); await p.evaluate(() => { const K = window.KATABASIS; K.load(0); K.me.pitch = -0.05; }); await sleep(3000); },
+  { id: "katabasis", url: "katabasis/?dt=24", setup: async (p) => { await click(p, "#go"); await p.evaluate(() => { const K = window.KATABASIS; K.setLean("full"); K.setGuide(false); K.load(0); K.me.pitch = -0.05; }); await sleep(3000); },
     // the first cave: stand and turn round, in the plane that leans into w, so the grotto swings through w as its lights pass by (time-lapse);
     // pitch is set with every turn, since the recorder's pointer, once captured, nudges it
     slow: async (p) => {

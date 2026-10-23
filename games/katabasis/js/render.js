@@ -165,7 +165,7 @@ export class Renderer {
     gl.uniform4i(u.uDims, ...this.dims);
     gl.uniform4fv(u.uEye, v.eye); gl.uniform4fv(u.uCR, v.R); gl.uniform4fv(u.uCU, v.U); gl.uniform4fv(u.uCF, v.F); gl.uniform4fv(u.uUp, v.up);
     // the lights nearest your eye
-    const near = this.lights.map((l) => ({ l, d: l.p.reduce((s, x, i) => s + (x - v.eye[i]) ** 2, 0) })).sort((a, b) => a.d - b.d).slice(0, NL);
+    const extra = (v.extra || []).slice(0, NL), near = [...extra.map((l) => ({ l })), ...this.lights.map((l) => ({ l, d: l.p.reduce((s, x, i) => s + (x - v.eye[i]) ** 2, 0) })).sort((a, b) => a.d - b.d).slice(0, NL - extra.length)]; // v.extra: lights of the moment (the guide's wisp) first
     const LP = new Float32Array(4 * NL), LC = new Float32Array(4 * NL);
     near.forEach(({ l }, i) => { LP.set(l.p, 4 * i); LC.set([...l.color, l.power], 4 * i); });
     gl.uniform4fv(u.uLP, LP); gl.uniform4fv(u.uLC, LC); gl.uniform1i(u.uNL, near.length);

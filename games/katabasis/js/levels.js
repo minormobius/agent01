@@ -17,7 +17,7 @@ export const LEVELS = [
       c.box([5, 2, 46, 2], [19, 12, 54, 6]); // the bottom
       c.box([11, 2, 50, 3], [13, 4, 52, 5], 2); // the crystal, on the floor
     }, 0, "walking"),
-  L("round", "A wall across the hall, and no way round it in the slice you're in. In w it stops short: turn till w swings into view, and walk round.",
+  L("round", "A wall across the hall, and no way round it in the slice you're in. In w it stops short: turn and twist till w swings into view, and walk round.",
     [34, 16, 18, 22], [6, 3, 7, 13],
     (c) => {
       c.box([3, 2, 3, 3], [31, 14, 15, 20]); // a long hall, thick in w

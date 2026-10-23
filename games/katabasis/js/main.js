@@ -7,7 +7,7 @@
 import { ORIENTATIONS, FLIP_R, axisVec, Cave } from "./cave.js";
 import { LEVELS, build } from "./levels.js";
 import { Renderer } from "./render.js";
-import { Body, SPEED, TILT, turn, twist, tip, tidy, flipUp } from "./body.js";
+import { Body, SPEED, TILT, turn, twist, tip, tidy, flipUp, snap } from "./body.js";
 import { decorate } from "./grotto.js";
 import { seedOf } from "./gen.js";
 
@@ -18,7 +18,13 @@ try { Rd = new Renderer(glc); } catch (e) { $("start").innerHTML = `<h1>KATABASI
 
 const EYE = 1.5; // your eye, up from your centre (you're 4 voxels tall)
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]);
-const Q = new URLSearchParams(location.search), tilt = Q.has("tilt") ? (+Q.get("tilt") * Math.PI) / 180 : TILT; // ?tilt=30: a gentler lean into w
+const Q = new URLSearchParams(location.search);
+const store = (k, v) => { try { if (v === undefined) return localStorage.getItem("katabasis." + k); localStorage.setItem("katabasis." + k, v); } catch (e) { /* private */ } return null; };
+/* how far turning leans into w: off (turning is only turning; w moves when you twist), gentle, or full
+   (TILT: a half turn swaps w for a direction you can see). ?tilt=30 for any angle */
+const LEANS = { off: 0, gentle: Math.PI / 9, full: TILT };
+let lean = LEANS[store("lean")] !== undefined ? store("lean") : "gentle";
+let tilt = Q.has("tilt") ? (+Q.get("tilt") * Math.PI) / 180 : LEANS[lean];
 const TWIST = 1.1; // radians a second, held
 
 /* ------------------------------------------------------------- the run */
@@ -26,7 +32,7 @@ let lv = null, cave = null, me = null; // lv: the cave you're in ({ cave, start,
 let src = { kind: "level", i: 0 }; // where it came from: a level, a made cave (tier, seed), or the day's
 const best = (() => { try { return JSON.parse(localStorage.getItem("katabasis.best") || "{}"); } catch (e) { return {}; } })();
 function play(L, from) {
-  lv = L; src = from; cave = L.cave; Rd.load(cave, decorate(cave, L.deco));
+  lv = L; src = from; cave = L.cave; Rd.load(cave, decorate(cave, L.deco)); guideCave();
   const O = ORIENTATIONS[0], fr = { R: axisVec(O, 0), U: axisVec(O, 1), F: axisVec(O, 2), N: axisVec(O, 3) };
   me = Object.assign(new Body(cave, L.start.c, 0), { fr, pitch: -0.15, won: false });
   $("lvl").textContent = L.title; $("line").textContent = L.line; $("won").hidden = true; hud(); link();
@@ -36,6 +42,69 @@ function load(i) {
   play({ cave: b.cave, start: b.start, par: L.par, line: L.line, title: `${li + 1}. ${L.name}`, key: L.name, deco: li * 97 + 13 }, { kind: "level", i: li });
 }
 const restart = () => play(lv, src);
+
+/* the tactical guide (./guide.js, in ./guide-worker.js): from where you stand, how many flips are left, a
+   wisp of light where the next one is made, and the flip to make once you're somewhere a right one can be */
+let guideOn = store("guide") !== "0", gw = null, gAsked = 0, gKey = "", gBusy = false, tip0 = null, gCave = 0;
+try { gw = new Worker(new URL("./guide-worker.js", import.meta.url), { type: "module" }); gw.onmessage = (e) => { gBusy = false; if (e.data.id === gAsked && e.data.gen === gCave) tip0 = { ...e.data, key: gKey }; }; } catch (e) { gw = null; }
+function guideCave() { tip0 = null; gKey = ""; gCave++; if (gw) gw.postMessage({ cave: { dims: cave.dims, v: cave.v.slice().buffer } }); }
+function spot() { // where the rules would say you stand: whole, clear, on the ground (null mid-step or mid-air)
+  if (!me || me.flip || !me.grounded()) return null;
+  const c = me.p.map(Math.round);
+  return c.some((v, i) => Math.abs(v - me.p[i]) > 0.3) || !cave.clear(c, me.dims) ? null : { c, key: c.join() + "/" + upName() };
+}
+function guideAsk() { // when you stand somewhere new, ask again
+  if (!gw || !guideOn || gBusy || !me || me.won) return;
+  const s = spot(); if (!s || s.key === gKey) return;
+  gKey = s.key; gBusy = true; gw.postMessage({ id: ++gAsked, c: s.c, o: me.o, gen: gCave });
+}
+const FLIPKEY = { ahead: "↑", behind: "↓", left: "←", right: "→", kata: "Q", ana: "E" };
+let guideWas = "";
+function guideShow() { // the line under the cave's own, and the wisp
+  let text = "", wisp = null, hint = "";
+  if (guideOn && me && !me.won && !me.flip && tip0 && tip0.flips !== null) {
+    const s = spot(), fresh = s && s.key === tip0.key; // the answer is about exactly where you are
+    const here = fresh ? tip0.here.map((u) => u.join()) : [], name = ["ahead", "behind", "left", "right", "kata", "ana"].find((n) => here.includes(flipUp(me.fr, n).join()));
+    const n = tip0.flips, left = `${n} flip${n === 1 ? "" : "s"} from here`;
+    if (n === 0) text = crystalAt() ? `No more flips: the crystal is ${whereIs(crystalAt())}` : "";
+    else if (name) { text = `${left}. Flip ${name.toUpperCase()} (${FLIPKEY[name]}) here`; hint = name; }
+    // the wisp: where your middle would be, at the next flip, bobbing
+    else { wisp = tip0.at.map((v, i) => v + tip0.atDims[i] / 2 + tip0.atUp[i] * 0.25 * Math.sin(performance.now() / 420)); text = `${left}. Follow the wisp: ${whereIs(wisp)}`; }
+  }
+  if (text !== guideWas) { guideWas = text; $("guide").textContent = text; }
+  for (const b of document.querySelectorAll("#flips button[data-f]")) b.classList.toggle("hint", b.dataset.f === hint);
+  return wisp;
+}
+function whereIs(p) { // which way something is, from your eye, in words: how far, which way round, and whether it's off in w
+  const e = add(me.frame().ctr, me.fr.U, EYE), d = p.map((v, i) => v - e[i]), dot = (u) => d.reduce((t, v, i) => t + v * u[i], 0);
+  const f = dot(me.fr.F), r = dot(me.fr.R), w = dot(me.fr.N), u = dot(me.fr.U), n = Math.round(Math.hypot(...d));
+  if (n <= 2) return "right here";
+  const way = f > Math.abs(r) ? "ahead" : -f > Math.abs(r) ? "behind you" : r > 0 ? "to your right" : "to your left";
+  const height = u > 3 ? ", above you" : u < -4 ? ", below you" : "";
+  return `${n} voxels ${way}${height}` + (Math.abs(w) > 1.5 ? `, ${Math.round(Math.abs(w))} off in w: twist or turn to bring it in` : "");
+}
+let crystal = null;
+function crystalAt() { // the middle of the crystal's voxels, found once a cave
+  if (crystal && crystal.cave === cave) return crystal.p;
+  const [X, Y, Z] = cave.dims, sum = [0, 0, 0, 0]; let n = 0;
+  for (let i = 0; i < cave.v.length; i++) if (cave.v[i] === 2) { sum[0] += (i % X) + 0.5; sum[1] += (Math.floor(i / X) % Y) + 0.5; sum[2] += (Math.floor(i / (X * Y)) % Z) + 0.5; sum[3] += Math.floor(i / (X * Y * Z)) + 0.5; n++; }
+  crystal = { cave, p: n ? sum.map((v) => v / n) : null }; return crystal.p;
+}
+function setGuide(on) { guideOn = on; store("guide", on ? "1" : "0"); $("guideBtn").classList.toggle("on", on); if (on) gKey = ""; say(on ? "guide on: a wisp shows where to flip next" : "guide off"); }
+function setLean(k) { lean = k; tilt = LEANS[k]; store("lean", k); for (const b of document.querySelectorAll("#lean button")) b.classList.toggle("on", b.dataset.l === k); }
+/* square up: turn your view, smoothly, to the grid directions it's nearest (w back along an axis) */
+let squaring = null;
+function squareUp() {
+  if (!me || me.flip) return;
+  const sn = snap(me.fr), T = { R: sn.R, U: me.fr.U.slice(), F: sn.F, N: sn.N };
+  if (det4([me.fr.R, me.fr.U, me.fr.F, me.fr.N]) * det4([T.R, T.U, T.F, T.N]) < 0) T.N = T.N.map((v) => -v); // keep your handedness
+  squaring = T;
+}
+function det4(m) { // the determinant of four row vectors
+  const d3 = (a, b, c) => a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
+  let s = 0; for (let j = 0; j < 4; j++) { const minor = m.slice(1).map((r) => r.filter((_, k) => k !== j)); s += (j % 2 ? -1 : 1) * m[0][j] * d3(...minor); }
+  return s;
+}
 function next() {
   if (src.kind === "level" && src.i + 1 < LEVELS.length) load(src.i + 1);
   else made(src.kind === "gen" ? src.tier : src.kind === "daily" ? "hard" : "medium");
@@ -82,7 +151,7 @@ function tryFlip(name) {
 }
 
 /* ------------------------------------------------------------- input */
-const keys = new Set(); let look = { x: 0, y: 0 }, stick = null, twisting = 0;
+const keys = new Set(); let look = { x: 0, y: 0 }, stick = null, twisting = 0, mouseTwist = 0, wheel = 0;
 const FLIPKEYS = { arrowup: "ahead", arrowdown: "behind", arrowleft: "left", arrowright: "right", q: "kata", e: "ana" };
 document.addEventListener("keydown", (e) => {
   const t = e.target;
@@ -90,8 +159,10 @@ document.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   if (!$("start").hidden && (k === "enter" || k === " ")) { e.preventDefault(); go(); return; }
   if (FLIPKEYS[k]) { e.preventDefault(); if (!e.repeat) tryFlip(FLIPKEYS[k]); return; }
+  if (me && me.won && (k === " " || k === "enter" || k === "n")) { e.preventDefault(); next(); return; }
   if (k === "r") { restart(); return; }
-  if (k === "n" && me && me.won) { next(); return; }
+  if (k === "x") { squareUp(); return; }
+  if (k === "h" || k === "g") { setGuide(!guideOn); return; }
   if (["w", "a", "s", "d", "z", "c"].includes(k)) { e.preventDefault(); keys.add(k); }
 });
 document.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
@@ -99,6 +170,13 @@ addEventListener("blur", () => keys.clear());
 const coarse = matchMedia("(pointer: coarse)").matches;
 glc.addEventListener("click", () => { if (!coarse && $("start").hidden && document.pointerLockElement !== glc) { try { const r = glc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* keys still work */ } } });
 document.addEventListener("mousemove", (e) => { if (document.pointerLockElement === glc) { look.x += e.movementX; look.y += e.movementY; } });
+// with the mouse grabbed: hold the left button to twist w in from your left, the right from your right; the
+// wheel twists a notch at a time
+document.addEventListener("mousedown", (e) => { if (document.pointerLockElement === glc && (e.button === 0 || e.button === 2)) { e.preventDefault(); mouseTwist = e.button === 0 ? -1 : 1; } });
+document.addEventListener("mouseup", (e) => { if (e.button === 0 || e.button === 2) mouseTwist = 0; });
+glc.addEventListener("contextmenu", (e) => e.preventDefault());
+glc.addEventListener("wheel", (e) => { e.preventDefault(); wheel += Math.sign(e.deltaY) * 0.14; }, { passive: false });
+document.addEventListener("pointerlockchange", () => { if (document.pointerLockElement !== glc) mouseTwist = 0; });
 // touch: a stick on the left walks; dragging anywhere else looks
 const STICK_R = 52, stickEl = $("stick"), knob = $("knob"), drags = new Map();
 glc.addEventListener("pointerdown", (e) => {
@@ -117,6 +195,7 @@ function move(e) {
 glc.addEventListener("pointermove", (e) => { if (e.pointerType !== "mouse") move(e); });
 for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) glc.addEventListener(ev, (e) => { const g = drags.get(e.pointerId); drags.delete(e.pointerId); if (g && g.stick) { stick = null; stickEl.classList.remove("live"); knob.style.transform = ""; } });
 for (const b of document.querySelectorAll("#flips button[data-f]")) b.addEventListener("pointerdown", (e) => { e.preventDefault(); tryFlip(b.dataset.f); });
+$("square").addEventListener("pointerdown", (e) => { e.preventDefault(); squareUp(); });
 for (const b of document.querySelectorAll("#flips button[data-t]")) {
   b.addEventListener("pointerdown", (e) => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (err) { /* fine */ } twisting = +b.dataset.t; });
   for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, () => { twisting = 0; });
@@ -158,11 +237,17 @@ function step(now) {
     // look: turn (round your up, leaning into w), twist (right toward w), pitch toward your up. Not mid-flip:
     // the flip carries your frame
     if (!me.flip) {
-      const tw = twisting || (keys.has("c") ? 1 : 0) - (keys.has("z") ? 1 : 0);
+      let tw = (twisting || mouseTwist || (keys.has("c") ? 1 : 0) - (keys.has("z") ? 1 : 0)) * TWIST * dt;
+      if (wheel) { const k = Math.sign(wheel) * Math.min(Math.abs(wheel), 2.5 * dt); tw += k; wheel -= k; }
       if (look.x) me.fr = turn(me.fr, look.x * 0.0028, tilt);
-      if (tw) me.fr = twist(me.fr, tw * TWIST * dt);
-      if (look.x || tw) me.fr = tidy(me.fr);
-    }
+      if (tw) me.fr = twist(me.fr, tw);
+      if (look.x || tw) { me.fr = tidy(me.fr); squaring = null; }
+      if (squaring) { // ease toward the grid; land on it exactly
+        const k = 1 - Math.exp(-dt * 9), T = squaring, mix = (a, b) => a.map((v, i) => v + (b[i] - v) * k);
+        me.fr = tidy({ R: mix(me.fr.R, T.R), U: T.U, F: mix(me.fr.F, T.F), N: mix(me.fr.N, T.N) });
+        if (["R", "F", "N"].every((q) => me.fr[q].every((v, i) => Math.abs(v - T[q][i]) < 2e-3))) { me.fr = T; squaring = null; }
+      }
+    } else squaring = null;
     me.pitch = Math.max(-1.45, Math.min(1.45, me.pitch - look.y * 0.0028)); look.x = look.y = 0;
     if (!me.won) {
       let mv = [0, 0]; if (keys.has("w")) mv[1] += 1; if (keys.has("s")) mv[1] -= 1; if (keys.has("d")) mv[0] += 1; if (keys.has("a")) mv[0] -= 1;
@@ -177,7 +262,8 @@ function step(now) {
   if (fence) { if (gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) { waits++; return; } gl.deleteSync(fence); fence = null; }
   const f = me.frame(), v = f.th ? tip(me.fr, f.U0, f.U1, f.th) : me.fr, cp = Math.cos(me.pitch), sp = Math.sin(me.pitch);
   const camF = add(v.F.map((x) => x * cp), v.U, sp), camU = add(v.U.map((x) => x * cp), v.F, -sp);
-  Rd.draw({ eye: add(f.ctr, v.U, EYE), R: v.R, U: camU, F: camF, up: v.U, time: now / 1000, flash }, resolution(waits)); waits = 0;
+  guideAsk(); const wisp = guideShow();
+  Rd.draw({ eye: add(f.ctr, v.U, EYE), R: v.R, U: camU, F: camF, up: v.U, time: now / 1000, flash, extra: wisp ? [{ p: wisp, color: [1, 0.8, 0.38], power: 2.8 + 0.6 * Math.sin(now / 260) }] : [] }, resolution(waits)); waits = 0;
   const wn = wName(); if (wn !== wWas) { wWas = wn; $("wIs").textContent = wn; }
   fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush(); frames++;
 }
@@ -187,6 +273,9 @@ requestAnimationFrame(step);
 function go() { $("start").hidden = true; if (pending.size) $("carving").hidden = false; else if (!me) load(0); if (!coarse) { try { const r = glc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* fine */ } } }
 $("go").onclick = go;
 $("next").onclick = next;
+$("guideBtn").onclick = () => setGuide(!guideOn); $("guideBtn").classList.toggle("on", guideOn);
+for (const b of document.querySelectorAll("#lean button")) b.onclick = () => setLean(b.dataset.l);
+if (!Q.has("tilt")) setLean(lean);
 $("again").onclick = restart;
 $("restart").onclick = restart;
 const button = (box, text, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "ghost small"; b.textContent = text; b.onclick = () => { fn(); go(); }; $(box).appendChild(b); };
@@ -201,4 +290,4 @@ for (const t of ["easy", "medium", "hard"]) button("made", `made · ${t}`, () =>
   else load(n >= 1 && n <= LEVELS.length ? n - 1 : 0);
 }
 
-window.KATABASIS = { get me() { return me; }, load, made, daily, get lv() { return lv; }, tryFlip, keys, turn: (phi) => { me.fr = tidy(turn(me.fr, phi, tilt)); }, twist: (phi) => { me.fr = tidy(twist(me.fr, phi)); }, get cave() { return cave; }, get frames() { return frames; }, at: (s, fn) => { queue.push({ t: simT + s, fn }); queue.sort((a, b) => a.t - b.t); } };
+window.KATABASIS = { get me() { return me; }, get tip() { return tip0; }, squareUp, setGuide, setLean, load, made, daily, get lv() { return lv; }, tryFlip, keys, turn: (phi) => { me.fr = tidy(turn(me.fr, phi, tilt)); }, twist: (phi) => { me.fr = tidy(twist(me.fr, phi)); }, get cave() { return cave; }, get frames() { return frames; }, at: (s, fn) => { queue.push({ t: simT + s, fn }); queue.sort((a, b) => a.t - b.t); } };

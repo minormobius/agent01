@@ -359,8 +359,8 @@ These live here:
 - **Katabasis at `/katabasis/`**: a cave in four dimensions, walked in first
   person, on voxels a quarter of your height (body 2 × 4 × 2 × 2 along R, U, F,
   N). Up is quantized, the rest of you isn't: your view turns freely among R,
-  F and N (`js/body.js`: `turn` in a plane tilted `TILT` = 45° into w, so a
-  half turn swings w by 90°; `twist` R toward N; `tidy` keeps up exactly its
+  F and N (`js/body.js`: `turn` in a plane tilted into w (`TILT` = 45° at full
+  lean, so a half turn swings w by 90°); `twist` R toward N; `tidy` keeps up exactly its
   grid axis), you walk where you face, w included, and floors stay exact
   because gravity is always a grid axis. The body is a cube in the three
   directions that aren't up, so facing never changes what you can do: the
@@ -384,6 +384,13 @@ These live here:
   voxel's fewest flips, and the crystal goes on a voxel at exactly par with
   nothing within a voxel reachable sooner, then the solver re-proves it.
   `?gen=tier.seed36`, `?daily` (hard, seeded by the date), `?level=n`.
+  `js/guide.js` (no DOM; run in `js/guide-worker.js`) is the tactical guide
+  (✦/H): from where you stand, flips left, the next flip's spot (drawn as a
+  gold wisp, an extra light in `Rd.draw`'s `extra`) and the ups that keep you
+  on a fewest-flips route from right here ("Flip KATA (Q) here", the pad
+  button glowing). Lean into w is a start-screen setting (off/gentle 20°/full
+  45°, default gentle); the mouse buttons and wheel twist, X squares up to the
+  grid, space goes on to the next cave.
   `js/render.js` is a 4D voxel DDA (the cave in a 2D R8UI texture, kind |
   deco << 2) lit by a fae grotto's ray-traced 4D point lights: falloff 1/r³
   (light spreads over a 3-sphere), a shadow ray through the 4D grid per light,
@@ -506,7 +513,7 @@ node games/hinton/test/hinton.selftest.mjs       # every level of both lanes wal
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
-node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the grotto's lights in open air and the cave untouched by it (~17 s)
+node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the guide counting par and naming flips that each leave one fewer, the grotto's lights in open air and the cave untouched by it (~27 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

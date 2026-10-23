@@ -15,6 +15,7 @@ const { LEVELS, build } = await import(path.join(here, "../js/levels.js"));
 const { Body, SPEED, TILT, turn, twist, tip, tidy, snap, flipUp } = await import(path.join(here, "../js/body.js"));
 const { decorate } = await import(path.join(here, "../js/grotto.js"));
 const G = await import(path.join(here, "../js/gen.js"));
+const { advise } = await import(path.join(here, "../js/guide.js"));
 let fails = 0, checks = 0;
 const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok   " : "FAIL ") + m); if (!c) { fails++; console.error("FAIL " + m); } };
 const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
@@ -150,6 +151,24 @@ for (const tier of G.TIER_NAMES) for (const seed of [7919, 5 * 7919]) {
   if (seed === 7919) walkPar(name, g, par);
 }
 ok(G.seedOf("katabasis 2026-10-23") === G.seedOf("katabasis 2026-10-23") && G.seedOf("katabasis 2026-10-23") !== G.seedOf("katabasis 2026-10-24"), "the daily seed is the date's, and changes with it");
+
+/* the tactical guide: from the start it counts par; at the spot it names, the flip it names is one of the right
+   ones there and leaves one fewer; and so on down to walking into the crystal */
+function followGuide(name, lv, par) {
+  let c = lv.start.c, o = 0, a = advise(lv.cave, c, o), steps = [a.flips], good = a.flips === par, why = "";
+  while (good && a.flips > 0) {
+    const oAt = K.ORIENTATIONS.findIndex((O) => K.axisVec(O, 1).join() === a.atUp.join()), at = advise(lv.cave, a.at, oAt);
+    if (at.flips !== a.flips || !at.here.some((u) => u.join() === a.to.join())) { good = false; why = `at ${a.at} the guide doesn't stand by its own flip`; break; }
+    const f = K.flipToward(oAt, a.to), l = K.flipFrom(lv.cave, a.at, oAt, f);
+    if (!l) { good = false; why = `the named flip can't be made at ${a.at}`; break; }
+    const b = advise(lv.cave, l.c, l.o); steps.push(b.flips);
+    if (b.flips !== a.flips - 1) { good = false; why = `after it, ${b.flips} left, not ${a.flips - 1}`; break; }
+    c = l.c; o = l.o; a = b;
+  }
+  ok(good && a.flips === 0, `${name}: the guide counts ${par} from the start, and each flip it names leaves one fewer (${steps.join(" → ")})${why ? " — " + why : ""}`);
+}
+for (const L of LEVELS) if (L.par > 0) followGuide(L.name, build(L), L.par);
+for (const tier of G.TIER_NAMES) { const g = G.generate(tier, 7919); followGuide(`made ${tier} 7919`, g, g.par); }
 
 /* the grotto dresses the cave and changes nothing: its lights hang in open air, apart, and decoration lies only on rock */
 for (const [li, L] of LEVELS.entries()) {

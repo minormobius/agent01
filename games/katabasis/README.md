@@ -18,16 +18,22 @@ directions, right, forward and w, form an ordinary 3D space, and your view
 turns freely in it. Two controls turn it:
 
 - **Turn** (the mouse, or dragging sideways) turns forward toward right in a
-  plane tilted **45°** into w. Turning by φ moves your w; a half turn moves it
+  plane tilted into w by the **lean** you choose on the start screen: off (0°:
+  turning is only turning, and w moves when you twist), gentle (20°, the
+  default) or full (45°). Turning by φ moves your w; a half turn moves it
   by twice the tilt, so at 45° turning round swaps w for a direction you can
   see. Look back the way you came and that passage has left the slice, and one
   that was hidden in w is there instead.
-- **Twist** (Z and C, or the pad's twist buttons) turns right toward w, with
-  forward still. Together with turning it reaches every way of facing.
+- **Twist** turns right toward w, with forward still: hold the left or right
+  mouse button (once the mouse is grabbed), roll the wheel a notch at a time,
+  hold Z or C, or the pad's twist buttons. Together with turning it reaches
+  every way of facing.
+- **Square up** (X, or ▣ on the pad) turns your view smoothly back onto the
+  grid directions it's nearest, w along an axis again. It's the cure for
+  being lost.
 
 The HUD's `w` readout names the grid direction your w is nearest and how far
-it leans off it. `?tilt=30` makes the turn gentler: a half turn then moves w
-by 60°.
+it leans off it. `?tilt=30` sets any lean: a half turn then moves w by 60°.
 
 Floors stay exact whichever way you face, because gravity falls along the
 grid. What you see at a slant is the cave's voxels cut on a slant: the floor is
@@ -211,18 +217,44 @@ Caves are carved in a worker (`js/gen-worker.js`) and take about a second. The
 noise is integer hashing and polynomials with no transcendental functions, so a
 seed makes the same cave in every browser.
 
+## The guide (`js/guide.js`)
+
+The level's line is the strategy: where the crystal is, and how many flips.
+The guide (✦, or H) is the tactics, worked out afresh from wherever you
+stand:
+
+- **how many flips are left from here**, which isn't always par minus the
+  flips you've made;
+- **a wisp**, a gold light at body height where the next flip of a
+  fewest-flips route is made. It's a 4D point lit like the grotto's crystals,
+  so off in w it's smaller and dimmer, and the line says how far it is, which
+  way, and how far off in w;
+- **the flip to make**, once you stand somewhere a right one can be made:
+  "Flip KATA (Q) here", with its pad button glowing. The name follows the way
+  you face, because the guide answers with the wall to put under you and the
+  page names it with your own frame.
+
+`advise(cave, c, o)` gives the fewest flips left (`explore`, traced), the
+route's next flip (`at`, `atUp`, `to`), and `here`: the ups you could flip to
+from this very spot and still be on a fewest-flips route (one more search from
+each landing). It runs in `js/guide-worker.js` each time you stand somewhere
+new, whole and on the ground, in up to about a second. The wisp stays up
+meanwhile, and "flip here" waits for an answer about exactly where you are.
+
 ## Controls
 
-- **Desktop:** WASD walk, the mouse turns and looks (click to grab it), Z and
-  C twist, the arrows flip ahead, behind, left and right, Q flips kata and E
-  ana, R restarts.
-- **Phone:** the stick walks, drag to turn and look, and the pad flips and
-  twists.
+- **Desktop:** WASD walk; the mouse turns and looks (click to grab it); hold
+  the left or right button, roll the wheel, or hold Z or C to twist; X squares
+  up; the arrows flip ahead, behind, left and right; Q flips kata and E ana; H
+  toggles the guide; R restarts; space (or enter, or N) goes on to the next
+  cave once you've found the crystal.
+- **Phone:** the stick walks, drag to turn and look, and the pad flips, twists
+  and squares up (▣). ✦ in the corner is the guide.
 
 ## Checks
 
 ```bash
-node games/katabasis/test/katabasis.selftest.mjs   # ~17 s
+node games/katabasis/test/katabasis.selftest.mjs   # ~27 s
 ```
 
 The selftest checks that:
@@ -245,6 +277,9 @@ The selftest checks that:
   fewest flips, none is walkable, the ones that say they need a wall in w do,
   nothing near the crystal is reachable sooner, and the body walks a par
   solution of one cave per tier;
+- the guide counts par from the start of every level and one made cave per
+  tier, and at the spot it names, the flip it names is one of the right ones
+  and leaves one fewer, all the way down;
 - there's no flipping in a closet;
 - the grotto's lights hang in open air and leave the cave unchanged.
 
