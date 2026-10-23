@@ -12,6 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const K = await import(path.join(here, "../js/cave.js"));
 const { LEVELS, build } = await import(path.join(here, "../js/levels.js"));
 const { Body, SPEED } = await import(path.join(here, "../js/body.js"));
+const { decorate } = await import(path.join(here, "../js/grotto.js"));
 let fails = 0, checks = 0;
 const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok   " : "FAIL ") + m); if (!c) { fails++; console.error("FAIL " + m); } };
 const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
@@ -87,6 +88,16 @@ for (const L of LEVELS) {
   const c = new K.Cave(10, 10, 10, 10); c.box([2, 1, 2, 2], [6, 7, 6, 6]); // a closet, 4 wide
   const b = new Body(c, [3, 1, 3, 3], 0); settleBody(b);
   ok(b.tryFlip("ahead") === "room" && !b.flip, "in a closet you can't flip: there's no room to turn");
+}
+
+/* the grotto dresses the cave and changes nothing: its lights hang in open air, apart, and decoration lies only on rock */
+for (const [li, L] of LEVELS.entries()) {
+  const lv = build(L), before = Uint8Array.from(lv.cave.v), g = decorate(lv.cave, li * 97 + 13);
+  const air = g.lights.every((l) => l.goal || lv.cave.at(...l.p.map(Math.floor)) === 0);
+  const apart = g.lights.every((a, i) => g.lights.every((b, j) => j <= i || a.goal || b.goal || Math.hypot(...a.p.map((v, k) => v - b.p[k])) >= 5));
+  const onRock = g.deco.every((d, i) => !d || lv.cave.v[i] === 1), same = lv.cave.v.every((v, i) => v === before[i]);
+  ok(g.lights.length > 8 && g.lights.filter((l) => l.goal).length === 1 && air && apart && onRock && same,
+    `${L.name}: the grotto hangs ${g.lights.length} lights in open air, 5 voxels apart, one of them the crystal; decoration only on rock, and the cave unchanged`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} katabasis checks failed` : `katabasis: ${checks} checks\n\n✓ katabasis selftest passed`);

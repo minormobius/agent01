@@ -1,7 +1,8 @@
 # KATABASIS
 
-A cave in four dimensions. You walk it by lamplight, seeing the 3D slice of it
-you're standing in, and find the crystal. The verb is the **flip**: pick a wall
+A cave in four dimensions: a glistening fae grotto, lit by crystals whose
+light shines in all four. You walk it, seeing the 3D slice of it you're
+standing in, and find the goal crystal. The verb is the **flip**: pick a wall
 and it becomes your floor. The walls you can pick are ahead, behind, left and
 right, or **ana** and **kata**, the two you can't see.
 
@@ -80,16 +81,35 @@ says after every move and to reach the crystal.
 
 One fragment shader walks each ray voxel by voxel through the 4D grid: a 4D
 DDA, since a line in your slice is a line in 4D. The cave sits in a 2D integer
-texture, (x + X z, y + Y w).
+texture, (x + X z, y + Y w), each texel the voxel's kind (air, rock, crystal)
+with its decoration packed above it.
 
-- **Light.** A lantern at your eye, and a glow from overhead along your own up,
-  so floors read lighter than ceilings and you can tell which way you'll fall.
-- **Surfaces.** Corners are darkened by the rock round them, faces tinted by
-  their direction, and voxel seams drawn so the scale reads.
-- **The crystal** glows, more the nearer you are, and the ray goes on through
-  it.
+- **Light, in four dimensions.** The grotto is lit by point lights: crystal
+  clusters grown on the walls, in the fae colours, and the goal crystal, the
+  brightest. They are 4D points, so the light from one spreads over a
+  3-sphere and falls off as 1/r³, not 1/r² (softened near the source). For
+  each surface point the shader sends a shadow ray to every light through the
+  same 4D grid. Rock that is out of your slice, in w, still casts shadows into
+  it, so a pool of light can have its edge cut by a wall you can't see. The 8
+  lights nearest you are traced each frame.
+- **The lights themselves.** You see a light as the cross-section of a small
+  4D ball of glow. One in your slice is a bright core. One a little off it in
+  w is smaller and fainter, and one further off is only a haze, though it
+  still lights the walls round it.
+- **Surfaces.** The rock is violet-grey and wet: floors (along your up) carry a
+  glossier sheen, and mica in the rock catches the light in glints. Gemstone
+  grows round each light and takes its colour, and patches of moss glow faintly
+  on their own. Corners are darkened by the rock round them, and voxel seams
+  are drawn so the scale reads. A lantern at your eye and a dim violet haze
+  fill in.
 - **Mid-flip** the frame is turned through 4D at every angle in between, so the
   cave's grain shears as the slice swings.
+
+**The grotto (`js/grotto.js`)** decides where the lights, gemstone and moss go,
+from the cave and a seed. It is render-only: it never changes a voxel's kind,
+so the solver's cave is the cave and every par stands. The selftest checks the
+lights are in open air, at least 5 voxels apart, with the crystal among them,
+that decoration lies only on rock, and that the cave is unchanged.
 
 ## Levels (`js/levels.js`)
 
@@ -112,7 +132,7 @@ Caves are recipes of 4D boxes, balls and tubes, then weathered.
 ## Checks
 
 ```bash
-node games/katabasis/test/katabasis.selftest.mjs   # ~12 s
+node games/katabasis/test/katabasis.selftest.mjs   # ~15 s
 ```
 
 The selftest checks that:
@@ -125,7 +145,8 @@ The selftest checks that:
 - every level's par is the fewest flips, and the flipping levels can't be done
   on foot;
 - the body follows the solver's solution exactly;
-- there's no flipping in a closet.
+- there's no flipping in a closet;
+- the grotto's lights hang in open air and leave the cave unchanged.
 
 ## Next
 

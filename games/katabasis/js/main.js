@@ -7,6 +7,7 @@ import { ORIENTATIONS, FLIP_R, axisVec } from "./cave.js";
 import { LEVELS, build } from "./levels.js";
 import { Renderer } from "./render.js";
 import { Body, SPEED } from "./body.js";
+import { decorate } from "./grotto.js";
 
 const $ = (id) => document.getElementById(id);
 const glc = $("gl");
@@ -20,7 +21,7 @@ const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]);
 let lv = null, li = 0, cave = null, me = null; // me: your Body, and how you're looking (yaw, pitch), and whether you've won
 const best = (() => { try { return JSON.parse(localStorage.getItem("katabasis.best") || "{}"); } catch (e) { return {}; } })();
 function load(i) {
-  li = (i + LEVELS.length) % LEVELS.length; lv = LEVELS[li]; const b = build(lv); cave = b.cave; Rd.load(cave);
+  li = (i + LEVELS.length) % LEVELS.length; lv = LEVELS[li]; const b = build(lv); cave = b.cave; Rd.load(cave, decorate(cave, li * 97 + 13));
   me = Object.assign(new Body(cave, b.start.c, 0), { yaw: 0, pitch: -0.15, won: false });
   $("lvl").textContent = `${li + 1}. ${lv.name}`; $("line").textContent = lv.line; $("won").hidden = true; hud();
 }
