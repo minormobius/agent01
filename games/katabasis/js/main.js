@@ -10,6 +10,7 @@ import { Renderer } from "./render.js";
 import { Body, SPEED, TILT, turn, twist, tip, tidy, flipUp, snap } from "./body.js";
 import { decorate } from "./grotto.js";
 import { seedOf } from "./gen.js";
+import { flipFloor, canFlipAt } from "./guide.js";
 
 const $ = (id) => document.getElementById(id);
 const glc = $("gl");
@@ -34,7 +35,7 @@ const best = (() => { try { return JSON.parse(localStorage.getItem("katabasis.be
 function play(L, from) {
   lv = L; src = from; cave = L.cave; Rd.load(cave, decorate(cave, L.deco)); guideCave();
   const O = ORIENTATIONS[0], fr = { R: axisVec(O, 0), U: axisVec(O, 1), F: axisVec(O, 2), N: axisVec(O, 3) };
-  me = Object.assign(new Body(cave, L.start.c, 0), { fr, pitch: -0.15, won: false });
+  me = Object.assign(new Body(cave, L.start.c, 0), { fr, pitch: -0.15, won: false }); canAt = { key: "", can: false }; askRings();
   $("lvl").textContent = L.title; $("line").textContent = L.line; $("won").hidden = true; hud(); link();
 }
 function load(i) {
@@ -46,8 +47,26 @@ const restart = () => play(lv, src);
 /* the tactical guide (./guide.js, in ./guide-worker.js): from where you stand, how many flips are left, a
    wisp of light where the next one is made, and the flip to make once you're somewhere a right one can be */
 let guideOn = store("guide") !== "0", gw = null, gAsked = 0, gKey = "", gBusy = false, tip0 = null, gCave = 0;
-try { gw = new Worker(new URL("./guide-worker.js", import.meta.url), { type: "module" }); gw.onmessage = (e) => { gBusy = false; if (e.data.id === gAsked && e.data.gen === gCave) tip0 = { ...e.data, key: gKey }; }; } catch (e) { gw = null; }
+try {
+  gw = new Worker(new URL("./guide-worker.js", import.meta.url), { type: "module" });
+  gw.onmessage = (e) => {
+    const m = e.data;
+    if (m.floor !== undefined) { if (m.gen === gCave && me && !me.flip && upName() === upOfO(m.floor)) Rd.rings(new Uint8Array(m.mark)); return; }
+    gBusy = false; if (m.id === gAsked && m.gen === gCave) tip0 = { ...m, key: gKey };
+  };
+} catch (e) { gw = null; }
 function guideCave() { tip0 = null; gKey = ""; gCave++; if (gw) gw.postMessage({ cave: { dims: cave.dims, v: cave.v.slice().buffer } }); }
+/* the fairy rings for your up: asked for with every new cave and every landing, cleared while you turn */
+const upOfO = (o) => { const [a, s] = ORIENTATIONS[o][1]; return (s > 0 ? "+" : "−") + "xyzw"[a]; };
+function askRings() { if (gw) gw.postMessage({ floor: me.o, gen: gCave }); else Rd.rings(flipFloor(cave, me.o)); }
+/* can you flip from exactly where you stand? the rule tryFlip asks, worked out when you stand somewhere new */
+let canAt = { key: "", can: false };
+function canHere() { // exactly Body.tryFlip's test: on the ground, and the whole-voxel place you're nearest a flip place
+  if (!me || me.flip || me.won || !me.grounded()) return false;
+  const c = me.p.map(Math.round), key = c.join() + "/" + me.o;
+  if (key !== canAt.key) canAt = { key, can: canFlipAt(cave, c, me.o) };
+  return canAt.can;
+}
 function spot() { // where the rules would say you stand: whole, clear, on the ground (null mid-step or mid-air)
   if (!me || me.flip || !me.grounded()) return null;
   const c = me.p.map(Math.round);
@@ -86,7 +105,8 @@ function reticle(R, U, F, N, up) {
   const dpr = Math.min(2, devicePixelRatio || 1), S = 140, L = 46;
   if (ret.width !== S * dpr) { ret.width = ret.height = S * dpr; }
   rc.setTransform(dpr, 0, 0, dpr, 0, 0); rc.clearRect(0, 0, S, S);
-  if (!retOn || !me) return;
+  if (!me) return;
+  if (!retOn) { const can = canHere(); for (const b of document.querySelectorAll("#flips button[data-f]")) b.classList.toggle("off", !can); return; }
   // depth drawn on a slant (into the screen is up and to the right), so your forward is a line too and only
   // what's in w shrinks to the middle
   const c = S / 2, dot = (e, A) => e.reduce((t, v, i) => t + v * A[i], 0);
@@ -109,6 +129,11 @@ function reticle(R, U, F, N, up) {
     rc.globalAlpha = 0.95; rc.fillStyle = "#ffd27a"; rc.beginPath();
     rc.moveTo(c + ux * (m + 7), c + uy * (m + 7)); rc.lineTo(c + ux * m - uy * 5, c + uy * m + ux * 5); rc.lineTo(c + ux * m + uy * 5, c + uy * m - ux * 5); rc.fill();
   }
+  // the ready ring: lit gold when you could flip from exactly where you stand, a faint dashed one when not
+  const can = canHere();
+  rc.strokeStyle = can ? "#ffd27a" : "#9a9188"; rc.lineWidth = can ? 2 : 1; rc.globalAlpha = can ? 0.95 : 0.35; rc.setLineDash(can ? [] : [2, 3]);
+  rc.beginPath(); rc.arc(c, c, 8, 0, 2 * Math.PI); rc.stroke(); rc.setLineDash([]);
+  for (const b of document.querySelectorAll("#flips button[data-f]")) b.classList.toggle("off", !can);
   rc.globalAlpha = 0.8; rc.fillStyle = "#ece6dc"; rc.beginPath(); rc.arc(c, c, 1.6, 0, 2 * Math.PI); rc.fill(); // the crosshair's dot
   rc.globalAlpha = 1;
 }
@@ -182,6 +207,7 @@ function walk(dt, mv) { // your stick as a world velocity: where you face, w and
 function tryFlip(name) {
   if (!me || me.won) return;
   const why = me.tryFlipTo(flipUp(me.fr, name), name);
+  if (!why) Rd.rings(null); // the rings were your old up's
   if (why === "ground") say("stand still on solid ground to flip");
   else if (why === "room") say(`no room to flip: you need ${(2 * FLIP_R).toFixed(1)} voxels clear all round you, w included`);
   hud();
@@ -291,7 +317,7 @@ function step(now) {
       let mv = [0, 0]; if (keys.has("w")) mv[1] += 1; if (keys.has("s")) mv[1] -= 1; if (keys.has("d")) mv[0] += 1; if (keys.has("a")) mv[0] -= 1;
       if (stick) mv = stick; const m = Math.hypot(...mv); if (m > 1) mv = mv.map((v) => v / m);
       const was = me.flip; walk(dt, mv);
-      if (was && !me.flip) { me.fr = tidy(tip(me.fr, was.U0, was.U1, Math.PI / 2)); hud(); } // landed: your frame keeps the whole tip
+      if (was && !me.flip) { me.fr = tidy(tip(me.fr, was.U0, was.U1, Math.PI / 2)); hud(); askRings(); } // landed: your frame keeps the whole tip, and the rings are your new up's
     }
   }
   if (!me) return;

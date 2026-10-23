@@ -15,7 +15,7 @@ const { LEVELS, build } = await import(path.join(here, "../js/levels.js"));
 const { Body, SPEED, TILT, turn, twist, tip, tidy, snap, flipUp } = await import(path.join(here, "../js/body.js"));
 const { decorate } = await import(path.join(here, "../js/grotto.js"));
 const G = await import(path.join(here, "../js/gen.js"));
-const { advise } = await import(path.join(here, "../js/guide.js"));
+const { advise, flipFloor, canFlipAt } = await import(path.join(here, "../js/guide.js"));
 let fails = 0, checks = 0;
 const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok   " : "FAIL ") + m); if (!c) { fails++; console.error("FAIL " + m); } };
 const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
@@ -169,6 +169,31 @@ function followGuide(name, lv, par) {
 }
 for (const L of LEVELS) if (L.par > 0) followGuide(L.name, build(L), L.par);
 for (const tier of G.TIER_NAMES) { const g = G.generate(tier, 7919); followGuide(`made ${tier} 7919`, g, g.par); }
+
+/* where a flip is legal: the ready ring's test agrees with the body's own tryFlip everywhere it's tried, and
+   the fairy rings cover the floor under every place you could flip from, for every up tried */
+for (const L of [LEVELS[2], LEVELS[4], LEVELS[5]]) {
+  const lv = build(L), [X, Y, Z, W] = lv.cave.dims; let agree = 0, disagree = 0, covered = 0, bare = 0, places = 0;
+  for (const o of [0, K.FLIP_TO[0][0], K.FLIP_TO[0][4]]) { // upright, after ahead, after kata
+    const mark = flipFloor(lv.cave, o), O = K.ORIENTATIONS[o], d = K.dimsOf(O), [a, sg] = O[1];
+    for (let w = 0; w <= W - d[3]; w += 2) for (let z = 0; z <= Z - d[2]; z += 2) for (let y = 0; y <= Y - d[1]; y += 2) for (let x = 0; x <= X - d[0]; x += 2) {
+      const c0 = [x, y, z, w]; if (!lv.cave.clear(c0, d)) continue;
+      const c = K.settle(lv.cave, c0, o); if (!c) continue;
+      const can = canFlipAt(lv.cave, c, o), b = new Body(lv.cave, c, o), r = b.tryFlip("ahead");
+      if (can === (r === null)) agree++; else disagree++;
+      if (!can) continue;
+      places++;
+      const lo = c.slice(), hi = c.map((v, i) => v + d[i]), at = sg > 0 ? c[a] - 1 : c[a] + d[a]; lo[a] = at; hi[a] = at + 1;
+      for (let ww = lo[3]; ww < hi[3]; ww++) for (let zz = lo[2]; zz < hi[2]; zz++) for (let yy = lo[1]; yy < hi[1]; yy++) for (let xx = lo[0]; xx < hi[0]; xx++)
+        if (lv.cave.at(xx, yy, zz, ww) === 1) { if (mark[lv.cave.idx(xx, yy, zz, ww)]) covered++; else bare++; }
+    }
+  }
+  ok(disagree === 0 && bare === 0 && places > 0, `${L.name}: the ready ring agrees with tryFlip in ${agree} places (${disagree} not), and the fairy rings cover the floor under all ${places} flip places (${bare} voxels bare)`);
+}
+{
+  const c = new K.Cave(10, 10, 10, 10); c.box([2, 1, 2, 2], [6, 7, 6, 6]);
+  ok(flipFloor(c, 0).every((v) => !v) && !canFlipAt(c, [3, 1, 3, 3], 0), "no fairy rings in a closet, and no ready ring");
+}
 
 /* the grotto dresses the cave and changes nothing: its lights hang in open air, apart, and decoration lies only on rock */
 for (const [li, L] of LEVELS.entries()) {

@@ -85,6 +85,18 @@ flips reach **16 orientations** from upright, found by closure in `cave.js`.
 They can make any of the 8 directions of the cave your up. Everything else is
 continuous: you walk freely and face any way, and only gravity has detents.
 
+**Where you can flip** is shown, not left to guess:
+
+- **Fairy rings.** Floor you could flip from, with your up as it is, glows
+  gold with a ring round each voxel and the odd mote. `flipFloor` (in
+  `js/guide.js`) marks the floor under every place the rules allow a flip, by
+  the rules' own test: your box clear, rock under it, a voxel of headroom to
+  hop, the flip ball clear. It runs in the guide's worker (about 30 ms) with
+  every new cave and every landing, and the rings go out while you turn.
+- **The ready ring** round the crosshair lights gold when a flip is legal from
+  exactly where you stand. Its test is `Body.tryFlip`'s (`canFlipAt`), and the
+  flip buttons dim when it's out. The selftest checks the two agree.
+
 **Room to flip.** You hop one voxel and turn about your centre. The 4D ball
 round your centre that holds your body however it's turned must be clear of
 rock. Its radius is half the body's diagonal, √7 ≈ 2.65 voxels, so you need a
@@ -261,7 +273,7 @@ meanwhile, and "flip here" waits for an answer about exactly where you are.
 ## Checks
 
 ```bash
-node games/katabasis/test/katabasis.selftest.mjs   # ~27 s
+node games/katabasis/test/katabasis.selftest.mjs   # ~25 s
 ```
 
 The selftest checks that:
@@ -288,6 +300,9 @@ The selftest checks that:
   tier, and at the spot it names, the flip it names is one of the right ones
   and leaves one fewer, all the way down;
 - there's no flipping in a closet;
+- the ready ring's test agrees with the body's own `tryFlip` everywhere it's
+  tried, and the fairy rings cover the floor under every place you could flip
+  from, for three different ups (and there are none in a closet);
 - the grotto's lights hang in open air and leave the cave unchanged.
 
 ## Next

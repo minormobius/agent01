@@ -12,7 +12,8 @@
    slice from a direction that isn't in it. The lights themselves glow by how near each passes to the ray in
    4D: one off your slice shows only the cross-section of its glow, and swells into view as you come to it in
    w. The rock is wet (a sheen, wetter underfoot), with mica that glints as you move; gemstone round each light
-   takes its colour; moss glows in specks; the goal crystal glows brightest. */
+   takes its colour; moss glows in specks; the goal crystal glows brightest. Fairy rings, gold, mark the floor
+   you could flip from with your up. */
 
 const VS = `#version 300 es
 in vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`;
@@ -74,7 +75,7 @@ void main() {
   vec3 haze = vec3(0.03, 0.022, 0.055), col = haze;
   if (hit) {
     vec4 p = o + d * t, n = -float(st[ax]) * axis(ax), vc = vec4(c), f = fract(p);
-    uint deco = raw(c) >> 2;
+    uint deco = (raw(c) >> 2) & 3u, ring = (raw(c) >> 4) & 1u; // ring: a fairy ring, floor you can flip from
     // the rock: violet-grey, grain per voxel; gemstone round the lights; moss in patches
     float g = hash(vc), seam = 1.0;
     for (int a = 0; a < 4; a++) if (a != ax) { float e = min(f[a], 1.0 - f[a]); seam = min(seam, e); }
@@ -103,6 +104,11 @@ void main() {
     gemTint /= max(gemW, 1e-4);
     if (deco == 1u) { base = mix(vec3(0.25), gemTint, 0.8) * 0.55; gloss = 1.0; emit = gemTint * 0.18 * (0.8 + 0.2 * sin(uTime * 1.3 + g * 6.0)); } // gemstone: the colour of its light
     if (deco == 2u) { base = vec3(0.05, 0.13, 0.11); float sp = step(0.95, hash(floor(p * 4.0))); emit = vec3(0.2, 1.0, 0.75) * sp * (0.12 + 0.08 * sin(uTime * 2.0 + g * 9.0)); } // moss, glowing in specks
+    if (ring == 1u && up > 0.6) { // a fairy ring: a soft gold glow on the face, a ring round its middle, and motes that come and go
+      float r = 0.0; for (int a = 0; a < 4; a++) if (a != ax) { float e = f[a] - 0.5; r += e * e; }
+      float band = smoothstep(0.1, 0.02, abs(sqrt(r) - 0.34)), mote = step(0.985, hash(floor(p * 4.0) + floor(uTime * 1.5 + g * 7.0)));
+      emit += vec3(1.0, 0.82, 0.45) * (0.14 + 0.24 * band * (0.75 + 0.25 * sin(uTime * 2.2 + g * 6.3)) + 0.3 * mote);
+    }
     // a little warm lantern at your eye (no shadow: it's where you look from), and the faint dark
     float lam = max(dot(n, V), 0.0), fall = 1.0 / (1.0 + 0.01 * t * t);
     vec3 amb = vec3(0.05, 0.045, 0.08) + vec3(0.22, 0.16, 0.1) * lam * fall;
@@ -146,15 +152,23 @@ export class Renderer {
     for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
     gl.uniform1i(this.u.uGrid, 0);
   }
-  /* the cave into the texture: voxel (x, y, z, w) at (x + X z, y + Y w), its kind with the grotto's dressing
-     above it; and the grotto's lights */
+  /* the cave into the texture: voxel (x, y, z, w) at (x + X z, y + Y w), its kind (bits 0-1) with the grotto's
+     dressing above it (bits 2-3; bit 4 is the fairy rings, set by rings()); and the grotto's lights */
   load(cave, grotto) {
     const gl = this.gl, [X, Y, Z, W] = cave.dims, a = new Uint8Array(X * Z * Y * W);
+    this.cave = cave; this.base = a;
     for (let w = 0; w < W; w++) for (let z = 0; z < Z; z++) for (let y = 0; y < Y; y++) for (let x = 0; x < X; x++) { const i = cave.idx(x, y, z, w); a[(y + Y * w) * (X * Z) + x + X * z] = cave.v[i] | ((grotto ? grotto.deco[i] : 0) << 2); }
     this.lights = grotto ? grotto.lights : [];
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, X * Z, Y * W, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, a);
     this.dims = cave.dims;
+  }
+  /* the fairy rings (bit 4): mark, one byte a voxel in the cave's own order, or null for none */
+  rings(mark) {
+    const gl = this.gl, [X, Y, Z, W] = this.dims, cave = this.cave, a = mark ? this.base.slice() : this.base;
+    if (mark) for (let w = 0; w < W; w++) for (let z = 0; z < Z; z++) for (let y = 0; y < Y; y++) for (let x = 0; x < X; x++) if (mark[cave.idx(x, y, z, w)]) a[(y + Y * w) * (X * Z) + x + X * z] |= 16;
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, X * Z, Y * W, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, a);
   }
   /* v: { eye, R, U, F (the camera's, four-vectors), up (yours), time, flash } */
   draw(v, scale) {

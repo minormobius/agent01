@@ -394,6 +394,12 @@ These live here:
   `js/main.js`, a 2D canvas over the crosshair, V hides it) draws x, y, z, w as
   they lie in your view (depth on a slant), with a ring growing with each
   axis's part in w, up heavy, and a gold mark at the wall a "flip here" lands on.
+  Where a flip is legal: fairy rings (`flipFloor` in `js/guide.js`, run in the
+  guide worker on every cave and landing, into texture bit 4 by `Rd.rings`)
+  light the floor under every flip place for your current up, and the
+  reticle's ready ring (`canFlipAt`, the same test as `Body.tryFlip`, which the
+  selftest checks) lights when you can flip from where you stand; the flip
+  buttons dim when you can't.
   `js/render.js` is a 4D voxel DDA (the cave in a 2D R8UI texture, kind |
   deco << 2) lit by a fae grotto's ray-traced 4D point lights: falloff 1/r³
   (light spreads over a 3-sphere), a shadow ray through the 4D grid per light,
@@ -516,7 +522,7 @@ node games/hinton/test/hinton.selftest.mjs       # every level of both lanes wal
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
-node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the guide counting par and naming flips that each leave one fewer, the grotto's lights in open air and the cave untouched by it (~27 s)
+node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the guide counting par and naming flips that each leave one fewer, the ready ring agreeing with tryFlip and the fairy rings covering every flip place, the grotto's lights in open air and the cave untouched by it (~25 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies
