@@ -2,7 +2,15 @@
 
    A cave in four dimensions, carved from rock on a fine grid: a voxel is a quarter of your height. You see
    the 3D slice of it through you, spanned by your right R, up U and forward F; the fourth direction, N, you
-   can't see along. You walk in your slice, step up one voxel without thinking, and fall toward your feet.
+   can't see along. You step up one voxel without thinking, and fall toward your feet.
+
+   Up is quantized, and the rest of you isn't. The page turns your view freely among the three directions
+   that aren't up (R, F and N, an ordinary 3D space, so w tilts into your slice continuously as you turn),
+   and you walk where you face, w included. None of that reaches these rules: your body is 2 voxels across
+   every way but up, a cube in those three directions, so its box is the same however you face, and the
+   floor is exact because up is always an axis of the grid. A state is your box and your up; walking is a
+   step along any of the three. (The rules still carry a whole orientation, o, since the flips are defined
+   on one; only its up ever changes what you can do.)
 
    The verb is the FLIP: a coupled quarter turn, PLATEAU's double rotation at full coupling, quantized.
    Each turns one plane of your body by 90° and the plane perpendicular to it by 90° too, and each is
@@ -147,9 +155,10 @@ export function settle(cave, c, o) {
   }
   return null;
 }
-/* a step along your R or F (dir: 0 +R, 1 −R, 2 +F, 3 −F): onto clear ground, or up one voxel if that's
-   all that's in the way and there's headroom; then you fall to the ground. null: blocked */
-export const STEPS = [[0, 1], [0, -1], [2, 1], [2, -1]];
+/* a step along your R, F or N (dir: 0 +R, 1 −R, 2 +F, 3 −F, 4 +N, 5 −N): onto clear ground, or up one voxel
+   if that's all that's in the way and there's headroom; then you fall to the ground. null: blocked. You can
+   face any way that isn't up, so these are every way of walking a voxel */
+export const STEPS = [[0, 1], [0, -1], [2, 1], [2, -1], [3, 1], [3, -1]];
 export function step(cave, c, o, dir) {
   const O = ORIENTATIONS[o], d = dimsOf(O), mv = axisVec(O, STEPS[dir][0]).map((v) => v * STEPS[dir][1]), up = axisVec(O, 1);
   let n = add(c, mv);
@@ -167,10 +176,18 @@ export function flipFrom(cave, c, o, f) {
   return s && { c: s, o: o2 };
 }
 
+/* the flip from orientation o that makes world vector up2 (a grid direction perpendicular to your up) your up,
+   or -1. The six flips make each of the six such directions your up, from every orientation */
+export function flipToward(o, up2) {
+  for (let f = 0; f < FLIP_NAMES.length; f++) { const [a, s] = ORIENTATIONS[FLIP_TO[o][f]][1]; if (up2[a] === s) return f; }
+  return -1;
+}
+
 /* ---------------------------------------------------------------- the solver
    Breadth-first over (corner, orientation), every move costing one: a step or a flip. Returns the fewest
-   moves to the goal (and how many flips that took, and the path), or null. flips = false: walking only */
-export function solve(level, { flips = true, limit = 3e6 } = {}) {
+   moves to the goal (and how many flips that took, and the path), or null. flips = false: walking only;
+   steps = 4: walking only in the slice you start in (R and F), never turning w into it */
+export function solve(level, { flips = true, steps = STEPS.length, limit = 3e6 } = {}) {
   const { cave, start } = level, X = cave.dims;
   const key = (c, o) => ((((c[3] + 8) * (X[2] + 16) + c[2] + 8) * (X[1] + 16) + c[1] + 8) * (X[0] + 16) + c[0] + 8) * ORIENTATIONS.length + o;
   const s0 = settle(cave, start.c, start.o); if (!s0) return null;
@@ -183,15 +200,16 @@ export function solve(level, { flips = true, limit = 3e6 } = {}) {
       return { moves: s.n, flips: path.filter((m) => m.startsWith("flip")).length, path, states: q.length, end: s };
     }
     const from = key(s.c, s.o);
-    for (let dir = 0; dir < 4; dir++) { const c = step(cave, s.c, s.o, dir); if (!c) continue; const k = key(c, s.o); if (!prev.has(k)) { prev.set(k, { from, move: "step" + dir }); q.push({ c, o: s.o, n: s.n + 1 }); } }
+    for (let dir = 0; dir < steps; dir++) { const c = step(cave, s.c, s.o, dir); if (!c) continue; const k = key(c, s.o); if (!prev.has(k)) { prev.set(k, { from, move: "step" + dir }); q.push({ c, o: s.o, n: s.n + 1 }); } }
     if (flips) for (let f = 0; f < FLIP_NAMES.length; f++) { const r = flipFrom(cave, s.c, s.o, f); if (!r) continue; const k = key(r.c, r.o); if (!prev.has(k)) { prev.set(k, { from, move: "flip:" + FLIP_NAMES[f] }); q.push({ c: r.c, o: r.o, n: s.n + 1 }); } }
   }
   return null;
 }
 
 /* the fewest FLIPS to the goal, walking free (a 0-1 search: steps cost nothing, flips one). Par is in flips:
-   walking is continuous in the game, so its steps aren't a count anyone makes */
-export function fewestFlips(level, { limit = 3e6 } = {}) {
+   walking is continuous in the game, so its steps aren't a count anyone makes. noW: never standing on a wall
+   in w (no up along w), which is how a level proves its route needs one */
+export function fewestFlips(level, { limit = 3e6, noW = false } = {}) {
   const { cave, start } = level, X = cave.dims;
   const key = (c, o) => ((((c[3] + 8) * (X[2] + 16) + c[2] + 8) * (X[1] + 16) + c[1] + 8) * (X[0] + 16) + c[0] + 8) * ORIENTATIONS.length + o;
   const s0 = settle(cave, start.c, start.o); if (!s0) return null;
@@ -201,10 +219,10 @@ export function fewestFlips(level, { limit = 3e6 } = {}) {
     for (let i = 0; i < cur.length; i++) {
       const s = cur[i];
       if (cave.goal(s.c, dimsOf(ORIENTATIONS[s.o]))) return { flips: n, states: seen };
-      for (let dir = 0; dir < 4; dir++) { const c = step(cave, s.c, s.o, dir); if (!c) continue; const k = key(c, s.o); if (!best.has(k)) { best.set(k, n); cur.push({ c, o: s.o }); seen++; } }
+      for (let dir = 0; dir < STEPS.length; dir++) { const c = step(cave, s.c, s.o, dir); if (!c) continue; const k = key(c, s.o); if (!best.has(k)) { best.set(k, n); cur.push({ c, o: s.o }); seen++; } }
     }
     const next = [];
-    for (const s of cur) for (let f = 0; f < FLIP_NAMES.length; f++) { const r = flipFrom(cave, s.c, s.o, f); if (!r) continue; const k = key(r.c, r.o); if (!best.has(k)) { best.set(k, n + 1); next.push(r); seen++; } }
+    for (const s of cur) for (let f = 0; f < FLIP_NAMES.length; f++) { const r = flipFrom(cave, s.c, s.o, f); if (!r || (noW && ORIENTATIONS[r.o][1][0] === 3)) continue; const k = key(r.c, r.o); if (!best.has(k)) { best.set(k, n + 1); next.push(r); seen++; } }
     cur = next; n++;
   }
   return null;

@@ -66,13 +66,13 @@ export const GAMES = [
       for (let k = 0; k < 30 && until(t0); k++) { await p.evaluate((k) => window.HINTON.look(Math.PI / 2 - Math.sin(k / 9) * 0.9, -0.3 - k * 0.004), k); await sleep(130); }
       while (until(t0)) await sleep(200);
     } },
-  { id: "katabasis", url: "katabasis/?dt=24", setup: async (p) => { await click(p, "#go"); await p.evaluate(() => { const K = window.KATABASIS; K.load(0); Object.assign(K.me, { yaw: 0, pitch: -0.05 }); }); await sleep(3000); },
-    // the first cave: stand and turn round, so the grotto's crystal lights and the pools and shadows they cast pass by (time-lapse);
+  { id: "katabasis", url: "katabasis/?dt=24", setup: async (p) => { await click(p, "#go"); await p.evaluate(() => { const K = window.KATABASIS; K.load(0); K.me.pitch = -0.05; }); await sleep(3000); },
+    // the first cave: stand and turn round, in the plane that leans into w, so the grotto swings through w as its lights pass by (time-lapse);
     // pitch is set with every turn, since the recorder's pointer, once captured, nudges it
     slow: async (p) => {
       // measure first (the cave idles meanwhile), then script the run on the game's clock, from when filming starts
       const slow = await p.evaluate(() => new Promise((res) => { const n0 = window.KATABASIS.frames, t0 = performance.now(); const tick = () => { const n = window.KATABASIS.frames - n0, s = (performance.now() - t0) / 1000; if (n >= 4 && s >= 4) res(Math.max(1, 24 / (n / s))); else setTimeout(tick, 250); }; tick(); }));
-      await p.evaluate(() => { const K = window.KATABASIS; for (let i = 1; i <= 360; i++) K.at(i / 24, () => Object.assign(K.me, { yaw: i / 216 * 2 * Math.PI, pitch: -0.05 })); });
+      await p.evaluate(() => { const K = window.KATABASIS; for (let i = 1; i <= 360; i++) K.at(i / 24, () => { K.turn((2 * Math.PI) / 216); K.me.pitch = -0.05; }); });
       return slow;
     } },
   { id: "plateau", url: "plateau/?dt=24&res=0.75", setup: async (p) => { await p.evaluate(() => { const P = window.PLATEAU; P.begin(false, 4242); Object.assign(P.run, { d: 230, grace: 1e9, auto: true }); }); await sleep(6000); },

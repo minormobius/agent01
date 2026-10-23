@@ -356,19 +356,27 @@ These live here:
   per mode (today's foam and any foam; tesseract keeps its launch board names).
   `foam.html` is the players' page on the phases and crystals. See
   [`plateau/README.md`](plateau/README.md).
-- **Katabasis at `/katabasis/`**: a cave in four dimensions, walked by
-  lamplight in first person, on voxels a quarter of your height (body 2 × 4 ×
-  2 × 2 along R, U, F, N). The verb is the flip: PLATEAU's coupled turn at
-  full coupling, quantized to quarter turns, each named by the wall that
-  becomes your floor (ahead, behind, left, right, ana, kata); gravity follows
-  your feet, and one visible direction swaps with w. The six flips reach 16
-  orientations (any of the 8 directions as up). A flip needs a clear 4D ball
-  round your centre (radius the body's half-diagonal, √7). `katabasis/js/cave.js`
-  (no DOM) has the cave, the moves (step with a one-voxel step-up, fall, flip),
-  `solve` (BFS) and `fewestFlips` (0-1 BFS: par is in flips); `js/body.js` the
-  game's continuous box physics, whose flip snaps to the whole-voxel position
-  and asks the solver's own `flipFrom`; the selftest drives the body along
-  every level's solution and requires the solver's state after every move.
+- **Katabasis at `/katabasis/`**: a cave in four dimensions, walked in first
+  person, on voxels a quarter of your height (body 2 × 4 × 2 × 2 along R, U, F,
+  N). Up is quantized, the rest of you isn't: your view turns freely among R,
+  F and N (`js/body.js`: `turn` in a plane tilted `TILT` = 45° into w, so a
+  half turn swings w by 90°; `twist` R toward N; `tidy` keeps up exactly its
+  grid axis), you walk where you face, w included, and floors stay exact
+  because gravity is always a grid axis. The body is a cube in the three
+  directions that aren't up, so facing never changes what you can do: the
+  rules' state is box + up. The other verb is the flip, named by the wall
+  that becomes your floor (ahead, behind, left, right, ana, kata), found on the
+  grid directions nearest your frame (`snap`, `flipUp`); the rules define flips
+  as PLATEAU's coupled turn at full coupling, quantized (16 orientations, any
+  of 8 ups), and only the up counts. A flip needs a clear 4D ball round your
+  centre (radius √7). `katabasis/js/cave.js` (no DOM) has the cave, the moves
+  (step along ±R ±F ±N with a one-voxel step-up, fall, flip, `flipToward`),
+  `solve` (BFS; `steps: 4` walks only the starting slice) and `fewestFlips`
+  (0-1 BFS, par in flips; `noW` never stands on a wall in w), which prove
+  each level's par and what it's about (walking, turning, flipping, w); the
+  body's flip asks the solver's own `flipFrom`, and the selftest drives the
+  body along every level's solution and requires the solver's state after
+  every move.
   `js/render.js` is a 4D voxel DDA (the cave in a 2D R8UI texture, kind |
   deco << 2) lit by a fae grotto's ray-traced 4D point lights: falloff 1/r³
   (light spreads over a 3-sphere), a shadow ray through the 4D grid per light,
@@ -491,7 +499,7 @@ node games/hinton/test/hinton.selftest.mjs       # every level of both lanes wal
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
-node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, every level's par the fewest flips and the flip levels impossible on foot, the game's body along every solver solution, the grotto's lights in open air and the cave untouched by it (~15 s)
+node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along every solver solution, the grotto's lights in open air and the cave untouched by it (~45 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

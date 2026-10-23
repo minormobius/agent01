@@ -1,6 +1,7 @@
 /* KATABASIS, checked: the flips are coupled quarter turns (rotations, every axis turned to a perpendicular
    one), each lands you on the wall it's named for, and together they reach every direction as up; the
-   flip's ball holds the body however it's turned; every level's par is the fewest flips the solver finds,
+   flip's ball holds the body however it's turned; the free view frame (turn, twist, tip, snap); every level's
+   par is the fewest flips the solver finds,
    and the levels that are about flipping can't be done on foot; and the game's own continuous body, driven
    along the solver's solution, lands where the solver says after every move and finds the crystal at par.
      node games/katabasis/test/katabasis.selftest.mjs   (~30 s) */
@@ -11,7 +12,7 @@ import { spawnSync } from "node:child_process";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const K = await import(path.join(here, "../js/cave.js"));
 const { LEVELS, build } = await import(path.join(here, "../js/levels.js"));
-const { Body, SPEED } = await import(path.join(here, "../js/body.js"));
+const { Body, SPEED, TILT, turn, twist, tip, tidy, snap, flipUp } = await import(path.join(here, "../js/body.js"));
 const { decorate } = await import(path.join(here, "../js/grotto.js"));
 let fails = 0, checks = 0;
 const ok = (c, m) => { checks++; if (process.env.VERBOSE) console.log((c ? "ok   " : "FAIL ") + m); if (!c) { fails++; console.error("FAIL " + m); } };
@@ -51,11 +52,14 @@ const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
   c.set(8, 6, 6, 6, 0); c.set(8, 8, 8, 6, 1); ok(c.ballClear(p, K.FLIP_R), "a voxel whose nearest corner is 2√3 > the radius away isn't");
 }
 
-/* the levels: par is the fewest flips; the flipping levels can't be walked */
+/* the levels: par is the fewest flips; the flipping levels can't be walked; the turning ones can't be walked in
+   the slice you start in; the w ones take more flips (or can't be done) without standing on a wall in w */
 for (const L of LEVELS) {
   const lv = build(L), f = K.fewestFlips(lv), foot = K.solve(lv, { flips: false });
   ok(f && f.flips === L.par, `${L.name}: par ${L.par} is the fewest flips the solver finds (${f && f.flips})`);
   ok(L.par === 0 ? !!foot : !foot, `${L.name}: ${L.par === 0 ? "walkable" : "impossible on foot"}`);
+  if (L.needs === "turning") ok(!K.solve(lv, { flips: false, steps: 4 }), `${L.name}: can't be walked in the slice you start in: you have to turn w into it`);
+  if (L.needs === "w") { const nw = K.fewestFlips(lv, { noW: true }); ok(!nw || nw.flips > L.par, `${L.name}: without a wall in w under you it takes ${nw ? nw.flips + " flips" : "for ever"}, not ${L.par}`); }
 }
 
 /* the body, along the solver's solutions: after every move it stands where the solver says, and at the end
@@ -88,6 +92,38 @@ for (const L of LEVELS) {
   const c = new K.Cave(10, 10, 10, 10); c.box([2, 1, 2, 2], [6, 7, 6, 6]); // a closet, 4 wide
   const b = new Body(c, [3, 1, 3, 3], 0); settleBody(b);
   ok(b.tryFlip("ahead") === "room" && !b.flip, "in a closet you can't flip: there's no room to turn");
+}
+
+/* the view frame: turning and twisting keep it a frame and never move up; a half turn swings w by twice the tilt;
+   a flip's tip lands up exactly on its axis; and from any way of facing, the six flips name six walls, and the
+   body lands on the one named */
+{
+  const dot = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0), grid = () => ({ R: [1, 0, 0, 0], U: [0, 1, 0, 0], F: [0, 0, 1, 0], N: [0, 0, 0, 1] });
+  const ortho = (fr) => { const v = [fr.R, fr.U, fr.F, fr.N]; let e = 0; for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) e = Math.max(e, Math.abs(dot(v[i], v[j]) - (i === j ? 1 : 0))); return e; };
+  let rs = 12345; const rnd = () => ((rs = (Math.imul(rs, 1103515245) + 12345) >>> 0) / 4294967296);
+  let fr = grid(), worst = 0;
+  for (let i = 0; i < 4000; i++) { fr = rnd() < 0.5 ? turn(fr, (rnd() - 0.5) * 0.3) : twist(fr, (rnd() - 0.5) * 0.3); if (i % 7 === 0) fr = tidy(fr); worst = Math.max(worst, ortho(fr)); }
+  ok(worst < 1e-9 && fr.U.join() === "0,1,0,0", `4000 turns and twists: still a frame (worst ${worst.toExponential(1)}), and up hasn't moved`);
+  const swing = (t) => { const h = turn(grid(), Math.PI, t); return (Math.acos(Math.abs(h.N[3])) * 180) / Math.PI; };
+  ok(Math.abs(swing(Math.PI / 4) - 90) < 1e-6 && Math.abs(swing(Math.PI / 6) - 60) < 1e-6 && TILT === Math.PI / 4,
+    `a half turn swings w by twice the tilt: 90° at 45° (the game's), 60° at 30°`);
+  const back = turn(turn(grid(), Math.PI, TILT), Math.PI, TILT);
+  ok(["R", "U", "F", "N"].every((k) => back[k].every((v, i) => Math.abs(v - grid()[k][i]) < 1e-9)), "a whole turn brings you back as you were");
+  // tips, snaps and flips from 200 random ways of facing
+  const open = new K.Cave(22, 22, 22, 22); open.box([1, 1, 1, 1], [21, 21, 21, 21]);
+  let good = true, why = "";
+  for (let n = 0; n < 200 && good; n++) {
+    let g = grid(); for (let i = 0; i < 8; i++) g = tidy(rnd() < 0.5 ? turn(g, rnd() * 6.3) : twist(g, rnd() * 6.3));
+    const sn = snap(g), axes = ["R", "F", "N"].map((k) => sn[k].findIndex((v) => v)), ups = K.FLIP_NAMES.map((nm) => flipUp(g, nm));
+    if (new Set(axes).size !== 3 || axes.includes(1)) { good = false; why = "snap didn't give three different axes off up"; break; }
+    if (new Set(ups.map((u) => u.join())).size !== 6 || ups.some((u) => u[1] !== 0 || Math.abs(u.reduce((a, b) => a + Math.abs(b), 0) - 1) > 0)) { good = false; why = "the six flips don't name six walls"; break; }
+    const nm = K.FLIP_NAMES[n % 6], b = new Body(open, [9, 1, 9, 9], 0); settleBody(b);
+    if (b.tryFlipTo(ups[n % 6], nm)) { good = false; why = `no room to flip ${nm} in an open cave`; break; }
+    const pending = b.flip; settleBody(b);
+    const after = tidy(tip(g, pending.U0, pending.U1, Math.PI / 2));
+    if (K.axisVec(K.ORIENTATIONS[b.o], 1).join() !== ups[n % 6].join() || after.U.join() !== ups[n % 6].join() || ortho(after) > 1e-9) { good = false; why = `flip ${nm} landed with up ${K.axisVec(K.ORIENTATIONS[b.o], 1)}, the view's up ${after.U.map((v) => +v.toFixed(3))}, not ${ups[n % 6]}`; }
+  }
+  ok(good, `from 200 random ways of facing, the six flips name six different walls, and the body and the view both land with the named one under them${why ? " — " + why : ""}`);
 }
 
 /* the grotto dresses the cave and changes nothing: its lights hang in open air, apart, and decoration lies only on rock */
