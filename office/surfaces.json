@@ -356,6 +356,15 @@
    "parent": "rite"
   },
   {
+   "id": "pumpkin",
+   "name": "pumpkin",
+   "url": "https://rite.mino.mobi/pumpkin/",
+   "cat": "bluesky",
+   "commits": 2,
+   "age": "hot",
+   "parent": "rite"
+  },
+  {
    "id": "atmosphere",
    "name": "atmosphere",
    "url": "https://b.mino.mobi",
