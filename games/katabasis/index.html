@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#050505" />
+<meta name="description" content="KATABASIS — a cave in four dimensions. Walk it, and flip: every flip turns a wall into your floor and swaps a direction you can see for one you can't. Every cave proved solvable, at par." />
+<title>KATABASIS — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/katabasis.css" />
+</head>
+<body>
+<canvas id="gl" aria-label="Your 3D slice of a 4D cave"></canvas>
+<div id="hud"><span id="lvl"></span><span class="sep">·</span><span>flips <b id="flipsN">0</b> / par <b id="par">0</b></span><span class="sep">·</span><span>up is <b id="upIs">+y</b></span><button type="button" class="tiny" id="restart" aria-label="Restart the cave">↺</button></div>
+<p id="line"></p>
+<div id="msg"></div>
+<div id="stick" aria-hidden="true"><div id="knob"></div></div>
+<div id="flips" aria-label="Flip">
+  <button type="button" data-f="ana" aria-label="Flip ana">ana</button>
+  <button type="button" data-f="ahead" aria-label="Flip ahead">▲</button>
+  <button type="button" data-f="kata" aria-label="Flip kata">kata</button>
+  <button type="button" data-f="left" aria-label="Flip left">◀</button>
+  <button type="button" data-f="behind" aria-label="Flip behind">▼</button>
+  <button type="button" data-f="right" aria-label="Flip right">▶</button>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi · a cave in four dimensions</h2>
+  <h1>KATABASIS</h1>
+  <p>You're in a cave that goes on in a fourth direction, <b>w</b>, which you can't see: you see the 3D slice of it you're standing in. Find the <b class="ice">crystal</b>.</p>
+  <p>Walk, and step up a ledge without thinking. Then <b>flip</b>: pick a wall, ahead, behind, left or right, or one of the two you can't see, <b>ana</b> and <b>kata</b>, and it becomes your floor. A flip turns you a quarter turn twice over, so one of the directions you could see swaps with w, and the cave you see changes. You need room to flip: about six voxels clear round you, w included.</p>
+  <p class="small"><b>WASD</b> walk · <b>mouse</b> looks (click to grab it) · <b>arrows</b> flip ahead, behind, left, right · <b>Q</b> kata, <b>E</b> ana · <b>R</b> restart. On a phone: the stick walks, drag to look, the pad flips.</p>
+  <div class="row"><button class="primary" id="go" type="button">ENTER</button></div>
+  <div class="row" id="levels"></div>
+  <p class="foot"><a href="./README.md">how it works</a> · <a href="../plateau/">PLATEAU</a> · <a href="../">the arcade</a></p>
+</div>
+<div class="overlay" id="won" hidden>
+  <h2>the crystal</h2>
+  <h1>FOUND</h1>
+  <p id="won-text"></p>
+  <div class="row"><button class="primary" id="next" type="button">NEXT CAVE</button><button class="ghost" id="again" type="button">again</button></div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

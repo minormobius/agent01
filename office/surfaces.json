@@ -2606,6 +2606,15 @@
    "parent": "games"
   },
   {
+   "id": "katabasis",
+   "name": "katabasis",
+   "url": "https://games.mino.mobi/katabasis/",
+   "cat": "games",
+   "commits": 3,
+   "age": "warm",
+   "parent": "games"
+  },
+  {
    "id": "tessera",
    "name": "tessera",
    "url": "https://games.mino.mobi/tessera/",

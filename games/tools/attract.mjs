@@ -66,6 +66,14 @@ export const GAMES = [
       for (let k = 0; k < 30 && until(t0); k++) { await p.evaluate((k) => window.HINTON.look(Math.PI / 2 - Math.sin(k / 9) * 0.9, -0.3 - k * 0.004), k); await sleep(130); }
       while (until(t0)) await sleep(200);
     } },
+  { id: "katabasis", url: "katabasis/?dt=24", setup: async (p) => { await click(p, "#go"); await p.evaluate(() => { const K = window.KATABASIS; K.load(1); Object.assign(K.me, { yaw: 0, pitch: 0.25 }); }); await sleep(3000); },
+    // the wall level: look at the crystal high on the far wall, flip ahead onto that wall, walk up it to the crystal (time-lapse)
+    slow: async (p) => {
+      // measure first (the cave idles meanwhile), then script the run on the game's clock, from when filming starts
+      const slow = await p.evaluate(() => new Promise((res) => { const n0 = window.KATABASIS.frames, t0 = performance.now(); const tick = () => { const n = window.KATABASIS.frames - n0, s = (performance.now() - t0) / 1000; if (n >= 4 && s >= 4) res(Math.max(1, 24 / (n / s))); else setTimeout(tick, 250); }; tick(); }));
+      await p.evaluate(() => { const K = window.KATABASIS; K.at(1.4, () => K.tryFlip("ahead")); K.at(2.4, () => { K.me.pitch = -0.05; K.keys.add("w"); }); });
+      return slow;
+    } },
   { id: "plateau", url: "plateau/?dt=24&res=0.75", setup: async (p) => { await p.evaluate(() => { const P = window.PLATEAU; P.begin(false, 4242); Object.assign(P.run, { d: 230, grace: 1e9, auto: true }); }); await sleep(6000); },
     // the autopilot flies it, through the melt, in time-lapse: frames a second over 24 is how much slower than real time it runs
     slow: (p) => p.evaluate(() => new Promise((res, rej) => { // over at least four drawn frames (software GL draws about one in two seconds)

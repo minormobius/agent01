@@ -356,6 +356,23 @@ These live here:
   per mode (today's foam and any foam; tesseract keeps its launch board names).
   `foam.html` is the players' page on the phases and crystals. See
   [`plateau/README.md`](plateau/README.md).
+- **Katabasis at `/katabasis/`**: a cave in four dimensions, walked by
+  lamplight in first person, on voxels a quarter of your height (body 2 × 4 ×
+  2 × 2 along R, U, F, N). The verb is the flip: PLATEAU's coupled turn at
+  full coupling, quantized to quarter turns, each named by the wall that
+  becomes your floor (ahead, behind, left, right, ana, kata); gravity follows
+  your feet, and one visible direction swaps with w. The six flips reach 16
+  orientations (any of the 8 directions as up). A flip needs a clear 4D ball
+  round your centre (radius the body's half-diagonal, √7). `katabasis/js/cave.js`
+  (no DOM) has the cave, the moves (step with a one-voxel step-up, fall, flip),
+  `solve` (BFS) and `fewestFlips` (0-1 BFS: par is in flips); `js/body.js` the
+  game's continuous box physics, whose flip snaps to the whole-voxel position
+  and asks the solver's own `flipFrom`; the selftest drives the body along
+  every level's solution and requires the solver's state after every move.
+  `js/render.js` is a 4D voxel DDA (the cave in a 2D R8UI texture) with a
+  lantern and light along your up. Levels are recipes (boxes, balls, tubes),
+  weathered by `Cave.erode` (rock to air only; re-proved). See
+  [`katabasis/README.md`](katabasis/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -409,7 +426,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/plateau/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/plateau/`, `/katabasis/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -469,6 +486,7 @@ node games/hinton/test/hinton.selftest.mjs       # every level of both lanes wal
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
+node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, every level's par the fewest flips and the flip levels impossible on foot, the game's body along every solver solution (~12 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

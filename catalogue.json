@@ -3911,6 +3911,23 @@
       ]
     },
     {
+      "n": "katabasis",
+      "u": "https://games.mino.mobi/katabasis/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-23",
+      "b": "2026-10-23",
+      "p": "games",
+      "surface": "games",
+      "d": "A puzzle in a cave in four dimensions, seen from inside one 3D slice of it by lamplight, carved from voxels a quarter of your height. Walk, and flip: pick a wall (ahead, behind, left, right, or ana or kata, the two you can't see) and it becomes your floor. Each flip is a coupled quarter turn, PLATEAU's double rotation at full coupling, so one direction you could see swaps with w and the cave you see changes. The flips are quantized to the cave's own symmetry, so every resting view is exact and the solver can prove every cave, and par is the fewest flips; the game's continuous body, driven along the solver's solution, lands where the solver says after every move.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "tessera",
       "u": "https://games.mino.mobi/tessera/",
       "c": "games",
