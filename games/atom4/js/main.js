@@ -6,6 +6,7 @@ import * as F from "./fields.js";
 import { TABLE, RPLOT, SHELL_COUNTERFACTUAL } from "./table.js";
 import { lineColour, colourOf, planck } from "../../lumen4/js/optics.js";
 import { fineSplit, harmonicDim } from "./turning.js";
+import * as FF from "./forces.js";
 import { buildTurning, tiles as turnTiles } from "./turningTiles.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout, role } from "./periodic.js";
 import { buildShapes, tiles } from "./shapes.js";
@@ -212,9 +213,30 @@ function drawFine() {
   $("fineTab").innerHTML = `<table><tr><th>l</th><th>orbitals (l + 1)²</th><th>with spin</th><th>splits into</th></tr>${[0, 1, 2, 3].map((l) => `<tr><td>${"spdf"[l]}</td><td>${harmonicDim(l)}</td><td>${2 * harmonicDim(l)}</td><td>${fineSplit(l).join(" + ")}</td></tr>`).join("")}</table>`;
 }
 
+/* ------------------------------------------------------------- the forces chapter */
+function drawForces() {
+  const meV = 27211.386, at = 6, nob = (d) => TABLE[d].filter((el) => isNoble(el, d));
+  const rows4 = nob(4).map((el) => { const S = FF.sumR2(el), B = FF.permanentB(S, S); return `<tr><td class="d4">${el.Z}</td><td>${S.toFixed(1)}</td><td>${B.toFixed(1)}</td><td>${((-B / at ** 5) * meV).toFixed(1)}</td><td>${FF.bornMayerBeta(el.ion).toFixed(2)}</td></tr>`; });
+  const rows3 = nob(3).map((el) => `<tr><td class="d3">${SYM[el.Z - 1]}</td><td>${FF.sumR2(el).toFixed(1)}</td><td>0</td><td>0</td><td>${FF.bornMayerBeta(el.ion).toFixed(2)}</td></tr>`);
+  $("nobleForces").innerHTML = `<table><tr><th>noble gas</th><th>S = Σ⟨r²⟩ (bohr²)</th><th>B = 3S²/64</th><th>−B/R⁵ at ${at} bohr (meV)</th><th>β = 2√2I (1/bohr)</th></tr>${rows3.join("")}${rows4.join("")}</table><p class="read">S and β from the solver's atoms. Our measured noble-gas wells, whole: neon 3.6 meV deep, argon 10.3 meV.</p>`;
+  const Rs = range(4.5, 14, 200), series = nob(4).slice(1, 4).map((el, i) => { const B = FF.permanentB(FF.sumR2(el), FF.sumR2(el)); return { pts: Rs.map((R) => [R, (-B / R ** 5) * meV]), c: ["#6fe0ff", "#7dffb0", "#c79bff"][i], label: `4D element ${el.Z}: −B/R⁵ alone` }; });
+  series.push({ pts: Rs.map((R) => [R, FF.lj(R, FF.MEASURED_LJ.Ne) * meV]), c: C3, label: "our neon, measured: the whole well" });
+  series.push({ pts: Rs.map((R) => [R, FF.lj(R, FF.MEASURED_LJ.Ar) * meV]), c: C3, dash: [5, 4], label: "our argon, measured" });
+  chart($("cPair"), { x: [4.5, 14], y: [-80, 15], xl: "distance between the two atoms (bohr)", yl: "energy (meV)", series, vlines: [{ x: at, c: DIM, label: `${at} bohr` }] });
+  // against our measured wells, each at our gas's own spacing (the Lennard-Jones minimum, 2^(1/6) σ)
+  const vs = (Z, gas) => { const el = TABLE[4][Z - 1], B = FF.permanentB(FF.sumR2(el), FF.sumR2(el)), m = FF.MEASURED_LJ[gas], r = 2 ** (1 / 6) * m.sigma; return { r, u: (B / r ** 5) * meV, well: m.eps * meV, x: B / r ** 5 / m.eps }; };
+  const a = vs(12, "Ne"), b = vs(22, "Ar");
+  $("rPair").innerHTML = `At neon's spacing (${a.r.toFixed(2)} bohr), element 12's permanent pull is ${a.u.toFixed(0)} meV, <b>${a.x.toFixed(0)}×</b> neon's ${a.well.toFixed(1)} meV well. At argon's (${b.r.toFixed(2)} bohr), element 22's is ${b.u.toFixed(0)} meV, <b>${b.x.toFixed(0)}×</b> argon's ${b.well.toFixed(1)} meV.`;
+  // twisting: staggered against eclipsed with a soft 1/r⁶ between the ends
+  const I = (d) => Array.from({ length: d - 1 }, (_, i) => Array.from({ length: d - 1 }, (_, j) => (i === j ? 1 : 0)));
+  const ratio = (d) => { const { near, staggered } = FF.bondEnds(d); return FF.twistEnergy(near, near, I(d), 1) / FF.twistEnergy(near, staggered, I(d), 1); };
+  $("rTwist").innerHTML = `With a soft 1/r⁶ push between the two ends' atoms, eclipsed costs <b>${ratio(3).toFixed(2)}×</b> staggered across a 3D bond and <b>${ratio(4).toFixed(2)}×</b> across a 4D one: four neighbours a side crowd more than three.`;
+  $("rSalt").innerHTML = `For a salt with λ = 1 (in atomic units), the tail is <b>${FF.saltTail(1).toFixed(4)} / r⁷</b>: negative, so a positive charge looks faintly negative from far off.`;
+}
+
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine]];
+const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

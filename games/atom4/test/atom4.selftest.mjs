@@ -13,6 +13,7 @@ const { element, ZMAX } = await import(path.join(here, "../tools/bake.mjs"));
 const G = await import(path.join(here, "../js/polytopes.js"));
 const TL = await import(path.join(here, "../js/tile.js"));
 const RT = await import(path.join(here, "../js/turning.js"));
+const FF = await import(path.join(here, "../js/forces.js"));
 const fs = await import("node:fs");
 
 let checks = 0, fails = 0;
@@ -250,13 +251,43 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 
 /* 14 · the chapters: one landing and seven pages, the same nav on each, no id twice, every drawing's element somewhere */
 {
-  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
+  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
   const navOf = (h) => (h.match(/<nav class="chapters">([\s\S]*?)<\/nav>/) || [, ""])[1].replace(/ class="here"| here/g, "");
   const ids = (h) => [...h.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
   const sameNav = pages.every((p) => navOf(html[p]) === navOf(html.index) && navOf(html.index).length > 0), noDup = pages.every((p) => new Set(ids(html[p])).size === ids(html[p]).length);
   const main = fs.readFileSync(path.join(dir, "js/main.js"), "utf8"), want = [...main.matchAll(/\["(\w+)", draw\w+\]/g)].map((m) => m[1]), all = new Set(pages.flatMap((p) => ids(html[p])));
   const linked = pages.slice(1).every((p) => html.index.includes(`href="${p}.html"`));
   ok(sameNav && noDup && want.length >= 12 && want.every((id) => all.has(id)) && linked, `the chapters: the same nav on all ${pages.length} pages, no id twice, all ${want.length} drawings have their element, the landing links every chapter`);
+}
+
+/* 15 · forces between molecules */
+{
+  // the Fourier constants: 1/k³ ↔ 1/r (the pin), |k| ↔ −3/(4π²R⁵), |k|³ ↔ 45/(4π² r⁷)
+  ok(Math.abs(FF.ftPowerConst(-3) * 4 * Math.PI ** 2 - 1) < 1e-12 && Math.abs(FF.ftPowerConst(1) + 3 / (4 * Math.PI ** 2)) < 1e-12 && Math.abs(FF.ftPowerConst(3) - 45 / (4 * Math.PI ** 2)) < 1e-12, "4D transforms: 4π²/|k|³ is 1/r, |k| is −3/4π²R⁵, |k|³ is 45/4π²r⁷");
+  // the permanent R⁻⁵ against two model atoms integrated exactly
+  const Z = 2, sg = 0.5, S = Z * 4 * sg * sg, rat = (R) => FF.gaussianPairExact(R, Z, sg) / (-FF.permanentB(S, S) / R ** 5);
+  const r6 = rat(6), r8 = rat(8), r12 = rat(12);
+  ok(r12 > 1 && r12 < 1.02 && r8 > r12 && r6 > r8 && Math.abs(rat(4) - 1.14) < 0.02 && FF.permanentB(S, S, 3) === 0, `two neutral model atoms, exactly: ${r6.toFixed(3)}, ${r8.toFixed(3)}, ${r12.toFixed(3)} × −3S²/64R⁵ at 12, 16, 24 cloud-widths… closing on 1; nothing in 3D`);
+  // London's factor: two coupled isotropic oscillators, diagonalized
+  const jacobi = (A) => { const n = A.length; A = A.map((r) => r.slice()); for (let sw = 0; sw < 100; sw++) { let off = 0; for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) { off += A[p][q] ** 2; if (Math.abs(A[p][q]) < 1e-15) continue; const th = (A[q][q] - A[p][p]) / (2 * A[p][q]), t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1)), c = 1 / Math.sqrt(t * t + 1), s = t * c; for (let k = 0; k < n; k++) { const a = A[k][p], b = A[k][q]; A[k][p] = c * a - s * b; A[k][q] = s * a + c * b; } for (let k = 0; k < n; k++) { const a = A[p][k], b = A[q][k]; A[p][k] = c * a - s * b; A[q][k] = s * a + c * b; } } if (off < 1e-28) break; } return A.map((r, i) => r[i]); };
+  const drude = (d) => { const q = 0.3, R = 6, n = 2 * d, K = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))); for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) { const T = ((i === j ? 1 : 0) - 3 * (i === 0) * (j === 0)) / R ** 3; K[i][d + j] += q * q * T; K[d + j][i] += q * q * T; } const shift = jacobi(K).reduce((s, l) => s + 0.5 * (Math.sqrt(l) - 1), 0); return shift / (-FF.londonC6(q * q, q * q, 1, 1, d) / R ** 6); };
+  ok(Math.abs(drude(3) - 1) < 1e-5 && Math.abs(drude(4) - 1) < 1e-5 && FF.traceT2(3) === 6 && FF.traceT2(4) === 7, `dispersion: coupled oscillators match London's 3/2 in 3D and 7/4 in 4D (${drude(3).toFixed(7)}, ${drude(4).toFixed(7)})`);
+  // Unsöld's shortcut misses our neon, as the page says
+  const ne = TABLE[3][9], neV = ne.orb.filter((o) => o.s.startsWith("2")).reduce((s, o) => s + o.o * o.r2, 0), miss = ((2 / 3) * neV) / ne.ion / 2.67;
+  ok(miss > 5.3 && miss < 5.9, `Unsöld's estimate from the solver's neon is ${miss.toFixed(1)}× its measured α (the page says 5.6)`);
+  // the numbers the page states: element 12 at neon's spacing, 16×; element 22 at argon's, 9×
+  const vs = (Zz, gas) => { const el = TABLE[4][Zz - 1], B = FF.permanentB(FF.sumR2(el), FF.sumR2(el)), m = FF.MEASURED_LJ[gas], r = 2 ** (1 / 6) * m.sigma; return { x: B / r ** 5 / m.eps, need: B * r }; };
+  const a = vs(12, "Ne"), b = vs(22, "Ar");
+  ok(Math.round(a.x) === 16 && Math.round(b.x) === 9 && Math.abs(a.need - 85) < 3, `the permanent pull at our gases' spacing: element 12 ${a.x.toFixed(1)}× neon's well, element 22 ${b.x.toFixed(1)}× argon's; dispersion would need C₆ ≈ ${a.need.toFixed(0)} to match`);
+  ok(TABLE[4].every((el) => el.orb.every((o) => o.r2 >= o.r * o.r - 1e-6)), "every orbital's ⟨r²⟩ ≥ ⟨r⟩² (the baked ⟨r²⟩ is consistent)");
+  // twisting: staggered (inverted) is the least energy over random twists; eclipsed the most
+  let seed = 9; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
+  const quat = () => { let a = rnd(), b2 = rnd(), c = rnd(), d = rnd(); const n = Math.hypot(a, b2, c, d); a /= n; b2 /= n; c /= n; d /= n; return [[1 - 2 * (c * c + d * d), 2 * (b2 * c - a * d), 2 * (b2 * d + a * c)], [2 * (b2 * c + a * d), 1 - 2 * (b2 * b2 + d * d), 2 * (c * d - a * b2)], [2 * (b2 * d - a * c), 2 * (c * d + a * b2), 1 - 2 * (b2 * b2 + c * c)]]; };
+  const { near, staggered } = FF.bondEnds(4), I3 = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], eS = FF.twistEnergy(near, staggered, I3, 1), eE = FF.twistEnergy(near, near, I3, 1);
+  let lo = Infinity, hi = -Infinity; for (let i = 0; i < 20000; i++) { const e = FF.twistEnergy(near, staggered, quat(), 1); lo = Math.min(lo, e); hi = Math.max(hi, e); }
+  const tet = near.every((u, i) => near.every((v, j) => i === j || Math.abs(u.reduce((s, x, k) => s + x * v[k], 0) / (Math.hypot(...u) * Math.hypot(...v)) + 1 / 3) < 1e-9));
+  ok(tet && eS <= lo + 1e-12 && eE >= hi - 1e-12, "across a 4D bond each end's other bonds are a regular tetrahedron; inverted (staggered) is the least energy of 20,000 twists, eclipsed the most");
+  ok(FF.saltTail(1) < 0 && Math.abs(FF.saltTail(1) + 45 / (16 * Math.PI ** 4)) < 1e-12 && Math.abs(FF.bornMayerBeta(0.5) - 2) < 1e-12, "salt's tail −45/(16π⁴λ²r⁷), overscreened; β = 2√(2I)");
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

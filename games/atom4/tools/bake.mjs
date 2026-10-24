@@ -22,8 +22,8 @@ export function element(Z, d) {
   if (Z === 1) ion = -g.E;
   else for (const i of cand) { const occ = g.occ.slice(); occ[i]--; const e = scf(Z, occ, d, { iters: 60, start: g.qs }).E - g.E; if (e < ion) { ion = e; top = i; } }
   const orb = live.map((i) => {
-    let rm = 0; for (let j = 0; j < N; j++) rm += g.qs[i][j] * R[j];
-    return { s: sh[i].name, o: g.occ[i], e: +g.es[i].toFixed(5), r: +rm.toFixed(4) };
+    let rm = 0, r2 = 0; for (let j = 0; j < N; j++) { rm += g.qs[i][j] * R[j]; r2 += g.qs[i][j] * R[j] * R[j]; }
+    return { s: sh[i].name, o: g.occ[i], e: +g.es[i].toFixed(5), r: +rm.toFixed(4), r2: +r2.toFixed(4) };
   });
   // the radial density: electrons per bohr, Σ occ q / dr, sampled on RPLOT
   const dens = Array.from(RPLOT, (r) => {

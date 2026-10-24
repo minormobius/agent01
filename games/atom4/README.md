@@ -16,6 +16,7 @@ open questions. Then seven chapter pages, each showing its working:
 | `table.html` | 5 · the periodic table, trends, partial screening, how far to trust it |
 | `shapes.html` | 6 · the six regular 4D polytopes |
 | `darbon.html` | 7 · element 7: bonds, handedness, crystals |
+| `forces.html` | 8 · the force field term by term: the permanent R⁻⁵, dispersion's 7/4, exponential repulsion, twisting, salt's power-law screening |
 
 Every page runs `js/main.js`, which draws only the figures whose elements are on
 that page. Links to the old one-page version's anchors (`#maxwell`,
@@ -33,6 +34,10 @@ position.
   the 3D check.
 - `js/polytopes.js` (no DOM) is the shapes: the six regular 4D polytopes, sp^d hybrids, and the
   honeycomb → diamond → darbon's-diamond nets.
+- `js/forces.js` (no DOM) is the forces between molecules: S = Σ⟨r²⟩ from the solver (the bake stores each
+  orbital's ⟨r²⟩), the permanent −3S_AS_B/64R⁵, London's C₆ with tr T² = d + 3, β = 2√(2I), the 4D Fourier
+  constants (Lanczos Γ), salt's tail, an exact two-Gaussian-atom integral (a 4D Hankel transform) for checking,
+  and the twist energy across a bond.
 - `js/turning.js` (no DOM) is motion and spin: the left/right split of 4D turns, spin rates, harmonic
   dimensions and fine structure, orbits (leapfrog, Runge–Lenz), and a free rigid body (Euler's equations
   in six components, RK4).
@@ -176,10 +181,31 @@ frequency-independent polarizability. Lumen⁴'s page carries a note pointing he
   Cayley step, which stays exactly orthogonal.
 - A bond's stabilizer is SO(3): three twist angles. In D₂H₈ each darbon carries four hydrogens.
 
+## Forces between molecules (chapter 8)
+
+All from one fact: the pinned potential is the 4D transform of 4π²/|k|³.
+
+- **Permanent attraction.** A neutral atom's ρ̃(k) starts at Sk²/8 (S = Σ⟨r²⟩, the cloud's form factor
+  1 − k²⟨r²⟩/2d). Two atoms meet through (π²S_AS_B/16)|k|, which transforms to −3S_AS_B/64R⁵. In 3D the same step
+  is a contact term, so nothing. The check is two model atoms (a nucleus in a Gaussian cloud) integrated exactly
+  as U = (Z²/R)∫(1 − e^(−k²σ²/2))²J₁(kR)dk/k: 1.14× the formula at 8σ, 1.013× at 24σ. At our noble gases'
+  spacings, element 12's pull is 16× neon's whole well and element 22's is 9× argon's (measured LJ fits). Where
+  4D atoms actually sit needs the repulsion's strength A, which isn't computed.
+- **Dispersion** stays −C₆/R⁶, since the dipole tensor ∂ᵢ∂ⱼ(1/R) is dimension-free. tr T²R⁶ = 4 + (d − 1), so
+  London's 3/2 becomes 7/4, checked by diagonalizing two coupled oscillators. C₆ itself needs polarizabilities,
+  which spherical Hartree can't give. Unsöld's closure on the solver's neon misses the measured α by 5.6×, so it
+  isn't used. Dispersion matches the R⁻⁵ at neon's spacing only if C₆ ≈ 85 (13× neon's).
+- **Repulsion** is exponential, β = 2√(2I), as in 3D.
+- **Twisting.** Each end's other bonds, projected across the bond, are a regular simplex of the across-space.
+  Staggered (inverted through the bond) is the least energy over random SO(3) twists and eclipsed the most;
+  the selftest checks 20,000.
+- **Salt.** 1/(|k|³/4π² + λ) = 1/λ − |k|³/4π²λ² + …: a −45/(16π⁴λ²r⁷) tail, of the opposite sign. This is argued
+  from the Fourier asymptotics, with the constants checked. It isn't integrated: the tail is far too small to
+  resolve beside the 1/r it cancels.
+
 ## What it leaves out
 
 Exchange (so Cr and Cu come out wrong and ionization runs low), non-spherical open shells, relativity
 (it matters past Z ≈ 50), spin–orbit in the solver, and correlation. Spin is two states per orbital
 (chapter 3 says why). Subshells are limited to l ≤ 3, n ≤ 8, which is enough up to Z = 78. Open questions,
-as on the landing: the forces between molecules through the lens (the molecular-dynamics view needs them
-first), gravity (it has to be pinned too), exchange, spin-statistics without full relativity, and 4D water.
+as on the landing: the force field's strengths (repulsion's A, dispersion's C₆), gravity (it has to be pinned too), exchange, spin-statistics without full relativity, and 4D water.
