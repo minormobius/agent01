@@ -5,7 +5,7 @@
    the mouse or a drag), twist (R toward N) and look into w (F toward N). The sun has a height, a bearing and a lean
    into w. The bow you see is decided by one thing only, the antisolar direction a = −sun in your own camera's frame:
    it's in your slice iff |a_N| ≤ sin θ, and on your screen it's a conic with e = √(a_R² + a_U²)/cos θ. */
-import { DIM, VS, terrain, blocks, groundAt, walk, EYE, SIZE } from "./world.js";
+import { DIM, VS, terrain, blocks, groundAt, walk, EYE, SIZE, FOAMS, lattice, blocksDilated, groundFoam } from "./world.js";
 import { Renderer } from "./render.js";
 import { rainbowAngle, rainbowAngle2, waterN, lineColour, bowE, bowType, bowExists, bowOnScreenA } from "../../lumen4/js/optics.js";
 
@@ -22,6 +22,20 @@ const LAMS = [400, 440, 480, 520, 560, 600, 650, 700];
 const BOW1 = LAMS.map((l) => ({ l, th: rainbowAngle(waterN(l)), c: lineColour(l) })), BOW2 = LAMS.map((l) => ({ l, th: rainbowAngle2(waterN(l)), c: lineColour(l) }));
 Rd.bows(BOW1, BOW2);
 const RED = BOW1[BOW1.length - 1].th;
+
+/* the land's grain: tesseracts (the grid), or Kelvin's foam or the 24-cell foam (Foam⁴'s lattices, walked facet to
+   facet). In a foam the ground under you is the foam's, and you don't wrap (the foams don't repeat on the world's box) */
+let D = null, L = null, foam = "tesseract";
+const LATS = {};
+function setFoam(f) {
+  if (!FOAMS.includes(f)) f = "tesseract";
+  foam = f; try { localStorage.setItem("iris4.foam", f); } catch (e) { /* private */ }
+  if (f === "tesseract") { L = null; for (const a of [0, 2, 3]) me.p[a] = ((me.p[a] % SIZE[a]) + SIZE[a]) % SIZE[a]; }
+  else { D = D || blocksDilated(M); L = LATS[f] = LATS[f] || lattice(f); }
+  Rd.foam(L, D, DIM);
+  for (const b of document.querySelectorAll("#foam button")) b.classList.toggle("on", b.dataset.f === f);
+}
+const ground = (q) => (L ? groundFoam(H, D, L, q) : groundAt(H, q));
 
 /* ------------------------------------------------------------- you: where, and how you're turned */
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
@@ -93,6 +107,8 @@ const opt = { fae: true, second: true, conic: true };
 for (const b of document.querySelectorAll("#show button")) { b.classList.toggle("on", opt[b.dataset.o]); b.onclick = () => { opt[b.dataset.o] = !opt[b.dataset.o]; b.classList.toggle("on", opt[b.dataset.o]); }; }
 function go() { $("intro").hidden = true; if (!coarse) { try { const r = glc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* fine */ } } }
 $("go").onclick = go;
+for (const b of document.querySelectorAll("#foam button")) b.onclick = () => setFoam(b.dataset.f);
+setFoam(new URLSearchParams(location.search).get("foam") || (() => { try { return localStorage.getItem("iris4.foam"); } catch (e) { return null; } })() || "tesseract");
 
 /* ------------------------------------------------------------- what the bow is doing, in your frame */
 const TAN = 0.85, trail = [];
@@ -163,7 +179,7 @@ function step(now) {
     let mv = [0, 0]; if (keys.has("w")) mv[1] += 1; if (keys.has("s")) mv[1] -= 1; if (keys.has("d")) mv[0] += 1; if (keys.has("a")) mv[0] -= 1;
     if (stick) mv = stick; const m = Math.hypot(...mv); if (m > 1) mv = mv.map((v) => v / m);
     const vel = add(me.fr.F.map((v) => v * mv[1] * 4.2), me.fr.R, mv[0] * 4.2);
-    me.p = walk(H, me.p, vel, dt);
+    me.p = walk(H, me.p, vel, dt, ground, !L);
   }
   const cp = Math.cos(me.pitch), sp = Math.sin(me.pitch), F = add(me.fr.F.map((v) => v * cp), UP, sp), U = add(UP.map((v) => v * cp), me.fr.F, -sp), S = sunDir();
   Rd.draw({ eye: me.p.map((v) => v / VS), R: me.fr.R, U, F, sun: S, time: now / 1000, fae: opt.fae ? 1 : 0, second: opt.second ? 1 : 0, tan: TAN, far: 190, vs: VS }, resolution(dt));
@@ -174,4 +190,4 @@ function step(now) {
   frames++;
 }
 requestAnimationFrame(step);
-window.IRIS4 = { timing, me, sun, squareUp, get frames() { return frames; }, rot: (i, j, t) => { rotFr(i, j, t); tidy(); }, opt };
+window.IRIS4 = { timing, me, sun, setFoam, get foam() { return foam; }, squareUp, get frames() { return frames; }, rot: (i, j, t) => { rotFr(i, j, t); tidy(); }, opt };

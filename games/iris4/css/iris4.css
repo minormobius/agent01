@@ -30,7 +30,7 @@ button.primary { font: 800 15px var(--mono); letter-spacing: 0.12em; background:
 .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .btns button { font: 600 12px var(--mono); background: none; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
 .btns button:active { border-color: var(--gold); color: var(--gold); }
-#show button.on { border-color: var(--ice); color: var(--ice); }
+#show button.on, #foam button.on { border-color: var(--ice); color: var(--ice); }
 .ctls label { display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--dim); margin: 0 0 4px; }
 .ctls input[type=range] { flex: 1 1 auto; min-width: 80px; accent-color: var(--ice); }
 output { color: var(--text); min-width: 3.6em; text-align: right; }

@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="IRIS⁴ — a rainbow you shape. Walk a four-dimensional landscape of tiny tesseract voxels after rain, and turn, twist and look into w: the bow on your screen is a conic section whose shape is set by where the sun sits in your own frame." />
+<meta name="description" content="IRIS⁴ — a rainbow you shape. Walk a four-dimensional landscape after rain, grained by tesseracts, Kelvin's foam or the 24-cell foam, and turn, twist and look into w: the bow on your screen is a conic section whose shape is set by where the sun sits in your own frame." />
 <title>IRIS⁴ — games.mino.mobi</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="css/iris4.css" />
@@ -19,7 +19,7 @@
     <h2>games.mino.mobi · a rainbow you shape</h2>
     <h1>IRIS⁴</h1>
     <p>A landscape in four dimensions, just after rain, and the sun low behind you. You see the 3D slice of it you're standing in. The rainbow is every direction 42° from the point opposite the sun, a cone in 4D, and what you see of it depends only on where that point sits <b>in your own frame</b>.</p>
-    <p><b>Turn</b>, <b>twist</b> and <b>look into w</b>, or move the sun, and the bow on your screen becomes an ellipse, a parabola or a hyperbola (the dashed gold line is the formula's). Look far enough into w and it's gone. Lean into w and the land itself turns fae.</p>
+    <p><b>Turn</b>, <b>twist</b> and <b>look into w</b>, or move the sun, and the bow on your screen becomes an ellipse, a parabola or a hyperbola (the dashed gold line is the formula's). Look far enough into w and it's gone. Lean into w and the land itself turns fae. And pick its grain: tesseracts, or PLATEAU's other two seed crystals, Kelvin's foam and the 24-cell foam.</p>
     <button type="button" id="go" class="primary">ENTER</button>
   </div>
 </div>
@@ -29,6 +29,8 @@
   <div class="split">
     <canvas id="map" aria-label="Where the antisolar point sits in your frame: off in w against across your screen"></canvas>
     <div class="ctls">
+      <h4>the land</h4>
+      <div class="btns" id="foam"><button type="button" data-f="tesseract">tesseracts</button><button type="button" data-f="kelvin">Kelvin foam</button><button type="button" data-f="cell24">24-cell foam</button></div>
       <h4>the sun</h4>
       <label>height <input type="range" id="sEl" min="2" max="45" step="0.5" value="22" /><output id="sElV"></output></label>
       <label>bearing <input type="range" id="sAz" min="90" max="270" step="0.5" value="180" /><output id="sAzV"></output></label>

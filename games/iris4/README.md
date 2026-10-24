@@ -1,7 +1,7 @@
 # IRIS⁴
 
-A rainbow you shape. You walk a four-dimensional landscape of tiny tesseract
-voxels just after rain, with the sun low behind you. You see the 3D slice of it
+A rainbow you shape. You walk a four-dimensional landscape just after rain,
+grained by tiny tesseract voxels, Kelvin's foam or the 24-cell foam, with the sun low behind you. You see the 3D slice of it
 you're standing in, and the bow on your screen is a conic section whose shape is
 set by how you're turned. An understanding toy, like Foam⁴ and Lumen⁴.
 
@@ -38,6 +38,28 @@ derivation and its checks are in [Lumen⁴](../lumen4/README.md).
   ray crossed into the block. The selftest caught an early version reporting
   it as a top. `march()` is the JS twin of the shader's, line for line, which
   is what lets the selftest check it.
+- **The other foams.** The same land can be grained by Kelvin's foam (A₄*,
+  whose cells are permutohedra) or the 24-cell foam (D₄), PLATEAU's other two
+  seed crystals, chosen under "the land". The lattices are Foam⁴'s, scaled to
+  cells 1.4 voxels each way. A cell is ground when its seed lies under the
+  land's height at the seed's column; under a lake a little deeper, so you meet
+  the water. A ray walks the foam cell by cell, leaving each through the
+  nearest of its facets (the bisector planes to its relevant neighbours: 30
+  for Kelvin, 24 for the 24-cell, half of them facing any given ray, worked out
+  once per ray). So what you see are the foam's own facets cut by your slice:
+  hexagons on Kelvin's tops, and the 24-cell's own tiling. The edges are drawn
+  where two of a cell's facets meet.
+  - **Skipping blocks** works as in the tesseract march, but on the tallest
+    column of a block and its neighbours, plus a cell's circumradius (measured,
+    with 10% more). Then the cell the walk resumes in is always air.
+  - **Keeping the cell.** The walk keeps its cell from block to block, and a
+    steep ray that runs long inside one block carries on rather than giving up.
+  - **No wrapping.** The lattices don't repeat on the world's box, so in a foam
+    you don't wrap: the land's heights repeat every 48 m, but the foam under
+    them never does.
+  - **Your ground** is the foam's, the first solid cell straight down.
+
+  `marchFoam()` is the shader's twin, line for line.
 - **Walking.** Your eye is 1.7 m over the ground. You step up at most 0.5 m;
   a cliff stops you and you slide along it, each axis tried on its own. The
   world wraps under you.
@@ -72,7 +94,7 @@ derivation and its checks are in [Lumen⁴](../lumen4/README.md).
 ## Checks
 
 ```bash
-node games/iris4/test/iris4.selftest.mjs   # ~1 s
+node games/iris4/test/iris4.selftest.mjs   # ~10 s
 ```
 
 - the land is deterministic, within its heights, and wraps with no seam in x,
@@ -83,6 +105,11 @@ node games/iris4/test/iris4.selftest.mjs   # ~1 s
 - every face it reports is met from outside, and a top at its column's height;
 - walking never climbs more than a step, stays in the wrapped world, settles
   to eye height, and slides along a cliff;
+- for both foams: the circumradius bounds every point's distance to its seed;
+  the facet-to-facet march agrees with brute force (near-vertical rays too) and
+  meets every facet from outside; the ground under a point is the first solid
+  cell straight down; and walking on it never climbs more than a step;
+- under a lake nothing near the surface is ground;
 - the shader's grid and blocks are `world.js`'s.
 
 The bows' physics (both angles against the closed form

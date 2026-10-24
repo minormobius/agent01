@@ -81,6 +81,47 @@ ok(faces, "every face the march reports is met from outside, and a top at its co
   } else ok(false, "a cliff to walk into");
 }
 
+/* the other foams: Kelvin's (A₄*) and the 24-cell (D₄), walked facet to facet */
+{
+  const Dm = Wd.blocksDilated(M);
+  for (const f of ["kelvin", "cell24"]) {
+    const L = Wd.lattice(f);
+    // the circumradius bounds every point's distance to its seed (the skip's margin depends on it)
+    let far = 0; for (let i = 0; i < 3000; i++) { const p = [rnd() * 48, rnd() * 15, rnd() * 48, rnd() * 16], sd = Wd.nearestSeed(L, p); far = Math.max(far, Math.hypot(...p.map((v, k) => v - sd[k]))); }
+    ok(far <= L.R, `${f}: no point is farther than the circumradius ${L.R.toFixed(3)} m from its seed (farthest ${far.toFixed(3)})`);
+    // the march against brute force, rays in every direction including near-vertical (a long walk inside one block)
+    const brute = (ro, rd, lim) => { for (let t = 0; t < lim; t += 0.002) { const p = ro.map((x, i) => x + rd[i] * t); if (p[1] <= Wd.WATER * Wd.VS && Wd.waterAt(H, p)) return t; if (Wd.solid(H, Wd.nearestSeed(L, p))) return t; } return null; };
+    let agree = 0, n = 0, worst = 0, facesOK = true;
+    for (let k = 0; k < 36; k++) {
+      const ro = [rnd() * 48, 14 + rnd() * 4, rnd() * 48, rnd() * 16];
+      let rd = k % 6 === 0 ? [0.04 * (rnd() - 0.5), -1, 0.04 * (rnd() - 0.5), 0] : [rnd() - 0.5, -0.12 - rnd() * 0.5, rnd() - 0.5, (rnd() - 0.5) * 0.6];
+      const m = Math.hypot(...rd); rd = rd.map((v) => v / m);
+      const a = Wd.marchFoam(H, Dm, L, ro, rd, 40), b = brute(ro, rd, 40); n++;
+      if ((a === null) === (b === null) && (!a || Math.abs(a.t - b) <= 0.003)) agree++;
+      if (a && b) worst = Math.max(worst, Math.abs(a.t - b));
+      if (a && !a.water && a.n.reduce((t, v, i) => t + v * rd[i], 0) >= 0) facesOK = false;
+    }
+    ok(agree === n && facesOK, `${f}: the facet-to-facet march agrees with brute force on ${agree} of ${n} rays, near-vertical ones too (worst ${worst.toFixed(4)} m), every facet met from outside`);
+    // the ground under you is the first ground straight down
+    let gOK = true;
+    for (let k = 0; k < 20; k++) {
+      const p = [rnd() * 48, 0, rnd() * 48, rnd() * 16], g = Wd.groundFoam(H, Dm, L, p), y0 = 20;
+      const b = brute([p[0], y0, p[2], p[3]], [0, -1, 0, 0], 25);
+      if (b === null || Math.abs(y0 - b - g) > 0.003) gOK = false;
+    }
+    ok(gOK, `${f}: the ground under a point is the first solid cell (or lake) straight down`);
+    // walking on it: never up more than a step
+    let q = [24, 0, 24, 8]; q[1] = Wd.groundFoam(H, Dm, L, q) + Wd.EYE; let up = 0;
+    const gnd = (x) => Wd.groundFoam(H, Dm, L, x);
+    for (let i = 0; i < 600; i++) { const a = (i / 120) * 2 * Math.PI, g0 = gnd(q); q = Wd.walk(H, q, [Math.cos(a) * 4, 0, Math.sin(a) * 4, Math.cos(a * 0.4) * 2], 1 / 30, gnd, false); up = Math.max(up, gnd(q) - g0); }
+    ok(up <= Wd.STEP + 1e-9, `${f}: walking on the foam never climbs more than a step at a time (most ${up.toFixed(2)} m)`);
+  }
+  // under a lake the foam lies a little deeper, so the water lies over it
+  let lakeOK = true, seen = 0;
+  for (let i = 0; i < 4000 && seen < 50; i++) { const s = [rnd() * 48, (Wd.WATER - 2) * Wd.VS, rnd() * 48, rnd() * 16]; if (Wd.waterAt(H, s)) { seen++; if (Wd.solid(H, s)) lakeOK = false; } }
+  ok(lakeOK && seen > 0, "under a lake, nothing within two voxels of the surface is ground: the water is what you meet");
+}
+
 // the shader's march is world.js's: the same grid, the same blocks
 {
   const src = fs.readFileSync(path.join(here, "../js/render.js"), "utf8");
