@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴, chapter 4: Hydrogen. The one atom solved exactly: its levels, shells, spectrum and fine structure." />
+<title>ATOM⁴ · Hydrogen — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="force.html">1 · the force</a><a href="light.html">2 · light</a><a href="motion.html">3 · motion and spin</a><a href="hydrogen.html" class="here">4 · hydrogen</a><a href="table.html">5 · the periodic table</a><a href="shapes.html">6 · the shapes</a><a href="darbon.html">7 · darbon</a></nav>
+  <h2>ATOM⁴ · chapter 4</h2>
+  <h1 class="ch">Hydrogen</h1>
+  <p class="lede">The one atom solved exactly: its levels, shells, spectrum and fine structure.</p>
+</header>
+<section id="hydrogen">
+  <h3>Hydrogen, exactly</h3>
+    <p>With the force pinned, the electron's radial equation in 4D is our own, with one change: its angular momentum is shifted by a half, <b>L = l + ½</b>. So 4D hydrogen can be solved in closed form, like ours. Its levels are</p>
+  <p class="eq"><b class="d3">3D: E = −Z² / 2n²</b> &nbsp;&nbsp; <b class="d4">4D: E = −Z² / 2(n + ½)²</b> &nbsp;&nbsp; (in hartrees, 27.2 eV)</p>
+  <p>The ground state is bound by <b>6.05 eV</b>, not 13.6, and the atom is twice the size (its average radius is 3 bohr to our 1.5). As in 3D, every level's energy depends only on n, not l. That's the same hidden symmetry that closes planets' orbits, and it survives in any dimension as long as the force is 1/r. But the shells are bigger, because a 4D electron has more ways to point: <b>(l + 1)²</b> orbitals for each l, where we have 2l + 1.</p>
+  <div class="pair"><canvas class="chart half" id="cLevels"></canvas><div class="shells" id="shellTab"></div></div>
+  <h4>Its spectrum</h4>
+  <p>The light 4D hydrogen gives out. Our Balmer lines (falling to n = 2) run red to violet. Its own fall to n = 2 crowds into the <b>red and orange</b>, ending in yellow at 570 nm, and its Lyman series is out in the ultraviolet.</p>
+  <canvas class="spec" id="cSpec"></canvas>
+  <p class="read" id="rSpec"></p>
+  <h4 id="fine">Spin and fine structure</h4>
+  <p>The (l + 1)² orbitals of each l are the harmonic polynomials of degree l in four variables. They are the pair of spins (l/2, l/2) under 4D turning's two halves. An electron's spin joins the left half only (<a href="motion.html#spin">motion and spin</a>). So the coupling between spin and orbit splits each level in two, as j = l ± ½ does ours: one part with spin added to the left half's l/2 and one with it taken away. The counts:</p>
+  <div class="shells" id="fineTab"></div>
+
+</section>
+
+<footer class="pager"><a href="motion.html">← 3 · Motion and spin</a><a href="table.html">5 · The periodic table →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen4/">Lumen⁴</a> · <a href="../iris4/">IRIS⁴</a> · <a href="../katabasis/">KATABASIS</a> · <a href="../">the arcade</a></p>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

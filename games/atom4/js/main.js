@@ -1,9 +1,12 @@
-/* ATOM⁴ — the page. The physics is ./atom.js (the solver) and ./fields.js (the field theory); the periodic table
-   is baked into ./table.js by tools/bake.mjs, since solving 114 atoms takes minutes. */
+/* ATOM⁴ — every chapter's page runs this, and each drawing runs only where its element is on the page. The physics
+   is ./atom.js (the solver), ./fields.js (the field theory), ./turning.js (motion and spin) and ./polytopes.js; the
+   periodic table is baked into ./table.js by tools/bake.mjs, since solving 114 atoms takes minutes. */
 import { hydrogen, orbitals, k4 } from "./atom.js";
 import * as F from "./fields.js";
 import { TABLE, RPLOT, SHELL_COUNTERFACTUAL } from "./table.js";
-import { lineColour } from "../../lumen4/js/optics.js";
+import { lineColour, colourOf, planck } from "../../lumen4/js/optics.js";
+import { fineSplit, harmonicDim } from "./turning.js";
+import { buildTurning, tiles as turnTiles } from "./turningTiles.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout, role } from "./periodic.js";
 import { buildShapes, tiles } from "./shapes.js";
 
@@ -167,8 +170,9 @@ function drawRoutes() {
     ["3 · Keep locality in time, give up relativity: a strange vacuum", "Keep Maxwell's equations but give empty space a permittivity that grows with wavenumber, ε(k) = ε₀ ℓ k. Statics: 1/(ℓ k³), which is 1/r. A new fundamental length ℓ appears.", `Light disperses like deep-water waves, ω = c√(k/ℓ). Long waves outrun short ones without limit, so there's no speed of light and no relativity.`],
     ["4 · Keep everything but superposition: a nonlinear vacuum", `Make Gauss's law nonlinear, ∇·(|E|^(m−2) E) = ρ, as some modified gravity theories do. m = ${m} gives a 1/r potential in 4D.`, "Fields of two charges don't add. Light doesn't pass through light, and the solver above (which adds clouds) would be wrong too."],
     ["5 · Keep all four, make the fourth dimension small", "A compact fourth dimension of circumference ℓ (below). Far from a charge the field has filled it and falls as 1/r.", "Then atoms bigger than ℓ are 3D atoms. It's how our world could hide extra dimensions. It doesn't give 4D chemistry."],
+    ["6 · Ours: the lens vacuum", `Route 3, finished. Give the vacuum both ε(k) = ε₀ ℓ k <b>and</b> μ(k) = μ₀ / ℓk. Then the fields D/ε₀ and μ₀H obey Maxwell's equations in empty 4D space exactly: that's light, and it's Lumen⁴'s light, at speed c at every wavelength. What pushes a charge is that light seen through a lens, E = (D/ε₀)/ℓk, which blurs it across space with a 1/r³ kernel. Statics: 1/(ℓ k³), the pinned 1/r. The energy is never negative, so there are no ghosts, and fields still add.`, "relativity, for electromagnetism. The lens acts across all of space at once, so there's an absolute now: a charge feels another's change instantly, a little, everywhere. One length, ℓ, sets the strength."],
   ];
-  $("routes").innerHTML = R.map(([t, p, c]) => `<div class="route"><h5>${t}</h5><p>${p}</p><p class="cost">costs: ${c}</p></div>`).join("");
+  $("routes").innerHTML = R.map(([t, p, c], i) => `<div class="route${i === 5 ? " chosen" : ""}"><h5>${t}</h5><p>${p}</p><p class="cost">${i === 5 ? "we pay" : "costs"}: ${c}</p></div>`).join("");
 }
 function drawShell() {
   const ss = range(0.001, 3, 400);
@@ -197,9 +201,25 @@ function drawCompact() {
     vlines: [{ x: 1 / Math.PI, c: DIM, label: "ℓ/π" }] });
 }
 
-/* ------------------------------------------------------------- wiring */
-$("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-function drawAll() { drawPin(); drawLevels(); drawSpec(); drawTable(); drawTrends(); drawChem(); drawRoutes(); drawShell(); drawScreen(); drawCompact(); }
-let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); tiles.forEach((t) => t.draw()); }, 120); });
+/* ------------------------------------------------------------- the light chapter: the sky */
+function drawSky() {
+  const sky = (n, p) => `rgb(${colourOf((l) => planck(l, 5800, n) * l ** -p)})`, sun = (n) => `rgb(${colourOf((l) => planck(l, 5800, n))})`;
+  const rows = [["our sky", 3, F.scatterExponent(3, false), "3D: sunlight ν³/(eˣ − 1), scattered ∝ ω⁴"], ["4D, plain Maxwell", 4, F.scatterExponent(4, false), "sunlight ν⁴/(eˣ − 1), scattered ∝ ω⁵"], ["this universe", 4, F.scatterExponent(4, true), "sunlight ν⁴/(eˣ − 1), scattered ∝ ω³ through the lens"]];
+  $("skies").innerHTML = rows.map(([t, n, p, cap]) => `<figure><div class="sw" style="background: linear-gradient(180deg, ${sky(n, p)} 0%, ${sky(n, p)} 70%, ${sun(n)} 100%)"></div><figcaption><b>${t}</b><br />${cap}</figcaption></figure>`).join("");
+}
+/* the hydrogen chapter: fine structure */
+function drawFine() {
+  $("fineTab").innerHTML = `<table><tr><th>l</th><th>orbitals (l + 1)²</th><th>with spin</th><th>splits into</th></tr>${[0, 1, 2, 3].map((l) => `<tr><td>${"spdf"[l]}</td><td>${harmonicDim(l)}</td><td>${2 * harmonicDim(l)}</td><td>${fineSplit(l).join(" + ")}</td></tr>`).join("")}</table>`;
+}
+
+/* ------------------------------------------------------------- wiring: each chapter draws what it has */
+if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
+const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine]];
+function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
+let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
+/* links into the old one-page version land on the chapter that holds them now */
+const MOVED = { pin: "force.html", maxwell: "force.html#routes", hydrogen: "hydrogen.html", table: "table.html", trends: "table.html#trends", trust: "table.html#trust", solids: "shapes.html", chem: "darbon.html" };
+if ($("position") && MOVED[location.hash.slice(1)]) location.replace(MOVED[location.hash.slice(1)]);
 buildShapes();
+buildTurning();
 drawAll();

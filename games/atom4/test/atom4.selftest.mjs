@@ -12,6 +12,8 @@ const { TABLE, RPLOT, SHELL_COUNTERFACTUAL } = await import(path.join(here, "../
 const { element, ZMAX } = await import(path.join(here, "../tools/bake.mjs"));
 const G = await import(path.join(here, "../js/polytopes.js"));
 const TL = await import(path.join(here, "../js/tile.js"));
+const RT = await import(path.join(here, "../js/turning.js"));
+const fs = await import("node:fs");
 
 let checks = 0, fails = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg); } };
@@ -191,6 +193,70 @@ for (const d of [3, 4]) {
   ok(pts.every((p) => { const q = TL.apply(half, p); return Math.abs(q[0] + p[0]) < 1e-12 && Math.abs(q[1] - p[1]) < 1e-12 && Math.abs(q[2] - p[2]) < 1e-12 && Math.abs(q[3]) < 1e-12; }), "half a turn through w carries a 3D object (w = 0) into its mirror image x → −x");
   { const e = G.simplex(4), cols = (idx) => e[0].map((_, r) => idx.map((i) => e[i][r])), R5 = mul(cols([1, 2, 3, 4]), inv(cols([0, 1, 2, 3]))); let P = R5; for (let k = 1; k < 5; k++) P = mul(P, R5);
     const RRt = mul(R5, R5[0].map((_, j) => R5.map((r) => r[j]))); ok(Math.abs(det(R5) - 1) < 1e-9 && P.every((r, i) => r.every((v, j) => Math.abs(v - (i === j ? 1 : 0)) < 1e-9)) && RRt.every((r, i) => r.every((v, j) => Math.abs(v - (i === j ? 1 : 0)) < 1e-9)), "cycling darbon's five bond directions is a rotation of order 5: a five-fold symmetry of its diamond"); }
+}
+
+/* 12 · the lens vacuum: light keeps c, statics are 1/r, matter feels light at c/ℓω, scattering goes as ω³ */
+{
+  const ks = [0.01, 0.3, 1, 7, 120], ell = 0.37;
+  ok(ks.every((k) => Math.abs(F.lensOmega(k, ell) - k) < 1e-12), "the lens vacuum: ω = ck at every wavelength (εμ = 1 though each varies)");
+  ok(F.LENS_STATIC_POWER === F.propagatorPower(1, 4) && Math.abs(F.lensFactor(2, 0.5) - 1) < 1e-12 && ks.every((k) => F.lensEps(k, ell) > 0 && F.lensMu(k, ell) > 0), "statics 1/(ℓk³) = the pinned 1/r; both responses positive, so the energy is");
+  ok(F.scatterExponent(3, false) === 4 && F.scatterExponent(4, false) === 5 && F.scatterExponent(4, true) === 3, "small particles scatter as ω⁴ here, ω⁵ in 4D Maxwell, ω³ through the lens");
+}
+
+/* 13 · motion and spin */
+{
+  let seed = 3; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1, six = () => [rnd(), rnd(), rnd(), rnd(), rnd(), rnd()];
+  let worstC = 0, worstClose = 0, worstSplit = 0;
+  for (let t = 0; t < 20; t++) {
+    const A = RT.bivector(six()), B = RT.bivector(six());
+    worstC = Math.max(worstC, ...RT.commutator(RT.leftPart(A), RT.rightPart(B)).flat().map(Math.abs));
+    worstClose = Math.max(worstClose, ...RT.rightPart(RT.commutator(RT.leftPart(A), RT.leftPart(B))).flat().map(Math.abs));
+    worstSplit = Math.max(worstSplit, ...A.map((r, i) => r.map((v, j) => Math.abs(v - RT.leftPart(A)[i][j] - RT.rightPart(A)[i][j]))).flat());
+  }
+  ok(worstC < 1e-12 && worstClose < 1e-12 && worstSplit < 1e-12, "every 4D turn is a left half plus a right half; the halves commute, and each closes on itself: so(4) = so(3) ⊕ so(3)");
+  const simple = RT.bivector([1, 0, 0, 0, 0, 0]), leftIso = RT.bivector([1, 0, 0, 0, 0, 1]), rightIso = RT.bivector([1, 0, 0, 0, 0, -1]), n = (v) => Math.hypot(...v);
+  ok(n(RT.leftVector(simple)) === 1 && n(RT.leftVector(leftIso)) === 2 && n(RT.leftVector(rightIso)) === 0 && n(RT.rightVector(leftIso)) === 0 && RT.spinRate(1, 1) === 2 && RT.spinRate(1, -1) === 0, "the spin's share: a simple turn 1, left-isoclinic 2, right-isoclinic 0");
+  // a Dirac electron in 4 + 1: Euclidean γ₁…γ₄, and time's γ₀ must be their product; its +1 half carries one so(3) only
+  const c = (re, im = 0) => [re, im], cm = (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
+  const kron = (A, B) => { const n2 = A.length * B.length, out = []; for (let i = 0; i < n2; i++) { out.push([]); for (let j = 0; j < n2; j++) out[i].push(cm(A[Math.floor(i / B.length)][Math.floor(j / B.length)], B[i % B.length][j % B.length])); } return out; };
+  const mm = (A, B) => A.map((r) => B[0].map((_, j) => r.reduce((s, v, k) => { const p = cm(v, B[k][j]); return [s[0] + p[0], s[1] + p[1]]; }, [0, 0])));
+  const lc = (A, B, a, b) => A.map((r, i) => r.map((v, j) => [a * v[0] + b * B[i][j][0], a * v[1] + b * B[i][j][1]]));
+  const I2 = [[c(1), c(0)], [c(0), c(1)]], s1 = [[c(0), c(1)], [c(1), c(0)]], s2 = [[c(0), c(0, -1)], [c(0, 1), c(0)]], s3 = [[c(1), c(0)], [c(0), c(-1)]];
+  const g = [kron(s1, s1), kron(s1, s2), kron(s1, s3), kron(s2, I2)], I4 = kron(I2, I2), size = (A) => Math.max(...A.flat().map((v) => Math.hypot(v[0], v[1])));
+  let cliff = 0; for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) cliff = Math.max(cliff, size(lc(lc(mm(g[a], g[b]), mm(g[b], g[a]), 1, 1), I4, 1, a === b ? -2 : 0)));
+  const G = mm(mm(g[0], g[1]), mm(g[2], g[3]));
+  const anti = Math.max(...g.map((x) => size(lc(mm(G, x), mm(x, G), 1, 1))));
+  ok(cliff < 1e-12 && size(lc(mm(G, G), I4, 1, -1)) < 1e-12 && anti < 1e-12, "γ₁γ₂γ₃γ₄ squares to 1 and anticommutes with each γ: it is time's γ₀, so a slow electron is one chirality of space");
+  const Sg = (a, b) => lc(mm(g[a], g[b]), mm(g[b], g[a]), 0.25, -0.25), P = lc(I4, G, 0.5, 0.5), Q = lc(I4, G, 0.5, -0.5);
+  const L = [lc(Sg(0, 1), Sg(2, 3), 1, 1), lc(Sg(0, 2), Sg(3, 1), 1, 1), lc(Sg(0, 3), Sg(1, 2), 1, 1)], Rg = [lc(Sg(0, 1), Sg(2, 3), 1, -1), lc(Sg(0, 2), Sg(3, 1), 1, -1), lc(Sg(0, 3), Sg(1, 2), 1, -1)];
+  const onP = (fam) => Math.max(...fam.map((X) => size(mm(X, P)))), onQ = (fam) => Math.max(...fam.map((X) => size(mm(X, Q))));
+  const handed = (onP(L) > 0.5 && onP(Rg) < 1e-12 && onQ(L) < 1e-12 && onQ(Rg) > 0.5) || (onP(Rg) > 0.5 && onP(L) < 1e-12 && onQ(Rg) < 1e-12 && onQ(L) > 0.5);
+  ok(handed && size(lc(mm(Sg(0, 1), Sg(0, 1)), I4, 1, 0.25)) < 1e-12, "on the electron's half one set of three turns acts and the other is zero: its spin is handed; Σ₀₁² = −¼, so a full turn in one plane is −1");
+  // shells and fine structure
+  ok([0, 1, 2, 3, 4].every((l) => RT.harmonicDim(l) === A.orbitals(l, 4) && RT.harmonicDim(l, 3) === A.orbitals(l, 3)) && [0, 1, 2, 3].every((l) => RT.fineSplit(l).reduce((a, b) => a + b, 0) === 2 * (l + 1) ** 2), "orbitals are harmonic polynomials ((l + 1)² in 4D, 2l + 1 in 3D); fine structure splits 2(l + 1)² into (l + 1)(l + 2) + l(l + 1)");
+  // orbits: planar, Runge–Lenz kept, closed under 1/r; Gauss's force loses a nudged circle
+  let st = { x: [1, 0.2, -0.3, 0.4], v: [0.1, 0.8, 0.3, -0.2] }; const A0 = RT.rungeLenz(st), pts = [];
+  for (let i = 0; i < 60000; i++) { st = RT.orbitStep(st, 1e-3, 2); if (i % 500 === 0) pts.push(st.x); }
+  const drift = Math.max(...RT.rungeLenz(st).map((v, i) => Math.abs(v - A0[i]))), planar = G4rank(pts);
+  const spread = (q) => { let s2 = { x: [1, 0, 0, 0], v: [0, 1.01, 0, 0] }, mx = 1; for (let i = 0; i < 60000; i++) { s2 = RT.orbitStep(s2, 1e-3, q); mx = Math.max(mx, Math.hypot(...s2.x)); } return mx; };
+  ok(drift < 1e-4 && planar === 2 && spread(2) < 1.1 && spread(3) > 3, `orbits: in one plane, Runge–Lenz kept (drift ${drift.toExponential(1)}); a nudged circle stays near (${spread(2).toFixed(3)}) under 1/r and flies off under Gauss (${spread(3).toFixed(1)})`);
+  // a free rigid body keeps its energy and both Casimirs
+  let M = RT.bivector([0.3, 1.0, -0.2, 0.5, 0.7, -0.4]); const j = [1, 1.6, 2.3, 3.1], e0 = RT.bodyEnergy(M, j), t0 = RT.trace2(M), p0 = RT.pfaffian(M);
+  for (let i = 0; i < 5000; i++) M = RT.bodyStep(M, j, 2e-3);
+  ok(Math.abs(RT.bodyEnergy(M, j) - e0) < 1e-9 && Math.abs(RT.trace2(M) - t0) < 1e-9 && Math.abs(RT.pfaffian(M) - p0) < 1e-9, "a tumbling 4D body keeps its energy, tr M² and its Pfaffian");
+  ok(RT.twistAngles(3) === 1 && RT.twistAngles(4) === 3, "a bond twists one way in 3D, three ways in 4D");
+}
+function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v - pts[0][i]))); }
+
+/* 14 · the chapters: one landing and seven pages, the same nav on each, no id twice, every drawing's element somewhere */
+{
+  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
+  const navOf = (h) => (h.match(/<nav class="chapters">([\s\S]*?)<\/nav>/) || [, ""])[1].replace(/ class="here"| here/g, "");
+  const ids = (h) => [...h.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+  const sameNav = pages.every((p) => navOf(html[p]) === navOf(html.index) && navOf(html.index).length > 0), noDup = pages.every((p) => new Set(ids(html[p])).size === ids(html[p]).length);
+  const main = fs.readFileSync(path.join(dir, "js/main.js"), "utf8"), want = [...main.matchAll(/\["(\w+)", draw\w+\]/g)].map((m) => m[1]), all = new Set(pages.flatMap((p) => ids(html[p])));
+  const linked = pages.slice(1).every((p) => html.index.includes(`href="${p}.html"`));
+  ok(sameNav && noDup && want.length >= 12 && want.every((id) => all.has(id)) && linked, `the chapters: the same nav on all ${pages.length} pages, no id twice, all ${want.length} drawings have their element, the landing links every chapter`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

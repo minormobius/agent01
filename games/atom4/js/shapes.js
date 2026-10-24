@@ -1,4 +1,4 @@
-/* ATOM⁴ — sections 5 and 6: the six regular 4D solids, and darbon, each in its own tile (./tile.js). */
+/* ATOM⁴ — the shapes and darbon chapters' tiles: the six regular 4D solids, and darbon (./tile.js draws them). */
 import { polytopes, star, diamondNet } from "./polytopes.js";
 import { makeTile, eye, turn, turnLocal } from "./tile.js";
 
@@ -16,16 +16,16 @@ const net = (d, R, el) => { const n = diamondNet(d, R); return { balls: n.nodes.
 
 export const tiles = [];
 export function buildShapes() {
-  // 5 · the six
+  // the six
   const grid = $("solidTiles");
-  for (const p of polytopes()) {
+  if (grid) for (const p of polytopes()) {
     tiles.push(makeTile(grid, { P: p.V, lines: p.E, faces: p.F }, {
       title: `${p.name} <small>${p.sym}</small>`, start: tilted(),
       sub: `${p.V.length} vertices · ${p.E.length} edges · ${p.F.length} ${p.faceName}s · ${p.C.length} ${p.cellName} · 3D cousin: ${p.cousin}`,
     }));
   }
-  // 6 · darbon
-  const mols = $("darbonTiles");
+  // darbon
+  const mols = $("darbonTiles"); if (!mols) return;
   tiles.push(makeTile(mols, star(3, "C", ["H"]), { title: "CH₄, methane", sub: "four bonds to a tetrahedron's corners, 109.47° apart", start: tilted3(), spin: [0, 0.004], sliceRange: 1.3 }));
   tiles.push(makeTile(mols, star(4, "D", ["H"]), { title: "DH₅", sub: "five bonds to a 5-cell's corners, 104.48° apart", start: tilted(), sliceRange: 1.3 }));
   const chiral = (d, els) => {

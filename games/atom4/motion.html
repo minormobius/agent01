@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴, chapter 3: Motion and spin. F = ma, orbits, rotation in planes, tumbling bodies, electron spin with a handedness, and bonds that twist three ways." />
+<title>ATOM⁴ · Motion and spin — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="force.html">1 · the force</a><a href="light.html">2 · light</a><a href="motion.html" class="here">3 · motion and spin</a><a href="hydrogen.html">4 · hydrogen</a><a href="table.html">5 · the periodic table</a><a href="shapes.html">6 · the shapes</a><a href="darbon.html">7 · darbon</a></nav>
+  <h2>ATOM⁴ · chapter 3</h2>
+  <h1 class="ch">Motion and spin</h1>
+  <p class="lede">F = ma, orbits, rotation in planes, tumbling bodies, electron spin with a handedness, and bonds that twist three ways.</p>
+</header>
+<section id="points">
+  <h3>Things that move</h3>
+  <p><b>Points</b> move by F = ma, with four components where we have three, and momentum is kept. Under any central force a body never leaves the plane of its position and velocity, so a 4D orbit is a flat curve. The plane just leans in any of four directions. Under the pinned 1/r it's one of <b>Kepler's ellipses</b>, closed, because the Runge–Lenz vector, A = p²x − (x·p)p − x/r, is kept in any number of dimensions. Under Gauss's 1/r³ force there's <b>no stable orbit</b> (Ehrenfest, 1917): nudge a circle and the planet spirals off. Try both below.</p>
+  <h3 id="turning">Turning happens in planes</h3>
+  <p>In 3D you turn about an axis. In 4D a turn moves one plane and fixes the plane perpendicular to it, and there are <b>six</b> planes (xy, xz, xw, yz, yw, zw). So angular velocity and angular momentum have six components. They aren't arrows: they're one number per plane. A 4D body can turn in two perpendicular planes at once, at two rates: a <b>double rotation</b>. With equal rates (an <b>isoclinic</b> turn), nothing but the centre stands still, and every point moves round a great circle.</p>
+  <p>The six planes split into two independent sets of three, which commute. Every 4D turn is a <b>left</b> isoclinic turn and a <b>right</b> one at once. That's SU(2) × SU(2): two copies of the group that turns spin in our world, where there's one.</p>
+  <div class="tiles two" id="turnTiles"></div>
+  <h3 id="spin">Spin, with a handedness</h3>
+  <p><b>Electrons still come in pairs.</b> The smallest spin-½ objects of 4D turning have two states, so each orbital holds two electrons, as in our world. That's what gives <a href="table.html">the periodic table</a> its shells of 2, 10, 28. It's also what a relativistic electron gives: in 4 + 1 dimensions the Dirac equation has four components. The direction of time's matrix there is the product of the four space ones, so a slow electron's two large components carry only one half of SU(2) × SU(2).</p>
+  <p>That makes the spin <b>handed</b>. An electron's spin turns with the left half of any rotation and ignores the right half. A full turn in a single plane flips its sign, as ours does. A left-isoclinic turn spins it twice as fast. A right-isoclinic turn doesn't touch it at all: in the first tile the needle stops. Which half electrons belong to is a choice the universe makes once, and all matter shares it.</p>
+  <p><b>Magnetism has the same split.</b> A magnetic field has six components, one per plane, and they too divide into halves. Only the left half can flip an electron's spin. A field made only of the right half bends electrons' paths but leaves their spin levels unsplit.</p>
+  <p class="read">Assumed, not derived: that the electron is the smallest spinor (a four-state one, holding four to an orbital, is possible in principle), and that half-integer spin means it obeys Pauli's exclusion. The theorem behind that holds for local, relativistic theories, and the lens vacuum isn't fully one. We take both as part of the universe's definition.</p>
+  <h3 id="bodies">Tumbling, and twisting</h3>
+  <p><b>A rigid body</b> tumbles by Euler's equations in six components: in the body's frame dM/dt = [M, Ω], with M_ab = (j_a + j_b)Ω_ab. Energy, tr M² and the Pfaffian are kept. Manakov showed in 1976 that enough more is kept for the motion to be exactly solvable, as it is in 3D. A free 4D box never settles: the second tile tumbles one with nothing pushing it.</p>
+  <p><b>A bond</b> fixes a line, and the turns that keep a line are the 3D turns of the space across it: <b>three</b> angles of twist about every single bond, where ours has one. Each darbon of D₂H₈ holds four hydrogens on a small tetrahedron across the bond, and the two tetrahedra turn against each other in any 3D way. 4D chains are far floppier than ours, which matters to anything long and folded: proteins, plastics.</p>
+  <h4>For the molecular-dynamics view</h4>
+  <p>Positions, velocities and the step-by-step update (velocity Verlet) carry over unchanged, and so do bond-stretch and bond-angle terms, at 104.48°. What's new is twist potentials in three angles, and six-component angular velocity for rigid parts. The powers in the pairwise forces (Lennard-Jones's r⁻⁶ and r⁻¹², Coulomb's) come from 3D physics, and have to be re-derived through the lens before use.</p>
+</section>
+
+<footer class="pager"><a href="light.html">← 2 · Light</a><a href="hydrogen.html">4 · Hydrogen →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen4/">Lumen⁴</a> · <a href="../iris4/">IRIS⁴</a> · <a href="../katabasis/">KATABASIS</a> · <a href="../">the arcade</a></p>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

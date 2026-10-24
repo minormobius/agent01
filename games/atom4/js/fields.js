@@ -55,3 +55,25 @@ export const effective = (r, d, V) => { const L = (d - 3) / 2; return (L * (L + 
 export const circularOrbitStable = (q) => q < 3;
 /* the angle between the bonds of an sp^d hybrid: the corners of a regular simplex, cos θ = −1/d */
 export const bondAngle = (d) => (Math.acos(-1 / d) * 180) / Math.PI;
+
+/* ---------------------------------------------------------------- the official position: the lens vacuum
+   Of the routes, this universe takes a vacuum with ε(k) = ε₀ ℓ k and μ(k) = μ₀ / (ℓ k), the same in every direction
+   and at every frequency, set by a length ℓ. Write E′ = D/ε₀ and B′ = μ₀ H. Then (E′, B′) obey Maxwell's equations
+   in empty 4D space exactly, with the same charges and currents: that is light, Lumen⁴'s light, unchanged. What
+   pushes a charge is E = E′/(ℓ|k|), B = B′/(ℓ|k|): the light seen through a lens that blurs it with a 1/r³ kernel,
+   at each instant, across all of space. Statics: 1/(ℓ k³), the pinned 1/r. Waves: k² = εμ ω²/c², so ω = ck at
+   every wavelength. Energy, ½(E·D + B·H) = (E′² + c²B′²) ε₀/(2ℓ|k|), is never negative: no ghosts. The price:
+   the blur is instantaneous, so a charge feels another's change at once, everywhere: a preferred frame, an
+   absolute "now", and no relativity for electromagnetism. */
+export const lensEps = (k, ell) => ell * k; // relative permittivity
+export const lensMu = (k, ell) => 1 / (ell * k);
+export const lensOmega = (k, ell) => k / Math.sqrt(lensEps(k, ell) * lensMu(k, ell)); // c = 1
+export const LENS_STATIC_POWER = 3 / 2; // φ(k) ∝ 1/(ε k²) = 1/(ℓ k³): a = 3/2, so 1/r in 4D
+/* what a charge feels of light of frequency ω, against 4D Maxwell: every free wave of one frequency has |k| = ω/c, so
+   the lens is one number for it, c/ℓω. Patterns (diffraction, rainbows) are untouched; long waves push harder */
+export const lensFactor = (omega, ell) => 1 / (omega * ell);
+/* scattering by a small particle (constant polarizability): a dipole radiates ∝ ω^(d+1) in d dimensions (ω⁴ ours,
+   ω⁵ in 4D Maxwell). Through the lens, the push on the particle and the energy in what it re-radiates each carry
+   c/ℓω against an incident flux that carries one: σ ∝ ω^(d+1) (c/ℓω)², so ω³ in this universe. The sky is still blue,
+   less steeply than ours */
+export const scatterExponent = (d, lens) => d + 1 - (lens ? 2 : 0);

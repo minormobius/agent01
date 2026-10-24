@@ -32,14 +32,19 @@ function orthonormal(M) { // Gram–Schmidt on the rows, against drift
   return out.flat();
 }
 
-export function makeTile(host, scene, { title = "", sub = "", start = eye(), spin = [0.0035, 0.0021], extras = [], R = 1.15, sliceRange = 1 } = {}) {
+/* options: spin, the idle turn, as [xw, yz] rates or a list of [a, b, rate] planes; step(T), run every frame while
+   on screen (a simulation; it may change scene.P and the balls in place); overlay(g, w, h, T), drawn last;
+   onTurn(a, b, θ), told of every turn of the view, the idle spin and drags included */
+export function makeTile(host, scene, { title = "", sub = "", start = eye(), spin = [0.0035, 0.0021], extras = [], R = 1.15, sliceRange = 1, step = null, overlay = null, onTurn = null } = {}) {
   const el = document.createElement("div"); el.className = "tile";
   el.innerHTML = `<div class="th"><b>${title}</b><span>${sub}</span></div><canvas></canvas>
     <div class="tc"><button type="button" data-m="turn" class="on">turn</button><button type="button" data-m="w">through w</button><button type="button" data-v="slice">slice</button>${extras.map((x, i) => `<button type="button" data-x="${i}">${x.label}</button>`).join("")}</div>
     <label class="hs" hidden>w = <input type="range" min="${-sliceRange}" max="${sliceRange}" step="0.005" value="0" /><output>0.00</output></label>`;
   host.appendChild(el);
   const cv = el.querySelector("canvas"), slider = el.querySelector(".hs input"), out = el.querySelector(".hs output");
-  const T = { el, M: start.slice(), L: {}, mode: "turn", slice: false, h: 0, spinning: true, scene, draw: null };
+  const planes = (sp) => (Array.isArray(sp[0]) ? sp : [[0, 3, sp[0]], [1, 2, sp[1]]]).filter((x) => x[2]);
+  const T = { el, M: start.slice(), L: {}, mode: "turn", slice: false, h: 0, spin: planes(spin), spinning: planes(spin).length > 0, scene, draw: null };
+  T.rot = (a, b, th) => { T.M = turn(T.M, a, b, th); if (onTurn) onTurn(a, b, th); };
   T.groupCentre = (g) => { const bs = scene.balls.filter((b) => (b.group || 0) === g); return [0, 1, 2, 3].map((k) => bs.reduce((s, b) => s + b.p[k], 0) / bs.length); };
   const world = (p, g) => { if (!T.L[g]) return apply(T.M, p); const c = T.groupCentre(g), q = apply(T.L[g], p.map((v, i) => v - c[i])); return apply(T.M, q.map((v, i) => v + c[i])); };
 
@@ -89,6 +94,7 @@ export function makeTile(host, scene, { title = "", sub = "", start = eye(), spi
     }
     items.sort((a, b) => a.z - b.z).forEach((it) => it.f());
     if (T.slice) { g.fillStyle = "rgba(154,149,140,0.9)"; g.font = "10px ui-monospace, Menlo, monospace"; g.fillText(`the 3D slice at w = ${T.h.toFixed(2)}`, 6, h - 6); }
+    if (overlay) overlay(g, w, h, T);
   }
   T.draw = draw;
 
@@ -98,7 +104,7 @@ export function makeTile(host, scene, { title = "", sub = "", start = eye(), spi
   cv.addEventListener("pointermove", (e) => {
     if (!drag || e.pointerId !== drag.id) return;
     const dx = (e.clientX - drag.x) * 0.012, dy = drag.touch ? 0 : (e.clientY - drag.y) * 0.012; drag.x = e.clientX; drag.y = e.clientY;
-    const k = T.mode === "w" ? 3 : 2; T.M = orthonormal(turn(turn(T.M, 0, k, dx), 1, k, -dy)); draw();
+    const k = T.mode === "w" ? 3 : 2; T.rot(0, k, dx); T.rot(1, k, -dy); T.M = orthonormal(T.M); draw();
   });
   const end = () => { drag = null; }; cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
   el.querySelector(".tc").addEventListener("click", (e) => {
@@ -111,7 +117,15 @@ export function makeTile(host, scene, { title = "", sub = "", start = eye(), spi
   slider.addEventListener("input", () => { T.h = +slider.value; out.textContent = T.h.toFixed(2); draw(); });
   // a slow double rotation until it's touched, only while on screen
   let visible = false, raf = 0;
-  const tick = () => { raf = 0; if (!visible) return; if (T.spinning) { T.M = orthonormal(turn(turn(T.M, 0, 3, spin[0]), 1, 2, spin[1])); draw(); } if (T.spinning || T.anim) raf = requestAnimationFrame(tick); };
+  const tick = () => {
+    raf = 0; if (!visible) return;
+    if (T.spinning) { for (const [a, b, r] of T.spin) T.rot(a, b, r); T.M = orthonormal(T.M); }
+    if (step) step(T);
+    if (T.spinning || step) draw();
+    if (T.spinning || T.anim || step) raf = requestAnimationFrame(tick);
+  };
+  /* set the idle turn and start it */
+  T.setSpin = (sp) => { T.spin = planes(sp); T.spinning = T.spin.length > 0; T.wake(); };
   T.wake = () => { if (!raf && visible) raf = requestAnimationFrame(tick); };
   new IntersectionObserver(([en]) => { visible = en.isIntersecting; if (visible) { draw(); T.wake(); } }).observe(cv);
   /* run f(t) for t from 0 to 1 over ms, redrawing */

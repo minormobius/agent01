@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴, chapter 5: The periodic table. Every atom to element 78, solved, with our own table as the check, and what partial screening does." />
+<title>ATOM⁴ · The periodic table — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="force.html">1 · the force</a><a href="light.html">2 · light</a><a href="motion.html">3 · motion and spin</a><a href="hydrogen.html">4 · hydrogen</a><a href="table.html" class="here">5 · the periodic table</a><a href="shapes.html">6 · the shapes</a><a href="darbon.html">7 · darbon</a></nav>
+  <h2>ATOM⁴ · chapter 5</h2>
+  <h1 class="ch">The periodic table</h1>
+  <p class="lede">Every atom to element 78, solved, with our own table as the check, and what partial screening does.</p>
+</header>
+<section id="table">
+  <h3>The table</h3>
+    <p>Beyond hydrogen there's no closed form. Each electron moves in the nucleus's pull and the averaged cloud of all the others, and the cloud depends on the electrons, so we iterate until they agree: <b>Hartree's self-consistent field</b>. For each atom the solver tries the filling the orbital energies suggest, and the neighbouring ones, and keeps the lowest total energy. To know how far to trust it, we ran the same code in 3D first: it gets <b>34 of our first 36 elements right</b>. The two it misses, chromium and copper, are the famous exceptions, which need an effect it leaves out (<a href="#trust">below</a>).</p>
+  <p>The 4D table's rows are <b>2, 10, 10, 28, 28</b> long where ours are 2, 8, 8, 18, 18: the same doubling, with 4D's bigger shells. Tap any element (on a phone, swipe the table sideways).</p>
+  <div class="seg" id="dimSel"><button type="button" data-d="4" class="on">4D, force pinned at 1/r</button><button type="button" data-d="3">3D, ours (the check)</button></div>
+  <div class="ptwrap"><div class="pt" id="pt"></div></div>
+  <div class="legend" id="ptLegend"></div>
+  <div class="detail" id="detail"></div>
+</section>
+<section id="trends">
+  <h3>Periodic, with longer periods</h3>
+    <p>How hard each atom holds its outermost electron (the energy to pull it off, worked out for the relaxed ion). The peaks are the noble gases: an atom with every shell full. The drops just after them are the alkali metals, one electron outside a full shell. The dots are our real measured values: the solver's 3D line has the right shape but sits <b>about a third too low</b>, because it leaves out exchange (<a href="#trust">below</a>). Read the 4D numbers the same way.</p>
+  <canvas class="chart tall" id="cIon"></canvas>
+  <p class="read" id="rIon"></p>
+  <p>One thing runs the other way. Our noble gases hold their electrons less tightly down the column (helium, neon, argon, krypton). <b>4D's hold them tighter</b>: element 12, 22, 50, 78 each harder to ionize than the last. The <a href="#screen">next section</a> shows why: it's the shell theorem failing. And so 4D atoms don't grow much down a column. The chart below is how far out the outermost electron sits.</p>
+  <canvas class="chart" id="cSize"></canvas>
+</section>
+<section id="screen">
+  <h3>Inner electrons screen only partly</h3>
+  <p>The solver uses the true sphere-averaged pull, k(s/r)/r (<a href="force.html#maxwell">the force</a>), at every radius, where in 3D it would be just 1/max(r, s). And it matters. Outside a shell, k makes the inner electrons' cloud push less than the same charge at the centre would, so <b>inner electrons only partly screen the nucleus</b>. The outer electrons feel more of it, and more as the atom gets heavier. Here are the noble gases, each one's grip on its outermost electron, solved twice: once with the true pull, and once as if the shell theorem held.</p>
+  <canvas class="chart" id="cScreen"></canvas>
+  <p class="read" id="rScreen"></p>
+  <p>The same fact means <b>a neutral 4D atom isn't neutral from outside</b>. Ours, seen from beyond its cloud, has no field at all: the cloud cancels the nucleus exactly. A 4D atom still pulls on a passing electron, with a potential <b>−Σr² / 8s³</b> (Σr² summed over its electrons), because the cloud never quite cancels. Matter built from such atoms would be stickier than ours in ways this page doesn't attempt to work out.</p>
+</section>
+<section id="trust">
+  <h3>How far to trust it</h3>
+    <p><b>What's exact:</b> hydrogen in both worlds, the shell sizes, the sphere-averaged kernel k(t), and everything in <a href="force.html">the force</a>. <b>What's approximate:</b> Hartree's method treats each electron as moving in the averaged cloud of the others. It leaves out <b>exchange</b> (the Pauli principle's push between electrons of the same spin), so it underbinds, and it averages every open shell into a sphere. That's why it misses chromium and copper, which half-fill and fill their 3d shell by taking an electron from 4s, an exchange effect. Helium's total energy comes out −2.8617 hartree, the exact Hartree–Fock value (the true one is −2.9037). Neon's is −126.4 to Hartree–Fock's −128.5. Ionization energies suffer most, about a third too low across the p block. In 4D the solver finds a few transition metals (elements 64 to 67) giving up their outer s electrons for the d shell, as palladium does in ours. Those are the least trustworthy entries on the page. We also leave out relativity (it matters beyond about Z = 50 here, as with gold's colour in ours) and spin's effects (its handedness and fine structure are in <a href="motion.html#spin">motion and spin</a>), counting spin as two states per orbital. A 4D table built with exchange might move a few transition metals' configurations. We expect the main-group skeleton, the period lengths and the noble gases, to stand.</p>
+</section>
+
+<footer class="pager"><a href="hydrogen.html">← 4 · Hydrogen</a><a href="shapes.html">6 · The shapes →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen4/">Lumen⁴</a> · <a href="../iris4/">IRIS⁴</a> · <a href="../katabasis/">KATABASIS</a> · <a href="../">the arcade</a></p>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
