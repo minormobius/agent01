@@ -2597,6 +2597,15 @@
    "parent": "games"
   },
   {
+   "id": "lumen4",
+   "name": "lumen4",
+   "url": "https://games.mino.mobi/lumen4/",
+   "cat": "games",
+   "commits": 2,
+   "age": "warm",
+   "parent": "games"
+  },
+  {
    "id": "plateau",
    "name": "plateau",
    "url": "https://games.mino.mobi/plateau/",

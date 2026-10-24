@@ -3894,6 +3894,23 @@
       ]
     },
     {
+      "n": "lumen4",
+      "u": "https://games.mino.mobi/lumen4/",
+      "c": "games",
+      "k": 2,
+      "a": "warm",
+      "t": "2026-10-24",
+      "b": "2026-10-24",
+      "p": "games",
+      "surface": "games",
+      "d": "Light in four dimensions, worked out and drawn beside our own: a point source fades as 1/r³; a laser is still a line, a dot in your slice; a flash leaves a negative wake, because Huygens' principle holds only in odd dimensions; a round hole's first dark ring moves out to 1.43 λ/D; glare at Brewster's angle is polarized in a plane; hot bodies look bluer and radiate as T⁵; and the rainbow shrinks in your slice as the sun leans into w. Every number checked by a selftest.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "plateau",
       "u": "https://games.mino.mobi/plateau/",
       "c": "games",
