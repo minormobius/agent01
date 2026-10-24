@@ -367,6 +367,20 @@ These live here:
   controls below (side by side on wide screens). Imports
   `../../lumen4/js/optics.js` and `../../foam4/js/foam.js`, so run their selftests after a change there. See
   [`iris4/README.md`](iris4/README.md).
+- **ATOM⁴ at `/atom4/`**: an understanding toy (no cabinet): the periodic
+  table of a 4D world with the potential pinned at 1/r (Gauss's 1/r² has no
+  ground state). `atom4/js/atom.js` (no DOM) is the solver: Numerov on a log
+  grid with L = l + (d−3)/2, energies by Sturm bisection (stop where h²f/12 >
+  ½ or Numerov fakes nodes), Hartree SCF with the sphere-averaged kernel
+  (1/max in 3D; k(min/max)/max in 4D, k(1) = 8/3π), and the ground-config
+  search. `js/fields.js` is the "rewrite Maxwell" closed forms (1/k³, the
+  unitarity bound, ε(k) = ℓk light, the compact dimension). `js/periodic.js`
+  is the layout and our real table. `js/table.js` is **generated** by
+  `atom4/tools/bake.mjs` (~6 min, worker threads; re-run it after any change
+  to `atom.js`, since the selftest recomputes a sample and fails on drift).
+  The 3D run gets 34 of 36 configurations right, missing Cr and Cu (no
+  exchange). Imports `../../lumen4/js/optics.js` for line colours. See
+  [`atom4/README.md`](atom4/README.md).
 - **PLATEAU at `/plateau/`**: flight through Foam⁴'s foam, from the
   cockpit. You're a rigid body in 4D (P and R, U, F, N); every turn is a
   double rotation that turns its plane and, by `COUPLING` (0.5) as much, the
@@ -498,7 +512,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/lumen4/`, `/iris4/`, `/plateau/`, `/katabasis/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/lumen4/`, `/iris4/`, `/atom4/`, `/plateau/`, `/katabasis/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -558,6 +572,7 @@ node games/hinton/test/hinton.selftest.mjs       # every level of both lanes wal
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
 node games/lumen4/test/lumen4.selftest.mjs       # falloff and beams, the flash (each field solves its own wave equation, u₄ from u₂, the wake), Airy vs 3-ball (zeros, Rayleigh, totals), Fresnel and polarizers, Planck (totals, Wien, T⁴/T⁵, colour), both bows against the closed form, the rainbow in a slice vs brute force, the bow on a screen a conic with e = sin γ / cos ρ, and in any frame e = √(a_R² + a_U²)/cos θ (<1 s)
 node games/iris4/test/iris4.selftest.mjs         # the land deterministic and seamless, every block's max, the two-level march vs brute force (seams, axes), faces met from outside, walking's step-up and slide; for both foams the circumradius, the facet march vs brute force, the ground straight down, walking; lakes over the foam (~10 s)
+node games/atom4/test/atom4.selftest.mjs         # hydrogen exact in 3D and 4D (levels, radius), shells, the kernel k (closed values, series, Monte Carlo), helium vs Hartree–Fock, the baked table complete and reproducible, the 3D run vs our table (only Cr, Cu differ; nobles; ionization), the 4D table's shape, partial screening vs the shell-theorem counterfactual, a neutral atom's far pull, the field theory's closed forms (~25 s)
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
 node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the guide counting par and naming flips that each leave one fewer, the ready ring agreeing with tryFlip and the fairy rings covering every flip place, the grotto's lights in open air and the cave untouched by it (~25 s)
