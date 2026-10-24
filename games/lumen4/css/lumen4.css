@@ -32,6 +32,7 @@ output { color: var(--text); min-width: 4.5em; }
 .seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .seg button { font: 600 12px var(--mono); background: none; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px; cursor: pointer; }
 .seg button.on { border-color: var(--d4); color: var(--d4); }
+.eq { text-align: center; font: 14px var(--mono); color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
 .read { font: 13px/1.6 var(--mono); color: var(--dim); } .read b { color: var(--text); }
 .foot { margin: 36px 0 48px; font: 13px var(--mono); } .foot a { color: var(--text); }
 @media (max-width: 560px) { h1 { font-size: 34px; } .pair:not(.swatches) { flex-direction: column; } canvas.chart { height: 210px; } .ctl input[type=range] { width: 130px; } }

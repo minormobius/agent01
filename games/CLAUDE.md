@@ -341,7 +341,11 @@ These live here:
   polarized in a plane), Planck in n dimensions (ν^n/(eˣ − 1), T^(n+1),
   colours via CIE), the rainbow cut by a slice (ρ = arccos(cos θ/cos β)),
   and that bow on a flat screen as a conic section (e = sin γ / cos ρ: leaning
-  the sun into w turns a hyperbola into a parabola, an ellipse, a point).
+  the sun into w turns a hyperbola into a parabola, an ellipse, a point). Who
+  moved doesn't matter: with the antisolar direction in your own frame
+  (`antisolarInFrame`: sun's lean, turn, twist, look into w), the bow exists iff
+  |a_N| ≤ sin θ and e = √(a_R² + a_U²)/cos θ, so looking into w never changes
+  its shape.
   The selftest checks each against closed forms, the wave equation itself and
   brute force. See [`lumen4/README.md`](lumen4/README.md).
 - **PLATEAU at `/plateau/`**: flight through Foam⁴'s foam, from the
@@ -533,7 +537,7 @@ node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds; ev
 node games/anabasis/test/anabasis.selftest.mjs   # two downs on small worlds (held, slip, no climbing in w, ramps round walls and holding you up, fall out, fall for ever, crates); every level solved walking, par pinned, proved impossible without its gravity / ramps / crates / wrap; generated rooms deterministic, in band, proved, opened from their codes (<1 s)
 node games/hinton/test/hinton.selftest.mjs       # every level of both lanes walked continuously to the goal at par, the solver's state after every move; walls stop you short; landing keeps you in your cell (a few s)
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
-node games/lumen4/test/lumen4.selftest.mjs       # falloff and beams, the flash (each field solves its own wave equation, u₄ from u₂, the wake), Airy vs 3-ball (zeros, Rayleigh, totals), Fresnel and polarizers, Planck (totals, Wien, T⁴/T⁵, colour), the rainbow in a slice vs brute force, the bow on a screen a conic with e = sin γ / cos ρ (<1 s)
+node games/lumen4/test/lumen4.selftest.mjs       # falloff and beams, the flash (each field solves its own wave equation, u₄ from u₂, the wake), Airy vs 3-ball (zeros, Rayleigh, totals), Fresnel and polarizers, Planck (totals, Wien, T⁴/T⁵, colour), the rainbow in a slice vs brute force, the bow on a screen a conic with e = sin γ / cos ρ, and in any frame e = √(a_R² + a_U²)/cos θ (<1 s)
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
 node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the guide counting par and naming flips that each leave one fewer, the ready ring agreeing with tryFlip and the fairy rings covering every flip place, the grotto's lights in open air and the cave untouched by it (~25 s)

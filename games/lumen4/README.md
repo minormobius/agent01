@@ -21,6 +21,7 @@ of how it's computed.
 | a hot body | ν³/(eˣ − 1), power ∝ T⁴ | ν⁴/(eˣ − 1), power ∝ T⁵ | modes grow as ν^(n−1); 5800 K looks warm white to us and bluish white in 4D |
 | a rainbow | a 42° circle | a 42° cone, cut by your slice | in your slice a circle of radius arccos(cos 42°/cos β) when the sun leans β into w, gone past 42°; violet goes first |
 | a rainbow on a screen | a conic, e = sin γ / cos 42° | a conic, e = sin γ / cos ρ(β) | a flat screen cuts the cone off its tip. In 3D only your gaze γ changes the shape; in 4D, leaning the sun shrinks ρ, so with your gaze held the bow goes hyperbola → parabola → ellipse → circle → point → gone. A 4D creature's 3D sensor would see a quadric (spheroid, paraboloid, hyperboloid sheet), and your screen is a slice of it |
+| who moved | – | doesn't matter | only the antisolar direction in your own frame counts, a = (a_F, a_R, a_U, a_N): the bow is in your slice iff \|a_N\| ≤ sin θ, and e = √(a_R² + a_U²) / cos θ. Turning and twisting change e; looking into w (forward toward w) can't, so the bow keeps its shape while it shrinks and slides, until it's gone |
 
 **What doesn't change** is anything that happens in a plane: refraction
 (Snell's law, total internal reflection), slit diffraction, interference,
@@ -66,7 +67,12 @@ node games/lumen4/test/lumen4.selftest.mjs   # < 1 s
   (cos γ + x sin γ)² = cos²ρ(1 + x² + y²), its type is the sign of
   sin²γ − cos²ρ, e = sin γ / cos ρ (also measured off the drawn ellipses), and
   with your gaze held at 60° leaning the sun turns hyperbola into ellipse
-  through a parabola at β = 31.4°.
+  through a parabola at β = 31.4°;
+- who moved doesn't matter: from 300 random frames (sun's lean, turn, twist,
+  look into w) the bow exists exactly when |a_N| ≤ sin θ, every point drawn
+  lies on its conic, e = √(a_R² + a_U²)/cos θ against the conic's own
+  quadratic form, the (β, γ) form is a special case, and looking into w keeps
+  e while turning and twisting change it.
 
 ## Next
 

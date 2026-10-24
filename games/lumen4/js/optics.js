@@ -188,3 +188,39 @@ export function bowOnScreen(rho, gamma, N = 720) {
   }
   return pts;
 }
+
+/* ------------------------------------------------------------- the bow in your own frame
+   Who moved doesn't matter, the sun or you: only where the antisolar direction a sits in your frame, its components
+   (a_F, a_R, a_U, a_N) along your forward, right, up and w. The screen's conic is (a_F + a_R x + a_U y)² = cos²θ
+   (1 + x² + y²); its quadratic part has eigenvalues −cos²θ and a_R² + a_U² − cos²θ, so
+     the bow is in your slice   iff |a_N| ≤ sin θ
+     its eccentricity on screen     e = √(a_R² + a_U²) / cos θ   (ellipse below 1, parabola at 1, hyperbola above)
+   Turning (F toward R) and twisting (R toward N) change e; looking into w (F toward N) leaves a_R and a_U alone, so it
+   changes the bow's size and place but never its shape, until |a_N| passes sin θ and it's gone. With a = (cos β cos γ,
+   cos β sin γ, 0, sin β) this is conicE above. */
+export const bowExists = (a, theta) => Math.abs(a[3]) <= Math.sin(theta) + 1e-12;
+export const bowE = (a, theta) => Math.hypot(a[1], a[2]) / Math.cos(theta);
+export const bowType = (a, theta) => { const e = bowE(a, theta); return !bowExists(a, theta) ? "none" : Math.abs(e - 1) < 1e-9 ? "parabola" : e < 1e-9 ? "circle" : e < 1 ? "ellipse" : "hyperbola"; };
+/* the antisolar direction in your frame: the sun leaning β into w (a = (cos β, 0, 0, sin β) in the grid's F, R, U, N),
+   and you turned by γ (F toward R), then twisted by τ (R toward N), then looking η into w (F toward N), each about your
+   own frame as it is */
+export function antisolarInFrame(beta, gam, tau, eta) {
+  const rot = (fr, i, j, t) => { const c = Math.cos(t), s = Math.sin(t), A = fr[i], B = fr[j]; fr[i] = A.map((v, k) => c * v + s * B[k]); fr[j] = B.map((v, k) => -s * A[k] + c * v); };
+  const fr = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; // F, R, U, N
+  rot(fr, 0, 1, gam); rot(fr, 1, 3, tau); rot(fr, 0, 3, eta);
+  const a = [Math.cos(beta), 0, 0, Math.sin(beta)];
+  return fr.map((v) => v.reduce((s, x, k) => s + x * a[k], 0));
+}
+/* the bow's points on your screen for antisolar direction a (your frame) and rainbow angle θ */
+export function bowOnScreenA(a, theta, N = 720) {
+  const s = Math.hypot(a[0], a[1], a[2]); if (s < Math.cos(theta)) return [];
+  const as = [a[0] / s, a[1] / s, a[2] / s], rho = Math.acos(Math.cos(theta) / s);
+  const t = Math.abs(as[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0], d1 = t.reduce((q, v, i) => q + v * as[i], 0);
+  let e1 = t.map((v, i) => v - d1 * as[i]); const m = Math.hypot(...e1); e1 = e1.map((v) => v / m);
+  const e2 = [as[1] * e1[2] - as[2] * e1[1], as[2] * e1[0] - as[0] * e1[2], as[0] * e1[1] - as[1] * e1[0]], pts = [];
+  for (let k = 0; k <= N; k++) {
+    const ph = (k / N) * 2 * Math.PI, d = as.map((v, i) => Math.cos(rho) * v + Math.sin(rho) * (Math.cos(ph) * e1[i] + Math.sin(ph) * e2[i]));
+    pts.push(d[0] > 1e-6 ? [d[1] / d[0], d[2] / d[0]] : null);
+  }
+  return pts;
+}

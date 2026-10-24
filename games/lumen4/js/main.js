@@ -159,35 +159,39 @@ function drawBow() {
 }
 
 /* ------------------------------------------------------------- 7 · the rainbow on a screen */
+const trail = [];
 function drawConic() {
-  const gam = +$("gam").value * DEG, beta = +$("beta2").value * DEG; $("gamV").textContent = `${(gam / DEG).toFixed(1)}°`; $("beta2V").textContent = `${(beta / DEG).toFixed(1)}°`;
+  const v = (id) => +$(id).value * DEG, beta = v("beta2"), gam = v("gam"), tau = v("tau"), eta = v("eta");
+  for (const [id, x] of [["beta2", beta], ["gam", gam], ["tau", tau], ["eta", eta]]) $(id + "V").textContent = `${(x / DEG).toFixed(1)}°`;
+  const a = O.antisolarInFrame(beta, gam, tau, eta), red = BOW[BOW.length - 1];
   // the screen: ±2.6 (tan of about 69°) each way, looking straight ahead
   const { g, w, h } = ctx2d($("cScreen")), cx = w / 2, cy = h / 2, S = (Math.min(w, h) / 2 - 6) / 2.6;
   g.strokeStyle = "rgba(255,255,255,0.08)"; g.beginPath(); g.moveTo(cx, 6); g.lineTo(cx, h - 6); g.moveTo(6, cy); g.lineTo(w - 6, cy); g.stroke();
   g.lineWidth = 2.5;
-  for (const b of [BOW[0], BOW[3], BOW[5], BOW[BOW.length - 1]]) {
-    const rho = O.rainbowInSlice(b.th, beta); if (rho === null) continue;
+  for (const b of [BOW[0], BOW[3], BOW[5], red]) {
+    if (!O.bowExists(a, b.th)) continue;
     g.strokeStyle = `rgba(${b.c.join(",")},0.9)`; g.beginPath(); let on = false;
-    for (const q of O.bowOnScreen(rho, gam)) { if (!q || Math.abs(q[0]) > 40 || Math.abs(q[1]) > 40) { on = false; continue; } const x = cx + q[0] * S, y = cy - q[1] * S; if (on) g.lineTo(x, y); else g.moveTo(x, y); on = true; }
+    for (const q of O.bowOnScreenA(a, b.th)) { if (!q || Math.abs(q[0]) > 40 || Math.abs(q[1]) > 40) { on = false; continue; } const x = cx + q[0] * S, y = cy - q[1] * S; if (on) g.lineTo(x, y); else g.moveTo(x, y); on = true; }
     g.stroke();
   }
-  g.lineWidth = 1; const ax = Math.tan(gam) * S;
-  g.fillStyle = "rgba(255,255,255,0.6)"; if (cx + ax < w) { g.beginPath(); g.arc(cx + ax, cy, 3, 0, 2 * Math.PI); g.fill(); }
+  g.lineWidth = 1;
+  if (a[0] > 1e-6) { const x = cx + (a[1] / a[0]) * S, y = cy - (a[2] / a[0]) * S; g.fillStyle = "rgba(255,255,255,0.6)"; g.beginPath(); g.arc(x, y, 3, 0, 2 * Math.PI); g.fill(); }
   g.font = "11px ui-monospace, Menlo, monospace"; g.fillStyle = "#9fb3d9"; g.textAlign = "center"; g.fillText("your screen · • the antisolar shadow", cx, h - 12);
-  // the map: which conic, for every gaze and lean; the parabola line is γ = 90° − ρ(β)
-  const red = BOW[BOW.length - 1], bs = range(0, 45, 300);
-  chart($("cConic"), { legendLeft: true, x: [0, 45], y: [0, 90], xl: "sun's lean into w, β (°)", yl: "gaze γ (°)",
-    series: [{ pts: bs.map((x) => { const r = O.rainbowInSlice(red.th, x * DEG); return [x, r === null ? NaN : 90 - r / DEG]; }), c: "#ffd27a", label: "parabola: hyperbola above, ellipse below" }, { pts: [[beta / DEG, gam / DEG], [beta / DEG + 0.01, gam / DEG]], c: C4, w: 9 }],
-    vlines: [{ x: red.th / DEG, c: DIM, label: "no bow" }] });
-  const rho = O.rainbowInSlice(red.th, beta);
-  $("rConic").innerHTML = rho === null ? `The sun leans past ${(red.th / DEG).toFixed(1)}°: no bow in your slice, so none on your screen.` :
-    `The red bow: half-angle ρ = <b>${(rho / DEG).toFixed(1)}°</b> in your slice; on your screen ${/^[aeiou]/.test(O.conicType(rho, gam)) ? "an" : "a"} <b>${O.conicType(rho, gam)}</b>, e = sin γ / cos ρ = <b>${O.conicE(rho, gam).toFixed(3)}</b>. ` +
-    (O.conicType(rho, gam) === "hyperbola" ? `Lean the sun ${(Math.acos(Math.cos(red.th) / Math.cos(Math.PI / 2 - gam)) / DEG).toFixed(1)}° into w and it becomes a parabola.` : "");
+  // the map: where a sits in your frame, off in w (|a_N|) against across your screen (√(a_R² + a_U²))
+  const px = Math.abs(a[3]), py = Math.hypot(a[1], a[2]), last = trail[trail.length - 1];
+  if (!last || Math.hypot(last[0] - px, last[1] - py) > 0.004) { trail.push([px, py]); if (trail.length > 400) trail.shift(); }
+  const arc = range(0, Math.PI / 2, 100).map((t) => [Math.sin(t), Math.cos(t)]), sT = Math.sin(red.th), cT = Math.cos(red.th);
+  chart($("cConic"), { legendLeft: true, x: [0, 1], y: [0, 1.02], xl: "|a_N|: off in w", yl: "√(a_R²+a_U²): across your screen",
+    series: [{ pts: [[0, cT], [Math.sqrt(1 - cT * cT), cT]], c: "#ffd27a", label: "parabola" }, { pts: [[sT, 0], [sT, Math.sqrt(1 - sT * sT)]], c: DIM, dash: [4, 4], label: "no bow beyond" }, { pts: arc, c: GRID, w: 1 },
+      { pts: trail.slice(), c: "rgba(111,224,255,0.35)", w: 1.5 }, { pts: [[px, py], [px + 0.002, py]], c: C4, w: 9 }] });
+  const t = O.bowType(a, red.th), art = /^[aeiou]/.test(t) ? "an" : "a";
+  $("rConic").innerHTML = `In your frame the antisolar direction is (a_F, a_R, a_U, a_N) = (<b>${a.map((x) => x.toFixed(3)).join(", ")}</b>). ` +
+    (t === "none" ? `|a_N| = ${px.toFixed(3)} > sin ${(red.th / DEG).toFixed(1)}° = ${sT.toFixed(3)}: no bow in your slice.` : `The red bow on your screen is ${art} <b>${t}</b>, e = √(a_R² + a_U²) / cos ${(red.th / DEG).toFixed(1)}° = <b>${O.bowE(a, red.th).toFixed(3)}</b>.`);
 }
 
 /* ------------------------------------------------------------- wiring */
 for (const b of document.querySelectorAll("#srcK button")) b.onclick = () => { srcK = +b.dataset.k; for (const x of document.querySelectorAll("#srcK button")) x.classList.toggle("on", x === b); drawFall(); };
-$("sig").oninput = $("rDet").oninput = drawTrace; $("nGl").oninput = drawGlare; $("T").oninput = drawHot; $("beta").oninput = drawBow; $("gam").oninput = $("beta2").oninput = drawConic;
+$("sig").oninput = $("rDet").oninput = drawTrace; $("nGl").oninput = drawGlare; $("T").oninput = drawHot; $("beta").oninput = drawBow; for (const id of ["gam", "beta2", "tau", "eta"]) $(id).oninput = drawConic;
 const all = () => { drawFall(); drawBeam(); drawTrace(); drawHole(); drawGlare(); drawHot(); drawBow(); drawConic(); };
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(all, 120); });
 all();

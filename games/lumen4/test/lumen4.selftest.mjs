@@ -117,5 +117,32 @@ ok([[3, 0, 2], [3, 1, 1], [3, 2, 0], [4, 0, 3], [4, 1, 2], [4, 2, 1], [4, 3, 0]]
   ok(seq.join(" → ") === "hyperbola → ellipse → none" && Math.abs(O.conicE(rp, gam) - 1) < 1e-9, `gaze held at 60°, the sun leaning into w turns the bow ${seq.join(" → ")}, through a parabola at β = ${(bp / DEG).toFixed(2)}°`);
 }
 
+/* who moved doesn't matter: only the antisolar direction in your own frame, a = (a_F, a_R, a_U, a_N). The bow is in
+   your slice iff |a_N| ≤ sin θ, and its eccentricity on screen is √(a_R² + a_U²) / cos θ */
+{
+  const th = O.rainbowAngle(O.waterN(700)), c = Math.cos(th);
+  let rs = 7; const rnd = () => ((rs = (Math.imul(rs, 1103515245) + 12345) >>> 0) / 4294967296);
+  let eWorst = 0, onWorst = 0, exist = true;
+  for (let k = 0; k < 300; k++) {
+    const a = O.antisolarInFrame(rnd() * 1.2, rnd() * 1.4, (rnd() - 0.5) * 3, (rnd() - 0.5) * 2);
+    // e from the conic's own quadratic form: eigenvalues of [[a_R² − c², a_R a_U], [a_R a_U, a_U² − c²]]
+    const p = a[1] * a[1] - c * c, q = a[1] * a[2], r = a[2] * a[2] - c * c, tr = p + r, d = Math.sqrt(Math.max(0, (tr * tr) / 4 - (p * r - q * q))), l1 = tr / 2 + d, l2 = tr / 2 - d;
+    if (O.bowExists(a, th)) eWorst = Math.max(eWorst, Math.abs(O.bowE(a, th) - Math.sqrt(1 - l1 / l2)));
+    const pts = O.bowOnScreenA(a, th, 360);
+    if (O.bowExists(a, th) !== pts.length > 0) exist = false;
+    for (const pt of pts) if (pt) { const [x, y] = pt; onWorst = Math.max(onWorst, Math.abs((a[0] + a[1] * x + a[2] * y) ** 2 - c * c * (1 + x * x + y * y)) / (1 + x * x + y * y)); }
+  }
+  ok(exist && onWorst < 1e-12, `from 300 random frames, the bow is in your slice exactly when |a_N| ≤ sin θ, and every point drawn lies on its conic (worst ${onWorst.toExponential(1)})`);
+  ok(eWorst < 1e-9, `its eccentricity is √(a_R² + a_U²) / cos θ, against the conic's own quadratic form (worst ${eWorst.toExponential(1)})`);
+  // the sun leaning and you gazing across: the earlier (β, γ) form is a special case
+  let same = 0; for (const b of [0, 10, 25, 35]) for (const gm of [0, 20, 50, 70]) { const r = O.rainbowInSlice(th, b * DEG); if (r !== null) same = Math.max(same, Math.abs(O.bowE(O.antisolarInFrame(b * DEG, gm * DEG, 0, 0), th) - O.conicE(r, gm * DEG))); }
+  ok(same < 1e-12, "with only the sun's lean and your gaze, it's e = sin γ / cos ρ(β) again");
+  // looking into w never changes the shape; turning and twisting do
+  const base = [20 * DEG, 50 * DEG, 30 * DEG], es = [-30, -10, 0, 15, 30].map((et) => O.antisolarInFrame(...base, et * DEG)), e0 = O.bowE(es[0], th);
+  const twisted = O.bowE(O.antisolarInFrame(20 * DEG, 50 * DEG, 60 * DEG, 0), th), turned = O.bowE(O.antisolarInFrame(20 * DEG, 30 * DEG, 30 * DEG, 0), th);
+  ok(es.every((a) => Math.abs(O.bowE(a, th) - e0) < 1e-12) && new Set(es.map((a) => a[3].toFixed(6))).size === 5 && Math.abs(twisted - e0) > 0.01 && Math.abs(turned - e0) > 0.01,
+    `looking into w moves a_N but keeps e = ${e0.toFixed(4)}; turning and twisting change it`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} lumen4 checks failed` : `lumen4: ${checks} checks\n\n✓ lumen4 selftest passed`);
 process.exit(fails ? 1 : 0);
