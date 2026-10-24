@@ -3911,6 +3911,23 @@
       ]
     },
     {
+      "n": "iris4",
+      "u": "https://games.mino.mobi/iris4/",
+      "c": "games",
+      "k": 2,
+      "a": "warm",
+      "t": "2026-10-24",
+      "b": "2026-10-24",
+      "p": "games",
+      "surface": "games",
+      "d": "A rainbow you shape, in first person: walk a four-dimensional landscape of tiny tesseract voxels after rain, and turn, twist and look into w. The bow on your screen is a conic section with e = √(a_R² + a_U²)/cos 42°, set only by where the antisolar point sits in your own frame; a dashed line draws the formula's conic over the rendered bow. Lean into w and the land turns fae.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "plateau",
       "u": "https://games.mino.mobi/plateau/",
       "c": "games",

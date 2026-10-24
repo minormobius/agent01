@@ -348,6 +348,20 @@ These live here:
   its shape.
   The selftest checks each against closed forms, the wave equation itself and
   brute force. See [`lumen4/README.md`](lumen4/README.md).
+- **IRIS⁴ at `/iris4/`**: an understanding toy (no cabinet): a rainbow you
+  shape, in first person. `iris4/js/world.js` (no DOM) is a 4D heightfield of
+  0.25 m tesseract voxels (192 × 192 × 64 cells over x, z, w; periodic value
+  noise, lakes), the two-level march (blocks of 8³ skipped on their tallest
+  column, cells inside; `march()` is the shader's twin, line for line) and
+  walking (0.5 m step-up, slide along cliffs, wrap). `js/render.js` shades it
+  in a low sun, with fae colours by how far off in w a surface is from you, and
+  draws Lumen⁴'s bows (primary and secondary per wavelength, Alexander's band,
+  mirrored in the lakes). The page shows the bow's conic from the antisolar
+  direction in your camera frame (e = √(a_R² + a_U²)/cos θ, dashed over the
+  rendered bow) and a map of it. Layout: the view on the top two thirds, the
+  controls below (side by side on wide screens). Imports
+  `../../lumen4/js/optics.js`, so run both selftests after a change there. See
+  [`iris4/README.md`](iris4/README.md).
 - **PLATEAU at `/plateau/`**: flight through Foam⁴'s foam, from the
   cockpit. You're a rigid body in 4D (P and R, U, F, N); every turn is a
   double rotation that turns its plane and, by `COUPLING` (0.5) as much, the
@@ -479,7 +493,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/lumen4/`, `/plateau/`, `/katabasis/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/lumen4/`, `/iris4/`, `/plateau/`, `/katabasis/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -537,7 +551,8 @@ node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds; ev
 node games/anabasis/test/anabasis.selftest.mjs   # two downs on small worlds (held, slip, no climbing in w, ramps round walls and holding you up, fall out, fall for ever, crates); every level solved walking, par pinned, proved impossible without its gravity / ramps / crates / wrap; generated rooms deterministic, in band, proved, opened from their codes (<1 s)
 node games/hinton/test/hinton.selftest.mjs       # every level of both lanes walked continuously to the goal at par, the solver's state after every move; walls stop you short; landing keeps you in your cell (a few s)
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
-node games/lumen4/test/lumen4.selftest.mjs       # falloff and beams, the flash (each field solves its own wave equation, u₄ from u₂, the wake), Airy vs 3-ball (zeros, Rayleigh, totals), Fresnel and polarizers, Planck (totals, Wien, T⁴/T⁵, colour), the rainbow in a slice vs brute force, the bow on a screen a conic with e = sin γ / cos ρ, and in any frame e = √(a_R² + a_U²)/cos θ (<1 s)
+node games/lumen4/test/lumen4.selftest.mjs       # falloff and beams, the flash (each field solves its own wave equation, u₄ from u₂, the wake), Airy vs 3-ball (zeros, Rayleigh, totals), Fresnel and polarizers, Planck (totals, Wien, T⁴/T⁵, colour), both bows against the closed form, the rainbow in a slice vs brute force, the bow on a screen a conic with e = sin γ / cos ρ, and in any frame e = √(a_R² + a_U²)/cos θ (<1 s)
+node games/iris4/test/iris4.selftest.mjs         # the land deterministic and seamless, every block's max, the two-level march vs brute force (seams, axes), faces met from outside, walking's step-up and slide (~1 s)
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
 node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the guide counting par and naming flips that each leave one fewer, the ready ring agreeing with tryFlip and the fairy rings covering every flip place, the grotto's lights in open air and the cave untouched by it (~25 s)

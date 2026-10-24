@@ -2606,6 +2606,15 @@
    "parent": "games"
   },
   {
+   "id": "iris4",
+   "name": "iris4",
+   "url": "https://games.mino.mobi/iris4/",
+   "cat": "games",
+   "commits": 2,
+   "age": "warm",
+   "parent": "games"
+  },
+  {
    "id": "plateau",
    "name": "plateau",
    "url": "https://games.mino.mobi/plateau/",

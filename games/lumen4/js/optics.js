@@ -163,6 +163,14 @@ export function rainbowAngle(nw) {
   for (let k = 0; k <= 20000; k++) { const i = (k / 20000) * (Math.PI / 2), r = Math.asin(Math.sin(i) / nw), D = Math.PI + 2 * i - 4 * r; if (D < best) best = D; }
   return Math.PI - best;
 }
+/* the secondary bow: two reflections inside the drop turn light D = 360° + 2i − 6r; its least D puts the bow
+   D_min − 180° from the antisolar point, about 51° for water, colours reversed (red inside). Between the two bows no
+   light is turned back at all: Alexander's dark band */
+export function rainbowAngle2(nw) {
+  let best = Infinity;
+  for (let k = 0; k <= 20000; k++) { const i = (k / 20000) * (Math.PI / 2), r = Math.asin(Math.sin(i) / nw), D = 2 * Math.PI + 2 * i - 6 * r; if (D < best) best = D; }
+  return best - Math.PI;
+}
 export const rainbowInSlice = (theta, beta) => (Math.cos(beta) <= Math.cos(theta) ? null : Math.acos(Math.cos(theta) / Math.cos(beta)));
 
 /* ------------------------------------------------------------- the rainbow on a screen: conic sections

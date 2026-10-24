@@ -81,6 +81,11 @@ ok([[3, 0, 2], [3, 1, 1], [3, 2, 0], [4, 0, 3], [4, 1, 2], [4, 2, 1], [4, 3, 0]]
   ok(near(th / DEG, 42.03, 2e-3), `water (n = 1.333) bends its rainbow to ${(th / DEG).toFixed(2)}° from the antisolar point`);
   const red = O.rainbowAngle(O.waterN(700)), vio = O.rainbowAngle(O.waterN(400));
   ok(red > vio && near(red / DEG, 42.3, 0.01) && near(vio / DEG, 40.3, 0.01), "red outside (42.3°), violet inside (40.3°)");
+  const red2 = O.rainbowAngle2(O.waterN(700)), vio2 = O.rainbowAngle2(O.waterN(400));
+  // the least deviation after k reflections is where cos²i = (n² − 1)/(k(k + 2)): the closed form, against the search
+  const closed = (n, k) => { const i = Math.acos(Math.sqrt((n * n - 1) / (k * (k + 2)))), r = Math.asin(Math.sin(i) / n), D = k * Math.PI + 2 * i - 2 * (k + 1) * r; return k === 1 ? Math.PI - D : D - Math.PI; };
+  ok(near(O.rainbowAngle(1.333), closed(1.333, 1), 1e-7) && near(O.rainbowAngle2(1.333), closed(1.333, 2), 1e-7), `both bows match the closed form cos²i = (n² − 1)/(k(k + 2)): ${(closed(1.333, 1) / DEG).toFixed(2)}° and ${(closed(1.333, 2) / DEG).toFixed(2)}°`);
+  ok(vio2 > red2 && red2 > red, `the secondary bow: ${(O.rainbowAngle2(1.333) / DEG).toFixed(2)}° for n = 1.333, colours reversed (red ${(red2 / DEG).toFixed(1)}° inside violet ${(vio2 / DEG).toFixed(1)}°), outside the primary`);
   const rho = (b) => O.rainbowInSlice(red, b * DEG);
   ok(near(rho(0), red, 1e-12) && rho(20) < rho(10) && rho(40) < rho(20) && rho(43) === null && O.rainbowInSlice(vio, 41 * DEG) === null && rho(41) !== null,
     "in your slice the bow is full size with the sun in it, shrinks as the sun leans into w, loses violet before red, and is gone past its angle");
