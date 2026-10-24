@@ -33,9 +33,9 @@ _Regenerated 2026-10-24 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-24, 100 members / 224 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: bcz, imo, openai
+**Neighborhood spark** (bisk 2026-10-24, 100 members / 212 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: llm, lmao, anthropic
 - Top post: "i believe this post is sane now" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
