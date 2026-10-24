@@ -3937,7 +3937,7 @@
       "b": "2026-10-24",
       "p": "games",
       "surface": "games",
-      "d": "The periodic table of a four-dimensional world, computed. Gauss's law in 4D leaves atoms no ground state, so the force is pinned at 1/r. Every atom to element 78 is then solved self-consistently, with the same solver checked against our own table first (34 of 36 right). Rows of 2, 10, 10, 28, 28; a carbon with five bonds; noble gases that grip harder down the column, because the shell theorem fails. Then: five ways to rewrite Maxwell for it, and what each one breaks.",
+      "d": "The periodic table of a four-dimensional world, computed. Gauss's law in 4D leaves atoms no ground state, so the force is pinned at 1/r. Every atom to element 78 is then solved self-consistently, with the same solver checked against our own table first (34 of 36 right). Rows of 2, 10, 10, 28, 28; a carbon with five bonds; noble gases that grip harder down the column, because the shell theorem fails. Then the six regular 4D polytopes and darbon, its carbon, in small viewers you can turn through w and slice: DH₅ on a 5-cell, a mirror-image molecule undone by half a turn through w, and a five-fold diamond. And five ways to rewrite Maxwell for it, with what each one breaks.",
       "tags": [
         "games",
         "canvas",

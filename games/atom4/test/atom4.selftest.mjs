@@ -10,6 +10,8 @@ const F = await import(path.join(here, "../js/fields.js"));
 const P = await import(path.join(here, "../js/periodic.js"));
 const { TABLE, RPLOT, SHELL_COUNTERFACTUAL } = await import(path.join(here, "../js/table.js"));
 const { element, ZMAX } = await import(path.join(here, "../tools/bake.mjs"));
+const G = await import(path.join(here, "../js/polytopes.js"));
+const TL = await import(path.join(here, "../js/tile.js"));
 
 let checks = 0, fails = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg); } };
@@ -136,6 +138,59 @@ for (const d of [3, 4]) {
   const img = (r, ell) => { let s = 1 / (r * r); for (let n = 1; n < 200000; n++) s += 2 / (r * r + n * n * ell * ell); return s + (2 / (ell * ell)) / 200000; };
   ok(near(F.compactPotential(0.3, 1), img(0.3, 1), 1e-5) && near(F.compactPotential(0.001, 1) * 1e-6, 1, 1e-5) && near((F.compactPotential(50, 1) * 50) / Math.PI, 1, 1e-6), "a small fourth dimension: the image sum, 1/r² close, π/ℓr far");
   ok(F.circularOrbitStable(2) && !F.circularOrbitStable(3) && near(F.bondAngle(3), 109.4712, 1e-6) && near(F.bondAngle(4), 104.4775, 1e-6), "circular orbits stable under 1/r² forces, not 1/r³; simplex bond angles 109.47° and 104.48°");
+}
+
+/* 10 · the six regular 4D polytopes: Schläfli's counts, computed (vertices, least-distance edges, planar cycles as
+   faces, the dual's directions as cells) */
+{
+  const want = { "5-cell": [5, 10, 10, 5, 4, 4], tesseract: [16, 32, 24, 8, 8, 4], "16-cell": [8, 24, 32, 16, 4, 6], "24-cell": [24, 96, 96, 24, 6, 8], "120-cell": [600, 1200, 720, 120, 20, 4], "600-cell": [120, 720, 1200, 600, 4, 12] };
+  const ps = G.polytopes(), bad = [];
+  for (const p of ps) {
+    const [v, e, f, c, cv, deg] = want[p.name], degs = new Array(p.V.length).fill(0); for (const [a, b] of p.E) { degs[a]++; degs[b]++; }
+    const len = p.E.map(([a, b]) => Math.hypot(...p.V[a].map((x, i) => x - p.V[b][i]))), unit = p.V.every((x) => Math.abs(Math.hypot(...x) - 1) < 1e-9);
+    const okp = p.V.length === v && p.E.length === e && p.F.length === f && p.C.length === c && p.C.every((x) => x.length === cv) && degs.every((x) => x === deg) && unit && Math.max(...len) - Math.min(...len) < 1e-9 && v - e + f - c === 0;
+    if (!okp) bad.push(`${p.name}: ${p.V.length}, ${p.E.length}, ${p.F.length}, ${p.C.length}`);
+  }
+  ok(!bad.length && ps.length === 6, `the six: f-vectors, cells, vertex degrees, equal edges, on the unit 3-sphere, V − E + F − C = 0${bad.length ? " — " + bad.join("; ") : ""}`);
+  // each cell is a 3D solid: its vertices span exactly 3 dimensions
+  ok(ps.every((p) => p.C.every((cell) => G.rank(cell.slice(1).map((i) => p.V[i].map((x, k) => x - p.V[cell[0]][k]))) === 3)), "every cell lies flat in a 3D hyperplane");
+}
+
+/* 11 · darbon's geometry */
+{
+  for (const d of [2, 3, 4]) { const e = G.simplex(d); let worst = 0; for (let i = 0; i < e.length; i++) for (let j = 0; j < e.length; j++) worst = Math.max(worst, Math.abs(e[i].reduce((s, v, k) => s + v * e[j][k], 0) - (i === j ? 1 : -1 / d))); ok(worst < 1e-12 && e.length === d + 1, `${d}D simplex: ${d + 1} unit vectors at cos θ = −1/${d}`); }
+  // sp^d hybrids: rows (a, b e_i) over (s, p₁ … p_d) are orthonormal
+  for (const d of [3, 4]) { const { s: a, p: b } = G.hybrid(d), e = G.simplex(d), H = e.map((v) => [a, ...v.map((x) => b * x)]); let worst = 0; for (let i = 0; i < H.length; i++) for (let j = 0; j < H.length; j++) worst = Math.max(worst, Math.abs(H[i].reduce((s, v, k) => s + v * H[j][k], 0) - (i === j ? 1 : 0))); ok(worst < 1e-12 && Math.abs(a * a - 1 / (d + 1)) < 1e-12, `sp${d === 3 ? "³" : "⁴"}: ${d + 1} orthonormal hybrids, each 1/${d + 1} s`); }
+  ok(Math.abs(G.bondAngleDeg(4) - 104.4775) < 1e-4 && G.chainH(1, 4) === 4 && G.chainH(2, 4) === 6 && G.chainH(1, 5) === 5 && G.chainH(2, 5) === 8 && G.chainH(10, 5) === 32, "DH₅, D₂H₈; chains of n darbons carry 3n + 2 hydrogens");
+  // the diamond family: every bond of length 1; interior atoms have d + 1 bonds at cos −1/d; nothing else within 1.5
+  for (const d of [2, 3, 4]) {
+    const n = G.diamondNet(d, 2.4), A = n.nodes.map(() => []); for (const [a, b] of n.bonds) { A[a].push(b); A[b].push(a); }
+    const dist = (a, b) => Math.hypot(...n.nodes[a].p.map((x, i) => x - n.nodes[b].p[i]));
+    const lens = n.bonds.every(([a, b]) => Math.abs(dist(a, b) - 1) < 1e-9), inner = n.nodes.map((x, i) => i).filter((i) => Math.hypot(...n.nodes[i].p.map((x, k) => x - n.centre[k])) < 1.2);
+    const angles = inner.every((i) => A[i].length === d + 1 && A[i].every((j) => A[i].every((k) => j === k || Math.abs(n.nodes[j].p.map((x, q) => x - n.nodes[i].p[q]).reduce((s, v, q) => s + v * (n.nodes[k].p[q] - n.nodes[i].p[q]), 0) + 1 / d) < 1e-9)));
+    let near = Infinity; const bonded = new Set(n.bonds.map(([a, b]) => `${a}-${b}`)); for (let a = 0; a < n.nodes.length; a++) for (let b = a + 1; b < n.nodes.length; b++) if (!bonded.has(`${a}-${b}`)) near = Math.min(near, dist(a, b));
+    ok(lens && inner.length > 0 && angles && near > 1.5, `${["", "", "honeycomb", "diamond", "darbon's diamond"][d]}: bonds of 1, ${d + 1} at ${G.bondAngleDeg(d).toFixed(2)}°, the next atom ${near.toFixed(3)} away`);
+  }
+  // a simplex in a hypercube: the cube holds exactly two regular tetrahedra; the tesseract no regular 5-cell
+  const regularSubsets = (V, k) => { let count = 0; const pick = (start, chosen) => { if (chosen.length === k) { const ds = []; for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) ds.push(Math.hypot(...V[chosen[i]].map((x, q) => x - V[chosen[j]][q]))); if (Math.max(...ds) - Math.min(...ds) < 1e-9) count++; return; } for (let i = start; i < V.length; i++) pick(i + 1, [...chosen, i]); }; pick(0, []); return count; };
+  const cube = [], tess = []; for (let m = 0; m < 8; m++) cube.push([0, 1, 2].map((b) => (m >> b) & 1)); for (let m = 0; m < 16; m++) tess.push([0, 1, 2, 3].map((b) => (m >> b) & 1));
+  ok(regularSubsets(cube, 4) === 2 && regularSubsets(tess, 5) === 0, "a cube holds two regular tetrahedra; a tesseract holds no regular 5-cell");
+  // chirality: the map sending each corner of the simplex to another is a rotation exactly when the shuffle is even
+  const det = (M) => { const n = M.length, A = M.map((r) => r.slice()); let D = 1; for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; if (Math.abs(A[p][c]) < 1e-12) return 0; if (p !== c) { [A[p], A[c]] = [A[c], A[p]]; D = -D; } D *= A[c][c]; for (let r = c + 1; r < n; r++) { const f = A[r][c] / A[c][c]; for (let k = c; k < n; k++) A[r][k] -= f * A[c][k]; } } return D; };
+  const inv = (M) => { const n = M.length, A = M.map((r, i) => [...r, ...M.map((_, j) => (i === j ? 1 : 0))]); for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[p], A[c]] = [A[c], A[p]]; const d0 = A[c][c]; A[c] = A[c].map((v) => v / d0); for (let r = 0; r < n; r++) if (r !== c) { const f = A[r][c]; A[r] = A[r].map((v, k) => v - f * A[c][k]); } } return A.map((r) => r.slice(n)); };
+  const mul = (A, B) => A.map((r) => B[0].map((_, j) => r.reduce((s, v, k) => s + v * B[k][j], 0)));
+  for (const d of [3, 4]) {
+    const e = G.simplex(d), cols = (idx) => e[0].map((_, r) => idx.map((i) => e[i][r])), base = cols([...Array(d).keys()]), Binv = inv(base);
+    const perms = (a) => (a.length <= 1 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map((p) => [x, ...p])));
+    let agree = 0, total = 0;
+    for (const p of perms([...Array(d + 1).keys()])) { const M = mul(cols(p.slice(0, d)), Binv); let inv2 = 0; for (let i = 0; i < p.length; i++) for (let j = i + 1; j < p.length; j++) if (p[i] > p[j]) inv2++; total++; if (Math.abs(det(M) - (inv2 % 2 ? -1 : 1)) < 1e-9) agree++; }
+    ok(agree === total, `${d}D: the ${total} shuffles of a simplex's corners are rotations exactly when even (so ${d === 3 ? "carbon" : "darbon"} with ${d + 1} different neighbours is chiral)`);
+  }
+  // half a turn through w is a mirror for anything flat in w; and darbon's diamond has a five-fold rotation
+  const half = TL.turnLocal(TL.eye(), 0, 3, Math.PI), pts = [[0.3, -0.7, 0.2, 0], [-1, 0.5, 0.9, 0]];
+  ok(pts.every((p) => { const q = TL.apply(half, p); return Math.abs(q[0] + p[0]) < 1e-12 && Math.abs(q[1] - p[1]) < 1e-12 && Math.abs(q[2] - p[2]) < 1e-12 && Math.abs(q[3]) < 1e-12; }), "half a turn through w carries a 3D object (w = 0) into its mirror image x → −x");
+  { const e = G.simplex(4), cols = (idx) => e[0].map((_, r) => idx.map((i) => e[i][r])), R5 = mul(cols([1, 2, 3, 4]), inv(cols([0, 1, 2, 3]))); let P = R5; for (let k = 1; k < 5; k++) P = mul(P, R5);
+    const RRt = mul(R5, R5[0].map((_, j) => R5.map((r) => r[j]))); ok(Math.abs(det(R5) - 1) < 1e-9 && P.every((r, i) => r.every((v, j) => Math.abs(v - (i === j ? 1 : 0)) < 1e-9)) && RRt.every((r, i) => r.every((v, j) => Math.abs(v - (i === j ? 1 : 0)) < 1e-9)), "cycling darbon's five bond directions is a rotation of order 5: a five-fold symmetry of its diamond"); }
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

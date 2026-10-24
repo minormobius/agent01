@@ -15,14 +15,14 @@
   <h1>ATOM⁴</h1>
   <p class="lede">The periodic table of a world with four dimensions of space, computed. A new chemistry, and a way to see why ours is the way it is. As in <a href="../lumen4/">Lumen⁴</a>, <b class="d3">3D</b> is warm and <b class="d4">4D</b> is ice, every number is computed, and a selftest checks them.</p>
   <nav>
-    <a href="#pin">the problem</a><a href="#hydrogen">hydrogen</a><a href="#table">the table</a><a href="#trends">trends</a><a href="#chem">chemistry</a><a href="#maxwell">rewriting Maxwell</a><a href="#trust">how far to trust it</a>
+    <a href="#pin">the problem</a><a href="#hydrogen">hydrogen</a><a href="#table">the table</a><a href="#trends">trends</a><a href="#solids">4D solids</a><a href="#chem">darbon</a><a href="#maxwell">rewriting Maxwell</a><a href="#trust">how far to trust it</a>
   </nav>
 </header>
 
 <section id="pin">
   <h3>1 · In 4D, Gauss's law leaves no atom</h3>
   <p>A charge's field lines spread over the sphere round it. In 3D that sphere's area grows as r², so the force falls as 1/r² and the potential as <b class="d3">1/r</b>. In 4D the sphere is a 3-sphere, its size grows as r³, and the potential falls as <b class="d4">1/r²</b>. That sounds like a detail. It isn't: an electron's pull toward the nucleus then falls exactly as fast as its own resistance to being squeezed, the centrifugal term. One of them wins at every distance at once. Too weak a pull and nothing binds. Too strong and the electron falls into the nucleus. There's <b>no distance an atom could settle at</b>: no Bohr radius, no atoms, no chemistry. (Ehrenfest saw the classical version in 1917: no stable orbits either.)</p>
-  <p>So we <b>pin the force</b>: keep the potential at <b>1/r</b> in four dimensions and see what happens. That's the world of everything below. Section 6 asks what it costs.</p>
+  <p>So we <b>pin the force</b>: keep the potential at <b>1/r</b> in four dimensions and see what happens. That's the world of everything below. Section 7 asks what it costs.</p>
   <canvas class="chart" id="cPin"></canvas>
   <p class="read" id="rPin"></p>
 </section>
@@ -41,7 +41,7 @@
 
 <section id="table">
   <h3>3 · The periodic table</h3>
-  <p>Beyond hydrogen there's no closed form. Each electron moves in the nucleus's pull and the averaged cloud of all the others, and the cloud depends on the electrons, so we iterate until they agree: <b>Hartree's self-consistent field</b>. For each atom the solver tries the filling the orbital energies suggest, and the neighbouring ones, and keeps the lowest total energy. To know how far to trust it, we ran the same code in 3D first: it gets <b>34 of our first 36 elements right</b>. The two it misses, chromium and copper, are the famous exceptions, which need an effect it leaves out (section 7).</p>
+  <p>Beyond hydrogen there's no closed form. Each electron moves in the nucleus's pull and the averaged cloud of all the others, and the cloud depends on the electrons, so we iterate until they agree: <b>Hartree's self-consistent field</b>. For each atom the solver tries the filling the orbital energies suggest, and the neighbouring ones, and keeps the lowest total energy. To know how far to trust it, we ran the same code in 3D first: it gets <b>34 of our first 36 elements right</b>. The two it misses, chromium and copper, are the famous exceptions, which need an effect it leaves out (section 8).</p>
   <p>The 4D table's rows are <b>2, 10, 10, 28, 28</b> long where ours are 2, 8, 8, 18, 18: the same doubling, with 4D's bigger shells. Tap any element (on a phone, swipe the table sideways).</p>
   <div class="seg" id="dimSel"><button type="button" data-d="4" class="on">4D, force pinned at 1/r</button><button type="button" data-d="3">3D, ours (the check)</button></div>
   <div class="ptwrap"><div class="pt" id="pt"></div></div>
@@ -51,22 +51,35 @@
 
 <section id="trends">
   <h3>4 · Periodic, but with longer periods</h3>
-  <p>How hard each atom holds its outermost electron (the energy to pull it off, worked out for the relaxed ion). The peaks are the noble gases: an atom with every shell full. The drops just after them are the alkali metals, one electron outside a full shell. The dots are our real measured values: the solver's 3D line has the right shape but sits <b>about a third too low</b>, because it leaves out exchange (section 7). Read the 4D numbers the same way.</p>
+  <p>How hard each atom holds its outermost electron (the energy to pull it off, worked out for the relaxed ion). The peaks are the noble gases: an atom with every shell full. The drops just after them are the alkali metals, one electron outside a full shell. The dots are our real measured values: the solver's 3D line has the right shape but sits <b>about a third too low</b>, because it leaves out exchange (section 8). Read the 4D numbers the same way.</p>
   <canvas class="chart tall" id="cIon"></canvas>
   <p class="read" id="rIon"></p>
-  <p>One thing runs the other way. Our noble gases hold their electrons less tightly down the column (helium, neon, argon, krypton). <b>4D's hold them tighter</b>: element 12, 22, 50, 78 each harder to ionize than the last. Section 6 shows why: it's the shell theorem failing. And so 4D atoms don't grow much down a column. The chart below is how far out the outermost electron sits.</p>
+  <p>One thing runs the other way. Our noble gases hold their electrons less tightly down the column (helium, neon, argon, krypton). <b>4D's hold them tighter</b>: element 12, 22, 50, 78 each harder to ionize than the last. Section 7 shows why: it's the shell theorem failing. And so 4D atoms don't grow much down a column. The chart below is how far out the outermost electron sits.</p>
   <canvas class="chart" id="cSize"></canvas>
 </section>
 
+<section id="solids">
+  <h3>5 · Four dimensions' Platonic solids</h3>
+  <p>Molecules and crystals are built on regular shapes, so first the shapes. Our space has five regular solids. Four dimensions have <b>six</b> regular polytopes, found by Ludwig Schläfli around 1852 and again by Washington Stringham in 1880. Five are the cousins of ours. The sixth, the <b>24-cell</b>, has no 3D cousin: 24 octahedra, each vertex shared by six, and it's its own dual. From five dimensions up there are only three, so four is the richest dimension there is. Four is also the only dimension past two that can be tiled by more than one regular shape: by tesseracts, by 16-cells, or by 24-cells (Foam⁴'s 24-cell foam).</p>
+  <p><b>Turn</b> spins one in our three directions. <b>Through w</b> turns it into the fourth: its shadow turns inside out, the way a cube's does when it rolls. <b>Slice</b> shows what a 3D creature sees, the 3D cross-section, and the slider moves the slice along w. Colour is how far along w a part sits: <span style="color:#ff7ad9">kata</span>, mid, <span style="color:#7dffb0">ana</span>. Every vertex, edge, face and cell here is computed. The counts come out as Schläfli's, and V − E + F − C = 0 for all six.</p>
+  <div class="tiles" id="solidTiles"></div>
+</section>
+
 <section id="chem">
-  <h3>5 · What chemistry would be like</h3>
+  <h3>6 · Darbon</h3>
   <p id="chemText"></p>
-  <canvas class="chart" id="cBond"></canvas>
-  <p class="read">Bonds point to the corners of a simplex: a triangle in 2D, a tetrahedron in 3D (109.5°, methane), a 5-cell in 4D (104.5°). These are the angles of the hybrid orbitals of a carbon-like atom. A real 4D molecule's angles would depend on the solver we don't have.</p>
+  <p>Carbon bonds by mixing its one s orbital with its three p orbitals into four equal <b>sp³ hybrids</b>, each a quarter s. They point to a tetrahedron's corners, 109.47° apart: methane. Darbon has <b>four</b> p orbitals, along x, y, z and w, and five outer electrons. Mixed, they make five <b>sp⁴ hybrids</b>, each a fifth s, pointing to the corners of a <b>5-cell</b> 104.48° apart. Its hydride is <b>DH₅</b>, and a chain of n darbons carries <b>3n + 2</b> hydrogens where ours carries 2n + 2 (D₂H₈ is darbon's ethane).</p>
+  <div class="tiles four" id="darbonTiles"></div>
+  <h4>Handedness, the other way round</h4>
+  <p>A carbon with four different neighbours is chiral: it and its mirror image can't be turned into each other. Darbon with five different neighbours is too, and for the same reason: a 5-cell's turns reach only the even half of the ways to shuffle its corners. But every chiral molecule <b>we</b> know is a 3D object sitting in one slice of 4D, and half a turn through w carries it into its mirror image. In a 4D world our handedness would vanish, and darbon's would be new.</p>
+  <h4>Crystals</h4>
+  <p>Diamond is two copies of a lattice (face-centred cubic), one bond apart, every atom with four neighbours. The same recipe makes graphene's honeycomb in 2D and, with the 4D lattice A₄, <b>darbon's diamond</b>: five neighbours each at 104.48°. Diamond sits easily in the cube, because a tetrahedron's corners are alternate corners of a cube. A 5-cell's corners are no tesseract's corners. A regular simplex fits a hypercube only when a Hadamard matrix of its size exists, and none has size 5. So darbon's crystals don't come from the hypercube. They have a <b>five-fold</b> symmetry instead (turning its five bond directions round), which no 3D crystal can have but a 4D one can. In 4D the allowed turns are of order 1, 2, 3, 4, 5, 6, 8, 10 and 12.</p>
+  <div class="tiles" id="netTiles"></div>
+  <p class="read">These are the geometry of hybrid orbitals and of the nets they make, not computed bonding: the solver above handles one atom at a time. Whether darbon would really choose this diamond, or graphite's 4D cousin (3D diamond-like sheets stacked along w, with the fifth bond across), needs molecules, and molecules need 4D laws of motion. That comes next.</p>
 </section>
 
 <section id="maxwell">
-  <h3>6 · Can we rewrite Maxwell?</h3>
+  <h3>7 · Can we rewrite Maxwell?</h3>
   <p>Pinning 1/r was a choice of potential. Now let's find a field theory that gives it, and look for what breaks. The starting point: in Maxwell's theory a charge's potential is the Fourier transform of <b>1/k²</b>, in any dimension, and that transform is 1/r in 3D and 1/r² in 4D. For 1/r in 4D we need <b>1/k³</b>. There are five ways to get it, and each one costs something.</p>
   <div class="routes" id="routes"></div>
   <h4>Problems every route shares: no shell theorem, no Faraday cage</h4>
@@ -86,8 +99,8 @@
 </section>
 
 <section id="trust">
-  <h3>7 · How far to trust it</h3>
-  <p><b>What's exact:</b> hydrogen in both worlds, the shell sizes, the sphere-averaged kernel k(t), and everything in section 6. <b>What's approximate:</b> Hartree's method treats each electron as moving in the averaged cloud of the others. It leaves out <b>exchange</b> (the Pauli principle's push between electrons of the same spin), so it underbinds, and it averages every open shell into a sphere. That's why it misses chromium and copper, which half-fill and fill their 3d shell by taking an electron from 4s, an exchange effect. Helium's total energy comes out −2.8617 hartree, the exact Hartree–Fock value (the true one is −2.9037). Neon's is −126.4 to Hartree–Fock's −128.5. Ionization energies suffer most, about a third too low across the p block. In 4D the solver finds a few transition metals (elements 64 to 67) giving up their outer s electrons for the d shell, as palladium does in ours. Those are the least trustworthy entries on the page. We also leave out relativity (it matters beyond about Z = 50 here, as with gold's colour in ours) and spin's effects, and treat spin as two states per orbital, as in 3D. A 4D table built with exchange might move a few transition metals' configurations. We expect the main-group skeleton, the period lengths and the noble gases, to stand.</p>
+  <h3>8 · How far to trust it</h3>
+  <p><b>What's exact:</b> hydrogen in both worlds, the shell sizes, the sphere-averaged kernel k(t), and everything in section 7. <b>What's approximate:</b> Hartree's method treats each electron as moving in the averaged cloud of the others. It leaves out <b>exchange</b> (the Pauli principle's push between electrons of the same spin), so it underbinds, and it averages every open shell into a sphere. That's why it misses chromium and copper, which half-fill and fill their 3d shell by taking an electron from 4s, an exchange effect. Helium's total energy comes out −2.8617 hartree, the exact Hartree–Fock value (the true one is −2.9037). Neon's is −126.4 to Hartree–Fock's −128.5. Ionization energies suffer most, about a third too low across the p block. In 4D the solver finds a few transition metals (elements 64 to 67) giving up their outer s electrons for the d shell, as palladium does in ours. Those are the least trustworthy entries on the page. We also leave out relativity (it matters beyond about Z = 50 here, as with gold's colour in ours) and spin's effects, and treat spin as two states per orbital, as in 3D. A 4D table built with exchange might move a few transition metals' configurations. We expect the main-group skeleton, the period lengths and the noble gases, to stand.</p>
   <p class="foot"><a href="./README.md">how it works</a> · <a href="../lumen4/">Lumen⁴: light in 4D</a> · <a href="../iris4/">IRIS⁴</a> · <a href="../katabasis/">KATABASIS</a> · <a href="../">the arcade</a></p>
 </section>
 <script type="module" src="js/main.js"></script>

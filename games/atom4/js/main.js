@@ -5,6 +5,7 @@ import * as F from "./fields.js";
 import { TABLE, RPLOT, SHELL_COUNTERFACTUAL } from "./table.js";
 import { lineColour } from "../../lumen4/js/optics.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout, role } from "./periodic.js";
+import { buildShapes, tiles } from "./shapes.js";
 
 const $ = (id) => document.getElementById(id);
 const C3 = "#ffb46b", C4 = "#6fe0ff", DIM = "#9a958c", GRID = "#262833", BAD = "#ff6b6b";
@@ -120,7 +121,7 @@ function drawDetail(cell) {
   const top = el.orb.find((o) => o.s === el.top);
   $("detail").innerHTML = `<h5 class="${d === 3 ? "d3" : "d4"}">${d === 3 ? `${SYM[el.Z - 1]}, element ${el.Z}` : `element ${el.Z} of the 4D table`}</h5>
     <div class="cfg">${el.config}</div>
-    ${real && real !== el.config ? `<div class="kv" style="color:${BAD}">really ${real}: the solver puts the electron in the wrong shell (no exchange, section 7)</div>` : ""}
+    ${real && real !== el.config ? `<div class="kv" style="color:${BAD}">really ${real}: the solver puts the electron in the wrong shell (no exchange, section 8)</div>` : ""}
     <div class="kv">${role(el, d, cell)}</div>
     <div class="kv">first ionization <b>${(el.ion * EV).toFixed(2)} eV</b>${d === 3 ? ` (measured ${IE_REAL[el.Z - 1]} eV)` : ""} · outermost electron <b>${el.top}</b> at ${top.r.toFixed(2)} bohr · total energy <b>${el.E.toFixed(2)}</b> hartree</div>
     <div class="kv">orbital energies (eV): ${el.orb.map((o) => `${o.s}${o.o > 1 ? `<sup>${o.o}</sup>` : ""} <b>${(o.e * EV).toFixed(o.e * EV < -100 ? 0 : 1)}</b>`).join(" · ")}</div>
@@ -148,19 +149,16 @@ function drawTrends() {
   ] });
 }
 
-/* ------------------------------------------------------------- 5 · chemistry */
+/* ------------------------------------------------------------- 6 · darbon (its tiles are ./shapes.js) */
 function drawChem() {
   const t4 = TABLE[4], { cells } = layout(TABLE, 4), n4 = t4.filter((el) => isNoble(el, 4)).map((el) => el.Z);
   const carbon = cells.find((c) => c.row === 1 && /carbon-like/.test(role(c.el, 4, c)));
   const halo = cells.find((c) => c.row === 1 && /halogen-like/.test(role(c.el, 4, c)));
   const ion = (Z) => (t4[Z - 1].ion * EV).toFixed(1);
-  $("chemText").innerHTML = `A 4D atom's outer shell is an s and four p orbitals: <b>ten electrons</b> where ours holds eight. So the octet rule becomes a <b>ten-electron rule</b>, and the second row is ten elements long, element 3 to element ${n4[1]}. Element 3 is an alkali metal like lithium, giving up its one outer electron for ${ion(3)} eV. Element ${carbon ? carbon.el.Z : "?"} is the carbon of this world, ${carbon ? carbon.el.config.split(" ").slice(-2).join(" ") : ""}: its five outer electrons can hybridize into five bonds pointing to the corners of a <b>5-cell</b>, the 4D tetrahedron, so its hydride is XH₅, not CH₄. Element ${halo ? halo.el.Z : "?"} is a halogen, grabbing one electron to make ten. The noble gases fall at <b>${n4.join(", ")}</b>. The heavier rows get d shells of eighteen electrons, so transition metals come in runs of eighteen, not ten.`;
-  const ds = [2, 3, 4, 5, 6];
-  chart($("cBond"), { x: [1.5, 6.5], y: [90, 130], xl: "dimensions of space", yl: "angle between bonds (°)", series: [{ pts: ds.map((d) => [d, F.bondAngle(d)]), c: DIM, w: 1 }, { pts: ds.map((d) => [d, F.bondAngle(d)]), c: C4, dots: true }],
-    vlines: [{ x: 3, c: C3, label: `3D ${F.bondAngle(3).toFixed(1)}°` }, { x: 4, c: C4, label: `4D ${F.bondAngle(4).toFixed(1)}°`, dy: 14 }] });
+  $("chemText").innerHTML = `A 4D atom's outer shell is an s and four p orbitals: <b>ten electrons</b> where ours holds eight. So the octet rule becomes a <b>ten-electron rule</b>, and the second row is ten elements long, element 3 to element ${n4[1]}. Element 3 is an alkali metal like lithium, giving up its one outer electron for ${ion(3)} eV. Element ${carbon ? carbon.el.Z : "?"}, ${carbon ? carbon.el.config.split(" ").slice(-2).join(" ") : ""}, is the carbon of this world, its outer shell half full: call it <b>darbon</b>. Element ${halo ? halo.el.Z : "?"} is a halogen, grabbing one electron to make ten. The noble gases fall at <b>${n4.join(", ")}</b>. The heavier rows get d shells of eighteen electrons, so transition metals come in runs of eighteen, not ten.`;
 }
 
-/* ------------------------------------------------------------- 6 · rewriting Maxwell */
+/* ------------------------------------------------------------- 7 · rewriting Maxwell */
 function drawRoutes() {
   const a = F.propagatorPower(1, 4), delta = F.scalingDim(a, 4), floor = F.unitarityFloor(4), m = F.nonlinearExponent(4);
   const R = [
@@ -202,5 +200,6 @@ function drawCompact() {
 /* ------------------------------------------------------------- wiring */
 $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
 function drawAll() { drawPin(); drawLevels(); drawSpec(); drawTable(); drawTrends(); drawChem(); drawRoutes(); drawShell(); drawScreen(); drawCompact(); }
-let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawAll, 120); });
+let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); tiles.forEach((t) => t.draw()); }, 120); });
+buildShapes();
 drawAll();
