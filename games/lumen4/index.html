@@ -15,7 +15,7 @@
   <h1>LUMEN⁴</h1>
   <p class="lede">Light in four dimensions, worked out and drawn beside our own. Everywhere below, <b class="d3">3D</b> is warm and <b class="d4">4D</b> is ice. Every number is computed, and a selftest checks them against what's known.</p>
   <nav>
-    <a href="#falloff">falloff &amp; lasers</a><a href="#flash">a flash</a><a href="#hole">a round hole</a><a href="#glare">glare</a><a href="#hot">hot things</a><a href="#rainbow">the rainbow</a><a href="#same">what doesn't change</a>
+    <a href="#falloff">falloff &amp; lasers</a><a href="#flash">a flash</a><a href="#hole">a round hole</a><a href="#glare">glare</a><a href="#hot">hot things</a><a href="#rainbow">the rainbow</a><a href="#conic">conic sections</a><a href="#same">what doesn't change</a>
   </nav>
 </header>
 
@@ -71,6 +71,15 @@
   <div class="ctl"><label>sun's lean into w, β = <input type="range" id="beta" min="0" max="50" step="0.1" value="0" /><output id="betaV"></output></label></div>
   <div class="pair"><canvas class="sky" id="cSky"></canvas><canvas class="chart half" id="cBow"></canvas></div>
   <p class="read" id="rBow"></p>
+</section>
+
+<section id="conic">
+  <h3>7 · On a screen, the rainbow is a conic section</h3>
+  <p>In your slice the bow is a round cone of directions with its tip at your eye. A screen is a flat plane that misses the tip, and a plane cutting a cone off its tip draws a <b>conic section</b>. Look γ away from the point opposite the sun, and the bow on the screen has eccentricity <b>e = sin γ / cos ρ</b>. It's a circle head on, an ellipse, a parabola at γ = 90° − ρ, and past that one branch of a hyperbola (the other branch is behind you). Here, ρ = 42° for ever, and only your gaze changes the shape. In 4D, ρ shrinks as the sun leans into w, so holding your gaze still and leaning the sun turns a <b>hyperbola into a parabola, an ellipse, a circle, a point, and nothing</b>.</p>
+  <p>One level up: a 4D creature's retina is 3D, and its flat sensor cuts the 4D cone in a <b>quadric</b>: a spheroid, a paraboloid, or one sheet of a hyperboloid. Your screen is a slice of that.</p>
+  <div class="ctl"><label>gaze off the antisolar point, γ = <input type="range" id="gam" min="0" max="85" step="0.1" value="60" /><output id="gamV"></output></label><label>sun's lean into w, β = <input type="range" id="beta2" min="0" max="45" step="0.1" value="0" /><output id="beta2V"></output></label></div>
+  <div class="pair"><canvas class="sky" id="cScreen"></canvas><canvas class="chart half" id="cConic"></canvas></div>
+  <p class="read" id="rConic"></p>
 </section>
 
 <section id="same">

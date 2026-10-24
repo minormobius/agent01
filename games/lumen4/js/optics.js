@@ -164,3 +164,27 @@ export function rainbowAngle(nw) {
   return Math.PI - best;
 }
 export const rainbowInSlice = (theta, beta) => (Math.cos(beta) <= Math.cos(theta) ? null : Math.acos(Math.cos(theta) / Math.cos(beta)));
+
+/* ------------------------------------------------------------- the rainbow on a screen: conic sections
+   In your slice the bow is a round cone of directions, half-angle ρ, about the antisolar point's shadow a_s. A screen
+   is a plane that doesn't pass through your eye (the cone's tip), and a plane cutting a cone off its tip is a conic.
+   Look along F, γ away from a_s, with the screen perpendicular to F at distance 1: a direction d lands at
+   (d·R, d·U)/(d·F), and the bow is an ellipse, a parabola or (one branch of) a hyperbola, with eccentricity
+     e = sin γ / cos ρ
+   (the cosine of the angle between the screen and the cone's axis, over the cosine of the half-angle). Since
+   ρ = arccos(cos θ / cos β) shrinks as the sun leans into w, leaning it turns a hyperbola into a parabola, an
+   ellipse, a circle, a point, and nothing. */
+export const conicE = (rho, gamma) => Math.sin(gamma) / Math.cos(rho);
+export const conicType = (rho, gamma) => { const e = conicE(rho, gamma), d = gamma + rho - Math.PI / 2; return Math.abs(d) < 1e-9 ? "parabola" : e < 1e-12 ? "circle" : d < 0 ? "ellipse" : "hyperbola"; };
+/* the bow's points on the screen, in screen units (tan of the angle off centre), with the screen's x pointing toward
+   a_s's side: only directions in front of you (d·F > 0) land */
+export function bowOnScreen(rho, gamma, N = 720) {
+  // a_s = cos γ F + sin γ R; e1 = −sin γ F + cos γ R and e2 = U are perpendicular to it
+  const pts = [];
+  for (let k = 0; k <= N; k++) {
+    const ph = (k / N) * 2 * Math.PI, c = Math.cos(rho), s = Math.sin(rho);
+    const dF = c * Math.cos(gamma) - s * Math.cos(ph) * Math.sin(gamma), dR = c * Math.sin(gamma) + s * Math.cos(ph) * Math.cos(gamma), dU = s * Math.sin(ph);
+    pts.push(dF > 1e-6 ? [dR / dF, dU / dF] : null);
+  }
+  return pts;
+}

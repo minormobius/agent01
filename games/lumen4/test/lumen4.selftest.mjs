@@ -90,5 +90,32 @@ ok([[3, 0, 2], [3, 1, 1], [3, 2, 0], [4, 0, 3], [4, 1, 2], [4, 2, 1], [4, 3, 0]]
   ok(worst < 1e-12, "and every direction on that circle really is at the rainbow's angle from the leaning antisolar point");
 }
 
+/* 7 · the rainbow on a screen: a screen point (x, y) is the direction F + xR + yU, and the bow is where it makes the
+   angle ρ with a_s = cos γ F + sin γ R: (cos γ + x sin γ)² = cos²ρ (1 + x² + y²), a quadratic, so a conic with
+   x² coefficient A = sin²γ − cos²ρ and y² coefficient C = −cos²ρ: an ellipse if A < 0, a parabola if A = 0, a
+   hyperbola if A > 0, and e² = 1 − A/C = sin²γ / cos²ρ */
+{
+  let worst = 0, types = true, ecc = 0, axes = 0;
+  for (const rho of [42 * DEG, 30 * DEG, 12 * DEG]) for (const gam of [0, 15 * DEG, 40 * DEG, 60 * DEG, 80 * DEG]) {
+    const c2 = Math.cos(rho) ** 2, A = Math.sin(gam) ** 2 - c2, C = -c2, pts = O.bowOnScreen(rho, gam, 720).filter(Boolean);
+    for (const [x, y] of pts) worst = Math.max(worst, Math.abs((Math.cos(gam) + x * Math.sin(gam)) ** 2 - c2 * (1 + x * x + y * y)) / (1 + x * x + y * y));
+    const t = O.conicType(rho, gam), want = Math.abs(A) < 1e-9 ? "parabola" : gam === 0 ? "circle" : A < 0 ? "ellipse" : "hyperbola";
+    if (t !== want) types = false;
+    ecc = Math.max(ecc, Math.abs(O.conicE(rho, gam) ** 2 - (1 - A / C)));
+    if (A < 0 && gam > 0) { // measure the ellipse off its own points
+      const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]), a = (Math.max(...xs) - Math.min(...xs)) / 2, b = Math.max(...ys), e = Math.sqrt(1 - (b * b) / (a * a));
+      axes = Math.max(axes, Math.abs(e - O.conicE(rho, gam)));
+    }
+  }
+  ok(worst < 1e-12, `every point of the bow on the screen lies on the conic (cos γ + x sin γ)² = cos²ρ(1 + x² + y²) (worst ${worst.toExponential(1)})`);
+  ok(types && ecc < 1e-12, "its type is the sign of sin²γ − cos²ρ, and its eccentricity sin γ / cos ρ");
+  ok(axes < 2e-4, `measured off the drawn ellipses, the eccentricity agrees (worst ${axes.toExponential(1)})`);
+  // the 4D morph: hold your gaze at 60°, lean the sun into w
+  const th = O.rainbowAngle(O.waterN(700)), gam = 60 * DEG, seq = [];
+  for (let b = 0; b <= 45; b += 0.25) { const r = O.rainbowInSlice(th, b * DEG); const t = r === null ? "none" : O.conicType(r, gam); if (seq[seq.length - 1] !== t) seq.push(t); }
+  const bp = Math.acos(Math.cos(th) / Math.sin(gam)), rp = O.rainbowInSlice(th, bp);
+  ok(seq.join(" → ") === "hyperbola → ellipse → none" && Math.abs(O.conicE(rp, gam) - 1) < 1e-9, `gaze held at 60°, the sun leaning into w turns the bow ${seq.join(" → ")}, through a parabola at β = ${(bp / DEG).toFixed(2)}°`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} lumen4 checks failed` : `lumen4: ${checks} checks\n\n✓ lumen4 selftest passed`);
 process.exit(fails ? 1 : 0);

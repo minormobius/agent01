@@ -158,10 +158,37 @@ function drawBow() {
     `Red's circle: <b>${(red / DEG).toFixed(1)}°</b>; violet's: <b>${vio === null ? "gone (it leans out first)" : (vio / DEG).toFixed(1) + "°"}</b>. The bow is the same width of colour in the sky, but your slice cuts it at a slant: as it shrinks, its colours spread apart.`;
 }
 
+/* ------------------------------------------------------------- 7 · the rainbow on a screen */
+function drawConic() {
+  const gam = +$("gam").value * DEG, beta = +$("beta2").value * DEG; $("gamV").textContent = `${(gam / DEG).toFixed(1)}°`; $("beta2V").textContent = `${(beta / DEG).toFixed(1)}°`;
+  // the screen: ±2.6 (tan of about 69°) each way, looking straight ahead
+  const { g, w, h } = ctx2d($("cScreen")), cx = w / 2, cy = h / 2, S = (Math.min(w, h) / 2 - 6) / 2.6;
+  g.strokeStyle = "rgba(255,255,255,0.08)"; g.beginPath(); g.moveTo(cx, 6); g.lineTo(cx, h - 6); g.moveTo(6, cy); g.lineTo(w - 6, cy); g.stroke();
+  g.lineWidth = 2.5;
+  for (const b of [BOW[0], BOW[3], BOW[5], BOW[BOW.length - 1]]) {
+    const rho = O.rainbowInSlice(b.th, beta); if (rho === null) continue;
+    g.strokeStyle = `rgba(${b.c.join(",")},0.9)`; g.beginPath(); let on = false;
+    for (const q of O.bowOnScreen(rho, gam)) { if (!q || Math.abs(q[0]) > 40 || Math.abs(q[1]) > 40) { on = false; continue; } const x = cx + q[0] * S, y = cy - q[1] * S; if (on) g.lineTo(x, y); else g.moveTo(x, y); on = true; }
+    g.stroke();
+  }
+  g.lineWidth = 1; const ax = Math.tan(gam) * S;
+  g.fillStyle = "rgba(255,255,255,0.6)"; if (cx + ax < w) { g.beginPath(); g.arc(cx + ax, cy, 3, 0, 2 * Math.PI); g.fill(); }
+  g.font = "11px ui-monospace, Menlo, monospace"; g.fillStyle = "#9fb3d9"; g.textAlign = "center"; g.fillText("your screen · • the antisolar shadow", cx, h - 12);
+  // the map: which conic, for every gaze and lean; the parabola line is γ = 90° − ρ(β)
+  const red = BOW[BOW.length - 1], bs = range(0, 45, 300);
+  chart($("cConic"), { legendLeft: true, x: [0, 45], y: [0, 90], xl: "sun's lean into w, β (°)", yl: "gaze γ (°)",
+    series: [{ pts: bs.map((x) => { const r = O.rainbowInSlice(red.th, x * DEG); return [x, r === null ? NaN : 90 - r / DEG]; }), c: "#ffd27a", label: "parabola: hyperbola above, ellipse below" }, { pts: [[beta / DEG, gam / DEG], [beta / DEG + 0.01, gam / DEG]], c: C4, w: 9 }],
+    vlines: [{ x: red.th / DEG, c: DIM, label: "no bow" }] });
+  const rho = O.rainbowInSlice(red.th, beta);
+  $("rConic").innerHTML = rho === null ? `The sun leans past ${(red.th / DEG).toFixed(1)}°: no bow in your slice, so none on your screen.` :
+    `The red bow: half-angle ρ = <b>${(rho / DEG).toFixed(1)}°</b> in your slice; on your screen ${/^[aeiou]/.test(O.conicType(rho, gam)) ? "an" : "a"} <b>${O.conicType(rho, gam)}</b>, e = sin γ / cos ρ = <b>${O.conicE(rho, gam).toFixed(3)}</b>. ` +
+    (O.conicType(rho, gam) === "hyperbola" ? `Lean the sun ${(Math.acos(Math.cos(red.th) / Math.cos(Math.PI / 2 - gam)) / DEG).toFixed(1)}° into w and it becomes a parabola.` : "");
+}
+
 /* ------------------------------------------------------------- wiring */
 for (const b of document.querySelectorAll("#srcK button")) b.onclick = () => { srcK = +b.dataset.k; for (const x of document.querySelectorAll("#srcK button")) x.classList.toggle("on", x === b); drawFall(); };
-$("sig").oninput = $("rDet").oninput = drawTrace; $("nGl").oninput = drawGlare; $("T").oninput = drawHot; $("beta").oninput = drawBow;
-const all = () => { drawFall(); drawBeam(); drawTrace(); drawHole(); drawGlare(); drawHot(); drawBow(); };
+$("sig").oninput = $("rDet").oninput = drawTrace; $("nGl").oninput = drawGlare; $("T").oninput = drawHot; $("beta").oninput = drawBow; $("gam").oninput = $("beta2").oninput = drawConic;
+const all = () => { drawFall(); drawBeam(); drawTrace(); drawHole(); drawGlare(); drawHot(); drawBow(); drawConic(); };
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(all, 120); });
 all();
 // the flash runs only while it's on screen

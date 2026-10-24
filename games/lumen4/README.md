@@ -20,6 +20,7 @@ of how it's computed.
 | a polarizer, unpolarized light | 1/2 | 1/3 (a line), 2/3 (a plane) | the share of n − 1 transverse directions it passes |
 | a hot body | ν³/(eˣ − 1), power ∝ T⁴ | ν⁴/(eˣ − 1), power ∝ T⁵ | modes grow as ν^(n−1); 5800 K looks warm white to us and bluish white in 4D |
 | a rainbow | a 42° circle | a 42° cone, cut by your slice | in your slice a circle of radius arccos(cos 42°/cos β) when the sun leans β into w, gone past 42°; violet goes first |
+| a rainbow on a screen | a conic, e = sin γ / cos 42° | a conic, e = sin γ / cos ρ(β) | a flat screen cuts the cone off its tip. In 3D only your gaze γ changes the shape; in 4D, leaning the sun shrinks ρ, so with your gaze held the bow goes hyperbola → parabola → ellipse → circle → point → gone. A 4D creature's 3D sensor would see a quadric (spheroid, paraboloid, hyperboloid sheet), and your screen is a slice of it |
 
 **What doesn't change** is anything that happens in a plane: refraction
 (Snell's law, total internal reflection), slit diffraction, interference,
@@ -60,7 +61,12 @@ node games/lumen4/test/lumen4.selftest.mjs   # < 1 s
 - Planck's totals π⁴/15 and 24ζ(5), Wien's roots, b = 2.8978 mm·K,
   doubling T gives 16× and 32×, and the 4D body is the bluer;
 - the rainbow angle for water, red outside violet, and the in-slice circle
-  against brute force.
+  against brute force;
+- the bow on a screen: every projected point lies on
+  (cos γ + x sin γ)² = cos²ρ(1 + x² + y²), its type is the sign of
+  sin²γ − cos²ρ, e = sin γ / cos ρ (also measured off the drawn ellipses), and
+  with your gaze held at 60° leaning the sun turns hyperbola into ellipse
+  through a parabola at β = 31.4°.
 
 ## Next
 
