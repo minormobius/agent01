@@ -33,10 +33,10 @@ _Regenerated 2026-10-25 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-25, 100 members / 198 posts):
+**Neighborhood spark** (bisk 2026-10-25, 100 members / 200 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: llm, llms, tbh
-- Top post: "documentary is secretly about how if you rope Nathan Fielder into a contract he doesn't like he will spend essentially i" — @segyges.bsky.social
+- Distinctive words: dependencies, idk, seph
+- Top post: "Nathan: Do you understand why this is funny? Elizabeth: Because he never finished the point he was making about gang vio" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
