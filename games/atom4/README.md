@@ -5,7 +5,8 @@ space, with the force between charges pinned at 1/r. It's an understanding toy
 like Lumen⁴, not a game. 3D is warm and 4D is ice.
 
 `index.html` is the position: every conclusion, one card per chapter, and the
-open questions. Then ten chapter pages, each showing its working:
+open questions. [`LITERATURE.md`](LITERATURE.md) holds the literature notes for the write-up (prior art, how far
+each reference is verified, and what's new against it). Then ten chapter pages, each showing its working:
 
 | page | chapter |
 |---|---|
