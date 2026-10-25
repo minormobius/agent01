@@ -6,7 +6,8 @@ like Lumen⁴, not a game. 3D is warm and 4D is ice.
 
 `index.html` is the position: every conclusion, one card per chapter, and the
 open questions. [`LITERATURE.md`](LITERATURE.md) holds the literature notes for the write-up (prior art, how far
-each reference is verified, and what's new against it). Then ten chapter pages, each showing its working:
+each reference is verified, and what's new against it). [`WRITEUP.md`](WRITEUP.md) is the pinned plan for it: the kit
+the repo has (wormhole's paper layout, dataviz figures, headless PDF), the decisions to make, and paper 1's outline. Then ten chapter pages, each showing its working:
 
 | page | chapter |
 |---|---|
