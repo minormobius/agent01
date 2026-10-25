@@ -7453,6 +7453,16 @@
    "discovered": true
   },
   {
+   "id": "atom4/census.html",
+   "name": "census",
+   "url": "https://games.mino.mobi/atom4/census.html",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "atom4",
+   "discovered": true
+  },
+  {
    "id": "atom4/darbon.html",
    "name": "darbon",
    "url": "https://games.mino.mobi/atom4/darbon.html",

@@ -10,6 +10,7 @@ import * as FF from "./forces.js";
 import { RS as PAIR_RS, PAIRS } from "./pairs.js";
 import { RESPONSE } from "./response.js";
 import { MOLECULES } from "./molecules.js";
+import { CENSUS } from "./census.js";
 import { buildTurning, tiles as turnTiles } from "./turningTiles.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout, role } from "./periodic.js";
 import { buildShapes, tiles } from "./shapes.js";
@@ -279,6 +280,21 @@ function drawYater() {
   $("rYater").innerHTML = `Yater's dipole is <b>${(y.big.dipole / w.big.dipole).toFixed(1)}×</b> water's, and its hydrogen bond <b>${ratio.toFixed(1)}×</b> as strong, computed the same way. Straightening Yater costs ${f(y.big.linear * EV, 2)} eV, ${(w.big.linear / y.big.linear).toFixed(0)} times less than water's ${f(w.big.linear * EV, 2)}.`;
 }
 
+/* the census chapter: every hydride of 4D's rows two and three, and its hydrogen bonds */
+const SUB = (n) => (n > 1 ? String(n).replace(/\d/g, (c) => "₀₁₂₃₄₅₆₇₈₉"[c]) : "");
+const SYM4 = { 3: "Mi", 7: "D", 13: "To" };
+const formula = (m) => (m.d === 3 ? { 7: "NH₃", 8: "H₂O", 9: "HF" }[m.Z] : m.Z === 10 ? "Yater, H₂Px (10)" : `${SYM4[m.Z] || "X"}H${SUB(m.bonds)} (${m.Z})`);
+const shapeText = (m) => (m.shape === "bent" ? (m.param >= 179.5 ? "straight" : `bent, ${m.param.toFixed(0)}°`) : m.shape === "pyramid" ? (Math.abs(m.param - 90) < 0.5 ? "flat" : `pyramid, ${m.param.toFixed(0)}°`) : m.bonds === 1 ? "—" : "a 4-simplex");
+const network = (m) => (m.dimer && m.dimer.E != null ? Math.min(m.bonds, m.lp) * -m.dimer.E * KCAL : null);
+function drawCensus() {
+  const row = (m) => `<tr><td class="d${m.d}">${formula(m)}</td><td>${m.bonds}</td><td>${m.lp}</td><td>${shapeText(m)}</td><td>${m.R.toFixed(2)}</td><td>${m.qH > 0 ? "+" : ""}${m.qH.toFixed(2)}</td><td>${m.dipole.toFixed(2)}</td></tr>`;
+  $("censusTab").innerHTML = `<table><tr><th>hydride</th><th>bonds</th><th>lone pairs</th><th>shape</th><th>bond (bohr)</th><th>charge on H</th><th>dipole (au)</th></tr>${[...CENSUS[3], ...CENSUS[4]].map(row).join("")}</table><p class="read">The charge on hydrogen is Mulliken's share, a rough measure: read its sign and its trend. A pyramid's angle is each bond's tilt from the axis (90° is flat).</p>`;
+  const prot = [...CENSUS[3], ...CENSUS[4]].filter((m) => m.dimer);
+  $("pairTab").innerHTML = `<table><tr><th>hydride</th><th>apart (bohr)</th><th>one bond (kcal/mol)</th><th>bonds per molecule</th><th>network's pull</th></tr>${prot.map((m) => m.dimer.skipped ? `<tr><td class="d4">${formula(m)}</td><td colspan="4">too large to pair in the sandbox (${m.dimer.skipped} functions)</td></tr>` : `<tr><td class="d${m.d}">${formula(m)}</td><td>${m.dimer.RXX.toFixed(2)}</td><td>${(-m.dimer.E * KCAL).toFixed(1)}</td><td>${Math.min(m.bonds, m.lp)}</td><td>${network(m).toFixed(1)}</td></tr>`).join("")}</table><p class="read">Hartree–Fock at the small basis, counterpoise-corrected, both worlds the same way. Our three are the check.</p>`;
+  const w = network(CENSUS[3].find((m) => m.Z === 8)), best = CENSUS[4].filter((m) => network(m) != null).sort((a, b) => network(b) - network(a));
+  $("rPairs").innerHTML = `In 4D the strongest networks are ${formula(best[0])} at ${network(best[0]).toFixed(1)} and ${formula(best[1])} at ${network(best[1]).toFixed(1)}, ${(network(best[0]) / w).toFixed(1)} and ${(network(best[1]) / w).toFixed(1)} times water's ${w.toFixed(1)}.`;
+}
+
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
 function energySlope(d, a, b) {
   const xs = [], ys = []; for (const el of TABLE[d]) if (el.Z >= a && el.Z <= b) { xs.push(Math.log(el.Z)); ys.push(Math.log(-el.E)); }
@@ -289,7 +305,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["yaterTab", drawYater]];
+const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["yaterTab", drawYater], ["censusTab", drawCensus]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

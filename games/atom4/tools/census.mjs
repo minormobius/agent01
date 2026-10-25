@@ -14,7 +14,9 @@
    How much the bonds hold a liquid together: each molecule can make min(hydrogens, lone pairs) hydrogen bonds in a
    network (water 2, ammonia and HF 1), so the network's pull per molecule is about that many times one bond. In
    our world that orders water > HF > ammonia, as their boiling points and heats of vaporization do. */
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readFileSync, mkdirSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import * as G from "../js/gauss.js";
@@ -123,12 +125,16 @@ export const protic = (m) => m.qH > 0 && m.lp > 0;
 export const PAIR_MAX = 190;
 export const pairSize = (m) => 2 * G.functionsOf(shellsOf(hydrideAtoms(m.Z, m.d, m.R, m.param), m.d), m.d).length;
 
-/* run each job as its own process, four at a time */
+/* run each job as its own process, four at a time. Each finished job is kept in a cache outside the repo, so a run
+   cut short (the sandbox reclaims idle containers) resumes where it stopped; CENSUS_FRESH=1 ignores it */
+const CACHE = path.join(tmpdir(), "atom4-census");
 function run(args) {
+  const file = path.join(CACHE, args.join("_").replace(/[^\w.-]/g, "").slice(0, 120) + ".json");
+  if (!process.env.CENSUS_FRESH && existsSync(file)) return Promise.resolve(JSON.parse(readFileSync(file, "utf8")));
   return new Promise((ok, fail) => {
     const p = spawn(process.execPath, ["--max-old-space-size=8000", fileURLToPath(import.meta.url), ...args]); let out = "";
     p.stdout.on("data", (b) => (out += b)); p.stderr.on("data", (b) => process.stderr.write(b));
-    p.on("close", (c) => (c ? fail(new Error(args.join(" ") + " exited " + c)) : ok(JSON.parse(out.trim().split("\n").pop()))));
+    p.on("close", (c) => { if (c) return fail(new Error(args.join(" ") + " exited " + c)); const r = JSON.parse(out.trim().split("\n").pop()); mkdirSync(CACHE, { recursive: true }); writeFileSync(file, JSON.stringify(r)); ok(r); });
   });
 }
 async function pool(tasks, k = 4) { const out = new Array(tasks.length); let next = 0; await Promise.all(Array.from({ length: k }, async () => { while (next < tasks.length) { const i = next++; out[i] = await tasks[i](); } })); return out; }

@@ -77,7 +77,7 @@ export function minimize2(f, x, y, hx, hy, passes = 3, shrink = 3, maxPass = 12)
     for (let c = 0; c < 6; c++) { let p = c; for (let q = c + 1; q < 6; q++) if (Math.abs(M[q][c]) > Math.abs(M[p][c])) p = q; [M[p], M[c]] = [M[c], M[p]]; for (let q = c + 1; q < 6; q++) { const g = M[q][c] / M[c][c]; for (let k = c; k <= 6; k++) M[q][k] -= g * M[c][k]; } }
     const k = new Array(6); for (let q = 5; q >= 0; q--) { let s = M[q][6]; for (let m = q + 1; m < 6; m++) s -= M[q][m] * k[m]; k[q] = s / M[q][q]; }
     const [, b, c, e, g, h] = k, det = 4 * e * g - h * h, ux = (-2 * g * b + h * c) / det, uy = (-2 * e * c + h * b) / det;
-    const pd = det > 0 && e > 0, dx = pd ? Math.max(-2, Math.min(2, ux)) : -Math.sign(b), dy = pd ? Math.max(-2, Math.min(2, uy)) : -Math.sign(c), held = !pd || dx !== ux || dy !== uy; // not a bowl: one spacing downhill
+    const pd = det > 0 && e > 0, dx = pd ? Math.max(-2, Math.min(2, ux)) : -Math.sign(b) || 1, dy = pd ? Math.max(-2, Math.min(2, uy)) : -Math.sign(c) || 1, held = !pd || dx !== ux || dy !== uy; // not a bowl: one spacing downhill (or onward, on a level top)
     curv = { xx: (2 * e) / hx ** 2, yy: (2 * g) / hy ** 2, xy: h / (hx * hy) };
     x += dx * hx; y += dy * hy;
     if (!held) { hx /= shrink; hy /= shrink; done++; }

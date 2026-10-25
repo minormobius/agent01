@@ -253,9 +253,9 @@ for (const d of [3, 4]) {
 }
 function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v - pts[0][i]))); }
 
-/* 14 · the chapters: one landing and nine pages, the same nav on each, no id twice, every drawing's element somewhere */
+/* 14 · the chapters: one landing and ten pages, the same nav on each, no id twice, every drawing's element somewhere */
 {
-  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "yater"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
+  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "yater", "census"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
   const navOf = (h) => (h.match(/<nav class="chapters">([\s\S]*?)<\/nav>/) || [, ""])[1].replace(/ class="here"| here/g, "");
   const ids = (h) => [...h.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
   const sameNav = pages.every((p) => navOf(html[p]) === navOf(html.index) && navOf(html.index).length > 0), noDup = pages.every((p) => new Set(ids(html[p])).size === ids(html[p]).length);
@@ -392,6 +392,27 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(Y.dipole / w.dipole > 1.9 && Y.linear < 0.25 * w.linear && Math.abs(Y.homo - Y.homo2) < 2e-4 && M[4].big.atom.hund < M[4].big.atom.closed, `Yater's dipole ${Y.dipole} is ${(Y.dipole / w.dipole).toFixed(2)}× water's; straightening it costs ${(Y.linear * 27.2114).toFixed(2)} eV (water ${(w.linear * 27.2114).toFixed(2)}); its top orbital is two-fold (the ring); Pxygen's Hund state is its ground`);
   const D3 = M[3].dimer, D4 = M[4].dimer;
   ok(D3.ok && D4.ok && D3.E < 0 && D4.E / D3.E > 2.5 && (D4.RXX - D4.r) / D4.r < 1.5 && (D3.RXX - D3.r) / D3.r > 2, `the hydrogen bond: Yater's ${(-D4.E * 627.51).toFixed(1)} kcal/mol at ${D4.RXX} bohr, water's ${(-D3.E * 627.51).toFixed(1)} at ${D3.RXX}, the same way`);
+}
+
+/* 20 · the census: every hydride of 4D's rows two and three (js/census.js), our three as the check */
+{
+  const { CENSUS } = await import(path.join(here, "../js/census.js")), CT = await import(path.join(here, "../tools/census.mjs"));
+  const by = (d, Z) => CENSUS[d].find((m) => m.Z === Z), net = (m) => Math.min(m.bonds, m.lp) * -m.dimer.E;
+  // counting: v bonds up to the shell's d + 1 orbitals, then 2(d + 1) − v bonds and v − (d + 1) lone pairs
+  const counts = [[3, 7, 3, 1], [3, 8, 2, 2], [3, 9, 1, 3], [4, 7, 5, 0], [4, 8, 4, 1], [4, 10, 2, 3], [4, 11, 1, 4], [4, 20, 2, 3]].every(([d, Z, b, lp]) => { const v = CT.valence(Z, d); return v.bonds === b && v.lp === lp; });
+  ok(counts && CENSUS[3].length === 3 && CENSUS[4].length === 18 && [...CENSUS[3], ...CENSUS[4]].every((m) => m.ok && m.minimum), "the census: bonds and lone pairs by counting, 21 hydrides, each converged and a minimum under random nudges");
+  // the bake is reproducible: element 11's HX at its baked length
+  const hx = by(4, 11), e = CT.hydride(CT.hydrideAtoms(11, 4, hx.R, null), 4).E;
+  ok(Math.abs(e - hx.E) < 1e-5, `the baked census is what tools/census.mjs computes (4D element 11's HX, ${e.toFixed(6)})`);
+  // polarity: hydrogen is negative only on mithium and todium; row 2's XH₄ is flat and has no dipole, row 3's is a pyramid
+  const neg = CENSUS[4].filter((m) => m.qH < 0).map((m) => m.Z).join();
+  ok(neg === "3,13" && Math.abs(by(4, 8).param - 90) < 0.5 && by(4, 8).dipole < 1e-3 && by(4, 18).param < 80 && by(4, 18).dipole > 1, `hydrogen negative only on ${neg}; element 8's XH₄ flat and without a dipole, element 18's a pyramid`);
+  // the check: the network's pull orders our three as their boiling points (water, HF, ammonia)
+  const w = net(by(3, 8)), hf = net(by(3, 9)), nh = net(by(3, 7));
+  ok(w > hf && hf > nh, `our three in order: water ${(w * 627.51).toFixed(1)}, HF ${(hf * 627.51).toFixed(1)}, ammonia ${(nh * 627.51).toFixed(1)} kcal/mol, as their boiling points`);
+  // the verdict: Yater and element 9's XH₃ within 10% of each other, each about three times water, every other below both
+  const y = net(by(4, 10)), x9 = net(by(4, 9)), rest = CENSUS[4].filter((m) => m.dimer && m.dimer.E != null && m.Z !== 9 && m.Z !== 10).map(net);
+  ok(Math.abs(y - x9) / Math.max(y, x9) < 0.1 && Math.min(y, x9) / w > 2.5 && rest.every((r) => r < Math.min(y, x9)), `Yater ${(y * 627.51).toFixed(1)} and element 9's XH₃ ${(x9 * 627.51).toFixed(1)} tie, ${(Math.min(y, x9) / w).toFixed(1)}× water and above every other`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
