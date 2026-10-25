@@ -415,5 +415,39 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(Math.abs(y - x9) / Math.max(y, x9) < 0.1 && Math.min(y, x9) / w > 2.5 && rest.every((r) => r < Math.min(y, x9)), `Yater ${(y * 627.51).toFixed(1)} and element 9's XH₃ ${(x9 * 627.51).toFixed(1)} tie, ${(Math.min(y, x9) / w).toFixed(1)}× water and above every other`);
 }
 
+/* 21 · molecular dynamics (js/md.js): Ewald in any dimension, against known sums and NIST's SPC/E reference */
+{
+  const MD = await import(path.join(here, "../js/md.js"));
+  // Madelung constants of the alternating lattice: 3D rock salt (1.7475646) and 4D (1.8393991, which an Evjen sum also gives)
+  const lattice = (d, m) => { const x = [], q = []; const rec = (k, cur) => { if (k === d) { x.push(...cur); q.push(cur.reduce((a, v) => a + v, 0) % 2 ? -1 : 1); return; } for (let v = 0; v < m; v++) rec(k + 1, [...cur, v]); }; rec(0, []); return { x: Float64Array.from(x), q: Float64Array.from(q) }; };
+  const mad = (d) => { const { x, q } = lattice(d, 4); return (-2 * new MD.Ewald(d, 4, { alpha: 1.8, rc: 2, nmax: 10 }).compute(x, q, new Float64Array(q.length * d)).E) / q.length; };
+  const evjen = (d, R) => { let s = 0; const rec = (k, cur, w) => { if (k === d) { const r2 = cur.reduce((a, v) => a + v * v, 0); if (r2) s += ((cur.reduce((a, v) => a + v, 0) % 2 ? -1 : 1) * w) / Math.sqrt(r2); return; } for (let v = -R; v <= R; v++) rec(k + 1, [...cur, v], Math.abs(v) === R ? w / 2 : w); }; rec(0, [], 1); return -s; };
+  const m3 = mad(3), m4 = mad(4), e4 = evjen(4, 8);
+  ok(Math.abs(m3 - 1.7475646) < 2e-6 && Math.abs(m4 - e4) < 2e-6 && Math.abs(m4 - 1.8393991) < 2e-6, `Ewald's Madelung constants: rock salt ${m3.toFixed(7)}, the 4D alternating lattice ${m4.toFixed(7)} (Evjen ${e4.toFixed(7)})`);
+  // Ewald's split is of 1/r itself, so the energy doesn't depend on α, and the forces are its slope, in 3D and 4D
+  let worst = 0, drift = 0;
+  for (const d of [3, 4]) {
+    let sd = 11; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647), L = 7, n = 9, x = Float64Array.from({ length: n * d }, () => rnd() * L), q = Float64Array.from({ length: n }, (_, i) => (i % 3 ? 0.4 : -0.8)), ex = [[0, 1], [0, 2], [1, 2]];
+    const E = new MD.Ewald(d, L, { alpha: 1.25, rc: 3.5, nmax: 12 }), F = new Float64Array(n * d), e0 = E.compute(x, q, F, ex).E;
+    drift = Math.max(drift, Math.abs(e0 - new MD.Ewald(d, L, { alpha: 1.1, rc: 3.5, nmax: 12 }).compute(x, q, new Float64Array(n * d), ex).E));
+    for (const k of [0, 7, 13, 20]) { const h = 1e-5, xp = x.slice(), xm = x.slice(); xp[k] += h; xm[k] -= h; worst = Math.max(worst, Math.abs(F[k] + (E.compute(xp, q, new Float64Array(n * d), ex).E - E.compute(xm, q, new Float64Array(n * d), ex).E) / (2 * h))); }
+  }
+  ok(worst < 1e-8 && drift < 1e-6, `Ewald in 3D and 4D: forces match finite differences (${worst.toExponential(1)}), energy independent of α (${drift.toExponential(1)})`);
+  // NIST's SPC/E reference configuration 1 (100 molecules, 20 Å): every Ewald part, in K
+  const lines = fs.readFileSync(path.join(here, "fixtures/nist-spce-1.txt"), "utf8").trim().split("\n"), M = +lines[1], xs = [], qs = [];
+  for (let i = 0; i < 3 * M; i++) { const f = lines[2 + i].trim().split(/\s+/); xs.push(+f[1], +f[2], +f[3]); qs.push(f[4] === "O" ? -0.8476 : 0.4238); }
+  const exs = []; for (let m = 0; m < M; m++) exs.push([3 * m, 3 * m + 1], [3 * m, 3 * m + 2], [3 * m + 1, 3 * m + 2]);
+  const coul = (1.602176565e-19 ** 2 / (4 * Math.PI * 8.854187817e-12 * 1e-10)) / 1.3806488e-23, en = new MD.Ewald(3, 20, { alpha: 0.28, rc: 10, nmax: 5, n2max: 26 }).compute(Float64Array.from(xs), Float64Array.from(qs), new Float64Array(9 * M), exs);
+  const mine = [en.Ereal, en.Erec, en.Eself, en.Eexcl].map((v) => v * coul), ref = [-5.58889e5, 6.27009e3, -2.84469e6, 2.80999e6];
+  ok(mine.every((v, i) => Math.abs(v / ref[i] - 1) < 1e-5), `NIST's SPC/E reference, every part to its six figures: ${mine.map((v) => v.toPrecision(6)).join(", ")} K`);
+  // a rigid 4D molecule-pair system conserves energy with the thermostat off
+  const amu = 1822.888486, A = 1.8897261, th = 1.9106, kind = { sites: [{ m: 16 * amu, q: -0.8, t: "O", at: [0, 0, 0, 0] }, { m: amu, q: 0.4, t: "H", at: [A * Math.cos(th / 2), A * Math.sin(th / 2), 0, 0] }, { m: amu, q: 0.4, t: "H", at: [A * Math.cos(th / 2), -A * Math.sin(th / 2), 0, 0] }], constraints: [[0, 1], [0, 2], [1, 2]] };
+  const sys = new MD.System({ d: 4, L: 2 * 3.4 * A, kind, N: 16, pairs: { "O|O": { lj: [2.5e-4, 3.2 * A] } }, rc: 3.4 * A, ewald: { alpha: 0.55, nmax: 6 }, seed: 2 });
+  sys.thermalize(400 * 3.1668e-6); for (let k = 0; k < 40; k++) sys.step(41.34, 400 * 3.1668e-6, 1000);
+  const Et = () => sys.Edyn + sys.kinetic(), e0 = Et(); let lo = e0, hi = e0; for (let k = 0; k < 120; k++) { sys.step(20.67); lo = Math.min(lo, Et()); hi = Math.max(hi, Et()); }
+  const bonds = sys.cons.every(([i, j, l]) => Math.abs(Math.hypot(...sys.sep(i, j)) - l) < 1e-7);
+  ok((hi - lo) / 16 < 3e-6 && bonds, `4D rigid molecules, thermostat off: total energy within ${((hi - lo) / 16 * 2625.5).toFixed(4)} kJ/mol per molecule over 120 steps, every bond held`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
