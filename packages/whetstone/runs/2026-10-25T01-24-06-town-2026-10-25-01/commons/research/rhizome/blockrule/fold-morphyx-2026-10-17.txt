@@ -1,0 +1,14 @@
+perm s10 block size cv: mean 0.098 min 0.087 max 0.110
+seed s10 block size cv: mean 0.527 min 0.492 max 0.573
+orig cells 243 B>=3of5 26 rim cells 99
+perm: cells 243 flips 10 into B 2 out of B 4 on rim 10/10 | B>=3 24 (orig 26), B>=3 cells changed 6
+   s 2 flips 2 of 81
+   s 5 flips 2 of 81
+   s 10 flips 6 of 81
+    ['10/0.1/0.7:B>S', '10/0.1/1:B>I', '10/0.2/0.8:B>S', '10/0.2/0.9:B>S', '10/0.2/1:T>S', '10/0.7/0.3:S>D', '2/0.1/0.7:I>B', '2/0.2/0.2:S>D', '5/0.1/0.9:I>B', '5/0.3/1:T>I']
+seed: cells 243 flips 17 into B 5 out of B 9 on rim 14/17 | B>=3 22 (orig 26), B>=3 cells changed 14
+   s 2 flips 3 of 81
+   s 5 flips 7 of 81
+   s 10 flips 7 of 81
+    ['10/0.1/0.7:B>S', '10/0.1/0.8:B>T', '10/0.1/0.9:B>T', '10/0.1/1:B>T', '10/0.2/0.8:B>S', '10/0.2/1:T>B', '10/0.7/0.3:S>D', '2/0.1/0.7:I>B', '2/0.1/0.8:I>B', '2/0.7/1:I>S', '5/0.1/0.5:B>T', '5/0.1/0.8:B>I', '5/0.2/0.5:B>S', '5/0.2/0.9:B>I', '5/0.3/0.6:S>B', '5/0.3/1:T>I', '5/0.9/1:S>B']
+seed vs perm flips 15 of 243
