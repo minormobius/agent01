@@ -7,6 +7,7 @@ import { TABLE, RPLOT, SHELL_COUNTERFACTUAL } from "./table.js";
 import { lineColour, colourOf, planck } from "../../lumen4/js/optics.js";
 import { fineSplit, harmonicDim } from "./turning.js";
 import * as FF from "./forces.js";
+import { RS as PAIR_RS, PAIRS } from "./pairs.js";
 import { buildTurning, tiles as turnTiles } from "./turningTiles.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout, role } from "./periodic.js";
 import { buildShapes, tiles } from "./shapes.js";
@@ -234,9 +235,37 @@ function drawForces() {
   $("rSalt").innerHTML = `For a salt with λ = 1 (in atomic units), the tail is <b>${FF.saltTail(1).toFixed(4)} / r⁷</b>: negative, so a positive charge looks faintly negative from far off.`;
 }
 
+/* the forces chapter: two atoms computed (Gordon–Kim on the solver's clouds) */
+function drawWells() {
+  const meV = 27211.386, nob4 = PAIRS[4], nob3 = PAIRS[3];
+  // our world first: the method plus measured dispersion against the measured wells
+  const check = nob3.filter((p) => p.Z !== 2).map((p) => {
+    const el = TABLE[3][p.Z - 1], f = FF.pairCurve(PAIR_RS, p), { beta } = FF.fitRepulsion(PAIR_RS, p, 0), m = FF.MEASURED[p.Z];
+    const w = FF.minimum((R) => f(R) - (FF.tangToennies6(beta * R) * m.C6) / R ** 6);
+    return `<tr><td class="d3">${SYM[el.Z - 1]}</td><td>${w.R.toFixed(2)}</td><td>${m.R}</td><td>${(-w.E * meV).toFixed(1)}</td><td>${(m.eps * meV).toFixed(1)}</td></tr>`;
+  });
+  $("wellCheck").innerHTML = `<table><tr><th>ours</th><th>well at (bohr), computed</th><th>measured</th><th>depth (meV), computed</th><th>measured</th></tr>${check.join("")}</table>`;
+  const rows = nob4.map((p) => {
+    const el = TABLE[4][p.Z - 1], S = FF.sumR2(el), B = FF.permanentB(S, S), f = FF.pairCurve(PAIR_RS, p), w = FF.minimum(f), fit = FF.fitRepulsion(PAIR_RS, p, B);
+    return `<tr><td class="d4">${p.Z}</td><td>${w.R.toFixed(2)}</td><td>${(-w.E * meV).toFixed(0)}</td><td>${FF.boilK(-w.E / 2).toFixed(0)}–${FF.boilK(-w.E).toFixed(0)}</td><td>${fit.A.toFixed(0)}</td><td>${fit.beta.toFixed(2)}</td><td>${B.toFixed(1)}</td></tr>`;
+  });
+  $("wellTab").innerHTML = `<table><tr><th>4D noble gas</th><th>well at (bohr)</th><th>depth (meV), no dispersion</th><th>boils near (K)</th><th>A</th><th>β</th><th>B</th></tr>${rows.join("")}</table><p class="read">A, β, B in atomic units, for V(R) = A e^(−βR) − B/R⁵ − C₆/R⁶. The fit puts each well within 0.15 bohr and about 15% of the computed curve (element 2's less well); the molecular-dynamics view can use the computed curve itself. "Boils near" is 0.7 × depth/k, as our noble gases do, from half the depth (if the method overbinds as it does ours) to all of it.</p>`;
+  const Rs = range(3.5, 12, 300), cols = ["#7dffb0", "#6fe0ff", "#c79bff", "#ff7ad9"], series = nob4.slice(1, 4).map((p, i) => { const f = FF.pairCurve(PAIR_RS, p); return { pts: Rs.map((R) => [R, f(R) * meV]), c: cols[i], label: `4D element ${p.Z}, computed` }; });
+  series.push({ pts: Rs.map((R) => [R, FF.lj(R, FF.MEASURED_LJ.Ar) * meV]), c: C3, label: "our argon, measured" });
+  chart($("cWells"), { x: [3.5, 12], y: [-400, 150], xl: "distance between the two atoms (bohr)", yl: "energy (meV)", series });
+}
+
+/* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
+function energySlope(d, a, b) {
+  const xs = [], ys = []; for (const el of TABLE[d]) if (el.Z >= a && el.Z <= b) { xs.push(Math.log(el.Z)); ys.push(Math.log(-el.E)); }
+  const n = xs.length, mx = xs.reduce((s, v) => s + v, 0) / n, my = ys.reduce((s, v) => s + v, 0) / n;
+  return xs.reduce((s, v, i) => s + (v - mx) * (ys[i] - my), 0) / xs.reduce((s, v) => s + (v - mx) ** 2, 0);
+}
+function drawScaling() { $("rScaling").innerHTML = `The solver's total energies, fitted as Z^p: <b>p = ${energySlope(4, 30, 78).toFixed(2)}</b> in 4D for Z = 30–78 (Thomas–Fermi: 5/2), and p = ${energySlope(3, 10, 36).toFixed(2)} in 3D for Z = 10–36 (Thomas–Fermi: 7/3, approached from above as ours are).`; }
+
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces]];
+const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

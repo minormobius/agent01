@@ -14,6 +14,9 @@ const G = await import(path.join(here, "../js/polytopes.js"));
 const TL = await import(path.join(here, "../js/tile.js"));
 const RT = await import(path.join(here, "../js/turning.js"));
 const FF = await import(path.join(here, "../js/forces.js"));
+const PR = await import(path.join(here, "../js/pairs.js"));
+const PT = await import(path.join(here, "../tools/pairs.mjs"));
+const OPT = await import(path.join(here, "../../lumen4/js/optics.js"));
 const fs = await import("node:fs");
 
 let checks = 0, fails = 0;
@@ -288,6 +291,41 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const tet = near.every((u, i) => near.every((v, j) => i === j || Math.abs(u.reduce((s, x, k) => s + x * v[k], 0) / (Math.hypot(...u) * Math.hypot(...v)) + 1 / 3) < 1e-9));
   ok(tet && eS <= lo + 1e-12 && eE >= hi - 1e-12, "across a 4D bond each end's other bonds are a regular tetrahedron; inverted (staggered) is the least energy of 20,000 twists, eclipsed the most");
   ok(FF.saltTail(1) < 0 && Math.abs(FF.saltTail(1) + 45 / (16 * Math.PI ** 4)) < 1e-12 && Math.abs(FF.bornMayerBeta(0.5) - 2) < 1e-12, "salt's tail −45/(16π⁴λ²r⁷), overscreened; β = 2√(2I)");
+}
+
+/* 16 · what the universe contains: atoms don't collapse (Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D) */
+{
+  const slope = (d, a, b) => { const xs = [], ys = []; for (const el of TABLE[d]) if (el.Z >= a && el.Z <= b) { xs.push(Math.log(el.Z)); ys.push(Math.log(-el.E)); } const n = xs.length, mx = xs.reduce((q, v) => q + v, 0) / n, my = ys.reduce((q, v) => q + v, 0) / n; return xs.reduce((q, v, i) => q + (v - mx) * (ys[i] - my), 0) / xs.reduce((q, v) => q + (v - mx) ** 2, 0); };
+  const p4 = slope(4, 30, 78), p3 = slope(3, 10, 36);
+  ok(p4 > 2.45 && p4 < 2.62 && p3 > 2.3 && p3 < 2.45, `total energies grow as Z^p: p = ${p4.toFixed(3)} in 4D (Thomas–Fermi 5/2), ${p3.toFixed(3)} in 3D (7/3, from above)`);
+}
+
+/* 17 · two atoms, computed: Gordon–Kim on the solver's clouds */
+{
+  // the electron gas: 3D's textbook constants, and 4D's exchange integral ∫J₂²/x² = 4/15π
+  ok(Math.abs(PT.GAS[3].t(1) - 2.871234) < 1e-5 && Math.abs(PT.GAS[3].x(1) + 0.738559) < 1e-5 && Math.abs(PT.GAS[4].t(1) - (4 * Math.PI) / 3) < 1e-12, "the free electron gas: 3D's Thomas–Fermi 2.8712 and Dirac's 0.7386; 4D's kinetic (4π/3)ρ^(3/2)");
+  let I = 0; const X = 400, M = 400000, h = X / M; for (let i = 1; i <= M; i++) { const x = i * h, J2 = (2 * OPT.J1(x)) / x - OPT.J0(x); I += ((i === M ? 1 : i % 2 ? 4 : 2) * J2 * J2) / (x * x); } I = (I * h) / 3 + 1 / (Math.PI * X * X); // the tail: J₂² ≈ 1/πx on average
+  ok(Math.abs(I - 4 / (15 * Math.PI)) < 2e-4, `4D exchange: ∫₀^∞ J₂²/x² dx = ${I.toFixed(5)} against 4/15π = ${(4 / (15 * Math.PI)).toFixed(5)}, so −16/(15√π) ρ^(5/4)`);
+  // the bake is what the tool gives now
+  const A2 = PT.atomFields(2, 4), i6 = PR.RS.indexOf(6), b2 = PR.PAIRS[4][0], e6 = PT.pairEnergy(A2, 6);
+  ok(b2.Z === 2 && Math.abs(e6.es - b2.es[i6]) < 1e-8 && Math.abs(e6.kin - b2.kin[i6]) < 1e-8 && Math.abs(e6.exch - b2.exch[i6]) < 1e-8, "the baked pairs are what tools/pairs.mjs computes (4D element 2 at 6 bohr)");
+  // the electrostatics: 3D's vanishes far out; 4D's becomes the permanent −B/R⁵
+  const last = PR.RS.length - 1, ne = PR.PAIRS[3].find((p) => p.Z === 10), e12 = PR.PAIRS[4].find((p) => p.Z === 12), S12 = FF.sumR2(TABLE[4][11]), r15 = e12.es[last] / (-FF.permanentB(S12, S12) / PR.RS[last] ** 5);
+  ok(Math.abs(ne.es[last]) < 1e-7 && r15 > 1 && r15 < 1.06, `far apart, neon's electrostatics vanish (${ne.es[last].toExponential(1)}) and element 12's are ${r15.toFixed(3)} × −B/R⁵`);
+  // our world: the method plus measured C₆ against the measured wells
+  const chk = [10, 18, 36].map((Z) => { const p = PR.PAIRS[3].find((q) => q.Z === Z), f = FF.pairCurve(PR.RS, p), { beta } = FF.fitRepulsion(PR.RS, p, 0), m = FF.MEASURED[Z], w = FF.minimum((R) => f(R) - (FF.tangToennies6(beta * R) * m.C6) / R ** 6); return { pos: Math.abs(w.R / m.R - 1), deep: -w.E / m.eps }; });
+  ok(chk.every((c) => c.pos <= 0.03) && chk[0].deep > 1.2 && chk[0].deep < 1.5 && chk[1].deep > 1.6 && chk[2].deep > 1.6 && chk[2].deep < 2, `our noble gases: wells within 3% of measured (${chk.map((c) => (c.pos * 100).toFixed(1) + "%").join(", ")}), depths ${chk.map((c) => c.deep.toFixed(2) + "×").join(", ")} measured, as the page says`);
+  // 4D: the numbers the page states
+  const meV = 27211.386, w4 = (Z) => FF.minimum(FF.pairCurve(PR.RS, PR.PAIRS[4].find((p) => p.Z === Z))), a = w4(12), b = w4(22);
+  ok(a.R >= 5 && a.R <= 5.5 && -a.E * meV > 55 && -a.E * meV < 70 && -b.E * meV > 170 && -b.E * meV < 195 && FF.boilK(-a.E / 2) < 300 && FF.boilK(-a.E) > 300, `4D: element 12 ${(-a.E * meV).toFixed(0)} meV deep at ${a.R.toFixed(2)} bohr (boils ${FF.boilK(-a.E / 2).toFixed(0)}–${FF.boilK(-a.E).toFixed(0)} K, round room temperature), element 22 ${(-b.E * meV).toFixed(0)} meV`);
+  let fitOk = true, betaOk = true, esOk = true;
+  for (const p of PR.PAIRS[4]) {
+    const el = TABLE[4][p.Z - 1], S = FF.sumR2(el), B = FF.permanentB(S, S), f = FF.pairCurve(PR.RS, p), w = FF.minimum(f), fit = FF.fitRepulsion(PR.RS, p, B), wf = FF.minimum((R) => fit.A * Math.exp(-fit.beta * R) - B / R ** 5);
+    if (p.Z >= 12 && (Math.abs(wf.R - w.R) > 0.2 || Math.abs(wf.E / w.E - 1) > 0.2)) fitOk = false;
+    if (Math.abs(fit.beta / FF.bornMayerBeta(el.ion) - 1) > 0.26) betaOk = false;
+    const ies = Math.round((w.R - PR.RS[0]) / 0.25); if (p.Z >= 12 && !(p.es[ies] / w.E > 2)) esOk = false;
+  }
+  ok(fitOk && betaOk && esOk, "the fitted A e^(−βR) − B/R⁵ puts each well within 0.2 bohr and 20%; β within 25% of 2√(2I); at the bottom, electrostatics is more than twice the depth");
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

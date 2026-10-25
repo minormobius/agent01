@@ -73,7 +73,7 @@ export function k4(t) {
   return ((s * Math.PI) / (3 * M)) * (2 / Math.PI);
 }
 const KT = new Float64Array(2001); for (let i = 0; i <= 2000; i++) KT[i] = k4(i / 2000);
-const kTab = (t) => { const x = t * 2000, i = Math.min(1999, Math.floor(x)), f = x - i; return KT[i] + (KT[i + 1] - KT[i]) * f; };
+export const kTab = (t) => { const x = t * 2000, i = Math.min(1999, Math.floor(x)), f = x - i; return KT[i] + (KT[i + 1] - KT[i]) * f; };
 const KMAT = {};
 /* K[i][j]: the potential at r_i of a unit charge spread over the sphere of radius r_j */
 export function kernel(d) {

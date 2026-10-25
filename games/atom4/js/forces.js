@@ -79,3 +79,24 @@ export function bondEnds(d) {
   const near = e.slice(1).map((v) => { const p = perp(v); return B.map((b) => b.reduce((s, x, i) => s + x * p[i], 0)); });
   return { near, staggered: near.map((v) => v.map((x) => -x)) };
 }
+
+/* ---------------------------------------------------------------- two atoms, computed (tools/pairs.mjs → js/pairs.js):
+   Gordon–Kim on the solver's frozen clouds. These turn the baked curves into the page's numbers */
+/* Tang–Toennies damping for dispersion: f₆(x) = 1 − e^(−x) Σ_{k≤6} x^k/k! (x = βR), so −C₆f₆/R⁶ stays finite close in */
+export function tangToennies6(x) { let s = 0, t = 1; for (let k = 0; k <= 6; k++) { if (k) t *= x / k; s += t; } return 1 - Math.exp(-x) * s; }
+/* a baked pair's total, interpolated (hartree); RS is its grid of separations */
+export function pairCurve(RS, p) { const tot = p.es.map((v, i) => v + p.kin[i] + p.exch[i]), h = RS[1] - RS[0]; return (R) => { const i = Math.min(RS.length - 2, Math.max(0, Math.floor((R - RS[0]) / h))), u = (R - RS[i]) / h; return tot[i] * (1 - u) + tot[i + 1] * u; }; }
+export function minimum(f, a = 3, b = 15) { let best = [a, Infinity]; for (let R = a; R <= b + 1e-9; R += 0.01) { const v = f(R); if (v < best[1]) best = [R, v]; } return { R: best[0], E: best[1] }; }
+/* the force field's repulsion for the molecular-dynamics view: A e^(−βR) fitted (log-linear) to what's left of the
+   computed curve once the permanent −B/R⁵ is added back, over 3.5 to 6 bohr where it's positive */
+export function fitRepulsion(RS, p, B) {
+  const tot = p.es.map((v, i) => v + p.kin[i] + p.exch[i]), xs = [], ys = [];
+  RS.forEach((R, i) => { const v = tot[i] + B / R ** 5; if (R >= 3.5 && R <= 6 && v > 0) { xs.push(R); ys.push(Math.log(v)); } });
+  const n = xs.length, mx = xs.reduce((s, v) => s + v, 0) / n, my = ys.reduce((s, v) => s + v, 0) / n;
+  const beta = -xs.reduce((s, v, i) => s + (v - mx) * (ys[i] - my), 0) / xs.reduce((s, v) => s + (v - mx) ** 2, 0);
+  return { A: Math.exp(my + beta * mx), beta };
+}
+/* our noble gases, measured (atomic units): dispersion C₆, and the well's place and depth */
+export const MEASURED = { 2: { C6: 1.46, R: 5.6, eps: 0.95 / 27211.386 }, 10: { C6: 6.38, R: 5.84, eps: 3.6 / 27211.386 }, 18: { C6: 64.3, R: 7.1, eps: 10.3 / 27211.386 }, 36: { C6: 129.6, R: 7.6, eps: 14.4 / 27211.386 } };
+/* our noble gases boil at about 0.7 ε/k (neon 0.65, argon 0.73, krypton 0.70): a corresponding-states rule */
+export const boilK = (eps) => 0.7 * eps * 315775.02;

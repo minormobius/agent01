@@ -97,3 +97,5 @@ table.verdict th { font: 600 12px var(--mono); color: var(--dim); } table.verdic
 .skies figure { margin: 10px 0; } .skies figcaption { font: 12px/1.5 var(--mono); color: var(--dim); text-align: center; } .skies figcaption b { color: var(--text); }
 .sw { aspect-ratio: 1.4; border-radius: 12px; border: 1px solid var(--border); }
 @media (max-width: 560px) { h1.ch { font-size: 26px; } .pager { flex-direction: column; } table.verdict td:first-child { width: 42%; } .skies { flex-direction: column; } }
+p.made { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 14px; }
+.shells { overflow-x: auto; max-width: 100%; } .shells table { min-width: max-content; }
