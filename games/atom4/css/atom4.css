@@ -99,3 +99,9 @@ table.verdict th { font: 600 12px var(--mono); color: var(--dim); } table.verdic
 @media (max-width: 560px) { h1.ch { font-size: 26px; } .pager { flex-direction: column; } table.verdict td:first-child { width: 42%; } .skies { flex-direction: column; } }
 p.made { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 14px; }
 .shells { overflow-x: auto; max-width: 100%; } .shells table { min-width: max-content; }
+
+/* the live liquids: one temperature for both drops */
+.liquidCtl { display: flex; align-items: center; gap: 10px; font: 12px var(--mono); color: var(--dim); margin: 8px 0; }
+.liquidCtl input { flex: 1; max-width: 420px; accent-color: var(--d4); }
+.liquidCtl output { color: var(--text); min-width: 5em; }
+.tile p.read { margin: 0; font-size: 11px; }

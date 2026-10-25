@@ -85,10 +85,16 @@ export class Ewald {
 }
 
 /* ---------------------------------------------------------------- the system and its motion */
-/* a short-range pair term between site types: Lennard-Jones { lj: [ε, σ] } or exp-6 { exp6: [A, B, C] }
-   (A e^(−Br) − C/r⁶). Returns [u, −du/dr / r] */
-function shortPair(p, r2) {
+/* a short-range pair term between site types: Lennard-Jones { lj: [ε, σ] }, exp-6 { exp6: [A, B, C] }
+   (A e^(−Br) − C/r⁶), or Tang–Toennies { tt: [A, B, C] } (A e^(−Br) − f₆(Br) C/r⁶, f₆ = 1 − e^(−x) Σ₀⁶ xᵏ/k!, which
+   can't collapse at short range as bare −C/r⁶ can). Returns [u, −du/dr / r] */
+export function shortPair(p, r2) {
   if (p.lj) { const [e, s] = p.lj, s6 = (s * s / r2) ** 3; return [4 * e * (s6 * s6 - s6), (24 * e * (2 * s6 * s6 - s6)) / r2]; }
+  if (p.tt) {
+    const [A, B, C] = p.tt, r = Math.sqrt(r2), x = B * r, ex = A * Math.exp(-x), r6 = r2 * r2 * r2;
+    let t = 1, sum = 1; for (let k = 1; k <= 6; k++) { t *= x / k; sum += t; } const e = Math.exp(-x), f6 = 1 - e * sum, df6 = e * t; // t = x⁶/6!
+    return [ex - (f6 * C) / r6, (B * ex) / r + ((B * df6 * C) / r6 - (6 * f6 * C) / (r6 * r)) / r];
+  }
   const [A, B, C] = p.exp6, r = Math.sqrt(r2), ex = A * Math.exp(-B * r), r6 = r2 * r2 * r2; return [ex - C / r6, (B * ex) / r - (6 * C) / (r6 * r2)];
 }
 /* the surface of the unit sphere in d dimensions (4π, 2π²) */
@@ -107,7 +113,7 @@ function gammaDev(k, rnd, normal) { if (k < 1) return gammaDev(k + 1, rnd, norma
    rc: cutoff for both the short-range terms and Ewald's real-space sum. The short-range forces are truncated at rc;
    Epot adds their analytic tail (the thermodynamic energy), Edyn shifts each to zero at rc (what the motion conserves) */
 export class System {
-  constructor({ d, L, kind, N, pairs, rc, ewald, seed = 1, positions = null }) {
+  constructor({ d, L, kind, N, pairs, rc, ewald, dsf = null, seed = 1, positions = null }) {
     let s = seed >>> 0; this.rnd = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     this.normal = () => Math.sqrt(-2 * Math.log(this.rnd() + 1e-300)) * Math.cos(2 * Math.PI * this.rnd());
     const ns = kind.sites.length, n = N * ns; Object.assign(this, { d, L, N, ns, n, rc, kind });
@@ -116,7 +122,10 @@ export class System {
     this.cons = []; for (let a = 0; a < N; a++) for (const [i, j] of kind.constraints) this.cons.push([a * ns + i, a * ns + j, Math.hypot(...kind.sites[i].at.map((x, k) => x - kind.sites[j].at[k]))]);
     this.excl = []; for (let a = 0; a < N; a++) for (let i = 0; i < ns; i++) for (let j = i + 1; j < ns; j++) this.excl.push([a * ns + i, a * ns + j]);
     this.pair = (ta, tb) => pairs[`${ta}|${tb}`] || pairs[`${tb}|${ta}`] || null;
-    this.ewald = this.q.some((x) => x) ? new Ewald(d, L, { rc, ...ewald }) : null;
+    this.ewald = this.q.some((x) => x) && !dsf ? new Ewald(d, L, { rc, ...ewald }) : null;
+    // the quick alternative for live views: damped shifted force, the erfc part alone with energy and force zeroed at rc
+    // (Fennell & Gezelter's form; it drops Ewald's smooth part, so it's for looking at, not for numbers)
+    if (dsf) { const a = dsf.alpha, sp = 2 / Math.sqrt(Math.PI), ec = erfc(a * rc); this.dsf = { a, e0: ec / rc, f0: ec / (rc * rc) + (sp * a * Math.exp(-a * a * rc * rc)) / rc }; } // between molecules only, so no self term
     // the analytic tail of the short-range terms past rc: (N_a N_b / V) ∫ u(r) S_d r^(d−1) dr, halved for like pairs
     const V = L ** d, S = sphereArea(d), types = [...new Set(this.t)], count = (ty) => this.t.filter((x) => x === ty).length; this.Elrc = 0;
     types.forEach((ta, a) => types.forEach((tb, b) => { if (b < a) return; const p = this.pair(ta, tb); if (!p) return; let I = 0; const R = rc * 40, steps = 20000, h = (R - rc) / steps; for (let k = 0; k <= steps; k++) { const r = rc + k * h, w = k === 0 || k === steps ? 0.5 : 1; I += w * shortPair(p, r * r)[0] * S * r ** (d - 1); } I *= h; this.Elrc += ((a === b ? 0.5 : 1) * count(ta) * count(tb) * I) / V; }));
@@ -142,6 +151,7 @@ export class System {
       let f = 0; const p = this.pair(this.t[i], this.t[j]);
       if (p) { const [u, fu] = shortPair(p, r2); Esr += u; Eshift -= shortPair(p, rc2)[0]; f += fu; }
       if (al && q[i] && q[j]) { const r = Math.sqrt(r2), ec = erfc(al * r); Er += (q[i] * q[j] * ec) / r; f += (q[i] * q[j] * (ec / r2 + (sp * al * Math.exp(-al * al * r2)) / r)) / r; }
+      else if (this.dsf && q[i] && q[j]) { const D = this.dsf, r = Math.sqrt(r2), ec = erfc(D.a * r), fr = ec / r2 + (sp * D.a * Math.exp(-D.a * D.a * r2)) / r; Er += q[i] * q[j] * (ec / r - D.e0 + D.f0 * (r - rc)); f += (q[i] * q[j] * (fr - D.f0)) / r; }
       for (let a = 0; a < d; a++) { F[i * d + a] += f * dx[a]; F[j * d + a] -= f * dx[a]; }
     }
     let Ek = 0;
