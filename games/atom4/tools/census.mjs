@@ -66,24 +66,26 @@ export function hydride(atoms, d, extra = {}) {
 }
 
 /* a one-parameter minimum by parabolas through three points, the step held to two spacings, shrinking after a free step */
-export function minimize1(f, x, h, passes = 3, shrink = 3) {
-  for (let pass = 0, done = 0; done < passes && pass < 12; pass++) {
+export function minimize1(f, x, h, passes = 3, shrink = 3, maxPass = 30) {
+  for (let pass = 0, done = 0; done < passes && pass < maxPass; pass++) {
     const a = f(x - h), b = f(x), c = f(x + h), curv = a - 2 * b + c, u = curv > 0 ? (a - c) / (2 * curv) : (a < c ? -1 : 1) * 2, dx = Math.max(-2, Math.min(2, u));
     x += dx * h; if (curv > 0 && dx === u) { h /= shrink; done++; }
   }
   return x;
 }
-const START = { 3: { R: 1.85, bent: 105, pyr: 75 }, 4: { R: 2.8, R3: 3.4, bent: 120, pyr: 80 } };
+/* the first guess at a bond: the heavy atom's outer orbital's mean radius (js/table.js) plus hydrogen's share */
+const START = { 3: { H: 0.55, bent: 105, pyr: 75 }, 4: { H: 1.4, bent: 120, pyr: 80 } };
+const startR = (Z, d) => { const o = TABLE[d][Z - 1].orb; return o[o.length - 1].r + START[d].H; };
 const round = (v, k) => +v.toFixed(k);
 /* a seeded generator for the nudges (mulberry32) */
 const rng = (seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
 export function hydrideJob(Z, d) {
-  const val = valence(Z, d), shape = shapeOf(val.bonds, d), R0 = d === 3 ? START[3].R : Z > 12 ? START[4].R3 : START[4].R;
+  const val = valence(Z, d), shape = shapeOf(val.bonds, d), R0 = startR(Z, d);
   const E = (R, p) => hydride(hydrideAtoms(Z, d, R, p), d).E;
   let R, param = null;
   if (shape === "fixed") R = minimize1((x) => E(x, null), R0, 0.08, 4);
-  else { const p0 = shape === "bent" ? START[d].bent : START[d].pyr, m = minimize2(E, R0, p0, 0.08, 4, 4); R = m.x; param = m.y; }
+  else { const p0 = shape === "bent" ? START[d].bent : START[d].pyr, m = minimize2(E, R0, p0, 0.08, 4, 4, 3, 30); R = m.x; param = m.y; }
   const atoms = hydrideAtoms(Z, d, R, param), r = hydride(atoms, d);
   // nudge every hydrogen at random: a minimum rises every time (to within the minimizer's leftover slope)
   const rand = rng(Z * 31 + d), nudges = [];
@@ -113,7 +115,7 @@ export function interaction(mono, d, R, betad) {
   return { E: eAB.E - eA.E - eB.E, ok: eAB.converged && eA.converged && eB.converged };
 }
 export function dimerJob(mono) {
-  const d = mono.d, m = minimize2((R, b) => interaction(mono, d, R, b).E, mono.R + (d === 3 ? 3.9 : 3.8), -30, 0.3, 10, 3, 2.5), fin = interaction(mono, d, m.x, m.y);
+  const d = mono.d, m = minimize2((R, b) => interaction(mono, d, R, b).E, mono.R + (d === 3 ? 3.9 : 3.8), -30, 0.3, 10, 3, 2.5, 30), fin = interaction(mono, d, m.x, m.y);
   return { RXX: round(m.x, 3), beta: round(m.y, 1), E: round(fin.E, 6), ok: fin.ok };
 }
 export const protic = (m) => m.qH > 0 && m.lp > 0;

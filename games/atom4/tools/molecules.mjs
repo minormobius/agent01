@@ -67,10 +67,10 @@ export function interaction(d, r, thd, R, betad, size = "small") {
 }
 
 /* minimum of f(x, y) by quadratic fits on 3×3 grids, each centred on the last fit's minimum. A step is held to two
-   grid spacings; the spacing shrinks only after a step that didn't need holding, until it has shrunk `passes` times */
-export function minimize2(f, x, y, hx, hy, passes = 3, shrink = 3) {
+   grid spacings; the spacing shrinks only after a step that didn't need holding, until it has shrunk `passes` times (or maxPass grids) */
+export function minimize2(f, x, y, hx, hy, passes = 3, shrink = 3, maxPass = 12) {
   let curv = null;
-  for (let pass = 0, done = 0; done < passes && pass < 12; pass++) {
+  for (let pass = 0, done = 0; done < passes && pass < maxPass; pass++) {
     const rows = [], ys = [];
     for (const i of [-1, 0, 1]) for (const j of [-1, 0, 1]) { rows.push([1, i, j, i * i, j * j, i * j]); ys.push(f(x + i * hx, y + j * hy)); }
     const M = Array.from({ length: 6 }, (_, a) => [...Array.from({ length: 6 }, (_, b) => rows.reduce((s, r) => s + r[a] * r[b], 0)), rows.reduce((s, r, k) => s + r[a] * ys[k], 0)]);
