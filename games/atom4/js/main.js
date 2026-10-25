@@ -9,6 +9,7 @@ import { fineSplit, harmonicDim } from "./turning.js";
 import * as FF from "./forces.js";
 import { RS as PAIR_RS, PAIRS } from "./pairs.js";
 import { RESPONSE } from "./response.js";
+import { MOLECULES } from "./molecules.js";
 import { buildTurning, tiles as turnTiles } from "./turningTiles.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout, role } from "./periodic.js";
 import { buildShapes, tiles } from "./shapes.js";
@@ -264,6 +265,20 @@ function drawDisp() {
   $("rDisp").innerHTML = `4D hydrogen is <b>${(h.a0 / h3.a0).toFixed(1)}×</b> as polarizable as ours (α = ${h.a0.toFixed(1)}), being twice the size and less than half as tightly bound. 4D's helium, element 2, is soft too: dispersion beats its permanent pull out to ${(RESPONSE[4][1].c6 / FF.permanentB(FF.sumR2(TABLE[4][1]), FF.sumR2(TABLE[4][1]))).toFixed(0)} bohr. From element 12 on, the two are equal about a bohr out, inside the atoms themselves: wherever two of them can sit, the permanent pull is the stronger.`;
 }
 
+/* the Yater chapter: our water as the check, then Yater, computed the same way */
+const KCAL = 627.51; // a hartree in kcal/mol
+function drawYater() {
+  const w = MOLECULES[3], y = MOLECULES[4], f = (v, k) => (v == null ? "—" : v.toFixed(k));
+  const rows = (m) => [["bond length (bohr)", m.big.R, m.small.R, 3], ["angle (°)", m.big.theta, m.small.theta, 1], ["dipole moment (au)", m.big.dipole, m.small.dipole, 2],
+    ["straightening it costs (eV)", m.big.linear * EV, m.small.linear * EV, 2], ["pulling it into atoms (eV)", m.big.De * EV, m.small.De * EV, 2], ["its top electron's binding (eV)", -m.big.homo * EV, -m.small.homo * EV, 1]];
+  const LIT = [[1.776, 1.809], [106.3, 104.5], [0.78, 0.730], [null, 1.38], [null, 10.09], [null, 12.6]];
+  $("molCheck").innerHTML = `<table><tr><th>our water</th><th>computed</th><th>small basis</th><th>Hartree–Fock limit</th><th>measured</th></tr>${rows(w).map(([q, a, b, k], i) => `<tr><td class="d3">${q}</td><td>${f(a, k)}</td><td>${f(b, k)}</td><td>${f(LIT[i][0], k)}</td><td>${f(LIT[i][1], k)}</td></tr>`).join("")}<tr><td class="d3">hydrogen bond (kcal/mol)</td><td>—</td><td>${f(-w.dimer.E * KCAL, 1)}</td><td>3.6</td><td>5.0</td></tr><tr><td class="d3">O to O in the pair (bohr)</td><td>—</td><td>${f(w.dimer.RXX, 2)}</td><td>5.7</td><td>5.5</td></tr></table><p class="read">"Computed" is the big basis. The Hartree–Fock limit is what the method gives with a complete basis (from the literature); what it can't reach of the measured values is correlation. The top electron's binding is Koopmans's estimate of the energy to ionize.</p>`;
+  const rw = rows(w), ry = rows(y);
+  $("yaterTab").innerHTML = `<table><tr><th></th><th>our water</th><th>Yater</th></tr>${ry.map(([q, a, , k], i) => `<tr><td>${q}</td><td class="d3">${f(rw[i][1], k)}</td><td class="d4">${f(a, k)}</td></tr>`).join("")}<tr><td>hydrogen bond (kcal/mol)</td><td class="d3">${f(-w.dimer.E * KCAL, 1)}</td><td class="d4">${f(-y.dimer.E * KCAL, 1)}</td></tr><tr><td>heavy atoms in the pair (bohr)</td><td class="d3">${f(w.dimer.RXX, 2)}</td><td class="d4">${f(y.dimer.RXX, 2)}</td></tr></table><p class="read">The same method and the same recipe of basis functions in both worlds: the molecules at the big basis, the pairs at the small one. At the small basis Yater bends to ${f(y.small.theta, 1)}° and water to ${f(w.small.theta, 1)}°.</p>`;
+  const ratio = y.dimer.E / w.dimer.E;
+  $("rYater").innerHTML = `Yater's dipole is <b>${(y.big.dipole / w.big.dipole).toFixed(1)}×</b> water's, and its hydrogen bond <b>${ratio.toFixed(1)}×</b> as strong, computed the same way. Straightening Yater costs ${f(y.big.linear * EV, 2)} eV, ${(w.big.linear / y.big.linear).toFixed(0)} times less than water's ${f(w.big.linear * EV, 2)}.`;
+}
+
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
 function energySlope(d, a, b) {
   const xs = [], ys = []; for (const el of TABLE[d]) if (el.Z >= a && el.Z <= b) { xs.push(Math.log(el.Z)); ys.push(Math.log(-el.E)); }
@@ -274,7 +289,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp]];
+const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["yaterTab", drawYater]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

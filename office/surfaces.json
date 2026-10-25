@@ -7533,6 +7533,16 @@
    "discovered": true
   },
   {
+   "id": "atom4/yater.html",
+   "name": "yater",
+   "url": "https://games.mino.mobi/atom4/yater.html",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "atom4",
+   "discovered": true
+  },
+  {
    "id": "gen/game.html",
    "name": "game",
    "url": "https://games.mino.mobi/gen/game.html",
