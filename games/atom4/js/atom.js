@@ -92,47 +92,87 @@ export const capacity = (l, d) => 2 * orbitals(l, d);
 export function subshells(d) { const out = []; for (let n = 1; n <= 8; n++) for (let l = 0; l < Math.min(n, 4); l++) out.push({ n, l, cap: capacity(l, d), name: `${n}${LETTERS[l]}` }); return out; }
 export const hydrogen = (Z, n, d) => -(Z * Z) / (2 * (n + (d - 3) / 2) ** 2);
 
+/* ---------------------------------------------------------------- exchange (optional): the local exchange of an electron
+   gas at the atom's density, e_x(ρ) = −C ρ^(1 + 1/d): Dirac's C = (3/4)(3/π)^(1/3) in 3D, and in 4D C = 16/(15√π) (from
+   −¼∫|γ|²/r with the 4D gas's γ; ∫J₂²/x² = 4/15π). As with the Hartree part, each electron's own share is taken out
+   (Perdew and Zunger's self-interaction correction), using the fully spin-polarized gas, 2^(1/d) e_x. Spins follow
+   Hund's rule, subshell by subshell */
+export const SPHERE = { 3: 4 * Math.PI, 4: 2 * Math.PI * Math.PI };
+export const EXCHANGE = { 3: 0.75 * Math.cbrt(3 / Math.PI), 4: 16 / (15 * Math.sqrt(Math.PI)) };
+const toDensity = (q, d) => Float64Array.from(q, (v, j) => v / (H * R[j] * SPHERE[d] * R[j] ** (d - 1)));
+const ex = (rho, d) => -EXCHANGE[d] * Math.pow(rho, 1 + 1 / d), vx = (rho, d) => -(1 + 1 / d) * EXCHANGE[d] * Math.pow(rho, 1 / d);
+/* E_x[q] and ∫ρ v_x for a radial charge q (per grid point); pol: the fully polarized gas */
+function exchangeParts(q, d, pol) {
+  const k = pol ? Math.pow(2, 1 / d) : 1, rho = toDensity(q, d), v = new Float64Array(N); let E = 0, Ev = 0;
+  for (let j = 0; j < N; j++) { if (rho[j] <= 0) continue; v[j] = k * vx(rho[j], d); E += k * ex(rho[j], d) * SPHERE[d] * R[j] ** d * H; Ev += q[j] * v[j]; }
+  return { v, E, Ev };
+}
+/* spins by Hund's rule: a subshell fills one spin before the other */
+export const spinUp = (o, cap) => Math.min(o, cap / 2);
+/* the spin-polarized gas: E_x = ½(E_x[2ρ↑] + E_x[2ρ↓]), each spin's potential v_x(2ρ_σ). Returns both spins' potentials,
+   the energy and ∫(ρ↑v↑ + ρ↓v↓) */
+function exchangeSpin(qUp, qDown, d) {
+  const two = (q) => exchangeParts(Float64Array.from(q, (v) => 2 * v), d, false), U = two(qUp), D = two(qDown);
+  return { vUp: U.v, vDown: D.v, E: (U.E + D.E) / 2, Ev: (U.Ev + D.Ev) / 2 };
+}
+/* each subshell's potential: the nucleus, the whole cloud, less its own electron's share; with exchange, the spin-
+   polarized gas's, averaged over the subshell's up and down electrons, less its own electron's (fully polarized) */
+export function potentials(Z, occ, qs, d, { exchange = false, shellTheorem = false } = {}) {
+  const sh = subshells(d), K = kernel(shellTheorem ? 3 : d), Q = new Float64Array(N), Qu = new Float64Array(N), Qd = new Float64Array(N);
+  sh.forEach((s, i) => { if (occ[i] > 0 && qs[i]) { const u = spinUp(occ[i], s.cap); for (let j = 0; j < N; j++) { Q[j] += occ[i] * qs[i][j]; Qu[j] += u * qs[i][j]; Qd[j] += (occ[i] - u) * qs[i][j]; } } });
+  const VH = hartree(K, Q), X = exchange ? exchangeSpin(Qu, Qd, d) : null;
+  return sh.map((s, i) => {
+    const self = occ[i] > 0 && qs[i] ? hartree(K, qs[i]) : new Float64Array(N), Xs = exchange && occ[i] > 0 && qs[i] ? exchangeParts(qs[i], d, true) : null, V = new Float64Array(N);
+    const o = occ[i] > 0 ? occ[i] : 1, u = occ[i] > 0 ? spinUp(occ[i], s.cap) / o : 1; // an empty subshell's next electron joins the majority spin
+    for (let j = 0; j < N; j++) V[j] = -Z / R[j] + VH[j] - self[j] + (X ? u * X.vUp[j] + (1 - u) * X.vDown[j] - (Xs ? Xs.v[j] : 0) : 0);
+    return V;
+  });
+}
+/* the exchange part of the total energy: E_x[ρ↑, ρ↓] − ∫(ρ↑v↑ + ρ↓v↓) − Σ o (E_x^pol[n] − ∫n v^pol[n]) */
+function exchangeEnergy(occ, qs, d) {
+  const sh = subshells(d), Qu = new Float64Array(N), Qd = new Float64Array(N); let E = 0;
+  sh.forEach((s, i) => { if (occ[i] > 0 && qs[i]) { const u = spinUp(occ[i], s.cap); for (let j = 0; j < N; j++) { Qu[j] += u * qs[i][j]; Qd[j] += (occ[i] - u) * qs[i][j]; } const Xs = exchangeParts(qs[i], d, true); E -= occ[i] * (Xs.E - Xs.Ev); } });
+  const X = exchangeSpin(Qu, Qd, d); return E + X.E - X.Ev;
+}
+
 /* ---------------------------------------------------------------- the self-consistent atom with fixed occupations
    occ: electrons per subshell (same order as subshells(d)). Returns orbital energies, the total energy, and charges.
-   shellTheorem: a counterfactual, for 4D: the clouds' potential as if Newton's shell theorem held (the 3D kernel) */
-export function scf(Z, occ, d, { iters = 80, mix = 0.4, tol = 1e-7, start = null, shellTheorem = false } = {}) {
-  const sh = subshells(d), K = kernel(shellTheorem ? 3 : d), Vn = Float64Array.from(R, (r) => -Z / r);
+   exchange: add local exchange (above). shellTheorem: a counterfactual, for 4D: the clouds' potential as if Newton's
+   shell theorem held (the 3D kernel) */
+export function scf(Z, occ, d, { iters = 80, mix = 0.4, tol = 1e-7, start = null, shellTheorem = false, exchange = false } = {}) {
+  const sh = subshells(d), K = kernel(shellTheorem ? 3 : d);
   const live = sh.map((s, i) => i).filter((i) => occ[i] > 0);
-  let qs = start ? start.map((q) => q && q.slice()) : sh.map(() => null), es = sh.map(() => 0), E = 0, prevE = Infinity;
+  let qs = start ? start.map((q) => q && q.slice()) : sh.map(() => null), es = sh.map(() => 0), E = 0, prevE = Infinity, converged = false;
   for (let it = 0; it < iters; it++) {
-    // the total cloud, and each subshell's own one-electron share to take out of its potential
-    const Q = new Float64Array(N); for (const i of live) if (qs[i]) for (let j = 0; j < N; j++) Q[j] += occ[i] * qs[i][j];
-    const VH = hartree(K, Q), next = sh.map(() => null);
-    for (const i of live) {
-      const self = qs[i] ? hartree(K, qs[i]) : new Float64Array(N), V = new Float64Array(N);
-      for (let j = 0; j < N; j++) V[j] = Vn[j] + VH[j] - self[j];
-      const r = solve(V, sh[i].l, sh[i].n - sh[i].l - 1, d); es[i] = r.e; next[i] = r.q;
-    }
+    const Vs = potentials(Z, occ, qs, d, { exchange, shellTheorem }), next = sh.map(() => null);
+    for (const i of live) { const r = solve(Vs[i], sh[i].l, sh[i].n - sh[i].l - 1, d); es[i] = r.e; next[i] = r.q; }
     for (const i of live) { if (!qs[i]) qs[i] = next[i]; else for (let j = 0; j < N; j++) qs[i][j] = mix * next[i][j] + (1 - mix) * qs[i][j]; }
-    // the total energy: Σ o ε − ½ Σ o o' J + ½ Σ o J_self (no electron meets itself)
+    // the total energy: Σ o ε − ½ Σ o o' J + ½ Σ o J_self (no electron meets itself), and with exchange
+    // + E_x[ρ] − ∫ρ v_x − Σ o (E_x^pol[n] − ∫n v_x^pol[n]) for each electron's own share n
     const Q2 = new Float64Array(N); for (const i of live) for (let j = 0; j < N; j++) Q2[j] += occ[i] * qs[i][j];
     const VH2 = hartree(K, Q2); let sumE = 0, Jtot = 0, Jself = 0;
     for (let j = 0; j < N; j++) Jtot += Q2[j] * VH2[j];
     for (const i of live) { sumE += occ[i] * es[i]; const s = hartree(K, qs[i]); let J = 0; for (let j = 0; j < N; j++) J += qs[i][j] * s[j]; Jself += occ[i] * J; }
     E = sumE - 0.5 * Jtot + 0.5 * Jself;
-    if (Math.abs(E - prevE) < tol && it > 5) break;
+    if (exchange) E += exchangeEnergy(occ, qs, d);
+    if (Math.abs(E - prevE) < tol && it > 5) { converged = true; break; }
     prevE = E;
   }
-  return { E, es, qs, occ };
+  return { E, es, qs, occ, converged };
 }
 
 /* ---------------------------------------------------------------- the ground configuration
    Fill by the orbital energies until they stop changing (each round a fresh self-consistent field), then try moving
    one or two electrons between the outermost subshells and keep whatever has the least total energy */
-export function ground(Z, d) {
+export function ground(Z, d, opts = {}) {
   const sh = subshells(d), byH = sh.map((s, i) => i).sort((a, b) => sh[a].n - sh[b].n || sh[a].l - sh[b].l);
   const fill = (order) => { const occ = sh.map(() => 0); let left = Z; for (const i of order) { const k = Math.min(left, sh[i].cap); occ[i] = k; left -= k; if (!left) break; } return occ; };
-  let occ = fill(byH), res = scf(Z, occ, d, { iters: 40 });
+  let occ = fill(byH), res = scf(Z, occ, d, { iters: 40, ...opts });
   for (let round = 0; round < 6; round++) { // aufbau by the current orbital energies (every subshell's, occupied or not)
-    const all = sh.map((s, i) => i), es = probeEnergies(Z, occ, res.qs, d);
+    const all = sh.map((s, i) => i), es = probeEnergies(Z, occ, res.qs, d, opts);
     const order = all.sort((a, b) => es[a] - es[b]), next = fill(order);
     if (next.every((v, i) => v === occ[i])) break;
-    occ = next; res = scf(Z, occ, d, { iters: 40, start: res.qs });
+    occ = next; res = scf(Z, occ, d, { iters: 40, start: res.qs, ...opts });
   }
   // neighbours: move one or two electrons between the last-filled subshells
   const cands = [occ];
@@ -143,18 +183,14 @@ export function ground(Z, d) {
     const c = occ.slice(); c[from] -= k; c[to] += k; cands.push(c);
   }
   let best = { E: res.E, occ, res };
-  for (const c of cands.slice(1)) { const r = scf(Z, c, d, { iters: 40, start: res.qs }); if (r.E < best.E - 1e-6) best = { E: r.E, occ: c, res: r }; }
+  // a neighbour counts only if its field settled: an unsettled one can report an energy far too low (with exchange, a
+  // barely bound orbital can drift for hundreds of iterations)
+  for (const c of cands.slice(1)) { const r = scf(Z, c, d, { iters: 80, start: res.qs, ...opts }); if (r.converged && r.E < best.E - 1e-6) best = { E: r.E, occ: c, res: r }; }
   return { Z, d, occ: best.occ, E: best.E, es: best.res.es, qs: best.res.qs, config: configString(best.occ, d) };
 }
 /* every subshell's orbital energy in the field of the current cloud (for the aufbau) */
-function probeEnergies(Z, occ, qs, d) {
-  const sh = subshells(d), K = kernel(d), Q = new Float64Array(N);
-  sh.forEach((s, i) => { if (occ[i] > 0 && qs[i]) for (let j = 0; j < N; j++) Q[j] += occ[i] * qs[i][j]; });
-  const VH = hartree(K, Q);
-  return sh.map((s, i) => {
-    const self = occ[i] > 0 && qs[i] ? hartree(K, qs[i]) : new Float64Array(N), V = new Float64Array(N);
-    for (let j = 0; j < N; j++) V[j] = -Z / R[j] + VH[j] - self[j];
-    return solve(V, s.l, s.n - s.l - 1, d).e;
-  });
+function probeEnergies(Z, occ, qs, d, opts = {}) {
+  const sh = subshells(d), Vs = potentials(Z, occ, qs, d, opts);
+  return sh.map((s, i) => solve(Vs[i], s.l, s.n - s.l - 1, d).e);
 }
 export function configString(occ, d) { const sh = subshells(d); return sh.map((s, i) => [s, occ[i]]).filter(([, o]) => o > 0).sort((a, b) => a[0].n - b[0].n || a[0].l - b[0].l).map(([s, o]) => `${s.name}${o}`).join(" "); }

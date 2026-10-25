@@ -8,6 +8,7 @@ import { lineColour, colourOf, planck } from "../../lumen4/js/optics.js";
 import { fineSplit, harmonicDim } from "./turning.js";
 import * as FF from "./forces.js";
 import { RS as PAIR_RS, PAIRS } from "./pairs.js";
+import { RESPONSE } from "./response.js";
 import { buildTurning, tiles as turnTiles } from "./turningTiles.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout, role } from "./periodic.js";
 import { buildShapes, tiles } from "./shapes.js";
@@ -147,7 +148,7 @@ function drawTrends() {
     { pts: t4.map((el) => [el.Z, el.ion * EV]), c: C4, label: "4D" },
   ], vlines: nobles(4).map((Z) => ({ x: Z, c: "#6fe0ff66", label: String(Z) })) });
   const n3 = nobles(3), n4 = nobles(4), plen = (n) => n.map((z, i) => z - (n[i - 1] || 0));
-  $("rIon").innerHTML = `Noble gases: 3D <b>${n3.join(", ")}</b> (periods of ${plen(n3).join(", ")}); 4D <b>${n4.join(", ")}</b> (periods of ${plen(n4).join(", ")}). The solver's 3D line runs about a third below the measured dots: without exchange it underbinds, and it can't show the small dips where a shell passes half full (nitrogen to oxygen).`;
+  $("rIon").innerHTML = `Noble gases: 3D <b>${n3.join(", ")}</b> (periods of ${plen(n3).join(", ")}); 4D <b>${n4.join(", ")}</b> (periods of ${plen(n4).join(", ")}). The solver's 3D line runs close to the measured dots, the dip where a shell passes half full (nitrogen to oxygen) included.`;
   const outer = (el) => el.orb.find((o) => o.s === el.top).r;
   chart($("cSize"), { x: [0, zmax + 1], y: [0, 12], xl: "atomic number Z", yl: "outer electron radius (bohr)", series: [
     { pts: t3.map((el) => [el.Z, outer(el)]), c: C3, label: "3D" }, { pts: t4.map((el) => [el.Z, outer(el)]), c: C4, label: "4D" },
@@ -195,7 +196,7 @@ function drawScreen() {
   ];
   chart($("cScreen"), { x: [0.7, Math.max(n3.length, n4.length) + 0.3], y: [0, 25], xl: "the noble gas of row 1, 2, 3 …", yl: "first ionization energy (eV)", series });
   const f = (els) => els.map((el) => (el.ion * EV).toFixed(1)).join(" → ");
-  $("rScreen").innerHTML = `3D: <b>${f(n3)}</b> eV, falling down the column, as ours do. 4D: <b>${f(n4)}</b> eV, rising. 4D with the shell theorem forced on: ${f(cf)} eV, no rise. The same atoms and the same solver, with one thing changed: the rising grip comes from the shell theorem failing.`;
+  $("rScreen").innerHTML = `3D: <b>${f(n3)}</b> eV, falling down the column, as ours do. 4D: <b>${f(n4)}</b> eV, rising overall. 4D with the shell theorem forced on: ${f(cf)} eV, flat, and about half as tight. The same atoms and the same solver, with one thing changed: the grip comes from the shell theorem failing.`;
 }
 function drawCompact() {
   const rs = range(0.01, 100, 300, true), p = (r) => { const e = 1e-4; return -(Math.log(F.compactPotential(r * (1 + e), 1)) - Math.log(F.compactPotential(r, 1))) / Math.log(1 + e); };
@@ -237,22 +238,30 @@ function drawForces() {
 
 /* the forces chapter: two atoms computed (Gordon–Kim on the solver's clouds) */
 function drawWells() {
-  const meV = 27211.386, nob4 = PAIRS[4], nob3 = PAIRS[3];
-  // our world first: the method plus measured dispersion against the measured wells
+  const meV = 27211.386, nob4 = PAIRS[4], nob3 = PAIRS[3], c6 = (d, Z) => RESPONSE[d].find((r) => r.Z === Z).c6;
+  // our world first: every part computed, against the measured wells
   const check = nob3.filter((p) => p.Z !== 2).map((p) => {
-    const el = TABLE[3][p.Z - 1], f = FF.pairCurve(PAIR_RS, p), { beta } = FF.fitRepulsion(PAIR_RS, p, 0), m = FF.MEASURED[p.Z];
-    const w = FF.minimum((R) => f(R) - (FF.tangToennies6(beta * R) * m.C6) / R ** 6);
-    return `<tr><td class="d3">${SYM[el.Z - 1]}</td><td>${w.R.toFixed(2)}</td><td>${m.R}</td><td>${(-w.E * meV).toFixed(1)}</td><td>${(m.eps * meV).toFixed(1)}</td></tr>`;
+    const m = FF.MEASURED[p.Z], w = FF.minimum(FF.fullPair(PAIR_RS, p, 0, c6(3, p.Z)));
+    return `<tr><td class="d3">${SYM[p.Z - 1]}</td><td>${w.R.toFixed(2)}</td><td>${m.R}</td><td>${(-w.E * meV).toFixed(1)}</td><td>${(m.eps * meV).toFixed(1)}</td><td>${(-w.E / m.eps).toFixed(2)}×</td></tr>`;
   });
-  $("wellCheck").innerHTML = `<table><tr><th>ours</th><th>well at (bohr), computed</th><th>measured</th><th>depth (meV), computed</th><th>measured</th></tr>${check.join("")}</table>`;
+  $("wellCheck").innerHTML = `<table><tr><th>ours</th><th>well at (bohr), computed</th><th>measured</th><th>depth (meV), computed</th><th>measured</th><th>ratio</th></tr>${check.join("")}</table>`;
   const rows = nob4.map((p) => {
-    const el = TABLE[4][p.Z - 1], S = FF.sumR2(el), B = FF.permanentB(S, S), f = FF.pairCurve(PAIR_RS, p), w = FF.minimum(f), fit = FF.fitRepulsion(PAIR_RS, p, B);
-    return `<tr><td class="d4">${p.Z}</td><td>${w.R.toFixed(2)}</td><td>${(-w.E * meV).toFixed(0)}</td><td>${FF.boilK(-w.E / 2).toFixed(0)}–${FF.boilK(-w.E).toFixed(0)}</td><td>${fit.A.toFixed(0)}</td><td>${fit.beta.toFixed(2)}</td><td>${B.toFixed(1)}</td></tr>`;
+    const el = TABLE[4][p.Z - 1], S = FF.sumR2(el), B = FF.permanentB(S, S), C = c6(4, p.Z), w0 = FF.minimum(FF.pairCurve(PAIR_RS, p)), w = FF.minimum(FF.fullPair(PAIR_RS, p, B, C)), fit = FF.fitRepulsion(PAIR_RS, p, B), lo = -w.E / FF.OVERBIND, hi = -w.E;
+    return `<tr><td class="d4">${p.Z}</td><td>${w.R.toFixed(2)}</td><td>${(lo * meV).toFixed(0)}–${(hi * meV).toFixed(0)}</td><td>${(-w0.E * meV).toFixed(0)}</td><td>${FF.boilK(lo).toFixed(0)}–${FF.boilK(hi).toFixed(0)}</td><td>${fit.A.toFixed(0)}</td><td>${fit.beta.toFixed(2)}</td><td>${B.toFixed(1)}</td><td>${C.toFixed(1)}</td></tr>`;
   });
-  $("wellTab").innerHTML = `<table><tr><th>4D noble gas</th><th>well at (bohr)</th><th>depth (meV), no dispersion</th><th>boils near (K)</th><th>A</th><th>β</th><th>B</th></tr>${rows.join("")}</table><p class="read">A, β, B in atomic units, for V(R) = A e^(−βR) − B/R⁵ − C₆/R⁶. The fit puts each well within 0.15 bohr and about 15% of the computed curve (element 2's less well); the molecular-dynamics view can use the computed curve itself. "Boils near" is 0.7 × depth/k, as our noble gases do, from half the depth (if the method overbinds as it does ours) to all of it.</p>`;
-  const Rs = range(3.5, 12, 300), cols = ["#7dffb0", "#6fe0ff", "#c79bff", "#ff7ad9"], series = nob4.slice(1, 4).map((p, i) => { const f = FF.pairCurve(PAIR_RS, p); return { pts: Rs.map((R) => [R, f(R) * meV]), c: cols[i], label: `4D element ${p.Z}, computed` }; });
+  $("wellTab").innerHTML = `<table><tr><th>4D noble gas</th><th>well at (bohr)</th><th>depth (meV)</th><th>of it, without dispersion</th><th>boils near (K)</th><th>A</th><th>β</th><th>B</th><th>C₆</th></tr>${rows.join("")}</table><p class="read">Atomic units for A, β, B, C₆, in V(R) = A e^(−βR) − B/R⁵ − C₆ f₆(βR)/R⁶. The fit puts each well within 0.2 bohr and about 20% of the computed curve; the molecular-dynamics view can use the computed curve itself. "Boils near" is 0.7 × depth/k, as our noble gases boil, over the depth's range.</p>`;
+  const Rs = range(3.5, 12, 300), cols = ["#7dffb0", "#6fe0ff", "#c79bff"], series = nob4.slice(1, 4).map((p, i) => { const el = TABLE[4][p.Z - 1], S = FF.sumR2(el), f = FF.fullPair(PAIR_RS, p, FF.permanentB(S, S), c6(4, p.Z)); return { pts: Rs.map((R) => [R, f(R) * meV]), c: cols[i], label: `4D element ${p.Z}, computed` }; });
   series.push({ pts: Rs.map((R) => [R, FF.lj(R, FF.MEASURED_LJ.Ar) * meV]), c: C3, label: "our argon, measured" });
-  chart($("cWells"), { x: [3.5, 12], y: [-400, 150], xl: "distance between the two atoms (bohr)", yl: "energy (meV)", series });
+  chart($("cWells"), { x: [3.5, 12], y: [-600, 150], xl: "distance between the two atoms (bohr)", yl: "energy (meV)", series });
+}
+/* the forces chapter: dispersion, computed */
+function drawDisp() {
+  const r3 = RESPONSE[3].map((r) => { const m = FF.MEASURED[r.Z]; return `<tr><td class="d3">${SYM[r.Z - 1]}</td><td>${r.a0.toFixed(3)}</td><td>${m.alpha}</td><td>${r.c6.toFixed(2)}</td><td>${m.C6}</td></tr>`; });
+  $("dispCheck").innerHTML = `<table><tr><th>ours</th><th>α (bohr³), computed</th><th>measured</th><th>C₆, computed</th><th>measured</th></tr>${r3.join("")}</table><p class="read">Hydrogen's "measured" values are its exact ones.</p>`;
+  const r4 = RESPONSE[4].map((r) => { const el = TABLE[4][r.Z - 1], S = FF.sumR2(el), B = FF.permanentB(S, S), x = FF.crossover(B, r.c6); return `<tr><td class="d4">${r.Z === 1 ? "hydrogen" : r.Z}</td><td>${r.a0.toFixed(2)}</td><td>${r.c6.toFixed(1)}</td><td>${r.Z === 1 ? "—" : B.toFixed(1)}</td><td>${r.Z === 1 ? "—" : x.toFixed(1)}</td></tr>`; });
+  $("dispTab").innerHTML = `<table><tr><th>4D</th><th>α (bohr³)</th><th>C₆</th><th>B (the permanent R⁻⁵)</th><th>equal at (bohr)</th></tr>${r4.join("")}</table><p class="read">"Equal at" is C₆/B: closer in than that dispersion is the stronger, further out the permanent pull. (Hydrogen has one electron and an open shell; its S-term is left out here.)</p>`;
+  const h = RESPONSE[4].find((r) => r.Z === 1), h3 = RESPONSE[3].find((r) => r.Z === 1);
+  $("rDisp").innerHTML = `4D hydrogen is <b>${(h.a0 / h3.a0).toFixed(1)}×</b> as polarizable as ours (α = ${h.a0.toFixed(1)}), being twice the size and less than half as tightly bound. 4D's helium, element 2, is soft too: dispersion beats its permanent pull out to ${(RESPONSE[4][1].c6 / FF.permanentB(FF.sumR2(TABLE[4][1]), FF.sumR2(TABLE[4][1]))).toFixed(0)} bohr. From element 12 on, the two are equal about a bohr out, inside the atoms themselves: wherever two of them can sit, the permanent pull is the stronger.`;
 }
 
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
@@ -265,7 +274,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling]];
+const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

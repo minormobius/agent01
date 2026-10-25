@@ -84,7 +84,7 @@ for (const d of [3, 4]) {
 /* 6 · the 3D check: the solver against our real periodic table */
 {
   const miss = TABLE[3].filter((el) => el.config !== P.realConfig(el.Z)).map((el) => el.Z);
-  ok(miss.join() === "24,29", `3D configurations match ours for all of Z = 1–36 but chromium and copper (misses: ${miss.join(", ") || "none"})`);
+  ok(miss.join() === "22,23,27,28", `3D configurations match ours for 32 of Z = 1–36, chromium and copper included; misses Ti, V, Co, Ni, as the page says (misses: ${miss.join(", ") || "none"})`);
   ok(P.realConfig(24) === "1s2 2s2 2p6 3s2 3p6 3d5 4s1" && P.realConfig(26) === "1s2 2s2 2p6 3s2 3p6 3d6 4s2", "our real configurations, as written");
   const n3 = TABLE[3].filter((el) => P.isNoble(el, 3)).map((el) => el.Z);
   ok(n3.join() === "2,10,18,36", `3D noble gases ${n3.join(", ")}`);
@@ -94,7 +94,8 @@ for (const d of [3, 4]) {
   const ratio = TABLE[3].map((el, i) => ie[i] / P.IE_REAL[i]).sort((a, b) => a - b), median = ratio[18];
   const mean = (x) => x.reduce((a, v) => a + v, 0) / x.length, ma = mean(ie), mb = mean(P.IE_REAL);
   const corr = ie.reduce((a, v, i) => a + (v - ma) * (P.IE_REAL[i] - mb), 0) / Math.sqrt(ie.reduce((a, v) => a + (v - ma) ** 2, 0) * P.IE_REAL.reduce((a, v) => a + (v - mb) ** 2, 0));
-  ok(peaks && corr > 0.9 && median > 0.6 && median < 0.8, `3D ionization peaks at the noble gases and follows the measured values (correlation ${corr.toFixed(3)}), about a third low (median ${median.toFixed(2)} of measured), as the page says`);
+  ok(peaks && corr > 0.99 && median > 0.93 && median < 1 && ratio[0] > 0.8 && ratio.at(-1) < 1.06, `3D ionization peaks at the noble gases and follows the measured values (correlation ${corr.toFixed(3)}), within a few percent (median ${median.toFixed(3)}, range ${ratio[0].toFixed(2)}–${ratio.at(-1).toFixed(2)} of measured)`);
+  ok(ie[6] > ie[7] && ie[14] > ie[15], "with exchange, the dips where a p shell passes half full are there: nitrogen to oxygen, phosphorus to sulphur");
   const lay = P.layout(TABLE, 3);
   ok(lay.W === 18 && lay.periods.map((p) => p.length).join() === "2,8,8,18", "3D layout: 18 columns, periods of 2, 8, 8, 18");
   const c = lay.cells; const at = (Z) => c.find((x) => x.el.Z === Z);
@@ -112,10 +113,10 @@ for (const d of [3, 4]) {
 /* 8 · what the shell theorem's failure does: partial screening */
 {
   const nob = (d) => TABLE[d].filter((el) => P.isNoble(el, d)), i3 = nob(3).map((el) => el.ion), i4 = nob(4).map((el) => el.ion), cf = SHELL_COUNTERFACTUAL;
-  const falls = i3.every((v, i) => !i || v < i3[i - 1]), rises = i4.slice(1).every((v, i) => !i || v > i4[i]);
-  ok(falls && rises, `noble gases: 3D ionization falls down the column, 4D rises from row 2 on (${i4.map((v) => (v * 27.2114).toFixed(1)).join(", ")} eV)`);
-  ok(cf.length === i4.length && cf.every((c, i) => c.Z === nob(4)[i].Z) && cf.slice(1).every((c, i) => c.ion < 0.7 * i4[i + 1]) && Math.max(...cf.slice(1).map((c) => c.ion)) < 1.25 * Math.min(...cf.slice(1).map((c) => c.ion)),
-    `with the shell theorem forced on, 4D's noble gases lose the rise (${cf.map((c) => (c.ion * 27.2114).toFixed(1)).join(", ")} eV)`);
+  const falls = i3.every((v, i) => !i || v < i3[i - 1]), rises = i4.at(-1) > 1.2 * i4[1] && i4.slice(1).every((v, i) => !i || v > 0.95 * i4[i]);
+  ok(falls && rises, `noble gases: 3D ionization falls down the column, 4D's rises overall from row 2 (${i4.map((v) => (v * 27.2114).toFixed(1)).join(", ")} eV)`);
+  ok(cf.length === i4.length && cf.every((c, i) => c.Z === nob(4)[i].Z) && cf.slice(1).every((c, i) => c.ion < 0.6 * i4[i + 1]) && Math.max(...cf.slice(1).map((c) => c.ion)) < 1.15 * Math.min(...cf.slice(1).map((c) => c.ion)),
+    `with the shell theorem forced on, 4D's noble gases sit flat and about half as tight (${cf.map((c) => (c.ion * 27.2114).toFixed(1)).join(", ")} eV)`);
   // a neutral atom from outside: 4D pulls with −Σr²/8s³; 3D with nothing
   const far = (Z, d, occIdx) => {
     const sh = A.subshells(d), occ = sh.map((s, i) => occIdx[i] || 0), g = A.scf(Z, occ, d, { iters: 60 }), Q = new Float64Array(A.N);
@@ -275,13 +276,10 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const jacobi = (A) => { const n = A.length; A = A.map((r) => r.slice()); for (let sw = 0; sw < 100; sw++) { let off = 0; for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) { off += A[p][q] ** 2; if (Math.abs(A[p][q]) < 1e-15) continue; const th = (A[q][q] - A[p][p]) / (2 * A[p][q]), t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1)), c = 1 / Math.sqrt(t * t + 1), s = t * c; for (let k = 0; k < n; k++) { const a = A[k][p], b = A[k][q]; A[k][p] = c * a - s * b; A[k][q] = s * a + c * b; } for (let k = 0; k < n; k++) { const a = A[p][k], b = A[q][k]; A[p][k] = c * a - s * b; A[q][k] = s * a + c * b; } } if (off < 1e-28) break; } return A.map((r, i) => r[i]); };
   const drude = (d) => { const q = 0.3, R = 6, n = 2 * d, K = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))); for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) { const T = ((i === j ? 1 : 0) - 3 * (i === 0) * (j === 0)) / R ** 3; K[i][d + j] += q * q * T; K[d + j][i] += q * q * T; } const shift = jacobi(K).reduce((s, l) => s + 0.5 * (Math.sqrt(l) - 1), 0); return shift / (-FF.londonC6(q * q, q * q, 1, 1, d) / R ** 6); };
   ok(Math.abs(drude(3) - 1) < 1e-5 && Math.abs(drude(4) - 1) < 1e-5 && FF.traceT2(3) === 6 && FF.traceT2(4) === 7, `dispersion: coupled oscillators match London's 3/2 in 3D and 7/4 in 4D (${drude(3).toFixed(7)}, ${drude(4).toFixed(7)})`);
-  // Unsöld's shortcut misses our neon, as the page says
-  const ne = TABLE[3][9], neV = ne.orb.filter((o) => o.s.startsWith("2")).reduce((s, o) => s + o.o * o.r2, 0), miss = ((2 / 3) * neV) / ne.ion / 2.67;
-  ok(miss > 5.3 && miss < 5.9, `Unsöld's estimate from the solver's neon is ${miss.toFixed(1)}× its measured α (the page says 5.6)`);
   // the numbers the page states: element 12 at neon's spacing, 16×; element 22 at argon's, 9×
   const vs = (Zz, gas) => { const el = TABLE[4][Zz - 1], B = FF.permanentB(FF.sumR2(el), FF.sumR2(el)), m = FF.MEASURED_LJ[gas], r = 2 ** (1 / 6) * m.sigma; return { x: B / r ** 5 / m.eps, need: B * r }; };
   const a = vs(12, "Ne"), b = vs(22, "Ar");
-  ok(Math.round(a.x) === 16 && Math.round(b.x) === 9 && Math.abs(a.need - 85) < 3, `the permanent pull at our gases' spacing: element 12 ${a.x.toFixed(1)}× neon's well, element 22 ${b.x.toFixed(1)}× argon's; dispersion would need C₆ ≈ ${a.need.toFixed(0)} to match`);
+  ok(Math.round(a.x) === 14 && Math.round(b.x) === 7, `the permanent pull at our gases' spacing: element 12 ${a.x.toFixed(1)}× neon's well (the landing says about 14), element 22 ${b.x.toFixed(1)}× argon's`);
   ok(TABLE[4].every((el) => el.orb.every((o) => o.r2 >= o.r * o.r - 1e-6)), "every orbital's ⟨r²⟩ ≥ ⟨r⟩² (the baked ⟨r²⟩ is consistent)");
   // twisting: staggered (inverted) is the least energy over random twists; eclipsed the most
   let seed = 9; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
@@ -312,20 +310,55 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // the electrostatics: 3D's vanishes far out; 4D's becomes the permanent −B/R⁵
   const last = PR.RS.length - 1, ne = PR.PAIRS[3].find((p) => p.Z === 10), e12 = PR.PAIRS[4].find((p) => p.Z === 12), S12 = FF.sumR2(TABLE[4][11]), r15 = e12.es[last] / (-FF.permanentB(S12, S12) / PR.RS[last] ** 5);
   ok(Math.abs(ne.es[last]) < 1e-7 && r15 > 1 && r15 < 1.06, `far apart, neon's electrostatics vanish (${ne.es[last].toExponential(1)}) and element 12's are ${r15.toFixed(3)} × −B/R⁵`);
-  // our world: the method plus measured C₆ against the measured wells
-  const chk = [10, 18, 36].map((Z) => { const p = PR.PAIRS[3].find((q) => q.Z === Z), f = FF.pairCurve(PR.RS, p), { beta } = FF.fitRepulsion(PR.RS, p, 0), m = FF.MEASURED[Z], w = FF.minimum((R) => f(R) - (FF.tangToennies6(beta * R) * m.C6) / R ** 6); return { pos: Math.abs(w.R / m.R - 1), deep: -w.E / m.eps }; });
-  ok(chk.every((c) => c.pos <= 0.03) && chk[0].deep > 1.2 && chk[0].deep < 1.5 && chk[1].deep > 1.6 && chk[2].deep > 1.6 && chk[2].deep < 2, `our noble gases: wells within 3% of measured (${chk.map((c) => (c.pos * 100).toFixed(1) + "%").join(", ")}), depths ${chk.map((c) => c.deep.toFixed(2) + "×").join(", ")} measured, as the page says`);
+  // our world, end to end (computed clouds, computed C₆) against the measured wells
+  const RSP = await import(path.join(here, "../js/response.js")), c6 = (d, Z) => RSP.RESPONSE[d].find((r) => r.Z === Z).c6;
+  const chk = [10, 18, 36].map((Z) => { const p = PR.PAIRS[3].find((q) => q.Z === Z), m = FF.MEASURED[Z], w = FF.minimum(FF.fullPair(PR.RS, p, 0, c6(3, Z))); return { pos: Math.abs(w.R / m.R - 1), deep: -w.E / m.eps }; });
+  ok(chk.every((c) => c.pos <= 0.05 && c.deep >= 1.4 && c.deep <= FF.OVERBIND), `our noble gases end to end: wells within 5% of measured (${chk.map((c) => (c.pos * 100).toFixed(1) + "%").join(", ")}), depths ${chk.map((c) => c.deep.toFixed(2) + "×").join(", ")} measured: 1.4 to ${FF.OVERBIND}, as the page says`);
   // 4D: the numbers the page states
-  const meV = 27211.386, w4 = (Z) => FF.minimum(FF.pairCurve(PR.RS, PR.PAIRS[4].find((p) => p.Z === Z))), a = w4(12), b = w4(22);
-  ok(a.R >= 5 && a.R <= 5.5 && -a.E * meV > 55 && -a.E * meV < 70 && -b.E * meV > 170 && -b.E * meV < 195 && FF.boilK(-a.E / 2) < 300 && FF.boilK(-a.E) > 300, `4D: element 12 ${(-a.E * meV).toFixed(0)} meV deep at ${a.R.toFixed(2)} bohr (boils ${FF.boilK(-a.E / 2).toFixed(0)}–${FF.boilK(-a.E).toFixed(0)} K, round room temperature), element 22 ${(-b.E * meV).toFixed(0)} meV`);
+  const meV = 27211.386, full = (Z) => { const p = PR.PAIRS[4].find((q) => q.Z === Z), el = TABLE[4][Z - 1], S = FF.sumR2(el); return { p, B: FF.permanentB(S, S), w: FF.minimum(FF.fullPair(PR.RS, p, FF.permanentB(S, S), c6(4, Z))), w0: FF.minimum(FF.pairCurve(PR.RS, p)) }; };
+  const a = full(12), b = full(22), boil = (x) => [FF.boilK(-x.w.E / FF.OVERBIND), FF.boilK(-x.w.E)];
+  const [a0, a1] = boil(a), [b0, b1] = boil(b), more = [12, 22, 50, 78].map((Z) => { const f = full(Z); return f.w.E / f.w0.E - 1; });
+  ok(Math.abs(a0 - 400) < 15 && Math.abs(a1 - 730) < 15 && Math.abs(b0 - 1200) < 25 && Math.abs(b1 - 2200) < 50 && more.every((x) => x > 0.22 && x < 0.42) && [12, 22, 50, 78].every((Z) => { const R = full(Z).w.R; return R >= 4.49 && R <= 5.26; }),
+    `4D wells with dispersion: element 12 boils ${a0.toFixed(0)}–${a1.toFixed(0)} K, element 22 ${b0.toFixed(0)}–${b1.toFixed(0)} K; dispersion adds ${more.map((x) => (x * 100).toFixed(0) + "%").join(", ")}; all sit 4.5–5.25 bohr apart`);
+  const e2 = full(2); ok(FF.boilK(-e2.w.E) < 100, `element 2 stays a gas (boils below ${FF.boilK(-e2.w.E).toFixed(0)} K)`);
+  // at each full well's bottom, electrostatics alone pulls harder than the well is deep
+  ok([12, 22, 50, 78].every((Z) => { const f = full(Z), i = Math.round((f.w.R - PR.RS[0]) / 0.25); return f.p.es[i] < f.w.E; }), "at the bottom of each 4D well (element 12 on), electrostatics alone is deeper than the whole well");
   let fitOk = true, betaOk = true, esOk = true;
   for (const p of PR.PAIRS[4]) {
     const el = TABLE[4][p.Z - 1], S = FF.sumR2(el), B = FF.permanentB(S, S), f = FF.pairCurve(PR.RS, p), w = FF.minimum(f), fit = FF.fitRepulsion(PR.RS, p, B), wf = FF.minimum((R) => fit.A * Math.exp(-fit.beta * R) - B / R ** 5);
     if (p.Z >= 12 && (Math.abs(wf.R - w.R) > 0.2 || Math.abs(wf.E / w.E - 1) > 0.2)) fitOk = false;
-    if (Math.abs(fit.beta / FF.bornMayerBeta(el.ion) - 1) > 0.26) betaOk = false;
+    if (Math.abs(fit.beta / FF.bornMayerBeta(el.ion) - 1) > 0.2) betaOk = false;
     const ies = Math.round((w.R - PR.RS[0]) / 0.25); if (p.Z >= 12 && !(p.es[ies] / w.E > 2)) esOk = false;
   }
-  ok(fitOk && betaOk && esOk, "the fitted A e^(−βR) − B/R⁵ puts each well within 0.2 bohr and 20%; β within 25% of 2√(2I); at the bottom, electrostatics is more than twice the depth");
+  ok(fitOk && betaOk && esOk, "the fitted A e^(−βR) − B/R⁵ puts each well within 0.2 bohr and 20%; β within 20% of 2√(2I); without dispersion, electrostatics is more than twice the depth");
+}
+
+/* 18 · the solver's exchange, and the response that gives C₆ */
+{
+  // local exchange: Dirac's constant and 4D's, and its known cancellations
+  ok(Math.abs(A.EXCHANGE[3] - 0.738559) < 1e-6 && Math.abs(A.EXCHANGE[4] - 16 / (15 * Math.sqrt(Math.PI))) < 1e-12, "local exchange: Dirac's 0.7386 in 3D, 16/(15√π) in 4D");
+  const he = A.scf(2, A.subshells(3).map((x, i) => (i === 0 ? 2 : 0)), 3, { exchange: true }), heH = A.scf(2, A.subshells(3).map((x, i) => (i === 0 ? 2 : 0)), 3);
+  ok(Math.abs(he.E - heH.E) < 1e-9 && he.converged, "for helium, exchange with each electron's own share taken out cancels exactly: Hartree–Fock's −2.8617 stands");
+  ok(Math.abs(TABLE[3][9].E + 128.86) < 0.02, `neon with exchange: ${TABLE[3][9].E.toFixed(3)} hartree (Hartree–Fock −128.547)`);
+  // the response: hydrogen exact in both worlds (Dalgarno–Lewis in d dimensions), the sum rule, helium's TDHF value
+  const RSP = await import(path.join(here, "../js/response.js")), RT2 = await import(path.join(here, "../tools/response.mjs"));
+  const dl = (d) => { const k = 1 / (1 + (d - 3) / 2), m = (q) => { let g = 1; for (let i = 1; i < d + q; i++) g *= i; let g0 = 1; for (let i = 1; i < d; i++) g0 *= i; return g / g0 / (2 * k) ** q; }; return (2 / d) * (m(3) / (2 * k) + ((d + 1) * m(2)) / (4 * k * k)); };
+  const h3 = RSP.RESPONSE[3].find((r) => r.Z === 1), h4 = RSP.RESPONSE[4].find((r) => r.Z === 1);
+  ok(Math.abs(dl(3) - 4.5) < 1e-12 && Math.abs(h3.a0 / dl(3) - 1) < 1e-3 && Math.abs(h4.a0 / dl(4) - 1) < 1e-3 && Math.abs(h3.c6 - 6.499) < 0.01, `hydrogen's α exactly: 3D ${h3.a0} (4.5), 4D ${h4.a0} (Dalgarno–Lewis ${dl(4).toFixed(4)}); C₆ ${h3.c6} (6.499)`);
+  const allSum = [3, 4].every((d) => RSP.RESPONSE[d].every((r) => (r.Z <= 22 ? Math.abs(r.fsum / r.Z - 1) < 0.04 : r.fsum / r.Z > 0.89 && r.fsum <= r.Z)));
+  ok(allSum, "the Thomas–Reiche–Kuhn sum rule: ω²α at ω = 300 within 4% of the electron count up to Z = 22; heavier atoms' deep cores (Δ > 300) still approaching");
+  const heR = RSP.RESPONSE[3].find((r) => r.Z === 2);
+  ok(Math.abs(heR.a0 - 1.322) < 0.002, `helium's coupled response, ${heR.a0}: time-dependent Hartree–Fock's 1.322`);
+  const errs = [2, 10, 18, 36].map((Z) => { const r = RSP.RESPONSE[3].find((q) => q.Z === Z), m = FF.MEASURED[Z]; return [r.a0 / m.alpha - 1, r.c6 / m.C6 - 1]; });
+  ok(errs.every(([x, y]) => Math.abs(x) < 0.09 && Math.abs(y) < 0.115), `our noble gases: α within 9%, C₆ within 11% of measured (${errs.map(([x, y]) => `${(x * 100).toFixed(1)}/${(y * 100).toFixed(1)}%`).join(", ")})`);
+  // the bake is reproducible (4D element 2), and C₆ is Casimir–Polder's 7/2π here
+  const re = RT2.coupledAlpha(2, 4, { omegas: [0, ...RSP.OMEGA] }), e2 = RSP.RESPONSE[4].find((r) => r.Z === 2);
+  ok(Math.abs(re[0] - e2.a0) < 1e-4 * e2.a0 && Math.abs(RT2.c6From(re.slice(1), re.slice(1), 4) - e2.c6) < 1e-4 * e2.c6, "the baked response is what tools/response.mjs computes (4D element 2)");
+  const drude = (d) => { const w0 = 0.7, a0 = 2, a = RSP.OMEGA.map((w) => (a0 * w0 * w0) / (w0 * w0 + w * w)); return RT2.c6From(a, a, d) / ((FF.traceT2(d) / 8) * a0 * a0 * w0); };
+  ok(Math.abs(drude(3) - 1) < 2e-3 && Math.abs(drude(4) - 1) < 2e-3, `Casimir–Polder on a Drude oscillator gives London's (d + 3)/8 α²ω₀ (${drude(3).toFixed(5)}, ${drude(4).toFixed(5)}): the quadrature and the 7/2π`);
+  // dispersion against the permanent pull: equal about a bohr out from element 12 on; element 2 soft
+  const eq = (Z) => { const r = RSP.RESPONSE[4].find((q) => q.Z === Z), S = FF.sumR2(TABLE[4][Z - 1]); return FF.crossover(FF.permanentB(S, S), r.c6); };
+  ok([12, 22, 50, 78].every((Z) => eq(Z) < 1.5) && eq(2) > 8 && eq(2) < 10.5 && h4.a0 / h3.a0 > 7.6 && h4.a0 / h3.a0 < 7.8, `dispersion equals the permanent pull at ${[2, 12, 22, 50, 78].map((Z) => eq(Z).toFixed(1)).join(", ")} bohr; 4D hydrogen is ${(h4.a0 / h3.a0).toFixed(2)}× as polarizable as ours`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

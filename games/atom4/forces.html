@@ -26,7 +26,7 @@
     <tr><td>twist about a bond, V(φ)</td><td><b>three freedoms, not one</b> (<a href="motion.html#bodies">motion</a>). A four-atom twist angle is still one number, but unsigned: across a 4D bond the space is 3D, and two directions there have no "which way round". Staggered means the far end's neighbours inverted through the bond.</td></tr>
     <tr><td>charges, q q′/r</td><td><b>unchanged</b>, by the pin. But a charged or neutral cloud doesn't act like a point (no shell theorem).</td></tr>
     <tr><td>neutral atoms, permanent</td><td><b>new: −3 S_A S_B / 64 R⁵</b>, attracting. Zero in our world.</td></tr>
-    <tr><td>dispersion (London), −C₆/R⁶</td><td><b>still R⁻⁶</b>, with C₆ = (7/4) α_A α_B E_A E_B /(E_A + E_B), where ours has 3/2.</td></tr>
+    <tr><td>dispersion (London), −C₆/R⁶</td><td><b>still R⁻⁶</b>, with London's 3/2 becoming 7/4. <a href="#dispersion">Computed</a>: weaker than the permanent pull for every 4D noble gas but the first.</td></tr>
     <tr><td>repulsion (Lennard-Jones's R⁻¹²)</td><td><b>exponential, as ours really is</b>: A e^(−βR), β ≈ 2√(2I). The 12 was a convenience in our world too. <a href="#pair">Computed</a> for the noble gases.</td></tr>
     <tr><td>screening in salt water, e^(−κr)/r</td><td><b>a power law</b>: past a few screening lengths, −r⁻⁷, and of the opposite sign.</td></tr>
   </table>
@@ -40,24 +40,27 @@
   <canvas class="chart tall" id="cPair"></canvas>
   <p>At the distances where our noble-gas atoms sit together, this permanent pull alone is <b>many times deeper</b> than their whole van der Waals well. The 4D noble gases would hardly be gases.</p>
   <p class="read" id="rPair"></p>
-  <p>That assumes 4D atoms sit about where ours do. <a href="#pair">Computed</a>, they sit a little closer, 5 to 6 bohr apart.</p>
+  <p>That assumes 4D atoms sit about where ours do. <a href="#pair">Computed</a>, they sit a little closer, 4.5 to 5.25 bohr apart.</p>
 </section>
 <section id="dispersion">
-  <h3>Dispersion: still R⁻⁶, a little stronger</h3>
+  <h3>Dispersion: still R⁻⁶, a little stronger, computed</h3>
   <p>Two atoms' electrons jiggle, and each jiggle polarizes the other: London's force. Two dipoles meet through ∂ᵢ∂ⱼ(1/R) = (3R̂ᵢR̂ⱼ − δᵢⱼ)/R³, which is the same in any dimension because the potential is 1/r. So dispersion stays <b>−C₆/R⁶</b>. Its strength comes from the sum of the squares of that tensor's parts: (−2)² along the line between the atoms plus 1 for each direction across it. That's 6 in our world and <b>7</b> in 4D, so London's 3/2 becomes <b>7/4</b>. Checked by solving two coupled 4D oscillators exactly: their zero-point energy drops by 7/4's prediction to one part in ten million.</p>
-  <p>What C₆ actually is for a 4D atom needs its polarizability α, and the solver can't give one: it keeps every atom spherical, so a field can't push it lopsided. (The usual shortcut, Unsöld's estimate from the orbitals, misses our own neon's α by a factor of 5.6, so we don't use it.) That's open. For element 12, dispersion would only match the permanent R⁻⁵ at neon's spacing if its C₆ were about 85 atomic units, 13 times our neon's 6.4. Short of that, the permanent pull is the stronger of the two at every distance past contact, and further out it wins regardless, since R⁻⁵ outlasts R⁻⁶.</p>
+  <p><b>C₆ itself</b> comes from how easily each atom polarizes at every frequency, by Casimir and Polder: C₆ = (tr T²/2π) ∫ α_A(iω) α_B(iω) dω, which is 3/π in our world and <b>7/2π</b> here. We compute α(iω) by the <b>coupled response</b>. The field distorts each orbital, the distorted cloud pushes back on every electron, and the two are solved together, with each electron's push on itself taken out, as in the ground state. The checks: hydrogen comes out exact in both worlds (α = 4.5, and 34.805 in 4D, which the same closed form gives). At high frequency α → (number of electrons)/ω², as the Thomas–Reiche–Kuhn sum rule says. And helium gives 1.322, exactly time-dependent Hartree–Fock's value. Against our measured noble gases:</p>
+  <div class="shells" id="dispCheck"></div>
+  <p>α within 9% and C₆ within 11%, on both sides. So, in 4D:</p>
+  <div class="shells" id="dispTab"></div>
+  <p class="read" id="rDisp"></p>
 </section>
 <section id="pair">
   <h3>Two atoms, computed</h3>
-  <p>To know where two atoms sit and how hard they hold on, the repulsion has to be computed, and that means two clouds overlapping. We use <b>Gordon and Kim's electron-gas model</b> on the solver's own atoms. Each atom keeps its cloud. Their electrostatics is computed exactly, nucleus and cloud, with the 4D pull at every point. The overlap costs the extra kinetic energy and gains the extra exchange energy of an electron gas at the summed density. Those need the free electron gas's formulas in four dimensions, which we derived: kinetic (4π/3)ρ^(3/2), exchange −16/(15√π) ρ^(5/4). The same derivation in 3D gives Dirac's 0.7386. Correlation is left out, as in the solver.</p>
-  <p><b>First, in our world.</b> The method, with each gas's measured dispersion added, against the measured wells:</p>
+  <p>To know where two atoms sit and how hard they hold on, the repulsion has to be computed, and that means two clouds overlapping. We use <b>Gordon and Kim's electron-gas model</b> on the solver's own atoms. Each atom keeps its cloud. Their electrostatics is computed exactly, nucleus and cloud, with the 4D pull at every point. The overlap costs the extra kinetic energy and gains the extra exchange energy of an electron gas at the summed density. Those need the free electron gas's formulas in four dimensions, which we derived: kinetic (4π/3)ρ^(3/2), exchange −16/(15√π) ρ^(5/4). The same derivation in 3D gives Dirac's 0.7386. Dispersion is added from the computed C₆ (damped close in, as Tang and Toennies do). Correlation is left out.</p>
+  <p><b>First, in our world</b>, end to end, every part computed, against the measured wells:</p>
   <div class="shells" id="wellCheck"></div>
-  <p>It puts the wells in the right place, within 3%, but makes them too deep: by about a third for neon, and by three-quarters or more for argon and krypton. (Helium, a known weak spot of the method, is left out.) Read the 4D depths with that in mind.</p>
-  <p><b>Then in 4D</b>, with no dispersion at all, since its strength is still open. Adding it would only deepen these wells:</p>
+  <p>It puts the wells within 5% of where they are, but makes them <b>too deep, by 1.4 to 1.8 times</b>. (Helium, a known weak spot of the method, is left out.) So below, each 4D well's depth is read as a range: the computed depth divided by 1.8, up to the computed depth.</p>
   <div class="shells" id="wellTab"></div>
   <canvas class="chart tall" id="cWells"></canvas>
-  <p>The wells are deep, and what digs them is electrostatics. At the bottom of each, the clouds' electrostatic pull is more than twice the net depth, and the overlap's repulsion holds the atoms apart. 4D's second noble gas, element 12, would boil somewhere near room temperature or above. Element 22 would be solid at room temperature and boil at red heat or hotter. The heavy ones bind like weak chemical bonds. These are noble gases only in having full shells.</p>
-  <p>The repulsion's steepness agrees with the rule β ≈ 2√(2I) to within 25%, and closely for element 22. The fitted A and β give the molecular-dynamics view its formula.</p>
+  <p>The wells are deep, and what digs them is electrostatics. At the bottom of each, electrostatics alone pulls harder than the whole well is deep, and the overlap's repulsion holds the atoms apart. From element 12 on, dispersion adds a quarter to two-fifths more. <b>4D's second noble gas, element 12, would boil somewhere between 400 and 730 K</b>, so it's a liquid or a solid at room temperature. Element 22 would boil between 1200 and 2200 K. The heavy ones bind like weak chemical bonds. These are noble gases only in having full shells. Only element 2, 4D's helium, stays a gas, though one that boils far above our helium.</p>
+  <p>The repulsion's steepness agrees with the rule β ≈ 2√(2I) to within 20%. The fitted A, β and B, with the computed C₆, give the molecular-dynamics view its formula.</p>
 </section>
 <section id="twist">
   <h3>Twisting</h3>
@@ -72,7 +75,7 @@
 </section>
 <section id="next">
   <h3>What the molecular-dynamics view gets, and what's open</h3>
-  <p>Ready: the bonded terms with 4D's angles and three-way twists, charges at 1/r, the permanent R⁻⁵ with S from the solver, dispersion's form with 7/4, and the noble gases' repulsion, A and β, computed. Open: the polarizabilities behind C₆ (they need a solver that lets atoms deform), pairs of unlike atoms and molecules (the same method, more runs), and retardation (in our world dispersion turns to R⁻⁷ beyond a few hundred bohr; through the lens it hasn't been worked out). Also open: hydrogen bonds, and the three-body forces that make our liquids non-additive.</p>
+  <p>Ready: the bonded terms with 4D's angles and three-way twists, charges at 1/r, the permanent R⁻⁵ with S from the solver, and, for hydrogen and the noble gases, dispersion's C₆ and the repulsion's A and β, all computed. Open: open-shell atoms' polarizabilities (the response assumes closed shells; that's next, for Pxygen), pairs of unlike atoms and molecules (the same methods, more runs), correlation, and retardation (in our world dispersion turns to R⁻⁷ beyond a few hundred bohr; through the lens it hasn't been worked out). Also open: hydrogen bonds, and the three-body forces that make our liquids non-additive.</p>
 </section>
 
 <footer class="pager"><a href="darbon.html">← 7 · Darbon</a><a href="./">the position →</a></footer>

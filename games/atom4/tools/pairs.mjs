@@ -24,7 +24,7 @@ const SPHERE = { 3: 4 * Math.PI, 4: 2 * Math.PI * Math.PI }; // the area of the 
    its electrons' potential ψ, all on the solver's log grid */
 export function atomFields(Z, d) {
   const el = TABLE[d][Z - 1], sh = subshells(d), occ = sh.map((s) => (el.orb.find((o) => o.s === s.name) || { o: 0 }).o);
-  const g = scf(Z, occ, d, { iters: 80 }), Q = new Float64Array(N);
+  const g = scf(Z, occ, d, { iters: 80, exchange: true }), Q = new Float64Array(N);
   sh.forEach((s, i) => { if (occ[i]) for (let j = 0; j < N; j++) Q[j] += occ[i] * g.qs[i][j]; });
   const psi = hartree(kernel(d), Q), rho = Float64Array.from(Q, (q, j) => q / (H * GRID[j]) / (SPHERE[d] * GRID[j] ** (d - 1)));
   return { Z, d, Q, rho, psi, E: g.E };

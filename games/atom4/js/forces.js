@@ -16,8 +16,7 @@ export const sumR2 = (el) => el.orb.reduce((s, o) => s + o.o * o.r2, 0);
 /* the permanent attraction of two neutral, spherical atoms, from the shell theorem's failure: −B/R⁵ */
 export const permanentB = (SA, SB, d = 4) => (d === 4 ? (3 * SA * SB) / 64 : 0);
 
-/* the polarizabilities that set C₆ are not computed: the solver keeps every atom spherical, so it can't be pushed
-   lopsided by a field. (Unsöld's closure estimate from its orbitals misses our own neon's α by a factor of 5.6) */
+/* the polarizabilities that set C₆ are computed by tools/response.mjs (the coupled response) into js/response.js */
 /* dispersion (London): two fluctuating dipoles meet through T = (δ − 3R̂R̂)/R³, the same in any dimension because
    the potential is 1/r. Second order gives −C₆/R⁶ with C₆ = (tr T²R⁶ / 4) α_A α_B E_A E_B /(E_A + E_B). tr T²R⁶ is
    (−2)² from along R̂ plus 1 for each of the d − 1 directions across: 6 in 3D (London's 3/2), 7 in 4D (7/4) */
@@ -97,6 +96,11 @@ export function fitRepulsion(RS, p, B) {
   return { A: Math.exp(my + beta * mx), beta };
 }
 /* our noble gases, measured (atomic units): dispersion C₆, and the well's place and depth */
-export const MEASURED = { 2: { C6: 1.46, R: 5.6, eps: 0.95 / 27211.386 }, 10: { C6: 6.38, R: 5.84, eps: 3.6 / 27211.386 }, 18: { C6: 64.3, R: 7.1, eps: 10.3 / 27211.386 }, 36: { C6: 129.6, R: 7.6, eps: 14.4 / 27211.386 } };
+export const MEASURED = { 1: { alpha: 4.5, C6: 6.499 }, 2: { alpha: 1.383, C6: 1.46, R: 5.6, eps: 0.95 / 27211.386 }, 10: { alpha: 2.67, C6: 6.38, R: 5.84, eps: 3.6 / 27211.386 }, 18: { alpha: 11.08, C6: 64.3, R: 7.1, eps: 10.3 / 27211.386 }, 36: { alpha: 16.8, C6: 129.6, R: 7.6, eps: 14.4 / 27211.386 } };
+/* the method, end to end, makes our measured wells 1.4 to 1.8 times too deep; a 4D depth is read as depth/1.8 … depth */
+export const OVERBIND = 1.8;
+/* a full pair: the computed curve (frozen clouds, Gordon–Kim) plus dispersion, damped by Tang–Toennies with the
+   repulsion's own β */
+export function fullPair(RS, p, B, C6) { const f = pairCurve(RS, p), { beta } = fitRepulsion(RS, p, B); return (R) => f(R) - (tangToennies6(beta * R) * C6) / R ** 6; }
 /* our noble gases boil at about 0.7 ε/k (neon 0.65, argon 0.73, krypton 0.70): a corresponding-states rule */
 export const boilK = (eps) => 0.7 * eps * 315775.02;
