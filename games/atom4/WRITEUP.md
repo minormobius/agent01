@@ -5,7 +5,7 @@ days to get it right. The bar is arXiv's (checkable claims, verified references,
 not anything is submitted.
 
 The first paper is the 4D periodic table. If that goes well, the rest becomes a series: the forces between
-molecules, Pxygen and Yater, the census, and the lens vacuum. The prior art and what is new against it are in
+molecules, Pxygen and Xater, the census, and the lens vacuum. The prior art and what is new against it are in
 [`LITERATURE.md`](LITERATURE.md).
 
 ## What the repo already has

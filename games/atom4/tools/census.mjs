@@ -9,7 +9,7 @@
    hydrogen (0.08 bohr) test that it's a minimum and not a saddle: a saddle drops by more than the minimizer's own
    leftover slope (1e-5 hartree). For each: the charge on hydrogen (Mulliken), the dipole, the
    top orbital. For every hydride whose hydrogens are positive and that has lone pairs: the hydrogen-bonded pair, as
-   for Yater (tools/molecules.mjs), minimized over the distance and the acceptor's tilt, counterpoise-corrected.
+   for Xater (tools/molecules.mjs), minimized over the distance and the acceptor's tilt, counterpoise-corrected.
 
    How much the bonds hold a liquid together: each molecule can make min(hydrogens, lone pairs) hydrogen bonds in a
    network (water 2, ammonia and HF 1), so the network's pull per molecule is about that many times one bond. In
@@ -33,7 +33,7 @@ export function valence(Z, d) {
   return { v, bonds: v <= m ? v : 2 * m - v, lp: v > m ? v - m : 0 };
 }
 /* an even-tempered basis scaled to the atom: the most diffuse exponents set by its ionization energy, the tightest
-   by Z² (the recipe that gave Yater and our water, tools/molecules.mjs, written as a rule) */
+   by Z² (the recipe that gave Xater and our water, tools/molecules.mjs, written as a rule) */
 export function basisFor(Z, d) {
   if (Z === 1) return d === 3 ? [[0, ET(0.05, 3, 5)], [1, [0.8]]] : [[0, ET(0.04, 3, 5)], [1, [0.6]]];
   const I = TABLE[d][Z - 1].ion, k = d === 3 ? { s: 0.26, S: 280, p: 0.33, P: 0.57, dd: 2.6 } : { s: 0.1, S: 75, p: 0.12, P: 0.15, dd: 1.25 };
@@ -108,8 +108,10 @@ export function dimerAtoms(mono, d, R, betad) {
   const turn = (p) => { const out = u.map((x) => x * p[0]); for (let k = 0; k < d; k++) out[k] += p[1] * unit(d, 2)[k] + p[2] * uPerp[k] + (d > 3 ? p[3] * unit(d, 3)[k] : 0); return out; };
   return [A.map((a) => ({ ...a, at: refl(a.at) })), A.map((a) => ({ ...a, at: turn(a.at).map((x, k) => x + (k === 0 ? R : 0)) }))];
 }
-export function interaction(mono, d, R, betad) {
-  const [A, B] = dimerAtoms(mono, d, R, betad), all = [...A, ...B], shells = shellsOf(all, d), n = A.reduce((s, a) => s + a.Z, 0) / 2;
+export function interaction(mono, d, R, betad) { const [A, B] = dimerAtoms(mono, d, R, betad); return pairEnergy(A, B, d); }
+/* any two closed-shell molecules' interaction, counterpoise-corrected */
+export function pairEnergy(A, B, d) {
+  const all = [...A, ...B], shells = shellsOf(all, d), n = A.reduce((s, a) => s + a.Z, 0) / 2;
   const one = G.oneElectron(shells, all, d), ERI = G.twoElectron(shells, d, one.F);
   const eAB = G.hartreeFock(all, shells, d, { nAlpha: 2 * n, nBeta: 2 * n, ints: { one, ERI } });
   const eA = G.hartreeFock(A, shells, d, { nAlpha: n, nBeta: n, ints: { one: G.oneElectron(shells, A, d), ERI } });

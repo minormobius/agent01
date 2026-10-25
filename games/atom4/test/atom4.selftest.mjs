@@ -255,7 +255,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 
 /* 14 · the chapters: one landing and ten pages, the same nav on each, no id twice, every drawing's element somewhere */
 {
-  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "yater", "census"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
+  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "xater", "census"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
   const navOf = (h) => (h.match(/<nav class="chapters">([\s\S]*?)<\/nav>/) || [, ""])[1].replace(/ class="here"| here/g, "");
   const ids = (h) => [...h.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
   const sameNav = pages.every((p) => navOf(html[p]) === navOf(html.index) && navOf(html.index).length > 0), noDup = pages.every((p) => new Set(ids(html[p])).size === ids(html[p]).length);
@@ -361,7 +361,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok([12, 22, 50, 78].every((Z) => eq(Z) < 1.5) && eq(2) > 8 && eq(2) < 10.5 && h4.a0 / h3.a0 > 7.6 && h4.a0 / h3.a0 < 7.8, `dispersion equals the permanent pull at ${[2, 12, 22, 50, 78].map((Z) => eq(Z).toFixed(1)).join(", ")} bohr; 4D hydrogen is ${(h4.a0 / h3.a0).toFixed(2)}× as polarizable as ours`);
 }
 
-/* 19 · molecules: Hartree–Fock in any dimension (js/gauss.js), then Pxygen and Yater (js/molecules.js) */
+/* 19 · molecules: Hartree–Fock in any dimension (js/gauss.js), then Pxygen and Xater (js/molecules.js) */
 {
   const GS = await import(path.join(here, "../js/gauss.js")), { MOLECULES: M } = await import(path.join(here, "../js/molecules.js")), MT = await import(path.join(here, "../tools/molecules.mjs"));
   // G_n replaces Boys's F_n: in 3D it is F_n (F₀(1) = 0.746824132812427); in 4D, G₀(T) = (π/4) e^(−T/2) [I₀(T/2) + I₁(T/2)]
@@ -380,18 +380,18 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // the integrals don't know which way is which: a 4D H₂ with p and d functions, along an axis and along a diagonal
   const h2 = (dir) => { const rr = [[0, GS.evenTempered(0.05, 3, 4)], [1, [0.5]], [2, [0.6]]], a = { Z: 1, at: dir.map((x) => -0.8 * x) }, b = { Z: 1, at: dir.map((x) => 0.8 * x) }; return GS.hartreeFock([a, b], [...GS.shellsFor(a, rr), ...GS.shellsFor(b, rr)], 4, { nAlpha: 1, nBeta: 1 }).E; };
   ok(Math.abs(h2([1, 0, 0, 0]) - h2([0.5, 0.5, 0.5, 0.5])) < 1e-8, "a 4D molecule's energy doesn't depend on which way it points");
-  // the bake is reproducible: Yater at its baked shape, small basis
+  // the bake is reproducible: Xater at its baked shape, small basis
   const y = MT.monomer(4, M[4].small.R, M[4].small.theta, "small");
-  ok(Math.abs(y.E - M[4].small.E) < 1e-5 && y.converged, `the baked Yater is what tools/molecules.mjs computes (${y.E.toFixed(6)})`);
+  ok(Math.abs(y.E - M[4].small.E) < 1e-5 && y.converged, `the baked Xater is what tools/molecules.mjs computes (${y.E.toFixed(6)})`);
   // our water, the check: the big basis within reach of the Hartree–Fock limit (1.776 bohr, 106.3°, 0.78)
   const w = M[3].big;
   ok(Math.abs(w.R - 1.776) < 0.01 && Math.abs(w.theta - 106.3) < 0.5 && Math.abs(w.dipole - 0.78) < 0.03 && w.ok, `our water at the big basis: ${w.R} bohr, ${w.theta}°, dipole ${w.dipole} (Hartree–Fock limit about 1.776, 106.3°, 0.78)`);
   // the conclusions
   const Y = M[4].big, s4 = M[4].small;
-  ok(Y.ok && s4.ok && Y.theta > 117 && Y.theta < 123 && Math.abs(Y.theta - s4.theta) < 5, `Yater is bent at ${Y.theta}° (small basis ${s4.theta}°): wider than water and than sp⁴'s 104.48°`);
-  ok(Y.dipole / w.dipole > 1.9 && Y.linear < 0.25 * w.linear && Math.abs(Y.homo - Y.homo2) < 2e-4 && M[4].big.atom.hund < M[4].big.atom.closed, `Yater's dipole ${Y.dipole} is ${(Y.dipole / w.dipole).toFixed(2)}× water's; straightening it costs ${(Y.linear * 27.2114).toFixed(2)} eV (water ${(w.linear * 27.2114).toFixed(2)}); its top orbital is two-fold (the ring); Pxygen's Hund state is its ground`);
+  ok(Y.ok && s4.ok && Y.theta > 117 && Y.theta < 123 && Math.abs(Y.theta - s4.theta) < 5, `Xater is bent at ${Y.theta}° (small basis ${s4.theta}°): wider than water and than sp⁴'s 104.48°`);
+  ok(Y.dipole / w.dipole > 1.9 && Y.linear < 0.25 * w.linear && Math.abs(Y.homo - Y.homo2) < 2e-4 && M[4].big.atom.hund < M[4].big.atom.closed, `Xater's dipole ${Y.dipole} is ${(Y.dipole / w.dipole).toFixed(2)}× water's; straightening it costs ${(Y.linear * 27.2114).toFixed(2)} eV (water ${(w.linear * 27.2114).toFixed(2)}); its top orbital is two-fold (the ring); Pxygen's Hund state is its ground`);
   const D3 = M[3].dimer, D4 = M[4].dimer;
-  ok(D3.ok && D4.ok && D3.E < 0 && D4.E / D3.E > 2.5 && (D4.RXX - D4.r) / D4.r < 1.5 && (D3.RXX - D3.r) / D3.r > 2, `the hydrogen bond: Yater's ${(-D4.E * 627.51).toFixed(1)} kcal/mol at ${D4.RXX} bohr, water's ${(-D3.E * 627.51).toFixed(1)} at ${D3.RXX}, the same way`);
+  ok(D3.ok && D4.ok && D3.E < 0 && D4.E / D3.E > 2.5 && (D4.RXX - D4.r) / D4.r < 1.5 && (D3.RXX - D3.r) / D3.r > 2, `the hydrogen bond: Xater's ${(-D4.E * 627.51).toFixed(1)} kcal/mol at ${D4.RXX} bohr, water's ${(-D3.E * 627.51).toFixed(1)} at ${D3.RXX}, the same way`);
 }
 
 /* 20 · the census: every hydride of 4D's rows two and three (js/census.js), our three as the check */
@@ -410,9 +410,9 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // the check: the network's pull orders our three as their boiling points (water, HF, ammonia)
   const w = net(by(3, 8)), hf = net(by(3, 9)), nh = net(by(3, 7));
   ok(w > hf && hf > nh, `our three in order: water ${(w * 627.51).toFixed(1)}, HF ${(hf * 627.51).toFixed(1)}, ammonia ${(nh * 627.51).toFixed(1)} kcal/mol, as their boiling points`);
-  // the verdict: Yater and element 9's XH₃ within 10% of each other, each about three times water, every other below both
+  // the verdict: Xater and element 9's XH₃ within 10% of each other, each about three times water, every other below both
   const y = net(by(4, 10)), x9 = net(by(4, 9)), rest = CENSUS[4].filter((m) => m.dimer && m.dimer.E != null && m.Z !== 9 && m.Z !== 10).map(net);
-  ok(Math.abs(y - x9) / Math.max(y, x9) < 0.1 && Math.min(y, x9) / w > 2.5 && rest.every((r) => r < Math.min(y, x9)), `Yater ${(y * 627.51).toFixed(1)} and element 9's XH₃ ${(x9 * 627.51).toFixed(1)} tie, ${(Math.min(y, x9) / w).toFixed(1)}× water and above every other`);
+  ok(Math.abs(y - x9) / Math.max(y, x9) < 0.1 && Math.min(y, x9) / w > 2.5 && rest.every((r) => r < Math.min(y, x9)), `Xater ${(y * 627.51).toFixed(1)} and element 9's XH₃ ${(x9 * 627.51).toFixed(1)} tie, ${(Math.min(y, x9) / w).toFixed(1)}× water and above every other`);
 }
 
 /* 21 · molecular dynamics (js/md.js): Ewald in any dimension, against known sums and NIST's SPC/E reference */

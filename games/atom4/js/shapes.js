@@ -1,4 +1,4 @@
-/* ATOM⁴ — the shapes, darbon and Yater chapters' tiles: the six regular 4D solids, darbon, and water beside Yater
+/* ATOM⁴ — the shapes, darbon and Xater chapters' tiles: the six regular 4D solids, darbon, and water beside Xater
    (./tile.js draws them). */
 import { polytopes, star, diamondNet } from "./polytopes.js";
 import { makeTile, eye, turn, turnLocal } from "./tile.js";
@@ -27,7 +27,7 @@ export function buildShapes() {
       sub: `${p.V.length} vertices · ${p.E.length} edges · ${p.F.length} ${p.faceName}s · ${p.C.length} ${p.cellName} · 3D cousin: ${p.cousin}`,
     }));
   }
-  buildYater();
+  buildXater();
   // darbon
   const mols = $("darbonTiles"); if (!mols) return;
   tiles.push(makeTile(mols, star(3, "C", ["H"]), { title: "CH₄, methane", sub: "four bonds to a tetrahedron's corners, 109.47° apart", start: tilted3(), spin: [0, 0.004], sliceRange: 1.3 }));
@@ -50,12 +50,12 @@ export function buildShapes() {
   tiles.push(makeTile(nets, n4, { title: "4D: darbon's diamond", sub: `five bonds at 104.48° · ${n4.size} atoms`, R: 2.1, start: tilted(), sliceRange: 2.1 }));
 }
 
-/* water and Yater at their computed shapes, to one scale (2.8 bohr to a unit). The lone pairs: the one along the
+/* water and Xater at their computed shapes, to one scale (2.8 bohr to a unit). The lone pairs: the one along the
    bisector, and the pair of p orbitals at right angles to the molecule's plane. In 3D the space at right angles to a
    plane is a line, so those make two lobes; in 4D it is a plane, they're two-fold, and any turn in that plane leaves
    the molecule as it was: a ring */
-function buildYater() {
-  const host = $("yaterTiles"); if (!host) return;
+function buildXater() {
+  const host = $("xaterTiles"); if (!host) return;
   const LP = "#6fe0ff", u = 1 / 2.8;
   const mol = (m, c, r) => {
     const th = (m.theta * Math.PI) / 180, R = m.R * u, h = (s) => ({ p: [R * Math.cos(th / 2), s * R * Math.sin(th / 2), 0, 0], el: "H", r: 0.13 });
@@ -66,5 +66,5 @@ function buildYater() {
   w.balls.push({ p: [0, 0, w.ring, 0], c: LP, r: 0.08 }, { p: [0, 0, -w.ring, 0], c: LP, r: 0.08 });
   const K = 48; y.P = Array.from({ length: K }, (_, k) => [0, 0, y.ring * Math.cos((2 * Math.PI * k) / K), y.ring * Math.sin((2 * Math.PI * k) / K)]); y.lines = y.P.map((_, k) => [k, (k + 1) % K]);
   tiles.push(makeTile(host, w, { title: "our water", sub: `bent at ${MOLECULES[3].big.theta.toFixed(1)}° · its lone pair at right angles to the plane: two lobes`, R: 1.2, start: tilted3(), spin: [0, 0.004], sliceRange: 0.8 }));
-  tiles.push(makeTile(host, y, { title: "Yater, H₂Px", sub: `bent at ${MOLECULES[4].big.theta.toFixed(1)}° · its two lone pairs at right angles to the plane: a ring`, R: 1.2, start: tilted(), sliceRange: 0.8 }));
+  tiles.push(makeTile(host, y, { title: "Xater, H₂Px", sub: `bent at ${MOLECULES[4].big.theta.toFixed(1)}° · its two lone pairs at right angles to the plane: a ring`, R: 1.2, start: tilted(), sliceRange: 0.8 }));
 }

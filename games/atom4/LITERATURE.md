@@ -110,6 +110,44 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
   correction. — *from memory; verify*
 - Hund's rules; the shell theorem (Newton).
 
+### Molecules: Hartree–Fock in any dimension (chapters 9 and 10)
+- S. F. Boys, "Electronic wave functions. I. A general method of calculation for the stationary states of any molecular
+  system", Proc. R. Soc. A **200**, 542–554 (1950), doi:10.1098/rspa.1950.0036. Gaussians, and the Boys function our
+  G_n(T) generalizes. — *index*
+- L. E. McMurchie & E. R. Davidson, "One- and two-electron integrals over Cartesian Gaussian functions", J. Comput.
+  Phys. **26**, 218–231 (1978), doi:10.1016/0021-9991(78)90092-X. The integral scheme `js/gauss.js` follows. — *index*
+- S. F. Boys & F. Bernardi, Mol. Phys. **19**, 553 (1970). The counterpoise correction. — *from memory; verify*
+- P. Pulay, Chem. Phys. Lett. **73**, 393 (1980). DIIS. — *from memory; verify*
+- R. S. Mulliken, J. Chem. Phys. **23**, 1833 (1955). Population analysis. — *from memory; verify*
+- Water at the Hartree–Fock limit (r ≈ 1.776 bohr, θ ≈ 106.3°, μ ≈ 0.78 au; dimer ≈ 3.6 kcal/mol) and measured
+  (1.809 bohr, 104.5°, 0.730 au; dimer De ≈ 5.0 kcal/mol, O–O 2.91 Å): the values the chapters quote. — *from memory;
+  each needs a primary source*
+
+### Molecular dynamics (js/md.js)
+- P. P. Ewald, Ann. Phys. **64**, 253 (1921). The lattice sum, which `md.js` generalizes to any dimension. — *from
+  memory; verify*
+- H. M. Evjen, Phys. Rev. **39**, 675 (1932). The weighted direct sum used as the independent check on the 4D Madelung
+  constant. — *from memory; verify*
+- The rock-salt Madelung constant 1.747565. — *standard value; cite a table*
+- J.-P. Ryckaert, G. Ciccotti & H. J. C. Berendsen, J. Comput. Phys. **23**, 327 (1977), SHAKE; H. C. Andersen,
+  J. Comput. Phys. **52**, 24 (1983), RATTLE. — *from memory; verify*
+- G. Bussi, D. Donadio & M. Parrinello, "Canonical sampling through velocity rescaling", J. Chem. Phys. **126**,
+  014101 (2007), doi:10.1063/1.2408420; arXiv:0803.4060. The thermostat. — *index*
+- H. J. C. Berendsen, J. R. Grigera & T. P. Straatsma, "The missing term in effective pair potentials", J. Phys.
+  Chem. **91**, 6269–6271 (1987). SPC/E, the published water model used to check the engine. — *index*
+- NIST Standard Reference Simulation Website, "SPC/E water reference calculations — 10 Å cutoff":
+  https://www.nist.gov/mml/csd/chemical-informatics-group/spce-water-reference-calculations-10a-cutoff, and the
+  configurations (https://www.nist.gov/document/spcesampleconfigurations-targz). The Ewald parameters (α = 5.6/L,
+  kmax 5, k² < 27, 10 Å) and the reference energies, which `md.js` matches part by part. Configuration 1 is in
+  `test/fixtures/`. — *read*
+- NIST, "LAMMPS MD equation of state: pressure vs density, SPC/E water":
+  https://www.nist.gov/mml/csd-mml/informatics/lammps-md-equation-state-pressure-vs-density-spce-water. SPC/E's
+  parameters, with ε/k = 78.2 K and its 5.213 kJ/mol induction term; the 300 K rows couldn't be read reliably. —
+  *read (in part)*
+- C. Vega & J. L. F. Abascal, "Simulating water with rigid non-polarizable models: a general perspective", Phys. Chem.
+  Chem. Phys. (2011). The water models' liquid properties, needed to quote SPC/E's U at 298 K exactly (ours gives
+  −46.9 kJ/mol). — *cited (via arXiv:0905.4009); volume and pages to be fixed*
+
 ## Next
 
 1. A citation-index forward search on Pyykkö & Zhao (1991) and Négadi & Kibler (1996). The web search is done.
