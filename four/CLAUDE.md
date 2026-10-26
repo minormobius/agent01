@@ -68,6 +68,13 @@ for games, and this is a modelling programme with publications to come. The game
   `../../lumen/js/optics.js`, so run Lumen⁴'s selftest after a change there; after a change to Foam⁴'s
   `foam.js` in games, copy it over `iris/js/foam.js`. See
   [`iris/README.md`](iris/README.md).
+- **the big periodic table at `/table/`**: `table/viewer.js` draws all 78 4D elements (`atom/js/table.js`) full width,
+  our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
+  (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)
+  and four colourings. The names come from `atom/js/names.js` (no DOM): an element takes our name with its first
+  letter moved on when its place answers to one of ours (before a block's half-full element count from the left,
+  the half-full one is ours, after it count from the full shell); 24 answer to nothing and are new, elements 6 and 8
+  either side of darbon among them. Symbols keep the chapters' H, D, Px and Mi and otherwise avoid all 118 of ours.
 - **ATOM⁴ at `/atom/`**: the **official position on this universe**: four
   dimensions of space with the force between charges pinned at 1/r (Gauss's
   1/r² has no ground state). `index.html` is the position: every conclusion,

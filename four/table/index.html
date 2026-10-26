@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="The periodic table of four dimensions: all 78 elements as ATOM⁴'s solver finds them, in rows of 2, 10, 10, 28 and 28. 54 do what one of ours does and take its name with the first letter moved on (iydrogen, darbon, pxygen); 24 do nothing ours does, and are new. Our own table beside it, linked both ways." />
+<title>Four · the periodic table of four dimensions</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../atom/css/atom4.css" />
+<style>
+  header, section.wide { max-width: 1440px; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 6px 0 10px; font: 12px var(--mono); color: var(--dim); }
+  .bar b { color: var(--text); } .newt { color: #ffd166 !important; }
+  .layout { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 8px; }
+  .layout > * { min-width: 0; }
+  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  .scroll { overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+  .grid { display: grid; gap: 3px; min-width: max-content; }
+  .grid .lab { font: 10px var(--mono); color: var(--dim); display: flex; align-items: center; justify-content: flex-end; padding-right: 5px; }
+  .grid .span { font: 600 10px var(--mono); color: var(--dim); border-bottom: 1px solid var(--border); padding: 0 2px 3px; text-align: center; white-space: nowrap; overflow: hidden; }
+  .el { position: relative; width: var(--cw); height: calc(var(--cw) * 1.12); border-radius: 5px; border: 1px solid #262833; color: var(--text); cursor: pointer; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--mono); transition: transform 0.08s; }
+  .el:hover, .el.on { transform: scale(1.12); z-index: 2; border-color: var(--text); }
+  .el.on { box-shadow: 0 0 0 2px var(--d4); }
+  .el .z { position: absolute; top: 2px; left: 3px; font-size: 8px; color: var(--dim); }
+  .el .sym { font-size: calc(var(--cw) * 0.34); font-weight: 700; line-height: 1; margin-top: 4px; }
+  .el .nm { font-size: 7.5px; color: #c9c3b8; margin-top: 3px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+  .el.noble { box-shadow: inset 0 0 0 1px #6fe0ff66; }
+  .el.new { border-color: #ffd16699; }
+  .el.new .sym { font-size: calc(var(--cw) * 0.24); color: #ffd166; letter-spacing: 0.04em; }
+  .el.new .nm { color: #ffd166aa; }
+  .el.dim { opacity: 0.45; }
+  body.tight .el .nm { display: none; } body.tight .el .sym { margin-top: 6px; }
+  #pt3 { --cw: calc(var(--cwr, 1) * 30px); }
+  #pt3 .el { width: 34px; height: 36px; } #pt3 .el .sym { font-size: 12px; } #pt3 .el .nm { display: none; }
+  .side { padding-top: 26px; }
+  #detail { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-height: 260px; }
+  #detail h4 { font: 700 20px var(--mono); margin: 0 0 4px; color: var(--d4); text-transform: capitalize; }
+  #detail h4.newt { text-transform: none; }
+  #detail .sym4, #detail .sym3 { font-size: 14px; color: var(--dim); text-transform: none; margin-left: 6px; }
+  #detail .kv { font: 12px/1.6 var(--mono); color: var(--dim); margin: 6px 0; } #detail .kv b { color: var(--text); } #detail .kv a { color: var(--text); }
+  #detail .kv.small { font-size: 11px; }
+  #detail .cfg { font: 13px var(--mono); color: var(--text); word-break: break-word; margin: 6px 0; }
+  canvas.cloud { width: 100%; height: 140px; display: block; margin-top: 8px; }
+  h3.sub { margin-top: 26px; }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="../atom/">ATOM⁴</a><a href="../atom/table.html">the table, worked out</a><a href="../lumen/">Lumen⁴</a><a href="../iris/">IRIS⁴</a></nav>
+  <h2>four.mino.mobi · ATOM⁴</h2>
+  <h1 class="ch">The periodic table of four dimensions</h1>
+  <p class="lede">Every element of the 4D universe up to 78, as <a href="../atom/table.html" style="color: var(--text)">ATOM⁴'s solver</a> finds it: rows of 2, 10, 10, 28 and 28, with noble gases at 2, 12, 22, 50 and 78. An element that does what one of ours does takes our name with its first letter moved on: <b>iydrogen</b>, <b>darbon</b>, <b>pxygen</b>. The rest do nothing ours does, and they're <b class="newt">new</b>.</p>
+</header>
+<section class="wide">
+  <div class="bar"><span id="count"></span></div>
+  <div class="seg" id="modes"><button type="button" data-m="kin" class="on">ours or new</button><button type="button" data-m="block">blocks</button><button type="button" data-m="ion">ionization</button><button type="button" data-m="size">size</button></div>
+  <div class="scroll" id="wrap4"><div class="grid" id="pt4"></div></div>
+  <div class="legend" id="legend"></div>
+  <div class="layout">
+    <div class="side"><div id="detail"></div></div>
+    <div>
+      <h3 class="sub">Ours, for comparison</h3>
+      <p>Our table to element 54, in its usual 18 columns. Point at either table to light up the other's counterpart. Every element of ours has a counterpart in 4D, but 4D's blocks are longer: its p block holds 8 places to our 6 and its d block 18 to our 10. The extra places are the new elements.</p>
+      <div class="scroll"><div class="grid" id="pt3"></div></div>
+    </div>
+  </div>
+  <h3 class="sub">How the names are given</h3>
+  <p>By place, the way our groups work. Column 1 holds the alkali metals and column 2 the alkaline earths. In the p and d blocks, the elements <b>before the half-full one</b> count from the block's left edge: our boron is the first p element, and scandium, titanium, vanadium and chromium are the first four d. The <b>half-full</b> one answers to ours: carbon holds half of the 8-electron s + p shell, and darbon half of 4D's 10. The ones <b>after it count back from the full shell</b>: nitrogen is three short of a noble gas, so 4D's element three short is oitrogen.</p>
+  <p>Our carbon is the one place this can't be done twice. It is both fourth from the start of its row and four short of the end. In 4D's longer rows those are two different elements, 6 and 8, on either side of darbon, and neither answers to anything of ours. Element 8 is the one whose hydride came out flat, with no dipole (<a href="../atom/census.html" style="color: var(--text)">Which water</a>). The 4D d block has eight such places in each of its two rows, where it holds 18 electrons to our 10. In all, 24 of the 78 are new.</p>
+  <p>Symbols follow the chapters where they already use one: H for iydrogen, D for darbon, Px for pxygen, Mi for mithium. Otherwise a symbol is our symbol with its first letter moved on, or else the new name's first letter and one of its others, never one of our 118. The new elements have no names yet.</p>
+  <p class="foot"><a href="../">Four</a> · <a href="../atom/">ATOM⁴: the position</a> · <a href="../atom/table.html">the periodic table, worked out</a> · <a href="../atom/README.md">how it works</a></p>
+</section>
+<script type="module" src="viewer.js"></script>
+</body>
+</html>

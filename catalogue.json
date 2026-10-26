@@ -4811,6 +4811,22 @@
         "math",
         "index"
       ]
+    },
+    {
+      "n": "four-table",
+      "u": "https://four.mino.mobi/table/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-26",
+      "b": "2026-10-26",
+      "p": "four",
+      "surface": "four",
+      "d": "The periodic table of four dimensions, big: all 78 elements as ATOM⁴'s solver finds them, in rows of 2, 10, 10, 28 and 28. The 54 that do what one of ours does take its name with the first letter moved on (iydrogen, darbon, pxygen, oitrogen). The 24 that do nothing ours does are marked new, among them the two either side of darbon, where our carbon alone sits in both places. Our own table sits beside it, linked both ways, with each element's configuration, ionization, size, hydride and electron cloud.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     }
   ],
   "notListed": [

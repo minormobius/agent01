@@ -2,10 +2,12 @@
 # Each chapter's body is written here (or in the gen*.py beside it, exec'd below) with its numbers pulled from the
 # baked js/*.js, so a re-bake followed by this script keeps every stated number current. old-index.html is the
 # one-page version the first chapters were cut from. Run preflight --fix after, as usual.
-import re, html, os
+import re, html, os, json, subprocess
 SP=os.path.dirname(os.path.abspath(__file__))+'/'
 OUT=os.path.abspath(os.path.join(SP,'../..'))+'/'
 ATOM=OUT
+# how many 4D elements answer to nothing of ours (js/names.js)
+NEWN=int(subprocess.run(['node','--input-type=module','-e','import { TABLE } from "'+ATOM+'js/table.js"; import { names } from "'+ATOM+'js/names.js"; console.log([...names(TABLE, 4).values()].filter((e) => e.isNew).length);'],capture_output=True,text=True,check=True).stdout)
 src=open(SP+'old-index.html').read()
 def sec(i):
     a=src.index(f'<section id="{i}">'); b=src.index('</section>',a)+len('</section>'); return src[a:b]
@@ -173,6 +175,11 @@ table=f'''<section id="table">
   <h3>The table</h3>
   {tab}
 </section>
+<section id="names">
+  <h3>Names, and the new elements</h3>
+  <p>An element that does what one of ours does takes our name, its first letter moved on: hydrogen becomes iydrogen, carbon darbon, oxygen pxygen. Which of ours it answers to is read off its place, the way our groups are. Before a block's half-full element, places count from the block's left edge. The half-full one answers to ours: darbon holds half of its 10-electron shell, as carbon holds half of 8. After it, places count back from the full shell: oitrogen is three short of a noble gas, as nitrogen is.</p>
+  <p>Our carbon is the one element that is both fourth from the start and four short of the end. In 4D's longer rows those are two elements, 6 and 8, on either side of darbon, and nothing of ours answers to either. The same goes for the middle of 4D's d block, which holds 18 electrons to our 10. <b>{NEWN} of the 78 elements are new.</b> They're all in <a href="../table/">the big table</a>, beside ours.</p>
+</section>
 <section id="trends">
   <h3>Periodic, with longer periods</h3>
   {tr}
@@ -284,7 +291,8 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
   "Its fall to n = 2 glows red to orange, ending at 570 nm. Fine structure splits each l into (l + 1)(l + 2) and l(l + 1)."]),
  ("table",["Rows of 2, 10, 10, 28, 28. Noble gases at 2, 12, 22, 50, 78. A ten-electron rule. That's what the generalized Madelung rule predicts for 4D, here confirmed by solving the atoms.",
   "Inner electrons screen only partly, so 4D's noble gases hold on about twice as hard as they would with the shell theorem, and a neutral atom still pulls from outside (−Σr²/8s³).",
-  "The solver (with exchange) gets 32 of our first 36 elements right, chromium and copper included, and ionization within a few percent. 4D's transition metals lean hard toward d and are its least sure entries."]),
+  "The solver (with exchange) gets 32 of our first 36 elements right, chromium and copper included, and ionization within a few percent. 4D's transition metals lean hard toward d and are its least sure entries.",
+  "<b>"+str(78-NEWN)+" of the 78 do what one of ours does</b> and take its name, a letter on: iydrogen, darbon, pxygen, oitrogen. <b>"+str(NEWN)+" are new</b>, among them elements 6 and 8 on either side of darbon. <a href=\"../table/\">The big table</a> has them all."]),
  ("shapes",["Six regular polytopes. The 24-cell has no cousin of ours. 4D can be tiled regularly three ways.",
   "4D crystals may turn by 5, 8, 10 and 12, not only 2, 3, 4, 6."]),
  ("darbon",["Element 7: five sp⁴ bonds at 104.48°, DH₅, and chains of 3n + 2 hydrogens.",

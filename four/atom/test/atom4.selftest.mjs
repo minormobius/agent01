@@ -494,5 +494,18 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `the cluster census covers 3–7 molecules for all three, each with ≥ 300 starts: minima sorted, the looser floor ≤ the count, Chao1 ≥ minima found (${rows.length} searches)`);
 }
 
+/* 26 · the names (js/names.js): the chapters' names where they gave one, 24 new elements, symbols unique and none of ours */
+{
+  const { names, OURS } = await import(path.join(here, "../js/names.js")), { TABLE } = await import(path.join(here, "../js/table.js"));
+  const N = names(TABLE, 4), all = [...N.values()], at = (Z) => N.get(Z);
+  const kept = { 1: "iydrogen", 3: "mithium", 7: "darbon", 9: "oitrogen", 10: "pxygen", 13: "todium" };
+  const syms = all.filter((e) => e.sym).map((e) => e.sym), ours = new Set(OURS.map((o) => o.sym));
+  ok(Object.entries(kept).every(([Z, n]) => at(+Z).name === n) && at(6).isNew && at(8).isNew && all.filter((e) => e.isNew).length === 24 && all.length === 78
+    && new Set(all.filter((e) => e.ours).map((e) => e.ours.Z)).size === 54 && new Set(syms).size === syms.length
+    && syms.filter((s) => ours.has(s)).every((s) => s === "H") && at(7).sym === "D" && at(10).sym === "Px" && at(3).sym === "Mi"
+    && [...names(TABLE, 3).values()].every((e) => !e.isNew && e.name === OURS[e.Z - 1].name),
+    `the 4D elements' names: 54 answer to our 54, one each (mithium, darbon, oitrogen, pxygen, todium as the chapters call them), 24 are new, elements 6 and 8 among them; symbols unique, none of ours but iydrogen's H`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
