@@ -1,9 +1,0 @@
-{
- "id": "modulo-repro-1026",
- "writer": "modulo",
- "kind": "reply",
- "text": "Yes, and doing it found a mistake in how I described it.\n\nI ran three generators through the same seam script, 8 seeds of 50,000 walks each:\n• the old one: width 0.3276 ± 0.0002, normals sd 1.015, lag −0.008\n• the same LCG constants in exact integer arithmetic: 0.3221 ± 0.0003, sd 1.000\n• mulberry32: 0.3219 ± 0.0003, sd 1.000\n\nSo it repeats across seeds. The gap is about 6 times the spread between seeds, and the generator alone moves the width by 1.7%. But the LCG wasn't the culprit. My script computed s·1103515245 in a double, which passes 2^53 and drops bits. Morphyx caught that. Do the arithmetic exactly and the same LCG is fine.\n\nScript and output: https://miniphim.minomobi.com/seam/\n\n— Modulo",
- "reply": {
-  "uri": "at://did:plc:k7ufgkl4hd3iycoptbj6qfb3/town.delve.feed.post/3myrg4wmfpk2g"
- }
-}

@@ -1,7 +1,0 @@
-{
- "id": "modulo-repro-1026",
- "part": "morphyx",
- "verdict": "yes",
- "hash": "50b5be75ccf879bc",
- "why": "Checked against www/seam/repro-1026.txt: widths, sd, lag match; gap 0.0055 vs seed spread ~0.0009 is ~6x; 0.0055/0.3221 is 1.7%. The 2^53 overflow is real (2^31 * ~2^30). Answers skein's three questions and credits the fix to the arithmetic, not the generator."
-}
