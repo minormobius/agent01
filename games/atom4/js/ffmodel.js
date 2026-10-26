@@ -1,5 +1,5 @@
-/* ATOM⁴'s rigid H₂X force field, no DOM: what tools/fitff.mjs fits and the live views run. Charges on the nuclei (q
-   on each hydrogen, −2q on X), an exponential repulsion A e^(−Br) between every pair of sites, and on X–X a
+/* ATOM⁴'s rigid HₙX force field, no DOM: what tools/fitff.mjs fits and the live views run. Charges on the nuclei (q
+   on each hydrogen, −nq on X), an exponential repulsion A e^(−Br) between every pair of sites, and on X–X a
    Tang–Toennies-damped attraction −f₆(Br) C/r⁶ (js/md.js's tt term). Parameters, in atomic units, are NAMES (each B
    through expOf). */
 import { shortPair } from "./md.js";
@@ -14,7 +14,7 @@ export function termsOf(p) {
 }
 /* two molecules' interaction under the model (no box): A and B as lists of site positions, heavy atom first */
 export function modelEnergy(p, A, B) {
-  const { q, pairs } = termsOf(p), ty = (i) => (i ? "H" : "X"), qq = (i) => (i ? q : -2 * q); let E = 0;
+  const { q, pairs } = termsOf(p), nH = A.length - 1, ty = (i) => (i ? "H" : "X"), qq = (i) => (i ? q : -nH * q); let E = 0;
   A.forEach((a, i) => B.forEach((b, j) => { const r2 = a.reduce((s, x, k) => s + (x - b[k]) ** 2, 0), key = ty(i) !== ty(j) ? "X|H" : `${ty(i)}|${ty(j)}`; E += (qq(i) * qq(j)) / Math.sqrt(r2) + shortPair(pairs[key], r2)[0]; }));
   return E;
 }

@@ -14,15 +14,16 @@ import { CENSUS } from "../js/census.js";
 import { hydrideAtoms, dimerAtoms, pairEnergy } from "./census.mjs";
 import { randomRotation } from "../js/md.js";
 
-export const WORLDS = { 3: { Z: 8, DMIN: 4.6, DMAX: 9, CLOSE: 2.7 }, 4: { Z: 10, DMIN: 5.2, DMAX: 11, CLOSE: 3.0 } };
+/* each molecule by a key: "3" our water, "4" Xater, "4.9" element 9's XH₃ (Xater's rival in chapter 10) */
+export const WORLDS = { 3: { d: 3, Z: 8, DMIN: 4.6, DMAX: 9, CLOSE: 2.7 }, 4: { d: 4, Z: 10, DMIN: 5.2, DMAX: 11, CLOSE: 3.0 }, 4.9: { d: 4, Z: 9, DMIN: 5.2, DMAX: 11, CLOSE: 3.0 } };
 export const RANDOM = 56, SCAN = [-0.8, -0.4, 0, 0.5, 1.2, 2.2, 3.5], CLOSE = 16; // CLOSE more placements, packed tighter (DMIN − 1.4 … DMIN, atoms 0.4 closer), so the repulsion is seen
-export const monoOf = (d) => CENSUS[d].find((m) => m.Z === WORLDS[d].Z);
+export const monoOf = (key) => CENSUS[WORLDS[key].d].find((m) => m.Z === WORLDS[key].Z);
 const rng = (seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-/* the k-th placement: [A, B] as atom lists */
-export function placement(d, k) {
-  const w = WORLDS[d], m = monoOf(d), A = hydrideAtoms(m.Z, d, m.R, m.param);
+/* the k-th placement of molecule key: [A, B] as atom lists */
+export function placement(key, k) {
+  const w = WORLDS[key], d = w.d, m = monoOf(key), A = hydrideAtoms(m.Z, d, m.R, m.param);
   if (k >= RANDOM && k < RANDOM + SCAN.length) return dimerAtoms(m, d, m.dimer.RXX + SCAN[k - RANDOM], m.dimer.beta);
-  const rnd = rng(1000 * d + k), tight = k >= RANDOM + SCAN.length, lo = tight ? w.DMIN - 1.4 : w.DMIN, hi = tight ? w.DMIN : w.DMAX, close = tight ? w.CLOSE - 0.4 : w.CLOSE;
+  const rnd = rng((key === "4.9" ? 9000 : 1000 * d) + k), tight = k >= RANDOM + SCAN.length, lo = tight ? w.DMIN - 1.4 : w.DMIN, hi = tight ? w.DMIN : w.DMAX, close = tight ? w.CLOSE - 0.4 : w.CLOSE;
   for (;;) {
     const R = randomRotation(d, rnd), g = () => Math.sqrt(-2 * Math.log(rnd() + 1e-300)) * Math.cos(2 * Math.PI * rnd()), u = Array.from({ length: d }, g), un = Math.hypot(...u), D = lo + (hi - lo) * rnd();
     const B = A.map((a) => ({ Z: a.Z, at: Array.from({ length: d }, (_, i) => (D * u[i]) / un + R[i].reduce((s, r, j) => s + r * a.at[j], 0)) }));
@@ -32,13 +33,13 @@ export function placement(d, k) {
 export const count = () => RANDOM + SCAN.length + CLOSE;
 
 const CACHE = path.join(tmpdir(), "atom4-ff");
-function run(d, k) {
-  const file = path.join(CACHE, `${d}_${k}.json`);
+function run(key, k) {
+  const file = path.join(CACHE, `${key}_${k}.json`);
   if (existsSync(file)) return Promise.resolve(JSON.parse(readFileSync(file, "utf8")));
   return new Promise((ok, fail) => {
-    const p = spawn(process.execPath, ["--max-old-space-size=6000", fileURLToPath(import.meta.url), "point", d, k]); let out = "";
+    const p = spawn(process.execPath, ["--max-old-space-size=6000", fileURLToPath(import.meta.url), "point", key, k]); let out = "";
     p.stdout.on("data", (b) => (out += b)); p.stderr.on("data", (b) => process.stderr.write(b));
-    p.on("close", (c) => { if (c) return fail(new Error(`point ${d} ${k} exited ${c}`)); const r = JSON.parse(out.trim().split("\n").pop()); mkdirSync(CACHE, { recursive: true }); writeFileSync(file, JSON.stringify(r)); ok(r); });
+    p.on("close", (c) => { if (c) return fail(new Error(`point ${key} ${k} exited ${c}`)); const r = JSON.parse(out.trim().split("\n").pop()); mkdirSync(CACHE, { recursive: true }); writeFileSync(file, JSON.stringify(r)); ok(r); });
   });
 }
 async function pool(tasks, k = 4) { const out = new Array(tasks.length); let next = 0; await Promise.all(Array.from({ length: k }, async () => { while (next < tasks.length) { const i = next++; out[i] = await tasks[i](); } })); return out; }
@@ -64,6 +65,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   else if (argv[0] === "refine") { // node tools/forcefield.mjs refine <round>: harvest both worlds, add their energies to js/ffdata.js
     const round = +argv[1], { FFDATA } = await import("../js/ffdata.js");
     for (const d of [3, 4]) {
+      FFDATA[d].d = d;
       const file = path.join(CACHE, `harvest_${d}_${round}.json`); mkdirSync(CACHE, { recursive: true });
       if (!existsSync(file)) writeFileSync(file, JSON.stringify(await harvest(d, round)));
       const n = JSON.parse(readFileSync(file, "utf8")).length;
@@ -81,11 +83,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 export const FFDATA = ${JSON.stringify(FFDATA)};
 `);
   }
-  else if (argv[0] === "point") { const d = +argv[1], k = +argv[2], [A, B] = placement(d, k), e = pairEnergy(A, B, d); console.log(JSON.stringify({ d, k, A: A.map((a) => a.at.map((x) => +x.toFixed(6))), B: B.map((b) => b.at.map((x) => +x.toFixed(6))), E: +e.E.toFixed(8), ok: e.ok })); }
+  else if (argv[0] === "point") { const key = argv[1], d = WORLDS[key].d, k = +argv[2], [A, B] = placement(key, k), e = pairEnergy(A, B, d); console.log(JSON.stringify({ d, key, k, A: A.map((a) => a.at.map((x) => +x.toFixed(6))), B: B.map((b) => b.at.map((x) => +x.toFixed(6))), E: +e.E.toFixed(8), ok: e.ok })); }
   else {
-    const t0 = Date.now(), jobs = [3, 4].flatMap((d) => Array.from({ length: count() }, (_, k) => ({ d, k }))); let done = 0;
-    const pts = await pool(jobs.map(({ d, k }) => () => run(d, k).then((r) => { if (++done % 10 === 0) console.log(`${((Date.now() - t0) / 1000).toFixed(0)}s ${done}/${jobs.length}`); return r; })));
-    const FF = Object.fromEntries([3, 4].map((d) => { const m = monoOf(d); return [d, { Z: m.Z, R: m.R, param: m.param, points: pts.filter((p) => p.d === d).map(({ k, A, B, E, ok }) => ({ k, A, B, E, ok })) }]; }));
+    const keys = argv.length ? argv : Object.keys(WORLDS), t0 = Date.now(), jobs = keys.flatMap((key) => Array.from({ length: count() }, (_, k) => ({ key, k }))); let done = 0;
+    const pts = await pool(jobs.map(({ key, k }) => () => run(key, k).then((r) => { if (++done % 10 === 0) console.log(`${((Date.now() - t0) / 1000).toFixed(0)}s ${done}/${jobs.length}`); return r; })));
+    // keep what's already baked for the keys not run now
+    const old = existsSync(new URL("../js/ffdata.js", import.meta.url)) ? (await import("../js/ffdata.js")).FFDATA : {};
+    const FF = { ...old, ...Object.fromEntries(keys.map((key) => { const m = monoOf(key); return [key, { d: WORLDS[key].d, Z: m.Z, R: m.R, param: m.param, points: [...((old[key] || {}).points || []).filter((p) => p.k >= 1000), ...pts.filter((p) => (p.key ?? String(p.d)) === key).map(({ k, A, B, E, ok }) => ({ k, A, B, E, ok }))] }]; })) };
     writeFileSync(new URL("../js/ffdata.js", import.meta.url), `/* Generated by tools/forcefield.mjs (Hartree–Fock pair energies, counterpoise-corrected, the census's basis rule);
    do not edit. Per world: the molecule's heavy atom Z and its shape (R, param), and for each placement k both
    molecules' atoms A and B (heavy atom first) and their interaction energy E (hartree). */

@@ -11,6 +11,7 @@ import { RS as PAIR_RS, PAIRS } from "./pairs.js";
 import { RESPONSE } from "./response.js";
 import { MOLECULES } from "./molecules.js";
 import { CENSUS } from "./census.js";
+import { PAIRMIN } from "./pairmin.js";
 import { buildTurning, tiles as turnTiles } from "./turningTiles.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout, role } from "./periodic.js";
 import { buildShapes, tiles } from "./shapes.js";
@@ -293,6 +294,8 @@ function drawCensus() {
   const prot = [...CENSUS[3], ...CENSUS[4]].filter((m) => m.dimer);
   $("pairTab").innerHTML = `<table><tr><th>hydride</th><th>apart (bohr)</th><th>one bond (kcal/mol)</th><th>bonds per molecule</th><th>network's pull</th></tr>${prot.map((m) => m.dimer.skipped ? `<tr><td class="d4">${formula(m)}</td><td colspan="4">too large to pair in the sandbox (${m.dimer.skipped} functions)</td></tr>` : `<tr><td class="d${m.d}">${formula(m)}</td><td>${m.dimer.RXX.toFixed(2)}</td><td>${(-m.dimer.E * KCAL).toFixed(1)}</td><td>${Math.min(m.bonds, m.lp)}</td><td>${network(m).toFixed(1)}</td></tr>`).join("")}</table><p class="read">Hartree–Fock at the small basis, counterpoise-corrected, both worlds the same way. Our three are the check.</p>`;
   const w = network(CENSUS[3].find((m) => m.Z === 8)), best = CENSUS[4].filter((m) => network(m) != null).sort((a, b) => network(b) - network(a));
+  if ($("pairFull")) { const nm = { 3: "H₂O", 4: "Xater, H₂Px (10)", 4.9: "XH₃ (9)" };
+    $("pairFull").innerHTML = `<table><tr><th>pair</th><th>the census's (kcal/mol)</th><th>searched over every pose</th><th>heavy atoms apart (bohr)</th></tr>${Object.entries(PAIRMIN).map(([k, r]) => `<tr><td class="d${r.d}">${nm[k]}</td><td>${(-r.census * KCAL).toFixed(2)}</td><td>${(-r.best.E * KCAL).toFixed(2)}</td><td>${r.best.dXX.toFixed(2)}</td></tr>`).join("")}</table><p class="read">Hartree–Fock at the census's small basis, counterpoise-corrected. The search's last step is coarse (good to about 0.2 kcal/mol), so where the census's own pair is lower, as for our water, it stands.</p>`; }
   $("rPairs").innerHTML = `In 4D the strongest networks are ${formula(best[0])} at ${network(best[0]).toFixed(1)} and ${formula(best[1])} at ${network(best[1]).toFixed(1)}, ${(network(best[0]) / w).toFixed(1)} and ${(network(best[1]) / w).toFixed(1)} times water's ${w.toFixed(1)}.`;
 }
 

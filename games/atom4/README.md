@@ -86,9 +86,21 @@ position.
   - Water from Hartree–Fock pairs has about half its real cohesion: U = −22.2 kJ/mol at 298 K and 0.997 g/cm³
     against about −41.5, with no dispersion and no many-body polarization. In the drop it boils off at 300 K.
   - Xater's liquid comes out very dense and cohesive (heavy atoms 4.3 bohr apart, U ≈ −280 kJ/mol). Pairs harvested
-    from it reach −15.5 kcal/mol under Hartree–Fock, deeper than chapter 10's 13.3. The census optimized each pair
-    over distance and one tilt only, so the true pair minima, and possibly the tie with element 9's XH₃, need a
-    full-orientation search.
+    from it reached −15.5 kcal/mol under Hartree–Fock, deeper than chapter 10's 13.3. The census optimized each pair
+    over distance and one tilt only, hence:
+- **The full pair search** (`tools/pairsearch.mjs <key> [rounds]`, then `bake` into `js/pairmin.js`).
+  - Every relative pose (exp(Ω) turns, 3 numbers in 3D and 6 in 4D, plus d to move), searched from thousands of
+    starts by BFGS on the fitted force field. The distinct minima are scored by Hartree–Fock, and the best relaxed
+    under it by rounds of parabolas along each pose number. That last step is coarse (~0.2 kcal/mol), so a census
+    pair that's lower stands.
+  - Element 9's XH₃ got its own training data and fit for this (key 4.9; the force-field tools now take any HₙX).
+  - **Results:**
+    - Our water: nothing deeper than its linear bond (search −4.22, census −4.35). That's the check.
+    - Xater: −26.92 kcal/mol at heavy atoms 4.88 bohr apart (census −13.28).
+    - XH₃: −27.54 at 5.30 bohr (census −13.73).
+    - Both 4D best pairs are compact and antiparallel, each lending a hydrogen to the other (Xater's X–H···X at
+      95°, water's near 165°). The tie stands, at twice the strength. Chapter 10 now says so (its "network" count,
+      built on linear bonds, is marked as superseded by the liquid simulation).
   - The three-site model fits water's pairs to 0.3–0.5 kcal/mol but Xater's only to 1.7. The next steps are a fourth
     site (TIP4P-style, on the axis of Xater's lone-pair ring), a many-body check, then MP2 pairs and polarization for
     the numbers.

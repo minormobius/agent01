@@ -449,5 +449,29 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok((hi - lo) / 16 < 3e-6 && bonds, `4D rigid molecules, thermostat off: total energy within ${((hi - lo) / 16 * 2625.5).toFixed(4)} kJ/mol per molecule over 120 steps, every bond held`);
 }
 
+/* 22 · force fields for the liquids: the model's terms, and the pair search's poses */
+{
+  const MD = await import(path.join(here, "../js/md.js")), FM = await import(path.join(here, "../js/ffmodel.js")), PS = await import(path.join(here, "../tools/pairsearch.mjs"));
+  // the Tang–Toennies term's force is its slope
+  const term = { tt: [12, 1.7, 30] }; let worst = 0;
+  for (const r of [2.5, 3.7, 5.1, 7.9]) { const [, f] = MD.shortPair(term, r * r), h = 1e-6, du = (MD.shortPair(term, (r + h) ** 2)[0] - MD.shortPair(term, (r - h) ** 2)[0]) / (2 * h); worst = Math.max(worst, Math.abs(-du / r - f)); }
+  // a pose's turn is orthonormal (an exponential of a turn generator, so never a mirror), in 3D and 4D
+  let orth = 0;
+  for (const d of [3, 4]) { const n = (d * (d - 1)) / 2, e = Array.from({ length: d }, (_, i) => Array.from({ length: d }, (_, j) => (i === j ? 1 : 0))), R0 = e, x = [...Array.from({ length: n }, (_, k) => 0.3 + 0.2 * k), ...new Array(d).fill(0)], M = PS.posed(e, R0, x, d);
+    for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) orth = Math.max(orth, Math.abs(M.reduce((s, row) => s + row[i] * row[j], 0) - (i === j ? 1 : 0))); }
+  // the model's energy doesn't care which molecule is first
+  const p = [0.5, 3, 0.2, 40, 1.5, -0.4, 0.3, -0.9], A = [[0, 0, 0, 0], [1.6, 1.4, 0, 0], [1.6, -1.4, 0, 0]], B = [[5, 1, 0.5, -0.3], [6.1, 2.6, 0.2, 0], [6.4, -0.1, 1.1, 0.4]];
+  const sym = Math.abs(FM.modelEnergy(p, A, B) - FM.modelEnergy(p, B, A));
+  ok(worst < 1e-7 && orth < 1e-12 && sym < 1e-14, `Tang–Toennies force its slope (${worst.toExponential(1)}); a pose's turn a rotation (${orth.toExponential(1)}); the model symmetric in its pair`);
+}
+
+/* 23 · the pairs searched over every pose (js/pairmin.js): chapter 10's correction */
+{
+  const { PAIRMIN: P } = await import(path.join(here, "../js/pairmin.js")), K = 627.509, w = P[3], x = P[4], n9 = P["4.9"];
+  const best = (r) => r.best.E <= Math.min(r.search, r.census, ...r.modelMinima.map((q) => q.hf)) + 1e-9;
+  ok([w, x, n9].every(best) && w.best.from === "census" && Math.abs(w.search - w.census) * K < 0.2, `the search keeps the lowest it found; for our water the census's linear pair stands (search ${(-w.search * K).toFixed(2)}, census ${(-w.census * K).toFixed(2)})`);
+  ok(x.best.E < 1.8 * x.census && n9.best.E < 1.8 * n9.census && Math.abs(x.best.E - n9.best.E) / Math.abs(n9.best.E) < 0.05 && x.best.dXX < 5.2, `searched properly, Xater's pair binds ${(-x.best.E * K).toFixed(1)} and XH₃'s ${(-n9.best.E * K).toFixed(1)} kcal/mol (the census's ${(-x.census * K).toFixed(1)}, ${(-n9.census * K).toFixed(1)}): still a tie, at twice the strength, compact (Xater's heavy atoms ${x.best.dXX} bohr apart)`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
