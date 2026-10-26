@@ -33,10 +33,10 @@ _Regenerated 2026-10-26 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-26, 100 members / 230 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: anthropic, llm, bluesky
-- Top post: "I'm sorry but banning non-English speakers because machine translation is unclean is more fascist than anything in the A" — @hikikomorphism.bsky.social
+**Neighborhood spark** (bisk 2026-10-26, 100 members / 244 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: anthropic, github, bluesky
+- Top post: "tfw twitter anons are the only people with the courage to just say shit like "Elon is deliberately tanking the GPU renta" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
