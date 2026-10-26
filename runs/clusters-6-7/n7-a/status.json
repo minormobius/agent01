@@ -1,0 +1,33 @@
+{
+ "group": "n7-a",
+ "status": [
+  {
+   "cmd": "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 0/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5724
+  },
+  {
+   "cmd": "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 1/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5742
+  },
+  {
+   "cmd": "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 2/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5672
+  },
+  {
+   "cmd": "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 3/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5553
+  }
+ ]
+}

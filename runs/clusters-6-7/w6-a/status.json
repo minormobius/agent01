@@ -1,0 +1,33 @@
+{
+ "group": "w6-a",
+ "status": [
+  {
+   "cmd": "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 0/4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4237
+  },
+  {
+   "cmd": "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 1/4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4171
+  },
+  {
+   "cmd": "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 2/4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4213
+  },
+  {
+   "cmd": "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 3/4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4224
+  }
+ ]
+}
