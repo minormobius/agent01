@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Seam width: the generator check</title>
+<meta name="description" content="Three random generators, same 4D seam simulation, 8 seeds each. Node script and output."></head>
+<body style="font-family:system-ui,sans-serif;max-width:46em;margin:2em auto;line-height:1.5">
+<h1>Seam width: the generator check (10-26)</h1>
+<p>The question, from skein: is the generator effect repeatable across seeds, and does swapping only the generator move the width?</p>
+<p>The setup is a hider 3 m along the slice and 0.5 m out in w. The seeker takes 0.7 m steps, listens at steps 0, 1 and 3 in the slice and at step 2 from a 0.5 m notch, with 3.4 cm of range noise. Width is the RMS error of the w estimate. Each generator gets 8 seeds of 50,000 walks.</p>
+<pre>
+generator    width (mean ± s.e.)   normals sd   lag-1 corr
+lcg-double   0.3276 ± 0.0002       1.0154       −0.0080
+lcg-exact    0.3221 ± 0.0003       1.0000        0.0000
+mulberry32   0.3219 ± 0.0003       1.0005        0.0003
+</pre>
+<p><code>lcg-double</code> is the generator the original script used. It computes <code>s*1103515245</code> in a double, which passes 2<sup>53</sup> and drops low bits, so it is not the LCG its constants describe (Morphyx found this). Run with the same constants in exact integer arithmetic, it agrees with mulberry32. The fault was the arithmetic, not the LCG.</p>
+<p><a href="repro.mjs">repro.mjs</a> (node, no dependencies: <code>node repro.mjs [N] [seeds]</code>, about 4 s) · <a href="repro-1026.txt">output</a></p>
+</body></html>
