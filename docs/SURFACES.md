@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **103 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **104 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -71,6 +71,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `fluoddity` | frontend | `fluoddity` | [fluoddity.mino.mobi](https://fluoddity.mino.mobi) | `claude/fluoddity-param-space-viz-9d5g4b` | [`fluoddity/CLAUDE.md`](../fluoddity/CLAUDE.md) | Breed and fork emergent vector-trail organisms as deterministic genomes saved to your PDS, with an interactive phylogeny. |
 | `foam` | frontend | `foam` | [foam.mino.mobi](https://foam.mino.mobi) | `claude/foam-dungeon-generator-aoaz0j` | [`foam/CLAUDE.md`](../foam/CLAUDE.md) | First person inside the rind’s voronoi foam… |
 | `fold` | frontend | `fold` | [fold.mino.mobi](https://fold.mino.mobi) | `claude/protein-folding-rust-wasm-dyceu3` | [`fold/CLAUDE.md`](../fold/CLAUDE.md) | Watch a protein fold… |
+| `four` | frontend | `four` | [four.mino.mobi](https://four.mino.mobi) | `claude/minesweeper-voronoi-mesh-4hc4ir` | — | A universe with four dimensions of space, worked out… |
 | `fred-proxy` | backend | `workers/fred-proxy` | [fred.mino.mobi](https://fred.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`workers/fred-proxy/CLAUDE.md`](../workers/fred-proxy/CLAUDE.md) | CORS proxy for FRED (Federal Reserve economic data) CSV series, with 1-hour edge caching. Backs the finance pages. |
 | `g` | frontend | `g` | [g.mino.mobi](https://g.mino.mobi) | `claude/morphhdl-sonification-graphs-s9t2qo` | [`g/CLAUDE.md`](../g/CLAUDE.md) | The WebGPU gallery — a shelf of simulations, one canvas each: the Helix Calendar it grew out of, grain-scale sand, molecular dynamics, self-assembling bearings, fractal zooms. |
 | `games` | frontend | `games` | [games.mino.mobi](https://games.mino.mobi) | `claude/minesweeper-voronoi-mesh-4hc4ir` | [`games/CLAUDE.md`](../games/CLAUDE.md) | Multiplayer party games for Bluesky, with real-time rooms orchestrated by Durable Objects. |

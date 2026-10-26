@@ -3895,51 +3895,48 @@
     },
     {
       "n": "lumen4",
-      "u": "https://games.mino.mobi/lumen4/",
-      "c": "games",
+      "u": "https://four.mino.mobi/lumen/",
+      "c": "data",
       "k": 2,
       "a": "warm",
-      "t": "2026-10-24",
+      "t": "2026-10-26",
       "b": "2026-10-24",
-      "p": "games",
-      "surface": "games",
+      "p": "four",
+      "surface": "four",
       "d": "Light in four dimensions, worked out and drawn beside our own: a point source fades as 1/r³; a laser is still a line, a dot in your slice; a flash leaves a negative wake, because Huygens' principle holds only in odd dimensions; a round hole's first dark ring moves out to 1.43 λ/D; glare at Brewster's angle is polarized in a plane; hot bodies look bluer and radiate as T⁵; and the rainbow shrinks in your slice as the sun leans into w. Every number checked by a selftest.",
       "tags": [
-        "games",
         "canvas",
         "math"
       ]
     },
     {
       "n": "iris4",
-      "u": "https://games.mino.mobi/iris4/",
-      "c": "games",
+      "u": "https://four.mino.mobi/iris/",
+      "c": "data",
       "k": 2,
       "a": "warm",
-      "t": "2026-10-24",
+      "t": "2026-10-26",
       "b": "2026-10-24",
-      "p": "games",
-      "surface": "games",
+      "p": "four",
+      "surface": "four",
       "d": "A rainbow you shape, in first person: walk a four-dimensional landscape after rain, grained by tiny tesseract voxels, Kelvin's foam or the 24-cell foam, and turn, twist and look into w. The bow on your screen is a conic section with e = √(a_R² + a_U²)/cos 42°, set only by where the antisolar point sits in your own frame; a dashed line draws the formula's conic over the rendered bow. Lean into w and the land turns fae.",
       "tags": [
-        "games",
         "canvas",
         "math"
       ]
     },
     {
       "n": "atom4",
-      "u": "https://games.mino.mobi/atom4/",
-      "c": "games",
+      "u": "https://four.mino.mobi/atom/",
+      "c": "data",
       "k": 2,
       "a": "warm",
-      "t": "2026-10-24",
+      "t": "2026-10-26",
       "b": "2026-10-24",
-      "p": "games",
-      "surface": "games",
-      "d": "The official position on the universe the 4D toys are building: four dimensions of space, and the force between charges pinned at 1/r, since Gauss's law in 4D leaves atoms no ground state. Ten chapters of working, each computed and checked. The force: five ways to rewrite Maxwell and the lens vacuum we take, which keeps Lumen⁴'s light exact. Light: what matter feels of it, and the sky. Motion and spin: Kepler's ellipses, rotation in planes, electrons that pair up with a handed spin. Hydrogen, the periodic table to element 78, the six regular 4D solids, and darbon, the carbon of this world, in small viewers you can turn through w and slice. And the forces between molecules: neutral atoms that attract permanently as R⁻⁵, and noble-gas pairs computed end to end, dispersion included, so 4D's second noble gas would boil at 400 to 730 K. And Pxygen and Xater, 4D's oxygen and water, by a molecular solver written for any dimension and checked on ours: Xater bends to about 120°, with twice water's dipole and a hydrogen bond three times as strong. And a census of every 4D hydride, which finds Xater tied with element 9's XH₃ for the strongest liquid.",
+      "p": "four",
+      "surface": "four",
+      "d": "The official position on the universe of four.mino.mobi: four dimensions of space, and the force between charges pinned at 1/r, since Gauss's law in 4D leaves atoms no ground state. Eleven chapters of working, each computed and checked. The force: five ways to rewrite Maxwell and the lens vacuum we take, which keeps Lumen⁴'s light exact. Light: what matter feels of it, and the sky. Motion and spin: Kepler's ellipses, rotation in planes, electrons that pair up with a handed spin. Hydrogen, the periodic table to element 78, the six regular 4D solids, and darbon, the carbon of this world, in small viewers you can turn through w and slice. And the forces between molecules: neutral atoms that attract permanently as R⁻⁵, and noble-gas pairs computed end to end, dispersion included, so 4D's second noble gas would boil at 400 to 730 K. And Pxygen and Xater, 4D's oxygen and water, by a molecular solver written for any dimension and checked on ours: Xater bends to about 120°, with twice water's dipole and a hydrogen bond three times as strong. And a census of every 4D hydride, which finds Xater tied with element 9's XH₃ for the strongest liquid; and the search behind it, which first missed the best pairs: two molecules meet in six ways in our world and ten in 4D, and clusters of them have far more minima than ours.",
       "tags": [
-        "games",
         "canvas",
         "math"
       ]
@@ -4798,6 +4795,22 @@
         "math",
         "3d"
       ]
+    },
+    {
+      "n": "four",
+      "u": "https://four.mino.mobi/",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-26",
+      "b": "2026-10-24",
+      "surface": "four",
+      "d": "A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in eleven chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.",
+      "tags": [
+        "canvas",
+        "math",
+        "index"
+      ]
     }
   ],
   "notListed": [
@@ -5390,6 +5403,21 @@
       "glob": "foam/dungeon/**",
       "kind": "content",
       "reason": "generator sub-pages inside the already-listed foam site"
+    },
+    {
+      "glob": "games/atom4",
+      "kind": "content",
+      "reason": "MOVING (2026-10-26) to four.mino.mobi/atom/; the games copy goes in the next push, with redirects"
+    },
+    {
+      "glob": "games/lumen4",
+      "kind": "content",
+      "reason": "MOVING (2026-10-26) to four.mino.mobi/lumen/; the games copy goes in the next push, with redirects"
+    },
+    {
+      "glob": "games/iris4",
+      "kind": "content",
+      "reason": "MOVING (2026-10-26) to four.mino.mobi/iris/; the games copy goes in the next push, with redirects"
     },
     {
       "glob": "games/tempest",

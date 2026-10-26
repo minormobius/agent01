@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴, chapter 5: The periodic table. Every atom to element 78, solved, with our own table as the check, and what partial screening does." />
+<title>ATOM⁴ · The periodic table — four.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="force.html">1 · the force</a><a href="light.html">2 · light</a><a href="motion.html">3 · motion and spin</a><a href="hydrogen.html">4 · hydrogen</a><a href="table.html" class="here">5 · the periodic table</a><a href="shapes.html">6 · the shapes</a><a href="darbon.html">7 · darbon</a><a href="forces.html">8 · forces between molecules</a><a href="xater.html">9 · pxygen and xater</a><a href="census.html">10 · which water</a><a href="search.html">11 · ten ways to meet</a></nav>
+  <h2>ATOM⁴ · chapter 5</h2>
+  <h1 class="ch">The periodic table</h1>
+  <p class="lede">Every atom to element 78, solved, with our own table as the check, and what partial screening does.</p>
+</header>
+<section id="table">
+  <h3>The table</h3>
+    <p>Beyond hydrogen there's no closed form. Each electron moves in the nucleus's pull and the averaged cloud of all the others, and the cloud depends on the electrons, so we iterate until they agree: a <b>self-consistent field</b>. Each electron feels the averaged cloud (Hartree's part) and the <b>exchange</b> of the others, the push the Pauli principle gives electrons of the same spin. We use the local form, from the electron gas, with each electron's own share taken out, and spins filled by Hund's rule. For each atom the solver tries the filling the orbital energies suggest, and the neighbouring ones, and keeps the lowest total energy. To know how far to trust it, we ran the same code in 3D first: it gets <b>32 of our first 36 elements right</b>, including the famous exceptions, chromium and copper, which half-fill and fill their 3d shell by borrowing a 4s electron. It misses titanium, vanadium, cobalt and nickel, moving one electron the same way when it shouldn't. Local exchange is known to lean that way, and nickel's two configurations really are within a few hundredths of an eV (<a href="#trust">below</a>).</p>
+  <p>The 4D table's rows are <b>2, 10, 10, 28, 28</b> long where ours are 2, 8, 8, 18, 18: the same doubling, with 4D's bigger shells. Those lengths are what the generalized Madelung rule of Négadi and Kibler (1996) predicts for four dimensions, once each subshell holds 2(l + 1)². The solver confirms it by solving the atoms, which as far as we can find had been done before only in two dimensions (Pyykkö and Zhao, 1991). The sources are in <a href="LITERATURE.md">the literature notes</a>. Tap any element (on a phone, swipe the table sideways).</p>
+  <div class="seg" id="dimSel"><button type="button" data-d="4" class="on">4D, force pinned at 1/r</button><button type="button" data-d="3">3D, ours (the check)</button></div>
+  <div class="ptwrap"><div class="pt" id="pt"></div></div>
+  <div class="legend" id="ptLegend"></div>
+  <div class="detail" id="detail"></div>
+</section>
+<section id="trends">
+  <h3>Periodic, with longer periods</h3>
+    <p>How hard each atom holds its outermost electron (the energy to pull it off, worked out for the relaxed ion). The peaks are the noble gases: an atom with every shell full. The drops just after them are the alkali metals, one electron outside a full shell. The dots are our real measured values: the solver's 3D line follows them closely, <b>within a few percent</b> (median 0.97 of the measured value), dip from nitrogen to oxygen included.</p>
+  <canvas class="chart tall" id="cIon"></canvas>
+  <p class="read" id="rIon"></p>
+  <p>One thing runs the other way. Our noble gases hold their electrons less tightly down the column (helium, neon, argon, krypton). <b>4D's don't</b>: from element 12 to 78 they hold theirs tighter overall (18.4, 17.7, 20.9, 23.1 eV). The <a href="#screen">next section</a> shows why: it's the shell theorem failing. And so 4D atoms don't grow much down a column. The chart below is how far out the outermost electron sits.</p>
+  <canvas class="chart" id="cSize"></canvas>
+</section>
+<section id="screen">
+  <h3>Inner electrons screen only partly</h3>
+  <p>The solver uses the true sphere-averaged pull, k(s/r)/r (<a href="force.html#maxwell">the force</a>), at every radius, where in 3D it would be just 1/max(r, s). And it matters. Outside a shell, k makes the inner electrons' cloud push less than the same charge at the centre would, so <b>inner electrons only partly screen the nucleus</b>. The outer electrons feel more of it, and more as the atom gets heavier. Here are the noble gases, each one's grip on its outermost electron, solved twice: once with the true pull, and once as if the shell theorem held.</p>
+  <canvas class="chart" id="cScreen"></canvas>
+  <p class="read" id="rScreen"></p>
+  <p>The same fact means <b>a neutral 4D atom isn't neutral from outside</b>. Ours, seen from beyond its cloud, has no field at all: the cloud cancels the nucleus exactly. A 4D atom still pulls on a passing electron, with a potential <b>−Σr² / 8s³</b> (Σr² summed over its electrons), because the cloud never quite cancels. Matter built from such atoms would be stickier than ours in ways this page doesn't attempt to work out.</p>
+</section>
+<section id="trust">
+  <h3>How far to trust it</h3>
+    <p><b>What's exact:</b> hydrogen in both worlds, the shell sizes, the sphere-averaged kernel k(t), and everything in <a href="force.html">the force</a>. <b>What's approximate:</b> each electron moves in the averaged cloud of the others, with exchange in its local form. Every open shell is averaged into a sphere, and <b>correlation</b> (electrons dodging one another beyond what exchange accounts for) is left out. Helium's total energy is −2.8617 hartree, the exact Hartree–Fock value (the true one is −2.9037). Neon's is −128.86 to Hartree–Fock's −128.55. Ionization energies come within a few percent of measured. The configuration misses are the transition metals above, which lean toward d. In 4D the solver finds the same leaning, more strongly: runs of transition metals with a single s electron, and elements 64 to 68 giving up their outer s electrons for the d shell entirely, as palladium does in ours. Those are the least trustworthy entries on the page. We also leave out relativity (it matters beyond about Z = 50 here, as with gold's colour in ours) and spin's effects (its handedness and fine structure are in <a href="motion.html#spin">motion and spin</a>), counting spin as two states per orbital. An earlier version of this page left exchange out, and still found the same period lengths, noble gases and main groups. Exchange moved ionization energies by a third and a few transition metals' configurations. We expect the main-group skeleton to stand.</p>
+</section>
+
+<footer class="pager"><a href="hydrogen.html">← 4 · Hydrogen</a><a href="shapes.html">6 · The shapes →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen/">Lumen⁴</a> · <a href="../iris/">IRIS⁴</a> · <a href="https://games.mino.mobi/katabasis/">KATABASIS</a> · <a href="../">Four</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

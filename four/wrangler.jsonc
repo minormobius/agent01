@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "four",
+  "compatibility_date": "2026-02-20",
+  // A universe with four dimensions of space, worked out: ATOM⁴ (atom/), Lumen⁴ (lumen/), IRIS⁴ (iris/), and the
+  // papers to come. No build, no worker script, no bindings: the directory IS the site. CLAUDE.md, tools/ and
+  // test/ are kept out of the upload by .assetsignore.
+  "assets": {
+    "directory": "."
+  },
+  // A PLAIN ROUTE, not a custom domain: it costs none of the zone's 100 custom-domain slots. A route makes no DNS,
+  // so deploy-four.yml runs scripts/route-dns.mjs before wrangler deploy.
+  "routes": [
+    { "pattern": "four.mino.mobi/*", "zone_name": "mino.mobi" }
+  ]
+}

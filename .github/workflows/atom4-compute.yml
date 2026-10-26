@@ -1,6 +1,6 @@
 name: ATOM⁴ compute
 
-# ATOM⁴'s long calculations (games/atom4/tools/*.mjs: cluster searches, Hartree–Fock pair runs, force-field
+# ATOM⁴'s long calculations (four/atom/tools/*.mjs: cluster searches, Hartree–Fock pair runs, force-field
 # training data) on GitHub's runners instead of the agent's sandbox, which is reclaimed when a session goes idle and
 # takes a detached run with it. Deploys nothing and writes nothing to any served branch.
 #
@@ -9,7 +9,7 @@ name: ATOM⁴ compute
 # which every runner restores from the orphan branch `atom4-data` and the collect job writes back, so a run cut at its
 # deadline resumes where it stopped when the same queue runs again. See .github/compute/README.md.
 #
-# Fired by a push to the games branch that changes the queue file (nothing else in that push needs to be compute),
+# Fired by a push to the four/games branch that changes the queue file (nothing else in that push needs to be compute),
 # or by hand once this file is on the default branch. `atom4-data` holds no workflows, so its pushes wake nothing.
 
 on:

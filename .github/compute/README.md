@@ -7,7 +7,7 @@ up to 6 hours, and doesn't care whether anyone is watching. The workflow is
 
 ## Queueing a run
 
-Edit [`atom4.json`](atom4.json) and push it to the games branch (`claude/minesweeper-voronoi-mesh-4hc4ir`). That push
+Edit [`atom4.json`](atom4.json) and push it to the branch that owns `four` and `games` (`claude/minesweeper-voronoi-mesh-4hc4ir`). That push
 fires the workflow. Once the workflow file is on the default branch, it can also be run by hand.
 
 ```json
@@ -16,7 +16,7 @@ fires the workflow. Once the workflow file is on the default branch, it can also
   "why": "what the run is for, in a sentence",
   "minutes": 330,
   "groups": [
-    { "name": "x6-a", "cmds": ["node games/atom4/tools/clusters.mjs 4 6 2400 --shard 0/8", "…up to four"] }
+    { "name": "x6-a", "cmds": ["node four/atom/tools/clusters.mjs 4 6 2400 --shard 0/8", "…up to four"] }
   ]
 }
 ```
@@ -24,7 +24,7 @@ fires the workflow. Once the workflow file is on the default branch, it can also
 - **One group, one runner.** A group holds up to four commands, run side by side (one per core). Groups run in
   parallel, up to 20 at once.
 - **Commands are ATOM⁴ tools and nothing else.** `plan.mjs` refuses anything that isn't
-  `node games/atom4/tools/<tool>.mjs` followed by plain words, and `run.mjs` spawns node without a shell.
+  `node four/<part>/tools/<tool>.mjs` followed by plain words, and `run.mjs` spawns node without a shell.
 - **`minutes` is the deadline.** It can be at most 340. At the deadline each command is stopped. The tools save their
   caches every few seconds, so pushing the same queue again (bump `run`) resumes from where they stopped.
 - **`"enabled": false`** keeps a queue file without running it.
@@ -45,7 +45,7 @@ To use the results in the sandbox:
 ```bash
 git fetch origin atom4-data && git worktree add /tmp/atom4-data origin/atom4-data   # or git archive
 cp -r /tmp/atom4-data/tmp/atom4-* /tmp/            # the tools' default TMPDIR
-node games/atom4/tools/clusters.mjs bake           # then regenerate the pages as usual
+node four/atom/tools/clusters.mjs bake           # then regenerate the pages as usual
 ```
 
 `atom4-data` holds no workflows, so its pushes wake nothing. It isn't a `claude/*` branch, and it is never merged:

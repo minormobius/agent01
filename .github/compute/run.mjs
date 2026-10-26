@@ -1,6 +1,6 @@
 // Runs one group of ATOM⁴ tool commands side by side on a runner, each until it finishes or the deadline, then
 // writes each one's log and a status file. Commands are split into words and spawned without a shell (plan.mjs has
-// already refused anything but `node games/atom4/tools/<tool>.mjs <plain words>`). The tools keep their caches in
+// already refused anything but `node four/<part>/tools/<tool>.mjs <plain words>`). The tools keep their caches in
 // $TMPDIR and save every few seconds, so a command cut at the deadline loses only its last few seconds, and the next
 // run of the same queue resumes it.
 //   GROUP='{"name":…,"cmds":[…]}' MINUTES=330 OUT=dir node .github/compute/run.mjs
