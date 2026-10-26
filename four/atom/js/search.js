@@ -109,30 +109,31 @@ export function buildSearch() {
 }
 
 /* crowds: how many minima clusters of n molecules have, by world (js/clusters.js; n = 2 is the pair search's funnel).
-   Solid: minima found, told apart by energy and shape; the bar below each point runs down to the count told apart
-   by energy alone (a floor); dashed: the Chao1 estimate of how many there are */
+   Solid: minima found, told apart by energy and shape; the bar below each point runs down to the count when minima
+   are merged under a test three times looser (a floor); dashed: the Chao1 estimate of how many there are, drawn only
+   where it can be trusted (fewer than half the minima seen just once) */
 const CL = { 3: { name: "our water", colour: "#ff9f6b" }, 4: { name: "Xater", colour: "#9fe3ff" }, 4.9: { name: "XH₃ (element 9)", colour: "#c79bff" } };
 export function drawClusters() {
   const cv = $("clusterChart"), tab = $("clusterTab"); if (!cv) return;
-  const keys = Object.keys(CL).filter((k) => CLUSTERS[k]), series = keys.map((k) => ({ k, pts: [{ n: 2, found: 1, floor: 1, chao: 1 }, ...Object.values(CLUSTERS[k]).map((r) => ({ n: r.n, found: r.minima, floor: r.levels, chao: r.chao1 }))] }));
+  const keys = Object.keys(CL).filter((k) => CLUSTERS[k]), series = keys.map((k) => ({ k, pts: [{ n: 2, found: 1, floor: 1, chao: 1, ok: true }, ...Object.values(CLUSTERS[k]).map((r) => ({ n: r.n, found: r.minima, floor: r.floor, chao: r.chao1, ok: r.chaoTrusted }))] }));
   const draw = () => {
     const dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
     const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
-    const top = Math.max(10, ...series.flatMap((s) => s.pts.map((p) => p.chao))), L = 46, B = h - 28, X = (n) => L + ((w - L - 16) * (n - 2)) / 4, Y = (v) => B - ((B - 14) * Math.log10(v)) / Math.log10(top * 1.3);
+    const nMax = Math.max(...series.flatMap((s) => s.pts.map((p) => p.n))), top = Math.max(10, ...series.flatMap((s) => s.pts.map((p) => (p.ok ? p.chao : p.found)))), L = 46, B = h - 28, X = (n) => L + ((w - L - 16) * (n - 2)) / (nMax - 2), Y = (v) => B - ((B - 14) * Math.log10(v)) / Math.log10(top * 1.3);
     g.font = "10px ui-monospace, monospace"; g.strokeStyle = "rgba(255,255,255,0.25)"; g.fillStyle = "#9aa";
     g.beginPath(); g.moveTo(L, 10); g.lineTo(L, B); g.lineTo(w - 10, B); g.stroke();
-    for (let n = 2; n <= 6; n++) g.fillText(String(n), X(n) - 3, B + 14);
+    for (let n = 2; n <= nMax; n++) g.fillText(String(n), X(n) - 3, B + 14);
     g.fillText("molecules", w - 70, B + 24);
     for (const v of [1, 10, 100, 1000]) if (v <= top * 1.3) { g.fillText(String(v), 8, Y(v) + 3); g.strokeStyle = "rgba(255,255,255,0.07)"; g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(w - 10, Y(v)); g.stroke(); }
     g.fillStyle = "#9aa"; g.fillText("minima", 4, 10);
     series.forEach((s, i) => {
       const c = CL[s.k].colour; g.strokeStyle = c; g.fillStyle = c; g.lineWidth = 2;
       g.beginPath(); s.pts.forEach((p, j) => (j ? g.lineTo(X(p.n), Y(p.found)) : g.moveTo(X(p.n), Y(p.found)))); g.stroke();
-      g.setLineDash([4, 3]); g.lineWidth = 1.2; g.beginPath(); s.pts.forEach((p, j) => (j ? g.lineTo(X(p.n), Y(p.chao)) : g.moveTo(X(p.n), Y(p.chao)))); g.stroke(); g.setLineDash([]); g.lineWidth = 1;
+      g.setLineDash([4, 3]); g.lineWidth = 1.2; g.beginPath(); s.pts.filter((p) => p.ok).forEach((p, j) => (j ? g.lineTo(X(p.n), Y(p.chao)) : g.moveTo(X(p.n), Y(p.chao)))); g.stroke(); g.setLineDash([]); g.lineWidth = 1;
       for (const p of s.pts) { g.beginPath(); g.arc(X(p.n), Y(p.found), 3, 0, 7); g.fill(); const dx = (i - 1) * 4; g.lineWidth = 2; g.beginPath(); g.moveTo(X(p.n) + dx, Y(p.found)); g.lineTo(X(p.n) + dx, Y(p.floor)); g.stroke(); g.lineWidth = 1; }
       g.fillText(CL[s.k].name, L + 10, 22 + 13 * i);
     });
   };
   draw(); addEventListener("resize", draw);
-  if (tab) tab.innerHTML = `<table><tr><th>molecules</th>${keys.map((k) => `<th colspan="3">${CL[k].name}</th>`).join("")}</tr><tr><th></th>${keys.map(() => "<th>minima found</th><th>best (kcal/mol)</th><th>starts finding it</th>").join("")}</tr>${[3, 4, 5, 6].map((n) => `<tr><td>${n}</td>${keys.map((k) => { const r = CLUSTERS[k][n]; return r ? `<td>${r.levels < r.minima ? `${r.levels}–` : ""}${r.minima}${r.chao1 > r.minima + 0.5 ? ` <small>(≈${Math.round(r.chao1)})</small>` : ""}</td><td>${(r.best[0].E * KCAL).toFixed(1)}</td><td>${((100 * r.best[0].hits) / r.starts).toFixed(0)}%</td>` : "<td>–</td><td></td><td></td>"; }).join("")}</tr>`).join("")}</table>`;
+  if (tab) tab.innerHTML = `<table><tr><th>molecules</th>${keys.map((k) => `<th colspan="3">${CL[k].name}</th>`).join("")}</tr><tr><th></th>${keys.map(() => "<th>minima found</th><th>best (kcal/mol)</th><th>starts finding it</th>").join("")}</tr>${[3, 4, 5, 6, 7].map((n) => `<tr><td>${n}</td>${keys.map((k) => { const r = CLUSTERS[k][n]; return r ? `<td>${r.floor < r.minima ? `${r.floor}–` : ""}${r.minima}${!r.chaoTrusted ? ` <small>(still climbing)</small>` : r.chao1 > r.minima + 0.5 ? ` <small>(≈${Math.round(r.chao1)})</small>` : ""}</td><td>${(r.best[0].E * KCAL).toFixed(1)}</td><td>${((100 * r.best[0].hits) / r.starts).toFixed(0)}%</td>` : "<td>–</td><td></td><td></td>"; }).join("")}</tr>`).join("")}</table>`;
 }

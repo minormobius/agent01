@@ -304,7 +304,7 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
  ("search",["<b>Two molecules meet in six ways in our world and ten in 4D</b>: d moves and d(d − 1)/2 turns. Turning grows as d², so in 4D most of the ways are turns.",
   "Chapter 10 first searched two of Xater's ten numbers and missed its best pair by a factor of two. Searched over all ten, a pair's landscape is a funnel: every one of 400 random starts finds the same pair.",
   "<b>A search's energy is a floor</b>: more searching can only bind harder. Whether a search is finished has to be argued separately: known answers, discovery curves, Hartree–Fock without the force field.",
-  "<b>Crowds are a maze, and more so in 4D</b>: from two molecules to six, our water's minima found go "+seq('3')+", Xater's "+seq('4')+". At six, "+f(hit('3',6),0)+"% of starts find our water's best and "+f(hit('4',6),0)+"% Xater's. Which crystal a 4D water makes will be a hard search."])]
+  "<b>Crowds are a maze, and more so in 4D</b>: from two molecules to "+WORD[n7]+", our water's minima go "+seq('3')+", Xater's "+seq('4')+", and the 4D counts haven't stopped climbing. At "+WORD[n7]+", "+f(hit('3',n7),0)+"% of starts find our water's best and "+f(hit('4',n7),1)+"% Xater's. Which crystal a 4D water makes will be a hard search, and its freezing point is predicted low for its cohesion."])]
 def card(i,k,t):
     lis=''.join('<li>'+c+'</li>' for c in P[i][1])
     return f'<a class="card" href="{k}.html"><h3>{i+1} · {t}</h3><ul>{lis}</ul><span class="go">read the chapter →</span></a>'
