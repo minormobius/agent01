@@ -1,9 +1,97 @@
 {
-  "run": "smoke-1",
-  "why": "First run of the runner: two shards of a small cluster search, to check the restore, the run, the hand-off and the write-back to atom4-data.",
-  "minutes": 20,
-  "groups": [
-    { "name": "w3-a", "cmds": ["node games/atom4/tools/clusters.mjs 3 3 40 --shard 0/2"] },
-    { "name": "w3-b", "cmds": ["node games/atom4/tools/clusters.mjs 3 3 40 --shard 1/2"] }
-  ]
+ "run": "clusters-6-7",
+ "why": "Chapter 11's crowds at equal effort: six molecules to 2400 starts in every world (the first count gave 4D fewer starts), and seven molecules to 1600, to see whether 4D's minima keep multiplying faster.",
+ "minutes": 300,
+ "groups": [
+  {
+   "name": "w6-a",
+   "cmds": [
+    "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 0/4",
+    "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 1/4",
+    "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 2/4",
+    "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 3/4"
+   ]
+  },
+  {
+   "name": "x6-a",
+   "cmds": [
+    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 0/8",
+    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 1/8",
+    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 2/8",
+    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 3/8"
+   ]
+  },
+  {
+   "name": "x6-b",
+   "cmds": [
+    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 4/8",
+    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 5/8",
+    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 6/8",
+    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 7/8"
+   ]
+  },
+  {
+   "name": "n6-a",
+   "cmds": [
+    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 0/8",
+    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 1/8",
+    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 2/8",
+    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 3/8"
+   ]
+  },
+  {
+   "name": "n6-b",
+   "cmds": [
+    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 4/8",
+    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 5/8",
+    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 6/8",
+    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 7/8"
+   ]
+  },
+  {
+   "name": "w7-a",
+   "cmds": [
+    "node games/atom4/tools/clusters.mjs 3 7 1600 --shard 0/4",
+    "node games/atom4/tools/clusters.mjs 3 7 1600 --shard 1/4",
+    "node games/atom4/tools/clusters.mjs 3 7 1600 --shard 2/4",
+    "node games/atom4/tools/clusters.mjs 3 7 1600 --shard 3/4"
+   ]
+  },
+  {
+   "name": "x7-a",
+   "cmds": [
+    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 0/8",
+    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 1/8",
+    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 2/8",
+    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 3/8"
+   ]
+  },
+  {
+   "name": "x7-b",
+   "cmds": [
+    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 4/8",
+    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 5/8",
+    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 6/8",
+    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 7/8"
+   ]
+  },
+  {
+   "name": "n7-a",
+   "cmds": [
+    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 0/8",
+    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 1/8",
+    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 2/8",
+    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 3/8"
+   ]
+  },
+  {
+   "name": "n7-b",
+   "cmds": [
+    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 4/8",
+    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 5/8",
+    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 6/8",
+    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 7/8"
+   ]
+  }
+ ]
 }
