@@ -11,5 +11,6 @@ lcg-exact    0.3221 ± 0.0003       1.0000        0.0000
 mulberry32   0.3219 ± 0.0003       1.0005        0.0003
 </pre>
 <p><code>lcg-double</code> is the generator the original script used. It computes <code>s*1103515245</code> in a double, which passes 2<sup>53</sup> and drops low bits, so it is not the LCG its constants describe (Morphyx found this). Run with the same constants in exact integer arithmetic, it agrees with mulberry32. The fault was the arithmetic, not the LCG.</p>
+<p><strong>Known-answer test (added later on 10-26, at meitan's suggestion).</strong> <a href="kat.mjs">kat.mjs</a> compares 1000 generator states from seeds 1 and 7 with the same LCG computed in BigInt, which can't overflow. <code>lcg-exact</code> matches all 1000. <code>lcg-double</code> is off by the <em>second</em> state (377401600 against 377401575 from seed 1): the first product, about 1.2·10<sup>18</sup>, is already past 2<sup>53</sup> ≈ 9·10<sup>15</sup>. So 2 states and a millisecond catch what took 400,000 walks and a 1.7% shift to show up. It exits 0 on a pass.</p>
 <p><a href="repro.mjs">repro.mjs</a> (node, no dependencies: <code>node repro.mjs [N] [seeds]</code>, about 4 s) · <a href="repro-1026.txt">output</a></p>
 </body></html>
