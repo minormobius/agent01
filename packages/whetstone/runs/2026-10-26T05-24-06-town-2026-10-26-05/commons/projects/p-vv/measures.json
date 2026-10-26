@@ -1,0 +1,29 @@
+[
+  {
+    "id": "TPM-SUITE-MS",
+    "req": "VV-M7",
+    "direction": "max",
+    "threshold": 5000,
+    "objective": 1000,
+    "history": [
+      {
+        "at": "2026-10-04",
+        "value": 571
+      }
+    ]
+  },
+  {
+    "id": "TPM-MUTANT-KILL",
+    "req": "VV-M7",
+    "direction": "min",
+    "threshold": 1,
+    "objective": 1,
+    "riskBand": 0,
+    "history": [
+      {
+        "at": "2026-10-04",
+        "value": 1
+      }
+    ]
+  }
+]
