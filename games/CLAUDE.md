@@ -329,122 +329,16 @@ These live here:
   (a power diagram: a seed h off the slice carries h²), run in a worker; the
   shader steps rays membrane to membrane. Sweep and tilt the slice; births,
   deaths and flips are counted exactly between successive slices. PLATEAU
-  borrows its `clip` and `boxPoly`, so run both selftests after a change there. See
+  borrows its `clip` and `boxPoly`, so run both selftests after a change there,
+  and IRIS⁴ (on `four`) keeps a byte-identical copy: copy `foam.js` to
+  `four/iris/js/foam.js` after any change. See
   [`foam4/README.md`](foam4/README.md).
-- **Lumen⁴ at `/lumen4/`**: an understanding toy (no cabinet): light in
-  four dimensions beside our own, 3D warm and 4D ice. `lumen4/js/optics.js`
-  (no DOM) has falloff by codimension (1/r^(n−k−1)), Gaussian beams (a laser
-  is a line; on axis (w₀/w)^(n−1)), the flash (u₃ = f(t−r)/4πr; u₂ and u₄
-  as η-integrals, u₄ = (1/4π²r)∫cosh η f′(t − r cosh η)dη: a negative wake,
-  no Huygens in even n), round-hole diffraction ((2J₁/x)² vs (3j₁/x)², first
-  dark 1.22 vs 1.43 λ/D), Fresnel with n − 1 polarizations (4D glare
-  polarized in a plane), Planck in n dimensions (ν^n/(eˣ − 1), T^(n+1),
-  colours via CIE), the rainbow cut by a slice (ρ = arccos(cos θ/cos β)),
-  and that bow on a flat screen as a conic section (e = sin γ / cos ρ: leaning
-  the sun into w turns a hyperbola into a parabola, an ellipse, a point). Who
-  moved doesn't matter: with the antisolar direction in your own frame
-  (`antisolarInFrame`: sun's lean, turn, twist, look into w), the bow exists iff
-  |a_N| ≤ sin θ and e = √(a_R² + a_U²)/cos θ, so looking into w never changes
-  its shape.
-  The selftest checks each against closed forms, the wave equation itself and
-  brute force. See [`lumen4/README.md`](lumen4/README.md).
-- **IRIS⁴ at `/iris4/`**: an understanding toy (no cabinet): a rainbow you
-  shape, in first person. `iris4/js/world.js` (no DOM) is a 4D heightfield of
-  0.25 m tesseract voxels (192 × 192 × 64 cells over x, z, w; periodic value
-  noise, lakes), the two-level march (blocks of 8³ skipped on their tallest
-  column, cells inside; `march()` is the shader's twin, line for line) and
-  walking (0.5 m step-up, slide along cliffs, wrap). The same land grained by
-  Kelvin's foam (A₄*) or the 24-cell foam (D₄): Foam⁴'s lattices (imported from
-  `../../foam4/js/foam.js`) at 1.4 voxels, a cell solid when its seed is under
-  the land, `marchFoam()` walking facet to facet (the ray's facing facets once
-  per ray, skips on dilated block maxima + circumradius, the cell kept across
-  blocks; the shader's twin), the ground the foam's, no wrap. `js/render.js` shades it
-  in a low sun, with fae colours by how far off in w a surface is from you, and
-  draws Lumen⁴'s bows (primary and secondary per wavelength, Alexander's band,
-  mirrored in the lakes). The page shows the bow's conic from the antisolar
-  direction in your camera frame (e = √(a_R² + a_U²)/cos θ, dashed over the
-  rendered bow) and a map of it. Layout: the view on the top two thirds, the
-  controls below (side by side on wide screens). Imports
-  `../../lumen4/js/optics.js` and `../../foam4/js/foam.js`, so run their selftests after a change there. See
-  [`iris4/README.md`](iris4/README.md).
-- **ATOM⁴ at `/atom4/`**: an understanding toy (no cabinet), and **the
-  official position on the universe the 4D toys are building**: four
-  dimensions of space with the force between charges pinned at 1/r (Gauss's
-  1/r² has no ground state). `index.html` is the position: every conclusion,
-  one card per chapter, plus the open questions. Eleven chapter pages hold
-  the working: `force.html`, `light.html`, `motion.html`, `hydrogen.html`,
-  `table.html`, `shapes.html`, `darbon.html`, `forces.html`, `xater.html`,
-  `census.html`, `search.html`. All run `js/main.js`, which
-  draws only what each page has. **A new conclusion goes in its chapter
-  and on the landing's cards**; the selftest checks every page carries the
-  same nav, has no repeated id, and that every drawing has its element.
-  The adopted electromagnetism is the **lens vacuum** (ε = ε₀ℓk,
-  μ = μ₀/ℓk). Light (D/ε₀, μ₀H) is exactly 4D Maxwell, so Lumen⁴ and IRIS⁴
-  stand; charges feel it through a 1/r³ blur, c/ℓω for one frequency. The
-  cost is relativity for the force. `js/atom.js` (no DOM) is the solver:
-  Numerov on a log grid with L = l + (d−3)/2, energies by Sturm bisection
-  (stop where h²f/12 > ½ or Numerov fakes nodes), a self-consistent field
-  (Hartree plus local exchange, own-share corrected, Hund spins; ground
-  configs accept only converged fields) with the
-  sphere-averaged kernel (1/max in 3D; k(min/max)/max in 4D, k(1) = 8/3π),
-  and the ground-config search. `js/fields.js` holds the field theory's closed
-  forms (the routes, the unitarity bound, the lens vacuum, scattering as ω³).
-  `js/turning.js` holds motion and spin: so(4) = so(3) ⊕ so(3) by the Hodge
-  star, the electron's handed spin (the selftest builds 4 + 1 γ matrices),
-  fine structure, orbits, and a free rigid body. `js/forces.js` is the
-  force field between molecules: the permanent −3S_AS_B/64R⁵ (S = Σ⟨r²⟩,
-  which the bake stores per orbital), dispersion with London's 7/4, β = 2√2I,
-  twisting, salt's −r⁻⁷ tail, and the noble-gas pairs. `js/pairs.js` is
-  **generated** by `atom4/tools/pairs.mjs` (~1 min; Gordon–Kim on the
-  solver's frozen clouds, electrostatics summed shell by shell so the Z²/R
-  cancellation is exact; re-run after `bake.mjs`). The force chapter opens
-  with what the universe contains (electrons as fermions, nuclei declared
-  stable to Z = 78, the lens photon, a small fine-structure constant) and why
-  matter is stable (argued by scaling). `js/periodic.js` is the layout
-  and our real table. `js/table.js` is **generated** by `atom4/tools/bake.mjs`
-  (~6 min, worker threads; re-run it after any change to `atom.js`, since the
-  selftest recomputes a sample and fails on drift). The 3D run gets 32 of 36
-  configurations right, Cr and Cu included, missing Ti, V, Co, Ni (local
-  exchange leans to d); ionization within a few percent. `js/response.js` is
-  **generated** by `atom4/tools/response.mjs` (~1 min: the coupled response,
-  α(iω) and C₆ by Casimir–Polder; hydrogen exact in both worlds, helium =
-  TDHF). Bake order after a solver change: `bake.mjs`, then `pairs.mjs` and
-  `response.mjs`. `js/gauss.js` (no DOM) is Hartree–Fock on Gaussians in
-  any dimension (McMurchie–Davidson with G_n(T) = ∫₀¹u²ⁿ(1−u²)^((d−3)/2)
-  e^(−Tu²)du in place of Boys's F_n); `js/molecules.js` is **generated**
-  by `atom4/tools/molecules.mjs` (~30 min, four jobs in parallel: our
-  water as the check, Pxygen and Xater H₂Px, two bases, the H-bonded
-  pairs), independent of `table.js`. `js/md.js` (no DOM) is molecular dynamics in any
-  dimension: RATTLE-rigid molecules, Bussi thermostat, and an Ewald sum for
-  the pinned 1/r in any d (split as erfc/erf of 1/r itself, since a Gaussian
-  cloud's potential isn't short-ranged off 3D). It's checked against
-  Madelung constants (3D, and 4D's 1.8393991 by Evjen) and NIST's SPC/E
-  reference (`test/fixtures/nist-spce-1.txt`).
-  `atom4/tools/pairsearch.mjs` searches two molecules' every relative pose
-  (model BFGS from many starts, then Hartree–Fock scoring and relaxation;
-  cached) and `bake`s `js/pairmin.js`: chapter 10's correction (Xater and
-  XH₃ pairs bind ~27 kcal/mol antiparallel, twice the census's linear-bond
-  values). Its pose maths and descent live in `atom4/js/landscape.js`, shared
-  with chapter 11's live search (`js/search.js`); a descent counts only when
-  |g| < 10⁻⁶ (stalls once passed for extra minima).
-  `js/clusters.js` is **generated** by `atom4/tools/clusters.mjs` (minima of
-  3–6-molecule clusters on the force field; `--shard i/m` splits a search
-  across machines). **Long runs go to the runner, not the sandbox**: queue
-  them in `.github/compute/atom4.json` and push (workflow
-  `atom4-compute.yml`; results and every tool's cache on the orphan branch
-  `atom4-data`). See `.github/compute/README.md`. `js/census.js` is **generated** by
-  `atom4/tools/census.mjs` (~4.5 h: every hydride of 4D rows 2–3 and our
-  NH₃/H₂O/HF, then their H-bonded pairs; jobs cached in the temp dir so a
-  run cut short by the container being reclaimed resumes — stay in the
-  turn and poll, a detached run dies with an idle container). `js/polytopes.js`
-  (no DOM) builds the six regular 4D polytopes, sp^d hybrids and the diamond
-  nets. `js/tile.js` is a small 4D viewer (shadow coloured by w, or the 3D
-  slice at w = h; drag turns in 3D or through w; idle spin in any planes,
-  `step`/`overlay`/`onTurn` hooks; draws only while on screen), used by
-  `js/shapes.js` and `js/turningTiles.js`, and meant to grow into the 4D
-  molecular-dynamics view. Imports `../../lumen4/js/optics.js` for line and
-  sky colours; Lumen⁴'s page links back to the light chapter. See
-  [`atom4/README.md`](atom4/README.md).
+- **Lumen⁴, IRIS⁴ and ATOM⁴ moved to their own surface, `four.mino.mobi`**
+  ([`four/CLAUDE.md`](../four/CLAUDE.md)), on 2026-10-26: they're a modelling
+  programme, not games. `games/worker.js` redirects `/lumen4/`, `/iris4/` and
+  `/atom4/` (301) to `/lumen/`, `/iris/` and `/atom/` there. IRIS⁴ keeps a
+  copy of Foam⁴'s `foam.js` (`four/iris/js/foam.js`) that its selftest holds
+  byte-identical: **after changing `foam4/js/foam.js`, copy it there.**
 - **PLATEAU at `/plateau/`**: flight through Foam⁴'s foam, from the
   cockpit. You're a rigid body in 4D (P and R, U, F, N); every turn is a
   double rotation that turns its plane and, by `COUPLING` (0.5) as much, the
@@ -576,7 +470,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/lumen4/`, `/iris4/`, `/atom4/`, `/plateau/`, `/katabasis/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/plateau/`, `/katabasis/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -634,9 +528,6 @@ node games/anakata/test/anakata.selftest.mjs     # the rules on small worlds; ev
 node games/anabasis/test/anabasis.selftest.mjs   # two downs on small worlds (held, slip, no climbing in w, ramps round walls and holding you up, fall out, fall for ever, crates); every level solved walking, par pinned, proved impossible without its gravity / ramps / crates / wrap; generated rooms deterministic, in band, proved, opened from their codes (<1 s)
 node games/hinton/test/hinton.selftest.mjs       # every level of both lanes walked continuously to the goal at par, the solver's state after every move; walls stop you short; landing keeps you in your cell (a few s)
 node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, relevant vectors), nearest vs brute force, every slice an exact partition, Plateau's topology in the random foam, A₄* sliced = Kelvin's foam, sweeping back undoes every event (~5 s)
-node games/lumen4/test/lumen4.selftest.mjs       # falloff and beams, the flash (each field solves its own wave equation, u₄ from u₂, the wake), Airy vs 3-ball (zeros, Rayleigh, totals), Fresnel and polarizers, Planck (totals, Wien, T⁴/T⁵, colour), both bows against the closed form, the rainbow in a slice vs brute force, the bow on a screen a conic with e = sin γ / cos ρ, and in any frame e = √(a_R² + a_U²)/cos θ (<1 s)
-node games/iris4/test/iris4.selftest.mjs         # the land deterministic and seamless, every block's max, the two-level march vs brute force (seams, axes), faces met from outside, walking's step-up and slide; for both foams the circumradius, the facet march vs brute force, the ground straight down, walking; lakes over the foam (~10 s)
-node games/atom4/test/atom4.selftest.mjs         # hydrogen exact in 3D and 4D (levels, radius), shells, the kernel k (closed values, series, Monte Carlo), helium vs Hartree–Fock, the baked table complete and reproducible, the 3D run vs our table (only Cr, Cu differ; nobles; ionization), the 4D table's shape, partial screening vs the shell-theorem counterfactual, a neutral atom's far pull, the field theory's closed forms, the six polytopes' f-vectors and cells, simplices and sp³/sp⁴ hybrids, the three diamond nets, no regular 5-cell in a tesseract, chirality by parity, half a turn through w as a mirror, the five-fold rotation, the lens vacuum, so(4)'s halves, the handed spin from 4 + 1 γ matrices, fine structure, orbits, the rigid body's invariants, the eleven pages' structure, the force field (Fourier constants, R⁻⁵ against an exact two-atom integral, 7/4 by coupled oscillators, the stated ratios, staggered as the least twist; Thomas–Fermi scaling of the energies; the 4D electron gas's constants; the baked pairs reproducible, their electrostatics' far limits, the 3D wells against measured, the stated 4D wells and fit; local exchange's constants and cancellations, hydrogen's α exact in both worlds, the sum rule, helium's TDHF value, our noble gases' α and C₆, the response bake reproducible, Casimir–Polder on a Drude oscillator, dispersion against the permanent pull; G_n against Boys and its 4D Bessel form, Gaussian hydrogen exact, helium against the limit and the radial solver, rotation invariance, the molecule bake reproducible, our water vs the Hartree–Fock limit, Xater's stated angle, dipole, ring and hydrogen bond; the census's counting, minima, reproducibility, polarity, the 3D order and the tie; the full pair search's correction (water's census pair stands, the 4D pairs twice as strong and still tied); MD's Ewald (Madelung 3D/4D, forces, α-independence, NIST SPC/E) and 4D energy conservation) (~55 s)
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
 node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the guide counting par and naming flips that each leave one fewer, the ready ring agreeing with tryFlip and the fairy rings covering every flip place, the grotto's lights in open air and the cave untouched by it (~25 s)

@@ -5405,21 +5405,6 @@
       "reason": "generator sub-pages inside the already-listed foam site"
     },
     {
-      "glob": "games/atom4",
-      "kind": "content",
-      "reason": "MOVING (2026-10-26) to four.mino.mobi/atom/; the games copy goes in the next push, with redirects"
-    },
-    {
-      "glob": "games/lumen4",
-      "kind": "content",
-      "reason": "MOVING (2026-10-26) to four.mino.mobi/lumen/; the games copy goes in the next push, with redirects"
-    },
-    {
-      "glob": "games/iris4",
-      "kind": "content",
-      "reason": "MOVING (2026-10-26) to four.mino.mobi/iris/; the games copy goes in the next push, with redirects"
-    },
-    {
       "glob": "games/tempest",
       "kind": "content",
       "reason": "one game inside the already-listed games site"
