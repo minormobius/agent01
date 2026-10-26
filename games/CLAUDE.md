@@ -428,8 +428,11 @@ These live here:
   with chapter 11's live search (`js/search.js`); a descent counts only when
   |g| < 10⁻⁶ (stalls once passed for extra minima).
   `js/clusters.js` is **generated** by `atom4/tools/clusters.mjs` (minima of
-  3–6-molecule clusters on the force field; run inside a turn, it dies when
-  the session idles). `js/census.js` is **generated** by
+  3–6-molecule clusters on the force field; `--shard i/m` splits a search
+  across machines). **Long runs go to the runner, not the sandbox**: queue
+  them in `.github/compute/atom4.json` and push (workflow
+  `atom4-compute.yml`; results and every tool's cache on the orphan branch
+  `atom4-data`). See `.github/compute/README.md`. `js/census.js` is **generated** by
   `atom4/tools/census.mjs` (~4.5 h: every hydride of 4D rows 2–3 and our
   NH₃/H₂O/HF, then their H-bonded pairs; jobs cached in the temp dir so a
   run cut short by the container being reclaimed resumes — stay in the

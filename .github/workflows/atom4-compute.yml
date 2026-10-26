@@ -1,0 +1,133 @@
+name: ATOM⁴ compute
+
+# ATOM⁴'s long calculations (games/atom4/tools/*.mjs: cluster searches, Hartree–Fock pair runs, force-field
+# training data) on GitHub's runners instead of the agent's sandbox, which is reclaimed when a session goes idle and
+# takes a detached run with it. Deploys nothing and writes nothing to any served branch.
+#
+# The queue is .github/compute/atom4.json: a run name, why, a deadline, and groups of up to four commands. Each group
+# gets its own runner (4 cores, 16 GB, up to 6 h); the groups run side by side. The tools keep their caches in $TMPDIR,
+# which every runner restores from the orphan branch `atom4-data` and the collect job writes back, so a run cut at its
+# deadline resumes where it stopped when the same queue runs again. See .github/compute/README.md.
+#
+# Fired by a push to the games branch that changes the queue file (nothing else in that push needs to be compute),
+# or by hand once this file is on the default branch. `atom4-data` holds no workflows, so its pushes wake nothing.
+
+on:
+  push:
+    branches:
+      - 'claude/minesweeper-voronoi-mesh-4hc4ir'
+    paths:
+      - '.github/compute/atom4.json'
+  workflow_dispatch:
+
+# one run at a time: the collect jobs all write atom4-data
+concurrency:
+  group: atom4-compute
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+      enabled: ${{ steps.plan.outputs.enabled }}
+      minutes: ${{ steps.plan.outputs.minutes }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - id: plan
+        run: node .github/compute/plan.mjs >> "$GITHUB_OUTPUT"
+
+  work:
+    needs: plan
+    if: needs.plan.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        group: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore the caches from atom4-data
+        uses: actions/checkout@v4
+        with:
+          ref: atom4-data
+          path: data
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run the group
+        env:
+          GROUP: ${{ toJSON(matrix.group) }}
+          MINUTES: ${{ needs.plan.outputs.minutes }}
+          OUT: ${{ github.workspace }}/out/runs/${{ needs.plan.outputs.run }}/${{ matrix.group.name }}
+          TMPDIR: ${{ github.workspace }}/data/tmp
+        run: |
+          set -euo pipefail
+          mkdir -p "$TMPDIR"
+          touch "$RUNNER_TEMP/started"
+          node .github/compute/run.mjs
+      # only what this group wrote: a restored file it didn't touch would otherwise go back stale, over the fresh copy
+      # another group wrote
+      - name: Hand what this group wrote to the collect job
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          [ -f "$RUNNER_TEMP/started" ] || exit 0
+          cd data
+          find tmp -type f -newer "$RUNNER_TEMP/started" -print0 | xargs -0 -r cp --parents -t ../out/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: group-${{ matrix.group.name }}
+          path: out
+          retention-days: 7
+
+  collect:
+    needs: [plan, work]
+    if: always() && needs.plan.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: atom4-data
+          path: data
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: group-*
+          path: incoming
+          merge-multiple: true
+      - name: Write the run back to atom4-data
+        env:
+          RUN: ${{ needs.plan.outputs.run }}
+          RESULT: ${{ needs.work.result }}
+          SHA: ${{ github.sha }}
+          URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p incoming
+          cp -r incoming/. data/
+          cd data
+          mkdir -p "runs/$RUN"
+          printf '{"run":"%s","result":"%s","code":"%s","log":"%s","at":"%s"}\n' "$RUN" "$RESULT" "$SHA" "$URL" "$(date -u +%FT%TZ)" > "runs/$RUN/run.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "nothing new"; exit 0; fi
+          git commit -q -m "atom4 compute: $RUN ($RESULT)" -m "$URL"
+          for i in 1 2 3 4; do
+            if git push -q origin HEAD:atom4-data; then exit 0; fi
+            sleep $((i * 5)); git pull -q --rebase origin atom4-data
+          done
+          exit 1

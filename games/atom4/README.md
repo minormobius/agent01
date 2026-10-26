@@ -112,8 +112,11 @@ position.
   crowds section). Clusters of 3–6 molecules on the force field (pairwise additive), random starts, the same descent.
   Minima are counted two ways, which bracket the truth: by energy and sorted heavy-atom distances (can split a soft
   basin) and by energy alone (can merge near-degenerate ones). Chao1 estimates the unseen. Results are cached per job
-  in the temp dir; about 1.5 h on 4 cores for 3/4/4.9 × n = 3–6. Background jobs die about 5 minutes after the session
-  goes idle, so run them inside a turn. First run, for six molecules: our water 15–28 minima, Xater 44–104, XH₃ 51–232
+  in the temp dir; about 1.5 h on 4 cores for 3/4/4.9 × n = 3–6. `--shard i/m` runs the starts s ≡ i (mod m) into its
+  own file, and `bake` merges a complete set.
+- **Long runs go to the runner** (`.github/compute/`): queue tool commands in `.github/compute/atom4.json`, push, and
+  GitHub's runners do them (4 cores, 6 h a group, groups in parallel), resuming from the caches on the orphan branch
+  `atom4-data`. In the sandbox, background jobs die about 5 minutes after the session goes idle. First run, for six molecules: our water 15–28 minima, Xater 44–104, XH₃ 51–232
   (Chao1 for XH₃ ≈ 670, not to be trusted: most seen once).
     - Both 4D best pairs are compact and antiparallel, each lending a hydrogen to the other (Xater's X–H···X at
       95°, water's near 165°). The tie stands, at twice the strength. Chapter 10 now says so (its "network" count,

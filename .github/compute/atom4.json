@@ -1,0 +1,9 @@
+{
+  "run": "smoke-1",
+  "why": "First run of the runner: two shards of a small cluster search, to check the restore, the run, the hand-off and the write-back to atom4-data.",
+  "minutes": 20,
+  "groups": [
+    { "name": "w3-a", "cmds": ["node games/atom4/tools/clusters.mjs 3 3 40 --shard 0/2"] },
+    { "name": "w3-b", "cmds": ["node games/atom4/tools/clusters.mjs 3 3 40 --shard 1/2"] }
+  ]
+}
