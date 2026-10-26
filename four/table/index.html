@@ -43,6 +43,16 @@
   #detail .cfg { font: 13px var(--mono); color: var(--text); word-break: break-word; margin: 6px 0; }
   canvas.cloud { width: 100%; height: 140px; display: block; margin-top: 8px; }
   h3.sub { margin-top: 26px; }
+  .fl-t { font: 700 13px var(--mono); margin: 16px 0 6px; color: var(--text); }
+  .fl-pair { display: flex; gap: 22px; flex-wrap: wrap; } .fl-pair figure { margin: 0; } .fl-pair figcaption { font: 600 12px var(--mono); margin-bottom: 2px; text-transform: capitalize; }
+  .fl-pair svg { display: block; max-width: 100%; height: auto; }
+  .fl-h { font: 10px var(--mono); fill: var(--dim); text-anchor: middle; }
+  .fl-c rect:first-child { fill: #0b0d13; fill-opacity: 0.72; stroke: #262833; }
+  .fl-cap.part { font-size: 8.5px; fill: var(--text); }
+  .fl-c.ruled rect:first-child { stroke-dasharray: 3 2; } .fl-c.ruled text { opacity: 0.55; }
+  .fl-c.top rect:first-child { stroke: var(--text); stroke-width: 1.5; }
+  .fl-n { font: 700 13px var(--mono); fill: var(--text); } .fl-cap { font: 10px var(--mono); fill: #c9c3b8; } .fl-z { font: 9.5px var(--mono); fill: var(--dim); text-anchor: middle; }
+  .fl-arrow { stroke: #ffffff8c; stroke-width: 1.3; fill: none; stroke-linecap: round; }
 </style>
 </head>
 <body>
@@ -63,6 +73,9 @@
       <h3 class="sub">Ours, for comparison</h3>
       <p>Our table to element 54, in its usual 18 columns. Point at either table to light up the other's counterpart. Every element of ours has a counterpart in 4D, but 4D's blocks are longer: its p block holds 8 places to our 6 and its d block 18 to our 10. The extra places are the new elements.</p>
       <div class="scroll"><div class="grid" id="pt3"></div></div>
+      <h3 class="sub">How the shells fill</h3>
+      <p>The diagram from school: the subshells in a grid, with n going down and s, p, d, f going across. You fill along each arrow, one diagonal of n + l after another. <b>The diagonals are the same in both worlds.</b> The solver finds 4D's atoms filling in exactly our order, 1s 2s 2p 3s 3p 4s 3d 4p 5s 4d 5p, all the way to 78. What changes is how much each box holds: 2(2l + 1) in ours, 2(l + 1)² in 4D. So s holds 2 in both, p holds 8 instead of 6, d 18 instead of 10, and f 32 instead of 14. The same order then closes the rows at 2, 12, 22, 50 and 78 instead of 2, 10, 18, 36 and 54. Each box gives the elements that fill it. The boxes fill up to the element you point at, and ours to its counterpart. Past element 78 the 4D boxes are dashed: there they follow the rule, not the solver.</p>
+      <div id="fill"></div>
     </div>
   </div>
   <h3 class="sub">How the names are given</h3>

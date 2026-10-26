@@ -5,6 +5,7 @@ import { TABLE, RPLOT } from "../atom/js/table.js";
 import { IE_REAL, layout } from "../atom/js/periodic.js";
 import { names, OURS } from "../atom/js/names.js";
 import { CENSUS } from "../atom/js/census.js";
+import { svg as fillSvg, order as fillOrder, ourOccupancy, parseConfig, nobles } from "./filling.js";
 
 const $ = (id) => document.getElementById(id), EV = 27.2114, KCAL = 627.509;
 const N4 = names(TABLE, 4), L4 = layout(TABLE, 4);
@@ -108,6 +109,18 @@ function detail() {
     <canvas id="cloud" class="cloud"></canvas>
     <div class="kv small">its electron cloud: electrons per unit of log r, each shell a bump${o3 ? `, with our ${o.name}'s in amber` : ""}</div>`;
   cloud($("cloud"), el, o3);
+  $("fill").innerHTML = fill(e, el, o);
+}
+/* the filling diagrams: ours for the counterpart, 4D's for this element, the same diagonals with different numbers */
+function fill(e, el, o) {
+  const occ4 = parseConfig(el.config), occ3 = o ? ourOccupancy(o.Z) : null;
+  const last = (occ, d) => fillOrder(d).filter((q) => (occ?.get(q.name) ?? 0) > 0).at(-1)?.name;
+  // where this atom departs from the plain diagonal filling (all such are d-block atoms lending an s electron to d)
+  let left = el.Z; const plain = new Map(); for (const q of fillOrder(4)) { if (!left) break; const k = Math.min(left, q.cap); plain.set(q.name, k); left -= k; }
+  const lent = [...plain].map(([sh, k]) => [sh, occ4.get(sh) ?? 0, k]).find(([sh, k, want]) => sh.endsWith("s") && k < want);
+  return `<div class="fl-pair"><figure><figcaption class="d3">ours${o ? `: ${o.name}` : ""}</figcaption>${fillSvg(3, occ3, last(occ3, 3), "#ffb46b")}</figure>
+    <figure><figcaption class="d4">4D: ${e.name ?? `element ${e.Z}`}</figcaption>${fillSvg(4, occ4, el.top, "#6fe0ff")}</figure></div>
+    <p class="read">${lent ? ` <b>This atom lends ${lent[2] - lent[1] > 1 ? "both its" : "an"} ${lent[0]} electron${lent[2] - lent[1] > 1 ? "s" : ""} to its d shell</b>, as our chromium, copper and palladium do. 20 of 4D's d-block atoms do, and the solver leans toward d, so these are its least sure.` : ""}</p>`;
 }
 const sub = (n) => (n > 1 ? String(n).split("").map((c) => "₀₁₂₃₄₅₆₇₈₉"[+c]).join("") : "");
 

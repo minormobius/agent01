@@ -507,5 +507,23 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `the 4D elements' names: 54 answer to our 54, one each (mithium, darbon, oitrogen, pxygen, todium as the chapters call them), 24 are new, elements 6 and 8 among them; symbols unique, none of ours but iydrogen's H`);
 }
 
+/* 27 · the filling diagram (four/table/filling.js): Madelung's diagonals, with 4D's capacities, are the order the
+   solver filled every 4D atom in; the rows close where the table's noble gases are; the departures are d-block atoms
+   lending s electrons to d */
+{
+  const F = await import(path.join(here, "../../table/filling.js")), { TABLE } = await import(path.join(here, "../js/table.js"));
+  const seen = []; for (const el of TABLE[4]) for (const o of el.orb) if (!seen.includes(o.s)) seen.push(o.s);
+  const order4 = F.order(4).map((q) => q.name), first = order4.slice(0, seen.length);
+  let lend = 0, onlyD = true;
+  for (const el of TABLE[4]) {
+    const occ = F.parseConfig(el.config), plain = new Map(); let left = el.Z;
+    for (const q of F.order(4)) { if (!left) break; const k = Math.min(left, q.cap); plain.set(q.name, k); left -= k; }
+    const diff = [...new Set([...occ.keys(), ...plain.keys()])].filter((sh) => (occ.get(sh) ?? 0) !== (plain.get(sh) ?? 0));
+    if (diff.length) { lend++; onlyD = onlyD && diff.every((sh) => /[sd]$/.test(sh)) && diff.some((sh) => sh.endsWith("d") && occ.get(sh) > plain.get(sh)); }
+  }
+  ok(seen.every((sh, i) => sh === first[i]) && F.nobles(4, 5).join() === "2,12,22,50,78" && F.nobles(3, 5).join() === "2,10,18,36,54" && lend === 20 && onlyD,
+    `4D fills along our diagonals (${seen.join(" ")}), each box holding 2(l + 1)²: rows close at ${F.nobles(4, 5).join(", ")}; the ${lend} atoms off the plain filling are d-block atoms lending s electrons to d`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

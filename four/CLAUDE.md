@@ -75,6 +75,9 @@ for games, and this is a modelling programme with publications to come. The game
   letter moved on when its place answers to one of ours (before a block's half-full element count from the left,
   the half-full one is ours, after it count from the full shell); 24 answer to nothing and are new, elements 6 and 8
   either side of darbon among them. Symbols keep the chapters' H, D, Px and Mi and otherwise avoid all 118 of ours.
+  `table/filling.js` (no DOM) draws the filling diagram for both worlds (Madelung's diagonals of n + l; boxes of
+  2(2l + 1) in ours, 2(l + 1)² in 4D, dashed past 78 where the solver hasn't been), filled to the selected element
+  from its solved configuration; selftest 27 checks the order against all 78 solved atoms.
 - **ATOM⁴ at `/atom/`**: the **official position on this universe**: four
   dimensions of space with the force between charges pinned at 1/r (Gauss's
   1/r² has no ground state). `index.html` is the position: every conclusion,
