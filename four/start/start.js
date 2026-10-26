@@ -4,6 +4,7 @@
 import { shellPotential, SHELL_CENTRE_OVER_WALL } from "../atom/js/fields.js";
 import { hydrogen } from "../atom/js/atom.js";
 import { TABLE } from "../atom/js/table.js";
+import { IE_REAL, layout, role } from "../atom/js/periodic.js";
 import { names, OURS } from "../atom/js/names.js";
 import { PAIRMIN } from "../atom/js/pairmin.js";
 import { lineColour } from "../lumen/js/optics.js";
@@ -13,7 +14,7 @@ const $ = (id) => document.getElementById(id), EV = 27.2114, KCAL = 627.509;
 const C3 = "#ffb46b", C4 = "#6fe0ff", PIN = "#c79bff", DIM = "#9a958c";
 
 /* a small line chart on a canvas: x and y ranges (log optional), series of points, labels */
-function plot(cv, { x, y, logx = false, logy = false, xl = "", yl = "", series = [], hline = null, marks = [] }) {
+function plot(cv, { x, y, logx = false, logy = false, xl = "", yl = "", series = [], hline = null, marks = [], vlines = [] }) {
   const dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
   cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
@@ -32,29 +33,50 @@ function plot(cv, { x, y, logx = false, logy = false, xl = "", yl = "", series =
     for (const [a, b] of s.pts) { if (!isFinite(b)) { on = false; continue; } const out = b < y[0] || b > y[1], py = Math.max(T, Math.min(h - B, Y(b))); if (out) { if (on) g.lineTo(X(a), py); on = false; continue; } on ? g.lineTo(X(a), py) : g.moveTo(X(a), py); on = true; }
     g.stroke(); g.setLineDash([]); g.lineWidth = 1;
   }
+  for (const v of vlines) { g.strokeStyle = v.c; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(X(v.x), T); g.lineTo(X(v.x), h - B); g.stroke(); g.setLineDash([]); g.fillStyle = v.c; if (v.label) g.fillText(v.label, Math.min(X(v.x) + 5, w - R - g.measureText(v.label).width), T + 34); }
   for (const m of marks) { g.fillStyle = m.c; g.beginPath(); g.arc(X(m.x), Y(m.y), 4, 0, 7); g.fill(); if (m.label) g.fillText(m.label, X(m.x) + 8, Y(m.y) + (m.below ? 16 : -6)); }
   let ly = T + 12; for (const s of series.filter((s) => s.label)) { g.fillStyle = s.c; g.fillText(s.label, w - R - 6 - g.measureText(s.label).width, ly); ly += 13; }
 }
 const seg = (id, on) => $(id).addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; for (const x of $(id).children) x.classList.toggle("on", x === b); on(b.dataset.v); });
 const range = (lo, hi, n, log = false) => Array.from({ length: n }, (_, i) => (log ? lo * (hi / lo) ** (i / (n - 1)) : lo + ((hi - lo) * i) / (n - 1)));
 
-/* 1 · squeeze an electron: an estimate of an atom's energy at size r, kinetic ~ 1/2r², pull ~ g/r or g/r² */
-let world1 = "3", g1 = 1;
-function toy1() {
-  const rs = range(0.04, 20, 300, true), pull = world1 === "4g" ? (r) => g1 / (r * r) : (r) => g1 / r, E = (r) => 1 / (2 * r * r) - pull(r);
-  const col = { 3: C3, "4g": C4, "4p": PIN }[world1];
-  const has = world1 !== "4g", rStar = 1 / g1, eStar = -(g1 * g1) / 2;
-  plot($("c1"), { x: [0.04, 20], y: [-2, 2], logx: true, xl: "size r (bohr)", yl: "energy (hartree)", hline: 0, series: [
-    { pts: rs.map((r) => [r, 1 / (2 * r * r)]), c: "#ffffff40", w: 1.2, dash: [4, 3], label: "squeezing: kinetic ~ 1/2r²" },
-    { pts: rs.map((r) => [r, -pull(r)]), c: "#ffffff40", w: 1.2, dash: [1, 3], label: world1 === "4g" ? "pull ~ g/r²" : "pull ~ g/r" },
-    { pts: rs.map((r) => [r, E(r)]), c: col, label: "the sum" } ], marks: has ? [{ x: rStar, y: eStar, c: col, label: "best size" }] : [] });
-  const crit = 0.5;
-  $("r1").innerHTML = has ? `<b>A best size: r = ${rStar.toFixed(2)} bohr</b>, energy ${eStar.toFixed(2)} hartree. Squeeze it smaller and the kinetic cost wins; let it grow and the pull wins. That balance is an atom.`
-    : g1 > crit ? `<b>No best size: the electron falls in.</b> Both terms go as 1/r², and the pull is the bigger one at every size, so the energy keeps dropping as r shrinks, without end.`
-    : `<b>No best size: the electron leaves.</b> Both terms go as 1/r², and squeezing costs more than the pull gives at every size, so it is better off far away.`;
-  $("g1v").textContent = g1.toFixed(2);
+/* 1 · squeeze an electron. An estimate of an atom's energy at size r: the outer electron's kinetic energy is about
+   ν²/2r² (ν = n + (d − 3)/2, n its shell: hydrogen's own ladder) and its pull g/r, or g/r² under 4D's Gauss's law.
+   Scanning the elements, g is each one's effective pull, set so the best size's energy is its ionization energy
+   (measured in ours, the solver's in 4D): g = ν √(2 IE). The best size that gives is rough (within a factor of about
+   two of the solver's outer electron in ours, three in 4D) but it follows the pattern: loosely held is big. */
+let world1 = "3", g1 = 1, z1 = { 3: 3, "4p": 3 };
+const N4s = names(TABLE, 4), cells = { 3: layout(TABLE, 3).cells, 4: layout(TABLE, 4).cells };
+function element1(Z, d) {
+  const el = TABLE[d][Z - 1], n = +el.top.match(/^\d+/)[0], nu = n + (d - 3) / 2, IE = d === 3 ? IE_REAL[Z - 1] / EV : el.ion;
+  const g = nu * Math.sqrt(2 * IE), r = el.orb.find((o) => o.s === el.top).r, cell = cells[d].find((c) => c.el.Z === Z);
+  return { el, nu, IE, g, rBest: (nu * nu) / g, rSolver: r, kind: role(el, d, cell), name: d === 3 ? OURS[Z - 1].name : N4s.get(Z).name ?? `element ${Z}`, isNew: d === 4 && N4s.get(Z).isNew };
 }
-
+function toy1() {
+  const rs = range(0.05, 40, 320, true), col = { 3: C3, "4g": C4, "4p": PIN }[world1];
+  $("g1row").hidden = world1 !== "4g"; $("z1row").hidden = world1 === "4g";
+  if (world1 === "4g") {
+    const E = (r) => 1 / (2 * r * r) - g1 / (r * r);
+    plot($("c1"), { x: [0.05, 40], y: [-1, 1], logx: true, xl: "size r (bohr)", yl: "energy (hartree)", hline: 0, series: [
+      { pts: rs.map((r) => [r, 1 / (2 * r * r)]), c: "#ffffff40", w: 1.2, dash: [4, 3], label: "squeezing ~ 1/2r²" },
+      { pts: rs.map((r) => [r, -g1 / (r * r)]), c: "#ffffff40", w: 1.2, dash: [1, 3], label: "pull ~ g/r²" },
+      { pts: rs.map((r) => [r, E(r)]), c: col, label: "the sum" }] });
+    $("r1").innerHTML = g1 > 0.5 ? `<b>No best size: the electron falls in.</b> Both terms go as 1/r², and the pull is the bigger one at every size, so the energy keeps dropping as r shrinks, without end. <b>No element survives here</b>, whatever its charge: that's the point.`
+      : `<b>No best size: the electron leaves.</b> Both terms go as 1/r², and squeezing costs more than the pull gives at every size, so it's better off far away. <b>No element survives here</b>, whatever its charge: that's the point.`;
+    $("g1v").textContent = g1.toFixed(2); return;
+  }
+  const d = world1 === "3" ? 3 : 4, Z = z1[world1], e = element1(Z, d), E = (r) => (e.nu * e.nu) / (2 * r * r) - e.g / r;
+  plot($("c1"), { x: [0.05, 40], y: [-1, 1], logx: true, xl: "size r (bohr)", yl: "energy (hartree)", hline: 0, series: [
+    { pts: rs.map((r) => [r, (e.nu * e.nu) / (2 * r * r)]), c: "#ffffff40", w: 1.2, dash: [4, 3], label: "squeezing ~ ν²/2r²" },
+    { pts: rs.map((r) => [r, -e.g / r]), c: "#ffffff40", w: 1.2, dash: [1, 3], label: "pull ~ g/r" },
+    { pts: rs.map((r) => [r, E(r)]), c: col, label: "the sum" }],
+    marks: [{ x: e.rBest, y: -e.IE, c: col, below: true, label: "best size" }],
+    vlines: [{ x: e.rSolver, c: "#e9e4da99", label: "the solver's outer electron" }] });
+  const cap = (t) => t[0].toUpperCase() + t.slice(1);
+  $("z1v").textContent = `${Z} · ${e.isNew ? `element ${Z}, new` : cap(e.name)}`;
+  const src = d === 3 ? "measured" : "from our solver", world = d === 3 ? "ours" : "4D";
+  $("r1").innerHTML = `<b>${cap(e.name)}</b> (${world}${e.isNew ? ", new: nothing of ours does what it does" : `, element ${Z}`}), ${e.kind}. Its outer electron, ${e.el.top}, feels a pull of about <b>g = ${e.g.toFixed(2)}</b>, set by its ionization energy, ${(e.IE * EV).toFixed(2)} eV ${src}. The balance puts it at about <b>${e.rBest.toFixed(1)} bohr</b>; the solver puts it at ${e.rSolver.toFixed(1)}. ${e.IE * EV < 6 ? "Held loosely: a big atom that gives its electron up easily." : e.IE * EV > 15 ? "Held hard: a small atom that keeps its electrons." : ""}`;
+}
 /* 2 · how a field thins out: its strength, and strength × the area it crosses */
 function toy2() {
   const rs = range(0.1, 10, 100, true), A3 = (r) => 4 * Math.PI * r * r, A4 = (r) => 2 * Math.PI * Math.PI * r ** 3;
@@ -145,8 +167,9 @@ function drawGas() {
 }
 
 // wiring
-seg("w1", (v) => { world1 = v; toy1(); });
+seg("w1", (v) => { world1 = v; if (v !== "4g") { $("z1").max = v === "3" ? 36 : 78; $("z1").value = z1[v]; } toy1(); });
 $("g1").addEventListener("input", (e) => { g1 = +e.target.value; toy1(); });
+$("z1").addEventListener("input", (e) => { z1[world1] = +e.target.value; toy1(); });
 $("z8").addEventListener("input", (e) => toy8(+e.target.value));
 const all = () => { toy1(); toy2(); toy4(); toy7(); toy10(); };
 all(); toy8(12); requestAnimationFrame(drawGas);

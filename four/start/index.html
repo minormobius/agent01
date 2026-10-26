@@ -21,7 +21,7 @@
   .toy .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } @media (max-width: 640px) { .toy .two { grid-template-columns: 1fr; } }
   .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 12px var(--mono); color: var(--dim); }
   .ctl input[type=range] { flex: 1; min-width: 140px; max-width: 360px; accent-color: var(--d4); }
-  .ctl b { color: var(--text); }
+  .ctl b { color: var(--text); } .ctl[hidden] { display: none; }
   .more { font: 12px var(--mono); } .more a { color: var(--text); }
   .kv { font: 12px/1.6 var(--mono); color: var(--dim); } .kv.small { font-size: 11px; }
   .read b, .kv b { color: var(--text); } .newt { color: #ffd166 !important; }
@@ -60,10 +60,11 @@
   <p>In 4D the surface around a charge is a 3-sphere, and it grows as r³. The field falls as 1/r³ and the pull's energy as 1/r², <b>the same power as the squeezing</b>. Nothing picks a size any more. Either the pull wins at every size and the electron falls in, or it loses at every size and the electron leaves. Try it:</p>
   <div class="toy">
     <div class="seg" id="w1"><button type="button" data-v="3" class="on">our 3D</button><button type="button" data-v="4g">4D, as Gauss's law says</button><button type="button" data-v="4p">4D, pinned at 1/r (step 2)</button></div>
-    <div class="ctl">strength of the pull <input id="g1" type="range" min="0.2" max="2.5" step="0.01" value="1" /> <b id="g1v"></b></div>
+    <div class="ctl" id="z1row">scan the elements <input id="z1" type="range" min="1" max="36" step="1" value="3" /> <b id="z1v"></b></div>
+    <div class="ctl" id="g1row" hidden>strength of the pull <input id="g1" type="range" min="0.2" max="2.5" step="0.01" value="1" /> <b id="g1v"></b></div>
     <canvas class="chart" id="c1"></canvas>
     <p class="read" id="r1"></p>
-    <p class="kv small">An estimate, not the solver: an electron held to size r, with kinetic energy about 1/2r² and a pull of g/r or g/r². The full argument, with real wavefunctions, is the same.</p>
+    <p class="kv small">An estimate, not the solver. The outer electron, held to size r, has a kinetic energy of about ν²/2r² (ν is its shell, n, in ours and n + ½ in 4D) and feels a pull of g/r. Each element's g is set so that the energy at the best size is its ionization energy: measured, in ours (to krypton), and our solver's in 4D. The best size that gives is rough, within about a factor of two of where the solver puts the outer electron in ours and three in 4D, but it follows the pattern. Under 4D's Gauss's law there are no elements to scan, so the slider sets the pull's strength instead. The full argument, with real wavefunctions, is the same.</p>
   </div>
   <p class="more">In full: <a href="../atom/force.html">the force</a>.</p>
 </section>
