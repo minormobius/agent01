@@ -21,6 +21,7 @@ the repo has (wormhole's paper layout, dataviz figures, headless PDF), the decis
 | `forces.html` | 8 · the force field term by term: the permanent R⁻⁵, dispersion's 7/4, exponential repulsion, twisting, salt's power-law screening |
 | `xater.html` | 9 · Pxygen (element 10) and Xater (H₂Px), by Hartree–Fock in any dimension, checked on our water |
 | `census.html` | 10 · which water: every hydride of rows 2 and 3, their polarity, shapes and hydrogen-bonded networks |
+| `search.html` | 11 · ten ways to meet: how the census missed the best pairs, counting a pair's ways to meet (d moves, d(d − 1)/2 turns), the live search (`js/search.js`), and what a search can promise |
 
 Every page runs `js/main.js`, which draws only the figures whose elements are on
 that page. Links to the old one-page version's anchors (`#maxwell`,
@@ -98,6 +99,15 @@ position.
     - Our water: nothing deeper than its linear bond (search −4.22, census −4.35). That's the check.
     - Xater: −26.92 kcal/mol at heavy atoms 4.88 bohr apart (census −13.28).
     - XH₃: −27.54 at 5.30 bohr (census −13.73).
+  - **The descent was fixed after these runs** (`js/landscape.js`). It used to stop when the energy stopped changing,
+    and with the turn wound to tens of radians (exp(Ω) badly conditioned there) many descents stalled short of the
+    bottom. Those stalls were counted as extra minima: the six "model minima" for each 4D molecule in
+    `js/pairmin.js` are one basin reached six times. The descent (`poseSteps` / `descend`) now folds the turn into
+    the reference orientation once |Ω| > 1.5 and stops only when |g| < 10⁻⁶. With it, 400 of 400 random starts find
+    Xater's one pair basin, and 378 of 400 find our water's (the rest drift apart or run out of steps). The
+    Hartree–Fock energies stand; `pairmin.js`'s `modelMinima` list is due a re-bake.
+- **The live search** (`js/search.js`, chapter 11): the same descent, animated, on both worlds' force fields. It
+  classes every start's end as a basin, *apart* or *unfinished*, and draws the discovery curve.
     - Both 4D best pairs are compact and antiparallel, each lending a hydrogen to the other (Xater's X–H···X at
       95°, water's near 165°). The tie stands, at twice the strength. Chapter 10 now says so (its "network" count,
       built on linear bonds, is marked as superseded by the liquid simulation).

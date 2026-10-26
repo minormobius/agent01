@@ -16,6 +16,7 @@ import { buildTurning, tiles as turnTiles } from "./turningTiles.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout, role } from "./periodic.js";
 import { buildShapes, tiles } from "./shapes.js";
 import { buildLiquid } from "./liquid.js";
+import { buildSearch } from "./search.js";
 
 const $ = (id) => document.getElementById(id);
 const C3 = "#ffb46b", C4 = "#6fe0ff", DIM = "#9a958c", GRID = "#262833", BAD = "#ff6b6b";
@@ -318,4 +319,5 @@ if ($("position") && MOVED[location.hash.slice(1)]) location.replace(MOVED[locat
 buildShapes();
 buildTurning();
 buildLiquid();
+buildSearch();
 drawAll();

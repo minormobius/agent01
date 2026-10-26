@@ -18,50 +18,21 @@ import { WORLDS, monoOf } from "./forcefield.mjs";
 import { hydrideAtoms, dimerAtoms, pairEnergy } from "./census.mjs";
 import { modelEnergy } from "../js/ffmodel.js";
 import { randomRotation } from "../js/md.js";
+import { planes, posed, descend, rng } from "../js/landscape.js";
+export { posed };
 
 const KCAL = 627.509;
-/* the matrix exponential of an antisymmetric d × d matrix (scaling and squaring, Taylor) */
-function expm(W, d) {
-  let n = 0; for (const v of W) n = Math.max(n, Math.abs(v)); const s = Math.max(0, Math.ceil(Math.log2(n * d + 1e-30)) + 1), k = 1 / 2 ** s;
-  const A = W.map((v) => v * k), mul = (X, Y) => { const Z = new Array(d * d).fill(0); for (let i = 0; i < d; i++) for (let l = 0; l < d; l++) { const x = X[i * d + l]; if (x) for (let j = 0; j < d; j++) Z[i * d + j] += x * Y[l * d + j]; } return Z; };
-  let E = Array.from({ length: d * d }, (_, i) => (i % (d + 1) === 0 ? 1 : 0)), T = E.slice();
-  for (let m = 1; m <= 14; m++) { T = mul(T, A).map((v) => v / m); E = E.map((v, i) => v + T[i]); }
-  for (let i = 0; i < s; i++) E = mul(E, E);
-  return E;
-}
-const planes = (d) => { const P = []; for (let a = 0; a < d; a++) for (let b = a + 1; b < d; b++) P.push([a, b]); return P; };
-/* a pose: params = [ω (one per plane), t (d)], applied to the template turned first by R0 */
-export function posed(tmpl, R0, params, d) {
-  const P = planes(d), W = new Array(d * d).fill(0); P.forEach(([a, b], i) => { W[a * d + b] = params[i]; W[b * d + a] = -params[i]; });
-  const M = expm(W, d), t = params.slice(P.length);
-  return tmpl.map((p) => { const q = R0.map((row) => row.reduce((s, r, j) => s + r * p[j], 0)); return M.map((_, i) => i).filter((i) => i < d).map((i) => t[i] + q.reduce((s, v, j) => s + M[i * d + j] * v, 0)); });
-}
-/* a minimum of f by BFGS with numerical gradients and a backtracking line search */
-function bfgs(f, x0, iters = 300) {
-  const n = x0.length, g = (x) => x.map((_, k) => { const h = 1e-5, a = x.slice(), b = x.slice(); a[k] += h; b[k] -= h; return (f(a) - f(b)) / (2 * h); });
-  let x = x0.slice(), fx = f(x), gx = g(x), H = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 1 : 0)));
-  for (let it = 0; it < iters; it++) {
-    const p = H.map((row) => -row.reduce((s, v, j) => s + v * gx[j], 0)); let a = 1, xn, fn; const slope = p.reduce((s, v, i) => s + v * gx[i], 0);
-    if (slope >= 0) { H = H.map((row, i) => row.map((_, j) => (i === j ? 1 : 0))); continue; }
-    for (;;) { xn = x.map((v, i) => v + a * p[i]); fn = f(xn); if (fn <= fx + 1e-4 * a * slope || a < 1e-8) break; a /= 2; }
-    const gn = g(xn), s = xn.map((v, i) => v - x[i]), y = gn.map((v, i) => v - gx[i]), sy = s.reduce((t, v, i) => t + v * y[i], 0);
-    if (sy > 1e-12) { const Hy = H.map((row) => row.reduce((t, v, j) => t + v * y[j], 0)), yHy = y.reduce((t, v, i) => t + v * Hy[i], 0); H = H.map((row, i) => row.map((v, j) => v + ((sy + yHy) * s[i] * s[j]) / (sy * sy) - (Hy[i] * s[j] + s[i] * Hy[j]) / sy)); }
-    const done = Math.abs(fx - fn) < 1e-11; x = xn; fx = fn; gx = gn; if (done) break;
-  }
-  return { x, f: fx };
-}
-const rng = (seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-
 /* step 1: the model's distinct minima, best first */
 export function modelMinima(key, p, starts = 1500) {
   const w = WORLDS[key], d = w.d, m = monoOf(key), A = hydrideAtoms(m.Z, d, m.R, m.param).map((a) => a.at), rnd = rng(77 + d * 10 + m.Z), found = [];
   for (let s = 0; s < starts; s++) {
     const R0 = randomRotation(d, rnd), dir = Array.from({ length: d }, () => rnd() - 0.5), n = Math.hypot(...dir), D = m.dimer.RXX * (0.8 + 0.4 * rnd());
     const x0 = [...new Array(planes(d).length).fill(0), ...dir.map((v) => (v / n) * D)];
-    const r = bfgs((x) => modelEnergy(p, A, posed(A, R0, x, d)), x0);
-    const B = posed(A, R0, r.x, d), dXX = Math.hypot(...A[0].map((v, i) => v - B[0][i]));
-    // one per basin: within 0.3 kcal/mol and 0.15 bohr is the same structure
-    if (r.f < 0 && !found.some((q) => Math.abs(q.E - r.f) < 0.3 / KCAL && Math.abs(q.dXX - dXX) < 0.15)) found.push({ E: r.f, dXX, B, R0, x: r.x });
+    const r = descend((B) => modelEnergy(p, A, B), A, R0, x0, d);
+    const B = posed(A, r.R0, r.x, d), dXX = Math.hypot(...A[0].map((v, i) => v - B[0][i]));
+    // one per basin: within 0.3 kcal/mol and 0.15 bohr is the same structure. A descent that ran out of steps with the
+    // slope not gone isn't a minimum: counted as one, such stalls once passed for extra basins
+    if (r.g < 2e-5 && r.f < -0.1 / KCAL && !found.some((q) => Math.abs(q.E - r.f) < 0.3 / KCAL && Math.abs(q.dXX - dXX) < 0.15)) found.push({ E: r.f, dXX, B, R0: r.R0, x: r.x });
   }
   return { A, minima: found.sort((a, b) => a.E - b.E) };
 }
@@ -100,7 +71,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const argv = process.argv.slice(2);
   if (argv[0] === "bake") { // gather the searches' results into js/pairmin.js
     const out = {};
-    for (const key of Object.keys(WORLDS)) { const f = path.join(CACHE, `best_${key}.json`); if (!existsSync(f)) { console.log(`${key}: no search yet`); continue; } const r = JSON.parse(readFileSync(f, "utf8")), rd = (M) => M.map((p) => p.map((v) => +v.toFixed(5))); out[key] = { d: WORLDS[key].d, Z: WORLDS[key].Z, best: { E: +r.best.E.toFixed(7), dXX: +r.best.dXX.toFixed(3), from: r.best.from, A: rd(r.best.A), B: rd(r.best.B) }, search: +r.search.E.toFixed(7), census: +r.census.E.toFixed(7), modelMinima: r.model.map((q) => ({ model: +q.E.toFixed(7), hf: +q.hf.toFixed(7), dXX: +q.dXX.toFixed(3) })) }; }
+    for (const key of Object.keys(WORLDS)) { const f = path.join(CACHE, `best_${key}.json`); if (!existsSync(f)) { console.log(`${key}: no search yet`); continue; } const r = JSON.parse(readFileSync(f, "utf8")), rd = (M) => M.map((p) => p.map((v) => +v.toFixed(5))); out[key] = { d: WORLDS[key].d, Z: WORLDS[key].Z, best: { E: +r.best.E.toFixed(7), dXX: +r.best.dXX.toFixed(3), from: r.best.from, A: rd(r.best.A), B: rd(r.best.B) }, search: +r.search.E.toFixed(7), census: +r.census.E.toFixed(7), censusPair: { A: rd(r.census.A), B: rd(r.census.B) }, modelMinima: r.model.map((q) => ({ model: +q.E.toFixed(7), hf: +q.hf.toFixed(7), dXX: +q.dXX.toFixed(3) })) }; }
     writeFileSync(new URL("../js/pairmin.js", import.meta.url), `/* Generated by tools/pairsearch.mjs (bake) from its searches; do not edit. Per molecule (keys as in
    tools/forcefield.mjs): the best pair found over every relative pose (Hartree–Fock, counterpoise-corrected; hartree),
    whether it came from the search or the census's own pair, the heavy atoms' distance, both molecules' atoms, the

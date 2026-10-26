@@ -105,3 +105,10 @@ p.made { background: var(--panel); border: 1px solid var(--border); border-radiu
 .liquidCtl input { flex: 1; max-width: 420px; accent-color: var(--d4); }
 .liquidCtl output { color: var(--text); min-width: 5em; }
 .tile p.read { margin: 0; font-size: 11px; }
+
+/* the live search: each basin found, its colour, energy and hits */
+.basin { display: inline-flex; align-items: center; gap: 4px; margin: 2px 0 2px 10px; white-space: nowrap; }
+.basin i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.basin small { color: var(--dim); }
+#searchMode button { font: 12px var(--mono); background: var(--panel); color: var(--dim); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+#searchMode button.on { color: var(--text); border-color: var(--d4); }

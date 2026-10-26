@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴, chapter 11: Ten ways to meet. How chapter 10 first missed the strongest pairs, and what the miss shows: two molecules meet in six ways in our world and ten in 4D, and a crowd of them in far more. Watch the search, and see what it can and can&#x27;t promise." />
+<title>ATOM⁴ · Ten ways to meet — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="force.html">1 · the force</a><a href="light.html">2 · light</a><a href="motion.html">3 · motion and spin</a><a href="hydrogen.html">4 · hydrogen</a><a href="table.html">5 · the periodic table</a><a href="shapes.html">6 · the shapes</a><a href="darbon.html">7 · darbon</a><a href="forces.html">8 · forces between molecules</a><a href="xater.html">9 · pxygen and xater</a><a href="census.html">10 · which water</a><a href="search.html" class="here">11 · ten ways to meet</a></nav>
+  <h2>ATOM⁴ · chapter 11</h2>
+  <h1 class="ch">Ten ways to meet</h1>
+  <p class="lede">How chapter 10 first missed the strongest pairs, and what the miss shows: two molecules meet in six ways in our world and ten in 4D, and a crowd of them in far more. Watch the search, and see what it can and can't promise.</p>
+</header>
+<section id="miss">
+  <h3>The miss</h3>
+  <p><a href="census.html">Chapter 10</a> first reported that a pair of Xater molecules binds at 13.3 kcal/mol. A liquid run on a force field fitted to Hartree–Fock pairs then held pairs together harder than that. Searched properly, the pair binds at 26.9: twice as hard, and in a different shape. Nothing was wrong with the arithmetic. The census had only looked in one place. It slid one molecule along a line and tilted it in one plane, two numbers, inside the family of arrangements our water's hydrogen bond makes. That family was our world's intuition, carried into a world where it doesn't hold.</p>
+  <p>This chapter is about that miss, because it holds a finding. Molecules have many more ways to meet in four dimensions than in three. Any search that stops looking early can miss the answer, and in 4D there is far more room to miss it in.</p>
+</section>
+<section id="counting">
+  <h3>Counting the ways</h3>
+  <p>To place one rigid molecule against another you move it, one number for each direction, and turn it, one number for each <i>plane</i> of turning (<a href="motion.html">chapter 3</a>). In d dimensions that's d moves and d(d − 1)/2 turns. Moving grows like d and turning like d², so as dimensions are added, turning takes over:</p>
+  <div class="shells"><table><tr><th>space</th><th>moves</th><th>turns</th><th>a pair: numbers to search</th><th>100 molecules</th></tr><tr><td class="d">2D</td><td>2</td><td>1</td><td><b>3</b></td><td>297</td></tr><tr><td class="d3">3D</td><td>3</td><td>3</td><td><b>6</b></td><td>594</td></tr><tr><td class="d4">4D</td><td>4</td><td>6</td><td><b>10</b></td><td>990</td></tr><tr><td class="d">5D</td><td>5</td><td>10</td><td><b>15</b></td><td>1485</td></tr><tr><td class="d">6D</td><td>6</td><td>15</td><td><b>21</b></td><td>2079</td></tr></table></div>
+  <p class="read">A rigid molecule's pose in d dimensions takes d(d + 1)/2 numbers; a pair's relative pose takes the same, and N molecules take N − 1 times as many. Bendable molecules add their own shapes on top.</p>
+  <p>Our water pair has six numbers to get right. Xater's has ten, and six of those are turns. A search that checks ten values along each number checks a million arrangements in our world and ten billion in 4D. Nobody searches that way; a descent from a random start follows the slope instead. But it shows how thin a two-number slice is: the census looked at a sheet through a ten-dimensional space.</p>
+</section>
+<section id="watch">
+  <h3>Watch it search</h3>
+  <p>Two molecules from a random start, sliding down the force field's slope to the nearest minimum, every number at once (BFGS: each step learns how the slope curves). The line under each pair is that descent's energy, and the dashed line is where the census's pair sits. When a descent ends, the molecule takes its basin's colour: arrangements within 0.3 kcal/mol and 0.15 bohr are one basin. A descent that runs out of steps before the slope has gone is counted as <i>unfinished</i>, not as a basin. Turn the 4D tile through w to see the turns you can't see in a slice. <b>race</b> runs whole descents without showing them.</p>
+  <div class="liquidCtl" id="searchMode"><span>pace</span><button data-m="watch" class="on">watch</button><button data-m="race">race</button></div>
+  <div class="tiles two" id="searchTiles"></div>
+  <p class="read" id="searchBasins3"></p>
+  <p class="read" id="searchBasins4"></p>
+  <canvas id="searchCurve" class="chart"></canvas>
+  <p class="read">The curve counts the basins found as starts accumulate. If it keeps rising, the search isn't done. Energies are the force field's; where Hartree–Fock has scored a basin (<a href="census.html#fullsearch">chapter 10</a>) its number is shown beside it.</p>
+</section>
+<section id="funnel">
+  <h3>One pair: a funnel</h3>
+  <p><b>For a single pair, the landscape is kind.</b> Of 400 random starts on Xater's force field, all 400 slid into the same arrangement, the compact antiparallel pair of chapter 10. Of 400 for our water, 378 found its one linear hydrogen bond, and the rest drifted apart or ran out of steps. Each pair's landscape is a funnel: one minimum, with every slope leading to it. For our water that's the known answer. Of the ten stationary points mapped on the water pair's surface, only the linear pair is a minimum; the others are passes between copies of it.</p>
+  <p>So the miss wasn't the landscape being hard. Any descent over all ten numbers, started almost anywhere, would have found the deeper pair. The miss was choosing the slice. Our first full search made a related mistake, and it is worth saying plainly. It counted descents that stalled before the bottom as separate minima. At a turn wound past many radians, the numbers describing it get badly conditioned and the descent crawls. Six "minima" for Xater were one minimum reached six times, not quite all the way. The descent now re-centres its turn as it goes and stops only when the slope is gone. Chapter 10's energies stand, because each was rescored and relaxed by Hartree–Fock itself.</p>
+</section>
+<section id="crowds">
+  <h3>Many molecules: a maze</h3>
+  <p>A pair is the easy case. Add molecules and the minima multiply. Quench a liquid's arrangement to its nearest minimum, the trick behind settling every start above, and the number of distinct minima grows <i>exponentially</i> with the number of molecules. That is the inherent-structure picture of liquids and glasses. Three molecules already have 12 numbers in our world and 20 in 4D; a drop of a hundred has 594 and 990. Small clusters are where a funnel turns into a maze, and where "which arrangement is best" becomes a hard question.</p>
+  <p>That's the next search. It asks the same question for three, four, five and six molecules, in both worlds, on the force field: how many minima each has, and how often a random start finds the deepest. It will tell how fast 4D's extra turns multiply the minima.</p>
+</section>
+<section id="promise">
+  <h3>What a search can promise</h3>
+  <p>A search gives one guarantee. The energy it finds is one that some arrangement really has, so the true best can only be lower. <b>Every binding energy in these chapters is a floor: more searching can only make it stronger.</b> Doubling Xater's pair didn't break the census's conclusion that element 9's XH₃ and Xater tie as the water. It made both stronger.</p>
+  <p>What a search can't promise is that it's finished. That has to be argued separately, by these checks:</p>
+  <ul>
+    <li><b>Known answers.</b> The same search, run on our world's pairs whose best arrangements are published (water, hydrogen fluoride, ammonia), must find them.</li>
+    <li><b>The discovery curve.</b> Starts are added until new basins stop appearing, and the count of basins found only once estimates how many remain unseen.</li>
+    <li><b>The force field's blind spots.</b> The force field is a smooth fit, and it can blur two of Hartree–Fock's minima into one. So Hartree–Fock itself is relaxed from random placements, without the force field's guidance.</li>
+    <li><b>The other searches in this position.</b> The census's shapes were built symmetric and then nudged, which shows each is <i>a</i> minimum, not <i>the</i> minimum. The table's electron configurations were chosen among candidates. Each gets the same audit.</li>
+  </ul>
+  <p>Open, and under way: the clusters, the known-answer checks, Hartree–Fock relaxations from random placements, and re-baking chapter 10's force-field minima with the corrected descent.</p>
+</section>
+
+<footer class="pager"><a href="census.html">← 10 · Which water</a><a href="./">the position →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen4/">Lumen⁴</a> · <a href="../iris4/">IRIS⁴</a> · <a href="../katabasis/">KATABASIS</a> · <a href="../">the arcade</a></p>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

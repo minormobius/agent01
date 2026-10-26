@@ -255,7 +255,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 
 /* 14 · the chapters: one landing and ten pages, the same nav on each, no id twice, every drawing's element somewhere */
 {
-  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "xater", "census"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
+  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "xater", "census", "search"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
   const navOf = (h) => (h.match(/<nav class="chapters">([\s\S]*?)<\/nav>/) || [, ""])[1].replace(/ class="here"| here/g, "");
   const ids = (h) => [...h.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
   const sameNav = pages.every((p) => navOf(html[p]) === navOf(html.index) && navOf(html.index).length > 0), noDup = pages.every((p) => new Set(ids(html[p])).size === ids(html[p]).length);
@@ -471,6 +471,20 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const best = (r) => r.best.E <= Math.min(r.search, r.census, ...r.modelMinima.map((q) => q.hf)) + 1e-9;
   ok([w, x, n9].every(best) && w.best.from === "census" && Math.abs(w.search - w.census) * K < 0.2, `the search keeps the lowest it found; for our water the census's linear pair stands (search ${(-w.search * K).toFixed(2)}, census ${(-w.census * K).toFixed(2)})`);
   ok(x.best.E < 1.8 * x.census && n9.best.E < 1.8 * n9.census && Math.abs(x.best.E - n9.best.E) / Math.abs(n9.best.E) < 0.05 && x.best.dXX < 5.2, `searched properly, Xater's pair binds ${(-x.best.E * K).toFixed(1)} and XH₃'s ${(-n9.best.E * K).toFixed(1)} kcal/mol (the census's ${(-x.census * K).toFixed(1)}, ${(-n9.census * K).toFixed(1)}): still a tie, at twice the strength, compact (Xater's heavy atoms ${x.best.dXX} bohr apart)`);
+}
+
+/* 24 · the descent behind chapter 11: every start of Xater's pair reaches the one basin, all the way down (the slope
+   gone, not merely stalled), re-centring its turn as it winds */
+{
+  const L = await import(path.join(here, "../js/landscape.js")), { modelEnergy } = await import(path.join(here, "../js/ffmodel.js")), { FORCEFIELDS } = await import(path.join(here, "../js/forcefields.js"));
+  const { PAIRMIN } = await import(path.join(here, "../js/pairmin.js")), { randomRotation } = await import(path.join(here, "../js/md.js")), K = 627.509, d = 4, p = FORCEFIELDS[4].p, A = PAIRMIN[4].best.A, rnd = L.rng(31), E = (B) => modelEnergy(p, A, B);
+  let worst = 0, gmax = 0, rebased = 0;
+  for (let s = 0; s < 5; s++) {
+    const R0 = randomRotation(d, rnd), dir = Array.from({ length: d }, () => rnd() - 0.5), n = Math.hypot(...dir), x0 = [...new Array(6).fill(0), ...dir.map((v) => (v / n) * 6)];
+    let last; for (const st of L.poseSteps(E, A, R0, x0, d)) { if (last && last.R0 !== st.R0) rebased++; last = st; }
+    worst = Math.max(worst, Math.abs(last.f - PAIRMIN[4].modelMinima[0].model) * K); gmax = Math.max(gmax, last.g);
+  }
+  ok(gmax < 1e-6 && worst < 0.05, `five random starts of Xater's pair all descend to the force field's one basin (${(PAIRMIN[4].modelMinima[0].model * K).toFixed(2)} kcal/mol, within ${worst.toFixed(3)}; |g| < ${gmax.toExponential(0)}; the turn re-centred ${rebased} times on the way)`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

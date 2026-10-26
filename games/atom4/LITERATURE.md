@@ -148,6 +148,21 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
   Chem. Phys. (2011). The water models' liquid properties, needed to quote SPC/E's U at 298 K exactly (ours gives
   −46.9 kJ/mol). — *cited (via arXiv:0905.4009); volume and pages to be fixed*
 
+### Energy landscapes and searching them (chapter 11)
+- F. H. Stillinger & T. A. Weber, "Hidden structure in liquids", Phys. Rev. A **25**, 978 (1982). Inherent
+  structures: quench each configuration to its minimum. The idea behind settling every start in the live search. —
+  *index* (cited with these details in a 2003 PRL abstract and in a Springer reference list; full text not read)
+- F. H. Stillinger, "Exponential multiplicity of inherent structures", Phys. Rev. E **59**, 48 (1999),
+  doi:10.1103/PhysRevE.59.48. At fixed density, the number of distinct minima grows exponentially with the number of
+  molecules. — *index* (APS record and abstract)
+- D. J. Wales, *Energy Landscapes* (Cambridge University Press, 2003), ISBN 978-0-521-81415-7. The standard text on
+  minima, funnels and searching them. — *index* (publisher's copyright page; not read)
+- B. J. Smith, D. J. Swanton, J. A. Pople, H. F. Schaefer III & L. Radom, "Transition structures for the interchange
+  of hydrogen atoms within the water dimer", J. Chem. Phys. **92**, 1240–1247 (1990). Ten stationary points on the
+  water pair's surface; only the trans-linear one is a minimum. This is the known answer our 3D search must reproduce. —
+  *index* for the ten stationary points (via the supplementary data of van Duijneveldt-van de Rijdt et al., PCCP 2003);
+  that just one is a minimum is *from memory; verify*
+
 ## Next
 
 1. A citation-index forward search on Pyykkö & Zhao (1991) and Négadi & Kibler (1996). The web search is done.
