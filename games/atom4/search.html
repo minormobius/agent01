@@ -45,8 +45,14 @@
 </section>
 <section id="crowds">
   <h3>Many molecules: a maze</h3>
-  <p>A pair is the easy case. Add molecules and the minima multiply. Quench a liquid's arrangement to its nearest minimum, the trick behind settling every start above, and the number of distinct minima grows <i>exponentially</i> with the number of molecules. That is the inherent-structure picture of liquids and glasses. Three molecules already have 12 numbers in our world and 20 in 4D; a drop of a hundred has 594 and 990. Small clusters are where a funnel turns into a maze, and where "which arrangement is best" becomes a hard question.</p>
-  <p>That's the next search. It asks the same question for three, four, five and six molecules, in both worlds, on the force field: how many minima each has, and how often a random start finds the deepest. It will tell how fast 4D's extra turns multiply the minima.</p>
+  <p>A pair is the easy case. Add molecules and the minima multiply. Quench a liquid's arrangement to its nearest minimum, the trick behind settling every start above, and the number of distinct minima grows <i>exponentially</i> with the number of molecules. That is the inherent-structure picture of liquids and glasses. Three molecules already have 12 numbers in our world and 20 in 4D; six have 30 and 50.</p>
+  <p>So we counted. Clusters of three to six molecules were searched from random starts on each world's force field, with 1000 starts for three, 800 to 1000 starts for four, 500 to 600 starts for five, 300 to 400 starts for six (4D's clusters cost more, so where the numbers differ they got the fewer starts, which only makes their counts lower): every start descended until its slope was gone, and the distinct minima were tallied.</p>
+  <canvas id="clusterChart" class="chart"></canvas>
+  <div class="shells" id="clusterTab"></div>
+  <p class="read">Solid lines: minima found, where two are the same if their energies agree within 0.1 kcal/mol and their heavy atoms' distances within 0.1 bohr. The bar under each point runs down to the count told apart by energy alone. Dashed: the Chao1 estimate of how many there are, from how many were found only once or twice; in brackets in the table where it's higher than the count. The force field is fitted to pairs and adds them up; it has no three-body forces.</p>
+  <p><b>Both worlds' minima multiply, and 4D's much faster.</b> From two molecules to six, our water's minima go 1, 4–5, 5–7, 8–9, 15–28; Xater's go 1, 3, 10, 23–25, 44–104, and element 9's XH₃'s 1, 2, 14–16, 53–98, 51–232. Where two numbers are given, the true count lies between them. The smaller counts only minima whose energies differ, which can merge different arrangements of nearly the same energy; the larger also tells apart arrangements of the same energy by their shape, which can split one soft minimum in two. From five molecules on, even 4D's lower counts are above our water's higher ones. The best arrangement gets harder to find as well. Of the starts for six molecules, 9% found our water's best, 6% found Xater's and 2.7% found XH₃'s, which is 8 starts in 300.</p>
+  <p>And these are what a few hundred starts found, not all there are. XH₃'s six turned up 232 minima in 300 starts, most of them seen once. There the estimate of how many remain (673) can't be trusted, and nor can the claim that the best one found is the best there is. The clusters also hold together far harder in 4D: the best hexamers bind at 5.0 kcal/mol per molecule for our water and 32.5 for Xater. These are the force field's energies, not Hartree–Fock's, and the force field has no three-body forces.</p>
+  <p>For a liquid this hardly matters: a liquid visits a great many minima, and the simulation samples them rather than finding one. It matters for the solid. Which crystal a 4D water freezes into is a search for one best arrangement among very many, and on this evidence 4D's search space is far larger than ours. That's where the extra turns will bite.</p>
 </section>
 <section id="promise">
   <h3>What a search can promise</h3>
@@ -58,7 +64,7 @@
     <li><b>The force field's blind spots.</b> The force field is a smooth fit, and it can blur two of Hartree–Fock's minima into one. So Hartree–Fock itself is relaxed from random placements, without the force field's guidance.</li>
     <li><b>The other searches in this position.</b> The census's shapes were built symmetric and then nudged, which shows each is <i>a</i> minimum, not <i>the</i> minimum. The table's electron configurations were chosen among candidates. Each gets the same audit.</li>
   </ul>
-  <p>Open, and under way: the clusters, the known-answer checks, Hartree–Fock relaxations from random placements, and re-baking chapter 10's force-field minima with the corrected descent.</p>
+  <p>Open, and under way: the known-answer checks, Hartree–Fock relaxations from random placements, longer cluster searches where the counts haven't settled, and re-baking chapter 10's force-field minima with the corrected descent.</p>
 </section>
 
 <footer class="pager"><a href="census.html">← 10 · Which water</a><a href="./">the position →</a></footer>

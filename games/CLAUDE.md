@@ -426,7 +426,10 @@ These live here:
   XH₃ pairs bind ~27 kcal/mol antiparallel, twice the census's linear-bond
   values). Its pose maths and descent live in `atom4/js/landscape.js`, shared
   with chapter 11's live search (`js/search.js`); a descent counts only when
-  |g| < 10⁻⁶ (stalls once passed for extra minima). `js/census.js` is **generated** by
+  |g| < 10⁻⁶ (stalls once passed for extra minima).
+  `js/clusters.js` is **generated** by `atom4/tools/clusters.mjs` (minima of
+  3–6-molecule clusters on the force field; run inside a turn, it dies when
+  the session idles). `js/census.js` is **generated** by
   `atom4/tools/census.mjs` (~4.5 h: every hydride of 4D rows 2–3 and our
   NH₃/H₂O/HF, then their H-bonded pairs; jobs cached in the temp dir so a
   run cut short by the container being reclaimed resumes — stay in the

@@ -487,5 +487,12 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(gmax < 1e-6 && worst < 0.05, `five random starts of Xater's pair all descend to the force field's one basin (${(PAIRMIN[4].modelMinima[0].model * K).toFixed(2)} kcal/mol, within ${worst.toFixed(3)}; |g| < ${gmax.toExponential(0)}; the turn re-centred ${rebased} times on the way)`);
 }
 
+/* 25 · the clusters (js/clusters.js): what chapter 11's crowds section reads, internally consistent */
+{
+  const { CLUSTERS } = await import(path.join(here, "../js/clusters.js")), rows = Object.values(CLUSTERS).flatMap((v) => Object.values(v));
+  ok(["3", "4", "4.9"].every((k) => [3, 4, 5, 6].every((n) => CLUSTERS[k]?.[n])) && rows.every((r) => r.starts >= 300 && r.minima >= r.levels && r.levels >= 1 && r.chao1 >= r.minima - 1e-9 && r.best.every((q, i) => q.hits >= 1 && (i === 0 || q.E >= r.best[i - 1].E)) && r.curve.length > 0),
+    `the cluster census covers 3–6 molecules for all three, each with ≥ 300 starts, its minima sorted, Chao1 ≥ minima found (${rows.length} searches)`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
