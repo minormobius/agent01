@@ -525,5 +525,15 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `4D fills along our diagonals (${seen.join(" ")}), each box holding 2(l + 1)²: rows close at ${F.nobles(4, 5).join(", ")}; the ${lend} atoms off the plain filling are d-block atoms lending s electrons to d`);
 }
 
+/* 28 · the pages outside ATOM⁴'s chapters (where we are, the big table): every element their scripts draw into exists */
+{
+  for (const [page, script] of [["../../start/index.html", "../../start/start.js"], ["../../table/index.html", "../../table/viewer.js"]]) {
+    const html = fs.readFileSync(path.join(here, page), "utf8"), js = fs.readFileSync(path.join(here, script), "utf8");
+    const want = [...new Set([...js.matchAll(/\$\(\s*["'`]([A-Za-z0-9_-]+)["'`]\s*\)/g)].map((m) => m[1]))], ids = new Set([...(html + js).matchAll(/id="([^"]+)"/g)].map((m) => m[1])); // the page's, and those the script writes itself
+    const missing = want.filter((id) => !ids.has(id) && !/\$\{/.test(id));
+    ok(missing.length === 0, `${page.split("/").at(-2)}/: every element its script draws into is on the page${missing.length ? ` (missing: ${missing.join(", ")})` : ""}`);
+  }
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

@@ -68,6 +68,11 @@ for games, and this is a modelling programme with publications to come. The game
   `../../lumen/js/optics.js`, so run Lumen⁴'s selftest after a change there; after a change to Foam⁴'s
   `foam.js` in games, copy it over `iris/js/foam.js`. See
   [`iris/README.md`](iris/README.md).
+- **where we are, at `/start/`**: the front door for a cold reader. The argument in eleven steps, each tagged (a choice /
+  follows / computed / open), each with a toy whose numbers come from the same code as the chapters
+  (`start/start.js`: squeezing an electron, field thinning, the charged shell (`atom/js/fields.js`), hydrogen's lines,
+  the filling diagram (`table/filling.js`), the pair search, an ideal gas in 2–4 dimensions). Keep it in step with
+  the position: when a conclusion changes, its step here changes too. The hub and ATOM⁴'s landing point to it.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 78 4D elements (`atom/js/table.js`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)

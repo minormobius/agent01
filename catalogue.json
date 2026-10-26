@@ -4827,6 +4827,22 @@
         "canvas",
         "math"
       ]
+    },
+    {
+      "n": "four-start",
+      "u": "https://four.mino.mobi/start/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-26",
+      "b": "2026-10-26",
+      "p": "four",
+      "surface": "four",
+      "d": "Where we are, for anyone arriving cold: a universe with four dimensions of space in eleven steps, each with a toy and a tag (a choice, follows, computed, open). Squeeze an electron and watch 4D lose its atoms, pin the force and get them back, see the hill inside a charged shell that ends Faraday cages, fill the electron boxes element by element in both worlds, and count gas atoms hitting a wall in 2, 3 and 4 dimensions until PV = NkT comes out.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     }
   ],
   "notListed": [
