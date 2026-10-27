@@ -166,6 +166,10 @@ for games, and this is a modelling programme with publications to come. The game
   E = W(1 − k/d(γ − 1)), the share of the pull from outside each radius (zero with a shell theorem), and WKB
   tunnelling with Langer's term (the 4D s-wave's built-in barrier) for ignition. `atom/tools/stars.mjs` bakes
   **generated** `js/starsdata.js` (~30 s). Gravity's pin and the weak force are recorded as choices, not taken.
+  `js/orbits.js` (no DOM) is chapter 13's orbits: a leapfrog n-body for a 1/r^k pull in any dimension, an orbit's
+  eccentricity and plane, the principal angles between two planes, a round star's outside potential from its shells
+  (pinned 4D: −1/r + ⟨r²⟩/8r³) and the precession that causes, and two planets in one plane or turned apart.
+  `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).
   `js/clusters.js` is **generated** by `atom/tools/clusters.mjs` (minima of
   3–6-molecule clusters on the force field; `--shard i/m` splits a search
   across machines). **Long runs go to the runner, not the sandbox** (below) . `js/census.js` is **generated** by

@@ -1,7 +1,14 @@
+import math
 # ------------------------------------------------------------------ 13 stars (exec'd by genpages.py)
 # numbers from js/starsdata.js (tools/stars.mjs, from js/stars.js)
 ST=json.loads(subprocess.run(['node','--input-type=module','-e','import { STARS } from "'+ATOM+'js/starsdata.js"; console.log(JSON.stringify(STARS));'],capture_output=True,text=True,check=True).stdout)
 SM,SL=ST['models'],ST['lighting']
+OR=json.loads(subprocess.run(['node','--input-type=module','-e','import { ORBITS } from "'+ATOM+'js/orbitsdata.js"; console.log(JSON.stringify(ORBITS));'],capture_output=True,text=True,check=True).stdout)
+def PL(a2,th): return next(q for q in OR['planets'] if abs(q['a2']-a2)<1e-9 and q['thDeg']==th)
+PRE=OR['precession']; PREerr=max(abs(q['measured']/q['formula']-1) for q in PRE)
+def arcsec(rad): return rad*206264.8
+EARTH=-(3*math.pi/4)*OR['star']['r2']/215**2; MERC=-(3*math.pi/4)*OR['star']['r2']/83**2
+TURN=OR['turning']
 def EW(d,gam,k): return 1-k/(d*(gam-1))
 def frac(x):
     for den in (1,2,3,4,6,8):
@@ -62,8 +69,32 @@ stars=f'''<section id="gravity">
   <h3>The fuel: the weak force, added</h3>
   <p>Our Sun burns hydrogen, and its first step turns a proton into a neutron. That takes the <b>weak force</b>, which chemistry never needs. Without it a star could burn only fuel left from the universe's first minutes (deuterium and other light nuclei, which fuse by the strong force alone), then shine by contracting, for millions of years rather than billions. <b>So the weak force is added to <a href="force.html#contents">the universe's list</a></b>, with its neutrino. It's the first ingredient added for astronomy rather than chemistry. Stars burn hydrogen as ours do, and live long enough for planets to have time.</p>
 </section>
+<section id="orbits">
+  <h3>Orbits</h3>
+  <p>Stars need planets to matter, and planets need orbits. <b>Under the pinned 1/r, two bodies orbit as Kepler said</b>. A central pull keeps an orbit in one plane, even in 4D, and a 1/r pull closes it into an ellipse in any number of dimensions (<a href="motion.html">chapter 3</a>). Under Gauss's 1/r² no orbit is stable. Give a circular orbit 1% more speed and it runs away:</p>
+  <canvas class="chart" id="cOrbitNudge"></canvas>
+  <p class="read" id="kOrbitNudge"></p>
+  <h4>Orbits round a real star precess</h4>
+  <p>Without a shell theorem, a round star doesn't pull exactly like a point. Outside it, its pull carries a small correction, −1/r + ⟨r²⟩/8r³, where ⟨r²⟩ is the mean square of where its mass sits ({OR['star']['r2']:.2f} R² for the 4D star solved above). That turns an orbit's closest point backwards by</p>
+  <p class="eq">Δϖ = −(3π/4) ⟨r²⟩ / p² per orbit</p>
+  <p>(p the orbit's semi-latus rectum, from Landau's formula for a 1/r³ perturbation). Checked by integrating orbits in the solved star's own pull, it agrees to {abs(PRE[0]['measured']/PRE[0]['formula']-1)*100:.1f}% three star radii out, where the next, smaller correction still shows, and to {abs(PRE[-1]['measured']/PRE[-1]['formula']-1)*100:.2f}% at twelve. For a star the Sun's size, an orbit at Earth's distance would turn back {abs(arcsec(EARTH)):.1f} arcseconds per orbit, and one at Mercury's {abs(arcsec(MERC)):.0f}. Mercury's own, from relativity, is about 0.1. It's slow, but an astronomer would find it, and it tells the routes apart: under <a href="#gravity">route 4</a>'s nonlinear law the shell theorem holds and this precession is zero.</p>
+  <h4>Planets in different planes barely notice each other</h4>
+  <p>In 4D two orbits can lie in completely orthogonal planes, xy and zw, which meet only at the star. Then the two planets' positions are always at right angles, so their distance is √(r₁² + r₂²). For circular orbits that never changes, and neither can tug the other along its orbit. Run with Jupiter-mass planets for 3,000 orbits:</p>
+  <table class="verdict"><tr><th>orbit radii</th><th>in the same plane</th><th>in orthogonal planes</th></tr>
+    {''.join(f"<tr><td>1 and {a2}</td><td>{('<b>thrown out</b> after '+str(PL(a2,0)['lost'])+' orbits') if PL(a2,0)['lost'] is not None else 'stable, eccentricity up to '+format(PL(a2,0)['emax'],'.3f')}</td><td>{('thrown out after '+str(PL(a2,90)['lost'])) if PL(a2,90)['lost'] is not None else 'stable, eccentricity up to '+format(PL(a2,90)['emax'],'.3f')}</td></tr>" for a2 in (1.7,1.3,1.2,1.1))}
+    <tr><td>1 and 1, the same orbit size</td><td>only as trojans, 60° apart (not run)</td><td>{'stable, never closer than '+format(PL(1.0,90)['dmin'],'.2f')+' (√2)' if PL(1.0,90)['lost'] is None else 'thrown out'}</td></tr>
+  </table>
+  <p>Equal radii is the strangest case. The two planets share a period, so their tugs on each other add up orbit after orbit, and each plane turns all the way round: in the run, planet 1's orbit swung completely into the plane planet 2 had started in, and back, in about 1,500 orbits. The two planes stayed at right angles throughout, and the planets never came closer than √2.</p>
+  <p><b>A 4D planetary system can pack its planets far tighter than ours</b>, at nearly the same distance from the star, in different planes. Planes partly turned apart lie in between: at 30°, two planets 5% apart in radius came within {PL(1.05,30)['dmin']:.2f} of each other and still survived 3,000 orbits.</p>
+  <p>The planes don't sit still. The planets' pulls turn their planes through 4D, by as much as {PL(1.05,60)['wander']*100:.0f}% of planet 1's orbit swinging out of where it began. But the angle between the two planes holds, the 4D version of how our planets' tilts to one another keep while their nodes slide round:</p>
+  <canvas class="chart" id="cOrbitTurn"></canvas>
+  <p class="read" id="kOrbitTurn"></p>
+  <h4>Days with two rates</h4>
+  <p>A planet spins too, and a 4D spin is a turning in a plane, or in two planes at once at two rates (<a href="motion.html">chapter 3</a>). A planet spinning both ways would have a sky that cycles on two clocks, its sunrises returning only when the two line up. Which way real planets spin depends on how they formed and how tides wear them, and that's open.</p>
+  <p class="read">Checked here: Kepler's closed orbits in 4D, the precession formula against integration, and the two-planet runs, with 3,000 orbits per case. That's short against a planetary system's life. Longer runs, more planets, and tides are next.</p>
+</section>
 <section id="starsnext">
   <h3>What's computed and what's open</h3>
-  <p>Computed and checked: the virial bookkeeping for each law, the polytropes (against Lane–Emden), the outer layers' pull, and tunnelling through the 4D barrier (against Gamow). Argued from scaling: the mass window. Chosen: the weak force, added. Open: gravity's route (the lens is assumed here; the nonlinear law is the alternative). Open: nuclear physics in 4D (which nuclei exist, their fusion energies and sizes); light's escape from a 4D star (opacity through the lens, and the T⁵ Planck law at its surface), which sets its colour; and stars that age, burn in shells and die.</p>
+  <p>Computed and checked: the virial bookkeeping for each law, the polytropes (against Lane–Emden), the outer layers' pull, tunnelling through the 4D barrier (against Gamow), orbits' precession round a real star (against Landau's formula), and two planets' stability in one plane and in orthogonal ones. Argued from scaling: the mass window. Chosen: the weak force, added. Open: gravity's route (the lens is assumed here; the nonlinear law is the alternative). Open: nuclear physics in 4D (which nuclei exist, their fusion energies and sizes); light's escape from a 4D star (opacity through the lens, and the T⁵ Planck law at its surface), which sets its colour; and stars that age, burn in shells and die.</p>
 </section>
 '''

@@ -20,6 +20,7 @@ import { buildSearch, drawClusters } from "./search.js";
 import * as GAS from "./gas.js";
 import { COEXIST } from "./coexist.js";
 import { STARS } from "./starsdata.js";
+import { ORBITS } from "./orbitsdata.js";
 import { names } from "./names.js";
 
 const $ = (id) => document.getElementById(id);
@@ -377,6 +378,16 @@ function drawStars() {
     vlines: [{ x: 1.5e7, c: C3, label: "our Sun's core" }, { x: 1.5e7 * L.match.pp.find((m) => m.rn === 2).ratio, c: C4, label: "4D, the same rate", dy: 14 }] });
 }
 
+/* orbits: a nudged circle under each 4D law, and two planets whose planes turn while the angle between them holds */
+function drawOrbits() {
+  chart($("cOrbitNudge"), { key: "kOrbitNudge", x: [0, 12], y: [0, 4], xl: "orbits", yl: "distance from the star", series: [
+    { pts: ORBITS.nudge.pinned, c: C4, label: "4D pinned at 1/r: stays near 1" },
+    { pts: ORBITS.nudge.gauss, c: DIM, dash: [5, 4], label: "4D Gauss's law, 1/r²: runs away" }] });
+  chart($("cOrbitTurn"), { key: "kOrbitTurn", x: [0, 3000], y: [0, 90], xl: "orbits of planet 1", yl: "degrees", series: [
+    { pts: ORBITS.turning.map((q) => [q[0], q[2]]), c: C4, label: "angle between the two planes" },
+    { pts: ORBITS.turning.map((q) => [q[0], (Math.asin(Math.min(1, q[3])) * 180) / Math.PI]), c: C3, label: "planet 1's swing out of its first plane" }] });
+}
+
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
 function energySlope(d, a, b) {
   const xs = [], ys = []; for (const el of TABLE[d]) if (el.Z >= a && el.Z <= b) { xs.push(Math.log(el.Z)); ys.push(Math.log(-el.E)); }
@@ -387,7 +398,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars]];
+const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbits]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

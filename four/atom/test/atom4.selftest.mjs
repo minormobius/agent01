@@ -626,5 +626,20 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `stars: Lane–Emden n = 1 to ${e1.toExponential(1)}, n = 3/2 concentration ${n15.centralOverMean.toFixed(3)} (5.991); pinned 4D E/W = ${p4.bound.toFixed(4)}, Gauss 4D ${g4.bound.toFixed(4)}; no pull from outside in 3D; Gamow ${G.toFixed(3)} = 2πη`);
 }
 
+/* 36 · orbits (js/orbits.js): Kepler's orbit closes under 1/r; a 1/r³ correction turns it back by −(3π/4)⟨r²⟩/p² per
+   orbit, as integration says, and the solved 4D star's outside carries exactly that correction; under Gauss's 1/r² a
+   nudged circle runs away; two planets in one plane at radii 1 and 1.2 are thrown out, in orthogonal planes at equal
+   radii they hold √2 apart; the angle between two planes holds while they turn */
+{
+  const O = await import(path.join(here, "../js/orbits.js")), S = await import(path.join(here, "../js/stars.js"));
+  const kepler = Math.abs(O.measurePrecession((r) => 1 / r ** 2, 4, 0.3, 3)), b = 0.05, pre = O.measurePrecession((r) => 1 / r ** 2 - (3 * b) / r ** 4, 10, 0.2, 3) / O.precessionPerOrbit(8 * b, 10);
+  const st = S.polytrope("pinned4", 2, { N: 120 }), dr = 1 / st.r.length, star = O.starPotential(st.r, st.rho.map((p, i) => p * 2 * Math.PI ** 2 * st.r[i] ** 3 * dr)), far = ((star.phi(6) + 1 / 6) * 8 * 216) / star.r2;
+  const pinned = Math.max(...O.nudged(1, 4, 4).map((q) => q[1])), gauss = O.nudged(2, 4, 12).at(-1)[1];
+  const thrown = O.twoPlanets(1.2, 0, { orbits: 20 }).lost, orth = O.twoPlanets(1.0, 90, { orbits: 300, per: 300 }), turn = O.twoPlanets(1.05, 60, { orbits: 300, per: 300, sample: 5 }).series;
+  const angle = Math.max(...turn.map((q) => Math.abs(q[2] - 60))), swing = Math.max(...turn.map((q) => q[3]));
+  ok(kepler < 1e-5 && near(pre, 1, 0.01) && near(far, 1, 0.02) && pinned < 1.05 && gauss > 4 && thrown !== null && orth.lost === null && orth.dmin > 1.41 && angle < 0.2 && swing > 0.02,
+    `orbits: Kepler's closes to ${kepler.toExponential(1)} rad; a 1/r³ term precesses at ${pre.toFixed(4)}× the formula; the 4D star's outside correction is ${far.toFixed(3)}× ⟨r²⟩/8r³; a nudged circle reaches ${pinned.toFixed(3)} pinned and ${gauss.toFixed(1)} under Gauss; coplanar 1 and 1.2 thrown out on orbit ${thrown}, orthogonal 1 and 1 never closer than ${orth.dmin}; the planes' angle holds to ${angle.toFixed(2)}° while planet 1 swings ${(swing * 100).toFixed(1)}% out`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
