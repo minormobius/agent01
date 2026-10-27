@@ -25,7 +25,8 @@ CH=[("force","The force","Why 1/r, what it takes to rewrite Maxwell for it, the 
     ("xater","Pxygen and Xater","Element 10 and its water, computed by a molecular solver written for any dimension and checked on our own water: Xater's shape, its pull, and its hydrogen bond."),
     ("census","Which water","Every hydride of 4D's lighter rows, computed, with our ammonia, water and HF as the check: which way their bonds lean, their shapes, and which would make the strongest liquid."),
     ("search","Ten ways to meet","How chapter 10 first missed the strongest pairs, and what the miss shows: two molecules meet in six ways in our world and ten in 4D, and a crowd of them in far more. Watch the search, and see what it can and can't promise."),
-    ("gas","Gases","PV = NkT in any dimension, the real gas's B₂ computed from the pairs, a refrigerator's throttle, and why 4D's noble gases are held by the crowd rather than their neighbours, so that they boil far hotter than their wells suggest.")]
+    ("gas","Gases","PV = NkT in any dimension, the real gas's B₂ computed from the pairs, a refrigerator's throttle, and why 4D's noble gases are held by the crowd rather than their neighbours, so that they boil far hotter than their wells suggest."),
+    ("stars","Stars","If gravity is pinned at 1/r like the force between charges, a 4D star holds together as ours does, solved and checked. Its outer layers press inward, its core must burn hotter, and long-lived stars need one more ingredient: the weak force.")]
 def head(title, desc):
     return f'''<!doctype html>
 <html lang="en">
@@ -280,8 +281,9 @@ exec(open(SP+'genxater.py').read())
 exec(open(SP+'gencensus.py').read())
 exec(open(SP+'gensearch.py').read())
 exec(open(SP+'gengas.py').read())
+exec(open(SP+'genstars.py').read())
 table=solverFix(table)
-pages={"force":force,"light":light,"motion":motion,"hydrogen":hyd and f'<section id="hydrogen">\n  <h3>Hydrogen, exactly</h3>\n  {hyd}\n</section>\n',"table":table,"shapes":shapes,"darbon":darbon,"forces":forces,"xater":xater,"census":census,"search":search,"gas":gas}
+pages={"force":force,"light":light,"motion":motion,"hydrogen":hyd and f'<section id="hydrogen">\n  <h3>Hydrogen, exactly</h3>\n  {hyd}\n</section>\n',"table":table,"shapes":shapes,"darbon":darbon,"forces":forces,"xater":xater,"census":census,"search":search,"gas":gas,"stars":stars}
 for k,body in pages.items(): open(OUT+k+'.html','w').write(chapter(k,body))
 
 # ------------------------------------------------------------------ the landing: the position
@@ -328,7 +330,11 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
   "<b>4D's noble gases are held by the crowd.</b> R⁻⁵ over r³ of space adds up far out: element 12's 24 nearest neighbours give "+f"{OE['firstShell']*100:.0f}"+"% of its crystal's hold, argon's 12 give "+f"{AR['firstShell']*100:.0f}"+"%. Its Boyle temperature is 28 times its well depth (ours 2.8).",
   "<b>A throttle cools them up to tens of thousands of kelvin</b>: element 12 below "+KR(OE['inversion'])+" K, against argon's 794 K. Even 4D's helium cools at room temperature, so a 4D liquefier needs no precooling. Counted by the whole pull, not the well, the gas is ours rescaled.",
   "<b>Element 12 condenses below "+KR(OES)+" K, simulated</b> (liquid and vapour side by side, checked on Lennard-Jones atoms and our argon). That's where the crowd's rules put it, "+f"{OES[0]/OE['tcWell'][0]:.0f}"+" times the well-depth rule. Element 2 is the one 4D noble gas that might be a gas at room temperature.",
-  "<b>A hypothesis: a world of liquids.</b> Gas only when hot, wide liquid ranges, glass more often than crystal: element 12's two best crystals nearly tie. Salts are the exception. Computed end to end, 4D's todium gluoride holds together "+f"{TOG['U']/NAF['U']:.1f}"+" times as hard as our sodium fluoride, which the same method gets to 5%."])]
+  "<b>A hypothesis: a world of liquids.</b> Gas only when hot, wide liquid ranges, glass more often than crystal: element 12's two best crystals nearly tie. Salts are the exception. Computed end to end, 4D's todium gluoride holds together "+f"{TOG['U']/NAF['U']:.1f}"+" times as hard as our sodium fluoride, which the same method gets to 5%."]),
+ ("stars",["<b>Gravity is a choice.</b> Under Gauss's law a 4D star is exactly marginal (E = 0), as the atom was. Pinned at 1/r through the lens, like charge, <b>a 4D star of gas is bound with E = W/2, exactly as ours is</b>, and a star of light is marginal in both worlds: a maximum stellar mass, as we have.",
+  "Solved, a 4D star is "+f"{SM['pinned']['centralOverMean']:.0f}"+" times as dense at its centre as on average (ours "+f"{SM['ours']['centralOverMean']:.0f}"+"). With no shell theorem its outer layers press inward: a quarter of the way out, "+f"{outerAt(0.244)*100:.0f}"+"% of the pull is from the mass outside.",
+  "A 4D head-on meeting carries a centrifugal barrier, so <b>a 4D core must be about "+f"{min(PPR):.1f} to {max(PPR):.1f}"+" times as hot</b> to burn hydrogen as fast: around 30 million kelvin. Hotter, not a different regime.",
+  "<b>Burning hydrogen needs the weak force</b>, which the list leaves out. Add it, and stars live billions of years. Leave it out, and they burn leftover deuterium and shine by contracting, for millions. A choice still open."])]
 def card(i,k,t):
     lis=''.join('<li>'+c+'</li>' for c in P[i][1])
     return f'<a class="card" href="{k}.html"><h3>{i+1} · {t}</h3><ul>{lis}</ul><span class="go">read the chapter →</span></a>'
@@ -347,7 +353,7 @@ landing=head('ATOM⁴ — the position','ATOM⁴ — the universe we are buildin
   <ul class="open">
     <li><b>Open-shell atoms' response.</b> Polarizabilities are computed for hydrogen and the noble gases. Pxygen, darbon and the rest have open shells, which the response doesn't handle yet. Also open: unlike pairs, retardation and three-body forces.</li>
     <li><b>Which nuclei exist.</b> Stability is declared for Z up to 78. Deriving it would take the strong force in 4D.</li>
-    <li><b>Gravity.</b> Under Gauss's law no orbit is stable, so gravity has to be pinned too. Whether through the same lens, and what that does to tides and stars, is open.</li>
+    <li><b>Gravity, and the weak force.</b> Under Gauss's law no orbit is stable and a star is only marginal, so gravity has to be pinned too. Pinned at 1/r through the same lens, stars hold together as ours do (<a href="stars.html">chapter 13</a>). Whether to make that the position is open. So is whether to add the weak force, which long-lived stars need.</li>
     <li><b>Correlation.</b> The atom solver has exchange but not correlation, and averages open shells into spheres. 4D's transition metals are the least sure. The molecular solver is Hartree–Fock, which misses about a third of a bond's energy, in both worlds.</li>
     <li><b>Spin and statistics.</b> Electrons pairing up is taken as part of the universe's definition. The theorem that would derive it assumes full relativity, which the lens vacuum gives up.</li>
     <li><b>A world of liquids?</b> 4D's noble gases are held by the crowd, so they condense thousands of kelvin hotter than their wells suggest. Few gases may survive at room temperature, liquid ranges may be very wide, and crystals are harder to make in 4D, so cold matter may be glass. Salts, held by their charges, are the likely exception: bluminium pxide, Bl₂Px₃, would be 4D's sapphire. A hypothesis, being simulated.</li>

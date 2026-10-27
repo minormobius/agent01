@@ -5,7 +5,7 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
-A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in twelve chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.
+A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in thirteen chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.
 
 ## Facts
 
@@ -161,6 +161,11 @@ for games, and this is a modelling programme with publications to come. The game
   point, both exponents, into **generated** `js/coexist.js`). `atom/tools/audit.mjs bake` writes **generated**
   `js/audit.js` (chapter 11's probe results). Both bakes read the runner's caches: `git archive origin/atom4-data tmp`
   into a directory and point `TMPDIR` at it.
+  `js/stars.js` (no DOM) is chapter 13, stars under three laws of gravity (Newton, 4D Gauss 1/r², 4D pinned 1/r):
+  the self-consistent polytrope on each law's shell kernel (checked against Lane–Emden), the virial bookkeeping
+  E = W(1 − k/d(γ − 1)), the share of the pull from outside each radius (zero with a shell theorem), and WKB
+  tunnelling with Langer's term (the 4D s-wave's built-in barrier) for ignition. `atom/tools/stars.mjs` bakes
+  **generated** `js/starsdata.js` (~30 s). Gravity's pin and the weak force are recorded as choices, not taken.
   `js/clusters.js` is **generated** by `atom/tools/clusters.mjs` (minima of
   3–6-molecule clusters on the force field; `--shard i/m` splits a search
   across machines). **Long runs go to the runner, not the sandbox** (below) . `js/census.js` is **generated** by
@@ -175,8 +180,8 @@ for games, and this is a modelling programme with publications to come. The game
   molecular-dynamics view. Imports `../../lumen/js/optics.js` for line and
   sky colours; Lumen⁴'s page links back to the light chapter. See
   [`atom/README.md`](atom/README.md).
-- **ATOM⁴'s pages are generated.** The twelve chapters and the landing come from
-  `atom/tools/pages/genpages.py` (it execs `genxater.py`, `gencensus.py`, `gensearch.py` and `gengas.py` beside it, and cuts the
+- **ATOM⁴'s pages are generated.** The thirteen chapters and the landing come from
+  `atom/tools/pages/genpages.py` (it execs `genxater.py`, `gencensus.py`, `gensearch.py`, `gengas.py` and `genstars.py` beside it, and cuts the
   first chapters from `old-index.html`). Each chapter's body and the landing's cards live there, with their numbers
   pulled from the baked `atom/js/*.js`. So change a chapter there, never in the HTML, then
   `python3 four/atom/tools/pages/genpages.py`. **A new conclusion goes in its chapter and on the landing's cards.**

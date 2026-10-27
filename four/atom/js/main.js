@@ -19,6 +19,7 @@ import { buildLiquid } from "./liquid.js";
 import { buildSearch, drawClusters } from "./search.js";
 import * as GAS from "./gas.js";
 import { COEXIST } from "./coexist.js";
+import { STARS } from "./starsdata.js";
 import { names } from "./names.js";
 
 const $ = (id) => document.getElementById(id);
@@ -359,6 +360,23 @@ function drawGasTab() {
   $("gasTab").innerHTML = `<table><tr><th>gas</th><th>well ε/k</th><th>Boyle</th><th>inversion</th><th>critical, from the well</th><th>from Boyle</th><th>from the crystal</th><th>simulated</th><th>measured</th></tr>${rows.join("")}</table><p class="read">Kelvin, each a range: the computed well divided by 1.8 up to the computed well, as the <a href="forces.html#pair">forces chapter</a> reads it. The three critical-point rules are taken from our argon: 1.26 ε/k; 8/27 (mean field) to 0.37 (argon) of the Boyle temperature; ${(GAS.ARGON.Tc / GAS.ARGON.cohesive).toFixed(3)} of the crystal's hold at the pair's spacing.</p>`;
 }
 
+/* ------------------------------------------------------------- 13 · stars (js/starsdata.js, from js/stars.js) */
+function drawStars() {
+  const M = STARS.models;
+  chart($("cStarProfile"), { key: "kStarProfile", x: [0, 1], y: [0, 1], xl: "radius ÷ the star's radius", yl: "density ÷ central density", series: [
+    { pts: M.ours.profile, c: C3, label: "ours (Newton), a monatomic gas" },
+    { pts: M.pinned.profile, c: C4, label: "4D pinned at 1/r, a monatomic gas" },
+    { pts: M.gauss.profile, c: DIM, dash: [5, 4], label: "4D Gauss's law: the marginal star" }] });
+  chart($("cStarOuter"), { key: "kStarOuter", x: [0, 1], y: [0, 1], xl: "radius ÷ the star's radius", yl: "share of the pull from outside", series: [
+    { pts: M.ours.outer, c: C3, label: "ours: none, by the shell theorem" },
+    { pts: M.pinned.outer, c: C4, label: "4D pinned" }] });
+  const L = STARS.lighting, lg = (v) => v / Math.LN10;
+  chart($("cStarLight"), { key: "kStarLight", x: [L.Ts[0], L.Ts.at(-1)], logx: true, y: [Math.floor(Math.min(...L.pp4.map(lg))), Math.ceil(Math.max(...L.pp3.map(lg)))], xl: "core temperature (K)", yl: "log₁₀ tunnelling rate, p + p", series: [
+    { pts: L.Ts.map((T, i) => [T, lg(L.pp3[i])]), c: C3, label: "ours" },
+    { pts: L.Ts.map((T, i) => [T, lg(L.pp4[i])]), c: C4, label: "4D: plus its centrifugal barrier" }],
+    vlines: [{ x: 1.5e7, c: C3, label: "our Sun's core" }, { x: 1.5e7 * L.match.pp.find((m) => m.rn === 2).ratio, c: C4, label: "4D, the same rate", dy: 14 }] });
+}
+
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
 function energySlope(d, a, b) {
   const xs = [], ys = []; for (const el of TABLE[d]) if (el.Z >= a && el.Z <= b) { xs.push(Math.log(el.Z)); ys.push(Math.log(-el.E)); }
@@ -369,7 +387,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist]];
+const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

@@ -255,7 +255,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 
 /* 14 · the chapters: one landing and ten pages, the same nav on each, no id twice, every drawing's element somewhere */
 {
-  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "xater", "census", "search", "gas"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
+  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "xater", "census", "search", "gas", "stars"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
   const navOf = (h) => (h.match(/<nav class="chapters">([\s\S]*?)<\/nav>/) || [, ""])[1].replace(/ class="here"| here/g, "");
   const ids = (h) => [...h.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
   const sameNav = pages.every((p) => navOf(html[p]) === navOf(html.index) && navOf(html.index).length > 0), noDup = pages.every((p) => new Set(ids(html[p])).size === ids(html[p]).length);
@@ -611,6 +611,19 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const size = X.oe.sizes[0].runs, dz = Math.max(Math.abs(size[0].l / size[1].l - 1), Math.abs(size[0].v / size[1].v - 1));
   ok(lj[0] <= 1.312 * 1.01 && lj[1] >= 1.312 * 0.99 && ar[0] <= 150.87 && ar[1] >= 150.87 && dz < 0.03 && oe[0] > 3 * 0.7 * 1.26 * X.oe.epsK && X.oe.lastSplit >= 8,
     `coexistence: Lennard-Jones 3D condenses below ${lj.map((t) => t.toFixed(3)).join("–")} ε/k (published 1.31); our argon below ${ar.map((t) => t.toFixed(0)).join("–")} K (measured 150.87); element 12 below ${oe.map((t) => t.toFixed(0)).join("–")} K; a doubled box moves its densities ${(100 * dz).toFixed(1)}%`);
+}
+
+/* 35 · stars (js/stars.js): the self-consistent star reproduces Lane–Emden's n = 1 profile and n = 3/2 concentration in
+   3D; pinned 4D's monatomic star is bound with E = W/2 and Gauss's is marginal, each obeying the virial theorem; the
+   shell theorem leaves no pull from outside in 3D; the tunnelling integral gives Gamow's 2πη */
+{
+  const S = await import(path.join(here, "../js/stars.js"));
+  const n1 = S.polytrope("newton", 1, { N: 200 }), e1 = Math.max(...n1.r.map((x, i) => Math.abs(n1.rho[i] - Math.sin(Math.PI * x) / (Math.PI * x))));
+  const n15 = S.polytrope("newton", 1.5, { N: 200 }), p4 = S.polytrope("pinned4", 2, { N: 200 }), g4 = S.polytrope("gauss4", 2, { N: 200 });
+  const outer3 = Math.max(...S.outerPull(S.polytrope("newton", 1.5, { N: 80 })).map(([, f]) => Math.abs(f)));
+  const E = 0.01, eta = S.E2 / (S.HBARC * Math.sqrt((2 * E) / 469.459)), G = S.gamow(E, { rn: 1e-6, langer: false });
+  ok(e1 < 1e-4 && near(n15.centralOverMean, 5.99071, 1e-3) && near(p4.bound, 0.5, 1e-4) && Math.abs(g4.bound) < 1e-4 && [n15, p4, g4].every((p) => Math.abs(p.virial) < 1e-4) && outer3 < 1e-9 && near(G, 2 * Math.PI * eta, 1e-3),
+    `stars: Lane–Emden n = 1 to ${e1.toExponential(1)}, n = 3/2 concentration ${n15.centralOverMean.toFixed(3)} (5.991); pinned 4D E/W = ${p4.bound.toFixed(4)}, Gauss 4D ${g4.bound.toFixed(4)}; no pull from outside in 3D; Gamow ${G.toFixed(3)} = 2πη`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
