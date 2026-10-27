@@ -85,8 +85,11 @@ function curves(cat, an, lo = 2.6, step = 0.25) {
 export function salt(d, cat, an) {
   const f = curves(cat, an); let b = { a: 0, E: Infinity };
   const M = d === 3 ? 30 : 12, E = (a, m = M) => saltEnergy(d, a, f, m);
-  for (let a = 3; a <= 7; a += 0.05) { const e = E(a); if (e < b.E) b = { a, E: e }; }
-  for (let a = b.a - 0.05; a <= b.a + 0.05; a += 0.002) { const e = E(a); if (e < b.E) b = { a, E: e }; }
+  for (let a = 3; a <= 7; a += 0.1) { const e = E(a, M / 2); if (e < b.E) b = { a, E: e }; } // coarse, on half-size cubes
+  let lo = b.a - 0.1, hi = b.a + 0.1; const g = (Math.sqrt(5) - 1) / 2; // then golden sections to a thousandth of a bohr
+  let x1 = hi - g * (hi - lo), x2 = lo + g * (hi - lo), f1 = E(x1), f2 = E(x2);
+  while (hi - lo > 1e-3) { if (f1 < f2) { hi = x2; x2 = x1; f2 = f1; x1 = hi - g * (hi - lo); f1 = E(x1); } else { lo = x1; x1 = x2; f1 = f2; x2 = lo + g * (hi - lo); f2 = E(x2); } }
+  b = { a: (lo + hi) / 2, E: E((lo + hi) / 2) };
   // the same-sign R⁻⁵ pull converges only as 1/M over cubes M wide, so the last two cubes are extrapolated (Richardson)
   const conv = [M / 2, M, 2 * M].map((m) => -E(b.a, m) * EV);
   return { a: b.a, U: 2 * conv[2] - conv[1], conv, seam: f.seam };

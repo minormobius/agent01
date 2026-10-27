@@ -311,7 +311,7 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
   "Darbon's diamond is two A₄ lattices, five-fold, and can't sit on a hypercube."]),
  ("forces",["<b>Neutral atoms attract permanently, as −3 S_A S_B / 64 R⁵</b> (S = Σ⟨r²⟩). For element 12 at neon's spacing that's about 14 times neon's whole well.",
   "Dispersion stays −C₆/R⁶ (London's 3/2 becomes 7/4), computed by coupled response, within 11% on our noble gases. In 4D it's weaker than the permanent pull for every noble gas but the first.",
-  "Computed end to end, 4D noble-gas pairs from element 12 on sit 4.5 to 5.25 bohr apart. Counting the far pull, element 12 condenses below about "+KR(OEC)+" K: they would hardly be gases.",
+  "Computed end to end, 4D noble-gas pairs from element 12 on sit 4.5 to 5.25 bohr apart. Simulated, element 12 condenses below "+KR(OES)+" K: they would hardly be gases.",
   "Bond springs and angles carry over. A bond twists three ways, and staggered means inverted through the bond.",
   "Salt water screens by a power law: an ion is overscreened, with a −r⁻⁷ tail."]),
  ("xater",["Pxygen, element 10: 1s² 2s² 2p⁶, two short of a noble gas, so two bonds and three lone pairs. 4D hydrogen holds its electron with 6.05 eV, against Pxygen's "+f(NUM['px']*EV,1)+", so their bond is lopsided.",
@@ -327,7 +327,7 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
  ("gas",["PV = NkT holds in any dimension. A 4D atom carries 2kT, γ = 3/2, and sound runs at 0.61 of the rms speed (ours 0.75).",
   "<b>4D's noble gases are held by the crowd.</b> R⁻⁵ over r³ of space adds up far out: element 12's 24 nearest neighbours give "+f"{OE['firstShell']*100:.0f}"+"% of its crystal's hold, argon's 12 give "+f"{AR['firstShell']*100:.0f}"+"%. Its Boyle temperature is 28 times its well depth (ours 2.8).",
   "<b>A throttle cools them up to tens of thousands of kelvin</b>: element 12 below "+KR(OE['inversion'])+" K, against argon's 794 K. Even 4D's helium cools at room temperature, so a 4D liquefier needs no precooling. Counted by the whole pull, not the well, the gas is ours rescaled.",
-  "<b>Element 12 condenses below about "+KR(OEC)+" K</b>, "+f"{FAC[0]:.0f} to {FAC[1]:.0f}"+" times the well-depth rule. Estimated, not simulated: four is the critical point's upper critical dimension, so mean field should hold. Whether any 4D noble gas stays a gas at room temperature is open.",
+  "<b>Element 12 condenses below "+KR(OES)+" K, simulated</b> (liquid and vapour side by side, checked on Lennard-Jones atoms and our argon). That's where the crowd's rules put it, "+f"{OES[0]/OE['tcWell'][0]:.0f}"+" times the well-depth rule. Element 2 is the one 4D noble gas that might be a gas at room temperature.",
   "<b>A hypothesis: a world of liquids.</b> Gas only when hot, wide liquid ranges, glass more often than crystal: element 12's two best crystals nearly tie. Salts are the exception. Computed end to end, 4D's todium gluoride holds together "+f"{TOG['U']/NAF['U']:.1f}"+" times as hard as our sodium fluoride, which the same method gets to 5%."])]
 def card(i,k,t):
     lis=''.join('<li>'+c+'</li>' for c in P[i][1])

@@ -18,6 +18,7 @@ import { buildShapes, tiles } from "./shapes.js";
 import { buildLiquid } from "./liquid.js";
 import { buildSearch, drawClusters } from "./search.js";
 import * as GAS from "./gas.js";
+import { COEXIST } from "./coexist.js";
 import { names } from "./names.js";
 
 const $ = (id) => document.getElementById(id);
@@ -340,10 +341,22 @@ function drawGasFridge() {
   const ar = gases().find((r) => r.Z === 18), oe = gases().find((r) => r.d === 4 && r.Z === 12), ie = gases().find((r) => r.d === 4 && r.Z === 2);
   $("rFridge").innerHTML = `Computed, argon stops cooling at <b>${kfmt(ar.inversion)} K</b>; measured, at about ${GAS.ARGON.inversion} K. Element 12 stops at <b>${kfmt(oe.inversion)} K</b>, and element 2 at ${kfmt(ie.inversion)} K. The inversion temperature is ${ar.inversionOverBoyle.toFixed(2)} times the Boyle temperature for argon and ${oe.inversionOverBoyle.toFixed(2)} for element 12.`;
 }
+/* the simulated critical point (js/coexist.js), in kelvin over the same range as the rest: both exponents' fits, the
+   pull ÷1.8 up to as computed */
+const SIMKEY = { "3/18": "ar", "4/2": "ie", "4/12": "oe" };
+const simTc = (r) => { const c = COEXIST[SIMKEY[`${r.d}/${r.Z}`]]; return c ? [Math.min(c.Tc, c.TcOther) * r.eps[0], Math.max(c.Tc, c.TcOther) * r.eps[1]] : null; };
+function drawCoexist() {
+  const show = [["lj3", "3D Lennard-Jones", "#ffe0a8"], ["ar", "3D argon, computed", C3], ["lj4", "4D Lennard-Jones", "#8a9cff"], ["ie", "4D element 2", "#c4f4ff"], ["oe", "4D element 12", C4]], series = [];
+  for (const [k, name, c] of show) {
+    const x = COEXIST[k], used = x.points.filter((p) => x.used.includes(p.T)), Tc = x.Tc;
+    series.push({ pts: [...used.map((p) => [p.v, p.T]), [x.rhoc, Tc], ...used.slice().reverse().map((p) => [p.l, p.T])], c, label: name, w: 1.6 }, { pts: x.points.flatMap((p) => [[p.l, p.T], [p.v, p.T]]), c, dots: true });
+  }
+  chart($("cCoexist"), { key: "kCoexist", x: [0, 2.8], y: [0, 10], xl: "density × R^d (R: the pair's distance)", yl: "temperature ÷ well depth", series });
+}
 function drawGasTab() {
   const real = { 10: 44.4, 18: 150.87, 36: 209.41 }; // CRC, via the critical-points data page (LITERATURE.md)
-  const rows = gases().map((r) => `<tr><td class="d${r.d}">${r.d}D ${gasName(r)}</td><td>${kfmt(r.eps)}</td><td>${kfmt(r.boyle)}</td><td>${kfmt(r.inversion)}</td><td>${kfmt(r.tcWell)}</td><td>${kfmt(r.tcBoyle)}</td><td>${kfmt(r.tcCrystal)}</td><td>${real[r.Z] && r.d === 3 ? real[r.Z] : "—"}</td></tr>`);
-  $("gasTab").innerHTML = `<table><tr><th>gas</th><th>well ε/k</th><th>Boyle</th><th>inversion</th><th>critical, from the well</th><th>from Boyle</th><th>from the crystal</th><th>measured</th></tr>${rows.join("")}</table><p class="read">Kelvin, each a range: the computed well divided by 1.8 up to the computed well, as the <a href="forces.html#pair">forces chapter</a> reads it. The three critical-point rules are taken from our argon: 1.26 ε/k; 8/27 (mean field) to 0.37 (argon) of the Boyle temperature; ${(GAS.ARGON.Tc / GAS.ARGON.cohesive).toFixed(3)} of the crystal's hold at the pair's spacing.</p>`;
+  const rows = gases().map((r) => `<tr><td class="d${r.d}">${r.d}D ${gasName(r)}</td><td>${kfmt(r.eps)}</td><td>${kfmt(r.boyle)}</td><td>${kfmt(r.inversion)}</td><td>${kfmt(r.tcWell)}</td><td>${kfmt(r.tcBoyle)}</td><td>${kfmt(r.tcCrystal)}</td><td>${simTc(r) ? `<b>${kfmt(simTc(r))}</b>` : "—"}</td><td>${real[r.Z] && r.d === 3 ? real[r.Z] : "—"}</td></tr>`);
+  $("gasTab").innerHTML = `<table><tr><th>gas</th><th>well ε/k</th><th>Boyle</th><th>inversion</th><th>critical, from the well</th><th>from Boyle</th><th>from the crystal</th><th>simulated</th><th>measured</th></tr>${rows.join("")}</table><p class="read">Kelvin, each a range: the computed well divided by 1.8 up to the computed well, as the <a href="forces.html#pair">forces chapter</a> reads it. The three critical-point rules are taken from our argon: 1.26 ε/k; 8/27 (mean field) to 0.37 (argon) of the Boyle temperature; ${(GAS.ARGON.Tc / GAS.ARGON.cohesive).toFixed(3)} of the crystal's hold at the pair's spacing.</p>`;
 }
 
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
@@ -356,7 +369,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab]];
+const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

@@ -602,5 +602,16 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `fields: a loop's far field r^${s3.toFixed(2)} (ours), r^${s4.toFixed(2)} (pinned 4D), r^${sM.toFixed(2)} (4D Maxwell); cyclotron rates ${r.fast} and ${r.slow.toFixed(2)}; the all-left path closes; the neutral shell leaks a²/8s³`);
 }
 
+/* 34 · liquid and vapour, simulated (tools/coexist.mjs → js/coexist.js): Lennard-Jones in 3D condenses where it's
+   published to (1.31 ε/k); our argon's computed pair holds the measured 150.87 K; a bigger box agrees; and element
+   12's critical point is where chapter 12 says, at least three times the well-depth rule */
+{
+  const { COEXIST: X } = await import(path.join(here, "../js/coexist.js")), rng = (k) => [Math.min(X[k].Tc, X[k].TcOther), Math.max(X[k].Tc, X[k].TcOther)];
+  const lj = rng("lj3"), ar = rng("ar").map((t, i) => (t * X.ar.epsK) / (i ? 1 : 1.8)), oe = rng("oe").map((t, i) => (t * X.oe.epsK) / (i ? 1 : 1.8));
+  const size = X.oe.sizes[0].runs, dz = Math.max(Math.abs(size[0].l / size[1].l - 1), Math.abs(size[0].v / size[1].v - 1));
+  ok(lj[0] <= 1.312 * 1.01 && lj[1] >= 1.312 * 0.99 && ar[0] <= 150.87 && ar[1] >= 150.87 && dz < 0.03 && oe[0] > 3 * 0.7 * 1.26 * X.oe.epsK && X.oe.lastSplit >= 8,
+    `coexistence: Lennard-Jones 3D condenses below ${lj.map((t) => t.toFixed(3)).join("–")} ε/k (published 1.31); our argon below ${ar.map((t) => t.toFixed(0)).join("–")} K (measured 150.87); element 12 below ${oe.map((t) => t.toFixed(0)).join("–")} K; a doubled box moves its densities ${(100 * dz).toFixed(1)}%`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
