@@ -17,6 +17,8 @@ import { SYM, IE_REAL, realConfig, isNoble, layout, role } from "./periodic.js";
 import { buildShapes, tiles } from "./shapes.js";
 import { buildLiquid } from "./liquid.js";
 import { buildSearch, drawClusters } from "./search.js";
+import * as GAS from "./gas.js";
+import { names } from "./names.js";
 
 const $ = (id) => document.getElementById(id);
 const C3 = "#ffb46b", C4 = "#6fe0ff", DIM = "#9a958c", GRID = "#262833", BAD = "#ff6b6b";
@@ -51,8 +53,10 @@ function chart(cv, o) {
     g.stroke(); g.setLineDash([]);
   }
   g.restore();
+  // a crowded chart keeps its key in the page, under it, instead of over the curves
+  if (o.key) $(o.key).innerHTML = o.series.filter((s) => s.label).map((s) => `<span style="color:${s.c};white-space:nowrap">${s.dash ? "╌" : "━"} ${s.label}</span>`).join(" &nbsp; ");
   let ly = T + 4; const lx = o.legendLeft ? L + 6 : w - R - 4; g.textAlign = o.legendLeft ? "left" : "right"; g.textBaseline = "top";
-  for (const s of o.series) if (s.label) { g.fillStyle = s.c; g.fillText(s.label, lx, ly); ly += 14; }
+  if (!o.key) for (const s of o.series) if (s.label) { g.fillStyle = s.c; g.fillText(s.label, lx, ly); ly += 14; }
   return { X, Y };
 }
 const range = (a, b, n, log = false) => Array.from({ length: n }, (_, i) => (log ? a * (b / a) ** (i / (n - 1)) : a + ((b - a) * i) / (n - 1)));
@@ -254,7 +258,7 @@ function drawWells() {
     const el = TABLE[4][p.Z - 1], S = FF.sumR2(el), B = FF.permanentB(S, S), C = c6(4, p.Z), w0 = FF.minimum(FF.pairCurve(PAIR_RS, p)), w = FF.minimum(FF.fullPair(PAIR_RS, p, B, C)), fit = FF.fitRepulsion(PAIR_RS, p, B), lo = -w.E / FF.OVERBIND, hi = -w.E;
     return `<tr><td class="d4">${p.Z}</td><td>${w.R.toFixed(2)}</td><td>${(lo * meV).toFixed(0)}–${(hi * meV).toFixed(0)}</td><td>${(-w0.E * meV).toFixed(0)}</td><td>${FF.boilK(lo).toFixed(0)}–${FF.boilK(hi).toFixed(0)}</td><td>${fit.A.toFixed(0)}</td><td>${fit.beta.toFixed(2)}</td><td>${B.toFixed(1)}</td><td>${C.toFixed(1)}</td></tr>`;
   });
-  $("wellTab").innerHTML = `<table><tr><th>4D noble gas</th><th>well at (bohr)</th><th>depth (meV)</th><th>of it, without dispersion</th><th>boils near (K)</th><th>A</th><th>β</th><th>B</th><th>C₆</th></tr>${rows.join("")}</table><p class="read">Atomic units for A, β, B, C₆, in V(R) = A e^(−βR) − B/R⁵ − C₆ f₆(βR)/R⁶. The fit puts each well within 0.2 bohr and about 20% of the computed curve; the molecular-dynamics view can use the computed curve itself. "Boils near" is 0.7 × depth/k, as our noble gases boil, over the depth's range.</p>`;
+  $("wellTab").innerHTML = `<table><tr><th>4D noble gas</th><th>well at (bohr)</th><th>depth (meV)</th><th>of it, without dispersion</th><th>boils near (K)</th><th>A</th><th>β</th><th>B</th><th>C₆</th></tr>${rows.join("")}</table><p class="read">Atomic units for A, β, B, C₆, in V(R) = A e^(−βR) − B/R⁵ − C₆ f₆(βR)/R⁶. The fit puts each well within 0.2 bohr and about 20% of the computed curve; the molecular-dynamics view can use the computed curve itself. "Boils near" is 0.7 × depth/k, as our noble gases boil, over the depth's range. That rule counts only the well, and in 4D it undercounts: <a href="gas.html#boil">chapter 12</a> counts the far pull.</p>`;
   const Rs = range(3.5, 12, 300), cols = ["#7dffb0", "#6fe0ff", "#c79bff"], series = nob4.slice(1, 4).map((p, i) => { const el = TABLE[4][p.Z - 1], S = FF.sumR2(el), f = FF.fullPair(PAIR_RS, p, FF.permanentB(S, S), c6(4, p.Z)); return { pts: Rs.map((R) => [R, f(R) * meV]), c: cols[i], label: `4D element ${p.Z}, computed` }; });
   series.push({ pts: Rs.map((R) => [R, FF.lj(R, FF.MEASURED_LJ.Ar) * meV]), c: C3, label: "our argon, measured" });
   chart($("cWells"), { x: [3.5, 12], y: [-600, 150], xl: "distance between the two atoms (bohr)", yl: "energy (meV)", series });
@@ -300,6 +304,48 @@ function drawCensus() {
   $("rPairs").innerHTML = `In 4D the strongest networks are ${formula(best[0])} at ${network(best[0]).toFixed(1)} and ${formula(best[1])} at ${network(best[1]).toFixed(1)}, ${(network(best[0]) / w).toFixed(1)} and ${(network(best[1]) / w).toFixed(1)} times water's ${w.toFixed(1)}.`;
 }
 
+/* ------------------------------------------------------------- 12 · gases */
+let GASES = null; // the noble gases' rows (js/gas.js), computed once: about half a second
+const gases = () => (GASES ??= GAS.nobleGases({ FF, PAIRS, RS: PAIR_RS, TABLE, RESPONSE }));
+const GCOL = { "3/10": "#ffe0a8", "3/18": C3, "3/36": "#ff7f50", "4/2": "#c4f4ff", "4/12": C4, "4/22": "#8a9cff" };
+const N4 = names(TABLE, 4), gasName = (r) => (r.d === 3 ? ["", "neon", "argon", "krypton"][[0, 10, 18, 36].indexOf(r.Z)] : `${N4.get(r.Z).name} (${r.Z})`);
+const kfmt = (a) => a.map((x) => (x >= 1000 ? +x.toPrecision(3) : Math.round(x)).toLocaleString("en")).join("–");
+function drawGasSpeeds() {
+  const vs = range(0, 5, 250), sp = [3, 4].map((d) => ({ d, c: d === 3 ? C3 : C4 }));
+  chart($("cGasSpeeds"), { x: [0, 5], y: [0, 0.75], xl: "speed, in units of √(kT/m)", yl: "share of atoms", series: sp.map(({ d, c }) => ({ pts: vs.map((v) => [v, GAS.maxwell(v, d, 1)]), c, label: `${d}D` })),
+    vlines: sp.flatMap(({ d, c }) => [{ x: GAS.vSound(d, 1), c, label: `sound ${d}D`, dy: d === 4 ? 14 : 0 }]) });
+  $("rSpeeds").innerHTML = `At the same temperature and mass, a 4D atom's most likely speed is √3 = ${GAS.vLikely(4, 1).toFixed(3)} (ours √2 = ${GAS.vLikely(3, 1).toFixed(3)}), its mean ${GAS.vMean(4, 1).toFixed(3)} (ours ${GAS.vMean(3, 1).toFixed(3)}) and its rms 2 (ours √3), in units of √(kT/m). Sound is slower, √(γ) = ${GAS.vSound(4, 1).toFixed(3)} against our ${GAS.vSound(3, 1).toFixed(3)}: <b>sound runs at ${(GAS.vSound(4, 1) / GAS.vRms(4, 1)).toFixed(3)} of the rms speed in 4D</b> and ${(GAS.vSound(3, 1) / GAS.vRms(3, 1)).toFixed(3)} in ours.`;
+}
+function drawGasB2() {
+  const T = range(0.5, 300, 90, true), rows = gases().filter((r) => r.Z !== 10);
+  const series = rows.map((r) => { const e = r.eps[1]; return { pts: T.map((t) => [t, GAS.B2(r.P.u, r.d, t * e, { ...r.P.opt, h: 0.01 }) / r.b0]), c: GCOL[`${r.d}/${r.Z}`], label: `${r.d}D ${gasName(r)}` }; });
+  const lj = FF.MEASURED_LJ.Ar, rm = 2 ** (1 / 6) * lj.sigma, ek = lj.eps / 3.166811563e-6, o = { rmin: 0.6 * lj.sigma, rmax: 60, tail: [{ a: 4 * lj.eps * lj.sigma ** 6, n: 6 }], h: 0.01 };
+  series.push({ pts: T.map((t) => [t, GAS.B2((R) => FF.lj(R, lj), 3, t * ek, o) / GAS.hardSphereB2(3, rm)]), c: DIM, dash: [5, 4], w: 1.5, label: "our argon, measured (fit)" });
+  chart($("cGasB2"), { key: "kGasB2", x: [0.5, 300], y: [-2, 0.6], logx: true, xl: "temperature, in units of the well depth ε/k", yl: "B₂ ÷ the pair's own size", series, vlines: [{ x: 2.8, c: C3, label: "ours cross" }, { x: 28, c: C4, label: "4D's cross" }] });
+}
+function drawGasFar() {
+  const xs = range(1, 30, 60, true), rows = gases().filter((r) => r.Z !== 10);
+  chart($("cGasFar"), { key: "kGasFar", x: [1, 30], y: [0, 1], logx: true, xl: "out to r, in units of the well's distance R_min", yl: "share of the pull on B₂", series: rows.map((r) => ({ pts: xs.map((x) => [x, 1 - GAS.farShare(r.P.u, r.d, 3 * r.eps[1], r.P.opt, r.R, x, 0.01)]), c: GCOL[`${r.d}/${r.Z}`], label: `${r.d}D ${gasName(r)}` })) });
+  chart($("cGasCrystal"), { key: "kGasCrystal", x: [1, 30], y: [0, 1], logx: true, xl: "out to r, in neighbour spacings", yl: "share of the crystal's hold", series: rows.map((r) => ({ pts: r.lattice.cumulative.filter(([x]) => x <= 30), c: GCOL[`${r.d}/${r.Z}`], label: `${r.d}D ${gasName(r)}` })) });
+  const ar = gases().find((r) => r.Z === 18), oe = gases().find((r) => r.d === 4 && r.Z === 12);
+  $("rFar").innerHTML = `At three times the well depth, beyond 1.5 R_min: <b>${(100 * GAS.farShare(ar.P.u, 3, 3 * ar.eps[1], ar.P.opt, ar.R, 1.5)).toFixed(0)}%</b> of argon's pull, <b>${(100 * GAS.farShare(oe.P.u, 4, 3 * oe.eps[1], oe.P.opt, oe.R, 1.5)).toFixed(0)}%</b> of element 12's. In the crystal, at the pair's own spacing, argon's ${ar.neighbours} nearest neighbours give <b>${(100 * ar.firstShell).toFixed(0)}%</b> of its hold, ${ar.crystal.toFixed(1)} ε in all. Element 12's ${oe.neighbours} give <b>${(100 * oe.firstShell).toFixed(0)}%</b> of a hold of <b>${oe.crystal.toFixed(0)} ε</b>.`;
+}
+function drawGasFridge() {
+  const rows = gases().filter((r) => r.Z !== 10), tau = range(0.4, 200, 70, true), lo = 1 / FF.OVERBIND, series = [];
+  for (const r of rows) {
+    const e = r.eps[1], J = tau.map((t) => [t, GAS.jtNumerator(r.P.u, r.d, t * e, { ...r.P.opt, h: 0.01 }) / (r.b0 * GAS.Cp(r.d))]), c = GCOL[`${r.d}/${r.Z}`];
+    series.push({ pts: J.map(([t, y]) => [t * e, y]), c, label: `${r.d}D ${gasName(r)}`, w: 2 }, { pts: J.map(([t, y]) => [t * e * lo, y]), c, w: 1, dash: [4, 3], label: r.Z === 12 ? "dashed: the pull ÷ 1.8" : undefined });
+  }
+  chart($("cGasFridge"), { key: "kGasFridge", x: [20, 3e5], y: [-0.4, 2.5], logx: true, xl: "temperature (K)", yl: "ΔT/T per unit of crowding", series, vlines: [{ x: 300, c: DIM, label: "room" }, { x: GAS.ARGON.inversion, c: C3, label: "argon, measured", dy: 14 }] });
+  const ar = gases().find((r) => r.Z === 18), oe = gases().find((r) => r.d === 4 && r.Z === 12), ie = gases().find((r) => r.d === 4 && r.Z === 2);
+  $("rFridge").innerHTML = `Computed, argon stops cooling at <b>${kfmt(ar.inversion)} K</b>; measured, at about ${GAS.ARGON.inversion} K. Element 12 stops at <b>${kfmt(oe.inversion)} K</b>, and element 2 at ${kfmt(ie.inversion)} K. The inversion temperature is ${ar.inversionOverBoyle.toFixed(2)} times the Boyle temperature for argon and ${oe.inversionOverBoyle.toFixed(2)} for element 12.`;
+}
+function drawGasTab() {
+  const real = { 10: 44.4, 18: 150.87, 36: 209.41 }; // CRC, via the critical-points data page (LITERATURE.md)
+  const rows = gases().map((r) => `<tr><td class="d${r.d}">${r.d}D ${gasName(r)}</td><td>${kfmt(r.eps)}</td><td>${kfmt(r.boyle)}</td><td>${kfmt(r.inversion)}</td><td>${kfmt(r.tcWell)}</td><td>${kfmt(r.tcBoyle)}</td><td>${kfmt(r.tcCrystal)}</td><td>${real[r.Z] && r.d === 3 ? real[r.Z] : "—"}</td></tr>`);
+  $("gasTab").innerHTML = `<table><tr><th>gas</th><th>well ε/k</th><th>Boyle</th><th>inversion</th><th>critical, from the well</th><th>from Boyle</th><th>from the crystal</th><th>measured</th></tr>${rows.join("")}</table><p class="read">Kelvin, each a range: the computed well divided by 1.8 up to the computed well, as the <a href="forces.html#pair">forces chapter</a> reads it. The three critical-point rules are taken from our argon: 1.26 ε/k; 8/27 (mean field) to 0.37 (argon) of the Boyle temperature; ${(GAS.ARGON.Tc / GAS.ARGON.cohesive).toFixed(3)} of the crystal's hold at the pair's spacing.</p>`;
+}
+
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
 function energySlope(d, a, b) {
   const xs = [], ys = []; for (const el of TABLE[d]) if (el.Z >= a && el.Z <= b) { xs.push(Math.log(el.Z)); ys.push(Math.log(-el.E)); }
@@ -310,7 +356,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus]];
+const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

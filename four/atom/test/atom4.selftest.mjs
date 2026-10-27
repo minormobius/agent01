@@ -255,7 +255,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 
 /* 14 · the chapters: one landing and ten pages, the same nav on each, no id twice, every drawing's element somewhere */
 {
-  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "xater", "census", "search"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
+  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "xater", "census", "search", "gas"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
   const navOf = (h) => (h.match(/<nav class="chapters">([\s\S]*?)<\/nav>/) || [, ""])[1].replace(/ class="here"| here/g, "");
   const ids = (h) => [...h.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
   const sameNav = pages.every((p) => navOf(html[p]) === navOf(html.index) && navOf(html.index).length > 0), noDup = pages.every((p) => new Set(ids(html[p])).size === ids(html[p]).length);
@@ -533,6 +533,34 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     const missing = want.filter((id) => !ids.has(id) && !/\$\{/.test(id));
     ok(missing.length === 0, `${page.split("/").at(-2)}/: every element its script draws into is on the page${missing.length ? ` (missing: ${missing.join(", ")})` : ""}`);
   }
+}
+
+/* 29 · gases (js/gas.js), chapter 12: the integrator against closed forms and Lennard-Jones's known temperatures,
+   the lattice sum against Lennard-Jones's fcc crystal, our argon's measured numbers inside the computed ranges, and
+   the 4D claims the chapter states */
+{
+  const G = await import(path.join(here, "../js/gas.js")), FF = await import(path.join(here, "../js/forces.js")), { PAIRS, RS } = await import(path.join(here, "../js/pairs.js"));
+  const { TABLE } = await import(path.join(here, "../js/table.js")), { RESPONSE } = await import(path.join(here, "../js/response.js")), KB = 3.166811563e-6;
+  let worst = 0;
+  for (const d of [2, 3, 4, 5]) {
+    worst = Math.max(worst, Math.abs(G.B2(() => 0, d, 300, { rmin: 2 }) / G.hardSphereB2(d, 2) - 1), Math.abs(G.B2((r) => (r < 3 ? -0.001 : 0), d, 300, { rmin: 2 }) / G.squareWellB2(d, 2, 1.5, 0.001, 300) - 1));
+  }
+  const norm = [3, 4].map((d) => { let n = 0, m = 0; for (let v = 0.0005; v < 12; v += 0.001) { const f = G.maxwell(v, d, 1); n += f * 0.001; m += v * f * 0.001; } return [n, m / G.vMean(d, 1)]; });
+  ok(worst < 1e-4 && norm.every(([n, m]) => near(n, 1, 1e-6) && near(m, 1, 1e-6)), `B₂ exact against hard spheres and square wells in 2–5D (worst ${worst.toExponential(1)}); Maxwell's speeds normalized, with the right mean, in 3D and 4D`);
+  const lj = (r) => 4 * KB * (r ** -12 - r ** -6), o = { rmin: 0.5, rmax: 12, tail: [{ a: 4 * KB, n: 6 }], h: 0.0005 }, tb = G.boyle(lj, 3, o, 0.5, 100), ti = G.inversion(lj, 3, o, 0.5, 100);
+  let fcc = 0; for (let a = 1.05; a < 1.15; a += 0.0005) fcc = Math.min(fcc, G.lattice(lj, 3, a, { tail: [{ a: 4 * KB, n: 6 }], rmax: 12 }).E / KB);
+  ok(near(tb, 3.418, 1e-3) && near(ti, 6.431, 1e-3) && near(fcc, -8.61, 2e-3), `Lennard-Jones: Boyle ${tb.toFixed(4)} ε/k, inversion ${ti.toFixed(3)} ε/k, fcc crystal ${fcc.toFixed(3)} ε per atom (known: 3.418, 6.43, −8.61)`);
+  const rows = G.nobleGases({ FF, PAIRS, RS, TABLE, RESPONSE }), g = (d, Z) => rows.find((r) => r.d === d && r.Z === Z), ar = g(3, 18), oe = g(4, 12), bg = g(4, 22), ie = g(4, 2);
+  const inside = ([a, b], x) => a <= x && x <= b, A = G.ARGON;
+  ok(inside(ar.boyle, A.boyle) && inside(ar.inversion, A.inversion) && [ar.tcWell, ar.tcBoyle, ar.tcCrystal].every((t) => inside(t, A.Tc)) && inside(g(3, 36).tcWell, 209.41) && inside(g(3, 10).tcWell, 44.4),
+    `our argon, computed: Boyle ${ar.boyle.map(Math.round).join("–")} K (measured ~${A.boyle}), inversion ${ar.inversion.map(Math.round).join("–")} K (~${A.inversion}); all three critical-point rules hold its measured ${A.Tc} K`);
+  const M = (P, m) => G.lattice(P.u, 4, P.well.R, P.opt, m).E, P12 = G.noblePotential(4, 12, { FF, PAIRS, RS, TABLE, RESPONSE });
+  ok(near(M(P12, 6), M(P12, 8), 5e-3), `4D element 12's crystal sum has converged: ${(M(P12, 6) / KB).toFixed(0)} and ${(M(P12, 8) / KB).toFixed(0)} K per atom, summed out to 6 and 8 lattice steps`);
+  const far = G.farShare(P12.u, 4, 3 * oe.eps[1], P12.opt, oe.R, 1.5);
+  ok([oe, bg, ie].every((r) => r.boyleOverEps > 20 && r.firstShell < 0.45 && r.inversionOverBoyle > 1.6 && r.inversionOverBoyle < 2.1) && [ar, g(3, 36)].every((r) => r.boyleOverEps < 3.5 && r.firstShell > 0.75 && r.inversionOverBoyle > 1.6 && r.inversionOverBoyle < 2.1) && far > 0.5,
+    `the chapter's claims: 4D's Boyle temperatures are ${[ie, oe, bg].map((r) => r.boyleOverEps.toFixed(0)).join(", ")} well depths (ours ${[ar, g(3, 36)].map((r) => r.boyleOverEps.toFixed(1)).join(", ")}); nearest neighbours give ${(100 * oe.firstShell).toFixed(0)}% of element 12's crystal (argon ${(100 * ar.firstShell).toFixed(0)}%); ${(100 * far).toFixed(0)}% of its pull is from beyond 1.5 R_min; inversion ÷ Boyle stays near 1.9`);
+  ok(Math.min(oe.tcBoyle[0], oe.tcCrystal[0]) > 3 * oe.tcWell[0] && Math.max(oe.tcBoyle[1], oe.tcCrystal[1]) > 3 * oe.tcWell[1] && oe.inversion[0] > 3e4,
+    `element 12 condenses below ${Math.round(Math.min(oe.tcBoyle[0], oe.tcCrystal[0]))}–${Math.round(Math.max(oe.tcBoyle[1], oe.tcCrystal[1]))} K by the crowd's rules, at each end over three times the well rule's ${oe.tcWell.map(Math.round).join("–")}; a throttle cools it below ${Math.round(oe.inversion[0])} K`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

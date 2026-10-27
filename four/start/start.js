@@ -9,6 +9,10 @@ import { names, OURS } from "../atom/js/names.js";
 import { PAIRMIN } from "../atom/js/pairmin.js";
 import { lineColour } from "../lumen/js/optics.js";
 import { svg as fillSvg, ourOccupancy, parseConfig, nobles } from "../table/filling.js";
+import * as GAS from "../atom/js/gas.js";
+import * as FF from "../atom/js/forces.js";
+import { PAIRS, RS } from "../atom/js/pairs.js";
+import { RESPONSE } from "../atom/js/response.js";
 
 const $ = (id) => document.getElementById(id), EV = 27.2114, KCAL = 627.509;
 const C3 = "#ffb46b", C4 = "#6fe0ff", PIN = "#c79bff", DIM = "#9a958c";
@@ -166,11 +170,31 @@ function drawGas() {
   if (document.visibilityState === "visible") requestAnimationFrame(drawGas); else setTimeout(drawGas, 500);
 }
 
+/* 11 · the refrigerator: a throttle cools a gas below its inversion temperature. Argon and 4D's element 12, from their
+   computed pairs (the chapter's js/gas.js), with the pull as computed and divided by 1.8 */
+let fridge = null;
+function toy11() {
+  const T = 10 ** +$("t11").value;
+  fridge ??= [[3, 18, "our argon", C3], [4, 12, "4D element 12", C4]].map(([d, Z, name, c]) => {
+    const P = GAS.noblePotential(d, Z, { FF, PAIRS, RS, TABLE, RESPONSE }), e = -P.well.E / 3.166811563e-6, b0 = GAS.hardSphereB2(d, P.well.R);
+    const y = (t) => GAS.jtNumerator(P.u, d, t * e, { ...P.opt, h: 0.01 }) / (b0 * GAS.Cp(d)); // ΔT/T per unit of crowding, at t = T/ε
+    const tau = range(0.4, 150, 60, true).map((t) => [t, y(t)]);
+    return { name, c, e, y, tau, inv: GAS.inversion(P.u, d, P.opt, 1) };
+  });
+  const lo = 1 / FF.OVERBIND, series = fridge.flatMap((g) => [{ pts: g.tau.map(([t, v]) => [t * g.e, v]), c: g.c, label: g.name }, { pts: g.tau.map(([t, v]) => [t * g.e * lo, v]), c: g.c, w: 1, dash: [4, 3] }]);
+  plot($("c11"), { x: [30, 1e5], y: [-0.4, 2.5], logx: true, xl: "temperature (K)", yl: "cooling per throttle", series, hline: 0, vlines: [{ x: T, c: "#e9e4da" }] });
+  $("t11v").textContent = `${(+T.toPrecision(2)).toLocaleString("en")} K`;
+  const say = (g) => { const a = g.y(T / g.e), b = g.y(T / (g.e * lo)), [x, z] = [a, b].sort((p, q) => p - q), dT = (v) => Math.abs(0.01 * v * T).toPrecision(2);
+    return x > 0 ? `${g.name} <b>cools</b>, by ${dT(x)} to ${dT(z)} K` : z < 0 ? `${g.name} <b>warms</b>, by ${dT(z)} to ${dT(x)} K` : `${g.name} is near its inversion temperature`; };
+  $("r11").innerHTML = `Throttled from a gas 1% crowded down to empty: ${fridge.map(say).join("; ")}. Argon stops cooling above ${Math.round(fridge[0].inv * lo / 10) * 10}–${(Math.round(fridge[0].inv / 10) * 10).toLocaleString("en")} K (measured: 794 K). Element 12 keeps cooling to ${(Math.round(fridge[1].inv * lo / 1000) * 1000).toLocaleString("en")}–${(Math.round(fridge[1].inv / 1000) * 1000).toLocaleString("en")} K.`;
+}
+
 // wiring
 seg("w1", (v) => { world1 = v; if (v !== "4g") { $("z1").max = v === "3" ? 36 : 78; $("z1").value = z1[v]; } toy1(); });
 $("g1").addEventListener("input", (e) => { g1 = +e.target.value; toy1(); });
 $("z1").addEventListener("input", (e) => { z1[world1] = +e.target.value; toy1(); });
 $("z8").addEventListener("input", (e) => toy8(+e.target.value));
-const all = () => { toy1(); toy2(); toy4(); toy7(); toy10(); };
+$("t11").addEventListener("input", toy11);
+const all = () => { toy1(); toy2(); toy4(); toy7(); toy10(); toy11(); };
 all(); toy8(12); requestAnimationFrame(drawGas);
 let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(all, 150); });

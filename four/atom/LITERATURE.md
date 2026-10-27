@@ -163,6 +163,31 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
   *index* for the ten stationary points (via the supplementary data of van Duijneveldt-van de Rijdt et al., PCCP 2003);
   that just one is a minimum is *from memory; verify*
 
+### Gases (chapter 12)
+- Critical points of the elements, Wikipedia data page, compiling the CRC Handbook and others: neon 44.4 K, argon
+  150.87 K (other columns 150.85–151.15), krypton 209.41 K, helium 5.19 K. The measured critical points the rules are
+  checked against. — *index* (the data page read; the CRC itself not)
+- Argon's Joule–Thomson inversion temperature at low pressure, about 794 K: from a cryogenics lecture table (Seoul
+  National University) listing N₂ at 621–623 K and He at 34–51 K beside it. Hydrogen's ≈ 202 K and helium's ≈ 51 K
+  also appear in encyclopedia summaries of the effect. — *cited* (secondary tables only; a primary measurement is
+  still to be found before it goes in a paper)
+- Argon's Boyle temperature: 407 K in an Oxford thermal-physics handout (A. Schekochihin), 411 K and 392 K in other
+  sources (the spread is noted in arXiv:1303.5307). The chapter quotes "about 407, sources give 392 to 411". — *cited*
+- Argon's second virial coefficient at 298.15 K, about −15.8 cm³/mol (lecture tables); the measured data are compiled
+  in J. H. Dymond & E. B. Smith, *The Virial Coefficients of Pure Gases and Mixtures* (Clarendon, Oxford, 1980), and
+  argon's reference equation of state is Ch. Tegeler, R. Span & W. Wagner, J. Phys. Chem. Ref. Data **28**, 779
+  (1999). — *cited* (the value from secondary tables; Dymond & Smith and Tegeler et al. not read)
+- Lennard-Jones B₂: Boyle temperature 3.418 ε/k and low-pressure inversion 6.43 ε/k, which our integrator
+  reproduces (3.4179 and 6.4308). — *from memory; verify* against a published table (e.g. Vega et al., or the
+  standard texts) before citing
+- Solid argon's cohesive energy, 0.080 eV per atom: C. Kittel, *Introduction to Solid State Physics*, the crystal
+  binding chapter's table of inert-gas crystals; also −2941 μHa in arXiv:1908.00601. — *cited* (Kittel's table seen
+  only as reproduced in lecture slides)
+- The liquid–vapour critical point is in the Ising universality class, whose upper critical dimension is four: at
+  d = 4 the exponents are mean field's, with multiplicative logarithmic corrections. K. G. Wilson & M. E. Fisher,
+  "Critical exponents in 3.99 dimensions", Phys. Rev. Lett. **28**, 240 (1972); the logarithms as in R. Kenna's work
+  on the 4D Ising and O(N) models. — *cited* (standard; the specific papers not read for this)
+
 ## Next
 
 1. A citation-index forward search on Pyykkö & Zhao (1991) and Négadi & Kibler (1996). The web search is done.

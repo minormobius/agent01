@@ -5,7 +5,7 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
-A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in eleven chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.
+A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in twelve chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.
 
 ## Facts
 
@@ -142,6 +142,11 @@ for games, and this is a modelling programme with publications to come. The game
   values). Its pose maths and descent live in `atom/js/landscape.js`, shared
   with chapter 11's live search (`js/search.js`); a descent counts only when
   |g| < 10⁻⁶ (stalls once passed for extra minima).
+  `js/gas.js` (no DOM, no data) is chapter 12: the ideal gas in any d, B₂(T) by direct integration with an
+  analytic tail, Boyle and inversion temperatures, the crystal's lattice sum over D_d (fcc, and the 24-cell
+  lattice), and `nobleGases(mods)`, which reads the noble-gas pairs as the forces chapter does (÷1.8 … ×1). The
+  critical-point rules are corresponding-states rules read off our argon (`ARGON`): estimates, labelled so.
+  `atom/tools/gasnumbers.mjs` prints its numbers as JSON for `gengas.py`.
   `js/clusters.js` is **generated** by `atom/tools/clusters.mjs` (minima of
   3–6-molecule clusters on the force field; `--shard i/m` splits a search
   across machines). **Long runs go to the runner, not the sandbox** (below) . `js/census.js` is **generated** by
@@ -156,8 +161,8 @@ for games, and this is a modelling programme with publications to come. The game
   molecular-dynamics view. Imports `../../lumen/js/optics.js` for line and
   sky colours; Lumen⁴'s page links back to the light chapter. See
   [`atom/README.md`](atom/README.md).
-- **ATOM⁴'s pages are generated.** The eleven chapters and the landing come from
-  `atom/tools/pages/genpages.py` (it execs `genxater.py`, `gencensus.py` and `gensearch.py` beside it, and cuts the
+- **ATOM⁴'s pages are generated.** The twelve chapters and the landing come from
+  `atom/tools/pages/genpages.py` (it execs `genxater.py`, `gencensus.py`, `gensearch.py` and `gengas.py` beside it, and cuts the
   first chapters from `old-index.html`). Each chapter's body and the landing's cards live there, with their numbers
   pulled from the baked `atom/js/*.js`. So change a chapter there, never in the HTML, then
   `python3 four/atom/tools/pages/genpages.py`. **A new conclusion goes in its chapter and on the landing's cards.**

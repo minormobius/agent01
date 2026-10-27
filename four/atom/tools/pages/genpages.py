@@ -24,7 +24,8 @@ CH=[("force","The force","Why 1/r, what it takes to rewrite Maxwell for it, the 
     ("forces","Forces between molecules","A classical force field, term by term, worked out under the pinned 1/r: what carries over, what changes, and the new one."),
     ("xater","Pxygen and Xater","Element 10 and its water, computed by a molecular solver written for any dimension and checked on our own water: Xater's shape, its pull, and its hydrogen bond."),
     ("census","Which water","Every hydride of 4D's lighter rows, computed, with our ammonia, water and HF as the check: which way their bonds lean, their shapes, and which would make the strongest liquid."),
-    ("search","Ten ways to meet","How chapter 10 first missed the strongest pairs, and what the miss shows: two molecules meet in six ways in our world and ten in 4D, and a crowd of them in far more. Watch the search, and see what it can and can't promise.")]
+    ("search","Ten ways to meet","How chapter 10 first missed the strongest pairs, and what the miss shows: two molecules meet in six ways in our world and ten in 4D, and a crowd of them in far more. Watch the search, and see what it can and can't promise."),
+    ("gas","Gases","PV = NkT in any dimension, the real gas's B₂ computed from the pairs, a refrigerator's throttle, and why 4D's noble gases are held by the crowd rather than their neighbours, so that they boil far hotter than their wells suggest.")]
 def head(title, desc):
     return f'''<!doctype html>
 <html lang="en">
@@ -271,8 +272,9 @@ forces='''<section id="field">
 exec(open(SP+'genxater.py').read())
 exec(open(SP+'gencensus.py').read())
 exec(open(SP+'gensearch.py').read())
+exec(open(SP+'gengas.py').read())
 table=solverFix(table)
-pages={"force":force,"light":light,"motion":motion,"hydrogen":hyd and f'<section id="hydrogen">\n  <h3>Hydrogen, exactly</h3>\n  {hyd}\n</section>\n',"table":table,"shapes":shapes,"darbon":darbon,"forces":forces,"xater":xater,"census":census,"search":search}
+pages={"force":force,"light":light,"motion":motion,"hydrogen":hyd and f'<section id="hydrogen">\n  <h3>Hydrogen, exactly</h3>\n  {hyd}\n</section>\n',"table":table,"shapes":shapes,"darbon":darbon,"forces":forces,"xater":xater,"census":census,"search":search,"gas":gas}
 for k,body in pages.items(): open(OUT+k+'.html','w').write(chapter(k,body))
 
 # ------------------------------------------------------------------ the landing: the position
@@ -301,7 +303,7 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
   "Darbon's diamond is two A₄ lattices, five-fold, and can't sit on a hypercube."]),
  ("forces",["<b>Neutral atoms attract permanently, as −3 S_A S_B / 64 R⁵</b> (S = Σ⟨r²⟩). For element 12 at neon's spacing that's about 14 times neon's whole well.",
   "Dispersion stays −C₆/R⁶ (London's 3/2 becomes 7/4), computed by coupled response, within 11% on our noble gases. In 4D it's weaker than the permanent pull for every noble gas but the first.",
-  "Computed end to end, 4D noble-gas pairs from element 12 on sit 4.5 to 5.25 bohr apart. Element 12 would boil at 400 to 730 K, and element 22 at 1200 to 2200 K: they would hardly be gases.",
+  "Computed end to end, 4D noble-gas pairs from element 12 on sit 4.5 to 5.25 bohr apart. Counting the far pull, element 12 condenses below about "+KR(OEC)+" K: they would hardly be gases.",
   "Bond springs and angles carry over. A bond twists three ways, and staggered means inverted through the bond.",
   "Salt water screens by a power law: an ion is overscreened, with a −r⁻⁷ tail."]),
  ("xater",["Pxygen, element 10: 1s² 2s² 2p⁶, two short of a noble gas, so two bonds and three lone pairs. 4D hydrogen holds its electron with 6.05 eV, against Pxygen's "+f(NUM['px']*EV,1)+", so their bond is lopsided.",
@@ -313,7 +315,11 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
  ("search",["<b>Two molecules meet in six ways in our world and ten in 4D</b>: d moves and d(d − 1)/2 turns. Turning grows as d², so in 4D most of the ways are turns.",
   "Chapter 10 first searched two of Xater's ten numbers and missed its best pair by a factor of two. Searched over all ten, a pair's landscape is a funnel: every one of 400 random starts finds the same pair.",
   "<b>A search's energy is a floor</b>: more searching can only bind harder. Whether a search is finished has to be argued separately: known answers, discovery curves, Hartree–Fock without the force field.",
-  "<b>Crowds are a maze, and more so in 4D</b>: from two molecules to "+WORD[n7]+", our water's minima go "+seq('3')+", Xater's "+seq('4')+", and the 4D counts haven't stopped climbing. At "+WORD[n7]+", "+f(hit('3',n7),0)+"% of starts find our water's best and "+f(hit('4',n7),1)+"% Xater's. Which crystal a 4D water makes will be a hard search, and its freezing point is predicted low for its cohesion."])]
+  "<b>Crowds are a maze, and more so in 4D</b>: from two molecules to "+WORD[n7]+", our water's minima go "+seq('3')+", Xater's "+seq('4')+", and the 4D counts haven't stopped climbing. At "+WORD[n7]+", "+f(hit('3',n7),0)+"% of starts find our water's best and "+f(hit('4',n7),1)+"% Xater's. Which crystal a 4D water makes will be a hard search, and its freezing point is predicted low for its cohesion."]),
+ ("gas",["PV = NkT holds in any dimension. A 4D atom carries 2kT, γ = 3/2, and sound runs at 0.61 of the rms speed (ours 0.75).",
+  "<b>4D's noble gases are held by the crowd.</b> R⁻⁵ over r³ of space adds up far out: element 12's 24 nearest neighbours give "+f"{OE['firstShell']*100:.0f}"+"% of its crystal's hold, argon's 12 give "+f"{AR['firstShell']*100:.0f}"+"%. Its Boyle temperature is 28 times its well depth (ours 2.8).",
+  "<b>A throttle cools them up to tens of thousands of kelvin</b>: element 12 below "+KR(OE['inversion'])+" K, against argon's 794 K. Even 4D's helium cools at room temperature, so a 4D liquefier needs no precooling. Counted by the whole pull, not the well, the gas is ours rescaled.",
+  "<b>Element 12 condenses below about "+KR(OEC)+" K</b>, "+f"{FAC[0]:.0f} to {FAC[1]:.0f}"+" times the well-depth rule. Estimated, not simulated: four is the critical point's upper critical dimension, so mean field should hold. Whether any 4D noble gas stays a gas at room temperature is open."])]
 def card(i,k,t):
     lis=''.join('<li>'+c+'</li>' for c in P[i][1])
     return f'<a class="card" href="{k}.html"><h3>{i+1} · {t}</h3><ul>{lis}</ul><span class="go">read the chapter →</span></a>'

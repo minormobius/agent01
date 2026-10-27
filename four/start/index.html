@@ -146,18 +146,25 @@
 </section>
 
 <section class="step" id="s11">
-  <h3><span class="num">11</span> Gases, liquids, solids <span class="tag follows">follows</span> <span class="tag open">open</span></h3>
+  <h3><span class="num">11</span> Gases, liquids, solids <span class="tag follows">follows</span> <span class="tag computed">computed</span> <span class="tag open">open</span></h3>
   <p><b>Gases work, exactly.</b> Pressure is the push of atoms on a wall, and the wall is a 3D surface. Count the momentum hitting it and you get <b>PV = NkT in any number of dimensions</b>. What changes is that each direction of motion holds kT/2 of energy, and 4D has four, so an atom carries 2kT instead of 3/2 kT. Here are three boxes of gas, in 2, 3 and 4 dimensions (you see two of their directions), each counting the hits on its gold wall:</p>
   <div class="toy"><div class="gas"><div><canvas id="g2"></canvas><p class="kv" id="p2"></p></div><div><canvas id="g3"></canvas><p class="kv" id="p3"></p></div><div><canvas id="g4"></canvas><p class="kv" id="p4"></p></div></div></div>
+  <p><b>Real gases are computed.</b> Atoms pull on each other a little, and a gas pushed through a valve from high pressure to low cools, as its atoms climb out of each other's pull. That's how a refrigerator makes its cold. It works only below the gas's <b>inversion temperature</b>. Above it the gas warms instead. Slide the temperature (solid lines are the computed pull, dashed is it divided by 1.8, the method's known overbinding):</p>
+  <div class="toy">
+    <div class="ctl">temperature <input id="t11" type="range" min="1.5" max="5" step="0.01" value="2.48" /> <b id="t11v"></b></div>
+    <canvas class="chart" id="c11"></canvas>
+    <p class="read" id="r11"></p>
+  </div>
+  <p><b>4D's noble gases keep cooling to tens of thousands of kelvin.</b> Their pull falls off so slowly (as R⁻⁵, where the space at distance R grows as R³) that the far atoms add up. A 4D noble gas is held less by its nearest neighbours than by the whole crowd around it. The same crowd makes it condense far hotter than its pair's well suggests. That's an estimate, not a simulation, and it corrects an earlier one.</p>
   <p><b>Liquids and solids are the work now.</b> The 4D molecular-dynamics engine is checked, but the forces between molecules aren't good enough yet. Our own water comes out with about half its real cohesion until the effects we've left out go in, and the 4D liquid holds together too hard. One thing already shows: <b>clusters of 4D molecules have far more ways to sit than ours</b>. That predicts a freezing point low for how hard the liquid holds together, and a liquid that would rather freeze into a glass than a crystal.</p>
-  <p class="more">In full: <a href="../atom/search.html">ten ways to meet</a>.</p>
+  <p class="more">In full: <a href="../atom/gas.html">gases</a> · <a href="../atom/search.html">ten ways to meet</a>.</p>
 </section>
 
 <section class="step" id="map">
   <h3>Reading on</h3>
   <ol class="map">
     <li><a href="../table/">The big table</a>: every element, named, beside ours.</li>
-    <li><a href="../atom/">ATOM⁴, the position</a>: the eleven chapters these steps summarize, with every number computed and checked.</li>
+    <li><a href="../atom/">ATOM⁴, the position</a>: the twelve chapters these steps summarize, with every number computed and checked.</li>
     <li><a href="../lumen/">Lumen⁴</a> and <a href="../iris/">IRIS⁴</a>: what light does in four dimensions, and a rainbow you can walk under.</li>
     <li><a href="../atom/LITERATURE.md">The literature register</a>: the sources, gathered for the first paper.</li>
   </ol>
