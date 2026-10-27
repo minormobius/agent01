@@ -1,96 +1,96 @@
 {
- "run": "clusters-6-7",
- "why": "Chapter 11's crowds at equal effort: six molecules to 2400 starts in every world (the first count gave 4D fewer starts), and seven molecules to 1600, to see whether 4D's minima keep multiplying faster.",
- "minutes": 300,
+ "run": "audit-1",
+ "why": "The search audit: the pipeline on our HF and ammonia dimers (published answers), chapter 10 re-baked with the fixed descent, the Hartree-Fock landscape probed at random against the force field for water, Xater and bmmonia, and element 18's pair, too big for the sandbox.",
+ "minutes": 330,
  "groups": [
   {
-   "name": "w6-a",
+   "name": "known-hf",
    "cmds": [
-    "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 0/4",
-    "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 1/4",
-    "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 2/4",
-    "node games/atom4/tools/clusters.mjs 3 6 2400 --shard 3/4"
+    "node four/atom/tools/audit.mjs known 3.9"
    ]
   },
   {
-   "name": "x6-a",
+   "name": "known-nh3",
    "cmds": [
-    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 0/8",
-    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 1/8",
-    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 2/8",
-    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 3/8"
+    "node four/atom/tools/audit.mjs known 3.7"
    ]
   },
   {
-   "name": "x6-b",
+   "name": "rebake-water",
    "cmds": [
-    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 4/8",
-    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 5/8",
-    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 6/8",
-    "node games/atom4/tools/clusters.mjs 4 6 2400 --shard 7/8"
+    "node four/atom/tools/pairsearch.mjs 3"
    ]
   },
   {
-   "name": "n6-a",
+   "name": "rebake-xater",
    "cmds": [
-    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 0/8",
-    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 1/8",
-    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 2/8",
-    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 3/8"
+    "node four/atom/tools/pairsearch.mjs 4"
    ]
   },
   {
-   "name": "n6-b",
+   "name": "rebake-bmmonia",
    "cmds": [
-    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 4/8",
-    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 5/8",
-    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 6/8",
-    "node games/atom4/tools/clusters.mjs 4.9 6 2400 --shard 7/8"
+    "node four/atom/tools/pairsearch.mjs 4.9"
    ]
   },
   {
-   "name": "w7-a",
+   "name": "probe-water",
    "cmds": [
-    "node games/atom4/tools/clusters.mjs 3 7 1600 --shard 0/4",
-    "node games/atom4/tools/clusters.mjs 3 7 1600 --shard 1/4",
-    "node games/atom4/tools/clusters.mjs 3 7 1600 --shard 2/4",
-    "node games/atom4/tools/clusters.mjs 3 7 1600 --shard 3/4"
+    "node four/atom/tools/audit.mjs probe 3 600"
    ]
   },
   {
-   "name": "x7-a",
+   "name": "probe-xater-0",
    "cmds": [
-    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 0/8",
-    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 1/8",
-    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 2/8",
-    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 3/8"
+    "node four/atom/tools/audit.mjs probe 4 2400 --shard 0/4"
    ]
   },
   {
-   "name": "x7-b",
+   "name": "probe-xater-1",
    "cmds": [
-    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 4/8",
-    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 5/8",
-    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 6/8",
-    "node games/atom4/tools/clusters.mjs 4 7 1600 --shard 7/8"
+    "node four/atom/tools/audit.mjs probe 4 2400 --shard 1/4"
    ]
   },
   {
-   "name": "n7-a",
+   "name": "probe-xater-2",
    "cmds": [
-    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 0/8",
-    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 1/8",
-    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 2/8",
-    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 3/8"
+    "node four/atom/tools/audit.mjs probe 4 2400 --shard 2/4"
    ]
   },
   {
-   "name": "n7-b",
+   "name": "probe-xater-3",
    "cmds": [
-    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 4/8",
-    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 5/8",
-    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 6/8",
-    "node games/atom4/tools/clusters.mjs 4.9 7 1600 --shard 7/8"
+    "node four/atom/tools/audit.mjs probe 4 2400 --shard 3/4"
+   ]
+  },
+  {
+   "name": "probe-bmmonia-0",
+   "cmds": [
+    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 0/4"
+   ]
+  },
+  {
+   "name": "probe-bmmonia-1",
+   "cmds": [
+    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 1/4"
+   ]
+  },
+  {
+   "name": "probe-bmmonia-2",
+   "cmds": [
+    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 2/4"
+   ]
+  },
+  {
+   "name": "probe-bmmonia-3",
+   "cmds": [
+    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 3/4"
+   ]
+  },
+  {
+   "name": "dimer-18",
+   "cmds": [
+    "node four/atom/tools/audit.mjs dimer 18"
    ]
   }
  ]

@@ -14,8 +14,11 @@ import { CENSUS } from "../js/census.js";
 import { hydrideAtoms, dimerAtoms, pairEnergy } from "./census.mjs";
 import { randomRotation } from "../js/md.js";
 
-/* each molecule by a key: "3" our water, "4" Xater, "4.9" element 9's XH₃ (Xater's rival in chapter 10) */
-export const WORLDS = { 3: { d: 3, Z: 8, DMIN: 4.6, DMAX: 9, CLOSE: 2.7 }, 4: { d: 4, Z: 10, DMIN: 5.2, DMAX: 11, CLOSE: 3.0 }, 4.9: { d: 4, Z: 9, DMIN: 5.2, DMAX: 11, CLOSE: 3.0 } };
+/* each molecule by a key: "3" our water, "4" Xater, "4.9" element 9's XH₃ (bmmonia, Xater's rival in chapter 10),
+   "3.9" our HF and "3.7" our ammonia */
+export const WORLDS = { 3: { d: 3, Z: 8, DMIN: 4.6, DMAX: 9, CLOSE: 2.7 }, 4: { d: 4, Z: 10, DMIN: 5.2, DMAX: 11, CLOSE: 3.0 }, 4.9: { d: 4, Z: 9, DMIN: 5.2, DMAX: 11, CLOSE: 3.0 },
+  // our HF and ammonia, for the audit's known answers (tools/audit.mjs known): published pairs to check the pipeline on
+  3.9: { d: 3, Z: 9, DMIN: 4.4, DMAX: 9, CLOSE: 2.7 }, 3.7: { d: 3, Z: 7, DMIN: 5.0, DMAX: 10, CLOSE: 2.8 } };
 export const RANDOM = 56, SCAN = [-0.8, -0.4, 0, 0.5, 1.2, 2.2, 3.5], CLOSE = 16; // CLOSE more placements, packed tighter (DMIN − 1.4 … DMIN, atoms 0.4 closer), so the repulsion is seen
 export const monoOf = (key) => CENSUS[WORLDS[key].d].find((m) => m.Z === WORLDS[key].Z);
 const rng = (seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -23,7 +26,7 @@ const rng = (seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(
 export function placement(key, k) {
   const w = WORLDS[key], d = w.d, m = monoOf(key), A = hydrideAtoms(m.Z, d, m.R, m.param);
   if (k >= RANDOM && k < RANDOM + SCAN.length) return dimerAtoms(m, d, m.dimer.RXX + SCAN[k - RANDOM], m.dimer.beta);
-  const rnd = rng((key === "4.9" ? 9000 : 1000 * d) + k), tight = k >= RANDOM + SCAN.length, lo = tight ? w.DMIN - 1.4 : w.DMIN, hi = tight ? w.DMIN : w.DMAX, close = tight ? w.CLOSE - 0.4 : w.CLOSE;
+  const rnd = rng(({ 4.9: 9000, 3.9: 3900, 3.7: 3700 }[key] ?? 1000 * d) + k), tight = k >= RANDOM + SCAN.length, lo = tight ? w.DMIN - 1.4 : w.DMIN, hi = tight ? w.DMIN : w.DMAX, close = tight ? w.CLOSE - 0.4 : w.CLOSE;
   for (;;) {
     const R = randomRotation(d, rnd), g = () => Math.sqrt(-2 * Math.log(rnd() + 1e-300)) * Math.cos(2 * Math.PI * rnd()), u = Array.from({ length: d }, g), un = Math.hypot(...u), D = lo + (hi - lo) * rnd();
     const B = A.map((a) => ({ Z: a.Z, at: Array.from({ length: d }, (_, i) => (D * u[i]) / un + R[i].reduce((s, r, j) => s + r * a.at[j], 0)) }));
