@@ -203,6 +203,13 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
   The electron-gas model applied to ionic crystals: Y. S. Kim & R. G. Gordon, Phys. Rev. B **9**, 3548 (1974). —
   *cited* (not read; details from memory)
 
+- The hydrogen fluoride dimer is bent (a near-linear F–H···F bond, the acceptor tilted well off the line), as measured;
+  an effective potential reproducing its F–F distance and both angles: arXiv:cond-mat/9903051. Ab initio (HF)₂ and
+  (HCl)₂ at double-ζ: S. Scheiner & Z. Latajka (1988). — *index* (abstracts; the structures' numbers not read)
+- The ammonia dimer is very floppy; microwave work (Nelson, Fraser & Klemperer) measured a dipole of 0.74 D against
+  ~2 D for a linear hydrogen bond; a 2022 ab initio surface (PMC8933541) finds it fluxional but hydrogen-bonded. —
+  *index* (summaries of these, not the papers)
+
 ## Next
 
 1. A citation-index forward search on Pyykkö & Zhao (1991) and Négadi & Kibler (1996). The web search is done.
