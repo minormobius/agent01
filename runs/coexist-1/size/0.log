@@ -1,0 +1,36 @@
+$ node four/atom/tools/coexist.mjs oe 8 --n=2400 --cycles=6000 --minutes=300
+96s oe T=8 cycle 200: N 1627/773, ρ 2.148e-3 / 6.021e-4 (ρR^d: 1.093 / 0.307), acc move 0.63 swap 0.2132 vol 0.58
+192s oe T=8 cycle 400: N 1481/919, ρ 2.216e-3 / 5.868e-4 (ρR^d: 1.128 / 0.299), acc move 0.48 swap 0.1892 vol 0.38
+287s oe T=8 cycle 600: N 1371/1029, ρ 2.246e-3 / 6.510e-4 (ρR^d: 1.144 / 0.331), acc move 0.41 swap 0.1778 vol 0.32
+383s oe T=8 cycle 800: N 1369/1031, ρ 2.297e-3 / 6.899e-4 (ρR^d: 1.169 / 0.351), acc move 0.37 swap 0.1697 vol 0.36
+482s oe T=8 cycle 1000: N 1330/1070, ρ 2.310e-3 / 7.125e-4 (ρR^d: 1.176 / 0.363), acc move 0.36 swap 0.1657 vol 0.44
+585s oe T=8 cycle 1200: N 1458/942, ρ 2.340e-3 / 7.122e-4 (ρR^d: 1.191 / 0.363), acc move 0.40 swap 0.1612 vol 0.46
+689s oe T=8 cycle 1400: N 1274/1126, ρ 2.340e-3 / 7.100e-4 (ρR^d: 1.191 / 0.361), acc move 0.45 swap 0.1592 vol 0.45
+795s oe T=8 cycle 1600: N 1462/938, ρ 2.332e-3 / 7.134e-4 (ρR^d: 1.187 / 0.363), acc move 0.49 swap 0.1577 vol 0.44
+904s oe T=8 cycle 1800: N 1534/866, ρ 2.337e-3 / 6.960e-4 (ρR^d: 1.190 / 0.354), acc move 0.52 swap 0.1563 vol 0.44
+1012s oe T=8 cycle 2000: N 1392/1008, ρ 2.330e-3 / 6.836e-4 (ρR^d: 1.186 / 0.348), acc move 0.54 swap 0.1564 vol 0.44
+1119s oe T=8 cycle 2200: N 1554/846, ρ 2.322e-3 / 6.767e-4 (ρR^d: 1.182 / 0.344), acc move 0.56 swap 0.1560 vol 0.44
+1226s oe T=8 cycle 2400: N 1488/912, ρ 2.311e-3 / 6.680e-4 (ρR^d: 1.176 / 0.340), acc move 0.57 swap 0.1557 vol 0.43
+1332s oe T=8 cycle 2600: N 1471/929, ρ 2.318e-3 / 6.673e-4 (ρR^d: 1.180 / 0.340), acc move 0.59 swap 0.1548 vol 0.44
+1435s oe T=8 cycle 2800: N 1311/1089, ρ 2.314e-3 / 6.709e-4 (ρR^d: 1.178 / 0.342), acc move 0.60 swap 0.1544 vol 0.43
+1541s oe T=8 cycle 3000: N 1295/1105, ρ 2.322e-3 / 6.759e-4 (ρR^d: 1.182 / 0.344), acc move 0.61 swap 0.1529 vol 0.43
+1646s oe T=8 cycle 3200: N 1431/969, ρ 2.333e-3 / 6.801e-4 (ρR^d: 1.188 / 0.346), acc move 0.62 swap 0.1525 vol 0.43
+1751s oe T=8 cycle 3400: N 1416/984, ρ 2.346e-3 / 6.830e-4 (ρR^d: 1.194 / 0.348), acc move 0.63 swap 0.1513 vol 0.43
+1856s oe T=8 cycle 3600: N 1405/995, ρ 2.345e-3 / 6.852e-4 (ρR^d: 1.194 / 0.349), acc move 0.63 swap 0.1510 vol 0.43
+1961s oe T=8 cycle 3800: N 1292/1108, ρ 2.355e-3 / 6.913e-4 (ρR^d: 1.199 / 0.352), acc move 0.64 swap 0.1501 vol 0.43
+2068s oe T=8 cycle 4000: N 1352/1048, ρ 2.372e-3 / 6.968e-4 (ρR^d: 1.208 / 0.355), acc move 0.64 swap 0.1491 vol 0.43
+2174s oe T=8 cycle 4200: N 1306/1094, ρ 2.382e-3 / 6.981e-4 (ρR^d: 1.213 / 0.355), acc move 0.65 swap 0.1484 vol 0.43
+2280s oe T=8 cycle 4400: N 1368/1032, ρ 2.386e-3 / 7.034e-4 (ρR^d: 1.215 / 0.358), acc move 0.65 swap 0.1479 vol 0.43
+2386s oe T=8 cycle 4600: N 1292/1108, ρ 2.393e-3 / 7.107e-4 (ρR^d: 1.218 / 0.362), acc move 0.66 swap 0.1475 vol 0.43
+2490s oe T=8 cycle 4800: N 1385/1015, ρ 2.392e-3 / 7.142e-4 (ρR^d: 1.217 / 0.364), acc move 0.66 swap 0.1473 vol 0.43
+2595s oe T=8 cycle 5000: N 1540/860, ρ 2.392e-3 / 7.111e-4 (ρR^d: 1.218 / 0.362), acc move 0.66 swap 0.1470 vol 0.42
+2701s oe T=8 cycle 5200: N 1451/949, ρ 2.400e-3 / 7.090e-4 (ρR^d: 1.222 / 0.361), acc move 0.67 swap 0.1465 vol 0.42
+2805s oe T=8 cycle 5400: N 1391/1009, ρ 2.403e-3 / 7.063e-4 (ρR^d: 1.223 / 0.360), acc move 0.67 swap 0.1463 vol 0.42
+2906s oe T=8 cycle 5600: N 1446/954, ρ 2.404e-3 / 7.024e-4 (ρR^d: 1.224 / 0.358), acc move 0.67 swap 0.1463 vol 0.42
+3005s oe T=8 cycle 5800: N 1377/1023, ρ 2.399e-3 / 7.008e-4 (ρR^d: 1.221 / 0.357), acc move 0.68 swap 0.1463 vol 0.42
+3105s oe T=8 cycle 6000: N 1292/1108, ρ 2.403e-3 / 6.989e-4 (ρR^d: 1.223 / 0.356), acc move 0.68 swap 0.1457 vol 0.42
+done: {"cycles":6000,"rhoL":0.0024027077466666673,"eL":0.000009970085047928001,"rhoV":0.0006989258,"eV":0.000008946492093025439,"Rd":509.066406249984}
+(node:2203) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

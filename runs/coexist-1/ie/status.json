@@ -1,0 +1,33 @@
+{
+ "group": "ie",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ie 4 --n=1200 --cycles=15000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2557
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ie 6 --n=1200 --cycles=15000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1904
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ie 8 --n=1200 --cycles=15000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2012
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ie 10 --n=1200 --cycles=15000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2302
+  }
+ ]
+}

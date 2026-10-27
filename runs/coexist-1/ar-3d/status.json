@@ -1,0 +1,33 @@
+{
+ "group": "ar-3d",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ar 0.9 --n=500 --cycles=30000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 974
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ar 1.0 --n=500 --cycles=30000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 839
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ar 1.1 --n=500 --cycles=30000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 748
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ar 1.2 --n=500 --cycles=30000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 889
+  }
+ ]
+}

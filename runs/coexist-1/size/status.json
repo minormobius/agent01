@@ -1,0 +1,26 @@
+{
+ "group": "size",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/coexist.mjs oe 8 --n=2400 --cycles=6000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3105
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs lj4 2.0 --n=2400 --cycles=6000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4715
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs lj3 1.2 --n=1500 --cycles=15000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2855
+  }
+ ]
+}

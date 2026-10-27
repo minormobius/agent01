@@ -1,0 +1,33 @@
+{
+ "group": "oe-b",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/coexist.mjs oe 10 --n=1200 --cycles=15000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3733
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs oe 11 --n=1200 --cycles=15000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2876
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs oe 12 --n=1200 --cycles=15000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3635
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs oe 13 --n=1200 --cycles=15000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3359
+  }
+ ]
+}

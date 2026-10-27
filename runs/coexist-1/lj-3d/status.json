@@ -1,0 +1,33 @@
+{
+ "group": "lj-3d",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/coexist.mjs lj3 1.0 --n=500 --cycles=30000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 983
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs lj3 1.1 --n=500 --cycles=30000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 917
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs lj3 1.2 --n=500 --cycles=30000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 767
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs lj3 1.25 --n=500 --cycles=30000 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 826
+  }
+ ]
+}
