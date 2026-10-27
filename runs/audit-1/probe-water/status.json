@@ -1,0 +1,12 @@
+{
+ "group": "probe-water",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/audit.mjs probe 3 600",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 6692
+  }
+ ]
+}

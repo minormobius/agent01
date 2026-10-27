@@ -1,0 +1,12 @@
+{
+ "group": "probe-bmmonia-2",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 2/4",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  }
+ ]
+}
