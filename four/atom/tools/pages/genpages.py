@@ -95,6 +95,13 @@ force=f'''<section id="contents">
   <h3>Gauss's law leaves no atom</h3>
   {pin}
 </section>
+<section id="electron">
+  <h3>Or change the electron instead?</h3>
+  <p>Gauss's 1/r² fails because it matches the squeeze. Confining an electron to a size r gives it momentum about ħ/r, and its energy p²/2m costs 1/r². So there's a second way out: leave the force alone and change the electron. If an electron's energy grew faster with its momentum, as p³ or p⁴, squeezing would cost 1/r³ or 1/r⁴. That outgrows the 1/r² pull close in, so the electron settles at a size, and atoms come back at every strength of pull. With p³ it's the same trick this universe uses, moved: the operator |k|³ that the <a href="#maxwell">lens vacuum</a> puts into the field would go into the electron instead.</p>
+  <p><b>What it would keep:</b> Gauss's law, so the shell theorem and the Faraday cage. A neutral atom would be invisible from outside, as ours is. There'd be no permanent R⁻⁵ pull, and noble gases would be gases. None of <a href="gas.html#liquids">chapter 12's world of liquids</a> would follow.</p>
+  <p><b>What it would cost: relativity, for all matter rather than for one force.</b> E = p²/2m is what Galileo's relativity forces on anything slow (and Einstein's, in the slow limit): a moving lab and a still one see the same physics only if energy is quadratic in momentum. Any other power picks out a frame of absolute rest for every massive particle. Momentum would no longer be mass times velocity (v = dE/dp grows as p² or p³), so F = ma, Kepler's orbits and <a href="motion.html">chapter 3</a> would all change. A heavy body built of such particles wouldn't move like one particle with their summed mass. And |p|³ is nonlocal, like the lens. p⁴ is local, but it keeps every other cost.</p>
+  <p>The lens vacuum also gives up relativity, but only for how charges push each other. Light, motion and the electron stay as they were. That's why this universe changes the force rather than the electron. It's a judgement, not a theorem: the electron route keeps our Faraday cages and our gases, and the lens keeps our mechanics. This section is argued from scaling, not computed.</p>
+</section>
 <section id="maxwell">
   <h3>Can we rewrite Maxwell?</h3>
   {mx}
@@ -282,7 +289,8 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
   "The universe holds electrons (fermions), stable nuclei, the lens vacuum's light and a small fine-structure constant, and nothing else. Matter is stable, by scaling, because electrons are fermions.",
   "Maxwell's 1/k² can't give 1/r in 4D: it needs 1/k³. Every way to get it costs one of locality, linearity, relativity, positive probabilities, or four large dimensions.",
   "<b>Our vacuum is the lens vacuum</b>, ε(k) = ε₀ℓk and μ(k) = μ₀/ℓk. Light stays Maxwell's, fields still add, energy stays positive. The cost is relativity for the force: there's an absolute now.",
-  "1/r isn't harmonic in 4D, so there's no shell theorem and no Faraday cage. A charged shell's centre sits at 3π/8 of its wall's potential."]),
+  "1/r isn't harmonic in 4D, so there's no shell theorem and no Faraday cage. A charged shell's centre sits at 3π/8 of its wall's potential.",
+  "The other way out is to change the electron: an energy growing as p³ or p⁴ makes squeezing cost more than Gauss's pull and gives atoms back, keeping the Faraday cage. It costs relativity for all matter (F = ma goes), where the lens costs it only for the force. Argued, not computed."]),
  ("light",["The light that travels is Lumen⁴'s, exactly: 1/r³, three polarizations, the wake, 1.43 λ/D, ν⁴ and T⁵, the rainbow's conics.",
   "Matter feels light through the lens, c/ℓω: long waves push harder, and a flash is felt faintly before it arrives.",
   "Small particles scatter as ω³, so the sky is blue, though less steeply than ours."]),
@@ -320,7 +328,7 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
   "<b>4D's noble gases are held by the crowd.</b> R⁻⁵ over r³ of space adds up far out: element 12's 24 nearest neighbours give "+f"{OE['firstShell']*100:.0f}"+"% of its crystal's hold, argon's 12 give "+f"{AR['firstShell']*100:.0f}"+"%. Its Boyle temperature is 28 times its well depth (ours 2.8).",
   "<b>A throttle cools them up to tens of thousands of kelvin</b>: element 12 below "+KR(OE['inversion'])+" K, against argon's 794 K. Even 4D's helium cools at room temperature, so a 4D liquefier needs no precooling. Counted by the whole pull, not the well, the gas is ours rescaled.",
   "<b>Element 12 condenses below about "+KR(OEC)+" K</b>, "+f"{FAC[0]:.0f} to {FAC[1]:.0f}"+" times the well-depth rule. Estimated, not simulated: four is the critical point's upper critical dimension, so mean field should hold. Whether any 4D noble gas stays a gas at room temperature is open.",
-  "<b>A hypothesis: a world of liquids.</b> Gas only when hot, wide liquid ranges, glass more often than crystal. Salts are the exception: bluminium pxide, Bl₂Px₃, comes out at least as favourable as our sapphire on the steps computed so far."])]
+  "<b>A hypothesis: a world of liquids.</b> Gas only when hot, wide liquid ranges, glass more often than crystal: element 12's two best crystals nearly tie. Salts are the exception. Computed end to end, 4D's todium gluoride holds together "+f"{TOG['U']/NAF['U']:.1f}"+" times as hard as our sodium fluoride, which the same method gets to 5%."])]
 def card(i,k,t):
     lis=''.join('<li>'+c+'</li>' for c in P[i][1])
     return f'<a class="card" href="{k}.html"><h3>{i+1} · {t}</h3><ul>{lis}</ul><span class="go">read the chapter →</span></a>'

@@ -571,5 +571,24 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `aluminium stripped to Al³⁺ for ${sum(I.Al).toFixed(1)} eV (measured ${sum(I.measured.Al).toFixed(1)}); bluminium for ${sum(I.Bl).toFixed(1)}; pxygen takes an electron for ${I.Px.toFixed(2)} eV (oxygen ${I.O.toFixed(2)}, measured ${I.measured.O})`);
 }
 
+/* 31 · which crystal (tools/crystals.mjs): our noble gases and Lennard-Jones pick face-centred cubic, as real argon
+   does; Lennard-Jones in 4D picks D4, the densest packing */
+{
+  const { crystals } = await import(path.join(here, "../tools/crystals.mjs")), C = Object.fromEntries((await crystals()).map((c) => [c.name, c]));
+  ok(["Lennard-Jones", "argon", "krypton"].every((n) => C[n].rows[0].lattice === "fcc") && C["Lennard-Jones 4D"].rows[0].lattice === "D4" && Math.abs(C["Lennard-Jones"].rows[0].E + 8.61) < 0.03,
+    `crystals: fcc first for Lennard-Jones (${C["Lennard-Jones"].rows[0].E} ε), argon and krypton; D4 first for Lennard-Jones in 4D (${C["Lennard-Jones 4D"].rows[0].E} ε); element 12's best two within ${(100 * (C["element 12"].rows[1].E - C["element 12"].rows[0].E) / -C["element 12"].rows[0].E).toFixed(1)}%`);
+}
+
+/* 32 · a salt (tools/salt.mjs): sodium fluoride within 6% of its measured spacing (4.38 bohr) and energy (~9.57 eV);
+   4D's todium gluoride, whose far field is exact (matching the computed pairs within 10% at 14 bohr) and whose
+   lattice sum is extrapolated over cubes, holds harder */
+{
+  const S = await import(path.join(here, "../tools/salt.mjs")), core3 = { "1s": 2, "2s": 2, "2p": 6 }, core4 = { "1s": 2, "2s": 2, "2p": 8 };
+  const naf = S.salt(3, S.ion(11, 3, core3), S.ion(9, 3, core3)), tog = S.salt(4, S.ion(13, 4, core4), S.ion(11, 4, core4));
+  const seam = Object.values(tog.seam).every(({ computed, far }) => Math.abs(computed / far - 1) < 0.1), conv = Math.abs(tog.conv[2] - tog.conv[1]) < 0.6 * Math.abs(tog.conv[1] - tog.conv[0]);
+  ok(near(naf.a, 4.38, 0.06) && near(naf.U, 9.57, 0.06) && seam && conv && tog.U > naf.U,
+    `sodium fluoride ${naf.a.toFixed(2)} bohr, ${naf.U.toFixed(2)} eV (measured 4.38, ~9.57); todium gluoride ${tog.a.toFixed(2)} bohr, ${tog.U.toFixed(2)} eV; its far field matches the computed pairs and its sum converges as 1/M`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

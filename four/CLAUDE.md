@@ -147,6 +147,12 @@ for games, and this is a modelling programme with publications to come. The game
   lattice), and `nobleGases(mods)`, which reads the noble-gas pairs as the forces chapter does (÷1.8 … ×1). The
   critical-point rules are corresponding-states rules read off our argon (`ARGON`): estimates, labelled so.
   `atom/tools/gasnumbers.mjs` prints its numbers as JSON for `gengas.py`.
+  Beside it, for chapter 12's crystals and salts: `atom/tools/crystals.mjs` (candidate lattices by lattice sum;
+  fcc must win for our noble gases), `atom/tools/salt.mjs` (closed-shell ions from the solver, Gordon–Kim between
+  charged clouds, the alternating lattice by Evjen cubes; in 4D past 14 bohr the exact far field from the clouds'
+  moments, since a numerical tail would diverge over 4D's r³ shells; sodium fluoride is the check),
+  `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
+  liquid–vapour runs, one temperature per command, for the runner).
   `js/clusters.js` is **generated** by `atom/tools/clusters.mjs` (minima of
   3–6-molecule clusters on the force field; `--shard i/m` splits a search
   across machines). **Long runs go to the runner, not the sandbox** (below) . `js/census.js` is **generated** by
@@ -182,7 +188,7 @@ GitHub's runners. Queue commands in `.github/compute/atom4.json` and push it to 
 ## Testing
 
 ```bash
-node four/atom/test/atom4.selftest.mjs     # ~55 s: everything ATOM⁴ states, checked (see atom/README.md)
+node four/atom/test/atom4.selftest.mjs     # ~50 s: everything ATOM⁴ states, checked (see atom/README.md)
 node four/lumen/test/lumen4.selftest.mjs   # < 1 s
 node four/iris/test/iris4.selftest.mjs     # ~10 s, including foam.js against games' copy
 ```

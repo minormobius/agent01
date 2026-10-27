@@ -198,6 +198,11 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
 - Aluminium's ionization energies 5.986, 18.829, 28.448 eV and oxygen's electron affinity 1.461 eV (NIST). — *from
   memory; verify* against the NIST tables before citing
 
+- Sodium fluoride: nearest-neighbour distance 2.31 Å (4.38 bohr) and lattice energy about 923 kJ/mol (9.57 eV),
+  sodium's ionization 5.14 eV and fluorine's affinity 3.40 eV. — *from memory; verify* (CRC / NIST) before citing.
+  The electron-gas model applied to ionic crystals: Y. S. Kim & R. G. Gordon, Phys. Rev. B **9**, 3548 (1974). —
+  *cited* (not read; details from memory)
+
 ## Next
 
 1. A citation-index forward search on Pyykkö & Zhao (1991) and Négadi & Kibler (1996). The web search is done.
