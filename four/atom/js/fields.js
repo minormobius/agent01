@@ -77,3 +77,42 @@ export const lensFactor = (omega, ell) => 1 / (omega * ell);
    c/ℓω against an incident flux that carries one: σ ∝ ω^(d+1) (c/ℓω)², so ω³ in this universe. The sky is still blue,
    less steeply than ours */
 export const scatterExponent = (d, lens) => d + 1 - (lens ? 2 : 0);
+
+/* Magnetism, through the same lens. A steady current I round a loop makes A_i(x) = I ∮ G(|x − y|) dy_i with the
+   charge's own kernel (1/r in our 3D and in pinned 4D; 1/r² in 4D Maxwell), and the field is the 2-form
+   B_ij = ∂_i A_j − ∂_j A_i: one number per plane, three in 3D (we write them as a vector), six in 4D. dB = 0 still,
+   so there are no magnetic monopoles; but as with Gauss's law, Ampère's fails for the pinned kernel. A loop's far
+   field falls one power faster than the kernel's slope: 1/r³ for a 1/r kernel (ours, and pinned 4D), 1/r⁴ for 1/r². */
+export function loopField(x, power = 1, n = 720) { // unit current round a unit circle in the (0, 1) plane; G = r^−power
+  const d = x.length, B = Array.from({ length: d }, () => Array(d).fill(0)), dt = (2 * Math.PI) / n;
+  for (let k = 0; k < n; k++) {
+    const t = (k + 0.5) * dt, y = Array(d).fill(0), dy = Array(d).fill(0); y[0] = Math.cos(t); y[1] = Math.sin(t); dy[0] = -Math.sin(t) * dt; dy[1] = Math.cos(t) * dt;
+    const r = x.map((v, i) => v - y[i]), r2 = r.reduce((s, v) => s + v * v, 0), g = -power * r2 ** (-(power + 2) / 2); // ∂_i G = g r_i
+    for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) B[i][j] += g * (r[i] * dy[j] - r[j] * dy[i]);
+  }
+  return B;
+}
+export const bivectorSize = (B) => { let s = 0; for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) s += B[i][j] ** 2; return Math.sqrt(s); };
+/* a charge in a uniform field B (a 4 × 4 antisymmetric matrix): dv/dt = B v, so v turns by exp(tB), a rotation. It
+   turns in two planes at once, at rates (|L| ± |R|)/2 from the field's left and right halves (js/turning.js): one
+   plane and free drift for a simple field, a torus for a general one, closed circles when it's all one half */
+export function expm(M, t) { // exp(tM) by scaling and squaring a Taylor series
+  const n = M.length, I = () => M.map((r, i) => r.map((_, j) => +(i === j))), mul = (A, C) => A.map((r) => C[0].map((_, j) => r.reduce((s, v, k) => s + v * C[k][j], 0)));
+  let s = 0, nrm = Math.max(...M.map((r) => r.reduce((a, v) => a + Math.abs(v), 0))) * Math.abs(t); while (nrm > 0.25) { nrm /= 2; s++; }
+  const A = M.map((r) => r.map((v) => (v * t) / 2 ** s)); let E = I(), term = I();
+  for (let k = 1; k < 20; k++) { term = mul(term, A).map((r) => r.map((v) => v / k)); E = E.map((r, i) => r.map((v, j) => v + term[i][j])); }
+  for (; s > 0; s--) E = mul(E, E);
+  return E;
+}
+export function cyclotronPath(B, v0, T, n = 600) {
+  const dt = T / n, R = expm(B, dt), path = []; let x = v0.map(() => 0), v = v0.slice();
+  for (let k = 0; k <= n; k++) { path.push(x.slice()); const w = R.map((r) => r.reduce((s, c, j) => s + c * v[j], 0)); x = x.map((p, i) => p + (dt * (v[i] + w[i])) / 2); v = w; }
+  return path;
+}
+export function cyclotronRates(B) { // the two plane rates of a 4D field, from its left (self-dual) and right halves
+  const L = Math.hypot(B[0][1] + B[2][3], B[0][2] + B[3][1], B[0][3] + B[1][2]), R = Math.hypot(B[0][1] - B[2][3], B[0][2] - B[3][1], B[0][3] - B[1][2]);
+  return { fast: (L + R) / 2, slow: Math.abs(L - R) / 2, left: L, right: R };
+}
+/* a neutral atom, as a nucleus +1 in a shell −1 of radius a: what a test charge feels outside it. Zero in 3D (the
+   shell theorem). In pinned 4D it's (1 − k(a/s))/s ≈ a²/8s³ > 0: it pulls electrons and pushes protons */
+export const neutralShell = (s, a, d) => 1 / s - shellPotential(s, a, d);

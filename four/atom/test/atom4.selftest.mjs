@@ -527,7 +527,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 
 /* 28 · the pages outside ATOM⁴'s chapters (where we are, the big table): every element their scripts draw into exists */
 {
-  for (const [page, script] of [["../../start/index.html", "../../start/start.js"], ["../../table/index.html", "../../table/viewer.js"]]) {
+  for (const [page, script] of [["../../start/index.html", "../../start/start.js"], ["../../table/index.html", "../../table/viewer.js"], ["../../fields/index.html", "../../fields/fields.js"]]) {
     const html = fs.readFileSync(path.join(here, page), "utf8"), js = fs.readFileSync(path.join(here, script), "utf8");
     const want = [...new Set([...js.matchAll(/\$\(\s*["'`]([A-Za-z0-9_-]+)["'`]\s*\)/g)].map((m) => m[1]))], ids = new Set([...(html + js).matchAll(/id="([^"]+)"/g)].map((m) => m[1])); // the page's, and those the script writes itself
     const missing = want.filter((id) => !ids.has(id) && !/\$\{/.test(id));
@@ -588,6 +588,18 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const seam = Object.values(tog.seam).every(({ computed, far }) => Math.abs(computed / far - 1) < 0.1), conv = Math.abs(tog.conv[2] - tog.conv[1]) < 0.6 * Math.abs(tog.conv[1] - tog.conv[0]);
   ok(near(naf.a, 4.38, 0.06) && near(naf.U, 9.57, 0.06) && seam && conv && tog.U > naf.U,
     `sodium fluoride ${naf.a.toFixed(2)} bohr, ${naf.U.toFixed(2)} eV (measured 4.38, ~9.57); todium gluoride ${tog.a.toFixed(2)} bohr, ${tog.U.toFixed(2)} eV; its far field matches the computed pairs and its sum converges as 1/M`);
+}
+
+/* 33 · fields (four/fields/, from js/fields.js): a current loop's far field falls as r⁻³ under a 1/r kernel (ours and
+   pinned 4D) and r⁻⁴ under 4D Maxwell's 1/r², and matches Biot–Savart's closed form on our axis; a charge in a 4D
+   field turns at (|L| ± |R|)/2 and an all-left field closes its path; a neutral 4D shell-atom leaks a²/8s³ */
+{
+  const F = await import(path.join(here, "../js/fields.js")), slope = (f, a, b) => Math.log(f(b) / f(a)) / Math.log(b / a);
+  const along = (d, p, z) => F.bivectorSize(F.loopField(d === 3 ? [0, 0, z] : [0, 0, z, 0], p));
+  const s3 = slope((z) => along(3, 1, z), 20, 40), s4 = slope((z) => along(4, 1, z), 20, 40), sM = slope((z) => along(4, 2, z), 20, 40), axis = along(3, 1, 0.7) / ((2 * Math.PI) / 1.49 ** 1.5);
+  const r = F.cyclotronRates([[0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 0.4], [0, 0, -0.4, 0]]), back = F.cyclotronPath([[0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1], [0, 0, -1, 0]], [1, 0, 1, 0], 2 * Math.PI, 2000).at(-1);
+  ok(near(s3, -3, 0.01) && near(s4, -3, 0.01) && near(sM, -4, 0.01) && near(axis, 1, 1e-6) && near(r.fast, 1, 1e-9) && near(r.slow, 0.4, 1e-9) && Math.hypot(...back) < 1e-6 && near(F.neutralShell(20, 1, 4) * 8 * 8000, 1, 0.01) && F.neutralShell(5, 1, 3) === 0,
+    `fields: a loop's far field r^${s3.toFixed(2)} (ours), r^${s4.toFixed(2)} (pinned 4D), r^${sM.toFixed(2)} (4D Maxwell); cyclotron rates ${r.fast} and ${r.slow.toFixed(2)}; the all-left path closes; the neutral shell leaks a²/8s³`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

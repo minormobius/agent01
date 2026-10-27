@@ -73,6 +73,11 @@ for games, and this is a modelling programme with publications to come. The game
   (`start/start.js`: squeezing an electron, field thinning, the charged shell (`atom/js/fields.js`), hydrogen's lines,
   the filling diagram (`table/filling.js`), the pair search, an ideal gas in 2–4 dimensions). Keep it in step with
   the position: when a conclusion changes, its step here changes too. The hub and ATOM⁴'s landing point to it.
+- **fields at `/fields/`**: electrostatics and magnetism under the pin, as five toys (`fields/fields.js`, drawing
+  only; the physics is `atom/js/fields.js`, checked by ATOM⁴'s selftest 33): point charges in a slice (pinned 4D
+  draws exactly as ours), flux that grows with radius, a nucleus-in-shell atom felt from outside (a²/8s³) and the
+  bowed inside of a lone shell, a current loop's field by Biot–Savart with each kernel (r⁻³ pinned and ours,
+  r⁻⁴ for 4D Maxwell), and a charge in a uniform 4D field turning in two planes at (|L| ± |R|)/2.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 78 4D elements (`atom/js/table.js`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)

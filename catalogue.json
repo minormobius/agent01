@@ -4843,6 +4843,22 @@
         "canvas",
         "math"
       ]
+    },
+    {
+      "n": "four-fields",
+      "u": "https://four.mino.mobi/fields/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-27",
+      "b": "2026-10-27",
+      "p": "four",
+      "surface": "four",
+      "d": "Electric and magnetic fields in four dimensions with the force pinned at 1/r. Drag two charges and see they look exactly like ours, watch field lines sprout from empty space, feel a neutral atom from outside, read a current loop's field fall as 1/r³, and steer a charge that turns in two planes at once, with the half of the magnet an electron's spin can't feel.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     }
   ],
   "notListed": [
