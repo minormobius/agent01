@@ -210,6 +210,16 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
   ~2 D for a linear hydrogen bond; a 2022 ab initio surface (PMC8933541) finds it fluxional but hydrogen-bonded. —
   *index* (summaries of these, not the papers)
 
+### Stars (chapter 13)
+- Polytropes and the Lane–Emden equation: S. Chandrasekhar, *An Introduction to the Study of Stellar Structure*
+  (1939). The central-to-mean densities 5.99 (n = 3/2) and 54.18 (n = 3) and the n = 1 solution sin ξ/ξ are what
+  the solver is checked against. — *from memory; verify* (the n = 1 solution is exact and self-checking)
+- Langer's correction to the WKB centrifugal term, l(l + 1) → (l + ½)²: R. E. Langer, Phys. Rev. **51**, 669 (1937).
+  — *from memory; verify*
+- The nonlinear Gauss law for gravity (route 4): J. Bekenstein & M. Milgrom, "Does the missing mass problem signal the
+  breakdown of Newtonian gravity?", Astrophys. J. **286**, 7 (1984); a relativistic completion, J. D. Bekenstein,
+  Phys. Rev. D **70**, 083509 (2004). — *from memory; verify*
+
 ## Next
 
 1. A citation-index forward search on Pyykkö & Zhao (1991) and Négadi & Kibler (1996). The web search is done.

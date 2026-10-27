@@ -39,6 +39,7 @@ gas=f'''<section id="ideal">
   <canvas class="chart" id="cGasSpeeds"></canvas>
   <p class="read" id="rSpeeds"></p>
   <p>Squeeze a gas without letting heat out and it warms, holding TV^(γ − 1) fixed. Halve the volume and a 4D gas warms by √2 = 1.41, ours by 2^(2/3) = 1.59. To double the temperature takes a 4× squeeze in 4D and 2.8× in ours: <b>a 4D gas is harder to heat by squeezing</b>, because its energy is spread over one more direction. Every engine and every refrigerator runs on that exchange, so 4D's run a little softer. It follows from counting, with no physics of 4D's own.</p>
+  <p class="read"><b>Is 4D just hotter?</b> Temperatures in this chapter run high, but not by bookkeeping. At a given temperature each direction of motion holds the same kT/2, so a 4D atom moves faster than ours at the same temperature (rms √(4kT/m) against √(3kT/m)). For the same speed a 4D gas is cooler, by 3/4. And whether two atoms stick is set by e^(−u/kT) for the pair, the same in any dimension. The high temperatures below come from deeper binding: more neighbours, and the far pull.</p>
 </section>
 <section id="real">
   <h3>A real gas: the second virial coefficient</h3>
