@@ -8,6 +8,10 @@ def KR(a,b=None):
     return f"{K(a)} to {K(b)}"
 AR,KR_,NE,IE,OE,BG=gr(3,18),gr(3,36),gr(3,10),gr(4,2),gr(4,12),gr(4,22)
 ARG=GN['argon']
+IONS=json.loads(subprocess.run(['node',ATOM+'tools/ions.mjs'],capture_output=True,text=True,check=True).stdout)
+# how little vapour: e^(−cohesion/kT) at 300 K, element 12's crystal hold at both ends of its range, beside our water's
+# (latent heat 44 kJ/mol at 25 °C: 5,290 K a molecule)
+VAP=[OE['crystal']*e/300 for e in OE['eps']]
 TC3=[gr(3,Z) for Z in (10,18,36)]
 # the crowd's estimate of a critical point: the span of the Boyle and crystal rules
 def crowd(r): return min(r['tcBoyle'][0],r['tcCrystal'][0]),max(r['tcBoyle'][1],r['tcCrystal'][1])
@@ -64,6 +68,16 @@ gas=f'''<section id="ideal">
   <p><b>We take the two that count the crowd: element 12 condenses below about {KR(OEC)} K, and element 22 below about {KR(BGC)} K.</b> A liquid's atom feels all its neighbours at once, and in 4D most of its pull comes from beyond the nearest. Mean-field theory, which builds the critical point from that whole integral, gets better the more neighbours each atom feels. And four is the liquid–vapour critical point's <b>upper critical dimension</b>: from four dimensions up, mean field's description of the critical point (van der Waals', in effect) becomes exact, apart from slowly varying logarithmic corrections. That is a theorem about the universality class, not a computation of ours. 4D's noble gases are hot-furnace liquids, and the forces chapter's 400 to 730 K was a floor.</p>
   <p><b>Element 2 can't be placed.</b> The two crowd rules put it at {KR(IEC)} K, but if its pull is overbound four times as our helium's is, that falls to roughly {K(IEC[0]/4.4)} to {K(IEC[1]/4.4)} K, below room temperature or near it. Whether 4D has any noble gas that stays a gas at room temperature is open. So is which gases it has at all: 4D hydrogen's molecule hasn't been computed.</p>
   <p class="read">No "boiling point at one atmosphere" can be given, because 4D has no atmosphere to set one. Pressure in 4D is an energy per 4-volume, and which pressure is natural waits on a planet, which waits on gravity. The critical point is the number that can be compared. The real test is to simulate liquid and vapour side by side, on argon first to calibrate, then on element 12. It's a job for the compute runner.</p>
+</section>
+<section id="liquids">
+  <h3>A world of liquids? A hypothesis</h3>
+  <p>Put this chapter beside the last and a picture forms. It's a hypothesis, from three arguments, and it's being tested.</p>
+  <p><b>Few gases at room temperature.</b> Below its critical point a substance is a gas only up to its vapour pressure, which falls as e^(−cohesion/kT). Element 12's crystal holds each atom by {K(OE['crystal']*OE['eps'][0])} to {K(OE['crystal']*OE['eps'][1])} K (an energy, counted in kelvin). At room temperature that's e^(−{VAP[0]:.0f}) to e^(−{VAP[1]:.0f}), against our water's e^(−18): nothing to speak of. The one noble gas that might stay a gas is element 2. 4D hydrogen's molecule hasn't been computed, and the far pull reaches it too (every neutral thing has it), so it may be no better.</p>
+  <p><b>Wide liquid ranges.</b> In our world, how long a liquid lasts depends on how far its atoms' pull reaches. Colloids whose pull is short lose the liquid altogether: they go straight from gas to crystal. 4D's noble gases are the opposite extreme. The far pull raises the critical point, as above. Freezing is set more by how the nearest neighbours pack, which the far pull barely changes.</p>
+  <p><b>Crystals are harder to make.</b> Even hard spheres crystallize less readily as the dimension rises: the barrier to forming a crystal is higher in 4D than in 3D, though 4D's densest lattice is unusually good (its nearest neighbours make a 24-cell). For molecules, <a href="search.html">chapter 11</a> counted far more ways for them to sit. A liquid that won't crystallize doesn't stay liquid as it cools. It becomes a glass.</p>
+  <p>So the hypothesis: <b>in 4D, gas belongs to furnaces, liquids last over a very wide range, and cold matter is glass more often than crystal.</b> The test is queued on the runner: liquid and vapour simulated side by side (Gibbs-ensemble Monte Carlo), calibrated on our argon and on Lennard-Jones atoms in both worlds, then element 12. Melting comes after.</p>
+  <h4>The exception: salts</h4>
+  <p>Salts are held by their charges, at 1/r, and a crystal of alternating charges orders itself in a way a crowd of neutral atoms doesn't. Take aluminium oxide, our sapphire, and its counterpart, <b>bluminium pxide, Bl₂Px₃</b>: bluminium has three electrons to give and pxygen wants two. Computed by the table's solver, stripping bluminium to Bl³⁺ costs <b>{sum(IONS['Bl']):.1f} eV</b>. Aluminium costs {sum(IONS['Al']):.1f} by the same method, and {sum(IONS['measured']['Al']):.1f} measured. Pxygen takes its first extra electron for <b>{IONS['Px']:.1f} eV</b>, where the same method gives oxygen {IONS['O']:.1f} (measured, {IONS['measured']['O']:.2f}). Both steps come out easier than ours. What isn't computed yet is the crystal's own energy, which pays for the rest, as it does for sapphire (a lone O²⁻ isn't even bound). If it holds, Bl₂Px₃ is a 4D sapphire: a hard, high-melting crystal. A ruby is sapphire with a little chromium in it, and it made the first laser. Whether 4D has a ruby is the next question.</p>
 </section>
 <section id="gasnext">
   <h3>What's computed and what's open</h3>

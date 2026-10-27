@@ -563,5 +563,13 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `element 12 condenses below ${Math.round(Math.min(oe.tcBoyle[0], oe.tcCrystal[0]))}–${Math.round(Math.max(oe.tcBoyle[1], oe.tcCrystal[1]))} K by the crowd's rules, at each end over three times the well rule's ${oe.tcWell.map(Math.round).join("–")}; a throttle cools it below ${Math.round(oe.inversion[0])} K`);
 }
 
+/* 30 · ions for chapter 12's salts (tools/ions.mjs): the solver strips aluminium within 5% of measured, and
+   bluminium's three electrons and pxygen's first extra one come out as the chapter says */
+{
+  const { ions } = await import(path.join(here, "../tools/ions.mjs")), I = ions(), sum = (a) => a.reduce((s, x) => s + x, 0);
+  ok(near(sum(I.Al), sum(I.measured.Al), 0.05) && sum(I.Bl) < sum(I.Al) && I.Px > I.O && I.O > 0,
+    `aluminium stripped to Al³⁺ for ${sum(I.Al).toFixed(1)} eV (measured ${sum(I.measured.Al).toFixed(1)}); bluminium for ${sum(I.Bl).toFixed(1)}; pxygen takes an electron for ${I.Px.toFixed(2)} eV (oxygen ${I.O.toFixed(2)}, measured ${I.measured.O})`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

@@ -188,6 +188,16 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
   "Critical exponents in 3.99 dimensions", Phys. Rev. Lett. **28**, 240 (1972); the logarithms as in R. Kenna's work
   on the 4D Ising and O(N) models. — *cited* (standard; the specific papers not read for this)
 
+- J. A. van Meel, B. Charbonneau, A. Fortini & P. Charbonneau, "Hard-sphere crystallization gets rarer with
+  increasing dimension", Phys. Rev. E **80**, 061110 (2009), arXiv:0907.3100; building on van Meel, Frenkel &
+  Charbonneau's 4D study, which found a larger crystallization barrier in 4D than in 3D. — *index* (APS and AMOLF
+  listings and abstract)
+- The liquid's range shrinks, and the liquid finally disappears, as the attraction's range shortens (colloids;
+  M. H. J. Hagen & D. Frenkel, J. Chem. Phys. **101**, 4093 (1994)); fluid–fluid coexistence needs a range above
+  about 30% of the core. — *cited* (from later abstracts; Hagen & Frenkel not read)
+- Aluminium's ionization energies 5.986, 18.829, 28.448 eV and oxygen's electron affinity 1.461 eV (NIST). — *from
+  memory; verify* against the NIST tables before citing
+
 ## Next
 
 1. A citation-index forward search on Pyykkö & Zhao (1991) and Négadi & Kibler (1996). The web search is done.
