@@ -1,96 +1,68 @@
 {
- "run": "audit-1",
- "why": "The search audit: the pipeline on our HF and ammonia dimers (published answers), chapter 10 re-baked with the fixed descent, the Hartree-Fock landscape probed at random against the force field for water, Xater and bmmonia, and element 18's pair, too big for the sandbox.",
+ "run": "coexist-1",
+ "why": "Liquid and vapour side by side (Gibbs-ensemble Monte Carlo), to test chapter 12's estimate that 4D's noble gases condense far hotter than their wells suggest: Lennard-Jones in 3D as the known answer (critical point 1.31), our computed argon as the calibration, Lennard-Jones in 4D for dimension alone, and 4D's elements 12 and 2, with a box-size check.",
  "minutes": 330,
  "groups": [
   {
-   "name": "known-hf",
+   "name": "lj-3d",
    "cmds": [
-    "node four/atom/tools/audit.mjs known 3.9"
+    "node four/atom/tools/coexist.mjs lj3 1.0 --n=500 --cycles=30000 --minutes=300",
+    "node four/atom/tools/coexist.mjs lj3 1.1 --n=500 --cycles=30000 --minutes=300",
+    "node four/atom/tools/coexist.mjs lj3 1.2 --n=500 --cycles=30000 --minutes=300",
+    "node four/atom/tools/coexist.mjs lj3 1.25 --n=500 --cycles=30000 --minutes=300"
    ]
   },
   {
-   "name": "known-nh3",
+   "name": "ar-3d",
    "cmds": [
-    "node four/atom/tools/audit.mjs known 3.7"
+    "node four/atom/tools/coexist.mjs ar 0.9 --n=500 --cycles=30000 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 1.0 --n=500 --cycles=30000 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 1.1 --n=500 --cycles=30000 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 1.2 --n=500 --cycles=30000 --minutes=300"
    ]
   },
   {
-   "name": "rebake-water",
+   "name": "lj-4d",
    "cmds": [
-    "node four/atom/tools/pairsearch.mjs 3"
+    "node four/atom/tools/coexist.mjs lj4 1.4 --n=1000 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs lj4 1.7 --n=1000 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs lj4 2.0 --n=1000 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs lj4 2.3 --n=1000 --cycles=15000 --minutes=300"
    ]
   },
   {
-   "name": "rebake-xater",
+   "name": "oe-a",
    "cmds": [
-    "node four/atom/tools/pairsearch.mjs 4"
+    "node four/atom/tools/coexist.mjs oe 6 --n=1200 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs oe 7 --n=1200 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs oe 8 --n=1200 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs oe 9 --n=1200 --cycles=15000 --minutes=300"
    ]
   },
   {
-   "name": "rebake-bmmonia",
+   "name": "oe-b",
    "cmds": [
-    "node four/atom/tools/pairsearch.mjs 4.9"
+    "node four/atom/tools/coexist.mjs oe 10 --n=1200 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs oe 11 --n=1200 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs oe 12 --n=1200 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs oe 13 --n=1200 --cycles=15000 --minutes=300"
    ]
   },
   {
-   "name": "probe-water",
+   "name": "ie",
    "cmds": [
-    "node four/atom/tools/audit.mjs probe 3 600"
+    "node four/atom/tools/coexist.mjs ie 4 --n=1200 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 6 --n=1200 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 8 --n=1200 --cycles=15000 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 10 --n=1200 --cycles=15000 --minutes=300"
    ]
   },
   {
-   "name": "probe-xater-0",
+   "name": "size",
    "cmds": [
-    "node four/atom/tools/audit.mjs probe 4 2400 --shard 0/4"
-   ]
-  },
-  {
-   "name": "probe-xater-1",
-   "cmds": [
-    "node four/atom/tools/audit.mjs probe 4 2400 --shard 1/4"
-   ]
-  },
-  {
-   "name": "probe-xater-2",
-   "cmds": [
-    "node four/atom/tools/audit.mjs probe 4 2400 --shard 2/4"
-   ]
-  },
-  {
-   "name": "probe-xater-3",
-   "cmds": [
-    "node four/atom/tools/audit.mjs probe 4 2400 --shard 3/4"
-   ]
-  },
-  {
-   "name": "probe-bmmonia-0",
-   "cmds": [
-    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 0/4"
-   ]
-  },
-  {
-   "name": "probe-bmmonia-1",
-   "cmds": [
-    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 1/4"
-   ]
-  },
-  {
-   "name": "probe-bmmonia-2",
-   "cmds": [
-    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 2/4"
-   ]
-  },
-  {
-   "name": "probe-bmmonia-3",
-   "cmds": [
-    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 3/4"
-   ]
-  },
-  {
-   "name": "dimer-18",
-   "cmds": [
-    "node four/atom/tools/audit.mjs dimer 18"
+    "node four/atom/tools/coexist.mjs oe 8 --n=2400 --cycles=6000 --minutes=300",
+    "node four/atom/tools/coexist.mjs lj4 2.0 --n=2400 --cycles=6000 --minutes=300",
+    "node four/atom/tools/coexist.mjs lj3 1.2 --n=1500 --cycles=15000 --minutes=300"
    ]
   }
  ]

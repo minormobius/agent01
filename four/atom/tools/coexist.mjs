@@ -1,0 +1,125 @@
+/* Liquid and vapour side by side, by Gibbs-ensemble Monte Carlo (Panagiotopoulos 1987): two periodic boxes that
+   trade volume and atoms but never touch, so there's no surface between them to simulate. At a temperature below
+   the critical point one box ends up liquid and the other vapour, and their densities are the coexisting ones.
+   Built to run on the compute runner (.github/compute/), one temperature per command, resumable from its file.
+     node four/atom/tools/coexist.mjs <system> <T> [--n=N] [--cycles=C] [--minutes=M]
+   systems: lj3 (Lennard-Jones in 3D, the known answer: critical point 1.31 ε/k), lj4 (Lennard-Jones in 4D),
+            ne, ar, kr (our noble gases, the computed pairs) and ie, oe, bg (4D's elements 2, 12 and 22).
+   T is in units of the pair's well depth ε/k (the computed well as computed: divide every kelvin by 1.8 for the
+   other end of the forces chapter's range). Lengths are in bohr (σ for lj).
+   Each box is cut off at half its side, and the rest of the pull is added as if the fluid were uniform beyond it,
+   ½ρ ∫ u dV, which is right where the fluid has no structure left: the 4D pull reaches far, so the boxes are big.
+   Output: $TMPDIR/atom4-coexist/<system>_<T>_n<N>.json, the densities of the two boxes every cycle, block-averaged. */
+import { writeFileSync, readFileSync, mkdirSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import * as G from "../js/gas.js";
+
+const KB = 3.166811563e-6;
+const arg = (k, def) => { const a = process.argv.find((s) => s.startsWith(`--${k}=`)); return a ? +a.split("=")[1] : def; };
+const sys = process.argv[2], Tred = +process.argv[3];
+if (!sys || !(Tred > 0)) { console.error("usage: coexist.mjs <lj3|lj4|ne|ar|kr|ie|oe|bg> <T in ε/k> [--n=N] [--cycles=C]"); process.exit(1); }
+
+/* the pair: u(r) in units of ε, a hard core inside rcore, and its tail −Σ a/rⁿ past rmax (also in ε) */
+async function pair(sys) {
+  if (sys === "lj3" || sys === "lj4") {
+    const d = sys === "lj3" ? 3 : 4;
+    return { d, u: (r) => 4 * (r ** -12 - r ** -6), rcore: 0.75, rmax: 3, tail: [{ a: 4, n: 6 }, { a: -4, n: 12 }], R: 2 ** (1 / 6) };
+  }
+  const which = { ne: [3, 10], ar: [3, 18], kr: [3, 36], ie: [4, 2], oe: [4, 12], bg: [4, 22] }[sys];
+  if (!which) throw new Error(`unknown system ${sys}`);
+  const FF = await import("../js/forces.js"), { PAIRS, RS } = await import("../js/pairs.js"), { TABLE } = await import("../js/table.js"), { RESPONSE } = await import("../js/response.js");
+  const P = G.noblePotential(which[0], which[1], { FF, PAIRS, RS, TABLE, RESPONSE }), eps = -P.well.E;
+  return { d: which[0], u: (r) => P.u(r) / eps, rcore: P.opt.rmin, rmax: P.opt.rmax, tail: P.opt.tail.map((t) => ({ a: t.a / eps, n: t.n })), R: P.well.R, epsK: eps / KB };
+}
+const PR = await pair(sys), d = PR.d, S = G.sphereArea(d), beta = 1 / Tred;
+const U = (r) => (r <= PR.rmax ? PR.u(r) : -PR.tail.reduce((s, { a, n }) => s + a / r ** n, 0));
+/* u on a grid in r², for the inner loop; ∫_rc^∞ u r^(d−1) dr for the tail, numerically to rmax and exactly past it */
+const R2MAX = 4e4, NG = 400000, DG = R2MAX / NG, UG = new Float64Array(NG + 2);
+for (let i = 0; i <= NG + 1; i++) { const r = Math.sqrt(i * DG); UG[i] = r < PR.rcore ? Infinity : U(r); }
+const ug = (r2) => { const x = r2 / DG, i = x | 0; if (i >= NG) return U(Math.sqrt(r2)); const f = x - i; return UG[i] * (1 - f) + UG[i + 1] * f; };
+function tailIntegral(rc) {
+  let s = 0; const h = 0.002;
+  for (let r = rc + h / 2; r < PR.rmax; r += h) s += U(r) * r ** (d - 1) * h;
+  const from = Math.max(rc, PR.rmax);
+  return s - PR.tail.reduce((t, { a, n }) => t + (a * from ** (d - n)) / (n - d), 0);
+}
+const tailE = (N, V) => { const L = V ** (1 / d); return ((N * N) / (2 * V)) * S * tailIntegral(L / 2); };
+
+/* the state: two boxes, each N atoms in a cube of side L, coordinates in [0, L) */
+const OUT = path.join(tmpdir(), "atom4-coexist"); mkdirSync(OUT, { recursive: true });
+
+let seed = (Math.round(Tred * 1000) * 7919 + sys.length * 104729) | 0;
+const rnd = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const Ntot = arg("n", d === 3 ? 500 : 800), CYCLES = arg("cycles", 20000);
+const file = path.join(OUT, `${sys}_${Tred}_n${Ntot}.json`);
+let st;
+if (existsSync(file)) { st = JSON.parse(readFileSync(file, "utf8")); seed = st.seed; }
+else {
+  // start both boxes at the same density, near the critical point's: 0.3 of the densest crystal's at the pair's
+  // spacing (D_d: one point per 2s^d), where a uniform fluid is unstable and splits by itself
+  const s = PR.R / Math.SQRT2, rho = 0.3 / (2 * s ** d), V = Ntot / 2 / rho, L = V ** (1 / d), boxes = [];
+  for (let b = 0; b < 2; b++) {
+    const x = [];
+    while (x.length < Ntot / 2) { const p = Array.from({ length: d }, () => rnd() * L); if (x.every((q) => dist2(p, q, L) > (0.85 * PR.R) ** 2)) x.push(p); }
+    boxes.push({ L, x });
+  }
+  st = { sys, d, T: Tred, epsK: PR.epsK ?? null, R: PR.R, N: Ntot, boxes, cycle: 0, rho: [[], []], acc: { move: [0, 0], vol: [0, 0], swap: [0, 0] }, seed };
+}
+function dist2(p, q, L) { let s = 0; for (let k = 0; k < d; k++) { let t = p[k] - q[k]; t -= L * Math.round(t / L); s += t * t; } return s; }
+/* one atom's energy with the rest of its box, inside the cutoff */
+function atomE(box, p, skip) {
+  const L = box.L, rc2 = (L / 2) ** 2; let e = 0;
+  for (let j = 0; j < box.x.length; j++) { if (j === skip) continue; const r2 = dist2(p, box.x[j], L); if (r2 < rc2) { const v = ug(r2); if (v === Infinity) return Infinity; e += v; } }
+  return e;
+}
+function boxE(box) { let e = 0; for (let i = 0; i < box.x.length; i++) { const a = atomE(box, box.x[i], i); if (a === Infinity) return Infinity; e += a / 2; } return e + tailE(box.x.length, box.L ** d); }
+let E = st.boxes.map(boxE);
+
+const t0 = Date.now(), DEADLINE = arg("minutes", 320) * 60e3;
+let step = st.boxes.map((b) => 0.15 * PR.R), dlnV = 0.05;
+for (; st.cycle < CYCLES; st.cycle++) {
+  const n = st.boxes[0].x.length + st.boxes[1].x.length;
+  for (let m = 0; m < n; m++) {
+    const r = rnd();
+    if (r < 0.7) { // move an atom
+      const b = st.boxes[0].x.length > rnd() * n ? 0 : 1, box = st.boxes[b]; if (!box.x.length) continue;
+      const i = (rnd() * box.x.length) | 0, p = box.x[i], q = p.map((v) => { let w = v + (rnd() - 0.5) * 2 * step[b]; w -= box.L * Math.floor(w / box.L); return w; });
+      const dE = atomE(box, q, i) - atomE(box, p, i); st.acc.move[1]++;
+      if (dE < Infinity && (dE <= 0 || rnd() < Math.exp(-beta * dE))) { box.x[i] = q; E[b] += dE; st.acc.move[0]++; }
+    } else { // trade an atom: take one from box a, put it at random in box b
+      const a = rnd() < 0.5 ? 0 : 1, b = 1 - a, A = st.boxes[a], B = st.boxes[b]; if (!A.x.length) continue;
+      const i = (rnd() * A.x.length) | 0, q = Array.from({ length: d }, () => rnd() * B.L), ins = atomE(B, q, -1); st.acc.swap[1]++;
+      if (ins === Infinity) continue;
+      const Va = A.L ** d, Vb = B.L ** d, Na = A.x.length, Nb = B.x.length;
+      const dEa = -atomE(A, A.x[i], i) + tailE(Na - 1, Va) - tailE(Na, Va), dEb = ins + tailE(Nb + 1, Vb) - tailE(Nb, Vb);
+      const accp = ((Na * Vb) / ((Nb + 1) * Va)) * Math.exp(-beta * (dEa + dEb));
+      if (rnd() < accp) { A.x.splice(i, 1); B.x.push(q); E[a] += dEa; E[b] += dEb; st.acc.swap[0]++; }
+    }
+  }
+  { // trade volume, once a cycle: a random walk in ln(V1/V2) at fixed total volume
+    const [b1, b2] = st.boxes, V1 = b1.L ** d, V2 = b2.L ** d, Vt = V1 + V2, lr = Math.log(V1 / V2) + (rnd() - 0.5) * 2 * dlnV, V1n = (Vt * Math.exp(lr)) / (1 + Math.exp(lr)), V2n = Vt - V1n;
+    const trial = [[b1, V1n], [b2, V2n]].map(([b, V]) => { const L = V ** (1 / d), f = L / b.L; return { L, x: b.x.map((p) => p.map((v) => v * f)) }; }), En = trial.map(boxE);
+    const arg = -beta * (En[0] + En[1] - E[0] - E[1]) + (b1.x.length + 1) * Math.log(V1n / V1) + (b2.x.length + 1) * Math.log(V2n / V2); st.acc.vol[1]++;
+    if (En.every((e) => e < Infinity) && Math.log(rnd()) < arg) { st.boxes = trial; E = En; st.acc.vol[0]++; }
+  }
+  if (st.cycle % 50 === 0) E = st.boxes.map(boxE); // drift
+  // tune the steps toward 40% acceptance during the first fifth
+  if (st.cycle < CYCLES / 5 && st.cycle % 20 === 19) { const f = st.acc.move[0] / Math.max(1, st.acc.move[1]), g = st.acc.vol[0] / Math.max(1, st.acc.vol[1]); step = step.map((s, b) => Math.min(st.boxes[b].L / 2, s * (f > 0.4 ? 1.1 : 0.9))); dlnV = Math.min(1, dlnV * (g > 0.4 ? 1.1 : 0.9)); }
+  st.rho[0].push(+(st.boxes[0].x.length / st.boxes[0].L ** d).toExponential(5)); st.rho[1].push(+(st.boxes[1].x.length / st.boxes[1].L ** d).toExponential(5));
+  if (st.cycle % 200 === 199 || Date.now() - t0 > DEADLINE) {
+    st.seed = seed; summarize(); writeFileSync(file, JSON.stringify(st));
+    console.log(`${((Date.now() - t0) / 1000).toFixed(0)}s ${sys} T=${Tred} cycle ${st.cycle + 1}: N ${st.boxes.map((b) => b.x.length).join("/")}, ρ ${st.summary.rhoL.toExponential(3)} / ${st.summary.rhoV.toExponential(3)} (ρR^d: ${(st.summary.rhoL * PR.R ** d).toFixed(3)} / ${(st.summary.rhoV * PR.R ** d).toFixed(3)}), acc move ${(st.acc.move[0] / st.acc.move[1]).toFixed(2)} swap ${(st.acc.swap[0] / Math.max(1, st.acc.swap[1])).toFixed(4)} vol ${(st.acc.vol[0] / st.acc.vol[1]).toFixed(2)}`);
+    if (Date.now() - t0 > DEADLINE) { st.cycle++; break; }
+  }
+}
+/* the second half, in ten blocks: the denser box each cycle is the liquid (the boxes can trade roles) */
+function summarize() {
+  const n = st.rho[0].length, from = Math.floor(n / 2), hi = [], lo = [];
+  for (let c = from; c < n; c++) { const a = st.rho[0][c], b = st.rho[1][c]; hi.push(Math.max(a, b)); lo.push(Math.min(a, b)); }
+  const blocks = (v) => { const k = 10, m = Math.floor(v.length / k), means = Array.from({ length: k }, (_, j) => v.slice(j * m, (j + 1) * m).reduce((s, x) => s + x, 0) / Math.max(1, m)), mu = means.reduce((s, x) => s + x, 0) / k; return [mu, Math.sqrt(means.reduce((s, x) => s + (x - mu) ** 2, 0) / (k * (k - 1)))]; };
+  const [rhoL, eL] = blocks(hi), [rhoV, eV] = blocks(lo);
+  st.summary = { cycles: n, rhoL, eL, rhoV, eV, Rd: PR.R ** d };
+}
+st.seed = seed; summarize(); writeFileSync(file, JSON.stringify(st));
+console.log("done:", JSON.stringify(st.summary));
