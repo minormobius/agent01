@@ -2,6 +2,7 @@
    (.github/compute/), each mode resumable from its caches in $TMPDIR.
      node four/atom/tools/audit.mjs known <key>                  # the pipeline on one of our molecules, whose answer is published
      node four/atom/tools/audit.mjs probe <key> <n> [--shard i/m] # the Hartree–Fock landscape, sampled, against the force field
+     node four/atom/tools/audit.mjs deepen <key> <n> [--only i]   # Hartree–Fock relaxed (pairsearch's hfDescend) from the n deepest probes (or just the i-th)
      node four/atom/tools/audit.mjs dimer <Z>                     # a 4D hydride's hydrogen-bonded pair, alone, with all the memory
      node four/atom/tools/audit.mjs summary                       # what the probes found
      node four/atom/tools/audit.mjs bake                          # the same, as js/audit.js, for chapter 11
@@ -35,25 +36,42 @@ if (mode === "known") {
   const dir = path.join(OUT, `known_${key}`); mkdirSync(dir, { recursive: true });
   for (const f of ["ffdata.js", "forcefields.js"]) copyFileSync(path.join(here, "../js", f), path.join(dir, f));
   log(`done; the fit and data copied to ${dir}`);
-} else if (mode === "probe") {
+} else if (mode === "probe" || mode === "deepen") {
   const key = argv[1], n = +argv[2], s = argv.indexOf("--shard"), [si, sm] = s >= 0 ? argv[s + 1].split("/").map(Number) : [0, 1];
-  const { WORLDS, monoOf } = await import("./forcefield.mjs"), { hydrideAtoms } = await import("./census.mjs"), { hfMany } = await import("./pairsearch.mjs");
+  const { WORLDS, monoOf } = await import("./forcefield.mjs"), { hydrideAtoms } = await import("./census.mjs"), { hfMany, hfDescend } = await import("./pairsearch.mjs");
   const { modelEnergy } = await import("../js/ffmodel.js"), { FORCEFIELDS } = await import("../js/forcefields.js"), { PAIRMIN } = await import("../js/pairmin.js"), { randomRotation } = await import("../js/md.js");
   const w = WORLDS[key], d = w.d, m = monoOf(key), A = hydrideAtoms(m.Z, d, m.R, m.param), At = A.map((a) => a.at), best = PAIRMIN[key].best, p = FORCEFIELDS[key].p;
-  const file = path.join(OUT, sm > 1 ? `probe_${key}_s${si}of${sm}.json` : `probe_${key}.json`);
-  const st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { key, d, best: best.E, points: [] };
-  const at = () => si + sm * st.points.length; // the next placement's global index
+  // placement g, the same every time it's asked for: B = t + R·A, its turn R and offset t kept so it can be relaxed later
   const place = (g) => {
     const rnd = rng(7919 * (Math.round(+key * 10)) + g);
     for (;;) {
       const R = randomRotation(d, rnd), gs = () => Math.sqrt(-2 * Math.log(rnd() + 1e-300)) * Math.cos(2 * Math.PI * rnd()), u = Array.from({ length: d }, gs), un = Math.hypot(...u);
-      const D = best.dXX * (0.85 + 0.5 * rnd()), B = At.map((q) => Array.from({ length: d }, (_, i) => (D * u[i]) / un + R[i].reduce((t, r, j) => t + r * q[j], 0)));
-      if (At.every((a) => B.every((b) => Math.hypot(...a.map((x, i) => x - b[i])) > w.CLOSE - 0.4))) return B;
+      const D = best.dXX * (0.85 + 0.5 * rnd()), t = u.map((v) => (D * v) / un), B = At.map((q) => Array.from({ length: d }, (_, i) => t[i] + R[i].reduce((s, r, j) => s + r * q[j], 0)));
+      if (At.every((a) => B.every((b) => Math.hypot(...a.map((x, i) => x - b[i])) > w.CLOSE - 0.4))) return { R, t, B };
     }
   };
+  if (mode === "deepen") { // relax Hartree–Fock from the n deepest probe placements, by the quasi-Newton descent
+    const pts = []; for (const f of readdirSync(OUT).filter((f) => f.startsWith(`probe_${key}`) && f.endsWith(".json") && (f === `probe_${key}.json` || f.startsWith(`probe_${key}_s`)))) pts.push(...JSON.parse(readFileSync(path.join(OUT, f), "utf8")).points);
+    const only = argv.indexOf("--only"), oi = only >= 0 ? +argv[only + 1] : null; // one start per runner: the oi-th deepest
+    const deepest = pts.sort((a, b) => a.hf - b.hf).slice(oi ?? 0, oi === null ? n : oi + 1), file = path.join(OUT, oi === null ? `deepen_${key}.json` : `deepen_${key}_${oi}.json`), st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { key, best: best.E, runs: [] }, t0 = Date.now();
+    for (const q of deepest) {
+      if (st.runs.some((r) => r.g === q.g)) continue;
+      const pl = place(q.g), drift = Math.max(...pl.B.flat().map((v, i) => Math.abs(v - q.B.flat()[i])));
+      if (drift > 1e-3) { console.log(`placement ${q.g} doesn't regenerate (off by ${drift}); skipped`); continue; }
+      const log = (s) => console.log(`${((Date.now() - t0) / 1000).toFixed(0)}s #${q.g} ${s}`); log(`from ${(q.hf * KCAL).toFixed(2)} kcal/mol (best pair ${(best.E * KCAL).toFixed(2)})`);
+      const r = await hfDescend(key, At, pl.R, [...new Array((d * (d - 1)) / 2).fill(0), ...pl.t], { iters: 30, log });
+      const dXX = Math.hypot(...At[0].map((v, i) => v - r.B[0][i]));
+      st.runs.push({ g: q.g, from: q.hf, E: +r.E.toFixed(7), dXX: +dXX.toFixed(3), B: r.B.map((b) => b.map((v) => +v.toFixed(5))) }); writeFileSync(file, JSON.stringify(st));
+      log(`ends at ${(r.E * KCAL).toFixed(2)} kcal/mol, X–X ${dXX.toFixed(2)}${r.E < best.E - 0.05 / KCAL ? "  ← DEEPER than the best pair" : ""}`);
+    }
+    process.exit(0);
+  }
+  const file = path.join(OUT, sm > 1 ? `probe_${key}_s${si}of${sm}.json` : `probe_${key}.json`);
+  const st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { key, d, best: best.E, points: [] };
+  const at = () => si + sm * st.points.length; // the next placement's global index
   const t0 = Date.now();
   while (at() < n) {
-    const gs = Array.from({ length: 4 }, (_, j) => at() + j * sm).filter((g) => g < n), Bs = gs.map(place);
+    const gs = Array.from({ length: 4 }, (_, j) => at() + j * sm).filter((g) => g < n), Bs = gs.map((g) => place(g).B);
     const Es = await hfMany(key, Bs.map((B) => [At, B]));
     gs.forEach((g, j) => st.points.push({ g, hf: +Es[j].toFixed(7), model: +modelEnergy(p, At, Bs[j]).toFixed(7), dXX: +Math.hypot(...At[0].map((v, i) => v - Bs[j][0][i])).toFixed(3), B: Bs[j].map((q) => q.map((v) => +v.toFixed(5))) }));
     writeFileSync(file, JSON.stringify(st));
@@ -93,5 +111,5 @@ export const PROBES = ${JSON.stringify(out)};
     console.log("   where the model is too shallow most:", worst.map((q) => `#${q.g} HF ${(q.hf * KCAL).toFixed(1)} model ${(q.model * KCAL).toFixed(1)} at ${q.dXX}`).join("; "));
   }
 } else {
-  console.error("modes: known <key> | probe <key> <n> [--shard i/m] | dimer <Z> | summary | bake"); process.exit(1);
+  console.error("modes: known <key> | probe <key> <n> [--shard i/m] | deepen <key> <n> | dimer <Z> | summary | bake"); process.exit(1);
 }
