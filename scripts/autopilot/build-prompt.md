@@ -33,10 +33,10 @@ _Regenerated 2026-10-27 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-27, 100 members / 256 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: anthropic, llm, llms
-- Top post: "so we should make a combined screening program for autism, psychopathy and English comprehension and if you score above " — @segyges.bsky.social
+**Neighborhood spark** (bisk 2026-10-27, 100 members / 252 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: llm, idk, github
+- Top post: "" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
