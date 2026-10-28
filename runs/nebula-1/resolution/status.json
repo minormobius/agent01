@@ -1,0 +1,19 @@
+{
+ "group": "resolution",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nebula.mjs run 4 1 0.5 60000 40 1",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  },
+  {
+   "cmd": "node four/atom/tools/nebula.mjs run 4 1 0 60000 40 1",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  }
+ ]
+}

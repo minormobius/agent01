@@ -1,0 +1,33 @@
+{
+ "group": "rates-a",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nebula.mjs run 4 1 1 30000 40 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 14212
+  },
+  {
+   "cmd": "node four/atom/tools/nebula.mjs run 4 1 0.75 30000 40 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 16763
+  },
+  {
+   "cmd": "node four/atom/tools/nebula.mjs run 4 1 0.5 30000 40 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 17568
+  },
+  {
+   "cmd": "node four/atom/tools/nebula.mjs run 4 1 0.25 30000 40 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 18726
+  }
+ ]
+}
