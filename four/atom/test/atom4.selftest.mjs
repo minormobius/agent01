@@ -694,5 +694,16 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `geometry, continued: a walker comes home ${(p3 * 100).toFixed(2)}% of the time in ours, ${(p4 * 100).toFixed(2)}% in 4D (Pólya, Montroll: 34.05, 19.32), ${(w4 * 100).toFixed(1)}% of 3,000 simulated 4D walks within 4,096 steps; ${inside} whole-number points within radius 12 in 4D (the ball: ${GE.ballVolume(4, 12).toFixed(0)}); a corner-first tesseract's slices have ${sl.join(", ")} corners; the Clifford torus is flat and projects to a √2 : 1 doughnut (to ${ring.toExponential(0)})`);
 }
 
+/* 39 · the live five-molecule search (js/clusterlive.js, the search chapter): start s built in the page follows the
+   runner's start s (tools/clusters.mjs) to the same minimum, so the page can name it from js/clusters.js. Water's start 0
+   is where the runner first found its best; Xater's start 2 first found its fourth, which sits 0.02 kcal/mol from the
+   third, so naming has to take the nearest */
+{
+  const CLV = await import(path.join(here, "../js/clusterlive.js")), run = (key, s) => { const C = CLV.clusterSearch(key, 5); let last; for (const st of C.steps(s)) last = st; return { e: last.f, g: last.g, nm: C.name(last.f), C }; };
+  const w = run("3", 0), x = run("4", 2), first = (r, k) => r.C.ref.best[k - 1].first;
+  ok(w.g < 2e-5 && x.g < 2e-5 && w.nm?.rank === 1 && first(w, 1) === 0 && x.nm?.rank === 4 && first(x, 4) === 2,
+    `the live search: water's start 0 settles at ${(w.e * CLV.KCAL).toFixed(3)} kcal/mol, the runner's minimum #${w.nm?.rank} (first found by its start ${first(w, 1)}); Xater's start 2 at ${(x.e * CLV.KCAL).toFixed(3)}, #${x.nm?.rank} (first found by start ${first(x, 4)})`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

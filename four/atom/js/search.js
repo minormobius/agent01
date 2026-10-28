@@ -11,6 +11,7 @@ import { PAIRMIN } from "./pairmin.js";
 import { CLUSTERS } from "./clusters.js";
 import { randomRotation } from "./md.js";
 import { makeTile, eye, turn } from "./tile.js";
+import { clusterSearch } from "./clusterlive.js";
 
 const $ = (id) => document.getElementById(id);
 const KCAL = 627.509, SCALE = 1 / 8.5;
@@ -106,6 +107,58 @@ export function buildSearch() {
   if (modes) modes.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; mode = b.dataset.m; for (const x of modes.children) x.classList.toggle("on", x === b); });
   setInterval(() => report(runs), 400);
   return runs;
+}
+
+/* five at once, live (js/clusterlive.js): start s is the runner's start s, so where it settles is named from the
+   runner's list. One viewer, a tab per world; each molecule's heavy atom has its own colour */
+const MOLC = ["#ffd166", "#6fe0ff", "#ff7aa8", "#7dffb0", "#ff9f43"];
+export function buildClusters() {
+  const host = $("clusterTiles"); if (!host) return;
+  for (const key of ["3", "4"]) {
+    const n = 5, C = clusterSearch(key, n), scale = 1 / (1.1 * C.Rball), L = { s: 0, gen: null, cur: null, hold: 0, mode: "watch", found: new Map(), best: Infinity, done: 0, last: null };
+    const scene = { balls: [], bonds: [] };
+    for (let m = 0; m < n; m++) { const o = scene.balls.length; scene.balls.push({ p: [0, 0, 0, 0], c: MOLC[m], r: 0.075 }, { p: [0, 0, 0, 0], el: "H", r: 0.045 }, { p: [0, 0, 0, 0], el: "H", r: 0.045 }); scene.bonds.push([o, o + 1], [o, o + 2]); }
+    const begin = () => { L.gen = C.steps(L.s); L.cur = L.gen.next().value; };
+    const heavy = () => C.atoms(L.cur.R0s, L.cur.x).map((M) => M[0]);
+    const finish = () => {
+      const X = heavy(); let far = 0; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) far = Math.max(far, Math.hypot(...X[i].map((v, k) => v - X[j][k])));
+      const e = L.cur.f, nm = C.name(e);
+      if (L.cur.g > 2e-5) L.last = { s: L.s, label: "stopped with the slope not gone: not counted" };
+      else if (far > 4 * C.Rball) L.last = { s: L.s, label: "one wandered off: not a cluster of five" };
+      else {
+        const id = nm ? `#${nm.rank}` : (e * KCAL).toFixed(1); L.found.set(id, (L.found.get(id) || 0) + 1); L.best = Math.min(L.best, e);
+        L.last = { s: L.s, label: nm ? `the runner's #${nm.rank} (${nm.hits} of its ${nm.of} starts)` : "a minimum outside the runner's top 12" };
+      }
+      L.done++; L.s++; L.gen = null; L.hold = L.mode === "watch" ? 100 : 25;
+    };
+    const place = () => {
+      const Ms = C.atoms(L.cur.R0s, L.cur.x), mid = new Array(C.d).fill(0); Ms.forEach((M) => M[0].forEach((v, k) => (mid[k] += v / n)));
+      Ms.forEach((M, m) => M.forEach((p, a) => { const b = scene.balls[3 * m + a]; for (let k = 0; k < 4; k++) b.p[k] = k < C.d ? (p[k] - mid[k]) * scale : 0; }));
+    };
+    begin(); place();
+    makeTile(host, scene, {
+      tab: key === "3" ? "five waters · 3D" : "five Xaters · 4D", title: key === "3" ? `five of our waters: ${(n - 1) * 6} numbers` : `five Xaters: ${(n - 1) * 10} numbers`,
+      sub: key === "3" ? "each of four molecules moves 3 ways and turns 3 (the first stays put)" : "each of four molecules moves 4 ways and turns 6: turn it through w, or slice it",
+      R: 1.25, spin: key === "3" ? [[1, 2, 0.0016]] : [0.0012, 0.0008], start: key === "3" ? turn(eye(), 1, 2, -0.3) : turn(turn(eye(), 0, 3, 0.45), 1, 2, 0.3),
+      step: () => {
+        if (L.hold > 0) { if (--L.hold === 0) begin(); }
+        else { if (!L.gen) begin(); const t0 = performance.now(); do { const r = L.gen.next(); if (r.done) { finish(); break; } L.cur = r.value; } while (L.mode === "race" && performance.now() - t0 < 25); }
+        place();
+      },
+      overlay: (g, w, h) => {
+        g.font = "10px ui-monospace, Menlo, monospace"; g.textAlign = "left"; g.fillStyle = "rgba(233,228,218,0.95)";
+        g.fillText(`start ${L.hold && !L.gen ? L.s - 1 : L.s}${L.hold && !L.gen ? ", settled" : ""} · ${(L.cur.f * KCAL).toFixed(1)} kcal/mol`, 8, 46);
+        if (L.last) { g.fillStyle = "#ffd166"; g.fillText(`start ${L.last.s} → ${L.last.label}`, 8, 60); }
+        g.fillStyle = "rgba(154,149,140,0.95)";
+        g.fillText(`${L.done} starts here: ${L.found.size} ${L.found.size === 1 ? "minimum" : "minima"}`, 8, h - 34);
+        if (isFinite(L.best)) g.fillText(`best ${(L.best * KCAL).toFixed(1)} (the runner's: ${(C.ref.best[0].E * KCAL).toFixed(1)})`, 8, h - 20);
+      },
+      extras: [
+        { label: "race", onClick: (T, b) => { L.mode = L.mode === "race" ? "watch" : "race"; b.textContent = L.mode === "race" ? "watch" : "race"; } },
+        { label: "next start", onClick: () => { if (L.gen) { L.s++; L.gen = null; } L.hold = 0; begin(); place(); } },
+      ],
+    });
+  }
 }
 
 /* crowds: how many minima clusters of n molecules have, by world (js/clusters.js; n = 2 is the pair search's funnel).

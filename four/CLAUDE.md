@@ -177,6 +177,10 @@ for games, and this is a modelling programme with publications to come. The game
   eccentricity and plane, the principal angles between two planes, a round star's outside potential from its shells
   (pinned 4D: −1/r + ⟨r²⟩/8r³) and the precession that causes, and two planets in one plane or turned apart.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).
+  `js/clusterlive.js` (no DOM) is the search chapter's live five-molecule search: start s is built exactly as
+  `tools/clusters.mjs` builds it, so it follows the runner's start s to the same minimum, and the page names each
+  minimum from the runner's list (nearest in energy; selftest 39 checks two starts). `js/search.js`'s
+  `buildClusters` shows it in the shared viewer, a tab per world.
   `js/clusters.js` is **generated** by `atom/tools/clusters.mjs` (minima of
   3–6-molecule clusters on the force field; `--shard i/m` splits a search
   across machines). **Long runs go to the runner, not the sandbox** (below) . `js/census.js` is **generated** by
