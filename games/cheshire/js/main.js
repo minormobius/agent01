@@ -1,7 +1,7 @@
 /* The cat lab's page: the controls, the camera, and the line that says what of the cat is in your slice.
    ?w=0.12&zw=90 (any of xw zw yw xz, degrees) opens it there; &yaw=, &pitch= (degrees), &dist= and &at=x,y,z (metres) place the
    camera; &shot draws one still frame (t = &t, default 0) and stops, for screenshots and slow software GL;
-   &gait=<plan>&phase=<n> opens the balance panel there. */
+   &legs=5 is the five-legged cat; &gait=<plan>&phase=<n> opens the balance panel there. */
 import { makeLab } from "./lab.js";
 import { makeGaitPanel } from "./gaitui.js";
 
@@ -27,6 +27,9 @@ $("quarter").addEventListener("click", () => { turnAnim = { plane, from: st.angl
 $("reset").addEventListener("click", () => { for (const p in st.angles) st.angles[p] = 0; st.W = 0; sweep = false; $("sweep").classList.remove("on"); turnAnim = null; syncW(); syncAng(); });
 $("idle").addEventListener("click", () => { st.idle = !st.idle; $("idle").classList.toggle("on", st.idle); });
 $("feet").addEventListener("click", () => { st.feet = !st.feet; $("feet").classList.toggle("on", st.feet); });
+const setLegs = (n) => { st.legs = n; for (const b of $("legs").children) b.classList.toggle("on", +b.dataset.n === n); };
+for (const b of $("legs").children) b.addEventListener("click", () => { setLegs(+b.dataset.n); gait.legs(st.legs); });
+if (q.get("legs") === "5") setLegs(5);
 $("infoBtn").addEventListener("click", () => { $("info").hidden = !$("info").hidden; });
 const gait = makeGaitPanel(lab, $("gait"));
 const gaitShown = () => { const on = !$("gait").hidden; $("gaitBtn").classList.toggle("on", on); document.body.classList.toggle("gait", on); };
@@ -51,14 +54,14 @@ canvas.addEventListener("pointerup", up); canvas.addEventListener("pointercancel
 canvas.addEventListener("wheel", (e) => { e.preventDefault(); st.dist = Math.min(4, Math.max(0.45, st.dist * Math.exp(e.deltaY * 0.001))); }, { passive: false });
 
 // what of it is in your slice, said plainly
-function say(groups) {
+function say(groups, feet) {
   const has = (g) => groups.includes(g), turnedZW = Math.abs(Math.sin(st.angles.zw)) > 0.95 && !st.angles.xw && !st.angles.yw;
   let s;
   if (!groups.length) s = "<b>Nothing of it is in your slice.</b> It's right here, a few centimetres off in w.";
   else if (groups.length === 1 && has("grin")) s = "<b>Only the grin is left.</b> The rest of the cat is beside you, off in w.";
   else if (has("grin") && !has("head")) s = `<b>The grin, without the face.</b> In your slice: ${groups.filter((g) => g !== "grin").join(", ")}.`;
   else if (turnedZW && !has("eyes")) s = "<b>A quarter turn through w took its eyes out of your slice,</b> brought its other ears in, and turned its grin across your space.";
-  else if (groups.length === 8) s = "<b>The whole cat is in your slice,</b> standing on the two feet you can see and the two rings you can't.";
+  else if (groups.length === 8) s = `<b>The whole cat is in your slice,</b> standing on the ${["no", "one", "two", "three", "four", "five"][feet.seen]} feet you can see and the ${["no", "one", "two", "three", "four", "five"][feet.unseen]} ring${feet.unseen === 1 ? "" : "s"} you can't.`;
   else s = `In your slice: ${groups.join(", ")}. <b>Missing:</b> ${["body", "head", "eyes", "ears", "front legs", "hind legs", "tail", "grin"].filter((g) => !has(g)).join(", ")}.`;
   if ($("say").innerHTML !== s) $("say").innerHTML = s;
 }
@@ -72,7 +75,7 @@ function sayBalance(sup) {
   if ($("say").innerHTML !== s) $("say").innerHTML = s;
 }
 const t0 = performance.now();
-if (q.has("shot")) { st.scale = +(q.get("scale") || 1); if (q.has("gait")) st.idle = false; const { groups, sup } = lab.draw(+(q.get("t") || 0), true); if (sup) sayBalance(sup); else say(groups); gait.draw(); document.body.dataset.ready = "1"; }
+if (q.has("shot")) { st.scale = +(q.get("scale") || 1); if (q.has("gait")) st.idle = false; const { groups, sup, feet } = lab.draw(+(q.get("t") || 0), true); if (sup) sayBalance(sup); else say(groups, feet); gait.draw(); document.body.dataset.ready = "1"; }
 else requestAnimationFrame(frame);
 function frame(now) {
   const t = (now - t0) / 1000;
@@ -83,7 +86,7 @@ function frame(now) {
     if (turnAnim.plane === plane) syncAng();
     if (u >= 1) turnAnim = null;
   }
-  const { groups, sup } = lab.draw(t);
-  if (sup) sayBalance(sup); else say(groups);
+  const { groups, sup, feet } = lab.draw(t);
+  if (sup) sayBalance(sup); else say(groups, feet);
   requestAnimationFrame(frame);
 }

@@ -8,9 +8,10 @@ const fl = (p) => [p[0], p[2], p[3]], cm = (x) => `${(x * 100).toFixed(1)} cm`;
 
 export function makeGaitPanel(lab, el) {
   const st = lab.st, P0 = pose(0, { idle: false });
-  const PT = pose(0, { idle: false, tailFoot: true });
-  const cat = { feet: paws(P0).map(fl), labels: pawNames(P0), com: fl(mass(P0).c), comTail: fl(mass(PT).c), tailFoot: TAIL_FOOT };
-  const PLANS = G.plans(cat), ACTS = new Set(["cat", "tail"]); // the plans the cat itself can act out
+  const PT = pose(0, { idle: false, tailFoot: true }), P5 = pose(0, { idle: false, legs: 5 });
+  const cat = { feet: paws(P0).map(fl), labels: pawNames(P0), com: fl(mass(P0).c), comTail: fl(mass(PT).c), tailFoot: TAIL_FOOT, five: { feet: paws(P5).map(fl), labels: pawNames(P5), com: fl(mass(P5).c) } };
+  const PLANS = G.plans(cat), ACTS = new Set(["cat", "tail", "five"]); // the plans the cat itself can act out (as itself or its five-legged form)
+  const bodyOf = (id) => ({ tailFoot: id === "tail", legs: id === "five" ? 5 : 4 }), names = (ks) => ks.map((k) => plan.labels[k]);
   let plan = PLANS[0], A = G.analyse(plan), phase = 0, rows = [], play = null;
   const tw = { from: [0, 0, 0], to: [0, 0, 0], t0: 0, lift: null }; // the body's sway, eased, then the lift
 
@@ -42,7 +43,7 @@ export function makeGaitPanel(lab, el) {
   function choose(id) {
     plan = PLANS.find((p) => p.id === id); A = G.analyse(plan); stop();
     for (const b of el.querySelectorAll(".gplans button")) b.classList.toggle("on", b.dataset.id === id);
-    st.body = { tailFoot: id === "tail" }; tw.from = tw.to = [0, 0, 0]; tw.lift = null;
+    st.body = bodyOf(id); tw.from = tw.to = [0, 0, 0]; tw.lift = null;
     rows = [{ label: "stand on all", j: A.stand, lift: [] }, ...A.creep.map((c) => ({ label: c.label, j: c, lift: c.lift })), ...A.halves.map((h) => ({ label: h.label, j: h, lift: plan.feet.map((_, k) => k).filter((k) => !h.down.includes(k)) }))];
     const v = [];
     v.push(A.canStand ? `<b>Stands</b>, its centre of mass ${cm(A.stand.margin)} inside.` : `<b>Can't stand:</b> its feet ${A.stand.dim < 3 ? "lie in a plane of the floor, so it tips across it" : "don't surround its centre of mass"}.`);
@@ -51,7 +52,7 @@ export function makeGaitPanel(lab, el) {
     $(".gverdict").innerHTML = `<i>${plan.about}.</i> ` + v.join(" ");
     $(".gphases").innerHTML = rows.map((r, i) => `<button data-i="${i}"><span>${r.label}</span><em class="${r.j.ok ? "ok" : "no"}">${desc(r.j)}</em></button>`).join("");
     for (const b of el.querySelectorAll(".gphases button")) b.addEventListener("click", () => { stop(); setPhase(+b.dataset.i); });
-    $(".gnote").textContent = ACTS.has(id) ? "the cat acts it out" : "drawn here only: the cat has four legs";
+    $(".gnote").textContent = ACTS.has(id) ? (id === "five" ? "the five-legged cat acts it out" : "the cat acts it out") : "drawn here only";
     $(".gplay").disabled = !ACTS.has(id);
     setPhase(0);
   }
@@ -61,9 +62,9 @@ export function makeGaitPanel(lab, el) {
     for (const b of el.querySelectorAll(".gphases button")) b.classList.toggle("on", +b.dataset.i === i);
     if (!ACTS.has(plan.id)) return;
     // ease the body over to where this phase needs the centre of mass, then lift
-    const target = r.j.sway ? swayFor(r.j.sway.p, { tailFoot: plan.id === "tail", lift: r.lift }) : [0, 0, 0];
-    tw.from = st.body.sway || [0, 0, 0]; tw.to = target; tw.t0 = performance.now(); tw.lift = r.lift; st.body.lift = null;
-    if (instant) { tw.from = target; tw.t0 = -1e9; st.body.sway = target; st.body.lift = r.lift; }
+    const target = r.j.sway ? swayFor(r.j.sway.p, { ...bodyOf(plan.id), lift: names(r.lift) }) : [0, 0, 0];
+    tw.from = st.body.sway || [0, 0, 0]; tw.to = target; tw.t0 = performance.now(); tw.lift = names(r.lift); st.body.lift = null;
+    if (instant) { tw.from = target; tw.t0 = -1e9; st.body.sway = target; st.body.lift = names(r.lift); }
   }
   function stop() { play = null; $(".gplay").textContent = "▶ creep"; }
 
@@ -77,6 +78,7 @@ export function makeGaitPanel(lab, el) {
 
   /* the floor view: x across, z into the page, w up (the direction you can't see, so it gets the axis you can) */
   function draw() {
+    if (!rows.length) return; // not opened yet
     const w = cv.clientWidth, h = cv.clientHeight, dpr = Math.min(2, devicePixelRatio || 1);
     if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
@@ -108,8 +110,10 @@ export function makeGaitPanel(lab, el) {
     }
     requestAnimationFrame(frame);
   }
-  function open() { el.hidden = false; st.support = true; choose(plan.id); tail(); }
+  function open() { el.hidden = false; st.support = true; choose(st.legs === 5 ? "five" : plan.id === "five" ? "cat" : plan.id); tail(); }
   function close() { el.hidden = true; st.support = false; stop(); st.body = {}; }
+  // the lab's legs switch: follow it with the matching plan while the panel is open
+  function legs(n) { if (!el.hidden) choose(n === 5 ? "five" : "cat"); }
   requestAnimationFrame(frame);
-  return { open, close, toggle: () => (el.hidden ? open() : close()), choose, setPhase, draw, get rows() { return rows; } };
+  return { open, close, legs, toggle: () => (el.hidden ? open() : close()), choose, setPhase, draw, get rows() { return rows; } };
 }

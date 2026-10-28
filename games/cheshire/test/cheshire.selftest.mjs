@@ -82,7 +82,8 @@ const rnd = ((s) => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >
   ok(h.dim === 3 && Math.abs(G.margin(h, c.p) - c.r) < 1e-9 && !deeper && sw && Math.abs(G.margin(h, sw.p) - 0.01) < 1e-6 && !closer,
     `the support's geometry: Chebyshev's centre ${(c.r * 100).toFixed(2)} cm deep and no sampled point deeper; the least sway (${(sw.d * 100).toFixed(2)} cm) and none shorter`);
   const P = C.pose(0, { idle: false }), fl = (p) => [p[0], p[2], p[3]], PT = C.pose(0, { idle: false, tailFoot: true });
-  const cat = { feet: C.paws(P).map(fl), labels: C.pawNames(P), com: fl(C.mass(P).c), comTail: fl(C.mass(PT).c), tailFoot: C.TAIL_FOOT };
+  const P5 = C.pose(0, { idle: false, legs: 5 });
+  const cat = { feet: C.paws(P).map(fl), labels: C.pawNames(P), com: fl(C.mass(P).c), comTail: fl(C.mass(PT).c), tailFoot: C.TAIL_FOOT, five: { feet: C.paws(P5).map(fl), labels: C.pawNames(P5), com: fl(C.mass(P5).c) } };
   const A = Object.fromEntries(G.plans(cat).map((p) => [p.id, { plan: p, a: G.analyse(p) }]));
   ok(A.cat.a.canStand && !A.cat.a.canCreep && A.cat.a.creep.every((c) => c.dim === 2 && c.free === 1) && A.cat.a.halves.every((x) => x.dim === 1 && x.free === 2),
     "the cat stands, but lifting any foot leaves three in a plane (one way to tip), and its trot stands on lines (two ways)");
@@ -91,10 +92,20 @@ const rnd = ((s) => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >
   // and the cat itself, posed: swayed by swayFor and the foot lifted, its own centre of mass is over the four still down
   let worst = 1;
   for (const c of A.tail.a.creep) {
-    const o = { tailFoot: true, lift: c.lift }, Q = C.pose(0, { idle: false, ...o, sway: C.swayFor(c.sway.p, o) });
+    const o = { tailFoot: true, lift: c.lift.map((k) => A.tail.plan.labels[k]) }, Q = C.pose(0, { idle: false, ...o, sway: C.swayFor(c.sway.p, o) });
     worst = Math.min(worst, G.margin(G.hull(C.paws(Q).map(fl)), fl(C.mass(Q).c)));
   }
   ok(worst > 0.0099, `acted out: lifting each of its five feet in turn, the posed cat's centre of mass stays ${(worst * 100).toFixed(2)} cm or more inside the other four`);
+  // the five-legged cat: stands, creeps on its own body (every foot lifted in turn, swayed by swayFor), three feet in
+  // the slice w = 0 and two off it, and its arrays still fit the shader's
+  let worst5 = 1;
+  for (const c of A.five.a.creep) {
+    const o = { legs: 5, lift: c.lift.map((k) => A.five.plan.labels[k]) }, Q = C.pose(0, { idle: false, ...o, sway: C.swayFor(c.sway.p, o) });
+    worst5 = Math.min(worst5, G.margin(G.hull(C.paws(Q).map(fl)), fl(C.mass(Q).c)));
+  }
+  const inSlice = C.paws(P5).filter((p) => Math.abs(p[3]) < 0.03).length, P5t = C.pose(0, { idle: false, legs: 5, tailFoot: true });
+  ok(A.five.a.canStand && A.five.a.canCreep && worst5 > 0.0099 && inSlice === 3 && C.paws(P5).length === 5 && P5t.caps.length <= C.LIMITS.caps && P5t.ells.length <= C.LIMITS.ells,
+    `the five-legged cat stands (${(A.five.a.stand.margin * 100).toFixed(1)} cm in) and creeps on its own body, swaying at most ${(A.five.a.swayMax * 100).toFixed(1)} cm, its centre of mass ${(worst5 * 100).toFixed(2)} cm or more in; three feet in your slice, two off it`);
   const D = Math.PI / 180, ring = (x, r, d) => d.map((a) => [x, r * Math.cos(a * D), r * Math.sin(a * D)]);
   const badFive = G.analyse({ ...A.five.plan, feet: [[0.16, 0.09, 0], [0.16, -0.09, 0], ...ring(-0.16, 0.1, [90, 210, 330])] });
   ok(A.five.a.canCreep && !badFive.canCreep && badFive.creep.some((c) => c.dim === 2),

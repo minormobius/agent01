@@ -82,13 +82,14 @@ export function swayTo(h, p0, need) {
 
 /* the leg plans the panel compares. Feet are floor points [x, z, w], metres; com is the centre of mass's floor point */
 const D = Math.PI / 180, ring = (x, r, degs) => degs.map((a) => [x, r * Math.cos(a * D), r * Math.sin(a * D)]);
-export function plans(cat) { // cat: { feet, labels, com, comTail, tailFoot } from the cat itself (cat.js paws and mass)
+export function plans(cat) { // cat: { feet, labels, com, comTail, tailFoot, five: { feet, labels, com } } from the cat itself (cat.js)
   const c4 = cat.feet.slice(0, 4), cl = cat.labels.slice(0, 4);
   return [
     { id: "cat", name: "the cat", legs: 4, feet: c4, labels: cl, com: cat.com, halves: { name: "trot", sets: [[0, 3], [1, 2]] }, about: "hips turned: front legs across z, hind legs across w" },
     { id: "aligned", name: "hips aligned", legs: 4, feet: [[0.16, 0.088, 0], [0.16, -0.088, 0], [-0.16, 0.088, 0], [-0.16, -0.088, 0]], labels: ["front +z", "front −z", "hind +z", "hind −z"], com: [0, 0, 0], about: "both pairs across z, as ours are" },
     { id: "tail", name: "tail as a foot", legs: 5, feet: [...c4, cat.tailFoot], labels: [...cl, "tail"], com: cat.comTail || cat.com, about: "the cat with its tail planted behind" },
-    { id: "five", name: "five legs", legs: 5, feet: [[0.16, 0.09, 0], [0.16, -0.09, 0], ...ring(-0.16, 0.1, [0, 120, 240])], labels: ["front +z", "front −z", "hind 0°", "hind 120°", "hind 240°"], com: [0, 0, 0], about: "a pair in front across z, three behind round z and w, no two of them in line with the front pair (turn them 90° and lifting one lays the other four in a plane)" },
+    cat.five ? { id: "five", name: "five legs", legs: 5, feet: cat.five.feet, labels: cat.five.labels, com: cat.five.com, about: "the five-legged cat: a pair in front across z, three behind round z and w, no side of their triangle along z (turn them 90° and lifting one lays the other four in a plane)" }
+      : { id: "five", name: "five legs", legs: 5, feet: [[0.16, 0.09, 0], [0.16, -0.09, 0], ...ring(-0.16, 0.1, [0, 120, 240])], labels: ["front +z", "front −z", "hind 0°", "hind 120°", "hind 240°"], com: [0, 0, 0], about: "a pair in front across z, three behind round z and w, no two of them in line with the front pair (turn them 90° and lifting one lays the other four in a plane)" },
     { id: "six", name: "six legs", legs: 6, feet: [...ring(0.16, 0.1, [0, 120, 240]), ...ring(-0.16, 0.1, [60, 180, 300])], labels: ["front 0°", "front 120°", "front 240°", "hind 60°", "hind 180°", "hind 300°"], com: [0, 0, 0], halves: { name: "alternate threes", sets: [[0, 2, 4], [1, 3, 5]] }, about: "three round each hip, the back three turned 60°" },
     { id: "eight", name: "eight legs", legs: 8, feet: [...ring(0.16, 0.1, [0, 90, 180, 270]), ...ring(-0.16, 0.1, [0, 90, 180, 270])], labels: ["front +z", "front +w", "front −z", "front −w", "hind +z", "hind +w", "hind −z", "hind −w"], com: [0, 0, 0], halves: { name: "alternate fours", sets: [[0, 2, 5, 7], [1, 3, 4, 6]] }, about: "four round each hip; each half is the cat's own stance" },
   ];

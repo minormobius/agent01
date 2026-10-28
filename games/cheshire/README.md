@@ -24,6 +24,15 @@ One parts list (capsules and ellipsoids in 4D, joined smoothly) is what the shad
   has gone.
 - **Idle:** breathing, and a tail that sways through w (it drifts in and out of your slice by itself).
 
+## The five-legged cat (`pose(t, { legs: 5 })`, the lab's **5 legs**)
+
+The cat as a 4D animal might be built to creep: two front legs across z, as before, and three hind legs round the hips
+in the zw plane at 0°, 120°, 240° (`HIND5`). A side of that triangle along z, the front pair's direction, would lay four
+feet in a plane when the fifth lifts (90°, 210°, 330° does), so the angles keep every side 30° or more off it. In your
+slice it stands on three feet, two front and the hind one at 0°, with two hind feet off in w; at |w| ≈ 9 cm the other
+two hind legs stand alone. Its tail stays up, for balance. Feet carry their names (`paws`, `pawNames`), and `lift`
+takes names.
+
 ## The lab (`js/lab.js`, `js/main.js`)
 
 WebGL2: a fragment shader marches rays through your slice (x, y, z at w = W) of the cat turned by a 4D rotation,
@@ -32,7 +41,7 @@ further off in w (teal ana, rose kata). Stripes run in all four directions and t
 
 Controls: your slice's w, sweep, a turn in any of the planes zw, xw, yw, xz, a quarter-turn button, idle on/off,
 the rings on/off. A line under the cat says what of it is in your slice (`cut`, which the selftest proves never
-misses a part). URL: `?w=0.12&zw=90&yaw=90&pitch=5&dist=0.6&at=0.3,0.4,0&gait=tail&phase=1`; `&shot` draws one still frame and
+misses a part). URL: `?legs=5&w=0.12&zw=90&yaw=90&pitch=5&dist=0.6&at=0.3,0.4,0&gait=five&phase=1`; `&shot` draws one still frame and
 stops (for screenshots in software GL).
 
 ```bash
@@ -52,11 +61,11 @@ least sway (Dykstra's projections) that leaves the centre of mass 1 cm in; and e
 | the cat (front pair across z, hind across w) | 4.6 cm in | no: each lift leaves a triangle | trot: lines, 2 ways to tip |
 | hips aligned (both pairs across z) | no: four in a plane | | |
 | the cat, tail planted as a fifth foot | yes | yes, swaying ≤ 5.7 cm | |
-| five legs (two in front, three behind) | yes | yes, if no two hind feet line up with the front pair | |
+| **the five-legged cat** (two in front across z, three behind round z and w) | 4.2 cm in | yes, swaying ≤ 3.0 cm, if no side of the hind triangle lies along z | |
 | six legs (three round each hip) | yes | yes | threes: triangles, dynamic |
 | eight legs (four round each hip) | yes | yes | fours: each half the cat's own stance, static |
 
-The cat acts out its two (its four, and its tail planted): it sways, lifts, and the floor shows the support (the feet's
+The cat acts out its three (its four, its tail planted, and its five-legged form): it sways, lifts, and the floor shows the support (the feet's
 solid cut by your slice, gold) and its centre of mass (gold, red when outside), both computed from the posed cat each
 frame. `cat.js swayFor` finds the body sway that puts the posed cat's own centre of mass on target.
 

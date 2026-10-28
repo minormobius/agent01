@@ -15,7 +15,7 @@ uniform vec2 uRes; uniform vec3 uEye, uCR, uCU, uCF; uniform float uTan;
 uniform mat4 uRot; uniform vec4 uPos, uBound; uniform float uW, uK, uFeet, uTime;
 uniform int uNC, uNE;
 uniform vec4 uA[${LIMITS.caps}], uB[${LIMITS.caps}], uCp[${LIMITS.caps}], uEc[${LIMITS.ells}], uEr[${LIMITS.ells}], uEp[${LIMITS.ells}];
-uniform vec4 uPaw[5]; uniform int uNP;
+uniform vec4 uPaw[6]; uniform int uNP;
 uniform vec4 uSF[24], uCom; uniform int uNSF; // the support's faces on the floor (n·(x, z, w) ≤ c), the centre of mass (x, z, w, state)
 out vec4 outC;
 
@@ -106,7 +106,7 @@ void main() {
     float sh = shade(p + vec3(0., 0.002, 0.), L), dc = dist(p); // its shadow, and a contact darkening near it
     col *= 0.35 + 0.65 * sh; col *= mix(0.45, 1., smoothstep(0.0, 0.06, dc));
     // the feet that stand off your slice: a ring wider and fainter the further off in w
-    for (int k = 0; k < 5; k++) {
+    for (int k = 0; k < 6; k++) {
       if (k >= uNP) break;
       vec4 pw = uPaw[k]; float dw = pw.w - uW, r = 0.03 + 0.45 * abs(dw), d = abs(length(p.xz - pw.xz) - r);
       float a = uFeet * exp(-abs(dw) * 9.) * (1. - smoothstep(0., 0.006 + 0.02 * abs(dw), d));
@@ -155,14 +155,14 @@ export function makeLab(canvas) {
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
   const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
   const U = {}; for (const n of ["uRes", "uEye", "uCR", "uCU", "uCF", "uTan", "uRot", "uPos", "uBound", "uW", "uK", "uFeet", "uTime", "uNC", "uNE", "uA", "uB", "uCp", "uEc", "uEr", "uEp", "uPaw", "uNP", "uSF", "uNSF", "uCom"]) U[n] = gl.getUniformLocation(prog, n);
-  const st = { yaw: 1.05, pitch: 0.2, dist: 1.55, target: [-0.03, 0.24, 0], W: 0, angles: { xw: 0, zw: 0, yw: 0, xz: 0 }, pos: [0, 0, 0, 0], idle: true, feet: true, scale: 0.8, body: {}, support: false };
+  const st = { yaw: 1.05, pitch: 0.2, dist: 1.55, target: [-0.03, 0.24, 0], W: 0, angles: { xw: 0, zw: 0, yw: 0, xz: 0 }, pos: [0, 0, 0, 0], idle: true, feet: true, scale: 0.8, legs: 4, body: {}, support: false };
   let last = performance.now(), slow = 0;
 
   function draw(t, still = false) {
     const dpr = Math.min(devicePixelRatio || 1, 2), w = Math.max(1, Math.round(canvas.clientWidth * dpr * st.scale)), h = Math.max(1, Math.round(canvas.clientHeight * dpr * st.scale));
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
     gl.viewport(0, 0, w, h);
-    const R = rotation(st.angles), P = pose(t, { idle: st.idle, ...st.body });
+    const R = rotation(st.angles), P = pose(t, { idle: st.idle, legs: st.legs, ...st.body });
     // only the parts that reach your slice: the hyperplane w = W is n·q = W − pos.w in the cat's frame, n = R's last row
     const n = [R[12], R[13], R[14], R[15]], { parts } = cut(P, n, st.W - st.pos[3]);
     const caps = parts.filter((p) => p.a), ells = parts.filter((p) => p.c);
@@ -196,10 +196,11 @@ export function makeLab(canvas) {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     // keep it smooth: drop the resolution when frames run long, raise it when there's room
     const now = performance.now(), dt = now - last; last = now;
-    if (still) return { groups: cut(P, n, st.W - st.pos[3]).groups, R, sup };
+    const seen = pw.filter((p) => Math.abs(p[3] - st.W) < 0.03).length, feet = { seen, unseen: pw.length - seen };
+    if (still) return { groups: cut(P, n, st.W - st.pos[3]).groups, R, sup, feet };
     if (dt > 40) slow++; else if (dt < 22) slow--;
     if (slow > 8) { st.scale = Math.max(0.35, st.scale * 0.85); slow = 0; } else if (slow < -40) { st.scale = Math.min(1, st.scale * 1.1); slow = 0; }
-    return { groups: cut(P, n, st.W - st.pos[3]).groups, R, sup };
+    return { groups: cut(P, n, st.W - st.pos[3]).groups, R, sup, feet };
   }
   return { st, draw, gl };
 }

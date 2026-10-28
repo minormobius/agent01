@@ -428,7 +428,8 @@ These live here:
   d. Reversed `smoothstep` edges are undefined in GLSL; don't. `?shot` draws one still frame for screenshots. The
   **balance panel** (`js/gait.js`, no DOM: supports on the 3D floor, Chebyshev depth, least sway, six leg plans judged;
   `js/gaitui.js`): a 4D quadruped stands but can't creep (a lifted foot leaves a triangle); with its tail planted it can;
-  a raised tail catches tipping in all three planes, a level one only forward. See
+  a raised tail catches tipping in all three planes, a level one only forward. **The five-legged cat** (`legs: 5`: three
+  hind legs round z and w at 0°, 120°, 240°, never a side along z) creeps on its own body. See
   [`cheshire/README.md`](cheshire/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
@@ -544,7 +545,7 @@ node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, r
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
 node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the guide counting par and naming flips that each leave one fewer, the ready ring agreeing with tryFlip and the fairy rings covering every flip place, the grotto's lights in open air and the cave untouched by it (~25 s)
-node games/cheshire/test/cheshire.selftest.mjs   # the cat stands (feet on a tetrahedron, centre of mass over it), a safe distance to march, the slice list never misses a part, only the grin past 20 cm, turns, the shader joins as cat.js; balance: support geometry vs brute force, each leg plan's verdict, the posed cat creeping on its tail, the tail's reach (~11 s)
+node games/cheshire/test/cheshire.selftest.mjs   # the cat stands (feet on a tetrahedron, centre of mass over it), a safe distance to march, the slice list never misses a part, only the grin past 20 cm, turns, the shader joins as cat.js; balance: support geometry vs brute force, each leg plan's verdict, the posed cat creeping on its tail, the five-legged cat creeping on its own, the tail's reach (~12 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies
