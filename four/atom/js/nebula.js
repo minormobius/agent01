@@ -19,6 +19,19 @@ const turn = (d, a1, a2, x) => (d === 3 ? [-a1 * x[1], a1 * x[0], 0] : [-a1 * x[
 export function rng(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
 const gauss = (r) => Math.sqrt(-2 * Math.log(r() + 1e-300)) * Math.cos(2 * Math.PI * r());
 
+/* a turning's two rates, from its six numbers (xy, xz, xw, yz, yw, zw): a1² + a2² is their sum of squares and a1 a2
+   the Pfaffian; returns [a1, a2], a1 ≥ a2 */
+export function rates(B) {
+  const S = B.reduce((t, b) => t + b * b, 0), P = Math.abs(B[0] * B[5] - B[1] * B[4] + B[2] * B[3]), r = Math.sqrt(Math.max(0, S * S - 4 * P * P));
+  return [Math.sqrt((S + r) / 2), Math.sqrt(Math.max(0, (S - r) / 2))];
+}
+/* the ratio a2/a1 of a cloud whose spin is the sum of many random eddies: a random bivector, its six numbers Gaussian */
+export function randomSpinRatios(n = 100000, seed = 11) {
+  const r = rng(seed), out = []; for (let i = 0; i < n; i++) { const [a1, a2] = rates(Array.from({ length: 6 }, () => gauss(r))); out.push(a2 / a1); }
+  return out.sort((a, b) => a - b);
+}
+
+
 /* a uniform ball of radius 1, turning at a fraction f of the circular speed (its largest rate scaled to 1), with a
    random dispersion sigma (also in circular speeds) */
 export function cloud({ d = 4, N = 8000, a1 = 1, a2 = 1, f = 0.7, sigma = 0.1, rIn = 0.15, seed = 1 } = {}) {

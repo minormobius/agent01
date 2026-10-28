@@ -705,5 +705,22 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `the live search: water's start 0 settles at ${(w.e * CLV.KCAL).toFixed(3)} kcal/mol, the runner's minimum #${w.nm?.rank} (first found by its start ${first(w, 1)}); Xater's start 2 at ${(x.e * CLV.KCAL).toFixed(3)}, #${x.nm?.rank} (first found by start ${first(x, 4)})`);
 }
 
+/* 40 · nebulae (js/nebula.js, tools/nebula.mjs → js/nebuladata.js, the stars chapter): the collisions and the star's pull
+   keep the cloud's spin exactly (all six numbers) while taking energy; a turning's two rates from its invariants; and the
+   runner's runs: our world and a 4D cloud spinning in one plane flatten to disks, equal rates stay round, and in between
+   the end flatness rises with the rates' ratio and holds across seed, collisions, heat and resolution */
+{
+  const NB = await import(path.join(here, "../js/nebula.js")), { NEBULA } = await import(path.join(here, "../js/nebuladata.js"));
+  const S = NB.cloud({ d: 4, N: 400, a1: 1, a2: 0.5, seed: 3 }), spin = () => { const L = new Array(6).fill(0); for (let i = 0; i < S.N; i++) if (S.alive[i]) { let q = 0; for (let a = 0; a < 4; a++) for (let b = a + 1; b < 4; b++) L[q++] += S.x[i * 4 + a] * S.v[i * 4 + b] - S.x[i * 4 + b] * S.v[i * 4 + a]; } return L; }, L0 = spin(), energy = () => { let e = 0; for (let i = 0; i < S.N; i++) if (S.alive[i]) { let r2 = 0, v2 = 0; for (let c = 0; c < 4; c++) { r2 += S.x[i * 4 + c] ** 2; v2 += S.v[i * 4 + c] ** 2; } e += v2 / 2 - 1 / Math.sqrt(r2); } return e; };
+  const e0 = energy(); for (let k = 0; k < 40; k++) NB.step(S, { dt: 0.002, h: 0.35, eta: 0.5, rAcc: 1e-4 });
+  const L1 = spin(), dL = Math.max(...L1.map((v, i) => Math.abs(v - L0[i]))) / Math.hypot(...L0), cooled = energy() < e0;
+  const [r1, r2] = NB.rates([2, 0.3, -0.1, 0.4, 0.2, 0.5]), W = [[0, 2, 0.3, -0.1], [-2, 0, 0.4, 0.2], [-0.3, -0.4, 0, 0.5], [0.1, -0.2, -0.5, 0]];
+  const W2 = W.map((r) => W[0].map((_, j) => r.reduce((t, v, k) => t + v * W[k][j], 0))), tr = -W2.reduce((t, r, i) => t + r[i], 0) / 2; // a1² + a2² from tr(W²)
+  const end = (n) => NEBULA.find((r) => r.name === n).series.at(-1)[1], q = ["0.25", "0.5", "0.75", "0.9"].map((x) => end(`d4_a1_${x}_n30000_T40_s1`));
+  const half = ["d4_a1_0.5_n30000_T40_s1", "d4_a1_0.5_n30000_T40_s2", "d4_a1_0.5_n30000_T40_s1_e1", "d4_a1_0.5_n30000_T40_s1_e0.5_g0.3"].map(end);
+  ok(S.accreted === 0 && S.escaped === 0 && dL < 1e-12 && cooled && Math.abs(r1 * r1 + r2 * r2 - tr) < 1e-12 && end("d3_a1_0_n10000_T150_s1") < 0.1 && end("d4_a1_0_n10000_T150_s1") < 0.1 && end("d4_a1_1_n30000_T40_s1") > 0.95 && q.every((v, i) => !i || v > q[i - 1]) && Math.max(...half) - Math.min(...half) < 0.05,
+    `nebulae: 40 steps of collisions and pull keep the spin to ${dL.toExponential(0)} and take energy; a turning's rates ${r1.toFixed(3)} and ${r2.toFixed(3)} square-sum to its trace; ours ends ${end("d3_a1_0_n10000_T150_s1").toFixed(2)} flat, 4D in one plane ${end("d4_a1_0_n10000_T150_s1").toFixed(2)}, equal rates ${end("d4_a1_1_n30000_T40_s1").toFixed(2)}, and rates ¼ … 0.9 stop at ${q.map((v) => v.toFixed(2)).join(", ")}; the half-rate cloud ${Math.min(...half).toFixed(2)}–${Math.max(...half).toFixed(2)} across seed, collisions and heat`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

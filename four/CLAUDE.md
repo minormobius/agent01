@@ -177,6 +177,13 @@ for games, and this is a modelling programme with publications to come. The game
   eccentricity and plane, the principal angles between two planes, a round star's outside potential from its shells
   (pinned 4D: −1/r + ⟨r²⟩/8r³) and the precession that causes, and two planets in one plane or turned apart.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).
+  `js/nebula.js` (no DOM) is the stars chapter's formation: a rotating cloud of gas falling onto a star (1/r², so
+  Newton in 3D and pinned in 4D: only the dimension differs) with pairwise collisions that keep momentum and spin
+  exactly, its shape (flatness: the two smallest extents over the two largest), how each orbit's two halves of turning
+  line up with the cloud's, a turning's two rates from its invariants, and the ratio of rates a random spin has.
+  `atom/tools/nebula.mjs` runs one cloud resumably on the runner and bakes **generated** `js/nebuladata.js` (each
+  run's shape over time, and 500 particles of the shown runs' end states); the stars page loads it on demand.
+  `js/nebulaviz.js` shows those end states orbiting live in the shared viewer. Selftest 40.
   `js/clusterlive.js` (no DOM) is the search chapter's live five-molecule search: start s is built exactly as
   `tools/clusters.mjs` builds it, so it follows the runner's start s to the same minimum, and the page names each
   minimum from the runner's list (nearest in energy; selftest 39 checks two starts). `js/search.js`'s

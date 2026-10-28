@@ -9,6 +9,14 @@ PRE=OR['precession']; PREerr=max(abs(q['measured']/q['formula']-1) for q in PRE)
 def arcsec(rad): return rad*206264.8
 EARTH=-(3*math.pi/4)*OR['star']['r2']/215**2; MERC=-(3*math.pi/4)*OR['star']['r2']/83**2
 TURN=OR['turning']
+# the nebulae (js/nebuladata.js, tools/nebula.mjs on the runner) and how a random spin's two rates compare (js/nebula.js)
+NB=json.loads(subprocess.run(['node','--input-type=module','-e','import { NEBULA } from "'+ATOM+'js/nebuladata.js"; import { randomSpinRatios } from "'+ATOM+'js/nebula.js"; const q = randomSpinRatios(100000); console.log(JSON.stringify({ runs: NEBULA.map(({ snap, ...r }) => r), med: q[q.length >> 1], q1: q[q.length >> 2], q3: q[(3 * q.length) >> 2], above9: q.filter((x) => x > 0.9).length / q.length }));'],capture_output=True,text=True,check=True).stdout)
+def NR(name): return next(r for r in NB['runs'] if r['name']==name)
+def NFLAT(name): return NR(name)['series'][-1][1]
+def NAT(name,t): return min(NR(name)['series'],key=lambda q:abs(q[0]-t))[1]
+NQ=[(q, NFLAT(f'd4_a1_{q}_n30000_T40_s1')) for q in ('0.25','0.5','0.75','0.9')]
+NP=sum(math.log(f)*math.log(float(q)) for q,f in NQ)/sum(math.log(float(q))**2 for q,_ in NQ) # flatness ≈ ratio^p, least squares through 1
+NHALF=[NFLAT(n) for n in ('d4_a1_0.5_n30000_T40_s1','d4_a1_0.5_n30000_T40_s2','d4_a1_0.5_n30000_T40_s1_e1','d4_a1_0.5_n30000_T40_s1_e0.5_g0.3')]+[NAT('d4_a1_0.5_n60000_T40_s1',NR('d4_a1_0.5_n60000_T40_s1')['t'])]
 def EW(d,gam,k): return 1-k/(d*(gam-1))
 def frac(x):
     for den in (1,2,3,4,6,8):
@@ -92,6 +100,24 @@ stars=f'''<section id="gravity">
   <h4>Days with two rates</h4>
   <p>A planet spins too, and a 4D spin is a turning in a plane, or in two planes at once at two rates (<a href="motion.html">chapter 3</a>). A planet spinning both ways would have a sky that cycles on two clocks, its sunrises returning only when the two line up. Which way real planets spin depends on how they formed and how tides wear them, and that's open.</p>
   <p class="read">Checked here: Kepler's closed orbits in 4D, the precession formula against integration, and the two-planet runs, with 3,000 orbits per case. That's short against a planetary system's life. Longer runs, more planets, and tides are next.</p>
+</section>
+<section id="formation">
+  <h3>Does a nebula flatten? <span class="tag computed">computed</span></h3>
+  <p>Our planets lie nearly in one plane because the cloud they formed from flattened into a disk. The <a href="geometry.html#combing">geometry chapter</a> gave the reason: gas circling a star covers a sphere, a sphere can't be combed, so the streams cross, collide and settle into one plane. A 3-sphere can be combed, so a 4D cloud needn't flatten. Whether it does is a question for simulation.</p>
+  <p>A cloud's spin in 4D is a turning, and a turning can go in two planes at once at two rates (<a href="motion.html">chapter 4</a>). We let rotating clouds of gas fall onto a star and collide: tens of thousands of particles, pulled as 1/r², which is Newton in 3D and the pinned law in 4D, so only the dimension differs. Particles that come close while approaching lose part of their approach speed. That keeps momentum and spin exactly and only takes energy away, which is all a disk needs to form. The same code in 3D is the control.</p>
+  <canvas class="chart tall" id="cNebula"></canvas>
+  <p class="read" id="kNebula"></p>
+  <p class="read">Flatness is the cloud's two smallest extents over its two largest: 1 round, 0 a flat disk. Time in orbits of the cloud's edge over 2π.</p>
+  <table class="verdict"><tr><th>the cloud's spin</th><th>how flat it ends</th></tr>
+    <tr><td>3D, ours</td><td><b>a disk</b>: {NFLAT('d3_a1_0_n10000_T150_s1'):.2f}</td></tr>
+    <tr><td>4D, one plane only</td><td><b>a disk</b>, more slowly: {NFLAT('d4_a1_0_n10000_T150_s1'):.2f}</td></tr>
+    {''.join(f"<tr><td>4D, the second plane at {q} of the first's rate</td><td>stops at {f:.2f}</td></tr>" for q,f in NQ)}
+    <tr><td>4D, equal rates</td><td><b>stays round</b>: {NFLAT('d4_a1_1_n30000_T40_s1'):.2f}</td></tr></table>
+  <p><b>A 4D nebula flattens to a disk only if it spins in one plane.</b> Spinning in both, it thins and then stops, the thicker the closer its two rates: its flatness ends near the ratio of the rates to the power {NP:.2f}. At equal rates it doesn't flatten at all, and every orbit in it runs round one of Hopf's circles. The stop is real, not slowness: run nearly four times longer, the half-rate cloud ends at {NFLAT('d4_a1_0.5_n10000_T150_s1'):.2f}, against {NAT('d4_a1_0.5_n10000_T150_s1',40):.2f} at the shorter runs' end. And it holds up: with a second seed, collisions twice as hard, a start three times hotter and twice the particles (that run stopped two thirds of the way), the half-rate cloud ends between {min(NHALF):.2f} and {max(NHALF):.2f}.</p>
+  <p>Which clouds are typical? If a cloud's spin is the sum of many random eddies, its two rates differ: the slower is typically a fifth of the faster (half of all clouds fall between {NB['q1']:.2f} and {NB['q3']:.2f}), and equal rates are rare ({NB['above9']*100:.1f}% within a tenth of equal). <b>So the typical 4D nebula ends neither a disk nor a ball, but a thick lens</b>, about {100*float(NB['med'])**NP:.0f}% as thick as it is wide, and its planets would form in planes spread round one of Hopf's families rather than in one.</p>
+  <div class="tiles" id="nebulaTiles"></div>
+  <p class="read">Each run's end, 500 of its particles, orbiting the star live. Turn it through w to see a 4D cloud's thickness.</p>
+  <p class="read">The gas here has no pressure and no gravity of its own, and the time it takes depends on the collision model, which is why the shapes matter and the times don't. Half or more of the gas ends on the star. One thing is still moving in the long runs: after the shape has stopped, the orbits' planes keep slowly lining up in the other half of their turning, which no flattening yet shows. Next: how planets grow in a thick nebula.</p>
 </section>
 <section id="starsnext">
   <h3>What's computed and what's open</h3>

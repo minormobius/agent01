@@ -94,8 +94,8 @@ Each chapter below names where its material lives now.
 
 18. **Stars.** Whether a star holds together, a star solved, lighting it, how big and how small, and the fuel.
     *(stars §2–6)*
-19. **Planetary systems.** Orbits round a real star, planets in orthogonal planes, moons, formation (the nebula
-    runs), and the light on a planet. This is the orrery's home. *(stars: orbits; the formation work under way)*
+19. **Planetary systems.** Orbits round a real star, planets in orthogonal planes, moons, formation (built: a 4D
+    nebula flattens only if it spins in one plane; typically it ends a thick lens), and the light on a planet. This is the orrery's home. *(stars: orbits, formation)*
 
 **Appendices**
 

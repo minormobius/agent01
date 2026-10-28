@@ -409,6 +409,18 @@ function drawGeometry() {
   chart($("cGeoShells"), { key: "kGeoShells", x: [1, R - 1], logx: true, y: [0, 4.6], xl: "the shell's radius r", yl: "log₁₀ points in the shell", series: [...shells(2, DIM, "2D: grows as r"), ...shells(3, C3, "ours: as r²"), ...shells(4, C4, "4D: as r³")] });
 }
 
+/* the stars chapter's nebulae: flatness over time, per run (js/nebuladata.js, loaded only here), and the viewer */
+let NEB = null;
+function drawNebula() {
+  if (!NEB) return;
+  const R = (n) => NEB.find((r) => r.name === n), line = (n, c, label, dash) => ({ pts: R(n).series.map((q) => [q[0], q[1]]), c, label, dash });
+  chart($("cNebula"), { key: "kNebula", x: [0, 150], y: [0, 1.05], xl: "time", yl: "flatness (1 round, 0 a disk)", series: [
+    line("d3_a1_0_n10000_T150_s1", C3, "ours: a disk"), line("d4_a1_0_n10000_T150_s1", "#ff7aa8", "4D, one plane: a disk"),
+    line("d4_a1_0.25_n10000_T150_s1", "#ffd166", "4D, rates 1 : ¼"), line("d4_a1_0.5_n10000_T150_s1", "#7dffb0", "4D, 1 : ½"),
+    line("d4_a1_0.75_n30000_T40_s1", "#9ad0ff", "4D, 1 : ¾"), line("d4_a1_1_n30000_T40_s1", C4, "4D, equal: round")] });
+}
+if ($("cNebula")) import("./nebuladata.js").then(({ NEBULA }) => { NEB = NEBULA; drawNebula(); import("./nebulaviz.js").then((m) => m.buildNebula(NEBULA)); });
+
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
 function energySlope(d, a, b) {
   const xs = [], ys = []; for (const el of TABLE[d]) if (el.Z >= a && el.Z <= b) { xs.push(Math.log(el.Z)); ys.push(Math.log(-el.E)); }
@@ -419,7 +431,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cGeoSpread", drawGeometry], ["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbits]];
+const DRAW = [["cGeoSpread", drawGeometry], ["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbits], ["cNebula", drawNebula]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */
