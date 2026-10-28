@@ -5,9 +5,14 @@
    is a 3D space (x, z, w). Feet steady you only if they span the floor, so four must stand at the corners of a
    tetrahedron, not a rectangle: its front legs splay in z and its hind legs in w. (The five-legged cat, o.legs = 5,
    has three hind legs round z and w instead, and can creep: lift any one foot and four still span the floor.) Its
-   head is round in both sideways
-   directions, so it has four ears, a pair across z and a pair across w; its two eyes are set apart in z only. Its grin
-   reaches far into w, further than its face, so when the cat steps out of your slice the grin is the last of it to go.
+   head is round in both sideways directions, so it has four ears, a pair across z and a pair across w, and three eyes:
+   two apart across z and a third between them but off in w, an equilateral triangle in the zw plane. Two eyes judge
+   depth only across the line between them; seeing a 3D image, a 4D animal needs a baseline across both sideways
+   directions, so three, not all in a line. Its grin reaches far into w, further than its face, so when the cat steps out
+   of your slice the grin is the last of it to go.
+
+   Legs are two-bone chains solved for where each foot is (ik: elbows bend back, knees forward), so the walk (walk.js)
+   can put the feet anywhere within reach; rig(o) lists each leg's hip, resting foot, reach and how its chain ends.
 
    A part is a capsule (a, b, radii ra → rb) or an ellipsoid (centre c, semi-axes r), each with a material and a reach
    in w, wx: 0 for an ordinary 4D part; otherwise the part is its 3D shape (at w = 0) extruded to |w| ≤ wx, so it
@@ -17,6 +22,7 @@
      sdf(p, P)      signed distance from a 4D point (the cat's frame) to the cat, and the material there
      paws(P)        the four feet's contact points on the floor
      mass(P)        the centre of mass (each part weighted by its 4D volume, roughly)
+     rig(o)         the legs: { name, hip, foot (resting contact, [x, z, w]), reach } per foot, for o.legs and o.plan
      cut(P, n, c)   the parts that reach the hyperplane n·q = c (the cat's frame), and the groups they make up */
 
 export const MAT = { fur: 0, pink: 1, eye: 2, grin: 3 };
@@ -28,14 +34,40 @@ export const GRIN_W = 0.26; // how far the grin reaches into w, metres: past the
 const v = (x, y, z, w) => [x, y, z, w];
 const mixv = (a, b, s) => a.map((q, i) => q + (b[i] - q) * s);
 
-/* o.legs: 4 (the cat) or 5 (the five-legged cat: three hind legs round z and w). o.idle: breathe and sway the tail
-   (default true). o.sway [dx, dz, dw]: the body moved over its planted feet (legs follow, paws stay). o.lift: the name
-   of a foot that's up, or a list of names (FEET). o.tailFoot: the tail curved down and planted behind, a foot named "tail" */
+/* o.legs: 4 (the cat) or 5 (the five-legged cat: three hind legs round z and w). o.plan: { phi, rh, rf }, the five-legged
+   cat's hind ring turned phi degrees, its hind and front feet rh and rf from the midline (PLAN). o.idle: breathe and sway
+   the tail (default true). o.sway [dx, dz, dw]: the body moved over its planted feet (legs follow, paws stay). o.lift:
+   the name of a foot that's up, or a list of names (FEET). o.feet: { name: { p: [x, z, w], h } }, where each foot is
+   (its contact point on the floor, body frame) and how high it's lifted: the walk's. o.tailFoot: the tail curved down and
+   planted behind, a foot named "tail" */
 export const FEET = { 4: ["front +z", "front −z", "hind +w", "hind −w"], 5: ["front +z", "front −z", "hind 0°", "hind 120°", "hind 240°"] };
 /* the five-legged cat's hind legs, round the hips in the zw plane at these angles from +z toward +w. No side of their
    triangle may lie along z, the front pair's direction, or lifting one foot lays the other four in a plane (gait.js);
    0°, 120°, 240° keep every side 30° or more off it (and put one hind foot in the slice w = 0, on the +z side) */
 export const HIND5 = [0, 120, 240];
+export const PLAN = { phi: 0, rh: 0.11, rf: 0.088 }; // the five-legged cat's layout, as drawn
+export const HEAD = [0.29, 0.392, 0, 0]; // the head's centre: turns pivot here (lab.js)
+export const EYES = [[0.356, 0.41, 0.042, 0], [0.356, 0.41, -0.042, 0], [0.3285, 0.41, 0, 0.0727]]; // three: a triangle in z and w
+
+const LEN = { fu: 0.105, fl: 0.102, th: 0.1241, sh: 0.1423 }; // upper and lower front leg, thigh and shin (metres): a front leg at rest is bent to 87% of its reach, room to stride
+const PAW = [-0.012, 0.003], HOCK = [-0.03, 0.041, -0.002]; // the leg's end above the paw's centre; the hock above that
+/* each leg: its name, hip (body frame, 4D), resting foot (contact point, [x, z, w]), reach (hip to the chain's end at
+   full stretch) and which way its middle joint bends */
+export function rig(o = {}) {
+  const five = o.legs === 5, pl = { ...PLAN, ...(o.plan || {}) }, rf = pl.rf, out = [];
+  for (const s of [1, -1]) out.push({ name: s > 0 ? "front +z" : "front −z", front: true, hip: v(0.14, 0.2, 0.055 * s * (rf / 0.088), 0), foot: [0.162, rf * s, 0], reach: LEN.fu + LEN.fl, bend: v(-1, 0, 0, 0), d: [s, 0] });
+  const hind = five ? HIND5.map((a) => [`hind ${a}°`, a + pl.phi]) : [["hind +w", 90], ["hind −w", -90]], rh = five ? pl.rh : 0.11;
+  for (const [name, a] of hind) { const cz = Math.cos((a * Math.PI) / 180), cw = Math.sin((a * Math.PI) / 180); out.push({ name, front: false, hip: v(-0.16, 0.2, 0.06 * cz * (rh / 0.11), 0.06 * cw * (rh / 0.11)), foot: [-0.158, rh * cz, rh * cw], reach: LEN.th + LEN.sh, bend: v(1, 0, 0, 0), d: [cz, cw] }); }
+  return out;
+}
+/* two bones from H toward T (lengths a, b), the joint pushed toward `bend`: the joint and where the chain ends (T, or
+   as near as it reaches) */
+export function ik(H, T, a, b, bend) {
+  const D = T.map((x, i) => x - H[i]), dist = Math.hypot(...D), d = Math.min(Math.max(dist, Math.abs(a - b) + 1e-6), a + b - 1e-6), u = D.map((x) => x / dist);
+  const bu = bend.reduce((s, x, i) => s + x * u[i], 0), n0 = bend.map((x, i) => x - bu * u[i]), nl = Math.hypot(...n0) || 1, n = n0.map((x) => x / nl);
+  const along = (a * a - b * b + d * d) / (2 * d), off = Math.sqrt(Math.max(0, a * a - along * along));
+  return { joint: H.map((x, i) => x + along * u[i] + off * n[i]), end: H.map((x, i) => x + d * u[i]) };
+}
 export const TAIL_FOOT = [-0.46, 0, 0]; // where the planted tail touches the floor, [x, z, w]
 export function pose(t = 0, o = {}) {
   const idle = o.idle !== false, caps = [], ells = [], sw = o.sway || [0, 0, 0], up = (n) => (Array.isArray(o.lift) ? o.lift.includes(n) : o.lift === n), five = o.legs === 5;
@@ -56,30 +88,27 @@ export function pose(t = 0, o = {}) {
   ell(S(v(0.346, 0.362, 0, 0)), v(0.036, 0.028, 0.04, 0.04)); // muzzle
   ell(S(v(0.258, 0.372, 0, 0)), v(0.05, 0.05, 0.1, 0.1)); // cheeks: the ruff, round in z and w alike
   ell(S(v(0.381, 0.377, 0, 0)), v(0.01, 0.009, 0.013, 0.011), MAT.pink); // nose
-  // eyes apart in z; ears in pairs across z and across w
+  // three eyes (EYES), a triangle in z and w; ears in pairs across z and across w
+  g = "eyes"; for (const e of EYES) ell(S(e), e[3] ? v(0.014, 0.019, 0.019, 0.022) : v(0.014, 0.019, 0.022, 0.019), MAT.eye);
   for (const s of [1, -1]) {
-    g = "eyes"; ell(S(v(0.356, 0.41, 0.042 * s, 0)), v(0.014, 0.019, 0.022, 0.019), MAT.eye);
     g = "ears"; cap(S(v(0.282, 0.435, 0.045 * s, 0)), S(v(0.268, 0.54, 0.075 * s, 0)), 0.034, 0.004);
     cap(S(v(0.282, 0.435, 0, 0.045 * s)), S(v(0.268, 0.54, 0, 0.075 * s)), 0.034, 0.004);
   }
-  // front legs splay in z: shoulder, elbow, paw. A lifted paw rises LIFT and comes forward a little
-  const LIFT = 0.055;
-  g = "front legs";
-  for (const s of [1, -1]) {
-    const name = s > 0 ? "front +z" : "front −z", l = up(name) ? 1 : 0, raise = (p, h, dx = 0) => [p[0] + dx * l, p[1] + h * l, p[2], p[3]];
-    const sh = S(v(0.14, 0.2, 0.055 * s, 0)), el = raise(S(v(0.115, 0.11, 0.078 * s, 0), 0.5), 0.035, 0.03), pw = raise(v(0.15, 0.024, 0.088 * s, 0), LIFT, 0.04);
-    cap(sh, el, 0.04, 0.03); cap(el, pw, 0.03, 0.024);
-    ell(raise(v(0.162, 0.021, 0.088 * s, 0), LIFT, 0.04), v(0.036, 0.021, 0.03, 0.03)); ells.at(-1).foot = name;
-  }
-  // hind legs: the cat's two splay in w; the five-legged cat's three stand round the hips at HIND5. Hip, knee, hock, paw
-  g = "hind legs";
-  const hind = five ? HIND5.map((a) => [`hind ${a}°`, Math.cos((a * Math.PI) / 180), Math.sin((a * Math.PI) / 180)]) : [["hind +w", 0, 1], ["hind −w", 0, -1]];
-  const thin = five ? 0.9 : 1; // three legs share the load: a little slimmer
-  for (const [name, cz, cw] of hind) {
-    const l = up(name) ? 1 : 0, raise = (p, h, dx = 0) => [p[0] + dx * l, p[1] + h * l, p[2], p[3]], at = (x, y, r) => v(x, y, r * cz, r * cw);
-    const hp = S(at(-0.16, 0.2, 0.06)), kn = raise(S(at(-0.07, 0.12, 0.09), 0.6), 0.03, 0.02), hk = raise(S(at(-0.2, 0.065, 0.108), 0.25), 0.045, 0.03), pw = raise(at(-0.17, 0.024, 0.11), LIFT, 0.03);
-    cap(hp, kn, 0.052 * thin, 0.034 * thin); cap(kn, hk, 0.032 * thin, 0.022 * thin); cap(hk, pw, 0.022 * thin, 0.024 * thin);
-    ell(raise(at(-0.158, 0.021, 0.11), LIFT, 0.03), v(0.038, 0.021, 0.03, 0.03)); ells.at(-1).foot = name;
+  // the legs (rig): each foot where o.feet puts it, or resting, or lifted (o.lift: up LIFT and a little forward); the
+  // chain solved from the hip (which rides with the body's sway) to the paw
+  const LIFT = 0.055, thin = five ? 0.9 : 1;
+  for (const r of rig(o)) {
+    g = r.front ? "front legs" : "hind legs";
+    const f = o.feet?.[r.name] ?? (up(r.name) ? { p: [r.foot[0] + (r.front ? 0.04 : 0.03), r.foot[1], r.foot[2]], h: LIFT } : { p: r.foot, h: 0 });
+    const pc = v(f.p[0], 0.021 + f.h, f.p[1], f.p[2]), hip = S(r.hip), jt = v(pc[0] + PAW[0], pc[1] + PAW[1], pc[2], pc[3]);
+    if (r.front) {
+      const k = ik(hip, jt, LEN.fu, LEN.fl, r.bend);
+      cap(hip, k.joint, 0.04, 0.03); cap(k.joint, k.end, 0.03, 0.024);
+    } else {
+      const hk = v(jt[0] + HOCK[0], jt[1] + HOCK[1], jt[2] + HOCK[2] * r.d[0], jt[3] + HOCK[2] * r.d[1]), k = ik(hip, hk, LEN.th, LEN.sh, r.bend);
+      cap(hip, k.joint, 0.052 * thin, 0.034 * thin); cap(k.joint, k.end, 0.032 * thin, 0.022 * thin); cap(k.end, jt, 0.022 * thin, 0.024 * thin);
+    }
+    ell(pc, r.front ? v(0.036, 0.021, 0.03, 0.03) : v(0.038, 0.021, 0.03, 0.03)); ells.at(-1).foot = r.name;
   }
   g = "tail";
   // the tail: up and back from the rump, curling at the tip, swaying through w (and a little in z). Planted (o.tailFoot,

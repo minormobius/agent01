@@ -1,7 +1,8 @@
 /* The cat lab's page: the controls, the camera, and the line that says what of the cat is in your slice.
    ?w=0.12&zw=90 (any of xw zw yw xz, degrees) opens it there; &yaw=, &pitch= (degrees), &dist= and &at=x,y,z (metres) place the
    camera; &shot draws one still frame (t = &t, default 0) and stops, for screenshots and slow software GL;
-   &legs=5 is the five-legged cat; &gait=<plan>&phase=<n> opens the balance panel there. */
+   &legs=5 is the five-legged cat; &walk sets it walking (with &shot, &t= seconds in); &gait=<plan>&phase=<n> opens the
+   balance panel there. */
 import { makeLab } from "./lab.js";
 import { makeGaitPanel } from "./gaitui.js";
 
@@ -9,7 +10,7 @@ const $ = (id) => document.getElementById(id), canvas = $("view");
 let lab;
 try { lab = makeLab(canvas); } catch (e) { $("say").innerHTML = `<b>${e.message}</b>`; throw e; }
 const st = lab.st, D2R = Math.PI / 180;
-const q = new URLSearchParams(location.search);
+const q = new URLSearchParams(location.search), t0 = performance.now(); // t0: the page's clock starts
 if (q.has("w")) st.W = +q.get("w") || 0;
 for (const p of ["xw", "zw", "yw", "xz"]) if (q.has(p)) st.angles[p] = (+q.get(p) || 0) * D2R;
 if (q.has("at")) st.target = q.get("at").split(",").map(Number); if (q.has("yaw")) st.yaw = +q.get("yaw") * D2R; if (q.has("pitch")) st.pitch = +q.get("pitch") * D2R; if (q.has("dist")) st.dist = +q.get("dist");
@@ -24,10 +25,14 @@ $("sweep").addEventListener("click", () => { sweep = !sweep; $("sweep").classLis
 for (const b of $("planes").querySelectorAll("button")) b.addEventListener("click", () => { plane = b.dataset.p; for (const c of $("planes").children) c.classList.toggle("on", c === b); syncAng(); });
 $("ang").addEventListener("input", () => { st.angles[plane] = +$("ang").value * D2R; turnAnim = null; syncAng(); });
 $("quarter").addEventListener("click", () => { turnAnim = { plane, from: st.angles[plane], to: st.angles[plane] + Math.PI / 2, t0: performance.now() }; });
-$("reset").addEventListener("click", () => { for (const p in st.angles) st.angles[p] = 0; st.W = 0; sweep = false; $("sweep").classList.remove("on"); turnAnim = null; syncW(); syncAng(); });
+$("reset").addEventListener("click", () => { lab.walk(false); walkInfo = null; $("walkBtn").classList.remove("on"); st.pos = [0, 0, 0, 0]; for (const p in st.angles) st.angles[p] = 0; st.W = 0; sweep = false; $("sweep").classList.remove("on"); turnAnim = null; syncW(); syncAng(); });
 $("idle").addEventListener("click", () => { st.idle = !st.idle; $("idle").classList.toggle("on", st.idle); });
 $("feet").addEventListener("click", () => { st.feet = !st.feet; $("feet").classList.toggle("on", st.feet); });
-const setLegs = (n) => { st.legs = n; for (const b of $("legs").children) b.classList.toggle("on", +b.dataset.n === n); };
+const setLegs = (n) => { const was = !!st.walk; if (was) lab.walk(false); st.legs = n; for (const b of $("legs").children) b.classList.toggle("on", +b.dataset.n === n); if (was) startWalk(); };
+// walking: forward along its own x, wherever its turns point that (a quarter turn in xw and it walks off into w)
+let walkInfo = null;
+const startWalk = () => { walkInfo = lab.walk(true, (performance.now() - t0) / 1000); $("walkBtn").classList.add("on"); };
+$("walkBtn").addEventListener("click", () => { if (st.walk) { lab.walk(false); walkInfo = null; $("walkBtn").classList.remove("on"); } else startWalk(); });
 for (const b of $("legs").children) b.addEventListener("click", () => { setLegs(+b.dataset.n); gait.legs(st.legs); });
 if (q.get("legs") === "5") setLegs(5);
 $("infoBtn").addEventListener("click", () => { $("info").hidden = !$("info").hidden; });
@@ -60,12 +65,20 @@ function say(groups, feet) {
   if (!groups.length) s = "<b>Nothing of it is in your slice.</b> It's right here, a few centimetres off in w.";
   else if (groups.length === 1 && has("grin")) s = "<b>Only the grin is left.</b> The rest of the cat is beside you, off in w.";
   else if (has("grin") && !has("head")) s = `<b>The grin, without the face.</b> In your slice: ${groups.filter((g) => g !== "grin").join(", ")}.`;
-  else if (turnedZW && !has("eyes")) s = "<b>A quarter turn through w took its eyes out of your slice,</b> brought its other ears in, and turned its grin across your space.";
+  else if (turnedZW && feet && feet.eyes === 1) s = "<b>A quarter turn through w took two of its eyes out of your slice and brought in the third,</b> with its other ears, and turned its grin across your space.";
   else if (groups.length === 8) s = `<b>The whole cat is in your slice,</b> standing on the ${["no", "one", "two", "three", "four", "five"][feet.seen]} feet you can see and the ${["no", "one", "two", "three", "four", "five"][feet.unseen]} ring${feet.unseen === 1 ? "" : "s"} you can't.`;
   else s = `In your slice: ${groups.join(", ")}. <b>Missing:</b> ${["body", "head", "eyes", "ears", "front legs", "hind legs", "tail", "grin"].filter((g) => !has(g)).join(", ")}.`;
   if ($("say").innerHTML !== s) $("say").innerHTML = s;
 }
 
+// walking: what kind of walk, and where it's gone
+function sayWalk(groups) {
+  const g = walkInfo, gone = !groups.length ? " <b>It has walked out of your slice.</b>" : groups.length === 1 && groups[0] === "grin" ? " <b>Only its grin is still here.</b>" : "";
+  const s = g.isStatic
+    ? `<b>Walking: one foot at a time,</b> a stride of ${(g.L * 100).toFixed(1)} cm (${Math.round((100 * g.L) / g.Lmax)}% of the most its front legs reach), its centre of mass always 1 cm inside the four feet down.${gone}`
+    : `<b>Trotting on diagonal pairs:</b> two feet down make a line, so it is falling between steps and has to catch itself. This lab shows the steps, not yet the catching.${gone}`;
+  if ($("say").innerHTML !== s) $("say").innerHTML = s;
+}
 // with the balance panel open: what holds it up
 function sayBalance(sup) {
   const n = sup.feet.length, s = sup.dim < 3
@@ -74,8 +87,8 @@ function sayBalance(sup) {
     : `<b>${n} feet down, but its centre of mass is outside them</b> (${(-sup.margin * 100).toFixed(1)} cm): it tips.`;
   if ($("say").innerHTML !== s) $("say").innerHTML = s;
 }
-const t0 = performance.now();
-if (q.has("shot")) { st.scale = +(q.get("scale") || 1); if (q.has("gait")) st.idle = false; const { groups, sup, feet } = lab.draw(+(q.get("t") || 0), true); if (sup) sayBalance(sup); else say(groups, feet); gait.draw(); document.body.dataset.ready = "1"; }
+if (q.has("walk")) { st.idle = !q.has("shot"); startWalk(); if (q.has("shot")) st.walk.t0 = 0; }
+if (q.has("shot")) { st.scale = +(q.get("scale") || 1); if (q.has("gait")) st.idle = false; const { groups, sup, feet } = lab.draw(+(q.get("t") || 0), true); if (sup) sayBalance(sup); else if (walkInfo) sayWalk(groups); else say(groups, feet); gait.draw(); document.body.dataset.ready = "1"; }
 else requestAnimationFrame(frame);
 function frame(now) {
   const t = (now - t0) / 1000;
@@ -87,6 +100,6 @@ function frame(now) {
     if (u >= 1) turnAnim = null;
   }
   const { groups, sup, feet } = lab.draw(t);
-  if (sup) sayBalance(sup); else say(groups, feet);
+  if (sup) sayBalance(sup); else if (walkInfo) sayWalk(groups); else say(groups, feet);
   requestAnimationFrame(frame);
 }

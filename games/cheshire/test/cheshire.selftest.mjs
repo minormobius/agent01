@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 const here = path.dirname(fileURLToPath(import.meta.url));
-const C = await import(path.join(here, "../js/cat.js")), L = await import(path.join(here, "../js/lab.js")), G = await import(path.join(here, "../js/gait.js"));
+const C = await import(path.join(here, "../js/cat.js")), L = await import(path.join(here, "../js/lab.js")), G = await import(path.join(here, "../js/gait.js")), WK = await import(path.join(here, "../js/walk.js"));
 let checks = 0, fails = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg); } else console.log("✓ " + msg); };
 const t0 = Date.now();
@@ -53,12 +53,18 @@ const rnd = ((s) => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >
     `at w = 0 all of it; at 23 cm only the grin (sampled too); at ${((C.GRIN_W + 0.012) * 100).toFixed(1)} cm nothing`);
 }
 
-/* 4 · turning: the lab's turns are rotations, and a quarter turn in zw takes the eyes (set apart in z) out of your slice */
+/* 4 · turning and the three eyes: the lab's turns are rotations; the eyes are an equilateral triangle in the zw plane
+   (so their baselines span both sideways directions: depth from any direction of edge); your slice at w = 0 holds two of
+   them, and a quarter turn in zw takes those two out and brings the third in */
 {
   const R = L.rotation({ zw: 0.7, xw: -0.4, yw: 0.2, xz: 1.1 }); let orth = 0;
   for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += R[i * 4 + k] * R[j * 4 + k]; orth = Math.max(orth, Math.abs(s - (i === j ? 1 : 0))); }
-  const Q = L.rotation({ zw: Math.PI / 2 }), n = [Q[12], Q[13], Q[14], Q[15]], g = C.cut(C.pose(0, { idle: false }), n, 0).groups;
-  ok(orth < 1e-12 && !g.includes("eyes") && g.includes("ears") && g.includes("grin"), "turns are rotations; a quarter turn through w takes the eyes out of your slice and keeps ears and grin");
+  const E = C.EYES.map((e) => [e[2], e[3]]), side = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), s3 = [side(E[0], E[1]), side(E[1], E[2]), side(E[2], E[0])];
+  const area = Math.abs((E[1][0] - E[0][0]) * (E[2][1] - E[0][1]) - (E[2][0] - E[0][0]) * (E[1][1] - E[0][1])) / 2;
+  const P0 = C.pose(0, { idle: false }), eyesIn = (Q) => C.cut(P0, [Q[12], Q[13], Q[14], Q[15]], 0).parts.filter((p) => p.g === "eyes").length;
+  const Q = L.rotation({ zw: Math.PI / 2 }), g = C.cut(P0, [Q[12], Q[13], Q[14], Q[15]], 0).groups;
+  ok(orth < 1e-12 && Math.max(...s3) - Math.min(...s3) < 2e-4 && area > 0.002 && eyesIn(L.rotation({})) === 2 && eyesIn(Q) === 1 && g.includes("ears") && g.includes("grin"),
+    `turns are rotations; three eyes in an equilateral triangle (side ${(s3[0] * 100).toFixed(1)} cm) across z and w; two in your slice, and a quarter turn through w swaps them for the third`);
 }
 
 /* 5 · the shader is the same cat: its joins use the materials' thresholds and the join width cat.js uses, and its
@@ -116,6 +122,24 @@ const rnd = ((s) => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >
   const lv = G.tailReach(0), up = G.tailReach(0.6);
   ok(lv.rank === 1 && up.rank === 3 && Math.abs(up.reach[1] - Math.sin(0.6)) < 1e-12 && Math.abs(up.reach[2] - Math.sin(0.6)) < 1e-12 && Math.abs(up.reach[0] - 1) < 1e-12,
     "a level tail catches only forward tipping; raised θ, all three, the sideways two in proportion to sin θ");
+}
+
+/* 7 · walking (js/walk.js): the five-legged cat walks a wave gait, one foot at a time, statically balanced, its stride set
+   by its front legs' reach; acted out on its own posed body over a whole cycle, its centre of mass stays over the feet
+   actually down, and a foot down doesn't slide on the floor. The cat with four has no such gait */
+{
+  const fl = (p) => [p[0], p[2], p[3]], R5 = C.rig({ legs: 5 }), com5 = fl(C.mass(C.pose(0, { idle: false, legs: 5 })).c);
+  const m = WK.maxStride(R5, com5, { steps: 9 }), g = WK.wave(R5, com5, { L: 0.8 * m.L, order: m.gait.groups });
+  let worst = 1, slide = 0; const planted = {};
+  for (let k = 0; k <= 160; k++) {
+    const t = (k * g.T) / 160, s = g.at(t), P = C.pose(0, { idle: false, legs: 5, feet: s.feet, sway: s.sway });
+    worst = Math.min(worst, G.margin(G.hull(C.paws(P).map(fl)), fl(C.mass(P).c)));
+    for (const nm of s.down) { const wx = s.feet[nm].p[0] + s.d; if (planted[nm] !== undefined && s.down.includes(nm)) slide = Math.max(slide, Math.abs(wx - planted[nm])); planted[nm] = wx; }
+    for (const nm of Object.keys(planted)) if (!s.down.includes(nm)) delete planted[nm];
+  }
+  const R4 = C.rig({ legs: 4 }), com4 = fl(C.mass(C.pose(0, { idle: false })).c), four = WK.best(R4, com4, { L: 0.04 });
+  ok(m.L > 0.1 && g.ok && worst > 0.009 && slide < 1e-9 && !four.isStatic && four.plan.every((p) => p.dim === 2),
+    `walking: the five-legged cat's longest static stride is ${(m.L * 100).toFixed(1)} cm (reach-limited); at 80% its own posed body keeps its centre of mass ${(worst * 100).toFixed(2)} cm or more inside the feet down all cycle, and no foot down slides; the cat with four has no static gait (every swing leaves three in a plane)`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} cheshire checks failed` : `\n✓ cheshire: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(1)} s`);

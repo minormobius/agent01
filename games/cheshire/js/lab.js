@@ -6,7 +6,8 @@
    and rose kata (−w), the colours the stripes take on the same sides (violet in between).
    With st.support (the gait panel), the floor also shows the support: the solid the planted feet span on the 3D floor,
    cut by your slice, and the centre of mass over it. st.body passes the gait's pose (sway, lift, tailFoot) to the cat. */
-import { pose, cut, paws, mass, LIMITS, K, MAT } from "./cat.js";
+import { pose, cut, paws, mass, rig, HEAD, LIMITS, K, MAT } from "./cat.js";
+import { wave, maxStride } from "./walk.js";
 import { hull, margin, NEED } from "./gait.js";
 
 const FRAG = `#version 300 es
@@ -155,16 +156,23 @@ export function makeLab(canvas) {
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
   const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
   const U = {}; for (const n of ["uRes", "uEye", "uCR", "uCU", "uCF", "uTan", "uRot", "uPos", "uBound", "uW", "uK", "uFeet", "uTime", "uNC", "uNE", "uA", "uB", "uCp", "uEc", "uEr", "uEp", "uPaw", "uNP", "uSF", "uNSF", "uCom"]) U[n] = gl.getUniformLocation(prog, n);
-  const st = { yaw: 1.05, pitch: 0.2, dist: 1.55, target: [-0.03, 0.24, 0], W: 0, angles: { xw: 0, zw: 0, yw: 0, xz: 0 }, pos: [0, 0, 0, 0], idle: true, feet: true, scale: 0.8, legs: 4, body: {}, support: false };
+  const st = { yaw: 1.05, pitch: 0.2, dist: 1.55, target: [-0.03, 0.24, 0], W: 0, angles: { xw: 0, zw: 0, yw: 0, xz: 0 }, pos: [0, 0, 0, 0], idle: true, feet: true, scale: 0.8, legs: 4, body: {}, support: false, walk: null, track: [0, 0, 0] };
   let last = performance.now(), slow = 0;
 
   function draw(t, still = false) {
     const dpr = Math.min(devicePixelRatio || 1, 2), w = Math.max(1, Math.round(canvas.clientWidth * dpr * st.scale)), h = Math.max(1, Math.round(canvas.clientHeight * dpr * st.scale));
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
     gl.viewport(0, 0, w, h);
-    const R = rotation(st.angles), P = pose(t, { idle: st.idle, legs: st.legs, ...st.body });
-    // only the parts that reach your slice: the hyperplane w = W is n·q = W − pos.w in the cat's frame, n = R's last row
-    const n = [R[12], R[13], R[14], R[15]], { parts } = cut(P, n, st.W - st.pos[3]);
+    const R = rotation(st.angles);
+    // walking: the gait puts the feet and sways the body; the cat moves forward along its own x, wherever that points
+    let walkPose = {}, d = 0;
+    if (st.walk) { const g = st.walk.gait.at((t - st.walk.t0) * st.walk.speed); walkPose = { feet: g.feet, sway: g.sway }; d = g.d + st.walk.d0; st.walk.d = d; }
+    const P = pose(t, { idle: st.idle, legs: st.legs, ...st.body, ...walkPose });
+    // the cat's origin in the world: turns pivot on its head (origin = pos + HEAD − R·HEAD), and the walk carries it forward
+    const RH = apply(R, HEAD), fw = apply(R, [d, 0, 0, 0]), origin = st.pos.map((x, i) => x + HEAD[i] - RH[i] + fw[i]);
+    st.track = [origin[0] - st.pos[0], 0, origin[2] - st.pos[2]]; // the camera follows the cat across your space
+    // only the parts that reach your slice: the hyperplane w = W is n·q = W − origin.w in the cat's frame, n = R's last row
+    const n = [R[12], R[13], R[14], R[15]], { parts } = cut(P, n, st.W - origin[3]);
     const caps = parts.filter((p) => p.a), ells = parts.filter((p) => p.c);
     const f4 = (arr, fn) => { const a = new Float32Array(arr.length * 4); arr.forEach((x, i) => a.set(fn(x), i * 4)); return a; };
     gl.uniform1i(U.uNC, caps.length); gl.uniform1i(U.uNE, ells.length);
@@ -172,37 +180,49 @@ export function makeLab(canvas) {
     if (ells.length) { gl.uniform4fv(U.uEc, f4(ells, (e) => e.c)); gl.uniform4fv(U.uEr, f4(ells, (e) => e.r)); gl.uniform4fv(U.uEp, f4(ells, (e) => [e.m, e.wx, 0, 0])); }
     // world → cat is Rᵀ; a GLSL mat4 reads its array by columns, so R's rows, in order, are Rᵀ's columns
     gl.uniformMatrix4fv(U.uRot, false, new Float32Array(R));
-    gl.uniform4fv(U.uPos, st.pos);
-    const bc = apply(R, [-0.05, 0.27, 0, 0]).map((x, i) => x + st.pos[i]);
+    gl.uniform4fv(U.uPos, origin);
+    const bc = apply(R, [-0.05, 0.27, 0, 0]).map((x, i) => x + origin[i]);
     gl.uniform4f(U.uBound, bc[0], bc[1], bc[2], 0.72);
-    const pw = paws(P).map((p) => apply(R, p).map((x, i) => x + st.pos[i]));
+    const pw = paws(P).map((p) => apply(R, p).map((x, i) => x + origin[i]));
     gl.uniform4fv(U.uPaw, f4(pw, (p) => p)); gl.uniform1i(U.uNP, pw.length);
     // the support, from the feet actually down and the centre of mass actually where it is (only while the cat stands
     // upright: a turn through y lifts its floor off yours)
     let sup = null;
     if (st.support && Math.abs(R[5] - 1) < 1e-9) {
-      const fl = (p) => [p[0], p[2], p[3]], h = hull(pw.map(fl)), com = apply(R, mass(P).c).map((x, i) => x + st.pos[i]), m = margin(h, fl(com));
+      const fl = (p) => [p[0], p[2], p[3]], h = hull(pw.map(fl)), com = apply(R, mass(P).c).map((x, i) => x + origin[i]), m = margin(h, fl(com));
       sup = { dim: h.dim, margin: m, ok: m >= NEED - 1e-6, com: fl(com), feet: pw.map(fl) };
       const F = h.faces.slice(0, 24); gl.uniform1i(U.uNSF, F.length); if (F.length) gl.uniform4fv(U.uSF, f4(F, (f) => [...f.n, f.c]));
       gl.uniform4f(U.uCom, com[0], com[2], com[3], sup.ok ? 1 : 2);
     } else { gl.uniform1i(U.uNSF, 0); gl.uniform4f(U.uCom, 0, 0, 0, 0); }
     gl.uniform1f(U.uW, st.W); gl.uniform1f(U.uK, K); gl.uniform1f(U.uFeet, st.feet ? 1 : 0); gl.uniform1f(U.uTime, t);
-    const cy = Math.cos(st.yaw), sy = Math.sin(st.yaw), cp = Math.cos(st.pitch), sp = Math.sin(st.pitch);
-    const eye = [st.target[0] + st.dist * cp * sy, st.target[1] + st.dist * sp, st.target[2] + st.dist * cp * cy];
-    const F = st.target.map((x, i) => x - eye[i]), fl = Math.hypot(...F), Fn = F.map((x) => x / fl);
+    const cy = Math.cos(st.yaw), sy = Math.sin(st.yaw), cp = Math.cos(st.pitch), sp = Math.sin(st.pitch), tg = st.target.map((x, i) => x + st.track[i]);
+    const eye = [tg[0] + st.dist * cp * sy, tg[1] + st.dist * sp, tg[2] + st.dist * cp * cy];
+    const F = tg.map((x, i) => x - eye[i]), fl = Math.hypot(...F), Fn = F.map((x) => x / fl);
     const Rr = [Fn[2], 0, -Fn[0]].map((x, _, a) => x / Math.hypot(...a)), Uu = [Rr[1] * Fn[2] - Rr[2] * Fn[1], Rr[2] * Fn[0] - Rr[0] * Fn[2], Rr[0] * Fn[1] - Rr[1] * Fn[0]];
     gl.uniform3fv(U.uEye, eye); gl.uniform3fv(U.uCF, Fn); gl.uniform3fv(U.uCR, Rr.map((x) => -x)); gl.uniform3fv(U.uCU, Uu.map((x) => -x));
     gl.uniform1f(U.uTan, Math.tan((38 * Math.PI) / 360)); gl.uniform2f(U.uRes, w, h);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     // keep it smooth: drop the resolution when frames run long, raise it when there's room
     const now = performance.now(), dt = now - last; last = now;
-    const seen = pw.filter((p) => Math.abs(p[3] - st.W) < 0.03).length, feet = { seen, unseen: pw.length - seen };
-    if (still) return { groups: cut(P, n, st.W - st.pos[3]).groups, R, sup, feet };
+    const seen = pw.filter((p) => Math.abs(p[3] - st.W) < 0.03).length, feet = { seen, unseen: pw.length - seen, eyes: parts.filter((p) => p.g === "eyes").length };
+    if (still) return { groups: cut(P, n, st.W - origin[3]).groups, R, sup, feet };
     if (dt > 40) slow++; else if (dt < 22) slow--;
     if (slow > 8) { st.scale = Math.max(0.35, st.scale * 0.85); slow = 0; } else if (slow < -40) { st.scale = Math.min(1, st.scale * 1.1); slow = 0; }
-    return { groups: cut(P, n, st.W - st.pos[3]).groups, R, sup, feet };
+    return { groups: cut(P, n, st.W - origin[3]).groups, R, sup, feet };
   }
-  return { st, draw, gl };
+  /* start or stop walking. The five-legged cat walks a wave gait, one foot at a time, statically balanced, at 80% of
+     its longest stride; the cat with four can't, so it trots (diagonal pairs, beta 0.5): two feet down, a line, falling
+     between steps, which this lab can show but not yet hold up (it needs dynamics) */
+  function walk(on, t) {
+    if (!on) { if (st.walk) st.pos = st.pos.map((x, i) => x + apply(rotation(st.angles), [st.walk.d, 0, 0, 0])[i]); st.walk = null; return null; }
+    const fl = (p) => [p[0], p[2], p[3]], o = { legs: st.legs }, R = rig(o), com = fl(mass(pose(0, { idle: false, ...o })).c);
+    let gait;
+    if (st.legs === 5) { const m = maxStride(R, com, { steps: 9 }); gait = wave(R, com, { L: 0.8 * m.L, order: m.gait.groups }); gait.Lmax = m.L; }
+    else gait = wave(R, com, { L: 0.08, beta: 0.5, T: 0.9, order: [["front +z", "hind −w"], ["front −z", "hind +w"]] });
+    st.walk = { gait, t0: t, speed: 1, d0: 0, d: 0 };
+    return gait;
+  }
+  return { st, draw, gl, walk };
 }
 
 export { MAT };

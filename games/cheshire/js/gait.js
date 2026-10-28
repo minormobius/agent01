@@ -73,10 +73,14 @@ export function cheb(h) {
 export function swayTo(h, p0, need) {
   if (h.dim < 3 || cheb(h).r < need) return null;
   let x = p0.slice(); const inc = h.faces.map(() => [0, 0, 0]);
-  for (let it = 0; it < 3000; it++) h.faces.forEach((f, i) => {
-    const y = x.map((v, k) => v + inc[i][k]), e = dot(f.n, y) - (f.c - need), z = e > 0 ? y.map((v, k) => v - e * f.n[k]) : y;
-    inc[i] = y.map((v, k) => v - z[k]); x = z;
-  });
+  for (let it = 0; it < 3000; it++) {
+    const before = x.slice();
+    h.faces.forEach((f, i) => {
+      const y = x.map((v, k) => v + inc[i][k]), e = dot(f.n, y) - (f.c - need), z = e > 0 ? y.map((v, k) => v - e * f.n[k]) : y;
+      inc[i] = y.map((v, k) => v - z[k]); x = z;
+    });
+    if (it > 8 && len(sub(x, before)) < 1e-12) break; // settled
+  }
   return margin(h, x) >= need - 1e-7 ? { p: x, d: len(sub(x, p0)) } : null;
 }
 

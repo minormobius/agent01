@@ -45,7 +45,7 @@ misses a part). URL: `?legs=5&w=0.12&zw=90&yaw=90&pitch=5&dist=0.6&at=0.3,0.4,0&
 stops (for screenshots in software GL).
 
 ```bash
-node games/cheshire/test/cheshire.selftest.mjs   # stance, a safe distance to march, slices, turns, shader = cat.js, balance (~11 s)
+node games/cheshire/test/cheshire.selftest.mjs   # stance, a safe distance to march, slices, turns, shader = cat.js, balance, the walk (~19 s)
 ```
 
 ## Balance (`js/gait.js`, no DOM; `js/gaitui.js`, the panel)
@@ -74,6 +74,21 @@ pushes back in u ∧ v (where it points, where it moves). Held level it catches 
 the sideways two at sin θ of the forward one (`tailReach`). So balance needs one tail, held up, and a tail used as a
 foot gives that up. In the air, righting can need a double rotation (two planes at once), which no single u ∧ v is: one
 tail can't, two could.
+
+## Walking (`js/walk.js`, no DOM; the lab's **walk**)
+
+A gait is a cycle in which the feet swing one group at a time; a foot down stays put while the body passes over it.
+The five-legged cat walks a **wave gait**, one foot at a time (duty 0.85), statically balanced throughout: before each
+swing the body sways (the least sway, `gait.js swayTo`) so its centre of mass is 1 cm inside the four feet down, and
+moves straight to the next target, which keeps it inside the whole time (the support slides back as one solid). Its
+longest stride is **11.2 cm, set by its front legs' reach, not by balance**; the lab walks it at 80%. Legs are solved
+by inverse kinematics (`cat.js ik`, `rig`): elbows bend back, knees forward. The cat with four has no static gait (every
+swing leaves three feet in a plane), so it trots on diagonal pairs, on a line, falling between steps: shown, not yet held
+up (that needs dynamics).
+
+It walks along its own forward, wherever that points: turn it a quarter in xw and it walks off into w, out of your
+slice. **Turns pivot on its head** (`HEAD`), not its feet. **Three eyes** (`EYES`): two apart across z and a third
+between them off in w, an equilateral triangle, so its stereo baselines span both sideways directions.
 
 ## Next
 
