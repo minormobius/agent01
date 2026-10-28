@@ -1,6 +1,6 @@
 {
  "run": "nebula-1",
- "why": "Does a rotating 4D cloud flatten into a disk? Our world's must (a sphere can't be combed); a 3-sphere can (Hopf), so the shape may depend on the ratio of the cloud's two rates. Sweep that ratio in 4D with a 3D control, a second seed, harder collisions, a hotter start and double resolution.",
+ "why": "Does a rotating 4D cloud flatten into a disk? Our world's must (a sphere can't be combed); a 3-sphere can (Hopf), so the shape may depend on the ratio of the cloud's two rates. Sweep that ratio in 4D with a 3D control, a second seed, harder collisions, a hotter start and double resolution. Plus long runs (T = 150, smaller) to see where the slow flattening ends.",
  "minutes": 330,
  "groups": [
   {
@@ -35,6 +35,15 @@
    "cmds": [
     "node four/atom/tools/nebula.mjs run 4 1 0.5 60000 40 1",
     "node four/atom/tools/nebula.mjs run 4 1 0 60000 40 1"
+   ]
+  },
+  {
+   "name": "long",
+   "cmds": [
+    "node four/atom/tools/nebula.mjs run 4 1 0 10000 150 1",
+    "node four/atom/tools/nebula.mjs run 4 1 0.5 10000 150 1",
+    "node four/atom/tools/nebula.mjs run 4 1 0.25 10000 150 1",
+    "node four/atom/tools/nebula.mjs run 3 1 0 10000 150 1"
    ]
   }
  ]

@@ -7,7 +7,9 @@
    The gas is N particles round a star of mass 1 (G = 1) pulling as 1/r², which is Newton in 3D and the pinned law in
    4D, so the only difference between the runs is the dimension. Collisions are inelastic, pair by pair: two particles
    closer than h and approaching lose a fraction eta of their approach speed along the line between them. That
-   conserves momentum and angular momentum exactly and only removes energy, which is all a disk needs to form. A
+   conserves momentum and angular momentum exactly and only removes energy, which is all a disk needs to form. (Damping
+   the sliding speed too would settle it faster but also drains the cloud's spin: neighbours in a turning cloud slide
+   past each other, so every collision would torque the same way.) A
    particle inside rAcc falls onto the star. The gas's own gravity is left out (a light nebula). */
 
 /* the cloud's spin, as a turning: rates a1 in the xy plane and a2 in the zw plane (3D: a1 about z, a2 unused) */
