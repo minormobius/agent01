@@ -59,8 +59,11 @@ export function measurePrecession(slope, p, e, orbits = 5) {
 
 /* a star and two planets on circular orbits (radii 1 and a2): planet 2's plane turned from planet 1's by angle th
    (both principal angles, so 90° is completely orthogonal), its start 127° round. Run for some orbits of planet 1 */
-export function twoPlanets(a2, thDeg, { mp = 1e-3, orbits = 2000, per = 400, e = 0, sample = 0 } = {}) {
-  const th = (thDeg * Math.PI) / 180, c = Math.cos(th), s = Math.sin(th), U = [c, 0, s, 0], V = [0, c, 0, s], ang = 2.2;
+export function twoPlanets(a2, thDeg, { mp = 1e-3, orbits = 2000, per = 400, e = 0, sample = 0, kind = "iso" } = {}) {
+  // kind "iso": both principal angles th (90°: completely orthogonal); "line": the planes share a line (x) and differ
+  // by th in one angle only, the only tilt our world's planets can have
+  const th = (thDeg * Math.PI) / 180, c = Math.cos(th), s = Math.sin(th), ang = 2.2;
+  const [U, V] = kind === "line" ? [[1, 0, 0, 0], [0, c, s, 0]] : [[c, 0, s, 0], [0, c, 0, s]];
   const rp1 = 1 - e, rp2 = a2 * (1 - e), v1 = Math.sqrt((1 + e) / rp1), v2 = Math.sqrt((1 + e) / rp2);
   const xs = [[0, 0, 0, 0], [rp1, 0, 0, 0], U.map((u, k) => rp2 * (Math.cos(ang) * u + Math.sin(ang) * V[k]))];
   const vs = [[0, 0, 0, 0], [0, v1, 0, 0], U.map((u, k) => v2 * (-Math.sin(ang) * u + Math.cos(ang) * V[k]))];

@@ -1,60 +1,22 @@
 {
- "run": "audit-3",
- "why": "Finish fixing the miss. Xater's pair search, cut at audit-2's deadline while its new descent was still going down (to -27.35 from -26.94), resumes from its cached Hartree-Fock energies; and the deepest random placements of Xater and XH3 are relaxed, now that deepen rebuilds each pose from its stored atoms (audit-2's deepen jobs skipped them: placements made before a re-bake no longer regenerate from their seeds).",
+ "run": "stability-1",
+ "why": "The orrery generator's rules: two planets round a star under the pinned 1/r, over the ratio of their orbits (1 to 1.6), the angle between their planes (0 to 90 deg, tilted in both angles or about a shared line) and their mass (0.1, 1, 10 Jupiters), each for 100,000 orbits of the inner one.",
  "minutes": 330,
  "groups": [
   {
-   "name": "search-xater",
+   "name": "iso",
    "cmds": [
-    "node four/atom/tools/pairsearch.mjs 4 2"
+    "node four/atom/tools/stability.mjs run 0.0001 iso 100000",
+    "node four/atom/tools/stability.mjs run 0.001 iso 100000",
+    "node four/atom/tools/stability.mjs run 0.01 iso 100000"
    ]
   },
   {
-   "name": "deepen-xater-0",
+   "name": "line",
    "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 0"
-   ]
-  },
-  {
-   "name": "deepen-xater-1",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 1"
-   ]
-  },
-  {
-   "name": "deepen-xater-2",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 2"
-   ]
-  },
-  {
-   "name": "deepen-xater-3",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 3"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-0",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 0"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-1",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 1"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-2",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 2"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-3",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 3"
+    "node four/atom/tools/stability.mjs run 0.0001 line 100000",
+    "node four/atom/tools/stability.mjs run 0.001 line 100000",
+    "node four/atom/tools/stability.mjs run 0.01 line 100000"
    ]
   }
  ]
