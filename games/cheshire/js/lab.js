@@ -6,7 +6,7 @@
    and rose kata (−w), the colours the stripes take on the same sides (violet in between).
    With st.support (the gait panel), the floor also shows the support: the solid the planted feet span on the 3D floor,
    cut by your slice, and the centre of mass over it. st.body passes the gait's pose (sway, lift, tailFoot) to the cat. */
-import { pose, cut, paws, mass, rig, HEAD, LIMITS, K, MAT } from "./cat.js";
+import { pose, cut, paws, mass, rig, HEAD, LIMITS, K, MAT, W_IN } from "./cat.js";
 import { wave, maxStride } from "./walk.js";
 import { hull, margin, NEED } from "./gait.js";
 
@@ -17,15 +17,19 @@ uniform mat4 uRot; uniform vec4 uPos, uBound; uniform float uW, uK, uFeet, uTime
 uniform int uNC, uNE;
 uniform vec4 uA[${LIMITS.caps}], uB[${LIMITS.caps}], uCp[${LIMITS.caps}], uEc[${LIMITS.ells}], uEr[${LIMITS.ells}], uEp[${LIMITS.ells}];
 uniform vec4 uPaw[6]; uniform int uNP;
-uniform vec4 uSF[24], uCom; uniform int uNSF; // the support's faces on the floor (n·(x, z, w) ≤ c), the centre of mass (x, z, w, state)
+uniform vec4 uCav, uCavR; // the mouth's cavity (an ellipsoid carved out; uCavR.x = 0: closed)
+uniform vec4 uEyeC[3], uLook; // the eyes' centres, and the camera, in the cat's frame: its pupils look at you
+uniform vec4 uSF[16], uCom; uniform int uNSF; // the support's faces on the floor (n·(x, z, w) ≤ c), the centre of mass (x, z, w, state)
 out vec4 outC;
 
-// the parts, as in cat.js: capD, ellD, and the join (smooth for fur and skin, hard for eyes and grin)
+// the parts, as in cat.js: capD (wx > 0 extruded along w, wx < 0 spun round the xy plane, the ghost only past W_IN),
+// ellD, the join (smooth for fur, hard for skin and up), the cavity carved, then the mouth's own parts
 float capD(vec4 p, int i) {
-  float wx = uCp[i].w; vec4 P = p; if (wx > 0.) P.w = 0.;
+  float wx = uCp[i].w; vec4 P = p; if (wx > 0.) P.w = 0.; else if (wx < 0.) P = vec4(p.x, p.y, length(p.zw), 0.);
   vec4 pa = P - uA[i], ba = uB[i] - uA[i]; float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.);
   float d = length(pa - ba * h) - mix(uCp[i].x, uCp[i].y, h);
-  return wx > 0. ? max(d, abs(p.w) - wx) : d;
+  if (wx > 0.) d = max(d, abs(p.w) - wx);
+  return uCp[i].z == ${MAT.ghost}. ? max(d, ${W_IN} - abs(p.w)) : d;
 }
 float ellD(vec4 p, int i) {
   float wx = uEp[i].y; vec4 q = p - uEc[i], r = uEr[i]; if (wx > 0.) { q.w = 0.; r.w = 1.; }
@@ -38,10 +42,11 @@ void join(inout float D, inout float M, float d, float m) {
   D = mix(D, d, h) - uK * h * (1. - h); M = mix(M, m, h); // mix, not D + (d − D)h: from D = 100, float32 would lose d
 }
 vec2 cat(vec4 q) {
-  float D = 100., M = 0.;
-  for (int i = 0; i < ${LIMITS.ells}; i++) { if (i >= uNE) break; join(D, M, ellD(q, i), uEp[i].x); }
-  for (int i = 0; i < ${LIMITS.caps}; i++) { if (i >= uNC) break; join(D, M, capD(q, i), uCp[i].z); }
-  return vec2(D, M);
+  float D = 100., M = 0., E = 100., N = ${MAT.grin}.;
+  for (int i = 0; i < ${LIMITS.ells}; i++) { if (i >= uNE) break; float m = uEp[i].x; if (m >= ${MAT.grin}.) join(E, N, ellD(q, i), m); else join(D, M, ellD(q, i), m); }
+  for (int i = 0; i < ${LIMITS.caps}; i++) { if (i >= uNC) break; float m = uCp[i].z; if (m >= ${MAT.grin}.) join(E, N, capD(q, i), m); else join(D, M, capD(q, i), m); }
+  if (uCavR.x > 0.) { vec4 c = q - uCav; float k0 = length(c / uCavR), k1 = length(c / (uCavR * uCavR)), cv = -(k0 * (k0 - 1.) / max(k1, 1e-12)); if (cv > D) { D = cv; M = ${MAT.mouth}.; } }
+  return E < D ? vec2(E, N) : vec2(D, M);
 }
 vec4 toCat(vec3 p) { return uRot * (vec4(p, uW) - uPos); }
 float dist(vec3 p) { return cat(toCat(p)).x; }
@@ -91,14 +96,25 @@ void main() {
     float ao = 0.; for (int k = 1; k <= 3; k++) { float h = 0.012 * float(k); ao += (h - dist(p + n * h)) / h; } ao = clamp(1. - ao * 0.3, 0.3, 1.); // (every smoothstep here has edge0 < edge1: reversed edges are undefined in GLSL)
     vec3 rim = vec3(0.45, 0.55, 1.0) * pow(1. - max(dot(n, -rd), 0.), 3.) * 0.7;
     col = base * (vec3(1.0, 0.92, 0.85) * lit * 1.5 + vec3(0.16, 0.17, 0.3) * (0.6 + 0.4 * n.y) * ao) + rim * ao * 0.6 + wtint(q.w) * stripe * 0.12;
-    if (m > 1.5 && m < 2.5) { // eyes: lamps, with a slit
-      float slit = (1. - smoothstep(0.0022, 0.004, abs(abs(q.z) - 0.042 + 0.0015 * sin(uTime * 0.7)))) * (1. - smoothstep(0.012, 0.017, abs(q.y - 0.41)));
-      col = mix(vec3(1.0, 0.8, 0.22) * (1.25 + 0.25 * sin(uTime * 1.3)), vec3(0.02, 0.01, 0.0), slit);
+    if (m > 1.5 && m < 2.5) { // eyes: lamps, each with a round pupil (a ball on its 3D surface: the cap within an angle of
+      // where it looks, which is at you), a dark ring of iris round it
+      vec4 c = uEyeC[0]; float bd = 1e9; for (int k = 0; k < 3; k++) { float e = length(q - uEyeC[k]); if (e < bd) { bd = e; c = uEyeC[k]; } }
+      float cs = dot(normalize(q - c), normalize(uLook - c)), pupil = smoothstep(0.955, 0.966, cs), ring = smoothstep(0.86, 0.875, cs) * (1. - pupil);
+      col = mix(vec3(1.0, 0.8, 0.22) * (1.25 + 0.25 * sin(uTime * 1.3)), vec3(0.45, 0.25, 0.05), ring * 0.6);
+      col = mix(col, vec3(0.01, 0.005, 0.0), pupil) + vec3(1.) * pow(max(dot(reflect(rd, n), L), 0.), 40.) * 0.6;
     }
-    if (m > 2.5) { // the grin glows, in teeth
-      float teeth = smoothstep(0.75, 0.9, abs(fract(q.z * 95.) - 0.5) * 2.);
-      col = mix(vec3(0.9, 1.0, 0.97) * (1.15 + 0.15 * sin(uTime * 2.)), vec3(0.25, 0.4, 0.42), teeth * 0.7) + rim * 0.3;
+    if (m > 2.5 && m < 4.5) { // the grin glows, in teeth: a carpet of them, in rings across the sheet round z and w
+      // the gaps between teeth: across the rings (every 1.3 cm of ρ) and round them (nr teeth to a ring, about 1.3 cm apart,
+      // an even number offset half a tooth, so the slice w = 0 runs through the middles of the teeth on both sides)
+      float rho = length(q.zw), th = atan(q.w, q.z), ri = floor(rho / 0.013), nr = 2. * max(2., floor(3.1416 * (ri + 0.5) + 0.5));
+      float gapR = 1. - smoothstep(0.07, 0.16, fract(rho / 0.013)), gapA = smoothstep(0.86, 0.93, abs(fract(th * nr / 6.2832 + 0.5) - 0.5) * 2.);
+      float teeth = max(gapR, gapA) * step(m, 3.5);
+      vec3 glow = vec3(0.9, 1.0, 0.97) * (m > 3.5 ? 0.85 : 1.15 + 0.15 * sin(uTime * 2.));
+      col = mix(glow, vec3(0.25, 0.4, 0.42), teeth * 0.7) + rim * 0.3;
+      if (m > 3.5) col = mix(col, vec3(0.75, 1.0, 0.95), 0.25 + 0.15 * sin(uTime * 1.7 + q.w * 30.)); // the ghost: past the face, a fiction
     }
+    if (m > 4.5 && m < 5.5) col = vec3(0.75, 0.22, 0.32) * (0.4 + lit) + rim * 0.2; // the tongue
+    if (m > 5.5) col = vec3(0.16, 0.02, 0.05) * (0.5 + 0.5 * lit) + vec3(0.25, 0.04, 0.08) * ao * 0.4; // inside the mouth
     col = mix(col, sky(rd), smoothstep(2.5, 6., tHit));
   } else if (tFloor < 1e8) {
     vec3 p = ro + rd * tFloor;
@@ -117,7 +133,7 @@ void main() {
     // a dot when it's in your slice and a ring the further off in w it is, gold if it's over the support, red if not
     if (uCom.w > 0.) {
       vec3 f = vec3(p.x, p.z, uW); float m = 1e9;
-      for (int k = 0; k < 24; k++) { if (k >= uNSF) break; m = min(m, uSF[k].w - dot(uSF[k].xyz, f)); }
+      for (int k = 0; k < 16; k++) { if (k >= uNSF) break; m = min(m, uSF[k].w - dot(uSF[k].xyz, f)); }
       if (uNSF > 0 && m > 0.) col = mix(col, vec3(0.95, 0.72, 0.25), 0.16 + 0.5 * (1. - smoothstep(0., 0.004, m)));
       vec3 cc = uCom.w > 1.5 ? vec3(1.0, 0.25, 0.2) : vec3(1.0, 0.82, 0.35);
       float dw = uCom.z - uW, r = 0.012 + 0.45 * abs(dw), d = length(p.xz - uCom.xy);
@@ -155,8 +171,8 @@ export function makeLab(canvas) {
   gl.useProgram(prog);
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
   const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-  const U = {}; for (const n of ["uRes", "uEye", "uCR", "uCU", "uCF", "uTan", "uRot", "uPos", "uBound", "uW", "uK", "uFeet", "uTime", "uNC", "uNE", "uA", "uB", "uCp", "uEc", "uEr", "uEp", "uPaw", "uNP", "uSF", "uNSF", "uCom"]) U[n] = gl.getUniformLocation(prog, n);
-  const st = { yaw: 1.05, pitch: 0.2, dist: 1.55, target: [-0.03, 0.24, 0], W: 0, angles: { xw: 0, zw: 0, yw: 0, xz: 0 }, pos: [0, 0, 0, 0], idle: true, feet: true, scale: 0.8, legs: 4, body: {}, support: false, walk: null, track: [0, 0, 0] };
+  const U = {}; for (const n of ["uRes", "uEye", "uCR", "uCU", "uCF", "uTan", "uRot", "uPos", "uBound", "uW", "uK", "uFeet", "uTime", "uNC", "uNE", "uA", "uB", "uCp", "uEc", "uEr", "uEp", "uPaw", "uNP", "uSF", "uNSF", "uCom", "uCav", "uCavR", "uEyeC", "uLook"]) U[n] = gl.getUniformLocation(prog, n);
+  const st = { yaw: 1.05, pitch: 0.2, dist: 1.55, target: [-0.03, 0.24, 0], W: 0, angles: { xw: 0, zw: 0, yw: 0, xz: 0 }, pos: [0, 0, 0, 0], idle: true, feet: true, scale: 0.8, legs: 4, body: {}, support: false, walk: null, track: [0, 0, 0], mouth: 0 };
   let last = performance.now(), slow = 0;
 
   function draw(t, still = false) {
@@ -167,7 +183,7 @@ export function makeLab(canvas) {
     // walking: the gait puts the feet and sways the body; the cat moves forward along its own x, wherever that points
     let walkPose = {}, d = 0;
     if (st.walk) { const g = st.walk.gait.at((t - st.walk.t0) * st.walk.speed); walkPose = { feet: g.feet, sway: g.sway }; d = g.d + st.walk.d0; st.walk.d = d; }
-    const P = pose(t, { idle: st.idle, legs: st.legs, ...st.body, ...walkPose });
+    const P = pose(t, { idle: st.idle, legs: st.legs, mouth: st.mouth, ...st.body, ...walkPose });
     // the cat's origin in the world: turns pivot on its head (origin = pos + HEAD − R·HEAD), and the walk carries it forward
     const RH = apply(R, HEAD), fw = apply(R, [d, 0, 0, 0]), origin = st.pos.map((x, i) => x + HEAD[i] - RH[i] + fw[i]);
     st.track = [origin[0] - st.pos[0], 0, origin[2] - st.pos[2]]; // the camera follows the cat across your space
@@ -181,6 +197,8 @@ export function makeLab(canvas) {
     // world → cat is Rᵀ; a GLSL mat4 reads its array by columns, so R's rows, in order, are Rᵀ's columns
     gl.uniformMatrix4fv(U.uRot, false, new Float32Array(R));
     gl.uniform4fv(U.uPos, origin);
+    if (P.cavity) { gl.uniform4fv(U.uCav, P.cavity.c); gl.uniform4fv(U.uCavR, P.cavity.r); } else gl.uniform4f(U.uCavR, 0, 0, 0, 0);
+    gl.uniform4fv(U.uEyeC, f4(P.eyes, (e) => e));
     const bc = apply(R, [-0.05, 0.27, 0, 0]).map((x, i) => x + origin[i]);
     gl.uniform4f(U.uBound, bc[0], bc[1], bc[2], 0.72);
     const pw = paws(P).map((p) => apply(R, p).map((x, i) => x + origin[i]));
@@ -191,7 +209,7 @@ export function makeLab(canvas) {
     if (st.support && Math.abs(R[5] - 1) < 1e-9) {
       const fl = (p) => [p[0], p[2], p[3]], h = hull(pw.map(fl)), com = apply(R, mass(P).c).map((x, i) => x + origin[i]), m = margin(h, fl(com));
       sup = { dim: h.dim, margin: m, ok: m >= NEED - 1e-6, com: fl(com), feet: pw.map(fl) };
-      const F = h.faces.slice(0, 24); gl.uniform1i(U.uNSF, F.length); if (F.length) gl.uniform4fv(U.uSF, f4(F, (f) => [...f.n, f.c]));
+      const F = h.faces.slice(0, 16); gl.uniform1i(U.uNSF, F.length); if (F.length) gl.uniform4fv(U.uSF, f4(F, (f) => [...f.n, f.c]));
       gl.uniform4f(U.uCom, com[0], com[2], com[3], sup.ok ? 1 : 2);
     } else { gl.uniform1i(U.uNSF, 0); gl.uniform4f(U.uCom, 0, 0, 0, 0); }
     gl.uniform1f(U.uW, st.W); gl.uniform1f(U.uK, K); gl.uniform1f(U.uFeet, st.feet ? 1 : 0); gl.uniform1f(U.uTime, t);
@@ -199,7 +217,7 @@ export function makeLab(canvas) {
     const eye = [tg[0] + st.dist * cp * sy, tg[1] + st.dist * sp, tg[2] + st.dist * cp * cy];
     const F = tg.map((x, i) => x - eye[i]), fl = Math.hypot(...F), Fn = F.map((x) => x / fl);
     const Rr = [Fn[2], 0, -Fn[0]].map((x, _, a) => x / Math.hypot(...a)), Uu = [Rr[1] * Fn[2] - Rr[2] * Fn[1], Rr[2] * Fn[0] - Rr[0] * Fn[2], Rr[0] * Fn[1] - Rr[1] * Fn[0]];
-    gl.uniform3fv(U.uEye, eye); gl.uniform3fv(U.uCF, Fn); gl.uniform3fv(U.uCR, Rr.map((x) => -x)); gl.uniform3fv(U.uCU, Uu.map((x) => -x));
+    gl.uniform3fv(U.uEye, eye); { const Rt = (x) => [0, 1, 2, 3].map((c) => R[c] * x[0] + R[4 + c] * x[1] + R[8 + c] * x[2] + R[12 + c] * x[3]); gl.uniform4fv(U.uLook, Rt([eye[0] - origin[0], eye[1] - origin[1], eye[2] - origin[2], st.W - origin[3]])); } gl.uniform3fv(U.uCF, Fn); gl.uniform3fv(U.uCR, Rr.map((x) => -x)); gl.uniform3fv(U.uCU, Uu.map((x) => -x));
     gl.uniform1f(U.uTan, Math.tan((38 * Math.PI) / 360)); gl.uniform2f(U.uRes, w, h);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     // keep it smooth: drop the resolution when frames run long, raise it when there's room

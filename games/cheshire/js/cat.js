@@ -17,7 +17,16 @@
    A part is a capsule (a, b, radii ra → rb) or an ellipsoid (centre c, semi-axes r), each with a material and a reach
    in w, wx: 0 for an ordinary 4D part; otherwise the part is its 3D shape (at w = 0) extruded to |w| ≤ wx, so it
    keeps its full thickness in every slice out to wx and then stops (only the grin has one, and it reaches further
-   than any of the rest of the cat). Fur joins fur smoothly (smooth minimum, width K); skin, eyes and grin join hard.
+   than any of the rest of the cat), or REV: its curve spun round the xy plane, so it is the same in every sideways
+   direction (the mouth). Fur joins fur smoothly (smooth minimum, width K); skin and eyes join hard. Then the mouth's
+   cavity is carved out of all that, and the mouth's own parts (teeth, tongue, the ghost grin) join hard after.
+
+   The mouth. A mouth is a slit in the skin one dimension less than the skin, which opens into a hole the skin's own
+   size: our skin is a surface, the slit a line, the hole flat. The cat's skin is a volume, so its mouth is a sheet, a
+   smile turned up all round (in z and in w alike: our smile curve spun round the xy plane), and opens into a volume
+   through which its 4D food goes. Its jaw turns in the xy plane, so it hinges on a plane, the zw plane, the sheet's
+   own. The teeth line the sheet in rings, a carpet: your slice shows one row, and every w another. Beyond the face in
+   w, where there is no mouth, a ghost of the grin goes on glowing to GRIN_W: the Cheshire's, and a fiction.
      pose(t, o)     the parts at time t (seconds): breathing, the tail swaying through w. o.idle = false holds it still
      sdf(p, P)      signed distance from a 4D point (the cat's frame) to the cat, and the material there
      paws(P)        the four feet's contact points on the floor
@@ -25,10 +34,12 @@
      rig(o)         the legs: { name, hip, foot (resting contact, [x, z, w]), reach } per foot, for o.legs and o.plan
      cut(P, n, c)   the parts that reach the hyperplane n·q = c (the cat's frame), and the groups they make up */
 
-export const MAT = { fur: 0, pink: 1, eye: 2, grin: 3 };
+export const MAT = { fur: 0, pink: 1, eye: 2, grin: 3, ghost: 4, tongue: 5, mouth: 6 }; // mouth: the inside of the cavity (carved, not a part)
+export const REV = -1; // a part whose wx is REV is its curve (drawn at w = 0, z ≥ 0) spun round the xy plane: z → √(z² + w²)
+export const W_IN = 0.09; // the ghost grin shows only past this in w: beyond the face, where the real mouth isn't
 export const GROUPS = ["body", "head", "eyes", "ears", "front legs", "hind legs", "tail", "grin"];
 export const K = 0.035; // how wide the smooth joins are, metres
-export const LIMITS = { caps: 48, ells: 16 }; // the shader's array sizes
+export const LIMITS = { caps: 48, ells: 18 }; // the shader's array sizes
 export const GRIN_W = 0.26; // how far the grin reaches into w, metres: past the tail's widest sway
 
 const v = (x, y, z, w) => [x, y, z, w];
@@ -36,7 +47,7 @@ const mixv = (a, b, s) => a.map((q, i) => q + (b[i] - q) * s);
 
 /* o.legs: 4 (the cat) or 5 (the five-legged cat: three hind legs round z and w). o.plan: { phi, rh, rf }, the five-legged
    cat's hind ring turned phi degrees, its hind and front feet rh and rf from the midline (PLAN). o.idle: breathe and sway
-   the tail (default true). o.sway [dx, dz, dw]: the body moved over its planted feet (legs follow, paws stay). o.lift:
+   the tail (default true). o.mouth: 0 (the grin, teeth together) to 1 (the jaw dropped). o.sway [dx, dz, dw]: the body moved over its planted feet (legs follow, paws stay). o.lift:
    the name of a foot that's up, or a list of names (FEET). o.feet: { name: { p: [x, z, w], h } }, where each foot is
    (its contact point on the floor, body frame) and how high it's lifted: the walk's. o.tailFoot: the tail curved down and
    planted behind, a foot named "tail" */
@@ -47,6 +58,7 @@ export const FEET = { 4: ["front +z", "front −z", "hind +w", "hind −w"], 5: 
 export const HIND5 = [0, 120, 240];
 export const PLAN = { phi: 0, rh: 0.11, rf: 0.088 }; // the five-legged cat's layout, as drawn
 export const HEAD = [0.29, 0.392, 0, 0]; // the head's centre: turns pivot here (lab.js)
+export const JAW = [0.27, 0.345]; // the jaw's hinge (x, y): the zw plane through it
 export const EYES = [[0.356, 0.41, 0.042, 0], [0.356, 0.41, -0.042, 0], [0.3285, 0.41, 0, 0.0727]]; // three: a triangle in z and w
 
 const LEN = { fu: 0.105, fl: 0.102, th: 0.1241, sh: 0.1423 }; // upper and lower front leg, thigh and shin (metres): a front leg at rest is bent to 87% of its reach, room to stride
@@ -123,24 +135,34 @@ export function pose(t = 0, o = {}) {
   for (let i = 0; i < N; i++) cap(pts[i], pts[i + 1], 0.034 - 0.017 * (i / N), 0.034 - 0.017 * ((i + 1) / N));
   if (planted) { ell(v(TAIL_FOOT[0], 0.016, TAIL_FOOT[1], TAIL_FOOT[2]), v(0.03, 0.016, 0.022, 0.022)); ells.at(-1).foot = "tail"; } // its pad: one more foot
   g = "grin";
-  // the grin: a wide crescent laid just outside the face, its ends turned up, reaching GRIN_W into w at full thickness
-  const G = 10, gr = [], surf = (c, r, y, z) => { const q = 1 - ((y - c[1]) / r[1]) ** 2 - (z / r[2]) ** 2; return q > 0 ? c[0] + r[0] * Math.sqrt(q) : -1; };
-  for (let i = 0; i <= G; i++) {
-    const th = -1.25 + (2.5 * i) / G, z = 0.078 * Math.sin(th), y = 0.336 + 0.042 * Math.abs(Math.sin(th)) ** 1.6;
-    gr.push(S(v(Math.max(surf(v(0.346, 0.362), v(0.036, 0.028, 0.04), y, z), surf(v(0.29, 0.392), v(0.088, 0.08, 0.09), y, z), surf(v(0.258, 0.372), v(0.05, 0.05, 0.1), y, z)) + 0.003, y, z, 0)));
-  }
-  for (let i = 0; i < G; i++) cap(gr[i], gr[i + 1], 0.0095, 0.0095, MAT.grin, GRIN_W);
+  // the mouth: two rows of teeth along the smile (our crescent's curve as a function of the distance ρ from the middle,
+  // spun round the xy plane), the lower row on the jaw, which turns down about the hinge plane at JAW
+  const RHO = 0.078, M = 6, a = 0.5 * (o.mouth || 0), surf = (c, r, y, z) => { const q = 1 - ((y - c[1]) / r[1]) ** 2 - (z / r[2]) ** 2; return q > 0 ? c[0] + r[0] * Math.sqrt(q) : -1; };
+  const face = (y, z) => Math.max(surf(v(0.346, 0.362), v(0.036, 0.028, 0.04), y, z), surf(v(0.29, 0.392), v(0.088, 0.08, 0.09), y, z), surf(v(0.258, 0.372), v(0.05, 0.05, 0.1), y, z)) + 0.003;
+  const smile = (u) => 0.336 + 0.042 * u ** 1.6, jaw = (p) => { const dx = p[0] - JAW[0], dy = p[1] - JAW[1], c = Math.cos(a), sn = Math.sin(a); return v(JAW[0] + dx * c + dy * sn, JAW[1] - dx * sn + dy * c, p[2], p[3]); };
+  const top = [], lo = [];
+  for (let i = 0; i <= M; i++) { const u = i / M, rho = RHO * u, y = smile(u), x = face(y, rho); top.push(S(v(x, y + 0.0045, rho, 0))); lo.push(S(jaw(v(x, y - 0.0045, rho, 0)))); }
+  for (let i = 0; i < M; i++) { cap(top[i], top[i + 1], 0.0055, 0.0055, MAT.grin, REV); cap(lo[i], lo[i + 1], 0.0055, 0.0055, MAT.grin, REV); }
+  // opened, a cavity carved behind the teeth (round in z and w alike), and the tongue on its floor
+  const open = o.mouth || 0, cavity = open > 0.01 ? { c: S(v(0.334, 0.338 - 0.012 * open, 0, 0)), r: v(0.03, 0.005 + 0.02 * open, 0.07, 0.07) } : null;
+  if (open > 0.05) ell(S(jaw(v(0.322, 0.329 - 0.004 * open, 0, 0))), v(0.026, 0.007, 0.042, 0.042), MAT.tongue);
+  // the ghost grin: the upper row's crescent at w = 0, extruded to GRIN_W, showing only past W_IN, beyond the face
+  const gh = [];
+  for (let i = -3; i <= 3; i++) { const u = Math.abs(i) / 3, rho = RHO * u * Math.sign(i), y = smile(u); gh.push(S(v(face(y, Math.abs(rho)), y, rho, 0))); }
+  for (let i = 0; i < 6; i++) cap(gh[i], gh[i + 1], 0.0095, 0.0095, MAT.ghost, GRIN_W);
   if (caps.length > LIMITS.caps || ells.length > LIMITS.ells) throw new Error("the cat outgrew the shader's arrays");
-  return { caps, ells };
+  return { caps, ells, cavity, eyes: EYES.map((e) => S(e)) };
 }
 
 /* distances, the same formulas as the shader's (lab.js FRAG) */
 const sub = (a, b) => a.map((x, i) => x - b[i]), dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0), len = (a) => Math.sqrt(dot(a, a));
 const flat = (p) => [p[0], p[1], p[2], 0];
-const ext = (d, p, wx) => (wx ? Math.max(d, Math.abs(p[3]) - wx) : d); // extruded along w: a true bound (the max of two)
+const spun = (p) => [p[0], p[1], Math.hypot(p[2], p[3]), 0]; // round the xy plane: z and w into one radius
+const ext = (d, p, wx) => (wx > 0 ? Math.max(d, Math.abs(p[3]) - wx) : d); // extruded along w: a true bound (the max of two)
 export function capD(p, c) {
-  const P = c.wx ? flat(p) : p, pa = sub(P, c.a), ba = sub(c.b, c.a), h = Math.min(1, Math.max(0, dot(pa, ba) / dot(ba, ba)));
-  return ext(len(pa.map((x, i) => x - ba[i] * h)) - (c.ra + (c.rb - c.ra) * h), p, c.wx);
+  const P = c.wx > 0 ? flat(p) : c.wx < 0 ? spun(p) : p, pa = sub(P, c.a), ba = sub(c.b, c.a), h = Math.min(1, Math.max(0, dot(pa, ba) / dot(ba, ba)));
+  const d = ext(len(pa.map((x, i) => x - ba[i] * h)) - (c.ra + (c.rb - c.ra) * h), p, c.wx);
+  return c.m === MAT.ghost ? Math.max(d, W_IN - Math.abs(p[3])) : d;
 }
 export function ellD(p, e) {
   const q = sub(e.wx ? flat(p) : p, e.c), r = e.wx ? [e.r[0], e.r[1], e.r[2], 1] : e.r, k0 = len(q.map((x, i) => x / r[i])), k1 = len(q.map((x, i) => x / (r[i] * r[i])));
@@ -148,15 +170,17 @@ export function ellD(p, e) {
 }
 // smooth minimum, carrying the material along
 function join(acc, d, m) {
-  if (m >= MAT.pink || acc.m >= MAT.pink) return d < acc.d ? { d, m } : acc; // skin, eyes and grin join hard
+  if (m >= MAT.pink || acc.m >= MAT.pink) return d < acc.d ? { d, m } : acc; // skin, eyes and the mouth join hard
   const h = Math.max(0, Math.min(1, 0.5 + (0.5 * (acc.d - d)) / K)); // h → 1 where the new part is the nearer
   return { d: acc.d * (1 - h) + d * h - K * h * (1 - h), m: acc.m * (1 - h) + m * h }; // as the shader's mix()
 }
+const late = (m) => m >= MAT.grin; // the mouth's own parts: joined after the cavity is carved
 export function sdf(p, P) {
-  let acc = { d: 100, m: 0 };
-  for (const e of P.ells) acc = join(acc, ellD(p, e), e.m);
-  for (const c of P.caps) acc = join(acc, capD(p, c), c.m);
-  return acc;
+  let acc = { d: 100, m: 0 }, mouth = { d: 100, m: MAT.grin };
+  for (const e of P.ells) if (late(e.m)) mouth = join(mouth, ellD(p, e), e.m); else acc = join(acc, ellD(p, e), e.m);
+  for (const c of P.caps) if (late(c.m)) mouth = join(mouth, capD(p, c), c.m); else acc = join(acc, capD(p, c), c.m);
+  if (P.cavity) { const cv = -ellD(p, P.cavity); if (cv > acc.d) acc = { d: cv, m: MAT.mouth }; }
+  return mouth.d < acc.d ? mouth : acc;
 }
 /* where each foot meets the floor: the bottom of every foot touching y ≈ 0 (the paws, and the tail's pad when it's
    planted), in the order they're built (FEET, then "tail"); a lifted foot isn't one. pawNames: their names */
@@ -177,7 +201,9 @@ export function mass(P) {
 export function cut(P, n, c) {
   const nn = (q) => dot(n, q), hit = [];
   for (const k of P.caps) {
-    const r = Math.max(k.ra, k.rb) + (k.m >= MAT.eye ? 0 : K), wx = k.wx ? k.wx * Math.abs(n[3]) : 0, A = nn(k.wx ? flat(k.a) : k.a), B = nn(k.wx ? flat(k.b) : k.b);
+    let r = Math.max(k.ra, k.rb) + (k.m >= MAT.eye ? 0 : K), wx = k.wx > 0 ? k.wx * Math.abs(n[3]) : 0, A, B;
+    if (k.wx < 0) { A = n[0] * k.a[0] + n[1] * k.a[1]; B = n[0] * k.b[0] + n[1] * k.b[1]; r += Math.max(k.a[2], k.b[2]) * Math.hypot(n[2], n[3]); } // spun: every angle
+    else { A = nn(k.wx ? flat(k.a) : k.a); B = nn(k.wx ? flat(k.b) : k.b); }
     if (c >= Math.min(A, B) - r - wx && c <= Math.max(A, B) + r + wx) hit.push(k);
   }
   for (const e of P.ells) {

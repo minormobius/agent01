@@ -19,9 +19,9 @@ One parts list (capsules and ellipsoids in 4D, joined smoothly) is what the shad
 - **Stance:** feet steady you only if they span the floor, so four must stand at the corners of a tetrahedron, not a
   rectangle. Front legs splay in z, hind legs in w: in your slice it seems to hover on two legs. The selftest checks
   the centre of mass stays over the tetrahedron through its idle.
-- **Head:** round both ways sideways, so four ears (a pair across z, a pair across w), two eyes (across z only).
-- **Grin:** its 3D shape extruded along w to 26 cm, past everything else, at full thickness. It stays when the cat
-  has gone.
+- **Head:** round both ways sideways, so four ears (a pair across z, a pair across w), three eyes (a triangle across z and w).
+- **Mouth:** a sheet that opens into a volume (below); past the face a ghost of the grin glows to 26 cm, so it stays
+  when the cat has gone.
 - **Idle:** breathing, and a tail that sways through w (it drifts in and out of your slice by itself).
 
 ## The five-legged cat (`pose(t, { legs: 5 })`, the lab's **5 legs**)
@@ -45,7 +45,7 @@ misses a part). URL: `?legs=5&w=0.12&zw=90&yaw=90&pitch=5&dist=0.6&at=0.3,0.4,0&
 stops (for screenshots in software GL).
 
 ```bash
-node games/cheshire/test/cheshire.selftest.mjs   # stance, a safe distance to march, slices, turns, shader = cat.js, balance, the walk (~19 s)
+node games/cheshire/test/cheshire.selftest.mjs   # stance, a safe distance to march, slices, turns, shader = cat.js, balance, the walk, the mouth (~23 s)
 ```
 
 ## Balance (`js/gait.js`, no DOM; `js/gaitui.js`, the panel)
@@ -89,6 +89,21 @@ up (that needs dynamics).
 It walks along its own forward, wherever that points: turn it a quarter in xw and it walks off into w, out of your
 slice. **Turns pivot on its head** (`HEAD`), not its feet. **Three eyes** (`EYES`): two apart across z and a third
 between them off in w, an equilateral triangle, so its stereo baselines span both sideways directions.
+
+## The hyper-mouth and the pupils
+
+A mouth is a slit one dimension less than the skin, which opens into a hole the skin's own size. Ours: skin a surface,
+slit a line, hole flat. The cat's skin is a volume, so its mouth is a **sheet** that opens into a **volume**, for 4D food.
+The face is round in z and w alike, so the sheet is our smile curve spun round the xy plane (a part with `wx = REV`: its
+distance is the curve's, measured in (x, y, √(z² + w²)), which the selftest checks against brute force): a smile turned up
+all round, a bowl. The jaw turns in the xy plane, so it **hinges on a plane**, the zw plane (`JAW`), the sheet's own.
+**Teeth** line the sheet in rings, a carpet: your slice shows one row, and every w another, narrower and higher up the
+bowl. Opened (the lab's **jaw**), a cavity is carved out behind the teeth (round in z and w) with a tongue on its floor:
+at every angle round z and w the place behind the teeth is open, a volume. Beyond the face in w, where there is no mouth,
+a **ghost grin** glows on to 26 cm: the Cheshire's, and a fiction.
+
+**Pupils** are round: an eye's surface is 3D, so a round pupil is a ball on it, the cap of the eye within an angle of
+where it looks. Each eye looks at the camera, so wherever your slice cuts it the pupil is a round dot, aimed at you.
 
 ## Next
 

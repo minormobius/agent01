@@ -142,5 +142,29 @@ const rnd = ((s) => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >
     `walking: the five-legged cat's longest static stride is ${(m.L * 100).toFixed(1)} cm (reach-limited); at 80% its own posed body keeps its centre of mass ${(worst * 100).toFixed(2)} cm or more inside the feet down all cycle, and no foot down slides; the cat with four has no static gait (every swing leaves three in a plane)`);
 }
 
+/* 8 · the hyper-mouth: a sheet (our smile curve spun round the xy plane) that opens into a volume. The spun distance is
+   the true distance to the spun surface (against brute force over the angle); the mouth's parts are the same in every
+   sideways direction; closed, the place behind the teeth is cat; open, it is a hole, out of the cat at every angle round
+   z and w (a volume, not a slit); the ghost grin only beyond the face; and the shader carves and spins as cat.js does */
+{
+  const P0 = C.pose(0, { idle: false }), P1 = C.pose(0, { idle: false, mouth: 1 }), spun = P0.caps.filter((k) => k.wx === C.REV);
+  let worst = 0;
+  for (let k = 0; k < 300; k++) {
+    const c = spun[k % spun.length], p = [0.3 + 0.1 * rnd(), 0.3 + 0.08 * rnd(), (rnd() - 0.5) * 0.2, (rnd() - 0.5) * 0.2];
+    let brute = Infinity; for (let a = 0; a < 720; a++) { const th = (a * Math.PI) / 360, rot = (q) => [q[0], q[1], q[2] * Math.cos(th), q[2] * Math.sin(th)]; brute = Math.min(brute, C.capD(p, { ...c, wx: 0, a: rot(c.a), b: rot(c.b) })); }
+    worst = Math.max(worst, Math.abs(brute - C.capD(p, c)));
+  }
+  const mouthOnly = { caps: P1.caps.filter((k) => k.m >= C.MAT.grin && k.m !== C.MAT.ghost), ells: P1.ells.filter((e) => e.m >= C.MAT.grin), cavity: null };
+  let asym = 0;
+  for (let k = 0; k < 200; k++) { const p = [0.31 + 0.06 * rnd(), 0.31 + 0.06 * rnd(), (rnd() - 0.5) * 0.12, (rnd() - 0.5) * 0.12], th = rnd() * 6.28; asym = Math.max(asym, Math.abs(C.sdf(p, mouthOnly).d - C.sdf([p[0], p[1], p[2] * Math.cos(th) - p[3] * Math.sin(th), p[2] * Math.sin(th) + p[3] * Math.cos(th)], mouthOnly).d)); }
+  const ring = [0, 1, 2, 3, 4, 5].map((k) => [0.352, 0.334, 0.03 * Math.cos((k * Math.PI) / 3), 0.03 * Math.sin((k * Math.PI) / 3)]);
+  const closed = ring.every((p) => C.sdf(p, P0).d < 0), open = ring.every((p) => C.sdf(p, P1).d > 0.003 && C.sdf(p, P1).m === C.MAT.mouth);
+  const ghostNear = P0.caps.filter((k) => k.m === C.MAT.ghost).every((k) => C.capD([0.36, 0.34, 0, 0.05], k) > 0), ghostFar = P0.caps.filter((k) => k.m === C.MAT.ghost).some((k) => C.capD([k.a[0], k.a[1], k.a[2], 0.2], k) < 0);
+  const src = fs.readFileSync(path.join(here, "../js/lab.js"), "utf8");
+  const shader = src.includes("else if (wx < 0.) P = vec4(p.x, p.y, length(p.zw), 0.);") && src.includes("if (cv > D) { D = cv; M = ${MAT.mouth}.; }") && src.includes("return E < D ? vec2(E, N) : vec2(D, M);") && src.includes("max(d, ${W_IN} - abs(p.w))");
+  ok(worst < 1e-5 && asym < 1e-9 && closed && open && ghostNear && ghostFar && shader,
+    `the hyper-mouth: spun distance exact (to ${worst.toExponential(0)}); the same every way round z and w; shut, cat behind the teeth; open, a hole at every angle round them (a volume); the ghost grin only past the face; the shader carves and spins as cat.js does`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} cheshire checks failed` : `\n✓ cheshire: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 process.exit(fails ? 1 : 0);

@@ -1,7 +1,7 @@
 /* The cat lab's page: the controls, the camera, and the line that says what of the cat is in your slice.
    ?w=0.12&zw=90 (any of xw zw yw xz, degrees) opens it there; &yaw=, &pitch= (degrees), &dist= and &at=x,y,z (metres) place the
    camera; &shot draws one still frame (t = &t, default 0) and stops, for screenshots and slow software GL;
-   &legs=5 is the five-legged cat; &walk sets it walking (with &shot, &t= seconds in); &gait=<plan>&phase=<n> opens the
+   &legs=5 is the five-legged cat; &mouth=0..1 opens its jaw; &walk sets it walking (with &shot, &t= seconds in); &gait=<plan>&phase=<n> opens the
    balance panel there. */
 import { makeLab } from "./lab.js";
 import { makeGaitPanel } from "./gaitui.js";
@@ -26,6 +26,8 @@ for (const b of $("planes").querySelectorAll("button")) b.addEventListener("clic
 $("ang").addEventListener("input", () => { st.angles[plane] = +$("ang").value * D2R; turnAnim = null; syncAng(); });
 $("quarter").addEventListener("click", () => { turnAnim = { plane, from: st.angles[plane], to: st.angles[plane] + Math.PI / 2, t0: performance.now() }; });
 $("reset").addEventListener("click", () => { lab.walk(false); walkInfo = null; $("walkBtn").classList.remove("on"); st.pos = [0, 0, 0, 0]; for (const p in st.angles) st.angles[p] = 0; st.W = 0; sweep = false; $("sweep").classList.remove("on"); turnAnim = null; syncW(); syncAng(); });
+$("jaw").addEventListener("input", () => { st.mouth = +$("jaw").value; });
+if (q.has("mouth")) { st.mouth = +q.get("mouth"); $("jaw").value = st.mouth; }
 $("idle").addEventListener("click", () => { st.idle = !st.idle; $("idle").classList.toggle("on", st.idle); });
 $("feet").addEventListener("click", () => { st.feet = !st.feet; $("feet").classList.toggle("on", st.feet); });
 const setLegs = (n) => { const was = !!st.walk; if (was) lab.walk(false); st.legs = n; for (const b of $("legs").children) b.classList.toggle("on", +b.dataset.n === n); if (was) startWalk(); };
