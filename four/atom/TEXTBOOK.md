@@ -100,7 +100,7 @@ Each chapter below names where its material lives now.
 **Appendices**
 
 - A. **The choices and their costs**, as a register.
-- B. **Methods**: each solver, what it was checked against, and its selftest.
+- B. **Methods**: each solver, what it was checked against, and its selftest. **Built** (`methods.html`, with the compute ledger).
 - C. **Open questions.**
 - D. **Names and symbols**: the glossary.
 - E. **Sources**: LITERATURE.md, moving to `refs.json`.

@@ -48,11 +48,12 @@ def nav(here):
     HERE=' class="here"'
     items=''.join(f'<a href="{k}.html"{HERE if k==here else ""}>{i+1} · {t.lower()}</a>' for i,(k,t,_) in enumerate(CH))
     hc=' here' if here=='index' else ''
-    return f'<nav class="chapters"><a href="./" class="home{hc}">ATOM⁴</a>{items}</nav>'
+    mc=' class="here"' if here=='methods' else ''
+    return f'<nav class="chapters"><a href="./" class="home{hc}">ATOM⁴</a>{items}<a href="methods.html"{mc}>methods</a></nav>'
 def foot(here):
     i=[k for k,_,_ in CH].index(here)
     prev=f'<a href="{CH[i-1][0]}.html">← {i} · {CH[i-1][1]}</a>' if i>0 else '<a href="./">← the position</a>'
-    nxt=f'<a href="{CH[i+1][0]}.html">{i+2} · {CH[i+1][1]} →</a>' if i+1<len(CH) else '<a href="./">the position →</a>'
+    nxt=f'<a href="{CH[i+1][0]}.html">{i+2} · {CH[i+1][1]} →</a>' if i+1<len(CH) else '<a href="methods.html">methods →</a>'
     return f'''<footer class="pager">{prev}{nxt}</footer>
 <p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen/">Lumen⁴</a> · <a href="../iris/">IRIS⁴</a> · <a href="https://games.mino.mobi/katabasis/">KATABASIS</a> · <a href="../">Four</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
 <script type="module" src="js/main.js"></script>
@@ -282,6 +283,7 @@ forces='''<section id="field">
 </section>
 '''
 exec(open(SP+'gengeometry.py').read())
+exec(open(SP+'genmethods.py').read())
 exec(open(SP+'genxater.py').read())
 exec(open(SP+'gencensus.py').read())
 exec(open(SP+'gensearch.py').read())
@@ -295,6 +297,16 @@ def chnum(k): return [c for c,_,_ in CH].index(k)+1
 def refs(h): return re.sub(r'(<a href="(\w+)\.html(?:#[\w-]+)?">)([Cc])hapter \d+', lambda m: m.group(1)+f'{m.group(3)}hapter {chnum(m.group(2))}' if m.group(2) in [c for c,_,_ in CH] else m.group(0), h)
 for k,body in pages.items(): open(OUT+k+'.html','w').write(refs(chapter(k,body)))
 
+# the methods appendix: not a numbered chapter, after the last
+_mf=foot(CH[-1][0]); _mf=f'<footer class="pager"><a href="{CH[-1][0]}.html">← {len(CH)} · {CH[-1][1]}</a><a href="./">the position →</a></footer>'+_mf.split('</footer>',1)[1]
+open(OUT+'methods.html','w').write(refs(head('ATOM⁴ · methods','ATOM⁴, methods: how every number in the book is computed and checked, the free compute runner it runs on, and how to run it yourself.')+f'''<header>
+  {nav("methods")}
+  <h2>ATOM⁴ · methods</h2>
+  <h1 class="ch">How it's computed</h1>
+  <p class="lede">The solvers behind every chapter, what each was checked against, the compute they ran on, and how to run them yourself.</p>
+</header>
+{methods}
+'''+_mf))
 # ------------------------------------------------------------------ the landing: the position
 P=[("geometry",["<b>Spheres grow faster.</b> A 4D sphere's surface grows as r³, so anything spreading from a point (light, a field, heat) thins as 1/r³: ten times farther, a thousandth as much. That one fact forces the next chapter's choice, dims 4D starlight, and gives every 4D atom a crowd of neighbours.",
   "<b>More room at right angles.</b> Random directions lean toward perpendicular, so aiming is harder: a 30° cone catches "+pc(GD['4']['within30'],1)+" of directions (ours "+pc(GD['3']['within30'],1)+"). 24 balls can touch one (ours 12), yet the densest packing fills "+pc(GD['4']['packing'])+" (ours "+pc(GD['3']['packing'])+").",
@@ -369,6 +381,7 @@ landing=head('ATOM⁴ — the position','ATOM⁴ — the universe we are buildin
 <section class="position">
   <p class="made"><b>What it's made of:</b> electrons (spin-½ fermions), nuclei (heavy point charges, declared stable up to Z = 78), the lens vacuum's light, a small fine-structure constant like ours, and the weak force with its neutrino, added so stars can burn hydrogen. Nothing else, and gravity is open. Bulk matter is stable for the same reason ours is, that electrons are fermions: argued from scaling, since the proof for our world leans on the shell theorem. <a href="force.html#contents">The full list</a>.</p>
   <div class="cards">{cards}</div>
+  <p class="made"><b>How it's computed:</b> every solver, what it was checked against, the free compute it runs on, and how to run it yourself, in <a href="methods.html">the methods</a>.</p>
   <h3>Open questions</h3>
   <ul class="open">
     <li><b>Open-shell atoms' response.</b> Polarizabilities are computed for hydrogen and the noble gases. Pxygen, darbon and the rest have open shells, which the response doesn't handle yet. Also open: unlike pairs, retardation and three-body forces.</li>

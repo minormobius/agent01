@@ -220,6 +220,12 @@ for games, and this is a modelling programme with publications to come. The game
   the generator renumbers every such link from the chapter list `CH`, and the selftest fails on an unlinked or wrong
   one. In `main.js` use `chap("gas")`. Elsewhere (comments, docs) name chapters ("the gases chapter"), never number
   them. That is what lets the book be reordered (`atom/TEXTBOOK.md`).
+- **the methods appendix, `atom/methods.html`**: how the book is made (six rules), the compute runner with its ledger
+  of every run, one panel per method (what, how, the self-test checks that cover it, code, chapters, cost, limits),
+  and how to run it yourself. Source `atom/tools/pages/genmethods.py`: it reads the self-test's numbered check titles,
+  and a method citing a check that doesn't exist stops the build. **A new method gets a panel; a new runner run
+  updates the ledger:** `git fetch origin atom4-data && node four/atom/tools/ledger.mjs` writes **generated**
+  `js/ledger.js`, then regenerate the pages. The code has no licence yet (packaging for free use waits on one).
 - **papers**: none yet. Paper 1, a periodic table for four dimensions, is planned in `atom/WRITEUP.md` (deliberately
   pinned: it's to be held to a physics preprint's standard). Its sources are gathered in `atom/LITERATURE.md`, with
   each entry tagged by how far it's been verified. Papers will live at `/papers/`.

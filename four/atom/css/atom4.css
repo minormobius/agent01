@@ -132,3 +132,14 @@ canvas.hopf { height: 380px; cursor: grab; }
 @media (max-width: 560px) { canvas.hopf { height: 320px; } }
 /* "how we got it wrong": a mistake kept in the text, with what fixed it */
 .box { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid #ffd166; border-radius: 10px; padding: 2px 14px; margin: 12px 0; }
+/* the methods appendix: one panel per method, the runner's flow, the ledger */
+.method { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 4px 14px 10px; margin: 12px 0; }
+.method h4 { margin: 10px 0 4px; } .method p { margin: 6px 0; } .method p.how { font-size: 14px; color: #c9c3b8; }
+table.mt { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+table.mt th { text-align: left; vertical-align: top; font: 600 11px var(--mono); color: var(--dim); padding: 5px 10px 5px 0; width: 7em; white-space: nowrap; }
+table.mt td { padding: 5px 0; border-top: 1px solid var(--border); color: #c9c3b8; } table.mt tr:first-child td { border-top: 0; }
+table.mt code { font-size: 12px; } .tn { font: 600 11px var(--mono); color: var(--d4); border: 1px solid var(--border); border-radius: 6px; padding: 0 5px; margin-right: 2px; }
+ol.rules li { margin: 6px 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0; font: 600 12px var(--mono); }
+.flow span { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; text-align: center; } .flow span small { font-weight: 400; color: var(--dim); } .flow b { color: var(--d4); }
+table.ledger td:nth-child(3), table.ledger td:nth-child(4) { text-align: right; font-family: var(--mono); }
