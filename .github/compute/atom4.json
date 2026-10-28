@@ -1,98 +1,40 @@
 {
- "run": "audit-2",
- "why": "Fixing the miss: the Hartree–Fock relaxation is now quasi-Newton with a full-Hessian step off saddles (the old one could turn a pair ~0.1 rad and stayed on hydrogen fluoride's straight chain). Re-run the known answers, re-search the three pairs with it, relax from the deepest random placements (one start per runner), and finish bmmonia's probes.",
+ "run": "nebula-1",
+ "why": "Does a rotating 4D cloud flatten into a disk? Our world's must (a sphere can't be combed); a 3-sphere can (Hopf), so the shape may depend on the ratio of the cloud's two rates. Sweep that ratio in 4D with a 3D control, a second seed, harder collisions, a hotter start and double resolution.",
  "minutes": 330,
  "groups": [
   {
-   "name": "known-hf",
+   "name": "rates-a",
    "cmds": [
-    "node four/atom/tools/audit.mjs known 3.9"
+    "node four/atom/tools/nebula.mjs run 4 1 1 30000 40 1",
+    "node four/atom/tools/nebula.mjs run 4 1 0.75 30000 40 1",
+    "node four/atom/tools/nebula.mjs run 4 1 0.5 30000 40 1",
+    "node four/atom/tools/nebula.mjs run 4 1 0.25 30000 40 1"
    ]
   },
   {
-   "name": "known-nh3",
+   "name": "rates-b",
    "cmds": [
-    "node four/atom/tools/audit.mjs known 3.7"
+    "node four/atom/tools/nebula.mjs run 4 1 0 30000 40 1",
+    "node four/atom/tools/nebula.mjs run 4 1 0.9 30000 40 1",
+    "node four/atom/tools/nebula.mjs run 3 1 0 30000 40 1",
+    "node four/atom/tools/nebula.mjs run 4 1 0.5 30000 40 2"
    ]
   },
   {
-   "name": "search-water",
+   "name": "robust",
    "cmds": [
-    "node four/atom/tools/pairsearch.mjs 3 3"
+    "node four/atom/tools/nebula.mjs run 4 1 0.5 30000 40 1 1.0",
+    "node four/atom/tools/nebula.mjs run 4 1 0.5 30000 40 1 0.5 0.3",
+    "node four/atom/tools/nebula.mjs run 4 1 0 30000 40 1 1.0",
+    "node four/atom/tools/nebula.mjs run 4 1 1 30000 40 1 0.5 0.3"
    ]
   },
   {
-   "name": "search-xater",
+   "name": "resolution",
    "cmds": [
-    "node four/atom/tools/pairsearch.mjs 4 2"
-   ]
-  },
-  {
-   "name": "search-bmmonia",
-   "cmds": [
-    "node four/atom/tools/pairsearch.mjs 4.9 2"
-   ]
-  },
-  {
-   "name": "deepen-xater-0",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 0"
-   ]
-  },
-  {
-   "name": "deepen-xater-1",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 1"
-   ]
-  },
-  {
-   "name": "deepen-xater-2",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 2"
-   ]
-  },
-  {
-   "name": "deepen-xater-3",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 3"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-0",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 0"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-1",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 1"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-2",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 2"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-3",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 3"
-   ]
-  },
-  {
-   "name": "deepen-water",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 3 4"
-   ]
-  },
-  {
-   "name": "probes-bmmonia",
-   "cmds": [
-    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 0/4",
-    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 1/4",
-    "node four/atom/tools/audit.mjs probe 4.9 1600 --shard 2/4"
+    "node four/atom/tools/nebula.mjs run 4 1 0.5 60000 40 1",
+    "node four/atom/tools/nebula.mjs run 4 1 0 60000 40 1"
    ]
   }
  ]
