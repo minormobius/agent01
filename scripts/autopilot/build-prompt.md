@@ -33,10 +33,10 @@ _Regenerated 2026-10-28 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-28, 100 members / 244 posts):
+**Neighborhood spark** (bisk 2026-10-28, 100 members / 274 posts):
 - Mood: Overcast ☁ (trust)
 - Distinctive words: llm, anthropic, bluesky
-- Top post: "" — @sneptech.bsky.social
+- Top post: "weird thing i have tried to describe before where LLM mistakes are simply inhuman. like they are entire types of mistake" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
