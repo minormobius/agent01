@@ -1,0 +1,12 @@
+{
+ "group": "search-bmmonia",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pairsearch.mjs 4.9 2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 7895
+  }
+ ]
+}

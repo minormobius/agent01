@@ -1,0 +1,12 @@
+{
+ "group": "search-xater",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pairsearch.mjs 4 2",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  }
+ ]
+}

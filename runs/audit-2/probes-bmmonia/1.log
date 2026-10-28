@@ -1,0 +1,107 @@
+$ node four/atom/tools/audit.mjs probe 4.9 1600 --shard 1/4
+(node:2459) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/census.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2484) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2483) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2490) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2492) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+594s 4.9 shard 1/4: 380 placements, deepest Hartree–Fock -16.39 kcal/mol (best pair -27.54)
+(node:2690) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2689) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2696) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2688) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+793s 4.9 shard 1/4: 384 placements, deepest Hartree–Fock -16.39 kcal/mol (best pair -27.54)
+(node:2751) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2753) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2752) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2754) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+986s 4.9 shard 1/4: 388 placements, deepest Hartree–Fock -16.39 kcal/mol (best pair -27.54)
+(node:2803) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2802) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2804) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2801) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+1184s 4.9 shard 1/4: 392 placements, deepest Hartree–Fock -16.39 kcal/mol (best pair -27.54)
+(node:2853) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2850) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2851) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2852) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+1381s 4.9 shard 1/4: 396 placements, deepest Hartree–Fock -16.39 kcal/mol (best pair -27.54)
+(node:2954) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2956) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2957) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2955) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ffmodel.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+1571s 4.9 shard 1/4: 400 placements, deepest Hartree–Fock -16.39 kcal/mol (best pair -27.54)

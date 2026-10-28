@@ -1,0 +1,2 @@
+$ node four/atom/tools/audit.mjs deepen 4 4 --only 2
+placement 1906 doesn't regenerate (off by 0.00547950272720743); skipped
