@@ -86,3 +86,39 @@ export function nudged(k, d = 4, orbits = 30) {
     onSample: (x, v, t) => { const r = Math.hypot(...x[1].map((u, c) => u - x[0][c])); out.push([+(t / (2 * Math.PI)).toFixed(3), +r.toFixed(4)]); if (r > 6 || r < 0.05) return false; } });
   return out;
 }
+
+/* a moon round a planet (mass mp) on a circular orbit about the star at radius 1 in the xy plane: the moon starts at
+   distance dm in the plane spanned by u (its start direction) and v (its velocity's), and is followed for some orbits
+   of the planet. Returns the moon's largest eccentricity about the planet, how far its plane turned (degrees), and the
+   planet orbit it was lost on (escaped or crashed), if it was */
+export function moonRun(u, v, { mp = 1e-3, dm = 0.025, orbits = 150, dt = 2e-4 } = {}) {
+  const vm = Math.sqrt(mp / dm), P0 = planeOf(u, v);
+  const xs = [[0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0].map((a, k) => a + dm * u[k])], vs = [[0, 0, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0].map((a, k) => a + vm * v[k])];
+  let emax = 0, tilt = 0, lost = null;
+  nbody([1, mp, 1e-9], xs, vs, { k: 1, dt, steps: Math.round((orbits * 2 * Math.PI) / dt), every: 500, onSample: (x, w, t) => {
+    const r = x[2].map((a, k) => a - x[1][k]), s = w[2].map((a, k) => a - w[1][k]), e = eccentricity(r, s, mp);
+    emax = Math.max(emax, e); tilt = Math.max(tilt, planeAngles(P0, planeOf(r, s))[0]);
+    if (Math.hypot(...r) > 2.8 * dm || e > 0.95) { lost = +(t / 2 / Math.PI).toFixed(1); return false; }
+  } });
+  return { emax: +emax.toFixed(3), tilt: +tilt.toFixed(1), lost };
+}
+export const MOON_PLANES = {
+  same: [[1, 0, 0, 0], [0, 1, 0, 0]], // in the planet's own orbital plane
+  line90: [[1, 0, 0, 0], [0, 0, 1, 0]], // sharing a line with it, tilted 90°: our world's polar moon
+  line60: [[1, 0, 0, 0], [0, 0.5, Math.sqrt(0.75), 0]],
+  iso45: [[Math.SQRT1_2, 0, Math.SQRT1_2, 0], [0, Math.SQRT1_2, 0, Math.SQRT1_2]], // tilted 45° in both angles
+  ortho: [[0, 0, 1, 0], [0, 0, 0, 1]], // completely orthogonal to the planet's orbit
+};
+
+/* starlight on a planet in d dimensions. It catches light over its shadow, a ball of one dimension less, and glows from
+   its whole surface, so the share of its surface's worth of light it absorbs is V_(d−1)/S_d: 1/4 ours, 2/(3π) in 4D.
+   Glowing as T^(d+1) (Planck in d dimensions) with light thinning as 1/r^(d−1), its temperature goes as
+   r^(−(d−1)/(d+1)): r^(−1/2) ours, r^(−3/5) in 4D. Black, no air: the equilibrium temperature */
+const sphereA = (d) => (2 * Math.PI ** (d / 2)) / gammaHalfO(d), ballV = (d) => sphereA(d) / d;
+function gammaHalfO(n) { if (n % 2 === 0) { let g = 1; for (let k = 2; k < n / 2; k++) g *= k; return g; } let g = Math.sqrt(Math.PI); for (let k = 1; k < n - 1; k += 2) g *= k / 2; return g; }
+export const absorbShare = (d) => ballV(d - 1) / sphereA(d);
+export const tempPower = (d) => -(d - 1) / (d + 1);
+/* a planet at r star radii from a star with surface temperature Ts */
+export const planetT = (d, Ts, r) => Ts * (absorbShare(d) * r ** -(d - 1)) ** (1 / (d + 1));
+/* how far out a planet must be for temperature T (star radii) */
+export const radiusFor = (d, Ts, T) => (absorbShare(d) * (Ts / T) ** (d + 1)) ** (1 / (d - 1));

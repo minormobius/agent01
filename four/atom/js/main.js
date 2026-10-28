@@ -383,10 +383,12 @@ function drawStars() {
 }
 
 /* orbits: a nudged circle under each 4D law, and two planets whose planes turn while the angle between them holds */
-function drawOrbits() {
+function drawOrbitNudge() {
   chart($("cOrbitNudge"), { key: "kOrbitNudge", x: [0, 12], y: [0, 4], xl: "orbits", yl: "distance from the star", series: [
     { pts: ORBITS.nudge.pinned, c: C4, label: "4D pinned at 1/r: stays near 1" },
     { pts: ORBITS.nudge.gauss, c: DIM, dash: [5, 4], label: "4D Gauss's law, 1/r²: runs away" }] });
+}
+function drawOrbitTurn() {
   chart($("cOrbitTurn"), { key: "kOrbitTurn", x: [0, 3000], y: [0, 90], xl: "orbits of planet 1", yl: "degrees", series: [
     { pts: ORBITS.turning.map((q) => [q[0], q[2]]), c: C4, label: "angle between the two planes" },
     { pts: ORBITS.turning.map((q) => [q[0], (Math.asin(Math.min(1, q[3])) * 180) / Math.PI]), c: C3, label: "planet 1's swing out of its first plane" }] });
@@ -431,7 +433,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cGeoSpread", drawGeometry], ["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbits], ["cNebula", drawNebula]];
+const DRAW = [["cGeoSpread", drawGeometry], ["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbitNudge], ["cOrbitTurn", drawOrbitTurn], ["cNebula", drawNebula]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴, chapter 16: Planetary systems. Orbits round a real star, planets sharing an orbit&#x27;s size in planes turned apart, moons and the one plane that keeps them safe, starlight on a planet, and whether a 4D nebula flattens into a disk: it does only if it spins in one plane." />
+<title>ATOM⁴ · Planetary systems — four.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="geometry.html">1 · geometry</a><a href="force.html">2 · the force</a><a href="light.html">3 · light</a><a href="motion.html">4 · motion and spin</a><a href="gravity.html">5 · gravity</a><a href="hydrogen.html">6 · hydrogen</a><a href="table.html">7 · the periodic table</a><a href="shapes.html">8 · the shapes</a><a href="darbon.html">9 · darbon</a><a href="forces.html">10 · forces between molecules</a><a href="xater.html">11 · pxygen and xater</a><a href="census.html">12 · which water</a><a href="search.html">13 · ten ways to meet</a><a href="gas.html">14 · gases</a><a href="stars.html">15 · stars</a><a href="planets.html" class="here">16 · planetary systems</a></nav>
+  <h2>ATOM⁴ · chapter 16</h2>
+  <h1 class="ch">Planetary systems</h1>
+  <p class="lede">Orbits round a real star, planets sharing an orbit's size in planes turned apart, moons and the one plane that keeps them safe, starlight on a planet, and whether a 4D nebula flattens into a disk: it does only if it spins in one plane.</p>
+</header>
+<section id="orbits">
+  <h3>Orbits round a real star</h3>
+  <p>Two point masses under the pinned 1/r orbit as Kepler said (<a href="gravity.html#kepler">chapter 5</a>). A real star is not a point, and real planets are not alone, and in 4D both matter more than in ours.</p>
+  <h4>Orbits round a real star precess</h4>
+  <p>Without a shell theorem, a round star doesn't pull exactly like a point. Outside it, its pull carries a small correction, −1/r + ⟨r²⟩/8r³, where ⟨r²⟩ is the mean square of where its mass sits (0.32 R² for the 4D star solved above). That turns an orbit's closest point backwards by</p>
+  <p class="eq">Δϖ = −(3π/4) ⟨r²⟩ / p² per orbit</p>
+  <p>(p the orbit's semi-latus rectum, from Landau's formula for a 1/r³ perturbation). Checked by integrating orbits in the solved star's own pull, it agrees to 1.3% three star radii out, where the next, smaller correction still shows, and to 0.09% at twelve. For a star the Sun's size, an orbit at Earth's distance would turn back 3.4 arcseconds per orbit, and one at Mercury's 23. Mercury's own, from relativity, is about 0.1. It's slow, but an astronomer would find it, and it tells the routes apart: under <a href="#gravity">route 4</a>'s nonlinear law the shell theorem holds and this precession is zero.</p>
+  <h4>Planets in different planes barely notice each other</h4>
+  <p>In 4D two orbits can lie in completely orthogonal planes, xy and zw, which meet only at the star. Then the two planets' positions are always at right angles, so their distance is √(r₁² + r₂²). For circular orbits that never changes, and neither can tug the other along its orbit. Run with Jupiter-mass planets for 3,000 orbits:</p>
+  <table class="verdict"><tr><th>orbit radii</th><th>in the same plane</th><th>in orthogonal planes</th></tr>
+    <tr><td>1 and 1.7</td><td>stable, eccentricity up to 0.013</td><td>stable, eccentricity up to 0.001</td></tr><tr><td>1 and 1.3</td><td>stable, eccentricity up to 0.071</td><td>stable, eccentricity up to 0.001</td></tr><tr><td>1 and 1.2</td><td><b>thrown out</b> after 2 orbits</td><td>stable, eccentricity up to 0.001</td></tr><tr><td>1 and 1.1</td><td><b>thrown out</b> after 64 orbits</td><td>stable, eccentricity up to 0.001</td></tr>
+    <tr><td>1 and 1, the same orbit size</td><td>only as trojans, 60° apart (not run)</td><td>stable, never closer than 1.41 (√2)</td></tr>
+  </table>
+  <p>Equal radii is the strangest case. The two planets share a period, so their tugs on each other add up orbit after orbit, and each plane turns all the way round: in the run, planet 1's orbit swung completely into the plane planet 2 had started in, and back, in about 1,500 orbits. The two planes stayed at right angles throughout, and the planets never came closer than √2.</p>
+  <p><b>A 4D planetary system can pack its planets far tighter than ours</b>, at nearly the same distance from the star, in different planes. Planes partly turned apart lie in between: at 30°, two planets 5% apart in radius came within 0.53 of each other and still survived 3,000 orbits.</p>
+  <p>The planes don't sit still. The planets' pulls turn their planes through 4D, by as much as 88% of planet 1's orbit swinging out of where it began. But the angle between the two planes holds, the 4D version of how our planets' tilts to one another keep while their nodes slide round:</p>
+  <canvas class="chart" id="cOrbitTurn"></canvas>
+  <p class="read" id="kOrbitTurn"></p>
+  <h4>Days with two rates</h4>
+  <p>A planet spins too, and a 4D spin is a turning in a plane, or in two planes at once at two rates (<a href="motion.html">chapter 4</a>). A planet spinning both ways would have a sky that cycles on two clocks, its sunrises returning only when the two line up. Which way real planets spin depends on how they formed and how tides wear them, and that's open.</p>
+  <p class="read">Checked here: Kepler's closed orbits in 4D, the precession formula against integration, and the two-planet runs, with 3,000 orbits per case. That's short against a planetary system's life: a map over orbit sizes, plane angles and masses, 100,000 orbits each, is running.</p>
+</section>
+<section id="moons">
+  <h3>Moons: one plane is safe <span class="tag computed">computed</span></h3>
+  <p>A moon circles its planet while both circle the star. The star's pull is a little stronger on the moon's near side than its far side, and over many orbits that uneven tug can stretch a moon's orbit until it's thrown off. In our world it does this to steeply tilted moons (Kozai's effect): a moon on a polar orbit doesn't last. In 4D there's one plane where the star can't tug at all. The star always lies in the planet's orbital plane, and that plane has exactly one completely orthogonal partner. A moon there is always at right angles to the star, so its distance to the star is √(R² + r²), the same all the way round its orbit: the star pulls it evenly and can't drag its plane.</p>
+  <table class="verdict"><tr><th>a moon at a third of its planet's reach, its plane</th><th>its largest eccentricity</th><th>over 150 of the planet's orbits</th></tr>
+    <tr><td>the planet's own orbital plane</td><td>0.095</td><td>kept</td></tr>
+    <tr><td>sharing a line with it, tilted 60°</td><td>0.708</td><td>kept, barely</td></tr>
+    <tr><td>sharing a line, tilted 90°: our polar moon</td><td>0.954</td><td><b>lost on orbit 2.9</b></td></tr>
+    <tr><td>tilted 45° in both angles</td><td>0.057</td><td>kept, its plane swinging right round</td></tr>
+    <tr><td><b>completely orthogonal</b></td><td><b>0.03</b></td><td><b>kept, its plane never moving</b></td></tr></table>
+  <p><b>Every 4D planet has one plane where its moons are safest</b>, the one completely orthogonal to its own orbit, and moons there sit the quietest of all. A planet's moons make an orrery of their own, and its natural plane is the one its planet's orbit leaves free.</p>
+</section>
+<section id="sunlight">
+  <h3>Starlight on a planet <span class="tag follows">follows</span></h3>
+  <p>Light from a star thins as 1/r³ (<a href="geometry.html#room">chapter 1</a>). A planet catches it over its shadow, which in 4D is a solid ball, and glows it away from its whole surface, a 3-sphere, as T⁵ (<a href="light.html">chapter 3</a>). So a planet's temperature falls as <b>r<sup>−3/5</sup></b> (ours as r<sup>−1/2</sup>), and the share of its surface's worth of light it catches is 2/(3π) = 0.212 (ours 1/4).</p>
+  <p>For a star as hot at its surface as our Sun (5772 K), a black planet at Earth's distance in star radii (215) would sit at 278 K in ours and <b>169 K in 4D</b>; to be as warm as ours it would orbit at 93 star radii, less than half as far. And a band of temperatures is narrower in 4D: a liquid that stays liquid over temperatures in the ratio of our water's (373 : 273 K) has orbits in the ratio 1.87 in ours and 1.68 in 4D. But in 4D more planets can share a band: they can orbit at nearly the same distance in planes turned apart (above). A 4D star's surface temperature isn't known yet: it depends on how light escapes a 4D star, which is open.</p>
+</section>
+<section id="formation">
+  <h3>Does a nebula flatten? <span class="tag computed">computed</span></h3>
+  <p>Our planets lie nearly in one plane because the cloud they formed from flattened into a disk. The <a href="geometry.html#combing">geometry chapter</a> gave the reason: gas circling a star covers a sphere, a sphere can't be combed, so the streams cross, collide and settle into one plane. A 3-sphere can be combed, so a 4D cloud needn't flatten. Whether it does is a question for simulation.</p>
+  <p>A cloud's spin in 4D is a turning, and a turning can go in two planes at once at two rates (<a href="motion.html">chapter 4</a>). We let rotating clouds of gas fall onto a star and collide: tens of thousands of particles, pulled as 1/r², which is Newton in 3D and the pinned law in 4D, so only the dimension differs. Particles that come close while approaching lose part of their approach speed. That keeps momentum and spin exactly and only takes energy away, which is all a disk needs to form. The same code in 3D is the control.</p>
+  <canvas class="chart tall" id="cNebula"></canvas>
+  <p class="read" id="kNebula"></p>
+  <p class="read">Flatness is the cloud's two smallest extents over its two largest: 1 round, 0 a flat disk. Time in orbits of the cloud's edge over 2π.</p>
+  <table class="verdict"><tr><th>the cloud's spin</th><th>how flat it ends</th></tr>
+    <tr><td>3D, ours</td><td><b>a disk</b>: 0.04</td></tr>
+    <tr><td>4D, one plane only</td><td><b>a disk</b>, more slowly: 0.05</td></tr>
+    <tr><td>4D, the second plane at 0.25 of the first's rate</td><td>stops at 0.39</td></tr><tr><td>4D, the second plane at 0.5 of the first's rate</td><td>stops at 0.64</td></tr><tr><td>4D, the second plane at 0.75 of the first's rate</td><td>stops at 0.84</td></tr><tr><td>4D, the second plane at 0.9 of the first's rate</td><td>stops at 0.94</td></tr>
+    <tr><td>4D, equal rates</td><td><b>stays round</b>: 0.99</td></tr></table>
+  <p><b>A 4D nebula flattens to a disk only if it spins in one plane.</b> Spinning in both, it thins and then stops, the thicker the closer its two rates: its flatness ends near the ratio of the rates to the power 0.67. At equal rates it doesn't flatten at all, and every orbit in it runs round one of Hopf's circles. The stop is real, not slowness: run nearly four times longer, the half-rate cloud ends at 0.66, against 0.62 at the shorter runs' end. And it holds up: with a second seed, collisions twice as hard, a start three times hotter and twice the particles (that run stopped two thirds of the way), the half-rate cloud ends between 0.61 and 0.64.</p>
+  <p>Which clouds are typical? If a cloud's spin is the sum of many random eddies, its two rates differ: the slower is typically a fifth of the faster (half of all clouds fall between 0.10 and 0.36), and equal rates are rare (0.1% within a tenth of equal). <b>So the typical 4D nebula ends neither a disk nor a ball, but a thick lens</b>, about 35% as thick as it is wide, and its planets would form in planes spread round one of Hopf's families rather than in one.</p>
+  <div class="tiles" id="nebulaTiles"></div>
+  <p class="read">Each run's end, 500 of its particles, orbiting the star live. Turn it through w to see a 4D cloud's thickness.</p>
+  <p class="read">The gas here has no pressure and no gravity of its own, and the time it takes depends on the collision model, which is why the shapes matter and the times don't. Half or more of the gas ends on the star. One thing is still moving in the long runs: after the shape has stopped, the orbits' planes keep slowly lining up in the other half of their turning, which no flattening yet shows. Next: how planets grow in a thick nebula.</p>
+</section>
+<section id="planetsnext">
+  <h3>What's computed and what's open</h3>
+  <p>Computed and checked: orbits' precession round a real star (against Landau's formula), two planets in one plane and in planes turned apart, the planes turning while their angle holds, moons in five planes, and nebulae against our world's. Follows: starlight on a planet. Running: a stability map over orbit sizes, plane angles and masses, for 100,000 orbits each. Open: a 4D star's brightness and colour; how planets grow in a thick nebula; tides; and systems of many planets.</p>
+</section>
+
+<footer class="pager"><a href="stars.html">← 15 · Stars</a><a href="./">the position →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen/">Lumen⁴</a> · <a href="../iris/">IRIS⁴</a> · <a href="https://games.mino.mobi/katabasis/">KATABASIS</a> · <a href="../">Four</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

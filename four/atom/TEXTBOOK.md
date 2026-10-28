@@ -112,7 +112,7 @@ Each chapter below names where its material lives now.
 2. **Done: symbolic cross-references.** The generator renumbers every "chapter N" link from the chapter list, `main.js` uses `chap()`, comments and docs name chapters instead of numbering them, and the selftest fails on a wrong or unlinked number. Adding geometry renumbered 25 links with no hand edits.
 3. **Retire `old-index.html`.** Chapters 1–7 are still cut from the old one-page version. Give every chapter its own
    source file, as 9–13 already have.
-4. **Splits:** force → 1 + 2; stars → 6 + 17 + 18; gases → 15 + 16. Existing URLs keep working: old anchors get a
+4. **Splits:** stars → gravity + stars + planetary systems, **done** (2026-10-28: chapters 5, 15 and 16 on the site); force → 2 + 3 and gases → 2 still to do. Existing URLs keep working: old anchors get a
    one-line pointer to the new place.
 5. **The skeleton:** tags, and the "checked against" and "open" boxes, chapter by chapter.
 6. **`/start/`** gains the sky (gravity, stars, planets). It stops at gases today.

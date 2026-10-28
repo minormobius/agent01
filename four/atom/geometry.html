@@ -11,7 +11,7 @@
 </head>
 <body>
 <header>
-  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="geometry.html" class="here">1 · geometry</a><a href="force.html">2 · the force</a><a href="light.html">3 · light</a><a href="motion.html">4 · motion and spin</a><a href="hydrogen.html">5 · hydrogen</a><a href="table.html">6 · the periodic table</a><a href="shapes.html">7 · the shapes</a><a href="darbon.html">8 · darbon</a><a href="forces.html">9 · forces between molecules</a><a href="xater.html">10 · pxygen and xater</a><a href="census.html">11 · which water</a><a href="search.html">12 · ten ways to meet</a><a href="gas.html">13 · gases</a><a href="stars.html">14 · stars</a></nav>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="geometry.html" class="here">1 · geometry</a><a href="force.html">2 · the force</a><a href="light.html">3 · light</a><a href="motion.html">4 · motion and spin</a><a href="gravity.html">5 · gravity</a><a href="hydrogen.html">6 · hydrogen</a><a href="table.html">7 · the periodic table</a><a href="shapes.html">8 · the shapes</a><a href="darbon.html">9 · darbon</a><a href="forces.html">10 · forces between molecules</a><a href="xater.html">11 · pxygen and xater</a><a href="census.html">12 · which water</a><a href="search.html">13 · ten ways to meet</a><a href="gas.html">14 · gases</a><a href="stars.html">15 · stars</a><a href="planets.html">16 · planetary systems</a></nav>
   <h2>ATOM⁴ · chapter 1</h2>
   <h1 class="ch">Geometry</h1>
   <p class="lede">Four directions at right angles, counted: spheres that grow as r³ so everything spreading from a point thins as 1/r³, more room at right angles, planes that meet at a point, turning in planes, a 3-sphere that can be combed, and knots that untie.</p>
@@ -27,14 +27,14 @@
   <p><b>In four dimensions a sphere's surface grows as r³.</b> So anything that spreads out from a point and isn't used up on the way (light, the lines of a field, heat, a puff of gas) is spread over a surface growing as r³, and thins as 1/r³. Ten times farther away there's a thousandth as much; in ours, a hundredth.</p>
   <canvas class="chart" id="cGeoSpread"></canvas>
   <p class="read" id="kGeoSpread"></p>
-  <p>That one fact sets the problem the rest of the book solves. A charge's field, spread over spheres by Gauss's law, falls as 1/r³, so the energy between two charges falls as 1/r². <a href="force.html">chapter 2</a> shows that no atom survives that, and why this universe pins the force at 1/r instead. Light keeps the 1/r³ (<a href="light.html">chapter 3</a>), so a lamp twice as far off is an eighth as bright. And a 4D atom has more neighbours at every distance, which is why 4D's gases are held together by the crowd rather than by their nearest neighbours (<a href="gas.html#far">chapter 13</a>).</p>
+  <p>That one fact sets the problem the rest of the book solves. A charge's field, spread over spheres by Gauss's law, falls as 1/r³, so the energy between two charges falls as 1/r². <a href="force.html">chapter 2</a> shows that no atom survives that, and why this universe pins the force at 1/r instead. Light keeps the 1/r³ (<a href="light.html">chapter 3</a>), so a lamp twice as far off is an eighth as bright. And a 4D atom has more neighbours at every distance, which is why 4D's gases are held together by the crowd rather than by their nearest neighbours (<a href="gas.html#far">chapter 14</a>).</p>
 </section>
 <section id="shells">
   <h3>Counting in thin shells <span class="tag follows">follows</span></h3>
   <p>The same counting decides how heat is shared out. Give each way something can move a point: one for each velocity, or one for each wave a box can hold. The ways with speeds near v fill a thin shell round the centre, and a shell holds a number growing as its surface, v<sup>d − 1</sup>. Here are the whole-number points in each shell, counted, against the sphere's surface:</p>
   <canvas class="chart" id="cGeoShells"></canvas>
   <p class="read" id="kGeoShells"></p>
-  <p>So in 4D there are many more ways to move fast. That counting is behind the spread of speeds in a gas, and behind each 4D atom's 2kT of heat, ½kT for each of its four directions (<a href="gas.html#ideal">chapter 13</a>). It's behind light too: a box holds waves of frequency ν in proportion to ν³, so a glowing body's spectrum goes as ν⁴ before it turns over, and the heat it gives out grows as T⁵, not our T⁴ (<a href="light.html">chapter 3</a>).</p>
+  <p>So in 4D there are many more ways to move fast. That counting is behind the spread of speeds in a gas, and behind each 4D atom's 2kT of heat, ½kT for each of its four directions (<a href="gas.html#ideal">chapter 14</a>). It's behind light too: a box holds waves of frequency ν in proportion to ν³, so a glowing body's spectrum goes as ν⁴ before it turns over, and the heat it gives out grows as T⁵, not our T⁴ (<a href="light.html">chapter 3</a>).</p>
 </section>
 <section id="corners">
   <h3>Corners and skins <span class="tag follows">follows</span></h3>
@@ -57,8 +57,8 @@
   <p>Pick two directions at random. In a flat world every angle between them is equally likely. In ours, angles near 90° are likelier: there's a whole circle of directions at right angles to any one, and only a point at 0°. In 4D there's a whole sphere of them, so random directions crowd toward right angles even more:</p>
   <canvas class="chart" id="cGeoAngles"></canvas>
   <p class="read" id="kGeoAngles"></p>
-  <p>The mean of |cos θ| between two random directions is 0.64 in 2D, 0.50 in ours and 0.42 in 4D. <b>Aiming is harder</b>: a cone of 30° round a direction catches 6.7% of all directions in ours and 2.9% in 4D. So two 4D molecules tumbling into each other line up well less often, and a search for how they fit best has more to search (<a href="search.html">chapter 12</a>).</p>
-  <p><b>More neighbours touch.</b> Around one ball, 6 equal balls can touch it in a plane, 12 in ours and <b>24 in 4D</b>, at the corners of the 24-cell, the regular shape with no cousin in our world (<a href="shapes.html">chapter 7</a>). Yet the densest packing fills less: 91%, 74%, and 62% in 4D. There's more room at every distance, and less of it gets filled.</p>
+  <p>The mean of |cos θ| between two random directions is 0.64 in 2D, 0.50 in ours and 0.42 in 4D. <b>Aiming is harder</b>: a cone of 30° round a direction catches 6.7% of all directions in ours and 2.9% in 4D. So two 4D molecules tumbling into each other line up well less often, and a search for how they fit best has more to search (<a href="search.html">chapter 13</a>).</p>
+  <p><b>More neighbours touch.</b> Around one ball, 6 equal balls can touch it in a plane, 12 in ours and <b>24 in 4D</b>, at the corners of the 24-cell, the regular shape with no cousin in our world (<a href="shapes.html">chapter 8</a>). Yet the densest packing fills less: 91%, 74%, and 62% in 4D. There's more room at every distance, and less of it gets filled.</p>
 </section>
 <section id="walks">
   <h3>Lost walkers stay lost <span class="tag follows">follows</span></h3>
@@ -77,7 +77,7 @@
     <tr><td>two planes</td><td><b>share a line</b></td><td><b>meet only at the point</b></td></tr>
     <tr><td>two 3D spaces</td><td>are the same space</td><td>share a plane</td></tr></table>
   <p>Away from a shared point it's the same story, one size up. In ours two lines usually miss each other; in 4D a line usually misses a plane, and two lines almost always do. Two planes still meet, but only at a point.</p>
-  <p><b>Two planes can be completely at right angles.</b> The xy plane and the zw plane share only the origin, and every direction in one is at right angles to every direction in the other. Two planes in general sit at two angles to each other, not one. This keeps turning up: the space at right angles to a flat molecule is itself a plane, so Xater's lone pairs make a ring round it (<a href="xater.html">chapter 10</a>), and two planets orbiting in different planes needn't ever come near each other (<a href="stars.html#orbits">chapter 14</a>).</p>
+  <p><b>Two planes can be completely at right angles.</b> The xy plane and the zw plane share only the origin, and every direction in one is at right angles to every direction in the other. Two planes in general sit at two angles to each other, not one. This keeps turning up: the space at right angles to a flat molecule is itself a plane, so Xater's lone pairs make a ring round it (<a href="xater.html">chapter 11</a>), and two planets orbiting in different planes needn't ever come near each other (<a href="planets.html#orbits">chapter 16</a>).</p>
 </section>
 <section id="turning">
   <h3>Turning happens in planes <span class="tag follows">follows</span></h3>
@@ -89,7 +89,7 @@
   <p><b>The 3-sphere, the surface of a 4D ball, can be combed.</b> Turn xy and zw at the same rate, as above. Every point of the 3-sphere moves, all at the same speed, and each runs round a great circle. These are Hopf's circles. They fill the 3-sphere and no two meet; any two stay the same distance apart all the way round; and within the 3-sphere each pair is linked once, like two rings of a chain. Projected into our space they make nested tori of circles:</p>
   <canvas class="chart tall hopf" id="cHopf"></canvas>
   <p class="read">Hopf's circles, a few of them, projected from the 3-sphere into our space. Each colour is one torus of circles: pink, the single ring through the middle; then tori of circles farther out, each circle linked through the others. Past the blue ones the circles grow until one becomes the line through the ring's centre. Drag to turn.</p>
-  <p>Why it matters here: gas circling a star covers a sphere, so in our world its streams must cross somewhere, and streams that cross collide, lose energy and settle into one plane. That's a reason our solar system is flat. In 4D the streams needn't cross, so a 4D nebula needn't flatten into a disk. <span class="tag computed">computed</span> Simulated, it flattens only if it spins in one plane; spinning in two, it stops part-way, and at equal rates it stays round (<a href="stars.html#formation">chapter 14</a>).</p>
+  <p>Why it matters here: gas circling a star covers a sphere, so in our world its streams must cross somewhere, and streams that cross collide, lose energy and settle into one plane. That's a reason our solar system is flat. In 4D the streams needn't cross, so a 4D nebula needn't flatten into a disk. <span class="tag computed">computed</span> Simulated, it flattens only if it spins in one plane; spinning in two, it stops part-way, and at equal rates it stays round (<a href="planets.html#formation">chapter 16</a>).</p>
 </section>
 <section id="clifford">
   <h3>A flat torus <span class="tag follows">follows</span></h3>
@@ -100,7 +100,7 @@
 <section id="knots">
   <h3>Knots untie, and gloves turn over <span class="tag follows">follows</span></h3>
   <p>A knot in a string unties in 4D: lift one strand off into w, pass it over the other and set it back. No string can be knotted in 4D, and no two rings can be linked. Surfaces can be: a sphere can be knotted in 4D, as a string is in ours.</p>
-  <p>A left glove becomes a right one by half a turn through w, as a flat L on a table becomes a backward one by flipping it over through our third direction. So nothing that is left- or right-handed in our world is handed in 4D. A 4D molecule needs five different neighbours round one atom to be handed (<a href="darbon.html">chapter 8</a> has both to turn).</p>
+  <p>A left glove becomes a right one by half a turn through w, as a flat L on a table becomes a backward one by flipping it over through our third direction. So nothing that is left- or right-handed in our world is handed in 4D. A 4D molecule needs five different neighbours round one atom to be handed (<a href="darbon.html">chapter 9</a> has both to turn).</p>
 </section>
 <section id="geometrynext">
   <h3>Checked, and what it gives the rest</h3>

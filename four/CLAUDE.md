@@ -5,7 +5,7 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
-A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in fourteen chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.
+A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in sixteen chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.
 
 ## Facts
 
@@ -91,10 +91,10 @@ for games, and this is a modelling programme with publications to come. The game
 - **ATOM⁴ at `/atom/`**: the **official position on this universe**: four
   dimensions of space with the force between charges pinned at 1/r (Gauss's
   1/r² has no ground state). `index.html` is the position: every conclusion,
-  one card per chapter, plus the open questions. Fourteen chapter pages hold
-  the working: `geometry.html`, `force.html`, `light.html`, `motion.html`, `hydrogen.html`,
+  one card per chapter, plus the open questions. Sixteen chapter pages hold
+  the working: `geometry.html`, `force.html`, `light.html`, `motion.html`, `gravity.html`, `hydrogen.html`,
   `table.html`, `shapes.html`, `darbon.html`, `forces.html`, `xater.html`,
-  `census.html`, `search.html`, `gas.html`, `stars.html`. All run `js/main.js`, which
+  `census.html`, `search.html`, `gas.html`, `stars.html`, `planets.html`. All run `js/main.js`, which
   draws only what each page has. **A new conclusion goes in its chapter
   and on the landing's cards**; the selftest checks every page carries the
   same nav, has no repeated id, and that every drawing has its element.
@@ -173,16 +173,19 @@ for games, and this is a modelling programme with publications to come. The game
   `js/geomviz.js` draws its toys (a cube and tesseract to turn and slice, an equal double rotation, a tesseract
   passing through corner first and cube first, the Hopf circles and the Clifford torus stereographically projected).
   Selftests 37 and 38 check it against sampling, counting and known values.
-  `js/orbits.js` (no DOM) is the stars chapter's orbits: a leapfrog n-body for a 1/r^k pull in any dimension, an orbit's
+  `js/orbits.js` (no DOM) is the planetary-systems chapter's orbits (and the gravity chapter's nudge): a leapfrog n-body for a 1/r^k pull in any dimension, an orbit's
   eccentricity and plane, the principal angles between two planes, a round star's outside potential from its shells
-  (pinned 4D: −1/r + ⟨r²⟩/8r³) and the precession that causes, and two planets in one plane or turned apart.
+  (pinned 4D: −1/r + ⟨r²⟩/8r³) and the precession that causes, and two planets in one plane or turned apart (two kinds of tilt), a moon round a planet
+  in any plane (`moonRun`), and starlight on a planet (`absorbShare`, `planetT`: T ∝ r^(−(d−1)/(d+1))).
+  `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
+  bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).
-  `js/nebula.js` (no DOM) is the stars chapter's formation: a rotating cloud of gas falling onto a star (1/r², so
+  `js/nebula.js` (no DOM) is the planetary-systems chapter's formation: a rotating cloud of gas falling onto a star (1/r², so
   Newton in 3D and pinned in 4D: only the dimension differs) with pairwise collisions that keep momentum and spin
   exactly, its shape (flatness: the two smallest extents over the two largest), how each orbit's two halves of turning
   line up with the cloud's, a turning's two rates from its invariants, and the ratio of rates a random spin has.
   `atom/tools/nebula.mjs` runs one cloud resumably on the runner and bakes **generated** `js/nebuladata.js` (each
-  run's shape over time, and 500 particles of the shown runs' end states); the stars page loads it on demand.
+  run's shape over time, and 500 particles of the shown runs' end states); the planets page loads it on demand.
   `js/nebulaviz.js` shows those end states orbiting live in the shared viewer. Selftest 40.
   `js/clusterlive.js` (no DOM) is the search chapter's live five-molecule search: start s is built exactly as
   `tools/clusters.mjs` builds it, so it follows the runner's start s to the same minimum, and the page names each
@@ -208,7 +211,7 @@ for games, and this is a modelling programme with publications to come. The game
   and ▣ squares the view onto the axes (`nearestSquare`). Imports `../../lumen/js/optics.js` for line and
   sky colours; Lumen⁴'s page links back to the light chapter. See
   [`atom/README.md`](atom/README.md).
-- **ATOM⁴'s pages are generated.** The fourteen chapters and the landing come from
+- **ATOM⁴'s pages are generated.** The sixteen chapters and the landing come from
   `atom/tools/pages/genpages.py` (it execs `gengeometry.py`, `genxater.py`, `gencensus.py`, `gensearch.py`, `gengas.py` and `genstars.py` beside it, and cuts the
   first chapters from `old-index.html`). Each chapter's body and the landing's cards live there, with their numbers
   pulled from the baked `atom/js/*.js`. So change a chapter there, never in the HTML, then

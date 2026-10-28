@@ -9,6 +9,9 @@ PRE=OR['precession']; PREerr=max(abs(q['measured']/q['formula']-1) for q in PRE)
 def arcsec(rad): return rad*206264.8
 EARTH=-(3*math.pi/4)*OR['star']['r2']/215**2; MERC=-(3*math.pi/4)*OR['star']['r2']/83**2
 TURN=OR['turning']
+TSUN, R_EARTH = 5772, 215 # our Sun's surface temperature, and Earth's distance in Sun radii
+LT=json.loads(subprocess.run(['node','--input-type=module','-e','import * as O from "'+ATOM+'js/orbits.js"; console.log(JSON.stringify({ a4: O.absorbShare(4), t3: O.planetT(3, 5772, 215), t4: O.planetT(4, 5772, 215), r4: O.radiusFor(4, 5772, O.planetT(3, 5772, 215)), b3: (373 / 273) ** (-1 / O.tempPower(3)), b4: (373 / 273) ** (-1 / O.tempPower(4)) }));'],capture_output=True,text=True,check=True).stdout)
+ABS4, T3E, T4E, R4WARM, BAND3, BAND4 = LT['a4'], LT['t3'], LT['t4'], LT['r4'], LT['b3'], LT['b4']
 # the nebulae (js/nebuladata.js, tools/nebula.mjs on the runner) and how a random spin's two rates compare (js/nebula.js)
 NB=json.loads(subprocess.run(['node','--input-type=module','-e','import { NEBULA } from "'+ATOM+'js/nebuladata.js"; import { randomSpinRatios } from "'+ATOM+'js/nebula.js"; const q = randomSpinRatios(100000); console.log(JSON.stringify({ runs: NEBULA.map(({ snap, ...r }) => r), med: q[q.length >> 1], q1: q[q.length >> 2], q3: q[(3 * q.length) >> 2], above9: q.filter((x) => x > 0.9).length / q.length }));'],capture_output=True,text=True,check=True).stdout)
 def NR(name): return next(r for r in NB['runs'] if r['name']==name)
@@ -28,20 +31,27 @@ PO=dict(SM['pinned']['outer'])
 def outerAt(x): return min(SM['pinned']['outer'],key=lambda q:abs(q[0]-x))[1]
 PPR=[m['ratio'] for m in SL['match']['pp']]
 DEF=[m['deficit'] for m in SL['match']['pp']]
-stars=f'''<section id="gravity">
+gravity=f'''<section id="gravity">
   <h3>Gravity's routes</h3>
-  <p><a href="force.html">Chapter 1</a> pinned the force between charges at 1/r and left gravity open. Gravity hardly matters to atoms, but it makes the stars. Its problem is the same as charge's. A field obeying Gauss's law in four dimensions falls as 1/r², and for 1/r we need a propagator of 1/k³. So the same forks appear (<a href="force.html#maxwell">charge's, for comparison</a>), with gravity's own twists. Gravity pulls on everything alike, it's nonlinear in our world already, and it has waves and black holes of its own.</p>
+  <p><a href="force.html">Chapter 1</a> pinned the force between charges at 1/r and left gravity open. Gravity hardly matters to atoms, but it makes the stars and holds the planets. Its problem is the same as charge's. A field obeying Gauss's law in four dimensions falls as 1/r², and for 1/r we need a propagator of 1/k³. So the same forks appear (<a href="force.html#maxwell">charge's, for comparison</a>), with gravity's own twists. Gravity pulls on everything alike, it's nonlinear in our world already, and it has waves and black holes of its own.</p>
   <div class="routes">
-    <div class="route"><h5>1 · Keep 4D gravity as it is: Gauss's law, 1/r²</h5><p>The four-dimensional version of Einstein's gravity, whose slow, weak limit is 1/r². It keeps everything: locality, relativity, the equivalence principle, waves at c.</p><p class="cost">costs: no stable orbit, and a star of gas is exactly marginal (below). Stiff bodies like rock could hold themselves together, but nothing would orbit anything. No solar systems.</p></div>
+    <div class="route"><h5>1 · Keep 4D gravity as it is: Gauss's law, 1/r²</h5><p>The four-dimensional version of Einstein's gravity, whose slow, weak limit is 1/r². It keeps everything: locality, relativity, the equivalence principle, waves at c.</p><p class="cost">costs: no stable orbit (below), and a star of gas is exactly marginal (<a href="stars.html#hold">chapter 15</a>). Stiff bodies like rock could hold themselves together, but nothing would orbit anything. No solar systems.</p></div>
     <div class="route"><h5>2 · Keep relativity, give up locality: a graviton with □^(3/2)</h5><p>As for charge, a fractional power of the wave operator gives 1/r statics and keeps relativity.</p><p class="cost">costs: negative probabilities, by the same unitarity bound as charge's route 2.</p></div>
     <div class="route"><h5>3 · A dispersive vacuum for gravity</h5><p>Give gravity's vacuum a response that grows with wavenumber, as charge's route 3 does.</p><p class="cost">costs: gravitational waves disperse with no speed limit. Long waves outrun short ones without bound.</p></div>
     <div class="route"><h5>4 · Give up superposition: a nonlinear law</h5><p>Make gravity's Gauss law nonlinear, ∇·(|g|^(1/2) g) ∝ ρ in 4D, the kind of law Bekenstein and Milgrom wrote for our galaxies. A point mass then pulls as 1/r. Gravity is already nonlinear in our world, though not in its weak, everyday limit. This law keeps locality, and in our world such laws have been given relativistic completions.</p><p class="cost">costs: masses don't add. A body's pull grows as its mass to the 2/3 power, so two stars together pull less than twice one, and a planet's motion feels the galaxy it sits in. In exchange the divergence theorem still holds: <b>the shell theorem survives</b>. A round star acts as a point, its outer layers don't press inward, and orbits round it are exactly Kepler's.</p></div>
     <div class="route"><h5>5 · A small fourth dimension, for gravity only</h5><p>Let gravity see three dimensions while matter sees four.</p><p class="cost">costs: coherence. Gravity pulls on all energy, including motion along w, so it can't ignore a dimension that matter moves in. This route breaks the premise.</p></div>
-    <div class="route chosen"><h5>6 · The lens, as for charge (assumed below)</h5><p>Gravity's static pull seen through the same kind of lens, a 1/k³ kernel, so 1/r between masses. Everything still falls alike, and masses add. Gravity's waves can stay as 4D Einstein's.</p><p class="cost">we'd pay: relativity for gravity's pull, an absolute "now" for gravity as for charge, and no black holes as Einstein's are defined. No shell theorem either: a star's outer layers press inward, and orbits round a star slowly precess.</p></div>
+    <div class="route chosen"><h5>6 · The lens, as for charge (assumed from here on)</h5><p>Gravity's static pull seen through the same kind of lens, a 1/k³ kernel, so 1/r between masses. Everything still falls alike, and masses add. Gravity's waves can stay as 4D Einstein's.</p><p class="cost">we'd pay: relativity for gravity's pull, an absolute "now" for gravity as for charge, and no black holes as Einstein's are defined. No shell theorem either: a star's outer layers press inward, and orbits round a star slowly precess.</p></div>
   </div>
-  <p><b>Routes 4 and 6 are the real choice, and they predict different skies.</b> Under the lens, orbits round a star precess and masses add. Under the nonlinear law, orbits close exactly but a cluster of stars pulls less than its parts. Both give bound stars, because both make a star's gravitational energy scale as 1/R. This chapter assumes the lens, for its symmetry with charge, and marks where route 4 would differ. The choice is open.</p>
+  <p><b>Routes 4 and 6 are the real choice, and they predict different skies.</b> Under the lens, orbits round a star precess and masses add. Under the nonlinear law, orbits close exactly but a cluster of stars pulls less than its parts. Both give bound stars, because both make a star's gravitational energy scale as 1/R. The book assumes the lens from here on, for its symmetry with charge, and marks where route 4 would differ. The choice is open.</p>
 </section>
-<section id="hold">
+<section id="kepler">
+  <h3>Orbits under each law <span class="tag computed">computed</span></h3>
+  <p>What the choice does to orbits decides whether there are planets at all. <b>Under the pinned 1/r, two bodies orbit as Kepler said</b>. A central pull keeps an orbit in one plane, even in 4D, and a 1/r pull closes it into an ellipse in any number of dimensions (<a href="motion.html">chapter 3</a>). Under Gauss's 1/r² no orbit is stable. Give a circular orbit 1% more speed and it runs away:</p>
+  <canvas class="chart" id="cOrbitNudge"></canvas>
+  <p class="read" id="kOrbitNudge"></p>
+</section>
+'''
+stars=f'''<section id="hold">
   <h3>Does a star hold together?</h3>
   <p>A star is a ball of gas holding itself up against its own weight. Two things decide whether it can. First, it must be <b>bound</b>: its total energy negative. Second, it must be stable: squeezed, its pressure must rise faster than its weight. Both come from the virial theorem. For gravity falling as 1/r^k in d dimensions, a gas with heat-capacity ratio γ has total energy</p>
   <p class="eq">E = W (1 − k / d(γ − 1)),&nbsp; W the gravitational energy (negative)</p>
@@ -77,11 +87,15 @@ stars=f'''<section id="gravity">
   <h3>The fuel: the weak force, added</h3>
   <p>Our Sun burns hydrogen, and its first step turns a proton into a neutron. That takes the <b>weak force</b>, which chemistry never needs. Without it a star could burn only fuel left from the universe's first minutes (deuterium and other light nuclei, which fuse by the strong force alone), then shine by contracting, for millions of years rather than billions. <b>So the weak force is added to <a href="force.html#contents">the universe's list</a></b>, with its neutrino. It's the first ingredient added for astronomy rather than chemistry. Stars burn hydrogen as ours do, and live long enough for planets to have time.</p>
 </section>
-<section id="orbits">
-  <h3>Orbits</h3>
-  <p>Stars need planets to matter, and planets need orbits. <b>Under the pinned 1/r, two bodies orbit as Kepler said</b>. A central pull keeps an orbit in one plane, even in 4D, and a 1/r pull closes it into an ellipse in any number of dimensions (<a href="motion.html">chapter 3</a>). Under Gauss's 1/r² no orbit is stable. Give a circular orbit 1% more speed and it runs away:</p>
-  <canvas class="chart" id="cOrbitNudge"></canvas>
-  <p class="read" id="kOrbitNudge"></p>
+<section id="starsnext">
+  <h3>What's computed and what's open</h3>
+  <p class="read"><span id="orbits"></span><span id="formation"></span>Orbits round a real star, planets, moons and how a nebula flattens are <a href="planets.html">chapter 16</a>; gravity's routes are <a href="gravity.html">chapter 5</a>.</p>
+  <p>Computed and checked: the virial bookkeeping for each law, the polytropes (against Lane–Emden), the outer layers' pull, tunnelling through the 4D barrier (against Gamow), and the lighting. Argued from scaling: the mass window. Chosen: the weak force, added. Open: gravity's route (the lens is assumed here; the nonlinear law is the alternative). Open: nuclear physics in 4D (which nuclei exist, their fusion energies and sizes); light's escape from a 4D star (opacity through the lens, and the T⁵ Planck law at its surface), which sets its colour; and stars that age, burn in shells and die.</p>
+</section>
+'''
+planets=f'''<section id="orbits">
+  <h3>Orbits round a real star</h3>
+  <p>Two point masses under the pinned 1/r orbit as Kepler said (<a href="gravity.html#kepler">chapter 5</a>). A real star is not a point, and real planets are not alone, and in 4D both matter more than in ours.</p>
   <h4>Orbits round a real star precess</h4>
   <p>Without a shell theorem, a round star doesn't pull exactly like a point. Outside it, its pull carries a small correction, −1/r + ⟨r²⟩/8r³, where ⟨r²⟩ is the mean square of where its mass sits ({OR['star']['r2']:.2f} R² for the 4D star solved above). That turns an orbit's closest point backwards by</p>
   <p class="eq">Δϖ = −(3π/4) ⟨r²⟩ / p² per orbit</p>
@@ -99,7 +113,23 @@ stars=f'''<section id="gravity">
   <p class="read" id="kOrbitTurn"></p>
   <h4>Days with two rates</h4>
   <p>A planet spins too, and a 4D spin is a turning in a plane, or in two planes at once at two rates (<a href="motion.html">chapter 3</a>). A planet spinning both ways would have a sky that cycles on two clocks, its sunrises returning only when the two line up. Which way real planets spin depends on how they formed and how tides wear them, and that's open.</p>
-  <p class="read">Checked here: Kepler's closed orbits in 4D, the precession formula against integration, and the two-planet runs, with 3,000 orbits per case. That's short against a planetary system's life. Longer runs, more planets, and tides are next.</p>
+  <p class="read">Checked here: Kepler's closed orbits in 4D, the precession formula against integration, and the two-planet runs, with 3,000 orbits per case. That's short against a planetary system's life: a map over orbit sizes, plane angles and masses, 100,000 orbits each, is running.</p>
+</section>
+<section id="moons">
+  <h3>Moons: one plane is safe <span class="tag computed">computed</span></h3>
+  <p>A moon circles its planet while both circle the star. The star's pull is a little stronger on the moon's near side than its far side, and over many orbits that uneven tug can stretch a moon's orbit until it's thrown off. In our world it does this to steeply tilted moons (Kozai's effect): a moon on a polar orbit doesn't last. In 4D there's one plane where the star can't tug at all. The star always lies in the planet's orbital plane, and that plane has exactly one completely orthogonal partner. A moon there is always at right angles to the star, so its distance to the star is √(R² + r²), the same all the way round its orbit: the star pulls it evenly and can't drag its plane.</p>
+  <table class="verdict"><tr><th>a moon at a third of its planet's reach, its plane</th><th>its largest eccentricity</th><th>over {150} of the planet's orbits</th></tr>
+    <tr><td>the planet's own orbital plane</td><td>{OR['moons']['same']['emax']}</td><td>kept</td></tr>
+    <tr><td>sharing a line with it, tilted 60°</td><td>{OR['moons']['line60']['emax']}</td><td>kept, barely</td></tr>
+    <tr><td>sharing a line, tilted 90°: our polar moon</td><td>{OR['moons']['line90']['emax']}</td><td><b>lost on orbit {OR['moons']['line90']['lost']}</b></td></tr>
+    <tr><td>tilted 45° in both angles</td><td>{OR['moons']['iso45']['emax']}</td><td>kept, its plane swinging right round</td></tr>
+    <tr><td><b>completely orthogonal</b></td><td><b>{OR['moons']['ortho']['emax']}</b></td><td><b>kept, its plane never moving</b></td></tr></table>
+  <p><b>Every 4D planet has one plane where its moons are safest</b>, the one completely orthogonal to its own orbit, and moons there sit the quietest of all. A planet's moons make an orrery of their own, and its natural plane is the one its planet's orbit leaves free.</p>
+</section>
+<section id="sunlight">
+  <h3>Starlight on a planet <span class="tag follows">follows</span></h3>
+  <p>Light from a star thins as 1/r³ (<a href="geometry.html#room">chapter 1</a>). A planet catches it over its shadow, which in 4D is a solid ball, and glows it away from its whole surface, a 3-sphere, as T⁵ (<a href="light.html">chapter 3</a>). So a planet's temperature falls as <b>r<sup>−3/5</sup></b> (ours as r<sup>−1/2</sup>), and the share of its surface's worth of light it catches is 2/(3π) = {ABS4:.3f} (ours 1/4).</p>
+  <p>For a star as hot at its surface as our Sun ({TSUN} K), a black planet at Earth's distance in star radii ({R_EARTH}) would sit at {T3E:.0f} K in ours and <b>{T4E:.0f} K in 4D</b>; to be as warm as ours it would orbit at {R4WARM:.0f} star radii, less than half as far. And a band of temperatures is narrower in 4D: a liquid that stays liquid over temperatures in the ratio of our water's (373 : 273 K) has orbits in the ratio {BAND3:.2f} in ours and {BAND4:.2f} in 4D. But in 4D more planets can share a band: they can orbit at nearly the same distance in planes turned apart (above). A 4D star's surface temperature isn't known yet: it depends on how light escapes a 4D star, which is open.</p>
 </section>
 <section id="formation">
   <h3>Does a nebula flatten? <span class="tag computed">computed</span></h3>
@@ -119,8 +149,8 @@ stars=f'''<section id="gravity">
   <p class="read">Each run's end, 500 of its particles, orbiting the star live. Turn it through w to see a 4D cloud's thickness.</p>
   <p class="read">The gas here has no pressure and no gravity of its own, and the time it takes depends on the collision model, which is why the shapes matter and the times don't. Half or more of the gas ends on the star. One thing is still moving in the long runs: after the shape has stopped, the orbits' planes keep slowly lining up in the other half of their turning, which no flattening yet shows. Next: how planets grow in a thick nebula.</p>
 </section>
-<section id="starsnext">
+<section id="planetsnext">
   <h3>What's computed and what's open</h3>
-  <p>Computed and checked: the virial bookkeeping for each law, the polytropes (against Lane–Emden), the outer layers' pull, tunnelling through the 4D barrier (against Gamow), orbits' precession round a real star (against Landau's formula), and two planets' stability in one plane and in orthogonal ones. Argued from scaling: the mass window. Chosen: the weak force, added. Open: gravity's route (the lens is assumed here; the nonlinear law is the alternative). Open: nuclear physics in 4D (which nuclei exist, their fusion energies and sizes); light's escape from a 4D star (opacity through the lens, and the T⁵ Planck law at its surface), which sets its colour; and stars that age, burn in shells and die.</p>
+  <p>Computed and checked: orbits' precession round a real star (against Landau's formula), two planets in one plane and in planes turned apart, the planes turning while their angle holds, moons in five planes, and nebulae against our world's. Follows: starlight on a planet. Running: a stability map over orbit sizes, plane angles and masses, for 100,000 orbits each. Open: a 4D star's brightness and colour; how planets grow in a thick nebula; tides; and systems of many planets.</p>
 </section>
 '''

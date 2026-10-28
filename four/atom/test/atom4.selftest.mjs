@@ -722,5 +722,17 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `nebulae: 40 steps of collisions and pull keep the spin to ${dL.toExponential(0)} and take energy; a turning's rates ${r1.toFixed(3)} and ${r2.toFixed(3)} square-sum to its trace; ours ends ${end("d3_a1_0_n10000_T150_s1").toFixed(2)} flat, 4D in one plane ${end("d4_a1_0_n10000_T150_s1").toFixed(2)}, equal rates ${end("d4_a1_1_n30000_T40_s1").toFixed(2)}, and rates ¼ … 0.9 stop at ${q.map((v) => v.toFixed(2)).join(", ")}; the half-rate cloud ${Math.min(...half).toFixed(2)}–${Math.max(...half).toFixed(2)} across seed, collisions and heat`);
 }
 
+/* 41 · moons and starlight (js/orbits.js, the planetary-systems chapter): a planet catches 1/4 of a surface's worth of
+   light in ours and 2/(3π) in 4D, glows to r^(−1/2) and r^(−3/5), and a black Earth at 215 Sun radii from a 5772 K
+   star sits at the textbook 278.6 K; the moons baked: the completely orthogonal one the quietest, its plane fixed, and
+   our polar moon lost */
+{
+  const O = await import(path.join(here, "../js/orbits.js")), { ORBITS } = await import(path.join(here, "../js/orbitsdata.js")), M = ORBITS.moons;
+  const T3 = O.planetT(3, 5772, 215), back = O.radiusFor(4, 5772, O.planetT(4, 5772, 100));
+  const quiet = Object.entries(M).filter(([k]) => k !== "ortho").every(([, m]) => m.lost !== null || m.emax > M.ortho.emax);
+  ok(Math.abs(O.absorbShare(3) - 0.25) < 1e-12 && Math.abs(O.absorbShare(4) - 2 / (3 * Math.PI)) < 1e-12 && O.tempPower(3) === -0.5 && O.tempPower(4) === -0.6 && Math.abs(T3 - 278.6) < 0.5 && Math.abs(back - 100) < 1e-9 && M.ortho.lost === null && M.ortho.tilt === 0 && M.line90.lost !== null && quiet,
+    `moons and starlight: a planet catches ${O.absorbShare(3)} and ${O.absorbShare(4).toFixed(4)} of a surface's light; a black Earth sits at ${T3.toFixed(1)} K (textbook 278.6); the orthogonal moon reaches eccentricity ${M.ortho.emax}, the least of five, its plane unmoved; our polar moon is lost on orbit ${M.line90.lost}`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
