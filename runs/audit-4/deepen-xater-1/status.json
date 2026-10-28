@@ -1,0 +1,12 @@
+{
+ "group": "deepen-xater-1",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/audit.mjs deepen 4 4 --only 1",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  }
+ ]
+}
