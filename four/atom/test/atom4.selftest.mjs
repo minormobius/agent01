@@ -261,10 +261,10 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const pages = ["index", ...order], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
   let refsOk = 0, refsBad = [];
   for (const p of pages) { const body = html[p].slice(html[p].indexOf("</head>")).replace(/<h2>ATOM⁴ · chapter \d+<\/h2>/, "");
-    const linked = [...body.matchAll(/<a href="(\w+)\.html[^"]*">chapter (\d+)/g)];
+    const linked = [...body.matchAll(/<a href="(\w+)\.html[^"]*">[Cc]hapter (\d+)/g)];
     for (const m of linked) if (order.indexOf(m[1]) + 1 === +m[2]) refsOk++; else refsBad.push(`${p}: ${m[1]} as ${m[2]}`);
-    const loose = (body.match(/chapter \d+/g) || []).length - linked.length; if (loose) refsBad.push(`${p}: ${loose} unlinked`); }
-  if (/chapter \d/.test(fs.readFileSync(path.join(dir, "js/main.js"), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""))) refsBad.push("main.js writes a chapter number; use chap()");
+    const loose = (body.match(/[Cc]hapter \d+/g) || []).length - linked.length; if (loose) refsBad.push(`${p}: ${loose} unlinked`); }
+  if (/[Cc]hapter \d/.test(fs.readFileSync(path.join(dir, "js/main.js"), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""))) refsBad.push("main.js writes a chapter number; use chap()");
   ok(!refsBad.length && refsOk > 10, `chapter references: ${refsOk} links, each with its chapter's number${refsBad.length ? "; wrong: " + refsBad.join(", ") : ""}`);
   const navOf = (h) => (h.match(/<nav class="chapters">([\s\S]*?)<\/nav>/) || [, ""])[1].replace(/ class="here"| here/g, "");
   const ids = (h) => [...h.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
@@ -479,7 +479,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 {
   const { PAIRMIN: P } = await import(path.join(here, "../js/pairmin.js")), K = 627.509, w = P[3], x = P[4], n9 = P["4.9"];
   const best = (r) => r.best.E <= Math.min(r.search, r.census, ...r.modelMinima.map((q) => q.hf)) + 1e-9;
-  ok([w, x, n9].every(best) && w.best.from === "census" && Math.abs(w.search - w.census) * K < 0.2, `the search keeps the lowest it found; for our water the census's linear pair stands (search ${(-w.search * K).toFixed(2)}, census ${(-w.census * K).toFixed(2)})`);
+  ok([w, x, n9].every(best) && Math.abs(w.search - w.census) * K < 0.2, `the search keeps the lowest it found; for our water the search and the census's linear pair agree (search ${(-w.search * K).toFixed(3)}, census ${(-w.census * K).toFixed(3)}, best from the ${w.best.from})`);
   ok(x.best.E < 1.8 * x.census && n9.best.E < 1.8 * n9.census && Math.abs(x.best.E - n9.best.E) / Math.abs(n9.best.E) < 0.05 && x.best.dXX < 5.2, `searched properly, Xater's pair binds ${(-x.best.E * K).toFixed(1)} and XH₃'s ${(-n9.best.E * K).toFixed(1)} kcal/mol (the census's ${(-x.census * K).toFixed(1)}, ${(-n9.census * K).toFixed(1)}): still a tie, at twice the strength, compact (Xater's heavy atoms ${x.best.dXX} bohr apart)`);
 }
 

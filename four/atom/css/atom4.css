@@ -130,3 +130,5 @@ p.made { background: var(--panel); border: 1px solid var(--border); border-radiu
 .tag.computed { color: #7dffb0; border-color: #7dffb066; } .tag.open { color: #ffd166; border-color: #ffd16666; }
 canvas.hopf { height: 380px; cursor: grab; }
 @media (max-width: 560px) { canvas.hopf { height: 320px; } }
+/* "how we got it wrong": a mistake kept in the text, with what fixed it */
+.box { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid #ffd166; border-radius: 10px; padding: 2px 14px; margin: 12px 0; }

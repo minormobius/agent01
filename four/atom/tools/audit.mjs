@@ -38,7 +38,7 @@ if (mode === "known") {
   log(`done; the fit and data copied to ${dir}`);
 } else if (mode === "probe" || mode === "deepen") {
   const key = argv[1], n = +argv[2], s = argv.indexOf("--shard"), [si, sm] = s >= 0 ? argv[s + 1].split("/").map(Number) : [0, 1];
-  const { WORLDS, monoOf } = await import("./forcefield.mjs"), { hydrideAtoms } = await import("./census.mjs"), { hfMany, hfDescend } = await import("./pairsearch.mjs");
+  const { WORLDS, monoOf } = await import("./forcefield.mjs"), { hydrideAtoms } = await import("./census.mjs"), { hfMany, hfDescend, kabsch } = await import("./pairsearch.mjs");
   const { modelEnergy } = await import("../js/ffmodel.js"), { FORCEFIELDS } = await import("../js/forcefields.js"), { PAIRMIN } = await import("../js/pairmin.js"), { randomRotation } = await import("../js/md.js");
   const w = WORLDS[key], d = w.d, m = monoOf(key), A = hydrideAtoms(m.Z, d, m.R, m.param), At = A.map((a) => a.at), best = PAIRMIN[key].best, p = FORCEFIELDS[key].p;
   // placement g, the same every time it's asked for: B = t + R·A, its turn R and offset t kept so it can be relaxed later
@@ -56,8 +56,10 @@ if (mode === "known") {
     const deepest = pts.sort((a, b) => a.hf - b.hf).slice(oi ?? 0, oi === null ? n : oi + 1), file = path.join(OUT, oi === null ? `deepen_${key}.json` : `deepen_${key}_${oi}.json`), st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { key, best: best.E, runs: [] }, t0 = Date.now();
     for (const q of deepest) {
       if (st.runs.some((r) => r.g === q.g)) continue;
-      const pl = place(q.g), drift = Math.max(...pl.B.flat().map((v, i) => Math.abs(v - q.B.flat()[i])));
-      if (drift > 1e-3) { console.log(`placement ${q.g} doesn't regenerate (off by ${drift}); skipped`); continue; }
+      // the pose from the placement as stored (Kabsch), not regenerated from its seed: a placement's distance is scaled
+      // by the best pair's spacing, which a later bake can move, so old probes no longer regenerate exactly
+      const { C, t } = kabsch(At, q.B), pl = { R: C, t }, back = At.map((a) => t.map((ti, i) => ti + C[i].reduce((s, r, j) => s + r * a[j], 0))), drift = Math.max(...back.flat().map((v, i) => Math.abs(v - q.B.flat()[i])));
+      if (drift > 1e-3) { console.log(`placement ${q.g}: its stored atoms don't fit a rigid molecule (off by ${drift}); skipped`); continue; }
       const log = (s) => console.log(`${((Date.now() - t0) / 1000).toFixed(0)}s #${q.g} ${s}`); log(`from ${(q.hf * KCAL).toFixed(2)} kcal/mol (best pair ${(best.E * KCAL).toFixed(2)})`);
       const r = await hfDescend(key, At, pl.R, [...new Array((d * (d - 1)) / 2).fill(0), ...pl.t], { iters: 30, log });
       const dXX = Math.hypot(...At[0].map((v, i) => v - r.B[0][i]));

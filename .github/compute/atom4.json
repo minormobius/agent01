@@ -1,49 +1,60 @@
 {
- "run": "nebula-1",
- "why": "Does a rotating 4D cloud flatten into a disk? Our world's must (a sphere can't be combed); a 3-sphere can (Hopf), so the shape may depend on the ratio of the cloud's two rates. Sweep that ratio in 4D with a 3D control, a second seed, harder collisions, a hotter start and double resolution. Plus long runs (T = 150, smaller) to see where the slow flattening ends.",
+ "run": "audit-3",
+ "why": "Finish fixing the miss. Xater's pair search, cut at audit-2's deadline while its new descent was still going down (to -27.35 from -26.94), resumes from its cached Hartree-Fock energies; and the deepest random placements of Xater and XH3 are relaxed, now that deepen rebuilds each pose from its stored atoms (audit-2's deepen jobs skipped them: placements made before a re-bake no longer regenerate from their seeds).",
  "minutes": 330,
  "groups": [
   {
-   "name": "rates-a",
+   "name": "search-xater",
    "cmds": [
-    "node four/atom/tools/nebula.mjs run 4 1 1 30000 40 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0.75 30000 40 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0.5 30000 40 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0.25 30000 40 1"
+    "node four/atom/tools/pairsearch.mjs 4 2"
    ]
   },
   {
-   "name": "rates-b",
+   "name": "deepen-xater-0",
    "cmds": [
-    "node four/atom/tools/nebula.mjs run 4 1 0 30000 40 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0.9 30000 40 1",
-    "node four/atom/tools/nebula.mjs run 3 1 0 30000 40 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0.5 30000 40 2"
+    "node four/atom/tools/audit.mjs deepen 4 4 --only 0"
    ]
   },
   {
-   "name": "robust",
+   "name": "deepen-xater-1",
    "cmds": [
-    "node four/atom/tools/nebula.mjs run 4 1 0.5 30000 40 1 1.0",
-    "node four/atom/tools/nebula.mjs run 4 1 0.5 30000 40 1 0.5 0.3",
-    "node four/atom/tools/nebula.mjs run 4 1 0 30000 40 1 1.0",
-    "node four/atom/tools/nebula.mjs run 4 1 1 30000 40 1 0.5 0.3"
+    "node four/atom/tools/audit.mjs deepen 4 4 --only 1"
    ]
   },
   {
-   "name": "resolution",
+   "name": "deepen-xater-2",
    "cmds": [
-    "node four/atom/tools/nebula.mjs run 4 1 0.5 60000 40 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0 60000 40 1"
+    "node four/atom/tools/audit.mjs deepen 4 4 --only 2"
    ]
   },
   {
-   "name": "long",
+   "name": "deepen-xater-3",
    "cmds": [
-    "node four/atom/tools/nebula.mjs run 4 1 0 10000 150 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0.5 10000 150 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0.25 10000 150 1",
-    "node four/atom/tools/nebula.mjs run 3 1 0 10000 150 1"
+    "node four/atom/tools/audit.mjs deepen 4 4 --only 3"
+   ]
+  },
+  {
+   "name": "deepen-bmmonia-0",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 0"
+   ]
+  },
+  {
+   "name": "deepen-bmmonia-1",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 1"
+   ]
+  },
+  {
+   "name": "deepen-bmmonia-2",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 2"
+   ]
+  },
+  {
+   "name": "deepen-bmmonia-3",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 3"
    ]
   }
  ]
