@@ -1,0 +1,62 @@
+$ node four/atom/tools/stability.mjs run 0.0001 line 100000
+66s mass 0.0001 line radii 1 : 1 at 0°: kept, eccentricity up to 0.0008, closest 0.491
+113s mass 0.0001 line radii 1 : 1 at 15°: kept, eccentricity up to 0.0008, closest 0.461
+160s mass 0.0001 line radii 1 : 1 at 30°: kept, eccentricity up to 0.0009, closest 0.383
+209s mass 0.0001 line radii 1 : 1 at 45°: kept, eccentricity up to 0.5579, closest 0.028
+257s mass 0.0001 line radii 1 : 1 at 60°: kept, eccentricity up to 0.6307, closest 0.012
+305s mass 0.0001 line radii 1 : 1 at 75°: kept, eccentricity up to 0.6137, closest 0.032
+352s mass 0.0001 line radii 1 : 1 at 90°: kept, eccentricity up to 0.562, closest 0.015
+354s mass 0.0001 line radii 1 : 1.05 at 0°: thrown out at orbit 3993, closest 0.017
+359s mass 0.0001 line radii 1 : 1.05 at 15°: thrown out at orbit 11887, closest 0.012
+408s mass 0.0001 line radii 1 : 1.05 at 30°: kept, eccentricity up to 0.5146, closest 0.018
+456s mass 0.0001 line radii 1 : 1.05 at 45°: kept, eccentricity up to 0.7327, closest 0.013
+504s mass 0.0001 line radii 1 : 1.05 at 60°: kept, eccentricity up to 0.6013, closest 0.012
+552s mass 0.0001 line radii 1 : 1.05 at 75°: kept, eccentricity up to 0.4274, closest 0.006
+555s mass 0.0001 line radii 1 : 1.05 at 90°: thrown out at orbit 6065, closest 0.016
+555s mass 0.0001 line radii 1 : 1.1 at 0°: thrown out at orbit 296, closest 0.044
+603s mass 0.0001 line radii 1 : 1.1 at 15°: kept, eccentricity up to 0.5396, closest 0.003
+651s mass 0.0001 line radii 1 : 1.1 at 30°: kept, eccentricity up to 0.5206, closest 0.015
+689s mass 0.0001 line radii 1 : 1.1 at 45°: thrown out at orbit 78330, closest 0.021
+737s mass 0.0001 line radii 1 : 1.1 at 60°: kept, eccentricity up to 0.006, closest 0.131
+785s mass 0.0001 line radii 1 : 1.1 at 75°: kept, eccentricity up to 0.5275, closest 0.021
+833s mass 0.0001 line radii 1 : 1.1 at 90°: kept, eccentricity up to 0.5068, closest 0.021
+881s mass 0.0001 line radii 1 : 1.15 at 0°: kept, eccentricity up to 0.3716, closest 0.058
+928s mass 0.0001 line radii 1 : 1.15 at 15°: kept, eccentricity up to 0.5357, closest 0.011
+976s mass 0.0001 line radii 1 : 1.15 at 30°: kept, eccentricity up to 0.0055, closest 0.156
+1024s mass 0.0001 line radii 1 : 1.15 at 45°: kept, eccentricity up to 0.6829, closest 0.019
+1063s mass 0.0001 line radii 1 : 1.15 at 60°: thrown out at orbit 82793, closest 0.017
+1111s mass 0.0001 line radii 1 : 1.15 at 75°: kept, eccentricity up to 0.4755, closest 0.022
+1159s mass 0.0001 line radii 1 : 1.15 at 90°: kept, eccentricity up to 0.5212, closest 0.014
+1206s mass 0.0001 line radii 1 : 1.2 at 0°: kept, eccentricity up to 0.0461, closest 0.134
+1254s mass 0.0001 line radii 1 : 1.2 at 15°: kept, eccentricity up to 0.0101, closest 0.183
+1302s mass 0.0001 line radii 1 : 1.2 at 30°: kept, eccentricity up to 0.1443, closest 0.192
+1350s mass 0.0001 line radii 1 : 1.2 at 45°: kept, eccentricity up to 0.6777, closest 0.006
+1368s mass 0.0001 line radii 1 : 1.2 at 60°: thrown out at orbit 37962, closest 0.022
+1416s mass 0.0001 line radii 1 : 1.2 at 75°: kept, eccentricity up to 0.5746, closest 0.012
+1463s mass 0.0001 line radii 1 : 1.2 at 90°: kept, eccentricity up to 0.5185, closest 0.014
+1511s mass 0.0001 line radii 1 : 1.3 at 0°: kept, eccentricity up to 0.0468, closest 0.248
+1559s mass 0.0001 line radii 1 : 1.3 at 15°: kept, eccentricity up to 0.0135, closest 0.276
+1606s mass 0.0001 line radii 1 : 1.3 at 30°: kept, eccentricity up to 0.1624, closest 0.286
+1654s mass 0.0001 line radii 1 : 1.3 at 45°: kept, eccentricity up to 0.5354, closest 0.03
+1702s mass 0.0001 line radii 1 : 1.3 at 60°: kept, eccentricity up to 0.579, closest 0.119
+1749s mass 0.0001 line radii 1 : 1.3 at 75°: kept, eccentricity up to 0.7754, closest 0.015
+1797s mass 0.0001 line radii 1 : 1.3 at 90°: kept, eccentricity up to 0.3627, closest 0.063
+1844s mass 0.0001 line radii 1 : 1.45 at 0°: kept, eccentricity up to 0.0018, closest 0.448
+1892s mass 0.0001 line radii 1 : 1.45 at 15°: kept, eccentricity up to 0.0026, closest 0.446
+1940s mass 0.0001 line radii 1 : 1.45 at 30°: kept, eccentricity up to 0.5248, closest 0.02
+1987s mass 0.0001 line radii 1 : 1.45 at 45°: kept, eccentricity up to 0.524, closest 0.019
+2035s mass 0.0001 line radii 1 : 1.45 at 60°: kept, eccentricity up to 0.1688, closest 0.338
+2083s mass 0.0001 line radii 1 : 1.45 at 75°: kept, eccentricity up to 0.1187, closest 0.325
+2131s mass 0.0001 line radii 1 : 1.45 at 90°: kept, eccentricity up to 0.0044, closest 0.447
+2178s mass 0.0001 line radii 1 : 1.6 at 0°: kept, eccentricity up to 0.0121, closest 0.598
+2226s mass 0.0001 line radii 1 : 1.6 at 15°: kept, eccentricity up to 0.0116, closest 0.599
+2274s mass 0.0001 line radii 1 : 1.6 at 30°: kept, eccentricity up to 0.0821, closest 0.588
+2322s mass 0.0001 line radii 1 : 1.6 at 45°: kept, eccentricity up to 0.3874, closest 0.335
+2370s mass 0.0001 line radii 1 : 1.6 at 60°: kept, eccentricity up to 0.3414, closest 0.317
+2418s mass 0.0001 line radii 1 : 1.6 at 75°: kept, eccentricity up to 0.7886, closest 0.027
+2466s mass 0.0001 line radii 1 : 1.6 at 90°: kept, eccentricity up to 0.0092, closest 0.59
+done
+(node:2540) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/orbits.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

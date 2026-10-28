@@ -1,0 +1,26 @@
+{
+ "group": "line",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/stability.mjs run 0.0001 line 100000",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2466
+  },
+  {
+   "cmd": "node four/atom/tools/stability.mjs run 0.001 line 100000",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 691
+  },
+  {
+   "cmd": "node four/atom/tools/stability.mjs run 0.01 line 100000",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 91
+  }
+ ]
+}

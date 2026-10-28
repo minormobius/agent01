@@ -1,0 +1,62 @@
+$ node four/atom/tools/stability.mjs run 0.01 line 100000
+0s mass 0.01 line radii 1 : 1 at 0°: thrown out at orbit 14, closest 0.22
+0s mass 0.01 line radii 1 : 1 at 15°: thrown out at orbit 9, closest 0.205
+0s mass 0.01 line radii 1 : 1 at 30°: thrown out at orbit 47, closest 0.162
+0s mass 0.01 line radii 1 : 1 at 45°: thrown out at orbit 30, closest 0.252
+0s mass 0.01 line radii 1 : 1 at 60°: thrown out at orbit 75, closest 0.206
+0s mass 0.01 line radii 1 : 1 at 75°: thrown out at orbit 44, closest 0.282
+0s mass 0.01 line radii 1 : 1 at 90°: thrown out at orbit 118, closest 0.195
+0s mass 0.01 line radii 1 : 1.05 at 0°: thrown out at orbit 16, closest 0.215
+1s mass 0.01 line radii 1 : 1.05 at 15°: thrown out at orbit 88, closest 0.084
+1s mass 0.01 line radii 1 : 1.05 at 30°: thrown out at orbit 103, closest 0.12
+1s mass 0.01 line radii 1 : 1.05 at 45°: thrown out at orbit 556, closest 0.095
+1s mass 0.01 line radii 1 : 1.05 at 60°: thrown out at orbit 175, closest 0.145
+1s mass 0.01 line radii 1 : 1.05 at 75°: thrown out at orbit 236, closest 0.116
+1s mass 0.01 line radii 1 : 1.05 at 90°: thrown out at orbit 82, closest 0.185
+1s mass 0.01 line radii 1 : 1.1 at 0°: thrown out at orbit 10, closest 0.253
+1s mass 0.01 line radii 1 : 1.1 at 15°: thrown out at orbit 18, closest 0.35
+1s mass 0.01 line radii 1 : 1.1 at 30°: thrown out at orbit 16, closest 0.187
+1s mass 0.01 line radii 1 : 1.1 at 45°: thrown out at orbit 138, closest 0.128
+2s mass 0.01 line radii 1 : 1.1 at 60°: thrown out at orbit 395, closest 0.083
+2s mass 0.01 line radii 1 : 1.1 at 75°: thrown out at orbit 353, closest 0.138
+2s mass 0.01 line radii 1 : 1.1 at 90°: thrown out at orbit 335, closest 0.13
+2s mass 0.01 line radii 1 : 1.15 at 0°: thrown out at orbit 12, closest 0.179
+3s mass 0.01 line radii 1 : 1.15 at 15°: thrown out at orbit 442, closest 0.069
+3s mass 0.01 line radii 1 : 1.15 at 30°: thrown out at orbit 207, closest 0.161
+3s mass 0.01 line radii 1 : 1.15 at 45°: thrown out at orbit 86, closest 0.094
+3s mass 0.01 line radii 1 : 1.15 at 60°: thrown out at orbit 382, closest 0.132
+3s mass 0.01 line radii 1 : 1.15 at 75°: thrown out at orbit 253, closest 0.116
+4s mass 0.01 line radii 1 : 1.15 at 90°: thrown out at orbit 295, closest 0.25
+4s mass 0.01 line radii 1 : 1.2 at 0°: thrown out at orbit 1, closest 0.315
+4s mass 0.01 line radii 1 : 1.2 at 15°: thrown out at orbit 170, closest 0.146
+4s mass 0.01 line radii 1 : 1.2 at 30°: thrown out at orbit 86, closest 0.141
+4s mass 0.01 line radii 1 : 1.2 at 45°: thrown out at orbit 19, closest 0.078
+4s mass 0.01 line radii 1 : 1.2 at 60°: thrown out at orbit 64, closest 0.046
+4s mass 0.01 line radii 1 : 1.2 at 75°: thrown out at orbit 708, closest 0.119
+5s mass 0.01 line radii 1 : 1.2 at 90°: thrown out at orbit 259, closest 0.197
+5s mass 0.01 line radii 1 : 1.3 at 0°: thrown out at orbit 20, closest 0.2
+5s mass 0.01 line radii 1 : 1.3 at 15°: thrown out at orbit 287, closest 0.021
+5s mass 0.01 line radii 1 : 1.3 at 30°: thrown out at orbit 167, closest 0.169
+5s mass 0.01 line radii 1 : 1.3 at 45°: thrown out at orbit 55, closest 0.185
+7s mass 0.01 line radii 1 : 1.3 at 60°: thrown out at orbit 1815, closest 0.136
+7s mass 0.01 line radii 1 : 1.3 at 75°: thrown out at orbit 156, closest 0.135
+7s mass 0.01 line radii 1 : 1.3 at 90°: thrown out at orbit 411, closest 0.045
+7s mass 0.01 line radii 1 : 1.45 at 0°: thrown out at orbit 32, closest 0.325
+7s mass 0.01 line radii 1 : 1.45 at 15°: thrown out at orbit 78, closest 0.124
+8s mass 0.01 line radii 1 : 1.45 at 30°: thrown out at orbit 1057, closest 0.152
+17s mass 0.01 line radii 1 : 1.45 at 45°: thrown out at orbit 11337, closest 0.209
+17s mass 0.01 line radii 1 : 1.45 at 60°: thrown out at orbit 78, closest 0.23
+17s mass 0.01 line radii 1 : 1.45 at 75°: thrown out at orbit 281, closest 0.139
+17s mass 0.01 line radii 1 : 1.45 at 90°: thrown out at orbit 134, closest 0.197
+87s mass 0.01 line radii 1 : 1.6 at 0°: kept, eccentricity up to 0.1769, closest 0.619
+88s mass 0.01 line radii 1 : 1.6 at 15°: thrown out at orbit 447, closest 0.068
+89s mass 0.01 line radii 1 : 1.6 at 30°: thrown out at orbit 1506, closest 0.302
+89s mass 0.01 line radii 1 : 1.6 at 45°: thrown out at orbit 351, closest 0.161
+90s mass 0.01 line radii 1 : 1.6 at 60°: thrown out at orbit 966, closest 0.163
+90s mass 0.01 line radii 1 : 1.6 at 75°: thrown out at orbit 720, closest 0.381
+91s mass 0.01 line radii 1 : 1.6 at 90°: thrown out at orbit 324, closest 0.231
+done
+(node:2542) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/orbits.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

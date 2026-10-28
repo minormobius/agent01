@@ -1,0 +1,26 @@
+{
+ "group": "iso",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/stability.mjs run 0.0001 iso 100000",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1835
+  },
+  {
+   "cmd": "node four/atom/tools/stability.mjs run 0.001 iso 100000",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2272
+  },
+  {
+   "cmd": "node four/atom/tools/stability.mjs run 0.01 iso 100000",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1763
+  }
+ ]
+}
