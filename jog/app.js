@@ -7,10 +7,12 @@
 
   // ------------------------------------------------------------------ map --
   const map = L.map('map', { zoomControl: true }).setView([40.7128, -74.006], 13);
-  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`, {
-    maxZoom: 19, subdomains: 'abcd',
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+  // OpenStreetMap's own raster tiles: free and keyless (CARTO's basemaps began
+  // drawing "API KEY REQUIRED" on every tile in 2026-09). The tile pane is muted,
+  // and inverted in dark mode, in index.html's CSS so the loops carry the colour.
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
 
   let home = null;        // { lat, lon, label }

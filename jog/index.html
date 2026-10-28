@@ -71,6 +71,10 @@
   .km { background: var(--panel); color: var(--ink); border: 2px solid var(--accent); border-radius: 99px; font: 600 10px/16px system-ui, sans-serif; text-align: center; width: 20px !important; height: 20px !important; margin: -10px 0 0 -10px !important; }
   .home { background: var(--hot); border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px var(--hot); }
   .leaflet-container { font: inherit; }
+  .leaflet-tile-pane { filter: grayscale(.55) contrast(.92) brightness(1.04); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) grayscale(.5) brightness(.85) contrast(.9); }
+  }
   @media (max-width: 760px) {
     .app { grid-template-columns: 1fr; grid-template-rows: 46dvh auto; height: auto; }
     #map { height: 46dvh; position: sticky; top: 0; z-index: 1; }

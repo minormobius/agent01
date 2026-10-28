@@ -8,7 +8,7 @@ each within a tolerance of the distance (±5/10/20%).
 
 | File | What |
 |---|---|
-| `index.html` | the page and all CSS. Leaflet 1.9.4 from cdnjs, CARTO basemap tiles (light or dark to match the OS) |
+| `index.html` | the page and all CSS. Leaflet 1.9.4 from cdnjs, OpenStreetMap raster tiles (keyless), muted by CSS and inverted in dark mode. **Not CARTO**: since 2026-09 its keyless basemaps draw "API KEY REQUIRED" on every tile |
 | `app.js` | geocoding (Nominatim), map drawing, the results list, km/mi markers, GPX export, permalink hash |
 | `solver.js` | the loop finder. One file that runs as a **Web Worker** (it fetches Overpass itself), as a script, or under node |
 | `solver.selftest.mjs` | synthetic street grid → loops; the deploy workflow runs it before deploying |
