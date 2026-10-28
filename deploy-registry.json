@@ -1759,6 +1759,21 @@
         ".github/workflows/deploy-henderhead.yml"
       ],
       "note": "An unofficial fan site rebuilding Matt Henderson's mathematical demos as interactive toys (worker `henderhead`, custom_domain henderhead.mino.mobi). Thin header/JSON worker in front of static assets — no build step to serve, no D1, no AI, no secrets. Five demos, each on its own Rust→WASM engine under <dir>/engine, gated by cargo test plus a node selftest — the workflow rebuilds every .wasm rather than trusting the committed copies: /cf/ continued-fraction Fourier curves, /craft/ a crafting-recipe automaton, /wheel/ a waterwheel that is the Lorenz system, /ball/ bouncing-ball chaos, /sand/ conic sections out of sand at the angle of repose. The follow-the-feed pipeline the site describes is deliberately NOT built — see the consent gate at henderhead.mino.mobi/#consent and henderhead/CLAUDE.md."
+    },
+    {
+      "surface": "jog",
+      "dir": "jog",
+      "endpoint": "jog.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/jog-running-loops",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "jog/**",
+        ".github/workflows/deploy-jog.yml"
+      ],
+      "note": "Running-loop finder: an address and a distance in, distinct running loops of about that length out. Thin assets Worker (worker `jog`, plain route jog.mino.mobi/*) — no build, no D1, no secrets. Routing runs in the browser (solver.js as a Web Worker) over OpenStreetMap ways fetched from Overpass; geocoding via Nominatim. (full description: jog/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-28) — new; plain route jog.mino.mobi/*, DNS by scripts/route-dns.mjs in deploy-jog.yml, which fails unless the host serves. Owned by claude/jog-running-loops."
     }
   ],
   "unmanaged": {

@@ -43,7 +43,7 @@ window.SPEC_CURATED = {
     bisk: 'social', empathy: 'social', io: 'social', photo: 'social',
     pod: 'social', answers: 'social', time: 'social', rant: 'social', parts: 'social',
     fifty: 'social', zest: 'social',
-    bakery: 'work', org: 'work', crm: 'work',
+    bakery: 'work', org: 'work', crm: 'work', jog: 'work',
     clef: 'work',
     finance: 'work', os: 'work', 'os-api': 'work', audio: 'work', board: 'work',
     labglass: 'science', j: 'science', ocr: 'science', splice: 'science',
