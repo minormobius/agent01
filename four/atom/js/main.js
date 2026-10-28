@@ -399,6 +399,14 @@ function drawGeometry() {
   const deg = (d) => Array.from({ length: 181 }, (_, i) => [i, (GEO.angleDensity(d, (i * Math.PI) / 180) * Math.PI) / 180 * 100]);
   chart($("cGeoAngles"), { key: "kGeoAngles", x: [0, 180], y: [0, 1.6], xl: "angle between two random directions (degrees)", yl: "% of pairs per degree", series: [
     { pts: deg(2), c: DIM, dash: [5, 4], label: "2D" }, { pts: deg(3), c: C3, label: "ours" }, { pts: deg(4), c: C4, label: "4D" }, { pts: deg(10), c: "#c79bff", dash: [2, 3], label: "10D, for the trend" }] });
+  // random walks, simulated here (seeded, so the same every time), against Pólya's limits
+  const N = 4096, lim = (d, c) => ({ pts: [[1, GEO.returnChance(d)], [N, GEO.returnChance(d)]], c, dash: [2, 4] });
+  chart($("cGeoWalk"), { key: "kGeoWalk", x: [1, N], logx: true, y: [0, 1], xl: "steps taken", yl: "share of walkers back home", series: [
+    { pts: GEO.walkReturns(2, 1500, N), c: DIM, dash: [5, 4], label: "2D: all, eventually" }, { pts: GEO.walkReturns(3, 1500, N), c: C3, label: `ours: → ${(GEO.returnChance(3) * 100).toFixed(0)}%` }, lim(3, C3),
+    { pts: GEO.walkReturns(4, 1500, N), c: C4, label: `4D: → ${(GEO.returnChance(4) * 100).toFixed(0)}%` }, lim(4, C4)] });
+  // whole-number points in each shell r ≤ |n| < r + 1, against the sphere's surface
+  const R = 12, shells = (d, c, label) => { const k = GEO.shellCounts(d, R); return [{ pts: k.slice(1, R).map((v, r) => [r + 1, Math.log10(v)]), c, label, dots: true }, { pts: Array.from({ length: 45 }, (_, i) => { const r = 1 + (i * (R - 2)) / 44; return [r, Math.log10(GEO.ballVolume(d, r + 1) - GEO.ballVolume(d, r))]; }), c, dash: [3, 3] }]; };
+  chart($("cGeoShells"), { key: "kGeoShells", x: [1, R - 1], logx: true, y: [0, 4.6], xl: "the shell's radius r", yl: "log₁₀ points in the shell", series: [...shells(2, DIM, "2D: grows as r"), ...shells(3, C3, "ours: as r²"), ...shells(4, C4, "4D: as r³")] });
 }
 
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */

@@ -1,6 +1,8 @@
 # ------------------------------------------------------------------ 1 geometry (exec'd by genpages.py; numbers from js/geometry.js)
 GE=json.loads(subprocess.run(['node','--input-type=module','-e','import { numbers } from "'+ATOM+'js/geometry.js"; console.log(JSON.stringify(numbers()));'],capture_output=True,text=True,check=True).stdout)
 GD=GE['per']
+GEOSLICE=json.loads(subprocess.run(['node','--input-type=module','-e','import * as G from "'+ATOM+'js/geometry.js"; const {V,E}=G.tesseract(); console.log(JSON.stringify([-1.5,-0.5,0,0.5,1.5].map((h)=>G.sliceCorners(V,E,[0.5,0.5,0.5,0.5],h).length)));'],capture_output=True,text=True,check=True).stdout)
+GEOSLICE='1, '+', '.join(map(str,GEOSLICE))+', 1'
 def pc(v,k=0): return f"{v*100:.{k}f}%"
 TAG={'choice':'<span class="tag choice">a choice</span>','follows':'<span class="tag follows">follows</span>','computed':'<span class="tag computed">computed</span>','open':'<span class="tag open">open</span>'}
 geometry=f'''<section id="room">
@@ -16,6 +18,13 @@ geometry=f'''<section id="room">
   <p class="read" id="kGeoSpread"></p>
   <p>That one fact sets the problem the rest of the book solves. A charge's field, spread over spheres by Gauss's law, falls as 1/r³, so the energy between two charges falls as 1/r². <a href="force.html">chapter 2</a> shows that no atom survives that, and why this universe pins the force at 1/r instead. Light keeps the 1/r³ (<a href="light.html">chapter 3</a>), so a lamp twice as far off is an eighth as bright. And a 4D atom has more neighbours at every distance, which is why 4D's gases are held together by the crowd rather than by their nearest neighbours (<a href="gas.html#far">chapter 13</a>).</p>
 </section>
+<section id="shells">
+  <h3>Counting in thin shells {TAG['follows']}</h3>
+  <p>The same counting decides how heat is shared out. Give each way something can move a point: one for each velocity, or one for each wave a box can hold. The ways with speeds near v fill a thin shell round the centre, and a shell holds a number growing as its surface, v<sup>d − 1</sup>. Here are the whole-number points in each shell, counted, against the sphere's surface:</p>
+  <canvas class="chart" id="cGeoShells"></canvas>
+  <p class="read" id="kGeoShells"></p>
+  <p>So in 4D there are many more ways to move fast. That counting is behind the spread of speeds in a gas, and behind each 4D atom's 2kT of heat, ½kT for each of its four directions (<a href="gas.html#ideal">chapter 13</a>). It's behind light too: a box holds waves of frequency ν in proportion to ν³, so a glowing body's spectrum goes as ν⁴ before it turns over, and the heat it gives out grows as T⁵, not our T⁴ (<a href="light.html">chapter 3</a>).</p>
+</section>
 <section id="corners">
   <h3>Corners and skins {TAG['follows']}</h3>
   <p>A square has 4 corners and a cube 8. A d-dimensional cube has 2<sup>d</sup> corners, and its flat parts of each dimension k number C(d, k) 2<sup>d − k</sup>:</p>
@@ -26,6 +35,12 @@ geometry=f'''<section id="room">
   <p>To see a 4D object we use two pictures, as a flat creature might picture a cube. Its <b>shadow</b> folds w into depth by perspective; its <b>slice</b> is what a 3D creature living at one value of w would see. Colour gives w: pink is kata (w below), green is ana (w above). Turn these, through w too, and slice them:</p>
   <div class="tiles" id="geoTiles"></div>
 </section>
+<section id="slices">
+  <h3>A tesseract passing through {TAG['follows']}</h3>
+  <p>A creature living in our 3D space, watching a tesseract drift through it along w, sees only the slice where the two meet. What it sees depends on which way the tesseract comes in. Cube first, a whole cube appears, stays as it is, and vanishes whole. Corner first, it starts as a point, swells into a tetrahedron, has its corners cut off into a truncated tetrahedron, is an octahedron at the middle, and shrinks back the other way: {GEOSLICE} corners, counted where the edges cross the slice.</p>
+  <div class="tiles two" id="sliceTiles"></div>
+  <p class="read">Press "sweep through w" to watch one pass, or drag the slider.</p>
+</section>
 <section id="directions">
   <h3>More room at right angles {TAG['follows']}</h3>
   <p>Pick two directions at random. In a flat world every angle between them is equally likely. In ours, angles near 90° are likelier: there's a whole circle of directions at right angles to any one, and only a point at 0°. In 4D there's a whole sphere of them, so random directions crowd toward right angles even more:</p>
@@ -33,6 +48,14 @@ geometry=f'''<section id="room">
   <p class="read" id="kGeoAngles"></p>
   <p>The mean of |cos θ| between two random directions is {GD['2']['meanAbsCos']:.2f} in 2D, {GD['3']['meanAbsCos']:.2f} in ours and {GD['4']['meanAbsCos']:.2f} in 4D. <b>Aiming is harder</b>: a cone of 30° round a direction catches {pc(GD['3']['within30'],1)} of all directions in ours and {pc(GD['4']['within30'],1)} in 4D. So two 4D molecules tumbling into each other line up well less often, and a search for how they fit best has more to search (<a href="search.html">chapter 12</a>).</p>
   <p><b>More neighbours touch.</b> Around one ball, {GD['2']['kissing']} equal balls can touch it in a plane, {GD['3']['kissing']} in ours and <b>{GD['4']['kissing']} in 4D</b>, at the corners of the 24-cell, the regular shape with no cousin in our world (<a href="shapes.html">chapter 7</a>). Yet the densest packing fills less: {pc(GD['2']['packing'])}, {pc(GD['3']['packing'])}, and {pc(GD['4']['packing'])} in 4D. There's more room at every distance, and less of it gets filled.</p>
+</section>
+<section id="walks">
+  <h3>Lost walkers stay lost {TAG['follows']}</h3>
+  <p>A walker on a grid steps to a neighbouring point at random, forever. Will it ever come home? Pólya proved in 1921 that on a line or a plane it always does, eventually, and that from three dimensions on it may not. In ours it comes home {pc(GD['3']['returnChance'],0)} of the time; <b>in 4D, {pc(GD['4']['returnChance'],0)}</b>. There's more room to get lost in.</p>
+  <canvas class="chart" id="cGeoWalk"></canvas>
+  <p class="read" id="kGeoWalk"></p>
+  <p class="read">1,500 walkers in each dimension, simulated in your browser, against the exact limits (dotted), from Montroll's integral.</p>
+  <p>That is diffusion. Two molecules drifting apart in a 4D liquid are less likely to meet again, and a wandering molecule wastes fewer steps going back over its own path: in a long walk {pc(1-GD['4']['returnChance'],0)} of the points a 4D walker reaches are new to it, against {pc(1-GD['3']['returnChance'],0)} in ours. More first meetings, fewer second chances.</p>
 </section>
 <section id="planes">
   <h3>Planes meet at a point {TAG['follows']}</h3>
@@ -57,6 +80,12 @@ geometry=f'''<section id="room">
   <p class="read">Hopf's circles, a few of them, projected from the 3-sphere into our space. Each colour is one torus of circles: pink, the single ring through the middle; then tori of circles farther out, each circle linked through the others. Past the blue ones the circles grow until one becomes the line through the ring's centre. Drag to turn.</p>
   <p>Why it matters here: gas circling a star covers a sphere, so in our world its streams must cross somewhere, and streams that cross collide, lose energy and settle into one plane. That's a reason our solar system is flat. In 4D the streams needn't cross, so a 4D nebula needn't flatten into a disk. {TAG['open']} Whether real 4D nebulae stay round is being simulated now.</p>
 </section>
+<section id="clifford">
+  <h3>A flat torus {TAG['follows']}</h3>
+  <p>Halfway out among Hopf's circles sits a special torus: the points (cos a, sin a, cos b, sin b)/√2, a circle in xy times a circle in zw. Step along a or along b and you move the same distance, at right angles, wherever you are. <b>The torus is flat</b>, as flat as a sheet of paper: it's an old video game's screen, where leaving one edge brings you back at the opposite one, made without stretching anything. In ours no torus can be flat, because a doughnut's outside curves one way and its inside the other. Clifford's torus also splits the 3-sphere into two equal solid tori, and its diagonals are Hopf circles. Projected into our space, it's a doughnut whose radii are in the ratio √2 to 1:</p>
+  <canvas class="chart tall hopf" id="cClifford"></canvas>
+  <p class="read">The Clifford torus, projected into our space: the grid of its a and b circles, which in 4D are all the same size and meet at right angles everywhere, and two of its diagonals in colour, Hopf circles, linked. Drag to turn.</p>
+</section>
 <section id="knots">
   <h3>Knots untie, and gloves turn over {TAG['follows']}</h3>
   <p>A knot in a string unties in 4D: lift one strand off into w, pass it over the other and set it back. No string can be knotted in 4D, and no two rings can be linked. Surfaces can be: a sphere can be knotted in 4D, as a string is in ours.</p>
@@ -64,6 +93,6 @@ geometry=f'''<section id="room">
 </section>
 <section id="geometrynext">
   <h3>Checked, and what it gives the rest</h3>
-  <p class="read">Checked here (selftest 37): the sphere formulas against random points, the spread of directions against sampling, the 24 shortest vectors of the densest 4D lattice, the general-position counts against random flats, a double rotation with no line left in place, and Hopf's circles: unit speed everywhere, no two meeting, each pair the same distance apart. This chapter is mathematics, so everything in it follows, nothing is chosen; the physics starts in <a href="force.html">chapter 2</a>.</p>
+  <p class="read">Checked here (selftests 37 and 38): the sphere formulas against random points, the spread of directions against sampling, the shells' counts against the sphere's surface, Pólya's chances (Montroll's integral against known values, and against walks), the corner-first slices' corners, the Clifford torus's flatness and its √2 doughnut, the 24 shortest vectors of the densest 4D lattice, the general-position counts against random flats, a double rotation with no line left in place, and Hopf's circles: unit speed everywhere, no two meeting, each pair the same distance apart. This chapter is mathematics, so everything in it follows, nothing is chosen; the physics starts in <a href="force.html">chapter 2</a>.</p>
 </section>
 '''

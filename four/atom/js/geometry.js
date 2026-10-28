@@ -46,9 +46,55 @@ export const hopfCircle = (eta, a, b, n = 96) => Array.from({ length: n + 1 }, (
 /* stereographic projection of the 3-sphere into our space, from the pole (0, 0, 0, 1) */
 export const stereo = (p) => [p[0] / (1 - p[3]), p[1] / (1 - p[3]), p[2] / (1 - p[3])];
 
+/* random walks: on the grid of whole-number points, a step to one of the 2d neighbours at random. Pólya: in 1D and 2D a
+   walker comes back home for sure; from 3D on it may never. The chance it does is 1 − 1/G, with G the expected number
+   of visits home, G = ∫₀^∞ e^(−t) I₀(t/d)^d dt (Montroll). e^(−x) I₀(x) by its series, or far out its asymptotic form */
+export function scaledI0(x) {
+  if (x < 18) { let term = 1, sum = 1; const q = (x * x) / 4; for (let k = 1; k < 200; k++) { term *= q / (k * k); sum += term; if (term < 1e-17 * sum) break; } return sum * Math.exp(-x); }
+  const y = 1 / x; return (1 + y / 8 + (9 * y * y) / 128 + (225 * y ** 3) / 3072 + (11025 * y ** 4) / 98304) / Math.sqrt(2 * Math.PI * x);
+}
+export function returnChance(d) {
+  if (d <= 2) return 1;
+  const T = 1e7, n = 40000, s0 = Math.log(1e-8), s1 = Math.log(T), h = (s1 - s0) / n, f = (s) => { const t = Math.exp(s); return t * scaledI0(t / d) ** d; };
+  let G = f(s0) + f(s1); for (let i = 1; i < n; i++) G += (i % 2 ? 4 : 2) * f(s0 + i * h); G *= h / 3;
+  const k = d / 2, c = (d / (2 * Math.PI)) ** k; G += c * (T ** (1 - k) / (k - 1) + ((d * d) / 8) * (T ** -k / k)); // the tail, from the asymptotic form
+  return 1 - 1 / G;
+}
+/* simulated: the share of walks home by each step, sampled at steps 1, 2, 4, 8, … (a seeded generator, so repeatable) */
+export function walkReturns(d, walks = 2000, steps = 4096, seed = 7) {
+  let s = seed >>> 0 || 1; const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+  const first = new Int32Array(steps + 1), p = new Int32Array(d);
+  for (let w = 0; w < walks; w++) { p.fill(0); for (let t = 1; t <= steps; t++) { const r = rnd() * 2 * d, a = Math.floor(r / 2); p[a] += r - 2 * a < 1 ? 1 : -1; let home = true; for (let c = 0; c < d; c++) if (p[c]) { home = false; break; } if (home) { first[t]++; break; } } }
+  const out = []; let cum = 0; for (let t = 1; t <= steps; t++) { cum += first[t]; if ((t & (t - 1)) === 0 || t === steps) out.push([t, cum / walks]); }
+  return out;
+}
+
+/* counting in thin shells: the whole-number points with r ≤ |n| < r + 1. Their number grows as the sphere's surface,
+   S_d r^(d−1): the count behind thermal physics (states at each speed, light's modes at each frequency) */
+export function shellCounts(d, R) {
+  const counts = new Array(R + 1).fill(0), n = new Array(d).fill(-R);
+  for (;;) { const r = Math.sqrt(n.reduce((t, u) => t + u * u, 0)); if (r < R + 1) counts[Math.floor(r)]++; let c = 0; while (c < d && ++n[c] > R) n[c++] = -R; if (c === d) break; }
+  return counts;
+}
+
+/* slicing: a tesseract (corners (±1, ±1, ±1, ±1)) cut by the 3D space x·u = h. Each edge crossing it gives one corner of
+   the slice; corners lying in it count once */
+export function tesseract() { const V = [], E = []; for (let i = 0; i < 16; i++) V.push([0, 1, 2, 3].map((b) => (i & (1 << b) ? 1 : -1))); for (let i = 0; i < 16; i++) for (let b = 0; b < 4; b++) if (!(i & (1 << b))) E.push([i, i | (1 << b)]); return { V, E }; }
+export function sliceCorners(V, E, u, h, eps = 1e-9) {
+  const at = V.map((v) => v.reduce((t, x, k) => t + x * u[k], 0) - h), pts = [];
+  V.forEach((v, i) => { if (Math.abs(at[i]) < eps) pts.push(v); });
+  for (const [a, b] of E) if ((at[a] < -eps && at[b] > eps) || (at[a] > eps && at[b] < -eps)) { const t = at[a] / (at[a] - at[b]); pts.push(V[a].map((x, k) => x + t * (V[b][k] - x))); }
+  return pts;
+}
+
+/* the Clifford torus: a circle in xy times a circle in zw, both of radius 1/√2, so it lies on the 3-sphere. Its two
+   directions are at right angles and equally long everywhere: it is flat. Its diagonals are Hopf circles */
+export const clifford = (a, b) => [Math.cos(a), Math.sin(a), Math.cos(b), Math.sin(b)].map((x) => x / Math.SQRT2);
+
 /* the numbers the geometry chapter states, for its generator */
 export function numbers() {
   const per = {};
   for (const d of [1, 2, 3, 4]) per[d] = { area: sphereArea(d), volume: ballVolume(d), doubling: 2 ** (d - 1), atTen: spread(d, 10), ballInCube: ballInCube(d), skin10: skin(d, 0.1), meanAbsCos: d > 1 ? meanAbsCos(d) : 1, within30: d > 1 ? capShare(d, Math.PI / 6) : 0.5, kissing: KISSING[d], packing: packing(d), turnPlanes: turnPlanes(d), turnRates: turnRates(d) };
-  return { per, tesseract: [0, 1, 2, 3].map((k) => cubeParts(4, k)), cube: [0, 1, 2].map((k) => cubeParts(3, k)), d10: { skin10: skin(10, 0.1), ballInCube: ballInCube(10), meanAbsCos: meanAbsCos(10) } };
+  for (const d of [1, 2, 3, 4]) per[d].returnChance = returnChance(d);
+  return { per, tesseract: [0, 1, 2, 3].map((k) => cubeParts(4, k)), cube: [0, 1, 2].map((k) => cubeParts(3, k)), d10: { skin10: skin(10, 0.1), ballInCube: ballInCube(10), meanAbsCos: meanAbsCos(10) }, returnD5: returnChance(5) };
 }

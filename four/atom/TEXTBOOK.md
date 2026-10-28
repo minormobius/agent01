@@ -51,7 +51,8 @@ Each chapter below names where its material lives now.
 
 1. **Geometry.** Spheres that grow as r³, so whatever spreads from a point thins as 1/r³; corners and skins; more room
    at right angles; planes that meet at a point; turning in planes; the 3-sphere combed by Hopf's circles; knots that
-   untie. No physics, and everything after leans on it. **Built** (`geometry.html`, `js/geometry.js`, selftest 37).
+   untie; thin shells (2kT, T⁵); lost walkers (Pólya); a tesseract's slices; the flat Clifford torus. No physics, and
+   everything after leans on it. **Built** (`geometry.html`, `js/geometry.js`, selftests 37–38).
 
 **Part II · The laws**
 2. **One choice: the force at 1/r.** What the universe contains, why Gauss's 1/r² leaves no atom, and pinning at

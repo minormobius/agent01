@@ -675,5 +675,24 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `geometry: a 4D ball fills ${(b4 * 100).toFixed(2)}% of its cube by sampling (π²/32 = ${((Math.PI ** 2 / 32) * 100).toFixed(2)}%), ours ${(b3 * 100).toFixed(2)}%; mean |cos| of random 4D directions ${m4.toFixed(4)} (${GE.meanAbsCos(4).toFixed(4)}), a 30° cone ${(c4 * 100).toFixed(2)}% (${(GE.capShare(4, Math.PI / 6) * 100).toFixed(2)}%); D₄'s shortest vectors: ${nMin} of length √${minN}; random planes meet only at the origin; an equal double rotation leaves no line; two Hopf circles stay ${gMin.toFixed(4)}–${gMax.toFixed(4)} apart; the tesseract ${T.join(", ")}`);
 }
 
+/* 38 · geometry, continued (js/geometry.js, the geometry chapter): Pólya's return chances from Montroll's integral
+   against their known values and against simulated walks; points in thin shells against the sphere's surface; a
+   tesseract's corner-first slices; the Clifford torus flat, on the 3-sphere, and projected to a √2 : 1 doughnut */
+{
+  const GE = await import(path.join(here, "../js/geometry.js")), rel = (x, y, t) => Math.abs(x / y - 1) < t;
+  const p3 = GE.returnChance(3), p4 = GE.returnChance(4), p5 = GE.returnChance(5), w4 = GE.walkReturns(4, 3000, 4096).at(-1)[1];
+  const k4 = GE.shellCounts(4, 12), inside = k4.slice(0, 12).reduce((a, b) => a + b, 0), shellsOk = [8, 9, 10, 11].every((r) => rel(k4[r], GE.ballVolume(4, r + 1) - GE.ballVolume(4, r), 0.08));
+  const { V, E } = GE.tesseract(), sl = [-1.5, -0.5, 0, 0.5, 1.5].map((h) => GE.sliceCorners(V, E, [0.5, 0.5, 0.5, 0.5], h).length);
+  let flat = true, ring = 0;
+  for (let i = 0; i < 40; i++) {
+    const a = i * 0.37, b = i * 0.91, P = GE.clifford(a, b), e = 1e-6, da = GE.clifford(a + e, b).map((x, k) => (x - P[k]) / e), db = GE.clifford(a, b + e).map((x, k) => (x - P[k]) / e);
+    const dot = da.reduce((t, x, k) => t + x * db[k], 0);
+    if (!(Math.abs(Math.hypot(...P) - 1) < 1e-12 && Math.abs(Math.hypot(...da) - Math.SQRT1_2) < 1e-5 && Math.abs(Math.hypot(...db) - Math.SQRT1_2) < 1e-5 && Math.abs(dot) < 1e-5)) flat = false;
+    const q = GE.stereo(P); ring = Math.max(ring, Math.abs((Math.hypot(q[0], q[1]) - Math.SQRT2) ** 2 + q[2] ** 2 - 1));
+  }
+  ok(rel(p3, 0.340537, 1e-5) && rel(p4, 0.193206, 1e-4) && rel(p5, 0.135178, 1e-4) && rel(w4, p4, 0.06) && shellsOk && rel(inside, GE.ballVolume(4, 12), 0.02) && sl.join() === "4,12,6,12,4" && flat && ring < 1e-9,
+    `geometry, continued: a walker comes home ${(p3 * 100).toFixed(2)}% of the time in ours, ${(p4 * 100).toFixed(2)}% in 4D (Pólya, Montroll: 34.05, 19.32), ${(w4 * 100).toFixed(1)}% of 3,000 simulated 4D walks within 4,096 steps; ${inside} whole-number points within radius 12 in 4D (the ball: ${GE.ballVolume(4, 12).toFixed(0)}); a corner-first tesseract's slices have ${sl.join(", ")} corners; the Clifford torus is flat and projects to a √2 : 1 doughnut (to ${ring.toExponential(0)})`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

@@ -168,9 +168,11 @@ for games, and this is a modelling programme with publications to come. The game
   **generated** `js/starsdata.js` (~30 s). Gravity's pin and the weak force are recorded as choices, not taken.
   `js/geometry.js` (no DOM) is the geometry chapter, the book's first: spheres' areas and volumes in any d (so a
   point's spread thins as 1/r^(d−1)), corners and skins, the angle between random directions, kissing numbers and D_d
-  packings, flats in general position, planes of turning, and Hopf's circles (the flow v = Jx combs the 3-sphere).
-  `js/geomviz.js` draws its toys (a cube and tesseract to turn and slice, an equal double rotation, the Hopf
-  circles stereographically projected). Selftest 37 checks it against sampling and counting.
+  packings, flats in general position, planes of turning, Hopf's circles (the flow v = Jx combs the 3-sphere), points in
+  thin shells, Pólya's return chances (Montroll's integral, and seeded walks), a tesseract's slices, and the Clifford torus.
+  `js/geomviz.js` draws its toys (a cube and tesseract to turn and slice, an equal double rotation, a tesseract
+  passing through corner first and cube first, the Hopf circles and the Clifford torus stereographically projected).
+  Selftests 37 and 38 check it against sampling, counting and known values.
   `js/orbits.js` (no DOM) is the stars chapter's orbits: a leapfrog n-body for a 1/r^k pull in any dimension, an orbit's
   eccentricity and plane, the principal angles between two planes, a round star's outside potential from its shells
   (pinned 4D: −1/r + ⟨r²⟩/8r³) and the precession that causes, and two planets in one plane or turned apart.
