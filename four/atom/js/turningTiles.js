@@ -28,7 +28,7 @@ export function buildTurning() {
   // a frame's turns arrive plane by plane: sum them first, so a right-isoclinic frame's halves cancel before counting
   let needle = [0.6, 0.8, 0], spinDeg = 0, ignoredDeg = 0, pendL = [0, 0, 0], pendR = [0, 0, 0];
   const spinTile = makeTile(host, { P: tess.V, lines: tess.E, faces: tess.F }, {
-    title: "how 4D turns", sub: "two perpendicular planes at once; the needle is an electron's spin", start: turn(turn(eye(), 0, 2, 0.4), 1, 2, 0.3), spin: [[0, 1, 0.012]],
+    tab: "turning", title: "how 4D turns", sub: "two perpendicular planes at once; the needle is an electron's spin", start: turn(turn(eye(), 0, 2, 0.4), 1, 2, 0.3), spin: [[0, 1, 0.012]],
     onTurn: (a, b, th) => { const c = [0, 0, 0, 0, 0, 0]; c[R.PLANES.findIndex(([x, y]) => x === a && y === b)] = th; const W = R.bivector(c); R.leftVector(W).forEach((v, i) => (pendL[i] += v)); R.rightVector(W).forEach((v, i) => (pendR[i] += v)); },
     overlay: (g, w) => {
       needle = rot3(needle, pendL); spinDeg += (Math.hypot(...pendL) * 180) / Math.PI; ignoredDeg += (Math.hypot(...pendR) * 180) / Math.PI; pendL = [0, 0, 0]; pendR = [0, 0, 0];
@@ -53,7 +53,7 @@ export function buildTurning() {
   reset();
   const orbitScene = { balls: [{ p: [0, 0, 0, 0], c: "#ffd27a", r: 0.13 }, { p: orb.s.x, c: "#6fe0ff", r: 0.07 }], P: [], lines: [] };
   tiles.push(makeTile(host, orbitScene, {
-    title: "an orbit", sub: "a planet round a star, in a plane tilted through all four directions", R: 2.1, start: turn(eye(), 1, 2, 0.4), spin: [[0, 3, 0.002]],
+    tab: "an orbit", title: "an orbit", sub: "a planet round a star, in a plane tilted through all four directions", R: 2.1, start: turn(eye(), 1, 2, 0.4), spin: [[0, 3, 0.002]],
     step: () => {
       for (let k = 0; k < 6; k++) orb.s = R.orbitStep(orb.s, 0.004, orb.q);
       const r = Math.hypot(...orb.s.x); if (r > 3 || r < 0.08) reset();
@@ -72,7 +72,7 @@ export function buildTurning() {
   kick([0.02, 0.0, 0.0, 1.0, 0.0, 0.02]);
   const boxV = tess.V.map((v) => v.map((x, i) => (x * 2 * side[i]) / 2)), boxScene = { P: boxV.slice(), lines: tess.E, faces: tess.F };
   tiles.push(makeTile(host, boxScene, {
-    title: "a box tumbling", sub: "no forces at all: angular momentum and energy kept, the turn never settles", R: 1.6, start: turn(turn(eye(), 0, 2, 0.5), 1, 2, 0.3), spin: [0, 0],
+    tab: "tumbling", title: "a box tumbling", sub: "no forces at all: angular momentum and energy kept, the turn never settles", R: 1.6, start: turn(turn(eye(), 0, 2, 0.5), 1, 2, 0.3), spin: [0, 0],
     step: () => {
       for (let k = 0; k < 4; k++) { const W = R.omegaOf(body.M, j); body.R = mul4(body.R, cayley(W, 0.01)); body.M = R.bodyStep(body.M, j, 0.01); }
       boxScene.P = boxV.map((v) => [0, 1, 2, 3].map((r) => body.R[r].reduce((s, x, k) => s + x * v[k], 0)));
@@ -86,7 +86,7 @@ export function buildTurning() {
 
   // 4 · D₂H₈: three ways to twist about one bond
   tiles.push(makeTile(host, ethaneD(), {
-    title: "D₂H₈: three twists", sub: "fix the bond's line and what's left turns in three planes: each end's four hydrogens turn against the other's", R: 1.8, start: turn(turn(eye(), 1, 2, 0.4), 0, 2, 0.6), spin: [0, 0.002],
+    tab: "twists", title: "D₂H₈: three twists", sub: "fix the bond's line and what's left turns in three planes: each end's four hydrogens turn against the other's", R: 1.8, start: turn(turn(eye(), 1, 2, 0.4), 0, 2, 0.6), spin: [0, 0.002],
     extras: [[1, 2, "twist yz"], [1, 3, "twist yw"], [2, 3, "twist zw"]].map(([a, b, label]) => ({ label, onClick: (T) => { const L0 = T.L[1] || eye(); T.animate(900, (t) => { T.L[1] = turn(L0, a, b, (Math.PI / 3) * t); }); } })),
   }));
 }

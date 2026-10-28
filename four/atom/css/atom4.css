@@ -61,19 +61,31 @@ canvas.spec { height: 120px; margin: 10px 0; background: #000; border: 1px solid
 .route h5 { font: 700 14px var(--mono); margin: 0 0 4px; color: var(--d4); }
 .route p { margin: 4px 0; font-size: 14px; }
 .route .cost { font: 12px/1.5 var(--mono); color: #ff9b8a; }
-/* tiles: small 4D viewers (./js/tile.js) */
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin: 12px 0; }
+/* 4D viewers (./js/tile.js): full width, several in one host shown one at a time by tabs; on a phone they run to the
+   screen's edges. A touch does nothing until the viewer is tapped live (outlined), so the page still scrolls */
+.tiles { display: block; margin: 12px 0; }
+.tiles > .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 6px; } .tiles > .tabs[hidden] { display: none; }
+.tiles > .tabs button { font: 600 12px var(--mono); background: none; color: var(--dim); border: 1px solid var(--border); border-radius: 999px; padding: 4px 11px; cursor: pointer; }
+.tiles > .tabs button.on { color: #05060a; background: var(--d4); border-color: var(--d4); }
 .tile { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-.tile .th { font: 12px/1.4 var(--mono); color: var(--dim); min-height: 3.4em; } .tile .th b { display: block; color: var(--text); font-size: 13px; } .tile .th small { color: var(--dim); font-weight: 400; }
-.tile canvas { aspect-ratio: 1; height: auto; background: #05060a; border-radius: 8px; touch-action: pan-y; cursor: grab; }
-.tile .tc { display: flex; flex-wrap: wrap; gap: 4px; }
-.tile .tc button { font: 600 11px var(--mono); background: none; color: var(--text); border: 1px solid var(--border); border-radius: 7px; padding: 3px 8px; cursor: pointer; }
+.tile[hidden] { display: none; }
+.tile .th { font: 12px/1.4 var(--mono); color: var(--dim); } .tile .th b { display: block; color: var(--text); font-size: 13px; } .tile .th small { color: var(--dim); font-weight: 400; }
+.tile .cvw, .cvw { position: relative; }
+.tile canvas { display: block; width: 100%; aspect-ratio: 16 / 10; height: auto; max-height: 72vh; background: #05060a; border-radius: 8px; cursor: grab; }
+.cvw.live canvas { outline: 2px solid var(--d4); outline-offset: -2px; }
+.cvw .pill { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font: 600 11px var(--mono); color: var(--dim); background: rgba(5,6,10,0.75); border: 1px solid var(--border); border-radius: 999px; padding: 4px 11px; cursor: pointer; }
+.cvw .pill.on { color: #05060a; background: var(--d4); border-color: var(--d4); } .cvw .pill[hidden] { display: none; }
+.tile .tc { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.tile .tc button { font: 600 11px var(--mono); background: none; color: var(--text); border: 1px solid var(--border); border-radius: 7px; padding: 4px 9px; cursor: pointer; }
 .tile .tc button.on { border-color: var(--d4); color: var(--d4); }
+.tile .tc.flips span { font: 11px var(--mono); color: var(--dim); margin-right: 2px; } .tile .tc.flips button { min-width: 30px; }
 .tile .hs { display: flex; align-items: center; gap: 6px; font: 11px var(--mono); color: var(--dim); } .tile .hs[hidden] { display: none; }
 .tile .hs input { flex: 1; accent-color: var(--d4); }
-.tiles.four { grid-template-columns: repeat(4, 1fr); } .tiles.two { grid-template-columns: repeat(2, 1fr); } .tiles.four .tile .th { min-height: 5.4em; }
-@media (max-width: 760px) { .tiles.four { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) { .tiles.two { grid-template-columns: 1fr; } .tiles { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } }
+@media (max-width: 560px) {
+  .tiles { margin-left: -16px; margin-right: -16px; } .tiles > .tabs { padding: 0 12px; }
+  .tiles .tile { border-radius: 0; border-left: 0; border-right: 0; padding: 8px 0; } .tiles .tile .th, .tiles .tile .tc, .tiles .tile .hs { padding: 0 12px; }
+  .tiles .tile canvas { aspect-ratio: 1; border-radius: 0; }
+}
 /* chapters: the nav, the pager, the landing's cards */
 nav.chapters { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 0 0 18px; }
 nav.chapters a { font: 600 11px var(--mono); color: var(--dim); text-decoration: none; border: 1px solid var(--border); border-radius: 7px; padding: 3px 8px; }
@@ -116,5 +128,5 @@ p.made { background: var(--panel); border: 1px solid var(--border); border-radiu
 .tag { font: 600 10px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; border: 1px solid; vertical-align: middle; white-space: nowrap; }
 .tag.choice { color: #c79bff; border-color: #c79bff66; } .tag.follows { color: #6fe0ff; border-color: #6fe0ff66; }
 .tag.computed { color: #7dffb0; border-color: #7dffb066; } .tag.open { color: #ffd166; border-color: #ffd16666; }
-canvas.hopf { height: 380px; touch-action: none; cursor: grab; }
+canvas.hopf { height: 380px; cursor: grab; }
 @media (max-width: 560px) { canvas.hopf { height: 320px; } }

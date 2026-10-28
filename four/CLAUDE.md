@@ -184,11 +184,17 @@ for games, and this is a modelling programme with publications to come. The game
   NH₃/H₂O/HF, then their H-bonded pairs; jobs cached in the temp dir, so a
   cut run resumes; run it on the runner). `js/polytopes.js`
   (no DOM) builds the six regular 4D polytopes, sp^d hybrids and the diamond
-  nets. `js/tile.js` is a small 4D viewer (shadow coloured by w, or the 3D
+  nets. `js/tile.js` is the 4D viewer (shadow coloured by w, or the 3D
   slice at w = h; drag turns in 3D or through w; idle spin in any planes,
   `step`/`overlay`/`onTurn` hooks; draws only while on screen), used by
-  `js/shapes.js` and `js/turningTiles.js`, and meant to grow into the 4D
-  molecular-dynamics view. Imports `../../lumen/js/optics.js` for line and
+  `js/shapes.js`, `js/turningTiles.js`, `js/geomviz.js`, `js/search.js` and `js/liquid.js`, and meant to grow
+  into the 4D molecular-dynamics view. **Viewers are full width, one at a time:** several `makeTile`s in one
+  `.tiles` host become one viewer with a tab each (option `tab`; `data-all` on the host shows them all, as the live
+  search needs). On a phone they run to the screen's edges. **Touch is tap-to-engage** (`engageable`, also used by
+  the Hopf and Clifford views): a touch does nothing until the viewer is tapped live, so the page scrolls; ✓, a tap
+  elsewhere or scrolling away lets go. A mouse turns it directly. **The reticle** (bottom right, KATABASIS's) shows
+  the four axes as they lie in the view; tapping an axis, or its flip button, swings it into w by a quarter turn,
+  and ▣ squares the view onto the axes (`nearestSquare`). Imports `../../lumen/js/optics.js` for line and
   sky colours; Lumen⁴'s page links back to the light chapter. See
   [`atom/README.md`](atom/README.md).
 - **ATOM⁴'s pages are generated.** The fourteen chapters and the landing come from

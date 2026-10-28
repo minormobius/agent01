@@ -30,9 +30,9 @@
 </section>
 <section id="watch">
   <h3>Watch it search</h3>
-  <p>Two molecules from a random start, sliding down the force field's slope to the nearest minimum, every number at once (BFGS: each step learns how the slope curves). The line under each pair is that descent's energy, and the dashed line is where the census's pair sits. When a descent ends, the molecule takes its basin's colour: arrangements within 0.3 kcal/mol and 0.15 bohr are one basin. A descent that runs out of steps before the slope has gone is counted as <i>unfinished</i>, not as a basin. Turn the 4D tile through w to see the turns you can't see in a slice. <b>race</b> runs whole descents without showing them.</p>
+  <p>Two molecules from a random start, sliding down the force field's slope to the nearest minimum, every number at once (BFGS: each step learns how the slope curves). The line under each pair is that descent's energy, and the dashed line is where the census's pair sits. When a descent ends, the molecule takes its basin's colour: arrangements within 0.3 kcal/mol and 0.15 bohr are one basin. A descent that runs out of steps before the slope has gone is counted as <i>unfinished</i>, not as a basin. Turn the 4D view through w to see the turns you can't see in a slice. <b>race</b> runs whole descents without showing them.</p>
   <div class="liquidCtl" id="searchMode"><span>pace</span><button data-m="watch" class="on">watch</button><button data-m="race">race</button></div>
-  <div class="tiles two" id="searchTiles"></div>
+  <div class="tiles" data-all id="searchTiles"></div>
   <p class="read" id="searchBasins3"></p>
   <p class="read" id="searchBasins4"></p>
   <canvas id="searchCurve" class="chart"></canvas>

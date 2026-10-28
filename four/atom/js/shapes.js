@@ -23,31 +23,31 @@ export function buildShapes() {
   const grid = $("solidTiles");
   if (grid) for (const p of polytopes()) {
     tiles.push(makeTile(grid, { P: p.V, lines: p.E, faces: p.F }, {
-      title: `${p.name} <small>${p.sym}</small>`, start: tilted(),
+      tab: p.name, title: `${p.name} <small>${p.sym}</small>`, start: tilted(),
       sub: `${p.V.length} vertices · ${p.E.length} edges · ${p.F.length} ${p.faceName}s · ${p.C.length} ${p.cellName} · 3D cousin: ${p.cousin}`,
     }));
   }
   buildXater();
   // darbon
   const mols = $("darbonTiles"); if (!mols) return;
-  tiles.push(makeTile(mols, star(3, "C", ["H"]), { title: "CH₄, methane", sub: "four bonds to a tetrahedron's corners, 109.47° apart", start: tilted3(), spin: [0, 0.004], sliceRange: 1.3 }));
-  tiles.push(makeTile(mols, star(4, "D", ["H"]), { title: "DH₅", sub: "five bonds to a 5-cell's corners, 104.48° apart", start: tilted(), sliceRange: 1.3 }));
+  tiles.push(makeTile(mols, star(3, "C", ["H"]), { tab: "CH₄ · 3D", title: "CH₄, methane", sub: "four bonds to a tetrahedron's corners, 109.47° apart", start: tilted3(), spin: [0, 0.004], sliceRange: 1.3 }));
+  tiles.push(makeTile(mols, star(4, "D", ["H"]), { tab: "DH₅ · 4D", title: "DH₅", sub: "five bonds to a 5-cell's corners, 104.48° apart", start: tilted(), sliceRange: 1.3 }));
   const chiral = (d, els) => {
     const m = star(d, d === 3 ? "C" : "D", els, { bond: 0.9 });
     return combine(moved(m, (p) => [p[0] - 1.3, p[1], p[2], p[3]]), { ...moved(m, (p) => [1.3 - p[0], p[1], p[2], p[3]]), balls: moved(m, (p) => [1.3 - p[0], p[1], p[2], p[3]]).balls.map((b) => ({ ...b, group: 1 })) });
   };
   tiles.push(makeTile(mols, chiral(3, ["H", "F", "Cl", "Br"]), {
-    title: "a molecule and its mirror image", sub: "in 3D no turn makes one into the other; in 4D, half a turn through w does", R: 1.9, start: turn(eye(), 1, 2, -0.3), spin: [0, 0],
+    tab: "mirror · 3D", title: "a molecule and its mirror image", sub: "in 3D no turn makes one into the other; in 4D, half a turn through w does", R: 1.9, start: turn(eye(), 1, 2, -0.3), spin: [0, 0],
     extras: [{ label: "turn the left one through w", onClick: (T) => { const L0 = T.L[0] || eye(); T.animate(1600, (t) => { T.L[0] = turnLocal(L0, 0, 3, Math.PI * t); }); } }, { label: "reset", onClick: (T) => { T.L = {}; } }],
   }));
   tiles.push(makeTile(mols, chiral(4, ["H", "F", "Cl", "Br", "I"]), {
-    title: "darbon's mirror image", sub: "five different neighbours: chiral, and no turn in four dimensions undoes it", R: 1.9, start: tilted(), spin: [0.002, 0],
+    tab: "mirror · 4D", title: "darbon's mirror image", sub: "five different neighbours: chiral, and no turn in four dimensions undoes it", R: 1.9, start: tilted(), spin: [0.002, 0],
   }));
   const nets = $("netTiles");
   const n2 = net(2, 2.6, "C"), n3 = net(3, 2.1, "C"), n4 = net(4, 1.9, "D");
-  tiles.push(makeTile(nets, n2, { title: "2D: graphene", sub: `three bonds at 120° · ${n2.size} atoms`, R: 2.6, start: tilted3(), spin: [0, 0.004], sliceRange: 2.6 }));
-  tiles.push(makeTile(nets, n3, { title: "3D: diamond", sub: `four bonds at 109.47° · ${n3.size} atoms`, R: 2.3, start: tilted3(), spin: [0, 0.004], sliceRange: 2.3 }));
-  tiles.push(makeTile(nets, n4, { title: "4D: darbon's diamond", sub: `five bonds at 104.48° · ${n4.size} atoms`, R: 2.1, start: tilted(), sliceRange: 2.1 }));
+  tiles.push(makeTile(nets, n2, { tab: "2D", title: "2D: graphene", sub: `three bonds at 120° · ${n2.size} atoms`, R: 2.6, start: tilted3(), spin: [0, 0.004], sliceRange: 2.6 }));
+  tiles.push(makeTile(nets, n3, { tab: "3D", title: "3D: diamond", sub: `four bonds at 109.47° · ${n3.size} atoms`, R: 2.3, start: tilted3(), spin: [0, 0.004], sliceRange: 2.3 }));
+  tiles.push(makeTile(nets, n4, { tab: "4D", title: "4D: darbon's diamond", sub: `five bonds at 104.48° · ${n4.size} atoms`, R: 2.1, start: tilted(), sliceRange: 2.1 }));
 }
 
 /* water and Xater at their computed shapes, to one scale (2.8 bohr to a unit). The lone pairs: the one along the
@@ -65,6 +65,6 @@ function buildXater() {
   const w = mol(MOLECULES[3].big, "#d9483b", r2p(3, 8)), y = mol(MOLECULES[4].big, "#c79bff", r2p(4, 10));
   w.balls.push({ p: [0, 0, w.ring, 0], c: LP, r: 0.08 }, { p: [0, 0, -w.ring, 0], c: LP, r: 0.08 });
   const K = 48; y.P = Array.from({ length: K }, (_, k) => [0, 0, y.ring * Math.cos((2 * Math.PI * k) / K), y.ring * Math.sin((2 * Math.PI * k) / K)]); y.lines = y.P.map((_, k) => [k, (k + 1) % K]);
-  tiles.push(makeTile(host, w, { title: "our water", sub: `bent at ${MOLECULES[3].big.theta.toFixed(1)}° · its lone pair at right angles to the plane: two lobes`, R: 1.2, start: tilted3(), spin: [0, 0.004], sliceRange: 0.8 }));
-  tiles.push(makeTile(host, y, { title: "Xater, H₂Px", sub: `bent at ${MOLECULES[4].big.theta.toFixed(1)}° · its two lone pairs at right angles to the plane: a ring`, R: 1.2, start: tilted(), sliceRange: 0.8 }));
+  tiles.push(makeTile(host, w, { tab: "water · 3D", title: "our water", sub: `bent at ${MOLECULES[3].big.theta.toFixed(1)}° · its lone pair at right angles to the plane: two lobes`, R: 1.2, start: tilted3(), spin: [0, 0.004], sliceRange: 0.8 }));
+  tiles.push(makeTile(host, y, { tab: "Xater · 4D", title: "Xater, H₂Px", sub: `bent at ${MOLECULES[4].big.theta.toFixed(1)}° · its two lone pairs at right angles to the plane: a ring`, R: 1.2, start: tilted(), sliceRange: 0.8 }));
 }

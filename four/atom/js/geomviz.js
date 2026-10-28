@@ -1,7 +1,7 @@
 /* The geometry chapter's toys: a cube and a tesseract to turn and slice, a tesseract turning in two planes at once, a
    tesseract passing through our space corner first, the Hopf circles that comb the 3-sphere and the flat Clifford
    torus, both projected into our space. The geometry is js/geometry.js; this only draws. */
-import { makeTile, eye, turn } from "./tile.js";
+import { makeTile, eye, turn, engageable } from "./tile.js";
 import { polytopes } from "./polytopes.js";
 import { hopfCircle, stereo, clifford } from "./geometry.js";
 
@@ -17,9 +17,9 @@ export function buildGeometry() {
     for (let i = 0; i < 8; i++) for (let b = 0; b < 3; b++) if (!(i & (1 << b))) cubeE.push([i, i | (1 << b)]);
     const cubeF = [[0, 1, 3, 2], [4, 5, 7, 6], [0, 1, 5, 4], [2, 3, 7, 6], [0, 2, 6, 4], [1, 3, 7, 5]];
     const tilt = turn(turn(eye(), 0, 2, 0.5), 1, 2, 0.35);
-    geoTiles.push(makeTile(host, { P: cubeV, lines: cubeE, faces: cubeF }, { title: "a cube", sub: "8 corners · 12 edges · 6 squares. It has no depth in w: slice it anywhere but w = 0 and it's gone", start: tilt, spin: [0, 0.004] }));
-    geoTiles.push(makeTile(host, { P: T.V, lines: T.E, faces: T.F }, { title: "a tesseract", sub: `${T.V.length} corners · ${T.E.length} edges · ${T.F.length} squares · ${T.C.length} cubes. Its shadow is a cube in a cube; its slice, a cube that grows and shrinks`, start: turn(tilt, 0, 3, 0.4) }));
-    geoTiles.push(makeTile(host, { P: T.V, lines: T.E, faces: T.F }, { title: "turning in two planes at once", sub: "xy and zw at the same rate: no line stays put, and every corner runs round a great circle", start: tilt, spin: [[0, 1, 0.006], [2, 3, 0.006]] }));
+    geoTiles.push(makeTile(host, { P: cubeV, lines: cubeE, faces: cubeF }, { tab: "cube · 3D", title: "a cube", sub: "8 corners · 12 edges · 6 squares. It has no depth in w: slice it anywhere but w = 0 and it's gone", start: tilt, spin: [0, 0.004] }));
+    geoTiles.push(makeTile(host, { P: T.V, lines: T.E, faces: T.F }, { tab: "tesseract · 4D", title: "a tesseract", sub: `${T.V.length} corners · ${T.E.length} edges · ${T.F.length} squares · ${T.C.length} cubes. Its shadow is a cube in a cube; its slice, a cube that grows and shrinks`, start: turn(tilt, 0, 3, 0.4) }));
+    geoTiles.push(makeTile(host, { P: T.V, lines: T.E, faces: T.F }, { tab: "two planes at once", title: "turning in two planes at once", sub: "xy and zw at the same rate: no line stays put, and every corner runs round a great circle", start: tilt, spin: [[0, 1, 0.006], [2, 3, 0.006]] }));
   }
   const sh = $("sliceTiles");
   if (sh) {
@@ -28,7 +28,7 @@ export function buildGeometry() {
     const u = [-a[0], -a[1], -a[2], 1 - a[3]], nu = Math.hypot(...u), H = [];
     for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) H.push((i === j ? 1 : 0) - (2 * u[i] * u[j]) / (nu * nu));
     const sweep = { label: "sweep through w", onClick: (t) => { const sl = t.el.querySelector(".hs input"), out = t.el.querySelector(".hs output"); t.animate(7000, (f) => { t.h = -1 + 2 * f; sl.value = t.h; out.textContent = t.h.toFixed(2); }); } };
-    const slice = (title, sub, start, h0) => { const t = makeTile(sh, { P: T.V, lines: T.E, faces: T.F }, { title, sub, start, spin: [], extras: [sweep] }); t.el.querySelector('[data-v="slice"]').click(); t.h = h0; const sl = t.el.querySelector(".hs input"); sl.value = t.h; t.el.querySelector(".hs output").textContent = t.h.toFixed(2); t.draw(); geoTiles.push(t); };
+    const slice = (title, sub, start, h0) => { const t = makeTile(sh, { P: T.V, lines: T.E, faces: T.F }, { tab: title, title, sub, start, spin: [], extras: [sweep] }); t.el.querySelector('[data-v="slice"]').click(); t.h = h0; const sl = t.el.querySelector(".hs input"); sl.value = t.h; t.el.querySelector(".hs output").textContent = t.h.toFixed(2); t.draw(); geoTiles.push(t); };
     slice("corner first", "a point, a tetrahedron, a truncated tetrahedron, an octahedron at the middle, and back", turn(turn(H, 0, 2, 0.3), 1, 2, 0.4), -0.75);
     slice("cube first", "a cube appears whole, stays the same all the way through, and vanishes whole", turn(turn(eye(), 0, 2, 0.5), 1, 2, 0.35), 0);
   }
@@ -53,6 +53,7 @@ function hopf(cv) {
 /* curves in our space, drawn far to near with depth shading, turning slowly while on screen; drag to turn */
 function curvesView(cv, curves, fit) {
   let yaw = 0.6, pitch = 0.45, drag = null, visible = false, last = 0;
+  const wrap = document.createElement("div"); wrap.className = "cvw"; cv.replaceWith(wrap); wrap.appendChild(cv); const E = engageable(wrap, cv);
   const draw = () => {
     const dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
@@ -66,7 +67,7 @@ function curvesView(cv, curves, fit) {
   };
   const loop = (t) => { if (!visible) return; if (!drag) yaw += Math.min(50, t - (last || t)) * 0.00015; last = t; draw(); requestAnimationFrame(loop); };
   new IntersectionObserver(([e]) => { const was = visible; visible = e.isIntersecting; if (visible && !was) { last = 0; requestAnimationFrame(loop); } }).observe(cv);
-  cv.addEventListener("pointerdown", (e) => { drag = [e.clientX, e.clientY, yaw, pitch]; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener("pointerdown", (e) => { if (!E.allows(e)) return; drag = [e.clientX, e.clientY, yaw, pitch]; cv.setPointerCapture(e.pointerId); });
   cv.addEventListener("pointermove", (e) => { if (!drag) return; yaw = drag[2] + (e.clientX - drag[0]) * 0.01; pitch = Math.max(-1.4, Math.min(1.4, drag[3] + (e.clientY - drag[1]) * 0.01)); });
   const up = () => { drag = null; }; cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
   draw();
