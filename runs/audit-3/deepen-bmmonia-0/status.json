@@ -1,0 +1,12 @@
+{
+ "group": "deepen-bmmonia-0",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/audit.mjs deepen 4.9 4 --only 0",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  }
+ ]
+}
