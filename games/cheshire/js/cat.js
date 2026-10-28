@@ -26,59 +26,70 @@ export const GRIN_W = 0.26; // how far the grin reaches into w, metres: past the
 const v = (x, y, z, w) => [x, y, z, w];
 const mixv = (a, b, s) => a.map((q, i) => q + (b[i] - q) * s);
 
+/* o.idle: breathe and sway the tail (default true). o.sway [dx, dz, dw]: the body moved over its planted feet (legs
+   follow, paws stay). o.lift: which foot is up, or a list of them (FEET order). o.tailFoot: the tail curved down and planted behind */
+export const FEET = ["front +z", "front −z", "hind +w", "hind −w", "tail"];
+export const TAIL_FOOT = [-0.46, 0, 0]; // where the planted tail touches the floor, [x, z, w]
 export function pose(t = 0, o = {}) {
-  const idle = o.idle !== false, caps = [], ells = [];
+  const idle = o.idle !== false, caps = [], ells = [], sw = o.sway || [0, 0, 0], up = (i) => (Array.isArray(o.lift) ? o.lift.includes(i) : o.lift === i);
+  const S = (p, k = 1) => [p[0] + k * sw[0], p[1], p[2] + k * sw[1], p[3] + k * sw[2]]; // carried k of the sway
   let g = "body"; // which part of the cat each piece belongs to (GROUPS), for the page to say what's in your slice
   const cap = (a, b, ra, rb, m = MAT.fur, wx = 0) => caps.push({ a, b, ra, rb, m, wx, g });
   const ell = (c, r, m = MAT.fur, wx = 0) => ells.push({ c, r, m, wx, g });
   const breath = idle ? 1 + 0.025 * Math.sin((2 * Math.PI * t) / 3.2) : 1;
   // the trunk: haunch to chest, and the belly under it
-  cap(v(-0.17, 0.235, 0, 0), v(0.13, 0.25, 0, 0), 0.098 * breath, 0.108 * breath);
-  ell(v(-0.02, 0.215, 0, 0), v(0.17, 0.095 * breath, 0.1 * breath, 0.1 * breath));
-  ell(v(-0.18, 0.23, 0, 0), v(0.085, 0.09, 0.075, 0.095)); // haunches, wider in w where the hind legs go
-  ell(v(0.12, 0.235, 0, 0), v(0.08, 0.09, 0.095, 0.075)); // shoulders, wider in z where the front legs go
+  cap(S(v(-0.17, 0.235, 0, 0)), S(v(0.13, 0.25, 0, 0)), 0.098 * breath, 0.108 * breath);
+  ell(S(v(-0.02, 0.215, 0, 0)), v(0.17, 0.095 * breath, 0.1 * breath, 0.1 * breath));
+  ell(S(v(-0.18, 0.23, 0, 0)), v(0.085, 0.09, 0.075, 0.095)); // haunches, wider in w where the hind legs go
+  ell(S(v(0.12, 0.235, 0, 0)), v(0.08, 0.09, 0.095, 0.075)); // shoulders, wider in z where the front legs go
   // the neck and head
   g = "head";
-  cap(v(0.14, 0.28, 0, 0), v(0.26, 0.36, 0, 0), 0.068, 0.058);
-  ell(v(0.29, 0.392, 0, 0), v(0.088, 0.08, 0.09, 0.09));
-  ell(v(0.346, 0.362, 0, 0), v(0.036, 0.028, 0.04, 0.04)); // muzzle
-  ell(v(0.258, 0.372, 0, 0), v(0.05, 0.05, 0.1, 0.1)); // cheeks: the ruff, round in z and w alike
-  ell(v(0.381, 0.377, 0, 0), v(0.01, 0.009, 0.013, 0.011), MAT.pink); // nose
+  cap(S(v(0.14, 0.28, 0, 0)), S(v(0.26, 0.36, 0, 0)), 0.068, 0.058);
+  ell(S(v(0.29, 0.392, 0, 0)), v(0.088, 0.08, 0.09, 0.09));
+  ell(S(v(0.346, 0.362, 0, 0)), v(0.036, 0.028, 0.04, 0.04)); // muzzle
+  ell(S(v(0.258, 0.372, 0, 0)), v(0.05, 0.05, 0.1, 0.1)); // cheeks: the ruff, round in z and w alike
+  ell(S(v(0.381, 0.377, 0, 0)), v(0.01, 0.009, 0.013, 0.011), MAT.pink); // nose
   // eyes apart in z; ears in pairs across z and across w
   for (const s of [1, -1]) {
-    g = "eyes"; ell(v(0.356, 0.41, 0.042 * s, 0), v(0.014, 0.019, 0.022, 0.019), MAT.eye);
-    g = "ears"; cap(v(0.282, 0.435, 0.045 * s, 0), v(0.268, 0.54, 0.075 * s, 0), 0.034, 0.004);
-    cap(v(0.282, 0.435, 0, 0.045 * s), v(0.268, 0.54, 0, 0.075 * s), 0.034, 0.004);
+    g = "eyes"; ell(S(v(0.356, 0.41, 0.042 * s, 0)), v(0.014, 0.019, 0.022, 0.019), MAT.eye);
+    g = "ears"; cap(S(v(0.282, 0.435, 0.045 * s, 0)), S(v(0.268, 0.54, 0.075 * s, 0)), 0.034, 0.004);
+    cap(S(v(0.282, 0.435, 0, 0.045 * s)), S(v(0.268, 0.54, 0, 0.075 * s)), 0.034, 0.004);
   }
-  // front legs splay in z: shoulder, elbow, paw
+  // front legs splay in z: shoulder, elbow, paw. A lifted paw rises LIFT and comes forward a little
+  const LIFT = 0.055;
   g = "front legs";
   for (const s of [1, -1]) {
-    const sh = v(0.14, 0.2, 0.055 * s, 0), el = v(0.115, 0.11, 0.078 * s, 0), pw = v(0.15, 0.024, 0.088 * s, 0);
+    const i = s > 0 ? 0 : 1, l = up(i) ? 1 : 0, raise = (p, h, dx = 0) => [p[0] + dx * l, p[1] + h * l, p[2], p[3]];
+    const sh = S(v(0.14, 0.2, 0.055 * s, 0)), el = raise(S(v(0.115, 0.11, 0.078 * s, 0), 0.5), 0.035, 0.03), pw = raise(v(0.15, 0.024, 0.088 * s, 0), LIFT, 0.04);
     cap(sh, el, 0.04, 0.03); cap(el, pw, 0.03, 0.024);
-    ell(v(0.162, 0.021, 0.088 * s, 0), v(0.036, 0.021, 0.03, 0.03));
+    ell(raise(v(0.162, 0.021, 0.088 * s, 0), LIFT, 0.04), v(0.036, 0.021, 0.03, 0.03));
   }
   // hind legs splay in w: hip, knee, hock, paw
   g = "hind legs";
   for (const s of [1, -1]) {
-    const hp = v(-0.16, 0.2, 0, 0.06 * s), kn = v(-0.07, 0.12, 0, 0.09 * s), hk = v(-0.2, 0.065, 0, 0.108 * s), pw = v(-0.17, 0.024, 0, 0.11 * s);
+    const i = s > 0 ? 2 : 3, l = up(i) ? 1 : 0, raise = (p, h, dx = 0) => [p[0] + dx * l, p[1] + h * l, p[2], p[3]];
+    const hp = S(v(-0.16, 0.2, 0, 0.06 * s)), kn = raise(S(v(-0.07, 0.12, 0, 0.09 * s), 0.6), 0.03, 0.02), hk = raise(S(v(-0.2, 0.065, 0, 0.108 * s), 0.25), 0.045, 0.03), pw = raise(v(-0.17, 0.024, 0, 0.11 * s), LIFT, 0.03);
     cap(hp, kn, 0.052, 0.034); cap(kn, hk, 0.032, 0.022); cap(hk, pw, 0.022, 0.024);
-    ell(v(-0.158, 0.021, 0, 0.11 * s), v(0.038, 0.021, 0.03, 0.03));
+    ell(raise(v(-0.158, 0.021, 0, 0.11 * s), LIFT, 0.03), v(0.038, 0.021, 0.03, 0.03));
   }
   g = "tail";
-  // the tail: up and back from the rump, curling at the tip, swaying through w (and a little in z)
+  // the tail: up and back from the rump, curling at the tip, swaying through w (and a little in z). Planted (o.tailFoot,
+  // and not lifted), it arches back and down to a pad on the floor at TAIL_FOOT
+  const N = 9, pts = [], planted = o.tailFoot && !up(4);
   const sway = idle ? Math.sin((2 * Math.PI * t) / 2.6) : 0.4, flick = idle ? Math.sin((2 * Math.PI * t) / 1.3 + 1) : 0;
-  const N = 9, pts = [];
   for (let i = 0; i <= N; i++) {
-    const s = i / N, up = Math.sin(s * 2.2);
-    pts.push(v(-0.27 - 0.17 * s + 0.07 * s ** 3, 0.25 + 0.2 * up + 0.04 * s * s, 0.025 * s * flick, 0.13 * s * s * sway + 0.05 * s ** 4));
+    const s = i / N;
+    if (planted) pts.push(S(v(-0.27 + (TAIL_FOOT[0] + 0.27) * s, 0.25 + 0.07 * Math.sin(Math.PI * s) - 0.23 * s * s, 0, 0), 1 - s * s));
+    else { const upc = Math.sin(s * 2.2); pts.push(S(v(-0.27 - 0.17 * s + 0.07 * s ** 3, 0.25 + 0.2 * upc + 0.04 * s * s, 0.025 * s * flick, 0.13 * s * s * sway + 0.05 * s ** 4))); }
   }
   for (let i = 0; i < N; i++) cap(pts[i], pts[i + 1], 0.034 - 0.017 * (i / N), 0.034 - 0.017 * ((i + 1) / N));
+  if (planted) ell(v(TAIL_FOOT[0], 0.016, TAIL_FOOT[1], TAIL_FOOT[2]), v(0.03, 0.016, 0.022, 0.022)); // its pad: a fifth foot
   g = "grin";
   // the grin: a wide crescent laid just outside the face, its ends turned up, reaching GRIN_W into w at full thickness
   const G = 10, gr = [], surf = (c, r, y, z) => { const q = 1 - ((y - c[1]) / r[1]) ** 2 - (z / r[2]) ** 2; return q > 0 ? c[0] + r[0] * Math.sqrt(q) : -1; };
   for (let i = 0; i <= G; i++) {
     const th = -1.25 + (2.5 * i) / G, z = 0.078 * Math.sin(th), y = 0.336 + 0.042 * Math.abs(Math.sin(th)) ** 1.6;
-    gr.push(v(Math.max(surf(v(0.346, 0.362), v(0.036, 0.028, 0.04), y, z), surf(v(0.29, 0.392), v(0.088, 0.08, 0.09), y, z), surf(v(0.258, 0.372), v(0.05, 0.05, 0.1), y, z)) + 0.003, y, z, 0));
+    gr.push(S(v(Math.max(surf(v(0.346, 0.362), v(0.036, 0.028, 0.04), y, z), surf(v(0.29, 0.392), v(0.088, 0.08, 0.09), y, z), surf(v(0.258, 0.372), v(0.05, 0.05, 0.1), y, z)) + 0.003, y, z, 0)));
   }
   for (let i = 0; i < G; i++) cap(gr[i], gr[i + 1], 0.0095, 0.0095, MAT.grin, GRIN_W);
   if (caps.length > LIMITS.caps || ells.length > LIMITS.ells) throw new Error("the cat outgrew the shader's arrays");
@@ -109,9 +120,14 @@ export function sdf(p, P) {
   for (const c of P.caps) acc = join(acc, capD(p, c), c.m);
   return acc;
 }
-/* where each foot meets the floor: the bottom of the four paw ellipsoids (those touching y ≈ 0) */
+/* where each foot meets the floor: the bottom of every foot ellipsoid touching y ≈ 0 (the four paws, and the tail's pad
+   when it's planted), in FEET's order; a lifted foot isn't one */
 export function paws(P) {
-  return P.ells.filter((e) => Math.abs(e.c[1] - e.r[1]) < 0.01).map((e) => v(e.c[0], e.c[1] - e.r[1], e.c[2], e.c[3]));
+  return P.ells.filter((e) => Math.abs(e.c[1] - e.r[1]) < 0.002).map((e) => v(e.c[0], e.c[1] - e.r[1], e.c[2], e.c[3]));
+}
+/* which of FEET each of paws(P) is */
+export function pawNames(P) {
+  return P.ells.filter((e) => Math.abs(e.c[1] - e.r[1]) < 0.002).map((e) => (e.g === "tail" ? "tail" : e.g === "front legs" ? (e.c[2] > 0 ? FEET[0] : FEET[1]) : e.c[3] > 0 ? FEET[2] : FEET[3]));
 }
 /* centre of mass: each part weighted by its 4D volume (a capsule as a cylinder of its mean radius, plus nothing for
    the caps; an ellipsoid as π²/2 r₁r₂r₃r₄), the grin and eyes weightless */
@@ -135,4 +151,11 @@ export function cut(P, n, c) {
     if (Math.abs(nn(e.c) - c) <= ext) hit.push(e);
   }
   return { parts: hit, groups: GROUPS.filter((g) => hit.some((h) => h.g === g)) };
+}
+/* the body sway that puts the posed cat's own centre of mass over the floor point `target` [x, z, w] (its legs and a
+   planted tail move less than its body, so a few rounds of correcting by what's left) */
+export function swayFor(target, o = {}) {
+  let s = [0, 0, 0];
+  for (let k = 0; k < 5; k++) { const c = mass(pose(0, { idle: false, ...o, sway: s })).c; s = s.map((x, i) => x + target[i] - c[[0, 2, 3][i]]); }
+  return s;
 }

@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 const here = path.dirname(fileURLToPath(import.meta.url));
-const C = await import(path.join(here, "../js/cat.js")), L = await import(path.join(here, "../js/lab.js"));
+const C = await import(path.join(here, "../js/cat.js")), L = await import(path.join(here, "../js/lab.js")), G = await import(path.join(here, "../js/gait.js"));
 let checks = 0, fails = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg); } else console.log("✓ " + msg); };
 const t0 = Date.now();
@@ -67,6 +67,44 @@ const rnd = ((s) => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >
   const src = fs.readFileSync(path.join(here, "../js/lab.js"), "utf8");
   ok(src.includes(`if (m >= ${C.MAT.pink}. || M >= ${C.MAT.pink}.)`) && src.includes("D = mix(D, d, h) - uK * h * (1. - h)") && src.includes("uniform4fv(U.uCp, f4(caps, (k) => [k.ra, k.rb, k.m, k.wx]))") && src.includes("${LIMITS.caps}"),
     "the shader joins as cat.js does (hard from skin up, smooth fur by mix), and reads the parts' fields in cat.js's order");
+}
+
+/* 6 · balance (js/gait.js): its geometry against brute force, then each leg plan judged as the panel says */
+{
+  // Chebyshev's centre is the deepest point (no random point inside is deeper), and the least sway is least
+  const tet = [[0.16, 0.088, 0], [0.16, -0.088, 0], [-0.16, 0, 0.11], [-0.16, 0, -0.11], [-0.4, 0.02, 0.01]], h = G.hull(tet), c = G.cheb(h), p0 = [0.15, 0.05, 0.08], sw = G.swayTo(h, p0, 0.01);
+  let deeper = 0, closer = 0;
+  for (let k = 0; k < 20000; k++) {
+    const q = [-0.45 + 0.65 * rnd(), -0.1 + 0.2 * rnd(), -0.12 + 0.24 * rnd()], m = G.margin(h, q);
+    if (m > c.r + 1e-9) deeper++;
+    if (m >= 0.01 && Math.hypot(...q.map((x, i) => x - p0[i])) < sw.d - 1e-6) closer++;
+  }
+  ok(h.dim === 3 && Math.abs(G.margin(h, c.p) - c.r) < 1e-9 && !deeper && sw && Math.abs(G.margin(h, sw.p) - 0.01) < 1e-6 && !closer,
+    `the support's geometry: Chebyshev's centre ${(c.r * 100).toFixed(2)} cm deep and no sampled point deeper; the least sway (${(sw.d * 100).toFixed(2)} cm) and none shorter`);
+  const P = C.pose(0, { idle: false }), fl = (p) => [p[0], p[2], p[3]], PT = C.pose(0, { idle: false, tailFoot: true });
+  const cat = { feet: C.paws(P).map(fl), labels: C.pawNames(P), com: fl(C.mass(P).c), comTail: fl(C.mass(PT).c), tailFoot: C.TAIL_FOOT };
+  const A = Object.fromEntries(G.plans(cat).map((p) => [p.id, { plan: p, a: G.analyse(p) }]));
+  ok(A.cat.a.canStand && !A.cat.a.canCreep && A.cat.a.creep.every((c) => c.dim === 2 && c.free === 1) && A.cat.a.halves.every((x) => x.dim === 1 && x.free === 2),
+    "the cat stands, but lifting any foot leaves three in a plane (one way to tip), and its trot stands on lines (two ways)");
+  ok(A.aligned.a.stand.dim === 2 && !A.aligned.a.canStand, "hips aligned (both pairs across z): four feet in a plane, so it can't even stand");
+  ok(A.tail.a.canCreep && A.tail.a.swayMax < 0.07, `its tail planted, the cat creeps: every foot lifted alone leaves a solid, the body swaying at most ${(A.tail.a.swayMax * 100).toFixed(1)} cm`);
+  // and the cat itself, posed: swayed by swayFor and the foot lifted, its own centre of mass is over the four still down
+  let worst = 1;
+  for (const c of A.tail.a.creep) {
+    const o = { tailFoot: true, lift: c.lift }, Q = C.pose(0, { idle: false, ...o, sway: C.swayFor(c.sway.p, o) });
+    worst = Math.min(worst, G.margin(G.hull(C.paws(Q).map(fl)), fl(C.mass(Q).c)));
+  }
+  ok(worst > 0.0099, `acted out: lifting each of its five feet in turn, the posed cat's centre of mass stays ${(worst * 100).toFixed(2)} cm or more inside the other four`);
+  const D = Math.PI / 180, ring = (x, r, d) => d.map((a) => [x, r * Math.cos(a * D), r * Math.sin(a * D)]);
+  const badFive = G.analyse({ ...A.five.plan, feet: [[0.16, 0.09, 0], [0.16, -0.09, 0], ...ring(-0.16, 0.1, [90, 210, 330])] });
+  ok(A.five.a.canCreep && !badFive.canCreep && badFive.creep.some((c) => c.dim === 2),
+    "five legs creep, but only if no two hind feet line up with the front pair: turned 90°, one lift lays the other four in a plane");
+  ok(A.six.a.canCreep && A.six.a.halves.every((x) => x.dim === 2) && A.eight.a.canCreep && A.eight.a.halvesStatic,
+    "six legs creep but alternate on triangles (dynamic); eight alternate on two solid fours, each the cat's own stance");
+  // the tail: level, it can push against pitch only; raised θ, against all three, sideways in proportion to sin θ
+  const lv = G.tailReach(0), up = G.tailReach(0.6);
+  ok(lv.rank === 1 && up.rank === 3 && Math.abs(up.reach[1] - Math.sin(0.6)) < 1e-12 && Math.abs(up.reach[2] - Math.sin(0.6)) < 1e-12 && Math.abs(up.reach[0] - 1) < 1e-12,
+    "a level tail catches only forward tipping; raised θ, all three, the sideways two in proportion to sin θ");
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} cheshire checks failed` : `\n✓ cheshire: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(1)} s`);

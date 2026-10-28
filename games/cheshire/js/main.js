@@ -1,7 +1,9 @@
 /* The cat lab's page: the controls, the camera, and the line that says what of the cat is in your slice.
    ?w=0.12&zw=90 (any of xw zw yw xz, degrees) opens it there; &yaw=, &pitch= (degrees), &dist= and &at=x,y,z (metres) place the
-   camera; &shot draws one still frame (t = &t, default 0) and stops, for screenshots and slow software GL. */
+   camera; &shot draws one still frame (t = &t, default 0) and stops, for screenshots and slow software GL;
+   &gait=<plan>&phase=<n> opens the balance panel there. */
 import { makeLab } from "./lab.js";
+import { makeGaitPanel } from "./gaitui.js";
 
 const $ = (id) => document.getElementById(id), canvas = $("view");
 let lab;
@@ -26,6 +28,14 @@ $("reset").addEventListener("click", () => { for (const p in st.angles) st.angle
 $("idle").addEventListener("click", () => { st.idle = !st.idle; $("idle").classList.toggle("on", st.idle); });
 $("feet").addEventListener("click", () => { st.feet = !st.feet; $("feet").classList.toggle("on", st.feet); });
 $("infoBtn").addEventListener("click", () => { $("info").hidden = !$("info").hidden; });
+const gait = makeGaitPanel(lab, $("gait"));
+const gaitShown = () => { const on = !$("gait").hidden; $("gaitBtn").classList.toggle("on", on); document.body.classList.toggle("gait", on); };
+$("gaitBtn").addEventListener("click", () => { gait.toggle(); gaitShown(); $("info").hidden = true; });
+$("gait").addEventListener("click", (e) => { if (e.target.closest(".x")) gaitShown(); });
+// the caption sits just above the controls, however many rows they wrap to
+const fit = () => document.documentElement.style.setProperty("--ph", `${$("panel").offsetHeight}px`);
+addEventListener("resize", fit); fit();
+if (q.has("gait")) { gait.open(); gait.choose(q.get("gait")); gait.setPhase(+(q.get("phase") || 0), true); gaitShown(); }
 
 // the camera: drag to look round, pinch or scroll to come closer
 const ptrs = new Map(); let pinch0 = 0, dist0 = st.dist;
@@ -53,8 +63,16 @@ function say(groups) {
   if ($("say").innerHTML !== s) $("say").innerHTML = s;
 }
 
+// with the balance panel open: what holds it up
+function sayBalance(sup) {
+  const n = sup.feet.length, s = sup.dim < 3
+    ? `<b>${n} feet down, all in one plane of the 3D floor.</b> Nothing stops it tipping across it: it falls unless it moves.`
+    : sup.ok ? `<b>${n} feet down, spanning a solid of the floor;</b> its centre of mass is ${(sup.margin * 100).toFixed(1)} cm inside. The gold is that solid where your slice cuts it.`
+    : `<b>${n} feet down, but its centre of mass is outside them</b> (${(-sup.margin * 100).toFixed(1)} cm): it tips.`;
+  if ($("say").innerHTML !== s) $("say").innerHTML = s;
+}
 const t0 = performance.now();
-if (q.has("shot")) { st.scale = +(q.get("scale") || 1); const { groups } = lab.draw(+(q.get("t") || 0), true); say(groups); document.body.dataset.ready = "1"; }
+if (q.has("shot")) { st.scale = +(q.get("scale") || 1); if (q.has("gait")) st.idle = false; const { groups, sup } = lab.draw(+(q.get("t") || 0), true); if (sup) sayBalance(sup); else say(groups); gait.draw(); document.body.dataset.ready = "1"; }
 else requestAnimationFrame(frame);
 function frame(now) {
   const t = (now - t0) / 1000;
@@ -65,7 +83,7 @@ function frame(now) {
     if (turnAnim.plane === plane) syncAng();
     if (u >= 1) turnAnim = null;
   }
-  const { groups } = lab.draw(t);
-  say(groups);
+  const { groups, sup } = lab.draw(t);
+  if (sup) sayBalance(sup); else say(groups);
   requestAnimationFrame(frame);
 }
