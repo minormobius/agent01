@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cheshire · the cat lab</title>
+<meta name="description" content="A cat in four dimensions of space, seen as a 3D prisoner of its world sees it: one slice at a time.">
+<link rel="stylesheet" href="css/lab.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+<header>
+  <h1>CHESHIRE <span>· the cat lab</span></h1>
+  <button id="infoBtn" aria-label="About">?</button>
+</header>
+<div id="info" hidden>
+  <p>You live in three dimensions. The cat lives in four: as well as forward, up and sideways it has a second sideways, <b>w</b>, that you can't point to. You see only the slice of its world at your <b>w</b>.</p>
+  <p>Gravity pulls one way, down, so its floor is a whole 3D space. Feet hold you up only if they span it: four at the corners of a tetrahedron. So its front legs splay across your space and its hind legs splay across <b>w</b>, and in your slice it seems to hover on two legs. The rings on the floor are the feet you can't see: wider and fainter the further off in <b>w</b> they stand, teal one way (ana), rose the other (kata).</p>
+  <p>Its head is round both ways sideways, so it has four ears: two across your space, two across <b>w</b>. Its eyes sit apart across your space only. Turn it a quarter in <b>zw</b> and its eyes go into <b>w</b>, out of your sight. Its grin reaches further into <b>w</b> than any of the rest of it, so it is the last thing to leave.</p>
+  <p>Drag to look round it; pinch or scroll to come closer.</p>
+</div>
+<div id="say"></div>
+<section id="panel">
+  <div class="row">
+    <label for="w">your slice</label>
+    <input id="w" type="range" min="-0.3" max="0.3" step="0.001" value="0">
+    <output id="wOut">w = 0.0 cm</output>
+    <button id="sweep" class="tog">sweep</button>
+  </div>
+  <div class="row">
+    <label>turn it in</label>
+    <span class="chips" id="planes"><button data-p="zw" class="on">zw</button><button data-p="xw">xw</button><button data-p="yw">yw</button><button data-p="xz">xz</button></span>
+    <input id="ang" type="range" min="-180" max="180" step="1" value="0">
+    <output id="angOut">0°</output>
+  </div>
+  <div class="row">
+    <button id="quarter">¼ turn</button>
+    <button id="reset">reset</button>
+    <button id="idle" class="tog on">alive</button>
+    <button id="feet" class="tog on">off-slice feet</button>
+  </div>
+</section>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

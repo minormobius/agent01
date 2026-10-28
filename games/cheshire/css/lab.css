@@ -1,0 +1,24 @@
+:root { --bg: #0b0912; --ink: #ece6f4; --dim: #9a91ad; --line: #2b2540; --teal: #3ff2df; --rose: #fb5cb8; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+canvas#view { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; touch-action: none; cursor: grab; }
+canvas#view:active { cursor: grabbing; }
+header { position: fixed; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: calc(10px + env(safe-area-inset-top)) 16px 0; pointer-events: none; }
+h1 { margin: 0; font: 700 15px var(--mono); letter-spacing: 0.18em; color: var(--ink); text-shadow: 0 0 18px #3ff2df55; }
+h1 span { font-weight: 400; letter-spacing: 0.04em; color: var(--dim); }
+header button { pointer-events: auto; }
+button { font: 600 13px var(--mono); color: var(--ink); background: #1a1528cc; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+button.on, .chips button.on { border-color: var(--teal); color: var(--teal); }
+#infoBtn { width: 32px; height: 32px; padding: 0; }
+#info { position: fixed; top: calc(52px + env(safe-area-inset-top)); left: 16px; right: 16px; max-width: 560px; margin: 0 auto; background: #120f1ef2; border: 1px solid var(--line); border-radius: 14px; padding: 6px 16px; font-size: 14px; color: #d6cfe3; z-index: 2; }
+#info b { color: var(--teal); font-family: var(--mono); }
+#say { position: fixed; left: 16px; right: 16px; bottom: calc(150px + env(safe-area-inset-bottom)); text-align: center; font-size: 14px; color: #d6cfe3; text-shadow: 0 1px 8px #000; pointer-events: none; }
+#say b { color: var(--ink); }
+#panel { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(#0b091200, #0b0912e8 30%); display: grid; gap: 8px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; max-width: 760px; width: 100%; margin: 0 auto; }
+.row label { font: 600 12px var(--mono); color: var(--dim); min-width: 74px; }
+.row input[type=range] { flex: 1 1 140px; accent-color: var(--teal); min-width: 0; }
+output { font: 12px var(--mono); color: var(--dim); min-width: 74px; text-align: right; }
+.chips { display: inline-flex; gap: 4px; }
+.chips button { padding: 5px 9px; }
+@media (max-width: 520px) { .row label { min-width: 0; width: 100%; } output { min-width: 60px; } #say { bottom: calc(190px + env(safe-area-inset-bottom)); } }

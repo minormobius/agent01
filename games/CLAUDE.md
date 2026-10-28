@@ -417,6 +417,16 @@ These live here:
   stands, and the selftest checks it. Levels are recipes (boxes, balls, tubes),
   weathered by `Cave.erode` (rock to air only; re-proved). See
   [`katabasis/README.md`](katabasis/README.md).
+- **Cheshire at `/cheshire/`**: Project Cheshire, a 3D prisoner in a 4D world whose jailer is its cat; being built
+  cat first, so today it is the **cat lab** (no arcade cabinet yet). `cheshire/js/cat.js` (no DOM) is the cat: one
+  parts list of 4D capsules and ellipsoids (smooth-joined fur, hard-joined skin, eyes and grin) that the shader draws
+  and the selftest measures. Front legs splay in z and hind legs in w (four feet must stand on a tetrahedron of the 3D
+  floor); four ears, two eyes; the grin extruded along w past everything else, so it is the last of the cat to leave
+  your slice. `cheshire/js/lab.js` ray-marches your slice (w = W) of the cat turned in 4D, uploading only the parts
+  that reach the slice (`cut`); its shader mirrors cat.js's distances formula for formula (keep them in step: the
+  selftest checks the join and the fields). The join is `mix`, not `D + (d − D)h`: from a large start, float32 loses
+  d. Reversed `smoothstep` edges are undefined in GLSL; don't. `?shot` draws one still frame for screenshots. See
+  [`cheshire/README.md`](cheshire/README.md).
 - **Strand at `/strand/`**: Flow on a sphere, on C60's atoms and panels and
   on Voronoi spheres, and on the torus (a carbon nanotorus, honeycomb and
   Voronoi tori, drawn with Orb's `torus.js`). Panel levels are carved with walls and bridges by a
@@ -470,7 +480,7 @@ stops keydown from bubbling out of it, so a new game that mounts the kit is
 covered either way.
 
 `/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
-`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/plateau/`, `/katabasis/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
+`/tempest/`, `/orb/`, `/fathom/`, `/oneside/`, `/bucky/`, `/ecumene/`, `/hearth/`, `/tessera/`, `/molt/`, `/naught/`, `/ziggurat/`, `/anakata/`, `/anabasis/`, `/hinton/`, `/foam4/`, `/plateau/`, `/katabasis/`, `/cheshire/`, `/strand/`, `/onecoast/`, `/skein/`, `/twelve/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -531,6 +541,7 @@ node games/foam4/test/foam4.selftest.mjs         # the species (unit covolume, r
 node games/plateau/test/plateau.selftest.mjs     # the craft stays rigid, the coupling tips the nose sin(kθ) into w, seeds vs brute force, the shader's seed window and how far a ray reaches, the clearance a true distance, your cell never solid, the phases continuous, the board's speed limit (~7 s)
 node games/plateau/test/pilot.mjs 4 1600         # balance: how far a lookahead autopilot gets, and what kills it (minutes a run)
 node games/katabasis/test/katabasis.selftest.mjs # the flips (rotations, every axis turned perpendicular, each onto its named wall, every up reachable), the flip ball, the free view frame (rigid, up fixed, a half turn swings w by twice the tilt, flips land on the named wall from any facing), every level's par the fewest flips and what it's about proved (on foot, turning, w), the game's body along a par solution of every level, made caves deterministic and proved (par, none on foot, needs-w, nothing near the crystal sooner, the body walks one per tier), the guide counting par and naming flips that each leave one fewer, the ready ring agreeing with tryFlip and the fairy rings covering every flip place, the grotto's lights in open air and the cave untouched by it (~25 s)
+node games/cheshire/test/cheshire.selftest.mjs   # the cat stands (feet on a tetrahedron, centre of mass over it), a safe distance to march, the slice list never misses a part, only the grin past 20 cm, turns, the shader joins as cat.js (~13 s)
 node games/strand/test/strand.selftest.mjs       # boards, solver vs brute force, every shipped level unique; preflight runs this
 node games/strand/tools/bake.mjs                 # re-bake Strand's levels (minutes)
 node games/onecoast/test/onecoast.selftest.mjs   # maps, the perfect world is reachable, coast continuity, mappa copies

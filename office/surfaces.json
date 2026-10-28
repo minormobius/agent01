@@ -7489,6 +7489,16 @@
    "discovered": true
   },
   {
+   "id": "games/cheshire",
+   "name": "cheshire",
+   "url": "https://games.mino.mobi/cheshire/",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "games",
+   "discovered": true
+  },
+  {
    "id": "gen/game.html",
    "name": "game",
    "url": "https://games.mino.mobi/gen/game.html",

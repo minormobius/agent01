@@ -5033,6 +5033,11 @@
       "reason": "in-game route of a listed game"
     },
     {
+      "glob": "games/cheshire",
+      "kind": "pending",
+      "reason": "Project Cheshire's cat lab: the 4D cat on its own, before the game is built round it"
+    },
+    {
       "glob": "clock/antoine",
       "kind": "pending",
       "reason": "the clock toy pack — 28 single-file toys, none listed"
