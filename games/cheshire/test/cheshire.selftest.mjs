@@ -48,9 +48,9 @@ const rnd = ((s) => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >
   let misses = [];
   for (const w of [0, 0.03, 0.06, 0.09, 0.12, 0.15, 0.2, 0.25]) { const cut = C.cut(P, n, w).groups; for (const g of inside(w)) if (!cut.includes(g)) misses.push(`${g}@${w}`); }
   ok(!misses.length, `the page's "in your slice" list never misses a part that's there${misses.length ? ": " + misses.join(", ") : ""}`);
-  const g0 = C.cut(P, n, 0).groups, gGrin = C.cut(P, n, 0.23).groups, gNone = C.cut(P, n, C.GRIN_W + 0.012).groups;
-  ok(g0.length === C.GROUPS.length && gGrin.length === 1 && gGrin[0] === "grin" && !gNone.length && [...inside(0.23, 48)].every((g) => g === "grin") && inside(0.23, 60).size === 1,
-    `at w = 0 all of it; at 23 cm only the grin (sampled too); at ${((C.GRIN_W + 0.012) * 100).toFixed(1)} cm nothing`);
+  const g0 = C.cut(P, n, 0).groups, gHind = C.cut(P, n, 0.16).groups, gNone = C.cut(P, n, 0.2).groups;
+  ok(g0.length === C.GROUPS.length && gHind.join() === "hind legs" && [...inside(0.16, 48)].every((g) => g === "hind legs") && !gNone.length && inside(0.2, 60).size === 0,
+    "at w = 0 all of it; at 16 cm only its hind feet; at 20 cm nothing (the list and sampling agree)");
 }
 
 /* 4 · turning and the three eyes: the lab's turns are rotations; the eyes are an equilateral triangle in the zw plane
@@ -71,8 +71,8 @@ const rnd = ((s) => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >
    arrays are cat.js's sizes */
 {
   const src = fs.readFileSync(path.join(here, "../js/lab.js"), "utf8");
-  ok(src.includes(`if (m >= ${C.MAT.pink}. || M >= ${C.MAT.pink}.)`) && src.includes("D = mix(D, d, h) - uK * h * (1. - h)") && src.includes("uniform4fv(U.uCp, f4(caps, (k) => [k.ra, k.rb, k.m, k.wx]))") && src.includes("${LIMITS.caps}"),
-    "the shader joins as cat.js does (hard from skin up, smooth fur by mix), and reads the parts' fields in cat.js's order");
+  ok(src.includes("else if (m >= ${MAT.grin}.) hard(E, N, d, m); else if (m >= ${MAT.pink}.) hard(D, M, d, m); else blend(F, d, uK * (1. - m));") && src.includes("F = mix(F, d, h) - k * h * (1. - h)") && src.includes("uniform4fv(U.uCp, f4(caps, (k) => [k.ra, k.rb, k.m, k.wx]))") && src.includes("${LIMITS.caps}"),
+    "the shader joins as cat.js does (fur smooth by mix, skin and eyes hard and apart, carved, then the mouth's parts), and reads the parts' fields in cat.js's order");
 }
 
 /* 6 · balance (js/gait.js): its geometry against brute force, then each leg plan judged as the panel says */
@@ -145,7 +145,8 @@ const rnd = ((s) => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >
 /* 8 · the hyper-mouth: a sheet (our smile curve spun round the xy plane) that opens into a volume. The spun distance is
    the true distance to the spun surface (against brute force over the angle); the mouth's parts are the same in every
    sideways direction; closed, the place behind the teeth is cat; open, it is a hole, out of the cat at every angle round
-   z and w (a volume, not a slit); the ghost grin only beyond the face; and the shader carves and spins as cat.js does */
+   z and w (a volume, not a slit). The teeth are set in the flesh, their faces bared, shut to open (below). And the
+   shader carves and spins as cat.js does */
 {
   const P0 = C.pose(0, { idle: false }), P1 = C.pose(0, { idle: false, mouth: 1 }), spun = P0.caps.filter((k) => k.wx === C.REV);
   let worst = 0;
@@ -154,16 +155,32 @@ const rnd = ((s) => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >
     let brute = Infinity; for (let a = 0; a < 720; a++) { const th = (a * Math.PI) / 360, rot = (q) => [q[0], q[1], q[2] * Math.cos(th), q[2] * Math.sin(th)]; brute = Math.min(brute, C.capD(p, { ...c, wx: 0, a: rot(c.a), b: rot(c.b) })); }
     worst = Math.max(worst, Math.abs(brute - C.capD(p, c)));
   }
-  const mouthOnly = { caps: P1.caps.filter((k) => k.m >= C.MAT.grin && k.m !== C.MAT.ghost), ells: P1.ells.filter((e) => e.m >= C.MAT.grin), cavity: null };
+  const mouthOnly = { caps: P1.caps.filter((k) => k.m >= C.MAT.grin), ells: P1.ells.filter((e) => e.m >= C.MAT.grin), cavity: null };
   let asym = 0;
   for (let k = 0; k < 200; k++) { const p = [0.31 + 0.06 * rnd(), 0.31 + 0.06 * rnd(), (rnd() - 0.5) * 0.12, (rnd() - 0.5) * 0.12], th = rnd() * 6.28; asym = Math.max(asym, Math.abs(C.sdf(p, mouthOnly).d - C.sdf([p[0], p[1], p[2] * Math.cos(th) - p[3] * Math.sin(th), p[2] * Math.sin(th) + p[3] * Math.cos(th)], mouthOnly).d)); }
   const ring = [0, 1, 2, 3, 4, 5].map((k) => [0.352, 0.334, 0.03 * Math.cos((k * Math.PI) / 3), 0.03 * Math.sin((k * Math.PI) / 3)]);
   const closed = ring.every((p) => C.sdf(p, P0).d < 0), open = ring.every((p) => C.sdf(p, P1).d > 0.003 && C.sdf(p, P1).m === C.MAT.mouth);
-  const ghostNear = P0.caps.filter((k) => k.m === C.MAT.ghost).every((k) => C.capD([0.36, 0.34, 0, 0.05], k) > 0), ghostFar = P0.caps.filter((k) => k.m === C.MAT.ghost).some((k) => C.capD([k.a[0], k.a[1], k.a[2], 0.2], k) < 0);
+  // set in the flesh: sample every tooth's spine round z and w; the flesh is everything but the teeth and tongue. A
+  // tooth's root is a tooth's width up from the upper row's spine (down from the lower's, turned with the jaw), its
+  // face a tooth's width forward. Shut, every root is in the flesh; at any opening the flesh meets every root within
+  // 2 mm (a third of a tooth), and no face is under the lips by more than that (the smile's corners tuck in a little)
+  let shutRooted = true, gap = -1, cover = -1;
+  for (const mouth of [0, 0.25, 0.5, 0.75, 1]) {
+    const P = C.pose(0, { idle: false, mouth }), flesh = { ...P, caps: P.caps.filter((k) => k.m < C.MAT.grin || k.m === C.MAT.mouth), ells: P.ells.filter((e) => e.m < C.MAT.grin) };
+    const teeth = P.caps.filter((k) => k.m === C.MAT.grin), a = 0.5 * mouth, turn = ([dx, dy]) => [dx * Math.cos(a) + dy * Math.sin(a), -dx * Math.sin(a) + dy * Math.cos(a)];
+    teeth.forEach((k, i) => {
+      const lower = i % 2 === 1, up = lower ? turn([0, -1]) : [0, 1], fwd = lower ? turn([1, 0]) : [1, 0];
+      for (let h = 0; h <= 1; h += 0.25) for (let th = 0; th < 6.28; th += 0.7) {
+        const x = k.a[0] + (k.b[0] - k.a[0]) * h, y = k.a[1] + (k.b[1] - k.a[1]) * h, r = k.a[2] + (k.b[2] - k.a[2]) * h, at = (d) => [x + d[0] * C.TOOTH, y + d[1] * C.TOOTH, r * Math.cos(th), r * Math.sin(th)];
+        const dr = C.sdf(at(up), flesh).d, df = C.sdf(at(fwd), flesh).d;
+        if (!mouth && dr >= 0) shutRooted = false; gap = Math.max(gap, dr); cover = Math.max(cover, -df);
+      }
+    });
+  }
   const src = fs.readFileSync(path.join(here, "../js/lab.js"), "utf8");
-  const shader = src.includes("else if (wx < 0.) P = vec4(p.x, p.y, length(p.zw), 0.);") && src.includes("if (cv > D) { D = cv; M = ${MAT.mouth}.; }") && src.includes("return E < D ? vec2(E, N) : vec2(D, M);") && src.includes("max(d, ${W_IN} - abs(p.w))");
-  ok(worst < 1e-5 && asym < 1e-9 && closed && open && ghostNear && ghostFar && shader,
-    `the hyper-mouth: spun distance exact (to ${worst.toExponential(0)}); the same every way round z and w; shut, cat behind the teeth; open, a hole at every angle round them (a volume); the ghost grin only past the face; the shader carves and spins as cat.js does`);
+  const shader = src.includes("else if (wx < 0.) P = vec4(p.x, p.y, length(p.zw), 0.);") && src.includes("if (C > D) { D = C; M = ${MAT.mouth}.; }") && src.includes("return E < D ? vec2(E, N) : vec2(D, M);") && src.includes("if (m > ${MAT.mouth - 0.5}) C = max(C, -d);");
+  ok(worst < 1e-5 && asym < 1e-9 && closed && open && shutRooted && gap < 0.002 && cover < 0.002 && P1.caps.some((k) => k.m === C.MAT.mouth) && shader,
+    `the hyper-mouth: spun distance exact (to ${worst.toExponential(0)}); the same every way round z and w; shut, cat behind the teeth; open, a hole at every angle round them (a volume); the teeth set in the flesh (shut, every root in it; open, the flesh within ${(Math.max(0, gap) * 1000).toFixed(1)} mm of every root; no face under the lips by more than ${(Math.max(0, cover) * 1000).toFixed(1)} mm); the shader carves and spins as cat.js does`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} cheshire checks failed` : `\n✓ cheshire: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(1)} s`);

@@ -6,7 +6,7 @@
    and rose kata (−w), the colours the stripes take on the same sides (violet in between).
    With st.support (the gait panel), the floor also shows the support: the solid the planted feet span on the 3D floor,
    cut by your slice, and the centre of mass over it. st.body passes the gait's pose (sway, lift, tailFoot) to the cat. */
-import { pose, cut, paws, mass, rig, HEAD, LIMITS, K, MAT, W_IN } from "./cat.js";
+import { pose, cut, paws, mass, rig, HEAD, LIMITS, K, MAT } from "./cat.js";
 import { wave, maxStride } from "./walk.js";
 import { hull, margin, NEED } from "./gait.js";
 
@@ -22,30 +22,31 @@ uniform vec4 uEyeC[3], uLook; // the eyes' centres, and the camera, in the cat's
 uniform vec4 uSF[16], uCom; uniform int uNSF; // the support's faces on the floor (n·(x, z, w) ≤ c), the centre of mass (x, z, w, state)
 out vec4 outC;
 
-// the parts, as in cat.js: capD (wx > 0 extruded along w, wx < 0 spun round the xy plane, the ghost only past W_IN),
-// ellD, the join (smooth for fur, hard for skin and up), the cavity carved, then the mouth's own parts
+// the parts, as in cat.js: capD (wx > 0 extruded along w, wx < 0 spun round the xy plane),
+// ellD, the joins (smooth for fur, hard for skin and eyes, kept apart), the groove and cavity carved, then the mouth's own parts
 float capD(vec4 p, int i) {
   float wx = uCp[i].w; vec4 P = p; if (wx > 0.) P.w = 0.; else if (wx < 0.) P = vec4(p.x, p.y, length(p.zw), 0.);
   vec4 pa = P - uA[i], ba = uB[i] - uA[i]; float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.);
   float d = length(pa - ba * h) - mix(uCp[i].x, uCp[i].y, h);
-  if (wx > 0.) d = max(d, abs(p.w) - wx);
-  return uCp[i].z == ${MAT.ghost}. ? max(d, ${W_IN} - abs(p.w)) : d;
+  return wx > 0. ? max(d, abs(p.w) - wx) : d;
 }
 float ellD(vec4 p, int i) {
   float wx = uEp[i].y; vec4 q = p - uEc[i], r = uEr[i]; if (wx > 0.) { q.w = 0.; r.w = 1.; }
   float k0 = length(q / r), k1 = length(q / (r * r)); float d = k1 < 1e-12 ? -min(min(r.x, r.y), min(r.z, r.w)) : k0 * (k0 - 1.) / k1;
   return wx > 0. ? max(d, abs(p.w) - wx) : d;
 }
-void join(inout float D, inout float M, float d, float m) {
-  if (m >= 1. || M >= 1.) { if (d < D) { D = d; M = m; } return; }
-  float h = clamp(0.5 + 0.5 * (D - d) / uK, 0., 1.);
-  D = mix(D, d, h) - uK * h * (1. - h); M = mix(M, m, h); // mix, not D + (d − D)h: from D = 100, float32 would lose d
+void blend(inout float F, float d, float k) { float h = clamp(0.5 + 0.5 * (F - d) / k, 0., 1.); F = mix(F, d, h) - k * h * (1. - h); } // mix, not F + (d − F)h: from F = 100, float32 would lose d
+void hard(inout float D, inout float M, float d, float m) { if (d < D) { D = d; M = m; } }
+void add(inout float F, inout float D, inout float M, inout float C, inout float E, inout float N, float d, float m) {
+  if (m > ${MAT.mouth - 0.5}) C = max(C, -d); else if (m >= ${MAT.grin}.) hard(E, N, d, m); else if (m >= ${MAT.pink}.) hard(D, M, d, m); else blend(F, d, uK * (1. - m)); // a fur part joins within K·(1 − m): a lip's tight
 }
 vec2 cat(vec4 q) {
-  float D = 100., M = 0., E = 100., N = ${MAT.grin}.;
-  for (int i = 0; i < ${LIMITS.ells}; i++) { if (i >= uNE) break; float m = uEp[i].x; if (m >= ${MAT.grin}.) join(E, N, ellD(q, i), m); else join(D, M, ellD(q, i), m); }
-  for (int i = 0; i < ${LIMITS.caps}; i++) { if (i >= uNC) break; float m = uCp[i].z; if (m >= ${MAT.grin}.) join(E, N, capD(q, i), m); else join(D, M, capD(q, i), m); }
-  if (uCavR.x > 0.) { vec4 c = q - uCav; float k0 = length(c / uCavR), k1 = length(c / (uCavR * uCavR)), cv = -(k0 * (k0 - 1.) / max(k1, 1e-12)); if (cv > D) { D = cv; M = ${MAT.mouth}.; } }
+  float F = 100., D = 100., M = ${MAT.pink}., C = -100., E = 100., N = ${MAT.grin}.; // fur, skin and eyes, carved, the mouth's own parts
+  for (int i = 0; i < ${LIMITS.ells}; i++) { if (i >= uNE) break; add(F, D, M, C, E, N, ellD(q, i), uEp[i].x); }
+  for (int i = 0; i < ${LIMITS.caps}; i++) { if (i >= uNC) break; add(F, D, M, C, E, N, capD(q, i), uCp[i].z); }
+  if (uCavR.x > 0.) { vec4 c = q - uCav; float k0 = length(c / uCavR), k1 = length(c / (uCavR * uCavR)); C = max(C, -(k0 * (k0 - 1.) / max(k1, 1e-12))); }
+  if (F <= D) { D = F; M = ${MAT.fur}.; }
+  if (C > D) { D = C; M = ${MAT.mouth}.; }
   return E < D ? vec2(E, N) : vec2(D, M);
 }
 vec4 toCat(vec3 p) { return uRot * (vec4(p, uW) - uPos); }
@@ -103,18 +104,16 @@ void main() {
       col = mix(vec3(1.0, 0.8, 0.22) * (1.25 + 0.25 * sin(uTime * 1.3)), vec3(0.45, 0.25, 0.05), ring * 0.6);
       col = mix(col, vec3(0.01, 0.005, 0.0), pupil) + vec3(1.) * pow(max(dot(reflect(rd, n), L), 0.), 40.) * 0.6;
     }
-    if (m > 2.5 && m < 4.5) { // the grin glows, in teeth: a carpet of them, in rings across the sheet round z and w
+    if (m > ${MAT.grin - 0.5} && m < ${MAT.grin + 0.5}) { // the grin glows, in teeth: a carpet of them, in rings across the sheet round z and w
       // the gaps between teeth: across the rings (every 1.3 cm of ρ) and round them (nr teeth to a ring, about 1.3 cm apart,
       // an even number offset half a tooth, so the slice w = 0 runs through the middles of the teeth on both sides)
       float rho = length(q.zw), th = atan(q.w, q.z), ri = floor(rho / 0.013), nr = 2. * max(2., floor(3.1416 * (ri + 0.5) + 0.5));
       float gapR = 1. - smoothstep(0.07, 0.16, fract(rho / 0.013)), gapA = smoothstep(0.86, 0.93, abs(fract(th * nr / 6.2832 + 0.5) - 0.5) * 2.);
-      float teeth = max(gapR, gapA) * step(m, 3.5);
-      vec3 glow = vec3(0.9, 1.0, 0.97) * (m > 3.5 ? 0.85 : 1.15 + 0.15 * sin(uTime * 2.));
-      col = mix(glow, vec3(0.25, 0.4, 0.42), teeth * 0.7) + rim * 0.3;
-      if (m > 3.5) col = mix(col, vec3(0.75, 1.0, 0.95), 0.25 + 0.15 * sin(uTime * 1.7 + q.w * 30.)); // the ghost: past the face, a fiction
+      float teeth = max(gapR, gapA);
+      col = mix(vec3(0.9, 1.0, 0.97) * (1.15 + 0.15 * sin(uTime * 2.)), vec3(0.25, 0.4, 0.42), teeth * 0.7) + rim * 0.3;
     }
-    if (m > 4.5 && m < 5.5) col = vec3(0.75, 0.22, 0.32) * (0.4 + lit) + rim * 0.2; // the tongue
-    if (m > 5.5) col = vec3(0.16, 0.02, 0.05) * (0.5 + 0.5 * lit) + vec3(0.25, 0.04, 0.08) * ao * 0.4; // inside the mouth
+    if (m > ${MAT.tongue - 0.5} && m < ${MAT.tongue + 0.5}) col = vec3(0.75, 0.22, 0.32) * (0.4 + lit) + rim * 0.2; // the tongue
+    if (m > ${MAT.mouth - 0.5}) col = vec3(0.16, 0.02, 0.05) * (0.5 + 0.5 * lit) + vec3(0.25, 0.04, 0.08) * ao * 0.4; // inside the mouth
     col = mix(col, sky(rd), smoothstep(2.5, 6., tHit));
   } else if (tFloor < 1e8) {
     vec3 p = ro + rd * tFloor;

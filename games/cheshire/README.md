@@ -9,7 +9,7 @@ of it at a time.
 You see only the slice of the cat's world at your w. A connected 4D body can cut your space in separate pieces, so
 its parts come and go on their own: a paw here, an ear floating over there. A step of a few centimetres along w takes
 all of it out of your sight without it going anywhere. And whatever is last to cross your slice as it leaves is what
-lingers: give it a grin that reaches further into w than the rest of it and you get the grin without the cat.
+lingers: whatever part of it reaches furthest into w is the last you see.
 
 ## The cat (`js/cat.js`, no DOM)
 
@@ -20,8 +20,7 @@ One parts list (capsules and ellipsoids in 4D, joined smoothly) is what the shad
   rectangle. Front legs splay in z, hind legs in w: in your slice it seems to hover on two legs. The selftest checks
   the centre of mass stays over the tetrahedron through its idle.
 - **Head:** round both ways sideways, so four ears (a pair across z, a pair across w), three eyes (a triangle across z and w).
-- **Mouth:** a sheet that opens into a volume (below); past the face a ghost of the grin glows to 26 cm, so it stays
-  when the cat has gone.
+- **Mouth:** a sheet that opens into a volume (below), carved into the face, the teeth set in it.
 - **Idle:** breathing, and a tail that sways through w (it drifts in and out of your slice by itself).
 
 ## The five-legged cat (`pose(t, { legs: 5 })`, the lab's **5 legs**)
@@ -45,7 +44,7 @@ misses a part). URL: `?legs=5&w=0.12&zw=90&yaw=90&pitch=5&dist=0.6&at=0.3,0.4,0&
 stops (for screenshots in software GL).
 
 ```bash
-node games/cheshire/test/cheshire.selftest.mjs   # stance, a safe distance to march, slices, turns, shader = cat.js, balance, the walk, the mouth (~23 s)
+node games/cheshire/test/cheshire.selftest.mjs   # stance, a safe distance to march, slices, turns, shader = cat.js, balance, the walk, the mouth (~12 s)
 ```
 
 ## Balance (`js/gait.js`, no DOM; `js/gaitui.js`, the panel)
@@ -99,8 +98,19 @@ distance is the curve's, measured in (x, y, √(z² + w²)), which the selftest 
 all round, a bowl. The jaw turns in the xy plane, so it **hinges on a plane**, the zw plane (`JAW`), the sheet's own.
 **Teeth** line the sheet in rings, a carpet: your slice shows one row, and every w another, narrower and higher up the
 bowl. Opened (the lab's **jaw**), a cavity is carved out behind the teeth (round in z and w) with a tongue on its floor:
-at every angle round z and w the place behind the teeth is open, a volume. Beyond the face in w, where there is no mouth,
-a **ghost grin** glows on to 26 cm: the Cheshire's, and a fiction.
+at every angle round z and w the place behind the teeth is open, a volume.
+
+**Set in flesh.** The smile is a groove carved in the face (`MAT.mouth` parts: carved out, after everything else), and
+its edges are the lips. The teeth are set in it: their faces flush with the shut face, their roots in two chains of lip
+flesh along the smile (`MAT.lip`, fur that joins within K/4, so it holds the roots without swelling the face). The
+lower lip and the jaw turn together, carrying the lower row; opening carves the gap between the rows too (a ball at
+each point of the groove, from the groove's middle to a groove's width past where the jaw took it), so the lips stay
+the groove's edges. Where the teeth and groove sit is found once on the shut face's own surface (`skin`: marched and
+bisected through the smooth joins, which swell a face by up to K/4). The selftest holds it: shut, every root in the
+flesh; at any opening the flesh within 2 mm of every root, and no tooth's face under the lips by more than 2 mm.
+
+Fur joins fur smoothly, while skin and eyes join hard; they are kept in separate sums. (Joined in one, a fur part after
+an eye joined hard wherever the eye was nearest, so the distance jumped and the march was unsafe.)
 
 **Pupils** are round: an eye's surface is 3D, so a round pupil is a ball on it, the cap of the eye within an angle of
 where it looks. Each eye looks at the camera, so wherever your slice cuts it the pupil is a round dot, aimed at you.
