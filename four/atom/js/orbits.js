@@ -2,7 +2,7 @@
    in 4D), stepped by leapfrog (symplectic, so energy doesn't drift over thousands of orbits). G = 1. Also: a round
    star's outside potential from its shells (no shell theorem when pinned in 4D), an orbit's eccentricity vector and the
    angles between two orbits' planes. */
-import { kTab } from "./atom.js";
+import { kTab } from "./kernel.js";
 
 /* the pull on body i from body j: −m_j k (x_i − x_j)/r^(k+2) (the gradient of −m_j/r^k) */
 export function nbody(masses, xs, vs, { k = 1, dt = 0.01, steps = 1000, every = 10, onSample = null } = {}) {

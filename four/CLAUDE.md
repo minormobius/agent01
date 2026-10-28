@@ -226,6 +226,14 @@ for games, and this is a modelling programme with publications to come. The game
   and a method citing a check that doesn't exist stops the build. **A new method gets a panel; a new runner run
   updates the ledger:** `git fetch origin atom4-data && node four/atom/tools/ledger.mjs` writes **generated**
   `js/ledger.js`, then regenerate the pages. The code has no licence yet (packaging for free use waits on one).
+- **the tangled mirror, `four/mirror/`**: the solvers as their own MIT-licensed repo,
+  `tangled.org/morphyxmino.bsky.social/four` (the monorepo itself has no licence; only the mirror is licensed).
+  `mirror/build.mjs` decides what ships: the no-DOM modules (`MODULES`) at their own paths, the 4D viewer, Lumen⁴'s
+  optics, a known-answer test assembled from the selftest's method blocks (`BLOCKS`: no baked data; 55 checks, 5 s),
+  its fixture, `mirror/README.md` and `mirror/LICENSE`. `node four/mirror/build.mjs --check` stages and runs it;
+  selftest 42 checks it still stages. `.github/workflows/mirror-four-tangled.yml` stages, tests and force-pushes on
+  every push touching those files, and skips the push with a notice until the repo exists on tangled. A new solver
+  module goes in `MODULES`; a new method-only selftest block in `BLOCKS`; neither may import baked data.
 - **papers**: none yet. Paper 1, a periodic table for four dimensions, is planned in `atom/WRITEUP.md` (deliberately
   pinned: it's to be held to a physics preprint's standard). Its sources are gathered in `atom/LITERATURE.md`, with
   each entry tagged by how far it's been verified. Papers will live at `/papers/`.

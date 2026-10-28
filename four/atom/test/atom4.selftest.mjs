@@ -734,5 +734,14 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `moons and starlight: a planet catches ${O.absorbShare(3)} and ${O.absorbShare(4).toFixed(4)} of a surface's light; a black Earth sits at ${T3.toFixed(1)} K (textbook 278.6); the orthogonal moon reaches eccentricity ${M.ortho.emax}, the least of five, its plane unmoved; our polar moon is lost on orbit ${M.line90.lost}`);
 }
 
+/* 42 · the tangled mirror (four/mirror/build.mjs): it still stages, every module's imports land inside it, and every
+   selftest block it carries exists (its own test, run by the mirror workflow, takes 5 s more) */
+{
+  const MB = await import(path.join(here, "../../mirror/build.mjs")), os = await import("node:os");
+  let staged = null, err = ""; try { staged = MB.stage(path.join(fs.mkdtempSync(path.join(os.tmpdir(), "four-mirror-")), "four")); } catch (e) { err = e.message; }
+  const files = staged ? MB.MODULES.every((m) => fs.existsSync(path.join(staged, m))) && fs.existsSync(path.join(staged, "LICENSE")) && fs.existsSync(path.join(staged, "atom/test/methods.selftest.mjs")) : false;
+  ok(staged && files, `the mirror stages: ${MB.MODULES.length} modules, ${MB.BLOCKS.length} selftest blocks, the licence${err ? "; " + err : ""}`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

@@ -9,7 +9,7 @@
    radius 1 and the central density 1. Φ comes from the shell kernel, a thin shell's potential at any radius: 1/max in
    3D (Newton's shell theorem), 1/max² for 4D Gauss (its shell theorem), and k(min/max)/max pinned in 4D, which has no
    shell theorem (js/atom.js k4): outer layers pull inner ones inward rather than cancelling. */
-import { k4 } from "./atom.js";
+import { k4 } from "./kernel.js";
 
 export const LAWS = {
   newton: { d: 3, degree: 1, kernel: (r, s) => 1 / Math.max(r, s) },

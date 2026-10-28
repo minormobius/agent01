@@ -6,7 +6,7 @@
    4D takes a = 3/2. A relativistic field whose propagator is 1/(p²)^a has scaling dimension Δ = D/2 − a in D
    spacetime dimensions, and a theory with positive probabilities needs Δ ≥ (D − 2)/2, i.e. a ≤ 1: the unitarity
    bound. a = 3/2 breaks it. */
-import { k4 } from "./atom.js";
+import { k4 } from "./kernel.js";
 
 /* the propagator power that gives a static r^−p in D_s space dimensions */
 export const propagatorPower = (p, Ds) => (Ds - p) / 2;

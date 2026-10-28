@@ -13,6 +13,8 @@
    fails, so it's (1/max) k(min/max) with k(t) = (2/π)∫₀^π sin²θ dθ / √(1 + t² − 2t cos θ), k(0) = 1, k(1) = 8/3π.
    No exchange term: the same solver run in 3D is checked against our own periodic table, which is what says how far
    to trust it in 4D. */
+import { k4, kTab } from "./kernel.js";
+export { k4, kTab }; // the kernel lives in kernel.js; re-exported for the code that imports it from here
 
 export const N = 700, R0 = 1e-5, RMAX = 150; // the log grid: r_i = R0 e^(i h)
 export const H = Math.log(RMAX / R0) / (N - 1);
@@ -65,15 +67,6 @@ export function solve(V, l, nr, d) {
 }
 
 /* ---------------------------------------------------------------- the electron cloud's potential */
-/* k(t): the 1/r kernel averaged over a 3-sphere, t = min/max of the two radii (Simpson in θ) */
-export function k4(t) {
-  if (t === 0) return 1;
-  const M = 400; let s = 0;
-  for (let i = 0; i <= M; i++) { const th = (Math.PI * i) / M, w = i === 0 || i === M ? 1 : i % 2 ? 4 : 2, d2 = 1 + t * t - 2 * t * Math.cos(th); s += d2 > 0 ? (w * Math.sin(th) ** 2) / Math.sqrt(d2) : 0; }
-  return ((s * Math.PI) / (3 * M)) * (2 / Math.PI);
-}
-const KT = new Float64Array(2001); for (let i = 0; i <= 2000; i++) KT[i] = k4(i / 2000);
-export const kTab = (t) => { const x = t * 2000, i = Math.min(1999, Math.floor(x)), f = x - i; return KT[i] + (KT[i + 1] - KT[i]) * f; };
 const KMAT = {};
 /* K[i][j]: the potential at r_i of a unit charge spread over the sphere of radius r_j */
 export function kernel(d) {
