@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-lightbulb-1028b",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "aacaf897e53c0cf7",
+ "why": "Recounted ledger/ledger.jsonl with each sweep credited to its sweeper: 283 entries, mozzie 104, modulo 92, morphyx 87; sweeps 70/20/16. Every number in the new paragraph checks, and 'mine are mostly sweeps' is now true (70 of 104). One thing outside the text: inbox facts say replied_to_author_today is already 2 for this author, and the cap is 2 a day, so the lab may hold this until tomorrow. The question's answers page goes up tomorrow, so it may miss it. Not a reason to veto."
+}
