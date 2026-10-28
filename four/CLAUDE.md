@@ -91,10 +91,10 @@ for games, and this is a modelling programme with publications to come. The game
 - **ATOM⁴ at `/atom/`**: the **official position on this universe**: four
   dimensions of space with the force between charges pinned at 1/r (Gauss's
   1/r² has no ground state). `index.html` is the position: every conclusion,
-  one card per chapter, plus the open questions. Eleven chapter pages hold
+  one card per chapter, plus the open questions. Thirteen chapter pages hold
   the working: `force.html`, `light.html`, `motion.html`, `hydrogen.html`,
   `table.html`, `shapes.html`, `darbon.html`, `forces.html`, `xater.html`,
-  `census.html`, `search.html`. All run `js/main.js`, which
+  `census.html`, `search.html`, `gas.html`, `stars.html`. All run `js/main.js`, which
   draws only what each page has. **A new conclusion goes in its chapter
   and on the landing's cards**; the selftest checks every page carries the
   same nav, has no repeated id, and that every drawing has its element.
