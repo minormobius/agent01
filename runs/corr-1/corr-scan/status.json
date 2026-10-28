@@ -1,0 +1,33 @@
+{
+ "group": "corr-scan",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 4 d -0.3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 259
+  },
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 4 d 0.3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 254
+  },
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 4.9 d -0.3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 344
+  },
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 4.9 d 0.3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 342
+  }
+ ]
+}

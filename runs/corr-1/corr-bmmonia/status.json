@@ -1,0 +1,33 @@
+{
+ "group": "corr-bmmonia",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 4.9 book",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 169
+  },
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 4.9 d",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 223
+  },
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 4.9 Ddp",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 397
+  },
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 4.9 Ddpf",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 673
+  }
+ ]
+}

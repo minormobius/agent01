@@ -1,0 +1,6 @@
+$ node four/atom/tools/correlation.mjs pair 4.9 Ddp
+4.9 Ddp: Hartree–Fock -25.876, correlation (MP2) -2.094, so MP2 -27.969 kcal/mol (228 functions, 397 s)
+(node:2308) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/census.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
