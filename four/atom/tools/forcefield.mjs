@@ -14,7 +14,7 @@ import { CENSUS } from "../js/census.js";
 import { hydrideAtoms, dimerAtoms, pairEnergy } from "./census.mjs";
 import { randomRotation } from "../js/md.js";
 
-/* each molecule by a key: "3" our water, "4" Xater, "4.9" element 9's XH₃ (bmmonia, Xater's rival in chapter 10),
+/* each molecule by a key: "3" our water, "4" Xater, "4.9" element 9's XH₃ (bmmonia, Xater's rival in the census chapter),
    "3.9" our HF and "3.7" our ammonia */
 export const WORLDS = { 3: { d: 3, Z: 8, DMIN: 4.6, DMAX: 9, CLOSE: 2.7 }, 4: { d: 4, Z: 10, DMIN: 5.2, DMAX: 11, CLOSE: 3.0 }, 4.9: { d: 4, Z: 9, DMIN: 5.2, DMAX: 11, CLOSE: 3.0 },
   // our HF and ammonia, for the audit's known answers (tools/audit.mjs known): published pairs to check the pipeline on

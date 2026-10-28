@@ -1,4 +1,4 @@
-/* Ions, for chapter 12's salts: the energy to strip bluminium (4D element 15) to Bl³⁺ and for pxygen to take an
+/* Ions, for the gases chapter's salts: the energy to strip bluminium (4D element 15) to Bl³⁺ and for pxygen to take an
    electron, by the same solver as the table (Hartree plus local exchange), with aluminium and oxygen as the check.
    A second electron on an isolated oxide or pxide ion isn't bound in either world (a crystal's charges hold it), so
    it isn't computed here. Prints JSON: node four/atom/tools/ions.mjs */

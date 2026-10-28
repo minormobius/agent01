@@ -25,7 +25,7 @@ export { NAMES, termsOf, modelEnergy };
 export const KCAL = 627.509;
 const W = 3 / KCAL, CAP = 40 / KCAL;
 function solve(M, b) { const n = b.length, A = M.map((r, i) => [...r, b[i]]); for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[p], A[c]] = [A[c], A[p]]; for (let r = c + 1; r < n; r++) { const f = A[r][c] / A[c][c]; for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k]; } } const x = new Array(n); for (let r = n - 1; r >= 0; r--) { let s = A[r][n]; for (let k = r + 1; k < n; k++) s -= A[r][k] * x[k]; x[r] = s / A[r][r]; } return x; }
-/* the repulsions' exponents by the Born–Mayer rule (chapter 8): each atom's density falls as e^(−√(2I) r), so a
+/* the repulsions' exponents by the Born–Mayer rule (the intermolecular-forces chapter): each atom's density falls as e^(−√(2I) r), so a
    pair's overlap falls with the sum of the two, I being each atom's ionization energy (js/table.js) */
 import { TABLE } from "../js/table.js";
 import { expOf } from "../js/ffmodel.js";

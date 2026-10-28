@@ -87,7 +87,7 @@ position.
   - Water from Hartree–Fock pairs has about half its real cohesion: U = −22.2 kJ/mol at 298 K and 0.997 g/cm³
     against about −41.5, with no dispersion and no many-body polarization. In the drop it boils off at 300 K.
   - Xater's liquid comes out very dense and cohesive (heavy atoms 4.3 bohr apart, U ≈ −280 kJ/mol). Pairs harvested
-    from it reached −15.5 kcal/mol under Hartree–Fock, deeper than chapter 10's 13.3. The census optimized each pair
+    from it reached −15.5 kcal/mol under Hartree–Fock, deeper than the census chapter's 13.3. The census optimized each pair
     over distance and one tilt only, hence:
 - **The full pair search** (`tools/pairsearch.mjs <key> [rounds]`, then `bake` into `js/pairmin.js`).
   - Every relative pose (exp(Ω) turns, 3 numbers in 3D and 6 in 4D, plus d to move), searched from thousands of
@@ -106,9 +106,9 @@ position.
     the reference orientation once |Ω| > 1.5 and stops only when |g| < 10⁻⁶. With it, 400 of 400 random starts find
     Xater's one pair basin, and 378 of 400 find our water's (the rest drift apart or run out of steps). The
     Hartree–Fock energies stand; `pairmin.js`'s `modelMinima` list is due a re-bake.
-- **The live search** (`js/search.js`, chapter 11): the same descent, animated, on both worlds' force fields. It
+- **The live search** (`js/search.js`, the search chapter): the same descent, animated, on both worlds' force fields. It
   classes every start's end as a basin, *apart* or *unfinished*, and draws the discovery curve.
-- **The cluster census** (`tools/clusters.mjs <key> <n> [starts]`, then `bake` into `js/clusters.js`; chapter 11's
+- **The cluster census** (`tools/clusters.mjs <key> <n> [starts]`, then `bake` into `js/clusters.js`; the search chapter's
   crowds section). Clusters of 3–6 molecules on the force field (pairwise additive), random starts, the same descent.
   Minima are counted two ways, which bracket the truth: by energy and sorted heavy-atom distances (can split a soft
   basin) and by energy alone (can merge near-degenerate ones). Chao1 estimates the unseen. Results are cached per job
@@ -170,7 +170,7 @@ dimensions. Section 7 of the page asks what that costs.
   sit flat near 10 eV, about half as tight. A neutral 4D atom
   pulls on a distant electron with −Σr²/8s³. Ours exerts no pull at all.
 
-## The shapes (chapter 6)
+## The shapes (the shapes chapter)
 
 The six regular 4D polytopes, built from coordinates:
 - the 5-cell from the simplex;
@@ -194,7 +194,7 @@ A tile draws a scene two ways:
 
 Drag turns it in 3D or through w. A touch turns it by its sideways drag only, so the page still scrolls.
 
-## Darbon (chapter 7)
+## Darbon (the darbon chapter)
 
 Element 7 of the 4D table (s² p³, half a shell) is named darbon.
 
@@ -237,7 +237,7 @@ cage (the potential at the centre of a charged shell is 3π/8 of the potential a
 3D, locality, linearity, relativity and unitarity together force 1/r. In 4D they force 1/r², and there are no
 atoms. This universe gives up relativity, for electromagnetism only.
 
-## Light (chapter 2)
+## Light (the light chapter)
 
 Under the lens vacuum Lumen⁴'s conclusions hold for the light itself: 1/r³, three polarizations, the wake,
 1.43 λ/D, ν⁴ and T⁵, and the rainbow's conics as geometry (its 42° is our water's). Matter feels a
@@ -247,7 +247,7 @@ yet computed. Small-particle scattering goes as ω^(d+1)(c/ℓω)² = ω³ (ours
 chapter draws the three skies from Lumen⁴'s Planck spectra and colour function, assuming a
 frequency-independent polarizability. Lumen⁴'s page carries a note pointing here.
 
-## Motion and spin (chapter 3)
+## Motion and spin (the motion chapter)
 
 - F = ma in four components. Central-force motion stays in a plane: under 1/r, Kepler's ellipses. The
   Runge–Lenz vector p²x − (x·p)p − x/r is conserved in any dimension. Under Gauss's 1/r³ force a nudged circle
@@ -267,7 +267,7 @@ frequency-independent polarizability. Lumen⁴'s page carries a note pointing he
   Cayley step, which stays exactly orthogonal.
 - A bond's stabilizer is SO(3): three twist angles. In D₂H₈ each darbon carries four hydrogens.
 
-## What it contains, and whether matter is stable (chapter 1)
+## What it contains, and whether matter is stable (the force chapter)
 
 The force chapter opens with the universe's inventory:
 - **Electrons:** spin-½ fermions, the smallest spinors.
@@ -285,7 +285,7 @@ Stability of matter is a theorem in our world, but its proof uses Newton's theor
 - every neutral–neutral force falls faster than R⁻⁴, so it is integrable in 4D;
 - scaling gives fermion matter −N and boson matter −N^(3/2).
 
-## Forces between molecules (chapter 8)
+## Forces between molecules (the intermolecular-forces chapter)
 
 All from one fact: the pinned potential is the 4D transform of 4π²/|k|³.
 
@@ -333,7 +333,7 @@ All from one fact: the pinned potential is the 4D transform of 4π²/|k|³.
   from the Fourier asymptotics, with the constants checked. It isn't integrated: the tail is far too small to
   resolve beside the 1/r it cancels.
 
-## Pxygen and Xater (chapter 9)
+## Pxygen and Xater (the Xater chapter)
 
 - **The solver.** Writing 1/r = (2/√π)∫e^(−t²r²)dt and doing the Gaussian integrals in d dimensions leaves
   G_n(T) = ∫₀¹ u²ⁿ(1 − u²)^((d−3)/2) e^(−Tu²) du where 3D has Boys's F_n, with the same dG_n/dT = −G_{n+1}, so the
@@ -359,7 +359,7 @@ All from one fact: the pinned potential is the 4D transform of 4π²/|k|³.
   hydrogen 1.3× as far from its neighbour as from its own (water 2.2×). A first guess of 8 bohr sat on the tail;
   a scan at the minimum's tilt confirms 6.5. 4D hydrogen's 6.05 eV against Pxygen's 13.1 is why: the bond is lopsided.
 
-## Which water (chapter 10)
+## Which water (the census chapter)
 
 - **Counting.** An outer shell of d + 1 orbitals with v electrons makes v bonds up to d + 1, then 2(d + 1) − v bonds
   with v − (d + 1) lone pairs. Each hydride gets the symmetric shape: a simplex (all bonds), a pyramid tilted α from
@@ -385,5 +385,5 @@ All from one fact: the pinned potential is the 4D transform of 4π²/|k|³.
 Correlation (in the atom solver, and in the molecules, where Hartree–Fock misses about a third of a bond's
 energy), non-spherical open shells (the response assumes closed shells: open-shell atoms like Pxygen, element 10,
 are next), relativity (it matters past Z ≈ 50), and spin–orbit in the solver. Spin is two states per orbital
-(chapter 3 says why). Subshells are limited to l ≤ 3, n ≤ 8, which is enough up to Z = 78. Open questions,
+(the motion chapter says why). Subshells are limited to l ≤ 3, n ≤ 8, which is enough up to Z = 78. Open questions,
 as on the landing: open-shell response, which nuclei exist, gravity (it has to be pinned too), correlation, spin-statistics without full relativity, and which water fills the oceans.

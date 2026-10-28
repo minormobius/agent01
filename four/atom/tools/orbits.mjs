@@ -1,4 +1,4 @@
-/* Bakes js/orbitsdata.js for chapter 13's orbits: a nudged circular orbit under each law, the 4D star's outside
+/* Bakes js/orbitsdata.js for the stars chapter's orbits: a nudged circular orbit under each law, the 4D star's outside
    correction and the precession it causes (measured against the formula), and two planets side by side in one plane
    or in planes turned apart, run for thousands of orbits.
      node four/atom/tools/orbits.mjs        # about half a minute */

@@ -5,7 +5,7 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
-A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in thirteen chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.
+A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in fourteen chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.
 
 ## Facts
 
@@ -91,8 +91,8 @@ for games, and this is a modelling programme with publications to come. The game
 - **ATOM⁴ at `/atom/`**: the **official position on this universe**: four
   dimensions of space with the force between charges pinned at 1/r (Gauss's
   1/r² has no ground state). `index.html` is the position: every conclusion,
-  one card per chapter, plus the open questions. Thirteen chapter pages hold
-  the working: `force.html`, `light.html`, `motion.html`, `hydrogen.html`,
+  one card per chapter, plus the open questions. Fourteen chapter pages hold
+  the working: `geometry.html`, `force.html`, `light.html`, `motion.html`, `hydrogen.html`,
   `table.html`, `shapes.html`, `darbon.html`, `forces.html`, `xater.html`,
   `census.html`, `search.html`, `gas.html`, `stars.html`. All run `js/main.js`, which
   draws only what each page has. **A new conclusion goes in its chapter
@@ -142,31 +142,36 @@ for games, and this is a modelling programme with publications to come. The game
   reference (`test/fixtures/nist-spce-1.txt`).
   `atom/tools/pairsearch.mjs` searches two molecules' every relative pose
   (model BFGS from many starts, then Hartree–Fock scoring and relaxation;
-  cached) and `bake`s `js/pairmin.js`: chapter 10's correction (Xater and
+  cached) and `bake`s `js/pairmin.js`: the census chapter's correction (Xater and
   XH₃ pairs bind ~27 kcal/mol antiparallel, twice the census's linear-bond
   values). Its pose maths and descent live in `atom/js/landscape.js`, shared
-  with chapter 11's live search (`js/search.js`); a descent counts only when
+  with the search chapter's live search (`js/search.js`); a descent counts only when
   |g| < 10⁻⁶ (stalls once passed for extra minima).
-  `js/gas.js` (no DOM, no data) is chapter 12: the ideal gas in any d, B₂(T) by direct integration with an
+  `js/gas.js` (no DOM, no data) is the gases chapter: the ideal gas in any d, B₂(T) by direct integration with an
   analytic tail, Boyle and inversion temperatures, the crystal's lattice sum over D_d (fcc, and the 24-cell
   lattice), and `nobleGases(mods)`, which reads the noble-gas pairs as the forces chapter does (÷1.8 … ×1). The
   critical-point rules are corresponding-states rules read off our argon (`ARGON`): estimates, labelled so.
   `atom/tools/gasnumbers.mjs` prints its numbers as JSON for `gengas.py`.
-  Beside it, for chapter 12's crystals and salts: `atom/tools/crystals.mjs` (candidate lattices by lattice sum;
+  Beside it, for the gases chapter's crystals and salts: `atom/tools/crystals.mjs` (candidate lattices by lattice sum;
   fcc must win for our noble gases), `atom/tools/salt.mjs` (closed-shell ions from the solver, Gordon–Kim between
   charged clouds, the alternating lattice by Evjen cubes; in 4D past 14 bohr the exact far field from the clouds'
   moments, since a numerical tail would diverge over 4D's r³ shells; sodium fluoride is the check),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
   liquid–vapour runs, one temperature per command, for the runner; `coexist.mjs bake` fits each system's critical
   point, both exponents, into **generated** `js/coexist.js`). `atom/tools/audit.mjs bake` writes **generated**
-  `js/audit.js` (chapter 11's probe results). Both bakes read the runner's caches: `git archive origin/atom4-data tmp`
+  `js/audit.js` (the search chapter's probe results). Both bakes read the runner's caches: `git archive origin/atom4-data tmp`
   into a directory and point `TMPDIR` at it.
-  `js/stars.js` (no DOM) is chapter 13, stars under three laws of gravity (Newton, 4D Gauss 1/r², 4D pinned 1/r):
+  `js/stars.js` (no DOM) is the stars chapter, stars under three laws of gravity (Newton, 4D Gauss 1/r², 4D pinned 1/r):
   the self-consistent polytrope on each law's shell kernel (checked against Lane–Emden), the virial bookkeeping
   E = W(1 − k/d(γ − 1)), the share of the pull from outside each radius (zero with a shell theorem), and WKB
   tunnelling with Langer's term (the 4D s-wave's built-in barrier) for ignition. `atom/tools/stars.mjs` bakes
   **generated** `js/starsdata.js` (~30 s). Gravity's pin and the weak force are recorded as choices, not taken.
-  `js/orbits.js` (no DOM) is chapter 13's orbits: a leapfrog n-body for a 1/r^k pull in any dimension, an orbit's
+  `js/geometry.js` (no DOM) is the geometry chapter, the book's first: spheres' areas and volumes in any d (so a
+  point's spread thins as 1/r^(d−1)), corners and skins, the angle between random directions, kissing numbers and D_d
+  packings, flats in general position, planes of turning, and Hopf's circles (the flow v = Jx combs the 3-sphere).
+  `js/geomviz.js` draws its toys (a cube and tesseract to turn and slice, an equal double rotation, the Hopf
+  circles stereographically projected). Selftest 37 checks it against sampling and counting.
+  `js/orbits.js` (no DOM) is the stars chapter's orbits: a leapfrog n-body for a 1/r^k pull in any dimension, an orbit's
   eccentricity and plane, the principal angles between two planes, a round star's outside potential from its shells
   (pinned 4D: −1/r + ⟨r²⟩/8r³) and the precession that causes, and two planets in one plane or turned apart.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).
@@ -184,11 +189,15 @@ for games, and this is a modelling programme with publications to come. The game
   molecular-dynamics view. Imports `../../lumen/js/optics.js` for line and
   sky colours; Lumen⁴'s page links back to the light chapter. See
   [`atom/README.md`](atom/README.md).
-- **ATOM⁴'s pages are generated.** The thirteen chapters and the landing come from
-  `atom/tools/pages/genpages.py` (it execs `genxater.py`, `gencensus.py`, `gensearch.py`, `gengas.py` and `genstars.py` beside it, and cuts the
+- **ATOM⁴'s pages are generated.** The fourteen chapters and the landing come from
+  `atom/tools/pages/genpages.py` (it execs `gengeometry.py`, `genxater.py`, `gencensus.py`, `gensearch.py`, `gengas.py` and `genstars.py` beside it, and cuts the
   first chapters from `old-index.html`). Each chapter's body and the landing's cards live there, with their numbers
   pulled from the baked `atom/js/*.js`. So change a chapter there, never in the HTML, then
   `python3 four/atom/tools/pages/genpages.py`. **A new conclusion goes in its chapter and on the landing's cards.**
+  **Cross-references:** write "chapter N" only as a link to that chapter's page (`<a href="gas.html">chapter 13</a>`);
+  the generator renumbers every such link from the chapter list `CH`, and the selftest fails on an unlinked or wrong
+  one. In `main.js` use `chap("gas")`. Elsewhere (comments, docs) name chapters ("the gases chapter"), never number
+  them. That is what lets the book be reordered (`atom/TEXTBOOK.md`).
 - **papers**: none yet. Paper 1, a periodic table for four dimensions, is planned in `atom/WRITEUP.md` (deliberately
   pinned: it's to be held to a physics preprint's standard). Its sources are gathered in `atom/LITERATURE.md`, with
   each entry tagged by how far it's been verified. Papers will live at `/papers/`.

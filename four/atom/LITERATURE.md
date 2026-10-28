@@ -148,7 +148,7 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
   Chem. Phys. (2011). The water models' liquid properties, needed to quote SPC/E's U at 298 K exactly (ours gives
   −46.9 kJ/mol). — *cited (via arXiv:0905.4009); volume and pages to be fixed*
 
-### Energy landscapes and searching them (chapter 11)
+### Energy landscapes and searching them (the search chapter)
 - F. H. Stillinger & T. A. Weber, "Hidden structure in liquids", Phys. Rev. A **25**, 978 (1982). Inherent
   structures: quench each configuration to its minimum. The idea behind settling every start in the live search. —
   *index* (cited with these details in a 2003 PRL abstract and in a Springer reference list; full text not read)
@@ -163,7 +163,7 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
   *index* for the ten stationary points (via the supplementary data of van Duijneveldt-van de Rijdt et al., PCCP 2003);
   that just one is a minimum is *from memory; verify*
 
-### Gases (chapter 12)
+### Gases (the gases chapter)
 - Critical points of the elements, Wikipedia data page, compiling the CRC Handbook and others: neon 44.4 K, argon
   150.87 K (other columns 150.85–151.15), krypton 209.41 K, helium 5.19 K. The measured critical points the rules are
   checked against. — *index* (the data page read; the CRC itself not)
@@ -210,7 +210,7 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
   ~2 D for a linear hydrogen bond; a 2022 ab initio surface (PMC8933541) finds it fluxional but hydrogen-bonded. —
   *index* (summaries of these, not the papers)
 
-### Stars (chapter 13)
+### Stars (the stars chapter)
 - Polytropes and the Lane–Emden equation: S. Chandrasekhar, *An Introduction to the Study of Stellar Structure*
   (1939). The central-to-mean densities 5.99 (n = 3/2) and 54.18 (n = 3) and the n = 1 solution sin ξ/ξ are what
   the solver is checked against. — *from memory; verify* (the n = 1 solution is exact and self-checking)

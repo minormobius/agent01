@@ -1,7 +1,7 @@
 /* ATOM⁴'s energy landscapes, no DOM: the poses of one rigid molecule against another, and the descent that finds a
    pose's nearest minimum. A pose is a turn exp(Ω) (Ω antisymmetric: one number per plane of turning, d(d−1)/2 of them,
    3 in 3D and 6 in 4D) and a move t (d numbers): 6 numbers for a pair in 3D, 10 in 4D. Shared by
-   tools/pairsearch.mjs and the live search in chapter 11. */
+   tools/pairsearch.mjs and the live search in the search chapter. */
 /* the matrix exponential of an antisymmetric d × d matrix (scaling and squaring, Taylor) */
 export function expm(W, d) {
   let n = 0; for (const v of W) n = Math.max(n, Math.abs(v)); const s = Math.max(0, Math.ceil(Math.log2(n * d + 1e-30)) + 1), k = 1 / 2 ** s;

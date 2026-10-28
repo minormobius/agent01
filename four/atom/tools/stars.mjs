@@ -1,4 +1,4 @@
-/* Bakes js/starsdata.js for chapter 13: the three laws' polytropes (profiles, central concentration, the virial
+/* Bakes js/starsdata.js for the stars chapter: the three laws' polytropes (profiles, central concentration, the virial
    check, E/W), how much of the pull comes from outside each radius, and the tunnelling rates that light a core.
      node four/atom/tools/stars.mjs        # about half a minute */
 import { writeFileSync } from "node:fs";

@@ -112,3 +112,9 @@ p.made { background: var(--panel); border: 1px solid var(--border); border-radiu
 .basin small { color: var(--dim); }
 #searchMode button { font: 12px var(--mono); background: var(--panel); color: var(--dim); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
 #searchMode button.on { color: var(--text); border-color: var(--d4); }
+/* the four tags every claim can carry (as on /start/): a choice, follows, computed, open */
+.tag { font: 600 10px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; border: 1px solid; vertical-align: middle; white-space: nowrap; }
+.tag.choice { color: #c79bff; border-color: #c79bff66; } .tag.follows { color: #6fe0ff; border-color: #6fe0ff66; }
+.tag.computed { color: #7dffb0; border-color: #7dffb066; } .tag.open { color: #ffd166; border-color: #ffd16666; }
+canvas.hopf { height: 380px; touch-action: none; cursor: grab; }
+@media (max-width: 560px) { canvas.hopf { height: 320px; } }

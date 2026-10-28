@@ -14,7 +14,8 @@ def sec(i):
 def inner(i):
     s=sec(i); s=s[s.index('>')+1:s.rindex('</section>')]; s=re.sub(r'\s*<h3>.*?</h3>','',s,count=1); return s.strip('\n')
 
-CH=[("force","The force","Why 1/r, what it takes to rewrite Maxwell for it, the vacuum we chose, and what breaks."),
+CH=[("geometry","Geometry","Four directions at right angles, counted: spheres that grow as r³ so everything spreading from a point thins as 1/r³, more room at right angles, planes that meet at a point, turning in planes, a 3-sphere that can be combed, and knots that untie."),
+    ("force","The force","Why 1/r, what it takes to rewrite Maxwell for it, the vacuum we chose, and what breaks."),
     ("light","Light","Lumen⁴'s light survives the lens vacuum. What matter feels of it changes, and so does the sky."),
     ("motion","Motion and spin","F = ma, orbits, rotation in planes, tumbling bodies, electron spin with a handedness, and bonds that twist three ways."),
     ("hydrogen","Hydrogen","The one atom solved exactly: its levels, shells, spectrum and fine structure."),
@@ -24,7 +25,7 @@ CH=[("force","The force","Why 1/r, what it takes to rewrite Maxwell for it, the 
     ("forces","Forces between molecules","A classical force field, term by term, worked out under the pinned 1/r: what carries over, what changes, and the new one."),
     ("xater","Pxygen and Xater","Element 10 and its water, computed by a molecular solver written for any dimension and checked on our own water: Xater's shape, its pull, and its hydrogen bond."),
     ("census","Which water","Every hydride of 4D's lighter rows, computed, with our ammonia, water and HF as the check: which way their bonds lean, their shapes, and which would make the strongest liquid."),
-    ("search","Ten ways to meet","How chapter 10 first missed the strongest pairs, and what the miss shows: two molecules meet in six ways in our world and ten in 4D, and a crowd of them in far more. Watch the search, and see what it can and can't promise."),
+    ("search","Ten ways to meet","How the census first missed the strongest pairs, and what the miss shows: two molecules meet in six ways in our world and ten in 4D, and a crowd of them in far more. Watch the search, and see what it can and can't promise."),
     ("gas","Gases","PV = NkT in any dimension, the real gas's B₂ computed from the pairs, a refrigerator's throttle, and why 4D's noble gases are held by the crowd rather than their neighbours, so that they boil far hotter than their wells suggest."),
     ("stars","Stars","If gravity is pinned at 1/r like the force between charges, a 4D star holds together as ours does, solved and checked. Its outer layers press inward, its core must burn hotter, and long-lived stars need one more ingredient: the weak force.")]
 def head(title, desc):
@@ -278,17 +279,26 @@ forces='''<section id="field">
   <p>Ready: the bonded terms with 4D's angles and three-way twists, charges at 1/r, the permanent R⁻⁵ with S from the solver, and, for hydrogen and the noble gases, dispersion's C₆ and the repulsion's A and β, all computed. Open: open-shell atoms' polarizabilities (the response assumes closed shells; that's next, for Pxygen), pairs of unlike atoms and molecules (the same methods, more runs), correlation, and retardation (in our world dispersion turns to R⁻⁷ beyond a few hundred bohr; through the lens it hasn't been worked out). Hydrogen bonds are computed, for Xater, in the <a href="xater.html">next chapter</a>. Also open: the three-body forces that make our liquids non-additive.</p>
 </section>
 '''
+exec(open(SP+'gengeometry.py').read())
 exec(open(SP+'genxater.py').read())
 exec(open(SP+'gencensus.py').read())
 exec(open(SP+'gensearch.py').read())
 exec(open(SP+'gengas.py').read())
 exec(open(SP+'genstars.py').read())
 table=solverFix(table)
-pages={"force":force,"light":light,"motion":motion,"hydrogen":hyd and f'<section id="hydrogen">\n  <h3>Hydrogen, exactly</h3>\n  {hyd}\n</section>\n',"table":table,"shapes":shapes,"darbon":darbon,"forces":forces,"xater":xater,"census":census,"search":search,"gas":gas,"stars":stars}
-for k,body in pages.items(): open(OUT+k+'.html','w').write(chapter(k,body))
+pages={"geometry":geometry,"force":force,"light":light,"motion":motion,"hydrogen":hyd and f'<section id="hydrogen">\n  <h3>Hydrogen, exactly</h3>\n  {hyd}\n</section>\n',"table":table,"shapes":shapes,"darbon":darbon,"forces":forces,"xater":xater,"census":census,"search":search,"gas":gas,"stars":stars}
+# "chapter N" is always written as a link to the chapter's page, and its number is recomputed here from the link, so
+# chapters can be added or reordered without hunting for numbers (the selftest checks none is left unlinked)
+def chnum(k): return [c for c,_,_ in CH].index(k)+1
+def refs(h): return re.sub(r'(<a href="(\w+)\.html(?:#[\w-]+)?">)chapter \d+', lambda m: m.group(1)+f'chapter {chnum(m.group(2))}' if m.group(2) in [c for c,_,_ in CH] else m.group(0), h)
+for k,body in pages.items(): open(OUT+k+'.html','w').write(refs(chapter(k,body)))
 
 # ------------------------------------------------------------------ the landing: the position
-P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom has a ground state. <b>We pin the potential at 1/r.</b>",
+P=[("geometry",["<b>Spheres grow faster.</b> A 4D sphere's surface grows as r³, so anything spreading from a point (light, a field, heat) thins as 1/r³: ten times farther, a thousandth as much. That one fact forces the next chapter's choice, dims 4D starlight, and gives every 4D atom a crowd of neighbours.",
+  "<b>More room at right angles.</b> Random directions lean toward perpendicular, so aiming is harder: a 30° cone catches "+pc(GD['4']['within30'],1)+" of directions (ours "+pc(GD['3']['within30'],1)+"). 24 balls can touch one (ours 12), yet the densest packing fills "+pc(GD['4']['packing'])+" (ours "+pc(GD['3']['packing'])+").",
+  "<b>Two planes meet at a point</b>, and can be completely at right angles: xy and zw share only the origin. <b>Turning happens in planes</b>, six of them, and a turn can leave no line in place.",
+  "<b>The 3-sphere can be combed</b>: Hopf's circles fill it without meeting. The hairy-ball theorem, a reason our nebulae flatten into disks, has no 4D version. Knots untie, and a glove turns over through w."]),
+ ("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom has a ground state. <b>We pin the potential at 1/r.</b>",
   "The universe holds electrons (fermions), stable nuclei, the lens vacuum's light, a small fine-structure constant, and the weak force (added for the stars), and nothing else. Matter is stable, by scaling, because electrons are fermions.",
   "Maxwell's 1/k² can't give 1/r in 4D: it needs 1/k³. Every way to get it costs one of locality, linearity, relativity, positive probabilities, or four large dimensions.",
   "<b>Our vacuum is the lens vacuum</b>, ε(k) = ε₀ℓk and μ(k) = μ₀/ℓk. Light stays Maxwell's, fields still add, energy stays positive. The cost is relativity for the force: there's an absolute now.",
@@ -325,7 +335,7 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
   "<b>On chemistry, "+("two tie for the water: "+name[a]+" and "+name[b] if tie else name[a]+" comes first")+"</b>, searched over every arrangement: each binds a pair at about "+f(-P9['best']['E']*KC,0)+" kcal/mol, "+f(P9['best']['E']/PW['best']['E'],0)+" times our water's, and not in a line. Their best pairs lie antiparallel, dipole to dipole. Which fills the oceans is the abundance question, still open."]),
  ("search",["<b>Two molecules meet in six ways in our world and ten in 4D</b>: d moves and d(d − 1)/2 turns. Turning grows as d², so in 4D most of the ways are turns.",
   "Chapter 10 first searched two of Xater's ten numbers and missed its best pair by a factor of two. Searched over all ten, a pair's landscape is a funnel: every one of 400 random starts finds the same pair.",
-  "<b>A search's energy is a floor</b>: more searching can only bind harder. Whether it's finished has to be argued separately, and the audit has run. Our ammonia's and water's pairs are found. Hydrogen fluoride's bent pair is missed for a straight one "+f"{100*(1-PM['3.9']['search']/PM['3.9']['best']['E']):.0f}"+"% weaker: a search goes where its force field points. "+f"{PR['3']['placements']+PR['4']['placements']+PR['4.9']['placements']:,}"+" random Hartree–Fock placements found nothing deeper than the best pairs, and chapter 10 stands.",
+  "<b>A search's energy is a floor</b>: more searching can only bind harder. Whether it's finished has to be argued separately, and the audit has run. Our ammonia's and water's pairs are found. Hydrogen fluoride's bent pair is missed for a straight one "+f"{100*(1-PM['3.9']['search']/PM['3.9']['best']['E']):.0f}"+"% weaker: a search goes where its force field points. "+f"{PR['3']['placements']+PR['4']['placements']+PR['4.9']['placements']:,}"+" random Hartree–Fock placements found nothing deeper than the best pairs, and <a href=\"census.html\">chapter 10</a> stands.",
   "<b>Crowds are a maze, and more so in 4D</b>: from two molecules to "+WORD[n7]+", our water's minima go "+seq('3')+", Xater's "+seq('4')+", and the 4D counts haven't stopped climbing. At "+WORD[n7]+", "+f(hit('3',n7),0)+"% of starts find our water's best and "+f(hit('4',n7),1)+"% Xater's. Which crystal a 4D water makes will be a hard search, and its freezing point is predicted low for its cohesion."]),
  ("gas",["PV = NkT holds in any dimension. A 4D atom carries 2kT, γ = 3/2, and sound runs at 0.61 of the rms speed (ours 0.75).",
   "<b>4D's noble gases are held by the crowd.</b> R⁻⁵ over r³ of space adds up far out: element 12's 24 nearest neighbours give "+f"{OE['firstShell']*100:.0f}"+"% of its crystal's hold, argon's 12 give "+f"{AR['firstShell']*100:.0f}"+"%. Its Boyle temperature is 28 times its well depth (ours 2.8).",
@@ -339,7 +349,7 @@ P=[("force",["Gauss's law in 4D gives a 1/r² potential, and under it no atom ha
   "<b>Planets orbit as Kepler said</b>, with one twist: a round 4D star doesn't pull like a point, so orbits slowly turn back (about "+f"{abs(arcsec(EARTH)):.0f}"+" arcseconds per orbit at Earth's distance; zero under the nonlinear law). <b>Two planets can share an orbit's size in orthogonal planes</b>, never closer than √2: in one plane, radii 1 and 1.2 throw one out within "+f"{PL(1.2,0)['lost']}"+" orbits. The planes turn through 4D, keeping their angle.",
   "<b>Gravity's routes mirror charge's</b>: Gauss (no orbits, marginal stars), a nonlocal or ghostly field, a dispersive vacuum, a nonlinear law (keeps the shell theorem, loses superposition: masses don't add), a small extra dimension, or the lens. The lens is assumed, for symmetry with charge. Not yet chosen."])]
 def card(i,k,t):
-    lis=''.join('<li>'+c+'</li>' for c in P[i][1])
+    lis=''.join('<li>'+c+'</li>' for c in dict(P)[k])
     return f'<a class="card" href="{k}.html"><h3>{i+1} · {t}</h3><ul>{lis}</ul><span class="go">read the chapter →</span></a>'
 cards=''.join(card(i,k,t) for i,(k,t,_) in enumerate(CH))
 landing=head('ATOM⁴ — the position','ATOM⁴ — the universe we are building, worked out: four dimensions of space with the force between charges pinned at 1/r. Its force, its light, how things move and spin, its atoms, its periodic table, its shapes, its carbon, the forces between molecules, its water, the census of its hydrides and the search behind it, each computed and checked.')+f'''<header id="position">
@@ -368,5 +378,5 @@ landing=head('ATOM⁴ — the position','ATOM⁴ — the universe we are buildin
 </body>
 </html>
 '''
-open(OUT+'index.html','w').write(landing)
+open(OUT+'index.html','w').write(refs(landing))
 print("written")

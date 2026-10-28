@@ -253,9 +253,19 @@ for (const d of [3, 4]) {
 }
 function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v - pts[0][i]))); }
 
-/* 14 · the chapters: one landing and ten pages, the same nav on each, no id twice, every drawing's element somewhere */
+/* 14 · the chapters: the landing and every chapter its nav lists, the same nav on each, no id twice, every drawing's
+   element somewhere; and every "chapter N" a link to that chapter, carrying its number */
 {
-  const dir = path.join(here, ".."), pages = ["index", "force", "light", "motion", "hydrogen", "table", "shapes", "darbon", "forces", "xater", "census", "search", "gas", "stars"], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
+  const dir = path.join(here, ".."), landing = fs.readFileSync(path.join(dir, "index.html"), "utf8");
+  const order = [...(landing.match(/<nav class="chapters">([\s\S]*?)<\/nav>/) || [, ""])[1].matchAll(/href="(\w+)\.html"/g)].map((m) => m[1]);
+  const pages = ["index", ...order], html = Object.fromEntries(pages.map((p) => [p, fs.readFileSync(path.join(dir, p + ".html"), "utf8")]));
+  let refsOk = 0, refsBad = [];
+  for (const p of pages) { const body = html[p].slice(html[p].indexOf("</head>")).replace(/<h2>ATOM⁴ · chapter \d+<\/h2>/, "");
+    const linked = [...body.matchAll(/<a href="(\w+)\.html[^"]*">chapter (\d+)/g)];
+    for (const m of linked) if (order.indexOf(m[1]) + 1 === +m[2]) refsOk++; else refsBad.push(`${p}: ${m[1]} as ${m[2]}`);
+    const loose = (body.match(/chapter \d+/g) || []).length - linked.length; if (loose) refsBad.push(`${p}: ${loose} unlinked`); }
+  if (/chapter \d/.test(fs.readFileSync(path.join(dir, "js/main.js"), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""))) refsBad.push("main.js writes a chapter number; use chap()");
+  ok(!refsBad.length && refsOk > 10, `chapter references: ${refsOk} links, each with its chapter's number${refsBad.length ? "; wrong: " + refsBad.join(", ") : ""}`);
   const navOf = (h) => (h.match(/<nav class="chapters">([\s\S]*?)<\/nav>/) || [, ""])[1].replace(/ class="here"| here/g, "");
   const ids = (h) => [...h.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
   const sameNav = pages.every((p) => navOf(html[p]) === navOf(html.index) && navOf(html.index).length > 0), noDup = pages.every((p) => new Set(ids(html[p])).size === ids(html[p]).length);
@@ -465,7 +475,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(worst < 1e-7 && orth < 1e-12 && sym < 1e-14, `Tang–Toennies force its slope (${worst.toExponential(1)}); a pose's turn a rotation (${orth.toExponential(1)}); the model symmetric in its pair`);
 }
 
-/* 23 · the pairs searched over every pose (js/pairmin.js): chapter 10's correction */
+/* 23 · the pairs searched over every pose (js/pairmin.js): the census chapter's correction */
 {
   const { PAIRMIN: P } = await import(path.join(here, "../js/pairmin.js")), K = 627.509, w = P[3], x = P[4], n9 = P["4.9"];
   const best = (r) => r.best.E <= Math.min(r.search, r.census, ...r.modelMinima.map((q) => q.hf)) + 1e-9;
@@ -473,7 +483,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(x.best.E < 1.8 * x.census && n9.best.E < 1.8 * n9.census && Math.abs(x.best.E - n9.best.E) / Math.abs(n9.best.E) < 0.05 && x.best.dXX < 5.2, `searched properly, Xater's pair binds ${(-x.best.E * K).toFixed(1)} and XH₃'s ${(-n9.best.E * K).toFixed(1)} kcal/mol (the census's ${(-x.census * K).toFixed(1)}, ${(-n9.census * K).toFixed(1)}): still a tie, at twice the strength, compact (Xater's heavy atoms ${x.best.dXX} bohr apart)`);
 }
 
-/* 24 · the descent behind chapter 11: every start of Xater's pair reaches the one basin, all the way down (the slope
+/* 24 · the descent behind the search chapter: every start of Xater's pair reaches the one basin, all the way down (the slope
    gone, not merely stalled), re-centring its turn as it winds */
 {
   const L = await import(path.join(here, "../js/landscape.js")), { modelEnergy } = await import(path.join(here, "../js/ffmodel.js")), { FORCEFIELDS } = await import(path.join(here, "../js/forcefields.js"));
@@ -487,7 +497,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(gmax < 1e-6 && worst < 0.05, `five random starts of Xater's pair all descend to the force field's one basin (${(PAIRMIN[4].modelMinima[0].model * K).toFixed(2)} kcal/mol, within ${worst.toFixed(3)}; |g| < ${gmax.toExponential(0)}; the turn re-centred ${rebased} times on the way)`);
 }
 
-/* 25 · the clusters (js/clusters.js): what chapter 11's crowds section reads, internally consistent */
+/* 25 · the clusters (js/clusters.js): what the search chapter's crowds section reads, internally consistent */
 {
   const { CLUSTERS } = await import(path.join(here, "../js/clusters.js")), rows = Object.values(CLUSTERS).flatMap((v) => Object.values(v));
   ok(["3", "4", "4.9"].every((k) => [3, 4, 5, 6, 7].every((n) => CLUSTERS[k]?.[n])) && rows.every((r) => r.starts >= 300 && r.minima >= r.floor && r.floor >= 1 && r.late <= r.minima && r.seenOnce <= r.minima && r.chao1 >= r.minima - 1e-9 && r.best.every((q, i) => q.hits >= 1 && (i === 0 || q.E >= r.best[i - 1].E)) && r.curve.length > 0),
@@ -535,7 +545,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   }
 }
 
-/* 29 · gases (js/gas.js), chapter 12: the integrator against closed forms and Lennard-Jones's known temperatures,
+/* 29 · gases (js/gas.js), the gases chapter: the integrator against closed forms and Lennard-Jones's known temperatures,
    the lattice sum against Lennard-Jones's fcc crystal, our argon's measured numbers inside the computed ranges, and
    the 4D claims the chapter states */
 {
@@ -563,7 +573,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `element 12 condenses below ${Math.round(Math.min(oe.tcBoyle[0], oe.tcCrystal[0]))}–${Math.round(Math.max(oe.tcBoyle[1], oe.tcCrystal[1]))} K by the crowd's rules, at each end over three times the well rule's ${oe.tcWell.map(Math.round).join("–")}; a throttle cools it below ${Math.round(oe.inversion[0])} K`);
 }
 
-/* 30 · ions for chapter 12's salts (tools/ions.mjs): the solver strips aluminium within 5% of measured, and
+/* 30 · ions for the gases chapter's salts (tools/ions.mjs): the solver strips aluminium within 5% of measured, and
    bluminium's three electrons and pxygen's first extra one come out as the chapter says */
 {
   const { ions } = await import(path.join(here, "../tools/ions.mjs")), I = ions(), sum = (a) => a.reduce((s, x) => s + x, 0);
@@ -604,7 +614,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 
 /* 34 · liquid and vapour, simulated (tools/coexist.mjs → js/coexist.js): Lennard-Jones in 3D condenses where it's
    published to (1.31 ε/k); our argon's computed pair holds the measured 150.87 K; a bigger box agrees; and element
-   12's critical point is where chapter 12 says, at least three times the well-depth rule */
+   12's critical point is where the gases chapter says, at least three times the well-depth rule */
 {
   const { COEXIST: X } = await import(path.join(here, "../js/coexist.js")), rng = (k) => [Math.min(X[k].Tc, X[k].TcOther), Math.max(X[k].Tc, X[k].TcOther)];
   const lj = rng("lj3"), ar = rng("ar").map((t, i) => (t * X.ar.epsK) / (i ? 1 : 1.8)), oe = rng("oe").map((t, i) => (t * X.oe.epsK) / (i ? 1 : 1.8));
@@ -639,6 +649,30 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const angle = Math.max(...turn.map((q) => Math.abs(q[2] - 60))), swing = Math.max(...turn.map((q) => q[3]));
   ok(kepler < 1e-5 && near(pre, 1, 0.01) && near(far, 1, 0.02) && pinned < 1.05 && gauss > 4 && thrown !== null && orth.lost === null && orth.dmin > 1.41 && angle < 0.2 && swing > 0.02,
     `orbits: Kepler's closes to ${kepler.toExponential(1)} rad; a 1/r³ term precesses at ${pre.toFixed(4)}× the formula; the 4D star's outside correction is ${far.toFixed(3)}× ⟨r²⟩/8r³; a nudged circle reaches ${pinned.toFixed(3)} pinned and ${gauss.toFixed(1)} under Gauss; coplanar 1 and 1.2 thrown out on orbit ${thrown}, orthogonal 1 and 1 never closer than ${orth.dmin}; the planes' angle holds to ${angle.toFixed(2)}° while planet 1 swings ${(swing * 100).toFixed(1)}% out`);
+}
+
+/* 37 · geometry (js/geometry.js, the geometry chapter): the sphere formulas against random points; directions against sampling;
+   D₄'s 24 shortest vectors and its packing; flats in general position; a double rotation that fixes no line; Hopf's
+   circles at unit speed, apart, and equidistant */
+{
+  const GE = await import(path.join(here, "../js/geometry.js")), rel = (x, y, t) => Math.abs(x / y - 1) < t;
+  let seed = 12345; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647), gs = () => Math.sqrt(-2 * Math.log(rnd())) * Math.cos(2 * Math.PI * rnd());
+  const inBall = (d, n) => { let k = 0; for (let i = 0; i < n; i++) { let r2 = 0; for (let c = 0; c < d; c++) r2 += (2 * rnd() - 1) ** 2; if (r2 < 1) k++; } return k / n; };
+  const b3 = inBall(3, 200000), b4 = inBall(4, 200000), dbl = [2, 3, 4].every((d) => near(GE.sphereArea(d, 2) / GE.sphereArea(d, 1), 2 ** (d - 1), 1e-12));
+  const exact = near(GE.ballVolume(4), Math.PI ** 2 / 2, 1e-12) && near(GE.sphereArea(4), 2 * Math.PI ** 2, 1e-12) && near(GE.ballVolume(3), (4 * Math.PI) / 3, 1e-12);
+  const dirs = (d, n) => { let m = 0, cap = 0; for (let i = 0; i < n; i++) { const a = Array.from({ length: d }, gs), b = Array.from({ length: d }, gs), c = a.reduce((t, u, k) => t + u * b[k], 0) / (Math.hypot(...a) * Math.hypot(...b)); m += Math.abs(c); if (c > Math.cos(Math.PI / 6)) cap++; } return [m / n, cap / n]; };
+  const [m4, c4] = dirs(4, 100000);
+  const lat = []; for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) for (let c = -2; c <= 2; c++) for (let e = -2; e <= 2; e++) if ((a + b + c + e) % 2 === 0 && (a || b || c || e)) lat.push(a * a + b * b + c * c + e * e);
+  const minN = Math.min(...lat), nMin = lat.filter((q) => q === minN).length;
+  const det = (M) => { M = M.map((r) => r.slice()); const n = M.length; let D = 1; for (let i = 0; i < n; i++) { let p = i; for (let r = i + 1; r < n; r++) if (Math.abs(M[r][i]) > Math.abs(M[p][i])) p = r; if (Math.abs(M[p][i]) < 1e-14) return 0; if (p !== i) { [M[p], M[i]] = [M[i], M[p]]; D = -D; } D *= M[i][i]; for (let r = i + 1; r < n; r++) { const f = M[r][i] / M[i][i]; for (let c = i; c < n; c++) M[r][c] -= f * M[i][c]; } } return D; };
+  const planesMeetAtPoint = Array.from({ length: 50 }, () => Math.abs(det(Array.from({ length: 4 }, () => Array.from({ length: 4 }, gs)))) > 1e-9).every(Boolean);
+  const th = 0.7, c = Math.cos(th), sn = Math.sin(th), R = [[c, -sn, 0, 0], [sn, c, 0, 0], [0, 0, c, -sn], [0, 0, sn, c]], noFixed = Math.abs(det(R.map((r, i) => r.map((v, j) => v - (i === j ? 1 : 0))))) > 0.1;
+  const C1 = GE.hopfCircle(0.5, 0, 0, 400), C2 = GE.hopfCircle(0.9, 0, 1.3, 2000), onS3 = C1.every((p) => near(Math.hypot(...p), 1, 1e-12));
+  const unit = C1.every((p) => { const q = GE.J(p); return near(Math.hypot(...q), 1, 1e-12) && Math.abs(q.reduce((t, u, k) => t + u * p[k], 0)) < 1e-12; });
+  const gaps = C1.map((p) => Math.min(...C2.map((q) => Math.hypot(...p.map((u, k) => u - q[k]))))), gMin = Math.min(...gaps), gMax = Math.max(...gaps);
+  const T = [0, 1, 2, 3].map((k) => GE.cubeParts(4, k));
+  ok(rel(b3, Math.PI / 6, 0.01) && rel(b4, Math.PI ** 2 / 32, 0.015) && dbl && exact && rel(m4, GE.meanAbsCos(4), 0.01) && rel(c4, GE.capShare(4, Math.PI / 6), 0.06) && minN === 2 && nMin === 24 && GE.shortestD(4).length === 24 && rel(GE.packing(4), Math.PI ** 2 / 16, 1e-12) && planesMeetAtPoint && noFixed && onS3 && unit && gMin > 0.1 && gMax - gMin < 0.003 && T.join() === "16,32,24,8" && T[0] - T[1] + T[2] - T[3] === 0,
+    `geometry: a 4D ball fills ${(b4 * 100).toFixed(2)}% of its cube by sampling (π²/32 = ${((Math.PI ** 2 / 32) * 100).toFixed(2)}%), ours ${(b3 * 100).toFixed(2)}%; mean |cos| of random 4D directions ${m4.toFixed(4)} (${GE.meanAbsCos(4).toFixed(4)}), a 30° cone ${(c4 * 100).toFixed(2)}% (${(GE.capShare(4, Math.PI / 6) * 100).toFixed(2)}%); D₄'s shortest vectors: ${nMin} of length √${minN}; random planes meet only at the origin; an equal double rotation leaves no line; two Hopf circles stay ${gMin.toFixed(4)}–${gMax.toFixed(4)} apart; the tesseract ${T.join(", ")}`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

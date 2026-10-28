@@ -22,8 +22,12 @@ import { COEXIST } from "./coexist.js";
 import { STARS } from "./starsdata.js";
 import { ORBITS } from "./orbitsdata.js";
 import { names } from "./names.js";
+import * as GEO from "./geometry.js";
+import { buildGeometry } from "./geomviz.js";
 
 const $ = (id) => document.getElementById(id);
+/* "chapter N" for a chapter's key, numbered from the page's nav, so text written here survives a reordering */
+const chap = (key) => { const a = document.querySelector(`nav.chapters a[href="${key}.html"]`); return `chapter ${a ? a.textContent.split(" · ")[0] : "?"}`; };
 const C3 = "#ffb46b", C4 = "#6fe0ff", DIM = "#9a958c", GRID = "#262833", BAD = "#ff6b6b";
 const EV = 27.211386, HC_NM = 45.5633525; // a hartree in eV; hc / hartree in nm
 
@@ -261,7 +265,7 @@ function drawWells() {
     const el = TABLE[4][p.Z - 1], S = FF.sumR2(el), B = FF.permanentB(S, S), C = c6(4, p.Z), w0 = FF.minimum(FF.pairCurve(PAIR_RS, p)), w = FF.minimum(FF.fullPair(PAIR_RS, p, B, C)), fit = FF.fitRepulsion(PAIR_RS, p, B), lo = -w.E / FF.OVERBIND, hi = -w.E;
     return `<tr><td class="d4">${p.Z}</td><td>${w.R.toFixed(2)}</td><td>${(lo * meV).toFixed(0)}–${(hi * meV).toFixed(0)}</td><td>${(-w0.E * meV).toFixed(0)}</td><td>${FF.boilK(lo).toFixed(0)}–${FF.boilK(hi).toFixed(0)}</td><td>${fit.A.toFixed(0)}</td><td>${fit.beta.toFixed(2)}</td><td>${B.toFixed(1)}</td><td>${C.toFixed(1)}</td></tr>`;
   });
-  $("wellTab").innerHTML = `<table><tr><th>4D noble gas</th><th>well at (bohr)</th><th>depth (meV)</th><th>of it, without dispersion</th><th>boils near (K)</th><th>A</th><th>β</th><th>B</th><th>C₆</th></tr>${rows.join("")}</table><p class="read">Atomic units for A, β, B, C₆, in V(R) = A e^(−βR) − B/R⁵ − C₆ f₆(βR)/R⁶. The fit puts each well within 0.2 bohr and about 20% of the computed curve; the molecular-dynamics view can use the computed curve itself. "Boils near" is 0.7 × depth/k, as our noble gases boil, over the depth's range. That rule counts only the well, and in 4D it undercounts: <a href="gas.html#boil">chapter 12</a> counts the far pull.</p>`;
+  $("wellTab").innerHTML = `<table><tr><th>4D noble gas</th><th>well at (bohr)</th><th>depth (meV)</th><th>of it, without dispersion</th><th>boils near (K)</th><th>A</th><th>β</th><th>B</th><th>C₆</th></tr>${rows.join("")}</table><p class="read">Atomic units for A, β, B, C₆, in V(R) = A e^(−βR) − B/R⁵ − C₆ f₆(βR)/R⁶. The fit puts each well within 0.2 bohr and about 20% of the computed curve; the molecular-dynamics view can use the computed curve itself. "Boils near" is 0.7 × depth/k, as our noble gases boil, over the depth's range. That rule counts only the well, and in 4D it undercounts: <a href="gas.html#boil">${chap("gas")}</a> counts the far pull.</p>`;
   const Rs = range(3.5, 12, 300), cols = ["#7dffb0", "#6fe0ff", "#c79bff"], series = nob4.slice(1, 4).map((p, i) => { const el = TABLE[4][p.Z - 1], S = FF.sumR2(el), f = FF.fullPair(PAIR_RS, p, FF.permanentB(S, S), c6(4, p.Z)); return { pts: Rs.map((R) => [R, f(R) * meV]), c: cols[i], label: `4D element ${p.Z}, computed` }; });
   series.push({ pts: Rs.map((R) => [R, FF.lj(R, FF.MEASURED_LJ.Ar) * meV]), c: C3, label: "our argon, measured" });
   chart($("cWells"), { x: [3.5, 12], y: [-600, 150], xl: "distance between the two atoms (bohr)", yl: "energy (meV)", series });
@@ -388,6 +392,15 @@ function drawOrbits() {
     { pts: ORBITS.turning.map((q) => [q[0], (Math.asin(Math.min(1, q[3])) * 180) / Math.PI]), c: C3, label: "planet 1's swing out of its first plane" }] });
 }
 
+/* the geometry chapter: how thinly something spreading from a point is spread, and the angle between two random directions */
+function drawGeometry() {
+  const lines = [[2, DIM, [5, 4], "2D: as 1/r"], [3, C3, null, "ours: as 1/r²"], [4, C4, null, "4D: as 1/r³"]];
+  chart($("cGeoSpread"), { key: "kGeoSpread", x: [1, 10], logx: true, y: [-3, 0], xl: "distance from the source", yl: "log₁₀ of the share", series: lines.map(([d, c, dash, label]) => ({ pts: Array.from({ length: 50 }, (_, i) => { const r = 10 ** (i / 49); return [r, Math.log10(GEO.spread(d, r))]; }), c, dash, label })) });
+  const deg = (d) => Array.from({ length: 181 }, (_, i) => [i, (GEO.angleDensity(d, (i * Math.PI) / 180) * Math.PI) / 180 * 100]);
+  chart($("cGeoAngles"), { key: "kGeoAngles", x: [0, 180], y: [0, 1.6], xl: "angle between two random directions (degrees)", yl: "% of pairs per degree", series: [
+    { pts: deg(2), c: DIM, dash: [5, 4], label: "2D" }, { pts: deg(3), c: C3, label: "ours" }, { pts: deg(4), c: C4, label: "4D" }, { pts: deg(10), c: "#c79bff", dash: [2, 3], label: "10D, for the trend" }] });
+}
+
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
 function energySlope(d, a, b) {
   const xs = [], ys = []; for (const el of TABLE[d]) if (el.Z >= a && el.Z <= b) { xs.push(Math.log(el.Z)); ys.push(Math.log(-el.E)); }
@@ -398,13 +411,14 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbits]];
+const DRAW = [["cGeoSpread", drawGeometry], ["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbits]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */
 const MOVED = { pin: "force.html", maxwell: "force.html#routes", hydrogen: "hydrogen.html", table: "table.html", trends: "table.html#trends", trust: "table.html#trust", solids: "shapes.html", chem: "darbon.html" };
 if ($("position") && MOVED[location.hash.slice(1)]) location.replace(MOVED[location.hash.slice(1)]);
 buildShapes();
+buildGeometry();
 buildTurning();
 buildLiquid();
 buildSearch();

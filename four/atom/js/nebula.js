@@ -74,7 +74,7 @@ export function shape(S) {
 }
 /* how each particle's own orbit sits against the cloud's turning. In 3D, the mean cosine between its turning and the
    cloud's: 1 when all orbit in one plane. In 4D a turning splits into a left half and a right half (self-dual and
-   anti-self-dual, chapter 3), and each particle's orbit, lying in a plane, has equal halves. A flat disk lines up both
+   anti-self-dual, the motion chapter), and each particle's orbit, lying in a plane, has equal halves. A flat disk lines up both
    halves of every orbit with the cloud's (plus 1, minus 1). Orbits in the planes of one Hopf fibration line up one
    half only (1, and about 0). Planes at random: about 0 and 0 */
 export function alignment(S, Ltot) {

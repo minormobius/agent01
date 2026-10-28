@@ -1,5 +1,5 @@
 /* Stars, no DOM: whether a ball of gas can hold itself together by its own gravity, and whether its core can light.
-   Gravity is open in this universe (chapter 1). Three laws are compared: ours (Newton, 1/r in 3D), 4D under Gauss's
+   Gravity is open in this universe (the force chapter). Three laws are compared: ours (Newton, 1/r in 3D), 4D under Gauss's
    law (1/r²), and 4D pinned at 1/r the way the force between charges is (gravity through the same lens).
 
    A star is a polytrope here: pressure P = K ρ^(1 + 1/n), the adiabat of a gas with γ = 1 + 1/n (n = 3/2 for our
@@ -47,7 +47,7 @@ export function polytrope(lawKey, n, { N = 400, iters = 400, tol = 1e-11 } = {})
    loses energy, which is how it lights and regulates itself) if γ > 1 + k/d: 4/3 ours, 5/4 pinned 4D, 3/2 Gauss 4D */
 export const energyOverW = (d, gamma, k) => 1 - k / (d * (gamma - 1));
 export const criticalGamma = (d, k) => 1 + k / d;
-export const gasGamma = (d) => (d + 2) / d; // a monatomic gas (chapter 12)
+export const gasGamma = (d) => (d + 2) / d; // a monatomic gas (the gases chapter)
 export const radiationGamma = (d) => (d + 1) / d; // a gas of light: P = u/d
 
 /* Lighting it: two nuclei tunnel through their 1/r repulsion (bare point charges, so the pinned force is ours exactly).

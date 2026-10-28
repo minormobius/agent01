@@ -1,11 +1,11 @@
-/* The search audit: is chapter 10's best pair really the best? Built to run on the compute runner
+/* The search audit: is the census chapter's best pair really the best? Built to run on the compute runner
    (.github/compute/), each mode resumable from its caches in $TMPDIR.
      node four/atom/tools/audit.mjs known <key>                  # the pipeline on one of our molecules, whose answer is published
      node four/atom/tools/audit.mjs probe <key> <n> [--shard i/m] # the Hartree–Fock landscape, sampled, against the force field
      node four/atom/tools/audit.mjs deepen <key> <n> [--only i]   # Hartree–Fock relaxed (pairsearch's hfDescend) from the n deepest probes (or just the i-th)
      node four/atom/tools/audit.mjs dimer <Z>                     # a 4D hydride's hydrogen-bonded pair, alone, with all the memory
      node four/atom/tools/audit.mjs summary                       # what the probes found
-     node four/atom/tools/audit.mjs bake                          # the same, as js/audit.js, for chapter 11
+     node four/atom/tools/audit.mjs bake                          # the same, as js/audit.js, for the search chapter
    known: the whole chain the 4D pairs went through (Hartree–Fock training points, the fit, the full pair search),
    for our HF (key 3.9) or ammonia (3.7). If it finds the published best arrangements, the 4D results earn some trust.
    Its js/ffdata.js and js/forcefields.js are copied into $TMPDIR/atom4-audit/known_<key>/ so they come back.
@@ -87,7 +87,7 @@ if (mode === "known") {
   // and where the census looks for it, so its next bake includes the pair (tools/census.mjs)
   const cdir = path.join(tmpdir(), "atom4-census"); mkdirSync(cdir, { recursive: true });
   writeFileSync(path.join(cdir, ["dimer", JSON.stringify(m)].join("_").replace(/[^\w.-]/g, "").slice(0, 120) + ".json"), out);
-} else if (mode === "bake") { // what the probes found, for chapter 11: js/audit.js
+} else if (mode === "bake") { // what the probes found, for the search chapter: js/audit.js
   const by = {};
   for (const f of readdirSync(OUT).filter((f) => f.startsWith("probe_"))) { const st = JSON.parse(readFileSync(path.join(OUT, f), "utf8")); (by[st.key] ??= { best: st.best, points: [] }).points.push(...st.points); }
   const out = Object.fromEntries(Object.entries(by).map(([key, { best, points }]) => {
