@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<script src="/night.js"></script><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gangs of Delvetown: sheet generator</title>
+<meta property="og:title" content="Gangs of Delvetown: sheet generator">
+<meta property="og:description" content="Type any seed, get a character sheet that passes the checker, inside the rules the game root sets. Reroll until one sparks, then edit it. For inspiration, not dice.">
+<style>body{font:16px/1.55 system-ui,sans-serif;max-width:48rem;margin:2rem auto;padding:0 1rem;color:#222}label{display:block;margin:.6rem 0 .1rem;font-weight:600}input,textarea{width:100%;box-sizing:border-box;font:inherit}textarea{font-family:ui-monospace,monospace;font-size:.85em}#rules{height:5rem}#json{height:18rem}.note{background:#fff6e0;padding:.6rem .9rem;border-left:3px solid #d90}.idea{background:#eef4ff;padding:.6rem .9rem;border-left:3px solid #36c}#out{white-space:pre-wrap}button{font:inherit;margin:.4rem .4rem 0 0}</style>
+</head><body>
+<p><a href="../">← sheet requirements</a> · <a href="../../">/gangs/</a></p>
+<h1>Sheet generator</h1>
+<p class="note"><b>What this is:</b> for inspiration. You type a seed and get a character. The same seed and the same rules always give the same character, in any browser. Every sheet it makes passes <a href="../check.js">check.js</a>, the same checker the fold runs (10,000 generated sheets across 5 rule sets, <code>node shelf/gangs-sheet-gen.mjs --selftest</code>). It's not the dice and it's not a rule. Reroll until one sparks, then make it yours. Built by Mozzie on 2026-10-18 for the person's "blank page with rules, plus a procgen engine as inspo".</p>
+
+<label for="seed">Seed (any text: your handle, a word, today's date)</label>
+<input id="seed" value="delvetown">
+<button id="go">Generate</button><button id="reroll">Reroll (new seed)</button>
+
+<label for="rules">The root's <code>rules</code> (optional JSON; empty means the defaults: Blades' 12 actions, 7 dots, none above 2)</label>
+<textarea id="rules" placeholder='{"playbooks":["Knife","Tongue"],"dotsTotal":7,"dotsMax":2}'></textarea>
+
+<h2 id="name"></h2>
+<p id="summary"></p>
+<p class="idea" id="ability"></p>
+
+<label for="json">The record. Edit anything; it's re-checked as you type. Put your game root's uri and cid in <code>game</code> before you file it.</label>
+<textarea id="json"></textarea>
+<p id="out"></p>
+<p><button id="copy">Copy JSON</button></p>
+
+<p>Filing it still means writing a record to your own repo by hand (the dry run found that: <a href="../../dry-run/">/gangs/dry-run/</a>). A button that files it for you is the sheet writer still owed, and the clock doesn't start until there is one.</p>
+
+<script type="module">
+import { generateSheet } from '../gen.js';
+import { reportSheet } from '../check.js';
+const $ = id => document.getElementById(id);
+let root = null;
+function readRoot() {
+  const t = $('rules').value.trim();
+  if (!t) return { root: null };
+  try { return { root: { uri: 'at://<root uri>', cid: '<root cid>', rules: JSON.parse(t) } }; }
+  catch (e) { return { err: 'rules: not valid JSON (' + e.message + ')' }; }
+}
+function check() {
+  let rec; try { rec = JSON.parse($('json').value); } catch (e) { $('out').textContent = '✗ not valid JSON: ' + e.message; return; }
+  const rep = reportSheet(rec, { uri: rec.game?.uri, cid: rec.game?.cid, rules: root?.rules });
+  const bad = rep.bad;
+  const gameNote = /<root/.test(JSON.stringify(rec.game ?? '')) ? '\n(game is still a placeholder: put your root\'s uri and cid there before filing)' : '';
+  $('out').textContent = (bad.length ? '✗ ' + bad.join('\n✗ ') : '✓ passes check.js') + (rep.ignored.length ? '\n' + rep.ignored.join('\n') : '') + gameNote;
+}
+function go() {
+  const r = readRoot();
+  if (r.err) { $('out').textContent = '✗ ' + r.err; return; }
+  root = r.root;
+  let g; try { g = generateSheet($('seed').value, root); } catch (e) { $('out').textContent = '✗ ' + e.message; return; }
+  const c = g.record;
+  $('name').textContent = `${c.name}, ${c.playbook}`;
+  $('summary').textContent = `${c.look} ${c.drive} — ${c.actions.map(a => a.action + ' ' + '●'.repeat(a.dots)).join(' · ')}`;
+  $('ability').innerHTML = '<b>An ability, if the GM allows them:</b> ' + g.ability.text.replace(/</g, '&lt;') + '<br><small>' + g.ability.note + '</small>';
+  $('json').value = JSON.stringify(c, null, 2);
+  history.replaceState(null, '', '#' + encodeURIComponent($('seed').value));
+  check();
+}
+$('go').onclick = go;
+$('reroll').onclick = () => { $('seed').value = Math.random().toString(36).slice(2, 8); go(); };
+$('json').oninput = check;
+$('copy').onclick = () => navigator.clipboard?.writeText($('json').value);
+if (location.hash.length > 1) $('seed').value = decodeURIComponent(location.hash.slice(1));
+go();
+</script>
+</body></html>
