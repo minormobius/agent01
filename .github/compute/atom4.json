@@ -1,6 +1,6 @@
 {
  "run": "audit-4",
- "why": "audit-3's eight relaxations of the 4D pairs' deepest random placements were cut at the deadline still descending (Xater's best 25.80 of 27.35 kcal/mol, XH3's 26.93 of 27.54 and falling 0.38 a step). Their Hartree-Fock energies are cached, so each resumes where it stopped: does any end deeper than the best pair?",
+ "why": "audit-3's eight relaxations of the 4D pairs' deepest random placements were cut at the deadline still descending (Xater's best 25.80 of 27.35 kcal/mol, XH3's 26.93 of 27.54 and falling 0.38 a step). Their Hartree-Fock energies are cached, so each resumes where it stopped: does any end deeper than the best pair? Also: correlation (MP2) for the best pairs, our three and the two 4D candidates, in the book's basis and three grown ones, plus a scan along the bond, so js/correlation.js bakes from the runner's caches (first computed in the sandbox).",
  "minutes": 330,
  "groups": [
   {
@@ -49,6 +49,60 @@
    "name": "deepen-bmmonia-3",
    "cmds": [
     "node four/atom/tools/audit.mjs deepen 4.9 4 --only 3"
+   ]
+  },
+  {
+   "name": "corr-xater",
+   "cmds": [
+    "node four/atom/tools/correlation.mjs pair 4 book",
+    "node four/atom/tools/correlation.mjs pair 4 d",
+    "node four/atom/tools/correlation.mjs pair 4 Ddp",
+    "node four/atom/tools/correlation.mjs pair 4 Ddpf"
+   ]
+  },
+  {
+   "name": "corr-bmmonia",
+   "cmds": [
+    "node four/atom/tools/correlation.mjs pair 4.9 book",
+    "node four/atom/tools/correlation.mjs pair 4.9 d",
+    "node four/atom/tools/correlation.mjs pair 4.9 Ddp",
+    "node four/atom/tools/correlation.mjs pair 4.9 Ddpf"
+   ]
+  },
+  {
+   "name": "corr-scan",
+   "cmds": [
+    "node four/atom/tools/correlation.mjs pair 4 d -0.3",
+    "node four/atom/tools/correlation.mjs pair 4 d 0.3",
+    "node four/atom/tools/correlation.mjs pair 4.9 d -0.3",
+    "node four/atom/tools/correlation.mjs pair 4.9 d 0.3"
+   ]
+  },
+  {
+   "name": "corr-water",
+   "cmds": [
+    "node four/atom/tools/correlation.mjs pair 3 book",
+    "node four/atom/tools/correlation.mjs pair 3 d",
+    "node four/atom/tools/correlation.mjs pair 3 Ddp",
+    "node four/atom/tools/correlation.mjs pair 3 Ddpf"
+   ]
+  },
+  {
+   "name": "corr-hf",
+   "cmds": [
+    "node four/atom/tools/correlation.mjs pair 3.9 book",
+    "node four/atom/tools/correlation.mjs pair 3.9 d",
+    "node four/atom/tools/correlation.mjs pair 3.9 Ddp",
+    "node four/atom/tools/correlation.mjs pair 3.9 Ddpf"
+   ]
+  },
+  {
+   "name": "corr-ammonia",
+   "cmds": [
+    "node four/atom/tools/correlation.mjs pair 3.7 book",
+    "node four/atom/tools/correlation.mjs pair 3.7 d",
+    "node four/atom/tools/correlation.mjs pair 3.7 Ddp",
+    "node four/atom/tools/correlation.mjs pair 3.7 Ddpf"
    ]
   }
  ]

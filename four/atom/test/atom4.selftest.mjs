@@ -743,5 +743,31 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(staged && files, `the mirror stages: ${MB.MODULES.length} modules, ${MB.BLOCKS.length} selftest blocks, the licence${err ? "; " + err : ""}`);
 }
 
+/* 43 · correlation (js/gauss.js mp2): MP2 on a small water against PySCF in the same basis (an independent code); in 4D,
+   a molecule's correlation doesn't depend on which way it points, and two electrons have no same-spin part */
+{
+  const GS = await import(path.join(here, "../js/gauss.js"));
+  const c = Math.cos((104.5 * Math.PI) / 180), s = Math.sin((104.5 * Math.PI) / 180), at = [{ Z: 8, at: [0, 0, 0] }, { Z: 1, at: [1.809, 0, 0] }, { Z: 1, at: [1.809 * c, 1.809 * s, 0] }];
+  const RO = [[0, GS.evenTempered(0.3, 3, 6)], [1, GS.evenTempered(0.3, 3, 4)], [2, [1.0]]], RH = [[0, [0.15, 0.6, 2.4]], [1, [0.8]]];
+  const sw = at.flatMap((a) => GS.shellsFor(a, a.Z === 8 ? RO : RH)), ow = GS.oneElectron(sw, at, 3), Ew = GS.twoElectron(sw, 3, ow.F);
+  const rw = GS.hartreeFock(at, sw, 3, { nAlpha: 5, nBeta: 5, ints: { one: ow, ERI: Ew }, tol: 1e-12 }), mw = GS.mp2(rw, Ew, { frozen: 1 });
+  // PySCF 2.14, the same 36 Cartesian functions, RHF then MP2 with the oxygen's 1s frozen
+  ok(Math.abs(rw.E + 74.44270429148116) < 1e-8 && Math.abs(mw.os + 0.16152082739053428) < 1e-8 && Math.abs(mw.ss + 0.0534912654853051) < 1e-8,
+    `MP2 against PySCF: water's correlation ${mw.E2.toFixed(9)} (PySCF −0.215012093), opposite and same spin each within 1e-8`);
+  const h2 = (dir) => { const rr = [[0, GS.evenTempered(0.05, 3, 4)], [1, [0.5]], [2, [0.6]]], a = { Z: 1, at: dir.map((x) => -0.8 * x) }, b = { Z: 1, at: dir.map((x) => 0.8 * x) }, sh = [...GS.shellsFor(a, rr), ...GS.shellsFor(b, rr)], o1 = GS.oneElectron(sh, [a, b], 4), E = GS.twoElectron(sh, 4, o1.F); return GS.mp2(GS.hartreeFock([a, b], sh, 4, { nAlpha: 1, nBeta: 1, ints: { one: o1, ERI: E }, tol: 1e-12 }), E); };
+  const ax = h2([1, 0, 0, 0]), dg = h2([0.5, 0.5, 0.5, 0.5]);
+  ok(ax.E2 < -0.005 && Math.abs(ax.E2 - dg.E2) < 1e-9 && Math.abs(ax.ss) < 1e-14, `MP2 in 4D: H₂'s correlation ${ax.E2.toFixed(6)} along an axis and along a diagonal; no same-spin part`);
+}
+
+/* 44 · correlation, baked (tools/correlation.mjs → js/correlation.js, the census chapter): our pairs in the book's basis
+   agree with PySCF's at the same arrangement; in 4D the order correlation gives holds in every basis tried */
+{
+  const { CORRELATION: CR } = await import(path.join(here, "../js/correlation.js"));
+  const ours = ["3", "3.9", "3.7"].filter((k) => CR[k]?.ref?.book), agree = ours.every((k) => Math.abs(CR[k].ref.book.hf - CR[k].bases.book.hf) < 1e-7 && Math.abs(CR[k].ref.book.E2 - CR[k].bases.book.E2) < 1e-7);
+  const bs = Object.keys(CR["4"].bases).filter((b) => CR["4.9"].bases[b]), lead = bs.map((b) => (CR["4"].bases[b].hf + CR["4"].bases[b].E2 - CR["4.9"].bases[b].hf - CR["4.9"].bases[b].E2) * 627.509);
+  ok(ours.length === 3 && agree && bs.length >= 3 && lead.every((x) => Math.sign(x) === Math.sign(lead[0]) && Math.abs(x) > 1),
+    `correlation baked: our ${ours.length} pairs match PySCF; in 4D the MP2 lead is ${lead.map((x) => x.toFixed(2)).join(", ")} kcal/mol over ${bs.length} bases`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

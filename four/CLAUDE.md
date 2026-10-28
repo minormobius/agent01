@@ -140,6 +140,12 @@ for games, and this is a modelling programme with publications to come. The game
   cloud's potential isn't short-ranged off 3D). It's checked against
   Madelung constants (3D, and 4D's 1.8393991 by Evjen) and NIST's SPC/E
   reference (`test/fixtures/nist-spce-1.txt`).
+  `gauss.js`'s `mp2` adds MP2 (closed shells, cores frozen) on a Hartree–Fock result; selftest 43 holds it to PySCF.
+  `atom/tools/correlation.mjs` re-scores the best pairs with it (`pair <key> [plus] [shift]`, counterpoise-corrected;
+  `plus` grows `census.mjs`'s `basisFor` recipe: D diffuse, d a second d, p hydrogen's second p, f an f) and `bake`s
+  **generated** `js/correlation.js` for the census chapter's correlation section; `atom/tools/correlation-ref.py`
+  (PySCF, pip install pyscf) computes our pairs in aug-cc-pVTZ/QZ for comparison. Both read and write
+  `$TMPDIR/atom4-correlation`.
   `atom/tools/pairsearch.mjs` searches two molecules' every relative pose
   (model BFGS from many starts, then Hartree–Fock scoring and relaxation;
   cached) and `bake`s `js/pairmin.js`: the census chapter's correction (Xater and
@@ -229,7 +235,7 @@ for games, and this is a modelling programme with publications to come. The game
 - **the tangled mirror, `four/mirror/`**: the solvers as their own MIT-licensed repo,
   `tangled.org/morphyxmino.bsky.social/four` (the monorepo itself has no licence; only the mirror is licensed).
   `mirror/build.mjs` decides what ships: the no-DOM modules (`MODULES`) at their own paths, the 4D viewer, Lumen⁴'s
-  optics, a known-answer test assembled from the selftest's method blocks (`BLOCKS`: no baked data; 55 checks, 5 s),
+  optics, a known-answer test assembled from the selftest's method blocks (`BLOCKS`: no baked data; 57 checks, 7 s),
   its fixture, `mirror/README.md` and `mirror/LICENSE`. `node four/mirror/build.mjs --check` stages and runs it;
   selftest 42 checks it still stages. `.github/workflows/mirror-four-tangled.yml` stages, tests and force-pushes on
   every push touching those files, and skips the push with a notice until the repo exists on tangled. A new solver

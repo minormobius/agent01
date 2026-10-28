@@ -34,11 +34,21 @@ export function valence(Z, d) {
 }
 /* an even-tempered basis scaled to the atom: the most diffuse exponents set by its ionization energy, the tightest
    by Z² (the recipe that gave Xater and our water, tools/molecules.mjs, written as a rule) */
-export function basisFor(Z, d) {
-  if (Z === 1) return d === 3 ? [[0, ET(0.05, 3, 5)], [1, [0.8]]] : [[0, ET(0.04, 3, 5)], [1, [0.6]]];
+/* For correlation (tools/correlation.mjs) the same recipe grows, each letter one step, in either world:
+     D  a more diffuse s and p on the heavy atom (÷2.5 past the last) and s on hydrogen (÷3)
+     d  the heavy atom's one d split in two, a third and one and a half times it
+     p  hydrogen's one p split the same way
+     f  an f on the heavy atom, 1.2 times the d
+   Checked in our world against standard large bases (aug-cc-pVTZ and -QZ, by PySCF: tools/correlation-ref.py). */
+export function basisFor(Z, d, plus = "") {
+  if (Z === 1) {
+    const s0 = d === 3 ? 0.05 : 0.04, p0 = d === 3 ? 0.8 : 0.6;
+    return [[0, plus.includes("D") ? [s0 / 3, ...ET(s0, 3, 5)] : ET(s0, 3, 5)], [1, plus.includes("p") ? [p0 / 3, p0 * 1.5] : [p0]]];
+  }
   const I = TABLE[d][Z - 1].ion, k = d === 3 ? { s: 0.26, S: 280, p: 0.33, P: 0.57, dd: 2.6 } : { s: 0.1, S: 75, p: 0.12, P: 0.15, dd: 1.25 };
-  const count = (lo, hi) => Math.max(3, Math.ceil(Math.log(hi / lo) / Math.log(2.5)) + 1);
-  return [[0, ET(k.s * I, 2.5, count(k.s * I, k.S * Z * Z))], [1, ET(k.p * I, 2.5, count(k.p * I, k.P * Z * Z))], [2, [k.dd * I]]];
+  const count = (lo, hi) => Math.max(3, Math.ceil(Math.log(hi / lo) / Math.log(2.5)) + 1), dd = k.dd * I, D = plus.includes("D");
+  const s = ET(k.s * I, 2.5, count(k.s * I, k.S * Z * Z)), p = ET(k.p * I, 2.5, count(k.p * I, k.P * Z * Z));
+  return [[0, D ? [s[0] / 2.5, ...s] : s], [1, D ? [p[0] / 2.5, ...p] : p], [2, plus.includes("d") ? [dd / 3, dd * 1.5] : [dd]], ...(plus.includes("f") ? [[3, [dd * 1.2]]] : [])];
 }
 
 const unit = (d, k) => Array.from({ length: d }, (_, q) => (q === k ? 1 : 0));
@@ -57,7 +67,7 @@ export function hydrideAtoms(Z, d, R, param) {
   const { bonds } = valence(Z, d);
   return [{ Z, at: new Array(d).fill(0) }, ...directions(bonds, d, param).map((u) => ({ Z: 1, at: u.map((x) => x * R) }))];
 }
-const shellsOf = (atoms, d) => atoms.flatMap((a, i) => G.shellsFor(a, basisFor(a.Z, d)).map((s) => ({ ...s, atom: i })));
+const shellsOf = (atoms, d, plus = "") => atoms.flatMap((a, i) => G.shellsFor(a, basisFor(a.Z, d, plus)).map((s) => ({ ...s, atom: i })));
 export function hydride(atoms, d, extra = {}) {
   const shells = shellsOf(atoms, d), one = G.oneElectron(shells, atoms, d), ERI = G.twoElectron(shells, d, one.F), n = atoms.reduce((s, a) => s + a.Z, 0) / 2;
   const r = G.hartreeFock(atoms, shells, d, { nAlpha: n, nBeta: n, ints: { one, ERI }, ...extra });
@@ -109,14 +119,21 @@ export function dimerAtoms(mono, d, R, betad) {
   return [A.map((a) => ({ ...a, at: refl(a.at) })), A.map((a) => ({ ...a, at: turn(a.at).map((x, k) => x + (k === 0 ? R : 0)) }))];
 }
 export function interaction(mono, d, R, betad) { const [A, B] = dimerAtoms(mono, d, R, betad); return pairEnergy(A, B, d); }
-/* any two closed-shell molecules' interaction, counterpoise-corrected */
-export function pairEnergy(A, B, d) {
-  const all = [...A, ...B], shells = shellsOf(all, d), n = A.reduce((s, a) => s + a.Z, 0) / 2;
+/* any two closed-shell molecules' interaction, counterpoise-corrected (each molecule alone in the pair's whole basis).
+   With mp2, also the correlation's share of it, MP2 with the cores frozen (js/gauss.js mp2): E2 and its two spin parts.
+   plus grows the basis (basisFor) */
+const frozenOf = (atoms, d) => atoms.reduce((s, a) => s + (a.Z > 2 ? (a.Z - valence(a.Z, d).v) / 2 : 0), 0);
+export function pairEnergy(A, B, d, { mp2 = false, plus = "" } = {}) {
+  const all = [...A, ...B], shells = shellsOf(all, d, plus), n = A.reduce((s, a) => s + a.Z, 0) / 2;
   const one = G.oneElectron(shells, all, d), ERI = G.twoElectron(shells, d, one.F);
   const eAB = G.hartreeFock(all, shells, d, { nAlpha: 2 * n, nBeta: 2 * n, ints: { one, ERI } });
   const eA = G.hartreeFock(A, shells, d, { nAlpha: n, nBeta: n, ints: { one: G.oneElectron(shells, A, d), ERI } });
   const eB = G.hartreeFock(B, shells, d, { nAlpha: n, nBeta: n, ints: { one: G.oneElectron(shells, B, d), ERI } });
-  return { E: eAB.E - eA.E - eB.E, ok: eAB.converged && eA.converged && eB.converged };
+  const out = { E: eAB.E - eA.E - eB.E, ok: eAB.converged && eA.converged && eB.converged };
+  if (!mp2) return out;
+  const [cAB, cA, cB] = [[eAB, all], [eA, A], [eB, B]].map(([r, at]) => G.mp2(r, ERI, { frozen: frozenOf(at, d) }));
+  const dif = (k) => cAB[k] - cA[k] - cB[k];
+  return { ...out, E2: dif("E2"), os: dif("os"), ss: dif("ss"), n: one.n };
 }
 export function dimerJob(mono) {
   const d = mono.d, m = minimize2((R, b) => interaction(mono, d, R, b).E, mono.R + (d === 3 ? 3.9 : 3.8), -30, 0.3, 10, 3, 2.5, 30), fin = interaction(mono, d, m.x, m.y);

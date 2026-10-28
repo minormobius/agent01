@@ -13,7 +13,7 @@ How each method works, what checks it and its limits: [four.mino.mobi/atom/metho
 |---|---|
 | `atom/js/atom.js` | atoms: the radial equation with l + (d − 3)/2, Numerov on a log grid, a self-consistent field (Hartree, local exchange, Hund spins), the ground configuration |
 | `atom/js/kernel.js` | the 1/r kernel averaged over a 3-sphere (4D has no shell theorem) |
-| `atom/js/gauss.js` | Hartree–Fock on Gaussians in any d (McMurchie–Davidson, with Boys's F_n generalized to G_n) |
+| `atom/js/gauss.js` | Hartree–Fock on Gaussians in any d (McMurchie–Davidson, with Boys's F_n generalized to G_n), and MP2 on top of it |
 | `atom/js/md.js` | molecular dynamics: rigid molecules, a thermostat, an Ewald sum for 1/r in any d |
 | `atom/js/landscape.js` | poses of rigid molecules, BFGS, descents for pairs and clusters |
 | `atom/js/ffmodel.js`, `forces.js` | force fields between molecules |

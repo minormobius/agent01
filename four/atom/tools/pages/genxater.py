@@ -35,6 +35,6 @@ xater=f'''<section id="pxygen">
 <section id="liquid">
   <h3>What kind of liquid</h3>
   <p>Each Xater has two hydrogens to give and a ring to take them, so it can link into a network as water does, two hydrogen bonds per molecule. With each bond about three times water's, pulling a Xater out of its liquid should cost two to three times as much, which makes it a liquid far past our water's boiling point. That's an estimate from the bond, not a computation of the liquid.</p>
-  <p>Open: correlation, the third the method misses. The liquid itself: its structure and boiling point need a simulation. How many hydrogens the ring will take: it has room for more than two, and three or more molecules have to be computed to know. And the refractive index, which the <a href="light.html">rainbow</a> needs. Whether Xater is 4D's water at all is the <a href="census.html">next chapter</a>'s question.</p>
+  <p>Open: correlation, the part the method misses, is counted for the pair in the <a href="census.html#correlation">census</a> (MP2): it weakens Xater's pair a little. The liquid itself: its structure and boiling point need a simulation. How many hydrogens the ring will take: it has room for more than two, and three or more molecules have to be computed to know. And the refractive index, which the <a href="light.html">rainbow</a> needs. Whether Xater is 4D's water at all is the <a href="census.html">next chapter</a>'s question.</p>
 </section>
 '''

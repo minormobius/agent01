@@ -4,7 +4,7 @@ The methods behind four.mino.mobi are an asset in their own right: solvers writt
 checked on ours, with no dependencies, that run in a browser or in node. This plan turns them into a library anyone can
 use. **Decided 2026-10-28:** the monorepo stays unlicensed; the solvers are mirrored to their own repo on tangled,
 `tangled.org/morphyxmino.bsky.social/four`, and that repo is **MIT**. Built: the kernel split (`kernel.js`), the mirror's
-build (`four/mirror/build.mjs`), its README and licence, its known-answer test (55 checks, 5 s, from the selftest's
+build (`four/mirror/build.mjs`), its README and licence, its known-answer test (57 checks, 7 s, from the selftest's
 method blocks), and the workflow that stages, tests and pushes it. Waiting on: the repo being created on tangled.
 
 ## What there is
