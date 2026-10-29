@@ -1,0 +1,1 @@
+Water fills from the bottom now; a gravity slider actually re-runs the solver (higher throats cost more to reach), not just relabels the picture. Turn it up to watch the front flatten like a real water table in sand.

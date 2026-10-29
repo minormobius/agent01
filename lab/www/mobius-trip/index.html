@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Möbius Trip — ride the one edge of a one-sided surface</title>
+<meta name="description" content="Fly a camera along the single edge of a Möbius strip. One loop is not enough to get home — it takes two, and you come back flipped, because the strip has only one side.">
+<meta property="og:title" content="Möbius Trip">
+<meta property="og:description" content="Fly a camera along the single edge of a Möbius strip. One loop is not enough to get home — it takes two, and you come back flipped, because the strip has only one side.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --col: 60rem; }
+  #viewport {
+    width: 100%;
+    height: min(58vh, 520px);
+    background: #08080a;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+    cursor: grab;
+    overflow: hidden;
+  }
+  #viewport:active { cursor: grabbing; }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .7rem; align-items: center; margin: .4rem 0; }
+  button.small { padding: .6rem .9rem; font-size: .85rem; min-height: 44px; }
+  button[disabled] { opacity: .4; cursor: not-allowed; }
+  button[disabled]:hover { background: var(--accent-dim); color: var(--accent); }
+  input[type=range] { width: 100%; height: 2rem; accent-color: var(--accent); }
+  .slidewrap { flex: 1 1 14rem; min-width: 12rem; }
+  .slidewrap label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .2rem; }
+  #lapOut {
+    font-size: .9rem; color: var(--fg);
+    min-height: 1.4em;
+  }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Möbius Trip</h1>
+  <p class="sub">A trip, literally — the camera rides the single edge of a Möbius
+    strip. Drag to look around, then press the button below to take the ride.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div id="viewport"></div>
+
+  <div class="panel">
+    <div class="row">
+      <button id="tripBtn">Take the trip</button>
+      <button id="resetBtn" class="small">Reset view</button>
+      <div class="slidewrap">
+        <label for="speedSlider">Trip length: <span id="speedOut">16</span>s</label>
+        <input type="range" id="speedSlider" min="8" max="30" step="1" value="16">
+      </div>
+    </div>
+    <p id="lapOut">Drag the viewport to look around. Press "Take the trip" when ready.</p>
+    <div class="row">
+      <button id="orbitBtn" class="small">Wide orbit</button>
+    </div>
+    <p id="orbitOut" style="font-size:.85rem;color:var(--muted);margin:.3rem 0 0;min-height:1.2em"></p>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Ride it with someone</h2>
+    <p class="sub" style="margin:.2rem 0 .6rem">Optional — name a handle and their avatar rides the edge with you.</p>
+    <div class="row">
+      <div class="slidewrap" style="flex:1 1 16rem">
+        <label for="companionInput">Handle</label>
+        <input type="text" id="companionInput" placeholder="handle.bsky.social">
+      </div>
+      <button id="companionClear" class="small" type="button">Clear</button>
+    </div>
+    <p id="companionOut" style="font-size:.85rem;color:var(--muted);margin:.5rem 0 0;min-height:1.4em"></p>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Why it takes two loops</h2>
+    <p style="margin:.3rem 0 0">
+      A Möbius strip has exactly one edge and one face. The bright line traced
+      around it is that single edge, drawn as one continuous loop — it just
+      happens to need to go around the strip's centre twice before it closes.
+      Ride near that edge and the same thing happens to you: halfway round,
+      you're on what looked like the far side of the strip, and the camera's
+      "up" has quietly flipped to match. One more loop and you're back at the
+      start, having been everywhere on the strip's one and only face along the
+      way.
+    </p>
+  </div>
+
+  <footer class="foot">
+    The strip is a plain parametric mesh — no lighting, vertex colours only, so
+    the rainbow reads the same from every angle. The camera's orientation each
+    frame comes from the surface's own local frame (tangent and normal, both by
+    finite difference), not a scripted animation, which is what makes the flip
+    real rather than staged. Auto-rotate pauses if your system asks for reduced
+    motion; the trip itself is something you start on purpose, so it still
+    runs — with a Stop always one press away.
+  </footer>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb('möbius trip');
+
+  const reducedMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------- geometry
+
+  const R = 2.0;          // centre radius
+  const HALF_W = 0.7;     // half the strip's width
+  const EDGE_V = HALF_W * 0.82; // ride just inset from the true edge
+
+  function mobiusPoint(u, v) {
+    const cu2 = Math.cos(u / 2), su2 = Math.sin(u / 2);
+    const r = R + v * cu2;
+    return new THREE.Vector3(r * Math.cos(u), r * Math.sin(u), v * su2);
+  }
+
+  function buildStripGeometry(segU, segV) {
+    const positions = [], colors = [], indices = [];
+    const colsV = segV + 1;
+    for (let i = 0; i <= segU; i++) {
+      const u = (i / segU) * Math.PI * 2;
+      const col = new THREE.Color().setHSL((i / segU) % 1, 0.85, 0.55);
+      for (let j = 0; j <= segV; j++) {
+        const v = -HALF_W + (j / segV) * (2 * HALF_W);
+        const p = mobiusPoint(u, v);
+        positions.push(p.x, p.y, p.z);
+        colors.push(col.r, col.g, col.b);
+      }
+    }
+    for (let i = 0; i < segU; i++) {
+      for (let j = 0; j < segV; j++) {
+        const a = i * colsV + j, b = a + 1, c = a + colsV, d = c + 1;
+        indices.push(a, c, b, b, c, d);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geo.setIndex(indices);
+    return geo;
+  }
+
+  function buildEdgeLine(steps) {
+    const pts = [];
+    for (let i = 0; i <= steps; i++) {
+      const u = (i / steps) * Math.PI * 4; // two loops — the whole single edge
+      pts.push(mobiusPoint(u, HALF_W));
+    }
+    return new THREE.BufferGeometry().setFromPoints(pts);
+  }
+
+  // ---------------------------------------------------------------- scene
+
+  const viewport = document.getElementById('viewport');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x08080a);
+
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 100);
+  const DEFAULT_CAM = { pos: new THREE.Vector3(0, 0, 7), up: new THREE.Vector3(0, 1, 0) };
+  camera.position.copy(DEFAULT_CAM.pos);
+  camera.up.copy(DEFAULT_CAM.up);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  viewport.appendChild(renderer.domElement);
+
+  const group = new THREE.Group();
+  scene.add(group);
+  const DEFAULT_ROT = { x: 0.5, y: 0.6 };
+  group.rotation.set(DEFAULT_ROT.x, DEFAULT_ROT.y, 0);
+
+  // polygonOffset pushes this mesh's depth back a hair so the wireframe overlay
+  // below — same surface, coincident geometry — doesn't z-fight it into a
+  // flickering moire, worst right up close during the trip.
+  const stripMat = new THREE.MeshBasicMaterial({
+    vertexColors: true, side: THREE.DoubleSide,
+    polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+  });
+  const STRIP_SEG_U = 180, STRIP_SEG_V = 10;
+  const stripGeo = buildStripGeometry(STRIP_SEG_U, STRIP_SEG_V);
+  group.add(new THREE.Mesh(stripGeo, stripMat));
+  // Snapshot of the rainbow at build time, so wide-orbit's hue drift has a
+  // fixed point to return to rather than drifting a little further each visit.
+  const stripBaseColors = Float32Array.from(stripGeo.attributes.color.array);
+
+  function updateStripHue(shift) {
+    const colors = stripGeo.attributes.color.array;
+    const colsV = STRIP_SEG_V + 1;
+    const c = new THREE.Color();
+    for (let i = 0; i <= STRIP_SEG_U; i++) {
+      c.setHSL(((i / STRIP_SEG_U) + shift) % 1, 0.85, 0.55);
+      const base = i * colsV * 3;
+      for (let j = 0; j < colsV; j++) {
+        const idx = base + j * 3;
+        colors[idx] = c.r; colors[idx + 1] = c.g; colors[idx + 2] = c.b;
+      }
+    }
+    stripGeo.attributes.color.needsUpdate = true;
+  }
+  function resetStripHue() {
+    stripGeo.attributes.color.array.set(stripBaseColors);
+    stripGeo.attributes.color.needsUpdate = true;
+  }
+
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff, wireframe: true, transparent: true, opacity: 0.1,
+    side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  group.add(new THREE.Mesh(buildStripGeometry(40, 4), wireMat));
+
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+  group.add(new THREE.Line(buildEdgeLine(300), edgeMat));
+
+  // ---------------------------------------------------------------- companion marker
+  // Not parented to `group` — same reason the camera isn't: the ride is computed
+  // in the strip's local/object space, which only equals world space once
+  // startTrip() has reset the rotation to zero (see gotchas in BRIEF.md).
+
+  function makeGlowTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(232,163,61,0.9)');
+    g.addColorStop(0.5, 'rgba(232,163,61,0.35)');
+    g.addColorStop(1, 'rgba(232,163,61,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function makeMonogramTexture(handle) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#3a2c15';
+    ctx.beginPath(); ctx.arc(64, 64, 64, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e8a33d';
+    ctx.font = 'bold 64px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((handle[0] || '?').toUpperCase(), 64, 70);
+    return new THREE.CanvasTexture(c);
+  }
+
+  // Bluesky's avatar CDN sends no CORS header, which taints a canvas drawn from
+  // it directly — /_img/ re-serves the same bytes same-origin. Masked into a
+  // circle here so it reads as a marker, not a floating square photo.
+  function loadAvatarTexture(avatarUrl, onReady) {
+    const path = avatarUrl.split('cdn.bsky.app/')[1];
+    if (!path) { onReady(null); return; }
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.save();
+      ctx.beginPath(); ctx.arc(64, 64, 64, 0, Math.PI * 2); ctx.clip();
+      ctx.drawImage(img, 0, 0, 128, 128);
+      ctx.restore();
+      onReady(new THREE.CanvasTexture(c));
+    };
+    img.onerror = () => onReady(null);
+    img.src = '/_img/' + path;
+  }
+
+  const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  glowSprite.scale.set(0.9, 0.9, 1);
+  const avatarMat = new THREE.SpriteMaterial({ transparent: true, depthWrite: false });
+  const avatarSprite = new THREE.Sprite(avatarMat);
+  avatarSprite.scale.set(0.42, 0.42, 1);
+  const companionMarker = new THREE.Group();
+  companionMarker.add(glowSprite, avatarSprite);
+  companionMarker.visible = false;
+  scene.add(companionMarker);
+
+  let companion = null; // { handle, label } once resolved
+  function setCompanionTexture(tex) {
+    if (avatarMat.map) avatarMat.map.dispose();
+    avatarMat.map = tex;
+    avatarMat.needsUpdate = true;
+  }
+
+  const companionInput = document.getElementById('companionInput');
+  const companionOut = document.getElementById('companionOut');
+
+  function loadCompanion(handle) {
+    companion = null;
+    companionOut.textContent = 'Looking up @' + handle + '…';
+    kit.bskyGet('app.bsky.actor.getProfile', { actor: handle }).then((profile) => {
+      if (kit.hidden(profile)) {
+        companionOut.textContent = "Can't ride with @" + handle +
+          ' — Bluesky has put a moderation label on that profile (a content warning, or an ' +
+          'account action like a takedown). This site honours that the same way bsky.app ' +
+          'does and won’t pull in their name or picture.';
+        return;
+      }
+      const label = profile.displayName || ('@' + profile.handle);
+      companion = { handle: profile.handle, label };
+      companionOut.textContent = 'Riding with ' + label + ' — press "Take the trip".';
+      if (profile.avatar) {
+        loadAvatarTexture(profile.avatar, (tex) => setCompanionTexture(tex || makeMonogramTexture(profile.handle)));
+      } else {
+        setCompanionTexture(makeMonogramTexture(profile.handle));
+      }
+    }).catch(() => {
+      companion = null;
+      companionOut.textContent = "Couldn't find @" + handle + ' — check the handle and try again.';
+    });
+  }
+
+  kit.handleInput(companionInput, { onPick: (handle) => loadCompanion(handle) });
+  document.getElementById('companionClear').addEventListener('click', () => {
+    companionInput.value = '';
+    companion = null;
+    companionOut.textContent = '';
+  });
+
+  function resize() {
+    const w = viewport.clientWidth, h = viewport.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------------------------------------------------------------- orbit drag
+
+  let dragging = false, lastX = 0, lastY = 0;
+  const canvas = renderer.domElement;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (tripping || orbiting) return;
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    group.rotation.y += dx * 0.008;
+    group.rotation.x += dy * 0.008;
+  });
+  canvas.addEventListener('wheel', (e) => {
+    if (tripping || orbiting) return;
+    e.preventDefault();
+    camera.position.z = Math.min(16, Math.max(3.5, camera.position.z * (1 + e.deltaY * 0.001)));
+  }, { passive: false });
+
+  function resetView() {
+    group.rotation.set(DEFAULT_ROT.x, DEFAULT_ROT.y, 0);
+    camera.position.copy(DEFAULT_CAM.pos);
+    camera.up.copy(DEFAULT_CAM.up);
+    camera.lookAt(0, 0, 0);
+  }
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    if (tripping || orbiting) return;
+    resetView();
+  });
+
+  // ---------------------------------------------------------------- the trip
+
+  const tripBtn = document.getElementById('tripBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const lapOut = document.getElementById('lapOut');
+  const speedSlider = document.getElementById('speedSlider');
+  const speedOut = document.getElementById('speedOut');
+  speedSlider.addEventListener('input', () => { speedOut.textContent = speedSlider.value; });
+
+  let tripping = false, tripElapsed = 0, tripDuration = 16;
+  const EPS = 0.01, LIFT = 0.16, AVATAR_LEAD = 0.22;
+
+  // ---------------------------------------------------------------- wide orbit
+  // A second, passive camera mode: circles the whole strip from outside (never
+  // rides the edge) while the rainbow hue-drifts. Purely decorative, so unlike
+  // the trip itself (started on purpose, so it still runs) this one is gated
+  // behind prefers-reduced-motion — it's the kind of thing that moves on its
+  // own, which is exactly what that preference asks sites not to do.
+  const ORBIT_RADIUS = 6.5;
+  let orbiting = false, orbitAngle = 0, orbitHue = 0;
+  const orbitBtn = document.getElementById('orbitBtn');
+  const orbitOut = document.getElementById('orbitOut');
+
+  function refreshControlAvailability() {
+    tripBtn.disabled = orbiting;
+    resetBtn.disabled = tripping || orbiting;
+    orbitBtn.disabled = reducedMotion || tripping;
+  }
+
+  if (reducedMotion) {
+    orbitOut.textContent = 'Skipped — your system asked for reduced motion.';
+  } else {
+    orbitOut.textContent = 'A slow lap around the outside, with the rainbow drifting.';
+  }
+
+  function startOrbit() {
+    if (reducedMotion || tripping || orbiting) return;
+    orbiting = true;
+    orbitAngle = Math.atan2(camera.position.z, camera.position.x);
+    orbitHue = 0;
+    orbitBtn.textContent = 'Stop orbit';
+    refreshControlAvailability();
+  }
+  function endOrbit() {
+    orbiting = false;
+    orbitBtn.textContent = 'Wide orbit';
+    resetStripHue();
+    resetView();
+    refreshControlAvailability();
+  }
+  orbitBtn.addEventListener('click', () => { orbiting ? endOrbit() : startOrbit(); });
+  refreshControlAvailability();
+
+  // The surface's own local frame at (u, EDGE_V): tangent along the ride,
+  // and the surface normal from the cross of the two partial derivatives —
+  // both by finite difference, so the frame stays continuous across the whole
+  // 4π ride instead of resetting each loop. That continuity is what makes the
+  // "upside-down after one loop" effect a real consequence of the geometry,
+  // not a scripted flip.
+  function computeFrame(u) {
+    const p0 = mobiusPoint(u - EPS, EDGE_V), p1 = mobiusPoint(u + EPS, EDGE_V);
+    const tangent = p1.clone().sub(p0).normalize();
+    const pv0 = mobiusPoint(u, EDGE_V - EPS), pv1 = mobiusPoint(u, EDGE_V + EPS);
+    const across = pv1.clone().sub(pv0).normalize();
+    const normal = new THREE.Vector3().crossVectors(tangent, across).normalize();
+    return { point: mobiusPoint(u, EDGE_V), normal };
+  }
+
+  function startTrip() {
+    if (tripping || orbiting) return;
+    // The ride is computed in the strip's own (unrotated) space, so any view
+    // spin from dragging or idle rotation is reset here first.
+    group.rotation.set(0, 0, 0);
+    tripping = true;
+    tripElapsed = 0;
+    tripDuration = Number(speedSlider.value);
+    tripBtn.textContent = 'Stop the trip';
+    lapOut.textContent = 'Lap 1 of 2 — setting off along the edge…';
+    refreshControlAvailability();
+  }
+
+  function endTrip(message) {
+    tripping = false;
+    tripBtn.textContent = 'Take the trip';
+    resetView();
+    lapOut.textContent = message;
+    refreshControlAvailability();
+  }
+
+  tripBtn.addEventListener('click', () => {
+    if (tripping) endTrip('Stopped early. Press "Take the trip" to ride the full two loops.');
+    else startTrip();
+  });
+
+  function updateLap(frac) {
+    const deg = Math.round(frac * 720);
+    let msg = frac < 0.5
+      ? 'Lap 1 of 2 — u = ' + deg + '°. Riding the edge outward.'
+      : 'Lap 2 of 2 — u = ' + deg + '°. Tracing what looked like the far side — same single face.';
+    if (companion) msg += ' Riding with ' + companion.label + '.';
+    lapOut.textContent = msg;
+  }
+
+  // ---------------------------------------------------------------- animate
+
+  let lastT = null;
+  function animate(now) {
+    requestAnimationFrame(animate);
+    if (lastT === null) lastT = now;
+    const dt = Math.min((now - lastT) / 1000, 0.05);
+    lastT = now;
+
+    if (tripping) {
+      tripElapsed += dt;
+      const frac = Math.min(tripElapsed / tripDuration, 1);
+      const u = frac * Math.PI * 4;
+      const f = computeFrame(u);
+      camera.up.copy(f.normal);
+      camera.position.copy(f.point).addScaledVector(f.normal, LIFT);
+      camera.lookAt(computeFrame(Math.min(u + 0.12, Math.PI * 4)).point);
+      updateLap(frac);
+      if (companion) {
+        const cf = computeFrame(u + AVATAR_LEAD);
+        companionMarker.position.copy(cf.point).addScaledVector(cf.normal, LIFT + 0.05);
+        companionMarker.visible = true;
+      }
+      if (frac >= 1) {
+        endTrip("Back at the start — you traced the strip's one edge in two loops, and were on both ‘sides’ of its one face along the way.");
+      }
+    } else if (orbiting) {
+      companionMarker.visible = false;
+      orbitAngle += dt * 0.15;
+      const height = Math.sin(orbitAngle * 0.4) * 1.3;
+      camera.position.set(
+        ORBIT_RADIUS * Math.cos(orbitAngle), height, ORBIT_RADIUS * Math.sin(orbitAngle)
+      );
+      camera.up.set(0, 1, 0);
+      camera.lookAt(0, 0, 0);
+      orbitHue = (orbitHue + dt * 0.03) % 1;
+      updateStripHue(orbitHue);
+    } else {
+      companionMarker.visible = false;
+      if (!reducedMotion && !dragging) group.rotation.y += dt * 0.15;
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  requestAnimationFrame(animate);
+}
+
+try {
+  main();
+} catch (e) {
+  const el = document.getElementById('err');
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>

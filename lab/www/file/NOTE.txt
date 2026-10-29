@@ -1,0 +1,1 @@
+This is your real taste profile, reworded, plus a live Bluesky lookup — not invented. Two build names in the file were stale after a rename; I traced them to the real directories before linking.

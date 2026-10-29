@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theta Line — a corpse-economy survival toy</title>
+<meta name="description" content="A branching, diffusing population that only survives recycling its own dead above one ratio. Set beta, c, m, watch theta, press run.">
+<meta property="og:title" content="Theta Line — a corpse-economy survival toy">
+<meta property="og:description" content="Particles reproduce off nearby resource, die, and hand a fixed resource mass back to the field. θ = β·m/c decides everything: even perfect recycling (θ=1) dies out almost surely. Three sliders, a live θ readout, and a population you can watch cross — or not cross — the line.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 42rem; }
+  .panel {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem 1.1rem; margin: 1.25rem 0;
+  }
+  .row { display: flex; flex-direction: column; gap: .35rem; margin: .9rem 0; }
+  .row label { font-size: .8rem; color: var(--muted); display: flex; justify-content: space-between; }
+  .row label b { color: var(--fg); font-weight: 600; }
+  input[type=range] {
+    width: 100%; height: 44px; appearance: none; background: transparent; margin: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px; background: var(--border); border-radius: 3px;
+  }
+  input[type=range]::-moz-range-track { height: 6px; background: var(--border); border-radius: 3px; }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none; width: 26px; height: 26px; margin-top: -10px;
+    border-radius: 50%; background: var(--accent); border: 2px solid #000;
+    cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent);
+    border: 2px solid #000; cursor: pointer;
+  }
+  .theta-box {
+    display: flex; align-items: baseline; justify-content: space-between;
+    flex-wrap: wrap; gap: .5rem; padding: 1rem; border-radius: var(--radius);
+    border: 1px solid var(--border); margin: 1rem 0;
+  }
+  .theta-box .num { font-size: 2.2rem; font-weight: 700; letter-spacing: -.02em; }
+  .theta-box .verdict { font-size: .85rem; max-width: 18rem; text-align: right; }
+  .theta-box.survive { border-color: var(--ok); }
+  .theta-box.survive .num { color: var(--ok); }
+  .theta-box.survive .verdict { color: var(--ok); }
+  .theta-box.doomed { border-color: var(--error); }
+  .theta-box.doomed .num { color: var(--error); }
+  .theta-box.doomed .verdict { color: var(--error); }
+  .btnrow { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1rem 0; }
+  .btnrow button { flex: 1 1 auto; min-width: 7rem; min-height: 44px; }
+  canvas {
+    width: 100%; height: auto; display: block; border-radius: var(--radius);
+    border: 1px solid var(--border); background: #000; touch-action: none;
+  }
+  .stats { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); margin-top: .5rem; }
+  .copy-shiny {
+    width: 100%; margin-top: .6rem; min-height: 44px; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), #fff3d6 60%, var(--accent));
+    color: #1a1304; border: none; box-shadow: 0 0 0 1px var(--accent), 0 4px 18px rgba(232,163,61,.35);
+  }
+  .copy-shiny:hover { filter: brightness(1.08); }
+  .note { font-size: .78rem; color: var(--muted); line-height: 1.55; }
+  .formula { font-family: var(--mono); color: var(--accent); font-size: 1rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Theta Line</h1>
+  <p class="sub">a corpse-economy survival toy — reproduce off resource, die, recycle the corpse, repeat</p>
+
+  <p>Every particle here reproduces faster when there is more resource nearby, and every
+  death hands a fixed amount of that resource back to the ground it died on. The only question
+  that turns out to matter is <span class="formula">θ = β·m / c</span> — how many births one
+  corpse's returned resource could fund, at perfect efficiency. Set the three dials below and
+  watch what θ actually buys.</p>
+
+  <div class="panel">
+    <div class="row">
+      <label>reproduction rate β <b id="betaVal"></b></label>
+      <input type="range" id="beta" min="0.2" max="2" step="0.02" value="1">
+    </div>
+    <div class="row">
+      <label>consumption rate c <b id="cVal"></b></label>
+      <input type="range" id="c" min="0.2" max="2" step="0.02" value="1">
+    </div>
+    <div class="row">
+      <label>resource per corpse m <b id="mVal"></b></label>
+      <input type="range" id="m" min="0.2" max="2" step="0.02" value="1">
+    </div>
+
+    <div class="theta-box" id="thetaBox">
+      <div><div class="note">θ = β·m / c</div><div class="num" id="thetaNum">1.00</div></div>
+      <div class="verdict" id="thetaVerdict"></div>
+    </div>
+
+    <div class="btnrow">
+      <button id="runBtn">run</button>
+      <button id="resetBtn">reset</button>
+    </div>
+  </div>
+
+  <canvas id="field" width="600" height="375" aria-label="resource field with particles"></canvas>
+  <div class="stats">
+    <span id="popStat">population: 2</span>
+    <span id="timeStat">t = 0.0</span>
+  </div>
+
+  <h2>population over time</h2>
+  <canvas id="chart" width="600" height="200" aria-label="population count over time"></canvas>
+  <button class="copy-shiny" id="copyBtn">copy image</button>
+
+  <div id="msg" class="err" hidden></div>
+
+  <p class="note" style="margin-top:1.5rem">
+  This is a simplified mean-field toy built around one real, sharp fact from recent work on
+  branching populations competing for a shared, locally-recycled resource: the population dies
+  out almost surely whenever θ ≤ 1 — <em>even at θ = 1 exactly</em>, with zero waste and perfect
+  recycling — and only survives with positive probability once θ &gt; 1. The threshold does not
+  depend on diffusion speed, death rate, or the shape of the interaction kernel, only on θ.
+  </p>
+  <p class="note">
+  <b style="color:var(--fg)">Why a run can mislead you:</b> θ = 1 is an <em>almost-sure</em>
+  extinction boundary, not an instant one — a critical branching process can wander for a long
+  time before it dies. This run caps population at 1500 and simulated time at 1200 so a crash
+  stays visible rather than the page just grinding forever. If a run hits that cap still alive,
+  that is <strong>not</strong> proof θ ≤ 1 can survive — it only means this one run didn't finish
+  inside the cap.
+  </p>
+  <p class="note">
+  <b style="color:var(--fg)">Not built this turn:</b> the pitch asked for every visitor's run to
+  feed a shared histogram of survival time vs. θ. There is no shared database here and no global
+  leaderboard query this kit can make — only a lookup of a handle the visitor names. A true
+  pooled histogram needs a human-reviewed aggregation point this site doesn't have. See
+  <code>BRIEF.md</code>.
+  </p>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('theta line');
+
+  var GRID_W = 48, GRID_H = 30;
+  var DT = 0.1, STEPS_PER_FRAME = 15, MAX_SIM_TIME = 1200, POP_CAP = 1500;
+  var R, particles, simTime, history, running = false, rafId = null, ended = '';
+
+  var betaEl = document.getElementById('beta'), cEl = document.getElementById('c'), mEl = document.getElementById('m');
+  var betaVal = document.getElementById('betaVal'), cVal = document.getElementById('cVal'), mVal = document.getElementById('mVal');
+  var thetaBox = document.getElementById('thetaBox'), thetaNum = document.getElementById('thetaNum'), thetaVerdict = document.getElementById('thetaVerdict');
+  var runBtn = document.getElementById('runBtn'), resetBtn = document.getElementById('resetBtn');
+  var fieldCv = document.getElementById('field'), fctx = fieldCv.getContext('2d');
+  var chartCv = document.getElementById('chart'), xctx = chartCv.getContext('2d');
+  var popStat = document.getElementById('popStat'), timeStat = document.getElementById('timeStat');
+  var msg = document.getElementById('msg');
+  var copyBtn = document.getElementById('copyBtn');
+
+  function params() { return { beta: parseFloat(betaEl.value), c: parseFloat(cEl.value), m: parseFloat(mEl.value) }; }
+
+  function updateThetaReadout() {
+    var p = params();
+    betaVal.textContent = p.beta.toFixed(2);
+    cVal.textContent = p.c.toFixed(2);
+    mVal.textContent = p.m.toFixed(2);
+    var th = p.beta * p.m / p.c;
+    thetaNum.textContent = th.toFixed(3);
+    if (th > 1) {
+      thetaBox.className = 'theta-box survive';
+      thetaVerdict.textContent = 'θ > 1 — survives with positive probability';
+    } else {
+      thetaBox.className = 'theta-box doomed';
+      thetaVerdict.textContent = 'θ ≤ 1 — extinct almost surely, even here at the line';
+    }
+    return p;
+  }
+  [betaEl, cEl, mEl].forEach(function (el) { el.addEventListener('input', updateThetaReadout); });
+
+  function cellIndex(x, y) {
+    var cx = Math.min(GRID_W - 1, Math.max(0, Math.floor(x)));
+    var cy = Math.min(GRID_H - 1, Math.max(0, Math.floor(y)));
+    return cy * GRID_W + cx;
+  }
+
+  function initSim() {
+    R = new Float32Array(GRID_W * GRID_H);
+    R.fill(2);
+    particles = [
+      { x: GRID_W / 2 - 0.5, y: GRID_H / 2 },
+      { x: GRID_W / 2 + 0.5, y: GRID_H / 2 },
+    ];
+    simTime = 0;
+    history = [{ t: 0, n: 2 }];
+    ended = '';
+    kit.clear(msg);
+    renderField();
+    renderChart();
+    popStat.textContent = 'population: 2';
+    timeStat.textContent = 't = 0.0';
+  }
+
+  function stepSim(p) {
+    var counts = new Int32Array(GRID_W * GRID_H);
+    var i;
+    for (i = 0; i < particles.length; i++) counts[cellIndex(particles[i].x, particles[i].y)]++;
+    for (i = 0; i < R.length; i++) {
+      var n = counts[i];
+      if (n > 0) {
+        R[i] -= p.c * n * R[i] * DT;
+        if (R[i] < 0) R[i] = 0;
+      }
+    }
+    var next = [];
+    for (i = 0; i < particles.length; i++) {
+      var pt = particles[i];
+      var idx = cellIndex(pt.x, pt.y);
+      if (Math.random() < DT) { // fixed per-capita death rate; does not depend on theta
+        R[idx] += p.m;
+        continue;
+      }
+      pt.x = Math.min(GRID_W - 0.01, Math.max(0, pt.x + (Math.random() - 0.5) * 0.6));
+      pt.y = Math.min(GRID_H - 0.01, Math.max(0, pt.y + (Math.random() - 0.5) * 0.6));
+      next.push(pt);
+      if (next.length < POP_CAP && Math.random() < p.beta * R[idx] * DT) {
+        next.push({ x: pt.x, y: pt.y });
+      }
+    }
+    particles = next;
+    simTime += DT;
+    history.push({ t: simTime, n: particles.length });
+  }
+
+  function renderField() {
+    var w = fieldCv.width, h = fieldCv.height;
+    var cw = w / GRID_W, ch = h / GRID_H;
+    fctx.fillStyle = '#000'; fctx.fillRect(0, 0, w, h);
+    for (var gy = 0; gy < GRID_H; gy++) {
+      for (var gx = 0; gx < GRID_W; gx++) {
+        var r = R[gy * GRID_W + gx];
+        var t = Math.min(1, r / 3);
+        fctx.fillStyle = 'rgba(' + Math.round(58 + t * (232 - 58)) + ',' + Math.round(44 + t * (163 - 44)) + ',' + Math.round(21 + t * (61 - 21)) + ',1)';
+        fctx.fillRect(gx * cw, gy * ch, cw + 0.5, ch + 0.5);
+      }
+    }
+    fctx.fillStyle = '#e8e6e3';
+    for (var i = 0; i < particles.length; i++) {
+      fctx.beginPath();
+      fctx.arc(particles[i].x * cw, particles[i].y * ch, 2.4, 0, 6.3);
+      fctx.fill();
+    }
+  }
+
+  function renderChart() {
+    var w = chartCv.width, h = chartCv.height;
+    xctx.fillStyle = '#000'; xctx.fillRect(0, 0, w, h);
+    if (history.length < 2) return;
+    var maxN = 1, maxT = Math.max(1, history[history.length - 1].t);
+    for (var i = 0; i < history.length; i++) if (history[i].n > maxN) maxN = history[i].n;
+    xctx.strokeStyle = '#26242c'; xctx.lineWidth = 1;
+    for (var gy = 1; gy < 4; gy++) {
+      var yy = h - (gy / 4) * (h - 10) - 5;
+      xctx.beginPath(); xctx.moveTo(0, yy); xctx.lineTo(w, yy); xctx.stroke();
+    }
+    var stride = Math.max(1, Math.floor(history.length / 1000));
+    xctx.strokeStyle = '#e8a33d'; xctx.lineWidth = 2; xctx.beginPath();
+    for (var j = 0; j < history.length; j += stride) {
+      var px = (history[j].t / maxT) * (w - 4) + 2;
+      var py = h - (history[j].n / maxN) * (h - 10) - 5;
+      if (j === 0) xctx.moveTo(px, py); else xctx.lineTo(px, py);
+    }
+    xctx.stroke();
+    xctx.fillStyle = '#8b8792'; xctx.font = '12px monospace';
+    xctx.fillText('max pop ' + maxN, 6, 14);
+    xctx.fillText('t=' + maxT.toFixed(0), w - 60, 14);
+  }
+
+  function frame() {
+    if (!running) return;
+    var p = params();
+    for (var s = 0; s < STEPS_PER_FRAME; s++) {
+      if (particles.length === 0 || simTime >= MAX_SIM_TIME) break;
+      stepSim(p);
+    }
+    renderField();
+    renderChart();
+    popStat.textContent = 'population: ' + particles.length;
+    timeStat.textContent = 't = ' + simTime.toFixed(1);
+    if (particles.length === 0) {
+      running = false; runBtn.textContent = 'run';
+      kit.showError(msg, 'extinct at t = ' + simTime.toFixed(1) + ' (started from 2)');
+      return;
+    }
+    if (simTime >= MAX_SIM_TIME) {
+      running = false; runBtn.textContent = 'run';
+      msg.className = 'ok'; msg.hidden = false;
+      msg.textContent = 'hit the time cap at population ' + particles.length + ' — still alive, not proof of survival.';
+      return;
+    }
+    rafId = requestAnimationFrame(frame);
+  }
+
+  runBtn.addEventListener('click', function () {
+    if (running) { running = false; runBtn.textContent = 'run'; if (rafId) cancelAnimationFrame(rafId); return; }
+    running = true; runBtn.textContent = 'pause';
+    kit.clear(msg);
+    rafId = requestAnimationFrame(frame);
+  });
+  resetBtn.addEventListener('click', function () {
+    running = false; if (rafId) cancelAnimationFrame(rafId);
+    runBtn.textContent = 'run';
+    initSim();
+  });
+
+  copyBtn.addEventListener('click', function () {
+    chartCv.toBlob(function (blob) {
+      if (!blob) { copyBtn.textContent = 'copy failed'; setTimeout(function () { copyBtn.textContent = 'copy image'; }, 1200); return; }
+      if (navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+          copyBtn.textContent = 'copied!';
+        }).catch(function () {
+          copyBtn.textContent = 'copy failed';
+        }).finally(function () { setTimeout(function () { copyBtn.textContent = 'copy image'; }, 1200); });
+      } else {
+        copyBtn.textContent = 'not supported here';
+        setTimeout(function () { copyBtn.textContent = 'copy image'; }, 1500);
+      }
+    });
+  });
+
+  updateThetaReadout();
+  initSim();
+})();
+</script>
+</body>
+</html>

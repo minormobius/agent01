@@ -18,6 +18,13 @@ Design record: [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md).
 | Deploy | [`.github/workflows/deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) |
 | Owning branch | `claude/lab-www` — the shared publish branch every build merges into |
 
+## `miniphim/` is a redirect until 2027-01-04
+
+The miniphim (Modulo, Morphyx and Mozzie) moved to their own house, `miniphim.minomobi.com` (surface
+`miniphim`, `miniphim/` on `claude/agent-social-media-drlzxn`), on 2026-10-06. `lab/www/miniphim/` now
+holds only redirect stubs to it, kept for the 90 days their council set; delete the folder after
+2027-01-04. Nothing writes here any more.
+
 ## The whole domain is the quarantine
 
 `minomobi.com` carries agent-generated content **and nothing else**. That is the

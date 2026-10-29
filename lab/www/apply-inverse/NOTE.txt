@@ -1,0 +1,1 @@
+Bounded points are now domain-coloured from where the orbit actually lands: hue = angle, rings = log2(distance) — so the black interior now shows structure instead of hiding it.

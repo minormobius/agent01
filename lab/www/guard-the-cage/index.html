@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guard the Cage — dominate a truncated octahedron in 3D</title>
+<meta name="description" content="Click corners of a 24-vertex solid so every corner is guarded (itself or a next-door neighbour), using as few guards as you can. The real minimum is 8 — the same shape a 2026 paper used to disprove a 1998 conjecture about planar graphs.">
+<meta property="og:title" content="Guard the Cage — dominate a truncated octahedron in 3D">
+<meta property="og:description" content="Click corners of a 24-vertex solid so every corner is guarded (itself or a next-door neighbour), using as few guards as you can. The real minimum is 8 — the same shape a 2026 paper used to disprove a 1998 conjecture about planar graphs.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  #viewport {
+    width: 100%;
+    height: min(58vh, 520px);
+    background: #0e0e11;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+    cursor: grab;
+    overflow: hidden;
+    position: relative;
+  }
+  #viewport:active { cursor: grabbing; }
+  #hint {
+    position: absolute; top: .6rem; left: .75rem;
+    font-size: .75rem; color: var(--muted);
+    background: rgba(14,14,17,.65);
+    padding: .3rem .6rem; border-radius: var(--radius);
+    pointer-events: none;
+  }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .4rem 0; }
+  .stat { font-size: .9rem; color: var(--fg); }
+  .stat b { color: var(--accent); }
+  #status {
+    font-size: .95rem; margin: .6rem 0 0;
+    padding: .7rem .9rem; border-radius: var(--radius);
+    background: var(--bg); border: 1px solid var(--border); color: var(--fg);
+  }
+  #status.win {
+    color: var(--ok); border-color: var(--ok);
+    background: #12241a;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    #status.win { animation: pulse 1.1s ease-in-out 1; }
+  }
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .8rem; color: var(--muted); margin-top: .5rem; }
+  .legend span { display: inline-flex; align-items: center; gap: .4rem; }
+  .swatch { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+  #picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: .4rem;
+    margin-top: .6rem;
+  }
+  #picker button {
+    padding: 0; min-height: 44px; min-width: 44px;
+    font-size: .8rem;
+    background: var(--bg); color: var(--muted); border: 1px solid var(--border);
+  }
+  #picker button.guard { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+  #picker button.covered:not(.guard) { background: #12241a; color: var(--ok); border-color: var(--ok); }
+  #picker button:hover { background: var(--bg-raised); color: var(--fg); }
+  #picker button.guard:hover { background: var(--accent); color: #000; }
+
+  details summary { cursor: pointer; color: var(--muted); font-size: .85rem; margin: .5rem 0; }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Guard the Cage</h1>
+  <p class="sub">A <b>dominating set</b> is a set of vertices where every other vertex is
+    next door to one of them. The <b>domination number</b> is the smallest such set. Below
+    is a truncated octahedron — 24 corners, every one touching exactly 3 edges — the exact
+    solid a 2026 paper used to break a 1998 conjecture about how many edges you'd have to
+    cut to force that number up. Click corners to guard them; every other corner lights up
+    green the moment a guard is standing next to it. The paper's own minimum for this shape
+    is <b>8</b>. Can you find it?</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div id="viewport">
+    <div id="hint">drag to orbit · click a corner to guard it</div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <button id="resetBtn">Reset</button>
+      <span class="stat">Guards placed: <b id="guardCount">0</b></span>
+      <span class="stat">Corners covered: <b id="coverCount">0</b> / 24</span>
+    </div>
+    <div id="status" role="status" aria-live="polite">Place a guard to begin.</div>
+    <div class="legend">
+      <span><i class="swatch" style="background:#e8a33d"></i> guard</span>
+      <span><i class="swatch" style="background:#7ac387"></i> covered</span>
+      <span><i class="swatch" style="background:#55525c"></i> exposed</span>
+    </div>
+  </div>
+
+  <details>
+    <summary>Precise 3D clicking hard on a phone? Use the accessible picker instead — same 24 corners, same rules.</summary>
+    <div id="picker" aria-label="vertex picker, one button per corner"></div>
+  </details>
+
+  <footer class="foot">
+    Construction: the 24 corners are every permutation of (0, ±1, ±2); two corners share an
+    edge exactly when they're distance √2 apart, which gives every corner exactly 3
+    neighbours and 36 edges total — the standard coordinates for a truncated octahedron.
+    Domination here means a corner is "covered" if it is itself guarded or directly wired to
+    a guarded corner. This build only plays the domination side of the paper's result: it
+    does not yet let you cut edges to hunt for a smaller <b>bondage number</b> (the paper's
+    actual new record — 5 edges, against a conjectured ceiling of 4) — that's the next turn.
+    Built with three.js, runs entirely in your browser: nothing you click here is sent
+    anywhere.
+  </footer>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb('guard the cage');
+
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------- the graph
+
+  // Every permutation of (0, ±1, ±2) — the standard coordinates for a
+  // truncated octahedron. 24 vertices, each with exactly 3 neighbours.
+  function buildVertices() {
+    const verts = [];
+    const zeroPositions = [0, 1, 2];
+    const orders = [[1, 2], [2, 1]];
+    const signs = [1, -1];
+    for (const zp of zeroPositions) {
+      const others = [0, 1, 2].filter((i) => i !== zp);
+      for (const order of orders) {
+        for (const s1 of signs) {
+          for (const s2 of signs) {
+            const v = [0, 0, 0];
+            v[zp] = 0;
+            v[others[0]] = s1 * order[0];
+            v[others[1]] = s2 * order[1];
+            verts.push(v);
+          }
+        }
+      }
+    }
+    return verts;
+  }
+
+  function buildEdges(verts) {
+    const edges = [];
+    const adj = verts.map(() => []);
+    for (let i = 0; i < verts.length; i++) {
+      for (let j = i + 1; j < verts.length; j++) {
+        const dx = verts[i][0] - verts[j][0];
+        const dy = verts[i][1] - verts[j][1];
+        const dz = verts[i][2] - verts[j][2];
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (Math.abs(d2 - 2) < 1e-6) {
+          edges.push([i, j]);
+          adj[i].push(j);
+          adj[j].push(i);
+        }
+      }
+    }
+    return { edges, adj };
+  }
+
+  const vertices = buildVertices();
+  const { edges, adj } = buildEdges(vertices);
+  const N = vertices.length; // 24
+
+  // ---------------------------------------------------------------- state
+
+  const guarded = new Set();
+
+  function coverageOf() {
+    const covered = new Array(N).fill(false);
+    for (let i = 0; i < N; i++) {
+      if (guarded.has(i)) { covered[i] = true; continue; }
+      for (const nb of adj[i]) {
+        if (guarded.has(nb)) { covered[i] = true; break; }
+      }
+    }
+    return covered;
+  }
+
+  // ---------------------------------------------------------------- scene
+
+  const viewport = document.getElementById('viewport');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e0e11);
+
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  viewport.insertBefore(renderer.domElement, viewport.firstChild);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+  const key = new THREE.DirectionalLight(0xffffff, 0.8);
+  key.position.set(5, 8, 6);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+  fill.position.set(-6, -3, -4);
+  scene.add(fill);
+
+  const SCALE = 1.15; // world units per coordinate unit
+  const group = new THREE.Group();
+  scene.add(group);
+
+  // edges
+  const lineGeo = new THREE.BufferGeometry();
+  const linePos = new Float32Array(edges.length * 2 * 3);
+  edges.forEach(([a, b], k) => {
+    linePos[k * 6 + 0] = vertices[a][0] * SCALE;
+    linePos[k * 6 + 1] = vertices[a][1] * SCALE;
+    linePos[k * 6 + 2] = vertices[a][2] * SCALE;
+    linePos[k * 6 + 3] = vertices[b][0] * SCALE;
+    linePos[k * 6 + 4] = vertices[b][1] * SCALE;
+    linePos[k * 6 + 5] = vertices[b][2] * SCALE;
+  });
+  lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x4a4750, transparent: true, opacity: 0.7 });
+  group.add(new THREE.LineSegments(lineGeo, lineMat));
+
+  // vertices — one mesh each so each can carry its own colour and be raycast individually
+  const COL_EXPOSED = new THREE.Color(0x55525c);
+  const COL_COVERED = new THREE.Color(0x7ac387);
+  const COL_GUARD = new THREE.Color(0xe8a33d);
+  const sphereGeo = new THREE.SphereGeometry(0.16, 16, 12);
+  const vertexMeshes = [];
+  for (let i = 0; i < N; i++) {
+    const mat = new THREE.MeshStandardMaterial({ color: COL_EXPOSED, roughness: 0.5, metalness: 0.1 });
+    const mesh = new THREE.Mesh(sphereGeo, mat);
+    mesh.position.set(vertices[i][0] * SCALE, vertices[i][1] * SCALE, vertices[i][2] * SCALE);
+    mesh.userData.index = i;
+    group.add(mesh);
+    vertexMeshes.push(mesh);
+  }
+
+  const guardCountEl = document.getElementById('guardCount');
+  const coverCountEl = document.getElementById('coverCount');
+  const statusEl = document.getElementById('status');
+  const picker = document.getElementById('picker');
+  const pickerBtns = [];
+  for (let i = 0; i < N; i++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = String(i);
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => toggle(i));
+    picker.appendChild(b);
+    pickerBtns.push(b);
+  }
+
+  function toggle(i) {
+    if (guarded.has(i)) guarded.delete(i); else guarded.add(i);
+    refresh();
+  }
+
+  function refresh() {
+    const covered = coverageOf();
+    let coveredCount = 0;
+    for (let i = 0; i < N; i++) {
+      const isGuard = guarded.has(i);
+      const isCovered = covered[i];
+      if (isCovered) coveredCount++;
+      const color = isGuard ? COL_GUARD : (isCovered ? COL_COVERED : COL_EXPOSED);
+      vertexMeshes[i].material.color.copy(color);
+      vertexMeshes[i].scale.setScalar(isGuard ? 1.5 : 1);
+      pickerBtns[i].className = (isGuard ? 'guard ' : '') + (isCovered ? 'covered' : '');
+      pickerBtns[i].setAttribute('aria-pressed', String(isGuard));
+    }
+    guardCountEl.textContent = String(guarded.size);
+    coverCountEl.textContent = String(coveredCount);
+
+    statusEl.classList.remove('win');
+    if (guarded.size === 0) {
+      statusEl.textContent = 'Place a guard to begin.';
+    } else if (coveredCount < N) {
+      statusEl.textContent = `${N - coveredCount} corner${N - coveredCount === 1 ? '' : 's'} still exposed.`;
+    } else if (guarded.size === 8) {
+      statusEl.textContent = '🎉 Dominating set found — size 8. That matches the paper’s own domination number for this exact solid.';
+      statusEl.classList.add('win');
+    } else if (guarded.size < 8) {
+      statusEl.textContent = `Dominating set of size ${guarded.size} — smaller than the paper’s proven minimum of 8. Check your graph, or tell us, because that shouldn’t be possible.`;
+      statusEl.classList.add('win');
+    } else {
+      statusEl.textContent = `Dominating, at size ${guarded.size}. The paper's minimum is 8 — remove a guard and see if you can still cover everything.`;
+      statusEl.classList.add('win');
+    }
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', () => { guarded.clear(); refresh(); });
+
+  function resize() {
+    const w = viewport.clientWidth, h = viewport.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------------------------------------------------------------- orbit camera
+
+  let radius = 6.5;
+  let yaw = 0.6, pitch = 0.5;
+  function applyCamera() {
+    const cp = Math.max(-1.4, Math.min(1.4, pitch));
+    camera.position.set(
+      radius * Math.cos(cp) * Math.sin(yaw),
+      radius * Math.sin(cp),
+      radius * Math.cos(cp) * Math.cos(yaw)
+    );
+    camera.lookAt(0, 0, 0);
+  }
+
+  const canvas = renderer.domElement;
+  let dragging = false, moved = false, lastX = 0, lastY = 0, downX = 0, downY = 0;
+  canvas.addEventListener('pointerdown', (e) => {
+    dragging = true; moved = false;
+    lastX = downX = e.clientX; lastY = downY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) moved = true;
+    if (moved) {
+      yaw -= dx * 0.008;
+      pitch += dy * 0.008;
+      applyCamera();
+    }
+  });
+  const raycaster = new THREE.Raycaster();
+  const pointerNdc = new THREE.Vector2();
+  function pickAt(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    pointerNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointerNdc, camera);
+    const hits = raycaster.intersectObjects(vertexMeshes);
+    if (hits.length) toggle(hits[0].object.userData.index);
+  }
+  canvas.addEventListener('pointerup', (e) => {
+    dragging = false;
+    if (!moved) pickAt(e.clientX, e.clientY);
+  });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    radius = Math.min(14, Math.max(3.5, radius * (1 + e.deltaY * 0.001)));
+    applyCamera();
+  }, { passive: false });
+
+  // ---------------------------------------------------------------- loop
+
+  function animate() {
+    requestAnimationFrame(animate);
+    if (!dragging && !reducedMotion) {
+      yaw += 0.0018;
+      applyCamera();
+    }
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  applyCamera();
+  refresh();
+  animate();
+}
+
+try {
+  main();
+} catch (e) {
+  const el = document.getElementById('err');
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixed Orbit — pushing oscillators into sync on a power budget</title>
+<meta name="description" content="N identical oscillators, a hard power budget, and the greedy control law that spends it to maximize sync speed at every instant. Watch it work — then watch its famous flaw: the path its order parameter traces through the complex plane never changes shape, no matter how much power you give it.">
+<meta property="og:title" content="Fixed Orbit — pushing oscillators into sync on a power budget">
+<meta property="og:description" content="N identical oscillators, a hard power budget, and the greedy control law that spends it to maximize sync speed at every instant. Watch it work — then watch its famous flaw: the path its order parameter traces through the complex plane never changes shape, no matter how much power you give it.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --accent: #7fd8ff;
+    --accent-dim: #132a33;
+    --live: #ff9d5c;
+    --ref1: #6a6478;
+    --ref2: #8f7fd8;
+    --ref3: #d87fb0;
+  }
+  body { max-width: 1040px; margin: 0 auto; padding: 16px 16px 64px; }
+  h1 { font-size: clamp(1.4rem, 4.2vw, 2.1rem); margin: 8px 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: .92rem; }
+  .box { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin: 0 0 18px; }
+  .honest { border-color: var(--accent); background: var(--accent-dim); }
+  .honest h2 { margin-top: 0; color: var(--accent); }
+  .honest p, .honest li { color: var(--fg); }
+  h2 { font-size: 1rem; margin: 0 0 10px; }
+
+  .canvases { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 760px) { .canvases { grid-template-columns: 1fr 1fr; } }
+  .canvas-wrap { position: relative; border-radius: 8px; overflow: hidden; background: #0a0a0d; }
+  canvas { width: 100%; height: auto; display: block; }
+  .cap { text-align: center; font-size: .75rem; color: var(--muted); margin: 6px 0 0; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: .74rem; color: var(--muted); margin: 8px 0 0; }
+  .legend span { display: inline-flex; align-items: center; gap: .4em; }
+  .swatch { display: inline-block; width: 1.4em; height: 2px; border-radius: 1px; }
+
+  .controls { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 4px; }
+  @media (min-width: 620px) { .controls { grid-template-columns: 1fr 1fr; } }
+  .slider-row label { display: flex; justify-content: space-between; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+  .slider-row label b { color: var(--fg); font-weight: 700; }
+  input[type=range] { width: 100%; height: 44px; accent-color: var(--accent); background: transparent; }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 4px; }
+  button { min-height: 44px; }
+  .btn-row button { flex: 1 1 140px; }
+  .btn-shiny {
+    background: linear-gradient(135deg, var(--accent), #d6f4ff);
+    color: #032; border: none; font-weight: 700;
+    box-shadow: 0 0 0 1px rgba(127, 216, 255, .5), 0 0 18px rgba(127, 216, 255, .4);
+  }
+  .btn-shiny:hover { background: linear-gradient(135deg, #d6f4ff, var(--accent)); color: #032; }
+  .btn-shiny:disabled { opacity: .5; box-shadow: none; cursor: default; }
+
+  .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin: 4px 0 2px; }
+  .stat { flex: 1 1 140px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .stat .k { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat .v { font-size: 1.6rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .stat .v.small { font-size: 1rem; color: var(--fg); }
+
+  code, pre { color: var(--accent); }
+</style>
+</head>
+<body>
+<script>document.write(kit.crumb('fixed-orbit'));</script>
+
+<h1>Fixed Orbit</h1>
+<p class="sub"><var>N</var> identical oscillators start at random phases. Each instant, a controller may push every oscillator's phase at whatever rate it likes, as long as the total power spent right now stays under a fixed budget. The <strong>greedy</strong> law spends that budget, every instant, on whatever push grows the population's order parameter <var>r</var> fastest right now. It's exactly optimal for two oscillators — and provably not, for more.</p>
+
+<div class="box honest">
+  <h2>What this actually shows</h2>
+  <p>The order parameter is <code>R = (1/N)Σ e^{iφⱼ}</code>, a single complex number: its length <var>r</var> is how synchronized the population is (1 = perfectly in phase), its angle is the population's average phase. Greedy control at power budget <var>P</var> sets each oscillator's push to <code>uⱼ = −c·sin(φⱼ−ψ)</code>, where <var>ψ</var> is <var>R</var>'s angle and <var>c</var> is scaled every instant to spend exactly <var>P</var>. That's the direction of steepest instantaneous ascent of <var>r</var> — the obvious thing to do, and it's genuinely optimal when <var>N</var>=2.</p>
+  <p>The right-hand plot is the actual point of this page: it traces <var>R(t)</var> as a path through the complex plane, for the <em>same</em> random starting phases, at three different power budgets. <strong>They're the same curve.</strong> More power only travels that curve faster — it never bends it. That's the geometric shape of greedy's failure: rescaling the budget reparametrizes time along one fixed path, so no amount of power ever lets greedy reach synchrony by a shorter route. A smarter law would have to bend the curve itself, not just travel it quicker — and greedy structurally can't.</p>
+</div>
+
+<div class="canvases">
+  <div>
+    <div class="box">
+      <h2>the oscillators</h2>
+      <div class="canvas-wrap">
+        <canvas id="osc" width="560" height="560" role="img" aria-label="N points on the unit circle, one per oscillator phase, with the order parameter drawn as a vector from the center"></canvas>
+      </div>
+      <p class="cap">each dot is one oscillator's phase · the arrow is R, the order parameter</p>
+    </div>
+  </div>
+  <div>
+    <div class="box">
+      <h2>R(t) in the complex plane</h2>
+      <div class="canvas-wrap">
+        <canvas id="orbit" width="560" height="560" role="img" aria-label="The path traced by the order parameter through the complex plane, for the current run and for two reference power budgets on the same starting phases"></canvas>
+      </div>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--ref1)"></span>0.3× budget</span>
+        <span><span class="swatch" style="background:var(--ref2)"></span>1× budget</span>
+        <span><span class="swatch" style="background:var(--ref3)"></span>3× budget</span>
+        <span><span class="swatch" style="background:var(--live);height:3px"></span>live run, this budget</span>
+      </div>
+      <p class="cap">three power budgets, same starting phases — watch them trace one curve</p>
+    </div>
+  </div>
+</div>
+
+<div class="box">
+  <h2>run it</h2>
+  <div class="controls">
+    <div class="slider-row">
+      <label for="nSlider">oscillators &nbsp;<b id="nLabel">30</b></label>
+      <input type="range" id="nSlider" min="3" max="150" step="1" value="30">
+    </div>
+    <div class="slider-row">
+      <label for="pSlider">power budget &nbsp;<b id="pLabel">1.0</b></label>
+      <input type="range" id="pSlider" min="0.1" max="10" step="0.1" value="1">
+    </div>
+  </div>
+  <div class="btn-row">
+    <button id="runBtn" class="btn-shiny" type="button">run</button>
+    <button id="scrambleBtn" type="button">new random phases</button>
+    <button id="resetBtn" type="button">reset this run</button>
+    <button id="copyBtn" class="btn-shiny" type="button">copy orbit image</button>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><div class="k">order parameter r</div><div class="v" id="statR">0.000</div></div>
+    <div class="stat"><div class="k">sim time elapsed</div><div class="v small" id="statT">0.00</div></div>
+    <div class="stat"><div class="k">time to sync</div><div class="v" id="statSync">—</div></div>
+  </div>
+</div>
+
+<div class="box">
+  <h2>reading it</h2>
+  <p>"Sim time" is arbitrary — natural frequencies are all zero, so nothing moves without the controller, and only the <em>ratio</em> of power to time means anything. Doubling the power budget roughly halves the time to sync for the same starting phases; watch the three reference curves confirm it while sharing one path. Synchrony is called at <var>r</var>≥0.999, not exactly 1 — <var>r</var> only reaches 1 in the limit, never in finite time, once oscillators get close enough that the greedy push itself shrinks toward zero.</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var TWO_PI = Math.PI * 2;
+  var DT = 0.02, MAX_STEPS = 20000, SYNC_R = 0.999;
+  var REDUCE = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function mod2pi(x) { x = x % TWO_PI; return x < 0 ? x + TWO_PI : x; }
+
+  function orderParam(phases) {
+    var sx = 0, sy = 0, n = phases.length;
+    for (var i = 0; i < n; i++) { sx += Math.cos(phases[i]); sy += Math.sin(phases[i]); }
+    var Rx = sx / n, Ry = sy / n;
+    return { Rx: Rx, Ry: Ry, r: Math.sqrt(Rx * Rx + Ry * Ry), psi: Math.atan2(Ry, Rx) };
+  }
+
+  // Greedy: push every phase in the direction that maximizes the instantaneous
+  // growth of r, scaled so the total power spent this instant equals P exactly.
+  function stepGreedy(phases, P) {
+    var op = orderParam(phases), n = phases.length;
+    var s = new Float64Array(n), sumSq = 0;
+    for (var i = 0; i < n; i++) { s[i] = Math.sin(phases[i] - op.psi); sumSq += s[i] * s[i]; }
+    var c = sumSq > 1e-9 ? Math.sqrt(P / sumSq) : 0;
+    for (i = 0; i < n; i++) phases[i] = mod2pi(phases[i] - c * s[i] * DT);
+    return op;
+  }
+
+  function randPhases(n) {
+    var a = new Array(n);
+    for (var i = 0; i < n; i++) a[i] = Math.random() * TWO_PI;
+    return a;
+  }
+
+  // Order-parameter-only trace, no animation — used for the static reference
+  // curves that prove the path doesn't depend on the power budget.
+  function computeOrbit(initialPhases, P) {
+    var phases = initialPhases.slice();
+    var pts = [];
+    var op0 = orderParam(phases);
+    pts.push({ Rx: op0.Rx, Ry: op0.Ry });
+    var syncTime = null;
+    for (var step = 0; step < MAX_STEPS; step++) {
+      stepGreedy(phases, P);
+      var op = orderParam(phases);
+      pts.push({ Rx: op.Rx, Ry: op.Ry });
+      if (op.r >= SYNC_R) { syncTime = (step + 1) * DT; break; }
+    }
+    return { pts: pts, syncTime: syncTime };
+  }
+
+  var oscCanvas = document.getElementById('osc'), oscCtx = oscCanvas.getContext('2d');
+  var orbitCanvas = document.getElementById('orbit'), orbitCtx = orbitCanvas.getContext('2d');
+  var OW = oscCanvas.width, OH = oscCanvas.height;
+
+  function toPx(x, y, w, h) { return { x: w / 2 + x * (w / 2 - 24), y: h / 2 - y * (h / 2 - 24) }; }
+
+  var varCache = {};
+  function getVar(name) {
+    if (!varCache[name]) varCache[name] = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return varCache[name];
+  }
+
+  function drawOscillators(phases, op) {
+    var ctx = oscCtx, w = OW, h = OH;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0a0a0d'; ctx.fillRect(0, 0, w, h);
+    var center = toPx(0, 0, w, h), edge = toPx(1, 0, w, h);
+    var rad = edge.x - center.x;
+    ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(center.x, center.y, rad, 0, TWO_PI); ctx.stroke();
+    ctx.fillStyle = getVar('--accent');
+    for (var i = 0; i < phases.length; i++) {
+      var p = toPx(Math.cos(phases[i]), Math.sin(phases[i]), w, h);
+      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(2, Math.min(5, 200 / phases.length)), 0, TWO_PI); ctx.fill();
+    }
+    var rp = toPx(op.Rx, op.Ry, w, h);
+    ctx.strokeStyle = getVar('--live'); ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(center.x, center.y); ctx.lineTo(rp.x, rp.y); ctx.stroke();
+    ctx.fillStyle = getVar('--live');
+    ctx.beginPath(); ctx.arc(rp.x, rp.y, 5, 0, TWO_PI); ctx.fill();
+  }
+
+  function drawStaticCurve(ctx, pts, w, h, color, lw) {
+    ctx.strokeStyle = color; ctx.lineWidth = lw;
+    ctx.beginPath();
+    for (var i = 0; i < pts.length; i++) {
+      var p = toPx(pts[i].Rx, pts[i].Ry, w, h);
+      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+  }
+
+  var refOrbits = [];
+
+  function redrawOrbit(livePts, op) {
+    var ctx = orbitCtx, w = OW, h = OH;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0a0a0d'; ctx.fillRect(0, 0, w, h);
+    var center = toPx(0, 0, w, h), edge = toPx(1, 0, w, h);
+    var rad = edge.x - center.x;
+    ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(center.x, center.y, rad, 0, TWO_PI); ctx.stroke();
+    var refColors = [getVar('--ref1'), getVar('--ref2'), getVar('--ref3')];
+    for (var i = 0; i < refOrbits.length; i++) drawStaticCurve(ctx, refOrbits[i].pts, w, h, refColors[i], 1.5);
+    if (livePts.length > 1) drawStaticCurve(ctx, livePts, w, h, getVar('--live'), 3);
+    var rp = toPx(op.Rx, op.Ry, w, h);
+    ctx.fillStyle = getVar('--live');
+    ctx.beginPath(); ctx.arc(rp.x, rp.y, 5, 0, TWO_PI); ctx.fill();
+  }
+
+  var nSlider = document.getElementById('nSlider'), nLabel = document.getElementById('nLabel');
+  var pSlider = document.getElementById('pSlider'), pLabel = document.getElementById('pLabel');
+  var runBtn = document.getElementById('runBtn'), scrambleBtn = document.getElementById('scrambleBtn');
+  var resetBtn = document.getElementById('resetBtn'), copyBtn = document.getElementById('copyBtn');
+  var statR = document.getElementById('statR'), statT = document.getElementById('statT'), statSync = document.getElementById('statSync');
+
+  var initialPhases = [], livePhases = [], livePts = [], liveT = 0, synced = false, syncTime = null;
+  var running = false, animId = null;
+
+  function recomputeReferences() {
+    var P = Number(pSlider.value);
+    refOrbits = [0.3, 1, 3].map(function (mult) { return computeOrbit(initialPhases, P * mult); });
+  }
+
+  function resetLive() {
+    cancelAnim();
+    livePhases = initialPhases.slice();
+    var op = orderParam(livePhases);
+    livePts = [{ Rx: op.Rx, Ry: op.Ry }];
+    liveT = 0; synced = false; syncTime = null; running = false;
+    runBtn.textContent = 'run';
+    render(op);
+  }
+
+  function scramble() {
+    initialPhases = randPhases(Number(nSlider.value));
+    recomputeReferences();
+    resetLive();
+  }
+
+  function cancelAnim() { if (animId) { cancelAnimationFrame(animId); animId = null; } }
+
+  function render(op) {
+    drawOscillators(livePhases, op);
+    redrawOrbit(livePts, op);
+    statR.textContent = op.r.toFixed(3);
+    statT.textContent = liveT.toFixed(2);
+    statSync.textContent = synced ? syncTime.toFixed(2) : (liveT >= MAX_STEPS * DT ? 'not yet — try more power' : '—');
+  }
+
+  var STEPS_PER_FRAME = 6;
+
+  function frame() {
+    if (!running) return;
+    var P = Number(pSlider.value);
+    var op = orderParam(livePhases);
+    for (var k = 0; k < STEPS_PER_FRAME && !synced; k++) {
+      stepGreedy(livePhases, P);
+      liveT += DT;
+      op = orderParam(livePhases);
+      livePts.push({ Rx: op.Rx, Ry: op.Ry });
+      if (op.r >= SYNC_R) { synced = true; syncTime = liveT; }
+      if (liveT >= MAX_STEPS * DT) break;
+    }
+    render(op);
+    if (synced || liveT >= MAX_STEPS * DT) { running = false; runBtn.textContent = 'run'; animId = null; return; }
+    animId = requestAnimationFrame(frame);
+  }
+
+  runBtn.addEventListener('click', function () {
+    if (synced) return;
+    if (REDUCE && !running) {
+      // Jump straight to the finished trace instead of animating it.
+      var P = Number(pSlider.value);
+      var full = computeOrbit(initialPhases, P);
+      livePts = full.pts;
+      livePhases = initialPhases.slice();
+      for (var s = 0; s < full.pts.length - 1; s++) stepGreedy(livePhases, P);
+      liveT = full.syncTime !== null ? full.syncTime : MAX_STEPS * DT;
+      synced = full.syncTime !== null; syncTime = full.syncTime;
+      render(orderParam(livePhases));
+      runBtn.textContent = 'run';
+      return;
+    }
+    running = !running;
+    runBtn.textContent = running ? 'pause' : 'run';
+    if (running) animId = requestAnimationFrame(frame);
+    else cancelAnim();
+  });
+
+  scrambleBtn.addEventListener('click', scramble);
+  resetBtn.addEventListener('click', resetLive);
+  nSlider.addEventListener('input', function () { nLabel.textContent = nSlider.value; });
+  nSlider.addEventListener('change', scramble);
+  var pRecomputePending = false;
+  pSlider.addEventListener('input', function () {
+    pLabel.textContent = Number(pSlider.value).toFixed(1);
+    // computeOrbit is not free (up to MAX_STEPS*N ops, x3 budgets) — coalesce
+    // to at most one recompute per animation frame so a fast drag on a phone
+    // stays responsive instead of queueing up a backlog of full re-solves.
+    if (pRecomputePending) return;
+    pRecomputePending = true;
+    requestAnimationFrame(function () {
+      pRecomputePending = false;
+      recomputeReferences();
+      redrawOrbit(livePts, orderParam(livePhases));
+    });
+  });
+
+  copyBtn.addEventListener('click', function () {
+    var was = copyBtn.textContent;
+    orbitCanvas.toBlob(function (blob) {
+      if (!blob) { copyBtn.textContent = 'copy failed'; setTimeout(function () { copyBtn.textContent = was; }, 1200); return; }
+      if (navigator.clipboard && window.isSecureContext && window.ClipboardItem) {
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+          copyBtn.textContent = 'copied';
+        }).catch(function () {
+          copyBtn.textContent = 'copy failed';
+        }).finally(function () { setTimeout(function () { copyBtn.textContent = was; }, 1200); });
+      } else {
+        copyBtn.textContent = 'no image clipboard — long-press the plot instead';
+        setTimeout(function () { copyBtn.textContent = was; }, 2000);
+      }
+    }, 'image/png');
+  });
+
+  scramble();
+})();
+</script>
+</body>
+</html>
