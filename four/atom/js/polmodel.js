@@ -56,6 +56,8 @@ export function tensorOf(tmpl, pol) {
   const d = tmpl[0].length, al = tmpl.map((_, i) => (i ? pol.aH : pol.aX));
   return Array.from({ length: d }, (_, k) => { const E = new Float64Array(tmpl.length * d); tmpl.forEach((_, i) => (E[i * d + k] = 1)); const mu = induce(tmpl, al, E, d, pol.thole); return Array.from({ length: d }, (_, c) => tmpl.reduce((s, _, i) => s + mu[i * d + c], 0)); });
 }
+/* Tang–Toennies' damping f_n(x) = 1 − e^(−x) Σ_{k≤n} xᵏ/k!, and its slope e^(−x) xⁿ/n! */
+export function ttf(n, x) { let t = 1, s = 1; for (let k = 1; k <= n; k++) { t *= x / k; s += t; } const e = Math.exp(-x); return [1 - e * s, e * t]; }
 /* the energy of a cluster of rigid molecules (each a list of site positions, heavy atom first): charges between
    molecules, the induced dipoles, the repulsions (and dispersion if the terms carry it). Returns its parts */
 export function clusterEnergy(terms, mols) {
@@ -68,8 +70,13 @@ export function clusterEnergy(terms, mols) {
     Eq += (ch[i] * ch[j]) / rr; if (terms.ct && (i % (nH + 1) === 0) !== (j % (nH + 1) === 0)) Er -= terms.ct.D * Math.exp(-terms.ct.b * rr); const ti = ty(i % (nH + 1)), tj = ty(j % (nH + 1)), key = ti !== tj ? "X|H" : `${ti}|${tj}`; Er += shortPair(pairs[key], r2)[0];
     // the clouds (4D): a charge meets a cloud as q c/r³, two clouds as −3 c c′/r⁵ (−(c/r³)'s Laplacian, c = S/8); a
     // cloud's field on a dipole is 3c r/r⁵
-    const r3 = r2 * rr, r5 = r3 * r2; Ec += (ch[i] * cl[j] + cl[i] * ch[j]) / r3 - (3 * cl[i] * cl[j]) / r5;
-    for (let c = 0; c < d; c++) { E[i * d + c] += l3 * r[c] * (ch[j] / r3 + (3 * cl[j]) / r5); E[j * d + c] -= l3 * r[c] * (ch[i] / r3 + (3 * cl[i]) / r5); }
+    // Inside the clouds those forms fail (they are the far field), so each is damped Tang–Toennies-fashion with the
+    // pair's own Born–Mayer exponent b: f_n(br) = 1 − e^(−br) Σ_{k≤n} (br)ᵏ/k!, f₃ on r⁻³ and f₅ on r⁻⁵; the fields
+    // are the damped potentials' slopes
+    const r3 = r2 * rr, r5 = r3 * r2, bb = pairs[key].tt[1] * rr, [f3, g3] = ttf(3, bb), [f5] = ttf(5, bb);
+    Ec += (f3 * (ch[i] * cl[j] + cl[i] * ch[j])) / r3 - (3 * f5 * cl[i] * cl[j]) / r5;
+    const fc = (3 * f3) / r5 - (pairs[key].tt[1] * g3) / (r3 * rr); // −(1/r) d/dr [f₃(br)/r³]
+    for (let c = 0; c < d; c++) { E[i * d + c] += r[c] * ((l3 * ch[j]) / r3 + cl[j] * fc); E[j * d + c] -= r[c] * ((l3 * ch[i]) / r3 + cl[i] * fc); }
   }
   const mu = induce(x, al, E, d, pol.thole); let Ep = 0; for (let k = 0; k < E.length; k++) Ep -= 0.5 * mu[k] * E[k];
   return { E: Eq + Ec + Ep + Er, Eq, Ecloud: Ec, Epol: Ep, Erep: Er, mu };
