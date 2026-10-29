@@ -1,0 +1,12 @@
+{
+ "group": "mb2-15-xh3",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/manybody.mjs run 15",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 904
+  }
+ ]
+}
