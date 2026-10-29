@@ -43,6 +43,11 @@ NB=json.loads(subprocess.run(['node','--input-type=module','-e','import { NEBULA
 def NR(name): return next(r for r in NB['runs'] if r['name']==name)
 def NFLAT(name): return NR(name)['series'][-1][1]
 def NAT(name,t): return min(NR(name)['series'],key=lambda q:abs(q[0]-t))[1]
+# the slow alignment's end: each long two-rate run's "minus" (series[3]) at its end and at t = 150, against the cloud's
+# own right-to-left ratio (1 − q)/(1 + q)
+def NMIN(name,t=None): sr=NR(name)['series']; return (sr[-1] if t is None else min(sr,key=lambda q:abs(q[0]-t)))[3]
+NMQ=[(q,[NMIN(f'd4_a1_{q}_n10000_T500_s{k}') for k in ((1,2) if q=='0.5' else (1,))]) for q in ('0.25','0.5','0.75')]
+NMDRIFT=max(abs(NMIN(f'd4_a1_{q}_n10000_T500_s1')-NMIN(f'd4_a1_{q}_n10000_T500_s1',150)) for q in ('0.25','0.5','0.75'))
 NQ=[(q, NFLAT(f'd4_a1_{q}_n30000_T40_s1')) for q in ('0.25','0.5','0.75','0.9')]
 NP=sum(math.log(f)*math.log(float(q)) for q,f in NQ)/sum(math.log(float(q))**2 for q,_ in NQ) # flatness ≈ ratio^p, least squares through 1
 NHALF=[NFLAT(n) for n in ('d4_a1_0.5_n30000_T40_s1','d4_a1_0.5_n30000_T40_s2','d4_a1_0.5_n30000_T40_s1_e1','d4_a1_0.5_n30000_T40_s1_e0.5_g0.3')]+[NAT('d4_a1_0.5_n60000_T40_s1',NR('d4_a1_0.5_n60000_T40_s1')['t'])]
@@ -180,7 +185,8 @@ planets=f'''<section id="orbits">
   <p>Which clouds are typical? If a cloud's spin is the sum of many random eddies, its two rates differ: the slower is typically a fifth of the faster (half of all clouds fall between {NB['q1']:.2f} and {NB['q3']:.2f}), and equal rates are rare ({NB['above9']*100:.1f}% within a tenth of equal). <b>So the typical 4D nebula ends neither a disk nor a ball, but a thick lens</b>, about {100*float(NB['med'])**NP:.0f}% as thick as it is wide, and its planets would form in planes spread round one of Hopf's families rather than in one.</p>
   <div class="tiles" id="nebulaTiles"></div>
   <p class="read">Each run's end, 500 of its particles, orbiting the star live. Turn it through w to see a 4D cloud's thickness.</p>
-  <p class="read">The gas here has no pressure and no gravity of its own, and the time it takes depends on the collision model, which is why the shapes matter and the times don't. Half or more of the gas ends on the star. One thing is still moving in the long runs: after the shape has stopped, the orbits' planes keep slowly lining up in the other half of their turning, which no flattening yet shows. Next: how planets grow in a thick nebula.</p>
+  <p class="read">The gas here has no pressure and no gravity of its own, and the time it takes depends on the collision model, which is why the shapes matter and the times don't. Half or more of the gas ends on the star. Next: how planets grow in a thick nebula.</p>
+  <p><b>Where the orbits' second alignment stops</b> <span class="tag computed">computed</span>. After the shape has stopped, the orbits' planes went on lining up in the other half of their turning (the right half, where the cloud turns slower), which no flattening shows. Run to 500 orbits, that stops too: by 150 it has settled, moving under {NMDRIFT:.3f} after. It ends just below the cloud's own ratio of right-half to left-half turning, (1 − q)/(1 + q) for a second plane at q of the first's rate: {', '.join(f"{'/'.join(f'{v:.3f}' for v in vs)} against {(1-float(q))/(1+float(q)):.3f} at q = {q}" for q,vs in NMQ)}. A cloud spinning in one plane only (q = 0) lines up both halves completely ({NMIN('d4_a1_0_n10000_T500_s1'):.3f}), as a flat disk must. So each orbit ends up with nearly the cloud's own mix of left and right turning, a little short of it, and the orbits' planes stay spread round Hopf's family by that much.</p>
 </section>
 <section id="planetsnext">
   <h3>What's computed and what's open</h3>

@@ -68,7 +68,7 @@ export class PolCrystal {
     const addT = (i, j, rv, r2, B1, B2, w) => { for (let a = 0; a < d; a++) for (let b = 0; b < d; b++) { const v = w * (B2 * rv[a] * rv[b] - (a === b ? B1 : 0)); Tm[i * d + a][j * d + b] += v; if (i !== j) Tm[j * d + b][i * d + a] += v; } };
     const rv = new Float64Array(d);
     for (const { i, j, r0, same } of P) {
-      const si = sk(i), sj = sk(j), self = i === j, w = self ? 0.5 : 1, kp = this.key(this.ty[si], this.ty[sj]), rep = terms.pairs[kp], B = rep.tt[1];
+      const si = sk(i), sj = sk(j), self = i === j, w = self ? 0.5 : 1, kp = this.key(this.ty[si], this.ty[sj]), rep = terms.pairs[kp], B = rep.tt[1] * (terms.cdamp ?? 1);
       for (const { t, zero } of T) {
         let r2 = 0; for (let k = 0; k < d; k++) { rv[k] = r0[k] + t[k]; r2 += rv[k] * rv[k]; }
         if (r2 >= rc2 || r2 < 1e-12) continue;

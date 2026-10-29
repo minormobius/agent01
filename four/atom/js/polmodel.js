@@ -21,11 +21,12 @@ import { expOf } from "./ffmodel.js";
 /* the model's terms: elec { qH, cX, cH } (tools/esp.mjs: the charges and, in 4D, the clouds, fitted to the molecule's
    own potential), pol { aX, aH, thole } (to its polarizability tensor), B { XX, XH, HH } (Born–Mayer's exponents),
    and p the fitted rest: [lnA_XX, lnA_XH, lnA_HH], optionally [lnD_XH, b_XH] for a short-range X···H attraction
-   D e^(−br) (charge transfer), and C an X–X dispersion if asked */
+   D e^(−br) (charge transfer), and C an X–X dispersion if asked. cdamp scales the exponent of the clouds' damping
+   (1: the repulsion's own; fitted, since how fast two clouds' overlap spoils their far-field forms isn't known) */
 export const POLNAMES = ["lnA_XX", "lnA_XH", "lnA_HH", "lnD_XH", "b_XH"];
-export function polTerms({ elec, pol, B, p, C = 0 }) {
+export function polTerms({ elec, pol, B, p, C = 0, cdamp = 1 }) {
   const [aXX, aXH, aHH, dXH, bXH] = p;
-  return { q: elec.qH, cX: elec.cX || 0, cH: elec.cH || 0, pol, pairs: { "X|X": { tt: [Math.exp(aXX), B.XX, C] }, "X|H": { tt: [Math.exp(aXH), B.XH, 0] }, "H|H": { tt: [Math.exp(aHH), B.HH, 0] } }, ct: dXH === undefined ? null : { D: Math.exp(dXH), b: expOf(bXH) } };
+  return { cdamp, q: elec.qH, cX: elec.cX || 0, cH: elec.cH || 0, pol, pairs: { "X|X": { tt: [Math.exp(aXX), B.XX, C] }, "X|H": { tt: [Math.exp(aXH), B.XH, 0] }, "H|H": { tt: [Math.exp(aHH), B.HH, 0] } }, ct: dXH === undefined ? null : { D: Math.exp(dXH), b: expOf(bXH) } };
 }
 /* solve a small dense system M x = b (Gaussian elimination, partial pivoting) */
 function solve(M, b) {
@@ -77,9 +78,9 @@ export function clusterEnergy(terms, mols) {
     // Inside the clouds those forms fail (they are the far field), so each is damped Tang–Toennies-fashion with the
     // pair's own Born–Mayer exponent b: f_n(br) = 1 − e^(−br) Σ_{k≤n} (br)ᵏ/k!, f₃ on r⁻³ and f₅ on r⁻⁵; the fields
     // are the damped potentials' slopes
-    const r3 = r2 * rr, r5 = r3 * r2, bb = pairs[key].tt[1] * rr, [f3, g3] = ttf(3, bb), [f5] = ttf(5, bb);
+    const bd = pairs[key].tt[1] * (terms.cdamp ?? 1), r3 = r2 * rr, r5 = r3 * r2, bb = bd * rr, [f3, g3] = ttf(3, bb), [f5] = ttf(5, bb);
     Ec += (f3 * (ch[i] * cl[j] + cl[i] * ch[j])) / r3 - (3 * f5 * cl[i] * cl[j]) / r5;
-    const fc = (3 * f3) / r5 - (pairs[key].tt[1] * g3) / (r3 * rr); // −(1/r) d/dr [f₃(br)/r³]
+    const fc = (3 * f3) / r5 - (bd * g3) / (r3 * rr); // −(1/r) d/dr [f₃(br)/r³]
     for (let c = 0; c < d; c++) { E[i * d + c] += r[c] * ((l3 * ch[j]) / r3 + cl[j] * fc); E[j * d + c] -= r[c] * ((l3 * ch[i]) / r3 + cl[i] * fc); }
   }
   const mu = induce(x, al, E, d, pol.thole, mol, pol.inter ?? THOLE); let Ep = 0; for (let k = 0; k < E.length; k++) Ep -= 0.5 * mu[k] * E[k];

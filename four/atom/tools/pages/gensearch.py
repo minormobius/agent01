@@ -4,12 +4,12 @@ PR,PM=AUD['PROBES'],AUD['PAIRMIN']
 # Xater's best pair as the census re-bake left it (audit-2), before the rebuilt descent took it lower: history, kept by hand
 XFUNNEL,XFUNNEL_DXX=26.938,4.883
 # (binding energies, kcal/mol, positive as kc() gives them)
-# the 4D placements' relaxations, the four deepest of each pair after three rounds of 5.5 h (audit-3, -4, -5; a cut run
-# writes nothing, so these are from the logs on atom4-data, runs/audit-5/deepen-*/0.log): the deepest each reached
+# the 4D placements' relaxations, the four deepest of each pair after four rounds of 5.5 h (audit-3, -4, -5, and
+# nebula-3-audit-6; a cut run writes nothing, so these are from the logs on atom4-data, runs/*/deepen-*/0.log): the deepest each reached
 # (kcal/mol, bound), the last step's fall, and whether it ended (no lower point)
-DEEPEN={'4':[(27.352,0.000,True),(27.352,0.000,False),(26.624,0.012,False),(25.886,0.040,False)],
-        '4.9':[(27.543,0.001,True),(27.543,0.000,True),(27.524,0.002,True),(27.356,1.220,False)]}
-DEEPROUNDS=3
+DEEPEN={'4':[(27.352,0.000,True),(27.352,0.000,True),(26.631,0.007,False),(25.910,0.025,False)],
+        '4.9':[(27.543,0.001,True),(27.543,0.000,True),(27.524,0.002,True),(27.543,0.000,False)]}
+DEEPROUNDS=4
 def _deep(k):
     b=kc(PM[k]['best']['E']); at=[x for x in DEEPEN[k] if b-x[0]<0.05]; off=[x for x in DEEPEN[k] if b-x[0]>=0.05]
     return b,at,off
