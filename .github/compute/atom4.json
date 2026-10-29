@@ -1,13 +1,49 @@
 {
- "run": "corr-2",
- "why": "Does XH3's MP2 lead over Xater survive a bigger basis? corr-1's largest basis gave 2.4 kcal/mol, all of it correlation, with Xater's share still falling (+0.64, +0.42, +0.48, +0.05 kcal/mol as the basis grew). In our water a second f on oxygen closes a quarter of the gap to aug-cc-pVQZ and a d on hydrogen nothing, so: both 4D pairs with two f (F), Xater with a d on hydrogen (h) to check that holds in 4D, and our water, HF and ammonia in the same bases (water also with a g) to calibrate against aug-cc-pVQZ. XH3 in two f needs ~10 GB of integrals, so the 4D pairs get a runner each.",
- "minutes": 200,
+ "run": "audit-5",
+ "why": "A third round for the relaxations from the four deepest random placements of each 4D pair, cut again at audit-4's deadline (one already ended, in XH3's best pair). Three are within 0.02 kcal/mol of a best pair with the gradient almost gone and should end at once; four are still crossing flat ground off saddles, 0.4 to 1.9 kcal/mol above, and decide whether any random start finds a pair deeper than the search's. They resume from their cached Hartree-Fock energies.",
+ "minutes": 330,
  "groups": [
-  { "name": "corr2-xater-ff", "cmds": ["node four/atom/tools/correlation.mjs pair 4 DdpfF"] },
-  { "name": "corr2-bmmonia-ff", "cmds": ["node four/atom/tools/correlation.mjs pair 4.9 DdpfF"] },
-  { "name": "corr2-xater-h", "cmds": ["node four/atom/tools/correlation.mjs pair 4 Ddpfh"] },
-  { "name": "corr2-water", "cmds": ["node four/atom/tools/correlation.mjs pair 3 Ddpfh", "node four/atom/tools/correlation.mjs pair 3 DdpfF", "node four/atom/tools/correlation.mjs pair 3 Ddpfg"] },
-  { "name": "corr2-hf", "cmds": ["node four/atom/tools/correlation.mjs pair 3.9 Ddpfh", "node four/atom/tools/correlation.mjs pair 3.9 DdpfF"] },
-  { "name": "corr2-ammonia", "cmds": ["node four/atom/tools/correlation.mjs pair 3.7 Ddpfh", "node four/atom/tools/correlation.mjs pair 3.7 DdpfF"] }
+  {
+   "name": "deepen-xater-0",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4 4 --only 0"
+   ]
+  },
+  {
+   "name": "deepen-xater-1",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4 4 --only 1"
+   ]
+  },
+  {
+   "name": "deepen-xater-2",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4 4 --only 2"
+   ]
+  },
+  {
+   "name": "deepen-xater-3",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4 4 --only 3"
+   ]
+  },
+  {
+   "name": "deepen-bmmonia-0",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 0"
+   ]
+  },
+  {
+   "name": "deepen-bmmonia-2",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 2"
+   ]
+  },
+  {
+   "name": "deepen-bmmonia-3",
+   "cmds": [
+    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 3"
+   ]
+  }
  ]
 }
