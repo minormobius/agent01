@@ -1,49 +1,13 @@
 {
- "run": "audit-5",
- "why": "A third round for the relaxations from the four deepest random placements of each 4D pair, cut again at audit-4's deadline (one already ended, in XH3's best pair). Three are within 0.02 kcal/mol of a best pair with the gradient almost gone and should end at once; four are still crossing flat ground off saddles, 0.4 to 1.9 kcal/mol above, and decide whether any random start finds a pair deeper than the search's. They resume from their cached Hartree-Fock energies.",
+ "run": "corr-3-nebula-2",
+ "why": "Two questions on one run. corr-3: does XH3's MP2 lead over Xater keep shrinking? It went 2.69 to 2.44 to 2.24 kcal/mol as an f and a second f were added; now a g on both 4D pairs (g integrals fixed in gauss.js; XH3's 338 functions in single precision, checked to 1e-5 kcal/mol), and our water, HF and ammonia with a g as the calibration. nebula-2: in nebula-1's long runs the orbits' planes were still slowly lining up when the shape had stopped; run the half-rate, quarter-rate and three-quarter-rate 4D clouds, a second seed, the one-plane cloud and the 3D control to T = 500 (about 8 h each, so cut here and resumed in the next run).",
  "minutes": 330,
  "groups": [
-  {
-   "name": "deepen-xater-0",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 0"
-   ]
-  },
-  {
-   "name": "deepen-xater-1",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 1"
-   ]
-  },
-  {
-   "name": "deepen-xater-2",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 2"
-   ]
-  },
-  {
-   "name": "deepen-xater-3",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 3"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-0",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 0"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-2",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 2"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-3",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 3"
-   ]
-  }
+  { "name": "corr3-xater-g", "cmds": ["node four/atom/tools/correlation.mjs pair 4 Ddpfg"] },
+  { "name": "corr3-bmmonia-g", "cmds": ["node four/atom/tools/correlation.mjs pair 4.9 Ddpfg f32"] },
+  { "name": "corr3-ours-g", "cmds": ["node four/atom/tools/correlation.mjs pair 3 Ddpfg", "node four/atom/tools/correlation.mjs pair 3.9 Ddpfg", "node four/atom/tools/correlation.mjs pair 3.7 Ddpfg"] },
+  { "name": "corr3-ours-fg", "cmds": ["node four/atom/tools/correlation.mjs pair 3 DdpfFg", "node four/atom/tools/correlation.mjs pair 3.9 DdpfFg", "node four/atom/tools/correlation.mjs pair 3.7 DdpfFg"] },
+  { "name": "nebula2-rates", "cmds": ["node four/atom/tools/nebula.mjs run 4 1 0.5 10000 500 1", "node four/atom/tools/nebula.mjs run 4 1 0.25 10000 500 1", "node four/atom/tools/nebula.mjs run 4 1 0.75 10000 500 1", "node four/atom/tools/nebula.mjs run 4 1 0.5 10000 500 2"] },
+  { "name": "nebula2-controls", "cmds": ["node four/atom/tools/nebula.mjs run 4 1 0 10000 500 1", "node four/atom/tools/nebula.mjs run 3 1 0 10000 500 1"] }
  ]
 }

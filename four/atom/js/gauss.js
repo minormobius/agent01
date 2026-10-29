@@ -121,8 +121,8 @@ export function oneElectron(shells, atoms, d) {
 
 /* ---------------------------------------------------------------- two-electron integrals, (ij|kl), unique ones */
 export const pairIndex = (i, j) => (i >= j ? (i * (i + 1)) / 2 + j : (j * (j + 1)) / 2 + i);
-export function twoElectron(shells, d, F) {
-  const n = F.length, np = (n * (n + 1)) / 2, ERI = new Float64Array((np * (np + 1)) / 2);
+export function twoElectron(shells, d, F, { f32 = false } = {}) { // f32: store the integrals in single precision, half the memory
+  const n = F.length, np = (n * (n + 1)) / 2, ERI = new (f32 ? Float32Array : Float64Array)((np * (np + 1)) / 2);
   const first = []; F.forEach((f, i) => { if (first[f.shell] === undefined) first[f.shell] = i; });
   const signOf = (idx) => { let s = 0; for (let k = 0; k < d; k++) { s += idx % BASE; idx = Math.floor(idx / BASE); } return s % 2 ? -1 : 1; };
   // shell pairs: per primitive pair, the exponent, centre and every component pair's Hermite expansion

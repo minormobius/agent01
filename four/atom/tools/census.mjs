@@ -126,9 +126,9 @@ export function interaction(mono, d, R, betad) { const [A, B] = dimerAtoms(mono,
    With mp2, also the correlation's share of it, MP2 with the cores frozen (js/gauss.js mp2): E2 and its two spin parts.
    plus grows the basis (basisFor) */
 const frozenOf = (atoms, d) => atoms.reduce((s, a) => s + (a.Z > 2 ? (a.Z - valence(a.Z, d).v) / 2 : 0), 0);
-export function pairEnergy(A, B, d, { mp2 = false, plus = "" } = {}) {
+export function pairEnergy(A, B, d, { mp2 = false, plus = "", f32 = false } = {}) {
   const all = [...A, ...B], shells = shellsOf(all, d, plus), n = A.reduce((s, a) => s + a.Z, 0) / 2;
-  const one = G.oneElectron(shells, all, d), ERI = G.twoElectron(shells, d, one.F);
+  const one = G.oneElectron(shells, all, d), ERI = G.twoElectron(shells, d, one.F, { f32 });
   const eAB = G.hartreeFock(all, shells, d, { nAlpha: 2 * n, nBeta: 2 * n, ints: { one, ERI } });
   const eA = G.hartreeFock(A, shells, d, { nAlpha: n, nBeta: n, ints: { one: G.oneElectron(shells, A, d), ERI } });
   const eB = G.hartreeFock(B, shells, d, { nAlpha: n, nBeta: n, ints: { one: G.oneElectron(shells, B, d), ERI } });

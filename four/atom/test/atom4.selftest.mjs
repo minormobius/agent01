@@ -762,6 +762,9 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const sg = at.flatMap((a) => GS.shellsFor(a, a.Z === 8 ? [...RO, [4, [1.2]]] : RH)), og = GS.oneElectron(sg, at, 3);
   const rg = GS.hartreeFock(at, sg, 3, { nAlpha: 5, nBeta: 5, ints: { one: og, ERI: GS.twoElectron(sg, 3, og.F) }, tol: 1e-10 });
   ok(rg.E <= rw.E + 1e-9 && rg.E > rw.E - 0.05, `a g on water's oxygen lowers its energy by ${((rw.E - rg.E) * 1000).toFixed(2)} mEh, no more (g quartets' integrals right)`);
+  // the integrals in single precision (correlation.mjs's f32, for the largest pairs): the same energies, to a μEh
+  const r32 = GS.hartreeFock(at, sw, 3, { nAlpha: 5, nBeta: 5, ints: { one: ow, ERI: GS.twoElectron(sw, 3, ow.F, { f32: true }) }, tol: 1e-12 }), m32 = GS.mp2(r32, GS.twoElectron(sw, 3, ow.F, { f32: true }), { frozen: 1 });
+  ok(Math.abs(r32.E - rw.E) < 1e-6 && Math.abs(m32.E2 - mw.E2) < 1e-6, `single-precision integrals: water's energy off by ${Math.abs(r32.E - rw.E).toExponential(0)}, its correlation by ${Math.abs(m32.E2 - mw.E2).toExponential(0)} hartree`);
 }
 
 /* 44 · correlation, baked (tools/correlation.mjs → js/correlation.js, the census chapter): our pairs in the book's basis
