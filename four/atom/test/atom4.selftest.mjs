@@ -849,9 +849,11 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const T3t = FP.termsFor(PF["3"]), dim = FFDATA["3"].points.find((q) => q.k === 58), L = 32, Hc = [[L, 0, 0], [0, L, 0], [0, 0, L]], C3 = new PC.PolCrystal({ d: 3, tmpl: tm("3"), terms: T3t });
   const cell = (2 * C3.energy(Hc, [dim.A, dim.B]).E - C3.energy(Hc, [dim.A]).E - C3.energy(Hc, [dim.B]).E) * 627.509, alone = PM.clusterEnergy(T3t, [dim.A, dim.B]).E * 627.509;
   ok(terr < 0.002 && adep < 1e-4 && Math.abs(cell - alone) < 0.06, `the polarizable field: our water's tensor from its sites to ${(terr * 100).toFixed(2)}%; the periodic sums independent of Ewald's split to ${adep.toExponential(0)} kcal/mol (4D, clouds and dipoles); our water's pair in a 32-bohr cell ${cell.toFixed(3)} against ${alone.toFixed(3)} alone`);
-  const share = (t) => t.three / t.total, w = MB.trimers.find((t) => t.key === "3"), rings = MB.trimers.filter((t) => /cyclic/.test(t.label));
+  const share = (t) => t.three / t.total, w = MB.trimers.find((t) => t.key === "3"), rings = MB.trimers.filter((t) => /cyclic/.test(t.label) && t.key !== "3");
   const mod3 = (t) => { const X = t.mols, Tk = FP.termsFor(PF[t.key]), e = (ms) => PM.clusterEnergy(Tk, ms).E; return (e(X) - e([X[0], X[1]]) - e([X[0], X[2]]) - e([X[1], X[2]])) * 627.509; };
-  ok(share(w) < 0.1 && rings.length === 2 && rings.every((t) => share(t) > 0.2 && mod3(t) < 0) && mod3(w) < 0, `Hartree–Fock trimers: our water's three-body part ${(share(w) * 100).toFixed(0)}% of its binding, 4D rings' ${rings.map((t) => (share(t) * 100).toFixed(0) + "%").join(" and ")}; the polarizable field has them all the right sign`);
+  const IF = PF["4"].interFit;
+  ok(share(w) < 0.1 && rings.length === 2 && rings.every((t) => share(t) > 0.2 && mod3(t) < 0 && Math.abs(mod3(t) / t.three - 1) < 0.35) && mod3(w) < 0 && IF.split.rmsTest < 1.5 && IF.split.rmsTest039 > 5,
+    `Hartree–Fock trimers: our water's three-body part ${(share(w) * 100).toFixed(0)}% of its binding, 4D rings' ${rings.map((t) => (share(t) * 100).toFixed(0) + "%").join(" and ")}, the field's within ${Math.max(...rings.map((t) => Math.abs(mod3(t) / t.three - 1) * 100)).toFixed(0)}%; its damping between molecules (a = ${IF.a}), fitted on ${IF.split.train} trimers, predicts the other ${IF.split.test} to ${IF.split.rmsTest} kcal/mol (Thole's 0.39: ${IF.split.rmsTest039})`);
 }
 
 /* 49 · the orrery (js/orrery.js, four.mino.mobi/orrery/): a plane is rebuilt from its two halves of turning; two planes
