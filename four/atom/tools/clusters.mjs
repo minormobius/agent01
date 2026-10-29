@@ -4,6 +4,7 @@
    them, in both worlds: our water (keys as in tools/forcefield.mjs: 3) against Xater (4) and element 9's XH₃ (4.9).
      node four/atom/tools/clusters.mjs <key> <n> [starts] [--shard i/m]   # one cluster size; cached, so a cut run resumes
      node four/atom/tools/clusters.mjs bake                 # gather what's done into js/clusters.js
+     node four/atom/tools/clusters.mjs repol <key> <n> [top] # the audit: the best minima relaxed on the polarizable field
    The first molecule is fixed; each other has d(d − 1)/2 turns and d moves, so (n − 1) d(d + 1)/2 numbers. Every start
    descends (js/landscape.js) until the slope is gone; ends that ran out of steps are counted as unfinished, not as
    minima. Two minima are the same if their energies agree within 0.1 kcal/mol and their sorted heavy-atom distances
@@ -65,9 +66,34 @@ export async function search(key, n, starts, p, log = () => {}, [si, sm] = [0, 1
 /* how many minima are still unseen: Chao1, from the minima seen once (f1) and twice (f2) */
 export const chao1 = (minima) => { const f1 = minima.filter((q) => q.hits === 1).length, f2 = minima.filter((q) => q.hits === 2).length; return minima.length + (f2 ? (f1 * f1) / (2 * f2) : (f1 * (f1 - 1)) / 2); };
 
+/* The audit by the polarizable force field (js/polfields.js, js/polmodel.js), which counts each molecule's response to all
+   its neighbours at once, where this search's force field adds pairs. The search's best `top` distinct minima of each
+   size, each scored as found and then relaxed on the polarizable field (BFGS, every molecule but the first free, each
+   turned about its own heavy atom), so the audit can say whether the best cluster stays best and how hard it holds.
+   Cached per key and size ($TMPDIR/atom4-clusters/repol_<key>_<n>.json), a minimum at a time. */
+export async function repol(key, n, top = 10, log = () => {}) {
+  const { POLFIELDS } = await import("../js/polfields.js"), { termsFor } = await import("./fitpol.mjs"), { clusterEnergy } = await import("../js/polmodel.js"), { bfgsSteps, expm } = await import("../js/landscape.js");
+  const T = termsFor(POLFIELDS[key]), d = POLFIELDS[key].d, np = planes(d).length;
+  const files = readdirSync(CACHE).filter((f) => f.startsWith(`${key}_${n}`) && !f.startsWith("repol")), out = path.join(CACHE, `repol_${key}_${n}.json`);
+  const all = files.flatMap((f) => JSON.parse(readFileSync(path.join(CACHE, f), "utf8")).minima).sort((a, b) => a.E - b.E), picks = [];
+  for (const m of all) { if (picks.length >= top) break; if (!picks.some((u) => same(u, m))) picks.push(m); }
+  const st = existsSync(out) ? JSON.parse(readFileSync(out, "utf8")) : { key, n, rows: [] };
+  for (const [i, m] of picks.entries()) {
+    if (st.rows[i]) continue;
+    const X = m.X, ctr = X.map((M) => M[0]), pose = (x) => X.map((M, a) => { if (!a) return M; const o = (a - 1) * (np + d), W = new Array(d * d).fill(0); planes(d).forEach(([p, q], j) => { W[p * d + q] = x[o + j]; W[q * d + p] = -x[o + j]; }); const R = expm(W, d); return M.map((s) => s.map((_, r) => ctr[a][r] + x[o + np + r] + s.reduce((t, v, c) => t + R[r * d + c] * (v - ctr[a][c]), 0))); });
+    const E = (x) => clusterEnergy(T, pose(x)).E, x0 = new Array((n - 1) * (np + d)).fill(0), t0 = Date.now(); let last;
+    for (const it of bfgsSteps(E, x0, 1500, 2e-6)) last = it;
+    const fin = pose(last.x);
+    st.rows[i] = { found: +(m.E * KCAL).toFixed(4), scored: +(E(x0) * KCAL).toFixed(4), relaxed: +(last.f * KCAL).toFixed(4), g: last.g, sig: sig(fin).map((v) => +v.toFixed(3)), moved: +Math.max(...fin.flatMap((M, a) => M.map((s, k) => Math.hypot(...s.map((v, c) => v - X[a][k][c]))))).toFixed(3) };
+    writeFileSync(out, JSON.stringify(st)); log(`${key} n=${n} #${i}: found ${st.rows[i].found}, scored ${st.rows[i].scored}, relaxed ${st.rows[i].relaxed} kcal/mol (|g| ${last.g.toExponential(1)}, moved ${st.rows[i].moved} bohr, ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+  }
+  return st;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const argv = process.argv.slice(2);
-  if (argv[0] === "bake") {
+  if (argv[0] === "repol") await repol(argv[1], +argv[2], +(argv[3] ?? 10), console.log);
+  else if (argv[0] === "bake") {
     const out = {}, groups = {};
     for (const f of existsSync(CACHE) ? readdirSync(CACHE).filter((f) => f.endsWith(".json")) : []) {
       const st = JSON.parse(readFileSync(path.join(CACHE, f), "utf8")), [, m = 1] = st.shard ?? [0, 1];
