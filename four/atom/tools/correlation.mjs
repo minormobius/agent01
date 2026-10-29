@@ -34,6 +34,9 @@ if (mode === "pair") {
   const out = {}, refs = JSON.parse(readFileSync(path.join(here, "correlation-ref.json"), "utf8"));
   for (const f of readdirSync(OUT).filter((f) => /^pair_.*\.json$/.test(f)).sort()) {
     const r = JSON.parse(readFileSync(path.join(OUT, f), "utf8"));
+    // an interaction energy past a hartree is a broken calculation, not chemistry (corr-2's water with a g, before gauss.js
+    // could do g quartets): never bake one
+    if (!(Math.abs(r.hf) < 1 && Math.abs(r.E2) < 1)) { console.error(`skipped ${f}: hf ${r.hf}, E2 ${r.E2}, not a pair's interaction`); continue; }
     const o = (out[r.key] ??= { d: r.d, Z: r.Z, bases: {}, ...(refs[r.key] ? { ref: refs[r.key] } : {}) });
     const row = { n: r.n, hf: +r.hf.toFixed(7), E2: +r.E2.toFixed(7), os: +r.os.toFixed(7), ss: +r.ss.toFixed(7), ok: r.ok };
     if (r.shift) ((o.scan ??= {})[r.plus] ??= {})[r.shift] = row; else o.bases[r.plus] = row;

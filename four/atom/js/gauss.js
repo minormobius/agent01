@@ -53,10 +53,12 @@ function hermite(i, j, a, b, X) {
 }
 
 /* ---------------------------------------------------------------- the R tables: derivatives of G₀ */
-const BASE = 13; // packed Hermite indices: t₁ + BASE t₂ + BASE² t₃ + …; enough for L ≤ 12
+const BASE = 17; // packed Hermite indices: t₁ + BASE t₂ + BASE² t₃ + …; enough for L ≤ 16, a quartet of g shells (13 was
+// enough only to f: g quartets wrapped and gave garbage, which tuples() now refuses)
 const TUPLES = {}; // per (d, L): the tuples with |t| ≤ L, by total, with their recursion's parents, compactly indexed
 function tuples(d, L) {
   const key = d * 100 + L; if (TUPLES[key]) return TUPLES[key];
+  if (L >= BASE) throw new Error(`gauss: Hermite indices to L = ${L} need BASE > ${L} (shells up to l = ${(BASE - 1) / 4})`);
   const list = [], at = new Int32Array(BASE ** d).fill(-1);
   for (let tot = 0; tot <= L; tot++) for (const t of cartesian(tot, d)) { at[t.reduce((s, v, k) => s + v * BASE ** k, 0)] = list.length; list.push(t); }
   const k = new Int32Array(list.length), tk = new Int32Array(list.length), m1 = new Int32Array(list.length), m2 = new Int32Array(list.length), tot = new Int32Array(list.length);

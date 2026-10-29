@@ -757,6 +757,11 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const h2 = (dir) => { const rr = [[0, GS.evenTempered(0.05, 3, 4)], [1, [0.5]], [2, [0.6]]], a = { Z: 1, at: dir.map((x) => -0.8 * x) }, b = { Z: 1, at: dir.map((x) => 0.8 * x) }, sh = [...GS.shellsFor(a, rr), ...GS.shellsFor(b, rr)], o1 = GS.oneElectron(sh, [a, b], 4), E = GS.twoElectron(sh, 4, o1.F); return GS.mp2(GS.hartreeFock([a, b], sh, 4, { nAlpha: 1, nBeta: 1, ints: { one: o1, ERI: E }, tol: 1e-12 }), E); };
   const ax = h2([1, 0, 0, 0]), dg = h2([0.5, 0.5, 0.5, 0.5]);
   ok(ax.E2 < -0.005 && Math.abs(ax.E2 - dg.E2) < 1e-9 && Math.abs(ax.ss) < 1e-14, `MP2 in 4D: H₂'s correlation ${ax.E2.toFixed(6)} along an axis and along a diagonal; no same-spin part`);
+  // a g on the oxygen: (gg|gg) needs Hermite indices to 16, past the 12 the packing once allowed (it wrapped, and water's
+  // energy came out at +10⁷). Adding functions can only lower the energy, and only a little
+  const sg = at.flatMap((a) => GS.shellsFor(a, a.Z === 8 ? [...RO, [4, [1.2]]] : RH)), og = GS.oneElectron(sg, at, 3);
+  const rg = GS.hartreeFock(at, sg, 3, { nAlpha: 5, nBeta: 5, ints: { one: og, ERI: GS.twoElectron(sg, 3, og.F) }, tol: 1e-10 });
+  ok(rg.E <= rw.E + 1e-9 && rg.E > rw.E - 0.05, `a g on water's oxygen lowers its energy by ${((rw.E - rg.E) * 1000).toFixed(2)} mEh, no more (g quartets' integrals right)`);
 }
 
 /* 44 · correlation, baked (tools/correlation.mjs → js/correlation.js, the census chapter): our pairs in the book's basis
