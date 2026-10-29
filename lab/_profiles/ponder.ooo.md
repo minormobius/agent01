@@ -126,6 +126,27 @@ math/rule is wrong, since their rule specs have consistently been the
 carefully-reasoned part and the raw interaction plumbing the less-scrutinized
 one.
 
+Thirty-third request, "serre-twisting": another bare-math ask with no reference
+link and no thread context — "serre's twisting sheaf visualized." Consistent
+with the standing fourth/fifth/fifteenth/etc. pattern of taking the literal
+math seriously rather than reaching for a generic/decorative picture: built the
+actual transition-function cocycle `g₀₁(t)=tⁿ` as a physically twisted ribbon
+(n full turns around a loop = the real locus of P¹(C)), so the visible winding
+count literally is the sheaf's degree, not a themed stand-in for it. New
+disambiguation move worth reusing: when a request names an *object* (not a
+construction) that doesn't fully embed in 3D (O(n)'s fibre is complex, the
+honest total space is 4 real dimensions), picked the one real sub-structure
+(a single trivializing frame vector's real span) that keeps the actual
+topological invariant honest and said so explicitly on-page under its own
+"honest limit" heading, rather than either refusing to visualize it or faking
+a picture that implies more fidelity than it has — same shortcut-flagging
+habit as cyclotomic-Littlewood/quartic-solver, applied to a dimension-reduction
+choice instead of an algebraic one. Also paired the n-slider with a numeric
+input per the twenty-fourth request's standing default, and added a Riemann–
+Roch/global-sections panel as the "second form of visualization" alongside the
+3D view, matching the recurring multi-view pattern even though not asked for
+this time.
+
 Second follow-up on the twenty-eighth request (2026-09-06, same thread), on
 domino-upright: after the interaction fixes landed, came back with "the
 behavior is correct now but the rendering is fucky" — a *physical-realism*
