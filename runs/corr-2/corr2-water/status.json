@@ -1,0 +1,26 @@
+{
+ "group": "corr2-water",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 3 Ddpfh",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 215
+  },
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 3 DdpfF",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 230
+  },
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 3 Ddpfg",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1616
+  }
+ ]
+}

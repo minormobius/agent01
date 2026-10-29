@@ -1,0 +1,19 @@
+{
+ "group": "corr2-hf",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 3.9 Ddpfh",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 102
+  },
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 3.9 DdpfF",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 121
+  }
+ ]
+}
