@@ -1,47 +1,9 @@
 {
- "run": "nebula-3-audit-6",
- "why": "Resumes, from their caches. nebula-3: the six T = 500 clouds that nebula-2 starts (about 8 h each, so cut at its deadline), to see where the slow plane-alignment ends. audit-6: a fourth round for the four relaxations audit-5 cut, all still descending above the best pairs (Xater's at 27.35 with no slope left, 26.62 and 25.89; XH3's at 27.36, falling fast). Keeps the runners busy behind corr-3-nebula-2.",
- "minutes": 330,
+ "run": "corr-4",
+ "why": "corr-3 showed XH3's MP2 lead over Xater is not shrinking: it went 2.44 with an f, 2.24 with a second f, back to 2.59 with a g instead, and the swings are all in the Hartree-Fock part (correlation's part holds at 2.5-2.75 kcal/mol). Both pairs with two f and a g together, the largest basis yet (350 and 378 functions, the integrals in single precision; XH3's needs about 12.5 GB, so a runner each). Keeps the runners busy behind nebula-3-audit-6.",
+ "minutes": 240,
  "groups": [
-  {
-   "name": "nebula3-rates",
-   "cmds": [
-    "node four/atom/tools/nebula.mjs run 4 1 0.5 10000 500 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0.25 10000 500 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0.75 10000 500 1",
-    "node four/atom/tools/nebula.mjs run 4 1 0.5 10000 500 2"
-   ]
-  },
-  {
-   "name": "nebula3-controls",
-   "cmds": [
-    "node four/atom/tools/nebula.mjs run 4 1 0 10000 500 1",
-    "node four/atom/tools/nebula.mjs run 3 1 0 10000 500 1"
-   ]
-  },
-  {
-   "name": "deepen-xater-0",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 0"
-   ]
-  },
-  {
-   "name": "deepen-xater-1",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 1"
-   ]
-  },
-  {
-   "name": "deepen-xater-3",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4 4 --only 3"
-   ]
-  },
-  {
-   "name": "deepen-bmmonia-2",
-   "cmds": [
-    "node four/atom/tools/audit.mjs deepen 4.9 4 --only 2"
-   ]
-  }
+  { "name": "corr4-xater-fg", "cmds": ["node four/atom/tools/correlation.mjs pair 4 DdpfFg f32"] },
+  { "name": "corr4-bmmonia-fg", "cmds": ["node four/atom/tools/correlation.mjs pair 4.9 DdpfFg f32"] }
  ]
 }
