@@ -1,0 +1,6 @@
+$ node four/atom/tools/manybody.mjs run 3
+{"i":3,"label":"Xater, old model's collapsed crystal #0","pairs":{"12":6.68193329397713,"01":7.529601028750275,"02":7.530642967818287},"three":-1.156158895740643,"total":20.58601839480505}
+(node:2572) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gauss.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

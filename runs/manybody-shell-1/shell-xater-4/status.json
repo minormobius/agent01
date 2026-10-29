@@ -1,0 +1,33 @@
+{
+ "group": "shell-xater-4",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/manybody.mjs shell 0 10 --shard 16/32",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 310
+  },
+  {
+   "cmd": "node four/atom/tools/manybody.mjs shell 0 10 --shard 17/32",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 311
+  },
+  {
+   "cmd": "node four/atom/tools/manybody.mjs shell 0 10 --shard 18/32",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 306
+  },
+  {
+   "cmd": "node four/atom/tools/manybody.mjs shell 0 10 --shard 19/32",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 309
+  }
+ ]
+}

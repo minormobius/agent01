@@ -1,0 +1,12 @@
+{
+ "group": "mb-xater-pol-0",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/manybody.mjs run 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 0
+  }
+ ]
+}
