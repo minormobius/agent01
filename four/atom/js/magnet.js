@@ -56,3 +56,19 @@ export const spinOf = (atom, d) => unpaired(atom, d) / 2;
 export const curie = (S, kT) => (S * (S + 1)) / (3 * kT);
 /* the whole response of a free atom, a.u.: diamagnetism from both halves, spin from the left (shape = fieldShape) */
 export const susceptibility = (atom, d, kT, shape = 1) => diamagnetic(atom, d) + (d === 4 ? shape : 1) * curie(spinOf(atom, d), kT);
+
+/* A spinning ball's field. A ball of charge turning at Ω (a 4 × 4 antisymmetric matrix: one rate per plane) is a
+   current j = ρΩx, and through the pinned 1/r kernel it makes, far from it, A = Ωx/r³ (times its size and charge,
+   set to 1 here): the field of its moment, which is shaped like its spin. Then B_ij = ∂_iA_j − ∂_jA_i:
+     B = −2Ω/r³ − 3(x(Ωx)ᵀ − (Ωx)xᵀ)/r⁵.
+   A ball spinning in xy and zw at once makes both moments. Seen from a 3D slice (x, y, z at some w), the six numbers
+   split into two 3D vectors: the part within the slice, (B_yz, B_zx, B_xy), which turns a charge's path as our
+   magnetic field does, and the part reaching into w, (B_xw, B_yw, B_zw), which pushes a charge moving through the
+   slice out of it, into w. At w = 0 an xy spin gives only the first (a bar magnet's field, in shape exactly ours) and
+   a zw spin only the second. */
+export function spinField(Om, x) {
+  const r2 = x.reduce((s, v) => s + v * v, 0), r = Math.sqrt(r2), r3 = r2 * r, r5 = r3 * r2, Ox = Om.map((row) => row.reduce((s, v, k) => s + v * x[k], 0));
+  return Om.map((row, i) => row.map((v, j) => (-2 * v) / r3 - (3 * (x[i] * Ox[j] - x[j] * Ox[i])) / r5));
+}
+export const spin = (xy, zw) => [[0, -xy, 0, 0], [xy, 0, 0, 0], [0, 0, 0, -zw], [0, 0, zw, 0]]; // turning x toward y at rate xy, z toward w at zw
+export const sliceParts = (B) => ({ within: [B[1][2], B[2][0], B[0][1]], intoW: [B[0][3], B[1][3], B[2][3]] });

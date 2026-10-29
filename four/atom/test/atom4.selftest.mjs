@@ -791,5 +791,20 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(miss.join() === "22,23", `ground-state spins by Hund's first rule match NIST for ${36 - miss.length} of 36; the misses (${miss.join(", ")}) are configurations the solver gets wrong`);
 }
 
+/* 46 · a spinning ball's field (js/magnet.js spinField, the fields page): far from a current loop, Biot–Savart's sum with
+   the pinned kernel (js/fields.js loopField) is the moment's field, π times A = Ωx/r³ for a unit loop; and seen from
+   the slice w = 0, a spin in xy has no part reaching into w, a spin in zw no part within the slice */
+{
+  const MG = await import(path.join(here, "../js/magnet.js")), FL = await import(path.join(here, "../js/fields.js"));
+  let worst = 0;
+  for (const x of [[16, 4, 7, 3], [-6, 13, -9, 10], [4, -3, 19, 2]]) {
+    const L = FL.loopField(x, 1, 2000), S = MG.spinField(MG.spin(1, 0), x);
+    for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) if (Math.abs(S[i][j]) > 1e-7) worst = Math.max(worst, Math.abs(L[i][j] / S[i][j] / Math.PI - 1));
+  }
+  const at = [1.3, 0.4, 2.1, 0], a = MG.sliceParts(MG.spinField(MG.spin(1, 0), at)), b = MG.sliceParts(MG.spinField(MG.spin(0, 1), at)), size = (v) => Math.hypot(...v);
+  ok(worst < 0.03 && size(a.intoW) < 1e-15 && size(b.within) < 1e-15 && size(a.within) > 0.01 && size(b.intoW) > 0.01,
+    `a spinning ball's field: its moment's field matches Biot–Savart's far field (to ${(worst * 100).toFixed(1)}%); from our slice, a spin in xy reaches no part into w, a spin in zw none within the slice`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

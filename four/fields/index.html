@@ -24,6 +24,7 @@
   canvas.lines { width: 100%; aspect-ratio: 1; display: block; border-radius: 8px; }
   canvas.orbit { width: 100%; aspect-ratio: 1; display: block; border-radius: 8px; background: #0b0d13; }
   .cap { font: 11px var(--mono); color: var(--dim); text-align: center; margin-top: 2px; }
+  button.fire { font: 600 12px var(--mono); background: none; color: var(--d4); border: 1px solid var(--d4); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
   .more { font: 12px var(--mono); } .more a { color: var(--text); }
 </style>
 </head>
@@ -99,6 +100,19 @@
     <p class="read" id="rMag"></p>
   </div>
   <p>Diamagnetism doesn't care which half: the dashed line is flat. The spin's pull follows the left half, from nothing at −1 (all right) through ours at 0 (a field in one plane) to twice ours at +1 (all left). <b>So the same atoms are drawn into a magnet and pushed out of its mirror image.</b></p>
+</section>
+
+<section class="step" id="spinner">
+  <h3>7 · A spinning ball makes two fields in your space</h3>
+  <p>A ball of charge that spins is a current, so it makes a magnetic field, and the field takes the shape of the spin. A 4D ball can spin in two planes at once, xy and zw. From inside your 3D space the field it makes splits in two. The part <b>within your space</b> turns a moving charge's path, as our magnetic field does: the xy spin makes it, in exactly the shape of a bar magnet's. The part <b>reaching into w</b> has nothing to turn within your space. It pushes a charge moving through it out of your space altogether: the zw spin makes it. Spin the ball, slide your slice through it, and fire a charge past it.</p>
+  <div class="toy">
+    <div class="ctl">spin in xy <input id="spXY" type="range" min="-1" max="1" step="0.01" value="1" /> <b id="spXYv"></b></div>
+    <div class="ctl">spin in zw <input id="spZW" type="range" min="-1" max="1" step="0.01" value="0.6" /> <b id="spZWv"></b></div>
+    <div class="ctl">your slice <input id="spW" type="range" min="-1.5" max="1.5" step="0.01" value="0" /> <b id="spWv"></b> <button id="spFire" class="fire">fire a charge</button></div>
+    <div class="two"><div><canvas class="orbit" id="cSpinIn"></canvas><p class="cap">within your space: turns a charge's path</p></div><div><canvas class="orbit" id="cSpinW"></canvas><p class="cap">reaching into w: pushes a moving charge out of your space</p></div></div>
+    <p class="read" id="rSpin"></p>
+  </div>
+  <p>Both panels are the x–z plane of your space (y = 0), the ball's own radius 1, its field the field of its spin far out (closer in, a 4D ball's field differs a little from its moment's). At w = 0 the two parts separate exactly: the xy spin reaches nothing into w, and the zw spin puts nothing within your space. Move your slice off the ball's middle and they mix. A ball spinning both ways at equal rates is all left half. Spinning <b>metal</b> isn't enough, in either world: its electrons and nuclei turn together and their currents cancel. What spinning does to metal is the Barnett effect: a spun lump of iron magnetizes a little, because its electrons' spins feel the turning as a field. A 4D electron's spin turns only with the left half of a turning (<a href="../atom/motion.html#spin">motion and spin</a>), so a lump of iron spun one way magnetizes and spun the mirror way doesn't.</p>
 </section>
 
 <section class="step" id="next">

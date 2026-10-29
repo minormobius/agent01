@@ -1,7 +1,7 @@
 /* Fields in four dimensions: the electrostatics and magnetism of the pinned 1/r, as toys. The physics is
    ../atom/js/fields.js (the shell's potential, a loop's field by Biot–Savart, a charge's turning in a uniform field),
    which ATOM⁴'s selftest checks; this file only draws. */
-import { shellPotential, neutralShell, loopField, bivectorSize, cyclotronPath, cyclotronRates } from "../atom/js/fields.js";
+import { shellPotential, neutralShell, loopField, bivectorSize, cyclotronPath, cyclotronRates, expm } from "../atom/js/fields.js";
 
 const $ = (id) => document.getElementById(id);
 const C3 = "#ffb46b", C4 = "#6fe0ff", PIN = "#c79bff", DIM = "#9a958c";
@@ -157,12 +157,88 @@ function drawMag() {
   $("rMag").innerHTML = `Left half ${r.left.toFixed(2)}, right half ${r.right.toFixed(2)}: the spin feels ${sh.toFixed(2)} times what a field in one plane gives. Strength in atomic units. Spin S = ${S}${S ? `, its pull ${fmt(sh * cu)}` : " (no pull)"}; diamagnetism's push ${dia.toFixed(2)}. ` +
     (net > 0 ? `<b>Drawn in</b>, ${S && dia ? `${fmt((sh * cu) / dia)} times harder than it's pushed` : ""}.` : `<b>Pushed out.</b>`);
 }
-Promise.all([import("../atom/js/magnet.js"), import("../atom/js/table.js")]).then(([m, t]) => { MG = m; TAB = t.TABLE; drawMag(); });
+/* 7 · a spinning ball (js/magnet.js spinField): its field seen in your slice, as two 3D fields drawn in the x–z plane,
+   field lines from seeds round the ball, kept apart by a coarse occupancy grid; and a test charge, pushed by the full
+   4D field (dv/dt = Bv, a turn each step), drawn fading as it leaves your slice */
+const BALLSPAN = 3.2, SPS = 2.2; // half-width of the panels (ball radii); the field's strength for the test charge
+let spinOm = null, shot = null;
+function spinAt(x) { return MG.spinField(spinOm, x); }
+const spinCache = {}; // per panel: the field lines, drawn once per setting and reused while a charge flies
+function streamlines(id, part, col) {
+  const cv = $(id), W = +$("spW").value, key = [cv.clientWidth, cv.clientHeight, $("spXY").value, $("spZW").value, W].join();
+  const { g, w, h } = sizeCanvas(cv), sc = w / (2 * BALLSPAN), P = (x, z) => [w / 2 + x * sc, h / 2 - z * sc];
+  g.clearRect(0, 0, w, h);
+  if (spinCache[id]?.key === key) g.drawImage(spinCache[id].img, 0, 0, w, h); else { fieldLines(g, w, h, W, sc, P, part, col); const img = document.createElement("canvas"); img.width = cv.width; img.height = cv.height; img.getContext("2d").drawImage(cv, 0, 0); spinCache[id] = { key, img }; }
+  const rr = 1 - W * W;
+  if (rr > 0) { const [X, Y] = P(0, 0); g.fillStyle = "#1a1d28"; g.strokeStyle = "#e9e4da55"; g.beginPath(); g.arc(X, Y, Math.sqrt(rr) * sc, 0, 7); g.fill(); g.stroke(); }
+  if (shot) { // the test charge's path: bright where it's in your slice, fading as it leaves
+    for (let k = 1; k < shot.n; k++) { const a = shot.path[k - 1], b = shot.path[k], off = Math.abs(b[3] - W); g.strokeStyle = `rgba(233,228,218,${Math.exp(-off / 0.25).toFixed(3)})`; g.lineWidth = 2; const [X0, Y0] = P(a[0], a[2]), [X1, Y1] = P(b[0], b[2]); g.beginPath(); g.moveTo(X0, Y0); g.lineTo(X1, Y1); g.stroke(); }
+  }
+}
+function fieldLines(g, w, h, W, sc, P, part, col) {
+  g.strokeStyle = "#ffffff12"; g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, h); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+  const vec = (x, z) => { const q = MG.sliceParts(spinAt([x, 0, z, W]))[part]; return [q[0], q[2]]; };
+  const N = 36, occ = new Uint8Array(N * N), cell = (x, z) => { const i = Math.floor(((x + BALLSPAN) / (2 * BALLSPAN)) * N), j = Math.floor(((z + BALLSPAN) / (2 * BALLSPAN)) * N); return i >= 0 && j >= 0 && i < N && j < N ? i + N * j : -1; };
+  const inBall = (x, z) => x * x + z * z + W * W < 1.0, seeds = [];
+  for (let k = 0; k < 28; k++) { const a = (2 * Math.PI * (k + 0.5)) / 28; seeds.push([1.25 * Math.cos(a), 1.25 * Math.sin(a)]); }
+  for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) seeds.push([i * 0.95, j * 0.95]);
+  g.lineWidth = 1.3;
+  for (const [sx, sz] of seeds) {
+    if (inBall(sx, sz) || occ[cell(sx, sz)] > 1) continue;
+    const seen = new Set();
+    for (const dir of [1, -1]) {
+      let x = sx, z = sz; const pts = [[x, z]];
+      for (let n = 0; n < 500; n++) {
+        const v = vec(x, z), m = Math.hypot(...v); if (!(m > 1e-9)) break;
+        const hx = x + (0.5 * 0.035 * dir * v[0]) / m, hz = z + (0.5 * 0.035 * dir * v[1]) / m, v2 = vec(hx, hz), m2 = Math.hypot(...v2); if (!(m2 > 1e-9)) break;
+        x += (0.035 * dir * v2[0]) / m2; z += (0.035 * dir * v2[1]) / m2;
+        if (Math.abs(x) > BALLSPAN || Math.abs(z) > BALLSPAN || inBall(x, z)) break;
+        const c = cell(x, z); if (!seen.has(c)) { if (occ[c] > 2) break; seen.add(c); }
+        pts.push([x, z]);
+      }
+      for (const c of seen) occ[c]++;
+      if (pts.length < 6) continue;
+      const mag = Math.hypot(...vec(pts[Math.floor(pts.length / 2)][0], pts[Math.floor(pts.length / 2)][1]));
+      g.strokeStyle = col; g.globalAlpha = Math.max(0.25, Math.min(0.95, 0.55 + 0.18 * Math.log10(mag + 1e-12) + 0.5));
+      g.beginPath(); pts.forEach(([a, b], k) => { const [X, Y] = P(a, b); k ? g.lineTo(X, Y) : g.moveTo(X, Y); }); g.stroke();
+      // a chevron at the middle, pointing along the field
+      const k = Math.floor(pts.length / 2), [x0, z0] = pts[k], [x1, z1] = pts[Math.min(pts.length - 1, k + 1)], ang = Math.atan2(-(z1 - z0) * dir, (x1 - x0) * dir), [X, Y] = P(x0, z0);
+      g.beginPath(); g.moveTo(X + 5 * Math.cos(ang + 2.6), Y + 5 * Math.sin(ang + 2.6)); g.lineTo(X, Y); g.lineTo(X + 5 * Math.cos(ang - 2.6), Y + 5 * Math.sin(ang - 2.6)); g.stroke();
+    }
+  }
+  g.globalAlpha = 1;
+}
+function drawSpin() {
+  if (!MG) return;
+  const a = +$("spXY").value, b = +$("spZW").value, W = +$("spW").value;
+  $("spXYv").textContent = a.toFixed(2); $("spZWv").textContent = b.toFixed(2); $("spWv").textContent = `w = ${W.toFixed(2)}`;
+  spinOm = MG.spin(a, b);
+  streamlines("cSpinIn", "within", C4); streamlines("cSpinW", "intoW", PIN);
+  const L = Math.abs(a + b), R = Math.abs(a - b), kind = R < 0.02 && L > 0.02 ? "all left half" : L < 0.02 && R > 0.02 ? "all right half" : Math.abs(b) < 0.02 ? "one plane, like our magnets" : Math.abs(a) < 0.02 ? "one plane, zw" : "two planes at two rates";
+  const off = shot ? Math.abs(shot.path[shot.n - 1][3] - W) : 0;
+  $("rSpin").innerHTML = `The spin's left half ${L.toFixed(2)}, right half ${R.toFixed(2)}: ${kind}.` + (shot ? ` The charge is ${off < 0.05 ? "still in your slice" : `<b>${off.toFixed(2)} off your slice in w</b>${off > 0.6 ? ", gone from your space" : ""}`}.` : " Fire a charge: it starts in your slice, moving along x.");
+}
+let spinRaf = 0;
+function fire() {
+  if (!MG) return;
+  const W = +$("spW").value, z0 = (shot?.z0 ?? -1) > 0 ? -1.35 : 1.35, x = [-BALLSPAN, 0, z0, W], v = [1, 0, 0, 0], path = [x.slice()], dt = 0.02;
+  for (let k = 0; k < 600; k++) {
+    const B = spinAt(x).map((r) => r.map((q) => q * SPS)), R = expm(B, dt), nv = R.map((r) => r.reduce((s, c, j) => s + c * v[j], 0));
+    for (let i = 0; i < 4; i++) x[i] += (dt * (v[i] + nv[i])) / 2; v.splice(0, 4, ...nv); path.push(x.slice());
+    if (Math.abs(x[0]) > BALLSPAN + 0.1 || Math.abs(x[2]) > BALLSPAN + 0.1 || Math.hypot(...x) < 1) break;
+  }
+  shot = { path, n: 2, z0 }; cancelAnimationFrame(spinRaf);
+  const step = () => { shot.n = Math.min(path.length, shot.n + 6); drawSpin(); if (shot.n < path.length) spinRaf = requestAnimationFrame(step); };
+  spinRaf = requestAnimationFrame(step);
+}
+Promise.all([import("../atom/js/magnet.js"), import("../atom/js/table.js")]).then(([m, t]) => { MG = m; TAB = t.TABLE; drawMag(); drawSpin(); });
+for (const id of ["spXY", "spZW", "spW"]) $(id).addEventListener("input", () => { shot = null; drawSpin(); });
+$("spFire").addEventListener("click", fire);
 for (const id of ["magAtom", "magT", "magK"]) $(id).addEventListener("input", drawMag);
 
 setupMap();
 for (const id of ["bxy", "bzw"]) $(id).addEventListener("input", setCyc);
 $("shellA").addEventListener("input", drawNeutral);
-const all = () => { drawMap(); drawLines("cLines3", false); drawLines("cLines4", true); drawFlux(); drawNeutral(); drawLoop(); drawMag(); };
+const all = () => { drawMap(); drawLines("cLines3", false); drawLines("cLines4", true); drawFlux(); drawNeutral(); drawLoop(); drawMag(); drawSpin(); };
 setCyc(); all(); requestAnimationFrame(animate);
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(all, 150); });
