@@ -27,6 +27,9 @@ import { hydrideAtoms } from "./census.mjs";
 const KCAL = 627.509, W = 3 / KCAL, CAP = 40 / KCAL, PROBE = 50;
 const HH_FROM = { "4.9": "4" }; // XH₃ takes Xater's H–H repulsion (its own data leave it at nothing, and its clusters crowd hydrogens)
 const fitted = {};
+/* the clouds' damping scale, held between 0.25 and 3 times the repulsion's own exponent: left free, a fit can switch the
+   damping off, and an undamped r⁻³ inside the clouds (where the far-field form doesn't hold) is what packs a crystal */
+const CDAMP = (x) => 0.25 + 2.75 / (1 + Math.exp(-x));
 function solve(M, b) { const n = b.length, A = M.map((r, i) => [...r, b[i]]); for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[p], A[c]] = [A[c], A[p]]; for (let r = c + 1; r < n; r++) { const f = A[r][c] / A[c][c]; for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k]; } } const x = new Array(n); for (let r = n - 1; r >= 0; r--) { let s = A[r][n]; for (let k = r + 1; k < n; k++) s -= A[r][k] * x[k]; x[r] = s / A[r][r]; } return x; }
 /* Levenberg–Marquardt on a residual vector */
 function lm(resid, p0, iters = 200) {
@@ -59,7 +62,7 @@ export function fitKey(key, base, inter, log = () => {}) {
   // two hydrogens' overlap is a property of the hydrogens, not of the molecule they sit on: where a world's H–H
   // repulsion is fitted already (HH_FROM), it's taken as fitted there, not left to data that barely see it
   const hh = HH_FROM[key] ? fitted[HH_FROM[key]]?.p[2] : null, full = (x) => (hh === null || hh === undefined ? x : [x[0], x[1], hh, ...x.slice(2)]);
-  const T = (y) => { const x = full(y); return polTerms({ elec, pol: P, B, p: x.slice(0, 3), cdamp: clouds ? Math.exp(x[3]) : 1 }); };
+  const T = (y) => { const x = full(y); return polTerms({ elec, pol: P, B, p: x.slice(0, 3), cdamp: clouds ? CDAMP(x[3]) : 1 }); };
   const resid = (y) => pts.map((pt, i) => Math.sqrt(w[i]) * (clusterEnergy(T(y), [pt.A, pt.B]).E - pt.E));
   const old = FORCEFIELDS[key].p, start = clouds ? [old[1], old[4], old[6], 0] : [old[1], old[4], old[6]];
   const y = lm(resid, hh === null || hh === undefined ? start : [start[0], start[1], ...start.slice(3)], 150), x = full(y), TT = T(y);
@@ -67,7 +70,7 @@ export function fitKey(key, base, inter, log = () => {}) {
   const rms = (f) => { const s = pts.filter(f); return s.length ? +(Math.sqrt(s.reduce((t, pt) => t + (clusterEnergy(TT, [pt.A, pt.B]).E - pt.E) ** 2, 0) / s.length) * KCAL).toFixed(3) : null; };
   const scan = FFDATA[key].points.filter((q) => q.k >= 56 && q.k < 63).map((q) => ({ hf: +(q.E * KCAL).toFixed(3), model: +(clusterEnergy(TT, [q.A, q.B]).E * KCAL).toFixed(3) }));
   const out = { d, Z, R: m.R, param: m.param, elec: { qH: +elec.qH.toFixed(6), cX: +elec.cX.toFixed(6), cH: +elec.cH.toFixed(6), rel: +elec.rel.toFixed(4) }, pol: { ...(P.inter ? { inter: +P.inter.toFixed(4) } : {}), aX: +P.aX.toFixed(6), aH: +P.aH.toFixed(6), thole: Math.min(+P.thole.toPrecision(6), 1e6) }, tensor: { model: tensor.map((v) => +v.toFixed(4)), hf: hf.axes },
-    B, p: x.slice(0, 3).map((v) => +v.toPrecision(10)), cdamp: clouds ? +Math.exp(x[3]).toPrecision(6) : 1, rms: { attractive: rms((q) => q.E < 0 && q.k < 10000), probes: rms((q) => q.k >= 10000), all: rms(() => true) }, scan };
+    B, p: x.slice(0, 3).map((v) => +v.toPrecision(10)), cdamp: clouds ? +CDAMP(x[3]).toPrecision(6) : 1, rms: { attractive: rms((q) => q.E < 0 && q.k < 10000), probes: rms((q) => q.k >= 10000), all: rms(() => true) }, scan };
   fitted[key] = out;
   log(`${key}: repulsions ${out.p.join(", ")}, cloud damping ${out.cdamp}; rms attractive ${out.rms.attractive}, probes ${out.rms.probes}, all ${out.rms.all} kcal/mol`);
   return out;
