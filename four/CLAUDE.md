@@ -216,6 +216,21 @@ for games, and this is a modelling programme with publications to come. The game
   **generated** `js/icedata.js`). Selftest 47. Our water passes blind (random starts find the four-connected ice as
   the lowest); the 4D force fields as first fitted collapse into crystals four times too dense, which Hartree–Fock
   says they shouldn't, hence the probe rounds.
+  **The polarizable force field** (the search chapter's audit, "Three at once"): `js/polmodel.js` (no DOM) has charges
+  on the nuclei, in 4D a cloud term per atom (c/r³: a round cloud's own potential once the shell theorem fails; charge–
+  cloud q c/r³, cloud–cloud −3cc′/r⁵, Tang–Toennies-damped), Thole-damped induced dipoles on every site solved for all
+  molecules at once (Thole's a = 0.39 between molecules, the tensor's own within one) and Born–Mayer repulsion.
+  `js/polcrystal.js` is the same in a periodic cell (Ewald's split for r⁻¹ and r⁻³ in any d; numeric slopes, so
+  `crystal.js`'s descent falls back to central differences). **Generated** `js/polfields.js` comes from
+  `atom/tools/fitpol.mjs` (charges and clouds fitted to the molecule's Hartree–Fock potential, `tools/esp.mjs`;
+  polarizabilities to its Hartree–Fock tensor, `tools/polarize.mjs`; then repulsions and the clouds' damping to pairs,
+  crystal probes weighted 50×; XH₃ takes Xater's H–H repulsion). `atom/tools/manybody.mjs` runs Hartree–Fock trimers
+  (all seven energies in the trimer's basis) and a crystal's every neighbour pair (`shell`) on the runner, from
+  `tools/manybody-set.json`, and bakes **generated** `js/manybody.js`; `tools/polnumbers.mjs` prints what the search
+  chapter quotes from it. `clusters.mjs repol` relaxes the cluster search's best minima on the polarizable field (the
+  cluster audit; `repolbake` → `js/clusteraudit.js`). Selftest 48. Measured: 4D hydrogen-bonded rings are strongly
+  cooperative (three-body 23% and 42% of a ring's binding, our water's 8%); the field overshoots it 2–4× (its damping
+  between molecules is our world's); Hartree–Fock rejects the dense 4D crystals both fields find.
   `js/clusters.js` is **generated** by `atom/tools/clusters.mjs` (minima of
   3–6-molecule clusters on the force field; `--shard i/m` splits a search
   across machines). **Long runs go to the runner, not the sandbox** (below) . `js/census.js` is **generated** by

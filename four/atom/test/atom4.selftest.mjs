@@ -831,5 +831,28 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(r.g < 2e-5 && r.neighbours === 4 && r.hbonds === 2 && r.E < K.built.E && Math.abs(r.nearest - 5.74) < 0.05, `our water's ice: built on diamond with every bond carrying one hydrogen, it relaxes to a four-connected net (4 neighbours, 2 hydrogen bonds given each) at ${r.E.toFixed(2)} kcal/mol, O–O ${r.nearest.toFixed(2)} bohr, ${r.density.toFixed(2)} g/cm³`);
 }
 
+/* 48 · the polarizable force field (js/polmodel.js, js/polcrystal.js, js/polfields.js; the search chapter's audit): our
+   water's site polarizabilities give back its Hartree–Fock tensor; the periodic version's Ewald sums don't depend on
+   their split, in 4D with the clouds, and our water's pair in a large cell gives the pair alone; and the Hartree–Fock
+   trimers (js/manybody.js) say what the chapter says: our water's three-body part a small share of a trimer's binding,
+   4D rings' a large one, which the model catches in sign */
+{
+  const PF = (await import(path.join(here, "../js/polfields.js"))).POLFIELDS, PM = await import(path.join(here, "../js/polmodel.js"));
+  const PC = await import(path.join(here, "../js/polcrystal.js")), FP = await import(path.join(here, "../tools/fitpol.mjs")), MB = (await import(path.join(here, "../js/manybody.js"))).MANYBODY;
+  const { hydrideAtoms } = await import(path.join(here, "../tools/census.mjs")), { FFDATA } = await import(path.join(here, "../js/ffdata.js"));
+  const tm = (k) => hydrideAtoms(PF[k].Z, PF[k].d, PF[k].R, PF[k].param).map((a) => a.at), T3 = PM.tensorOf(tm("3"), PF["3"].pol).map((r, i) => r[i]);
+  const terr = Math.max(...T3.map((v, i) => Math.abs(v / PF["3"].tensor.hf[i] - 1)));
+  const T4 = FP.termsFor(PF["4"]), t4 = tm("4"), LS = await import(path.join(here, "../js/landscape.js")), MD = await import(path.join(here, "../js/md.js")), rnd = LS.rng(5);
+  const H = Array.from({ length: 4 }, (_, i) => Array.from({ length: 4 }, (_, j) => (j > i ? 0 : j === i ? 9 + rnd() : rnd() - 0.5))), CR = await import(path.join(here, "../js/crystal.js"));
+  const st = { H, mols: [0, 1].map(() => ({ R0: MD.randomRotation(4, rnd), s: Array.from({ length: 4 }, rnd) })) }, sites = CR.sitesOf({ tmpl: t4 }, st);
+  const ea = [3.6, 4.6].map((af) => new PC.PolCrystal({ d: 4, tmpl: t4, terms: T4, alphaFactor: af }).energy(st.H, sites).E), adep = Math.abs(ea[0] - ea[1]) * 627.509;
+  const T3t = FP.termsFor(PF["3"]), dim = FFDATA["3"].points.find((q) => q.k === 58), L = 32, Hc = [[L, 0, 0], [0, L, 0], [0, 0, L]], C3 = new PC.PolCrystal({ d: 3, tmpl: tm("3"), terms: T3t });
+  const cell = (2 * C3.energy(Hc, [dim.A, dim.B]).E - C3.energy(Hc, [dim.A]).E - C3.energy(Hc, [dim.B]).E) * 627.509, alone = PM.clusterEnergy(T3t, [dim.A, dim.B]).E * 627.509;
+  ok(terr < 0.002 && adep < 1e-4 && Math.abs(cell - alone) < 0.06, `the polarizable field: our water's tensor from its sites to ${(terr * 100).toFixed(2)}%; the periodic sums independent of Ewald's split to ${adep.toExponential(0)} kcal/mol (4D, clouds and dipoles); our water's pair in a 32-bohr cell ${cell.toFixed(3)} against ${alone.toFixed(3)} alone`);
+  const share = (t) => t.three / t.total, w = MB.trimers.find((t) => t.key === "3"), rings = MB.trimers.filter((t) => /cyclic/.test(t.label));
+  const mod3 = (t) => { const X = t.mols, Tk = FP.termsFor(PF[t.key]), e = (ms) => PM.clusterEnergy(Tk, ms).E; return (e(X) - e([X[0], X[1]]) - e([X[0], X[2]]) - e([X[1], X[2]])) * 627.509; };
+  ok(share(w) < 0.1 && rings.length === 2 && rings.every((t) => share(t) > 0.2 && mod3(t) < 0) && mod3(w) < 0, `Hartree–Fock trimers: our water's three-body part ${(share(w) * 100).toFixed(0)}% of its binding, 4D rings' ${rings.map((t) => (share(t) * 100).toFixed(0) + "%").join(" and ")}; the polarizable field has them all the right sign`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

@@ -1,132 +1,60 @@
 {
- "run": "manybody-shell-1",
- "why": "Is a dense 4D crystal real at the Hartree-Fock level? Two tests on crystals the polarizable force field finds (and the old model's collapsed ones): seven trimers' three-body energies (one from our water's ice, the calibration), and one dense Xater crystal's every distinct neighbour pair within 10 bohr (102), each a Hartree-Fock pair energy, summed into its pairwise lattice energy. Queued behind corr-4. Plus the two cyclic trimers the polarizable field relaxes the published best trimers into (Xater -73.9, XH3 -81.8 kcal/mol against -56.7 and -56.4 on the old field): the audit's sharpest claim, tested directly.",
+ "run": "manybody-2",
+ "why": "manybody-shell-1 found 4D hydrogen-bonded rings strongly cooperative (Hartree-Fock three-body 23% of a Xater ring's binding, 42% of XH3's, against 8% for our water's) and the polarizable field overshooting it 2-4x. Nine more trimers (our water's ring, and the tightest and loosest triples of the field's relaxed 4- and 5-molecule 4D clusters) to fit the field's damping between molecules and to test the fit.",
  "minutes": 240,
  "groups": [
   {
-   "name": "mb-water-ice",
+   "name": "mb2-9-water",
    "cmds": [
-    "node four/atom/tools/manybody.mjs run 0"
+    "node four/atom/tools/manybody.mjs run 9"
    ]
   },
   {
-   "name": "mb-xater-pol-0",
+   "name": "mb2-10-xater",
    "cmds": [
-    "node four/atom/tools/manybody.mjs run 1"
+    "node four/atom/tools/manybody.mjs run 10"
    ]
   },
   {
-   "name": "mb-xater-pol-1",
+   "name": "mb2-11-xater",
    "cmds": [
-    "node four/atom/tools/manybody.mjs run 2"
+    "node four/atom/tools/manybody.mjs run 11"
    ]
   },
   {
-   "name": "mb-xater-old-0",
+   "name": "mb2-12-xater",
    "cmds": [
-    "node four/atom/tools/manybody.mjs run 3"
+    "node four/atom/tools/manybody.mjs run 12"
    ]
   },
   {
-   "name": "mb-xater-old-1",
+   "name": "mb2-13-xater",
    "cmds": [
-    "node four/atom/tools/manybody.mjs run 4"
+    "node four/atom/tools/manybody.mjs run 13"
    ]
   },
   {
-   "name": "mb-xh3-old-0",
+   "name": "mb2-14-xh3",
    "cmds": [
-    "node four/atom/tools/manybody.mjs run 5"
+    "node four/atom/tools/manybody.mjs run 14"
    ]
   },
   {
-   "name": "mb-xh3-old-1",
+   "name": "mb2-15-xh3",
    "cmds": [
-    "node four/atom/tools/manybody.mjs run 6"
+    "node four/atom/tools/manybody.mjs run 15"
    ]
   },
   {
-   "name": "shell-xater-0",
+   "name": "mb2-16-xh3",
    "cmds": [
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 0/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 1/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 2/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 3/32"
+    "node four/atom/tools/manybody.mjs run 16"
    ]
   },
   {
-   "name": "shell-xater-1",
+   "name": "mb2-17-xh3",
    "cmds": [
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 4/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 5/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 6/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 7/32"
-   ]
-  },
-  {
-   "name": "shell-xater-2",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 8/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 9/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 10/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 11/32"
-   ]
-  },
-  {
-   "name": "shell-xater-3",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 12/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 13/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 14/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 15/32"
-   ]
-  },
-  {
-   "name": "shell-xater-4",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 16/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 17/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 18/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 19/32"
-   ]
-  },
-  {
-   "name": "shell-xater-5",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 20/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 21/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 22/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 23/32"
-   ]
-  },
-  {
-   "name": "shell-xater-6",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 24/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 25/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 26/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 27/32"
-   ]
-  },
-  {
-   "name": "shell-xater-7",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 28/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 29/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 30/32",
-    "node four/atom/tools/manybody.mjs shell 0 10 --shard 31/32"
-   ]
-  },
-  {
-   "name": "mb-xater-ring",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 7"
-   ]
-  },
-  {
-   "name": "mb-xh3-ring",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 8"
+    "node four/atom/tools/manybody.mjs run 17"
    ]
   }
  ]
