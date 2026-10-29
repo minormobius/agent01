@@ -4,9 +4,28 @@ PR,PM=AUD['PROBES'],AUD['PAIRMIN']
 # Xater's best pair as the census re-bake left it (audit-2), before the rebuilt descent took it lower: history, kept by hand
 XFUNNEL,XFUNNEL_DXX=26.938,4.883
 # (binding energies, kcal/mol, positive as kc() gives them)
-# the 4D placements' relaxations (audit-3, all cut at the deadline before writing a result): the deepest each reached, and
-# the last step's fall, from the runs' logs on atom4-data (runs/audit-3/deepen-*/0.log)
-DEEPEN={'4':(25.796,0.003),'4.9':(26.929,0.383)}
+# the 4D placements' relaxations, the four deepest of each pair after two rounds of 5.5 h (audit-3, audit-4; a cut run
+# writes nothing, so these are from the logs on atom4-data, runs/audit-4/deepen-*/0.log): the deepest each reached
+# (kcal/mol, bound), the last step's fall, and whether it ended (no lower point)
+DEEPEN={'4':[(27.351,0.003,False),(26.957,0.036,False),(26.330,0.066,False),(25.454,0.117,False)],
+        '4.9':[(27.543,0.001,True),(27.541,0.005,False),(27.524,0.002,False),(25.631,0.448,False)]}
+def _deep(k):
+    b=kc(PM[k]['best']['E']); at=[x for x in DEEPEN[k] if b-x[0]<0.05]; off=[x for x in DEEPEN[k] if b-x[0]>=0.05]
+    return b,at,off
+def _deeptxt():
+    WORDS={1:'one',2:'two',3:'three',4:'four'}; NM={'4':'Xater','4.9':'XH₃'}; parts=[]; rest=[]
+    for k in ('4.9','4'):
+        b,at,off=_deep(k); ended=[x for x in at if x[2]]; near=[x for x in at if not x[2]]
+        bits=[]
+        if ended: bits.append(f"{WORDS[len(ended)]} ended in the best pair ({f(b,2)} kcal/mol)")
+        if near: bits.append(f"{WORDS[len(near)]} {'more are' if ended and len(near)>1 else 'more is' if ended else 'is' if len(near)==1 else 'are'} within {f(max(b-x[0] for x in near)+0.005,2)} of {'it' if ended else 'its best ('+f(b,2)+')'}, the gradient almost gone")
+        if bits: parts.append(f"of {NM[k]}'s, " + " and ".join(bits))
+        rest+= [(NM[k],x) for x in off]
+    lo=min(b-x[0] for k in DEEPEN for b,_,o in [_deep(k)] for x in o); hi=max(b-x[0] for k in DEEPEN for b,_,o in [_deep(k)] for x in o)
+    fl=[x[1] for _,x in rest]
+    by=" and ".join(f"{n}'s at {', '.join(f(x[0],2) for m,x in rest if m==n)}" for n in dict.fromkeys(m for m,_ in rest))
+    t="; ".join(parts); t=t[0].upper()+t[1:]
+    return f"{t}. The other {WORDS[len(rest)]} are still crossing flat ground off saddles, {f(lo,1)} to {f(hi,1)} kcal/mol above the best pair and falling by {f(min(fl),2)} to {f(max(fl),2)} a step ({by}); their energies are cached, so another round would pick up where they stopped."
 def kc(x): return -x*KC
 BOHR_A=0.529177
 # the first audit's miss, kept as history (audit-1, on the compute runner, 2026-10-27): the straight
@@ -44,6 +63,7 @@ CLX=(f"None of this is the whole count. Only our water's six has nearly settled:
      + f"The clusters also hold together far harder in 4D: the best of {WORD[n7]} binds at {-cl('3',n7)['best'][0]['E']*KC/n7:.1f} kcal/mol per molecule for our water and {-cl('4',n7)['best'][0]['E']*KC/n7:.1f} for Xater. These are the force field's energies, not Hartree–Fock's, and the force field has no three-body forces.")
 def dof(d): return d, d*(d-1)//2
 rows=''.join(f'<tr><td class="d{d if d in (3,4) else ""}">{d}D</td><td>{dof(d)[0]}</td><td>{dof(d)[1]}</td><td><b>{sum(dof(d))}</b></td><td>{sum(dof(d))*99}</td></tr>' for d in (2,3,4,5,6))
+DEEPTXT=_deeptxt()
 search=f'''<section id="miss">
   <h3>The miss</h3>
   <p><a href="census.html">Chapter 10</a> first reported that a pair of Xater molecules binds at {f(-PX['census']*KC,1)} kcal/mol. A liquid run on a force field fitted to Hartree–Fock pairs then held pairs together harder than that. Searched properly, the pair binds at {f(-PX['best']['E']*KC,1)}: twice as hard, and in a different shape. Nothing was wrong with the arithmetic. The census had only looked in one place. It slid one molecule along a line and tilted it in one plane, two numbers, inside the family of arrangements our water's hydrogen bond makes. That family was our world's intuition, carried into a world where it doesn't hold.</p>
@@ -105,7 +125,7 @@ search=f'''<section id="miss">
   <p><b>Hartree–Fock without the force field: nothing deeper.</b> Two molecules were placed at random in close contact and scored by Hartree–Fock itself: {PR['3']['placements']} placements for our water, {PR['4']['placements']:,} for Xater, {PR['4.9']['placements']:,} for XH₃. None came out deeper than the best pair. The deepest reached {f(kc(PR['3']['deepest']),1)} of water's {f(kc(PR['3']['best']),1)} kcal/mol, {f(kc(PR['4']['deepest']),1)} of Xater's {f(kc(PR['4']['best']),1)}, and {f(kc(PR['4.9']['deepest']),1)} of XH₃'s {f(kc(PR['4.9']['best']),1)}. On the attractive placements the force field is off by {f(PR['3']['rms']*KC,1)} kcal/mol (rms) for our water and {f(PR['4']['rms']*KC,1)} and {f(PR['4.9']['rms']*KC,1)} for the 4D pair. On single placements it misses up to {f(PR['4.9']['shallowest']*KC,0)} kcal/mol of the pull, so it does have blind spots in 4D. None hid a deeper pair among these placements.</p>
   <p><b>The census re-baked with the corrected descent: it stands.</b> The best pairs come out at {f(XFUNNEL,2)} and {f(kc(PM['4.9']['best']['E']),2)} kcal/mol, as before. The force field's six "distinct" minima per molecule, which the faulty descent had reported, collapse to one each: the funnel.</p>
   <p><b>The new descent, run on all three.</b> For our water and XH₃ it confirms the best pairs ({f(kc(PM['3']['best']['E']),2)} and {f(kc(PM['4.9']['best']['E']),2)} kcal/mol). For Xater it set off from the {f(XFUNNEL,2)} pair and, over two runs' time, relaxed it to <b>{f(kc(PM['4']['best']['E']),2)} kcal/mol</b>, where it converged: the same arrangement, the two Xs moved from {f(XFUNNEL_DXX*BOHR_A,2)} to {f(PM['4']['best']['dXX']*BOHR_A,2)} Å apart. <b>The tie holds and narrows</b>: XH₃ is ahead by {f(kc(PM['4.9']['best']['E']-PM['4']['best']['E']),2)} kcal/mol, where it led by {f(kc(PM['4.9']['best']['E'])-XFUNNEL,2)}. Both gaps are far smaller than what Hartree–Fock leaves out (correlation), so on chemistry the two still tie.</p>
-  <p><b>The deepest random placements, relaxed.</b> Water's four deepest ended in the best pair or in shallower minima, never deeper. For the 4D pairs each step of the descent costs over half an hour of Hartree–Fock, so their four deepest each ran five and a half hours and were cut still descending, none yet as deep as the best pair: Xater's reached {f(DEEPEN['4'][0],2)} of {f(kc(PM['4']['best']['E']),2)} kcal/mol, XH₃'s {f(DEEPEN['4.9'][0],2)} of {f(kc(PM['4.9']['best']['E']),2)}, the latter still falling by {f(DEEPEN['4.9'][1],2)} a step. They are queued again; their energies are cached, so the runs pick up where they stopped.</p>
+  <p><b>The deepest random placements, relaxed.</b> Water's four deepest ended in the best pair or in shallower minima, never deeper. For the 4D pairs each step of the descent costs over half an hour of Hartree–Fock; their four deepest each ran two rounds of five and a half hours. {DEEPTXT} None has gone deeper than the best pair.</p>
   <p>So far no check has found a different, deeper arrangement than the 4D best pairs, and hydrogen fluoride is found. But the lesson stands: random placements are thin in ten dimensions, and a search goes where its force field and its descent lead. Still open: the 4D relaxations above, longer cluster searches where the counts haven't settled, giving the force field the lone pairs' directions, and the other searches in this position.</p>
 </section>
 '''
