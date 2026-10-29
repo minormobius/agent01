@@ -3,6 +3,11 @@
    1. the charges and, in 4D, the clouds, from its electrostatic potential (tools/esp.mjs fitSites);
    2. the site polarizabilities and the Thole a within the molecule, from its polarizability tensor by finite field
       (tools/polarize.mjs);
+   2b. in 4D, how strongly the dipoles of different molecules are damped at close range (Thole's a between molecules),
+      from Hartree–Fock trimers (js/manybody.js): a three-body energy comes from polarization alone (charges, clouds and
+      repulsions add in pairs and cancel out of it), so this one number is fitted to the trimers' three-body terms before
+      anything else touches pairs. One a for both 4D waters; our water's trimers don't depend on it, so it keeps
+      Thole's own 0.39. The fit is also made on the first trimers alone and tested on the rest (interFit);
    3. the repulsions (A per site pair, exponents by the Born–Mayer rule) and the clouds' damping scale, from the pair
       energies in js/ffdata.js. Weights as tools/fitff.mjs gives them (e^(−E/W), the attractive placements counting most),
       except the crowded pairs from crystal probes (k ≥ 10000), which count PROBE times: a crystal is many such contacts,
@@ -35,7 +40,7 @@ function lm(resid, p0, iters = 200) {
   }
   return p;
 }
-export function fitKey(key, log = () => {}) {
+export function fitBase(key, log = () => {}) {
   const d = WORLDS[key].d, m = monoOf(key), tmpl = hydrideAtoms(m.Z, d, m.R, m.param).map((a) => a.at), Z = m.Z;
   // 1. electrostatics
   const elec = fitSites(espGrid(key, { nPer: 50, shells: [1.4, 1.8, 2.4, 3, 4] })); log(`${key}: charges and clouds`, JSON.stringify(elec));
@@ -44,6 +49,10 @@ export function fitKey(key, log = () => {}) {
   const resT = (x) => tensorOf(tmpl, pol(x)).flatMap((row, i) => row.map((v, j) => (v - (i === j ? hf.axes[i] : 0)) / hf.mean));
   let best = null; for (const s of [[1, -1, -1], [1.5, 0, 0], [0.5, 0.5, -1.5], [2, -2, 0.5]]) { const x = lm(resT, s), c = resT(x).reduce((t, v) => t + v * v, 0); if (!best || c < best.c) best = { x, c }; }
   const P = pol(best.x), tensor = tensorOf(tmpl, P).map((r, i) => r[i]); log(`${key}: polarizabilities`, JSON.stringify(P), "tensor", tensor.map((v) => v.toFixed(3)).join(" "), "vs HF", hf.axes.join(" "));
+  return { key, d, m, tmpl, Z, elec, P, hf, tensor };
+}
+export function fitKey(key, base, inter, log = () => {}) {
+  const { d, m, Z, elec, hf, tensor } = base, P = inter ? { ...base.P, inter } : base.P;
   // 3. repulsions and the clouds' damping
   const B = { XX: bornMayer(d, Z, Z), XH: bornMayer(d, Z, 1), HH: bornMayer(d, 1, 1) }, clouds = d === 4;
   const pts = FFDATA[key].points.filter((p) => p.ok && p.E < CAP), w = pts.map((p) => (p.k >= 10000 ? PROBE : Math.exp(-Math.min(p.E, 0) / W) / (1 + Math.max(p.E, 0) / W)));
@@ -57,10 +66,22 @@ export function fitKey(key, log = () => {}) {
   if (hh !== null && hh !== undefined) log(`${key}: H–H repulsion taken from ${HH_FROM[key]} (ln A ${hh.toFixed(4)})`);
   const rms = (f) => { const s = pts.filter(f); return s.length ? +(Math.sqrt(s.reduce((t, pt) => t + (clusterEnergy(TT, [pt.A, pt.B]).E - pt.E) ** 2, 0) / s.length) * KCAL).toFixed(3) : null; };
   const scan = FFDATA[key].points.filter((q) => q.k >= 56 && q.k < 63).map((q) => ({ hf: +(q.E * KCAL).toFixed(3), model: +(clusterEnergy(TT, [q.A, q.B]).E * KCAL).toFixed(3) }));
-  const out = { d, Z, R: m.R, param: m.param, elec: { qH: +elec.qH.toFixed(6), cX: +elec.cX.toFixed(6), cH: +elec.cH.toFixed(6), rel: +elec.rel.toFixed(4) }, pol: { aX: +P.aX.toFixed(6), aH: +P.aH.toFixed(6), thole: Math.min(+P.thole.toPrecision(6), 1e6) }, tensor: { model: tensor.map((v) => +v.toFixed(4)), hf: hf.axes },
+  const out = { d, Z, R: m.R, param: m.param, elec: { qH: +elec.qH.toFixed(6), cX: +elec.cX.toFixed(6), cH: +elec.cH.toFixed(6), rel: +elec.rel.toFixed(4) }, pol: { ...(P.inter ? { inter: +P.inter.toFixed(4) } : {}), aX: +P.aX.toFixed(6), aH: +P.aH.toFixed(6), thole: Math.min(+P.thole.toPrecision(6), 1e6) }, tensor: { model: tensor.map((v) => +v.toFixed(4)), hf: hf.axes },
     B, p: x.slice(0, 3).map((v) => +v.toPrecision(10)), cdamp: clouds ? +Math.exp(x[3]).toPrecision(6) : 1, rms: { attractive: rms((q) => q.E < 0 && q.k < 10000), probes: rms((q) => q.k >= 10000), all: rms(() => true) }, scan };
   fitted[key] = out;
   log(`${key}: repulsions ${out.p.join(", ")}, cloud damping ${out.cdamp}; rms attractive ${out.rms.attractive}, probes ${out.rms.probes}, all ${out.rms.all} kcal/mol`);
+  return out;
+}
+/* 2b: one Thole a between molecules for the given keys, from the Hartree–Fock trimers' three-body terms (golden-section
+   search on ln a over 0.03–1); fitted on all of them, and separately on those numbered ≤ split to test on the rest */
+export async function fitInter(bases, log = () => {}, split = 8) {
+  const { MANYBODY } = await import("../js/manybody.js"), keys = Object.keys(bases), tr = MANYBODY.trimers.filter((t) => keys.includes(t.key)); if (tr.length < 3) return null;
+  const e3 = (a, t) => { const b = bases[t.key], T = polTerms({ elec: b.elec, pol: { ...b.P, inter: a }, B: { XX: 1, XH: 1, HH: 1 }, p: [0, 0, 0] }), E = (ms) => clusterEnergy(T, ms).E, X = t.mols; return (E(X) - E([X[0], X[1]]) - E([X[0], X[2]]) - E([X[1], X[2]])) * KCAL; };
+  const rms = (a, set) => Math.sqrt(set.reduce((s, t) => s + (e3(a, t) - t.three) ** 2, 0) / set.length);
+  const best = (set) => { let lo = Math.log(0.03), hi = Math.log(1); for (let k = 0; k < 40; k++) { const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3; if (rms(Math.exp(m1), set) < rms(Math.exp(m2), set)) hi = m2; else lo = m1; } return Math.exp((lo + hi) / 2); };
+  const train = tr.filter((t) => t.i <= split), test = tr.filter((t) => t.i > split), aT = best(train), a = best(tr);
+  const out = { a: +a.toFixed(4), n: tr.length, rms: +rms(a, tr).toFixed(3), rms039: +rms(0.39, tr).toFixed(3), split: { a: +aT.toFixed(4), train: train.length, test: test.length, rmsTrain: +rms(aT, train).toFixed(3), rmsTest: +rms(aT, test).toFixed(3), rmsTest039: +rms(0.39, test).toFixed(3) } };
+  log(`Thole's a between molecules (${keys.join(", ")}): ${out.a} from ${out.n} trimers (rms ${out.rms} kcal/mol; 0.39 gave ${out.rms039}); fitted on ${train.length}, it predicts the other ${test.length} to ${out.split.rmsTest} (0.39: ${out.split.rmsTest039})`);
   return out;
 }
 /* the field's terms for a key, as js/polmodel.js and js/polcrystal.js take them */
@@ -70,7 +91,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const keys = process.argv.slice(2).length ? process.argv.slice(2) : ["3", "4", "4.9"], file = new URL("../js/polfields.js", import.meta.url);
   const old = existsSync(file) ? (await import("../js/polfields.js")).POLFIELDS : {}, out = { ...old };
   Object.assign(fitted, old);
-  for (const key of keys) out[key] = fitKey(key, console.log);
+  const bases = Object.fromEntries(keys.map((k) => [k, fitBase(k, console.log)])), four = Object.fromEntries(keys.filter((k) => bases[k].d === 4).map((k) => [k, bases[k]]));
+  const inter = Object.keys(four).length && existsSync(new URL("../js/manybody.js", import.meta.url)) ? await fitInter(four, console.log) : null;
+  for (const key of keys) { out[key] = fitKey(key, bases[key], bases[key].d === 4 && inter ? inter.a : null, console.log); if (bases[key].d === 4 && inter) out[key].interFit = inter; }
   writeFileSync(file, `/* Generated by tools/fitpol.mjs; do not edit. Per world, the polarizable force field (js/polmodel.js): charges and 4D's
    clouds fitted to the molecule's Hartree–Fock potential (rel: the misfit over the potential's size), site
    polarizabilities fitted to its Hartree–Fock tensor (both shown), Born–Mayer exponents B, the fitted repulsions p

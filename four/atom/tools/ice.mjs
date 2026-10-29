@@ -3,7 +3,7 @@
    (js/crystal.js), the way crystal-structure prediction is done for our molecules: many random starts, keep the
    lowest. Keys as in tools/forcefield.mjs: 3 our water (the known answer: it must freeze into a four-connected
    hydrogen-bonded net, as ice does), 4 Xater, 4.9 element 9's XH₃.
-     node four/atom/tools/ice.mjs <key> <Z> [starts] [--shard i/m]   # one search; cached, so a cut run resumes
+     node four/atom/tools/ice.mjs <key> <Z> [starts] [--shard i/m] [--pol]   # one search (--pol: on the polarizable field)
      node four/atom/tools/ice.mjs known                             # our water's ice Ic, built by hand and relaxed
      node four/atom/tools/ice.mjs bake                              # gather what's done into js/icedata.js
      node four/atom/tools/ice.mjs probe <key> <round> [n] [--from f] # Hartree–Fock on the found crystals' closest pairs
@@ -27,6 +27,13 @@ import { Crystal, relaxSteps, sitesOf, tidy, det } from "../js/crystal.js";
 
 const KCAL = 627.509, CACHE = path.join(tmpdir(), "atom4-ice"), BOHR_CM = 0.529177210903e-8, NA = 6.02214076e23;
 const RC = { 3: 12, 4: 14 };
+/* the crystal for a key on the pairwise field (js/forcefields.js), or with pol on the polarizable one (js/polfields.js,
+   js/polcrystal.js: slower, its slopes numerical) */
+export async function polCrystalOf(key) {
+  const { POLFIELDS } = await import("../js/polfields.js"), { PolCrystal } = await import("../js/polcrystal.js"), { termsFor } = await import("./fitpol.mjs");
+  const w = WORLDS[key], d = w.d, m = monoOf(key), tmpl = hydrideAtoms(m.Z, d, m.R, m.param).map((a) => a.at);
+  return { d, m, C: new PolCrystal({ d, tmpl, terms: termsFor(POLFIELDS[key]) }) };
+}
 export function crystalOf(key) {
   const w = WORLDS[key], d = w.d, m = monoOf(key), tmpl = hydrideAtoms(m.Z, d, m.R, m.param).map((a) => a.at), nH = tmpl.length - 1, { q, pairs } = termsOf(FORCEFIELDS[key].p);
   return { d, m, C: new Crystal({ d, tmpl, q: [-nH * q, ...new Array(nH).fill(q)], types: ["X", ...new Array(nH).fill("H")], pairs, rc: RC[d], width: 2 }) };
@@ -69,9 +76,9 @@ export function start(key, C, Z, s) {
     if (ok) return st;
   }
 }
-export async function search(key, Z, starts, log = () => {}, [si, sm] = [0, 1]) {
-  const { C } = crystalOf(key), file = path.join(CACHE, sm > 1 ? `${key}_${Z}_s${si}of${sm}.json` : `${key}_${Z}.json`); mkdirSync(CACHE, { recursive: true });
-  const st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { key, d: C.d, Z, shard: [si, sm], done: 0, minima: [], curve: [], unfinished: 0, collapsed: 0, steps: [], seconds: 0 };
+export async function search(key, Z, starts, log = () => {}, [si, sm] = [0, 1], pol = false) {
+  const { C } = pol ? await polCrystalOf(key) : crystalOf(key), tag = pol ? "_pol" : "", file = path.join(CACHE, sm > 1 ? `${key}_${Z}${tag}_s${si}of${sm}.json` : `${key}_${Z}${tag}.json`); mkdirSync(CACHE, { recursive: true });
+  const st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { key, d: C.d, Z, field: pol ? "pol" : "pair", shard: [si, sm], done: 0, minima: [], curve: [], unfinished: 0, collapsed: 0, steps: [], seconds: 0 };
   const at = () => si + sm * st.done;
   let t0 = Date.now(), lastSave = Date.now();
   while (at() < starts) {
@@ -141,7 +148,7 @@ export async function probe(key, round, n = 16, from = null) {
 export function bake() {
   const out = {};
   for (const f of existsSync(CACHE) ? readdirSync(CACHE) : []) {
-    const r = JSON.parse(readFileSync(path.join(CACHE, f), "utf8")), id = `${r.key}_${r.Z}`; if (!r.minima) continue;
+    const r = JSON.parse(readFileSync(path.join(CACHE, f), "utf8")), id = `${r.key}_${r.Z}${r.field === "pol" ? "_pol" : ""}`; if (!r.minima) continue;
     const o = (out[id] ||= { key: r.key, d: r.d, Z: r.Z, starts: 0, unfinished: 0, collapsed: 0, seconds: 0, minima: [] });
     o.starts += r.done; o.unfinished += r.unfinished; o.collapsed += r.collapsed; o.seconds += r.seconds;
     for (const m of r.minima) { const b = o.minima.find((x) => same(x, m)); if (b) b.hits += m.hits; else o.minima.push({ ...m }); }
@@ -156,6 +163,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (cmd === "known") console.log(JSON.stringify(known(), null, 1));
   else if (cmd === "probe") { const fr = process.argv.indexOf("--from"); await probe(a, +b, +(process.argv[5] || 16), fr > 0 ? process.argv[fr + 1] : null); }
   else if (cmd === "bake") console.log(JSON.stringify(Object.fromEntries(Object.entries(bake()).map(([k, o]) => [k, { starts: o.starts, found: o.found, best: o.minima.slice(0, 3).map(({ E, V, hbonds, neighbours, hits }) => ({ E, V, hbonds, neighbours, hits })) }])), null, 1));
-  else if (WORLDS[cmd]) await search(cmd, +a, +(b && !b.startsWith("--") ? b : 200), console.log, shard);
+  else if (WORLDS[cmd]) await search(cmd, +a, +(b && !b.startsWith("--") ? b : 200), console.log, shard, process.argv.includes("--pol"));
   else console.log("usage: ice.mjs <key> <Z> [starts] [--shard i/m] | known | probe <key> <round> [n] | bake");
 }
