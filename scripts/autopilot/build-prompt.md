@@ -33,9 +33,9 @@ _Regenerated 2026-10-29 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-29, 100 members / 256 posts):
+**Neighborhood spark** (bisk 2026-10-29, 100 members / 232 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: idk, imo, llm
+- Distinctive words: imo, llm, bluesky
 - Top post: "So, my friends have convinced me it’s not true that AI leads inevitably to cognitive surrender. But I’m getting a *littl" — @tedunderwood.com
 <!-- BRIEF_END -->
 
