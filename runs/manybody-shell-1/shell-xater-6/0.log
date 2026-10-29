@@ -1,9 +1,6 @@
 $ node four/atom/tools/manybody.mjs shell 0 10 --shard 24/32
 crystal 0 (Xater, polarizable model's dense crystal): 102 distinct pairs within 10 bohr; this shard 24/32
-pair 24 (0→0, X–X 6.7477): 3.695 kcal/mol (108 s)
-pair 56 (0→0, X–X 8.9467): -3.311 kcal/mol (97 s)
-pair 88 (0→1, X–X 9.6339): 0.072 kcal/mol (95 s)
-(node:2537) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gauss.js is not specified and it doesn't parse as CommonJS.
+(node:2535) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gauss.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)

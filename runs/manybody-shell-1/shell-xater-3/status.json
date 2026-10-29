@@ -6,28 +6,28 @@
    "code": 0,
    "signal": null,
    "cut": false,
-   "seconds": 304
+   "seconds": 0
   },
   {
    "cmd": "node four/atom/tools/manybody.mjs shell 0 10 --shard 13/32",
    "code": 0,
    "signal": null,
    "cut": false,
-   "seconds": 310
+   "seconds": 0
   },
   {
    "cmd": "node four/atom/tools/manybody.mjs shell 0 10 --shard 14/32",
    "code": 0,
    "signal": null,
    "cut": false,
-   "seconds": 300
+   "seconds": 0
   },
   {
    "cmd": "node four/atom/tools/manybody.mjs shell 0 10 --shard 15/32",
    "code": 0,
    "signal": null,
    "cut": false,
-   "seconds": 307
+   "seconds": 0
   }
  ]
 }
