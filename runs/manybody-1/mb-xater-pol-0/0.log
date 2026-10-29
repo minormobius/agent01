@@ -1,0 +1,14 @@
+$ node four/atom/tools/manybody.mjs run 1
+trimer 1: 225 functions, integrals in 81 s
+trimer 1 012: -194.61834517 (converged, 75 s)
+trimer 1 01: -129.74418283 (converged, 71 s)
+trimer 1 02: -129.74418292 (converged, 71 s)
+trimer 1 12: -129.72915178 (converged, 65 s)
+trimer 1 0: -64.86760517 (converged, 68 s)
+trimer 1 1: -64.86727215 (converged, 66 s)
+trimer 1 2: -64.86727215 (converged, 65 s)
+{"i":1,"label":"Xater, polarizable model's crystal #0","pairs":{"12":3.383856940522428,"01":-5.839289702715714,"02":-5.83935236393822},"three":-1.8681623572908592,"total":-10.1629474834402}
+(node:2537) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gauss.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
