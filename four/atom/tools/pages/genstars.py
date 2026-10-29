@@ -162,7 +162,7 @@ planets=f'''<section id="orbits">
     <tr><td>sharing a line, tilted 90°: our polar moon</td><td>{OR['moons']['line90']['emax']}</td><td><b>lost on orbit {OR['moons']['line90']['lost']}</b></td></tr>
     <tr><td>tilted 45° in both angles</td><td>{OR['moons']['iso45']['emax']}</td><td>kept, its plane swinging right round</td></tr>
     <tr><td><b>completely orthogonal</b></td><td><b>{OR['moons']['ortho']['emax']}</b></td><td><b>kept, its plane never moving</b></td></tr></table>
-  <p><b>Every 4D planet has one plane where its moons are safest</b>, the one completely orthogonal to its own orbit, and moons there sit the quietest of all. A planet's moons make an orrery of their own, and its natural plane is the one its planet's orbit leaves free.</p>
+  <p><b>Every 4D planet has one plane where its moons are safest</b>, the one completely orthogonal to its own orbit, and moons there sit the quietest of all. A planet's moons make an orrery of their own, and its natural plane is the one its planet's orbit leaves free. <a href="../orrery/">The orrery</a> puts these results together: a system whose planes come from the nebula below, spaced by the stability map, its moons in their safe planes, run live.</p>
 </section>
 <section id="sunlight">
   <h3>Starlight on a planet <span class="tag follows">follows</span></h3>

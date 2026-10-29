@@ -81,6 +81,15 @@ for games, and this is a modelling programme with publications to come. The game
   (`atom/js/magnet.js`: diamagnetism from both halves, the spin's pull from the left half only), and a spinning ball's
   field seen from our slice (`magnet.js` `spinField`: the part within the slice and the part reaching into w, two 3D
   fields drawn as field lines, with a test charge pushed out of the slice; selftest 46 holds it to Biot–Savart).
+- **the orrery at `/orrery/`**: a 4D planetary system run live (`orrery/orrery.js`, drawing only, in `atom/js/tile.js`'s
+  viewer). The system is `atom/js/orrery.js` (no DOM, selftest 49): planes from the nebula runs (every orbit takes the
+  cloud's left half of turning, its right half drawn round the cloud's with the measured mean cosine `MINUS`, so any two
+  planes are isoclinic at half their right halves' angle and the stability map's "iso" runs apply exactly), spacings
+  from `js/stabilitydata.js` (the grid point below, plus a margin, then a short run and a redraw if anything strays),
+  moons in the completely orthogonal plane (left half kept, right reversed) at a third of the Hill radius,
+  temperatures from `orbits.js` `planetT` round a star declared as hot as our Sun (distances in units of 100 star
+  radii). Moons' distances are drawn ×8; the URL keeps the seed. Days and seasons are open (a 4D planet spins in two
+  planes), so the planets don't turn.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 78 4D elements (`atom/js/table.js`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)

@@ -854,5 +854,25 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(share(w) < 0.1 && rings.length === 2 && rings.every((t) => share(t) > 0.2 && mod3(t) < 0) && mod3(w) < 0, `Hartree–Fock trimers: our water's three-body part ${(share(w) * 100).toFixed(0)}% of its binding, 4D rings' ${rings.map((t) => (share(t) * 100).toFixed(0) + "%").join(" and ")}; the polarizable field has them all the right sign`);
 }
 
+/* 49 · the orrery (js/orrery.js, four.mino.mobi/orrery/): a plane is rebuilt from its two halves of turning; two planes
+   sharing the left half are isoclinic, both angles half the angle between their right halves (so the stability map's
+   "iso" runs apply exactly); a moon's plane, left half kept and right reversed, is completely orthogonal to its
+   planet's; the nebula alignment the generator uses is the runs' own; and a generated system holds when run */
+{
+  const OR = await import(path.join(here, "../js/orrery.js")), OB = await import(path.join(here, "../js/orbits.js")), { NEBULA } = await import(path.join(here, "../js/nebuladata.js"));
+  const unit = (v) => { const n = Math.hypot(...v); return v.map((x) => x / n); }, l = unit([0.3, -0.5, 0.8]), r1 = unit([0.9, 0.1, -0.2]), r2 = unit([-0.1, 0.7, 0.4]);
+  const B1 = OR.bivector(l, r1), [u1, v1] = OR.spanOf(B1), [u2, v2] = OR.spanOf(OR.bivector(l, r2)), back = OR.halves(B1);
+  const round = Math.max(...back[0].map((x, i) => Math.abs(x - l[i])), ...back[1].map((x, i) => Math.abs(x - r1[i])));
+  const ang = OB.planeAngles([u1, v1], [u2, v2]), phi = (Math.acos(r1.reduce((s, x, i) => s + x * r2[i], 0)) * 180) / Math.PI;
+  const [mu, mv] = OR.spanOf(OR.bivector(l, r1.map((x) => -x))), moon = OB.planeAngles([u1, v1], [mu, mv]);
+  const meas = OR.MINUS.filter(([q]) => q > 0 && q < 1).map(([q, m]) => { const runs = NEBULA.filter((x) => x.d === 4 && x.T === 500 && Math.abs(x.a2 - q) < 1e-9); return Math.abs(runs.reduce((s, x) => s + x.series[x.series.length - 1][3], 0) / runs.length - m); });
+  ok(round < 1e-12 && Math.abs(ang[0] - phi / 2) < 1e-6 && Math.abs(ang[1] - phi / 2) < 1e-6 && moon.every((a) => Math.abs(a - 90) < 1e-6) && Math.max(...meas) < 0.002,
+    `the orrery's planes: rebuilt from their halves (to ${round.toExponential(0)}); sharing a left half they're isoclinic at half the right halves' angle (${ang.map((a) => a.toFixed(2)).join("°, ")}° for φ = ${phi.toFixed(2)}°); a moon's plane completely orthogonal; the nebula's alignment the runs' own`);
+  const S = OR.makeSystem({ seed: 1, n: 5 }), S2 = OR.makeSystem({ seed: 1, n: 5 }), dt = OR.dtFor(S), P = S.bodies.filter((b) => b.kind === "planet"), Tout = Math.max(...P.map((p) => p.period));
+  let emax = 0; for (let t = 0, k = 0; t < 2 * Tout; t += dt, k++) { OR.step(S.bodies, dt); if (k % 100 === 0) for (let i = 1; i < S.bodies.length; i++) emax = Math.max(emax, OR.orbitOf(S.bodies, i).e); }
+  ok(JSON.stringify(S2.bodies[3].x) === JSON.stringify(OR.makeSystem({ seed: 1, n: 5 }).bodies[3].x) && emax < 0.08 && S.bodies.every((b, i) => !i || OR.orbitOf(S.bodies, i).bound),
+    `the orrery's first system, ${P.length} planets and their moons, run for two of its outermost planet's years: every orbit bound, eccentricities at most ${emax.toFixed(3)}; the same seed gives the same system`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

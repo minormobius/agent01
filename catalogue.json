@@ -4859,6 +4859,22 @@
         "canvas",
         "math"
       ]
+    },
+    {
+      "n": "four-orrery",
+      "u": "https://four.mino.mobi/orrery/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-29",
+      "b": "2026-10-29",
+      "p": "four",
+      "surface": "four",
+      "d": "A planetary system in four dimensions of space, run live: a star, planets and moons all pulling on each other under pinned gravity. The orbit planes come from how a 4D nebula settles (every orbit shares the cloud's left half of turning, its right half spread round the cloud's), the spacings from a 100,000-orbit stability map, the moons from the one plane the star can't tug. Turn it, slice it through w, and watch every pair of planets tilt by the same angle in both of 4D's directions at once.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     }
   ],
   "notListed": [
