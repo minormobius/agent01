@@ -142,7 +142,7 @@ for games, and this is a modelling programme with publications to come. The game
   reference (`test/fixtures/nist-spce-1.txt`).
   `gauss.js`'s `mp2` adds MP2 (closed shells, cores frozen) on a Hartree–Fock result; selftest 43 holds it to PySCF.
   `atom/tools/correlation.mjs` re-scores the best pairs with it (`pair <key> [plus] [shift]`, counterpoise-corrected;
-  `plus` grows `census.mjs`'s `basisFor` recipe: D diffuse, d a second d, p hydrogen's second p, f an f) and `bake`s
+  `plus` grows `census.mjs`'s `basisFor` recipe: D diffuse, d a second d, p hydrogen's second p, f an f, F two f, h a d on hydrogen, g a g) and `bake`s
   **generated** `js/correlation.js` for the census chapter's correlation section; `atom/tools/correlation-ref.py`
   (PySCF, pip install pyscf) computes our pairs in aug-cc-pVTZ/QZ for comparison. Both read and write
   `$TMPDIR/atom4-correlation`.

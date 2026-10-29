@@ -143,3 +143,17 @@ ol.rules li { margin: 6px 0; }
 .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0; font: 600 12px var(--mono); }
 .flow span { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; text-align: center; } .flow span small { font-weight: 400; color: var(--dim); } .flow b { color: var(--d4); }
 table.ledger td:nth-child(3), table.ledger td:nth-child(4) { text-align: right; font-family: var(--mono); }
+/* the planets chapter's stability map: a grid per mass and kind of tilt; a cell's shade is how stretched its orbits got */
+.smaps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; margin: 14px 0 6px; }
+.smap h5 { font: 600 12px/1.4 var(--mono); color: var(--dim); margin: 0 0 6px; }
+.smap .g { display: grid; grid-template-columns: 2.4em repeat(7, minmax(0, 1fr)); gap: 2px; font: 10px var(--mono); color: var(--dim); }
+.smap .g b { font-weight: 400; display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+.smap .g b:first-child { font-size: 9px; }
+.smap .g i { aspect-ratio: 1; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-style: normal; }
+.smap .g i.out { border: 1px solid var(--border); color: var(--dim); font-size: 9px; }
+@media (max-width: 520px) { .smaps { grid-template-columns: 1fr 1fr; gap: 12px 10px; } .smap .g { grid-template-columns: 2.1em repeat(7, minmax(0, 1fr)); gap: 1px; } }
+.smap .g { max-width: 340px; }
+.smapkey { display: flex; flex-wrap: wrap; gap: 6px 16px; font: 11px var(--mono); color: var(--dim); margin: 2px 0 8px; }
+.smapkey span { display: inline-flex; align-items: center; gap: 6px; }
+.smapkey i { width: 14px; height: 14px; border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; font-style: normal; font-size: 9px; }
+.smapkey i.out { border: 1px solid var(--border); }

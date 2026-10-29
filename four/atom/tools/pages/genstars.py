@@ -9,6 +9,32 @@ PRE=OR['precession']; PREerr=max(abs(q['measured']/q['formula']-1) for q in PRE)
 def arcsec(rad): return rad*206264.8
 EARTH=-(3*math.pi/4)*OR['star']['r2']/215**2; MERC=-(3*math.pi/4)*OR['star']['r2']/83**2
 TURN=OR['turning']
+# the stability map (tools/stability.mjs on the runner, stability-1): two planets for 100,000 orbits, per mass and tilt
+STB=json.loads(subprocess.run(['node','--input-type=module','-e','import { STABILITY, RATIOS, ANGLES } from "'+ATOM+'js/stabilitydata.js"; console.log(JSON.stringify({ sets: STABILITY, ratios: RATIOS, angles: ANGLES }));'],capture_output=True,text=True,check=True).stdout)
+SRAT,SANG=STB['ratios'],STB['angles']; SORB=STB['sets'][0]['orbits']
+def SR(mp,kind,a2,th): return next(r for s in STB['sets'] if abs(s['mp']-mp)<1e-12 and s['kind']==kind for r in s['runs'] if abs(r['a2']-a2)<1e-9 and r['th']==th)
+def skept(mp,kind,a2,th): return SR(mp,kind,a2,th)['lost'] is None
+def iso_safe(mp): return min(th for th in SANG if th>0 and all(skept(mp,'iso',a2,t) for t in SANG if t>=th for a2 in SRAT))
+def iso_emax(mp,th0): return max(SR(mp,'iso',a2,t)['emax'] for t in SANG if t>=th0 for a2 in SRAT)
+def line_out(mp):
+    ok=[th for th in SANG if th>0 and all(not skept(mp,'line',a2,t) for t in SANG if t>=th for a2 in SRAT)]
+    return min(ok) if ok else None
+def line_emax(mp,th0): return max(SR(mp,'line',a2,t)['emax'] for t in SANG if t>=th0 for a2 in SRAT if skept(mp,'line',a2,t))
+def gladman(mp): c=math.sqrt(3)*(2*mp/3)**(1/3); return (1+c)/(1-c)   # Hill stability, Gladman 1993: Δ > 2√3 mutual Hill radii
+def cop_lost(mp): return max(a2 for a2 in SRAT if a2>1 and not skept(mp,'iso',a2,0))
+SMASS=[(1e-4,'a tenth of Jupiter'),(1e-3,'Jupiter'),(1e-2,'ten Jupiters')]
+assert line_out(1e-2)==SANG[1], "the text says every tilted pair at ten Jupiters was thrown out"
+def scell(mp,kind,a2,th):
+    r=SR(mp,kind,a2,th); lab=f"radii 1 : {a2:g}, planes {th}° apart: "
+    if r['lost'] is not None: return f'<i class="out" title="{lab}thrown out on orbit {r["lost"]:,}">✕</i>'
+    a=0.1+0.85*min(1,r['emax']/0.8)
+    return f'<i style="background:rgba(111,224,255,{a:.2f})" title="{lab}kept; eccentricity up to {r["emax"]:.2f}, closest {r["dmin"]:.2f}"></i>'
+def smap(mp,kind):
+    head='<b>a₂</b>'+''.join(f'<b>{th}°</b>' for th in SANG)
+    rows=''.join(f'<b>{a2:g}</b>'+''.join(scell(mp,kind,a2,th) for th in SANG) for a2 in SRAT)
+    return f'<div class="g">{head}{rows}</div>'
+SMAPS='<div class="smaps">'+''.join(f'<div class="smap"><h5>{name}, {"sharing a line (ours)" if kind=="line" else "turned equally (4D)"}</h5>{smap(mp,kind)}</div>' for mp,name in SMASS for kind in ('line','iso'))+'</div>'
+SMAPS+='<div class="smapkey"><span><i style="background:rgba(111,224,255,0.10)"></i>circular</span><span><i style="background:rgba(111,224,255,0.53)"></i>eccentricity 0.4</span><span><i style="background:rgba(111,224,255,0.95)"></i>0.8 or more</span><span><i class="out">✕</i>thrown out</span></div>'
 TSUN, R_EARTH = 5772, 215 # our Sun's surface temperature, and Earth's distance in Sun radii
 LT=json.loads(subprocess.run(['node','--input-type=module','-e','import * as O from "'+ATOM+'js/orbits.js"; console.log(JSON.stringify({ a4: O.absorbShare(4), t3: O.planetT(3, 5772, 215), t4: O.planetT(4, 5772, 215), r4: O.radiusFor(4, 5772, O.planetT(3, 5772, 215)), b3: (373 / 273) ** (-1 / O.tempPower(3)), b4: (373 / 273) ** (-1 / O.tempPower(4)) }));'],capture_output=True,text=True,check=True).stdout)
 ABS4, T3E, T4E, R4WARM, BAND3, BAND4 = LT['a4'], LT['t3'], LT['t4'], LT['r4'], LT['b3'], LT['b4']
@@ -113,7 +139,14 @@ planets=f'''<section id="orbits">
   <p class="read" id="kOrbitTurn"></p>
   <h4>Days with two rates</h4>
   <p>A planet spins too, and a 4D spin is a turning in a plane, or in two planes at once at two rates (<a href="motion.html">chapter 3</a>). A planet spinning both ways would have a sky that cycles on two clocks, its sunrises returning only when the two line up. Which way real planets spin depends on how they formed and how tides wear them, and that's open.</p>
-  <p class="read">Checked here: Kepler's closed orbits in 4D, the precession formula against integration, and the two-planet runs, with 3,000 orbits per case. That's short against a planetary system's life: a map over orbit sizes, plane angles and masses, 100,000 orbits each, is running.</p>
+  <p class="read">Checked here: Kepler's closed orbits in 4D, the precession formula against integration, and the two-planet runs above, 3,000 orbits each. The map below runs {SORB:,}.</p>
+  <h4>Which pairs last <span class="tag computed">computed</span></h4>
+  <p>3,000 orbits is short against a planetary system's life. So, on the compute runner: two planets on circular orbits, the outer's radius 1 to {SRAT[-1]} times the inner's, their planes turned apart by every angle from 0 to 90°, at three masses, each pair run for {SORB:,} orbits of the inner one. In 4D there are two ways to turn one plane from another. One is the only tilt our planets can have: the planes share a line and tilt about it. The other is 4D's own: the planes turned by the same angle both ways, which at 90° makes them completely orthogonal.</p>
+  {SMAPS}
+  <p class="read">Each cell is a pair of planets: across, the angle between their planes; down, a₂, the outer orbit's radius over the inner's. Brighter: the more either orbit was stretched (its largest eccentricity, dark for circular). ✕: a planet thrown out. Hover a cell for its numbers.</p>
+  <p><b>4D's own tilt keeps planets apart; ours throws them out.</b> Turned equally both ways by {iso_safe(1e-3)}° or more, Jupiter-mass planets stayed nearly circular (eccentricity at most {iso_emax(1e-3,iso_safe(1e-3)):.2f}) at every spacing, even sharing an orbit's size. Ten Jupiters need {iso_safe(1e-2)}°, and completely orthogonal planes kept every pair at every mass (eccentricity at most {max(iso_emax(m,90) for m,_ in SMASS):.2f}). Tilted our way, about a shared line, the same planets fare worse than in one plane: at Jupiter's mass every pair tilted {line_out(1e-3)}° or more was thrown out, at ten Jupiters every tilted pair was, and even at a tenth of Jupiter's the tilt is traded into stretched orbits, eccentricity up to {line_emax(1e-4,30):.2f}.</p>
+  <p>In one plane the problem is exactly ours, since the pinned pull is Newton's within a plane, and the runs agree with our world's answer. Hill's criterion, in Gladman's form, guarantees two planets never meet beyond radii in the ratio {gladman(1e-4):.2f}, {gladman(1e-3):.2f} and {gladman(1e-2):.2f} for the three masses. No pair beyond it was lost; the losses stop at {cop_lost(1e-4):g}, {cop_lost(1e-3):g} and {cop_lost(1e-2):g}, inside the guarantee, where (as in ours) a pair can still last a long time.</p>
+  <p><b>So a 4D planetary system packs its planets with their planes turned equally both ways</b>, and can pack them far tighter than ours: tilted our way, they'd be thrown out.</p>
 </section>
 <section id="moons">
   <h3>Moons: one plane is safe <span class="tag computed">computed</span></h3>
@@ -151,6 +184,6 @@ planets=f'''<section id="orbits">
 </section>
 <section id="planetsnext">
   <h3>What's computed and what's open</h3>
-  <p>Computed and checked: orbits' precession round a real star (against Landau's formula), two planets in one plane and in planes turned apart, the planes turning while their angle holds, moons in five planes, and nebulae against our world's. Follows: starlight on a planet. Running: a stability map over orbit sizes, plane angles and masses, for 100,000 orbits each. Open: a 4D star's brightness and colour; how planets grow in a thick nebula; tides; and systems of many planets.</p>
+  <p>Computed and checked: orbits' precession round a real star (against Landau's formula), two planets in one plane and in planes turned apart, the planes turning while their angle holds, moons in five planes, nebulae against our world's, and the stability map (two planets for 100,000 orbits, over spacings, tilts of both kinds and masses). Follows: starlight on a planet. Open: a 4D star's brightness and colour; how planets grow in a thick nebula; tides; and systems of many planets.</p>
 </section>
 '''
