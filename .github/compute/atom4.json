@@ -1,9 +1,14 @@
 {
- "run": "corr-4",
- "why": "corr-3 showed XH3's MP2 lead over Xater is not shrinking: it went 2.44 with an f, 2.24 with a second f, back to 2.59 with a g instead, and the swings are all in the Hartree-Fock part (correlation's part holds at 2.5-2.75 kcal/mol). Both pairs with two f and a g together, the largest basis yet (350 and 378 functions, the integrals in single precision; XH3's needs about 12.5 GB, so a runner each). Keeps the runners busy behind nebula-3-audit-6.",
+ "run": "manybody-1",
+ "why": "Does a crowd hold together the way its pairs say? The 4D force fields as first fitted collapse into crystals four times too dense; a polarizable model with 4D's cloud terms halves that but still packs densely. Trimers cut from those crystals (and one from our water's ice, the calibration), their Hartree-Fock energies whole and in every part, so the three-body term the polarizable model predicts can be checked. One trimer per runner (a few GB each). Queued behind corr-4.",
  "minutes": 240,
  "groups": [
-  { "name": "corr4-xater-fg", "cmds": ["node four/atom/tools/correlation.mjs pair 4 DdpfFg f32"] },
-  { "name": "corr4-bmmonia-fg", "cmds": ["node four/atom/tools/correlation.mjs pair 4.9 DdpfFg f32"] }
+  { "name": "mb-water-ice", "cmds": ["node four/atom/tools/manybody.mjs run 0"] },
+  { "name": "mb-xater-pol-0", "cmds": ["node four/atom/tools/manybody.mjs run 1"] },
+  { "name": "mb-xater-pol-1", "cmds": ["node four/atom/tools/manybody.mjs run 2"] },
+  { "name": "mb-xater-old-0", "cmds": ["node four/atom/tools/manybody.mjs run 3"] },
+  { "name": "mb-xater-old-1", "cmds": ["node four/atom/tools/manybody.mjs run 4"] },
+  { "name": "mb-xh3-old-0", "cmds": ["node four/atom/tools/manybody.mjs run 5"] },
+  { "name": "mb-xh3-old-1", "cmds": ["node four/atom/tools/manybody.mjs run 6"] }
  ]
 }
