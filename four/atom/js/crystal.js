@@ -159,6 +159,10 @@ function unpack(st, x, d) {
 /* the energy and its slope in the descent's numbers: sites move with the cell (c = sH), with their place, and with
    their turn (whose slope is taken through exp numerically: cheap, d × d) */
 function energyAndSlope(C, st, x) {
+  if (C.numericSlopes) { // a model without analytic slopes (js/polcrystal.js): central differences in the descent's own numbers
+    const f = (y) => { const s = unpack(st, y, C.d), e = C.energy(s.H, sitesOf(C, s)); return e ? e.E : 1e3; }, f0 = f(x);
+    return { f: f0, g: x.map((_, k) => { const h = 1e-5, a = x.slice(), b = x.slice(); a[k] += h; b[k] -= h; return (f(a) - f(b)) / (2 * h); }) };
+  }
   const d = C.d, s = unpack(st, x, d), e = C.energy(s.H, sitesOf(C, s), true); if (!e) return { f: 1e3, g: x.map(() => 0) };
   const ns = C.tmpl.length, np = planes(d).length, g = [], F = s.mols.map((_, a) => { const f = new Array(d).fill(0); for (let k = 0; k < ns; k++) for (let c = 0; c < d; c++) f[c] += e.gx[(a * ns + k) * d + c]; return f; });
   for (let b = 0; b < d; b++) for (let c = 0; c <= b; c++) g.push(e.gH[b][c] + s.mols.reduce((t, m, a) => t + m.s[b] * F[a][c], 0));
