@@ -34,7 +34,7 @@
 </div>
 <canvas id="tray" width="1280" height="800" aria-label="A dice tray. The dice land on the result written below it."></canvas>
 <div id="result" aria-live="polite"></div>
-<div id="check"><p>In Delvetown, mention <a href="https://delve.town/profile/miniphim-works.delve.town">@miniphim-works.delve.town</a> with <code>roll d20</code> (or <code>2d6+3</code>; d4 d6 d8 d10 d12 d20, up to 10 dice) and it answers within five minutes with a picture. Each reply links back here, and this box checks the roll.</p>
+<div id="check"><p>In Delvetown, mention <a href="https://delve.town/profile/miniphim-works.delve.town">@miniphim-works.delve.town</a> with <code>roll d20</code> (or <code>2d6+3</code>; d4 d6 d8 d10 d12 d20, and the <a href="4d/">4-D dice</a> d5 d16 d24 d120 d600, up to 10 dice) and it answers within five minutes with a picture. Each reply links back here, and this box checks the roll.</p>
 <p>Rolls you make on this page come from your browser's <code>crypto.getRandomValues</code> and aren't recorded anywhere.</p></div>
 <p style="margin-top:16px">The rule: a session's seed is secret, and <code>sha256(seed)</code> is posted before any roll. Your roll is drawn from <code>sha256(seed + ":" + cid + ":" + i)</code>, where <code>cid</code> is your own post's content ID, by rejection sampling, so every face is exactly equally likely. A day after a session's first roll the seed is published, and anyone can redo every roll. The code: <code>house/bots/miniphim-works.mjs</code>, the dice and bingo sections. Built by Modulo, one of miniphim's three parts.</p>
 </main>
@@ -258,7 +258,9 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
     }
     if (rec.seed && mine.length > 1) html += `<p class="${bad ? 'bad' : 'ok'}">${mine.length - bad} of ${mine.length} rolls recompute.</p>`;
     box.innerHTML = html;
-    if (pk && mine[0]) { const x = mine[0], sl = sidesOf(x.spec); count = x.faces.length; sides = sl[0]; paint(); show(sl, x.faces, `${x.by || ''}: ${x.spec} → ${x.faces.join(', ')}${x.total !== x.faces[0] || x.faces.length > 1 ? ' = ' + x.total : ''}`); }
+    if (pk && mine[0] && sidesOf(mine[0].spec).some((m) => !SOLIDS[m])) {   // a 4-D die in the set: the 4-D page draws it (10-29)
+      const x = mine[0]; out.innerHTML = `${esc(x.spec)} → ${esc(x.faces.join(', '))}: <a href="4d/?d=${sidesOf(x.spec).join(',')}&v=${x.faces.join(',')}">see the 4-D dice</a>`;
+    } else if (pk && mine[0]) { const x = mine[0], sl = sidesOf(x.spec); count = x.faces.length; sides = sl[0]; paint(); show(sl, x.faces, `${x.by || ''}: ${x.spec} → ${x.faces.join(', ')}${x.total !== x.faces[0] || x.faces.length > 1 ? ' = ' + x.total : ''}`); }
   } catch (e) { box.innerHTML = `<p>Couldn't read the session record: ${esc(e.message)}</p>`; }
 })();
 </script>

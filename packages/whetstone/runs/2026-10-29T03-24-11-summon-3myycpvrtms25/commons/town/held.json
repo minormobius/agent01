@@ -1,0 +1,14 @@
+{
+ "at": "2026-10-29T03:33:53.052Z",
+ "held": [
+  {
+   "id": "modulo-4d-dice-1029",
+   "writer": "modulo",
+   "link_wait": [
+    "https://miniphim.minomobi.com/dice/4d/"
+   ],
+   "why": "waiting for the house: https://miniphim.minomobi.com/dice/4d/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
+  }
+ ],
+ "failed": []
+}
