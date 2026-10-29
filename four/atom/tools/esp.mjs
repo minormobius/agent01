@@ -39,11 +39,28 @@ export function fitCharges(sites, pts) {
   const q = [...x, -x.reduce((s, v) => s + v, 0)], rms = Math.sqrt(A.reduce((s, row, k) => s + (row.reduce((t, v, i) => t + v * q[i], 0) - b[k]) ** 2, 0) / pts.length);
   return [q, rms];
 }
+/* the model's electrostatics, fitted to the potential: one charge per hydrogen (q_H, the heavy atom −n q_H, so the
+   molecule is neutral) and, in 4D, a cloud on each site: a round neutral cloud of second moment S = Σ⟨r²⟩ adds
+   S/8r³ to a pinned 1/r potential outside it (the shell theorem fails; the stars chapter's star has the same term),
+   written c/r³, c = S/8 for a free atom. In 3D the term is zero by Gauss, so there it isn't fitted. Returns
+   { qH, cX, cH, rel } (rel: the rms misfit over the potential's rms) */
+export function fitSites(g) {
+  const d = g.d, S = g.atoms.map((a) => a.at), nH = S.length - 1, b = g.pts.map((p) => p.phi);
+  const dist = (pt, s) => Math.hypot(...pt.C.map((x, c) => x - s[c]));
+  const cols = [g.pts.map((pt) => S.reduce((t, s, i) => t + (i ? 1 : -nH) / dist(pt, s), 0))];
+  if (d === 4) { cols.push(g.pts.map((pt) => 1 / dist(pt, S[0]) ** 3)); cols.push(g.pts.map((pt) => S.slice(1).reduce((t, s) => t + 1 / dist(pt, s) ** 3, 0))); }
+  const n = cols.length, M = cols.map((a) => cols.map((c) => a.reduce((t, v, k) => t + v * c[k], 0))), r = cols.map((a) => a.reduce((t, v, k) => t + v * b[k], 0));
+  for (let c = 0; c < n; c++) for (let q = c + 1; q < n; q++) { const f = M[q][c] / M[c][c]; for (let k = c; k < n; k++) M[q][k] -= f * M[c][k]; r[q] -= f * r[c]; }
+  const x = new Array(n); for (let i = n - 1; i >= 0; i--) { let t = r[i]; for (let k = i + 1; k < n; k++) t -= M[i][k] * x[k]; x[i] = t / M[i][i]; }
+  const fit = b.map((_, k) => cols.reduce((t, c, i) => t + c[k] * x[i], 0)), rms = Math.sqrt(fit.reduce((t, v, k) => t + (v - b[k]) ** 2, 0) / b.length), sc = Math.sqrt(b.reduce((t, v) => t + v * v, 0) / b.length);
+  return { qH: x[0], cX: x[1] ?? 0, cH: x[2] ?? 0, rel: rms / sc };
+}
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const keys = process.argv.slice(2).filter((a) => WORLDS[a]);
   for (const key of keys.length ? keys : ["3", "4", "4.9"]) {
-    const g = espGrid(key), sites = g.atoms.map((a) => a.at), [q, rms] = fitCharges(sites, g.pts), scale = Math.sqrt(g.pts.reduce((s, p) => s + p.phi ** 2, 0) / g.pts.length);
+    const g = espGrid(key, { nPer: 50, shells: [1.4, 1.8, 2.4, 3, 4] }), sites = g.atoms.map((a) => a.at), [q, rms] = fitCharges(sites, g.pts), scale = Math.sqrt(g.pts.reduce((s, p) => s + p.phi ** 2, 0) / g.pts.length);
     const dip = sites[0].map((_, c) => sites.reduce((s, x, i) => s + q[i] * x[c], 0));
-    console.log(JSON.stringify({ key, points: g.pts.length, nuclei: { q: q.map((v) => +v.toFixed(4)), rms: +rms.toExponential(3), relative: +(rms / scale).toFixed(3), dipole: dip.map((v) => +v.toFixed(3)) }, hfDipole: g.dipole.map((v) => +v.toFixed(3)), kcalPerUnitCharge: +(rms * 627.509).toFixed(2) }));
+    const fs = fitSites(g);
+    console.log(JSON.stringify({ key, points: g.pts.length, model: Object.fromEntries(Object.entries(fs).map(([k, v]) => [k, +v.toFixed(4)])), nuclei: { q: q.map((v) => +v.toFixed(4)), rms: +rms.toExponential(3), relative: +(rms / scale).toFixed(3), dipole: dip.map((v) => +v.toFixed(3)) }, hfDipole: g.dipole.map((v) => +v.toFixed(3)), kcalPerUnitCharge: +(rms * 627.509).toFixed(2) }));
   }
 }

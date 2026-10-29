@@ -18,12 +18,14 @@
 import { shortPair } from "./md.js";
 import { expOf } from "./ffmodel.js";
 
-export const POLNAMES = ["q", "lnA_XX", "lnA_XH", "lnA_HH", "lnD_XH", "b_XH"];
-/* the polarization part from its fit: { aX, aH, thole }; the rest from p (POLNAMES) and the exponents bXX, bXH, bHH
-   (bohr⁻¹, Born–Mayer's). An optional dispersion C on X–X, Tang–Toennies-damped, is added only when asked */
-export function polTerms(p, pol, B, C = 0) {
-  const [q, aXX, aXH, aHH, dXH, bXH] = p;
-  return { q, pol, pairs: { "X|X": { tt: [Math.exp(aXX), B.XX, C] }, "X|H": { tt: [Math.exp(aXH), B.XH, 0] }, "H|H": { tt: [Math.exp(aHH), B.HH, 0] } }, ct: dXH === undefined ? null : { D: Math.exp(dXH), b: expOf(bXH) } };
+/* the model's terms: elec { qH, cX, cH } (tools/esp.mjs: the charges and, in 4D, the clouds, fitted to the molecule's
+   own potential), pol { aX, aH, thole } (to its polarizability tensor), B { XX, XH, HH } (Born–Mayer's exponents),
+   and p the fitted rest: [lnA_XX, lnA_XH, lnA_HH], optionally [lnD_XH, b_XH] for a short-range X···H attraction
+   D e^(−br) (charge transfer), and C an X–X dispersion if asked */
+export const POLNAMES = ["lnA_XX", "lnA_XH", "lnA_HH", "lnD_XH", "b_XH"];
+export function polTerms({ elec, pol, B, p, C = 0 }) {
+  const [aXX, aXH, aHH, dXH, bXH] = p;
+  return { q: elec.qH, cX: elec.cX || 0, cH: elec.cH || 0, pol, pairs: { "X|X": { tt: [Math.exp(aXX), B.XX, C] }, "X|H": { tt: [Math.exp(aXH), B.XH, 0] }, "H|H": { tt: [Math.exp(aHH), B.HH, 0] } }, ct: dXH === undefined ? null : { D: Math.exp(dXH), b: expOf(bXH) } };
 }
 /* solve a small dense system M x = b (Gaussian elimination, partial pivoting) */
 function solve(M, b) {
@@ -58,15 +60,18 @@ export function tensorOf(tmpl, pol) {
    molecules, the induced dipoles, the repulsions (and dispersion if the terms carry it). Returns its parts */
 export function clusterEnergy(terms, mols) {
   const { q, pol, pairs } = terms, d = mols[0][0].length, nH = mols[0].length - 1, qq = (i) => (i ? q : -nH * q), ty = (i) => (i ? "H" : "X");
-  const x = [], al = [], mol = [], ch = []; mols.forEach((M, a) => M.forEach((p, i) => { x.push(p); al.push(i ? pol.aH : pol.aX); mol.push(a); ch.push(qq(i)); }));
-  const n = x.length, E = new Float64Array(n * d); let Eq = 0, Er = 0;
+  const x = [], al = [], mol = [], ch = [], cl = []; mols.forEach((M, a) => M.forEach((p, i) => { x.push(p); al.push(i ? pol.aH : pol.aX); mol.push(a); ch.push(qq(i)); cl.push(i ? terms.cH : terms.cX); }));
+  const n = x.length, E = new Float64Array(n * d); let Eq = 0, Er = 0, Ec = 0;
   for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
     if (mol[i] === mol[j]) continue;
     const r = x[i].map((v, c) => v - x[j][c]), r2 = r.reduce((s, v) => s + v * v, 0), rr = Math.sqrt(r2), [l3] = thole(rr, al[i], al[j], pol.thole);
     Eq += (ch[i] * ch[j]) / rr; if (terms.ct && (i % (nH + 1) === 0) !== (j % (nH + 1) === 0)) Er -= terms.ct.D * Math.exp(-terms.ct.b * rr); const ti = ty(i % (nH + 1)), tj = ty(j % (nH + 1)), key = ti !== tj ? "X|H" : `${ti}|${tj}`; Er += shortPair(pairs[key], r2)[0];
-    for (let c = 0; c < d; c++) { E[i * d + c] += (l3 * ch[j] * r[c]) / (r2 * rr); E[j * d + c] -= (l3 * ch[i] * r[c]) / (r2 * rr); }
+    // the clouds (4D): a charge meets a cloud as q c/r³, two clouds as −3 c c′/r⁵ (−(c/r³)'s Laplacian, c = S/8); a
+    // cloud's field on a dipole is 3c r/r⁵
+    const r3 = r2 * rr, r5 = r3 * r2; Ec += (ch[i] * cl[j] + cl[i] * ch[j]) / r3 - (3 * cl[i] * cl[j]) / r5;
+    for (let c = 0; c < d; c++) { E[i * d + c] += l3 * r[c] * (ch[j] / r3 + (3 * cl[j]) / r5); E[j * d + c] -= l3 * r[c] * (ch[i] / r3 + (3 * cl[i]) / r5); }
   }
   const mu = induce(x, al, E, d, pol.thole); let Ep = 0; for (let k = 0; k < E.length; k++) Ep -= 0.5 * mu[k] * E[k];
-  return { E: Eq + Ep + Er, Eq, Epol: Ep, Erep: Er, mu };
+  return { E: Eq + Ec + Ep + Er, Eq, Ecloud: Ec, Epol: Ep, Erep: Er, mu };
 }
 export { expOf };
