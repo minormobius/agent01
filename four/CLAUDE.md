@@ -203,6 +203,12 @@ for games, and this is a modelling programme with publications to come. The game
   eccentricity and plane, the principal angles between two planes, a round star's outside potential from its shells
   (pinned 4D: −1/r + ⟨r²⟩/8r³) and the precession that causes, and two planets in one plane or turned apart (two kinds of tilt), a moon round a planet
   in any plane (`moonRun`), and starlight on a planet (`absorbShare`, `planetT`: T ∝ r^(−(d−1)/(d+1))).
+  `js/tides.js` (no DOM) is the planets chapter's tides: the constant time-lag bulge (Mignard, Hut) for a spin Ω in any
+  number of planes (torque = (3λM²/r⁶)(ŝ·r̂)(ŝ∧r̂), ŝ = e^(ΩΔt) r̂(t − Δt); a round planet's L = −2I₀Ω), `spinDown` under a
+  circular orbit, `starAngle` (sunlight at a surface point), and `springPlanet`, a simplex of masses on damped springs
+  orbiting as point masses, the independent check. Result: the orbit plane's spin locks, mixed parts die, the completely
+  orthogonal plane's spin is untouched (exactly), and on a locked planet the star never moves in the sky.
+  `atom/tools/tidenumbers.mjs` gives the chapter its numbers. Selftest 50.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).

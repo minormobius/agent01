@@ -874,5 +874,20 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `the orrery's first system, ${P.length} planets and their moons, run for two of its outermost planet's years: every orbit bound, eccentricities at most ${emax.toFixed(3)}; the same seed gives the same system`);
 }
 
+/* 50 · tides (js/tides.js, the planets chapter): under a lagging tidal bulge the spin's part in the orbit's plane locks to
+   the orbit's rate and the parts mixing the planes die away, in both worlds (our tidal locking); in 4D the part in the
+   plane completely orthogonal to the orbit is untouched, exactly. A planet of masses on damped springs, which knows
+   nothing of the formula, does the same; and on a locked 4D planet still turning in its free plane the star never moves
+   in the sky */
+{
+  const TD = await import(path.join(here, "../js/tides.js")), sp = (d) => TD.turning(d, d === 4 ? [[0, 1, 2.0], [2, 3, 1.3], [0, 2, 0.5], [1, 3, -0.3]] : [[0, 1, 2.0], [0, 2, 0.5]]);
+  const end = (R) => R.samples[R.samples.length - 1], a3 = TD.spinDown(sp(3), { T: 90, dt: 0.04, lambda: 1.5e-3 }), a4 = TD.spinDown(sp(4), { T: 90, dt: 0.04, lambda: 1.5e-3 });
+  ok([a3, a4].every((R) => Math.abs(end(R).orbitPart - R.n) < 0.01 && end(R).mixed < 0.05 * R.samples[0].mixed) && Math.abs(end(a4).freePart - 1.3) < 1e-12,
+    `tides, the lagging bulge: the spin in the orbit's plane locks to the orbit (${end(a3).orbitPart.toFixed(4)} in 3D, ${end(a4).orbitPart.toFixed(4)} in 4D, the orbit's rate 1), the mixed parts die away, and in 4D the completely orthogonal plane's spin stays at ${end(a4).freePart.toFixed(12)}`);
+  const S = TD.springPlanet(sp(4), { T: 300, every: 2000 }), s0 = S.samples[0], s1 = end(S), sun = TD.starAngle(TD.turning(4, [[0, 1, 1], [2, 3, 1.7]]), [0.6, 0, 0.64, 0.48], 1, 20);
+  ok(Math.abs(s1.Lfree / s0.Lfree - 1) < 1e-3 && Math.abs(s1.orbitPart - 1) < 0.1 && s1.mixed < 0.35 * s0.mixed && Math.max(...sun) - Math.min(...sun) < 1e-9,
+    `a planet of masses on damped springs does the same (its orbit-plane spin 2 → ${s1.orbitPart.toFixed(3)}, its free plane's angular momentum kept to ${Math.abs(s1.Lfree / s0.Lfree - 1).toExponential(0)}); on a locked planet the star's height holds to ${(Math.max(...sun) - Math.min(...sun)).toExponential(0)} as it turns`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
