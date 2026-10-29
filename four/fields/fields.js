@@ -20,7 +20,8 @@ function plot(cv, { x, y, logx = false, logy = false, xl = "", yl = "", series =
   if (hline != null) { g.setLineDash([3, 3]); g.beginPath(); g.moveTo(L, Y(hline)); g.lineTo(w - R, Y(hline)); g.stroke(); g.setLineDash([]); }
   const ticks = (lo, hi, log) => (log ? [...Array(Math.round(Math.log10(hi / lo)) + 1)].map((_, i) => lo * 10 ** i) : [lo, (lo + hi) / 2, hi]);
   for (const v of ticks(x[0], x[1], logx)) g.fillText(String(+v.toPrecision(2)), X(v) - 8, h - B + 13);
-  for (const v of ticks(y[0], y[1], logy)) g.fillText(String(+v.toPrecision(2)), 2, Y(v) + 3);
+  const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹", lab = (v, log) => (log && (v >= 1e4 || v < 1e-2) ? "10" + String(Math.round(Math.log10(v))).replace("-", "⁻").replace(/\d/g, (c) => SUP[c]) : String(+v.toPrecision(2)));
+  for (const v of ticks(y[0], y[1], logy)) g.fillText(lab(v, logy), 2, Y(v) + 3);
   g.fillText(xl, w - R - g.measureText(xl).width, h - 4); g.save(); g.translate(10, T + 4); g.fillText(yl, 26, 6); g.restore();
   for (const s of series) {
     g.strokeStyle = s.c; g.lineWidth = s.w ?? 2; g.setLineDash(s.dash ?? []); g.beginPath(); let on = false;
@@ -141,9 +142,27 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
+/* 6 · an atom in a magnet (js/magnet.js on the solver's atoms): diamagnetism from both halves, the spin's Curie pull
+   from the left half only, against how the field splits between its xy and zw planes */
+let MG = null, TAB = null;
+function drawMag() {
+  if (!MG) return;
+  const atom = TAB[4][+$("magAtom").value - 1], t = +$("magT").value, kT = 10 ** +$("magK").value * MG.KELVIN;
+  const F = (b) => [[0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, b], [0, 0, -b, 0]], dia = -MG.diamagnetic(atom, 4), S = MG.spinOf(atom, 4), cu = MG.curie(S, kT);
+  const ts = range(-1, 1, 201), spin = ts.map((b) => [b, MG.fieldShape(F(b)) * cu]);
+  $("magTv").textContent = t.toFixed(2); $("magKv").textContent = `${Math.round(10 ** +$("magK").value)} K`;
+  plot($("cMag"), { x: [-1, 1], y: [0.1, 1e6], logy: true, xl: "field in zw: −1 all right · 0 one plane · +1 all left", yl: "", series: [
+    { pts: spin, c: C4, label: "the spin's pull in" }, { pts: ts.map((b) => [b, dia]), c: C3, dash: [5, 4], label: "diamagnetism's push out" }], vlines: [{ x: t, c: DIM }] });
+  const sh = MG.fieldShape(F(t)), net = sh * cu - dia, r = cyclotronRates(F(t)), fmt = (n) => (n >= 100 ? Math.round(n).toLocaleString("en") : n.toPrecision(2));
+  $("rMag").innerHTML = `Left half ${r.left.toFixed(2)}, right half ${r.right.toFixed(2)}: the spin feels ${sh.toFixed(2)} times what a field in one plane gives. Strength in atomic units. Spin S = ${S}${S ? `, its pull ${fmt(sh * cu)}` : " (no pull)"}; diamagnetism's push ${dia.toFixed(2)}. ` +
+    (net > 0 ? `<b>Drawn in</b>, ${S && dia ? `${fmt((sh * cu) / dia)} times harder than it's pushed` : ""}.` : `<b>Pushed out.</b>`);
+}
+Promise.all([import("../atom/js/magnet.js"), import("../atom/js/table.js")]).then(([m, t]) => { MG = m; TAB = t.TABLE; drawMag(); });
+for (const id of ["magAtom", "magT", "magK"]) $(id).addEventListener("input", drawMag);
+
 setupMap();
 for (const id of ["bxy", "bzw"]) $(id).addEventListener("input", setCyc);
 $("shellA").addEventListener("input", drawNeutral);
-const all = () => { drawMap(); drawLines("cLines3", false); drawLines("cLines4", true); drawFlux(); drawNeutral(); drawLoop(); };
+const all = () => { drawMap(); drawLines("cLines3", false); drawLines("cLines4", true); drawFlux(); drawNeutral(); drawLoop(); drawMag(); };
 setCyc(); all(); requestAnimationFrame(animate);
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(all, 150); });

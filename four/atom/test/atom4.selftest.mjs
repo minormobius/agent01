@@ -774,5 +774,22 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `correlation baked: our ${ours.length} pairs match PySCF; in 4D the MP2 lead is ${lead.map((x) => x.toFixed(2)).join(", ")} kcal/mol over ${bs.length} bases`);
 }
 
+/* 45 · magnetism of atoms (js/magnet.js, the motion chapter): the 4D Pauli identity, (τ̄·a)(τ·b) = a·b + iσ·ℓ(a ∧ b), so
+   the spin feels a field's left half only; Langevin's diamagnetism from the solver's ⟨r²⟩ against our measured noble
+   gases; and spins by Hund's first rule against NIST's ground terms, missing only where the configuration is wrong */
+{
+  const MG = await import(path.join(here, "../js/magnet.js"));
+  let seed = 9, worst = 0; const rr = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
+  for (let t = 0; t < 40; t++) { const a = [rr(), rr(), rr(), rr()], b = [rr(), rr(), rr(), rr()], P = MG.pauliProduct(a, b), Q = MG.pauliClaimed(a, b); for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) worst = Math.max(worst, Math.abs(P[i][j][0] - Q[i][j][0]), Math.abs(P[i][j][1] - Q[i][j][1])); }
+  const F = (pairs) => { const m = Array.from({ length: 4 }, () => Array(4).fill(0)); for (const [i, j, v] of pairs) { m[i][j] = v; m[j][i] = -v; } return m; };
+  const shapes = [MG.fieldShape(F([[0, 1, 1]])), MG.fieldShape(F([[0, 1, 1], [2, 3, 1]])), MG.fieldShape(F([[0, 1, 1], [2, 3, -1]]))];
+  ok(worst < 1e-12 && shapes.join() === "1,2,0", `the 4D Pauli identity holds (to ${worst.toExponential(0)}): the spin feels a one-plane field as ours does (g = 2), a left-isoclinic one twice, a right one not at all`);
+  const MEAS = { 2: -1.88, 10: -6.74, 18: -19.32, 36: -28.8 }, dev = Object.entries(MEAS).map(([Z, m]) => (MG.diamagnetic(TABLE[3][Z - 1], 3) * MG.CGS_MOLAR * 1e6) / m - 1);
+  ok(Math.abs(dev[0]) < 0.01 && dev.every((x) => x > -0.02 && x < 0.15), `Langevin's diamagnetism from the solver's clouds: our noble gases within ${dev.map((x) => (x * 100).toFixed(0) + "%").join(", ")} of measured (He, Ne, Ar, Kr)`);
+  const NIST = [0.5, 0, 0.5, 0, 0.5, 1, 1.5, 1, 0.5, 0, 0.5, 0, 0.5, 1, 1.5, 1, 0.5, 0, 0.5, 0, 0.5, 1, 1.5, 3, 2.5, 2, 1.5, 1, 0.5, 0, 0.5, 1, 1.5, 1, 0.5, 0];
+  const miss = TABLE[3].filter((a) => MG.spinOf(a, 3) !== NIST[a.Z - 1]).map((a) => a.Z);
+  ok(miss.join() === "22,23", `ground-state spins by Hund's first rule match NIST for ${36 - miss.length} of 36; the misses (${miss.join(", ")}) are configurations the solver gets wrong`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

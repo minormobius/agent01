@@ -6,6 +6,7 @@ import * as F from "./fields.js";
 import { TABLE, RPLOT, SHELL_COUNTERFACTUAL } from "./table.js";
 import { lineColour, colourOf, planck } from "../../lumen/js/optics.js";
 import { fineSplit, harmonicDim } from "./turning.js";
+import * as MG from "./magnet.js";
 import * as FF from "./forces.js";
 import { RS as PAIR_RS, PAIRS } from "./pairs.js";
 import { RESPONSE } from "./response.js";
@@ -68,6 +69,13 @@ function chart(cv, o) {
 }
 const range = (a, b, n, log = false) => Array.from({ length: n }, (_, i) => (log ? a * (b / a) ** (i / (n - 1)) : a + ((b - a) * i) / (n - 1)));
 
+/* the motion chapter's magnetic atoms: unpaired electrons by element, Hund's first rule on the solver's configurations */
+function drawMagnet() {
+  const pts = (d) => TABLE[d].map((a) => [a.Z, MG.unpaired(a, d)]);
+  chart($("cMagnet"), { key: "kMagnet", x: [0, 78], y: [0, 11], xl: "atomic number Z", yl: "unpaired electrons", series: [
+    { pts: pts(3), c: C3, w: 1.5, label: "ours (to Z = 36)" }, { pts: pts(3), c: C3, dots: true },
+    { pts: pts(4), c: C4, w: 1.5, label: "4D (to Z = 78)" }, { pts: pts(4), c: C4, dots: true }] });
+}
 /* ------------------------------------------------------------- 1 · no ground state under 1/r² */
 function drawPin() {
   const rs = range(0.05, 6, 300);
@@ -433,7 +441,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cGeoSpread", drawGeometry], ["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbitNudge], ["cOrbitTurn", drawOrbitTurn], ["cNebula", drawNebula]];
+const DRAW = [["cGeoSpread", drawGeometry], ["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbitNudge], ["cOrbitTurn", drawOrbitTurn], ["cNebula", drawNebula], ["cMagnet", drawMagnet]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */

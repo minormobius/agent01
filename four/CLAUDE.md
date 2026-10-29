@@ -73,11 +73,12 @@ for games, and this is a modelling programme with publications to come. The game
   (`start/start.js`: squeezing an electron, field thinning, the charged shell (`atom/js/fields.js`), hydrogen's lines,
   the filling diagram (`table/filling.js`), the pair search, an ideal gas in 2–4 dimensions). Keep it in step with
   the position: when a conclusion changes, its step here changes too. The hub and ATOM⁴'s landing point to it.
-- **fields at `/fields/`**: electrostatics and magnetism under the pin, as five toys (`fields/fields.js`, drawing
+- **fields at `/fields/`**: electrostatics and magnetism under the pin, as six toys (`fields/fields.js`, drawing
   only; the physics is `atom/js/fields.js`, checked by ATOM⁴'s selftest 33): point charges in a slice (pinned 4D
   draws exactly as ours), flux that grows with radius, a nucleus-in-shell atom felt from outside (a²/8s³) and the
   bowed inside of a lone shell, a current loop's field by Biot–Savart with each kernel (r⁻³ pinned and ours,
-  r⁻⁴ for 4D Maxwell), and a charge in a uniform 4D field turning in two planes at (|L| ± |R|)/2.
+  r⁻⁴ for 4D Maxwell), a charge in a uniform 4D field turning in two planes at (|L| ± |R|)/2, and an atom in a magnet
+  (`atom/js/magnet.js`: diamagnetism from both halves, the spin's pull from the left half only).
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 78 4D elements (`atom/js/table.js`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)
@@ -109,6 +110,11 @@ for games, and this is a modelling programme with publications to come. The game
   sphere-averaged kernel (1/max in 3D; k(min/max)/max in 4D, k(1) = 8/3π),
   and the ground-config search. `js/fields.js` holds the field theory's closed
   forms (the routes, the unitarity bound, the lens vacuum, scattering as ω³).
+  `js/magnet.js` (no DOM) is atoms in a magnet (the motion chapter's section, the fields page's sixth toy): the 4D Pauli
+  identity (τ̄·a)(τ·b) = a·b + iσ·ℓ(a∧b) on quaternion units, so the spin couples to the field's left half only (g = 2 for
+  a field in one plane); Langevin's diamagnetism −Σ⟨r²⟩/2d from `table.js`'s per-orbital ⟨r²⟩; Hund's-first-rule spins and
+  Curie's paramagnetism, scaled by the field's shape |ℓ|²/|F|². Selftest 45 checks the identity, our noble gases against
+  measured susceptibilities and spins against NIST; `atom/tools/magnetnumbers.mjs` gives the chapter its numbers.
   `js/turning.js` holds motion and spin: so(4) = so(3) ⊕ so(3) by the Hodge
   star, the electron's handed spin (the selftest builds 4 + 1 γ matrices),
   fine structure, orbits, and a free rigid body. `js/forces.js` is the

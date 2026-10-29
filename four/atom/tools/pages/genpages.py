@@ -158,6 +158,24 @@ motion='''<section id="points">
   <p>Positions, velocities and the step-by-step update (velocity Verlet) carry over unchanged, and so do bond-stretch and bond-angle terms, at 104.48°. What's new is twist potentials in three angles, and six-component angular velocity for rigid parts. The pairwise forces are re-derived in <a href="forces.html">forces between molecules</a>.</p>
 </section>
 '''
+# the magnetic atoms (js/magnet.js on js/table.js, via tools/magnetnumbers.mjs): diamagnetism, spins, our world's checks
+MAG=json.loads(subprocess.run(['node',ATOM+'tools/magnetnumbers.mjs'],capture_output=True,text=True,check=True).stdout)
+MAGSEC=f"""  <h3 id="magnets">Atoms in a magnet <span class="tag computed">computed</span></h3>
+  <p><b>There's no cross product.</b> Our magnetic field is really one number per plane, three of them, and we draw it as an arrow only because in 3D every plane has one line at right angles to it. In 4D a plane's partner is another plane, so the field stays six numbers, one per plane, and it pushes a charge by turning its velocity within those planes: F = qBv, B acting on v as a turn does (<a href="../fields/">the fields toys</a>). Only some fields are isoclinic. Every field is a left half plus a right half, and it's isoclinic when one half is zero. A field from a single flat coil has equal halves: one plane turns, and the plane across it is left free.</p>
+  <p><b>The electron's equation, derived.</b> A slow electron obeys Pauli's equation, which needs no relativity: it's the square of a first-order equation (Lévy-Leblond's, 1967), and squaring is where the spin's magnetism comes from. In 4D the first-order operator is built from quaternion units, and their product gives (τ̄·a)(τ·b) = a·b + iσ·ℓ(a∧b), where ℓ takes a plane's left half. So an electron's energy in a field is π²/2m − (q/2m)σ·ℓ(B): its spin feels the field's left half only, as strongly as ours for a field in one plane (g = 2), twice as strongly for a left-isoclinic field, and not at all for a right one. The book stated the left-only coupling above; this is where it comes from.</p>
+  <p><b>Every atom is diamagnetic</b>: a field squeezes its electrons' orbits a little, raising its energy by (Σ⟨r²⟩/4d)|B|², so it's pushed out of a magnet, by both halves alike. That's Langevin's formula, in any dimension. From the solver's own clouds it gives our helium's measured susceptibility (within {abs(MAG['dev'][0])*100:.1f}%), and neon, argon and krypton {min(MAG['dev'][1:])*100:.0f} to {max(MAG['dev'][1:])*100:.0f}% too strong, the usual size of that formula's error. 4D's atoms are bigger, so they're more diamagnetic: 4D helium {MAG['he']:.1f} times ours.</p>
+  <p><b>Most atoms carry a spin, and their pull is handed.</b> Counting unpaired electrons by Hund's first rule on the solver's configurations gives our ground-state spins as measured for {MAG['nist']} of {MAG['n3']} elements (the misses are configurations the solver gets wrong). In 4D, {MAG['spin4']} of {MAG['n4']} atoms carry a spin; only elements {', '.join(str(z) for z in MAG['none4'][:-1])} and {MAG['none4'][-1]} don't. A 4D d shell has nine orbitals, so elements {' and '.join(str(z) for z in MAG['maxZ'])} hold {MAG['max4']} unpaired electrons, where our most is chromium's {MAG['max3']}. A free spin is drawn into a magnet (Curie's paramagnetism, S(S + 1)/3kT), and at room temperature that outweighs diamagnetism about {MAG['ratio']:.0f} times for 4D hydrogen. But only the left half pulls:</p>
+  <table class="verdict"><tr><th>the magnet's field</th><th>diamagnetism (every atom)</th><th>an atom's spin</th></tr>
+    <tr><td>in one plane (any single coil)</td><td>pushed out</td><td>drawn in, as in ours</td></tr>
+    <tr><td>left-isoclinic</td><td>pushed out, the same</td><td><b>drawn in twice as hard</b></td></tr>
+    <tr><td>right-isoclinic (the left's mirror image)</td><td>pushed out, the same</td><td><b>not at all</b>: only pushed out</td></tr></table>
+  <p><b>So a 4D gas of atoms tells a magnet from its mirror image</b>: the same atoms are drawn into one and pushed out of the other.</p>
+  <canvas class="chart" id="cMagnet"></canvas>
+  <p class="read" id="kMagnet"></p>
+  <p class="read">Unpaired electrons by element, by Hund's first rule on the solver's configurations (sphere-averaged, so the transition metals are the least sure). Left out: orbital moments, which feel both halves but need open-shell states the solver doesn't have; atoms bound into molecules, which mostly pair their spins (Xater and XH₃ are closed-shell, so diamagnetic); and magnets made of matter (ferromagnetism), which is far off.</p>
+"""
+motion=motion.replace('  <h3 id="bodies">Tumbling, and twisting</h3>', MAGSEC+'  <h3 id="bodies">Tumbling, and twisting</h3>',1)
+assert 'id="magnets"' in motion
 # ------------------------------------------------------------------ 4 hydrogen
 hyd=inner('hydrogen')+'''
   <h4 id="fine">Spin and fine structure</h4>
@@ -325,6 +343,7 @@ P=[("geometry",["<b>Spheres grow faster.</b> A 4D sphere's surface grows as r³,
  ("motion",["F = ma. Orbits lie in a plane, and under 1/r they're Kepler's closed ellipses. Under Gauss's force none is stable.",
   "Turns happen in planes: six components, double rotations, left and right isoclinic halves (SU(2) × SU(2)).",
   "<b>Electrons pair up, two to an orbital, and their spin is handed:</b> it turns with the left half of every rotation and ignores the right. Only half of a magnetic field can flip it.",
+  "<b>Atoms in a magnet are handed.</b> Every atom is pushed out of a magnet (diamagnetism), but a spin is drawn in by the field's left half only, so "+str(MAG['spin4'])+" of "+str(MAG['n4'])+" atoms are drawn into a magnet and pushed out of its mirror image.",
   "Rigid bodies tumble by Euler's equations in six components, still exactly solvable. Every single bond twists in three angles."]),
  ("hydrogen",["E = −Z²/2(n + ½)²: bound by 6.05 eV, twice our size. Shells hold 2, 10, 28, 60.",
   "Its fall to n = 2 glows red to orange, ending at 570 nm. Fine structure splits each l into (l + 1)(l + 2) and l(l + 1)."]),

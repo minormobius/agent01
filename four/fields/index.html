@@ -18,6 +18,7 @@
   .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 12px var(--mono); color: var(--dim); margin: 4px 0; }
   .ctl input[type=range] { flex: 1; min-width: 140px; max-width: 360px; accent-color: var(--d4); }
   .ctl b { color: var(--text); }
+  .ctl select { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font: 12px var(--mono); padding: 4px 6px; max-width: 100%; }
   .kv { font: 12px/1.6 var(--mono); color: var(--dim); } .kv b, .read b { color: var(--text); }
   canvas.map { width: 100%; max-width: 420px; aspect-ratio: 1; display: block; margin: 6px auto; touch-action: none; border-radius: 8px; cursor: grab; }
   canvas.lines { width: 100%; aspect-ratio: 1; display: block; border-radius: 8px; }
@@ -85,6 +86,19 @@
     <p class="read" id="rCyc"></p>
   </div>
   <p>The two parts can also be read another way: as a <b>left</b> half and a <b>right</b> half (the field plus or minus its mirror through the other plane), the same split that divides 4D rotations. An electron's spin is handed: it feels only the left half (<a href="../atom/motion.html">motion and spin</a>). Make the two parts equal and the field is all left: the path closes, and the electron's spin feels the field fully. Make them opposite and it's all right. The path still bends, but <b>the electron's spin doesn't feel that magnet at all</b>.</p>
+</section>
+
+<section class="step" id="atommag">
+  <h3>6 · An atom in a magnet: drawn in by one half, pushed out by the other</h3>
+  <p>Every atom is pushed out of a magnet a little: the field squeezes its electrons' orbits, and that costs energy (diamagnetism). An atom with unpaired electrons is also drawn in, far harder, because the field lines up their spins. But a 4D electron's spin feels only the field's <b>left half</b> (<a href="../atom/motion.html#magnets">atoms in a magnet</a>). Pick an atom and a temperature, and turn the field from all right half to all left, as in step 5:</p>
+  <div class="toy">
+    <div class="ctl">atom <select id="magAtom"><option value="1">4D hydrogen (one unpaired electron)</option><option value="32">element 32 (ten unpaired)</option><option value="12">element 12 (closed shells, none)</option></select></div>
+    <div class="ctl">field in the zw plane (the xy part held at 1) <input id="magT" type="range" min="-1" max="1" step="0.01" value="0" /> <b id="magTv"></b></div>
+    <div class="ctl">temperature <input id="magK" type="range" min="1" max="3.5" step="0.01" value="2.48" /> <b id="magKv"></b></div>
+    <canvas class="chart" id="cMag"></canvas>
+    <p class="read" id="rMag"></p>
+  </div>
+  <p>Diamagnetism doesn't care which half: the dashed line is flat. The spin's pull follows the left half, from nothing at −1 (all right) through ours at 0 (a field in one plane) to twice ours at +1 (all left). <b>So the same atoms are drawn into a magnet and pushed out of its mirror image.</b></p>
 </section>
 
 <section class="step" id="next">
