@@ -4,73 +4,89 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="A 4D orrery: a planetary system round a star in four dimensions of space, run live. Orbit planes drawn from how a 4D nebula settles, spacings from the stability map, moons in the one plane the star can't tug, temperatures from starlight. Turn it, slice it through w." />
+<meta name="description" content="A 4D orrery: a planetary system round a star in four dimensions of space, run live. Pick a planet and follow it through w, the direction you can't see. Orbit planes from how a 4D nebula settles, spacings from a stability map, moons in the one plane the star can't tug." />
 <title>Four · orrery</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../atom/css/atom4.css" />
 <style>
-  header, section { max-width: 900px; }
-  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 12px var(--mono); color: var(--dim); margin: 8px 0; }
-  .ctl input[type=range] { flex: 1; min-width: 120px; max-width: 260px; accent-color: var(--d4); }
-  .ctl b, .kv b, .read b { color: var(--text); }
-  .ctl label { display: inline-flex; align-items: center; gap: 6px; }
-  button.go { font: 600 12px var(--mono); background: none; color: var(--d4); border: 1px solid var(--d4); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
-  .side { display: grid; grid-template-columns: 1fr 240px; gap: 12px; align-items: start; } @media (max-width: 720px) { .side { grid-template-columns: 1fr; } }
-  canvas.sphere { width: 100%; max-width: 240px; aspect-ratio: 1; display: block; margin: 0 auto; border-radius: 8px; background: #0b0d13; }
-  .cap { font: 11px/1.5 var(--mono); color: var(--dim); }
-  table.sys { width: 100%; border-collapse: collapse; font: 12px var(--mono); margin: 10px 0; }
-  table.sys th, table.sys td { text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  table.sys th:first-child, table.sys td:first-child { text-align: left; }
-  table.sys th { color: var(--dim); font-weight: 400; }
+  html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--bg); }
+  body { display: grid; grid-template-rows: 2fr 1fr; height: 100vh; height: 100svh; }
+  #view { position: relative; min-height: 0; overflow: hidden; touch-action: none; cursor: grab; }
+  #view.drag { cursor: grabbing; }
+  #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud { position: absolute; left: 12px; top: 10px; right: 64px; font: 12px/1.5 var(--mono); color: var(--dim); pointer-events: none; text-shadow: 0 1px 2px #000; }
+  #hud b { color: var(--text); } #hud .t { font-size: 15px; letter-spacing: 0.06em; color: var(--text); }
+  #panel { min-height: 0; overflow-y: auto; padding: 8px 14px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--panel); font: 12px var(--mono); color: var(--dim); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0; }
+  .row > span.lab { min-width: 64px; }
+  button.b { font: 600 12px var(--mono); background: none; color: var(--dim); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
+  button.b.on { color: #05060a; background: var(--d4); border-color: var(--d4); }
+  button.b.chip { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  input[type=range] { accent-color: var(--d4); width: 120px; }
+  label { display: inline-flex; align-items: center; gap: 6px; }
+  b.v { color: var(--text); }
+  canvas#strip { width: 100%; height: 70px; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+  table.sys { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  table.sys th, table.sys td { text-align: right; padding: 3px 5px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.sys th:first-child, table.sys td:first-child { text-align: left; } table.sys th { font-weight: 400; } table.sys td { color: var(--text); }
+  table.sys tr.sel td { background: #ffffff0d; }
   .wrap { overflow-x: auto; }
-  .sw { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
-  ul.tags { list-style: none; padding: 0; } ul.tags li { margin: 6px 0; }
+  details { margin: 8px 0; } summary { cursor: pointer; color: var(--text); }
+  details p, details li { font: 13px/1.55 var(--sans); color: #c9c3b8; } details b { color: var(--text); }
+  details ul { padding-left: 0; list-style: none; } details li { margin: 6px 0; }
+  .foot { font: 11px var(--mono); margin: 10px 0 0; } .foot a { color: var(--text); }
+  @media (min-aspect-ratio: 4/3) and (min-width: 900px) { body { grid-template-rows: none; grid-template-columns: 1fr 400px; } #panel { border-top: none; border-left: 1px solid var(--border); } }
 </style>
 </head>
 <body>
-<header>
-  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="../start/">where we are</a><a href="../table/">the table</a><a href="../fields/">fields</a><a href="./" class="here">orrery</a><a href="../atom/">ATOM⁴</a></nav>
-  <h2>four.mino.mobi · orrery</h2>
-  <h1 class="ch">A planetary system in four dimensions</h1>
-  <p class="lede">A star, its planets and their moons, moving as they would in four dimensions of space with gravity pinned like charge (the pull falls as 1/r², so orbits close, as ours do). Nothing here is drawn on rails: every body is pulled by every other, stepped forward live. What it's built from comes from <a href="../atom/planets.html">the planetary-systems chapter</a>, and where it had to assume, it says so below.</p>
-</header>
-
-<section>
-  <div class="ctl">
-    <button type="button" class="go" id="newSys">new system</button>
-    <label>planets <input type="range" id="nP" min="3" max="6" step="1" value="5" /><b id="nPo">5</b></label>
-    <label>speed <input type="range" id="spd" min="-1" max="1.5" step="0.05" value="0" /><b id="spdo">1×</b></label>
+<div id="view">
+  <canvas id="cv" aria-label="A planetary system in four dimensions: drag to turn it, tap a planet to pick it"></canvas>
+  <div id="hud"></div>
+</div>
+<div id="panel">
+  <div class="row"><span class="lab">planets</span><span id="chips"></span></div>
+  <div class="row"><span class="lab">follow</span>
+    <button type="button" class="b" data-f="none">the star</button><button type="button" class="b" data-f="centre">centre on it</button><button type="button" class="b" data-f="ride">ride along in w</button>
+  </div>
+  <div class="row"><span class="lab">its orbit</span>
+    <button type="button" class="b" data-o="face">face on</button><button type="button" class="b" data-o="edge">edge on</button><button type="button" class="b" data-o="w">swinging through w</button>
+  </div>
+  <canvas id="strip" aria-label="How far into w each planet is, over time"></canvas>
+  <p class="cap" id="stripCap">How far each planet is into w, the direction you can't see, as it goes round: ana up, kata down.</p>
+  <div class="row"><span class="lab">view</span>
+    <button type="button" class="b" data-v="shadow">the whole of it</button><button type="button" class="b" data-v="slice">a 3D slice</button>
+    <span>drag turns</span><button type="button" class="b" data-d="turn">in 3D</button><button type="button" class="b" data-d="w">through w</button>
+  </div>
+  <div class="row"><span class="lab">time</span>
+    <button type="button" class="b" id="play">pause</button>
+    <label>speed <input type="range" id="spd" min="-1" max="1.5" step="0.05" value="0" /><b class="v" id="spdo">1×</b></label>
+    <label>zoom <input type="range" id="zm" min="0" max="1.7" step="0.01" value="0" /><b class="v" id="zmo">1×</b></label>
+  </div>
+  <div class="row"><span class="lab">system</span>
+    <button type="button" class="b" id="newSys">new system</button>
+    <label>planets <input type="range" id="nP" min="3" max="6" step="1" value="5" /><b class="v" id="nPo">5</b></label>
     <label><input type="checkbox" id="moons" checked /> moons</label>
   </div>
-  <div class="ctl">
-    <label>the nebula's second rate q <input type="range" id="qq" min="0" max="1" step="0.01" value="0.2" /><b id="qqo">0.20</b></label>
+  <div class="row"><span class="lab">nebula</span>
+    <label>second rate q <input type="range" id="qq" min="0" max="1" step="0.01" value="0.2" /><b class="v" id="qqo">0.20</b></label>
     <label><input type="checkbox" id="qRand" checked /> as a random spin draws it</label>
   </div>
-  <div class="side">
-    <div class="tiles" id="orrTile"></div>
-    <div>
-      <canvas class="sphere" id="sphere"></canvas>
-      <p class="cap">Each orbit's plane has two halves of turning. Every planet's left half lines up with the nebula's; only its right half differs, a point on this sphere. The ring marks where the nebula's spin leaves them on average (a mean cosine of <b id="mcos">–</b> to its own, ✦). Two planets whose points are φ apart orbit in planes tilted φ/2 in both of 4D's angles at once.</p>
-    </div>
-  </div>
-  <p class="read" id="clock"></p>
   <div class="wrap"><table class="sys" id="sys"></table></div>
-  <p class="cap">Distances in star radii; the star is as hot as our Sun. Temperatures are a black planet's, from starlight alone. Periods in the innermost planet's years. Tilt: the two angles between a planet's plane and the nebula's main plane, and to planet b's (always equal: isoclinic). e: how far from round each orbit is now, live. Moons' distances are drawn eight times larger than they are.</p>
-</section>
-
-<section>
-  <h3>What it's built from</h3>
-  <ul class="tags">
-    <li><span class="tag computed">computed</span> <b>The motion.</b> Leapfrog n-body under the pinned law, star, planets and moons all pulling (moons too light to pull back). The same integrator the chapter's orbit runs use.</li>
-    <li><span class="tag computed">computed</span> <b>The planes.</b> A 4D nebula spinning at two rates, 1 and q, doesn't flatten to one plane. It ends a thick lens, and every orbit's left half of turning lines up with the cloud's while its right half lines up only to a mean cosine just under (1 − q)/(1 + q) (<a href="../atom/planets.html#formation">measured</a>). Each planet's plane is drawn that way. A random spin's q is typically about a fifth.</li>
-    <li><span class="tag computed">computed</span> <b>The spacing.</b> Each planet sits out past the one inside at the closest ratio the <a href="../atom/planets.html#orbits">stability map</a> found stable for 100,000 orbits at their tilt and mass, with a random margin. Tilted planets disturb each other less, so 4D systems pack closer than ours. Then the whole system is run before it's shown, and redrawn if anything strays.</li>
-    <li><span class="tag computed">computed</span> <b>The moons.</b> Each in its planet's completely orthogonal plane, the one plane the star can't tug (<a href="../atom/planets.html#moons">the moon runs</a>), a third of the way to where the star would take it.</li>
-    <li><span class="tag follows">follows</span> <b>The temperatures.</b> Starlight thins as 1/r³ and a planet glows as T⁵, so temperature falls as r<sup>−3/5</sup>: our water's liquid band, 273–373 K, runs from 57 to 96 star radii here.</li>
-    <li><span class="tag choice">a choice</span> <b>The star.</b> A 4D star's surface temperature isn't known yet, so it's set to our Sun's. How many planets, and their masses (a tenth of Jupiter's or Jupiter's), aren't derived either: this is a possible system, checked by running it, not a predicted one.</li>
-    <li><span class="tag open">open</span> <b>Days and seasons.</b> A 4D planet spins in two planes at two rates, and how that sits against its orbit decides what seasons even are. Not worked out yet, so the planets here don't turn.</li>
-  </ul>
-</section>
-<p class="foot"><a href="../">four.mino.mobi</a> · <a href="../atom/planets.html">planetary systems, the chapter</a> · <a href="../atom/">ATOM⁴</a></p>
+  <details>
+    <summary>what it's built from, and what's assumed</summary>
+    <p>A star, its planets and their moons in four dimensions of space with gravity pinned like charge (the pull falls as 1/r², so orbits close, as ours do). Nothing is on rails: every body pulls every other, stepped forward live, from the results of <a href="../atom/planets.html">the planetary-systems chapter</a>.</p>
+    <ul>
+      <li><span class="tag computed">computed</span> <b>The planes.</b> A 4D nebula spinning at two rates, 1 and q, ends a thick lens. Every orbit's left half of turning lines up with the cloud's, and its right half only to a mean cosine just under (1 − q)/(1 + q) (<a href="../atom/planets.html#formation">measured</a>). So any two planets' planes are tilted by the same angle in both of 4D's directions at once. A random spin's q is typically about a fifth.</li>
+      <li><span class="tag computed">computed</span> <b>The spacing.</b> Each planet sits past the one inside at the closest ratio the <a href="../atom/planets.html#orbits">stability map</a> kept for 100,000 orbits at their tilt and mass, with a margin. The system is run before it's shown, and redrawn if anything strays.</li>
+      <li><span class="tag computed">computed</span> <b>The moons.</b> Each in its planet's completely orthogonal plane, the one the star can't tug (<a href="../atom/planets.html#moons">the moon runs</a>), a third of the way to where the star would take it. Drawn farther out than they are until you zoom in.</li>
+      <li><span class="tag follows">follows</span> <b>Temperatures.</b> Starlight thins as 1/r³ and a planet glows as T⁵, so T falls as r<sup>−3/5</sup>: our water's liquid band runs from 57 to 96 star radii.</li>
+      <li><span class="tag choice">a choice</span> <b>The star</b> is as hot as our Sun (a 4D star's surface temperature isn't known yet). How many planets and their masses (Jupiter's or a tenth of it) aren't derived: this is a possible system, checked by running it.</li>
+      <li><span class="tag open">open</span> <b>Days, seasons, magnetic fields.</b> A 4D planet spins in two planes at two rates; how that sits against its orbit decides what seasons are, and a spinning planet with a conducting core makes a magnetic field shaped like its spin (<a href="../fields/">fields</a>, toy 7). Next: those fields, and the star's wind meeting them.</li>
+    </ul>
+  </details>
+  <p class="foot"><a href="../">FOUR</a> · <a href="../atom/planets.html">planetary systems</a> · <a href="../fields/">fields</a> · <a href="../atom/">ATOM⁴</a></p>
+</div>
 <script type="module" src="orrery.js"></script>
 </body>
 </html>
