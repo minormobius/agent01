@@ -1,0 +1,12 @@
+{
+ "group": "corr4-xater-fg",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/correlation.mjs pair 4 DdpfFg f32",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1558
+  }
+ ]
+}
