@@ -1,0 +1,2 @@
+$ node four/atom/tools/nebula.mjs run 4 1 0 10000 500 1
+d4_a1_0_n10000_T500_s1 already done

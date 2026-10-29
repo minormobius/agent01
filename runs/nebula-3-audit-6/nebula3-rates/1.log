@@ -1,0 +1,32 @@
+$ node four/atom/tools/nebula.mjs run 4 1 0.25 10000 500 1
+d4_a1_0.25_n10000_T500_s1 resumes at t = 345.9180000009236
+t 350 alive 2824 axes 1.2323 1.2107 0.5187 0.4996 align 0.999 0.568 ecc 0.0748 (91 s)
+t 356.25 alive 2819 axes 1.2448 1.2096 0.5193 0.4964 align 0.999 0.567 ecc 0.0739 (227 s)
+t 362.5 alive 2816 axes 1.2418 1.221 0.5149 0.5094 align 0.999 0.568 ecc 0.0728 (367 s)
+t 368.75 alive 2812 axes 1.2448 1.2228 0.5143 0.5089 align 0.999 0.568 ecc 0.0721 (508 s)
+t 375 alive 2808 axes 1.2439 1.2265 0.5213 0.5067 align 0.999 0.568 ecc 0.0722 (649 s)
+t 381.25 alive 2805 axes 1.2376 1.2296 0.5175 0.5126 align 0.999 0.568 ecc 0.0727 (790 s)
+t 387.5 alive 2800 axes 1.2586 1.2211 0.5256 0.5065 align 0.999 0.568 ecc 0.0727 (929 s)
+t 393.75 alive 2798 axes 1.2624 1.2271 0.5231 0.5118 align 0.999 0.568 ecc 0.0724 (1068 s)
+t 400 alive 2795 axes 1.2584 1.2362 0.5205 0.5106 align 0.999 0.568 ecc 0.0725 (1208 s)
+t 406.25 alive 2791 axes 1.2523 1.2385 0.5273 0.5124 align 0.999 0.568 ecc 0.0725 (1344 s)
+t 412.5 alive 2787 axes 1.2546 1.2414 0.5206 0.5137 align 0.999 0.569 ecc 0.0723 (1483 s)
+t 418.75 alive 2785 axes 1.2615 1.2478 0.5314 0.5129 align 0.999 0.568 ecc 0.0726 (1621 s)
+t 425 alive 2782 axes 1.2785 1.2306 0.5253 0.5188 align 0.999 0.569 ecc 0.073 (1756 s)
+t 431.25 alive 2778 axes 1.2703 1.238 0.5232 0.5153 align 0.999 0.569 ecc 0.0714 (1894 s)
+t 437.5 alive 2775 axes 1.2717 1.251 0.5313 0.5192 align 0.999 0.569 ecc 0.0715 (2031 s)
+t 443.75 alive 2772 axes 1.2713 1.2563 0.5253 0.5204 align 0.999 0.569 ecc 0.0717 (2164 s)
+t 450 alive 2770 axes 1.2709 1.2508 0.5273 0.5239 align 0.999 0.569 ecc 0.071 (2302 s)
+t 456.25 alive 2766 axes 1.2756 1.2528 0.5286 0.5242 align 0.999 0.569 ecc 0.0711 (2437 s)
+t 462.5 alive 2764 axes 1.2771 1.2604 0.5368 0.5166 align 0.999 0.569 ecc 0.0707 (2573 s)
+t 468.75 alive 2761 axes 1.2786 1.2613 0.5302 0.5223 align 0.999 0.569 ecc 0.0708 (2706 s)
+t 475 alive 2758 axes 1.2913 1.2521 0.5378 0.521 align 0.999 0.569 ecc 0.0706 (2841 s)
+t 481.25 alive 2755 axes 1.291 1.2546 0.5286 0.5272 align 0.999 0.569 ecc 0.0699 (2975 s)
+t 487.5 alive 2754 axes 1.2873 1.2561 0.5341 0.5253 align 0.999 0.569 ecc 0.0688 (3114 s)
+t 493.75 alive 2750 axes 1.2982 1.2614 0.5357 0.5282 align 0.999 0.57 ecc 0.0692 (3248 s)
+t 500 alive 2748 axes 1.2899 1.2709 0.5328 0.5302 align 0.999 0.569 ecc 0.0696 (3385 s)
+d4_a1_0.25_n10000_T500_s1 done
+(node:2333) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/nebula.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
