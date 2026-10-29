@@ -809,5 +809,27 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `a spinning ball's field: its moment's field matches Biot–Savart's far field (to ${(worst * 100).toFixed(1)}%); from our slice, a spin in xy reaches no part into w, a spin in zw none within the slice`);
 }
 
+/* 47 · molecular crystals (js/crystal.js, tools/ice.mjs): the lattice energy in a cell of any shape. Ewald's sum gives
+   salt's Madelung constants in 3D and 4D (a two-ion molecule in the primitive cell, its own pair taken out), the same
+   when the cell is described sheared and then tidied; the descent's analytic slopes (sites, cell, Ewald's reciprocal
+   part through k and the volume) match central differences for Xater in a random 4D cell; and our water's
+   hand-built proton-ordered ice relaxes to a full four-connected hydrogen-bonded net */
+{
+  const CR = await import(path.join(here, "../js/crystal.js")), ICE = await import(path.join(here, "../tools/ice.mjs"));
+  const MD = await import(path.join(here, "../js/md.js")), LS = await import(path.join(here, "../js/landscape.js"));
+  let worst = 0;
+  for (const [d, M, B] of [[3, 1.747564594633, [[0, 1, 1], [1, 0, 1], [1, 1, 0]]], [4, 1.8393990840, [[1, 1, 0, 0], [1, -1, 0, 0], [0, 1, -1, 0], [0, 0, 1, -1]]]]) {
+    const a = 5, e0 = Array.from({ length: d }, (_, i) => (i ? 0 : a)), C = new CR.Crystal({ d, tmpl: [new Array(d).fill(0), e0], q: [1, -1], types: ["A", "B"], pairs: {}, rc: 16 });
+    const H = B.map((r) => r.map((v) => v * a)), I = Array.from({ length: d }, (_, i) => Array.from({ length: d }, (_, j) => +(i === j)));
+    const sheared = CR.tidy({ H: [H[0], H[1].map((v, i) => v + 2 * H[0][i]), ...H.slice(2)], mols: [{ R0: I, s: new Array(d).fill(0.3) }] });
+    for (const st of [{ H, mols: [{ R0: I, s: new Array(d).fill(0) }] }, sheared]) worst = Math.max(worst, Math.abs(C.energy(st.H, CR.sitesOf(C, st)).E * a - (1 - M)) / M);
+  }
+  const { C } = ICE.crystalOf("4"), rnd = LS.rng(7), H = Array.from({ length: 4 }, (_, i) => Array.from({ length: 4 }, (_, j) => (j > i ? 0 : j === i ? 7 + 2 * rnd() : 2 * rnd() - 1)));
+  const sl = CR.slopeCheck(C, { H, mols: [0, 1].map(() => ({ R0: MD.randomRotation(4, rnd), s: Array.from({ length: 4 }, rnd) })) }), gw = Math.max(...sl.map(([x, y]) => Math.abs(x - y) / (1e-4 + Math.abs(y))));
+  ok(worst < 2e-7 && gw < 1e-5, `Ewald in a cell of any shape: salt's Madelung constants in 3D and 4D to ${worst.toExponential(0)}, sheared or not; the descent's slopes match central differences (to ${gw.toExponential(0)}, Xater, a random 4D cell)`);
+  const K = ICE.known(), r = K.relaxed;
+  ok(r.g < 2e-5 && r.neighbours === 4 && r.hbonds === 2 && r.E < K.built.E && Math.abs(r.nearest - 5.74) < 0.05, `our water's ice: built on diamond with every bond carrying one hydrogen, it relaxes to a four-connected net (4 neighbours, 2 hydrogen bonds given each) at ${r.E.toFixed(2)} kcal/mol, O–O ${r.nearest.toFixed(2)} bohr, ${r.density.toFixed(2)} g/cm³`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

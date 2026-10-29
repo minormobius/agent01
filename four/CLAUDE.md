@@ -205,6 +205,17 @@ for games, and this is a modelling programme with publications to come. The game
   `tools/clusters.mjs` builds it, so it follows the runner's start s to the same minimum, and the page names each
   minimum from the runner's list (nearest in energy; selftest 39 checks two starts). `js/search.js`'s
   `buildClusters` shows it in the shared viewer, a tab per world.
+  `js/crystal.js` (no DOM) is molecular crystals in any d: rigid molecules in a cell of any shape (lower-triangular
+  rows), the lattice energy (Ewald's split of the pinned 1/r with k = 2πH⁻¹n, the force field's pairs over every image
+  within rc with a quintic switch, the continuum past it), analytic slopes in sites and cell, and a BFGS descent of
+  molecules and cell together that LLL-reduces the cell and folds the turns as it goes. A hard core (0.01(1.5/r)¹²
+  between opposite charges) stops a hydrogen falling into another molecule's heavy atom, which the model's finite
+  repulsion allows. `atom/tools/ice.mjs` searches with it (`<key> <Z> [starts] [--shard i/m]`: random cells, each
+  relaxed; `known`: our water's hand-built proton-ordered cubic ice, the known answer; `probe <key> <round>`: Hartree–Fock
+  on the found crystals' closest pairs, appended to `js/ffdata.js` as k ≥ 10000 for `fitff.mjs` to refit; `bake` writes
+  **generated** `js/icedata.js`). Selftest 47. Our water passes blind (random starts find the four-connected ice as
+  the lowest); the 4D force fields as first fitted collapse into crystals four times too dense, which Hartree–Fock
+  says they shouldn't, hence the probe rounds.
   `js/clusters.js` is **generated** by `atom/tools/clusters.mjs` (minima of
   3–6-molecule clusters on the force field; `--shard i/m` splits a search
   across machines). **Long runs go to the runner, not the sandbox** (below) . `js/census.js` is **generated** by
