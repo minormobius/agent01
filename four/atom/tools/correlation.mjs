@@ -3,7 +3,7 @@
    misses. This adds MP2 (js/gauss.js mp2: second order, cores frozen, counterpoise-corrected like the rest) at each
    best pair as the search left it (js/pairmin.js), so the geometry is Hartree–Fock's and only the energy changes.
      node four/atom/tools/correlation.mjs pair <key> [plus] [shift]   # one pair (keys as in tools/forcefield.mjs: 3, 3.7, 3.9,
-                                     # 4, 4.9), in the book's basis or grown by plus (tools/census.mjs basisFor: D, d, p, f;
+                                     # 4, 4.9), in the book's basis or grown by plus (tools/census.mjs basisFor: D, d, p, f, F, h, g;
                                      # "book" for none), the second molecule moved shift bohr along the line between the
                                      # heavy atoms (a scan: does correlation want the pair closer or farther?)
      node four/atom/tools/correlation.mjs bake           # js/correlation.js from the cached results

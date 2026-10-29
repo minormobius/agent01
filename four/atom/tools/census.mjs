@@ -39,16 +39,19 @@ export function valence(Z, d) {
      d  the heavy atom's one d split in two, a third and one and a half times it
      p  hydrogen's one p split the same way
      f  an f on the heavy atom, 1.2 times the d
+     F  two f instead, 0.6 and 2 times the d
+     h  a d on hydrogen, 1.25 times its p
+     g  a g on the heavy atom, 1.5 times the d
    Checked in our world against standard large bases (aug-cc-pVTZ and -QZ, by PySCF: tools/correlation-ref.py). */
 export function basisFor(Z, d, plus = "") {
   if (Z === 1) {
     const s0 = d === 3 ? 0.05 : 0.04, p0 = d === 3 ? 0.8 : 0.6;
-    return [[0, plus.includes("D") ? [s0 / 3, ...ET(s0, 3, 5)] : ET(s0, 3, 5)], [1, plus.includes("p") ? [p0 / 3, p0 * 1.5] : [p0]]];
+    return [[0, plus.includes("D") ? [s0 / 3, ...ET(s0, 3, 5)] : ET(s0, 3, 5)], [1, plus.includes("p") ? [p0 / 3, p0 * 1.5] : [p0]], ...(plus.includes("h") ? [[2, [p0 * 1.25]]] : [])];
   }
   const I = TABLE[d][Z - 1].ion, k = d === 3 ? { s: 0.26, S: 280, p: 0.33, P: 0.57, dd: 2.6 } : { s: 0.1, S: 75, p: 0.12, P: 0.15, dd: 1.25 };
   const count = (lo, hi) => Math.max(3, Math.ceil(Math.log(hi / lo) / Math.log(2.5)) + 1), dd = k.dd * I, D = plus.includes("D");
   const s = ET(k.s * I, 2.5, count(k.s * I, k.S * Z * Z)), p = ET(k.p * I, 2.5, count(k.p * I, k.P * Z * Z));
-  return [[0, D ? [s[0] / 2.5, ...s] : s], [1, D ? [p[0] / 2.5, ...p] : p], [2, plus.includes("d") ? [dd / 3, dd * 1.5] : [dd]], ...(plus.includes("f") ? [[3, [dd * 1.2]]] : [])];
+  return [[0, D ? [s[0] / 2.5, ...s] : s], [1, D ? [p[0] / 2.5, ...p] : p], [2, plus.includes("d") ? [dd / 3, dd * 1.5] : [dd]], ...(plus.includes("F") ? [[3, [dd * 0.6, dd * 2]]] : plus.includes("f") ? [[3, [dd * 1.2]]] : []), ...(plus.includes("g") ? [[4, [dd * 1.5]]] : [])];
 }
 
 const unit = (d, k) => Array.from({ length: d }, (_, q) => (q === k ? 1 : 0));
