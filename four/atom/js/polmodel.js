@@ -33,17 +33,21 @@ function solve(M, b) {
   for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[p], A[c]] = [A[c], A[p]]; for (let r = c + 1; r < n; r++) { const f = A[r][c] / A[c][c]; if (f) for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k]; } }
   const x = new Array(n); for (let r = n - 1; r >= 0; r--) { let s = A[r][n]; for (let k = r + 1; k < n; k++) s -= A[r][k] * x[k]; x[r] = s / A[r][r]; } return x;
 }
+/* between molecules, Thole's own a (his fit to molecular polarizabilities; our water's tensor gives 0.384 by itself).
+   Within a molecule the a fitted to its tensor shapes its response only, and can run to no damping at all, which
+   between molecules would let two dipoles pull each other without limit at contact */
+export const THOLE = 0.39;
 /* Thole's damping for sites of polarizability ai, aj at distance r: [λ₃, λ₅] */
 export function thole(r, ai, aj, a) { const s = ai * aj; if (!(s > 0)) return [1, 1]; const u3 = (r * r * r) / Math.sqrt(s), e = Math.exp(-a * u3); return [1 - e, 1 - (1 + a * u3) * e]; }
 /* the dipoles answering fields E (flat, per site) for sites at x (array of d-vectors) with polarizabilities al:
    (α⁻¹ − T) μ = E, solved directly */
-export function induce(x, al, E, d, a) {
+export function induce(x, al, E, d, a, mol = null, inter = a) {
   const n = x.length, idx = [], M = []; x.forEach((_, i) => { if (al[i] > 0) idx.push(i); });
   const m = idx.length * d; for (let r = 0; r < m; r++) M.push(new Array(m).fill(0));
   idx.forEach((i, I) => {
     for (let c = 0; c < d; c++) M[I * d + c][I * d + c] = 1 / al[i];
     idx.forEach((j, J) => {
-      if (J <= I) return; const r = x[i].map((v, c) => v - x[j][c]), r2 = r.reduce((s, v) => s + v * v, 0), rr = Math.sqrt(r2), [l3, l5] = thole(rr, al[i], al[j], a);
+      if (J <= I) return; const r = x[i].map((v, c) => v - x[j][c]), r2 = r.reduce((s, v) => s + v * v, 0), rr = Math.sqrt(r2), [l3, l5] = thole(rr, al[i], al[j], mol && mol[i] !== mol[j] ? inter : a);
       for (let c = 0; c < d; c++) for (let e = 0; e < d; e++) { const T = (3 * l5 * r[c] * r[e]) / (r2 * r2 * rr) - (c === e ? l3 / (r2 * rr) : 0); M[I * d + c][J * d + e] -= T; M[J * d + e][I * d + c] -= T; }
     });
   });
@@ -66,7 +70,7 @@ export function clusterEnergy(terms, mols) {
   const n = x.length, E = new Float64Array(n * d); let Eq = 0, Er = 0, Ec = 0;
   for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
     if (mol[i] === mol[j]) continue;
-    const r = x[i].map((v, c) => v - x[j][c]), r2 = r.reduce((s, v) => s + v * v, 0), rr = Math.sqrt(r2), [l3] = thole(rr, al[i], al[j], pol.thole);
+    const r = x[i].map((v, c) => v - x[j][c]), r2 = r.reduce((s, v) => s + v * v, 0), rr = Math.sqrt(r2), [l3] = thole(rr, al[i], al[j], pol.inter ?? THOLE);
     Eq += (ch[i] * ch[j]) / rr; if (terms.ct && (i % (nH + 1) === 0) !== (j % (nH + 1) === 0)) Er -= terms.ct.D * Math.exp(-terms.ct.b * rr); const ti = ty(i % (nH + 1)), tj = ty(j % (nH + 1)), key = ti !== tj ? "X|H" : `${ti}|${tj}`; Er += shortPair(pairs[key], r2)[0];
     // the clouds (4D): a charge meets a cloud as q c/r³, two clouds as −3 c c′/r⁵ (−(c/r³)'s Laplacian, c = S/8); a
     // cloud's field on a dipole is 3c r/r⁵
@@ -78,7 +82,7 @@ export function clusterEnergy(terms, mols) {
     const fc = (3 * f3) / r5 - (pairs[key].tt[1] * g3) / (r3 * rr); // −(1/r) d/dr [f₃(br)/r³]
     for (let c = 0; c < d; c++) { E[i * d + c] += r[c] * ((l3 * ch[j]) / r3 + cl[j] * fc); E[j * d + c] -= r[c] * ((l3 * ch[i]) / r3 + cl[i] * fc); }
   }
-  const mu = induce(x, al, E, d, pol.thole); let Ep = 0; for (let k = 0; k < E.length; k++) Ep -= 0.5 * mu[k] * E[k];
+  const mu = induce(x, al, E, d, pol.thole, mol, pol.inter ?? THOLE); let Ep = 0; for (let k = 0; k < E.length; k++) Ep -= 0.5 * mu[k] * E[k];
   return { E: Eq + Ec + Ep + Er, Eq, Ecloud: Ec, Epol: Ep, Erep: Er, mu };
 }
 export { expOf };
