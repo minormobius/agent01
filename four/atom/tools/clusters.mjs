@@ -84,7 +84,7 @@ export async function repol(key, n, top = 10, log = () => {}) {
     const E = (x) => clusterEnergy(T, pose(x)).E, x0 = new Array((n - 1) * (np + d)).fill(0), t0 = Date.now(); let last;
     for (const it of bfgsSteps(E, x0, 1500, 2e-6)) last = it;
     const fin = pose(last.x);
-    st.rows[i] = { found: +(m.E * KCAL).toFixed(4), scored: +(E(x0) * KCAL).toFixed(4), relaxed: +(last.f * KCAL).toFixed(4), g: last.g, sig: sig(fin).map((v) => +v.toFixed(3)), moved: +Math.max(...fin.flatMap((M, a) => M.map((s, k) => Math.hypot(...s.map((v, c) => v - X[a][k][c]))))).toFixed(3) };
+    st.rows[i] = { found: +(m.E * KCAL).toFixed(4), scored: +(E(x0) * KCAL).toFixed(4), relaxed: +(last.f * KCAL).toFixed(4), g: last.g, sig: sig(fin).map((v) => +v.toFixed(3)), X: fin.map((M) => M.map((a) => a.map((v) => +v.toFixed(5)))), moved: +Math.max(...fin.flatMap((M, a) => M.map((s, k) => Math.hypot(...s.map((v, c) => v - X[a][k][c]))))).toFixed(3) };
     writeFileSync(out, JSON.stringify(st)); log(`${key} n=${n} #${i}: found ${st.rows[i].found}, scored ${st.rows[i].scored}, relaxed ${st.rows[i].relaxed} kcal/mol (|g| ${last.g.toExponential(1)}, moved ${st.rows[i].moved} bohr, ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   }
   return st;

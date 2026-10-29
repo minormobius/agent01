@@ -1,6 +1,6 @@
 {
  "run": "manybody-shell-1",
- "why": "Is a dense 4D crystal real at the Hartree-Fock level? Two tests on crystals the polarizable force field finds (and the old model's collapsed ones): seven trimers' three-body energies (one from our water's ice, the calibration), and one dense Xater crystal's every distinct neighbour pair within 10 bohr (102), each a Hartree-Fock pair energy, summed into its pairwise lattice energy. Queued behind corr-4.",
+ "why": "Is a dense 4D crystal real at the Hartree-Fock level? Two tests on crystals the polarizable force field finds (and the old model's collapsed ones): seven trimers' three-body energies (one from our water's ice, the calibration), and one dense Xater crystal's every distinct neighbour pair within 10 bohr (102), each a Hartree-Fock pair energy, summed into its pairwise lattice energy. Queued behind corr-4. Plus the two cyclic trimers the polarizable field relaxes the published best trimers into (Xater -73.9, XH3 -81.8 kcal/mol against -56.7 and -56.4 on the old field): the audit's sharpest claim, tested directly.",
  "minutes": 240,
  "groups": [
   {
@@ -115,6 +115,18 @@
     "node four/atom/tools/manybody.mjs shell 0 10 --shard 29/32",
     "node four/atom/tools/manybody.mjs shell 0 10 --shard 30/32",
     "node four/atom/tools/manybody.mjs shell 0 10 --shard 31/32"
+   ]
+  },
+  {
+   "name": "mb-xater-ring",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 7"
+   ]
+  },
+  {
+   "name": "mb-xh3-ring",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 8"
    ]
   }
  ]
