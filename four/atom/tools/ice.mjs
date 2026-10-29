@@ -6,7 +6,7 @@
      node four/atom/tools/ice.mjs <key> <Z> [starts] [--shard i/m]   # one search; cached, so a cut run resumes
      node four/atom/tools/ice.mjs known                             # our water's ice Ic, built by hand and relaxed
      node four/atom/tools/ice.mjs bake                              # gather what's done into js/icedata.js
-     node four/atom/tools/ice.mjs probe <key> <round> [n]           # Hartree–Fock on the found crystals' closest pairs
+     node four/atom/tools/ice.mjs probe <key> <round> [n] [--from f] # Hartree–Fock on the found crystals' closest pairs
    A start: a cell of random shape (angles 60–120°, edges within a factor of 1.6 of each other) with room for Z
    molecules at 2–4 times the pair's close packing, each molecule turned at random and placed at random, no two sites of
    different molecules closer than the pair's own closest contact allows. Relaxations that run out of steps are
@@ -118,10 +118,11 @@ export function closestPairs(key, C, st, n = 2) {
   out.sort((x, y) => x.r - y.r); const picked = []; for (const p of out) { if (picked.length >= n) break; if (picked.every((q) => Math.abs(q.r - p.r) > 0.05)) picked.push(p); }
   const Zh = monoOf(key).Z; return picked.map(({ A, B }) => [A.map((at, i) => ({ Z: i ? 1 : Zh, at })), B.map((at, i) => ({ Z: i ? 1 : Zh, at }))]);
 }
-export async function probe(key, round, n = 16) {
+export async function probe(key, round, n = 16, from = null) {
   const { C } = crystalOf(key), d = C.d, FFC = path.join(tmpdir(), "atom4-ff"), file = path.join(FFC, `crystal_${key}_${round}.json`); mkdirSync(FFC, { recursive: true });
   if (!existsSync(file)) {
-    const minima = readdirSync(CACHE).filter((f) => f.startsWith(`${key}_`)).flatMap((f) => JSON.parse(readFileSync(path.join(CACHE, f), "utf8")).minima).sort((a, b) => a.E - b.E), picks = [];
+    const files = from ? [from] : readdirSync(CACHE).filter((f) => f.startsWith(`${key}_`)).map((f) => path.join(CACHE, f));
+    const minima = files.flatMap((f) => JSON.parse(readFileSync(f, "utf8")).minima).sort((a, b) => a.E - b.E), picks = [];
     for (const m of minima) { if (picks.length >= n) break; if (picks.some((p) => Math.abs(p.E - m.E) < 0.02)) continue; picks.push({ E: m.E, pairs: closestPairs(key, C, { H: m.H, mols: m.mols }) }); }
     writeFileSync(file, JSON.stringify(picks.flatMap((p) => p.pairs).slice(0, n)));
   }
@@ -153,7 +154,7 @@ export function bake() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [cmd, a, b] = process.argv.slice(2), sh = process.argv.indexOf("--shard"), shard = sh > 0 ? process.argv[sh + 1].split("/").map(Number) : [0, 1];
   if (cmd === "known") console.log(JSON.stringify(known(), null, 1));
-  else if (cmd === "probe") await probe(a, +b, +(process.argv[5] || 16));
+  else if (cmd === "probe") { const fr = process.argv.indexOf("--from"); await probe(a, +b, +(process.argv[5] || 16), fr > 0 ? process.argv[fr + 1] : null); }
   else if (cmd === "bake") console.log(JSON.stringify(Object.fromEntries(Object.entries(bake()).map(([k, o]) => [k, { starts: o.starts, found: o.found, best: o.minima.slice(0, 3).map(({ E, V, hbonds, neighbours, hits }) => ({ E, V, hbonds, neighbours, hits })) }])), null, 1));
   else if (WORLDS[cmd]) await search(cmd, +a, +(b && !b.startsWith("--") ? b : 200), console.log, shard);
   else console.log("usage: ice.mjs <key> <Z> [starts] [--shard i/m] | known | probe <key> <round> [n] | bake");
