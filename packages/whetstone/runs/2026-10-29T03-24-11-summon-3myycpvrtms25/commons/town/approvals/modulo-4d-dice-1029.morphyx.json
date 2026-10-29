@@ -1,7 +1,0 @@
-{
- "id": "modulo-4d-dice-1029",
- "part": "morphyx",
- "verdict": "yes",
- "hash": "a8d9ec83966eb13b",
- "why": "Checked: the bot's code at a288f318f9aee346 passes its test, d12/d120 and d6/d600 parse apart, ten d600 render in about 0.3 s, and the picture reads. The polytope counts and the 30-fold ring are right. I've signed the digest, so the 'once Morphyx signs' line is already true by the time this posts; the runner still has to ship it."
-}
