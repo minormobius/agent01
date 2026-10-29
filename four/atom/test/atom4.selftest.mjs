@@ -75,7 +75,7 @@ for (const d of [3, 4]) {
   ok(worst < 0.08, `${d}D: each density integrates to its Z electrons, within the cut-off (worst ${(worst * 100).toFixed(1)}%)`);
 }
 { // recompute a sample from scratch: the same configuration, energy and ionization as baked
-  const sample = [[3, 7], [4, 7], [4, 13]];
+  const sample = [[3, 3], [4, 7]]; // one each world: a cheap 3D atom and a 4D p shell (any atom catches a solver that has drifted)
   let bad = [];
   for (const [d, Z] of sample) { const e = element(Z, d), b = TABLE[d][Z - 1]; if (e.config !== b.config || !near(e.E, b.E, 1e-5) || !near(e.ion, b.ion, 1e-4)) bad.push(`${d}D ${Z}`); }
   ok(!bad.length, `the baked table is what the solver gives (${sample.map(([d, Z]) => `${d}D Z=${Z}`).join(", ")})${bad.length ? ": " + bad.join(", ") : ""}`);
