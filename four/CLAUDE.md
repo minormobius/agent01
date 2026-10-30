@@ -5,7 +5,7 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
-A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in sixteen chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.
+A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in seventeen chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.
 
 ## Facts
 
@@ -106,10 +106,10 @@ for games, and this is a modelling programme with publications to come. The game
 - **ATOM⁴ at `/atom/`**: the **official position on this universe**: four
   dimensions of space with the force between charges pinned at 1/r (Gauss's
   1/r² has no ground state). `index.html` is the position: every conclusion,
-  one card per chapter, plus the open questions. Sixteen chapter pages hold
+  one card per chapter, plus the open questions. Seventeen chapter pages hold
   the working: `geometry.html`, `force.html`, `light.html`, `motion.html`, `gravity.html`, `hydrogen.html`,
   `table.html`, `shapes.html`, `darbon.html`, `forces.html`, `xater.html`,
-  `census.html`, `search.html`, `gas.html`, `stars.html`, `planets.html`. All run `js/main.js`, which
+  `census.html`, `search.html`, `gas.html`, `nuclei.html`, `stars.html`, `planets.html`. All run `js/main.js`, which
   draws only what each page has. **A new conclusion goes in its chapter
   and on the landing's cards**; the selftest checks every page carries the
   same nav, has no repeated id, and that every drawing has its element.
@@ -224,7 +224,11 @@ for games, and this is a modelling programme with publications to come. The game
   Brueckner–Hartree–Fock in any d (Serber's Malfliet–Tjon; a three-nucleon repulsion, the same function of distance in both
   worlds, its strength `THREE_C` fitted to our −16 MeV, its range b the uncertainty), and `atom/tools/nuclei.mjs` runs the
   fit, the matter scans and the light nuclei (`he4 <d> <s> <b|none> [A]`, on the runner) and bakes **generated**
-  `js/nucleidata.js` (cache `$TMPDIR/atom4-nuclei`). Selftest 51.
+  `js/nucleidata.js` (cache `$TMPDIR/atom4-nuclei`). A second force, Minnesota's Gaussians (`MN`; every `nuclei.mjs`
+  command takes `MN` as a last word), checks nothing hangs on Malfliet–Tjon's shape; light nuclei past helium are helium-4
+  clusters (`alphaPair`, `alphaNucleon`: folded force, Saito's orthogonality by Kukulin's pseudopotential, one factor
+  calibrated on our ⁸Be or ⁵He; `nuclei.mjs cluster`). The nuclei chapter (`atom/tools/pages/gennuclei.py`) and the stars
+  chapter's "What sets G" read it. Selftest 51.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).
@@ -288,8 +292,8 @@ for games, and this is a modelling programme with publications to come. The game
   and ▣ squares the view onto the axes (`nearestSquare`). Imports `../../lumen/js/optics.js` for line and
   sky colours; Lumen⁴'s page links back to the light chapter. See
   [`atom/README.md`](atom/README.md).
-- **ATOM⁴'s pages are generated.** The sixteen chapters and the landing come from
-  `atom/tools/pages/genpages.py` (it execs `gengeometry.py`, `genxater.py`, `gencensus.py`, `gensearch.py`, `gengas.py` and `genstars.py` beside it, and cuts the
+- **ATOM⁴'s pages are generated.** The seventeen chapters and the landing come from
+  `atom/tools/pages/genpages.py` (it execs `gengeometry.py`, `genxater.py`, `gencensus.py`, `gensearch.py`, `gengas.py`, `genstars.py` and `gennuclei.py` beside it, and cuts the
   first chapters from `old-index.html`). Each chapter's body and the landing's cards live there, with their numbers
   pulled from the baked `atom/js/*.js`. So change a chapter there, never in the HTML, then
   `python3 four/atom/tools/pages/genpages.py`. **A new conclusion goes in its chapter and on the landing's cards.**

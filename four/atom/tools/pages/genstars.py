@@ -38,6 +38,17 @@ SMAPS+='<div class="smapkey"><span><i style="background:rgba(111,224,255,0.10)">
 TSUN, R_EARTH = 5772, 215 # our Sun's surface temperature, and Earth's distance in Sun radii
 LT=json.loads(subprocess.run(['node','--input-type=module','-e','import * as O from "'+ATOM+'js/orbits.js"; console.log(JSON.stringify({ a4: O.absorbShare(4), t3: O.planetT(3, 5772, 215), t4: O.planetT(4, 5772, 215), r4: O.radiusFor(4, 5772, O.planetT(3, 5772, 215)), b3: (373 / 273) ** (-1 / O.tempPower(3)), b4: (373 / 273) ** (-1 / O.tempPower(4)) }));'],capture_output=True,text=True,check=True).stdout)
 ABS4, T3E, T4E, R4WARM, BAND3, BAND4 = LT['a4'], LT['t3'], LT['t4'], LT['r4'], LT['b3'], LT['b4']
+# what sets G (js/gscale.js): Chandrasekhar's mass, the Earth-like planet's G for a range of rock densities, and planets at any G
+GS=json.loads(subprocess.run(['node','--input-type=module','-e','import * as G from "'+ATOM+'js/gscale.js"; const c3 = G.chandrasekhar(3), c4 = G.chandrasekhar(4), lo = G.earthLike(8e12), hi = G.earthLike(6e13); const rows = [1, 1e-8, 1e-12, 3e-17].map((f) => ({ f, ...G.planetsAt(G.SI.G * f, 2.3e13) })); console.log(JSON.stringify({ m3: c3.mass() / G.SI.Msun, c4: c4.cd, gLo: Math.min(lo.ratio, hi.ratio), gHi: Math.max(lo.ratio, hi.ratio), pLo: Math.min(lo.planetOverStar, hi.planetOverStar), pHi: Math.max(lo.planetOverStar, hi.planetOverStar), rhoLo: 8e12, rhoHi: 6e13, rows }));'],capture_output=True,text=True,check=True).stdout)
+def _gl(x): return '1 km' if False else (f"{x/1000:.0f} km" if x>=2000 else f"{x:.0f} m")
+def _gg(g): return f"{g:,.0f} m/s² ({g/9.81:,.0f} g)" if g>=20 else f"{g:.1f} m/s²"
+SUP=str.maketrans('-0123456789','⁻⁰¹²³⁴⁵⁶⁷⁸⁹')
+def sci(x):
+    e=math.floor(math.log10(abs(x))); m=x/10**e
+    if round(m)==10: m,e=1,e+1
+    return (f'10{str(e).translate(SUP)}' if round(m)==1 else f'{round(m):.0f} × 10{str(e).translate(SUP)}')
+def _gf(f): return 'ours' if f==1 else sci(f)+' of ours'
+GS['rows']=''.join(f"<tr><td>{_gf(r['f'])}</td><td>{_gl(r['airR'])}</td><td>{_gg(r['airG'])}</td><td>{_gl(r['darkR'])}</td></tr>" for r in GS['rows'])
 # the nebulae (js/nebuladata.js, tools/nebula.mjs on the runner) and how a random spin's two rates compare (js/nebula.js)
 TDN=json.loads(subprocess.run(['node',ATOM+'tools/tidenumbers.mjs'],capture_output=True,text=True,check=True).stdout)  # tides (js/tides.js)
 NB=json.loads(subprocess.run(['node','--input-type=module','-e','import { NEBULA } from "'+ATOM+'js/nebuladata.js"; import { randomSpinRatios } from "'+ATOM+'js/nebula.js"; const q = randomSpinRatios(100000); console.log(JSON.stringify({ runs: NEBULA.map(({ snap, ...r }) => r), med: q[q.length >> 1], q1: q[q.length >> 2], q3: q[(3 * q.length) >> 2], above9: q.filter((x) => x > 0.9).length / q.length }));'],capture_output=True,text=True,check=True).stdout)
@@ -114,6 +125,14 @@ stars=f'''<section id="hold">
 <section id="masses">
   <h3>How big, how small</h3>
   <p>A contracting ball heats until its electrons, squeezed, resist by Pauli's principle alone. That caps its temperature, so the smallest star that lights holds about α_G^(−4/3) (kT_burn / m_e c²)^(2/3) protons in 4D, where α_G = G m_p²/ħc measures gravity's strength (pinned, it's again a pure number: about 6 × 10⁻³⁹ in ours). The largest is where light's pressure takes over, about α_G^(−4/3) protons. The dead remnant's limit, where relativistic electrons can no longer hold it up (Chandrasekhar's), lands at the same scale. In ours both carry α_G^(−3/2). So <b>the window of star masses, largest over smallest, is about (m_e c²/kT_burn)^(2/3) in 4D (the power 3/4 in ours), whatever gravity's strength</b>: roughly 30 in 4D with its hotter cores, against roughly 100 in ours by the same rough count (the real one, with all the factors, is 0.08 to 150 solar masses). These are scaling estimates, not solved stars.</p>
+  <p>One of them is solved: the dead remnant's limit. Electrons squeezed to near light speed press as c p_F n/(d + 1), the stiffness 1 + 1/d that gravity under 1/r needs exactly, so a ball of them is the polytrope of index d. In ours that's Chandrasekhar's star, and the solver gives <b>{GS['m3']:.3f} solar masses</b> for two nucleons per electron (1.457, the textbook). Pinned in 4D the index-4 polytrope closes too, at a finite radius, so <b>4D has a Chandrasekhar mass: {GS['c4']:.2f} α_G^(−4/3) nucleons</b>. A dead 4D star heavier than that collapses, as ours do.</p>
+</section>
+<section id="gscale">
+  <h3>What sets G</h3>
+  <p>Nothing in physics fixes Newton's G, in our world or this one. Gravity pinned through the lens keeps the force's units, so G could be ours. It can't be, for this reason: <b>4D matter is far denser per 4-volume than ours is per 3-volume</b> (a rock's atoms, a few ångströms apart, give about 2 × 10¹³ kg/m⁴), and a ball's surface gravity grows as G ρ R². With our G:</p>
+  <table class="sys"><tr><th>G</th><th>smallest planet that holds air</th><th>its surface gravity</th><th>a ball of rock is a dark star past</th></tr>{GS['rows']}</table>
+  <p class="read">"Holds air": its gravity holds a molecule of 30 nucleons at 300 K with 50 kT to spare. "Dark star": 2GM/R reaches c², whatever gravity's relativistic form turns out to be. Rock at 2.3 × 10¹³ kg/m⁴.</p>
+  <p><b>At our G, a world that holds air crushes everything at fifty thousand g, and a world with gentle gravity can't hold air.</b> Something has to give, and it's G. Escape speed obeys v² = 2gR in any dimension, so a planet with Earth's gravity and Earth's hold on its air has Earth's radius in 4D too, and that fixes G ρ₄ = 2g/π²R². For rock between {sci(GS['rhoLo'])} and {sci(GS['rhoHi'])} kg/m⁴, <b>G is {sci(GS['gLo'])} to {sci(GS['gHi'])} of ours</b>. With that G the stars come out Sun-sized, and a planet weighs {sci(GS['pLo'])} to {sci(GS['pHi'])} of a Chandrasekhar star (Earth weighs 3 × 10⁻⁶ of our Sun). So <b>G is a choice, made by a requirement</b>: that there be planets like ours. What 4D rock is made of, and so how dense it is, waits on <a href="nuclei.html">chapter 14</a>'s question of which elements stars make.</p>
 </section>
 <section id="fuel">
   <h3>The fuel: the weak force, added</h3>
@@ -122,7 +141,7 @@ stars=f'''<section id="hold">
 <section id="starsnext">
   <h3>What's computed and what's open</h3>
   <p class="read"><span id="orbits"></span><span id="formation"></span>Orbits round a real star, planets, moons and how a nebula flattens are <a href="planets.html">chapter 16</a>; gravity's routes are <a href="gravity.html">chapter 5</a>.</p>
-  <p>Computed and checked: the virial bookkeeping for each law, the polytropes (against Lane–Emden), the outer layers' pull, tunnelling through the 4D barrier (against Gamow), and the lighting. Argued from scaling: the mass window. Chosen: the weak force, added. Open: gravity's route (the lens is assumed here; the nonlinear law is the alternative). Open: nuclear physics in 4D (which nuclei exist, their fusion energies and sizes); light's escape from a 4D star (opacity through the lens, and the T⁵ Planck law at its surface), which sets its colour; and stars that age, burn in shells and die.</p>
+  <p>Computed and checked: the virial bookkeeping for each law, the polytropes (against Lane–Emden), the outer layers' pull, tunnelling through the 4D barrier (against Gamow), and the lighting. Argued from scaling: the mass window. Chosen: the weak force, added. Open: gravity's route (the lens is assumed here; the nonlinear law is the alternative). Nuclear physics in 4D, what it takes and what stars can burn, is <a href="nuclei.html">chapter 14</a>. Open: light's escape from a 4D star (opacity through the lens, and the T⁵ Planck law at its surface), which sets its colour; and stars that age, burn in shells and die.</p>
 </section>
 '''
 planets=f'''<section id="orbits">
