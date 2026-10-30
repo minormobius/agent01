@@ -1,0 +1,33 @@
+{
+ "group": "mt-radii",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 3 1 none",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 608
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 4 1.2292 none",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 650
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 4 1.2986 none",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 653
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 4 1.4993 none",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 661
+  }
+ ]
+}

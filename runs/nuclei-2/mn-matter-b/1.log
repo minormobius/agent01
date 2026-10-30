@@ -1,0 +1,21 @@
+$ node four/atom/tools/nuclei.mjs matter 4 1.5152 neutron MN
+d=4 s=1.5152 neutron kF=0.6 ρ=0.0008207 E2/A=3.280 (2812 ms)
+d=4 s=1.5152 neutron kF=0.8 ρ=0.002594 E2/A=4.951 (2584 ms)
+d=4 s=1.5152 neutron kF=1 ρ=0.006333 E2/A=6.273 (2976 ms)
+d=4 s=1.5152 neutron kF=1.2 ρ=0.01313 E2/A=6.587 (3326 ms)
+d=4 s=1.5152 neutron kF=1.4 ρ=0.02433 E2/A=5.057 (2429 ms)
+d=4 s=1.5152 neutron kF=1.6 ρ=0.04150 E2/A=0.682 (2137 ms)
+d=4 s=1.5152 neutron kF=1.7 ρ=0.05289 E2/A=-2.929 (2250 ms)
+d=4 s=1.5152 neutron kF=1.8 ρ=0.06648 E2/A=-7.705 (2427 ms)
+d=4 s=1.5152 neutron kF=1.9 ρ=0.08253 E2/A=-13.820 (2454 ms)
+d=4 s=1.5152 neutron kF=2 ρ=0.1013 E2/A=-21.466 (2348 ms)
+d=4 s=1.5152 neutron kF=2.1 ρ=0.1232 E2/A=-30.843 (2463 ms)
+d=4 s=1.5152 neutron kF=2.2 ρ=0.1483 E2/A=-42.167 (2556 ms)
+d=4 s=1.5152 neutron kF=2.35 ρ=0.1931 E2/A=-63.299 (2716 ms)
+d=4 s=1.5152 neutron kF=2.5 ρ=0.2474 E2/A=-90.137 (2549 ms)
+d=4 s=1.5152 neutron kF=2.7 ρ=0.3365 E2/A=-136.286 (1657 ms)
+wrote MN-matter-4-1p5152-neutron.json
+(node:2318) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/nuclear.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

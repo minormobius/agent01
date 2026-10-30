@@ -1,0 +1,33 @@
+{
+ "group": "mn-matter-a",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs matter 4 1.4002 symmetric MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 104
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs matter 4 1.5152 symmetric MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 117
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs matter 4 1.8909 symmetric MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 110
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs matter 3 1 neutron MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 63
+  }
+ ]
+}

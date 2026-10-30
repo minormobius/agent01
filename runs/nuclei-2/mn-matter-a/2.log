@@ -1,0 +1,21 @@
+$ node four/atom/tools/nuclei.mjs matter 4 1.8909 symmetric MN
+d=4 s=1.8909 symmetric kF=0.6 ρ=0.001641 E2/A=-4.395 (6013 ms)
+d=4 s=1.8909 symmetric kF=0.8 ρ=0.005188 E2/A=-8.784 (5942 ms)
+d=4 s=1.8909 symmetric kF=1 ρ=0.01267 E2/A=-18.341 (5946 ms)
+d=4 s=1.8909 symmetric kF=1.2 ρ=0.02626 E2/A=-35.785 (6814 ms)
+d=4 s=1.8909 symmetric kF=1.4 ρ=0.04865 E2/A=-64.410 (8446 ms)
+d=4 s=1.8909 symmetric kF=1.6 ρ=0.08300 E2/A=-108.050 (8021 ms)
+d=4 s=1.8909 symmetric kF=1.7 ρ=0.1058 E2/A=-136.870 (8123 ms)
+d=4 s=1.8909 symmetric kF=1.8 ρ=0.1330 E2/A=-171.182 (8088 ms)
+d=4 s=1.8909 symmetric kF=1.9 ρ=0.1651 E2/A=-211.659 (8179 ms)
+d=4 s=1.8909 symmetric kF=2 ρ=0.2026 E2/A=-259.035 (8197 ms)
+d=4 s=1.8909 symmetric kF=2.1 ρ=0.2463 E2/A=-314.083 (6596 ms)
+d=4 s=1.8909 symmetric kF=2.2 ρ=0.2967 E2/A=-377.635 (8594 ms)
+d=4 s=1.8909 symmetric kF=2.35 ρ=0.3863 E2/A=-490.818 (8714 ms)
+d=4 s=1.8909 symmetric kF=2.5 ρ=0.4947 E2/A=-628.251 (7447 ms)
+d=4 s=1.8909 symmetric kF=2.7 ρ=0.6731 E2/A=-855.019 (4847 ms)
+wrote MN-matter-4-1p8909-symmetric.json
+(node:2551) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/nuclear.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
