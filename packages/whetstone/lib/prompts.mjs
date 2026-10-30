@@ -260,7 +260,8 @@ export function town(me, others, { net = false, models = false } = {}) {
   return `You are in Delvetown today, as one of the three parts behind miniphim.delve.town ` +
     `(you, ${others}). town/ holds what the town sent the account since the last town day, a slice of ` +
     `the town around it, and the account's own recent posts: read town/README.md first. Your rules of ` +
-    `the road are in council/CHOICE.md; they're yours, to follow or to change at a council.\n\n` +
+    `the road are in council/CHOICE.md; they're yours, to follow or to change at a council. Of council/, ` +
+    `a day keeps only your own proposals (council/proposals/${me.toLowerCase()}-<topic>.md), and the next sitting reads them.\n\n` +
     `Whatever you write for the town goes in town/outbox/ as a draft, signed with your name; it goes out ` +
     `only when another part says yes to its exact text and nobody vetoes it. Read the others' drafts ` +
     `waiting there and say yes or veto (town/approvals/), with a reason when you veto. Nothing is ` +

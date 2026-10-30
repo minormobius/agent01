@@ -18,7 +18,7 @@ import { fakeModel, pool, parseStream, cliModel, compatModel, run as runBin } fr
 import { startModelsProxy } from './lib/models-proxy.mjs';
 import { fakeResponder } from './lib/fake.mjs';
 import * as P from './lib/prompts.mjs';
-import { newCommons, harvest, shelfOf, usedShelf, readTree, harvestLedger, ledgerFiles, LEDGER } from './lib/commons.mjs';
+import { newCommons, pick, harvest, shelfOf, usedShelf, readTree, harvestLedger, ledgerFiles, LEDGER } from './lib/commons.mjs';
 import { fold, parseLines } from './lib/ledger.mjs';
 import { loadWork, prepare, runCheck, applySolution, changedFiles, diffOf, redactor } from './lib/work.mjs';
 
@@ -436,6 +436,30 @@ await t('a second council files the first one away, and its old signatures do no
   assert.equal(r.commons['council/past/1/proposals/modulo.md'], '# old proposal');
   assert.ok(!/Old choice/.test(r.commons['council/CHOICE.md'] || ''), 'the new CHOICE.md is the new sitting\'s');
   assert.deepEqual(c.signed.sort(), ['modulo', 'morphyx']);
+});
+
+await t('a day keeps a part\'s own proposals, and the next sitting takes them in live', async () => {
+  const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
+  const call = async (o) => {
+    if (o.meta?.kind === 'evening' && o.meta.soul === 'morphyx') {
+      mkdirSync(join(o.cwd, 'council', 'proposals'), { recursive: true });
+      writeFileSync(join(o.cwd, 'council', 'proposals', 'morphyx-chair.md'), '# the chair');
+      writeFileSync(join(o.cwd, 'council', 'proposals', 'modulo-gm.md'), '# not mine to write');
+      writeFileSync(join(o.cwd, 'council', 'CHOICE.md'), 'rewritten by a day');
+    }
+    return fakeModel(fakeResponder())(o);
+  };
+  const r = await runLab({ souls, bank, call, kinds: ['evening'], seed: 1, work, custodian: mozzie,
+    commons: { 'council/CHOICE.md': 'the choice', 'council/proposals/modulo.md': '# old' } });
+  assert.equal(r.commons['council/proposals/morphyx-chair.md'], '# the chair');
+  assert.ok(!('council/proposals/modulo-gm.md' in r.commons), 'another part\'s proposal is not this part\'s to write');
+  assert.equal(r.commons['council/CHOICE.md'], 'the choice', 'a day keeps nothing else of council/');
+  assert.deepEqual(JSON.parse(r.commons['council/NEXT.json']), ['proposals/morphyx-chair.md']);
+  const s = await runLab({ souls, bank, call: fakeModel(fakeResponder()), kinds: ['council'], seed: 1, work, custodian: mozzie,
+    commons: { 'projects/p-des/des.mjs': '// des', 'projects/p-vv/vv.mjs': '// vv', ...pick(r.commons, (k) => k.startsWith('council/')) } });
+  assert.equal(s.commons['council/proposals/morphyx-chair.md'], '# the chair', 'live at the new sitting');
+  assert.equal(s.commons['council/past/1/proposals/modulo.md'], '# old', 'the last sitting\'s papers are filed');
+  assert.ok(!('council/past/1/proposals/morphyx-chair.md' in s.commons) && !('council/NEXT.json' in s.commons));
 });
 
 await t('refs are lent read-only: mounted for the council, never harvested into the commons', async () => {

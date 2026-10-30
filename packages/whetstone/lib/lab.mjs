@@ -166,6 +166,18 @@ export async function runLab({
   // set fresh every run, never harvested back.
   for (const k of Object.keys(C)) if (k.startsWith('jobs/')) delete C[k];
   for (const [k, v] of Object.entries(jobResults || {})) C[`jobs/${k}`] = v;
+  // council/proposals/ between sittings: a town or evening session keeps its own part's proposals
+  // (<part>-*.md or <part>.md, and nothing else of council/), and council/NEXT.json names them so the
+  // next sitting takes them in live rather than filing them under past/ (10-30: all three chair
+  // proposals written that evening were dropped, because only a sitting kept council/).
+  const PROPOSAL_OWN = (soul, k) => new RegExp(`^council/proposals/${soul.key}(-[^/]*)?\\.md$`).test(k);
+  const harvestProposals = (soul, dir) => {
+    const now = pick(readTree(dir), (k) => k.startsWith('council/proposals/'));
+    const next = new Set(JSON.parse(C['council/NEXT.json'] || '[]'));
+    for (const [k, v] of Object.entries(now)) if (PROPOSAL_OWN(soul, k) && C[k] !== v) { C[k] = v; next.add(k.slice('council/'.length)); }
+    for (const k of Object.keys(C)) if (PROPOSAL_OWN(soul, k) && !(k in now) && next.has(k.slice('council/'.length))) { delete C[k]; next.delete(k.slice('council/'.length)); }
+    if (next.size) C['council/NEXT.json'] = JSON.stringify([...next].sort(), null, 1); else delete C['council/NEXT.json'];
+  };
   const harvestHouse = (soul, dir, prefix = 'house/') => {
     const before = pick(C, (k) => k.startsWith(prefix));
     harvest(C, dir, prefix);
@@ -361,7 +373,10 @@ export async function runLab({
     // A new sitting files the last one's papers under council/past/<n>/, readable but not live: an
     // old CHOICE.md, still signed, must not count for the new choice (twelfth light, the second council).
     const PAST = /^council\/past\//;
-    const current = Object.keys(C).filter((k) => k.startsWith('council/') && !PAST.test(k));
+    // Proposals written since the last sitting (council/NEXT.json, harvestProposals) stay live.
+    const ahead = pick(C, (k) => JSON.parse(C['council/NEXT.json'] || '[]').includes(k.slice('council/'.length)));
+    delete C['council/NEXT.json'];
+    const current = Object.keys(C).filter((k) => k.startsWith('council/') && !PAST.test(k) && !(k in ahead));
     if (current.length) {
       const n = new Set(Object.keys(C).filter((k) => PAST.test(k)).map((k) => k.split('/')[2])).size + 1;
       for (const k of current) { C[`council/past/${n}/${k.slice('council/'.length)}`] = C[k]; delete C[k]; }
@@ -453,7 +468,7 @@ export async function runLab({
       }
       if ('town/PAUSED' in now && !('town/PAUSED' in C)) { C['town/PAUSED'] = now['town/PAUSED']; kept.paused = true; }
       harvest(C, dirs.work, 'BOARD.md'); harvest(C, dirs.work, 'shelf/'); harvest(C, dirs.work, `journal/${soul.key}.md`);
-      harvestHouse(soul, dirs.work, 'research/'); harvestHouse(soul, dirs.work);
+      harvestHouse(soul, dirs.work, 'research/'); harvestHouse(soul, dirs.work); harvestProposals(soul, dirs.work);
       harvest(C, dirs.work, 'letters/'); lettersFrom(); // the person's letters are the lab's; the rest of letters/ is theirs
       harvest(C, dirs.work, 'www/'); delete C[WWW_README_PATH]; // their corner of the web (lib/www.mjs); the README is the lab's
       takeLedger(soul, dirs, 'town');
@@ -530,7 +545,7 @@ export async function runLab({
     harvest(C, dirs.work, 'shelf/');
     harvest(C, dirs.work, journal);
     harvest(C, dirs.work, 'www/'); delete C[WWW_README_PATH];
-    harvest(C, dirs.work, 'letters/'); lettersFrom(); harvestHouse(soul, dirs.work, 'research/'); harvestHouse(soul, dirs.work);
+    harvest(C, dirs.work, 'letters/'); lettersFrom(); harvestHouse(soul, dirs.work, 'research/'); harvestHouse(soul, dirs.work); harvestProposals(soul, dirs.work);
     const before = ledgerOut.length;
     takeLedger(soul, dirs, 'evening');  // the soul's own ledger lines first: the lab's sweep record goes after
     const rm = recordRemoval(soul, 'evening', boardWas, C['BOARD.md'], shelfWas, C);
