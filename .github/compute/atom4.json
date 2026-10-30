@@ -1,6 +1,6 @@
 {
- "run": "nuclei-3",
- "why": "The helium-4 ladder: 2 to 8 helium-4s (beryllium-8, then elements 6, 8, 10, 12, 14, 16) by diffusion Monte Carlo on a local helium-4 pair potential (the folded force with its Pauli-forbidden states removed by Baye's supersymmetric transformation, calibrated on our beryllium-8), in our world as the check (2 to 6) and across 4D's strength window, under both forces: is every helium-4 capture downhill, and by how much.",
+ "run": "nuclei-4",
+ "why": "The helium-4 ladder again, every point, on the repaired supersymmetric pair potential. nuclei-3's runs at the top of 4D's window (Malfliet–Tjon s = 1.4993, Minnesota s = 1.8909) used a broken potential: there the forbidden state is bound by 300–500 MeV, its tail sank below what inverse iteration resolves, and the transformed potential came out hundreds of MeV deep out to 7 fm (one runner died on it). The tail now comes from the Riccati equation integrated inward; the transform keeps the spectrum to 0.05 MeV everywhere, and the healthy points are unchanged. Ours 2–6 helium-4s and 4D's 2–8, both forces.",
  "minutes": 150,
  "groups": [
   {

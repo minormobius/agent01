@@ -332,18 +332,27 @@ function groundU(d, V, { rmax = 30, h = 0.005 } = {}) {
 }
 /* Baye's supersymmetric step: V → V − 2(W − E₀) + 2c ((ln u₀)′)², W = V + c L2/r² (the identity c (ln u)″ = W − E − c ((ln u)′)²) */
 function susyStep(d, V, g) {
-  const { E, u, r, h } = g, n = u.length, L2 = ((d - 1) * (d - 3)) / 4, lp = new Float64Array(n);
+  const { E, u, r, h } = g, n = u.length, L2 = ((d - 1) * (d - 3)) / 4, lp = new Float64Array(n), W = (x) => V(x) + (CA * L2) / (x * x);
   for (let i = 0; i < n; i++) lp[i] = i === 0 ? (Math.log(u[1]) - Math.log(u[0])) / h : i === n - 1 ? lp[i - 1] : (Math.log(u[i + 1]) - Math.log(u[i - 1])) / (2 * h);
-  // where u underflows (far out) the log-derivative is unreliable: hold its last good value
-  let last = n - 1; while (last > 10 && !(u[last] > 1e-250)) last--; last = Math.floor(last * 0.9);
-  const tab = Float64Array.from(r, (x, i) => { const k = Math.min(i, last); return V(x) - 2 * (V(x) + (CA * L2) / (x * x) - E) + 2 * CA * lp[k] ** 2; });
+  // a deeply bound state's tail sinks below what inverse iteration leaves of the other states, so its log-derivative is
+  // wrong there: past the point where u falls below 1e-6, y = (ln u)′ comes instead from c (y′ + y²) = W − E, integrated
+  // inward (stable for a decaying state) from y = −√((W − E)/c) at the edge
+  let cut = 0; while (cut < n - 1 && u[cut] < 1e-6) cut++; while (cut < n - 1 && u[cut + 1] >= 1e-6) cut++;
+  if (cut < n - 1) { const f = (x, y) => (W(x) - E) / CA - y * y; let y = -Math.sqrt(Math.max(0, (W(r[n - 1]) - E) / CA)); lp[n - 1] = y;
+    for (let i = n - 1; i > cut; i--) { const x = r[i], k1 = f(x, y), k2 = f(x - h / 2, y - (h / 2) * k1), k3 = f(x - h / 2, y - (h / 2) * k2), k4 = f(x - h, y - h * k3); y -= (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4); lp[i - 1] = y; } }
+  const tab = Float64Array.from(r, (x, i) => V(x) - 2 * (W(x) - E) + 2 * CA * lp[i] ** 2);
   return (x) => { if (x <= h) return tab[0] * (h / x) ** 2; const t = x / h - 1, i = Math.min(n - 2, Math.floor(t)), f = t - i; return x >= r[n - 1] ? 0 : tab[i] * (1 - f) + tab[i + 1] * f; };
 }
 /* the shallow local helium-4 pair potential: the deep folding with its two lowest s-states (Pauli-forbidden) removed, plus Coulomb */
 export function alphaLocal(d, F, s, a, lam) {
-  const deep = deepNuclear(d, F, s, a, lam), g0 = groundU(d, deep), V1 = susyStep(d, deep, g0), g1 = groundU(d, V1), V2 = susyStep(d, V1, g1);
-  const coul = (r) => (4 * E2 * erfA(Math.sqrt(a / 2) * r)) / r;
-  return { E0: g0.E, E1: g1.E, V: (r) => V2(r) + coul(r), nuclear: V2 };
+  const { E0, E1, V: V2 } = susyRemove(d, deepNuclear(d, F, s, a, lam)), coul = (r) => (4 * E2 * erfA(Math.sqrt(a / 2) * r)) / r;
+  return { E0, E1, V: (r) => V2(r) + coul(r), nuclear: V2 };
+}
+/* an s-wave potential (two helium-4s' reduced mass) with its two lowest s-states removed by two supersymmetric steps, the
+   rest of its spectrum kept */
+export function susyRemove(d, deep) {
+  const g0 = groundU(d, deep), V1 = susyStep(d, deep, g0), g1 = groundU(d, V1);
+  return { E0: g0.E, E1: g1.E, V: susyStep(d, V1, g1) };
 }
 /* diffusion Monte Carlo for N helium-4s (identical bosons: no nodes, exact for the given forces), pair potential V(r),
    optionally a three-helium-4 force W Σ_triples e^(−(r_ij² + r_jk² + r_ik²)/b²) */

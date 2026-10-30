@@ -921,6 +921,11 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // threshold between folding factors 1.8 and 2 (the calibration lands at 1.9, near Serber's natural 2)
   const aw = NU.alphaWidth(3, 2.13), be = [1.8, 2].map((lam) => NU.alphaPair(3, NU.MN, 1, aw, lam));
   ok(be[0] > 0 && be[1] < 0, `two helium-4s in our world: unbound at folding factor 1.8 (${be[0].toFixed(2)} MeV, the continuum), bound at 2 (${be[1].toFixed(2)} MeV): our ⁸Be sits between, at threshold`);
+  // the ladder's local pair potential: Baye's two supersymmetric steps must remove a well's two lowest s-states and keep the
+  // rest, even for one as deep as 4D's window top, where the lowest is bound by ~500 MeV and its tail sinks below what
+  // inverse iteration resolves (the Riccati tail is what holds it); a Gaussian well that deep stands in for the folding
+  const sl = (V) => NU.levels(V, { d: 4, l: 0, c: NU.HB2M / 4, rmax: 30, h: 0.01, emax: 1e4 }).filter((e) => e < 0), gw = (r) => -700 * Math.exp(-(r * r) / 4), dp = sl(gw), lo = sl(NU.susyRemove(4, gw).V);
+  ok(dp[0] < -450 && dp.length === lo.length + 2 && lo.every((e, i) => Math.abs(e - dp[i + 2]) < 0.2), `the supersymmetric removal from a well as deep as 4D's window top: s-levels ${dp.map((e) => e.toFixed(1)).join(", ")} MeV become ${lo.map((e) => e.toFixed(1)).join(", ")}, the lowest two gone and the rest kept`);
   const c3 = GS.chandrasekhar(3), c4 = GS.chandrasekhar(4), m3 = c3.mass() / GS.SI.Msun;
   ok(Math.abs(m3 / 1.457 - 1) < 0.02 && c4.polytrope.converged && Math.abs(c4.cd - 1.52) < 0.03,
     `Chandrasekhar's mass: ours ${m3.toFixed(3)} M☉ (1.457 for two nucleons per electron), from the index-3 polytrope; pinned 4D's index-4 one closes too, N_Ch = ${c4.cd.toFixed(3)} α_G^(−4/3) nucleons`);
