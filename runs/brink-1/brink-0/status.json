@@ -1,0 +1,33 @@
+{
+ "group": "brink-0",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs brink 3 1 0.7 5",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 147
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs brink 3 1 0.7 2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.0 2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.4 2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5
+  }
+ ]
+}

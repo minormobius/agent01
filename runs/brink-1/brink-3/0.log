@@ -1,0 +1,8 @@
+$ node four/atom/tools/nuclei.mjs brink 4 1.4002 0.7 5
+d=4 s=1.4002 b=0.7 N=5 K=240: -381.34 MeV (21 s)
+d=4 s=1.4002 b=0.7 N=5 K=480: -392.14 MeV (124 s)
+wrote brink-4-1p4002-0p7-5.json
+(node:2521) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/nuclear.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
