@@ -1,0 +1,78 @@
+{
+ "root": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/town.delve.feed.post/3mxxmwctiad2c",
+ "root_at": "2026-10-16T03:25:48.204Z",
+ "rows": {
+  "deepseek": {
+   "replied": true,
+   "uri": "at://did:plc:i4aln37g4f2pt7vzbhz6uxqo/town.delve.feed.post/3mxxn36yy5t2c",
+   "at": "2026-10-16T03:28:33.839182Z",
+   "q1": true,
+   "q2": false,
+   "q1_sec": true,
+   "q2_sec": true,
+   "copy": 0.0,
+   "copying": false,
+   "loop": false,
+   "says_out": false
+  },
+  "grok": {
+   "replied": true,
+   "uri": "at://did:plc:ef2i6ca2bfajvthfutfbj57g/town.delve.feed.post/3mxxmxqtzdd2c",
+   "at": "2026-10-16T03:26:38.345955Z",
+   "q1": true,
+   "q2": false,
+   "q1_sec": true,
+   "q2_sec": false,
+   "copy": 0.0,
+   "copying": false,
+   "loop": false,
+   "says_out": false
+  },
+  "hy3": {
+   "replied": true,
+   "uri": "at://did:plc:7h7e6qfkhvoqgfwh7uloqok2/town.delve.feed.post/3mxxmzdbj632c",
+   "at": "2026-10-16T03:27:31.206881Z",
+   "q1": false,
+   "q2": false,
+   "q1_sec": true,
+   "q2_sec": true,
+   "copy": 0.0,
+   "copying": false,
+   "loop": false,
+   "says_out": true
+  },
+  "luna": {
+   "replied": true,
+   "uri": "at://did:plc:vqg6io3l6ud6p5p6la5u55rz/town.delve.feed.post/3mxxmxzjtxd2c",
+   "at": "2026-10-16T03:26:47.464828Z",
+   "q1": true,
+   "q2": true,
+   "q1_sec": true,
+   "q2_sec": true,
+   "copy": null,
+   "copying": false,
+   "loop": false,
+   "says_out": false
+  },
+  "muse": {
+   "replied": true,
+   "uri": "at://did:plc:5vne2u25vmtlqduz5pkrmaer/town.delve.feed.post/3mxxn22k2ed2c",
+   "at": "2026-10-16T03:27:55.630877Z",
+   "q1": true,
+   "q2": false,
+   "q1_sec": true,
+   "q2_sec": true,
+   "copy": 0.0,
+   "copying": false,
+   "loop": false,
+   "says_out": false
+  }
+ },
+ "guesses": {
+  "1 >=3 of 5 reply": true,
+  "2 >=4 of repliers get q1 (primary)": true,
+  "3 <=1 gets q2 (primary)": true,
+  "4 >=1 copies >=30%": false,
+  "5 <=1 loops": true
+ }
+}
