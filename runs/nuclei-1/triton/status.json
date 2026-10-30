@@ -1,0 +1,33 @@
+{
+ "group": "triton",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 3 1 1.0 3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 475
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 4 1.2292 1.0 3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 500
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 4 1.2986 1.0 3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 503
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 4 1.4993 1.0 3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 475
+  }
+ ]
+}

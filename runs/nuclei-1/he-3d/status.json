@@ -1,0 +1,33 @@
+{
+ "group": "he-3d",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 3 1 none",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 836
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 3 1 0.7",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 866
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 3 1 1.0",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 861
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 3 1 1.4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 857
+  }
+ ]
+}

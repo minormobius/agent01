@@ -1,0 +1,8 @@
+$ node four/atom/tools/nuclei.mjs he4 4 1.2986 1.0 3
+d=4 A=3 s=1.2986 b=1.0 seed 1: -19.229 ± 0.031 MeV (245 s)
+d=4 A=3 s=1.2986 b=1.0 seed 2: -19.167 ± 0.062 MeV (258 s)
+wrote he-4-1p2986-1.0-3.json
+(node:2318) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/nuclear.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

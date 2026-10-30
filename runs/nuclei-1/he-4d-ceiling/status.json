@@ -1,0 +1,33 @@
+{
+ "group": "he-4d-ceiling",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 4 1.4993 none",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 942
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 4 1.4993 0.7",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1251
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 4 1.4993 1.0",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1043
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs he4 4 1.4993 1.4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 982
+  }
+ ]
+}
