@@ -917,6 +917,10 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // κ = −(d − 1)/2, and round a nucleus with size ours dives into the negative continuum near Z = 170
   const DI = await import(path.join(here, "../js/dirac.js")), pt = [[3, 100], [4, 180]].map(([d, Z]) => Math.abs(DI.groundLevel(d, Z, 0) - Math.sqrt(((d - 1) / 2) ** 2 - (Z * DI.ALPHA) ** 2) / ((d - 1) / 2))), zc3 = DI.criticalZ(3);
   ok(Math.max(...pt) < 1e-7 && zc3 > 165 && zc3 < 176, `Dirac's innermost level: exact round a point nucleus in both worlds (to ${Math.max(...pt).toExponential(0)}); ours dives at Z = ${zc3.toFixed(1)} with a nucleus of 1.2 A^(1/3) fm (170–173 in the literature)`);
+  // two helium-4s (the cluster model: folded force, Saito's orthogonality by Kukulin's pseudopotential): ours reach
+  // threshold between folding factors 1.8 and 2 (the calibration lands at 1.9, near Serber's natural 2)
+  const aw = NU.alphaWidth(3, 2.13), be = [1.8, 2].map((lam) => NU.alphaPair(3, NU.MN, 1, aw, lam));
+  ok(be[0] > 0 && be[1] < 0, `two helium-4s in our world: unbound at folding factor 1.8 (${be[0].toFixed(2)} MeV, the continuum), bound at 2 (${be[1].toFixed(2)} MeV): our ⁸Be sits between, at threshold`);
   const c3 = GS.chandrasekhar(3), c4 = GS.chandrasekhar(4), m3 = c3.mass() / GS.SI.Msun;
   ok(Math.abs(m3 / 1.457 - 1) < 0.02 && c4.polytrope.converged && Math.abs(c4.cd - 1.52) < 0.03,
     `Chandrasekhar's mass: ours ${m3.toFixed(3)} M☉ (1.457 for two nucleons per electron), from the index-3 polytrope; pinned 4D's index-4 one closes too, N_Ch = ${c4.cd.toFixed(3)} α_G^(−4/3) nucleons`);

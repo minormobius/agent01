@@ -1,51 +1,69 @@
 {
- "run": "nuclei-1",
- "why": "The abundance question: helium-4 and tritium by diffusion Monte Carlo (exact for these) in our world and across 4D's strength window (the deuteron bound, the diproton not), with and without the three-nucleon repulsion fitted to our nuclear matter at three ranges, to set against the nuclear matter's binding per nucleon.",
+ "run": "nuclei-2",
+ "why": "The second nucleon force (Minnesota: soft Gaussians where Malfliet-Tjon has singular Yukawas) through the same pipeline, to show the 4D results don't hang on the first force's shape: its nuclear matter across 4D's window and helium-4 with and without the refitted three-nucleon force; and Malfliet-Tjon's helium-4 rerun to record radii for the helium-4 cluster model.",
  "minutes": 120,
  "groups": [
   {
-   "name": "he-3d",
+   "name": "mn-matter-a",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs matter 4 1.4002 symmetric MN",
+    "node four/atom/tools/nuclei.mjs matter 4 1.5152 symmetric MN",
+    "node four/atom/tools/nuclei.mjs matter 4 1.8909 symmetric MN",
+    "node four/atom/tools/nuclei.mjs matter 3 1 neutron MN"
+   ]
+  },
+  {
+   "name": "mn-matter-b",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs matter 4 1.4002 neutron MN",
+    "node four/atom/tools/nuclei.mjs matter 4 1.5152 neutron MN",
+    "node four/atom/tools/nuclei.mjs matter 4 1.8909 neutron MN",
+    "node four/atom/tools/nuclei.mjs fit MN"
+   ]
+  },
+  {
+   "name": "mn-he-3d",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs he4 3 1 none MN",
+    "node four/atom/tools/nuclei.mjs he4 3 1 0.7 MN",
+    "node four/atom/tools/nuclei.mjs he4 3 1 1.0 MN",
+    "node four/atom/tools/nuclei.mjs he4 3 1 1.4 MN"
+   ]
+  },
+  {
+   "name": "mn-he-4d-floor",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs he4 4 1.4002 none MN",
+    "node four/atom/tools/nuclei.mjs he4 4 1.4002 0.7 MN",
+    "node four/atom/tools/nuclei.mjs he4 4 1.4002 1.0 MN",
+    "node four/atom/tools/nuclei.mjs he4 4 1.4002 1.4 MN"
+   ]
+  },
+  {
+   "name": "mn-he-4d-ours",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs he4 4 1.5152 none MN",
+    "node four/atom/tools/nuclei.mjs he4 4 1.5152 0.7 MN",
+    "node four/atom/tools/nuclei.mjs he4 4 1.5152 1.0 MN",
+    "node four/atom/tools/nuclei.mjs he4 4 1.5152 1.4 MN"
+   ]
+  },
+  {
+   "name": "mn-he-4d-ceiling",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs he4 4 1.8909 none MN",
+    "node four/atom/tools/nuclei.mjs he4 4 1.8909 0.7 MN",
+    "node four/atom/tools/nuclei.mjs he4 4 1.8909 1.0 MN",
+    "node four/atom/tools/nuclei.mjs he4 4 1.8909 1.4 MN"
+   ]
+  },
+  {
+   "name": "mt-radii",
    "cmds": [
     "node four/atom/tools/nuclei.mjs he4 3 1 none",
-    "node four/atom/tools/nuclei.mjs he4 3 1 0.7",
-    "node four/atom/tools/nuclei.mjs he4 3 1 1.0",
-    "node four/atom/tools/nuclei.mjs he4 3 1 1.4"
-   ]
-  },
-  {
-   "name": "he-4d-floor",
-   "cmds": [
     "node four/atom/tools/nuclei.mjs he4 4 1.2292 none",
-    "node four/atom/tools/nuclei.mjs he4 4 1.2292 0.7",
-    "node four/atom/tools/nuclei.mjs he4 4 1.2292 1.0",
-    "node four/atom/tools/nuclei.mjs he4 4 1.2292 1.4"
-   ]
-  },
-  {
-   "name": "he-4d-ours",
-   "cmds": [
     "node four/atom/tools/nuclei.mjs he4 4 1.2986 none",
-    "node four/atom/tools/nuclei.mjs he4 4 1.2986 0.7",
-    "node four/atom/tools/nuclei.mjs he4 4 1.2986 1.0",
-    "node four/atom/tools/nuclei.mjs he4 4 1.2986 1.4"
-   ]
-  },
-  {
-   "name": "he-4d-ceiling",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs he4 4 1.4993 none",
-    "node four/atom/tools/nuclei.mjs he4 4 1.4993 0.7",
-    "node four/atom/tools/nuclei.mjs he4 4 1.4993 1.0",
-    "node four/atom/tools/nuclei.mjs he4 4 1.4993 1.4"
-   ]
-  },
-  {
-   "name": "triton",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs he4 3 1 1.0 3",
-    "node four/atom/tools/nuclei.mjs he4 4 1.2292 1.0 3",
-    "node four/atom/tools/nuclei.mjs he4 4 1.2986 1.0 3",
-    "node four/atom/tools/nuclei.mjs he4 4 1.4993 1.0 3"
+    "node four/atom/tools/nuclei.mjs he4 4 1.4993 none"
    ]
   }
  ]

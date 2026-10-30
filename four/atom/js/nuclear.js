@@ -35,7 +35,17 @@
      W Σ_cyclic e^(−(r_ij² + r_ik²)/b²), the same function of distance in both worlds, at Hartree level in matter
      ((ρ²/2) W (π^(d/2) b^d)² per nucleon), its strength fitted to our saturation (−16 MeV), gives that at 0.18 fm⁻³ and
      moves our helium-4 and tritium by about a MeV (fixedNode's three option). Its range b is the honest uncertainty:
-     it sets how the fitted force carries into 4D. */
+     it sets how the fitted force carries into 4D.
+   · light nuclei as clusters of helium-4s (alphaPair, alphaNucleon): helium-4 is so tightly bound that past it nuclei are
+     its clusters. Two helium-4s meet through the force folded over both (Gaussian densities, of the size the Monte
+     Carlo gives; Serber's even waves, spin and isospin saturated: 16 pairs × (3/32)(v_t + v_s)) and their Coulomb force,
+     with the Pauli principle as Saito's orthogonality: their relative motion is kept out of the oscillator states that
+     would put a fifth nucleon in the lowest shell (0s and 1s; the count is the same in any d), by Kukulin's
+     pseudopotential (a large energy on those states, solved exactly as tridiagonal plus rank 2). A nucleon on a helium-4
+     meets the singly folded force in a p-wave (its s-wave is the forbidden one). One factor λ on each folding is
+     calibrated on ours, two helium-4s (⁸Be) or a neutron and one (⁵He) at threshold, and carried to 4D: for ⁸Be it comes
+     out 1.9, near Serber's natural 2 (the exchange half doubling the direct); for ⁵He 4–5, standing in for the spin–orbit
+     force this central model lacks, so the mass-5 result is the weaker. */
 import { k4 } from "./kernel.js";
 
 export const HB2M = 41.47106, E2 = 1.43996; // ħ²/m_N (MeV fm²), e² (MeV fm)
@@ -44,7 +54,20 @@ export const MT = {
   singlet: { VR: 1438.4812, VA: 513.9718, muR: 3.11, muA: 1.55 }, // MT-I
   v: { VR: 1458.047, VA: 578.089, muR: 3.11, muA: 1.55 }, // MT-V
 };
-export const mtPot = (p, s = 1) => (r) => (p.VR * Math.exp(-p.muR * r) - s * p.VA * Math.exp(-p.muA * r)) / r;
+/* a second, independent force for checking that nothing hangs on Malfliet–Tjon's shape: the Minnesota force (Thompson,
+   LeMere and Tang 1977), soft-cored Gaussians V_R e^(−κ_R r²) − V e^(−κ r²), fitted to the same scattering (our deuteron
+   −2.20 MeV, helium-4 about −30). Its even-wave channels; its spin average for the s-shell's nuclei */
+const MNR = { kind: "gau", V: 200.0, m: 1.487 };
+export const MN = {
+  triplet: { terms: [MNR, { kind: "gau", V: -178.0, m: 0.639, att: true }] },
+  singlet: { terms: [MNR, { kind: "gau", V: -91.85, m: 0.465, att: true }] },
+  v: { terms: [MNR, { kind: "gau", V: -89.0, m: 0.639, att: true }, { kind: "gau", V: -45.925, m: 0.465, att: true }] },
+};
+/* a force's terms: Malfliet–Tjon's two Yukawas, or a list of Yukawas (V e^(−m r)/r) and Gaussians (V e^(−m r²)); the
+   attractive ones are scaled by s */
+const termsOf = (p) => p.terms ?? [{ kind: "yuk", V: p.VR, m: p.muR }, { kind: "yuk", V: -p.VA, m: p.muA, att: true }];
+export const mtPot = (p, s = 1) => { const T = termsOf(p); return (r) => T.reduce((t, q) => t + (q.att ? s : 1) * q.V * (q.kind === "yuk" ? Math.exp(-q.m * r) / r : Math.exp(-q.m * r * r)), 0); };
+export const pot = mtPot;
 
 /* bound states of −c u'' + (c L(L+1)/r² + V) u = E u below emax, ascending (at most 40) */
 export function levels(V, { d, l = 0, c = HB2M, rmax = 30, h = 0.02, emax = 0 }) {
@@ -80,10 +103,10 @@ export function pairState(V, { d, c = HB2M, omega = 0, rmax = 30, h = 0.004 }) {
 }
 
 /* the strengths s at which, in d dimensions, the deuteron binds, binds by our 2.2246 MeV, and the diproton binds */
-export function window(d) {
-  const E = (p, s) => levels(mtPot(p, s), { d, rmax: 80, h: 0.01 })[0];
+export function window(d, force = MT) {
+  const E = (p, s) => levels(mtPot(p, s), { d, rmax: 80, h: 0.01 })[0], MT_ = force;
   const bisect = (test) => { let a = 0.5, b = 3; for (let i = 0; i < 40; i++) { const m = (a + b) / 2; if (test(m)) b = m; else a = m; } return b; };
-  return { deuteron: bisect((s) => E(MT.triplet, s) !== undefined), ours: bisect((s) => (E(MT.triplet, s) ?? 0) < -2.2246), diproton: bisect((s) => E(MT.singlet, s) !== undefined) };
+  return { deuteron: bisect((s) => E(MT_.triplet, s) !== undefined), ours: bisect((s) => (E(MT_.triplet, s) ?? 0) < -2.2246), diproton: bisect((s) => E(MT_.singlet, s) !== undefined) };
 }
 /* ½⟨1/r⟩ for two points in a uniform unit d-ball: a uniform nucleus' Coulomb energy is this × Z² e²/R */
 export function coulombFactor(d, M = 400) {
@@ -151,23 +174,23 @@ export function fixedNode({ d, counts, V, s = 1, like = "zero", coulomb = true, 
   // held within a few spreads of the running mean
   const drift = (F) => { const out = new Float64Array(n); for (let i = 0; i < A; i++) { let v2 = 0; for (let a = 0; a < d; a++) v2 += (F[i * d + a] / 2) ** 2; const f = v2 > 0 ? (-1 + Math.sqrt(1 + 2 * D * tau * v2)) / (D * tau * v2) : 1; for (let a = 0; a < d; a++) out[i * d + a] = f * D * tau * F[i * d + a]; } return out; };
   const e0 = W.map((w) => w.E).sort((a, b) => a - b), med = e0[e0.length >> 1], iqr = e0[Math.floor(e0.length * 0.75)] - e0[Math.floor(e0.length * 0.25)], ecut = Math.max(30, 5 * iqr);
-  let ET = med, Erun = ET; const Es = []; const xn = new Float64Array(n), Fn = new Float64Array(n); let acc = 0, tot = 0;
+  let ET = med, Erun = ET; const Rs = []; const Es = []; const xn = new Float64Array(n), Fn = new Float64Array(n); let acc = 0, tot = 0;
   for (let st = 0; st < steps; st++) {
-    const next = []; let sE = 0, sW = 0;
+    const next = []; let sE = 0, sW = 0, sR = 0;
     for (const w of W) {
       const dr = drift(w.F); for (let k = 0; k < n; k++) xn[k] = w.x[k] + dr[k] + Math.sqrt(2 * D * tau) * gauss();
       const L = local(xn, Fn); tot++; let x = w.x, F = w.F, E1 = w.E, lp = w.lp;
       if (L && L.sgn === w.sgn) { const dn = drift(Fn); let lg = 0; for (let k = 0; k < n; k++) { const f = w.x[k] - xn[k] - dn[k], b = xn[k] - w.x[k] - dr[k]; lg += (b * b - f * f) / (4 * D * tau); } if (rnd() < Math.exp(2 * (L.lp - w.lp) + lg)) { acc++; x = Float64Array.from(xn); F = Float64Array.from(Fn); E1 = L.E; lp = L.lp; } }
       const cap = (e) => Math.max(Erun - ecut, Math.min(Erun + ecut, e)), wt = Math.exp(-tau * (0.5 * (cap(w.E) + cap(E1)) - ET)), m = Math.min(Math.floor(wt + rnd()), 3);
       for (let k = 0; k < m; k++) next.push({ x: k ? Float64Array.from(x) : x, F: k ? Float64Array.from(F) : F, E: E1, sgn: w.sgn, lp });
-      sE += wt * E1; sW += wt;
+      sE += wt * E1; sW += wt; { let r2 = 0; for (let a = 0; a < d; a++) { let c = 0; for (let i = 0; i < A; i++) c += x[i * d + a]; c /= A; for (let i = 0; i < A; i++) r2 += (x[i * d + a] - c) ** 2; } sR += (wt * r2) / A; }
     }
     W = next; const Em = sE / sW; if (st < equil) { Erun = Em; ET = Em - Math.log(W.length / walkers) / (20 * tau); } else { Erun += (Em - Erun) / Math.min(st - equil + 1, 2000); ET = Erun - Math.log(W.length / walkers) / (200 * tau); } // equilibrating: follow the energy closely
     if (trace) trace(st, W.length, Em, ET); if (!W.length) break;
-    if (st >= equil) Es.push(Em);
+    if (st >= equil) { Es.push(Em); Rs.push(sR / sW); }
   }
   const B = Math.max(1, Math.min(Math.round(0.2 / tau), Math.floor(Es.length / 10))), nb = Math.floor(Es.length / B), bm = Array.from({ length: nb }, (_, i) => Es.slice(i * B, (i + 1) * B).reduce((a, b) => a + b, 0) / B), mean = bm.reduce((a, b) => a + b, 0) / nb, err = Math.sqrt(bm.reduce((a, b) => a + (b - mean) ** 2, 0) / (nb * (nb - 1)));
-  return { E: mean, err, acc: acc / tot, A };
+  return { E: mean, err, acc: acc / tot, A, r2: Rs.reduce((a, b) => a + b, 0) / (Rs.length || 1) }; // r2: the mixed estimate of a nucleon's mean-square distance from the centre of mass
 }
 
 /* ———— nuclear matter (Brueckner–Hartree–Fock) ———— */
@@ -175,13 +198,14 @@ export function fixedNode({ d, counts, V, s = 1, like = "zero", coulomb = true, 
 /* the three-nucleon repulsion's energy per nucleon in uniform matter of density rho (Hartree) */
 /* the fitted three-nucleon strength: c = W π³ b⁶/2 (MeV fm⁶) saturating our matter at −16 MeV (tools/nuclei.mjs fit, which
    recomputes it; its bake checks the two agree). For a range b, W = 2c/(π³ b⁶) */
-export const THREE_C = 493.4;
+export const THREE_C = 493.4, THREE_C_MN = 382.4; // Malfliet–Tjon's; Minnesota's
 export const threeForce = (b, c = THREE_C) => ({ b, W: (2 * c) / (Math.PI ** 3 * b ** 6) });
 export const threeBodyMatter = (d, { W, b }, rho) => 0.5 * W * (Math.PI ** (d / 2) * b ** d) ** 2 * rho * rho;
 const SD = { 3: 4 * Math.PI, 4: 2 * Math.PI * Math.PI }; // the unit sphere's area
 export function gaussLegendre(n) { const x = [], w = []; for (let i = 0; i < n; i++) { let z = Math.cos((Math.PI * (i + 0.75)) / (n + 0.5)), pp = 0; for (let it = 0; it < 100; it++) { let p1 = 1, p2 = 0; for (let j = 0; j < n; j++) { const p3 = p2; p2 = p1; p1 = ((2 * j + 1) * z * p2 - j * p3) / (j + 1); } pp = (n * (z * p1 - p2)) / (z * z - 1); const z1 = z; z = z1 - p1 / pp; if (Math.abs(z - z1) < 1e-15) break; } x.push(z); w.push(2 / ((1 - z * z) * pp * pp)); } return { x, w }; }
 // the force's Fourier transform: Σ c e^(−μr)/r → 4π c/(p²+μ²) (3D), 4π² c/(p²+μ²)^(3/2) (4D)
-export const ft = (d, p, s) => (p2) => (d === 3 ? 4 * Math.PI * (p.VR / (p2 + p.muR ** 2) - (s * p.VA) / (p2 + p.muA ** 2)) : 4 * Math.PI * Math.PI * (p.VR / (p2 + p.muR ** 2) ** 1.5 - (s * p.VA) / (p2 + p.muA ** 2) ** 1.5));
+// a Yukawa's Fourier transform 4πV/(p² + m²) (3D), 4π²V/(p² + m²)^(3/2) (4D); a Gaussian's V (π/m)^(d/2) e^(−p²/4m)
+export const ft = (d, p, s) => { const T = termsOf(p); return (p2) => T.reduce((t, q) => t + (q.att ? s : 1) * q.V * (q.kind === "yuk" ? (d === 3 ? (4 * Math.PI) / (p2 + q.m * q.m) : (4 * Math.PI * Math.PI) / (p2 + q.m * q.m) ** 1.5) : (Math.PI / q.m) ** (d / 2) * Math.exp(-p2 / (4 * q.m))), 0); };
 // Legendre polynomials in d dims (Gegenbauer λ = d/2 − 1, normalized to 1 at t = 1)
 function legendreD(d, lmax, t) { const lam = d / 2 - 1, C = [1, 2 * lam * t]; for (let n = 2; n <= lmax; n++) C.push((2 * t * (n + lam - 1) * C[n - 1] - (n + 2 * lam - 2) * C[n - 2]) / n); const c1 = [1]; for (let n = 1; n <= lmax; n++) c1.push((c1[n - 1] * (n + 2 * lam - 1)) / n); return C.slice(0, lmax + 1).map((v, n) => v / c1[n]); }
 export const degeneracy = (d, l) => (d === 3 ? 2 * l + 1 : (l + 1) * (l + 1));
@@ -206,8 +230,8 @@ const SD1 = { 3: 2 * Math.PI, 4: 4 * Math.PI }; // the (d−1)-sphere's area, fo
 function pauli(d, q, P, kF) { if (P < 1e-9) return q > kF ? 1 : 0; const x0 = (P * P + q * q - kF * kF) / (2 * P * q); if (x0 <= 0) return 0; if (x0 >= 1) return 1; return d === 3 ? x0 : (x0 * Math.sqrt(1 - x0 * x0) + Math.asin(x0)) / (Math.PI / 2); }
 /* nuclear matter at Fermi momentum kF: kind "symmetric" (protons and neutrons) or "neutron". Serber's force: MT-III in the
    even waves of S = 1, T = 0, MT-I in the even waves of S = 0, T = 1, nothing in odd waves. Returns E/A, ρ, and U(k) = A + Bk² */
-export function matter({ d, s, kF, kind = "symmetric", lmax = 8, nq = 48, nk = 12, iters = 30, A0 = -60, B0 = 0, quiet = true, three = null }) {
-  const chans = kind === "symmetric" ? [{ pot: MT.triplet, w: 3 }, { pot: MT.singlet, w: 3 }] : [{ pot: MT.singlet, w: 1 }], nu = kind === "symmetric" ? 4 : 2;
+export function matter({ d, s, kF, kind = "symmetric", lmax = 8, nq = 48, nk = 12, iters = 30, A0 = -60, B0 = 0, quiet = true, three = null, force = MT }) {
+  const chans = kind === "symmetric" ? [{ pot: force.triplet, w: 3 }, { pot: force.singlet, w: 3 }] : [{ pot: force.singlet, w: 1 }], nu = kind === "symmetric" ? 4 : 2;
   const G = qGrid(nq), pj = projector(d, lmax), ls = []; for (let l = 0; l <= lmax; l += 2) ls.push(l);
   const kk = Array.from({ length: nk + 1 }, (_, i) => (kF * i) / nk), f = (SD[d] * SD[d]) / (2 * Math.PI) ** d;
   const pre = chans.map((c) => { const Vt = ft(d, c.pot, s); return { w: c.w, vqq: G.q.map((a) => G.q.map((b) => pj(Vt, a, b))), vkq: kk.map((k) => G.q.map((b) => pj(Vt, Math.max(k, 1e-6), b))), vkk: kk.map((k) => pj(Vt, Math.max(k, 1e-6), Math.max(k, 1e-6))) }; });
@@ -244,4 +268,47 @@ export function matter({ d, s, kF, kind = "symmetric", lmax = 8, nq = 48, nk = 1
   const T = (d / (d + 2)) * (HB2M / 2) * kF * kF, rho = (nu * BALL[d] * kF ** d) / (2 * Math.PI) ** d;
   const E3 = three ? threeBodyMatter(d, three, rho) : 0;
   return { kF, rho, T, U: { A, B }, E2: T + 0.5 * Ebar, E3, E: T + 0.5 * Ebar + E3 };
+}
+
+/* ———— light nuclei as clusters of helium-4s (Saito's orthogonality, Kukulin's pseudopotential) ———— */
+const J1 = (x) => { const N = 200; let s = 0; for (let i = 0; i <= N; i++) { const t = (Math.PI * i) / N, w = i === 0 || i === N ? 0.5 : 1; s += w * Math.cos(t - x * Math.sin(t)); } return s / N; };
+const j0 = (d, x) => (x < 1e-8 ? 1 : d === 3 ? Math.sin(x) / x : (2 * J1(x)) / x);
+/* the direct folding of a central force (FT Vt) over two Gaussian helium-4s (nucleon density ∝ e^(−a r²)), per nucleon pair */
+function folded2(d, Vt, a, R) { const n = 600, pmax = 12; let s = 0; for (let i = 1; i <= n; i++) { const p = (pmax * (i - 0.5)) / n; s += p ** (d - 1) * Vt(p * p) * Math.exp(-(p * p) / (2 * a)) * j0(d, p * R); } return ((SD[d] / (2 * Math.PI) ** d) * s * pmax) / n; }
+/* the helium-4 pair's potential: λ × 16 pairs × (3/32)(v_t + v_s) folded (Serber's even waves, saturated spin and isospin), plus their Coulomb */
+function alphaPot(d, force, s, a, lambda) {
+  const Vt = ft(d, force.triplet, s), Vs = ft(d, force.singlet, s), grid = Array.from({ length: 401 }, (_, i) => (12 * i) / 400), tab = grid.map((R) => 1.5 * (folded2(d, Vt, a, R) + folded2(d, Vs, a, R)));
+  return (R) => { const x = (R / 12) * 400, i = Math.min(399, Math.floor(x)), f = x - i, nuc = R < 12 ? tab[i] * (1 - f) + tab[i + 1] * f : 0; return lambda * nuc + (4 * E2 * erfA(Math.sqrt(a / 2) * R)) / R; };
+}
+function erfA(x) { const t = 1 / (1 + 0.3275911 * x), y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; }
+// Laguerre L_n^(α)(x)
+const lag = (n, al, x) => { let a = 1, b = 1 + al - x; if (n === 0) return a; for (let k = 2; k <= n; k++) { const c = ((2 * k - 1 + al - x) * b - (k - 1 + al) * a) / k; a = b; b = c; } return b; };
+/* the lowest allowed s-state of two helium-4s: energy (MeV, below 0: bound) */
+function lowestAllowed(d, V, a, { rmax = 40, h = 0.02, Lam = 1e5, nForbid = 2 } = {}) {
+  const c = HB2M / 4, n = Math.round(rmax / h) - 1, r = Float64Array.from({ length: n }, (_, i) => (i + 1) * h), L2 = ((d - 1) * (d - 3)) / 4;
+  const dg = Float64Array.from(r, (x) => (2 * c) / (h * h) + (c * L2) / (x * x) + V(x)), off = -c / (h * h);
+  // the forbidden oscillator states (relative Gaussian e^(−aR²): x = 2aR²), u = R^((d−1)/2) L_n^(d/2−1)(x) e^(−aR²), orthonormal on the grid
+  const F = []; for (let k = 0; k < nForbid; k++) { let u = Float64Array.from(r, (x) => x ** ((d - 1) / 2) * lag(k, d / 2 - 1, 2 * a * x * x) * Math.exp(-a * x * x)); for (const f of F) { const p = u.reduce((t, v, i) => t + v * f[i], 0); u = u.map((v, i) => v - p * f[i]); } const nm = Math.sqrt(u.reduce((t, v) => t + v * v, 0)); F.push(u.map((v) => v / nm)); }
+  const thomas = (shift, b) => { const cp = new Float64Array(n), dp = new Float64Array(n); cp[0] = off / (dg[0] - shift); dp[0] = b[0] / (dg[0] - shift); for (let i = 1; i < n; i++) { const m = dg[i] - shift - off * cp[i - 1]; cp[i] = off / m; dp[i] = (b[i] - off * dp[i - 1]) / m; } const x = new Float64Array(n); x[n - 1] = dp[n - 1]; for (let i = n - 2; i >= 0; i--) x[i] = dp[i] - cp[i] * x[i + 1]; return x; };
+  // (T + Λ F Fᵀ − σ)⁻¹ b by Woodbury
+  const sigma = Math.min(...dg.map((v, i) => v - 2 * Math.abs(off))) - 5;
+  const AiF = F.map((f) => thomas(sigma, f)), m = F.length, C = Array.from({ length: m }, (_, i) => Array.from({ length: m }, (_, j) => (i === j ? 1 / Lam : 0) + F[i].reduce((t, v, k) => t + v * AiF[j][k], 0)));
+  const solveSmall = (M, y) => { if (m === 0) return []; if (m === 1) return [y[0] / M[0][0]]; const det = M[0][0] * M[1][1] - M[0][1] * M[1][0]; return [(M[1][1] * y[0] - M[0][1] * y[1]) / det, (M[0][0] * y[1] - M[1][0] * y[0]) / det]; };
+  const apply = (b) => { const x = thomas(sigma, b), y = F.map((f) => f.reduce((t, v, k) => t + v * x[k], 0)), z = solveSmall(C, y); return x.map((v, k) => v - z.reduce((t, zz, j) => t + zz * AiF[j][k], 0)); };
+  let v = Float64Array.from(r, (x) => x * Math.exp(-0.1 * x)), mu = 0;
+  for (let it = 0; it < 200; it++) { const w = apply(v), nm = Math.sqrt(w.reduce((t, q) => t + q * q, 0)); const ray = v.reduce((t, q, i) => t + q * w[i], 0) / v.reduce((t, q) => t + q * q, 0); v = w.map((q) => q / nm); const muN = sigma + 1 / ray; if (Math.abs(muN - mu) < 1e-9) { mu = muN; break; } mu = muN; }
+  return mu;
+}
+function folded1(d, Vt, a, R) { const n = 600, pmax = 12; let s = 0; for (let i = 1; i <= n; i++) { const p = (pmax * (i - 0.5)) / n; s += p ** (d - 1) * Vt(p * p) * Math.exp(-(p * p) / (4 * a)) * j0(d, p * R); } return ((SD[d] / (2 * Math.PI) ** d) * s * pmax) / n; }
+function nucleonPot(d, F, s, a, lam) { const Vt = ft(d, F.triplet, s), Vs = ft(d, F.singlet, s), g = Array.from({ length: 401 }, (_, i) => (12 * i) / 400), tab = g.map((R) => 4 * (3 / 32) * (folded1(d, Vt, a, R) + folded1(d, Vs, a, R))); return (R) => { const x = (R / 12) * 400, i = Math.min(399, Math.floor(x)), f = x - i; return R < 12 ? lam * (tab[i] * (1 - f) + tab[i + 1] * f) : 0; }; }
+/* a helium-4's Gaussian width a (nucleon density ∝ e^(−a r²)) for a mean-square radius r2 about its centre (3 of 4 nucleons move) */
+export const alphaWidth = (d, r2) => (0.75 * (d / 2)) / r2;
+/* two helium-4s' lowest allowed s-state (MeV; below 0, bound) for the force F at strength s, width a, folding factor lam */
+export const alphaPair = (d, F, s, a, lam, opts = {}) => lowestAllowed(d, alphaPot(d, F, s, a, lam), a, { rmax: 50, ...opts });
+/* a nucleon's lowest p-state on a helium-4 (undefined: unbound) */
+export const alphaNucleon = (d, F, s, a, lam) => levels(nucleonPot(d, F, s, a, lam), { d, l: 1, c: (HB2M * 5) / 8, rmax: 60, h: 0.01 })[0];
+/* the folding factor that puts ours (d = 3, s = 1, a for 2.13 fm²) at threshold */
+export function calibrate(kind, F, a3 = alphaWidth(3, 2.13)) {
+  const bound = kind === "pair" ? (lam) => alphaPair(3, F, 1, a3, lam) < -1e-3 : (lam) => alphaNucleon(3, F, 1, a3, lam) !== undefined;
+  let lo = 0.5, hi = 8; for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (bound(m)) hi = m; else lo = m; } return (lo + hi) / 2;
 }
