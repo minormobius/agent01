@@ -45,7 +45,13 @@
      meets the singly folded force in a p-wave (its s-wave is the forbidden one). One factor λ on each folding is
      calibrated on ours, two helium-4s (⁸Be) or a neutron and one (⁵He) at threshold, and carried to 4D: for ⁸Be it comes
      out 1.9, near Serber's natural 2 (the exchange half doubling the direct); for ⁵He 4–5, standing in for the spin–orbit
-     force this central model lacks, so the mass-5 result is the weaker. */
+     force this central model lacks, so the mass-5 result is the weaker.
+   · the ladder (alphaLocal, alphaDMC): several helium-4s need a local pair potential, so the forbidden states are taken out
+     of the deep folded potential by Baye's supersymmetric transformation (its two lowest s-states removed, leaving a
+     shallow potential with a repulsive core and the same scattering), with its own factor λ calibrated on our ⁸Be; then
+     N helium-4s, identical bosons, by diffusion Monte Carlo. On ours, two-body forces alone underbind carbon-12 and
+     oxygen-16 by about 2.5 times but release energy at every capture, as ours do: a conservative test of whether a ladder
+     goes downhill. A three-helium-4 attraction fitted to our carbon-12 overbinds oxygen-16 threefold, so none is used. */
 import { k4 } from "./kernel.js";
 
 export const HB2M = 41.47106, E2 = 1.43996; // ħ²/m_N (MeV fm²), e² (MeV fm)
@@ -311,4 +317,67 @@ export const alphaNucleon = (d, F, s, a, lam) => levels(nucleonPot(d, F, s, a, l
 export function calibrate(kind, F, a3 = alphaWidth(3, 2.13)) {
   const bound = kind === "pair" ? (lam) => alphaPair(3, F, 1, a3, lam) < -1e-3 : (lam) => alphaNucleon(3, F, 1, a3, lam) !== undefined;
   let lo = 0.5, hi = 8; for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (bound(m)) hi = m; else lo = m; } return (lo + hi) / 2;
+}
+
+/* ———— the helium-4 ladder ———— */
+const CA = HB2M / 4; // ħ²/2μ for two helium-4s
+/* the deep folded nuclear part (no Coulomb), tabulated */
+export function deepNuclear(d, F, s, a, lam) { const Vt = ft(d, F.triplet, s), Vs = ft(d, F.singlet, s), H = 0.02, n = 800, tab = Float64Array.from({ length: n + 1 }, (_, i) => lam * 1.5 * (folded2(d, Vt, a, i * H) + folded2(d, Vs, a, i * H))); return (r) => { const x = r / H; if (x >= n) return 0; const i = Math.floor(x), f = x - i; return tab[i] * (1 - f) + tab[i + 1] * f; }; }
+/* the ground state on the grid (u, its energy) for an l = 0 potential V in d dims: inverse iteration on the tridiagonal problem */
+function groundU(d, V, { rmax = 30, h = 0.005 } = {}) {
+  const E = levels(V, { d, l: 0, c: CA, rmax, h, emax: 1e4 })[0], n = Math.round(rmax / h) - 1, L2 = ((d - 1) * (d - 3)) / 4, off = -CA / (h * h), r = Float64Array.from({ length: n }, (_, i) => (i + 1) * h);
+  const dg = Float64Array.from(r, (x) => (2 * CA) / (h * h) + (CA * L2) / (x * x) + V(x) - E - 1e-9); let v = new Float64Array(n).fill(1);
+  for (let it = 0; it < 5; it++) { const cp = new Float64Array(n), dp = new Float64Array(n); cp[0] = off / dg[0]; dp[0] = v[0] / dg[0]; for (let i = 1; i < n; i++) { const m = dg[i] - off * cp[i - 1]; cp[i] = off / m; dp[i] = (v[i] - off * dp[i - 1]) / m; } const x = new Float64Array(n); x[n - 1] = dp[n - 1]; for (let i = n - 2; i >= 0; i--) x[i] = dp[i] - cp[i] * x[i + 1]; let nm = 0; for (const q of x) nm = Math.max(nm, Math.abs(q)); v = x.map((q) => Math.abs(q) / nm); }
+  return { E, u: v, r, h };
+}
+/* Baye's supersymmetric step: V → V − 2(W − E₀) + 2c ((ln u₀)′)², W = V + c L2/r² (the identity c (ln u)″ = W − E − c ((ln u)′)²) */
+function susyStep(d, V, g) {
+  const { E, u, r, h } = g, n = u.length, L2 = ((d - 1) * (d - 3)) / 4, lp = new Float64Array(n);
+  for (let i = 0; i < n; i++) lp[i] = i === 0 ? (Math.log(u[1]) - Math.log(u[0])) / h : i === n - 1 ? lp[i - 1] : (Math.log(u[i + 1]) - Math.log(u[i - 1])) / (2 * h);
+  // where u underflows (far out) the log-derivative is unreliable: hold its last good value
+  let last = n - 1; while (last > 10 && !(u[last] > 1e-250)) last--; last = Math.floor(last * 0.9);
+  const tab = Float64Array.from(r, (x, i) => { const k = Math.min(i, last); return V(x) - 2 * (V(x) + (CA * L2) / (x * x) - E) + 2 * CA * lp[k] ** 2; });
+  return (x) => { if (x <= h) return tab[0] * (h / x) ** 2; const t = x / h - 1, i = Math.min(n - 2, Math.floor(t)), f = t - i; return x >= r[n - 1] ? 0 : tab[i] * (1 - f) + tab[i + 1] * f; };
+}
+/* the shallow local helium-4 pair potential: the deep folding with its two lowest s-states (Pauli-forbidden) removed, plus Coulomb */
+export function alphaLocal(d, F, s, a, lam) {
+  const deep = deepNuclear(d, F, s, a, lam), g0 = groundU(d, deep), V1 = susyStep(d, deep, g0), g1 = groundU(d, V1), V2 = susyStep(d, V1, g1);
+  const coul = (r) => (4 * E2 * erfA(Math.sqrt(a / 2) * r)) / r;
+  return { E0: g0.E, E1: g1.E, V: (r) => V2(r) + coul(r), nuclear: V2 };
+}
+/* diffusion Monte Carlo for N helium-4s (identical bosons: no nodes, exact for the given forces), pair potential V(r),
+   optionally a three-helium-4 force W Σ_triples e^(−(r_ij² + r_jk² + r_ik²)/b²) */
+export function alphaDMC({ d, N, V, three = null, tau = 2e-4, walkers = 600, steps = 12000, equil = 3000, seed = 1, omega = 0.3 }) {
+  const D = HB2M / 8, S = new Uint32Array([seed * 2654435761 >>> 0, 0x9e3779b9, 0x243f6a88, 0xb7e15162 ^ seed]); const rotl = (x, k) => (x << k) | (x >>> (32 - k));
+  const n32 = () => { const r = Math.imul(rotl(Math.imul(S[1], 5), 7), 9) >>> 0, t = S[1] << 9; S[2] ^= S[0]; S[3] ^= S[1]; S[1] ^= S[2]; S[0] ^= S[3]; S[2] ^= t; S[3] = rotl(S[3], 11); return r; };
+  for (let i = 0; i < 20; i++) n32(); const rnd = () => (n32() + 0.5) / 4294967296; let spare = null;
+  const gauss = () => { if (spare !== null) { const g = spare; spare = null; return g; } const r = Math.sqrt(-2 * Math.log(rnd())), t = 2 * Math.PI * rnd(); spare = r * Math.sin(t); return r * Math.cos(t); };
+  const om = (omega * 3) / Math.max(3, N - 1), T = pairState(V, { d, c: CA, omega: om, rmax: 40 }), n = N * d, pairs = []; for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) pairs.push([i, j]);
+  const local = (x, F) => { F.fill(0); let e = 0, lp = 0;
+    for (const [i, j] of pairs) { let r2 = 0; for (let k = 0; k < d; k++) { const u = x[i * d + k] - x[j * d + k]; r2 += u * u; } const r = Math.sqrt(r2), g = T.upf(r); lp += T.lnf(r); e += T.E - om * r2 + 2 * D * g * g; for (let k = 0; k < d; k++) { const t = (g * (x[i * d + k] - x[j * d + k])) / r; F[i * d + k] += 2 * t; F[j * d + k] -= 2 * t; } }
+    if (three) { const R2 = (i, j) => { let t = 0; for (let k = 0; k < d; k++) { const u = x[i * d + k] - x[j * d + k]; t += u * u; } return t; }; for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) for (let k = j + 1; k < N; k++) e += three.W * Math.exp(-(R2(i, j) + R2(j, k) + R2(i, k)) / (three.b * three.b)); }
+    let q = 0; for (let k = 0; k < n; k++) q += (F[k] / 2) ** 2; return { E: e - D * q, lp }; };
+  const drift = (F) => { const out = new Float64Array(n); for (let i = 0; i < N; i++) { let v2 = 0; for (let a = 0; a < d; a++) v2 += (F[i * d + a] / 2) ** 2; const f = v2 > 0 ? (-1 + Math.sqrt(1 + 2 * D * tau * v2)) / (D * tau * v2) : 1; for (let a = 0; a < d; a++) out[i * d + a] = f * D * tau * F[i * d + a]; } return out; };
+  const spread = 1.5 + 0.6 * Math.pow(N, 1 / d); let W = []; while (W.length < walkers) { const x = Float64Array.from({ length: n }, () => spread * gauss()), F = new Float64Array(n), L = local(x, F); W.push({ x, F, E: L.E, lp: L.lp }); }
+  const e0 = W.map((w) => w.E).sort((a, b) => a - b), ecut = Math.max(20, 5 * (e0[Math.floor(0.75 * walkers)] - e0[Math.floor(0.25 * walkers)])); let ET = e0[walkers >> 1], Erun = ET; const Es = [], xn = new Float64Array(n), Fn = new Float64Array(n);
+  for (let st = 0; st < steps; st++) {
+    const next = []; let sE = 0, sW = 0;
+    for (const w of W) {
+      const dr = drift(w.F); for (let k = 0; k < n; k++) xn[k] = w.x[k] + dr[k] + Math.sqrt(2 * D * tau) * gauss();
+      const L = local(xn, Fn), dn = drift(Fn); let lg = 0; for (let k = 0; k < n; k++) { const f = w.x[k] - xn[k] - dn[k], b = xn[k] - w.x[k] - dr[k]; lg += (b * b - f * f) / (4 * D * tau); }
+      let x = w.x, F = w.F, E1 = w.E, lp = w.lp; if (rnd() < Math.exp(2 * (L.lp - w.lp) + lg)) { x = Float64Array.from(xn); F = Float64Array.from(Fn); E1 = L.E; lp = L.lp; }
+      const cap = (e) => Math.max(Erun - ecut, Math.min(Erun + ecut, e)), wt = Math.exp(-tau * (0.5 * (cap(w.E) + cap(E1)) - ET)), m = Math.min(Math.floor(wt + rnd()), 3);
+      for (let k = 0; k < m; k++) next.push({ x: k ? Float64Array.from(x) : x, F: k ? Float64Array.from(F) : F, E: E1, lp });
+      sE += wt * E1; sW += wt;
+    }
+    W = next; if (!W.length) break; const Em = sE / sW;
+    if (st < equil) { Erun = Em; ET = Em - Math.log(W.length / walkers) / (20 * tau); } else { Erun += (Em - Erun) / Math.min(st - equil + 1, 2000); ET = Erun - Math.log(W.length / walkers) / (200 * tau); Es.push(Em); }
+  }
+  const B = Math.max(1, Math.min(Math.round(0.5 / tau), Math.floor(Es.length / 10))), nb = Math.floor(Es.length / B), bm = Array.from({ length: nb }, (_, i) => Es.slice(i * B, (i + 1) * B).reduce((a, b) => a + b, 0) / B), mean = bm.reduce((a, b) => a + b, 0) / nb;
+  return { E: mean, err: Math.sqrt(bm.reduce((a, b) => a + (b - mean) ** 2, 0) / (nb * (nb - 1))), N };
+}
+/* the supersymmetric factor that puts our two helium-4s at threshold */
+export function calibrateLocal(F, a3 = alphaWidth(3, 2.13)) {
+  const E = (lam) => levels(alphaLocal(3, F, 1, a3, lam).V, { d: 3, l: 0, c: CA, rmax: 60, h: 0.005, emax: 5 })[0];
+  let lo = 1.5, hi = 4.5; for (let i = 0; i < 22; i++) { const m = (lo + hi) / 2; if (E(m) < 0) hi = m; else lo = m; } return (lo + hi) / 2;
 }

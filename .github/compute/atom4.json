@@ -1,69 +1,123 @@
 {
- "run": "nuclei-2",
- "why": "The second nucleon force (Minnesota: soft Gaussians where Malfliet-Tjon has singular Yukawas) through the same pipeline, to show the 4D results don't hang on the first force's shape: its nuclear matter across 4D's window and helium-4 with and without the refitted three-nucleon force; and Malfliet-Tjon's helium-4 rerun to record radii for the helium-4 cluster model.",
- "minutes": 120,
+ "run": "nuclei-3",
+ "why": "The helium-4 ladder: 2 to 8 helium-4s (beryllium-8, then elements 6, 8, 10, 12, 14, 16) by diffusion Monte Carlo on a local helium-4 pair potential (the folded force with its Pauli-forbidden states removed by Baye's supersymmetric transformation, calibrated on our beryllium-8), in our world as the check (2 to 6) and across 4D's strength window, under both forces: is every helium-4 capture downhill, and by how much.",
+ "minutes": 150,
  "groups": [
   {
-   "name": "mn-matter-a",
+   "name": "ladder-0",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs matter 4 1.4002 symmetric MN",
-    "node four/atom/tools/nuclei.mjs matter 4 1.5152 symmetric MN",
-    "node four/atom/tools/nuclei.mjs matter 4 1.8909 symmetric MN",
-    "node four/atom/tools/nuclei.mjs matter 3 1 neutron MN"
+    "node four/atom/tools/nuclei.mjs ladder 3 1 2",
+    "node four/atom/tools/nuclei.mjs ladder 3 1 3",
+    "node four/atom/tools/nuclei.mjs ladder 3 1 4",
+    "node four/atom/tools/nuclei.mjs ladder 3 1 5"
    ]
   },
   {
-   "name": "mn-matter-b",
+   "name": "ladder-1",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs matter 4 1.4002 neutron MN",
-    "node four/atom/tools/nuclei.mjs matter 4 1.5152 neutron MN",
-    "node four/atom/tools/nuclei.mjs matter 4 1.8909 neutron MN",
-    "node four/atom/tools/nuclei.mjs fit MN"
+    "node four/atom/tools/nuclei.mjs ladder 3 1 6",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 2",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 3",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 4"
    ]
   },
   {
-   "name": "mn-he-3d",
+   "name": "ladder-2",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs he4 3 1 none MN",
-    "node four/atom/tools/nuclei.mjs he4 3 1 0.7 MN",
-    "node four/atom/tools/nuclei.mjs he4 3 1 1.0 MN",
-    "node four/atom/tools/nuclei.mjs he4 3 1 1.4 MN"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 5",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 6",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 7",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 8"
    ]
   },
   {
-   "name": "mn-he-4d-floor",
+   "name": "ladder-3",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs he4 4 1.4002 none MN",
-    "node four/atom/tools/nuclei.mjs he4 4 1.4002 0.7 MN",
-    "node four/atom/tools/nuclei.mjs he4 4 1.4002 1.0 MN",
-    "node four/atom/tools/nuclei.mjs he4 4 1.4002 1.4 MN"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 2",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 3",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 4",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 5"
    ]
   },
   {
-   "name": "mn-he-4d-ours",
+   "name": "ladder-4",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs he4 4 1.5152 none MN",
-    "node four/atom/tools/nuclei.mjs he4 4 1.5152 0.7 MN",
-    "node four/atom/tools/nuclei.mjs he4 4 1.5152 1.0 MN",
-    "node four/atom/tools/nuclei.mjs he4 4 1.5152 1.4 MN"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 6",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 7",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 8",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 2"
    ]
   },
   {
-   "name": "mn-he-4d-ceiling",
+   "name": "ladder-5",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs he4 4 1.8909 none MN",
-    "node four/atom/tools/nuclei.mjs he4 4 1.8909 0.7 MN",
-    "node four/atom/tools/nuclei.mjs he4 4 1.8909 1.0 MN",
-    "node four/atom/tools/nuclei.mjs he4 4 1.8909 1.4 MN"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 3",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 4",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 5",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 6"
    ]
   },
   {
-   "name": "mt-radii",
+   "name": "ladder-6",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs he4 3 1 none",
-    "node four/atom/tools/nuclei.mjs he4 4 1.2292 none",
-    "node four/atom/tools/nuclei.mjs he4 4 1.2986 none",
-    "node four/atom/tools/nuclei.mjs he4 4 1.4993 none"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 7",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 8",
+    "node four/atom/tools/nuclei.mjs ladder 3 1 2 MN",
+    "node four/atom/tools/nuclei.mjs ladder 3 1 3 MN"
+   ]
+  },
+  {
+   "name": "ladder-7",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs ladder 3 1 4 MN",
+    "node four/atom/tools/nuclei.mjs ladder 3 1 5 MN",
+    "node four/atom/tools/nuclei.mjs ladder 3 1 6 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 2 MN"
+   ]
+  },
+  {
+   "name": "ladder-8",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 3 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 4 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 5 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 6 MN"
+   ]
+  },
+  {
+   "name": "ladder-9",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 7 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 8 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 2 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 3 MN"
+   ]
+  },
+  {
+   "name": "ladder-10",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 4 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 5 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 6 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 7 MN"
+   ]
+  },
+  {
+   "name": "ladder-11",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 8 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 2 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 3 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 4 MN"
+   ]
+  },
+  {
+   "name": "ladder-12",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 5 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 6 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 7 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 8 MN"
    ]
   }
  ]
