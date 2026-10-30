@@ -209,6 +209,16 @@ for games, and this is a modelling programme with publications to come. The game
   orbiting as point masses, the independent check. Result: the orbit plane's spin locks, mixed parts die, the completely
   orthogonal plane's spin is untouched (exactly), and on a locked planet the star never moves in the sky.
   `atom/tools/tidenumbers.mjs` gives the chapter its numbers. Selftest 50.
+  `js/nuclear.js` (no DOM) is nuclei in any d, for the abundance question (which elements stars make, hence what
+  planets are made of): Malfliet–Tjon's nucleon force with its attraction scaled by s (s = 1 ours; pinned, so the same
+  function of distance in both worlds), radial bound states by Sturm bisection, the window of strengths where the
+  deuteron binds and the diproton doesn't (ours 0.856–1.045, 4D 1.229–1.499: 4D's s-wave barrier unbinds our force's
+  deuteron), a Woods–Saxon shell model with 4D's spin–orbit (2 s·J_L, declared), a uniform ball's Coulomb factor, and
+  `fixedNode`, diffusion Monte Carlo with four species (exact up to helium-4, checked on our −31.36 MeV; past A = 4 it
+  fails our own ⁶He and ⁸Be both ways, so it's used for A ≤ 4 only). `js/gscale.js` (no DOM) is what sets G:
+  Chandrasekhar's mass in d dims from the index-d polytrope (ours 1.44 M☉; pinned 4D closes too, N_Ch = 1.52 α_G^(−4/3)),
+  the Earth-like planet's G for a rock density (v² = 2gR in any d, so Earth's radius: G ρ₄ = 2g/π²R², ≈ 3 × 10⁻¹⁷ G),
+  and the smallest air-holding planet and the dark-star size at any G. Selftest 51.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).

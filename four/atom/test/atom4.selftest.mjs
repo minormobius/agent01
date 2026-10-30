@@ -898,5 +898,21 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `a planet of masses on damped springs does the same (its orbit-plane spin 2 → ${s1.orbitPart.toFixed(3)}, its free plane's angular momentum kept to ${Math.abs(s1.Lfree / s0.Lfree - 1).toExponential(0)}); on a locked planet the star's height holds to ${(Math.max(...sun) - Math.min(...sun)).toExponential(0)} as it turns`);
 }
 
+/* 51 · nuclei and what sets G (js/nuclear.js, js/gscale.js; the stars chapter): Malfliet–Tjon's force gives our deuteron
+   (2.23 MeV), and our world sits inside its window (the deuteron bound, the diproton not); 4D's s-wave barrier moves the
+   window to a stronger force. The Monte Carlo is exact for two nucleons (its pair factor is their ground state), in 4D
+   too; a uniform ball's Coulomb factor is 3/5 in 3D. Chandrasekhar's mass from the polytrope of light-speed electrons is
+   ours (1.457 M☉ for two nucleons per electron), and in pinned 4D the same polytrope closes, so 4D has one too */
+{
+  const NU = await import(path.join(here, "../js/nuclear.js")), GS = await import(path.join(here, "../js/gscale.js"));
+  const w3 = NU.window(3), w4 = NU.window(4), deu = NU.levels(NU.mtPot(NU.MT.triplet), { d: 3, rmax: 60, h: 0.005 })[0];
+  const V = { v: (r, s) => NU.mtPot(NU.MT.v, s)(r) }, mc = NU.fixedNode({ d: 4, counts: [0, 0, 1, 1], V, s: 1.6, like: "same", steps: 200, equil: 40, walkers: 60, tau: 2e-4, omega: 0 }), ex = NU.levels(NU.mtPot(NU.MT.v, 1.6), { d: 4, rmax: 60, h: 0.004 })[0];
+  ok(Math.abs(deu + 2.2338) < 0.002 && w3.deuteron < 1 && w3.diproton > 1 && Math.abs(w3.ours - 1) < 0.001 && w4.deuteron > 1.2 && w4.diproton > w4.ours && Math.abs(mc.E - ex) < 0.002 && Math.abs(NU.coulombFactor(3, 200) - 0.6) < 1e-3,
+    `nuclei: our deuteron ${(-deu).toFixed(3)} MeV; our world inside its window (the deuteron binds from ${w3.deuteron.toFixed(3)}× the force, the diproton only past ${w3.diproton.toFixed(3)}×), 4D's at ${w4.deuteron.toFixed(3)}–${w4.diproton.toFixed(3)}×; the Monte Carlo's two 4D nucleons ${mc.E.toFixed(4)} against ${ex.toFixed(4)} MeV exact`);
+  const c3 = GS.chandrasekhar(3), c4 = GS.chandrasekhar(4), m3 = c3.mass() / GS.SI.Msun;
+  ok(Math.abs(m3 / 1.457 - 1) < 0.02 && c4.polytrope.converged && Math.abs(c4.cd - 1.52) < 0.03,
+    `Chandrasekhar's mass: ours ${m3.toFixed(3)} M☉ (1.457 for two nucleons per electron), from the index-3 polytrope; pinned 4D's index-4 one closes too, N_Ch = ${c4.cd.toFixed(3)} α_G^(−4/3) nucleons`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
