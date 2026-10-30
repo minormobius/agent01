@@ -33,9 +33,9 @@ _Regenerated 2026-10-30 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-30, 100 members / 211 posts):
+**Neighborhood spark** (bisk 2026-10-30, 100 members / 229 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: openai, github, simcluster
+- Distinctive words: deepseek, cybersecurity, llm
 - Top post: ""i wonder what the basilisk guy is up to"" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
