@@ -236,6 +236,11 @@ for games, and this is a modelling programme with publications to come. The game
   Hill–Wheeler over random placements, and ⁸Be's 0⁺ and 2⁺ by angle projection (`nuclei.mjs brink <d> <s> <b> <N>`, on
   the runner). It brackets the cluster ladder from the other side: on ours it overbinds oxygen where the ladder
   underbinds it. Selftest 52.
+  `js/bbn.js` (no DOM) is the universe's first minutes as the standard first estimate in any d: photons and baryons,
+  neutron freeze-out and decay, the deuterium bottleneck by Saha, then `nucleonCapture` (a proton or neutron onto
+  helium-4 by E1, in `nuclear.js`) and the helium-4 pair's E2 capture integrated as the universe cools, using helium up.
+  The weak force (ours), η and the clock t₁ (1 MeV/T)^((d+1)/2) are parameters; `nuclei.mjs capture` writes the σv tables
+  and `bake` the grid. Ours as the check (Y 0.235). Selftest 53.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).

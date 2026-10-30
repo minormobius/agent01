@@ -14,25 +14,13 @@
 
    Coulomb is the pinned 1/r in both worlds, so between Gaussian clouds it's erf(√ν S)/S ours and, in 4D,
    (√(πν)/2) e^(−x)(I₀(x) + I₁(x)) with x = νS²/2 (from 1/r = (2/√π)∫e^(−t²r²)dt). */
-import { HB2M, E2 } from "./nuclear.js";
+import { HB2M, E2, coulombAvg } from "./nuclear.js";
+export { coulombAvg };
 
 const T1 = HB2M / 2; // ħ²/2m
 export const MNB = { VR: 200, kR: 1.487, Vt: -178, kt: 0.639, Vs: -91.85, ks: 0.465 };
 export function weights(s, u) {
   return [{ k: MNB.kR, D: MNB.VR * (10 * u - 4), X: MNB.VR * (10 * u - 16) }, { k: MNB.kt, D: s * MNB.Vt * (9 * u - 6), X: s * MNB.Vt * (9 * u - 12) }, { k: MNB.ks, D: s * MNB.Vs * (u + 2), X: s * MNB.Vs * (u - 4) }];
-}
-/* e^(−x)(I₀(x) + I₁(x)) (Abramowitz and Stegun 9.8.1–4, to ~1e−7) */
-function i01(x) {
-  if (x < 3.75) { const t = (x / 3.75) ** 2, i0 = 1 + t * (3.5156229 + t * (3.0899424 + t * (1.2067492 + t * (0.2659732 + t * (0.0360768 + t * 0.0045813))))), i1 = x * (0.5 + t * (0.87890594 + t * (0.51498869 + t * (0.15084934 + t * (0.02658733 + t * (0.00301532 + t * 0.00032411)))))); return Math.exp(-x) * (i0 + i1); }
-  const t = 3.75 / x, i0 = 0.39894228 + t * (0.01328592 + t * (0.00225319 + t * (-0.00157565 + t * (0.00916281 + t * (-0.02057706 + t * (0.02635537 + t * (-0.01647633 + t * 0.00392377))))))),
-    i1 = 0.39894228 + t * (-0.03988024 + t * (-0.00362018 + t * (0.00163801 + t * (-0.01031555 + t * (0.02282967 + t * (-0.02895312 + t * (0.01787654 - t * 0.00420059)))))));
-  return (i0 + i1) / Math.sqrt(x);
-}
-function erf(x) { const t = 1 / (1 + 0.5 * Math.abs(x)), y = 1 - t * Math.exp(-x * x - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277))))))))); return x >= 0 ? y : -y; }
-/* ⟨1/r⟩ for r spread as (ν/π)^(d/2) e^(−ν(r − S)²) about a point S away */
-export function coulombAvg(d, nu, S) {
-  if (d === 3) return S < 1e-8 ? 2 * Math.sqrt(nu / Math.PI) : erf(Math.sqrt(nu) * S) / S;
-  return (Math.sqrt(Math.PI * nu) / 2) * i01((nu * S * S) / 2);
 }
 const dist2 = (a, b) => { let t = 0; for (let k = 0; k < a.length; k++) t += (a[k] - b[k]) ** 2; return t; };
 /* the norm and energy kernels between two placements a and b (arrays of N centres, each a d-vector) */

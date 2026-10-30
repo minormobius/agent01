@@ -456,3 +456,32 @@ const ALPHA_FS = 1 / 137.035999;
    l = 2 harmonics (5 ours, 9 in 4D) */
 export function e2Width(d, u2, u0, h, Egamma) { let I = 0; for (let i = 0; i < Math.min(u2.length, u0.length); i++) { const r = (i + 1) * h; I += u2[i] * u0[i] * r * r * h; } const N2 = d === 3 ? 5 : 9, w = Egamma / 197.327; return 197.327 * E2RATE[d] * ALPHA_FS * w ** 5 * I * I * (1 - 1 / d) / N2; }
 export { boundStates, scatterU };
+
+/* ———— the first minutes' captures ———— */
+/* ⟨1/r⟩ for r spread as (ν/π)^(d/2) e^(−ν(r − S)²) about a point S away: a Gaussian charge under the pinned 1/r. Ours
+   erf(√ν S)/S; in 4D, from 1/r = (2/√π)∫e^(−t²r²)dt, (√(πν)/2) e^(−x)(I₀(x) + I₁(x)) with x = νS²/2 */
+/* e^(−x)(I₀(x) + I₁(x)) (Abramowitz and Stegun 9.8.1–4, to ~1e−7) */
+function i01(x) {
+  if (x < 3.75) { const t = (x / 3.75) ** 2, i0 = 1 + t * (3.5156229 + t * (3.0899424 + t * (1.2067492 + t * (0.2659732 + t * (0.0360768 + t * 0.0045813))))), i1 = x * (0.5 + t * (0.87890594 + t * (0.51498869 + t * (0.15084934 + t * (0.02658733 + t * (0.00301532 + t * 0.00032411)))))); return Math.exp(-x) * (i0 + i1); }
+  const t = 3.75 / x, i0 = 0.39894228 + t * (0.01328592 + t * (0.00225319 + t * (-0.00157565 + t * (0.00916281 + t * (-0.02057706 + t * (0.02635537 + t * (-0.01647633 + t * 0.00392377))))))),
+    i1 = 0.39894228 + t * (-0.03988024 + t * (-0.00362018 + t * (0.00163801 + t * (-0.01031555 + t * (0.02282967 + t * (-0.02895312 + t * (0.01787654 - t * 0.00420059)))))));
+  return (i0 + i1) / Math.sqrt(x);
+}
+function erfC(x) { const t = 1 / (1 + 0.5 * Math.abs(x)), y = 1 - t * Math.exp(-x * x - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277))))))))); return x >= 0 ? y : -y; }
+export function coulombAvg(d, nu, S) {
+  if (d === 3) return S < 1e-8 ? 2 * Math.sqrt(nu / Math.PI) : erfC(Math.sqrt(nu) * S) / S;
+  return (Math.sqrt(Math.PI * nu) / 2) * i01((nu * S * S) / 2);
+}
+/* a nucleon meeting a helium-4 and ending bound in a p-state (mass 5) by an electric-dipole photon, which their unequal
+   charge-to-mass ratios allow: dipole charge (Z₁A₂ − Z₂A₁)/A = +2/5 e for a proton, −2/5 for a neutron. Γ = E1RATE α ω³ |D|²:
+   (4/3) ours, (3π/8) through the lens vacuum (ℓ again gone). From the nucleon's s-wave into every bound p-state of the folded
+   potential (nucleonPot, the factor λ set on our helium-5), the proton feeling helium-4's Gaussian charge. σv in fm^(d−1) c */
+export const E1RATE = { 3: 4 / 3, 4: (3 * Math.PI) / 8 };
+export function nucleonCapture({ d, F, s, a, lam, E, Z = 1, Vn = null }) {
+  const Vf = Vn ?? nucleonPot(d, F, s, a, lam), V = Z ? (r) => Vf(r) + 2 * Z * E2 * coulombAvg(d, a, r) : Vf, c = (HB2M * 5) / 8, mu = (0.8 * 197.327 ** 2) / HB2M, h = 0.01;
+  const fin = boundStates(V, { d, l: 1, c, rmax: 40 }), sc = scatterU(V, { d, l: 0, c, E, h }), ee = Z ? 0.4 : -0.4, parts = [];
+  for (const st of fin) { let I = 0; for (let i = 1; i < st.u.length && i < sc.u.length; i++) I += st.u[i - 1] * sc.u[i] * i * h * h; const w = (E - st.E) / 197.327; parts.push({ Ef: st.E, sv: E1RATE[d] * ALPHA_FS * w ** 3 * ee * ee * I * I * SD[d] }); }
+  const sv = parts.reduce((t, p) => t + p.sv, 0), v = (197.327 * sc.k) / mu;
+  return { E, k: sc.k, v, sv, sigma: sv / v, parts };
+}
+export { nucleonPot };

@@ -955,5 +955,18 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `Brink's helium-4s: one helium-4 closed to ${dev.toExponential(0)} (with and without the three-nucleon force, both worlds); two 16 fm apart are two helium-4s plus their zero-point and 4e²/D (to ${Math.max(...far).toFixed(3)} MeV); kernels symmetric and turning with the placements; Minnesota's u = 0.94 puts our ⁸Be at ${be.toFixed(2)} MeV (measured +0.09)`);
 }
 
+/* 53 · the first minutes (js/bbn.js, the nuclei chapter): photons per volume are 2ζ(3)/π² T³ ours and π²/40 T⁴ in 4D; a
+   σv that doesn't depend on energy averages to itself over d-dimensional Maxwell–Boltzmann; our own first minutes, from
+   the deuteron's 2.22 MeV, our η and clock, break the deuterium bottleneck near 0.07 MeV and leave about a quarter helium
+   (measured 0.245; this first estimate runs a little low); the dipole constant gives hydrogen's 2p → 1s rate */
+{
+  const BB = await import(path.join(here, "../js/bbn.js")), NU = await import(path.join(here, "../js/nuclear.js")), ZE3 = 1.2020569031595942;
+  const g3 = BB.photons(3, 197.327) / ((2 * ZE3) / Math.PI ** 2), g4 = BB.photons(4, 197.327) / (Math.PI ** 2 / 40);
+  const Eg = Array.from({ length: 40 }, (_, i) => 1e-7 * Math.pow(1e9, i / 39)), flat = [3, 4].map((d) => BB.thermal(d, 0.05, { E: Eg, sv: Eg.map(() => 2.5) }) / 2.5);
+  const ours = BB.firstMinutes({ d: 3, B: 2.2246 }), a0 = 52917.72, w = (13.6057 * 0.75) / 197.327e6, A = NU.E1RATE[3] * (1 / 137.035999) * w ** 3 * (0.744936 * a0) ** 2 * 2.99792458e23;
+  ok(Math.abs(g3 - 1) < 1e-9 && Math.abs(g4 - 1) < 1e-9 && flat.every((x) => Math.abs(x - 1) < 0.01) && ours.TD > 0.06 && ours.TD < 0.075 && ours.Y > 0.22 && ours.Y < 0.25 && Math.abs(A / 6.2649e8 - 1) < 0.01,
+    `the first minutes: photon densities closed in both worlds, flat σv averages to itself (to ${Math.max(...flat.map((x) => Math.abs(x - 1))).toFixed(3)}), ours breaks the bottleneck at ${ours.TD.toFixed(3)} MeV leaving ${ours.Y.toFixed(3)} helium (measured 0.245), and E1 gives hydrogen's 2p → 1s at ${(A / 1e8).toFixed(3)} × 10⁸ s⁻¹ (6.265)`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
