@@ -105,6 +105,38 @@ NU_CAP_BAR=NU_CAP('MT')['barrierT'] if NU_CAP('MT') else None
 NU_2PLUS=[-NU_capstates(r)[1] for r in NU_CAPROWS]; NU_2GAP=[NU_capstates(r)[1]-NU_capstates(r)[0] for r in NU_CAPROWS]
 NU_PP=[0.015*x for x in PPR] if 'PPR' in globals() else []
 
+# the same clusters microscopically (js/brink.js; nuclei.mjs brink): Brink's antisymmetrized helium-4s, Minnesota + the
+# three-nucleon force of range b, u set on our ⁸Be
+NU_BKL=NU.get('brink') or []
+def NU_m(x,f='.1f'): return (f'{x:{f}}').replace('-','−')
+def NU_mp(x): return NU_m(x,'+.1f')
+def NU_m0(x): return NU_m(x,'.0f')
+def NU_BK(d,s,b,N):
+  x=next((e for e in NU_BKL if e['d']==d and abs(e['s']-s)<1e-9 and abs(e['b']-b)<1e-9 and e['N']==N),None)
+  if not x: return None
+  return x['E0'] if N==2 else (x['E'].get('480') if x['E'].get('480') is not None else x['E'].get('240'))
+def NU_BK2(d,s,b): x=next((e for e in NU_BKL if e['d']==d and abs(e['s']-s)<1e-9 and abs(e['b']-b)<1e-9 and e['N']==2),None); return x['E2'] if x else None
+def NU_BKQ(d,s,b): E={N:NU_BK(d,s,b,N) for N in range(2,6)}; return {N:(E[N-1] if N>2 else 0)-E[N] for N in E if E[N] is not None and (N==2 or E.get(N-1) is not None)}
+NU_BMEAS={2:0.092,3:-7.275,4:-14.437,5:-19.167}
+def NU_bkours():
+  out=f"<tr><td>measured</td>{''.join(f'<td>{NU_mp(NU_BMEAS[N])}</td>' for N in range(2,6))}</tr>"
+  L=NU_LAD('MN',3,1); out+=f"<tr><td>cluster ladder (Minnesota)</td>{''.join(f'<td>{NU_mp(L[N])}</td>' if N in L else '<td>—</td>' for N in range(2,6))}</tr>"
+  for b in (0.7,1.0,1.4): out+=f"<tr><td>Brink, three-nucleon range {b} fm</td>{''.join('<td>—</td>' if NU_BK(3,1,b,N) is None else f'<td>{NU_mp(NU_BK(3,1,b,N))}</td>' for N in range(2,6))}</tr>"
+  return out
+def NU_bk4(i,s):
+  out=''
+  for b in (0.7,1.0,1.4):
+    q=NU_BKQ(4,s,b); t=NU_BK2(4,s,b)
+    out+=f"<tr><td>{NU_LBL[i]}, {b} fm</td>{''.join(f'<td>{q[N]:.0f}</td>' if N in q else '<td>—</td>' for N in range(2,6))}<td>{'—' if t is None else NU_m(t)}</td></tr>"
+  ql=NU_Q('MN',4,s); out+=f"<tr><td>{NU_LBL[i]}, cluster ladder</td>{''.join(f'<td>{ql[N]:.0f}</td>' if N in ql else '<td>—</td>' for N in range(2,6))}<td>—</td></tr>"
+  return out
+NU_BKQ4=[q for s in NU_S4['MN'] for b in (0.7,1.0,1.4) for q in NU_BKQ(4,s,b).values()]
+NU_BK2P=[NU_BK2(4,s,b) for s in NU_S4['MN'] for b in (0.7,1.0,1.4) if NU_BK2(4,s,b) is not None]
+NU_BK12=[NU_BK(3,1,b,3) for b in (0.7,1.0,1.4) if NU_BK(3,1,b,3) is not None]; NU_BK16=[NU_BK(3,1,b,4) for b in (0.7,1.0,1.4) if NU_BK(3,1,b,4) is not None]
+NU_BKU=sorted({round(e['u'],3) for e in NU_BKL})
+NU_BKCONV=max((abs(e['E']['480']-e['E']['240'])/abs(e['E']['480']) for e in NU_BKL if e['N']>2 and e['E'].get('480')),default=0)
+NU_BKNE=[NU_BK(3,1,b,4)-NU_BK(3,1,b,5) for b in (0.7,1.0,1.4) if NU_BK(3,1,b,5) is not None and NU_BK(3,1,b,4) is not None]
+
 nuclei=f'''<section id="declared">
   <h3>What was declared, and what it takes</h3>
   <p>The book began by declaring nuclei: heavy point charges, stable up to element 78 (<a href="force.html#contents">chapter 2</a>). That was enough for atoms, which see a nucleus only as its charge. It isn't enough for stars, which make nuclei, or for the question every chapter since has run into: <b>which elements are common?</b> Our world's answer, iron and oxygen and the rest, comes from nuclear physics: which nuclei hold together, and which ones stars can build. Here that physics is worked out for 4D, with every method first checked on our own nuclei.</p>
@@ -155,6 +187,16 @@ nuclei=f'''<section id="declared">
   <table class="sys"><tr><th>charge, before → after</th><th>ours (billion K)</th><th>4D</th><th>4D ÷ ours</th></tr>{''.join(NU_rungrow(r) for r in NU_RG_SHOW)}</table>
   <p class="read">Nuclear radii 1.2 A^(1/3) fm ours and 1.0 A^(1/4) fm 4D; the rate counts tunnelling only, not the levels that make our reactions resonant.</p>
   <p>Each rung needs {min(NU_RG_RATIO):.2f} to {max(NU_RG_RATIO):.2f} times our temperature, rising with charge. This is a barrier-only estimate, not a prediction of what stars make: it assumes every rung sheds its energy as readily as our carbon does. For the first rung that's now computed (next section), and it holds up. Our stars build to iron because, past it, binding falls and burning stops paying. A 4D star's ladder keeps paying far past iron's charge, so what ends it is how fast each capture runs against how hot and how long a star burns. That needs the captures' rates, rung by rung.</p>
+</section>
+<section id="brink">
+  <h3>The same, with the Pauli principle exact</h3>
+  <p>The ladder's helium-4s are points with a force between them, and the Pauli principle enters only as states they're forbidden to use. The direct test of that is to build the nuclei from nucleons. <span class="tag computed">computed</span> In Brink's model each helium-4 is four nucleons sharing one Gaussian orbital, and a nucleus is one determinant of all of them, antisymmetrized, so the Pauli principle is exact: nothing removed, no factor fitted per nucleus. Many placements of the helium-4s are superposed, as quantum mechanics allows, and beryllium-8's turning states come out by averaging over orientations. Every integral is a closed Gaussian one in any dimension. The force is Minnesota's, plus this chapter's three-nucleon force at each range (0.7, 1.0, 1.4 fm), with the one number Minnesota leaves free (u, how it acts in odd partial waves, which a lone helium-4 never feels) set to put our beryllium-8 where it is: u = {', '.join(f'{x:.2f}' for x in NU_BKU) if NU_BKU else '—'}. Our nuclei, against free helium-4s (MeV):</p>
+  <table class="sys"><tr><th>ours</th><th>beryllium-8</th><th>carbon-12</th><th>oxygen-16</th><th>neon-20</th></tr>{NU_bkours()}</table>
+  <p class="read">Measured: mass differences. Beryllium-8 is where u is set. The cluster ladder is the two-body Monte Carlo above.</p>
+  <p>Carbon comes out at {NU_m(max(NU_BK12) if NU_BK12 else 0)} to {NU_m(min(NU_BK12) if NU_BK12 else 0)} against the measured −7.3: good. Oxygen comes out at {NU_m0(max(NU_BK16) if NU_BK16 else 0)} to {NU_m0(min(NU_BK16) if NU_BK16 else 0)}, overbound about two to three times. The reason is known: four nucleons in one orbital miss about 8 MeV of a helium-4's binding, which their correlations supply, while oxygen's closed shell suits the model well, so oxygen gains on its helium-4s. <b>The two methods err in opposite directions on ours</b>, the ladder underbinding oxygen and Brink overbinding it, and the measured values lie between them. One thing Brink gets wrong on ours follows from the same bias: oxygen comes out so deep that a fifth helium-4 on it looks {-max(NU_BKNE) if NU_BKNE else 0:.0f} to {-min(NU_BKNE) if NU_BKNE else 0:.0f} MeV uphill (measured: 4.7 downhill), a closed shell's pull overdone. The ladder gets that sign right. In 4D, each capture's energy (MeV), and beryllium-8's spin-2 state:</p>
+  <table class="sys"><tr><th>Minnesota, range</th><th>→ 4</th><th>→ 6</th><th>→ 8</th><th>→ 10</th><th>⁸Be's spin-2 state</th></tr>{"".join(NU_bk4(i,s) for i,s in enumerate(NU_S4["MN"]))}</table>
+  <p><b>Every 4D capture is downhill under both methods</b>, by {min(NU_BKQ4) if NU_BKQ4 else 0:.0f} to {max(NU_BKQ4) if NU_BKQ4 else 0:.0f} MeV in this one. Where the force is strongest the two agree within about ten percent; lower in the window Brink binds more, as it does ours. So the ladder's conclusion doesn't hang on how it handled the Pauli principle: between two methods that bracket our world, 4D's rungs are downhill all the way to element 10. Beryllium-8's spin-2 state is bound in every case, by {-max(NU_BK2P) if NU_BK2P else 0:.1f} to {-min(NU_BK2P) if NU_BK2P else 0:.0f} MeV, more deeply than the cluster model puts it where it's shallowest, so the first capture's slowest case (next section) is if anything pessimistic. <span class="tag follows">follows</span> Five helium-4s are where 4D's oscillator shells close (4, then 16 nucleons: d = 4 has four p orbitals), as four close ours at oxygen. Element 10, pxygen, is the nucleus that plays oxygen-16's part, so Brink's closed-shell bias would show only past it, where nothing here is computed.</p>
+  <p class="read">The model's limits: the Gaussian helium-4 is the one Brink's model always uses, too small a basis to give a helium-4 its correlations; the placements are random, 240 and 480 of them, and the larger basis lowers the energies by a few percent, at most {100*NU_BKCONV:.0f}% in one case, so read the magnitudes to that. The signs don't move.</p>
 </section>
 <section id="capture">
   <h3>The first capture, and the light it needs</h3>
