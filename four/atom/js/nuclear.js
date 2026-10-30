@@ -460,14 +460,20 @@ export { boundStates, scatterU };
 /* ———— the first minutes' captures ———— */
 /* ⟨1/r⟩ for r spread as (ν/π)^(d/2) e^(−ν(r − S)²) about a point S away: a Gaussian charge under the pinned 1/r. Ours
    erf(√ν S)/S; in 4D, from 1/r = (2/√π)∫e^(−t²r²)dt, (√(πν)/2) e^(−x)(I₀(x) + I₁(x)) with x = νS²/2 */
-/* e^(−x)(I₀(x) + I₁(x)) (Abramowitz and Stegun 9.8.1–4, to ~1e−7) */
+/* e^(−x)(I₀(x) + I₁(x)) and erf, to near machine precision: the projections of Brink's kernels onto Pauli-allowed states
+   cancel large parts against each other, and a 1e−7 error in the Coulomb term would survive the cancellation. Series
+   below x = 25, Hankel's asymptotic series above (its terms shrink past that) */
 function i01(x) {
-  if (x < 3.75) { const t = (x / 3.75) ** 2, i0 = 1 + t * (3.5156229 + t * (3.0899424 + t * (1.2067492 + t * (0.2659732 + t * (0.0360768 + t * 0.0045813))))), i1 = x * (0.5 + t * (0.87890594 + t * (0.51498869 + t * (0.15084934 + t * (0.02658733 + t * (0.00301532 + t * 0.00032411)))))); return Math.exp(-x) * (i0 + i1); }
-  const t = 3.75 / x, i0 = 0.39894228 + t * (0.01328592 + t * (0.00225319 + t * (-0.00157565 + t * (0.00916281 + t * (-0.02057706 + t * (0.02635537 + t * (-0.01647633 + t * 0.00392377))))))),
-    i1 = 0.39894228 + t * (-0.03988024 + t * (-0.00362018 + t * (0.00163801 + t * (-0.01031555 + t * (0.02282967 + t * (-0.02895312 + t * (0.01787654 - t * 0.00420059)))))));
-  return (i0 + i1) / Math.sqrt(x);
+  if (x < 25) { const h = x / 2; let t0 = 1, t1 = h, s0 = 1, s1 = h; for (let k = 1; k < 200; k++) { t0 *= (h * h) / (k * k); t1 *= (h * h) / (k * (k + 1)); s0 += t0; s1 += t1; if (t0 < 1e-17 * s0 && t1 < 1e-17 * s1) break; } return Math.exp(-x) * (s0 + s1); }
+  const asym = (nu) => { const m = 4 * nu * nu; let term = 1, sum = 1; for (let k = 1; k < 30; k++) { const nt = (-term * (m - (2 * k - 1) ** 2)) / (k * 8 * x); if (Math.abs(nt) > Math.abs(term)) break; term = nt; sum += term; } return sum / Math.sqrt(2 * Math.PI * x); };
+  return asym(0) + asym(1);
 }
-function erfC(x) { const t = 1 / (1 + 0.5 * Math.abs(x)), y = 1 - t * Math.exp(-x * x - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277))))))))); return x >= 0 ? y : -y; }
+function erfC(x) {
+  const ax = Math.abs(x); let v;
+  if (ax < 3) { let term = ax, sum = ax; for (let k = 1; k < 200; k++) { term *= (-ax * ax) / k; const c = term / (2 * k + 1); sum += c; if (Math.abs(c) < 1e-17 * Math.abs(sum)) break; } v = (2 / Math.sqrt(Math.PI)) * sum; }
+  else { let f = ax, C = ax, D = 0; for (let k = 1; k < 300; k++) { const an = k / 2; D = ax + an * D; C = ax + an / C; D = 1 / D; const delta = C * D; f *= delta; if (Math.abs(delta - 1) < 1e-16) break; } v = 1 - Math.exp(-ax * ax) / (Math.sqrt(Math.PI) * f); }
+  return x < 0 ? -v : v;
+}
 export function coulombAvg(d, nu, S) {
   if (d === 3) return S < 1e-8 ? 2 * Math.sqrt(nu / Math.PI) : erfC(Math.sqrt(nu) * S) / S;
   return (Math.sqrt(Math.PI * nu) / 2) * i01((nu * S * S) / 2);

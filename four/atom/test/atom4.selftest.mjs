@@ -951,6 +951,11 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const A = [[1.1, 0.3, -0.2], [-0.7, 1.4, 0.5], [-0.4, -1.7, -0.3]], B = [[0.2, 1.3, 0.4], [1.5, -0.6, -0.2], [-1.7, -0.7, -0.2]], o = { d: 3, nu, s: 1, u: 1.05, three: th }, R = (p) => [Math.cos(0.7) * p[0] - Math.sin(0.7) * p[1], Math.sin(0.7) * p[0] + Math.cos(0.7) * p[1], p[2]];
   const k1 = BR.kernel(A, B, o), k2 = BR.kernel(B, A, o), k3 = BR.kernel(A.map(R), B.map(R), o), symOk = Math.abs(k1.h / k1.n - k2.h / k2.n) < 1e-9 && Math.abs(k1.h / k1.n - k3.h / k3.n) < 1e-9;
   const n3 = BR.bestNu(3, 1), be = BR.twoAlpha({ d: 3, nu: n3, s: 1, u: 0.94 })[0] - 2 * BR.alphaEnergy(3, n3, 1);
+  // with one nucleon outside, the kernel follows each nucleon's spin and isospin: on saturated orbitals it must be kernel()
+  // itself, and our helium-5 (a neutron's p-wave on helium-4) must come out unbound, as it is, with nothing set on it
+  const sat = BR.kernel(A, B, o), spc = BR.kernelSpecies([...BR.alphaOrbitals(A[0]), ...BR.alphaOrbitals(A[1]), ...BR.alphaOrbitals(A[2])], [...BR.alphaOrbitals(B[0]), ...BR.alphaOrbitals(B[1]), ...BR.alphaOrbitals(B[2])], o), spOk = Math.abs(sat.h / sat.n - spc.h / spc.n) < 1e-8 && Math.abs(sat.n / spc.n - 1) < 1e-10;
+  const he5 = BR.nucleonAlpha({ d: 3, nu: n3, s: 1, u: 0.94, l: 1, Z: 0, M: 24 })[0];
+  ok(spOk && he5 > 0, `one nucleon outside: the spin–isospin-resolved kernel is the saturated one on three helium-4s (to ${Math.abs(sat.h / sat.n - spc.h / spc.n).toExponential(0)} MeV), and our helium-5 comes out unbound (its p-wave's lowest box state ${he5.toFixed(2)} MeV above a neutron and helium-4)`);
   ok(dev < 1e-9 && Math.max(...far) < 0.01 && symOk && Math.abs(be - 0.09) < 0.15,
     `Brink's helium-4s: one helium-4 closed to ${dev.toExponential(0)} (with and without the three-nucleon force, both worlds); two 16 fm apart are two helium-4s plus their zero-point and 4e²/D (to ${Math.max(...far).toFixed(3)} MeV); kernels symmetric and turning with the placements; Minnesota's u = 0.94 puts our ⁸Be at ${be.toFixed(2)} MeV (measured +0.09)`);
 }

@@ -20,13 +20,16 @@
                                                                  antisymmetrized, Minnesota plus the three-nucleon force of
                                                                  range b, its exchange mixture u set on our ⁸Be), bases of
                                                                  240 and 480 placements; N = 2 also gives the 2⁺
+     node four/atom/tools/nuclei.mjs mass5 <d> <s> <b>            a nucleon on a helium-4 microscopically (Brink, antisymmetrized,
+                                                                 Minnesota + the three-nucleon force of range b, u set on our
+                                                                 ⁸Be): mass 5's lowest s-, p- and d-states, neutron and proton
      node four/atom/tools/nuclei.mjs bake                        → js/nucleidata.js
    The three-nucleon force is W Σ_cyclic e^(−(r_ij² + r_ik²)/b²); fit gives c = W π³ b⁶/2 (its Hartree energy per nucleon
    in our matter is c ρ²), so W = 2c/(π³ b⁶) for each b, and in 4D the same W and b give c₄ = c π b². */
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { matter, fixedNode, window as nucWindow, MT, MN, mtPot, coulombFactor, THREE_C, THREE_C_MN, threeForce, alphaWidth, alphaPair, alphaNucleon, calibrate, alphaLocal, alphaDMC, calibrateLocal, alphaCapture, deepNuclear, nucleonCapture, nucleonPot, levels } from "../js/nuclear.js";
+import { matter, fixedNode, window as nucWindow, MT, MN, mtPot, coulombFactor, THREE_C, THREE_C_MN, threeForce, alphaWidth, alphaPair, alphaNucleon, calibrate, alphaLocal, alphaDMC, calibrateLocal, alphaCapture, deepNuclear, nucleonCapture, nucleonPot, levels, HB2M } from "../js/nuclear.js";
 import { criticalZ } from "../js/dirac.js";
 import * as BR from "../js/brink.js";
 import * as BB from "../js/bbn.js";
@@ -122,8 +125,13 @@ if (cmd === "fit") {
     const a = alphaWidth(4, (R2_OURS * he(4, s).r2) / h3.r2), deep = deepNuclear(4, FC.F, s, a, lam), pts = [];
     for (const T of [3e7, 1e8]) { const E = peak(T), R = alphaCapture({ d: 4, F: FC.F, s, a, lam, E, deep }), St = R.sigma * R.k ** 3 * Math.exp(gamow(E, op4)); pts.push({ T, E, S: St, sigma: R.sigma, parts: R.parts }); }
     // the first minutes' tables: σv against relative energy for two helium-4s (E2), and a proton or a neutron on one (E1)
-    const cl = load(`${FC.pre}cluster.json`), Vn = nucleonPot(4, FC.F, s, a, cl.lamN), Eg = Array.from({ length: 24 }, (_, i) => 0.002 * Math.pow(1500, i / 23));
-    const table = { E: Eg, aa: Eg.map((E) => alphaCapture({ d: 4, F: FC.F, s, a, lam, E, deep }).sv), p: Eg.map((E) => nucleonCapture({ d: 4, F: FC.F, s, a, lam: cl.lamN, E, Z: 1, Vn }).sv), n: Eg.map((E) => nucleonCapture({ d: 4, F: FC.F, s, a, lam: cl.lamN, E, Z: 0, Vn }).sv) };
+    // mass 5's binding from the microscopic calculation (Minnesota's, mass5, range 1.0 fm, at the same place in the window;
+    // Malfliet–Tjon has none of its own): unbound, no nucleon capture; bound, the folded potential's factor reset so its
+    // p-state sits there, and the capture computed with it
+    const iw = FC.s4.indexOf(s), m5 = load(`mass5-4-${tag(FORCES.MN.s4[iw])}-1.json`), E5 = m5 ? m5.states["1n"] : null, Eg = Array.from({ length: 24 }, (_, i) => 0.002 * Math.pow(1500, i / 23));
+    let lam5 = null; if (E5 !== null && E5 < 0) { const pE = (lm) => levels(nucleonPot(4, FC.F, s, a, lm), { d: 4, l: 1, c: (HB2M * 5) / 8, rmax: 60, h: 0.01 })[0] ?? 0; let lo = 0.5, hi = 8; for (let it = 0; it < 40; it++) { const m = (lo + hi) / 2; if (pE(m) < E5) hi = m; else lo = m; } lam5 = (lo + hi) / 2; }
+    const Vn = lam5 ? nucleonPot(4, FC.F, s, a, lam5) : null, zero = Eg.map(() => 0);
+    const table = { E: Eg, aa: Eg.map((E) => alphaCapture({ d: 4, F: FC.F, s, a, lam, E, deep }).sv), p: Vn ? Eg.map((E) => nucleonCapture({ d: 4, F: FC.F, s, a, lam: lam5, E, Z: 1, Vn }).sv) : zero, n: Vn ? Eg.map((E) => nucleonCapture({ d: 4, F: FC.F, s, a, lam: lam5, E, Z: 0, Vn }).sv) : zero, mass5: E5, lam5 };
     const B = -(levels(mtPot(FC.F.triplet, s), { d: 4, rmax: 80, h: 0.01 })[0] ?? 0);
     const S = pts[0].S, row = { s, a, S, ratio: ours.map((x) => S / x), T: tgt.map((t) => Tmatch(Math.log(S), t)), pts, table, deuteronB: B };
     rows.push(row); console.log(`${fname} s=${s}: S̃ ${S.toExponential(2)} (${row.ratio.map((x) => x.toPrecision(2)).join("–")}× ours), rate-matched at ${row.T.map((t) => (t / 1e9).toFixed(4)).join("–")} GK`);
@@ -138,6 +146,15 @@ if (cmd === "fit") {
   if (N === 2) { out.E0 = BR.twoAlpha({ d, nu, s, u, three: th })[0] - 2 * Ea; out.E2 = BR.twoAlpha({ d, nu, s, u, three: th, J: 2 })[0] - 2 * Ea; console.log(`d=${d} s=${s} b=${b}: u ${u.toFixed(4)}, ⁸Be 0⁺ ${out.E0.toFixed(2)}, 2⁺ ${out.E2.toFixed(2)} MeV`); }
   else { out.E = {}; for (const K of [240, 480]) { const t = Date.now(); out.E[K] = BR.clusterGCM({ d, N, nu, s, u, K, seed: 1, three: th })[0] - N * Ea; console.log(`d=${d} s=${s} b=${b} N=${N} K=${K}: ${out.E[K].toFixed(2)} MeV (${((Date.now() - t) / 1000).toFixed(0)} s)`); } }
   save(`brink-${d}-${tag(s)}-${tag(b)}-${N}.json`, out);
+} else if (cmd === "mass5") {
+  // a nucleon on a helium-4, the Pauli principle exact, no factor set on mass 5: u comes from our ⁸Be (as brink), and below
+  // zero means bound. Without a spin–orbit force the p-state is its doublet's centre
+  const [d, s, b] = [+args[0], +args[1], +args[2]], th = threeForce(b, THREE_C_MN), nu3 = BR.bestNu(3, 1, th), Ea3 = BR.alphaEnergy(3, nu3, 1, 1, th);
+  let lo = 0.85, hi = 1.6; for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (BR.twoAlpha({ d: 3, nu: nu3, s: 1, u: m, three: th })[0] - 2 * Ea3 > 0.092) lo = m; else hi = m; }
+  const u = (lo + hi) / 2, nu = BR.bestNu(d, s, th), Ds = Array.from({ length: 20 }, (_, i) => 0.4 + (i * 10.6) / 19), out = { d, s, b, u, states: {} };
+  for (const l of [0, 1, 2]) for (const Z of [0, 1]) { const e = BR.nucleonAlpha({ d, nu, s, u, l, Z, Ds, three: th })[0]; out.states[`${l}${Z ? "p" : "n"}`] = e; }
+  console.log(`d=${d} s=${s} b=${b}: ${Object.entries(out.states).map(([k, v]) => `${k} ${v.toFixed(2)}`).join("  ")} MeV`);
+  save(`mass5-${d}-${tag(s)}-${tag(b)}.json`, out);
 } else if (cmd === "bake") {
   const files = readdirSync(DIR), get = (re) => files.filter((f) => re.test(f)).map(load), cf4 = coulombFactor(4, 300), e2 = 1.43996;
   // the 4D liquid drop for each force, strength and range: bulk from the matter, Coulomb exact, the neutron excess from neutron
@@ -162,7 +179,7 @@ if (cmd === "fit") {
   { const AMU = 931.494, op = (d, k, r0) => { const A2 = 4 * k; return { Z1: 2, Z2: 2 * k, mu: ((4 * A2) / (4 + A2)) * AMU, rn: r0 * (Math.pow(4, 1 / d) + Math.pow(A2, 1 / d)), d }; };
     const target = logRate(2e8, op(3, 3, 1.2)), Tfor = (d, k, r0) => { let lo = 1e6, hi = 1e12; for (let i = 0; i < 70; i++) { const m = Math.sqrt(lo * hi); if (logRate(m, op(d, k, r0)) < target) lo = m; else hi = m; } return Math.sqrt(lo * hi); };
     out.rungs = Array.from({ length: 20 }, (_, i) => ({ Z: 2 * (i + 1), ours: Tfor(3, i + 1, 1.2), d4: Tfor(4, i + 1, 1.0) })); }
-  out.brink = get(/^brink-/);
+  out.brink = get(/^brink-/); out.mass5 = get(/^mass5-/);
   // the first minutes: ours as the check (Y), and 4D at each strength over the baryons per photon and the clock
   out.bbn = { ours: BB.firstMinutes({ d: 3, B: 2.2246 }), etas: [1e-10, 6.1e-10, 1e-8, 1e-6], t1s: [0.01, 0.1, 1.32], grid: [] };
   for (const [name, FCx] of Object.entries(FORCES)) { const cap = load(`${FCx.pre}capture.json`); if (!cap?.rows?.[0]?.table) continue;

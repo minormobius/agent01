@@ -129,3 +129,62 @@ export function clusterGCM({ d, N, nu, s, u, K = 120, seed = 1, spread = [0.5, 1
   for (let i = 0; i < K; i++) for (let j = i; j < K; j++) { const k = kernel(basis[i], basis[j], { d, nu, s, u, three }); Nm[i][j] = Nm[j][i] = k.n; Hm[i][j] = Hm[j][i] = k.h; }
   return hillWheeler(Nm, Hm);
 }
+
+/* ———— a nucleon on a helium-4, microscopically ————
+   Once one nucleon sits outside the helium-4s the orbitals no longer hold all four spin–isospin states, so the kernel has
+   to follow each nucleon's own: species 0 p↑, 1 p↓, 2 n↑, 3 n↓ (spin = bit 0, isospin = bit 1). The overlap is
+   ⟨φ_i|φ_k⟩ δ(species), C = B⁻¹, and the force's operators act on the species directly: Minnesota's per Gaussian term is
+   W + B P^σ − H P^τ − M P^σP^τ (V_R: W = uV_R/2, M = (1 − u/2)V_R; V_t: W = B = uV_t/4, H = M = (1 − u/2)V_t/2; V_s: W = uV_s/4,
+   B = −uV_s/4, H = −(1 − u/2)V_s/2, M = (1 − u/2)V_s/2), Coulomb acts between protons, and the three-nucleon force on
+   none of it (each ordering of the ket weighs its sign when the species follow). For all-saturated orbitals it is
+   kernel() above, which the self-test holds it to. */
+function mixtures(s, u) {
+  return [{ k: MNB.kR, W: (u * MNB.VR) / 2, B: 0, H: 0, M: (1 - u / 2) * MNB.VR }, { k: MNB.kt, W: (u * s * MNB.Vt) / 4, B: (u * s * MNB.Vt) / 4, H: ((1 - u / 2) * s * MNB.Vt) / 2, M: ((1 - u / 2) * s * MNB.Vt) / 2 },
+    { k: MNB.ks, W: (u * s * MNB.Vs) / 4, B: (-u * s * MNB.Vs) / 4, H: (-(1 - u / 2) * s * MNB.Vs) / 2, M: ((1 - u / 2) * s * MNB.Vs) / 2 }];
+}
+const sg = (x) => x & 1, ti = (x) => x >> 1;
+/* ⟨a b| O |c d⟩ for O = W + B P^σ − H P^τ − M P^σP^τ, on species */
+function spinIso(m, a, b, c, d) {
+  let o = 0; if (a === c && b === d) o += m.W; if (sg(a) === sg(d) && sg(b) === sg(c) && ti(a) === ti(c) && ti(b) === ti(d)) o += m.B;
+  if (sg(a) === sg(c) && sg(b) === sg(d) && ti(a) === ti(d) && ti(b) === ti(c)) o -= m.H; if (a === d && b === c) o -= m.M; return o;
+}
+const PERMS = [[[0, 1, 2], 1], [[1, 0, 2], -1], [[2, 1, 0], -1], [[0, 2, 1], -1], [[1, 2, 0], 1], [[2, 0, 1], 1]];
+/* norm and energy kernels between two lists of orbitals [{R: d-vector, sp: species}] */
+export function kernelSpecies(a, b, { d, nu, s, u, coulomb = true, three = null }) {
+  const N = a.length, B = [], t = [];
+  for (let i = 0; i < N; i++) { B.push([]); t.push([]); for (let k = 0; k < N; k++) { const r2 = dist2(a[i].R, b[k].R), o = a[i].sp === b[k].sp ? Math.exp((-nu * r2) / 2) : 0; B[i].push(o); t[i].push(T1 * nu * (d - nu * r2) * o); } }
+  const { inv: C, det } = invert(B); if (!C || !(Math.abs(det) > 1e-300)) return { n: 0, h: 0 };
+  let T = 0; for (let i = 0; i < N; i++) for (let k = 0; k < N; k++) T += t[i][k] * C[k][i];
+  const ov = (i, k) => Math.exp((-nu * dist2(a[i].R, b[k].R)) / 2), M = a.map((ai) => b.map((bk) => ai.R.map((x, q) => (x + bk.R[q]) / 2))), mix = mixtures(s, u);
+  const spatial = (i, j, k, l) => { const o = ov(i, k) * ov(j, l), S = dist2(M[i][k], M[j][l]); return { o, S }; };
+  let V = 0;
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) for (let k = 0; k < N; k++) { const cki = C[k][i]; if (!cki) continue; for (let l = 0; l < N; l++) { const clj = C[l][j]; if (!clj) continue;
+    const dr = spatial(i, j, k, l), ex = spatial(i, j, l, k), A = a[i].sp, Bs = a[j].sp, Cs = b[k].sp, Ds = b[l].sp; let e = 0;
+    for (const m of mix) { const f = (nu / (nu + m.k)) ** (d / 2), g = (nu * m.k) / (nu + m.k); e += f * (spinIso(m, A, Bs, Cs, Ds) * dr.o * Math.exp(-g * dr.S) - spinIso(m, A, Bs, Ds, Cs) * ex.o * Math.exp(-g * ex.S)); }
+    if (coulomb && ti(A) === 0 && ti(Bs) === 0) e += E2 * ((A === Cs && Bs === Ds ? dr.o * coulombAvg(d, nu, Math.sqrt(dr.S)) : 0) - (A === Ds && Bs === Cs ? ex.o * coulombAvg(d, nu, Math.sqrt(ex.S)) : 0));
+    V += cki * clj * e; } }
+  let E3 = 0;
+  if (three) {
+    const beta = 1 / (three.b * three.b), g = (2 * nu * beta) / (2 * nu + beta), F = three.W * (2 * nu / (2 * nu + beta)) ** d * (2 * nu / (2 * nu + 2 * g)) ** (d / 2), a1 = (2 * nu * g) / (2 * nu + 2 * g), a2 = (g * g) / (2 * nu + 2 * g);
+    const w = (p, q, r) => ov(p[0], p[1]) * ov(q[0], q[1]) * ov(r[0], r[1]) * Math.exp(-a1 * (dist2(M[p[0]][p[1]], M[q[0]][q[1]]) + dist2(M[p[0]][p[1]], M[r[0]][r[1]])) - a2 * dist2(M[q[0]][q[1]], M[r[0]][r[1]]));
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) for (let k = 0; k < N; k++) for (let l = 0; l < N; l++) { const cl = C[l][i]; if (!cl) continue;
+      for (let m = 0; m < N; m++) { const cm = cl * C[m][j]; if (!cm) continue; for (let n = 0; n < N; n++) { const c3 = cm * C[n][k]; if (!c3) continue; const ket = [l, m, n], bra = [i, j, k];
+        for (const [p, sgn] of PERMS) { const kk = [ket[p[0]], ket[p[1]], ket[p[2]]]; if (a[i].sp !== b[kk[0]].sp || a[j].sp !== b[kk[1]].sp || a[k].sp !== b[kk[2]].sp) continue; E3 += sgn * c3 * w([bra[0], kk[0]], [bra[1], kk[1]], [bra[2], kk[2]]); } } } }
+    E3 *= 0.5 * F;
+  }
+  const n = det;
+  return { n, h: n * (T + V / 2 + E3 - d * T1 * nu) };
+}
+/* the helium-4 at a point as four orbitals, one per species */
+export const alphaOrbitals = (R) => [0, 1, 2, 3].map((sp) => ({ R, sp }));
+/* a proton (Z = 1) or neutron (Z = 0) on a helium-4 a distance D apart (centre of mass fixed), projected onto relative
+   angular momentum l by the angle average, weighted by C_l^((d−2)/2)(cos θ) sin^(d−2)θ, then Hill–Wheeler over D: the
+   states of mass 5 against a free nucleon and helium-4 in the same model. No spin–orbit force: the l > 0 states are the
+   centres of their doublets */
+export function nucleonAlpha({ d, nu, s, u, l = 1, Z = 0, Ds = null, M = 40, three = null }) {
+  const D = Ds ?? Array.from({ length: 20 }, (_, i) => 0.4 + i * 0.5), lam = (d - 2) / 2, Cl = (x) => (l === 0 ? 1 : l === 1 ? 2 * lam * x : 2 * lam * (lam + 1) * x * x - lam), sp = Z ? 0 : 2;
+  const conf = (Dv, th) => { const e = Array(d).fill(0); e[0] = Math.cos(th); e[1] = Math.sin(th); return [...alphaOrbitals(e.map((x) => (-x * Dv) / 5)), { R: e.map((x) => (4 * x * Dv) / 5), sp }]; };
+  const n = D.length, Nm = Array.from({ length: n }, () => new Array(n).fill(0)), Hm = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++) for (let j = i; j < n; j++) { let sn = 0, sh = 0; for (let q = 0; q < M; q++) { const th = (Math.PI * (q + 0.5)) / M, wt = Math.sin(th) ** (d - 2) * Cl(Math.cos(th)), K = kernelSpecies(conf(D[i], 0), conf(D[j], th), { d, nu, s, u, three }); sn += wt * K.n; sh += wt * K.h; } Nm[i][j] = Nm[j][i] = sn; Hm[i][j] = Hm[j][i] = sh; }
+  return hillWheeler(Nm, Hm).map((e) => e - alphaEnergy(d, nu, s, u, three));
+}

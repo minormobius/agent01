@@ -240,7 +240,10 @@ for games, and this is a modelling programme with publications to come. The game
   neutron freeze-out and decay, the deuterium bottleneck by Saha, then `nucleonCapture` (a proton or neutron onto
   helium-4 by E1, in `nuclear.js`) and the helium-4 pair's E2 capture integrated as the universe cools, using helium up.
   The weak force (ours), η and the clock t₁ (1 MeV/T)^((d+1)/2) are parameters; `nuclei.mjs capture` writes the σv tables
-  and `bake` the grid. Ours as the check (Y 0.235). Selftest 53.
+  and `bake` the grid. Ours as the check (Y 0.235). Selftest 53. Mass 5 comes from `brink.js`'s `kernelSpecies` /
+  `nucleonAlpha` (one nucleon outside a helium-4, each nucleon's spin and isospin followed; `nuclei.mjs mass5 <d> <s> <b>`):
+  unbound in ours (the check) and in 4D except at the window's top; `capture` resets the folded potential to that binding,
+  or drops nucleon capture where it's unbound. No spin–orbit force in it.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).
