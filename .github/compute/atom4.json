@@ -1,162 +1,51 @@
 {
- "run": "crystals-pol-1",
- "why": "The polarizable field refitted with its dipole damping fitted to 16 Hartree-Fock trimers (it predicts held-out trimers to 1.0 kcal/mol) still packs both 4D waters densely (Xater -71, XH3 -104 kcal/mol per molecule in local starts). Hartree-Fock on every neighbour pair within 10 bohr of both crystals and a trimer from each, as the last field's dense crystal was checked; and a proper crystal search on the field, 640 starts per water in 16 shards.",
- "minutes": 300,
+ "run": "nuclei-1",
+ "why": "The abundance question: helium-4 and tritium by diffusion Monte Carlo (exact for these) in our world and across 4D's strength window (the deuteron bound, the diproton not), with and without the three-nucleon repulsion fitted to our nuclear matter at three ranges, to set against the nuclear matter's binding per nucleon.",
+ "minutes": 120,
  "groups": [
   {
-   "name": "shell-xater-0",
+   "name": "he-3d",
    "cmds": [
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 0/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 1/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 2/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 3/16"
+    "node four/atom/tools/nuclei.mjs he4 3 1 none",
+    "node four/atom/tools/nuclei.mjs he4 3 1 0.7",
+    "node four/atom/tools/nuclei.mjs he4 3 1 1.0",
+    "node four/atom/tools/nuclei.mjs he4 3 1 1.4"
    ]
   },
   {
-   "name": "shell-xater-1",
+   "name": "he-4d-floor",
    "cmds": [
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 4/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 5/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 6/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 7/16"
+    "node four/atom/tools/nuclei.mjs he4 4 1.2292 none",
+    "node four/atom/tools/nuclei.mjs he4 4 1.2292 0.7",
+    "node four/atom/tools/nuclei.mjs he4 4 1.2292 1.0",
+    "node four/atom/tools/nuclei.mjs he4 4 1.2292 1.4"
    ]
   },
   {
-   "name": "shell-xater-2",
+   "name": "he-4d-ours",
    "cmds": [
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 8/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 9/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 10/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 11/16"
+    "node four/atom/tools/nuclei.mjs he4 4 1.2986 none",
+    "node four/atom/tools/nuclei.mjs he4 4 1.2986 0.7",
+    "node four/atom/tools/nuclei.mjs he4 4 1.2986 1.0",
+    "node four/atom/tools/nuclei.mjs he4 4 1.2986 1.4"
    ]
   },
   {
-   "name": "shell-xater-3",
+   "name": "he-4d-ceiling",
    "cmds": [
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 12/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 13/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 14/16",
-    "node four/atom/tools/manybody.mjs shell 1 10 --shard 15/16"
+    "node four/atom/tools/nuclei.mjs he4 4 1.4993 none",
+    "node four/atom/tools/nuclei.mjs he4 4 1.4993 0.7",
+    "node four/atom/tools/nuclei.mjs he4 4 1.4993 1.0",
+    "node four/atom/tools/nuclei.mjs he4 4 1.4993 1.4"
    ]
   },
   {
-   "name": "shell-xh3-0",
+   "name": "triton",
    "cmds": [
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 0/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 1/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 2/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 3/16"
-   ]
-  },
-  {
-   "name": "shell-xh3-1",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 4/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 5/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 6/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 7/16"
-   ]
-  },
-  {
-   "name": "shell-xh3-2",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 8/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 9/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 10/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 11/16"
-   ]
-  },
-  {
-   "name": "shell-xh3-3",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 12/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 13/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 14/16",
-    "node four/atom/tools/manybody.mjs shell 2 10 --shard 15/16"
-   ]
-  },
-  {
-   "name": "mb3-xater",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 18"
-   ]
-  },
-  {
-   "name": "mb3-xh3",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 19"
-   ]
-  },
-  {
-   "name": "ice-pol-xater-0",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 0/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 1/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 2/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 3/16"
-   ]
-  },
-  {
-   "name": "ice-pol-xater-1",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 4/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 5/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 6/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 7/16"
-   ]
-  },
-  {
-   "name": "ice-pol-xater-2",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 8/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 9/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 10/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 11/16"
-   ]
-  },
-  {
-   "name": "ice-pol-xater-3",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 12/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 13/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 14/16",
-    "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 15/16"
-   ]
-  },
-  {
-   "name": "ice-pol-xh3-0",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 0/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 1/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 2/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 3/16"
-   ]
-  },
-  {
-   "name": "ice-pol-xh3-1",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 4/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 5/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 6/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 7/16"
-   ]
-  },
-  {
-   "name": "ice-pol-xh3-2",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 8/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 9/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 10/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 11/16"
-   ]
-  },
-  {
-   "name": "ice-pol-xh3-3",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 12/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 13/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 14/16",
-    "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 15/16"
+    "node four/atom/tools/nuclei.mjs he4 3 1 1.0 3",
+    "node four/atom/tools/nuclei.mjs he4 4 1.2292 1.0 3",
+    "node four/atom/tools/nuclei.mjs he4 4 1.2986 1.0 3",
+    "node four/atom/tools/nuclei.mjs he4 4 1.4993 1.0 3"
    ]
   }
  ]

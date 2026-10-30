@@ -24,7 +24,18 @@
    · shells: the Woods–Saxon single-particle levels with a spin–orbit term. 4D's spin couples to the left half of a
      turning only (js/turning.js, js/magnet.js), so the 3D l·s (l/2 and −(l + 1)/2, 2l + 2 and 2l states) becomes
      2 s·J_L (l/2 and −(l + 2)/2, (l + 1)(l + 2) and l(l + 1) states), at our strength: a declaration.
-   · coulombFactor: ½⟨1/r⟩ between two points of a uniform unit d-ball (3/5 in 3D), from js/kernel.js's shell kernel. */
+   · coulombFactor: ½⟨1/r⟩ between two points of a uniform unit d-ball (3/5 in 3D), from js/kernel.js's shell kernel.
+   · matter: nuclear matter (equal protons and neutrons, or neutrons alone) by Brueckner–Hartree–Fock, in any d: plane
+     waves, the G-matrix in partial waves (the force's Fourier transform 4πV/(p² + μ²) in 3D and 4π²V/(p² + μ²)^(3/2) in
+     4D, projected on d's Legendre polynomials, i.e. Gegenbauer's; kernel S_d²/(2π)^d q^(d−1)), the Pauli operator
+     averaged over angle with d's weight sin^(d−2), the gap choice, and U(k) = A + Bk² made self-consistent. The force is
+     Serber's form of Malfliet–Tjon: MT-III in the even waves of S = 1, T = 0, MT-I in the even waves of S = 0, T = 1,
+     nothing in odd waves. Checked: its free form puts the deuteron where the grid does, in both worlds (freePole).
+     Alone it doesn't saturate (our matter binds harder the denser it gets); a three-nucleon repulsion
+     W Σ_cyclic e^(−(r_ij² + r_ik²)/b²), the same function of distance in both worlds, at Hartree level in matter
+     ((ρ²/2) W (π^(d/2) b^d)² per nucleon), its strength fitted to our saturation (−16 MeV), gives that at 0.18 fm⁻³ and
+     moves our helium-4 and tritium by about a MeV (fixedNode's three option). Its range b is the honest uncertainty:
+     it sets how the fitted force carries into 4D. */
 import { k4 } from "./kernel.js";
 
 export const HB2M = 41.47106, E2 = 1.43996; // ħ²/m_N (MeV fm²), e² (MeV fm)
@@ -101,7 +112,7 @@ function inv(M, n) { const A = M.map((r, i) => [...r, ...Array.from({ length: n 
 /* counts: [p↑, p↓, n↑, n↓], each ≤ d + 1 (the s orbital, then p along axes 1…); V a pair potential (V.v(r, s)); like:
    "serber" (the force acts in even waves only, Serber's: so nucleons of one species meet only through the Coulomb force,
    and unlike ones through V (1 + P)/2), "zero" (like ones as Serber's, unlike ones in every wave) or "same" (all in every wave) */
-export function fixedNode({ d, counts, V, s = 1, like = "zero", coulomb = true, tau = 1e-4, walkers = 800, steps = 20000, equil = 4000, seed = 1, omega = 0.5, omegaLike = 0.3, trace = null }) {
+export function fixedNode({ d, counts, V, s = 1, like = "zero", coulomb = true, tau = 1e-4, walkers = 800, steps = 20000, equil = 4000, seed = 1, omega = 0.5, omegaLike = 0.3, trace = null, three = null }) {
   const S = new Uint32Array([seed * 2654435761 >>> 0, 0x9e3779b9, 0x243f6a88, 0xb7e15162 ^ seed]); const rotl = (x, k) => (x << k) | (x >>> (32 - k));
   const n32 = () => { const r = Math.imul(rotl(Math.imul(S[1], 5), 7), 9) >>> 0, t = S[1] << 9; S[2] ^= S[0]; S[3] ^= S[1]; S[1] ^= S[2]; S[0] ^= S[3]; S[2] ^= t; S[3] = rotl(S[3], 11); return r; };
   for (let i = 0; i < 20; i++) n32(); const rnd = () => (n32() + 0.5) / 4294967296; let spare = null;
@@ -125,6 +136,10 @@ export function fixedNode({ d, counts, V, s = 1, like = "zero", coulomb = true, 
       // held to P's own eigenvalues ±1 (near the trial's nodes the ratio runs away)
       const vact = like === "serber" && K.unlike ? (Vn(r) * (1 + Math.max(-1, Math.min(1, moved(x, i, j) * moved(x, j, i))))) / 2 + (K.pp && coulomb ? E2 / r : 0) : K.v(r);
       e += vact - (K.v(r) + K.om * r2 - K.T.E - 2 * D * g * g); for (let k = 0; k < d; k++) { const t = (g * (x[i * d + k] - x[j * d + k])) / r; gJ[i * d + k] += t; gJ[j * d + k] -= t; } }
+    if (three) { // a three-nucleon repulsion W Σ_triples Σ_cyclic e^(−(r_ij² + r_ik²)/b²)
+      const R2 = (i, j) => { let t = 0; for (let k = 0; k < d; k++) { const u = x[i * d + k] - x[j * d + k]; t += u * u; } return t / (three.b * three.b); };
+      for (let i = 0; i < A; i++) for (let j = i + 1; j < A; j++) for (let k = j + 1; k < A; k++) { const a = R2(i, j), b = R2(i, k), c = R2(j, k); e += three.W * (Math.exp(-a - b) + Math.exp(-a - c) + Math.exp(-b - c)); }
+    }
     let q = 0; for (let k = 0; k < n; k++) { q += gJ[k] * gJ[k] + 2 * dd.gD[k] * gJ[k]; F[k] = 2 * (gJ[k] + dd.gD[k]); } return { E: e - D * q, sgn: dd.sgn, lp: lj + dd.ld };
   };
   const lnpsi = (x) => lnJ(x) + lnDet(x);
@@ -153,4 +168,80 @@ export function fixedNode({ d, counts, V, s = 1, like = "zero", coulomb = true, 
   }
   const B = Math.max(1, Math.min(Math.round(0.2 / tau), Math.floor(Es.length / 10))), nb = Math.floor(Es.length / B), bm = Array.from({ length: nb }, (_, i) => Es.slice(i * B, (i + 1) * B).reduce((a, b) => a + b, 0) / B), mean = bm.reduce((a, b) => a + b, 0) / nb, err = Math.sqrt(bm.reduce((a, b) => a + (b - mean) ** 2, 0) / (nb * (nb - 1)));
   return { E: mean, err, acc: acc / tot, A };
+}
+
+/* ———— nuclear matter (Brueckner–Hartree–Fock) ———— */
+
+/* the three-nucleon repulsion's energy per nucleon in uniform matter of density rho (Hartree) */
+/* the fitted three-nucleon strength: c = W π³ b⁶/2 (MeV fm⁶) saturating our matter at −16 MeV (tools/nuclei.mjs fit, which
+   recomputes it; its bake checks the two agree). For a range b, W = 2c/(π³ b⁶) */
+export const THREE_C = 493.4;
+export const threeForce = (b, c = THREE_C) => ({ b, W: (2 * c) / (Math.PI ** 3 * b ** 6) });
+export const threeBodyMatter = (d, { W, b }, rho) => 0.5 * W * (Math.PI ** (d / 2) * b ** d) ** 2 * rho * rho;
+const SD = { 3: 4 * Math.PI, 4: 2 * Math.PI * Math.PI }; // the unit sphere's area
+export function gaussLegendre(n) { const x = [], w = []; for (let i = 0; i < n; i++) { let z = Math.cos((Math.PI * (i + 0.75)) / (n + 0.5)), pp = 0; for (let it = 0; it < 100; it++) { let p1 = 1, p2 = 0; for (let j = 0; j < n; j++) { const p3 = p2; p2 = p1; p1 = ((2 * j + 1) * z * p2 - j * p3) / (j + 1); } pp = (n * (z * p1 - p2)) / (z * z - 1); const z1 = z; z = z1 - p1 / pp; if (Math.abs(z - z1) < 1e-15) break; } x.push(z); w.push(2 / ((1 - z * z) * pp * pp)); } return { x, w }; }
+// the force's Fourier transform: Σ c e^(−μr)/r → 4π c/(p²+μ²) (3D), 4π² c/(p²+μ²)^(3/2) (4D)
+export const ft = (d, p, s) => (p2) => (d === 3 ? 4 * Math.PI * (p.VR / (p2 + p.muR ** 2) - (s * p.VA) / (p2 + p.muA ** 2)) : 4 * Math.PI * Math.PI * (p.VR / (p2 + p.muR ** 2) ** 1.5 - (s * p.VA) / (p2 + p.muA ** 2) ** 1.5));
+// Legendre polynomials in d dims (Gegenbauer λ = d/2 − 1, normalized to 1 at t = 1)
+function legendreD(d, lmax, t) { const lam = d / 2 - 1, C = [1, 2 * lam * t]; for (let n = 2; n <= lmax; n++) C.push((2 * t * (n + lam - 1) * C[n - 1] - (n + 2 * lam - 2) * C[n - 2]) / n); const c1 = [1]; for (let n = 1; n <= lmax; n++) c1.push((c1[n - 1] * (n + 2 * lam - 1)) / n); return C.slice(0, lmax + 1).map((v, n) => v / c1[n]); }
+export const degeneracy = (d, l) => (d === 3 ? 2 * l + 1 : (l + 1) * (l + 1));
+// v_l(k', q) = ∫ Ṽ(|k' − q|) P_l(x) w(x) dx / (S_d ∫ w dx), x = cos θ, w = sin^(d−2) θ
+export function projector(d, lmax, nth = 96) {
+  const { x, w } = gaussLegendre(nth), th = x.map((u) => (Math.PI * (u + 1)) / 2), wt = w.map((v, i) => (v * Math.PI) / 2 * Math.sin(th[i]) ** (d - 2)), norm = wt.reduce((a, b) => a + b, 0);
+  const cs = th.map(Math.cos), P = cs.map((t) => legendreD(d, lmax, t));
+  return (Vt, k1, k2) => { const out = new Float64Array(lmax + 1); for (let i = 0; i < nth; i++) { const v = Vt(k1 * k1 + k2 * k2 - 2 * k1 * k2 * cs[i]) * wt[i]; for (let l = 0; l <= lmax; l++) out[l] += v * P[i][l]; } for (let l = 0; l <= lmax; l++) out[l] /= SD[d] * norm; return out; };
+}
+// the q grid: q = c tan(πt/4 + π/4·…) mapped Gauss–Legendre on [0, ∞)
+export function qGrid(n, c = 2.5) { const { x, w } = gaussLegendre(n); return { q: x.map((u) => c * Math.tan((Math.PI / 4) * (u + 1))), w: x.map((u, i) => (w[i] * c * Math.PI) / 4 / Math.cos((Math.PI / 4) * (u + 1)) ** 2) }; }
+function solveLin(M, b) { const n = b.length, A = M.map((r, i) => [...r, b[i]]); for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[p], A[c]] = [A[c], A[p]]; for (let r = c + 1; r < n; r++) { const f = A[r][c] / A[c][c]; if (f) for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k]; } } const x = new Array(n); for (let r = n - 1; r >= 0; r--) { let s = A[r][n]; for (let k = r + 1; k < n; k++) s -= A[r][k] * x[k]; x[r] = s / A[r][r]; } return x; }
+function det(M) { const n = M.length, A = M.map((r) => r.slice()); let D = 1; for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; if (p !== c) { [A[p], A[c]] = [A[c], A[p]]; D = -D; } D *= A[c][c]; for (let r = c + 1; r < n; r++) { const f = A[r][c] / A[c][c]; for (let k = c; k < n; k++) A[r][k] -= f * A[c][k]; } } return D; }
+/* the free two-body bound state: the ω where det(1 − K(ω)) = 0 for l = 0 (K = v (S_d/(2π)^d) q^(d−1) w/(ω − ħ²q²/m)) */
+export function freePole(d, pot, s, { nq = 48 } = {}) {
+  const G = qGrid(nq), pj = projector(d, 0), Vt = ft(d, pot, s), v = G.q.map((a) => G.q.map((b) => pj(Vt, a, b)[0])), f = (2 * Math.PI) ** d;
+  const D = (om) => det(G.q.map((_, i) => G.q.map((q, j) => (i === j ? 1 : 0) - (v[i][j] * SD[d] * SD[d] * q ** (d - 1) * G.w[j]) / f / (om - HB2M * q * q))));
+  let a = -60, b = -1e-4; const fa = D(a); for (let it = 0; it < 80; it++) { const m = (a + b) / 2; if (Math.sign(D(m)) === Math.sign(fa)) a = m; else b = m; } return (a + b) / 2;
+}
+const SD1 = { 3: 2 * Math.PI, 4: 4 * Math.PI }; // the (d−1)-sphere's area, for dΩ_d = S_{d−1} sin^(d−2)α dα
+// the angle-averaged Pauli operator: both nucleons outside the Fermi sphere, averaged over the angle between P and q
+function pauli(d, q, P, kF) { if (P < 1e-9) return q > kF ? 1 : 0; const x0 = (P * P + q * q - kF * kF) / (2 * P * q); if (x0 <= 0) return 0; if (x0 >= 1) return 1; return d === 3 ? x0 : (x0 * Math.sqrt(1 - x0 * x0) + Math.asin(x0)) / (Math.PI / 2); }
+/* nuclear matter at Fermi momentum kF: kind "symmetric" (protons and neutrons) or "neutron". Serber's force: MT-III in the
+   even waves of S = 1, T = 0, MT-I in the even waves of S = 0, T = 1, nothing in odd waves. Returns E/A, ρ, and U(k) = A + Bk² */
+export function matter({ d, s, kF, kind = "symmetric", lmax = 8, nq = 48, nk = 12, iters = 30, A0 = -60, B0 = 0, quiet = true, three = null }) {
+  const chans = kind === "symmetric" ? [{ pot: MT.triplet, w: 3 }, { pot: MT.singlet, w: 3 }] : [{ pot: MT.singlet, w: 1 }], nu = kind === "symmetric" ? 4 : 2;
+  const G = qGrid(nq), pj = projector(d, lmax), ls = []; for (let l = 0; l <= lmax; l += 2) ls.push(l);
+  const kk = Array.from({ length: nk + 1 }, (_, i) => (kF * i) / nk), f = (SD[d] * SD[d]) / (2 * Math.PI) ** d;
+  const pre = chans.map((c) => { const Vt = ft(d, c.pot, s); return { w: c.w, vqq: G.q.map((a) => G.q.map((b) => pj(Vt, a, b))), vkq: kk.map((k) => G.q.map((b) => pj(Vt, Math.max(k, 1e-6), b))), vkk: kk.map((k) => pj(Vt, Math.max(k, 1e-6), Math.max(k, 1e-6))) }; });
+  let A = A0, B = B0, Gs = null, Ebar = 0;
+  for (let it = 0; it < iters; it++) {
+    // Σ_channels w Σ_l N S_d 2 g_l(k, k) on the (k, P) grid
+    Gs = kk.map(() => new Float64Array(nk + 1));
+    for (let a = 0; a <= nk; a++) for (let b = 0; b <= nk; b++) {
+      const k = kk[a], P = kk[b]; if (Math.hypot(k, P) > kF * 1.0001 && false) continue;
+      const om = 2 * A + (HB2M + 2 * B) * (P * P + k * k), F = G.q.map((q, j) => (f * q ** (d - 1) * G.w[j] * pauli(d, q, P, kF)) / (om - HB2M * (P * P + q * q)));
+      let tot = 0;
+      for (const c of pre) for (const l of ls) {
+        const M = G.q.map((_, i) => G.q.map((_, j) => (i === j ? 1 : 0) - c.vqq[i][j][l] * F[j])), g = solveLin(M, G.q.map((_, i) => c.vkq[a][i][l]));
+        let gkk = c.vkk[a][l]; for (let j = 0; j < nq; j++) gkk += c.vkq[a][j][l] * F[j] * g[j];
+        tot += c.w * degeneracy(d, l) * SD[d] * 2 * gkk;
+      }
+      Gs[a][b] = tot;
+    }
+    const Gat = (k, P) => { const x = Math.min(nk - 1e-9, (k / kF) * nk), y = Math.min(nk - 1e-9, (P / kF) * nk), i = Math.floor(x), j = Math.floor(y), u = x - i, v = y - j; return (1 - u) * (1 - v) * Gs[i][j] + u * (1 - v) * Gs[i + 1][j] + (1 - u) * v * Gs[i][j + 1] + u * v * Gs[i + 1][j + 1]; };
+    // U(k1) = (1/ν) ∫_{k2<kF} d^dk2/(2π)^d Gs(|k1 − k2|/2, |k1 + k2|/2)
+    const g2 = gaussLegendre(16), ga = gaussLegendre(16), U = [], K1 = [];
+    for (let i = 0; i <= 8; i++) {
+      const k1 = (kF * i) / 8; let sum = 0;
+      for (let m = 0; m < 16; m++) { const k2 = (kF * (g2.x[m] + 1)) / 2, w2 = (kF * g2.w[m]) / 2; for (let n = 0; n < 16; n++) { const al = (Math.PI * (ga.x[n] + 1)) / 2, wa = (Math.PI * ga.w[n]) / 2, c = Math.cos(al); const k = Math.sqrt(Math.max(0, k1 * k1 + k2 * k2 - 2 * k1 * k2 * c)) / 2, P = Math.sqrt(k1 * k1 + k2 * k2 + 2 * k1 * k2 * c) / 2; sum += w2 * wa * k2 ** (d - 1) * Math.sin(al) ** (d - 2) * Gat(k, P); } }
+      U.push((SD1[d] * sum) / (2 * Math.PI) ** d / nu); K1.push(k1);
+    }
+    // fit U = A + B k², and the Fermi-ball average of U
+    const n = U.length, sx = K1.reduce((t, k) => t + k * k, 0), sxx = K1.reduce((t, k) => t + k ** 4, 0), sy = U.reduce((t, u) => t + u, 0), sxy = U.reduce((t, u, i) => t + u * K1[i] ** 2, 0);
+    const Bn = (n * sxy - sx * sy) / (n * sxx - sx * sx), An = (sy - Bn * sx) / n;
+    const dA = Math.abs(An - A); A = 0.5 * A + 0.5 * An; B = 0.5 * B + 0.5 * Bn; Ebar = An + (Bn * kF * kF * d) / (d + 2);
+    if (!quiet) console.log(it, A.toFixed(3), B.toFixed(3));
+    if (dA < 1e-4) break;
+  }
+  const T = (d / (d + 2)) * (HB2M / 2) * kF * kF, rho = (nu * BALL[d] * kF ** d) / (2 * Math.PI) ** d;
+  const E3 = three ? threeBodyMatter(d, three, rho) : 0;
+  return { kF, rho, T, U: { A, B }, E2: T + 0.5 * Ebar, E3, E: T + 0.5 * Ebar + E3 };
 }

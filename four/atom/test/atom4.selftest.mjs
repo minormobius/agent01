@@ -909,6 +909,10 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const V = { v: (r, s) => NU.mtPot(NU.MT.v, s)(r) }, mc = NU.fixedNode({ d: 4, counts: [0, 0, 1, 1], V, s: 1.6, like: "same", steps: 200, equil: 40, walkers: 60, tau: 2e-4, omega: 0 }), ex = NU.levels(NU.mtPot(NU.MT.v, 1.6), { d: 4, rmax: 60, h: 0.004 })[0];
   ok(Math.abs(deu + 2.2338) < 0.002 && w3.deuteron < 1 && w3.diproton > 1 && Math.abs(w3.ours - 1) < 0.001 && w4.deuteron > 1.2 && w4.diproton > w4.ours && Math.abs(mc.E - ex) < 0.002 && Math.abs(NU.coulombFactor(3, 200) - 0.6) < 1e-3,
     `nuclei: our deuteron ${(-deu).toFixed(3)} MeV; our world inside its window (the deuteron binds from ${w3.deuteron.toFixed(3)}× the force, the diproton only past ${w3.diproton.toFixed(3)}×), 4D's at ${w4.deuteron.toFixed(3)}–${w4.diproton.toFixed(3)}×; the Monte Carlo's two 4D nucleons ${mc.E.toFixed(4)} against ${ex.toFixed(4)} MeV exact`);
+  // nuclear matter's machinery (Brueckner–Hartree–Fock in partial waves, d's Gegenbauer projections and Fourier transform):
+  // its free two-nucleon equation puts the deuteron where the grid does, in both worlds
+  const p3 = NU.freePole(3, NU.MT.triplet, 1), p4 = NU.freePole(4, NU.MT.triplet, 1.2986), g4 = NU.levels(NU.mtPot(NU.MT.triplet, 1.2986), { d: 4, rmax: 60, h: 0.005 })[0];
+  ok(Math.abs(p3 - deu) < 0.003 && Math.abs(p4 - g4) < 0.003, `nuclear matter's momentum-space machinery: the free deuteron at ${p3.toFixed(4)} MeV (grid ${deu.toFixed(4)}), and 4D's at 1.2986× the force ${p4.toFixed(4)} (grid ${g4.toFixed(4)})`);
   const c3 = GS.chandrasekhar(3), c4 = GS.chandrasekhar(4), m3 = c3.mass() / GS.SI.Msun;
   ok(Math.abs(m3 / 1.457 - 1) < 0.02 && c4.polytrope.converged && Math.abs(c4.cd - 1.52) < 0.03,
     `Chandrasekhar's mass: ours ${m3.toFixed(3)} M☉ (1.457 for two nucleons per electron), from the index-3 polytrope; pinned 4D's index-4 one closes too, N_Ch = ${c4.cd.toFixed(3)} α_G^(−4/3) nucleons`);
