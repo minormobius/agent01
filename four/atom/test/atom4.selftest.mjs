@@ -926,6 +926,13 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // inverse iteration resolves (the Riccati tail is what holds it); a Gaussian well that deep stands in for the folding
   const sl = (V) => NU.levels(V, { d: 4, l: 0, c: NU.HB2M / 4, rmax: 30, h: 0.01, emax: 1e4 }).filter((e) => e < 0), gw = (r) => -700 * Math.exp(-(r * r) / 4), dp = sl(gw), lo = sl(NU.susyRemove(4, gw).V);
   ok(dp[0] < -450 && dp.length === lo.length + 2 && lo.every((e, i) => Math.abs(e - dp[i + 2]) < 0.2), `the supersymmetric removal from a well as deep as 4D's window top: s-levels ${dp.map((e) => e.toFixed(1)).join(", ")} MeV become ${lo.map((e) => e.toFixed(1)).join(", ")}, the lowest two gone and the rest kept`);
+  // the first capture's light: an E2 photon's rate π S_d ω^(d+2) Tr(QQ†)/(4 (2π)^d (d + 2) ε_eff), with 1/ε_eff = 4πα ours
+  // (Blatt and Weisskopf's 4π/75 once Tr(QQ†) = (8π/15) B(E2)) and 4π²α/ω through the lens vacuum, ℓ gone; and a scattering
+  // wave normalized as a plane wave's partial wave, against the exact free 4D one r^(3/2) (2/kr)(l + 1) J_(l+1)(kr)
+  const kE2 = (d, coup) => (Math.PI * { 3: 4 * Math.PI, 4: 2 * Math.PI ** 2 }[d] * coup) / (4 * (2 * Math.PI) ** d * (d + 2)), J1 = (n, x) => { let t = 0; for (let i = 0; i < 400; i++) { const q = (Math.PI * (i + 0.5)) / 400; t += Math.cos(n * q - x * Math.sin(q)); } return t / 400; };
+  const fw = [0, 2].map((l) => { const sc = NU.scatterU(() => 0, { d: 4, l, c: 10, E: 2 }), k = Math.sqrt(0.2); return Math.max(...[1.3, 4.1, 9].map((r) => { const x = r ** 1.5 * (2 / (k * r)) * (l + 1) * J1(l + 1, k * r); return Math.abs(sc.u[Math.round(r / sc.h)] - x) / Math.abs(x); })); });
+  ok(Math.abs(kE2(3, 4 * Math.PI) - NU.E2RATE[3]) < 1e-12 && Math.abs(NU.E2RATE[3] * (8 * Math.PI) / 15 - (4 * Math.PI) / 75) < 1e-12 && Math.abs(kE2(4, 4 * Math.PI ** 2) - NU.E2RATE[4]) < 1e-12 && Math.max(...fw) < 1e-4,
+    `quadrupole light: ours α ω⁵ Tr(QQ†)/10 (Blatt–Weisskopf's 4π/75), through the lens vacuum (π/48) α ω⁵ Tr(QQ†) with ℓ gone; 4D scattering waves match the exact free ones to ${Math.max(...fw).toExponential(0)} (relative)`);
   const c3 = GS.chandrasekhar(3), c4 = GS.chandrasekhar(4), m3 = c3.mass() / GS.SI.Msun;
   ok(Math.abs(m3 / 1.457 - 1) < 0.02 && c4.polytrope.converged && Math.abs(c4.cd - 1.52) < 0.03,
     `Chandrasekhar's mass: ours ${m3.toFixed(3)} M☉ (1.457 for two nucleons per electron), from the index-3 polytrope; pinned 4D's index-4 one closes too, N_Ch = ${c4.cd.toFixed(3)} α_G^(−4/3) nucleons`);

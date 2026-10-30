@@ -13,15 +13,18 @@
                                                                  window (needs he4's radii without the three-nucleon force)
      node four/atom/tools/nuclei.mjs ladder <d> <s> <N> [MN]     N helium-4s (the ladder: carbon is 3, pxygen 5) by Monte
                                                                  Carlo on the supersymmetric pair potential (needs he4's radii)
+     node four/atom/tools/nuclei.mjs capture [MN]                the first capture, two helium-4s → beryllium-8 + light
+                                                                 (E2), across 4D's window: its nuclear factor against our
+                                                                 ¹²C(α,γ)¹⁶O's, and the temperature that matches its rate
      node four/atom/tools/nuclei.mjs bake                        → js/nucleidata.js
    The three-nucleon force is W Σ_cyclic e^(−(r_ij² + r_ik²)/b²); fit gives c = W π³ b⁶/2 (its Hartree energy per nucleon
    in our matter is c ρ²), so W = 2c/(π³ b⁶) for each b, and in 4D the same W and b give c₄ = c π b². */
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { matter, fixedNode, window as nucWindow, MT, MN, mtPot, coulombFactor, THREE_C, THREE_C_MN, threeForce, alphaWidth, alphaPair, alphaNucleon, calibrate, alphaLocal, alphaDMC, calibrateLocal } from "../js/nuclear.js";
+import { matter, fixedNode, window as nucWindow, MT, MN, mtPot, coulombFactor, THREE_C, THREE_C_MN, threeForce, alphaWidth, alphaPair, alphaNucleon, calibrate, alphaLocal, alphaDMC, calibrateLocal, alphaCapture, deepNuclear } from "../js/nuclear.js";
 import { criticalZ } from "../js/dirac.js";
-import { logRate } from "../js/stars.js";
+import { logRate, gamow, KB_MEV } from "../js/stars.js";
 
 const DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-nuclei"); mkdirSync(DIR, { recursive: true });
 const save = (name, obj) => { writeFileSync(path.join(DIR, name), JSON.stringify(obj)); console.log("wrote", name); };
@@ -97,6 +100,25 @@ if (cmd === "fit") {
   for (const seed of [1, 2]) { const t = Date.now(), r = alphaDMC({ d, N, V, steps: 16000, equil: 4000, seed }); runs.push(r); console.log(`${fname} d=${d} s=${s} N=${N} seed ${seed}: ${r.E.toFixed(3)} ± ${r.err.toFixed(3)} MeV (${((Date.now() - t) / 1000).toFixed(0)} s)`); }
   const w = runs.map((r) => 1 / Math.max(r.err, 1e-3) ** 2), E = runs.reduce((t, r, i) => t + r.E * w[i], 0) / w.reduce((x, y) => x + y, 0), err = Math.max(1 / Math.sqrt(w.reduce((x, y) => x + y, 0)), Math.abs(runs[0].E - runs[1].E) / 2);
   save(`${FC.pre}ladder-${d}-${tag(s)}-${N}.json`, { force: fname, d, s, N, lam, r2, E, err, runs: runs.map((r) => ({ E: r.E, err: r.err })) });
+} else if (cmd === "capture") {
+  // the barrier the stars chapter's tunnelling counts (nuclei of radius r₀ A^(1/d): 1.2 fm ours, 1.0 fm 4D), and our
+  // yardstick, ¹²C(α,γ)¹⁶O at 300 keV: like for like, its E2 capture to the ground state, S = 45 keV b (deBoer et al. 2017)
+  // to 70 ± 7 (Shen et al. 2020); for the matched temperature the whole reaction (E1 too), 140 to 162 keV b, since that's
+  // what the stars chapter's 0.2 billion K is. S̃ = σ k^(d−1) e^G is what's left once the barrier is taken off,
+  // dimensionless in any d
+  const AMU = 931.494, op4 = { Z1: 2, Z2: 2, mu: 2 * AMU, rn: 2 * Math.pow(4, 0.25), d: 4 }, op3 = { Z1: 2, Z2: 6, mu: 3 * AMU, rn: 1.2 * (Math.cbrt(4) + Math.cbrt(12)), d: 3 };
+  const E3 = 0.3, eta3 = (12 / 137.035999) * Math.sqrt(op3.mu / (2 * E3)), k3sq = (2 * op3.mu * E3) / HBC ** 2;
+  const St3 = (S) => ((S / 1000) * 100 / E3) * Math.exp(-2 * Math.PI * eta3) * k3sq * Math.exp(gamow(E3, op3)), ours = [45, 70].map(St3), total = [140, 162].map(St3);
+  const tgt = total.map((x) => logRate(2e8, op3) + Math.log(x)), Tmatch = (lnS, t) => { let lo = 1e6, hi = 1e10; for (let i = 0; i < 60; i++) { const m = Math.sqrt(lo * hi); if (logRate(m, op4) + lnS < t) lo = m; else hi = m; } return Math.sqrt(lo * hi); };
+  const peak = (T) => { const kT = KB_MEV * T; let best = 0, bv = -Infinity; for (let E = kT / 4; E < 80 * kT; E *= 1.01) { const v = -E / kT - gamow(E, op4); if (v > bv) { bv = v; best = E; } } return best; };
+  const he = (dd, ss) => load(`${FC.pre}he-${dd}-${tag(ss)}-none-4.json`), h3 = he(3, 1), lam = calibrateLocal(FC.F), rows = [];
+  for (const s of FC.s4) {
+    const a = alphaWidth(4, (R2_OURS * he(4, s).r2) / h3.r2), deep = deepNuclear(4, FC.F, s, a, lam), pts = [];
+    for (const T of [3e7, 1e8]) { const E = peak(T), R = alphaCapture({ d: 4, F: FC.F, s, a, lam, E, deep }), St = R.sigma * R.k ** 3 * Math.exp(gamow(E, op4)); pts.push({ T, E, S: St, sigma: R.sigma, parts: R.parts }); }
+    const S = pts[0].S, row = { s, a, S, ratio: ours.map((x) => S / x), T: tgt.map((t) => Tmatch(Math.log(S), t)), pts };
+    rows.push(row); console.log(`${fname} s=${s}: S̃ ${S.toExponential(2)} (${row.ratio.map((x) => x.toPrecision(2)).join("–")}× ours), rate-matched at ${row.T.map((t) => (t / 1e9).toFixed(4)).join("–")} GK`);
+  }
+  save(`${FC.pre}capture.json`, { force: fname, ours, total, barrierT: Tmatch(Math.log(total[0]), tgt[0]), rows });
 } else if (cmd === "bake") {
   const files = readdirSync(DIR), get = (re) => files.filter((f) => re.test(f)).map(load), cf4 = coulombFactor(4, 300), e2 = 1.43996;
   // the 4D liquid drop for each force, strength and range: bulk from the matter, Coulomb exact, the neutron excess from neutron
@@ -113,7 +135,7 @@ if (cmd === "fit") {
       drop.well = wellOf(4, sym.rows, c4); drops.push(drop);
     }
     const ours = mats.find((m) => m.d === 3 && m.kind === "symmetric");
-    out.forces[name] = { oursWell: ours && fit ? wellOf(3, ours.rows, fit.c) : null, window: { 3: nucWindow(3, FCx.F), 4: nucWindow(4, FCx.F) }, fit, matter: mats, he: hes, drops, cluster: load(`${FCx.pre}cluster.json`), ladder: get(new RegExp(`^${FCx.pre}ladder-`)) };
+    out.forces[name] = { oursWell: ours && fit ? wellOf(3, ours.rows, fit.c) : null, window: { 3: nucWindow(3, FCx.F), 4: nucWindow(4, FCx.F) }, fit, matter: mats, he: hes, drops, cluster: load(`${FCx.pre}cluster.json`), capture: load(`${FCx.pre}capture.json`), ladder: get(new RegExp(`^${FCx.pre}ladder-`)) };
   }
   // the temperature each helium-4 capture needs (tunnelling through Coulomb and 4D's barrier to one fixed rate, set by our
   // ¹²C(α,γ)¹⁶O burning near 0.2 billion K), onto charge 2k; nuclei of radius r₀ A^(1/d), r₀ 1.2 fm ours, 1.0 fm 4D (its

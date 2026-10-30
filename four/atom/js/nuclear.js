@@ -390,3 +390,69 @@ export function calibrateLocal(F, a3 = alphaWidth(3, 2.13)) {
   const E = (lam) => levels(alphaLocal(3, F, 1, a3, lam).V, { d: 3, l: 0, c: CA, rmax: 60, h: 0.005, emax: 5 })[0];
   let lo = 1.5, hi = 4.5; for (let i = 0; i < 22; i++) { const m = (lo + hi) / 2; if (E(m) < 0) hi = m; else lo = m; } return (lo + hi) / 2;
 }
+
+/* Radiative capture: two helium-4s meeting and ending bound by sending off light. Two identical spinless helium-4s
+   have their centre of charge on their centre of mass, so they have no dipole to radiate: their capture is electric
+   quadrupole (E2), as our helium-4 captures onto carbon and oxygen are. A transition's quadrupole Q_ij = ⟨f|Σ q x_i x_j|i⟩
+   (its trace doesn't radiate) emits at Γ = 2π Σ_photons |⟨ε·J(k)⟩|²/(2ω ε_eff V) δ(ω_k − ω), and the sum over a
+   photon's d − 1 polarizations and directions gives Γ = π S_d ω^(d+2) Tr(QQ†) / (4 (2π)^d (d + 2) ε_eff). Ours: ε_eff = ε₀
+   = 1/4πα, so Γ = α ω⁵ Tr(QQ†)/10 (Blatt and Weisskopf's 4π/75 · α ω⁵ B(E2)). Through the lens vacuum a photon of
+   frequency ω carries its energy at ε₀ℓω, and the pinned 1/r fixes α = e²/(4π² ε₀ ℓ), so ε_eff = ω/4π²α and ℓ drops
+   out: Γ = (π/48) α ω⁵ Tr(QQ†), the same power of ω as ours and 0.65 of our strength (ħ = c = 1, ω in fm⁻¹). */
+export const E2RATE = { 3: 1 / 10, 4: Math.PI / 48 };
+const GAM = { 3: Math.sqrt(Math.PI) / 2, 4: 1 }; // Γ(d/2)
+/* all bound states of V in the l-th partial wave, on the same three-point grid levels() uses: [{E, u}], ∫u² dr = 1 */
+function boundStates(V, { d, l, c, rmax = 30, h = 0.01 }) {
+  const n = Math.round(rmax / h) - 1, L2 = l * (l + d - 2) + ((d - 1) * (d - 3)) / 4, off = -c / (h * h);
+  return levels(V, { d, l, c, rmax, h, emax: 0 }).map((E) => {
+    const dg = Float64Array.from({ length: n }, (_, i) => { const x = (i + 1) * h; return (2 * c) / (h * h) + (c * L2) / (x * x) + V(x) - E * (1 + 1e-11) - 1e-12; });
+    let v = Float64Array.from({ length: n }, (_, i) => Math.sin((i + 1) * 0.37) + 1.1);
+    for (let it = 0; it < 4; it++) { const cp = new Float64Array(n), dp = new Float64Array(n); cp[0] = off / dg[0]; dp[0] = v[0] / dg[0];
+      for (let i = 1; i < n; i++) { const m = dg[i] - off * cp[i - 1]; cp[i] = off / m; dp[i] = (v[i] - off * dp[i - 1]) / m; }
+      const x = new Float64Array(n); x[n - 1] = dp[n - 1]; for (let i = n - 2; i >= 0; i--) x[i] = dp[i] - cp[i] * x[i + 1];
+      const nm = Math.sqrt(x.reduce((t, y) => t + y * y, 0) * h); let big = 0; for (const y of x) if (Math.abs(y) > Math.abs(big)) big = y; v = x.map((y) => (y / nm) * Math.sign(big)); }
+    return { E, u: v, h };
+  });
+}
+/* the regular scattering solution of the l-th partial wave at energy E > 0, normalized as that partial wave of a unit
+   plane wave e^(ik·r) = Γ(ν)(kr/2)^(−ν) Σ_l i^l (ν + l) J_(ν+l)(kr) C_l^ν(k̂·r̂), ν = (d − 2)/2: far out
+   u = r^((d−1)/2) R swings with amplitude Γ(ν) 2^ν (ν + l) √(2/π) k^(−(d−1)/2). Returned on the grid 0, h, 2h, … */
+function scatterU(V, { d, l, c, E, h = 0.01, rin = 30 }) {
+  const L2 = l * (l + d - 2) + ((d - 1) * (d - 3)) / 4, k = Math.sqrt(E / c), f = (r) => L2 / (r * r) + (V(r) - E) / c;
+  const nu = (d - 2) / 2, amp = (GAM[d] / nu) * Math.pow(2, nu) * (nu + l) * Math.sqrt(2 / Math.PI) * Math.pow(k, -(d - 1) / 2);
+  const rt = Math.max(rin, (V(rin) * rin) / E), rmax = Math.max(4 * rin, 8 * rt), p = l + (d - 1) / 2;
+  const rk = (r, y, s) => { const g = (r, y) => [y[1], f(r) * y[0]], a = g(r, y), b = g(r + s / 2, [y[0] + (s / 2) * a[0], y[1] + (s / 2) * a[1]]), q = g(r + s / 2, [y[0] + (s / 2) * b[0], y[1] + (s / 2) * b[1]]), e = g(r + s, [y[0] + s * q[0], y[1] + s * q[1]]);
+    return [y[0] + (s / 6) * (a[0] + 2 * b[0] + 2 * q[0] + e[0]), y[1] + (s / 6) * (a[1] + 2 * b[1] + 2 * q[1] + e[1])]; };
+  const n = Math.round(rin / h), u = new Float64Array(n + 1); let r = h / 4, y = [r ** p, p * r ** (p - 1)];
+  for (let i = 0; i < 4; i++) { y = rk(r, y, h / 16); r += h / 16; } // to h/2 finely, past the 1/r² start
+  y = rk(r, y, h / 2); r = h; u[1] = y[0];
+  for (let i = 1; i < n; i++) { y = rk(r, y, h); r += h; u[i + 1] = y[0]; }
+  let scale = 1; const s = 0.02, ren = (m) => { y = [y[0] / m, y[1] / m]; scale *= m; };
+  while (r < rmax) { y = rk(r, y, s); r += s; const m = Math.abs(y[0]) + Math.abs(y[1]); if (m > 1e200) ren(m); }
+  const kl = Math.sqrt(Math.max(1e-12, -f(r))), A = scale * Math.sqrt((y[0] ** 2 + (y[1] / kl) ** 2) * (kl / k));
+  return { u: u.map((x) => (x * amp) / A), h, k };
+}
+/* ∫ C_2^ν(cos θ) (cos²θ − 1/d) dΩ_d, which sets how much of a plane wave's d-wave a quadrupole carries into an s-state */
+function dWaveOverlap(d) { const nu = (d - 2) / 2, M = 4000; let s = 0; for (let i = 0; i < M; i++) { const t = (Math.PI * (i + 0.5)) / M, x = Math.cos(t); s += (2 * nu * (nu + 1) * x * x - nu) * (x * x - 1 / d) * Math.sin(t) ** (d - 2); } return (SD1[d] * s * Math.PI) / M; }
+/* two helium-4s in d dimensions (the deep folded potential plus Coulomb; its lowest two s-states and lowest d-state are
+   Pauli-forbidden, the rest allowed) at relative energy E (MeV): every bound state they can reach by an E2 photon, from
+   their s-wave (into 2⁺ states) and their d-wave (into 0⁺ states). σv in fm^(d−1) c, identical bosons counted; the
+   dimensionless S̃ = σ k^(d−1) e^G strips the barrier, the part logRate in stars.js assumes the same in both worlds */
+export function alphaCapture({ d, F, s = 1, a, lam, E, deep = null }) {
+  const Vn = deep ?? deepNuclear(d, F, s, a, lam), V = (r) => Vn(r) + (4 * E2 * erfA(Math.sqrt(a / 2) * r)) / r, c = CA, mu = HB2M > 0 ? (2 * 197.327 ** 2) / HB2M : 0;
+  const fin = { 0: boundStates(V, { d, l: 0, c }).slice(2), 2: boundStates(V, { d, l: 2, c }).slice(1) }, h = 0.01, parts = [];
+  const sc = { 0: scatterU(V, { d, l: 0, c, E, h }), 2: scatterU(V, { d, l: 2, c, E, h }) }, nu = (d - 2) / 2;
+  const cD = dWaveOverlap(d) / ((1 - 1 / d) * Math.sqrt(SD[d])), ang = { 0: SD[d] * (1 - 1 / d), 2: cD * cD * (1 - 1 / d) };
+  for (const [li, lf] of [[0, 2], [2, 0]]) for (const st of fin[lf]) {
+    const ui = sc[li].u; let I = 0; for (let i = 1; i < st.u.length && i < ui.length; i++) { const r = i * h; I += st.u[i - 1] * ui[i] * r * r * h; }
+    const w = (E - st.E) / 197.327, sv = 2 * E2RATE[d] * ALPHA_FS * w ** 5 * I * I * ang[li];
+    parts.push({ from: li, to: lf, Ef: st.E, Egamma: E - st.E, sv });
+  }
+  const k = sc[0].k, v = (197.327 * k) / mu, sv = parts.reduce((t, p) => t + p.sv, 0);
+  return { E, k, v, sv, sigma: sv / v, parts, nu };
+}
+const ALPHA_FS = 1 / 137.035999;
+/* a bound 2⁺'s E2 width to a 0⁺ (MeV), averaged over the 2⁺'s substates: (1 − 1/d) of the quadrupole shared among the
+   l = 2 harmonics (5 ours, 9 in 4D) */
+export function e2Width(d, u2, u0, h, Egamma) { let I = 0; for (let i = 0; i < Math.min(u2.length, u0.length); i++) { const r = (i + 1) * h; I += u2[i] * u0[i] * r * r * h; } const N2 = d === 3 ? 5 : 9, w = Egamma / 197.327; return 197.327 * E2RATE[d] * ALPHA_FS * w ** 5 * I * I * (1 - 1 / d) / N2; }
+export { boundStates, scatterU };
