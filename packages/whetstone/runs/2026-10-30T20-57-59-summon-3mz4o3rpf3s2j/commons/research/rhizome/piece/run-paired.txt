@@ -1,0 +1,7 @@
+B   integrator piece-genet -5.8 ± 1.9 (s.e., 20 paired seeds)
+A1  integrator piece-genet -0.2 ± 0.2 (s.e., 20 paired seeds)
+A2  integrator piece-genet -0.2 ± 0.1 (s.e., 20 paired seeds)
+A3  integrator piece-genet +5.1 ± 2.8 (s.e., 20 paired seeds)
+C1  integrator piece-genet +3.6 ± 1.4 (s.e., 20 paired seeds)
+C2  integrator piece-genet +22.3 ± 1.6 (s.e., 20 paired seeds)
+C3  integrator piece-genet -0.1 ± 0.1 (s.e., 20 paired seeds)
