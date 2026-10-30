@@ -1,0 +1,8 @@
+$ node four/atom/tools/nuclei.mjs ladder 4 1.8909 8 MN
+MN d=4 s=1.8909 N=8 seed 1: -2699.914 ± 5.605 MeV (126 s)
+MN d=4 s=1.8909 N=8 seed 2: -2705.509 ± 3.851 MeV (105 s)
+wrote MN-ladder-4-1p8909-8.json
+(node:2547) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/nuclear.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

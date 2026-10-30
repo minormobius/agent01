@@ -1,0 +1,33 @@
+{
+ "group": "ladder-8",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs ladder 4 1.4002 3 MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 104
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs ladder 4 1.4002 4 MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 116
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs ladder 4 1.4002 5 MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 129
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs ladder 4 1.4002 6 MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 163
+  }
+ ]
+}
