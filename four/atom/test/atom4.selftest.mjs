@@ -938,5 +938,22 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `Chandrasekhar's mass: ours ${m3.toFixed(3)} M☉ (1.457 for two nucleons per electron), from the index-3 polytrope; pinned 4D's index-4 one closes too, N_Ch = ${c4.cd.toFixed(3)} α_G^(−4/3) nucleons`);
 }
 
+/* 52 · helium-4 clusters, microscopic (js/brink.js, the nuclei chapter): Brink's determinants of helium-4s in d dimensions.
+   One helium-4's energy is closed (kinetic 3dħ²ν/2m less nothing, each Gaussian term ½(D − X)(ν/(ν + κ))^(d/2), Coulomb
+   e²⟨1/r⟩, the three-nucleon force 12 W (2ν/(2ν + β))^d (2ν/(2ν + 2γ))^(d/2)); two far apart carry their pair's zero-point
+   d ħ²ν/2m and their Coulomb repulsion 4e²/D on top of two helium-4s; the kernels are symmetric and turn with the
+   placements; and Minnesota's own exchange mixture u = 0.94 puts our ⁸Be near threshold (measured +0.09 MeV) */
+{
+  const BR = await import(path.join(here, "../js/brink.js")), NU = await import(path.join(here, "../js/nuclear.js")), th = NU.threeForce(1.0, NU.THREE_C_MN), T1 = NU.HB2M / 2, nu = 0.3;
+  const closed = (d, three) => { const W = BR.weights(1, 1), beta = 1, g = (2 * nu * beta) / (2 * nu + beta); return 3 * d * T1 * nu + W.reduce((t, w) => t + 0.5 * (w.D - w.X) * (nu / (nu + w.k)) ** (d / 2), 0) + NU.E2 * BR.coulombAvg(d, nu, 0) + (three ? 12 * three.W * (2 * nu / (2 * nu + beta)) ** d * (2 * nu / (2 * nu + 2 * g)) ** (d / 2) : 0); };
+  const dev = Math.max(...[3, 4].flatMap((d) => [null, th].map((t) => Math.abs(BR.alphaEnergy(d, nu, 1, 1, t) - closed(d, t)))));
+  const far = [3, 4].map((d) => { const D = 16, a = [Array(d).fill(0), Array(d).fill(0)]; a[0][0] = D / 2; a[1][0] = -D / 2; const k = BR.kernel(a, a, { d, nu, s: 1, u: 0.94, three: th }); return Math.abs(k.h / k.n - 2 * BR.alphaEnergy(d, nu, 1, 1, th) - d * T1 * nu - (4 * NU.E2) / D); });
+  const A = [[1.1, 0.3, -0.2], [-0.7, 1.4, 0.5], [-0.4, -1.7, -0.3]], B = [[0.2, 1.3, 0.4], [1.5, -0.6, -0.2], [-1.7, -0.7, -0.2]], o = { d: 3, nu, s: 1, u: 1.05, three: th }, R = (p) => [Math.cos(0.7) * p[0] - Math.sin(0.7) * p[1], Math.sin(0.7) * p[0] + Math.cos(0.7) * p[1], p[2]];
+  const k1 = BR.kernel(A, B, o), k2 = BR.kernel(B, A, o), k3 = BR.kernel(A.map(R), B.map(R), o), symOk = Math.abs(k1.h / k1.n - k2.h / k2.n) < 1e-9 && Math.abs(k1.h / k1.n - k3.h / k3.n) < 1e-9;
+  const n3 = BR.bestNu(3, 1), be = BR.twoAlpha({ d: 3, nu: n3, s: 1, u: 0.94 })[0] - 2 * BR.alphaEnergy(3, n3, 1);
+  ok(dev < 1e-9 && Math.max(...far) < 0.01 && symOk && Math.abs(be - 0.09) < 0.15,
+    `Brink's helium-4s: one helium-4 closed to ${dev.toExponential(0)} (with and without the three-nucleon force, both worlds); two 16 fm apart are two helium-4s plus their zero-point and 4e²/D (to ${Math.max(...far).toFixed(3)} MeV); kernels symmetric and turning with the placements; Minnesota's u = 0.94 puts our ⁸Be at ${be.toFixed(2)} MeV (measured +0.09)`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

@@ -228,7 +228,14 @@ for games, and this is a modelling programme with publications to come. The game
   command takes `MN` as a last word), checks nothing hangs on Malfliet–Tjon's shape; light nuclei past helium are helium-4
   clusters (`alphaPair`, `alphaNucleon`: folded force, Saito's orthogonality by Kukulin's pseudopotential, one factor
   calibrated on our ⁸Be or ⁵He; `nuclei.mjs cluster`). The nuclei chapter (`atom/tools/pages/gennuclei.py`) and the stars
-  chapter's "What sets G" read it. Selftest 51.
+  chapter's "What sets G" read it. Selftest 51. `nuclear.js` also carries the helium-4 ladder (a local pair potential by
+  Baye's supersymmetric removal of the Pauli-forbidden states, its tail by the Riccati equation; `alphaDMC` for N bosons)
+  and the first capture (`alphaCapture`: E2 light through the lens vacuum, where ℓ cancels; `nuclei.mjs capture`).
+  `js/brink.js` (no DOM) is the same clusters microscopically: Brink's antisymmetrized determinants of Gaussian helium-4s
+  in any d, Minnesota's force (its exchange mixture u set on our ⁸Be) plus the three-nucleon force with full exchange,
+  Hill–Wheeler over random placements, and ⁸Be's 0⁺ and 2⁺ by angle projection (`nuclei.mjs brink <d> <s> <b> <N>`, on
+  the runner). It brackets the cluster ladder from the other side: on ours it overbinds oxygen where the ladder
+  underbinds it. Selftest 52.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).

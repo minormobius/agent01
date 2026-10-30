@@ -1,123 +1,114 @@
 {
- "run": "nuclei-4",
- "why": "The helium-4 ladder again, every point, on the repaired supersymmetric pair potential. nuclei-3's runs at the top of 4D's window (Malfliet–Tjon s = 1.4993, Minnesota s = 1.8909) used a broken potential: there the forbidden state is bound by 300–500 MeV, its tail sank below what inverse iteration resolves, and the transformed potential came out hundreds of MeV deep out to 7 fm (one runner died on it). The tail now comes from the Riccati equation integrated inward; the transform keeps the spectrum to 0.05 MeV everywhere, and the healthy points are unchanged. Ours 2–6 helium-4s and 4D's 2–8, both forces.",
+ "run": "brink-1",
+ "why": "Helium-4 clusters microscopically (js/brink.js): Brink's antisymmetrized determinants, Minnesota's force plus the book's three-nucleon force at each range (0.7, 1.0, 1.4 fm), its exchange mixture u set on our beryllium-8, bases of 240 and 480 placements. Ours (2 to 5 helium-4s, against measured beryllium-8 to neon-20) and 4D across Minnesota's window: the cluster ladder's check, by a method with the Pauli principle exact. Beryllium-8's spin-2 state too.",
  "minutes": 150,
  "groups": [
   {
-   "name": "ladder-0",
+   "name": "brink-0",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 3 1 2",
-    "node four/atom/tools/nuclei.mjs ladder 3 1 3",
-    "node four/atom/tools/nuclei.mjs ladder 3 1 4",
-    "node four/atom/tools/nuclei.mjs ladder 3 1 5"
+    "node four/atom/tools/nuclei.mjs brink 3 1 0.7 5",
+    "node four/atom/tools/nuclei.mjs brink 3 1 0.7 2",
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.0 2",
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.4 2"
    ]
   },
   {
-   "name": "ladder-1",
+   "name": "brink-1",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 3 1 6",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 2",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 3",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 4"
+    "node four/atom/tools/nuclei.mjs brink 3 1 1.0 5",
+    "node four/atom/tools/nuclei.mjs brink 3 1 0.7 3",
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.0 3",
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.4 3"
    ]
   },
   {
-   "name": "ladder-2",
+   "name": "brink-2",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 5",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 6",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 7",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2292 8"
+    "node four/atom/tools/nuclei.mjs brink 3 1 1.4 5",
+    "node four/atom/tools/nuclei.mjs brink 3 1 0.7 4",
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.0 4",
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.4 4"
    ]
   },
   {
-   "name": "ladder-3",
+   "name": "brink-3",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 2",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 3",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 4",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 5"
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 0.7 5",
+    "node four/atom/tools/nuclei.mjs brink 3 1 1.0 2",
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.4 2",
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 0.7 2"
    ]
   },
   {
-   "name": "ladder-4",
+   "name": "brink-4",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 6",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 7",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.2986 8",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 2"
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.0 5",
+    "node four/atom/tools/nuclei.mjs brink 3 1 1.0 3",
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.4 3",
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 0.7 3"
    ]
   },
   {
-   "name": "ladder-5",
+   "name": "brink-5",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 3",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 4",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 5",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 6"
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.4 5",
+    "node four/atom/tools/nuclei.mjs brink 3 1 1.0 4",
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.4 4",
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 0.7 4"
    ]
   },
   {
-   "name": "ladder-6",
+   "name": "brink-6",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 7",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4993 8",
-    "node four/atom/tools/nuclei.mjs ladder 3 1 2 MN",
-    "node four/atom/tools/nuclei.mjs ladder 3 1 3 MN"
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 0.7 5",
+    "node four/atom/tools/nuclei.mjs brink 3 1 1.4 2",
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 0.7 2",
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.0 2"
    ]
   },
   {
-   "name": "ladder-7",
+   "name": "brink-7",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 3 1 4 MN",
-    "node four/atom/tools/nuclei.mjs ladder 3 1 5 MN",
-    "node four/atom/tools/nuclei.mjs ladder 3 1 6 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 2 MN"
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.0 5",
+    "node four/atom/tools/nuclei.mjs brink 3 1 1.4 3",
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 0.7 3",
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.0 3"
    ]
   },
   {
-   "name": "ladder-8",
+   "name": "brink-8",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 3 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 4 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 5 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 6 MN"
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.4 5",
+    "node four/atom/tools/nuclei.mjs brink 3 1 1.4 4",
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 0.7 4",
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.0 4"
    ]
   },
   {
-   "name": "ladder-9",
+   "name": "brink-9",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 7 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.4002 8 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 2 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 3 MN"
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 0.7 5",
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 0.7 2",
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.0 2",
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.4 2"
    ]
   },
   {
-   "name": "ladder-10",
+   "name": "brink-10",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 4 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 5 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 6 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 7 MN"
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.0 5",
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 0.7 3",
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.0 3",
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.4 3"
    ]
   },
   {
-   "name": "ladder-11",
+   "name": "brink-11",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.5152 8 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 2 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 3 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 4 MN"
-   ]
-  },
-  {
-   "name": "ladder-12",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 5 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 6 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 7 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8909 8 MN"
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.4 5",
+    "node four/atom/tools/nuclei.mjs brink 4 1.4002 0.7 4",
+    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.0 4",
+    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.4 4"
    ]
   }
  ]
