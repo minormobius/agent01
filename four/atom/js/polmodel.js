@@ -40,6 +40,8 @@ function solve(M, b) {
 export const THOLE = 0.39;
 /* Thole's damping for sites of polarizability ai, aj at distance r: [λ₃, λ₅] */
 export function thole(r, ai, aj, a) { const s = ai * aj; if (!(s > 0)) return [1, 1]; const u3 = (r * r * r) / Math.sqrt(s), e = Math.exp(-a * u3); return [1 - e, 1 - (1 + a * u3) * e]; }
+/* and with their slopes in r: [λ₃, λ₅, dλ₃/dr, dλ₅/dr] */
+export function tholeJet(r, ai, aj, a) { const s = ai * aj; if (!(s > 0)) return [1, 1, 0, 0]; const u3 = (r * r * r) / Math.sqrt(s), e = Math.exp(-a * u3), du = (3 * r * r) / Math.sqrt(s); return [1 - e, 1 - (1 + a * u3) * e, a * e * du, a * a * u3 * e * du]; }
 /* the dipoles answering fields E (flat, per site) for sites at x (array of d-vectors) with polarizabilities al:
    (α⁻¹ − T) μ = E, solved directly */
 export function induce(x, al, E, d, a, mol = null, inter = a) {
@@ -64,8 +66,10 @@ export function tensorOf(tmpl, pol) {
 /* Tang–Toennies' damping f_n(x) = 1 − e^(−x) Σ_{k≤n} xᵏ/k!, and its slope e^(−x) xⁿ/n! */
 export function ttf(n, x) { let t = 1, s = 1; for (let k = 1; k <= n; k++) { t *= x / k; s += t; } const e = Math.exp(-x); return [1 - e * s, e * t]; }
 /* the energy of a cluster of rigid molecules (each a list of site positions, heavy atom first): charges between
-   molecules, the induced dipoles, the repulsions (and dispersion if the terms carry it). Returns its parts */
-export function clusterEnergy(terms, mols) {
+   molecules, the induced dipoles, the repulsions (and dispersion if the terms carry it). Returns its parts, and with
+   grad its slope g in every site (flat, n × d). The dipoles are where the energy is stationary in them, so the slope is
+   the field's at fixed dipoles (Hellmann–Feynman): each pair's terms, the dipoles' included, differentiated as they stand */
+export function clusterEnergy(terms, mols, grad = false) {
   const { q, pol, pairs } = terms, d = mols[0][0].length, nH = mols[0].length - 1, qq = (i) => (i ? q : -nH * q), ty = (i) => (i ? "H" : "X");
   const x = [], al = [], mol = [], ch = [], cl = []; mols.forEach((M, a) => M.forEach((p, i) => { x.push(p); al.push(i ? pol.aH : pol.aX); mol.push(a); ch.push(qq(i)); cl.push(i ? terms.cH : terms.cX); }));
   const n = x.length, E = new Float64Array(n * d); let Eq = 0, Er = 0, Ec = 0;
@@ -84,6 +88,37 @@ export function clusterEnergy(terms, mols) {
     for (let c = 0; c < d; c++) { E[i * d + c] += r[c] * ((l3 * ch[j]) / r3 + cl[j] * fc); E[j * d + c] -= r[c] * ((l3 * ch[i]) / r3 + cl[i] * fc); }
   }
   const mu = induce(x, al, E, d, pol.thole, mol, pol.inter ?? THOLE); let Ep = 0; for (let k = 0; k < E.length; k++) Ep -= 0.5 * mu[k] * E[k];
-  return { E: Eq + Ec + Ep + Er, Eq, Ecloud: Ec, Epol: Ep, Erep: Er, mu };
+  const out = { E: Eq + Ec + Ep + Er, Eq, Ecloud: Ec, Epol: Ep, Erep: Er, mu };
+  if (grad) out.g = clusterSlope(terms, x, al, mol, ch, cl, mu, nH);
+  return out;
+}
+/* clusterEnergy's slope at fixed dipoles mu. Each pair's energy e(r), r = x_i − x_j, is a sum of a radial part, the
+   fields' −f(r) u·r and the dipoles' −(b₂ (μ_i·r)(μ_j·r) − b₁ μ_i·μ_j), b₁ = λ₃/r³, b₂ = 3λ₅/r⁵ */
+function clusterSlope(terms, x, al, mol, ch, cl, mu, nH) {
+  const { pol, pairs } = terms, d = x[0].length, n = x.length, g = new Float64Array(n * d), ty = (i) => (i ? "H" : "X"), r = new Float64Array(d), de = new Float64Array(d);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    let r2 = 0; for (let c = 0; c < d; c++) { r[c] = x[i][c] - x[j][c]; r2 += r[c] * r[c]; } const rr = Math.sqrt(r2), r3 = r2 * rr, inter = mol[i] !== mol[j];
+    let rad = 0; de.fill(0); // rad: (de/dr)/r of the radial part; de: the rest of de/dr
+    const mi = (c) => mu[i * d + c], mj = (c) => mu[j * d + c];
+    if (inter) {
+      rad -= (ch[i] * ch[j]) / r3;
+      if (terms.ct && (i % (nH + 1) === 0) !== (j % (nH + 1) === 0)) rad += (terms.ct.D * terms.ct.b * Math.exp(-terms.ct.b * rr)) / rr;
+      const ti = ty(i % (nH + 1)), tj = ty(j % (nH + 1)), key = ti !== tj ? "X|H" : `${ti}|${tj}`; rad -= shortPair(pairs[key], r2)[1];
+      const bd = pairs[key].tt[1] * (terms.cdamp ?? 1), bb = bd * rr, [f3, g3] = ttf(3, bb), [f5, g5] = ttf(5, bb), g2 = (g3 * 3) / (bb || 1);
+      rad += ((ch[i] * cl[j] + cl[i] * ch[j]) * ((bd * g3) / r3 - (3 * f3) / (r3 * rr))) / rr - (3 * cl[i] * cl[j] * ((bd * g5) / (r3 * r2) - (5 * f5) / (r3 * r3))) / rr;
+      // the fields: charges' λ₃/r³ and clouds' fc = 3f₃/r⁵ − b g₃/r⁴, each −f(r) u·r
+      const [l3, , dl3] = tholeJet(rr, al[i], al[j], pol.inter ?? THOLE), fq = l3 / r3, dfq = dl3 / r3 - (3 * l3) / (r3 * rr);
+      const fc = (3 * f3) / (r3 * r2) - (bd * g3) / (r2 * r2), dfc = (7 * bd * g3) / (r3 * r2) - (15 * f3) / (r3 * r3) - (bd * bd * (g2 - g3)) / (r2 * r2);
+      let uq = 0, uc = 0; for (let c = 0; c < d; c++) { uq += (ch[j] * mi(c) - ch[i] * mj(c)) * r[c]; uc += (cl[j] * mi(c) - cl[i] * mj(c)) * r[c]; }
+      rad -= (dfq * uq + dfc * uc) / rr; for (let c = 0; c < d; c++) de[c] -= fq * (ch[j] * mi(c) - ch[i] * mj(c)) + fc * (cl[j] * mi(c) - cl[i] * mj(c));
+    }
+    if (al[i] > 0 && al[j] > 0) {
+      const [l3, l5, dl3, dl5] = tholeJet(rr, al[i], al[j], inter ? pol.inter ?? THOLE : pol.thole), b1 = l3 / r3, b2 = (3 * l5) / (r3 * r2), db1 = dl3 / r3 - (3 * l3) / (r3 * rr), db2 = (3 * dl5) / (r3 * r2) - (15 * l5) / (r3 * r3);
+      let ai = 0, aj = 0, ij = 0; for (let c = 0; c < d; c++) { ai += mi(c) * r[c]; aj += mj(c) * r[c]; ij += mi(c) * mj(c); }
+      rad -= (db2 * ai * aj - db1 * ij) / rr; for (let c = 0; c < d; c++) de[c] -= b2 * (mi(c) * aj + mj(c) * ai);
+    }
+    for (let c = 0; c < d; c++) { const v = rad * r[c] + de[c]; g[i * d + c] += v; g[j * d + c] -= v; }
+  }
+  return g;
 }
 export { expOf };

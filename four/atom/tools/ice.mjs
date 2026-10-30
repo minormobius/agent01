@@ -28,7 +28,7 @@ import { Crystal, relaxSteps, sitesOf, tidy, det } from "../js/crystal.js";
 const KCAL = 627.509, CACHE = path.join(tmpdir(), "atom4-ice"), BOHR_CM = 0.529177210903e-8, NA = 6.02214076e23;
 const RC = { 3: 12, 4: 14 };
 /* the crystal for a key on the pairwise field (js/forcefields.js), or with pol on the polarizable one (js/polfields.js,
-   js/polcrystal.js: slower, its slopes numerical) */
+   js/polcrystal.js: slower, its slopes analytic too) */
 export async function polCrystalOf(key) {
   const { POLFIELDS } = await import("../js/polfields.js"), { PolCrystal } = await import("../js/polcrystal.js"), { termsFor } = await import("./fitpol.mjs");
   const w = WORLDS[key], d = w.d, m = monoOf(key), tmpl = hydrideAtoms(m.Z, d, m.R, m.param).map((a) => a.at);
