@@ -19,8 +19,8 @@
      and branching; protons repel by e²/r, pinned 1/r in both worlds. Checked: our helium-4 −31.34 ± 0.14 MeV against
      the published −31.36 for MT-V, tritium −8.12 ± 0.16 against −8.25. Past helium-4 it is NOT yet trustworthy: on our
      own nuclei, MT-V in every wave overbinds (⁶He −48 to −67 MeV, ⁸Be −96 to −137, measured −29.3 and −56.5) and
-     Serber's even-wave form, with the exchange read off these nodes, underbinds (⁶He −21.5 ± 1.0, ⁸Be −36 ± 5). So the
-     book uses it for A ≤ 4 only. With steps = 0 it returns the trial's local energy and ln ψ, for checking.
+     Serber's even-wave form, with the exchange read off these nodes, underbinds (⁶He −22.4 ± 2.5, ⁸Be −31 ± 3, ¹²C 0 ± 12,
+     measured −92). So the book uses it for A ≤ 4 only; the light nuclei past helium need another method. With steps = 0 it returns the trial's local energy and ln ψ, for checking.
    · shells: the Woods–Saxon single-particle levels with a spin–orbit term. 4D's spin couples to the left half of a
      turning only (js/turning.js, js/magnet.js), so the 3D l·s (l/2 and −(l + 1)/2, 2l + 2 and 2l states) becomes
      2 s·J_L (l/2 and −(l + 2)/2, (l + 1)(l + 2) and l(l + 1) states), at our strength: a declaration.

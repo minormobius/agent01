@@ -218,7 +218,13 @@ for games, and this is a modelling programme with publications to come. The game
   fails our own ⁶He and ⁸Be both ways, so it's used for A ≤ 4 only). `js/gscale.js` (no DOM) is what sets G:
   Chandrasekhar's mass in d dims from the index-d polytrope (ours 1.44 M☉; pinned 4D closes too, N_Ch = 1.52 α_G^(−4/3)),
   the Earth-like planet's G for a rock density (v² = 2gR in any d, so Earth's radius: G ρ₄ = 2g/π²R², ≈ 3 × 10⁻¹⁷ G),
-  and the smallest air-holding planet and the dark-star size at any G. Selftest 51.
+  and the smallest air-holding planet and the dark-star size at any G. `js/dirac.js` (no DOM) is how far a table can go:
+  the innermost Dirac level in d dims (κ = −(d − 1)/2), exact round a point nucleus (Zα = 3/2 fails: 205 in 4D), diving at
+  Z ≈ 170 ours (the check) and ≈ 230 in 4D with a nucleus of 4–5 fm. `nuclear.js` also has `matter`: nuclear matter by
+  Brueckner–Hartree–Fock in any d (Serber's Malfliet–Tjon; a three-nucleon repulsion, the same function of distance in both
+  worlds, its strength `THREE_C` fitted to our −16 MeV, its range b the uncertainty), and `atom/tools/nuclei.mjs` runs the
+  fit, the matter scans and the light nuclei (`he4 <d> <s> <b|none> [A]`, on the runner) and bakes **generated**
+  `js/nucleidata.js` (cache `$TMPDIR/atom4-nuclei`). Selftest 51.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).

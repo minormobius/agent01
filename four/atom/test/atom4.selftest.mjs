@@ -898,7 +898,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `a planet of masses on damped springs does the same (its orbit-plane spin 2 → ${s1.orbitPart.toFixed(3)}, its free plane's angular momentum kept to ${Math.abs(s1.Lfree / s0.Lfree - 1).toExponential(0)}); on a locked planet the star's height holds to ${(Math.max(...sun) - Math.min(...sun)).toExponential(0)} as it turns`);
 }
 
-/* 51 · nuclei and what sets G (js/nuclear.js, js/gscale.js; the stars chapter): Malfliet–Tjon's force gives our deuteron
+/* 51 · nuclei, how far a table can go, and what sets G (js/nuclear.js, js/dirac.js, js/gscale.js; the stars chapter): Malfliet–Tjon's force gives our deuteron
    (2.23 MeV), and our world sits inside its window (the deuteron bound, the diproton not); 4D's s-wave barrier moves the
    window to a stronger force. The Monte Carlo is exact for two nucleons (its pair factor is their ground state), in 4D
    too; a uniform ball's Coulomb factor is 3/5 in 3D. Chandrasekhar's mass from the polytrope of light-speed electrons is
@@ -913,6 +913,10 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // its free two-nucleon equation puts the deuteron where the grid does, in both worlds
   const p3 = NU.freePole(3, NU.MT.triplet, 1), p4 = NU.freePole(4, NU.MT.triplet, 1.2986), g4 = NU.levels(NU.mtPot(NU.MT.triplet, 1.2986), { d: 4, rmax: 60, h: 0.005 })[0];
   ok(Math.abs(p3 - deu) < 0.003 && Math.abs(p4 - g4) < 0.003, `nuclear matter's momentum-space machinery: the free deuteron at ${p3.toFixed(4)} MeV (grid ${deu.toFixed(4)}), and 4D's at 1.2986× the force ${p4.toFixed(4)} (grid ${g4.toFixed(4)})`);
+  // how far a table can go (js/dirac.js): the innermost Dirac level round a point nucleus is √(κ² − (Zα)²)/|κ| with
+  // κ = −(d − 1)/2, and round a nucleus with size ours dives into the negative continuum near Z = 170
+  const DI = await import(path.join(here, "../js/dirac.js")), pt = [[3, 100], [4, 180]].map(([d, Z]) => Math.abs(DI.groundLevel(d, Z, 0) - Math.sqrt(((d - 1) / 2) ** 2 - (Z * DI.ALPHA) ** 2) / ((d - 1) / 2))), zc3 = DI.criticalZ(3);
+  ok(Math.max(...pt) < 1e-7 && zc3 > 165 && zc3 < 176, `Dirac's innermost level: exact round a point nucleus in both worlds (to ${Math.max(...pt).toExponential(0)}); ours dives at Z = ${zc3.toFixed(1)} with a nucleus of 1.2 A^(1/3) fm (170–173 in the literature)`);
   const c3 = GS.chandrasekhar(3), c4 = GS.chandrasekhar(4), m3 = c3.mass() / GS.SI.Msun;
   ok(Math.abs(m3 / 1.457 - 1) < 0.02 && c4.polytrope.converged && Math.abs(c4.cd - 1.52) < 0.03,
     `Chandrasekhar's mass: ours ${m3.toFixed(3)} M☉ (1.457 for two nucleons per electron), from the index-3 polytrope; pinned 4D's index-4 one closes too, N_Ch = ${c4.cd.toFixed(3)} α_G^(−4/3) nucleons`);
