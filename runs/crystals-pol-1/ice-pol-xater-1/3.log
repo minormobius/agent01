@@ -1,0 +1,29 @@
+$ node four/atom/tools/ice.mjs 4 2 640 --pol --shard 7/16
+4 Z=2 shard 7/16: start 23/640, 0 minima (best undefined kcal/mol, V undefined, undefined H-bonds, ×0), 1 unfinished, 0 collapsed, 322.4 s each
+4 Z=2 shard 7/16: start 39/640, 1 minima (best -70.6889 kcal/mol, V 589.33, 0 H-bonds, ×1), 1 unfinished, 0 collapsed, 245.9 s each
+4 Z=2 shard 7/16: start 55/640, 2 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 1 unfinished, 0 collapsed, 211.3 s each
+4 Z=2 shard 7/16: start 71/640, 3 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 1 unfinished, 0 collapsed, 193.3 s each
+4 Z=2 shard 7/16: start 87/640, 4 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 1 unfinished, 0 collapsed, 180.1 s each
+4 Z=2 shard 7/16: start 103/640, 4 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 2 unfinished, 0 collapsed, 346.7 s each
+4 Z=2 shard 7/16: start 119/640, 4 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 3 unfinished, 0 collapsed, 673.4 s each
+4 Z=2 shard 7/16: start 135/640, 5 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 3 unfinished, 0 collapsed, 625.7 s each
+4 Z=2 shard 7/16: start 151/640, 6 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 3 unfinished, 0 collapsed, 575.0 s each
+4 Z=2 shard 7/16: start 167/640, 6 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 4 unfinished, 0 collapsed, 749.5 s each
+4 Z=2 shard 7/16: start 183/640, 7 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 4 unfinished, 0 collapsed, 694.6 s each
+4 Z=2 shard 7/16: start 199/640, 8 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 4 unfinished, 0 collapsed, 653.9 s each
+4 Z=2 shard 7/16: start 215/640, 8 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 4 unfinished, 0 collapsed, 613.7 s each
+4 Z=2 shard 7/16: start 231/640, 8 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 4 unfinished, 0 collapsed, 580.6 s each
+4 Z=2 shard 7/16: start 247/640, 8 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 5 unfinished, 0 collapsed, 626.0 s each
+4 Z=2 shard 7/16: start 263/640, 9 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 5 unfinished, 0 collapsed, 596.7 s each
+4 Z=2 shard 7/16: start 279/640, 10 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 5 unfinished, 0 collapsed, 571.4 s each
+4 Z=2 shard 7/16: start 295/640, 11 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 5 unfinished, 0 collapsed, 549.1 s each
+4 Z=2 shard 7/16: start 311/640, 11 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 6 unfinished, 0 collapsed, 633.6 s each
+4 Z=2 shard 7/16: start 327/640, 11 minima (best -72.1978 kcal/mol, V 575.56, 1 H-bonds, ×1), 6 unfinished, 0 collapsed, 607.6 s each
+4 Z=2 shard 7/16: start 343/640, 12 minima (best -72.2579 kcal/mol, V 581.89, 2 H-bonds, ×1), 6 unfinished, 0 collapsed, 586.3 s each
+4 Z=2 shard 7/16: start 359/640, 12 minima (best -72.2579 kcal/mol, V 581.89, 2 H-bonds, ×1), 6 unfinished, 0 collapsed, 566.3 s each
+4 Z=2 shard 7/16: start 375/640, 12 minima (best -72.2579 kcal/mol, V 581.89, 2 H-bonds, ×1), 7 unfinished, 0 collapsed, 634.1 s each
+4 Z=2 shard 7/16: start 391/640, 12 minima (best -72.2579 kcal/mol, V 581.89, 2 H-bonds, ×1), 7 unfinished, 0 collapsed, 612.7 s each
+4 Z=2 shard 7/16: start 407/640, 13 minima (best -72.2579 kcal/mol, V 581.89, 2 H-bonds, ×1), 7 unfinished, 0 collapsed, 593.7 s each
+4 Z=2 shard 7/16: start 423/640, 13 minima (best -72.2579 kcal/mol, V 581.89, 2 H-bonds, ×1), 8 unfinished, 0 collapsed, 689.8 s each
+
+[cut at the deadline, 300 min]

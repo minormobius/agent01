@@ -1,0 +1,33 @@
+{
+ "group": "ice-pol-xater-0",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 0/16",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 18000
+  },
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 1/16",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 18000
+  },
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 2/16",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 18000
+  },
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4 2 640 --pol --shard 3/16",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 18000
+  }
+ ]
+}

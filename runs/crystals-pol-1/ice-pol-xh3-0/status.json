@@ -1,0 +1,33 @@
+{
+ "group": "ice-pol-xh3-0",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 0/16",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 6449
+  },
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 1/16",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 6223
+  },
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 2/16",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 6767
+  },
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4.9 2 640 --pol --shard 3/16",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 6835
+  }
+ ]
+}
