@@ -256,6 +256,11 @@ for games, and this is a modelling programme with publications to come. The game
   species kernel factored by species, two-body) and `nucleonOnCoreGrid` (a nucleon on a grid round fixed core placements,
   against the same placements alone) give a nucleon's separation energy from a ladder nucleus; `nuclei.mjs plusone <d> <s>
   <k> <Z> [dirs]`, on the runner. Ours as the check: carbon-13 and nitrogen-13 bound, about 1.3 MeV too tightly.
+  `nuclear.js`'s `coreNucleonFactor` / `coreNucleonCapture` (a nucleon on k helium-4s by E1, depth set to that binding) and
+  `nuclei.mjs protonflow MN` compare proton against helium-4 capture onto ladder nuclei (ours: ¹²C(p,γ)¹³N the check).
+  **What's computed in a sandbox lives only in the cache and the bake**: if `$TMPDIR/atom4-nuclei` is lost (a container
+  restart wipes /tmp), `nuclei.mjs restore` writes it back from `js/nucleidata.js` (a bake from it reproduces the file
+  byte for byte); then add the runner's files from atom4-data.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).

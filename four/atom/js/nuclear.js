@@ -527,3 +527,24 @@ export function rungCapture({ d, Vfold, k, f, E, quanta = 4 }) {
   const sv = parts.reduce((t, p) => t + p.sv, 0), k0 = sc[0].k, v = (197.327 * k0) / mu;
   return { E, k: k0, v, sv, sigma: sv / v, parts };
 }
+
+/* ———— a nucleon captured onto a core of helium-4s ————
+   The nucleon–core potential is the nucleon–helium-4 one (nucleonPot) folded over the core's helium-4 centres
+   (foldCore), with one depth factor set so the nucleon's lowest allowed state sits at its separation energy (from the
+   microscopic calculation, brink.js nucleonOnCoreGrid). The Pauli principle forbids the orbits below the shell the
+   nucleon enters (2n + l < N): N = 1, the first excited shell, while the nucleus stays within it (A ≤ 16 ours, A ≤ 20
+   in 4D), so only the lowest s-state is forbidden and the bound state is the lowest p-state; N = 2 beyond. Capture is
+   electric dipole from the s-wave into the bound p-state, with charge (Z₁A₂ − Z₂A₁)/A = ±2k/(4k + 1) for a proton or a
+   neutron on k helium-4s */
+function coreNucleonParts(d, Vfold, k, f, Z, nu = 0.3) { const A2 = 4 * k, c = (HB2M * (1 + A2)) / (2 * A2); return { V: Z ? (r) => f * Vfold(r) + 2 * k * E2 * coulombAvg(d, nu, r) : (r) => f * Vfold(r), c }; }
+export function coreNucleonFactor(d, Vfold, k, S, { Z = 0, shell = 1 } = {}) {
+  const lb = shell === 1 ? 1 : 2, skip = shell === 1 ? 0 : 0, E0 = (f) => { const { V, c } = coreNucleonParts(d, Vfold, k, f, Z); return levels(V, { d, l: lb, c, rmax: 30, h: 0.01, emax: 1e4 })[skip]; };
+  let lo = 0.05, hi = 8; for (let it = 0; it < 50; it++) { const m = (lo + hi) / 2, e = E0(m); if (e === undefined || e > -S) lo = m; else hi = m; } return (lo + hi) / 2;
+}
+export function coreNucleonCapture({ d, Vfold, k, f, E, Z = 1 }) {
+  const { V, c } = coreNucleonParts(d, Vfold, k, f, Z), h = 0.01, mu = ((4 * k) / (4 * k + 1)) * (197.327 ** 2 / HB2M), ee = (2 * k) / (4 * k + 1);
+  const fin = boundStates(V, { d, l: 1, c }), sc = scatterU(V, { d, l: 0, c, E, h }), parts = [];
+  for (const st of fin) { let I = 0; for (let i = 1; i < st.u.length && i < sc.u.length; i++) I += st.u[i - 1] * sc.u[i] * i * h * h; const w = (E - st.E) / 197.327; parts.push({ Ef: st.E, sv: E1RATE[d] * ALPHA_FS * w ** 3 * ee * ee * I * I * SD[d] }); }
+  const sv = parts.reduce((t, p) => t + p.sv, 0), v = (197.327 * sc.k) / mu;
+  return { E, k: sc.k, v, sv, sigma: sv / v, parts };
+}

@@ -936,6 +936,10 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // the rungs' folding: a Gaussian pair potential −V₀e^(−r²/β²) over k centres spread with mean-square radius ρ² is a Gaussian
   // again, k V₀ (β²/β′²)^(d/2) e^(−r²/β′²) with β′² = β² + 2ρ²/d, in either world
   const foldErr = Math.max(...[3, 4].flatMap((d) => { const V = NU.foldCore(d, (r) => -50 * Math.exp(-(r * r) / 4), 3, 2.5), b2 = 4 + (2 * 2.5) / d; return [0, 1.5, 3, 5].map((r) => Math.abs(V(r) - 3 * -50 * (4 / b2) ** (d / 2) * Math.exp(-(r * r) / b2)) / (150 * (4 / b2) ** (d / 2))); }));
+  // a proton on a core: our carbon-12 + proton → nitrogen-13 (the proton bound by 1.944 MeV) by dipole light, against the measured
+  // direct capture near zero energy, about 1.3–1.5 keV b; the model, with nitrogen-13 all proton-plus-carbon, comes out above it
+  const Vpc = NU.foldCore(3, NU.nucleonPot(3, NU.MN, 1, NU.alphaWidth(3, 2.13), 4.172), 3, 2.4), fpc = NU.coreNucleonFactor(3, Vpc, 3, 1.944, { Z: 1 }), rpc = NU.coreNucleonCapture({ d: 3, Vfold: Vpc, k: 3, f: fpc, E: 0.025, Z: 1 }), Spc = (rpc.sigma / 100) * 0.025 * Math.exp(2 * Math.PI * (6 / 137.036) * Math.sqrt(((12 / 13) * 938.92) / 0.05)) * 1000;
+  ok(Spc > 1.0 && Spc < 4.0, `a proton on a core: our carbon-12 + proton → nitrogen-13 at ${Spc.toFixed(2)} keV b near zero energy (measured direct capture ~1.3–1.5)`);
   ok(foldErr < 2e-3, `a helium-4 on a core: the pair potential folded over the core's helium-4s matches the closed Gaussian in both worlds (to ${foldErr.toExponential(0)})`);
   const c3 = GS.chandrasekhar(3), c4 = GS.chandrasekhar(4), m3 = c3.mass() / GS.SI.Msun;
   ok(Math.abs(m3 / 1.457 - 1) < 0.02 && c4.polytrope.converged && Math.abs(c4.cd - 1.52) < 0.03,
