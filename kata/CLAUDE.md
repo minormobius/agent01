@@ -34,9 +34,11 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   - A cell's byte is **height in bits 0–5, material in bits 6–7** (IRIS⁴'s is height in 0–6 and a water bit). Heights
     cap at 63 voxels.
   - **The world is 320 × 320 × 128 cells of 0.5 m** (160 × 160 × 64 m), the basin 148 × 148 × 58 m, the track an
-    oval of 26 × 20 m swinging ±6 m in w, 3 m in radius (a 154.6 m lap). It has been enlarged twice for riders who
+    oval of 55 × 48 m half-axes swinging ±10 m in w, 3 m in radius (a 336 m lap, bends 40–71 m). It has been enlarged three times for riders who
     couldn't get their bearings (the first basin was 42 × 42 × 15 m with the wall 3 m off the track in w; then the
-    basin doubled; then track and world doubled together, the voxels going from 0.25 to 0.5 m to keep the cell count). The shader's atlas is `ATLAS_C` = 12 slices across (3840 × 3520); keep both sides under
+    basin doubled; then track and world doubled together, the voxels going from 0.25 to 0.5 m to keep the cell count;
+    then the track alone grew to fill the stadium, bends 2.5× gentler). The aim, agreed with the principal: keep making
+    this introductory level easier until it's trivially easy. The shader's atlas is `ATLAS_C` = 12 slices across (3840 × 3520); keep both sides under
     4096 (the selftest checks), and change `DIM`, `NB` and `AC` in `render.js` with `world.js`.
   - **The basin must stay closed.** The selftest floods every cell reachable from the start by `walk()`'s own rule and
     fails if any is outside the basin. Anything that moves the player (vehicles included) must go through `walk()` or

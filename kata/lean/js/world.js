@@ -32,8 +32,8 @@ export const RIM_MIN = 50, LAND_MAX = 22; // voxels: the rim's lowest, the inter
 /* the track */
 export const TRACK_H = 22; // voxels: 11 m
 export const R_TRACK = 3, SHOULDER = 2, KERB = 0.6, LINE = 0.3; // metres (SHOULDER: how far past the track the distance field reaches)
-export const OVAL = { a: 26, b: 20, c: 6 }; // centreline: x = 80 + a cos t, z = 80 + b sin t, w = 32 + c sin 2t (a lap is 154.6 m)
-export const NS = 1536; // samples along the centreline (a polyline; its segments are ~10 cm)
+export const OVAL = { a: 55, b: 48, c: 10 }; // centreline: x = 80 + a cos t, z = 80 + b sin t, w = 32 + c sin 2t (a lap is 336 m; bends 40–71 m in radius)
+export const NS = 3072; // samples along the centreline (a polyline; its segments are ~11 cm)
 
 export const basinE = (x, z, w) => Math.hypot((x - BASIN.c[0]) / BASIN.a[0], (z - BASIN.c[1]) / BASIN.a[1], (w - BASIN.c[2]) / BASIN.a[2]);
 

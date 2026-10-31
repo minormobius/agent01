@@ -11,10 +11,10 @@ x, z and w is flat, a tube of tarmac carved level through the land.
 
 The centreline is an oval in x and z that rises and falls in w twice a lap:
 
-    x = 80 + 26 cos t,   z = 80 + 20 sin t,   w = 32 + 6 sin 2t      (metres; a lap is 154.6 m)
+    x = 80 + 55 cos t,   z = 80 + 48 sin t,   w = 32 + 10 sin 2t      (metres; a lap is 336 m)
 
 So its bends turn partly in the plane you start in and partly into w. The plane of the bend (spanned by the tangent
-and the principal normal) itself turns as you go round, at the curve's **torsion** τ, up to 0.057 rad/m here. A road on
+and the principal normal) itself turns as you go round, at the curve's **torsion** τ, up to 0.020 rad/m here. A road on
 our ground lies in a plane and has none. This is the quantity a 4D bicycle would steer by: the size of its lean sets
 the curvature of its path, and the rate the lean's direction turns sets the torsion.
 
@@ -75,7 +75,7 @@ The bike on the page is now a dynamic one. `bike.js` below is still the steady-t
   the steer, and reports the rate and the torque. Nothing on the ground can supply that torque, since the contact force
   acts through the contact point, so it's internal: the rider against a flywheel, or their own body. If the steer swings
   round faster than the frame can twist (6 rad/s, for more than 0.15 s), it falls. On the track the twist peaks near
-  1.2 rad/s at 5 m/s. Swap a lean in y for one in w all at once, and one-axis falls while two-axis rides it out.
+  0.11 rad/s at 5 m/s on today's track (1.2 on the first, quarter-length one). Swap a lean in y for one in w all at once, and one-axis falls while two-axis rides it out.
 
 ## Two modes
 
@@ -147,13 +147,13 @@ On our ground this is the textbook tan φ = v²/gR. Here N lies anywhere in the 
 the lean is a 2-vector, ana, kata or in between, wherever the curve bends. Along the track N turns about the tangent at
 the torsion (Frenet: N′ = −κT + τB), so the lean's direction turns at τv rad/s. The steer is the kinematic
 δ = atan(wκ/cos λ), toward N. The geometry is close to the benchmark bicycle of Meijaard et al. (2007): wheelbase
-1.02 m, head angle 18°, wheels 0.34 m. At 5 m/s the most it leans here is 9.4° (18.3° on the first, half-size track).
+1.02 m, head angle 18°, wheels 0.34 m. At 5 m/s the most it leans here is 3.7° (18.3° on the first track, 9.4° on the second): the bends are 40–71 m in radius.
 
 **Two mechanisms** (the button, or M), which differ only in how the frame carries that turning lean:
 
 - **two-axis** steering (cyan frame, a cross of bars): the fork turns into either of the frame's lateral directions,
   so the frame never rolls about its direction of travel. Its lateral axes are the curve's non-twisting (Bishop)
-  frame, and the lean and steer turn round inside them at τ. After a lap the frame comes home turned **31.9°**, the
+  frame, and the lean and steer turn round inside them at τ. After a lap the frame comes home turned **13.1°**, the
   track's holonomy ∫τ ds.
 - **one-axis** steering (gold frame, a single bar): the fork turns only toward the frame's own y, so y must follow N,
   and the whole frame rolls about its direction of travel at τv. That's the precession into w. The wheel's point
@@ -214,7 +214,7 @@ node kata/lean/test/bike.selftest.mjs   # < 1 s
 - up balances gravity and the centripetal pull exactly (tan φ = v²κ/g) at 2, 5 and 8 m/s, and the lean points along N;
 - where the bend lies in our plane it's our bicycle, φ = atan(v²/gR), nothing into w;
 - two-axis: the frame doesn't twist; one-axis: it rolls at τv; the lean sits at θ = ∫τ ds inside the two-axis frame;
-- the holonomy (31.9°) agrees with a vector carried round the polyline by projection, and laps add up;
+- the holonomy (13.1°) agrees with a vector carried round the polyline by projection, and laps add up;
 - the steer is atan(wκ/cos λ) toward the bend; the front wheel stays on the track; both tyres rest on it, to the
   tyre-width correction r(1 − cos φ); the shader's bounding ball holds every part.
 
