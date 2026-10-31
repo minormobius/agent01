@@ -3,7 +3,7 @@ name: Deploy Bisk
 on:
   push:
     branches:
-      - 'claude/landing-page-merge-candidate-8sp0fv'
+      - 'claude/bisk-surface-news-collage-dymw50'
     paths:
       - 'bisk/**'
       - '.github/workflows/deploy-bisk.yml'

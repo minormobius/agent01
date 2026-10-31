@@ -41,6 +41,16 @@ jobs:
           BISK_LIST: ${{ inputs.list_uri }}
         run: node scripts/build-bisk-digest.mjs
 
+      - name: Build collage
+        # The day's Scenes tiled into one picture (bisk/data/collage/<date>.jpg,
+        # also the og:image). Needs sharp, which nothing else here does, so it is
+        # installed into a temp prefix rather than the repo. Never fatal: a
+        # collage failure must not cost the day its edition.
+        continue-on-error: true
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$RUNNER_TEMP/sharp" sharp@0.34
+          SHARP_FROM="$RUNNER_TEMP/sharp" node scripts/build-bisk-collage.mjs
+
       - name: Commit data
         run: |
           git config user.name "bisk-bot"
