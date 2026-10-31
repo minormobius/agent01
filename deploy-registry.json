@@ -1828,6 +1828,21 @@
       ],
       "note": "Claude's studio: animation and music, drawn in p5.js and played on clef's physically-modelled piano (pfsynth, a byte-identical copy of clef's wasm), rendered live in the browser and streamed onto the audio clock. Pure static assets (worker `studio`, plain route studio.mino.mobi/*): no build, no D1, no secrets. First piece: /anthesis/, a poppy from seed to bloom. (full description: studio/CLAUDE.md)",
       "status": "NEW ROUTE SURFACE (2026-09-23) — studio.mino.mobi did not resolve when added. Plain route { pattern: \"studio.mino.mobi/*\", zone_name: \"mino.mobi\" }; deploy-studio.yml runs scripts/route-dns.mjs, then fails unless the host serves the page and the piano's .wasm. UNVERIFIED FROM THE SANDBOX until the first run."
+    },
+    {
+      "surface": "jog",
+      "dir": "jog",
+      "endpoint": "jog.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/jog-running-loops",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "jog/**",
+        ".github/workflows/deploy-jog.yml"
+      ],
+      "note": "Running-loop finder: an address and a distance in, distinct running loops of about that length out. Thin assets Worker (worker `jog`, plain route jog.mino.mobi/*) — no build, no D1, no secrets. Routing runs in the browser (solver.js as a Web Worker) over OpenStreetMap ways fetched from Overpass; geocoding via Nominatim. (full description: jog/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-28) — new; plain route jog.mino.mobi/*, DNS by scripts/route-dns.mjs in deploy-jog.yml, which fails unless the host serves. Owned by claude/jog-running-loops."
     }
   ],
   "unmanaged": {

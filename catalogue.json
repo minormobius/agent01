@@ -5227,6 +5227,21 @@
         "wasm",
         "compression"
       ]
+    },
+    {
+      "n": "jog",
+      "u": "https://jog.mino.mobi",
+      "c": "tools",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-28",
+      "b": "2026-10-28",
+      "surface": "jog",
+      "d": "Running loops from your door. Give it an address and a distance and it finds a dozen distinct loops that start and finish there, within a few percent of that distance — drawn as polygons at a sweep of bearings, snapped to OpenStreetMap paths and streets, routed with A* that penalises retracing, then rescaled until they land. Scored for how little they double back and how round they are; numbered km or mile markers on the map, GPX export, and a shareable link. Everything is routed in your browser.",
+      "tags": [
+        "maps",
+        "osm"
+      ]
     }
   ],
   "notListed": [
