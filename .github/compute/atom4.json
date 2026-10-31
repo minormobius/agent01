@@ -1,10 +1,19 @@
 {
- "run": "mainseq-3",
- "why": "The 4D main sequence with free–free absorption, the walk in mass now retrying smaller steps where one fails (js/mainseq.js kappaFF4: classical passes through the lens vacuum, no logarithm in 4D, Kirchhoff, Rosseland-averaged with scattering; the classical estimate is half of Kramers' on ours, so ×0.5 and ×2 are run as the band): G 10⁻¹⁴ to 10⁻²⁶ of ours, proton + proton at 1 or 4 fm.",
+ "run": "mainseq-4",
+ "why": "The 4D main sequence again with each star's stirred core recorded (the ash core it leaves, for which stars grow a core to the Chandrasekhar mass and explode), free–free at its classical value, proton + proton 1 or 4 fm, at G 10⁻⁸ to 10⁻²⁶ of ours (10⁻⁸ and 10⁻¹¹ new, for where a star as long-lived as our Sun stops existing).",
  "minutes": 180,
  "groups": [
   {
-   "name": "ms2-0",
+   "name": "ms4-0",
+   "cmds": [
+    "node four/atom/tools/mainseq.mjs run 1e-8 1 1",
+    "node four/atom/tools/mainseq.mjs run 1e-8 4 1",
+    "node four/atom/tools/mainseq.mjs run 1e-11 1 1",
+    "node four/atom/tools/mainseq.mjs run 1e-11 4 1"
+   ]
+  },
+  {
+   "name": "ms4-1",
    "cmds": [
     "node four/atom/tools/mainseq.mjs run 1e-14 1 1",
     "node four/atom/tools/mainseq.mjs run 1e-14 4 1",
@@ -13,7 +22,7 @@
    ]
   },
   {
-   "name": "ms2-1",
+   "name": "ms4-2",
    "cmds": [
     "node four/atom/tools/mainseq.mjs run 1e-20 1 1",
     "node four/atom/tools/mainseq.mjs run 1e-20 4 1",
@@ -22,30 +31,10 @@
    ]
   },
   {
-   "name": "ms2-2",
+   "name": "ms4-3",
    "cmds": [
     "node four/atom/tools/mainseq.mjs run 1e-26 1 1",
-    "node four/atom/tools/mainseq.mjs run 1e-26 4 1",
-    "node four/atom/tools/mainseq.mjs run 1e-14 1 0.5",
-    "node four/atom/tools/mainseq.mjs run 1e-14 1 2"
-   ]
-  },
-  {
-   "name": "ms2-3",
-   "cmds": [
-    "node four/atom/tools/mainseq.mjs run 1e-17 1 0.5",
-    "node four/atom/tools/mainseq.mjs run 1e-17 1 2",
-    "node four/atom/tools/mainseq.mjs run 1e-20 1 0.5",
-    "node four/atom/tools/mainseq.mjs run 1e-20 1 2"
-   ]
-  },
-  {
-   "name": "ms2-4",
-   "cmds": [
-    "node four/atom/tools/mainseq.mjs run 1e-23 1 0.5",
-    "node four/atom/tools/mainseq.mjs run 1e-23 1 2",
-    "node four/atom/tools/mainseq.mjs run 1e-26 1 0.5",
-    "node four/atom/tools/mainseq.mjs run 1e-26 1 2"
+    "node four/atom/tools/mainseq.mjs run 1e-26 4 1"
    ]
   }
  ]

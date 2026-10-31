@@ -14,7 +14,7 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { star, toPinned, nextPinned, teff, SI, kappaOurs, kappaLens4, kappaFF4, aRad } from "../js/mainseq.js";
+import { star, toPinned, nextPinned, teff, convectiveCore, SI, kappaOurs, kappaLens4, kappaFF4, aRad } from "../js/mainseq.js";
 import { gamow, logRate, KB_MEV } from "../js/stars.js";
 import * as BU from "../js/burning.js";
 import { radiusFor } from "../js/orbits.js";
@@ -57,7 +57,7 @@ function firstStar(o, M) {
   for (const g of tries) for (const dT of [0, -0.2, 0.2]) { const s = star({ ...o, M }, [g[0], g[1] + dT, g[2], g[3]]); if (s.ok) return s; }
   return null;
 }
-const row = (o, m, M, s) => ({ m, M, L: s.L, R: s.R, Tc: s.Tc, Pc: s.Pc, Teff: teff(o.d, s), dL: s.dL ?? null });
+const row = (o, m, M, s) => ({ m, M, L: s.L, R: s.R, Tc: s.Tc, Pc: s.Pc, Teff: teff(o.d, s), qcc: convectiveCore(o.d, s), dL: s.dL ?? null });
 
 if (cmd === "ours") {
   const o = ours(), rows = [], walk = (m0, m1) => { let hist = [], m = m0, p = [Math.log(2.3e16), Math.log(1.4e7), Math.log(0.9 * RSUN), Math.log(0.7 * LSUN)];

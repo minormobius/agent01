@@ -111,6 +111,8 @@ export function star(opts, guess) {
   const prof = [...R0.out.path, ...R0.inn.path.slice().reverse()].map(([m, y]) => ({ m, r: Math.exp(y[0]), P: Math.exp(y[1]), T: Math.exp(y[2]), L: y[3] }));
   return { ok: Math.hypot(...R0.r) < 1e-5, it, p, Pc: Math.exp(p[0]), Tc: Math.exp(p[1]), R: Math.exp(p[2]), L: Math.exp(p[3]), prof, res: Math.hypot(...R0.r) };
 }
+/* the stirred core: the mass (÷ M) out to where the profile's gradient d ln T/d ln P first drops below the adiabatic one */
+export function convectiveCore(d, s) { const g = gradAd(d), p = s.prof; for (let i = 2; i < p.length; i++) { const a = p[i - 1], b = p[i]; if (b.P === a.P) continue; const nab = Math.log(b.T / a.T) / Math.log(b.P / a.P); if (b.m > 1e-6 * p.at(-1).m && nab < g * 0.98) return a.m / p.at(-1).m; } return 1; }
 export const teff = (d, s) => Math.pow(s.L / (SD[d] * s.R ** (d - 1) * sigmaSB(d)), 1 / (d + 1));
 
 /* pinned-4D gravity from a solved profile: Φ(r) = −G Σ k(min/max)/max dm, g = dΦ/dr inward; as f(m) = g r²/(G m) */
