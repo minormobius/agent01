@@ -269,6 +269,8 @@ for games, and this is a modelling programme with publications to come. The game
   ends as elements 13–23 (the rock row); equilibrium ends at the drop's N = Z peak, element 103–137 (step 4).
   `nuclei.mjs runaway` (a minute): at ignition the core's degeneracy and binding per nucleon (ours: carbon, the check) and
   each stage's energy per nucleon; the nuclei chapter's heavy section and the stars chapter's "What 4D stars burn to" read it.
+  `nuclei.mjs explode` (minutes): how far an exploding core burns, iron / rock row / unburnt by core mass, calibrated on our
+  white dwarfs (full density → nickel, Arnett; spread 30–100× → the observed split).
   **What's computed in a sandbox lives only in the cache and the bake**: if `$TMPDIR/atom4-nuclei` is lost (a container
   restart wipes /tmp), `nuclei.mjs restore` writes it back from `js/nucleidata.js` (a bake from it reproduces the file
   byte for byte); then add the runner's files from atom4-data.
