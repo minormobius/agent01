@@ -188,6 +188,7 @@ export const TWIST_MAX = 6; // rad/s: the fastest the frame can twist (a rider's
 export class Bike {
   constructor({ mech = "two-axis", build = "flat", v = 5, P = BENCH } = {}) {
     this.P = P; this.mech = mech; this.build = build; this.g = P.g;
+    this.limits = true; // false: no falling, no twist limit (the linear model, followed however far it's pushed: not physics past ~45°)
     this.my = matrices(copyParams(P, "y", build)); this.mw = matrices(copyParams(P, "w", build));
     this.Itw = twistInertia(P, build); this.setSpeed(v);
     this.pos = [0, 0, 0]; this.T = [1, 0, 0]; this.c = [0, 1, 0]; this.d = [0, 0, 1];
@@ -243,10 +244,10 @@ export class Bike {
         this.alphaDot += (rate - this.alphaDot) * Math.min(1, h * 30); // what a rider would feel: the rate, smoothed over ~30 ms
         this.twistTorque = (this.Itw * (this.alphaDot - prevDot)) / h;
         this.overTwist = Math.abs(rate) > TWIST_MAX && ds > 0.01 ? (this.overTwist || 0) + h : 0;
-        if (this.overTwist > 0.15) { this.crashed = true; this.why = "twist"; }
+        if (this.overTwist > 0.15 && this.limits) { this.crashed = true; this.why = "twist"; }
         this.peakTwistRate = Math.max(this.peakTwistRate || 0, Math.abs(this.alphaDot));
       }
-      if (Math.hypot(this.qa[0], this.qb[0]) > 1.0) { this.crashed = true; this.why = "lean"; }
+      if (this.limits && Math.hypot(this.qa[0], this.qb[0]) > 1.0) { this.crashed = true; this.why = "lean"; }
     }
   }
 }

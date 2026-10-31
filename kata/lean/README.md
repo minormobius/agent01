@@ -98,6 +98,30 @@ Who holds the bars (under ⚙, or H):
 - **🤝 Assisted:** the stick asks for a **lean**, and the LQR rider in the machine balances and steers to get it.
 - **🤖 Autopilot:** it rides the track by itself (pure pursuit), and you watch from behind.
 
+**Limits** (under ⚙) are **off** by default. The bike never falls, and leans and steers however far you push it,
+both ways. Past about 46° that isn't a bicycle any more: it's the linear model followed regardless. The HUD flags it
+⚠ non-physical and the readout says so. The bike is drawn no flatter than 83° and the fork turned no further than
+69°, while the readout gives the true numbers. Set the limits to **real** and it falls past 57° of lean, or when
+one-axis steering can't twist fast enough.
+
+### What you see of it: the slice has no thickness
+
+Your view is a 3D hyperplane through your eye, and every ray lies exactly in it. So the slice has no thickness in
+w. What you see in w is the thickness of the things themselves:
+
+- **the land:** a tesseract voxel is 0.25 m in w. Squared up to the grid you see every cell whose span contains your
+  w; turned, you cut them obliquely.
+- **the track:** a tube of radius 1.5 m. It's in your slice while you're within 1.5 m of its centreline in w, at a
+  width of 2√(1.5² − Δw²).
+- **the bike:** its tyres are 3 cm, its limbs 4–6 cm and its torso 13 cm thick in w. Riding, the camera keeps the
+  contact point in your slice, but a lean of φ into w takes the rider's shoulders 1.5·sin φ out of it. The torso is
+  gone past about 5°, and the wheels slice to slivers. A bike tucked into w all but vanishes, which is exactly what
+  a 3D slice of a 4D bicycle should do.
+
+The stick, the gauge and "ana/kata" are all in your camera's frame: across is its right, up its unseen direction.
+With the **no twist** camera that frame doesn't twist as you ride. With **follow the bend** it turns with the track's
+bend, and the stick's "up" turns with it.
+
 The controls:
 
 - **Phone:** the stick (bottom left) is the handlebars. There are only two controls, so a thumb does it. If you'd

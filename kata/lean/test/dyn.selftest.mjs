@@ -99,5 +99,11 @@ const { BENCH, PUBLISHED } = D, m = D.matrices(BENCH);
   const one = swap("one-axis"), two = swap("two-axis");
   ok(one.crashed && one.why === "twist" && !two.crashed, `swap a lean in y for one in w at once: one-axis falls (the frame can't twist fast enough), two-axis rides it out`);
 }
+/* with the limits off nothing falls: ask for 70° of lean, into y and w at once, and it goes there and stays up */
+{
+  const b = new D.Bike({ v: 5 }); b.limits = false; b.place([0, 0, 0], [1, 0, 0], [0, 1, 0]);
+  for (let i = 0; i < 600; i++) b.step(1 / 60, b.c.map((x, j) => x * 0.86 + b.d[j] * 0.86));
+  ok(!b.crashed && Math.abs(Math.hypot(...b.lean) - 1.216) < 0.01, `limits off: asked for ${(1.216 * 180 / Math.PI).toFixed(0)}° of lean into y and w at once, it holds ${(Math.hypot(...b.lean) * 180 / Math.PI).toFixed(1)}° without falling`);
+}
 console.log(`\n${checks - fails}/${checks} checks passed`);
 if (fails) process.exit(1);
