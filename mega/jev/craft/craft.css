@@ -1,0 +1,153 @@
+/* craft.css — a game canvas with a HUD. Same token names as ../style.css; the
+   page is dark by default (it is a sky), with a light variant for daylight
+   readers who ask for it. */
+:root{
+  --panel:rgba(16,19,27,.78); --ink:#E9ECF3; --ink-2:#AEB4C6; --ink-3:#7C8296;
+  --line:rgba(255,255,255,.12); --accent:#4FC3BE; --bad:#E8776A; --warn:#E0A64A; --ok:#6CC282;
+  --body:"Source Sans 3","Source Sans Pro","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    --panel:rgba(255,255,255,.86); --ink:#161923; --ink-2:#4A5063; --ink-3:#7C8296;
+    --line:rgba(22,25,35,.14); --accent:#237E7A; --bad:#C0392B; --warn:#B8720C; --ok:#3B8A4A;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --panel:rgba(255,255,255,.86); --ink:#161923; --ink-2:#4A5063; --ink-3:#7C8296;
+  --line:rgba(22,25,35,.14); --accent:#237E7A; --bad:#C0392B; --warn:#B8720C; --ok:#3B8A4A;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#0b1020;color:var(--ink);font:14px/1.4 var(--body)}
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+a{color:var(--accent)}
+.mono{font-family:var(--mono);font-size:12px}
+.hud{position:fixed;z-index:2}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;backdrop-filter:blur(6px)}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.hint{text-transform:none;letter-spacing:0}
+h1{margin:2px 0 4px;font-size:20px}
+.top-left{top:12px;left:12px;max-width:320px}
+.top-left .sub,.top-left .links{margin:4px 0 0;color:var(--ink-2);font-size:13px}
+.top-right{top:12px;right:12px;display:grid;gap:6px;max-width:380px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+label{display:inline-flex;gap:4px;align-items:center;color:var(--ink-2);font-size:13px}
+input[type=number]{width:64px}
+select,input,button{font:inherit;font-size:13px;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:4px;padding:3px 6px}
+button,.file{cursor:pointer}
+button:hover,.file:hover{border-color:var(--accent)}
+button:disabled{opacity:.4;cursor:default}
+.file{border:1px solid var(--line);border-radius:4px;padding:3px 6px}
+.file input{display:none}
+.check input{margin:0}
+.left{top:170px;left:12px;width:280px;max-height:calc(100vh - 290px);overflow:auto}
+.macros{margin-top:4px}
+.mode{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:6px 0 3px}
+.mrow{display:flex;flex-wrap:wrap;gap:4px}
+.mrow select{font-size:12px;padding:1px 4px}
+.macros button{font-size:12px;padding:2px 6px}
+.macros button.on{border-color:var(--accent);color:var(--accent)}
+.log{list-style:none;margin:4px 0 0;padding:0;font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.log li{padding:1px 0;border-top:1px solid var(--line)}
+.log .bad{color:var(--bad)} .log .ok{color:var(--ok)}
+.bottom{left:50%;transform:translateX(-50%);bottom:12px;min-width:min(560px,calc(100vw - 24px));max-width:calc(100vw - 24px)}
+.status{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+#hp,#food{font-family:var(--mono);font-size:13px;letter-spacing:1px}
+#hp{color:var(--bad)} #food{color:var(--warn)} #air{font-family:var(--mono);font-size:13px;color:#6fb6ff}
+.project{margin-top:4px;font-size:11px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.project b{color:var(--accent);font-weight:600}
+.inv{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:22px}
+.chip{display:inline-flex;gap:4px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px}
+.chip i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.chip b{font-family:var(--mono);font-weight:600}
+.right{right:12px;top:268px;width:min(340px,calc(100vw - 24px));max-height:calc(100vh - 470px);overflow:auto}
+.decision{font-size:12px}
+.decision .opt{display:grid;grid-template-columns:1fr 64px 38px;gap:6px;align-items:center;padding:1px 0}
+.decision .opt.pick{font-weight:600;color:var(--accent)}
+.decision .bar{height:6px;border-radius:3px;background:var(--line)}
+.decision .bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.decision .meta{margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.decision .warn{color:var(--warn)} .decision .bad{color:var(--bad)}
+.bottom-right{right:12px;bottom:12px;width:min(420px,calc(100vw - 24px))}
+.tail{margin:4px 0 0;font:11px/1.35 var(--mono);color:var(--ink-2);white-space:pre;overflow:hidden;max-height:120px}
+.team{top:12px;left:50%;transform:translateX(-50%);width:min(360px,calc(100vw - 24px));padding:6px 10px}
+.team-list{display:grid;gap:2px;margin-top:2px}
+.tm{display:grid;grid-template-columns:14px 1fr auto;gap:6px;align-items:center;font-size:12px;border:1px solid transparent;border-radius:4px;padding:1px 4px;background:transparent;text-align:left;color:var(--ink)}
+.tm.focus{border-color:var(--accent)}
+.tm i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.tm .st{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.tm .ask{color:var(--warn)}
+.asks{margin-top:4px}
+.asks button{font-size:12px;padding:2px 6px}
+.asks button.on{border-color:var(--warn);color:var(--warn)}
+.crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;color:#fff;font:20px/1 var(--mono);text-shadow:0 0 3px #000;pointer-events:none}
+.toast{position:fixed;left:50%;top:calc(50% + 36px);transform:translateX(-50%);z-index:3;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:3px 8px;font-size:13px;pointer-events:none}
+.help{left:50%;top:50%;transform:translate(-50%,-50%);max-width:min(460px,calc(100vw - 24px));z-index:4}
+.help ul{margin:6px 0 0;padding-left:18px;color:var(--ink-2);font-size:13px}
+.craftpanel{left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 24px));max-height:70vh;overflow:auto;z-index:4}
+.recipes{display:grid;gap:4px;margin-top:6px}
+.recipe{display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center;font-size:12px;border-top:1px solid var(--line);padding-top:4px}
+.recipe .need{color:var(--ink-2)}
+.chip.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.chip{cursor:pointer}
+/* hands on the controls: only the status bar and hotbar stay */
+@media (min-width:901px){body.immersed .top-left,body.immersed .top-right,body.immersed .left,body.immersed .right,body.immersed .bottom-right{display:none}}
+
+/* touch controls: a joystick, look by dragging, and big buttons */
+.touch{display:none}
+body.touching.play .touch{display:block}
+body.show-play .touch{display:block}
+.stick{position:fixed;z-index:4;left:18px;bottom:120px;width:120px;height:120px;border-radius:50%;background:rgba(0,0,0,.18);border:2px solid rgba(255,255,255,.35);touch-action:none}
+.stick i{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.55)}
+.tbtns{position:fixed;z-index:4;right:14px;bottom:120px;display:grid;grid-template-columns:repeat(2,64px);gap:8px}
+.tbtns button{height:52px;font-size:13px;background:var(--panel);border-radius:10px}
+.tbtns button.on{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.touchhelp{display:none}
+body.touching .touchhelp{display:block}
+body.touching .nontouch{display:none}
+body.touching .crosshair{display:none}
+
+/* phones and small tablets: the world gets the top two thirds, untouched.
+   Everything else lives in the bottom third: a row of tabs, and under it
+   either the open tab or (none open) the status, hotbar and touch controls. */
+.dock{display:none}
+@media (max-width:900px){
+  :root{--split:66.667vh;--tabs:42px;--pane:#151a25}
+  @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--pane:#f1f3f7}}
+  :root[data-theme="light"]{--pane:#f1f3f7}
+  @supports (height:1dvh){:root{--split:66.667dvh}}
+  body::before{content:"";position:fixed;top:var(--split);bottom:0;left:0;right:0;background:var(--pane);z-index:1}
+  .panel,.dock{background:var(--pane)}
+  .stick{background:var(--line);border-color:var(--ink-3)}
+  .stick i{background:var(--ink-3)}
+  .tbtns button{background:transparent}
+  #stage{height:var(--split);bottom:auto}
+  .dock{display:flex;position:fixed;z-index:6;top:var(--split);left:0;right:0;height:var(--tabs);gap:4px;padding:4px 6px;background:var(--panel);border-top:1px solid var(--line);overflow-x:auto}
+  .dock button{flex:1 0 auto;background:transparent;font-size:13px;padding:4px 8px}
+  .dock button.on{border-color:var(--accent);color:var(--accent)}
+  .dock button[data-panel="team"]{display:none}
+  body.party .dock button[data-panel="team"]{display:block}
+  .top-left{display:none}
+  /* every panel is a pane in the bottom third */
+  .panel{border-radius:0;backdrop-filter:none}
+  .top-right,.left,.right,.bottom-right,.team,.help,.craftpanel{position:fixed;display:none;top:calc(var(--split) + var(--tabs));bottom:0;left:0;right:0;width:auto;max-width:none;max-height:none;transform:none;overflow:auto;z-index:5;border-left:0;border-right:0;border-bottom:0}
+  body.show-controls .top-right{display:grid;align-content:start}
+  body.show-macros .left,body.show-decision .right,body.show-stream .bottom-right,body.show-team.party .team{display:block}
+  .team[hidden]{display:none!important}
+  .help:not([hidden]),.craftpanel:not([hidden]){display:block;z-index:7}
+  .tail{max-height:none}
+  /* the default pane: status and hotbar on top, thumbs below */
+  .bottom{top:calc(var(--split) + var(--tabs));bottom:auto;left:0;right:0;transform:none;min-width:0;width:auto;max-width:none;padding:4px 8px;border-radius:0;border-left:0;border-right:0;z-index:4}
+  .status{gap:8px;font-size:12px}
+  #hp,#food{font-size:11px;letter-spacing:0}
+  .inv{flex-wrap:nowrap;overflow-x:auto;margin-top:3px;padding-bottom:2px}
+  .chip{flex:none}
+  .stick{left:14px;bottom:10px;width:min(112px,calc(33.333vh - 120px));height:min(112px,calc(33.333vh - 120px))}
+  .tbtns{right:10px;bottom:10px;grid-template-columns:repeat(2,58px);gap:6px}
+  .tbtns button{height:min(46px,calc((33.333vh - 128px) / 2))}
+  .toast{top:calc(var(--split) + var(--tabs) + 58px);z-index:8}
+}
+

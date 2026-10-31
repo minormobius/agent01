@@ -1,0 +1,83 @@
+[
+ {
+  "id": "SW",
+  "text": "Stopwatch shall measure the tablet honestly.",
+  "parent": null,
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "children verified",
+  "rationale": "the council"
+ },
+ {
+  "id": "SW-H-REPLAY",
+  "text": "The harness shall replay a recorded run and match every decision.",
+  "parent": "SW",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "SW-H-CATCH",
+  "text": "The harness shall report a mismatch when a model is not deterministic.",
+  "parent": "SW",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "SW-S-ORDER",
+  "text": "The study shall time patients only in arrival order, one at a time.",
+  "parent": "SW",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "SW-S-LIMIT",
+  "text": "The study shall stop at the manager's limit of mornings.",
+  "parent": "SW",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "SW-S-INTERVAL",
+  "text": "The study shall report a 95% interval for the tablet − stopwatch difference.",
+  "parent": "SW",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "SW-S-VERDICT",
+  "text": "The verdict shall follow the interval.",
+  "parent": "SW",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "SW-F-STAMP",
+  "text": "Fresh shall stamp evidence with digests of the files it verified.",
+  "parent": "SW",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "SW-F-DROP",
+  "text": "Fresh shall drop evidence whose files have changed.",
+  "parent": "SW",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ }
+]

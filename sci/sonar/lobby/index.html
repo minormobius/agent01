@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>sonar lobby — sci</title>
+<meta name="description" content="Phones in a room, chirping in turn, measuring the distance between every pair by two-way acoustic ranging. No shared clock: each phone times both chirps on its own.">
+<meta property="og:title" content="sonar lobby — phones that measure each other">
+<meta property="og:description" content="Open the link on two or more phones. Each chirps in its own slot; two-way ranging gives the distance between every pair.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b1213'/%3E%3Ccircle cx='8' cy='16' r='3' fill='%23e8a838'/%3E%3Ccircle cx='24' cy='16' r='3' fill='%23e8a838'/%3E%3Cpath d='M12 12 A6 6 0 0 1 12 20 M20 12 A6 6 0 0 0 20 20' fill='none' stroke='%235eead4' stroke-width='2'/%3E%3C/svg%3E">
+<style>
+/* layout: one reading column. The lobby panel is the framed object: join row, then the room
+   (who is here, what each phone hears), then the distances as the largest type on the page. */
+:root {
+  --bg: #faf9f6; --fg: #1d2223; --muted: #6b7576; --rule: #d3cfc8; --link: #145;
+  --accent: #0d7a72; --warm: #a8641c; --bad: #b3261e; --good: #2f7d32;
+  --panel: #f2f0ea; --tag-bg: #e8e5dd; --tag-text: #56605f;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1213; --fg: #dde3e3; --muted: #7d8a8a; --rule: #26312f; --link: #dfe;
+    --accent: #5eead4; --warm: #e8a838; --bad: #f28b82; --good: #81c995;
+    --panel: #121b1c; --tag-bg: #1a2426; --tag-text: #9fb0af;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 760px; margin: 0 auto; padding-block: 2.4rem 5rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  line-height: 1.62; }
+a { color: var(--link); }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; margin-bottom: 0.9rem; display: inline-block; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 2.6rem; letter-spacing: -0.02em; font-weight: 600; text-wrap: balance; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.45rem 0 0; }
+.lead { font-size: 1.08rem; margin: 1.4rem 0 0; }
+.lead strong { color: var(--accent); font-weight: 600; }
+h2.sec { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 3rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+p { margin: 0.9rem 0; }
+.m { font-family: var(--mono); font-size: 0.86em; }
+
+.inst { margin: 1.8rem 0 0; border: 1px solid var(--rule); background: var(--panel); padding: 1rem; display: grid; gap: 1rem; }
+.row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: end; }
+.field { display: grid; gap: 0.2rem; min-width: 0; flex: 1 1 8rem; }
+.field label { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 0.5rem; }
+.field label output { color: var(--fg); letter-spacing: 0; text-transform: none; font-size: 0.72rem; }
+input[type=text] { font-family: var(--mono); font-size: 0.95rem; padding: 0.5rem; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 2px; width: 100%; }
+#room { text-transform: uppercase; letter-spacing: 0.15em; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+button { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.04em; padding: 0.6rem 1rem; border: 1px solid var(--rule); background: var(--bg); color: var(--fg); cursor: pointer; border-radius: 2px; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.go { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; min-width: 7rem; }
+button.go.on { background: var(--bad); border-color: var(--bad); }
+.status { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); }
+.status.warn { color: var(--warm); }
+.status.err { color: var(--bad); }
+
+.share { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.code { font-family: var(--mono); font-size: 1.6rem; letter-spacing: 0.25em; color: var(--accent); }
+.link { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); overflow-wrap: anywhere; flex: 1 1 12rem; min-width: 0; user-select: all; }
+
+.k { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+table.who { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.tw { overflow-x: auto; }
+table.who th { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: normal; text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--rule); }
+table.who td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule); font-family: var(--mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chip { display: inline-block; font-family: var(--mono); font-size: 0.66rem; padding: 0.08rem 0.4rem; border-radius: 2px; background: var(--tag-bg); color: var(--tag-text); }
+.chip.ok { color: var(--good); }
+.chip.no { color: var(--bad); }
+.you { color: var(--accent); }
+
+.pairs { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.pair { background: var(--bg); padding: 0.8rem 0.9rem; display: grid; gap: 0.15rem; min-width: 0; }
+.pair .names { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.pair .d { font-family: var(--mono); font-size: 2.4rem; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.pair .d small { font-size: 0.9rem; color: var(--muted); }
+.pair .meta { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.empty { background: var(--bg); padding: 1rem; font-size: 0.95rem; color: var(--muted); }
+
+figure { margin: 1.4rem 0; }
+figure svg { width: 100%; height: auto; display: block; }
+figcaption { font-size: 0.85rem; color: var(--muted); margin-top: 0.4rem; }
+.eq { font-family: var(--mono); font-size: 0.92rem; background: var(--panel); padding: 0.8rem 1rem; overflow-x: auto; white-space: nowrap; }
+.scopebox { background: var(--panel); border-left: 2px solid var(--accent); padding: 0.9rem 1.1rem; margin: 1.4rem 0; font-size: 0.95rem; }
+.scopebox b { color: var(--accent); }
+ol.refs { padding-left: 1.3rem; font-size: 0.9rem; }
+.stamp { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+.stamp a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="/sonar/">sci / sonar</a>
+  <h1>sonar lobby</h1>
+  <p class="subtitle">two-way ranging between phones</p>
+  <p class="lead">Open this page on two or more phones and join the same room. Each phone chirps in
+  its own turn and listens to everyone, <strong>itself included</strong>. The phones share no clock,
+  and they don't need one: each times both chirps on its own clock, and the difference of differences
+  is the distance between them.</p>
+</header>
+
+<section class="inst" aria-label="lobby">
+  <div class="row">
+    <div class="field" style="flex: 0 1 8rem"><label for="room">room</label><input id="room" type="text" maxlength="12" autocomplete="off" spellcheck="false"></div>
+    <div class="field"><label for="name">this phone</label><input id="name" type="text" maxlength="24" autocomplete="off"></div>
+    <button id="go" class="go" type="button">Join</button>
+  </div>
+  <div class="status" id="status" role="status">Pick a room code, then join. Everyone who joins the same code is in the same lobby.</div>
+
+  <div>
+    <div class="k" style="margin-bottom: 0.4rem">distances</div>
+    <div class="pairs" id="pairs"><div class="empty">Join on two phones. Their distance appears here after a couple of rounds, as the median of the last 15 with its spread.</div></div>
+  </div>
+
+  <div class="share" id="share" hidden>
+    <span class="code" id="code"></span>
+    <span class="link" id="link"></span>
+    <button id="copy" type="button">Copy link</button>
+    <button id="send" type="button" hidden>Share</button>
+  </div>
+
+
+  <div class="row">
+    <div class="field"><label for="sep">speaker to mic <output id="o-sep"></output></label><input id="sep" type="range" min="0" max="20" step="0.5" value="2"></div>
+    <div class="field"><label for="temp">air <output id="o-temp"></output></label><input id="temp" type="range" min="-10" max="40" step="1" value="20"></div>
+  </div>
+
+  <div class="tw">
+    <table class="who" id="who" hidden>
+      <thead><tr><th>phone</th><th>slot</th><th>heard here</th><th>self delay</th><th>rate</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<h2 class="sec">How two phones measure each other</h2>
+
+<figure>
+<svg viewBox="0 0 640 210" role="img" aria-labelledby="fig-t">
+  <title id="fig-t">Timing of one round between phones A and B</title>
+  <style>
+    .ln { stroke: var(--rule); stroke-width: 1.5; }
+    .tx { font: 12px ui-monospace, Menlo, monospace; fill: var(--muted); }
+    .lb { font: 13px Georgia, serif; fill: var(--fg); }
+    .a { fill: var(--accent); } .w { fill: var(--warm); }
+    .ar { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+    .br { stroke: var(--accent); stroke-width: 2; fill: none; }
+  </style>
+  <text class="lb" x="8" y="62">A's clock</text>
+  <text class="lb" x="8" y="162">B's clock</text>
+  <line class="ln" x1="90" y1="58" x2="630" y2="58"></line>
+  <line class="ln" x1="90" y1="158" x2="630" y2="158"></line>
+  <rect class="a" x="140" y="48" width="10" height="20"></rect>
+  <text class="tx" x="120" y="40">A chirps</text>
+  <rect class="w" x="400" y="148" width="10" height="20"></rect>
+  <text class="tx" x="380" y="190">B chirps</text>
+  <path class="ar" d="M150 68 L196 148"></path>
+  <path class="ar" d="M410 148 L456 68"></path>
+  <circle class="a" cx="152" cy="58" r="4"></circle><text class="tx" x="152" y="88">t_AA</text>
+  <circle class="w" cx="458" cy="58" r="4"></circle><text class="tx" x="440" y="40">t_AB</text>
+  <circle class="a" cx="198" cy="158" r="4"></circle><text class="tx" x="182" y="190">t_BA</text>
+  <circle class="w" cx="412" cy="158" r="4"></circle><text class="tx" x="418" y="140">t_BB</text>
+  <path class="br" d="M152 108 L458 108"></path><text class="tx" x="250" y="102">t_AB − t_AA</text>
+  <path class="br" d="M198 128 L412 128"></path><text class="tx" x="255" y="122">t_BB − t_BA</text>
+</svg>
+<figcaption>One round. Each bracket is measured on one phone's clock, so neither depends on when
+the other phone's clock started. A's bracket is longer than B's by twice the travel time between
+them.</figcaption>
+</figure>
+
+<div class="eq">d = (c/2)·[(t_AB − t_AA) − (t_BB − t_BA)] + (s_A + s_B)/2</div>
+
+<p>This is the BeepBeep scheme (<a href="https://doi.org/10.1145/1322263.1322265">Peng et al.
+2007</a>). Everything a phone adds to the timing cancels: when its clock started, how long its
+speaker takes to play, how long its microphone takes to deliver. Each of those affects both
+arrivals in a bracket equally, or both brackets equally. Two things remain. The first is
+<span class="m">s</span>, each phone's own speaker-to-microphone spacing, which its self-hearing
+adds and the formula gives back. The second is the difference in crystal rates, a few tens of parts
+per million, which over one 300 ms slot is a few millimetres. What comes out is the mean of the two
+speaker-to-microphone paths between the phones, so read it to the nearest centimetre or two of the
+phones' edges.</p>
+
+<p><b>Taking turns.</b> The lobby gives each phone a 300 ms slot in a round, in join order. Each
+chirp is 10 ms long, sweeping 17–19.8 kHz, which fits phones sampling at 44.1 or 48 kHz. Neighbouring
+slots sweep in opposite directions, so a phone whose speaker is slow to start is not mistaken for
+the next one. Each phone looks for each chirp where the schedule says it should be, takes the
+<em>first</em> arrival rather than the loudest one so that a reflection off a wall does not win,
+and refines it to a fraction of a sample.</p>
+
+<p><b>The network carries no audio.</b> Phones send only their arrival times, a few numbers per
+round, through one small room on the server. Network delay only has to be good enough to keep the
+slots apart. Every phone syncs to the room's clock by timing round trips, which is accurate to tens
+of milliseconds, well inside a slot. All the precision comes from the sound.</p>
+
+<div class="scopebox">
+  <b>What this part does.</b> It measures distances between pairs of phones, for up to twelve
+  phones in a room. With five phones a round takes 1.5 s and measures ten distances. The next part
+  fits every distance together into a <em>map</em> of where the phones are. After that comes
+  multistatic sonar: every phone hearing every other phone's echoes off whatever moves in the room.
+</div>
+
+<h2 class="sec">To try it</h2>
+<p>Put two phones a measured distance apart, a metre or two, speakers unobstructed. Join the same
+room on both, and leave the screens on, because a locked phone stops listening. Set each phone's
+spacing to the distance between its bottom speaker and the microphone the browser uses, usually
+1–3 cm on the bottom edge. The distance settles after a few rounds. Move one phone and watch it
+follow.</p>
+
+<h2 class="sec">Sources</h2>
+<ol class="refs">
+  <li>C. Peng, G. Shen, Y. Zhang, Y. Li, K. Tan, "BeepBeep: a high accuracy acoustic ranging system using COTS mobile devices," <i>SenSys</i> (2007). <a href="https://doi.org/10.1145/1322263.1322265">doi:10.1145/1322263.1322265</a></li>
+  <li>G. L. Turin, "An introduction to matched filters," <i>IRE Trans. Inf. Theory</i> 6(3), 311–329 (1960). <a href="https://doi.org/10.1109/TIT.1960.1057571">doi:10.1109/TIT.1960.1057571</a></li>
+</ol>
+
+<p class="stamp">signal path: <a href="../sonar.js">sonar.js</a>, shared with <a href="../">the single-phone sonar</a> · lobby: one Durable Object per room · <a href="/">sci</a></p>
+
+<script type="module">
+import { speedOfSound, matchedEnvelope, firstArrival, twoWayRange, LOBBY, slotTime, slotChirp } from "../sonar.js";
+
+const $ = (id) => document.getElementById(id);
+const WINDOW_BEFORE = 0.08, WINDOW_AFTER = 0.22;   // s, around where the schedule says a chirp lands
+const KEEP = 15;                                    // rounds in each distance's median
+
+const st = {
+  ws: null, id: null, joined: false, ctx: null, stream: null, ring: null, fs: 48000, gain: null,
+  offset: null, bestRtt: Infinity, syncs: [], syncTimer: null, timer: null, wake: null,
+  T0: 0, order: [], members: [], pulses: [], scheduled: new Set(), done: new Set(),
+  reports: new Map(), hist: new Map(), heard: new Map(), selfDelay: NaN, preshift: 0,
+};
+
+// ---- the room code, the name, the link --------------------------------------
+const params = new URLSearchParams(location.search);
+const randCode = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b % 32]).join("");
+$("room").value = (params.get("room") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12) || randCode();
+let savedName = ""; try { savedName = localStorage.getItem("sonar-lobby-name") || ""; } catch {}
+$("name").value = params.get("name") || savedName || `phone ${randCode().slice(0, 2)}`;
+const cfg = () => ({ s: +$("sep").value / 100, tC: +$("temp").value });
+const fmt = (x, d = 2) => Number.isFinite(x) ? x.toFixed(d) : "—";
+function say(msg, kind = "") { const s = $("status"); s.textContent = msg; s.className = "status" + (kind ? " " + kind : ""); }
+function labels() { $("o-sep").textContent = `${cfg().s * 100} cm`; $("o-temp").textContent = `${cfg().tC} °C`; }
+labels();
+
+// ---- clocks ------------------------------------------------------------------
+// The room's clock, from timed round trips. Keep the estimate from the
+// fastest recent trip: its midpoint is least skewed by queueing.
+const serverNow = () => performance.now() + (st.offset ?? 0);
+function onSync(m) {
+  const now = performance.now(), rtt = now - m.c;
+  st.syncs.push({ rtt, off: m.s - (m.c + rtt / 2) });
+  if (st.syncs.length > 16) st.syncs.shift();
+  const best = st.syncs.reduce((a, b) => (b.rtt < a.rtt ? b : a));
+  st.offset = best.off; st.bestRtt = best.rtt;
+}
+function syncBurst(n) { for (let k = 0; k < n; k++) setTimeout(() => send({ t: "sync", c: performance.now() }), k * 120); }
+// Audio time and frames on this phone for a moment on the room's clock.
+const ctxAt = (serverMs) => st.ctx.currentTime + (serverMs - serverNow()) / 1000;
+const frameAt = (serverMs) => Math.round(ctxAt(serverMs) * st.fs);
+
+// ---- audio ---------------------------------------------------------------------
+class Ring {
+  constructor(n) { this.a = new Float32Array(n); this.n = n; this.end = 0; }
+  write(f, d) { for (let j = 0; j < d.length; j++) this.a[(f + j) % this.n] = d[j]; if (f + d.length > this.end) this.end = f + d.length; }
+  read(f, len) {
+    const out = new Float32Array(len);
+    for (let j = 0; j < len; j++) { const g = f + j; out[j] = (g >= 0 && g < this.end && g >= this.end - this.n) ? this.a[g % this.n] : 0; }
+    return out;
+  }
+}
+const WORKLET = `class Rec extends AudioWorkletProcessor {
+  constructor() { super(); this.b = new Float32Array(2048); this.n = 0; this.f = 0; }
+  flush() { if (this.n) { this.port.postMessage({ f: this.f, d: this.b.slice(0, this.n) }); this.n = 0; } }
+  process(ins) {
+    const ch = ins[0] && ins[0][0];
+    if (!ch) { this.flush(); return true; }
+    if (this.n + ch.length > this.b.length) this.flush();
+    if (this.n === 0) this.f = currentFrame;
+    this.b.set(ch, this.n); this.n += ch.length;
+    if (this.n >= this.b.length) this.flush();
+    return true;
+  }
+}
+registerProcessor("lobby-rec", Rec);`;
+
+async function startAudio() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  st.ctx = new AC({ latencyHint: "interactive" });
+  if (navigator.audioSession) try { navigator.audioSession.type = "play-and-record"; } catch {}
+  await st.ctx.resume();
+  st.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  st.fs = st.ctx.sampleRate;
+  await st.ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" })));
+  st.ring = new Ring(Math.round(10 * st.fs));
+  const src = st.ctx.createMediaStreamSource(st.stream);
+  const rec = new AudioWorkletNode(st.ctx, "lobby-rec", { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: "explicit" });
+  rec.port.onmessage = (e) => st.ring.write(e.data.f, e.data.d);
+  const mute = st.ctx.createGain(); mute.gain.value = 0;
+  src.connect(rec); rec.connect(mute); mute.connect(st.ctx.destination);
+  st.gain = st.ctx.createGain(); st.gain.gain.value = 0.8; st.gain.connect(st.ctx.destination);
+  st.pulses = [slotChirp(st.fs, 0), slotChirp(st.fs, 1)];
+  st.bufs = st.pulses.map((p) => { const b = st.ctx.createBuffer(1, p.n, st.fs); b.getChannelData(0).set(p.i); return b; });
+  try { st.wake = await navigator.wakeLock?.request("screen"); } catch {}
+}
+
+// ---- the room ------------------------------------------------------------------
+const send = (m) => { if (st.ws && st.ws.readyState === 1) st.ws.send(JSON.stringify(m)); };
+const hello = () => send({ t: "hello", name: $("name").value.trim() || "phone", s: cfg().s, fs: st.fs, ready: st.joined });
+
+function connect(room) {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  const ws = new WebSocket(`${proto}//${location.host}/sonar/lobby/ws?room=${encodeURIComponent(room)}`);
+  st.ws = ws;
+  ws.onopen = () => { syncBurst(8); st.syncTimer = setInterval(() => syncBurst(2), 5000); };
+  ws.onmessage = (e) => {
+    let m; try { m = JSON.parse(e.data); } catch { return; }
+    if (m.t === "welcome") { st.id = m.id; if (st.offset === null) st.offset = m.now - performance.now(); hello(); }
+    else if (m.t === "sync") onSync(m);
+    else if (m.t === "roster") onRoster(m);
+    else if (m.t === "report") storeReport(m.from, m.T0, m.r, m.arr);
+  };
+  ws.onclose = () => { if (st.joined) { say("Lost the room. Rejoining…", "warn"); setTimeout(() => st.joined && connect(room), 1500); } };
+}
+
+function onRoster(m) {
+  st.members = m.members;
+  if (m.T0 !== st.T0 || m.order.join() !== st.order.join()) {
+    st.T0 = m.T0; st.order = m.order; st.scheduled.clear(); st.done.clear();
+  }
+  const mine = st.order.indexOf(st.id);
+  if (st.joined) {
+    if (st.order.length < 2) say(mine >= 0 ? "In the room alone, chirping to measure your own delay. Join on a second phone." : "Waiting for the room…");
+    else say(`${st.order.length} phones. You chirp in slot ${mine + 1}. Keep the screen on.`);
+  }
+  renderWho(); renderPairs();
+}
+
+// ---- each round: chirp in my slot, time every chirp, report ---------------------
+const roundMs = () => Math.max(1, st.order.length) * LOBBY.slotMs;
+const key = (T0, r) => `${T0}:${r}`;
+
+function tick() {
+  if (!st.joined || !st.ctx || !st.order.length || st.offset === null) return;
+  const n = st.order.length, mine = st.order.indexOf(st.id), now = serverNow();
+  const rNow = Math.floor((now - st.T0) / roundMs());
+  // schedule my next two chirps
+  if (mine >= 0) for (let r = Math.max(0, rNow); r <= rNow + 1; r++) {
+    const k = key(st.T0, r);
+    if (st.scheduled.has(k)) continue;
+    const at = slotTime(st.T0, n, r, mine);
+    const lead = (at - now) / 1000;
+    if (lead < 0.06 || lead > 1.5) continue;
+    const src = st.ctx.createBufferSource(); src.buffer = st.bufs[mine % 2]; src.connect(st.gain);
+    src.start(Math.max(st.ctx.currentTime + 0.01, ctxAt(at) - st.preshift));
+    st.scheduled.add(k);
+  }
+  // process every finished round once
+  for (let r = Math.max(0, rNow - 3); r < rNow; r++) {
+    const k = key(st.T0, r);
+    if (st.done.has(k)) continue;
+    const lastFrame = frameAt(slotTime(st.T0, n, r, n - 1)) + Math.round((WINDOW_AFTER + 0.05) * st.fs);
+    if (st.ring.end < lastFrame) continue;
+    st.done.add(k);
+    processRound(r, n);
+  }
+}
+
+function processRound(r, n) {
+  const fs = st.fs, arr = {}, heard = new Map();
+  for (let slot = 0; slot < n; slot++) {
+    const id = st.order[slot], p = st.pulses[slot % 2], other = st.pulses[(slot + 1) % 2];
+    const expect = frameAt(slotTime(st.T0, n, r, slot));
+    const start = expect - Math.round(WINDOW_BEFORE * fs);
+    const x = st.ring.read(start, Math.round((WINDOW_BEFORE + WINDOW_AFTER) * fs) + p.n);
+    const env = matchedEnvelope(x, p);
+    const a = firstArrival(env, 0, env.length, 0.5, 8);
+    if (a) {
+      // Reject the neighbour's chirp: at this arrival, the opposite sweep must match worse.
+      const j = Math.round(a.idx); let si = 0, sq = 0;
+      for (let b = 0; b < other.n; b++) { const v = x[j + b] || 0; si += v * other.i[b]; sq += v * other.q[b]; }
+      if (Math.hypot(si, sq) < 0.7 * a.peak) {
+        arr[id] = (start + a.idx) / fs;
+        heard.set(id, 20 * Math.log10(a.snr));
+        if (id === st.id) {
+          const delay = (start + a.idx) / fs - ctxAt(slotTime(st.T0, n, r, slot)) + st.preshift;
+          st.selfDelay = Number.isFinite(st.selfDelay) ? st.selfDelay + 0.2 * (delay - st.selfDelay) : delay;
+          // Start a little early by half my own round trip, so others find my chirp near its slot.
+          st.preshift = Math.max(0, Math.min(0.1, st.selfDelay / 2));
+        }
+        continue;
+      }
+    }
+    heard.set(id, null);
+  }
+  st.heard = heard;
+  send({ t: "report", T0: st.T0, r, arr });
+  storeReport(st.id, st.T0, r, arr);
+  renderWho();
+}
+
+function storeReport(from, T0, r, arr) {
+  if (T0 !== st.T0) return;
+  const k = key(T0, r);
+  if (!st.reports.has(k)) st.reports.set(k, new Map());
+  st.reports.get(k).set(from, arr);
+  // prune old rounds
+  for (const kk of st.reports.keys()) { const rr = +kk.split(":")[1]; if (kk.split(":")[0] != T0 || rr < r - 60) st.reports.delete(kk); }
+  computeRound(k);
+}
+
+function computeRound(k) {
+  const reps = st.reports.get(k); if (!reps) return;
+  const c = speedOfSound(cfg().tC);
+  const sOf = (id) => (st.members.find((m) => m.id === id) || {}).s ?? 0.02;
+  const ids = [...reps.keys()];
+  for (let x = 0; x < ids.length; x++) for (let y = x + 1; y < ids.length; y++) {
+    const [i, j] = [ids[x], ids[y]].sort(), A = reps.get(i), B = reps.get(j);
+    if (![A[i], A[j], B[j], B[i]].every(Number.isFinite)) continue;
+    const d = twoWayRange(A[i], A[j], B[j], B[i], c, sOf(i), sOf(j));
+    if (!(d > -0.2 && d < 40)) continue;
+    const pk = `${i}|${j}`, h = st.hist.get(pk) || [];
+    if (h.length && h[h.length - 1].k === k) continue;
+    h.push({ k, d }); if (h.length > KEEP) h.shift();
+    st.hist.set(pk, h);
+  }
+  renderPairs();
+}
+
+// ---- rendering --------------------------------------------------------------------
+const nameOf = (id) => { const m = st.members.find((m) => m.id === id); return (m && m.name) || id; };
+const median = (a) => { const b = [...a].sort((x, y) => x - y); return b.length ? (b.length % 2 ? b[b.length >> 1] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2) : NaN; };
+const fmtD = (m) => m < 1 ? `${(m * 100).toFixed(1)} <small>cm</small>` : `${m.toFixed(3)} <small>m</small>`;
+
+function renderPairs() {
+  const box = $("pairs");
+  const live = [...st.hist.entries()].filter(([pk]) => pk.split("|").every((id) => st.order.includes(id)));
+  if (!live.length) {
+    box.innerHTML = "";
+    const e = document.createElement("div"); e.className = "empty";
+    e.textContent = st.joined
+      ? (st.order.length < 2 ? "Waiting for a second phone to join this room." : "Measuring. The first distance appears after both phones have heard a full round.")
+      : "Join on two phones. Their distance appears here after a couple of rounds, as the median of the last 15 with its spread.";
+    box.appendChild(e); return;
+  }
+  box.innerHTML = "";
+  for (const [pk, h] of live) {
+    const [i, j] = pk.split("|"), ds = h.map((v) => v.d), med = median(ds);
+    const mad = median(ds.map((v) => Math.abs(v - med)));
+    const el = document.createElement("div"); el.className = "pair";
+    const names = document.createElement("div"); names.className = "names";
+    names.textContent = `${nameOf(i)}${i === st.id ? " (you)" : ""} ↔ ${nameOf(j)}${j === st.id ? " (you)" : ""}`;
+    const d = document.createElement("div"); d.className = "d"; d.innerHTML = fmtD(med);
+    const meta = document.createElement("div"); meta.className = "meta";
+    meta.textContent = `±${fmt(mad * 100, 1)} cm over ${ds.length} rounds · latest ${fmt(ds[ds.length - 1], 3)} m`;
+    el.append(names, d, meta); box.appendChild(el);
+  }
+}
+
+function renderWho() {
+  const t = $("who"); t.hidden = !st.joined;
+  const body = t.tBodies[0]; body.innerHTML = "";
+  for (const m of st.members) {
+    const tr = document.createElement("tr");
+    const slot = st.order.indexOf(m.id);
+    const h = st.heard.get(m.id);
+    const cells = [
+      `${m.name || m.id}${m.id === st.id ? " (you)" : ""}`,
+      slot >= 0 ? `${slot + 1} · ${slot % 2 ? "falling" : "rising"}` : (m.ready ? "next round" : "joining"),
+      "", m.id === st.id ? (Number.isFinite(st.selfDelay) ? `${fmt(st.selfDelay * 1000, 1)} ms` : "—") : "",
+      m.fs ? `${fmt(m.fs / 1000, 1)} kHz` : "—",
+    ];
+    cells.forEach((v, n) => {
+      const td = document.createElement("td");
+      if (n === 2) {
+        const chip = document.createElement("span");
+        chip.className = "chip" + (h === undefined ? "" : h === null ? " no" : " ok");
+        chip.textContent = h === undefined ? "—" : h === null ? "not heard" : `${fmt(h, 0)} dB`;
+        td.appendChild(chip);
+      } else td.textContent = v;
+      if (n === 0 && m.id === st.id) td.className = "you";
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  }
+}
+
+function showShare(room) {
+  const url = `${location.origin}/sonar/lobby/?room=${room}`;
+  $("share").hidden = false; $("code").textContent = room; $("link").textContent = url;
+  $("send").hidden = !navigator.share;
+  history.replaceState(null, "", `?room=${room}`);
+}
+
+// ---- join / leave -----------------------------------------------------------------
+async function join() {
+  const room = $("room").value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (room.length < 3) { say("Room codes are 3–12 letters or digits.", "err"); return; }
+  $("room").value = room;
+  try { localStorage.setItem("sonar-lobby-name", $("name").value.trim()); } catch {}
+  $("go").disabled = true;
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error("no microphone API"), { name: "NoMic" });
+    await startAudio();
+  } catch (err) {
+    $("go").disabled = false;
+    if (err.name === "NotAllowedError") say("Microphone access was refused. Allow it for this site, then join again.", "err");
+    else say(`Could not start audio: ${err.message || err}`, "err");
+    return;
+  }
+  st.joined = true;
+  $("go").textContent = "Leave"; $("go").classList.add("on"); $("go").disabled = false;
+  $("room").disabled = true;
+  showShare(room);
+  say("Connecting to the room…");
+  connect(room);
+  st.timer = setInterval(tick, 40);
+}
+
+function leave() {
+  st.joined = false;
+  try { hello(); st.ws?.close(); } catch {}
+  clearInterval(st.timer); clearInterval(st.syncTimer);
+  try { st.stream?.getTracks().forEach((t) => t.stop()); st.ctx?.close(); st.wake?.release(); } catch {}
+  Object.assign(st, { ws: null, ctx: null, stream: null, order: [], members: [], T0: 0, offset: null, syncs: [], selfDelay: NaN, preshift: 0 });
+  st.hist.clear(); st.reports.clear(); st.heard.clear();
+  $("go").textContent = "Join"; $("go").classList.remove("on"); $("room").disabled = false;
+  renderWho(); renderPairs(); say("Left the room.");
+}
+
+$("go").addEventListener("click", () => (st.joined ? leave() : join()));
+$("copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("link").textContent); say("Link copied. Open it on the other phones."); }
+  catch { const r = document.createRange(); r.selectNodeContents($("link")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); say("Select-all done; copy it from here."); }
+});
+$("send").addEventListener("click", () => navigator.share?.({ title: "sonar lobby", url: $("link").textContent }).catch(() => {}));
+for (const id of ["sep", "temp"]) $(id).addEventListener("input", () => { labels(); if (st.joined) hello(); });
+$("name").addEventListener("change", () => { if (st.joined) hello(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden && st.joined) { say("The page went to the background, so this phone left the room.", "warn"); leave(); } });
+
+// test hook: read-only views the loopback harness uses to map clocks
+window.__lobby = { st, serverNow };
+</script>
+</body>
+</html>

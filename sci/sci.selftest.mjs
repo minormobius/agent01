@@ -309,6 +309,239 @@ for (const junk of ["mri/pkg/.gitignore", "mri/pkg/package.json"]) {
     `${junk} removed — wasm-pack writes it and it would exclude pkg/ from git`);
 }
 
+// ---- 8. sonar: the signal path against synthetic echoes ------------------
+// /sonar/ has no wasm: its DSP is sonar/sonar.js, small enough to run live on
+// the main thread, and shared verbatim by the page and this test. Every
+// number the page computes from a recording goes through these functions, so
+// they are checked here against echoes whose delay is known exactly.
+{
+  // Imported as a data: URL so node does not guess its module type; the page
+  // loads the same bytes over http.
+  const S = await import("data:text/javascript;base64," + Buffer.from(read("sonar/sonar.js")).toString("base64"));
+  const spage = read("sonar/index.html");
+  const ssources = read("research/sonar-sources.md");
+
+  const imported = (spage.match(/import\s*\{([\s\S]*?)\}\s*from\s*"\.\/sonar\.js"/) || [, ""])[1]
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  ok(imported.length > 0, "sonar page imports from ./sonar.js");
+  for (const name of imported) ok(typeof S[name] !== "undefined", `sonar.js exports ${name}`);
+
+  const dois = [...spage.matchAll(/href=["']https?:\/\/doi\.org\/([^"']+)["']/g)].map((m) => decodeURIComponent(m[1]));
+  ok(dois.length >= 4, `sonar cites at least 4 DOIs (found ${dois.length})`);
+  for (const doi of new Set(dois)) ok(ssources.includes(doi), `sonar cites ${doi}; it must be in research/sonar-sources.md`);
+  ok(landing.includes('href="/sonar/"'), "the wing landing links to /sonar/");
+
+  // The medium. ISO 9613-1 tabulates 4.66 dB/km at 1 kHz, 20 °C, 50 % RH.
+  ok(Math.abs(S.speedOfSound(0) - 331.3) < 1e-9, "c(0 °C) = 331.3 m/s");
+  const a1k = S.absorptionDbPerM(1000, 20, 50) * 1000;
+  ok(Math.abs(a1k - 4.66) < 0.05, `ISO 9613-1 at 1 kHz, 20 °C, 50 % RH = 4.66 dB/km (got ${a1k.toFixed(3)})`);
+  ok(S.absorptionDbPerM(20000, 20, 50) > 10 * S.absorptionDbPerM(4000, 20, 50) / 4,
+    "absorption rises steeply with frequency");
+
+  // Known-answer: a direct path plus one echo at a known range, in noise, at
+  // two different system latencies. The range must come back to well under a
+  // centimetre, and must not depend on the latency (the page's central claim).
+  const fs = 48000, c = 343.2, s = 0.12;
+  let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5);
+  for (const name of ["quiet", "voice", "wide"]) {
+    const b = S.fitBand(name, fs);
+    const p = S.chirp(fs, b.f0, b.f1, 0.005);
+    for (const d of [0.4, 0.9, 1.7]) {
+      const got = [];
+      for (const lat of [777, 6001]) {
+        // The same recording, preceded by `lat` samples of silence.
+        seed = 11;
+        const y = new Float32Array(4000 + p.n);
+        const E = Math.round(S.delayFromRange(d, c, s) * fs);
+        for (let j = 0; j < p.n; j++) { y[j] += p.i[j]; y[E + j] += 0.03 * p.i[j]; }
+        for (let j = 0; j < y.length; j++) y[j] += 0.01 * rnd();
+        const x = new Float32Array(lat + y.length); x.set(y, lat);
+        const env = S.matchedEnvelope(x, p);
+        const lo = S.argmax(env);            // the direct path is the loudest thing
+        const r = S.profileAfterPeak(env, lo - 5, lo + 5, 4000);
+        const e = S.strongestEcho(r.profile.map((v) => v / r.direct), fs, c, s, S.deadZone(p, fs, c, s), 0.003);
+        got.push(e ? e.range : NaN);
+        ok(e && Math.abs(e.range - d) < 0.005, `${name}: echo at ${d} m recovered (got ${e ? e.range.toFixed(4) : "nothing"}) with latency ${lat}`);
+      }
+      ok(Math.abs(got[0] - got[1]) < 1e-9, `${name}: the range at ${d} m does not depend on system latency`);
+    }
+  }
+
+  // The window claim on the page: Tukey-0.2 sidelobes at −21 dB 20 cm out,
+  // Hann at −43 dB, for the near-ultrasonic chirp.
+  const side = (taper) => {
+    const p = S.chirp(fs, 17000, 20500, 0.005, taper);
+    const x = new Float32Array(6000); for (let j = 0; j < p.n; j++) x[500 + j] = p.i[j];
+    const r = S.profileAfterPeak(S.matchedEnvelope(x, p), 0, 2000, 3000);
+    let m = 0; for (let j = 0; j < r.profile.length; j++) if (S.rangeFromDelay(j / fs, c, s) > 0.2) m = Math.max(m, r.profile[j]);
+    return Math.round(-20 * Math.log10(m / r.direct));
+  };
+  const tk = side(0.2), hn = side(1);
+  ok(spage.includes(`−${tk} dB`) && spage.includes(`−${hn} dB`),
+    `the page states the measured sidelobes (Tukey −${tk} dB, Hann −${hn} dB)`);
+  ok(hn > tk + 15, "the Hann taper buys at least 15 dB of sidelobe");
+
+  // Removing the room. A fixed room (direct path, three surfaces) in noise; the
+  // room map is learned from 30 pings, then a hand appears and the last 10
+  // pings are combined three ways:
+  //   envelope — average envelopes, subtract the averaged room envelope
+  //   coherent — subtract the complex room map, average the complex residual
+  //   hybrid   — subtract the complex room map, average residual magnitudes
+  // The page uses hybrid. The claims it makes: hybrid is not worse than
+  // envelope on a still hand, and a moving hand defeats coherent averaging
+  // while hybrid keeps it.
+  {
+    const p = S.chirp(fs, 17000, 20500, 0.005), N = 1100, OFF = 40;
+    let sd = 5; const gauss = () => { let u = 0; for (let k = 0; k < 6; k++) u += (sd = (sd * 16807) % 2147483647) / 2147483647; return u - 3; };
+    const rec = (td, ta, noise = 0.03) => {
+      const x = new Float32Array(N + p.n + 2);
+      const add = (d, a) => { const at = S.delayFromRange(d, c, s) * fs + OFF, i0 = Math.floor(at), fr = at - i0;
+        for (let j = 0; j < p.n; j++) { x[i0 + j] += a * (1 - fr) * p.i[j]; x[i0 + j + 1] += a * fr * p.i[j]; } };
+      add(s / 2, 1); add(0.9, 0.05); add(1.4, 0.03); add(0.3, 0.02); if (ta) add(td, ta);
+      for (let j = 0; j < x.length; j++) x[j] += noise * gauss();
+      return S.matchedIQ(x, p);
+    };
+    const lo = Math.round(S.delayFromRange(0.15, c, s) * fs) + OFF;
+    const trial = (v, amp) => {
+      const map = new S.ClutterMap(N), envMap = new Float64Array(N);
+      for (let k = 0; k < 30; k++) { const r = rec(0, 0); map.add(r.I, r.Q, 0, 1, 0, 30);
+        for (let j = 0; j < N; j++) envMap[j] += Math.hypot(r.I[j], r.Q[j]) / 30; }
+      const env = new Float64Array(N), cI = new Float64Array(N), cQ = new Float64Array(N), hyb = new Float64Array(N);
+      for (let k = 0; k < 10; k++) {
+        const r = rec(0.6 + v * 0.1 * k, amp), res = map.residual(r.I, r.Q, 0, 1);
+        for (let j = 0; j < N; j++) { env[j] += Math.hypot(r.I[j], r.Q[j]) - envMap[j]; cI[j] += r.I[j] - map.I[j]; cQ[j] += r.Q[j] - map.Q[j]; hyb[j] += res[j]; }
+      }
+      const jT = Math.round(S.delayFromRange(0.6 + v * 0.45, c, s) * fs) + OFF;
+      const tol = 15 + Math.round(v * 0.1 * 10 / c * fs);
+      const hit = (f) => { let b = lo, m = -Infinity; for (let j = lo; j < N; j++) { const z = f(j); if (z > m) { m = z; b = j; } } return Math.abs(b - jT) <= tol ? 1 : 0; };
+      return { env: hit((j) => env[j]), coh: hit((j) => Math.hypot(cI[j], cQ[j])), hyb: hit((j) => hyb[j]) };
+    };
+    const score = (v, amp, T = 12) => { const t = { env: 0, coh: 0, hyb: 0 }; for (let n = 0; n < T; n++) { const r = trial(v, amp); t.env += r.env; t.coh += r.coh; t.hyb += r.hyb; } return t; };
+    const still = score(0, 0.01), moving = score(0.05, 0.01);
+    ok(still.hyb >= still.env - 1, `room removal, still hand at −40 dB: hybrid ${still.hyb}/12 is not worse than envelope ${still.env}/12`);
+    ok(moving.hyb >= moving.coh + 5, `moving hand (5 cm/s): hybrid ${moving.hyb}/12 keeps what coherent averaging ${moving.coh}/12 cancels`);
+    ok(moving.hyb >= moving.env - 1, `moving hand: hybrid ${moving.hyb}/12 is not worse than envelope ${moving.env}/12`);
+    ok(/averaging the raw signal would cancel the hand/.test(spage), "the page states why the residual is averaged as a magnitude");
+
+    // The ghost: a hand that sits in view for 3 s under a 10 s room memory,
+    // then leaves. Learning foreground slowly must keep the ghost it leaves
+    // behind well under the hand itself.
+    {
+      const ghost = (useRes) => {
+        const map = new S.ClutterMap(N);
+        for (let k = 0; k < 20; k++) { const r = rec(0, 0, 0.003); map.add(r.I, r.Q, 0, 1, 0, 20); }
+        for (let k = 0; k < 30; k++) { const r = rec(0.6, 0.02, 0.003); const res = map.residual(r.I, r.Q, 0, 1); map.add(r.I, r.Q, 0, 1, 0.01, 20, useRes ? res : undefined); }
+        const jT = Math.round(S.delayFromRange(0.6, c, s) * fs) + OFF;
+        const hand = Math.hypot(...(() => { const x = new Float32Array(p.n * 3); for (let j = 0; j < p.n; j++) x[p.n + j] = 0.02 * p.i[j]; const r = S.matchedIQ(x, p); return [r.I[p.n], r.Q[p.n]]; })());
+        // The ghost is what the map now holds at the hand's range beyond the room,
+        // measured against a second room-only map (so it includes that map's noise).
+        let g = 0;
+        const ref = new S.ClutterMap(N); for (let k = 0; k < 20; k++) { const r = rec(0, 0, 0.003); ref.add(r.I, r.Q, 0, 1, 0, 20); }
+        for (let j = jT - 5; j <= jT + 5; j++) g = Math.max(g, Math.hypot(map.I[j] - ref.I[j], map.Q[j] - ref.Q[j]));
+        return 20 * Math.log10(g / hand);
+      };
+      const plain = ghost(false), held = ghost(true);
+      // 30 pings at alpha 0.01 absorb 1 − 0.99³⁰ = 26 % of the hand (−11.7 dB);
+      // at a tenth of that, 3 % (−30.6 dB).
+      ok(Math.abs(plain + 11.7) < 1.5 && held < -26, `foreground learned slowly: ghost ${held.toFixed(1)} dB re the hand, vs ${plain.toFixed(1)} dB without`);
+    }
+
+    // The anchor: noise flips do not move it; a real shift does, once.
+    const a = new S.Anchor();
+    let moved = 0; for (const o of [0, 0, 1, 0, 0, -1, 0, 0, 1]) { a.push(o); moved += a.shift(); }
+    ok(moved === 0, `single-sample flips do not move the anchor (moved ${moved})`);
+    const b2 = new S.Anchor(); let m2 = 0; for (let k = 0; k < 9; k++) { b2.push(m2 === 1 ? 0 : 1); m2 += b2.shift(); }
+    ok(m2 === 1, `a real one-sample drift moves it exactly once (moved ${m2})`);
+  }
+
+  // A Bluetooth headset's 16 kHz microphone cannot carry near-ultrasound.
+  const bt = S.fitBand("quiet", 16000);
+  ok(bt.fellBack && bt.f1 <= 7200, "at 16 kHz the near-ultrasonic band falls back under Nyquist");
+  const cd = S.fitBand("quiet", 44100);
+  ok(!cd.fellBack && cd.f0 === 17000 && cd.f1 <= 0.45 * 44100, "at 44.1 kHz it stays near-ultrasonic, clipped under Nyquist");
+}
+
+// ---- 9. the lobby: two-way ranging between phones that share nothing -----
+// Two synthetic phones on a line. Each has its own sample rate, a crystal
+// error in ppm, its own clock zero, output and input latencies, and a
+// speaker-to-mic spacing. Each records the whole exchange on its own clock,
+// with a wall reflection and noise. The chirps are synthesised at exact
+// fractional arrival times, so nothing about the answer is built in.
+{
+  const S = await import("data:text/javascript;base64," + Buffer.from(read("sonar/sonar.js")).toString("base64"));
+  const lpage = read("sonar/lobby/index.html");
+  const imported = (lpage.match(/import\s*\{([\s\S]*?)\}\s*from\s*"\.\.\/sonar\.js"/) || [, ""])[1]
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  ok(imported.length > 0, "lobby page imports from ../sonar.js");
+  for (const name of imported) ok(typeof S[name] !== "undefined", `sonar.js exports ${name} (lobby)`);
+  ok(landing.includes('href="/sonar/lobby/"') || read("sonar/index.html").includes('href="lobby/"'), "the lobby is linked from the sonar page");
+
+  const c = 343.2, L = S.LOBBY;
+  let sd = 9; const gauss = () => { let u = 0; for (let k = 0; k < 6; k++) u += (sd = (sd * 16807) % 2147483647) / 2147483647; return u - 3; };
+  const phone = (o) => ({ ...o, rate: o.fs * (1 + o.ppm * 1e-6) });   // true samples per second
+  const run = (D, A, B, wall = 3.1) => {
+    // positions: A's speaker at 0, A's mic at sA; B's speaker at D, mic at D + sB
+    A.spk = 0; A.mic = A.s; B.spk = D; B.mic = D + B.s;
+    const T0 = 10.0;                                   // lobby time of round 0, seconds
+    const emits = [A, B].map((P, slot) => ({ P, slot,
+      t: S.slotTime(T0 * 1000, 2, 0, slot) / 1000 + P.out }));   // acoustic emission, absolute
+    const dur = L.dur, kRate = (f0, f1) => (f1 - f0) / dur;
+    const rec = (X) => {
+      const n = Math.ceil((T0 + 1.2 - X.zero) * X.rate), x = new Float32Array(n);
+      for (const { P, slot, t } of emits) {
+        const [f0, f1] = slot % 2 ? [L.f1, L.f0] : [L.f0, L.f1], k = kRate(f0, f1);
+        const paths = [[Math.abs(X.mic - P.spk), 1 / Math.max(0.05, Math.abs(X.mic - P.spk))],
+                       [Math.abs(wall - P.spk) + Math.abs(wall - X.mic), 0.4 / (Math.abs(wall - P.spk) + Math.abs(wall - X.mic))]];
+        for (const [p, a] of paths) {
+          const t0 = t + p / c + X.in;                    // reaches the converter
+          const n0 = Math.floor((t0 - X.zero) * X.rate), n1 = Math.ceil((t0 + dur - X.zero) * X.rate);
+          for (let m = Math.max(0, n0); m < Math.min(n, n1); m++) {
+            const tau = (X.zero + m / X.rate) - t0;
+            if (tau < 0 || tau >= dur) continue;
+            const w = 0.5 - 0.5 * Math.cos(2 * Math.PI * tau / dur);
+            x[m] += a * w * Math.sin(2 * Math.PI * (f0 * tau + 0.5 * k * tau * tau));
+          }
+        }
+      }
+      for (let m = 0; m < n; m++) x[m] += 0.002 * gauss();
+      return x;
+    };
+    // Each phone times both chirps on its own clock (nominal fs), searching
+    // where its approximate schedule says to look.
+    const times = (X) => {
+      const x = rec(X), out = [];
+      for (const slot of [0, 1]) {
+        const p = S.slotChirp(X.fs, slot), env = S.matchedEnvelope(x, p);
+        const exp = (S.slotTime(T0 * 1000, 2, 0, slot) / 1000 - X.zero) * X.fs + X.syncErr * X.fs;
+        const a = S.firstArrival(env, exp - 0.1 * X.fs, exp + 0.25 * X.fs);
+        out.push(a ? a.idx / X.fs : NaN);
+      }
+      return out;
+    };
+    const [tAA, tAB] = times(A), [tBA, tBB] = times(B);
+    const d = S.twoWayRange(tAA, tAB, tBB, tBA, c, A.s, B.s);
+    const truth = (Math.abs(A.mic - B.spk) + Math.abs(B.mic - A.spk)) / 2;
+    return { d, truth };
+  };
+  const A = phone({ fs: 48000, ppm: 40, zero: 3.217, out: 0.012, in: 0.009, s: 0.02, syncErr: 0.03 });
+  const B = phone({ fs: 44100, ppm: -55, zero: 7.901, out: 0.095, in: 0.041, s: 0.015, syncErr: -0.04 });
+  for (const D of [0.5, 1.7, 4.2]) {
+    const { d, truth } = run(D, { ...A }, { ...B });
+    ok(Math.abs(d - truth) < 0.01, `two-way range at ${D} m: ${d.toFixed(4)} vs ${truth.toFixed(4)} (clocks 48 k/44.1 k, +40/−55 ppm, latencies 21/136 ms)`);
+  }
+  // Swapping the latencies must not move the answer: they cancel.
+  const r1 = run(2.0, { ...A }, { ...B }), r2 = run(2.0, { ...A, out: 0.10, in: 0.002 }, { ...B, out: 0.003, in: 0.07 });
+  ok(Math.abs(r1.d - r2.d) < 0.005, `latencies cancel: ${r1.d.toFixed(4)} vs ${r2.d.toFixed(4)}`);
+  // A reflection louder than the direct path must not win: first arrival, not the loudest.
+  {
+    const env = new Float32Array(400); env[100] = 1; env[99] = env[101] = 0.6; env[250] = 3; env[249] = env[251] = 2;
+    for (let j = 0; j < env.length; j++) env[j] += 0.01;
+    const a = S.firstArrival(env, 0, 400, 0.3);
+    ok(a && Math.abs(a.idx - 100) < 0.5, `first arrival beats a louder reflection (got ${a && a.idx})`);
+  }
+  ok(S.slotChirp(48000, 0).i[200] !== S.slotChirp(48000, 1).i[200], "neighbouring slots use opposite chirps");
+}
+
 if (failures) {
   console.error(`\nsci selftest: ${failures} failure(s)`);
   process.exit(1);

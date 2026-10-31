@@ -68,6 +68,10 @@ DEEPSEEK_PRO_MODEL = "deepseek-v4-pro"
 # picker omits it, but an explicitly pinned model resolves and runs, which is
 # exactly what agent.sh writes).
 OPENAI_CODEX_MODEL = "gpt-6-astra"
+# sol / luna — the cheaper GPT-6 tiers (2026-09-22) on the same subscription and
+# the same deposited login; only the model string differs from astra.
+OPENAI_CODEX_SOL_MODEL = "gpt-6-sol"
+OPENAI_CODEX_LUNA_MODEL = "gpt-6-luna"
 # minimal | low | medium | high | xhigh | ultra (0.154.0 added xhigh + ultra).
 # This is the main cost/capability dial for the cell.
 OPENAI_CODEX_EFFORT = "high"

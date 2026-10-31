@@ -106,6 +106,20 @@ main{max-width:760px;margin:0 auto;padding:20px 16px 80px}
   border:1px solid var(--line);border-radius:99px;padding:5px 11px;cursor:pointer}
 .examples button:hover{color:var(--text);border-color:var(--accent)}
 
+.find{display:flex;gap:8px;margin-bottom:14px}
+.find .ta-wrap{flex:1}
+.find input{width:100%;font:16px var(--mono);color:var(--text);background:var(--bg);
+  border:1px solid var(--line);border-radius:10px;padding:9px 12px;outline:none}
+.find input:focus{border-color:var(--accent)}
+.card .meta .who{display:flex;align-items:center;gap:9px;min-width:0;cursor:pointer;
+  background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left}
+.card .meta .who:hover .name{text-decoration:underline}
+.phead{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.phead img{width:52px;height:52px;border-radius:99px;background:var(--line);flex:none}
+.phead .n{font-size:17px;font-weight:700}
+.phead .h{font:12.5px var(--mono);color:var(--muted);word-break:break-all}
+.phead .back{margin-left:auto;white-space:nowrap;flex:none}
+#profile-more{display:block;margin:0 auto}
 .empty{text-align:center;color:var(--muted);padding:34px 16px;font-size:13.5px;line-height:1.7}
 .status{display:flex;align-items:center;gap:7px;font:11px var(--mono);color:var(--muted);
   margin-bottom:16px}
@@ -198,6 +212,10 @@ body.sheet-open{overflow:hidden}
       <code>default-src 'none'</code>.
     </p>
     <div class="status"><span class="dot" id="live-dot"></span><span id="live-text">connecting to the firehose…</span></div>
+    <div class="find">
+      <input type="text" id="find-handle" placeholder="find a poster — alice.bsky.social" aria-label="find a poster by handle">
+      <button class="ghost" id="find-go">open</button>
+    </div>
     <p class="pinned-note" id="shared-note" hidden>
       Somebody shared this one with you — the whole dweet travelled inside the link, so it plays
       here whether or not it was ever posted. <b>remix</b> opens it in the composer.
@@ -208,6 +226,21 @@ body.sheet-open{overflow:hidden}
       Nothing on the wire yet — dweets appear here the moment anyone posts one.<br>
       Meanwhile, here is the house set.
     </div>
+  </section>
+
+  <!-- ── profile ──────────────────────────────────────── -->
+  <section id="view-profile" hidden>
+    <div class="phead">
+      <img id="profile-avatar" alt="">
+      <div style="min-width:0">
+        <div class="n" id="profile-name"></div>
+        <div class="h" id="profile-handle"></div>
+      </div>
+      <button class="ghost back" id="profile-back">&larr; feed</button>
+    </div>
+    <div class="status"><span class="dot" id="profile-dot"></span><span id="profile-status">reading their repo…</span></div>
+    <div id="profile-feed"></div>
+    <button class="ghost" id="profile-more" hidden>more</button>
   </section>
 
   <!-- ── compose ──────────────────────────────────────── -->

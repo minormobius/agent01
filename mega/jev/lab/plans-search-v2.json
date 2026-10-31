@@ -1,0 +1,334 @@
+{
+ "registration": "jev-plans-search-v2",
+ "ran": "2026-10-03T05:24:13.341Z",
+ "dev": {
+  "breakout(N=30,k=1)": {
+   "trades": 907,
+   "meanR_trade": 0.125,
+   "weeks": 68,
+   "sumR": 113.49,
+   "meanR_week": 1.669,
+   "t": 1.3,
+   "longs": {
+    "n": 439,
+    "meanR": 0.108
+   },
+   "shorts": {
+    "n": 468,
+    "meanR": 0.141
+   }
+  },
+  "breakout(N=30,k=2)": {
+   "trades": 550,
+   "meanR_trade": 0.011,
+   "weeks": 68,
+   "sumR": 6.15,
+   "meanR_week": 0.09,
+   "t": 0.17,
+   "longs": {
+    "n": 293,
+    "meanR": 0.008
+   },
+   "shorts": {
+    "n": 257,
+    "meanR": 0.015
+   }
+  },
+  "breakout(N=90,k=1)": {
+   "trades": 370,
+   "meanR_trade": -0.004,
+   "weeks": 72,
+   "sumR": -1.3,
+   "meanR_week": -0.018,
+   "t": -0.04,
+   "longs": {
+    "n": 170,
+    "meanR": -0.017
+   },
+   "shorts": {
+    "n": 200,
+    "meanR": 0.008
+   }
+  },
+  "breakout(N=90,k=2)": {
+   "trades": 194,
+   "meanR_trade": 0.147,
+   "weeks": 73,
+   "sumR": 28.44,
+   "meanR_week": 0.39,
+   "t": 1.05,
+   "longs": {
+    "n": 99,
+    "meanR": 0.185
+   },
+   "shorts": {
+    "n": 95,
+    "meanR": 0.106
+   }
+  },
+  "breakout(N=180,k=1)": {
+   "trades": 186,
+   "meanR_trade": -0.021,
+   "weeks": 75,
+   "sumR": -3.99,
+   "meanR_week": -0.053,
+   "t": -0.21,
+   "longs": {
+    "n": 80,
+    "meanR": 0.173
+   },
+   "shorts": {
+    "n": 106,
+    "meanR": -0.168
+   }
+  },
+  "breakout(N=180,k=2)": {
+   "trades": 99,
+   "meanR_trade": 0.078,
+   "weeks": 76,
+   "sumR": 7.71,
+   "meanR_week": 0.101,
+   "t": 0.66,
+   "longs": {
+    "n": 46,
+    "meanR": 0.238
+   },
+   "shorts": {
+    "n": 53,
+    "meanR": -0.061
+   }
+  },
+  "momentum(N=30,k=1)": {
+   "trades": 1223,
+   "meanR_trade": 0.017,
+   "weeks": 67,
+   "sumR": 21.03,
+   "meanR_week": 0.314,
+   "t": 0.31,
+   "longs": {
+    "n": 559,
+    "meanR": -0.015
+   },
+   "shorts": {
+    "n": 664,
+    "meanR": 0.044
+   }
+  },
+  "momentum(N=30,k=2)": {
+   "trades": 915,
+   "meanR_trade": -0.011,
+   "weeks": 68,
+   "sumR": -10.04,
+   "meanR_week": -0.148,
+   "t": -0.25,
+   "longs": {
+    "n": 447,
+    "meanR": -0.003
+   },
+   "shorts": {
+    "n": 468,
+    "meanR": -0.018
+   }
+  },
+  "momentum(N=90,k=1)": {
+   "trades": 505,
+   "meanR_trade": -0.079,
+   "weeks": 67,
+   "sumR": -39.68,
+   "meanR_week": -0.592,
+   "t": -1.08,
+   "longs": {
+    "n": 213,
+    "meanR": 0.031
+   },
+   "shorts": {
+    "n": 292,
+    "meanR": -0.159
+   }
+  },
+  "momentum(N=90,k=2)": {
+   "trades": 363,
+   "meanR_trade": -0.037,
+   "weeks": 68,
+   "sumR": -13.27,
+   "meanR_week": -0.195,
+   "t": -0.57,
+   "longs": {
+    "n": 163,
+    "meanR": 0.054
+   },
+   "shorts": {
+    "n": 200,
+    "meanR": -0.111
+   }
+  },
+  "momentum(N=180,k=1)": {
+   "trades": 238,
+   "meanR_trade": 0.091,
+   "weeks": 70,
+   "sumR": 21.68,
+   "meanR_week": 0.31,
+   "t": 1.1,
+   "longs": {
+    "n": 106,
+    "meanR": 0.161
+   },
+   "shorts": {
+    "n": 132,
+    "meanR": 0.035
+   }
+  },
+  "momentum(N=180,k=2)": {
+   "trades": 189,
+   "meanR_trade": 0.063,
+   "weeks": 70,
+   "sumR": 11.94,
+   "meanR_week": 0.171,
+   "t": 1.11,
+   "longs": {
+    "n": 85,
+    "meanR": 0.123
+   },
+   "shorts": {
+    "n": 104,
+    "meanR": 0.014
+   }
+  },
+  "reversion(N=6,zt=2)": {
+   "trades": 1200,
+   "meanR_trade": -0.07,
+   "weeks": 67,
+   "sumR": -83.53,
+   "meanR_week": -1.247,
+   "t": -1.01,
+   "longs": {
+    "n": 648,
+    "meanR": 0.037
+   },
+   "shorts": {
+    "n": 552,
+    "meanR": -0.195
+   }
+  },
+  "reversion(N=6,zt=3)": {
+   "trades": 319,
+   "meanR_trade": -0.016,
+   "weeks": 66,
+   "sumR": -5.25,
+   "meanR_week": -0.079,
+   "t": -0.13,
+   "longs": {
+    "n": 190,
+    "meanR": 0.145
+   },
+   "shorts": {
+    "n": 129,
+    "meanR": -0.255
+   }
+  },
+  "reversion(N=30,zt=2)": {
+   "trades": 547,
+   "meanR_trade": 0.025,
+   "weeks": 68,
+   "sumR": 13.93,
+   "meanR_week": 0.205,
+   "t": 0.2,
+   "longs": {
+    "n": 296,
+    "meanR": 0.2
+   },
+   "shorts": {
+    "n": 251,
+    "meanR": -0.18
+   }
+  },
+  "reversion(N=30,zt=3)": {
+   "trades": 158,
+   "meanR_trade": 0.226,
+   "weeks": 64,
+   "sumR": 35.7,
+   "meanR_week": 0.558,
+   "t": 0.93,
+   "longs": {
+    "n": 86,
+    "meanR": 0.633
+   },
+   "shorts": {
+    "n": 72,
+    "meanR": -0.26
+   }
+  },
+  "reversion(N=90,zt=2)": {
+   "trades": 218,
+   "meanR_trade": 0.161,
+   "weeks": 67,
+   "sumR": 35.1,
+   "meanR_week": 0.524,
+   "t": 1.18,
+   "longs": {
+    "n": 112,
+    "meanR": 0.426
+   },
+   "shorts": {
+    "n": 106,
+    "meanR": -0.119
+   }
+  },
+  "reversion(N=90,zt=3)": {
+   "trades": 41,
+   "meanR_trade": 0.53,
+   "weeks": 62,
+   "sumR": 21.72,
+   "meanR_week": 0.35,
+   "t": 1.59,
+   "longs": {
+    "n": 20,
+    "meanR": 1.027
+   },
+   "shorts": {
+    "n": 21,
+    "meanR": 0.056
+   }
+  }
+ },
+ "survivors": [],
+ "confirmation": {
+  "reversion(N=90,zt=3)": {
+   "validation": {
+    "trades": 61,
+    "meanR_trade": -0.182,
+    "weeks": 40,
+    "sumR": -11.13,
+    "meanR_week": -0.278,
+    "t": -0.89,
+    "longs": {
+     "n": 34,
+     "meanR": -0.121
+    },
+    "shorts": {
+     "n": 27,
+     "meanR": -0.26
+    }
+   },
+   "both_periods": {
+    "trades": 102,
+    "meanR_trade": 0.104,
+    "weeks": 113,
+    "sumR": 10.59,
+    "meanR_week": 0.094,
+    "t": 0.57,
+    "longs": {
+     "n": 54,
+     "meanR": 0.305
+    },
+    "shorts": {
+     "n": 48,
+     "meanR": -0.122
+    }
+   },
+   "beta_rule_passed": false,
+   "confirmed": false
+  }
+ },
+ "failed_selection": true
+}

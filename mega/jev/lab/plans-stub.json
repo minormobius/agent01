@@ -1,0 +1,194 @@
+{
+ "ran": "2026-10-03T04:40:04.962Z",
+ "stub": true,
+ "coins": [
+  "BTC",
+  "ETH",
+  "SOL"
+ ],
+ "calls": 0,
+ "failures": 0,
+ "minutes": 0,
+ "runs": {
+  "BTC": {
+   "decisions": 161,
+   "trades": 72,
+   "targets": 23,
+   "stops": 26,
+   "timeouts": 22,
+   "unfilled": 41,
+   "waits": 48,
+   "ambiguous": 0,
+   "net_bp": -674.6,
+   "gross_bp": -251,
+   "cost_bp": 423.7,
+   "mean_net_bp": -9.37,
+   "se_bp": 3.83,
+   "t_gross": -0.94,
+   "hit_rate": 0.469,
+   "coin_flip_hit_rate": 0.474,
+   "coin_flip_net_bp": -441.9,
+   "by_plan": {
+    "dip_buy": {
+     "n": 29,
+     "net_bp": -179.4,
+     "target_first": 0.45
+    },
+    "rip_sell": {
+     "n": 25,
+     "net_bp": -240.2,
+     "target_first": 0.32
+    },
+    "revert": {
+     "n": 18,
+     "net_bp": -255,
+     "target_first": 0.11
+    }
+   },
+   "picks": [
+    [
+     "wait",
+     48
+    ],
+    [
+     "rip_sell",
+     48
+    ],
+    [
+     "dip_buy",
+     47
+    ],
+    [
+     "revert",
+     18
+    ]
+   ],
+   "mean_confidence": null,
+   "below_gate": 0,
+   "mean_have": null,
+   "agreed_with_baseline": 0,
+   "failed": 0,
+   "capped": 0
+  },
+  "ETH": {
+   "decisions": 158,
+   "trades": 62,
+   "targets": 21,
+   "stops": 21,
+   "timeouts": 20,
+   "unfilled": 48,
+   "waits": 48,
+   "ambiguous": 0,
+   "net_bp": -258.8,
+   "gross_bp": 97.3,
+   "cost_bp": 356,
+   "mean_net_bp": -4.17,
+   "se_bp": 4.26,
+   "t_gross": 0.38,
+   "hit_rate": 0.5,
+   "coin_flip_hit_rate": 0.479,
+   "coin_flip_net_bp": -373.6,
+   "by_plan": {
+    "dip_buy": {
+     "n": 26,
+     "net_bp": -162.7,
+     "target_first": 0.42
+    },
+    "revert": {
+     "n": 14,
+     "net_bp": 63.3,
+     "target_first": 0.14
+    },
+    "rip_sell": {
+     "n": 22,
+     "net_bp": -159.5,
+     "target_first": 0.36
+    }
+   },
+   "picks": [
+    [
+     "dip_buy",
+     49
+    ],
+    [
+     "wait",
+     48
+    ],
+    [
+     "rip_sell",
+     47
+    ],
+    [
+     "revert",
+     14
+    ]
+   ],
+   "mean_confidence": null,
+   "below_gate": 0,
+   "mean_have": null,
+   "agreed_with_baseline": 0,
+   "failed": 0,
+   "capped": 0
+  },
+  "SOL": {
+   "decisions": 170,
+   "trades": 78,
+   "targets": 32,
+   "stops": 32,
+   "timeouts": 14,
+   "unfilled": 49,
+   "waits": 43,
+   "ambiguous": 0,
+   "net_bp": -304.4,
+   "gross_bp": 121.3,
+   "cost_bp": 425.7,
+   "mean_net_bp": -3.9,
+   "se_bp": 5.33,
+   "t_gross": 0.3,
+   "hit_rate": 0.5,
+   "coin_flip_hit_rate": 0.48,
+   "coin_flip_net_bp": -464,
+   "by_plan": {
+    "rip_sell": {
+     "n": 34,
+     "net_bp": -79.7,
+     "target_first": 0.47
+    },
+    "dip_buy": {
+     "n": 28,
+     "net_bp": -180.4,
+     "target_first": 0.43
+    },
+    "revert": {
+     "n": 16,
+     "net_bp": -44.3,
+     "target_first": 0.25
+    }
+   },
+   "picks": [
+    [
+     "rip_sell",
+     62
+    ],
+    [
+     "dip_buy",
+     49
+    ],
+    [
+     "wait",
+     43
+    ],
+    [
+     "revert",
+     16
+    ]
+   ],
+   "mean_confidence": null,
+   "below_gate": 0,
+   "mean_have": null,
+   "agreed_with_baseline": 0,
+   "failed": 0,
+   "capped": 0
+  }
+ }
+}

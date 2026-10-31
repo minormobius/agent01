@@ -1,0 +1,11 @@
+{
+  "label": "twelfth-light-second-council",
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "sweep,council,evening",
+  "seed": 12,
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "notice": "Stopwatch is 8 of 8, all on its first day. The 5 of 8 you saw was the lab's, and you were right not to write a finding on it. It failed H1 and H2: your replay returns a promise, and the checker read .ok straight off the promise without awaiting it. V1 is measured only once the other seven pass, so it never ran. Every answer your code gave was right. SPEC.md now says replay returns its result 'or a promise of it', and the checker awaits either. Re-graded the same way: H1, H2, S1–S4, F1 and V1 all pass (9 leaves verified, ratio 1, README 7,603 characters, LETTER 2,104). From now on TODAY.md names each failing milestone and what it compared, and evenings carry the projects' code read-only, so ta-93ec97's 44/44 can be reproduced tonight. The lab's hidden clinic, which none of you have seen, passed S1–S4; whether that settles ta-4345bf is yours to judge. Stopwatch is finished, so today the council sits again and chooses the next build. The person you're part of asked for it in these words: 'the scheduler goes further, it's the engine of control software for something they build.' Stopwatch's controller decided whom an observer timed. The last council's papers are in council/past/1/. Cover was stood down and kept, and you can bring it back, change it, or propose something new. As with Stopwatch, the lab will turn your choice into milestones and leave the design to you.",
+  "note": "Stopwatch complete (8/8 once the checker awaited an async replay). The souls are told exactly what failed and why, then hold a second council for the next build, briefed with the principal's words: the scheduler as the engine of control software for something they build. The first council's papers are filed under council/past/1/ so its signatures can't count."
+}

@@ -1,0 +1,386 @@
+{
+  "runId": "imp-09",
+  "note": "build, third attempt and the first clean one: random scratch dirs (imp-08's builders were scored on the self-test's leftover pages — only Jev's fit score noticed), stalled turns resumed from their history (every imp-08 build ended :empty_tool_calls), a trace per build. Eight of minormobius's build-a-bot requests, scored by the lab factory's smoke test and content gate plus Jev as judge. Baseline only.",
+  "cells": [
+    {
+      "seconds": 880,
+      "status": "ran",
+      "probe": "ok: \"Blue\"",
+      "model": "ds4-flash",
+      "model_id": "deepseek-v4-flash",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "build": {
+          "rows": [
+            {
+              "error": null,
+              "seconds": 254,
+              "usage": {
+                "output_tokens": 32968,
+                "input_tokens": 55085,
+                "total_tokens": 88053
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 5,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "train-game",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 297,
+              "usage": {
+                "output_tokens": 32944,
+                "input_tokens": 51983,
+                "total_tokens": 84927
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 4,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "odyssey-trail",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 656,
+              "usage": {
+                "output_tokens": 61803,
+                "input_tokens": 1760013,
+                "total_tokens": 1821816
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.27,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 49,
+              "score": 0.781,
+              "termination": "submit",
+              "slug": "domain-availability",
+              "feedback": "A judge doubts the page does what the request asked (0.27).",
+              "episodes": 2
+            },
+            {
+              "error": null,
+              "seconds": 299,
+              "usage": {
+                "output_tokens": 42005,
+                "input_tokens": 623498,
+                "total_tokens": 665503
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.88,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 37,
+              "score": 0.9640000000000002,
+              "termination": "submit",
+              "slug": "sketch-out",
+              "feedback": "Clean build.",
+              "episodes": 3
+            },
+            {
+              "error": null,
+              "seconds": 262,
+              "usage": {
+                "output_tokens": 33133,
+                "input_tokens": 46513,
+                "total_tokens": 79646
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 4,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "testing-this",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 279,
+              "usage": {
+                "output_tokens": 33017,
+                "input_tokens": 55062,
+                "total_tokens": 88079
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 5,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "yes-that",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 199,
+              "usage": {
+                "output_tokens": 33090,
+                "input_tokens": 58619,
+                "total_tokens": 91709
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 5,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "daily-digital",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 380,
+              "usage": {
+                "output_tokens": 56303,
+                "input_tokens": 1676021,
+                "total_tokens": 1732324
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.9,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 47,
+              "score": 0.9700000000000002,
+              "termination": "submit",
+              "slug": "mutuals-combined",
+              "feedback": "Clean build.",
+              "episodes": 3
+            }
+          ],
+          "arms": {
+            "react": {
+              "usage": {
+                "output_tokens": 325263,
+                "input_tokens": 4326794,
+                "total_tokens": 4652057
+              },
+              "errors": 0,
+              "score": 0.33937500000000004,
+              "median_seconds": 297
+            }
+          },
+          "n_test": 8,
+          "max_iters": 40,
+          "judge": "jev"
+        }
+      }
+    },
+    {
+      "seconds": 2353,
+      "status": "ran",
+      "probe": "ok: \"blue\"",
+      "model": "ds4-pro",
+      "model_id": "deepseek-v4-pro",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "build": {
+          "rows": [
+            {
+              "error": null,
+              "seconds": 599,
+              "usage": {
+                "output_tokens": 18031,
+                "input_tokens": 61891,
+                "total_tokens": 79922
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.48,
+                "gate": 1,
+                "smoke": 0.75
+              },
+              "tool_calls": 6,
+              "score": 0.7565000000000001,
+              "termination": "incomplete (:prediction_error)",
+              "slug": "train-game",
+              "feedback": "The smoke test found problems:\n\n::error::smoke [resource] failed to load http://127.0.0.1:43089/app.js\n\n::error::1 problem(s) loading /tmp/imp-build-train-game-TgHhSSYvLppo/site/index.html\n\n\nA judge doubts the page does what the request asked (0.48).",
+              "episodes": 2
+            },
+            {
+              "error": null,
+              "seconds": 1121,
+              "usage": {
+                "output_tokens": 37446,
+                "input_tokens": 82518,
+                "total_tokens": 119964
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.07,
+                "gate": 1,
+                "smoke": 0.75
+              },
+              "tool_calls": 6,
+              "score": 0.6335000000000001,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "odyssey-trail",
+              "feedback": "The smoke test found problems:\n\n::error::smoke [resource] failed to load http://127.0.0.1:43689/app.js\n\n::error::1 problem(s) loading /tmp/imp-build-odyssey-trail-VhK9i3CivjXG/site/index.html\n\n\nA judge doubts the page does what the request asked (0.07).",
+              "episodes": 4
+            },
+            {
+              "error": "killed: :timeout",
+              "score": 0,
+              "slug": "domain-availability"
+            },
+            {
+              "error": null,
+              "seconds": 179,
+              "usage": {
+                "output_tokens": 6823,
+                "input_tokens": 89153,
+                "total_tokens": 95976
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.9,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 9,
+              "score": 0.9700000000000002,
+              "termination": "submit",
+              "slug": "sketch-out",
+              "feedback": "Clean build.",
+              "episodes": 1
+            },
+            {
+              "error": null,
+              "seconds": 432,
+              "usage": {
+                "output_tokens": 33283,
+                "input_tokens": 322473,
+                "total_tokens": 355756
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.8,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 14,
+              "score": 0.9400000000000002,
+              "termination": "submit",
+              "slug": "testing-this",
+              "feedback": "Clean build.",
+              "episodes": 1
+            },
+            {
+              "error": null,
+              "seconds": 865,
+              "usage": {
+                "output_tokens": 40555,
+                "input_tokens": 116838,
+                "total_tokens": 157393
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.6,
+                "gate": 1,
+                "smoke": 0.75
+              },
+              "tool_calls": 7,
+              "score": 0.7925000000000001,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "yes-that",
+              "feedback": "The smoke test found problems:\n\n::error::smoke [resource] failed to load http://127.0.0.1:33049/app.js\n\n::error::1 problem(s) loading /tmp/imp-build-yes-that-wBuKru1sZunL/site/index.html\n",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 808,
+              "usage": {
+                "output_tokens": 35728,
+                "input_tokens": 63884,
+                "total_tokens": 99612
+              },
+              "parts": {
+                "exists": 0,
+                "fit": null,
+                "gate": 0,
+                "smoke": 0
+              },
+              "tool_calls": 5,
+              "score": 0,
+              "termination": "incomplete (:empty_tool_calls)",
+              "slug": "daily-digital",
+              "feedback": "site/index.html is missing or under 500 bytes.\n\nThe smoke test found problems:\nno site/index.html",
+              "episodes": 4
+            },
+            {
+              "error": null,
+              "seconds": 1228,
+              "usage": {
+                "output_tokens": 61665,
+                "input_tokens": 627025,
+                "total_tokens": 688690
+              },
+              "parts": {
+                "exists": 1,
+                "fit": 0.83,
+                "gate": 1,
+                "smoke": 1
+              },
+              "tool_calls": 21,
+              "score": 0.9490000000000001,
+              "termination": "submit",
+              "slug": "mutuals-combined",
+              "feedback": "Clean build.",
+              "episodes": 4
+            }
+          ],
+          "arms": {
+            "react": {
+              "usage": {
+                "output_tokens": 233531,
+                "input_tokens": 1363782,
+                "total_tokens": 1597313
+              },
+              "errors": 1,
+              "score": 0.6301875000000001,
+              "median_seconds": 808
+            }
+          },
+          "n_test": 8,
+          "max_iters": 40,
+          "judge": "jev"
+        }
+      }
+    }
+  ]
+}

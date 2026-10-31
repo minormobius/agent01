@@ -1,0 +1,82 @@
+[
+ {
+  "from": "t-replay",
+  "to": "SW-H-REPLAY",
+  "kind": "verifies"
+ },
+ {
+  "from": "harness.mjs",
+  "to": "SW-H-REPLAY",
+  "kind": "implements"
+ },
+ {
+  "from": "t-catch",
+  "to": "SW-H-CATCH",
+  "kind": "verifies"
+ },
+ {
+  "from": "harness.mjs",
+  "to": "SW-H-CATCH",
+  "kind": "implements"
+ },
+ {
+  "from": "t-order",
+  "to": "SW-S-ORDER",
+  "kind": "verifies"
+ },
+ {
+  "from": "stopwatch.mjs",
+  "to": "SW-S-ORDER",
+  "kind": "implements"
+ },
+ {
+  "from": "t-limit",
+  "to": "SW-S-LIMIT",
+  "kind": "verifies"
+ },
+ {
+  "from": "stopwatch.mjs",
+  "to": "SW-S-LIMIT",
+  "kind": "implements"
+ },
+ {
+  "from": "t-interval",
+  "to": "SW-S-INTERVAL",
+  "kind": "verifies"
+ },
+ {
+  "from": "stopwatch.mjs",
+  "to": "SW-S-INTERVAL",
+  "kind": "implements"
+ },
+ {
+  "from": "t-verdict",
+  "to": "SW-S-VERDICT",
+  "kind": "verifies"
+ },
+ {
+  "from": "stopwatch.mjs",
+  "to": "SW-S-VERDICT",
+  "kind": "implements"
+ },
+ {
+  "from": "t-stamp",
+  "to": "SW-F-STAMP",
+  "kind": "verifies"
+ },
+ {
+  "from": "fresh.mjs",
+  "to": "SW-F-STAMP",
+  "kind": "implements"
+ },
+ {
+  "from": "t-drop",
+  "to": "SW-F-DROP",
+  "kind": "verifies"
+ },
+ {
+  "from": "fresh.mjs",
+  "to": "SW-F-DROP",
+  "kind": "implements"
+ }
+]

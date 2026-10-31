@@ -5,7 +5,8 @@ John O'Laughlin — a physical-modelling piano — copied here **unmodified** an
 under the MIT licence in [`LICENSE`](LICENSE). The upstream commit this was taken
 from is recorded in [`UPSTREAM-COMMIT`](UPSTREAM-COMMIT).
 
-Ours in this directory: `pf_web.c` (the WebAssembly host) and `build.sh`.
+Ours in this directory: `pf_web.c` (the piano's WebAssembly host), `pf_guitar_web.c` (the
+guitar's), `build.sh`, and `pf_wind.c` (a prototype flute, not built).
 
 ## Why it is here
 
@@ -26,8 +27,18 @@ Only three of the seven core translation units are here:
 | `pf_board` | the stereo modal soundboard over the mix |
 | `pf_reverb` | the room |
 
-Left behind: `pf_partial`, `pf_attack`, `pf_bodyfit`, and everything under
-upstream's `src/host/` and `experiments/`. Every core `.c` includes only its own
+**The guitar** (2026-10-01, upstream 87ff06e): `core/pf_pluck` (six modal, energy-stable nylon
+strings) and, from upstream's `src/host/`, `pf_guitar` (the instrument: strings and frets chosen
+by a search over hand positions when a score gives none, strings ringing until a hand would stop
+them, slurs, harmonics, muting, bends) with the two headers it needs, `pf_instrument.h` and
+`pf_score.h`. Our `pf_guitar_web.c` builds them into a SEPARATE module, `pfguitar.wasm`, so the
+piano's binary is untouched (it rebuilds to the same bytes). The guitar renders the strings'
+bridge force only; the body and room are convolved by the page (`src/pfguitar.js`), as upstream's
+own demo does, with one measured body in `bodies/` (CC BY 4.0, credited there).
+
+Left behind: `pf_partial`, `pf_attack`, `pf_bodyfit`, `pf_bow`, `pf_motion`, `pf_radiation`,
+`pf_resonance`, the rest of upstream's `src/host/` (the piano adapter, MIDI, players) and
+`experiments/`. Every core `.c` includes only its own
 header, so these three are self-contained — nothing is stubbed out.
 
 That is worth being explicit about, because of provenance. The defaults that
@@ -50,6 +61,17 @@ The build is checked in (`pfsynth.wasm`, ~39 KB, ~22 KB gzipped) because the
 deploy job has no C toolchain and no network to fetch one. `clef/test/` verifies
 that the committed binary still loads and still renders — a stale or corrupt
 `.wasm` fails there rather than in someone's browser.
+
+## How the guitar was verified
+
+1. **wasm vs native, bit-exact**: `pf_guitar_web.c` compiled natively and to wasm, an arpeggio and
+   a chord: **176400 / 176400 samples identical**.
+2. **Every library piece plays**: all nine of clef's built-in pieces, through clef's own parser
+   and performance, render finite with sound in every second that starts a note, at 1.1–11x real
+   time in node (the rondo 1.4x).
+3. **In a real browser** (headless Chromium): the voice appears in the picker, the worker and
+   main-thread renders agree on every sample, the body and room make it stereo, the Play button
+   renders it with its progress bar. Not a listening test: there is no audio in the sandbox.
 
 ## How it was verified
 

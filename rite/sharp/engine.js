@@ -485,7 +485,7 @@ export class WordIndex {
 // substring bans applied to minted words only; the checker never refuses to
 // answer a question about a string someone typed themselves.
 
-const BANNED = /fap|felch|smeg|pube|poon|turd|arse|fag|nig|coon|kike|spic|chink|wog|paki|gook|dyke|tran|cunt|twat|retar|rape|jizz|cum|tit|dick|cock|fuk|fuc|coc|phuc|shit|piss|wank|slut|whor|homo|jew|nazi|kkk|isis/;
+export const BANNED = /fap|felch|smeg|pube|poon|turd|arse|fag|nig|coon|kike|spic|chink|wog|paki|gook|dyke|tran|cunt|twat|retar|rape|jizz|cum|tit|dick|cock|fuk|fuc|coc|phuc|shit|piss|wank|slut|whor|homo|jew|nazi|kkk|isis/;
 
 /** Real words we will not volunteer in a rhyme or neighbour list nobody asked for. */
 const COARSE = new Set(['fuck', 'fucks', 'fucked', 'shit', 'shits', 'cunt', 'cunts', 'twat', 'twats',

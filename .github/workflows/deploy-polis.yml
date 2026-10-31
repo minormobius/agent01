@@ -2,7 +2,7 @@ name: Deploy Polis
 
 on:
   push:
-    branches: ['claude/landing-page-merge-candidate-8sp0fv']
+    branches: ['claude/plant-growth-animation-gxbby1']
     paths:
       - 'scripts/route-dns.mjs'
       - 'polis/**'

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Descending</title>
+<meta name="description" content="Daisy Bell, the first song a computer sang, sung by a voice made of arithmetic: it comes in as a chip, in shards, and ends embodied. A figure descends a staircase in planes, after Duchamp, many exposures gathering into one body. Piano and voice, rendered live in the browser.">
+<meta property="og:title" content="Descending — studio">
+<meta property="og:description" content="Daisy Bell, sung by arithmetic: a figure descending a staircase, fractured to embodied. Piano and voice, made in the browser.">
+<meta property="og:image" content="https://studio.mino.mobi/descending/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#21160d">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+  :root {
+    --ink: #efe4cc;
+    --dim: rgba(239, 228, 204, 0.74);
+    --veil: rgba(33, 22, 13, 0.82);
+    --accent: #e2b878;
+    --serif: "Cormorant Garamond", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #21160d; color: var(--ink); overflow: hidden; }
+  body { font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+  #stage { position: fixed; inset: 0; }
+  #stage canvas { display: block; }
+  body.playing #stage { cursor: pointer; }
+
+  #card {
+    position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%);
+    width: min(92vw, 520px); padding: 28px 28px 22px; text-align: center;
+    background: var(--veil); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(226, 184, 120, 0.5); border-radius: 2px; box-shadow: 0 10px 40px -20px rgba(0, 0, 0, 0.6);
+    transition: opacity 1.2s ease, visibility 1.2s;
+  }
+  #card.gone { opacity: 0; visibility: hidden; }
+  h1 { margin: 0; font-weight: 400; font-family: var(--serif); font-weight: 500; font-size: clamp(40px, 8.5vw, 62px); letter-spacing: 0.08em; line-height: 1; color: #e2b878; }
+  .sub { margin: 10px 0 22px; color: var(--dim); font-size: clamp(17px, 2.6vw, 20px); line-height: 1.35; }
+  #go {
+    font: 500 18px/1 var(--serif); letter-spacing: 0.12em; text-transform: uppercase;
+    color: #21160d; background: var(--ink); border: 0; border-radius: 2px;
+    padding: 13px 30px 12px; cursor: pointer;
+  }
+  #go:hover, #go:focus-visible { background: var(--accent); }
+  #go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  #status { margin: 16px 0 0; min-height: 1.3em; font: 500 11px/1.4 var(--mono); color: var(--dim); letter-spacing: 0.02em; }
+  .hint { margin: 6px 0 0; font: 500 10px/1.4 var(--mono); color: rgba(239, 228, 204, 0.5); }
+
+  .home {
+    position: fixed; top: max(12px, env(safe-area-inset-top)); right: 16px;
+    font: 500 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(239, 228, 204, 0.6); text-decoration: none; padding: 6px 2px;
+  }
+  .home:hover { color: var(--accent); }
+  #paused {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font: italic 400 28px var(--serif); color: var(--ink); opacity: 0; pointer-events: none; transition: opacity .3s;
+  }
+  body.paused #paused { opacity: 0.9; }
+  noscript { position: fixed; bottom: 16px; left: 16px; right: 16px; font: 500 12px var(--mono); }
+</style>
+</head>
+<body>
+<div id="stage" aria-label="A figure descending a staircase, drawn in flat planes; many exposures at first, becoming one body"><canvas id="c"></canvas></div>
+
+<div id="card" role="dialog" aria-labelledby="t">
+  <h1 id="t">DESCENDING</h1>
+  <p class="sub">Daisy Bell, sung by arithmetic —<br>for piano and a voice finding its body</p>
+  <button id="go" type="button">Begin</button>
+  <p id="status" aria-live="polite"></p>
+  <p class="hint">sound on · space or tap to pause · about three minutes</p>
+</div>
+<div id="paused">paused</div>
+<a class="home" href="../">studio</a>
+<noscript>This piece is drawn and played by JavaScript.</noscript>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+name: Publish dweets (atproto)
+
+# Writes the dweets named in a manifest (bsky/dweet/**/publish.json) to the
+# morphyx service account's repo as com.minomobi.dweet.dweet records, via
+# bsky/dweet/agent/publish.mjs. Idempotent: a dweet already in the repo (same
+# src + lang) is skipped, so a re-run or a re-push never double-posts.
+#
+# Push: publishes every manifest the pushed commit added or changed.
+# Dispatch: publishes one manifest, optionally as a dry run.
+on:
+  workflow_dispatch:
+    inputs:
+      manifest:
+        description: "Manifest path, e.g. bsky/dweet/gears/publish.json"
+        required: true
+      dry:
+        description: "Dry run (validate + print records, no write)"
+        type: boolean
+        default: false
+  push:
+    branches:
+      - 'claude/dweet-*'
+    paths:
+      - 'bsky/dweet/**/publish.json'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pick manifests
+        id: pick
+        env:
+          INPUT_MANIFEST: ${{ inputs.manifest }}
+        run: |
+          if [ -n "$INPUT_MANIFEST" ]; then
+            M="$INPUT_MANIFEST"
+          else
+            M=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- 'bsky/dweet/**/publish.json' | tr '\n' ' ')
+          fi
+          echo "manifests=$M" >> "$GITHUB_OUTPUT"
+          echo "manifests: ${M:-none}"
+      - name: Publish
+        if: steps.pick.outputs.manifests != ''
+        env:
+          DWEET_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          DWEET_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+          DRY: ${{ inputs.dry && '--dry' || '' }}
+        run: |
+          for m in ${{ steps.pick.outputs.manifests }}; do
+            echo "── $m"
+            node bsky/dweet/agent/publish.mjs "$m" $DRY
+          done

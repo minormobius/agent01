@@ -24,6 +24,7 @@
 //      wide halo under the crisp stroke. Two hands meeting on damp paper.
 
 import { SEG_STRIDE } from './sim.js';
+import { Wash } from './wash.js';
 
 // Hand-picked pairs. `a` and `b` are the two populations' pigments, `paper` the
 // ground they sit on.
@@ -166,15 +167,31 @@ export class Paper {
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = canvas.height = Math.round(size * this.dpr);
     canvas.style.width = canvas.style.height = size + 'px';
-    this.ctx = canvas.getContext('2d');
-    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.rgb = [hexRGB(pair.a), hexRGB(pair.b)];
-    this.ground(rand);
+    // With WebGL2 the strokes go to a white pigment layer and wash.js lays it
+    // into a procedural sheet; without it, the 2D path below is the whole
+    // renderer, exactly as it was. The first Paper on a canvas decides for good.
+    this.wash = Wash.on(canvas);
+    if (this.wash) {
+      this.ctx = this.wash.begin({
+        paper: hexRGB(pair.paper), dpr: this.dpr,
+        seed: (rand.float() * 4294967296) >>> 0,
+        grain: Math.max(0, Math.min(1, style.grain)),
+        bleed: Math.max(0, Math.min(1, style.bleed)),
+      });
+      this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      this.wash.present();
+    } else {
+      this.ctx = canvas.getContext('2d');
+      this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      this.ground(rand);
+    }
     this.paths = new Array(2 * NW * NA);
     this.halo = new Array(2 * NW * NA);
   }
 
-  // The ground: a tinted sheet with soft mottling and a fine tooth. Baked once,
+  // The 2D fallback's ground (wash.js draws the sheet when WebGL2 is there): a
+  // tinted sheet with soft mottling and a fine tooth. Baked once,
   // under the strokes, so the grain reads THROUGH the semi-transparent pigment
   // the way it does on real paper — rather than sitting on top of it like a
   // filter, which is the tell of a fake paper texture.
@@ -284,6 +301,7 @@ export class Paper {
     this._strokeSet(halo, scale);
     this._strokeSet(paths, scale);
     ctx.globalCompositeOperation = 'source-over';
+    if (this.wash) this.wash.present();
   }
 
   _strokeSet(set, scale) {

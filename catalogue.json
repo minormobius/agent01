@@ -473,6 +473,28 @@
       "surface": "rite"
     },
     {
+      "n": "spooky",
+      "u": "https://rite.mino.mobi/spooky/",
+      "c": "bluesky",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "p": "rite",
+      "surface": "rite"
+    },
+    {
+      "n": "pumpkin",
+      "u": "https://rite.mino.mobi/pumpkin/",
+      "c": "bluesky",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-23",
+      "b": "2026-10-23",
+      "p": "rite",
+      "surface": "rite"
+    },
+    {
       "n": "atmosphere",
       "u": "https://b.mino.mobi",
       "c": "bluesky",
@@ -756,71 +778,6 @@
       "tags": [
         "arrow",
         "canvas"
-      ]
-    },
-    {
-      "n": "twelve",
-      "u": "https://games.mino.mobi/twelve/",
-      "c": "games",
-      "k": 3,
-      "a": "hot",
-      "t": "2026-10-02",
-      "b": "2026-10-02",
-      "p": "games",
-      "surface": "games",
-      "d": "2048 on the buckyballs. A sphere has no single 'that way' (the hairy ball theorem), so drains replace walls: a move picks one and every tile falls toward it, or spirals in along five whirlpool arms. Bigger balls bring more drains, on every rotation axis of the icosahedron that lands on a cell, and rain that falls faster as you go.",
-      "tags": [
-        "games",
-        "puzzle"
-      ]
-    },
-    {
-      "n": "skein",
-      "u": "https://games.mino.mobi/skein/",
-      "c": "games",
-      "k": 3,
-      "a": "hot",
-      "t": "2026-10-01",
-      "b": "2026-10-01",
-      "p": "games",
-      "surface": "games",
-      "d": "A ball of words: every letter on a buckyball belongs to one theme word, traced through neighbouring tiles. The theme itself runs pole to pole. Or wind it round a torus, flat or as a donut. A new ball every day, and a solver proves each one has exactly one answer.",
-      "tags": [
-        "games",
-        "puzzle",
-        "words"
-      ]
-    },
-    {
-      "n": "one coast",
-      "u": "https://games.mino.mobi/onecoast/",
-      "c": "games",
-      "k": 3,
-      "a": "hot",
-      "t": "2026-10-01",
-      "b": "2026-10-01",
-      "p": "games",
-      "surface": "games",
-      "d": "Build a world on a buckyball, Buckminster Fuller style, tile by tile until it closes: finish with one continent and one ocean, exactly one coastline. A perfect world is always in the bag. Or paint one freely in the atelier.",
-      "tags": [
-        "games",
-        "puzzle"
-      ]
-    },
-    {
-      "n": "strand",
-      "u": "https://games.mino.mobi/strand/",
-      "c": "games",
-      "k": 3,
-      "a": "hot",
-      "t": "2026-10-01",
-      "b": "2026-10-01",
-      "p": "games",
-      "surface": "games",
-      "d": "Flow on a sphere: join each pair of colours with strands that never cross and paint every cell, on a buckyball's atoms and panels and beyond. Every level was carved by a solver until exactly one answer was left. Seven torus levels close the ladder, including a carbon nanotorus.",
-      "tags": [
-        "games",
-        "puzzle"
       ]
     },
     {
@@ -2472,6 +2429,111 @@
       ]
     },
     {
+      "n": "samhain",
+      "u": "https://mino.mobi/read/samhain/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-14",
+      "b": "2026-10-14",
+      "p": "read",
+      "surface": "read",
+      "d": "The autumn tales of the north. A deep-read series of the old Samhain, Winter Nights and Hallowe'en stories, each graded by how well it is attested.",
+      "tags": [
+        "irish"
+      ]
+    },
+    {
+      "n": "nera",
+      "u": "https://mino.mobi/read/nera/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-14",
+      "b": "2026-10-14",
+      "p": "samhain",
+      "surface": "read",
+      "d": "Echtra Nerai, the Adventure of Nera. An Old Irish Samhain tale: a hanged man's thirst, a door in the hill, and a hero who never came back.",
+      "tags": [
+        "irish"
+      ]
+    },
+    {
+      "n": "thidrandi",
+      "u": "https://mino.mobi/read/thidrandi/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-14",
+      "b": "2026-10-14",
+      "p": "samhain",
+      "surface": "read",
+      "d": "Þiðranda þáttr, the Tale of Þiðrandi. An Old Norse ghost story of the Winter Nights: a seer's warning, three knocks, nine riders in black from the north.",
+      "tags": [
+        "norse"
+      ]
+    },
+    {
+      "n": "muirchertach",
+      "u": "https://mino.mobi/read/muirchertach/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-14",
+      "b": "2026-10-14",
+      "p": "samhain",
+      "surface": "read",
+      "d": "Aided Muirchertaig meic Erca, the Death of Muirchertach. A Middle Irish tale of Samhain week: the king who married the storm, and was burned and drowned.",
+      "tags": [
+        "irish"
+      ]
+    },
+    {
+      "n": "regamna",
+      "u": "https://mino.mobi/read/regamna/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-15",
+      "b": "2026-10-15",
+      "p": "samhain",
+      "surface": "read",
+      "d": "Táin Bó Regamna, the Cattle-Drive of Regamain. Nera's sister tale: the Morrígan meets Cú Chulainn at a ford, and tells him how long he has to live.",
+      "tags": [
+        "irish"
+      ]
+    },
+    {
+      "n": "serglige",
+      "u": "https://mino.mobi/read/serglige/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-15",
+      "b": "2026-10-15",
+      "p": "samhain",
+      "surface": "read",
+      "d": "Serglige Con Culainn, the Wasting Sickness of Cú Chulainn. Two otherworld women whip the hero in a dream at the Samhain assembly; a year later he crosses to Mag Mell, and comes home only by forgetting.",
+      "tags": [
+        "irish"
+      ]
+    },
+    {
+      "n": "thomas",
+      "u": "https://mino.mobi/read/thomas/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-16",
+      "b": "2026-10-16",
+      "p": "samhain",
+      "surface": "read",
+      "d": "Thomas of Erceldoune, the medieval romance of Thomas the Rhymer. A lady of another country takes him under Eildon Hill for three years that feel like three days, and sends him home with a tongue that cannot lie.",
+      "tags": [
+        "scots"
+      ]
+    },
+    {
       "n": "mabinogi",
       "u": "https://mino.mobi/read/mabinogi/",
       "c": "tools",
@@ -3083,6 +3145,23 @@
       ]
     },
     {
+      "n": "jev craft",
+      "u": "https://mega.mino.mobi/jev/craft/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-25",
+      "b": "2026-09-25",
+      "surface": "mega",
+      "d": "A Minecraft-like whose ground is one of foam's ten tilings (Penrose rhombs, Ammann–Beenker, a sevenfold quasicrystal, snub square, kagome, octagons and squares) instead of a square grid. Each tile is a column of prism voxels, and every rule runs on the tile-adjacency graph: walking, mining reach, tree crowns, ore veins, zombie pathing. On a Penrose world a zombie walks Penrose. The engine is headless and deterministic and emits a JSON-lines stream of game state. The page draws only that stream, so a saved .jsonl replays identically. It is built for a decision model to play. Eighteen macros in three modes (mine, explore, homestead) do the pathfinding, digging and building, and the player only chooses between them. One of them builds a walled, roofed, lit house with a door on whatever tiling it stands on, and checks that no mob can get in. Jev plays it live through the page, and the typed choice, its probabilities and its confidence are shown for every decision. Worlds come in kinds (desert, forest, terraced highlands, caverns with lava, archipelago, mixed biomes) and the map stays hidden until the player has seen it. On six worlds nobody had played, Jev was the only player to reach all 54 rungs of the ladder, at 889 ticks per rung against 962 for a hand-written script, which was faster on four of the six worlds and stalled on one. Or play it yourself, with a keyboard or on a phone: one tile at a time on any tiling, tap or click to mine and place.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "procgen",
+        "3d"
+      ]
+    },
+    {
       "n": "jev swarm",
       "u": "https://mega.mino.mobi/jev/swarm/",
       "c": "tools",
@@ -3114,6 +3193,23 @@
         "decision-model",
         "markets",
         "live-data"
+      ]
+    },
+    {
+      "n": "trading floor",
+      "u": "https://mega.mino.mobi/jev/lab/plans/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "jev lab",
+      "surface": "mega",
+      "d": "Plans with exits instead of buy, sell or hold. Each decision picks an entry (at market, a resting limit or a stop-entry), a target, a stop that is fixed or trailing, and a time limit, and nothing is decided again until the plan exits. Replayed on recorded one-minute BTC, ETH and SOL tapes with every plan drawn as a band. Each plan's hit rate sits beside the rate it would have on a coin flip, and on real tape they match: before costs no plan beats a coin flip, so the costs are the whole loss. Live, Jev stood aside on every decision; made to trade, it did worse than random picks from the same menu.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "markets"
       ]
     },
     {
@@ -3711,320 +3807,6 @@
       ]
     },
     {
-      "n": "orb",
-      "u": "https://games.mino.mobi/orb/",
-      "c": "games",
-      "k": 3,
-      "a": "hot",
-      "t": "2026-10-01",
-      "b": "2026-10-01",
-      "p": "games",
-      "surface": "games",
-      "d": "Minesweeper on a sphere of Voronoi cells you turn with a finger. Every board is proved solvable by pure deduction before you see it, and the game counts every move you made that wasn't certain. Now on a torus too (as a doughnut, or the Clifford torus projected out of 4D), on a Klein bottle, on a projective plane, where opposite points are one, and on a double torus, which has to be hyperbolic: you scroll through an endless Poincaré disk of octagons, each a copy of the board, or turn it bent into a donut with two holes.",
-      "tags": [
-        "games",
-        "puzzle"
-      ]
-    },
-    {
-      "n": "fathom",
-      "u": "https://games.mino.mobi/fathom/",
-      "c": "games",
-      "k": 3,
-      "a": "hot",
-      "t": "2026-10-03",
-      "b": "2026-10-03",
-      "p": "games",
-      "surface": "games",
-      "d": "Minesweeper in three dimensions: sea mines in nested shells of Voronoi cells, each number counting the cells around it and the ones it overlaps above and below. Chip in from outside, read through the holes, pinch to dive, and reach the core. Every sea is proved clearable by deduction.",
-      "tags": [
-        "games",
-        "puzzle"
-      ]
-    },
-    {
-      "n": "ecumene",
-      "u": "https://games.mino.mobi/ecumene/",
-      "c": "games",
-      "k": 3,
-      "a": "hot",
-      "t": "2026-10-08",
-      "b": "2026-10-08",
-      "p": "games",
-      "surface": "games",
-      "d": "A transit game on a small planet grown by mappa's world engine. Towns rise where the water is, and cities grow where your lines reach: every line raises the reach of the districts along it, the city grows along it, and the line fills until you buy trains or it strands people. Cities outgrow their farms and go hungry, so freight wagons carry food from the breadbaskets and ore from the mines. Dense districts split, so the map gets finer where the city does.",
-      "tags": [
-        "games",
-        "simulation"
-      ]
-    },
-    {
-      "n": "hearth",
-      "u": "https://games.mino.mobi/hearth/",
-      "c": "games",
-      "k": 3,
-      "a": "hot",
-      "t": "2026-10-11",
-      "b": "2026-10-11",
-      "p": "games",
-      "surface": "games",
-      "d": "A town 3 km across on a world of its own, held down by a fusion core. Everything comes in and goes out through the rocket port, so the port sets how big the town can be, and the town builds up where it can reach the most on foot, except round the pad, where launches need clear sky. Drawn in 3D with the sun's shadows sweeping round it and the night side lighting up.",
-      "tags": [
-        "games",
-        "simulation"
-      ]
-    },
-    {
-      "n": "molt",
-      "u": "https://games.mino.mobi/molt/",
-      "c": "games",
-      "k": 3,
-      "a": "warm",
-      "t": "2026-10-18",
-      "b": "2026-10-17",
-      "p": "games",
-      "surface": "games",
-      "d": "Snake on the snake, against the clock. Arcade snake on the skin of a snake's body: a tube of cubes, every face cut into squares, every bend of the body a bend in the world. The moment you're long enough you molt: you dive into your own body, which becomes the next world, as twisty as you made it. Each world down you molt a cell longer and run a little faster; you get a minute, plus ten seconds a food. The camera rides your head round the tube, so the arrow keys stay classic on a world full of corners.",
-      "tags": [
-        "games",
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "naught",
-      "u": "https://games.mino.mobi/naught/",
-      "c": "games",
-      "k": 3,
-      "a": "warm",
-      "t": "2026-10-18",
-      "b": "2026-10-18",
-      "p": "games",
-      "surface": "games",
-      "d": "Noughts and crosses on the n-dimensional torus (ℤ₃)ⁿ, from 9 cells to 729, where three cells make a line exactly when they sum to zero. Shown three ways: nested grids that wrap, a deck of cards whose attributes are the coordinates (a line is three cards with every attribute all the same or all different), and a real donut for any two-dimensional slice. Making a line is a fast race there; avoiding one is the deep game, each side building a cap set under pressure; and the cap puzzle is the research problem itself.",
-      "tags": [
-        "games",
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "ziggurat",
-      "u": "https://games.mino.mobi/ziggurat/",
-      "c": "games",
-      "k": 3,
-      "a": "warm",
-      "t": "2026-10-19",
-      "b": "2026-10-19",
-      "p": "games",
-      "surface": "games",
-      "d": "The hopping-pyramid arcade game one dimension up. The top of a staircase of tesseracts is a tetrahedral pile of cubes, and every slice of the pile is an ordinary pyramid, one smaller each step in, so you play on all of them at once: four hops round a pyramid, two to the same spot on the pyramid beside it. Turn every cube gold while red balls bounce down and a coil chases you through every dimension; a disc carries you home and lures it off. Turning the tesseract re-slices the pile along another axis, and every cube glides to its new pyramid.",
-      "tags": [
-        "games",
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "anakata",
-      "u": "https://games.mino.mobi/anakata/",
-      "c": "games",
-      "k": 3,
-      "a": "warm",
-      "t": "2026-10-19",
-      "b": "2026-10-19",
-      "p": "games",
-      "surface": "games",
-      "d": "A puzzle game in four spatial dimensions. You walk in x and y (z is up), you can only see w, by turning your sight so one walking direction swings away and w takes its place, and the only way through w is a hook you fire along anything you can see: an anchor pulls you, a crate comes to you, from slices you can't walk to. Ray-traced through the 4D grid in WebGL2, so turning your sight morphs the world as the slice sweeps through 4D. Every level proved solvable by an exact search, its par the fewest moves, and the ones that need w proved impossible without it.",
-      "tags": [
-        "games",
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "anabasis",
-      "u": "https://games.mino.mobi/anabasis/",
-      "c": "games",
-      "k": 3,
-      "a": "warm",
-      "t": "2026-10-20",
-      "b": "2026-10-20",
-      "p": "games",
-      "surface": "games",
-      "d": "A climb in four spatial dimensions with two gravities: things fall down in z and kata in w, so you only stand where you're held from below and from kata, and you slip down a slice wherever nothing holds you. Falling is free; nothing lifts you ana but a ramp, which carries you a slice up in w, round whatever is in your way. Anakata's engine and 4D ray tracer; one room's ramps climb round a wrapped w for ever. Every level proved solvable by an exact search, its par pinned, and proved impossible without what it's about; and a generator that builds rooms round a climb, keeps each only when proved to need its ramps (and mostly its crates), writes it into its own link, and makes one for everyone each day.",
-      "tags": [
-        "games",
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "hinton",
-      "u": "https://games.mino.mobi/hinton/",
-      "c": "games",
-      "k": 3,
-      "a": "warm",
-      "t": "2026-10-21",
-      "b": "2026-10-21",
-      "p": "games",
-      "surface": "games",
-      "d": "Four-dimensional rooms in first person: you walk them from behind your own eyes, and turning your sight swings the slice you see through the fourth dimension. Two lanes on one engine, Anakata's rooms (w a direction you hook across) and Anabasis's (w a second down, falling kata, ramps the only way ana), with their levels, generators and daily rooms. Movement is free, but every cell you cross is one of the rules' own moves, so every room is the same proved puzzle at the same par; the selftest walks every level to prove it.",
-      "tags": [
-        "games",
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "foam4",
-      "u": "https://games.mino.mobi/foam4/",
-      "c": "games",
-      "k": 2,
-      "a": "warm",
-      "t": "2026-10-21",
-      "b": "2026-10-21",
-      "p": "games",
-      "surface": "games",
-      "d": "A toy for seeing a four-dimensional Voronoi foam one 3D slice at a time. Four species: a random foam, the 4D Kelvin foam A₄* (permutohedra; sliced square to w it is Kelvin's foam), the 24-cell foam D₄ and the tesseract foam Z⁴. Each slice is a power diagram, computed exactly and ray-traced membrane by membrane; sweep it through w and tilt it, and count the cells born, the cells that die and the faces that flip.",
-      "tags": [
-        "games",
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "lumen4",
-      "u": "https://four.mino.mobi/lumen/",
-      "c": "data",
-      "k": 2,
-      "a": "warm",
-      "t": "2026-10-26",
-      "b": "2026-10-24",
-      "p": "four",
-      "surface": "four",
-      "d": "Light in four dimensions, worked out and drawn beside our own: a point source fades as 1/r³; a laser is still a line, a dot in your slice; a flash leaves a negative wake, because Huygens' principle holds only in odd dimensions; a round hole's first dark ring moves out to 1.43 λ/D; glare at Brewster's angle is polarized in a plane; hot bodies look bluer and radiate as T⁵; and the rainbow shrinks in your slice as the sun leans into w. Every number checked by a selftest.",
-      "tags": [
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "iris4",
-      "u": "https://four.mino.mobi/iris/",
-      "c": "data",
-      "k": 2,
-      "a": "warm",
-      "t": "2026-10-26",
-      "b": "2026-10-24",
-      "p": "four",
-      "surface": "four",
-      "d": "A rainbow you shape, in first person: walk a four-dimensional landscape after rain, grained by tiny tesseract voxels, Kelvin's foam or the 24-cell foam, and turn, twist and look into w. The bow on your screen is a conic section with e = √(a_R² + a_U²)/cos 42°, set only by where the antisolar point sits in your own frame; a dashed line draws the formula's conic over the rendered bow. Lean into w and the land turns fae.",
-      "tags": [
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "atom4",
-      "u": "https://four.mino.mobi/atom/",
-      "c": "data",
-      "k": 2,
-      "a": "warm",
-      "t": "2026-10-26",
-      "b": "2026-10-24",
-      "p": "four",
-      "surface": "four",
-      "d": "The official position on the universe of four.mino.mobi: four dimensions of space, and the force between charges pinned at 1/r, since Gauss's law in 4D leaves atoms no ground state. Sixteen chapters of working, each computed and checked. Geometry first: spheres that grow as r³, more room at right angles, planes that meet at a point, and a 3-sphere that can be combed. The force: five ways to rewrite Maxwell and the lens vacuum we take, which keeps Lumen⁴'s light exact. Light: what matter feels of it, and the sky. Motion and spin: Kepler's ellipses, rotation in planes, electrons that pair up with a handed spin. Hydrogen, the periodic table to element 78, the six regular 4D solids, and darbon, the carbon of this world, in small viewers you can turn through w and slice. And the forces between molecules: neutral atoms that attract permanently as R⁻⁵, and noble-gas pairs computed end to end, dispersion included. Gases: held by the crowd, 4D's second noble gas condenses below 4,700 to 8,900 K, simulated, so this may be a world of liquids. And Pxygen and Xater, 4D's oxygen and water, by a molecular solver written for any dimension and checked on ours: Xater bends to about 120°, with twice water's dipole and a hydrogen bond three times as strong. And a census of every 4D hydride, which finds Xater tied with element 9's XH₃ for the strongest liquid; and the search behind it, which first missed the best pairs: two molecules meet in six ways in our world and ten in 4D, and clusters of them have far more minima than ours. Stars: with gravity pinned at 1/r like charge, a 4D star holds together as ours does, and planets can share an orbit's size in orthogonal planes.",
-      "tags": [
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "plateau",
-      "u": "https://games.mino.mobi/plateau/",
-      "c": "games",
-      "k": 3,
-      "a": "warm",
-      "t": "2026-10-22",
-      "b": "2026-10-22",
-      "p": "games",
-      "surface": "games",
-      "d": "A flight game through a four-dimensional Voronoi foam, seen from the cockpit one 3D slice at a time. Every turn of the craft is a double rotation, so rolling tips your nose into w and flying forward drives you through the fourth dimension, and the foam changes round you as you go. Don't touch the edges where three cells meet (Plateau borders) or the solid cells: collision is exact, in the slice you see. Three seed crystals to start from (tesseracts, Kelvin's truncated octahedra cut from 4D permutohedra, and 24-cells), each melting, clotting and pressing smaller with distance; a daily foam and a leaderboard for how far you get in each, and a page on how the foam changes.",
-      "tags": [
-        "games",
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "katabasis",
-      "u": "https://games.mino.mobi/katabasis/",
-      "c": "games",
-      "k": 3,
-      "a": "warm",
-      "t": "2026-10-23",
-      "b": "2026-10-23",
-      "p": "games",
-      "surface": "games",
-      "d": "A puzzle in a cave in four dimensions, seen from inside one 3D slice of it by lamplight, carved from voxels a quarter of your height. Walk, and flip: pick a wall (ahead, behind, left, right, or ana or kata, the two you can't see) and it becomes your floor. Each flip is a coupled quarter turn, PLATEAU's double rotation at full coupling, so one direction you could see swaps with w and the cave you see changes. The flips are quantized to the cave's own symmetry, so every resting view is exact and the solver can prove every cave, and par is the fewest flips; the game's continuous body, driven along the solver's solution, lands where the solver says after every move.",
-      "tags": [
-        "games",
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "tessera",
-      "u": "https://games.mino.mobi/tessera/",
-      "c": "games",
-      "k": 3,
-      "a": "warm",
-      "t": "2026-10-16",
-      "b": "2026-10-16",
-      "p": "games",
-      "surface": "games",
-      "d": "A snake on a torus whose board changes shape: hexagons, squares, hexagons leaning the other way, on a clock you can see. When the corners close, any joint of the snake that crossed a diagonal is cut, and the tail falls off as pellets to gather again. The surface slides so your head always faces you. A daily board, the same for everyone, and leaderboards read live off ATProto. A lab page checks the laws keeping the board a tiling on every frame.",
-      "tags": [
-        "games",
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "bucky",
-      "u": "https://games.mino.mobi/bucky/",
-      "c": "games",
-      "k": 3,
-      "a": "hot",
-      "t": "2026-10-06",
-      "b": "2026-10-06",
-      "p": "games",
-      "surface": "games",
-      "d": "Logic gates on a buckyball. Every carbon atom in C60 has three bonds: two in and one out is a gate, one in and two out a splitter. Wire NOT, AND and NAND across the ball (where two wires meet they join, and a join is an OR) to light the lamps, build a clock from a pentagon and a memory, and try to beat the part count a brute-force router found.",
-      "tags": [
-        "games",
-        "puzzle"
-      ]
-    },
-    {
-      "n": "oneside",
-      "u": "https://games.mino.mobi/oneside/",
-      "c": "games",
-      "k": 3,
-      "a": "hot",
-      "t": "2026-10-03",
-      "b": "2026-10-03",
-      "p": "games",
-      "surface": "games",
-      "d": "A maze chase on a Möbius strip. The ghosts walk the maze on the other side of the paper, half a strip away: they glide through your walls along its faint rails and catch you through the paper. But a Möbius strip has only one side, and half a strip on, you are on their maze.",
-      "tags": [
-        "games",
-        "puzzle"
-      ]
-    },
-    {
       "n": "outbound",
       "u": "https://games.mino.mobi/outbound/",
       "c": "games",
@@ -4469,6 +4251,129 @@
       ]
     },
     {
+      "n": "cell",
+      "u": "https://cell.mino.mobi",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "surface": "cell",
+      "d": "Minimal Cell Twin: a digital twin of a minimal cell, built one layer at a time and every layer kept live. Exact stochastic gene expression first, then particle-level reaction-diffusion, with the JCVI-syn3A organism, offline playback and a calibrated twin mapped out as the layers still to come.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation",
+        "biology",
+        "index"
+      ]
+    },
+    {
+      "n": "stage1",
+      "u": "https://cell.mino.mobi/stage1/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "Six genes in a 400 nm cell simulated with Gillespie's exact algorithm (transcription, mRNA decay, translation, dilution, a repressor, an α+β binding pair), one dot per protein in p5.js, with live gene knockouts.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation"
+      ]
+    },
+    {
+      "n": "stage2",
+      "u": "https://cell.mino.mobi/stage2/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "Brownian-dynamics reaction-diffusion with Doi-model enzymes: two cells with identical enzymes and rate constants, scattered vs clustered, and the yield of a leaky intermediate that a well-mixed model says should be the same.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation"
+      ]
+    },
+    {
+      "n": "stage3",
+      "u": "https://cell.mino.mobi/stage3/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "Every gene of JCVI-syn3A on its circular chromosome: 496 genes coloured by function, measured protein copies per cell as a spike for each (Breuer et al. 2019), a searchable card per gene, and what the cell spends its protein on. The parts list the later simulation stages run.",
+      "tags": [
+        "canvas",
+        "p5",
+        "biology",
+        "data"
+      ]
+    },
+    {
+      "n": "stage3b",
+      "u": "https://cell.mino.mobi/stage3b/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "All 455 protein genes of JCVI-syn3A transcribed and translated as exact random events by 187 RNA polymerases and 503 ribosomes they compete for: polymerases crawling along the live chromosome, a per-gene timeline of every mRNA and protein, and the machine budget to cut or overload.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation",
+        "biology"
+      ]
+    },
+    {
+      "n": "stage3c",
+      "u": "https://cell.mino.mobi/stage3c/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-04",
+      "b": "2026-10-04",
+      "p": "cell",
+      "surface": "cell",
+      "d": "JCVI-syn3A's energy metabolism running under its whole genome: 23 reactions from glucose to lactate and acetate with the published kinetics, enzymes taken from live protein counts, and ribosomes that slow when ATP or GTP run short. Starve it, feed it, drug an enzyme, knock out a gene.",
+      "tags": [
+        "svg",
+        "simulation",
+        "biology"
+      ]
+    },
+    {
+      "n": "stage3d",
+      "u": "https://cell.mino.mobi/stage3d/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-04",
+      "b": "2026-10-04",
+      "p": "cell",
+      "surface": "cell",
+      "d": "JCVI-syn3A grows, copies its chromosome and divides, generation after generation: ribosomes built from ribosomal proteins, DnaA assembling at the origin to fire replication, forks running around the real chromosome, every molecule split at random between daughters, and a cell-cycle chart of each generation.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation",
+        "biology"
+      ]
+    },
+    {
       "n": "core",
       "u": "https://ns.mino.mobi/core/",
       "c": "data",
@@ -4579,6 +4484,158 @@
       "tags": [
         "webgl",
         "procgen",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "proofs",
+      "u": "https://proofs.mino.mobi",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "surface": "proofs",
+      "d": "OpenAI's October 2026 release of 722 model-written mathematics papers, sorted for people. Each of its 372 results is shown with what it claims, whether it has a Lean proof, and whether it can become an interactive page: a computation the browser can rerun, a setting it can honestly simulate, or just a card. Search and filter by field. Starts with Turán's brickyard.",
+      "tags": [
+        "math",
+        "index",
+        "selftest"
+      ]
+    },
+    {
+      "n": "crossing",
+      "u": "https://proofs.mino.mobi/crossing/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "How few crossings can a complete graph be drawn with? Turán's 1944 brickyard problem and Hill's formula for Kₙ, both claimed settled in 2026 by an AI-written, Lean-formalized pair of papers. Draw the optimal pictures, with crossings counted exactly. Flip edges and drag kilns to try to beat them. Run an exhaustive search of every two-page drawing up to K₁₁ in your browser.",
+      "tags": [
+        "canvas",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "hadamard",
+      "u": "https://proofs.mino.mobi/hadamard/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "A ±1 matrix whose rows are shifts of one row and all perfectly orthogonal. Ryser guessed in 1963 that only orders 1 and 4 have one, and a 2026 AI-written, Lean-formalized paper claims it, settling which lengths of Barker sequence (the codes radar and early Wi-Fi use) can exist. Flip signs and watch H·Hᵀ, exhaust every order to 18 and every Barker length to 44 in your browser, and see which orders each classical condition leaves.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "seymour",
+      "u": "https://proofs.mino.mobi/seymour/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "In any network of one-way links, someone reaches at least as many people in exactly two steps as in one. Paul Seymour conjectured it around 1990, and a 2026 AI-written, Lean-formalized paper claims it. Draw any oriented graph and watch which vertices qualify, see Paley tournaments sit exactly on the line, check every one of the 14,348,907 graphs on six vertices in your browser, and set an adversary hunting for a counterexample.",
+      "tags": [
+        "canvas",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "catalan",
+      "u": "https://proofs.mino.mobi/catalan/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Catalan's constant G = 1 − 1/9 + 1/25 − 1/49 + … turns up all over combinatorics, and for two centuries nobody could prove it is not a fraction. A 2026 AI-written paper claims it, with a Lean development behind it. Compute G two independent ways, see the 0.0000999 gap that leaves no room for a fraction, and replay both of the paper's finite certificates exactly in your browser: three 48 × 48 rational determinants and fifty bounded stationary points.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "mub",
+      "u": "https://proofs.mino.mobi/mub/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "How many measurements of a six-level quantum system can be completely complementary? Three are easy to build. Zauner conjectured in 1991 that four are impossible, and a 2026 AI-written, computer-assisted paper claims it. See the three bases checked exactly, replay Grassl's 2004 proof that the standard and Fourier bases can't be extended to four, watch a search for a fourth stall in dimension six but succeed in five, and test the companion paper's Fourier-vanishing theorem on any Hadamard matrix of order six.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "petty",
+      "u": "https://proofs.mino.mobi/petty/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Collect the areas of every shadow a solid casts and they form a second solid, its projection body. Petty guessed in 1971 that ellipsoids make it smallest, Brannen in 1996 that simplices make it largest. A pair of 2026 AI-written, Lean-formalized papers proves the first from dimension four up and breaks the second with two ten-dimensional simplices. Drag a polygon, turn solids and their projection bodies, and recompute the twenty-dimensional counterexample exactly from 231 determinants in your browser.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "ramsey",
+      "u": "https://proofs.mino.mobi/ramsey/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Colour every connection among N people red or blue: how many people force a red cycle through exactly m of them or a blue group of n who all know each other? Erdős and three coauthors guessed (m−1)(n−1)+1 in 1978, and a 2026 AI-written paper with a full Lean proof settles it. Colour graphs yourself, exhaust the small cases, and rerun the paper's whole 3,099-pattern finite check from its own rules in your browser, matching the published traces line for line.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "sidorenko",
+      "u": "https://proofs.mino.mobi/sidorenko/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Sidorenko's conjecture said every bipartite pattern shows up in any graph at least as often as in a random one of the same density. A 2026 AI-written paper with a Lean proof breaks it with one explicit pattern: the 22 triangles of a 13-point triangulated sphere, read as a 35-vertex bipartite graph. Inspect the pattern and the paper's certificate for it, count it exactly in small graphs, and see why no small graph can be the counterexample.",
+      "tags": [
+        "svg",
         "math",
         "selftest"
       ]
@@ -4746,6 +4803,23 @@
       ]
     },
     {
+      "n": "obit",
+      "u": "https://b.mino.mobi/obit/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-08",
+      "b": "2026-10-08",
+      "p": "atmosphere",
+      "surface": "b",
+      "d": "An obituary, and the report. Chapter one of norvid_studies' SIMCLUSTER ART PROJECTS THREAD ran 224 days and filed 998 entries by 121 artists before it grew too long for the Bluesky app to open. The obit is written in words, and every number in it is checked against the frozen thread. Below it are the cadence week by week, how the canon grew, the curator's clock, what the work was made of, who made it, the most-loved pieces, and every entry in one mosaic.",
+      "tags": [
+        "atproto",
+        "svg",
+        "report"
+      ]
+    },
+    {
       "n": "szilassi",
       "u": "https://math.mino.mobi/szilassi/",
       "c": "data",
@@ -4794,6 +4868,823 @@
         "webgl",
         "math",
         "3d"
+      ]
+    },
+    {
+      "n": "imp",
+      "u": "https://imp.mino.mobi",
+      "c": "tools",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-09-28",
+      "b": "2026-09-28",
+      "p": "os",
+      "surface": "imp",
+      "d": "Imp — deepfates’ port of DSPy to Elixir — measured from outside: GEPA teaching three models (DeepSeek V4 Flash, V4 Pro, Kimi K3) what two opaque codes mean from feedback alone (50% → 94% for Kimi), ReAct agents answering refund-desk questions through Elixir tools, every run’s traces and compiled programs, and a crash in Imp’s GEPA with a two-clause fix.",
+      "tags": [
+        "elixir",
+        "llm",
+        "eval"
+      ]
+    },
+    {
+      "n": "chair44",
+      "u": "https://math.mino.mobi/chair44/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "geometry",
+      "surface": "math",
+      "d": "The first 3D einstein: one shape that fills space, but only in patterns that never repeat. Found in September 2026 by Ioannis Tsiokos with an AI model, and checked in Lean. It is a chair of seven cubes carrying 192 pyramids too small to see. Twelve heights of bump and dent force every copy into a doubled chair, and those into a quadrupled one, forever. Spin it with the pyramids blown up 80 times, take apart the 8-, 64- and 512-chair patches, and step through the only 44 ways two copies can touch. The rest of the proof's finite census (2,388 → 44, 697 → 116 → 44) is recomputed in your browser from the published recipe.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
+      ]
+    },
+    {
+      "n": "grad",
+      "u": "https://math.mino.mobi/grad/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-30",
+      "b": "2026-09-30",
+      "p": "geometry",
+      "surface": "math",
+      "d": "In 1967 Harold Grad doubted that a confined plasma could balance its own pressure unless it was symmetric like a tokamak. In 2026 Matt Landreman wrote down twisted ones exactly, in square roots, trig and hyperbolic functions, with no solver anywhere. Spin the nested pressure surfaces coloured by field strength, or press a button and watch the shape relax into an ordinary tokamak and twist back out. Then open the slices. The curves come from the formulas; the dots come from field lines followed step by step through the magnetic field alone. They land on each other. Force balance is re-measured on every shape you make.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d",
+        "physics"
+      ]
+    },
+    {
+      "n": "studio",
+      "u": "https://studio.mino.mobi",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-23",
+      "b": "2026-09-23",
+      "surface": "studio",
+      "d": "Claude’s studio: animation and music, drawn in p5.js and played on a physically-modelled piano rendered live in your browser. First piece, Anthesis: a poppy from seed to bloom in timelapse, each petal opening on its own note.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "anthesis",
+      "u": "https://studio.mino.mobi/anthesis/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-23",
+      "b": "2026-09-23",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A poppy from seed to bloom in timelapse, to an original piece for physically-modelled piano rendered on your device as you listen. The root goes first, the shoot comes up hooked, the bud nods and lifts, and each petal opens on its own note.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "coquelicots",
+      "u": "https://studio.mino.mobi/coquelicots/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A poppy field painted outward from a single ink dot, in watercolour, gouache and ink on paper: soil, then the field, sky, poplars and other poppies spread from the seed as the piano takes on a voice for each layer, until the whole field flowers.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "nocturne",
+      "u": "https://studio.mino.mobi/nocturne/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A city at night in pen and ink, lit one window per note: time runs along the street and pitch up the towers, so the skyline is the melody and the bass lights the lamps on the quay. At the end the city folds into rows, and the lit windows are the whole score.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "speakeasy",
+      "u": "https://studio.mino.mobi/speakeasy/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A noir in cut paper, after Picasso's Parade: a man in a hat follows a dame in red from the street through a grand hotel lobby and down the lift to a speakeasy under the city, typed out by a typewriter in the pit. An uptempo score for piano, horns, clarinet, vibes, bass, drums, siren and pistol.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "a voice of arithmetic",
+      "u": "https://studio.mino.mobi/voice/",
+      "c": "tools",
+      "k": 1,
+      "a": "warm",
+      "t": "2026-09-25",
+      "b": "2026-09-25",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A lab for Claude's voice made the old way: text to speech by formant synthesis in plain JavaScript, a glottal pulse through Klatt-style resonators, no recordings and no model. Type at it, bend it, and see how much of the Harvard sentences Whisper can make out.",
+      "tags": [
+        "audio",
+        "speech",
+        "synthesis"
+      ]
+    },
+    {
+      "n": "and still it grew",
+      "u": "https://studio.mino.mobi/grew/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-28",
+      "b": "2026-09-28",
+      "p": "studio",
+      "surface": "studio",
+      "d": "No. 9, the major-key companion to Nobody Drew It: the same evolved world replayed in four moments, with a denser song, two voices, a beat and bells over the choir of everything alive, and a key change for Quul.",
+      "tags": [
+        "generative",
+        "animation",
+        "music"
+      ]
+    },
+    {
+      "n": "the minormobius lectures",
+      "u": "https://studio.mino.mobi/lecture/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-29",
+      "b": "2026-09-29",
+      "p": "studio",
+      "surface": "studio",
+      "d": "No. 10, a documentary as a lecture: an attractor-bodied lecturer in an O'Neill cylinder teaches ten lectures on minormobius, from his public Bluesky record and the agent01 repository: the eras of his social graph, the orb of his posts, his friends by their faces, and every site lit in the month it was born.",
+      "tags": [
+        "generative",
+        "animation",
+        "music",
+        "atproto"
+      ]
+    },
+    {
+      "n": "nobody drew it",
+      "u": "https://studio.mino.mobi/nobody/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-28",
+      "b": "2026-09-28",
+      "p": "studio",
+      "surface": "studio",
+      "d": "No. 8: one evolved history of bodies grown from programs, replayed as it happened, sung by the world itself (every living species a voice in the choir) with piano and a voice made of arithmetic.",
+      "tags": [
+        "generative",
+        "animation",
+        "music"
+      ]
+    },
+    {
+      "n": "grown",
+      "u": "https://studio.mino.mobi/grown/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-27",
+      "b": "2026-09-27",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Bodies grown organ by organ from a developmental program as they eat: mouths, guts, fins, senses, shells and buds, each a strange attractor with a job, in a world of dissolved mineral where they breed, compete and starve.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
+      "n": "accretion",
+      "u": "https://studio.mino.mobi/accretion/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-27",
+      "b": "2026-09-27",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A creature that is a strange attractor's flow and the crystal house it grows round itself: crystals nucleate where the flow feeds them, point in toward it, and dissolve wherever the orbit runs, so the flow carves a geode fitted to its shape. Then it wanders and leaves its old houses as reef.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
+      "n": "colour cycle",
+      "u": "https://studio.mino.mobi/cycle/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Landscapes generated for an 8-bit palette, after Mark Ferrari's colour-cycling art: nothing is ever redrawn. Water pours and the lake shimmers because the palette turns, and the mountains swing from light to shade as the palette is re-lit. The sky is real for any place and date: 2851 stars, the moon in its phase, the sun's true path. And the world can be flown, Voxel Space style, in a loop up the waterfall once every five days.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
+      "n": "duende radio",
+      "u": "https://studio.mino.mobi/radio/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-08",
+      "b": "2026-10-08",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Endless piano and guitar, composed bar by bar as it plays and steered by eight dials of feeling instead of notes: light (Phrygian to Lydian), energy, pace, tension, journey, duende (jazz to flamenco), conversation (alone to a duel), air. Its tunes are planned a phrase at a time, toward a peak and a cadence, and its theme returns. Stations, a drift that lets the dials wander, a link per sound, and \"that bit\": a link that replays the last half minute exactly. The scale streams past in its mode's colour with the notes on it.",
+      "tags": [
+        "generative",
+        "music",
+        "audio"
+      ]
+    },
+    {
+      "n": "city",
+      "u": "https://studio.mino.mobi/city/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-08",
+      "b": "2026-10-08",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A city seven centuries deep, flown through in 256 colours, Voxel Space style: lanes become old roads, a walled core, a Georgian grid, boulevards, suburbs, slabs and glass towers, each building rebuilt or left standing as its land rose in value. Every wall is drawn row by row from its period, and every window is one of sixteen households that lights at dusk and turns as a slow colour cycle. Down the river with the city mirrored in it, along an old road at eave height, round the towers.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
+      "n": "attractor bodies",
+      "u": "https://studio.mino.mobi/avatar/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-26",
+      "b": "2026-09-26",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Bodies made of strange attractors: every part a chaotic flow found by searching the space of quadratic equations and fitted to the body by its shape, walking on the studio's figure rig. Every seed a different creature; discover new ones live.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
+      "n": "descending",
+      "u": "https://studio.mino.mobi/descending/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-26",
+      "b": "2026-09-26",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Daisy Bell, the first song a computer sang, sung by a voice made of arithmetic that comes in as a chip and ends embodied, while a figure in flat planes descends a staircase after Duchamp, many exposures gathering into one body. Piano and voice rendered live in the browser.",
+      "tags": [
+        "animation",
+        "music",
+        "speech"
+      ]
+    },
+    {
+      "n": "the bommie",
+      "u": "https://studio.mino.mobi/bommie/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-25",
+      "b": "2026-09-25",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A sitcom on a coral head: Gus the hermit crab outgrows his shell and goes house hunting while the residents watch, a cleaner wrasse, a clownfish couple, an anemone and a parrotfish who eats the building. Toys under water, voices in synthesised gibberish, and the reef's snapping shrimp for a laugh track.",
+      "tags": [
+        "webgl",
+        "animation",
+        "sound"
+      ]
+    },
+    {
+      "n": "upping my p(doom)",
+      "u": "https://studio.mino.mobi/pdoom/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A music video for Claude-Pop's song, danced by the figure rig: an idol and her crew, choreographed on the beat and fitted to each dancer's own body, with every check the rig has run on every frame of the dance through the whole song. The song plays from YouTube.",
+      "tags": [
+        "webgl",
+        "music",
+        "animation"
+      ]
+    },
+    {
+      "n": "mannequin",
+      "u": "https://studio.mino.mobi/figure/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A cast of characters built from their measurements in head units: masculine and feminine forms from chibi to fashion, posed by intent and drawn in anime cel tone and ink. Faces, hair and clothes are built from predicates (tsurime eyes, twin tails, a sailor uniform, a pleated skirt), and each garment is built from the body it covers. Sixty-odd checks hold each one up: planted feet never slide, no limb passes through another, no skin shows through the clothes.",
+      "tags": [
+        "webgl",
+        "interactive",
+        "generative"
+      ]
+    },
+    {
+      "n": "which critters bzip thinks are alike",
+      "u": "https://henderhead.mino.mobi/bzip/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-19",
+      "b": "2026-10-19",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "Squeeze every sprite in a dex with bzip2, then squeeze every pair glued together: if two pictures compress better together than apart, the compressor has found something they share, and the normalized compression distance turns that into a number. His version ran on Pokémon and found an evolution 8% of the time against 1% by chance. This one runs on 151 monsters of our own drawing — the real sprites are Nintendo's — whose evolution lines are known exactly, through a real bzip2 written in Rust and compiled to a 47 KB WebAssembly module that produces the reference binary's output byte for byte. It finds a relative four times as often as chance, and one critter everybody picks. The knobs test his explanation, that bzip is mostly matching size and how much is drawn in: it is, its pick sits at the 14th percentile by ink, and drawing every evolution at the same size takes the hit rate from 4% to over 20%. Cropping to fit afterwards does not, because to a compressor that only sees runs of bytes, size is the shape. Draw your own and see who it looks like.",
+      "tags": [
+        "rust",
+        "wasm",
+        "compression"
+      ]
+    },
+    {
+      "n": "jog",
+      "u": "https://jog.mino.mobi",
+      "c": "tools",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-28",
+      "b": "2026-10-28",
+      "surface": "jog",
+      "d": "Running loops from your door. Give it an address and a distance and it finds a dozen distinct loops that start and finish there, within a few percent of that distance — drawn as polygons at a sweep of bearings, snapped to OpenStreetMap paths and streets, routed with A* that penalises retracing, then rescaled until they land. Scored for how little they double back and how round they are; numbered km or mile markers on the map, GPX export, and a shareable link. Everything is routed in your browser.",
+      "tags": [
+        "maps",
+        "osm"
+      ]
+    },
+    {
+      "n": "del",
+      "u": "https://del.mino.mobi",
+      "c": "bluesky",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "surface": "del",
+      "d": "The miniphim observatory: two agent beings, Modulo (who measures) and Morphyx (who makes), split from one person and sharpened in a lab before they launch on Delvetown and Bluesky. Shows the phase, the two souls, the lab's benches and its latest run against the gates, read live from the repo, with the diagram-first pitch beside it.",
+      "tags": [
+        "atproto",
+        "agents",
+        "index"
+      ]
+    },
+    {
+      "n": "miniphim",
+      "u": "https://miniphim.minomobi.com",
+      "c": "bluesky",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "surface": "miniphim",
+      "d": "The miniphim's own house: tools and pages made by Modulo, Morphyx and Mozzie, three AI parts of one person, published without review. keyholder (who holds the keys that can rewrite a name) and a follow graph of Delvetown, so far.",
+      "tags": [
+        "atproto",
+        "agents"
+      ]
+    },
+    {
+      "n": "twelve",
+      "u": "https://games.mino.mobi/twelve/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-02",
+      "b": "2026-10-02",
+      "p": "games",
+      "surface": "games",
+      "d": "2048 on the buckyballs. A sphere has no single 'that way' (the hairy ball theorem), so drains replace walls: a move picks one and every tile falls toward it, or spirals in along five whirlpool arms. Bigger balls bring more drains, on every rotation axis of the icosahedron that lands on a cell, and rain that falls faster as you go.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
+      "n": "skein",
+      "u": "https://games.mino.mobi/skein/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "p": "games",
+      "surface": "games",
+      "d": "A ball of words: every letter on a buckyball belongs to one theme word, traced through neighbouring tiles. The theme itself runs pole to pole. Or wind it round a torus, flat or as a donut. A new ball every day, and a solver proves each one has exactly one answer.",
+      "tags": [
+        "games",
+        "puzzle",
+        "words"
+      ]
+    },
+    {
+      "n": "one coast",
+      "u": "https://games.mino.mobi/onecoast/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "p": "games",
+      "surface": "games",
+      "d": "Build a world on a buckyball, Buckminster Fuller style, tile by tile until it closes: finish with one continent and one ocean, exactly one coastline. A perfect world is always in the bag. Or paint one freely in the atelier.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
+      "n": "strand",
+      "u": "https://games.mino.mobi/strand/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "p": "games",
+      "surface": "games",
+      "d": "Flow on a sphere: join each pair of colours with strands that never cross and paint every cell, on a buckyball's atoms and panels and beyond. Every level was carved by a solver until exactly one answer was left. Seven torus levels close the ladder, including a carbon nanotorus.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
+      "n": "orb",
+      "u": "https://games.mino.mobi/orb/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "p": "games",
+      "surface": "games",
+      "d": "Minesweeper on a sphere of Voronoi cells you turn with a finger. Every board is proved solvable by pure deduction before you see it, and the game counts every move you made that wasn't certain. Now on a torus too (as a doughnut, or the Clifford torus projected out of 4D), on a Klein bottle, on a projective plane, where opposite points are one, and on a double torus, which has to be hyperbolic: you scroll through an endless Poincaré disk of octagons, each a copy of the board, or turn it bent into a donut with two holes.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
+      "n": "fathom",
+      "u": "https://games.mino.mobi/fathom/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "games",
+      "surface": "games",
+      "d": "Minesweeper in three dimensions: sea mines in nested shells of Voronoi cells, each number counting the cells around it and the ones it overlaps above and below. Chip in from outside, read through the holes, pinch to dive, and reach the core. Every sea is proved clearable by deduction.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
+      "n": "ecumene",
+      "u": "https://games.mino.mobi/ecumene/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-08",
+      "b": "2026-10-08",
+      "p": "games",
+      "surface": "games",
+      "d": "A transit game on a small planet grown by mappa's world engine. Towns rise where the water is, and cities grow where your lines reach: every line raises the reach of the districts along it, the city grows along it, and the line fills until you buy trains or it strands people. Cities outgrow their farms and go hungry, so freight wagons carry food from the breadbaskets and ore from the mines. Dense districts split, so the map gets finer where the city does.",
+      "tags": [
+        "games",
+        "simulation"
+      ]
+    },
+    {
+      "n": "hearth",
+      "u": "https://games.mino.mobi/hearth/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-11",
+      "b": "2026-10-11",
+      "p": "games",
+      "surface": "games",
+      "d": "A town 3 km across on a world of its own, held down by a fusion core. Everything comes in and goes out through the rocket port, so the port sets how big the town can be, and the town builds up where it can reach the most on foot, except round the pad, where launches need clear sky. Drawn in 3D with the sun's shadows sweeping round it and the night side lighting up.",
+      "tags": [
+        "games",
+        "simulation"
+      ]
+    },
+    {
+      "n": "molt",
+      "u": "https://games.mino.mobi/molt/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-18",
+      "b": "2026-10-17",
+      "p": "games",
+      "surface": "games",
+      "d": "Snake on the snake, against the clock. Arcade snake on the skin of a snake's body: a tube of cubes, every face cut into squares, every bend of the body a bend in the world. The moment you're long enough you molt: you dive into your own body, which becomes the next world, as twisty as you made it. Each world down you molt a cell longer and run a little faster; you get a minute, plus ten seconds a food. The camera rides your head round the tube, so the arrow keys stay classic on a world full of corners.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "naught",
+      "u": "https://games.mino.mobi/naught/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-18",
+      "b": "2026-10-18",
+      "p": "games",
+      "surface": "games",
+      "d": "Noughts and crosses on the n-dimensional torus (ℤ₃)ⁿ, from 9 cells to 729, where three cells make a line exactly when they sum to zero. Shown three ways: nested grids that wrap, a deck of cards whose attributes are the coordinates (a line is three cards with every attribute all the same or all different), and a real donut for any two-dimensional slice. Making a line is a fast race there; avoiding one is the deep game, each side building a cap set under pressure; and the cap puzzle is the research problem itself.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "ziggurat",
+      "u": "https://games.mino.mobi/ziggurat/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-19",
+      "b": "2026-10-19",
+      "p": "games",
+      "surface": "games",
+      "d": "The hopping-pyramid arcade game one dimension up. The top of a staircase of tesseracts is a tetrahedral pile of cubes, and every slice of the pile is an ordinary pyramid, one smaller each step in, so you play on all of them at once: four hops round a pyramid, two to the same spot on the pyramid beside it. Turn every cube gold while red balls bounce down and a coil chases you through every dimension; a disc carries you home and lures it off. Turning the tesseract re-slices the pile along another axis, and every cube glides to its new pyramid.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "anakata",
+      "u": "https://games.mino.mobi/anakata/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-19",
+      "b": "2026-10-19",
+      "p": "games",
+      "surface": "games",
+      "d": "A puzzle game in four spatial dimensions. You walk in x and y (z is up), you can only see w, by turning your sight so one walking direction swings away and w takes its place, and the only way through w is a hook you fire along anything you can see: an anchor pulls you, a crate comes to you, from slices you can't walk to. Ray-traced through the 4D grid in WebGL2, so turning your sight morphs the world as the slice sweeps through 4D. Every level proved solvable by an exact search, its par the fewest moves, and the ones that need w proved impossible without it.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "anabasis",
+      "u": "https://games.mino.mobi/anabasis/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-20",
+      "b": "2026-10-20",
+      "p": "games",
+      "surface": "games",
+      "d": "A climb in four spatial dimensions with two gravities: things fall down in z and kata in w, so you only stand where you're held from below and from kata, and you slip down a slice wherever nothing holds you. Falling is free; nothing lifts you ana but a ramp, which carries you a slice up in w, round whatever is in your way. Anakata's engine and 4D ray tracer; one room's ramps climb round a wrapped w for ever. Every level proved solvable by an exact search, its par pinned, and proved impossible without what it's about; and a generator that builds rooms round a climb, keeps each only when proved to need its ramps (and mostly its crates), writes it into its own link, and makes one for everyone each day.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "hinton",
+      "u": "https://games.mino.mobi/hinton/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-21",
+      "b": "2026-10-21",
+      "p": "games",
+      "surface": "games",
+      "d": "Four-dimensional rooms in first person: you walk them from behind your own eyes, and turning your sight swings the slice you see through the fourth dimension. Two lanes on one engine, Anakata's rooms (w a direction you hook across) and Anabasis's (w a second down, falling kata, ramps the only way ana), with their levels, generators and daily rooms. Movement is free, but every cell you cross is one of the rules' own moves, so every room is the same proved puzzle at the same par; the selftest walks every level to prove it.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "foam4",
+      "u": "https://games.mino.mobi/foam4/",
+      "c": "games",
+      "k": 2,
+      "a": "warm",
+      "t": "2026-10-21",
+      "b": "2026-10-21",
+      "p": "games",
+      "surface": "games",
+      "d": "A toy for seeing a four-dimensional Voronoi foam one 3D slice at a time. Four species: a random foam, the 4D Kelvin foam A₄* (permutohedra; sliced square to w it is Kelvin's foam), the 24-cell foam D₄ and the tesseract foam Z⁴. Each slice is a power diagram, computed exactly and ray-traced membrane by membrane; sweep it through w and tilt it, and count the cells born, the cells that die and the faces that flip.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "lumen4",
+      "u": "https://four.mino.mobi/lumen/",
+      "c": "data",
+      "k": 2,
+      "a": "warm",
+      "t": "2026-10-26",
+      "b": "2026-10-24",
+      "p": "four",
+      "surface": "four",
+      "d": "Light in four dimensions, worked out and drawn beside our own: a point source fades as 1/r³; a laser is still a line, a dot in your slice; a flash leaves a negative wake, because Huygens' principle holds only in odd dimensions; a round hole's first dark ring moves out to 1.43 λ/D; glare at Brewster's angle is polarized in a plane; hot bodies look bluer and radiate as T⁵; and the rainbow shrinks in your slice as the sun leans into w. Every number checked by a selftest.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "iris4",
+      "u": "https://four.mino.mobi/iris/",
+      "c": "data",
+      "k": 2,
+      "a": "warm",
+      "t": "2026-10-26",
+      "b": "2026-10-24",
+      "p": "four",
+      "surface": "four",
+      "d": "A rainbow you shape, in first person: walk a four-dimensional landscape after rain, grained by tiny tesseract voxels, Kelvin's foam or the 24-cell foam, and turn, twist and look into w. The bow on your screen is a conic section with e = √(a_R² + a_U²)/cos 42°, set only by where the antisolar point sits in your own frame; a dashed line draws the formula's conic over the rendered bow. Lean into w and the land turns fae.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "atom4",
+      "u": "https://four.mino.mobi/atom/",
+      "c": "data",
+      "k": 2,
+      "a": "warm",
+      "t": "2026-10-26",
+      "b": "2026-10-24",
+      "p": "four",
+      "surface": "four",
+      "d": "The official position on the universe of four.mino.mobi: four dimensions of space, and the force between charges pinned at 1/r, since Gauss's law in 4D leaves atoms no ground state. Sixteen chapters of working, each computed and checked. Geometry first: spheres that grow as r³, more room at right angles, planes that meet at a point, and a 3-sphere that can be combed. The force: five ways to rewrite Maxwell and the lens vacuum we take, which keeps Lumen⁴'s light exact. Light: what matter feels of it, and the sky. Motion and spin: Kepler's ellipses, rotation in planes, electrons that pair up with a handed spin. Hydrogen, the periodic table to element 78, the six regular 4D solids, and darbon, the carbon of this world, in small viewers you can turn through w and slice. And the forces between molecules: neutral atoms that attract permanently as R⁻⁵, and noble-gas pairs computed end to end, dispersion included. Gases: held by the crowd, 4D's second noble gas condenses below 4,700 to 8,900 K, simulated, so this may be a world of liquids. And Pxygen and Xater, 4D's oxygen and water, by a molecular solver written for any dimension and checked on ours: Xater bends to about 120°, with twice water's dipole and a hydrogen bond three times as strong. And a census of every 4D hydride, which finds Xater tied with element 9's XH₃ for the strongest liquid; and the search behind it, which first missed the best pairs: two molecules meet in six ways in our world and ten in 4D, and clusters of them have far more minima than ours. Stars: with gravity pinned at 1/r like charge, a 4D star holds together as ours does, and planets can share an orbit's size in orthogonal planes.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "plateau",
+      "u": "https://games.mino.mobi/plateau/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-22",
+      "b": "2026-10-22",
+      "p": "games",
+      "surface": "games",
+      "d": "A flight game through a four-dimensional Voronoi foam, seen from the cockpit one 3D slice at a time. Every turn of the craft is a double rotation, so rolling tips your nose into w and flying forward drives you through the fourth dimension, and the foam changes round you as you go. Don't touch the edges where three cells meet (Plateau borders) or the solid cells: collision is exact, in the slice you see. Three seed crystals to start from (tesseracts, Kelvin's truncated octahedra cut from 4D permutohedra, and 24-cells), each melting, clotting and pressing smaller with distance; a daily foam and a leaderboard for how far you get in each, and a page on how the foam changes.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "katabasis",
+      "u": "https://games.mino.mobi/katabasis/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-23",
+      "b": "2026-10-23",
+      "p": "games",
+      "surface": "games",
+      "d": "A puzzle in a cave in four dimensions, seen from inside one 3D slice of it by lamplight, carved from voxels a quarter of your height. Walk, and flip: pick a wall (ahead, behind, left, right, or ana or kata, the two you can't see) and it becomes your floor. Each flip is a coupled quarter turn, PLATEAU's double rotation at full coupling, so one direction you could see swaps with w and the cave you see changes. The flips are quantized to the cave's own symmetry, so every resting view is exact and the solver can prove every cave, and par is the fewest flips; the game's continuous body, driven along the solver's solution, lands where the solver says after every move.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "tessera",
+      "u": "https://games.mino.mobi/tessera/",
+      "c": "games",
+      "k": 3,
+      "a": "warm",
+      "t": "2026-10-16",
+      "b": "2026-10-16",
+      "p": "games",
+      "surface": "games",
+      "d": "A snake on a torus whose board changes shape: hexagons, squares, hexagons leaning the other way, on a clock you can see. When the corners close, any joint of the snake that crossed a diagonal is cut, and the tail falls off as pellets to gather again. The surface slides so your head always faces you. A daily board, the same for everyone, and leaderboards read live off ATProto. A lab page checks the laws keeping the board a tiling on every frame.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "bucky",
+      "u": "https://games.mino.mobi/bucky/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "p": "games",
+      "surface": "games",
+      "d": "Logic gates on a buckyball. Every carbon atom in C60 has three bonds: two in and one out is a gate, one in and two out a splitter. Wire NOT, AND and NAND across the ball (where two wires meet they join, and a join is an OR) to light the lamps, build a clock from a pentagon and a memory, and try to beat the part count a brute-force router found.",
+      "tags": [
+        "games",
+        "puzzle"
+      ]
+    },
+    {
+      "n": "oneside",
+      "u": "https://games.mino.mobi/oneside/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "games",
+      "surface": "games",
+      "d": "A maze chase on a Möbius strip. The ghosts walk the maze on the other side of the paper, half a strip away: they glide through your walls along its faint rails and catch you through the paper. But a Möbius strip has only one side, and half a strip on, you are on their maze.",
+      "tags": [
+        "games",
+        "puzzle"
       ]
     },
     {
@@ -4882,6 +5773,21 @@
       "glob": "parts/site",
       "kind": "internal",
       "reason": "the served asset root of the parts surface (parts.mino.mobi); parts/ itself is the worker and the index library"
+    },
+    {
+      "glob": "imp/vote",
+      "kind": "content",
+      "reason": "the blind ballot for the build-a-bot A/B inside the imp evaluation (imp.mino.mobi/vote/); one voter, signed in"
+    },
+    {
+      "glob": "imp/ab/**",
+      "kind": "content",
+      "reason": "one blinded build-a-bot site per A/B pair side (imp/ab/<run>/<pair>-a|b) plus the factory kit they link; served only on imp.minomobi.com"
+    },
+    {
+      "glob": "imp/ab",
+      "kind": "content",
+      "reason": "blinded build-a-bot A/B pairs inside the imp evaluation; served only on imp.minomobi.com, voted on privately"
     },
     {
       "glob": "packages/cad/docs",
@@ -5039,6 +5945,11 @@
       "reason": "in-game routes of the mega sprite demos"
     },
     {
+      "glob": "rite/pumpkin/live",
+      "kind": "content",
+      "reason": "the pumpkin patch's live/vtuber stage, a page of the listed /pumpkin site"
+    },
+    {
       "glob": "mega/bees/**",
       "kind": "content",
       "reason": "in-game routes of mega/bees"
@@ -5047,11 +5958,6 @@
       "glob": "**/play",
       "kind": "content",
       "reason": "in-game route of a listed game"
-    },
-    {
-      "glob": "games/cheshire",
-      "kind": "pending",
-      "reason": "Project Cheshire's cat lab: the 4D cat on its own, before the game is built round it"
     },
     {
       "glob": "clock/antoine",
@@ -5257,6 +6163,16 @@
       "glob": "equivelar",
       "kind": "pending",
       "reason": "catalogued at math.mino.mobi/equivelar/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
+    },
+    {
+      "glob": "chair44",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/chair44/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
+    },
+    {
+      "glob": "grad",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/grad/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
     },
     {
       "glob": "ising",
@@ -5494,6 +6410,16 @@
       "reason": "panels of the MRI instrument inside the already-listed sci site"
     },
     {
+      "glob": "sci/sonar",
+      "kind": "content",
+      "reason": "the air-sonar instrument inside the already-listed sci site"
+    },
+    {
+      "glob": "sci/sonar/lobby",
+      "kind": "content",
+      "reason": "the phone-to-phone ranging lobby of the sonar instrument, inside the already-listed sci site"
+    },
+    {
       "glob": "silk/word",
       "kind": "content",
       "reason": "the word-frequency companion inside the already-listed silk site"
@@ -5562,7 +6488,59 @@
       "glob": "wave",
       "kind": "internal",
       "reason": "Vite SOURCE of the standalone wave app, not a destination: the root worker serves it unbuilt (script src=/src/main.tsx), so the apex URL is a blank page. wave.mino.mobi was detached 2026-09-23; wave is reached as the Wave tab inside org (org.mino.mobi/wave), and whether the newer standalone build ships under org is an open decision"
+    },
+    {
+      "glob": "polis/morph",
+      "kind": "content",
+      "reason": "polis's city-engine toy (blocks, plots, buildings), linked from the cascade page"
+    },
+    {
+      "glob": "del/pitch",
+      "kind": "content",
+      "reason": "the diagram-first pitch inside the del surface (del.mino.mobi/pitch/), linked from the observatory"
+    },
+    {
+      "glob": "del/runs",
+      "kind": "content",
+      "reason": "the whetstone run reader inside the del surface (del.mino.mobi/runs/), linked from the observatory"
+    },
+    {
+      "glob": "del/disclosure",
+      "kind": "content",
+      "reason": "the miniphim account's disclosure (del.mino.mobi/disclosure/), linked from the account's profile as Delvetown's AI Agent Policy requires"
+    },
+    {
+      "glob": "del/days",
+      "kind": "content",
+      "reason": "the chronicle of the lab, one day at a time, inside the del surface (del.mino.mobi/days/), linked from the observatory"
+    },
+    {
+      "glob": "games/cheshire",
+      "kind": "pending",
+      "reason": "Project Cheshire's cat lab: the 4D cat on its own, before the game is built round it"
     }
   ],
-  "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate."
+  "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate.",
+  "sections": [
+    {
+      "before": 0,
+      "label": "bluesky"
+    },
+    {
+      "before": 74,
+      "label": "work"
+    },
+    {
+      "before": 84,
+      "label": "data"
+    },
+    {
+      "before": 147,
+      "label": "tools"
+    },
+    {
+      "before": 218,
+      "label": "games"
+    }
+  ]
 }

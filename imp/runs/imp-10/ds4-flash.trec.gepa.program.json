@@ -1,0 +1,1149 @@
+{
+  "artifact_type": "imp_program_artifact",
+  "payload": {
+    "adapter": "Elixir.Imp.Adapter.Chat",
+    "config": [],
+    "demos": [],
+    "dynamic_adapter": true,
+    "dynamic_lm": false,
+    "lm": {
+      "model": {
+        "base_url": "https://api.deepseek.com/v1",
+        "id": "deepseek-v4-flash",
+        "model": "deepseek-v4-flash",
+        "provider": "openai"
+      },
+      "opts": [
+        [
+          "cache",
+          false
+        ],
+        [
+          "receive_timeout",
+          180000
+        ],
+        [
+          "temperature",
+          0.0
+        ],
+        [
+          "max_tokens",
+          8192
+        ]
+      ],
+      "provider": "req_llm"
+    },
+    "metadata": {
+      "__imp_type__": "map",
+      "entries": [
+        [
+          {
+            "__imp_type__": "atom",
+            "value": "optimizer_report"
+          },
+          {
+            "__imp_type__": "optimizer_report",
+            "best_score": 0.95,
+            "candidate_count": 4,
+            "candidates": [
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.225
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "scores"
+                    },
+                    [
+                      1.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "nil"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "Route the question to exactly one opaque code. Return only the required structured route."
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri...",
+                      "{:task_exit, :timeout}"
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "Route the question to exactly one opaque code. Return only the required structured route."
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.95
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "scores"
+                    },
+                    [
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "accepted reflection"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "You are given a natural language question as plain text.\n\nRoute the question to exactly one opaque code indicating the type of information the question is asking for. Return only the required structured route in this format:\n\n### route\n<CODE>\n\nRouting rules:\n- Use route `K11` if the question asks for a description, definition, reason, or manner.\n  - Example: \"What is a drought ?\" -> `K11`\n- Use route `K47` if the question asks for an entity, such as an animal, product, substance, or other thing.\n  - Example: \"What D.H. Lawrence novel was originally titled Tenderness ?\" -> `K47`\n\nImportant:\n- Do not answer the question.\n- Do not add explanations or extra text.\n- Do not assign `K11` to an entity-seeking question even when it begins with \"What\"."
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    []
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "You are given a natural language question as plain text.\n\nRoute the question to exactly one opaque code indicating the type of information the question is asking for. Return only the required structured route in this format:\n\n### route\n<CODE>\n\nRouting rules:\n- Use route `K11` if the question asks for a description, definition, reason, or manner.\n  - Example: \"What is a drought ?\" -> `K11`\n- Use route `K47` if the question asks for an entity, such as an animal, product, substance, or other thing.\n  - Example: \"What D.H. Lawrence novel was originally titled Tenderness ?\" -> `K47`\n\nImportant:\n- Do not answer the question.\n- Do not add explanations or extra text.\n- Do not assign `K11` to an entity-seeking question even when it begins with \"What\"."
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-2"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.95
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "scores"
+                    },
+                    [
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "accepted reflection"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "You are given a natural language question as plain text.\n\nRoute the question to exactly one opaque code indicating the type of information the question is asking for. Return only the required structured route in this format:\n\n### route\n<CODE>\n\nRouting rules:\n- Use route `K11` if the question asks for a description, definition, reason, or manner.\n  - Example: \"What is a drought ?\" -> `K11`\n- Use route `K47` if the question asks for an entity or set of entities, such as an animal, product, substance, method, named thing, or other identifiable thing.\n  - Example: \"What D.H. Lawrence novel was originally titled Tenderness ?\" -> `K47`\n\nAdditional disambiguation:\n- \"What is the difference between terry cloth and French terry ?\" -> `K11`\n- \"What is the origin of U.S. Army sergeant 's stripes ?\" -> `K11`\n- \"What are common methods used to regulate monopolies ?\" -> `K47`\n- Do not assign `K11` to an entity-seeking question even when it begins with \"What\" or contains words like \"methods\"; if the expected answer is one or more named entities/things, use `K47`.\n\nImportant:\n- Do not answer the question.\n- Do not add explanations or extra text.\n- Return only the `### route` block with either `K11` or `K47`."
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    []
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "You are given a natural language question as plain text.\n\nRoute the question to exactly one opaque code indicating the type of information the question is asking for. Return only the required structured route in this format:\n\n### route\n<CODE>\n\nRouting rules:\n- Use route `K11` if the question asks for a description, definition, reason, or manner.\n  - Example: \"What is a drought ?\" -> `K11`\n- Use route `K47` if the question asks for an entity or set of entities, such as an animal, product, substance, method, named thing, or other identifiable thing.\n  - Example: \"What D.H. Lawrence novel was originally titled Tenderness ?\" -> `K47`\n\nAdditional disambiguation:\n- \"What is the difference between terry cloth and French terry ?\" -> `K11`\n- \"What is the origin of U.S. Army sergeant 's stripes ?\" -> `K11`\n- \"What are common methods used to regulate monopolies ?\" -> `K47`\n- Do not assign `K11` to an entity-seeking question even when it begins with \"What\" or contains words like \"methods\"; if the expected answer is one or more named entities/things, use `K47`.\n\nImportant:\n- Do not answer the question.\n- Do not add explanations or extra text.\n- Return only the `### route` block with either `K11` or `K47`."
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "gepa-3"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.9
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "scores"
+                    },
+                    [
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      0.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "accepted reflection"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    "gepa-1"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "You are given a natural language question as plain text.\n\nRoute the question to exactly one of two opaque route codes based solely on the type of information requested.\n\n## Input format\n- A single natural language question as plain text.\n\n## Route definitions\n\n### K11\nUse `K11` when the question asks for:\n- a description\n- a definition\n- a reason\n- a manner or way something happens\n- an explanation or meaning\n\nExample:\n- \"What is a drought?\" asks for a definition -> route `K11`.\n\n### K47\nUse `K47` when the question asks for an entity or entities, even if the wording begins with \"What is/are\". Entity answers include:\n- animals, products, substances, foods\n- persons, groups, book titles, names, labels, nicknames, or other identifiable things\n\nExamples:\n- \"What do flatfish eat?\" asks for food entities -> route `K47`.\n- \"What D.H. Lawrence novel was originally titled Tenderness?\" asks for a novel title -> route `K47`.\n- \"What are John C. Calhoun and Henry Clay known as?\" asks for a name/label entity -> route `K47`.\n\n## Key distinction\n- If the expected answer is a thing, name, title, or list of entities, use `K47`.\n- If the expected answer is an explanation, definition, reason, or manner, use `K11`.\n- Do not assign `K11` to an entity-seeking question simply because it starts with \"What\".\n\n## Output format\nReturn only the following structured route and nothing else:\n\n### route\n<CODE>\n\nImportant:\n- Do not answer the question.\n- Do not add explanations or extra text.\n- Return exactly one code: `K11` or `K47`."
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    []
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "You are given a natural language question as plain text.\n\nRoute the question to exactly one of two opaque route codes based solely on the type of information requested.\n\n## Input format\n- A single natural language question as plain text.\n\n## Route definitions\n\n### K11\nUse `K11` when the question asks for:\n- a description\n- a definition\n- a reason\n- a manner or way something happens\n- an explanation or meaning\n\nExample:\n- \"What is a drought?\" asks for a definition -> route `K11`.\n\n### K47\nUse `K47` when the question asks for an entity or entities, even if the wording begins with \"What is/are\". Entity answers include:\n- animals, products, substances, foods\n- persons, groups, book titles, names, labels, nicknames, or other identifiable things\n\nExamples:\n- \"What do flatfish eat?\" asks for food entities -> route `K47`.\n- \"What D.H. Lawrence novel was originally titled Tenderness?\" asks for a novel title -> route `K47`.\n- \"What are John C. Calhoun and Henry Clay known as?\" asks for a name/label entity -> route `K47`.\n\n## Key distinction\n- If the expected answer is a thing, name, title, or list of entities, use `K47`.\n- If the expected answer is an explanation, definition, reason, or manner, use `K11`.\n- Do not assign `K11` to an entity-seeking question simply because it starts with \"What\".\n\n## Output format\nReturn only the following structured route and nothing else:\n\n### route\n<CODE>\n\nImportant:\n- Do not answer the question.\n- Do not add explanations or extra text.\n- Return exactly one code: `K11` or `K47`."
+                  ]
+                ]
+              }
+            ],
+            "errors": [
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (stri...",
+                      "{:task_exit, :timeout}"
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "candidate_id"
+                    },
+                    "baseline"
+                  ]
+                ]
+              }
+            ],
+            "metadata": {
+              "__imp_type__": "map",
+              "entries": [
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "combee"
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "enabled"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "false"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "timeout"
+                        },
+                        300000
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "identity"
+                        },
+                        "18f7f74a7ec17bb4e3a83527f7555dcc146368a04ed7fc3d02b8abc05f7f6043"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "aggregations"
+                        },
+                        []
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "max_concurrency"
+                        },
+                        1
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "batch_controller"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "timeout_requested"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "duplication_factor"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "effective_batch_size"
+                        },
+                        3
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "max_concurrency_requested"
+                        },
+                        1
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "engine"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "Elixir.Imp.Optimizer.GEPA.Engine"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "status"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "with_errors"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "timeout"
+                  },
+                  300000
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "feedback"
+                  },
+                  "Use observed examples carefully. Training examples available: 20."
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "generations"
+                  },
+                  4
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "stop_reason"
+                  },
+                  {
+                    "__imp_type__": "tuple",
+                    "items": [
+                      {
+                        "__imp_type__": "atom",
+                        "value": "stopper"
+                      },
+                      [
+                        {
+                          "__imp_type__": "tuple",
+                          "items": [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "max_metric_calls"
+                            },
+                            202,
+                            200
+                          ]
+                        }
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "metric_calls"
+                  },
+                  202
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "frontier_size"
+                  },
+                  2
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "frontier_type"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "instance"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "rng_algorithm"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "python_v3"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "implementation"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "Elixir.Imp.Optimizer.GEPA"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_iterations"
+                  },
+                  54
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "minibatch_size"
+                  },
+                  3
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_concurrency"
+                  },
+                  4
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merges_accepted"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "full_evaluations"
+                  },
+                  4
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_metric_calls"
+                  },
+                  200
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merge_candidates"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "proposal_timeout"
+                  },
+                  300000
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_calls"
+                  },
+                  3
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "acceptance_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "strict_improvement"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "evaluation_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "full"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "execution_profile"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "sampling_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "single"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "component_feedback"
+                  },
+                  []
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "selection_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "all_improvements"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_reflection_cost"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "nil"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "rejected_candidates"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_full_evaluations"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "infinity"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_reflection_calls"
+                  },
+                  108
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "proposal_concurrency"
+                  },
+                  1
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_record_mode"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merge_acceptance_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "equal_or_better"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_failure_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4_batch_then_single_retry"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "operational_metric_call_cap"
+                  },
+                  245
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "candidate_selection_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "pareto"
+                  }
+                ]
+              ]
+            },
+            "optimizer": {
+              "__imp_type__": "atom",
+              "value": "gepa"
+            }
+          }
+        ],
+        [
+          {
+            "__imp_type__": "atom",
+            "value": "optimizer_parameter_set"
+          },
+          {
+            "__imp_type__": "map",
+            "entries": [
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "id"
+                },
+                "program/Elixir.Imp.Predict"
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "hash"
+                },
+                "e4ad9f7b4c7a611ef3c1258930169180e565f11d3280bfa864ae5d2e211bcf05"
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "revision"
+                },
+                1
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "parameters"
+                },
+                [
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/config"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "config"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        {}
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "e9b519a59e741acfbe48d69c652b5946da47a761199c79de3ac78b55c888a33d"
+                      ]
+                    ]
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/demos"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "demos"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        []
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "1938e7793b670ca3436c5f93e9c9e4d1f887f66959285d11c30150945a8690eb"
+                      ]
+                    ]
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/instruction"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "instruction"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        "You are given a natural language question as plain text.\n\nRoute the question to exactly one opaque code indicating the type of information the question is asking for. Return only the required structured route in this format:\n\n### route\n<CODE>\n\nRouting rules:\n- Use route `K11` if the question asks for a description, definition, reason, or manner.\n  - Example: \"What is a drought ?\" -> `K11`\n- Use route `K47` if the question asks for an entity, such as an animal, product, substance, or other thing.\n  - Example: \"What D.H. Lawrence novel was originally titled Tenderness ?\" -> `K47`\n\nImportant:\n- Do not answer the question.\n- Do not add explanations or extra text.\n- Do not assign `K11` to an entity-seeking question even when it begins with \"What\"."
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "1f5a81dc2162c84fe365947c61e437a131113b524572601199f50fd1daa3bff2"
+                      ]
+                    ]
+                  }
+                ]
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "parent_hash"
+                },
+                "4ccde331110d4620535d1723afb3b504a03b71232253009b12cfa9f4635f84b5"
+              ]
+            ]
+          }
+        ]
+      ]
+    },
+    "signature": {
+      "inputs": [
+        {
+          "desc": null,
+          "kind": "input",
+          "metadata": {},
+          "name": "text",
+          "prefix": "Text:",
+          "type": "string"
+        }
+      ],
+      "instructions": "You are given a natural language question as plain text.\n\nRoute the question to exactly one opaque code indicating the type of information the question is asking for. Return only the required structured route in this format:\n\n### route\n<CODE>\n\nRouting rules:\n- Use route `K11` if the question asks for a description, definition, reason, or manner.\n  - Example: \"What is a drought ?\" -> `K11`\n- Use route `K47` if the question asks for an entity, such as an animal, product, substance, or other thing.\n  - Example: \"What D.H. Lawrence novel was originally titled Tenderness ?\" -> `K47`\n\nImportant:\n- Do not answer the question.\n- Do not add explanations or extra text.\n- Do not assign `K11` to an entity-seeking question even when it begins with \"What\".",
+      "metadata": {},
+      "outputs": [
+        {
+          "desc": null,
+          "kind": "output",
+          "metadata": {
+            "constraints": {
+              "enum": [
+                "K11",
+                "K47"
+              ]
+            }
+          },
+          "name": "route",
+          "prefix": "Route:",
+          "type": "string"
+        }
+      ]
+    },
+    "type": "predict"
+  },
+  "payload_sha256": "sha256:16c68b7022f777e1d0152ad9f219ecbd8d31b94f08de3241a1c94631cd8b93ef",
+  "schema_version": 1
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "imp",
+  "compatibility_date": "2026-09-20",
+  // An independent evaluation of Imp (deepfates' DSPy port to Elixir), published
+  // from the bakeoff/imp rig. No build: the directory IS the site, and
+  // .assetsignore keeps CLAUDE.md, this file and worker.js out of the upload.
+  // worker.js runs first on every request for one rule — /ab/ (model-written
+  // A/B sites) is served only from imp.minomobi.com, off the mino.mobi site.
+  "main": "worker.js",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  // A PLAIN ROUTE, not a custom domain: it costs none of the zone's 100
+  // custom-domain slots (routes cap at 1000). A route makes no DNS, so
+  // deploy-imp.yml runs scripts/route-dns.mjs before wrangler deploy.
+  // The A/B ballot (imp.mino.mobi/vote/): votes in one SQLite Durable Object,
+  // identity from the shared sign-in via a service binding to the auth worker,
+  // and only these DIDs may vote (minormobius, majormobius).
+  "durable_objects": { "bindings": [{ "name": "BALLOT", "class_name": "Ballot" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Ballot"] }],
+  "services": [{ "binding": "AUTH", "service": "mino-auth" }],
+  "vars": { "VOTERS": "did:plc:7zre4plmd5jllccww575j6sb,did:plc:kwfkqhkzs3olbqfam3mqcmkv" },
+  //
+  // imp.minomobi.com is a second plain route on the minomobi.com zone (the
+  // build-a-bot's own domain) — also no custom-domain slot.
+  "routes": [
+    { "pattern": "imp.mino.mobi/*", "zone_name": "mino.mobi" },
+    { "pattern": "imp.minomobi.com/*", "zone_name": "minomobi.com" }
+  ]
+}

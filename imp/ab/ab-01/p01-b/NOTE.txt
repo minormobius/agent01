@@ -1,0 +1,3 @@
+Unrecognised collections still show the authority/collection/rkey breakdown,
+just without a bsky.app link — felt more useful than refusing the whole
+paste. No lookups anywhere, so a did: authority round-trips exactly as typed.

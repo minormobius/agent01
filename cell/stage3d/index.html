@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>One Cell Becomes Two · Minimal Cell Twin</title>
+<meta name="description" content="Stage 3d of the Minimal Cell Twin: JCVI-syn3A grows, copies its chromosome and divides. Ribosomes are built from ribosomal proteins, DnaA fires replication, forks run around the real chromosome, and every molecule is split at random between daughters.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/cell.css">
+<style>
+:root { --ribo: #f2b84b; --dna: #6ea8ff; --dnaa: #ff5fa2; --fork: #ffffff; --wait: #3a4656; --copy: #6ea8ff; --after: #72e36c; }
+.sec-title { font: 600 22px/1.2 var(--display); margin: 0; }
+.new { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 960px) { .new { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .new { grid-template-columns: minmax(0, 1fr); } }
+.new h3 { font: 600 15px/1.2 var(--display); margin: 0 0 4px; }
+.new p { margin: 0; color: var(--muted); font-size: 13px; }
+.new p b { color: var(--fg); font-weight: 500; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.clock { font: 400 12px/1.4 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.clock b { color: var(--fg); font-weight: 500; font-size: 18px; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+#cell { width: 100%; max-width: 600px; aspect-ratio: 1; margin: 0 auto; position: relative; }
+#cell canvas { display: block; }
+.cellkey { text-align: center; color: var(--muted); font-size: 12.5px; margin: 6px 0 0; }
+.cellkey i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 5px 0 12px; vertical-align: 0; }
+.side > section { padding: 14px 16px; border-top: 1px solid var(--line); }
+.side > section:first-child { border-top: 0; }
+.big { display: flex; align-items: baseline; gap: 10px; }
+.big b { font: 500 34px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.big span { color: var(--muted); font-size: 13px; }
+.meter { height: 10px; background: var(--line); border-radius: 2px; overflow: hidden; margin: 8px 0 4px; position: relative; }
+.meter i { display: block; height: 100%; background: var(--fg); }
+.meter .tick { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--after); }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 14px; margin: 0; font-size: 13px; }
+.kv dt { color: var(--muted); font: 400 12px/1.5 var(--mono); }
+.kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.kv dd small { color: var(--muted); }
+.phase { display: inline-block; font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; border-radius: 3px; border: 1px solid var(--c); color: var(--c); }
+.slider { display: grid; gap: 4px; }
+.slider label { display: flex; justify-content: space-between; font: 500 12px/1.2 var(--mono); }
+.slider label span { color: var(--muted); font-weight: 400; }
+.slider input { width: 100%; accent-color: var(--after); }
+.panel.pad { padding: 14px 16px; }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 760px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+.charts canvas { width: 100%; height: 150px; display: block; }
+#gantt { width: 100%; height: 260px; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font: 400 12px var(--mono); color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 8px; margin-right: 6px; vertical-align: 0; }
+.cap { margin: 0; color: var(--muted); font-size: 13px; max-width: 92ch; }
+.cap b { color: var(--fg); font-weight: 500; }
+.try { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 960px) { .try { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .try { grid-template-columns: minmax(0, 1fr); } }
+.try article { padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.try h3 { font: 600 16px/1.2 var(--display); margin: 0; }
+.try p { margin: 0; color: var(--muted); font-size: 13px; }
+.try button { justify-self: start; }
+.try button[aria-pressed="true"] { border-color: var(--dnaa); color: var(--dnaa); }
+.loading { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Minimal Cell Twin</a><span>/</span><a href="../stage1/">1</a><span>·</span><a href="../stage2/">2</a><span>·</span><a href="../stage3/">3a</a><span>·</span><a href="../stage3b/">3b</a><span>·</span><a href="../stage3c/">3c</a><span>·</span><span>3d</span></nav>
+  <header class="page">
+    <div class="eyebrow">Stage 3d · growth and division</div>
+    <h1>One cell becomes two</h1>
+    <p class="lede">Every earlier stage assumed the cell's size, its ribosome count, and that it would somehow divide every 105 minutes. Here all three come out of the simulation. The cell <b>gets heavier by making protein</b>, <b>builds its own ribosomes from ribosomal proteins</b>, <b>copies its chromosome</b> when enough DnaA has gathered at the origin, and <b>splits</b> once the copy is done and it has doubled. Then we follow one daughter, generation after generation.</p>
+  </header>
+
+  <section class="new" aria-label="What is new">
+    <div><h3>Mass and volume</h3><p>The cell's mass is its protein. Volume grows with it, from about 180&nbsp;nm in radius at birth to about 225&nbsp;nm before division. In a bigger cell the same molecules are more spread out, so <b>everything that has to find a partner slows down</b>.</p></div>
+    <div><h3>Ribosomes from protein</h3><p>Ribosome and RNA polymerase counts follow the live levels of their protein subunits. More ribosomes make protein faster, including the proteins for more ribosomes. That compounding is why growth is exponential.</p></div>
+    <div><h3>Copying the chromosome</h3><p>DnaA proteins build a 30-unit filament at the origin, and units can also fall off. When it's complete, two forks run in opposite directions around the circle at 100 letters per second. <b>Each gene's copy number doubles as a fork passes it.</b></p></div>
+    <div><h3>Splitting</h3><p>Once the copy is finished and the cell has doubled its birth mass, it divides. Every protein, mRNA and busy ribosome goes to one daughter or the other <b>by a coin flip</b>, so sisters are never quite equal.</p></div>
+  </section>
+
+  <section style="display:grid;gap:12px" aria-labelledby="live-t">
+    <div class="bar">
+      <h2 class="sec-title" id="live-t">A lineage, live</h2>
+      <div class="controls">
+        <button class="primary" id="play" type="button">Pause</button>
+        <div class="seg" id="speedSeg" role="group" aria-label="Simulation speed"></div>
+        <button id="reset" type="button">Reset</button>
+      </div>
+    </div>
+    <div class="clock"><b id="clock">–</b> of cell time · <span id="rate" class="loading">growing the first cell…</span></div>
+    <div class="main">
+      <div>
+        <div id="cell" role="img" aria-label="The cell drawn to scale with its chromosome, the copied part doubled, the replication forks, the DnaA filament at the origin, and one dot per ribosome"></div>
+        <p class="cellkey"><i style="background:var(--ribo)"></i>ribosome<i style="background:var(--dna)"></i>chromosome (doubled where copied)<i style="background:var(--fork)"></i>fork<i style="background:var(--dnaa)"></i>DnaA filament at the origin</p>
+      </div>
+      <aside class="panel side">
+        <section>
+          <p class="label">Generation</p>
+          <div class="big"><b id="gen">–</b><span id="age">–</span></div>
+          <div class="meter" aria-hidden="true"><i id="massbar"></i><span class="tick" style="left:100%"></span></div>
+          <div class="clock" id="masstxt">–</div>
+        </section>
+        <section>
+          <p class="label">Chromosome</p>
+          <span class="phase" id="phase" style="--c:var(--muted)">–</span>
+          <dl class="kv" style="margin-top:10px">
+            <dt>DnaA</dt><dd id="dnaa">–</dd>
+            <dt>forks</dt><dd id="forks">–</dd>
+          </dl>
+        </section>
+        <section>
+          <dl class="kv">
+            <dt>radius</dt><dd id="radius">–</dd>
+            <dt>ribosomes</dt><dd id="ribo">–</dd>
+            <dt>RNA polymerases</dt><dd id="rnap">–</dd>
+            <dt>ribosome speed</dt><dd id="speed">–</dd>
+            <dt>ATP · GTP</dt><dd id="ntp">–</dd>
+          </dl>
+        </section>
+        <section>
+          <div class="slider"><label for="glc">Glucose <span id="glcv">40 mM</span></label><input id="glc" type="range" min="0" max="100" step="1" value="100"></div>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  <section class="panel pad" style="display:grid;gap:10px" aria-labelledby="cyc-t">
+    <h2 class="sec-title" id="cyc-t" style="font-size:18px">Every cell cycle so far</h2>
+    <p class="cap">One row per generation, from birth to division. <b>Grey</b> is waiting for DnaA to assemble at the origin, <b>blue</b> is the chromosome being copied (always about 45 minutes: half the circle at 100 letters per second), and <b>green</b> is growing to double size before splitting. The number on the right is that cell's doubling time. The lab measures about 105 minutes for syn3A.</p>
+    <canvas id="gantt" aria-label="Cell-cycle timeline per generation"></canvas>
+    <div class="legend"><span><i style="background:var(--wait)"></i>waiting for initiation</span><span><i style="background:var(--copy)"></i>copying the chromosome</span><span><i style="background:var(--after)"></i>growing to divide</span></div>
+  </section>
+
+  <section class="charts" aria-label="Over time">
+    <div class="panel pad"><p class="label">Mass, × birth mass · the sawtooth of growth and division</p><canvas id="c-mass"></canvas></div>
+    <div class="panel pad"><p class="label">Ribosomes in the cell</p><canvas id="c-ribo"></canvas></div>
+  </section>
+
+  <section style="display:grid;gap:14px" aria-labelledby="try-t">
+    <h2 class="sec-title" id="try-t">Four things to try</h2>
+    <div class="try">
+      <article class="panel"><h3>Knock out dnaA</h3><p>The DnaA already made may fire the origin once more. After that, daughters never have enough, so the chromosome is never copied again and the cell never divides. It just keeps growing.</p><button type="button" data-try="dnaa">Knock it out</button></article>
+      <article class="panel"><h3>Make 4× more DnaA</h3><p>Initiation fires almost at birth. Division still waits for the cell to double, so the cycle barely changes. Size, not DnaA, sets the pace here.</p><button type="button" data-try="moreA">Turn it up</button></article>
+      <article class="panel"><h3>Slow ribosome production</h3><p>Halve every ribosomal-protein gene. Fewer ribosomes means slower protein making and slower growth, and the cycles stretch out.</p><button type="button" data-try="ribo">Halve them</button></article>
+      <article class="panel"><h3>Starve it</h3><p>Drop the glucose. Growth stops within minutes: the cell holds its size, waiting. Put glucose back and the lineage carries on.</p><button type="button" data-try="starve">Starve</button></article>
+    </div>
+  </section>
+
+  <div class="notes">
+    <div><h2>Where the numbers come from</h2><p>Fork speed (100 letters per second) and the DnaA binding constants (one high-affinity site, two low-affinity sites, a 30-unit filament, binding 100 per mM per second, unbinding 0.55/s) are those of Thornburg et al. Gene positions come from the genome. Metabolism is 3c's network plus two reactions that model defines in its code: the phosphate importer, with 134&nbsp;mM phosphate in the medium, and its own ATP synthase.</p></div>
+    <div><h2>What this layer found</h2><p>With those two reactions in place, ATP settles at about 3.5&nbsp;mM and GTP at about 1.6&nbsp;mM. Those are the published concentrations, and nothing was tuned to reach them. In 3c, GTP sat on a knife edge because the network had no way to bring in phosphate. Glycolysis locked phosphate away in sugar phosphates, a classic glycolytic phosphate trap. The cycle time comes out near the lab's 105 minutes. It isn't an independent prediction, because 3b's rates were calibrated to that growth rate, but it now has to emerge from replication, ribosome building and division working together.</p></div>
+    <div><h2>What is our choice</h2><p>The cell divides when its chromosome is copied and it has doubled its birth mass. Ribosome and polymerase counts follow the median level of their subunit proteins. Promoters are normalised so the population-average cell, with its mix of one- and two-copy genes, keeps 3b's calibration. Metabolite pools are assumed to be made as fast as the cell grows. Volume follows protein mass, and we follow one daughter. There's no space yet: that's Stage 4.</p></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script>
+(async () => {
+  const css = getComputedStyle(document.documentElement);
+  const tok = (n) => css.getPropertyValue(n).trim();
+  const C = { ribo: tok('--ribo'), dna: tok('--dna'), dnaa: tok('--dnaa'), fork: tok('--fork'), wait: tok('--wait'), copy: tok('--copy'), after: tok('--after'), fg: tok('--fg'), muted: tok('--muted'), line: tok('--line') };
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const [genome, net] = await Promise.all([fetch('../stage3/data/genome.json').then((r) => r.json()), fetch('data/metabolism.json').then((r) => r.json())]);
+  const prot = genome.genes.filter((g) => g.kind === 'protein'), L = genome.meta.genomeLength;
+  const iDnaA = prot.findIndex((g) => g.name === 'dnaA');
+  let riboGenes = [];
+
+  let S = null, playing = true, speed = 300, busy = true, seed = 1, t0 = null;
+  const hist = []; // [t, mass, ribo]
+  const knocked = new Set();
+  let flashDiv = 0, lastGen = null;
+  const worker = new Worker('sim.js');
+  worker.onmessage = (e) => {
+    const m = e.data;
+    if (m.type === 'meta') { riboGenes = m.ribosomeGenes; busy = false; document.getElementById('rate').classList.remove('loading'); return; }
+    if (m.type !== 'frame') return;
+    busy = false; S = m.s;
+    if (t0 == null) t0 = S.cell.t;
+    if (lastGen != null && S.cell.gen !== lastGen) flashDiv = performance.now();
+    lastGen = S.cell.gen;
+    const last = hist[hist.length - 1];
+    if (!last || S.cell.t - last[0] >= 20) { hist.push([S.cell.t, S.cell.mass, S.ribo.total]); if (hist.length > 4000) hist.shift(); }
+  };
+  function reset() {
+    seed = (Math.random() * 2 ** 31) | 0; S = null; busy = true; t0 = null; hist.length = 0; knocked.clear(); lastGen = null;
+    document.querySelectorAll('[data-try]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+    setGlucose(40, false);
+    document.getElementById('rate').textContent = 'growing the first cell…'; document.getElementById('rate').classList.add('loading');
+    worker.postMessage({ type: 'init', seed, net, genomeLength: L, warm: 600,
+      genes: prot.map(({ nt, aa, mrna, ptn }) => ({ nt, aa, mrna, ptn })),
+      info: prot.map(({ tag, name, product, start, end, strand }) => ({ tag, name, product, start, end, strand })) });
+  }
+
+  // ---------- controls ----------
+  const playBtn = document.getElementById('play');
+  const setPlaying = (v) => { playing = v; playBtn.textContent = v ? 'Pause' : 'Play'; };
+  playBtn.addEventListener('click', () => setPlaying(!playing));
+  document.getElementById('reset').addEventListener('click', reset);
+  const SPEEDS = [60, 300, 1000], seg = document.getElementById('speedSeg');
+  seg.innerHTML = SPEEDS.map((v) => `<button type="button" data-v="${v}">${v}×</button>`).join('');
+  const syncSpeed = () => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.v === speed));
+  seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { speed = +b.dataset.v; syncSpeed(); } });
+  syncSpeed();
+  const glcEl = document.getElementById('glc');
+  const sliderToMM = (v) => v <= 0 ? 0 : 0.01 * Math.pow(10, v / 100 * Math.log10(4000));
+  const mmToSlider = (mm) => mm <= 0.01 ? 0 : Math.round(100 * Math.log10(mm / 0.01) / Math.log10(4000));
+  function setGlucose(mm, send = true) {
+    glcEl.value = mmToSlider(mm);
+    document.getElementById('glcv').textContent = mm >= 1 ? `${mm.toFixed(mm < 10 ? 1 : 0)} mM` : `${(mm * 1000).toFixed(0)} µM`;
+    if (send) worker.postMessage({ type: 'glucose', mM: mm });
+  }
+  glcEl.addEventListener('input', () => setGlucose(sliderToMM(+glcEl.value)));
+  document.querySelectorAll('[data-try]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.try, on = b.getAttribute('aria-pressed') !== 'true';
+    if (k === 'dnaa') worker.postMessage({ type: 'promoter', g: iDnaA, mult: on ? 0 : 1 });
+    if (k === 'moreA') worker.postMessage({ type: 'promoter', g: iDnaA, mult: on ? 4 : 1 });
+    if (k === 'ribo') worker.postMessage({ type: 'promoter', g: riboGenes, mult: on ? 0.5 : 1 });
+    if (k === 'starve') setGlucose(on ? 0.05 : 40);
+    if (k === 'dnaa' || k === 'moreA') document.querySelectorAll('[data-try="dnaa"],[data-try="moreA"]').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', on);
+    b.textContent = on ? 'Undo' : { dnaa: 'Knock it out', moreA: 'Turn it up', ribo: 'Halve them', starve: 'Starve' }[k];
+    setPlaying(true);
+    document.getElementById('live-t').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  }));
+
+  // ---------- readouts ----------
+  const fmtT = (s) => { s = Math.max(0, s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`; };
+  const PH = { assembling: ['waiting for DnaA', C.muted], replicating: ['copying', C.copy], copied: ['copied · growing to divide', C.after] };
+  let lastUi = 0, lastWallT = performance.now(), lastSimT = 0, rateX = 0;
+  function ui(now) {
+    if (!S || now - lastUi < 150) return;
+    const dw = (now - lastWallT) / 1000; if (dw > 0.5) { rateX = (S.cell.t - lastSimT) / dw; lastSimT = S.cell.t; lastWallT = now; }
+    lastUi = now;
+    const c = S.cell;
+    document.getElementById('clock').textContent = fmtT(c.t - t0);
+    document.getElementById('rate').textContent = playing ? `running at ${Math.round(rateX)}× real time` : 'paused';
+    document.getElementById('gen').textContent = c.gen;
+    document.getElementById('age').textContent = `${Math.floor(c.age / 60)} min old`;
+    const frac = Math.min(1, (c.mass - 1) / (c.divideAt - 1));
+    document.getElementById('massbar').style.width = (Math.max(0, frac) * 100).toFixed(1) + '%';
+    document.getElementById('masstxt').textContent = `mass ${c.mass.toFixed(2)}× birth · divides at ${c.divideAt.toFixed(1)}×${c.rep.phase !== 'copied' && c.mass >= c.divideAt ? ' (but the chromosome isn\'t copied yet)' : ''}`;
+    const [ptxt, pcol] = PH[c.rep.phase]; const ph = document.getElementById('phase'); ph.textContent = ptxt; ph.style.setProperty('--c', pcol);
+    document.getElementById('dnaa').innerHTML = `${c.dnaA} copies <small>· filament ${c.rep.fil}/30${c.rep.phase !== 'assembling' ? ' (fired)' : ''}</small>`;
+    document.getElementById('forks').innerHTML = c.rep.phase === 'assembling' ? '<small>not started</small>' : `${Math.round(100 * (c.rep.cw + c.rep.ccw) / L)}% copied <small>· ${Math.round(c.rep.cw / 1000)} + ${Math.round(c.rep.ccw / 1000)} kb</small>`;
+    document.getElementById('radius').textContent = `${c.radius.toFixed(0)} nm`;
+    document.getElementById('ribo').innerHTML = `${S.ribo.total} <small>· ${S.ribo.busy} busy</small>`;
+    document.getElementById('rnap').textContent = S.rnap.total;
+    document.getElementById('speed').textContent = Math.round(S.met.speed * 100) + '% of 10 aa/s';
+    document.getElementById('ntp').textContent = `${S.met.conc.M_atp_c.toFixed(2)} · ${S.met.conc.M_gtp_c.toFixed(2)} mM`;
+    drawGantt(); drawCharts();
+  }
+  function canvas2d(cv) {
+    const dpr = Math.min(2, devicePixelRatio || 1), W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); return [c, W, H];
+  }
+  function drawGantt() {
+    const [c, W, H] = canvas2d(document.getElementById('gantt'));
+    const rows = [...S.cell.divisions.slice(-11).map((d) => ({ ...d, done: true })), { gen: S.cell.gen, age: S.cell.age, tInit: S.cell.rep.tInit == null ? null : S.cell.rep.tInit - (S.cell.t - S.cell.age), tCopied: S.cell.rep.tDone == null ? null : S.cell.rep.tDone - (S.cell.t - S.cell.age), done: false }];
+    const Lw = 64, Rw = 70, w = W - Lw - Rw, rowH = Math.min(22, (H - 22) / 12), maxAge = Math.max(150 * 60, ...rows.map((r) => r.age));
+    const X = (a) => Lw + w * a / maxAge;
+    c.font = '11px "IBM Plex Mono", monospace'; c.textBaseline = 'middle';
+    for (let m = 0; m <= maxAge / 60; m += 30) { const x = X(m * 60); c.strokeStyle = C.line; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H - 18); c.stroke(); c.fillStyle = C.muted; c.textAlign = 'center'; c.fillText(m + ' min', x, H - 8); }
+    rows.forEach((r, k) => {
+      const y = k * rowH + 4, h = rowH - 6;
+      c.fillStyle = C.muted; c.textAlign = 'left'; c.fillText(r.done ? `gen ${r.gen}` : `gen ${r.gen} ▸`, 0, y + h / 2);
+      const ti = r.tInit ?? r.age, tc = r.tCopied ?? (r.tInit != null ? r.age : null);
+      c.fillStyle = C.wait; c.fillRect(X(0), y, X(Math.min(ti, r.age)) - X(0), h);
+      if (r.tInit != null) { c.fillStyle = C.copy; c.fillRect(X(r.tInit), y, X(Math.min(tc, r.age)) - X(r.tInit), h); }
+      if (r.tCopied != null) { c.fillStyle = C.after; c.fillRect(X(r.tCopied), y, X(r.age) - X(r.tCopied), h); }
+      c.fillStyle = r.done ? C.fg : C.muted; c.textAlign = 'right';
+      c.fillText(r.done ? `${(r.age / 60).toFixed(0)} min` : 'growing', W, y + h / 2);
+    });
+  }
+  function drawCharts() {
+    const series = (id, k, col, fmt) => {
+      const [c, W, H] = canvas2d(document.getElementById(id)), Lm = 34, B = 16, T = 4, w = W - Lm - 4, h = H - B - T;
+      if (hist.length < 2) return;
+      const span = Math.max(3600, hist[hist.length - 1][0] - hist[0][0]), tA = hist[hist.length - 1][0] - span;
+      const vals = hist.map((p) => p[k]), yMax = Math.max(...vals) * 1.1;
+      c.font = '10.5px "IBM Plex Mono", monospace'; c.fillStyle = C.muted; c.strokeStyle = C.line;
+      for (const f of [0, .5, 1]) { const y = T + h * (1 - f); c.beginPath(); c.moveTo(Lm, y); c.lineTo(Lm + w, y); c.stroke(); c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText(fmt(yMax * f), Lm - 5, y); }
+      c.textAlign = 'right'; c.textBaseline = 'top'; c.fillText('now', Lm + w, T + h + 3); c.textAlign = 'left'; c.fillText(`−${fmtT(span)}`, Lm, T + h + 3);
+      c.beginPath(); hist.forEach((p, i) => { if (p[0] < tA) return; const x = Lm + w * (p[0] - tA) / span, y = T + h * (1 - p[k] / yMax); i && hist[i - 1][0] >= tA ? c.lineTo(x, y) : c.moveTo(x, y); });
+      c.strokeStyle = col; c.lineWidth = 2; c.stroke();
+    };
+    series('c-mass', 1, C.fg, (v) => v.toFixed(1));
+    series('c-ribo', 2, C.ribo, (v) => v.toFixed(0));
+  }
+
+  // ---------- the cell ----------
+  const host = document.getElementById('cell');
+  let dots = [];
+  new p5((s) => {
+    let W;
+    const size = () => Math.min(host.parentElement.clientWidth, 600);
+    s.setup = () => { W = size(); s.createCanvas(W, W).parent(host); s.pixelDensity(Math.min(2, devicePixelRatio || 1)); s.textFont('monospace'); };
+    s.windowResized = () => { W = size(); s.resizeCanvas(W, W); };
+    s.draw = () => {
+      const now = performance.now();
+      if (playing && !busy) { busy = true; worker.postMessage({ type: 'step', dt: speed * Math.min(s.deltaTime, 100) / 1000 }); }
+      ui(now);
+      s.background(7, 9, 12);
+      if (!S) { s.fill(125, 136, 152); s.noStroke(); s.textAlign(s.CENTER, s.CENTER); s.textSize(13); s.text('growing the first cell…', W / 2, W / 2); return; }
+      const c = S.cell, maxR = W * 0.46, R = maxR * c.radius / 245; // drawn to scale: 245 nm fills the frame
+      s.push(); s.translate(W / 2, W / 2);
+      // a sister drifting away just after division
+      const since = (now - flashDiv) / 1000;
+      if (flashDiv && since < 1.6 && !reduced) {
+        const a = 1 - since / 1.6, off = R * (0.6 + 1.6 * since);
+        s.noFill(); s.stroke(110, 168, 255, 120 * a); s.strokeWeight(3); s.circle(off, 0, 2 * R);
+        s.noStroke(); s.fill(217, 222, 230, 200 * a); s.textSize(12); s.textAlign(s.CENTER, s.CENTER); s.text('sister', off, 0);
+      }
+      s.noStroke(); s.fill(16, 22, 30); s.circle(0, 0, 2 * R);
+      s.noFill(); s.stroke(70, 86, 104); s.strokeWeight(Math.max(2, R * 0.03)); s.circle(0, 0, 2 * R);
+      // ribosomes: one dot each, wandering
+      const n = S.ribo.total;
+      while (dots.length < n) { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * 0.92; dots.push([r * Math.cos(a), r * Math.sin(a)]); }
+      if (dots.length > n) dots.length = n;
+      s.noStroke(); const rc = s.color(C.ribo); rc.setAlpha(190); s.fill(rc);
+      const d = Math.max(2, R * 0.022);
+      for (const p of dots) {
+        if (playing && !reduced) { p[0] += (Math.random() - .5) * 0.02; p[1] += (Math.random() - .5) * 0.02; const q = Math.hypot(p[0], p[1]); if (q > 0.93) { p[0] *= 0.93 / q; p[1] *= 0.93 / q; } }
+        s.circle(p[0] * R, p[1] * R, d);
+      }
+      // chromosome: a ring; the copied stretch drawn twice
+      const cr = R * 0.42, ang = (pos) => pos / L * Math.PI * 2 - Math.PI / 2;
+      s.noFill(); s.strokeWeight(Math.max(2, R * 0.018)); const dc = s.color(C.dna); dc.setAlpha(230); s.stroke(dc); s.circle(0, 0, 2 * cr);
+      if (c.rep.phase !== 'assembling') {
+        const cw = c.rep.cw, ccw = c.rep.ccw, r2 = cr * 1.14;
+        if (cw > 0) s.arc(0, 0, 2 * r2, 2 * r2, ang(0), ang(cw));
+        if (ccw > 0) s.arc(0, 0, 2 * r2, 2 * r2, ang(L - ccw), ang(L));
+        if (c.rep.phase === 'replicating') {
+          s.noStroke(); s.fill(255);
+          for (const pos of [cw, L - ccw]) { const a = ang(pos); s.circle(Math.cos(a) * cr * 1.07, Math.sin(a) * cr * 1.07, Math.max(6, R * 0.05)); }
+        }
+      }
+      // DnaA filament at the origin (top)
+      if (c.rep.phase === 'assembling') {
+        const f = c.rep.fil / 30; s.noFill(); s.stroke(C.dnaa); s.strokeWeight(Math.max(3, R * 0.03));
+        if (f > 0) s.arc(0, 0, 2 * cr * 0.84, 2 * cr * 0.84, -Math.PI / 2 - f * 0.9, -Math.PI / 2 + f * 0.9);
+        s.noStroke(); s.fill(C.dnaa); s.circle(0, -cr, Math.max(5, R * 0.035));
+      }
+      s.noStroke(); s.fill(125, 136, 152); s.textSize(11); s.textAlign(s.CENTER, s.BOTTOM); s.text('origin', 0, -cr - 8);
+      s.pop();
+      // scale bar
+      s.noStroke(); s.fill(217, 222, 230); const bar = maxR / 245 * 100; s.rect(W - 14 - bar, W - 14, bar, 3); s.textSize(10.5); s.textAlign(s.CENTER, s.BOTTOM); s.text('100 nm', W - 14 - bar / 2, W - 18);
+    };
+  });
+  reset();
+})();
+</script>
+</body>
+</html>

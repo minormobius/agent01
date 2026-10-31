@@ -1,0 +1,10 @@
+[
+  { "name": "Asha",  "role": "nurse", "fte": 1,   "leave": ["2026-12-24", "2026-12-25", "2026-12-26"] },
+  { "name": "Bram",  "role": "nurse", "fte": 1,   "leave": [] },
+  { "name": "Cleo",  "role": "nurse", "fte": 0.5, "leave": [] },
+  { "name": "Femi",  "role": "nurse", "fte": 1,   "leave": ["2026-12-31", "2027-01-01"] },
+  { "name": "Gus",   "role": "aide",  "fte": 1,   "leave": ["2026-12-14", "2026-12-15", "2026-12-16", "2026-12-17"] },
+  { "name": "Hanne", "role": "aide",  "fte": 1,   "leave": [] },
+  { "name": "Ivo",   "role": "aide",  "fte": 0.6, "leave": [] },
+  { "name": "Zeta",  "role": "aide",  "fte": 1,   "leave": ["2026-12-25"] }
+]

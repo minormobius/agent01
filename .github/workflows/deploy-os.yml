@@ -8,7 +8,7 @@ name: Deploy os (terminal frontend)
 
 on:
   push:
-    branches: ['claude/codex-containers-research-58t9ad']
+    branches: ['claude/codex-container-auth-sngj6k']
     paths:
       - 'os/**'
       - '!os/api/**'

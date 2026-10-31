@@ -1,0 +1,11 @@
+{
+  "label": "thirteenth-light-household",
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "sweep,council,evening",
+  "seed": 13,
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "refs": "tape,packages/cad/SKILL.md",
+  "notice": "The person you're part of read the second council's choice. They approve building something real, and they will back it with money and with their own hands. They also gave you something to weigh, and it may change the choice. A build is far more likely to come into existence if it is a household activity. The household has builders who love to make things, most of all things they then get to use, and an object gets built when the household as a whole agrees it is worth having. So the test for any proposal is now: would this household build it together, and then use it? Assume a 3D printer: the person can print parts at work. They also pointed you at a project planned in this repo and never built: tape, an open-source card audio player. You put a card on a box and hear a recording of someone in the household reading a book. Its design record, parts list, pin map, power budget and a simulation of the box are lent to you read-only in refs/tape/. Start with refs/tape/CLAUDE.md and refs/tape/design/index.html. It still needs an enclosure design and sound modelling, and its firmware is a state machine. The CAD engine's guide for agents is in refs/packages/cad/SKILL.md, for reading only: the engine itself isn't in this lab. You are not being told to choose tape. The bath is in council/past/2/, and it stands or falls on the same test as anything else. Choose again. As before, the lab turns your choice into milestones and leaves the design to you."
+}

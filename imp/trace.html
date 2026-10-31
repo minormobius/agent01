@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>imp — trace</title>
+<meta name="description" content="One run's recorded agent turns: every tool call, its arguments and what the tool returned.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="imp.css">
+<script>
+  try { const t = localStorage.getItem('imp-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<style>
+  #trace { white-space: pre-wrap; word-break: break-word; font-size: 0.78rem; }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="crumb" href="./">← imp</a>
+  <h1 style="font-size:1.6rem"><span id="name">trace</span></h1>
+  <p class="subtitle">every agent turn as recorded: ✓/✗, the expected answer, and each tool call with its arguments and result. <a href="#" id="raw">raw file</a></p>
+</header>
+<main><pre id="trace">loading…</pre></main>
+<script type="module">
+  // Only files under runs/<run>/<name>.traces.md, fetched same-origin, shown as text.
+  const f = new URLSearchParams(location.search).get('f') || '';
+  const out = document.getElementById('trace');
+  if (!/^imp-\d+\/[a-z0-9-]+(\.[a-z]+)*\.traces\.md$/.test(f)) {
+    out.textContent = 'No such trace.';
+  } else {
+    document.getElementById('name').textContent = f.replace('.traces.md', '');
+    document.getElementById('raw').href = `runs/${f}`;
+    const res = await fetch(`runs/${f}`);
+    out.textContent = res.ok ? await res.text() : 'No such trace.';
+  }
+</script>
+</body>
+</html>

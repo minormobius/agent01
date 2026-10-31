@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Thomas of Erceldoune — The Romance of Thomas the Rhymer</title>
+  <meta name="description" content="Thomas of Erceldoune, the medieval romance behind Thomas the Rhymer: a May morning under the Eildon Hills, a lady of another country, three days in the dark under the hill, three years that feel like three days, the teind to hell, and a tongue that can never lie. Middle English (Murray 1875, Thornton MS) with a facing original translation, cast, character web, story graph, desire, motif index, mythograph and storybook.">
+  <meta property="og:title" content="Thomas of Erceldoune — The Romance of Thomas the Rhymer">
+  <meta property="og:description" content="Under Eildon Hill for three days that were three years, and home with a tongue that cannot lie. The oldest Scottish otherworld tale, in Middle English with a facing translation.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://read.mino.mobi/thomas/">
+  <meta property="og:site_name" content="Read">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">🌿</span>Thomas of Erceldoune</span>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="book">Storybook</button>
+        <button class="tab" data-view="characters">Characters</button>
+        <button class="tab" data-view="web">Character web</button>
+        <button class="tab" data-view="propp">Story graph</button>
+        <button class="tab" data-view="desire">Desire</button>
+        <button class="tab" data-view="motifs">Motifs</button>
+        <button class="tab" data-view="myth">Mythograph</button>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- READ (source + parallel translation) -->
+    <section class="view active" id="view-read">
+      <div class="hero">
+        <h1>Thomas of Erceldoune</h1>
+        <p><em>The romance of Thomas the Rhymer</em>: a May morning under the Eildon Hills. A lady of another country on a dapple-grey horse, a beauty spent at a touch, three days of darkness and water under the hill, fruit that must not be eaten, five roads, a hall where he may speak to no one, three days that were three years, the teind to hell, and a tongue that can never lie. The sixth tale in <a href="/samhain/">Samhain</a>, the series.</p>
+      </div>
+      <div class="tale-meta" id="tale-meta"></div>
+      <div class="tale-progress" id="tale-progress"></div>
+      <div class="tale-controls" id="tale-controls"></div>
+      <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
+    <!-- STORYBOOK (faithful middle-grade retelling) -->
+    <section class="view" id="view-book">
+      <div class="hero"><h1>Storybook</h1><p>A faithful retelling for readers about ten and up, page by page. Best read under a tree.</p></div>
+      <div class="book-frame">
+        <div class="book-page" id="book-page"></div>
+        <div class="book-nav" id="book-nav"></div>
+      </div>
+    </section>
+
+    <!-- CHARACTERS -->
+    <section class="view" id="view-characters">
+      <div class="hero"><h1>The cast</h1><p>Who does what — grouped by role, linked to the movements where they appear, and to one another.</p></div>
+      <p class="lead" id="char-intro"></p>
+      <div class="char-legend" id="char-legend"></div>
+      <div id="char-groups"></div>
+    </section>
+
+    <!-- CHARACTER WEB -->
+    <section class="view" id="view-web">
+      <div class="hero"><h1>Character web</h1><p>The cast as a graph — every relationship in the tale, force-laid. Hover a node to light up its ties; click to open its card.</p></div>
+      <div class="tree-legend" id="web-legend"></div>
+      <div class="zoom-host" id="web-host"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore. Node size marks principals; colour marks role. Built straight from the relationship edges in the character cards.</p>
+    </section>
+
+    <!-- STORY GRAPH (Propp) -->
+    <section class="view" id="view-propp">
+      <div class="hero"><h1>Story graph</h1><p>The tale laid against Propp's 31 narrative functions — each beat linking to the movement that realises it.</p></div>
+      <p class="lead" id="propp-intro"></p>
+      <div class="tree-legend" id="propp-legend"></div>
+      <div class="zoom-host" id="propp-spine"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore; click a node to jump to its detail below.</p>
+      <div id="propp-cards"></div>
+      <div class="propp-absent" id="propp-absent"></div>
+    </section>
+
+    <!-- MOTIF INDEX -->
+        <section class="view" id="view-desire">
+      <div class="hero"><h1>Desire</h1><p>The tale laid against Greimas's actantial model — the functional structure of <em>wanting</em> beneath the plot. Not the social web of who-knows-whom, but the single engine of desire: who wants what, who sends it, who aids and who blocks.</p></div>
+      <p class="lead" id="desire-intro"></p>
+      <div id="desire-host"></div>
+      <p class="desire-prose" id="desire-prose"></p>
+    </section>
+
+    <section class="view" id="view-motifs">
+      <div class="hero"><h1>Motif index</h1><p>The tale by call-number: the Thompson Motif-Index, Christiansen's Migratory Legends, and the native Irish tale-genres.</p></div>
+      <p class="lead" id="motif-intro"></p>
+      <div class="tt-grid" id="motif-taletypes"></div>
+      <div id="motif-groups"></div>
+    </section>
+
+    <!-- THE MYTHOGRAPH -->
+    <section class="view" id="view-myth">
+      <div class="hero"><h1>The mythograph</h1><p>One graph, all the layers. The ten movements run as a spine; characters, motifs, story-functions, type-scenes and the Object of desire hang from the moments they touch — and whatever cross-cuts the tale is pulled toward the centre.</p></div>
+      <div class="myth-controls" id="myth-filters"></div>
+      <div class="tree-legend" id="myth-legend"></div>
+      <div class="zoom-host" id="myth-host"></div>
+      <p class="tree-hint">Movements I–X run as the heather spine. Hover a node to light its threads; click any node for detail. Toggle the layers above to isolate one kind of connection.</p>
+      <div class="myth-detail" id="myth-detail"></div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · <a href="/samhain/">samhain</a> · Thomas of Erceldoune</span><br>
+    A deep read of the Middle English romance. The source is J. A. H. Murray's edition of all five manuscripts, <em>The Romance and Prophecies of Thomas of Erceldoune</em>, EETS o.s. 61 (1875), following the Thornton MS (Lincoln Cathedral 91, c. 1430–40) with its gaps filled from Cambridge Ff. 5. 48 and Lansdowne 762 — public domain, transcribed from the Internet Archive scan, with the raw OCR at <a href="source/murray-1875-eets61-ocr.txt">source/</a>. Fytte I is complete; the prophecies of Fyttes II–III are abridged, and each cut is marked. The English is an original translation. This is the sixth tale of the <a href="/samhain/">Samhain</a> series, and its first from Scotland; the six are compared on the series hub. Its descendant, <em>Tam Lin</em>, is on the roster.
+  </footer>
+
+  <script src="tale.js"></script>
+  <script src="analysis.js"></script>
+  <script src="characters.js"></script>
+  <script src="motifs.js"></script>
+  <script src="storybook.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

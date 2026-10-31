@@ -1,0 +1,4 @@
+{
+  "runId": "ab-02",
+  "note": "All 20 held-out requests, both arms. The first clean run: prepare.sh rebuilds tenants, profiles and request files as of each request's time (ab-01 leaked a published copy and a later turn). The preregistered bar: the challenger wins 15 of 20 pairs, ties counting half."
+}

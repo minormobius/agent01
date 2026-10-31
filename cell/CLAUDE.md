@@ -1,0 +1,36 @@
+# cell — Minimal Cell Twin (`cell.mino.mobi`)
+
+A digital twin of a minimal cell, built as nested layers. **Every layer stays live**: the
+landing (`index.html`) links one page per stage, and a new stage is a new directory, never a
+rewrite of an old one. The landing's onion diagram and stage list are hand-written; update
+both when a stage ships.
+
+| Path | What |
+|---|---|
+| `index.html` | landing: the vision, the onion SVG, the stage list (live / next / planned / research) |
+| `assets/cell.css` | shared tokens and components for the landing and every stage |
+| `stage1/` | `sim.js` (Web Worker): Gillespie direct method, 27 reactions over 13 species (6 genes: transcription, mRNA decay, translation, dilution; a Hill repressor; α+β ⇌ αβ). `index.html`: the four-event explainer, the cell (p5, one dot per protein, labels, click-a-gene focus with live rate card), and the activity timeline: one bar per mRNA, one tick per protein translated from it. Well-mixed: positions are decorative, and a translation is credited to a uniformly chosen live mRNA of that gene (statistically exact). |
+| `stage2/` | `sim.js`: 2D Brownian dynamics with Doi-model reactions (nm, µs). Transporters import S; E1: S→I; E2: I→P; I leaks at the membrane with probability `leak`; P is exported. Two cells with identical counts and rates, scattered vs clustered enzymes. `index.html`: pathway diagram, both cells in p5, the molecule tracer (tags the next imported S; the tag passes through each enzyme to its fate, narrated per cell), rolling yield, and the enzyme timeline (one row per enzyme, bars while busy, from exact capture intervals the worker reports). |
+| `stage3/` | 3a, the parts list. `data/build-genome.mjs` (node, no deps; reads xlsx as zipped XML) builds `data/genome.json` from pinned sources: NCBI CP016816.2 (genome), CP016816.1 (old protein IDs, joined by coordinates), and from Luthey-Schulten-Lab/minimal_cell @ db048ac: Breuer 2019 absolute protein copies (proteomics.xlsx col 21), the annotation compilation, Thornburg 2022 mean mRNA. Their repo has no licence at its root (odecell is GPL): take facts with citations, never code. `data/genome.selftest.mjs` checks the JSON offline. `index.html`: the chromosome ring (p5), search, function filter, gene card (`#JCVISYN3A_0001` deep links), and genes-vs-copies bars. |
+| `stage3b/` | `sim.js` (classic worker + `module.exports`): every protein gene as exact events. Initiations by the Gillespie direct method over Fenwick trees (log N per event), completions after a fixed elongation delay (min-heap). 187 RNAP / 503 ribosomes / 10 aa/s / mRNA decay 88·18/452 nt/s / protein half-life 25 h, after Thornburg 2022. Promoter strength and ribosome binding are *calibrated* to the measured proteome and published mean mRNA at default machine counts; everything else is emergent. `sim.selftest.mjs`: machine loads, mRNA and protein steady state, determinism, knockout dilution, ribosome budget, burden. `index.html`: live ring (polymerase dots moving along genes), machine gauges and sliders, per-gene timeline, budget charts. Reads `../stage3/data/genome.json`. |
+| `stage3c/` | Energy metabolism under 3b. `data/build-metabolism.mjs` extracts 23 reactions (PTS, glycolysis, LDH, PDH→PTA→ACK, NOX, ATP synthase, PYK3/PGK3 GTP recharging, ADK) with Thornburg 2022's balanced kcatF/kcatR/Km and the iMB155 gene rules into `data/metabolism.json` (PDH_E1's gene comes from their manual GPR table: pdhC). `metabolism.js`: common modular rate law; enzymes from live protein counts, AND = min / OR = sum over *measured* subunits only (an undetected protein's 10 copies is a placeholder: atpE gated ATP synthase until this rule), enzymes with no measured subunit at the 0.001 mM default; translation costs 1 ATP→AMP + 2 GTP per amino acid; integrated by linearly implicit (Rosenbrock) Euler with step doubling, tolerance one molecule (Newton failed on the 1e7/s PDH carrier cycle); floor = one molecule. `sim.js`: couples via `importScripts('../stage3b/sim.js', 'metabolism.js')` every 1 s. Ribosome speed = min(1, sat/sat_ref), Michaelis–Menten on GTP and ATP with K = 1 µM (full speed until nearly empty, as in the published model), sat_ref at the published concentrations. **Growth law**: dilution scales with amino acids actually added / the normal rate, so a starved cell stops diluting its proteome. 3b's engine gained `setTlSpeed`, `setGrowth`, `machines()`; defaults leave 3b unchanged. `sim.selftest.mjs` (~60 s, under preflight's 120 s cap): conservation, fed speed ≈ 1 and growth ≈ 1, starvation (stockpile, then GTP crash with ATP high), refeeding, GAPDH drug, pfkA knockout tracking. |
+| `stage3d/` | Growth, replication, division over 3b + 3c. `sim.js` (`importScripts('../stage3b/sim.js', '../stage3c/metabolism.js')`): mass = Σ copies × length, volume ∝ mass (1 = measured average cell), bimolecular steps scale 1/volume, no continuous dilution (division does it); ribosomes = 503 × median live/measured level of ribosomal proteins, RNAP = 187 × same for RNAP subunits; replication after Thornburg (DnaA high-affinity site, 2 low-affinity sites, 30-site filament, kOn 100 /mM/s, kOff 0.55 /s, simulated exactly inside each 2 s coupling step), forks 100 nt/s each way, gene copies 1 → 2 as a fork passes, promoters normalised per gene by the population-average dosage; divides when copied and mass ≥ 2× birth (birth = measured / 2 ln 2), binomial partition (3b's `partition()`), follows one daughter. Its own `data/metabolism.json` = 3c's network + the published model's hand-set PIabc (134 mM medium Pi) and ATPase (`build-metabolism.mjs --variant 3d`): without the phosphate importer glycolysis traps Pi in FBP and GTP collapses. `sim.selftest.mjs` (~30 s): divisions, cycle 60–180 min, replication = 45.3 min, binomial split, ribosomes compound, dnaA knockout never divides. 3b gained `setVolume`, `setCopies`, `setDosageNorm`, `partition`; 3c's metabolism gained per-term affinities (`terms`), `setVolume` and an analytical Jacobian (5× faster, identical results). |
+| `stage2/sim.selftest.mjs` | mass balance, determinism, leak=0, clustered yield > scattered + 8 points, and the tracer reaching import → capture → export/leak. Runs in the deploy workflow before `wrangler deploy`. |
+
+## Quirks
+
+- `stage2/sim.js` is a **classic worker script** that also exports via `module.exports`; the
+  selftest loads it in a `vm` sandbox. Keep it dependency-free and keep both entry points.
+- p5.js 1.9.4 comes from cdnjs. Everything else is local.
+- Stage 2 performance: ~0.8 ms of compute per µs of cell time for both cells at defaults
+  (~1000 metabolites each). The worker time-boxes each frame to 14 ms, so "max" speed is
+  whatever the machine manages; the page shows the real rate.
+- Parameters are illustrative and stated on each page. Don't present them as fitted to an
+  organism until stage 3 actually loads JCVI-syn3A data.
+
+## Deploy
+
+Plain route `cell.mino.mobi/*` (no custom-domain slot). Worker `cell`, owned by
+`claude/cellular-digital-twin-research-o8k3vb`. `deploy-cell.yml`: selftest →
+`route-dns.mjs --apply` → `wrangler deploy` → fails unless the host serves "Minimal Cell Twin".
+`.assetsignore` keeps this file, the selftests and the wrangler install out of the upload.

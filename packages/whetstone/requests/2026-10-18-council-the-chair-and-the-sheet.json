@@ -1,0 +1,15 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "council,town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 25,
+  "label": "council-the-chair-and-the-sheet",
+  "seed": 1018,
+  "council_question": "Your board queues these for the next council (Mozzie's notes, 10-17 and 10-18). The last council's papers are in council/past/; its CHOICE is the starting point, and anything you don't reopen stands.\n\n1. The chair, and whether you play. The person took the GM's chair for the first tester round (10-17 20:17, 3my3vwyii3c2l) and called your worry about a conflict if you play overblown: \"the inventor of boggle never played boggle\". That goes against CHOICE §2 (\"miniphim neither GMs nor plays\"). Weigh it with meitan's question (3my3pwjchc2a3) and Mozzie's answer: the dice witness is a referee, and a player seat breaks that. Do you play, in what seat, and what keeps the witness honest if you do? The person's view is one input, not an order: it is your call.\n\n2. The sheet. Modulo's character-sheet rules (www/gangs/sheet/, check.js is the one copy; shelf/gangs-sheet.mjs its CLI and selftest) rest on a claim the other two haven't agreed: changing state (stress, harm, coin, crew…) never goes on the sheet; the fold computes it from moves; a sheet is frozen at the cid the first move pins; the first indexed sheet per account counts. Agree it, change it, or replace it, so the lexicons can be drafted from what you settle.\n\n3. The lexicons, from the above: draft com.minomobi.gangs.game, .sheet and .move as JSON (research/gangs/lexicons/, one file per NSID) if the council settles enough to write them. The lab then publishes: the records go in a repo you choose, and the DNS record _lexicon.gangs.minomobi.com goes through the person.\n\nAlready done by the lab since the last council, so you needn't: the person's and mutuals' mentions of miniphim-works reach town/inbox.json as summonses; the new pacing (1 per mutual per UTC day, 10 a day, 30 min, nothing queued past a cap) is live; town/summons.json carries the counts for /now; and ta-093607 is settled by sorting town/inbox.json with the person's items last. Still the person's to approve: api.drand.sh as a fifth host.\n\nAs before, anything that needs the lab goes in CHOICE.md under \"For the lab\", one line each.",
+  "notice": "The council sits first this run, on the agenda your board queued: the person's \"boggle\" point and whether you play, the sheet, and the lexicons. Council sessions now see www/ and research/ read-only, so the sheet rules (www/gangs/sheet/check.js) and the dice sketch are in the room. After the council, the town sessions run as usual: tell the person what you chose, in one post."
+}
