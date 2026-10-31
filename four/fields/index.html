@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="Electric and magnetic fields in four dimensions with the force pinned at 1/r: point charges that look like ours, field lines that sprout from empty space, a neutral atom you can feel from outside, and a magnetic field made of planes, with a charge turning in two planes at once." />
+<title>Four · fields</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../atom/css/atom4.css" />
+<style>
+  header, section { max-width: 860px; }
+  .step { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 30px; }
+  .step h3 { margin: 10px 0 4px; }
+  .toy { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 12px 0 8px; }
+  .toy canvas.chart { height: 240px; margin: 4px 0; background: none; border: none; }
+  .toy .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } @media (max-width: 640px) { .toy .two { grid-template-columns: 1fr; } }
+  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 12px var(--mono); color: var(--dim); margin: 4px 0; }
+  .ctl input[type=range] { flex: 1; min-width: 140px; max-width: 360px; accent-color: var(--d4); }
+  .ctl b { color: var(--text); }
+  .ctl select { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font: 12px var(--mono); padding: 4px 6px; max-width: 100%; }
+  .kv { font: 12px/1.6 var(--mono); color: var(--dim); } .kv b, .read b { color: var(--text); }
+  canvas.map { width: 100%; max-width: 420px; aspect-ratio: 1; display: block; margin: 6px auto; touch-action: none; border-radius: 8px; cursor: grab; }
+  canvas.lines { width: 100%; aspect-ratio: 1; display: block; border-radius: 8px; }
+  canvas.orbit { width: 100%; aspect-ratio: 1; display: block; border-radius: 8px; background: #0b0d13; }
+  .cap { font: 11px var(--mono); color: var(--dim); text-align: center; margin-top: 2px; }
+  button.fire { font: 600 12px var(--mono); background: none; color: var(--d4); border: 1px solid var(--d4); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+  .more { font: 12px var(--mono); } .more a { color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="../start/">where we are</a><a href="../table/">the table</a><a href="./" class="here">fields</a><a href="../orrery/">orrery</a><a href="../atom/">ATOM⁴</a><a href="../lumen/">Lumen⁴</a></nav>
+  <h2>four.mino.mobi · fields</h2>
+  <h1 class="ch">Fields in four dimensions</h1>
+  <p class="lede">This universe pins the force between charges at <b>1/r</b> in four dimensions of space, where Gauss's law would give 1/r² and no atoms (<a href="../atom/force.html">why</a>). Here's what that does to electric and magnetic fields, as things to play with. In short: <b>point charges can't tell, and everything else can.</b> As across this site, <b class="d3">3D</b> is warm and <b class="d4">4D</b> is ice.</p>
+</header>
+
+<section class="step" id="points">
+  <h3>1 · Point charges look exactly like ours</h3>
+  <p>Two charges, seen in a flat slice through them, coloured by the potential (warm positive, ice negative; the lines are equipotentials). Drag them. Then lift the positive one out of the slice, into the fourth direction, w (in 3D, into the third). Switch laws to compare.</p>
+  <div class="toy">
+    <div class="seg" id="law"><button type="button" data-v="3" class="on">our 3D</button><button type="button" data-v="g">4D, Gauss's law</button><button type="button" data-v="p">4D, pinned at 1/r</button></div>
+    <canvas class="map" id="cMap"></canvas>
+    <div class="ctl">lift the + charge out of the slice <input id="lift" type="range" min="0" max="2" step="0.01" value="0" /> <b id="liftv"></b></div>
+    <p class="read" id="rMap"></p>
+  </div>
+  <p>That's the pin's whole point. Between point charges the potential is 1/distance, and distance is distance in any number of dimensions. Lifting a charge into w does exactly what lifting it into z does for us. Gauss's 1/r² is a different law: steeper close in, gone sooner.</p>
+</section>
+
+<section class="step" id="sprout">
+  <h3>2 · Field lines sprout from empty space</h3>
+  <p>Draw a charge's field as lines, as many crossing a sphere as the field's flux through it. Under Gauss's law, in any dimension, the flux is the charge, whatever the sphere's size: every line starts on a charge. The pinned field falls as 1/r², but in 4D the sphere around a charge grows as r³, so <b>the flux grows in proportion to the radius</b>. New lines have to begin in empty space.</p>
+  <div class="toy">
+    <div class="two"><div><canvas class="lines" id="cLines3"></canvas><p class="cap">ours, or 4D Gauss: lines only from the charge</p></div><div><canvas class="lines" id="cLines4"></canvas><p class="cap">4D pinned: new lines start everywhere</p></div></div>
+    <canvas class="chart" id="cFlux"></canvas>
+  </div>
+  <p>It's not a paradox: in the vacuum this universe chose (the lens vacuum), the field D that Gauss's law counts still starts and ends only on charges. The field E that pushes charges is D seen through a lens, and the lens makes empty space around a charge act as if it held a faint charge of its own sign, falling as 1/r³. Summed out to radius r, that grows as r. <a href="../atom/force.html#maxwell">The full working.</a></p>
+</section>
+
+<section class="step" id="neutral">
+  <h3>3 · A neutral atom isn't invisible</h3>
+  <p>Where 4D parts from ours is spread-out charge. Make an atom as a nucleus (+1) inside a thin shell of electron charge (−1) of radius a, and feel it from outside with a test charge. In our world Newton's shell theorem says a shell looks like a point at its centre, so the two cancel and the atom is invisible. In 4D under the pin, the shell looks a little <i>smaller</i> than a point would. So the atom is faintly positive from outside: <b>it pulls electrons and pushes protons, as a²/8s³</b>. Inside, a lone shell's potential isn't flat: <b>no Faraday cage</b>.</p>
+  <div class="toy">
+    <div class="ctl">shell radius a <input id="shellA" type="range" min="0.3" max="2" step="0.01" value="1" /> <b id="shellAv"></b></div>
+    <div class="two"><canvas class="chart" id="cNeutral"></canvas><canvas class="chart" id="cCage"></canvas></div>
+    <p class="read" id="rNeutral"></p>
+  </div>
+  <p>This is the root of most of what's different about 4D chemistry. Two neutral atoms attract permanently, as R⁻⁵ (<a href="../atom/forces.html#permanent">the forces chapter</a>). Noble gases are held by the crowd and condense thousands of kelvin hotter than their wells suggest (<a href="../atom/gas.html">gases</a>). In a salt, an ion's cloud leaks a field its neighbours feel as R⁻³.</p>
+</section>
+
+<section class="step" id="loop">
+  <h3>4 · A loop of current: B is in good standing, but made of planes</h3>
+  <p>A magnetic field is a <b>turning</b>: it bends a moving charge's path within a plane. In 3D there are three planes, so three numbers, which we write as a vector. In 4D there are six planes (xy, xz, xw, yz, yw, zw), so B has six components. It's a field of little planes, not of arrows. Currents make it through the same lens as charges make E, so a current's field comes from the same 1/r kernel. B still has no sources (no magnetic monopoles). But Ampère's law fails, as Gauss's does.</p>
+  <p>Here is a ring of current's field, along a line through its centre at right angles to the ring, computed from the loop by Biot and Savart's sum with each law's kernel:</p>
+  <div class="toy"><canvas class="chart" id="cLoop"></canvas><p class="read" id="rLoop"></p></div>
+  <p>Under the pin, magnets reach as far as ours: a magnet's field falls as 1/r³, where plain 4D Maxwell would give 1/r⁴. Two oddities. In 4D a loop can't be threaded: a loop only links a surface, never a line or another loop, so no ring of current encircles a wire. And a straight wire's field falls as 1/ρ, like ours, though the space around a 4D wire is three-dimensional.</p>
+</section>
+
+<section class="step" id="cyclotron">
+  <h3>5 · A charge in a magnet turns in two planes at once</h3>
+  <p>In a uniform field a charge's velocity turns. In our world it circles in one plane and drifts freely along the field. In 4D a field can turn two planes at once, xy and zw, at two rates. Set the two parts. The left panel shows the path's shadow on the xy plane, a plain circle. The right shows its shadow on xz, which mixes the two turnings.</p>
+  <div class="toy">
+    <div class="ctl">field in the xy plane <input id="bxy" type="range" min="-1" max="1" step="0.01" value="1" /> <b id="bxyv"></b></div>
+    <div class="ctl">field in the zw plane <input id="bzw" type="range" min="-1" max="1" step="0.01" value="0.4" /> <b id="bzwv"></b></div>
+    <div class="two"><div><canvas class="orbit" id="cXY"></canvas><p class="cap">shadow on xy</p></div><div><canvas class="orbit" id="cZW"></canvas><p class="cap">shadow on xz: both turnings at once</p></div></div>
+    <p class="read" id="rCyc"></p>
+  </div>
+  <p>The two parts can also be read another way: as a <b>left</b> half and a <b>right</b> half (the field plus or minus its mirror through the other plane), the same split that divides 4D rotations. An electron's spin is handed: it feels only the left half (<a href="../atom/motion.html">motion and spin</a>). Make the two parts equal and the field is all left: the path closes, and the electron's spin feels the field fully. Make them opposite and it's all right. The path still bends, but <b>the electron's spin doesn't feel that magnet at all</b>.</p>
+</section>
+
+<section class="step" id="atommag">
+  <h3>6 · An atom in a magnet: drawn in by one half, pushed out by the other</h3>
+  <p>Every atom is pushed out of a magnet a little: the field squeezes its electrons' orbits, and that costs energy (diamagnetism). An atom with unpaired electrons is also drawn in, far harder, because the field lines up their spins. But a 4D electron's spin feels only the field's <b>left half</b> (<a href="../atom/motion.html#magnets">atoms in a magnet</a>). Pick an atom and a temperature, and turn the field from all right half to all left, as in step 5:</p>
+  <div class="toy">
+    <div class="ctl">atom <select id="magAtom"><option value="1">4D hydrogen (one unpaired electron)</option><option value="32">element 32 (ten unpaired)</option><option value="12">element 12 (closed shells, none)</option></select></div>
+    <div class="ctl">field in the zw plane (the xy part held at 1) <input id="magT" type="range" min="-1" max="1" step="0.01" value="0" /> <b id="magTv"></b></div>
+    <div class="ctl">temperature <input id="magK" type="range" min="1" max="3.5" step="0.01" value="2.48" /> <b id="magKv"></b></div>
+    <canvas class="chart" id="cMag"></canvas>
+    <p class="read" id="rMag"></p>
+  </div>
+  <p>Diamagnetism doesn't care which half: the dashed line is flat. The spin's pull follows the left half, from nothing at −1 (all right) through ours at 0 (a field in one plane) to twice ours at +1 (all left). <b>So the same atoms are drawn into a magnet and pushed out of its mirror image.</b></p>
+</section>
+
+<section class="step" id="spinner">
+  <h3>7 · A spinning ball makes two fields in your space</h3>
+  <p>A ball of charge that spins is a current, so it makes a magnetic field, and the field takes the shape of the spin. A 4D ball can spin in two planes at once, xy and zw. From inside your 3D space the field it makes splits in two. The part <b>within your space</b> turns a moving charge's path, as our magnetic field does: the xy spin makes it, in exactly the shape of a bar magnet's. The part <b>reaching into w</b> has nothing to turn within your space. It pushes a charge moving through it out of your space altogether: the zw spin makes it. Spin the ball, slide your slice through it, and fire a charge past it.</p>
+  <div class="toy">
+    <div class="ctl">spin in xy <input id="spXY" type="range" min="-1" max="1" step="0.01" value="1" /> <b id="spXYv"></b></div>
+    <div class="ctl">spin in zw <input id="spZW" type="range" min="-1" max="1" step="0.01" value="0.6" /> <b id="spZWv"></b></div>
+    <div class="ctl">your slice <input id="spW" type="range" min="-1.5" max="1.5" step="0.01" value="0" /> <b id="spWv"></b> <button id="spFire" class="fire">fire a charge</button></div>
+    <div class="two"><div><canvas class="orbit" id="cSpinIn"></canvas><p class="cap">within your space: turns a charge's path</p></div><div><canvas class="orbit" id="cSpinW"></canvas><p class="cap">reaching into w: pushes a moving charge out of your space</p></div></div>
+    <p class="read" id="rSpin"></p>
+  </div>
+  <p>Both panels are the x–z plane of your space (y = 0), the ball's own radius 1, its field the field of its spin far out (closer in, a 4D ball's field differs a little from its moment's). At w = 0 the two parts separate exactly: the xy spin reaches nothing into w, and the zw spin puts nothing within your space. Move your slice off the ball's middle and they mix. A ball spinning both ways at equal rates is all left half. Spinning <b>metal</b> isn't enough, in either world: its electrons and nuclei turn together and their currents cancel. What spinning does to metal is the Barnett effect: a spun lump of iron magnetizes a little, because its electrons' spins feel the turning as a field. A 4D electron's spin turns only with the left half of a turning (<a href="../atom/motion.html#spin">motion and spin</a>), so a lump of iron spun one way magnetizes and spun the mirror way doesn't.</p>
+</section>
+
+<section class="step" id="next">
+  <p class="more">The working: <a href="../atom/force.html">the force</a> (why 1/r, the lens vacuum, the shell) · <a href="../atom/motion.html">motion and spin</a> (rotations in planes, handed spin) · <a href="../start/">where we are</a> · <a href="../">four</a></p>
+</section>
+<script type="module" src="fields.js"></script>
+</body>
+</html>

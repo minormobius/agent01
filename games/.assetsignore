@@ -8,3 +8,24 @@ CLAUDE.md
 # every deploy — the built artefact and levels.json are what the page needs.
 tempest/core/
 tempest/test/
+
+# /orb/ test harness and measurements: node-only, not part of the site.
+orb/test/
+
+# /strand/ test harness and level baker: node-only, not part of the site.
+strand/test/
+strand/tools/
+
+# /onecoast/ test harness and tools: node-only, not part of the site.
+onecoast/test/
+onecoast/tools/
+
+# /skein/ test harness and tools: node-only, not part of the site.
+skein/test/
+skein/tools/
+
+# /twelve/ test harness and measurements: node-only, not part of the site.
+twelve/test/
+
+# The arcade's clip recorder (node + playwright + ffmpeg): not part of the site.
+tools/

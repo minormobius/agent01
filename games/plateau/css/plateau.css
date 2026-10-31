@@ -1,0 +1,48 @@
+/* PLATEAU — night flight: deep blue, edges that run from ice to ember. */
+:root { --bg: #03060c; --panel: rgba(8, 14, 24, 0.9); --border: #1c2c42; --text: #e8f1fb; --dim: #8ea3bb; --hot: #ff8a5c; --ice: #74d4ff; --solid: #c37aa4;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
+[hidden] { display: none !important; }
+#gl, #over { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#gl { touch-action: none; }
+#over { pointer-events: none; }
+#hud { position: fixed; left: 0; right: 0; top: 0; display: flex; gap: 16px; align-items: center; padding: calc(8px + env(safe-area-inset-top)) 14px 8px; font-family: var(--mono); font-size: 13px; pointer-events: none;
+  background: linear-gradient(rgba(3, 6, 12, 0.7), rgba(3, 6, 12, 0)); }
+#dist { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#phase { color: var(--ice); letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+#speed { color: var(--dim); font-size: 11px; margin-left: auto; }
+#hud button { pointer-events: auto; }
+button.tiny { font: inherit; background: none; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 3px 8px; cursor: pointer; }
+#banner { position: fixed; left: 50%; top: 22%; transform: translateX(-50%); text-align: center; opacity: 0; transition: opacity .6s; pointer-events: none; }
+#banner.show { opacity: 1; }
+#banner b { display: block; font-family: var(--mono); font-size: 26px; letter-spacing: 0.35em; color: var(--ice); text-transform: uppercase; }
+#banner span { font-size: 13px; color: var(--dim); }
+#stick, #rolls { display: none; }
+@media (pointer: coarse) {
+  #stick { display: block; position: fixed; left: 26px; bottom: calc(30px + env(safe-area-inset-bottom)); width: 110px; height: 110px; border-radius: 50%; border: 2px solid rgba(116, 212, 255, 0.4);
+    background: radial-gradient(rgba(116, 212, 255, 0.1), rgba(116, 212, 255, 0.02)); pointer-events: none; opacity: 0.8; }
+  #stick.live { opacity: 1; }
+  #knob { position: absolute; left: 34px; top: 34px; width: 40px; height: 40px; border-radius: 50%; background: rgba(116, 212, 255, 0.55); box-shadow: 0 0 14px rgba(116, 212, 255, 0.5); }
+  #rolls { display: flex; gap: 12px; position: fixed; right: 22px; bottom: calc(40px + env(safe-area-inset-bottom)); }
+  #rolls button { width: 68px; height: 68px; border-radius: 50%; font-size: 28px; color: var(--text); background: rgba(8, 14, 24, 0.6); border: 2px solid rgba(116, 212, 255, 0.4); touch-action: none; }
+  #rolls button.on { background: rgba(116, 212, 255, 0.35); }
+}
+.overlay { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 24px 18px; text-align: center; background: rgba(3, 6, 12, 0.88); overflow-y: auto; }
+.overlay > :first-child { margin-top: auto; } .overlay > :last-child { margin-bottom: auto; }
+.overlay h1 { font-family: var(--mono); font-size: clamp(36px, 12vw, 64px); margin: 0; letter-spacing: 0.24em;
+  background: linear-gradient(90deg, var(--ice), #b8a2ff, var(--hot)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.overlay h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin: 0; font-weight: 600; }
+.overlay p { margin: 0; color: var(--dim); font-size: 14.5px; line-height: 1.65; max-width: 36em; }
+.overlay p b { color: var(--text); } .overlay p b.hot { color: var(--hot); } .overlay p b.solid { color: var(--solid); }
+.overlay .small { font-size: 13px; }
+.overlay .foot { font-family: var(--mono); font-size: 12px; }
+.overlay a { color: var(--dim); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.seg button.on { background: rgba(116, 212, 255, 0.18); border-color: var(--ice); color: var(--ice); }
+#mode-line { min-height: 1.4em; margin: 6px 0 10px; color: var(--dim); }
+button.primary, button.ghost { font-family: var(--mono); font-weight: 800; letter-spacing: 0.12em; border-radius: 10px; cursor: pointer; }
+button.primary { background: linear-gradient(90deg, var(--ice), #b8a2ff, var(--hot)); color: #08101c; border: 0; font-size: 15px; padding: 12px 28px; }
+button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); font-size: 13px; padding: 11px 18px; }
+button.ghost.small { font-size: 11px; padding: 7px 12px; font-weight: 600; letter-spacing: 0.04em; }
+button:disabled { opacity: 0.45; }

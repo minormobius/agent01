@@ -403,5 +403,64 @@ console.log("\n— dead reckoning and the ways-through chart —");
   ck(!resurrected, "the ceiling never rises again once it hits zero — that is the ratchet");
 }
 
+console.log("— the leaderboard —");
+{
+  const S = await import("../js/score.js");
+  const C = O.CFG;
+  ck(S.BASE_STAGES === C.baseStages && S.STAGES_PER_LEG === C.stagesPerLeg && S.MAX_STAGES === C.maxStages && S.MAX_PADDING === C.maxPadding,
+    "score.js's road constants are config.js's");
+  ck(S.MAX_STRAIN === C.maxStrain && S.REST_RELIEF === C.restRelief, "score.js's strain constants are config.js's");
+
+  /* Real hauls, tallied exactly as main.js tallies them (a send or a burn is a
+     crossing driven, the stranding burn included), each turned into the record
+     the end screen would post. */
+  function haul(seed, policy) {
+    let s = O.newGame(seed), legs = 0;
+    const t = { sent: 0, burned: 0, rested: 0, lost: 0 };
+    for (let guard = 0; guard < 40; guard++) {
+      const out = playLeg(O, s, policy, O.newMemo());
+      for (const h of out.history) { if (h.action === "send") t.sent++; else if (h.action === "burn") t.burned++; else if (h.action === "rest") t.rested++; }
+      t.lost += out.buried;
+      if (out.phase !== "arrived") break;
+      legs++; s = O.nextLeg(out.state);
+    }
+    return { sel: {}, value: legs, seed, crossings: t.sent + t.burned, sent: t.sent, rested: t.rested, lost: t.lost, at: Date.now() };
+  }
+  const rec = (r, over = {}) => Object.assign({ $type: "com.minomobi.lab.score", site: "outbound", game: S.GAME, createdAt: new Date(r.at).toISOString() }, S.record(r), over);
+  const runs = [];
+  for (const policy of ["eager", "thrifty", "miser"]) for (const seed of ["cold-burn-11", "far-haul-42", "deep-run-77", "a seed with spaces & ?"]) runs.push(haul(seed, policy));
+  const made = runs.filter((r) => r.value >= 1);
+  ck(made.length >= 4, `real hauls make depots (${made.length} of ${runs.length}, best ${Math.max(...runs.map((r) => r.value))})`);
+  ck(made.every((r) => S.accept(rec(r))), "every real haul's record is accepted");
+  ck(made.some((r) => r.rested > 0 || r.lost > 0), "…including ones with lay-ups or losses in them");
+  const r = made.sort((a, b) => b.value - a.value)[0], d = S.record(r).detail;
+  const swap = (k, v) => d.replace(new RegExp("(^| )" + k + "=\\d+"), "$1" + k + "=" + v);
+  const refused = [
+    ["another site", rec(r, { site: "ratchet" })],
+    ["another board version", rec(r, { game: "depots-v0" })],
+    ["another unit", rec(r, { unit: "points" })],
+    ["lower is better", rec(r, { higherIsBetter: false })],
+    ["no date", rec(r, { createdAt: "yesterday" })],
+    ["zero depots", rec(r, { value: 0, detail: swap("depots", 0) })],
+    ["a value the detail doesn't back", rec(r, { value: r.value + 1 })],
+    ["depots on too few crossings", (() => { const n = Math.floor(r.crossings / S.MIN_STAGES) + 1; return rec(r, { value: n, detail: swap("depots", n) }); })()],
+    ["more crossings than the road has", rec(r, { detail: swap("crossings", S.crossingCeiling(r.value) + 1) })],
+    ["more sends than crossings", rec(r, { detail: swap("sent", r.crossings + 1) })],
+    ["more lost than sends could kill", rec(r, { detail: swap("lost", Math.floor(r.sent / S.MAX_STRAIN) + 1) })],
+    ["lay-ups nobody had strain for", rec(r, { detail: swap("rested", r.sent + 1) })],
+    ["no seed", rec(r, { detail: d.replace(/seed=\S+ /, "") })],
+    ["a fractional value", rec(r, { value: r.value + 0.5 })],
+  ];
+  const leaked = refused.filter(([, v]) => S.accept(v)).map(([m]) => m);
+  ck(!leaked.length, "refuses the impossible: " + (leaked.length ? "LET THROUGH " + leaked.join(", ") : refused.map(([m]) => m).join(", ")));
+  // the ceiling is a true ceiling: no real leg ran longer than legCeiling(leg)
+  let over = 0;
+  for (const seed of ["cold-burn-11", "far-haul-42", "deep-run-77", "slow-thaw-19", "thin-lead-63"]) {
+    let s = O.newGame(seed);
+    for (let leg = 1; leg <= 12; leg++) { if (s.stages.length > S.legCeiling(leg) || s.stages.length < S.MIN_STAGES) over++; s = O.nextLeg(s); }
+  }
+  ck(over === 0, "every generated leg is between MIN_STAGES and its ceiling (5 seeds × 12 legs)");
+}
+
 console.log(failures ? `\n${failures} FAILED\n` : "\nall good\n");
 process.exit(failures ? 1 : 0);

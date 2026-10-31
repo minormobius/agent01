@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#05060a" />
+<meta name="description" content="Ouroboros computes: a snake whose own body is the tape of a tag system, reading its tail and writing with its turns, running Collatz on itself until it halts." />
+<title>Ouroboros computes — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/molt.css" />
+<link rel="stylesheet" href="css/compute.css" />
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="h"><span class="lab">input</span><span id="in" class="val">—</span></div>
+    <div class="h"><span class="lab">now</span><span id="now" class="val">—</span></div>
+    <div class="h"><span class="lab">steps</span><span id="tags" class="val">0</span></div>
+    <div class="h"><span class="lab">moves</span><span id="moves" class="val">0</span></div>
+    <div class="h grow"><span class="lab">the tape</span><span id="len" class="val">—</span></div>
+  </div>
+  <div id="stage">
+    <canvas id="view" aria-label="The snake computing on its own body"></canvas>
+    <div id="status"></div>
+    <div id="actions">
+      <button class="ghost" id="play" type="button" title="Run or pause (space)">▶</button>
+      <button class="ghost" id="stepbtn" type="button" title="One tag step (.)">step</button>
+      <button class="ghost" id="viewbtn" type="button" title="Ride the head, or watch the whole world (V)">whole</button>
+      <button class="ghost" id="setup" type="button">program</button>
+      <button class="ghost" id="help" type="button" aria-label="What this is">?</button>
+    </div>
+  </div>
+  <div id="path" title="The Collatz values the snake has passed through"></div>
+  <div id="tape" title="The tape: the snake's body, tail (read) on the left, head (write) on the right"></div>
+</div>
+
+<div class="overlay" id="program" hidden>
+  <h2>the program</h2>
+  <div class="form">
+    <label>start at <input id="n" type="number" min="2" max="26" value="12" inputmode="numeric" /></label>
+    <p class="small">Collatz: halve an even number, take an odd one to (3n + 1) / 2, until 1. The snake starts as <b>a</b> × n and is at m whenever its whole body spells <b>a</b> × m.</p>
+    <details>
+      <summary>or write your own tag system</summary>
+      <label>rules <input id="rules" type="text" value="a→bc, b→a, c→aaa" spellcheck="false" autocomplete="off" /></label>
+      <label>delete <select id="del"><option>1</option><option selected>2</option><option>3</option></select> a step</label>
+      <label>tape <input id="tapein" type="text" value="" placeholder="(a × start)" spellcheck="false" autocomplete="off" /></label>
+      <p class="small">Symbols a, b, c only: each is a pair of moves (a straight, straight; b left, right; c right, left).</p>
+    </details>
+    <div class="rule">
+      <span class="rl">world</span>
+      <div class="seg" id="world"><button data-v="real">real</button><button data-v="quiet">quiet</button></div>
+    </div>
+    <p class="small"><b>real</b>: the world is the body, bent by every symbol on the tape, and a bend can knock the snake into itself, which breaks the computation (measured: of the starts 2 to 26, these make it to 1: 2, 3, 4, 5, 6, 8, 10, 12). <b>quiet</b>: the same world, but the snake is a ghost to itself; every start makes it.</p>
+    <div class="rule">
+      <span class="rl">speed</span>
+      <div class="seg" id="speed"><button data-v="4">slow</button><button data-v="14">normal</button><button data-v="60">fast</button><button data-v="400">max</button></div>
+    </div>
+  </div>
+  <button class="primary" id="run" type="button">run it</button>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi · molt · ouroboros computes</h2>
+  <h1>COMPUTE</h1>
+  <p>
+    A snake's body, read tail to head, is a word of turns, and in
+    <a href="./ouro.html">Ouroboros</a> that word is also the world. Here it is
+    a <b>tape</b>. Every move <b>writes</b> the turn just made at the head; every
+    move <b>deletes</b> the oldest turn at the tail; and the snake
+    <b>reads its own tail</b> to choose what to write next.
+  </p>
+  <p>
+    That's a <b>tag system</b>: read the front symbol, delete two, append a word
+    that depends on what you read. Tag systems can compute anything a computer
+    can. This one computes Collatz: give it 12 and its body spells 6, 3, 5,
+    8, 4, 2 on the way, and it halts at 1.
+  </p>
+  <p class="accent">The program reads the tail's bends straight off the body rather than crawling round to look; everything else is the snake's own geometry. In the real world that geometry sometimes knocks the snake off its own tape.</p>
+  <div class="row">
+    <button class="primary" id="go" type="button">run Collatz from 12</button>
+    <button class="ghost" id="go7" type="button">the long way from 7 (quiet world)</button>
+    <button class="ghost" id="choose" type="button">choose a program</button>
+  </div>
+  <p class="foot"><a href="./README.md#ouroboros-computes">how it works</a> · <a href="./ouro.html">the lab</a> · <a href="./cascade.html">cascade</a></p>
+</div>
+
+<script type="module" src="js/compute-page.js"></script>
+</body>
+</html>

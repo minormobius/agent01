@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cheshire · the cat lab</title>
+<meta name="description" content="A cat in four dimensions of space, seen as a 3D prisoner of its world sees it: one slice at a time.">
+<link rel="stylesheet" href="css/lab.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+<header>
+  <h1>CHESHIRE <span>· the cat lab</span></h1>
+  <button id="infoBtn" aria-label="About">?</button>
+</header>
+<div id="info" hidden>
+  <p>You live in three dimensions. The cat lives in four: as well as forward, up and sideways it has a second sideways, <b>w</b>, that you can't point to. You see only the slice of its world at your <b>w</b>.</p>
+  <p>Gravity pulls one way, down, so its floor is a whole 3D space. Feet hold you up only if they span it: four at the corners of a tetrahedron. So its front legs splay across your space and its hind legs splay across <b>w</b>, and in your slice it seems to hover on two legs. The rings on the floor are the feet you can't see: wider and fainter the further off in <b>w</b> they stand, teal one way (ana), rose the other (kata).</p>
+  <p><b>5 legs</b> is the cat as a 4D animal might be built to creep: two front legs across your space and three hind legs round the hips, so lifting any one foot still leaves four that span the floor. In your slice it stands on three.</p>
+  <p>Its head is round both ways sideways, so it has four ears: two across your space, two across <b>w</b>. And three eyes, in a triangle: two across your space and a third between them but off in <b>w</b>. Two eyes judge depth only across the line between them; seeing in 3D, it needs that line both ways sideways. Turn it a quarter in <b>zw</b>: two eyes go, the third comes into view. Every turn pivots on its head. Its pupils are round (a ball on each eye's 3D surface), and they look at you.</p>
+  <p>Its mouth: ours is a line that opens into a flat hole; its is a sheet, a smile turned up all round, that opens into a volume, for 4D food. Its jaw hinges on a plane. The grin is a groove in its face, the lips its edges, with the teeth set in it, rooted in the lips: drop the jaw and the lower lip and teeth go with it. Its teeth line the sheet in rings: your slice shows one row, and every <b>w</b> another.</p>
+  <p>Drag to look round it; pinch or scroll to come closer.</p>
+</div>
+<section id="gait" class="card" hidden></section>
+<div id="say"></div>
+<section id="panel">
+  <div class="row">
+    <label for="w">your slice</label>
+    <input id="w" type="range" min="-0.3" max="0.3" step="0.001" value="0">
+    <output id="wOut">w = 0.0 cm</output>
+    <button id="sweep" class="tog">sweep</button>
+  </div>
+  <div class="row">
+    <label>turn it in</label>
+    <span class="chips" id="planes"><button data-p="zw" class="on">zw</button><button data-p="xw">xw</button><button data-p="yw">yw</button><button data-p="xz">xz</button></span>
+    <input id="ang" type="range" min="-180" max="180" step="1" value="0">
+    <output id="angOut">0°</output>
+  </div>
+  <div class="row">
+    <label for="jaw">jaw</label>
+    <input id="jaw" type="range" min="0" max="1" step="0.01" value="0">
+  </div>
+  <div class="row">
+    <button id="quarter">¼ turn</button>
+    <button id="reset">reset</button>
+    <button id="idle" class="tog on">alive</button>
+    <button id="feet" class="tog on">off-slice feet</button>
+    <span class="chips" id="legs"><button data-n="4" class="on">4 legs</button><button data-n="5">5 legs</button></span>
+    <button id="walkBtn">walk</button>
+    <button id="gaitBtn">balance</button>
+  </div>
+</section>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

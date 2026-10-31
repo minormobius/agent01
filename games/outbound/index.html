@@ -25,6 +25,7 @@
       <span class="label">cells</span>
       <span class="value" id="fuel-value">12/16</span>
     </div>
+    <button class="trophy" id="trophy" type="button" aria-label="Leaderboard" title="Leaderboard" hidden>🏆</button>
   </div>
 
   <!-- The cell gauge is a DRAG SOURCE: you drag it onto the ice to burn through. -->
@@ -130,6 +131,10 @@
     <button class="primary" id="again" type="button" style="flex:none">NEW RUN</button>
     <button class="ghost" id="replay" type="button" style="flex:none">SAME SEED</button>
   </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button class="primary" id="post" type="button" style="flex:none" hidden>POST TO THE BOARD</button>
+    <button class="ghost" id="o-board" type="button" style="flex:none" hidden>🏆 BOARD</button>
+  </div>
   <p class="seed-line">
     best: <code id="over-best">0</code> depots · this run: <code id="over-seed">—</code><br />
     the seed is in the URL — share it and your friends drive the same route
@@ -142,5 +147,6 @@
 <script src="js/solve.js"></script>
 <script src="js/generate.js"></script>
 <script src="js/main.js"></script>
+<script type="module" src="js/board.js"></script>
 </body>
 </html>

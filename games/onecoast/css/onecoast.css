@@ -1,0 +1,53 @@
+/* One Coast — chrome. Same family as /strand/ and /orb/: one canvas as
+   large as the screen allows; a thin HUD above; the hand below. */
+:root {
+  --bg: #070a10; --surface: #121826; --border: #233049; --text: #e8eef6; --dim: #8a98b0;
+  --accent: #e8b65a; --accent2: #5ee8c1; --sea: #1b4a7a;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overscroll-behavior: none; }
+#app { height: 100vh; height: 100dvh; max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: max(10px, env(safe-area-inset-top)) 16px max(10px, env(safe-area-inset-bottom)); }
+#hud { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-family: var(--mono); }
+.tabs, .right { display: flex; gap: 6px; align-items: center; }
+.tab, .tog, select {
+  font-family: var(--mono); font-size: 12px; padding: 7px 10px; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--dim); border: 1px solid var(--border);
+}
+select { background: var(--surface); color: var(--text); padding: 7px 4px; }
+.tab.on { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+#stat { width: 100%; display: flex; gap: 14px; font-family: var(--mono); font-size: 12px; color: var(--dim); }
+#stat b { color: var(--text); font-size: 15px; }
+#orb { flex: 1; width: 100%; min-height: 0; touch-action: none; user-select: none; -webkit-user-select: none; display: block; cursor: grab; }
+#note { font-family: var(--mono); font-size: 12px; color: var(--dim); min-height: 1.4em; text-align: center; }
+.tray { width: 100%; display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.tray[hidden] { display: none; }
+#hand { display: flex; gap: 6px; }
+.tile { width: 72px; height: 72px; cursor: pointer; border-radius: 10px; background: var(--surface); }
+.tile.sel { outline: 2px solid var(--accent2); }
+.col { display: flex; flex-direction: column; gap: 6px; min-width: 120px; }
+button.primary, button.ghost, a.btn, .brush {
+  font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-align: center; text-decoration: none;
+  padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; white-space: nowrap;
+}
+button.primary { background: var(--accent); color: #1a1206; border-color: var(--accent); }
+button.ghost, a.btn { background: transparent; color: var(--dim); }
+button.ghost:hover, a.btn:hover { color: var(--text); border-color: var(--accent); }
+.brush { background: transparent; color: var(--dim); }
+.brush.on { background: var(--accent2); color: var(--bg); border-color: var(--accent2); }
+button:disabled { opacity: 0.35; cursor: default; }
+.foot { font-family: var(--mono); font-size: 11px; color: var(--dim); text-align: center; line-height: 1.6; margin: 0; }
+.foot a { color: var(--accent2); }
+.overlay { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px 16px; text-align: center; background: rgba(7,10,16,0.9); backdrop-filter: blur(3px); overflow-y: auto; }
+.overlay[hidden] { display: none; }
+.overlay h1 { font-family: var(--mono); font-size: clamp(26px, 8vw, 40px); margin: 0; color: var(--accent); }
+.overlay h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin: 0; }
+.overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.65; max-width: 32em; }
+.overlay p b { color: var(--text); }
+.overlay .accent { color: var(--accent2); }
+.row { display: flex; gap: 10px; }
+.row button { min-width: 120px; }
+a.btn[hidden] { display: none; }

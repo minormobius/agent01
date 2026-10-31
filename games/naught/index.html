@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#05060a" />
+<meta name="description" content="Naught — noughts and crosses on the n-dimensional torus (ℤ₃)ⁿ, where three cells make a line exactly when they sum to zero. Shown as nested grids, as a deck of glyph cards, and as a donut." />
+<title>Naught — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/naught.css" />
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="h"><span class="lab">board</span><span id="dim" class="val">—</span></div>
+    <div class="h"><span class="lab" id="lab1">turn</span><span id="v1" class="val">—</span></div>
+    <div class="h"><span class="lab" id="lab2">—</span><span id="v2" class="val">—</span></div>
+    <div class="h grow"><span class="lab">cell</span><span id="cell" class="val">—</span></div>
+  </div>
+  <div id="stage">
+    <canvas id="view" aria-label="The board"></canvas>
+    <div id="note"></div>
+    <div id="actions">
+      <button class="ghost" id="newbtn" type="button" title="New game (N)">new</button>
+      <button class="ghost" id="skinbtn" type="button" title="Grid, cards or donut (V)">grid</button>
+      <button class="ghost" id="hintbtn" type="button" title="Show threats (H)">hints</button>
+      <button class="ghost" id="axisbtn" type="button" title="Which two coordinates the donut slices along" hidden>axes 1·2</button>
+      <button class="ghost" id="help" type="button" aria-label="How it works">?</button>
+    </div>
+    <div id="legend"></div>
+  </div>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi · noughts and crosses on a torus</h2>
+  <h1>NAUGHT</h1>
+  <p>
+    The board is <b>(ℤ₃)ⁿ</b>: every cell is n coordinates, each 0, 1 or 2,
+    and the board wraps round in every direction, so it's an n-dimensional
+    torus. A line is any three cells <b>a, a + d, a + 2d</b>, wrapping as it
+    goes, and that comes to one rule: <b>three cells are a line exactly when
+    they sum to zero</b>, coordinate by coordinate. So any two cells lie on
+    exactly one line, and the hints light its third cell.
+  </p>
+  <div class="choose">
+    <div class="rule"><span class="rl">dimensions</span><div class="seg" id="nsel"><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button></div></div>
+    <div class="rule"><span class="rl">against</span><div class="seg" id="opp"><button data-v="engine">the engine</button><button data-v="friend">a friend</button></div></div>
+    <div class="rule"><span class="rl">first move</span><div class="seg" id="first"><button data-v="you">you</button><button data-v="them">them</button></div></div>
+  </div>
+  <div class="games">
+    <button class="primary" data-game="avoid" type="button">avoid a line<small>make a line of your own and you lose</small></button>
+    <button class="primary" data-game="make" type="button">make a line<small>the classic: and a fast race</small></button>
+    <button class="ghost" data-game="cap" type="button">the cap puzzle<small>alone: the most cells with no line</small></button>
+  </div>
+  <p class="small">
+    <b>Making</b> a line is a race: every pair of your marks threatens its
+    third cell, so from three dimensions on whoever moves first wins by their
+    fourth mark. <b>Avoiding</b> one is the deep game: every mark you place
+    poisons the third cell of each pair it makes, and whoever runs out of
+    safe cells loses. The <b>cap puzzle</b> is a research problem: the most
+    cells with no line in them is known only up to six dimensions.
+  </p>
+  <p class="foot"><a href="./README.md">how it works</a> · one of the <a href="../pressure/">games</a></p>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <h2 id="o-head">—</h2>
+  <h1 id="o-big">—</h1>
+  <p id="o-text">—</p>
+  <div class="row">
+    <button class="primary" id="again" type="button">again</button>
+    <button class="ghost" id="o-menu" type="button">change the game</button>
+    <button class="ghost" id="o-look" type="button">look at the board</button>
+  </div>
+</div>
+
+<script type="module" src="js/game.js"></script>
+</body>
+</html>

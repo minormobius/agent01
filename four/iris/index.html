@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="IRIS⁴ — a rainbow you shape. Walk a four-dimensional landscape after rain, grained by tesseracts, Kelvin's foam or the 24-cell foam, and turn, twist and look into w: the bow on your screen is a conic section whose shape is set by where the sun sits in your own frame." />
+<title>IRIS⁴ — four.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/iris4.css" />
+</head>
+<body>
+<div id="view">
+  <canvas id="gl" aria-label="Your 3D slice of a 4D landscape after rain, with a rainbow"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+  <div id="hud"><b>IRIS⁴</b><span id="hudBow"></span><span id="hudW"></span></div>
+  <div id="stick" aria-hidden="true"><div id="knob"></div></div>
+  <div id="intro">
+    <h2>four.mino.mobi · a rainbow you shape</h2>
+    <h1>IRIS⁴</h1>
+    <p>A landscape in four dimensions, just after rain, and the sun low behind you. You see the 3D slice of it you're standing in. The rainbow is every direction 42° from the point opposite the sun, a cone in 4D, and what you see of it depends only on where that point sits <b>in your own frame</b>.</p>
+    <p><b>Turn</b>, <b>twist</b> and <b>look into w</b>, or move the sun, and the bow on your screen becomes an ellipse, a parabola or a hyperbola (the dashed gold line is the formula's). Look far enough into w and it's gone. Lean into w and the land itself turns fae. And pick its grain: tesseracts, or PLATEAU's other two seed crystals, Kelvin's foam and the 24-cell foam.</p>
+    <button type="button" id="go" class="primary">ENTER</button>
+  </div>
+</div>
+<div id="panel">
+  <div class="btns you"><button type="button" id="twL">⟲ twist</button><button type="button" id="twR">twist ⟳</button><button type="button" id="inA">look ana</button><button type="button" id="inK">look kata</button><button type="button" id="sq">▣ square up</button></div>
+  <p id="read" class="read"></p>
+  <div class="split">
+    <canvas id="map" aria-label="Where the antisolar point sits in your frame: off in w against across your screen"></canvas>
+    <div class="ctls">
+      <h4>the land</h4>
+      <div class="btns" id="foam"><button type="button" data-f="tesseract">tesseracts</button><button type="button" data-f="kelvin">Kelvin foam</button><button type="button" data-f="cell24">24-cell foam</button></div>
+      <h4>the sun</h4>
+      <label>height <input type="range" id="sEl" min="2" max="45" step="0.5" value="22" /><output id="sElV"></output></label>
+      <label>bearing <input type="range" id="sAz" min="90" max="270" step="0.5" value="180" /><output id="sAzV"></output></label>
+      <label>lean into w <input type="range" id="sBeta" min="0" max="60" step="0.1" value="0" /><output id="sBetaV"></output></label>
+      <h4>show</h4>
+      <div class="btns" id="show"><button type="button" data-o="fae">fae colours</button><button type="button" data-o="second">second bow</button><button type="button" data-o="conic">the conic</button></div>
+    </div>
+  </div>
+  <p class="help"><b>WASD</b> walk · <b>mouse</b> turns and looks (click to grab it) · <b>Z</b>/<b>C</b> or the <b>wheel</b> twist · <b>Q</b>/<b>E</b> look into w · <b>X</b> square up. Phone: the stick walks, drag to turn and look. <a href="./README.md">how it works</a> · <a href="../lumen/#conic">the physics</a> · <a href="../">Four</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

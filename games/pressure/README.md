@@ -7,8 +7,8 @@ assets fallback in `games/worker.js` like the games it indexes.
 Shipped so far: [Hold the Line](../horde/) (`/horde/`),
 [Telegraph](../telegraph/) (`/telegraph/`), [The Ratchet](../ratchet/)
 (`/ratchet/`), [Switchboard](../switchboard/) (`/switchboard/`),
-[Outbound](../outbound/) (`/outbound/`) and [Tempest](../tempest/)
-(`/tempest/`).
+[Outbound](../outbound/) (`/outbound/`), [Tempest](../tempest/)
+(`/tempest/`) and [Orb](../orb/) (`/orb/`).
 
 ---
 
@@ -40,6 +40,7 @@ Once you see it that way the space opens up, because "correct" can be:
 | whether a future still exists | The Ratchet |
 | a distance from a computable optimum | Switchboard |
 | **a direction, priced in ticks** | **Tempest** |
+| a certainty — was the move provable? | Orb |
 | a timing — when to stop | Cold Read *(unbuilt)* |
 | a probability distribution | Standoff *(unbuilt)* |
 

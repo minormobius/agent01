@@ -14,6 +14,7 @@
  * Picked up automatically by scripts/preflight.mjs when games/ is touched.
  */
 import { loadTelegraph, playRun } from "./harness.mjs";
+import * as SC from "../js/score.js";
 
 const T = await loadTelegraph();
 
@@ -328,6 +329,47 @@ console.log("\n— choice actually matters —");
     if (a.tightness <= 0.5) tight++;
   }
   ck(tight >= 18, `at level 5, ${tight}/20 boards need a real choice (≤50% of lines work)`);
+}
+
+
+console.log("\n— the leaderboard refuses the impossible —");
+{
+  // score.js has no imports, so it carries its own copy of how long a sector lasts: check it against the generator
+  let same = true;
+  for (let l = 1; l <= 60; l++) if (SC.sectorTurns(l) !== T.levelPlan(l).turns) same = false;
+  ck(same, "score.js's sector lengths are generate.js's levelPlan, sectors 1–60");
+
+  // a real run, graded turn by turn the way main.js grades it, until the grid goes (capped, so CI can't hang)
+  const stats = { turns: 0, flawless: 0, clean: 0, missed: 0, forced: 0 };
+  let s = T.newGame("board-1"), guard = 0;
+  const policy = (st, k) => { const a = T.analyseTurn(st); return { a, next: (k % 3 === 2 ? st : a.bestState) || st }; }; // fumbles every third turn so it dies
+  while (s.phase !== "lost" && guard++ < 200) {
+    if (s.phase === "won") { s = T.nextEncounter(s); continue; }
+    const { a, next } = policy(s, stats.turns);
+    const grade = T.gradeTurn(a, T.costOf(next));
+    s = T.endTurn(next);
+    stats.turns++; stats[grade === "flawless" ? "flawless" : grade === "clean" ? "clean" : grade === "forced" ? "forced" : "missed"]++;
+  }
+  const held = Math.max(0, s.level - 1);
+  ck(s.phase === "lost" && held >= 1, `the scripted run ends, having held ${held} sector(s) in ${stats.turns} turns`);
+  const real = Object.assign({ $type: "com.minomobi.lab.score", site: "telegraph", game: SC.GAME, createdAt: new Date().toISOString() },
+    SC.record(Object.assign({ value: held, seed: s.seed }, stats)));
+  ck(SC.accept(real), `a real run's record is accepted (${real.detail})`);
+  const bad = (m, f) => { const v = JSON.parse(JSON.stringify(real)); f(v); ck(!SC.accept(v), "refused: " + m); };
+  bad("another site", (v) => { v.site = "molt"; });
+  bad("another version", (v) => { v.game = "sectors-v0"; });
+  bad("another unit", (v) => { v.unit = "points"; });
+  bad("lower is better", (v) => { v.higherIsBetter = false; });
+  bad("one sector more than its turns allow", (v) => { v.value += 1; });
+  bad("one sector fewer than its turns imply", (v) => { v.value -= 1; if (v.value < 1) v.value = 1000; });
+  bad("grades that don't add up to the turns", (v) => { v.detail = v.detail.replace(/flawless=(\d+)/, (_, n) => "flawless=" + (+n + 1)); });
+  bad("no seed", (v) => { v.detail = v.detail.replace(/seed=\S+ /, ""); });
+  bad("a non-integer", (v) => { v.value += 0.5; });
+  bad("no date", (v) => { delete v.createdAt; });
+  // the bounds are exact: a run that dies on the last turn of sector n+1 still held n
+  const n = 3, t = SC.turnsToHold(n + 1);
+  ck(SC.accept(Object.assign({}, real, { value: n, detail: `seed=x turns=${t} flawless=0 clean=0 missed=${t} forced=0` })), `${n} sectors in ${t} turns (died on the last turn of sector ${n + 1}) is possible`);
+  ck(!SC.accept(Object.assign({}, real, { value: n, detail: `seed=x turns=${SC.turnsToHold(n)} flawless=0 clean=0 missed=${SC.turnsToHold(n)} forced=0` })), `${n} sectors in exactly ${SC.turnsToHold(n)} turns is not (the run hadn't ended)`);
 }
 
 console.log(failures ? `\n${failures} FAILED\n` : "\nall good\n");

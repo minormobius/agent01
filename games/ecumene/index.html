@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#050a14" />
+<meta name="description" content="Ecumene — a transit game on a small planet. Towns grow where the water is, cities grow where your lines reach, and the lines fill as they do. Built on mappa's world engine." />
+<title>Ecumene — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/ecumene.css" />
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="ground" aria-hidden="true"></canvas>
+    <canvas id="globe" aria-label="The planet: drag to turn, pinch to zoom, tap to look or to lay a stop"></canvas>
+    <div id="hud">
+      <div class="h"><span class="lab">year</span><span id="year" class="val">—</span></div>
+      <div class="h"><span class="lab">people</span><span id="pop" class="val">—</span></div>
+      <div class="h"><span class="lab">riders</span><span id="riders" class="val">0</span></div>
+      <div class="h"><span class="lab">transit</span><span id="share" class="val">0%</span></div>
+      <div class="h"><span class="lab">stranded</span><span id="stranded" class="val">0</span></div>
+      <div class="h right"><span class="lab">funds</span><span id="credits" class="val">—</span><span id="net" class="sub">—</span></div>
+    </div>
+    <div id="strip"><div id="legacy">—</div><div id="charter"><span id="ch-text">—</span><button type="button" id="ch-buy" class="mini buy" hidden>—</button></div></div>
+    <div id="info" hidden></div>
+    <div id="legend" hidden></div>
+    <div id="note"></div>
+    <div id="actions">
+      <button class="ghost" id="play" type="button" title="Pause / run (space)">▶</button>
+      <button class="ghost" id="fast" type="button" title="Faster">▶▶</button>
+      <button class="ghost" id="layer" type="button" title="Map: terrain, people, GDP, food, or towns">terrain</button>
+      <button class="ghost" id="logbtn" type="button" title="What happened in the world">log</button>
+      <button class="ghost" id="help" type="button" aria-label="How to play">?</button>
+    </div>
+    <div id="log" hidden>
+      <div class="ptop"><span>what happened</span><button type="button" id="logclose" class="mini">close</button></div>
+      <div id="loglist"></div>
+    </div>
+  </div>
+  <div id="dock">
+    <div id="linebar"></div>
+    <div id="dockbody">
+      <div id="panel" hidden>
+        <div class="ptop"><i></i><span id="p-title">—</span><button type="button" id="p-done" class="mini">done</button></div>
+        <div class="pact"><button type="button" id="p-end" class="mini" title="Which end new stops go on (or tap an end stop)">from end ▶</button><button type="button" id="p-loop" class="mini" title="Join the last stop to the first">loop</button><button type="button" id="p-undo" class="mini" title="Remove the picked stop (tap a stop to pick it), or the end you're building from">remove stop</button></div>
+        <div class="pstats">
+          <div><span class="lab">riders</span><span id="p-riders">—</span></div>
+          <div><span class="lab">fullest</span><span id="p-load">—</span></div>
+          <div><span class="lab">every</span><span id="p-head">—</span></div>
+        </div>
+        <div class="pstats">
+          <div><span class="lab">trains</span><span class="tr"><button type="button" id="p-minus" class="mini">−</button><b id="p-trains">1</b><button type="button" id="p-plus" class="mini">+</button><button type="button" id="p-plus5" class="mini">+5</button></span></div>
+          <div><span class="lab">wagons</span><span class="tr"><button type="button" id="w-minus" class="mini">−</button><b id="p-wagons">0</b><button type="button" id="w-plus" class="mini">+</button></span></div>
+        </div>
+        <div class="ptrack"><span id="p-track">—</span><button type="button" id="p-grade" class="mini">—</button></div>
+        <div class="pfoot"><span id="p-cargo">—</span><button type="button" id="p-del" class="mini danger">close line</button></div>
+      </div>
+      <div id="cities">
+        <div class="ctop"><span>cities</span><span class="dim" id="c-sum">—</span></div>
+        <table><thead><tr><th>town</th><th>people</th><th>farms</th><th>food price</th><th>GDP</th></tr></thead><tbody id="c-rows"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>ECUMENE</h1>
+  <p>
+    A small planet, and its first towns. They grew where the <b>water</b>
+    is: on rivers, beside lakes, under the rain. Now they want to grow into
+    cities, and a city can only be as big as what its people can <b>reach</b>.
+  </p>
+  <p>
+    Lay <b>lines</b>. Every zone a line serves can reach more jobs, so it
+    can hold more people, so it grows, so the line fills. Buy <b>trains</b>
+    to keep up: a full ride slows down, and the riders it can't carry are
+    <b>stranded</b>. Fares pay for the next line.
+  </p>
+  <p>
+    Cities eat. Food grows in the countryside and is sold in a
+    <b>market</b>: it goes where it fetches most after the carriage, so a
+    city that outgrows its farms pays more, eats less, goes <b>hungry</b>
+    and stops growing, and dear food draws farmers back to the land. Give a
+    line <b>freight wagons</b> and it carries food from the breadbaskets,
+    and <b>ore</b> from the mines (◆), cheaper than any cart. A full line
+    charges what its room is worth: the gap between the prices at its ends.
+    The <b>food</b> map shows where it grows and what it costs.
+  </p>
+  <p>
+    Shape a line as you go: tap an <b>end stop</b> to build from that end,
+    tap on the <b>track</b> to put a stop in between, tap a stop to pick it
+    and <b>remove</b> it. <b>Loop</b> joins the ends: no terminus to turn
+    back at, and no dead end. Lay a stop on another line's and it's an
+    <b>interchange</b> (◎): changing there takes a minute, not a walk out to
+    the street, and jobs gather round it.
+  </p>
+  <p>
+    The map gets finer where the city gets dense: a crowded zone
+    <b>splits</b>, and the city you planned for keeps turning into a bigger
+    one.
+  </p>
+  <p>
+    You hold a <b>charter</b> round your home city: build inside it. Carry
+    enough riders and you earn the right to buy a wider one, until the
+    whole planet is yours to build on. Prices rise as the world gets
+    richer, building through a dense city costs more, and the cities take
+    a growing cut of your fares.
+  </p>
+  <p>
+    A run is a <b>century</b>, 1900 to 2000, and it is scored against the
+    same planet without you: how many more people, how much more wealth,
+    how much better fed. From the 1910s the <b>car</b> speeds up the roads
+    every year, so your lines have a rival; <b>track</b> decides how
+    closely trains can follow (single track: one every 8 minutes) and how
+    fast they run, and upgrading it is how a busy line grows.
+  </p>
+  <p class="accent">Drag to turn, pinch to zoom. Pick <b>+ line</b>, then tap land to lay stops; tap on its track to add one between.</p>
+  <p id="loading" class="dim">growing a world…</p>
+  <button class="primary" id="start-btn" type="button" style="flex:none" disabled>…</button>
+  <p class="foot">world <code id="seed">—</code> · <a href="#" id="newworld">new world</a> · <a href="./README.md">how it works</a> · one of the <a href="../pressure/">games</a> · a planet from <a href="https://mappa.mino.mobi/">mappa</a></p>
+</div>
+
+<div class="overlay" id="end" hidden>
+  <h2>2000</h2>
+  <h1>YOUR CENTURY</h1>
+  <p id="end-lead">—</p>
+  <table id="end-table"><thead><tr><th></th><th>with your railway</th><th>without it</th><th></th></tr></thead><tbody id="end-rows"></tbody></table>
+  <p id="end-line" class="dim">—</p>
+  <div class="end-btns"><button class="primary" id="end-more" type="button">keep playing</button><button class="ghost" id="end-new" type="button">new world</button></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

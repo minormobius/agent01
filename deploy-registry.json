@@ -600,7 +600,7 @@
       "dir": "games",
       "endpoint": "games.mino.mobi",
       "type": "frontend",
-      "branch": "claude/tempest-procgen-game-vwj0f1",
+      "branch": "claude/minesweeper-voronoi-mesh-4hc4ir",
       "uses": [
         "auth.mino.mobi"
       ],
@@ -609,7 +609,8 @@
       "paths": [
         "games/**",
         "packages/oauth-client/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-10-01): taken by claude/minesweeper-voronoi-mesh-4hc4ir from claude/tempest-procgen-game-vwj0f1 with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "ink",
@@ -1889,6 +1890,21 @@
       ],
       "note": "The miniphim's own email: modulo@, morphyx@ and mozzie@mino.mobi. Email Routing hands each message to Worker `mail`, which stores it per being (Durable Object Mailbox, SQLite), quarantines bodies from senders off the allowlist (codes and links only), and forwards a copy to the principal. Capped outbound: notes to the principal now, sends to anyone later (Email Sending + OPEN_OUTBOUND). Per-being API keys derived from LAB_TOKEN. (full description: mail/CLAUDE.md)",
       "status": "ROUTE SURFACE (2026-10-04): plain route mail.mino.mobi/*. deploy-mail.yml runs the selftest, route-dns, deploy, secret sync, a /health check, then reconciles the Email Routing rules (routing.mjs). Owned by claude/agent-social-media-drlzxn."
+    },
+    {
+      "surface": "four",
+      "dir": "four",
+      "endpoint": "four.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/minesweeper-voronoi-mesh-4hc4ir",
+      "uses": [],
+      "provides": null,
+      "note": "A universe with four dimensions of space, worked out… (full description: four/CLAUDE.md)",
+      "paths": [
+        "four/**",
+        ".github/workflows/deploy-four.yml"
+      ],
+      "status": "NEW (2026-10-26): split out of games, where ATOM⁴, Lumen⁴ and IRIS⁴ lived as /atom4/, /lumen4/ and /iris4/; games.mino.mobi redirects those paths here. A plain route from the start (no custom-domain slot)."
     }
   ],
   "unmanaged": {

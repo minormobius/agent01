@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴, chapter 14: Gases. PV = NkT in any dimension, the real gas&#x27;s B₂ computed from the pairs, a refrigerator&#x27;s throttle, and why 4D&#x27;s noble gases are held by the crowd rather than their neighbours, so that they boil far hotter than their wells suggest." />
+<title>ATOM⁴ · Gases — four.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="geometry.html">1 · geometry</a><a href="force.html">2 · the force</a><a href="light.html">3 · light</a><a href="motion.html">4 · motion and spin</a><a href="gravity.html">5 · gravity</a><a href="hydrogen.html">6 · hydrogen</a><a href="table.html">7 · the periodic table</a><a href="shapes.html">8 · the shapes</a><a href="darbon.html">9 · darbon</a><a href="forces.html">10 · forces between molecules</a><a href="xater.html">11 · pxygen and xater</a><a href="census.html">12 · which water</a><a href="search.html">13 · ten ways to meet</a><a href="gas.html" class="here">14 · gases</a><a href="nuclei.html">15 · nuclei</a><a href="stars.html">16 · stars</a><a href="planets.html">17 · planetary systems</a><a href="methods.html">methods</a></nav>
+  <h2>ATOM⁴ · chapter 14</h2>
+  <h1 class="ch">Gases</h1>
+  <p class="lede">PV = NkT in any dimension, the real gas's B₂ computed from the pairs, a refrigerator's throttle, and why 4D's noble gases are held by the crowd rather than their neighbours, so that they boil far hotter than their wells suggest.</p>
+</header>
+<section id="ideal">
+  <h3>The ideal gas, in any dimension</h3>
+  <p>A gas is atoms flying about and hitting the walls. Pressure is the momentum they carry into a wall each second, per unit of wall, and in 4D a wall is a 3D surface. Count it and you get <b>PV = NkT in any number of dimensions</b>. The <a href="../start/#s11">front page's boxes</a> count it live. What changes with d is where the energy goes: each direction of motion holds kT/2, so a 4D atom carries <b>2kT</b>, not 3/2 kT. Its heat capacities are C_v = d/2 and C_p = d/2 + 1 (in k per atom), and their ratio is <b>γ = (d + 2)/d: 3/2 in 4D</b>, against our 5/3.</p>
+  <p>The speeds spread as Maxwell's distribution, with the 3-sphere's area 2π²v³ where ours has 4πv²:</p>
+  <canvas class="chart" id="cGasSpeeds"></canvas>
+  <p class="read" id="rSpeeds"></p>
+  <p>Squeeze a gas without letting heat out and it warms, holding TV^(γ − 1) fixed. Halve the volume and a 4D gas warms by √2 = 1.41, ours by 2^(2/3) = 1.59. To double the temperature takes a 4× squeeze in 4D and 2.8× in ours: <b>a 4D gas is harder to heat by squeezing</b>, because its energy is spread over one more direction. Every engine and every refrigerator runs on that exchange, so 4D's run a little softer. It follows from counting, with no physics of 4D's own.</p>
+  <p class="read"><b>Is 4D just hotter?</b> Temperatures in this chapter run high, but not by bookkeeping. At a given temperature each direction of motion holds the same kT/2, so a 4D atom moves faster than ours at the same temperature (rms √(4kT/m) against √(3kT/m)). For the same speed a 4D gas is cooler, by 3/4. And whether two atoms stick is set by e^(−u/kT) for the pair, the same in any dimension. The high temperatures below come from deeper binding: more neighbours, and the far pull.</p>
+</section>
+<section id="real">
+  <h3>A real gas: the second virial coefficient</h3>
+  <p>Real atoms pull on each other and can't overlap. The first correction to PV = NkT, at low density n, is P/nkT = 1 + B₂(T) n, where</p>
+  <p class="eq">B₂(T) = −½ ∫ (e^(−u(r)/kT) − 1) dV, &nbsp; dV = 2π² r³ dr in 4D (4πr² dr in ours)</p>
+  <p>and u(r) is the pair's energy: <a href="forces.html#pair">computed, for the noble gases</a>, from the solver's own atoms. Negative B₂ means the pull wins and the gas is denser than ideal. Positive means the atoms' size wins. The <b>Boyle temperature</b> is where it changes sign.</p>
+  <p><b>The checks.</b> The integral is exact against hard spheres and square wells in 2 to 5 dimensions. For Lennard-Jones atoms it gives the Boyle temperature at 3.4179 ε/k and the inversion (below) at 6.431 ε/k, the published values. Run on our computed argon pair, it puts argon's Boyle temperature at 320 to 580 K. Measured, it's about 407 K (sources give 392 to 411), inside the range. At room temperature it gives B₂ = -3 to -38 cm³/mol, around the measured −16. The method carries the forces chapter's 1.4 to 1.8 times overbinding, and that's what the ranges are.</p>
+  <p>Here it is for each gas, with temperature counted in its own well depth ε:</p>
+  <canvas class="chart tall" id="cGasB2"></canvas>
+  <p class="read" id="kGasB2"></p>
+  <p><b>Our gases cross zero at about 2.8 ε/k. 4D's cross at about 28.</b> Measured against its own well, a 4D noble gas behaves as if it were ten times stickier than its well is deep. Element 12's Boyle temperature is 16,000 to 29,000 K, and element 22's 61,000 to 109,000 K.</p>
+</section>
+<section id="far">
+  <h3>Held from a distance</h3>
+  <p>The well isn't where 4D's pull is. Two neutral 4D atoms attract as −B/R⁵ out to any distance (<a href="forces.html#permanent">the permanent pull</a>), and the space around an atom at distance r grows as r³. Their product falls only as 1/r², so the far shells add up. Ours fall as R⁻⁶ and the space as r², a product falling as 1/r⁴, so our gases feel almost nothing past the first neighbours. Here's how much of the pull in B₂ comes from within each distance, at three times the well depth:</p>
+  <canvas class="chart" id="cGasFar"></canvas>
+  <p class="read" id="kGasFar"></p>
+  <p>And the same question for a crystal: each atom's hold, counted out shell by shell over the densest lattice (our face-centred cubic, and 4D's lattice of 24-cells, with 24 nearest neighbours), at the pair's own spacing:</p>
+  <canvas class="chart" id="cGasCrystal"></canvas>
+  <p class="read" id="kGasCrystal"></p>
+  <p class="read" id="rFar"></p>
+  <p><b>Our noble gases are held by their neighbours. 4D's are held by the crowd.</b> Argon's twelve nearest give 80% of its crystal's hold. Element 12's twenty-four give 31%, and the whole crowd holds each atom with 39 times its pair's well depth, where argon's holds with 7.5. Summed pair by pair, element 12's crystal pulls itself tighter than the pair's spacing, onto the repulsive wall where the pair model is least sure. These numbers are at the pair's spacing, which is the cautious choice.</p>
+</section>
+<section id="fridge">
+  <h3>The refrigerator</h3>
+  <p>A refrigerator's cold comes from a valve. Push a gas through a narrow opening from high pressure to low (Joule and Thomson's throttle) and it cools, because the atoms climb out of each other's pull as they spread apart. But only below the gas's <b>inversion temperature</b>. Above it, the atoms' collisions win and the gas warms instead. At low pressure the change is</p>
+  <p class="eq">ΔT/T ≈ n (T dB₂/dT − B₂) / C_p</p>
+  <p>so the sign of T B₂′ − B₂ decides it. The chart gives the cooling per throttle at the same crowding n (taking the pair's own size as the unit of volume), so ours and 4D's can be compared. Solid is the computed pair, and dashed is it divided by 1.8.</p>
+  <canvas class="chart tall" id="cGasFridge"></canvas>
+  <p class="read" id="kGasFridge"></p>
+  <p class="read" id="rFridge"></p>
+  <p><b>Every 4D noble gas cools in a throttle up to tens of thousands of kelvin.</b> Element 12 cools below 31,000 to 56,000 K. Ours stop far lower: argon's computed inversion is 600 to 1,100 K, around the measured 794. Even element 2, 4D's helium, cools below 3,100 to 5,600 K. Our helium, at room temperature, warms in a throttle, and has to be cooled below 40 to 50 K (sources differ) before a valve will cool it at all, and our hydrogen below about 200 K. <b>A 4D throttle at room temperature cools every noble gas it could hold</b>, element 2 included. No 4D noble gas needs precooling. At three times its well depth, at the same crowding, element 12 cools by 8 times as much per throttle as argon.</p>
+  <p><b>Yet in its own terms the 4D gas is ours, rescaled.</b> The inversion comes at 1.85 times the Boyle temperature for argon and 1.93 for element 12 (and 1.88 for Lennard-Jones). Measured against the whole pull, B₂'s integral, rather than the well, the low-density gas is the same gas in both worlds. In 4D the well is simply the wrong yardstick.</p>
+  <p class="read">Element 2 is the least sure. The same method overbinds our helium about four times, and the forces chapter leaves our helium out for that reason. Divide element 2's pull by four and it still cools below about 1,300 K, well above room temperature. Light atoms also need quantum corrections to B₂ at low temperature, which this classical integral leaves out.</p>
+</section>
+<section id="boil">
+  <h3>When does it condense? Estimated, then simulated</h3>
+  <p>The <a href="forces.html#pair">forces chapter</a> estimated boiling points the way ours go: our noble gases boil at about 0.7 of their well depth, and condense below a critical point at about 1.26. That rule counts only the well, and the far pull just shown says it can't be right in 4D. Here are three corresponding-states rules, each read off our argon: from the well, from the Boyle temperature (between mean field's 8/27 of it and argon's 0.37), and from the crystal's hold. The last column is the simulation, below.</p>
+  <div class="shells" id="gasTab" style="overflow-x: auto"></div>
+  <p><b>In our world the three rules agree</b>, and each range holds the measured critical point: neon 42–75 K from the well against 44.4 measured, argon 147–265 against 150.9, krypton 207–373 against 209.4. They agree because our noble gases' potentials all have the same shape. <b>In 4D they split, by a factor of 5 to 8.</b> From the well, element 12's critical point is 730 to 1,300 K. From its Boyle temperature it's 4,800 to 11,000 K, and from its crystal 3,600 to 6,500 K.</p>
+  <h4>Simulated</h4>
+  <p>So we simulated it. Liquid and vapour sit side by side in two boxes that trade atoms and volume until they agree (Gibbs-ensemble Monte Carlo), at a ladder of temperatures, on the compute runner. Below the critical point one box ends up liquid and the other vapour. Above it they can't be told apart. The gap between them closes as (T_c − T)^β, with β = 0.326 in 3D and, in 4D, the upper critical dimension, mean field's ½. Both exponents are fitted, and the spread is part of each answer.</p>
+  <p><b>The checks.</b> Lennard-Jones atoms in our world condense below <b>1.27 to 1.32</b> ε/k: the published value is 1.31. Our argon's computed pair condenses below <b>130 to 240 K</b>, holding the measured 150.9. Doubling element 12's boxes moves its densities by 1.5%.</p>
+  <canvas class="chart tall" id="cCoexist"></canvas>
+  <p class="read" id="kCoexist"></p>
+  <p><b>Element 12 condenses below 4,700 to 8,900 K, simulated.</b> The crowd's rules said 3,600 to 11,000 K, and the well's said 730 to 1,300. <b>The crowd was right, and the well-depth rule was off by a factor of 6.</b> Dimension alone does part of it. Lennard-Jones atoms, whose pull is short, condense below 3.0 to 3.5 ε/k in 4D, against 1.27 to 1.32 in ours, since each atom has more neighbours (that 4D value is extrapolated from 2.3 ε/k down). Element 12's far pull takes it to 8.2 to 8.6 ε/k. Element 22, by the crowd's rules, would condense below about 10,000 to 40,000 K.</p>
+  <p><b>Element 2, 4D's helium, condenses below 430 to 870 K</b> on the same range. But the method overbinds our helium about four times. If it does the same here, element 2 condenses below roughly 100 to 200 K, under room temperature. <b>It is the one 4D noble gas that might be a gas at room temperature</b>, and the uncertainty is in its pull, not in the simulation. Which other gases 4D has is open: 4D hydrogen's molecule hasn't been computed.</p>
+  <p class="read">No "boiling point at one atmosphere" can be given, because 4D has no atmosphere to set one. Pressure in 4D is an energy per 4-volume, and which pressure is natural waits on a planet, which waits on gravity. The critical point is the number that can be compared. The simulations add the pull pair by pair, with each box's far tail as a smooth average. Element 12's densest liquid sits near a crystal's density, where the pair model is least sure.</p>
+</section>
+<section id="liquids">
+  <h3>A world of liquids? A hypothesis</h3>
+  <p>Put this chapter beside the last and a picture forms. It's a hypothesis, from three arguments, and it's being tested.</p>
+  <p><b>Few gases at room temperature.</b> Below its critical point a substance is a gas only up to its vapour pressure, which falls as e^(−cohesion/kT). Element 12's crystal holds each atom by 22,000 to 40,000 K (an energy, counted in kelvin). At room temperature that's e^(−74) to e^(−133), against our water's e^(−18): nothing to speak of. The one noble gas that might stay a gas is element 2. 4D hydrogen's molecule hasn't been computed, and the far pull reaches it too (every neutral thing has it), so it may be no better.</p>
+  <p><b>Wide liquid ranges.</b> In our world, how long a liquid lasts depends on how far its atoms' pull reaches. Colloids whose pull is short lose the liquid altogether: they go straight from gas to crystal. 4D's noble gases are the opposite extreme. The far pull raises the critical point, as above. Freezing is set more by how the nearest neighbours pack, which the far pull barely changes.</p>
+  <p><b>Crystals are harder to make.</b> Even hard spheres crystallize less readily as the dimension rises: the barrier to forming a crystal is higher in 4D than in 3D, though 4D's densest lattice is unusually good (its nearest neighbours make a 24-cell). For molecules, <a href="search.html">chapter 13</a> counted far more ways for them to sit. A liquid that won't crystallize doesn't stay liquid as it cools. It becomes a glass.</p>
+  <p>So the hypothesis: <b>in 4D, gas belongs to furnaces, liquids last over a very wide range, and cold matter is glass more often than crystal.</b> <b>The first half has been tested and holds</b>: simulated, element 12 condenses below 4,700 to 8,900 K, where the crowd's rules put it, 6 times the well-depth rule. The far pull lifts boiling a lot. Whether it lifts freezing less, and whether the liquid crystallizes at all, is the next run: crystals melted and liquids cooled, side by side, for argon and for element 12.</p>
+  <h4>Which crystal?</h4>
+  <p>To say a crystal is hard to make, first find the crystal. Summed over every candidate lattice, each at its best spacing, our noble gases choose right: argon's pull picks <b>face-centred cubic</b>, 4% ahead of body-centred, as real argon does. In 4D the Lennard-Jones atom, whose pull is short, picks <b>D₄</b> by 10%: the densest packing, each atom's 24 neighbours at a 24-cell's corners. Element 12's long pull nearly erases that lead. D₄ comes first by only 2.4%, over A₄* (each atom with 10 neighbours). For element 22 the order flips: A₄* leads by 0.8%. And every 4D noble crystal pulls itself inside its own pair's distance (0.89 of it for element 12), onto the repulsive wall, where a model summed pair by pair is least to be trusted. So <b>which crystal 4D's noble gases make isn't settled</b>. Two lattices nearly tying is itself a reason a liquid might hesitate to freeze.</p>
+  <h4>The exception: salts</h4>
+  <p>Salts are held by their charges, at 1/r, and a crystal of alternating charges orders itself in a way a crowd of neutral atoms doesn't. So we computed one, end to end, with our own as the check: two closed-shell ions from the table's solver, their meeting by the same electron-gas model as the noble gases' (on charged clouds), and the crystal's energy summed over the lattice. <b>Our sodium fluoride</b> comes out 4.60 bohr between neighbours (measured, 4.38) and holds together with 9.34 eV per ion pair (measured, about 9.6). <b>4D's todium gluoride, To⁺G⁻</b>, both ions with oeon's twelve electrons, on 4D's alternating lattice: <b>4.10 bohr, and 13.4 eV</b>, 1.4 times ours. Counted from the neutral atoms, 12.0 eV against 7.0 by the same method. <b>4D salts hold together harder than ours.</b> One 4D effect needed care: an ion's cloud leaks a field (the shell theorem's failure again), which each neighbour's charge feels as R⁻³. It alternates in sign across the crystal, and its exact form, derived from the clouds' moments, matches the computed pairs to within 4% where they meet. The lattice is the one the molecular-dynamics code is checked on (8 opposite neighbours along the axes), assumed rather than searched.</p>
+  <p>Then the salt that started this, <b>bluminium pxide, Bl₂Px₃</b>, aluminium oxide's counterpart (our sapphire). Stripping bluminium to Bl³⁺ costs <b>45.4 eV</b> (aluminium 52.0 by the same method, 53.3 measured), and pxygen takes its first extra electron for <b>2.1 eV</b> (oxygen 0.7, measured 1.46). Both steps come out easier than ours, and 4D's crystals of charges hold harder. Its structure is a real search, five ions to a formula and no known answer to start from, so it waits until the simple salt's model is trusted. If it holds, Bl₂Px₃ is a 4D sapphire. A ruby is sapphire with a little chromium in it, and it made the first laser. Whether 4D has a ruby is the question after that.</p>
+</section>
+<section id="gasnext">
+  <h3>What's computed and what's open</h3>
+  <p>Computed: the ideal gas in any dimension; B₂, the Boyle and inversion temperatures, and the throttle's cooling, for the noble gases of both worlds, from their computed pairs; how much of each gas's pull comes from afar; the crystal's hold. Checked: hard spheres, square wells, Lennard-Jones, and our argon's measured Boyle temperature, room-temperature B₂ and inversion. Simulated: the critical points of Lennard-Jones atoms in both worlds, our argon, and 4D's elements 2 and 12. Estimated, by rules taken from argon: the rest. Open: melting and freezing, molecular gases (iydrogen, Xater's vapour), the third virial coefficient (where three-body forces enter), and quantum corrections for the light ones.</p>
+</section>
+
+<footer class="pager"><a href="search.html">← 13 · Ten ways to meet</a><a href="nuclei.html">15 · Nuclei →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen/">Lumen⁴</a> · <a href="../iris/">IRIS⁴</a> · <a href="https://games.mino.mobi/katabasis/">KATABASIS</a> · <a href="../">Four</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

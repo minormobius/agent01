@@ -188,3 +188,5 @@ button.ghost:hover { color: var(--text); border-color: var(--accent); }
   .float, .tool.spending, .tool.fresh, #walker.stranded { animation: none !important; }
   .flyer { transition: none !important; }
 }
+
+#hud .trophy { padding: 6px 9px; font-size: 14px; line-height: 1; flex: none; }

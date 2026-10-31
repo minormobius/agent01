@@ -19,6 +19,8 @@ js/rules.js         the rules — pure, headless, no DOM
 js/solve.js         the viability solver
 js/generate.js      (seed, route, supply) -> a road
 js/main.js          UI, input, animation
+js/score.js         the leaderboard's record and what it refuses (no imports)
+js/board.js         the leaderboard, mounted from Orb's board kit
 test/harness.mjs    engine loader + play policies
 test/ratchet.selftest.mjs   invariants — run by scripts/preflight.mjs
 test/analysis.mjs   the difficulty + foresight report
@@ -135,3 +137,21 @@ walk, which is the only place a foresight gap can exist.
 - Perfect play is unbounded (above).
 - Six tools and ten obstacle kinds is a small vocabulary; roads start to rhyme
   after a dozen routes. More kinds would cost nothing structurally.
+
+## Leaderboard
+
+One board, **most routes crossed** in a run: the number the game already kept
+as your best. When a run ends stranded, POST TO THE BOARD writes a
+`com.minomobi.lab.score` record (`routes-v1`, unit `routes`) to your own repo
+through the shared auth worker, and the board reads everyone's back live off
+ATProto: Orb's portable kit (`../orb/js/board-kit.js`), all time / week /
+today. The detail carries the seed and the counts the game-over screen shows
+(`walked`, `spent`, `scrapped`).
+
+`js/score.js` refuses what the rules can't produce: every stage is passed by a
+tool or a walk, a road is 3–14 stages, walks are paid for out of the only
+supply there is (8 to start, +3 a road, +2 a scrap, every toll at least 1, plus
+the one walk that strands you), and a road's kit is never more than 24 tools.
+The selftest checks those constants against the game's own and that every run
+its policies play is accepted. Change anything that moves the number (supply,
+refill, tolls, road length, kit size) and bump `VERSION`.

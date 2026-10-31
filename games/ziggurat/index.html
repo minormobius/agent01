@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0716" />
+<meta name="description" content="Ziggurat — the hopping-pyramid arcade game one dimension up. The top of a staircase of tesseracts is a tetrahedral pile of cubes, and its slices are ordinary pyramids, so you play on all of them at once: four hops on a pyramid, two to the pyramids beside it." />
+<title>Ziggurat — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/ziggurat.css" />
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="h"><span class="lab">score</span><span id="score" class="val">0</span></div>
+    <div class="h"><span class="lab">lives</span><span id="lives" class="val">◆◆◆</span></div>
+    <div class="h"><span class="lab">level</span><span id="lvl" class="val">1·1</span></div>
+    <div class="h"><span class="lab">turn to</span><span id="target" class="val"></span></div>
+    <div class="h grow">
+      <div class="btns">
+        <button class="ghost" id="pause" type="button" title="Pause (P)" aria-label="Pause">❚❚</button>
+        <button class="ghost" id="turn" type="button" title="Turn the tesseract: slice it along another axis (T)">slice c</button>
+        <button class="ghost" id="trophy" type="button" title="Highest scores" aria-label="Leaderboard" hidden>🏆</button>
+        <button class="ghost" id="help" type="button" aria-label="How to play">?</button>
+      </div>
+    </div>
+  </div>
+  <div id="stage">
+    <canvas id="view" aria-label="The ziggurat: tap a cube next to you to hop onto it"></canvas>
+    <div id="keys">← ↑ → ↓ hop on a pyramid · Z X hop to the pyramid beside · T turn the slices</div>
+  </div>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi · the hopping pyramid, one dimension up</h2>
+  <h1>ZIGGURAT</h1>
+  <p>
+    A staircase of cubes has <b>square</b> tops, in a triangle: the pyramid you
+    hop down in the old arcade game. A staircase of <b>tesseracts</b> has
+    <b>cube</b> tops, in a tetrahedral pile, and every slice of that pile is a
+    pyramid, one row smaller each step in. So you play on all of them at once.
+  </p>
+  <p>
+    Hop on every cube to turn it <b class="gold">gold</b>. Four hops take you
+    round a pyramid, and two more take you to <b>the same spot on the pyramid
+    beside it</b>, a step deeper or a step higher. Hop off the edge and you
+    fall. Dodge the red balls, and the coil that hatches from the purple one
+    and chases you through every dimension. A spinning disc carries you home,
+    and a coil hot on your heels follows you off. Green stops the clock;
+    the little cyan one undoes your work.
+  </p>
+  <p class="small">
+    <b>Tap</b> a cube next to you, or swipe toward it. Keys: <b>← ↑ → ↓</b>
+    hop on a pyramid, <b>Z</b>/<b>X</b> to the one before or after, <b>T</b>
+    turns the tesseract: which axis it's sliced along is yours to pick. It
+    changes what you see, never the game.
+  </p>
+  <div class="row"><button class="primary" id="start-btn" type="button">CLIMB</button><button class="ghost" id="board-btn" type="button" hidden>🏆 board</button></div>
+  <p class="foot"><a href="./README.md">how it works</a> · <a href="../">the arcade</a></p>
+</div>
+
+<div class="overlay" id="paused" hidden>
+  <h1>PAUSED</h1>
+  <div class="row"><button class="primary" id="resume" type="button">GO ON</button></div>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <h2 id="o-head">the summit falls quiet</h2>
+  <h1 id="o-score">0</h1>
+  <p id="o-text"></p>
+  <div class="row">
+    <button class="primary" id="again" type="button">AGAIN</button>
+    <button class="primary" id="post" type="button" hidden>post to the board</button>
+    <button class="ghost" id="o-board" type="button" hidden>🏆 board</button>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+<script type="module" src="js/board.js"></script>
+</body>
+</html>
