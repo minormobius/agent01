@@ -6410,6 +6410,16 @@
       "reason": "panels of the MRI instrument inside the already-listed sci site"
     },
     {
+      "glob": "sci/sonar",
+      "kind": "content",
+      "reason": "the air-sonar instrument inside the already-listed sci site"
+    },
+    {
+      "glob": "sci/sonar/lobby",
+      "kind": "content",
+      "reason": "the phone-to-phone ranging lobby of the sonar instrument, inside the already-listed sci site"
+    },
+    {
       "glob": "silk/word",
       "kind": "content",
       "reason": "the word-frequency companion inside the already-listed silk site"

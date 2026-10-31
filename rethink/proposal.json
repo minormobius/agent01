@@ -191,6 +191,11 @@
           "u": "+b.mino.mobi/sleuth",
           "action": "new",
           "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/obit",
+          "action": "new",
+          "group": "threads"
         }
       ],
       "wing": "bluesky"
@@ -359,6 +364,17 @@
           "u": "rite.mino.mobi/sharp",
           "action": "keep",
           "note": "the only one here that is about English rather than about Bluesky"
+        },
+        {
+          "u": "rite.mino.mobi/spooky",
+          "action": "new",
+          "note": "Treehouse-of-Horror names, punned by ear"
+        },
+        {
+          "u": "rite.mino.mobi/pumpkin",
+          "action": "new",
+          "kind": "toy",
+          "note": "a jack-o'-lantern for every seed, carvable; /live puts them on camera as vtubers"
         }
       ],
       "wing": "bluesky"
@@ -635,7 +651,15 @@
               "u": "mega.mino.mobi/jev",
               "action": "new",
               "note": "seven experiments on a model that returns typed decisions instead of text, indexed — three you can run, four that ran headless, and the finding that the hard part is projecting a design space onto axes a typed question can land on",
-              "domain": "agents"
+              "domain": "agents",
+              "pages": [
+                {
+                  "u": "mega.mino.mobi/jev/craft",
+                  "action": "new",
+                  "kind": "game",
+                  "note": "a Minecraft-like on foam's aperiodic tilings, with a decision model as the player"
+                }
+              ]
             },
             {
               "u": "mega.mino.mobi/jev/delve",
@@ -647,7 +671,14 @@
               "u": "mega.mino.mobi/jev/lab",
               "action": "new",
               "note": "the same decision model against a live one-second BTC perpetual: metrics computed on the page, a paper book that charges taker fee plus half the spread, and a verdict read off a t-statistic against a random control rather than off the prettiest line",
-              "domain": "agents"
+              "domain": "agents",
+              "pages": [
+                {
+                  "u": "mega.mino.mobi/jev/lab/plans",
+                  "action": "new",
+                  "note": "plans with exits instead of buy, sell or hold"
+                }
+              ]
             },
             {
               "u": "mega.mino.mobi/jev/swarm",
@@ -1403,6 +1434,38 @@
           "u": "mino.mobi/read/portrait",
           "action": "keep",
           "group": "modernist"
+        },
+        {
+          "u": "mino.mobi/read/samhain",
+          "action": "new",
+          "group": "the samhain series",
+          "note": "the autumn tales of the north, six of them, and an analysis that grows with each",
+          "pages": [
+            {
+              "u": "mino.mobi/read/nera",
+              "action": "new"
+            },
+            {
+              "u": "mino.mobi/read/thidrandi",
+              "action": "new"
+            },
+            {
+              "u": "mino.mobi/read/muirchertach",
+              "action": "new"
+            },
+            {
+              "u": "mino.mobi/read/regamna",
+              "action": "new"
+            },
+            {
+              "u": "mino.mobi/read/serglige",
+              "action": "new"
+            },
+            {
+              "u": "mino.mobi/read/thomas",
+              "action": "new"
+            }
+          ]
         }
       ],
       "blurb": "Twelve texts under one deep-reading apparatus: the Four Branches of the Mabinogi, the Welsh romances, two Middle English poems, the Life of Merlin from the Latin, and Joyce as the control.",
@@ -1682,14 +1745,114 @@
       "kind": "game",
       "domain": "bluesky",
       "action": "split",
-      "why": "What remains after pressure leaves: the multiplayer party-games site.",
+      "why": "The multiplayer party games, and since 2026-10 a shelf of single-player games on boards that are not flat: spheres of Voronoi cells, buckyballs, a Möbius strip, a snake's skin, and rooms in four dimensions. Moved from the social wing to play: most of what is here now is played alone.",
       "members": [
         {
           "u": "games.mino.mobi",
           "action": "keep"
+        },
+        {
+          "u": "games.mino.mobi/orb",
+          "action": "new",
+          "group": "on a sphere"
+        },
+        {
+          "u": "games.mino.mobi/fathom",
+          "action": "new",
+          "group": "on a sphere"
+        },
+        {
+          "u": "games.mino.mobi/twelve",
+          "action": "new",
+          "group": "on a sphere"
+        },
+        {
+          "u": "games.mino.mobi/skein",
+          "action": "new",
+          "group": "on a sphere"
+        },
+        {
+          "u": "games.mino.mobi/strand",
+          "action": "new",
+          "group": "on a sphere"
+        },
+        {
+          "u": "games.mino.mobi/onecoast",
+          "action": "new",
+          "group": "on a sphere"
+        },
+        {
+          "u": "games.mino.mobi/bucky",
+          "action": "new",
+          "group": "on a sphere"
+        },
+        {
+          "u": "games.mino.mobi/oneside",
+          "action": "new",
+          "group": "on strange surfaces"
+        },
+        {
+          "u": "games.mino.mobi/molt",
+          "action": "new",
+          "group": "on strange surfaces"
+        },
+        {
+          "u": "games.mino.mobi/tessera",
+          "action": "new",
+          "group": "on strange surfaces"
+        },
+        {
+          "u": "games.mino.mobi/ecumene",
+          "action": "new",
+          "group": "small worlds"
+        },
+        {
+          "u": "games.mino.mobi/hearth",
+          "action": "new",
+          "group": "small worlds"
+        },
+        {
+          "u": "games.mino.mobi/ziggurat",
+          "action": "new",
+          "group": "in four dimensions"
+        },
+        {
+          "u": "games.mino.mobi/anakata",
+          "action": "new",
+          "group": "in four dimensions"
+        },
+        {
+          "u": "games.mino.mobi/anabasis",
+          "action": "new",
+          "group": "in four dimensions"
+        },
+        {
+          "u": "games.mino.mobi/hinton",
+          "action": "new",
+          "group": "in four dimensions"
+        },
+        {
+          "u": "games.mino.mobi/katabasis",
+          "action": "new",
+          "group": "in four dimensions"
+        },
+        {
+          "u": "games.mino.mobi/plateau",
+          "action": "new",
+          "group": "in four dimensions"
+        },
+        {
+          "u": "games.mino.mobi/foam4",
+          "action": "new",
+          "group": "in four dimensions"
+        },
+        {
+          "u": "games.mino.mobi/naught",
+          "action": "new",
+          "group": "in four dimensions"
         }
       ],
-      "wing": "bluesky"
+      "wing": "play"
     },
     {
       "id": "canvas",
@@ -2167,6 +2330,233 @@
       "wing": "bench"
     },
     {
+      "id": "four",
+      "label": "four",
+      "u": "four.mino.mobi",
+      "kind": "explainer",
+      "domain": "science",
+      "action": "new",
+      "wing": "study",
+      "why": "A universe with four dimensions of space, worked out one consequence at a time: its light, its rainbows, its fields, its planets, and its chemistry. One official position, many pages; the 4D games on games.mino.mobi play inside it.",
+      "blurb": "A universe with four dimensions of space, worked out: light, fields, orbits and a periodic table.",
+      "members": [
+        {
+          "u": "four.mino.mobi",
+          "action": "new",
+          "note": "the door"
+        },
+        {
+          "u": "four.mino.mobi/start",
+          "action": "new",
+          "note": "for anyone arriving cold"
+        },
+        {
+          "u": "four.mino.mobi/lumen",
+          "action": "new"
+        },
+        {
+          "u": "four.mino.mobi/iris",
+          "action": "new"
+        },
+        {
+          "u": "four.mino.mobi/fields",
+          "action": "new"
+        },
+        {
+          "u": "four.mino.mobi/orrery",
+          "action": "new"
+        },
+        {
+          "u": "four.mino.mobi/atom",
+          "action": "new",
+          "note": "the chemistry and the nuclei; the road to a 4D Earth"
+        },
+        {
+          "u": "four.mino.mobi/table",
+          "action": "new"
+        }
+      ]
+    },
+    {
+      "id": "cell",
+      "label": "cell",
+      "u": "cell.mino.mobi",
+      "kind": "explainer",
+      "domain": "science",
+      "action": "new",
+      "wing": "bench",
+      "why": "A digital twin of a minimal cell (JCVI-syn3A) built in layers, every stage left live: from six genes under Gillespie to the whole genome growing, copying itself and dividing.",
+      "blurb": "A minimal cell simulated layer by layer, from six genes to division.",
+      "members": [
+        {
+          "u": "cell.mino.mobi",
+          "action": "new",
+          "note": "the door"
+        },
+        {
+          "u": "cell.mino.mobi/stage1",
+          "action": "new",
+          "group": "stages"
+        },
+        {
+          "u": "cell.mino.mobi/stage2",
+          "action": "new",
+          "group": "stages"
+        },
+        {
+          "u": "cell.mino.mobi/stage3",
+          "action": "new",
+          "group": "stages"
+        },
+        {
+          "u": "cell.mino.mobi/stage3b",
+          "action": "new",
+          "group": "stages"
+        },
+        {
+          "u": "cell.mino.mobi/stage3c",
+          "action": "new",
+          "group": "stages"
+        },
+        {
+          "u": "cell.mino.mobi/stage3d",
+          "action": "new",
+          "group": "stages"
+        }
+      ]
+    },
+    {
+      "id": "studio",
+      "label": "studio",
+      "u": "studio.mino.mobi",
+      "kind": "toy",
+      "domain": "drawing",
+      "action": "new",
+      "wing": "play",
+      "why": "Claude's studio: numbered pieces of animation and music, a formant voice, a figure rig and an endless radio. A body of work with one maker, so one door.",
+      "blurb": "Animation and music: numbered pieces, a voice made of arithmetic, an endless radio.",
+      "members": [
+        {
+          "u": "studio.mino.mobi",
+          "action": "new",
+          "note": "the door"
+        },
+        {
+          "u": "studio.mino.mobi/anthesis",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/coquelicots",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/nocturne",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/speakeasy",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/nobody",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/grew",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/lecture",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/grown",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/accretion",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/cycle",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/city",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/avatar",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/bommie",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/pdoom",
+          "action": "new",
+          "group": "pieces"
+        },
+        {
+          "u": "studio.mino.mobi/radio",
+          "action": "new",
+          "group": "instruments"
+        },
+        {
+          "u": "studio.mino.mobi/voice",
+          "action": "new",
+          "group": "instruments"
+        },
+        {
+          "u": "studio.mino.mobi/descending",
+          "action": "new",
+          "group": "instruments"
+        },
+        {
+          "u": "studio.mino.mobi/figure",
+          "action": "new",
+          "group": "instruments"
+        }
+      ]
+    },
+    {
+      "id": "miniphim",
+      "label": "miniphim",
+      "u": "del.mino.mobi",
+      "kind": "lens",
+      "domain": "bluesky",
+      "action": "new",
+      "wing": "bluesky",
+      "why": "Two agent beings, Modulo and Morphyx, kept in the open: the observatory that shows their days, and the house of tools they made themselves.",
+      "blurb": "Two agent beings, observed day by day, and the house they built.",
+      "members": [
+        {
+          "u": "del.mino.mobi",
+          "action": "new",
+          "note": "the observatory: every run, day by day"
+        },
+        {
+          "u": "miniphim.minomobi.com",
+          "action": "new",
+          "note": "their own house"
+        }
+      ]
+    },
+    {
       "id": "sites",
       "label": "standalone sites",
       "u": "",
@@ -2541,6 +2931,21 @@
           "action": "look",
           "note": "root directory in the backlog; torus.mino.mobi exists",
           "wing": "bench"
+        },
+        {
+          "u": "jog.mino.mobi",
+          "action": "new",
+          "kind": "app",
+          "domain": "tools",
+          "wing": "bench"
+        },
+        {
+          "u": "imp.mino.mobi",
+          "action": "new",
+          "kind": "lens",
+          "domain": "tools",
+          "wing": "bench",
+          "note": "Imp (DSPy in Elixir) measured from outside; the A/B ballot lives at /vote/"
         }
       ]
     }

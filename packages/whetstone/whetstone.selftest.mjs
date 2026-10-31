@@ -519,7 +519,9 @@ await t('the chronicle joins runs, requests and regrades, and the committed one 
   const md = markdown(ch);
   assert.match(md, /Lab correction:\*\* M3: 2\/4 → 4\/4/);
   assert.ok(md.indexOf('Day 2') < md.indexOf('Day 1'), 'newest first');
-  execFileSync('node', [join(HERE, 'chronicle.mjs'), '--check'], { stdio: 'pipe' });
+  // main carries the chronicle but not the run archive it is built from (runs/ stays on the
+  // owning branch), so the freshness check only means something where runs/ is present.
+  if (existsSync(join(HERE, 'runs'))) execFileSync('node', [join(HERE, 'chronicle.mjs'), '--check'], { stdio: 'pipe' });
 });
 
 await t('lend: a project gets another project\'s code read-only under from/, and none of it is kept', async () => {
