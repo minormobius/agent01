@@ -54,6 +54,10 @@ function faceTrack() {
 const SUN = unit([0.35, 0.42, -0.8, 0.2]);
 const keys = new Set(); let look = { x: 0, y: 0 }, stick = null, twisting = 0, inW = 0;
 const coarse = matchMedia("(pointer: coarse)").matches;
+/* on a phone (a touch screen, or a narrow one) the map takes the bottom sixth and the buttons float over the view */
+const phoneQ = matchMedia("(pointer: coarse), (max-width: 700px)");
+function layout() { const ph = phoneQ.matches, act = $("act"); document.body.classList.toggle("phone", ph); if (ph) $("view").appendChild(act); else $("panel").insertBefore(act, $("panel").firstChild); }
+layout(); phoneQ.addEventListener("change", layout);
 document.addEventListener("keydown", (e) => {
   const t = e.target;
   if (e.ctrlKey || e.metaKey || e.altKey || (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))) return;
@@ -137,9 +141,14 @@ function mapDraw() {
   if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
   const ca = Math.cos(MAPV.yaw), sa = Math.sin(MAPV.yaw), ce = Math.cos(MAPV.el), se = Math.sin(MAPV.el), C = BASIN.c;
-  const k = Math.min(w / (2 * 17.5), h / (2 * (17.5 * se + 7.5 * ce) + 8)), cx = w / 2, cy = h / 2 + 4;
+  // fit the track as seen from this angle (its projected extent, plus its radius) to the canvas, under the caption
+  const proj = (q) => { const dx = q[0] - C[0], dz = q[1] - C[1], dw = q[2] - C[2], u = dx * ca - dz * sa, v = dx * sa + dz * ca; return [u, -(dw * ce - v * se), v * ce + dw * se]; };
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (let i = 0; i < NS; i += 16) { const q = proj(PTS[i]); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+  x0 -= R_TRACK; x1 += R_TRACK; y0 -= R_TRACK; y1 += R_TRACK;
+  const top = 18, k = Math.min((w * 0.9) / (x1 - x0), ((h - top - 6) * 0.94) / (y1 - y0)), cx = w / 2 - ((x0 + x1) / 2) * k, cy = top + (h - top) / 2 - ((y0 + y1) / 2) * k;
   // ground (x, z, w) → screen, and depth (bigger is nearer)
-  const P = (q) => { const dx = q[0] - C[0], dz = q[1] - C[1], dw = q[2] - C[2], u = dx * ca - dz * sa, v = dx * sa + dz * ca; return [cx + u * k, cy - (dw * ce - v * se) * k, v * ce + dw * se]; };
+  const P = (q) => { const r = proj(q); return [cx + r[0] * k, cy + r[1] * k, r[2]]; };
   // the basin: its three principal ellipses
   g.strokeStyle = "rgba(154,149,140,0.28)"; g.lineWidth = 1;
   for (const [i, j] of [[0, 1], [0, 2], [1, 2]]) { g.beginPath(); for (let s = 0; s <= 64; s++) { const t = (2 * Math.PI * s) / 64, q = C.slice(); q[i] += BASIN.a[i] * Math.cos(t); q[j] += BASIN.a[j] * Math.sin(t); const p = P(q); s ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); } g.stroke(); }
@@ -169,10 +178,10 @@ function mapDraw() {
   g.font = "10px ui-monospace, Menlo, monospace"; g.textAlign = "center"; g.textBaseline = "middle";
   [["x", [1, 0, 0]], ["z", [0, 1, 0]], ["w", [0, 0, 1]]].forEach(([n, v]) => { const e = P(o.map((x, j) => x + v[j] * 3)); g.strokeStyle = n === "w" ? "#b88cff" : "#9a958c"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(O[0], O[1]); g.lineTo(e[0], e[1]); g.stroke(); g.fillStyle = g.strokeStyle; g.fillText(n, O[0] + (e[0] - O[0]) * 1.35, O[1] + (e[1] - O[1]) * 1.35); });
   g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillStyle = "#9a958c";
-  g.fillText("the ground: x, z, w (w up) · drag to turn", 8, 13);
+  g.fillText(h < 200 ? "x, z, w · drag" : "the ground: x, z, w (w up) · drag to turn", 8, 13);
   // the colours' key: w, kata to ana
-  const kx = w - 136, ky = h - 16; for (let i = 0; i < 100; i++) { g.fillStyle = `hsl(${wHue(BASIN.c[2] - 3 + (6 * i) / 100)}, 60%, 50%)`; g.fillRect(kx + i, ky, 1, 6); }
-  g.fillStyle = "#9a958c"; g.textAlign = "right"; g.fillText("kata", kx - 4, ky + 6); g.textAlign = "left"; g.fillText("ana", kx + 104, ky + 6);
+  if (h >= 200) { const kx = w - 136, ky = h - 16; for (let i = 0; i < 100; i++) { g.fillStyle = `hsl(${wHue(BASIN.c[2] - 3 + (6 * i) / 100)}, 60%, 50%)`; g.fillRect(kx + i, ky, 1, 6); }
+  g.fillStyle = "#9a958c"; g.textAlign = "right"; g.fillText("kata", kx - 4, ky + 6); g.textAlign = "left"; g.fillText("ana", kx + 104, ky + 6); }
 }
 function wName() { const N = me.fr.N; let a = 0; for (const i of [2, 3]) if (Math.abs(N[i]) > Math.abs(N[a])) a = i; const off = Math.round((Math.acos(Math.min(1, Math.abs(N[a]))) * 180) / Math.PI); return (N[a] > 0 ? "+" : "−") + "xyzw"[a] + (off >= 2 ? ` ${off}°` : ""); }
 

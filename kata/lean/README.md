@@ -50,6 +50,9 @@ stretch is a stroke of the true 3 m thickness, drawn back to front and coloured 
 half of a round cross-section every few metres. The basin's three principal ellipses frame it. You're the gold dot,
 with where you face (gold) and the direction you can't see (dashed blue).
 
+On a phone (a touch screen, or anything under 700 px wide) the view takes five sixths of the screen and the map the
+bottom sixth, in place of the readout; the buttons float over the view's right edge, clear of the stick.
+
 ## Controls
 
 IRIS⁴'s: **WASD** walk (**shift** runs), the **mouse** turns and looks (click to grab it), **Z**/**C** or the
