@@ -1,0 +1,18 @@
+{
+  "id": "jev-plans-search-v2",
+  "written": "2026-10-03",
+  "status": "registered after v1 FAILED and before any v2 result was computed. What was seen first is disclosed below.",
+  "v1_outcome": "jev-plans-search-v1 failed selection: no configuration reached t >= 2.77 on BTC/ETH/SOL over the dev period. Its best, momentum(N=180,k=1), was carried to validation labelled failed and was not confirmed (t 1.48 dev assets, 2.26 holdout assets; most of it shorts, in a period where 14 of 15 assets fell 20-63%).",
+  "already_seen": "all 18 v1 configurations on BTC/ETH/SOL over the dev period; momentum(N=180,k=1) on every asset in every period. Nothing else.",
+  "what_changes_and_why": {
+    "assets": "selection uses ALL 15 assets over the dev period, confirmation ALL 15 over the validation period (a time split only). v1 selected on 3 assets, too few trades for lumpy trend trades to reach significance even if the effect were real.",
+    "unit": "each trade is scored in R = net bp / the bp distance from fill to initial stop, the trend-following convention, so a volatile coin's trade counts the same in risk units as BTC's. v1 summed bp and the wildest coins dominated.",
+    "clustering": "crypto assets move together, so trades on 15 assets in the same week are not independent. The statistic is a t over CALENDAR WEEKS: each week's value is the sum of R of every trade exiting that week (weeks with no exit count as 0 from the first to the last exit of the period).",
+    "beta": "a strategy that is only long in a rising market or only short in a falling one is beta. To be confirmed, a configuration's longs and shorts must EACH have mean R >= 0 over dev+validation combined (2024-06 to 2026-10 holds both a bull run and a bear market)."
+  },
+  "unchanged_from_v1": "the 18-configuration grid, the families, the costs, the 3000-bar split, the 200-bar warmup, one plan at a time per asset",
+  "selection": "net R > 0 and weekly t >= 2.77 over the dev period (Bonferroni, 18 trials)",
+  "confirmation": "each survivor: net R > 0 and weekly t >= 1.645 / Bonferroni over survivors on the validation period, AND the beta rule",
+  "if_none": "if nothing survives, the best by dev weekly t is carried to validation labelled as failed, and the search is reported as failed. No v3 is run on this data.",
+  "no_amendment": "nothing above changes after results are seen"
+}

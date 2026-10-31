@@ -1,0 +1,110 @@
+{
+ "registration": "jev-plans-search-v3",
+ "ran": "2026-10-03T05:33:25.678Z",
+ "dev": {
+  "xs_momentum(L=42,W=42)": {
+   "weeks": 67,
+   "mean_bp_week": 41.7,
+   "sd_bp_week": 732.9,
+   "t": 0.47,
+   "total_bp": 2797,
+   "parts": {
+    "gross": 4477,
+    "funding": -531,
+    "cost": -1149
+   }
+  },
+  "xs_momentum(L=180,W=42)": {
+   "weeks": 67,
+   "mean_bp_week": 77.9,
+   "sd_bp_week": 696.3,
+   "t": 0.92,
+   "total_bp": 5220,
+   "parts": {
+    "gross": 6385,
+    "funding": -554,
+    "cost": -611
+   }
+  },
+  "xs_reversal(L=6,W=6)": {
+   "weeks": 67,
+   "mean_bp_week": -106.8,
+   "sd_bp_week": 730.9,
+   "t": -1.2,
+   "total_bp": -7157,
+   "parts": {
+    "gross": 640,
+    "funding": 252,
+    "cost": -8049
+   }
+  },
+  "xs_reversal(L=42,W=42)": {
+   "weeks": 67,
+   "mean_bp_week": -76,
+   "sd_bp_week": 733.1,
+   "t": -0.85,
+   "total_bp": -5094,
+   "parts": {
+    "gross": -4477,
+    "funding": 531,
+    "cost": -1149
+   }
+  },
+  "funding_carry(F=18,W=42)": {
+   "weeks": 67,
+   "mean_bp_week": 25.5,
+   "sd_bp_week": 698.9,
+   "t": 0.3,
+   "total_bp": 1708,
+   "parts": {
+    "gross": 767,
+    "funding": 1765,
+    "cost": -823
+   }
+  },
+  "funding_carry(F=42,W=42)": {
+   "weeks": 67,
+   "mean_bp_week": 28.2,
+   "sd_bp_week": 742,
+   "t": 0.31,
+   "total_bp": 1892,
+   "parts": {
+    "gross": 1008,
+    "funding": 1670,
+    "cost": -786
+   }
+  }
+ },
+ "survivors": [],
+ "confirmation": {
+  "xs_momentum(L=180,W=42)": {
+   "validation": {
+    "weeks": 49,
+    "mean_bp_week": 16.7,
+    "sd_bp_week": 744.9,
+    "t": 0.16,
+    "total_bp": 821,
+    "parts": {
+     "gross": 1170,
+     "funding": 99,
+     "cost": -448
+    }
+   },
+   "both_periods": {
+    "weeks": 115,
+    "mean_bp_week": 81.7,
+    "sd_bp_week": 683.7,
+    "t": 1.28,
+    "total_bp": 9399,
+    "parts": {
+     "gross": 10969,
+     "funding": -512,
+     "cost": -1057
+    }
+   },
+   "market_corr": -0.127,
+   "confirmed": false
+  }
+ },
+ "failed_selection": true
+}
