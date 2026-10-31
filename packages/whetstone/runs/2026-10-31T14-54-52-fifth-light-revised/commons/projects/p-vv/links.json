@@ -1,0 +1,257 @@
+[
+ {
+  "from": "C-LOAD-CODES",
+  "to": "VV-M1-CODES",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M1-CODES",
+  "kind": "implements"
+ },
+ {
+  "from": "C-LOAD-DUP",
+  "to": "VV-M1-DUP",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M1-DUP",
+  "kind": "implements"
+ },
+ {
+  "from": "C-LOAD-CYCLE",
+  "to": "VV-M1-CYCLE",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M1-CYCLE",
+  "kind": "implements"
+ },
+ {
+  "from": "C-LOAD-LEAF",
+  "to": "VV-M1-LEAF",
+  "kind": "verifies"
+ },
+ {
+  "from": "C-LOAD-CODES",
+  "to": "VV-M1-LEAF",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M1-LEAF",
+  "kind": "implements"
+ },
+ {
+  "from": "C-LINT-WORDS",
+  "to": "VV-M1-LINT",
+  "kind": "verifies"
+ },
+ {
+  "from": "C-LINT-SHALL",
+  "to": "VV-M1-LINT",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M1-LINT",
+  "kind": "implements"
+ },
+ {
+  "from": "C-TRACE",
+  "to": "VV-M2-TRACE",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M2-TRACE",
+  "kind": "implements"
+ },
+ {
+  "from": "C-TRACE",
+  "to": "VV-M2-ORPHAN",
+  "kind": "verifies"
+ },
+ {
+  "from": "C-TRACE-SORT",
+  "to": "VV-M2-ORPHAN",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M2-ORPHAN",
+  "kind": "implements"
+ },
+ {
+  "from": "C-STATUS-LEAF",
+  "to": "VV-M3-LEAF",
+  "kind": "verifies"
+ },
+ {
+  "from": "C-STATUS-LATEST",
+  "to": "VV-M3-LEAF",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M3-LEAF",
+  "kind": "implements"
+ },
+ {
+  "from": "C-STATUS-PARENT",
+  "to": "VV-M3-PARENT",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M3-PARENT",
+  "kind": "implements"
+ },
+ {
+  "from": "C-COVERAGE",
+  "to": "VV-M3-COVER",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M3-COVER",
+  "kind": "implements"
+ },
+ {
+  "from": "C-TPM-STATUS",
+  "to": "VV-M4-STATUS",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M4-STATUS",
+  "kind": "implements"
+ },
+ {
+  "from": "C-TPM-TREND",
+  "to": "VV-M4-TREND",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M4-TREND",
+  "kind": "implements"
+ },
+ {
+  "from": "C-EVM-PV",
+  "to": "VV-M5-PV",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M5-PV",
+  "kind": "implements"
+ },
+ {
+  "from": "C-EVM-EV",
+  "to": "VV-M5-EV",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M5-EV",
+  "kind": "implements"
+ },
+ {
+  "from": "C-EVM-ES",
+  "to": "VV-M5-ES",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M5-ES",
+  "kind": "implements"
+ },
+ {
+  "from": "C-CLI",
+  "to": "VV-M6-CLI",
+  "kind": "verifies"
+ },
+ {
+  "from": "cli.mjs",
+  "to": "VV-M6-CLI",
+  "kind": "implements"
+ },
+ {
+  "from": "C-CLI-EMPTY",
+  "to": "VV-M6-EMPTY",
+  "kind": "verifies"
+ },
+ {
+  "from": "cli.mjs",
+  "to": "VV-M6-EMPTY",
+  "kind": "implements"
+ },
+ {
+  "from": "C-SELF",
+  "to": "VV-M7-SELF",
+  "kind": "verifies"
+ },
+ {
+  "from": "test.mjs",
+  "to": "VV-M7-SELF",
+  "kind": "implements"
+ },
+ {
+  "from": "C-EVIDENCE",
+  "to": "VV-M7-EVID",
+  "kind": "verifies"
+ },
+ {
+  "from": "test.mjs",
+  "to": "VV-M7-EVID",
+  "kind": "implements"
+ },
+ {
+  "from": "C-TPM-FLOAT",
+  "to": "VV-M4-FLOAT",
+  "kind": "verifies"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M4-FLOAT",
+  "kind": "implements"
+ },
+ {
+  "from": "C-ORACLE",
+  "to": "VV-M7-ORACLE",
+  "kind": "verifies"
+ },
+ {
+  "from": "shelf/vv-oracle.mjs",
+  "to": "VV-M7-ORACLE",
+  "kind": "implements"
+ },
+ {
+  "from": "C-CLI-CYCLE",
+  "to": "VV-M6-CYCLE",
+  "kind": "verifies"
+ },
+ {
+  "from": "C-CLI-GATE",
+  "to": "VV-M6-GATE",
+  "kind": "verifies"
+ },
+ {
+  "from": "cli.mjs",
+  "to": "VV-M6-CYCLE",
+  "kind": "implements"
+ },
+ {
+  "from": "vv.mjs",
+  "to": "VV-M6-CYCLE",
+  "kind": "implements"
+ },
+ {
+  "from": "cli.mjs",
+  "to": "VV-M6-GATE",
+  "kind": "implements"
+ }
+]

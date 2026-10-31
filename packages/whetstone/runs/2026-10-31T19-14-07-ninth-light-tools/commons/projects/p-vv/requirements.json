@@ -1,0 +1,272 @@
+[
+ {
+  "id": "VV-M1",
+  "text": "vv shall load and lint requirements.",
+  "parent": null,
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "All child requirements verified.",
+  "rationale": "SPEC.md M1"
+ },
+ {
+  "id": "VV-M2",
+  "text": "vv shall trace requirements to checks and artifacts.",
+  "parent": null,
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "All child requirements verified.",
+  "rationale": "SPEC.md M2"
+ },
+ {
+  "id": "VV-M3",
+  "text": "vv shall derive verification status and coverage from evidence.",
+  "parent": null,
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "All child requirements verified.",
+  "rationale": "SPEC.md M3"
+ },
+ {
+  "id": "VV-M4",
+  "text": "vv shall track technical performance measures.",
+  "parent": null,
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "All child requirements verified.",
+  "rationale": "SPEC.md M4"
+ },
+ {
+  "id": "VV-M5",
+  "text": "vv shall compute earned value earned only by verification.",
+  "parent": null,
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "All child requirements verified.",
+  "rationale": "SPEC.md M5"
+ },
+ {
+  "id": "VV-M6",
+  "text": "vv shall report a project folder as JSON.",
+  "parent": null,
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "All child requirements verified.",
+  "rationale": "SPEC.md M6"
+ },
+ {
+  "id": "VV-M7",
+  "text": "vv shall measure itself.",
+  "parent": null,
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "All child requirements verified.",
+  "rationale": "SPEC.md M7"
+ },
+ {
+  "id": "VV-M1-CODES",
+  "text": "load shall report bad-id, unknown-parent, bad-method and missing-acceptance, sorted by id then code in code-unit order.",
+  "parent": "VV-M1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "C-LOAD-CODES passes.",
+  "rationale": "SPEC.md M1"
+ },
+ {
+  "id": "VV-M1-DUP",
+  "text": "load shall report duplicate-id once per repeated id.",
+  "parent": "VV-M1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "Three copies of one id give one problem.",
+  "rationale": "SPEC.md M1"
+ },
+ {
+  "id": "VV-M1-CYCLE",
+  "text": "load shall report every member of a parent cycle and no requirement that only hangs off one.",
+  "parent": "VV-M1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "C-LOAD-CYCLE passes.",
+  "rationale": "SPEC.md M1"
+ },
+ {
+  "id": "VV-M1-LEAF",
+  "text": "load shall apply bad-method and missing-acceptance to leaves only.",
+  "parent": "VV-M1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "A parent with no method and no acceptance raises nothing; a requirement whose parent is itself is still a leaf and gets both checks (D21).",
+  "rationale": "SPEC.md M1"
+ },
+ {
+  "id": "VV-M1-LINT",
+  "text": "lint shall flag placeholder values, vague wording, and-or and a missing shall, as sorted distinct codes, matching whole words in any case.",
+  "parent": "VV-M1",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "C-LINT-WORDS and C-LINT-SHALL pass.",
+  "rationale": "SPEC.md M1"
+ },
+ {
+  "id": "VV-M2-TRACE",
+  "text": "trace shall map every requirement to the sorted distinct ids that verify and implement it, and list dangling link indices.",
+  "parent": "VV-M2",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "C-TRACE passes.",
+  "rationale": "SPEC.md M2"
+ },
+ {
+  "id": "VV-M2-ORPHAN",
+  "text": "trace shall list as orphans the leaves nothing verifies, in plain string order.",
+  "parent": "VV-M2",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "A-10 sorts before A-9.",
+  "rationale": "SPEC.md M2"
+ },
+ {
+  "id": "VV-M3-LEAF",
+  "text": "status shall classify a leaf as verified, failed, partial or unverified from the latest result of each check on or before asOf.",
+  "parent": "VV-M3",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "Ties on a date go to the later entry.",
+  "rationale": "SPEC.md M3"
+ },
+ {
+  "id": "VV-M3-PARENT",
+  "text": "status shall roll a parent up over its shall children, or over all children when none is shall.",
+  "parent": "VV-M3",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "C-STATUS-PARENT passes.",
+  "rationale": "SPEC.md M3"
+ },
+ {
+  "id": "VV-M3-COVER",
+  "text": "coverage shall count leaf statuses and give verified over total, 0 with no leaves.",
+  "parent": "VV-M3",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "C-COVERAGE passes.",
+  "rationale": "SPEC.md M3"
+ },
+ {
+  "id": "VV-M4-STATUS",
+  "text": "tpm shall give current, margin, status against the risk band, and objectiveMet, using only history on or before asOf.",
+  "parent": "VV-M4",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "Margin equal to the band is met.",
+  "rationale": "SPEC.md M4"
+ },
+ {
+  "id": "VV-M4-TREND",
+  "text": "tpm shall give the least-squares slope per day and the first date on or after asOf on which the fitted line is past the threshold.",
+  "parent": "VV-M4",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "Hand-worked slope 1.7 and breach 2026-01-13.",
+  "rationale": "SPEC.md M4"
+ },
+ {
+  "id": "VV-M4-FLOAT",
+  "text": "tpm shall not count a fitted line that lies on the threshold as past it, and shall give a null projectedBreach for a crossing after 9999-12-31.",
+  "parent": "VV-M4",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "Oracle-found case gives 2031-04-07; a 1e-12 slope gives null without throwing.",
+  "rationale": "README D16, D17: float noise moved a breach by a day, and a near-zero slope crashed the report."
+ },
+ {
+  "id": "VV-M5-PV",
+  "text": "earned shall compute PV per work package by clamped linear spread from day 1 at the earliest start, and AC from actuals on or before asOf.",
+  "parent": "VV-M5",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "PV 90 of 180 on day 7.",
+  "rationale": "SPEC.md M5"
+ },
+ {
+  "id": "VV-M5-EV",
+  "text": "earned shall earn value only for requirements verified at asOf, and derive SV, CV, SPI and CPI with null on division by zero.",
+  "parent": "VV-M5",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "A later fail removes earned value.",
+  "rationale": "SPEC.md M5"
+ },
+ {
+  "id": "VV-M5-ES",
+  "text": "earned shall compute earned schedule, AT and SPIt as SPEC M5 defines them.",
+  "parent": "VV-M5",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "ES 7.5 on the hand-worked plan.",
+  "rationale": "SPEC.md M5"
+ },
+ {
+  "id": "VV-M6-CLI",
+  "text": "The CLI shall print one JSON object with asOf, problems, lint, coverage, orphans, status, tpms and evm, defaulting asOf to the latest date in the data.",
+  "parent": "VV-M6",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "C-CLI passes.",
+  "rationale": "SPEC.md M6"
+ },
+ {
+  "id": "VV-M6-EMPTY",
+  "text": "The CLI shall treat a missing file as empty and give evm null without a plan.",
+  "parent": "VV-M6",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "An empty folder reports nothing and dates itself today.",
+  "rationale": "SPEC.md M6"
+ },
+ {
+  "id": "VV-M6-CYCLE",
+  "text": "The CLI shall report a parent cycle as a problem and still print the report, with every cycle member unverified.",
+  "parent": "VV-M6",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "C-CLI-CYCLE passes.",
+  "rationale": "SPEC promises M2-M6 no cycles, but a real project finds its cycles through the CLI; before D18 it overflowed the stack instead."
+ },
+ {
+  "id": "VV-M6-GATE",
+  "text": "With --check, the CLI shall exit 3 when there is any load problem, failed leaf, breached TPM, or coverage below --min-coverage, and shall print the same JSON either way.",
+  "parent": "VV-M6",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "C-CLI-GATE passes.",
+  "rationale": "Not in SPEC (D20). A project gating merges on vv needs an exit code, not a person reading JSON."
+ },
+ {
+  "id": "VV-M7-SELF",
+  "text": "This folder shall hold requirements and links for vv with no load problems, no orphans, no dangling links and at least 12 leaves.",
+  "parent": "VV-M7",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "C-SELF passes.",
+  "rationale": "SPEC.md M7"
+ },
+ {
+  "id": "VV-M7-EVID",
+  "text": "node test.mjs shall write evidence.json with a pass or fail for each check it ran.",
+  "parent": "VV-M7",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "evidence.json lists every check, dated today.",
+  "rationale": "SPEC.md M7"
+ },
+ {
+  "id": "VV-M7-ORACLE",
+  "text": "vv shall agree with an independent build of M1 to M6 on random inputs.",
+  "parent": "VV-M7",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "shelf/vv-oracle.mjs, 400 cases, seed 7, exits 0.",
+  "rationale": "Hand-worked cases only test the cases someone thought of."
+ }
+]

@@ -1,0 +1,147 @@
+[
+ {
+  "name": "M1 header ignored (fixed column order)",
+  "from": "const i = header.indexOf(f);",
+  "to": "const i = fields.indexOf(f);"
+ },
+ {
+  "name": "M1 blank lines kept",
+  "from": ".filter(l => l.trim() !== '');",
+  "to": ";"
+ },
+ {
+  "name": "M1 quotes not handled",
+  "from": "else if (c === '\"' && cur.trim() === '') { cur = ''; q = true; }",
+  "to": ""
+ },
+ {
+  "name": "M2 week from 0",
+  "from": "/ 7) + 1;",
+  "to": "/ 7);"
+ },
+ {
+  "name": "M2 round not floor",
+  "from": "Math.floor((dayNum(date)",
+  "to": "Math.round((dayNum(date)"
+ },
+ {
+  "name": "M2 local-time dates (unfloored ms)",
+  "from": "return Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY;",
+  "to": "return new Date(+m[1], +m[2] - 1, +m[3]).getTime() / DAY;"
+ },
+ {
+  "name": "M2 reporters unsorted",
+  "from": "reporters: [...e.set].sort(byStr)",
+  "to": "reporters: [...e.set]"
+ },
+ {
+  "name": "M2 reporters not distinct",
+  "from": "e.set.add(r.reporter);",
+  "to": "e.set.add(r.reporter + e.n);"
+ },
+ {
+  "name": "M3 counts reports not people",
+  "from": "if (w[wk][h].reporters.length >= minDistinct)",
+  "to": "if (w[wk][h].reports >= minDistinct)"
+ },
+ {
+  "name": "M3 strict >",
+  "from": "reporters.length >= minDistinct",
+  "to": "reporters.length > minDistinct"
+ },
+ {
+  "name": "M3 week sorted as string",
+  "from": "return out.sort((a, b) => a.week - b.week ||",
+  "to": "return out.sort((a, b) => byStr(String(a.week), String(b.week)) ||"
+ },
+ {
+  "name": "M3 option ignored",
+  "from": "export function mutes(reports, start, { minDistinct = 3 } = {}) {",
+  "to": "export function mutes(reports, start, { } = {}) { const minDistinct = 3;"
+ },
+ {
+  "name": "M4 distinct count instead of total",
+  "from": ".filter(h => count.get(h) >= minReports",
+  "to": ".filter(h => targets.get(h).size >= minReports"
+ },
+ {
+  "name": "M4 join gap strict",
+  "from": "> joinedWithinDays) continue;",
+  "to": ">= joinedWithinDays) continue;"
+ },
+ {
+  "name": "M4 no join check",
+  "from": "if (Math.abs(joined.get(a) - joined.get(b)) > joinedWithinDays) continue;",
+  "to": ""
+ },
+ {
+  "name": "M4 overlap strict",
+  "from": "inter / union < minOverlap",
+  "to": "inter / union <= minOverlap"
+ },
+ {
+  "name": "M4 overlap = inter/min",
+  "from": "inter / union < minOverlap",
+  "to": "inter / Math.min(A.size, B.size) < minOverlap"
+ },
+ {
+  "name": "M4 no union-find (pairs only)",
+  "from": "parent.set(find(a), find(b));",
+  "to": "if (find(a) === a && find(b) === b) parent.set(a, b);"
+ },
+ {
+  "name": "M5 fnv1 not 1a",
+  "from": "h ^= str.charCodeAt(i);\n    h = Math.imul(h, 16777619) >>> 0;",
+  "to": "h = Math.imul(h, 16777619) >>> 0;\n    h ^= str.charCodeAt(i);"
+ },
+ {
+  "name": "M5 signed",
+  "from": "return h >>> 0;\n}",
+  "to": "return h | 0;\n}"
+ },
+ {
+  "name": "M5 utf8 bytes",
+  "from": "for (let i = 0; i < str.length; i++) {\n    h ^= str.charCodeAt(i);",
+  "to": "const u = Buffer.from(str); for (let i = 0; i < u.length; i++) {\n    h ^= u[i];"
+ },
+ {
+  "name": "M5 lastDay off by one",
+  "from": "+ 7 * week - 1;",
+  "to": "+ 7 * week;"
+ },
+ {
+  "name": "M5 reporters not excluded",
+  "from": "if (p.handle === handle || excluded.has(p.handle)) continue;",
+  "to": "if (p.handle === handle) continue;"
+ },
+ {
+  "name": "M5 muted not excluded",
+  "from": "if (p.handle === handle || excluded.has(p.handle)) continue;",
+  "to": "if (excluded.has(p.handle)) continue;"
+ },
+ {
+  "name": "M5 key order swapped",
+  "from": "fnv32(p.handle + ':' + handle + ':' + week)",
+  "to": "fnv32(handle + ':' + p.handle + ':' + week)"
+ },
+ {
+  "name": "M5 highest hash",
+  "from": "h < bestH ||",
+  "to": "h > bestH ||"
+ },
+ {
+  "name": "M6 weeks = count of weeks",
+  "from": "Math.max(...Object.keys(w).map(Number))",
+  "to": "Object.keys(w).length"
+ },
+ {
+  "name": "M6 judge reporters empty",
+  "from": "reporters: w[String(m.week)][m.handle].reporters }",
+  "to": "reporters: [] }"
+ },
+ {
+  "name": "M2 __proto__ handle assigned, not defined",
+  "from": "Object.defineProperty(out[String(w)], h, {\n        value: { reports: e.n, reporters: [...e.set].sort(byStr) },\n        enumerable: true, writable: true, configurable: true,\n      });",
+  "to": "out[String(w)][h] = { reports: e.n, reporters: [...e.set].sort(byStr) };"
+ }
+]

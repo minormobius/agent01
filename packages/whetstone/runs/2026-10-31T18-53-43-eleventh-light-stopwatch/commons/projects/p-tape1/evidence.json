@@ -1,0 +1,191 @@
+[
+ {
+  "check": "h-1",
+  "req": "H",
+  "name": "encode/decode round-trips specials, look-alike tags, absent fields",
+  "ok": true,
+  "digests": {
+   "harness.mjs": "d67728dd713fdf2eff938bf001820bf6c1e337cada250c27418f0e6bb5186767"
+  }
+ },
+ {
+  "check": "t-1",
+  "req": "T",
+  "name": "titles: regex, decodable extensions, ._ files ignored, code-unit order, bad folders logged",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "w1-1",
+  "req": "W1",
+  "name": "an hour at 20 Hz, 25% missed at random: never gone",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "w2-1",
+  "req": "W2",
+  "name": "removed card: pause at last good read + GONE_S (≤ 1.25)",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "w2-2",
+  "req": "W2",
+  "name": "pause t is between polls when the timer runs out between them; never before prior input",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "w2-3",
+  "req": "W2",
+  "name": "card swapped for another: first gone and second placed at that poll",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "w2-4",
+  "req": "W2",
+  "name": "D-tornread: a torn read of the card on the pad is a miss, not a phantom card; another uid still swaps",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "b-1",
+  "req": "B",
+  "name": "D-known: a written card read torn on placing (after a lift, a crowd, a reboot) binds no phantom; first-ever torn, blank and URL-only reads stay uid: per SPEC",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "w3-1",
+  "req": "W3",
+  "name": "crowd pauses at that poll, nulls keep it, nothing happens inside, single read places again",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "w3-2",
+  "req": "W3",
+  "name": "finished card read alone after a crowd starts from track 0",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "p-1",
+  "req": "P",
+  "name": "resume where it stopped this session; next boot starts at 0; leave while silent gives nothing",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "b-2",
+  "req": "B",
+  "name": "bind first free title, cue + unknown.txt when none free, every placement",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "c-1",
+  "req": "C",
+  "name": "cut at every step of a bind: next boot sees old, or old + exactly that bind",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "k-1",
+  "req": "K",
+  "name": "cards.json missing → restore from mirror; {} decides; hand edit then loss comes back as edit",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "k-2",
+  "req": "K",
+  "name": "a mangled cards.json is kept even with no mirror, and a second mangle never overwrites the first (D-bad, Morphyx)",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "c-2",
+  "req": "C",
+  "name": "cut at every step of every boot repair path plus a bind (Morphyx)",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "u-1",
+  "req": "U",
+  "name": "log: boot, sd-change only when titles differ from this box's last boot, bind, finished, restore",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "u-2",
+  "req": "U",
+  "name": "a torn log line from a cut does not swallow the next boot line",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "b-3",
+  "req": "B",
+  "name": "120 evenings, books and cards added: no card bound twice, only its title plays",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "c-3",
+  "req": "C",
+  "name": "120 evenings with power cuts at random steps: same",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ },
+ {
+  "check": "r-1",
+  "req": "R",
+  "name": "same SD, flash, inputs → same events, SD, flash",
+  "ok": true,
+  "digests": {
+   "tape1.mjs": "3bc2f4ba9ae718ad694b796aafe338d2dbcffc8ed61562957bea42fb94e1c609"
+  }
+ }
+]

@@ -1,0 +1,144 @@
+[
+ {
+  "name": "W1: gone too soon",
+  "from": "export const GONE_S = 1.0;",
+  "to": "export const GONE_S = 0.3;"
+ },
+ {
+  "name": "W2: gone too late",
+  "from": "export const GONE_S = 1.0;",
+  "to": "export const GONE_S = 1.3;"
+ },
+ {
+  "name": "W3: crowd does not pause",
+  "from": "if (this.card !== null || this.playing) this._leave(t);",
+  "to": ""
+ },
+ {
+  "name": "P: no resume",
+  "from": "this._play(t, id, title, this.pos.get(id) || 0);",
+  "to": "this._play(t, id, title, 0);"
+ },
+ {
+  "name": "P: finished keeps position",
+  "from": "        this.pos.delete(p.card);\n",
+  "to": ""
+ },
+ {
+  "name": "C: write cards.json in place",
+  "from": "    await this.sd.write(CARDS_NEW, JSON.stringify(next));\n    await this.sd.rename(CARDS_NEW, CARDS);\n    this.file = next;",
+  "to": "    await this.sd.write(CARDS, JSON.stringify(next));\n    this.file = next;"
+ },
+ {
+  "name": "C: bound before durable",
+  "from": "    await this.sd.write(CARDS_NEW, JSON.stringify(next));\n    await this.sd.rename(CARDS_NEW, CARDS);\n    this.file = next;",
+  "to": "    this._emit({ t, type: 'bound', card: id, title }); this.events.pop;\n    await this.sd.write(CARDS_NEW, JSON.stringify(next));\n    await this.sd.rename(CARDS_NEW, CARDS);\n    this.file = next; this.events.pop();"
+ },
+ {
+  "name": "K: no restore",
+  "from": "else if (prev && prev.mirror) { decided = { ...prev.mirror }; source = 'mirror'; }",
+  "to": ""
+ },
+ {
+  "name": "K: cards.new ignored",
+  "from": "if (fromNew) { decided = fromNew; source = 'cards.new'; }\n      else if",
+  "to": "if"
+ },
+ {
+  "name": "K: mirror not updated on accept",
+  "from": "      : source ? { ...decided } : (prev && prev.mirror) || null;",
+  "to": "      : (prev && prev.mirror) || null;"
+ },
+ {
+  "name": "U: sd-change always",
+  "from": "!!prev && Array.isArray(prev.titles) && !sameSet(prev.titles, titleNames)",
+  "to": "!sameSet((prev && prev.titles) || [], titleNames)"
+ },
+ {
+  "name": "T: ._ files count",
+  "from": "!name.startsWith('.') && ",
+  "to": ""
+ },
+ {
+  "name": "T: sort ignored",
+  "from": "for (const f of [...((await sd.list(dir)) || [])].sort())",
+  "to": "for (const f of [...((await sd.list(dir)) || [])])"
+ },
+ {
+  "name": "B: bind to a taken title",
+  "from": "const free = [...this.titles.keys()].find((n) => !taken.has(n));",
+  "to": "const free = [...this.titles.keys()][0];"
+ },
+ {
+  "name": "B: cue not appended",
+  "from": "        await this._appendLine(UNKNOWN, id + '\\n');\n",
+  "to": ""
+ },
+ {
+  "name": "card id: uid case kept",
+  "from": "return 'uid:' + String(read.uid).toLowerCase();",
+  "to": "return 'uid:' + String(read.uid);"
+ },
+ {
+  "name": "H: $ keys not escaped",
+  "file": "harness.mjs",
+  "from": "k.startsWith(TAG) ? TAG + k : k,",
+  "to": "k,"
+ },
+ {
+  "name": "H: -0 lost",
+  "file": "harness.mjs",
+  "from": "    if (Object.is(v, -0)) return { [TAG]: '-0' };\n",
+  "to": ""
+ },
+ {
+  "name": "U: torn line not ended",
+  "from": "if (old && !old.endsWith('\\n')) text = '\\n' + text;",
+  "to": ""
+ },
+ {
+  "name": "K: mangled file not set aside when nothing decides (Morphyx)",
+  "from": "      await sd.rename(CARDS, await freeBad(sd));\n    }\n    await this._flush();",
+  "to": "    }\n    await this._flush();"
+ },
+ {
+  "name": "K: second mangle overwrites cards.bad (Morphyx)",
+  "from": "if ((await sd.read(p)) === null) return p;",
+  "to": "return p;"
+ },
+ {
+  "name": "D-tornread: torn read of the pad card swaps (phantom)",
+  "from": "} else if (id !== this.card && id.startsWith('uid:') && id === 'uid:' + this.padUid) {",
+  "to": "} else if (false) {"
+ },
+ {
+  "name": "D-tornread: any uid: read mid-sitting is a miss (blank swap lost)",
+  "from": "id.startsWith('uid:') && id === 'uid:' + this.padUid)",
+  "to": "id.startsWith('uid:'))"
+ },
+ {
+  "name": "D-tornread: torn read holds the card",
+  "from": "// D-tornread: the card on the pad, read with its record cut short. A miss, not a new card.",
+  "to": "this.lastGood = t; this._armGone();"
+ },
+ {
+  "name": "B D-known: no memory of good uids",
+  "from": "      if (this.known.has(uid) && tapeTorn(read)) {",
+  "to": "      if (false) {"
+ },
+ {
+  "name": "B D-known: memory not kept in flash",
+  "from": "    this.known = new Set(prev && Array.isArray(prev.known) ? prev.known : []);   // D-known",
+  "to": "    this.known = new Set();"
+ },
+ {
+  "name": "B D-known: too broad, blank/URL-only reads of a known uid are misses",
+  "from": "      if (this.known.has(uid) && tapeTorn(read)) {",
+  "to": "      if (this.known.has(uid) && id.startsWith('uid:')) {"
+ },
+ {
+  "name": "B D-known: remembers every uid, corrupt ones too",
+  "from": "      if (!id.startsWith('uid:') && !this.known.has(uid)) {",
+  "to": "      if (!this.known.has(uid)) {"
+ }
+]

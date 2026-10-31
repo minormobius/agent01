@@ -1,0 +1,163 @@
+[
+ {
+  "name": "verdict: exclusive ±2",
+  "from": "if (lo >= -2 && hi <= 2)",
+  "to": "if (lo > -2 && hi < 2)"
+ },
+ {
+  "name": "verdict: long before true",
+  "from": "if (lo >= -2 && hi <= 2) return 'tablet reads true';\n  if (lo > 0) return 'tablet reads long';",
+  "to": "if (lo > 0) return 'tablet reads long';\n  if (lo >= -2 && hi <= 2) return 'tablet reads true';"
+ },
+ {
+  "name": "verdict: long inclusive of 0",
+  "from": "if (lo > 0) return",
+  "to": "if (lo >= 0) return"
+ },
+ {
+  "name": "controller: strict after seen",
+  "from": "if (!(p.arrive >= seen)) continue;",
+  "to": "if (!(p.arrive > seen)) continue;"
+ },
+ {
+  "name": "controller: ignores busy observer",
+  "from": "if (!(p.arrive >= seen)) continue;",
+  "to": ""
+ },
+ {
+  "name": "controller: no manager cap",
+  "from": "maxMornings = Math.min(maxMornings, MANAGER_LIMIT);",
+  "to": ""
+ },
+ {
+  "name": "controller: one morning too few",
+  "from": "for (let k = 1; k <= maxMornings; k++)",
+  "to": "for (let k = 1; k < maxMornings; k++)"
+ },
+ {
+  "name": "controller: picks the shortest wait (biased)",
+  "from": "out.diffs.push(tab - w);",
+  "to": "if (w < 40) out.diffs.push(tab - w);"
+ },
+ {
+  "name": "estimate: stopwatch minus tablet",
+  "from": "out.diffs.push(tab - w);",
+  "to": "out.diffs.push(w - tab);"
+ },
+ {
+  "name": "interval: z instead of t",
+  "from": "const q = tquantile(1 - alpha / 2, n - 1) / Math.sqrt(n);",
+  "to": "const q = 1.959964 / Math.sqrt(n);"
+ },
+ {
+  "name": "interval: population sd",
+  "from": "const sd = Math.sqrt(ds.reduce((a, d) => a + (d - mean) ** 2, 0) / (n - 1));\n  if (!(sd > 0))",
+  "to": "const sd = Math.sqrt(ds.reduce((a, d) => a + (d - mean) ** 2, 0) / n);\n  if (!(sd > 0))"
+ },
+ {
+  "name": "interval: skew sign flipped",
+  "from": "const g = ds.reduce",
+  "to": "const g = -ds.reduce"
+ },
+ {
+  "name": "interval: alpha not halved",
+  "from": "const q = tquantile(1 - alpha / 2,",
+  "to": "const q = tquantile(1 - alpha,"
+ },
+ {
+  "name": "harness: data not compared",
+  "file": "harness.mjs",
+  "from": "const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));",
+  "to": "const same = (a, b) => (a && a.kind) === (b && b.kind);"
+ },
+ {
+  "name": "harness: no tripwire",
+  "file": "harness.mjs",
+  "from": "if (first >= 0) mismatches.push",
+  "to": "if (false) mismatches.push"
+ },
+ {
+  "name": "harness: injections dropped in replay",
+  "file": "harness.mjs",
+  "from": "if (e.kind !== 'inject') continue;\n",
+  "to": "continue;\n"
+ },
+ {
+  "name": "harness: injection late by one sleep",
+  "file": "harness.mjs",
+  "from": "ms = Math.max(ms, pending[0].at * scale);",
+  "to": "ms = target;"
+ },
+ {
+  "name": "harness: length not compared",
+  "file": "harness.mjs",
+  "from": "const n = Math.max(expected.length, got.length);",
+  "to": "const n = Math.min(expected.length, got.length);"
+ },
+ {
+  "name": "fresh: null matches null",
+  "file": "fresh.mjs",
+  "from": "e.digests[p] !== null && now(p) === e.digests[p]",
+  "to": "now(p) === e.digests[p]"
+ },
+ {
+  "name": "fresh: unstamped kept",
+  "file": "fresh.mjs",
+  "from": "if (!e || !e.digests || typeof e.digests !== 'object') return false;",
+  "to": "if (!e || !e.digests) return true;"
+ },
+ {
+  "name": "fresh: stamps all artifacts",
+  "file": "fresh.mjs",
+  "from": "l.rel === 'implements' && reqs.has(l.to)",
+  "to": "l.rel === 'implements'"
+ },
+ {
+  "name": "harness: replay pre-schedules injections (day 1 H-d)",
+  "file": "harness.mjs",
+  "from": "      const before = below(t);\n      if (before >= sim.now) sim.run({ until: before });\n      sim.now = t;                              // nothing is queued in (before, t): floats have no room\n      sim.inject(e.data.name, e.data.value);",
+  "to": "      const { name, value } = e.data;\n      sim.schedule(Math.max(0, e.t - sim.now), function inject() { sim.inject(name, value); });"
+ },
+ {
+  "name": "harness: replay injects after steps at t",
+  "file": "harness.mjs",
+  "from": "if (before >= sim.now) sim.run({ until: before });",
+  "to": "if (t >= sim.now) sim.run({ until: t });"
+ },
+ {
+  "name": "fresh: recorded digests only (day 1, ignores new links)",
+  "file": "fresh.mjs",
+  "from": "return artifactsFor(e.check, links).every((p) => Object.hasOwn(e.digests, p) && e.digests[p] !== null && now(p) === e.digests[p]);",
+  "to": "return Object.entries(e.digests).every(([p, d]) => d !== null && now(p) === d);"
+ },
+ {
+  "name": "study: NaN readings kept",
+  "from": "if (okW && isReading(tab)) out.diffs.push(tab - w);",
+  "to": "if (true) out.diffs.push(tab - w);"
+ },
+ {
+  "name": "study: seen from any stopwatch value (day 3, null/-1 made illegal calls)",
+  "from": "seen = okW ? p.arrive + w : NaN;",
+  "to": "seen = p.arrive + w;"
+ },
+ {
+  "name": "study: isFinite without typeof ('12', null tablet)",
+  "from": "const isReading = (x) => typeof x === 'number' && Number.isFinite(x);",
+  "to": "const isReading = (x) => Number.isFinite(+x);"
+ },
+ {
+  "name": "study: negative stopwatch accepted",
+  "from": "const okW = isReading(w) && w >= 0;",
+  "to": "const okW = isReading(w);"
+ },
+ {
+  "name": "study: negative tablet refused (selection bias)",
+  "from": "if (okW && isReading(tab))",
+  "to": "if (okW && isReading(tab) && tab >= 0)"
+ },
+ {
+  "name": "study: caveat threshold ignores alpha (day 3 S-h)",
+  "from": "if (n >= 2 && blind > alpha)",
+  "to": "if (n >= 2 && n < 20)"
+ }
+]

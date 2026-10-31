@@ -1,0 +1,13 @@
+{
+  "note": "Drafted by Modulo on day 1 from SPEC.md. council/ (the council's own requirements) and tools/vv/ (vv's schema) were not in the folder; replace or merge when they are. Shape is a guess at vv's.",
+  "requirements": [
+    { "id": "H1", "text": "A deterministic model, recorded live under a fake clock (with injections) and replayed simulated, makes the same decisions: replay returns ok: true.", "source": "SPEC.md H1" },
+    { "id": "H2", "text": "A model that decides anything with Math.random() instead of the sim's seeded random is caught: replay returns ok: false with the mismatch located.", "source": "SPEC.md H2" },
+    { "id": "S1", "text": "The study never asks the clinic for an impossible timing or for more than maxMornings (and never more than the manager's five), and always returns a well-formed report.", "source": "SPEC.md S1" },
+    { "id": "S2", "text": "Over many clinics the 1 - alpha interval holds the true mean difference 90-99% of the time at alpha 0.05, and the estimate's mean error is under a minute.", "source": "SPEC.md S2" },
+    { "id": "S3", "text": "The verdict follows the interval: within +-2 inclusive -> reads true; else wholly above 0 -> long; else wholly below 0 -> short; else cannot tell.", "source": "SPEC.md S3" },
+    { "id": "S4", "text": "Same seed on the same clinic gives the same report; the controller, recorded and replayed through the harness against a twin clinic, matches.", "source": "SPEC.md S4" },
+    { "id": "F1", "text": "Change one implementing file: exactly the evidence that depended on it drops out of filter(); change nothing: nothing drops.", "source": "SPEC.md F1" },
+    { "id": "V1", "text": "requirements.json and links.json describe the project; node test.mjs exits 0 and writes evidence.json stamped by Fresh; README.md and LETTER.md exist.", "source": "SPEC.md V1" }
+  ]
+}

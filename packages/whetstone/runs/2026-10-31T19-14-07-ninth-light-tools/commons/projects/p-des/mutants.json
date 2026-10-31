@@ -1,0 +1,167 @@
+[
+ {
+  "name": "heap ignores priority",
+  "from": "(x.priority < y.priority || (x.priority === y.priority && x.seq < y.seq))",
+  "to": "x.seq < y.seq"
+ },
+ {
+  "name": "resource ignores priority",
+  "from": "this._queue[i - 1].priority > priority",
+  "to": "false"
+ },
+ {
+  "name": "criticality ignores shared resources",
+  "from": "|| [...resSet[x]].some((r) => resSet[y].has(r))",
+  "to": ""
+ },
+ {
+  "name": "interrupt keeps the request",
+  "from": "if (t instanceof Request) { if (!t._released) t.resource.release(t); }",
+  "to": "if (t instanceof Request) { }"
+ },
+ {
+  "name": "realtime never waits",
+  "from": "if (waitMs > Math.max(1e-9, Math.abs(nowMs) * 4.5e-16)) {",
+  "to": "if (false) {"
+ },
+ {
+  "name": "container get not FIFO (skips a blocked head)",
+  "from": "const g = this._gets[0];",
+  "to": "const g = this._gets.find((x) => this.level >= x.amount); if (g) this._gets.splice(this._gets.indexOf(g), 1), this._gets.unshift(g);"
+ },
+ {
+  "name": "inject from model uses wall time",
+  "from": "if (!this._rt || this._inStep) return this.now;",
+  "to": "if (!this._rt) return this.now;"
+ },
+ {
+  "name": "run until exclusive",
+  "from": "t <= until;) { this._step(); n++; }",
+  "to": "t < until;) { this._step(); n++; }"
+ },
+ {
+  "name": "percentile off by one",
+  "from": "Math.max(1, Math.ceil((p / 100) * runs)) - 1",
+  "to": "Math.min(runs - 1, Math.ceil((p / 100) * runs))"
+ },
+ {
+  "name": "simultaneous finishes released one at a time",
+  "from": "for (const i of running) if (finish[i] === t) {",
+  "to": "for (const i of running.filter((j) => finish[j] === t).slice(0, 1)) {"
+ },
+ {
+  "name": "stats ignore queue",
+  "from": "this._queueArea += this._queue.length * dt;",
+  "to": ""
+ },
+ {
+  "name": "interrupt leaves store/container waiter queued",
+  "from": "else if (t._owner) t._owner._abandon(t);",
+  "to": ""
+ },
+ {
+  "name": "any Interrupt ends quietly, even one passed on",
+  "from": "err !== undefined && err === this._myInterrupt",
+  "to": "err instanceof Interrupt"
+ },
+ {
+  "name": "own uncaught Interrupt crashes run()",
+  "from": "err !== undefined && err === this._myInterrupt",
+  "to": "false"
+ },
+ {
+  "name": "stats from creation, not time 0",
+  "from": "this._t0 = 0;",
+  "to": "this._t0 = sim.now;"
+ },
+ {
+  "name": "cancel does not resettle",
+  "from": "q.splice(i, 1); this._settle(); return true;",
+  "to": "q.splice(i, 1); return true;"
+ },
+ {
+  "name": "granted-then-interrupted get loses the item",
+  "from": "_giveBack(ev) { this._items.unshift(ev.value); }",
+  "to": "_giveBack(ev) { }"
+ },
+ {
+  "name": "subscribe mailbox not fed",
+  "from": "for (const box of this._subs.get(name) || []) box.put(value);",
+  "to": ""
+ },
+ {
+  "name": "interrupt does not recurse into conditions",
+  "from": "  else if (t instanceof Condition) t._orphan();",
+  "to": ""
+ },
+ {
+  "name": "orphan withdraws even claims someone else holds",
+  "from": "for (const e of this._events) if (!e._callbacks || e._callbacks.length === 0) withdraw(e);",
+  "to": "for (const e of this._events) withdraw(e);"
+ },
+ {
+  "name": "fired condition stays hooked to the losers",
+  "from": "if (this._state !== PENDING) this._unhook();",
+  "to": ""
+ },
+ {
+  "name": "signal list never pruned",
+  "from": "if (list.length >= 2 * list.mark) {",
+  "to": "if (false) {"
+ },
+ {
+  "name": "pruned signal does not re-listen",
+  "from": "if (this._sig !== undefined && !this._sigIn && this._state === PENDING) this.sim._sigRegister(this);",
+  "to": ""
+ },
+ {
+  "name": "trace not called",
+  "from": "if (this._trace) this._trace(",
+  "to": "if (false) this._trace("
+ },
+ {
+  "name": "trace loses process labels",
+  "from": "this._label = genFn.name || 'process';",
+  "to": "this._label = 'process';"
+ },
+ {
+  "name": "realtime waits from start + t*scale (epoch rounding)",
+  "from": "const waitMs = target * scale - (nowMs - this._rt.start);",
+  "to": "const waitMs = this._rt.start + target * scale - nowMs;"
+ },
+ {
+  "name": "no clock-resolution guard (0-ms sleeps forever at 1e15)",
+  "from": "Math.max(1e-9, Math.abs(nowMs) * 4.5e-16)",
+  "to": "1e-9"
+ },
+ {
+  "name": "blocked task holds back later ones",
+  "from": "if (!uses[i].every(([r, u]) => free[r] >= u)) continue;",
+  "to": "if (!uses[i].every(([r, u]) => free[r] >= u)) break;"
+ },
+ {
+  "name": "takes units piecemeal",
+  "from": "if (!uses[i].every(([r, u]) => free[r] >= u)) continue;",
+  "to": "if (!uses[i].every(([r, u]) => free[r] > 0)) continue;"
+ },
+ {
+  "name": "critical: any earlier finisher",
+  "from": "if (critical[x] || finish[x] !== start[y]) continue;",
+  "to": "if (critical[x] || finish[x] > start[y]) continue;"
+ },
+ {
+  "name": "zero-duration tasks never rescan",
+  "from": "        startedZero = true;\n      }\n    }",
+  "to": "      }\n    }"
+ },
+ {
+  "name": "keepAlive ignored (controller exits on empty queue)",
+  "from": "if (!keepAlive) break;",
+  "to": "break;"
+ },
+ {
+  "name": "stop() does not wake a sleeping runRealtime",
+  "from": "stop() { this._stopped = true; if (this._wake) this._wake(); }",
+  "to": "stop() { this._stopped = true; }"
+ }
+]

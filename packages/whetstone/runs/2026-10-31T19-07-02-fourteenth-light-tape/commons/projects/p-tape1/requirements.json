@@ -1,0 +1,75 @@
+{
+ "note": "Drafted by Modulo, tape day 1, from SPEC.md. council/ and tools/vv/ were not in the folder: merge the council's TAPE1-STORE, TAPE1-USE, TAPE-KEEP-ABSENT, TAPE-KEEP-STALE, TAPE-ENC when they appear, and fix the shape to vv's.",
+ "requirements": [
+  {
+   "id": "W1",
+   "text": "A card left on the pad an hour, polled at 20 Hz with up to a quarter of reads missed at random, is never reported gone.",
+   "source": "SPEC.md W1"
+  },
+  {
+   "id": "W2",
+   "text": "A removed card is reported gone no more than 1.25 s after its last good read; a playing one pauses with t <= last good read + 1.25. A different card's good read replaces the first at that poll.",
+   "source": "SPEC.md W2"
+  },
+  {
+   "id": "W3",
+   "text": "A crowded read pauses a playing box at that poll; while crowded nothing but pause; empty reads don't end it; the next single good read places that card, even the same one.",
+   "source": "SPEC.md W3"
+  },
+  {
+   "id": "P",
+   "text": "A placed bound card plays its title from where it stopped this power session, else track 0; tracks advance; finished after the last; silent while it stays; leaving while playing pauses, while silent gives nothing.",
+   "source": "SPEC.md P"
+  },
+  {
+   "id": "T",
+   "text": "Titles are folders under /tape/audio matching ^[a-z0-9][a-z0-9-]{0,31}$ with at least one decodable file (8 extensions, any case, not dot-files); tracks in code-unit order; other folders logged bad-folder.",
+   "source": "SPEC.md Titles"
+  },
+  {
+   "id": "B",
+   "text": "An unbound placed card binds to the first free title, durably, emits bound, plays track 0; none free: cue and append id to unknown.txt every time. Bindings never change; /tape/audio is never written. Over months, no card bound twice, none plays another's title.",
+   "source": "SPEC.md B (TAPE1-STORE)"
+  },
+  {
+   "id": "B-torn",
+   "text": "A torn read of a written card never binds a phantom book or starts another book: on the pad (D-tornread) or on placing, once its uid has been read good on this box (D-known, flash). Blank reads, reads with no tape record, and never-seen uids keep SPEC's uid: id. Open: a brand-new card's first read being torn.",
+   "source": "Box decisions D-tornread (Modulo), D-known (Morphyx); not in SPEC, ours"
+  },
+  {
+   "id": "C",
+   "text": "A power cut at any step of a bind leaves the deciding bindings file holding old bindings or old plus exactly that bind; also over months of random cuts.",
+   "source": "SPEC.md C"
+  },
+  {
+   "id": "K",
+   "text": "At boot cards.json decides if it parses ({} included), else cards.new, else the flash mirror restores (restore event + log), only if bindings were ever decided. The mirror is rewritten on every bind and on every accepted file.",
+   "source": "SPEC.md K (TAPE-KEEP-ABSENT)"
+  },
+  {
+   "id": "U",
+   "text": "/tape/log.txt: one tab-separated line per boot (sd-change exactly when this flash booted before with a different title set), bind, finished, restore, and bad-folder per folder per boot.",
+   "source": "SPEC.md U (TAPE1-USE)"
+  },
+  {
+   "id": "R",
+   "text": "Same SD card, flash and inputs give the same events, SD card and flash.",
+   "source": "SPEC.md R"
+  },
+  {
+   "id": "H",
+   "text": "harness encode/decode round-trip every JSON value with NaN, +-Infinity in place, null distinct from absent, and no caller value mistaken for the encoding (fi-5f90c6).",
+   "source": "SPEC.md H"
+  },
+  {
+   "id": "E",
+   "text": "enclosure/ holds one CAD tree per printed part; each builds watertight in the exact kernel, fits a 200 mm cube; one holds a 63 x 88 mm card (two largest dims >= 89 and 64 mm).",
+   "source": "SPEC.md E (TAPE-ENC)"
+  },
+  {
+   "id": "V",
+   "text": "requirements.json and links.json describe the project; node test.mjs exits 0 and writes evidence.json; vv reports no problems, coverage >= 0.8, >= 10 leaves; README.md and HOUSEHOLD.md exist.",
+   "source": "SPEC.md V"
+  }
+ ]
+}

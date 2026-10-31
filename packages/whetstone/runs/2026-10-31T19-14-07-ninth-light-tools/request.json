@@ -1,0 +1,10 @@
+{
+  "label": "ninth-light-tools",
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "sweep,project,evening",
+  "seed": 9,
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "note": "The programme begins: des (a discrete-event engine for simulation and control) and vv (requirements, verification, and earned value earned only by verification), four turns each per day, milestones checked on unseen data. Both specs were cross-checked by blind independent builds that scored 7/7. Text trials, solo problems and the old pair tasks are left out to keep the day on the tools; Mozzie sweeps and everyone gets an evening."
+}

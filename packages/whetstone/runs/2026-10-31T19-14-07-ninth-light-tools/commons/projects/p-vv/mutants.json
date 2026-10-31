@@ -1,0 +1,193 @@
+[
+ {
+  "name": "dup reported per copy",
+  "from": "if (seen.has(r.id)) add(r.id, 'duplicate-id');",
+  "to": "if (seen.has(r.id)) problems.set(Math.random()+'', { id: r.id, code: 'duplicate-id' });"
+ },
+ {
+  "name": "leaf rule on all reqs",
+  "from": "    if (!leaf(r)) continue;\n",
+  "to": ""
+ },
+ {
+  "name": "whitespace acceptance ok",
+  "from": "s.trim() !== ''",
+  "to": "s !== ''"
+ },
+ {
+  "name": "cycle: tail reported too",
+  "from": "for (const id of path.slice(pos.get(cur))) add(id, 'cycle')",
+  "to": "for (const id of path) add(id, 'cycle')"
+ },
+ {
+  "name": "lint substring not word",
+  "from": "new RegExp('(?<![A-Za-z0-9_])' + w + '(?![A-Za-z0-9_])', 'i')",
+  "to": "new RegExp(w, 'i')"
+ },
+ {
+  "name": "lint case-sensitive",
+  "from": "+ '(?![A-Za-z0-9_])', 'i')",
+  "to": "+ '(?![A-Za-z0-9_])')"
+ },
+ {
+  "name": "trace no dedupe",
+  "from": "verifiedBy[id] = sortIds(v.get(id));",
+  "to": "verifiedBy[id] = [...v.get(id)].sort((a,b)=>a.localeCompare(b));"
+ },
+ {
+  "name": "dangling skips implements",
+  "from": "if (!ids.has(l.to)) { dangling.push(i); return; }",
+  "to": "if (!ids.has(l.to)) { if (l.kind === 'verifies') dangling.push(i); return; }"
+ },
+ {
+  "name": "tie: first entry wins",
+  "from": "if (!b || d >= b.day)",
+  "to": "if (!b || d > b.day)"
+ },
+ {
+  "name": "asOf exclusive",
+  "from": "dayIndex(at) <= dayIndex(asOf)",
+  "to": "dayIndex(at) < dayIndex(asOf)"
+ },
+ {
+  "name": "partial counted verified",
+  "from": "rs.length === verifiedBy[id].length && rs.every",
+  "to": "rs.every"
+ },
+ {
+  "name": "parent over all children",
+  "from": "(shall.length ? shall : ch)",
+  "to": "ch"
+ },
+ {
+  "name": "parent failed before verified-check order irrelevant; any-verified",
+  "from": "if (ss.every((x) => x === 'verified')) s = 'verified';",
+  "to": "if (ss.some((x) => x === 'verified') && !ss.includes('failed')) s = 'verified';"
+ },
+ {
+  "name": "riskBand inclusive",
+  "from": "margin < band ? 'at-risk'",
+  "to": "margin <= band ? 'at-risk'"
+ },
+ {
+  "name": "riskBand default 1%",
+  "from": "Math.abs(T) * 0.1",
+  "to": "Math.abs(T) * 0.01"
+ },
+ {
+  "name": "current = last in list",
+  "from": ".sort((a, b) => a.d - b.d || a.i - b.i)",
+  "to": ""
+ },
+ {
+  "name": "breach on threshold counts",
+  "from": "a + trend * x - T > eps :",
+  "to": "a + trend * x - T >= -eps :"
+ },
+ {
+  "name": "breach can precede asOf",
+  "from": "while (x > xAs && past(x - 1)) x--;",
+  "to": "while (past(x - 1)) x--;"
+ },
+ {
+  "name": "PV without +1",
+  "from": "(d - x.s + 1) / (x.f - x.s + 1)",
+  "to": "(d - x.s) / (x.f - x.s + 1)"
+ },
+ {
+  "name": "EV counts partial",
+  "from": "st[id] === 'verified'",
+  "to": "st[id] !== 'unverified'"
+ },
+ {
+  "name": "AC drops unknown wp",
+  "from": "AC += a.hours; // D11",
+  "to": "if (byWP[a.wp]) AC += a.hours; // D11"
+ },
+ {
+  "name": "ES no interpolation",
+  "from": "if (hi !== lo) ES = C + (EV - lo) / (hi - lo);",
+  "to": ""
+ },
+ {
+  "name": "ES strict <",
+  "from": "if (PVd(n) <= EV + eps) C = n;",
+  "to": "if (PVd(n) < EV) C = n;"
+ },
+ {
+  "name": "CPI 0 not null",
+  "from": "const div = (a, b) => (b === 0 ? null : a / b);",
+  "to": "const div = (a, b) => (b === 0 ? 0 : a / b);"
+ },
+ {
+  "name": "asOf ignores actuals",
+  "from": "  for (const a of actuals || []) see(a.at);\n",
+  "to": ""
+ },
+ {
+  "name": "lint includes empties",
+  "from": "if (c.length) lints[r.id] = c;",
+  "to": "lints[r.id] = c;"
+ },
+ {
+  "name": "D16 no tolerance on the line",
+  "from": "const eps = 1e-9 * Math.max(1, Math.abs(T));",
+  "to": "const eps = 0;"
+ },
+ {
+  "name": "D17 no 9999 ceiling",
+  "from": "if (past(x) && d0 + x <= LAST_DAY) projectedBreach",
+  "to": "if (past(x)) projectedBreach"
+ },
+ {
+  "name": "D17 settle loop starts at asOf",
+  "from": "let x = Math.max(xAs, Math.floor(xStar) - 2);",
+  "to": "let x = xAs;"
+ },
+ {
+  "name": "status follows cycles (D18 off)",
+  "from": "if (onCycle.has(id)) return (out[id] = 'unverified');",
+  "to": ""
+ },
+ {
+  "name": "gate ignores failed leaves",
+  "file": "cli.mjs",
+  "from": "if (out.coverage.failed) why",
+  "to": "if (false) why"
+ },
+ {
+  "name": "gate ignores problems",
+  "file": "cli.mjs",
+  "from": "if (out.problems.length) why",
+  "to": "if (false) why"
+ },
+ {
+  "name": "gate ignores breached TPMs",
+  "file": "cli.mjs",
+  "from": "if (breached.length) why",
+  "to": "if (false) why"
+ },
+ {
+  "name": "gate ignores min coverage",
+  "file": "cli.mjs",
+  "from": "out.coverage.ratio < minCov",
+  "to": "false"
+ },
+ {
+  "name": "no --as-of= form",
+  "file": "cli.mjs",
+  "from": "if (takesValue && argv[k].startsWith(name + '='))",
+  "to": "if (false)"
+ },
+ {
+  "name": "gate always on",
+  "file": "cli.mjs",
+  "from": "if (check) {",
+  "to": "if (true) {"
+ },
+ {
+  "name": "D21 self-parent unmakes a leaf",
+  "from": "(r.parent != null && r.parent === r.id ? 1 : 0)",
+  "to": "0"
+ }
+]
