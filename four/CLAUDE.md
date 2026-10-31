@@ -248,6 +248,10 @@ for games, and this is a modelling programme with publications to come. The game
   polytrope's centre, ions as a hot gas, Fermi–Dirac electrons relativistic and partly degenerate, maximized over radius;
   masses × the Chandrasekhar mass, so G drops out). `nuclei.mjs burning` (~5 min) sets it against each stage's temperature
   (ours as the check: 0.08, 0.29, 0.73 × M_Ch for H, He, C against 0.056, 0.22, 0.74). Selftest 54.
+  The rungs past beryllium-8 are `nuclear.js`'s `foldCore` / `rungFactor` / `rungCapture` (a helium-4 onto k helium-4s by
+  E2: the pair's deep potential folded over the core, one depth per rung set on its capture energy from the ladder and
+  Brink, Wildermuth's rule for the forbidden states; `nuclei.mjs rungcap [MN]`, ~10 min). Our ¹²C(α,γ)¹⁶O E2 to the ground
+  state is the check (12–41 keV b against 45–70); `burning` uses the computed rungs where they exist.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).

@@ -491,3 +491,39 @@ export function nucleonCapture({ d, F, s, a, lam, E, Z = 1, Vn = null }) {
   return { E, k: sc.k, v, sv, sigma: sv / v, parts };
 }
 export { nucleonPot };
+
+/* ———— the ladder's rungs: a helium-4 captured onto a core of k helium-4s ————
+   The helium-4–core potential is the helium-4 pair's deep potential folded over the core's helium-4 centres (a Gaussian
+   spread of mean-square radius rc2 about the core's middle, k of them), V(r) = k ∫ ρ(R) V_αα(|r − R|) d^dR, times one
+   factor per rung set so the product's ground state sits at the rung's capture energy. The Pauli principle forbids the
+   relative states with fewer than Q oscillator quanta (2n + l < Q, Wildermuth's rule: Q = 4 while the four nucleons
+   enter the first excited shell, which holds A ≤ 16 ours and A ≤ 20 in 4D, then 8): those are the deep potential's lowest
+   levels and are skipped. Capture is electric quadrupole (both spinless, the same charge-to-mass ratio, so no dipole),
+   with charge (Z₁A₂² + Z₂A₁²)/A² = 2k/(k + 1) for helium-4 onto k helium-4s. */
+export function foldCore(d, Vaa, k, rc2, { rmax = 16, dr = 0.05 } = {}) {
+  const n = Math.round(rmax / dr), sig = Math.sqrt(rc2 / d), Rmax = 5 * sig, NR = 80, NT = 48, tab = new Float64Array(n + 1);
+  const rho = (R) => Math.pow(d / (2 * Math.PI * rc2), d / 2) * Math.exp((-d * R * R) / (2 * rc2));
+  for (let i = 0; i <= n; i++) { const r = i * dr; let s = 0;
+    for (let a = 0; a < NR; a++) { const R = (Rmax * (a + 0.5)) / NR; let ang = 0; for (let b = 0; b < NT; b++) { const t = (Math.PI * (b + 0.5)) / NT; ang += Vaa(Math.sqrt(Math.max(0, r * r + R * R - 2 * r * R * Math.cos(t)))) * Math.sin(t) ** (d - 2); }
+      s += rho(R) * R ** (d - 1) * SD1[d] * ang * (Math.PI / NT) * (Rmax / NR); }
+    tab[i] = k * s; }
+  return (r) => { const x = r / dr; if (x >= n) return 0; const i = Math.floor(x), f = x - i; return tab[i] * (1 - f) + tab[i + 1] * f; };
+}
+/* the rung's potential (nuclear part times f, plus Coulomb between charges 2 and 2k spread over ν) and its reduced ħ²/2μ */
+function rungParts(d, Vfold, k, f, nu = 0.3) { const A2 = 4 * k, c = (HB2M * (4 + A2)) / (8 * A2); return { V: (r) => f * Vfold(r) + 2 * 2 * k * E2 * coulombAvg(d, nu, r), c }; }
+/* the factor that puts the lowest allowed 0⁺ at −Q MeV (Q/2 forbidden s-states below it for Q quanta) */
+export function rungFactor(d, Vfold, k, Qval, { quanta = 4 } = {}) {
+  const nF = quanta / 2, E0 = (f) => { const { V, c } = rungParts(d, Vfold, k, f); return levels(V, { d, l: 0, c, rmax: 30, h: 0.01, emax: 1e4 })[nF]; };
+  let lo = 0.2, hi = 6; for (let it = 0; it < 50; it++) { const m = (lo + hi) / 2, e = E0(m); if (e === undefined || e > -Qval) lo = m; else hi = m; } return (lo + hi) / 2;
+}
+/* helium-4 onto k helium-4s at relative energy E: σv (fm^(d−1) c) by E2 into every allowed bound 2⁺ (from the s-wave)
+   and 0⁺ (from the d-wave) */
+export function rungCapture({ d, Vfold, k, f, E, quanta = 4 }) {
+  const { V, c } = rungParts(d, Vfold, k, f), h = 0.01, mu = ((4 * 4 * k) / (4 + 4 * k)) * (197.327 ** 2 / HB2M), ee = (2 * k) / (k + 1);
+  const fin = { 0: boundStates(V, { d, l: 0, c }).slice(quanta / 2), 2: boundStates(V, { d, l: 2, c }).slice(quanta / 2 - 1) }, parts = [];
+  const sc = { 0: scatterU(V, { d, l: 0, c, E, h }), 2: scatterU(V, { d, l: 2, c, E, h }) }, cD = dWaveOverlap(d) / ((1 - 1 / d) * Math.sqrt(SD[d])), ang = { 0: SD[d] * (1 - 1 / d), 2: cD * cD * (1 - 1 / d) };
+  for (const [li, lf] of [[0, 2], [2, 0]]) for (const st of fin[lf]) { const ui = sc[li].u; let I = 0; for (let i = 1; i < st.u.length && i < ui.length; i++) { const r = i * h; I += st.u[i - 1] * ui[i] * r * r * h; }
+    const w = (E - st.E) / 197.327; parts.push({ from: li, to: lf, Ef: st.E, sv: E2RATE[d] * ALPHA_FS * ee * ee * w ** 5 * I * I * ang[li] }); }
+  const sv = parts.reduce((t, p) => t + p.sv, 0), k0 = sc[0].k, v = (197.327 * k0) / mu;
+  return { E, k: k0, v, sv, sigma: sv / v, parts };
+}

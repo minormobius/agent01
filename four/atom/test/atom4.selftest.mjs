@@ -933,6 +933,10 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const fw = [0, 2].map((l) => { const sc = NU.scatterU(() => 0, { d: 4, l, c: 10, E: 2 }), k = Math.sqrt(0.2); return Math.max(...[1.3, 4.1, 9].map((r) => { const x = r ** 1.5 * (2 / (k * r)) * (l + 1) * J1(l + 1, k * r); return Math.abs(sc.u[Math.round(r / sc.h)] - x) / Math.abs(x); })); });
   ok(Math.abs(kE2(3, 4 * Math.PI) - NU.E2RATE[3]) < 1e-12 && Math.abs(NU.E2RATE[3] * (8 * Math.PI) / 15 - (4 * Math.PI) / 75) < 1e-12 && Math.abs(kE2(4, 4 * Math.PI ** 2) - NU.E2RATE[4]) < 1e-12 && Math.max(...fw) < 1e-4,
     `quadrupole light: ours α ω⁵ Tr(QQ†)/10 (Blatt–Weisskopf's 4π/75), through the lens vacuum (π/48) α ω⁵ Tr(QQ†) with ℓ gone; 4D scattering waves match the exact free ones to ${Math.max(...fw).toExponential(0)} (relative)`);
+  // the rungs' folding: a Gaussian pair potential −V₀e^(−r²/β²) over k centres spread with mean-square radius ρ² is a Gaussian
+  // again, k V₀ (β²/β′²)^(d/2) e^(−r²/β′²) with β′² = β² + 2ρ²/d, in either world
+  const foldErr = Math.max(...[3, 4].flatMap((d) => { const V = NU.foldCore(d, (r) => -50 * Math.exp(-(r * r) / 4), 3, 2.5), b2 = 4 + (2 * 2.5) / d; return [0, 1.5, 3, 5].map((r) => Math.abs(V(r) - 3 * -50 * (4 / b2) ** (d / 2) * Math.exp(-(r * r) / b2)) / (150 * (4 / b2) ** (d / 2))); }));
+  ok(foldErr < 2e-3, `a helium-4 on a core: the pair potential folded over the core's helium-4s matches the closed Gaussian in both worlds (to ${foldErr.toExponential(0)})`);
   const c3 = GS.chandrasekhar(3), c4 = GS.chandrasekhar(4), m3 = c3.mass() / GS.SI.Msun;
   ok(Math.abs(m3 / 1.457 - 1) < 0.02 && c4.polytrope.converged && Math.abs(c4.cd - 1.52) < 0.03,
     `Chandrasekhar's mass: ours ${m3.toFixed(3)} M☉ (1.457 for two nucleons per electron), from the index-3 polytrope; pinned 4D's index-4 one closes too, N_Ch = ${c4.cd.toFixed(3)} α_G^(−4/3) nucleons`);
