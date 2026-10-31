@@ -267,6 +267,8 @@ for games, and this is a modelling programme with publications to come. The game
   forms (declared mass function, lifetime slope, range): gluorine, oeon and pxygen lead, pxygen ahead of oitrogen in every
   case (ROADMAP step 3). `nuclei.mjs heavy` (minutes, `massFor` is slow): the ash fusing pairwise needs cores at M_Ch,
   ends as elements 13–23 (the rock row); equilibrium ends at the drop's N = Z peak, element 103–137 (step 4).
+  `nuclei.mjs runaway` (a minute): at ignition the core's degeneracy and binding per nucleon (ours: carbon, the check) and
+  each stage's energy per nucleon; the nuclei chapter's heavy section and the stars chapter's "What 4D stars burn to" read it.
   **What's computed in a sandbox lives only in the cache and the bake**: if `$TMPDIR/atom4-nuclei` is lost (a container
   restart wipes /tmp), `nuclei.mjs restore` writes it back from `js/nucleidata.js` (a bake from it reproduces the file
   byte for byte); then add the runner's files from atom4-data.

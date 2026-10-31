@@ -9,6 +9,11 @@ PRE=OR['precession']; PREerr=max(abs(q['measured']/q['formula']-1) for q in PRE)
 def arcsec(rad): return rad*206264.8
 EARTH=-(3*math.pi/4)*OR['star']['r2']/215**2; MERC=-(3*math.pi/4)*OR['star']['r2']/83**2
 TURN=OR['turning']
+# what 4D stars burn to (tools/nuclei.mjs runaway, in js/nucleidata.js)
+STNU=json.loads(subprocess.run(['node','--input-type=module','-e','import { NUCLEI } from "'+ATOM+'js/nucleidata.js"; console.log(JSON.stringify({ r: NUCLEI.runaway ?? {} }));'],capture_output=True,text=True,check=True).stdout)['r']
+STE=STNU.get('energy',{})
+def STr(v,f='.0f'): return f"{format(min(v),f)}–{format(max(v),f)}" if v else '—'
+STBR=[b['ba'] for b in STE.get('brink',[]) if b['s']<1.8]
 # the stability map (tools/stability.mjs on the runner, stability-1): two planets for 100,000 orbits, per mass and tilt
 STB=json.loads(subprocess.run(['node','--input-type=module','-e','import { STABILITY, RATIOS, ANGLES } from "'+ATOM+'js/stabilitydata.js"; console.log(JSON.stringify({ sets: STABILITY, ratios: RATIOS, angles: ANGLES }));'],capture_output=True,text=True,check=True).stdout)
 SRAT,SANG=STB['ratios'],STB['angles']; SORB=STB['sets'][0]['orbits']
@@ -137,6 +142,22 @@ stars=f'''<section id="hold">
 <section id="fuel">
   <h3>The fuel: the weak force, added</h3>
   <p>Our Sun burns hydrogen, and its first step turns a proton into a neutron. That takes the <b>weak force</b>, which chemistry never needs. Without it a star could burn only fuel left from the universe's first minutes (deuterium and other light nuclei, which fuse by the strong force alone), then shine by contracting, for millions of years rather than billions. <b>So the weak force is added to <a href="force.html#contents">the universe's list</a></b>, with its neutrino. It's the first ingredient added for astronomy rather than chemistry. Stars burn hydrogen as ours do, and live long enough for planets to have time.</p>
+</section>
+<section id="burnto">
+  <h3>What 4D stars burn to</h3>
+  <p>A 4D star doesn't stop at helium. Where hydrogen and helium burn together it turns its core into one or two elements eight to fifteen places up the table, and its heaviest cores go on toward element 103–137 (<a href="nuclei.html#together">chapter 15</a>). <span class="tag computed">computed</span> How much each stage releases, per nucleon (MeV):</p>
+  <table class="sys"><tr><th>stage</th><th>ours</th><th>4D</th></tr>
+  <tr><td>hydrogen (and, in 4D, helium) to ash</td><td>6.7, to helium</td><td>{STr(STE.get('ash',[]))}, to elements 10–12 (Brink's pxygen-20: {STr(STBR)})</td></tr>
+  <tr><td>the next stage</td><td>0.6–0.9, helium to carbon and oxygen</td><td>{STr(STE.get('rock',[]))}, the ash fusing (the heaviest cores only)</td></tr>
+  <tr><td>to the most bound nucleus</td><td>8.8 in all, at iron</td><td>{STr(STE.get('peak',[]))} in all, at element 103–137</td></tr></table>
+  <p><b>A 4D star gets about three times our energy from each unit of hydrogen</b>, less a MeV or so to neutrinos for the protons it turns into neutrons. <span class="tag follows">follows</span> What that does:</p>
+  <ul class="open">
+    <li><b>Its core runs about as hot.</b> A core runs as hot as its reactions need to get through their barriers; what each reaction pays barely enters. The burning goes as about T<sup>{STr(STE.get('nu',[]))}</sup> here (our proton chain about T⁴, our carbon cycle T¹⁸), so needing a third as many reactions cools the core by about a tenth: a star as long-lived as our Sun burns at 15–21 million K.</li>
+    <li><b>It's brighter for its fuel, or lives longer.</b> At our Sun's pace of burning it gives out about three times the energy; at our Sun's brightness it lasts about three times as long. How bright a star of each mass is waits on how light gets out of a 4D star, and on G.</li>
+    <li><b>It has no helium-burning life.</b> Ours burn hydrogen, then light the helium the hydrogen left. A 4D core burns both together, so when its hydrogen is gone there's nothing left to light short of the ash itself, which takes a core at the Chandrasekhar mass: most 4D stars go from hydrogen burning to dead, as stars of gluorine, oeon or pxygen.</li>
+    <li><b>Its last stages hold as much as its whole hydrogen life.</b> Everything after helium gives ours about 2 MeV per nucleon, so our heavy stars' last stages last years, then days. A 4D heavy core's ash fusing and its march to equilibrium give it about as much again as its hydrogen did. And near the Chandrasekhar mass it lights them squeezed so hard it can't regulate them: <b>those cores most likely explode</b>, throwing their rock row and their iron out (<a href="nuclei.html#heavy">chapter 15</a>).</li>
+  </ul>
+  <p><span class="tag open">open</span> The luminosity of each mass (4D light transport, and G); whether the steep burning gives Sun-like 4D stars a stirred core, as ours have only above 1.2 solar masses; and how far an exploding core burns.</p>
 </section>
 <section id="starsnext">
   <h3>What's computed and what's open</h3>
