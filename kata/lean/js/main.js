@@ -105,8 +105,8 @@ $("go").onclick = go;
    pursuit round the track) or you (the phone's tilt, or the arrow keys). Either steering mechanism. You can walk, or
    ride along behind it: "follow the bend" turns your slice with the track's bend, "no twist" carries it without
    twisting, and "you ride" hands you the lean.
-   Your lean, on a phone: roll it left and right to lean in your slice, tip its top away or toward you to lean kata or
-   ana, into w. On a keyboard: ← → in your slice, ↑ ana, ↓ kata. What you ask for is a lean, as a rider asks with their
+   Your hand, on a phone: the stick (the one you walk with), across for your slice, up for ana, down for kata, let go
+   for hands off; or the tilt if you turn it on. On a keyboard: ← → in your slice, ↑ ana, ↓ kata. What you ask for is a lean, as a rider asks with their
    body; the rider in the machine steers to get it (a real bike can't be balanced by its handlebar angle alone). */
 const g3 = (v) => [v[0], v[2], v[3]], to4g = (v, y = 0) => [v[0], y, v[1], v[2]];
 const bike = new Bike({ mech: "two-axis", v: V }), RIDES = ["walk", "follow the bend", "no twist", "you ride"];
@@ -119,16 +119,21 @@ function resetBike(i) {
   if (ride !== "you ride") bike.settle(followLean(bike, aheadPt(i, lookahead(bike.v))));
 }
 resetBike(80); // a few metres ahead of where you start
-const human = { lc: 0, ld: 0, tilt: null, zero: null, perm: false, hands: true }; // hands on: you steer, nobody balances for you
+const human = { lc: 0, ld: 0, tilt: null, zero: null, perm: false, hands: true, useTilt: false }; // hands on: you steer, nobody balances for you
 const T_MAX = 2.5; // N m of steer torque at full tilt
 addEventListener("deviceorientation", (e) => { if (e.beta == null) return; human.tilt = { beta: e.beta, gamma: e.gamma }; });
 function setRide(m) {
   if (ride !== "walk" && m === "walk") { const p = me.p.slice(); p[1] = ground(p) + EYE; me.p = p; me.pitch = -0.12; tidy(); }
-  if (m === "you ride") { human.zero = null; human.lc = human.ld = 0;
-    try { if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission && !human.perm) DeviceOrientationEvent.requestPermission().then((r) => { human.perm = r === "granted"; }).catch(() => {}); } catch (e) { /* keys still work */ } }
+  if (m === "you ride") { human.zero = null; human.lc = human.ld = 0; }
   ride = m; $("ride").textContent = m === "walk" ? "🚲 ride" : `🚲 ${m}`; $("ride").classList.toggle("on", m !== "walk");
 }
 function setMech(m) { bike.setMech(m); $("mech").textContent = `steer: ${m}`; }
+/* the phone's tilt, if you'd rather: off by default (the stick is the control); turning it on asks iOS for permission */
+function setTilt(on) {
+  human.useTilt = on; human.zero = null; $("tiltb").textContent = on ? "📱 tilt on" : "📱 tilt"; $("tiltb").classList.toggle("on", on);
+  if (on) try { if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission && !human.perm) DeviceOrientationEvent.requestPermission().then((r) => { human.perm = r === "granted"; }).catch(() => {}); } catch (e) { /* the stick still works */ }
+}
+$("tiltb").onclick = () => setTilt(!human.useTilt);
 function setHands(on) { human.hands = on; $("hands").textContent = on ? "✋ hands on" : "🤝 assisted"; $("hands").classList.toggle("on", on); }
 $("hands").onclick = () => setHands(!human.hands);
 const SPEEDS = [5, 6, 7, 3, 4];
@@ -141,17 +146,19 @@ document.addEventListener("keydown", (e) => { const k = e.key.toLowerCase(), t =
 document.addEventListener("keyup", (e) => arrows.delete(e.key));
 { const sl = $("spd"), lab = () => { $("spdV").textContent = `${(+sl.value).toFixed(1)} m/s`; }; sl.oninput = lab; sl.onchange = () => setSpeed(+sl.value); lab(); }
 setRide("walk"); setMech("two-axis"); setHands(true);
-/* the lean you ask for, in your riding frame (across your slice, and into w: ana up, kata down; radians), from the tilt or the keys */
+/* what you do with your hand, in your riding frame (across your slice, and into w: ana up, kata down), from the stick, the
+   keys or (if you turn it on) the tilt: a push on the bars when hands on, a lean asked for when assisted (radians; ×5 N m/rad) */
 function humanLean(dt) {
   const MAX = 0.5, k = 1 - Math.exp(-dt * 6);
   let tc = 0, td = 0;
-  if (human.tilt) {
+  if (human.useTilt && human.tilt) {
     const ang = (screen.orientation && screen.orientation.angle) || 0, b0 = human.tilt.beta, g0 = human.tilt.gamma;
     let roll = g0, tip = b0; if (ang === 90) { roll = b0; tip = -g0; } else if (ang === 270 || ang === -90) { roll = -b0; tip = g0; }
     if (!human.zero) human.zero = { roll, tip };
     const dz = (x) => (Math.abs(x) < 2 ? 0 : x - Math.sign(x) * 2), cl = (x) => Math.max(-1, Math.min(1, x));
     tc = cl(dz(roll - human.zero.roll) / 26) * MAX; td = cl(dz(tip - human.zero.tip) / 26) * MAX; // tip the top away: kata
   }
+  if (stick) { tc = stick[0] * MAX; td = stick[1] * MAX; } // the stick: across is your slice, up is ana, down kata
   if (arrows.size) { tc = ((arrows.has("ArrowRight") ? 1 : 0) - (arrows.has("ArrowLeft") ? 1 : 0)) * MAX * 0.8; td = ((arrows.has("ArrowUp") ? 1 : 0) - (arrows.has("ArrowDown") ? 1 : 0)) * MAX * 0.8; }
   const kk = human.hands ? 1 - Math.exp(-dt * 25) : k; human.lc += (tc - human.lc) * kk; human.ld += (td - human.ld) * kk;
   const f = rideFrame(); // in the frame you ride in: across your slice, and ana (+N) or kata (−N)
@@ -186,7 +193,7 @@ function bikeRead(st, want) {
 }
 /* the lean gauge, while riding: across is your slice, up is ana; the filled dot the bike's lean, the ring what's asked */
 function gauge(g, w, h, st, want) {
-  const R = 44, cx = w / 2, cy = h - R - 16, k = R / 0.6, X = (v) => cx + dot(v, me.fr.R) * k, Y = (v) => cy - dot(v, me.fr.N) * k;
+  const R = 44, cx = w / 2, cy = h - R - 28, k = R / 0.6, X = (v) => cx + dot(v, me.fr.R) * k, Y = (v) => cy - dot(v, me.fr.N) * k;
   g.fillStyle = "rgba(7,8,12,0.45)"; g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, R, 0, 2 * Math.PI); g.fill(); g.stroke();
   g.beginPath(); g.moveTo(cx - R, cy); g.lineTo(cx + R, cy); g.moveTo(cx, cy - R); g.lineTo(cx, cy + R); g.stroke();
   g.font = "9px ui-monospace, Menlo, monospace"; g.fillStyle = "rgba(255,255,255,0.6)"; g.textAlign = "center"; g.fillText("ana", cx, cy - R - 4); g.fillText("kata", cx, cy + R + 10);

@@ -92,9 +92,11 @@ to hold it (**✋ / 🤝**, or H):
 
 The controls:
 
-- **Phone:** roll it left and right for your slice; tip its top away from you for kata, toward you for ana. ±26°
-  is full scale, with a 2° dead zone, zeroed where you hold it when you start riding. iOS asks for permission to read
-  the motion sensors the first time.
+- **Phone:** the stick (bottom left, the one you walk with) is the handlebars: across for your slice, up for ana,
+  down for kata, and let go for hands off. There are only two controls, so a thumb does it. If you'd rather steer
+  by tilt, turn on **📱 tilt**: roll the phone for your slice and tip its top away for kata, toward you for ana. ±26°
+  is full scale, with a 2° dead zone, zeroed where you hold it when you turn it on. iOS asks for permission to read
+  the motion sensors.
 - **Keyboard:** ← → in your slice, ↑ ana, ↓ kata.
 - **The gauge** (bottom of the view): across is your slice, up is ana. The gold dot is the bike's lean. The ring is
   your push on the bars when hands on (orange), or the lean you asked for when assisted (blue).
