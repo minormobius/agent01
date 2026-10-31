@@ -959,7 +959,10 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // itself, and our helium-5 (a neutron's p-wave on helium-4) must come out unbound, as it is, with nothing set on it
   const sat = BR.kernel(A, B, o), spc = BR.kernelSpecies([...BR.alphaOrbitals(A[0]), ...BR.alphaOrbitals(A[1]), ...BR.alphaOrbitals(A[2])], [...BR.alphaOrbitals(B[0]), ...BR.alphaOrbitals(B[1]), ...BR.alphaOrbitals(B[2])], o), spOk = Math.abs(sat.h / sat.n - spc.h / spc.n) < 1e-8 && Math.abs(sat.n / spc.n - 1) < 1e-10;
   const he5 = BR.nucleonAlpha({ d: 3, nu: n3, s: 1, u: 0.94, l: 1, Z: 0, M: 24 })[0];
-  ok(spOk && he5 > 0, `one nucleon outside: the spin–isospin-resolved kernel is the saturated one on three helium-4s (to ${Math.abs(sat.h / sat.n - spc.h / spc.n).toExponential(0)} MeV), and our helium-5 comes out unbound (its p-wave's lowest box state ${he5.toFixed(2)} MeV above a neutron and helium-4)`);
+  // the blocked kernel (species factored, for a nucleon on bigger cores) is the species kernel, with a proton outside two helium-4s
+  const pA = [...BR.alphaOrbitals(A[0]), ...BR.alphaOrbitals(A[1]), { R: A[2], sp: 0 }], pB = [...BR.alphaOrbitals(B[0]), ...BR.alphaOrbitals(B[1]), { R: B[2], sp: 0 }], ob = { d: 3, nu, s: 1, u: 1.05 };
+  const kS = BR.kernelSpecies(pA, pB, ob), kB = BR.kernelBlocks(pA, pB, ob), blkOk = Math.abs(kS.h / kS.n - kB.h / kB.n) < 1e-8 && Math.abs(kS.n / kB.n - 1) < 1e-10;
+  ok(spOk && blkOk && he5 > 0, `one nucleon outside: the spin–isospin-resolved kernel is the saturated one on three helium-4s (to ${Math.abs(sat.h / sat.n - spc.h / spc.n).toExponential(0)} MeV) and the species-blocked one with a proton outside two, and our helium-5 comes out unbound (its p-wave's lowest box state ${he5.toFixed(2)} MeV above a neutron and helium-4)`);
   ok(dev < 1e-9 && Math.max(...far) < 0.01 && symOk && Math.abs(be - 0.09) < 0.15,
     `Brink's helium-4s: one helium-4 closed to ${dev.toExponential(0)} (with and without the three-nucleon force, both worlds); two 16 fm apart are two helium-4s plus their zero-point and 4e²/D (to ${Math.max(...far).toFixed(3)} MeV); kernels symmetric and turning with the placements; Minnesota's u = 0.94 puts our ⁸Be at ${be.toFixed(2)} MeV (measured +0.09)`);
 }

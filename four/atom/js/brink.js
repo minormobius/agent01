@@ -188,3 +188,72 @@ export function nucleonAlpha({ d, nu, s, u, l = 1, Z = 0, Ds = null, M = 40, thr
   for (let i = 0; i < n; i++) for (let j = i; j < n; j++) { let sn = 0, sh = 0; for (let q = 0; q < M; q++) { const th = (Math.PI * (q + 0.5)) / M, wt = Math.sin(th) ** (d - 2) * Cl(Math.cos(th)), K = kernelSpecies(conf(D[i], 0), conf(D[j], th), { d, nu, s, u, three }); sn += wt * K.n; sh += wt * K.h; } Nm[i][j] = Nm[j][i] = sn; Hm[i][j] = Hm[j][i] = sh; }
   return hillWheeler(Nm, Hm).map((e) => e - alphaEnergy(d, nu, s, u, three));
 }
+
+/* ———— a nucleon on a core of helium-4s ————
+   The species-following kernel, factored by species: orbitals overlap only within a species, so B is block diagonal, the
+   norm is the product of the blocks' determinants, and the force's operators need only one direct and one exchange
+   weight per pair of species, ⟨st|O|st⟩ and ⟨st|O|ts⟩. The same numbers as kernelSpecies (the self-test holds them
+   equal), with (Σ n_s²)² terms in place of N⁴. Two-body only: Minnesota and Coulomb. */
+export function kernelBlocks(a, b, { d, nu, s, u, coulomb = true }) {
+  const sp = [0, 1, 2, 3].map((q) => ({ I: a.map((o, i) => (o.sp === q ? i : -1)).filter((i) => i >= 0), K: b.map((o, k) => (o.sp === q ? k : -1)).filter((k) => k >= 0) }));
+  let det = 1; const C = [];
+  for (const g of sp) { if (g.I.length !== g.K.length) return { n: 0, h: 0 }; if (!g.I.length) { C.push(null); continue; }
+    const Bm = g.I.map((i) => g.K.map((k) => Math.exp((-nu * dist2(a[i].R, b[k].R)) / 2))), r = invert(Bm); if (!r.inv) return { n: 0, h: 0 }; det *= r.det; C.push(r.inv); }
+  if (!(Math.abs(det) > 1e-300)) return { n: 0, h: 0 };
+  let T = 0;
+  for (let q = 0; q < 4; q++) { const g = sp[q]; if (!C[q]) continue; g.I.forEach((i, x) => g.K.forEach((k, y) => { const r2 = dist2(a[i].R, b[k].R); T += T1 * nu * (d - nu * r2) * Math.exp((-nu * r2) / 2) * C[q][y][x]; })); }
+  const mix = mixtures(s, u), terms = mix.map((m) => ({ f: (nu / (nu + m.k)) ** (d / 2), g: (nu * m.k) / (nu + m.k), m }));
+  // per species, the pair densities ρ_ik = C_ki ⟨φ_i|φ_k⟩ at centres M_ik
+  const dens = sp.map((g, q) => (C[q] ? g.I.flatMap((i, x) => g.K.map((k, y) => ({ i, k, w: C[q][y][x], o: Math.exp((-nu * dist2(a[i].R, b[k].R)) / 2), M: a[i].R.map((v, c) => (v + b[k].R[c]) / 2) }))) : []));
+  let V = 0;
+  for (let p = 0; p < 4; p++) for (let q = 0; q < 4; q++) { if (!dens[p].length || !dens[q].length) continue;
+    const wd = terms.map((t) => spinIso(t.m, p, q, p, q)), wx = terms.map((t) => spinIso(t.m, p, q, q, p)), cd = coulomb && ti(p) === 0 && ti(q) === 0;
+    // direct: densities ρ_ik (species p) and ρ_jl (species q); exchange: bra i (p) with ket l (q) and j (q) with k (p), which the
+    // pair densities can't carry, so it's summed over the four orbitals directly
+    for (const A of dens[p]) for (const Bd of dens[q]) { const S = dist2(A.M, Bd.M), w = A.w * Bd.w * A.o * Bd.o; let e = 0; terms.forEach((t, z) => { e += wd[z] * t.f * Math.exp(-t.g * S); }); if (cd) e += E2 * coulombAvg(d, nu, Math.sqrt(S)); V += w * e; }
+    if (wx.some((x) => x !== 0) || (cd && p === q)) {
+      const gp = sp[p], gq = sp[q];
+      for (const [x, i] of gp.I.entries()) for (const [y2, j] of gq.I.entries()) for (const [yk, k] of gp.K.entries()) { const cki = C[p][yk][x]; if (!cki) continue; for (const [yl, l] of gq.K.entries()) { const clj = C[q][yl][y2]; if (!clj) continue;
+        const o = Math.exp((-nu * dist2(a[i].R, b[l].R)) / 2) * Math.exp((-nu * dist2(a[j].R, b[k].R)) / 2), M1 = a[i].R.map((v, c) => (v + b[l].R[c]) / 2), M2 = a[j].R.map((v, c) => (v + b[k].R[c]) / 2), S = dist2(M1, M2);
+        let e = 0; terms.forEach((t, z) => { e += wx[z] * t.f * Math.exp(-t.g * S); }); if (cd && p === q) e += E2 * coulombAvg(d, nu, Math.sqrt(S)); V -= cki * clj * o * e; } } }
+  }
+  return { n: det, h: det * (T + V / 2 - d * T1 * nu) };
+}
+/* a nucleon (Z = 1 proton, 0 neutron) on a core of k helium-4s: Hill–Wheeler over K random placements of the core
+   (as clusterGCM) each with the nucleon put round it, against the core alone over the same core placements. Returns the
+   nucleon's separation energy (positive: bound) and both energies. Centre of mass at the origin, weighted by nucleons */
+export function nucleonOnCore({ d, k, Z = 0, nu, s, u, K = 160, seed = 1, spread = [0.5, 1.6], minD = 0.9, rN = [1.5, 4.5] }) {
+  let st = (seed * 2654435761) >>> 0; const rnd = () => { st = (st + 0x6d2b79f5) >>> 0; let z = st; z = Math.imul(z ^ (z >>> 15), z | 1); z ^= z + Math.imul(z ^ (z >>> 7), z | 61); return ((z ^ (z >>> 14)) >>> 0) / 4294967296; };
+  const gau = () => Math.sqrt(-2 * Math.log(rnd() + 1e-300)) * Math.cos(2 * Math.PI * rnd()), cores = [], full = [];
+  while (cores.length < K) {
+    const spv = spread[0] + (spread[1] - spread[0]) * rnd(), c = Array.from({ length: k }, () => Array.from({ length: d }, () => spv * gau()));
+    let ok = true; for (let i = 0; i < k && ok; i++) for (let j = i + 1; j < k; j++) if (dist2(c[i], c[j]) < minD * minD) { ok = false; break; } if (!ok) continue;
+    const m0 = Array(d).fill(0); for (const p of c) for (let q = 0; q < d; q++) m0[q] += p[q] / k; for (const p of c) for (let q = 0; q < d; q++) p[q] -= m0[q];
+    const dir = Array.from({ length: d }, gau), nd = Math.hypot(...dir), r = rN[0] + (rN[1] - rN[0]) * rnd(), n = dir.map((x) => (x / nd) * r);
+    const cm = n.map((x, q) => (x + 4 * c.reduce((t, p) => t + p[q], 0)) / (4 * k + 1)), cf = c.map((p) => p.map((x, q) => x - cm[q])), nf = n.map((x, q) => x - cm[q]);
+    cores.push(c); full.push([...cf.flatMap((p) => alphaOrbitals(p)), { R: nf, sp: Z ? 0 : 2 }]);
+  }
+  const Ec = clusterGCM({ d, N: k, nu, s, u, K, seed, spread, minD })[0];
+  const Nm = Array.from({ length: K }, () => new Array(K).fill(0)), Hm = Array.from({ length: K }, () => new Array(K).fill(0));
+  for (let i = 0; i < K; i++) for (let j = i; j < K; j++) { const x = kernelBlocks(full[i], full[j], { d, nu, s, u }); Nm[i][j] = Nm[j][i] = x.n; Hm[i][j] = Hm[j][i] = x.h; }
+  const EA = hillWheeler(Nm, Hm)[0];
+  return { S: Ec - EA, Ec, EA };
+}
+/* the same with a basis built for the nucleon: M core placements (the most compact of a random draw), each with the
+   nucleon on a grid of radii × directions round the core's middle, so its motion can be superposed rather than pinned;
+   the core alone over the same M placements, so both sides have the same core freedom and the difference is the
+   nucleon's */
+export function nucleonOnCoreGrid({ d, k, Z = 0, nu, s, u, M = 6, radii = [0.6, 1.3, 2.0, 2.8, 3.7, 4.8], ndir = 12, seed = 1, spread = [0.5, 1.4], minD = 0.9 }) {
+  let st = (seed * 2654435761) >>> 0; const rnd = () => { st = (st + 0x6d2b79f5) >>> 0; let z = st; z = Math.imul(z ^ (z >>> 15), z | 1); z ^= z + Math.imul(z ^ (z >>> 7), z | 61); return ((z ^ (z >>> 14)) >>> 0) / 4294967296; };
+  const gau = () => Math.sqrt(-2 * Math.log(rnd() + 1e-300)) * Math.cos(2 * Math.PI * rnd()), cores = [];
+  while (cores.length < M) { const spv = spread[0] + (spread[1] - spread[0]) * rnd(), c = Array.from({ length: k }, () => Array.from({ length: d }, () => spv * gau()));
+    let ok = true; for (let i = 0; i < k && ok; i++) for (let j = i + 1; j < k; j++) if (dist2(c[i], c[j]) < minD * minD) { ok = false; break; } if (!ok) continue;
+    const m0 = Array(d).fill(0); for (const p of c) for (let q = 0; q < d; q++) m0[q] += p[q] / k; cores.push(c.map((p) => p.map((x, q) => x - m0[q]))); }
+  const dirs = Array.from({ length: ndir }, () => { const v = Array.from({ length: d }, gau), n = Math.hypot(...v); return v.map((x) => x / n); });
+  const place = (c, n) => { const cm = n.map((x, q) => (x + 4 * c.reduce((t, p) => t + p[q], 0)) / (4 * k + 1)); return [...c.flatMap((p) => alphaOrbitals(p.map((x, q) => x - cm[q]))), { R: n.map((x, q) => x - cm[q]), sp: Z ? 0 : 2 }]; };
+  const full = []; for (const c of cores) for (const r of radii) for (const e of dirs) full.push(place(c, e.map((x) => x * r)));
+  const solve = (basis, kern) => { const n = basis.length, Nm = Array.from({ length: n }, () => new Array(n).fill(0)), Hm = Array.from({ length: n }, () => new Array(n).fill(0));
+    for (let i = 0; i < n; i++) for (let j = i; j < n; j++) { const x = kern(basis[i], basis[j]); Nm[i][j] = Nm[j][i] = x.n; Hm[i][j] = Hm[j][i] = x.h; } return hillWheeler(Nm, Hm)[0]; };
+  const Ec = solve(cores, (x, y) => kernel(x, y, { d, nu, s, u })), EA = solve(full, (x, y) => kernelBlocks(x, y, { d, nu, s, u }));
+  return { S: Ec - EA, Ec, EA, n: full.length };
+}

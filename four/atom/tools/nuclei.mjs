@@ -29,6 +29,9 @@
      node four/atom/tools/nuclei.mjs rungcap [MN]                 the ladder's rungs past the first: helium-4 onto 2–5 helium-4s
                                                                  by E2 (folded potential, one depth per rung set on its capture
                                                                  energy from the ladder and from Brink), ours' ¹²C(α,γ) the check
+     node four/atom/tools/nuclei.mjs plusone <d> <s> <k> <Z> [dirs]  a nucleon on k helium-4s microscopically (Brink, two-body
+                                                                 Minnesota, u set on our ⁸Be): its separation energy, so whether
+                                                                 element 2k + 1 at mass 4k + 1 holds together (Z 1 proton, 0 neutron)
      node four/atom/tools/nuclei.mjs bake                        → js/nucleidata.js
    The three-nucleon force is W Σ_cyclic e^(−(r_ij² + r_ik²)/b²); fit gives c = W π³ b⁶/2 (its Hartree energy per nucleon
    in our matter is c ρ²), so W = 2c/(π³ b⁶) for each b, and in 4D the same W and b give c₄ = c π b². */
@@ -211,6 +214,15 @@ if (cmd === "fit") {
     for (let k = 2; k <= 4; k++) { const Qs = []; if (lad(k) != null && lad(k + 1) != null) Qs.push(["ladder", lad(k) - lad(k + 1)]); if (FC === FORCES.MN && bri(k) != null && bri(k + 1) != null) Qs.push(["brink", bri(k) - bri(k + 1)]);
       for (const [src, Q] of Qs) { const r = one(4, s, k, Q, r2a, 1.0); rows.push({ s, src, ...r }); console.log(`${fname} s=${s} ${src} ${2 * k} → ${2 * k + 2}: Q ${Q.toFixed(0)} MeV, barrier-only ${(r.Tbarrier / 1e9).toFixed(3)} GK, matched ${r.T.map((t) => (t / 1e9).toFixed(3)).join("–")} GK`); } } }
   save(`${FC.pre}rungcap.json`, { force: fname, check: chkS, rows });
+} else if (cmd === "plusone") {
+  // the odd-against-even question's first piece: does a nucleon hold on to a ladder nucleus? Four compact core placements,
+  // each with the nucleon on a grid of radii and directions, against the core alone on the same placements (brink.js
+  // nucleonOnCoreGrid). Two-body Minnesota with Minnesota's own u (0.938, our ⁸Be at threshold without the three-nucleon
+  // force), since the three-nucleon force over this many orbitals is out of reach here; the check is ours
+  const [d, s, k, Z] = [+args[0], +args[1], +args[2], +args[3]], ndir = +(args[4] ?? (d === 3 ? 12 : 24)), nu = BR.bestNu(d, s), t = Date.now();
+  const r = BR.nucleonOnCoreGrid({ d, k, Z, nu, s, u: 0.938, M: 4, ndir });
+  console.log(`d=${d} s=${s} k=${k} ${Z ? "proton" : "neutron"} (${r.n} states): separation ${r.S.toFixed(2)} MeV (${((Date.now() - t) / 1000).toFixed(0)} s)`);
+  save(`plusone-${d}-${tag(s)}-${k}-${Z}-${ndir}.json`, { d, s, k, Z, ndir, ...r });
 } else if (cmd === "bake") {
   const files = readdirSync(DIR), get = (re) => files.filter((f) => re.test(f)).map(load), cf4 = coulombFactor(4, 300), e2 = 1.43996;
   // the 4D liquid drop for each force, strength and range: bulk from the matter, Coulomb exact, the neutron excess from neutron
@@ -235,7 +247,7 @@ if (cmd === "fit") {
   { const AMU = 931.494, op = (d, k, r0) => { const A2 = 4 * k; return { Z1: 2, Z2: 2 * k, mu: ((4 * A2) / (4 + A2)) * AMU, rn: r0 * (Math.pow(4, 1 / d) + Math.pow(A2, 1 / d)), d }; };
     const target = logRate(2e8, op(3, 3, 1.2)), Tfor = (d, k, r0) => { let lo = 1e6, hi = 1e12; for (let i = 0; i < 70; i++) { const m = Math.sqrt(lo * hi); if (logRate(m, op(d, k, r0)) < target) lo = m; else hi = m; } return Math.sqrt(lo * hi); };
     out.rungs = Array.from({ length: 20 }, (_, i) => ({ Z: 2 * (i + 1), ours: Tfor(3, i + 1, 1.2), d4: Tfor(4, i + 1, 1.0) })); }
-  out.brink = get(/^brink-/); out.mass5 = get(/^mass5-/); out.burning = load("burning.json"); out.rungcap = { MT: load("rungcap.json"), MN: load("MN-rungcap.json") };
+  out.brink = get(/^brink-/); out.mass5 = get(/^mass5-/); out.burning = load("burning.json"); out.rungcap = { MT: load("rungcap.json"), MN: load("MN-rungcap.json") }; out.plusone = get(/^plusone-/);
   // the first minutes: ours as the check (Y), and 4D at each strength over the baryons per photon and the clock
   out.bbn = { ours: BB.firstMinutes({ d: 3, B: 2.2246 }), etas: [1e-10, 6.1e-10, 1e-8, 1e-6], t1s: [0.01, 0.1, 1.32], grid: [] };
   for (const [name, FCx] of Object.entries(FORCES)) { const cap = load(`${FCx.pre}capture.json`); if (!cap?.rows?.[0]?.table) continue;

@@ -1,114 +1,108 @@
 {
- "run": "brink-1",
- "why": "Helium-4 clusters microscopically (js/brink.js): Brink's antisymmetrized determinants, Minnesota's force plus the book's three-nucleon force at each range (0.7, 1.0, 1.4 fm), its exchange mixture u set on our beryllium-8, bases of 240 and 480 placements. Ours (2 to 5 helium-4s, against measured beryllium-8 to neon-20) and 4D across Minnesota's window: the cluster ladder's check, by a method with the Pauli principle exact. Beryllium-8's spin-2 state too.",
+ "run": "plusone-1",
+ "why": "The road's first step, odd against even: does a nucleon hold on to a ladder nucleus (beryllium-8, carbon, oxygen, pxygen)? If the '+1' nuclei don't bind, as mass 5 doesn't, odd elements have almost no easy way in. Brink's model with each nucleon's spin and isospin followed, the core's placements fixed and the nucleon on a grid round it; ours (beryllium-9 to fluorine-17) as the check, 4D across Minnesota's window, and two runs with a denser grid of directions for convergence.",
  "minutes": 150,
  "groups": [
   {
-   "name": "brink-0",
+   "name": "plusone-0",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 3 1 0.7 5",
-    "node four/atom/tools/nuclei.mjs brink 3 1 0.7 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.0 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.4 2"
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 5 0",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 3 1"
    ]
   },
   {
-   "name": "brink-1",
+   "name": "plusone-1",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 3 1 1.0 5",
-    "node four/atom/tools/nuclei.mjs brink 3 1 0.7 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.0 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.4 3"
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 5 1",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 3 0"
    ]
   },
   {
-   "name": "brink-2",
+   "name": "plusone-2",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 3 1 1.4 5",
-    "node four/atom/tools/nuclei.mjs brink 3 1 0.7 4",
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.0 4",
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.4 4"
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 5 0",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 3 1"
    ]
   },
   {
-   "name": "brink-3",
+   "name": "plusone-3",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 0.7 5",
-    "node four/atom/tools/nuclei.mjs brink 3 1 1.0 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.4 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 0.7 2"
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 5 1",
+    "node four/atom/tools/nuclei.mjs plusone 3 1 2 0"
    ]
   },
   {
-   "name": "brink-4",
+   "name": "plusone-4",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.0 5",
-    "node four/atom/tools/nuclei.mjs brink 3 1 1.0 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.4 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 0.7 3"
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 5 0",
+    "node four/atom/tools/nuclei.mjs plusone 3 1 2 1"
    ]
   },
   {
-   "name": "brink-5",
+   "name": "plusone-5",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.4 5",
-    "node four/atom/tools/nuclei.mjs brink 3 1 1.0 4",
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 1.4 4",
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 0.7 4"
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 5 1",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 2 0"
    ]
   },
   {
-   "name": "brink-6",
+   "name": "plusone-6",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 0.7 5",
-    "node four/atom/tools/nuclei.mjs brink 3 1 1.4 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 0.7 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.0 2"
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 4 1 40",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 2 1"
    ]
   },
   {
-   "name": "brink-7",
+   "name": "plusone-7",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.0 5",
-    "node four/atom/tools/nuclei.mjs brink 3 1 1.4 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 0.7 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.0 3"
+    "node four/atom/tools/nuclei.mjs plusone 3 1 4 0",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 4 1"
    ]
   },
   {
-   "name": "brink-8",
+   "name": "plusone-8",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.4 5",
-    "node four/atom/tools/nuclei.mjs brink 3 1 1.4 4",
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 0.7 4",
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.0 4"
+    "node four/atom/tools/nuclei.mjs plusone 3 1 4 1",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 3 0 40"
    ]
   },
   {
-   "name": "brink-9",
+   "name": "plusone-9",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 0.7 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 0.7 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.0 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.4 2"
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 4 0",
+    "node four/atom/tools/nuclei.mjs plusone 3 1 3 0",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 2 0"
    ]
   },
   {
-   "name": "brink-10",
+   "name": "plusone-10",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.0 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 0.7 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.0 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.4 3"
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 4 1",
+    "node four/atom/tools/nuclei.mjs plusone 3 1 3 1",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 2 1"
    ]
   },
   {
-   "name": "brink-11",
+   "name": "plusone-11",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.4 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.4002 0.7 4",
-    "node four/atom/tools/nuclei.mjs brink 4 1.5152 1.0 4",
-    "node four/atom/tools/nuclei.mjs brink 4 1.8909 1.4 4"
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 4 0",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 3 0",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 2 0"
+   ]
+  },
+  {
+   "name": "plusone-12",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 4 1",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 3 1",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 2 1"
+   ]
+  },
+  {
+   "name": "plusone-13",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 4 0",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 3 0"
    ]
   }
  ]
