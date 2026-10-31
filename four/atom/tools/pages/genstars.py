@@ -16,7 +16,7 @@ def STr(v,f='.0f'): return f"{format(min(v),f)}–{format(max(v),f)}" if v else 
 STBR=[b['ba'] for b in STE.get('brink',[]) if b['s']<1.8]
 # the main sequence (tools/mainseq.mjs, js/mainseqdata.js)
 MSQ=json.loads(subprocess.run(['node','--input-type=module','-e','import("'+ATOM+'js/mainseqdata.js").then((m) => console.log(JSON.stringify(m.MAINSEQ))).catch(() => console.log("{}"));'],capture_output=True,text=True,check=True).stdout or '{}')
-def MS_run(g,rnp=1): return next((r for r in MSQ.get('runs',[]) if abs(r['Grel']/g-1)<1e-6 and r['rnp']==rnp),None)
+def MS_run(g,rnp=1,ff=1): return next((r for r in MSQ.get('runs',[]) if abs(r['Grel']/g-1)<1e-6 and r['rnp']==rnp and r.get('ff',0)==ff),None)
 def MS_at(rows,key,target):
   # the star (log-interpolated in mass) where key crosses target; key monotone along the sequence
   import math
@@ -35,20 +35,32 @@ def MS_sci(x):
 def MS_g(g):
   import math
   return f"10<sup>{int(round(math.log10(g)))}</sup>"
+def MS_band(g,key,target,out):
+  # the same star with free–free at half and twice the classical value: the range of `out`
+  v=[MS_at(r['rows'],key,target) for r in (MS_run(g,1,0.5),MS_run(g,1,2)) if r]
+  v=[x[out] for x in v if x]
+  return (min(v),max(v)) if len(v)==2 else None
 def MS_row(g):
   r=MS_run(g)
   if not r: return ''
   sun=MS_at(r['rows'],'life',1e10); col=MS_at(r['rows'],'Teff',5800)
   lo=min(x['life'] for x in r['rows']); hi=max(x['life'] for x in r['rows'])
   faint=min(r['rows'],key=lambda x:x['m']); cut=faint['m']>0.14
-  if sun: a=f"{sun['m']:.2f} M_Ch, {sun['Teff']:,.0f} K, core {sun['Tc']/1e6:.0f} MK; a planet at 288 K sits {MS_sci(sun['a288'])} m out, its year {sun['year']:.2g} years"
+  bT=MS_band(g,'life',1e10,'Teff'); bL=MS_band(g,'Teff',5800,'life')
+  if sun: a=f"{sun['m']:.2f} M_Ch, {sun['Teff']:,.0f} K{f' ({bT[0]:,.0f}–{bT[1]:,.0f})' if bT else ''}, core {sun['Tc']/1e6:.0f} MK; a planet at 288 K sits {MS_sci(sun['a288'])} m out, its year {sun['year']:.2g} years"
   elif lo>1e10: a=f"none: every star lives {MS_sci(lo)} years or more"
   elif cut: a=f"fainter than the stars solved here (the faintest, {faint['m']:.2f} M_Ch, lives {MS_sci(faint['life'])} years)"
   else: a=f"none: every star lives under {MS_sci(hi)} years"
-  if col: b=f"{col['m']:.2f} M_Ch, lives {MS_sci(col['life'])} years"
+  if col: b=f"{col['m']:.2f} M_Ch, lives {MS_sci(col['life'])} years{f' ({MS_sci(bL[0])}–{MS_sci(bL[1])})' if bL else ''}"
   elif cut: b=f"cooler than the stars solved here (the coolest, {faint['Teff']:,.0f} K)"
   else: b="none in the window"
   return f"<tr><td>{MS_g(g)}</td><td>{a}</td><td>{b}</td></tr>"
+def MS_dim(g,m):
+  # how much free–free dims and cools a star of m × M_Ch against scattering alone
+  a=MS_run(g,1,0); b=MS_run(g,1,1)
+  if not a or not b: return None
+  x=next((r for r in a['rows'] if abs(r['m']-m)<1e-6),None); y=next((r for r in b['rows'] if abs(r['m']-m)<1e-6),None)
+  return (x['L']/y['L'], x['Teff'], y['Teff']) if x and y else None
 MSO=MSQ.get('ours',[])
 MSO1=MS_at(MSO,'M',1.989e30) if MSO else None
 # the stability map (tools/stability.mjs on the runner, stability-1): two planets for 100,000 orbits, per mass and tilt
@@ -198,12 +210,12 @@ stars=f'''<section id="hold">
 </section>
 <section id="mainseq">
   <h3>The main sequence, by G</h3>
-  <p>Gravity's strength is still open (<a href="gravity.html">chapter 5</a>), and in 4D it matters twice over: it sets how bright a star of each mass is, and starlight thins as 1/r³, so a planet's warmth hangs on brightness more steeply than ours does. So the main sequence is solved at each G. <span class="tag computed">computed</span> A star in balance, solved: pressure against gravity (pinned 4D's from the whole star, since it has no shell theorem), energy from the book's own rates, carried out by light or, where light can't, by stirring; the electrons as they are, partly degenerate; the surface where the star turns transparent. 4D's opacity is light scattering off free electrons through the lens vacuum, σ = (3π³/4) r<sub>e</sub>² c/ω, which falls as the light gets bluer, so a hotter 4D star is clearer. The check, ours: the young Sun comes out at {f"{MSO1['L']/3.828e26:.2f}" if MSO1 else "—"} of today's Sun's brightness and {f"{MSO1['Tc']/1e6:.1f}" if MSO1 else "—"} million K at its centre (the textbook's 0.7 and 13.5), and stars from half a solar mass to thirty within about one and a half times their published brightness.</p>
+  <p>Gravity's strength is still open (<a href="gravity.html">chapter 5</a>), and in 4D it matters twice over: it sets how bright a star of each mass is, and starlight thins as 1/r³, so a planet's warmth hangs on brightness more steeply than ours does. So the main sequence is solved at each G. <span class="tag computed">computed</span> A star in balance, solved: pressure against gravity (pinned 4D's from the whole star, since it has no shell theorem), energy from the book's own rates, carried out by light or, where light can't, by stirring; the electrons as they are, partly degenerate; the surface where the star turns transparent. 4D's opacity is worked out for this universe: light scattering off free electrons through the lens vacuum, σ = (3π³/4) r<sub>e</sub>² c/ω, which falls as the light gets bluer, so a hotter 4D star is clearer; and absorption by electrons passing ions (free–free), where 4D's extra direction makes the sum over passes converge with none of the logarithm ours needs. It goes as ρT⁻⁵ (Kramers' ours, ρT<sup>−3.5</sup>). The same reasoning gives our free–free at the Sun's centre about half of Kramers', so it's run at half and twice its value too, the band in brackets below. The check, ours: the young Sun comes out at {f"{MSO1['L']/3.828e26:.2f}" if MSO1 else "—"} of today's Sun's brightness and {f"{MSO1['Tc']/1e6:.1f}" if MSO1 else "—"} million K at its centre (the textbook's 0.7 and 13.5), and stars from half a solar mass to thirty within about one and a half times their published brightness.</p>
   <canvas class="chart tall" id="cMainSeq"></canvas><p class="read" id="kMainSeq"></p>
   <canvas class="chart tall" id="cMainLife"></canvas><p class="read" id="kMainLife"></p>
-  <p class="read">4D from 0.13 to 5 times the Chandrasekhar mass at three strengths of gravity, proton + proton at 1 fm (4 fm moves these stars by under a percent above half the mass, more at the faint end); a lifetime is a tenth of the star burnt at 17 MeV a nucleon (ours: a tenth, to helium). Each star, and where an airless black planet would sit at 288 K, at each G (× ours):</p>
+  <p class="read">4D from 0.13 to 5 times the Chandrasekhar mass at three strengths of gravity, proton + proton at 1 fm (4 fm moves these stars by under a percent above half the mass, more at the faint end){(lambda d: f"; free–free dims a star of 0.4 M_Ch at G 10<sup>−20</sup> {d[0]:.0f}-fold against scattering alone, from {d[1]:,.0f} K to {d[2]:,.0f} K at the surface" if d else "")(MS_dim(1e-20,0.4))}; a lifetime is a tenth of the star burnt at 17 MeV a nucleon (ours: a tenth, to helium). The faintest stars solved, a few tenths of the Chandrasekhar mass, have cores of only 2–3 million K, near where hydrogen stops burning at all. Each star, and where an airless black planet would sit at 288 K, at each G (× ours):</p>
   <table class="sys"><tr><th>G</th><th>a star that lives as long as our Sun</th><th>a star the colour of sunlight (5,800 K)</th></tr>{"".join(MS_row(g) for g in (1e-14,1e-17,1e-20,1e-23,1e-26))}</table>
-  <p><b>A 4D star brightens as about the fifth power of its mass</b> (ours, the third and a half), and at a given share of the Chandrasekhar mass it burns its fuel as G<sup>2/3</sup>: weaker gravity makes bigger, cooler, longer-lived stars. <span class="tag follows">follows</span> <b>So a long life and the colour of sunlight are different stars in 4D</b> unless G is very weak. Where G is within a few powers of ten of the Earth-like estimate, a star that lasts as long as our Sun is blue-hot, tens of thousands of kelvin, and a star the colour of sunlight is a faint one that outlasts the universe many times. Its planets' years run from weeks to lifetimes as G falls. And at a given colour, a star's life hardly depends on G at the cool end (the lifetime curves for the two weakest gravities nearly lie on one another): what weaker gravity changes is how massive, and how bright, a star of that colour is. And the core temperature falls with G too, which is what decides what the core makes (<a href="nuclei.html#together">chapter 15</a>): G reaches all the way to the water. <span class="tag open">open</span> 4D's absorption by free electrons (free–free), not yet derived, which makes the faint, cool end too bright here and probably too hot; how stars of each mass are made; and the planet's own G, from its rock.</p>
+  <p><b>A 4D star brightens as about the fifth power of its mass</b> (ours, the third and a half), and at a given share of the Chandrasekhar mass it burns its fuel as G<sup>2/3</sup>: weaker gravity makes bigger, cooler, longer-lived stars. <span class="tag follows">follows</span> <b>So a long life and the colour of sunlight are different stars in 4D</b> unless G is very weak. Where G is within a few powers of ten of the Earth-like estimate, a star that lasts as long as our Sun is blue-hot, tens of thousands of kelvin, and a star the colour of sunlight is a faint one that outlasts the universe many times. Its planets' years run from weeks to lifetimes as G falls. And at a given colour, a star's life hardly depends on G at the cool end (the lifetime curves for the two weakest gravities nearly lie on one another): what weaker gravity changes is how massive, and how bright, a star of that colour is. And the core temperature falls with G too, which is what decides what the core makes (<a href="nuclei.html#together">chapter 15</a>): G reaches all the way to the water. <span class="tag open">open</span> The coolest surfaces: below about 5,000 K 4D's iydrogen, holding its electron by only 6 eV, takes it back, and the gas stops being the ionized one these opacities assume, so the faintest stars' colours are rough. Also how stars of each mass are made, and the planet's own G, from its rock.</p>
 </section>
 <section id="starsnext">
   <h3>What's computed and what's open</h3>

@@ -432,12 +432,13 @@ function drawNebula() {
 if ($("cNebula")) import("./nebuladata.js").then(({ NEBULA }) => { NEB = NEBULA; drawNebula(); import("./nebulaviz.js").then((m) => m.buildNebula(NEBULA)); });
 
 /* the stars chapter's main sequence (js/mainseqdata.js, from js/mainseq.js): ours, and 4D at three strengths of gravity
-   (G an ordered quantity, so one ice hue stepped light to dark as G falls; proton + proton at 1 fm), each curve labelled */
+   (G an ordered quantity, so one ice hue stepped light to dark as G falls; proton + proton at 1 fm, free–free at its
+   classical value), each curve labelled */
 let MSQ = null;
 const MSQ_C = { "1e-14": "#e2f8ff", "1e-20": "#4cc6e8", "1e-26": "#1f7896" }, lg10 = Math.log10;
 function drawMainSeq() {
   if (!MSQ) return;
-  const runs = Object.keys(MSQ_C).map((g) => ({ g, run: MSQ.runs.find((r) => r.Grel === +g && r.rnp === 1) })).filter((x) => x.run), ours = MSQ.ours;
+  const runs = Object.keys(MSQ_C).map((g) => ({ g, run: MSQ.runs.find((r) => r.Grel === +g && r.rnp === 1 && (r.ff ?? 0) === 1) })).filter((x) => x.run), ours = MSQ.ours;
   const all = [...ours, ...runs.flatMap((x) => x.run.rows)], T = [Math.min(...all.map((r) => r.Teff)) * 0.8, Math.max(...all.map((r) => r.Teff)) * 1.2];
   // a label at a curve's end (right-aligned) or start (left-aligned), just above it
   const lab = (o, pts, text, c, start) => { const g = $(o.id).getContext("2d"), [x, y] = start ? pts[0] : pts.at(-1); g.font = "11px ui-monospace, Menlo, monospace"; g.fillStyle = c; g.textAlign = start ? "left" : "right"; g.textBaseline = "bottom"; g.fillText(text, o.X(x) + (start ? 4 : -4), o.Y(y) - 3); };
