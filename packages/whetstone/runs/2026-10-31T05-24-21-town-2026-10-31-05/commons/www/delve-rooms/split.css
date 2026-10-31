@@ -1,0 +1,52 @@
+/* split.css: the house shell for a page whose point is one live picture (/delve-rooms/, /delve-town/).
+   Markup: <header class="head"><h1>…</h1></header>, then <div class="stage"> holding the picture(s)
+   (class="viz") and <div class="bar"> (a .seg of buttons, a #status.chip), then <main class="sheet"> with
+   <button class="grip"> first and the words after it. shell.js opens and closes the sheet.
+   Phone: the picture fills the screen; the bar floats on it; everything else is a drawer at the bottom,
+   closed to one 56-px row. One thing scrolls at a time: the picture pans and zooms, the open drawer scrolls,
+   the page never does. Nothing pinned sits inside anything that scrolls (iOS WebKit clips that).
+   Desktop: a heading, the bar, the picture as a card, the words below.
+   Rewritten 2026-10-08 by the lab for the person ("clean, tight"), from Modulo's two-thirds split. */
+.head { max-width: 980px; margin: 0 auto; padding: 18px 18px 10px; box-sizing: border-box; }
+.head h1 { margin: 0; }
+.stage { position: relative; max-width: 980px; margin: 0 auto; padding: 0 18px; box-sizing: border-box; }
+.stage .viz { display: block; }
+.bar { position: static; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; z-index: 1; }
+.seg { display: inline-flex; flex: none; border: 1px solid #3a3c41; border-radius: 999px; overflow: hidden; background: rgba(20, 21, 24, .88); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.seg button { border: 0; border-radius: 0; margin: 0; background: transparent; color: #e6e3dc; padding: 6px 16px; min-height: 34px; font: inherit; font-size: 13px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.seg button + button { border-left: 1px solid #3a3c41; }
+.seg button.on { background: #c9a24a; color: #111; }
+.chip { flex: 0 1 auto; min-width: 0; background: rgba(20, 21, 24, .88); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1px solid #3a3c41; border-radius: 14px; padding: 6px 12px; margin: 0; font-size: 12px; line-height: 1.4; color: #cfccc4; }
+.grip { display: none; }
+
+@media (max-width: 700px), (orientation: portrait) and (max-width: 900px) {
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  .head { display: none; }
+  .stage { position: fixed; top: 0; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom)); max-width: none; margin: 0; padding: 0; }
+  .stage .viz { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border: 0; border-radius: 0; background: #18191c; }
+  .bar { position: absolute; top: calc(env(safe-area-inset-top) + 10px); left: 10px; right: 10px; margin: 0; align-items: flex-start; flex-wrap: nowrap; pointer-events: none; }
+  .bar > * { pointer-events: auto; }
+  .chip { max-width: none; flex: 1 1 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 20px; padding: 7px 12px; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; max-width: none; margin: 0; box-sizing: border-box;
+           height: calc(56px + env(safe-area-inset-bottom)); padding: 0 14px calc(20px + env(safe-area-inset-bottom));
+           overflow: hidden; background: #16171a; border-top: 1px solid #3a3c41; border-radius: 14px 14px 0 0;
+           box-shadow: 0 -8px 24px rgba(0, 0, 0, .35); transition: height .22s ease; }
+  .sheet.open { height: 78vh; height: 78dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .grip { display: flex; align-items: center; justify-content: space-between; gap: 10px; position: sticky; top: 0; z-index: 1;
+          width: calc(100% + 28px); height: 56px; margin: 0 -14px 6px; padding: 0 16px; box-sizing: border-box;
+          background: #16171a; color: #e6e3dc; border: 0; border-radius: 14px 14px 0 0; font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .grip::before { content: ""; position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: #4a4c52; }
+  .grip::after { content: "⌃"; font-size: 18px; line-height: 1; opacity: .7; transition: transform .22s ease; }
+  .sheet.open .grip::after { transform: rotate(180deg); }
+  /* a table in the drawer becomes one card per row: no columns to squeeze; cells keep their order */
+  .sheet table, .sheet tbody, .sheet tr, .sheet td { display: block; width: auto; }
+  .sheet thead { display: none; }
+  .sheet tr { padding: 10px 0; border-top: 1px solid #2c2d31; }
+  .sheet td { border: 0; padding: 2px 0; font-size: 13px; overflow-wrap: break-word; }
+  .sheet td:first-child { font-size: 14px; }
+  .sheet .k span { display: block; }
+}
+/* peek.js's preview card, on a phone: above the drawer's row, not over it */
+@media (max-width: 700px), (orientation: portrait) and (max-width: 900px) {
+  body #peek { bottom: calc(64px + env(safe-area-inset-bottom)); }
+}
