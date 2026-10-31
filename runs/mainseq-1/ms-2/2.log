@@ -1,0 +1,44 @@
+$ node four/atom/tools/mainseq.mjs ours
+1.00 M☉: L 0.643 L☉, R 0.909 R☉, Tc 13.5 MK
+1.12 M☉: L 1.17 L☉, R 0.924 R☉, Tc 14.9 MK
+1.25 M☉: L 2.09 L☉, R 0.941 R☉, Tc 16.5 MK
+1.40 M☉: L 3.65 L☉, R 0.967 R☉, Tc 18.0 MK
+1.57 M☉: L 6.24 L☉, R 1.01 R☉, Tc 19.3 MK
+1.76 M☉: L 10.5 L☉, R 1.07 R☉, Tc 20.3 MK
+1.97 M☉: L 17.5 L☉, R 1.14 R☉, Tc 21.2 MK
+2.21 M☉: L 28.9 L☉, R 1.22 R☉, Tc 22.0 MK
+2.48 M☉: L 47.1 L☉, R 1.32 R☉, Tc 22.8 MK
+2.77 M☉: L 75.9 L☉, R 1.42 R☉, Tc 23.6 MK
+3.11 M☉: L 120 L☉, R 1.53 R☉, Tc 24.3 MK
+3.48 M☉: L 189 L☉, R 1.65 R☉, Tc 25.0 MK
+3.90 M☉: L 291 L☉, R 1.78 R☉, Tc 25.7 MK
+4.36 M☉: L 443 L☉, R 1.92 R☉, Tc 26.4 MK
+4.89 M☉: L 666 L☉, R 2.07 R☉, Tc 27.2 MK
+5.47 M☉: L 988 L☉, R 2.23 R☉, Tc 27.9 MK
+6.13 M☉: L 1.45e+3 L☉, R 2.40 R☉, Tc 28.6 MK
+6.87 M☉: L 2.10e+3 L☉, R 2.59 R☉, Tc 29.3 MK
+7.69 M☉: L 3.01e+3 L☉, R 2.79 R☉, Tc 30.0 MK
+8.61 M☉: L 4.27e+3 L☉, R 3.00 R☉, Tc 30.7 MK
+9.65 M☉: L 6.00e+3 L☉, R 3.23 R☉, Tc 31.4 MK
+10.80 M☉: L 8.34e+3 L☉, R 3.46 R☉, Tc 32.1 MK
+12.10 M☉: L 1.15e+4 L☉, R 3.71 R☉, Tc 32.8 MK
+13.55 M☉: L 1.57e+4 L☉, R 3.97 R☉, Tc 33.5 MK
+15.18 M☉: L 2.12e+4 L☉, R 4.24 R☉, Tc 34.1 MK
+17.00 M☉: L 2.83e+4 L☉, R 4.52 R☉, Tc 34.8 MK
+19.04 M☉: L 3.75e+4 L☉, R 4.81 R☉, Tc 35.4 MK
+21.32 M☉: L 4.92e+4 L☉, R 5.10 R☉, Tc 36.0 MK
+23.88 M☉: L 6.39e+4 L☉, R 5.39 R☉, Tc 36.6 MK
+26.75 M☉: L 8.23e+4 L☉, R 5.69 R☉, Tc 37.2 MK
+29.96 M☉: L 1.05e+5 L☉, R 5.99 R☉, Tc 37.7 MK
+0.89 M☉: L 0.351 L☉, R 0.893 R☉, Tc 12.3 MK
+0.80 M☉: L 0.191 L☉, R 0.875 R☉, Tc 11.2 MK
+0.71 M☉: L 0.104 L☉, R 0.856 R☉, Tc 10.2 MK
+0.64 M☉: L 0.0559 L☉, R 0.836 R☉, Tc 9.3 MK
+0.57 M☉: L 0.0301 L☉, R 0.815 R☉, Tc 8.5 MK
+0.51 M☉: L 0.0162 L☉, R 0.793 R☉, Tc 7.8 MK
+0.45 M☉: L 0.00867 L☉, R 0.769 R☉, Tc 7.1 MK
+wrote ours.json
+(node:2609) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
