@@ -224,10 +224,14 @@ if (cmd === "fit") {
   // each with the nucleon on a grid of radii and directions, against the core alone on the same placements (brink.js
   // nucleonOnCoreGrid). Two-body Minnesota with Minnesota's own u (0.938, our ⁸Be at threshold without the three-nucleon
   // force), since the three-nucleon force over this many orbitals is out of reach here; the check is ours
-  const [d, s, k, Z] = [+args[0], +args[1], +args[2], +args[3]], ndir = +(args[4] ?? (d === 3 ? 12 : 24)), nu = BR.bestNu(d, s), t = Date.now();
-  const r = BR.nucleonOnCoreGrid({ d, k, Z, nu, s, u: 0.938, M: 4, ndir });
-  console.log(`d=${d} s=${s} k=${k} ${Z ? "proton" : "neutron"} (${r.n} states): separation ${r.S.toFixed(2)} MeV (${((Date.now() - t) / 1000).toFixed(0)} s)`);
-  save(`plusone-${d}-${tag(s)}-${k}-${Z}-${ndir}.json`, { d, s, k, Z, ndir, ...r });
+  // "compact" draws the core's helium-4s close (the closed-shell limit, the lowest core energy for a closed shell): on our
+  // oxygen-16 it gives fluorine-17 0.46 MeV and oxygen-17 4.76 against the measured 0.60 and 4.14, where the loose draw
+  // overbinds them by 6–7. For open-shell cores the two draws differ, and the spread between them is the uncertainty
+  const compact = args.includes("compact"), rest = args.filter((x) => x !== "compact");
+  const [d, s, k, Z] = [+rest[0], +rest[1], +rest[2], +rest[3]], ndir = +(rest[4] ?? (d === 3 ? 12 : 24)), nu = BR.bestNu(d, s), t = Date.now();
+  const r = BR.nucleonOnCoreGrid({ d, k, Z, nu, s, u: 0.938, M: 4, ndir, ...(compact ? { spread: [0.15, 0.45], minD: 0.4 } : {}) });
+  console.log(`d=${d} s=${s} k=${k} ${Z ? "proton" : "neutron"}${compact ? " compact" : ""} (${r.n} states): separation ${r.S.toFixed(2)} MeV, core ${r.Ec.toFixed(1)} (${((Date.now() - t) / 1000).toFixed(0)} s)`);
+  save(`plusone-${d}-${tag(s)}-${k}-${Z}-${ndir}${compact ? "-c" : ""}.json`, { d, s, k, Z, ndir, compact, ...r });
 } else if (cmd === "protonflow") {
   // ours as the check: ¹²C + p → ¹³N, the proton bound by 1.944 MeV, against the measured direct capture ~1.3–1.5 keV b.
   // Then 4D on cores of k = 2, 3, 4 helium-4s: the nucleon–core potential set to the microscopic neutron separation
