@@ -29,14 +29,14 @@ neighborhood spark is your fresh inspiration seed.
 <!-- BRIEF_START -->
 _Regenerated 2026-10-31 by build-brief.mjs — do not edit by hand._
 
-**Already taken** (never reuse these slugs/sites): ai-edu, airchat, answers, ar, archive, arnold, assets, astra, atlas, atproto-data, aub, audio, auto, aztec, b, bakeoff, bakery, biome, bisk, bismuth, board, borges, borsuk, bounty, bsky, cable, canvas, capset, cards, chat, civ, clef, clock, cluster, cohomology, conjectures, crm, crucible, csaszar, curve, data, density, descent, docs, draw, duck, echo, eigensite, elements, empathy, equivelar, erdos, fable, farm, fifty, finance, fipo, fix, flights, flows, fluoddity, foam, fold, functions, g, games, geometry, golem, guthkatz, hadwiger, heilbronn, henderhead, hoop, hoop-archive, hoop-backend, hoop-history, hopper, human, idol, ink, io, iris, ising, j, js, judge, jurassic, kakeya, ken, lab, labglass, loop, mappa, markov, math, meander, mega, mmo, modulo, moji, morphyx, music, neuro, next, noise, notes, novelty, ns, ocr, office, org, orrery, os, packages, paint, parts, pds, perp, photo, phylo, phylofiction, pizza, plant, pm, pod, pokemon, polis, poll, procgen, prop, range, rant, read, reef, rethink, rind, rite, runner, sci, scripts, seek, silk, spec, splice, src, stats, sweat, szemeredi-trotter, szilassi, table, tape, temperley-lieb, ternary, ternary2, ternary3, tide, time, tjs, torus, track, traffic, uni, unit, vault, viazovska, voronoi, wars, wave, weft, wiki, wild, words, workers, wormhole, zest, zoom
+**Already taken** (never reuse these slugs/sites): ai-edu, airchat, answers, ar, archive, arnold, assets, astra, atlas, atproto-data, aub, audio, auto, aztec, b, bakeoff, bakery, biome, bisk, bismuth, board, borges, borsuk, bounty, bsky, cable, canvas, capset, cards, cell, chair44, chat, civ, clef, clock, cluster, cohomology, conjectures, crm, crucible, csaszar, curve, data, del, density, descent, docs, draw, duck, echo, eigensite, elements, empathy, equivelar, erdos, fable, farm, fifty, finance, fipo, fix, flights, flows, fluoddity, foam, fold, four, functions, g, games, geometry, golem, grad, guthkatz, hadwiger, heilbronn, henderhead, hoop, hoop-archive, hoop-backend, hoop-history, hopper, human, idol, imp, ink, io, iris, ising, j, jog, js, judge, jurassic, kakeya, ken, lab, labglass, loop, mail, mappa, markov, math, meander, mega, miniphim, mmo, modulo, moji, morphyx, music, nb, neuro, next, noise, notes, novelty, ns, ocr, office, org, orrery, os, packages, paint, parts, pds, perp, photo, phylo, phylofiction, pizza, plant, pm, pod, pokemon, polis, poll, procgen, proofs, prop, range, rant, read, reef, rethink, rind, rite, runner, sci, scripts, seek, silk, spec, splice, src, stats, studio, sweat, szemeredi-trotter, szilassi, table, tape, temperley-lieb, ternary, ternary2, ternary3, tide, time, tjs, torus, track, traffic, uni, unit, vault, viazovska, voronoi, wars, wave, weft, wiki, wild, words, workers, wormhole, zest, zoom
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-10-31, 100 members / 232 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: deepseek, llms, tho
-- Top post: "fun fact: this is the least aware of cybersecurity you will ever be" — @hikikomorphism.bsky.social
+**Neighborhood spark** (bisk 2026-10-31, 100 members / 203 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: anthropic, llms, reddit
+- Top post: "" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
