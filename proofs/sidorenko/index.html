@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>sidorenko — the pattern that undercounts</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="Sidorenko's conjecture said that every bipartite pattern appears in any graph at least as often as in a random graph of the same density. A 2026 AI-written paper with a Lean proof breaks it with one explicit pattern: the 22 triangles of a 13-point triangulated sphere, as a 35-vertex, 66-edge bipartite graph. Inspect the pattern and the paper's finite certificate for it, count it exactly in small graphs, and see why no small graph can be the counterexample.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6;
+  --accent: #2a78d6; --accent-faint: rgba(42,120,214,0.13); --accent-tint: rgba(42,120,214,0.06);
+  --panel: #f3f3f0; --stage: #f7f7f4;
+  --s1: #2a78d6; --s2: #eb6834; --good: #1f7a3f; --bad: #b3261e;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f;
+    --accent: #3987e5; --accent-faint: rgba(57,135,229,0.18); --accent-tint: rgba(57,135,229,0.08);
+    --panel: #20201e; --stage: #121211;
+    --s1: #3987e5; --s2: #d95926; --good: #6ec48f; --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--serif); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+.head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top)); }
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); overflow: hidden; display: flex; flex-direction: column; }
+.view { display: none; flex: 1 1 0; min-height: 0; flex-direction: column; padding: 0.6rem 0.9rem; gap: 0.6rem; overflow: auto; }
+.view.on { display: flex; }
+.cap { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.04em; }
+svg { display: block; width: 100%; max-width: 620px; margin: 0 auto; }
+svg text { font-family: var(--mono); fill: var(--muted); }
+.grid { display: grid; gap: 1px; }
+.cell { aspect-ratio: 1; border-radius: 1px; }
+.status { font-family: var(--mono); font-size: 0.66rem; line-height: 1.7; }
+.ok { color: var(--good); } .no { color: var(--bad); }
+
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab { flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.4rem; }
+button.act { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.42rem 0.55rem; cursor: pointer; min-height: 2rem; }
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+button.act:disabled { opacity: 0.4; cursor: default; }
+.knob { display: grid; grid-template-columns: 4.2rem 1fr 2.8rem; align-items: center; gap: 0.4rem; margin: 0.1rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.66rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.note { font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.62rem; margin-top: 0.5rem; }
+table.facts td, table.facts th { padding: 0.22rem 0.25rem; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: top; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.55rem; }
+table.facts td:first-child, table.facts th:first-child { text-align: left; }
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose code, pre { font-family: var(--mono); font-size: 0.72rem; }
+pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.5rem 0.6rem; overflow-x: auto; line-height: 1.4; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+@media (min-width: 860px) {
+  .app { flex-direction: row; } .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 28rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; } .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+.view > * { flex-shrink: 0; }
+svg.sphere { max-width: 460px; touch-action: manipulation; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.chips button.act { min-width: 2.2rem; padding: 0.3rem 0.4rem; text-transform: none; font-size: 0.66rem; }
+.swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -0.1rem; margin-right: 0.2rem; }
+.kgrid { display: grid; gap: 0.3rem; }
+.kgrid input[type=range] { height: 1.4rem; }
+.heat { display: grid; gap: 3px; margin: 0 auto; }
+.heat div { aspect-ratio: 1; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 0.6rem; color: var(--bg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://proofs.mino.mobi/">← proofs</a>
+      <h1>sidorenko</h1>
+      <span class="tagline">family 161 · Lean proof in library, uncatalogued</span>
+    </div>
+    <div class="stage">
+      <div class="view on" id="v-complex">
+        <div class="cap" id="xcap">the 13 points and 22 triangular faces of the pattern, drawn flat: the outer region is face 19</div>
+        <svg class="sphere" id="sph" viewBox="-1.15 -1.15 2.3 2.3"></svg>
+      </div>
+      <div class="view" id="v-hosts">
+        <div class="cap">complete graphs K_n: how far t(H, K_n) sits above p^66 (log₁₀ of the ratio)</div>
+        <svg id="ladder" viewBox="0 0 320 150"></svg>
+        <div class="cap">random graphs on 6–13 vertices: log₁₀ of t(H, G) / p(G)^66 against edge density</div>
+        <svg id="scatter" viewBox="0 0 320 150"></svg>
+      </div>
+      <div class="view" id="v-kernels">
+        <div class="cap" id="kcap">a step kernel W(x, y): points sample a row, faces sample a column</div>
+        <div class="heat" id="heat"></div>
+        <div class="big" id="kbig" style="font-family:var(--mono);text-align:center;font-size:1.1rem"></div>
+        <svg id="ktrace" viewBox="0 0 320 120"></svg>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <nav class="tabs">
+      <button class="tab active" data-pane="complex">pattern</button>
+      <button class="tab" data-pane="hosts">hosts</button>
+      <button class="tab" data-pane="kernels">kernels</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+      <div class="pane active" id="pane-complex">
+        <div class="row" style="margin-top:0"><span class="cap" style="align-self:center">colour by</span>
+          <div class="chips" id="modes">
+            <button class="act" data-mode="bit1" aria-pressed="true">bit 1</button><button class="act" data-mode="bit2">bit 2</button><button class="act" data-mode="bit3">bit 3</button><button class="act" data-mode="refine">refinement</button>
+          </div></div>
+        <div class="knob" id="stepknob"><label for="step" id="steplabel">step</label><input type="range" id="step" min="0" max="10" step="1" value="10"><output id="stepv"></output></div>
+        <div class="status" id="xstat"></div>
+        <div class="status" id="checks"></div>
+        <p class="note">H is the <b>incidence graph</b> of this complex: 13 point vertices and 22 face vertices, with an edge whenever a point lies on a face. That makes 35 vertices and 66 edges, bipartite. Every pair of points that share a face lies on exactly two faces. The paper turns that double occurrence into a negative sign correlation.</p>
+      </div>
+      <div class="pane" id="pane-hosts">
+        <div class="row" style="margin-top:0" id="hostchips"></div>
+        <div class="status" id="hstat"></div>
+        <div class="row"><button class="act" id="rnd">40 random graphs</button></div>
+        <p class="note">t(H, G) counts <i>every</i> map of H's 35 vertices into G that sends edges to edges, repeats allowed, divided by n³⁵. Summing out each face first leaves a sum over the 13 points with one factor per face, the number of common neighbours of its three points. The points form a triangulated sphere, so the sum splits into small pieces (treewidth 5). Graphs up to 10 vertices are compared exactly in integers, and larger ones in floating point.</p>
+        <p class="note">Every small graph here obeys Sidorenko, usually by a wide margin, because maps that repeat vertices inflate small counts. Complete graphs creep down toward 1 and stay above it. The paper's host is not small. It is sampled from a kernel built on symmetric matrices over a finite field 𝔽_q, in a large fixed dimension, and only works once q is large enough. Nobody has written it down.</p>
+      </div>
+      <div class="pane" id="pane-kernels">
+        <div class="row" style="margin-top:0"><button class="act" data-k="2" aria-pressed="true">2 × 2</button><button class="act" data-k="3">3 × 3</button><button class="act" id="kconst">constant</button><button class="act" id="krand">random</button><button class="act" id="kdesc">descend</button></div>
+        <div class="kgrid" id="ksliders"></div>
+        <div class="status" id="kstat"></div>
+        <p class="note">In the limit, graphs become kernels: W(x, y) ≥ 0 on two probability spaces. Then t(H, W) is the expected product of W over H's 66 incidences, with independent samples at the points and at the faces, and Sidorenko asks for t(H, W) ≥ (E W)⁶⁶. "Descend" runs a random local search that tries to push the ratio below 1. It always slides to the constant kernel, where the ratio is exactly 1. Lovász proved that no counterexample lives near the constant (2011), and the paper's kernel is far away, over matrices in 𝔽_q.</p>
+      </div>
+      <div class="pane prose" id="pane-about">
+        <h2>The conjecture</h2>
+        <p>For finite graphs, t(H, G) is the probability that a random map from H's vertices to G's sends every edge to an edge. In a random graph of edge density p it is p^{|E(H)|}. Sidorenko conjectured in 1991–93 that bipartite H can never do worse: t(H, G) ≥ p(G)^{|E(H)|} for every G. Trees, even cycles, complete bipartite graphs and hypercubes were proved, and so were many families built by gluing and reflection. The conjecture became one of the central open problems of extremal graph theory.</p>
+
+        <h2>The 2026 claim</h2>
+        <p>A paper dated 23 September 2026, released on 6 October in <a href="https://github.com/openai/math">a collection of 722 model-written papers</a>, disproves it. H is the incidence graph of 22 triples on 13 points. The proof builds a finite kernel from symmetric matrices over 𝔽_q whose differences have rank exactly half the dimension, with signed determinants. Each of the 33 point pairs lies in two faces, and that gives a negative correction. A long estimate then controls the singular configurations. A sampled finite graph inherits the deficit. The paper also disproves the forcing conjecture of Skokan and Thoma for the same H.</p>
+
+        <h2>What Lean covers</h2>
+        <p>The release's Lean library proves the counterexample. The forcing consequence is outside its scope. The paper is not in the formalization catalogue. The statement, verbatim:</p>
+<pre>def faces : Fin 22 → Finset (Fin 13) := ![
+  {0,1,3}, {0,1,9}, {0,2,3}, {0,2,9}, {1,3,10}, {1,7,10},
+  {1,7,12}, {1,9,12}, {2,3,4}, {2,4,9}, {3,4,11}, {3,10,11},
+  {4,8,9}, {4,8,11}, {5,6,7}, {5,6,11}, {5,7,10}, {5,10,11},
+  {6,7,12}, {6,8,11}, {6,8,12}, {8,9,12}]
+
+theorem main : ∃ size : ℕ, 0 &lt; size ∧ ∃ host : SimpleGraph (Fin size),
+    (∃ left right, host.Adj left right) ∧
+    homDensity H host &lt; (edgeDensity host) ^ 66</pre>
+        <p>Here <code>homDensity</code> counts all edge-preserving maps divided by size³⁵, and <code>edgeDensity</code> is 2|E|/size². The page's counts use exactly these definitions. It is an existence statement: the host is not written down. We did not build or run the Lean.</p>
+
+        <h2>What this page checks</h2>
+        <p><code>sidorenko.js</code> is the only copy of the maths, and <code>sidorenko.selftest.mjs</code> holds it to 205 checks.</p>
+        <ul>
+          <li><b>The paper's Proposition on the complex, all four items.</b>
+            <ul>
+              <li>All 33 pairs lie in exactly two faces, and every opposite-face entry of Table 1 is right.</li>
+              <li>The face-neighbour graph is connected.</li>
+              <li>Each of the six bit classes has 11 faces covering all 13 points, and the exposure orders in Table 2 work as printed.</li>
+              <li>Every a_e ≥ 1/3, and a_{0,2} = 1.</li>
+              <li>The degree table is right, and only {4,10}, {6,7} and {8,12} share signatures.</li>
+              <li>Colour refinement separates every vertex.</li>
+            </ul>
+          </li>
+          <li><b>The sign identity</b> E_η(1 + cηa)(1 + cηb) = 1 + ab for every choice of signs.</li>
+          <li><b>Counting.</b> Elimination equals a direct 13-point sum on every graph on 3 vertices. Hom(H, K₂) = 2 by brute force, and Hom(H, P₃) = 2¹³ + 2²². Two elimination orders agree.</li>
+          <li><b>Small hosts obey Sidorenko, exactly.</b> All preset hosts up to 10 vertices pass, and so do 30 random graphs. K₃ to K₁₁ decrease toward 1. Random 2 × 2 and 3 × 3 kernels never go below 1.</li>
+        </ul>
+        <p>An observation of this page, not of the paper: the complex is a triangulated 2-sphere. It has χ = 13 − 33 + 22 = 2, every link is a cycle, and it is orientable. That is why it can be drawn flat, and why the counting splits so well.</p>
+        <p>Not checked: the existence of the host. That is the paper's analysis: rank layers over 𝔽_q, Lagrangian intersection counts and a singular-tail bound, with q → ∞. The Lean proof covers it. Nothing on this page could find the host by search, and the hosts tab shows why.</p>
+        <div class="crossref">
+          the collection · <a href="https://proofs.mino.mobi/">proofs</a> ·
+          the paper · <a href="https://github.com/openai/math/blob/main/preprints/A-counterexample-to-Sidorenkos-conjecture-September-23-2026/paper.pdf">a counterexample to Sidorenko's conjecture</a> · <a href="https://github.com/openai/math/blob/main/lean/docs/161.md">Lean scope</a> ·
+          next door · <a href="https://proofs.mino.mobi/ramsey/">ramsey</a> · <a href="https://proofs.mino.mobi/seymour/">seymour</a>
+        </div>
+        <p class="note">Not affiliated with OpenAI. The paper is Apache-2.0. Tables 1 and 2 and the Lean faces are retyped here, and checked against each other.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as S from './sidorenko.js';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+const ms = (t) => (t < 1000 ? Math.round(t) + ' ms' : (t / 1000).toFixed(1) + ' s');
+const SUB = (n) => String(n).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]);
+
+const workers = {};
+function run(task, msg, onMsg) {
+  if (workers[task]) workers[task].terminate();
+  let w;
+  try { w = new Worker('./search.worker.js', { type: 'module' }); } catch { onMsg({ done: true, error: 'this browser has no module workers' }); return; }
+  workers[task] = w;
+  w.onmessage = (e) => onMsg(e.data);
+  w.onerror = (e) => onMsg({ done: true, error: e.message || 'worker failed' });
+  w.postMessage({ task, ...msg });
+}
+const seen = new Set(['complex']);
+const onOpen = { hosts: () => { pickHost('Petersen'); ladder(); }, kernels: () => { setK(2); } };
+document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b));
+  const p = b.dataset.pane;
+  document.querySelectorAll('.pane').forEach((x) => x.classList.toggle('active', x.id === 'pane-' + p));
+  if (p !== 'about') document.querySelectorAll('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + p));
+  if (!seen.has(p)) { seen.add(p); onOpen[p]?.(); }
+}));
+
+// ============================================================ the complex ===
+const EMB = S.tutte(19, 1500, 4), SEP = S.separations(), CR = S.colourRefinement();
+let mode = 'bit1', selPoint = null;
+const PALETTE = ['#2a78d6', '#eb6834', '#1f7a3f', '#b3261e', '#7a5bd6', '#c08a00', '#2a9d8f', '#d64f8a', '#5b6b7a', '#8b5a2b', '#3d9be9', '#a3c43a', '#e07a5f'];
+function drawComplex() {
+  const P = EMB.pos, step = +$('step').value;
+  let s = '';
+  // the outer face 14 is everything outside the drawing; tint the background for bit modes
+  const order = mode.startsWith('bit') ? S.ORDERS.filter((o) => o.pos === +mode[3]) : null;
+  const shown = new Set();
+  if (order) for (const o of order) o.faces.slice(0, step + 1).forEach((j) => shown.add(j));
+  const faceColour = (j) => {
+    if (mode === 'refine') { const r = CR.rounds[Math.min(step, CR.rounds.length - 1)]; return PALETTE[r.colours[13 + j] % PALETTE.length]; }
+    const b = S.BITS[j][+mode[3] - 1];
+    return b === '0' ? 'var(--s1)' : 'var(--s2)';
+  };
+  const outerCol = faceColour(EMB.outer);
+  s += `<rect x="-1.15" y="-1.15" width="2.3" height="2.3" fill="${outerCol}" opacity="${!order || shown.has(EMB.outer) ? 0.12 : 0.03}"/>`;
+  S.FACES.forEach((f, j) => {
+    if (j === EMB.outer) return;
+    const op = !order ? 0.55 : shown.has(j) ? 0.6 : 0.06;
+    s += `<polygon points="${f.map((v) => P[v].join(',')).join(' ')}" fill="${faceColour(j)}" fill-opacity="${op}" stroke="var(--bg)" stroke-width="0.008"/>`;
+    const c = [0, 1].map((k) => (P[f[0]][k] + P[f[1]][k] + P[f[2]][k]) / 3);
+    s += `<text x="${c[0]}" y="${c[1] + 0.018}" font-size="0.05" text-anchor="middle" fill="var(--fg)" opacity="0.7">${j}</text>`;
+  });
+  // edges with separation as thickness
+  for (const e of SEP) s += `<line x1="${P[e.a][0]}" y1="${P[e.a][1]}" x2="${P[e.b][0]}" y2="${P[e.b][1]}" stroke="var(--fg)" stroke-width="${0.004 + 0.004 * e.sep}" opacity="0.65"/>`;
+  // the newly exposed point at this step
+  const fresh = new Set(); if (order) for (const o of order) o.fresh.slice(0, step).forEach((x) => fresh.add(x));
+  for (let i = 0; i < 13; i++) {
+    const col = mode === 'refine' ? PALETTE[CR.rounds[Math.min(step, CR.rounds.length - 1)].colours[i] % PALETTE.length] : 'var(--fg)';
+    s += `<circle cx="${P[i][0]}" cy="${P[i][1]}" r="0.055" fill="${col}" stroke="var(--bg)" stroke-width="0.012"/><text x="${P[i][0]}" y="${P[i][1] + 0.022}" font-size="0.06" text-anchor="middle" fill="var(--bg)">${i}</text>`;
+  }
+  $('sph').innerHTML = s;
+  if (mode === 'refine') {
+    const r = CR.rounds[Math.min(step, CR.rounds.length - 1)];
+    $('xstat').innerHTML = `colour refinement, round ${Math.min(step, CR.rounds.length - 1)}: <b>${r.classes}</b> colour classes among H's 35 vertices (${new Set(r.colours.slice(0, 13)).size} on points, ${new Set(r.colours.slice(13)).size} on faces). It ends discrete: every vertex has its own colour.`;
+  } else {
+    const pos = +mode[3];
+    $('xstat').innerHTML = `bit ${pos}: <span class="swatch" style="background:var(--s1)"></span>faces labelled 0 and <span class="swatch" style="background:var(--s2)"></span>faces labelled 1. Each class has 11 faces covering all 13 points, and Table 2 adds them one at a time, each sharing a pair with an earlier face and bringing one new point. Step ${step} of 10. Edge thickness is the separation a_e: how many bits differ between the two faces on that pair.`;
+  }
+}
+document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
+  mode = b.dataset.mode; document.querySelectorAll('[data-mode]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  $('step').max = mode === 'refine' ? CR.rounds.length - 1 : 10; $('step').value = $('step').max; $('stepv').textContent = $('step').value;
+  $('steplabel').textContent = mode === 'refine' ? 'round' : 'step'; drawComplex();
+}));
+$('step').addEventListener('input', () => { $('stepv').textContent = $('step').value; drawComplex(); });
+$('stepv').textContent = $('step').value;
+function checks() {
+  const P = S.pairs(), sf = S.surface(), NB = S.faceNeighbours();
+  const opp = S.FACES.every((f, j) => [[f[0], f[1]], [f[0], f[2]], [f[1], f[2]]].every(([x, y], k) => P.get(S.pairKey(x, y)).find((g) => g !== j) === S.OPPOSITE[j][k]));
+  const orders = S.ORDERS.every((o) => { const seenP = new Set(S.FACES[o.faces[0]]); return o.faces.slice(1).every((j, k) => { const fr = S.FACES[j].filter((x) => !seenP.has(x)); const ok = o.faces.slice(0, k + 1).some((e) => NB[j].has(e)) && fr.length === 1 && fr[0] === o.fresh[k]; fr.forEach((x) => seenP.add(x)); return ok; }) && seenP.size === 13; });
+  const lines = [
+    [P.size === 33 && [...P.values()].every((fs) => fs.length === 2), '33 point pairs, each on exactly two faces'],
+    [opp, "Table 1's opposite-face columns all correct"],
+    [S.connected(NB, 22), 'face-neighbour graph connected'],
+    [orders, "Table 2's six exposure orders work as printed"],
+    [SEP.every((e) => e.sep >= 1) && SEP.some((e) => e.sep === 3), 'every a_e ≥ 1/3, and a_{0,2} = 1'],
+    [CR.discretePoints && CR.discreteFaces, `colour refinement is discrete after ${CR.rounds.length - 1} rounds`],
+    [sf.euler === 2 && sf.linksAreCycles && sf.orientable, 'the complex is a 2-sphere (our observation)'],
+  ];
+  $('checks').innerHTML = lines.map(([ok, t]) => `<div class="${ok ? 'ok' : 'no'}">${ok ? '✓' : '✗'} ${t}</div>`).join('');
+}
+drawComplex(); checks();
+
+// ================================================================ hosts =====
+const hostNames = Object.keys(S.HOSTS);
+$('hostchips').innerHTML = hostNames.map((k) => `<button class="act" data-host="${esc(k)}" style="text-transform:none">${esc(k)}</button>`).join('');
+document.querySelectorAll('[data-host]').forEach((b) => b.addEventListener('click', () => pickHost(b.dataset.host)));
+function pickHost(name) {
+  document.querySelectorAll('[data-host]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.host === name)));
+  const adj = S.HOSTS[name](), n = adj.length;
+  $('hstat').textContent = `counting homomorphisms of H into ${name}…`;
+  run('host', { adj, n, exact: n <= 10 }, (d) => {
+    if (d.error) { $('hstat').innerHTML = `<span class="no">${esc(d.error)}</span>`; return; }
+    $('hstat').innerHTML = [
+      `<b>${esc(name)}</b>: ${n} vertices, edge density p = ${d.p.toFixed(4)}`,
+      `t(H, G) = ${d.t.toExponential(4)}, p⁶⁶ = ${(d.p ** 66).toExponential(4)}`,
+      `ratio t / p⁶⁶ = <b>${d.ratio < 1e6 ? d.ratio.toFixed(6) : d.ratio.toExponential(3)}</b> ${d.ratio >= 1 ? '<span class="ok">≥ 1: Sidorenko holds here</span>' : '<span class="no">&lt; 1</span>'}`,
+      d.exact ? `<span class="${d.exact.sign > 0 ? 'ok' : 'no'}">exact: Hom(H, G) = ${d.exact.hom.length > 40 ? d.exact.hom.slice(0, 18) + '…(' + d.exact.hom.length + ' digits)' : d.exact.hom}, and Hom·n¹³² ${d.exact.sign > 0 ? '>' : d.exact.sign < 0 ? '<' : '='} (2|E|)⁶⁶·n³⁵</span>` : '<span style="color:var(--muted)">floating point only (more than 10 vertices)</span>',
+      `<span style="color:var(--muted)">${ms(d.ms)}</span>`,
+    ].map((x) => `<div>${x}</div>`).join('');
+  });
+}
+function ladder() {
+  const pts = [];
+  const draw = () => {
+    const W = 320, H = 150, L = 30, B = 16, T = 8, maxN = 14, top = 3;
+    const X = (n) => L + ((n - 3) / (maxN - 3)) * (W - L - 8), Y = (v) => T + (1 - Math.min(top, Math.max(0, v)) / top) * (H - T - B);
+    let s = '';
+    for (let e = 0; e <= top; e++) s += `<line x1="${L}" x2="${W - 6}" y1="${Y(e)}" y2="${Y(e)}" stroke="${e === 0 ? 'var(--faint)' : 'var(--rule)'}" stroke-width="${e === 0 ? 1 : 0.5}"/><text x="${L - 3}" y="${Y(e) + 2}" font-size="6" text-anchor="end">${e}</text>`;
+    s += `<text x="${L + 2}" y="${Y(0) - 3}" font-size="6">ratio 1: Sidorenko's bound</text>`;
+    for (let n = 3; n <= maxN; n++) s += `<text x="${X(n)}" y="${H - 4}" font-size="6" text-anchor="middle">${n}</text>`;
+    if (pts.length) s += `<path d="${pts.map(([n, v], i) => (i ? 'L' : 'M') + X(n).toFixed(1) + ' ' + Y(v).toFixed(1)).join('')}" fill="none" stroke="var(--s1)" stroke-width="1.4"/>` + pts.map(([n, v]) => `<circle cx="${X(n)}" cy="${Y(v)}" r="2" fill="var(--s1)"><title>K${n}: ratio ${(10 ** v).toFixed(5)}</title></circle>`).join('');
+    $('ladder').innerHTML = s;
+  };
+  draw();
+  run('ladder', { max: 14 }, (d) => { if (d.step === 'point') { pts.push([d.n, Math.log10(d.ratio)]); draw(); } });
+}
+const scat = [];
+function drawScatter() {
+  const W = 320, H = 150, L = 30, B = 16, T = 8, top = Math.max(4, ...scat.map((p) => p.log10ratio));
+  const X = (p) => L + p * (W - L - 8), Y = (v) => T + (1 - Math.max(0, v) / top) * (H - T - B);
+  let s = '';
+  for (let e = 0; e <= top; e += Math.ceil(top / 5)) s += `<line x1="${L}" x2="${W - 6}" y1="${Y(e)}" y2="${Y(e)}" stroke="${e === 0 ? 'var(--faint)' : 'var(--rule)'}" stroke-width="0.5"/><text x="${L - 3}" y="${Y(e) + 2}" font-size="6" text-anchor="end">${e}</text>`;
+  for (const p of [0, 0.25, 0.5, 0.75, 1]) s += `<text x="${X(p)}" y="${H - 4}" font-size="6" text-anchor="middle">${p}</text>`;
+  s += scat.map((q) => `<circle cx="${X(q.p)}" cy="${Y(q.log10ratio)}" r="2" fill="${q.log10ratio >= 0 ? 'var(--s1)' : 'var(--bad)'}" opacity="0.8"><title>${q.n} vertices, p = ${q.p.toFixed(3)}, ratio 10^${q.log10ratio.toFixed(2)}</title></circle>`).join('');
+  $('scatter').innerHTML = s;
+}
+drawScatter();
+$('rnd').addEventListener('click', () => {
+  $('rnd').disabled = true;
+  run('random', { count: 40, nmin: 6, nmax: 13, seed: Math.floor(Math.random() * 1e9) }, (d) => {
+    if (d.step === 'point') { scat.push(d); drawScatter(); return; }
+    $('rnd').disabled = false;
+    const below = scat.filter((q) => q.log10ratio < 0).length;
+    $('hstat').innerHTML = `<div>${scat.length} random graphs so far: smallest ratio 10^${Math.min(...scat.map((q) => q.log10ratio)).toFixed(3)}. ${below ? `<span class="no">${below} below 1</span>` : '<span class="ok">none below 1</span>'}</div>`;
+  });
+});
+
+// ============================================================== kernels =====
+let K = 2, W = [];
+function setK(k) {
+  K = k; document.querySelectorAll('[data-k]').forEach((x) => x.setAttribute('aria-pressed', String(+x.dataset.k === k)));
+  W = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => (i === j ? 0.8 : 0.3)));
+  sliders(); kernel();
+}
+function sliders() {
+  $('ksliders').innerHTML = W.flatMap((row, i) => row.map((v, j) => `<div class="knob"><label>W(${i + 1}, ${j + 1})</label><input type="range" min="0" max="1" step="0.01" value="${v}" data-i="${i}" data-j="${j}"><output>${v.toFixed(2)}</output></div>`)).join('');
+  $('ksliders').querySelectorAll('input').forEach((el) => el.addEventListener('input', () => { W[+el.dataset.i][+el.dataset.j] = +el.value; el.nextElementSibling.textContent = (+el.value).toFixed(2); kernel(); }));
+}
+let trace = [];
+function kernel(record = false) {
+  const u = new Array(K).fill(1 / K), r = S.kernelRatio(W, u, u);
+  $('heat').style.gridTemplateColumns = `repeat(${K}, 3.2rem)`;
+  $('heat').innerHTML = W.flatMap((row) => row.map((v) => `<div style="background:color-mix(in srgb, var(--s1) ${Math.round(15 + 85 * v)}%, var(--bg))">${v.toFixed(2)}</div>`)).join('');
+  $('kbig').innerHTML = `t(H, W) / (E W)⁶⁶ = <b>${r.ratio < 1e6 ? r.ratio.toFixed(6) : r.ratio.toExponential(3)}</b>`;
+  $('kstat').innerHTML = `E W = ${r.mean.toFixed(4)}, t(H, W) = ${r.t.toExponential(4)} · ${r.ratio >= 1 - 1e-12 ? '<span class="ok">≥ 1</span>' : '<span class="no">below 1!</span>'}`;
+  if (record) { trace.push(r.log10ratio); drawTrace(); }
+  return r;
+}
+function drawTrace() {
+  const W2 = 320, H = 120, L = 30, B = 14, T = 8, top = Math.max(0.5, ...trace);
+  const X = (i) => L + (i / Math.max(1, trace.length - 1)) * (W2 - L - 8), Y = (v) => T + (1 - Math.max(0, v) / top) * (H - T - B);
+  let s = `<line x1="${L}" x2="${W2 - 6}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--faint)"/><text x="${L - 3}" y="${Y(0) + 2}" font-size="6" text-anchor="end">0</text><text x="${L - 3}" y="${Y(top) + 2}" font-size="6" text-anchor="end">${top.toFixed(1)}</text><text x="${W2 - 6}" y="${H - 3}" font-size="6" text-anchor="end">search steps → (log₁₀ ratio)</text>`;
+  if (trace.length > 1) s += `<path d="${trace.map((v, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1)).join('')}" fill="none" stroke="var(--s2)" stroke-width="1.3"/>`;
+  $('ktrace').innerHTML = s;
+}
+document.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => setK(+b.dataset.k)));
+$('kconst').addEventListener('click', () => { W = W.map((r) => r.map(() => 0.5)); sliders(); kernel(); });
+$('krand').addEventListener('click', () => { W = W.map((r) => r.map(() => Math.round(Math.random() * 100) / 100)); sliders(); kernel(); });
+$('kdesc').addEventListener('click', () => {
+  trace = []; let cur = kernel(true).log10ratio, it = 0, scale = 0.2;
+  const tick = () => {
+    for (let s = 0; s < 6; s++) {
+      const i = Math.floor(Math.random() * K), j = Math.floor(Math.random() * K), old = W[i][j];
+      W[i][j] = Math.min(1, Math.max(0.001, old + (Math.random() * 2 - 1) * scale));
+      const u = new Array(K).fill(1 / K), r = S.kernelRatio(W, u, u);
+      if (r.log10ratio < cur) cur = r.log10ratio; else W[i][j] = old;
+    }
+    scale *= 0.985; it++;
+    if (it % 3 === 0) { sliders(); kernel(true); }
+    if (it < 300 && !document.hidden) requestAnimationFrame(tick); else { sliders(); kernel(true); $('kstat').innerHTML += ` · search ended at ratio ${(10 ** cur).toFixed(6)}`; }
+  };
+  requestAnimationFrame(tick);
+});
+</script>
+</body>
+</html>

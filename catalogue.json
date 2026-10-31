@@ -4328,6 +4328,158 @@
       ]
     },
     {
+      "n": "proofs",
+      "u": "https://proofs.mino.mobi",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "surface": "proofs",
+      "d": "OpenAI's October 2026 release of 722 model-written mathematics papers, sorted for people. Each of its 372 results is shown with what it claims, whether it has a Lean proof, and whether it can become an interactive page: a computation the browser can rerun, a setting it can honestly simulate, or just a card. Search and filter by field. Starts with Turán's brickyard.",
+      "tags": [
+        "math",
+        "index",
+        "selftest"
+      ]
+    },
+    {
+      "n": "crossing",
+      "u": "https://proofs.mino.mobi/crossing/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "How few crossings can a complete graph be drawn with? Turán's 1944 brickyard problem and Hill's formula for Kₙ, both claimed settled in 2026 by an AI-written, Lean-formalized pair of papers. Draw the optimal pictures, with crossings counted exactly. Flip edges and drag kilns to try to beat them. Run an exhaustive search of every two-page drawing up to K₁₁ in your browser.",
+      "tags": [
+        "canvas",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "hadamard",
+      "u": "https://proofs.mino.mobi/hadamard/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "A ±1 matrix whose rows are shifts of one row and all perfectly orthogonal. Ryser guessed in 1963 that only orders 1 and 4 have one, and a 2026 AI-written, Lean-formalized paper claims it, settling which lengths of Barker sequence (the codes radar and early Wi-Fi use) can exist. Flip signs and watch H·Hᵀ, exhaust every order to 18 and every Barker length to 44 in your browser, and see which orders each classical condition leaves.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "seymour",
+      "u": "https://proofs.mino.mobi/seymour/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "In any network of one-way links, someone reaches at least as many people in exactly two steps as in one. Paul Seymour conjectured it around 1990, and a 2026 AI-written, Lean-formalized paper claims it. Draw any oriented graph and watch which vertices qualify, see Paley tournaments sit exactly on the line, check every one of the 14,348,907 graphs on six vertices in your browser, and set an adversary hunting for a counterexample.",
+      "tags": [
+        "canvas",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "catalan",
+      "u": "https://proofs.mino.mobi/catalan/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Catalan's constant G = 1 − 1/9 + 1/25 − 1/49 + … turns up all over combinatorics, and for two centuries nobody could prove it is not a fraction. A 2026 AI-written paper claims it, with a Lean development behind it. Compute G two independent ways, see the 0.0000999 gap that leaves no room for a fraction, and replay both of the paper's finite certificates exactly in your browser: three 48 × 48 rational determinants and fifty bounded stationary points.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "mub",
+      "u": "https://proofs.mino.mobi/mub/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "How many measurements of a six-level quantum system can be completely complementary? Three are easy to build. Zauner conjectured in 1991 that four are impossible, and a 2026 AI-written, computer-assisted paper claims it. See the three bases checked exactly, replay Grassl's 2004 proof that the standard and Fourier bases can't be extended to four, watch a search for a fourth stall in dimension six but succeed in five, and test the companion paper's Fourier-vanishing theorem on any Hadamard matrix of order six.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "petty",
+      "u": "https://proofs.mino.mobi/petty/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Collect the areas of every shadow a solid casts and they form a second solid, its projection body. Petty guessed in 1971 that ellipsoids make it smallest, Brannen in 1996 that simplices make it largest. A pair of 2026 AI-written, Lean-formalized papers proves the first from dimension four up and breaks the second with two ten-dimensional simplices. Drag a polygon, turn solids and their projection bodies, and recompute the twenty-dimensional counterexample exactly from 231 determinants in your browser.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "ramsey",
+      "u": "https://proofs.mino.mobi/ramsey/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Colour every connection among N people red or blue: how many people force a red cycle through exactly m of them or a blue group of n who all know each other? Erdős and three coauthors guessed (m−1)(n−1)+1 in 1978, and a 2026 AI-written paper with a full Lean proof settles it. Colour graphs yourself, exhaust the small cases, and rerun the paper's whole 3,099-pattern finite check from its own rules in your browser, matching the published traces line for line.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "sidorenko",
+      "u": "https://proofs.mino.mobi/sidorenko/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-07",
+      "b": "2026-10-07",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "Sidorenko's conjecture said every bipartite pattern shows up in any graph at least as often as in a random one of the same density. A 2026 AI-written paper with a Lean proof breaks it with one explicit pattern: the 22 triangles of a 13-point triangulated sphere, read as a 35-vertex bipartite graph. Inspect the pattern and the paper's certificate for it, count it exactly in small graphs, and see why no small graph can be the counterexample.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
       "n": "henderhead",
       "u": "https://henderhead.mino.mobi",
       "c": "tools",
@@ -4555,6 +4707,41 @@
         "elixir",
         "llm",
         "eval"
+        ]
+      },
+      {
+      "n": "chair44",
+      "u": "https://math.mino.mobi/chair44/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "geometry",
+      "surface": "math",
+      "d": "The first 3D einstein: one shape that fills space, but only in patterns that never repeat. Found in September 2026 by Ioannis Tsiokos with an AI model, and checked in Lean. It is a chair of seven cubes carrying 192 pyramids too small to see. Twelve heights of bump and dent force every copy into a doubled chair, and those into a quadrupled one, forever. Spin it with the pyramids blown up 80 times, take apart the 8-, 64- and 512-chair patches, and step through the only 44 ways two copies can touch. The rest of the proof's finite census (2,388 → 44, 697 → 116 → 44) is recomputed in your browser from the published recipe.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
+      ]
+    },
+    {
+      "n": "grad",
+      "u": "https://math.mino.mobi/grad/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-30",
+      "b": "2026-09-30",
+      "p": "geometry",
+      "surface": "math",
+      "d": "In 1967 Harold Grad doubted that a confined plasma could balance its own pressure unless it was symmetric like a tokamak. In 2026 Matt Landreman wrote down twisted ones exactly, in square roots, trig and hyperbolic functions, with no solver anywhere. Spin the nested pressure surfaces coloured by field strength, or press a button and watch the shape relax into an ordinary tokamak and twist back out. Then open the slices. The curves come from the formulas; the dots come from field lines followed step by step through the magnetic field alone. They land on each other. Force balance is re-measured on every shape you make.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d",
+        "physics"
       ]
     }
   ],
@@ -4948,6 +5135,16 @@
       "glob": "equivelar",
       "kind": "pending",
       "reason": "catalogued at math.mino.mobi/equivelar/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
+    },
+    {
+      "glob": "chair44",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/chair44/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
+    },
+    {
+      "glob": "grad",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/grad/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
     },
     {
       "glob": "ising",

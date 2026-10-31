@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>catalan — G is irrational</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="Catalan's constant G = 1 − 1/9 + 1/25 − 1/49 + … has resisted every irrationality proof since Euler. A 2026 AI-written paper proves it by squeezing one quantity between two barriers 0.0001 apart, and backs both with exact finite certificates. Replay all of them in your browser: 144 modular pivots, three 48×48 determinants, 43 root brackets and 50 certified values.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6;
+  --accent: #2a78d6; --accent-faint: rgba(42,120,214,0.13); --accent-tint: rgba(42,120,214,0.06);
+  --panel: #f3f3f0; --stage: #f7f7f4;
+  --s1: #2a78d6; --s2: #eb6834; --good: #1f7a3f; --bad: #b3261e;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f;
+    --accent: #3987e5; --accent-faint: rgba(57,135,229,0.18); --accent-tint: rgba(57,135,229,0.08);
+    --panel: #20201e; --stage: #121211;
+    --s1: #3987e5; --s2: #d95926; --good: #6ec48f; --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--serif); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+.head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top)); }
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); overflow: hidden; display: flex; flex-direction: column; }
+.view { display: none; flex: 1 1 0; min-height: 0; flex-direction: column; padding: 0.6rem 0.9rem; gap: 0.6rem; overflow: auto; }
+.view.on { display: flex; }
+.digits { font-family: var(--mono); font-size: clamp(0.85rem, 2.4vw, 1.25rem); line-height: 1.55; word-break: break-all; letter-spacing: 0.04em; }
+.digits b { font-size: 1.8em; }
+.cap { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.04em; }
+svg { display: block; width: 100%; max-width: 620px; margin: 0 auto; }
+svg text { font-family: var(--mono); fill: var(--muted); }
+.grid { display: grid; gap: 1px; }
+.cell { aspect-ratio: 1; border-radius: 1px; }
+.status { font-family: var(--mono); font-size: 0.66rem; line-height: 1.7; }
+.ok { color: var(--good); } .no { color: var(--bad); }
+
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab { flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.4rem; }
+button.act { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.42rem 0.55rem; cursor: pointer; min-height: 2rem; }
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+button.act:disabled { opacity: 0.4; cursor: default; }
+.knob { display: grid; grid-template-columns: 4.2rem 1fr 2.8rem; align-items: center; gap: 0.4rem; margin: 0.1rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.66rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.note { font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.62rem; margin-top: 0.5rem; }
+table.facts td, table.facts th { padding: 0.22rem 0.25rem; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: top; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.55rem; }
+table.facts td:first-child, table.facts th:first-child { text-align: left; }
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose code, pre { font-family: var(--mono); font-size: 0.72rem; }
+pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.5rem 0.6rem; overflow-x: auto; line-height: 1.4; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+@media (min-width: 860px) {
+  .app { flex-direction: row; } .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 28rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; } .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://proofs.mino.mobi/">← proofs</a>
+      <h1>catalan</h1>
+      <span class="tagline">family 005 · Lean proof in library, uncatalogued</span>
+    </div>
+    <div class="stage">
+      <div class="view on" id="v-g">
+        <div class="cap">G = 1 − 1/3² + 1/5² − 1/7² + …</div>
+        <div class="digits" id="gdigits">computing…</div>
+        <div class="cap" id="gcheck"></div>
+        <div class="cap" style="margin-top:0.6rem">the two barriers on L = log|Δ_N|/(48N)² − ½ log 2, zoomed to the gap</div>
+        <svg id="gap" viewBox="0 0 320 96" role="img" aria-label="the two barriers"></svg>
+      </div>
+      <div class="view" id="v-barriers">
+        <div class="cap" id="bcap">the one-variable barriers for κ = 2, with every root bracket marked</div>
+        <svg id="plotX" viewBox="0 0 320 150" role="img" aria-label="X barrier"></svg>
+        <svg id="plotY" viewBox="0 0 320 150" role="img" aria-label="Y barrier"></svg>
+      </div>
+      <div class="view" id="v-matrices">
+        <div class="cap">ℬ, the fixed 49 × 48 rational matrix: blue positive, orange negative, darker means larger</div>
+        <div class="grid" id="bgrid" style="grid-template-columns:repeat(48,1fr);max-width:520px"></div>
+        <div class="cap" style="margin-top:0.4rem">pivots mod 101 for ℬ₀ + σℬ₁, recomputed (top) and as printed in the paper (bottom)</div>
+        <div id="pgrid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <nav class="tabs">
+      <button class="tab active" data-pane="g">G</button>
+      <button class="tab" data-pane="barriers">barriers</button>
+      <button class="tab" data-pane="matrices">matrices</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+      <div class="pane active" id="pane-g">
+        <div class="knob"><label for="dg">digits</label><input type="range" id="dg" min="50" max="600" step="50" value="150"><output id="dgv"></output></div>
+        <p class="note">Two independent routes to the same digits. One is Ramanujan's formula G = (π/8)·log(2 + √3) + (3/8)·Σ (n!)²/((2n)!(2n+1)²). The other is the defining alternating series, which converges painfully slowly until it is sped up with the Cohen–Rodriguez Villegas–Zagier acceleration. Matching digits are no proof of anything. Irrationality is a statement about every possible fraction, which is why it took until 2026.</p>
+        <p class="note"><strong>How the proof works.</strong> It builds determinants Δ_N of size 48N whose entries mix 1, G and ζ(2), with ζ(2) cancelling exactly. If G were a fraction, every Δ_N would be rational, and counting the primes in its denominator forces log|Δ_N|, suitably scaled, to stay above <strong>−2.29084</strong>. An unconditional analytic estimate pins it below <strong>−2.290939875</strong>. Both cannot hold, and the room between them is 0.0000999. Both bounds rest on finite certificates printed in the paper, and the next two tabs replay them.</p>
+      </div>
+      <div class="pane" id="pane-barriers">
+        <div class="row" style="margin-top:0"><button class="act" data-k="2" aria-pressed="true">κ = 2</button><button class="act" data-k="1">κ = 1</button><button class="act" id="replayB">replay the certificate</button></div>
+        <div class="status" id="bstatus"><span style="color:var(--muted)">The analytic bound comes down to the highest point of two explicit one-variable functions, X and Y, for each case κ. The paper finds every stationary point exactly. It builds the derivatives' numerator polynomials over ℚ, counts their roots on each interval by Descartes' rule, traps each root in a bracket of width 2·10⁻¹⁰, and bounds the function at all fifty candidates. Press replay to redo all of it in exact arithmetic, with 60-digit logarithms.</span></div>
+        <table class="facts" id="vtab" hidden><thead><tr><th>κ fn 10¹⁰x</th><th>paper's upper bound</th><th>recomputed</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="pane" id="pane-matrices">
+        <div class="row" style="margin-top:0"><button class="act" id="replayM">replay the certificate</button></div>
+        <div class="status" id="mstatus"><span style="color:var(--muted)">The arithmetic bound needs some Δ_N to be nonzero. The paper reduces the growing 48p × 48p determinant, for large primes p, to three fixed rational 48 × 48 matrices: ℬ₀, ℬ₀ + ℬ₁ and ℬ₀ − ℬ₁. It builds every entry by rational recurrences and certifies invertibility by Gaussian elimination mod 101, printing all 144 pivots. Replay rebuilds ℬ from the recipe, redoes the elimination, and computes the three determinants exactly over ℚ as well.</span></div>
+      </div>
+      <div class="pane prose" id="pane-about">
+        <h2>The constant</h2>
+        <p><strong>Catalan's constant</strong> G = 1 − 1/9 + 1/25 − 1/49 + … ≈ 0.9159655942 turns up across mathematics: in counting domino tilings, in the volume of the hyperbolic figure-eight knot complement, and in a long list of integrals. Its sibling ζ(2) = 1 + 1/4 + 1/9 + … equals π²/6 and has been known to be irrational since 1794. Whether G is a fraction stayed open. The best results showed only that at least one of a small family of similar numbers must be irrational, without saying which (Rivoal and Zudilin, 2003; down to five values by Lai and Zhou, 2022).</p>
+
+        <h2>The 2026 claim</h2>
+        <p>A paper dated 24 September 2026, written by an internal OpenAI model and released on 6 October in <a href="https://github.com/openai/math">a collection of 722</a>, proves that G is irrational. The determinants it builds behave like squeezed rationals. If G were p/q they could neither be too small (denominators) nor too large (analysis), and the two estimates miss each other by about 0.0001. The paper also deduces irrationality of some hyperbolic volumes. It notes that Sun has announced an independent proof of the same statement.</p>
+
+        <h2>How it was checked</h2>
+        <p>The release's Lean library contains a development for this theorem: 981 files and about 574,000 lines, with no <code>sorry</code>. It also contains a Comparator challenge whose statement is the definition itself:</p>
+<pre>theorem catalan_irrational :
+    Irrational (∑' j : ℕ, (-1 : ℝ) ^ j
+      / ((2 * j + 1 : ℕ) : ℝ) ^ 2)</pre>
+        <p>But the release's formalization catalogue does not list this paper, so the index on this site counts it as not formalized. We did not build or run that Lean. The paper is a preprint.</p>
+
+        <h2>What this page checks</h2>
+        <p><code>catalan.js</code> is the only copy of the maths, and <code>catalan.selftest.mjs</code> holds it to 166 checks. It replays both of the paper's finite certificates exactly.</p>
+        <p>From the <strong>nonvanishing</strong> certificate:</p>
+        <ul>
+          <li>All 144 pivots modulo 101 and both row swaps match the printed table.</li>
+          <li>The three determinants are nonzero over ℚ, computed exactly (numerators of about 2,000 digits).</li>
+          <li>Each determinant reduced mod 101 equals ± the product of the paper's pivots.</li>
+        </ul>
+        <p>From the <strong>barrier</strong> certificate:</p>
+        <ul>
+          <li>The four numerator polynomials have the paper's degrees (36, 24, 13, 9).</li>
+          <li>Every Descartes count matches, and every one of the 43 root brackets has a sign change.</li>
+          <li>All 50 tabulated values and both norm terms hold, each within 10⁻¹² of its printed bound.</li>
+          <li>The final sum comes out exactly −2.290939875.</li>
+        </ul>
+        <p>Not checked here: the arithmetic lower bound −2.29084. It needs the prime number theorem and the paper's denominator analysis. Also not checked: the step from the fixed matrices to the growing determinants. Those are the proof's words, not its numbers.</p>
+        <div class="crossref">
+          the collection · <a href="https://proofs.mino.mobi/">proofs</a> ·
+          the paper · <a href="https://github.com/openai/math/blob/main/preprints/Catalans-constant-is-irrational-September-24-2026/paper.pdf">Catalan</a> ·
+          next door · <a href="https://proofs.mino.mobi/hadamard/">hadamard</a> · <a href="https://proofs.mino.mobi/seymour/">seymour</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+
+// ================================================================ worker ===
+const workers = {};
+function run(task, msg, onMsg) {
+  if (workers[task]) workers[task].terminate();
+  let w;
+  try { w = new Worker('./search.worker.js', { type: 'module' }); } catch { onMsg({ done: true, error: 'this browser has no module workers' }); return; }
+  workers[task] = w;
+  w.onmessage = (e) => onMsg(e.data);
+  w.onerror = (e) => onMsg({ done: true, error: e.message || 'worker failed' });
+  w.postMessage({ task, ...msg });
+}
+const ms = (t) => (t < 1000 ? Math.round(t) + ' ms' : (t / 1000).toFixed(1) + ' s');
+
+// ================================================================== G ======
+function digits() {
+  const n = +$('dg').value; $('dgv').textContent = n;
+  $('gdigits').textContent = 'computing…';
+  run('digits', { digits: n }, (d) => {
+    if (d.error) { $('gdigits').textContent = d.error; return; }
+    const [i, f] = d.ramanujan.split('.');
+    $('gdigits').innerHTML = `<b>${i}.${f.slice(0, 10)}</b>${f.slice(10)}`;
+    let agree = 0; while (agree < d.ramanujan.length && d.ramanujan[agree] === d.cvz[agree]) agree++;
+    $('gcheck').innerHTML = d.ramanujan === d.cvz
+      ? `<span class="ok">✓ both methods agree on all ${n} digits</span> · ${ms(d.ms)}`
+      : `<span class="no">methods diverge after ${agree - 2} digits</span>`;
+  });
+}
+$('dg').addEventListener('change', digits);
+$('dg').addEventListener('input', (e) => { $('dgv').textContent = e.target.value; });
+function drawGap() {
+  // a number line from −2.29100 to −2.29080
+  const lo = -2.2910, hi = -2.2908, W = 320, X = (v) => 14 + ((v - lo) / (hi - lo)) * (W - 28);
+  const up = -2.290939875, low = -2.29084;
+  let s = `<line x1="14" x2="${W - 14}" y1="52" y2="52" stroke="var(--faint)" stroke-width="0.8"/>`;
+  for (let k = 0; k <= 4; k++) { const v = lo + k * 0.00005; s += `<line x1="${X(v)}" x2="${X(v)}" y1="49" y2="55" stroke="var(--faint)" stroke-width="0.6"/><text x="${X(v)}" y="66" font-size="5.5" text-anchor="middle">${v.toFixed(5)}</text>`; }
+  s += `<rect x="${X(lo)}" y="40" width="${X(up) - X(lo)}" height="12" fill="var(--s1)" opacity="0.28"/>`;
+  s += `<rect x="${X(low)}" y="52" width="${X(hi) - X(low)}" height="12" fill="var(--s2)" opacity="0.28"/>`;
+  s += `<line x1="${X(up)}" x2="${X(up)}" y1="30" y2="56" stroke="var(--s1)" stroke-width="1.6"/><text x="14" y="30" font-size="6.5" fill="var(--s1)">analysis: L ≤ −2.290939875</text>`;
+  s += `<line x1="${X(low)}" x2="${X(low)}" y1="48" y2="78" stroke="var(--s2)" stroke-width="1.6"/><text x="${W - 14}" y="88" font-size="6.5" text-anchor="end" fill="var(--s2)">if G = p/q: L &gt; −2.29084</text>`;
+  s += `<text x="${(X(up) + X(low)) / 2}" y="14" font-size="6.5" text-anchor="middle" fill="var(--fg)">gap 0.0000999: no room for G to be a fraction</text>`;
+  $('gap').innerHTML = s;
+}
+
+// ============================================================ barriers =====
+let kappa = 2;
+function plot(svg, pts, fn, k, brackets, cutoff, valueRows) {
+  const W = 320, H = 150, L = 34, B = 18, T = 16;
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const top = Math.max(...ys, ...valueRows.map((r) => Number(r.bound))), bot = Math.min(...valueRows.map((r) => Number(r.bound)), cutoff), span = Math.max(top - bot, 1e-3);
+  const yHi = top + 0.25 * span, yLo = bot - 0.6 * span;   // zoom to the certified values; the dips below are clipped
+  const xLo = fn === 'X' ? -1 : 0, xHi = 1;
+  const X = (x) => L + ((x - xLo) / (xHi - xLo)) * (W - L - 6), Y = (y) => T + (1 - (Math.max(yLo, Math.min(yHi, y)) - yLo) / (yHi - yLo)) * (H - T - B);
+  let s = '';
+  for (let k2 = 0; k2 <= 3; k2++) { const v = yLo + (k2 * (yHi - yLo)) / 3; s += `<line x1="${L}" x2="${W - 6}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--rule)" stroke-width="0.5"/><text x="${L - 3}" y="${Y(v) + 2.5}" font-size="6.5" text-anchor="end">${v.toFixed(span < 0.01 ? 4 : 3)}</text>`; }
+  s += `<text x="${L}" y="${H - 4}" font-size="6.5">${xLo}</text><text x="${W - 6}" y="${H - 4}" font-size="6.5" text-anchor="end">1</text><text x="${(L + W) / 2}" y="${H - 4}" font-size="6.5" text-anchor="middle">x</text>`;
+  s += `<line x1="${L}" x2="${W - 6}" y1="${Y(cutoff)}" y2="${Y(cutoff)}" stroke="var(--bad)" stroke-dasharray="3 2" stroke-width="0.8"/><text x="${W - 8}" y="${Y(cutoff) - 2}" font-size="6.5" text-anchor="end" fill="var(--bad)">cutoff ${cutoff}</text>`;
+  // the curve, broken at gaps
+  let d = '', prev = null;
+  for (const [x, y] of pts) { d += (prev === null || x - prev > 0.02 ? 'M' : 'L') + X(x).toFixed(1) + ' ' + Y(y).toFixed(1); prev = x; }
+  s += `<path d="${d}" fill="none" stroke="var(--s1)" stroke-width="1.6" stroke-linejoin="round"/>`;
+  for (const m of brackets) { const x = m / 1e10; s += `<line x1="${X(x)}" x2="${X(x)}" y1="${H - B}" y2="${H - B - 5}" stroke="var(--s2)" stroke-width="1"/>`; }
+  for (const r of valueRows) { const x = r.s / 1e10, y = Number(r.bound); s += `<circle cx="${X(x)}" cy="${Y(y)}" r="2.2" fill="${r.type === 'P' ? 'var(--fg)' : 'var(--s2)'}"><title>${esc(r.bound)}</title></circle>`; }
+  s += `<text x="${L}" y="9" font-size="6.5" fill="var(--fg)">${fn}${k === 2 ? '₂' : '₁'}(x) · ticks = root brackets · dots = certified values</text>`;
+  svg.innerHTML = s;
+}
+const VALUE_TABLE_CACHE = {};
+function curves() {
+  $('bcap').textContent = `the one-variable barriers for κ = ${kappa}, with every root bracket marked`;
+  $('plotX').innerHTML = `<text x="160" y="75" font-size="8" text-anchor="middle">computing X${kappa === 2 ? '₂' : '₁'} with 60-digit logarithms…</text>`;
+  $('plotY').innerHTML = '';
+  import('./catalan.js').then((K) => {
+    run('curves', { kappa }, (d) => {
+      if (d.error || d.kappa !== kappa) return;
+      const rows = (fn) => K.VALUE_TABLE.filter((r) => r[0] === kappa && r[1] === fn).map((r) => ({ s: r[2], type: r[3], bound: r[4] }));
+      plot($('plotX'), d.curves.X, 'X', kappa, K.BRACKETS[kappa + 'X'], Number(K.CUTOFFS[kappa].X), rows('X'));
+      plot($('plotY'), d.curves.Y, 'Y', kappa, K.BRACKETS[kappa + 'Y'], Number(K.CUTOFFS[kappa].Y), rows('Y'));
+    });
+  });
+}
+for (const b of document.querySelectorAll('[data-k]')) b.addEventListener('click', () => {
+  kappa = +b.dataset.k;
+  for (const c of document.querySelectorAll('[data-k]')) c.setAttribute('aria-pressed', String(c === b));
+  curves();
+});
+$('replayB').addEventListener('click', () => {
+  $('replayB').disabled = true;
+  const st = $('bstatus'); st.innerHTML = 'building the four numerator polynomials over ℚ…';
+  const tb = $('vtab'); tb.hidden = true; tb.tBodies[0].innerHTML = '';
+  let html = '';
+  run('barriers', {}, (d) => {
+    if (d.error) { st.innerHTML = `<span class="no">${esc(d.error)}</span>`; $('replayB').disabled = false; return; }
+    if (d.step === 'numerators') html += d.rows.map((r) => `<span class="${r.deg === r.want ? 'ok' : 'no'}">✓</span> A_${r.key[1]} for κ=${r.key[0]} has degree ${r.deg} (paper: ${r.want})`).join('<br>') + '<br>';
+    if (d.step === 'descartes') html += d.rows.map((r) => { const okd = r.got.join() === r.want.join() && r.good === r.brackets; return `<span class="${okd ? 'ok' : 'no'}">✓</span> κ=${r.key[0]} ${r.key[1]}: sign variations ${r.got.join(', ')} (paper ${r.want.join(', ')}) · ${r.good}/${r.brackets} brackets change sign`; }).join('<br>') + '<br>';
+    if (d.step === 'values') {
+      const good = d.rows.filter((r) => r.ok).length;
+      html += `<span class="${good === d.rows.length ? 'ok' : 'no'}">✓</span> ${good}/${d.rows.length} certified values: each recomputed value is at or below the paper's bound, within 10⁻¹²<br>`;
+      tb.hidden = false;
+      tb.tBodies[0].innerHTML = d.rows.map((r) => `<tr><td>${r.k} ${r.fn} ${r.s}</td><td>${r.bound}</td><td>${r.value.slice(0, 16)}</td><td class="${r.ok ? 'ok' : 'no'}">${r.ok ? '✓' : '✗'}</td></tr>`).join('');
+    }
+    if (d.step === 'norms') html += d.rows.map((r) => `<span class="${r.ok ? 'ok' : 'no'}">✓</span> κ=${r.k}: κ‖p‖² + ½‖v‖² = ${r.value.slice(0, 15)} ≤ ${r.bound}`).join('<br>') + '<br>';
+    if (d.done) {
+      html += d.final.map((f) => `<span class="ok">✓</span> κ=${f.k}: −(11/16)·0.693146 + cutoffs + 0.000048 = <b>${f.dec}</b> = ${f.value}`).join('<br>');
+      html += `<br><span class="ok">✓</span> the larger, −2.290939875, is below −2.29084: the two barriers cannot both hold · ${ms(d.ms)}`;
+      $('replayB').disabled = false;
+    }
+    st.innerHTML = html;
+  });
+});
+
+// ============================================================ matrices =====
+$('replayM').addEventListener('click', () => {
+  $('replayM').disabled = true;
+  const st = $('mstatus'); st.innerHTML = 'building ℬ from the rational recipe (49 × 48 exact fractions)…';
+  run('matrices', {}, (d) => {
+    if (d.error) { st.innerHTML = `<span class="no">${esc(d.error)}</span>`; $('replayM').disabled = false; return; }
+    if (d.step === 'built') {
+      const mx = Math.max(...d.pic.flat().map(Math.abs));
+      $('bgrid').innerHTML = d.pic.map((row) => row.map((v) => `<div class="cell" style="background:${v === 0 ? 'var(--rule)' : `color-mix(in srgb, ${v > 0 ? 'var(--s1)' : 'var(--s2)'} ${Math.round(25 + 75 * Math.abs(v) / (mx || 1))}%, var(--stage))`}"></div>`).join('')).join('');
+      st.innerHTML = `ℬ built in ${ms(d.ms)}. Eliminating mod 101 and computing exact determinants…`;
+      return;
+    }
+    let html = '', pg = '';
+    for (const r of d.res) {
+      const same = r.pivots.join() === r.want.join(), swaps = JSON.stringify(r.swaps) === JSON.stringify(r.wantSwaps);
+      html += `<span class="${same && swaps ? 'ok' : 'no'}">✓</span> ℬ₀ ${r.s === 0 ? '' : r.s > 0 ? '+ ℬ₁' : '− ℬ₁'}: 48/48 pivots and ${r.swaps.length ? 'swaps ' + r.swaps.map((s) => `(${s})`).join(' ') : 'no swaps'} match the paper` +
+        `<br>&nbsp;&nbsp;exact det over ℚ: ${r.nonzero ? 'nonzero' : 'ZERO'}, a ${r.numDigits}-digit numerator over a ${r.denDigits}-digit denominator; mod 101 it equals ± the product of the pivots ${r.modCheck ? '✓' : '✗'}<br>`;
+      const cell = (a, b) => `<div class="cell" title="${a}" style="background:${a === b ? 'var(--good)' : 'var(--bad)'};opacity:${0.35 + 0.65 * (a / 100)}"></div>`;
+      pg += `<div class="cap">σ = ${r.s}</div><div class="grid" style="grid-template-columns:repeat(48,1fr);max-width:520px;margin-bottom:2px">${r.pivots.map((p, i) => cell(p, r.want[i])).join('')}</div>` +
+        `<div class="grid" style="grid-template-columns:repeat(48,1fr);max-width:520px;margin-bottom:6px">${r.want.map((p) => `<div class="cell" style="background:var(--faint);opacity:${0.35 + 0.65 * (p / 100)}"></div>`).join('')}</div>`;
+    }
+    $('pgrid').innerHTML = pg;
+    st.innerHTML = html + `all three fixed matrices are invertible · ${ms(d.ms)}`;
+    $('replayM').disabled = false;
+  });
+});
+
+// ================================================================== tabs ===
+for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => {
+  const p = t.dataset.pane;
+  for (const u of document.querySelectorAll('.tab')) u.classList.toggle('active', u === t);
+  for (const q of document.querySelectorAll('.pane')) q.classList.toggle('active', q.id === 'pane-' + p);
+  if (p !== 'about') for (const v of document.querySelectorAll('.view')) v.classList.toggle('on', v.id === 'v-' + p);
+  if (p === 'barriers' && !$('plotX').innerHTML) curves();
+});
+drawGap(); digits();
+</script>
+</body>
+</html>

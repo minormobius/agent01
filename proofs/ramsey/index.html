@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ramsey — cycles against cliques</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="Colour every connection among N people red or blue. How large must N be before you are forced into a red cycle through exactly m people or a blue group of n who all know each other? Erdős, Faudree, Rousseau and Schelp guessed (m−1)(n−1)+1 in 1978. A 2026 AI-written paper with a full Lean proof settles it. Colour graphs yourself, exhaust the small cases, and rerun the paper's 3,099-pattern finite check from its own rules in your browser.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6;
+  --accent: #2a78d6; --accent-faint: rgba(42,120,214,0.13); --accent-tint: rgba(42,120,214,0.06);
+  --panel: #f3f3f0; --stage: #f7f7f4;
+  --s1: #2a78d6; --s2: #eb6834; --good: #1f7a3f; --bad: #b3261e;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f;
+    --accent: #3987e5; --accent-faint: rgba(57,135,229,0.18); --accent-tint: rgba(57,135,229,0.08);
+    --panel: #20201e; --stage: #121211;
+    --s1: #3987e5; --s2: #d95926; --good: #6ec48f; --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--serif); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+.head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top)); }
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); overflow: hidden; display: flex; flex-direction: column; }
+.view { display: none; flex: 1 1 0; min-height: 0; flex-direction: column; padding: 0.6rem 0.9rem; gap: 0.6rem; overflow: auto; }
+.view.on { display: flex; }
+.cap { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.04em; }
+svg { display: block; width: 100%; max-width: 620px; margin: 0 auto; }
+svg text { font-family: var(--mono); fill: var(--muted); }
+.grid { display: grid; gap: 1px; }
+.cell { aspect-ratio: 1; border-radius: 1px; }
+.status { font-family: var(--mono); font-size: 0.66rem; line-height: 1.7; }
+.ok { color: var(--good); } .no { color: var(--bad); }
+
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab { flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.4rem; }
+button.act { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.42rem 0.55rem; cursor: pointer; min-height: 2rem; }
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+button.act:disabled { opacity: 0.4; cursor: default; }
+.knob { display: grid; grid-template-columns: 4.2rem 1fr 2.8rem; align-items: center; gap: 0.4rem; margin: 0.1rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.66rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.note { font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.62rem; margin-top: 0.5rem; }
+table.facts td, table.facts th { padding: 0.22rem 0.25rem; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: top; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.55rem; }
+table.facts td:first-child, table.facts th:first-child { text-align: left; }
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose code, pre { font-family: var(--mono); font-size: 0.72rem; }
+pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.5rem 0.6rem; overflow-x: auto; line-height: 1.4; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+@media (min-width: 860px) {
+  .app { flex-direction: row; } .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 28rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; } .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+.view > * { flex-shrink: 0; }
+svg.graph { max-width: 480px; touch-action: manipulation; }
+svg.graph line.e { cursor: pointer; }
+.cells { display: grid; gap: 1px; width: 100%; max-width: 760px; margin: 0 auto; }
+.krow { display: grid; grid-template-columns: 2.2rem 1fr; gap: 0.3rem; align-items: center; }
+.krow .lab { font-family: var(--mono); font-size: 0.58rem; color: var(--muted); text-align: right; }
+.krow .strip { display: flex; flex-wrap: wrap; gap: 1px; }
+.krow .strip i { width: 6px; height: 6px; display: block; border-radius: 1px; background: var(--rule); cursor: pointer; }
+.krow .strip i.c1 { background: var(--s1); } .krow .strip i.c2 { background: var(--s2); } .krow .strip i.x { background: var(--bad); }
+.krow .strip i.sel { outline: 2px solid var(--fg); }
+#smchips button.act { text-transform: none; font-size: 0.66rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.chips button.act { min-width: 2.2rem; padding: 0.3rem 0.4rem; }
+.swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -0.1rem; margin-right: 0.2rem; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://proofs.mino.mobi/">← proofs</a>
+      <h1>ramsey</h1>
+      <span class="tagline">family 189 · Lean proof in library, uncatalogued</span>
+    </div>
+    <div class="stage">
+      <div class="view on" id="v-colour">
+        <div class="cap" id="ccap"></div>
+        <svg class="graph" id="g" viewBox="-1.25 -1.25 2.5 2.5"></svg>
+      </div>
+      <div class="view" id="v-small">
+        <div class="cap" id="smcap">good graphs (no red C_m, no blue K_n) on each number of vertices, counted with labels, log scale</div>
+        <svg id="levels" viewBox="0 0 320 170"></svg>
+        <div class="cap" id="wcap" style="text-align:center"></div>
+        <svg class="graph" id="wg" viewBox="-1.25 -1.25 2.5 2.5" style="max-width:300px"></svg>
+      </div>
+      <div class="view" id="v-finite">
+        <div class="cap">all 3,099 patterns, one row per k = m − 1. <span class="swatch" style="background:var(--s1)"></span>output 1 (initial packing) <span class="swatch" style="background:var(--s2)"></span>output 2 (after strengthening) <span class="swatch" style="background:var(--bad)"></span>disagrees with the release</div>
+        <div class="cells" id="cells"></div>
+        <div class="cap" id="pcap" style="text-align:center"></div>
+        <svg class="graph" id="pg" viewBox="-1.3 -1.3 2.6 2.6" style="max-width:340px"></svg>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <nav class="tabs">
+      <button class="tab active" data-pane="colour">colour</button>
+      <button class="tab" data-pane="small">small cases</button>
+      <button class="tab" data-pane="finite">3,099</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+      <div class="pane active" id="pane-colour">
+        <div class="knob"><label>cycle C_m</label><div class="chips" id="mchips"></div><output></output></div>
+        <div class="knob"><label>clique K_n</label><div class="chips" id="nchips"></div><output></output></div>
+        <div class="row"><button class="act" id="ext">the extremal colouring</button><button class="act" id="addv">+ one vertex</button><button class="act" id="rnd">random</button></div>
+        <div class="status" id="cstat"></div>
+        <p class="note">Tap an edge to flip it between red and blue. The extremal colouring uses n − 1 red groups of m − 1 people, blue between them, on (m − 1)(n − 1) vertices. No red cycle can have m vertices, because each red group is too small, and no blue clique can have n, because there are only n − 1 groups. The theorem says that one more vertex always breaks it. Add one and try to colour its edges so that nothing appears.</p>
+      </div>
+      <div class="pane" id="pane-small">
+        <div class="row" style="margin-top:0" id="smchips"></div>
+        <div class="status" id="smstat"></div>
+        <p class="note">This is a plain exhaustive search with no theory in it. It builds graphs one vertex at a time and keeps those with no red C_m and no blue K_n. Both properties pass to subgraphs, so every good graph on N vertices is reached. The first N with none left is R(C_m, K_n). These small values have been known for decades; the 2026 claim is about all of them. The last two cases take about 15–25 seconds.</p>
+      </div>
+      <div class="pane" id="pane-finite">
+        <div class="row" style="margin-top:0"><button class="act" id="runF">rerun all 3,099</button></div>
+        <div class="status" id="fstat"><span style="color:var(--muted)">Starting…</span></div>
+        <p class="note">The proof reduces everything to graphs with no cycle of length k + 1 = m, few independent vertices, and a clique Q of order t. Only 5 ≤ k ≤ 17 and t ≤ 8 are left for a computer. There, a <b>pattern</b> records how paths between clique vertices, outside the clique, can hang together. Rules proved in the paper (extension, required paths, ball bounds, packing, strengthening) must then reach a contradiction for every pattern. This page implements those rules again from the paper's text, in about 300 lines of JavaScript, without translating the release's Python. It runs them on every pattern, and checks the result against the release's deduction traces: every outcome, every initial forbidden-flag matrix, every round of added prohibitions, and every witness. Tap a cell to inspect its pattern.</p>
+        <div class="status" id="pinfo"></div>
+      </div>
+      <div class="pane prose" id="pane-about">
+        <h2>The question</h2>
+        <p>The Ramsey number R(C_m, K_n) is the least N such that every red–blue colouring of the edges of the complete graph on N vertices contains a red cycle through exactly m vertices or a blue clique on n vertices. In 1978 Erdős, Faudree, Rousseau and Schelp conjectured that it equals (m − 1)(n − 1) + 1 whenever m ≥ n ≥ 3, apart from R(C₃, K₃) = 6. Before 2026 the conjecture was proved piece by piece:</p>
+        <ul>
+          <li>for n = 3 by Chartrand and Schuster (1971);</li>
+          <li>for m ≥ n² − 2 by Bondy and Erdős (1973);</li>
+          <li>for n = 4, 5, 6 and 7, by four different groups between 1999 and 2008;</li>
+          <li>for large m by Nikiforov (2005);</li>
+          <li>and, by Keevash, Long and Skokan (2021), everywhere beyond an unspecified constant, which left finitely many unknown cases.</li>
+        </ul>
+
+        <h2>The 2026 claim</h2>
+        <p>A paper dated 25 September 2026, released on 6 October in <a href="https://github.com/openai/math">a collection of 722 model-written papers</a>, proves the full conjecture. Most of it is structural. It shows that a minimal counterexample has an expansion property, contains a large clique, and has path systems that cannot be improved. A finite search over 3,099 patterns settles the rest. It does not search over graphs or colourings.</p>
+
+        <h2>What Lean covers</h2>
+        <p>The release's Lean library proves the entire main theorem. Its scope note calls it "the complete parameter range of the paper's main theorem". The paper is not in the release's formalization catalogue, which is why the tagline says <i>uncatalogued</i>. The statement, verbatim:</p>
+<pre>def RamseyProperty (m n N : ℕ) : Prop :=
+  ∀ G : SimpleGraph (Fin N),
+    SimpleGraph.cycleGraph m ⊑ G ∨ (⊤ : SimpleGraph (Fin n)) ⊑ Gᶜ
+
+theorem thm_main :
+    (∀ m n : ℤ, n ≤ m → 3 ≤ n → (m, n) ≠ (3, 3) →
+      (cycleCliqueRamsey m.toNat n.toNat : ℤ) = (m - 1) * (n - 1) + 1) ∧
+    cycleCliqueRamsey 3 3 = 6</pre>
+        <p>Here G is the red graph and its complement Gᶜ the blue one, and <code>cycleCliqueRamsey m n</code> is the least N with <code>RamseyProperty m n N</code>. We did not build or run the Lean.</p>
+
+        <h2>What this page checks</h2>
+        <p><code>ramsey.js</code> is the only copy of the maths, and <code>ramsey.selftest.mjs</code> holds it to 3,675 checks.</p>
+        <ul>
+          <li><b>The lower bound.</b> The extremal colouring has no red C_m and independence number exactly n − 1, for every case up to 24 vertices. The 5-cycle gives R(C₃, K₃) &gt; 5.</li>
+          <li><b>Small cases.</b> Exhaustive search gives R = 6, 7, 9, 11 for (3,3), (4,3), (5,3), (6,3), and the page adds (7,3) = 13 and (4,4) = 10. The incremental cycle test matches a literal one on random graphs.</li>
+          <li><b>The finite search.</b>
+            <ul>
+              <li>The pattern recursion and the paper's generating function both give the paper's counts for all 42 pairs (k, t), 3,099 in total. The paper's worked example (k = 5, t = 3) forbids d = 1, 2.</li>
+              <li>Our independent implementation of the rules returns the paper's output table: 3,049 patterns with output 1, 50 with output 2, none unresolved.</li>
+              <li>For every one of the 3,099 patterns, the outcome, the initial forbidden flags and each strengthening round are identical to the release's traces.</li>
+              <li>Every witness in those traces is valid against data rebuilt here, and tampered witnesses are rejected.</li>
+            </ul>
+          </li>
+        </ul>
+        <p>Not checked: the structural part of the proof (Sections 2–8). That covers the reduction to graphs with an expansion property, the clique bound t ≥ ⌊k/2⌋, the cases k = 3, 4, and the argument for t ≥ 9. Those are proofs in words, and the Lean development covers them. The finite search is only as good as the rules it applies, and the rules come from the paper.</p>
+        <p>A note on independence: our implementation and the release's two Python programs share the paper's rules. That is the point, since the rules are proved in the text. They share no code. The release's Python and its trace file are third-party data. We read the trace file and never ran their code.</p>
+        <div class="crossref">
+          the collection · <a href="https://proofs.mino.mobi/">proofs</a> ·
+          the paper · <a href="https://github.com/openai/math/blob/main/preprints/Cycle-clique-Ramsey-numbers-September-25-2026/Cycle-clique-Ramsey-numbers-September-25-2026.pdf">cycle–clique Ramsey numbers</a> · <a href="https://github.com/openai/math/blob/main/lean/docs/189.md">Lean scope</a> ·
+          next door · <a href="https://proofs.mino.mobi/seymour/">seymour</a> · <a href="https://proofs.mino.mobi/crossing/">crossing</a>
+        </div>
+        <p class="note">Not affiliated with OpenAI. The paper and its trace data are Apache-2.0. <code>traces.json</code> is a compacted copy of the release's <code>certificates.jsonl</code>: its 3.4 MB of initial flags are replaced by a checksum, which this page compares against flags it recomputes. Formulas are retyped in Unicode.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as R from './ramsey.js';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+const ms = (t) => (t < 1000 ? Math.round(t) + ' ms' : (t / 1000).toFixed(1) + ' s');
+const SUB = (n) => String(n).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]);
+
+// ================================================================ worker ===
+const workers = {};
+function run(task, msg, onMsg) {
+  if (workers[task]) workers[task].terminate();
+  let w;
+  try { w = new Worker('./search.worker.js', { type: 'module' }); } catch { onMsg({ done: true, error: 'this browser has no module workers' }); return; }
+  workers[task] = w;
+  w.onmessage = (e) => onMsg(e.data);
+  w.onerror = (e) => onMsg({ done: true, error: e.message || 'worker failed' });
+  w.postMessage({ task, ...msg });
+}
+
+// ================================================================== tabs ===
+const seen = new Set(['colour']);
+const onOpen = { small: () => exhaust(4, 3), finite: () => replay() };
+document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b));
+  const p = b.dataset.pane;
+  document.querySelectorAll('.pane').forEach((x) => x.classList.toggle('active', x.id === 'pane-' + p));
+  if (p !== 'about') document.querySelectorAll('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + p));
+  if (!seen.has(p)) { seen.add(p); onOpen[p]?.(); }
+}));
+
+// ======================================================= drawing a colouring ===
+// red edges from adj (bitmasks); every other pair is blue. Positions on a circle, grouped.
+function drawGraph(svg, adj, N, { cyc = null, cl = null, onEdge = null, groups = null } = {}) {
+  const pos = [];
+  for (let i = 0; i < N; i++) { const a = (2 * Math.PI * i) / N - Math.PI / 2; pos.push([Math.cos(a), Math.sin(a)]); }
+  const inCyc = new Set(), cycEdges = new Set();
+  if (cyc) cyc.forEach((v, i) => { inCyc.add(v); const w = cyc[(i + 1) % cyc.length]; cycEdges.add(Math.min(v, w) * 64 + Math.max(v, w)); });
+  const inCl = new Set(cl || []);
+  const thin = N > 12 ? 0.008 : 0.012, light = cyc || cl ? 0.25 : 0.85;
+  let s = '';
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+    const red = !!(adj[i] & (1 << j)), key = i * 64 + j;
+    const hi = (red && cycEdges.has(key)) || (!red && inCl.has(i) && inCl.has(j));
+    s += `<line class="e" data-i="${i}" data-j="${j}" x1="${pos[i][0]}" y1="${pos[i][1]}" x2="${pos[j][0]}" y2="${pos[j][1]}" stroke="${red ? 'var(--bad)' : 'var(--s1)'}" stroke-width="${hi ? thin * 4 : thin}" opacity="${hi ? 1 : light}"/>`;
+    if (onEdge) s += `<line class="e" data-i="${i}" data-j="${j}" x1="${pos[i][0]}" y1="${pos[i][1]}" x2="${pos[j][0]}" y2="${pos[j][1]}" stroke="transparent" stroke-width="0.07"/>`;
+  }
+  for (let i = 0; i < N; i++) s += `<circle cx="${pos[i][0]}" cy="${pos[i][1]}" r="${N > 12 ? 0.045 : 0.06}" fill="${inCyc.has(i) ? 'var(--bad)' : inCl.has(i) ? 'var(--s1)' : 'var(--fg)'}" stroke="var(--bg)" stroke-width="0.015"/>`;
+  svg.innerHTML = s;
+  if (onEdge) svg.querySelectorAll('line.e').forEach((el) => el.addEventListener('click', () => onEdge(+el.dataset.i, +el.dataset.j)));
+}
+
+// ============================================================ colour tab ===
+let m = 4, n = 3, N = 0, adj = [];
+function chips() {
+  $('mchips').innerHTML = [3, 4, 5, 6, 7, 8].map((v) => `<button class="act" data-m="${v}" aria-pressed="${v === m}">${v}</button>`).join('');
+  $('nchips').innerHTML = [3, 4, 5].map((v) => `<button class="act" data-n="${v}" aria-pressed="${v === n}" ${v > m ? 'disabled' : ''}>${v}</button>`).join('');
+  document.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => { m = +b.dataset.m; if (n > m) n = m; chips(); extremalColouring(); }));
+  document.querySelectorAll('[data-n]').forEach((b) => b.addEventListener('click', () => { n = +b.dataset.n; chips(); extremalColouring(); }));
+}
+function extremalColouring() {
+  if (m === 3 && n === 3) { const p = R.pentagon(); N = 5; adj = p.adj.slice(); }
+  else { const e = R.extremal(m, n); N = e.N; adj = e.adj.slice(); }
+  redraw();
+}
+function redraw() {
+  const cyc = R.findCycle(adj, N, m), cl = cyc ? null : R.findBlueClique(adj, N, n);
+  const Rv = R.formula(m, n);
+  drawGraph($('g'), adj, N, { cyc, cl, onEdge: (i, j) => { adj[i] ^= 1 << j; adj[j] ^= 1 << i; redraw(); } });
+  $('ccap').textContent = `${N} vertices: red edges and blue edges (tap to flip). R(C${SUB(m)}, K${SUB(n)}) = ${Rv}`;
+  const lines = [];
+  if (cyc) lines.push(`<span class="no">red C${SUB(m)}: ${cyc.map((v) => v + 1).join(' → ')} → ${cyc[0] + 1}</span>`);
+  else if (cl) lines.push(`<span style="color:var(--s1)">blue K${SUB(n)} on vertices ${cl.map((v) => v + 1).join(', ')}</span>`);
+  else lines.push(`<span class="ok">no red C${SUB(m)} and no blue K${SUB(n)}: a good colouring on ${N} vertices</span>`);
+  lines.push(N >= Rv ? `N = ${N} ≥ ${Rv}: the theorem says every colouring has one or the other.` : `N = ${N} &lt; ${Rv}: good colourings exist at this size.`);
+  $('cstat').innerHTML = lines.map((x) => `<div>${x}</div>`).join('');
+}
+$('ext').addEventListener('click', extremalColouring);
+$('addv').addEventListener('click', () => {
+  if (N >= 20) return;
+  const v = N; N++; adj.push(0);
+  for (let i = 0; i < v; i++) if (Math.random() < 0.5) { adj[i] |= 1 << v; adj[v] |= 1 << i; }
+  redraw();
+});
+$('rnd').addEventListener('click', () => {
+  for (let i = 0; i < N; i++) adj[i] = 0;
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) if (Math.random() < 0.5) { adj[i] |= 1 << j; adj[j] |= 1 << i; }
+  redraw();
+});
+chips(); extremalColouring();
+
+// ======================================================= small cases tab ===
+const CASES = [[3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [4, 4]];
+$('smchips').innerHTML = CASES.map(([a, b]) => `<button class="act" data-c="${a},${b}">C${SUB(a)} vs K${SUB(b)}${a === 7 || b === 4 ? ' (slow)' : ''}</button>`).join('');
+document.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => { const [a, c] = b.dataset.c.split(',').map(Number); exhaust(a, c); }));
+function plotLevels(levels, Rv) {
+  const W = 320, H = 170, L = 30, Bm = 18, T = 8, maxN = Rv, top = Math.max(1, ...levels);
+  const lt = Math.ceil(Math.log10(top + 1));
+  const X = (v) => L + (v / maxN) * (W - L - 12), Y = (c) => (c <= 0 ? H - Bm : T + (1 - Math.log10(c) / Math.max(1, lt)) * (H - T - Bm - 10));
+  let s = '';
+  for (let e = 0; e <= lt; e++) s += `<line x1="${L}" x2="${W - 6}" y1="${Y(10 ** e)}" y2="${Y(10 ** e)}" stroke="var(--rule)" stroke-width="0.5"/><text x="${L - 3}" y="${Y(10 ** e) + 2}" font-size="6" text-anchor="end">${10 ** e >= 1e3 ? '10' + String(e).replace(/\d/g, (d) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]) : 10 ** e}</text>`;
+  const bw = (W - L - 12) / (maxN + 1) * 0.7;
+  for (let v = 1; v <= maxN; v++) {
+    const c = levels[v] ?? null, x = X(v) - bw / 2;
+    if (c === null) continue;
+    if (c > 0) s += `<rect x="${x}" y="${Y(c)}" width="${bw}" height="${H - Bm - Y(c)}" fill="var(--s1)"/><text x="${X(v)}" y="${Y(c) - 2}" font-size="5" text-anchor="middle">${c}</text>`;
+    else s += `<text x="${X(v)}" y="${H - Bm - 3}" font-size="7" text-anchor="middle" fill="var(--bad)">0</text>`;
+    s += `<text x="${X(v)}" y="${H - 6}" font-size="6" text-anchor="middle" ${v === Rv ? 'fill="var(--bad)"' : ''}>${v}</text>`;
+  }
+  $('levels').innerHTML = s;
+}
+function exhaust(a, b) {
+  document.querySelectorAll('[data-c]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.c === `${a},${b}`)));
+  const Rv = R.formula(a, b);
+  $('smcap').textContent = `C${SUB(a)} against K${SUB(b)}: good labelled graphs on each number of vertices (log scale); the formula says R = ${Rv}`;
+  $('smstat').textContent = 'searching…'; $('wg').innerHTML = ''; $('wcap').textContent = '';
+  plotLevels([], Rv);
+  run('exhaust', { m: a, n: b }, (d) => {
+    if (d.error) { $('smstat').innerHTML = `<span class="no">${esc(d.error)}</span>`; return; }
+    if (d.step === 'progress') { plotLevels(d.levels, Rv); $('smstat').textContent = `searching… ${d.levels.reduce((s, x) => s + x, 0).toLocaleString()} graphs so far`; return; }
+    plotLevels(d.levels, Rv);
+    const ok = d.R === Rv;
+    $('smstat').innerHTML = `<div class="${ok ? 'ok' : 'no'}">${ok ? '✓' : '✗'} exhaustive: R(C${SUB(a)}, K${SUB(b)}) = ${d.R}${ok ? ', as the formula says' : ''}</div><div>${d.levels[d.R - 1].toLocaleString()} good labelled graphs on ${d.R - 1} vertices; none on ${d.R}. ${d.levels.reduce((s, x) => s + x, 0).toLocaleString()} graphs visited in ${ms(d.ms)}.</div>`;
+    if (d.example) { drawGraph($('wg'), d.example, d.R - 1); $('wcap').textContent = `one good colouring on ${d.R - 1} vertices`; }
+  });
+}
+
+// ======================================================== the 3,099 tab ===
+let results = [], sel = null;
+function cellsInit() {
+  const rows = {};
+  for (const [k, t] of R.domain()) for (const p of R.patterns(t, k - t)) (rows[k] = rows[k] || []).push({ k, t, p });
+  results = Object.values(rows).flat();
+  $('cells').innerHTML = Object.entries(rows).map(([k, list]) => `<div class="krow"><span class="lab">k=${k}</span><div class="strip">${list.map((x) => `<i data-id="${results.indexOf(x)}"></i>`).join('')}</div></div>`).join('');
+  $('cells').querySelectorAll('i').forEach((el) => el.addEventListener('click', () => inspect(+el.dataset.id)));
+}
+function replay() {
+  if (!results.length) cellsInit();
+  $('runF').disabled = true;
+  $('cells').querySelectorAll('i').forEach((el) => { el.className = ''; });
+  let agree = 0, valid = 0, c1 = 0, c2 = 0, c0 = 0;
+  const byKey = new Map(results.map((r, i) => [`${r.k}|${r.t}|${JSON.stringify(r.p)}`, i]));
+  run('replay', {}, (d) => {
+    if (d.error) { $('fstat').innerHTML = `<span class="no">${esc(d.error)}</span>`; $('runF').disabled = false; return; }
+    if (d.step === 'batch') {
+      for (const r of d.batch) {
+        const id = byKey.get(`${r.k}|${r.t}|${JSON.stringify(r.p)}`);
+        Object.assign(results[id], r);
+        const el = $('cells').querySelector(`i[data-id="${id}"]`);
+        el.className = (r.same && r.valid ? 'c' + r.c : 'x') + (sel === id ? ' sel' : '');
+        if (r.same) agree++; if (r.valid) valid++; if (r.c === 1) c1++; else if (r.c === 2) c2++; else c0++;
+      }
+      $('fstat').innerHTML = `${d.done} of 3,099 patterns…`;
+      return;
+    }
+    $('runF').disabled = false;
+    const perfect = agree === 3099 && valid === 3099 && c0 === 0;
+    $('fstat').innerHTML = [
+      `<span class="${c0 === 0 ? 'ok' : 'no'}">${c0 === 0 ? '✓' : '✗'} every pattern refuted: ${c1.toLocaleString()} with output 1, ${c2} with output 2, ${c0} unresolved (the paper: 3,049, 50, 0)</span>`,
+      `<span class="${agree === 3099 ? 'ok' : 'no'}">${agree === 3099 ? '✓' : '✗'} ${agree.toLocaleString()} / 3,099 identical to the release's traces: outcome, initial flags and every strengthening round</span>`,
+      `<span class="${valid === 3099 ? 'ok' : 'no'}">${valid === 3099 ? '✓' : '✗'} ${valid.toLocaleString()} / 3,099 trace witnesses valid against data rebuilt here</span>`,
+      `<span style="color:var(--muted)">${ms(d.ms)} in your browser${perfect ? '' : ' · red cells disagree'}</span>`,
+    ].map((x) => `<div>${x}</div>`).join('');
+    if (sel === null) inspect(results.findIndex((r) => r.c === 2 && r.k >= 9));
+  });
+}
+$('runF').addEventListener('click', replay);
+function inspect(id) {
+  if (id < 0) return;
+  sel = id;
+  $('cells').querySelectorAll('i.sel').forEach((el) => el.classList.remove('sel'));
+  $('cells').querySelector(`i[data-id="${id}"]`)?.classList.add('sel');
+  const r = results[id], lab = R.labels(r.p), res = R.check(r.k, r.t, r.p), fam = R.packing(r.k, r.t, lab.n, res.finalM);
+  // drawing: clique on an inner circle, path interiors on arcs outside
+  const pos = {}, Q = lab.clique, t = Q.length;
+  Q.forEach((v, i) => { const a = (2 * Math.PI * i) / t - Math.PI / 2; pos[v] = [0.62 * Math.cos(a), 0.62 * Math.sin(a)]; });
+  for (const [a, b] of lab.E) {
+    const q = b - a - 1, A = pos[a], B = pos[b], mid = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], L = Math.hypot(...mid) || 1, out = [mid[0] / L, mid[1] / L];
+    for (let x = 1; x <= q; x++) { const s = x / (q + 1), bulge = 0.55 * Math.sin(Math.PI * s); pos[a + x] = [A[0] + (B[0] - A[0]) * s + out[0] * bulge, A[1] + (B[1] - A[1]) * s + out[1] * bulge]; }
+  }
+  const bases = new Map((fam || []).map((o) => [o.base, o]));
+  let s = '';
+  for (let i = 0; i < lab.n; i++) for (let j = i + 1; j < lab.n; j++) if (lab.adj[i] & (1 << j)) {
+    const isQ = Q.includes(i) && Q.includes(j);
+    s += `<line x1="${pos[i][0]}" y1="${pos[i][1]}" x2="${pos[j][0]}" y2="${pos[j][1]}" stroke="${isQ ? 'var(--faint)' : 'var(--fg)'}" stroke-width="${isQ ? 0.008 : 0.02}"/>`;
+  }
+  for (let i = 0; i < lab.n; i++) {
+    const o = bases.get(i), col = o ? (o.r < 0 ? 'var(--s1)' : 'var(--s2)') : Q.includes(i) ? 'var(--fg)' : 'var(--faint)';
+    s += `<circle cx="${pos[i][0]}" cy="${pos[i][1]}" r="${o ? 0.085 : 0.055}" fill="${col}" stroke="var(--bg)" stroke-width="0.015"/><text x="${pos[i][0]}" y="${pos[i][1] + 0.03}" font-size="0.08" text-anchor="middle" fill="var(--bg)">${i}</text>`;
+  }
+  $('pg').innerHTML = s;
+  const pat = '(' + r.p.map((c) => '(' + c.join(',') + ')').join(' ') + ')';
+  $('pcap').textContent = `k = ${r.k} (cycles of ${r.k + 1}), clique t = ${r.t}, pattern ${pat}`;
+  $('pinfo').innerHTML = `<div>pattern ${esc(pat)}: ${lab.n} labelled vertices, ${lab.E.length} path${lab.E.length === 1 ? '' : 's'} carrying ${lab.L} interior vertices</div>` +
+    `<div>output <b>${res.classification}</b>${res.rounds.length ? ` after ${res.rounds.length} strengthening round${res.rounds.length > 1 ? 's' : ''} adding ${res.rounds.flat().length} prohibitions` : ''}</div>` +
+    (fam ? `<div>packing witness, total weight ${fam.reduce((a, o) => a + o.u, 0)} &gt; k = ${r.k}: ${fam.map((o) => `${o.r < 0 ? 'vertex' : 'ball r=' + o.r} at ${o.base} (≥ ${o.u} independent)`).join(', ')}</div><div style="color:var(--muted)">blue = single vertices, orange = balls around a vertex. They are pairwise far apart, so their independent sets combine into more than k independent vertices, which is impossible.</div>` : '');
+}
+</script>
+</body>
+</html>
