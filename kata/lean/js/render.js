@@ -15,6 +15,11 @@ uniform usampler2D uH, uM;
 uniform vec4 uEye, uR, uU, uF, uSun;
 uniform vec2 uRes;
 uniform float uTan, uTime, uFae, uFar, uVS;
+// the bike (bike.js's parts(), in metres): two tyres (centre, the wheel's plane, radii) and capsules (ends, radius, part)
+uniform int uBike, uNCap;
+uniform vec4 uTor[6]; uniform vec2 uTorR[2]; // per tyre: centre, e1, e2; and (R, r)
+uniform vec4 uCapA[24], uCapB[24], uCapR[24]; // ends, and (radius, part, 0, 0)
+uniform vec4 uBC; uniform float uBR; uniform vec3 uBikeCol; // a ball holding all of it, and the frame's colour
 out vec4 o;
 const ivec3 DIM = ivec3(192, 192, 64);
 const ivec3 NB = ivec3(24, 24, 8);
@@ -65,13 +70,54 @@ vec3 fae(float t) { // teal, violet, rose, gold, round again
   vec3 a = vec3(0.35, 1.0, 0.85), b = vec3(0.72, 0.5, 1.0), c = vec3(1.0, 0.5, 0.78), e = vec3(1.0, 0.82, 0.45);
   return t < 1.0 ? mix(a, b, t) : t < 2.0 ? mix(b, c, t - 1.0) : t < 3.0 ? mix(c, e, t - 2.0) : mix(e, a, t - 3.0);
 }
+
+// the bike's distance (metres) and part: bike.js's sdf(), line for line
+float sdBike(vec4 q, out int m) {
+  float d = 1e9; m = 0;
+  for (int i = 0; i < 2; i++) {
+    vec4 o = q - uTor[3 * i]; vec4 e1 = uTor[3 * i + 1], e2 = uTor[3 * i + 2]; float x = dot(o, e1), y = dot(o, e2);
+    vec4 rest = o - x * e1 - y * e2; float e = length(vec2(length(vec2(x, y)) - uTorR[i].x, length(rest))) - uTorR[i].y;
+    if (e < d) { d = e; m = 0; }
+  }
+  for (int i = 0; i < 24; i++) {
+    if (i >= uNCap) break;
+    vec4 a = uCapA[i], ab = uCapB[i] - a, ao = q - a; float L2 = dot(ab, ab), h = L2 > 0.0 ? clamp(dot(ao, ab) / L2, 0.0, 1.0) : 0.0;
+    float e = length(ao - ab * h) - uCapR[i].x; if (e < d) { d = e; m = int(uCapR[i].y + 0.5); }
+  }
+  return d;
+}
+// march the bike along a ray (metres) out to tMax: the ball first, then sphere tracing inside it
+bool marchBike(vec4 ro, vec4 rd, float tMax, out float tHit, out int m) {
+  vec4 oc = ro - uBC; float b = dot(oc, rd), c = dot(oc, oc) - uBR * uBR, h = b * b - c;
+  if (h < 0.0) return false;
+  h = sqrt(h); float t = max(-b - h, 0.0), t1 = min(-b + h, tMax);
+  for (int i = 0; i < 96; i++) {
+    if (t > t1) return false;
+    float d = sdBike(ro + rd * t, m);
+    if (d < 0.0015 + 0.0004 * t) { tHit = t; return true; }
+    t += d;
+  }
+  return false;
+}
 float hash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 94.673))) * 43758.5453); }
 void main() {
   vec2 uv = (2.0 * gl_FragCoord.xy - uRes) / uRes.y;
   vec4 d = normalize(uF + uv.x * uTan * uR + uv.y * uTan * uU);
   float t; vec4 n; ivec3 cell; vec3 c;
   bool hit = march(uEye, d, t, n, cell);
-  if (!hit) c = sky(d);
+  float tb; int bm; bool bike = uBike == 1 && marchBike(uEye * uVS, d, hit ? t * uVS : uFar * uVS, tb, bm);
+  if (bike) { // the bike: its parts' colours, lit as the land is, tinted by w as the land is
+    vec4 q = uEye * uVS + d * tb; int mm; const float E = 0.002;
+    vec4 nb = normalize(vec4(sdBike(q + vec4(E, 0, 0, 0), mm) - sdBike(q - vec4(E, 0, 0, 0), mm), sdBike(q + vec4(0, E, 0, 0), mm) - sdBike(q - vec4(0, E, 0, 0), mm),
+                             sdBike(q + vec4(0, 0, E, 0), mm) - sdBike(q - vec4(0, 0, E, 0), mm), sdBike(q + vec4(0, 0, 0, E), mm) - sdBike(q - vec4(0, 0, 0, E), mm)));
+    vec3 base = bm == 0 ? vec3(0.08, 0.08, 0.09) : bm == 1 ? uBikeCol : bm == 2 ? vec3(0.85, 0.85, 0.82) : bm == 3 ? vec3(0.16, 0.24, 0.5) : bm == 4 ? vec3(0.12, 0.12, 0.13) : bm == 5 ? vec3(0.93, 0.76, 0.6) : vec3(0.2, 0.2, 0.26);
+    float dw = q.w - uEye.w * uVS, k = uFae * smoothstep(0.25, 2.5, abs(dw));
+    base = mix(base, mix(base, fae(dw * 0.22 + 0.5), 0.6) * 1.1, k);
+    float lam = max(dot(nb, uSun), 0.0), spec = pow(max(dot(reflect(d, nb), uSun), 0.0), 24.0);
+    c = base * (vec3(0.42, 0.47, 0.62) * (0.75 + 0.25 * nb.y) + vec3(1.0, 0.85, 0.64) * lam) + vec3(0.35) * spec * (bm == 1 ? 1.0 : 0.3);
+    c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tb / 40.0));
+  }
+  else if (!hit) c = sky(d);
   else {
     vec4 p = uEye + d * t, f = fract(p);
     uint r = raw(cell); float h = float(r & 63u); int mat = int(r >> 6u);
@@ -93,6 +139,7 @@ void main() {
     float dw = (p.w - uEye.w) * uVS, k = uFae * smoothstep(0.25, 2.5, abs(dw));
     base = mix(base, mix(base, fae(dw * 0.22 + 0.5), 0.75) * 1.15, k);
     float lam = max(dot(n, uSun), 0.0);
+    if (uBike == 1) { float ts; int sm; if (marchBike(p * uVS + n * 0.01, uSun, 4.0, ts, sm)) lam *= 0.25; } // the bike's shadow
     c = base * (vec3(0.4, 0.46, 0.62) * (0.8 + 0.25 * n.y) + vec3(1.0, 0.85, 0.64) * lam) * mix(0.7, 1.0, edge);
     float fog = 1.0 - exp(-t * uVS / 40.0);
     c = mix(c, sky(d) * 0.9 + 0.08, fog);
@@ -111,7 +158,7 @@ export class Renderer {
     gl.useProgram(p); this.p = p;
     const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, "aPos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    this.u = {}; for (const n of ["uH", "uM", "uEye", "uR", "uU", "uF", "uSun", "uRes", "uTan", "uTime", "uFae", "uFar", "uVS"]) this.u[n] = gl.getUniformLocation(p, n);
+    this.u = {}; for (const n of ["uH", "uM", "uEye", "uR", "uU", "uF", "uSun", "uRes", "uTan", "uTime", "uFae", "uFar", "uVS", "uBike", "uNCap", "uTor", "uTorR", "uCapA", "uCapB", "uCapR", "uBC", "uBR", "uBikeCol"]) this.u[n] = gl.getUniformLocation(p, n);
   }
   tex(unit, w, h, data) {
     const gl = this.gl, t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
@@ -127,6 +174,17 @@ export class Renderer {
     for (let w = 0; w < nb[2]; w++) for (let z = 0; z < nb[1]; z++) for (let x = 0; x < nb[0]; x++) m[z * nb[0] * nb[2] + x + w * nb[0]] = M[x + nb[0] * (z + nb[1] * w)];
     this.tex(1, nb[0] * nb[2], nb[1], m);
     const gl = this.gl; gl.uniform1i(this.u.uH, 0); gl.uniform1i(this.u.uM, 1);
+  }
+  /* the bike: bike.js's parts() (metres), the middle and radius of a ball holding it, and the frame's colour; null hides it */
+  bike(P, mid, rad, col) {
+    const gl = this.gl, u = this.u;
+    if (!P) { gl.uniform1i(u.uBike, 0); return; }
+    const tor = new Float32Array(24), tr = new Float32Array(4);
+    P.tori.forEach((w, i) => { tor.set(w.c, 12 * i); tor.set(w.e1, 12 * i + 4); tor.set(w.e2, 12 * i + 8); tr[2 * i] = w.R; tr[2 * i + 1] = w.r; });
+    const A = new Float32Array(96), Bv = new Float32Array(96), R = new Float32Array(96), n = Math.min(24, P.caps.length);
+    for (let i = 0; i < n; i++) { const c = P.caps[i]; A.set(c.a, 4 * i); Bv.set(c.b, 4 * i); R[4 * i] = c.r; R[4 * i + 1] = c.m; }
+    gl.uniform4fv(u.uTor, tor); gl.uniform2fv(u.uTorR, tr); gl.uniform4fv(u.uCapA, A); gl.uniform4fv(u.uCapB, Bv); gl.uniform4fv(u.uCapR, R);
+    gl.uniform1i(u.uNCap, n); gl.uniform4fv(u.uBC, mid); gl.uniform1f(u.uBR, rad); gl.uniform3fv(u.uBikeCol, col); gl.uniform1i(u.uBike, 1);
   }
   /* v: { eye (cells), R, U, F (the camera's), sun, time, fae, tan, far, vs } */
   draw(v, scale) {

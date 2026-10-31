@@ -36,6 +36,11 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   - **The basin must stay closed.** The selftest floods every cell reachable from the start by `walk()`'s own rule and
     fails if any is outside the basin. Anything that moves the player (vehicles included) must go through `walk()` or
     keep its substep rule: at most one cell per axis per substep, each climbing at most `STEP` above where it began.
+  - **The bike** is `js/bike.js` (no DOM): the kinematic autopilot in the steady-turn calibration (tan φ = v²κ/g along
+    N), the two steering mechanisms (`two-axis`: frame non-twisting, Bishop; `one-axis`: frame rolls at τv), and
+    `parts()`/`sdf()`, the shapes the shader's `sdBike()` draws, line for line. Keep the part count ≤ 24 (the shader's
+    capsule array) and inside `BOUND`; `test/bike.selftest.mjs` checks both. Riding moves the camera, not the walking
+    body, so the basin's closure proof is untouched; stepping off goes back through `walk()`.
   - IRIS⁴'s march fixes reach Lean only by hand. After a change to `four/iris/js/world.js`'s `march()` or the shader's,
     port it here and run both selftests.
 
@@ -48,6 +53,7 @@ and y lateral; translate when writing prose.
 
 ```bash
 node kata/lean/test/lean.selftest.mjs   # ~2 s
+node kata/lean/test/bike.selftest.mjs   # < 1 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):
@@ -61,6 +67,6 @@ record exists, `wrangler deploy` uploads, and the run fails unless `kata.mino.mo
 
 ## Next
 
-The w-cycle (stable in the slice, balanced in w), then the bicycle: lean as a 2-vector, a two-plane handlebar, and the
-mechanics to precess into w. Physics in a DOM-free `js/bike.js` with a selftest that, with w switched off, reproduces
-the 3D Whipple bicycle.
+The bike's dynamics: a 4D Whipple model (both mechanisms) whose selftest, with w switched off, reproduces the
+benchmark's eigenvalues (Meijaard et al. 2007), and a controller that reaches the kinematic calibration. The track may
+need scaling up once people try to ride it. Then the w-cycle.

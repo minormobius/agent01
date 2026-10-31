@@ -42,6 +42,40 @@ slide along cliffs). Cut down to the tesseract grid, with no foams and no rainbo
   (a vehicle, later), you can only reach a cell next to one you stood on. That's what lets the selftest prove the basin
   closed.
 
+## The autopilot bicycle (`js/bike.js`)
+
+A bicycle rides the centreline at a set speed (5 m/s by default; the slider goes from 1 to 9), kinematically, in the
+**steady-turn calibration**. The physics is our world's, done with vectors. In a steady turn the line from the contact
+to the centre of mass leans so that gravity and the centripetal pull balance about the contact line:
+
+    up ∝ g Y + v² κ N,   so   tan φ = v² κ / g,   and the lean points along N.
+
+On our ground this is the textbook tan φ = v²/gR. Here N lies anywhere in the plane across the direction of travel, so
+the lean is a 2-vector, ana, kata or in between, wherever the curve bends. Along the track N turns about the tangent at
+the torsion (Frenet: N′ = −κT + τB), so the lean's direction turns at τv rad/s. The steer is the kinematic
+δ = atan(wκ/cos λ), toward N. The geometry is close to the benchmark bicycle of Meijaard et al. (2007): wheelbase
+1.02 m, head angle 18°, wheels 0.34 m. At 5 m/s the most it leans here is 18.3°.
+
+**Two mechanisms** (the button, or M), which differ only in how the frame carries that turning lean:
+
+- **two-axis** steering (cyan frame, a cross of bars): the fork turns into either of the frame's lateral directions,
+  so the frame never rolls about its direction of travel. Its lateral axes are the curve's non-twisting (Bishop)
+  frame, and the lean and steer turn round inside them at τ. After a lap the frame comes home turned **31.9°**, the
+  track's holonomy ∫τ ds.
+- **one-axis** steering (gold frame, a single bar): the fork turns only toward the frame's own y, so y must follow N,
+  and the whole frame rolls about its direction of travel at τv. That's the precession into w. The wheel's point
+  contact lets it pivot in the plane across its axle without slipping. What drives the roll is the dynamics' question.
+
+The bike is drawn as 4D shapes in the shader (`sdBike`, the twin of `bike.js`'s `sdf`): two tyres (every point
+within 3 cm of a circle) and twenty capsules for frame, bars and rider, sphere-traced inside a bounding ball, lit and
+fae-tinted like the land, with a shadow. Because they are 4D, a bike leaning into w slices thinner in your view: lean
+far enough out of your slice and you see slivers of it.
+
+**Ride along** (the button, or R; it cycles walk → follow the bend → no twist). The camera rides behind the rear wheel,
+upright, facing along the track. In **follow the bend** its unseen direction is the binormal, so every bend and lean is
+in your slice. In **no twist** it carries the non-twisting frame, so you watch the lean swing out into w as the torsion
+carries it. Back to walk, you step off where the camera was.
+
 ## The map
 
 Below the readout, the whole ground, x, z and w, with w up, as a solid you drag to turn (double-click resets). The
@@ -78,7 +112,21 @@ node kata/lean/test/lean.selftest.mjs   # ~2 s
 - random walking never climbs more than a step, and even at 30 m/s never leaves the basin;
 - the shader's grid, blocks and cell layout are `world.js`'s.
 
+## Checks: the bike
+
+```bash
+node kata/lean/test/bike.selftest.mjs   # < 1 s
+```
+
+- up balances gravity and the centripetal pull exactly (tan φ = v²κ/g) at 2, 5 and 8 m/s, and the lean points along N;
+- where the bend lies in our plane it's our bicycle, φ = atan(v²/gR), nothing into w;
+- two-axis: the frame doesn't twist; one-axis: it rolls at τv; the lean sits at θ = ∫τ ds inside the two-axis frame;
+- the holonomy (31.9°) agrees with a vector carried round the polyline by projection, and laps add up;
+- the steer is atan(wκ/cos λ) toward the bend; the front wheel stays on the track; both tyres rest on it, to the
+  tyre-width correction r(1 − cos φ); the shader's bounding ball holds every part.
+
 ## Next
 
-Vehicles: the w-cycle (a tricycle stable in your slice, balanced in w), then the bicycle. They want `walk()`'s
+The dynamics: a 4D Whipple model whose selftest reproduces the benchmark's eigenvalues with w switched off, and a
+controller that has to reach this calibration. Then other vehicles: the w-cycle (a tricycle stable in your slice, balanced in w), then the bicycle. They want `walk()`'s
 substepping, the track's Frenet frame and the basin as they are.

@@ -10,6 +10,7 @@
    (along N), and its torsion τ, how fast the plane of the bend turns. A road on our ground has no torsion. */
 import { DIM, VS, terrain, blocks, groundAt, walk, EYE, frenet, nearestTrack, LAP, PTS, NS, start, BASIN, R_TRACK } from "./world.js";
 import { Renderer } from "./render.js";
+import { state as bikeState, parts as bikeParts, middle as bikeMiddle, BOUND, V, G, HOLONOMY, MECHS } from "./bike.js";
 
 const $ = (id) => document.getElementById(id), T0 = performance.now(), timing = {};
 const glc = $("gl"), ov = $("ov");
@@ -97,6 +98,46 @@ for (const b of document.querySelectorAll("#show button")) { b.classList.toggle(
 function go() { $("intro").hidden = true; if (!coarse) { try { const r = glc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* fine */ } } }
 $("go").onclick = go;
 
+/* ------------------------------------------------------------- the autopilot bicycle (./bike.js), and riding it
+   The bike rides the centreline at a set speed in the steady-turn calibration (lean = atan(v²κ/g) along N), with
+   either steering mechanism. You can walk as before, or ride: the camera follows the bike from behind, upright, with
+   its unseen direction either the track's binormal ("follow the bend": every lean and bend is in your slice) or the
+   non-twisting frame's ("no twist": you watch the lean swing out into w as the torsion carries it). */
+const bk = { s: 4, v: V, mech: "two-axis", on: true } /* it starts a few metres ahead of you */, RIDES = ["walk", "follow the bend", "no twist"];
+let ride = "walk";
+const COL = { "two-axis": [0.35, 0.85, 0.95], "one-axis": [1.0, 0.72, 0.25] };
+function setRide(m) {
+  if (ride !== "walk" && m === "walk") { // step off where the camera was, onto the ground, facing as it faced
+    const p = me.p.slice(); p[1] = ground(p) + EYE; me.p = p; me.pitch = -0.12; tidy();
+  }
+  ride = m; $("ride").textContent = m === "walk" ? "🚲 ride" : `🚲 ${m}`; $("ride").classList.toggle("on", m !== "walk");
+}
+function setMech(m) { bk.mech = m; $("mech").textContent = `steer: ${m}`; }
+$("ride").onclick = () => setRide(RIDES[(RIDES.indexOf(ride) + 1) % RIDES.length]);
+$("mech").onclick = () => setMech(MECHS[(MECHS.indexOf(bk.mech) + 1) % MECHS.length]);
+document.addEventListener("keydown", (e) => { const k = e.key.toLowerCase(), t = e.target; if (e.ctrlKey || e.metaKey || e.altKey || (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; if (k === "r") $("ride").onclick(); if (k === "m") $("mech").onclick(); });
+{ const sl = $("spd"), f = () => { bk.v = +sl.value; $("spdV").textContent = `${bk.v.toFixed(1)} m/s`; }; sl.oninput = f; f(); }
+setRide("walk"); setMech("two-axis");
+/* the camera riding along: behind and above the rear wheel, upright, F along the track */
+function rideFrame(st) {
+  let R, N;
+  if (ride === "follow the bend") { R = st.N; N = st.B; }
+  else { const c = Math.cos(st.theta), s2 = Math.sin(st.theta); R = add(st.N.map((v) => v * c), st.B, -s2); N = add(st.N.map((v) => v * s2), st.B, c); }
+  if (det(R, st.T, N) < 0) N = N.map((v) => -v);
+  return { R, F: st.T, N };
+}
+function bikeRead(st) {
+  const lf = Math.atan2(st.steerInFrame[1], st.steerInFrame[0]) * 180 / Math.PI, deg = (x) => (x * 180 / Math.PI).toFixed(1);
+  const kN = dot(st.lean, me.fr.N), kS = Math.hypot(dot(st.lean, me.fr.R), dot(st.lean, me.fr.F)), intoW = Math.round(100 * kN * kN / (kN * kN + kS * kS || 1));
+  const mech = st.mech === "two-axis"
+    ? `Two-axis steering: the frame doesn't twist, so the lean and the steer turn round inside it. Here they point <b>${lf.toFixed(0)}°</b> from the frame's y toward its w, turning at τv = <b>${(st.tau * st.v).toFixed(2)}</b> rad/s; after a lap the frame has come back turned <b>${deg(HOLONOMY)}°</b>.`
+    : `One-axis steering: the fork turns only toward the frame's y, so the whole frame rolls about its direction of travel to keep y along the bend, at <b>${st.twistRate.toFixed(2)}</b> rad/s here: the precession into w.`;
+  const txt = `<b>The bike</b> at ${st.v.toFixed(1)} m/s: lean <b>${deg(st.phi)}°</b> (tan φ = v²κ/g = ${(st.v * st.v * st.kappa / G).toFixed(3)}), toward the bend's centre, ` +
+    `<b>${intoW}%</b> of it into the direction you can't see; steer <b>${deg(st.delta)}°</b>. ${mech}`;
+  if (txt !== bikeRead.txt) { bikeRead.txt = txt; $("bread").innerHTML = txt; }
+  return { intoW };
+}
+
 /* ------------------------------------------------------------- the track, in your frame */
 const lap = { n: 0, last: null };
 function trackRead() {
@@ -112,12 +153,12 @@ function readout(r) {
   const where = r.on ? `on the track · lap ${lap.n} · ${Math.round(r.frac * 100)}%` : `${(r.nt.d - R_TRACK).toFixed(1)} m off the track`;
   const side = r.kR < 0 ? "left" : "right", wdir = r.kN > 0 ? "ana" : "kata";
   const hud = `${where} · bend <b>${Math.round(r.share * 100)}%</b> in your slice`;
-  if (hud !== readout.hud) { readout.hud = hud; $("hudT").innerHTML = hud; }
+  if (ride === "walk" && hud !== readout.hud) { readout.hud = hud; $("hudT").innerHTML = hud; }
   const txt = `Here the centreline bends with radius <b>${(1 / r.f.kappa).toFixed(1)} m</b>. In your frame its curvature vector is ` +
     `(κ_F, κ_R, κ_N) = (<b>${r.kF.toFixed(3)}, ${r.kR.toFixed(3)}, ${r.kN.toFixed(3)}</b>) per metre: ` +
     `<b>${Math.round(r.share * 100)}%</b> of the bend is in your slice (to your ${side}), <b>${Math.round((1 - r.share) * 100)}%</b> is into w${1 - r.share > 0.01 ? ` (${wdir})` : ""}, where you can't see it. ` +
     `The plane of the bend turns at τ = <b>${r.f.tau.toFixed(3)}</b> rad/m, so ${Math.abs(r.f.tau) < 0.01 ? "for now it holds still" : `at this rate a bend wholly in your slice would be wholly into w ${Math.min(99, Math.abs(Math.PI / 2 / r.f.tau)).toFixed(0)} m on`}. ` +
-    `You face ${r.tAngle}° off the track's direction. <b>↦</b> (or <b>T</b>) faces it, with the whole bend in your slice.`;
+    (ride === "walk" ? `You face ${r.tAngle}° off the track's direction. <b>↦</b> (or <b>T</b>) faces it, with the whole bend in your slice.` : `You're riding behind the bike.`);
   if (txt !== readout.txt) { readout.txt = txt; $("read").innerHTML = txt; }
 }
 /* the map: the ground itself, x, z and w, as a solid you can turn (drag it; double-click resets). The track is drawn
@@ -136,7 +177,7 @@ for (let i = 0; i < NS; i += 48) { const f = frenet((2 * Math.PI * i) / NS), c =
   for (const ev of ["pointerup", "pointercancel"]) cv.addEventListener(ev, () => { drag = null; });
   cv.addEventListener("dblclick", () => Object.assign(MAPV, MAP0));
 }
-function mapDraw() {
+function mapDraw(st) {
   const cv = $("map"), dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
   if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
@@ -167,6 +208,10 @@ function mapDraw() {
   for (const r of RINGS) { const dc = P(PTS[r.i])[2]; let on = false; g.beginPath(); for (const q of r.pts) { const p = P(q); if (p[2] >= dc - 1e-9) { on ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); on = true; } else on = false; } g.stroke(); }
   // the start line
   { const f = frenet(0), c = [f.p[0], f.p[2], f.p[3]], a = P(c.map((v, j) => v + R_TRACK * [f.N[0], f.N[2], f.N[3]][j])), b = P(c.map((v, j) => v - R_TRACK * [f.N[0], f.N[2], f.N[3]][j])); g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+  // the bike, and its lean (red, scaled ×6 so it reads)
+  if (st) { const bp = [st.p[0], st.p[2], st.p[3]], q = P(bp), l = P(bp.map((x, j) => x + [st.lean[0], st.lean[2], st.lean[3]][j] * Math.tan(st.phi) * 6));
+    g.strokeStyle = "#ff5a4e"; g.lineWidth = 2.2; g.beginPath(); g.moveTo(q[0], q[1]); g.lineTo(l[0], l[1]); g.stroke();
+    g.fillStyle = "#ff5a4e"; g.strokeStyle = "#07080c"; g.lineWidth = 1.5; g.beginPath(); g.arc(q[0], q[1], 4, 0, 2 * Math.PI); g.fill(); g.stroke(); }
   // you
   const me3 = [me.p[0], me.p[2], me.p[3]], p = P(me3), arrow = (v, len) => P(me3.map((x, j) => x + v[j] * len));
   const F3 = [me.fr.F[0], me.fr.F[2], me.fr.F[3]], N3 = [me.fr.N[0], me.fr.N[2], me.fr.N[3]], fa = arrow(F3, 3.5), na = arrow(N3, 2.5);
@@ -212,11 +257,19 @@ function step(now) {
     let mv = [0, 0]; if (keys.has("w")) mv[1] += 1; if (keys.has("s")) mv[1] -= 1; if (keys.has("d")) mv[0] += 1; if (keys.has("a")) mv[0] -= 1;
     if (stick) mv = stick; const m = Math.hypot(...mv); if (m > 1) mv = mv.map((v) => v / m);
     const speed = keys.has("shift") ? 8.4 : 4.2, vel = add(me.fr.F.map((v) => v * mv[1] * speed), me.fr.R, mv[0] * speed);
-    me.p = walk(H, me.p, vel, dt, ground);
+    if (ride === "walk") me.p = walk(H, me.p, vel, dt, ground);
+    bk.s += bk.v * dt;
   }
+  const st = bikeState(bk.s, bk.mech, bk.v, G);
+  if (ride !== "walk") {
+    const fr = rideFrame(st); me.fr = fr; easing = null;
+    me.p = add(add(st.p, st.T, -3.4), UP, 2.0); if (me.pitch > 0.2) me.pitch = 0.2;
+  }
+  Rd.bike(bikeParts(st), bikeMiddle(st), BOUND, COL[bk.mech]);
   const cp = Math.cos(me.pitch), sp = Math.sin(me.pitch), F = add(me.fr.F.map((v) => v * cp), UP, sp), U = add(UP.map((v) => v * cp), me.fr.F, -sp);
   Rd.draw({ eye: me.p.map((v) => v / VS), R: me.fr.R, U, F, sun: SUN, time: now / 1000, fae: opt.fae ? 1 : 0, tan: TAN, far: 200, vs: VS }, resolution(dt));
-  const r = trackRead(); readout(r); mapDraw();
+  const r = trackRead(), br = bikeRead(st); readout(r); mapDraw(st);
+  if (ride !== "walk") { const hud = `riding · ${ride} · lean <b>${(st.phi * 180 / Math.PI).toFixed(0)}°</b>, ${br.intoW}% into w · lap ${Math.floor(bk.s / LAP)}`; if (hud !== readout.hud) { readout.hud = hud; $("hudT").innerHTML = hud; } }
   const g = ov.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1); if (ov.width !== Math.round(ov.clientWidth * dpr)) { ov.width = Math.round(ov.clientWidth * dpr); ov.height = Math.round(ov.clientHeight * dpr); }
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, ov.clientWidth, ov.clientHeight); g.fillStyle = "rgba(255,255,255,0.7)"; g.beginPath(); g.arc(ov.clientWidth / 2, ov.clientHeight / 2, 1.6, 0, 2 * Math.PI); g.fill();
   const wn = wName(); if (wn !== step.wn) { step.wn = wn; $("hudW").textContent = `unseen ${wn}`; }
@@ -224,4 +277,4 @@ function step(now) {
   frames++;
 }
 requestAnimationFrame(step);
-window.LEAN = { timing, me, squareUp, faceTrack, get frames() { return frames; }, rot: (i, j, t) => { rotFr(i, j, t); tidy(); }, opt, track: () => trackRead(), lap };
+window.LEAN = { timing, me, bk, setRide, setMech, get ride() { return ride; }, squareUp, faceTrack, get frames() { return frames; }, rot: (i, j, t) => { rotFr(i, j, t); tidy(); }, opt, track: () => trackRead(), lap };
