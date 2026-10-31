@@ -21,10 +21,11 @@ uniform vec4 uTor[6]; uniform vec2 uTorR[2]; // per tyre: centre, e1, e2; and (R
 uniform vec4 uCapA[24], uCapB[24], uCapR[24]; // ends, and (radius, part, 0, 0)
 uniform vec4 uBC; uniform float uBR; uniform vec3 uBikeCol; // a ball holding all of it, and the frame's colour
 out vec4 o;
-const ivec3 DIM = ivec3(192, 192, 64);
-const ivec3 NB = ivec3(24, 24, 8);
+const ivec3 DIM = ivec3(320, 320, 128);
+const ivec3 NB = ivec3(40, 40, 16);
+const int AC = 12; // the atlas: w-slices 12 across
 int wr(int v, int n) { return v - n * int(floor(float(v) / float(n))); }
-uint raw(ivec3 c) { int x = wr(c.x, DIM.x), z = wr(c.y, DIM.y), w = wr(c.z, DIM.z); return texelFetch(uH, ivec2(x + (w - (w / 8) * 8) * DIM.x, z + (w / 8) * DIM.y), 0).r; }
+uint raw(ivec3 c) { int x = wr(c.x, DIM.x), z = wr(c.y, DIM.y), w = wr(c.z, DIM.z); return texelFetch(uH, ivec2(x + (w - (w / AC) * AC) * DIM.x, z + (w / AC) * DIM.y), 0).r; }
 float col(ivec3 c) { return float(raw(c) & 63u); }
 float blk(ivec3 b) { return float(texelFetch(uM, ivec2(wr(b.x, NB.x) + wr(b.z, NB.z) * NB.x, wr(b.y, NB.y)), 0).r); }
 bool march(vec4 ro, vec4 rd, out float tHit, out vec4 n, out ivec3 cell) {
@@ -115,7 +116,7 @@ void main() {
     base = mix(base, mix(base, fae(dw * 0.22 + 0.5), 0.6) * 1.1, k);
     float lam = max(dot(nb, uSun), 0.0), spec = pow(max(dot(reflect(d, nb), uSun), 0.0), 24.0);
     c = base * (vec3(0.42, 0.47, 0.62) * (0.75 + 0.25 * nb.y) + vec3(1.0, 0.85, 0.64) * lam) + vec3(0.35) * spec * (bm == 1 ? 1.0 : 0.3);
-    c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tb / 40.0));
+    c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tb / 75.0));
   }
   else if (!hit) c = sky(d);
   else {
@@ -141,7 +142,7 @@ void main() {
     float lam = max(dot(n, uSun), 0.0);
     if (uBike == 1) { float ts; int sm; if (marchBike(p * uVS + n * 0.01, uSun, 4.0, ts, sm)) lam *= 0.25; } // the bike's shadow
     c = base * (vec3(0.4, 0.46, 0.62) * (0.8 + 0.25 * n.y) + vec3(1.0, 0.85, 0.64) * lam) * mix(0.7, 1.0, edge);
-    float fog = 1.0 - exp(-t * uVS / 40.0);
+    float fog = 1.0 - exp(-t * uVS / 75.0);
     c = mix(c, sky(d) * 0.9 + 0.08, fog);
   }
   o = vec4(c / (1.0 + 0.12 * c), 1.0);
@@ -165,11 +166,12 @@ export class Renderer {
     for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, w, h, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, data);
   }
-  /* the land: H (x + X(z + Z w)) into an atlas of 8 × 8 w-slices, each X × Z; M (the blocks) into a row of 8 */
-  load(H, M, dims) {
-    const [X, Z, W] = dims, a = new Uint8Array(X * 8 * Z * 8);
-    for (let w = 0; w < W; w++) for (let z = 0; z < Z; z++) { const src = X * (z + Z * w), row = (z + (w >> 3) * Z) * X * 8 + (w & 7) * X; a.set(H.subarray(src, src + X), row); }
-    this.tex(0, X * 8, Z * 8, a);
+  /* the land: H (x + X(z + Z w)) into an atlas of w-slices, each X × Z, `cols` across (world.js's ATLAS_C); M (the
+     blocks) into a row of block-slices */
+  load(H, M, dims, cols = 12) {
+    const [X, Z, W] = dims, rows = Math.ceil(W / cols), a = new Uint8Array(X * cols * Z * rows);
+    for (let w = 0; w < W; w++) for (let z = 0; z < Z; z++) { const src = X * (z + Z * w), row = (z + Math.floor(w / cols) * Z) * X * cols + (w % cols) * X; a.set(H.subarray(src, src + X), row); }
+    this.tex(0, X * cols, Z * rows, a);
     const nb = dims.map((v) => v / 8), m = new Uint8Array(nb[0] * nb[2] * nb[1]);
     for (let w = 0; w < nb[2]; w++) for (let z = 0; z < nb[1]; z++) for (let x = 0; x < nb[0]; x++) m[z * nb[0] * nb[2] + x + w * nb[0]] = M[x + nb[0] * (z + nb[1] * w)];
     this.tex(1, nb[0] * nb[2], nb[1], m);

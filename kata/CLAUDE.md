@@ -33,6 +33,10 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   frame, and the map: the ground in x, z, w (w up) drawn orthographically, the track as a tube of its true width. See [`lean/README.md`](lean/README.md).
   - A cell's byte is **height in bits 0–5, material in bits 6–7** (IRIS⁴'s is height in 0–6 and a water bit). Heights
     cap at 63 voxels.
+  - **The world is 320 × 320 × 128 cells** (80 × 80 × 32 m), the basin 74 × 74 × 29 m round the unchanged track,
+    after the first riders found the old 42 × 42 × 15 m basin impossible to get their bearings in (in w the wall
+    stood 3 m off the track). The shader's atlas is `ATLAS_C` = 12 slices across (3840 × 3520); keep both sides under
+    4096 (the selftest checks), and change `DIM`, `NB` and `AC` in `render.js` with `world.js`.
   - **The basin must stay closed.** The selftest floods every cell reachable from the start by `walk()`'s own rule and
     fails if any is outside the basin. Anything that moves the player (vehicles included) must go through `walk()` or
     keep its substep rule: at most one cell per axis per substep, each climbing at most `STEP` above where it began.

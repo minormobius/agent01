@@ -11,7 +11,7 @@ let checks = 0, fails = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg); } else console.log("ok   " + msg); };
 const [X, Z, W] = DIM, idx = (x, z, w) => x + X * (z + Z * w), cen = (i) => [((i % X) + 0.5) * VS, ((Math.floor(i / X) % Z) + 0.5) * VS, (Math.floor(i / (X * Z)) + 0.5) * VS];
 
-const t0 = performance.now(), D = Wd.trackDistance(), H = Wd.terrain(1, D), M = Wd.blocks(H), build = performance.now() - t0;
+const t0 = performance.now(), TC = Wd.trackCells(), D = Wd.denseDistance(TC), H = Wd.terrain(1, TC), M = Wd.blocks(H), build = performance.now() - t0;
 const H2 = Wd.terrain(1);
 ok(H.every((v, i) => v === H2[i]), `the same seed makes the same land (built in ${build.toFixed(0)} ms)`);
 
@@ -86,7 +86,7 @@ ok(H.every((v, i) => v === H2[i]), `the same seed makes the same land (built in 
   const brute = (ro, rd, far) => { for (let t = 0; t < far; t += 0.002) { const y = ro[1] + rd[1] * t; if (y <= Wd.height(H, Math.floor(ro[0] + rd[0] * t), Math.floor(ro[2] + rd[2] * t), Math.floor(ro[3] + rd[3] * t))) return t; } return null; };
   let agree = 0, n = 0, worst = 0, corners = 0, faces = true;
   for (let k = 0; k < 120; k++) {
-    const ro = [20 + rnd() * 150, 30 + rnd() * 30, 20 + rnd() * 150, 6 + rnd() * 52];
+    const ro = [20 + rnd() * 280, 30 + rnd() * 30, 20 + rnd() * 280, 6 + rnd() * 116];
     let rd = [rnd() - 0.5, -0.04 - rnd() * 0.5, rnd() - 0.5, (rnd() - 0.5) * 0.7];
     if (k % 10 === 5) { rd[0] = 0; rd[3] = 0; }
     const m = Math.hypot(...rd); rd = rd.map((v) => v / m);
@@ -151,7 +151,7 @@ ok(H.every((v, i) => v === H2[i]), `the same seed makes the same land (built in 
   ok(Math.abs(q[1] - (Wd.groundAt(H, q) + Wd.EYE)) < 1e-3, "standing still you settle at eye height");
   // straight at the rim from the start: you stop at it
   let r = Wd.start(H); for (let i = 0; i < 600; i++) r = Wd.walk(H, r, [6, 0, 0, 0], 1 / 30);
-  ok(Wd.basinE(r[0], r[2], r[3]) < 1 && r[0] > 38, `walking straight at the rim stops you at it (x ${r[0].toFixed(1)} m)`);
+  ok(Wd.basinE(r[0], r[2], r[3]) < 1 && r[0] > Wd.BASIN.c[0] + Wd.BASIN.a[0] - 1, `walking straight at the rim stops you at it (x ${r[0].toFixed(1)} m)`);
   // the start is on the track, at its height
   const s = Wd.start(H);
   ok(Math.abs(Wd.groundAt(H, s) - TRACK_H * VS) < 1e-9 && Wd.nearestTrack(s).d < 0.05, "you start on the centreline, on the tarmac");
@@ -160,7 +160,9 @@ ok(H.every((v, i) => v === H2[i]), `the same seed makes the same land (built in 
 /* the shader's grid, blocks and height mask are world.js's */
 {
   const src = fs.readFileSync(path.join(here, "../js/render.js"), "utf8"), nb = DIM.map((v) => v / B);
-  ok(src.includes(`ivec3 DIM = ivec3(${DIM.join(", ")})`) && src.includes(`ivec3 NB = ivec3(${nb.join(", ")})`) && src.includes("floor(p / 8.0)") && B === 8 && src.includes(`& ${HMASK}u`) && src.includes(`>> ${MSHIFT}u`), "the shader's grid, blocks and cell layout are world.js's");
+  ok(src.includes(`ivec3 DIM = ivec3(${DIM.join(", ")})`) && src.includes(`ivec3 NB = ivec3(${nb.join(", ")})`) && src.includes("floor(p / 8.0)") && B === 8 && src.includes(`& ${HMASK}u`) && src.includes(`>> ${MSHIFT}u`) && src.includes(`const int AC = ${Wd.ATLAS_C};`), "the shader's grid, blocks, atlas and cell layout are world.js's");
+  const rows = Math.ceil(DIM[2] / Wd.ATLAS_C);
+  ok(DIM[0] * Wd.ATLAS_C <= 4096 && DIM[1] * rows <= 4096, `the atlas is ${DIM[0] * Wd.ATLAS_C} × ${DIM[1] * rows}, inside the 4096 a phone's GPU is sure to take`);
 }
 
 console.log(`\n${checks - fails}/${checks} checks passed`);

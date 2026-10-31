@@ -27,15 +27,19 @@ normal and N the binormal: then the whole bend is in your slice, and τ is how f
 
 ## The world (`js/world.js`)
 
-IRIS⁴'s engine (`four.mino.mobi/iris/`): a heightfield of 0.25 m tesseract voxels over x, z and w (192 × 192 × 64
-cells), the two-level ray march (`march()`, the shader's twin, line for line) and walking (eye 1.7 m, step up 0.5 m,
+IRIS⁴'s engine (`four.mino.mobi/iris/`): a heightfield of 0.25 m tesseract voxels over x, z and w (320 × 320 × 128
+cells, an 80 × 80 × 32 m world, packed for the GPU as an atlas of w-slices 12 across, 3840 × 3520, inside the 4096
+any phone takes), the two-level ray march (`march()`, the shader's twin, line for line) and walking (eye 1.7 m, step up 0.5 m,
 slide along cliffs). Cut down to the tesseract grid, with no foams and no rainbows, and changed in four ways:
 
-- **The basin.** Inside an ellipsoid over x, z and w (semi-axes 21, 21 and 7.4 m) the floor is perfectly flat, every
-  cell at 22 voxels (5.5 m). Outside it stands a rim of at least 50 voxels, a 7 m wall, filling all six faces of the
-  world's box, so the world's wrap is never reached.
+- **The basin.** Inside an ellipsoid over x, z and w (semi-axes 37, 37 and 14.5 m: a stadium 74 m across, 29 m
+  in w) the floor is perfectly flat, every cell at 22 voxels (5.5 m). Outside it stands a rim of at least 50 voxels,
+  a 7 m wall broken up block by block, filling all six faces of the world's box, so the world's wrap is never
+  reached. The track sits in the middle half of it: the walls stand at least 10 m off it even in w, where they used to
+  be 3 m away, so looking into w shows you open floor and the track, not wall.
 - **The track** is marked on that floor wherever the centreline is within 1.5 m: a closed loop of tarmac with nothing
-  in its way. The polyline has 1536 segments, so the distance is exact to its 6 cm chords.
+  in its way. The polyline has 1536 segments, so the distance is exact to its 6 cm chords. Only the cells near it
+  are kept (`trackCells()`, sparse: a few hundred thousand of the world's 13 million).
 - **Materials.** A cell's byte holds its height in bits 0–5 and its material in bits 6–7: ground, tarmac, the centre
   line (within 12 cm of the centreline, a thin tube, so in your slice it's a line or a dot), and kerbs (the outer 25 cm).
 - **Walking in substeps.** `walk()` cuts every move into substeps of under a cell along each axis. However fast you go

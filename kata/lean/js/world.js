@@ -17,7 +17,8 @@
 
    The ray march (two-level DDA, blocks of B³ cells skipped on their tallest column) is IRIS⁴'s, line for line, and the
    shader's twin. A cell's byte holds its height in the low six bits and its material in the top two. */
-export const DIM = [192, 192, 64]; // cells along x, z, w
+export const DIM = [320, 320, 128]; // cells along x, z, w: an 80 × 80 × 32 m world
+export const ATLAS_C = 12; // the shader's atlas lays the w-slices out 12 across (and 11 down): 3840 × 3520, under phones' 4096
 export const VS = 0.25; // a voxel's size, in metres
 export const B = 8; // a block, in cells, for the coarse march
 export const HMASK = 63, MSHIFT = 6; // a cell: height (voxels) in bits 0–5, material in bits 6–7
@@ -26,7 +27,7 @@ export const SIZE = [DIM[0] * VS, 0, DIM[1] * VS, DIM[2] * VS]; // metres, in (x
 
 /* the basin: an ellipsoid over (x, z, w), metres. Its surface stays inside the world's box, so the rim fills the box's
    edges every way and the world's wrap is never reached */
-export const BASIN = { c: [24, 24, 8], a: [21, 21, 7.4] };
+export const BASIN = { c: [40, 40, 16], a: [37, 37, 14.5] }; // 74 m across in x and z, 29 m in w: the walls ~10 m off the track even in w
 export const RIM_MIN = 50, LAND_MAX = 22; // voxels: the rim's lowest, the interior's highest (the floor is flat, at TRACK_H)
 /* the track */
 export const TRACK_H = 22; // voxels: 5.5 m
@@ -79,38 +80,18 @@ function hash(x, z, w, s) {
   n ^= n >>> 15; n = Math.imul(n, 0x2c1b3c6d) >>> 0; n ^= n >>> 12; n = Math.imul(n, 0x297a2d39) >>> 0; n ^= n >>> 15;
   return (n >>> 0) / 4294967296;
 }
-/* one octave of periodic value noise over the grid (IRIS⁴'s) */
-function octave(scale, seed, out) {
-  const per = DIM.map((n, k) => n / scale[k]), L = new Float32Array(per[0] * per[1] * per[2]);
-  for (let w = 0; w < per[2]; w++) for (let z = 0; z < per[1]; z++) for (let x = 0; x < per[0]; x++) L[x + per[0] * (z + per[1] * w)] = hash(x, z, w, seed);
-  const axis = (n, k) => { const i0 = new Int32Array(n), i1 = new Int32Array(n), f = new Float32Array(n); for (let c = 0; c < n; c++) { const q = c / scale[k], b = Math.floor(q), t = q - b; i0[c] = b % per[k]; i1[c] = (b + 1) % per[k]; f[c] = t * t * (3 - 2 * t); } return { i0, i1, f }; };
-  const ax = axis(DIM[0], 0), az = axis(DIM[1], 1), aw = axis(DIM[2], 2), [X, Z, W] = DIM, P0 = per[0], P01 = per[0] * per[1];
-  for (let w = 0; w < W; w++) {
-    const w0 = aw.i0[w] * P01, w1 = aw.i1[w] * P01, fw = aw.f[w];
-    for (let z = 0; z < Z; z++) {
-      const z0 = az.i0[z] * P0, z1 = az.i1[z] * P0, fz = az.f[z], row = X * (z + Z * w);
-      for (let x = 0; x < X; x++) {
-        const x0 = ax.i0[x], x1 = ax.i1[x], fx = ax.f[x];
-        const a = L[x0 + z0 + w0] + (L[x1 + z0 + w0] - L[x0 + z0 + w0]) * fx, b = L[x0 + z1 + w0] + (L[x1 + z1 + w0] - L[x0 + z1 + w0]) * fx;
-        const c = L[x0 + z0 + w1] + (L[x1 + z0 + w1] - L[x0 + z0 + w1]) * fx, d = L[x0 + z1 + w1] + (L[x1 + z1 + w1] - L[x0 + z1 + w1]) * fx;
-        const e = a + (b - a) * fz, g = c + (d - c) * fz;
-        out[row + x] = e + (g - e) * fw;
-      }
-    }
-  }
-}
-/* the distance from every cell's centre to the centreline, for the cells near it (Infinity elsewhere): blocks far
-   from every sample are skipped, and each near block's cells test only the segments near it. Scalar and
-   allocation-free, since it runs some 10⁷ times on the page's load */
+/* the cells near the centreline (within R_TRACK + SHOULDER) and their distances to it, kept sparse (the world has 13
+   million cells and the track touches a few hundred thousand): blocks far from every sample are skipped, and each
+   near block's cells test only the segments near it. Scalar and allocation-free in the inner loop */
 const SEG = (() => { const a = new Float64Array(NS * 7); for (let i = 0; i < NS; i++) { const p = PTS[i], q = PTS[(i + 1) % NS], ex = q[0] - p[0], ez = q[1] - p[1], ew = q[2] - p[2]; a.set([p[0], p[1], p[2], ex, ez, ew, 1 / (ex * ex + ez * ez + ew * ew)], 7 * i); } return a; })();
 function segD2(x, z, w, i) {
   const k = 7 * i, ox = x - SEG[k], oz = z - SEG[k + 1], ow = w - SEG[k + 2], ex = SEG[k + 3], ez = SEG[k + 4], ew = SEG[k + 5];
   let u = (ox * ex + oz * ez + ow * ew) * SEG[k + 6]; u = u < 0 ? 0 : u > 1 ? 1 : u;
   const rx = ox - u * ex, rz = oz - u * ez, rw = ow - u * ew; return rx * rx + rz * rz + rw * rw;
 }
-export function trackDistance() {
-  const [X, Z, W] = DIM, D = new Float32Array(X * Z * W).fill(Infinity), reach = R_TRACK + SHOULDER, BS = B * VS, half = (Math.sqrt(3) * BS) / 2;
-  const nearR2 = (reach + half + 0.1) ** 2, reach2 = reach * reach, near = new Int32Array(NS);
+export function trackCells() {
+  const [X, Z, W] = DIM, reach = R_TRACK + SHOULDER, BS = B * VS, half = (Math.sqrt(3) * BS) / 2;
+  const nearR2 = (reach + half + 0.1) ** 2, reach2 = reach * reach, near = new Int32Array(NS), idx = [], dist = [];
   for (let bw = 0; bw < W / B; bw++) for (let bz = 0; bz < Z / B; bz++) for (let bx = 0; bx < X / B; bx++) {
     let nn = 0; const cx = (bx + 0.5) * BS, cz = (bz + 0.5) * BS, cw = (bw + 0.5) * BS;
     for (let i = 0; i < NS; i++) if (segD2(cx, cz, cw, i) < nearR2) near[nn++] = i;
@@ -118,24 +99,26 @@ export function trackDistance() {
     for (let w = bw * B; w < (bw + 1) * B; w++) for (let z = bz * B; z < (bz + 1) * B; z++) for (let x = bx * B; x < (bx + 1) * B; x++) {
       const gx = (x + 0.5) * VS, gz = (z + 0.5) * VS, gw = (w + 0.5) * VS; let d = Infinity;
       for (let j = 0; j < nn; j++) { const s = segD2(gx, gz, gw, near[j]); if (s < d) d = s; }
-      if (d < reach2) D[x + X * (z + Z * w)] = Math.sqrt(d);
+      if (d < reach2) { idx.push(x + X * (z + Z * w)); dist.push(Math.sqrt(d)); }
     }
   }
-  return D;
+  return { idx: Int32Array.from(idx), d: Float32Array.from(dist) };
 }
-/* the heights and materials: the rim (its noise is only there to give the wall some character), and inside it a flat
-   floor at the track's height, with the track marked on it: tarmac, the centre line, the kerbs */
-export function terrain(seed = 1, D = trackDistance()) {
-  const [X, Z, W] = DIM, n = X * Z * W, n1 = new Float32Array(n), n3 = new Float32Array(n), H = new Uint8Array(n);
-  octave([24, 24, 16], seed, n1); octave([4, 4, 4], seed + 2, n3);
+/* the same as a dense field over every cell (Infinity far from the track), for the selftest */
+export function denseDistance(T) { const D = new Float32Array(DIM[0] * DIM[1] * DIM[2]).fill(Infinity); T.idx.forEach((i, k) => { D[i] = T.d[k]; }); return D; }
+/* the heights and materials: the rim, and inside it a flat floor at the track's height with the track marked on it */
+export function terrain(seed = 1, T = trackCells()) {
+  const [X, Z, W] = DIM, H = new Uint8Array(X * Z * W), nb = DIM.map((v) => v / B);
+  // the rim: at least RIM_MIN, broken up block by block (8 cells) and a little column by column, for something to see
+  const blockUp = new Uint8Array(nb[0] * nb[1] * nb[2]); for (let i = 0; i < blockUp.length; i++) blockUp[i] = Math.floor(hash(i, 3, 5, seed) * 9);
   for (let w = 0; w < W; w++) for (let z = 0; z < Z; z++) for (let x = 0; x < X; x++) {
-    const i = x + X * (z + Z * w), e = basinE((x + 0.5) * VS, (z + 0.5) * VS, (w + 0.5) * VS);
-    if (e >= 1) { H[i] = Math.max(RIM_MIN, Math.min(HMASK, Math.round(RIM_MIN + 10 * n1[i] + 3 * n3[i]))); continue; }
-    const d = D[i]; let mat = MAT.ground;
-    if (d < R_TRACK) mat = d < LINE ? MAT.line : d > R_TRACK - KERB ? MAT.kerb : MAT.track;
-    const v = TRACK_H; // the whole floor of the basin is flat, at the track's height: the track is the loop painted on it
-    H[i] = Math.min(LAND_MAX, Math.round(v)) | (mat << MSHIFT);
+    const i = x + X * (z + Z * w);
+    if (basinE((x + 0.5) * VS, (z + 0.5) * VS, (w + 0.5) * VS) < 1) { H[i] = TRACK_H; continue; } // the floor: flat, at the track's height
+    const bi = (x >> 3) + nb[0] * ((z >> 3) + nb[1] * (w >> 3));
+    H[i] = Math.min(HMASK, RIM_MIN + blockUp[bi] + Math.floor(hash(x, z, w, seed + 1) * 2.2));
   }
+  // the track, marked on the floor: tarmac, the centre line, the kerbs
+  for (let k = 0; k < T.idx.length; k++) { const d = T.d[k]; if (d >= R_TRACK) continue; const mat = d < LINE ? MAT.line : d > R_TRACK - KERB ? MAT.kerb : MAT.track; H[T.idx[k]] = TRACK_H | (mat << MSHIFT); }
   return H;
 }
 export const height = (H, x, z, w) => H[wrap(x, DIM[0]) + DIM[0] * (wrap(z, DIM[1]) + DIM[1] * wrap(w, DIM[2]))] & HMASK;
