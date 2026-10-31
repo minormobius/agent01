@@ -29,13 +29,23 @@
      node four/atom/tools/nuclei.mjs rungcap [MN]                 the ladder's rungs past the first: helium-4 onto 2–5 helium-4s
                                                                  by E2 (folded potential, one depth per rung set on its capture
                                                                  energy from the ladder and from Brink), ours' ¹²C(α,γ) the check
+     node four/atom/tools/nuclei.mjs plusone <d> <s> <k> <Z> [dirs]  a nucleon on k helium-4s microscopically (Brink, two-body
+                                                                 Minnesota, u set on our ⁸Be): its separation energy, so whether
+                                                                 element 2k + 1 at mass 4k + 1 holds together (Z 1 proton, 0 neutron)
+     node four/atom/tools/nuclei.mjs protonflow [compact] MN      where hydrogen and helium burn together, does a ladder nucleus
+                                                                 catch a proton (toward odd elements) or a helium-4 (on up the
+                                                                 ladder)? E1 against E2, both computed, on 2–4 helium-4 cores
+     node four/atom/tools/nuclei.mjs restore                      writes the cache back from js/nucleidata.js (what was computed
+                                                                 here rather than on the runner lives only there and in the cache)
+     node four/atom/tools/nuclei.mjs hburn                        hydrogen and helium burning together: a zone's network at each
+                                                                 temperature, against its own proton–proton clock (sandbox, minutes)
      node four/atom/tools/nuclei.mjs bake                        → js/nucleidata.js
    The three-nucleon force is W Σ_cyclic e^(−(r_ij² + r_ik²)/b²); fit gives c = W π³ b⁶/2 (its Hartree energy per nucleon
    in our matter is c ρ²), so W = 2c/(π³ b⁶) for each b, and in 4D the same W and b give c₄ = c π b². */
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { matter, fixedNode, window as nucWindow, MT, MN, mtPot, coulombFactor, THREE_C, THREE_C_MN, threeForce, alphaWidth, alphaPair, alphaNucleon, calibrate, alphaLocal, alphaDMC, calibrateLocal, alphaCapture, deepNuclear, nucleonCapture, nucleonPot, levels, HB2M, foldCore, rungFactor, rungCapture } from "../js/nuclear.js";
+import { matter, fixedNode, window as nucWindow, MT, MN, mtPot, coulombFactor, THREE_C, THREE_C_MN, threeForce, alphaWidth, alphaPair, alphaNucleon, calibrate, alphaLocal, alphaDMC, calibrateLocal, alphaCapture, deepNuclear, nucleonCapture, nucleonPot, levels, HB2M, foldCore, rungFactor, rungCapture, coreNucleonFactor, coreNucleonCapture, coulombAvg, E2 } from "../js/nuclear.js";
 import { criticalZ } from "../js/dirac.js";
 import * as BR from "../js/brink.js";
 import * as BB from "../js/bbn.js";
@@ -211,6 +221,89 @@ if (cmd === "fit") {
     for (let k = 2; k <= 4; k++) { const Qs = []; if (lad(k) != null && lad(k + 1) != null) Qs.push(["ladder", lad(k) - lad(k + 1)]); if (FC === FORCES.MN && bri(k) != null && bri(k + 1) != null) Qs.push(["brink", bri(k) - bri(k + 1)]);
       for (const [src, Q] of Qs) { const r = one(4, s, k, Q, r2a, 1.0); rows.push({ s, src, ...r }); console.log(`${fname} s=${s} ${src} ${2 * k} → ${2 * k + 2}: Q ${Q.toFixed(0)} MeV, barrier-only ${(r.Tbarrier / 1e9).toFixed(3)} GK, matched ${r.T.map((t) => (t / 1e9).toFixed(3)).join("–")} GK`); } } }
   save(`${FC.pre}rungcap.json`, { force: fname, check: chkS, rows });
+} else if (cmd === "plusone") {
+  // the odd-against-even question's first piece: does a nucleon hold on to a ladder nucleus? Four compact core placements,
+  // each with the nucleon on a grid of radii and directions, against the core alone on the same placements (brink.js
+  // nucleonOnCoreGrid). Two-body Minnesota with Minnesota's own u (0.938, our ⁸Be at threshold without the three-nucleon
+  // force), since the three-nucleon force over this many orbitals is out of reach here; the check is ours
+  // "compact" draws the core's helium-4s close (the closed-shell limit, the lowest core energy for a closed shell): on our
+  // oxygen-16 it gives fluorine-17 0.46 MeV and oxygen-17 4.76 against the measured 0.60 and 4.14, where the loose draw
+  // overbinds them by 6–7. For open-shell cores the two draws differ, and the spread between them is the uncertainty
+  const compact = args.includes("compact"), rest = args.filter((x) => x !== "compact");
+  const [d, s, k, Z] = [+rest[0], +rest[1], +rest[2], +rest[3]], ndir = +(rest[4] ?? (d === 3 ? 12 : 24)), nu = BR.bestNu(d, s), t = Date.now();
+  const r = BR.nucleonOnCoreGrid({ d, k, Z, nu, s, u: 0.938, M: 4, ndir, ...(compact ? { spread: [0.15, 0.45], minD: 0.4 } : {}) });
+  console.log(`d=${d} s=${s} k=${k} ${Z ? "proton" : "neutron"}${compact ? " compact" : ""} (${r.n} states): separation ${r.S.toFixed(2)} MeV, core ${r.Ec.toFixed(1)} (${((Date.now() - t) / 1000).toFixed(0)} s)`);
+  save(`plusone-${d}-${tag(s)}-${k}-${Z}-${ndir}${compact ? "-c" : ""}.json`, { d, s, k, Z, ndir, compact, ...r });
+} else if (cmd === "protonflow") {
+  // ours as the check: ¹²C + p → ¹³N, the proton bound by 1.944 MeV, against the measured direct capture ~1.3–1.5 keV b.
+  // Then 4D on cores of k = 2, 3, 4 helium-4s: the nucleon–core potential set to the microscopic neutron separation
+  // (plusone), the proton's own binding following from it with Coulomb; the helium-4–core potential set to the rung's
+  // capture energy (Brink's), as rungcap. Both captures tabulated over energy and averaged at the burning temperatures.
+  // In unburnt gas (hydrogen 70% by mass, helium 30%) protons outnumber helium-4s 9.3 to 1
+  // "compact": the nucleon's binding from plusone's close-drawn cores instead (the other end of the stated spread)
+  const pcx = args.includes("compact") ? "-c" : "";
+  const tbl = (fn) => { const E = Array.from({ length: 22 }, (_, i) => 0.003 * Math.pow(1000, i / 21)); return { E, sv: E.map(fn) }; };
+  const a3 = alphaWidth(3, R2_OURS), cl = load(`${FC.pre}cluster.json`), V3 = foldCore(3, nucleonPot(3, FC.F, 1, a3, cl.lamN), 3, 2.40), f3 = coreNucleonFactor(3, V3, 3, 1.944, { Z: 1 });
+  const S3 = [0.025, 0.1].map((E) => { const r = coreNucleonCapture({ d: 3, Vfold: V3, k: 3, f: f3, E, Z: 1 }), eta = (6 / 137.035999) * Math.sqrt(((12 / 13) * 938.92) / (2 * E)); return (r.sigma / 100) * E * Math.exp(2 * Math.PI * eta) * 1000; });
+  console.log(`ours ¹²C(p,γ)¹³N: S(25 keV) ${S3[0].toFixed(2)} keV b (measured direct capture ~1.3–1.5)`);
+  const he = (dd, ss) => load(`${FC.pre}he-${dd}-${tag(ss)}-none-4.json`), h3 = he(3, 1), lam = calibrateLocal(FC.F), ms = (d, A, r0) => (d / (d + 2)) * (r0 * Math.pow(A, 1 / d)) ** 2, Ts = [0.02e9, 0.05e9, 0.1e9, 0.2e9, 0.3e9], rows = [];
+  for (const s of FC.s4) { const r2a = (R2_OURS * he(4, s).r2) / h3.r2, a = alphaWidth(4, r2a), Vaa = deepNuclear(4, FC.F, s, a, lam), Vna = nucleonPot(4, FC.F, s, a, cl.lamN);
+    for (let k = 2; k <= 4; k++) { const p1 = (Z) => { const xs = [24, 40].map((nd) => load(`plusone-4-${tag(s)}-${k}-${Z}-${nd}${pcx}.json`)).filter(Boolean); return xs.length ? xs[xs.length - 1].S : null; };
+      const Sn = p1(0), Sp = p1(1), bri = (N) => { const x = load(`brink-4-${tag(s)}-1-${N}.json`); return x ? (N === 2 ? x.E0 : x.E["480"]) : null; }; if (Sn == null || bri(k) == null || bri(k + 1) == null) continue;
+      const Qa = bri(k) - bri(k + 1), rc2 = Math.max(0.3, ms(4, 4 * k, 1.0) - r2a), Vn = foldCore(4, Vna, k, rc2), fn = coreNucleonFactor(4, Vn, k, Sn, { Z: 0 });
+      const pBind = levels(((r) => fn * Vn(r) + 2 * k * E2 * coulombAvg(4, 0.3, r)), { d: 4, l: 1, c: (HB2M * (1 + 4 * k)) / (8 * k), rmax: 30, h: 0.01, emax: 1e4 })[0];
+      const Va = foldCore(4, Vaa, k, rc2), fa = rungFactor(4, Va, k, Qa, { quanta: 4 });
+      const tp = tbl((E) => coreNucleonCapture({ d: 4, Vfold: Vn, k, f: fn, E, Z: 1 }).sv), ta = tbl((E) => rungCapture({ d: 4, Vfold: Va, k, f: fa, E, quanta: 4 }).sv);
+      const at = Ts.map((T) => { const kT = KB_MEV * T, p = BB.thermal(4, kT, tp), al = BB.thermal(4, kT, ta); return { T, p, a: al, ratio: al > 0 ? (9.3 * p) / al : Infinity }; });
+      rows.push({ s, k, Sn, Sp, pBind, Qa, at, tp, ta });
+      console.log(`${fname} s=${s} core of ${k}: proton bound ${(-pBind).toFixed(1)} MeV (microscopic ${Sp?.toFixed(1)}), helium-4 capture ${Qa.toFixed(0)} MeV; proton ÷ helium-4 capture per nucleus: ${at.map((x) => `${(x.T / 1e9).toFixed(2)} GK ${x.ratio.toExponential(1)}`).join(", ")}`); } }
+  save(`${FC.pre}protonflow${pcx}.json`, { force: fname, compact: !!pcx, check: S3, rows });
+} else if (cmd === "restore") {
+  // the runner's results come back from atom4-data; what was computed in a sandbox (capture, mass5, burning, rungcap,
+  // protonflow, local ladder points) lives only in the cache and in the baked js/nucleidata.js, so a lost cache is rebuilt
+  // from the bake. Files already present are left alone; a bake from the result reproduces js/nucleidata.js
+  const N = (await import("../js/nucleidata.js")).NUCLEI; let n = 0; const w = (f, o) => { if (!o || existsSync(path.join(DIR, f))) return; writeFileSync(path.join(DIR, f), JSON.stringify(o)); n++; };
+  for (const [F, pre] of [["MT", ""], ["MN", "MN-"]]) { const fc = N.forces[F]; w(`${pre}fit.json`, fc.fit); w(`${pre}cluster.json`, fc.cluster); w(`${pre}capture.json`, fc.capture);
+    for (const x of fc.matter ?? []) w(`${pre}matter-${x.d}-${tag(x.s)}-${x.kind}.json`, x); for (const x of fc.he ?? []) w(`${pre}he-${x.d}-${tag(x.s)}-${x.b}-${x.A}.json`, x); for (const x of fc.ladder ?? []) w(`${pre}ladder-${x.d}-${tag(x.s)}-${x.N}.json`, x); }
+  w("burning.json", N.burning); w("rungcap.json", N.rungcap?.MT); w("MN-rungcap.json", N.rungcap?.MN); w("MN-protonflow.json", N.protonflow); w("MN-protonflow-c.json", N.protonflowc); w("hburn.json", N.hburn);
+  for (const x of N.mass5 ?? []) w(`mass5-${x.d}-${tag(x.s)}-${tag(x.b)}.json`, x); for (const x of N.brink ?? []) w(`brink-${x.d}-${tag(x.s)}-${tag(x.b)}-${x.N}.json`, x); for (const x of N.plusone ?? []) w(`plusone-${x.d}-${tag(x.s)}-${x.k}-${x.Z}-${x.ndir}${x.compact ? "-c" : ""}.json`, x);
+  console.log(`restored ${n} files into ${DIR}`);
+} else if (cmd === "hburn") {
+  // hydrogen and helium burning together, measured against the zone's own hydrogen burning rather than our stars' clock.
+  // Proton + proton takes the weak force, ours (S = 4.01 × 10⁻²² keV b, the stated choice), through 4D's barrier (the
+  // protons' nuclear radius 1 to 4 fm); helium-4 + helium-4 from the first capture's table; a proton or a helium-4 onto
+  // beryllium-8, carbon and oxygen from protonflow's tables (both draws of the core); onto every other nucleus the
+  // barrier with our nuclear factor (¹⁴N(p,γ)'s 1.6 keV b, ¹²C(α,γ)'s 151) times the geometric mean of how far the
+  // computed ones exceed it (4D captures land tens of MeV deep, and dipole light grows as the photon energy cubed).
+  // All are ratios at the Gamow peak, S̃ = σ k^(d−1) e^G, so ⟨σv⟩_X/⟨σv⟩_pp = (S̃_X/S̃_pp)(μ_pp/μ_X)² e^(ln I_X − ln I_pp)
+  // in 4D, and density drops out (js/burning.js burnNetwork). Ours as the check: what a carbon-12, nitrogen-14 and
+  // oxygen-16 go through while the Sun's centre burns half its hydrogen (R ln 2 captures each).
+  const AMU = 931.494, al = 1 / 137.035999, D = (Z) => (Z % 2 ? 2 * Z + 1 : 2 * Z), Zmax = 30;
+  const op = (d, Z1, A1, Z2, A2, r0) => ({ Z1, Z2, mu: ((A1 * A2) / (A1 + A2)) * AMU, rn: r0 * (Math.pow(A1, 1 / d) + Math.pow(A2, 1 / d)), d });
+  const St3 = (S, E, o) => { const eta = o.Z1 * o.Z2 * al * Math.sqrt(o.mu / (2 * E)), k2 = (2 * o.mu * E) / HBC ** 2; return ((S / 1000) * 100 / E) * Math.exp(-2 * Math.PI * eta) * k2 * Math.exp(gamow(E, o)); };
+  const pp3 = op(3, 1, 1, 1, 1, 1.2), Spp = St3(4.01e-22, 0.01, pp3), Sbp = St3(1.6, 0.03, op(3, 1, 1, 7, 14, 1.2)), Sba = St3(151, 0.3, op(3, 2, 4, 6, 12, 1.2));
+  const peak = (T, o) => { const kT = KB_MEV * T; let best = 0, bv = -Infinity; for (let E = kT / 4; E < 80 * kT; E *= 1.02) { const v = -E / kT - gamow(E, o); if (v > bv) { bv = v; best = E; } } return best; };
+  const interp = (Es, sv, E) => { let i = 0; while (i < Es.length - 2 && Es[i + 1] < E) i++; const f = Math.log(E / Es[i]) / Math.log(Es[i + 1] / Es[i]); return Math.exp(Math.log(sv[i]) * (1 - f) + Math.log(sv[i + 1]) * f); };
+  const Stab = (Es, sv, T, o) => { const E = peak(T, o), k = Math.sqrt((2 * o.mu * E) / HBC ** 2), v = (HBC * k) / o.mu; return (interp(Es, sv, E) / v) * k ** 3 * Math.exp(gamow(E, o)); };
+  const T3 = 1.57e7, l3 = logRate(T3, pp3), check = [["carbon-12", 6, 12, 1.34], ["nitrogen-14", 7, 14, 1.6], ["oxygen-16", 8, 16, 10]].map(([name, Z, A, S]) => { const o = op(3, 1, 1, Z, A, 1.2); return { name, N: (St3(S, 0.03, o) / Spp) * Math.pow(pp3.mu / o.mu, 1.5) * Math.exp(logRate(T3, o) - l3) * Math.LN2 }; });
+  console.log(`ours, the Sun's centre burning half its hydrogen: ${check.map((c) => `${c.name} ${c.N.toPrecision(2)} captures`).join(", ")}`);
+  // our Sun's pace in the book's cross-dimension convention (the barrier integral and S̃; ½ of its centre's hydrogen in 4.6 billion years)
+  const sun = l3 + Math.log(Spp) - Math.log(1 / 0.35 - 1 / 0.7);
+  const caps = load("MN-capture.json").rows, pfs = ["MN-protonflow.json", "MN-protonflow-c.json"].map(load).filter(Boolean), oaa = { Z1: 2, Z2: 2, mu: 2 * AMU, rn: 2 * Math.pow(4, 0.25), d: 4 };
+  const Ts = [5e6, 7e6, 1e7, 1.2e7, 1.5e7, 1.7e7, 2e7, 2.5e7, 3e7, 4e7], rows = [], aa = [];
+  for (const T of Ts) { const ratios = [];
+    for (const pf of pfs) for (const s of FORCES.MN.s4) for (const rnp of [1, 4]) {
+      const opp = { ...op(4, 1, 1, 1, 1, 1.0), rn: rnp }, lpp = logRate(T, opp), R = (o, S) => (S / Spp) * Math.pow(opp.mu / o.mu, 2) * Math.exp(logRate(T, o) - lpp);
+      const own = pf.rows.filter((r) => r.s === s), cap = caps.find((r) => r.s === s), gm = (a) => Math.exp(a.reduce((x, y) => x + Math.log(y), 0) / a.length);
+      const Fp = gm(own.map((r) => Stab(r.tp.E, r.tp.sv, T, op(4, 1, 1, 2 * r.k, 4 * r.k, 1.0)) / Sbp)), Fa = gm(own.map((r) => Stab(r.ta.E, r.ta.sv, T, op(4, 2, 4, 2 * r.k, 4 * r.k, 1.0)) / Sba));
+      const rp = [], ra = []; for (let Z = 4; Z < Zmax; Z++) { const c = own.find((r) => 2 * r.k === Z), oP = op(4, 1, 1, Z, D(Z), 1.0), oA = op(4, 2, 4, Z, D(Z), 1.0); rp[Z] = R(oP, c ? Stab(c.tp.E, c.tp.sv, T, oP) : Fp * Sbp); ra[Z] = R(oA, c ? Stab(c.ta.E, c.ta.sv, T, oA) : Fa * Sba); }
+      const raa = R(oaa, Stab(cap.table.E, cap.table.aa, T, oaa)); ratios.push(raa);
+      const res = BU.burnNetwork({ rp, ra, raa, Zmax }), mass = {}; let tot = res.Yp + 4 * res.Ya; for (let Z = 4; Z <= Zmax; Z++) tot += res.Z[Z] * D(Z);
+      for (let Z = 4; Z <= Zmax; Z++) if ((res.Z[Z] * D(Z)) / tot > 1e-3) mass[Z] = (res.Z[Z] * D(Z)) / tot;
+      rows.push({ T, compact: !!pf.compact, s, rnp, Fp, Fa, shalf: res.shalf, life: lpp + Math.log(Spp) - Math.log(res.shalf), he: (4 * res.Ya) / tot, mass });
+      console.log(`${(T / 1e6).toFixed(0)} MK ${pf.compact ? "close" : "loose"} s=${s} p–p ${rnp} fm: helium left ${((400 * res.Ya) / tot).toFixed(0)}%, ${Object.entries(mass).filter(([, v]) => v > 0.01).map(([Z, v]) => `element ${Z} ${(100 * v).toFixed(0)}%`).join(", ")}; pace ${(rows.at(-1).life - sun).toFixed(1)} against the Sun's`); }
+    aa.push({ T, lo: Math.min(...ratios), hi: Math.max(...ratios) }); }
+  save("hburn.json", { check, sun, aa, rows });
 } else if (cmd === "bake") {
   const files = readdirSync(DIR), get = (re) => files.filter((f) => re.test(f)).map(load), cf4 = coulombFactor(4, 300), e2 = 1.43996;
   // the 4D liquid drop for each force, strength and range: bulk from the matter, Coulomb exact, the neutron excess from neutron
@@ -235,7 +328,7 @@ if (cmd === "fit") {
   { const AMU = 931.494, op = (d, k, r0) => { const A2 = 4 * k; return { Z1: 2, Z2: 2 * k, mu: ((4 * A2) / (4 + A2)) * AMU, rn: r0 * (Math.pow(4, 1 / d) + Math.pow(A2, 1 / d)), d }; };
     const target = logRate(2e8, op(3, 3, 1.2)), Tfor = (d, k, r0) => { let lo = 1e6, hi = 1e12; for (let i = 0; i < 70; i++) { const m = Math.sqrt(lo * hi); if (logRate(m, op(d, k, r0)) < target) lo = m; else hi = m; } return Math.sqrt(lo * hi); };
     out.rungs = Array.from({ length: 20 }, (_, i) => ({ Z: 2 * (i + 1), ours: Tfor(3, i + 1, 1.2), d4: Tfor(4, i + 1, 1.0) })); }
-  out.brink = get(/^brink-/); out.mass5 = get(/^mass5-/); out.burning = load("burning.json"); out.rungcap = { MT: load("rungcap.json"), MN: load("MN-rungcap.json") };
+  out.brink = get(/^brink-/); out.mass5 = get(/^mass5-/); out.burning = load("burning.json"); out.rungcap = { MT: load("rungcap.json"), MN: load("MN-rungcap.json") }; out.plusone = get(/^plusone-/); out.protonflow = load("MN-protonflow.json"); out.protonflowc = load("MN-protonflow-c.json"); out.hburn = load("hburn.json");
   // the first minutes: ours as the check (Y), and 4D at each strength over the baryons per photon and the clock
   out.bbn = { ours: BB.firstMinutes({ d: 3, B: 2.2246 }), etas: [1e-10, 6.1e-10, 1e-8, 1e-6], t1s: [0.01, 0.1, 1.32], grid: [] };
   for (const [name, FCx] of Object.entries(FORCES)) { const cap = load(`${FCx.pre}capture.json`); if (!cap?.rows?.[0]?.table) continue;

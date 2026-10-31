@@ -14,7 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url)), FOUR = path.join(here
 /* what ships: every solver module, none that reads baked data, and the 4D viewer (tile.js, for a browser) */
 export const MODULES = ["kernel", "atom", "gauss", "md", "landscape", "ffmodel", "gas", "forces", "polytopes", "turning", "geometry", "stars", "orbits", "nebula", "fields", "nuclear", "brink", "bbn", "burning", "dirac", "gscale", "tile"].map((m) => `atom/js/${m}.js`).concat(["lumen/js/optics.js"]);
 /* the selftest's blocks that check a method against known answers without the site's baked data (by number) */
-export const BLOCKS = [1, 2, 3, 9, 10, 11, 12, 13, 21, 33, 35, 36, 37, 38, 43, 51, 52, 53, 54];
+export const BLOCKS = [1, 2, 3, 9, 10, 11, 12, 13, 21, 33, 35, 36, 37, 38, 43, 51, 52, 53, 54, 55];
 
 export function stage(out) {
   mkdirSync(out, { recursive: true }); if (readdirSync(out).length) throw new Error(`${out} isn't empty`);

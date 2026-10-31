@@ -194,6 +194,89 @@ def NU_rcrow(k):
   Q=[r['Q'] for r in rs]; T=[t for r in rs for t in r['T']]; Tb=rs[0]['Tbarrier']
   return f"<tr><td>element {2*k} → {2*k+2}</td><td>{min(Q):.0f}–{max(Q):.0f}</td><td>{Tb/1e9:.3f}</td><td>{min(T)/1e9:.3f}–{max(T)/1e9:.3f}</td></tr>"
 
+# odd against even (nuclei.mjs plusone): a nucleon's separation energy from a core of k helium-4s
+NU_P1=NU.get('plusone') or []
+def NU_P1S(d,s,k,Z,nd=None,compact=False):
+  r=[x for x in NU_P1 if x['d']==d and abs(x['s']-s)<1e-9 and x['k']==k and x['Z']==Z and bool(x.get('compact'))==compact and (nd is None or x['ndir']==nd)]
+  return max(r,key=lambda x:x['ndir'])['S'] if r else None
+NU_P1MEAS={(2,0):1.573,(2,1):-0.185,(3,0):4.946,(3,1):1.944,(4,0):4.143,(4,1):0.600}
+NU_P1NAME={(2,0):'beryllium-9',(2,1):'boron-9',(3,0):'carbon-13',(3,1):'nitrogen-13',(4,0):'oxygen-17',(4,1):'fluorine-17'}
+def NU_p1ours():
+  out=''
+  for k in (2,3,4):
+    for Z in (0,1):
+      v=NU_P1S(3,1,k,Z); vc=NU_P1S(3,1,k,Z,compact=True); out+=f"<tr><td>{NU_P1NAME[(k,Z)]} ({'proton' if Z else 'neutron'})</td><td>{NU_m(v,'+.1f') if v is not None else '—'}</td><td>{NU_m(vc,'+.1f') if vc is not None else '—'}</td><td>{NU_m(NU_P1MEAS[(k,Z)],'+.2f')}</td></tr>"
+  return out
+def NU_p1pair(v,w): return '—' if v is None and w is None else ' to '.join(NU_m(x,'+.0f') for x in sorted({round(y) for y in (v,w) if y is not None}))
+def NU_p1row(i,sv):
+  cells=''
+  for k in (2,3,4,5):
+    vn=NU_p1pair(NU_P1S(4,sv,k,0) if k<5 else None,NU_P1S(4,sv,k,0,compact=True)); vp=NU_p1pair(NU_P1S(4,sv,k,1) if k<5 else None,NU_P1S(4,sv,k,1,compact=True)); cells+=f"<td>{vn} / {vp}</td>"
+  return f"<tr><td>{NU_LBL[i]}</td>{cells}</tr>"
+NU_P19=[v for sv in NU_S4['MN'] for v in (NU_P1S(4,sv,4,1),NU_P1S(4,sv,4,1,compact=True)) if v is not None]
+NU_P1PX=[v for sv in NU_S4['MN'] for v in (NU_P1S(4,sv,5,0,compact=True),NU_P1S(4,sv,5,1,compact=True)) if v is not None]
+NU_P1F17C=NU_P1S(3,1,4,1,compact=True); NU_P1O17C=NU_P1S(3,1,4,0,compact=True)
+NU_HB=NU.get('hburn') or {}
+NU_P1BIAS=(NU_P1S(3,1,4,1) or 0)-NU_P1MEAS[(4,1)]
+def NU_hbT(T): return [r for r in NU_HB.get('rows',[]) if abs(r['T']-T)<1]
+def NU_hbrange(v,fmt): v=[x for x in v if x is not None]; return '—' if not v else (format(min(v),fmt) if format(min(v),fmt)==format(max(v),fmt) else f"{format(min(v),fmt)}–{format(max(v),fmt)}")
+def NU_hbrow(T):
+  rs=NU_hbT(T)
+  if not rs: return ''
+  zs=sorted({int(z) for r in rs for z,v in r['mass'].items() if v>0.1}); he=[100*r['he'] for r in rs]
+  e9=[100*r['mass'].get('9',0) for r in rs]; e10=[100*r['mass'].get('10',0) for r in rs]
+  pc=lambda v: NU_hbrange(v,'.0f')+'%'
+  return f"<tr><td>{T/1e6:.0f}</td><td>{pc(he)}</td><td>{', '.join(str(z) for z in zs) if zs else '—'}</td><td>{pc(e9)}</td><td>{pc(e10)}</td></tr>"
+def NU_sci(x):
+  import math
+  if 0.01<=x<1e6: return NU_sig2(x)
+  e=math.floor(math.log10(x)); return f"{x/10**e:.1f} × 10<sup>{e}</sup>"
+def NU_aarow(x): return f"<tr><td>{x['T']/1e6:.0f}</td><td>{NU_sci(x['lo'])} to {NU_sci(x['hi'])}</td></tr>"
+def NU_hbsun():
+  # per configuration, the temperature at which the zone burns half its hydrogen at the Sun's pace (log-interpolated)
+  import math
+  out=[]; cfg={}
+  for r in NU_HB.get('rows',[]): cfg.setdefault((r['compact'],r['s'],r['rnp']),[]).append(r)
+  for rs in cfg.values():
+    rs=sorted(rs,key=lambda r:r['T'])
+    for a,b in zip(rs,rs[1:]):
+      if (a['life']-NU_HB['sun'])*(b['life']-NU_HB['sun'])<=0:
+        f=(NU_HB['sun']-a['life'])/(b['life']-a['life']); out.append(math.exp(math.log(a['T'])*(1-f)+math.log(b['T'])*f)); break
+  return (min(out),max(out)) if out else (0,0)
+NU_HBSUN=NU_hbsun()
+NU_HBCHK={c['name']:c['N'] for c in NU_HB.get('check',[])}
+NU_HBF=[r['Fp'] for r in NU_HB.get('rows',[])]
+def NU_hbsplit(rnp):
+  # the long-lived core per case at this proton size: its temperature, and the zone's make-up at the nearest one computed
+  import math
+  Ts=[];f9=[];f10=[]; cfg={}
+  for r in NU_HB.get('rows',[]):
+    if r['rnp']==rnp: cfg.setdefault((r['compact'],r['s']),[]).append(r)
+  for rs in cfg.values():
+    rs=sorted(rs,key=lambda r:r['T'])
+    for a,b in zip(rs,rs[1:]):
+      if (a['life']-NU_HB['sun'])*(b['life']-NU_HB['sun'])<=0:
+        f=(NU_HB['sun']-a['life'])/(b['life']-a['life']); T=math.exp(math.log(a['T'])*(1-f)+math.log(b['T'])*f); Ts.append(T)
+        nr=min(rs,key=lambda r:abs(math.log(r['T']/T))); f9.append(100*nr['mass'].get('9',0)); f10.append(100*nr['mass'].get('10',0)); break
+  return (min(Ts)/1e6,max(Ts)/1e6,min(f9),max(f9),min(f10),max(f10)) if Ts else (0,)*6
+NU_HB4=NU_hbsplit(4); NU_HB1=NU_hbsplit(1)
+NU_QA=[r['Q'] for _,r in NU_RCROWS] if 'NU_RCROWS' in globals() else []
+
+# the proton flow (nuclei.mjs protonflow): a proton against a helium-4 onto a ladder nucleus, per nucleus in unburnt gas
+NU_PF=NU.get('protonflow') or {}
+def NU_pfrow(i,sv):
+  cells=''
+  for k in (2,3,4):
+    r=next((x for x in NU_PF.get('rows',[]) if abs(x['s']-sv)<1e-9 and x['k']==k),None)
+    if not r: cells+='<td>—</td>'; continue
+    rs=[a['ratio'] for a in r['at'] if a['T'] in (5e7,3e8)]
+    cells+=f"<td>10<sup>{__import__('math').log10(max(rs)):.0f}</sup> – 10<sup>{__import__('math').log10(min(rs)):.0f}</sup></td>"
+  return f"<tr><td>{NU_LBL[i]}</td>{cells}</tr>"
+NU_PFMIN=min((a['ratio'] for x in NU_PF.get('rows',[]) for a in x['at']),default=0)
+NU_PFCHK=(NU_PF.get('check') or [None])[0]
+NU_B17=[(NU_P1S(4,sv,4,0) or 0)-(NU_P1S(4,sv,4,1) or 0)-1.293 for sv in NU_S4['MN'] if NU_P1S(4,sv,4,0) is not None and NU_P1S(4,sv,4,1) is not None]
+NU_B17O=(NU_P1S(3,1,4,0) or 0)-(NU_P1S(3,1,4,1) or 0)-1.293
+
 nuclei=f'''<section id="declared">
   <h3>What was declared, and what it takes</h3>
   <p>The book began by declaring nuclei: heavy point charges, stable up to element 78 (<a href="force.html#contents">chapter 2</a>). That was enough for atoms, which see a nucleus only as its charge. It isn't enough for stars, which make nuclei, or for the question every chapter since has run into: <b>which elements are common?</b> Our world's answer, iron and oxygen and the rest, comes from nuclear physics: which nuclei hold together, and which ones stars can build. Here that physics is worked out for 4D, with every method first checked on our own nuclei.</p>
@@ -293,6 +376,30 @@ nuclei=f'''<section id="declared">
   <table class="sys"><tr><th>stage</th><th>billion K</th><th>smallest core (× M_Ch)</th></tr>{NU_burnrows()}</table>
   <p class="read">Malfliet–Tjon and Minnesota together where they differ. Past element 10 a rung's temperature is the barrier-only estimate, which the computed rungs show runs warm.</p>
   <p><b>4D stars build in steps by mass, as ours do, but with helium lit almost from the start.</b> Hydrogen lights in stars from {NU_bm('H',0,NU_hconv(4)):.2f}–{NU_bm('H',1,NU_hconv(4)):.2f} of the Chandrasekhar mass, and helium in cores from {NU_bm('He',0):.2f}–{NU_bm('He',1):.2f}: a core about as heavy as the lightest star that burns hydrogen at all, where ours needs one four times as heavy. 4D's helium needs only four to seven times hydrogen's temperature, ours about thirty (two helium-4s meeting, against our triple-alpha's three). So ours has a long band of stars, the red dwarfs, that burn hydrogen for ever and never helium; in 4D that band is narrow, perhaps empty: a star needs only to grow a helium core most of its own mass to light it. Then the ladder, a rung per step in mass: a core too light for carbon ends as beryllium-8, then carbon, oxygen, pxygen (element 10), and so on up, each rung needing a heavier core, until from element {NU_BUCH or '—'} on only cores at the Chandrasekhar mass or above take the next step. Those go further, because in 4D every capture keeps paying far past iron's charge: where they stop is where binding per nucleon peaks, which the liquid drop above puts past element 100 (rough), unless something else ends them first. <span class="tag open">open</span> Which of these get back out into the gas that makes planets, and in what proportion: that's the mass a star of each kind sheds and how it ends, and how many stars of each mass form. Ours return their carbon and nitrogen mostly from the winds of middling stars and their oxygen to iron from the explosions of massive ones.</p>
+</section>
+<section id="oddeven">
+  <h3>Odd against even</h3>
+  <p>Our oceans are water and not hydrogen fluoride because fluorine is rare: some thirty thousand times rarer than oxygen. Odd elements sit off the helium-4 ladder, so stars make them only on the side, and fluorine is also destroyed as fast as it's made, since a proton on fluorine-19 makes oxygen-16 and a helium-4 and releases 8 MeV. 4D's water question is the same one, element 9 against element 10. <span class="tag computed">computed</span> The first thing to know is whether an odd nucleus holds together at all: a nucleon on a ladder nucleus, built from nucleons as mass 5 was (Brink's model, the core's placements held fixed and the nucleon free on a grid round it, the core alone on the same placements; Minnesota's two-body force only, since the three-nucleon force over this many nucleons is out of reach here). The check, ours, the nucleon's separation energy (MeV; above zero it holds):</p>
+  <table class="sys"><tr><th>ours</th><th>core drawn loose</th><th>core drawn close</th><th>measured</th></tr>{NU_p1ours()}</table>
+  <p class="read">Every one that holds, holds; boron-9 doesn't, and doesn't. The core's helium-4s can be drawn loose or close together; close is the closed-shell limit, the better core for oxygen-16, and there fluorine-17 and oxygen-17 come out within a MeV of measured ({NU_m(NU_P1F17C or 0,'+.2f')} and {NU_m(NU_P1O17C or 0,'+.2f')}), where the loose draw overbinds them by about {NU_P1BIAS:.0f}. For carbon, an open shell, neither draw is that good, and they differ: the spread between them is the uncertainty.</p>
+  <p>4D, a neutron / a proton on 2 to 5 helium-4s (elements 5, 7, 9 and 11 at masses 9, 13, 17 and 21), the two draws' values where they differ:</p>
+  <table class="sys"><tr><th>Minnesota</th><th>on 2 (element 5)</th><th>on 3 (element 7)</th><th>on 4 (element 9)</th><th>on 5, pxygen-20 (element 11)</th></tr>{"".join(NU_p1row(i,sv) for i,sv in enumerate(NU_S4["MN"]))}</table>
+  <p class="read">On pxygen-20, 4D's closed shell, only the close draw is shown, as for our oxygen-16. Denser grids of directions move the values by about a MeV.</p>
+  <p><b>Odd nuclei hold together in 4D</b>, unlike mass 5: element 9 at mass 17 by {min(NU_P19) if NU_P19 else 0:.0f}–{max(NU_P19) if NU_P19 else 0:.0f} MeV, far more than the model's overbinding on ours. <span class="tag follows">follows</span> <b>And the reaction that keeps our fluorine rare is closed.</b> To throw out a helium-4, a 4D nucleus has to pay that helium-4's separation energy, which is the rungs' capture energy above ({min(NU_QA) if NU_QA else 0:.0f}–{max(NU_QA) if NU_QA else 0:.0f} MeV), against the 10–60 MeV a proton brings in: every proton-in, helium-4-out reaction is uphill, by at least ten MeV at the window's bottom and by tens to hundreds elsewhere. The model's errors are a few MeV, and since it overstates how tightly the proton holds, the true margins are wider still. So in 4D an odd element, once made, isn't undone by protons. That takes away the lean toward Xater the ladder gave. How much is made, then: a proton captured onto a ladder nucleus, by dipole light (allowed, since a proton and a helium-4 core have different charges for their mass), against a helium-4 captured onto the same nucleus.</p>
+  <p><span class="tag computed">computed</span> Both captures, with the same machinery as the ladder's rungs: the nucleon's potential on the core folded from its potential on one helium-4, its depth set to the microscopic binding above (the proton's binding then follows, within a couple of MeV of the microscopic one). The check, ours: carbon-12 + proton → nitrogen-13 comes out {NU_PFCHK if NU_PFCHK else 0:.1f} keV b near zero energy, against the measured direct capture of about 1.3–1.5. In 4D, how many times more often a ladder nucleus catches a proton than a helium-4, in unburnt gas (nine protons to each helium-4), between 0.05 and 0.3 billion K:</p>
+  <table class="sys"><tr><th>Minnesota</th><th>onto beryllium-8</th><th>onto carbon</th><th>onto oxygen</th></tr>{"".join(NU_pfrow(i,sv) for i,sv in enumerate(NU_S4["MN"]))}</table>
+  <p><b>Wherever there's hydrogen, a ladder nucleus catches protons, almost never helium-4s</b>: at least {NU_sig2(NU_PFMIN)} times as often at any burning temperature, the proton's barrier being half the helium-4's and its light a dipole. So in 4D the helium-4 ladder runs only where the hydrogen is gone. Where hydrogen remains, the protons do the climbing, and the odd elements are on their path. <span class="tag follows">follows</span> A proton on a ladder nucleus makes a proton-rich nucleus that turns a proton into a neutron: element 9 at mass 17 lies {min(NU_B17) if NU_B17 else 0:.1f}–{max(NU_B17) if NU_B17 else 0:.1f} MeV above element 8 at mass 17, enough for a positron (ours: fluorine-17 to oxygen-17, {NU_B17O:.1f} MeV here, 2.25 measured). In ours, burning hydrogen on carbon cycles: protons in, a positron or two, and the last proton throws out a helium-4 and gives the carbon back (our carbon–nitrogen–oxygen cycle). In 4D that last step is uphill, so it can't cycle: <b>four protons and two positrons carry a ladder nucleus up one rung</b>, through the odd element between. Element 9 is made, on the way from element 8 to pxygen, as our nitrogen is made in our cycle. <span class="tag computed">computed</span> <b>And the climb has no closed-shell bottleneck.</b> Ours does: oxygen-16 is a closed shell, a proton on it enters a new one and is held by only 0.6 MeV, so captures there are slow and hot hydrogen burning piles up behind it. 4D's closed shell is pxygen-20, and a nucleon on it is held by {min(NU_P1PX) if NU_P1PX else 0:.0f}–{max(NU_P1PX) if NU_P1PX else 0:.0f} MeV: the same method shows our gap, and 4D's nuclei are bound so deep that theirs barely shows. So what stops the climb is the electric barrier, rising with charge. Where the climb stops, and what that does to the water, is the next section.</p>
+</section>
+<section id="together">
+  <h3>Hydrogen and helium together</h3>
+  <p>How far the protons carry a nucleus comes down to one count: how many protons it catches while the gas around it burns its hydrogen. That is a ratio of two rates at one temperature, the capture's against hydrogen's own burning, so the density drops out, and no clock has to be borrowed from our stars. <span class="tag computed">computed</span> The check, ours: while the Sun's centre burns half its hydrogen, at 15.7 million K, a carbon-12 catches about {NU_sig2(NU_HBCHK.get('carbon-12',0))} protons, a nitrogen-14 about {NU_HBCHK.get('nitrogen-14',0):.0f} and an oxygen-16 about {NU_HBCHK.get('oxygen-16',0):.2f}: carbon goes to nitrogen, which piles up, and oxygen is only partly touched, as in our Sun's core (the same rates as the textbook's, its formula giving nitrogen-14 some 3.5 × 10⁸ years there).</p>
+  <p>In 4D the same count turns up something bigger. Hydrogen burns as ours, by the weak force (proton + proton, our rate through 4D's barrier, the stated choice the stars chapter made). But in 4D two helium-4s fuse to beryllium-8 by light alone, since mass 8 is bound: an electromagnetic capture, against hydrogen's weak one. How much faster helium-4 + helium-4 runs than proton + proton, pair for pair:</p>
+  <table class="sys"><tr><th>million K</th><th>helium-4 + helium-4 ÷ proton + proton</th></tr>{"".join(NU_aarow(x) for x in NU_HB.get("aa",[]) if x["T"] in (5e6,7e6,1e7,1.5e7,2e7))}</table>
+  <p class="read">The spread is the two forces' first capture and the protons' nuclear size. <b>Above about 7–10 million K helium burns as fast as hydrogen or faster, so in 4D every core that hot burns the two together</b>, and makes its own ladder nuclei as it goes.</p>
+  <p><span class="tag computed">computed</span> So a zone at each temperature is followed as a network: protons, helium-4s and nuclei by charge, every reaction a ratio to proton + proton. The captures onto beryllium-8, carbon and oxygen are the ones computed above (both draws of the core); onto the rest, the barrier times our nuclear factor, raised by how far the computed ones exceed it ({NU_sig2(min(NU_HBF) if NU_HBF else 0)} to {NU_sig2(max(NU_HBF) if NU_HBF else 0)} times, each strength's average, since a 4D capture lands tens of MeV deep and dipole light grows as the photon's energy cubed). What a zone has turned into when its hydrogen is gone, starting from the first minutes' hydrogen and helium (elements making up more than a tenth of it in any of the twelve cases: three strengths, both draws, the protons at 1 or 4 fm; mass fractions):</p>
+  <table class="sys"><tr><th>million K</th><th>helium left</th><th>heavier elements</th><th>element 9</th><th>element 10</th></tr>{"".join(NU_hbrow(T) for T in (5e6,7e6,1e7,1.2e7,1.5e7,1.7e7,2e7,2.5e7,3e7,4e7))}</table>
+  <p><b>A zone hot enough to burn helium burns all of it into one or two elements</b>: the one where the climb stops at that temperature, as our nitrogen piles up behind its slowest capture, but here it takes the whole zone, because with helium burning alongside there are as many ladder nuclei as the protons can carry. Element 8 at 10–12 million K, element 9 around 12–17, pxygen around 17–22, and on up to elements 12–15 by 40. Below about 8 million K hydrogen goes to helium, as in our stars, and the helium is kept. <span class="tag follows">follows</span> Odd elements pile up as readily as even ones: in 4D they aren't rare. And a core hot enough to burn both, from about 12–15 million K, leaves no helium behind, so the helium-4 ladder above runs only in the helium cores of cooler stars, where the stage a core reaches is set by its mass.</p>
+  <p><span class="tag follows">follows</span> Which temperature, then? A planet needs a star that lasts. In the convention the burning thresholds use (the barrier and the nuclear factor compared across dimensions), a 4D core that burns half its hydrogen in the time our Sun's centre has taken runs at {NU_HBSUN[0]/1e6:.0f}–{NU_HBSUN[1]/1e6:.0f} million K, and there its zone turns into element 9 to element 11, mostly element 9 or pxygen. The twelve cases split cleanly. With the protons' nuclear size at 4 fm in proton + proton's barrier, the long-lived core runs at {NU_HB4[0]:.0f}–{NU_HB4[1]:.1f} million K and is element 9 for {NU_HB4[2]:.0f}–{NU_HB4[3]:.0f}% of its mass; at 1 fm it runs at {NU_HB1[0]:.0f}–{NU_HB1[1]:.0f} and is pxygen for {NU_HB1[4]:.0f}–{NU_HB1[5]:.0f}%. The forces and the core's draw barely matter: what tips it is proton + proton's own barrier, the one rate here borrowed whole from ours. <b>Element 9 is not rare in 4D.</b> Long-lived stars make it at tens of percent of their cores, alongside pxygen; our fluorine, thirty thousand times rarer than oxygen, has no 4D counterpart. Which of the two leads, and so which water, turns on how many stars burn at each temperature and how much of their cores they give back. <span class="tag open">open</span> That mix (the plan's next step), and the convention's own uncertainty: it moves the long-lived core's temperature by tens of percent, which is the whole of element 9's band.</p>
 </section>
 <section id="tableend">
   <h3>How far a table can go</h3>

@@ -252,6 +252,20 @@ for games, and this is a modelling programme with publications to come. The game
   E2: the pair's deep potential folded over the core, one depth per rung set on its capture energy from the ladder and
   Brink, Wildermuth's rule for the forbidden states; `nuclei.mjs rungcap [MN]`, ~10 min). Our ¹²C(α,γ)¹⁶O E2 to the ground
   state is the check (12–41 keV b against 45–70); `burning` uses the computed rungs where they exist.
+  The road to a 4D Earth (`atom/ROADMAP.md`, on the landing) starts with odd against even: `brink.js`'s `kernelBlocks` (the
+  species kernel factored by species, two-body) and `nucleonOnCoreGrid` (a nucleon on a grid round fixed core placements,
+  against the same placements alone) give a nucleon's separation energy from a ladder nucleus; `nuclei.mjs plusone <d> <s>
+  <k> <Z> [dirs]`, on the runner. Ours as the check: carbon-13 and nitrogen-13 bound, about 1.3 MeV too tightly.
+  `nuclear.js`'s `coreNucleonFactor` / `coreNucleonCapture` (a nucleon on k helium-4s by E1, depth set to that binding) and
+  `nuclei.mjs protonflow MN` compare proton against helium-4 capture onto ladder nuclei (ours: ¹²C(p,γ)¹³N the check).
+  `plusone ... compact` draws the core's helium-4s close (the closed-shell limit: our ¹⁷O/¹⁷F within a MeV; files end
+  `-c.json`), and loose against close is the stated spread. `nuclei.mjs hburn` (sandbox, ~5 min) runs `burning.js`'s `burnNetwork`, a zone burning hydrogen and helium
+  together at each temperature, every rate a ratio to proton + proton's (density drops out); `protonflow compact MN` gives
+  it the close-draw capture tables. Result: zones above ~10 MK burn wholly to the element where the climb stops; a Sun-pace
+  core makes element 9 or pxygen, decided by proton + proton's nuclear size (ROADMAP step 2).
+  **What's computed in a sandbox lives only in the cache and the bake**: if `$TMPDIR/atom4-nuclei` is lost (a container
+  restart wipes /tmp), `nuclei.mjs restore` writes it back from `js/nucleidata.js` (a bake from it reproduces the file
+  byte for byte); then add the runner's files from atom4-data.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).

@@ -936,6 +936,10 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // the rungs' folding: a Gaussian pair potential −V₀e^(−r²/β²) over k centres spread with mean-square radius ρ² is a Gaussian
   // again, k V₀ (β²/β′²)^(d/2) e^(−r²/β′²) with β′² = β² + 2ρ²/d, in either world
   const foldErr = Math.max(...[3, 4].flatMap((d) => { const V = NU.foldCore(d, (r) => -50 * Math.exp(-(r * r) / 4), 3, 2.5), b2 = 4 + (2 * 2.5) / d; return [0, 1.5, 3, 5].map((r) => Math.abs(V(r) - 3 * -50 * (4 / b2) ** (d / 2) * Math.exp(-(r * r) / b2)) / (150 * (4 / b2) ** (d / 2))); }));
+  // a proton on a core: our carbon-12 + proton → nitrogen-13 (the proton bound by 1.944 MeV) by dipole light, against the measured
+  // direct capture near zero energy, about 1.3–1.5 keV b; the model, with nitrogen-13 all proton-plus-carbon, comes out above it
+  const Vpc = NU.foldCore(3, NU.nucleonPot(3, NU.MN, 1, NU.alphaWidth(3, 2.13), 4.172), 3, 2.4), fpc = NU.coreNucleonFactor(3, Vpc, 3, 1.944, { Z: 1 }), rpc = NU.coreNucleonCapture({ d: 3, Vfold: Vpc, k: 3, f: fpc, E: 0.025, Z: 1 }), Spc = (rpc.sigma / 100) * 0.025 * Math.exp(2 * Math.PI * (6 / 137.036) * Math.sqrt(((12 / 13) * 938.92) / 0.05)) * 1000;
+  ok(Spc > 1.0 && Spc < 4.0, `a proton on a core: our carbon-12 + proton → nitrogen-13 at ${Spc.toFixed(2)} keV b near zero energy (measured direct capture ~1.3–1.5)`);
   ok(foldErr < 2e-3, `a helium-4 on a core: the pair potential folded over the core's helium-4s matches the closed Gaussian in both worlds (to ${foldErr.toExponential(0)})`);
   const c3 = GS.chandrasekhar(3), c4 = GS.chandrasekhar(4), m3 = c3.mass() / GS.SI.Msun;
   ok(Math.abs(m3 / 1.457 - 1) < 0.02 && c4.polytrope.converged && Math.abs(c4.cd - 1.52) < 0.03,
@@ -959,7 +963,10 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // itself, and our helium-5 (a neutron's p-wave on helium-4) must come out unbound, as it is, with nothing set on it
   const sat = BR.kernel(A, B, o), spc = BR.kernelSpecies([...BR.alphaOrbitals(A[0]), ...BR.alphaOrbitals(A[1]), ...BR.alphaOrbitals(A[2])], [...BR.alphaOrbitals(B[0]), ...BR.alphaOrbitals(B[1]), ...BR.alphaOrbitals(B[2])], o), spOk = Math.abs(sat.h / sat.n - spc.h / spc.n) < 1e-8 && Math.abs(sat.n / spc.n - 1) < 1e-10;
   const he5 = BR.nucleonAlpha({ d: 3, nu: n3, s: 1, u: 0.94, l: 1, Z: 0, M: 24 })[0];
-  ok(spOk && he5 > 0, `one nucleon outside: the spin–isospin-resolved kernel is the saturated one on three helium-4s (to ${Math.abs(sat.h / sat.n - spc.h / spc.n).toExponential(0)} MeV), and our helium-5 comes out unbound (its p-wave's lowest box state ${he5.toFixed(2)} MeV above a neutron and helium-4)`);
+  // the blocked kernel (species factored, for a nucleon on bigger cores) is the species kernel, with a proton outside two helium-4s
+  const pA = [...BR.alphaOrbitals(A[0]), ...BR.alphaOrbitals(A[1]), { R: A[2], sp: 0 }], pB = [...BR.alphaOrbitals(B[0]), ...BR.alphaOrbitals(B[1]), { R: B[2], sp: 0 }], ob = { d: 3, nu, s: 1, u: 1.05 };
+  const kS = BR.kernelSpecies(pA, pB, ob), kB = BR.kernelBlocks(pA, pB, ob), blkOk = Math.abs(kS.h / kS.n - kB.h / kB.n) < 1e-8 && Math.abs(kS.n / kB.n - 1) < 1e-10;
+  ok(spOk && blkOk && he5 > 0, `one nucleon outside: the spin–isospin-resolved kernel is the saturated one on three helium-4s (to ${Math.abs(sat.h / sat.n - spc.h / spc.n).toExponential(0)} MeV) and the species-blocked one with a proton outside two, and our helium-5 comes out unbound (its p-wave's lowest box state ${he5.toFixed(2)} MeV above a neutron and helium-4)`);
   ok(dev < 1e-9 && Math.max(...far) < 0.01 && symOk && Math.abs(be - 0.09) < 0.15,
     `Brink's helium-4s: one helium-4 closed to ${dev.toExponential(0)} (with and without the three-nucleon force, both worlds); two 16 fm apart are two helium-4s plus their zero-point and 4e²/D (to ${Math.max(...far).toFixed(3)} MeV); kernels symmetric and turning with the placements; Minnesota's u = 0.94 puts our ⁸Be at ${be.toFixed(2)} MeV (measured +0.09)`);
 }
@@ -987,6 +994,18 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const g1 = BU.maxCoreT(4, 0.3, { G: 1e-20 }), g2 = BU.maxCoreT(4, 0.3, { G: 1e-30 }), he = BU.maxCoreT(3, 0.29, { mue: 2, mui: 4, G: 6.6743e-11 });
   ok(lim.every((x) => Math.abs(x - 1) < 1e-3) && Math.abs(g1 / g2 - 1) < 1e-9 && he > 0.8e8 && he < 1.25e8,
     `a core's highest temperature: the electrons' hot and cold limits to ${Math.max(...lim.map((x) => Math.abs(x - 1))).toExponential(0)} in both worlds, G dropping out, and our helium core at 0.29 M_Ch reaching ${(he / 1e8).toFixed(2)} × 10⁸ K`);
+}
+
+/* 55 · a zone burning hydrogen and helium together (js/burning.js burnNetwork, the nuclei chapter): with proton–proton
+   alone the hydrogen goes as Y₀/(1 + Y₀ s), half at s = 1/Y₀, and every pair of protons lost makes half a helium-4; with
+   the whole network, mass is kept; and where captures run fast below element 9 and slow from it, the zone ends at element 9 */
+{
+  const BU = await import(path.join(here, "../js/burning.js")), zero = Array(40).fill(0), A = (Z) => (Z % 2 ? 2 * Z + 1 : 2 * Z);
+  const pp = BU.burnNetwork({ rp: zero, ra: zero, raa: 0, Zmax: 12, grow: 1.01 });
+  const toy = BU.burnNetwork({ rp: Array.from({ length: 40 }, (_, Z) => (Z < 9 ? 1e8 : 1e-6)), ra: Array(40).fill(1e-4), raa: 1e6, Zmax: 20 });
+  let m = toy.Yp + 4 * toy.Ya, m9 = toy.Z[9] * 19; for (let Z = 4; Z <= 20; Z++) m += toy.Z[Z] * A(Z);
+  ok(Math.abs(pp.shalf * 0.75 - 1) < 0.01 && Math.abs(pp.Ya - (0.0625 + (0.75 - pp.Yp) / 4)) < 1e-9 && Math.abs(m - 1) < 1e-8 && m9 / m > 0.95,
+    `burning together: proton–proton alone halves the hydrogen at s = ${pp.shalf.toFixed(4)} (exact ${(1 / 0.75).toFixed(4)}), the network keeps mass to ${Math.abs(m - 1).toExponential(0)}, and fast captures below element 9 pile the zone at element 9 (${((100 * m9) / m).toFixed(1)}% of its mass)`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
