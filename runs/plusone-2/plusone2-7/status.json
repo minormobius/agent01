@@ -1,0 +1,19 @@
+{
+ "group": "plusone2-7",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusone 4 1.4002 4 1 compact",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 467
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusone 3 1 3 1 compact",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 38
+  }
+ ]
+}
