@@ -299,3 +299,25 @@ account that reference a specific real person's content/style: check
 whether "recreate/redo/remake X" means "generate something in that mode" or
 "show me X," since this requester has now asked for the former in a way that
 could be misread as the latter. Kit amber untouched — fifteen for fifteen.
+
+## Sixteenth build — `this-well`, "Quilt" (thread image tiler)
+
+`this-well` (2026-10-13), requested by tagging the build bot in a thread
+that started as "is there a page that pulls all images from one thread
+into a single tiled image?" then self-answered "actually... @bot make a
+website where you point it at a bsky thread and it returns a tiled grid
+of all the images uploaded to that thread" — another precise, mechanism-
+named request (same shape as `screen`/"First Words"), not a vibe to infer.
+Built literally: paste a post/thread link, walk the whole reply tree via
+one `getPostThread(depth:1000)` call, tile every directly-posted image in
+a responsive CSS grid. Noticed the request's own wording had drifted from
+"single tiled image" to "tiled grid" mid-thread and built both rather than
+picking one — the on-page grid, plus a "download as one image" button
+that actually composites the tiles into one PNG via the `/_img/` proxy
+(which already allowlists `feed_thumbnail`/`feed_fullsize`, not just
+avatars). Worth remembering: this requester's own phrasing can shift
+between two readings of the same idea within one message, and covering
+both cheaply beat picking one. Scoped out quote-embedded images (only
+directly-posted-in-thread counted) as the firehose-adjacent judgement
+call — no feedback yet on whether that's too narrow. Kit amber, untouched
+— sixteen for sixteen.
