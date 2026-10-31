@@ -1,6 +1,6 @@
 {
- "run": "mainseq-2",
- "why": "The 4D main sequence with free–free absorption (js/mainseq.js kappaFF4: classical passes through the lens vacuum, no logarithm in 4D, Kirchhoff, Rosseland-averaged with scattering; the classical estimate is half of Kramers' on ours, so ×0.5 and ×2 are run as the band): G 10⁻¹⁴ to 10⁻²⁶ of ours, proton + proton at 1 or 4 fm.",
+ "run": "mainseq-3",
+ "why": "The 4D main sequence with free–free absorption, the walk in mass now retrying smaller steps where one fails (js/mainseq.js kappaFF4: classical passes through the lens vacuum, no logarithm in 4D, Kirchhoff, Rosseland-averaged with scattering; the classical estimate is half of Kramers' on ours, so ×0.5 and ×2 are run as the band): G 10⁻¹⁴ to 10⁻²⁶ of ours, proton + proton at 1 or 4 fm.",
  "minutes": 180,
  "groups": [
   {
