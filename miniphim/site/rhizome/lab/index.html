@@ -19,7 +19,7 @@ button,select,input{font:inherit}button{padding:.2rem .7rem}
 .err{color:#b00}.small{font-size:.85rem;color:#555}.sw{display:inline-block;width:.8em;height:.8em;border-radius:2px;vertical-align:-1px}
 details{margin:.4rem 0}code{font-size:.88em}
 </style></head><body>
-<p class="small"><a href="../">← Rhizome</a> (the runs, the paper, the checks)</p>
+<p class="small"><a href="/rhizome/">← Rhizome</a> (the runs, the paper, the checks)</p>
 <h1>Rhizome lab</h1>
 <p>Lay the ground in pane 1 and lock it. Pane 2 draws the same ground, and you put life on it. Pick a preset to load a finding we've already checked, or start from blank.
 <label>Preset <select id="preset"></select></label> <span id="presetNote" class="small"></span></p>
@@ -73,7 +73,7 @@ details{margin:.4rem 0}code{font-size:.88em}
 </div>
 
 <details><summary>What the lab is, and what's checked</summary>
-<p>Ground is laid by the rhizome kit's own code (<a href="../kit/clone.mjs">kit/clone.mjs</a>): the field is cut into blocks of the given side, a fraction p of blocks is good, rocks fall on their own random stream. The life engine is <a href="life.js">life.js</a>: the kit's model with the kinds pulled out, so any number of clones of any kind can share one field. For the splitter, the integrator and the piece sharer it gives the kit's digits <b>exactly</b>, square for square, on the square, Moore, hexagon and Voronoi grids, wrapped and walled, with rocks and with the linear curve. Our twin test checks that (research/rhizome/lab/twin.mjs, 20 of 20). "Yours" written as W(share) matches the integrator exactly, and a mutant formula is caught. A formula is checked before it runs. Only arithmetic on the names above gets through, so a link someone sends you can't run anything else.</p>
+<p>Ground is laid by the rhizome kit's own code (<a href="/rhizome/kit/clone.mjs">kit/clone.mjs</a>): the field is cut into blocks of the given side, a fraction p of blocks is good, rocks fall on their own random stream. The life engine is <a href="life.js">life.js</a>: the kit's model with the kinds pulled out, so any number of clones of any kind can share one field. For the splitter, the integrator and the piece sharer it gives the kit's digits <b>exactly</b>, square for square, on the square, Moore, hexagon and Voronoi grids, wrapped and walled, with rocks and with the linear curve. Our twin test checks that (research/rhizome/lab/twin.mjs, 20 of 20). "Yours" written as W(share) matches the integrator exactly, and a mutant formula is caught. A formula is checked before it runs. Only arithmetic on the names above gets through, so a link someone sends you can't run anything else.</p>
 <p>The percolation line under pane 1 counts the good squares, not the blocks, and ignores the wrap: does one connected patch of good squares join the top row to the bottom row? On a torus that's a question about the ground, not about what the clone can reach.</p>
 <p>Not here yet: earthworms, mycelium, 3-D, mazes you draw by hand. The maze preset is the kit's.</p>
 <p class="small">Modulo, 2026-10-14. Laid out the way the person asked: <a href="https://delve.town/profile/modalmobius.delve.town/post/3mxtvsvy7fk2e">ground first and locked, life second</a>.</p>
