@@ -419,6 +419,16 @@ landing=head('ATOM⁴ — the position','ATOM⁴ — the universe we are buildin
   <p class="made"><b>What it's made of:</b> electrons (spin-½ fermions), nuclei (heavy point charges, declared stable up to Z = 78; what that takes is <a href="nuclei.html">chapter 14</a>), the lens vacuum's light, a small fine-structure constant like ours, and the weak force with its neutrino, added so stars can burn hydrogen. Nothing else, and gravity is open. Bulk matter is stable for the same reason ours is, that electrons are fermions: argued from scaling, since the proof for our world leans on the shell theorem. <a href="force.html#contents">The full list</a>.</p>
   <div class="cards">{cards}</div>
   <p class="made"><b>How it's computed:</b> every solver, what it was checked against, the free compute it runs on, and how to run it yourself, in <a href="methods.html">the methods</a>.</p>
+  <h3>The road to a 4D Earth</h3>
+  <p class="made">The goal now: <b>a worked 4D Earth</b>, its ocean, rock and air, how dense the rock is (which sets G and the planet's size), and whether an airplane could fly there. The nuclear groundwork is done (<a href="nuclei.html">chapter 14</a>). What's left, in order (<a href="./ROADMAP.md">the plan</a>):</p>
+  <ol class="open">
+    <li><b>Odd against even</b> <span class="tag open">started</span>: can element 9 be made and survive as easily as pxygen? Decides which water fills the oceans.</li>
+    <li><b>The ash</b>: what a helium-burning core of each mass turns into, and whether that holds whatever the uncertain rates do.</li>
+    <li><b>What stars give back</b>: the commonest elements in the gas planets form from, as a band over declared choices.</li>
+    <li><b>Rock</b>: what those elements make with pxygen, and its density, which gives G.</li>
+    <li><b>Ocean and air</b>: Xater or XH₃, and what the air is.</li>
+    <li><b>The airplane</b>: lift and thrust in that air.</li>
+  </ol>
   <h3>Open questions</h3>
   <ul class="open">
     <li><b>Open-shell atoms' response.</b> Polarizabilities are computed for hydrogen and the noble gases. Pxygen, darbon and the rest have open shells, which the response doesn't handle yet. Also open: unlike pairs, retardation and three-body forces.</li>
