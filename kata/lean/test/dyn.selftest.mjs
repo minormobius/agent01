@@ -67,6 +67,17 @@ const { BENCH, PUBLISHED } = D, m = D.matrices(BENCH);
   ok(Math.abs(b.qa[0] - st.phi) < 1e-3 && Math.abs(b.qa[1] - st.delta) < 1e-3, `hold a steady steer torque of ${st.T.toFixed(3)} N m and it settles into the steady turn: lean ${b.qa[0].toFixed(3)} (equations ${st.phi.toFixed(3)}), steer ${b.qa[1].toFixed(3)} (${st.delta.toFixed(3)}): note the sign, it takes a push the other way to hold a turn`);
 }
 
+/* easy: the lean asked for, in a twentieth of a second, with the steady turn's steer; and hands on, at the bike's own
+   speed, a held push one way holds a turn the other (so the page flips the stick's push) */
+{
+  const b = new D.Bike({ v: 5 }); b.place([0, 0, 0], [1, 0, 0], [0, 1, 0]);
+  for (let i = 0; i < 12; i++) b.step(1 / 60, b.c.map((x, j) => x * 0.1 + b.d[j] * -0.05), null, true);
+  const lc = b.qa[0], ld = b.qb[0], st = D.steadyFromLean(b.my, b.P, 5, 0.1);
+  ok(Math.abs(lc - 0.1) < 0.002 && Math.abs(ld + 0.05) < 0.002 && Math.abs(b.qa[1] - st.delta) < 0.002, `easy: asked for 0.10 rad into y and −0.05 into w, it has ${lc.toFixed(3)} and ${ld.toFixed(3)} after 0.2 s, steering the steady turn's ${st.delta.toFixed(3)}`);
+  const s5 = D.steady(m, BENCH, 5, 0.05);
+  ok(s5.T < 0 && s5.phi > 0, `hands on at 5 m/s a turn toward +y is held by a push of ${s5.T.toFixed(3)} N m toward −y: the countersteer the page's flipped stick hides`);
+}
+
 /* both mechanisms ride the track: the autopilot (pure pursuit, leaning for the curvature it wants) */
 {
   const g3 = (v) => [v[0], v[2], v[3]];

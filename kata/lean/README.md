@@ -90,11 +90,15 @@ walk**, or R) switches between them.
 
 Who holds the bars (under ⚙, or H):
 
-- **✋ Hands on** (the default) is full control. The stick is the **handlebar's torque**, up to 2.5 N m on each copy,
+- **🌱 Easy** (the default): the stick is the **lean**. Its full throw is 20°, and the bike takes the lean in a
+  twentieth of a second (`EASY_TAU`), with the steady turn's steer to match. That's an ideal rider: no countersteer, no
+  wobble, no falling. Stick right leans right and turns right; up leans ana, down kata. This track needs about 4°.
+- **✋ Hands on** is full control. The stick is the **handlebar's torque**, up to 2.5 N m on each copy,
   and nothing balances the bike but the bike itself. The physics makes that rideable: between its weave and capsize
   speeds (4.3–6.0 m/s) this bicycle rights itself hands off, in both copies, so at 5 m/s you can let go and it rides
-  straight. You steer it the way a real bike steers, which includes the surprise that holding a turn takes a push
-  the other way. Slower than 4.3 m/s it falls unless you balance it; faster than 6 m/s it slowly capsizes.
+  straight. You steer it the way a real bike steers, and holding a turn takes a push on the bars the other way (countersteer).
+  So the stick pushes the bars **opposite** to where it points: stick right goes right, at the bike's own speeds.
+  Above about 6 m/s the push that holds a turn changes sign again. Slower than 4.3 m/s it falls unless you balance it; faster than 6 m/s it slowly capsizes.
 - **🤝 Assisted:** the stick asks for a **lean**, and the LQR rider in the machine balances and steers to get it.
 - **🤖 Autopilot:** it rides the track by itself (pure pursuit), and you watch from behind.
 

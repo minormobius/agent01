@@ -184,6 +184,7 @@ export { accel as copyAccel };
    along its path without rotating about T); its frame's own lateral axes are (a, b) = (c, d) turned by the twist α
    (always 0 for two-axis steering). Each lateral copy is [φ, δ, φ̇, δ̇] along a or b. */
 const v3 = { add: (a, b, k = 1) => a.map((x, i) => x + k * b[i]), sc: (a, k) => a.map((x) => x * k), dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], unit: (a) => { const n = Math.hypot(...a); return a.map((x) => x / n); } };
+export const EASY_TAU = 0.05; // s: how fast the easy rider gets the lean asked for
 export const TWIST_MAX = 6; // rad/s: the fastest the frame can twist (a rider's quick twist; past it, it falls)
 export class Bike {
   constructor({ mech = "two-axis", build = "flat", v = 5, P = BENCH } = {}) {
@@ -215,13 +216,19 @@ export class Bike {
   /* one step. want: the lean asked for, a ground vector across the heading (its size the angle), held by the LQR rider.
      Or hands on: hands = the steer torques (N m) on the two copies, along c and d, and no rider at all: the bike's own
      dynamics, which balance it by themselves between the weave and capsize speeds, and nowhere else */
-  step(dt, want, hands = null) {
+  /* easy: no dynamics for the lean and steer. Each copy goes straight to the steady turn for the lean asked for, with
+     a lag of EASY_TAU: an ideal rider, no countersteer, no wobble, no fall. The path still follows the steer */
+  step(dt, want, hands = null, easy = false) {
     const P = this.P, v = this.v, g = this.g, n = Math.max(1, Math.ceil(dt / (1 / 480))), h = dt / n;
     for (let k = 0; k < n; k++) {
       const a = this.a, b = this.b;
       const one = this.mech === "one-axis", a2 = one ? this.c : this.a, b2 = one ? this.d : this.b, mb = one ? this.my : this.mw, Kb = one ? this.Ka : this.Kb;
       // each steering copy: the steady turn for the lean asked for, held by LQR about it
       const ctl = (m, K, q, phiWant) => { const s = steadyFromLean(m, P, v, phiWant), e = [q[0] - s.phi, q[1] - s.delta, q[2], q[3]]; return s.T - (K[0] * e[0] + K[1] * e[1] + K[2] * e[2] + K[3] * e[3]); };
+      if (easy) {
+        const k2 = 1 - Math.exp(-h / EASY_TAU), go = (m, q, phiWant) => { const s = steadyFromLean(m, P, v, phiWant), p0 = q[0], d0 = q[1]; q[0] += (s.phi - q[0]) * k2; q[1] += (s.delta - q[1]) * k2; q[2] = (q[0] - p0) / h; q[3] = (q[1] - d0) / h; };
+        go(this.my, this.qa, v3.dot(want, a2)); go(mb, this.qb, v3.dot(want, b2)); this.torque = [0, 0];
+      } else {
       const Ta = hands ? hands[0] : ctl(this.my, this.Ka, this.qa, v3.dot(want, a2));
       const Tb = hands ? hands[1] : ctl(mb, Kb, this.qb, v3.dot(want, b2));
       this.torque = [Ta, Tb];
@@ -229,6 +236,7 @@ export class Bike {
       // semi-implicit Euler: rates first, then angles
       this.qa[2] += sa[0] * h; this.qa[3] += sa[1] * h; this.qa[0] += this.qa[2] * h; this.qa[1] += this.qa[3] * h;
       this.qb[2] += sb[0] * h; this.qb[3] += sb[1] * h; this.qb[0] += this.qb[2] * h; this.qb[1] += this.qb[3] * h;
+      }
       // the path: the heading turns toward the steer at κ = δ cos λ / w, carrying (c, d) with it without twisting them
       const kv = this.curvature, kc = v3.dot(kv, this.c), kd = v3.dot(kv, this.d);
       this.T = v3.unit(v3.add(this.T, kv, v * h)); this.c = v3.unit(v3.add(this.c, this.T, -v * h * kc)); this.d = v3.unit(v3.add(this.d, this.T, -v * h * kd));
