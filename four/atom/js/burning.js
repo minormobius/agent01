@@ -68,3 +68,36 @@ export function massFor(d, T, opts = {}) {
   let lo = 1e-4, hi = 0.9999; if (maxCoreT(d, hi, opts) < T) return 1;
   for (let it = 0; it < 26; it++) { const m = Math.sqrt(lo * hi); if (maxCoreT(d, m, opts) < T) lo = m; else hi = m; } return Math.sqrt(lo * hi);
 }
+/* A zone burning hydrogen and helium together at one temperature, as a small network: protons, helium-4s and nuclei by
+   charge Z ≥ 4 (even Z at mass 2Z, odd Z at 2Z + 1). Positron decays are taken as instant, so a proton capture onto even
+   Z is three captures there and onto odd Z one, as in our carbon–nitrogen–oxygen cycle's path (4D's element 8 at mass 16
+   takes three protons to element 9 at mass 19, and a fourth makes pxygen-20). Reactions: proton + proton (two protons
+   used, half a helium-4 made, as our chain), helium-4 + helium-4 → beryllium-8, a proton or a helium-4 onto each Z. Every
+   one is two-body, so at fixed temperature the path doesn't depend on density: the clock is s = ∫ n_b ⟨σv⟩_pp dt and
+   each rate is a ratio to proton–proton's (rp[Z], ra[Z], raa). Nuclei pushed past Zmax stay at Zmax. Backward Euler with
+   Newton's method, since the rates span sixty orders of magnitude. Steps grow by `grow` (1.15 puts s_half within 5%, the compositions within a percent). Runs until the hydrogen falls to `until` of its start;
+   returns abundances per baryon, s then and s when half the hydrogen was gone. */
+export function burnNetwork({ rp, ra, raa, Zmax, Yp = 0.75, Ya = 0.0625, seeds = {}, until = 1e-3, smax = 1e9, grow = 1.15 }) {
+  const n = Zmax - 1, iZ = (Z) => Z - 2, m = (Z) => (Z % 2 ? 1 : 3); // 0 protons, 1 helium-4s, then Z
+  let Y = new Float64Array(n); Y[0] = Yp; Y[1] = Ya; for (const [Z, v] of Object.entries(seeds)) Y[iZ(+Z)] = v;
+  const f = new Float64Array(n), J = Array.from({ length: n }, () => new Float64Array(n));
+  const rhs = (Y) => { f.fill(0); for (const r of J) r.fill(0);
+    f[0] -= Y[0] * Y[0]; f[1] += (Y[0] * Y[0]) / 4; J[0][0] -= 2 * Y[0]; J[1][0] += Y[0] / 2;
+    const w = (raa * Y[1] * Y[1]) / 2; f[1] -= 2 * w; f[iZ(4)] += w; J[1][1] -= 2 * raa * Y[1]; J[iZ(4)][1] += raa * Y[1];
+    for (let Z = 4; Z < Zmax; Z++) { const i = iZ(Z), y = Y[i];
+      for (const [k, x, to, use] of [[rp[Z] / m(Z), 0, Math.min(Z + 1, Zmax), m(Z)], [ra[Z], 1, Math.min(Z + 2, Zmax), 1]]) { const j = iZ(to);
+        f[i] -= k * Y[x] * y; f[j] += k * Y[x] * y; f[x] -= use * k * Y[x] * y;
+        J[i][x] -= k * y; J[i][i] -= k * Y[x]; J[j][x] += k * y; J[j][i] += k * Y[x]; J[x][x] -= use * k * y; J[x][i] -= use * k * Y[x]; } } };
+  const solve = (A, b) => { const N = b.length; for (let c = 0; c < N; c++) { let p = c; for (let r = c + 1; r < N; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[c], A[p]] = [A[p], A[c]]; [b[c], b[p]] = [b[p], b[c]];
+      for (let r = c + 1; r < N; r++) { const q = A[r][c] / A[c][c]; if (!q) continue; for (let k = c; k < N; k++) A[r][k] -= q * A[c][k]; b[r] -= q * b[c]; } }
+    const x = new Float64Array(N); for (let r = N - 1; r >= 0; r--) { let s = b[r]; for (let k = r + 1; k < N; k++) s -= A[r][k] * x[k]; x[r] = s / A[r][r]; } return x; };
+  let s = 0, ds = 1e-12, shalf = null;
+  while (Y[0] > until * Yp && s < smax) {
+    const X = Float64Array.from(Y);
+    for (let it = 0; it < 30; it++) { rhs(X); const A = J.map((r, i) => r.map((v, j) => (i === j ? 1 : 0) - ds * v)), dx = solve(A, Array.from(X, (v, i) => -(v - Y[i] - ds * f[i])));
+      let mx = 0; for (let i = 0; i < n; i++) { X[i] = Math.max(0, X[i] + dx[i]); mx = Math.max(mx, Math.abs(dx[i])); } if (mx < 1e-13) break; }
+    if (shalf === null && X[0] < Yp / 2) shalf = s + (ds * (Y[0] - Yp / 2)) / (Y[0] - X[0]);
+    Y = X; s += ds; ds *= grow; }
+  const Z = {}; for (let z = 4; z <= Zmax; z++) Z[z] = Y[iZ(z)];
+  return { s, shalf, Yp: Y[0], Ya: Y[1], Z };
+}

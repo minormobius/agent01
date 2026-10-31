@@ -996,5 +996,17 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `a core's highest temperature: the electrons' hot and cold limits to ${Math.max(...lim.map((x) => Math.abs(x - 1))).toExponential(0)} in both worlds, G dropping out, and our helium core at 0.29 M_Ch reaching ${(he / 1e8).toFixed(2)} × 10⁸ K`);
 }
 
+/* 55 · a zone burning hydrogen and helium together (js/burning.js burnNetwork, the nuclei chapter): with proton–proton
+   alone the hydrogen goes as Y₀/(1 + Y₀ s), half at s = 1/Y₀, and every pair of protons lost makes half a helium-4; with
+   the whole network, mass is kept; and where captures run fast below element 9 and slow from it, the zone ends at element 9 */
+{
+  const BU = await import(path.join(here, "../js/burning.js")), zero = Array(40).fill(0), A = (Z) => (Z % 2 ? 2 * Z + 1 : 2 * Z);
+  const pp = BU.burnNetwork({ rp: zero, ra: zero, raa: 0, Zmax: 12, grow: 1.01 });
+  const toy = BU.burnNetwork({ rp: Array.from({ length: 40 }, (_, Z) => (Z < 9 ? 1e8 : 1e-6)), ra: Array(40).fill(1e-4), raa: 1e6, Zmax: 20 });
+  let m = toy.Yp + 4 * toy.Ya, m9 = toy.Z[9] * 19; for (let Z = 4; Z <= 20; Z++) m += toy.Z[Z] * A(Z);
+  ok(Math.abs(pp.shalf * 0.75 - 1) < 0.01 && Math.abs(pp.Ya - (0.0625 + (0.75 - pp.Yp) / 4)) < 1e-9 && Math.abs(m - 1) < 1e-8 && m9 / m > 0.95,
+    `burning together: proton–proton alone halves the hydrogen at s = ${pp.shalf.toFixed(4)} (exact ${(1 / 0.75).toFixed(4)}), the network keeps mass to ${Math.abs(m - 1).toExponential(0)}, and fast captures below element 9 pile the zone at element 9 (${((100 * m9) / m).toFixed(1)}% of its mass)`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
