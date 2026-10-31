@@ -64,6 +64,7 @@ window.SPEC_CURATED = {
     atlas: 'science',
     read: 'reading', rite: 'reading', chat: 'reading', tape: 'reading',
     math: 'math', 'ai-edu': 'math', ns: 'math', henderhead: 'math',
+    cell: 'science',
   },
 
   // ----------------------------------------------- description capsules ----

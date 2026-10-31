@@ -944,6 +944,21 @@
       "status": "ROUTE SURFACE (2026-09-23) — the first surface bound by a plain Worker route instead of a custom domain: { pattern: \"ns.mino.mobi/*\", zone_name: \"mino.mobi\" }, costing none of the zone's 100 custom-domain slots. deploy-ns.yml runs scripts/route-dns.mjs to create the proxied AAAA 100:: the route needs, and fails unless the host actually serves. Owned by claude/landing-page-merge-candidate-8sp0fv. History: custom domain from 2026-09-08 (claude/navier-stokes-website-rl8aox); detached 2026-09-23 to free a slot and briefly folded into math; split back out the same day."
     },
     {
+      "surface": "cell",
+      "dir": "cell",
+      "endpoint": "cell.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/cellular-digital-twin-research-o8k3vb",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "cell/**",
+        ".github/workflows/deploy-cell.yml"
+      ],
+      "note": "Minimal Cell Twin: a cellular digital twin built in layers. Landing at / links one page per stage (stage1/ Gillespie gene expression, stage2/ particle reaction-diffusion); every stage stays live. Thin assets Worker (worker `cell`, plain route cell.mino.mobi/*). No build, no D1, no secrets. (full description: cell/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-03): plain route cell.mino.mobi/*, no custom-domain slot. deploy-cell.yml runs the stage 2 engine selftest, then scripts/route-dns.mjs, then fails unless the host serves."
+    },
+    {
       "surface": "canvas",
       "dir": "draw",
       "dirs": [

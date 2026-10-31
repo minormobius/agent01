@@ -4090,6 +4090,129 @@
       ]
     },
     {
+      "n": "cell",
+      "u": "https://cell.mino.mobi",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "surface": "cell",
+      "d": "Minimal Cell Twin: a digital twin of a minimal cell, built one layer at a time and every layer kept live. Exact stochastic gene expression first, then particle-level reaction-diffusion, with the JCVI-syn3A organism, offline playback and a calibrated twin mapped out as the layers still to come.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation",
+        "biology",
+        "index"
+      ]
+    },
+    {
+      "n": "stage1",
+      "u": "https://cell.mino.mobi/stage1/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "Six genes in a 400 nm cell simulated with Gillespie's exact algorithm (transcription, mRNA decay, translation, dilution, a repressor, an α+β binding pair), one dot per protein in p5.js, with live gene knockouts.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation"
+      ]
+    },
+    {
+      "n": "stage2",
+      "u": "https://cell.mino.mobi/stage2/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "Brownian-dynamics reaction-diffusion with Doi-model enzymes: two cells with identical enzymes and rate constants, scattered vs clustered, and the yield of a leaky intermediate that a well-mixed model says should be the same.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation"
+      ]
+    },
+    {
+      "n": "stage3",
+      "u": "https://cell.mino.mobi/stage3/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "Every gene of JCVI-syn3A on its circular chromosome: 496 genes coloured by function, measured protein copies per cell as a spike for each (Breuer et al. 2019), a searchable card per gene, and what the cell spends its protein on. The parts list the later simulation stages run.",
+      "tags": [
+        "canvas",
+        "p5",
+        "biology",
+        "data"
+      ]
+    },
+    {
+      "n": "stage3b",
+      "u": "https://cell.mino.mobi/stage3b/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-03",
+      "b": "2026-10-03",
+      "p": "cell",
+      "surface": "cell",
+      "d": "All 455 protein genes of JCVI-syn3A transcribed and translated as exact random events by 187 RNA polymerases and 503 ribosomes they compete for: polymerases crawling along the live chromosome, a per-gene timeline of every mRNA and protein, and the machine budget to cut or overload.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation",
+        "biology"
+      ]
+    },
+    {
+      "n": "stage3c",
+      "u": "https://cell.mino.mobi/stage3c/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-04",
+      "b": "2026-10-04",
+      "p": "cell",
+      "surface": "cell",
+      "d": "JCVI-syn3A's energy metabolism running under its whole genome: 23 reactions from glucose to lactate and acetate with the published kinetics, enzymes taken from live protein counts, and ribosomes that slow when ATP or GTP run short. Starve it, feed it, drug an enzyme, knock out a gene.",
+      "tags": [
+        "svg",
+        "simulation",
+        "biology"
+      ]
+    },
+    {
+      "n": "stage3d",
+      "u": "https://cell.mino.mobi/stage3d/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-04",
+      "b": "2026-10-04",
+      "p": "cell",
+      "surface": "cell",
+      "d": "JCVI-syn3A grows, copies its chromosome and divides, generation after generation: ribosomes built from ribosomal proteins, DnaA assembling at the origin to fire replication, forks running around the real chromosome, every molecule split at random between daughters, and a cell-cycle chart of each generation.",
+      "tags": [
+        "canvas",
+        "p5",
+        "simulation",
+        "biology"
+      ]
+    },
+    {
       "n": "core",
       "u": "https://ns.mino.mobi/core/",
       "c": "data",
