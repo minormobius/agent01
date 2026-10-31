@@ -263,6 +263,9 @@ for games, and this is a modelling programme with publications to come. The game
   together at each temperature, every rate a ratio to proton + proton's (density drops out); `protonflow compact MN` gives
   it the close-draw capture tables. Result: zones above ~10 MK burn wholly to the element where the climb stops; a Sun-pace
   core makes element 9 or pxygen, decided by proton + proton's nuclear size (ROADMAP step 2).
+  `nuclei.mjs giveback` (seconds) averages hburn's zones over the lifetimes of stars that finish before a Sun-like one
+  forms (declared mass function, lifetime slope, range): gluorine, oeon and pxygen lead, pxygen ahead of oitrogen in every
+  case (ROADMAP step 3). Later burning stages, which make rock, are not yet followed (step 4).
   **What's computed in a sandbox lives only in the cache and the bake**: if `$TMPDIR/atom4-nuclei` is lost (a container
   restart wipes /tmp), `nuclei.mjs restore` writes it back from `js/nucleidata.js` (a bake from it reproduces the file
   byte for byte); then add the runner's files from atom4-data.
