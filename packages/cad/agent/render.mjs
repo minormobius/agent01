@@ -4,7 +4,7 @@
 // builds, and writes one PNG per view plus the report as JSON. Needs
 // `bakeoff/node_modules` (playwright-core) and the Playwright Chromium.
 //
-//   node agent/render.mjs bench/clock.json --out /tmp/shots [--views iso,top,front] [--t 0.5] [--hide dial,case] [--occt]
+//   node agent/render.mjs bench/clock.json --out /tmp/shots [--views iso,top,front] [--t 0.5] [--hide dial,case] [--occt] [--canvas]
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -17,6 +17,7 @@ const { chromium } = (() => { for (const p of [ROOT, path.join(ROOT, 'bakeoff')]
 const docPath = path.resolve(process.argv[2]);
 const out = arg('--out', '/tmp/cad-render'); fs.mkdirSync(out, { recursive: true });
 const views = arg('--views', 'iso,top,front').split(',');
+const canvasOnly = process.argv.includes('--canvas');
 const t = Number(arg('--t', '0')); const hide = (arg('--hide', '') || '').split(',').filter(Boolean);
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm' };
@@ -31,7 +32,7 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 const exe = [process.env.CAD_CHROME, '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'].filter(Boolean).find((p) => fs.existsSync(p)); // undefined → Playwright's own Chromium (`npx playwright-core install chromium`)
 const browser = await chromium.launch({ headless: true, executablePath: exe, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--proxy-server=direct://', '--disable-background-networking'] });
-const page = await browser.newPage({ viewport: { width: 1200, height: 800 }, bypassCSP: true });
+const page = await browser.newPage({ viewport: canvasOnly ? { width: 1900, height: 1000 } : { width: 1200, height: 800 }, bypassCSP: true });
 const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); if (has('--verbose')) console.error('[page]', m.text()); });
 await page.goto(`${base}/?part=plate${has('--occt') ? '&occt=/occt/' : ''}`, { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__cad, null, { timeout: 30000 });
@@ -45,11 +46,16 @@ const report = await Promise.race([page.evaluate(async ({ doc, t, hide }) => {
   c.cam.fit(c.renderer.sceneBbox());
   return { ...s, faces: c.state.mode === 'part' ? c.state.slots.get('main')?.faces : undefined, components: c.state.components.map((x) => ({ id: x.id, part: x.part, partKey: x.partKey })), slots: Object.fromEntries([...c.state.slots].map(([k, v]) => [k, { preview: v.preview?.invariants, exact: v.exact?.invariants, exactKernel: v.exact?.kernel, exactError: v.exactError, previewError: v.previewError }])) };
 }, { doc, t, hide }), new Promise((r) => setTimeout(() => r({ timeout: true }), timeoutMs))]);
-if (report.timeout) { console.error(`builds did not settle within ${timeoutMs} ms${errors.length ? `; page errors: ${errors.join('; ')}` : ''}`); await browser.close(); server.close(); process.exit(1); }
+if (report.timeout) { console.error(`builds did not settle within ${timeoutMs} ms${errors.length ? `; page errors: ${errors.join('; ')}` : ''}`); await browser.close(); server.closeAllConnections?.(); server.close(); process.exit(1); }
 for (const v of views) {
   await page.evaluate((v) => { const c = window.__cad; c.cam.preset(v); c.cam.ortho = v !== 'iso'; c.cam.fit(c.renderer.sceneBbox()); c.render(); }, v);
-  await page.screenshot({ path: path.join(out, `${v}.png`) });
+  // --canvas: just the 3D view (#view), no interface around it, for a picture to post.
+  if (canvasOnly) await page.locator('#view').screenshot({ path: path.join(out, `${v}.png`) });
+  else await page.screenshot({ path: path.join(out, `${v}.png`) });
 }
 fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify({ doc: docPath, t, views, errors, ...report }, null, 1));
-await browser.close(); server.close();
+await browser.close(); server.closeAllConnections?.(); server.close();
 console.log(`${views.map((v) => v + '.png').join(', ')} and report.json in ${out}${errors.length ? `\npage errors: ${errors.join('; ')}` : ''}`);
+// Exit explicitly: the browser's own connections can hold the event loop open for minutes after
+// everything is written (seen on a headless runner, 2026-10-06).
+process.exit(0);

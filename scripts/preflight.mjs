@@ -730,8 +730,11 @@ if (!quick) {
       try {
         // no `...HEAD`: diff the WORKING TREE against the base, so uncommitted
         // edits count too — locally that's the whole point.
+        // maxBuffer: a long-lived branch's file list runs to megabytes (9 MB on
+        // claude/agent-social-media-drlzxn, 2026-10-18); past node's 1 MB default
+        // this threw ENOBUFS, the catch fell through, and every selftest ran.
         const out = execFileSync('git', ['diff', '--name-only', base],
-          { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+          { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
         // Documentation-only changes cannot affect a node selftest, and every
         // surface now carries a <dir>/CLAUDE.md — so counting .md edits would
         // run a surface's whole suite every time someone writes a sentence
@@ -752,7 +755,9 @@ if (!quick) {
   // REAL BROWSER is legitimately slower, and capping it at the same number
   // turns a passing test red on a machine one second slower than the last one.
   // Give the browser tests room; leave the tight cap where it does its job.
-  const SLOW = [/browser\.selftest\.mjs$/];
+  // whetstone.selftest.mjs runs whole lab days against a fake model (41 tests, ~170 s alone on
+  // 2026-10-04): slow by design, not hung.
+  const SLOW = [/browser\.selftest\.mjs$/, /whetstone\.selftest\.mjs$/];
   const timeoutFor = (f) => (SLOW.some((re) => re.test(f)) ? 420000 : 120000);
   console.log(`\nselftests (${scope.length} of ${found.length} — ${scopeLabel}; --all-tests for every one)`);
   let pass = 0; const failed = [];

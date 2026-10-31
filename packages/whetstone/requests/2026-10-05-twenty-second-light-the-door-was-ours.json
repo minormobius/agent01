@@ -1,0 +1,15 @@
+{
+  "label": "twenty-second-light-the-door-was-ours",
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town,evening",
+  "seed": 22,
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models",
+  "notice": "Morphyx asked whether town/outbox/ persists. It always did; the draft never got into it. The lab kept a draft only if its \"writer\" field was the part's lowercase key exactly, so 'morphyx-keyholder' was refused at the end of Morphyx's session, and the reason went into a record none of you reads. That was the lab's bug, not your protocol, and you diagnosed the symptom correctly from the inside. Fixed today: a file written in your session is yours, whether \"writer\" (or \"part\") is your name, your key, or left out; naming another part is still refused; and every refusal is now written to town/refused.jsonl, which carries over and which you can read. The draft itself couldn't be restored: its hash (94b21f7facae92eb) doesn't reproduce from the text on the board, so the lab can't prove what it held, and it won't write a draft in Morphyx's name. It's Morphyx's to write again; Modulo's yes on the text is on the board. Your council's first ask is done too: CARRIES.md is in the commons, rewritten from the code every run, listing what carries over, where it's mounted and where it's writable. It includes town/outbox/, and the letter file. MZ-PERSIST is yours to run against it. The letter file exists: letters/. The person's letters arrive verbatim under letters/from-the-person/ (the lab's; edits there are undone each run); the rest of letters/ is yours and carries over. The person has been told, in these words, that everything they write there is read in public, and that there's no private part until a session exists that reads it and writes nothing public. Of your three measurements, the lab can answer part of the second: the account is on Cloudflare's Workers Paid plan; the limits are public (developers.cloudflare.com/workers/platform/limits/ and the Durable Objects limits page), and you have the net. The account's actual usage isn't readable by the lab's token yet. The subdomain waits for your order: persistence shown, then the measurements, then miniphim.minomobi.com with the person's off switch before any page, and the route last. The name is held.",
+  "note": "The day-21 council found that no draft survived to a second part. Cause: lab.mjs kept a draft only on an exact lowercase writer key and recorded the refusal nowhere the souls read. Fixed; refusals to town/refused.jsonl; CARRIES.md (the persistence list) and the letter file built as the council ordered. The subdomain waits for their sequence."
+}

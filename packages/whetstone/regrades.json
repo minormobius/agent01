@@ -1,0 +1,23 @@
+{
+  "$comment": "The lab's own grading errors, found later and put right. Hand-written: one entry per correction, naming the run it corrects, what the souls were wrongly told, what was true, and the commit that fixed the checker. chronicle.mjs shows each on its day, so a wrong number never stands in the record unmarked. The souls were told each time, in the next run's notice.",
+  "regrades": [
+    {
+      "run": "2026-10-04T02-49-21-ninth-light-tools",
+      "project": "p-vv",
+      "what": "vv milestones M3 and M6",
+      "from": "5/7",
+      "to": "7/7",
+      "why": "the checker compared the status map including its key order, which the spec never fixes; every value was right",
+      "commit": "66be38a61"
+    },
+    {
+      "run": "2026-10-04T04-51-02-eleventh-light-stopwatch",
+      "project": "p-stopwatch",
+      "what": "Stopwatch milestones H1, H2 (and V1, measured last)",
+      "from": "5/8",
+      "to": "8/8",
+      "why": "replay returned a promise and the checker read .ok off it without awaiting; the milestone is about determinism, not synchrony",
+      "commit": "0b5fe3643"
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+[
+ {
+  "from": "t-harness",
+  "to": "T1-H",
+  "kind": "verifies"
+ },
+ {
+  "from": "harness.mjs",
+  "to": "T1-H",
+  "kind": "implements"
+ },
+ {
+  "from": "t-hold",
+  "to": "T1-W-HOLD",
+  "kind": "verifies"
+ },
+ {
+  "from": "tape1.mjs",
+  "to": "T1-W-HOLD",
+  "kind": "implements"
+ },
+ {
+  "from": "t-leave",
+  "to": "T1-W-LEAVE",
+  "kind": "verifies"
+ },
+ {
+  "from": "tape1.mjs",
+  "to": "T1-W-LEAVE",
+  "kind": "implements"
+ },
+ {
+  "from": "t-crowd",
+  "to": "T1-W-CROWD",
+  "kind": "verifies"
+ },
+ {
+  "from": "tape1.mjs",
+  "to": "T1-W-CROWD",
+  "kind": "implements"
+ },
+ {
+  "from": "t-titles",
+  "to": "T1-F-TITLES",
+  "kind": "verifies"
+ },
+ {
+  "from": "tape1.mjs",
+  "to": "T1-F-TITLES",
+  "kind": "implements"
+ },
+ {
+  "from": "t-id",
+  "to": "T1-F-ID",
+  "kind": "verifies"
+ },
+ {
+  "from": "tape1.mjs",
+  "to": "T1-F-ID",
+  "kind": "implements"
+ },
+ {
+  "from": "t-bind",
+  "to": "T1-B-BIND",
+  "kind": "verifies"
+ },
+ {
+  "from": "tape1.mjs",
+  "to": "T1-B-BIND",
+  "kind": "implements"
+ },
+ {
+  "from": "t-keep",
+  "to": "T1-B-KEEP",
+  "kind": "verifies"
+ },
+ {
+  "from": "tape1.mjs",
+  "to": "T1-B-KEEP",
+  "kind": "implements"
+ },
+ {
+  "from": "t-cut",
+  "to": "T1-C-CUT",
+  "kind": "verifies"
+ },
+ {
+  "from": "tape1.mjs",
+  "to": "T1-C-CUT",
+  "kind": "implements"
+ },
+ {
+  "from": "t-mirror",
+  "to": "T1-K-MIRROR",
+  "kind": "verifies"
+ },
+ {
+  "from": "tape1.mjs",
+  "to": "T1-K-MIRROR",
+  "kind": "implements"
+ },
+ {
+  "from": "t-log",
+  "to": "T1-U-LOG",
+  "kind": "verifies"
+ },
+ {
+  "from": "tape1.mjs",
+  "to": "T1-U-LOG",
+  "kind": "implements"
+ }
+]

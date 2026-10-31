@@ -1,0 +1,372 @@
+{
+ "reqs": [
+  {
+   "id": "MW",
+   "text": "The motion works shall drive the hour hand from the minute arbor.",
+   "parent": null,
+   "strength": "shall",
+   "acceptance": "",
+   "rationale": ""
+  },
+  {
+   "id": "MW-1",
+   "text": "The ratio shall be 12:1 within 0.1%.",
+   "parent": "MW",
+   "strength": "shall",
+   "method": "test",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "MW-2",
+   "text": "The train shall turn freely, fast and quietly.",
+   "parent": "MW",
+   "strength": "shall",
+   "method": "test",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "MW-3",
+   "text": "Backlash shall be TBD.",
+   "parent": "MW",
+   "strength": "shall",
+   "method": "test",
+   "acceptance": "",
+   "rationale": ""
+  },
+  {
+   "id": "MW-4",
+   "text": "Wheels should be cut from brass and/or bronze.",
+   "parent": "MW",
+   "strength": "should",
+   "method": "inspection",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "ESC",
+   "text": "The escapement shall advance one tooth per swing.",
+   "parent": null,
+   "strength": "shall",
+   "acceptance": "",
+   "rationale": ""
+  },
+  {
+   "id": "ESC-1",
+   "text": "The escape wheel shall advance exactly one tooth per full swing.",
+   "parent": "ESC",
+   "strength": "shall",
+   "method": "test",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "ESC-2",
+   "text": "The lock shall hold under a 2x drop.",
+   "parent": "ESC",
+   "strength": "shall",
+   "method": "analysis",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "ESC-3",
+   "text": "The impulse face is polished.",
+   "parent": "ESC",
+   "strength": "shall",
+   "method": "eyeball",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "CASE",
+   "text": "The case shall be robust etc.",
+   "parent": null,
+   "strength": "shall",
+   "method": "inspection",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "bad id",
+   "text": "The thing shall exist.",
+   "parent": null,
+   "strength": "shall",
+   "method": "test",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "LOOP-A",
+   "text": "Loop A shall exist.",
+   "parent": "LOOP-B",
+   "strength": "shall",
+   "method": "test",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "LOOP-B",
+   "text": "Loop B shall exist.",
+   "parent": "LOOP-A",
+   "strength": "shall",
+   "method": "test",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "ORPH",
+   "text": "The orphan shall be noticed.",
+   "parent": "GHOST",
+   "strength": "shall",
+   "method": "test",
+   "acceptance": "per the test",
+   "rationale": ""
+  },
+  {
+   "id": "ESC-1",
+   "text": "A duplicate shall be reported.",
+   "parent": "ESC",
+   "strength": "shall",
+   "method": "test",
+   "acceptance": "per the test",
+   "rationale": ""
+  }
+ ],
+ "links": [
+  {
+   "from": "t-ratio",
+   "to": "MW-1",
+   "kind": "verifies"
+  },
+  {
+   "from": "t-ratio-hot",
+   "to": "MW-1",
+   "kind": "verifies"
+  },
+  {
+   "from": "t-spin",
+   "to": "MW-2",
+   "kind": "verifies"
+  },
+  {
+   "from": "insp-brass",
+   "to": "MW-4",
+   "kind": "verifies"
+  },
+  {
+   "from": "t-tooth",
+   "to": "ESC-1",
+   "kind": "verifies"
+  },
+  {
+   "from": "a-lock",
+   "to": "ESC-2",
+   "kind": "verifies"
+  },
+  {
+   "from": "insp-case",
+   "to": "CASE",
+   "kind": "verifies"
+  },
+  {
+   "from": "mw.mjs",
+   "to": "MW-1",
+   "kind": "implements"
+  },
+  {
+   "from": "t-ghost",
+   "to": "NOPE",
+   "kind": "verifies"
+  },
+  {
+   "from": "t-ratio",
+   "to": "MW-1",
+   "kind": "verifies"
+  }
+ ],
+ "evidence": [
+  {
+   "check": "t-ratio",
+   "result": "fail",
+   "at": "2026-11-03"
+  },
+  {
+   "check": "t-ratio",
+   "result": "pass",
+   "at": "2026-11-05"
+  },
+  {
+   "check": "t-ratio-hot",
+   "result": "pass",
+   "at": "2026-11-06"
+  },
+  {
+   "check": "t-spin",
+   "result": "pass",
+   "at": "2026-11-04"
+  },
+  {
+   "check": "t-spin",
+   "result": "fail",
+   "at": "2026-11-09"
+  },
+  {
+   "check": "t-tooth",
+   "result": "pass",
+   "at": "2026-11-08"
+  },
+  {
+   "check": "t-tooth",
+   "result": "fail",
+   "at": "2026-11-08"
+  },
+  {
+   "check": "t-tooth",
+   "result": "pass",
+   "at": "2026-11-08"
+  },
+  {
+   "check": "insp-case",
+   "result": "pass",
+   "at": "2026-11-02"
+  },
+  {
+   "check": "a-lock",
+   "result": "pass",
+   "at": "2026-11-12"
+  }
+ ],
+ "measures": [
+  {
+   "id": "mass",
+   "req": "CASE",
+   "direction": "max",
+   "threshold": 900,
+   "objective": 750,
+   "history": [
+    {
+     "at": "2026-11-01",
+     "value": 700
+    },
+    {
+     "at": "2026-11-04",
+     "value": 760
+    },
+    {
+     "at": "2026-11-08",
+     "value": 805
+    }
+   ]
+  },
+  {
+   "id": "q",
+   "req": "ESC-2",
+   "direction": "min",
+   "threshold": 40,
+   "objective": 60,
+   "riskBand": 5,
+   "history": [
+    {
+     "at": "2026-11-02",
+     "value": 58
+    },
+    {
+     "at": "2026-11-06",
+     "value": 49
+    },
+    {
+     "at": "2026-11-09",
+     "value": 44
+    }
+   ]
+  },
+  {
+   "id": "drift",
+   "req": "MW-1",
+   "direction": "max",
+   "threshold": 0.1,
+   "history": [
+    {
+     "at": "2026-11-03",
+     "value": 0.4
+    },
+    {
+     "at": "2026-11-07",
+     "value": 0.15
+    }
+   ]
+  },
+  {
+   "id": "none",
+   "req": "MW-2",
+   "direction": "min",
+   "threshold": 1,
+   "history": []
+  }
+ ],
+ "plan": {
+  "workPackages": [
+   {
+    "id": "WP-MW",
+    "budget": 120,
+    "start": "2026-11-01",
+    "finish": "2026-11-10",
+    "reqs": [
+     "MW-1",
+     "MW-2",
+     "MW-4"
+    ]
+   },
+   {
+    "id": "WP-ESC",
+    "budget": 80,
+    "start": "2026-11-04",
+    "finish": "2026-11-15",
+    "reqs": [
+     "ESC-1",
+     "ESC-2",
+     "ESC-3"
+    ]
+   },
+   {
+    "id": "WP-CASE",
+    "budget": 30,
+    "start": "2026-11-11",
+    "finish": "2026-11-14",
+    "reqs": [
+     "CASE",
+     "GHOST-REQ"
+    ]
+   }
+  ]
+ },
+ "actuals": [
+  {
+   "wp": "WP-MW",
+   "hours": 50,
+   "at": "2026-11-04"
+  },
+  {
+   "wp": "WP-MW",
+   "hours": 40,
+   "at": "2026-11-08"
+  },
+  {
+   "wp": "WP-ESC",
+   "hours": 35,
+   "at": "2026-11-09"
+  },
+  {
+   "wp": "WP-CASE",
+   "hours": 5,
+   "at": "2026-11-20"
+  }
+ ],
+ "asOfs": [
+  "2026-11-06",
+  "2026-11-08",
+  "2026-11-12"
+ ]
+}

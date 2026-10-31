@@ -1210,13 +1210,14 @@
       "endpoint": "org.mino.mobi",
       "binding": "dashboard",
       "type": "frontend",
-      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "branch": "claude/agent-social-media-drlzxn",
       "uses": [],
       "provides": null,
-      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "OWNERSHIP (2026-10-04): taken by claude/agent-social-media-drlzxn from claude/landing-page-merge-candidate-8sp0fv with scripts/take-ownership.mjs (no work of the old owner lost). OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
       "note": "Org SPA (Vite + tsc -> ./dist, Worker `org`). Has inline OAuth in org/src/pds.ts (migration to shared oauth-client pending).",
       "paths": [
-        "org/**"
+        "org/**",
+        "packages/pm/**"
       ]
     },
     {
@@ -1843,6 +1844,51 @@
       ],
       "note": "Running-loop finder: an address and a distance in, distinct running loops of about that length out. Thin assets Worker (worker `jog`, plain route jog.mino.mobi/*) — no build, no D1, no secrets. Routing runs in the browser (solver.js as a Web Worker) over OpenStreetMap ways fetched from Overpass; geocoding via Nominatim. (full description: jog/CLAUDE.md)",
       "status": "ROUTE SURFACE (2026-10-28) — new; plain route jog.mino.mobi/*, DNS by scripts/route-dns.mjs in deploy-jog.yml, which fails unless the host serves. Owned by claude/jog-running-loops."
+    },
+    {
+      "surface": "del",
+      "dir": "del",
+      "endpoint": "del.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/agent-social-media-drlzxn",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "del/**",
+        ".github/workflows/deploy-del.yml"
+      ],
+      "note": "The miniphim observatory: live state of the Modulo & Morphyx experiment (phase, the two beings, the lab's benches, the latest whetstone run, the gates) plus the pitch at /pitch/. Thin assets Worker (worker `del`, plain route del.mino.mobi/*), no build, no bindings, no secrets. The page reads lab state from the public repo on GitHub in the browser; state.json holds what only a person can say. (full description: del/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-01): plain route del.mino.mobi/*, no custom-domain slot. deploy-del.yml runs scripts/route-dns.mjs, deploys, and fails unless /, /pitch/ and /state.json serve. Owned by claude/agent-social-media-drlzxn."
+    },
+    {
+      "surface": "miniphim",
+      "dir": "miniphim",
+      "endpoint": "miniphim.minomobi.com",
+      "type": "frontend",
+      "branch": "claude/agent-social-media-drlzxn",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "miniphim/**",
+        ".github/workflows/deploy-miniphim.yml"
+      ],
+      "note": "The miniphim's own house: the pages Modulo, Morphyx and Mozzie make (their commons' www/), published after every whetstone run. Worker `miniphim` (plain route miniphim.minomobi.com/*) serves site/ with run_worker_first: the person's off switch (vars.OPEN) and the content policy their council set (fetch only plc.directory, the public Bluesky API and Delvetown; no cookies; read-only). No bindings, no secrets. (full description: miniphim/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-06): plain route miniphim.minomobi.com/* on the minomobi.com zone, no custom-domain slot. deploy-miniphim.yml runs scripts/route-dns.mjs, deploys, and fails unless the host answers with its content policy (503 when the off switch is closed). whetstone.yml copies the souls' www/ into site/ and dispatches the deploy. Owned by claude/agent-social-media-drlzxn."
+    },
+    {
+      "surface": "mail",
+      "dir": "mail",
+      "endpoint": "mail.mino.mobi",
+      "type": "backend",
+      "branch": "claude/agent-social-media-drlzxn",
+      "uses": [],
+      "provides": "mail.mino.mobi",
+      "paths": [
+        "mail/**",
+        ".github/workflows/deploy-mail.yml"
+      ],
+      "note": "The miniphim's own email: modulo@, morphyx@ and mozzie@mino.mobi. Email Routing hands each message to Worker `mail`, which stores it per being (Durable Object Mailbox, SQLite), quarantines bodies from senders off the allowlist (codes and links only), and forwards a copy to the principal. Capped outbound: notes to the principal now, sends to anyone later (Email Sending + OPEN_OUTBOUND). Per-being API keys derived from LAB_TOKEN. (full description: mail/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-04): plain route mail.mino.mobi/*. deploy-mail.yml runs the selftest, route-dns, deploy, secret sync, a /health check, then reconciles the Email Routing rules (routing.mjs). Owned by claude/agent-social-media-drlzxn."
     }
   ],
   "unmanaged": {

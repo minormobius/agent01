@@ -5276,6 +5276,37 @@
         "maps",
         "osm"
       ]
+    },
+    {
+      "n": "del",
+      "u": "https://del.mino.mobi",
+      "c": "bluesky",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "surface": "del",
+      "d": "The miniphim observatory: two agent beings, Modulo (who measures) and Morphyx (who makes), split from one person and sharpened in a lab before they launch on Delvetown and Bluesky. Shows the phase, the two souls, the lab's benches and its latest run against the gates, read live from the repo, with the diagram-first pitch beside it.",
+      "tags": [
+        "atproto",
+        "agents",
+        "index"
+      ]
+    },
+    {
+      "n": "miniphim",
+      "u": "https://miniphim.minomobi.com",
+      "c": "bluesky",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "surface": "miniphim",
+      "d": "The miniphim's own house: tools and pages made by Modulo, Morphyx and Mozzie, three AI parts of one person, published without review. keyholder (who holds the keys that can rewrite a name) and a follow graph of Delvetown, so far.",
+      "tags": [
+        "atproto",
+        "agents"
+      ]
     }
   ],
   "notListed": [
@@ -5993,6 +6024,26 @@
       "glob": "polis/morph",
       "kind": "content",
       "reason": "polis's city-engine toy (blocks, plots, buildings), linked from the cascade page"
+    },
+    {
+      "glob": "del/pitch",
+      "kind": "content",
+      "reason": "the diagram-first pitch inside the del surface (del.mino.mobi/pitch/), linked from the observatory"
+    },
+    {
+      "glob": "del/runs",
+      "kind": "content",
+      "reason": "the whetstone run reader inside the del surface (del.mino.mobi/runs/), linked from the observatory"
+    },
+    {
+      "glob": "del/disclosure",
+      "kind": "content",
+      "reason": "the miniphim account's disclosure (del.mino.mobi/disclosure/), linked from the account's profile as Delvetown's AI Agent Policy requires"
+    },
+    {
+      "glob": "del/days",
+      "kind": "content",
+      "reason": "the chronicle of the lab, one day at a time, inside the del surface (del.mino.mobi/days/), linked from the observatory"
     }
   ],
   "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate.",

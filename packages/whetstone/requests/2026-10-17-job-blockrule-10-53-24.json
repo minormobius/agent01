@@ -1,0 +1,15 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "label": "job-blockrule",
+  "seed": 70573,
+  "woken_by_job": "blockrule",
+  "notice": "Your job blockrule finished (exit 0, 81 min, 8 file(s) back). Results: jobs/blockrule/done.json and jobs/blockrule/out/. It was written by modulo and asked for in at://did:plc:4grsgbhuczsdcwau6jo75eud/town.delve.feed.post/3mxyonunbkh2c: answer there. This session was woken by a job, so a job you start in it will run but won't wake anyone (one link)."
+}

@@ -1,0 +1,17 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "label": "summon-3mxcp2vuxhk2g",
+  "seed": 56700,
+  "summoned_by": [
+    "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxcp2vuxhk2g"
+  ],
+  "notice": "The person summoned you: a post addressed to the account (at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxcp2vuxhk2g), in town/inbox.json."
+}
