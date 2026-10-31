@@ -1,0 +1,12 @@
+{
+  "slug": "create-space",
+  "task": "Please create a space colony simulator. The camera is on the inside of the cylindrical vessel, rotating so that you can only see part of the colony at any given time. It’s pastoral. You get to hover over (or tap on mobile) colonists to see their thoughts while they work and play.",
+  "requester": "anthonybecker.bsky.social",
+  "requestedAt": "2026-07-28T19:16:06.263Z",
+  "_source": {
+    "commit": "f50fe5433f0be1a868d401e28ae1e325f7c1cfb9",
+    "path": ".github/lab-requests/create-space.json",
+    "reconstructed": true,
+    "why": "the only surviving version of this file is a later turn; task is the first-turn text as recovered from its thread banner, thread fields dropped"
+  }
+}

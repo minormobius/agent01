@@ -1,0 +1,2251 @@
+{
+  "artifact_type": "imp_program_artifact",
+  "payload": {
+    "adapter": "Elixir.Imp.Adapter.Chat",
+    "config": [],
+    "demos": [
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "I need to feel some fear the ever more unbound goo of ideation is getting less interesting"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3k2qniakpzz2y"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2023"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "Very excited for all the potential new #bskybc participants, check out the list and make recommendations, fight about it please, voting will commence within the week"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3lbteu4e75z2u"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2024"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "A right to bear shame, a right to lie, a right to a hermetic seal at skulls edge"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3lom3kmiun22d"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2025"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "Everyone’s sitting around the ancient fire, staring at their mammoth soup simply too hot to eat. An auspicious night, because tonight Grog the Scorched finally discovers he can bre\n\n▶ read it in the swarm"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3mnhumpzjkw2o"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2026"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "The mustard pickle wombo combo is goated when cutting the umami of cheese and meats is the vibe"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3kcjn5xgrmu2r"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2023"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "What book should we read? Round 11\n\n1️⃣ The Diamond Age -Stephenson\n2️⃣ Fire Upon the Deep -Vinge\n\n📊 Show results"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3kk3yh7fnan2w"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2024"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "The downtime between posts marks the heaviest risk to the slipstream and the only way to combat this would be a word document a notepad the trouble with those options is that there is no hypothetical audience you are performing for and therefore no incentive to snake the keys in a manner most serp"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3lnqjac6gis2n"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2025"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "I second this sentiment because I feel the buzz. It’s different. it’s a new type of thing. I further do not think this class of tool is limited to devs by any means, and you would do well to join the lunatics"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3mc3z3fj2z22j"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2026"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "Its so easy to just keep finding rad stuff out there\n\n\"Illustrated natural history of the animal kingdom\" Goodrich, 1861"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3kbnwchdi4d27"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2023"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "you look at these critters and think oh surely theyre small, surely this scene is playing out on the scale of a toenail but then you wonder how big the pede is and its a foot long"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3klaqn4ioye24"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2024"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "Crazy there’s all these monsters but we’re the real monsters and now we have to save the monsters"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3lhnkw2duek2m"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2025"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "Please please please let the pursuit of shareholder value create the conditions for a leveling off (it won’t) that would be the nicest timeline"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3mnbizfwh222e"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2026"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "Values and principles are usually good but they cut strongly against prudential adaptation and the task of sorting values between immutable unchanging truths and uneasy compromises forced by circumstance is nontrivial"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3k37nh2lfhq27"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2023"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "It’s true that warming the subject improves the flow but be warned it ruins the taste"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3kn3473gwpc2l"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2024"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "i should take solace that some of the features i begged for are now here like n to draft ctrl enter to post its a seamless flow limited only by typing flow"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3lpuofboclc27"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2025"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      },
+      {
+        "__imp_type__": "example",
+        "demos": [],
+        "fields": {
+          "__imp_type__": "map",
+          "entries": [
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "post"
+              },
+              "In case anyone needs more photo effects, I have stained glass tilings now at \n\nphoto.mino.mobi/glass"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "rkey"
+              },
+              "3mrm22esejk2x"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "year"
+              },
+              "2026"
+            ],
+            [
+              {
+                "__imp_type__": "atom",
+                "value": "feedback_allowed"
+              },
+              {
+                "__imp_type__": "atom",
+                "value": "false"
+              }
+            ]
+          ]
+        },
+        "input_keys": [
+          {
+            "__imp_type__": "atom",
+            "value": "post"
+          }
+        ]
+      }
+    ],
+    "dynamic_adapter": true,
+    "dynamic_lm": false,
+    "lm": {
+      "model": {
+        "base_url": "https://api.deepseek.com/v1",
+        "id": "deepseek-v4-flash",
+        "model": "deepseek-v4-flash",
+        "provider": "openai"
+      },
+      "opts": [
+        [
+          "cache",
+          false
+        ],
+        [
+          "receive_timeout",
+          180000
+        ],
+        [
+          "temperature",
+          0.0
+        ],
+        [
+          "max_tokens",
+          2048
+        ]
+      ],
+      "provider": "req_llm"
+    },
+    "metadata": {
+      "__imp_type__": "map",
+      "entries": [
+        [
+          {
+            "__imp_type__": "atom",
+            "value": "optimizer_report"
+          },
+          {
+            "__imp_type__": "optimizer_report",
+            "best_score": {
+              "__imp_type__": "atom",
+              "value": "nil"
+            },
+            "candidate_count": 16,
+            "candidates": [
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    0
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "I need to feel some fear the ever more unbound goo of ideation is getting less interesting"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3k2qniakpzz2y"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2023"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    1
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "Very excited for all the potential new #bskybc participants, check out the list and make recommendations, fight about it please, voting will commence within the week"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3lbteu4e75z2u"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2024"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    2
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "A right to bear shame, a right to lie, a right to a hermetic seal at skulls edge"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3lom3kmiun22d"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2025"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    3
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "Everyone’s sitting around the ancient fire, staring at their mammoth soup simply too hot to eat. An auspicious night, because tonight Grog the Scorched finally discovers he can bre\n\n▶ read it in the swarm"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3mnhumpzjkw2o"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2026"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    4
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "The mustard pickle wombo combo is goated when cutting the umami of cheese and meats is the vibe"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3kcjn5xgrmu2r"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2023"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    5
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "What book should we read? Round 11\n\n1️⃣ The Diamond Age -Stephenson\n2️⃣ Fire Upon the Deep -Vinge\n\n📊 Show results"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3kk3yh7fnan2w"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2024"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    6
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "The downtime between posts marks the heaviest risk to the slipstream and the only way to combat this would be a word document a notepad the trouble with those options is that there is no hypothetical audience you are performing for and therefore no incentive to snake the keys in a manner most serp"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3lnqjac6gis2n"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2025"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    7
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "I second this sentiment because I feel the buzz. It’s different. it’s a new type of thing. I further do not think this class of tool is limited to devs by any means, and you would do well to join the lunatics"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3mc3z3fj2z22j"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2026"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    8
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "Its so easy to just keep finding rad stuff out there\n\n\"Illustrated natural history of the animal kingdom\" Goodrich, 1861"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3kbnwchdi4d27"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2023"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    9
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "you look at these critters and think oh surely theyre small, surely this scene is playing out on the scale of a toenail but then you wonder how big the pede is and its a foot long"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3klaqn4ioye24"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2024"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    10
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "Crazy there’s all these monsters but we’re the real monsters and now we have to save the monsters"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3lhnkw2duek2m"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2025"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    11
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "Please please please let the pursuit of shareholder value create the conditions for a leveling off (it won’t) that would be the nicest timeline"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3mnbizfwh222e"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2026"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    12
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "Values and principles are usually good but they cut strongly against prudential adaptation and the task of sorting values between immutable unchanging truths and uneasy compromises forced by circumstance is nontrivial"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3k37nh2lfhq27"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2023"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    13
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "It’s true that warming the subject improves the flow but be warned it ruins the taste"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3kn3473gwpc2l"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2024"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    14
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "i should take solace that some of the features i begged for are now here like n to draft ctrl enter to post its a seamless flow limited only by typing flow"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3lpuofboclc27"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2025"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              },
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "index"
+                    },
+                    15
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "example"
+                    },
+                    {
+                      "__imp_type__": "example",
+                      "demos": [],
+                      "fields": {
+                        "__imp_type__": "map",
+                        "entries": [
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "post"
+                            },
+                            "In case anyone needs more photo effects, I have stained glass tilings now at \n\nphoto.mino.mobi/glass"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "rkey"
+                            },
+                            "3mrm22esejk2x"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "year"
+                            },
+                            "2026"
+                          ],
+                          [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "feedback_allowed"
+                            },
+                            {
+                              "__imp_type__": "atom",
+                              "value": "false"
+                            }
+                          ]
+                        ]
+                      },
+                      "input_keys": [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "post"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "predictor"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "main"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "selected?"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "true"
+                    }
+                  ]
+                ]
+              }
+            ],
+            "errors": [],
+            "metadata": {
+              "__imp_type__": "map",
+              "entries": [
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "seed"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "sample"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "false"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "status"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "ok"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "k_per_predictor"
+                  },
+                  16
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "predictor_count"
+                  },
+                  1
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "selected_by_predictor"
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "main"
+                        },
+                        16
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "selected_assignment_count"
+                  },
+                  16
+                ]
+              ]
+            },
+            "optimizer": {
+              "__imp_type__": "atom",
+              "value": "labeled_few_shot"
+            }
+          }
+        ]
+      ]
+    },
+    "signature": {
+      "inputs": [
+        {
+          "desc": null,
+          "kind": "input",
+          "metadata": {},
+          "name": "post",
+          "prefix": "Post:",
+          "type": "string"
+        }
+      ],
+      "instructions": "A post by one Bluesky user. Guess the year they wrote it.",
+      "metadata": {},
+      "outputs": [
+        {
+          "desc": null,
+          "kind": "output",
+          "metadata": {
+            "constraints": {
+              "enum": [
+                "2023",
+                "2024",
+                "2025",
+                "2026"
+              ]
+            }
+          },
+          "name": "year",
+          "prefix": "Year:",
+          "type": "string"
+        }
+      ]
+    },
+    "type": "predict"
+  },
+  "payload_sha256": "sha256:ed822f3349e6a72cb2e13334c921202dd224d8682b99cc2c75ce91b2f031f9c7",
+  "schema_version": 1
+}

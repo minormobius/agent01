@@ -1,0 +1,1 @@
+Built fresh with the whole thread folded in: zoomed-out view, WASD+arrows, Z/X rotate, mobile buttons+pinch, inverted-x pan, real copy-image result card. Couldn't test right-drag/pinch pan in-sandbox — flag it if pan feels backwards.

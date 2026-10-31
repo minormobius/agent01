@@ -1,0 +1,1 @@
+Fixed: it was only walking downward from whatever post you linked, so pasting a reply instead of the root post meant missing images above it and in sibling branches. It now climbs to the true root first, then walks every branch.

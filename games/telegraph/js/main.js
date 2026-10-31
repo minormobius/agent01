@@ -30,6 +30,7 @@
     inter: $("inter"), interTitle: $("inter-title"), interBody: $("inter-body"), interBtn: $("inter-btn"),
     over: $("over"), overStats: $("run-stats"), overSeed: $("over-seed"),
     overBest: $("over-best"), again: $("again"), replay: $("replay"),
+    post: $("post"), oBoard: $("o-board"), trophy: $("trophy"),
   };
 
   var view = T.createBoardView(el.board);
@@ -39,6 +40,7 @@
   var mode = "move";
   var runStats = null;
   var busy = false;        // true while an animation is playing
+  var posted = false;      // this run has been offered to the board
 
   // ------------------------------------------------------------------ seed --
 
@@ -67,6 +69,7 @@
     setUrlSeed(state.seed);
     runStats = { turns: 0, clean: 0, flawless: 0, missed: 0, forced: 0, levels: 0 };
     busy = false;
+    posted = false;
     view.mount(state, onTile);
     beginTurn();
     el.over.hidden = true;
@@ -392,9 +395,31 @@
     });
     el.overSeed.textContent = state.seed;
     el.overBest.textContent = best();
+    offerable();
     el.over.hidden = false;
     el.again.focus();
   }
+
+  // ----------------------------------------------------------- leaderboard --
+  /* The board loads on its own (it needs the vendored auth client); its
+     buttons show once it's there. A run posts once, sectors held, if any. */
+
+  function board() { return NS.TELEGRAPH_BOARD || null; }
+  function held() { return state ? Math.max(0, state.level - 1) : 0; }
+  function offerable() {
+    var b = !!board(), over = !!state && state.phase === "lost";
+    el.trophy.hidden = el.oBoard.hidden = !b;
+    el.post.hidden = !b || !over || held() < 1;
+    el.post.disabled = posted;
+  }
+  function postRun() {
+    var b = board();
+    if (!b || !state || state.phase !== "lost" || held() < 1 || posted) return;
+    posted = true; el.post.disabled = true;
+    b.offer({ sel: {}, value: held(), seed: state.seed, turns: runStats.turns, flawless: runStats.flawless,
+      clean: runStats.clean, missed: runStats.missed, forced: runStats.forced, at: Date.now() });
+  }
+  NS.addEventListener("telegraph-board", offerable);
 
   // ------------------------------------------------------------------ wire --
 
@@ -404,8 +429,13 @@
   el.again.addEventListener("click", function () { newRun(); });
   el.replay.addEventListener("click", function () { newRun(state.seed); });
   el.startBtn.addEventListener("click", function () { el.start.hidden = true; });
+  el.post.addEventListener("click", postRun);
+  el.oBoard.addEventListener("click", function () { var b = board(); if (b) b.open({}); });
+  el.trophy.addEventListener("click", function () { var b = board(); if (b) b.open({}); });
 
   document.addEventListener("keydown", function (e) {
+    // keys typed into a field (the leaderboard's handle) belong to the field, not the game; and leave browser shortcuts alone
+    if (e.ctrlKey || e.metaKey || e.altKey || (e.target && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)))) return;
     if (!el.start.hidden) { if (e.key === "Enter" || e.key === " ") { el.start.hidden = true; e.preventDefault(); } return; }
     if (!el.inter.hidden) { if (e.key === "Enter" || e.key === " ") { advance(); e.preventDefault(); } return; }
     if (busy) return;
@@ -442,4 +472,5 @@
 
   newRun(urlSeed());
   el.startSeed.textContent = state.seed;
+  offerable();
 })();

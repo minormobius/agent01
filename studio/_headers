@@ -1,0 +1,13 @@
+# The scores, readable by clef.mino.mobi ("View the score" opens clef on them).
+/anthesis/score.ly
+  Access-Control-Allow-Origin: https://clef.mino.mobi
+  Content-Type: text/plain; charset=utf-8
+/coquelicots/score.ly
+  Access-Control-Allow-Origin: https://clef.mino.mobi
+  Content-Type: text/plain; charset=utf-8
+/nocturne/score.ly
+  Access-Control-Allow-Origin: https://clef.mino.mobi
+  Content-Type: text/plain; charset=utf-8
+/speakeasy/score.ly
+  Access-Control-Allow-Origin: https://clef.mino.mobi
+  Content-Type: text/plain; charset=utf-8

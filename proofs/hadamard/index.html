@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>hadamard — only 1 and 4?</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="A circulant Hadamard matrix is a ±1 matrix whose rows are shifts of one row and are all perfectly orthogonal. Ryser conjectured in 1963 that only orders 1 and 4 exist; a 2026 AI-written, Lean-formalized paper claims it. Build rows, watch H·Hᵀ, search every order and every Barker sequence in your browser.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6;
+  --accent: #2a78d6; --accent-faint: rgba(42,120,214,0.13); --accent-tint: rgba(42,120,214,0.06);
+  --panel: #f3f3f0; --stage: #f7f7f4;
+  --plus: #2a78d6; --minus: #eb6834; --zero: #e4e3dd;
+  --good: #1f7a3f; --bad: #b3261e;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f;
+    --accent: #3987e5; --accent-faint: rgba(57,135,229,0.18); --accent-tint: rgba(57,135,229,0.08);
+    --panel: #20201e; --stage: #121211;
+    --plus: #3987e5; --minus: #d95926; --zero: #2c2b28;
+    --good: #6ec48f; --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--serif); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+.head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top)); }
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); overflow: hidden; display: flex; flex-direction: column; }
+.score { padding: 0.45rem 0.8rem 0; font-family: var(--mono); display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: baseline; }
+.score .big { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+.score .lbl { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.04em; }
+.score .ok { color: var(--good); }
+.mats { flex: 1 1 0; min-height: 0; display: flex; gap: 0.8rem; padding: 0.5rem 0.8rem 0.6rem; }
+.mats figure { margin: 0; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.mats figcaption { font-family: var(--mono); font-size: 0.58rem; color: var(--muted); margin-bottom: 0.25rem; }
+.mats svg { flex: 1 1 0; min-height: 0; width: 100%; }
+.mats svg text { font-family: var(--mono); }
+@media (max-width: 560px) { .mats { flex-direction: column; } }
+.view { display: none; flex: 1 1 0; min-height: 0; flex-direction: column; }
+.view.on { display: flex; }
+.chart { flex: 1 1 0; min-height: 0; padding: 0.4rem 0.8rem 0.6rem; }
+.chart svg { width: 100%; height: 100%; }
+.chart svg text { font-family: var(--mono); fill: var(--muted); }
+.strip { display: flex; flex-wrap: wrap; gap: 3px; padding: 0.4rem 0.8rem; }
+.strip span { font-family: var(--mono); font-size: 0.56rem; width: 1.6rem; text-align: center; padding: 0.15rem 0; border-radius: 3px; background: var(--zero); color: var(--muted); }
+.strip span.yes { background: var(--plus); color: #fff; font-weight: 700; }
+.strip span.no { background: var(--zero); }
+.strip span.run { outline: 1px dashed var(--accent); }
+
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab { flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+.knob { display: grid; grid-template-columns: 4.2rem 1fr 2.6rem; align-items: center; gap: 0.4rem; margin: 0.1rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.66rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.4rem; }
+button.act { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.42rem 0.55rem; cursor: pointer; min-height: 2rem; }
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act:disabled { opacity: 0.4; cursor: default; }
+.note { font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; font-family: var(--mono); font-size: 0.58rem; color: var(--muted); margin-top: 0.45rem; }
+.legend i { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -0.1rem; margin-right: 0.3rem; }
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.64rem; margin-top: 0.5rem; }
+table.facts td, table.facts th { padding: 0.26rem 0.25rem; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: top; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.56rem; }
+table.facts td:first-child, table.facts th:first-child { text-align: left; }
+.good { color: var(--good); } .bad { color: var(--bad); }
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose code, pre { font-family: var(--mono); font-size: 0.72rem; }
+pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.5rem 0.6rem; overflow-x: auto; line-height: 1.4; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+@media (min-width: 860px) {
+  .app { flex-direction: row; } .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 28rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; } .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://proofs.mino.mobi/">← proofs</a>
+      <h1>hadamard</h1>
+      <span class="tagline">family 179 · Lean-formalized</span>
+    </div>
+    <div class="stage">
+      <div class="view on" id="v-build">
+        <div class="score">
+          <div><div class="big" id="energy">—</div><div class="lbl">off-diagonal energy Σ P(t)²</div></div>
+          <div><div class="big" id="sum">—</div><div class="lbl">row sum s · s² vs n</div></div>
+          <div><div class="big" id="verdictB">—</div><div class="lbl" id="verdictL">&nbsp;</div></div>
+        </div>
+        <div class="mats">
+          <figure><figcaption>H: tap any cell to flip its whole diagonal</figcaption><svg id="matH" preserveAspectRatio="xMidYMid meet"></svg></figure>
+          <figure><figcaption>H·Hᵀ: diagonal n, every other entry should be 0</figcaption><svg id="matG" preserveAspectRatio="xMidYMid meet"></svg></figure>
+        </div>
+      </div>
+      <div class="view" id="v-barker">
+        <div class="score"><div><div class="big" id="bseq" style="font-size:1.1rem;letter-spacing:0.08em">—</div><div class="lbl" id="blbl">a Barker sequence and its aperiodic autocorrelation</div></div></div>
+        <div class="chart"><svg id="bchart" role="img" aria-label="aperiodic autocorrelation"></svg></div>
+        <div class="strip" id="strip"></div>
+      </div>
+      <div class="view" id="v-orders">
+        <div class="chart"><svg id="funnel" role="img" aria-label="which orders survive each condition"></svg></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <nav class="tabs">
+      <button class="tab active" data-pane="build">build</button>
+      <button class="tab" data-pane="barker">barker</button>
+      <button class="tab" data-pane="orders">orders</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+      <div class="pane active" id="pane-build">
+        <div class="knob"><label for="n">order n</label><input type="range" id="n" min="1" max="36" step="1" value="4"><output id="nv"></output></div>
+        <div class="row">
+          <button class="act" id="ex4">order 4: + + + −</button>
+          <button class="act" id="rand">random</button>
+          <button class="act" id="anneal">search</button>
+          <button class="act" id="brute">exhaust n ≤ 18</button>
+        </div>
+        <div class="legend"><span><i style="background:var(--plus)"></i>+1</span><span><i style="background:var(--minus)"></i>−1</span><span><i style="background:var(--zero);outline:1px solid var(--rule)"></i>0 in H·Hᵀ (good)</span></div>
+        <p class="note" id="bnote">Every row of a circulant matrix is the row above it shifted one step to the right, so the whole matrix is one row of n signs. It is <em>Hadamard</em> if every pair of rows is orthogonal, which makes H·Hᵀ zero off the diagonal. That off-diagonal entry is the row's correlation with its own shift by t, P(t). Try to make them all zero. <em>Search</em> flips signs greedily from many random starts. Only n = 4 ever reaches 0.</p>
+        <table class="facts" id="bruteTable" hidden><thead><tr><th>n</th><th>rows tried</th><th>circulant Hadamard</th><th>time</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="pane" id="pane-barker">
+        <p class="note" style="margin-top:0">A <strong>Barker sequence</strong> is a string of ±1 whose correlation with every <em>non-cyclic</em> shift of itself is −1, 0 or +1. Radar uses them to sharpen pulses, and the original 802.11 Wi-Fi spreads every bit with the length-11 one. Lengths 2, 3, 4, 5, 7, 11 and 13 have been known since the 1950s. Odd lengths beyond 13 were ruled out in 1961. Even lengths were the open case, because a long even Barker sequence <em>is</em> a circulant Hadamard row. So the 2026 theorem closes it.</p>
+        <div class="row">
+          <button class="act" data-bk="2">2</button><button class="act" data-bk="3">3</button><button class="act" data-bk="4">4</button><button class="act" data-bk="5">5</button><button class="act" data-bk="7">7</button><button class="act" data-bk="11">11</button><button class="act" data-bk="13">13</button>
+        </div>
+        <div class="knob" style="margin-top:0.5rem"><label for="bn">search to</label><input type="range" id="bn" min="14" max="44" step="1" value="36"><output id="bnv"></output></div>
+        <div class="row"><button class="act" id="bsearch">search every length</button></div>
+        <p class="note">The search fills the sequence from both ends at once. Once the first d and last d signs are set, the correlation at every shift of n − d or more is fixed, so a branch dies as soon as one of them exceeds 1. It is checked against brute force over all 2ⁿ sequences up to n = 16, and it covers every length up to 40 on every change.</p>
+      </div>
+      <div class="pane" id="pane-orders">
+        <p class="note" style="margin-top:0">Which orders n were still possible, condition by condition, up to 10,000:</p>
+        <table class="facts" id="ftab"></table>
+        <p class="note">The first two conditions are short arguments this page checks. The row sum s of a circulant Hadamard row satisfies s² = n, because both sides count every ordered pair of positions. And any Hadamard matrix of order above 2 has order divisible by 4. The other two are Turyn's 1965 theorems, cited and not re-proved here. Logan and Mossinghoff (2017) then ruled out all but 4,489 orders up to 4·10³⁰ by computer. No finite search can finish the job. The 2026 paper claims every one of them is impossible.</p>
+      </div>
+      <div class="pane prose" id="pane-about">
+        <h2>The question</h2>
+        <p>A <strong>Hadamard matrix</strong> is an n×n grid of +1s and −1s whose rows are pairwise orthogonal: any two agree in exactly half their places. They exist in many orders, and are conjectured to exist for every multiple of 4. A <strong>circulant</strong> one asks for more: every row is the previous row shifted by one. Order 4 has one, the row + + + −. In 1963 Herbert Ryser conjectured that there are no others beyond the trivial order 1.</p>
+        <p>The same question hides behind <strong>Barker sequences</strong>. A long even-length Barker sequence would give a circulant Hadamard matrix, so settling Ryser settles which lengths of Barker sequence exist.</p>
+
+        <h2>The 2026 claim</h2>
+        <p>A paper dated 23 September 2026, written by an internal OpenAI model and released on 6 October in <a href="https://github.com/openai/math">a collection of 722</a>, proves Ryser's conjecture. As a corollary, Barker sequences exist exactly at lengths 2, 3, 4, 5, 7, 11 and 13. The argument is algebraic. A circulant Hadamard row is a cyclic difference set with parameters (4u², 2u² − u, u² − u). The paper compares character values of that set in cyclotomic rings and reaches a contradiction for every u &gt; 1. Several earlier claimed proofs exist (2016–2025); the paper lists them.</p>
+
+        <h2>How it was checked</h2>
+        <p>The main theorem is formalized in Lean. The release ships the statement as a separate file, checked by its Comparator tool against Lean's three standard axioms:</p>
+<pre>def IsCirculant (H : RealMatrix n) : Prop :=
+  ∃ h : Fin n → ℝ, ∀ i j, H i j = h (j - i)
+
+def IsSignHadamard (H : RealMatrix n) : Prop :=
+  (∀ i j, IsSign (H i j)) ∧
+    H * H.transpose = (n : ℝ) • (1 : RealMatrix n)
+
+theorem exists_iff_order_one_or_four (n : ℕ) (hn : 0 &lt; n) :
+    ExistsRealCirculantHadamard n ↔ n = 1 ∨ n = 4</pre>
+        <p>The library also contains a challenge file for the even-length Barker statement, but that one is not in the release's list of formalized main results, so this page does not count it. We did not run Lean ourselves, and the paper is a preprint.</p>
+
+        <h2>What this page checks</h2>
+        <p><code>hadamard.js</code> is the only copy of the maths, and <code>hadamard.selftest.mjs</code> holds it to 1,513 checks:</p>
+        <ul>
+          <li>The Lean condition H·Hᵀ = nI, computed as a real matrix product, matches the paper's autocorrelation form.</li>
+          <li>The identities (Σh)² = Σ P(t), P(t) ≡ n (mod 4), P(t) = n − 4k + 4N_D(t) and P(t) = C(t) + C(n − t) all hold.</li>
+          <li>Brute force over all 2ⁿ rows finds circulant Hadamard rows only at orders 1 (2 rows) and 4 (8 rows), up to n = 20.</li>
+          <li>Every sequence in the paper's Barker table checks out, and the exhaustive search finds Barker sequences at exactly the seven lengths up to 40.</li>
+        </ul>
+        <p>None of that proves the theorem. The smallest order Turyn's 1965 conditions leave open is 900: a row of 900 signs, far beyond any exhaustive search, and only the first of 4,489 such orders below 4·10³⁰ that needed a real argument.</p>
+        <div class="crossref">
+          the collection · <a href="https://proofs.mino.mobi/">proofs</a> ·
+          the paper · <a href="https://github.com/openai/math/blob/main/preprints/The-circulant-Hadamard-conjecture-September-23-2026/paper.pdf">circulant Hadamard</a> ·
+          next door · <a href="https://proofs.mino.mobi/crossing/">crossing</a> · <a href="https://math.mino.mobi/capset/">capset</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as K from './hadamard.js';
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const NS = 'http://www.w3.org/2000/svg';
+
+const S = { h: K.parse('+++-'), barker: K.parse(K.BARKER_TABLE[13]), pane: 'build' };
+
+// ================================================================ build ===
+function cellGrid(svg, n, val, colour, label) {
+  const size = 100, c = size / n;
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  let out = '';
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    out += `<rect x="${(j * c).toFixed(3)}" y="${(i * c).toFixed(3)}" width="${(c - Math.min(0.6, c * 0.08)).toFixed(3)}" height="${(c - Math.min(0.6, c * 0.08)).toFixed(3)}" rx="${Math.min(0.8, c * 0.12)}" fill="${colour(val(i, j), i, j)}" data-i="${i}" data-j="${j}"/>`;
+    if (label && n <= 12) out += `<text x="${(j + 0.5) * c}" y="${(i + 0.5) * c}" font-size="${c * 0.34}" text-anchor="middle" dominant-baseline="central" fill="${label(val(i, j), i, j)}" pointer-events="none">${val(i, j)}</text>`;
+  }
+  svg.innerHTML = out;
+}
+function drawBuild() {
+  const h = S.h, n = h.length;
+  const H = K.circulant(h), G = K.gram(H), e = K.energy(h), s = K.rowSum(h);
+  cellGrid($('matH'), n, (i, j) => H[i][j], (v) => (v > 0 ? css('--plus') : css('--minus')));
+  const max = Math.max(1, ...G.flat().map(Math.abs).filter((x) => x !== n));
+  cellGrid($('matG'), n, (i, j) => G[i][j], (v, i, j) => {
+    if (i === j) return css('--accent');
+    if (v === 0) return css('--zero');
+    const a = 0.25 + 0.75 * Math.abs(v) / max;
+    return `color-mix(in srgb, ${v > 0 ? css('--plus') : css('--minus')} ${Math.round(a * 100)}%, ${css('--zero')})`;
+  }, (v, i, j) => (i === j || Math.abs(v) / max > 0.55 ? '#fff' : css('--muted')));
+  $('energy').textContent = e;
+  $('energy').className = 'big' + (e === 0 ? ' ok' : '');
+  $('sum').textContent = `${s} · ${s * s} vs ${n}`;
+  const had = e === 0;
+  $('verdictB').textContent = had ? 'Hadamard ✓' : 'not yet';
+  $('verdictB').className = 'big' + (had ? ' ok' : '');
+  $('verdictL').textContent = had ? `circulant Hadamard of order ${n}` : (Number.isInteger(Math.sqrt(n)) ? `n = ${n} is a square, so s² = n is possible` : `${n} is not a square: s² = n is impossible`);
+  $('nv').textContent = n; $('n').value = n;
+}
+$('matH').addEventListener('click', (e) => {
+  const r = e.target.closest('rect'); if (!r) return;
+  const n = S.h.length, k = (((+r.dataset.j - +r.dataset.i) % n) + n) % n;
+  S.h[k] = -S.h[k]; drawBuild(); pushURL();
+});
+$('n').addEventListener('input', (e) => { const n = +e.target.value; S.h = Array.from({ length: n }, (_, j) => S.h[j] ?? 1); drawBuild(); pushURL(); });
+$('ex4').addEventListener('click', () => { S.h = K.parse('+++-'); drawBuild(); pushURL(); });
+$('rand').addEventListener('click', () => { S.h = S.h.map(() => (Math.random() < 0.5 ? 1 : -1)); drawBuild(); pushURL(); });
+$('anneal').addEventListener('click', () => {
+  const r = K.anneal(S.h.length, { restarts: 30, seed: (Math.random() * 1e9) | 0 });
+  S.h = r.row; drawBuild(); pushURL();
+  $('bnote').innerHTML = `Search over 30 random starts at n = ${S.h.length}: the lowest energy found is <strong>${r.best}</strong>${r.best === 0 ? ', so this is a circulant Hadamard matrix.' : '. That is not zero, so the rows are not all orthogonal. Run it again; the theorem says it will never reach 0 here.'}`;
+});
+// ================================================================ worker ===
+let worker = null;
+function runWorker(task, from, to, onRow, onDone) {
+  if (worker) worker.terminate();
+  try { worker = new Worker('./search.worker.js', { type: 'module' }); }
+  catch { onDone?.('no module workers in this browser'); return; }
+  worker.onmessage = (ev) => { if (ev.data.done) onDone?.(); else onRow(ev.data); };
+  worker.onerror = (ev) => onDone?.('worker failed: ' + (ev.message || 'unknown'));
+  worker.postMessage({ task, from, to });
+}
+$('brute').addEventListener('click', () => {
+  const tb = $('bruteTable'); tb.hidden = false; tb.tBodies[0].innerHTML = '';
+  $('brute').disabled = true;
+  runWorker('brute', 1, 18, (d) => {
+    tb.tBodies[0].insertAdjacentHTML('beforeend', `<tr><td>${d.n}</td><td>${d.nodes.toLocaleString()}</td><td class="${d.count ? 'good' : ''}">${d.count ? `${d.count} rows, e.g. ${d.example}` : 'none'}</td><td>${d.ms < 1000 ? Math.round(d.ms) + ' ms' : (d.ms / 1000).toFixed(1) + ' s'}</td></tr>`);
+  }, (err) => { $('brute').disabled = false; if (err) tb.tBodies[0].insertAdjacentHTML('beforeend', `<tr><td colspan="4">${err}</td></tr>`); });
+});
+
+// ================================================================ barker ===
+function drawBarker() {
+  const a = S.barker, n = a.length, C = K.aperiodic(a);
+  $('bseq').textContent = K.show(a);
+  $('blbl').textContent = `length ${n} · correlation with each shift t: |C(t)| ≤ 1 for every t ≥ 1 ${K.isBarker(a) ? '✓' : '✗'}`;
+  const svg = $('bchart'), W = 320, H = 170, L = 26, B = 22, T = 8;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const y = (v) => T + (1 - (v + 1.5) / (n + 1.5)) * (H - T - B);
+  const bw = (W - L - 6) / n;
+  let out = `<line x1="${L}" x2="${W - 2}" y1="${y(0)}" y2="${y(0)}" stroke="var(--faint)" stroke-width="0.6"/>`;
+  out += `<rect x="${L}" y="${y(1)}" width="${W - L - 2}" height="${y(-1) - y(1)}" fill="var(--accent-tint)"/>`;
+  out += `<text x="${L - 3}" y="${y(n) + 3}" font-size="7" text-anchor="end">${n}</text><text x="${L - 3}" y="${y(1) + 2}" font-size="7" text-anchor="end">1</text><text x="${L - 3}" y="${y(-1) + 3}" font-size="7" text-anchor="end">−1</text>`;
+  C.forEach((c, t) => {
+    const x = L + t * bw + bw * 0.15, top = Math.min(y(c), y(0)), hgt = Math.max(1.2, Math.abs(y(c) - y(0)));
+    out += `<rect x="${x.toFixed(2)}" y="${top.toFixed(2)}" width="${(bw * 0.7).toFixed(2)}" height="${hgt.toFixed(2)}" rx="1" fill="${t === 0 ? 'var(--accent)' : Math.abs(c) <= 1 ? 'var(--plus)' : 'var(--minus)'}"><title>C(${t}) = ${c}</title></rect>`;
+    if (n <= 16) out += `<text x="${(x + bw * 0.35).toFixed(2)}" y="${H - B + 11}" font-size="6.5" text-anchor="middle">${t}</text>`;
+  });
+  out += `<text x="${(L + W) / 2}" y="${H - 2}" font-size="7" text-anchor="middle">shift t</text>`;
+  svg.innerHTML = out;
+}
+function drawStrip(upto) {
+  $('strip').innerHTML = Array.from({ length: upto - 1 }, (_, k) => `<span id="s${k + 2}">${k + 2}</span>`).join('');
+}
+for (const b of document.querySelectorAll('[data-bk]')) b.addEventListener('click', () => { S.barker = K.parse(K.BARKER_TABLE[b.dataset.bk]); drawBarker(); });
+$('bn').addEventListener('input', (e) => { $('bnv').textContent = e.target.value; });
+$('bnv').textContent = $('bn').value;
+$('bsearch').addEventListener('click', () => {
+  const to = +$('bn').value;
+  drawStrip(to); $('bsearch').disabled = true;
+  runWorker('barker', 2, to, (d) => {
+    const el = $('s' + d.n); if (!el) return;
+    el.className = d.count ? 'yes' : 'no';
+    el.title = d.count ? `${d.count} sequences (${d.classes} up to symmetry), e.g. ${d.example}` : `none · ${d.nodes.toLocaleString()} nodes · ${Math.round(d.ms)} ms`;
+    const nxt = $('s' + (d.n + 1)); if (nxt) nxt.classList.add('run');
+    if (d.count) { S.barker = K.parse(d.example.replace(/−/g, '-')); drawBarker(); }
+  }, () => { $('bsearch').disabled = false; });
+});
+
+// ================================================================ orders ===
+function drawOrders() {
+  const f = K.funnel(10000);
+  const rows = [
+    ['every order n ≤ 10,000', f.all.length, '', 'checked'],
+    ['row sum: s² = n, so n is a square', f.sq.length, '', 'checked'],
+    ['Hadamard order: n = 1, or n divisible by 4', f.had.length, '', 'checked'],
+    ['Turyn 1965: n = 4u² with u odd', f.odd.length, '', 'cited'],
+    ['Turyn 1965: u not a prime power', f.turyn.length, f.turyn.join(', '), 'cited'],
+    ['2026 claim', 2, '1, 4', 'Lean'],
+  ];
+  $('ftab').innerHTML = `<thead><tr><th>condition</th><th>left</th><th>status</th></tr></thead><tbody>` +
+    rows.map(([c, k, list, st]) => `<tr><td>${c}${list ? `<br><span style="color:var(--muted)">${list}</span>` : ''}</td><td>${k.toLocaleString()}</td><td>${st}</td></tr>`).join('') + '</tbody>';
+  const svg = $('funnel'), W = 320, H = 190, L = 4, max = Math.log10(10000);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const bh = (H - 12) / rows.length;
+  svg.innerHTML = rows.map(([c, k, , st], i) => {
+    const w = Math.max(2, ((Math.log10(k) || 0.02) / max) * (W - L - 70));
+    const fill = st === 'cited' ? 'var(--minus)' : st === 'Lean' ? 'var(--good)' : 'var(--plus)';
+    return `<rect x="${L}" y="${6 + i * bh}" width="${w}" height="${bh * 0.62}" rx="2" fill="${fill}"><title>${c}: ${k}</title></rect>` +
+      `<text x="${L + w + 5}" y="${6 + i * bh + bh * 0.45}" font-size="9" fill="var(--fg)">${k.toLocaleString()}</text>` +
+      `<text x="${L}" y="${6 + i * bh + bh * 0.62 + 7.5}" font-size="6.5">${c} · ${st}</text>`;
+  }).join('');
+}
+
+// ================================================================== tabs ===
+for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => {
+  const p = t.dataset.pane;
+  for (const u of document.querySelectorAll('.tab')) u.classList.toggle('active', u === t);
+  for (const q of document.querySelectorAll('.pane')) q.classList.toggle('active', q.id === 'pane-' + p);
+  if (p !== 'about') {
+    S.pane = p;
+    for (const v of document.querySelectorAll('.view')) v.classList.toggle('on', v.id === 'v-' + p);
+  }
+});
+
+// =================================================================== URL ===
+function pushURL() { history.replaceState(null, '', '#' + K.show(S.h).replace(/−/g, '-')); }
+const fromHash = location.hash.slice(1);
+if (/^[+-]{1,36}$/.test(fromHash)) S.h = K.parse(fromHash);
+drawBuild(); drawBarker(); drawStrip(+$('bn').value); drawOrders();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { drawBuild(); drawBarker(); });
+</script>
+</body>
+</html>

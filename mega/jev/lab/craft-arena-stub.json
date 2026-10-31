@@ -1,0 +1,523 @@
+{
+ "ran": "2026-09-29T04:09:45.372Z",
+ "shapes": [
+  "hex",
+  "kagome",
+  "penrose",
+  "truncsq"
+ ],
+ "seeds": [
+  11
+ ],
+ "vs": [
+  "baseline",
+  "rusher",
+  "counter"
+ ],
+ "summary": {
+  "stub": true,
+  "games": 24,
+  "byOpp": {
+   "baseline": {
+    "n": 8,
+    "wins": 3,
+    "draws": 0,
+    "losses": 5,
+    "score": 0.375,
+    "ci": [
+     0.137,
+     0.694
+    ]
+   },
+   "rusher": {
+    "n": 8,
+    "wins": 2,
+    "draws": 0,
+    "losses": 6,
+    "score": 0.25,
+    "ci": [
+     0.071,
+     0.591
+    ]
+   },
+   "counter": {
+    "n": 8,
+    "wins": 5,
+    "draws": 0,
+    "losses": 3,
+    "score": 0.625,
+    "ci": [
+     0.306,
+     0.863
+    ]
+   }
+  },
+  "calls": 0,
+  "failures": 0,
+  "fallbacks": 0,
+  "mean_confidence": 1,
+  "below_gate": 0,
+  "mean_have": 1,
+  "picks": [
+   [
+    "gather_iron",
+    90
+   ],
+   [
+    "hunt",
+    55
+   ],
+   [
+    "rush",
+    46
+   ],
+   [
+    "fight",
+    41
+   ],
+   [
+    "defend",
+    38
+   ],
+   [
+    "buy_planks",
+    37
+   ],
+   [
+    "buy_golden_apple",
+    29
+   ],
+   [
+    "buy_wool",
+    27
+   ],
+   [
+    "buy_stone_sword",
+    22
+   ],
+   [
+    "fortify",
+    20
+   ],
+   [
+    "heal",
+    10
+   ],
+   [
+    "buy_iron_sword",
+    1
+   ]
+  ],
+  "minutes": 0.1
+ },
+ "games": [
+  {
+   "shape": "hex",
+   "seed": 11,
+   "opponent": "baseline",
+   "jevSide": 0,
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 462,
+   "kills": [
+    4,
+    1
+   ],
+   "decisions": [
+    24,
+    32
+   ]
+  },
+  {
+   "shape": "hex",
+   "seed": 11,
+   "opponent": "baseline",
+   "jevSide": 1,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 458,
+   "kills": [
+    3,
+    2
+   ],
+   "decisions": [
+    27,
+    20
+   ]
+  },
+  {
+   "shape": "hex",
+   "seed": 11,
+   "opponent": "rusher",
+   "jevSide": 0,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 250,
+   "kills": [
+    2,
+    1
+   ],
+   "decisions": [
+    11,
+    16
+   ]
+  },
+  {
+   "shape": "hex",
+   "seed": 11,
+   "opponent": "rusher",
+   "jevSide": 1,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 169,
+   "kills": [
+    1,
+    0
+   ],
+   "decisions": [
+    6,
+    5
+   ]
+  },
+  {
+   "shape": "hex",
+   "seed": 11,
+   "opponent": "counter",
+   "jevSide": 0,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 354,
+   "kills": [
+    3,
+    2
+   ],
+   "decisions": [
+    20,
+    22
+   ]
+  },
+  {
+   "shape": "hex",
+   "seed": 11,
+   "opponent": "counter",
+   "jevSide": 1,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 206,
+   "kills": [
+    1,
+    0
+   ],
+   "decisions": [
+    9,
+    12
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "opponent": "baseline",
+   "jevSide": 0,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 364,
+   "kills": [
+    0,
+    2
+   ],
+   "decisions": [
+    13,
+    22
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "opponent": "baseline",
+   "jevSide": 1,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 549,
+   "kills": [
+    3,
+    2
+   ],
+   "decisions": [
+    46,
+    31
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "opponent": "rusher",
+   "jevSide": 0,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 189,
+   "kills": [
+    1,
+    1
+   ],
+   "decisions": [
+    7,
+    10
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "opponent": "rusher",
+   "jevSide": 1,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 169,
+   "kills": [
+    1,
+    0
+   ],
+   "decisions": [
+    6,
+    6
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "opponent": "counter",
+   "jevSide": 0,
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 390,
+   "kills": [
+    3,
+    1
+   ],
+   "decisions": [
+    21,
+    27
+   ]
+  },
+  {
+   "shape": "kagome",
+   "seed": 11,
+   "opponent": "counter",
+   "jevSide": 1,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 358,
+   "kills": [
+    2,
+    1
+   ],
+   "decisions": [
+    28,
+    16
+   ]
+  },
+  {
+   "shape": "penrose",
+   "seed": 11,
+   "opponent": "baseline",
+   "jevSide": 0,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 283,
+   "kills": [
+    0,
+    2
+   ],
+   "decisions": [
+    13,
+    15
+   ]
+  },
+  {
+   "shape": "penrose",
+   "seed": 11,
+   "opponent": "baseline",
+   "jevSide": 1,
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 365,
+   "kills": [
+    0,
+    3
+   ],
+   "decisions": [
+    24,
+    17
+   ]
+  },
+  {
+   "shape": "penrose",
+   "seed": 11,
+   "opponent": "rusher",
+   "jevSide": 0,
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 274,
+   "kills": [
+    2,
+    0
+   ],
+   "decisions": [
+    17,
+    16
+   ]
+  },
+  {
+   "shape": "penrose",
+   "seed": 11,
+   "opponent": "rusher",
+   "jevSide": 1,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 428,
+   "kills": [
+    4,
+    2
+   ],
+   "decisions": [
+    25,
+    27
+   ]
+  },
+  {
+   "shape": "penrose",
+   "seed": 11,
+   "opponent": "counter",
+   "jevSide": 0,
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 285,
+   "kills": [
+    3,
+    0
+   ],
+   "decisions": [
+    13,
+    20
+   ]
+  },
+  {
+   "shape": "penrose",
+   "seed": 11,
+   "opponent": "counter",
+   "jevSide": 1,
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 324,
+   "kills": [
+    1,
+    3
+   ],
+   "decisions": [
+    18,
+    16
+   ]
+  },
+  {
+   "shape": "truncsq",
+   "seed": 11,
+   "opponent": "baseline",
+   "jevSide": 0,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 548,
+   "kills": [
+    3,
+    3
+   ],
+   "decisions": [
+    35,
+    32
+   ]
+  },
+  {
+   "shape": "truncsq",
+   "seed": 11,
+   "opponent": "baseline",
+   "jevSide": 1,
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 498,
+   "kills": [
+    1,
+    4
+   ],
+   "decisions": [
+    29,
+    31
+   ]
+  },
+  {
+   "shape": "truncsq",
+   "seed": 11,
+   "opponent": "rusher",
+   "jevSide": 0,
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 407,
+   "kills": [
+    3,
+    2
+   ],
+   "decisions": [
+    22,
+    38
+   ]
+  },
+  {
+   "shape": "truncsq",
+   "seed": 11,
+   "opponent": "rusher",
+   "jevSide": 1,
+   "result": "loss",
+   "reason": "elimination",
+   "ticks": 198,
+   "kills": [
+    2,
+    0
+   ],
+   "decisions": [
+    10,
+    7
+   ]
+  },
+  {
+   "shape": "truncsq",
+   "seed": 11,
+   "opponent": "counter",
+   "jevSide": 0,
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 316,
+   "kills": [
+    2,
+    1
+   ],
+   "decisions": [
+    15,
+    28
+   ]
+  },
+  {
+   "shape": "truncsq",
+   "seed": 11,
+   "opponent": "counter",
+   "jevSide": 1,
+   "result": "win",
+   "reason": "elimination",
+   "ticks": 327,
+   "kills": [
+    1,
+    2
+   ],
+   "decisions": [
+    29,
+    17
+   ]
+  }
+ ]
+}

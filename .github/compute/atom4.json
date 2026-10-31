@@ -1,0 +1,117 @@
+{
+ "run": "plusone-2",
+ "why": "Odd against even, the closed-shell test: a nucleon on a ladder nucleus with the core's helium-4s drawn close (the closed-shell limit), which on our oxygen-16 gives fluorine-17 and oxygen-17 within a MeV of measured where the loose draw of plusone-1 overbound them by 6–7. Ours (beryllium-9 to fluorine-17) and 4D on 2–5 helium-4s across Minnesota's window, pxygen-20 + nucleon included: is 4D's closed shell a bottleneck for the protons' climb, as our oxygen-16 is?",
+ "minutes": 150,
+ "groups": [
+  {
+   "name": "plusone2-0",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 5 0 compact"
+   ]
+  },
+  {
+   "name": "plusone2-1",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 5 1 compact"
+   ]
+  },
+  {
+   "name": "plusone2-2",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 5 0 compact"
+   ]
+  },
+  {
+   "name": "plusone2-3",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 5 1 compact"
+   ]
+  },
+  {
+   "name": "plusone2-4",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 5 0 compact"
+   ]
+  },
+  {
+   "name": "plusone2-5",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 5 1 compact"
+   ]
+  },
+  {
+   "name": "plusone2-6",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 4 0 compact",
+    "node four/atom/tools/nuclei.mjs plusone 3 1 3 0 compact"
+   ]
+  },
+  {
+   "name": "plusone2-7",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 4 1 compact",
+    "node four/atom/tools/nuclei.mjs plusone 3 1 3 1 compact"
+   ]
+  },
+  {
+   "name": "plusone2-8",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 4 0 compact",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 2 0 compact"
+   ]
+  },
+  {
+   "name": "plusone2-9",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 4 1 compact",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 2 1 compact"
+   ]
+  },
+  {
+   "name": "plusone2-10",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 4 0 compact",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 2 0 compact"
+   ]
+  },
+  {
+   "name": "plusone2-11",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 4 1 compact",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 2 1 compact"
+   ]
+  },
+  {
+   "name": "plusone2-12",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 3 1 4 0 compact",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 3 0 compact",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 2 0 compact"
+   ]
+  },
+  {
+   "name": "plusone2-13",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 3 1 4 1 compact",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.5152 3 1 compact",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 2 1 compact"
+   ]
+  },
+  {
+   "name": "plusone2-14",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 3 0 compact",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 3 0 compact",
+    "node four/atom/tools/nuclei.mjs plusone 3 1 2 0 compact"
+   ]
+  },
+  {
+   "name": "plusone2-15",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusone 4 1.4002 3 1 compact",
+    "node four/atom/tools/nuclei.mjs plusone 4 1.8909 3 1 compact",
+    "node four/atom/tools/nuclei.mjs plusone 3 1 2 1 compact"
+   ]
+  }
+ ]
+}

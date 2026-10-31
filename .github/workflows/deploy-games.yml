@@ -3,12 +3,18 @@ name: Deploy Games
 on:
   push:
     branches:
-      - 'claude/tempest-procgen-game-vwj0f1'
+      - 'claude/minesweeper-voronoi-mesh-4hc4ir'
     paths:
       - 'games/**'
       - 'packages/oauth-client/**'
       - '.github/workflows/deploy-games.yml'
   workflow_dispatch:
+
+# one deploy at a time, in push order: two quick pushes once raced, and the older run finished last and
+# republished the older tree over the newer one (Static Assets replaces the whole manifest)
+concurrency:
+  group: deploy-games
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -27,7 +33,7 @@ jobs:
       - name: Install wrangler
         run: npm install wrangler
 
-      - name: Vendor packages/oauth-client/auth.js into games/lib/
+      - name: Vendor packages/oauth-client/{auth,typeahead}.js into games/lib/
         # play.html is no-build vanilla JS and imports `./lib/auth.js`.
         # The shared auth client lives in packages/oauth-client/auth.js
         # at the repo root; we copy it here at deploy time so the file
@@ -37,6 +43,7 @@ jobs:
           set -euo pipefail
           mkdir -p lib
           cp ../packages/oauth-client/auth.js lib/auth.js
+          cp ../packages/oauth-client/typeahead.js lib/typeahead.js
           echo "vendored:"
           ls -la lib/
 
@@ -60,10 +67,12 @@ jobs:
             sleep 4
           done
           echo ""
-          echo "=== verifying vendored auth.js is reachable ==="
-          STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "https://games.mino.mobi/lib/auth.js" || echo "fail")
-          if [ "$STATUS" = "200" ]; then
-            echo "  ok https://games.mino.mobi/lib/auth.js"
-          else
-            echo "  warn https://games.mino.mobi/lib/auth.js -> $STATUS"
-          fi
+          echo "=== verifying the vendored auth client and handle typeahead are reachable ==="
+          for F in auth.js typeahead.js; do
+            STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "https://games.mino.mobi/lib/$F" || echo "fail")
+            if [ "$STATUS" = "200" ]; then
+              echo "  ok https://games.mino.mobi/lib/$F"
+            else
+              echo "  warn https://games.mino.mobi/lib/$F -> $STATUS"
+            fi
+          done

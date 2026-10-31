@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev craft</title>
+<meta name="description" content="A headless Minecraft-like on foam's tilings — Penrose, Ammann, sevenfold, snub and more — where every rule runs on the tile graph. The engine emits a text stream of game state; this page renders it.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="craft.css">
+<script type="importmap">{ "imports": { "three": "../delve/vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<canvas id="stage" aria-label="3D view of the craft world"></canvas>
+
+<nav class="dock" aria-label="Panels">
+  <button type="button" data-panel="play">play</button>
+  <button type="button" data-panel="controls">world</button>
+  <button type="button" data-panel="macros">macros</button>
+  <button type="button" data-panel="decision">Jev</button>
+  <button type="button" data-panel="team">team</button>
+  <button type="button" data-panel="stream">stream</button>
+</nav>
+
+<div class="touch" aria-hidden="true">
+  <div id="stick" class="stick"><i></i></div>
+  <div class="tbtns">
+    <button type="button" id="t-place">place</button>
+    <button type="button" id="t-eat">eat</button>
+    <button type="button" id="t-craft">craft</button>
+    <button type="button" id="t-view">view</button>
+    <button type="button" id="t-up">climb ↑</button>
+    <button type="button" id="t-down">climb ↓</button>
+  </div>
+</div>
+
+<header class="hud top-left panel">
+  <div class="eyebrow">jev · craft · <span id="mode">live</span></div>
+  <h1>Jev craft</h1>
+  <p class="links"><a href="../">← all the experiments</a> · <a href="../delve/">the dungeon</a></p>
+  <p class="sub">A Minecraft-like on <b id="shape-name">penrose</b> tiles. The world is simulated headlessly;
+    this page draws the text stream it emits. Watch Jev play it, or pick
+    <b>you</b> under “who decides” and play it yourself.</p>
+</header>
+
+<section class="hud top-right panel" aria-label="World controls">
+  <div class="row">
+    <label>world <select id="kind"></select></label>
+    <label>size <select id="size"><option value="s">small</option><option value="m">medium</option><option value="l">large</option></select></label>
+    <label>tiling <select id="shape"></select></label>
+    <label>seed <input id="seed" type="number" min="1" value="3"></label>
+    <button id="regen" type="button">new world</button>
+  </div>
+  <div class="row">
+    <label>who decides <select id="who">
+      <option value="jev">Jev (live)</option>
+      <option value="baseline">scripted baseline</option>
+      <option value="offline">offline stand-in</option>
+      <option value="random">random</option>
+      <option value="you">you (play it yourself)</option>
+      <option value="coop">you + Jev (co-op)</option>
+      <option value="swarm">Jev swarm (3)</option>
+      <optgroup label="arena: player v player (scripted)">
+        <option value="arena:baseline:rusher">arena: baseline v rusher</option>
+        <option value="arena:counter:rusher">arena: counter v rusher</option>
+        <option value="arena:baseline:counter">arena: baseline v counter</option>
+        <option value="arena:turtle:rusher">arena: turtle v rusher</option>
+        <option value="arena:baseline:random">arena: baseline v random</option>
+      </optgroup>
+    </select></label>
+    <label>difficulty <select id="difficulty"><option>normal</option><option>hard</option></select></label>
+    <label>speed <input id="speed" type="range" min="1" max="64" value="8"></label>
+    <span id="speed-out" class="mono">8×</span>
+  </div>
+  <div class="row">
+    <label class="check"><input id="pov" type="checkbox"> first person</label>
+    <label class="check"><input id="homecam" type="checkbox"> watch home</label>
+    <label class="check"><input id="pause" type="checkbox"> pause</label>
+  </div>
+  <div class="row">
+    <button id="download" type="button">save stream (.jsonl)</button>
+    <label class="file">load stream <input id="load" type="file" accept=".jsonl,.txt,application/x-ndjson"></label>
+  </div>
+</section>
+
+<section class="hud left panel" aria-label="Macros">
+  <div class="eyebrow">macros <span class="hint" id="macro-hint">— autopilot is choosing</span></div>
+  <div id="macros" class="macros"></div>
+  <div class="eyebrow" style="margin-top:8px">log</div>
+  <ol id="log" class="log"></ol>
+</section>
+
+<section class="hud bottom panel" aria-label="Status">
+  <div class="status">
+    <span id="clock" class="mono">day 1 · 06:00</span>
+    <span id="hp" aria-label="health"></span>
+    <span id="food" aria-label="hunger"></span>
+    <span id="air" aria-label="breath" hidden></span>
+    <span id="doing" class="mono"></span>
+  </div>
+  <div id="project" class="project mono" hidden></div>
+  <div id="inv" class="inv"></div>
+</section>
+
+<section id="team" class="hud team panel" hidden aria-label="The team">
+  <div class="eyebrow">the team <span class="hint" id="team-hint"></span></div>
+  <div id="team-list" class="team-list"></div>
+  <div id="asks" class="asks" hidden>
+    <div class="eyebrow">ask Jev to…</div>
+    <div class="mrow" id="ask-row"></div>
+  </div>
+</section>
+
+<section class="hud right panel" aria-label="The last decision">
+  <div class="eyebrow">the decision · <span id="src" class="mono">—</span></div>
+  <div id="decision" class="decision"><p class="hint">Waiting for the first choice.</p></div>
+</section>
+
+<section class="hud bottom-right panel" aria-label="The stream">
+  <div class="eyebrow">the stream · <span id="lines" class="mono">0</span> lines</div>
+  <pre id="tail" class="tail"></pre>
+</section>
+
+<div id="crosshair" class="crosshair" hidden>+</div>
+<div id="toast" class="toast" hidden></div>
+<section id="help" class="hud help panel" hidden aria-label="How to play">
+  <div class="eyebrow">you are playing</div>
+  <p class="nontouch"><b>Click the world to take control.</b></p>
+  <ul class="touchhelp">
+    <li><b>left thumb</b>: the stick walks, one tile at a time toward where you look</li>
+    <li><b>drag</b> anywhere else to look · <b>tap</b> a block to mine it (or a mob to hit it)</li>
+    <li><b>place</b> on: taps put down the selected block instead · tap the hotbar to choose</li>
+    <li><b>eat</b> · <b>craft</b> · <b>view</b> switches first / third person</li>
+  </ul>
+  <p class="touchhelp"><button type="button" id="t-go">start playing</button></p>
+  <ul class="nontouch">
+    <li><b>W A S D</b> walk: one tile at a time, toward where you look (it works on any tiling)</li>
+    <li><b>mouse</b> look · <b>left click</b> mine / hit · <b>right click</b> place the selected block</li>
+    <li><b>1–9</b> or <b>scroll</b> pick from your inventory · <b>F</b> eat · <b>C</b> crafting</li>
+    <li><b>V</b> first / third person · <b>Esc</b> let go of the mouse</li>
+    <li>on a ladder: <b>Space</b> climbs, <b>Shift</b> goes down · a fall into water does no harm</li>
+    <li>The macros on the left still work: click one and it runs until you move.</li>
+  </ul>
+</section>
+<section id="craftpanel" class="hud craftpanel panel" hidden aria-label="Crafting">
+  <div class="eyebrow">crafting <span class="hint">— C to close</span></div>
+  <div id="recipes" class="recipes"></div>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

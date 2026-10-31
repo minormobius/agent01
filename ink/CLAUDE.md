@@ -18,7 +18,7 @@ fluoddity's own interestingness rubric ever reach the paper.
 | Dir | `ink/` |
 | Endpoint | `ink.mino.mobi` |
 | Type | frontend (static, no build, no D1, no AI, no secrets) |
-| Owning branch | `claude/p5js-procgen-exploration-efdhws` |
+| Owning branch | `claude/plant-growth-animation-gxbby1` (taken over 2026-09-23 from `claude/p5js-procgen-exploration-efdhws`, whose tree was identical on `ink/**`; it shares the branch with `studio/`) |
 | Deploy | [`.github/workflows/deploy-ink.yml`](../.github/workflows/deploy-ink.yml) |
 | Uses | — (the Fluoddity rule is ported, not imported: see below) |
 | Provides | — |
@@ -102,9 +102,11 @@ completely different picture.
 | [`js/probe.js`](js/probe.js) | fluoddity's rubric, headless — `readDescriptors`/`fitness2`/`verdict`, ported verbatim |
 | [`js/roll.js`](js/roll.js) | the gate: alive → novel → painted, on `fable/forge`'s admission pattern |
 | [`js/paper.js`](js/paper.js) | pigment, paper, nib width, ink loading. The painterly half |
+| [`js/wash.js`](js/wash.js) | the sheet as a WebGL2 fragment pass: tooth, granulation, pooled edges, fibre feathering. Render-only |
 | [`js/app.js`](js/app.js) | UI, the progressive paint loop, permalinks |
 | [`ink.selftest.mjs`](ink.selftest.mjs) | 33 assertions. Run it before you push |
 | [`test/calibrate.mjs`](test/calibrate.mjs) | the measurement rig for `DEPOSIT` / `REF_INK` |
+| [`test/wash.browser.selftest.mjs`](test/wash.browser.selftest.mjs) | the paper pass in headless Chromium: orientation, neutral identity, granulation, rims. Skips without Playwright |
 
 ## The port, and why there is one
 
@@ -193,6 +195,41 @@ data (raw readings run p50 1.6e-3, p90 1.4e-2, p99 3.3e-2, so 30 puts p99 at
 other hand's pigment — which reads as a global haze, not as two hands meeting.
 Squaring drops the median under the renderer's threshold and leaves the
 crossings at 1.0, so roughly the top tenth bloom.
+
+## The sheet
+
+Strokes are not drawn onto the visible canvas. `Paper` draws them, exactly as
+before, onto an offscreen **pigment layer** that starts white, so each pixel is
+the light the ink lets through. [`js/wash.js`](js/wash.js) then lays that layer
+into a procedural sheet in one fragment pass. The techniques come from the
+glitterally shader reference (`print-halftone`: paper bleed; `npr`: watercolor
+edge darkening; `noise`: pcg hash, band-limited fbm, IGN dither):
+
+| effect | what it does | slider |
+|---|---|---|
+| tooth | fbm + oriented fibres hashed from the sheet's seed, lit from the upper left. It does not tile; the old 96px white-noise tile did, visibly | grain |
+| granulation | absorbance scaled by valley depth, mean factor 1, gated to **wide** marks | grain |
+| feathering | the mark is the darker of itself and a tap displaced along the local fibre | grain |
+| pooled edges | `A + E·max(A − blur A, 0)`, blur from the texture's own mips, gated by `blur A / A` so hairlines are left alone | bleed |
+
+Two things went wrong on the way, both visible only by rendering:
+
+- **Aliased tooth.** fbm whose finest octave is under a pixel does not add
+  texture: it adds white-noise sandpaper. `fbm(p, n)` takes an octave count, and
+  the tooth uses 3 at a 3.5px base.
+- **Granulated hairlines.** Granulating every mark broke the pen lines into
+  dashes and the sheet read as speckle. Granulation is a wash phenomenon, so it
+  shares the rim's width gate and pen lines stay whole.
+
+None of this touches the simulation or the stroke log, so the three invariants
+hold. It does change how every existing `?g=` link *looks*, the same way the nib
+and the bleed did when they landed. Without WebGL2 (or if the shader fails to
+build) the 2D renderer is the whole path, unchanged, and `ground()` paints the
+old sheet. The style codec is unchanged: no new slider, so old links still decode.
+
+`test/wash.browser.selftest.mjs` checks the four claims a sheet can look right
+while getting wrong. It was mutation-checked: un-flipping the upload fails
+orientation and neutrality, and dropping the width gate fails the hairline check.
 
 ## The paint cap was ending the paintings
 

@@ -339,6 +339,65 @@ section('the touch controls are wired end to end');
   ok(css.includes('conic-gradient'), 'the spinner has knurling to show it turning');
 }
 
+// --- the leaderboard --------------------------------------------------------
+// js/score.js recomputes a posted score from where the run says it went, so
+// its table must be the pack's, priced by game.js's own formula.
+section('the leaderboard refuses what no run could score');
+{
+  const S = await import(new URL('../js/score.js', import.meta.url));
+  const js = readFileSync(join(ROOT, 'js/game.js'), 'utf8');
+  const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  const FORMULA = 'state.score += 100 + Math.max(0, cert.slack) + waveData().threats.length * 25;';
+  ok(js.includes(FORMULA), 'game.js still prices a wave as 100 + slack + 25 per threat');
+  const price = (w) => 100 + Math.max(0, w.cert.slack) + w.threats.length * 25;
+  eq(S.EPOCH, pack.epoch, 'score.js is for this pack\'s epoch');
+  eq(
+    S.WAVES,
+    Object.fromEntries(pack.levels.map((l) => [l.index, l.waves.map(price)])),
+    'score.js prices every wave in the pack exactly as the game does'
+  );
+  for (const id of ['trophy', 'post', 'o-board', 'board-row']) {
+    ok(html.includes(`id="${id}"`) && js.includes(`'${id}'`), `#${id} is on the page and wired`);
+  }
+  ok(html.includes('js/board.js'), 'the board module is loaded');
+
+  // A run as game.js would play it: start on level 3, clear levels 3 and 4,
+  // then two waves of level 5 and lose the third. Priced straight off the pack.
+  const byIndex = Object.fromEntries(pack.levels.map((l) => [l.index, l]));
+  const value =
+    [...byIndex[3].waves, ...byIndex[4].waves, ...byIndex[5].waves.slice(0, 2)]
+      .map(price).reduce((a, b) => a + b, 0);
+  const run = { sel: {}, value, start: 3, level: 5, wave: 2, at: Date.now() };
+  const recs = S.records(run);
+  eq(recs.length, 1, 'a run posts one record');
+  const rec = (over) => Object.assign(
+    { $type: 'com.minomobi.lab.score', site: 'tempest', createdAt: new Date().toISOString() },
+    recs[0], over || {}
+  );
+  ok(S.accept(rec()), `the real run's ${value} points are accepted`);
+  const full = pack.levels.reduce((a, l) => a + l.waves.map(price).reduce((x, y) => x + y, 0), 0);
+  ok(
+    S.accept(rec({ value: full, detail: `epoch=${pack.epoch} start=1 level=${pack.levels.at(-1).index} wave=${pack.levels.at(-1).waves.length}` })),
+    `the whole pack held from level 1 (${full}) is accepted`
+  );
+  const refused = {
+    'a point more': rec({ value: value + 1 }),
+    'a point less': rec({ value: value - 1 }),
+    'a wave it never reached': rec({ detail: `epoch=${pack.epoch} start=3 level=5 wave=${byIndex[5].waves.length + 1}` }),
+    'ending before it started': rec({ detail: `epoch=${pack.epoch} start=5 level=3 wave=0` }),
+    'a level the pack has not got': rec({ detail: `epoch=${pack.epoch} start=3 level=99 wave=0` }),
+    'another epoch\'s pack': rec({ detail: `epoch=${pack.epoch + 1} start=3 level=5 wave=2` }),
+    'no detail': rec({ detail: undefined }),
+    'a fraction': rec({ value: value + 0.5 }),
+    'another game': rec({ game: 'score-v0' }),
+    'another site': rec({ site: 'molt' }),
+    'lower is better': rec({ higherIsBetter: false }),
+    'no date': rec({ createdAt: 'yesterday' }),
+  };
+  for (const [what, v] of Object.entries(refused)) ok(!S.accept(v), `refused: ${what}`);
+  ok(S.records({ ...run, value: 0, wave: 0, level: 3 }).length === 0, 'a run that scored nothing posts nothing');
+}
+
 section('the pack as a whole');
 ok(waves >= 40, `enough content: ${waves} certified waves`);
 ok(minSlack >= 0, `tightest wave in the pack has ${minSlack} ticks of slack`);

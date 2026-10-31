@@ -1,0 +1,55 @@
+/* Molt — the board fills the screen; the pad rides on it. */
+:root {
+  --bg: #05060a; --surface: #10131c; --border: #262c3d; --text: #eceff7; --dim: #8b93a8;
+  --accent: #f2b84b; --accent2: #5fd6c4; --warn: #ff5d62; --pink: #ff7eb6;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overscroll-behavior: none; overflow: hidden;
+  -webkit-user-select: none; user-select: none; touch-action: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+#app { height: 100vh; height: 100dvh; max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; padding: env(safe-area-inset-top) 0 0; }
+#top { display: flex; gap: 14px; align-items: flex-end; padding: 8px 12px 6px; font-family: var(--mono); }
+#top .h { display: flex; flex-direction: column; gap: 2px; min-width: 4ch; }
+#top .h.grow { margin-left: auto; align-items: flex-end; text-align: right; }
+#top .lab { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+#top .val { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#world { color: var(--accent2); font-size: 13px !important; }
+@media (max-width: 420px) { #top { gap: 9px; } #top .val { font-size: 14px; } }
+[hidden] { display: none !important; }
+#stage { position: relative; flex: 1 1 auto; min-height: 0; }
+#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#note, #banner { position: absolute; left: 50%; transform: translateX(-50%); z-index: 4; pointer-events: none; font-family: var(--mono); text-align: center; }
+#note { top: 10px; font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; opacity: 0; transition: opacity .25s; width: max-content; max-width: calc(100% - 16px); }
+#note.show { opacity: 1; }
+#banner { top: 9%; font-size: clamp(20px, 6vw, 34px); font-weight: 700; letter-spacing: 0.12em; color: var(--accent); text-shadow: 0 2px 12px #000; width: max-content; max-width: calc(100% - 16px); }
+#banner small { display: block; font-size: 13px; letter-spacing: 0.04em; color: var(--text); font-weight: 400; margin-top: 6px; }
+#clock { min-width: 4ch; transition: color .2s; }
+#clock.low { color: var(--warn); animation: tick 1s steps(1) infinite; }
+#clock.plus { animation: plus .5s ease-out; }
+@keyframes tick { 50% { opacity: 0.45; } }
+@keyframes plus { 0% { color: var(--accent2); transform: scale(1.35); } 100% { transform: none; } }
+/* the thumb pad: on by default on touch screens, bottom right where a thumb rests */
+#pad { position: absolute; right: calc(10px + env(safe-area-inset-right)); bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 5; width: 156px; height: 156px; display: none; }
+body.pad #pad { display: block; }
+#pad button { position: absolute; width: 56px; height: 56px; border-radius: 16px; border: 1px solid rgba(139,147,168,0.35); background: rgba(16,19,28,0.72); color: var(--text); font-size: 18px; touch-action: none; }
+#pad button.hit { background: var(--accent2); color: var(--bg); }
+#pad .u { left: 50px; top: 0; } #pad .d { left: 50px; bottom: 0; } #pad .l { left: 0; top: 50px; } #pad .r { right: 0; top: 50px; }
+#actions { position: absolute; left: 8px; top: 8px; z-index: 3; display: flex; gap: 6px; }
+button.ghost, button.primary { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; padding: 7px 11px; border-radius: 8px; border: 1px solid rgba(139,147,168,0.35); cursor: pointer; }
+button.ghost { background: rgba(5,6,10,0.75); color: var(--text); }
+button.ghost.on { background: var(--accent2); color: var(--bg); border-color: var(--accent2); }
+button.primary { background: var(--accent); color: #1a1000; border-color: var(--accent); font-size: 14px; padding: 11px 22px; }
+.overlay { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 24px 16px; text-align: center; background: rgba(5,6,10,0.92); backdrop-filter: blur(3px); overflow-y: auto; }
+.overlay[hidden] { display: none; }
+.overlay > :first-child { margin-top: auto; } .overlay > :last-child { margin-bottom: auto; }
+.overlay h1 { font-family: var(--mono); font-size: clamp(30px, 10vw, 48px); margin: 0; color: var(--accent); letter-spacing: 0.18em; }
+.overlay h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin: 0; }
+.overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.65; max-width: 32em; }
+.overlay p b { color: var(--text); }
+.overlay .accent { color: var(--accent2); }
+.overlay .foot { font-family: var(--mono); font-size: 12px; }
+.overlay a { color: var(--dim); }
+.overlay .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.overlay .small { font-family: var(--mono); font-size: 12px; }
+.overlay button.ghost { padding: 10px 14px; font-size: 13px; }

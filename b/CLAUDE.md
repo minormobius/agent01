@@ -15,7 +15,7 @@ Portal to every Bluesky tool here—feeds, network maps, account analysis, and t
 | Dir | `b/` |
 | Endpoint | `b.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/mutual-closeness-game-earzue` |
+| Owning branch | `claude/orb-chapter-report` |
 | Deploy | `.github/workflows/deploy-b.yml` |
 | Uses | — |
 | Provides | — |
@@ -782,9 +782,75 @@ After an import the editor **offers** a "no video" filter rather than adding
 one. Its absence is why most people are porting — SkyFeed never shipped one —
 but it changes what the feed does, so it stays the owner's choice.
 
+## obit — a closed chapter, frozen and reported
+
+`/obit` is the obituary and the report for **chapter one of norvid_studies'
+SIMCLUSTER ART PROJECTS THREAD**: the Bluesky thread the socmed crew used as
+an art archive, which `photo.mino.mobi/orb` wraps around a sphere. It opened
+on 2026-02-26 and closed on 2026-10-08 at 14:17 UTC, when norvid's "as you
+wish" quoted THREAD 2.0. By then the thread was too deep for the app to open on
+a phone. More analytics and widgets are planned. Add them here.
+
+| file | what it is |
+|---|---|
+| `obit/build.mjs` | node, needs network, **run by hand**: thread → `chapter-N.json` |
+| `obit/reduce.js` | one hydrated post → one row. Pure, shared by build and selftest |
+| `obit/stats.js` | every number the page states. Pure |
+| `obit/chapter-1.json` | the frozen chapter (~640 KB): every post in the thread, reduced |
+| `obit/app.js` | the widgets. Draws only. One function per section, listed in `WIDGETS` |
+| `obit/obit.selftest.mjs` | **run it before touching any of the above, or the prose** |
+
+**A closed chapter does not change, so the page never calls the network.** Only
+the thumbnails load from the Bluesky CDNs. To freeze the next chapter, add it to
+`CHAPTERS` in `build.mjs` with its root, its closing post and its successor.
+
+**Why not `getPostThread`.** The AppView stops at about ten levels, and this thread
+is 1,155 posts deep, which is why `orb` and `/thread` chase it ten at a time.
+Constellation answers "every post whose `reply.root` is X" directly (12 pages),
+and `getPosts` hydrates 25 at a time. The whole chapter takes about 60 requests.
+The curator's own repo is no use for this: other people's replies are not in it.
+
+**`orb` points mid-thread.** Its default URL (`3mmwrhd6ots2a`, 28 May) is one
+entry in the middle of the chain. The real root is `3mfrqrq2jdk2x`. Anything
+keyed on "the thread" must use the root.
+
+### Credit goes to the artist, and that is the one non-obvious rule
+
+norvid often files someone's work by quoting **their own** post: a screenshot
+plus a quote of the artist. Read naively, norvid becomes the chapter's
+most-prolific artist and 75 works lose their makers. `reduce.js` unwraps a
+curator post that quotes someone else: the inner post becomes the work, its
+likes and medium are used, and the wrapper is kept as `w.via`. Curator posts
+that quote the curator (the "self QT tower", the closing post) stay the
+curator's. After unwrapping, abeliansoup leads with 139 and norvid is second
+with 119. The selftest fails if the curator ever goes back to first.
+
+The other definitions, all in `stats.js`:
+
+- **entry**: a canon post (at or before the close) that quotes a living work.
+  A quoted post that is itself in the thread is conversation, not archive.
+- **work**: the quoted post. A work filed twice counts once in `works`, in
+  `likes` and in the most-loved wall. There are 23 repeats.
+- **medium**: one word per work, in priority order video > image > link >
+  quote > text.
+
+### The prose is static, and pinned to the data
+
+The obit is plain HTML, so it reads without JavaScript and in link previews.
+Every number in it sits in a `data-stat="key"` span, and the selftest recomputes
+each key from `chapter-1.json` and fails on any mismatch. **To change a number,
+change the data or the definition, never just the text.** To cite a new number,
+add its key to `derived` in the selftest first.
+
+Charts are drawn at the card's real pixel width, not a fixed viewBox, so text
+stays 11px on a phone. They follow the dataviz rules: one series in `--sky`,
+the media mix in the validated five-slot categorical palette with counts in the
+legend, hover tooltips built with `textContent`, and the full artist list as a
+table.
+
 ## Deploying
 
-Pushes to `claude/mutual-closeness-game-earzue` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
+Pushes to `claude/orb-chapter-report` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
@@ -792,6 +858,14 @@ or the deploy goes green while the site never changes.
 
 ⚠️ **`main` does NOT deploy this surface.** The workflow lists exactly one
 branch and main is not it. This line used to claim otherwise.
+
+**It changed hands on 2026-10-08**, from `claude/mutual-closeness-game-earzue`
+to `claude/orb-chapter-report`, which brought `/obit`. Done with
+`scripts/take-ownership.mjs`. The old owner's three unmerged-looking commits
+(orbit, mood, the mood cache) had all landed on main already, and the new
+branch is cut from main. `git diff --name-status` over `b/` against the old
+owner showed one `M` (`b/CLAUDE.md`) and no `D`, so nothing the live site
+ships is dropped.
 
 **It changed hands again on 2026-09-19**, from
 `claude/bsky-follow-grooming-gjkops` to `claude/mutual-closeness-game-earzue`,

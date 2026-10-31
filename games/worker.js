@@ -112,6 +112,14 @@ export default {
       return json({ error: 'not found' }, 404);
     }
 
+    // --- Moved: Lumen⁴, IRIS⁴ and ATOM⁴ live on four.mino.mobi now (2026-10-26). Their files are gone from here,
+    // so these paths reach the worker rather than an asset; keep the old links working.
+    const moved = path.match(/^\/(atom4|lumen4|iris4)(\/.*)?$/);
+    if (moved) {
+      const to = { atom4: 'atom', lumen4: 'lumen', iris4: 'iris' }[moved[1]];
+      return Response.redirect(`https://four.mino.mobi/${to}${moved[2] || '/'}${url.search}`, 301);
+    }
+
     // --- Static assets fallback ---
     return env.ASSETS.fetch(request);
   },

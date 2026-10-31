@@ -132,11 +132,14 @@ export function Sync({ project, vault, pds }: Props) {
 
         for (const rec of page.records) {
           const val = rec.value as Record<string, unknown>;
-          if (val.innerType !== PM_PROJECT_TYPE) continue;
           if (!rec.uri.endsWith(`/${PROJECT_RKEY}`)) continue;
 
           try {
-            const { record } = await unsealRecord<{ _pmState: ProjectState }>(val, vault.dek);
+            // The inner type travels inside the ciphertext now (crypto.ts sealRecord), so it can
+            // only be checked after unsealing. Filtering on the envelope's innerType, as this did,
+            // never matched a project pushed by the current Push.
+            const { innerType, record } = await unsealRecord<{ _pmState: ProjectState }>(val, vault.dek);
+            if (innerType !== PM_PROJECT_TYPE) continue;
             if (record._pmState) {
               project.replaceState(record._pmState);
               addLog(

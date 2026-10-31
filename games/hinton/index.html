@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#04080b" />
+<meta name="description" content="Hinton — four-dimensional rooms in first person. Walk them from behind your own eyes: Anakata's rooms, where w is a direction you can only see and hook across, and Anabasis's, where w is a second down. Every room proved solvable." />
+<title>Hinton — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/hinton.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="gl" aria-label="What you see: a three-dimensional slice of a four-dimensional room, from behind your eyes"></canvas>
+  <canvas id="over" aria-hidden="true"></canvas>
+  <div id="top">
+    <div class="h"><span class="lab" id="lvlno">level 1</span><span id="lvlname" class="val">—</span></div>
+    <div class="h"><span class="lab">moves</span><span id="moves" class="val">0</span></div>
+    <div class="h"><span class="lab">par</span><span id="par" class="val">—</span></div>
+    <div class="h"><span class="lab">height</span><span id="alt" class="val">—</span></div>
+    <div class="h grow"><span class="lab">seeing</span><span id="seeing" class="val">x · y · ↑z</span></div>
+  </div>
+  <div id="hint"><span id="hint-text"></span><button type="button" id="hint-x" aria-label="Dismiss">×</button></div>
+  <div id="toast"></div>
+  <div id="stick" aria-hidden="true"><div id="knob"></div><span>move</span></div>
+  <div id="lookpad" aria-hidden="true">drag anywhere to look</div>
+  <div id="pad">
+    <div class="side">
+      <button type="button" class="act" id="hook" title="Fire the hook along the axis you're looking down (Space, or click)">HOOK</button>
+      <button type="button" class="act" id="view" title="Turn your sight through the 4th dimension (V)">SIGHT</button>
+    </div>
+    <div class="side small">
+      <button type="button" class="act" id="undo" title="Undo (Z)">↶</button>
+      <button type="button" class="act" id="reset" title="Start the room again (R)">⟲⟲</button>
+      <button type="button" class="act" id="share" title="Share a link to this exact room">⤴</button>
+      <button type="button" class="act" id="menu" title="Levels and rooms (L)">☰</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi · four dimensions, first person</h2>
+  <h1>HINTON</h1>
+  <p>
+    You're inside a four-dimensional room, looking out from behind your own
+    eyes at a three-dimensional slice of it. Turn your <b>sight</b> and the
+    slice swings through the fourth dimension, <b>w</b>; its two ways are
+    <b class="ana">ana</b> and <b class="kata">kata</b>, Charles Howard
+    Hinton's names for them.
+  </p>
+  <p>
+    Two lanes. In <b>Anakata</b>'s rooms w is a direction you can see but not
+    walk: you cross it with the <b class="anc">hook</b>, fired along whatever
+    axis you look straight down. In <b>Anabasis</b>'s rooms w is a second
+    down: you fall kata for free, and only a ramp takes you ana. The strip at
+    the left shows the slices of w where you stand, and the cell ahead.
+  </p>
+  <p class="small">
+    <b>WASD</b> or arrows walk · <b>click</b> to look with the mouse, click again (or <b>Space</b>) to hook ·
+    <b>V</b> turns your sight · <b>Z</b> undo · <b>R</b> restart · <b>L</b> levels · <b>N</b> a new room.
+    On a phone: the stick at the bottom left walks, and a drag anywhere else looks.
+  </p>
+  <div class="row"><button class="primary" id="start-btn" type="button">ENTER</button><button class="ghost" id="start-levels" type="button">levels &amp; rooms</button></div>
+  <p class="foot"><a href="./README.md">how it works</a> · <a href="../anakata/">anakata</a> · <a href="../anabasis/">anabasis</a> · <a href="../">the arcade</a></p>
+</div>
+
+<div class="overlay" id="levels" hidden>
+  <h2>every room is proved solvable · par is the fewest moves</h2>
+  <h1>LANES</h1>
+  <div class="lanes">
+    <div class="lane">
+      <h3 class="ak">ANAKATA</h3>
+      <p>w is across: you see it by turning your sight, and cross it with the hook.</p>
+      <div class="list" id="list-anakata"></div>
+      <div class="row">
+        <button class="ghost" type="button" data-room="anakata.easy">easy</button>
+        <button class="ghost" type="button" data-room="anakata.medium">medium</button>
+        <button class="ghost" type="button" data-room="anakata.hard">hard</button>
+        <button class="primary" type="button" data-room="anakata.daily">TODAY</button>
+      </div>
+    </div>
+    <div class="lane">
+      <h3 class="ab">ANABASIS</h3>
+      <p>w is down too: you fall kata for free, and only a ramp takes you ana.</p>
+      <div class="list" id="list-anabasis"></div>
+      <div class="row">
+        <button class="ghost" type="button" data-room="anabasis.easy">easy</button>
+        <button class="ghost" type="button" data-room="anabasis.medium">medium</button>
+        <button class="ghost" type="button" data-room="anabasis.hard">hard</button>
+        <button class="primary" type="button" data-room="anabasis.daily">TODAY</button>
+      </div>
+    </div>
+  </div>
+  <p class="small">The levels and rooms are the two games' own, the same rooms and the same pars; today's rooms are theirs too. Every made room has a link of its own (⤴).</p>
+  <div class="row"><button class="ghost" id="levels-close" type="button">close</button></div>
+</div>
+
+<div class="overlay" id="won" hidden>
+  <h2 id="won-head">solved</h2>
+  <h1 id="won-moves">0</h1>
+  <p id="won-text"></p>
+  <div class="row"><button class="primary" id="next" type="button">NEXT</button><button class="ghost" id="again" type="button">again</button><button class="ghost" id="won-share" type="button">⤴ share</button></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

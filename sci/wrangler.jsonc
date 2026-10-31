@@ -6,9 +6,21 @@
   // `engine-rs/` holds the Rust sources for mri/pkg/ and `research/` holds the
   // literature scans; both are excluded from the asset stage by the deploy
   // workflow (which rsyncs into ../.sci-stage). Only the built pkg/ ships.
+  // The sonar lobby (2026-10-16) adds a script: requests no asset answers
+  // reach worker/index.js, which handles /sonar/lobby/ws and hands everything
+  // else back to the assets. worker/ is excluded from the asset stage.
+  "main": "worker/index.js",
   "assets": {
-    "directory": "../.sci-stage"
+    "directory": "../.sci-stage",
+    "binding": "ASSETS"
   },
+  "durable_objects": {
+    "bindings": [{ "name": "LOBBY", "class_name": "SonarLobby" }]
+  },
+  // SQLite-backed, which every plan can create. One object per room code.
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["SonarLobby"] }
+  ],
   // sci.mino.mobi did not resolve before the first deploy — the hostname was
   // new (checked 2026-08-15: ENOTFOUND). Precedent says wrangler creates the
   // custom domain itself on first deploy, because mino.mobi is a zone on this

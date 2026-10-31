@@ -1,0 +1,62 @@
+{
+ "units": "mm",
+ "params": {
+  "W": 100,
+  "L": 130,
+  "T": 4,
+  "cardW": 63,
+  "cardL": 88,
+  "gap": 1,
+  "nestDepth": 1.5
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "outline",
+   "loops": [
+    {
+     "name": "rim",
+     "rect": {
+      "c": [
+       0,
+       0
+      ],
+      "w": "W",
+      "h": "L"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "lid",
+   "profile": "outline",
+   "depth": "T"
+  },
+  {
+   "op": "sketch",
+   "id": "nestS",
+   "loops": [
+    {
+     "name": "nest",
+     "rect": {
+      "c": [
+       0,
+       0
+      ],
+      "w": "cardW + 2*gap",
+      "h": "cardL + 2*gap"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "nest",
+   "profile": "nestS",
+   "mode": "cut",
+   "from": "T - nestDepth",
+   "to": "T"
+  }
+ ]
+}

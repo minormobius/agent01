@@ -1,0 +1,137 @@
+[
+ {
+  "id": "VV",
+  "text": "vv shall measure progress by verification.",
+  "parent": null,
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "all children verified",
+  "rationale": "the point of the tool"
+ },
+ {
+  "id": "VV-LOAD-ID",
+  "text": "load shall report ids that break the pattern as bad-id.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-LOAD-DUP",
+  "text": "load shall report a repeated id once as duplicate-id.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-LOAD-CYC",
+  "text": "load shall report every member of a parent cycle as cycle.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-LOAD-ACC",
+  "text": "load shall report a shall leaf without acceptance.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-LINT-TBD",
+  "text": "lint shall flag TBD, TBC and TBR.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-LINT-VAGUE",
+  "text": "lint shall flag the listed vague words as whole words.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-TRACE-ORPH",
+  "text": "trace shall list leaves with nothing verifying them.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-TRACE-DANG",
+  "text": "trace shall list links to unknown requirements.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-STAT-LATEST",
+  "text": "status shall use each check's latest result on or before asOf.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-STAT-PARENT",
+  "text": "status shall roll shall children up to their parent.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-TPM-MARGIN",
+  "text": "tpm shall report margin and status against the threshold.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-TPM-BREACH",
+  "text": "tpm shall project the first breach date from the trend.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-EV-VERIFIED",
+  "text": "earned shall earn value only from verified requirements.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ },
+ {
+  "id": "VV-EV-ES",
+  "text": "earned shall compute earned schedule by interpolating the PV curve.",
+  "parent": "VV",
+  "strength": "shall",
+  "method": "test",
+  "acceptance": "its test passes",
+  "rationale": "SPEC"
+ }
+]

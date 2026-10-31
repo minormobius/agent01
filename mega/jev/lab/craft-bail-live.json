@@ -1,0 +1,594 @@
+{
+ "ran": "2026-09-27T14:49:27.442Z",
+ "world": "mixed/penrose/7 size m, hard, 70 decisions per run",
+ "note": "first live runs with the bail option. before_fix: fight and dig_in were interrupted by the very zombie they answer, then withheld as failed from this spot; Jev bailed 4 times, 3 of them with those options missing. after_fix: the interrupt spares fight/dig_in/guard and an interruption no longer withholds an option.",
+ "before_fix": {
+  "kind": "mixed",
+  "shape": "penrose",
+  "seed": 7,
+  "size": "m",
+  "arm": "jev",
+  "rungs": {
+   "wooden_pickaxe": 31,
+   "stone_pickaxe": 561,
+   "stone_sword": 563,
+   "torches": 564,
+   "iron_pickaxe": 908,
+   "house": 955,
+   "lit_grounds": 974,
+   "iron_sword": 1105,
+   "explored": null
+  },
+  "reached": 8,
+  "score": 1695.6666666666667,
+  "deaths": 3,
+  "decisions": 70,
+  "projects": {
+   "tech": "5/16",
+   "grow": "0/16",
+   "explore": "3/8",
+   "grown": 0,
+   "species_here": 5
+  },
+  "project_done": {},
+  "project_picks": {
+   "tech": 1
+  },
+  "mean_confidence": 0.6775714285714286,
+  "below_gate": 10,
+  "bails": 4,
+  "low_have": 0,
+  "bail_log": [
+   {
+    "tick": 1556,
+    "who": 0,
+    "dim": "overworld",
+    "at": [
+     3724,
+     9
+    ],
+    "health": 12,
+    "food": 20,
+    "night": false,
+    "project": {
+     "name": "tech",
+     "next": "make a wooden pickaxe (short of 3 log)",
+     "waiting": []
+    },
+    "threats": [
+     "something hostile is hitting you"
+    ],
+    "offered": [
+     {
+      "id": "surface",
+      "does": "climb (or swim) back up to open sky",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "explore",
+      "does": "walk to the edge of the known and look past it",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_wheat",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "scout_sunfruit",
+      "does": "explore until a tree / pig / coal / iron / sand is in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_glowcap",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_moonpetal",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "scout_starbloom",
+      "does": "explore until a tree / pig / coal / iron / sand is in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "hunt_sheep",
+      "does": "chase down a pig (meat) or a sheep (wool, mutton) in sight",
+      "project": "helps a later step of tech: a bed of your own"
+     },
+     {
+      "id": "hunt",
+      "does": "chase down a pig (meat) or a sheep (wool, mutton) in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "go_home",
+      "does": "walk back to the house",
+      "project": "not part of the tech project",
+      "last_tried": "FAILED 87 ticks ago, after spending 1 ticks: interrupted: zombie adjacent"
+     }
+    ],
+    "recent": [
+     {
+      "at": "day 1 13:28",
+      "chose": "dig_in",
+      "result": "done",
+      "ticks": 4
+     },
+     {
+      "at": "day 1 13:29",
+      "chose": "mine_home_iron",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 49
+     },
+     {
+      "at": "day 1 13:44",
+      "chose": "fight",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 2
+     },
+     {
+      "at": "day 1 13:45",
+      "chose": "gather_wood",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 6
+     }
+    ],
+    "confidence": 0.46,
+    "have": 0.74,
+    "top": {
+     "bail": 0.52,
+     "go_home": 0.36,
+     "surface": 0.07,
+     "hunt": 0.02
+    },
+    "answered": "fight"
+   },
+   {
+    "tick": 1564,
+    "who": 0,
+    "dim": "overworld",
+    "at": [
+     3724,
+     9
+    ],
+    "health": 4,
+    "food": 20,
+    "night": false,
+    "project": {
+     "name": "tech",
+     "next": "make a wooden pickaxe (short of 3 log)",
+     "waiting": []
+    },
+    "threats": [
+     "something hostile is hitting you",
+     "health 4/20, 3 zombies near"
+    ],
+    "offered": [
+     {
+      "id": "surface",
+      "does": "climb (or swim) back up to open sky",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "explore",
+      "does": "walk to the edge of the known and look past it",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_wheat",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "scout_sunfruit",
+      "does": "explore until a tree / pig / coal / iron / sand is in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_glowcap",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_moonpetal",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "scout_starbloom",
+      "does": "explore until a tree / pig / coal / iron / sand is in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "hunt_sheep",
+      "does": "chase down a pig (meat) or a sheep (wool, mutton) in sight",
+      "project": "helps a later step of tech: a bed of your own"
+     },
+     {
+      "id": "hunt",
+      "does": "chase down a pig (meat) or a sheep (wool, mutton) in sight",
+      "project": "not part of the tech project"
+     }
+    ],
+    "recent": [
+     {
+      "at": "day 1 13:44",
+      "chose": "fight",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 2
+     },
+     {
+      "at": "day 1 13:45",
+      "chose": "gather_wood",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 6
+     },
+     {
+      "at": "day 1 13:46",
+      "chose": "bail",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 2
+     },
+     {
+      "at": "day 1 13:47",
+      "chose": "go_home",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 6
+     }
+    ],
+    "confidence": 0.78,
+    "have": 0.74,
+    "top": {
+     "bail": 0.81,
+     "surface": 0.09,
+     "hunt": 0.05,
+     "hunt_sheep": 0.04
+    },
+    "answered": "fight"
+   },
+   {
+    "tick": 1566,
+    "who": 0,
+    "dim": "overworld",
+    "at": [
+     3724,
+     9
+    ],
+    "health": 4,
+    "food": 20,
+    "night": false,
+    "project": {
+     "name": "tech",
+     "next": "make a wooden pickaxe (short of 3 log)",
+     "waiting": []
+    },
+    "threats": [
+     "something hostile is hitting you",
+     "health 4/20, 3 zombies near"
+    ],
+    "offered": [
+     {
+      "id": "surface",
+      "does": "climb (or swim) back up to open sky",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "explore",
+      "does": "walk to the edge of the known and look past it",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_wheat",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "scout_sunfruit",
+      "does": "explore until a tree / pig / coal / iron / sand is in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_glowcap",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_moonpetal",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "scout_starbloom",
+      "does": "explore until a tree / pig / coal / iron / sand is in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "hunt_sheep",
+      "does": "chase down a pig (meat) or a sheep (wool, mutton) in sight",
+      "project": "helps a later step of tech: a bed of your own"
+     },
+     {
+      "id": "hunt",
+      "does": "chase down a pig (meat) or a sheep (wool, mutton) in sight",
+      "project": "not part of the tech project"
+     }
+    ],
+    "recent": [
+     {
+      "at": "day 1 13:45",
+      "chose": "gather_wood",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 6
+     },
+     {
+      "at": "day 1 13:46",
+      "chose": "bail",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 2
+     },
+     {
+      "at": "day 1 13:47",
+      "chose": "go_home",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 6
+     },
+     {
+      "at": "day 1 13:49",
+      "chose": "bail",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 2
+     }
+    ],
+    "confidence": 0.79,
+    "have": 0.72,
+    "top": {
+     "bail": 0.81,
+     "surface": 0.07,
+     "hunt": 0.05,
+     "hunt_sheep": 0.04
+    },
+    "answered": "fight"
+   },
+   {
+    "tick": 1609,
+    "who": 0,
+    "dim": "overworld",
+    "at": [
+     3413,
+     21
+    ],
+    "health": 16,
+    "food": 20,
+    "night": false,
+    "project": {
+     "name": "tech",
+     "next": "make a wooden pickaxe (can be crafted now)",
+     "waiting": []
+    },
+    "threats": [
+     "something hostile is hitting you"
+    ],
+    "offered": [
+     {
+      "id": "surface",
+      "does": "climb (or swim) back up to open sky",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "explore",
+      "does": "walk to the edge of the known and look past it",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_wheat",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "scout_sunfruit",
+      "does": "explore until a tree / pig / coal / iron / sand is in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "forage_glowcap",
+      "does": "take a wild plant in sight for its seeds (and fruit)",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "scout_moonpetal",
+      "does": "explore until a tree / pig / coal / iron / sand is in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "scout_starbloom",
+      "does": "explore until a tree / pig / coal / iron / sand is in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "set_up_chest",
+      "does": "make a chest and put it at home: the team's shared store",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "hunt_sheep",
+      "does": "chase down a pig (meat) or a sheep (wool, mutton) in sight",
+      "project": "helps a later step of tech: a bed of your own"
+     },
+     {
+      "id": "gather_wood",
+      "does": "chop the nearest trees",
+      "project": "helps a later step of tech: make a iron pickaxe"
+     },
+     {
+      "id": "hunt",
+      "does": "chase down a pig (meat) or a sheep (wool, mutton) in sight",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "go_home",
+      "does": "walk back to the house",
+      "project": "not part of the tech project",
+      "last_tried": "FAILED 45 ticks ago, after spending 6 ticks: interrupted: zombie adjacent"
+     },
+     {
+      "id": "craft_wooden_pickaxe",
+      "does": "make an item, and whatever it is made of",
+      "project": "completes the next step of tech: make a wooden pickaxe",
+      "last_tried": "FAILED 5 ticks ago, after spending 5 ticks: interrupted: zombie adjacent"
+     },
+     {
+      "id": "craft_door",
+      "does": "make an item, and whatever it is made of",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "craft_wooden_hoe",
+      "does": "make an item, and whatever it is made of",
+      "project": "not part of the tech project"
+     },
+     {
+      "id": "craft_chest",
+      "does": "make an item, and whatever it is made of",
+      "project": "not part of the tech project"
+     }
+    ],
+    "recent": [
+     {
+      "at": "day 1 13:50",
+      "chose": "gather_wood",
+      "result": "done",
+      "ticks": 31
+     },
+     {
+      "at": "day 1 13:59",
+      "chose": "craft_wooden_pickaxe",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 5
+     },
+     {
+      "at": "day 1 14:01",
+      "chose": "dig_in",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 3
+     },
+     {
+      "at": "day 1 14:02",
+      "chose": "fight",
+      "result": "failed: interrupted: zombie adjacent",
+      "ticks": 2
+     }
+    ],
+    "confidence": 0.28,
+    "have": 0.71,
+    "top": {
+     "bail": 0.34,
+     "craft_wooden_pickaxe": 0.32,
+     "go_home": 0.29,
+     "gather_wood": 0.03
+    },
+    "answered": "fight"
+   }
+  ],
+  "errors": 0,
+  "mean_have": 0.7357142857142855,
+  "input_tokens": 275352,
+  "choices": {
+   "gather_wood": 9,
+   "craft_wooden_pickaxe": 6,
+   "mine_stone": 3,
+   "craft_stone_pickaxe": 2,
+   "craft_stone_sword": 1,
+   "craft_torch": 2,
+   "mine_iron": 1,
+   "fight": 13,
+   "dig_in": 12,
+   "craft_iron_pickaxe": 1,
+   "build_house": 1,
+   "light_area": 1,
+   "mine_home_iron": 5,
+   "craft_iron_sword": 1,
+   "hunt_sheep": 3,
+   "hunt": 1,
+   "craft_bed": 1,
+   "go_home": 3,
+   "bail": 4
+  },
+  "wall_s": 149
+ },
+ "after_fix": {
+  "kind": "mixed",
+  "shape": "penrose",
+  "seed": 7,
+  "size": "m",
+  "arm": "jev",
+  "rungs": {
+   "wooden_pickaxe": 31,
+   "stone_pickaxe": 561,
+   "stone_sword": 563,
+   "torches": 564,
+   "iron_pickaxe": 898,
+   "house": 945,
+   "lit_grounds": 964,
+   "iron_sword": 1095,
+   "explored": null
+  },
+  "reached": 8,
+  "score": 1691.2222222222222,
+  "deaths": 1,
+  "decisions": 70,
+  "projects": {
+   "tech": "10/16",
+   "grow": "0/16",
+   "explore": "5/8",
+   "grown": 0,
+   "species_here": 5
+  },
+  "project_done": {},
+  "project_picks": {
+   "tech": 3
+  },
+  "mean_confidence": 0.6904285714285714,
+  "below_gate": 14,
+  "bails": 0,
+  "low_have": 0,
+  "bail_log": [],
+  "errors": 0,
+  "mean_have": 0.7442857142857142,
+  "input_tokens": 310660,
+  "choices": {
+   "gather_wood": 6,
+   "craft_wooden_pickaxe": 2,
+   "mine_stone": 2,
+   "craft_stone_pickaxe": 2,
+   "craft_stone_sword": 2,
+   "craft_torch": 2,
+   "mine_iron": 2,
+   "fight": 7,
+   "craft_iron_pickaxe": 2,
+   "build_house": 1,
+   "light_area": 1,
+   "mine_home_iron": 11,
+   "craft_iron_sword": 2,
+   "hunt_sheep": 6,
+   "hunt": 1,
+   "craft_bed": 2,
+   "craft_iron_armor": 2,
+   "mine_diamond": 3,
+   "craft_diamond_pickaxe": 1,
+   "craft_bucket": 1,
+   "go_home": 2,
+   "dig_in": 1,
+   "eat": 2,
+   "sleep_in_bed": 1,
+   "sleep_until_dawn": 1,
+   "make_obsidian": 1,
+   "place_beacon": 1,
+   "mine_coal": 3
+  },
+  "wall_s": 149
+ }
+}

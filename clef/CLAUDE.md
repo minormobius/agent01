@@ -38,8 +38,9 @@ src/audio.js        playback patches, the lookahead scheduler, WAV export
 src/pfsynth.js      the physical-modelling piano: render, cache, play
 src/pfsynth-worker.js  that render, off the main thread
 vendor/pfsynth/     John O'Laughlin's pfsynth (MIT) + our wasm host
+src/guitar.js       a guitar's reading of a score: strings, frets, techniques (tab + playback)
 src/midi.js         Standard MIDI File writer
-src/library.js      the eight bundled pieces
+src/library.js      the ten bundled pieces
 src/mutopia.js      browsing the Mutopia archive (fetch + parse, no HTML injected)
 src/app.js          the page's behaviour
 src/auth.js         byte copy of packages/oauth-client/auth.js (see below)
@@ -285,6 +286,131 @@ The `.wasm` is committed because the deploy job has no C toolchain. Rebuild with
 `vendor/pfsynth/build.sh`; the selftests load the committed binary and render
 through it, so a stale or truncated one fails there rather than in a browser.
 
+## The physical guitar
+
+pfsynth grew a classical guitar upstream (2026-10-01, John's post: "merged!"), and it is a voice
+here: **Guitar — physical model** in the picker, for Play and `.wav`. The model is upstream's
+(`core/pf_pluck`, `host/pf_guitar`, unmodified); ours are `vendor/pfsynth/pf_guitar_web.c` (the
+host), `src/pfguitar.js` and a `render-guitar` message in `pfsynth-worker.js`. It is a separate
+module, `pfguitar.wasm`, so the piano's binary never changed. `ModelPlayer` takes the render
+function, so the guitar is the piano's player with a different instrument behind it.
+
+What is load-bearing:
+
+- **The model renders bridge force, not a guitar sound.** The body (a measured 1971 Contreras,
+  `vendor/pfsynth/bodies/`, CC BY 4.0, credited in the help sheet) and a small room are applied
+  after the strings render, by FFT convolution in plain JavaScript (`convolve`, `dress`). It was
+  an `OfflineAudioContext` at first, as upstream's demo does; on the owner's iPhone that first
+  refused the body (below) and then, fixed, played silence while the notes lit up. JS arithmetic
+  is identical everywhere and testable in node: measured against the WebAudio version in Chromium
+  it agrees to 133 dB below the signal, in the same time (the strings dominate).
+- **Piano scores are fitted, and the page says so** (`packGuitar`): outside E2–B5 folds by
+  octaves; a chord keeps six notes (the outer two and an even spread); doubled notes merge.
+  The toast names the counts. Strings and frets are left to the guitar's own hand-position
+  search.
+- **A part written FOR the guitar** skips the fitting: `packTab([{ at, end, string, fret, velocity,
+  art, artParam, slideTo }])` → `renderPacked` keeps every string and fret and passes the techniques
+  through (hammer, pull, slide, harmonic, muted, tie: upstream's `PF_ART_*`). Velocity is MIDI with
+  headroom to 4×127 (strums ~110–185 sound right). `compositions/open-strings.guitar.mjs` is the
+  worked example (owner: "compose… the typical chords of guitar play, rich and full"): harmonics,
+  Travis picking with held top strings, strumming, a barre, hammer-ons, pull-offs, a slide. A
+  LilyPond version is in the library (`guitar`, below).
+- **Safari refuses a convolver buffer at another sample rate** ("Buffer sample rate does not match
+  the context's sample rate"); Chrome resamples silently, which is why every Chromium test passed
+  and the owner's iPhone (48 kHz) failed on first play. The body (measured at 44.1 kHz) is
+  resampled to the device's rate by windowed sinc (`resample`). (No browser convolver is used now.) To
+  check a change here, make Chromium as strict as Safari: patch `ConvolverNode.prototype.buffer`'s
+  setter to throw on a mismatch and render at 48000 (the live code reproduced the error that way).
+- **iOS and a long wait**: an AudioContext is unlocked only by sound started inside the tap, and
+  the render takes seconds. `ModelPlayer.ensure` plays one silent sample in the tap, and `play`
+  resumes a context left suspended or 'interrupted' before starting the buffer (piano and guitar).
+- **Peak-normalised to −1 dBFS.** Bridge force has no natural loudness and the whole piece is
+  rendered before it plays, so the level comes from the piece.
+- Verified as in `vendor/pfsynth/README.md` (bit-exact wasm/native; all nine library pieces; a
+  real browser). Not listened to here.
+
+## Reading guitar
+
+Owner: "teach clef to read guitar". LilyPond writes guitar music as ordinary notes plus marks,
+and draws tablature from the same notes; clef now reads both and plays them on the guitar model.
+
+- **The marks** (lily.js): a string number `c4\3` (and inside a chord, `<g\3 d'\2>`),
+  `\harmonic` (on a note or a chord member; the pitch written is the TOUCHED one, as LilyPond's),
+  `\glissando`, `\arpeggio`, `\deadNote` / `\palmMute` on one note and `\deadNotesOn/Off`,
+  `\palmMuteOn/Off` until switched. A staff knows it is a `TabStaff`.
+- **One answer for the eye and the hand** (`guitar.js`, run at the end of every parse): each note
+  of a guitar staff (a TabStaff, a staff named for a guitar, or one with string numbers) gets a
+  string and fret. A string number wins; otherwise, per moment across the staff's voices, the
+  highest note first takes the free string with the LOWEST fret, LilyPond's own TabStaff rule,
+  which is why a G chord written as notes is 320033 and C x32010. A slurred or slid note moves
+  to the previous note's string when it can reach (a guitarist slurs on one string), and then a
+  slur up is a hammer-on, down a pull-off; a glissando slides fret to fret. The tab staff draws
+  these frets and the guitar model plays them: what you see is what is played.
+- **The tab staff** (engrave.js `drawTabVoice`): six lines 1.3 spaces apart (a staff's height is
+  per staff now, `H(i)`), TAB stacked at its head, no key or metre (the staff above has them),
+  one number per note in the note's own column, knocking the line out behind it; `<12>` for a
+  harmonic, `x` a dead note. A click on it writes nothing: its lines are strings, not pitches.
+- **Playback** (audio.js, pfguitar.js `packScore`): notes carry their string, fret and technique
+  to the guitar model, strummed low to high (8 ms a string, 45 under `\arpeggio`). The common
+  `<< \new Staff \music \new TabStaff \music >>` would play everything twice; a tab note that
+  another staff already plays is dropped and its string goes to the note that stays. On the
+  patch-bank preview a guitar staff sounds as a harpsichord (plucked); the physical voice is
+  the real one.
+- **The octave clef was backwards, and is fixed.** In LilyPond a note's name IS its sounding pitch
+  and `\clef "treble_8"` only draws it an octave higher. clef drew it as if on a plain treble
+  staff and PLAYED it an octave low, so every guitar or tenor part from the archive sounded an
+  octave down. `treble_8`, `G_8`, `tenorG`, `bass_8` now draw an octave up (with a small 8 under
+  the clef) and sound as named.
+- **The library piece**, `Open Strings` (`#guitar`): notation over tab, two voices (fingers and
+  thumb), harmonics at the 12th and 7th frets, Travis picking with the top strings held, a
+  hammer-on and a pull-off in the thumb, strummed Am7, Cadd9, G, D, a rolled G and harmonics.
+  229 notes, every one played from its tab, nothing fitted.
+- Not read yet: `\set TabStaff.stringTunings` (standard tuning only), `\bendAfter`, fret-diagram
+  markups, `\harmonicByFret`. Harmonics are drawn with ordinary noteheads, not diamonds.
+
+## The duo, and Duende
+
+Owner: "a genre that blends those two well… a dueling instruments music theory self indulgent
+sonic force… this is the one to try and blow me away". A piano-and-guitar score now plays as a
+duo (`src/duo.js`): notes from guitar staves carry `gtr` (audio.js), and EITHER physical voice
+renders the guitar staves on the guitar model and the rest on the piano model, IN PARALLEL (two
+workers: the wait is the slower of the two), then mixes them: the guitar brought to the piano's
+RMS (counted only where each sounds), the piano a little left and the guitar a little right,
+peak-normalised to −1 dBFS. One instrument is not a duo, and plays as before.
+
+`compositions/duende.mjs` writes `duende.ly` (the library's `duende`): 55 bars of 12/8, 3:11. The first
+version (90 bars of 4/4, a ballad then a flamenco duel bolted on) was replaced after the owner's
+"you could do it more so… I feel you're hiding". The rewrite rests on two ideas, both in the
+generator's header:
+
+- **One grid.** A swung 4/4 bar is twelve triplet eighths and a bulería compás is twelve counts,
+  so the whole piece is 12/8: the swing leans on beats two and four, the bulería on counts 3 6 8
+  10 12, and the middle of the piece is the accents sliding from one to the other while the
+  tempo climbs (76 → 88).
+- **One argument.** A7(b9) is D minor's dominant to the piano and the guitar's HOME (A Phrygian
+  dominant, por medio). The opening cry, A Bb A G F E, is a jazz line over Dm and a quejío over
+  A. The coda's Em7b5–A7b9 deceives onto Bb (bII), the guitar's tremolo walks Bb to A, and the
+  piano accepts A.
+
+Sections: Soleá (guitar alone, tremolo, a Bb–A rasgueado), Nocturne (piano alone, ends on A7b9
+held, answered by the guitar's Bb–A), a D minor blues swung, trading (guitar chorus, piano
+chorus, the grid turning), Bulería (llamada; the piano's jazz voicings on the compás over a 3/4
+bass; a picado falseta with the piano in canon a count behind; a hocket rising four octaves; the
+fists, piano on the 3+3+2+2+2 group starts and guitar on their ends; a three-octave remate and a
+cierre on 10), Duende.
+
+**What playback learned for it** (audio.js, pfguitar.js; selftest 10e). Every later `\tempo`
+now changes the speed from its tick (a piecewise tick→seconds map; the slider scales the whole
+map). Hairpins ramp velocity from where they start to the next written dynamic, or a step either
+way at `\!`; `sf`/`sfz`/`fp` are one note's; `->` and `\marcato` lean on a note; staccato halves
+it. On the guitar, a chord marked `\upbow` strums high to low (rasgueado up-strokes). All of this
+affects every score that writes those marks, which until now were drawn and not heard.
+
+Measured (headless Chromium, this sandbox): 143 s to render 191 s, faster than real time;
+sections from −26 dB (Nocturne) to −12 (the fists). The first version's audio sent from here
+was corrupted by the encoder (channels written planar into a packed frame), not by clef; the
+owner heard the real thing on a phone. Not listened to here.
+
 ## Auth
 
 Reading, writing, playing and exporting need no account. Signing in only adds
@@ -406,9 +532,23 @@ half its bars — nested spacer voices and tuplet spanners). That is reported in
 the panel rather than hidden, which is the point: an engraving that quietly
 disagrees with its source is worse than one that says so.
 
+## Opening a score by link
+
+What `#…` in the URL opens, in the order `boot()` checks: an `at://` URI (a
+published record, read publicly from its author's PDS), a library id, then
+**`#src=<url>`**, a LilyPond file fetched over https from `*.mino.mobi` and
+nowhere else (`openSrc`). The studio's "View the score" links use it:
+`clef.mino.mobi/#src=https://studio.mino.mobi/coquelicots/score.ly`. The fetching
+site must send `Access-Control-Allow-Origin` for the file (studio's `_headers`
+does). Those `.ly` files are generated by `studio/lib/lilypond.js`, and the
+studio selftest parses each one with THIS surface's `lily.js` and checks every
+note round-trips. A parser change here that breaks them fails there.
+
 ## Deploying
 
-Owning branch `claude/sheet-music-viewer-composer-qb4ljl`; a push touching
+Owning branch `claude/plant-growth-animation-gxbby1` (taken over 2026-09-24 from
+`claude/sheet-music-viewer-composer-qb4ljl`, whose tree was identical on `clef/**`;
+it shares the branch with `studio/` and `ink/`); a push touching
 `clef/**` runs `deploy-clef.yml`. `clef.mino.mobi` was verified unclaimed before
 the first deploy, so that deploy creates the DNS record and the custom-domain
 binding — **confirm the run's log binds `clef.mino.mobi (custom domain)`**.
@@ -425,7 +565,7 @@ Honest list, in rough order of how much they would be missed:
 - **Note-name alphabets** beyond Dutch, English and German are refused.
 - **Cross-staff beaming** and voice-collision resolution are not attempted;
   two-voice writing gets stem directions and rest offsets and nothing cleverer.
-- **Hairpins** (`\<` `\>`) are parsed but not drawn.
+- **Hairpins** (`\<` `\>`) are parsed and played, but not drawn.
 - **Layout overrides** (`\override`, `\set`, `\tweak`) are consumed and ignored
   by design — that is the part of LilyPond this is not.
 - More than two voices on a staff share one pair of stem directions.

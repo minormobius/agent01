@@ -164,7 +164,8 @@ Its warnings are the point. Two real bugs came out of it:
 
 ```
 tempest/
-  index.html  css/  js/          the page: engine.js (wasm ABI), render.js, game.js
+  index.html  css/  js/          the page: engine.js (wasm ABI), render.js, game.js;
+                                 score.js + board.js, the leaderboard (a module)
   levels.json                    the certified pack — generated, do not hand-edit
   tempest.wasm                   built from core/, committed
   test/tempest.selftest.mjs      the drift gate
@@ -255,6 +256,27 @@ empty anyway.
 winnable, and turns your claw red when it is not. It is not a hint — it never
 tells you what to do — it only removes the consolation of not knowing. Off by
 default, for obvious reasons.
+
+## The leaderboard
+
+One board, the best runs, read live off ATProto through Orb's portable board
+(`../orb/js/board-kit.js`): each score is a `com.minomobi.lab.score` record in
+the player's own repo, so nobody hosts it. 🏆 in the HUD opens it (a wave in
+play waits while it is up); when the web wins, or the whole pack holds, the
+card offers **post to the board** once.
+
+A **run** is everything between two resets of the score: from the level you
+began on (or restarted, after the web won) to the wave that broke you, keeping
+its score through the waves you retake. A cleared wave is worth 100 + its
+certified slack + 25 per threat, and every wave in the pack is fixed, so the
+score is a function of where the run went. The board takes nothing on trust:
+`js/score.js` recomputes it from the record's `detail`
+(`epoch=… start=… level=… wave=…`) against a table of every wave's worth, and
+refuses a record that isn't exactly right, or is from another pack. The
+selftest rebuilds that table from `levels.json` and `game.js`'s formula, so a
+regenerated pack can't leave it behind: when the epoch moves, bump `VERSION`
+(the board's game id is `score-v1`) with the table. This browser's best is
+kept in `localStorage` (`tempest.best`).
 
 ---
 

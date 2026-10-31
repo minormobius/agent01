@@ -1,0 +1,104 @@
+name: miniphim job (the souls' runner)
+
+# A job the souls wrote and two of them signed (research/jobs/<name>.json in their commons; the rules
+# are in packages/whetstone/lib/jobs.mjs). whetstone.yml queues it after the run in which its second
+# signature landed, by writing packages/whetstone/jobs/queue/<name>-<digest>.json with the lab's
+# contents token (a push made with GITHUB_TOKEN would start nothing). This workflow runs it:
+#   - in a container with NO network (--network none), no secrets, no git, as the runner's own user;
+#   - under a hard time cap (the job's minutes, at most 330);
+#   - from the run's commons, plus what the job's last run wrote, in its dir;
+# then keeps only new or changed files in its dir (20 MB) in packages/whetstone/jobs/<name>/out/, writes
+# done.json, commits, and, if the queue file says wake, starts one session about the result. A session a
+# job woke queues its jobs with wake=false: the chain is one link, decided here, not by the job file.
+on:
+  push:
+    branches: ['claude/agent-social-media-drlzxn']
+    paths: ['packages/whetstone/jobs/queue/*.json']
+
+permissions:
+  contents: write
+
+jobs:
+  job:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Which job
+        id: q
+        run: |
+          f=$(git diff --name-only --diff-filter=A HEAD^ HEAD -- 'packages/whetstone/jobs/queue/*.json' | head -1)
+          if [ -z "$f" ]; then echo "no new queue file in this push"; exit 0; fi
+          echo "file=$f" >> "$GITHUB_OUTPUT"
+          node -e "const q=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));for(const k of ['name','run','wake'])console.log(k+'='+q[k])" "$f" >> "$GITHUB_OUTPUT"
+          cat "$f"
+
+      - name: Prepare the sandbox
+        id: prep
+        if: steps.q.outputs.file != ''
+        run: |
+          node packages/whetstone/jobs.mjs prepare --run "packages/whetstone/runs/${{ steps.q.outputs.run }}" --name "${{ steps.q.outputs.name }}" --work "$RUNNER_TEMP/job" | tee /tmp/prep.json
+          node -e "const p=JSON.parse(require('fs').readFileSync('/tmp/prep.json','utf8'));console.log('dir='+p.dir);console.log('minutes='+p.minutes)" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/job/.job.sh"
+
+      - name: Run the job (no network, hard cap)
+        id: run
+        if: steps.q.outputs.file != ''
+        env:
+          DIR: ${{ steps.prep.outputs.dir }}
+          MIN: ${{ steps.prep.outputs.minutes }}
+        run: |
+          echo "started=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          set +e
+          docker run --rm --network none --memory 6g --pids-limit 1024 --cpus 3.5 \
+            --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$RUNNER_TEMP/job:/c" -w "/c/$DIR" \
+            node:22-bookworm timeout --signal=TERM --kill-after=30s "${MIN}m" bash /c/.job.sh
+          code=$?
+          set -e
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          echo "job exited $code"
+
+      - name: Collect and commit
+        id: collect
+        if: always() && steps.q.outputs.file != '' && steps.run.outputs.started != ''
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+        run: |
+          to=""; [ "${{ steps.run.outputs.exit }}" = "124" ] && to="--timed-out"
+          node packages/whetstone/jobs.mjs collect --run "packages/whetstone/runs/${{ steps.q.outputs.run }}" --name "${{ steps.q.outputs.name }}" \
+            --work "$RUNNER_TEMP/job" --started "${{ steps.run.outputs.started }}" --exit "${{ steps.run.outputs.exit }}" $to | tee /tmp/collect.json
+          node -e "console.log('files='+JSON.parse(require('fs').readFileSync('/tmp/collect.json','utf8')).files)" >> "$GITHUB_OUTPUT"
+          git remote set-url origin "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${{ github.repository }}.git"
+          git config user.name "whetstone"; git config user.email "whetstone@mino.mobi"
+          git add -A "packages/whetstone/jobs/${{ steps.q.outputs.name }}"
+          git rm -q "${{ steps.q.outputs.file }}"
+          git commit -m "whetstone: job ${{ steps.q.outputs.name }} (exit ${{ steps.run.outputs.exit }})"
+          for i in 1 2 3 4 5 6 7 8; do
+            git push origin "HEAD:${GITHUB_REF#refs/heads/}" && exit 0
+            git pull --rebase origin "${GITHUB_REF#refs/heads/}" || true
+            sleep $((i * 8))
+          done
+          exit 1
+
+      # One session, about the result, only when the queue file says wake and the job brought files back.
+      # LAB_DISPATCH_TOKEN (contents only) writes the request, as the mail worker's clock does.
+      - name: Wake one session
+        if: success() && steps.q.outputs.wake == 'true' && steps.collect.outputs.files != '0'
+        env:
+          TOKEN: ${{ secrets.LAB_DISPATCH_TOKEN }}
+        run: |
+          node packages/whetstone/jobs.mjs wake --name "${{ steps.q.outputs.name }}" > /tmp/wake.json
+          node -e "
+            const w=JSON.parse(require('fs').readFileSync('/tmp/wake.json','utf8'));
+            const body={message:'whetstone: woken by job ${{ steps.q.outputs.name }}',branch:process.env.GITHUB_REF.replace('refs/heads/',''),content:Buffer.from(JSON.stringify(w.body,null,2)+'\n').toString('base64')};
+            require('fs').writeFileSync('/tmp/put.json',JSON.stringify(body));console.log(w.path)" > /tmp/path.txt
+          curl -fsS -X PUT -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/contents/$(cat /tmp/path.txt)" -d @/tmp/put.json > /dev/null \
+            && echo "✓ woke one session: $(cat /tmp/path.txt)"

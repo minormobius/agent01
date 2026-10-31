@@ -15,7 +15,7 @@ The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container (bash 
 | Dir | `os/api/` |
 | Endpoint | `os-api.minomobi.com` |
 | Type | backend |
-| Owning branch | `claude/codex-containers-research-58t9ad` |
+| Owning branch | `claude/codex-container-auth-sngj6k` |
 | Deploy | `.github/workflows/deploy-os-api.yml` |
 | Uses | — |
 | Provides | `os-api.minomobi.com` |
@@ -38,12 +38,12 @@ Runs paid containers — cost bounded by max_instances=3 + 10-min idle sleep.
 | | `opencode` (OpenCode) | OpenAI Chat Completions |
 | | `codex` (OpenAI Codex CLI) | OpenAI **Responses** |
 | model | `kimi3` (Moonshot), `ds4-flash` / `ds4-pro` (DeepSeek V4), `claude` (native) | both, per provider |
-| | `astra` — **GPT-6 Astra** on the ChatGPT subscription, via this worker's own proxy | Responses only |
+| | `astra` / `sol` / `luna` — **GPT-6 Astra / Sol / Luna** on the ChatGPT subscription, via this worker's own proxy; one deposited login serves all three | Responses only |
 
 **The matrix is not full, and that is a fact about Codex.** It removed
 `wire_api = "chat"` in 0.154, so it speaks only the Responses API and cannot
 drive `kimi3` or `ds4-*` at all — those expose Chat Completions. Codex runs the
-`astra` cell and nothing else until someone writes a Responses↔Chat shim
+subscription cells (`astra`, `sol`, `luna`) and nothing else until someone writes a Responses↔Chat shim
 ([`CODEX.md`](CODEX.md) D6). A profile carries `base` / `oaiBase` / `respBase`
 for the three wire formats, and `agent` with no args prints which harnesses each
 profile can actually run under.
@@ -80,8 +80,9 @@ one credential-bearing header (`Authorization: Bearer <env_key>` — measured), 
 ChatGPT bearer from DO storage, and forwards to
 `chatgpt.com/backend-api/codex`. The container never holds an OpenAI credential,
 so there is nothing for a workspace tarball to carry off and nothing that
-rotates there; refresh happens in the DO, whose single-threaded execution
-gives us the "one holder, serialized" property OpenAI's own guidance demands.
+rotates there; refresh happens in the DO through an explicit credential-operation queue.
+External fetches can interleave even in a single-threaded DO; a persisted
+pending marker prevents replay after an interrupted rotation.
 The tokens are deposited once via `PUT /openai/credential` (owner identity, same
 gate as `/ws`) from an `auth.json` minted by `codex login` on a machine with a
 real browser — required because device-code initiation is bot-walled from
@@ -94,8 +95,13 @@ MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern):
 
 ## Deploying
 
-Pushes to `claude/codex-containers-research-58t9ad` that touch this surface's paths trigger [`.github/workflows/deploy-os-api.yml`](../../.github/workflows/deploy-os-api.yml). `main` is **not** a trigger — see the root `CLAUDE.md`: a merge to main is an integration event, not a deploy.
+Pushes to `claude/codex-container-auth-sngj6k` that touch this surface's paths trigger [`.github/workflows/deploy-os-api.yml`](../../.github/workflows/deploy-os-api.yml). `main` is **not** a trigger — see the root `CLAUDE.md`: a merge to main is an integration event, not a deploy.
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
 or the deploy goes green while the site never changes.
+
+Codex browser repo chat uses the astra / sol / luna profiles and exec/resume JSONL. Bootstrap
+with `bash os/api/deposit-credential.sh --login`, then run it again to hand off
+the dedicated login. Successful deposit removes the local token cache. See
+`CODEX.md` sections 7.3-7.4 for status, deletion and rotation recovery.

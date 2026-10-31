@@ -31,8 +31,35 @@ import { auth } from '/lib/compose.js';
 const BSKY_PUBLIC = 'https://public.api.bsky.app';
 const RELAY = '/api/feedgen';
 
-/** The scope that lets this site mint a service-auth JWT on the reader's PDS. */
-export const SERVICE_AUTH_SCOPE = 'rpc:com.atproto.server.getServiceAuth';
+/**
+ * The scope that lets this site mint a getFeedSkeleton service-auth JWT on the
+ * reader's PDS. The PDS authorizes getServiceAuth with assertRpc({aud, lxm})
+ * for the token being minted, and an rpc scope's aud must be `*` or a
+ * `did#service` ref compared exactly with the token's (bare-DID) aud — so
+ * `aud=*`. It was `rpc:com.atproto.server.getServiceAuth`, which has no aud,
+ * parses to null and is never granted: personalisation always said
+ * "reauthorise", and reauthorising could not fix it.
+ */
+export const SERVICE_AUTH_SCOPE = 'rpc:app.bsky.feed.getFeedSkeleton?aud=*';
+
+/**
+ * Whether a granted scope string covers SERVICE_AUTH_SCOPE. Not a byte compare:
+ * an authorization server may hand the grant back merged with other methods
+ * (`rpc?aud=*&lxm=…&lxm=…`), and reading that as missing would send the reader
+ * round the consent screen for nothing. `transition:generic` also covers it.
+ */
+export function coversFeedAuth(scope) {
+  return String(scope || '').split(/\s+/).some((t) => {
+    if (t === SERVICE_AUTH_SCOPE || t === 'transition:generic') return true;
+    if (!/^rpc[:?]/.test(t)) return false;
+    const q = t.indexOf('?');
+    const params = new URLSearchParams(q === -1 ? '' : t.slice(q + 1));
+    const lxms = [...params.getAll('lxm')];
+    const colon = t.indexOf(':');
+    if (colon !== -1 && (q === -1 || colon < q)) lxms.push(decodeURIComponent(t.slice(colon + 1, q === -1 ? undefined : q)));
+    return params.get('aud') === '*' && (lxms.includes('app.bsky.feed.getFeedSkeleton') || lxms.includes('*'));
+  });
+}
 
 /** at:// uri → the generator's own record (displayName, avatar, service DID). */
 const metaCache = new Map();
@@ -81,9 +108,10 @@ export async function generatorMeta(feedUri) {
  * in, session missing the rpc scope, the PDS refusing, an exception — and the
  * UI turned all four into "this session cannot mint a service token", which
  * tells a reader nothing and is not actionable. The most common one by far is
- * the second, and it is invisible: a session created BEFORE
- * `rpc:com.atproto.server.getServiceAuth` was added to `SCOPE` carries the old
- * grant forever. Signing in again fixes it, and nothing anywhere said so.
+ * the second, and it is invisible: a session created before SERVICE_AUTH_SCOPE
+ * was added to `SCOPE` carries the old grant forever. Signing in again fixes
+ * it, and nothing anywhere said so. (Until 2026-09-25 that scope was one that
+ * could never be granted, so reauthorising did not fix it either.)
  *
  * @returns {Promise<{token: string|null, reason: string, fix?: 'signin'|'rescope'}>}
  */
@@ -92,7 +120,7 @@ export async function serviceToken(serviceDid) {
   if (!serviceDid) return { token: null, reason: 'this feed declares no service DID' };
   if (!a.isLoggedIn()) return { token: null, reason: 'sign in to personalise', fix: 'signin' };
 
-  if (!a.hasScope(SERVICE_AUTH_SCOPE)) {
+  if (!coversFeedAuth(a.getUser()?.scope)) {
     return {
       token: null,
       fix: 'rescope',

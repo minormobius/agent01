@@ -1,0 +1,247 @@
+// craft/projects.mjs — long-range goals, broken into steps Jev can see.
+//
+// Jev decides one macro at a time and does not plan. A goal that takes days
+// (grow every species this world has, see all of it) only works if every
+// option says, computed, what it does for that goal right now: completes the
+// next step, works toward it, helps a later step, or nothing. That is the
+// composer's lesson (hand over the gap it closes, pre-computed: regret
+// 0.717 → 0.020) applied to a long horizon. The model picks the project,
+// rarely; and picks the step's option, often.
+//
+// A step: { id, label, done(sim), needs(sim) → Set of option tokens that
+// advance it, complete(sim) → the token that finishes it (or null),
+// waiting(sim) → a reason there is nothing to do but wait (or null) }.
+// Option tokens are what an option does or yields: an item name
+// ('cobblestone'), 'craft:<item>', 'forage:<sp>', 'farm:<sp>', 'harvest',
+// 'explore', 'scout:<what>', 'build_house', 'light_area'.
+
+import { B, BUILDING, SPECIES, SPECIES_NAMES } from './world.mjs';
+import { shortfall, describeShort, ripePlots, growingPlots, visiblePlants, chestItems, surplus } from './macros.mjs';
+import { penned, enchantQuote, penFences, penSite } from './builds.mjs';
+import { PICK_TIER } from './world.mjs';
+import { needsFarmland, eta, speciesHere } from './plants.mjs';
+
+const itemStep = (id, item, q = 1, done) => ({
+  id, label: `make ${q > 1 ? q + ' ' : 'a '}${item.replace(/_/g, ' ')}${q > 1 ? 's' : ''}`.replace('torchs', 'torches'),
+  done,
+  needs: (s) => { const sh = shortfall(s, item, q); return new Set(Object.keys(sh).length ? Object.keys(sh) : [`craft:${item}`]); },
+  complete: (s) => Object.keys(shortfall(s, item, q)).length ? null : `craft:${item}`,
+  detail: (s) => { const sh = shortfall(s, item, q); return Object.keys(sh).length ? `short of ${describeShort(sh)}` : 'can be crafted now'; },
+});
+// visiblePlants scans the seen world; memoised per tick, player and inventory
+const _vis = new WeakMap();
+function vis(s, sp) {
+  const key = `${s.tick}:${s.player.id}:${s.seenCount}:${s.cultivated.size}`;
+  let m = _vis.get(s);
+  if (!m || m.key !== key) { m = { key, by: {} }; _vis.set(s, m); }
+  return (m.by[sp] ??= visiblePlants(s, sp).length);
+}
+const blocksHeld = (s) => BUILDING.reduce((n, k) => n + (s.inv[k] || 0), 0);
+// the team's pool counts: what is in the shared chest is everyone's
+const blocksPooled = (s) => blocksHeld(s) + BUILDING.reduce((n, k) => n + (chestItems(s)[k] || 0), 0);
+const houseNeed = (s) => 30 * Math.min(3, s.players.length);
+const hasBed = (s) => s.has('bed') || !!(s.player.bedAt && s.get(s.player.bedAt[0], s.player.bedAt[1]) === B.bed);
+
+const TECH_BASE = [
+  itemStep('wooden_pickaxe', 'wooden_pickaxe', 1, (s) => s.pickTier() >= 1),
+  itemStep('stone_pickaxe', 'stone_pickaxe', 1, (s) => s.pickTier() >= 2),
+  itemStep('stone_sword', 'stone_sword', 1, (s) => s.has('stone_sword') || s.has('iron_sword')),
+  itemStep('torches', 'torch', 4, (s) => s.has('torch', 4) || !!s._lit),
+  itemStep('iron_pickaxe', 'iron_pickaxe', 1, (s) => s.pickTier() >= 3),
+  { id: 'house', label: 'build a house for the whole team', done: (s) => !!s._house,
+    needs: (s) => blocksPooled(s) < houseNeed(s) ? new Set(['cobblestone', 'dirt', 'store']) : new Set(['build_house']),
+    complete: (s) => blocksPooled(s) >= houseNeed(s) ? 'build_house' : null,
+    detail: (s) => blocksPooled(s) < houseNeed(s) ? `needs ~${houseNeed(s)}+ building blocks for ${s.players.length}, the team holds ${blocksPooled(s)}` : 'ready to build' },
+  { id: 'lit_grounds', label: 'light around the house', done: (s) => !!s._lit,
+    needs: (s) => !s._house ? new Set() : s.has('torch') || s.has('coal') || s.has('charcoal') ? new Set(['light_area']) : new Set(['coal']),
+    complete: (s) => s._house && (s.has('torch') || s.has('coal')) ? 'light_area' : null,
+    detail: (s) => !s._house ? 'needs the house first' : 'torches around home' },
+  itemStep('iron_sword', 'iron_sword', 1, (s) => s.has('iron_sword')),
+];
+// a team also needs its pool; everyone needs a bed (the night only passes
+// when every player is asleep)
+const CHEST_STEP = { id: 'chest', label: 'set up the team chest', done: (s) => s.team.chest != null,
+  needs: (s) => { const sh = shortfall(s, 'chest', 1); return new Set(Object.keys(sh).length && !s.has('chest') ? Object.keys(sh) : ['set_up_chest']); },
+  complete: (s) => Object.keys(shortfall(s, 'chest', 1)).length && !s.has('chest') ? null : 'set_up_chest',
+  detail: (s) => { const sh = shortfall(s, 'chest', 1); return Object.keys(sh).length && !s.has('chest') ? `short of ${describeShort(sh)}` : 'can be made and placed now'; } };
+const BED_STEP = { id: 'bed', label: 'a bed of your own', done: hasBed,
+  needs: (s) => { const sh = shortfall(s, 'bed', 1); return new Set(Object.keys(sh).length ? [...Object.keys(sh), ...(sh.wool ? ['hunt:sheep', 'scout:sheep'] : [])] : ['craft:bed']); },
+  complete: (s) => Object.keys(shortfall(s, 'bed', 1)).length ? null : 'craft:bed',
+  detail: (s) => { const sh = shortfall(s, 'bed', 1); return Object.keys(sh).length ? `short of ${describeShort(sh)}${sh.wool ? ' (sheep give wool)' : ''}` : 'can be crafted now'; } };
+// the diamond age: armor, a diamond pick, obsidian (water carried to lava),
+// and the capstone, a beacon at home that keeps every zombie away
+const OBSIDIAN_STEP = { id: 'obsidian', label: 'make 3 obsidian (water on lava, diamond pick)', done: (s) => s.has('obsidian', 3) || s.has('beacon') || s.ow('beacons').size > 0,
+  needs: (s) => s.pickTier() < 4 ? new Set(['diamond', 'craft:diamond_pickaxe']) : !s.has('bucket') && !s.has('water_bucket') ? new Set([...Object.keys(shortfall(s, 'bucket', 1)), 'craft:bucket']) : new Set(['make_obsidian', 'obsidian']),
+  complete: (s) => s.pickTier() >= 4 && (s.has('bucket') || s.has('water_bucket')) ? 'make_obsidian' : null,
+  detail: (s) => s.pickTier() < 4 ? 'needs a diamond pickaxe' : !s.has('bucket') && !s.has('water_bucket') ? 'needs a bucket (3 iron ingots)' : `holding ${s.inv.obsidian || 0}; find lava and pour water on it` };
+const BEACON_STEP = { id: 'beacon', label: 'light a beacon at home (nothing spawns within 16)', done: (s) => s.ow('beacons').size > 0,
+  needs: (s) => { if (s.has('beacon')) return new Set(['place_beacon']); const sh = shortfall(s, 'beacon', 1); return new Set(Object.keys(sh).length ? [...Object.keys(sh), ...(sh.sand ? ['dig_sand'] : []), ...(sh.obsidian ? ['make_obsidian'] : [])] : ['craft:beacon', 'place_beacon']); },
+  complete: (s) => s.has('beacon') || !Object.keys(shortfall(s, 'beacon', 1)).length ? 'place_beacon' : null,
+  detail: (s) => { const sh = shortfall(s, 'beacon', 1); return s.has('beacon') ? 'ready to place' : Object.keys(sh).length ? `short of ${describeShort(sh)}` : 'can be made now'; } };
+const DIAMOND_AGE = [itemStep('iron_armor', 'iron_armor', 1, (s) => s.has('iron_armor') || s.has('diamond_armor')), itemStep('diamond_pickaxe', 'diamond_pickaxe', 1, (s) => s.pickTier() >= 4), OBSIDIAN_STEP, BEACON_STEP];
+// the nether: a portal of 6 obsidian (after the beacon's 3), the crossing,
+// and glowstone brought back (4 dust make a lamp: light without coal or fire)
+const PORTAL_STEP = { id: 'portal', label: 'build and light a nether portal (6 obsidian and a torch)', done: (s) => s.ow('portals').size > 0,
+  needs: (s) => (s.inv.obsidian || 0) < 6 ? new Set(['make_obsidian', 'obsidian']) : new Set(['build_portal']),
+  complete: (s) => (s.inv.obsidian || 0) >= 6 ? 'build_portal' : null,
+  detail: (s) => (s.inv.obsidian || 0) < 6 ? `holding ${s.inv.obsidian || 0} of 6 obsidian` : 'ready to build' };
+const NETHER_STEP = { id: 'nether', label: 'cross into the nether', done: (s) => !!s.player.visitedNether,
+  needs: () => new Set(['use_portal']), complete: (s) => s.dim !== 'nether' ? 'use_portal' : null,
+  detail: () => 'step into the lit portal' };
+const GLOW_STEP = { ...itemStep('glowstone', 'glowstone', 1, (s) => s.has('glowstone') || !!s.player.glowPlaced), label: 'make a glowstone lamp (4 dust from the nether)' };
+const NETHER = [PORTAL_STEP, NETHER_STEP, GLOW_STEP];
+// enchanting: a table (a book: 3 paper of sugar cane, 1 leather; 2 diamonds, 4
+// obsidian), then a pickaxe enchanted with the levels mining has earned
+const shortSet = (s, item, extra = []) => { const sh = shortfall(s, item, 1); return new Set(Object.keys(sh).length ? [...Object.keys(sh), ...(sh.sugar_cane || sh.paper || sh.book ? ['harvest_cane', 'sugar_cane'] : []), ...(sh.leather ? ['hunt:cow', 'leather'] : []), ...extra] : [`craft:${item}`, ...extra]); };
+const TABLE_STEP = { id: 'enchanting_table', label: 'set up an enchanting table (a book, 2 diamonds, 4 obsidian)', done: (s) => !!s.team.table,
+  needs: (s) => s.has('enchanting_table') ? new Set(['set_up_enchanting']) : shortSet(s, 'enchanting_table', ['set_up_enchanting']),
+  complete: (s) => s.has('enchanting_table') || !Object.keys(shortfall(s, 'enchanting_table', 1)).length ? 'set_up_enchanting' : null,
+  detail: (s) => { const sh = shortfall(s, 'enchanting_table', 1); return s.has('enchanting_table') ? 'ready to set up' : Object.keys(sh).length ? `short of ${describeShort(sh)}` : 'can be made now'; } };
+const pickEnchanted = (s) => Object.keys(PICK_TIER).some((k) => s.has(k) && (s.player.ench || {})[k]);
+const bestPick = (s) => Object.keys(PICK_TIER).filter((k) => s.has(k)).sort((a, b) => PICK_TIER[b] - PICK_TIER[a])[0];
+const ENCHANT_STEP = { id: 'enchant_pick', label: 'enchant a pickaxe (levels from mining, and lapis)', done: pickEnchanted,
+  needs: (s) => { const q = bestPick(s) && enchantQuote(s, bestPick(s)); return q && q.best ? new Set(['enchant']) : new Set(['lapis', 'mine_ore:lapis', 'xp']); },
+  complete: (s) => { const q = bestPick(s) && enchantQuote(s, bestPick(s)); return q && q.best ? 'enchant' : null; },
+  detail: (s) => { const q = bestPick(s) && enchantQuote(s, bestPick(s)); return !q ? 'needs the table and a pickaxe' : q.best ? `the table offers ${Object.entries(q.best.ench).map(([k, v]) => k + ' ' + v).join(', ')} for ${q.best.cost} levels` : `level ${s.player.level || 0}, the offers need ${q.offers.map((o) => o.level).join('/')}; lapis ${s.inv.lapis || 0}`; } };
+const ENCHANTING = [TABLE_STEP, ENCHANT_STEP];
+const TECH = (sim) => sim.players.length > 1
+  ? [...TECH_BASE.slice(0, 5), CHEST_STEP, ...TECH_BASE.slice(5, 7), BED_STEP, TECH_BASE[7], ...DIAMOND_AGE, ...NETHER, ...ENCHANTING]
+  : [...TECH_BASE, BED_STEP, ...DIAMOND_AGE, ...NETHER, ...ENCHANTING];
+
+// automate: the things that work while you are away
+const AUTOMATE = [
+  { id: 'pen', label: 'fence a pen near home (fences and a gate)', done: (s) => !!s.team.pen,
+    needs: (s) => { const pl = penSite(s); const n = pl ? penFences(pl) : 12; const sh = shortfall(s, 'fence', n); return new Set(Object.keys(sh).length ? [...Object.keys(sh), 'log'] : ['build_pen']); },
+    complete: (s) => s._house ? 'build_pen' : null, detail: (s) => s._house ? 'fences from planks and sticks' : 'needs a home first' },
+  { id: 'penned', label: 'two animals in the pen', done: (s) => !!s.team.pen && penned(s).length >= 2,
+    needs: (s) => new Set(['pen_animals', 'wheat', 'wheat_seeds', 'apple']), complete: () => 'pen_animals',
+    detail: (s) => `${s.team.pen ? penned(s).length : 0} in the pen; they follow their food (cows and sheep wheat, chickens seeds, pigs apples)` },
+  { id: 'smelter', label: 'an automatic smelter (3 hoppers, 3 chests, a furnace)', done: (s) => !!s.team.smelter,
+    needs: (s) => { const sh = shortfall(s, 'hopper', 3); return new Set(Object.keys(sh).length ? [...Object.keys(sh), 'iron_ore'] : ['build_smelter']); },
+    complete: (s) => Object.keys(shortfall(s, 'hopper', 3)).length ? null : 'build_smelter', detail: (s) => { const sh = shortfall(s, 'hopper', 3); return Object.keys(sh).length ? `short of ${describeShort(sh)}` : 'can be built now'; } },
+  { id: 'cane_farm', label: 'sugar cane that harvests itself (an observer, a piston, a hopper per plant)', done: (s) => !!s.team.caneFarm,
+    needs: (s) => { const miss = ['observer', 'piston', 'hopper'].flatMap((k) => Object.keys(shortfall(s, k, 2))); return new Set(miss.length ? [...new Set(miss), ...(miss.includes('quartz') ? ['use_portal'] : []), ...(miss.includes('redstone') ? ['mine_ore:redstone'] : [])] : [s.has('sugar_cane') ? 'build_cane_farm' : 'harvest_cane']); },
+    complete: (s) => ['observer', 'piston', 'hopper'].every((k) => !Object.keys(shortfall(s, k, 2)).length) && s.has('sugar_cane') ? 'build_cane_farm' : null,
+    detail: (s) => { const miss = {}; for (const k of ['observer', 'piston', 'hopper']) for (const [a, n] of Object.entries(shortfall(s, k, 2))) miss[a] = (miss[a] || 0) + n; return Object.keys(miss).length ? `short of ${describeShort(miss)}` : s.has('sugar_cane') ? 'can be built now' : 'needs a piece of sugar cane to plant'; } },
+];
+
+function growSteps(sim) {
+  const here = speciesHere(sim);
+  const grown = (s, sp) => ((s.player.grown || {})[sp] || 0) > 0;
+  const plotted = (s, sp) => [...ripePlots(s), ...growingPlots(s)].some((q) => q.sp === sp);
+  const steps = [];
+  if (here.some(needsFarmland)) steps.push({ ...itemStep('hoe', 'wooden_hoe', 1, (s) => s.has('wooden_hoe')), label: 'make a hoe (for farmland)' });
+  for (const sp of here) {
+    steps.push({ id: `seeds:${sp}`, label: `get ${sp} seeds`,
+      done: (s) => grown(s, sp) || plotted(s, sp) || s.has(`${sp}_seeds`),
+      needs: (s) => vis(s, sp) ? new Set([`forage:${sp}`]) : new Set([`scout:${sp}`, 'explore']),
+      complete: (s) => vis(s, sp) ? `forage:${sp}` : null,
+      detail: (s) => vis(s, sp) ? `a wild ${sp} is in sight` : (s.player.found || {})[sp] ? `seen before, not in sight now` : `not found yet — ${SPECIES[sp].doc}` });
+    steps.push({ id: `plant:${sp}`, label: `plant ${sp}`,
+      done: (s) => grown(s, sp) || plotted(s, sp),
+      needs: (s) => needsFarmland(sp) && !s.has('wooden_hoe') ? new Set(['craft:wooden_hoe', 'planks', 'log']) : new Set([`farm:${sp}`]),
+      complete: () => `farm:${sp}`,
+      detail: () => SPECIES[sp].doc });
+    steps.push({ id: `grow:${sp}`, label: `grow and harvest ${sp}`,
+      done: (s) => grown(s, sp),
+      needs: (s) => ripePlots(s).some((q) => q.sp === sp) ? new Set(['harvest']) : new Set(),
+      complete: (s) => ripePlots(s).some((q) => q.sp === sp) ? 'harvest' : null,
+      waiting: (s) => {
+        if (ripePlots(s).some((q) => q.sp === sp)) return null;
+        const g = growingPlots(s).filter((q) => q.sp === sp);
+        if (!g.length) return null;
+        const t = Math.min(...g.map((q) => eta(s, sp, q.c, q.y, BLOCKS_STAGE(s, q))));
+        return `${sp} is growing: ripe in about ${t} ticks`;
+      },
+      detail: () => 'reap it when ripe' });
+  }
+  return steps;
+}
+const BLOCKS_STAGE = (s, q) => { const id = s.get(q.c, q.y); return id === B[`${q.sp}_sprout`] ? 0 : id === B[`${q.sp}_growing`] ? 1 : 2; };
+
+function exploreSteps(sim) {
+  const pct = (s) => s.seenCount / s.N;
+  const steps = [0.5, 0.8, 0.95].map((f) => ({ id: `seen:${f}`, label: `see ${Math.round(f * 100)}% of the world`,
+    done: (s) => pct(s) >= f, needs: () => new Set(['explore']), complete: () => null,
+    detail: (s) => `seen ${Math.round(pct(s) * 100)}%` }));
+  for (const sp of speciesHere(sim)) steps.push({ id: `find:${sp}`, label: `find a wild ${sp}`,
+    done: (s) => !!(s.player.found || {})[sp], needs: () => new Set([`scout:${sp}`, 'explore']), complete: () => `scout:${sp}`,
+    detail: () => SPECIES[sp].doc });
+  return steps;
+}
+
+export const PROJECTS = {
+  tech: { aim: 'climb the tech ladder: tools, a house for the team, its shared chest, light, beds, iron, then diamonds, obsidian, a beacon, a portal to the nether for glowstone, and an enchanted pickaxe', steps: (sim) => TECH(sim) },
+  grow: { aim: 'find and cultivate every plant species this world has — some grow only on particular tile shapes', steps: growSteps },
+  explore: { aim: 'see the whole world and find where each wild plant grows', steps: exploreSteps },
+  automate: { aim: 'build what works while you are away: a pen of animals, an automatic smelter, sugar cane that harvests itself', steps: () => AUTOMATE },
+};
+export const PROJECT_NAMES = Object.keys(PROJECTS);
+
+// Where a project stands: done count, the next step that can be worked on
+// now, and what is only waiting (growing).
+export function projectState(sim, name) {
+  const steps = PROJECTS[name].steps(sim);
+  const open = steps.filter((st) => !st.done(sim));
+  const waiting = open.map((st) => st.waiting && st.waiting(sim)).filter(Boolean);
+  const actionable = open.filter((st) => !(st.waiting && st.waiting(sim)));
+  // needs, computed once per state (labelling every option reuses them)
+  const withNeeds = actionable.map((step) => ({ step, needs: step.needs(sim), fin: step.complete(sim) }));
+  return { name, steps, done: steps.length - open.length, total: steps.length, complete: !open.length, next: actionable[0] || null, later: actionable.slice(1), waiting, withNeeds };
+}
+
+// The fact each option carries about the current project.
+export function projectFact(sim, st, tokens) {
+  if (!st) return null;
+  if (st.complete) return `nothing: the ${st.name} project is complete`;
+  const hit = (w) => [...tokens].some((t) => w.needs.has(t));
+  const [first, ...rest] = st.withNeeds;
+  if (first && hit(first)) {
+    return first.fin && tokens.has(first.fin) ? `completes the next step of ${st.name}: ${first.step.label}` : `works toward the next step of ${st.name}: ${first.step.label} (${first.step.detail(sim)})`;
+  }
+  const later = rest.find(hit);
+  if (later) return `helps a later step of ${st.name}: ${later.step.label}`;
+  return `not part of the ${st.name} project`;
+}
+
+// The slow question: which project. Asked when there is none, when it is
+// complete, or twice a day.
+export const PROJECT_EVERY = 2400;
+export const projectDue = (sim) => !sim.project || projectState(sim, sim.project).complete || sim.tick - (sim._projectAt || 0) >= PROJECT_EVERY;
+export function projectQuestion(sim) {
+  const criteria = {};
+  for (const name of PROJECT_NAMES) {
+    const st = projectState(sim, name);
+    criteria[name] = {
+      aim: PROJECTS[name].aim,
+      progress: `${st.done} of ${st.total} steps done`,
+      ...(st.complete ? { status: 'COMPLETE — nothing left to do' } : { next_step: st.next ? `${st.next.label} (${st.next.detail(sim)})` : 'nothing to do now but wait' }),
+      ...(st.waiting.length ? { waiting_on: st.waiting.join('; ') } : {}),
+      ...(sim.project === name ? { current: 'this is the current project' } : {}),
+    };
+  }
+  return {
+    type: 'choice',
+    instructions: { task: 'Which long-range project should the player work on now? Every activity is labelled with what it does for the chosen project.' },
+    criteria,
+  };
+}
+export function setProject(sim, name) {
+  if (!PROJECTS[name]) return;
+  sim._projectAt = sim.tick;
+  if (sim.project === name) return;
+  sim.project = name;
+  sim.note('project', { name, who: sim.player.id });
+}
+// the scripted choice: the ladder first, then growing, then the rest of the map
+export function baselineProject(sim) {
+  return PROJECT_NAMES.find((n) => !projectState(sim, n).complete) || 'explore';
+}
+// a score across all three, for the scoreboard: steps done per project
+export function projectScore(sim) {
+  const out = {};
+  for (const n of PROJECT_NAMES) { const st = projectState(sim, n); out[n] = `${st.done}/${st.total}`; }
+  out.grown = Object.keys(sim.player.grown || {}).length;
+  out.species_here = speciesHere(sim).length;
+  return out;
+}

@@ -1,0 +1,1 @@
+Ground truth is real escape-time iteration, not a shortcut, and sampling is biased away from trivially-obvious points so a guess is actually a guess. Wired atproto scores too, so you can size your brot against someone else's.

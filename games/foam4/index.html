@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#05080d" />
+<meta name="description" content="Foam⁴ — a toy for seeing a four-dimensional Voronoi foam one 3D slice at a time. Four species (a random foam, the 4D Kelvin foam A₄*, the 24-cell foam D₄, the tesseract foam Z⁴), a slice you can sweep and tilt, and an exact count of the cells born, the cells that die and the faces that flip as you go." />
+<title>Foam⁴ — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/foam4.css" />
+</head>
+<body>
+<canvas id="gl" aria-label="A 3D slice of a 4D Voronoi foam, in a box"></canvas>
+<canvas id="over" aria-hidden="true"></canvas>
+<div id="panel">
+  <div id="title"><b>FOAM⁴</b> <span>a 4D Voronoi foam, one 3D slice at a time</span></div>
+  <div id="readout"><b id="r-cells">0</b> cells in the box, <b id="r-in">0</b> clear of its walls (mean <b id="r-mean">—</b> faces), <b id="r-pairs">0</b> faces between cells.<br>The <b>centre cell</b><span id="r-fcut"></span>: <b id="r-ff">0</b> faces (<span id="r-fk">—</span>), <b id="r-fv">0</b> corners; its seed is <b id="r-fh">0</b> off the slice.<br>As w moved: <b id="r-b">0</b> born · <b id="r-d">0</b> died · <b id="r-f">0</b> flips <span class="dim">(<span id="r-o">0</span> edge→face, <span id="r-c">0</span> face→edge)</span> <button type="button" id="zero" class="tiny">reset</button></div>
+  <div id="log"><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+  <h3>species</h3>
+  <div class="seg species">
+    <button type="button" data-species="random">random</button>
+    <button type="button" data-species="a4">A₄* Kelvin</button>
+    <button type="button" data-species="d4">D₄ 24-cell</button>
+    <button type="button" data-species="z4">Z⁴ tesseract</button>
+  </div>
+  <p id="about-species" class="about"></p>
+  <label id="jitter-row" class="row">jitter <input type="range" id="jitter" min="0" max="0.5" step="0.01" value="0.5" /><output id="jitterv">0.50</output></label>
+
+  <h3>the slice</h3>
+  <label class="row k-first">w <input type="range" id="w" min="-2" max="2" step="0.002" value="0" /><output id="wv">0.00</output></label>
+  <div class="seg k-first"><button type="button" id="play">▶ sweep w</button><label class="row small">speed <input type="range" id="speed" min="0.02" max="0.5" step="0.01" value="0.12" /><output id="speedv">0.12</output></label></div>
+  <p class="about">The slice is a 3D hyperplane through the foam; w moves it along its normal. Tilt turns the normal away from the w axis, through x, y and z.</p>
+  <label class="row">tilt x·w <input type="range" id="ta" min="-90" max="90" step="1" value="0" /><output id="tav">0°</output></label>
+  <label class="row">tilt y·w <input type="range" id="tb" min="-90" max="90" step="1" value="0" /><output id="tbv">0°</output></label>
+  <label class="row">tilt z·w <input type="range" id="tc" min="-90" max="90" step="1" value="0" /><output id="tcv">0°</output></label>
+  <div class="seg"><button type="button" id="square">square to w</button><button type="button" id="diag">along (1,1,1,1)</button></div>
+
+  <h3>the view</h3>
+  <div class="seg">
+    <button type="button" data-mode="0" class="on">glass</button>
+    <button type="button" data-mode="1">solid block</button>
+    <button type="button" data-mode="2">one cell</button>
+  </div>
+  <label class="row">box <input type="range" id="box" min="0.8" max="1.8" step="0.1" value="1.3" /><output id="boxv">1.3</output></label>
+  <label class="row check"><input type="checkbox" id="seeds" checked /> seeds (bigger = nearer the slice)</label>
+
+  <details>
+    <summary>what am I looking at?</summary>
+    <p>A <b>4D Voronoi foam</b>: seeds scattered through four dimensions, each owning the points nearer to it than to any other seed. Each owned region is a cell, a convex 4D polytope, and the cells fill 4D with no gaps.</p>
+    <p>You see one <b>3D slice</b>. Every slice is itself a foam of convex polyhedra, but not a Voronoi one: a seed a distance h off the slice competes as if handicapped by h². Seeds near the slice own big cells; far ones own small cells or none. Mathematicians call this a <b>power diagram</b>, and every power diagram is a slice of a Voronoi foam one dimension up.</p>
+    <p><b>Sweep w</b> and nothing moves sideways (each seed lands in the same place); only the handicaps change. Cells grow and shrink, and the foam changes shape in exactly three ways:</p>
+    <ul>
+      <li>A cell is <b>born</b> as a tiny tetrahedron where four cells met, when the slice first touches that 4D cell's corner.</li>
+      <li>A cell <b>dies</b>, shrinking to a point.</li>
+      <li>A face <b>flips</b>: it closes to an edge shared by three cells, or an edge opens into a face.</li>
+    </ul>
+    <p>Real 3D foams coarsen by the last two. A 4D foam is, in a sense, a 3D foam's whole history at once.</p>
+    <p>The counts are exact. Every slice is computed by clipping each cell with its bisector planes, and the events are counted between successive slices for cells clear of the box's walls.</p>
+  </details>
+  <p class="foot"><a href="../hinton/">hinton</a> · <a href="../anakata/">anakata</a> · <a href="../">the arcade</a></p>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

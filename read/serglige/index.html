@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Serglige Con Culainn — The Wasting Sickness of Cú Chulainn</title>
+  <meta name="description" content="Serglige Con Culainn, the Wasting Sickness of Cú Chulainn: an Old and Middle Irish Samhain tale from Lebor na hUidre. Two chained birds on a lake, two smiling women with horsewhips, a year in bed, an invitation to Mag Mell, Fand, Emer at the strand, and the drink of forgetting. Irish text (Windisch 1880) with a facing original translation, cast, character web, story graph, desire, motif index, mythograph and storybook.">
+  <meta property="og:title" content="Serglige Con Culainn — The Wasting Sickness of Cú Chulainn">
+  <meta property="og:description" content="Two chained birds at the Samhain assembly, two smiling women with whips, and a year in bed. The otherworld as desire, in Irish with a facing translation.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://read.mino.mobi/serglige/">
+  <meta property="og:site_name" content="Read">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">🌊</span>Serglige Con Culainn</span>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="book">Storybook</button>
+        <button class="tab" data-view="characters">Characters</button>
+        <button class="tab" data-view="web">Character web</button>
+        <button class="tab" data-view="propp">Story graph</button>
+        <button class="tab" data-view="desire">Desire</button>
+        <button class="tab" data-view="motifs">Motifs</button>
+        <button class="tab" data-view="myth">Mythograph</button>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- READ (source + parallel translation) -->
+    <section class="view active" id="view-read">
+      <div class="hero">
+        <h1>Serglige Con Culainn</h1>
+        <p><em>The Wasting Sickness of Cú Chulainn</em>: two Samhains a year apart. Two birds on a chain of red gold, two smiling women with horsewhips, a year without a word, a land across the water where no lie is told, a wife with sharpened knives, a cloak shaken between two lovers, and a drink of forgetting. The fifth tale in <a href="/samhain/">Samhain</a>, the series.</p>
+      </div>
+      <div class="tale-meta" id="tale-meta"></div>
+      <div class="tale-progress" id="tale-progress"></div>
+      <div class="tale-controls" id="tale-controls"></div>
+      <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
+    <!-- STORYBOOK (faithful middle-grade retelling) -->
+    <section class="view" id="view-book">
+      <div class="hero"><h1>Storybook</h1><p>A faithful retelling for readers about ten and up, page by page. A love story, and a ghost story about forgetting one.</p></div>
+      <div class="book-frame">
+        <div class="book-page" id="book-page"></div>
+        <div class="book-nav" id="book-nav"></div>
+      </div>
+    </section>
+
+    <!-- CHARACTERS -->
+    <section class="view" id="view-characters">
+      <div class="hero"><h1>The cast</h1><p>Who does what — grouped by role, linked to the movements where they appear, and to one another.</p></div>
+      <p class="lead" id="char-intro"></p>
+      <div class="char-legend" id="char-legend"></div>
+      <div id="char-groups"></div>
+    </section>
+
+    <!-- CHARACTER WEB -->
+    <section class="view" id="view-web">
+      <div class="hero"><h1>Character web</h1><p>The cast as a graph — every relationship in the tale, force-laid. Hover a node to light up its ties; click to open its card.</p></div>
+      <div class="tree-legend" id="web-legend"></div>
+      <div class="zoom-host" id="web-host"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore. Node size marks principals; colour marks role. Built straight from the relationship edges in the character cards.</p>
+    </section>
+
+    <!-- STORY GRAPH (Propp) -->
+    <section class="view" id="view-propp">
+      <div class="hero"><h1>Story graph</h1><p>The tale laid against Propp's 31 narrative functions — each beat linking to the movement that realises it.</p></div>
+      <p class="lead" id="propp-intro"></p>
+      <div class="tree-legend" id="propp-legend"></div>
+      <div class="zoom-host" id="propp-spine"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore; click a node to jump to its detail below.</p>
+      <div id="propp-cards"></div>
+      <div class="propp-absent" id="propp-absent"></div>
+    </section>
+
+    <!-- MOTIF INDEX -->
+        <section class="view" id="view-desire">
+      <div class="hero"><h1>Desire</h1><p>The tale laid against Greimas's actantial model — the functional structure of <em>wanting</em> beneath the plot. Not the social web of who-knows-whom, but the single engine of desire: who wants what, who sends it, who aids and who blocks.</p></div>
+      <p class="lead" id="desire-intro"></p>
+      <div id="desire-host"></div>
+      <p class="desire-prose" id="desire-prose"></p>
+    </section>
+
+    <section class="view" id="view-motifs">
+      <div class="hero"><h1>Motif index</h1><p>The tale by call-number: the Thompson Motif-Index, Christiansen's Migratory Legends, and the native Irish tale-genres.</p></div>
+      <p class="lead" id="motif-intro"></p>
+      <div class="tt-grid" id="motif-taletypes"></div>
+      <div id="motif-groups"></div>
+    </section>
+
+    <!-- THE MYTHOGRAPH -->
+    <section class="view" id="view-myth">
+      <div class="hero"><h1>The mythograph</h1><p>One graph, all the layers. The ten movements run as a spine; characters, motifs, story-functions, type-scenes and the Object of desire hang from the moments they touch — and whatever cross-cuts the tale is pulled toward the centre.</p></div>
+      <div class="myth-controls" id="myth-filters"></div>
+      <div class="tree-legend" id="myth-legend"></div>
+      <div class="zoom-host" id="myth-host"></div>
+      <p class="tree-hint">Movements I–X run as the sea-green spine. Hover a node to light its threads; click any node for detail. Toggle the layers above to isolate one kind of connection.</p>
+      <div class="myth-detail" id="myth-detail"></div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · <a href="/samhain/">samhain</a> · Serglige Con Culainn</span><br>
+    A deep read of the Irish Samhain tale. The source is Ernst Windisch's edition of the Lebor na hUidre text (RIA 23 E 25, before 1106), <em>Irische Texte</em> I (1880), pp. 205–227 — public domain, transcribed from the Internet Archive scan, with the raw OCR at <a href="source/windisch-1880-it1-197-227-ocr.txt">source/</a>. The prose is complete; the longer poems are abridged, and each abridgement is marked. The English is an original translation, compared against Leahy (1905). This is the fifth tale of the <a href="/samhain/">Samhain</a> series; the five are compared on the series hub.
+  </footer>
+
+  <script src="tale.js"></script>
+  <script src="analysis.js"></script>
+  <script src="characters.js"></script>
+  <script src="motifs.js"></script>
+  <script src="storybook.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

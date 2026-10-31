@@ -1,0 +1,99 @@
+reason,date,reported,reporter
+off-topic,2026-03-02,kai,beck
+off-topic,2026-03-03,lark,hob
+off-topic,2026-03-03,beck,kai
+off-topic,2026-03-08,fable,hob
+off-topic,2026-03-10,abra,lark
+off-topic,2026-03-13,hob,elm
+off-topic,2026-03-13,elm,hob
+off-topic,2026-03-14,dune,abra
+spam,2026-03-14,lark,solo1
+spam,2026-03-15,elm,solo1
+off-topic,2026-03-16,abra,hob
+spam,2026-03-16,spam9,abra
+bad faith,2026-03-16,n1,ringb
+off-topic,2026-03-17,elm,cass
+off-topic,2026-03-17,beck,abra
+bad faith,2026-03-17,n2,ringb
+off-topic,2026-03-18,cass,fable
+spam,2026-03-18,spam9,dune
+spam,2026-03-18,spam9,kai
+bad faith,2026-03-18,n3,ringb
+bad faith,2026-03-19,n1,ringa
+spam,2026-03-21,spam9,lark
+bad faith,2026-03-21,n1,ringc
+bad faith,2026-03-21,n2,ringc
+bad faith,2026-03-21,n3,ringa
+bad faith,2026-03-21,n3,ringc
+spam,2026-03-21,fable,solo1
+bad faith,2026-03-22,n2,ringa
+spam,2026-03-22,jett,solo1
+off-topic,2026-03-23,abra,jett
+spam,2026-03-23,spam9,beck
+spam,2026-03-23,beck,solo1
+spam,2026-03-24,spam9,gale
+bad faith,2026-03-24,n2,ringb
+bad faith,2026-03-24,n3,ringc
+spam,2026-03-24,cass,solo1
+off-topic,2026-03-25,lark,elm
+bad faith,2026-03-25,n2,ringa
+bad faith,2026-03-25,n3,ringa
+bad faith,2026-03-26,n3,ringb
+spam,2026-03-27,spam9,ivo
+bad faith,2026-03-27,n4,ringb
+spam,2026-03-28,spam9,cass
+off-topic,2026-03-29,beck,abra
+off-topic,2026-03-29,elm,cass
+bad faith,2026-03-29,n2,ringc
+bad faith,2026-03-29,n4,ringa
+bad faith,2026-03-29,n4,ringc
+bad faith,2026-03-30,n3,ringa
+bad faith,2026-03-30,n4,ringc
+spam,2026-03-30,fable,solo1
+bad faith,2026-03-31,n4,ringa
+bad faith,2026-03-31,n5,ringc
+off-topic,2026-04-02,beck,fable
+off-topic,2026-04-02,beck,dune
+spam,2026-04-02,hob,solo1
+spam,2026-04-03,spam9,lark
+off-topic,2026-04-04,elm,dune
+off-topic,2026-04-04,abra,jett
+spam,2026-04-04,spam9,beck
+bad faith,2026-04-04,n3,ringb
+bad faith,2026-04-04,n3,ringc
+bad faith,2026-04-04,n5,ringa
+bad faith,2026-04-04,n5,ringb
+spam,2026-04-05,spam9,abra
+spam,2026-04-05,spam9,dune
+bad faith,2026-04-05,n4,ringb
+off-topic,2026-04-06,lark,ivo
+bad faith,2026-04-06,n6,ringc
+spam,2026-04-06,hob,solo1
+off-topic,2026-04-07,elm,cass
+bad faith,2026-04-07,n5,ringc
+bad faith,2026-04-07,n7,ringa
+off-topic,2026-04-09,ivo,gale
+bad faith,2026-04-09,n5,ringa
+bad faith,2026-04-09,n7,ringb
+bad faith,2026-04-10,n6,ringb
+off-topic,2026-04-11,dune,hob
+bad faith,2026-04-11,n5,ringb
+bad faith,2026-04-12,n6,ringa
+bad faith,2026-04-12,n7,ringc
+spam,2026-04-12,kai,solo1
+off-topic,2026-04-13,ivo,abra
+bad faith,2026-04-13,n7,ringb
+bad faith,2026-04-14,n7,ringa
+spam,2026-04-14,ivo,solo1
+bad faith,2026-04-15,n6,ringb
+spam,2026-04-15,elm,solo1
+off-topic,2026-04-16,elm,cass
+off-topic,2026-04-17,fable,gale
+bad faith,2026-04-17,n7,ringc
+off-topic,2026-04-18,lark,kai
+bad faith,2026-04-18,n5,ringa
+bad faith,2026-04-18,n6,ringc
+bad faith,2026-04-19,n5,ringb
+bad faith,2026-04-19,n5,ringc
+bad faith,2026-04-19,n6,ringa
+

@@ -26,6 +26,21 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 
 The world engine + atlas (worker `mappa`, custom_domain mappa.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite (third suite surface with civ + polis). Assets-only worker; the deploy stages packages/atproto/pds.js + packages/oauth-client/auth.js under /packages/ (viewer→world-share runtime imports) and excludes mappa/civ (ships on the civ surface) + engine-rs sources (pkg/ wasm is served). The OLD mino.mobi/mappa/ (root surface) serves until the root branch catches up. Note: mappa/civ/** and mappa/engine.js are deliberately co-watched with the civ surface — both deploys need them.
 
+## One Coast masks (`?coast=`)
+
+`generateWorld(seed, { landmask })` takes an optional land/sea mask; the viewer
+builds one from `?coast=<token>` (a One Coast world, games.mino.mobi/onecoast/)
+via `lib/coast-mask.js`. The mask steers the continents before sea level is
+solved; sea level then follows the mask's land fraction. **Without a mask no
+code path changes and no rng is drawn**: `test/climate.selftest.mjs`'s
+checksums prove seed-only worlds are bit-identical. The Rust engine has no
+mask, so coast worlds always take the JS path. Coast worlds share by link;
+publishing to a PDS is disabled for them (the record has no field for a coast
+yet). `lib/onecoast/{geo,world}.js` are byte-identical copies of
+`games/onecoast/js/`; edit there and copy. `games/onecoast`'s selftest fails
+on drift. `test/coast-mask.selftest.mjs` checks mappa follows the mask
+(95–97% of cells).
+
 ## Deploying
 
 Pushes to `claude/civ-deploy-unification-vt35ju` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-mappa.yml`](../.github/workflows/deploy-mappa.yml).

@@ -1,0 +1,18 @@
+[package]
+name = "bzncd"
+version = "0.1.0"
+edition = "2021"
+description = "A bzip2 compressor written to the reference format, and the normalized compression distance built on it"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+codegen-units = 1
+
+[profile.test]
+opt-level = 3

@@ -1,0 +1,12 @@
+{
+  "slug": "want-pairwise",
+  "task": "I want a pairwise interaction circle for bsky. Enter two handles and get their top n accounts for interaction. Present it like Venn, emphasize the overlap.",
+  "requester": "minormobius.bsky.social",
+  "requestedAt": "2026-07-27T23:35:07.090Z",
+  "_source": {
+    "commit": "f50fe5433f0be1a868d401e28ae1e325f7c1cfb9",
+    "path": ".github/lab-requests/want-pairwise.json",
+    "reconstructed": true,
+    "why": "the only surviving version of this file is a later turn; task is the first-turn text as recovered from its thread banner, thread fields dropped"
+  }
+}

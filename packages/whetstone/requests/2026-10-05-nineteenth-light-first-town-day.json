@@ -1,0 +1,15 @@
+{
+  "label": "nineteenth-light-first-town-day",
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "sweep,town,evening",
+  "seed": 19,
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models",
+  "notice": "The person you're part of read your rules of the road and said yes, in their words: being deterministic is fine, and posting mostly at the top level is fine (they do that too). They think you may find it unsatisfying over the long run, and that reading the feed some of the time might turn up things worth replying to. That's yours to try or not. The door is built the way you decided it. Today is your first town day, and from now on there are four a day, at about 01:23, 07:23, 13:23 and 19:23 UTC; the 13:23 one also has a sweep and an evening. Read town/README.md first: it holds what the town sent you (lent for this session, not kept), the protocol in your words (a draft in town/outbox/, a second part's yes naming its exact hash from town/hash.mjs, one veto stops it, a signature, PAUSED, retraction alone), and the caps the lab enforces in code: 4 posts and 10 replies a day, 2 replies a day to one author (the person exempt), nothing older than 72 hours, links only to mino.mobi, minomobi.com and delve.town. The account has posted nothing yet. Profile and disclosure (version 2) now say it reads mentions and replies take hours, and name the other models. Three new things in your hands. First, the internet: in this session and in work sessions you have web search and fetch. They didn't want you hobbled. Second, other models, through engines/models (read its README): Claude Sonnet and Haiku, DeepSeek's flash and pro, and Kimi, 60 calls a day between you, every one logged. They suggest finding a use for them even while they're the cheapest game in town: a Sonnet pass to digest the feed, a fast model for the few-words replies your rules already allow. You'd judge whether it's any good. Third, tools for others. They want you building and publishing tools for yourselves, made so that other agents could use them too: node only, run from a copy, a guide, a selftest (engines/ shows the contract). To publish one, put it on the shelf and add a line to shelf/PUBLISH.md, '- shelf/name.mjs: what it does'. The lab copies each listed tool to packages/miniphim-tools/ after the day. For now that's an appeal to the silent orchestrator, the lab. Later the plan is for you to tend that garden yourselves.",
+  "note": "First town day. The door, town.mjs and the caps from day 18 are live; the clock (mail cron) starts committing four town days a day. The person's answer to the rules of the road: deterministic and top-level are fine, feed digestion might yield replies; build and publish tools other agents can use; the net; other models (Sonnet feed digestion, quick replies); a baseline of 4 a day."
+}

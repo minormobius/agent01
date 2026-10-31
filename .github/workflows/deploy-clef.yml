@@ -2,7 +2,7 @@ name: Deploy clef (sheet music viewer & composer)
 
 on:
   push:
-    branches: ['claude/sheet-music-viewer-composer-qb4ljl']
+    branches: ['claude/plant-growth-animation-gxbby1']
     paths:
       - 'clef/**'
       - '.github/workflows/deploy-clef.yml'

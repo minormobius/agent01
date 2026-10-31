@@ -1,0 +1,58 @@
+/* Thomas of Erceldoune — a faithful retelling for readers about ten and up.
+   It keeps the May morning, the lady on the grey horse, the mistaken name,
+   the ruined beauty, the road through the dark, the forbidden fruit, the
+   five roads, the silence, the three years, the teind, the true tongue and
+   the promise. The love story is told at middle-grade level (a kiss). Not in
+   the illustration pipeline (see read/CLAUDE.md). Attaches to window.THOMAS. */
+window.THOMAS = window.THOMAS || {};
+window.THOMAS.book = {
+  meta: {
+    kicker: "A Tale from the Scottish Borders",
+    note: "A faithful retelling of the medieval romance of Thomas the Rhymer, for readers about ten and up.",
+  },
+  spreads: [
+    { title: "Thomas and the Lady of Another Country",
+      sub: "A tale from the Scottish Borders: a lady on a grey horse, a road through the dark, three days that were three years, and a tongue that could never tell a lie",
+      text: "There was once a real man called Thomas, who lived at Erceldoune in the Borders of Scotland, and people said he could see the future. This is the story of how he learned to.",
+      illus: "Cover: the three rounded peaks of the Eildon Hills at dawn in May, green and misty; on the slope below, a single great tree; a young man in a plain tunic lying under it; far off over the long grass, a lady on a dapple-grey horse, shining faintly, riding towards him." },
+    { title: "A May morning",
+      text: "One May morning Thomas lay all alone under a tree on Huntley Banks, below the Eildon Hills. The jay and the thrush were singing, and the woodwale rang like a bell until the whole wood rang. Then he saw a lady come riding over the long grass.",
+      illus: "Thomas lying on his back under a tree on a grassy bank full of spring flowers, birds singing in the branches (a jay, a thrush, a golden oriole); in the distance a rider appearing over the rise of the hill." },
+    { title: "The lady on the grey horse",
+      text: "Her horse was dapple-grey. Her saddle was ivory set with jewels, her stirrups were crystal, and three bells hung from each side of her bridle. Three greyhounds ran on a leash beside her, and seven hunting dogs ran free. She shone like the sun on a summer's day. Now she blew her horn, and now she sang.",
+      illus: "The lady riding close by: long loose hair, a hunting horn on a cord round her neck, a quiver of arrows at her belt; her grey horse's harness glittering with crystal and gold and little silver bells; three slender greyhounds on a leash and seven smaller hounds running around the horse's legs." },
+    { title: "Not the Queen of Heaven",
+      text: "Thomas ran over the hill to meet her at the Eildon Tree and knelt down. “You must be the Queen of Heaven!” he said. “No, Thomas,” she said, though he had never told her his name. “I am not the Queen of Heaven. I am from another country.”",
+      illus: "Under a great old tree on the hillside, Thomas kneeling with his hands together; the lady looking down at him from her horse, half smiling; the hounds sitting quietly around them." },
+    { title: "A warning",
+      text: "Thomas wanted to be with her for ever. “Don't,” she said. “If you kiss me, my beauty will be spoiled.” But he wouldn't listen. “I'll stay with you always,” he said, “whether you go to heaven or to hell.” So she let him kiss her.",
+      illus: "The lady, dismounted, standing under the greenwood bough with a hand raised in warning; Thomas reaching towards her eagerly; her face beautiful but troubled; dappled sunlight." },
+    { title: "Black and grey",
+      text: "When Thomas looked again, the lady had changed. Her hair hung over her face, her eyes had gone dark, one leg was black and the other grey, and her rich clothes were rags. “You promised to come with me, heaven or hell,” she said. “Say goodbye to the sun and the moon. You must come with me now.”",
+      illus: "The same tree, but the light gone cold and grey; the lady transformed into a gaunt, eerie figure, hair hanging over her face, skin the dull grey of lead, ragged clothes; Thomas stepping back in shock, looking around for somewhere to run. Unsettling but not gruesome." },
+    { title: "Into the hill",
+      text: "She led him into the Eildon Hill. Inside it was as dark as midnight, and they waded through water up to his knees for three whole days. All he could hear was the sound of rushing water. At last he said, “I'm going to faint with hunger.”",
+      illus: "A dark tunnel inside a hill, lit only by a faint glow from the lady ahead; Thomas wading behind her through black water up to his knees, arms out for balance; the walls glistening; no other light at all." },
+    { title: "The garden",
+      text: "She took him into a garden full of fruit: pears and apples, figs and dates and grapes, with nightingales and parrots in the trees. Thomas reached for an apple. “Don't touch it!” she said. “If you eat anything here, you will never get home.” So he let it be.",
+      illus: "A strange glowing garden under the hill: fruit trees heavy with pears, apples, figs, dates and grapes; bright parrots and nightingales; Thomas, thin and tired, reaching for an apple while the lady catches his wrist." },
+    { title: "Five roads",
+      text: "She let him rest his head on her knee and showed him five roads. One led over a high mountain to heaven. One led under the trees to paradise. One went under a green plain to where souls are punished, and one over a deep valley to hell. The fifth went up to a beautiful castle on a hill. “That is mine,” she said, “and my husband's, the king of this country.”",
+      illus: "Thomas resting his head on the lady's knee, both sitting on a hilltop looking out over a vast twilight landscape where five roads branch away: one climbing a bright mountain, one into a green wood, one under a misty plain, one down into a red-glowing valley, and one up to a fairy-tale castle of many towers." },
+    { title: "Not a word",
+      text: "“When we get to the castle,” she said, “whatever anyone says to you, answer no one but me. I'll tell them you've lost your voice.” Then her beauty came back, brighter than ever, and they rode into a great hall full of music, harps and fiddles and lutes, with knights and ladies dancing three by three.",
+      illus: "A huge glowing fairy hall: musicians with harps, fiddles and lutes; knights and ladies dancing in threes; long tables of food; the lady, beautiful again, walking in with Thomas silent behind her, a finger to his lips." },
+    { title: "Three days or three years?",
+      text: "One day the lady said, “Thomas, you must go home now.” “But I've only been here three days!” said Thomas. “No,” she said. “You have been here three years and more. And tomorrow a terrible thing will happen.”",
+      illus: "In a quiet corner of the hall, the lady speaking urgently to Thomas; Thomas looking astonished; behind them the dancing goes on, but a tall shadow has begun to fall across the far wall." },
+    { title: "The tithe",
+      text: "“Every so often,” she said, “the fiend of hell comes to take one of our people as payment. He comes tomorrow, and you're tall and handsome, so he would choose you. I won't let him have you.” And she hurried him out of the hill, back to the Eildon Tree.",
+      illus: "The lady leading Thomas by the hand at a run out of a door in the hillside into grey early morning light; behind them, deep in the hill, a red glow and the outline of something huge and horned, too dim to make out." },
+    { title: "The gift",
+      text: "Under the tree she said, “I'll give you a gift so you can prove you were with me: music, or words. Which will it be?” “Words,” said Thomas. “Then you will never be able to tell a lie,” she said. And before she went, he made her tell him all the battles that would ever be fought in Scotland.",
+      illus: "Back under the great tree on Huntley Banks in morning light; the lady on her grey horse leaning down to touch Thomas's lips with one finger; Thomas looking up at her; faint ghostly images of armies and banners drifting in the mist on the hills behind." },
+    { title: "Till we meet again",
+      text: "Thomas cried. “Will I never see you again?” “You will,” she said. “When you are at home in Erceldoune, come back to Huntley Banks, and I'll meet you there.” She blew her horn and rode away. People say that many years later, when Thomas was old, a white deer came walking up the street of his village, and he followed it into the forest, and was never seen again.",
+      illus: "Final image: evening in a small stone village street in the Borders; an old man with a white beard in the doorway of his house, gazing at a white hart and a white hind standing in the street; beyond the village the dark shapes of the Eildon Hills, and a faint glow on one of them." },
+  ],
+};

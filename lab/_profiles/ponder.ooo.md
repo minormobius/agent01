@@ -126,6 +126,27 @@ math/rule is wrong, since their rule specs have consistently been the
 carefully-reasoned part and the raw interaction plumbing the less-scrutinized
 one.
 
+Thirty-third request, "serre-twisting": another bare-math ask with no reference
+link and no thread context — "serre's twisting sheaf visualized." Consistent
+with the standing fourth/fifth/fifteenth/etc. pattern of taking the literal
+math seriously rather than reaching for a generic/decorative picture: built the
+actual transition-function cocycle `g₀₁(t)=tⁿ` as a physically twisted ribbon
+(n full turns around a loop = the real locus of P¹(C)), so the visible winding
+count literally is the sheaf's degree, not a themed stand-in for it. New
+disambiguation move worth reusing: when a request names an *object* (not a
+construction) that doesn't fully embed in 3D (O(n)'s fibre is complex, the
+honest total space is 4 real dimensions), picked the one real sub-structure
+(a single trivializing frame vector's real span) that keeps the actual
+topological invariant honest and said so explicitly on-page under its own
+"honest limit" heading, rather than either refusing to visualize it or faking
+a picture that implies more fidelity than it has — same shortcut-flagging
+habit as cyclotomic-Littlewood/quartic-solver, applied to a dimension-reduction
+choice instead of an algebraic one. Also paired the n-slider with a numeric
+input per the twenty-fourth request's standing default, and added a Riemann–
+Roch/global-sections panel as the "second form of visualization" alongside the
+3D view, matching the recurring multi-view pattern even though not asked for
+this time.
+
 Second follow-up on the twenty-eighth request (2026-09-06, same thread), on
 domino-upright: after the interaction fixes landed, came back with "the
 behavior is correct now but the rendering is fucky" — a *physical-realism*
@@ -456,6 +477,112 @@ piece-count game) as the frame, budget for more-than-one-unit-per-side in the
 first pass, not just the correct core mechanic in miniature. A rigorous
 one-piece demo of a group action reads to this requester as an unfinished
 game, not a minimal one.
+
+Thirtieth request (2026-09-27), "ponderbrot" (that-shows): another bare-formula
+math ask carried mostly through thread context rather than a direct spec —
+"off the top of your head which of these points would you say meet that
+criterion" plus "i bet my own ponderbrot would be waaaaay worse than jev's"
+plus a passing "maybe atproto-based somehow?" about storage, with the actual
+mathematical definition (z→z²+c from z=0) supplied by someone else in the
+thread, not the requester. Consistent with the standing pattern of taking a
+bare formula completely literally: built real escape-time ground truth (not
+a lookup table or a coarse precomputed image), and read "a bunch of
+coordinates... no visual cues" as an actual constraint on the UI — the rating
+phase shows only the two raw floating-point numbers, no plot, no axes, until
+after a guess is locked in. New data point: when the ask itself implies a
+uniform-random sample would be uninteresting (most random points in the
+viewport trivially escape in one step), deviated from literal uniform
+sampling toward one biased at the boundary, and said so explicitly on the
+page — same "flag the shortcut" habit, applied to a sampling choice rather
+than a solver choice this time. Also treated a throwaway aside ("maybe
+atproto-based somehow?") as a real feature request worth answering: wired
+labPds scoring plus a named-handle lookup, so the "worse than jev's" joke is
+now literally checkable against any handle typed in — reading a passing
+wondering-aloud as an implicit ask is new; watch whether future requests
+confirm this pays off or whether it over-delivers on a rhetorical aside.
+
+Thirty-first request (2026-09-27), "conways-game": another bare-formula ask,
+no reference link, no thread context needed — "conways game of life in 5
+dimensions." Consistent with the standing fourth/fifth/fifteenth/etc. pattern
+of taking a literal bound seriously: built a genuine 5D torus with the real
+5D Moore neighbourhood (3^5-1 = 242 neighbours per cell), not a 3D demo with
+a "5D" label or a neighbourhood count quietly capped for compute. New
+mechanical problem this request posed that earlier ones hadn't: the classic
+rule (B3/S23) is stated as fixed neighbour *counts*, which have no meaning
+once the neighbourhood size itself changes with dimension — resolved by
+restating the rule as a density band (fraction of neighbours alive) instead,
+flagged explicitly on-page as an extension with no proven-special defaults
+the way B3/S23 is proven in 2D. Same "name it, don't take the trademarked
+name" move as tube-tetris: titled it "Pentacell," kept "Game of Life" out of
+title/headings/share-card, used it freely in body copy. Visualization choice
+worth remembering: nested grid-of-grids (2 axes as the cell grid, 2 more as
+tiles of that grid, the 5th as a slider that only changes what's drawn, not
+what's simulated) rather than reaching for three.js — for a "show N
+dimensions on a 2D screen" request, tiling is more literal and legible than
+a fake 3D projection, and is worth trying again before defaulting to 3D for
+future high-dimension asks.
+
+Follow-up on the thirty-first request (2026-09-27, same thread), on
+conways-game/Pentacell: a narrower ask than the standing BRIEF plan —
+"identify some preset rule parametrizations that produce interesting
+behaviors" — not the sparkline/save-load/perf items the prior turn had
+queued. Per the turn rules a specific request beats an inherited plan, so
+this turn skipped straight to it rather than working the queue. Consistent
+with the standing "take the literal math seriously" pattern, but the new
+move here: derived the presets from an actual mean-field argument (242
+neighbours concentrate density tightly enough that the whole grid's density
+evolves almost as a 1-D scalar map with only four reachable next-states from
+any given density) rather than picking band numbers by feel — this let one
+preset be an exact, hand-verified predicted 2-cycle instead of a guess. Also
+surfaced, unprompted, that the site's own shipped default likely dies on
+first Randomize (its survive floor sits just above the default fill %) —
+same "flag the shortcut/risk explicitly, don't silently patch or hide it"
+habit as cyclotomic-Littlewood, applied to a numeric-tuning risk found via
+derivation rather than by running the page. Worth reusing: when a request
+about a high-neighbour-count CA/field asks for parameter presets and there's
+no way to test empirically, check whether a mean-field/concentration argument
+can turn "guess some interesting numbers" into "derive the numbers and prove
+what they do on paper" — this requester's whole profile rewards that over a
+plausible-looking guess.
+
+Thirty-second request (2026-09-27), "place-line" (Loose Ends): a bare
+geometric-construction rule, no reference link — unit segment, a second
+segment at a random angle touching an endpoint of the first "somewhere
+along its length," then every later segment must touch the untouched
+endpoints of two other segments with no other intersections. New
+disambiguation pattern worth reusing: "a random angle" was read as *the
+tool's* randomness, not the visitor's, on the reasoning that a person
+placing something is making a choice, a system is what gets asked to be
+"random" — so segments 1–2 auto-generate and the visitor's first real
+choice starts at segment 3, where the rule itself removes the freedom to
+be random anyway (direction is forced by whichever two endpoints get
+welded). Consistent with the standing pattern of taking a spec's exact
+wording seriously (here, "touch...the endpoints" was read as meaning the
+target is always an existing endpoint specifically, never an arbitrary
+interior point) and of surfacing the resolved ambiguity on the page itself,
+not just in BRIEF. Built pan/drag + pinch-zoom + wheel-zoom on the SVG
+canvas unprompted, matching the twenty-fourth request's standing default of
+pan/zoom on renderer-style tools once a person is expected to actually use
+one for real. Flagged as a real remaining gap rather than fixed silently:
+the stuck-detector only proves a hard dead end (fewer than two segments
+have any free endpoint) and does not search whether every remaining
+pair/extension is blocked — worth watching for a follow-up pushing on that
+specific rigor, same shape as the sudoku-uniqueness and quartic-solver
+flags already in this file.
+
+Follow-up on the thirty-second request (2026-09-27, same thread), on
+loose-ends/Loose Ends: after shipping a manual tap-two-endpoints builder,
+came back with "kinda wanted it to just run automatically." Read as: for a
+step-by-step manual construction tool, expect a request for a hands-off
+"run it" mode even when the original spec never asked for automation —
+worth offering an automatic/autoplay toggle by default alongside the manual
+control on future step-by-step generator/construction builds, rather than
+waiting for this exact follow-up again. Implemented as a genuinely
+randomised search (not a scripted replay) that reuses the exact same
+validity check the manual path uses, and said explicitly, on-page and in
+NOTE.txt, that "auto-run gave up" is a weaker claim than "no move exists" —
+consistent with the standing habit of flagging when a shortcut (a search,
+not a proof) stands in for something more rigorous.
 
 Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
 phrased with pre-emptive, joking defiance ("chess but its modular forms...

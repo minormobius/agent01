@@ -1,0 +1,25 @@
+{
+  "summon": {
+    "enabled": true,
+    "from": "modalmobius.delve.town",
+    "window_min": 30,
+    "request": {
+      "kinds": "town"
+    },
+    "mutuals": true,
+    "mutual_gap_min": 30,
+    "mutual_per_day": 10,
+    "per_tick": 10
+  },
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "label": "town-2026-10-20-05",
+  "seed": 366121
+}

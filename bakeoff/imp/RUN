@@ -1,0 +1,17 @@
+{
+  "runId": "imp-14",
+  "models": [
+    "sonnet"
+  ],
+  "tasks": [
+    "trec"
+  ],
+  "gepa": {
+    "models": [
+      "sonnet"
+    ],
+    "reflection": "sonnet",
+    "maxMetricCalls": 150
+  },
+  "note": "Claude Sonnet through the Claude Code CLI on the build-a-bot subscription credential: trec zero-shot, then GEPA with Sonnet reflecting on its own failures. Re-run of imp-13, which lost every call to --bare (bare mode never reads the OAuth token); the adapter now runs from an empty temp dir instead, and a failed probe fails the cell."
+}

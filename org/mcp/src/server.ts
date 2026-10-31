@@ -30,6 +30,7 @@ import { docStateTools } from "./tools/docstate.js";
 import { workflowTools } from "./tools/workflows.js";
 import { activityTools } from "./tools/activity.js";
 import { templateTools } from "./tools/templates.js";
+import { pmTools } from "./tools/pm.js";
 
 const server = new McpServer({
   name: "vault-mcp",
@@ -550,10 +551,10 @@ server.tool(
     org: z.string(),
     name: z.string(),
     triggerEvent: z.string().describe("Event name (e.g. deal-stage-change, task-created)"),
-    conditions: z.record(z.string()).optional().describe("Trigger conditions as key-value pairs"),
+    conditions: z.record(z.string(), z.string()).optional().describe("Trigger conditions as key-value pairs"),
     actions: z.array(z.object({
       type: z.string().describe("Action type (e.g. create-task, send-notification)"),
-      params: z.record(z.string()).describe("Action parameters"),
+      params: z.record(z.string(), z.string()).describe("Action parameters"),
     })).describe("Actions to execute when triggered"),
   },
   safe(workflowTools["create-rule"].handler)
@@ -567,10 +568,10 @@ server.tool(
     name: z.string().optional(),
     enabled: z.boolean().optional(),
     triggerEvent: z.string().optional(),
-    conditions: z.record(z.string()).optional(),
+    conditions: z.record(z.string(), z.string()).optional(),
     actions: z.array(z.object({
       type: z.string(),
-      params: z.record(z.string()),
+      params: z.record(z.string(), z.string()),
     })).optional(),
   },
   safe(workflowTools["update-rule"].handler)
@@ -589,7 +590,7 @@ server.tool(
   {
     org: z.string(),
     event: z.string().describe("Event name to evaluate"),
-    context: z.record(z.string()).optional().describe("Event context for condition matching"),
+    context: z.record(z.string(), z.string()).optional().describe("Event context for condition matching"),
   },
   safe(workflowTools["evaluate-rules"].handler)
 );
@@ -665,9 +666,37 @@ server.tool(
   "Apply a template with variable substitutions. Returns populated content for use with create tools.",
   {
     rkey: z.string(),
-    variables: z.record(z.string()).optional().describe("Variables to substitute in {{var}} placeholders"),
+    variables: z.record(z.string(), z.string()).optional().describe("Variables to substitute in {{var}} placeholders"),
   },
   safe(templateTools["apply-template"].handler)
+);
+
+// --- PM tools (the sealed project from org.mino.mobi's PM app; engine in packages/pm) ---
+
+server.tool(
+  "pm-status",
+  "PM project health: earned value (EVM), earned schedule (ES), critical path and late tasks, computed from the project pushed by the PM app's Sync pane. Read-only.",
+  { asOf: z.string().optional().describe("YYYY-MM-DD; defaults to today") },
+  safe(pmTools["pm-status"].handler)
+);
+
+server.tool(
+  "pm-tasks",
+  "The PM project's task tree (dates, hours, costs, percent complete) and dependencies. Read-only.",
+  {},
+  safe(pmTools["pm-tasks"].handler)
+);
+
+server.tool(
+  "pm-verified-earned",
+  "Earned value where only verified work earns: each leaf task earns its planned cost in proportion to its requirements that the given V&V status map calls 'verified' (a task with no requirements earns nothing). Returns verified EVM/ES beside the self-reported EV, and the gap. Pass the status map from a V&V tool (e.g. vv status).",
+  {
+    status: z.record(z.string(), z.string()).describe("{ reqId: 'verified' | 'partial' | 'failed' | 'unverified' }"),
+    links: z.array(z.object({ from: z.string().describe("task id"), to: z.string().describe("requirement id"), kind: z.string().optional() }))
+      .optional().describe("task → requirement links (kind 'implements')"),
+    asOf: z.string().optional().describe("YYYY-MM-DD; defaults to today"),
+  },
+  safe(pmTools["pm-verified-earned"].handler)
 );
 
 // Start

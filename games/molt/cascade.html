@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#05060a" />
+<meta name="description" content="Cascade — snake on snake on snake. The world is your body, you crawl on it, and on your body crawls you again, smaller, forever. A constant zoom into a snake that is its own world." />
+<title>Cascade — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/molt.css" />
+<link rel="stylesheet" href="css/cascade.css" />
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="h"><span class="lab">depth</span><span id="depth" class="val">0</span></div>
+    <div class="h"><span class="lab">length</span><span id="len" class="val">1</span></div>
+    <div class="h"><span class="lab">eaten</span><span id="eaten" class="val">0</span></div>
+    <div class="h"><span class="lab">cuts</span><span id="cuts" class="val">0</span></div>
+    <div class="h"><span class="lab">time</span><span id="time" class="val">×1.00</span></div>
+    <div class="h grow"><span class="lab">zooming in</span><span id="rate" class="val">—</span></div>
+  </div>
+  <div id="stage">
+    <canvas id="view" aria-label="Snake on snake on snake: left and right turn"></canvas>
+    <div id="note"></div>
+    <div id="actions">
+      <button class="ghost" id="play" type="button" title="Pause (space)">❚❚</button>
+      <button class="ghost" id="zoombtn" type="button" title="How fast you fall inwards (Z)">normal</button>
+      <button class="ghost" id="autobtn" type="button" title="Let the autopilot play (Shift+A)">auto</button>
+      <button class="ghost" id="help" type="button" aria-label="What this is">?</button>
+    </div>
+    <button class="turn" id="tl" type="button" aria-label="Turn left">◀</button>
+    <button class="turn" id="tr" type="button" aria-label="Turn right">▶</button>
+  </div>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi · molt · snake on snake on snake</h2>
+  <h1>CASCADE</h1>
+  <p>
+    The world is your body. You crawl on it. And on your body, a third the
+    size, crawls <b>you again</b>, on the same cells, making the same moves;
+    and on that one, you again. As above, so below. You're always falling
+    inwards: the world you're on swells past the edge of the screen, the
+    snake on it becomes the world, and a new you comes into view on its back.
+  </p>
+  <p>
+    It's one snake. Every turn you make, every layer makes. Eat to grow, and
+    every layer grows. Where a bend in the world sweeps under you, you're
+    cut, and the tail falls off as food. Bite yourself and it's over.
+  </p>
+  <p class="accent">◀ ▶ (or A D, or tap either side, or swipe) turn left and right. Z changes how fast you fall. Space pauses. Time slows as the world bends.</p>
+  <div class="row">
+    <button class="primary" id="go" type="button">fall in</button>
+    <button class="ghost" id="watch" type="button">watch the autopilot</button>
+  </div>
+  <p class="foot"><a href="./README.md#cascade-snake-on-snake-on-snake">how it works</a> · <a href="./ouro.html">the lab</a> · <a href="./">Molt</a></p>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <h2 id="o-head">bitten</h2>
+  <h1 id="o-len">0</h1>
+  <p id="o-text">—</p>
+  <button class="primary" id="again" type="button">again</button>
+</div>
+
+<script type="module" src="js/cascade-page.js"></script>
+</body>
+</html>

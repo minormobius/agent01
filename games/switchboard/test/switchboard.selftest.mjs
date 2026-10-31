@@ -15,6 +15,7 @@
  */
 import { loadSwitchboard, playShift, POLICIES } from "./harness.mjs";
 import { checkDeterminism, checkContract } from "../../../packages/pressure-lab/lab.mjs";
+import * as SC from "../js/score.js";
 
 const S = await loadSwitchboard();
 let failures = 0;
@@ -219,6 +220,49 @@ console.log("\n— skill actually matters —");
   const newest = mean("newest"), best = Math.min(mean("leastSlack"), mean("density"));
   ck(best < newest, `a real rule beats grabbing the newest line (${best.toFixed(2)} vs ${newest.toFixed(2)} pts behind)`);
   ck(best > 0.5, `and still falls well short of perfect (${best.toFixed(2)} pts behind) — there is headroom`);
+}
+
+console.log("\n— the leaderboard's records —");
+{
+  // score.js's constants are the generator's
+  ck(SC.MAX_VALUE === Math.max(...Object.values(S.SPEC).map((k) => k.value)), `no call is worth more than ${SC.MAX_VALUE}`);
+  ck(Array.from({ length: 40 }, (_, i) => i + 1).every((k) => S.shiftPlan(k).jobs === Math.min(SC.JOBS_CAP, SC.JOBS_BASE + k)), "shift k holds min(JOBS_CAP, JOBS_BASE + k) calls, as score.js assumes");
+  ck(Array.from({ length: 30 }, (_, i) => S.buildShift(`cap-${i}`, 1 + (i % 12))).every((sh) => S.totalValue(sh) <= SC.ceiling(sh.shift) - SC.ceiling(sh.shift - 1)), "no generated shift holds more than score.js's ceiling");
+
+  // a real run, scored the way main.js scores it: postShift over the shift as it started and the inputs played
+  const run = (seed, n, policy) => {
+    let shift = S.newGame(seed), score = 0, optimum = 0;
+    for (let i = 0; i < n; i++) {
+      const pm = S.postShift(shift, playShift(S, shift, policy).state.history);
+      score += pm.achieved; optimum += pm.optimum; shift = S.nextShift(shift);
+    }
+    return { seed, shifts: n, score, optimum };
+  };
+  const stamp = (x) => Object.assign({ $type: "com.minomobi.lab.score", site: "switchboard", createdAt: new Date().toISOString() }, x);
+  const r = run("late-watch-55", 4, "density"), recs = SC.records(r).map(stamp);
+  ck(recs.length === 2 && recs.every(SC.accept), `a real 4-shift run posts both boards and both are accepted (${r.score} of ${r.optimum}, ${(SC.sharpness(r.score, r.optimum) / 10).toFixed(1)}%)`);
+  const perfect = run("night-shift-12", 3, "optimal"), pr = SC.records(perfect).map(stamp);
+  ck(perfect.score === perfect.optimum && pr[1].value === 1000 && pr.every(SC.accept), "a perfect run is 100.0% and accepted");
+  const short = SC.records(run("dead-call-40", 2, "edf"));
+  ck(short.length === 1 && short[0].game === SC.BOARDS.points, `a run under ${SC.SHARP_MIN} shifts posts points only`);
+  ck(SC.records({ seed: "a b&c=d", shifts: 3, score: 30, optimum: 40 }).map(stamp).every(SC.accept), "an odd URL seed survives the detail string");
+
+  const [pts, shp] = recs, bad = (x) => !SC.accept(Object.assign({}, x));
+  const D = (o) => SC.detail(Object.assign({}, r, o));
+  ck([
+    Object.assign({}, pts, { site: "molt" }),
+    Object.assign({}, pts, { game: "points-v0" }),
+    Object.assign({}, pts, { unit: "per-mille" }),
+    Object.assign({}, pts, { higherIsBetter: false }),
+    Object.assign({}, pts, { createdAt: "yesterday" }),
+    Object.assign({}, pts, { value: pts.value + 1 }),                                   // value ≠ the detail's score
+    Object.assign({}, pts, { value: r.optimum + 1, detail: D({ score: r.optimum + 1 }) }), // more than the optimum
+    Object.assign({}, pts, { value: 999, detail: D({ score: 999, optimum: 999 }) }),     // more than 4 shifts can hold
+    Object.assign({}, pts, { detail: D({ shifts: 0 }) }),
+    Object.assign({}, pts, { detail: pts.detail + " score=999" }),
+    Object.assign({}, shp, { value: 1000 }),                                            // claims perfect, detail says not
+    Object.assign({}, shp, { value: 1000, detail: D({ shifts: 2, score: 40, optimum: 40 }) }), // too short for sharp
+  ].every(bad), "tampered records are refused (site, version, unit, direction, date, value vs detail, over the optimum, over the ceiling, malformed, too short)");
 }
 
 console.log(failures ? `\n${failures} FAILED\n` : "\nall good\n");

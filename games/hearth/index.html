@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#02040a" />
+<meta name="description" content="Hearth — a town 3 km across on a world of its own, held down by a fusion core. Everything comes in and goes out through the rocket port, and the town grows up where it can reach the most." />
+<title>Hearth — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/hearth.css" />
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="view" aria-label="The town: drag to move, pinch to zoom, twist to turn, two fingers up or down to tilt, tap a building"></canvas>
+    <div id="hud">
+      <div class="h"><span class="lab">year</span><span id="year" class="val">—</span></div>
+      <div class="h"><span class="lab">people</span><span id="pop" class="val">—</span></div>
+      <div class="h"><span class="lab">jobs</span><span id="jobs" class="val">—</span></div>
+      <div class="h"><span class="lab">tallest</span><span id="tall" class="val">—</span></div>
+      <div class="h right"><span class="lab">the port feeds</span><span id="supply" class="val">—</span></div>
+    </div>
+    <div id="note"></div>
+    <div id="actions">
+      <button class="ghost" id="play" type="button" title="Pause / run (space)">▶</button>
+      <button class="ghost" id="fast" type="button" title="Faster">▶▶</button>
+      <button class="ghost" id="viewbtn" type="button" title="The whole orb, or the street">orb</button>
+      <button class="ghost" id="portbtn" type="button" title="Back to the port">port</button>
+      <button class="ghost" id="help" type="button" aria-label="How it works">?</button>
+    </div>
+  </div>
+  <div id="dock">
+    <div id="lot" hidden>
+      <div class="ptop"><span id="l-title">—</span><button type="button" id="l-done" class="mini">done</button></div>
+      <div class="stats">
+        <div><span class="lab">floors</span><b id="l-floors">—</b></div>
+        <div><span class="lab">height</span><b id="l-height">—</b></div>
+        <div><span class="lab">at the top</span><b id="l-g">—</b></div>
+        <div><span class="lab">people</span><b id="l-pop">—</b></div>
+        <div><span class="lab">jobs</span><b id="l-jobs">—</b></div>
+      </div>
+      <p id="l-text" class="dim">—</p>
+    </div>
+    <div id="town">
+      <div class="ptop"><span>the town</span><span class="dim" id="t-sum">—</span></div>
+      <p id="t-text" class="dim">—</p>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>HEARTH</h1>
+  <p>
+    A town 3 km across, on a world of its own. Its core is a fusion-forged
+    mass that holds you down at a full <b>g</b> and keeps the lights on; its
+    heat is why everyone lives on the shell. The horizon is 70 m away. The
+    top of a 200 m tower is at 0.78 g. Anything thrown at 121 m/s goes into
+    orbit and comes round again in 78 seconds.
+  </p>
+  <p>
+    Nothing grows here and nothing is mined: food, water, steel and people
+    come in through the <b>rocket port</b>, and what the town makes goes out
+    the same way. The port can feed only so many, so it sets how big the
+    town can be; the town builds <b>up</b> where it can reach the most on
+    foot, except round the pad, where launches need clear sky.
+  </p>
+  <p class="accent">Drag to move, pinch to zoom, twist to turn, two fingers up or down to tilt. Tap a building.</p>
+  <p id="loading" class="dim">landing…</p>
+  <button class="primary" id="start-btn" type="button" style="flex:none" disabled>…</button>
+  <p class="foot">world <code id="seed">—</code> · <a href="#" id="newworld">new world</a> · <a href="./README.md">how it works</a> · one of the <a href="../pressure/">games</a></p>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pumpkin patch &mdash; a jack-o'-lantern for every seed</title>
+<meta name="description" content="Procedural jack-o'-lanterns: eight moods, six pumpkin varieties, candle-lit. Every face is a real carving stencil — no pieces that fall out, a wall's width between every cut — so you can print it and carve it.">
+<meta property="og:title" content="pumpkin patch">
+<meta property="og:description" content="A jack-o'-lantern for every seed, and a stencil you can actually carve.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/pumpkin/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #120d17; --bg2: #1c1424; --text: #ece4d8; --muted: #9a8fa6; --rule: #352a40;
+  --accent: #ff8a1f; --slime: #9be564;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: radial-gradient(ellipse at 50% -10%, #2b1838 0%, var(--bg) 60%) fixed, var(--bg);
+  color: var(--text); font-family: var(--serif); font-size: 17px; line-height: 1.55;
+  padding: 1.5rem 1rem 4rem; min-height: 100vh;
+}
+.wrap { max-width: 980px; margin: 0 auto; }
+header { text-align: center; margin: 0.5rem 0 1rem; }
+h1 {
+  font-family: 'Creepster', var(--serif); font-weight: 400; font-size: clamp(2.6rem, 10vw, 4.4rem);
+  letter-spacing: 0.04em; margin: 0; color: var(--accent); line-height: 1;
+  text-shadow: 0 0 24px rgba(255, 138, 31, 0.35);
+}
+.sub { color: var(--muted); font-style: italic; margin: 0.5rem auto 0; max-width: 36rem; }
+.sub a { color: var(--accent); }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 300px); gap: 1.5rem; align-items: start; margin-top: 1rem; }
+@media (max-width: 760px) { .stage { grid-template-columns: 1fr; } }
+.hero svg { width: 100%; height: auto; display: block; border-radius: 14px; }
+.caption { text-align: center; margin: 0.6rem 0 0; }
+.caption .t { font-size: 1.35rem; font-weight: 700; }
+.caption .d { color: var(--muted); font-size: 0.92rem; }
+.caption .s { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+.panel { display: flex; flex-direction: column; gap: 0.9rem; }
+.live { display: block; text-align: center; padding: 0.6rem; border: 1px dashed var(--accent); border-radius: 8px; color: var(--accent); font-weight: 700; text-decoration: none; }
+.live:hover { background: rgba(255, 138, 31, 0.1); }
+.panel h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); margin: 0 0 0.4rem; font-weight: 400; }
+button {
+  font: inherit; font-weight: 700; padding: 0.55rem 0.95rem; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--accent); background: transparent; color: var(--accent);
+}
+button.primary { background: var(--accent); color: #1a0f05; font-size: 1.1rem; width: 100%; padding: 0.75rem; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--slime); outline-offset: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.chip { font-weight: 400; font-size: 0.88rem; padding: 0.3rem 0.7rem; border-radius: 999px; border-color: var(--rule); color: var(--text); }
+.chip[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: #1a0f05; font-weight: 700; }
+.row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.row button { flex: 1 1 auto; font-size: 0.9rem; }
+form { display: flex; gap: 0.4rem; }
+input[type=text] {
+  flex: 1; min-width: 0; font: inherit; padding: 0.5rem 0.7rem;
+  background: var(--bg2); color: var(--text); border: 1px solid var(--rule); border-radius: 8px;
+}
+.toggle { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none; }
+.toggle input { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }
+.patch-head { display: flex; justify-content: space-between; align-items: baseline; margin: 2.2rem 0 0.6rem; gap: 1rem; }
+.patch-head h2 { margin: 0; font-size: 1.2rem; }
+.patch { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem; }
+.patch button { padding: 0; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: none; display: block; }
+.patch button:hover, .patch button[aria-current=true] { border-color: var(--accent); }
+.patch svg { width: 100%; height: auto; display: block; }
+.patch .lbl { display: block; font-size: 0.72rem; font-weight: 400; color: var(--muted); padding: 0.25rem 0 0.35rem; text-align: center; }
+footer { margin-top: 3rem; color: var(--muted); font-size: 0.88rem; border-top: 1px solid var(--rule); padding-top: 1rem; }
+footer a { color: var(--accent); }
+footer code { font-family: var(--mono); font-size: 0.8rem; }
+.note { font-size: 0.8rem; color: var(--muted); min-height: 1.2em; }
+
+/* The stencil sheet: hidden on screen until asked for; the only thing printed. */
+#stencil { display: none; }
+body.stencil #stencil { display: block; position: fixed; inset: 0; background: #fff; color: #111; overflow: auto; padding: 1.2rem; z-index: 10; }
+#stencil .sheet { max-width: 720px; margin: 0 auto; font-family: var(--serif); }
+#stencil svg { width: 100%; height: auto; }
+#stencil h2 { margin: 0 0 0.3rem; }
+#stencil ol { margin: 0.4rem 0 1rem; padding-left: 1.3rem; font-size: 0.95rem; }
+#stencil .bar { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
+#stencil button { color: #111; border-color: #111; }
+@media print {
+  body { background: #fff; padding: 0; }
+  body > .wrap { display: none; }
+  #stencil { display: block !important; position: static; padding: 0; }
+  #stencil .bar { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Pumpkin Patch</h1>
+    <p class="sub">A jack-o'-lantern for every seed. Every face is a real carving: nothing falls out,
+      and there's a wall's width between every cut. So print the stencil and carve it.</p>
+  </header>
+
+  <div class="stage">
+    <div>
+      <div class="hero" id="hero" aria-live="polite"></div>
+      <div class="caption">
+        <div class="t" id="title"></div>
+        <div class="d" id="desc"></div>
+        <div class="s" id="seedline"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <button class="primary" id="roll" title="Roll (R)">Roll a pumpkin</button>
+      <a class="live" id="livelink" href="live/">Bring it to life &rarr;</a>
+      <div>
+        <h2>Mood</h2>
+        <div class="chips" id="moods"></div>
+      </div>
+      <div>
+        <h2>Carve a name</h2>
+        <form id="nameform" autocomplete="off">
+          <input type="text" id="name" placeholder="Your name" aria-label="Carve a name" maxlength="60">
+          <button type="submit">Carve</button>
+        </form>
+      </div>
+      <label class="toggle"><input type="checkbox" id="lit" checked> Candle lit</label>
+      <div>
+        <h2>Take it home</h2>
+        <div class="row">
+          <button id="stencilbtn">Print stencil</button>
+          <button id="png">PNG</button>
+          <button id="svg">SVG</button>
+          <button id="link">Copy link</button>
+        </div>
+        <div class="note" id="note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="patch-head">
+    <h2>The patch</h2>
+    <button id="newpatch">New patch</button>
+  </div>
+  <div class="patch" id="patch"></div>
+
+  <footer>
+    <p><b>How it carves.</b> A seed picks a <i>mood</i>: classic, jolly, sinister, vampire, goofy,
+      spooked, sad or stitched. Each mood weights the eyes (triangles, glares, half-moons, happy
+      arches, X's, stars), the brows, the nose and the mouth (zigzag, toothy, fanged, one-tooth,
+      smirk, gasp, frown, stitched). The seed also picks a pumpkin variety: Howden, Cinderella,
+      Sugar Pie, Lumina, Jarrahdale or Atlantic. Each cut is a closed outline, as a knife makes it.
+      Teeth are flesh left attached to a lip, and there are no pupils, because an island falls out.
+      Every face is checked for a ~6&nbsp;mm wall between cuts, teeth a knife can leave standing,
+      and cuts that stay on the pumpkin's front. A face that fails is re-carved smaller until it
+      passes. The selftest runs that check over thousands of seeds.</p>
+    <p>Also an API: <code>GET /api/pumpkin.svg?seed=moth&amp;mood=sinister</code> (add
+      <code>&amp;lit=0</code> or <code>&amp;stencil=1</code>). Images are CC0. Part of
+      <a href="/">rite</a>; for the name to go with it, try <a href="/spooky/">spooky names</a>.</p>
+  </footer>
+</div>
+
+<section id="stencil" aria-label="Carving stencil">
+  <div class="sheet">
+    <div class="bar"><button id="print">Print</button><button id="closest">Close</button></div>
+    <h2 id="st-title"></h2>
+    <ol>
+      <li>Print this, scaled so the dashed outline matches your pumpkin's face.</li>
+      <li>Hollow the pumpkin, keeping the front wall about 2&nbsp;cm thick.</li>
+      <li>Tape the sheet on, prick along every black edge with a pin, then peel it off.</li>
+      <li>Cut out the black, small cuts first. The grey line is the edge of the carvable front.</li>
+    </ol>
+    <div id="st-svg"></div>
+  </div>
+</section>
+
+<script type="module">
+import { carve, render, describe, MOODS, MOOD_KEYS } from './engine.js';
+
+const $ = (id) => document.getElementById(id);
+const state = { seed: '', mood: '', lit: true, patch: '' };
+const word = () => Math.random().toString(36).slice(2, 8);
+let current = null;
+
+function chips() {
+  const box = $('moods');
+  for (const k of ['', ...MOOD_KEYS]) {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.type = 'button'; b.textContent = k ? MOODS[k].label : 'Any';
+    b.dataset.mood = k;
+    b.addEventListener('click', () => { state.mood = k; show(); drawPatch(); });
+    box.appendChild(b);
+  }
+}
+
+function show(push = true) {
+  current = carve(state.seed, { mood: state.mood || undefined });
+  $('hero').innerHTML = render(current, { id: 'hero', lit: state.lit });
+  $('title').textContent = current.title;
+  $('desc').textContent = describe(current);
+  $('seedline').textContent = `seed ${state.seed}`;
+  $('livelink').href = `live/?s=${encodeURIComponent(state.seed)}`;
+  for (const b of $('moods').children) b.setAttribute('aria-pressed', String(b.dataset.mood === state.mood));
+  for (const b of $('patch').children) b.setAttribute('aria-current', String(b.dataset.seed === state.seed));
+  if (push) {
+    const u = new URL(location.href);
+    u.searchParams.set('s', state.seed);
+    state.mood ? u.searchParams.set('m', state.mood) : u.searchParams.delete('m');
+    state.lit ? u.searchParams.delete('lit') : u.searchParams.set('lit', '0');
+    history.replaceState(null, '', u);
+  }
+}
+
+function drawPatch() {
+  const box = $('patch');
+  box.innerHTML = '';
+  for (let i = 0; i < 12; i++) {
+    const seed = `${state.patch}.${i + 1}`;
+    const p = carve(seed, { mood: state.mood || undefined });
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.seed = seed;
+    b.setAttribute('aria-label', `${p.title}: ${describe(p)}`);
+    b.innerHTML = render(p, { id: 'k' + i, lit: state.lit, flicker: false }) + `<span class="lbl">${p.title}</span>`;
+    b.addEventListener('click', () => { state.seed = seed; show(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    box.appendChild(b);
+  }
+  for (const b of box.children) b.setAttribute('aria-current', String(b.dataset.seed === state.seed));
+}
+
+function note(msg) { $('note').textContent = msg; setTimeout(() => { if ($('note').textContent === msg) $('note').textContent = ''; }, 1800); }
+const fileName = (ext) => `pumpkin-${state.seed.replace(/[^a-z0-9.]+/gi, '-').toLowerCase() || 'patch'}.${ext}`;
+function save(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+$('roll').addEventListener('click', () => { state.seed = word(); show(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'r' && !e.metaKey && !e.ctrlKey && !/input|textarea/i.test(document.activeElement.tagName)) $('roll').click();
+  if (e.key === 'Escape') document.body.classList.remove('stencil');
+});
+$('nameform').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const n = $('name').value.trim();
+  if (n) { state.seed = n; show(); }
+});
+$('lit').addEventListener('change', (e) => { state.lit = e.target.checked; show(); drawPatch(); });
+$('newpatch').addEventListener('click', () => { state.patch = word(); drawPatch(); });
+$('svg').addEventListener('click', () => save(new Blob([render(current, { id: 'dl', lit: state.lit, flicker: false })], { type: 'image/svg+xml' }), fileName('svg')));
+$('png').addEventListener('click', async () => {
+  const svg = render(current, { id: 'dl', lit: state.lit, flicker: false, size: 1200 });
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  try {
+    const img = new Image();
+    await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = url; });
+    const c = document.createElement('canvas'); c.width = c.height = 1200;
+    c.getContext('2d').drawImage(img, 0, 0, 1200, 1200);
+    c.toBlob((b) => b && save(b, fileName('png')), 'image/png');
+  } catch { note('PNG failed here; try SVG.'); }
+  finally { URL.revokeObjectURL(url); }
+});
+$('link').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(location.href); note('Link copied.'); } catch { note(location.href); }
+});
+$('stencilbtn').addEventListener('click', () => {
+  $('st-title').textContent = `${current.title} — seed ${state.seed}`;
+  $('st-svg').innerHTML = render(current, { stencil: true });
+  document.body.classList.add('stencil');
+});
+$('print').addEventListener('click', () => window.print());
+$('closest').addEventListener('click', () => document.body.classList.remove('stencil'));
+
+const q = new URLSearchParams(location.search);
+state.seed = q.get('s') || word();
+state.mood = MOODS[q.get('m')] ? q.get('m') : '';
+state.lit = q.get('lit') !== '0';
+$('lit').checked = state.lit;
+state.patch = word();
+chips();
+show(false);
+drawPatch();
+</script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#05060a" />
+<meta name="description" content="Ouroboros lab — snake on yourself. The world is your own body, live: every turn you make bends it, and the bends sweep back through you. A lab for the rules of a fully recursive snake." />
+<title>Ouroboros lab — games.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/molt.css" />
+<link rel="stylesheet" href="css/ouro.css" />
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="h"><span class="lab">step</span><span id="ticks" class="val">0</span></div>
+    <div class="h"><span class="lab">length</span><span id="len" class="val">1</span></div>
+    <div class="h"><span class="lab">cuts</span><span id="cuts" class="val">0</span></div>
+    <div class="h"><span class="lab">eaten</span><span id="eaten" class="val">0</span></div>
+    <div class="h"><span class="lab">time</span><span id="time" class="val">×1.00</span></div>
+    <div class="h grow"><span class="lab">the world (you)</span><span id="world" class="val">—</span></div>
+  </div>
+  <div id="stage">
+    <canvas id="view" aria-label="The world, which is you: swipe or use the arrow keys to steer"></canvas>
+    <div id="note"></div>
+    <ol id="log" aria-live="polite"></ol>
+    <div id="pad" aria-hidden="true">
+      <button type="button" data-dir="up" class="u">▲</button>
+      <button type="button" data-dir="left" class="l">◀</button>
+      <button type="button" data-dir="right" class="r">▶</button>
+      <button type="button" data-dir="down" class="d">▼</button>
+    </div>
+    <div id="actions">
+      <button class="ghost" id="play" type="button" title="Pause (space)">❚❚</button>
+      <button class="ghost" id="stepbtn" type="button" title="One step (.)">step</button>
+      <button class="ghost" id="viewbtn" type="button" title="How far out: ride, far, high, or the whole world (V; + and − or a wheel or pinch to fine-tune)">ride</button>
+      <button class="ghost" id="autobtn" type="button" title="Let the autopilot play (Shift+A)">auto</button>
+      <button class="ghost" id="rulesbtn" type="button" title="The rules">rules</button>
+      <button class="ghost" id="padbtn" type="button" title="Show or hide the pad">pad</button>
+      <button class="ghost" id="help" type="button" aria-label="What this is">?</button>
+    </div>
+  </div>
+  <div id="word" title="The world's word: one bend per cube, tail on the left, head on the right"></div>
+</div>
+
+<div class="overlay" id="rules" hidden>
+  <h2>the rules, each a guess</h2>
+  <div class="rule">
+    <span class="rl">ground</span>
+    <div class="seg" data-rule="ground"><button data-v="skin">skin</button><button data-v="space">space</button></div>
+    <p>When the world reshapes, where does a cell of it go? <b>skin</b>: it stays on its cube of the body, and the bends sweep back through it. <b>space</b>: it stays where it is in space, and the world leaves it behind, a cube a step.</p>
+  </div>
+  <div class="rule">
+    <span class="rl">body</span>
+    <div class="seg" data-rule="body"><button data-v="retrace">retrace</button><button data-v="carry">carry</button></div>
+    <p>Where does your body lie on the new world? <b>retrace</b>: your head keeps its cell and your body is laid back down behind it by its own turns. <b>carry</b>: every cell of you is carried over like the ground, and you're cut wherever two stop touching.</p>
+  </div>
+  <div class="rule">
+    <span class="rl">when cut</span>
+    <div class="seg" data-rule="shrink"><button data-v="keep">world keeps</button><button data-v="body">world shrinks</button></div>
+    <p>The world is as long as you. Cut off part of you and does it lose those cubes too, off its tail end, ground and all? If your head was on them, you fall.</p>
+  </div>
+  <div class="rule">
+    <span class="rl">no ground</span>
+    <div class="seg" data-rule="fall"><button data-v="die">you fall</button><button data-v="slide">you slide</button></div>
+    <p>When the world shrinks from under your head: do you fall, or does its tail end pull you in with it, onto its new cap? (Cascade plays with the world shrinking and you sliding.)</p>
+  </div>
+  <div class="rule">
+    <span class="rl">a bite</span>
+    <div class="seg" data-rule="bite"><button data-v="cut">bites off</button><button data-v="die">kills</button></div>
+  </div>
+  <div class="rule">
+    <span class="rl">grain</span>
+    <div class="seg" data-rule="grain"><button data-v="3">fine</button><button data-v="2">medium</button><button data-v="1">coarse</button></div>
+    <p>How many cells across each face of a cube of world: 3, 2 or 1. Coarser is a more zoomed-out game: the world is nearer your own size and shape, so it's tighter, and a bend has fewer ways round you (measured: 1.7, 2.7 and 8 cuts per 100 steps). At 1, every step crosses a fold, so every step is a pitch and the world coils up and down in 3D.</p>
+  </div>
+  <div class="rule">
+    <span class="rl">time</span>
+    <div class="seg" data-rule="time"><button data-v="slows">slows with bends</button><button data-v="steady">steady</button></div>
+    <p>The more of the world is bent, the more of it changes under you every step (each bend moves a cube a step). With time slowing, a step takes longer the more of the world bends: full speed up to a fifth of it, twice as long when all of it does, eased in and out. Curling up buys you time, and the bends that buy it are the ones that cut you.</p>
+  </div>
+  <div class="rule">
+    <span class="rl">speed</span>
+    <div class="seg" data-rule="speed"><button data-v="320">slow</button><button data-v="180">normal</button><button data-v="110">fast</button></div>
+  </div>
+  <p class="small">Changing a rule starts a fresh run on the same seed. The URL keeps your rules, so a link reproduces the lab.</p>
+  <button class="primary" id="rulesgo" type="button">back to it</button>
+</div>
+
+<div class="overlay" id="start">
+  <h2>games.mino.mobi · molt · a lab</h2>
+  <h1>OUROBOROS</h1>
+  <p>
+    In <a href="./">Molt</a> you dive into your body and it becomes the next
+    world. Here there's no diving: <b>the world is your body, right now</b>.
+    One cube of world for every cell of you. Every turn you make becomes a
+    bend at the world's head, and every bend slides back along it, the way
+    a snake's body slides through the bends its head made. Eat, and you and
+    the world grow together.
+  </p>
+  <p>
+    So the ground moves. When a bend sweeps under you your body can no
+    longer lie the way it did, and where it can't, you're <b>cut</b>: the
+    tail falls off and lies there as food. It's a lab: every rule that
+    decides what "the same place" means on a world that changed is a toggle
+    (<b>rules</b>), and the log says what happened and why.
+  </p>
+  <p class="accent">Arrows or WASD, or swipe. Space pauses, . takes one step, V zooms out (ride, far, high, the whole world; + and −, a wheel or a pinch fine-tune), Shift+A hands it to the autopilot. Tap a note to dismiss it.</p>
+  <div class="row">
+    <button class="primary" id="go" type="button">crawl</button>
+    <button class="ghost" id="watch" type="button">watch the autopilot</button>
+  </div>
+  <p class="foot"><a href="./README.md#ouroboros-the-lab">what the lab found</a> · <a href="./cascade.html">cascade</a> · <a href="./compute.html">ouroboros computes</a> · <a href="./">Molt</a></p>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <h2 id="o-head">fell</h2>
+  <h1 id="o-len">0</h1>
+  <p id="o-text">—</p>
+  <div class="row">
+    <button class="primary" id="again" type="button">again</button>
+    <button class="ghost" id="o-rules" type="button">change the rules</button>
+  </div>
+</div>
+
+<script type="module" src="js/ouro-lab.js"></script>
+</body>
+</html>

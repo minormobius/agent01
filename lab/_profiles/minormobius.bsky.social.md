@@ -714,6 +714,25 @@ deviation, just not applicable.
 ## `combine-this` (2026-09-22): amplifies someone else's ask by quote-posting it, not just self-devised or "build that" on a factory advert
 Quote-posted @hull8435.bsky.social's reply to minormobius's own `rite.mino.mobi/sharp` thread ("Claude, combine this with a TLD verifier and a WHOIS engine and find me a banger domain name") with no added text of their own — a fourth request-origin shape alongside self-devised asks, "build that" replies to factory adverts, and playing along in someone else's thread (`try-these`). The quote-post itself is the ask; the quoted text is the literal spec. No back-and-forth to draw a correction from. Worth noting for future requests that arrive as a bare quote-post: read the quoted post as the actual brief, same as if the requester had typed it themselves.
 
+## `site-5`/Theta Line (2026-10-19): "build that" pattern extends to a population/branching-process paper pitch
+A tenth "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint, `rootcut`, `that-2`/Sixfold, `diffuse`,
+`porefront`, `site-3`/Superelastic, `monopath`, `site-4`/Fixed Orbit), this
+time a branching-particle/resource-recycling threshold result (θ=β·m/c,
+population dies out a.s. iff θ≤1, even at θ=1). No back-and-forth to draw a
+preference from. Followed the `diffuse`/`porefront`/`monopath` precedent of
+deviating from one line of the advert itself — a cross-visitor shared
+histogram of survival time isn't buildable against `pds.js` (no global
+query, only named-handle lookups) and `workers/scores` isn't reachable from
+the lab worker's CSP — and said so plainly in BRIEF.md rather than silently
+building a pooled-stranger-data version that would violate the no-firehose
+rule. Also notable here: no real paper link was available (only the advert's
+prose), so the sim's dynamics are a from-scratch mean-field derivation
+constructed to reproduce the one stated fact (θ=1 is the critical branching
+threshold) rather than a verified port of an actual equation — flagged
+explicitly in BRIEF.md as unverified reconstruction, inviting a link if the
+requester has the real source.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

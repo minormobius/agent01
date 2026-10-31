@@ -1,0 +1,40 @@
+{
+  "id": "jev-plans-search-v1",
+  "written": "2026-10-03",
+  "status": "registered before any result of this search was computed; committed alone, before the code that runs it",
+  "why": "The 1-minute plan menu had no edge before costs (every plan hit at its coin-flip rate) and costs were ~1/3 of an hour's move. Two levers are left: a longer horizon, where costs are a few percent of a move, and plans built on a tendency the market might actually have (trend at multi-day horizons, reversion after extremes). Both need years of data, which 4-hour bars give.",
+  "data": {
+    "bars": "4h candles, Hyperliquid candleSnapshot, 5000 per asset, 2024-06-21 to 2026-10-03, cached under lab/fixtures/candles-<coin>-4h.json",
+    "dev_assets": ["BTC", "ETH", "SOL"],
+    "holdout_assets": ["ATOM", "DYDX", "AVAX", "BNB", "APE", "OP", "LTC", "ARB", "DOGE", "INJ", "SUI", "kPEPE"],
+    "dev_period": "the first 60% of bars (3000 bars, to about 2025-08-11)",
+    "validation_period": "the last 40% (2000 bars)",
+    "warmup": "a plan needs 200 bars of history before its first decision; the validation walk may read dev-period bars for its indicators but starts deciding at the boundary"
+  },
+  "costs": {
+    "taker_bps": 4.5, "maker_bps": 1.5,
+    "half_spread_bps": { "BTC": 0.1, "ETH": 0.1, "SOL": 0.3, "other": 1.0 },
+    "stop_slip_bps": { "BTC": 1.0, "ETH": 1.0, "SOL": 2.0, "other": 3.0 },
+    "funding_bps_per_hour": 0.12,
+    "funding_note": "a constant long-pays rate, the 21-day BTC mean; real funding varies and alts are often higher. A known simplification."
+  },
+  "families": {
+    "breakout": "close above the previous N bars' high: buy at the next open (below their low: sell). Exit by a trailing stop k*sigma_N behind the extreme since entry, no target, at most 3N bars.",
+    "momentum": "the N-bar return beyond 1 sigma_N: trade in its direction at the next open. Exit by a trailing stop k*sigma_N, no target, at most N bars.",
+    "reversion": "close at least zt standard deviations from its N-bar mean (sd of that gap = sigma1*sqrt(N/3)): trade back toward the mean. Target the mean at entry, stop 1 sigma_N beyond the entry, at most N bars."
+  },
+  "sigma": "sigma1 = sd of the last 120 bar log returns; sigma_N = sigma1*sqrt(N)",
+  "grid": {
+    "breakout": { "N": [30, 90, 180], "k": [1, 2] },
+    "momentum": { "N": [30, 90, 180], "k": [1, 2] },
+    "reversion": { "N": [6, 30, 90], "zt": [2, 3] }
+  },
+  "trials": 18,
+  "walk": "one plan at a time per asset; when a strategy has no signal it waits one bar. Every trade is scored after all costs.",
+  "statistic": "t = mean net per trade / its standard error, pooled over the assets in the set",
+  "selection_on_dev": "a configuration SURVIVES if, on the dev assets over the dev period, net > 0 and t >= 2.77 (one-sided p = 0.05/18, Bonferroni for 18 trials). If none survives the search is reported as failed; the best by dev t is still carried to validation, labelled as having failed selection.",
+  "confirmation": "each survivor is CONFIRMED if net > 0 and t >= 1.645 / Bonferroni over survivors (one-sided p = 0.05/m for m survivors) in BOTH (a) dev assets over the validation period and (b) holdout assets over the validation period. Holdout assets over the dev period are reported but not used for any decision.",
+  "beta_check": "for each confirmed strategy, report longs and shorts separately and buy-and-hold over the same period. A strategy whose whole profit is longs in a rising market is labelled beta, not edge.",
+  "no_amendment": "the grid, splits, costs and thresholds above are not changed after results are seen. Anything run after this is reported as exploratory, with its trial count.",
+  "then": "confirmed strategies (or, if none, the best) become plan menu v2 alongside wait, each option carrying its own trailing record; Jev chooses on the validation period, scored against always taking the strategy's signal, random over the same menu, and wait."
+}

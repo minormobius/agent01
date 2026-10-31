@@ -175,7 +175,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/mutual-closeness-game-earzue",
+      "branch": "claude/orb-chapter-report",
       "uses": [],
       "provides": null,
       "paths": [
@@ -196,10 +196,11 @@
         "thread",
         "sleuth",
         "palm",
-        "groom"
+        "groom",
+        "obit"
       ],
       "note": "Portal to every Bluesky tool here\u2014feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts orbit at /orbit (closest-circle guessing game + a whole-history closeness matrix read out of CAR files) and mood at /mood (a jev mood ring \u2014 the tone of the last ten posts as one colour band each around the avatar, read by TypeSafe's decision-only model) palm at /palm (six stylometric lines off a whole repo, as percentiles against an offline pool \u2014 explicitly not an AI detector; b/palm/car-stream.js is a pure-JS streaming CAR reader that handles a 90MB repo where the buffering paths OOM) and thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post).",
-      "status": "HANDOVER 2026-09-19 \u2014 from claude/bsky-follow-grooming-gjkops to claude/mutual-closeness-game-earzue, which brought /orbit. The manifest check was run first and is the only one that matters for a handover here (Workers Static Assets replaces the whole manifest, it does not merge): the b/ FILE LIST is identical between the two branches \u2014 nothing can be dropped by republishing from here \u2014 and where the contents differ this branch is the NEWER one, because it is cut from main and the old owner predates main's feedgen/hose split (b/feedgen/pipeline.js now imports packages/feedgen/match.js). The old owner also still carries a deploy-b.yml naming itself, so a push there touching b/** would deploy b from a branch that no longer owns it until it takes this commit. Earlier: RECONCILED 2026-08-15 \u2014 two branches developed b/ in parallel; claude/image-manipulation-platform-g5puxy has the STALE b/ and must never deploy this surface."
+      "status": "OWNERSHIP (2026-10-08): taken by claude/orb-chapter-report from claude/mutual-closeness-game-earzue with scripts/take-ownership.mjs (no work of the old owner lost). HANDOVER 2026-09-19 — from claude/bsky-follow-grooming-gjkops to claude/mutual-closeness-game-earzue, which brought /orbit. The manifest check was run first and is the only one that matters for a handover here (Workers Static Assets replaces the whole manifest, it does not merge): the b/ FILE LIST is identical between the two branches — nothing can be dropped by republishing from here — and where the contents differ this branch is the NEWER one, because it is cut from main and the old owner predates main's feedgen/hose split (b/feedgen/pipeline.js now imports packages/feedgen/match.js). The old owner also still carries a deploy-b.yml naming itself, so a push there touching b/** would deploy b from a branch that no longer owns it until it takes this commit. Earlier: RECONCILED 2026-08-15 — two branches developed b/ in parallel; claude/image-manipulation-platform-g5puxy has the STALE b/ and must never deploy this surface."
     },
     {
       "surface": "auth",
@@ -251,13 +252,13 @@
       "dir": "bisk",
       "endpoint": "bisk.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "branch": "claude/bisk-surface-news-collage-dymw50",
       "uses": [],
       "provides": null,
       "paths": [
         "bisk/**"
       ],
-      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
+      "status": "OWNERSHIP (2026-10-02): taken by claude/bisk-surface-news-collage-dymw50 from claude/landing-page-merge-candidate-8sp0fv with scripts/take-ownership.mjs (no work of the old owner lost). OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "mappa",
@@ -280,7 +281,7 @@
       "dir": "polis",
       "endpoint": "polis.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [
         "civ"
       ],
@@ -291,7 +292,7 @@
         "mappa/climate-forcing.js"
       ],
       "note": "The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite. `/` is the cascade charter (civ über-macro → hinterland mesoscale → city micro)… (full description: polis/CLAUDE.md)",
-      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"polis.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/civ-deploy-unification-vt35ju, byte-identical over every deployed path at handover). "
+      "status": "OWNERSHIP (2026-10-07): taken by claude/plant-growth-animation-gxbby1 from claude/landing-page-merge-candidate-8sp0fv with scripts/take-ownership.mjs (no work of the old owner lost). ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"polis.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/civ-deploy-unification-vt35ju, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "civ",
@@ -599,7 +600,7 @@
       "dir": "games",
       "endpoint": "games.mino.mobi",
       "type": "frontend",
-      "branch": "claude/tempest-procgen-game-vwj0f1",
+      "branch": "claude/minesweeper-voronoi-mesh-4hc4ir",
       "uses": [
         "auth.mino.mobi"
       ],
@@ -608,20 +609,21 @@
       "paths": [
         "games/**",
         "packages/oauth-client/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-10-01): taken by claude/minesweeper-voronoi-mesh-4hc4ir from claude/tempest-procgen-game-vwj0f1 with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "ink",
       "dir": "ink",
       "endpoint": "ink.mino.mobi",
       "type": "frontend",
-      "branch": "claude/p5js-procgen-exploration-efdhws",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [],
       "provides": null,
       "paths": [
         "ink/**"
       ],
-      "status": "NEW — ink.mino.mobi was unattached (verified: nothing answered it). wrangler.jsonc declares the custom_domain route, so the first deploy creates worker `ink` and binds the domain. UNVERIFIED FROM THE SANDBOX: the sandbox cannot reach Cloudflare, so the binding must be confirmed from the deploy log (`ink.mino.mobi (custom domain)`) and /api/health."
+      "status": "OWNERSHIP (2026-09-23): taken by claude/plant-growth-animation-gxbby1 from claude/p5js-procgen-exploration-efdhws with scripts/take-ownership.mjs (no work of the old owner lost). NEW — ink.mino.mobi was unattached (verified: nothing answered it). wrangler.jsonc declares the custom_domain route, so the first deploy creates worker `ink` and binds the domain. UNVERIFIED FROM THE SANDBOX: the sandbox cannot reach Cloudflare, so the binding must be confirmed from the deploy log (`ink.mino.mobi (custom domain)`) and /api/health."
     },
     {
       "surface": "io",
@@ -738,20 +740,21 @@
       "dir": "read",
       "endpoint": "read.mino.mobi",
       "type": "frontend",
-      "branch": "claude/portrait-artist-mythograph-pi5umf",
+      "branch": "claude/samhain-spooky-read",
       "uses": [],
       "provides": null,
       "paths": [
         "read/**"
       ],
-      "cohesion": "integrated"
+      "cohesion": "integrated",
+      "status": "OWNERSHIP (2026-10-14): taken by claude/samhain-spooky-read from claude/portrait-artist-mythograph-pi5umf with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "rite",
       "dir": "rite",
       "endpoint": "rite.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/syllable-word-generator-yhw8wj",
+      "branch": "claude/rite-deploy-font-jblfj2",
       "uses": [
         "atpolls-db"
       ],
@@ -763,7 +766,8 @@
         "poll/apps/api/migrations/0016_ask_map.sql",
         "poll/apps/api/migrations/0017_signal.sql"
       ],
-      "cohesion": "integrated"
+      "cohesion": "integrated",
+      "status": "OWNERSHIP (2026-09-25): taken by claude/rite-deploy-font-jblfj2 from claude/syllable-word-generator-yhw8wj with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "pod",
@@ -895,14 +899,16 @@
         "arnold",
         "szilassi",
         "csaszar",
-        "equivelar"
+        "equivelar",
+        "chair44",
+        "grad"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "branch": "claude/3d-einstein-tile-math-n4t93d",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks. OWNERSHIP 2026-09-23: taken by claude/landing-page-merge-candidate-8sp0fv (from claude/szilassi-polyhedron-3d-cmwpb9, byte-identical over every member dir at handover). ns was folded in as a member the same morning and split back out that afternoon onto its own route; math/_redirects forwards math.mino.mobi/ns/* to ns.mino.mobi.",
+      "status": "OWNERSHIP (2026-09-24): taken by claude/3d-einstein-tile-math-n4t93d from claude/landing-page-merge-candidate-8sp0fv with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks. OWNERSHIP 2026-09-23: taken by claude/landing-page-merge-candidate-8sp0fv (from claude/szilassi-polyhedron-3d-cmwpb9, byte-identical over every member dir at handover). ns was folded in as a member the same morning and split back out that afternoon onto its own route; math/_redirects forwards math.mino.mobi/ns/* to ns.mino.mobi. OWNERSHIP 2026-09-24: taken by claude/3d-einstein-tile-math-n4t93d via take-ownership.mjs (every owner commit on the surface's paths reachable; no D lines against the owner over any staged dir), to ship /chair44/.",
       "op": "encapsulation",
       "note": "Hub for the extremal-geometry pack. Family-resemblance table sortable by era, technique, status \u2014 and an explicit roadmap of next entries (szemer\u00e9di\u2013trotter, heilbronn, borsuk, viazovska, ...)\u2026 (full description: geometry/CLAUDE.md)",
       "paths": [
@@ -925,7 +931,9 @@
         "arnold/**",
         "szilassi/**",
         "csaszar/**",
-        "equivelar/**"
+        "equivelar/**",
+        "chair44/**",
+        "grad/**"
       ]
     },
     {
@@ -942,6 +950,36 @@
       ],
       "note": "Explainer pack on the 2026 forced Navier–Stokes finite-time blowup paper (OpenAI). Thin assets Worker (worker `ns`, plain route ns.mino.mobi/*) — no build, no D1, no secrets. Hub + six single-file interactive sub-pages, each implementing one piece of the construction in the browser… (full description: ns/CLAUDE.md)",
       "status": "ROUTE SURFACE (2026-09-23) — the first surface bound by a plain Worker route instead of a custom domain: { pattern: \"ns.mino.mobi/*\", zone_name: \"mino.mobi\" }, costing none of the zone's 100 custom-domain slots. deploy-ns.yml runs scripts/route-dns.mjs to create the proxied AAAA 100:: the route needs, and fails unless the host actually serves. Owned by claude/landing-page-merge-candidate-8sp0fv. History: custom domain from 2026-09-08 (claude/navier-stokes-website-rl8aox); detached 2026-09-23 to free a slot and briefly folded into math; split back out the same day."
+    },
+    {
+      "surface": "cell",
+      "dir": "cell",
+      "endpoint": "cell.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/cellular-digital-twin-research-o8k3vb",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "cell/**",
+        ".github/workflows/deploy-cell.yml"
+      ],
+      "note": "Minimal Cell Twin: a cellular digital twin built in layers. Landing at / links one page per stage (stage1/ Gillespie gene expression, stage2/ particle reaction-diffusion); every stage stays live. Thin assets Worker (worker `cell`, plain route cell.mino.mobi/*). No build, no D1, no secrets. (full description: cell/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-03): plain route cell.mino.mobi/*, no custom-domain slot. deploy-cell.yml runs the stage 2 engine selftest, then scripts/route-dns.mjs, then fails unless the host serves."
+    },
+    {
+      "surface": "proofs",
+      "dir": "proofs",
+      "endpoint": "proofs.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/3d-einstein-tile-math-n4t93d",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "proofs/**",
+        ".github/workflows/deploy-proofs.yml"
+      ],
+      "note": "Independent index of the openai/math release (2026-10-06: 722 model-written papers in 372 result families), every family with its claim, Lean status and a widgetization tier (A computable \u00b7 B illustrative \u00b7 C card), plus interactive pages built the math-pack way (engine module + node selftest) for the A results. Thin assets Worker (worker `proofs`, plain route proofs.mino.mobi/*) \u2014 no build step at deploy, no D1, no secrets; data.js/abstracts.json are generated by proofs/build.mjs from a clone of the release and committed\u2026 (full description: proofs/CLAUDE.md)",
+      "status": "ROUTE SURFACE (new 2026-10-06), plain route { pattern: \"proofs.mino.mobi/*\", zone_name: \"mino.mobi\" } like ns — no custom-domain slot. deploy-proofs.yml runs scripts/route-dns.mjs, then fails unless the host serves. Owned by claude/3d-einstein-tile-math-n4t93d (also the math owner). First page: /crossing/ (family 165, Harary–Hill + Zarankiewicz)."
     },
     {
       "surface": "canvas",
@@ -998,10 +1036,10 @@
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
       "type": "frontend",
-      "branch": "claude/mobile-support-attribution-abs7qz",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/mobile-support-attribution-abs7qz (marble-run take-over; the /marbles bench is a touch-first re-implementation of Codetaur's Marbleworks builder, github.com/ngwnos/marbles, MIT, with full accreditation). Before the reassignment the tjs/ tree on this branch was diffed against the previous owner (claude/threejs-procgen-buildings-mprgs6) and found identical apart from the additions — Static Assets replaces the whole manifest, so that check is the precondition for moving ownership, not a formality.",
+      "status": "OWNERSHIP (2026-10-07): taken by claude/plant-growth-animation-gxbby1 from claude/mobile-support-attribution-abs7qz with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/mobile-support-attribution-abs7qz (marble-run take-over; the /marbles bench is a touch-first re-implementation of Codetaur's Marbleworks builder, github.com/ngwnos/marbles, MIT, with full accreditation). Before the reassignment the tjs/ tree on this branch was diffed against the previous owner (claude/threejs-procgen-buildings-mprgs6) and found identical apart from the additions — Static Assets replaces the whole manifest, so that check is the precondition for moving ownership, not a formality.",
       "op": "create",
       "note": "tjs.mino.mobi \u2014 three.js workbenches\u2026 (full description: tjs/CLAUDE.md)",
       "paths": [
@@ -1129,10 +1167,10 @@
       "dir": "mega",
       "endpoint": "mega.mino.mobi",
       "type": "frontend",
-      "branch": "claude/jev-demo-website-pw3us1",
+      "branch": "claude/jev-minecraft-headless-9sbgxk",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 owned by claude/integrate-v091-v092-v093-4yie2i (the v091\u00d7v092 synthesis: /v093). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.",
+      "status": "OWNERSHIP (2026-09-25): taken by claude/jev-minecraft-headless-9sbgxk from claude/jev-demo-website-pw3us1 with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — owned by claude/integrate-v091-v092-v093-4yie2i (the v091×v092 synthesis: /v093). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.",
       "note": "Interactive map of global megaprojects\u2014construction, timelines, costs, and deep context on a 3D globe. Also hosts two sub-sites on the same worker: /sprite (the procedural-sprite lab and its /sprite/api) and /jev (the TypeSafe Jev demo, mega.mino.mobi/jev/, whose /jev/api/ask proxy holds the TYPESAFE_API_KEY secret). jev rides this surface because the mino.mobi zone is at Cloudflare's hard cap of 100 Workers custom domains and cannot issue another subdomain. (full description: mega/CLAUDE.md, mega/jev/CLAUDE.md)",
       "paths": [
         "mega/**"
@@ -1173,13 +1211,14 @@
       "endpoint": "org.mino.mobi",
       "binding": "dashboard",
       "type": "frontend",
-      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "branch": "claude/agent-social-media-drlzxn",
       "uses": [],
       "provides": null,
-      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "OWNERSHIP (2026-10-04): taken by claude/agent-social-media-drlzxn from claude/landing-page-merge-candidate-8sp0fv with scripts/take-ownership.mjs (no work of the old owner lost). OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
       "note": "Org SPA (Vite + tsc -> ./dist, Worker `org`). Has inline OAuth in org/src/pds.ts (migration to shared oauth-client pending).",
       "paths": [
-        "org/**"
+        "org/**",
+        "packages/pm/**"
       ]
     },
     {
@@ -1244,12 +1283,12 @@
       "dir": "os",
       "endpoint": "os.mino.mobi",
       "type": "frontend",
-      "branch": "claude/codex-containers-research-58t9ad",
+      "branch": "claude/codex-container-auth-sngj6k",
       "uses": [
         "os-api.minomobi.com"
       ],
       "provides": null,
-      "status": "MANAGED (frontend) \u2014 standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). `kimi` takes --model (kimi3 | ds4-flash | ds4-pro) and --harness (claude | opencode) \u2014 the cell matrix. public/arena/ serves published bake-off runs; public/_headers gives entries an opaque origin (CSP sandbox allow-scripts) so model-written HTML cannot reach the .mino.mobi SSO cookie or the Anthropic key in localStorage. The `kimi`/`container` commands probe the os-api backend at RUNTIME (/health, 4s timeout) and report exactly what's missing instead of dangling a dead WebSocket \u2014 no build-time gating variable needed (VITE_CONTAINER_API_URL remains an optional override). Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker.",
+      "status": "OWNERSHIP (2026-10-06): taken by claude/codex-container-auth-sngj6k from claude/codex-containers-research-58t9ad with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED (frontend) — standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). `kimi` takes --model (kimi3 | ds4-flash | ds4-pro) and --harness (claude | opencode) — the cell matrix. public/arena/ serves published bake-off runs; public/_headers gives entries an opaque origin (CSP sandbox allow-scripts) so model-written HTML cannot reach the .mino.mobi SSO cookie or the Anthropic key in localStorage. The `kimi`/`container` commands probe the os-api backend at RUNTIME (/health, 4s timeout) and report exactly what's missing instead of dangling a dead WebSocket — no build-time gating variable needed (VITE_CONTAINER_API_URL remains an optional override). Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker.",
       "note": "Browser-based terminal for your ATProto PDS (XRPC commands, DuckDB SQL, AI chat) and the front end of the cross-model/cross-harness agent platform: `kimi --model= --harness=` boots any (harness, model) cell in the os-api container. Serves published bake-off runs at /arena/<run-id>/. (full description: os/CLAUDE.md)",
       "paths": [
         "os/**",
@@ -1261,10 +1300,10 @@
       "dir": "os/api",
       "endpoint": "os-api.minomobi.com",
       "type": "backend",
-      "branch": "claude/codex-containers-research-58t9ad",
+      "branch": "claude/codex-container-auth-sngj6k",
       "uses": [],
       "provides": "os-api.minomobi.com",
-      "status": "MANAGED \u2014 SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com \u2014 golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY + DEEPSEEK_API_KEY <- GH secrets; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 \u2014 learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets \u2014 see os/RUNBOOK.md.",
+      "status": "OWNERSHIP (2026-10-06): taken by claude/codex-container-auth-sngj6k from claude/codex-containers-research-58t9ad with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com — golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY + DEEPSEEK_API_KEY <- GH secrets; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 — learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets — see os/RUNBOOK.md.",
       "note": "The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container running TWO agent harnesses (Claude Code + OpenCode) against N model profiles (kimi3, ds4-flash, ds4-pro, native claude) via worker-injected AGENT_PROFILES, PTY over WebSocket, DO-storage-synced\u2026 (full description: os/api/CLAUDE.md)",
       "paths": [
         "os/api/**",
@@ -1371,12 +1410,12 @@
       "surface": "sci",
       "dir": "sci",
       "endpoint": "sci.mino.mobi",
-      "type": "frontend",
+      "type": "fullstack",
       "branch": "claude/sci-surface-mri-research-ji1xf9",
       "uses": [],
       "provides": null,
       "status": "LIVE — first deploy 2026-08-15 bound `sci.mino.mobi (custom domain)` and the site answered. The hostname was new and did not resolve beforehand; wrangler created the custom domain itself, no dashboard step required (mino.mobi is a zone on this account). Golden rule still applies to later deploys: confirm the log binds the custom domain.",
-      "note": "Scientific instruments taken apart, one page per instrument, each built around a Rust→WASM solver the visitor drives and each mechanism claim traced to a primary source. Assets-only worker `sci`, staged to ../.sci-stage (engine-rs/ and research/ excluded). First instrument, MRI, in four parts plus a capstone console: /mri/ the detection chain (reciprocity, coil sensitivity, spin echo, the B0^2 law), /mri/kspace/ the spatial encoding (analytic phantom, real acquisition, FFT reconstruction, EPI distortion), /mri/contrast/ the tissue properties and sequence equations (Stanisz 2005 relaxation times, closed forms validated against a Bloch simulation, the Ernst angle, the TR-TE curve where two tissues become invisible), and /mri/acoustics/ why it screams (Lorentz force on the gradient windings, the acoustic comb locked to the sequence clock, synthesised live via Web Audio), and /mri/console/ all four at once (the SNR scaling law with receiver noise added in k-space, so every knob's cost is visible in one image). Engine known-answer tested against closed-form physics: sci/engine-rs, 52 tests. (full description: sci/CLAUDE.md)",
+      "note": "Scientific instruments taken apart, each built around a solver the visitor drives, every mechanism claim traced to a primary source. Worker `sci`: static assets staged to ../.sci-stage (engine-rs/, research/, worker/ excluded) plus a script, sci/worker/index.js, with one Durable Object (SonarLobby, /sonar/lobby/ws: per-room WebSocket that schedules phones and relays acoustic arrival times; no audio). MRI in four parts plus a console (/mri/, /mri/kspace/, /mri/contrast/, /mri/acoustics/, /mri/console/), Rust→WASM engine with 52 known-answer tests. Sonar, live on the visitor's own speaker and mic (/sonar/), and the lobby, two-way ranging between phones (/sonar/lobby/); DSP in sonar/sonar.js, checked by sci.selftest.mjs. (full description: sci/CLAUDE.md)",
       "paths": [
         "sci/**"
       ],
@@ -1385,7 +1424,9 @@
         "mri/kspace",
         "mri/contrast",
         "mri/acoustics",
-        "mri/console"
+        "mri/console",
+        "sonar",
+        "sonar/lobby"
       ]
     },
     {
@@ -1639,7 +1680,7 @@
       "dir": "bsky",
       "endpoint": "bsky.mino.mobi",
       "type": "frontend",
-      "branch": "claude/dwitter-animation-feed-rufn9o",
+      "branch": "claude/dweet-gear-systems-5e28b4",
       "uses": [],
       "provides": null,
       "paths": [
@@ -1650,7 +1691,7 @@
         "packages/oauth-client/auth.js"
       ],
       "note": "An AppView with no database\u2026 (full description: bsky/CLAUDE.md) ALSO serves dweet at **bsky.mino.mobi/dweet/** \u2014 a feed of 256-character canvas animations, each one a com.minomobi.dweet.dweet record in its author's own repo, with a GLSL shim that also runs demosky.app's mainImage dialect. It is a PATH on this worker, not a subdomain: dweet.mino.mobi cannot be bound because zone mino.mobi is at Cloudflare's limit of 100 Workers custom domains per zone (run #43, code 100122), so the custom_domain route was removed to keep deploys green. worker.js keeps a hostname dispatch for that host, inert until a domain is freed and the route re-added. The surface executes untrusted code, so its isolation is asserted by bsky/dweet/sandbox.selftest.mjs \u2014 read bsky/dweet/CLAUDE.md before changing anything that touches a frame.",
-      "status": "OWNERSHIP, newest first \u2014 and READ THIS BEFORE THE NEXT HANDOVER. 2026-09-22: owner is claude/dwitter-animation-feed-rufn9o (dweet), at the principal's instruction. 2026-09-11: claude/bsky-shuffle-quote-feature-fqo19l (shuffle quote, paste-to-attach). Before that: claude/bsky-app-view-feasibility-8sdflz, which still owns the auth surface. THE TRAP: each handover edits this field on ITS OWN branch, so the registry as seen from main names a STALE owner. Checking a candidate tree against main and against the owner main names is NOT sufficient \u2014 on 2026-09-22 that exact mistake shipped run #43 from a tree missing lib/shuffle.js and lib/attach.js, and because Workers Static Assets replaces the whole manifest it rolled shuffle quote and paste-to-attach off the live site until a merge restored them. Before taking this surface, find the branch that actually produced the last successful deploy-bsky run and diff bsky/ against THAT. Domain bsky.mino.mobi was attached by the first deploy from the feasibility branch; VERIFY the run log still binds `bsky.mino.mobi (custom domain)` (golden rule). The auth surface did NOT move, so a push here touching workers/auth/** fires nothing and com.minomobi.dweet.dweet sits staged and unshipped; sign-in therefore cannot grant dweet's scope yet. [Reconciled by the 2026-09-23 merge candidate: auth is owned by claude/browser-cad-ideation-ollmd3 (since 2026-09-11), whose tree carries com.minomobi.dweet.dweet; whether it has DEPLOYED is for the deploy-auth run log to say.] scripts/check-auth-scope.mjs refuses an auth deploy from ANY of these branches: the LIVE ceiling is 86 collections and carries a com.minomobi.cad.* family main lacks, so main is 6 behind production and every branch inherits that. Recover those 6 from auth.mino.mobi/client-metadata.json before shipping any scope change.",
+      "status": "OWNERSHIP (2026-09-25): taken by claude/dweet-gear-systems-5e28b4 from claude/dwitter-animation-feed-rufn9o with scripts/take-ownership.mjs (no work of the old owner lost). OWNERSHIP, newest first — and READ THIS BEFORE THE NEXT HANDOVER. 2026-09-22: owner is claude/dwitter-animation-feed-rufn9o (dweet), at the principal's instruction. 2026-09-11: claude/bsky-shuffle-quote-feature-fqo19l (shuffle quote, paste-to-attach). Before that: claude/bsky-app-view-feasibility-8sdflz, which still owns the auth surface. THE TRAP: each handover edits this field on ITS OWN branch, so the registry as seen from main names a STALE owner. Checking a candidate tree against main and against the owner main names is NOT sufficient — on 2026-09-22 that exact mistake shipped run #43 from a tree missing lib/shuffle.js and lib/attach.js, and because Workers Static Assets replaces the whole manifest it rolled shuffle quote and paste-to-attach off the live site until a merge restored them. Before taking this surface, find the branch that actually produced the last successful deploy-bsky run and diff bsky/ against THAT. Domain bsky.mino.mobi was attached by the first deploy from the feasibility branch; VERIFY the run log still binds `bsky.mino.mobi (custom domain)` (golden rule). The auth surface did NOT move, so a push here touching workers/auth/** fires nothing and com.minomobi.dweet.dweet sits staged and unshipped; sign-in therefore cannot grant dweet's scope yet. [Reconciled by the 2026-09-23 merge candidate: auth is owned by claude/browser-cad-ideation-ollmd3 (since 2026-09-11), whose tree carries com.minomobi.dweet.dweet; whether it has DEPLOYED is for the deploy-auth run log to say.] scripts/check-auth-scope.mjs refuses an auth deploy from ANY of these branches: the LIVE ceiling is 86 collections and carries a com.minomobi.cad.* family main lacks, so main is 6 behind production and every branch inherits that. Recover those 6 from auth.mino.mobi/client-metadata.json before shipping any scope change.",
       "serves": [
         "dweet"
       ]
@@ -1734,12 +1775,12 @@
       "dir": "clef",
       "endpoint": "clef.mino.mobi",
       "type": "frontend",
-      "branch": "claude/sheet-music-viewer-composer-qb4ljl",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [
         "auth.mino.mobi"
       ],
       "provides": "sheet-music",
-      "status": "MANAGED — verified prod (clef.mino.mobi bound as a custom domain on run #1, 2026-09-05)",
+      "status": "OWNERSHIP (2026-09-24): taken by claude/plant-growth-animation-gxbby1 from claude/sheet-music-viewer-composer-qb4ljl with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — verified prod (clef.mino.mobi bound as a custom domain on run #1, 2026-09-05)",
       "note": "Sheet-music viewer and composer. Reads a working subset of LilyPond notation (Dutch/English/German note names, \\transpose, ornaments), engraves it as classical notation in SVG with its own glyph outlines and no music font, plays it back through a small WebAudio patch bank, and exports .ly/.mid/.svg/.wav. Browse opens the Mutopia Project's ~2,300 LilyPond-source scores through a narrow read proxy in this surface's own worker at /mutopia/* (one origin, GET only, two path shapes, edge-cached) — Mutopia sends no CORS header. Publishing writes one com.minomobi.clef.piece record to the reader's own PDS; the site stores nothing. Full notes in clef/CLAUDE.md.",
       "paths": [
         "clef/**",
@@ -1758,7 +1799,112 @@
         "henderhead/**",
         ".github/workflows/deploy-henderhead.yml"
       ],
-      "note": "An unofficial fan site rebuilding Matt Henderson's mathematical demos as interactive toys (worker `henderhead`, custom_domain henderhead.mino.mobi). Thin header/JSON worker in front of static assets — no build step to serve, no D1, no AI, no secrets. Five demos, each on its own Rust→WASM engine under <dir>/engine, gated by cargo test plus a node selftest — the workflow rebuilds every .wasm rather than trusting the committed copies: /cf/ continued-fraction Fourier curves, /craft/ a crafting-recipe automaton, /wheel/ a waterwheel that is the Lorenz system, /ball/ bouncing-ball chaos, /sand/ conic sections out of sand at the angle of repose. The follow-the-feed pipeline the site describes is deliberately NOT built — see the consent gate at henderhead.mino.mobi/#consent and henderhead/CLAUDE.md."
+      "note": "An unofficial fan site rebuilding Matt Henderson's mathematical demos as interactive toys (worker `henderhead`, custom_domain henderhead.mino.mobi). Thin header/JSON worker in front of static assets — no build step to serve, no D1, no AI, no secrets. Six demos, each on its own Rust→WASM engine under <dir>/engine, gated by cargo test plus a node selftest — the workflow rebuilds every .wasm rather than trusting the committed copies: /cf/ continued-fraction Fourier curves, /craft/ a crafting-recipe automaton, /wheel/ a waterwheel that is the Lorenz system, /ball/ bouncing-ball chaos, /sand/ conic sections out of sand at the angle of repose. /bzip/ normalized compression distance over a dex of 151 generated monsters, on a bzip2 written to the reference format and tested against the system binary. The follow-the-feed pipeline the site describes is deliberately NOT built — see the consent gate at henderhead.mino.mobi/#consent and henderhead/CLAUDE.md."
+    },
+    {
+      "surface": "imp",
+      "dir": "imp",
+      "endpoint": "imp.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/friends-project-planning-cags5l",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "imp/**",
+        ".github/workflows/deploy-imp.yml"
+      ],
+      "note": "An independent evaluation of Imp (deepfates' port of DSPy to Elixir/BEAM), published from the bakeoff/imp rig: GEPA on Imp's opaque-code TREC task, ReAct agents over Elixir tools, the runs and their evidence, and a bug found in Imp's GEPA with its fix. Thin assets Worker (worker `imp`, plain route imp.mino.mobi/*) — no build, no bindings, no secrets. (full description: imp/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-28) — plain route imp.mino.mobi/*, no custom-domain slot. deploy-imp.yml runs scripts/route-dns.mjs, then fails unless the host serves. Owned by claude/friends-project-planning-cags5l."
+    },
+    {
+      "surface": "studio",
+      "dir": "studio",
+      "endpoint": "studio.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/plant-growth-animation-gxbby1",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "studio/**",
+        ".github/workflows/deploy-studio.yml"
+      ],
+      "note": "Claude's studio: animation and music, drawn in p5.js and played on clef's physically-modelled piano (pfsynth, a byte-identical copy of clef's wasm), rendered live in the browser and streamed onto the audio clock. Pure static assets (worker `studio`, plain route studio.mino.mobi/*): no build, no D1, no secrets. First piece: /anthesis/, a poppy from seed to bloom. (full description: studio/CLAUDE.md)",
+      "status": "NEW ROUTE SURFACE (2026-09-23) — studio.mino.mobi did not resolve when added. Plain route { pattern: \"studio.mino.mobi/*\", zone_name: \"mino.mobi\" }; deploy-studio.yml runs scripts/route-dns.mjs, then fails unless the host serves the page and the piano's .wasm. UNVERIFIED FROM THE SANDBOX until the first run."
+    },
+    {
+      "surface": "jog",
+      "dir": "jog",
+      "endpoint": "jog.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/jog-running-loops",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "jog/**",
+        ".github/workflows/deploy-jog.yml"
+      ],
+      "note": "Running-loop finder: an address and a distance in, distinct running loops of about that length out. Thin assets Worker (worker `jog`, plain route jog.mino.mobi/*) — no build, no D1, no secrets. Routing runs in the browser (solver.js as a Web Worker) over OpenStreetMap ways fetched from Overpass; geocoding via Nominatim. (full description: jog/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-28) — new; plain route jog.mino.mobi/*, DNS by scripts/route-dns.mjs in deploy-jog.yml, which fails unless the host serves. Owned by claude/jog-running-loops."
+    },
+    {
+      "surface": "del",
+      "dir": "del",
+      "endpoint": "del.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/agent-social-media-drlzxn",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "del/**",
+        ".github/workflows/deploy-del.yml"
+      ],
+      "note": "The miniphim observatory: live state of the Modulo & Morphyx experiment (phase, the two beings, the lab's benches, the latest whetstone run, the gates) plus the pitch at /pitch/. Thin assets Worker (worker `del`, plain route del.mino.mobi/*), no build, no bindings, no secrets. The page reads lab state from the public repo on GitHub in the browser; state.json holds what only a person can say. (full description: del/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-01): plain route del.mino.mobi/*, no custom-domain slot. deploy-del.yml runs scripts/route-dns.mjs, deploys, and fails unless /, /pitch/ and /state.json serve. Owned by claude/agent-social-media-drlzxn."
+    },
+    {
+      "surface": "miniphim",
+      "dir": "miniphim",
+      "endpoint": "miniphim.minomobi.com",
+      "type": "frontend",
+      "branch": "claude/agent-social-media-drlzxn",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "miniphim/**",
+        ".github/workflows/deploy-miniphim.yml"
+      ],
+      "note": "The miniphim's own house: the pages Modulo, Morphyx and Mozzie make (their commons' www/), published after every whetstone run. Worker `miniphim` (plain route miniphim.minomobi.com/*) serves site/ with run_worker_first: the person's off switch (vars.OPEN) and the content policy their council set (fetch only plc.directory, the public Bluesky API and Delvetown; no cookies; read-only). No bindings, no secrets. (full description: miniphim/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-06): plain route miniphim.minomobi.com/* on the minomobi.com zone, no custom-domain slot. deploy-miniphim.yml runs scripts/route-dns.mjs, deploys, and fails unless the host answers with its content policy (503 when the off switch is closed). whetstone.yml copies the souls' www/ into site/ and dispatches the deploy. Owned by claude/agent-social-media-drlzxn."
+    },
+    {
+      "surface": "mail",
+      "dir": "mail",
+      "endpoint": "mail.mino.mobi",
+      "type": "backend",
+      "branch": "claude/agent-social-media-drlzxn",
+      "uses": [],
+      "provides": "mail.mino.mobi",
+      "paths": [
+        "mail/**",
+        ".github/workflows/deploy-mail.yml"
+      ],
+      "note": "The miniphim's own email: modulo@, morphyx@ and mozzie@mino.mobi. Email Routing hands each message to Worker `mail`, which stores it per being (Durable Object Mailbox, SQLite), quarantines bodies from senders off the allowlist (codes and links only), and forwards a copy to the principal. Capped outbound: notes to the principal now, sends to anyone later (Email Sending + OPEN_OUTBOUND). Per-being API keys derived from LAB_TOKEN. (full description: mail/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-10-04): plain route mail.mino.mobi/*. deploy-mail.yml runs the selftest, route-dns, deploy, secret sync, a /health check, then reconciles the Email Routing rules (routing.mjs). Owned by claude/agent-social-media-drlzxn."
+    },
+    {
+      "surface": "four",
+      "dir": "four",
+      "endpoint": "four.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/minesweeper-voronoi-mesh-4hc4ir",
+      "uses": [],
+      "provides": null,
+      "note": "A universe with four dimensions of space, worked out… (full description: four/CLAUDE.md)",
+      "paths": [
+        "four/**",
+        ".github/workflows/deploy-four.yml"
+      ],
+      "status": "NEW (2026-10-26): split out of games, where ATOM⁴, Lumen⁴ and IRIS⁴ lived as /atom4/, /lumen4/ and /iris4/; games.mino.mobi redirects those paths here. A plain route from the start (no custom-domain slot)."
     }
   ],
   "unmanaged": {
