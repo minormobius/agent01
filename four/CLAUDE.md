@@ -258,6 +258,10 @@ for games, and this is a modelling programme with publications to come. The game
   <k> <Z> [dirs]`, on the runner. Ours as the check: carbon-13 and nitrogen-13 bound, about 1.3 MeV too tightly.
   `nuclear.js`'s `coreNucleonFactor` / `coreNucleonCapture` (a nucleon on k helium-4s by E1, depth set to that binding) and
   `nuclei.mjs protonflow MN` compare proton against helium-4 capture onto ladder nuclei (ours: ¹²C(p,γ)¹³N the check).
+  `plusone ... compact` draws the core's helium-4s close (the closed-shell limit: our ¹⁷O/¹⁷F within a MeV; files end
+  `-c.json`), and loose against close is the stated spread. `nuclei.mjs pfreeze` (sandbox, seconds) puts the temperature
+  where each element's proton capture runs as slowly as our ¹⁴N(p,γ) at 20 MK: the climb freezes at element 9, which
+  hands the water to a stellar model (ROADMAP step 2).
   **What's computed in a sandbox lives only in the cache and the bake**: if `$TMPDIR/atom4-nuclei` is lost (a container
   restart wipes /tmp), `nuclei.mjs restore` writes it back from `js/nucleidata.js` (a bake from it reproduces the file
   byte for byte); then add the runner's files from atom4-data.
