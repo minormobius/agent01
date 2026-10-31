@@ -1008,5 +1008,18 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `burning together: proton–proton alone halves the hydrogen at s = ${pp.shalf.toFixed(4)} (exact ${(1 / 0.75).toFixed(4)}), the network keeps mass to ${Math.abs(m - 1).toExponential(0)}, and fast captures below element 9 pile the zone at element 9 (${((100 * m9) / m).toFixed(1)}% of its mass)`);
 }
 
+/* 56 · the main sequence in any d (js/mainseq.js, the stars chapter): light's constants in 3D (a and σ, CODATA), the
+   tabulated Fermi–Dirac electrons against burning.js's direct pressure in both worlds, and Eddington's homology: radiative
+   stars of constant opacity burning as ρT⁴ brighten as M³ (two stars solved by the shooting method) */
+{
+  const MS = await import(path.join(here, "../js/mainseq.js")), BUx = await import(path.join(here, "../js/burning.js"));
+  const comp = { X: 0.7, Y: 0.28, Z: 0.02 }, kappa = () => 0.04, eps = (rho, T) => 1e-37 * rho * T ** 4, M = 1.989e30, G = 6.6743e-11;
+  const a = MS.star({ d: 3, M, G, comp, eps, kappa }, [Math.log(2e16), Math.log(1.5e7), Math.log(7e8), Math.log(4e26)]), b = a.ok ? MS.star({ d: 3, M: 2 * M, G, comp, eps, kappa }, a.p.map((v, i) => v + [0, 0.1, 0.3, 2.0][i])) : { ok: false };
+  const eosErr = Math.max(...[[3, 1e30, 1e7], [3, 1e33, 1e7], [3, 1e32, 3e6], [4, 1e40, 1e7], [4, 1e44, 1e7]].map(([d, ne, T]) => Math.abs(MS.electronP(d, ne, T) / BUx.electronPressure(d, ne, T) - 1)));
+  const ratio = a.ok && b.ok ? b.L / a.L : NaN;
+  ok(Math.abs(MS.aRad(3) / 7.565733e-16 - 1) < 1e-5 && Math.abs(MS.sigmaSB(3) / 5.670374e-8 - 1) < 1e-5 && eosErr < 0.005 && Math.abs(ratio / 8 - 1) < 0.1,
+    `the main sequence: light's a and σ to 10⁻⁵, the tabulated electrons within ${(100 * eosErr).toFixed(2)}% of Fermi–Dirac, and doubling a radiative star's mass brightens it ${ratio.toFixed(2)}× (Eddington's homology: 8)`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
