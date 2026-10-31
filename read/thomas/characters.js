@@ -1,0 +1,57 @@
+/* The cast of Thomas of Erceldoune. Two people on stage for almost the whole
+   poem, and behind them three powers that never appear: the king of her
+   country, the fiend who takes his tithe from it, and the Queen of Heaven
+   whom Thomas mistakes her for. Then, in the prophecies, the people of
+   Scotland's wars. Attaches to window.THOMAS. */
+window.THOMAS = window.THOMAS || {};
+window.THOMAS.characters = {
+  intro: "The smallest speaking cast in the series: <strong>two</strong>. For three hundred lines it is Thomas and the lady, and nobody else says a word. Even in her own hall Thomas may answer no one but her. Around them stand three powers who never appear. One is the <strong>king of her country</strong>, her husband, who would <em>smell</em> what she has done. One is the <strong>fiend of hell</strong>, who comes tomorrow to take his fee from her people. The third is the <strong>Queen of Heaven</strong>, whom Thomas takes her for at first sight. The rest is a hunt (three greyhounds and seven hounds), a court that dances three by three, and, in the prophecies, the families of Scotland's wars, named and ruined in the future tense.",
+  roles: [
+    { id: "principal",  label: "Principals",                               color: "#b07ac9" },
+    { id: "elfland",    label: "Her country",                              color: "#7fb39a" },
+    { id: "beyond",     label: "Heaven and hell",                          color: "#c9a24a" },
+    { id: "erceldoune", label: "This world — the people of the prophecies", color: "#6f9ac9" },
+  ],
+  cast: [
+    { id: "thomas", name: "Thomas of Erceldoune", role: "principal", alt: "Thomas Rymour; the narrator", epithet: "the man who went, and the man who tells it",
+      blurb: "Lying alone under a tree on Huntley Banks one May morning, he sees a lady ride by and takes her for the Virgin. He runs to meet her at the Eildon tree, insists on lying with her though she warns it will ruin her, and pledges himself to her <em>whether to heaven or to hell</em>. She takes him at his word. He goes under Eildon Hill for three days of darkness, does not eat the fruit, speaks to no one but her, and believes three years are three days. She brings him home to save him from the fiend's tithe. He chooses the tongue over the harp, is given a tongue that can never lie, and will not let her go until she has told him the future. He is also the poem's <em>I</em>: it begins in his voice, and slips back into it when she calls him home. A real Thomas Rymour of Erceldoune witnesses charters in the 1260s–80s.",
+      appears: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      rel: [ { to: "lady", label: "lover of" }, { to: "mary", label: "mistakes her for" }, { to: "king", label: "wrongs" }, { to: "fiend", label: "would be chosen by" }, { to: "agnes", label: "imprisoned by" } ] },
+    { id: "lady", name: "The lady", role: "principal", alt: "“a lady gaye”; “of another country”; the Queen of Elfland in the ballad", epithet: "never named",
+      blurb: "A huntress on a dapple-grey palfrey, shining like the sun, with bells on her bridle and a horn round her neck. She refuses both names Thomas gives her, Queen of Heaven and fiend of hell, and gives none of her own: <em>I am of another country</em>. She warns him that lying with her will undo her beauty, and it does, until she comes into her own country again. She takes him into the hill, forbids him the fruit, shows him the four roads of the afterlife and a fifth to her own castle, and makes him mute before her husband's court. When the fiend's tithe falls due, she saves him from it: <em>you will never be betrayed by me</em>. At the tree she gives him the tongue that cannot lie, foretells the wars, and weeps for the widows they will make. She leaves promising to meet him again.",
+      appears: [2, 3, 4, 5, 6, 7, 8, 9, 10],
+      rel: [ { to: "thomas", label: "takes, keeps, and gives back" }, { to: "king", label: "wife of" }, { to: "fiend", label: "her people pay the teind to" }, { to: "hounds", label: "hunts with" }, { to: "mary", label: "denies being" } ] },
+    { id: "king", name: "The king of her country", role: "elfland", alt: "“my lorde”", epithet: "never seen",
+      blurb: "He is served at every course by thirty knights. He is <em>so fierce and fell</em> that she would rather be hanged and drawn than have him know Thomas lay with her, and he would <em>smell</em> the fault on her. Her ruined beauty, in the Lansdowne text, was a disguise against him. He never appears. He is the reason Thomas must be silent.",
+      appears: [7, 8],
+      rel: [ { to: "lady", label: "husband of" }, { to: "court", label: "served by" }, { to: "fiend", label: "owes the teind to" } ] },
+    { id: "court", name: "The court of her country", role: "elfland", epithet: "knights and ladies, three by three",
+      blurb: "Ladies who kneel to her, minstrels with harp, fiddle, gittern, psaltery, lute and rebec, cooks butchering fifty harts as if they were mad, hounds lapping the blood, knights dancing three by three. They speak to Thomas, and he must not answer.",
+      appears: [8],
+      rel: [ { to: "king", label: "serve" }, { to: "fiend", label: "one of them is the fee" } ] },
+    { id: "hounds", name: "Her hunt", role: "elfland", alt: "three greyhounds and seven raches", epithet: "the wild deer, and the hounds that pull at the leash",
+      blurb: "She rides after <em>this wild fee</em>, the wild deer, with three greyhounds on a leash and seven scent-hounds running free. They come back gorged with deer's blood. In the prophecies they break their leashes and the deer go over the hill two by two, and that is how she tries to leave.",
+      appears: [3, 8, 10],
+      rel: [ { to: "lady", label: "hunt for" } ] },
+    { id: "fiend", name: "The foul fiend of hell", role: "beyond", epithet: "who comes tomorrow for his fee",
+      blurb: "He is named twice. Once as the one who will take Thomas if he picks the fruit, and once as the tithe-taker: <em>tomorrow the foul fiend of hell will come among this people to fetch his fee</em>, and he chooses for himself. Thomas, big and handsome, would be chosen. He never appears; Thomas is gone by morning. This is the oldest form of the teind that drives <em>Tam Lin</em>.",
+      appears: [6, 9],
+      rel: [ { to: "lady", label: "takes his fee from her people" }, { to: "thomas", label: "would choose" } ] },
+    { id: "mary", name: "The Queen of Heaven", role: "beyond", alt: "Mary, “that bare the child that died for me”", epithet: "whom the lady is not",
+      blurb: "Thomas's first reading of the lady: <em>yonder is Mary most of might</em>. The lady refuses it: <em>I never took so high a degree</em>. When the hill opens he prays to the real one. The poem ends on Christ crowned with briar.",
+      appears: [3, 6, 10],
+      rel: [ { to: "lady", label: "mistaken for" } ] },
+    { id: "minstrel", name: "The minstrel", role: "erceldoune", epithet: "who calls for silence",
+      blurb: "The voice of the prologue: <em>listen, lords, both great and small</em>. It promises a tale as true as any ever told, and a book of battles to come, and prays (in the Thornton copy) that Christ will save the English. At the end it wishes it could hear more of such a lady. The minstrel and Thomas share the first person, and the poem never quite separates them.",
+      appears: [1, 10],
+      rel: [ { to: "thomas", label: "speaks as" } ] },
+    { id: "houses", name: "The houses of the wars", role: "erceldoune", alt: "Baliols, Comyns, Barclays, Russells, Frasers, the Bruce", epithet: "named in the future tense",
+      blurb: "When a tree's root is dead the leaves wither: so it will go with the Baliols' blood. Then come Bannockburn, where water and clay are mixed with men's blood, the Bruce's victory, his death, Edward Baliol, David Bruce ransomed, Robert Stewart, Otterburn, and a last battle at Sandyford by three oaks. Most of it had already happened when the poem took this shape.",
+      appears: [10],
+      rel: [ { to: "lady", label: "foretold by" } ] },
+    { id: "agnes", name: "Black Agnes of Dunbar", role: "erceldoune", epithet: "who has put Thomas in her prison",
+      blurb: "The last thing Thomas asks about: why Black Agnes of Dunbar has made war on him and put him in her prison. The lady answers that no good will ever come of her: <em>in London shall she be closed</em>, and hounds will feed on her kin. The historical Agnes held Dunbar Castle against the English in 1338. (Omitted in the abridgement here.)",
+      appears: [10],
+      rel: [ { to: "thomas", label: "imprisons" }, { to: "lady", label: "foretold by" } ] },
+  ],
+};

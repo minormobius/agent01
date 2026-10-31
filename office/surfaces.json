@@ -1670,6 +1670,69 @@
    "parent": "read"
   },
   {
+   "id": "samhain",
+   "name": "samhain",
+   "url": "https://mino.mobi/read/samhain/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "read"
+  },
+  {
+   "id": "nera",
+   "name": "nera",
+   "url": "https://mino.mobi/read/nera/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "samhain"
+  },
+  {
+   "id": "thidrandi",
+   "name": "thidrandi",
+   "url": "https://mino.mobi/read/thidrandi/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "samhain"
+  },
+  {
+   "id": "muirchertach",
+   "name": "muirchertach",
+   "url": "https://mino.mobi/read/muirchertach/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "samhain"
+  },
+  {
+   "id": "regamna",
+   "name": "regamna",
+   "url": "https://mino.mobi/read/regamna/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "samhain"
+  },
+  {
+   "id": "serglige",
+   "name": "serglige",
+   "url": "https://mino.mobi/read/serglige/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "samhain"
+  },
+  {
+   "id": "thomas",
+   "name": "thomas",
+   "url": "https://mino.mobi/read/thomas/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "samhain"
+  },
+  {
    "id": "mabinogi",
    "name": "mabinogi",
    "url": "https://mino.mobi/read/mabinogi/",
