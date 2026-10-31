@@ -194,6 +194,28 @@ def NU_rcrow(k):
   Q=[r['Q'] for r in rs]; T=[t for r in rs for t in r['T']]; Tb=rs[0]['Tbarrier']
   return f"<tr><td>element {2*k} → {2*k+2}</td><td>{min(Q):.0f}–{max(Q):.0f}</td><td>{Tb/1e9:.3f}</td><td>{min(T)/1e9:.3f}–{max(T)/1e9:.3f}</td></tr>"
 
+# odd against even (nuclei.mjs plusone): a nucleon's separation energy from a core of k helium-4s
+NU_P1=NU.get('plusone') or []
+def NU_P1S(d,s,k,Z,nd=None):
+  r=[x for x in NU_P1 if x['d']==d and abs(x['s']-s)<1e-9 and x['k']==k and x['Z']==Z and (nd is None or x['ndir']==nd)]
+  return max(r,key=lambda x:x['ndir'])['S'] if r else None
+NU_P1MEAS={(2,0):1.573,(2,1):-0.185,(3,0):4.946,(3,1):1.944,(4,0):4.143,(4,1):0.600}
+NU_P1NAME={(2,0):'beryllium-9',(2,1):'boron-9',(3,0):'carbon-13',(3,1):'nitrogen-13',(4,0):'oxygen-17',(4,1):'fluorine-17'}
+def NU_p1ours():
+  out=''
+  for k in (2,3,4):
+    for Z in (0,1):
+      v=NU_P1S(3,1,k,Z); out+=f"<tr><td>{NU_P1NAME[(k,Z)]} ({'proton' if Z else 'neutron'})</td><td>{NU_m(v,'+.1f') if v is not None else '—'}</td><td>{NU_m(NU_P1MEAS[(k,Z)],'+.2f')}</td></tr>"
+  return out
+def NU_p1row(i,sv):
+  cells=''
+  for k in (2,3,4):
+    vn,vp=NU_P1S(4,sv,k,0),NU_P1S(4,sv,k,1); cells+=f"<td>{NU_m(vn,'+.0f') if vn is not None else '—'} / {NU_m(vp,'+.0f') if vp is not None else '—'}</td>"
+  return f"<tr><td>{NU_LBL[i]}</td>{cells}</tr>"
+NU_P19=[NU_P1S(4,sv,4,1) for sv in NU_S4['MN'] if NU_P1S(4,sv,4,1) is not None]
+NU_P1BIAS=(NU_P1S(3,1,4,1) or 0)-NU_P1MEAS[(4,1)]
+NU_QA=[r['Q'] for _,r in NU_RCROWS] if 'NU_RCROWS' in globals() else []
+
 nuclei=f'''<section id="declared">
   <h3>What was declared, and what it takes</h3>
   <p>The book began by declaring nuclei: heavy point charges, stable up to element 78 (<a href="force.html#contents">chapter 2</a>). That was enough for atoms, which see a nucleus only as its charge. It isn't enough for stars, which make nuclei, or for the question every chapter since has run into: <b>which elements are common?</b> Our world's answer, iron and oxygen and the rest, comes from nuclear physics: which nuclei hold together, and which ones stars can build. Here that physics is worked out for 4D, with every method first checked on our own nuclei.</p>
@@ -293,6 +315,16 @@ nuclei=f'''<section id="declared">
   <table class="sys"><tr><th>stage</th><th>billion K</th><th>smallest core (× M_Ch)</th></tr>{NU_burnrows()}</table>
   <p class="read">Malfliet–Tjon and Minnesota together where they differ. Past element 10 a rung's temperature is the barrier-only estimate, which the computed rungs show runs warm.</p>
   <p><b>4D stars build in steps by mass, as ours do, but with helium lit almost from the start.</b> Hydrogen lights in stars from {NU_bm('H',0,NU_hconv(4)):.2f}–{NU_bm('H',1,NU_hconv(4)):.2f} of the Chandrasekhar mass, and helium in cores from {NU_bm('He',0):.2f}–{NU_bm('He',1):.2f}: a core about as heavy as the lightest star that burns hydrogen at all, where ours needs one four times as heavy. 4D's helium needs only four to seven times hydrogen's temperature, ours about thirty (two helium-4s meeting, against our triple-alpha's three). So ours has a long band of stars, the red dwarfs, that burn hydrogen for ever and never helium; in 4D that band is narrow, perhaps empty: a star needs only to grow a helium core most of its own mass to light it. Then the ladder, a rung per step in mass: a core too light for carbon ends as beryllium-8, then carbon, oxygen, pxygen (element 10), and so on up, each rung needing a heavier core, until from element {NU_BUCH or '—'} on only cores at the Chandrasekhar mass or above take the next step. Those go further, because in 4D every capture keeps paying far past iron's charge: where they stop is where binding per nucleon peaks, which the liquid drop above puts past element 100 (rough), unless something else ends them first. <span class="tag open">open</span> Which of these get back out into the gas that makes planets, and in what proportion: that's the mass a star of each kind sheds and how it ends, and how many stars of each mass form. Ours return their carbon and nitrogen mostly from the winds of middling stars and their oxygen to iron from the explosions of massive ones.</p>
+</section>
+<section id="oddeven">
+  <h3>Odd against even</h3>
+  <p>Our oceans are water and not hydrogen fluoride because fluorine is rare: some thirty thousand times rarer than oxygen. Odd elements sit off the helium-4 ladder, so stars make them only on the side, and fluorine is also destroyed as fast as it's made, since a proton on fluorine-19 makes oxygen-16 and a helium-4 and releases 8 MeV. 4D's water question is the same one, element 9 against element 10. <span class="tag computed">computed</span> The first thing to know is whether an odd nucleus holds together at all: a nucleon on a ladder nucleus, built from nucleons as mass 5 was (Brink's model, the core's placements held fixed and the nucleon free on a grid round it, the core alone on the same placements; Minnesota's two-body force only, since the three-nucleon force over this many nucleons is out of reach here). The check, ours, the nucleon's separation energy (MeV; above zero it holds):</p>
+  <table class="sys"><tr><th>ours</th><th>computed</th><th>measured</th></tr>{NU_p1ours()}</table>
+  <p class="read">Every one that holds, holds; boron-9 doesn't, and doesn't. The sizes come out too large, more so the bigger the core (fluorine-17 by {NU_P1BIAS:.0f} MeV), as a two-body force binds dense matter too hard.</p>
+  <p>4D, a neutron / a proton on 2, 3 and 4 helium-4s (elements 5, 7 and 9 at masses 9, 13 and 17):</p>
+  <table class="sys"><tr><th>Minnesota</th><th>on 2 (element 5)</th><th>on 3 (element 7)</th><th>on 4 (element 9)</th></tr>{"".join(NU_p1row(i,sv) for i,sv in enumerate(NU_S4["MN"]))}</table>
+  <p class="read">A nucleon on 5 helium-4s (pxygen-20, element 11) is left out: it should enter a new shell and bind weakly, and comes out at 50–140 MeV, which says four fixed placements are too few for that closed-shell core. Denser grids of directions move the others by about a MeV.</p>
+  <p><b>Odd nuclei hold together in 4D</b>, unlike mass 5: element 9 at mass 17 by {min(NU_P19) if NU_P19 else 0:.0f}–{max(NU_P19) if NU_P19 else 0:.0f} MeV, far more than the model's overbinding on ours. <span class="tag follows">follows</span> <b>And the reaction that keeps our fluorine rare is closed.</b> To throw out a helium-4, a 4D nucleus has to pay that helium-4's separation energy, which is the rungs' capture energy above ({min(NU_QA) if NU_QA else 0:.0f}–{max(NU_QA) if NU_QA else 0:.0f} MeV), against the 10–60 MeV a proton brings in: every proton-in, helium-4-out reaction is uphill, by at least ten MeV at the window's bottom and by tens to hundreds elsewhere. The model's errors are a few MeV, and since it overstates how tightly the proton holds, the true margins are wider still. So in 4D an odd element, once made, isn't undone by protons. That takes away the lean toward Xater the ladder gave. <span class="tag open">open</span> How much is made: a proton captured onto a ladder nucleus, by dipole light (allowed, since a proton and a helium-4 core have different charges for their mass), where protons and ladder nuclei meet, which in 4D is often, since helium lights in the same stars, at almost the same temperature, as hydrogen. That's the next calculation, and it decides the water.</p>
 </section>
 <section id="tableend">
   <h3>How far a table can go</h3>
