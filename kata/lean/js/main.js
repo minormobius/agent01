@@ -12,6 +12,8 @@ import { DIM, ATLAS_C, VS, terrain, blocks, groundAt, walk, EYE, frenet, nearest
 import { Renderer } from "./render.js";
 import { parts as bikeParts, BOUND, V, G, HOLONOMY, MECHS, BIKE, GROUND_Y } from "./bike.js";
 import { Bike, followLean, lookahead } from "./dyn.js";
+import { catBench, CAT_V, catOnBike, catFrame, bikeParts as catBikeParts, twistInertias, CAT_BOUND, CAT_MID, GEO as CGEO } from "./catbike.js";
+import { K as CAT_K, cut as catCut } from "./cat.js";
 
 const $ = (id) => document.getElementById(id), T0 = performance.now(), timing = {};
 const glc = $("gl"), ov = $("ov");
@@ -109,7 +111,12 @@ $("go").onclick = go;
    for hands off; or the tilt if you turn it on. On a keyboard: ← → in your slice, ↑ ana, ↓ kata. What you ask for is a lean, as a rider asks with their
    body; the rider in the machine steers to get it (a real bike can't be balanced by its handlebar angle alone). */
 const g3 = (v) => [v[0], v[2], v[3]], to4g = (v, y = 0) => [v[0], y, v[1], v[2]];
-const bike = new Bike({ mech: "two-axis", v: V });
+let bike = new Bike({ mech: "two-axis", v: V });
+/* who rides it: you (a person-shaped rider on the benchmark bicycle), or the Cheshire cat on a cat-sized one-axis bike
+   (catbike.js): front paws on the bars across z, hind paws on the pedals across w, and its tail whirled round the (z, w)
+   plane to twist the frame, the falling cat's trick. Its tail turns TAIL_RATIO times as far as the frame */
+let rider = "you"; const TAIL = { ratio: twistInertias().ratio, theta: 0.6, alpha0: 0, rate: 0 };
+const cat = () => rider === "cat", WB = () => (cat() ? CGEO.WB : BIKE.WB);
 /* two modes, each with its own few controls: walk (the stick walks; twist, look into w, square up, face the track) and
    ride (the stick is the handlebars; the camera, the speed, and ⚙ for the rest). Riding, who holds the bars (pilot) is
    you, hands on (default), you assisted (you ask for a lean), or the autopilot (you watch) */
@@ -141,7 +148,18 @@ function setMode(m) {
 }
 function setCam(c) { cam = c; $("cam").textContent = `👁 ${c}`; }
 function setPilot(p) { pilot = p; $("hands").textContent = { hands: "✋ hands on", assisted: "🤝 assisted", autopilot: "🤖 autopilot" }[p]; if (p === "autopilot") bike.settle(followLean(bike, aheadPt(bhint, lookahead(bike.v)))); }
-function setMech(m) { bike.setMech(m); $("mech").textContent = `steer: ${m}`; }
+function setMech(m) { if (cat()) m = "one-axis"; bike.setMech(m); $("mech").textContent = `steer: ${m}`; }
+/* change rider: a new bike, the other kind, where this one is, heading as it heads */
+function setRider(r) {
+  if (r === rider) return;
+  const old = bike; rider = r;
+  bike = r === "cat" ? new Bike({ P: catBench(), mech: "one-axis", v: CAT_V }) : new Bike({ mech: "two-axis", v: V });
+  bike.limits = old.limits; bike.place(old.pos, old.T, old.c); bike.dist = old.dist;
+  if (!humanOn()) bike.settle(followLean(bike, aheadPt(bhint, lookahead(bike.v))));
+  TAIL.alpha0 = bike.alpha; TAIL.theta = 0.6;
+  $("rider").textContent = r === "cat" ? "rider: 🐈 cheshire" : "rider: you";
+  setMech(r === "cat" ? "one-axis" : "two-axis"); setSpeed(bike.v);
+}
 /* the phone's tilt, if you'd rather: off by default (the stick is the control); turning it on asks iOS for permission */
 function setTilt(on) {
   human.useTilt = on; human.zero = null; $("tiltb").textContent = on ? "📱 tilt on" : "📱 tilt"; $("tiltb").classList.toggle("on", on);
@@ -151,9 +169,10 @@ $("tiltb").onclick = () => setTilt(!human.useTilt);
 function setLimits(r) { relaxed = r; bike.limits = !r; $("lim").textContent = r ? "limits: off" : "limits: real"; }
 $("lim").onclick = () => setLimits(!relaxed);
 $("hands").onclick = () => setPilot(PILOTS[(PILOTS.indexOf(pilot) + 1) % PILOTS.length]);
-const SPEEDS = [5, 6, 7, 3, 4];
+const SPEEDS = [5, 6, 7, 3, 4], CAT_SPEEDS = [3, 3.5, 2.5];
 function setSpeed(v) { bike.setSpeed(v); $("spd").value = v; $("spdV").textContent = `${v.toFixed(1)} m/s`; $("spdb").textContent = `${v} m/s`; }
-$("spdb").onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(bike.v) + 1) % SPEEDS.length] || 5);
+$("spdb").onclick = () => { const L = cat() ? CAT_SPEEDS : SPEEDS; setSpeed(L[(L.indexOf(bike.v) + 1) % L.length] || L[0]); };
+$("rider").onclick = () => setRider(cat() ? "you" : "cat");
 $("mode").onclick = () => setMode(mode === "walk" ? "ride" : "walk");
 $("cam").onclick = () => setCam(CAMS[(CAMS.indexOf(cam) + 1) % CAMS.length]);
 $("cfg").onclick = () => document.body.classList.toggle("cfg");
@@ -187,7 +206,7 @@ function bikePose() {
   const p = to4g(bike.pos, GROUND_Y), T = to4g(bike.T), L = to4g(bike.lean), phiTrue = Math.hypot(...L), phi = Math.min(phiTrue, 1.45), lh = phiTrue > 1e-6 ? L.map((x) => x / phiTrue) : to4g(bike.a); // drawn no flatter than 83°
   const u = add(UP.map((x) => x * Math.cos(phi)), lh, Math.sin(phi)), tilt = (x) => unit(add(x, u, -dot(x, u)));
   const Sv = to4g(bike.steer), delTrue = Math.hypot(...Sv), del = Math.min(delTrue, 1.2), sd = delTrue > 1e-6 ? Sv.map((x) => x / delTrue) : to4g(bike.a); // drawn no further than 69°
-  return { p, T, u, a: tilt(to4g(bike.a)), b: tilt(to4g(bike.b)), Np: tilt(sd), Tf: add(T.map((x) => x * Math.cos(del)), sd, Math.sin(del)), delta: del, phi, phiTrue, deltaTrue: delTrue, lean: lh, mech: bike.mech, s: bike.dist, front: add(p, T, BIKE.WB) };
+  return { p, T, u, a: tilt(to4g(bike.a)), b: tilt(to4g(bike.b)), Np: tilt(sd), Tf: add(T.map((x) => x * Math.cos(del)), sd, Math.sin(del)), delta: del, phi, phiTrue, deltaTrue: delTrue, lean: lh, mech: bike.mech, s: bike.dist, front: add(p, T, WB()), ph: bike.dist / (2 * (cat() ? CGEO.R : BIKE.R)) };
 }
 /* the camera riding along: behind and above the rear wheel, upright, facing along the bike */
 function rideFrame() {
@@ -200,12 +219,13 @@ function rideFrame() {
 function bikeRead(st, want) {
   const deg = (x) => (x * 180 / Math.PI).toFixed(1), kap = Math.hypot(...bike.curvature), cal = Math.atan(bike.v * bike.v * kap / G);
   const L = st.lean.map((x) => x * st.phi), kN = dot(L, me.fr.N), kS = Math.hypot(dot(L, me.fr.R), dot(L, me.fr.F)), intoW = Math.round(100 * kN * kN / (kN * kN + kS * kS || 1));
+  const catTxt = cat() ? ` <b>The Cheshire cat</b> rides it: front paws on the bar across z, hind paws on the pedals across w. To twist the frame (one-axis steering's job, which nothing on the ground can do) it whirls its tail round the (z, w) plane: the tail is under 1% of the cat, so it turns <b>${TAIL.ratio.toFixed(0)}×</b> as far as the frame, <b>${(TAIL.rate / (2 * Math.PI)).toFixed(2)}</b> turns a second now. A bike its size balances itself between 2.7 and 3.8 m/s.` : "";
   const mech = bike.mech === "two-axis"
     ? `Two-axis steering: both copies steer, the frame never twists (round this track it comes home turned ${deg(HOLONOMY)}°), steer torques <b>${bike.torque[0].toFixed(1)}</b> and <b>${bike.torque[1].toFixed(1)}</b> N m.`
     : `One-axis steering: its one steering axis must lie along the steer, so the frame twists, <b>${bike.alphaDot.toFixed(2)}</b> rad/s now, a twisting torque of <b>${bike.twistTorque.toFixed(1)}</b> N m from the rider (nothing on the ground can supply it). Steer torque <b>${Math.hypot(...bike.torque).toFixed(1)}</b> N m.`;
   const who = humanOn() ? (pilot === "hands" ? `Hands on: you push the bars with <b>${(Math.hypot(human.lc, human.ld) * T_MAX / handMax()).toFixed(2)}</b> N m, and nothing balances it but the bike itself${bike.v >= 4.31 && bike.v <= 6.02 ? " (at this speed it does, in both copies)" : " (at this speed it can't: that's on you)"}.` : `You ask for a lean of ${deg(Math.hypot(human.lc, human.ld))}°, and the rider in the machine steers to get it.`) : `The autopilot asks for ${deg(Math.hypot(...want))}°.`;
   const txt = `<b>The bike</b> (the dynamics: the linearized Whipple bicycle in two copies, an LQR rider) at ${bike.v.toFixed(1)} m/s: lean <b>${deg(st.phiTrue)}°</b>${st.phiTrue > SILLY ? " (non-physical: no bicycle leans like that; with the limits off the linear model is simply followed)" : ""}, <b>${intoW}%</b> of it into the direction you can't see; ` +
-    `steer <b>${deg(st.deltaTrue)}°</b>, a turn of radius ${kap > 1e-3 ? (1 / kap).toFixed(1) + " m" : "∞"}, for which the calibration says ${deg(cal)}°. ${who} ${mech}`;
+    `steer <b>${deg(st.deltaTrue)}°</b>, a turn of radius ${kap > 1e-3 ? (1 / kap).toFixed(1) + " m" : "∞"}, for which the calibration says ${deg(cal)}°. ${who} ${mech}${catTxt}`;
   if (txt !== bikeRead.txt) { bikeRead.txt = txt; $("bread").innerHTML = txt; }
   return { intoW };
 }
@@ -352,9 +372,18 @@ function step(now) {
   const st = bikePose();
   if (mode === "ride") {
     me.fr = rideFrame(); easing = null;
-    me.p = add(add(st.p, st.T, -3.4), UP, 2.0); if (me.pitch > 0.2) me.pitch = 0.2;
+    me.p = cat() ? add(add(st.p, st.T, -1.6), UP, 0.85) : add(add(st.p, st.T, -3.4), UP, 2.0); if (me.pitch > 0.2) me.pitch = 0.2;
   }
-  Rd.bike(bikeParts(st), add(add(st.p, st.T, BIKE.WB / 2), st.u, 0.8), BOUND, COL[bike.mech]);
+  if (cat()) {
+    // the tail: no outside torque in the frame's (z, w) plane, so I_body α + I_tail θ stays put
+    const th = TAIL.theta - TAIL.ratio * (bike.alpha - TAIL.alpha0); TAIL.rate += ((th - (TAIL.last ?? th)) / Math.max(dt, 1e-3) - TAIL.rate) * Math.min(1, dt * 4); TAIL.last = th;
+    // only the parts that reach your slice go to the shader, as the cat lab does (cat.js cut): your slice is N·q = N·eye,
+    // which in the cat's frame is (M N)·q = N·(eye − O)
+    const cf = catFrame(st), P0 = catOnBike(st.ph, th), nC = cf.M.map((r) => dot(r, me.fr.N)), cC = dot(me.fr.N, add(me.p, cf.O, -1)), hit = catCut(P0, nC, cC).parts;
+    const P = { caps: P0.caps.filter((x) => hit.includes(x)), ells: P0.ells.filter((x) => hit.includes(x)), cavity: P0.cavity }, bc = cf.O.map((x, i) => x + cf.M.reduce((s2, r, k) => s2 + r[i] * CAT_MID[k], 0));
+    Rd.bike(catBikeParts(st), add(add(st.p, st.T, 0.21), st.u, 0.3), 0.8, [0.95, 0.42, 0.62]);
+    Rd.cat(P, cf.O, cf.M, bc, CAT_BOUND, CAT_K);
+  } else { Rd.bike(bikeParts(st), add(add(st.p, st.T, BIKE.WB / 2), st.u, 0.8), BOUND, COL[bike.mech]); Rd.cat(null); }
   const cp = Math.cos(me.pitch), sp = Math.sin(me.pitch), F = add(me.fr.F.map((v) => v * cp), UP, sp), U = add(UP.map((v) => v * cp), me.fr.F, -sp);
   Rd.draw({ eye: me.p.map((v) => v / VS), R: me.fr.R, U, F, sun: SUN, time: now / 1000, fae: opt.fae ? 1 : 0, tan: TAN, far: 440, vs: VS }, resolution(dt));
   const r = trackRead(), br = bikeRead(st, want); readout(r); mapDraw(st);
@@ -367,4 +396,4 @@ function step(now) {
   frames++;
 }
 requestAnimationFrame(step);
-window.LEAN = { timing, me, bike, human, setMode, setCam, setPilot, setMech, resetBike, get mode() { return mode; }, squareUp, faceTrack, get frames() { return frames; }, rot: (i, j, t) => { rotFr(i, j, t); tidy(); }, opt, track: () => trackRead(), lap };
+window.LEAN = { timing, me, get bike() { return bike; }, human, setRider, TAIL, setMode, setCam, setPilot, setMech, resetBike, get mode() { return mode; }, squareUp, faceTrack, get frames() { return frames; }, rot: (i, j, t) => { rotFr(i, j, t); tidy(); }, opt, track: () => trackRead(), lap };

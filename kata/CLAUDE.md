@@ -52,6 +52,11 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
     parameters, two copies for 4D (y as given, w with each body's spread in y swapped for its spread in w), LQR riders,
     pure pursuit, and the `Bike` the page steps. The page draws it through `bike.js`'s `parts()`. `test/dyn.selftest.mjs`
     holds the matrices to the published ones; never loosen that check to pass a change.
+  - **The Cheshire cat** (`js/catbike.js`, `js/cat.js`): `cat.js` is a **byte-identical copy** of
+    `games/cheshire/js/cat.js` (the cat lab). Edit the lab's and copy it over, never the other way;
+    `test/catbike.selftest.mjs` fails on any drift. The shader's `catSD` is the cat lab's `cat()`, formula for formula;
+    after a change to the lab's shader joins or materials, port it here. The cat bike is the benchmark × 0.4, one-axis
+    only, and the tail carries the twist (I_body/I_tail from the posed parts).
   - IRIS⁴'s march fixes reach Lean only by hand. After a change to `four/iris/js/world.js`'s `march()` or the shader's,
     port it here and run both selftests.
 
@@ -66,6 +71,7 @@ and y lateral; translate when writing prose.
 node kata/lean/test/lean.selftest.mjs   # ~2 s
 node kata/lean/test/bike.selftest.mjs   # < 1 s
 node kata/lean/test/dyn.selftest.mjs    # ~2 s
+node kata/lean/test/catbike.selftest.mjs # ~1 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

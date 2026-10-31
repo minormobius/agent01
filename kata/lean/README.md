@@ -135,6 +135,37 @@ The controls:
 The camera rides in the non-twisting frame, so "across" and "ana" stay put while the bike's own frame twists under you.
 If it falls, or reaches the rim, it's put back on the track.
 
+## The Cheshire cat rides (`js/catbike.js`)
+
+Under ⚙, **rider: 🐈 cheshire** swaps you for games/cheshire's cat, on a bicycle its size. `js/cat.js` is the cat lab's
+own cat, a byte-identical copy (the selftest holds it to the original): its 4D body, four ears, three eyes and grin,
+drawn by the shader with the same formulas the cat lab uses. Only the parts that reach your slice are uploaded, as
+the lab does (`cut()`).
+
+- **The one-axis bike is the cat's bike.** Its front paws stand across z (±8.8 cm) and its hind paws across w
+  (±11 cm). Front paws go on the bar across z, the frame's steering direction: push one and pull the other and the
+  bar turns in the (forward, z) plane. Hind paws go on the pedals. The cranks turn in the (forward, up) plane like
+  the wheels, so the axle runs out along w and the pedals sit at ±w, where the hind feet already are. A two-axis
+  bike would want a paw at the bars out in w, and the cat hasn't one.
+- **The tail twists the frame.** One-axis steering has to twist the frame in its own (z, w) plane, and nothing on
+  the ground can push it round. That is the falling-cat problem. The cat whirls its tail round the (z, w) plane:
+  with no outside torque there, I_body·α̇ + I_tail·θ̇ = 0. The tail is under 1% of the cat, and the posed parts give
+  I_body/I_tail = 182, so the tail turns 182 times as far as the frame, the other way. Round the track at 3 m/s the
+  frame twists at up to 0.07 rad/s, so the tail whirls at up to about 2 turns a second.
+- **The bike** is the benchmark scaled by 0.4: lengths × 0.4, masses × 0.4³, inertias × 0.4⁵. Time then scales by
+  √0.4, so it balances itself between 2.71 and 3.81 m/s (ours × √0.4 exactly). Standing still it falls as
+  e^(8.75 t), 1.58× faster than ours. It rides at 3 m/s, one-axis always; the speed button cycles 3, 3.5, 2.5.
+- **Who steers** is still the pilot setting: the autopilot, or you (hands on or assisted), with the cat's paws
+  following.
+
+```bash
+node kata/lean/test/catbike.selftest.mjs   # ~1 s
+```
+
+The copy is the cat lab's, the √s scaling, the paws on grips and pedals through a whole crank turn, the parts inside
+the shader's arrays and bounding ball, the 182× inertia ratio (the tail a rotor), a lap at 3 m/s, and the shader
+joining the cat's parts as cat.js does.
+
 ## The autopilot's calibration (`js/bike.js`)
 
 A bicycle rides the centreline at a set speed (5 m/s by default; the slider goes from 1 to 9), kinematically, in the
