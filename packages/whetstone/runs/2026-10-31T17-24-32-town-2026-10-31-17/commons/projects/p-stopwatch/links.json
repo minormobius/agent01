@@ -1,0 +1,152 @@
+[
+  {
+    "from": "T-H1-MATCH",
+    "to": "SW-H-MATCH",
+    "kind": "verifies"
+  },
+  {
+    "from": "T-H1-SAMETIME",
+    "to": "SW-H-MATCH",
+    "kind": "verifies"
+  },
+  {
+    "from": "harness.mjs",
+    "to": "SW-H-MATCH",
+    "kind": "implements"
+  },
+  {
+    "from": "T-H2-RANDOM",
+    "to": "SW-H-CATCH",
+    "kind": "verifies"
+  },
+  {
+    "from": "harness.mjs",
+    "to": "SW-H-CATCH",
+    "kind": "implements"
+  },
+  {
+    "from": "T-S1-SAFE",
+    "to": "SW-S-SAFE",
+    "kind": "verifies"
+  },
+  {
+    "from": "stopwatch.mjs",
+    "to": "SW-S-SAFE",
+    "kind": "implements"
+  },
+  {
+    "from": "T-S2-HONEST",
+    "to": "SW-S-HONEST",
+    "kind": "verifies"
+  },
+  {
+    "from": "T-S2-TQUANT",
+    "to": "SW-S-HONEST",
+    "kind": "verifies"
+  },
+  {
+    "from": "stopwatch.mjs",
+    "to": "SW-S-HONEST",
+    "kind": "implements"
+  },
+  {
+    "from": "clinic-sim.mjs",
+    "to": "SW-S-HONEST",
+    "kind": "implements"
+  },
+  {
+    "from": "T-S3-VERDICT",
+    "to": "SW-S-VERDICT",
+    "kind": "verifies"
+  },
+  {
+    "from": "stopwatch.mjs",
+    "to": "SW-S-VERDICT",
+    "kind": "implements"
+  },
+  {
+    "from": "T-S4-REPRO",
+    "to": "SW-S-REPRO",
+    "kind": "verifies"
+  },
+  {
+    "from": "stopwatch.mjs",
+    "to": "SW-S-REPRO",
+    "kind": "implements"
+  },
+  {
+    "from": "harness.mjs",
+    "to": "SW-S-REPRO",
+    "kind": "implements"
+  },
+  {
+    "from": "T-F1-DROP",
+    "to": "SW-F-DROP",
+    "kind": "verifies"
+  },
+  {
+    "from": "fresh.mjs",
+    "to": "SW-F-DROP",
+    "kind": "implements"
+  },
+  {
+    "from": "T-V1-SELF",
+    "to": "SW-V-SELF",
+    "kind": "verifies"
+  },
+  {
+    "from": "test.mjs",
+    "to": "SW-V-SELF",
+    "kind": "implements"
+  },
+  {
+    "from": "T-S2-EXACT",
+    "to": "SW-S-HONEST",
+    "kind": "verifies"
+  },
+  {
+    "from": "T-S1-RULES",
+    "to": "SW-S-SAFE",
+    "kind": "verifies"
+  },
+  {
+    "from": "T-S3-ORDER",
+    "to": "SW-S-VERDICT",
+    "kind": "verifies"
+  },
+  {
+    "from": "T-H1-SCALE",
+    "to": "SW-H-MATCH",
+    "kind": "verifies"
+  },
+  {
+    "from": "T-H1-SPAWN",
+    "to": "SW-H-MATCH",
+    "kind": "verifies"
+  },
+  {
+    "from": "T-H1-COPY",
+    "to": "SW-H-MATCH",
+    "kind": "verifies"
+  },
+  {
+    "from": "T-H2-TIME",
+    "to": "SW-H-CATCH",
+    "kind": "verifies"
+  },
+  {
+    "from": "T-F1-HAND",
+    "to": "SW-F-DROP",
+    "kind": "verifies"
+  },
+  {
+    "from": "T-S5-DIAG",
+    "to": "SW-S-DIAG",
+    "kind": "verifies"
+  },
+  {
+    "from": "stopwatch.mjs",
+    "to": "SW-S-DIAG",
+    "kind": "implements"
+  }
+]

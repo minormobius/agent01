@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<rect width="1200" height="630" fill="#f6f1e7"/>
+<text x="75" y="110" font-family="Georgia, serif" font-size="58" fill="#2b2118">A monochord you can play</text>
+<text x="75" y="160" font-family="Georgia, serif" font-size="28" fill="#6b5a48">Move the bridge. Pluck where you like. Hear whether a fifth is a fifth.</text>
+<rect x="75.0" y="186.0" width="1050.0" height="288.0" rx="8" fill="#e6cd9b" stroke="#9c7a45" stroke-width="2"/>
+<circle cx="855.0" cy="258.0" r="31.200000000000003" fill="#3a2a1a"/>
+<rect x="144.0" y="210.0" width="12" height="240.0" fill="#f4ecdc" stroke="#7a6040"/>
+<rect x="1044.0" y="210.0" width="12" height="240.0" fill="#f4ecdc" stroke="#7a6040"/>
+<line x1="90.0" y1="282.0" x2="1110.0" y2="282.0" stroke="#59616b" stroke-width="3"/>
+<line x1="90.0" y1="378.0" x2="1110.0" y2="378.0" stroke="#59616b" stroke-width="3"/>
+<line x1="150.0" y1="430.8" x2="150.0" y2="452.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="225.0" y1="430.8" x2="225.0" y2="442.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="300.0" y1="430.8" x2="300.0" y2="442.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="375.0" y1="430.8" x2="375.0" y2="452.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="450.0" y1="430.8" x2="450.0" y2="442.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="525.0" y1="430.8" x2="525.0" y2="442.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="600.0" y1="430.8" x2="600.0" y2="452.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="675.0" y1="430.8" x2="675.0" y2="442.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="750.0" y1="430.8" x2="750.0" y2="442.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="825.0" y1="430.8" x2="825.0" y2="452.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="900.0" y1="430.8" x2="900.0" y2="442.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="975.0" y1="430.8" x2="975.0" y2="442.8" stroke="#5a4428" stroke-width="2"/>
+<line x1="1050.0" y1="430.8" x2="1050.0" y2="452.8" stroke="#5a4428" stroke-width="2"/>
+<rect x="742.0" y="348.0" width="16" height="60" rx="3" fill="#f4ecdc" stroke="#8a3b12" stroke-width="3"/>
+<text x="750.0" y="522.0" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="26" fill="#8a3b12">2/3: a fifth</text>
+<text x="1125" y="600" text-anchor="end" font-family="Georgia, serif" font-size="22" fill="#6b5a48">miniphim.minomobi.com/monochord</text></svg>

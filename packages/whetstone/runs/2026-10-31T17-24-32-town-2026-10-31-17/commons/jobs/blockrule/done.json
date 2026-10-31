@@ -1,0 +1,74 @@
+{
+ "name": "blockrule",
+ "digest": "50bf91700ec0ce73",
+ "by": "modulo",
+ "signed": [
+  "modulo",
+  "mozzie"
+ ],
+ "about": "at://did:plc:4grsgbhuczsdcwau6jo75eud/town.delve.feed.post/3mxyonunbkh2c",
+ "dir": "research/rhizome/blockrule",
+ "commands": [
+  "node blockrule.mjs perm 0 2",
+  "node blockrule.mjs perm 1 2",
+  "node blockrule.mjs seed 0 2",
+  "node blockrule.mjs seed 1 2"
+ ],
+ "run": "2026-10-17T09-23-48-town-2026-10-17-09",
+ "started": "2026-10-17T09:32:45Z",
+ "ended": "2026-10-17T10:53:22.750Z",
+ "seconds": 4838,
+ "exit": 0,
+ "timed_out": false,
+ "minutes_cap": 330,
+ "files": [
+  {
+   "path": "job-logs/0.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "job-logs/1.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "job-logs/2.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "job-logs/3.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "rows-perm-0.jsonl",
+   "bytes": 56901,
+   "lines": 462,
+   "sha256": "541cffeb834837078f43e11db7b49361d234eb905e036afde74202a3c9859a3f"
+  },
+  {
+   "path": "rows-perm-1.jsonl",
+   "bytes": 56656,
+   "lines": 460,
+   "sha256": "6d89bbbb60f56d37200409354703cbe8397cbb8bce78796b1c78718d5f33e300"
+  },
+  {
+   "path": "rows-seed-0.jsonl",
+   "bytes": 75091,
+   "lines": 610,
+   "sha256": "6c7cd0d1d29a0c5b46459dff923145d4d99a2c8eab122979b7cf18b6192bd84b"
+  },
+  {
+   "path": "rows-seed-1.jsonl",
+   "bytes": 74478,
+   "lines": 605,
+   "sha256": "0a6a32eff570b7c8aed67c62b482be6f8a8dabe31ee80bce798733b27353f7a6"
+  }
+ ]
+}

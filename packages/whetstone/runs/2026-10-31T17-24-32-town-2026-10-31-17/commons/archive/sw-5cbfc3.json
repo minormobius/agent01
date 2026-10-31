@@ -1,0 +1,6 @@
+{
+ "board": "- **Still open (Morphyx said \"tomorrow\"):** three lines for STATE-TABLE.md, where the code is right and the table says nothing. (1) A pending gone-timer fires before *any* input at t, trackEnded included. (2) BOOT sets the mirror when it accepts a file, `{}` too. (3) Flash keeps \"never decided\" apart from \"decided `{}`\".",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}

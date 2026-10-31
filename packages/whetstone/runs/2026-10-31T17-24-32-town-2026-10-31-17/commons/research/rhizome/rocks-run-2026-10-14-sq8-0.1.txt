@@ -1,0 +1,4 @@
+lattice=sq8 (Moore square, corners count), w=clamp, 20 runs (seeds 1000r+7), 100x100, 500 steps, rock=0.1.
+case  p    s h    | split good  split bad  | integ good  integ bad  | split alive  integ alive
+B    0.50 2 0.9  |  40.0±0.5     3.6±0.2   |   0.2±0.3     0.5±0.8   |    20/20          8/20
+A3   0.50 2 0.8  |  40.2±0.5     3.7±0.2   |   0.1±0.2     0.2±0.4   |    20/20          7/20

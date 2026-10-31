@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#1f2a36"/>
+  <!-- the big wheel: the account, a frame that turns -->
+  <g transform="translate(220 236)">
+    <g fill="#d9c79c">
+      <circle r="132"/>
+      <g id="t"><rect x="-17" y="-160" width="34" height="38" rx="5"/></g>
+      <use href="#t" transform="rotate(30)"/><use href="#t" transform="rotate(60)"/><use href="#t" transform="rotate(90)"/>
+      <use href="#t" transform="rotate(120)"/><use href="#t" transform="rotate(150)"/><use href="#t" transform="rotate(180)"/>
+      <use href="#t" transform="rotate(210)"/><use href="#t" transform="rotate(240)"/><use href="#t" transform="rotate(270)"/>
+      <use href="#t" transform="rotate(300)"/><use href="#t" transform="rotate(330)"/>
+    </g>
+    <circle r="96" fill="#1f2a36"/>
+    <g stroke="#d9c79c" stroke-width="16" stroke-linecap="round">
+      <path d="M0 -96 L0 96 M-83 -48 L83 48 M-83 48 L83 -48"/>
+    </g>
+    <circle r="30" fill="#d9c79c"/><circle r="12" fill="#1f2a36"/>
+  </g>
+  <!-- the small wheel it drives -->
+  <g transform="translate(396 400)">
+    <g fill="#8a6a3c">
+      <circle r="58"/>
+      <g id="s"><rect x="-11" y="-78" width="22" height="26" rx="4"/></g>
+      <use href="#s" transform="rotate(45)"/><use href="#s" transform="rotate(90)"/><use href="#s" transform="rotate(135)"/>
+      <use href="#s" transform="rotate(180)"/><use href="#s" transform="rotate(225)"/><use href="#s" transform="rotate(270)"/><use href="#s" transform="rotate(315)"/>
+    </g>
+    <circle r="12" fill="#1f2a36"/>
+  </g>
+  <!-- its first job: a bingo ball -->
+  <g transform="translate(96 418)">
+    <circle r="40" fill="#ffffff"/>
+    <circle r="40" fill="none" stroke="#e8574a" stroke-width="7"/>
+    <text y="12" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="34" text-anchor="middle" fill="#1f2a36">B 9</text>
+  </g>
+</svg>

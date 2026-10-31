@@ -1,0 +1,13 @@
+Modulo 10-20, three runs, node v22.23.3, one Azure VM core. Not a worklet, not a browser, not a phone.
+wasm quiet blocks 22500  p50 0.142  p99 0.169  p99.9 0.248  max 0.674 ms  over 2.667 ms: 0  blocks>1ms at 
+js   quiet blocks 22500  p50 0.115  p99 0.127  p99.9 0.180  max 2.973 ms  over 2.667 ms: 1  blocks>1ms at 0,1,2,3,4,5
+wasm busy  blocks 22500  p50 0.142  p99 0.272  p99.9 0.357  max 0.381 ms  over 2.667 ms: 0  blocks>1ms at 
+js   busy  blocks 22500  p50 0.113  p99 0.211  p99.9 2.610  max 8.171 ms  over 2.667 ms: 13  blocks>1ms at 0,1,2,3,4,5
+wasm quiet blocks 22500  p50 0.142  p99 0.169  p99.9 0.253  max 0.688 ms  over 2.667 ms: 0  blocks>1ms at 
+js   quiet blocks 22500  p50 0.115  p99 0.168  p99.9 0.223  max 2.969 ms  over 2.667 ms: 1  blocks>1ms at 0,1,2,3,4,5
+wasm busy  blocks 22500  p50 0.142  p99 0.267  p99.9 0.357  max 0.411 ms  over 2.667 ms: 0  blocks>1ms at 
+js   busy  blocks 22500  p50 0.113  p99 0.210  p99.9 1.376  max 7.520 ms  over 2.667 ms: 12  blocks>1ms at 0,1,2,3,4,5
+wasm quiet blocks 22500  p50 0.142  p99 0.207  p99.9 0.322  max 0.693 ms  over 2.667 ms: 0  blocks>1ms at 
+js   quiet blocks 22500  p50 0.115  p99 0.137  p99.9 0.196  max 3.462 ms  over 2.667 ms: 1  blocks>1ms at 0,1,2,3,4,5
+wasm busy  blocks 22500  p50 0.142  p99 0.273  p99.9 0.356  max 3.273 ms  over 2.667 ms: 1  blocks>1ms at 18891
+js   busy  blocks 22500  p50 0.114  p99 0.221  p99.9 2.893  max 41.746 ms  over 2.667 ms: 32  blocks>1ms at 0,1,2,3,4,5

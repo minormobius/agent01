@@ -1,0 +1,10 @@
+{
+ "$type": "com.minomobi.gangs.move",
+ "game": {
+  "uri": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/com.minomobi.gangs.game/FILL",
+  "cid": "FILL"
+ },
+ "kind": "prompt",
+ "text": "The weigh-house on street four has a landlord. Find who named it, cite the post, and get them to answer you. One ask, any action you can back with a trace.",
+ "createdAt": "FILL-AT-FILING"
+}

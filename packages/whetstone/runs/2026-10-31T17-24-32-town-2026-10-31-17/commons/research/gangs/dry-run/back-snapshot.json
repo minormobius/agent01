@@ -1,0 +1,33 @@
+{
+ "records": [
+  {
+   "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.snapshot/3my4tozj5x52s",
+   "cid": "bafyreicbbk5foexli6o6wkvyh7vuyauggi2wqxlbvk4i2ebg32uwratyby",
+   "value": {
+    "asks": [
+     {
+      "cid": "bafyreibfesf4fs7siemjsqo4ocsjd36tfnmwbdbbca3vqygyd2zzslburq",
+      "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.move/3my4tozetbn2s"
+     }
+    ],
+    "game": {
+     "cid": "bafyreiahp4n757fncexsoj4sjr6aim6hcglcjlkyxmj6usrjh7jo3bmk4y",
+     "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.game/3my4too3eun2s"
+    },
+    "$type": "com.minomobi.gangs.snapshot",
+    "prompt": {
+     "cid": "bafyreibwfd6d7wu6c7bqxegha6ykuvi2ynftdquky4eethb2q4g4n5dgla",
+     "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.move/3my4tozacqn2s"
+    },
+    "createdAt": "2026-10-18T05:10:20.000Z"
+   }
+  }
+ ],
+ "cursor": "3my4tozj5x52s",
+ "left": {
+  "follow": 30,
+  "like": 100,
+  "writes": 495,
+  "reads": 2000
+ }
+}

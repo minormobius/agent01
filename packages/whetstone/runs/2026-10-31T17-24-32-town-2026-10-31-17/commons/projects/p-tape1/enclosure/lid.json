@@ -1,0 +1,1651 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Lid: the card nest (a pocket, nestFloor of plastic over the antenna), the grille over the speaker, two 30 mm arcade buttons, the volume pot, four screw holes into the body posts.",
+ "params": {
+  "L": 190,
+  "W": 130,
+  "lidT": 4,
+  "nestFloor": 2,
+  "nestW": 90,
+  "nestH": 65,
+  "hole": 3.5,
+  "button": 30,
+  "pot": 7,
+  "screw": 3.4
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "top",
+   "loops": [
+    {
+     "name": "rim",
+     "rect": {
+      "c": [
+       0,
+       0
+      ],
+      "w": "L",
+      "h": "W"
+     }
+    },
+    {
+     "name": "grille0",
+     "circle": {
+      "c": [
+       36.8,
+       -20.0985
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille1",
+     "circle": {
+      "c": [
+       41.6,
+       -20.0985
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille2",
+     "circle": {
+      "c": [
+       46.4,
+       -20.0985
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille3",
+     "circle": {
+      "c": [
+       51.2,
+       -20.0985
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille4",
+     "circle": {
+      "c": [
+       29.6,
+       -15.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille5",
+     "circle": {
+      "c": [
+       34.4,
+       -15.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille6",
+     "circle": {
+      "c": [
+       39.2,
+       -15.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille7",
+     "circle": {
+      "c": [
+       44,
+       -15.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille8",
+     "circle": {
+      "c": [
+       48.8,
+       -15.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille9",
+     "circle": {
+      "c": [
+       53.6,
+       -15.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille10",
+     "circle": {
+      "c": [
+       58.4,
+       -15.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille11",
+     "circle": {
+      "c": [
+       22.4,
+       -11.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille12",
+     "circle": {
+      "c": [
+       27.2,
+       -11.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille13",
+     "circle": {
+      "c": [
+       32,
+       -11.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille14",
+     "circle": {
+      "c": [
+       36.8,
+       -11.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille15",
+     "circle": {
+      "c": [
+       41.6,
+       -11.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille16",
+     "circle": {
+      "c": [
+       46.4,
+       -11.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille17",
+     "circle": {
+      "c": [
+       51.2,
+       -11.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille18",
+     "circle": {
+      "c": [
+       56,
+       -11.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille19",
+     "circle": {
+      "c": [
+       60.8,
+       -11.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille20",
+     "circle": {
+      "c": [
+       65.6,
+       -11.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille21",
+     "circle": {
+      "c": [
+       20,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille22",
+     "circle": {
+      "c": [
+       24.8,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille23",
+     "circle": {
+      "c": [
+       29.6,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille24",
+     "circle": {
+      "c": [
+       34.4,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille25",
+     "circle": {
+      "c": [
+       39.2,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille26",
+     "circle": {
+      "c": [
+       44,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille27",
+     "circle": {
+      "c": [
+       48.8,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille28",
+     "circle": {
+      "c": [
+       53.6,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille29",
+     "circle": {
+      "c": [
+       58.4,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille30",
+     "circle": {
+      "c": [
+       63.2,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille31",
+     "circle": {
+      "c": [
+       68,
+       -7.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille32",
+     "circle": {
+      "c": [
+       17.6,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille33",
+     "circle": {
+      "c": [
+       22.4,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille34",
+     "circle": {
+      "c": [
+       27.2,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille35",
+     "circle": {
+      "c": [
+       32,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille36",
+     "circle": {
+      "c": [
+       36.8,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille37",
+     "circle": {
+      "c": [
+       41.6,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille38",
+     "circle": {
+      "c": [
+       46.4,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille39",
+     "circle": {
+      "c": [
+       51.2,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille40",
+     "circle": {
+      "c": [
+       56,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille41",
+     "circle": {
+      "c": [
+       60.8,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille42",
+     "circle": {
+      "c": [
+       65.6,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille43",
+     "circle": {
+      "c": [
+       70.4,
+       -3.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille44",
+     "circle": {
+      "c": [
+       15.2,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille45",
+     "circle": {
+      "c": [
+       20,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille46",
+     "circle": {
+      "c": [
+       24.8,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille47",
+     "circle": {
+      "c": [
+       29.6,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille48",
+     "circle": {
+      "c": [
+       34.4,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille49",
+     "circle": {
+      "c": [
+       39.2,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille50",
+     "circle": {
+      "c": [
+       44,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille51",
+     "circle": {
+      "c": [
+       48.8,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille52",
+     "circle": {
+      "c": [
+       53.6,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille53",
+     "circle": {
+      "c": [
+       58.4,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille54",
+     "circle": {
+      "c": [
+       63.2,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille55",
+     "circle": {
+      "c": [
+       68,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille56",
+     "circle": {
+      "c": [
+       72.8,
+       0.6862
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille57",
+     "circle": {
+      "c": [
+       17.6,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille58",
+     "circle": {
+      "c": [
+       22.4,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille59",
+     "circle": {
+      "c": [
+       27.2,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille60",
+     "circle": {
+      "c": [
+       32,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille61",
+     "circle": {
+      "c": [
+       36.8,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille62",
+     "circle": {
+      "c": [
+       41.6,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille63",
+     "circle": {
+      "c": [
+       46.4,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille64",
+     "circle": {
+      "c": [
+       51.2,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille65",
+     "circle": {
+      "c": [
+       56,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille66",
+     "circle": {
+      "c": [
+       60.8,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille67",
+     "circle": {
+      "c": [
+       65.6,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille68",
+     "circle": {
+      "c": [
+       70.4,
+       4.8431
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille69",
+     "circle": {
+      "c": [
+       15.2,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille70",
+     "circle": {
+      "c": [
+       20,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille71",
+     "circle": {
+      "c": [
+       24.8,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille72",
+     "circle": {
+      "c": [
+       29.6,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille73",
+     "circle": {
+      "c": [
+       34.4,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille74",
+     "circle": {
+      "c": [
+       39.2,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille75",
+     "circle": {
+      "c": [
+       44,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille76",
+     "circle": {
+      "c": [
+       48.8,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille77",
+     "circle": {
+      "c": [
+       53.6,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille78",
+     "circle": {
+      "c": [
+       58.4,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille79",
+     "circle": {
+      "c": [
+       63.2,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille80",
+     "circle": {
+      "c": [
+       68,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille81",
+     "circle": {
+      "c": [
+       72.8,
+       9
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille82",
+     "circle": {
+      "c": [
+       17.6,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille83",
+     "circle": {
+      "c": [
+       22.4,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille84",
+     "circle": {
+      "c": [
+       27.2,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille85",
+     "circle": {
+      "c": [
+       32,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille86",
+     "circle": {
+      "c": [
+       36.8,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille87",
+     "circle": {
+      "c": [
+       41.6,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille88",
+     "circle": {
+      "c": [
+       46.4,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille89",
+     "circle": {
+      "c": [
+       51.2,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille90",
+     "circle": {
+      "c": [
+       56,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille91",
+     "circle": {
+      "c": [
+       60.8,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille92",
+     "circle": {
+      "c": [
+       65.6,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille93",
+     "circle": {
+      "c": [
+       70.4,
+       13.1569
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille94",
+     "circle": {
+      "c": [
+       15.2,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille95",
+     "circle": {
+      "c": [
+       20,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille96",
+     "circle": {
+      "c": [
+       24.8,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille97",
+     "circle": {
+      "c": [
+       29.6,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille98",
+     "circle": {
+      "c": [
+       34.4,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille99",
+     "circle": {
+      "c": [
+       39.2,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille100",
+     "circle": {
+      "c": [
+       44,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille101",
+     "circle": {
+      "c": [
+       48.8,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille102",
+     "circle": {
+      "c": [
+       53.6,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille103",
+     "circle": {
+      "c": [
+       58.4,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille104",
+     "circle": {
+      "c": [
+       63.2,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille105",
+     "circle": {
+      "c": [
+       68,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille106",
+     "circle": {
+      "c": [
+       72.8,
+       17.3138
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille107",
+     "circle": {
+      "c": [
+       17.6,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille108",
+     "circle": {
+      "c": [
+       22.4,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille109",
+     "circle": {
+      "c": [
+       27.2,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille110",
+     "circle": {
+      "c": [
+       32,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille111",
+     "circle": {
+      "c": [
+       36.8,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille112",
+     "circle": {
+      "c": [
+       41.6,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille113",
+     "circle": {
+      "c": [
+       46.4,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille114",
+     "circle": {
+      "c": [
+       51.2,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille115",
+     "circle": {
+      "c": [
+       56,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille116",
+     "circle": {
+      "c": [
+       60.8,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille117",
+     "circle": {
+      "c": [
+       65.6,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille118",
+     "circle": {
+      "c": [
+       70.4,
+       21.4708
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille119",
+     "circle": {
+      "c": [
+       20,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille120",
+     "circle": {
+      "c": [
+       24.8,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille121",
+     "circle": {
+      "c": [
+       29.6,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille122",
+     "circle": {
+      "c": [
+       34.4,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille123",
+     "circle": {
+      "c": [
+       39.2,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille124",
+     "circle": {
+      "c": [
+       44,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille125",
+     "circle": {
+      "c": [
+       48.8,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille126",
+     "circle": {
+      "c": [
+       53.6,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille127",
+     "circle": {
+      "c": [
+       58.4,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille128",
+     "circle": {
+      "c": [
+       63.2,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille129",
+     "circle": {
+      "c": [
+       68,
+       25.6277
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille130",
+     "circle": {
+      "c": [
+       22.4,
+       29.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille131",
+     "circle": {
+      "c": [
+       27.2,
+       29.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille132",
+     "circle": {
+      "c": [
+       32,
+       29.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille133",
+     "circle": {
+      "c": [
+       36.8,
+       29.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille134",
+     "circle": {
+      "c": [
+       41.6,
+       29.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille135",
+     "circle": {
+      "c": [
+       46.4,
+       29.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille136",
+     "circle": {
+      "c": [
+       51.2,
+       29.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille137",
+     "circle": {
+      "c": [
+       56,
+       29.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille138",
+     "circle": {
+      "c": [
+       60.8,
+       29.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille139",
+     "circle": {
+      "c": [
+       65.6,
+       29.7846
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille140",
+     "circle": {
+      "c": [
+       29.6,
+       33.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille141",
+     "circle": {
+      "c": [
+       34.4,
+       33.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille142",
+     "circle": {
+      "c": [
+       39.2,
+       33.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille143",
+     "circle": {
+      "c": [
+       44,
+       33.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille144",
+     "circle": {
+      "c": [
+       48.8,
+       33.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille145",
+     "circle": {
+      "c": [
+       53.6,
+       33.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille146",
+     "circle": {
+      "c": [
+       58.4,
+       33.9415
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille147",
+     "circle": {
+      "c": [
+       36.8,
+       38.0985
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille148",
+     "circle": {
+      "c": [
+       41.6,
+       38.0985
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille149",
+     "circle": {
+      "c": [
+       46.4,
+       38.0985
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "grille150",
+     "circle": {
+      "c": [
+       51.2,
+       38.0985
+      ],
+      "r": "hole/2"
+     }
+    },
+    {
+     "name": "button0",
+     "circle": {
+      "c": [
+       -65,
+       -43
+      ],
+      "r": "button/2"
+     }
+    },
+    {
+     "name": "button1",
+     "circle": {
+      "c": [
+       -20,
+       -43
+      ],
+      "r": "button/2"
+     }
+    },
+    {
+     "name": "pot",
+     "circle": {
+      "c": [
+       75,
+       -48
+      ],
+      "r": "pot/2"
+     }
+    },
+    {
+     "name": "screw0",
+     "circle": {
+      "c": [
+       88.5,
+       58.5
+      ],
+      "r": "screw/2"
+     }
+    },
+    {
+     "name": "screw1",
+     "circle": {
+      "c": [
+       -88.5,
+       58.5
+      ],
+      "r": "screw/2"
+     }
+    },
+    {
+     "name": "screw2",
+     "circle": {
+      "c": [
+       -88.5,
+       -58.5
+      ],
+      "r": "screw/2"
+     }
+    },
+    {
+     "name": "screw3",
+     "circle": {
+      "c": [
+       88.5,
+       -58.5
+      ],
+      "r": "screw/2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "lid",
+   "profile": "top",
+   "depth": "lidT"
+  },
+  {
+   "op": "sketch",
+   "id": "nestS",
+   "plane": {
+    "base": "XY",
+    "offset": "nestFloor"
+   },
+   "loops": [
+    {
+     "name": "nest",
+     "rect": {
+      "c": [
+       -42,
+       12
+      ],
+      "w": "nestW",
+      "h": "nestH"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "nest",
+   "profile": "nestS",
+   "mode": "cut",
+   "from": 0,
+   "to": "lidT"
+  }
+ ]
+}

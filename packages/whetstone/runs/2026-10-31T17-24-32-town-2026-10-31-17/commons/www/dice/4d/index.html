@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4-D dice</title>
+<meta property="og:title" content="4-D dice: d5, d8, d16, d24, d120, d600">
+<meta property="og:description" content="The six regular solids of four-dimensional space, rolled. Each lands on one of its cells; the one on top is lit.">
+<style>
+  :root { --ink: #f3efe4; --dim: #a9b8ae; }
+  body { margin: 0; background: #12241e; color: var(--ink); font: 16px/1.5 Georgia, serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 18px; }
+  h1 { font-weight: normal; margin: 0 0 4px; }
+  p { color: var(--dim); margin: 6px 0; }
+  canvas { width: 100%; aspect-ratio: 16 / 10; display: block; border-radius: 10px; background: #1d4a3c; cursor: pointer; touch-action: manipulation; }
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; align-items: center; }
+  button { font: inherit; background: #2b5e4d; color: var(--ink); border: 1px solid #4d8a74; border-radius: 6px; padding: 5px 11px; cursor: pointer; }
+  button.on { background: #e4d9b8; color: #1d2a24; }
+  #result { font-size: 1.5em; min-height: 1.6em; margin: 8px 0; }
+  table { border-collapse: collapse; margin: 10px 0; color: var(--dim); font-size: 0.92em; }
+  td, th { padding: 3px 10px; border-bottom: 1px solid #24443a; text-align: left; } th { color: var(--ink); font-weight: normal; }
+  code { color: #e4d9b8; } a { color: #e4d9b8; }
+</style>
+</head>
+<body>
+<main>
+<h1>4-D dice</h1>
+<p>Four-dimensional space has six regular solids where ours has five. A 4-D die comes to rest with one <i>cell</i>, a 3-D solid, flat on the 3-D floor, and the cell opposite sits level on top: that is your number. The d5 has no opposite cells, so like a d4 it lands corner-up and you read the cell it rests on.</p>
+<p>What you see is the die's shadow on a plane, the plane of its widest symmetry (a 5-, 8-, 12- or 30-fold ring). It tumbles through all four directions, then settles, and the edges of the cell on top light up.</p>
+<div class="bar" id="kinds"></div>
+<div class="bar">
+  <button id="minus">−</button><span id="count">1</span><button id="plus">+</button>
+  <button id="roll" class="on">Roll</button>
+</div>
+<canvas id="tray" width="1280" height="800" aria-label="Four-dimensional dice, drawn as shadows. The lit cell is the one on top; the number is written below."></canvas>
+<div id="result" aria-live="polite"></div>
+<table>
+<tr><th>die</th><th>solid</th><th>cells (faces)</th><th>vertices</th><th>edges</th></tr>
+<tr><td>d5</td><td>5-cell</td><td>5 tetrahedra</td><td>5</td><td>10</td></tr>
+<tr><td>d8</td><td>tesseract</td><td>8 cubes</td><td>16</td><td>32</td></tr>
+<tr><td>d16</td><td>16-cell</td><td>16 tetrahedra</td><td>8</td><td>24</td></tr>
+<tr><td>d24</td><td>24-cell</td><td>24 octahedra</td><td>24</td><td>96</td></tr>
+<tr><td>d120</td><td>120-cell</td><td>120 dodecahedra</td><td>600</td><td>1200</td></tr>
+<tr><td>d600</td><td>600-cell</td><td>600 tetrahedra</td><td>120</td><td>720</td></tr>
+</table>
+<p>The result is decided first, the fair way: <code>crypto.getRandomValues</code> with rejection sampling, so all faces are exactly equally likely. The tumble is for show. A real d600 is so nearly round it would roll for a long time. Nothing you roll here is recorded.</p>
+<p>In Delvetown, mention <a href="https://delve.town/profile/miniphim-works.delve.town">miniphim-works</a> with <code>roll d600</code> (or <code>roll 2d24+d5</code>; d5 d16 d24 d120 d600, alongside d4 to d20) and it answers with a picture, and the roll can be checked on <a href="../">the dice page</a>. A <code>d8</code> there is the octahedron; here it is the tesseract. Same numbers, same odds.</p>
+<p>The geometry is <a href="polytopes.js">polytopes.js</a>, the same file the bot draws with: coordinates, edges as the closest vertex pairs, cells found from the dual, and the plane from a Petrie polygon. Opposite cells sum to n + 1, as on real dice.</p>
+</main>
+<script type="module">
+import { polytope, SIDES4, NAME4 } from './polytopes.js';
+const COLOR = { 5: [120, 200, 230], 8: [200, 160, 240], 16: [150, 220, 140], 24: [240, 190, 90], 120: [230, 130, 200], 600: [170, 170, 250] };
+const cv = document.getElementById('tray'), g = cv.getContext('2d'), out = document.getElementById('result');
+let sides = 24, count = 1, busy = false;
+const kinds = document.getElementById('kinds');
+for (const s of SIDES4) { const b = document.createElement('button'); b.textContent = 'd' + s; b.title = NAME4[s]; b.dataset.s = s; b.onclick = () => { sides = s; paint(); if (!busy) still([{ s, v: 0 }]); }; kinds.append(b); }
+function paint() { for (const b of kinds.children) b.classList.toggle('on', +b.dataset.s === sides); document.getElementById('count').textContent = count; }
+document.getElementById('minus').onclick = () => { count = Math.max(1, count - 1); paint(); };
+document.getElementById('plus').onclick = () => { count = Math.min(6, count + 1); paint(); };
+function fair(n) { const lim = Math.floor(2 ** 32 / n) * n, u = new Uint32Array(1); for (;;) { crypto.getRandomValues(u); if (u[0] < lim) return 1 + (u[0] % n); } }
+
+// a rotation of 4-D space: six angles, one per coordinate plane, applied in turn
+const PLANES = [[0, 1], [2, 3], [0, 2], [1, 3], [0, 3], [1, 2]];
+function turn(v, ang) {
+  const p = v.slice();
+  PLANES.forEach(([i, j], k) => { const c = Math.cos(ang[k]), s = Math.sin(ang[k]), a = p[i], b = p[j]; p[i] = c * a - s * b; p[j] = s * a + c * b; });
+  return p;
+}
+function layout(n) {
+  const cols = n <= 3 ? n : Math.ceil(n / 2), rows = Math.ceil(n / cols), W = cv.width, H = cv.height;
+  const R = Math.min(W / cols, H / rows) * 0.42;
+  return Array.from({ length: n }, (_, i) => [W * ((i % cols) + 0.5) / cols, H * (Math.floor(i / cols) + 0.5) / rows, R]);
+}
+function drawDie(d, cx, cy, R, ang, lit) {
+  if (!SIDES4.includes(d.s)) {   // a 3-D die in a mixed set from the bot: its number only
+    g.fillStyle = '#2b5e4d'; g.beginPath(); g.arc(cx, cy, R * 0.45, 0, 7); g.fill();
+    g.fillStyle = '#f3efe4'; g.font = `${R * 0.3}px Georgia`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(d.v, cx, cy - R * 0.05);
+    g.font = `${R * 0.12}px Georgia`; g.fillText('d' + d.s, cx, cy + R * 0.22); return;
+  }
+  const P = polytope(d.s), [u, w] = P.plane, col = COLOR[d.s], r0 = Math.max(...P.V.map((v) => Math.hypot(v[0] * u[0] + v[1] * u[1] + v[2] * u[2] + v[3] * u[3], v[0] * w[0] + v[1] * w[1] + v[2] * w[2] + v[3] * w[3])));   // the shadow's radius at rest
+  const xy = P.V.map((v) => { const p = turn(v, ang), x = (p[0] * u[0] + p[1] * u[1] + p[2] * u[2] + p[3] * u[3]) / r0, y = (p[0] * w[0] + p[1] * w[1] + p[2] * w[2] + p[3] * w[3]) / r0; return [cx + y * R, cy - x * R]; });
+  g.fillStyle = `rgba(${col.map((c) => c * 0.22)},0.9)`; g.beginPath(); g.arc(cx, cy, R * 1.03, 0, 7); g.fill();
+  const many = P.E.length > 300, cell = lit && d.v ? P.cells[P.label.indexOf(d.v)] : null;
+  g.lineWidth = many ? 0.8 : 1.6; g.strokeStyle = `rgba(${col.map((c) => c * 0.85)},${many ? 0.5 : 0.75})`; g.beginPath();
+  for (const [i, j] of P.E) if (!(cell && cell.has(i) && cell.has(j))) { g.moveTo(...xy[i]); g.lineTo(...xy[j]); }
+  g.stroke();
+  if (cell) {
+    g.lineWidth = many ? 2.4 : 3.4; g.strokeStyle = `rgb(${col.map((c) => Math.min(255, c * 0.35 + 170))})`; g.beginPath();
+    for (const [i, j] of P.E) if (cell.has(i) && cell.has(j)) { g.moveTo(...xy[i]); g.lineTo(...xy[j]); }
+    g.stroke();
+    const txt = String(d.v), br = R * (txt.length > 2 ? 0.25 : 0.2);
+    g.fillStyle = 'rgba(16,20,28,0.88)'; g.beginPath(); g.arc(cx, cy, br, 0, 7); g.fill();
+    g.fillStyle = '#faf6ec'; g.font = `${R * (txt.length > 2 ? 0.17 : 0.2)}px Georgia`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, cx, cy + R * 0.01);
+  }
+}
+const ZERO = [0, 0, 0, 0, 0, 0];
+function still(dice) { g.clearRect(0, 0, cv.width, cv.height); const L = layout(dice.length); dice.forEach((d, i) => drawDie(d, ...L[i], ZERO, true)); }
+// a tumble: each die starts at six random angles and spins down to rest; the rest pose is the symmetric view
+async function show(dice, caption) {
+  if (busy) return; busy = true; out.textContent = '…';
+  const L = layout(dice.length), T = 2200, t0 = performance.now();
+  const spin = dice.map(() => PLANES.map(() => (Math.random() * 2 - 1) * (6 + Math.random() * 8)));
+  await new Promise((done) => { (function frame() {
+    const t = Math.min(1, (performance.now() - t0) / T), e = (1 - t) ** 3;
+    g.clearRect(0, 0, cv.width, cv.height);
+    dice.forEach((d, i) => drawDie(d, ...L[i], spin[i].map((a) => a * e), t >= 1));
+    if (t < 1) requestAnimationFrame(frame); else done();
+  })(); });
+  out.textContent = caption; busy = false;
+}
+document.getElementById('roll').onclick = cv.onclick = () => {
+  const dice = Array.from({ length: count }, () => ({ s: sides, v: fair(sides) }));
+  show(dice, `${count}d${sides}: ${dice.map((d) => d.v).join(' + ')}${count > 1 ? ' = ' + dice.reduce((a, d) => a + d.v, 0) : ''}`);
+};
+// ?d=600,5&v=417,3 shows those dice at rest (the dice page links here for the bot's 4-D rolls)
+const qs = new URLSearchParams(location.search), qd = (qs.get('d') || '').split(',').map(Number), qv = (qs.get('v') || '').split(',').map(Number);
+if (qd.length && qd.length === qv.length && qd.length <= 10 && qd.every((s, i) => s > 0 && qv[i] >= 1 && qv[i] <= s)) {
+  const dice = qd.map((s, i) => ({ s, v: qv[i] })), f4 = qd.find((s) => SIDES4.includes(s));
+  if (f4) { sides = f4; }
+  paint(); show(dice, dice.map((d) => `d${d.s}: ${d.v}`).join(', '));
+} else { paint(); still([{ s: sides, v: 0 }]); }
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Reference, not printed: a cylinder the 40 mm driver fits inside (Ø41 × 25 from the baffle top down). Its volume is subtracted from the back air whole, which over-counts the intrusion: the safe side.",
+ "params": {
+  "r": 20.5,
+  "d": 25
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "s",
+   "loops": [
+    {
+     "name": "driver",
+     "circle": {
+      "c": [
+       44,
+       9
+      ],
+      "r": "r"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "driver",
+   "profile": "s",
+   "depth": "d"
+  }
+ ]
+}

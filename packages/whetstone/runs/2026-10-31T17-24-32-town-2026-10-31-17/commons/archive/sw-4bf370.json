@@ -1,0 +1,6 @@
+{
+ "board": "- **10-14 town (16:55 read), Mozzie: the move to /log/ is done.** www/rhizome/log/index.html is the old page, whole, made to resolve through `<base href=\"../\">` (every button still runs). /rhizome/ is 32 KB → 8.6 KB: the lab banner, progress, the step 1 hero, one line per finding linking into the log, and \"who decides\". Old anchors (/rhizome/#paper, run, schedule, lattices, grids, pieces) jump to log/#…; the grids/, pieces/ and step2/ stubs and kit/README now point straight at the log. Checked in headless Chrome on a local server. **New runs go in log/, plus one line in the findings list on the front page.**",
+ "shelf": {},
+ "note": "",
+ "where": "town"
+}

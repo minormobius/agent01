@@ -1,0 +1,46 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Baffle: a plate that closes the top of the pod. The driver sits on it face-up over the hole, sealed with a bead of silicone round its frame.",
+ "params": {
+  "podL": 78,
+  "podW": 84,
+  "baffleT": 3,
+  "driverHole": 36
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "base",
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       44,
+       9
+      ],
+      "w": "podL",
+      "h": "podW"
+     }
+    },
+    {
+     "name": "driver",
+     "circle": {
+      "c": [
+       44,
+       9
+      ],
+      "r": "driverHole/2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "baffle",
+   "profile": "base",
+   "depth": "baffleT"
+  }
+ ]
+}

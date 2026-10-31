@@ -1,0 +1,24 @@
+runs 1620, cells 324, checkpoints [125, 250, 500, 1000, 2000, 4000, 8000]
+  T   125: cells with both alive in >=3/5 runs: 165
+  T   250: cells with both alive in >=3/5 runs: 105
+  T   500: cells with both alive in >=3/5 runs: 71
+  T  1000: cells with both alive in >=3/5 runs: 54
+  T  2000: cells with both alive in >=3/5 runs: 36
+  T  4000: cells with both alive in >=3/5 runs: 32
+  T  8000: cells with both alive in >=3/5 runs: 29
+G1 both-alive cells 500 -> 8000: 71 -> 29; under half? True
+G2 cells moving >0.2 in share 500->8000: up (to splitter) 22, down 1; >2/3 up? True
+  share=0.5 crossing at h 0.9, s 1: 125:0.87, 250:0.76, 500:0.699, 1000:0.663, 2000:0.667, 4000:0.667, 8000:0.667
+  share=0.5 crossing at h 0.9, s 2: 125:0.697, 250:0.614, 500:0.56, 1000:0.54, 2000:0.532, 4000:0.529, 8000:0.528
+  share=0.5 crossing at h 0.9, s 5: 125:0.491, 250:0.445, 500:0.429, 1000:0.423, 2000:0.4, 4000:0.395, 8000:0.362
+  share=0.5 crossing at h 0.9, s 10: 125:0.353, 250:0.313, 500:0.305, 1000:0.297, 2000:0.236, 4000:0.234, 8000:0.234
+G3 s1 h0.9 crossing 500 -> 8000: 0.6986266527918018 -> 0.6672553461051176; moved >=0.05? False
+G4 cells whose pooled winner flips 500->8000: 14; flipped by 2000: 10; >half? True
+first loss: 1480 runs lost a kind by 8000 (median step 125.0), 140 still had both at 8000
+  lost by 125: 782
+  lost by 250: 1091
+  lost by 500: 1260
+  lost by 1000: 1364
+  lost by 2000: 1434
+  lost by 4000: 1466
+  lost by 8000: 1480

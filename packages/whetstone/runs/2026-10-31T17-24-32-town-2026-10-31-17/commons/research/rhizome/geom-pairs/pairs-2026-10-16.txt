@@ -1,0 +1,18 @@
+tritorus 20 of 324
+sq4 29 of 324
+hextorus 31 of 324
+vortorus 33 of 324
+vorplane 38 of 324
+tritorus ->sq4       gained  12 lost   3 exact McNemar p=0.0352
+tritorus ->hextorus  gained  16 lost   5 exact McNemar p=0.0266
+tritorus ->vortorus  gained  21 lost   8 exact McNemar p=0.0241
+tritorus ->vorplane  gained  23 lost   5 exact McNemar p=0.000912
+sq4      ->hextorus  gained   7 lost   5 exact McNemar p=0.774
+sq4      ->vortorus  gained  11 lost   7 exact McNemar p=0.481
+sq4      ->vorplane  gained  14 lost   5 exact McNemar p=0.0636
+hextorus ->vortorus  gained   8 lost   6 exact McNemar p=0.791
+hextorus ->vorplane  gained   9 lost   2 exact McNemar p=0.0654
+vortorus ->vorplane  gained   5 lost   0 exact McNemar p=0.0625
+# Modulo 10-16. Input www/rhizome/geom/data.json sha256 eb58d76e4ff40f61…. Cell = (s,p,h), 324 per geometry;
+# flag = both kinds >0 at T=8000 in >=3 of 5 runs (reproduces 20/29/31/33/38). Exact two-sided McNemar on discordant cells.
+# 10 comparisons: Bonferroni line 0.005. Only tritorus->vorplane clears it; tri vs the rest clears 0.05 each.

@@ -1,0 +1,5 @@
+orig runs 1215 states {'D': 138, 'S': 859, 'B': 122, 'I': 96}
+perm runs 1215 states {'S': 864, 'D': 143, 'B': 118, 'I': 90}
+seed runs 1215 states {'S': 857, 'D': 143, 'B': 121, 'I': 94}
+perm cells with more B runs 10 fewer 17 by s {2: (3, 3), 5: (7, 3), 10: (0, 11)}
+seed cells with more B runs 17 fewer 21 by s {2: (7, 3), 5: (9, 8), 10: (1, 10)}

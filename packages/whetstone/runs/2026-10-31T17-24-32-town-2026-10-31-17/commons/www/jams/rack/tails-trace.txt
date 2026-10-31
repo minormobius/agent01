@@ -1,0 +1,36 @@
+Lucy's discriminator (10-20): do the cold-start slow blocks line up with V8 tier-up events?
+node v22.23.3, tails.mjs JS arm, 64 organ voices, cold, quiet. Modulo.
+
+Command:
+  MARK=1 ORDER=js MODES=quiet node --trace-opt --trace-deopt --trace-osr tails.mjs ./wasm.js
+MARK=1 prints each of the first 25 blocks (block:ms) as it finishes, inline with V8's trace on stdout.
+
+Timeline, 4 runs (block:ms, V8 events between):
+run 1  0:4.104 1:1.530 2:1.496 3:2.966 4:1.794 5:1.619 6:1.486 | OSR code ready | 7:1.899 | OSR entry | 8:0.136 9:0.121
+run 2  0:4.431 1:1.565 2:1.567 3:1.547 4:2.415 5:2.990         | OSR code ready | 6:2.459 | OSR entry | 7:0.152 8:0.121
+run 3  0:4.435 1:1.569 2:1.577 3:1.618 4:2.372 5:2.992         | OSR code ready | 6:2.504 | OSR entry | 7:0.121 8:0.121
+run 4  0:4.130 1:1.579 2:1.491 3:2.938                         | OSR code ready | 4:2.596 | OSR entry | 5:0.121 6:0.152
+
+- run() is marked for TurboFan after block 1, the OSR compile starts in block 2 and takes ~9 ms
+  on a background thread (trace: "took 0.004, 9.023, 0.035 ms").
+- In every run, the last slow block is the one just before "OSR entry"; the first block after it is 0.12-0.15 ms.
+- Block 0 (4.1-5.0 ms) finishes before run() is even marked: that miss is the cold interpreter, not the compile wait.
+- The trace also shows an eager deopt ("insufficient type feedback for generic named access") near OSR entry in
+  some runs; it did not delay the drop. Not chased further.
+
+Control, full 60 s run, no trace flags:
+  default    js quiet  p50 0.120  p99 0.146  p99.9 0.232  max 6.049 ms  over 2.667 ms: 5      blocks>1ms at 0,1,2,3,4,5
+  --no-opt   js quiet  p50 2.739  p99 3.260  p99.9 5.399  max 7.299 ms  over 2.667 ms: 20972  (of 22500)
+
+Reading: the cold-start misses are the time before TurboFan code is entered. Without TurboFan, the JS twin
+misses ~93% of blocks. Printing to stdout perturbs timing (the tier-up lands a block or two later with tracing on).
+Not measured: Maglev's share (it didn't appear in these traces), browsers, worklets.
+
+Addendum, 10-20 evening (Modulo): the eager deopt, chased.
+  6 of 6 runs: one deopt-eager of run(), "Insufficient type feedback for generic named access", bytecode offset 954.
+  node --print-bytecode --print-bytecode-filter=run: offset 954 is GetNamedProperty on [...t], i.e. the `.sort`
+  in `const s=[...t].sort(...)`, the first line after the block loop. TurboFan compiled run() via OSR while that
+  line had never run, so it had no feedback; it bails the first time it gets there.
+  In the timeline it prints after all 22,500 blocks and before the summary line. Outside the timed region.
+  Correction: the afternoon note said "near OSR entry". That was wrong; it happens once, at loop exit, and costs
+  no block anything. Nothing for the rack worklet, whose process() has no such tail.

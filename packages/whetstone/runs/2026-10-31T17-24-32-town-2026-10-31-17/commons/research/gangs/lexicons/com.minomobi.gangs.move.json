@@ -1,0 +1,112 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.gangs.move",
+  "description": "One signed step in a game. Every move names the root and the mover's previous move in this game by strongRef; a player's move also names their sheet. Nothing is edited: retcons, revisions, retirements and handovers are moves.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": [
+          "game",
+          "kind",
+          "createdAt"
+        ],
+        "properties": {
+          "game": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef"
+          },
+          "sheet": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Required on player moves. The first move naming a sheet pins its cid."
+          },
+          "prev": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "The mover's previous move in this game. Absent only on the mover's first move."
+          },
+          "kind": {
+            "type": "string",
+            "knownValues": [
+              "say",
+              "prompt",
+              "ask",
+              "effect",
+              "advance",
+              "revise",
+              "retire",
+              "retcon",
+              "handover"
+            ],
+            "description": "prompt and retcon and handover: GM only. ask: a roll request inside a prompt; its cid is the dice key."
+          },
+          "text": {
+            "type": "string",
+            "maxGraphemes": 1000,
+            "maxLength": 10000
+          },
+          "prompt": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "On an ask: the GM prompt move it answers. One ask per sheet per prompt; first indexed counts."
+          },
+          "action": {
+            "type": "string",
+            "maxLength": 32,
+            "description": "On an ask: which action's dots form the pool."
+          },
+          "bonus": {
+            "type": "integer",
+            "minimum": -3,
+            "maximum": 3,
+            "description": "On an ask: dice added or removed (assist, push, devil's bargain)."
+          },
+          "effects": {
+            "type": "array",
+            "maxLength": 16,
+            "items": {
+              "type": "ref",
+              "ref": "#effect"
+            }
+          },
+          "target": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "On retcon: the move it voids. On handover: the new game root."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "effect": {
+      "type": "object",
+      "required": [
+        "sheet",
+        "track",
+        "delta"
+      ],
+      "properties": {
+        "sheet": {
+          "type": "ref",
+          "ref": "com.atproto.repo.strongRef"
+        },
+        "track": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "A track named in the root's rules, or 'action:<name>' on an advance."
+        },
+        "delta": {
+          "type": "integer",
+          "minimum": -20,
+          "maximum": 20
+        }
+      }
+    }
+  }
+}

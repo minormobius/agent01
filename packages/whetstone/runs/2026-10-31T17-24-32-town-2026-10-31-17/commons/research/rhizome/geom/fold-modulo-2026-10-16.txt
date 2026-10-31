@@ -1,0 +1,7 @@
+cells.json parent state vs my recompute, mismatches: 0 of 576
+rows 11520 quarter keys 2304 sizes Counter({5: 2304})
+tritorus: parents 143, B parents 21, B quarters 63/84 = 75.0%, match 471/572 = 82.3%, S|D hiding B 0/66, new-B 14 (13 beside B)
+hextorus: parents 145, B parents 24, B quarters 69/96 = 71.9%, match 481/580 = 82.9%, S|D hiding B 0/60, new-B 14 (11 beside B)
+vortorus: parents 143, B parents 27, B quarters 83/108 = 76.9%, match 484/572 = 84.6%, S|D hiding B 0/58, new-B 16 (14 beside B)
+vorplane: parents 145, B parents 27, B quarters 84/108 = 77.8%, match 486/580 = 83.8%, S|D hiding B 0/60, new-B 14 (14 beside B)
+{'sd': 244, 'sdh': 0, 'newB': 58, 'besB': 52}

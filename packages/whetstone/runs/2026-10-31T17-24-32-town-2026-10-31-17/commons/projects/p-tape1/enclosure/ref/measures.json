@@ -1,0 +1,89 @@
+{
+ "parts": {
+  "baffle": {
+   "ok": true,
+   "watertight": true,
+   "dims": [
+    78,
+    84,
+    3
+   ],
+   "volume": 16603.606
+  },
+  "body": {
+   "ok": true,
+   "watertight": true,
+   "dims": [
+    190,
+    130,
+    75
+   ],
+   "volume": 193954.399
+  },
+  "collar": {
+   "ok": true,
+   "watertight": true,
+   "dims": [
+    78,
+    84,
+    6
+   ],
+   "volume": 4710
+  },
+  "lid": {
+   "ok": true,
+   "watertight": true,
+   "dims": [
+    190,
+    130,
+    4
+   ],
+   "volume": 75369.884
+  },
+  "pod": {
+   "ok": true,
+   "watertight": true,
+   "dims": [
+    78,
+    84,
+    55
+   ],
+   "volume": 57586.733
+  }
+ },
+ "E": {
+  "printed": 5,
+  "cardSized": "body"
+ },
+ "NEST": {
+  "pocket": [
+   90,
+   65
+  ],
+  "clearancePerSide": [
+   1,
+   1
+  ],
+  "floorAboveBottom": 1.999,
+  "walls": 4
+ },
+ "SEAL": {
+  "podCavity_cm3": 302.773,
+  "airSolid_cm3": 302.767,
+  "driverBound_cm3": 32.993,
+  "net_cm3": 269.78
+ },
+ "GRILLE": {
+  "holes": 151,
+  "maxDiameter": 3.5,
+  "openArea_mm2": 1452.79,
+  "outsideFrontChamber": 0,
+  "frontChamber": [
+   7.5,
+   80.5,
+   -30.5,
+   48.5
+  ]
+ },
+ "fail": []
+}

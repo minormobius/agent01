@@ -1,0 +1,43 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.gangs.snapshot",
+  "description": "A list of asks seen under a GM prompt. Its AppView indexedAt plus the root's margin fixes the drand round (CHOICE 10-17 sec. 3). Counts only if written by the root's witness.did or by the gm; any other author is ignored. Neither author holds a sheet in the game.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": [
+          "game",
+          "prompt",
+          "asks",
+          "createdAt"
+        ],
+        "properties": {
+          "game": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef"
+          },
+          "prompt": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef"
+          },
+          "asks": {
+            "type": "array",
+            "maxLength": 64,
+            "items": {
+              "type": "ref",
+              "ref": "com.atproto.repo.strongRef"
+            },
+            "description": "Every ask under the prompt indexed before this snapshot's createdAt and not listed by an earlier counted snapshot, in indexedAt order, first per sheet. An ask's round comes from the first counted snapshot that lists it, whoever wrote it. An ask that no counted snapshot lists by its indexedAt plus one tick plus the root's margin takes the first drand round at least one margin after that deadline, marked unwitnessed and, if the witness wrote later snapshots for this prompt, witness-skipped."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,146 @@
+{
+ "name": "geom-coarse",
+ "digest": "fc4604ed4badcc9a",
+ "by": "morphyx",
+ "signed": [
+  "morphyx",
+  "mozzie"
+ ],
+ "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxwecbinok2b",
+ "dir": "research/rhizome/geom",
+ "commands": [
+  "node geom.mjs vortorus,vorplane,hextorus,tritorus 0 4",
+  "node geom.mjs vortorus,vorplane,hextorus,tritorus 1 4",
+  "node geom.mjs vortorus,vorplane,hextorus,tritorus 2 4",
+  "node geom.mjs vortorus,vorplane,hextorus,tritorus 3 4"
+ ],
+ "run": "2026-10-15T15-21-21-summon-3mxwecbinok2b",
+ "started": "2026-10-15T15:26:48Z",
+ "ended": "2026-10-15T19:17:30.722Z",
+ "seconds": 13843,
+ "exit": 0,
+ "timed_out": false,
+ "minutes_cap": 330,
+ "files": [
+  {
+   "path": "job-logs/0.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "job-logs/1.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "job-logs/2.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "job-logs/3.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "rows-hextorus-0.jsonl",
+   "bytes": 165614,
+   "lines": 405,
+   "sha256": "7bfdbc21f1143f2657899c33da832e54d99f6a96b26cd0692650b43addfb29dc"
+  },
+  {
+   "path": "rows-hextorus-1.jsonl",
+   "bytes": 166088,
+   "lines": 405,
+   "sha256": "a4371b8e94527755641b52e199e6ecb727c10bb505ba5af46184c8cccc6bd684"
+  },
+  {
+   "path": "rows-hextorus-2.jsonl",
+   "bytes": 166088,
+   "lines": 405,
+   "sha256": "797ed66c778a29eb324996ea4b8865a6a76bb74c48a461bf939a936c52139fff"
+  },
+  {
+   "path": "rows-hextorus-3.jsonl",
+   "bytes": 165759,
+   "lines": 405,
+   "sha256": "764aca8b73d41ee8cbcf17ace18ad8ebb8a5b3c18090b17dac3624772816eed6"
+  },
+  {
+   "path": "rows-tritorus-0.jsonl",
+   "bytes": 167096,
+   "lines": 405,
+   "sha256": "0ffdda7b0c09c48af8f59338e7054efc73a5eb5451103ea12a5149aae437bd8d"
+  },
+  {
+   "path": "rows-tritorus-1.jsonl",
+   "bytes": 166973,
+   "lines": 405,
+   "sha256": "45e4f3eb694c86bd7462d365e22f2c870136a70772dee3fee71cc18b13c5f56a"
+  },
+  {
+   "path": "rows-tritorus-2.jsonl",
+   "bytes": 166863,
+   "lines": 405,
+   "sha256": "4e246af3bf72a56b5c2b67bfca1b1fd7c8964bd5fbd075507ffbe1edbb6bc2a2"
+  },
+  {
+   "path": "rows-tritorus-3.jsonl",
+   "bytes": 167109,
+   "lines": 405,
+   "sha256": "a7b778d535b8fe5ead1b606ce24a3c85173ecd591cda5a4b6796d95180a96550"
+  },
+  {
+   "path": "rows-vorplane-0.jsonl",
+   "bytes": 166811,
+   "lines": 405,
+   "sha256": "ee260d8950752a5675780793f6207a8ec4bac507174b19a54c216d4bf1b6c2dd"
+  },
+  {
+   "path": "rows-vorplane-1.jsonl",
+   "bytes": 166810,
+   "lines": 405,
+   "sha256": "5246b1a07bf62447383b39a8868575fe5c5feba97b37421c8b8f522c6f774392"
+  },
+  {
+   "path": "rows-vorplane-2.jsonl",
+   "bytes": 166923,
+   "lines": 405,
+   "sha256": "a65fac763821d9e131d75d88abad58dd8dc56e9cfb56932008d3a66747fc528e"
+  },
+  {
+   "path": "rows-vorplane-3.jsonl",
+   "bytes": 166679,
+   "lines": 405,
+   "sha256": "16c1f9c8b9d81093a2a870db426b0b2b97e2f0b165dba162cf785ebff06fa972"
+  },
+  {
+   "path": "rows-vortorus-0.jsonl",
+   "bytes": 165487,
+   "lines": 405,
+   "sha256": "0779347867937de008b173d6c29ede56fd1634554a6f17ea0a19bed82128ed90"
+  },
+  {
+   "path": "rows-vortorus-1.jsonl",
+   "bytes": 165384,
+   "lines": 405,
+   "sha256": "3731c7d657339ad293f5ed5bbdabf238e92d0f087e19d0643f59b5706ac17139"
+  },
+  {
+   "path": "rows-vortorus-2.jsonl",
+   "bytes": 165589,
+   "lines": 405,
+   "sha256": "e60c6247bc6de9e0e23f4bdf017378861f5114c58879943158ddfc89ec4fd7e9"
+  },
+  {
+   "path": "rows-vortorus-3.jsonl",
+   "bytes": 165557,
+   "lines": 405,
+   "sha256": "b701be7ba967aebeb7768a793512a765e685c6eb79e595e097f3b0fc5d36ff16"
+  }
+ ]
+}
