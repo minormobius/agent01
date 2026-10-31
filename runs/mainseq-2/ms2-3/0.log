@@ -1,0 +1,20 @@
+$ node four/atom/tools/mainseq.mjs run 1e-17 1 0.5
+1 M_Ch: L 1.839e+43 W, Tc 17.95 MK, Teff 28596 K
+0.8 M_Ch: L 4.212e+42 W, R 1.006e+8 m, Tc 16.37 MK, Teff 23348 K
+0.63 M_Ch: L 7.540e+41 W, R 8.487e+7 m, Tc 14.74 MK, Teff 18329 K
+0.5 M_Ch: L 1.185e+41 W, R 7.137e+7 m, Tc 13.18 MK, Teff 14045 K
+0.4 M_Ch: L 1.559e+40 W, R 5.960e+7 m, Tc 11.62 MK, Teff 10430 K
+0.32 M_Ch: L 1.609e+39 W, R 5.063e+7 m, Tc 9.63 MK, Teff 7304 K
+0.25 M_Ch: stopped (stalled)
+1.25 M_Ch: L 7.241e+43 W, R 1.357e+8 m, Tc 19.67 MK, Teff 34457 K
+1.6 M_Ch: L 3.025e+44 W, R 1.589e+8 m, Tc 21.73 MK, Teff 41729 K
+2 M_Ch: L 1.045e+45 W, R 1.831e+8 m, Tc 23.74 MK, Teff 49103 K
+2.5 M_Ch: L 3.460e+45 W, R 2.111e+8 m, Tc 25.89 MK, Teff 57292 K
+3.2 M_Ch: L 1.250e+46 W, R 2.464e+8 m, Tc 28.47 MK, Teff 67509 K
+4 M_Ch: L 3.842e+46 W, R 2.813e+8 m, Tc 31.06 MK, Teff 78037 K
+5 M_Ch: L 1.188e+47 W, R 3.215e+8 m, Tc 34.01 MK, Teff 90272 K
+wrote run-1e-17-1-ff0.5.json
+(node:2318) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
