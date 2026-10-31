@@ -23,6 +23,9 @@
      node four/atom/tools/nuclei.mjs mass5 <d> <s> <b>            a nucleon on a helium-4 microscopically (Brink, antisymmetrized,
                                                                  Minnesota + the three-nucleon force of range b, u set on our
                                                                  ⁸Be): mass 5's lowest s-, p- and d-states, neutron and proton
+     node four/atom/tools/nuclei.mjs burning                      how far stars build: the smallest core (× its Chandrasekhar
+                                                                 mass) that lights each stage, ours as the check, then 4D's
+                                                                 hydrogen, helium (the first capture) and each helium-4 rung
      node four/atom/tools/nuclei.mjs bake                        → js/nucleidata.js
    The three-nucleon force is W Σ_cyclic e^(−(r_ij² + r_ik²)/b²); fit gives c = W π³ b⁶/2 (its Hartree energy per nucleon
    in our matter is c ρ²), so W = 2c/(π³ b⁶) for each b, and in 4D the same W and b give c₄ = c π b². */
@@ -33,7 +36,8 @@ import { matter, fixedNode, window as nucWindow, MT, MN, mtPot, coulombFactor, T
 import { criticalZ } from "../js/dirac.js";
 import * as BR from "../js/brink.js";
 import * as BB from "../js/bbn.js";
-import { logRate, gamow, KB_MEV } from "../js/stars.js";
+import { logRate, gamow, KB_MEV, matchingTemperature } from "../js/stars.js";
+import * as BU from "../js/burning.js";
 
 const DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-nuclei"); mkdirSync(DIR, { recursive: true });
 const save = (name, obj) => { writeFileSync(path.join(DIR, name), JSON.stringify(obj)); console.log("wrote", name); };
@@ -155,6 +159,21 @@ if (cmd === "fit") {
   for (const l of [0, 1, 2]) for (const Z of [0, 1]) { const e = BR.nucleonAlpha({ d, nu, s, u, l, Z, Ds, three: th })[0]; out.states[`${l}${Z ? "p" : "n"}`] = e; }
   console.log(`d=${d} s=${s} b=${b}: ${Object.entries(out.states).map(([k, v]) => `${k} ${v.toFixed(2)}`).join("  ")} MeV`);
   save(`mass5-${d}-${tag(s)}-${tag(b)}.json`, out);
+} else if (cmd === "burning") {
+  // each stage's temperature, then the smallest core whose highest central temperature reaches it (js/burning.js). Ours:
+  // hydrogen at 3 × 10⁶ K for the whole star (X = 0.75), helium at 10⁸ K for a helium core, carbon at 6 × 10⁸ K for a
+  // carbon core. 4D: hydrogen at our 3 × 10⁶ K matched through 4D's barrier (proton radii 1, 2, 4 fm, as the stars chapter
+  // does), helium at the first capture's temperatures, and each helium-4 rung at its barrier temperature (bake's rungs)
+  const H = { mue: 1.17, mui: 1 / 0.775 }, comp = (A) => ({ mue: 2, mui: A }), mass = (d, T, c) => BU.massFor(d, T, { ...c, G: d === 3 ? 6.6743e-11 : 1e-20 });
+  const ours = { H: mass(3, 3e6, H), He: mass(3, 1e8, comp(4)), C: mass(3, 6e8, comp(12)), MchSun: BU.chandraMass(3, { G: 6.6743e-11, mue: 2 }) / 1.98847e30 };
+  console.log(`ours: H ${ours.H.toFixed(3)}, He ${ours.He.toFixed(3)}, C ${ours.C.toFixed(3)} × M_Ch (${ours.MchSun.toFixed(3)} M☉ here)`);
+  const TH = [1, 2, 4].map((rn) => matchingTemperature(3e6, { mu: 469.459, rn })), caps = ["", "MN-"].map((p) => load(`${p}capture.json`)).filter(Boolean), THe = caps.flatMap((c) => c.rows.flatMap((r) => r.T));
+  const AMU = 931.494, op = (k) => { const A2 = 4 * k; return { Z1: 2, Z2: 2 * k, mu: ((4 * A2) / (4 + A2)) * AMU, rn: Math.pow(4, 1 / 4) + Math.pow(A2, 1 / 4), d: 4 }; }, op3 = { Z1: 2, Z2: 6, mu: 3 * AMU, rn: 1.2 * (Math.cbrt(4) + Math.cbrt(12)), d: 3 }, target = logRate(2e8, op3);
+  const Trung = (k) => { let lo = 1e6, hi = 1e12; for (let i = 0; i < 70; i++) { const m = Math.sqrt(lo * hi); if (logRate(m, op(k)) < target) lo = m; else hi = m; } return Math.sqrt(lo * hi); };
+  const stages = [{ stage: "H", T: [Math.min(...TH), Math.max(...TH)], m: [mass(4, Math.min(...TH), H), mass(4, Math.max(...TH), H)] }, { stage: "He", T: [Math.min(...THe), Math.max(...THe)], m: [mass(4, Math.min(...THe), comp(4)), mass(4, Math.max(...THe), comp(4))] }];
+  console.log(`4D H at ${stages[0].T.map((t) => (t / 1e9).toFixed(4)).join("–")} GK: cores from ${stages[0].m.map((x) => x.toFixed(3)).join("–")} × M_Ch; He at ${stages[1].T.map((t) => (t / 1e9).toFixed(3)).join("–")} GK: ${stages[1].m.map((x) => x.toFixed(3)).join("–")}`);
+  for (let k = 2; k <= 12; k++) { const T = Trung(k), m = mass(4, T, comp(4 * k)); stages.push({ stage: `Z${2 * k}`, Zfrom: 2 * k, T: [T, T], m: [m, m] }); console.log(`4D rung ${2 * k} → ${2 * k + 2} at ${(T / 1e9).toFixed(3)} GK: core ${m >= 1 ? "≥ M_Ch" : m.toFixed(3) + " × M_Ch"}`); if (m >= 1) break; }
+  save("burning.json", { ours, stages });
 } else if (cmd === "bake") {
   const files = readdirSync(DIR), get = (re) => files.filter((f) => re.test(f)).map(load), cf4 = coulombFactor(4, 300), e2 = 1.43996;
   // the 4D liquid drop for each force, strength and range: bulk from the matter, Coulomb exact, the neutron excess from neutron
@@ -179,7 +198,7 @@ if (cmd === "fit") {
   { const AMU = 931.494, op = (d, k, r0) => { const A2 = 4 * k; return { Z1: 2, Z2: 2 * k, mu: ((4 * A2) / (4 + A2)) * AMU, rn: r0 * (Math.pow(4, 1 / d) + Math.pow(A2, 1 / d)), d }; };
     const target = logRate(2e8, op(3, 3, 1.2)), Tfor = (d, k, r0) => { let lo = 1e6, hi = 1e12; for (let i = 0; i < 70; i++) { const m = Math.sqrt(lo * hi); if (logRate(m, op(d, k, r0)) < target) lo = m; else hi = m; } return Math.sqrt(lo * hi); };
     out.rungs = Array.from({ length: 20 }, (_, i) => ({ Z: 2 * (i + 1), ours: Tfor(3, i + 1, 1.2), d4: Tfor(4, i + 1, 1.0) })); }
-  out.brink = get(/^brink-/); out.mass5 = get(/^mass5-/);
+  out.brink = get(/^brink-/); out.mass5 = get(/^mass5-/); out.burning = load("burning.json");
   // the first minutes: ours as the check (Y), and 4D at each strength over the baryons per photon and the clock
   out.bbn = { ours: BB.firstMinutes({ d: 3, B: 2.2246 }), etas: [1e-10, 6.1e-10, 1e-8, 1e-6], t1s: [0.01, 0.1, 1.32], grid: [] };
   for (const [name, FCx] of Object.entries(FORCES)) { const cap = load(`${FCx.pre}capture.json`); if (!cap?.rows?.[0]?.table) continue;

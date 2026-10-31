@@ -244,6 +244,10 @@ for games, and this is a modelling programme with publications to come. The game
   `nucleonAlpha` (one nucleon outside a helium-4, each nucleon's spin and isospin followed; `nuclei.mjs mass5 <d> <s> <b>`):
   unbound in ours (the check) and in 4D except at the window's top; `capture` resets the folded potential to that binding,
   or drops nucleon capture where it's unbound. No spin–orbit force in it.
+  `js/burning.js` (no DOM) is how far stars build: a core's highest central temperature against its mass in any d (the gas
+  polytrope's centre, ions as a hot gas, Fermi–Dirac electrons relativistic and partly degenerate, maximized over radius;
+  masses × the Chandrasekhar mass, so G drops out). `nuclei.mjs burning` (~5 min) sets it against each stage's temperature
+  (ours as the check: 0.08, 0.29, 0.73 × M_Ch for H, He, C against 0.056, 0.22, 0.74). Selftest 54.
   `atom/tools/stability.mjs` maps two planets' stability over orbit ratio, plane angle and mass on the runner, and
   bakes **generated** `js/stabilitydata.js`.
   `atom/tools/orbits.mjs` bakes **generated** `js/orbitsdata.js` (~30 s).

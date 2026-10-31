@@ -973,5 +973,17 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `the first minutes: photon densities closed in both worlds, flat σv averages to itself (to ${Math.max(...flat.map((x) => Math.abs(x - 1))).toFixed(3)}), ours breaks the bottleneck at ${ours.TD.toFixed(3)} MeV leaving ${ours.Y.toFixed(3)} helium (measured 0.245), and E1 gives hydrogen's 2p → 1s at ${(A / 1e8).toFixed(3)} × 10⁸ s⁻¹ (6.265)`);
 }
 
+/* 54 · how hot a core gets (js/burning.js, the nuclei chapter): the electrons, Fermi–Dirac at any temperature, reach both
+   limits (a hot gas's n kT, cold degeneracy's pressure) in both worlds; G drops out once masses are in units of the
+   Chandrasekhar mass; and our helium core at 0.29 of it reaches about 10⁸ K at its hottest, the temperature helium needs
+   (a pure helium star lights above about 0.3 M☉) */
+{
+  const BU = await import(path.join(here, "../js/burning.js")), kB = 1.380649e-23;
+  const lim = [BU.electronPressure(3, 1e30, 1e9) / (1e30 * kB * 1e9), BU.electronPressure(3, 1e36, 1e3) / BU.degeneracyPressure(3, 1e36), BU.electronPressure(4, 1e40, 1e9) / (1e40 * kB * 1e9), BU.electronPressure(4, 1e48, 1e3) / BU.degeneracyPressure(4, 1e48)];
+  const g1 = BU.maxCoreT(4, 0.3, { G: 1e-20 }), g2 = BU.maxCoreT(4, 0.3, { G: 1e-30 }), he = BU.maxCoreT(3, 0.29, { mue: 2, mui: 4, G: 6.6743e-11 });
+  ok(lim.every((x) => Math.abs(x - 1) < 1e-3) && Math.abs(g1 / g2 - 1) < 1e-9 && he > 0.8e8 && he < 1.25e8,
+    `a core's highest temperature: the electrons' hot and cold limits to ${Math.max(...lim.map((x) => Math.abs(x - 1))).toExponential(0)} in both worlds, G dropping out, and our helium core at 0.29 M_Ch reaching ${(he / 1e8).toFixed(2)} × 10⁸ K`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
