@@ -56,6 +56,9 @@ const EXTRA = [
   // hopper publishes runs to the player's own PDS through the shared OAuth
   // worker, so it links the client like every other static site does.
   ["packages/oauth-client/auth.js", "hopper/js/auth.js"],
+  // imp.mino.mobi/vote/ signs its one voter in (identity only) to cast the
+  // build-a-bot A/B ballot; imp/ is its own asset root.
+  ["packages/oauth-client/auth.js", "imp/vote/auth.js"],
   // cad.mino.mobi saves a user's parts to their own PDS (packages/cad/lib/drive.js)
   // through the same client; the site is packages/cad served as static assets.
   ["packages/oauth-client/auth.js", "packages/cad/vendor/auth.js"],

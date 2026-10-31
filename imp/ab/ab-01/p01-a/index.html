@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atlink — bsky.app links ⇄ at:// URIs</title>
+<meta property="og:title" content="atlink — bsky.app links ⇄ at:// URIs">
+<meta property="og:description" content="Paste a bsky.app post URL or an at:// URI and get the other back, instantly, with no network calls — plus a breakdown of the authority, collection and record key so the page doubles as a guide to how AT URIs are built.">
+<meta property="og:type" content="website">
+<meta name="description" content="Paste a bsky.app post URL or an at:// URI and get the other back, instantly, with no network calls — plus a breakdown of the authority, collection and record key so the page doubles as a guide to how AT URIs are built.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  label.fieldLabel {
+    display: block; margin-bottom: .4rem; font-size: .8rem; color: var(--muted);
+  }
+  #inp { font-size: 16px; }
+
+  .outputRow {
+    display: flex; gap: .6rem; align-items: stretch; flex-wrap: wrap;
+    margin: .5rem 0 1.25rem;
+  }
+  .output {
+    flex: 1 1 16rem; min-width: 0;
+    display: block; padding: .8rem 1rem;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--fg);
+    overflow-wrap: anywhere; font-size: .85rem;
+  }
+  #copyBtn { flex: 0 0 auto; min-height: 44px; }
+  .outputRow.hidden { display: none; }
+
+  table.parts { width: 100%; border-collapse: collapse; margin: .5rem 0 1rem; font-size: .85rem; }
+  table.parts th, table.parts td {
+    text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table.parts th { color: var(--muted); font-weight: 600; width: 8rem; }
+  table.parts td { color: var(--fg); overflow-wrap: anywhere; }
+  table.parts td.dim { color: var(--muted); }
+  .tag {
+    display: inline-block; margin-left: .5rem; padding: .1rem .45rem;
+    border-radius: 999px; font-size: .7rem; border: 1px solid var(--border); color: var(--muted);
+  }
+  .tag.canonical { color: var(--ok); border-color: var(--ok); }
+  .tag.noncanonical { color: var(--accent); border-color: var(--accent); }
+
+  .note { font-size: .85rem; color: var(--muted); }
+
+  ul.examples { list-style: none; margin: .5rem 0 1.5rem; padding: 0; display: grid; gap: .5rem; }
+  ul.examples li { margin: 0; }
+  button.ex {
+    display: block; width: 100%; text-align: left; min-height: 44px;
+    padding: .7rem .9rem; font-size: .8rem; line-height: 1.4;
+    background: var(--bg-raised); color: var(--fg); border: 1px solid var(--border);
+  }
+  button.ex:hover { background: var(--accent-dim); color: var(--fg); }
+  button.ex .exWhat { display: block; color: var(--muted); font-size: .72rem; margin-bottom: .15rem; }
+  button.ex code { overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>atlink</h1>
+  <p class="sub">Paste a bsky.app post link or an at:// URI — get the other one back. Local parsing only, nothing leaves this page.</p>
+
+  <label class="fieldLabel" for="inp">bsky.app URL or at:// URI</label>
+  <input type="text" id="inp" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+         placeholder="https://bsky.app/profile/handle.bsky.social/post/3l... or at://did:plc:.../app.bsky.feed.post/3l...">
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div id="resultBlock" class="hidden">
+    <h2 id="resultLabel">Result</h2>
+    <div class="outputRow" id="outputRow">
+      <code class="output" id="output"></code>
+      <button type="button" id="copyBtn">copy</button>
+    </div>
+
+    <h2>Parsed components</h2>
+    <table class="parts">
+      <tr><th>Authority</th><td id="pAuthority">—</td></tr>
+      <tr><th>Collection</th><td id="pCollection">—</td></tr>
+      <tr><th>Record key</th><td id="pRkey">—</td></tr>
+    </table>
+    <p class="note" id="canonicalNote"></p>
+  </div>
+
+  <h2>Examples</h2>
+  <ul class="examples" id="examples"></ul>
+
+  <h2>How an AT URI is put together</h2>
+  <p><code>at://&lt;authority&gt;/&lt;collection&gt;/&lt;rkey&gt;</code> — three
+     parts. The <strong>authority</strong> says whose repository the record
+     lives in, and is either a DID (<code>did:plc:…</code>, <code>did:web:…</code>)
+     or a handle (<code>alice.bsky.social</code>). The <strong>collection</strong>
+     is the record's NSID — <code>app.bsky.feed.post</code> for a post,
+     <code>app.bsky.feed.generator</code> for a feed, <code>app.bsky.graph.list</code>
+     for a list. The <strong>record key</strong> (rkey) picks one record out of
+     that collection.</p>
+  <p><strong>A handle authority is not canonical.</strong> A DID never changes
+     hands and can't be reassigned; a handle can be dropped, renamed or
+     re-registered by someone else. The canonical form of an at:// URI always
+     uses the DID. Bluesky's web URLs accept either, and this page will
+     round-trip whichever one you gave it — it does not go look up a handle's
+     DID or a DID's handle, because that's a network call, and this page
+     deliberately makes none. If you need that lookup,
+     <code>com.atproto.identity.resolveHandle</code> is the endpoint; it just
+     isn't here.</p>
+
+  <h2>What it can't tell you</h2>
+  <p>Whether the post, feed or list still exists, whether the handle still
+     resolves, or whether the authority and the record actually agree — all of
+     that needs a request to the network, which this converter does not make.
+     It only rearranges the string you gave it.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('atlink');
+
+  var BSKY_PATH_TO_NSID = {
+    post: 'app.bsky.feed.post',
+    feed: 'app.bsky.feed.generator',
+    lists: 'app.bsky.graph.list'
+  };
+  var NSID_TO_BSKY_PATH = {};
+  Object.keys(BSKY_PATH_TO_NSID).forEach(function (k) { NSID_TO_BSKY_PATH[BSKY_PATH_TO_NSID[k]] = k; });
+  var NSID_LABEL = {
+    'app.bsky.feed.post': 'post',
+    'app.bsky.feed.generator': 'feed generator',
+    'app.bsky.graph.list': 'list'
+  };
+
+  function decodeSeg(s) {
+    try { return decodeURIComponent(s); } catch (e) { return s; }
+  }
+
+  function normalizeForUrlParse(raw) {
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (/^(www\.)?bsky\.app\//i.test(raw)) return 'https://' + raw;
+    return null;
+  }
+
+  function parseBskyUrl(urlStr) {
+    var url;
+    try { url = new URL(urlStr); }
+    catch (e) { return { ok: false, reason: 'bad-url', detail: 'Could not parse that as a URL at all.' }; }
+
+    var host = url.hostname.toLowerCase();
+    if (host !== 'bsky.app' && host !== 'www.bsky.app') {
+      return { ok: false, reason: 'not-bsky', detail: 'Host is "' + url.hostname + '", not bsky.app.' };
+    }
+    var segs = url.pathname.split('/').filter(Boolean).map(decodeSeg);
+    if (segs[0] !== 'profile') {
+      return { ok: false, reason: 'not-post-url', detail: 'Not a bsky.app URL — expected a path like /profile/<handle-or-did>/post/<rkey>.' };
+    }
+    var authority = segs[1];
+    if (!authority) {
+      return { ok: false, reason: 'missing-authority', detail: 'No handle or DID after /profile/.' };
+    }
+    if (segs.length < 3) {
+      return { ok: false, reason: 'missing-rkey', detail: 'This is a profile link, not a post/feed/list permalink — nothing after the handle.', partial: { authority: authority } };
+    }
+    var segType = segs[2];
+    var rkey = segs[3];
+    if (!rkey) {
+      return { ok: false, reason: 'missing-rkey', detail: 'Path has "/' + segType + '" but no record key after it.', partial: { authority: authority } };
+    }
+    var collection = BSKY_PATH_TO_NSID[segType];
+    if (!collection) {
+      return { ok: false, reason: 'unrecognised-collection', detail: '"' + segType + '" is not a bsky.app path this page knows how to map (knows: post, feed, lists).', partial: { authority: authority, rkey: rkey } };
+    }
+    return { ok: true, direction: 'toAt', authority: authority, collection: collection, rkey: rkey, segType: segType };
+  }
+
+  function parseAtUri(raw) {
+    var rest = raw.slice(5);
+    if (!rest) return { ok: false, reason: 'missing-authority', detail: 'Nothing after at:// — need an authority (a DID or a handle).' };
+    var parts = rest.split('/').map(decodeSeg);
+    var authority = parts[0];
+    if (!authority) return { ok: false, reason: 'missing-authority', detail: 'Nothing between at:// and the first / — need a DID or handle.' };
+    if (!parts[1]) {
+      return { ok: false, reason: 'missing-collection', detail: 'No collection NSID after the authority — expected something like app.bsky.feed.post.', partial: { authority: authority } };
+    }
+    var collection = parts[1];
+    var rkey = parts[2];
+    if (!rkey) {
+      return { ok: false, reason: 'missing-rkey', detail: 'No record key after the collection.', partial: { authority: authority, collection: collection } };
+    }
+    var segType = NSID_TO_BSKY_PATH[collection];
+    if (!segType) {
+      return { ok: false, reason: 'unrecognised-collection', detail: '"' + collection + '" is not a collection this page can map to a bsky.app URL (knows: app.bsky.feed.post, app.bsky.feed.generator, app.bsky.graph.list).', partial: { authority: authority, collection: collection, rkey: rkey } };
+    }
+    return { ok: true, direction: 'toBsky', authority: authority, collection: collection, rkey: rkey, segType: segType };
+  }
+
+  function parseInput(raw) {
+    var trimmed = raw.trim();
+    if (!trimmed) return { ok: false, reason: 'empty' };
+    if (/^at:\/\//i.test(trimmed)) return parseAtUri(trimmed);
+    var normalized = normalizeForUrlParse(trimmed);
+    if (normalized) return parseBskyUrl(normalized);
+    return {
+      ok: false, reason: 'unrecognised',
+      detail: "Doesn't start with at:// and doesn't look like a bsky.app URL."
+    };
+  }
+
+  var ERROR_PREFIX = {
+    'bad-url': 'Not a valid URL — ',
+    'not-bsky': 'Not a bsky.app URL — ',
+    'not-post-url': '',
+    'missing-authority': 'Missing authority — ',
+    'missing-rkey': 'Missing rkey — ',
+    'missing-collection': 'Missing collection — ',
+    'unrecognised-collection': 'Unrecognised collection — ',
+    'unrecognised': ''
+  };
+
+  var inp = document.getElementById('inp');
+  var errEl = document.getElementById('err');
+  var resultBlock = document.getElementById('resultBlock');
+  var resultLabel = document.getElementById('resultLabel');
+  var outputEl = document.getElementById('output');
+  var copyBtn = document.getElementById('copyBtn');
+  var outputRow = document.getElementById('outputRow');
+  var pAuthority = document.getElementById('pAuthority');
+  var pCollection = document.getElementById('pCollection');
+  var pRkey = document.getElementById('pRkey');
+  var canonicalNote = document.getElementById('canonicalNote');
+
+  var lastOutput = '';
+
+  function setPart(el, value) {
+    if (value) { el.textContent = value; el.className = ''; }
+    else { el.textContent = '—'; el.className = 'dim'; }
+  }
+
+  function render(raw) {
+    if (!raw.trim()) {
+      kit.clear(errEl);
+      resultBlock.className = 'hidden';
+      return;
+    }
+    var r = parseInput(raw);
+
+    if (r.reason === 'empty') {
+      kit.clear(errEl);
+      resultBlock.className = 'hidden';
+      return;
+    }
+
+    var comp = r.ok ? { authority: r.authority, collection: r.collection, rkey: r.rkey } : (r.partial || {});
+    var haveAnyComponent = comp.authority || comp.collection || comp.rkey;
+
+    if (!r.ok) {
+      kit.showError(errEl, (ERROR_PREFIX[r.reason] || '') + r.detail);
+    } else {
+      kit.clear(errEl);
+    }
+
+    if (!haveAnyComponent) {
+      resultBlock.className = 'hidden';
+      return;
+    }
+    resultBlock.className = '';
+
+    setPart(pAuthority, comp.authority);
+    setPart(pCollection, comp.collection ? comp.collection + (NSID_LABEL[comp.collection] ? ' (' + NSID_LABEL[comp.collection] + ')' : '') : '');
+    setPart(pRkey, comp.rkey);
+
+    if (comp.authority) {
+      var isDid = /^did:/i.test(comp.authority);
+      canonicalNote.innerHTML = isDid
+        ? 'This authority is a <strong>DID</strong> — canonical. <span class="tag canonical">canonical</span>'
+        : 'This authority is a <strong>handle</strong>, not a DID — <span class="tag noncanonical">not canonical</span>. ' +
+          'The canonical at:// form uses the DID; turning a handle into its DID (or back) needs a network lookup, which this page deliberately does not make.';
+    } else {
+      canonicalNote.textContent = '';
+    }
+
+    if (r.ok) {
+      var out, label;
+      if (r.direction === 'toAt') {
+        out = 'at://' + r.authority + '/' + r.collection + '/' + r.rkey;
+        label = 'at:// URI';
+      } else {
+        out = 'https://bsky.app/profile/' + r.authority + '/' + r.segType + '/' + r.rkey;
+        label = 'bsky.app URL';
+      }
+      resultLabel.textContent = label;
+      outputEl.textContent = out;
+      lastOutput = out;
+      outputRow.className = 'outputRow';
+    } else {
+      resultLabel.textContent = 'Could not convert';
+      outputEl.textContent = '';
+      lastOutput = '';
+      outputRow.className = 'outputRow hidden';
+    }
+  }
+
+  inp.addEventListener('input', function () { render(inp.value); });
+
+  copyBtn.addEventListener('click', function () {
+    if (lastOutput) kit.copy(lastOutput, copyBtn);
+  });
+
+  var EXAMPLES = [
+    {
+      what: 'bsky.app URL, handle authority → at://',
+      value: 'https://bsky.app/profile/jay.bsky.team/post/3jwdwj2ctlk26'
+    },
+    {
+      what: 'at:// URI, did: authority → bsky.app URL',
+      value: 'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3jwdwj2ctlk26'
+    },
+    {
+      what: 'at:// URI, handle authority (non-canonical) → bsky.app URL',
+      value: 'at://jay.bsky.team/app.bsky.feed.generator/aaao6itsjcs2s'
+    }
+  ];
+  var exList = document.getElementById('examples');
+  EXAMPLES.forEach(function (ex) {
+    var li = document.createElement('li');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ex';
+    var what = document.createElement('span');
+    what.className = 'exWhat';
+    what.textContent = ex.what;
+    var code = document.createElement('code');
+    code.textContent = ex.value;
+    btn.appendChild(what);
+    btn.appendChild(code);
+    btn.addEventListener('click', function () {
+      inp.value = ex.value;
+      render(ex.value);
+      inp.focus();
+    });
+    li.appendChild(btn);
+    exList.appendChild(li);
+  });
+
+  render('');
+})();
+</script>
+</body>
+</html>

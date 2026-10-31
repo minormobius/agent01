@@ -45,7 +45,7 @@ window.SPEC_CURATED = {
     fifty: 'social', zest: 'social',
     bakery: 'work', org: 'work', crm: 'work',
     clef: 'work',
-    finance: 'work', os: 'work', 'os-api': 'work', audio: 'work', board: 'work',
+    finance: 'work', os: 'work', 'os-api': 'work', imp: 'work', audio: 'work', board: 'work',
     labglass: 'science', j: 'science', ocr: 'science', splice: 'science',
     neuro: 'science', sci: 'science', jurassic: 'science', fold: 'science', cad: 'science',
     cable: 'science', ar: 'science', tjs: 'science', wars: 'science',

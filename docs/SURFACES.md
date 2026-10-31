@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **103 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **104 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -82,6 +82,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `hose` | backend | `workers/hose` | [hose.mino.mobi](https://hose.mino.mobi) | `claude/txt-airports-bluesky-feed-pu4pbh` | [`workers/hose/CLAUDE.md`](../workers/hose/CLAUDE.md) | The firehose half of the feed stack, and the other end of b.mino.mobi/feedgen… |
 | `human` | fullstack | `human` | [human.mino.mobi](https://human.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`human/CLAUDE.md`](../human/CLAUDE.md) | Human Machinery — an arcade of user error… |
 | `idol` | frontend | `idol` | [idol.mino.mobi](https://idol.mino.mobi) | `claude/anime-waifu-generator-9QwRt` | [`idol/CLAUDE.md`](../idol/CLAUDE.md) | The waifu generator — an AI-safety piece about beguilement, built as the thing it's about… (full description: idol/CLAUDE.md) |
+| `imp` | frontend | `imp` | [imp.mino.mobi](https://imp.mino.mobi) | `claude/friends-project-planning-cags5l` | [`imp/CLAUDE.md`](../imp/CLAUDE.md) | Imp — deepfates’ port of DSPy to Elixir — measured from outside: GEPA teaching three models (DeepSeek V4 Flash, V4 Pro, Kimi K3) what two opaque codes mean from feedback alone (50% → 94% for Kimi), Re… |
 | `ink` | frontend | `ink` | [ink.mino.mobi](https://ink.mino.mobi) | `claude/p5js-procgen-exploration-efdhws` | [`ink/CLAUDE.md`](../ink/CLAUDE.md) | A roller for fluoddity organisms, painted rather than lit… |
 | `io` | fullstack | `io` | [io.mino.mobi](https://io.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`io/CLAUDE.md`](../io/CLAUDE.md) | ATProto issue tracker. Bug reports and feature requests live on your own PDS; doubles as a StumbleUpon-style portal across the mino.mobi sites. |
 | `iris` | frontend | `iris` | [iris.mino.mobi](https://iris.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`iris/CLAUDE.md`](../iris/CLAUDE.md) | The END-ON cross-section view of an O'Neill cylinder — looking down the axis at a small ring habitat (4 km floor inside a 5 km radiator skin). Assets worker `iris` serving directory 'iris'… |

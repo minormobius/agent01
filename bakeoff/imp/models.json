@@ -1,0 +1,4 @@
+{
+  "$comment": "Per-model overrides of the LM options ImpBench.lm_for/1 sends (defaults: temperature 0.0, max_tokens 2048). null drops an option. kimi-k3 always thinks: preflight-models.mjs found its answers vanish into reasoning under a small max_tokens, and imp-01 failed every kimi3 call in 5s at temperature 0.",
+  "kimi3": { "temperature": null, "max_tokens": 16000 }
+}
