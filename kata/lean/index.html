@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="Lean — a track in four dimensions. Walk a flat road carved into a closed 4D basin: a curve made wide in both directions across it, whose bends turn partly into w, and whose plane of bending turns as you go." />
+<title>Lean — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/lean.css" />
+</head>
+<body>
+<div id="view">
+  <canvas id="gl" aria-label="Your 3D slice of a 4D basin with a track carved through it"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+  <div id="hud"><b>LEAN</b><span id="hudT"></span><span id="hudW"></span></div>
+  <div id="stick" aria-hidden="true"><div id="knob"></div></div>
+  <div id="intro">
+    <h2>kata.mino.mobi · the track</h2>
+    <h1>LEAN</h1>
+    <p>A road on our ground is a curve made wide in the one direction across it. On a four-dimensional ground there are <b>two</b> directions across a curve, so this track is a curve made wide in both: a flat tube of tarmac, carved level through a closed basin you can't climb out of.</p>
+    <p>You see the 3D slice you stand in. The track's bends turn partly in your slice and partly <b>into w</b>, where you can't see them, and the plane of each bend keeps turning as you go round. That turning is <b>torsion</b>, and no road on our ground has it. It's what a bicycle here would have to steer by. Walk it first.</p>
+    <button type="button" id="go" class="primary">ENTER</button>
+  </div>
+</div>
+<div id="panel">
+  <div class="btns you"><button type="button" id="twL">⟲ twist</button><button type="button" id="twR">twist ⟳</button><button type="button" id="inA">look ana</button><button type="button" id="inK">look kata</button><button type="button" id="sq">▣ square up</button><button type="button" id="ft">↦ face the track</button></div>
+  <p id="read" class="read"></p>
+  <div class="split">
+    <canvas id="map" aria-label="The track from above and from the side into w, with you on it"></canvas>
+    <div class="ctls">
+      <h4>show</h4>
+      <div class="btns" id="show"><button type="button" data-o="fae">fae colours (by w)</button></div>
+      <p class="help">The map colours the track by w. The gold tick is where you face, the dashed blue the direction you can't see.</p>
+    </div>
+  </div>
+  <p class="help"><b>WASD</b> walk (<b>shift</b> runs) · <b>mouse</b> turns and looks (click to grab it) · <b>Z</b>/<b>C</b> or the <b>wheel</b> twist · <b>Q</b>/<b>E</b> look into w · <b>X</b> square up · <b>T</b> face the track. Phone: the stick walks, drag to turn and look. <a href="./README.md">how it works</a> · <a href="../">kata</a> · <a href="https://four.mino.mobi/iris/">IRIS⁴</a>, whose engine this is</p>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

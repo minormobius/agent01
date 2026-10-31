@@ -3668,6 +3668,24 @@
    "parent": null
   },
   {
+   "id": "kata",
+   "name": "kata",
+   "url": "https://kata.mino.mobi/",
+   "cat": "games",
+   "commits": 3,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "kata-lean",
+   "name": "kata-lean",
+   "url": "https://kata.mino.mobi/lean/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",

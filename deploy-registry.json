@@ -1905,6 +1905,21 @@
         ".github/workflows/deploy-four.yml"
       ],
       "status": "NEW (2026-10-26): split out of games, where ATOM⁴, Lumen⁴ and IRIS⁴ lived as /atom4/, /lumen4/ and /iris4/; games.mino.mobi redirects those paths here. A plain route from the start (no custom-domain slot)."
+    },
+    {
+      "surface": "kata",
+      "dir": "kata",
+      "endpoint": "kata.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/kata-lean-track",
+      "uses": [],
+      "provides": null,
+      "note": "Four dimensions, ridden: vehicles piloted through a 4D world, starting with the bicycle. A landing and its demos; the first, Lean, is a track carved into a closed 4D basin (full description: kata/CLAUDE.md)",
+      "paths": [
+        "kata/**",
+        ".github/workflows/deploy-kata.yml"
+      ],
+      "status": "NEW (2026-10-31): a plain route from the start (no custom-domain slot). Lean's engine is a copy of four's IRIS⁴."
     }
   ],
   "unmanaged": {

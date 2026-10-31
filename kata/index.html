@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="kata — four dimensions, ridden. Vehicles you pilot through a four-dimensional world, starting with the bicycle, whose lean has a direction as well as a size. First, the track." />
+<title>kata — four dimensions, ridden</title>
+<link rel="icon" href="data:," />
+<style>
+:root { --bg: #07080c; --panel: #0e1017; --text: #e9e4da; --dim: #9a958c; --border: #262833; --ice: #6fe0ff; --gold: #ffd27a; --rose: #ff86c6;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+main { max-width: 760px; margin: 0 auto; padding: calc(40px + env(safe-area-inset-top)) 20px 60px; }
+h1 { font: 800 56px/1 var(--mono); letter-spacing: 0.14em; margin: 0 0 6px; }
+h1 span { background: linear-gradient(90deg, var(--ice), #b88cff, var(--rose), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.sub { font: 600 12px var(--mono); color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 28px; }
+p { line-height: 1.6; color: #c9c3b8; } p b { color: var(--text); }
+h2 { font: 700 12px var(--mono); color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin: 36px 0 12px; }
+.cards { display: grid; gap: 12px; }
+.card { display: block; border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; background: var(--panel); color: inherit; text-decoration: none; }
+a.card:hover { border-color: var(--gold); }
+.card h3 { font: 800 18px var(--mono); letter-spacing: 0.08em; margin: 0 0 6px; display: flex; gap: 10px; align-items: baseline; }
+.card h3 em { font: 600 10px var(--mono); font-style: normal; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border); color: var(--dim); }
+.card h3 em.live { color: var(--ice); border-color: var(--ice); }
+.card p { margin: 0; font-size: 14px; }
+ul { padding-left: 20px; color: #c9c3b8; line-height: 1.6; } li { margin-bottom: 6px; } li b { color: var(--text); }
+code { font: 13px var(--mono); color: var(--gold); }
+footer { margin-top: 40px; font: 11px/1.6 var(--mono); color: var(--dim); } footer a { color: var(--text); }
+</style>
+</head>
+<body>
+<main>
+  <h1><span>kata</span></h1>
+  <p class="sub">four dimensions, ridden</p>
+  <p>A bicycle squeezes the world down a dimension. It goes forward in one direction, turns in one plane, and the two are tied together: you steer by leaning, and you lean by steering. <b>kata</b> is about piloting one through a world with four dimensions of space, where that squeeze doesn't quite work.</p>
+  <p>Two wheels still touch the ground at two points, and the bike can still fall about the line between them. But in four dimensions a line has <b>two</b> directions across it, not one. So a lean has a direction as well as a size: some of it can tip into the side you can see, and some of it into w, kata or ana. Nothing in gravity chooses between them.</p>
+
+  <h2>Demos</h2>
+  <div class="cards">
+    <a class="card" href="lean/"><h3>LEAN <em class="live">walk it</em></h3><p>The track. A road on our ground is a curve made wide in one direction; here it's a curve made wide in both, a flat tube of tarmac carved level through a closed four-dimensional basin. Its bends turn partly into w, and the plane of each bend keeps turning as you go round. That's torsion, which no road on our ground has. Walk it with IRIS⁴'s controls, and watch the bend split between your slice and the direction you can't see.</p></a>
+    <div class="card"><h3>THE W-CYCLE <em>next</em></h3><p>A tricycle whose three wheels sit in a triangle in the plane you can see. It's stable in that plane, but a triangle is flat, and on this ground a flat base can still tip into w. So you balance in w alone: one unfamiliar direction, like learning a bicycle again.</p></div>
+    <div class="card"><h3>THE BICYCLE <em>then</em></h3><p>Two hyperwheels, a lean that is a 2-vector, and a handlebar that steers in two planes. Lean sets how hard you turn, the lean's direction sets which way, and turning the lean's direction is the track's torsion. Ridden by balance alone, like a unicycle on our ground. And a wheel here can spin in two planes at once, which may let the lean precess into w by itself.</p></div>
+  </div>
+
+  <h2>What we think we know</h2>
+  <ul>
+    <li><b>The lean is a direction on a circle.</b> Gravity picks out up and nothing else. For a perfectly symmetric bike, y against w is just labelling, and the first nudge sets the direction.</li>
+    <li><b>Near upright it's two of our bicycles.</b> Linearized, the lean and steer in y and the lean and steer in w don't talk to each other, and the 3D rule (steer into the fall) works in each. The spinning wheel's gyroscopic coupling keeps the same direction too.</li>
+    <li><b>The machine breaks the symmetry.</b> Which planes the fork can steer in, the tyre's cross-section, and how the frame and rider spread their mass in y against w (an ordinary frame is flat in w, so it falls fastest kata).</li>
+    <li><b>Tracks have torsion.</b> A bike's path on our ground is a flat curve. Here the lean's size is the path's curvature, and the rate its direction turns is the path's torsion.</li>
+    <li><b>Open:</b> a hyperwheel spinning in its axle plane as well. The algebra says that spin turns lean in y into lean in w. Whether it helps or hurts is for the simulator to say.</li>
+  </ul>
+
+  <footer>kata.mino.mobi · the engine is <a href="https://four.mino.mobi/iris/">IRIS⁴</a>'s, from <a href="https://four.mino.mobi/">four</a>, a universe with four dimensions of space, worked out · the arcade's 4D games: <a href="https://games.mino.mobi/katabasis/">KATABASIS</a>, <a href="https://games.mino.mobi/anakata/">Anakata</a></footer>
+</main>
+</body>
+</html>

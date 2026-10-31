@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **112 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **113 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -92,6 +92,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `j` | frontend | `j` | [j.mino.mobi](https://j.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`j/CLAUDE.md`](../j/CLAUDE.md) | ImageJ in the browser. Confocal analysis, edge detection, circle fitting, and radial sampling compiled to WASM—every pixel stays client-side. |
 | `jog` | frontend | `jog` | [jog.mino.mobi](https://jog.mino.mobi) | `claude/jog-running-loops` | [`jog/CLAUDE.md`](../jog/CLAUDE.md) | Running loops from your door… |
 | `jurassic` | frontend | `jurassic` | [jurassic.mino.mobi](https://jurassic.mino.mobi) | `claude/jurassic-forest-sounds-iym7ya` | [`jurassic/CLAUDE.md`](../jurassic/CLAUDE.md) | A Middle Jurassic forest floor in the dark, walked by ear. The nine ensiferans of Gu et al… |
+| `kata` | frontend | `kata` | [kata.mino.mobi](https://kata.mino.mobi) | `claude/kata-lean-track` | [`kata/CLAUDE.md`](../kata/CLAUDE.md) | Four dimensions, ridden. A bicycle squeezes the world down a dimension: forward in one direction, turning in one plane, steering by leaning… |
 | `ken` | frontend | `ken` | [ken.mino.mobi](https://ken.mino.mobi) | `claude/repo-study-fields-0ftd34` | [`ken/CLAUDE.md`](../ken/CLAUDE.md) | The study programme behind the loop next door: how do you know whether work you did not supervise was any good? A six-unit curriculum with real primary sources — construct validity, the design of expe… |
 | `lab` | frontend | `lab/www` | [minomobi.com](https://minomobi.com) | `claude/lab-www` | [`lab/www/CLAUDE.md`](../lab/www/CLAUDE.md) | The site factory. Ask for a website in a Bluesky mention and an agent builds it, then replies with the link… |
 | `labglass` | frontend | `labglass` | [glass.mino.mobi](https://glass.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`labglass/CLAUDE.md`](../labglass/CLAUDE.md) | Peer-to-peer biotech data workbench. SQL and Python running entirely in the browser. |

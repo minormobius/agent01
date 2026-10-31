@@ -5704,6 +5704,40 @@
       ]
     },
     {
+      "n": "kata",
+      "u": "https://kata.mino.mobi/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-10-31",
+      "b": "2026-10-31",
+      "surface": "kata",
+      "d": "Four dimensions, ridden. A bicycle squeezes the world down a dimension: forward in one direction, turning in one plane, steering by leaning. In four dimensions a line has two directions across it, so a bicycle's lean has a direction as well as a size, and nothing in gravity picks it. Vehicles you pilot through a 4D world, starting with the track, then a tricycle you balance in w alone, then the bicycle.",
+      "tags": [
+        "games",
+        "canvas",
+        "math",
+        "index"
+      ]
+    },
+    {
+      "n": "kata-lean",
+      "u": "https://kata.mino.mobi/lean/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-31",
+      "b": "2026-10-31",
+      "p": "kata",
+      "surface": "kata",
+      "d": "A track in four dimensions, walked in first person: a curve made wide in both directions across it, a flat tube of tarmac carved level through a closed basin you can't climb out of. Its bends turn partly into w, and the plane of each bend turns as you go round, a torsion no road on our ground has. The readout splits the bend between your slice and the direction you can't see. Selftested, including a flood proving the basin is closed.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",
