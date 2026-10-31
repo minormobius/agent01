@@ -116,7 +116,7 @@ void main() {
     base = mix(base, mix(base, fae(dw * 0.22 + 0.5), 0.6) * 1.1, k);
     float lam = max(dot(nb, uSun), 0.0), spec = pow(max(dot(reflect(d, nb), uSun), 0.0), 24.0);
     c = base * (vec3(0.42, 0.47, 0.62) * (0.75 + 0.25 * nb.y) + vec3(1.0, 0.85, 0.64) * lam) + vec3(0.35) * spec * (bm == 1 ? 1.0 : 0.3);
-    c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tb / 75.0));
+    c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tb / 150.0));
   }
   else if (!hit) c = sky(d);
   else {
@@ -142,7 +142,7 @@ void main() {
     float lam = max(dot(n, uSun), 0.0);
     if (uBike == 1) { float ts; int sm; if (marchBike(p * uVS + n * 0.01, uSun, 4.0, ts, sm)) lam *= 0.25; } // the bike's shadow
     c = base * (vec3(0.4, 0.46, 0.62) * (0.8 + 0.25 * n.y) + vec3(1.0, 0.85, 0.64) * lam) * mix(0.7, 1.0, edge);
-    float fog = 1.0 - exp(-t * uVS / 75.0);
+    float fog = 1.0 - exp(-t * uVS / 150.0);
     c = mix(c, sky(d) * 0.9 + 0.08, fog);
   }
   o = vec4(c / (1.0 + 0.12 * c), 1.0);

@@ -35,7 +35,7 @@ ok(H.every((v, i) => v === H2[i]), `the same seed makes the same land (built in 
   }
   ok(worst < 1e-3, `the centreline's curvature, torsion and frame agree with finite differences (worst ${worst.toExponential(1)})`);
   ok(maxW > 0.5 && maxTau > 0.05, `its bends turn into w (the normal's w part reaches ${maxW.toFixed(2)}) and its plane turns (|τ| up to ${maxTau.toFixed(3)}/m)`);
-  ok(Math.abs(Wd.LAP - 77.3) < 1, `a lap is ${Wd.LAP.toFixed(1)} m`);
+  ok(Math.abs(Wd.LAP - 154.6) < 1, `a lap is ${Wd.LAP.toFixed(1)} m`);
   // the tube never meets itself: points of the centreline more than a track's width apart along it are more than two widths apart in space
   let close = Infinity;
   for (let i = 0; i < Wd.NS; i += 4) for (let j = i + 4; j < Wd.NS; j += 4) {

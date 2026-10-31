@@ -17,9 +17,9 @@
 
    The ray march (two-level DDA, blocks of B³ cells skipped on their tallest column) is IRIS⁴'s, line for line, and the
    shader's twin. A cell's byte holds its height in the low six bits and its material in the top two. */
-export const DIM = [320, 320, 128]; // cells along x, z, w: an 80 × 80 × 32 m world
+export const DIM = [320, 320, 128]; // cells along x, z, w: a 160 × 160 × 64 m world
 export const ATLAS_C = 12; // the shader's atlas lays the w-slices out 12 across (and 11 down): 3840 × 3520, under phones' 4096
-export const VS = 0.25; // a voxel's size, in metres
+export const VS = 0.5; // a voxel's size, in metres (the floor is flat, so only the walls and the track's markings show it)
 export const B = 8; // a block, in cells, for the coarse march
 export const HMASK = 63, MSHIFT = 6; // a cell: height (voxels) in bits 0–5, material in bits 6–7
 export const MAT = { ground: 0, track: 1, line: 2, kerb: 3 };
@@ -27,13 +27,13 @@ export const SIZE = [DIM[0] * VS, 0, DIM[1] * VS, DIM[2] * VS]; // metres, in (x
 
 /* the basin: an ellipsoid over (x, z, w), metres. Its surface stays inside the world's box, so the rim fills the box's
    edges every way and the world's wrap is never reached */
-export const BASIN = { c: [40, 40, 16], a: [37, 37, 14.5] }; // 74 m across in x and z, 29 m in w: the walls ~10 m off the track even in w
+export const BASIN = { c: [80, 80, 32], a: [74, 74, 29] }; // 148 m across in x and z, 58 m in w: the walls ~20 m off the track even in w
 export const RIM_MIN = 50, LAND_MAX = 22; // voxels: the rim's lowest, the interior's highest (the floor is flat, at TRACK_H)
 /* the track */
-export const TRACK_H = 22; // voxels: 5.5 m
-export const R_TRACK = 1.5, SHOULDER = 1.0, KERB = 0.25, LINE = 0.12; // metres (SHOULDER: how far past the track the distance field reaches)
-export const OVAL = { a: 13, b: 10, c: 3 }; // centreline: x = 24 + a cos t, z = 24 + b sin t, w = 8 + c sin 2t
-export const NS = 1536; // samples along the centreline (a polyline; its segments are ~6 cm)
+export const TRACK_H = 22; // voxels: 11 m
+export const R_TRACK = 3, SHOULDER = 2, KERB = 0.6, LINE = 0.3; // metres (SHOULDER: how far past the track the distance field reaches)
+export const OVAL = { a: 26, b: 20, c: 6 }; // centreline: x = 80 + a cos t, z = 80 + b sin t, w = 32 + c sin 2t (a lap is 154.6 m)
+export const NS = 1536; // samples along the centreline (a polyline; its segments are ~10 cm)
 
 export const basinE = (x, z, w) => Math.hypot((x - BASIN.c[0]) / BASIN.a[0], (z - BASIN.c[1]) / BASIN.a[1], (w - BASIN.c[2]) / BASIN.a[2]);
 

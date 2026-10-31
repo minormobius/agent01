@@ -6,15 +6,15 @@ The first of kata's demos: a track in four dimensions, to walk before anything i
 
 A road on our ground is a curve made wide in the one direction across it. On a four-dimensional ground (up, and the
 three directions x, z and w across the ground) there are **two** directions across a curve. So this track is a curve
-made wide in both: every point of the ground within 1.5 m of a closed centreline, all at one height. Its profile over
+made wide in both: every point of the ground within 3 m of a closed centreline, all at one height. Its profile over
 x, z and w is flat, a tube of tarmac carved level through the land.
 
 The centreline is an oval in x and z that rises and falls in w twice a lap:
 
-    x = 24 + 13 cos t,   z = 24 + 10 sin t,   w = 8 + 3 sin 2t      (metres; a lap is 77.3 m)
+    x = 80 + 26 cos t,   z = 80 + 20 sin t,   w = 32 + 6 sin 2t      (metres; a lap is 154.6 m)
 
 So its bends turn partly in the plane you start in and partly into w. The plane of the bend (spanned by the tangent
-and the principal normal) itself turns as you go round, at the curve's **torsion** τ, up to 0.11 rad/m here. A road on
+and the principal normal) itself turns as you go round, at the curve's **torsion** τ, up to 0.057 rad/m here. A road on
 our ground lies in a plane and has none. This is the quantity a 4D bicycle would steer by: the size of its lean sets
 the curvature of its path, and the rate the lean's direction turns sets the torsion.
 
@@ -27,17 +27,17 @@ normal and N the binormal: then the whole bend is in your slice, and τ is how f
 
 ## The world (`js/world.js`)
 
-IRIS⁴'s engine (`four.mino.mobi/iris/`): a heightfield of 0.25 m tesseract voxels over x, z and w (320 × 320 × 128
-cells, an 80 × 80 × 32 m world, packed for the GPU as an atlas of w-slices 12 across, 3840 × 3520, inside the 4096
+IRIS⁴'s engine (`four.mino.mobi/iris/`): a heightfield of tesseract voxels (0.5 m since the second enlargement; IRIS⁴'s are 0.25 m) over x, z and w (320 × 320 × 128
+cells of 0.5 m, a 160 × 160 × 64 m world, packed for the GPU as an atlas of w-slices 12 across, 3840 × 3520, inside the 4096
 any phone takes), the two-level ray march (`march()`, the shader's twin, line for line) and walking (eye 1.7 m, step up 0.5 m,
 slide along cliffs). Cut down to the tesseract grid, with no foams and no rainbows, and changed in four ways:
 
-- **The basin.** Inside an ellipsoid over x, z and w (semi-axes 37, 37 and 14.5 m: a stadium 74 m across, 29 m
+- **The basin.** Inside an ellipsoid over x, z and w (semi-axes 74, 74 and 29 m: a stadium 148 m across, 58 m
   in w) the floor is perfectly flat, every cell at 22 voxels (5.5 m). Outside it stands a rim of at least 50 voxels,
   a 7 m wall broken up block by block, filling all six faces of the world's box, so the world's wrap is never
-  reached. The track sits in the middle half of it: the walls stand at least 10 m off it even in w, where they used to
-  be 3 m away, so looking into w shows you open floor and the track, not wall.
-- **The track** is marked on that floor wherever the centreline is within 1.5 m: a closed loop of tarmac with nothing
+  reached. The track sits in the middle half of it: the walls stand at least 20 m off it even in w (they were 3 m away at
+  first, then 10), so looking into w shows you open floor and the track, not wall.
+- **The track** is marked on that floor wherever the centreline is within 3 m: a closed loop of tarmac with nothing
   in its way. The polyline has 1536 segments, so the distance is exact to its 6 cm chords. Only the cells near it
   are kept (`trackCells()`, sparse: a few hundred thousand of the world's 13 million).
 - **Materials.** A cell's byte holds its height in bits 0–5 and its material in bits 6–7: ground, tarmac, the centre
@@ -109,10 +109,10 @@ one-axis steering can't twist fast enough.
 Your view is a 3D hyperplane through your eye, and every ray lies exactly in it. So the slice has no thickness in
 w. What you see in w is the thickness of the things themselves:
 
-- **the land:** a tesseract voxel is 0.25 m in w. Squared up to the grid you see every cell whose span contains your
+- **the land:** a tesseract voxel is 0.5 m in w. Squared up to the grid you see every cell whose span contains your
   w; turned, you cut them obliquely.
-- **the track:** a tube of radius 1.5 m. It's in your slice while you're within 1.5 m of its centreline in w, at a
-  width of 2√(1.5² − Δw²).
+- **the track:** a tube of radius 3 m. It's in your slice while you're within 3 m of its centreline in w, at a
+  width of 2√(3² − Δw²).
 - **the bike:** its tyres are 3 cm, its limbs 4–6 cm and its torso 13 cm thick in w. Riding, the camera keeps the
   contact point in your slice, but a lean of φ into w takes the rider's shoulders 1.5·sin φ out of it. The torso is
   gone past about 5°, and the wheels slice to slivers. A bike tucked into w all but vanishes, which is exactly what
@@ -147,7 +147,7 @@ On our ground this is the textbook tan φ = v²/gR. Here N lies anywhere in the 
 the lean is a 2-vector, ana, kata or in between, wherever the curve bends. Along the track N turns about the tangent at
 the torsion (Frenet: N′ = −κT + τB), so the lean's direction turns at τv rad/s. The steer is the kinematic
 δ = atan(wκ/cos λ), toward N. The geometry is close to the benchmark bicycle of Meijaard et al. (2007): wheelbase
-1.02 m, head angle 18°, wheels 0.34 m. At 5 m/s the most it leans here is 18.3°.
+1.02 m, head angle 18°, wheels 0.34 m. At 5 m/s the most it leans here is 9.4° (18.3° on the first, half-size track).
 
 **Two mechanisms** (the button, or M), which differ only in how the frame carries that turning lean:
 

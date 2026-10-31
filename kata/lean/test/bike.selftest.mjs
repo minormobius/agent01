@@ -22,7 +22,7 @@ const Y = [0, 1, 0, 0], { V, G, BIKE } = Bk;
   }
   ok(worst < 1e-12, `up balances gravity and the centripetal pull exactly, tan φ = v²κ/g at 2, 5 and 8 m/s (worst ${worst.toExponential(1)})`);
   ok(dirWorst < 1e-9, "the lean points along the bend's principal normal: a 2-vector across the ground, ana or kata as the curve goes");
-  ok(maxPhi > 0.3 && maxPhi < 0.33 && maxW > 0.7, `at ${V} m/s the most it leans is ${(maxPhi * 180 / Math.PI).toFixed(1)}°, and some leans are mostly into w (|N_w| up to ${maxW.toFixed(2)})`);
+  ok(maxPhi > 0.15 && maxPhi < 0.18 && maxW > 0.7, `at ${V} m/s the most it leans is ${(maxPhi * 180 / Math.PI).toFixed(1)}°, and some leans are mostly into w (|N_w| up to ${maxW.toFixed(2)})`);
   // our world as the check: where the bend has no w in it, the lean has none, and it's the textbook tan φ = v²/gR
   const st = Bk.state(0, "two-axis", V, G), R = 1 / st.kappa;
   ok(Math.abs(st.N[3]) < 1e-12 && Math.abs(st.u[3]) < 1e-12 && Math.abs(st.phi - Math.atan((V * V) / (G * R))) < 1e-12, `where the bend lies in our plane it's our bicycle: φ = atan(v²/gR) = ${(st.phi * 180 / Math.PI).toFixed(2)}° for R = ${R.toFixed(2)} m, nothing into w`);

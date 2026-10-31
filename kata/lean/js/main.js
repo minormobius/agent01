@@ -8,7 +8,7 @@
    The readout is the track's own geometry where you stand, in your frame: its curvature vector κN (which way, and how
    hard, the centreline bends) split into the part in your slice (along R and F) and the part into w you can't see
    (along N), and its torsion τ, how fast the plane of the bend turns. A road on our ground has no torsion. */
-import { DIM, ATLAS_C, VS, terrain, blocks, groundAt, walk, EYE, frenet, nearestTrack, LAP, PTS, NS, S, start, BASIN, R_TRACK, basinE } from "./world.js";
+import { DIM, ATLAS_C, VS, terrain, blocks, groundAt, walk, EYE, frenet, nearestTrack, LAP, PTS, NS, S, start, BASIN, R_TRACK, basinE, OVAL } from "./world.js";
 import { Renderer } from "./render.js";
 import { parts as bikeParts, BOUND, V, G, HOLONOMY, MECHS, BIKE, GROUND_Y } from "./bike.js";
 import { Bike, followLean, lookahead } from "./dyn.js";
@@ -250,7 +250,7 @@ function readout(r) {
    round cross-sections every few metres. The basin's three principal ellipses frame it, and you're on it: your
    position, where you face (gold) and the direction you can't see (dashed blue). w is the map's up. */
 const MAPV = { yaw: 0.55, el: 0.62 }, MAP0 = { ...MAPV };
-const wHue = (w) => Math.round(175 + ((w - BASIN.c[2]) / 3) * 115);
+const wHue = (w) => Math.round(175 + ((w - BASIN.c[2]) / OVAL.c) * 115); // the track's own swing in w, kata to ana
 const RINGS = [];
 for (let i = 0; i < NS; i += 48) { const f = frenet((2 * Math.PI * i) / NS), c = [f.p[0], f.p[2], f.p[3]], n = [f.N[0], f.N[2], f.N[3]], bn = [f.Bn[0], f.Bn[2], f.Bn[3]]; RINGS.push({ i, pts: Array.from({ length: 25 }, (_, k) => { const t = (2 * Math.PI * k) / 24; return c.map((v, j) => v + R_TRACK * (Math.cos(t) * n[j] + Math.sin(t) * bn[j])); }) }); }
 {
@@ -308,7 +308,7 @@ function mapDraw(st) {
   g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillStyle = "#9a958c";
   g.fillText(h < 200 ? "x, z, w · drag" : "the ground: x, z, w (w up) · drag to turn", 8, 13);
   // the colours' key: w, kata to ana
-  if (h >= 200) { const kx = w - 136, ky = h - 16; for (let i = 0; i < 100; i++) { g.fillStyle = `hsl(${wHue(BASIN.c[2] - 3 + (6 * i) / 100)}, 60%, 50%)`; g.fillRect(kx + i, ky, 1, 6); }
+  if (h >= 200) { const kx = w - 136, ky = h - 16; for (let i = 0; i < 100; i++) { g.fillStyle = `hsl(${wHue(BASIN.c[2] - OVAL.c + (2 * OVAL.c * i) / 100)}, 60%, 50%)`; g.fillRect(kx + i, ky, 1, 6); }
   g.fillStyle = "#9a958c"; g.textAlign = "right"; g.fillText("kata", kx - 4, ky + 6); g.textAlign = "left"; g.fillText("ana", kx + 104, ky + 6); }
 }
 function wName() { const N = me.fr.N; let a = 0; for (const i of [2, 3]) if (Math.abs(N[i]) > Math.abs(N[a])) a = i; const off = Math.round((Math.acos(Math.min(1, Math.abs(N[a]))) * 180) / Math.PI); return (N[a] > 0 ? "+" : "−") + "xyzw"[a] + (off >= 2 ? ` ${off}°` : ""); }
