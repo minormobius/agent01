@@ -58,17 +58,21 @@ export function spell(p) {
 // position is just `diatonicOf(pitch) - middleDia`.
 //
 // `sounds` is the transposition in semitones between what is written and what
-// is heard — the octave-down treble clef used for tenor voices and guitar is
-// written exactly like a treble clef and sounds an octave lower.
+// is heard. It is 0 for every clef here, the octave clefs included: in LilyPond a
+// note's name IS its sounding pitch, and `\clef "treble_8"` (guitar, tenor) only
+// moves where it is DRAWN, an octave higher on the staff (middleDia 27, not 34),
+// with a small 8 under the clef. Reading it the other way round drew guitar music
+// on the treble staff as written and played it an octave low.
 export const CLEFS = {
   treble:     { glyph: 'gClef',  line: 2, middleDia: 34, sounds: 0,   label: 'treble' },
   violin:     { glyph: 'gClef',  line: 2, middleDia: 34, sounds: 0,   label: 'treble' },
   G:          { glyph: 'gClef',  line: 2, middleDia: 34, sounds: 0,   label: 'treble' },
-  'treble_8': { glyph: 'gClef',  line: 2, middleDia: 34, sounds: -12, label: 'treble 8vb', ottava: -1 },
-  tenorG:     { glyph: 'gClef',  line: 2, middleDia: 34, sounds: -12, label: 'treble 8vb', ottava: -1 },
+  'treble_8': { glyph: 'gClef',  line: 2, middleDia: 27, sounds: 0,   label: 'treble 8vb', ottava: -1 },
+  G_8:        { glyph: 'gClef',  line: 2, middleDia: 27, sounds: 0,   label: 'treble 8vb', ottava: -1 },
+  tenorG:     { glyph: 'gClef',  line: 2, middleDia: 27, sounds: 0,   label: 'treble 8vb', ottava: -1 },
   bass:       { glyph: 'fClef',  line: 4, middleDia: 22, sounds: 0,   label: 'bass' },
   F:          { glyph: 'fClef',  line: 4, middleDia: 22, sounds: 0,   label: 'bass' },
-  'bass_8':   { glyph: 'fClef',  line: 4, middleDia: 22, sounds: -12, label: 'bass 8vb', ottava: -1 },
+  'bass_8':   { glyph: 'fClef',  line: 4, middleDia: 15, sounds: 0,   label: 'bass 8vb', ottava: -1 },
   alto:       { glyph: 'cClef',  line: 3, middleDia: 28, sounds: 0,   label: 'alto' },
   C:          { glyph: 'cClef',  line: 3, middleDia: 28, sounds: 0,   label: 'alto' },
   viola:      { glyph: 'cClef',  line: 3, middleDia: 28, sounds: 0,   label: 'alto' },

@@ -15,7 +15,7 @@ Hub for the extremal-geometry pack. Family-resemblance table sortable by era, te
 | Dir | `geometry/` |
 | Endpoint | `math.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/szilassi-polyhedron-3d-cmwpb9` |
+| Owning branch | `claude/3d-einstein-tile-math-n4t93d` |
 | Deploy | `.github/workflows/deploy-math.yml` |
 | Uses | — |
 | Provides | — |
@@ -32,7 +32,7 @@ MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain ma
 
 ## The geometry pack (`/geometry/` + siblings) — interactive math explainers
 
-Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`, `csaszar`, `equivelar`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
+Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`, `csaszar`, `equivelar`, `chair44`, `grad`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
 
 ## `/cohomology/` — the one page with its own engine module
 
@@ -215,9 +215,45 @@ two that bite are that the pair test must compare against a *set* of shared
 edges, and that the symmetry is a rotary reflection (S₄, det −1), so the lock
 flips the tilt sign round each orbit instead of copying it.
 
+## `/chair44/` — the first 3D einstein, and the census its proof rests on
+
+`chair44/` shows Chair44, the strongly aperiodic monotile in space that Ioannis
+Tsiokos found with an AI model in September 2026 (arXiv:2609.19214). Felix
+Flicker (arXiv:2609.23783) and Chaim Goodman-Strauss (arXiv:2609.24779) have
+since reproduced and simplified it. It is a seven-cube chair with 192 signed
+square pyramids, and the recipe is Figure 3 of the preprint.
+
+```bash
+node chair44/tile.selftest.mjs   # ~2 s, 320 checks
+```
+
+Same architecture as its siblings: `tile.js` is the only copy of the maths, and
+the selftest and the page both import it. Everything is integer arithmetic in
+eighths of a cube edge. The selftest recomputes the preprint's **finite** census
+from the recipe and checks the 44 legal contacts against the paper's Figure 7
+pose by pose. It does **not** check the continuous-geometry registration
+lemmas, and the page says so. Full notes in [`../chair44/CLAUDE.md`](../chair44/CLAUDE.md).
+
+## `/grad/` — Grad's conjecture, disproved in closed form
+
+`grad/` shows Landreman's two explicit families of smooth, non-symmetric MHD
+equilibria with nested flux surfaces (arXiv:2609.26742, Sept 2026). They are
+counterexamples to Grad's 1967 conjecture, after Gómez-Serrano et al.'s
+existence proof earlier the same year.
+
+```bash
+node grad/field.selftest.mjs   # ~5 s, 128 checks
+```
+
+Same architecture as the siblings: `field.js` is the only copy of the maths.
+Nothing in it solves an equilibrium. B, ψ and the surfaces are closed forms,
+and the numerics are all *checks*: finite-difference force balance, field lines
+traced through B alone, and the rotational-transform ODE. Full notes in
+[`../grad/CLAUDE.md`](../grad/CLAUDE.md).
+
 ## Deploying
 
-Pushes to `claude/szilassi-polyhedron-3d-cmwpb9` that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
+Pushes to `claude/3d-einstein-tile-math-n4t93d` (the owner since 2026-09-24; before that `claude/landing-page-merge-candidate-8sp0fv`) that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

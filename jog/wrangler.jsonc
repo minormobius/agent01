@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jog",
+  "compatibility_date": "2026-10-01",
+  // Running-loop finder. No build, no worker script, no bindings: the directory
+  // IS the site. All routing happens in the visitor's browser (solver.js runs as
+  // a Web Worker); OpenStreetMap data comes straight from Overpass and Nominatim.
+  "assets": {
+    "directory": "."
+  },
+  // A PLAIN ROUTE, not a custom domain — costs none of the zone's 100 slots.
+  // A route makes no DNS, so deploy-jog.yml runs scripts/route-dns.mjs first.
+  "routes": [
+    { "pattern": "jog.mino.mobi/*", "zone_name": "mino.mobi" }
+  ]
+}

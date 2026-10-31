@@ -44,6 +44,8 @@ const MIDI_INSTRUMENT_PATCHES = [
   ['sax', 'flute'], ['trumpet', 'flute'], ['trombone', 'flute'], ['horn', 'flute'],
   ['tuba', 'flute'], ['brass', 'flute'],
   ['piano', 'piano'], ['fortepiano', 'piano'],
+  // a plucked string decays like a harpsichord's; the guitar MODEL is the real voice
+  ['guitar', 'harpsichord'], ['lute', 'harpsichord'], ['banjo', 'harpsichord'], ['mandolin', 'harpsichord'],
 ].sort((a, b) => b[0].length - a[0].length);
 
 /** The patch name for a GM instrument name, or null when we cannot tell. */
@@ -152,16 +154,13 @@ export function scoreToNotes(score, opts = {}) {
   for (let si = 0; si < score.staves.length; si++) {
     for (let vi = 0; vi < score.staves[si].voices.length; vi++) {
       const events = score.staves[si].voices[vi];
-      let clefShift = 0;
+      // No clef shifts the sound: a LilyPond pitch is what is heard (model.js CLEFS).
       const pending = new Map(); // midi -> index of a note waiting to be extended
+      const tab = !!score.staves[si].tab;
       for (const e of events) {
-        if (e.kind === 'clef') {
-          clefShift = ({ treble_8: -12, tenorG: -12, bass_8: -12 })[e.value] ?? 0;
-          continue;
-        }
         if (e.kind !== 'note') continue;
         for (const p of e.pitches) {
-          const midi = 12 * (p.octave + 1) + [0, 2, 4, 5, 7, 9, 11][p.step] + p.alter + clefShift;
+          const midi = 12 * (p.octave + 1) + [0, 2, 4, 5, 7, 9, 11][p.step] + p.alter;
           const held = pending.get(midi);
           if (held !== undefined && notes[held].tick + notes[held].ticks === e.tick) {
             notes[held].ticks += e.ticks;
@@ -172,6 +171,15 @@ export function scoreToNotes(score, opts = {}) {
           notes.push({
             tick: e.tick, ticks: e.ticks, midi, staff: si, voice: vi,
             velocity: dynamicToVelocity(e.dynamic), src: e.src,
+            ...(e.dynamic ? { dynamic: e.dynamic } : {}),
+            ...(e.hairpin ? { hairpin: e.hairpin } : {}),
+            ...(e.artics?.length ? { artics: e.artics.map((a) => a.name) } : {}),
+            // a guitar's reading of the note (guitar.js), for the guitar model
+            ...(p.string ? { string: p.string, fret: p.fret, art: p.art, artParam: p.artParam, slideTo: p.slideTo } : {}),
+            ...(e.arpeggio ? { arpeggio: true } : {}),
+            ...(tab ? { tab: true } : {}),
+            // a guitar staff's note: a piano-and-guitar score plays it on the guitar model (duo.js)
+            ...(score.staves[si].guitar ? { gtr: true } : {}),
           });
           if (e.tie || p.tie) pending.set(midi, idx); else pending.delete(midi);
         }
@@ -180,19 +188,76 @@ export function scoreToNotes(score, opts = {}) {
   }
   notes.sort((a, b) => a.tick - b.tick || a.midi - b.midi);
 
-  // Dynamics are written once and hold until the next one, per voice.
-  const lastDyn = new Map();
+  // A TabStaff usually shows the SAME music as the staff above it (LilyPond's
+  // `<< \new Staff \music \new TabStaff \music >>`). Played as written that
+  // doubles every note. So a tab note that another staff already plays is
+  // dropped, and its string, fret and technique go to the note that stays.
+  if (notes.some((n) => n.tab) && notes.some((n) => !n.tab)) {
+    const plain = new Map();
+    for (const n of notes) if (!n.tab) plain.set(`${n.tick}/${n.midi}`, n);
+    for (let i = notes.length - 1; i >= 0; i--) {
+      const n = notes[i];
+      if (!n.tab) continue;
+      const twin = plain.get(`${n.tick}/${n.midi}`);
+      if (!twin) continue;
+      if (!twin.string && n.string) Object.assign(twin, { string: n.string, fret: n.fret, art: n.art, artParam: n.artParam, slideTo: n.slideTo });
+      notes.splice(i, 1);
+    }
+  }
+
+  // Dynamics are written once and hold until the next one, per voice. A sforzando is one
+  // note's; a hairpin moves the level from where it starts to the next written dynamic
+  // (or a step either way when it ends without one). Accents lean on a note, staccato
+  // shortens it.
+  const voices = new Map();
   for (const n of notes) {
     const key = `${n.staff}/${n.voice}`;
-    if (n.velocity != null) lastDyn.set(key, n.velocity);
-    else n.velocity = lastDyn.get(key) ?? 0.72;
+    if (!voices.has(key)) voices.set(key, []);
+    voices.get(key).push(n);
   }
+  for (const vs of voices.values()) {
+    let level = 0.72, pin = null;
+    const ramp = (to, toTick) => {
+      if (!pin) return;
+      for (const m of pin.notes) m.velocity = pin.from + (to - pin.from) * Math.min(1, (m.tick - pin.tick) / Math.max(1, toTick - pin.tick));
+      pin = null;
+    };
+    for (let i = 0; i < vs.length; i++) {
+      const n = vs[i], d = n.dynamic;
+      if (d && MOMENTARY.has(d)) { n.velocity = DYN_VELOCITY[d]; if (d === 'fp') level = DYN_VELOCITY.p; }
+      else if (d) { ramp(n.velocity, n.tick); level = n.velocity; }
+      else n.velocity = level;
+      if (pin && n.tick > pin.tick) pin.notes.push(n);
+      if (n.hairpin === 'cresc' || n.hairpin === 'dim') {
+        if (pin) ramp(level + (pin.dir === 'cresc' ? 0.14 : -0.14), n.tick);
+        pin = { dir: n.hairpin, from: level, tick: n.tick, notes: [] };
+      } else if (n.hairpin === 'stop' && pin && !d) {
+        const to = Math.max(0.1, Math.min(1, level + (pin.dir === 'cresc' ? 0.14 : -0.14)));
+        pin.notes.push(n); ramp(to, n.tick); level = to;
+      }
+    }
+    if (pin) ramp(Math.max(0.1, Math.min(1, level + (pin.dir === 'cresc' ? 0.14 : -0.14))), vs.at(-1).tick);
+    for (const n of vs) {
+      if (!n.artics) continue;
+      if (n.artics.includes('accent') || n.artics.includes('marcato')) n.velocity = Math.min(1, n.velocity * (n.artics.includes('marcato') ? 1.3 : 1.18) + 0.03);
+      if (n.artics.includes('staccatissimo')) n.ticks = Math.max(1, Math.round(n.ticks * 0.3));
+      else if (n.artics.includes('staccato')) n.ticks = Math.max(1, Math.round(n.ticks * 0.5));
+    }
+  }
+
+  // Tempo marks, in score order: every \tempo after the first changes the speed from its tick.
+  const tempi = [];
+  for (const st of score.staves) for (const v of st.voices) for (const e of v) {
+    if (e.kind === 'tempo' && e.bpm && !tempi.some((t) => t.tick === e.tick)) tempi.push({ tick: e.tick, bpm: e.bpm, unit: e.unit ?? QUARTER });
+  }
+  tempi.sort((a, b) => a.tick - b.tick);
 
   const end = notes.reduce((a, n) => Math.max(a, n.tick + n.ticks), 0);
   const segments = expandRepeats ? repeatSegments(score, end) : [{ from: 0, to: end }];
-  return { notes, segments, end };
+  return { notes, segments, end, tempi };
 }
 
+const MOMENTARY = new Set(['sf', 'sfz', 'sff', 'rfz', 'fp']);
 const DYN_VELOCITY = {
   ppppp: 0.10, pppp: 0.14, ppp: 0.20, pp: 0.30, p: 0.42, mp: 0.55,
   mf: 0.68, f: 0.82, ff: 0.93, fff: 1.0, ffff: 1.0, fffff: 1.0,
@@ -247,25 +312,41 @@ function repeatSegments(score, end) {
   return segments.length ? segments : [{ from: 0, to: end }];
 }
 
-/** Lay the segments end to end: performance-time notes, each keeping its source tick. */
+/**
+ * Lay the segments end to end: performance-time notes, each keeping its source tick. `tempo`
+ * is the opening speed (the page's slider may override it); later \tempo marks change the
+ * speed from their tick on, scaled by the same ratio as the opening one.
+ */
 export function performance(flat, tempo) {
-  const secPerTick = 60 / (tempo.bpm * (tempo.unit / QUARTER)) / QUARTER;
+  const spt = (bpm, unit) => 60 / (bpm * (unit / QUARTER)) / QUARTER;
+  const secPerTick = spt(tempo.bpm, tempo.unit);
+  const marks = flat.tempi ?? [];
+  const scale = marks.length ? secPerTick / spt(marks[0].bpm, marks[0].unit) : 1;
+  // piecewise-linear tick → seconds
+  const pts = [{ tick: 0, sec: 0, rate: secPerTick }];
+  for (const m of marks.slice(1)) {
+    if (m.tick <= 0) continue;
+    const last = pts.at(-1);
+    pts.push({ tick: m.tick, sec: last.sec + (m.tick - last.tick) * last.rate, rate: spt(m.bpm, m.unit) * scale });
+  }
+  const T = (tick) => {
+    let k = pts.length - 1;
+    while (k > 0 && pts[k].tick > tick) k--;
+    return pts[k].sec + (tick - pts[k].tick) * pts[k].rate;
+  };
   const out = [];
   let offset = 0;
   for (const seg of flat.segments) {
+    const t0 = T(seg.from);
     for (const n of flat.notes) {
       if (n.tick < seg.from || n.tick >= seg.to) continue;
-      out.push({
-        ...n,
-        at: (offset + (n.tick - seg.from)) * secPerTick,
-        dur: Math.min(n.ticks, seg.to - n.tick + n.ticks) * secPerTick,
-        srcTick: n.tick,
-      });
+      const at = offset + T(n.tick) - t0;
+      out.push({ ...n, at, dur: T(Math.min(n.tick + n.ticks, seg.to + n.ticks)) - T(n.tick), srcTick: n.tick });
     }
-    offset += seg.to - seg.from;
+    offset += T(seg.to) - t0;
   }
   out.sort((a, b) => a.at - b.at);
-  return { events: out, duration: offset * secPerTick, secPerTick };
+  return { events: out, duration: offset, secPerTick };
 }
 
 // --------------------------------------------------------------- the synth --

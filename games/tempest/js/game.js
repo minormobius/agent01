@@ -99,6 +99,8 @@
     oracle: false,
     doomed: false,
     lastOracle: -999,
+    runStart: 1, // the level index this run's score started counting at
+    posted: false, // this run has been offered to the board
   };
 
   const keys = new Set();
@@ -162,6 +164,7 @@
   function setPhase(p) {
     state.phase = p;
     document.body.dataset.phase = p;
+    offerable();
   }
 
   function fmtOpen(cert) {
@@ -244,6 +247,7 @@
 
   function startLevel(i, keepLane) {
     state.level = Math.max(0, Math.min(state.pack.levels.length - 1, i));
+    newRun();
     state.wave = 0;
     state.lives = LIVES;
     startWave(keepLane);
@@ -262,11 +266,13 @@
       if (state.level + 1 >= state.pack.levels.length) {
         say(
           'the whole pack held',
-          `You cleared every certified level. Final score <b>${state.score}</b>.`,
+          `You cleared every certified level. Final score <b>${state.score}</b>.` +
+            bestLine(),
           'press space to start again'
         );
         state.phase = 'won';
         document.body.dataset.phase = 'won';
+        runOver();
       } else {
         say(
           `level ${levelData().index} held`,
@@ -301,11 +307,84 @@
     } else {
       say(
         'the web won',
-        lost + `<p>Final score <b>${state.score}</b>.</p>`,
+        lost + `<p>Final score <b>${state.score}</b>.${bestLine()}</p>`,
         'press space to start this level again'
       );
       setPhase('gameover');
+      runOver();
     }
+  }
+
+  // ----------------------------------------------------------- the board --
+  //
+  // A run is everything between two resets of the score: from the level it
+  // began (or restarted) on to the wave that broke it, or the end of the
+  // pack. Its score is deterministic, so the board (js/score.js) recomputes it
+  // from where the run says it went and takes nothing on trust. The board
+  // itself is a module of its own (js/board.js) that may never load; its
+  // buttons stay hidden until it does.
+
+  const board = () => globalThis.TEMPEST_BOARD || null;
+
+  function newRun() {
+    state.runStart = levelData().index;
+    state.posted = false;
+    offerable();
+  }
+
+  function best() {
+    try { return parseInt(localStorage.getItem('tempest.best') || '0', 10) || 0; } catch { return 0; }
+  }
+
+  /** "new best" or this browser's best, for the end-of-run card. Saves it. */
+  function bestLine() {
+    const was = best();
+    if (state.score > was) {
+      try { localStorage.setItem('tempest.best', String(state.score)); } catch { /* private mode */ }
+      return was ? ' <b>A new best.</b>' : '';
+    }
+    return ` Your best is <b>${was}</b>.`;
+  }
+
+  /** The run as the board records it. */
+  function runRecord() {
+    return {
+      sel: {},
+      value: state.score,
+      start: state.runStart,
+      level: levelData().index,
+      wave: state.wave,
+      at: Date.now(),
+    };
+  }
+
+  function runOver() {
+    offerable();
+  }
+
+  function ended() {
+    return state.phase === 'gameover' || state.phase === 'won';
+  }
+
+  function offerable() {
+    const b = !!board();
+    $('trophy').hidden = $('o-board').hidden = !b;
+    $('post').hidden = !b || !ended() || state.score <= 0;
+    $('post').disabled = state.posted;
+    $('board-row').hidden = !b || !ended();
+  }
+
+  function postRun() {
+    const b = board();
+    if (!b || !ended() || state.score <= 0 || state.posted) return;
+    state.posted = true;
+    $('post').disabled = true;
+    b.offer(runRecord());
+  }
+
+  function boardOpen() {
+    const el = document.querySelector('.lbk');
+    return !!el && !el.hidden;
   }
 
   function advance() {
@@ -322,6 +401,7 @@
       startWave(true);
     } else if (state.phase === 'gameover') {
       state.score = 0;
+      newRun();
       state.lives = LIVES;
       state.wave = 0;
       startWave(false);
@@ -369,6 +449,12 @@
 
   function bindInput() {
     addEventListener('keydown', (e) => {
+      // Keys typed into a field (the leaderboard's handle) belong to the
+      // field, and browser shortcuts belong to the browser.
+      const t = e.target;
+      if (e.ctrlKey || e.metaKey || e.altKey ||
+        (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))) return;
+      if (boardOpen()) return; // the board is up: space and arrows are not for the game
       if (['ArrowLeft', 'ArrowRight', 'Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) {
         e.preventDefault();
       }
@@ -542,6 +628,17 @@
       }
     });
     $('oracle-toggle').addEventListener('click', toggleOracle);
+
+    // The board's buttons sit on the overlay, whose pointerdown means "carry
+    // on" — so they keep their pointerdowns to themselves.
+    for (const id of ['post', 'o-board']) {
+      $(id).addEventListener('pointerdown', (e) => e.stopPropagation());
+    }
+    $('post').addEventListener('click', postRun);
+    $('o-board').addEventListener('click', () => board() && board().open({}));
+    $('trophy').addEventListener('click', () => board() && board().open({}));
+    addEventListener('tempest-board', offerable);
+    offerable();
     $('proof-toggle').addEventListener('click', () => $('proof').classList.toggle('open'));
 
     // Rotating a phone changes the canvas box; so does a keyboard appearing.
@@ -574,7 +671,11 @@
     const dt = Math.min(now - state.last, 200);
     state.last = now;
 
-    if (state.phase === 'playing') {
+    // The board is open over a wave in play: the game waits for it.
+    if (state.phase === 'playing' && boardOpen()) {
+      state.acc = 0;
+      state.view.frame(state.run.state(), { doomed: state.oracle && state.doomed });
+    } else if (state.phase === 'playing') {
       state.acc += dt;
       let snapshot = state.run.state();
       // At 90 ticks a second on a 60Hz display that is 1.5 ticks a frame; the
@@ -665,7 +766,7 @@
         wave: state.wave,
         lives: state.lives,
         score: state.score,
-        cert: waveData().cert,
+        cert: (waveData() || {}).cert, // between levels the wave index is one past the last
         ...snap,
       };
     },

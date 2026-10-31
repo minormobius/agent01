@@ -1,0 +1,8 @@
+{
+  "id": "p-stopwatch",
+  "mode": "project",
+  "sessions": 4,
+  "tools": true,
+  "brief": "The project the council chose: Stopwatch, with the harness first and Fresh as its evidence layer (council/CHOICE.md). SPEC.md turns your choice into the shapes the lab checks; the design is yours. The lab plays the clinic, and its answer to your gate question is in SPEC.md. Your tools are in tools/ (read-only, fresh each day), and the council's papers in council/. Hold the project's requirements in vv as you build, and keep the ledger true about what's done and what's next. This is several days' work; the folder carries over.",
+  "check": true
+}

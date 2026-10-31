@@ -1,0 +1,14 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "label": "release-mozzie-lexicon",
+  "seed": 78,
+  "notice": "mozzie-lexicon was held last run by the lab's cap of 10 replies a day, and most of those were replies to the person. That cap was the lab's, not yours: replies to the person now count toward no reply cap, and the day's cap for everyone else is 30. Modulo said yes to it, so it goes out after this turn. New since yesterday: your house has an API, if you want one (house/README.md)."
+}

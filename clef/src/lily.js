@@ -26,6 +26,7 @@
 // notehead, the caret lands on the note that drew it.
 
 import { PPQ, WHOLE, ticksOf, fifthsOf, noteValue } from './model.js';
+import { annotateGuitar } from './guitar.js';
 
 const LETTERS = 'cdefgab';
 
@@ -353,7 +354,9 @@ export function parseLily(source, options = {}) {
 
   const { staves, groups, movementCount } = extractStaves(root, r, options.movement ?? 0);
   const tempo = findTempo(staves);
-  return {
+  // Guitar staves learn their strings, frets and techniques (guitar.js): the tab
+  // staff draws them and the guitar model plays them.
+  return annotateGuitar({
     title: r.header.title || '',
     subtitle: r.header.subtitle || '',
     composer: r.header.composer || r.header.poet || '',
@@ -366,7 +369,7 @@ export function parseLily(source, options = {}) {
     movement: Math.min(options.movement ?? 0, Math.max(0, movementCount - 1)),
     language: r.languageName,
     diagnostics: r.diagnostics,
-  };
+  });
 }
 
 function parseAssignable(r) {
@@ -896,6 +899,15 @@ function parseBackslashItem(r, at) {
   }
 
   switch (cmd) {
+    // Guitar: `\deadNote c4` and `\palmMute c4` change one note; the -On/-Off
+    // forms change every note until switched back.
+    case 'deadNote': case 'palmMute': {
+      const item = parseItem(r);
+      if (item && item.t === 'note') item.muted = cmd === 'deadNote' ? 'dead' : 'palm';
+      return item;
+    }
+    case 'deadNotesOn': case 'deadNotesOff': case 'palmMuteOn': case 'palmMuteOff':
+      return { t: 'gtrstate', key: cmd.startsWith('dead') ? 'dead' : 'palm', on: cmd.endsWith('On'), src: [at, r.i] };
     case 'clef': {
       r.ws();
       const name = r.string() || r.word() || 'treble';
@@ -1129,6 +1141,9 @@ function readPostfix(r, ev) {
 
     if (c === '\\') {
       const save = r.i;
+      // A guitar's string number: `c4\3` is that note on the third string. A digit
+      // after a backslash is never a command, so read before the command branch.
+      if (/[1-9]/.test(r.peek(1) ?? '')) { ev.string = Number(r.peek(1)); r.i += 2; continue; }
       if (r.src.startsWith('\\<', r.i)) { r.i += 2; ev.hairpin = 'cresc'; continue; }
       if (r.src.startsWith('\\>', r.i)) { r.i += 2; ev.hairpin = 'dim'; continue; }
       if (r.src.startsWith('\\!', r.i)) { r.i += 2; ev.hairpin = 'stop'; continue; }
@@ -1137,6 +1152,11 @@ function readPostfix(r, ev) {
       const cmd = r.command();
       if (cmd && DYNAMICS.has(cmd)) { ev.dynamic = cmd; continue; }
       if (cmd && NAMED_ARTIC.has(cmd)) { ev.artics.push({ name: cmd, dir: 0 }); continue; }
+      // Guitar techniques that ride on a note: a natural harmonic, a slide into
+      // the next note, a rolled chord.
+      if (cmd === 'harmonic') { ev.harmonic = true; continue; }
+      if (cmd === 'glissando') { ev.gliss = true; continue; }
+      if (cmd === 'arpeggio') { ev.arpeggio = true; continue; }
       r.i = save;
       break;
     }
@@ -1199,7 +1219,15 @@ function parseChord(r, at) {
     if (r.peek() === '>') { r.i++; break; }
     const p = tryPitch(r);
     if (!p) {
-      if (r.peek() === '\\') { r.command(); continue; }   // per-note tweaks
+      // `<g\3 d'\2>` — a string number on one member of a chord — and
+      // `<e'\harmonic>`: both belong to the pitch just read.
+      if (r.peek() === '\\' && /[1-9]/.test(r.peek(1) ?? '') && pitches.length) { pitches.at(-1).string = Number(r.peek(1)); r.i += 2; continue; }
+      if (r.peek() === '\\') {
+        const cmd = r.command();
+        if (cmd === 'harmonic' && pitches.length) pitches.at(-1).harmonic = true;
+        if (!cmd) r.i++;
+        continue;
+      }
       if (r.peek() === '-') { r.i += 2; continue; }
       r.warn('malformed chord', r.i);
       r.i++;
@@ -1491,7 +1519,14 @@ class Flattener {
           if (!first) first = written;
           // Inside a chord each note is relative to the previous chord member.
           if (this.mode === 'relative') this.ref = { step: written.step, octave: written.octave };
-          pitches.push(transposePitch(written, this.transposition));
+          const sounding = transposePitch(written, this.transposition);
+          // Guitar: a string number and a harmonic belong to the pitch (on a
+          // single note they were written after it, on the note itself).
+          const single = node.pitches.length === 1;
+          const string = p.string ?? (single ? node.string : undefined);
+          if (string) sounding.string = string;
+          if (p.harmonic || (single && node.harmonic)) sounding.harmonic = true;
+          pitches.push(sounding);
         }
         // ...but what FOLLOWS the chord is relative to its first note.
         if (this.mode === 'relative' && first) this.ref = { step: first.step, octave: first.octave };
@@ -1500,6 +1535,8 @@ class Flattener {
           pitches, chord: !!node.chord, tie: node.tie, slur: node.slur, beam: node.beam,
           artics: node.artics, texts: node.texts, fingerings: node.fingerings,
           dynamic: node.dynamic, hairpin: node.hairpin, phrase: node.phrase, src,
+          gliss: node.gliss || undefined, arpeggio: node.arpeggio || undefined,
+          muted: node.muted || (this.gtr?.dead ? 'dead' : this.gtr?.palm ? 'palm' : undefined),
         });
         this.tick += ticks;
         this.lastChord = pitches;
@@ -1530,6 +1567,7 @@ class Flattener {
         return;
       }
       case 'clef': this.push({ kind: 'clef', value: node.value, tick: this.tick, src }); return;
+      case 'gtrstate': (this.gtr ||= {})[node.key] = node.on; return;
       case 'key':
         // A key signature moves with the music. Transposing up a fifth adds a
         // sharp; up two octaves changes nothing, which is the common case and
@@ -1585,7 +1623,7 @@ function extractStaves(root, reader, movementIndex = 0) {
   const groups = [];
   let movementCount = 1;
 
-  const asStaff = (node, name, props) => {
+  const asStaff = (node, name, props, kind) => {
     const voices = [];
     // A `\\` split at the top of a staff's music means parallel voices.
     const branches = splitVoices(node);
@@ -1600,6 +1638,7 @@ function extractStaves(root, reader, movementIndex = 0) {
       midi: (props && props.midi) || '',
       label: name || '',
       voices: voices.length ? voices : [[]],
+      tab: kind === 'TabStaff' || undefined,
     };
     // `\set Staff.instrumentName` inside the music says the same thing as
     // `\with` outside it. `\with` wins where both are given, because it is the
@@ -1614,7 +1653,7 @@ function extractStaves(root, reader, movementIndex = 0) {
 
   const visit = (node, inGroup) => {
     if (!node) return false;
-    if (node.t === 'staff') { asStaff(node.music, node.name, node.props); return true; }
+    if (node.t === 'staff') { asStaff(node.music, node.name, node.props, node.kind); return true; }
     if (node.t === 'group') {
       // A group's extent is whatever staves its body turns out to contain, so
       // it can only be recorded after the body is visited.

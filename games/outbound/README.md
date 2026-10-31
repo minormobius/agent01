@@ -113,6 +113,27 @@ politely; an unbounded memoised DFS hangs.
 across six files and the tests would have been a large diff with real regression
 risk for zero player benefit, so the rename stopped at the surface.)
 
+## The board
+
+One leaderboard, for the number the end screen already calls your best:
+**depots made** before the convoy was stranded (all time, this week, today).
+It goes through Orb's portable board (`../orb/js/board-kit.js`): a run is
+posted as a `com.minomobi.lab.score` record (`game: "depots-v1"`, unit
+`depots`) to the player's own Bluesky repo and read back live off the network,
+so nobody hosts it. The STRANDED screen offers the run once, and only if it
+made a depot; the 🏆 in the HUD opens the board any time. `js/board.js` is its
+own module (it needs the vendored `lib/auth.js`), and the buttons appear only
+once it loads, so the game plays the same without it.
+
+The record's detail is the run's own tally (`seed=… depots=… crossings=…
+sent=… rested=… lost=…`), and `js/score.js` refuses what the rules make
+impossible: fewer than 3 crossings a depot (no leg is cut shorter), more
+crossings than the road could have held, more sends than crossings, and more
+deaths and lay-ups than the sends could have caused (strain only comes from
+sends: `sent ≥ lost × 2 + rested`). Its constants are checked against
+`js/config.js` by the selftest; change any number that moves these and bump
+the version.
+
 ## Running the tests
 
 ```bash
@@ -201,6 +222,8 @@ separating this from a table of rows.
 | `js/solve.js` | viability, tightness, `narrowest`, `reckon`, `ceilingSeries`, the post-mortem |
 | `js/generate.js` | the route, the lexicon, and the generate → check → tighten loop |
 | `js/main.js` | horizon, drag-and-drop, the forecast, the convoy log |
+| `js/score.js` | the board's record and what it refuses (no imports, read by the selftest) |
+| `js/board.js` | mounts the leaderboard (a module; needs the vendored `lib/auth.js`) |
 | `test/` | harness, selftest, analysis report, parameter sweep |
 
 Pure static — no worker or DO changes; it serves through the assets fallback in

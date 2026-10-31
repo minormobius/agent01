@@ -26,6 +26,7 @@
     <span class="score" id="hud-score">0</span>
     <button id="oracle-toggle" type="button" aria-pressed="false" title="Ask the solver, twice a second, whether this run is still winnable (O)">oracle</button>
     <button id="proof-toggle" type="button" title="Show what was proved about this wave (P)">proof</button>
+    <button id="trophy" type="button" title="Leaderboard" aria-label="Leaderboard" hidden>🏆</button>
   </div>
 </header>
 
@@ -62,6 +63,10 @@
     <div class="card">
       <h1 id="overlay-title">tempest</h1>
       <div id="overlay-body"></div>
+      <div class="board-row" id="board-row" hidden>
+        <button class="post" id="post" type="button">post to the board</button>
+        <button id="o-board" type="button">🏆 board</button>
+      </div>
       <p class="cta" id="overlay-action">press space</p>
     </div>
   </div>
@@ -89,5 +94,6 @@
 <script src="./js/engine.js"></script>
 <script src="./js/render.js"></script>
 <script src="./js/game.js"></script>
+<script type="module" src="./js/board.js"></script>
 </body>
 </html>

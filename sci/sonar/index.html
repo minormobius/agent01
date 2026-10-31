@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>sonar — sci</title>
+<meta name="description" content="A working air sonar in your phone's browser: one speaker, one microphone, a chirp, a matched filter. Every number on the page is computed from the recording and from closed-form acoustics.">
+<meta property="og:title" content="sonar — your phone is the instrument">
+<meta property="og:description" content="One emitter, one receiver, a chirp and a matched filter. Point your phone at a wall and read the range.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b1213'/%3E%3Cpath d='M6 26 A20 20 0 0 1 26 6' fill='none' stroke='%235eead4' stroke-width='2.5'/%3E%3Cpath d='M6 19 A13 13 0 0 1 19 6' fill='none' stroke='%235eead4' stroke-width='2'/%3E%3Ccircle cx='6' cy='26' r='3' fill='%23e8a838'/%3E%3C/svg%3E">
+<style>
+/* layout: one reading column; the instrument panel sits in it as a single framed object,
+   readouts in a wrapping grid, two canvases (A-scan, echogram) stacked full width. */
+:root {
+  --bg: #faf9f6; --fg: #1d2223; --muted: #6b7576; --rule: #d3cfc8; --link: #145;
+  --accent: #0d7a72; --accent-faint: rgba(13, 122, 114, 0.10);
+  --warm: #a8641c; --bad: #b3261e;
+  --panel: #f2f0ea; --tag-bg: #e8e5dd; --tag-text: #56605f;
+  --scope: #0f1617; --scope-grid: #22302f; --scope-text: #8fa3a1;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1213; --fg: #dde3e3; --muted: #7d8a8a; --rule: #26312f; --link: #dfe;
+    --accent: #5eead4; --accent-faint: rgba(94, 234, 212, 0.12);
+    --warm: #e8a838; --bad: #f28b82;
+    --panel: #121b1c; --tag-bg: #1a2426; --tag-text: #9fb0af;
+    --scope: #070c0d; --scope-grid: #1a2626; --scope-text: #7d9290;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 760px; margin: 0 auto; padding-block: 2.4rem 5rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  line-height: 1.62; }
+a { color: var(--link); }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.9rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 3rem; letter-spacing: -0.02em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.45rem 0 0; }
+.lead { font-size: 1.08rem; margin: 1.4rem 0 0; }
+.lead strong { color: var(--accent); font-weight: 600; }
+h2.sec { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 3rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+p { margin: 0.9rem 0; }
+code, .m { font-family: var(--mono); font-size: 0.86em; }
+
+/* ---- the instrument ---- */
+.inst { margin: 1.8rem 0 0; border: 1px solid var(--rule); background: var(--panel); padding: 1rem; display: grid; gap: 0.9rem; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+button { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.04em; padding: 0.6rem 1rem; border: 1px solid var(--rule); background: var(--bg); color: var(--fg); cursor: pointer; border-radius: 2px; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.go { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; min-width: 7.5rem; }
+button.go.on { background: var(--bad); border-color: var(--bad); }
+button:disabled { opacity: 0.45; cursor: default; }
+.status { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); flex: 1 1 14rem; min-width: 0; }
+.status.warn { color: var(--warm); }
+.status.err { color: var(--bad); }
+
+.reads { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.rd { background: var(--bg); padding: 0.5rem 0.65rem; min-width: 0; }
+.rd .k { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.rd .v { font-family: var(--mono); font-size: 1.05rem; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rd .v small { font-size: 0.7rem; color: var(--muted); }
+.rd.hero { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; }
+.rd.hero .v { font-size: 2rem; color: var(--accent); }
+.rd.hero .note { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+
+.scope { position: relative; background: var(--scope); border: 1px solid var(--rule); }
+.scope canvas { display: block; width: 100%; }
+.scope .lbl { position: absolute; left: 2.6rem; top: 0.3rem; background: var(--scope); padding: 0 0.3rem; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--scope-text); pointer-events: none; }
+#ascan { height: 190px; }
+#echo { height: 210px; }
+.ticks { position: absolute; right: 0; top: 0; bottom: 0; width: 3rem; pointer-events: none; }
+.ticks span { position: absolute; right: 0.35rem; transform: translateY(-50%); font-family: var(--mono); font-size: 0.6rem; color: var(--scope-text); }
+
+.ctrls { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.7rem 1rem; }
+.ctrl { display: grid; gap: 0.2rem; min-width: 0; }
+.ctrl label { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 0.5rem; }
+.ctrl label output { color: var(--fg); letter-spacing: 0; text-transform: none; font-size: 0.72rem; }
+select, input[type=range] { width: 100%; font-family: var(--mono); font-size: 0.8rem; }
+select { padding: 0.4rem; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 2px; }
+input[type=range] { accent-color: var(--accent); }
+
+.callout { background: var(--panel); border-left: 2px solid var(--warm); padding: 0.9rem 1.1rem; margin: 1.4rem 0; font-size: 0.97rem; }
+.callout b { color: var(--warm); }
+.scopebox { background: var(--panel); border-left: 2px solid var(--accent); padding: 0.9rem 1.1rem; margin: 1.4rem 0; font-size: 0.95rem; }
+.scopebox b { color: var(--accent); }
+table.calc { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+.tw { overflow-x: auto; }
+table.calc td, table.calc th { padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+table.calc th { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: normal; }
+table.calc td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+ol.refs { padding-left: 1.3rem; font-size: 0.9rem; }
+ol.refs li { margin: 0.45rem 0; }
+.stamp { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+.stamp a { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="/">sci</a>
+  <h1>sonar</h1>
+  <p class="subtitle">one emitter, one receiver, in air</p>
+  <p class="lead">Your phone already has an air sonar's parts: <strong>a speaker to emit and a
+  microphone to listen</strong>. This page sends a short chirp, records what comes back, and runs a
+  matched filter over the recording. Every echo turns into a distance. Point the phone at a wall,
+  tap <b>Start</b>, and move your hand in front of it.</p>
+</header>
+
+<section class="inst" aria-label="sonar instrument">
+  <div class="bar">
+    <button id="go" class="go" type="button">Start</button>
+    <button id="base" type="button" disabled>Set baseline</button>
+    <span id="status" class="status" role="status">Simulated data below. Tap Start to use your microphone.</span>
+  </div>
+
+  <div class="reads">
+    <div class="rd hero"><span class="k">strongest echo</span><span class="v" id="r-echo">—</span><span class="note" id="r-echo-note"></span></div>
+    <div class="rd"><div class="k">system latency</div><div class="v" id="r-lat">—</div></div>
+    <div class="rd"><div class="k">direct-path SNR</div><div class="v" id="r-snr">—</div></div>
+    <div class="rd"><div class="k">sample rate</div><div class="v" id="r-fs">—</div></div>
+    <div class="rd"><div class="k">band</div><div class="v" id="r-band">—</div></div>
+    <div class="rd"><div class="k">speed of sound</div><div class="v" id="r-c">—</div></div>
+    <div class="rd"><div class="k">range resolution</div><div class="v" id="r-res">—</div></div>
+    <div class="rd"><div class="k">absorption, round trip</div><div class="v" id="r-abs">—</div></div>
+    <div class="rd"><div class="k">pings / s · max range</div><div class="v" id="r-rate">—</div></div>
+  </div>
+
+  <div class="scope"><span class="lbl" id="ascan-lbl">a-scan · echo level vs range</span><canvas id="ascan"></canvas></div>
+  <div class="scope"><span class="lbl">echogram · range ↓, time →</span><canvas id="echo"></canvas><div class="ticks" id="ticks"></div></div>
+
+  <div class="ctrls">
+    <div class="ctrl"><label for="band">pulse band</label>
+      <select id="band">
+        <option value="auto">auto — fit the link</option>
+        <option value="quiet">near-ultrasonic 17–20.5 kHz</option>
+        <option value="voice">audible 1.5–7 kHz</option>
+        <option value="wide">wideband click 2–20 kHz</option>
+      </select></div>
+    <div class="ctrl"><label for="rmax">max range <output id="o-rmax"></output></label>
+      <select id="rmax"><option value="1">1 m</option><option value="2" selected>2 m</option><option value="3">3 m</option><option value="5">5 m</option></select></div>
+    <div class="ctrl"><label for="tvg">range gain</label>
+      <select id="tvg">
+        <option value="0">off</option>
+        <option value="1" selected>× r — a wall (spreading 1/r)</option>
+        <option value="2">× r² — a small target (1/r²)</option>
+      </select></div>
+    <div class="ctrl"><label for="avg">averaging</label>
+      <select id="avg"><option value="3">last 3 pings — fast</option><option value="10" selected>last 10 pings — 1 s</option><option value="30">last 30 pings — steady</option></select></div>
+    <div class="ctrl"><label for="mem">room memory (baseline)</label>
+      <select id="mem"><option value="10">trailing 10 s</option><option value="30" selected>trailing 30 s</option><option value="120">trailing 2 min</option><option value="0">frozen</option></select></div>
+    <div class="ctrl"><label for="vol">volume <output id="o-vol"></output></label><input id="vol" type="range" min="0.05" max="1" step="0.05" value="0.6"></div>
+    <div class="ctrl"><label for="sep">speaker–mic spacing <output id="o-sep"></output></label><input id="sep" type="range" min="0" max="30" step="0.5" value="12"></div>
+    <div class="ctrl"><label for="temp">air temperature <output id="o-temp"></output></label><input id="temp" type="range" min="-10" max="40" step="1" value="20"></div>
+    <div class="ctrl"><label for="rh">relative humidity <output id="o-rh"></output></label><input id="rh" type="range" min="5" max="100" step="5" value="50"></div>
+    <div class="ctrl"><label for="mic">microphone</label><select id="mic"><option value="">default</option></select></div>
+    <div class="ctrl" id="spk-wrap" hidden><label for="spk">speaker</label><select id="spk"><option value="">default</option></select></div>
+  </div>
+</section>
+
+<h2 class="sec">How a ping becomes a distance</h2>
+
+<p><b>The pulse.</b> A click carries little energy, and a long tone gives no timing. A
+<em>chirp</em> does both: a 5 ms sweep from <span class="m" id="t-f0">f₀</span> to
+<span class="m" id="t-f1">f₁</span>. Correlating the recording against the chirp, the matched
+filter of <a href="https://doi.org/10.1109/TIT.1960.1057571">Turin 1960</a>, compresses each
+returning copy into a peak about 1/B wide, where B is the sweep's bandwidth. Range resolution is
+therefore set by bandwidth alone, <span class="m">Δr = c / 2B</span>, independent of the pulse's
+length. The pulse is shaped by a Hann window. With a hard-edged window, the near-ultrasonic chirp's
+own sidelobes sit at −21 dB 20 cm out and bury real echoes. With Hann they are at −43 dB. The
+selftest measures both.</p>
+
+<p><b>Time zero is the direct path.</b> Between the code that schedules a ping and the air, the
+phone adds an output buffer, a speaker, a microphone and an input buffer. Over Bluetooth it adds a
+radio link as well. None of that delay is known in advance. The sound that travels straight from
+speaker to microphone arrives first and loudest, so the page finds that peak in every ping and
+times echoes from it. The unknown delays cancel. They still appear above as <b>system latency</b>,
+measured rather than assumed.</p>
+
+<p><b>Delay to range.</b> With the speaker and microphone <span class="m">s</span> apart and a
+target at range <span class="m">d</span>, the echo travels about <span class="m">2d</span> and the
+direct path travels <span class="m">s</span>. An echo arriving <span class="m">τ</span> after the
+direct path is therefore at <span class="m">d = (cτ + s)/2</span>. Set the spacing slider to your
+phone. On most phones the bottom speaker and bottom microphone are 1–3 cm apart, and the earpiece
+and top microphone sit at the other end.</p>
+
+<p><b>Baseline.</b> A room returns echoes from every surface, all the time. Hold the phone still
+and tap <b>Set baseline</b>. For two seconds the page learns the room. After that it keeps a
+<em>trailing average</em> of it, so slow changes such as a door left open or the phone settling in
+your hand are absorbed after the <b>room memory</b> time. What remains is whatever has changed: a
+hand, a person walking past. Whatever stands out is learned ten times more slowly than the rest,
+so a hand that leaves does not leave a ghost behind. A hand held still long enough still becomes
+part of the room.</p>
+
+<p>Two choices make the subtraction work. First, the room is subtracted <em>before</em> the
+envelope is taken, from the raw correlation including its phase. The speaker and microphone share
+one clock, so a wall's echo repeats sample for sample and cancels almost completely. Envelopes
+keep the noise's magnitude and lose its sign, so subtracting them never quite cancels. Second, what
+is left is averaged as a <em>magnitude</em> over the last few pings (<b>averaging</b>), not as a
+raw signal. A moving hand shifts by a wavelength, 1.8 cm at 19 kHz, within a few pings, and
+averaging the raw signal would cancel the hand along with the noise. The selftest measures all three
+ways of combining pings on a moving target, and the page uses the one that wins.</p>
+
+<p>Phone-based acoustic sensing works the same way, from ranging between two phones
+(<a href="https://doi.org/10.1145/1322263.1322265">Peng et al. 2007</a>) to tracking a finger to
+the centimetre (<a href="https://doi.org/10.1145/2858036.2858580">Nandakumar et al. 2016</a>).</p>
+
+<h2 class="sec">The medium, computed</h2>
+
+<p>Air sets the limits, and both are closed-form functions of the conditions you set above. The
+speed of sound is the ideal-gas value <span class="m">c = 331.3·√(1 + T/273.15)</span> m/s.
+Humidity and CO₂ move it by a few tenths of a percent
+(<a href="https://doi.org/10.1121/1.405827">Cramer 1993</a>), which is less than one sample of
+range here. Absorption follows ISO 9613-1, the standard built on
+<a href="https://doi.org/10.1121/1.412989">Bass et al. 1995</a>. It rises roughly as f² until the
+oxygen and nitrogen relaxations take over, and it is why a bat's ultrasound reaches metres while a
+whale's call crosses an ocean.</p>
+
+<div class="tw"><table class="calc" id="calc">
+  <thead><tr><th>band</th><th>Δr = c/2B</th><th>absorption at centre</th><th>round trip to max range</th></tr></thead>
+  <tbody></tbody>
+</table></div>
+
+<h2 class="sec">With AirPods in</h2>
+
+<div class="callout">
+  <b>The page cannot reach your AirPods directly. It works with whatever microphone and speaker
+  your phone gives the browser.</b> With AirPods connected, that usually means both are the AirPods.
+  Three things change, and the readouts above show each one.
+</div>
+
+<p><b>The sample rate drops.</b> Opening a Bluetooth headset's microphone switches the link from
+its music profile to the hands-free profile, which carries speech at a much lower sample rate. The
+page reads the rate the browser actually delivers. When near-ultrasound no longer fits under the
+Nyquist limit, <em>auto</em> falls back to the audible 1.5–7 kHz band. You will hear the pings.</p>
+
+<p><b>The emitter is in your ear.</b> An AirPod's driver faces down your ear canal, sealed by the
+tip, and very little of its sound reaches the room. The microphone sits on the stem and is tuned
+to your voice, with processing in the earbud that the browser cannot switch off. Expect a weak
+direct path, a low SNR readout, and echoes that come mostly from your own head. The latency
+readout will show the radio link's delay. It does not hurt the measurement, because every echo is
+timed from the direct path.</p>
+
+<p><b>The better split.</b> Use the phone speaker to emit and an AirPod to receive. Your ear is
+then a second station, and the geometry becomes <em>bistatic</em>. Each delay now describes an
+ellipse with the phone and your ear at its foci, not a circle, and <span class="m">s</span> is the
+phone-to-ear distance. iPhone Safari moves input and output to the AirPods together. A browser that
+offers a <b>speaker</b> picker above (Chrome on Android or desktop) can split them. For a plain room
+sonar, put the AirPods in their case and use the phone alone.</p>
+
+<div class="callout">
+  <b>More phones.</b> Two phones can measure the distance between each other without sharing a
+  clock. Open <a href="lobby/">the sonar lobby</a> on two or more phones and join the same room.
+</div>
+
+<div class="scopebox">
+  <b>Where this page stops.</b> One emitter and one receiver measure <em>range</em>, not bearing.
+  Direction needs a second receiver and the time difference between the two. Phones have two or
+  three microphones, but browsers mix them to one channel. The <span class="m">channels</span> note
+  in the status line reports what your browser delivered. Bearing is the next part, written once
+  a browser can deliver two channels.
+</div>
+
+<h2 class="sec">Sources</h2>
+<ol class="refs">
+  <li>G. L. Turin, "An introduction to matched filters," <i>IRE Trans. Inf. Theory</i> 6(3), 311–329 (1960). <a href="https://doi.org/10.1109/TIT.1960.1057571">doi:10.1109/TIT.1960.1057571</a></li>
+  <li>O. Cramer, "The variation of the specific heat ratio and the speed of sound in air with temperature, pressure, humidity, and CO₂ concentration," <i>J. Acoust. Soc. Am.</i> 93(5), 2510 (1993). <a href="https://doi.org/10.1121/1.405827">doi:10.1121/1.405827</a></li>
+  <li>H. E. Bass, L. C. Sutherland, A. J. Zuckerwar, D. T. Blackstock, D. M. Hester, "Atmospheric absorption of sound: Further developments," <i>J. Acoust. Soc. Am.</i> 97(1), 680 (1995). <a href="https://doi.org/10.1121/1.412989">doi:10.1121/1.412989</a>. Standardised as ISO 9613-1:1993.</li>
+  <li>C. Peng, G. Shen, Y. Zhang, Y. Li, K. Tan, "BeepBeep: a high accuracy acoustic ranging system using COTS mobile devices," <i>SenSys</i> (2007). <a href="https://doi.org/10.1145/1322263.1322265">doi:10.1145/1322263.1322265</a></li>
+  <li>R. Nandakumar, V. Iyer, D. Tan, S. Gollakota, "FingerIO: using active sonar for fine-grained finger tracking," <i>CHI</i> (2016). <a href="https://doi.org/10.1145/2858036.2858580">doi:10.1145/2858036.2858580</a></li>
+</ol>
+
+<p class="stamp">signal path: <a href="sonar.js">sonar.js</a>, no dependencies, known-answer tested against
+synthetic echoes · <a href="/">sci</a> · <a href="https://mino.mobi">mino.mobi</a></p>
+
+<script type="module">
+import { speedOfSound, absorptionDbPerM, chirp, matchedEnvelope, argmax, rangeFromDelay,
+  delayFromRange, rangeResolution, unambiguousRange, fitBand, BANDS, profileAfterPeak,
+  strongestEcho, deadZone, matchedIQ, ClutterMap, trail, Anchor } from "./sonar.js";
+
+const $ = (id) => document.getElementById(id);
+const PULSE_S = 0.005;      // chirp length
+const INTERVAL = 0.1;       // seconds between pings
+const RENDER = 2;           // pings per screen update
+const WARM = 20;            // pings that form the first room map (2 s)
+const DB_FLOOR = -70;
+
+// ---- settings --------------------------------------------------------------
+const cfg = () => ({
+  band: $("band").value, rmax: +$("rmax").value, tvg: +$("tvg").value,
+  vol: +$("vol").value, s: +$("sep").value / 100, tC: +$("temp").value, rh: +$("rh").value,
+  avgN: +$("avg").value, memS: +$("mem").value,
+});
+const fmt = (x, d = 2) => Number.isFinite(x) ? x.toFixed(d) : "—";
+const fmtRange = (m) => m < 1 ? `${(m * 100).toFixed(1)} cm` : `${m.toFixed(2)} m`;
+
+// ---- live state ------------------------------------------------------------
+const st = {
+  running: false, ctx: null, stream: null, track: null, rec: null, gain: null, mute: null,
+  fs: 48000, fsIn: null, fsEff: 48000, band: null, pulse: null, pingBuf: null,
+  ring: null, L: 0, Lf: 0, direct: 0, snr: NaN, queue: [], nextT: 0, timer: null,
+  lost: 0, wake: null, channels: 1, norm: 0, anchor: null, jitter: 0, k: 0,
+  mapping: false, map: null, disp: null,
+};
+
+class Ring {
+  constructor(n) { this.a = new Float32Array(n); this.n = n; this.end = 0; }
+  write(f, d) { for (let j = 0; j < d.length; j++) this.a[(f + j) % this.n] = d[j]; if (f + d.length > this.end) this.end = f + d.length; }
+  read(f, len, out = new Float32Array(len)) {
+    for (let j = 0; j < len; j++) { const g = f + j; out[j] = (g >= 0 && g < this.end && g >= this.end - this.n) ? this.a[g % this.n] : 0; }
+    return out;
+  }
+}
+
+const WORKLET = `class Rec extends AudioWorkletProcessor {
+  constructor() { super(); this.b = new Float32Array(2048); this.n = 0; this.f = 0; }
+  flush() { if (this.n) { this.port.postMessage({ f: this.f, d: this.b.slice(0, this.n) }); this.n = 0; } }
+  process(ins) {
+    const ch = ins[0] && ins[0][0];
+    if (!ch) { this.flush(); return true; }
+    if (this.n + ch.length > this.b.length) this.flush();
+    if (this.n === 0) this.f = currentFrame;
+    this.b.set(ch, this.n); this.n += ch.length;
+    if (this.n >= this.b.length) this.flush();
+    return true;
+  }
+}
+registerProcessor("sonar-rec", Rec);`;
+
+// ---- display ---------------------------------------------------------------
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const hex = (h) => { h = h.replace("#", ""); if (h.length === 3) h = [...h].map((c) => c + c).join(""); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)); };
+let pal = null;
+function palette() {
+  const a = hex(css("--scope")), b = hex(css("--accent")), c = hex(css("--warm"));
+  const ramp = new Uint8ClampedArray(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255, [p, q, u] = t < 0.6 ? [a, b, t / 0.6] : [b, c, (t - 0.6) / 0.4];
+    for (let k = 0; k < 3; k++) ramp[i * 3 + k] = p[k] + (q[k] - p[k]) * u;
+  }
+  pal = { ramp, grid: css("--scope-grid"), text: css("--scope-text"), accent: css("--accent"), warm: css("--warm") };
+}
+
+function fitCanvas(cv) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(cv.clientWidth * dpr)), h = Math.max(1, Math.round(cv.clientHeight * dpr));
+  if (cv.width !== w || cv.height !== h) {
+    const old = cv.width > 1 ? cv : null;
+    let snap = null;
+    if (old) { snap = document.createElement("canvas"); snap.width = cv.width; snap.height = cv.height; snap.getContext("2d").drawImage(cv, 0, 0); }
+    cv.width = w; cv.height = h;
+    if (snap) cv.getContext("2d").drawImage(snap, 0, 0, w, h);
+  }
+  return dpr;
+}
+
+let lastA = null;
+function drawAscan(dB, meta) {
+  lastA = [dB, meta];
+  const cv = $("ascan"), dpr = fitCanvas(cv), g = cv.getContext("2d"), W = cv.width, H = cv.height;
+  const { fs, c, s, rmax, dead, echo } = meta;
+  const padL = 34 * dpr, padB = 16 * dpr, padT = 24 * dpr, padR = 8 * dpr;
+  const X = (r) => padL + (W - padL - padR) * (r / rmax);
+  const Y = (db) => padT + (H - padT - padB) * (Math.min(0, Math.max(DB_FLOOR, db)) / DB_FLOOR);
+  g.fillStyle = css("--scope"); g.fillRect(0, 0, W, H);
+  g.font = `${10 * dpr}px ui-monospace, Menlo, monospace`; g.lineWidth = dpr;
+  g.strokeStyle = pal.grid; g.fillStyle = pal.text;
+  const step = rmax <= 1 ? 0.2 : rmax <= 3 ? 0.5 : 1;
+  for (let r = 0; r <= rmax + 1e-9; r += step) {
+    g.beginPath(); g.moveTo(X(r), padT); g.lineTo(X(r), H - padB); g.stroke();
+    g.textAlign = "center"; g.fillText(r < 1 && rmax <= 1 ? `${Math.round(r * 100)}cm` : `${+r.toFixed(1)}m`, X(r), H - 3 * dpr);
+  }
+  for (let db = 0; db >= DB_FLOOR; db -= 20) {
+    g.beginPath(); g.moveTo(padL, Y(db)); g.lineTo(W - padR, Y(db)); g.stroke();
+    g.textAlign = "right"; g.fillText(`${db}`, padL - 4 * dpr, Y(db) + 3 * dpr);
+  }
+  g.fillStyle = "rgba(127,127,127,0.18)"; g.fillRect(X(0), padT, Math.max(0, X(dead) - X(0)), H - padT - padB);
+  g.strokeStyle = pal.accent; g.lineWidth = 1.5 * dpr; g.beginPath();
+  let started = false;
+  for (let j = 0; j < dB.length; j++) {
+    const r = rangeFromDelay(j / fs, c, s); if (r > rmax) break; if (r < 0) continue;
+    const x = X(r), y = Y(dB[j]);
+    if (!started) { g.moveTo(x, y); started = true; } else g.lineTo(x, y);
+  }
+  g.stroke();
+  if (echo) {
+    g.strokeStyle = pal.warm; g.setLineDash([4 * dpr, 3 * dpr]); g.lineWidth = dpr;
+    g.beginPath(); g.moveTo(X(echo.range), padT); g.lineTo(X(echo.range), H - padB); g.stroke(); g.setLineDash([]);
+  }
+}
+
+function pushColumn(dB, meta) {
+  const cv = $("echo"), dpr = fitCanvas(cv), g = cv.getContext("2d"), W = cv.width, H = cv.height;
+  const col = Math.max(2, Math.round(3 * dpr)), { fs, c, s, rmax } = meta;
+  g.drawImage(cv, -col, 0);
+  const img = g.createImageData(col, H);
+  for (let y = 0; y < H; y++) {
+    const r = rmax * (y + 0.5) / H;
+    const j = Math.round(delayFromRange(r, c, s) * fs);
+    const db = j >= 0 && j < dB.length ? dB[j] : DB_FLOOR;
+    const v = Math.max(0, Math.min(255, Math.round(255 * (1 - db / DB_FLOOR))));
+    for (let x = 0; x < col; x++) { const o = (y * col + x) * 4; img.data[o] = pal.ramp[v * 3]; img.data[o + 1] = pal.ramp[v * 3 + 1]; img.data[o + 2] = pal.ramp[v * 3 + 2]; img.data[o + 3] = 255; }
+  }
+  g.putImageData(img, W - col, 0);
+}
+
+function drawTicks(rmax) {
+  const t = $("ticks"); t.textContent = "";
+  const step = rmax <= 1 ? 0.25 : rmax <= 3 ? 0.5 : 1;
+  for (let r = step; r < rmax - 1e-9; r += step) {
+    const sp = document.createElement("span"); sp.style.top = `${100 * r / rmax}%`;
+    sp.textContent = rmax <= 1 ? `${Math.round(r * 100)}cm` : `${+r.toFixed(2)}m`; t.appendChild(sp);
+  }
+}
+
+// ---- the computed numbers ---------------------------------------------------
+let deadMemo = { key: null, v: 0 };
+function physics(c0 = cfg()) {
+  const c = speedOfSound(c0.tC);
+  const band = fitBand(c0.band === "auto" ? (st.fsEff >= 40000 ? "quiet" : "voice") : c0.band, st.fsEff);
+  const B = band.f1 - band.f0, fc = (band.f0 + band.f1) / 2;
+  const alpha = absorptionDbPerM(fc, c0.tC, c0.rh);
+  const fsUse = st.running ? st.fs : 48000;
+  const key = [fsUse, band.f0, band.f1, c, c0.s].join();
+  if (deadMemo.key !== key) deadMemo = { key, v: deadZone(chirp(fsUse, band.f0, band.f1, PULSE_S), fsUse, c, c0.s) };
+  const dead = deadMemo.v;
+  return { c, band, B, fc, alpha, res: rangeResolution(c, B), dead };
+}
+
+function readouts() {
+  const c0 = cfg(), p = physics(c0);
+  $("o-rmax").textContent = `${c0.rmax} m`;
+  $("o-vol").textContent = `${Math.round(c0.vol * 100)}%`;
+  $("o-sep").textContent = `${c0.s * 100} cm`;
+  $("o-temp").textContent = `${c0.tC} °C`;
+  $("o-rh").textContent = `${c0.rh}%`;
+  $("r-c").innerHTML = `${fmt(p.c, 1)} <small>m/s</small>`;
+  $("r-res").innerHTML = `${fmt(p.res * 100, 1)} <small>cm</small>`;
+  $("r-abs").innerHTML = `${fmt(2 * c0.rmax * p.alpha, 2)} <small>dB at ${c0.rmax} m</small>`;
+  $("r-band").innerHTML = `${fmt(p.band.f0 / 1000, 1)}–${fmt(p.band.f1 / 1000, 1)} <small>kHz</small>`;
+  $("r-fs").innerHTML = st.running
+    ? `${fmt(st.fsEff / 1000, 1)} <small>kHz${st.fsIn && st.fsIn !== st.fs ? ` in · ${fmt(st.fs / 1000, 1)} out` : ""}</small>`
+    : `${fmt(st.fsEff / 1000, 1)} <small>kHz, assumed</small>`;
+  $("r-rate").innerHTML = `${fmt(1 / INTERVAL, 0)} <small>· ${fmt(unambiguousRange(p.c, INTERVAL), 1)} m</small>`;
+  $("t-f0").textContent = `${fmt(p.band.f0 / 1000, 1)} kHz`;
+  $("t-f1").textContent = `${fmt(p.band.f1 / 1000, 1)} kHz`;
+  const rows = Object.entries(BANDS).map(([k, b]) => {
+    const B = b.f1 - b.f0, fc = (b.f0 + b.f1) / 2, a = absorptionDbPerM(fc, c0.tC, c0.rh);
+    return `<tr><td>${b.label}, ${b.f0 / 1000}–${b.f1 / 1000} kHz</td><td class="n">${fmt(rangeResolution(p.c, B) * 100, 1)} cm</td>`
+      + `<td class="n">${fmt(a, 3)} dB/m</td><td class="n">${fmt(2 * c0.rmax * a, 2)} dB at ${c0.rmax} m</td></tr>`;
+  }).join("");
+  $("calc").tBodies[0].innerHTML = rows;
+  drawTicks(c0.rmax);
+  return p;
+}
+
+// ---- one averaged profile → screen -----------------------------------------
+function show(avg, fs, label) {
+  const c0 = cfg(), p = physics(c0);
+  const lin = avg, mapped = !label && roomReady();
+  const out = new Float32Array(lin.length);
+  const k = Math.LN10 / 20;
+  for (let j = 0; j < lin.length; j++) {
+    const r = Math.max(0.05, rangeFromDelay(j / fs, p.c, c0.s));
+    out[j] = lin[j] * Math.pow(r, c0.tvg) * Math.exp(2 * r * p.alpha * k);
+  }
+  // With the room removed, what is left sits on a noise floor; ask for an echo
+  // well clear of that floor rather than a fixed level.
+  let thr = Math.pow(10, -50 / 20);
+  if (mapped) {
+    const live = [];
+    for (let j = 0; j < out.length; j++) if (rangeFromDelay(j / fs, p.c, c0.s) >= p.dead && rangeFromDelay(j / fs, p.c, c0.s) <= c0.rmax) live.push(out[j]);
+    thr = Math.max(Math.pow(10, -65 / 20), 2.5 * median(live));
+  }
+  const echo = strongestEcho(out.subarray(0, Math.ceil(delayFromRange(c0.rmax, p.c, c0.s) * fs)), fs, p.c, c0.s, p.dead, thr);
+  const dB = out.map((v) => 20 * Math.log10(Math.max(v, 1e-9)));
+  const meta = { fs, c: p.c, s: c0.s, rmax: c0.rmax, dead: p.dead, echo };
+  drawAscan(dB, meta); pushColumn(dB, meta);
+  $("r-echo").textContent = echo ? fmtRange(echo.range) : "—";
+  $("r-echo-note").textContent = label || (echo ? `${fmt(20 * Math.log10(echo.level), 0)} dB re direct path${mapped ? ", room removed" : ""}` : mapped ? "nothing has changed" : "nothing above the floor");
+  $("ascan-lbl").textContent = mapped ? "a-scan · change from the room" : "a-scan · echo level vs range";
+}
+
+// ---- the resting state: a simulated room through the same signal path -------
+function simulate() {
+  const fs = 48000, c0 = cfg(), p = physics(c0);
+  const pulse = chirp(fs, p.band.f0, p.band.f1, PULSE_S);
+  const bins = Math.ceil(delayFromRange(c0.rmax + 0.1, p.c, c0.s) * fs) + 1;
+  const len = 400 + bins + pulse.n, D = 200;
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5);
+  const cols = Math.min(260, Math.ceil($("echo").clientWidth / 3) + 1);
+  for (let n = 0; n < cols; n++) {
+    const x = new Float32Array(len);
+    const add = (d, a) => { const at = D + Math.round(delayFromRange(d, p.c, c0.s) * fs); for (let j = 0; j < pulse.n; j++) if (at + j < len) x[at + j] += a * pulse.i[j]; };
+    add(c0.s / 2, 1);                                   // direct path
+    add(Math.min(c0.rmax * 0.8, 1.6), 0.012);           // a wall
+    add(Math.min(c0.rmax * 0.2, 0.35), 0.006);          // a table edge
+    add(Math.min(c0.rmax * 0.55, 1.05) - 0.65 * Math.min(1, c0.rmax / 2) * n / cols, 0.02); // a hand coming closer
+    for (let j = 0; j < len; j++) x[j] += 0.003 * rnd();
+    const env = matchedEnvelope(x, pulse);
+    const r = profileAfterPeak(env, 0, 400, bins);
+    show(r.profile.map((v) => v / r.direct), fs, n === cols - 1 ? "simulated hand, wall and table. Tap Start" : "");
+  }
+}
+
+// ---- live -----------------------------------------------------------------------
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function waitFor(cond, ms) { const t0 = performance.now(); while (!cond()) { if (performance.now() - t0 > ms) return false; await sleep(20); } return true; }
+const median = (a) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[b.length >> 1] : NaN; };
+function say(msg, kind = "") { const s = $("status"); s.textContent = msg; s.className = "status" + (kind ? " " + kind : ""); }
+
+function buildPulse() {
+  const p = physics();
+  st.band = p.band;
+  st.pulse = chirp(st.fs, p.band.f0, p.band.f1, PULSE_S);
+  st.pingBuf = st.ctx.createBuffer(1, st.pulse.n, st.fs);
+  st.pingBuf.getChannelData(0).set(st.pulse.i);
+}
+
+function ping(t) {
+  const src = st.ctx.createBufferSource(); src.buffer = st.pingBuf; src.connect(st.gain); src.start(t);
+  return Math.round(t * st.fs);
+}
+
+async function lock() {
+  stopPinging();
+  const fs = st.fs, W = Math.round(0.8 * fs), pre = Math.round(0.03 * fs);
+  const Ls = [], amps = [], floors = [];
+  for (let n = 0; n < 3 && st.running; n++) {
+    say(`Measuring the direct path (${n + 1}/3). Hold still…`);
+    const f = ping(st.ctx.currentTime + 0.12);
+    const ok = await waitFor(() => !st.running || st.ring.end >= f + W + st.pulse.n, 3000);
+    if (!st.running) return false;
+    if (!ok) { say("The microphone stopped delivering audio. Check the input and try again.", "err"); return false; }
+    const x = st.ring.read(f - pre, pre + W + st.pulse.n);
+    const env = matchedEnvelope(x, st.pulse);
+    const p = argmax(env, pre, env.length);
+    Ls.push(p - pre); amps.push(env[p]); floors.push(median(env.subarray(0, pre)));
+    await sleep(120);
+  }
+  st.L = st.Lf = median(Ls); st.direct = median(amps);
+  const floor = Math.max(median(floors), 1e-12);
+  st.snr = 20 * Math.log10(st.direct / floor);
+  const spread = (Math.max(...Ls) - Math.min(...Ls)) / fs * 1000;
+  $("r-lat").innerHTML = `${fmt(st.L / fs * 1000, 1)} <small>ms${spread > 2 ? ` ±${fmt(spread / 2, 0)}` : ""}</small>`;
+  $("r-snr").innerHTML = `${fmt(Math.min(st.snr, 99), 0)} <small>dB</small>`;
+  if (st.snr < 12) say(`The direct path is only ${fmt(st.snr, 0)} dB above the noise. Raise the volume or try another band. Running anyway.`, "warn");
+  else say(`Locked. Channels: ${st.channels}. Point at a wall, or hold still and set a baseline.`);
+  return true;
+}
+
+function stopPinging() { if (st.timer) clearInterval(st.timer); st.timer = null; st.queue = []; }
+
+function startPinging() {
+  st.nextT = st.ctx.currentTime + 0.1; st.lost = 0; st.anchor = new Anchor(); st.norm = st.direct;
+  st.disp = null; st.k = 0;
+  if (st.mapping) st.map = null;            // a relock may have moved everything; relearn the room
+  st.timer = setInterval(tick, 25);
+}
+
+const roomReady = () => st.mapping && st.map && st.map.n >= WARM;
+
+// Bins depend only on the max range (at a conservative c), so moving the
+// temperature or spacing sliders does not throw the room map away.
+const binsFor = (rmax, fs) => Math.ceil(delayFromRange(rmax + 0.15, 325, 0) * fs) + 1;
+
+function tick() {
+  if (!st.running) return;
+  while (st.nextT < st.ctx.currentTime + 0.3) { st.queue.push(ping(st.nextT)); st.nextT += INTERVAL; }
+  const c0 = cfg(), fs = st.fs, J = Math.round(0.004 * fs);
+  const bins = binsFor(c0.rmax, fs);
+  const len = 2 * J + bins + st.pulse.n;
+  while (st.queue.length && st.ring.end >= st.queue[0] + st.L - J + len) {
+    const f = st.queue.shift();
+    const x = st.ring.read(f + st.L - J, len);
+    const { I, Q } = matchedIQ(x, st.pulse);
+    let pk = 0, direct = -1;
+    for (let j = 0; j <= 2 * J; j++) { const v = Math.hypot(I[j], Q[j]); if (v > direct) { direct = v; pk = j; } }
+    if (direct < 0.25 * st.norm) { if (++st.lost > 10) { relock(); return; } continue; }
+    st.lost = 0;
+    st.norm += 0.05 * (direct - st.norm);
+    // One clock: hold the anchor still and move it only when the recent
+    // offsets agree it moved. A jittery link: align every ping on its own peak.
+    st.anchor.push(pk - J);
+    const sh = st.anchor.shift();
+    st.L += sh;
+    st.jitter = st.anchor.spread();
+    const off = st.jitter > 1 ? pk : J + sh;
+    const scale = 1 / st.norm;
+    let mag;
+    if (st.mapping) {
+      if (!st.map || st.map.bins !== bins) { st.map = new ClutterMap(bins); st.disp = null; }
+      mag = st.map.residual(I, Q, off, scale);
+      st.map.add(I, Q, off, scale, c0.memS > 0 ? INTERVAL / c0.memS : 0, WARM, mag);
+      if (st.map.n < WARM) { $("base").textContent = `Learning ${st.map.n}/${WARM}`; continue; }
+      if (st.map.n === WARM) { st.disp = null; $("base").textContent = "Clear baseline"; say(`Room learned. It updates over ${c0.memS > 0 ? `the last ${c0.memS} s` : "nothing; it is frozen"}. Only changes show now.`); }
+    } else {
+      mag = new Float32Array(bins);
+      for (let j = 0; j < bins; j++) mag[j] = Math.hypot(I[off + j], Q[off + j]) * scale;
+    }
+    if (!st.disp || st.disp.length !== bins) st.disp = Float32Array.from(mag);
+    else trail(st.disp, mag, 1 / c0.avgN);
+    if (++st.k % RENDER === 0) {
+      show(st.disp, fs);
+      if (st.jitter > 1) $("r-lat").innerHTML = `${fmt(st.L / fs * 1000, 1)} <small>ms, jitter ±${fmt(st.jitter / fs * 1000, 2)}</small>`;
+    }
+  }
+}
+
+let relocking = false;
+async function relock() {
+  if (relocking || !st.running) return; relocking = true;
+  stopPinging(); buildPulse(); readouts();
+  if (await lock()) startPinging();
+  relocking = false;
+}
+
+async function listDevices() {
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const fill = (sel, kind) => {
+      const keep = sel.value; sel.length = 1;
+      for (const d of devs.filter((d) => d.kind === kind && d.deviceId && d.deviceId !== "default")) {
+        const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || kind; sel.appendChild(o);
+      }
+      sel.value = [...sel.options].some((o) => o.value === keep) ? keep : "";
+    };
+    fill($("mic"), "audioinput");
+    if (st.ctx && "setSinkId" in st.ctx) { $("spk-wrap").hidden = false; fill($("spk"), "audiooutput"); }
+  } catch { /* labels need permission; the default device still works */ }
+}
+
+async function start() {
+  if (!navigator.mediaDevices?.getUserMedia) { say("This browser does not expose a microphone here. Open the page over https in Safari or Chrome.", "err"); return; }
+  $("go").disabled = true;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    st.ctx = new AC({ latencyHint: "interactive" });
+    if (navigator.audioSession) try { navigator.audioSession.type = "play-and-record"; } catch {}
+    await st.ctx.resume();
+    const mic = $("mic").value;
+    st.stream = await navigator.mediaDevices.getUserMedia({ audio: {
+      deviceId: mic ? { exact: mic } : undefined, channelCount: { ideal: 2 },
+      echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    st.track = st.stream.getAudioTracks()[0];
+    const set = st.track.getSettings ? st.track.getSettings() : {};
+    st.fs = st.ctx.sampleRate; st.fsIn = set.sampleRate || null; st.channels = set.channelCount || 1;
+    st.fsEff = Math.min(st.fs, st.fsIn || st.fs);
+    if ($("spk").value && st.ctx.setSinkId) try { await st.ctx.setSinkId($("spk").value); } catch {}
+    const url = URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" }));
+    await st.ctx.audioWorklet.addModule(url);
+    st.ring = new Ring(Math.round(6 * st.fs));
+    const src = st.ctx.createMediaStreamSource(st.stream);
+    st.rec = new AudioWorkletNode(st.ctx, "sonar-rec", { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: "explicit" });
+    st.rec.port.onmessage = (e) => st.ring.write(e.data.f, e.data.d);
+    st.mute = st.ctx.createGain(); st.mute.gain.value = 0;
+    src.connect(st.rec); st.rec.connect(st.mute); st.mute.connect(st.ctx.destination);
+    st.gain = st.ctx.createGain(); st.gain.gain.value = cfg().vol; st.gain.connect(st.ctx.destination);
+    st.running = true; st.mapping = false; st.map = null; $("base").textContent = "Set baseline";
+    $("go").textContent = "Stop"; $("go").classList.add("on"); $("go").disabled = false; $("base").disabled = false;
+    try { st.wake = await navigator.wakeLock?.request("screen"); } catch {}
+    listDevices();
+    buildPulse(); readouts();
+    if (st.band.fellBack) say(`The input runs at ${fmt(st.fsEff / 1000, 1)} kHz, too low for near-ultrasound. Using the audible band.`, "warn");
+    await sleep(300);
+    if (await lock()) startPinging();
+  } catch (err) {
+    stop();
+    const name = err && err.name;
+    if (name === "NotAllowedError") say("Microphone access was refused. Allow it for this site in your browser's settings, then tap Start.", "err");
+    else if (name === "NotFoundError" || name === "OverconstrainedError") say("That microphone is not available. Pick another one, or leave it on default.", "err");
+    else say(`Could not start: ${err && err.message ? err.message : err}`, "err");
+  }
+}
+
+function stop() {
+  st.running = false; stopPinging();
+  try { st.stream?.getTracks().forEach((t) => t.stop()); } catch {}
+  try { st.ctx?.close(); } catch {}
+  try { st.wake?.release(); } catch {}
+  Object.assign(st, { ctx: null, stream: null, track: null, rec: null, gain: null, wake: null });
+  $("go").textContent = "Start"; $("go").classList.remove("on"); $("go").disabled = false; $("base").disabled = true;
+  if (!$("status").classList.contains("err")) say("Stopped.");
+}
+
+// ---- wiring ------------------------------------------------------------------
+$("go").addEventListener("click", () => (st.running ? stop() : start()));
+$("base").addEventListener("click", () => {
+  if (st.mapping) { st.mapping = false; st.map = null; st.disp = null; $("base").textContent = "Set baseline"; say("Baseline cleared. Showing every echo."); }
+  else { st.mapping = true; st.map = null; $("base").textContent = `Learning 0/${WARM}`; say("Hold still for two seconds. Learning the room…"); }
+});
+$("vol").addEventListener("input", () => { readouts(); if (st.gain) st.gain.gain.value = cfg().vol; });
+let simT = 0;
+const resim = () => { clearTimeout(simT); simT = setTimeout(() => { if (!st.running) simulate(); }, 150); };
+for (const id of ["sep", "temp", "rh", "tvg"]) $(id).addEventListener("input", () => { readouts(); resim(); });
+$("rmax").addEventListener("change", () => { if (st.mapping) { st.map = null; say("Range changed. Hold still, relearning the room…"); } readouts(); resim(); });
+$("band").addEventListener("change", () => { readouts(); if (st.running) relock(); else resim(); });
+$("mic").addEventListener("change", () => { if (st.running) { stop(); start(); } });
+$("spk").addEventListener("change", async () => { if (st.ctx?.setSinkId) { try { await st.ctx.setSinkId($("spk").value); relock(); } catch { say("That speaker could not be selected.", "warn"); } } });
+document.addEventListener("visibilitychange", () => { if (document.hidden && st.running) stop(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { palette(); if (lastA) drawAscan(...lastA); });
+window.addEventListener("resize", () => { if (lastA) drawAscan(...lastA); });
+
+palette(); readouts(); simulate();
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>jog — running loops from your door</title>
+<meta name="description" content="Give it an address and a distance; it finds running loops that start and end there, close to that distance, from OpenStreetMap paths and streets.">
+<meta property="og:title" content="jog — running loops from your door">
+<meta property="og:description" content="An address and a distance in, a dozen distinct running loops out. OpenStreetMap paths, routed in your browser.">
+<meta name="theme-color" content="#0f766e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%230f766e' stroke-width='4'/%3E%3Ccircle cx='16' cy='5' r='4' fill='%23f97316'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --bg: #f7f7f4; --panel: #ffffff; --ink: #1c1f1e; --muted: #5d6662; --line: #dfe3e0;
+    --accent: #0f766e; --accent-ink: #ffffff; --hot: #f97316; --warn: #b45309; --chip: #eef3f1;
+    --shadow: 0 1px 2px rgb(0 0 0 / .06), 0 4px 16px rgb(0 0 0 / .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111413; --panel: #1a1e1d; --ink: #e8ecea; --muted: #9aa6a1; --line: #2c3331;
+      --accent: #2dd4bf; --accent-ink: #062b27; --hot: #fb923c; --warn: #fbbf24; --chip: #232a28;
+      --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 4px 16px rgb(0 0 0 / .3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .app { display: grid; grid-template-columns: 380px 1fr; height: 100dvh; }
+  #map { height: 100%; background: var(--bg); }
+  aside { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 20px 18px 28px; }
+  h1 { font-size: 22px; margin: 0 0 2px; letter-spacing: -.01em; }
+  h1 span { color: var(--accent); }
+  .lede { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+  form { display: grid; gap: 10px; }
+  label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .field { display: grid; gap: 4px; }
+  input, select, button { font: inherit; color: inherit; }
+  input[type=text], input[type=number], select {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row { display: grid; grid-template-columns: 1fr 88px; gap: 8px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .addr { position: relative; }
+  .addr input { padding-right: 40px; }
+  .locate { position: absolute; right: 4px; top: 4px; height: 32px; width: 32px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; color: var(--muted); }
+  .locate:hover { background: var(--chip); color: var(--accent); }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 14px; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--ink); }
+  .go { padding: 11px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 650; cursor: pointer; }
+  .go:disabled { opacity: .6; cursor: progress; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 2px 0 0; }
+  #status { margin: 14px 0 0; font-size: 13.5px; color: var(--muted); min-height: 1.4em; }
+  #status.err { color: var(--warn); }
+  .bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 6px; display: none; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+  .busy .bar { display: block; }
+  #results { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
+  .loop { display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--panel); }
+  .loop:hover { border-color: var(--muted); }
+  .loop.on { border-color: var(--accent); box-shadow: var(--shadow); }
+  .loop svg { width: 56px; height: 56px; display: block; }
+  .loop .d { font-weight: 650; font-variant-numeric: tabular-nums; }
+  .loop .m { font-size: 12.5px; color: var(--muted); }
+  .loop .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 99px; background: var(--chip); color: var(--muted); }
+  .gpx { font-size: 12px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; cursor: pointer; color: var(--muted); }
+  .gpx:hover { color: var(--accent); border-color: var(--accent); }
+  footer { margin-top: 22px; font-size: 12px; color: var(--muted); }
+  footer a { color: inherit; }
+  .km { background: var(--panel); color: var(--ink); border: 2px solid var(--accent); border-radius: 99px; font: 600 10px/16px system-ui, sans-serif; text-align: center; width: 20px !important; height: 20px !important; margin: -10px 0 0 -10px !important; }
+  .home { background: var(--hot); border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px var(--hot); }
+  .leaflet-container { font: inherit; }
+  .leaflet-tile-pane { filter: grayscale(.55) contrast(.92) brightness(1.04); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) grayscale(.5) brightness(.85) contrast(.9); }
+  }
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 46dvh auto; height: auto; }
+    #map { height: 46dvh; position: sticky; top: 0; z-index: 1; }
+    aside { border-right: 0; border-top: 1px solid var(--line); padding: 16px 16px 32px; order: 2; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <h1><span>jog</span> — loops from your door</h1>
+    <p class="lede">An address and a distance in; running loops that start and finish there, close to that distance, out.</p>
+    <form id="f" autocomplete="off">
+      <div class="field">
+        <label for="q">Start</label>
+        <div class="addr">
+          <input id="q" type="text" placeholder="An address, a park, or tap the map" required>
+          <button type="button" class="locate" id="locate" title="Use my location" aria-label="Use my location">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="dist">Distance</label>
+        <div class="row">
+          <input id="dist" type="number" min="0.5" step="0.5" value="5" required>
+          <select id="unit"><option value="km">km</option><option value="mi">mi</option></select>
+        </div>
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label for="tol">Within</label>
+          <select id="tol"><option value="0.05">± 5%</option><option value="0.1" selected>± 10%</option><option value="0.2">± 20%</option></select>
+        </div>
+        <div class="field" style="align-content:end">
+          <label class="check"><input type="checkbox" id="trails"> Prefer paths &amp; parks</label>
+        </div>
+      </div>
+      <button class="go" id="go">Find loops</button>
+      <p class="hint">Tap anywhere on the map to start from there instead.</p>
+    </form>
+    <div id="state"><p id="status"></p><div class="bar"><i></i></div></div>
+    <ol id="results"></ol>
+    <footer>
+      Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, via
+      <a href="https://nominatim.org/">Nominatim</a> and <a href="https://overpass-api.de/">Overpass</a>.
+      Routes are computed in your browser and not checked on the ground. Look both ways.
+    </footer>
+  </aside>
+  <div id="map" role="region" aria-label="Map"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

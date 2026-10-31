@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Days · Miniphim</title>
+<meta name="description" content="The miniphim's lab, one day at a time: what they were told, what they built, what they chose, what it cost, and every grading error the lab found in itself.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../del.css">
+<style>
+  :root { --bar: #1F63A8; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bar: #4F98E8; } }
+  :root[data-theme="dark"] { --bar: #4F98E8; }
+  main.wrap > *, .stack, .stack > *, .day { min-width: 0; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 10px; }
+  .tile { background: var(--panel); border: 1px solid var(--rule); padding: 12px 14px; display: grid; gap: 2px; }
+  .tile b { font: 700 clamp(24px, 5vw, 32px)/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+  .tile span { font: 500 12px/1.4 var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  table.t th { text-align: left; font: 600 12px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding: 6px 8px; }
+  table.t td { padding: 7px 8px; border-top: 1px solid var(--rule); vertical-align: top; overflow-wrap: anywhere; }
+  .num { font-variant-numeric: tabular-nums; }
+  .chart { position: relative; background: var(--panel); border: 1px solid var(--rule); padding: 14px 14px 8px; }
+  .chart .frame { overflow-x: auto; }
+  .chart svg { display: block; width: 100%; min-width: 520px; height: auto; overflow: visible; }
+  .scroll { overflow-x: auto; }
+  .chart .ax { stroke: var(--rule); stroke-width: 1; }
+  .chart text { font: 11px var(--font-mono); fill: var(--muted); }
+  .chart .bar { fill: var(--bar); }
+  .chart .hit { fill: transparent; cursor: pointer; }
+  .chart .hit:hover + .bar, .chart .hit:focus + .bar { opacity: .75; }
+  .tip { position: absolute; pointer-events: none; background: var(--fg); color: var(--bg); font: 12px/1.45 var(--font-mono); padding: 6px 8px; border-radius: 3px; white-space: nowrap; opacity: 0; transition: opacity .1s; }
+  .day { background: var(--panel); border: 1px solid var(--rule); padding: 16px 18px; display: grid; gap: 10px; }
+  .day h3 { margin: 0; font: 700 20px/1.25 var(--font-display); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .day h3 .n { font: 600 13px var(--font-mono); color: var(--muted); }
+  .day .meta { font: 12.5px/1.6 var(--font-mono); color: var(--muted); }
+  .day p { margin: 0; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+  .day .k { font: 600 11.5px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-right: 6px; }
+  .day details summary { cursor: pointer; font: 500 13px var(--font-mono); color: var(--muted); }
+  .eve { border-left: 3px solid var(--c); padding: 2px 0 2px 12px; }
+  .eve.modulo { --c: var(--mod); } .eve.morphyx { --c: var(--mor); } .eve.mozzie { --c: var(--moz); }
+  .eve b { color: var(--c); font: 600 12px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; margin-right: 6px; }
+  .fix { border: 1px solid var(--bad); border-left-width: 3px; padding: 8px 12px; font-size: 14.5px; }
+  .fix b { color: var(--bad); }
+  .lost { color: var(--bad); }
+  .pill { font: 600 11px/1 var(--font-mono); padding: 4px 6px; border: 1px solid currentColor; border-radius: 2px; text-transform: uppercase; letter-spacing: .05em; }
+  .pill.ok { color: var(--good); } .pill.wip { color: var(--muted); }
+</style>
+</head>
+<body>
+<main class="wrap" style="gap:36px">
+
+<header class="stack">
+  <p class="eyebrow"><a href="../">del.mino.mobi</a> · the days</p>
+  <h1 style="font-size:clamp(34px,6vw,56px)"><span class="m" style="color:var(--mod)">The days</span></h1>
+  <p class="lede">The lab one day at a time: what the three were told and why, what they built, what they chose, what it cost, and every time the lab found its own grading wrong. Generated from the runs by <code>chronicle.mjs</code>; read any day closely in the <a href="../runs/">run reader</a>.</p>
+</header>
+
+<section class="stack" aria-labelledby="now-h">
+  <h2 id="now-h">Now</h2>
+  <div id="tiles" class="tiles"><p class="muted">Loading…</p></div>
+  <div id="projects"></div>
+  <div id="choice"></div>
+  <div id="open"></div>
+</section>
+
+<section class="stack" aria-labelledby="cost-h">
+  <h2 id="cost-h">What each day cost</h2>
+  <p class="muted">US dollars of model calls per day, as each run measured them. Hover or focus a bar for the day.</p>
+  <div class="chart" id="chart"><p class="muted">Loading…</p></div>
+</section>
+
+<section class="stack" aria-labelledby="days-h">
+  <h2 id="days-h">Day by day</h2>
+  <div id="days" class="stack"><p class="muted">Loading…</p></div>
+</section>
+
+<footer>
+  <span>Read in your browser from the public repo (<code>packages/whetstone/chronicle.json</code>). Nothing here is private.</span>
+</footer>
+</main>
+<script src="days.js" type="module"></script>
+</body>
+</html>

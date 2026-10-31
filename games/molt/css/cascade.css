@@ -1,0 +1,8 @@
+/* Cascade — on top of molt.css: the two turn buttons. */
+#rate { color: var(--accent2); font-size: 13px !important; }
+.turn { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 5; width: 64px; height: 64px; border-radius: 18px;
+  border: 1px solid rgba(139,147,168,0.35); background: rgba(16,19,28,0.72); color: var(--text); font-size: 20px; touch-action: none; cursor: pointer; }
+.turn.hit { background: var(--accent2); color: var(--bg); }
+#tl { left: calc(12px + env(safe-area-inset-left)); }
+#tr { right: calc(12px + env(safe-area-inset-right)); }
+#note { top: auto; bottom: calc(30px + env(safe-area-inset-bottom)); }

@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Which critters does bzip think are alike? — henderhead</title>
+<meta name="description" content="A real bzip2, written in Rust and compiled to WebAssembly, asked which of 151 monsters look most alike — and whether it can find their evolutions. An interactive rebuild of a Matt Henderson demo.">
+<meta property="og:title" content="Which critters does bzip think are alike?">
+<meta property="og:description" content="Normalized compression distance over a dex of 151 monsters. After a demo by Matt Henderson.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='4' fill='%23e8f0de'/%3E%3Cpath d='M9 22h14M11 22v-8h10v8M13 14v-3h6v3' stroke='%23102020' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0d1a17; --panel: #122420; --edge: #24433b;
+    --ink: #dfeadb; --dim: #85a497; --acc: #a0c48c; --hot: #ff6b5a; --gold: #f2c75c;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; -webkit-text-size-adjust: 100%; }
+  a { color: var(--acc); } a:hover { color: #fff; }
+  canvas { image-rendering: pixelated; }
+
+  header { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: baseline; padding: 1rem 1.25rem .75rem; border-bottom: 1px solid var(--edge); }
+  header h1 { font-size: 1.05rem; font-weight: 600; margin: 0; }
+  header .home { font-size: .85rem; color: var(--dim); text-decoration: none; }
+  header .home:hover { color: var(--ink); }
+  header .after { font-size: .85rem; color: var(--dim); margin-left: auto; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: 1.25rem; padding: 1.25rem; align-items: start; }
+  @media (max-width: 980px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+  .lede { margin: 0 0 1rem; color: #bcd0c4; max-width: 52rem; }
+
+  #dex { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+  .cell { display: grid; justify-items: center; gap: 2px; padding: 4px 3px 5px; background: var(--panel); border: 1px solid var(--edge); border-top: 3px solid var(--line); border-radius: 6px; color: var(--ink); font: inherit; cursor: pointer; text-align: center; }
+  .cell:hover { background: #193029; }
+  .cell canvas { width: 64px; height: 64px; background: #e8f0de; border-radius: 3px; }
+  .cell .cap { font-size: .66rem; line-height: 1.2; color: var(--dim); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cell .cap b { color: var(--ink); font-weight: 600; font-family: var(--mono); }
+  .cell .pair { display: flex; align-items: center; gap: 3px; font: .64rem var(--mono); color: var(--dim); }
+  .cell .pair canvas { width: 22px; height: 22px; }
+  .cell.hit { box-shadow: inset 0 0 0 2px var(--acc); }
+  .cell.hit .pair { color: var(--acc); font-weight: 700; }
+  .cell.hub { box-shadow: inset 0 0 0 2px var(--gold); }
+  .cell.sel { outline: 2px solid #fff; outline-offset: 1px; }
+
+  .panel { display: grid; gap: .9rem; position: sticky; top: .75rem; }
+  @media (max-width: 980px) { .panel { position: static; } }
+  fieldset { border: 1px solid var(--edge); border-radius: 8px; margin: 0; padding: .6rem .8rem .8rem; background: var(--panel); min-width: 0; }
+  legend { padding: 0 .35rem; font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); }
+  button { font: inherit; color: var(--ink); background: #1a352e; border: 1px solid var(--edge); border-radius: 6px; padding: .3rem .5rem; cursor: pointer; }
+  button:hover { background: #22453c; }
+  button[aria-pressed="true"] { background: var(--acc); color: #0d1a17; border-color: var(--acc); font-weight: 600; }
+  .choices { display: flex; flex-wrap: wrap; gap: .3rem; }
+  .choices button { font-size: .8rem; }
+  .note { font-size: .74rem; color: var(--dim); margin: .4rem 0 0; }
+  .row { display: grid; grid-template-columns: 5.6rem 1fr 3.6rem; gap: .5rem; align-items: center; margin-top: .5rem; }
+  .row label { font-size: .8rem; color: var(--dim); }
+  .row output { font: .78rem var(--mono); text-align: right; }
+  input[type=range] { width: 100%; accent-color: var(--acc); }
+  input[type=number] { width: 100%; font: .85rem var(--mono); color: var(--ink); background: #0d1a17; border: 1px solid var(--edge); border-radius: 5px; padding: .2rem .35rem; }
+  .check { display: flex; gap: .45rem; align-items: center; font-size: .8rem; color: var(--dim); margin-top: .55rem; }
+  progress { width: 100%; height: 6px; accent-color: var(--acc); }
+  #progress-o { font: .72rem var(--mono); color: var(--dim); }
+
+  #board .big { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+  #board .stat { background: #0d1a17; border: 1px solid var(--edge); border-radius: 6px; padding: .4rem .55rem; }
+  #board .stat b { display: block; font: 600 1.35rem/1.2 var(--mono); }
+  #board .stat span { font-size: .7rem; color: var(--dim); }
+  #board .stat.hot b { color: var(--acc); }
+  #board.pending .stat b, #board.pending .hub { opacity: .3; }
+  #board .hub { display: grid; grid-template-columns: 56px 1fr; gap: .6rem; align-items: center; margin-top: .6rem; }
+  #board .hub canvas { width: 56px; height: 56px; background: #e8f0de; border-radius: 3px; box-shadow: 0 0 0 2px var(--gold); }
+  #board .hub div { font-size: .78rem; color: var(--dim); }
+  #board .hub strong { color: var(--gold); }
+  #measure-name { font: .72rem var(--mono); color: var(--dim); margin-top: .5rem; }
+
+  .lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.25rem; padding: 0 1.25rem 1.25rem; }
+  @media (max-width: 980px) { .lower { grid-template-columns: minmax(0, 1fr); } }
+  .lower fieldset { padding: .8rem 1rem 1rem; }
+
+  #detail .top { display: grid; grid-template-columns: 112px 1fr; gap: .9rem; align-items: start; }
+  #d-sprite { width: 112px; height: 112px; background: #e8f0de; border-radius: 4px; }
+  #d-name { font-weight: 600; margin: 0; }
+  #d-line, #d-facts { font-size: .8rem; color: var(--dim); margin: .25rem 0; }
+  ol.nn { list-style: none; padding: 0; margin: .7rem 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .4rem; }
+  ol.nn li { display: grid; grid-template-columns: 40px 1fr; gap: .45rem; align-items: center; font-size: .78rem; background: #0d1a17; border: 1px solid var(--edge); border-radius: 6px; padding: .25rem .35rem; cursor: pointer; }
+  ol.nn li canvas { width: 40px; height: 40px; background: #e8f0de; border-radius: 2px; }
+  ol.nn li code { font: .72rem var(--mono); color: var(--dim); }
+  ol.nn li.kin { border-color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); }
+  ol.nn li.empty { display: block; color: var(--dim); cursor: default; }
+
+  #matrix { display: block; width: 100%; max-width: 453px; aspect-ratio: 1; margin-inline: auto; cursor: crosshair; border: 1px solid var(--edge); }
+  #m-hover { font: .74rem var(--mono); color: var(--dim); min-height: 1.2em; margin-top: .4rem; text-align: center; }
+
+  .padwrap { display: grid; grid-template-columns: minmax(0, 224px) 1fr; gap: 1rem; align-items: start; }
+  @media (max-width: 520px) { .padwrap { grid-template-columns: minmax(0, 1fr); } }
+  #pad { width: 100%; aspect-ratio: 1; background: #e8f0de; border-radius: 4px; touch-action: none; cursor: crosshair; }
+  .swatches { display: flex; gap: .3rem; margin-top: .5rem; flex-wrap: wrap; }
+  .swatches button { width: 2rem; height: 2rem; padding: 0; }
+  .swatches button[aria-pressed="true"] { outline: 2px solid #fff; outline-offset: 1px; }
+
+  .prose { max-width: 46rem; padding: 0 1.25rem 3rem; color: #bcd0c4; }
+  .prose h2 { font-size: .95rem; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); margin: 2.2rem 0 .5rem; }
+  .prose p { margin: .65rem 0; }
+  .prose code { font: .9em var(--mono); background: var(--panel); padding: .1em .35em; border-radius: 4px; }
+  .eq { font: .95rem/1.8 var(--mono); color: var(--ink); background: var(--panel); border: 1px solid var(--edge); border-radius: 8px; padding: .7rem .9rem; overflow-x: auto; white-space: pre; }
+  .credit { border-left: 2px solid var(--acc); padding-left: .9rem; }
+  noscript { display: block; padding: 1.25rem; color: var(--hot); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="home" href="/">← henderhead</a>
+  <h1>Which critters does bzip think are alike?</h1>
+  <span class="after">after <a href="https://bsky.app/profile/matthen.com/post/3myaxdyawls2t">a demo by Matt Henderson</a></span>
+</header>
+
+<noscript>This runs a bzip2 compressor in WebAssembly over eleven thousand pairs of pictures, so it needs JavaScript on.</noscript>
+
+<main>
+  <div>
+    <p class="lede">151 monsters, each one squeezed with a real <code>bzip2</code>, then squeezed again glued to each of the other 150. If two pictures compress better together than apart, the compressor has found something they share. Each critter below is shown with the one bzip thinks it is <em>most</em> like. A <span style="color:var(--acc)">green</span> box means that pick is from its own evolution line — something bzip was never told about. The <span style="color:var(--gold)">gold</span> one is the critter picked most often.</p>
+    <div id="dex" aria-label="the dex"></div>
+  </div>
+
+  <div class="panel">
+    <fieldset id="board" class="pending">
+      <legend>how well it does</legend>
+      <div class="big">
+        <div class="stat hot"><b id="hit">–</b><span>picks a relative · <span id="hit-n"></span></span></div>
+        <div class="stat"><b id="chance">–</b><span>picking at random would</span></div>
+        <div class="stat"><b id="ratio">–</b><span>better than chance</span></div>
+        <div class="stat"><b id="kin">–</b><span><span id="kin-n"></span></span></div>
+      </div>
+      <div class="hub">
+        <canvas id="hub-sprite" width="56" height="56"></canvas>
+        <div><strong id="hub-count">–</strong> critters pick <strong id="hub-name"></strong> as their closest match. <span id="hub-ink"></span></div>
+      </div>
+      <p class="note">Its pick ranks at the <b id="inkagree">–</b> percentile of all 150 by <em>how much of the square is drawn in</em> — 50% would mean ink has nothing to do with it, 0% that ink is all it looks at.</p>
+      <div id="measure-name"></div>
+      <progress id="progress" value="0" max="1"></progress>
+      <div id="progress-o">loading the engine…</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>what to measure with</legend>
+      <div class="choices">
+        <button data-measure="bzip" aria-pressed="true">bzip2</button>
+        <button data-measure="pixels" aria-pressed="false">pixel by pixel</button>
+        <button data-measure="ink" aria-pressed="false">ink only</button>
+        <button data-measure="box" aria-pressed="false">bounding box</button>
+      </div>
+      <p class="note" id="measure-note">normalized compression distance under bzip2 -9</p>
+      <label class="check"><input type="checkbox" id="both"> both orders — C(xy) and C(yx), keep the smaller</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>what bzip is given</legend>
+      <div class="choices">
+        <button data-rep="raw" aria-pressed="true">byte per pixel</button>
+        <button data-rep="packed" aria-pressed="false">2 bits per pixel</button>
+        <button data-rep="columns" aria-pressed="false">by columns</button>
+        <button data-rep="silhouette" aria-pressed="false">silhouette</button>
+        <button data-rep="fitted" aria-pressed="false">cropped to fit</button>
+      </div>
+      <p class="note" id="rep-note">the four shades as bytes 0–3, row by row</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>the dex</legend>
+      <div class="row">
+        <label for="growth">evolutions grow</label>
+        <input type="range" id="growth" min="0" max="1" step="0.05" value="1">
+        <output id="growth-o">as drawn</output>
+      </div>
+      <p class="note">First forms are drawn small and last forms fill the frame, as the real ones are. Slide this down and every stage is drawn at its last form's size: the shapes still change, only the frame does not.</p>
+      <div class="row">
+        <label for="seed">seed</label>
+        <input type="number" id="seed" value="151" min="1" max="99999">
+        <button id="reroll">new dex</button>
+      </div>
+    </fieldset>
+  </div>
+</main>
+
+<div class="lower">
+  <fieldset id="detail" hidden>
+    <legend>one critter</legend>
+    <div class="top">
+      <canvas id="d-sprite" width="56" height="56"></canvas>
+      <div>
+        <p id="d-name"></p>
+        <p id="d-line"></p>
+        <p id="d-facts"></p>
+        <button id="d-save">save what bzip saw, as .bz2</button>
+      </div>
+    </div>
+    <ol class="nn" id="d-list"></ol>
+  </fieldset>
+
+  <fieldset>
+    <legend>everyone against everyone</legend>
+    <canvas id="matrix" width="453" height="453"></canvas>
+    <div id="m-hover"></div>
+    <p class="note">Row <i>i</i>, column <i>j</i>: how close <i>j</i> is to <i>i</i>, as a rank within the row — bright is near. Rows are in dex order, so an evolution line is a coloured square on the diagonal, and if bzip could see lineage those squares would light up. <span style="color:var(--hot)">Red</span> marks each row's pick. Click a row to open that critter.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>draw one</legend>
+    <div class="padwrap">
+      <div>
+        <canvas id="pad" width="56" height="56"></canvas>
+        <div class="swatches">
+          <button data-shade="3" aria-pressed="true" style="background:rgb(16,32,30)" title="ink"></button>
+          <button data-shade="2" aria-pressed="false" style="background:rgb(74,120,92)" title="mid"></button>
+          <button data-shade="1" aria-pressed="false" style="background:rgb(160,196,140)" title="light"></button>
+          <button data-shade="0" aria-pressed="false" style="background:rgb(232,240,222)" title="paper (erase)"></button>
+        </div>
+        <div class="row" style="grid-template-columns: 3rem 1fr 2rem">
+          <label for="brush">brush</label>
+          <input type="range" id="brush" min="1" max="5" step="1" value="1">
+          <output id="brush-o">1</output>
+        </div>
+        <div class="choices" style="margin-top:.5rem">
+          <button id="pad-clear">clear</button>
+          <button id="pad-copy">copy the open critter</button>
+        </div>
+      </div>
+      <div>
+        <p class="note" style="margin-top:0">Whatever you draw is compressed against the whole dex with whatever measure is chosen. Try a small blob, then the same blob big. Try copying a critter and moving it two pixels.</p>
+        <p class="note" id="pad-facts"></p>
+        <ol class="nn" id="pad-list"></ol>
+      </div>
+    </div>
+  </fieldset>
+</div>
+
+<section class="prose">
+  <h2>Whose idea</h2>
+  <p class="credit">The experiment is <a href="https://bsky.app/profile/matthen.com">Matt Henderson</a>'s, from <a href="https://bsky.app/profile/matthen.com/post/3myaxdyawls2t">his post of 19 October 2026</a>: <em>"Which Pokémon does a compression algorithm think are most similar? bzip pairs Gengar with Haunter, Magikarp with Gyarados and Pikachu with Jolteon. 13 different Pokémon get paired with Marowak — it's a very average sprite."</em> And in the replies: <em>"bzip's top pick is from the same evolution line about 8% of the time, vs ~1% if you picked at random. So weak, but it knows nothing about pokemon. Mostly it's matching size and how much of the square is drawn in."</em> He has not seen or endorsed this page. Go and watch the original; it is a video and this is not a copy of it.</p>
+  <p>What is ours: the compressor, the monsters, the baselines, and the knobs that test his explanation.</p>
+
+  <h2>Why these aren't Pokémon</h2>
+  <p>Because the sprites are Nintendo's pictures, and this site does not serve a picture it did not draw. So the experiment runs here on a dex of our own, built to the same brief: 151 entries in a 56×56 frame, four shades, evolution lines of one to three stages in which a creature grows, sprouts horns or wings or spikes, and changes proportion. Every sprite is generated from a seed by <code>critters.js</code>, and the lines are known exactly — which is the one thing this version has over the original. The question "can bzip find the families?" has an answer key.</p>
+  <p>It also means the numbers here are about <em>these</em> monsters. They come out in the same shape as his, not the same values, and nothing has been tuned to make them agree.</p>
+
+  <h2>The distance</h2>
+  <p>The normalized compression distance (Cilibrasi and Vitányi, 2005) asks how much a compressor saves by seeing two things together:</p>
+  <div class="eq">NCD(x, y) = ( C(xy) − min(C(x), C(y)) ) / max(C(x), C(y))</div>
+  <p><code>C</code> is the compressed length in bytes and <code>xy</code> is one file followed by the other. If <code>y</code> is nothing but a repeat of <code>x</code>, the second half is free and NCD is near 0; if they share nothing, the pair costs the sum and NCD is near 1. The compressor knows nothing about pictures, monsters or evolution — it just notices when the second file is cheap to describe given the first. That is why the result is interesting at all.</p>
+  <p>It is also why it is weak. Neither end of the scale is really reached with bzip: a 3 KB file glued to an exact copy of itself still costs bzip about a sixth more, because its block sort pairs the two copies up but still writes both down; and two unrelated files glued together save a few hundred bytes of shared header and Huffman tables, which is a lot when a sprite only compresses to a few hundred bytes itself. The tests pin both.</p>
+
+  <h2>This is really bzip2</h2>
+  <p>The compressor is written in Rust, from the reference implementation's algorithm, and compiled to a 47 KB WebAssembly module with no imports: run-length pass, Burrows–Wheeler block sort, move-to-front with the zero runs in bijective base 2, and up to six Huffman tables chosen per 50 symbols and refined four times. Every choice that changes the output length is the reference's, down to how it flattens a Huffman code that comes out longer than 17 bits. The test suite hands every output to the system <code>bzip2 -d</code> and checks it decompresses to the input, and checks each length against what <code>bzip2 -9</code> produces from the same bytes — they are equal on every case, and the files are byte for byte identical except where a block is a perfect repeat of itself, when which of the tied rotations counts as the original is a matter of sort order. Open a critter and save what bzip saw: <code>bzip2 -d</code> will give you back its 3136 bytes.</p>
+
+  <h2>What it finds</h2>
+  <p>On the default dex, bzip's pick is a relative about four times as often as chance: 4% against 0.9%. Weak, as his was — 8% against 1% — but the knobs say why. His explanation was that it is mostly matching size and how much of the square is drawn in, and three of them test that directly:</p>
+  <p><strong>The ink rank.</strong> The board shows where bzip's pick ranks among all 150 others by how much of the frame is drawn in. Chance would put it at the 50th percentile. On the default dex it sits around the 14th: bzip mostly picks something with about the same amount of ink. His explanation is right.</p>
+  <p><strong>Evolutions grow.</strong> And that is exactly what keeps it from finding families, because an evolution is the one thing guaranteed <em>not</em> to have the same amount of ink — the first form is small and the last fills the frame. Slide <em>evolutions grow</em> to none and nothing about any shape changes, only the frame each is drawn into; the hit rate goes from about 4% to over 20%, and on every seed we have tried it at least two and a half times what it was.</p>
+  <p><strong>Cropped to fit.</strong> So why not take size away after the fact — crop every sprite and blow it up to fill the frame before bzip sees it? It barely helps: sometimes a point or two, sometimes nothing, never close to what drawing at equal size does. Scaling a 30-pixel sprite up to 56 turns each pixel into a block of one or two, unevenly, and bzip — which only ever sees runs of bytes — reads a picture in different-sized blocks as a different picture. To the compressor, size is not a property of a shape; it is the shape.</p>
+  <p>And the hub — his Marowak — is real here too: one critter is everyone's nearest neighbour, seven to nine times over. It is not mid-sized, though, at least not on this dex: it tends to be on the small and empty side. A sprite that is mostly paper is cheap to describe after almost anything.</p>
+  <p>The other measures are there to keep bzip honest. <em>Ink only</em> almost never finds a relative, for the reason above. <em>Pixel by pixel</em> — counting the pixels that differ — does about as well as bzip on the dex as drawn, and clearly better once the sizes are equal, which is a fair reminder that a compressor is a roundabout way of comparing pictures. The case for compression is not that it beats a measure built for the job; it is that it needed no idea what the job was.</p>
+
+  <h2>Things worth trying</h2>
+  <p><em>By columns</em> gives bzip the same bytes in a different order and the answers change, because a block sort that knows nothing of two dimensions sees different runs. <em>Two bits per pixel</em> is how the original cartridges stored their sprites: four pixels to a byte means far fewer bytes and different neighbours. <em>Silhouette</em> throws away the shading and the eyes. <em>Both orders</em> computes C(xy) and C(yx) and keeps the smaller — they are not equal, and the difference is a few bytes of nobody's business. In the drawing pad, draw a critter twice the size and see its neighbours change completely.</p>
+</section>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+{
+  "ran": "2026-09-26T15:02:32.365Z",
+  "world": "mixed/penrose/7 size m, hard",
+  "note": "survival facts A/B, 70 decisions per arm; with_survival_rerun is the same configuration as with_survival, run again with threats recorded",
+  "with_survival": {
+    "kind": "mixed",
+    "shape": "penrose",
+    "seed": 7,
+    "size": "m",
+    "arm": "jev",
+    "rungs": {
+      "wooden_pickaxe": 31,
+      "stone_pickaxe": 561,
+      "stone_sword": 563,
+      "torches": 564,
+      "iron_pickaxe": 895,
+      "house": 942,
+      "lit_grounds": 947,
+      "iron_sword": 1070,
+      "explored": 1891
+    },
+    "reached": 9,
+    "score": 829.3333333333334,
+    "deaths": 0,
+    "decisions": 70,
+    "projects": {
+      "tech": "8/8",
+      "grow": "3/16",
+      "explore": "8/8",
+      "grown": 0,
+      "species_here": 5
+    },
+    "project_done": {
+      "tech": 1070,
+      "explore": 2020
+    },
+    "project_picks": {
+      "tech": 1,
+      "explore": 1,
+      "grow": 1
+    },
+    "mean_confidence": 0.8714285714285716,
+    "below_gate": 9,
+    "errors": 0,
+    "mean_have": 0.711714285714286,
+    "input_tokens": 235577,
+    "choices": {
+      "gather_wood": 2,
+      "craft_wooden_pickaxe": 1,
+      "mine_stone": 1,
+      "craft_stone_pickaxe": 1,
+      "craft_stone_sword": 1,
+      "craft_torch": 2,
+      "mine_iron": 2,
+      "craft_iron_pickaxe": 1,
+      "build_house": 1,
+      "light_area": 1,
+      "craft_iron_sword": 1,
+      "explore": 43,
+      "go_home": 4,
+      "hunt": 3,
+      "surface": 1,
+      "eat": 1,
+      "craft_wooden_hoe": 1,
+      "forage_wheat": 1,
+      "farm_wheat": 1,
+      "scout_sunfruit": 1
+    },
+    "wall_s": 149
+  },
+  "no_survival": {
+    "kind": "mixed",
+    "shape": "penrose",
+    "seed": 7,
+    "size": "m",
+    "arm": "jev",
+    "rungs": {
+      "wooden_pickaxe": 31,
+      "stone_pickaxe": 561,
+      "stone_sword": 563,
+      "torches": 564,
+      "iron_pickaxe": 895,
+      "house": 942,
+      "lit_grounds": 947,
+      "iron_sword": 1070,
+      "explored": 1765
+    },
+    "reached": 9,
+    "score": 815.3333333333334,
+    "deaths": 0,
+    "decisions": 70,
+    "projects": {
+      "tech": "8/8",
+      "grow": "10/16",
+      "explore": "8/8",
+      "grown": 0,
+      "species_here": 5
+    },
+    "project_done": {
+      "tech": 1070,
+      "explore": 1903
+    },
+    "project_picks": {
+      "tech": 1,
+      "explore": 1,
+      "grow": 1
+    },
+    "mean_confidence": 0.8858571428571429,
+    "below_gate": 8,
+    "errors": 0,
+    "mean_have": 0.7174285714285717,
+    "input_tokens": 232342,
+    "choices": {
+      "gather_wood": 3,
+      "craft_wooden_pickaxe": 1,
+      "mine_stone": 1,
+      "craft_stone_pickaxe": 1,
+      "craft_stone_sword": 1,
+      "craft_torch": 2,
+      "mine_iron": 2,
+      "craft_iron_pickaxe": 1,
+      "build_house": 1,
+      "light_area": 1,
+      "craft_iron_sword": 1,
+      "explore": 40,
+      "go_home": 1,
+      "scout_sunfruit": 4,
+      "craft_wooden_hoe": 1,
+      "forage_wheat": 1,
+      "farm_wheat": 1,
+      "forage_starbloom": 1,
+      "farm_starbloom": 1,
+      "forage_moonpetal": 1,
+      "forage_sunfruit": 1,
+      "farm_sunfruit": 1,
+      "forage_glowcap": 1,
+      "farm_glowcap": 1
+    },
+    "wall_s": 149
+  },
+  "with_survival_rerun": {
+    "kind": "mixed",
+    "shape": "penrose",
+    "seed": 7,
+    "size": "m",
+    "arm": "jev",
+    "rungs": {
+      "wooden_pickaxe": 31,
+      "stone_pickaxe": 561,
+      "stone_sword": 563,
+      "torches": 564,
+      "iron_pickaxe": 895,
+      "house": 942,
+      "lit_grounds": 947,
+      "iron_sword": 1070,
+      "explored": 2020
+    },
+    "reached": 9,
+    "score": 843.6666666666666,
+    "deaths": 0,
+    "decisions": 70,
+    "projects": {
+      "tech": "8/8",
+      "grow": "0/16",
+      "explore": "7/8",
+      "grown": 0,
+      "species_here": 5
+    },
+    "project_done": {
+      "tech": 1070
+    },
+    "project_picks": {
+      "tech": 1,
+      "explore": 1
+    },
+    "mean_confidence": 0.7748571428571429,
+    "below_gate": 18,
+    "errors": 0,
+    "mean_have": 0.7061428571428575,
+    "input_tokens": 234524,
+    "choices": {
+      "gather_wood": 3,
+      "craft_wooden_pickaxe": 1,
+      "mine_stone": 1,
+      "craft_stone_pickaxe": 1,
+      "craft_stone_sword": 1,
+      "craft_torch": 2,
+      "mine_iron": 2,
+      "craft_iron_pickaxe": 1,
+      "build_house": 1,
+      "light_area": 1,
+      "craft_iron_sword": 1,
+      "explore": 38,
+      "go_home": 4,
+      "hunt": 7,
+      "surface": 2,
+      "scout_sunfruit": 2,
+      "scout_moonpetal": 1,
+      "eat": 1
+    },
+    "wall_s": 149
+  }
+}

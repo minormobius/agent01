@@ -1,0 +1,10 @@
+/* Fathom: Orb's layout (../orb/css/orb.css), a deeper sea. */
+html, body { background: #04080e; }
+#orb { background: radial-gradient(ellipse at 50% 45%, #0a1a2a 0%, #050b14 55%, #03060b 100%); }
+#gauge { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+#gauge i { display: block; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid rgba(120, 200, 255, 0.45); }
+#gauge i.reached { background: rgba(120, 200, 255, 0.45); }
+#gauge i.here { border-color: #e6f4ff; box-shadow: 0 0 6px rgba(160, 220, 255, 0.8); }
+#gauge i.core { border-color: rgba(255, 200, 87, 0.7); }
+#gauge i.core.reached { background: #ffc857; }
+#app { position: relative; }

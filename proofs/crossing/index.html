@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>crossing — Turán's brickyard, settled?</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="How few crossings can you draw a complete graph with? Hill's formula for Kₙ and Zarankiewicz's for K_m,n have been conjectured since the 1950s and 60s. In 2026 an AI-written, Lean-checked pair of papers claims both. Draw the optimal pictures, count their crossings exactly, try to beat them, and run an exhaustive search in your browser.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6;
+  --accent: #2a78d6; --accent-faint: rgba(42,120,214,0.13); --accent-tint: rgba(42,120,214,0.06);
+  --panel: #f3f3f0; --stage: #f7f7f4;
+  --up: #2a78d6; --down: #eb6834; --kiln: #2a78d6; --yard: #eb6834; --cross: #b3261e;
+  --good: #1f7a3f; --bad: #b3261e;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f;
+    --accent: #3987e5; --accent-faint: rgba(57,135,229,0.18); --accent-tint: rgba(57,135,229,0.08);
+    --panel: #20201e; --stage: #121211;
+    --up: #3987e5; --down: #d95926; --kiln: #3987e5; --yard: #d95926; --cross: #e66767;
+    --good: #6ec48f; --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--serif); line-height: 1.5; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+.head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top)); }
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.score { position: absolute; left: 0.7rem; top: 0.5rem; pointer-events: none; font-family: var(--mono); }
+.score .big { font-size: 1.9rem; font-weight: 700; line-height: 1; }
+.score .vs { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.04em; margin-top: 0.2rem; }
+.score.at .big { color: var(--good); }
+.verdict { position: absolute; left: 0.7rem; bottom: 0.6rem; right: 0.7rem; font-family: var(--mono); font-size: 0.6rem; color: var(--muted); pointer-events: none; }
+.hint { position: absolute; right: 0.7rem; top: 0.5rem; font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; pointer-events: none; transition: opacity .6s; text-align: right; }
+.hint.gone { opacity: 0; }
+
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab { flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; margin-bottom: 0.4rem; }
+.knob { display: grid; grid-template-columns: 4.2rem 1fr 2.6rem; align-items: center; gap: 0.4rem; margin: 0.1rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.66rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.4rem; }
+button.act { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.42rem 0.55rem; cursor: pointer; min-height: 2rem; }
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+button.act:disabled { opacity: 0.4; cursor: default; }
+.note { font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; font-family: var(--mono); font-size: 0.58rem; color: var(--muted); margin-top: 0.45rem; }
+.legend i { display: inline-block; width: 0.9rem; height: 0.18rem; vertical-align: 0.15rem; margin-right: 0.3rem; border-radius: 1px; }
+.legend b { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; vertical-align: 0; margin-right: 0.3rem; }
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.64rem; }
+table.facts td, table.facts th { padding: 0.26rem 0.25rem; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: top; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.56rem; }
+table.facts td:last-child, table.facts th:last-child { text-align: left; }
+.good { color: var(--good); } .bad { color: var(--bad); }
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose a:hover { text-decoration: underline; }
+.prose code, pre { font-family: var(--mono); font-size: 0.72rem; }
+pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.5rem 0.6rem; overflow-x: auto; line-height: 1.4; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+@media (min-width: 860px) {
+  .app { flex-direction: row; } .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 28rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; } .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+@media (max-height: 460px) and (orientation: landscape) and (max-width: 859px) {
+  .app { flex-direction: row; } .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 min(52%, 22rem); border-top: none; border-left: 1px solid var(--rule); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://proofs.mino.mobi/">← proofs</a>
+      <h1>crossing</h1>
+      <span class="tagline">family 165 · Lean-formalized</span>
+    </div>
+    <div class="stage">
+      <canvas id="cv"></canvas>
+      <div class="score" id="score"><div class="big" id="big">—</div><div class="vs" id="vs"></div></div>
+      <div class="hint" id="hint">tap an edge to move it<br>to the other page</div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <nav class="tabs">
+      <button class="tab active" data-pane="draw">draw</button>
+      <button class="tab" data-pane="search">search</button>
+      <button class="tab" data-pane="history">history</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+      <div class="pane active" id="pane-draw">
+        <div class="seg" id="modeSeg">
+          <button class="act" data-mode="kn">Kₙ · Harary–Hill</button>
+          <button class="act" data-mode="kmn">K_m,n · brickyard</button>
+        </div>
+        <div id="knCtl">
+          <div class="knob"><label for="n">n vertices</label><input type="range" id="n" min="3" max="24" step="1" value="7"><output id="nv"></output></div>
+          <div class="row">
+            <button class="act" id="optimal">paper's drawing</button>
+            <button class="act" id="scramble">scramble</button>
+            <button class="act" id="descend">descend</button>
+          </div>
+          <div class="legend"><span><i style="background:var(--up)"></i>above the spine</span><span><i style="background:var(--down)"></i>below</span><span><b style="background:var(--cross)"></b>a crossing</span></div>
+          <p class="note">Every vertex sits on one line and every edge is a half-circle above it or below it. Two edges cross exactly when they are on the same side and their ends alternate along the line. The paper's rule puts edge ij above when (i + j) mod n &lt; ⌊n/2⌋. Tap an edge to flip it, <em>scramble</em> to start from chaos, and <em>descend</em> to flip greedily until no single flip helps. You will not get below Hill's number. For drawings of this shape, that has been a theorem since 2013. The 2026 claim is that no drawing of any shape does better.</p>
+        </div>
+        <div id="kmnCtl" hidden>
+          <div class="knob"><label for="m">m kilns</label><input type="range" id="m" min="1" max="10" step="1" value="5"><output id="mv"></output></div>
+          <div class="knob"><label for="nn">n yards</label><input type="range" id="nn" min="1" max="10" step="1" value="5"><output id="nnv"></output></div>
+          <div class="row">
+            <button class="act" id="zaran">Zarankiewicz's drawing</button>
+            <button class="act" id="shake">scatter</button>
+          </div>
+          <div class="legend"><span><b style="background:var(--kiln);border-radius:1px"></b>kiln</span><span><b style="background:var(--yard)"></b>storage yard</span><span><b style="background:var(--cross)"></b>a crossing (a derailment)</span></div>
+          <p class="note">Every kiln needs a rail line to every yard, and every crossing of two lines is where trucks jump the rails. Zarankiewicz put the kilns on a horizontal axis and the yards on a vertical one, each split as evenly as possible across the middle. Drag any kiln or yard to try a better layout. The count is exact: the coordinates are compared with integer-safe orientation tests.</p>
+        </div>
+      </div>
+
+      <div class="pane" id="pane-search">
+        <p class="note" style="margin-top:0">This is the strongest check a browser can make. It tries <strong>every</strong> way to split Kₙ's edges between the two sides of the line and asks whether any split has fewer crossings than Hill's number. It's a branch-and-bound search: a partial split is abandoned as soon as the crossings it must already have reach the target. It runs in a background thread.</p>
+        <div class="knob"><label for="sn">n</label><input type="range" id="sn" min="4" max="11" step="1" value="9"><output id="snv"></output></div>
+        <div class="row"><button class="act" id="run">search</button></div>
+        <table class="facts" style="margin-top:0.6rem"><thead><tr><th>n</th><th>Hill</th><th>nodes</th><th>time</th><th>anything below?</th></tr></thead><tbody id="results"></tbody></table>
+        <p class="note">What a "no" means: no <em>two-page</em> drawing beats Hill's number for that n. Ábrego, Aichholzer, Fernández-Merchant, Ramos and Salazar proved that for every n in 2013. The 2026 claim covers every drawing at all, with curves routed however you like. A finite search cannot reach that, which is why the proof is a proof. <code>crossing.selftest.mjs</code> runs this search for every n up to 11 on each change.</p>
+      </div>
+
+      <div class="pane" id="pane-history">
+        <table class="facts"><thead><tr><th>n</th><th>Hill's number</th><th>status before 2026</th></tr></thead><tbody id="hist"></tbody></table>
+        <p class="note">The lower bound for every n was open. The best general results were ratios: at least 0.83 of Hill's number for large n (de Klerk et al., 2006), raised to more than 0.9855 (Balogh, Lidický and Salazar, 2019).</p>
+        <p class="note"><strong>Complete bipartite graphs.</strong> Kleitman (1970) settled every K_m,n with one side of at most 6. Woodall (1993) settled K₇,₇ and K₇,₉ by computer. The best balanced bound was cr(K_n,n) ≥ 0.9118·dₙ² + o(n⁴) (Balogh et al., 2023).</p>
+      </div>
+
+      <div class="pane prose" id="pane-about">
+        <h2>Turán's brickyard, 1944</h2>
+        <p>Pál Turán was doing forced labour at a brick factory near Budapest. Small trucks ran on rails from every kiln to every storage yard, and wherever two rail lines crossed, the trucks tended to jump the track. How should the lines be laid out to cross as little as possible? With m kilns and n yards this asks for the <em>crossing number</em> of the complete bipartite graph K_m,n.</p>
+        <p>Kazimierz Zarankiewicz drew the layout in the <em>draw</em> tab and published a proof that it was optimal, ⌊m/2⌋⌊(m−1)/2⌋⌊n/2⌋⌊(n−1)/2⌋ crossings, but the proof had a gap. The companion question for the complete graph Kₙ, every point joined to every other, came from Guy, Harary and Hill around 1960. It is Hill's formula: ¼⌊n/2⌋⌊(n−1)/2⌋⌊(n−2)/2⌋⌊(n−3)/2⌋. Matching drawings were found early. Proving that nothing does better stalled at small cases and asymptotic fractions for sixty years.</p>
+
+        <h2>The 2026 claim</h2>
+        <p>Two papers dated 23 September 2026, written by an internal OpenAI model and released on 6 October as part of <a href="https://github.com/openai/math">a collection of 722</a>, claim to finish both problems. One proves Hill's formula for every n. The other proves Zarankiewicz's formula for every m and n. Both are for <em>all</em> drawings: any curves, any vertex positions, with every crossing point counted.</p>
+
+        <h2>How it was checked</h2>
+        <p>Both main theorems are formalized in Lean. The release ships each one's statement as a short, separate file that a checker called Comparator compares the proof against, using only Lean's three standard axioms. The statement for Kₙ is 89 lines and defines everything from scratch: drawings as continuous paths in ℝ², crossings that are finite and transversal with no triple points, and the crossing number as the minimum over all such drawings. Its last lines are:</p>
+<pre>def hill (order : ℕ) : ℕ :=
+  (order / 2 * ((order - 1) / 2) * ((order - 2) / 2)
+    * ((order - 3) / 2)) / 4
+
+theorem complete_graph_crossing_number (order : ℕ)
+    (at_least_three : 3 ≤ order) :
+    ordinaryCrossingNumber (completeGraph order) = hill order</pre>
+        <p>This page's formulas are written exactly as those definitions are, floor division and all. We did not run the Lean check ourselves. It means building a 26-million-line library, which is the release's job and is reproducible from its repository. The papers are preprints, and the release itself says some of its results "could have issues". A formal statement narrows that a lot but does not remove the need for human reading.</p>
+
+        <h2>What this page checks</h2>
+        <p><code>crossing.js</code> is the only copy of the maths, and <code>crossing.selftest.mjs</code> holds it to 1,264 checks:</p>
+        <ul>
+          <li>The paper's two-page drawing has exactly Hill's number of crossings for every n up to 60.</li>
+          <li>The combinatorial count matches real semicircles intersected as curves, with no triple points.</li>
+          <li>The K₇ figure in the paper comes out at 2 crossings above and 7 below.</li>
+          <li>No two-page drawing beats Hill's number for n ≤ 11 (exhaustive search).</li>
+          <li>Zarankiewicz's drawing hits his formula for every m, n ≤ 14.</li>
+          <li>Random straight-line layouts never beat it.</li>
+        </ul>
+        <p>None of that proves the 2026 theorems. A finite search cannot. What it shows is that the drawings the theorems call optimal really achieve the claimed numbers, and that you cannot beat them by fiddling.</p>
+
+        <div class="crossref">
+          the collection · <a href="https://proofs.mino.mobi/">proofs</a> ·
+          family 165 papers · <a href="https://github.com/openai/math/blob/main/preprints/The-crossing-number-of-complete-graphs-September-23-2026/paper.pdf">Kₙ</a> ·
+          <a href="https://github.com/openai/math/blob/main/preprints/The-crossing-number-of-complete-bipartite-graphs-September-23-2026/paper.pdf">K_m,n</a> ·
+          sisters · <a href="https://math.mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> · <a href="https://math.mino.mobi/conjectures/">conjectures</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as C from './crossing.js';
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+const S = { mode: 'kn', n: 7, pages: C.endpointSumPages(7), m: 5, nn: 5, kilns: null, yards: null };
+let XS = C.genericPositions(7, 7);
+
+// ============================================================ layout & draw ==
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0, dpr = 1;
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+// K_n view: spine across the middle, vertices spread along it
+function knFrame() {
+  const pad = 26, span = (S.n - 1) || 1;
+  const sx = (W - 2 * pad) / span;
+  // the tallest arc has radius span/2 · sx; fit it in half the height below the score
+  const yMid = H * 0.56, maxR = Math.min((span / 2) * sx, yMid - 52, H - yMid - 28);
+  const k = maxR / ((span / 2) * sx);
+  return { X: (x) => pad + x * sx, yMid, k, sx };
+}
+function drawKn() {
+  const { X, yMid, k } = knFrame();
+  const E = C.completeEdges(S.n), P = S.pages;
+  const { count, pairs } = C.twoPageCrossings(S.n, P, { list: true });
+  const hot = new Set(pairs.flat());
+  ctx.lineWidth = 1.6;
+  E.forEach(([i, j], e) => {
+    const a = X(XS[i]), b = X(XS[j]), cx = (a + b) / 2, r = (b - a) / 2;
+    ctx.strokeStyle = P[e] === 0 ? css('--up') : css('--down');
+    ctx.globalAlpha = hot.has(e) ? 0.95 : 0.45;
+    ctx.beginPath();
+    ctx.ellipse(cx, yMid, r, r * k, 0, Math.PI, 0, P[e] !== 0);   // above: π→0 anticlockwise flag false; below: reversed
+    ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = css('--faint'); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(8, yMid); ctx.lineTo(W - 8, yMid); ctx.stroke();
+  // crossings, located on the real (vertically scaled) curves
+  const pts = C.semicirclePoints(S.n, P, XS.map((x) => X(x)));
+  ctx.fillStyle = css('--cross');
+  for (const p of pts) { ctx.beginPath(); ctx.arc(p.x, yMid - p.y * k, 2.6, 0, 2 * Math.PI); ctx.fill(); }
+  ctx.fillStyle = css('--fg');
+  ctx.font = `10px ${css('--mono')}`; ctx.textAlign = 'center';
+  XS.forEach((x, i) => {
+    ctx.beginPath(); ctx.arc(X(x), yMid, 3.6, 0, 2 * Math.PI); ctx.fill();
+    if (S.n <= 16) ctx.fillText(String(i), X(x), yMid + 15);
+  });
+  return count;
+}
+// K_{m,n} view: world coords roughly [-6,6]², drawn square in the stage
+function kmnFrame() {
+  const s = Math.min(W, H - 40) / 13;
+  return { s, ox: W / 2, oy: H / 2 + 14, toPx: ([x, y]) => [W / 2 + x * s, H / 2 + 14 - y * s], toW: (px, py) => [(px - W / 2) / s, (H / 2 + 14 - py) / s] };
+}
+function drawKmn() {
+  const { toPx, s } = kmnFrame();
+  ctx.strokeStyle = css('--rule'); ctx.lineWidth = 1;
+  const [x0, y0] = toPx([-6.2, 0]), [x1] = toPx([6.2, 0]), [, ya] = toPx([0, 6.2]), [, yb] = toPx([0, -6.2]), [ox] = toPx([0, 0]);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.moveTo(ox, ya); ctx.lineTo(ox, yb); ctx.stroke();
+  ctx.strokeStyle = css('--fg'); ctx.globalAlpha = 0.38; ctx.lineWidth = 1.2;
+  for (const a of S.kilns) for (const b of S.yards) { const p = toPx(a), q = toPx(b); ctx.beginPath(); ctx.moveTo(...p); ctx.lineTo(...q); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  const { count, points } = C.bipartiteCrossings(S.kilns, S.yards, { list: true });
+  ctx.fillStyle = css('--cross');
+  for (const p of points) { const [x, y] = toPx(p); ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 2 * Math.PI); ctx.fill(); }
+  const r = Math.max(5, Math.min(8, s * 0.22));
+  ctx.fillStyle = css('--kiln');
+  for (const a of S.kilns) { const [x, y] = toPx(a); ctx.fillRect(x - r, y - r, 2 * r, 2 * r); }
+  ctx.fillStyle = css('--yard');
+  for (const b of S.yards) { const [x, y] = toPx(b); ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill(); }
+  return count;
+}
+function draw() {
+  resize();
+  ctx.fillStyle = css('--stage'); ctx.fillRect(0, 0, W, H);
+  const count = S.mode === 'kn' ? drawKn() : drawKmn();
+  const target = S.mode === 'kn' ? C.hill(S.n) : C.zarankiewicz(S.m, S.nn);
+  $('big').textContent = count;
+  $('score').classList.toggle('at', count === target);
+  $('vs').textContent = S.mode === 'kn'
+    ? `crossings · Hill's number for K${sub(S.n)} is ${target}`
+    : `crossings · Zarankiewicz for K${sub(S.m)},${sub(S.nn)} is ${target}`;
+  $('verdict').textContent = count < target
+    ? 'below the claimed minimum: this would be a counterexample. Please report it!'
+    : count === target ? 'at the claimed minimum' : `${count - target} above the claimed minimum`;
+}
+const sub = (k) => String(k).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]);
+
+// ============================================================== interaction ==
+function hitEdge(px, py) {
+  const { X, yMid, k } = knFrame();
+  let best = -1, bd = 14;
+  C.completeEdges(S.n).forEach(([i, j], e) => {
+    const above = S.pages[e] === 0;
+    if (above ? py > yMid + 2 : py < yMid - 2) return;
+    const a = X(XS[i]), b = X(XS[j]), cx = (a + b) / 2, r = (b - a) / 2;
+    const dx = (px - cx) / r, dy = (py - yMid) / (r * k);
+    const d = Math.abs(Math.hypot(dx, dy) - 1) * r;
+    if (d < bd) { bd = d; best = e; }
+  });
+  return best;
+}
+let dragging = null;
+cv.addEventListener('pointerdown', (e) => {
+  const rect = cv.getBoundingClientRect(), px = e.clientX - rect.left, py = e.clientY - rect.top;
+  $('hint').classList.add('gone');
+  if (S.mode === 'kn') {
+    const h = hitEdge(px, py);
+    if (h >= 0) { S.pages[h] ^= 1; draw(); }
+    return;
+  }
+  const { toPx } = kmnFrame();
+  const all = [...S.kilns.map((p, i) => ['kilns', i, p]), ...S.yards.map((p, i) => ['yards', i, p])];
+  let best = null, bd = 22;
+  for (const [set, i, p] of all) { const [x, y] = toPx(p); const d = Math.hypot(x - px, y - py); if (d < bd) { bd = d; best = [set, i]; } }
+  if (best) { dragging = best; cv.setPointerCapture(e.pointerId); }
+});
+cv.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const rect = cv.getBoundingClientRect(), { toW } = kmnFrame();
+  const w = toW(e.clientX - rect.left, e.clientY - rect.top).map((v) => Math.max(-6, Math.min(6, v)));
+  S[dragging[0]][dragging[1]] = w; draw();
+});
+const up = () => { dragging = null; };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+
+function setMode(m) {
+  S.mode = m;
+  for (const b of $('modeSeg').children) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
+  $('knCtl').hidden = m !== 'kn'; $('kmnCtl').hidden = m !== 'kmn';
+  $('hint').innerHTML = m === 'kn' ? 'tap an edge to move it<br>to the other page' : 'drag a kiln or a yard';
+  $('hint').classList.remove('gone');
+  draw(); pushURL();
+}
+for (const b of $('modeSeg').children) b.addEventListener('click', () => setMode(b.dataset.mode));
+function setN(n) { S.n = n; S.pages = C.endpointSumPages(n); XS = C.genericPositions(n, n); $('nv').textContent = n; $('n').value = n; draw(); pushURL(); }
+$('n').addEventListener('input', (e) => setN(+e.target.value));
+$('optimal').addEventListener('click', () => { S.pages = C.endpointSumPages(S.n); draw(); });
+$('scramble').addEventListener('click', () => { S.pages = S.pages.map(() => (Math.random() < 0.5 ? 0 : 1)); draw(); });
+$('descend').addEventListener('click', () => { S.pages = C.descend(S.n, S.pages); draw(); });
+function zar() { const d = C.zarankiewiczDrawing(S.m, S.nn); S.kilns = d.kilns; S.yards = d.yards; }
+function setMN() { $('mv').textContent = S.m; $('nnv').textContent = S.nn; $('m').value = S.m; $('nn').value = S.nn; zar(); draw(); pushURL(); }
+$('m').addEventListener('input', (e) => { S.m = +e.target.value; setMN(); });
+$('nn').addEventListener('input', (e) => { S.nn = +e.target.value; setMN(); });
+$('zaran').addEventListener('click', () => { zar(); draw(); });
+$('shake').addEventListener('click', () => {
+  S.kilns = S.kilns.map(() => [Math.random() * 10 - 5, Math.random() * 10 - 5]);
+  S.yards = S.yards.map(() => [Math.random() * 10 - 5, Math.random() * 10 - 5]);
+  draw();
+});
+
+for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => {
+  for (const u of document.querySelectorAll('.tab')) u.classList.toggle('active', u === t);
+  for (const p of document.querySelectorAll('.pane')) p.classList.toggle('active', p.id === 'pane-' + t.dataset.pane);
+});
+
+// ================================================================= search ===
+$('sn').addEventListener('input', (e) => { $('snv').textContent = e.target.value; });
+$('snv').textContent = $('sn').value;
+let worker = null;
+$('run').addEventListener('click', () => {
+  const n = +$('sn').value;
+  if (worker) worker.terminate();
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${n}</td><td>${C.hill(n)}</td><td>…</td><td>…</td><td>searching</td>`;
+  $('results').prepend(tr);
+  try { worker = new Worker('./search.worker.js', { type: 'module' }); }
+  catch {
+    // no module workers: run inline (fine up to n = 10)
+    const t = performance.now(), r = C.twoPageMinimum(n, { target: C.hill(n) });
+    tr.innerHTML = `<td>${n}</td><td>${C.hill(n)}</td><td>${r.nodes.toLocaleString()}</td><td>${Math.round(performance.now() - t)} ms</td><td class="${r.witness ? 'bad' : 'good'}">${r.witness ? 'YES' : 'no'}</td>`;
+    return;
+  }
+  worker.onmessage = (ev) => {
+    const d = ev.data;
+    if (d.progress) { tr.children[2].textContent = d.progress.toLocaleString() + '+'; return; }
+    tr.innerHTML = `<td>${n}</td><td>${C.hill(n)}</td><td>${d.nodes.toLocaleString()}</td><td>${d.ms < 1000 ? Math.round(d.ms) + ' ms' : (d.ms / 1000).toFixed(1) + ' s'}</td><td class="${d.below ? 'bad' : 'good'}">${d.below ? 'YES — report it' : 'no'}</td>`;
+  };
+  worker.onerror = (ev) => { tr.children[4].textContent = 'worker failed: ' + (ev.message || 'unknown'); };
+  worker.postMessage({ n });
+});
+
+// ================================================================ history ===
+$('hist').innerHTML = Array.from({ length: 14 }, (_, k) => k + 3).map((n) => {
+  const k = C.KN_KNOWN.find((x) => n <= x.upTo);
+  return `<tr><td>${n}</td><td>${C.hill(n)}</td><td>${k ? `proved · ${k.who}, ${k.year}` : '<span class="bad">open</span> (claimed 2026)'}</td></tr>`;
+}).join('') + `<tr><td>all n</td><td>¼⌊n/2⌋⌊(n−1)/2⌋⌊(n−2)/2⌋⌊(n−3)/2⌋</td><td>claimed 2026, Lean-formalized</td></tr>`;
+
+// ==================================================================== URL ===
+function pushURL() {
+  const q = S.mode === 'kn' ? `#kn=${S.n}` : `#kmn=${S.m},${S.nn}`;
+  history.replaceState(null, '', q);
+}
+function readURL() {
+  const h = location.hash.slice(1);
+  const a = h.match(/^kn=(\d+)$/), b = h.match(/^kmn=(\d+),(\d+)$/);
+  if (a) { const n = Math.max(3, Math.min(24, +a[1])); S.n = n; S.pages = C.endpointSumPages(n); XS = C.genericPositions(n, n); }
+  if (b) { S.mode = 'kmn'; S.m = Math.max(1, Math.min(10, +b[1])); S.nn = Math.max(1, Math.min(10, +b[2])); }
+}
+readURL();
+$('nv').textContent = S.n; $('n').value = S.n;
+$('mv').textContent = S.m; $('nnv').textContent = S.nn; $('m').value = S.m; $('nn').value = S.nn;
+zar();
+setMode(S.mode);
+window.addEventListener('resize', draw);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+</script>
+</body>
+</html>

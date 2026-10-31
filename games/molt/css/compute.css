@@ -1,0 +1,28 @@
+/* Ouroboros computes — on top of molt.css: the tape, the path, the status, the program form. */
+#actions { flex-wrap: wrap; right: 172px; }
+@media (max-width: 520px) { #actions { right: 128px; } }
+#status { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 4; font-family: var(--mono);
+  font-size: 12px; text-align: center; background: var(--surface); border: 1px solid var(--border); padding: 6px 12px; border-radius: 8px; width: max-content; max-width: calc(100% - 16px); }
+#status:empty { display: none; }
+#status.done { border-color: var(--accent2); color: var(--accent2); }
+#status.broken { border-color: var(--warn); color: var(--warn); }
+#path, #tape { font-family: var(--mono); font-size: 12px; padding: 5px 12px; white-space: nowrap; overflow: hidden; display: flex; border-top: 1px solid var(--border); min-height: 1.9em; align-items: center; }
+#path { color: var(--dim); justify-content: flex-start; }
+#path b { color: var(--accent); font-weight: 700; }
+#tape { justify-content: flex-start; padding-bottom: calc(5px + env(safe-area-inset-bottom)); gap: 1px; }
+#tape span { flex: none; width: 1.35ch; text-align: center; border-radius: 3px; }
+#tape .a { color: #7aa2ff; } #tape .b { color: var(--accent); } #tape .c { color: var(--pink); }
+#tape .read { background: rgba(95,214,196,0.25); outline: 1px solid var(--accent2); }
+#tape .new { background: rgba(242,184,75,0.16); }
+.form { display: flex; flex-direction: column; gap: 10px; max-width: 34em; width: 100%; text-align: left; }
+.form label { font-family: var(--mono); font-size: 13px; color: var(--text); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.form input, .form select { font-family: var(--mono); font-size: 14px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+.form input[type=number] { width: 6em; } .form input[type=text] { flex: 1 1 12em; min-width: 0; }
+.form details { color: var(--dim); font-size: 13px; } .form summary { cursor: pointer; font-family: var(--mono); }
+.form details[open] > label { margin-top: 8px; }
+.rule { display: grid; grid-template-columns: 6.5em 1fr; gap: 6px 12px; align-items: center; }
+.rule .rl { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.seg { display: flex; border: 1px solid rgba(139,147,168,0.35); border-radius: 8px; overflow: hidden; width: max-content; }
+.seg button { font-family: var(--mono); font-size: 12px; font-weight: 700; padding: 7px 12px; border: 0; background: rgba(5,6,10,0.75); color: var(--text); cursor: pointer; }
+.seg button + button { border-left: 1px solid rgba(139,147,168,0.35); }
+.seg button.on { background: var(--accent2); color: var(--bg); }

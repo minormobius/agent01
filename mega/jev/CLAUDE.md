@@ -34,7 +34,9 @@ space onto classifiable axes — had nowhere to live.
 | `/jev/` | the index: what each experiment found, the two rules, the axis-shape table |
 | `/jev/delve/` | **the dungeon**, moved here from the root |
 | `/jev/lab/` | the market harness |
+| `/jev/lab/plans/` | **the trading floor**: plans with targets and stops, replayed on recorded tapes (§ The trading floor) |
 | `/jev/composer/` | the procgen composer |
+| `/jev/craft/` | **craft** — a headless Minecraft-like on foam's tilings, built for a System 1 / System 2 split (§ craft) |
 
 Things that moved with the dungeon and must stay together: `app.js`,
 `delve.mjs`, `scene.mjs`, `character.mjs`, `memory.mjs`, `telemetry.mjs`,
@@ -82,7 +84,7 @@ redefined where the surface lived instead of reporting a blocked deploy.)
 | | |
 |---|---|
 | deploys via | `.github/workflows/deploy-mega.yml`, on **`mega/**`** paths |
-| owning branch | `claude/jev-demo-website-pw3us1` — **this branch now owns the whole `mega` surface**, transferred from `claude/integrate-v091-v092-v093-4yie2i`. A surface has exactly one owning branch, and jev cannot deploy unless the branch that owns mega is the one carrying it. |
+| owning branch | `claude/jev-minecraft-headless-9sbgxk` — **this branch owns the whole `mega` surface**, transferred 2026-09-25 from `claude/jev-demo-website-pw3us1` (and before that from `claude/integrate-v091-v092-v093-4yie2i`). `jev-prereg.yml` checks out, commits to and **deploys mega from** the owning branch by name, and it runs from `main`'s copy — so its branch name must match this row *on main*, or it redeploys mega from a stale tree twice a day. A surface has exactly one owning branch, and jev cannot deploy unless the branch that owns mega is the one carrying it. |
 | the API key | a Cloudflare secret on the **`mega`** worker, not a `jev` one |
 | the tests | run from `mega/`, and the worker selftest drives the **real `mega/worker.js`** — so it also asserts that mounting jev has not disturbed `/sprite/api` or `/bees/api` |
 | assets | `mega/.assetsignore` excludes `jev/CLAUDE.md` and `jev/test/`. jev's own `.assetsignore` was deleted; that file only has effect at the root of `assets.directory`, which is `mega/`. |
@@ -253,6 +255,1702 @@ answer in `offlineAnswers()` too, or the stand-in test that asserts the
 stand-in answers every question asked will fail — which is the point.
 
 Mind the worker's `MAX_QUESTIONS` cap (12) if the set ever grows.
+
+---
+
+## Craft: a Minecraft-like on foam's tilings (2026-09-25)
+
+**The goal** (the operator's): Jev plays Minecraft as a **System 1** reactive
+engine, choosing from a palette of **macros** that System 2 (Claude) writes.
+The same shape as the dungeon, with a much larger state. Step one was a
+Minecraft that runs headlessly and can still be drawn the usual way. That
+step is built. **Jev is not wired in yet.** The autopilot on the page is a
+scripted baseline, and the page says so.
+
+**Why our own engine and not real Minecraft + Mineflayer:** determinism
+(seeded, replayable, and the selftest is the contract), it runs anywhere with
+no Java server, it deploys as a mega sub-site, and above all **the ground can
+be any of foam's ten tilings**. A column is one tile; `y` stacks prism
+voxels on it. Everything lateral runs on the tile-adjacency graph: walking,
+reach, tree crowns (graph balls), ore veins (graph random walks), zombie
+pathing. A Penrose world is not a skin over a grid; its rules are Penrose.
+
+### Three layers, and which one Jev sees
+
+| layer | file | what it is |
+|---|---|---|
+| 1 world | `craft/sim.mjs` | authoritative, headless, deterministic. Discrete ticks (≈¼ s, one step), actions cost ticks and the world moves under them |
+| 2 stream | `sim.lines` | one JSON line per tick that changed anything, after a header naming the world params. The viewer and replays read only this |
+| 3 perception | *not built yet* | computed facts + a typed `choice` over macros + `noul` interrupts. **This is the only layer Jev will see** |
+
+Jev never sees voxels. That is the compute-first rule again (62.5% → 100%):
+the macros and perception do the pathfinding, counting and searching, and the
+model only decides.
+
+### Files
+
+| file | holds |
+|---|---|
+| `craft/tiling.mjs` | **a port of foam's ten `TILE_SHAPES`**, same constants and centre conventions, plus vertex welding and adjacency. It's a port because mega's assets can't import across surfaces. `craft.selftest` imports `foam/dungeon.mjs` directly and asserts **the same tile centres for every shape**, so if foam changes a tiling, that test breaks. Foam is owned by `claude/foam-dungeon-generator-aoaz0j`; don't edit it from here |
+| `craft/world.mjs` | blocks, recipes (**bags, not shapes**, since a grid recipe means nothing on a Penrose floor), the seeded island generator, `worldSignature`. `CRAFT_VERSION` + per-shape signature pins: moving what a seed generates means bumping the version |
+| `craft/sim.mjs` | the rules, `act()` (one primitive action run to completion; refusals are free and say why), mobs, hunger, day/night, `path` (walk-only BFS), **`digPath`** (Dijkstra where mining costs its ticks, so it tunnels only where tunnelling is cheaper; **never opens a block that touches water**), and `Replay` |
+| `craft/macros.mjs` | the palette. 18 macros in three modes (below), each a generator that yields primitive actions, with `needs()` saying why it can't run. Also: `goTo` (digs where cheaper), `visible()` (no x-ray: only open-faced blocks in columns the player has seen), `shortfall()` (raw materials missing, all the way down the recipe tree, stations included), `planHouse` / `sealed`. Every macro must fail cleanly and hold no mid-sequence state, because it can be interrupted between any two actions |
+| `craft/mind.mjs` | **layer 3, what Jev sees**: `perceive()` (a ~1 KB state of computed facts: time to dusk, threats, what is in sight and how far, the ladder and what its next rung is short of, a journal of its own last six decisions), `options()` (concrete choices from the legal macros, each labelled with what it yields, roughly how long it takes, what it advances, and whether it goes out among zombies at night), `buildQuestions()` (`next` choice, `danger` score, `have` self-check), `resolve()` (the gate, and the honest source stamp), `playMind()` (the async loop the page and the eval share), and the deciders: `jevDecider` (the proxy), baseline, offline stand-in, random |
+| `craft/party.mjs` | the multiplayer scheduler: several players on one clock, each action a `sim.plan` (§ Multiplayer) |
+| `craft/plants.mjs` | habitats (soil, tile shape, cover), growth conditions, growth checks, harvest drops (§ Long-range goals) |
+| `craft/projects.mjs` | tech / grow / explore / automate as steps with option tokens, the per-option `project` fact, the slow `project` question (§ Long-range goals) |
+| `craft/machines.mjs` | what runs with nobody there: furnaces and hoppers as containers, redstone power along the tile graph, repeaters, observers, pistons, sugar cane growth, rail lines (§ Automation on a graph) |
+| `craft/builds.mjs` | what a player builds near home, each laid out by a site search on the tile graph: the pen, stations, the enchanting corner, the smelter, the self-harvesting cane farm, the railway (§ Automation on a graph) |
+| `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
+| `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
+| `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
+| `craft/segment.mjs` | reads a recorded game back as episodes named in the palette's terms, whoever played it (§ Reading a human's game) |
+| `test/craft-segment.mjs` | the CLI for it: `run.jsonl`, `--score`, `--json` |
+| `test/craft.selftest.mjs` | 518 checks, a few minutes, gates the deploy (the arena, multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter, tools, access shafts, renewal, boats, threats, pens, experience and enchanting, the anvil, furnaces, redstone, pistons, observers, hoppers, cane, the machines, rails) |
+| `eval/craft-machines.mjs` | headless: does each build lay out and work on every tiling, and what it buys; writes `lab/craft-machines.json` |
+| `craft/arena.mjs` | player against player: Bed Wars on a tiling. The rules (`ArenaRules`, hooked into the sim at death, mining, attacking, buying and the tick), the arena's own palette, the scripted policies and the match runner (`playMatch`, `playMatchAsync`) (§ The arena) |
+| `craft/arena-mind.mjs` | what Jev sees in the arena: `arenaState`, `arenaOptions` (each option's facts computed), `arenaQuestions`, and `jevArena`, the decider |
+| `eval/craft-arena.mjs` | the league: every policy against every other on every tiling, both sides, Wilson intervals, Bradley–Terry ratings, the mirror-match side check; writes `lab/craft-arena.json` |
+| `eval/craft-arena-jev.mjs` | Jev against the scripts, both sides of every world; **spends real budget** (`--stub` doesn't); writes `lab/craft-arena-jev.json` |
+| `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
+| `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
+
+### The stream
+
+```
+{"t":"craft","v":1,"seed":2,"shape":"truncsq","radius":28,"H":40,"sig":"c16cd73e","spawn":1226,"day":4800,"night":3000}
+{"k":51,"e":[["do","mine",1526,19,6]]}
+{"k":57,"e":[["b",1526,19,0],["inv",{"log":7}]]}
+```
+
+Events: `b` block, `p` moved, `+`/`-` entity in/out, `hp`, `food`, `inv`
+(whole inventory), `do` (the action begun), `hit`, `die`, `note` (macro
+start and end, dusk, dawn, and later Jev's questions and answers). The header
+carries the world signature, so a replay against a drifted generator fails
+loudly instead of drawing a different world.
+
+### The palette: mine, explore, homestead (2026-09-25, round two)
+
+Minecraft has three things you do, with components under each. The palette is
+**data**, not a list of functions. Each entry carries its `mode`, a one-line
+`doc`, and `needs(sim, args)` → `null` or the reason it can't run now. The
+viewer greys illegal macros out with that reason as the tooltip, and
+`legalMacros()` is where Jev's `choice` options will come from. A choice
+should never offer a trap.
+
+| mode | macros |
+|---|---|
+| mine | `mine_stone` (staircase), `mine_coal` (coal in sight first, else dig), `mine_iron` (ore in sight, then staircase, then a branch tunnel if boxed in), `branch_mine` (a straight torch-lit tunnel through rock: goes down first, out the door first if indoors), `surface` (the digging planner aimed at open sky) |
+| explore | `explore` (to the edge of the seen, with a heading), `scout` tree / pig / coal / iron / sand, `gather_wood` (scouts if no tree is in reach), `hunt` (scouts for pigs), `go_home` |
+| homestead | `craft` (recursive, picks between recipe alternatives, builds stations), `build_house`, `light_area`, `set_home`, `dig_in`, `sleep_until_dawn`, `eat`, `fight` |
+
+**New blocks and recipes:** a **door** (open to the player, shut to every
+mob: `BLOCKS.door.mobSolid`, threaded through `passable/canStand/stepTarget/
+path` as a `mob` flag), **glass** (from sand at a furnace), and **charcoal**
+(from a log at a furnace). Recipes can carry `alt` bags, so a torch is coal
+*or* charcoal plus a stick. You can light a house without ever going
+underground.
+
+**`seen`.** Every column within `SIGHT` (10) of where the player has stood. It
+is derived from positions, so it needs no stream events. Explore walks its
+frontier. `visible()` only reports blocks in seen columns that have an open
+face, so buried ore is found by digging.
+
+**The house is a graph blueprint, which is why it works on a Penrose floor.**
+Centre `c0`, floor layer `g`. The **interior** is the ball of radius 1, the
+**wall** is the ring at hop 2, and everything is roofed at `g+2`. Interior
+height is 2, the player's height, so every block can be placed from inside
+(reach is feet−1 … head+1). A door goes in a ring column that has open ground
+outside it, and glass windows go in if you carry glass. Site choice is the
+cheapest plan among seen columns within 14 (fill ≤ 1, cut ≤ 2, no water, not
+the world rim). Existing rock in the wall line is kept as wall, so houses dig
+into hillsides. It is **proven, not assumed**: `sealed()` runs a mob-mode path
+from inside to outside and the house only counts if there is none. The shapes
+are the tilings': penrose 5 interior / 7 wall, kagome 7 / 6, truncsq 5 / 16.
+
+**Things this round found, each fixed at the root:**
+- `sleep_until_dawn` was one 1,800-tick `wait`, so the interrupt check never
+  ran and a zombie got five free hits. Waits are now 20-tick chunks.
+- `branch_mine` started indoors and tunnelled out through the wall, and the
+  digging planner would cut through walls as a shortcut. A finished house's
+  walls, roof and floor go in `sim.protect`, which `clearCost` refuses.
+  Indoors, the branch mine walks out the door first.
+- Pigs: one on the site's centre, one penned by half-built walls, one on the
+  wall line. The builder clears the footprint first (the pigs become food),
+  and a blocked goal attacks an adjacent pig.
+- `shortfall` counted held items and its callers subtracted them again. It is
+  now defined as "to end up **holding** q", and a station neither near nor
+  carried counts.
+- Respawn is at home when there is one: the house is the bed. This ended a
+  25-deaths-in-3-days loop of respawning at spawn among zombies at night.
+
+### Measured: the baseline, headless (2026-09-25)
+
+**Round one, the ladder** (wood → wooden pick → stone pick → iron pick),
+20 seeds × 10 tilings: **198 / 200** reached the iron pickaxe. Deaths varied
+wildly by tiling (hex 2, snub 35 over 20 worlds). The first sweep managed
+26 / 50, and every failure was an engine or macro fault.
+
+**Round two, a life** (ladder → sword → coal and torches → iron → house →
+light → daily explore / hunt / branch-mine, home by dusk). 3 seeds × 10
+tilings × 3 in-game days:
+
+| | |
+|---|---|
+| iron pickaxe | **30 / 30** |
+| a sealed house | **30 / 30** (60 / 60 when `build_house` is handed materials directly) |
+| deaths | **0** |
+| stuck runs | **0** |
+| island explored | ~99% |
+
+**Read the zeros carefully: at this difficulty survival no longer separates
+policies.** The scripted baseline with a house, a sword and torches doesn't
+die. For the Jev scoreboard to mean anything it needs a harder setting (more
+zombies, faster hunger, zombies that break doors, a smaller island) or a
+metric that still spreads: ticks to each milestone, resources at day N, what
+got built. That is a decision to make before running Jev, not after.
+
+### Jev in the seat: the decision layer (2026-09-26)
+
+`mind.mjs` is layer 3. At every macro boundary and every interrupt, one call:
+
+| question | primitive | role |
+|---|---|---|
+| `next` | `choice` over concrete options (`craft_torch`, `scout_pig`, `build_house`, …) built from the **legal** macros | the only answer that acts |
+| `danger` | `score`, 4 ordered levels | telemetry |
+| `have` | `noul` self-check | recorded, never gated on (in a chain it sticks, see "Composition") |
+
+Each option's criteria are **computed facts**: what it yields, roughly how long
+it takes, what it `advances` on the ladder ("completes the next rung:
+stone_pickaxe"), whether it goes out among zombies at night, and `last_tried`
+if it failed recently. The state is ~1 KB (time to dusk, threats, in-sight
+distances, the ladder and what the next rung is short of, the last six
+decisions). A whole request is ~3 KB. The page's decider selector, the
+scoreboard and the selftest all run the same `playMind()`. Every decision goes
+into the stream as a `jev` note stamped with its real source.
+
+**The scoreboard** (`eval/craft-gate.mjs`) runs Jev **ungated** (every pick
+is its own, and `below_gate` counts where the 0.45 gate would have fired),
+the baseline, the offline stand-in, and random, on the same worlds at `hard`.
+The score is mean ticks to each of 9 rungs (unreached = the budget). Live runs
+are paced under the proxy's 30/min: ~100–300 decisions per in-game day.
+
+### What the live runs found (v1 → v2 → v3)
+
+Each run turned up a **harness** fault. The pattern is this file's oldest:
+Jev behaving badly was Jev being handed a bad option set.
+
+1. **The first 12 decisions were coherent.** Wood → wooden pick → stone →
+   stone pick → sword → torches → iron pick at tick 525, level with the
+   baseline's 518, in a sensible order.
+2. **`light_area` chosen six times running, each failing after ~264 ticks.**
+   The player was deep in a mine far from home, and the option still read
+   "advances the lit_grounds rung". Fixed: the macro walks home first, and
+   options carry `last_tried`. The same run found `lit_grounds` could only be
+   earned through the *baseline's own* bookkeeping flag, which no other
+   decider could set.
+3. **`mine_stone` picked 187 times, doing nothing each time.** Its target (60
+   cobblestone) was already held, so it finished instantly, "ok". Confidence
+   sat at ~0.2 because past the ladder every option read "advances nothing".
+   That was the question's fault, the delve lesson again. Fixed: quantities
+   always ask for more than is held, instant no-ops drop off the menu, and
+   goals continue past the ladder (`iron_sword`, `explored`).
+4. **A furnace placed beside the door sealed a house for the rest of the
+   run.** `surface` was chosen 109 times, all "no way up". Fixed: stations
+   never go on the centre or beside the door, the way out is re-checked, and
+   the planner may mine stations.
+5. **Doorways over holes**: you could fall out and never climb back in. The
+   builder now lays a threshold and proves the way back in.
+6. **The most interesting one: an option labelled `last_tried: FAILED …
+   would block the door` was picked 323 times in a row**, confidence
+   0.2–0.49. Putting the failure *on the option* was the fix that worked for
+   the dungeon's rope. **Here it did not change the choice.** So the harness
+   stops offering it: an option that just failed from the same spot with the
+   same inventory is withheld until something changes. Traps are removed,
+   not labelled. (Why the label didn't work is open. The failure reason may
+   read as incidental next to "completes the next rung", which it also
+   carried.)
+
+**v2, 4 worlds × 1 hard day** (after faults 1–3; the baseline arm here
+predates the baseline's own wood-first fix):
+
+| decider | mean ticks-to-rung | rungs | deaths |
+|---|---|---|---|
+| baseline | 872 | 34/36 | 0 |
+| offline stand-in | 1130 | 34/36 | 0 |
+| **Jev** | **1468** | 30/36 | 0 |
+| random | 1974 | 30/36 | 3 |
+
+Per world, Jev was close to or level with the baseline where the harness held:
+hex 841 vs 824, truncsq 945 vs 570, penrose 1167 vs 569. Kagome was fault 6
+(4/9 rungs, 323 wasted picks). Mean confidence 0.36–0.40, and 60–90% of picks
+below the 0.45 gate. Jev is choosing among options it finds close, which is
+still a statement about the option set.
+
+**v3, the same 4 worlds × 1 hard day, after all six fixes**
+(`lab/craft-gate.json`):
+
+| decider | mean ticks-to-rung | rungs | deaths |
+|---|---|---|---|
+| baseline | 872 | 34/36 | 0 |
+| **Jev** | **931** | **36/36** | 0 |
+| offline stand-in | 949 | 36/36 | 0 |
+| random | 1929 | 31/36 | 1 |
+
+| world | baseline | Jev | random |
+|---|---|---|---|
+| penrose/3 | **569** | 808 | 1310 |
+| hex/2 | 824 | **802** | 2296 |
+| truncsq/2 | **570** | 945 | 2320 |
+| kagome/4 | 1527 (7/9) | **1170** | 1790 |
+
+**What this does and does not say.** Jev, choosing zero-shot from a written
+option set, plays within 7% of a policy I hand-wrote for this game, reaches
+every rung the script misses, and roughly halves random's time. It is ahead on
+two worlds and clearly behind on two. Where it is behind, the gap is mostly
+**stone pickaxe at ~610–630 against the baseline's ~200**: Jev spends the
+early game gathering wood and building before it mines. That is a legitimate
+order that the scoring happens to punish.
+
+The caveats outrank the table:
+- **4 worlds, 1 run each.** Jev is deterministic, so a rerun of the same
+  world is the same game. The only way to more n is more worlds.
+- **The harness was fixed in response to these same 4 worlds.** Every fault
+  above was found on them. The next run has to be **held-out worlds**, or
+  this is tuning to the test.
+- The offline stand-in (the baseline's choices, projected onto the same
+  options) scores 949, almost exactly Jev's 931. Being about as good as the
+  script's logic expressed through the menu is a real result, and it is
+  not the same as being better.
+- Confidence stays ~0.40 with 55–70% of picks below 0.45. On kagome (fewer,
+  longer decisions) it was 0.59. The option set still reads as close calls to
+  it, and that is the next thing to work on, per this file's oldest lesson.
+- Survival didn't separate anyone (0–1 deaths everywhere, even on hard).
+
+### Playing it yourself (2026-09-26)
+
+"who decides → you (play it yourself)" makes the page a game. **Every input
+is a primitive `sim.act()`**, the same call macros and Jev use, costing the
+same ticks. A human game streams, replays and could be scored exactly like any
+other. Controls: WASD, mouse look (pointer lock), left click mine/hit, right
+click place, 1–9 or scroll for the hotbar, F eat, C crafting panel, V
+first/third person, Esc to let go. The macros stay clickable and run until you
+touch the controls.
+
+Three things that make it work on a tiling, and one that bit:
+- **WASD on a tile graph**: a key steps to the neighbour whose direction best
+  matches the camera-relative wish (cos ≥ 0.35). It works the same on Penrose
+  rhombs and octagons, and step-ups happen automatically (`stepTarget`).
+- **Aiming**: the view ray is marched through the prism voxels in 0.04
+  steps, via `columnLocator`, past mobs' body cylinders. It returns the first
+  thing hit and the empty voxel before it (where a block goes). The aimed
+  prism is outlined, red when out of reach.
+- **Time stays honest**: the clock runs in real time, an action is taken only
+  when the sim has caught up with it, and live stream lines go through an
+  `outbox`, revealed as the clock reaches their tick. A stone block with a
+  wooden pick takes a visible two seconds, and the crosshair becomes its
+  progress bar. This gating applies to every live mode, not just yours.
+- **The bug**: the first "caught up" test was `sim.tick + 0.5 >= target`,
+  which is also true when the sim is *ahead*. Moves then ran at frame rate, the
+  display (clock-gated) lagged seven tiles behind, and the aim ray was cast
+  from where the player appeared to be, not where it was. It is now
+  `sim.tick <= target`.
+
+**Reach became a distance (a rule change for everyone).** "Neighbour columns
+only" meant that looking at the ground one step ahead on a rhomb floor was
+already out of reach. It also meant an octagon player out-reached a Penrose
+player by a wide margin. Now it is any column whose centre is within
+`REACH = 2.2` tile edges (neighbours always), from feet−1 to head+1, and a
+non-neighbour voxel must have an open face: no mining through a wall to the
+block behind. Houses 60/60 and lives 20/20 still hold, but **the game got
+easier**: the baseline's mean ticks-to-rung went 872 → 573 on the scoreboard
+worlds. The v3 Jev numbers above were played under the old rule.
+
+**v4, the same 4 worlds, the new reach** (`lab/craft-gate.json`):
+
+| world | baseline | offline | Jev | random |
+|---|---|---|---|---|
+| penrose/3 | **545** | 760 | 869 | 2249 (6/9) |
+| hex/2 | **635** | 919 | 721 | 2771 (5/9) |
+| truncsq/2 | **653** | 885 | 850 | 981 |
+| kagome/4 | **456** | 843 | 1143 | 2723 (6/9) |
+| **mean** | **573** | 852 | **896** | 2181 |
+
+All four deciders but random reach every rung. **The easier game helped the
+script far more than it helped Jev**: the baseline went 872 → 573, Jev
+931 → 896. So Jev is now ~55% behind the hand-written policy, level with the
+offline stand-in (the script projected onto the menu), and still ~2.4× faster
+than random. Confidence stayed at ~0.38–0.42 with most picks below the gate.
+The same caveats as v3 apply, doubly: these are the worlds the harness was
+debugged on.
+
+### Worlds nobody planned for (2026-09-26)
+
+The operator's objection to v4 was right: *"of course Jev does worse than your
+script, you know where everything is."* Two ways that was true, both fixed:
+
+- **The planners were omniscient.** `digPath` and the walking BFS planned
+  across terrain the player had never seen, and `hunt` chased pigs anywhere on
+  the island. Now the player's planners only use `sim.seen` columns (mobs
+  still see everything), and `hunt` needs a pig in sight. This binds every
+  decider equally, since Jev and the script share the macros.
+- **The script was written against the four scoreboard worlds.** So:
+  **world kinds** (`KINDS` in `world.mjs`, `kind` in the stream header).
+  `island` is byte-identical to before, and its pins hold.
+
+| kind | what it does to you |
+|---|---|
+| `archipelago` | ~35% land in islets; little rock above the sea line |
+| `highlands` | tall and **terraced**: 3-high cliffs a walker cannot climb; caves |
+| `caverns` | worm caves (two noise fields both near their middle), **lava** pooling at y ≤ 4 |
+| `desert` | sand, one oasis of trees, almost no wood elsewhere |
+| `forest` | dense trees, 3× the island's |
+| `mixed` | biomes by region, height blended into highlands; for sizes `m` (44) / `l` (64), up to ~16k columns |
+
+Rules that came with them: **lava** (a `hazard`: impassable to every planner,
+burns 4 every 5 ticks, and a block touching it is never opened), and
+**zombies spawn in the dark at any hour**: a column near the player with rock,
+earth or a roof overhead, not a canopy (`sim.dark`), away from torches.
+
+**Held-out scoreboard**: 6 worlds, each a kind × tiling × seed nobody had
+played, hard, fog of war (`lab/craft-gate-heldout.json`):
+
+| world | baseline | offline | **Jev** | random |
+|---|---|---|---|---|
+| desert/seven/301 | **522** | 1455 (8/9) | 844 | 2432 (6/9) |
+| caverns/snub/302 | **528** | 1647 (7/9) | 777 | 2482 (6/9) |
+| highlands/rhombitri/303 | **488** | 880 | 846 | 2587 (6/9) |
+| archipelago/kagome/304 | 2738 (**4/9**) | 925 | 1148 | 1246 |
+| forest/ammann/305 | **603** | 1039 | 782 | 2833 (5/9) |
+| mixed/hex/306 (m) | 892 (8/9) | 1106 (8/9) | 939 | 2097 (7/9) |
+| **mean** | 962 (48/54) | 1175 (50/54) | **889 (54/54)** | 2279 (39/54) |
+
+**Read it carefully.** Jev is the only decider that reached every rung on
+every world, and its mean beats the script's. But **world by world the script
+is still faster on four of six**, and the mean is carried by one collapse. On
+the archipelago the script's `mine_iron` failed four times ("the vein ran
+out": islets have too little rock), it had nothing else to try, and it burned
+most of the day in eleven decisions. **That collapse did not reproduce after
+the dark-spawn fix**: the fix shifts the RNG, the game unfolds differently,
+and the same script climbs all 9 rungs by tick 1369. So the honest reading:
+a fixed script is brittle in a way that depends on the trajectory, and it can
+stall outright on a world it wasn't written for. Jev, choosing every time,
+degraded but never stalled: 54/54, worst world 1148. It also beat the
+offline stand-in (the script's logic squeezed through the same menu) on 5
+of 6. Off the home worlds the menu-projected script falls apart, and Jev does
+not. n = 1 per world, and the run predates the spawn fix. The next number
+worth having is a held-out rerun on current code with more seeds.
+
+### Mobile (2026-09-26)
+
+Touch play is the same game as keyboard play. A **thumb stick** feeds the same
+`moveIntent` (tile-stepping toward where you look), a **drag** anywhere else
+looks, a **tap** ray-casts at the tapped point (`aim(nx, ny)`, unprojected
+from NDC) to mine or hit, with **place** mode making taps place, plus
+eat / craft / view buttons. There is no pointer lock on touch, so "engaged"
+is lock *or* the touch game having started.
+
+**On narrow screens (≤ 900px) the world is never covered** (the operator's
+call, 2026-09-26). The canvas takes the top two thirds (`--split`, in `dvh`)
+and nothing overlaps it. The bottom third is a tab row (world / macros / Jev
+/ team / stream) and a pane under it. With no tab open, the pane shows the
+status line, the hotbar and the thumb controls. An open tab, the help,
+crafting and toasts all go in the pane too. Two code consequences: the
+renderer sizes itself from the canvas's CSS box (a `ResizeObserver`), not the
+window, and a tap's aim is unprojected from the canvas rect, not
+`innerWidth/innerHeight`. Both would silently mis-aim otherwise. Checked in
+an emulated Pixel 7: nothing but the canvas reaches into the top two thirds
+in any state, a tap mined into the hotbar, every tab opens. Not checked on a
+real device.
+
+### How often the page calls Jev, and the rate limit (2026-09-26)
+
+The operator saw "rate limited" a lot. The arithmetic: Jev decides at every
+macro boundary, and the scoreboard traces put that at **~40–70 game ticks per
+decision** on average. Half the macros are short, though (a craft is 1–7
+ticks, a failed macro 0). At the page's default 8× (32 ticks/s) that is ~38
+calls a minute with bursts well above, against the proxy's **30 per minute
+per client**. Over it, the page used to drop that decision to the offline
+stand-in.
+
+Now, in the page:
+- **A wall-clock floor**: at most one live call per `MIN_GAP` = 2.2 s (≤ 27
+  a minute). If a macro ends sooner, play waits, turn-based as before. This
+  changes no decision, only when it happens. Measured against the dev
+  server's stub: 20 calls in 46 s at 8×, 26/min, the count shown in the
+  decision panel.
+- **429s are waited out**: honour `Retry-After`, retry up to twice, and only
+  then fall back to the stand-in (still labelled).
+- **One call, a short ranked plan** (`reuseRanking` in `mind.mjs`, **opt-in
+  with `&reuse=1`**). After a quick, uninterrupted macro, take the same
+  answer's next-ranked legal option instead of calling again (within 60
+  ticks, at most 2 reuses, never across an interrupt or dusk, stamped
+  `typesafe-reused`). It cut calls from one per 64 ticks to one per 100
+  headlessly. **It is off by default because its quality is unmeasured.** The
+  headless check made play much worse (27 → 22 rungs), but that check ranks the
+  runners-up synthetically, so it says nothing about Jev's real second choices.
+  A live A/B is the only way to know; `playMind({ reuse: true })` exists for it.
+
+The eval scripts pace themselves separately (2.15 s, with backoff) and run
+from a different address, so they don't compete with a viewer for the same
+30/minute.
+
+### Multiplayer: you + Jev, and a Jev swarm (2026-09-26)
+
+"who decides" has two more seats: **you + Jev (co-op)** and **Jev swarm (3)**.
+
+**One clock for everyone (`craft/party.mjs`).** `sim.act()` runs one action
+to completion while the world steps under it, which is right for one player
+and wrong for two: your teammate would freeze while you mined. So every
+action is now also a **plan**: `sim.plan(a)` → `{ok, why, ticks, pre, post}`,
+and `act()` is plan, then step × ticks, then post. `Party.tick()` serves each
+member whose last action has finished (from its macro, from the hands queue
+for a human, or by asking for a decision), applies `pre`, steps the world
+**once**, and completes whatever is due. A party of one is the single-player
+game exactly: the selftest plays the same macro sequence both ways and gets
+the same events on the same ticks.
+
+**Per-player state.** `sim.players[]`, and `sim.me` is whoever is acting.
+Everything that was player memory (`seen`, `home`, the journal, outcomes,
+the house, `request`, …, the `PER_PLAYER` list in `sim.mjs`) is an accessor
+onto `sim.me`, so macros, planners and `perceive()` run unchanged inside
+`sim.as(entity, fn)`. Zombies chase the nearest player, spawns anchor round
+the players in turn, and each respawns at its own home.
+
+**Player state influences Jev, as data.** There is no instruction channel, so
+a teammate can only matter through the state and the options:
+- `perceive().team`: each teammate's distance, health, food, what it is
+  doing, zombies near it, and any **request** it has standing.
+- team macros (mode `team`): `follow`, `guard`, `give` (a new `give`
+  primitive hands items across). Their options read e.g. `give_wood_0` and,
+  when they answer a standing request, say `ANSWERS what the human player
+  asked for, 40 ticks ago`. `fulfil()` clears the request when the answering
+  macro finishes.
+- In co-op the **ask Jev to…** buttons (come / wood / food / stone / torches /
+  defend) set your request. Measured live: Jev read a wood request, chose
+  `gather_wood`, then `give_wood_0` at 0.62, and the request was done by tick 37.
+
+**The swarm talks back.** Each Jev agent also gets an `ask_<id>` **choice**
+(none + each request, every option carrying the facts behind it: zombies
+near, health, food carried, wood carried…) in the same call as its `next_<id>`.
+Breadth is free, so asking costs nothing. `applyAsk` sets or withdraws the
+request, and teammates see it on their next decision.
+
+**One call per round, not per agent.** `batchRequest` puts every waiting
+agent in one request: `state.agents.agent_<id>` per agent, `next_<id>` and
+`ask_<id>` per agent. The first agent to need a decision idles for up to
+**12 ticks** (`batchWindow`) so the others can join. Measured: ~2–2.5
+decisions per call on a 3-Jev swarm, still under `MIN_GAP`. The page never
+pauses for Jev in these modes. An agent waiting on its answer just stands
+there while the world goes on, so Jev thinks in real time, like a teammate.
+The headless `playParty()` pauses the world instead, so runs are reproducible.
+
+The team strip (top centre; the **team** tab on phones) shows everyone's
+health, food, what they are doing and any request. In a swarm, click a row
+to watch that agent (`replay.focus`, the camera and the HUD follow). Checked
+in Playwright at desktop size and in an emulated Pixel 7, against the stub.
+The stub always picks its top option, so **no browser run exercised Jev
+answering a request**. That was measured headlessly against the live model,
+n = 1 run.
+
+What it opens: the `mappa` idea above (agents with genuinely different
+states) now has a cheaper testbed. Each agent's slice already differs by
+position, inventory and fog of war. "When does splitting the state beat
+sharing it" is runnable here: batched (one call, all slices) against
+per-agent calls.
+
+### Long-range goals: projects, farming and plants that grow on particular tiles (2026-09-26)
+
+The operator's question was *"do these guys have a goal?"* The answer was:
+barely. The goal was a 9-rung ladder, finished on day 1, and then every option
+read "advances nothing". That is part of why confidence sat near 0.40 late in
+a run. Two things were added, and they only work together.
+
+**Projects (`craft/projects.mjs`).** Three long-range goals, each broken into
+steps: **tech** (the ladder: tools, house, light, iron), **grow** (cultivate
+every plant species this world has) and **explore** (see 50/80/95% of it and
+find each species wild). Each step says which **option tokens** advance it (an
+item such as `cobblestone`, or `craft:<item>`, `forage:<sp>`, `farm:<sp>`,
+`harvest`, `explore`, `scout:<what>`) and which token completes it. Every
+option carries one computed `project` fact: *completes the next step of grow:
+plant moonpetal*, *works toward the next step … (short of 2 planks)*, *helps a
+later step*, or *not part of the grow project*. That is the composer's lesson
+(hand over the gap, pre-computed) applied across days, and Jev never has to
+plan. A step that can only wait (a crop growing) is reported as waiting, with
+an ETA, and skipped when naming the next step.
+
+**The project is a slow choice.** A `project` question (a `choice` over the
+three, each carrying progress, next step and what is growing) rides in the
+same call as `next`. It is asked only when there is no project, when the
+current one is complete, or twice a day (`PROJECT_EVERY` 2400 ticks).
+`resolve()` applies it. Deciders that give no answer fall back to their own
+rule: the baseline and the stand-in take the first incomplete project in the
+order tech → grow → explore, and random picks at random. In a swarm, each
+agent gets its own `project_<id>`.
+
+**Plants (`craft/plants.mjs`, world v2).** Five species, three blocks each
+(sprout → growing → plant, and the plant is also what grows wild):
+
+| species | habitat | grows when | use |
+|---|---|---|---|
+| wheat | farmland | light (sun or a torch); ×2 with water within 2 tiles | bread (3 wheat, food 5) |
+| sunfruit | beach sand beside water | sun | food 6 |
+| glowcap | soil, stone or planks **under cover** | always (it needs the cover) | lantern (2 glowcap + stick): light without coal |
+| moonpetal | farmland on **the world's rarest tile shape** | **night**, open sky | food 2, heals 6 |
+| starbloom | farmland on **a tile whose every neighbour is a different shape** | sun | rare |
+
+**The tiling is the ecology.** Tile kind = sides × area to the quarter,
+ranked by frequency (`tileKinds` in `world.mjs`). A starbloom **cannot exist**
+on grid, hex or rhombille (one shape, nothing is isolated). It is common on
+kagome and rhombitri (every tile is isolated) and rare on Penrose. A
+moonpetal on Penrose takes only the thin rhomb. The selftest pins all of this
+against the generated worlds.
+
+**New primitives and macros.** `till` (needs a `wooden_hoe`; grass or dirt →
+farmland) and `plant` (seeds into an empty voxel; refused with the habitat's
+reason, e.g. *"only on the rarest tile shape (four-sided, area 0.5)"*).
+Harvesting is mining: a ripe plant gives produce plus 1–2 seeds, a young one
+its seed back, and a ripe plant someone **planted** counts as *grown* for its
+planter (`player.grown`). Macros: `forage` (take a wild plant in sight for
+seeds), `farm` (sites near home that suit the species and where it will
+actually grow, watered first; a species whose habitat is elsewhere, like the
+beach, is planted where the player stands), `harvest` (reap your own ripe
+plots and replant from their seeds). `scout` also takes a species name.
+Placing a block on a plant picks it first; that was a regression the house
+builder found, when a wild moonpetal sat on its wall line.
+
+**World v2.** Wild plants are hash-placed in their own pass, never drawing on
+the generator's rng. **v1 worlds are still generated byte for byte** when asked
+(`generateWorld({version: 1})`, and a stream header carries `v`), so old
+streams replay and both pin sets are checked. Every species that has any
+habitat in a world gets at least one wild plant (the best-hashed spot), so the
+grow project is never impossible by bad luck, only by geometry. The desert
+grows only sunfruit.
+
+**Measured, headless (no Jev):**
+
+| world | decider | tech done | explore done | grow done | deaths |
+|---|---|---|---|---|---|
+| island/truncsq/3 (s) | baseline | 828 | 1549 | **5322** | 0 |
+| | offline stand-in | 1162 | 1663 | 4869 | 0 |
+| | random | 3286 | 329 | 6952 | 4 |
+| mixed/penrose/7 (m) | baseline | 754 | 5465 | **5060** | 0 |
+| | offline stand-in | 1273 | 5886 | 15/16 at day 4 | 0 |
+| | random | 7102 | 5058 | 11974 | 5 |
+
+Life sweep after all of it (baseline, 3 seeds × 10 tilings × 2 days): iron
+pickaxe 30/30, house 30/30, **0 deaths, 0 stuck**. The baseline grows 4–5 of
+5 species in 3 days on every tiling tried.
+
+**Read the small-island rows carefully: the projects are too easy there.**
+Even random finishes all three on the small truncsq island, and random
+"finishes" explore at tick 329: a 28-radius island at sight 10 is seen in a
+few legs. What still separates deciders is *when* a project completes, not
+*whether*. On a medium world the grow project separates them outright (the
+stand-in and random don't finish in 4 days). **The scoreboard should use m/l
+worlds for projects**, and `eval/craft-gate.mjs` now records `projects`
+(steps done per project, species grown), `project_done` (the tick each
+completed) and, for Jev, `project_picks`.
+
+**Three faults this round found, each fixed:**
+- `harvest` retried a ripe plot it could not reach 96 times in two days, each
+  a full failed path search (27 s of a 32 s run). Unreachable plots are now
+  remembered for 1200 ticks (`player.badPlots`), as unreachable ore is, and
+  the harvest search budget matches `go_home`'s, since a beach plot can be far.
+- **A pit by the sea was a trap.** A 3-layer drop into a sand hole whose walls
+  touch water: the planners (rightly) never dig a block that touches water,
+  so there was no path out and the baseline alternated two zero-tick failures
+  until `play()` called it stuck. `goTo` now has a `climbOut` fallback when
+  no path exists: place a carried block against a wall at foot level, step up
+  onto it, repeat, then plan again. Minecraft players do exactly this.
+- The baseline's anti-stuck rule sent it to `explore`, which fails at once
+  once everything is seen. With the world explored it now walks home.
+
+**Live, the first A/B of the project facts** (`lab/craft-projects-ab.json`):
+one medium world (mixed/penrose/7, hard), 70 decisions per arm. It is the
+same Jev with the project question and facts, and without them
+(`--no-projects`, which sets `sim.noProjects`):
+
+| | with projects | without |
+|---|---|---|
+| mean confidence, tech phase (to the iron sword) | **0.93** (n 15) | 0.64 (n 16) |
+| mean confidence, all 70 | **0.83** | 0.65 |
+| below the 0.45 gate | **13** | 20 |
+| every rung, same tick? | wooden pick 31 … iron sword 1070 | **identical** |
+| after the ladder | project `explore`: 43 × explore at ~0.99 | 9 × mine_coal, 38 × explore |
+| wasted macros | 1 (`mine_stone` boxed in) | 2 (+ `build_house` short of a log) |
+
+**The picks barely changed and the confidence jumped.** That is the shape of
+the "structure beats prose" result above (12 of 12 picks the same, confidence
+0.912 → 0.980): telling it what each option does for the goal did not make it
+choose differently while the choice was obvious. It made the choices read as
+decided, and it gave the post-ladder game a direction instead of a coal habit.
+The only low-confidence picks with projects on (~0.2) are survival moves
+(hunt, go home, surface) that every project labels "not part of the project".
+That is a real gap: survival is not a project, and an option that keeps you
+alive should say so.
+
+Jev chose **tech, then explore**, not grow. That is legitimate, but it means
+this run says nothing about Jev farming. n = 1 world, 70 decisions, and
+the control and treatment are deterministic, so the only way to more n is
+more worlds.
+
+In the viewer, plants are crossed quads in their own double-sided mesh; the
+solid mesh's back-face cap z-fought a zero-thickness quad and drew them grey.
+Their triangles are oriented to their normals, or double-siding flips the
+normal and lights a top face from below. The status bar shows the project
+(`project grow · 5/16 · next: plant moonpetal · wheat is growing: ripe in
+about 800 ticks`). The log shows `project:` and `grown:` notes. Right-click
+with a hoe tills and with seeds plants, and `farm`/`forage` have a species picker.
+
+### Survival, drowning and water that flows (2026-09-26)
+
+**Survival is its own fact, not a project.** The project A/B above left one
+gap: the moves that keep you alive (hunt, go home, surface) read *"not part of
+the project"* and sat at ~0.2 confidence. `threats(sim)` in `mind.mjs` now
+names what is threatening the player **right now**:
+
+| threat | when | relieved by |
+|---|---|---|
+| `air` | head under water | `surface` (which now swims up first) |
+| `zombie` | one is hitting you | `fight`, `dig_in` |
+| `night` | night, out under open sky, not home | `go_home`, `dig_in`, `build_house`, sleeping if covered |
+| `hunger` | food ≤ 6 | `eat` (if food is carried), `hunt`, `harvest`, `craft` bread / cooked porkchop, `forage` sunfruit |
+| `health` | health ≤ 8 | shelter, eating moonpetal (it heals), sleeping covered, fighting what is adjacent |
+
+Every option then carries a `survival` fact: `relieves: night`,
+`worsens: night` (anything that goes out among zombies at night), or
+`does nothing about: hunger`. With nothing threatening, the fact is left out,
+so a calm state stays short. `perceive()` lists the threats. `sim.noSurvival`
+(`--no-survival` in the eval) is the control.
+
+**Drowning.** Every player has `air` (`MAX_AIR` = 60 ticks, ~15 s). It drains
+one per tick while the head voxel is water, and at 0 each 8 ticks costs 2
+health (`stats.drowning` counts the hits). It refills at 4 a tick once the head
+is out. The stream carries it as `["air", id, n]` in steps of 10, plus the
+moments it leaves or reaches full or empty. The HUD shows bubbles only while
+breath is being used. The rules around it:
+- **The walking planner never plans a step with the head under water**
+  (`path(…, dive = false)`). `digPath` already refused water voxels. So
+  macros swim only at the surface, and a script cannot drown itself on a route.
+- `swimUp` (inside `surface`) is the one place allowed to dive: a body in
+  water can rise one layer a step, to the nearest voxel with air for a head.
+- A new interrupt, **running out of air** (head under water, air ≤ 40), stops
+  any macro except `surface` itself. The first version interrupted `surface`
+  too, which stopped the swim up; interrupts now receive the running macro's name.
+- The baseline surfaces first when under water.
+
+**Water flows.** Any air voxel (or torch, lantern or plant: water washes
+them away) at or below sea level that touches water, beside it or above it,
+becomes water, one ring per `FLOW_EVERY` (3) ticks. Breach a sea wall and the
+cave behind it floods (measured: +501 voxels in 300 ticks on a caverns world),
+and a player inside has `MAX_AIR` ticks to get out. All water is sea, so
+nothing flows above `SEA`. Mining now just opens a voxel to air, and the flow
+decides what comes in (it used to fill the mined voxel instantly and stop).
+**Standing water is at rest until something changes beside it.** Generation
+leaves a few cave pockets touching the sea laterally, and they stay dry until
+disturbed, so a world does not flood on its first tick and old seeds play out as before.
+The planners still never open a block that touches water, so the scripts do
+not flood their own tunnels.
+
+**Live A/B of the survival facts: no effect, and a surprise**
+(`lab/craft-survival-ab.json`, the same world as the project A/B, 70
+decisions per arm):
+
+| | with survival facts | without | with, run again |
+|---|---|---|---|
+| mean confidence | 0.87 | 0.89 | — |
+| below the gate | 9 | 8 | — |
+| survival-type picks (hunt, go home, surface, eat …) | 9, mean 0.24 | 1, 0.24 | 12, mean ~0.2 |
+| decisions made **with a threat active** | — | — | **0** |
+
+**The facts never got to act.** In the re-run, which records the active threats
+on every decision, not one of the ~0.2-confidence picks happened under a
+threat. It was day, the player was fed and healthy, no zombie was near. So
+those low picks are not unlabelled survival moves. They are what Jev does when
+**nothing on the menu advances the project and nothing threatens**: a flat
+distribution over options that all read "not part of the explore project". The
+fix is a better menu in that state (the project's next step should always
+have an option offering it), not more labels. The survival facts stay, because they
+are correct and cheap, but this run is no evidence that they help.
+
+**The surprise: two runs of the same configuration diverged at tick 1457.**
+Same world, same code (the re-run only adds a field that is never sent),
+same model name. So live runs here are **not** reproducible run to run, which
+undercuts this file's standing assumption that "Jev is deterministic, so more
+n means more worlds". The earlier measurement (identical calls give identical
+answers) may still hold per call. A divergence then means some call differed:
+a 429 retry landing on a different tick, or an upstream model revision behind
+`jev-latest`. Unresolved. Until it is, treat every single live run here as
+one draw, not as *the* answer for that world.
+
+Measured, headless (baseline): the island life sweep still holds (30/30 iron,
+30/30 houses, 0 deaths, 0 stuck). On archipelago, caverns, highlands and
+mixed at hard (3 tilings each), **0 drowning hits and 0 flooded voxels**: the
+planners' water rules mean the script never dives and never breaches. So
+drowning and floods are hazards for **you** (and for falls). A Jev agent
+picks the same macros, so it inherits the same caution, and when it does end up
+under water, the `air` threat and the `surface` option's `relieves: air` are
+what it reads.
+
+### The team: a shared chest, a house for everyone, beds that need everyone (2026-09-26)
+
+The operator, watching the swarm: *"these should not be three independent
+players, they should be a team."* Three things turn three players into one
+team, and each one is a real constraint rather than a label.
+
+**The chest is the pool.** A `chest` (8 planks, at a table) holds **27 stacks**.
+A stack is 64 of most things, 16 doors, and one of a tool, a sword or a bed.
+That is Minecraft's limit and the only limit on the pool (`CHEST_SLOTS`,
+`stackSize`, `roomFor` in `world.mjs`). Contents live in `sim.chests` (voxel →
+items) and travel in the stream as `["chest", c, y, {…}]` (null when the chest
+is gone). The first chest a player places is **the team chest**
+(`sim.team.chest`). New primitives `store` and `take` move items between a
+player and a chest in reach, and refuse with the reason (*"the chest is full"*,
+*"the chest has no wool"*). Macros:
+- `set_up_chest`: make one and put it at home, inside the house if there is room.
+- `store`: go to the chest and put in your **surplus**. Everything is surplus
+  but tools, doors, beds and stations, 8 cobblestone, a few planks, logs and
+  sticks, 4 torches, 2 coal, 3 of each food, 2 of each seed, and the wool and
+  planks for a bed if you still lack one.
+- `take {item, n}`: fetch something from the pool.
+
+**The chest is never a shortcut.** The digging planner treated it like any
+other block and tunnelled through it, which empties the whole pool into one
+player's pocket. It was measured: the first 3-day swarm ended with no chest at all.
+`clearCost` now refuses chests.
+
+**The house scales with the team.** `planHouse(sim, c0, R)` takes the interior
+radius. A house sleeps one player per 4 floor tiles (`houseCapacity`), and the
+builder takes the smallest radius that sleeps everyone: radius 1 for one player,
+as before; radius 2 (12–25 tiles depending on the tiling) for three. The builder
+**draws building blocks from the team chest** when it is short, never builds on
+top of a teammate, and only one player builds at a time (`sim.team.builder`,
+released in a `finally`, so an interrupted build frees it). When the house is
+sealed it becomes **every player's** home and respawn point (`sim.team.house`).
+
+**Beds need everyone.** A `bed` is 3 wool + 3 planks. `sleep_in_bed` places
+yours on a free floor tile of the house (you walk over a bed; it does not block
+the way) and lies in it. **The night passes only when every player is asleep
+at once.** Sleep alone and you wait in bed until dawn. The `sleep` primitive
+also refuses with zombies within 6 (*"you may not rest"*), as Minecraft does.
+The skip jumps the clock to dawn, clears the zombies, and notes `slept`. Its
+option says so: *"the night passes the moment every player is asleep (1 of 2
+teammates are now)"*.
+
+**Sheep** graze on grass (their own rng, so pig, zombie and drop sequences are
+unchanged). Killing one gives 1–2 wool and a mutton; `cooked_mutton` is 6 food.
+`hunt {kind: 'sheep'}`, and `scout` takes `sheep`.
+
+**The decision layer.** `perceive().shared`: the chest's stacks used out of 27 and
+its top holdings, whether the house sleeps the team, and how many players
+have a bed. New options: `set_up_chest`, `store` (listing the surplus),
+`take_<item>` for whatever the project's next steps are short of *and* the
+pool holds, `hunt_sheep` / `scout_sheep`, `sleep_in_bed`, and crafts for
+chest, bed and cooked mutton. The tech project gained a **chest** step (team
+only) and a **bed** step. The house step reads *"a house for the whole team"*
+and counts the pool: *"needs ~90+ building blocks for 3, the team holds 164"*.
+
+**The baseline as a team.** Someone sets up the chest first; everyone mines
+stone and stores it; whoever sees ~90 blocks in the pool builds the house for
+all; surplus goes in whenever a player is home; wool comes out of the pool
+when it completes a bed. Two faults found on the way:
+- **A zero-tick failure at the top of the night branch repeated every tick.**
+  `sleep_in_bed` could not find a spot for the bed ("nowhere to put the
+  bed"), failed without spending a tick, and was picked again at once. Each
+  pick ran an expensive failed search, and a 3-day swarm ran for over 7
+  minutes. Fixed: a real bed-spot search over the whole house floor, a failed bed
+  or home plan is not retried the same night, and the party scheduler now
+  records `_lastMacro` (it never did, so no anti-stuck rule could fire in a party).
+- **The pool swallowed a bed.** One player's wool went into the chest as
+  surplus, it never took any back, and the team never slept through a night.
+  Wool is now kept by anyone without a bed, and taken from the pool when that
+  completes one. Only fruitless scouting counts against the bed tries, not hunts.
+
+**Measured, 3 baselines in one party, 3 days** (`playParty`, headless):
+
+| world | house | chest at the end | beds | nights skipped | tech | deaths |
+|---|---|---|---|---|---|---|
+| penrose/3 | R2, 13 tiles, sleeps 3, tick 651 | 768 cobblestone, 192 dirt, 128 sand, 63 coal, 31 iron ore, 49 torches, food | 3 / 3 | **3 of 3** | 10/10 ×3 | 0 |
+| kagome/4 | R2, 16 tiles, sleeps 4, tick 755 | similar | 3 / 3 | 2 of 3 | 10/10 ×3 | 0 |
+
+**One trade-off that falls out and is worth knowing: a skipped night grows
+nothing.** Crops only grow on ticks that are played. A solo player with a bed
+skips every night, so the **moonpetal, which grows only at night, never
+ripens.** The solo baseline's species grown in 3 days fell from 4 to 3 when
+beds arrived. That is not a bug to fix. It is a real choice (sleep, or stay up
+for the moonpetal), and the harness does not yet make it visible to Jev as one.
+
+### The diamond age: armor, diamonds, obsidian by bucket, a beacon (2026-09-26)
+
+The tech ladder used to stop at iron. It now runs through a second tier whose
+capstone matters to the whole team, and whose key step uses the water physics.
+
+| step | how |
+|---|---|
+| **iron armor** | 8 iron ingots. Armor is worn by carrying it: a mob's blow is cut 40% (diamond armor 60%, 8 diamonds) |
+| **diamond pickaxe** | 3 diamonds + 2 sticks. `diamond_ore` sits only in the bottom five layers and needs an iron pick. `mine_diamond` takes diamonds in sight, else stairs down to layer 4 and tunnels. Tier 4, speed 8 |
+| **obsidian ×3** | **water carried to lava.** A `bucket` (3 iron) `fill`s at the sea. `pour`ing it on or beside lava turns that lava to obsidian (the hook is in `sim.set`: water meeting lava, beside or below). The bucket takes its water back. Only a diamond pick mines obsidian (hardness 50). `make_obsidian` does the whole chain |
+| **beacon** | 3 obsidian + 5 glass + 1 diamond, placed at home (`place_beacon`). **No zombie spawns within 16** (`BEACON_RADIUS`, `sim.beaconNear`), day or night, in the open or in the dark. Everyone at home benefits |
+
+Also a `diamond_sword` (7), and `dig_sand` for the glass.
+
+**Poured water stays put.** The sea flows (any air at or below sea level that touches
+sea water fills). A bucketful does not: poured voxels go in `sim.still` and never act
+as a flow source, or one bucket would flood the whole mine. Filling the bucket from
+still water takes the voxel back. Sea water stays: the sea gives without end.
+
+**World v3** adds diamonds (about N/180 short veins in layers 1–5) and, in
+**every** world kind, a few sealed lava pockets deep in the rock (a pool with
+air over it, at layers 3–4), so obsidian can be made on an island too. Both use
+their own rng pass. v1 and v2 still generate byte for byte, and all three pin sets
+are checked.
+
+**In a team the pool has to flow back out.** The first 4-day team run ended
+with every ingredient of a beacon in the chest (9 diamonds, 3 obsidian, 11
+glass), plus iron armor, which only works while carried. No beacon: the surplus
+rule stored everything, and no rule took it back. Armor, buckets and beacons are no
+longer surplus, and the diamond pick and beacon steps count the pool and take
+what they are short of from it (as beds already did with wool). After that, both
+3-player runs lit a beacon in 4 days (penrose: 2 of 3 at 14/14; kagome: 1 of 3,
+the others one personal step short), 0 deaths. A place-beacon rule with no try
+budget also once ran 246 times against an unreachable home (317 s). The beacon
+now goes down where the player stands if home is out of reach.
+
+**Measured, baseline solo, 4 days:** the whole 13-step ladder, beacon included,
+on truncsq, penrose, seven and kagome (hex 13/13 as well), 0 deaths. The first
+truncsq run stopped at 11/13 with 19 lava blocks in the world. The obsidian
+macro's path search gave up at 30,000 nodes from far away, and the baseline's
+fallback with no lava in sight was to branch-mine, when **lava comes into
+sight by seeing more of the world, not by tunnelling**. Now: a 60,000-node
+search, and explore first.
+
+### The nether: a second world on the same tiling (2026-09-27)
+
+The ladder now runs three steps past the beacon: **build and light a portal,
+cross into the nether, and bring back a glowstone lamp**. The solo tech
+project is 16 steps (17 for a team).
+
+**The same tiling, a different world.** The nether is generated from the
+overworld's own seed and tiling (`generateNether` in `world.mjs`), so **tile c
+there is tile c here**, and a portal leads to the same tile on the other side.
+It is a cavern: a netherrack floor and ceiling, pillars, a lava sea at layer
+8 and below (`NETHER_LAVA`), soul-sand patches, quartz veins in the rock, and
+glowstone in mounds on dry floor and clusters under low ceilings. There is no
+water and no sky, and it is always dark. Glowstone gives 2 dust a block
+(`dropN`), and 4 dust make a glowstone lamp.
+
+**A dimension is a swap, not a second engine.** Everything a world holds of
+its own (blocks, mobs, lights, crops, water queue, chests, beacons,
+protected voxels, portals, pending events) is listed in `DIM_FIELDS` in
+`sim.mjs`, and `useDim(name)` swaps those fields. Every player carries its
+`dim`, and `sim.as(e, fn)` switches to the player's dimension as well as to
+the player. So macros, planners and `perceive()` run unchanged in either world.
+A tick steps the overworld always, and the nether only while someone is in
+it. `sim.ow(field)` reads the overworld's live copy from either world (the team
+chest, the beacon and home all live there). What a player has seen is per
+dimension. `crossTo` moves a player across: out of one world's entities and
+into the other's, arriving in the portal there or building one, as Minecraft
+does.
+
+**A portal on a tile graph.** `portalFrameOk`: the doorway column has obsidian
+under and over it, and two of its neighbours are obsidian two layers up. That
+is 6 obsidian on any tiling. A torch lights it (`light` op: two portal
+blocks), and standing in it for 16 ticks crosses (`travel` op). The frame goes
+into `sim.protect`, so no planner digs through it.
+
+**The stream carries both worlds.** A nether line is the same line with
+`"d":"nether"`. Overworld lines carry nothing new, so old streams replay
+unchanged. The overworld's stream announces the nether with a `dim` note
+carrying its signature. `Replay` generates the nether lazily when the note
+arrives and checks it against that signature. `replay.view` picks which world
+the `world`/`b`/`ents`/`chests` getters read, and `dimOf(id)` says where a
+player is. The viewer follows the watched player through a portal
+(`followView`: switch the view, rebuild the meshes) and draws the nether as a
+dim red cavern with the cutaway cap in netherrack red. Portal blocks are a
+translucent violet prism.
+
+**Blazes, not zombies.** `HOSTILE = {zombie, blaze}`, and every "is something
+hostile here" check (fight, threats, interrupts, `perceive`) reads it. Blazes
+spawn near a player in the nether, away from torches and glowstone, and
+hit 2 harder than a zombie. They do not burn: zombies only burn under the
+overworld's sky. Dying in the nether wakes you at home in the overworld.
+
+**What each world allows.** `OVERWORLD_ONLY` / `NETHER_ONLY` in `macros.mjs`
+wrap every palette entry's `needs()`. The nether refuses the sky's, soil's,
+sea's and home's macros (farming, the house, beds, the chest, sand, obsidian,
+scouting, hunting) with *"not in the nether"*. Pouring water is refused
+("water boils away"), and so is sleeping. New macros: `build_portal` (a site
+near home whose doorway, two flanks and front stand on one floor, **never on
+the house or its doorstep**), `use_portal`, `mine_glowstone`, `mine_quartz`.
+`go_home` from the nether goes back through the portal first. Jev's options
+in the nether are only the ones that work there, `perceive()` says
+`world: THE NETHER`, and `in_sight` lists glowstone, quartz, lava and the portal.
+
+**Three faults this round found, each fixed:**
+- **The arrival portal was a trap.** The first far-side portal went on a
+  ledge one layer over the lava sea. The planners never step beside lava, so
+  there was no path off it, and `mine_glowstone` gave up at once, crossing
+  after crossing. The far side now takes dry floor above the lava with room
+  to walk off (`portalSpot(c, strict)`), and only falls back to anywhere it
+  fits when there is none.
+- **A portal sealed a house.** The frame is obsidian, protected, and went
+  on the doorstep: the player could never get home, and `dig_in` failed on
+  water 5 times in a row until `play()` called it stuck. Sites now keep clear
+  of the house and two hops round its door.
+- **Older bugs the longer runs exposed:** `branch_mine` tunnelled through the
+  lit beacon, **three times in one run** (the planner now refuses beacons as it
+  refuses chests). The baseline tried to craft a bucket ~980 times in two days,
+  because the iron was counted but the coal to smelt it had gone into torches
+  (short of coal now means *dig coal*, as short of logs already meant *gather
+  wood*). And a chest placed in the nether could have become the team chest.
+
+**Measured, baseline solo, 5 days, 10 tilings × 2 seeds:**
+
+| | |
+|---|---|
+| reached the nether and brought back glowstone | **17 / 20** |
+| whole 16-step ladder | 15 / 20 |
+| crossing, median tick | 5272 (day 2) |
+| deaths | **0** (none in the nether either) |
+| stuck | 1 (snub/1, day 3, after the whole ladder: a pit whose sand walls touch the sea. The planners never dig beside water, so there is no way out. Older than the nether, and not fixed here) |
+
+The three short: penrose/2 never lit a beacon (the diamond age stalls
+there); kagome/1 ran the world's reachable lava out one obsidian short of a
+frame (5/6); truncsq/1 got 2 obsidian before it lost its way home.
+
+**A team of 3 baselines, 5 days:** on penrose/3 and kagome/4, 2 of each 3
+players crossed and came back with glowstone (4 crossings each run), 0
+deaths. One portal serves the team: whoever builds it first, the others use
+it.
+
+Life sweep after all of it (baseline, 3 seeds × 10 tilings × 2 days): iron
+pickaxe 30/30, house 30/30, 0 deaths, 0 stuck. The penrose, rhombille
+and truncsq rows now show *"interrupted: blaze adjacent"*: the nether is
+already reached inside two days.
+
+**Not measured:** Jev in the nether. The options, facts and project steps
+exist, and the selftest checks what Jev would be offered there. No live run
+has happened yet.
+
+### Towards System 2: the bail, one mine or many, and reading a human (2026-09-27)
+
+The endgame the operator described: an agent gets a blank sheet and some
+goals, writes macros zero-shot, and Jev picks among them, **with the right to
+bail when nothing fits**. Three pieces of that are now built.
+
+**The bail.** A typed choice cannot abstain from a set you defined (the
+Lisbon-weather result above), so `next` now carries its own way out: a `bail`
+option (`BAIL_CRITERIA` in `mind.mjs`) saying *none of these: hand this
+decision up to the planner*, to be chosen only when every option would fail,
+does nothing useful here, or the thing needed is not offered. A bail does three
+things:
+- It logs what a planner needs to see into `sim.bails`: where, health, food,
+  threats, the project's next step, every option offered with its project fact
+  and last failure, the recent journal, confidence, the self-check and the top
+  probabilities. It also puts a `bail` note in the stream.
+- It asks `sim.escalate(sim, entry)` for the move. **That is the hook System 2
+  plugs into.**
+- With no planner attached, the baseline answers, stamped *standing in for
+  the planner*.
+
+`sim.noBail` (`--no-bail` in the eval) is the control. The self-check's own
+vote (`have` < 0.5) is recorded on every decision as `low_have`, not acted on.
+
+**The first live bails found a harness fault, the way this file keeps finding
+them** (`lab/craft-bail-live.json`, mixed/penrose/7, hard, 70 decisions): Jev
+bailed 4 times. Three of those were at 0.78–0.81 confidence, at 4 health with
+3 zombies near, **with `fight` and `dig_in` missing from the menu**. They had
+been taken away by two rules working together:
+- The zombie-adjacent interrupt fired *during* `fight`, so every swing ended
+  as "interrupted".
+- The rule that withholds an option which just failed from the same spot
+  counted that interruption as a failure.
+
+So the answer to the threat was withheld, and the bail was the right answer to
+the menu it was given. Fixed:
+- The interrupt spares `fight`, `dig_in` and `guard`.
+- An interruption no longer withholds anything.
+
+Same world, same 70 decisions, afterwards: **0 bails**, deaths 3 → 1, and each
+fight resolves in one decision instead of five. The bail's first job turned out
+to be a **trap detector for the harness**, which is what a planner reading
+`sim.bails` needs it to be.
+
+The same change exposed a real dimension bug: dying in the nether woke the
+player at home, but the solo sim's current world stayed the nether. A tick now
+ends in the acting player's world.
+
+**One mine, or a new dig every time?** Every mining macro starts from wherever
+the player stands. The alternative a strategist would build is `mine_home`
+(`homeMine`): one staircase near the house door to the ore layer (iron 7,
+diamond 5, above the lava pockets), a lit hub, and branches on golden-angle
+headings. The team shares it (`sim.team.mines`), and each later trip walks
+down to the newest branch end and tunnels on. A mine that can't be got back
+into, or whose hub opens nowhere, is abandoned and dug again.
+
+Measured head to head (both arms start from the same saved moment: house
+built, the right pick in hand; then 6 trips from home, over 6 worlds):
+
+| | fresh dig each trip | the home mine |
+|---|---|---|
+| iron: ticks per ore | **119** (91 ore) | 197 (68 ore) |
+| diamond: ticks per ore | **578** (41 ore) | 1063 (17 ore) |
+| health lost, diamond trips | 60 | **18** |
+
+**On these worlds a new dig is right, and the reason is geology.** Ore is found
+by exposing rock faces, and a tunnel's cost per exposed face is the same
+whether it is new or an extension. What a mine saves is the descent: ~13
+blocks a trip, small next to the 50–100 dug to find ore. And iron veins are
+short and spread evenly over layers 1–12, so one layer crosses few of them,
+while a staircase samples every layer on the way down. On kagome, ~400 tiles of
+branch at layer 7 found 4 iron. What would flip it: ore concentrated in a
+band, a deeper world (a longer descent), or a surface that is dangerous to
+cross. **The mine is safer**, lit and known, so it stays in the palette with
+that fact on it. The baseline keeps digging fresh. **That holds for a handful
+of trips only; over forty it reverses (below).** In the live run Jev chose
+the mine 8 times, apparently for the safety label.
+
+**The long run reverses it** (the operator's challenge: *a fresh dig pays the
+descent every trip and saturates; the classic pattern sees every stone*).
+`mine_grid` (`gridMine`) is the mine laid out to see every stone. On a square
+grid that's Minecraft's tunnel every third block. On a tiling the same idea is
+a **connected dominating set** on the layer's tile graph: tunnel tiles you can
+walk between, with every tile on the layer a tunnel or next to one. It's
+planned greedily (`gridPlan`: grow from the hub, always adding the tile that
+newly exposes the most). The result is under half the layer dug and every
+stone's face shown. It uses a permanent staircase, and layers are opened in
+the order 7, 4, 10, 1, which between them show layers 0–12. Its **loop**
+variant (`returnDig`, the operator's down-shaft-and-up-shaft idea) digs deep
+along one corridor on the way out and digs a new way back through the tiles
+beside it, so the return also uncovers rock.
+
+40 trips from home, 3 iron wanted per trip, all four arms from the same saved
+moment, medium worlds (`lab/craft-mining-long.json`):
+
+| world | fresh dig | hub mine | grid | loop |
+|---|---|---|---|---|
+| penrose/3 | 60 ore, 20 trips failed | 39, 24 | 91, 8 | 96, 4 |
+| kagome/4 | 19, 34 | 44, 25 | 108, 3 | 113, 1 |
+| truncsq/3 | 6, 38 | 40, 26 | 116, 1 | 117, 2 |
+| hex/2 | 18, 34 | 18, 33 | 105, 3 | 106, 3 |
+
+- **The fresh dig runs dry by trip 10–20.** It stops finding iron within reach
+  of home and fails trip after trip. It also took all the damage (21–27
+  health, a death on every world).
+- **The radial hub mine runs dry by trip 20–30.** Its branches head ever
+  farther out along one layer.
+- **The grid mine is still finding ore at trip 40**, at a steady cost (truncsq
+  113 ticks per ore over trips 1–10, 64 over trips 31–40), with 2–6× the ore
+  and no damage. Early on it is often dearer than a fresh dig (penrose 401
+  vs 241 ticks per ore over the first 10 trips): the crossover comes within
+  the first 10–20 trips.
+- **The loop matched the grid** (136 vs 146 ticks per ore on kagome, 253 vs 242
+  on penrose). The arithmetic explains it: with a stone pick a tunnel tile
+  costs ~9 ticks (2 blocks at 15 / 4, plus the step) and walking one costs
+  1. So the walk back is 10–15% of a trip, and digging a new way back costs
+  9× walking the old one unless the new rock pays for itself. It roughly
+  does, and no more.
+
+**So: the operator was right about the long run.** The fresh dig's per-trip
+descent and its saturation make it the worst pattern past the first few
+trips, and seeing every stone wins. On the small island (242 iron) every
+pattern ran dry by trip 20, and the grid got the most (51) because it saw
+every stone within 18 tiles on three layers. What would make a loop pay: a
+slower walk (hazards, water), or a better pick, which makes digging cheaper
+relative to walking.
+
+**Tools: shovels, axes, durability, shears (2026-09-27).** A block's class
+decides which tool speeds it:
+- `tool` means a pick is required;
+- `by: 'shovel'` covers dirt, grass, sand, farmland and soul sand;
+- `by: 'axe'` covers logs, planks, tables, chests and doors.
+
+Shovels and axes come in wood, stone, iron and diamond (1 or 3 of the
+material, 2 sticks).
+
+**Every tool wears out**, with Minecraft's numbers: wood 60 uses, stone 132,
+iron 251, diamond 1562, shears 238. A use is a block of its class mined, a
+sword hit, a till, a shearing. The top item of a stack wears, so a second one
+is a spare. Wear is in the stream (`["wear", id, item, left]`, and a `broke`
+note). Shears give 1–3 wool, the sheep lives, and the wool grows back in 1200
+ticks.
+
+Durability broke the baseline three ways, each fixed:
+- **Stranding.** A pick that broke at the bottom of the world left the
+  player at bedrock with nothing to dig with, and `gather_wood` failed 120+
+  times. The baseline now always keeps a spare stone pick. Mining macros stop
+  and head up when the last pick drops below its reserve (`pickLow` /
+  `deepAndLow`: 30% of its durability, at most 48).
+- **A fixed reserve** called a 60-use wooden pick "worn out" after 12 uses and
+  looped 1000 times. The reserve now scales with the tool.
+- **The best pick did all the digging**, so iron picks broke ~10 times a run and
+  the diamond age stalled. Now the **cheapest good-enough pick is used**
+  (`pickFor`): stone for stone and iron ore, iron for diamonds, diamond only for
+  obsidian. `pickChoice: 'best'` on a player trades that wear for speed.
+
+Measured after all three (baseline solo, 20 worlds, 5 days): 15 / 20 reach the
+nether, 13 finish the ladder, 0 deaths, 0 stuck. That's against 17 / 15 before
+wear: **wear costs about two worlds and ~1100 ticks to the crossing**, a real
+price rather than a bug. Life sweep 30 / 30, 0 deaths, 0 stuck. Jev sees
+`tools_uses_left`, and a worn tool's craft option reads *a replacement: yours
+has 12 uses left*.
+
+**Better picks, and does the loop pay with them? (2026-09-28)**
+40 trips, the grid mine and its loop, each with a stone, iron or diamond pick
+used for everything (`pickChoice: 'best'`), 3 medium worlds
+(`lab/craft-mining-picks.json`). Ticks per iron ore:
+
+| world | stone: grid / loop | iron: grid / loop | diamond: grid / loop |
+|---|---|---|---|
+| penrose | 232 / 237 | 183 / **159** | **146** / 157 |
+| kagome | 211 / 203 | 182 / **169** | **132** / 139 |
+| truncsq | 151 / 149 | 124 / **117** | 105 / **99** |
+
+- **The pick matters far more than the pattern.** Stone → diamond cuts the
+  cost per ore by 30–37% on every world, because stone costs 4 ticks a block
+  with a stone pick and 2 with a diamond one.
+- **The loop pays with an iron pick** (3 of 3 worlds, 4–13% cheaper per ore),
+  and not reliably with stone (even) or diamond (1 of 3). The prediction
+  was that cheaper digging makes digging a new way home worth it, and it
+  holds only in the middle. With a diamond pick the whole trip is short
+  enough that the return is a smaller share again. n = 1 world per cell, so a
+  5–10% difference is inside run-to-run noise. Read it as *the loop is never
+  much worse, and sometimes a bit better*.
+- Ore found is the same across arms (94–118 in 40 trips): the layout sees the
+  same stone either way.
+
+**Getting to the mine: ladders, drops into water, trapdoors (2026-09-28).**
+The operator's point: people shorten the trip to a mine with a ladder shaft up
+and a drop shaft down into water deep enough to break the fall. What that
+took:
+- **Ladders** (7 sticks → 3): stand in one, `climb` up or down a layer a tick.
+  Both planners (`path`, `digPath`, via `ladderSteps`) know ladders, so every
+  macro uses one when it is shorter. A ladder may be placed where you stand:
+  that's how a shaft gets its rungs.
+- **Water breaks a fall**: a drop of any height that lands in water, or on it
+  (`wet`), does no damage, and the planners plan such drops.
+- **Trapdoors** (6 planks → 2): a door in the floor, open to the player and
+  shut to mobs. You drop through one; a mob stands on it (`supported(…, mob)`).
+- **`build_access`**: beside the house (never on it), a ladder shaft dug from
+  the top (mine below, drop a layer, set the rung above), a one-deep sump at
+  its foot filled from a bucket, a drop shaft beside it dug from the top last,
+  so its final block drops the builder into its own water (the first test).
+  Then a trapdoor over the drop, **and one at the ladder's head in place of its
+  top rung** (a wall to a mob at ground level; the player climbs through it
+  from the last rung), and a torch at the foot. When shafts exist, a new grid mine starts
+  at their foot, under the house.
+
+**Measured** (`lab/craft-mine-access.json`, 30 trips, medium worlds, 40
+spare picks, the loop fights what interrupts it):
+
+| world | grid from a staircase | grid from the shafts | way home per trip |
+|---|---|---|---|
+| truncsq | 140 ticks per ore | **122** | 45 → 36 |
+| hex | 192 | **164**, but it ran out of layers sooner (53 ore vs 76) | 44 → 24 |
+| penrose | **261** | 322 (more trips found no iron) | 53 → 43 |
+| kagome | 182 | 176 (the shaft build failed partway) | 54 → 43 |
+
+**The way home is shorter everywhere (19–45%). The cost per ore is not
+reliably better**, because moving the mine under the house moves it to
+different rock, and where the ore is outweighs the walk. The arithmetic
+explains why the walk is small here:
+- A staircase step moves one layer and one tile in a single tick.
+- A rung is also a tick.
+- A fall of any depth is instant.
+- The world is ~15 layers deep.
+
+So the whole walk down the staircase is ~14 ticks of a 300–400-tick trip.
+The shafts save most of the way down and some of the way up, and that's all
+there is to save. What would make them decisive: a deeper world (Minecraft's
+~120 layers), stairs that cost more than a flat step, or many trips an
+hour (hauling). The option is on Jev's menu with that fact.
+
+Three things this round found:
+- `explore` quietly "succeeded" with 0 ticks when a mob stood in its first
+  step (the walking planner doesn't see mobs), forever. A refused step now
+  hands over to the digging planner, and a walk that gets nowhere fails.
+- The first long-run runs died to durability: 12 spare picks wear out in 30
+  grid trips, and a death empties your pockets.
+- A loop that never fights let one zombie kill the player. Both are
+  experiment faults, fixed in the harness and recorded here, not in the
+  results.
+
+**Reading a human's game (`craft/segment.mjs`).** A human plays in
+primitives, and nothing in the stream says *now I am mining for iron*. The
+segmenter:
+1. Gives each action a cue: a log mined → wood, iron ore → mine_iron, a block
+   below the feet → going down, a torch placed → light, and so on.
+2. Lets walking borrow the cue of the work it leads to.
+3. Absorbs a torch or a block placed mid-tunnel into the tunnel.
+4. Cuts runs into episodes, and names each one afterwards from what it did:
+   the best ore it turned up, whether it went down or up, and for a walk,
+   whether it ended at home.
+
+Each episode carries what was mined, placed and crafted, and its depth.
+`score()` checks it against a macro-played stream, whose macro notes are
+ground truth. Counting each macro run once, it names the right **family** for
+**~80%** of runs (truncsq, penrose, kagome: 80 / 82 / 81%) and the exact macro
+for ~50%. Most name misses can't be fixed from outside: a staircase that
+happens to turn up iron reads as `mine_iron` whatever it was for, and
+`surface` often reads as the mining it did on the way up.
+
+Two stream changes make human play attributable:
+- With more than one player, every `do` event names its actor (a trailing
+  `{by}`). One-player streams are byte-identical to before.
+- A human seat is marked with a `seat` note, in co-op at join and solo when
+  "you" takes the seat.
+
+The page's **save stream (.jsonl)** is the export, and
+`node mega/jev/test/craft-segment.mjs run.jsonl` reads it back. Actions no
+macro claimed are the human's (`[hands]`).
+
+**What this sets up.** A planner gets three inputs: goals, the bail log (what
+Jev couldn't do with the menu it had), and, from a human's game, episodes in
+the palette's own vocabulary to learn macros from. The planner loop itself
+(write a macro, check it headlessly, add it, rerun on held-out worlds) is not
+built. It spends model budget and waits for the go-ahead.
+
+**Still true, found again this round:** the solo baseline reaches the nether
+on 17 of 20 worlds. snub/1 still ends stuck on day 3 in a sea-walled pit (older
+than all of this).
+
+### A world that renews, boats, and threats that need different answers (2026-09-28)
+
+Roadmap phases 1 and 2, plus boats (the operator: *"I don't see boats on the
+list but that should be simple to add"*).
+
+**Phase 1: a world that renews.**
+- **Things on the ground.** Mined drops still go straight to the pocket, but
+  a death now drops the whole inventory where you fell, as an `item` entity
+  that despawns after `ITEM_DESPAWN` (1200 ticks). Anything adjacent picks it
+  up. `recover` goes back for your own things (`e.lastDrop`), and `collect`
+  gathers items in sight. Jev sees `lost_things` and gets a `recover` option
+  while the drop still exists.
+- **Trees regrow.** Leaves left with no log within reach decay (`decayQ`),
+  and a decaying leaf drops a sapling (1 in 12) or an apple (1 in 30) on the
+  ground below; mining a leaf gives a sapling 1 time in 10. `plant_trees`
+  plants saplings near home, on grass or dirt. A sapling under open sky or
+  near a torch grows into a tree in about `TREE_TICKS` (1600): a trunk and a
+  graph-ball crown, like the generator's.
+- **Animals renew.** Cows (beef, leather) and chickens (meat, feathers) join
+  pigs and sheep. Breeding works like Minecraft's: feed two adults their food
+  (`BREED_FOOD`: wheat, seeds, an apple for pigs). They pair within 3 tiles,
+  and the young grow up in `GROW_UP` (1200) ticks. Animals follow a player
+  holding their food only while that player is breeding: lured herds crowded
+  the miners otherwise.
+- **Fuel has values** (coal and charcoal 8, planks 1, a lava bucket 100), and
+  a player carries fuel credit between smelts. **Food has saturation**, which
+  is drained before the food bar, so cooked meat beats bread.
+- Their own rng stream (`rngLife`), so pigs, sheep, zombies and world gen keep
+  their old sequences.
+
+**Measured** (baseline, 10-day runs): 0 deaths, 3–14 trees regrown per run,
+and standing wood holds level. The honest part: **the baseline never ran out
+of wood in 10 days even before renewal**, so this makes long runs possible
+rather than rescuing ones that were failing. Life sweep 30/30.
+
+**Boats.** Swimming now costs `SWIM` (3) ticks a tile instead of 1, and the
+planners price it. A `boat` (5 planks) is boarded when you step onto water
+carrying one and stowed when you land: 1 tick a tile. The baseline makes one
+on a water world (`sim.noBoat` is the control). On archipelagos, the share of
+the world explored in 2 days went 69 / 97 / 95 / 100% (swimming) → 71 / 100 /
+100 / 95% (boat) over 4 worlds. **That's a wash**: the boat changes the
+trajectory more than it speeds it, and the islets are small enough to swim.
+It matters where water is wide, which these worlds aren't.
+
+**Phase 2: threats that need different answers.** Zombies can be answered by
+a door. The new three can't:
+
+| mob | what it does | the answer |
+|---|---|---|
+| **skeleton** | shoots from up to 7 tiles with line of sight (75% hit, 3–4 damage, every 12 ticks), backs off if you close within 3, burns in daylight | cover, a shield (halves arrows), a bow, or close in and fight |
+| **spider** | climbs 3 layers (walls don't stop it), neutral in daylight unless hit | lit ground and roofs, not walls |
+| **creeper** | hisses within 1.5 tiles with sight, blows 6 ticks later unless you get beyond 2.5; the blast removes blocks (house walls too) and hurts by distance | step away (`flee`), then `repair_house` |
+
+Spawn mix: zombie 45%, skeleton 25%, spider 18%, creeper 12% (`SPAWN_MIX`, own
+rng `rngMob`). `HOSTILE` includes all of them, so every threat check reads
+them. Line of sight (`sim.los`) samples the segment between two eyes through
+`columnLocator`.
+
+New things to carry: a **bow** (3 sticks, 3 string from spiders), **arrows**
+(stick, feather, cobblestone → 4), a **shield** (6 planks + iron, 336 uses).
+New macros: `flee` (the nearest safe column away from a hissing creeper),
+`shoot` (a visible target, with the bow), `repair_house` (fills blast
+holes from the ground up, re-protects and re-proves `sealed`). New
+interrupts: *a creeper is hissing* and *a skeleton is shooting* (acknowledged
+once, like nightfall). Jev's `threats` gain `creeper`, `skeleton` and
+`breach`, each with its relief options. `stats.killedBy` records what killed
+whom.
+
+**Four faults the survival measurement found, each fixed:**
+- **The `hard` row had no `arrowDmg`**, so every arrow did `NaN` damage, which
+  zeroes health outright. The first after-table (baseline 10 deaths, offline
+  140, random 119) was mostly that. Every difficulty now sets every knob, and
+  a selftest pins it.
+- **A shut door didn't block a skeleton's sight.** One offline run died 160
+  times, every one a skeleton outside a sealed house shooting through the
+  doorway at the respawn point. Doors and trapdoors now block line of sight.
+- **Respawn at spawn climbed up from the generated height.** The spawn column
+  had become the player's staircase, nothing above it was standable, and the
+  player hung at the top of the world, failing every macro for the rest of
+  the day. It now lands on the current surface within 3 tiles.
+- **`flee` was cut off by *zombie adjacent* at 0 ticks**, 2955 times in a
+  row. Fleeing is now exempt, as fighting already was.
+
+**Measured, survival at hard** (4 worlds × 2 days, `lab/craft-threats.json`):
+
+| decider | deaths before | after | rungs before | after |
+|---|---|---|---|---|
+| baseline | 0 | 1 | 36/36 | 36/36 |
+| offline stand-in | 1 | 4 | 35/36 | 36/36 |
+| random | 13 | 24 | 26/36 | 23/36 |
+
+**Survival spreads more, but not much.** Random's deaths nearly doubled, and
+the two sensible deciders still barely die. A house with a door, now a real
+shield against arrows, plus a sword, still carries the day at this
+difficulty. Life sweep (normal, 3 seeds × 10 tilings × 2 days): 30/30 iron,
+30/30 houses, 0 deaths, 0 stuck. The commonest failure in it is
+`repair_house: could not reach a hole`: a blast hole in a roof can't be
+reached from the ground on the planner's terms. It's recorded, not fixed.
+
+Nether sweep after all of it (baseline solo, 10 tilings × 2 seeds, 5 days, normal):
+14 / 20 reach the nether and bring back glowstone, 11 finish the 16-step ladder,
+median crossing tick 6065, **0 deaths, 0 stuck** (snub/1's sea-walled pit no longer
+traps it). Before this round: 15 / 20 and 13. One or two worlds either way is
+inside the trajectory noise this file keeps finding, so read it as *unchanged*,
+not as a cost.
+
+Not measured: Jev with any of this. Its options exist (`flee`, `shoot`,
+`repair_house`, `recover`, `breed_<kind>`, `plant_trees`, the bow and shield
+crafts) and the selftest checks what it is offered.
+
+### Pens, phase 3 and phase 4: tiers, and machines on a graph (2026-09-28)
+
+The operator: *"let's see the next two phases (and go ahead and make fences)"*.
+
+**Pens.**
+- A `fence` is a block nothing can stand on or step over, spiders included.
+- A `fence_gate` works like a door: the player walks through it, an animal doesn't. `toggle` swings it open, and then animals can pass too.
+- A pen is the tile graph's ring one hop out from a patch of ground (`penPlan`): every interior tile's neighbours are interior or fence, so nothing walks out.
+- The floor needn't be flat. A fence at a ring tile's surface leaves that tile with nowhere to stand, whatever level an animal approaches from.
+- Animals follow a player holding their food. They walk an actual route, around fences and through open gates, at walking pace, and a lured animal shoulders a passive one aside.
+- Players push passive animals aside too, as in Minecraft.
+- `pen_animals` leads animals to the pen tile farthest from the gate, then shuts the gate from inside while they're still following. The player walks out through the shut gate, since it stops animals, not the player.
+
+The faults, one per fix:
+- The builder's own route dug through fences it had just placed, and dug a pit under the gate.
+- Cows stood on top of shut gates.
+- A cow stopped in the gateway, because "beside the player" was measured as a distance instead of graph adjacency.
+- Two lured cows swapped places with each other every tick, for ever.
+- Lured animals moved at a third of walking pace and got left behind.
+- A chicken camped in the gateway.
+- **The player caged itself in its own pen**, three ways, found in the life sweeps after the late game moved:
+  - The digging planner routed round every mob, so a cow on the one tile joining the gate walled the player in. The planner now charges `ANIMAL_DETOUR` (20) to go through a passive animal, since the player shoves it.
+  - When a full pen left the cow nowhere to be shoved, the move was refused. The player now trades places with it instead.
+  - A chest and a block placed later outside the gate left no step down from it. The gate's outside tile is now reserved and its ground protected.
+
+**Measured** (`lab/craft-machines.json`, 10 tilings × 2 seeds):
+- Pens: built 20/20, and both cows are still inside 1,200 ticks later on 20/20.
+
+In the baseline, **a pen built early costs the nether**:
+- On day 1, pens cut worlds reaching the nether in 5 days from 14/20 to 9/20.
+- Rerunning the six regressed worlds with pens off brought 4 of them back.
+- The baseline now builds its pen after the nether: 14/20 again, 16/20 with a pen, 12/20 with two animals in it.
+
+A pen is a sink of time and wood that pays off over days, and five days isn't enough.
+
+**Phase 3: resources and tiers.**
+- **World v4.** Gold (layers 1–10, iron pick), redstone (1–6, iron pick, 4 a block), lapis (1–10, stone pick, 5 a block), and wild sugar cane by the sea.
+  - v4 has its own rng pass, and v1–v3 still generate byte for byte: four pin sets.
+  - Gold and redstone veins can now wall in a staircase dug with a stone pick, as in Minecraft.
+  - The staircase now turns aside when an animal stands on the next step, instead of giving up.
+- **Experience.** Minecraft's curve (2L+7, then 5L−38, then 9L−158). It comes from ores (coal, diamond, redstone, lapis, quartz), kills, breeding and smelting (fractions kept).
+  - A death drops 7 a level, up to 100, in with the items.
+  - Levels are what enchanting and the anvil spend.
+- **Enchanting.** A table costs a book (3 paper of sugar cane, 1 leather), 2 diamonds and 4 obsidian.
+  - Bookshelves within two hops give it power, up to 15.
+  - Three offers per item, by Minecraft's algorithm. They're drawn by hash from the player's enchanting seed, so looking is free and the offers stay fixed until an enchant.
+  - Enchantments: efficiency (n²+1 on the tool's speed), unbreaking (a use costs durability 1 time in n+1), fortune (coal, diamond, redstone, lapis, quartz), sharpness, power and protection.
+  - Enchantment and wear belong to the item in hand. Storing a worn or enchanted tool is refused; both travel with a death drop.
+- **The anvil.** 31 iron. A unit of the tool's material mends a quarter of its uses, for 1 level a unit, plus 2^n−1 levels for the nth repair of the same tool. At 40 it's "too expensive".
+- **Smelting takes time now.** 10 ticks an item at a furnace, 5 at a smoker (food only) or a blast furnace (ores only), whether by hand or unattended.
+  - Minecraft's 10 seconds would be 40 ticks, so this is a deliberate quarter.
+  - This is a rule change for everyone, and it's what gives the new furnaces and the smelter a job.
+- Also: stone and smooth stone, and golden apples (8 gold + an apple, heals 10).
+
+**Efficiency barely matters at this tick granularity with a good pick.** Ticks to mine, with the pick used for everything:
+
+| pick | none | efficiency 2 | efficiency 5 |
+|---|---|---|---|
+| stone: stone / iron ore | 4 / 5 | 2 / 2 | 1 / 1 |
+| iron: stone / iron ore / diamond | 3 / 3 / 4 | 2 / 2 / 2 | 1 / 1 / 1 |
+| diamond: stone / iron / diamond / obsidian | 2 / 3 / 3 / 7 | 2 / 2 / 2 / 4 | 1 / 1 / 1 / 2 |
+
+The baseline's typical first enchant, efficiency 2 with unbreaking 2 on a diamond pick, leaves stone at 2 ticks. Unbreaking is the real gain: the pick lasts three times as long.
+
+**Phase 4: automation on a graph** (`craft/machines.mjs`).
+- **Power along the tiling.**
+  - A wire connects to wire in any neighbouring column one layer up, down or level, and loses one level a hop. A lever lights a lamp down 15 tiles of wire and not 16, pinned on a grid platform.
+  - A source (lever, button, pressure plate, redstone torch, redstone block) powers what's beside it: its own column above and below, and each neighbouring column at its layer.
+  - A part (lamp, piston, powered rail, hopper) is powered when anything beside it is a live source or wire.
+  - **Directional parts need "behind" on a tiling.** Behind is the neighbour most nearly opposite the face (`oppositeOf`), and "straight on" is the neighbour most nearly in line (`straightOn`).
+  - A repeater takes power from behind and gives 15 in front, a tick later.
+  - An observer watches the voxel it faces and pulses out of its back for 2 ticks.
+  - A piston pushes up to 12 blocks one tile straight on. What can't be pushed (plants, torches, dust) breaks, and its drop is knocked on past it.
+- **Hoppers.**
+  - Five stacks, moving an item every 2 ticks.
+  - They take what's in the container above them, and whatever lies on top.
+  - They pass items into what they face. Into a furnace, from above means input and from the side means fuel.
+  - A powered hopper is locked.
+- **Minecarts on rails.**
+  - Two tiles a tick. A cart only starts on a powered rail that's switched on, and coasts 32 tiles of momentum.
+  - A climb costs 4, flat costs 1, a drop costs nothing, and a powered rail that's off stops the cart.
+  - A cart shoves an animal off the line.
+- **Stream.** New events: `face`, `furnace`, `xp`, `ench` and `cart`; hoppers reuse `chest`. `Replay` rebuilds all of it, and the selftest proves a machine run replays block for block.
+
+Other redstone details:
+- Redstone torches are always on: no inversion, so no clocks yet.
+- There are no comparators and no sticky pistons.
+
+**The machines** (`craft/builds.mjs`) were written by System 2 (by hand). Each is laid out by a site search on the tile graph.
+
+*The automatic smelter* is Minecraft's classic, standing on three tiles:
+- an input chest over a hopper over a furnace;
+- a fuel chest and hopper feeding the furnace from the side;
+- a hopper under it passing ingots into a chest set in the ground, where the player stands to reach all three chests.
+
+*The self-harvesting cane farm*, per plant:
+- a tile of poured (still) water, with the cane beside it;
+- an observer watching the top piece's place;
+- a wire, routed over the graph, from the observer's back to a piston facing the middle piece;
+- a hopper, set in the ground on the tile straight on past the cane, under where the cut pieces land, feeding a chest beside it.
+
+Two versions came first:
+- **The first had the observer watching the piece the piston cut.** The piston head moved into the watched voxel, and each cut set off the next: about 1,000 pushes a day. Watching the top piece and cutting the middle one gives 3–4 pushes a day.
+- **The second demanded a tile that neighboured two others** (the observer's back and the piston). It laid out on only 3 of 10 tilings. Routing a wire between them instead, over the graph within reach of the ground, gets 20/20.
+
+*The railway*:
+- A route that climbs or drops at most one layer a tile.
+- Powered rails at both ends, and wherever the cart's own momentum arithmetic says it would run low, riding both ways.
+- A redstone torch beside each powered rail.
+
+The ride failures were a cart running out of momentum on a climb before the next powered rail (every 24 tiles wasn't enough on hills), and a sheep on the line.
+
+**Measured** (`lab/craft-machines.json`, materials handed over; the time to mine them is not counted):
+
+| build | works on | what it gives |
+|---|---|---|
+| pen | 20 / 20 | both cows still inside 1,200 ticks later on 20 / 20 |
+| cane farm (2 plants) | 20 / 20 | **6.75 cane a day** into its chests with nobody there (the most two plants can grow is 8); 3.4 pushes a day |
+| smelter | 20 / 20 | 12 ore in, 12 ingots out in ~125 ticks, unattended (by hand: 120 ticks standing at the furnace) |
+| railway (~40 tiles, medium worlds) | 10 / 10 | rides at 2 tiles a tick: **33 ticks saved a round trip** of ~72 walked; ~150 ticks to lay, so it pays back its laying in **4.6 round trips** |
+
+The self-harvesting cane farm is the answer to the roadmap's phase 4 question in its narrow form. A machine that outlasts the player *can* be laid out on every one of foam's tilings, Penrose included, by a site search over the tile graph. It was not designed by a planner from a blank sheet, which is the question that remains.
+
+**In the baseline** (20 worlds, 5 days; the late game comes after the nether):
+
+| reached | worlds |
+|---|---|
+| the nether (glowstone back) | 14 / 20 |
+| enchanting table, pick enchanted | 9 / 20 |
+| a pen | 16 / 20 (12 with two animals in it) |
+| a smelter | 2 / 20 |
+| a cane farm | 2 / 20 |
+| an anvil used | 0 / 20 |
+
+Five days is too short for the late game: the machines come at the end of a long ladder. Over 10 days (the same 20 worlds, run before the last combat fixes below) it goes: the nether 15 / 20, enchanted 12 / 20, a pen 19 / 20 (16 with two animals), a smelter 3 / 20, a cane farm 1 / 20, an anvil 0 / 20, with 6 deaths and 0 stuck. The smelter and cane farm still come last, behind a long iron and redstone bill, and the anvil never comes up because a tool rarely wears far enough while a spare is cheaper.
+
+Life sweep after all of it (baseline, 3 seeds × 10 tilings × 3 days): iron pickaxe 30/30, house 30/30, 3 deaths, 0 stuck, and no macro failing more than 25 times in a run.
+
+**Combat changed for everyone: knockback.** A blow knocks a hostile back two tiles, straight away from the attacker, and a creeper knocked past 2.5 tiles fizzles.
+- `fight` now takes on creepers, as Minecraft players do.
+- Without this, a creeper stalking the player at night made a `flee` / `sleep_in_bed` loop, 15 of each in one night. The segmenter test caught it, because 30 of 71 macro runs were that loop.
+- **Skeletons are not knocked back.** Knocking an archer two tiles out gave it room to shoot: one run lost a player to a skeleton on day 1. A skeleton now stays where it's hit.
+- `fight` closes in on a creeper within 2.5 tiles while health is over 10, and steps away (`flee`) when it can't reach it. Without that fallback, the baseline chose `fight` 216 times in a row on one snub world against a creeper it had no path to.
+- `dig_in` now walls in the player's column as well as capping it. At the bottom of a tunnel on bedrock there's no digging down, and a skeleton down the tunnel shot a sleeping player.
+
+**What Jev sees.**
+- `perceive()` adds experience and enchantments, the new ores and sugar cane in sight, and `works`: the pen, the table's power, the stations, the smelter's state, the cane farm's haul and the railway.
+- Options:
+  - `build_pen` and `pen_<kind>`
+  - `mine_gold` / `mine_redstone` / `mine_lapis`
+  - `harvest_cane` and `plant_cane`
+  - `set_up_enchanting`
+  - `enchant_<item>`, carrying the offer it would take and the other two
+  - `set_up_<station>`
+  - `repair_<item>`, carrying the quote
+  - `build_smelter` and `use_smelter`, carrying what's done and what's waiting
+  - `build_cane_farm` and `collect_cane`
+- Projects: tech gains two steps (the table, an enchanted pick), and a fourth project, **automate**, has four (a pen, two animals in it, a smelter, a cane farm).
+- The railway isn't on Jev's menu: it needs a destination, and nothing in this game makes a far one worth a line yet.
+
+**Not measured:** Jev with any of this, and the planner loop that would design a machine rather than choose a hand-written one.
+
+### The arena: head to head (2026-09-29)
+
+The operator: *"we could build PvP games to sharpen the algorithm testing
+environment. If there's head to head you could get direct measurement …
+it's building the cybernetic system, the Jev reaction with the LLM
+strategizing. I don't know how we can do that without a competition."*
+
+That was right, for three reasons the solo scoreboards had run into:
+- **The solo scoreboards saturate.** The baseline reaches every rung and barely dies, so all that's left to compare is speed.
+- **The benchmark was mine.** The baseline, the worlds and the scoring were all written by the hand that wrote the script.
+- **One run per world is one draw.** Two identical live runs diverged at tick 1457.
+
+Head to head fixes all three. There is always a winner, so the scale has no ceiling. The opponent is the benchmark, so a brittle plan gets punished instead of just being slow. And many short matches with the sides swapped turn trajectory noise into an error bar.
+
+It also splits the credit, which is the question the whole programme asks:
+- **Same palette, different decider** measures System 1 (Jev against the script).
+- **Same decider, different palette** measures what System 2's strategizing added. That comparison isn't built yet; it's the next step, and it spends model budget.
+
+**The game** (`craft/arena.mjs`, world kind `arena` in `world.mjs`). Bed Wars on a tiling:
+- Two sides. Each has a bed, an iron-and-gold generator and a shop on a floating island.
+- A centre island has a diamond generator.
+- Between the islands is a fall to the bottom of the world. Anyone more than 3 layers under the floor dies, and the kill goes to whoever hit them last.
+- While your bed stands you come back after `RESPAWN_TICKS` (20). Break theirs, then kill them, and you win. A match nobody has won by `MAX_TICKS` (6,000) is a draw unless exactly one bed stands.
+- Everything the generator laid is locked; only placed blocks can be mined.
+- A death keeps armor and tools, loses blocks and resources (the resources go to the killer), and the sword goes back to wood.
+- Difficulty `arena`: no mobs, no hunger, health back every 20 ticks.
+
+| | |
+|---|---|
+| generators | iron every 6 ticks, gold every 32, diamonds every 120 (centre) |
+| shop (`SHOP`) | wool 16 for 4 iron, planks 16 for 12, cobblestone 12 for 24 (needs a pick to break), obsidian 4 for 4 diamonds, swords, armor, picks, an axe, a bow and arrows, golden apples |
+| bridging | a block laid over the void takes `BRIDGE_TICKS` (3), not 1 |
+| combat | player to player: the next tile, two layers up or down (`canHit`); a blow knocks a player 1 tile, off the edge if that's where they stand |
+| bed cover | the top, and every neighbour three high (`coverOf`) |
+
+**Fairness is geometric, then statistical.** Side B is side A under a symmetry of the tiling, found by testing rather than assumed (`arenaSymmetry`):
+- **Exact half-turn:** grid, hex, rhombille, snub, kagome, rhombitri, truncsq. Ammann has an exact mirror at 45°.
+- **None in the patch:** Penrose and the sevenfold tiling. There side B is laid out afresh at the mirrored spot by the same rules, and `exact: false` says so.
+- **Two diamond pads** where the centre tile isn't a fixed point of the symmetry, so neither side is nearer the diamonds.
+- **Every pairing plays both sides of every map**, so a map's lean cancels.
+- **The scheduler serves the two sides alternately**, tick by tick. Serving side 0 first every tick handed it every race.
+
+Measured: side 0 won **0.453 of 300 mirror matches**. Single maps lean (penrose 14/18 for side 0, kagome and ammann 6/18 in one run), which is what the side swap is for.
+
+**The palette** (`ARENA_PALETTE`, the arena's own):
+- Resources and gear: `gather` (iron or gold at your generator), `buy {item}`, `gather_mid` (diamonds), `heal`.
+- Beds: `fortify` (cover your bed, the hardest blocks first, never walling yourself in: `wouldTrap`), `rush` (bridge to their bed and break it; it says when their cover needs a pick you lack).
+- Moving: `bridge_mid`, `go_base`.
+- Combat: `fight`, `hunt` (bridging to them if it must), `defend` (guard the bed while anyone is within `WARN_RANGE` 7), `shoot`.
+
+Interrupts: *an enemy is on you*, *an enemy is coming for your bed*, *your bed is gone*.
+
+**It had to be its own palette.** Merging it into `PALETTE` overwrote the island game's `fight`, `hunt` and `shoot` for every world, and the selftest's first life run crashed on it. A sim now carries `sim.palette`, which `Party` and `Driver` look in first.
+
+**The policies** are deliberately different styles, so ratings have something to separate:
+- `baseline`: cover, arm, then attack, and punish the window.
+- `rusher`: sixteen wool and go.
+- `turtle`: stone cover, armor, defend, attack only late.
+- `counter`: wool cover, then attack at once, racing a rusher to an uncovered bed.
+- `random`
+
+**The window** (`window()`) is the first thing that makes timing a decision. When every enemy is dead and their bed stands, it gives:
+- the ticks until the first enemy is back;
+- the cost of the way across. A bridge already built costs a tick a tile, so the rusher's own bridge leads straight back to its uncovered bed.
+
+**What the first leagues found, each one a fault and not a result** (the lesson this file keeps relearning):
+1. **The square grid couldn't be fortified.** A radius-2 island falls apart once the bed's ring is covered, because its corners touch only the ring. The builder walled itself into a pocket, and `fortify` failed 11,395 times in one league. Islands now grow until the rest of the base stays connected, and `fortify` refuses any block that would cut its builder off from its generator.
+2. **Bridging cost 2 ticks a tile,** so a rush crossed 23 tiles and broke a bed by tick 118. Void blocks now cost 3 ticks.
+3. **Knockback of 2 tiles made the first blow near an edge a kill.** Whoever stepped up to fight lost to whoever waited: the turtle lost 60 of 60 that way. Players are now knocked 1 tile.
+4. **The cover was one block deep.** An attacker mined the upper block, stood on the lower, and reached down to the bed: 3 ticks through wool. The cover is now three high.
+5. **A defender couldn't hit someone standing on its own bed cover.** The attacker was 2 layers up and attack reach was 1. Reach is now 2, as in Minecraft.
+6. **The defender's walk to an attacker ran through its own cover,** which its planner rightly won't dig, so it stood waiting for 12 ticks. `defend` now steps up and over.
+7. **The first warning came at 3.5 tiles, 5 ticks before the bed broke.** It now comes at 7.
+8. The single diamond pad and the approximate mirror were both unfair (above).
+
+**The league** (`eval/craft-arena.mjs`, `lab/craft-arena.json`; 10 tilings × 6 seeds × every pairing × both sides = 1,500 games, no model calls, 194 s). Scores are wins plus half the draws, with 95% Wilson intervals. There were 0 draws.
+
+| | rusher | counter | baseline | turtle | random |
+|---|---|---|---|---|---|
+| **rusher** | — | 0.54 [0.45, 0.63] | 0.58 | 0.99 | 0.99 |
+| **counter** | 0.46 | — | **0.65** [0.56, 0.73] | 0.97 | 1.00 |
+| **baseline** | 0.42 [0.33, 0.51] | 0.35 | — | 0.95 | 1.00 |
+| **turtle** | 0.01 | 0.03 | 0.05 | — | 0.62 |
+
+Bradley–Terry ratings on the Elo scale (random = 0): rusher 816, counter 808, baseline 727, turtle 104.
+
+**Read it carefully.**
+- **The top three are close, and nobody dominates.** The rusher beats the baseline, the counter beats the baseline, and rusher against counter is a coin flip within the interval. The ranking is what a decider has to navigate, and the one that wins depends on who it faces.
+- **Pure defense loses to everything but random,** and that is Bed Wars' own lesson: a defender must win every rush, an attacker only once. The turtle beat the rusher 0 times in 120 even after faults 3–7 were fixed.
+- **Matches are short** (median 278 ticks, about 70 seconds of game time), which is what makes the n cheap.
+
+**Jev in the seat** (`craft/arena-mind.mjs`, `eval/craft-arena-jev.mjs`, `lab/craft-arena-jev.json`). The same palette as the scripts:
+- **The state:** your gear, carried resources and blocks; where you and the enemy are; both beds' cover (how many places filled, with what, and whether you can break theirs); the threat; the window; kills; and a journal of your last six choices.
+- **The options:** one per legal concrete move, each carrying computed facts. A purchase says what it does to your sword. A rush gives the route's tiles, how many to bridge against the blocks you carry, the ETA, whether their cover needs a pick, and whether it leaves your bed open. A fight compares health, swords and armor.
+- **The questions:** a `next` choice, plus the `have` self-check.
+- **Failures:** a failed call falls back to the baseline for that one decision and is stamped in the stream (`jev` notes). The `--stub` arm plays the same loop with the baseline's pick projected onto the options.
+
+**Measured, live** (4 tilings, seed 11 × 3 opponents × both sides = 24 matches per run; hard cap of 150 decisions a side a match):
+
+| | vs baseline | vs rusher | vs counter | all 24 | calls |
+|---|---|---|---|---|---|
+| stand-in (the baseline's own picks through the menu, no calls) | 3–5 | 2–6 | 5–3 | **0.42** | 0 |
+| **Jev, facts v1** (`lab/craft-arena-jev-v1.json`) | 1–7 | 0–8 | 0–8 | **0.04** | 610 |
+| **Jev, facts v2**, run B (`lab/craft-arena-jev.json`) | 1–7 | 3–5 | 0–5, 3 cut | **0.23** | 1019 |
+| Jev, facts v2, run A (stopped at 11; `lab/craft-arena-jev-v2a.json`) | 1–2 | 3–1 | 1–3 | 5 of 11 | 424 |
+
+**v1 lost 23 of 24, and it was the harness again.**
+- **What it picked:** defend 194, hunt 188, rush 106, and **not one `gather` in 610 decisions**. It never worked its generator, so it fought with a wooden sword and whatever iron it happened to pick up. Mean confidence was 0.42, with 375 of 610 picks below the gate.
+- **What the options failed to say:**
+  - `gather_iron` said what it yields, not what that buys.
+  - `defend` was offered with no one coming, and said nothing about there being no threat.
+  - `hunt` and `fight` didn't say that a kill while their bed stands only sends the enemy home for 20 ticks.
+- **v2 fixed the facts, not the choices.** Gathering now says what becomes affordable, `defend` names the threat or says "none", a kill's worth is on `fight` and `hunt`, and `rush` says how many blocks short the route is. `defend` picks fell from 194 to 20, and `gather` appeared.
+- **The stand-in's 0.42 is the proof that the menu wasn't the ceiling.** The baseline's own choices, pushed through the same options, win 10 of 24.
+
+**v2 is better, and it is not yet good.** It went from 0.04 to 0.23 over the full run, and one earlier attempt was 5 of 11 before it was stopped. **Two runs of the same configuration disagreed**: run A was 4 of 6 on hex, run B 1 of 6. That is the non-reproducibility this file recorded before, so every live number here is one draw at n = 24.
+
+What run B also shows:
+- **Three matches were cut at the decision cap**, all against the counter on kagome and truncsq, in endgame stalemates where neither player could reach the other. In two of the three the counter used its 150 decisions as well (146 and 123 in the third), so this is a loop in the endgame macros (`hunt` and `fight` failing quickly, again and again), not Jev's alone. The scripted league never met it (0 draws in 1,500), so it takes a trajectory only Jev produces. The cap is the budget guard: the first v2 attempt ran one such match past 700 calls.
+- **92 of 1019 decisions fell back to the baseline** after failed calls, each one stamped in the stream.
+- Its picks are dominated by those stalemates: hunt 577, fight 256.
+
+**In the viewer**, *who decides → arena: …* plays a scripted match headlessly in milliseconds, then plays it back from its stream like a loaded `.jsonl`, with the red side and the blue side in their colours. Checked in Playwright: the islands, the centre's pad, the bridges and a covered bed all draw, with no console errors. **Jev is not in the viewer's arena yet.** That needs the page's live loop to await an arena decision.
+
+**What's next:**
+1. **The loop itself (research gap 1, now scoreable).** System 2 reads the lost games (the stream, the journal, the `jev` notes), writes palette v2 (a new macro, or better facts on an option), and v2 plays v1 with Jev deciding for both, scored by win rate. It spends model budget and waits for the go-ahead.
+2. **The endgame stalemate:** `hunt` should dig or bridge toward a target it cannot walk to, or the game needs Bed Wars' sudden death. Until then, the decision cap bounds a live match.
+3. **More n for Jev,** on held-out seeds. 24 matches per run shows a direction, and two runs of the same configuration disagreed.
+4. **2v2** (`perSide: 2` works in the rules and the runner, and is untested in the league): where a teammate's state starts to matter.
+
+### What is next
+
+**The Minecraft gap audit and the phased roadmap live in
+[`craft/ROADMAP.md`](craft/ROADMAP.md)** (2026-09-28). It covers every system,
+what building it here would test, and phases 0–7. Phases 1 to 4, boats,
+pens and the arena (phase A) are built (above). Next up: the planner loop,
+scored in the arena by win rate. The list
+below is older.
+
+
+1. **Held-out worlds** for the scoreboard: 6–8 tilings and seeds the harness
+   was never debugged on. It is the only honest next number.
+2. **Why confidence sits at 0.40.** Rewrite `advances` as the gap it closes
+   (the composer's "smallest remaining gap" framing, which took regret from
+   0.717 to 0.020), and test whether confidence rises and the stone-pickaxe
+   delay shrinks.
+3. **A difficulty that spreads survival**: first night before a house is
+   affordable, or zombies that break doors, so deaths mean something.
+4. ~~Farming~~ (done, § Long-range goals). Chests, and an infinite world (the periodic tilings are infinite for free; Penrose via the pentagrid) so explore stops saturating.
+
+**It happened (2026-09-26).** The 01:25 slot of `jev-prereg` ran late, at
+06:18 UTC, fifteen minutes after this branch's deploy, and republished mega
+from `claude/jev-demo-website-pw3us1`: `/jev/craft/` went 404 on the live
+site with every run green. A push to this branch restores it (this note's
+commit did). Until main's copy of the workflow names this branch, **every
+scheduled run wipes craft again**, and GitHub's schedule slips by hours, so
+"after 13:25" is not a safe window.
+
+**Before the first deploy that carries new `mega/` work:** `jev-prereg.yml`
+runs from **main's** copy and redeploys mega from whatever branch it names. It
+still names `claude/jev-demo-website-pw3us1` on main, so until this branch's
+repointed copy reaches main, that job republishes mega from the old tree at
+01:25 and 13:25 UTC, and `/jev/craft/` will vanish from the live site each
+time. The fix is a merge to main; see the ownership row above.
 
 ---
 
@@ -1187,6 +2885,400 @@ single pre-specified test and it is overwhelming. The tradeable version is the
 best of thirty and sits on the corrected bar. The only clean next step is to
 **pre-register the horizon and test forward on data that does not exist yet**;
 everything else is re-reading the same 208 days.
+
+## The trading floor: plans, not stances (2026-10-03)
+
+The operator, coming back to the perp: *"our innovations here were in
+evaluation and the System 2 arch (those macros are the System 2 fingerprint).
+Bring macros into the trading floor, strategies to choose from rather than
+simple buy sell hold … bring targets and stop losses into the equation."*
+
+The stance lab's lesson was that **the drag was turnover**. A stance re-decides
+every tick and every change of mind is paid for. A **plan** is one round trip
+whose risk is named before it starts. It's craft's macro shape carried over:
+System 2 writes the plans, the harness computes every fact about each one, and
+Jev picks one only when no plan is open.
+
+| file | holds |
+|---|---|
+| `lab/plans.mjs` | the menu (`MACROS`), the engine (`simulate`), the facts (`options`, `state`, `questions`), the deciders, `walk` and `tally`. Pure ESM: the gate, the eval and the page run the same code |
+| `lab/tape.mjs` | 1-minute candles from Hyperliquid's `candleSnapshot`, cached in `lab/fixtures/candles-<coin>-1m.json` (~3.3 days each of BTC, ETH and SOL, fetched 2026-10-03) so a rerun measures the same tape. Node only |
+| `eval/plans-gate.mjs` | every arm on every tape, no model calls, ~1 s; writes `lab/plans-gate.json` |
+| `eval/plans-jev.mjs` | Jev in the seat, paced, capped (`--max-decisions`), and a failed call stands aside and is counted. `--stub` plays the same loop with the baseline's picks (`lab/plans-stub.json`); `--no-wait` forces a trade and scores it against random picks from the same menu; `--no-coinflip` and `--no-record` drop a fact |
+| `eval/plans-replay.mjs` | re-scores a recorded `.jsonl` with no calls |
+| `lab/plans/` | the replay page: pick a tape and a decider and every plan is drawn as a band (entry, **T**arget, **S**top, exit mark). Click one to see the state and menu it was chosen from |
+| `test/plans.selftest.mjs` | 66 checks, gates the deploy |
+
+### The menu
+
+| plan | entry | target / stop | time |
+|---|---|---|---|
+| `bracket_long` / `_short` | market | ±1σ / ∓1σ (σ over an hour) | 60 min |
+| `reach_long` / `_short` | market | 2σ / 1σ | 120 min |
+| `dip_buy` / `rip_sell` | a resting limit half a σ away, lapsing after 30 min | back by a σ / a σ beyond the fill | 60 min |
+| `breakout_long` / `breakdown_short` | a stop-entry 1bp past the hour's high / low, lapsing after 60 min | 1.5σ / 0.75σ | 120 min |
+| `revert` | market, **only offered** when price sits 2 sd from its hour mean | the mean / an hour's σ further out | 60 min |
+| `trail_long` / `_short` | market | no target, a stop trailing 1.5σ behind | 240 min |
+| `wait` | — | — | 15 min, then choose again |
+
+Levels are in units of the volatility over each plan's own horizon, so a plan
+means the same thing in a quiet hour and a wild one.
+
+### The engine is pessimistic wherever a bar is ambiguous
+
+- A decision is made at the close of bar i, and a market entry fills at the next open.
+- If a bar's range holds both the stop and the target, the stop came first (counted as `ambiguous`).
+- A gap through the stop exits at the open. A gap through a resting target fills at the (better) open.
+- The bar that fills an entry can stop it out but can't reach its target.
+- A limit pays maker (1.5bp); everything else pays taker (4.5bp) plus half the spread. A stop pays 1bp of slippage. Funding is 0.12bp an hour; longs pay it and shorts are paid.
+- The selftest pins each rule on hand-built bars.
+
+**No lookahead is asserted, not assumed.** Options, state and the recent
+record at bar i are byte-identical whether or not the tape after bar i
+exists. `recentRecord` caches each plan's result on the whole tape, which is
+safe because it only uses plans whose exit came before bar i, and those read
+nothing after their exit.
+
+### The facts carry the coin-flip arithmetic
+
+**On a driftless tape, a bracket's gross expectancy is zero whatever its shape.**
+A 2:1 bracket hits its target a third of the time and breaks even, and costs
+then make every plan lose. So each option carries `if_price_were_a_coin_flip`:
+- the odds of target first, stop first, and the time limit running out;
+- what that expects after costs.
+
+The odds come from a lattice walk (`rwOdds`). **The first version used
+stop/(target+stop), and the selftest caught it.** A finite time limit makes a
+far target rarer than that ratio says, because time runs out first. For
+`reach_short` it was 33% against a simulated 27%; the lattice says 25%.
+
+The selftest builds 30,000 synthetic bars from a 20-step random walk inside
+each bar. It asserts that every bracket's gross t is inside ±3 and its hit rate
+matches the lattice, and that with costs every bracket loses. The synthetic
+sample must be non-overlapping: neighbouring breakout starts share one
+breakout, and an overlapping sample reported t = 3.09 on a pure random walk.
+
+The first synthetic tape used a 31-bit LCG whose multiply lost precision in
+float64. It trended so hard that `bracket_long` hit its target 71% of the
+time. It's mulberry32 now. **A biased null tape looks exactly like an edge.**
+
+### Measured: the gate (`lab/plans-gate.json`, 3 tapes × 3.3 days, 30 random seeds)
+
+| arm | net bp | gross | trades | hit (coin flip) | gross t |
+|---|---|---|---|---|---|
+| wait | **0** | 0 | 0 | — | — |
+| random (30 seeds) | −1294 ± 699 | | | | |
+| bracket_long | −3191 | −319 | 346 | 54% (50%) | −0.43 |
+| bracket_short | −2817 | +58 | 347 | 46% (50%) | 0.08 |
+| reach_long | −1691 | −44 | 187 | 30% (25%) | −0.06 |
+| reach_short | −1397 | +132 | 175 | 18% (25%) | 0.17 |
+| dip_buy | −1516 | −435 | 220 | 48% (50%) | −0.85 |
+| rip_sell | −1523 | −340 | 242 | 46% (50%) | −0.70 |
+| breakout_long | −940 | −71 | 102 | 32% (31%) | −0.16 |
+| breakdown_short | −1029 | −239 | 93 | 24% (31%) | −0.59 |
+| **revert** | **+137** | +333 | 23 | 56% (35%) | 1.51 |
+| trail_long | −818 | +223 | 110 | — | 0.30 |
+| trail_short | −981 | +75 | 118 | — | 0.10 |
+| baseline script | −1238 | −32 | 212 | 49% (48%) | −0.06 |
+| bestRecent | −2659 | −1735 | 112 | 15% (37%) | **−2.86** |
+
+**Read it the way it was pre-stated.**
+- **On real tape every plan hits its target at its coin-flip rate.** 54 vs 50,
+  46 vs 50, 32 vs 31… and every gross t but one is inside ±2. Before costs,
+  nothing on the menu does better than a coin flip, so **the costs are the
+  whole loss**, exactly as the arithmetic said. Brackets don't create an edge.
+  Standing aside returns exactly 0 and beats everything except `revert`.
+- **`revert` is the one regime-conditional plan, and the only arm above zero:**
+  +137bp on 23 trades, a 56% hit rate against 35%, and gross t 1.51.
+  - That is suggestive and not a result. 23 trades is nothing, and its first
+    version (a threshold mis-scaled by √3) fired once in ten tape-days, so it
+    has already been adjusted once.
+  - It has to be pre-registered and tested forward, the same discipline as
+    `preregister.json`.
+- **Chasing the trailing record is the one clear loser.** `bestRecent` picks the
+  plan with the best last-24-hours record (if that record made money), and it
+  lost 24bp a trade at gross t −2.86.
+  - It mostly picked the trailing long after runs up and was stopped on the
+    pullback (σ was 13.7bp a minute on 2026-09-30, so its stops were 160bp wide).
+  - **The `last_24h` fact stays on the menu, and it is an attractive nuisance.**
+    This number is the reason to watch whether Jev chases it.
+- The baseline script (revert when stretched, trail a clean trend, otherwise
+  dip-buy or rip-sell toward the middle of the hour's range) is a coin flip
+  before costs and loses its costs after.
+
+### Jev, live (2026-10-03): it stands aside, and when it can't, it does worse than random
+
+The first live call came back 402 (no TypeSafe credits). After the operator
+topped up, three arms were run. A request is about 5.3KB: the state plus 11
+options with their facts.
+
+**1. The full menu (`lab/plans-jev-v1.jsonl`, 109 decisions on BTC): `wait`
+every time,** at mean confidence 0.86. `revert` was offered once and got 0.20
+against `wait`'s 0.71. Given facts that say every plan expects to lose its
+costs on a coin-flip tape, and a gate that agrees, that is the right answer.
+It's the same refusal this file keeps recording when a question has no
+determinate answer. It is also untestable: 0bp, identical to the `wait` arm.
+The run was stopped at 109 decisions because the other 800 calls would have
+measured nothing more.
+
+**2. Without the coin-flip facts (`--no-coinflip`, `lab/plans-jev-nocoin.json`,
+40 decisions): `wait` 39 of 40.** The mass on `wait` dropped from ~0.86 to
+0.42–0.78, and `dip_buy` once topped it at 0.30. So the expectation fact
+sharpened the abstention without causing it. What's left is the 24-hour
+record (every plan negative) and the instruction's own *"standing aside is an
+option"*. Neither was ablated.
+
+**3. Made to trade (`--no-wait`, `lab/plans-jev-forced.json`, 307 calls, 0
+failures, 11 minutes).** `wait` is removed from the menu, and the null is
+random picks from **the same forced menu** (30 seeds per tape). Rescored by
+`eval/plans-replay.mjs` (`lab/plans-jev-forced-rescored.json`):
+
+| | Jev | random, same menu | baseline through the menu (stub) |
+|---|---|---|---|
+| net, 3 tapes | **−2884bp** | −1160 ± 750 | −1092 |
+| z against random | **−2.3** | — | +0.09 |
+| gross | −1582bp (t −1.36 / −0.98 / −2.17) | | +800bp |
+| trades | 192 (115 resting entries never filled) | | 286 |
+| hit rate (coin flip) | **40% (48%)**, n 122, z −1.7 | | 52% (48%) |
+
+What it picked: `dip_buy` 137, `rip_sell` 73, `trail_long` 26, `bracket_short`
+24, `revert` 23 (of the 24 times it was offered). Mean top probability was
+0.42, so it read nearly every forced choice as a close call.
+
+**The losses were concentrated:**
+- `trail_long`: 26 picks, −38.5bp a trade, about −1000bp in all. That is five
+  times the fixed arm's −7.4.
+  - It wasn't chasing: the hour before its picks averaged −1.3bp, at mid-range.
+  - A trailing stop scales with σ, so the likeliest reading is that it took
+    the trail when volatility was high, which makes the loss per trade large
+    in bp. Not checked.
+- `revert`: 23 trades, 2 targets against 8 stops, −14bp a trade.
+  - The gate's fixed `revert` made +137bp on 23 trades. Jev took `revert`
+    almost every time it was offered too, but it was offered on different bars,
+    because when a plan is offered depends on the path so far.
+  - **That disagreement is the best evidence yet that the gate's +137 was noise.**
+- The limit-entry plans (dip and rip) lost about their costs, and a third of
+  them never filled. Jev prefers the cheap-to-try resting orders.
+
+**What it says.** Jev given a choice declines, and on the facts it was handed
+that's correct. Forced, its selection was worse than random from the same menu
+(z −2.3 on net, −1.7 on hit rate), and the baseline script pushed through the
+same menu matched random. So on this substrate, **at selection among plans with
+no edge, it is not merely uninformative: it is mildly anti-informative**, and
+the cost was mostly two plans.
+
+Caveats that outrank it:
+- One live draw. Live runs here have not reproduced run to run before.
+- 3.3 days of three correlated assets.
+- −2.3σ against a 30-seed null on one pre-chosen comparison, not a sweep.
+
+**Where this leaves the substrate.** The menu has no edge before costs, so the
+only thing a decider can show here is **restraint**, and Jev shows it
+unprompted. To measure selection skill, the menu needs something worth
+selecting:
+- plans whose expectation depends on observable state that the facts can carry, as `revert` was meant to;
+- a tape with a regime in it;
+- or a pre-registered forward test of `revert` itself.
+
+`eval/plans-replay.mjs` re-scores any recorded run offline: the walk is
+deterministic given the picks. It reproduced the live run to the basis point.
+
+**A tally bug this round fixed.** `hit_rate` counted a trailing stop's exits as
+misses, although a trail has no target. That understated every arm that used
+one: `bestRecent` went from 15% to 31%, and Jev forced from 32% to 40%. It is
+now computed only over plans that have a target, with `resolved` as its n.
+
+```bash
+node mega/jev/eval/plans-gate.mjs --seeds 30 --out mega/jev/lab/plans-gate.json   # free, ~1 s
+node mega/jev/eval/plans-jev.mjs --stub --coins BTC,ETH,SOL                      # free
+node mega/jev/eval/plans-jev.mjs --coins BTC,ETH,SOL --no-wait --out mega/jev/lab/plans-jev-forced.json   # ~300 calls, ~11 min
+node mega/jev/eval/plans-replay.mjs mega/jev/lab/plans-jev-forced.jsonl --no-wait            # free re-score
+node mega/jev/test/plans.selftest.mjs
+```
+
+Caveats that outrank the table:
+- **Three days of three assets is one regime**, and the majors move together.
+- The menu, its levels and the baseline were written by the hand reading the
+  results; only `revert`'s threshold was changed after seeing them, and that
+  change is disclosed above.
+- 1-minute OHLC can't say what happened inside a bar. The ambiguity rule is
+  pessimistic, but `ambiguous` counts it, and it is rare at these levels.
+
+### System 2's turn: three registered searches, 42 trials, nothing confirmed (2026-10-03)
+
+The operator: *"be system 2, improve your approach, find a strategy set that
+works."* What changed in the approach comes first, because it outlasts the
+result:
+- **Every search was registered and committed before it ran.** Each
+  registration states what had already been seen.
+- **Selection used the early period only; confirmation used the later period**
+  (and, in v1, assets never looked at).
+- **Bonferroni over the registered grid**, and a trial ledger carried from one
+  search to the next.
+- **A beta rule in every search.** Without it, being short through a bear
+  market reads as skill.
+
+**Data.** Hyperliquid keeps 5,000 bars a series, so 4-hour bars go back to
+June 2024 (2.3 years); 15 assets, `lab/fixtures/candles-<coin>-4h.json`.
+Hourly funding is summed into each bar (`funding-<coin>-4h.json`, `loadFunding`
+in `lab/tape.mjs`, walked forward). The split is at bar 3000 (2025-11-03).
+Dev holds a bull run. The later period is a broad fall: 14 of 15 assets lost
+20–63% buy-and-hold.
+
+| search | registration | what it tested | outcome |
+|---|---|---|---|
+| v1 | `lab/plans-search-prereg.json` | 18 single-asset plans (breakout, momentum, reversion × horizon × stop), selected on BTC/ETH/SOL, scored in bp | **failed.** Best dev t 1.83 (30-day momentum). Carried as failed, it was positive later (t 1.48 / 2.26 on unseen assets), almost all shorts in the fall |
+| v2 | `lab/plans-search-prereg-v2.json` | the same 18, selected on all 15 assets, scored in R, a t over calendar weeks (15 correlated assets in one week are one bet), and the beta rule | **failed.** Best dev weekly t 1.59. Carried as failed, it was negative later and its profit was all longs |
+| v3 | `lab/plans-search-prereg-v3.json` | 6 market-neutral books: long the top 3, short the bottom 3 of 15 in equal risk, by momentum, reversal or funding, with funding charged at the printed rate | **failed.** Best dev t 0.92 (30-day cross-sectional momentum), later t 0.16 |
+
+Code: `lab/strategies.mjs` (the families, `runStrategy`) and `lab/books.mjs`
+(the book engine), plus `eval/plans-search.mjs`, `-v2.mjs` and `-v3.mjs`.
+Results are in `lab/plans-search*.json`. The engine now takes any bar size
+(`bars.barMin` sets the funding hours) and per-asset costs (alts pay 1bp half
+spread and 3bp stop slippage). v3's registration says no fourth search runs on
+this data, and none has.
+
+**What the failures say together.** On price alone, at 1 minute or 4 hours,
+single-asset or market-neutral, none of these plans has an edge after costs
+that survives being looked at honestly. The closest shape was the 5-day
+breakout with a tight trail (907 trades, longs and shorts both positive,
+weekly t 1.3). That is suggestive, not significant. **Jev's refusal to trade
+on the 1-minute menu was the right answer.**
+
+### What does work: funding, which is paid, not predicted
+
+One number in v3 was not noise. **The funding-carry book's funding leg earned
+about 25bp a week with t 11.8 in dev and 13.5 later**, against a price leg that
+swung about 700bp a week (t 0.17 and 1.37). Funding is structurally one-sided:
+
+| | |
+|---|---|
+| longs paid funding on | **59–91% of 4h bars**, all 15 assets |
+| mean annual rate a short collects | BTC 10.5%, ETH 9.6%, LTC 12.0%, DOGE 11.3%, kPEPE 13.8%, SOL 6.7% … ATOM **−4.1%** (the one that pays the other way) |
+
+This was looked at **after** the searches, so it is exploratory and counts
+toward no registered test. But it is not a multiple-comparisons artefact: it is
+a mechanical cash flow, printed every hour, and its t is 12–13 in both periods.
+
+**The strategy set that works is therefore not a set of timing plans. It is
+the carry trade:**
+- be paid to be short the perp, and hedge the price away with a long spot leg
+  (basis), on the assets whose funding is positive;
+- step aside where funding turns, as ATOM's has.
+
+The Carry section above already measured its shape: SOL basis about 15.7% a
+year with no directional view, and the risks that are monitorable against those
+that only sizing can help. It is also the most Jev-shaped decision on this
+surface. Whether funding is still positive, whether drawdown is inside its
+history, and whether the peg holds are **determinate classifications of printed
+state**, the exact shape where the gate was 93 of 93 correct above 0.9 and
+where the self-check separated answerable from unanswerable by 65 points.
+
+**Not built yet: the basis leg.** The trading floor's engine is perp-only.
+Harvesting carry needs:
+- a spot leg and its costs. Hyperliquid spot is thin (BTC spot round trip
+  about 40bp); a Solana aggregator measured 0.7bp at $11k;
+- the premium history, which `fundingHistory` returns alongside the rate and
+  `loadFunding` currently discards;
+- carry plans (enter while trailing funding is positive, exit when it flips or
+  a drawdown limit is hit), with Jev as the monitor that decides hold or exit
+  from printed facts.
+
+### Fit locally, stay vigilant: what persists is what can be fitted (2026-10-03)
+
+The operator's reframe: *"find something that works globally. The strategist
+at System 2 finds something that works locally (i.e. dramatically overfits the
+current regime) and then stays vigilant for changing behaviours."*
+
+The strategies are meant to be local; **the procedure** is what has to work
+globally. A walk-forward run of a procedure is out of sample by construction,
+because every choice in it uses only bars that existed at that moment.
+
+**The adaptive test** (`lab/plans-adapt-prereg.json`, `eval/plans-adapt.mjs`, `lab/plans-adapt.json`):
+- **Strategist:** at each weekly refit, per asset, deploys whichever of the 18
+  configurations earned the most R over the trailing 15, 30 or 60 days, or
+  stands aside.
+- **Vigilance:** a CUSUM on realised R against the fit, plus a volatility band;
+  either calls an early refit.
+- **Null:** the same schedule refitting to random configurations.
+
+**It failed, in the most informative way.** At a 30-day lookback the
+strategist's picks earned −124R against the random null's −4 ± 16
+(**z −7.3**); at 60 days, z −2.75. Vigilance fired 10–33 times and changed
+little.
+
+The check that it isn't a bug: rank all 18 configurations by their trailing
+record at every weekly point, then see what each rank earns the next week.
+**Rank 1, the recent winner, earns the least at every lookback.** The
+contrarian inversion (exploratory, trial #49) was no better than random.
+**Recent winners underperform, and recent losers aren't winners either.**
+This is the same effect as `bestRecent` (gross t −2.86) on the 1-minute floor.
+
+**Why, measured: what persists week to week, mean over 15 assets.**
+
+| quantity | autocorrelation | positive on |
+|---|---|---|
+| funding | **0.59** | **15/15** |
+| volatility | **0.33** | **15/15** |
+| return | 0.04 | 11/15 |
+| trend efficiency | −0.07 | 4/15 |
+| strategy R | −0.02 | 87/270 |
+
+**The global rule for a strategist that fits locally: fit only what persists.**
+- Funding persists: use it to choose what to carry.
+- Volatility persists: use it to size.
+- Direction, regime and recent strategy performance don't persist here, so a
+  fit to them is a fit to noise that has already turned.
+- Vigilance belongs on the persistent quantity, watching for it to break.
+
+**The carry test** (`lab/plans-carry-prereg.json`, `eval/plans-carry.mjs`, `lab/plans-carry.json`):
+- The trade: weekly basis carry, short the perp and long spot, on the 5 assets
+  with the highest trailing week of funding.
+- The basis is Hyperliquid's premium over its oracle (`loadPremium`).
+- Spot costs are assumed (5bp a side for the majors, 10bp for alts).
+
+| | vigilance off | vigilance on |
+|---|---|---|
+| weekly t (106 weeks) | **4.96** | 3.43 |
+| per year | **6.3%** | 4.7% |
+| funding / basis / costs | +2454 / +96 / −1278bp | +2374 / +208 / −1643bp |
+| worst week, max drawdown | −14bp, **−50bp** | −29bp, −196bp |
+| against 5 random assets | z **+20.4** | z +28.1 |
+| halves | t 4.6 / 2.94 | t 3.77 / 0.15 |
+| correlation with the market | **0.341** | 0.371 |
+
+**Registered verdict: does not work.** It clears every bar except one: the
+market correlation must stay below 0.3, and it is 0.341. Not amended.
+
+What the correlation is:
+- the funding leg correlates 0.40 with the market, because funding follows the
+  market's previous four weeks (0.61);
+- the basis leg runs the other way (−0.43).
+
+So it isn't price exposure: a 50bp worst drawdown in 2.3 years says the hedge
+works. It is **pro-cyclical income**. Carry pays after rallies and thins in a
+bear market, as the second half (t 2.94) and ATOM's negative funding show.
+**That is what the strategist's vigilance should watch: the level of funding,
+not the P&L.**
+
+**The vigilance as registered hurt.** Dropping an asset whenever its last 24
+hours of funding went negative fired 191 times, added 365bp of costs, and
+nearly zeroed the second half. That is a lesson for the vigilance layer: **a
+trigger has to clear the cost of acting on it.** Funding's half-life is about
+1.3 weeks, so a one-day dip is noise that costs a round trip to react to.
+
+**Where this leaves the trading floor.** Carry is the only candidate in 51
+trials with a large t in both halves, a tiny drawdown and a clear mechanism.
+The next honest number has to come from data that doesn't exist yet:
+- **A registered forward test:** weekly selection, logged by the worker cron
+  as `jev-prereg` already does, and judged on bars after registration.
+- **Its rules written now:** stated in terms of price exposure and drawdown,
+  with income cyclicality reported rather than gated.
+- **Jev in the vigilance seat:** each week it is shown the held assets' funding
+  against their fit, the basis drift and the drawdown, and decides hold or exit.
+  The control is the mechanical rule.
+
+Not built yet.
 
 ## The composer: `/jev/composer/` (2026-09-19)
 

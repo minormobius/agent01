@@ -1,0 +1,373 @@
+{
+ "judge": "whisper base.en (faster-whisper, int8, beam 5, no prompt, each sentence alone)",
+ "date": "2026-09-26",
+ "voice": {
+  "f0": 113,
+  "range": 0.4,
+  "scale": 1.09,
+  "rate": 1,
+  "breath": 1,
+  "oq": 0.6,
+  "tilt": 0.05,
+  "bw": 1.15,
+  "jitter": 0,
+  "warmth": 1,
+  "hiss": 0.85,
+  "bw1": 1.5,
+  "fricAttack": 60,
+  "fricRelease": 22.5,
+  "aspLevel": 1,
+  "aspMs": 1,
+  "closure": 1.05,
+  "voiceBar": 0.12,
+  "stopTrans": 1,
+  "burstLen": 1,
+  "pinch": 250,
+  "voicedLength": 1,
+  "functionWords": 0,
+  "lightDarkL": 1,
+  "aspiration": 1,
+  "fit": 3,
+  "profile": 0
+ },
+ "paragraph": {
+  "wer": 3.8,
+  "cer": 1.5
+ },
+ "harvard": {
+  "wer": 19.7,
+  "cer": 10.7
+ },
+ "sentences": [
+  {
+   "id": "p1",
+   "text": "Hello.",
+   "heard": "Hello!",
+   "wer": 0
+  },
+  {
+   "id": "p2",
+   "text": "I am a voice made of three small waves and a little noise.",
+   "heard": "I am a voice made of three small waves and a little noise",
+   "wer": 0
+  },
+  {
+   "id": "p3",
+   "text": "Nobody recorded me.",
+   "heard": "Nobody recorded me",
+   "wer": 0
+  },
+  {
+   "id": "p4",
+   "text": "Every sound you hear is arithmetic, worked out a few thousand times a second.",
+   "heard": "Every sound you hear is arithmetic, worked out a few thousand times a second.",
+   "wer": 0
+  },
+  {
+   "id": "p5",
+   "text": "If you can understand these words, then the old machines were right, and a voice is mostly a shape, moving through time.",
+   "heard": "If you can understand these words, then the old machines were right, and the voice is mostly a shame, moving through time.",
+   "wer": 9.1
+  },
+  {
+   "id": "h1",
+   "text": "The birch canoe slid on the smooth planks.",
+   "heard": "The birds can easily dodge the smooth plants.",
+   "wer": 62.5
+  },
+  {
+   "id": "h2",
+   "text": "Glue the sheet to the dark blue background.",
+   "heard": "Do the sheet to the dark blue background.",
+   "wer": 12.5
+  },
+  {
+   "id": "h3",
+   "text": "It's easy to tell the depth of a well.",
+   "heard": "It's easy to tell the death of a whale.",
+   "wer": 22.2
+  },
+  {
+   "id": "h4",
+   "text": "These days a chicken leg is a rare dish.",
+   "heard": "These days a chicken leg is reddish",
+   "wer": 33.3
+  },
+  {
+   "id": "h5",
+   "text": "Rice is often served in round bowls.",
+   "heard": "races often served in road bowls",
+   "wer": 42.9
+  },
+  {
+   "id": "h6",
+   "text": "The juice of lemons makes fine punch.",
+   "heard": "The goose of lemons makes fine fun",
+   "wer": 28.6
+  },
+  {
+   "id": "h7",
+   "text": "The box was thrown beside the parked truck.",
+   "heard": "The box was thrown beside the power truck.",
+   "wer": 12.5
+  },
+  {
+   "id": "h8",
+   "text": "The hogs were fed chopped corn and garbage.",
+   "heard": "The odds were fed up, torn and guarded",
+   "wer": 50
+  },
+  {
+   "id": "h9",
+   "text": "Four hours of steady work faced us.",
+   "heard": "Fall rowers of steady work faced us.",
+   "wer": 28.6
+  },
+  {
+   "id": "h10",
+   "text": "A large size in stockings is hard to sell.",
+   "heard": "The large size instructions is hard to sell.",
+   "wer": 33.3
+  },
+  {
+   "id": "h11",
+   "text": "The boy was there when the sun rose.",
+   "heard": "The boy was there when the sun rose",
+   "wer": 0
+  },
+  {
+   "id": "h12",
+   "text": "A rod is used to catch pink salmon.",
+   "heard": "The rod is used to catch the salmon.",
+   "wer": 25
+  },
+  {
+   "id": "h13",
+   "text": "The source of the huge river is the clear spring.",
+   "heard": "The salt of the huge river is the clear stream.",
+   "wer": 20
+  },
+  {
+   "id": "h14",
+   "text": "Kick the ball straight and follow through.",
+   "heard": "Kick the ball straight and follow through",
+   "wer": 0
+  },
+  {
+   "id": "h15",
+   "text": "Help the woman get back to her feet.",
+   "heard": "Hail the woman, get back to her feet",
+   "wer": 12.5
+  },
+  {
+   "id": "h16",
+   "text": "A pot of tea helps to pass the evening.",
+   "heard": "A part of he helps to pass the evening",
+   "wer": 22.2
+  },
+  {
+   "id": "h17",
+   "text": "Smoky fires lack flame and heat.",
+   "heard": "Smokey fires like flame and heat",
+   "wer": 33.3
+  },
+  {
+   "id": "h18",
+   "text": "The soft cushion broke the man's fall.",
+   "heard": "The soft cushion broke the man's fall",
+   "wer": 0
+  },
+  {
+   "id": "h19",
+   "text": "The salt breeze came across from the sea.",
+   "heard": "The salt breeze came crossed from the sea.",
+   "wer": 12.5
+  },
+  {
+   "id": "h20",
+   "text": "The girl at the booth sold fifty bonds.",
+   "heard": "The girl at the booth sold 50 bucks",
+   "wer": 25
+  },
+  {
+   "id": "h21",
+   "text": "The small pup gnawed a hole in the sock.",
+   "heard": "The small hook mould hole in the sock.",
+   "wer": 33.3
+  },
+  {
+   "id": "h22",
+   "text": "The fish twisted and turned on the bent hook.",
+   "heard": "The fish twisted and turned on the bent hook.",
+   "wer": 0
+  },
+  {
+   "id": "h23",
+   "text": "Press the pants and sew a button on the vest.",
+   "heard": "press the pants and sew button on the list",
+   "wer": 20
+  },
+  {
+   "id": "h24",
+   "text": "The swan dive was far short of perfect.",
+   "heard": "This one day was far short of perfect",
+   "wer": 37.5
+  },
+  {
+   "id": "h25",
+   "text": "The beauty of the view stunned the young boy.",
+   "heard": "The beauty of the view start the young boy",
+   "wer": 11.1
+  },
+  {
+   "id": "h26",
+   "text": "Two blue fish swam in the tank.",
+   "heard": "To do fish swam in the tank",
+   "wer": 28.6
+  },
+  {
+   "id": "h27",
+   "text": "Her purse was full of useless trash.",
+   "heard": "Her purse was full of useless trash",
+   "wer": 0
+  },
+  {
+   "id": "h28",
+   "text": "The colt reared and threw the tall rider.",
+   "heard": "The cold reared and threw the tall rider.",
+   "wer": 12.5
+  },
+  {
+   "id": "h29",
+   "text": "It snowed, rained, and hailed the same morning.",
+   "heard": "It's snowed, drained and tailed the same morning.",
+   "wer": 37.5
+  },
+  {
+   "id": "h30",
+   "text": "Read verse out loud for pleasure.",
+   "heard": "Red verse out loud for pleasure",
+   "wer": 16.7
+  },
+  {
+   "id": "h31",
+   "text": "The wide road shimmered in the hot sun.",
+   "heard": "The way drove shimmered in the hot sun.",
+   "wer": 25
+  },
+  {
+   "id": "h32",
+   "text": "The lazy cow lay in the cool grass.",
+   "heard": "The lazy pro lay in the cool dress",
+   "wer": 25
+  },
+  {
+   "id": "h33",
+   "text": "Lift the square stone over the fence.",
+   "heard": "Lift the square stone over the fence",
+   "wer": 0
+  },
+  {
+   "id": "h34",
+   "text": "The rope will bind the seven books at once.",
+   "heard": "The rope will bend the seven books at once.",
+   "wer": 11.1
+  },
+  {
+   "id": "h35",
+   "text": "Hop over the fence and plunge in.",
+   "heard": "Hop over the fence and plunge in.",
+   "wer": 0
+  },
+  {
+   "id": "h36",
+   "text": "The friendly gang left the drug store.",
+   "heard": "The friendly guy left the drugstore",
+   "wer": 42.9
+  },
+  {
+   "id": "h37",
+   "text": "Mesh wire keeps chicks inside.",
+   "heard": "Mesh layer keeps chicks inside",
+   "wer": 20
+  },
+  {
+   "id": "h38",
+   "text": "The frosty air passed through the coat.",
+   "heard": "The frosty air passed through the code",
+   "wer": 14.3
+  },
+  {
+   "id": "h39",
+   "text": "The crooked maze failed to fool the mouse.",
+   "heard": "The crooked maze failed to fool the mouse.",
+   "wer": 0
+  },
+  {
+   "id": "h40",
+   "text": "Adding fast leads to wrong sums.",
+   "heard": "Adding fast leads to wrong subs",
+   "wer": 16.7
+  },
+  {
+   "id": "h41",
+   "text": "The show was a flop from the very start.",
+   "heard": "The show was a flop from the very start",
+   "wer": 0
+  },
+  {
+   "id": "h42",
+   "text": "A saw is a tool used for making boards.",
+   "heard": "A saw is a tool used for making bars.",
+   "wer": 11.1
+  },
+  {
+   "id": "h43",
+   "text": "The wagon moved on well oiled wheels.",
+   "heard": "The wagon moved on with a wheelie",
+   "wer": 42.9
+  },
+  {
+   "id": "h44",
+   "text": "March the soldiers past the next hill.",
+   "heard": "March the soldiers past the next hill.",
+   "wer": 0
+  },
+  {
+   "id": "h45",
+   "text": "A cup of sugar makes sweet fudge.",
+   "heard": "The cup of sugar makes sweet fudge",
+   "wer": 14.3
+  },
+  {
+   "id": "h46",
+   "text": "Place a rosebush near the porch steps.",
+   "heard": "Place a rose but near the poor steps.",
+   "wer": 42.9
+  },
+  {
+   "id": "h47",
+   "text": "Both lost their lives in the raging storm.",
+   "heard": "Both lost their lives in the radiant storm.",
+   "wer": 12.5
+  },
+  {
+   "id": "h48",
+   "text": "We talked of the side show in the circus.",
+   "heard": "We talked of the sidesaw in the circus.",
+   "wer": 22.2
+  },
+  {
+   "id": "h49",
+   "text": "Use a pen to draw a hard line.",
+   "heard": "Use a pen to draw a hard line",
+   "wer": 0
+  },
+  {
+   "id": "h50",
+   "text": "He ordered peach pie with ice cream.",
+   "heard": "He ordered tea pie with ice cream",
+   "wer": 14.3
+  }
+ ]
+}

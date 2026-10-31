@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴, chapter 16: Stars. If gravity is pinned at 1/r like the force between charges, a 4D star holds together as ours does, solved and checked. Its outer layers press inward, its core must burn hotter, and long-lived stars need one more ingredient: the weak force." />
+<title>ATOM⁴ · Stars — four.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="geometry.html">1 · geometry</a><a href="force.html">2 · the force</a><a href="light.html">3 · light</a><a href="motion.html">4 · motion and spin</a><a href="gravity.html">5 · gravity</a><a href="hydrogen.html">6 · hydrogen</a><a href="table.html">7 · the periodic table</a><a href="shapes.html">8 · the shapes</a><a href="darbon.html">9 · darbon</a><a href="forces.html">10 · forces between molecules</a><a href="xater.html">11 · pxygen and xater</a><a href="census.html">12 · which water</a><a href="search.html">13 · ten ways to meet</a><a href="gas.html">14 · gases</a><a href="nuclei.html">15 · nuclei</a><a href="stars.html" class="here">16 · stars</a><a href="planets.html">17 · planetary systems</a><a href="methods.html">methods</a></nav>
+  <h2>ATOM⁴ · chapter 16</h2>
+  <h1 class="ch">Stars</h1>
+  <p class="lede">If gravity is pinned at 1/r like the force between charges, a 4D star holds together as ours does, solved and checked. Its outer layers press inward, its core must burn hotter, and long-lived stars need one more ingredient: the weak force.</p>
+</header>
+<section id="hold">
+  <h3>Does a star hold together?</h3>
+  <p>A star is a ball of gas holding itself up against its own weight. Two things decide whether it can. First, it must be <b>bound</b>: its total energy negative. Second, it must be stable: squeezed, its pressure must rise faster than its weight. Both come from the virial theorem. For gravity falling as 1/r^k in d dimensions, a gas with heat-capacity ratio γ has total energy</p>
+  <p class="eq">E = W (1 − k / d(γ − 1)),&nbsp; W the gravitational energy (negative)</p>
+  <p>so a star is bound only if <b>γ &gt; 1 + k/d</b>. A bound star does something essential: losing energy makes it <i>hotter</i>, since it contracts and its gas speeds up. That's how a cloud heats itself to ignition, and how a burning star regulates itself. A monatomic gas has γ = (d + 2)/d (5/3 ours, 3/2 in 4D, from <a href="gas.html">chapter 14</a>). A gas of light has γ = (d + 1)/d.</p>
+  <table class="verdict"><tr><th>gravity</th><th>γ must exceed</th><th>a star of gas</th><th>a star of light</th></tr><tr><td class="d3">ours (Newton, 1/r)</td><td>4/3</td><td><b>bound</b>, E = 1/2 W</td><td><b>marginal</b>, E = 0</td></tr><tr><td class="d4">4D, Gauss's law (1/r²)</td><td>3/2</td><td><b>marginal</b>, E = 0</td><td><b>flies apart</b></td></tr><tr><td class="d4">4D, pinned at 1/r</td><td>5/4</td><td><b>bound</b>, E = 1/2 W</td><td><b>marginal</b>, E = 0</td></tr></table>
+  <p><b>Under Gauss's law a 4D star is exactly marginal, as the atom was.</b> Its gas's γ = 3/2 is the critical value: squeezing costs just what gravity pays, at every size. <b>Pinned at 1/r, a 4D star of gas is bound with E = W/2, exactly as ours is.</b> It clears its threshold (5/4) by the same factor of two that ours clears 4/3. And in every dimension, under a 1/r pull, a star made of light is exactly marginal. So, as for us, the heaviest stars, held up by their own radiation, live on the edge. 4D would have a maximum stellar mass as we do.</p>
+</section>
+<section id="solved">
+  <h3>A star, solved</h3>
+  <p>Those are energies. To see a star, solve it: the gas's pressure must balance its weight at every radius, with the weight computed from all of the star. Here that's done by the self-consistent field: guess the density, compute gravity from it, set the density the gas would have in that gravity, repeat. Each star is the simplest kind, its gas on one adiabat (a polytrope), radius 1 and central density 1. The checks are ours: the solver reproduces the textbook Lane–Emden stars, the n = 1 star's sin(πr)/πr profile and the central-to-mean densities of 5.99 and 54.18. The virial theorem holds to 2e-05 or better.</p>
+  <canvas class="chart tall" id="cStarProfile"></canvas>
+  <p class="read" id="kStarProfile"></p>
+  <p>Our monatomic star is 6.0 times as dense at its centre as on average. The 4D one, pinned, is <b>14.2</b> times. A 4D star is more centrally concentrated, partly because 4D's volume crowds out toward the surface (as r³) and partly for the next reason. Under Gauss's law the same star is 36 times as dense at its centre, but that one is the marginal star, with E = 0.</p>
+  <h4>No shell theorem: the outer layers press inward</h4>
+  <p>In our world the mass outside any radius pulls on nothing inside it (Newton's shell theorem), so a layer feels only the mass beneath it. Under the pinned 1/r there's no shell theorem (<a href="../fields/#neutral">the same reason a neutral atom isn't invisible</a>). Inside a shell, gravity points toward the centre. So the outer layers add to the squeeze:</p>
+  <canvas class="chart" id="cStarOuter"></canvas>
+  <p class="read" id="kStarOuter"></p>
+  <p>At a quarter of the way out, <b>59% of the inward pull comes from the mass outside</b>. Halfway out, 26%. In ours, exactly none at any radius. 4D stars are squeezed from both sides. Outside, a star isn't quite a point mass either: a small correction, falling as 1/r³, makes planets' orbits slowly precess. They stay stable: the main pull is still 1/r, whose orbits are Kepler's closed ellipses (<a href="motion.html">chapter 4</a>).</p>
+</section>
+<section id="light">
+  <h3>Lighting it</h3>
+  <p>A star burns when its nuclei tunnel through their mutual repulsion and fuse. Inside a star everything is ionized, and between two bare nuclei the pinned force is exactly ours: the same 1/r barrier. What 4D changes is subtler. In four dimensions even a head-on (s-wave) meeting carries a built-in centrifugal barrier, 3/4 · ħ²/2μr², because there's more room to miss. Near the nucleus it's large: at 2 fm it's about ten times the electric barrier between two protons. Tunnelling through both, in the WKB approximation with Langer's correction (the integral checked against the textbook Gamow factor), at equal nuclear physics:</p>
+  <canvas class="chart" id="cStarLight"></canvas>
+  <p class="read" id="kStarLight"></p>
+  <p><b>At the same temperature, 4D nuclei tunnel through 15 to 56 times less often</b> than ours (protons, nuclei 1 to 4 fm across), and 9 times less often for deuterium. A star makes up a shortfall the way ours do, by contracting until its core burns fast enough: hotter, denser, or both. If temperature alone made it up, the core would run 1.7 to 2.2 times hotter, around 30 million kelvin, which is the dotted line. That's an upper end, not a prediction. A 4D rate per pair of nuclei carries one more length in its units than ours, so "as fast as ours" only means something once a 4D star's density is known, and that needs gravity's strength and 4D's nuclear physics. The barrier deficit is the robust number.</p>
+  <p class="read"><b>Is 4D just hotter because there's another direction to put energy into?</b> No. Each direction of motion holds the same kT/2 at a given temperature, so a 4D nucleus moves faster than ours at the same temperature, not slower. More of them are fast, too: the energy spread carries an extra √E. But the 4D cross-section's geometry cancels that weight exactly, in every dimension. What's left is the barrier, and the deficit above is all barrier.</p>
+</section>
+<section id="masses">
+  <h3>How big, how small</h3>
+  <p>A contracting ball heats until its electrons, squeezed, resist by Pauli's principle alone. That caps its temperature, so the smallest star that lights holds about α_G^(−4/3) (kT_burn / m_e c²)^(2/3) protons in 4D, where α_G = G m_p²/ħc measures gravity's strength (pinned, it's again a pure number: about 6 × 10⁻³⁹ in ours). The largest is where light's pressure takes over, about α_G^(−4/3) protons. The dead remnant's limit, where relativistic electrons can no longer hold it up (Chandrasekhar's), lands at the same scale. In ours both carry α_G^(−3/2). So <b>the window of star masses, largest over smallest, is about (m_e c²/kT_burn)^(2/3) in 4D (the power 3/4 in ours), whatever gravity's strength</b>: roughly 30 in 4D with its hotter cores, against roughly 100 in ours by the same rough count (the real one, with all the factors, is 0.08 to 150 solar masses). These are scaling estimates, not solved stars.</p>
+  <p>One of them is solved: the dead remnant's limit. Electrons squeezed to near light speed press as c p_F n/(d + 1), the stiffness 1 + 1/d that gravity under 1/r needs exactly, so a ball of them is the polytrope of index d. In ours that's Chandrasekhar's star, and the solver gives <b>1.435 solar masses</b> for two nucleons per electron (1.457, the textbook). Pinned in 4D the index-4 polytrope closes too, at a finite radius, so <b>4D has a Chandrasekhar mass: 1.52 α_G^(−4/3) nucleons</b>. A dead 4D star heavier than that collapses, as ours do.</p>
+</section>
+<section id="gscale">
+  <h3>What sets G</h3>
+  <p>Nothing in physics fixes Newton's G, in our world or this one. Gravity pinned through the lens keeps the force's units, so G could be ours. It can't be, for this reason: <b>4D matter is far denser per 4-volume than ours is per 3-volume</b> (a rock's atoms, a few ångströms apart, give about 2 × 10¹³ kg/m⁴), and a ball's surface gravity grows as G ρ R². With our G:</p>
+  <table class="sys"><tr><th>G</th><th>smallest planet that holds air</th><th>its surface gravity</th><th>a ball of rock is a dark star past</th></tr><tr><td>ours</td><td>8 m</td><td>507,774 m/s² (51,761 g)</td><td>18 km</td></tr><tr><td>10⁻⁸ of ours</td><td>4 km</td><td>1,094 m/s² (112 g)</td><td>8402 km</td></tr><tr><td>10⁻¹² of ours</td><td>82 km</td><td>51 m/s² (5 g)</td><td>181024 km</td></tr><tr><td>3 × 10⁻¹⁷ of ours</td><td>2635 km</td><td>1.6 m/s²</td><td>5825890 km</td></tr></table>
+  <p class="read">"Holds air": its gravity holds a molecule of 30 nucleons at 300 K with 50 kT to spare. "Dark star": 2GM/R reaches c², whatever gravity's relativistic form turns out to be. Rock at 2.3 × 10¹³ kg/m⁴.</p>
+  <p><b>At our G, a world that holds air crushes everything at fifty thousand g, and a world with gentle gravity can't hold air.</b> Something has to give, and it's G. Escape speed obeys v² = 2gR in any dimension, so a planet with Earth's gravity and Earth's hold on its air has Earth's radius in 4D too, and that fixes G ρ₄ = 2g/π²R². For rock between 8 × 10¹² and 6 × 10¹³ kg/m⁴, <b>G is 10⁻¹⁷ to 9 × 10⁻¹⁷ of ours</b>. With that G the stars come out Sun-sized, and a planet weighs 6 × 10⁻⁶ to 10⁻⁵ of a Chandrasekhar star (Earth weighs 3 × 10⁻⁶ of our Sun). So <b>G is a choice, made by a requirement</b>: that there be planets like ours. What 4D rock is made of, and so how dense it is, waits on <a href="nuclei.html">chapter 15</a>'s question of which elements stars make.</p>
+</section>
+<section id="fuel">
+  <h3>The fuel: the weak force, added</h3>
+  <p>Our Sun burns hydrogen, and its first step turns a proton into a neutron. That takes the <b>weak force</b>, which chemistry never needs. Without it a star could burn only fuel left from the universe's first minutes (deuterium and other light nuclei, which fuse by the strong force alone), then shine by contracting, for millions of years rather than billions. <b>So the weak force is added to <a href="force.html#contents">the universe's list</a></b>, with its neutrino. It's the first ingredient added for astronomy rather than chemistry. Stars burn hydrogen as ours do, and live long enough for planets to have time.</p>
+</section>
+<section id="starsnext">
+  <h3>What's computed and what's open</h3>
+  <p class="read"><span id="orbits"></span><span id="formation"></span>Orbits round a real star, planets, moons and how a nebula flattens are <a href="planets.html">chapter 17</a>; gravity's routes are <a href="gravity.html">chapter 5</a>.</p>
+  <p>Computed and checked: the virial bookkeeping for each law, the polytropes (against Lane–Emden), the outer layers' pull, tunnelling through the 4D barrier (against Gamow), and the lighting. Argued from scaling: the mass window. Chosen: the weak force, added. Open: gravity's route (the lens is assumed here; the nonlinear law is the alternative). Nuclear physics in 4D, what it takes and what stars can burn, is <a href="nuclei.html">chapter 15</a>. Open: light's escape from a 4D star (opacity through the lens, and the T⁵ Planck law at its surface), which sets its colour; and stars that age, burn in shells and die.</p>
+</section>
+
+<footer class="pager"><a href="nuclei.html">← 15 · Nuclei</a><a href="planets.html">17 · Planetary systems →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen/">Lumen⁴</a> · <a href="../iris/">IRIS⁴</a> · <a href="https://games.mino.mobi/katabasis/">KATABASIS</a> · <a href="../">Four</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

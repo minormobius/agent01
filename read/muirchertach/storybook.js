@@ -1,0 +1,55 @@
+/* Aided Muirchertaig meic Erca — a faithful retelling for readers about
+   twelve and up (this is the darkest of the series). It keeps the names,
+   the three conditions, the illusions, the Cross, the return, Samhain
+   week, the burning and drowning, and the three graves. The death is
+   told, not shown. Not registered in the illustration pipeline (see
+   read/CLAUDE.md). Attaches to window.MUIRCHERTACH. */
+window.MUIRCHERTACH = window.MUIRCHERTACH || {};
+window.MUIRCHERTACH.book = {
+  meta: {
+    kicker: "A Samhain Tale from Old Ireland",
+    note: "A faithful retelling of the Death of Muirchertach mac Erca, for readers about twelve and up. The darkest tale in the series.",
+  },
+  spreads: [
+    { title: "The King Who Married the Storm",
+      sub: "An Irish tale of Samhain week: a woman on a grave-mound, a house given away, armies made of stones, and a king who was burned and drowned on the same night",
+      text: "The old Irish chronicles say that King Muirchertach died in a strange way: burned and drowned at once. This is the story of how.",
+      illus: "Cover: a great timber hall on a rise above a river at night, its roof just catching fire, snow falling slantwise from the upper left; across the river, the huge dark round shape of an ancient grass-covered tomb-mound; in the foreground, a woman in a green mantle standing alone on a smaller mound, seen from behind, watching." },
+    { title: "The woman on the mound",
+      text: "Muirchertach was king of all Ireland, and his great house, Cletech, stood above the River Boyne, looking across at the ancient tombs of the Bruig. One day his companions left him alone on a grassy mound while out hunting. When he looked round, a woman was sitting near him on the grass: fair-haired, in a green cloak, more beautiful than anyone he had ever seen. “I'm here for King Muirchertach,” she said. “I know him, and all the men of Ireland. I'm at home in places more secret than this.”",
+      illus: "A green grassy burial mound by a wide river in summer; a strong dark-bearded king in a red cloak with a hunting spear, alone, turning in surprise; sitting calmly on the grass near him, a pale, fair-haired young woman in a long green mantle, looking straight at him; in the distance across the river, the great round tomb of Newgrange with its white stone front." },
+    { title: "Three conditions",
+      text: "The king asked her to come home with him, and promised her anything. “I don't want cattle or gold,” she said. “Here are my conditions. Your wife must leave the house. Priests must never come into any house I'm in. And you must never, ever say my name.” “Then tell me your name,” said the king, “so I can be careful not to say it.” She told him: “Sigh. Moan. Storm. Rough Wind. Winter-Night. Groan. Cry. Wail.”",
+      illus: "Close on the woman's face, calm and very beautiful, a wind lifting her hair; behind her the sky darkening with cloud; the king listening, uneasy for the first time." },
+    { title: "The house given away",
+      text: "The king took her home. Her name, she said, was Sín. That evening he sent his wife Duaibsech and their children out of the house. Then he sent away all his own family and their people: two whole armies of them, walking out through the gate into the dusk. Duaibsech went to her friend the holy bishop Cairnech. “Bless me,” she said. “I'm afraid of death tonight.”",
+      illus: "The gate of a great timber fort at dusk: a long line of people walking out with bundles, among them a dignified queen with dark braids holding two children by the hand, looking back at the hall; in the lit doorway behind, the silhouette of the woman in green." },
+    { title: "The grave of a living man",
+      text: "Bishop Cairnech came to Cletech, but Sín would not let him near the gate. The bishop was so angry that he dug a grave for the king, though the king was still alive. He stood on top of it, rang his bells and cursed the house. “The man whose grave this is,” he said, “has come to the end of his kingship.”",
+      illus: "Outside the fort's earthen bank: an old bishop in a brown habit with a long white beard standing on a freshly dug mound of earth, holding up a small iron hand-bell, his face furious; monks behind him; the fort above them closed and silent." },
+    { title: "Wine from the river",
+      text: "“Show me your power,” said the king. So Sín filled three barrels with water from the Boyne and turned it into wine, the best anyone had ever tasted. She turned ferns into roast pigs. Everyone ate and drank until they were full. But in the morning the king woke up weak, as if he had been ill for a long time, and so did everyone who had eaten.",
+      illus: "The great hall glowing with firelight: three huge wooden barrels being filled with river water by servants; Sín passing her hand over one of them and the water turning deep red; on the tables, roasted pigs with fern fronds still curling from them; the king laughing, delighted." },
+    { title: "The armies of stone",
+      text: "Then Sín turned the stones of the field into soldiers: blue men, and men with the heads of goats. The king took up his sword and charged them like a bull. But every man he killed got straight back up again. He fought all day, until he could barely stand. The next day there were more, blue men from the north and men with no heads from the south, and when he tried to go out to fight them, his legs gave way.",
+      illus: "On a wide green field below the ancient tombs, a nightmare battle in grey afternoon light: strange blue-skinned warriors and men with goats' heads, some rising from the ground where they had fallen; the king alone among them swinging his sword, exhausted; in the distance a few stones lie where soldiers stood a moment before. Unsettling, dreamlike, not gory." },
+    { title: "The Cross over his eyes",
+      text: "Bishop Cairnech sent three priests to find him. They found the king alone in the field, hacking at rocks and clumps of earth with his sword. “Why are you chopping at stones?” they asked. “Make the sign of the Cross over your eyes.” He did, and the armies were gone. There was nothing there but stones, and ferns, and puffballs. “We've come for your body,” said the priests gently, “because your death is near.”",
+      illus: "The same field now plain and empty: grey stones, ferns and mushrooms scattered in the grass; the king standing with his sword lowered and his hand at his forehead, dazed; three young monks in brown habits around him, one making the sign of the Cross." },
+    { title: "He chooses her",
+      text: "The king dug the foundations of a little church for the priests, told them everything, and said he was sorry for all the wrong he had done. Then he went home to Cletech and sat down beside Sín. “Don't listen to priests,” she said. “I'm a better friend to you than they are.” And the king said: “Your face is dearer to me than all their churches.”",
+      illus: "Night in the hall: the king sitting beside Sín on a carved bench, looking at her with love and exhaustion; through an open doorway behind them, far across the dark field, the tiny glow of a fire in a little half-built church." },
+    { title: "Winter-Night",
+      text: "It was the week of Samhain, when winter begins. On the seventh night, the Tuesday after Samhain, a great wind rose. “That's the sigh of a winter-night,” said the king, without thinking. He had said two of her names. Then snow came from the north-west, more snow than anyone had ever seen, and the king went to the door and cursed the storm. He had said her name again.",
+      illus: "The king at the open door of the hall, wind whipping his cloak, shouting into a blizzard of thick snow that pours in from the upper left; behind him in the firelit hall, Sín sitting very still, watching him." },
+    { title: "Three warnings",
+      text: "That night the king dreamed of the house on fire, and woke screaming. He went across the snow to the priests' little fire and told them. Then he went back to her. She told him, in a poem: “You will die tonight in this house. Do not sleep.” He remembered a prophecy that he would be burned like his grandfather. And then she said, “Sleep, and leave the watching to me.” He dreamed of a ship sinking, and a griffin carrying him to a burning nest. His foster-brother said what it meant: the woman beside him would burn him in his house. He lay down beside her anyway.",
+      illus: "A dark bedchamber with a single lamp: the king asleep on a fur-covered bed, his face troubled; above him, faint as smoke, a dream-image of a ship sinking and a great taloned griffin; beside the bed, Sín sitting upright and awake, holding a cup." },
+    { title: "Burned and drowned",
+      text: "While he slept, Sín got up. She turned every spear in the doorways so that the points faced inward. She made a ghost-army shout outside. Then she scattered fire along the walls and got back into bed. When the king woke, the house was burning. “Who is it?” he cried. “Your enemy Tuathal,” she lied. He ran for the door, but the fire was in it. With nowhere else to go, he climbed into one of the barrels of wine to escape the flames. And there he drowned, while the house fell burning on top of him.",
+      illus: "Seen from outside and far off, so nothing is graphic: the great hall of Cletech ablaze against the night and the falling snow, its roof collapsing in sparks; on the snowy field around it, pale shadowy shapes of a ghost-army; the river below reflecting the fire." },
+    { title: "Three graves",
+      text: "In the morning the priests carried the king's body down to the Boyne and washed it. As they bore him to his grave, his wife Duaibsech met them on the road. She leaned against an old tree, and her heart broke, and she died. When both were buried, a woman in a green cloak came to the graveside. “My name is Sín,” she said. “My father was Sige. Muirchertach killed my father and my mother and my sister in battle, and all my people. That is why.” Then she said that she had loved him, and she died there of grief. And Bishop Cairnech prayed for the king's soul, day and night, until God let it out of hell.",
+      illus: "Final image: a grey winter morning in a small churchyard; three fresh graves side by side; the old bishop kneeling in prayer; at the edge of the churchyard, a woman in a green mantle with gold thread lying still in the snow, as if asleep; a single bare old tree; the river beyond." },
+  ],
+};

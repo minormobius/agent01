@@ -13,6 +13,8 @@
  * Picked up automatically by scripts/preflight.mjs when games/ is touched.
  */
 import { loadRatchet, playRoute, playRun } from "./harness.mjs";
+import * as SC from "../js/score.js";
+import fs from "node:fs";
 
 const R = await loadRatchet();
 let failures = 0;
@@ -273,6 +275,58 @@ console.log("\n— choice actually matters —");
   ck(gaps.length > 0, `naive play does fail sometimes (${gaps.length}/60)`);
   ck(Math.max(...gaps) >= 3,
     `a run can become unwinnable well before it ends (max gap ${Math.max(...gaps)} stages)`);
+}
+
+
+console.log("\n— the leaderboard refuses the impossible —");
+{
+  // the rules score.js leans on are the game's
+  ck(SC.START_SUPPLY === R.START_SUPPLY && SC.REFILL_PER_ROUTE === R.REFILL_PER_ROUTE && SC.SCRAP_VALUE === R.SCRAP_VALUE,
+    "score.js's supply constants are the game's");
+  ck(SC.MIN_TOLL === Math.min(...Object.values(R.OBSTACLES).map((o) => o.toll)), "MIN_TOLL is the cheapest toll");
+  ck(SC.MAX_STAGES === R.routePlan(10000).stages, "MAX_STAGES is the longest road the plan makes");
+  const gen = fs.readFileSync(new URL("../js/generate.js", import.meta.url), "utf8");
+  const adds = +(/attempt < (\d+)/.exec(gen) || [])[1], popTo = +(/s\.stages\.length > (\d+)\) s\.stages\.pop/.exec(gen) || [])[1];
+  let planKit = 0, planRewards = 0;
+  for (let r = 1; r < 200; r++) { planKit = Math.max(planKit, R.routePlan(r).kit); planRewards = Math.max(planRewards, R.routePlan(r).rewards); }
+  ck(SC.MAX_KIT === planKit + adds + planRewards, `MAX_KIT is the plan's kit + what makeCrossable adds + the caches (${planKit} + ${adds} + ${planRewards})`);
+  ck(SC.MIN_STAGES === popTo, `MIN_STAGES is as short as makeCrossable trims a road (${popTo})`);
+
+  // whole runs, counted the way main.js counts them, are all accepted
+  const runOf = (seed, policy, cap = 8) => {   // a run stopped at `cap` routes is posted as it stands (perfect play never strands)
+    let s = R.newGame(seed); const c = { routes: 0, walked: 0, spent: 0, scrapped: 0 };
+    for (let guard = 0; guard < cap; guard++) {
+      const out = playRoute(R, s, policy, R.newMemo());
+      for (const h of out.history) { if (h.action === "pay") c.walked++; else if (h.action === "use") c.spent++; else c.scrapped++; }
+      if (out.phase !== "won") break;
+      c.routes++; s = R.nextRoute(out.state);
+    }
+    return { sel: {}, value: c.routes, seed, ...c };
+  };
+  const at = new Date().toISOString(), rec = (r) => ({ $type: "com.minomobi.lab.score", site: "ratchet", game: SC.GAME, createdAt: at, ...SC.record(r) });
+  let all = 0, ok = 0, top = 0;
+  for (let i = 0; i < 16; i++) for (const p of ["eager", "hoarder", "thrifty", "optimal"]) {
+    const r = runOf(`lb-${i}`, p);
+    if (!r.value) continue;
+    all++; if (SC.accept(rec(r))) ok++; else console.error("    refused", SC.record(r).detail);
+    top = Math.max(top, r.value);
+  }
+  ck(all > 20 && ok === all, `every real run's record is accepted (${ok}/${all}, best ${top} routes)`);
+
+  const real = runOf("lb-best", "thrifty", 40), good = rec(real);
+  ck(SC.accept(good), `a real run: ${good.detail}`);
+  const bad = (m, f) => ck(!SC.accept(f(JSON.parse(JSON.stringify(good)))), "refuses " + m);
+  bad("another site", (v) => ((v.site = "molt"), v));
+  bad("another version", (v) => ((v.game = "routes-v0"), v));
+  bad("another unit", (v) => ((v.unit = "points"), v));
+  bad("lower-is-better", (v) => ((v.higherIsBetter = false), v));
+  bad("a value the detail doesn't claim", (v) => ((v.value += 5), v));
+  bad("no seed", (v) => ((v.detail = v.detail.replace(/seed=\S+ /, "")), v));
+  bad("more routes than stages walked", (v) => { v.value = 400; v.detail = v.detail.replace(/routes=\d+/, "routes=400"); return v; });
+  bad("more walking than supply", (v) => ((v.detail = v.detail.replace(/walked=\d+/, "walked=200")), v));
+  bad("more tools than kits", (v) => ((v.detail = v.detail.replace(/scrapped=\d+/, "scrapped=900")), v));
+  bad("a bad date", (v) => ((v.createdAt = "yesterday"), v));
+  bad("zero routes", (v) => { v.value = 0; v.detail = v.detail.replace(/routes=\d+/, "routes=0"); return v; });
 }
 
 console.log(failures ? `\n${failures} FAILED\n` : "\nall good\n");

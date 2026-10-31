@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>spooky names &mdash; Treehouse of Horror credits for anyone</title>
+<meta name="description" content="Type your name, get your Treehouse of Horror credit. Sound-alike puns made by ear: your name is pronounced, then bent toward a spooky word that sounds nearly the same.">
+<meta property="og:title" content="spooky names">
+<meta property="og:description" content="James L. Brooks became James Hell Brooks. Type your name and find out what you become.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/spooky/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #120d17; --bg2: #1c1424; --text: #ece4d8; --muted: #9a8fa6; --rule: #352a40;
+  --accent: #ff8a1f; --accent-dim: rgba(255, 138, 31, 0.12); --slime: #9be564;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: radial-gradient(ellipse at 50% -10%, #2b1838 0%, var(--bg) 60%) fixed, var(--bg);
+  color: var(--text); font-family: var(--serif); font-size: 17px; line-height: 1.55;
+  padding: 1.5rem 1rem 4rem; min-height: 100vh;
+}
+.wrap { max-width: 760px; margin: 0 auto; }
+header { text-align: center; margin: 1rem 0 1.6rem; }
+h1 {
+  font-family: 'Creepster', var(--serif); font-weight: 400; font-size: clamp(2.6rem, 10vw, 4.4rem);
+  letter-spacing: 0.04em; margin: 0; color: var(--accent); line-height: 1;
+  text-shadow: 0 0 24px rgba(255, 138, 31, 0.35);
+}
+.sub { color: var(--muted); font-style: italic; margin: 0.6rem auto 0; max-width: 34rem; }
+.sub a { color: var(--accent); }
+form { display: flex; gap: 0.5rem; margin: 1.6rem 0 0.6rem; }
+input[type=text] {
+  flex: 1; min-width: 0; font: inherit; font-size: 1.15rem; padding: 0.7rem 0.9rem;
+  background: var(--bg2); color: var(--text); border: 1px solid var(--rule); border-radius: 8px;
+}
+input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+button {
+  font: inherit; font-weight: 700; padding: 0.7rem 1.1rem; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--accent); background: var(--accent); color: #1a0f05;
+}
+button.ghost { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: progress; }
+.row { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin: 0.4rem 0 0; }
+.heard { text-align: center; color: var(--muted); font-size: 0.85rem; min-height: 1.4em; margin: 0.4rem 0 0; }
+.heard code { font-family: var(--mono); color: var(--text); }
+.credits { margin: 2rem 0 1rem; text-align: center; }
+.credit { padding: 1.1rem 0.5rem; border-top: 1px solid var(--rule); animation: rise 0.6s ease both; }
+.credit:first-child { border-top: none; }
+.role { text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem; color: var(--muted); }
+.who {
+  font-size: clamp(1.5rem, 6vw, 2.2rem); font-weight: 700; margin: 0.15rem 0 0.2rem;
+  overflow-wrap: anywhere; cursor: pointer;
+}
+.who:hover { color: var(--accent); }
+.how { font-size: 0.8rem; color: var(--muted); font-family: var(--mono); }
+.how b { color: var(--slime); font-weight: 400; }
+.copied { color: var(--slime); }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .credit { animation: none; } }
+.empty { color: var(--muted); text-align: center; font-style: italic; }
+footer { margin-top: 3rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--rule); padding-top: 1rem; }
+footer a { color: var(--accent); }
+footer code { font-family: var(--mono); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Spooky Names</h1>
+    <p class="sub">Every October, the <i>Treehouse of Horror</i> credits turned James L. Brooks into
+      James <b>Hell</b> Brooks. Type a name and get yours, made by ear.</p>
+  </header>
+
+  <form id="f" autocomplete="off">
+    <input type="text" id="name" placeholder="Your name" aria-label="Your name" maxlength="80" required>
+    <button type="submit" id="go" disabled>Haunt it</button>
+  </form>
+  <div class="row">
+    <button type="button" class="ghost" id="more" hidden>Another batch</button>
+    <button type="button" class="ghost" id="share" hidden>Copy link</button>
+  </div>
+  <p class="heard" id="heard">Summoning the dictionary&hellip;</p>
+
+  <section class="credits" id="out" aria-live="polite"></section>
+
+  <footer>
+    <p><b>How it works.</b> The name is pronounced first, by a letter-to-sound model trained on
+      CMUdict's 117,000 spellings, so the engine knows which letters make which sounds. Then every
+      word in a spooky vocabulary of ~275 is matched against every stretch of the name by a phonetic
+      edit distance: <i>b</i> for <i>p</i> is cheap, <i>s</i> for <i>b</i> is not, a dropped
+      <i>h</i> costs almost nothing. The winners are spelled with the name's own letters around the
+      spooky word's, hyphenated only where the joined spelling would be misread, and ranked by how
+      much of the name you can still hear and see. When sound gives nothing good, it falls back on
+      the other Treehouse moves: a rhyming nickname, an alliterating epithet, a monster's ending.</p>
+    <p>Runs entirely in your browser; the name never leaves it. Also an API:
+      <code>GET /api/spooky?name=Matt%20Groening&amp;seed=1&amp;count=6</code>.
+      Part of <a href="/">rite</a>; sounds learned the same way as <a href="/sharp/">/sharp</a>.</p>
+  </footer>
+</div>
+
+<script type="module">
+import { spookify, hear } from './engine.js';
+import { arpaToIpa } from '../sharp/engine.js';
+
+const $ = (id) => document.getElementById(id);
+const ROLES = ['Executive Producer', 'Written by', 'Directed by', 'Developed by', 'Story Editor',
+  'Music by', 'Casting', 'Animation Director', 'Supervising Producer', 'Script Consultant',
+  'Created by', 'Produced by', 'Edited by', 'Voice Director'];
+const KIND = { swap: 'sounds like', blend: 'runs into', double: 'twice over', rhyme: 'rhymes with',
+  epithet: 'alliterates with', affix: 'after' };
+
+let data = null, seed = 0;
+
+async function load() {
+  const get = (f) => fetch(`./data/${f}`).then((r) => { if (!r.ok) throw new Error(f); return r.json(); });
+  const [model, vocab] = await Promise.all([get('g2p.json'), get('spooks.json')]);
+  data = { model, vocab };
+  $('go').disabled = false;
+  $('heard').textContent = '';
+}
+
+function hash(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
+
+function render(name) {
+  const res = spookify(name, { ...data, seed: seed ? String(seed) : '', count: 6 });
+  const out = $('out');
+  out.innerHTML = '';
+  const heard = hear(data.model, res.name).filter((p) => p.phones.length);
+  $('heard').innerHTML = heard.length
+    ? 'heard as ' + heard.map((p) => `<code>/${arpaToIpa(p.phones.join(' ')) || p.phones.join(' ')}/</code>`).join(' ')
+    : '';
+  if (!res.results.length) {
+    out.innerHTML = '<p class="empty">Nothing spooky lurks in that name. Try a fuller one.</p>';
+    return;
+  }
+  // The roles are dealt from the name and batch, so a link reproduces the card.
+  const roles = ROLES.slice();
+  let h = hash(res.name.toLowerCase() + '|' + seed);
+  for (let i = roles.length - 1; i > 0; i--) { h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0; const j = h % (i + 1); [roles[i], roles[j]] = [roles[j], roles[i]]; }
+  res.results.forEach((r, i) => {
+    const el = document.createElement('div');
+    el.className = 'credit';
+    el.style.animationDelay = `${i * 0.12}s`;
+    const how = r.kind === 'double' ? `<b>${esc(r.spook)}</b>`
+      : r.kind === 'affix' ? `after <b>${esc(r.spook)}</b>`
+      : `${esc(r.part)} ${KIND[r.kind] || '~'} <b>${esc(r.spook)}</b>`;
+    el.innerHTML = `<div class="role">${roles[i % roles.length]}</div>
+      <div class="who" title="Copy">${esc(r.text)}</div><div class="how">${how}</div>`;
+    el.querySelector('.who').addEventListener('click', (e) => copy(r.text, e.target));
+    out.appendChild(el);
+  });
+  $('more').hidden = false; $('share').hidden = false;
+}
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function copy(text, el) {
+  try { await navigator.clipboard.writeText(text); } catch { return; }
+  const was = el.textContent; el.classList.add('copied'); el.textContent = 'copied';
+  setTimeout(() => { el.textContent = was; el.classList.remove('copied'); }, 900);
+}
+
+function go(push = true) {
+  const name = $('name').value.trim();
+  if (!name || !data) return;
+  if (push) {
+    const u = new URL(location.href);
+    u.searchParams.set('n', name);
+    if (seed) u.searchParams.set('s', seed); else u.searchParams.delete('s');
+    history.replaceState(null, '', u);
+  }
+  render(name);
+}
+
+$('f').addEventListener('submit', (e) => { e.preventDefault(); seed = 0; go(); });
+$('more').addEventListener('click', () => { seed++; go(); });
+$('share').addEventListener('click', (e) => copy(location.href, e.target));
+
+const q = new URLSearchParams(location.search);
+if (q.get('n')) $('name').value = q.get('n');
+seed = parseInt(q.get('s') || '0', 10) || 0;
+load().then(() => { if ($('name').value.trim()) go(false); else $('name').focus(); })
+  .catch(() => { $('heard').textContent = 'The dictionary would not rise. Reload to try again.'; });
+</script>
+</body>
+</html>

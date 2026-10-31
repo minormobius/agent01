@@ -7,7 +7,7 @@
  * without a network, so that opening the app on a plane shows you the ~month of
  * history your browser has been quietly accumulating, instead of a dinosaur.
  *
- * Three rules, and the first one is a security rule rather than a caching one.
+ * Four rules, and the first one is a security rule rather than a caching one.
  *
  * 1. NEVER touch /api/*. `/api/feedgen` forwards the reader's own service-auth
  *    JWT and returns THEIR personalised feed. Cache Storage is per-origin, not
@@ -26,13 +26,18 @@
  *    reaches installed users on the next launch; the cache is the fallback for
  *    when there is genuinely no network.
  *
+ * 4. Never touch /dweet/. It is another app on this origin, inside this scope,
+ *    and caching it as if it were the shell served its scripts a deploy late.
+ *
  * There is no skipWaiting() here on purpose. This app is one module graph:
  * activating a new worker under a page that already imported the old app.js
  * can mix versions inside a single session. So a new worker waits, and app.js
  * surfaces an explicit "update ready" button — see registerServiceWorker().
  */
 
-const VERSION = 'v1';
+// v2: stops serving /dweet/ from cache and stops caching every navigation as
+// the shell — see rule 4. Bumping purges the v1 cache, which holds both.
+const VERSION = 'v2';
 const CACHE = `bsky-shell-${VERSION}`;
 
 /**
@@ -106,6 +111,12 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;   // rule 2
   if (url.pathname.startsWith('/api/')) return;      // rule 1
+  // Rule 4 — /dweet/ is a different app that happens to share this origin, and
+  // this worker's scope. It is not part of the shell and must not be cached by
+  // it: stale-while-revalidate served dweet's scripts one deploy behind, so a
+  // reader who had visited while its socket was broken kept running the broken
+  // build (status: "disconnected — retrying") after the fix had shipped.
+  if (url.pathname.startsWith('/dweet/')) return;
 
   // Rule 3 — documents come from the network when there is one. An OAuth
   // callback lands here carrying ?code=…; it must never be answered from a
@@ -114,7 +125,10 @@ self.addEventListener('fetch', (e) => {
     e.respondWith((async () => {
       try {
         const fresh = await fetch(req);
-        if (!url.search) {
+        // Only the shell's own document is the shell. Caching every
+        // navigation under '/index.html' let any other page on this origin
+        // overwrite the offline fallback.
+        if (!url.search && (url.pathname === '/' || url.pathname === '/index.html')) {
           const cache = await caches.open(CACHE);
           cache.put('/index.html', fresh.clone());
         }

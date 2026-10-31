@@ -1,0 +1,22 @@
+{
+  "id": "jev-plans-search-v3",
+  "written": "2026-10-03",
+  "status": "registered after v1 and v2 FAILED, before the funding history was fetched and before any v3 result",
+  "ledger": "trials so far on this data: v1 18, v2 18 (both failed). v3 adds 6. Total 42.",
+  "why_a_different_mechanism": "v1 and v2 tested 18 price-only, single-asset plans and nothing survived; what dominated both was market direction (beta: 14 of 15 assets fell 20-63% in the validation period, after a bull run in dev). v3 does not retune those families. It tests two mechanisms with independent reasons to expect an edge: (a) MARKET-NEUTRAL cross-sectional books, long the strongest and short the weakest of 15 assets in equal risk, which cancels the beta that swamped v1/v2; (b) FUNDING, which is information that is not price, printed rather than forecast, and pays the short side when longs are crowded.",
+  "seen_before_registering": "the buy-and-hold return of every asset over the validation period (printed by v1). No funding data. No cross-sectional result.",
+  "data": "the same 4h tapes (15 assets, 5000 bars, 2024-06-21 to 2026-10-03), plus hourly funding from Hyperliquid fundingHistory over the same span, summed into each 4h bar, cached as lab/fixtures/funding-<coin>-4h.json",
+  "book": "every W bars, rank the 15 assets by a score; long the top 3, short the bottom 3. Within each side, weight is proportional to 1/sigma (sigma = sd of the last 120 bar returns), and each side sums to 1, so the book is 1 long and 1 short (gross 2). Hold W bars. Each bar's return = sum of w*side*(c/c_prev - 1) - funding paid (a long pays the bar's funding, a short receives it, at the actual printed rate) - costs. Costs at each rebalance = sum |change in w| * (taker 4.5bp + that asset's half spread from v1's registration). A new book is formed at the close and held from the next bar.",
+  "families": {
+    "xs_momentum": "score = return over the last L bars (top = strongest). L in {42, 180} (1 week, 30 days), W = 42",
+    "xs_reversal": "score = minus the return over the last L bars (top = weakest, bought). (L, W) in {(6, 6), (42, 42)} (1 day held 1 day, 1 week held 1 week)",
+    "funding_carry": "score = minus the mean funding over the last F bars (top = lowest funding, bought; the highest-funded, most crowded longs are sold, and the short leg is paid their funding). F in {18, 42} (3 days, 7 days), W = 42"
+  },
+  "trials": 6,
+  "statistic": "the book's return per calendar week, t over weeks",
+  "selection": "dev period (bars 200 to 3000): mean weekly return > 0 and t >= 2.39 (one-sided p = 0.05/6, Bonferroni)",
+  "confirmation": "validation period (bars 3000 to 5000): mean > 0 and t >= 1.645, Bonferroni over the survivors; AND the beta rule: the absolute correlation of the book's weekly returns with the equal-weight 15-asset market's weekly return must be below 0.3 over both periods together",
+  "if_none": "if nothing survives, the best by dev t is carried to validation labelled as failed and the search is reported failed",
+  "no_amendment": "nothing above changes after results are seen; the trial ledger is reported with any result",
+  "then": "a confirmed book becomes plans for the trading floor: each leg a plan with its facts (rank, score, funding, sigma), and Jev decides whether to hold the book, hold part, or stand aside, scored against always holding it"
+}

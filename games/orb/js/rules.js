@@ -1,0 +1,128 @@
+/* Orb — the rules.
+
+   Minesweeper with the grid taken away. Everything here talks to the mesh only
+   through `mesh.nbrs` — a cell is a number and a list of neighbours — so the
+   same rules run on the sphere, and on the square and hex tori that
+   test/analysis.mjs uses as controls.
+
+   A state is plain data:
+     open[i]  1 once revealed        flag[i]  1 if the player flagged it
+     mine[i]  1 if a mine            count[i] mined neighbours
+   Mines are not placed until the first reveal, so the first cell and its
+   neighbours are always clear and the game always opens on a region. */
+(function () {
+  "use strict";
+  var NS = (typeof window !== "undefined") ? window : globalThis;
+  var O = NS.ORB = NS.ORB || {};
+
+  function newState(mesh, nMines) {
+    var n = mesh.n;
+    return {
+      mesh: mesh, n: n, nMines: nMines,
+      mine: new Uint8Array(n), count: new Int8Array(n),
+      open: new Uint8Array(n), flag: new Uint8Array(n),
+      opened: 0, flags: 0, phase: "ready", boom: -1, first: -1,
+      moves: 0, t0: 0, t1: 0,
+    };
+  }
+
+  function plant(s, mineList) {
+    s.mine.fill(0); s.count.fill(0);
+    for (var k = 0; k < mineList.length; k++) s.mine[mineList[k]] = 1;
+    var nb = s.mesh.nbrs;
+    for (var i = 0; i < s.n; i++) {
+      var c = 0;
+      for (var j = 0; j < nb[i].length; j++) c += s.mine[nb[i][j]];
+      s.count[i] = c;
+    }
+  }
+
+  /* Open a cell; zeros flood. Returns the cells opened, in order (the view
+     animates them as a ripple). Opening a mine ends the game. */
+  function reveal(s, i) {
+    if (s.phase === "won" || s.phase === "lost" || s.open[i] || s.flag[i]) return [];
+    if (s.mine[i]) { s.open[i] = 1; s.boom = i; s.phase = "lost"; s.t1 = Date.now(); return [i]; }
+    var out = [], stack = [i], nb = s.mesh.flood || s.mesh.nbrs; // a mesh may flood less far than it counts (Fathom: within a shell)
+    s.open[i] = 1;
+    while (stack.length) {
+      var c = stack.pop();
+      out.push(c); s.opened++;
+      if (s.count[c] !== 0) continue;
+      for (var k = 0; k < nb[c].length; k++) {
+        var j = nb[c][k];
+        if (!s.open[j] && !s.mine[j]) {
+          if (s.flag[j]) { s.flag[j] = 0; s.flags--; } // a wrong flag inside a flood is cleared
+          s.open[j] = 1; stack.push(j);
+        }
+      }
+    }
+    if (s.opened === s.n - s.nMines) { s.phase = "won"; s.t1 = Date.now(); }
+    return out;
+  }
+
+  function toggleFlag(s, i) {
+    if (s.phase !== "play" || s.open[i]) return false;
+    s.flag[i] ^= 1; s.flags += s.flag[i] ? 1 : -1;
+    return true;
+  }
+
+  /* Tap an open number whose flags are all placed: open the rest. */
+  function chord(s, i) {
+    if (s.phase !== "play" || !s.open[i] || s.count[i] === 0) return [];
+    var nb = s.mesh.nbrs[i], f = 0, k;
+    for (k = 0; k < nb.length; k++) f += s.flag[nb[k]];
+    if (f !== s.count[i]) return [];
+    var out = [];
+    for (k = 0; k < nb.length; k++) {
+      var r = reveal(s, nb[k]);
+      for (var q = 0; q < r.length; q++) out.push(r[q]);
+    }
+    return out;
+  }
+
+  /* The tiers. Densities were chosen by measurement (test/analysis.mjs prints
+     the generator's cost per tier): the no-guess oracle holds up to about a
+     quarter of the cells mined on 1000 cells (~0.1 s median, ~0.3 s worst to
+     prove a board) and starts to strain past that.
+     A board's difficulty is its cell and mine count, so that pair IS the
+     leaderboard's game id: retune a tier and its old times stop being
+     compared with the new ones, instead of quietly mixing. */
+  O.SIZES = {
+    s: { n: 160, m: 28, label: "small", climb: 600 },
+    m: { n: 320, m: 62, label: "medium", climb: 600 },
+    l: { n: 600, m: 132, label: "large", climb: 500 },
+    x: { n: 1000, m: 250, label: "huge", climb: 350 },
+    // the torus: a Voronoi diagram of the flat torus (js/torus.js), drawn as a donut
+    ts: { n: 160, m: 28, label: "torus · small", climb: 600, torus: true },
+    tm: { n: 320, m: 62, label: "torus · medium", climb: 600, torus: true },
+    tl: { n: 600, m: 132, label: "torus · large", climb: 500, torus: true },
+    // the Klein bottle: the same rectangle, one pair of edges glued with a flip
+    ks: { n: 200, m: 36, label: "Klein bottle · small", climb: 600, torus: true, klein: true },
+    km: { n: 320, m: 62, label: "Klein bottle · medium", climb: 600, torus: true, klein: true },
+    // the projective plane: the sphere with opposite points glued (js/sphere.js buildProjective)
+    ps: { n: 160, m: 28, label: "projective plane · small", climb: 600, proj: true },
+    pm: { n: 320, m: 62, label: "projective plane · medium", climb: 600, proj: true },
+    // the double torus: genus 2, so hyperbolic (js/hyper.js)
+    hs: { n: 160, m: 28, label: "double torus · small", climb: 600, hyper: true },
+    hm: { n: 320, m: 62, label: "double torus · medium", climb: 600, hyper: true },
+  };
+  /* The board for a tier: the sphere, the torus, the Klein bottle, the projective plane or the double torus. */
+  O.meshFor = function (size, seed) {
+    var c = O.SIZES[size];
+    // `true`: even the walls out, so none is under a quarter of the median (sphere.js evenWalls)
+    return c.hyper ? O.buildDoubleTorus(seed, c.n, 2, true) : c.proj ? O.buildProjective(seed, c.n, 2, true) : c.klein ? O.buildKlein(seed, c.n, 3, true) : c.torus ? O.buildTorus(seed, c.n, 3, false, true) : O.buildMesh(seed, c.n, 2, true);
+  };
+  /* `climb` is hard mode's search budget: mine moves tried while forging a
+     board for hard moments (solve.js generateHard). Part of the board's
+     identity, like the mine count, so it is in the hard-mode game id. */
+  O.gameId = function (size, hard) {
+    var c = O.SIZES[size], id = hard ? "hard-" + c.n + "-" + c.m + "-" + c.climb : "pure-" + c.n + "-" + c.m;
+    return c.hyper ? "genus2-" + id : c.proj ? "proj-" + id : c.klein ? "klein-" + id : c.torus ? "torus-" + id : id;
+  };
+
+  O.newState = newState;
+  O.plant = plant;
+  O.reveal = reveal;
+  O.toggleFlag = toggleFlag;
+  O.chord = chord;
+})();

@@ -2,7 +2,7 @@ name: Deploy Megaproject Dashboard
 
 on:
   push:
-    branches: ['claude/jev-demo-website-pw3us1']
+    branches: ['claude/jev-minecraft-headless-9sbgxk']
     paths:
       - 'mega/**'
       - '.github/workflows/deploy-mega.yml'
@@ -48,6 +48,10 @@ jobs:
         run: node jev/test/cascade.selftest.mjs
       - name: jev lab selftest (paper book costs, controls, the gate and the latch)
         run: node jev/test/lab.selftest.mjs
+      - name: jev plans selftest (fills, exits, costs, no lookahead, brackets earn nothing on a coin-flip tape)
+        run: node jev/test/plans.selftest.mjs
+      - name: jev craft selftest (foam's tilings, a complete stream, determinism, the ladder)
+        run: node jev/test/craft.selftest.mjs
 
       - name: Deploy static site
         run: npx wrangler deploy

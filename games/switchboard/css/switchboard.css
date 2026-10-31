@@ -136,3 +136,6 @@ button.ghost:hover { color: var(--text); border-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   .line, .flash, .flash-bad, .float { animation: none !important; transition: none !important; }
 }
+
+#hud .trophy { padding: 5px 9px; font-size: 14px; line-height: 1; flex: none; }
+#hud .trophy[hidden] { display: none; }

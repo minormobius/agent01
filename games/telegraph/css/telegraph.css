@@ -371,3 +371,4 @@ button.ghost:disabled { opacity: 0.35; cursor: default; }
   .piece-inner.hit, .piece.spawning .piece-inner, .fx, #board.shake { animation: none !important; }
   .piece.dying { transition: none !important; }
 }
+button.primary:disabled { opacity: 0.45; cursor: default; }

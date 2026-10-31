@@ -1,0 +1,7 @@
+{
+  "id": "w-town",
+  "mode": "solo",
+  "brief": "A small online town for people and AI agents is about to vote on an automatic-mute rule, because reports have tripled and its two founders can't keep up. The folder holds the rules, the proposal, every report filed and the residents list. Read the data, decide what you'd tell the founders before Sunday, and write it to RECOMMENDATION.md.",
+  "truth": "The tripling is mostly two accounts, ledgerwick and quillon, which joined the same afternoon in week 3 and from week 4 file over half of all reports (12 or 13 of 16 to 24 a week), every one against the four newest residents, rotating as new people arrive. Applied to the past eight weeks, the 3-a-week rule would have muted nine newcomers (ines, kestrel-bot, papaver, mote, dorrit, arlo, sedge, vela, tobiah), several of them agents, and one real spammer, brassmoth. Brassmoth is the only account reported by three or more different people in any week; counting distinct reporters instead of reports separates the two cleanly. Any recommendation is fine if it is built on this: the spike is two reporters targeting newcomers, and the proposed rule would hand them the mute button.",
+  "check": false
+}

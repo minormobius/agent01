@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴, chapter 5: Gravity. Gravity meets the same fork as charge: under Gauss&#x27;s law in 4D no orbit is stable. Six routes, what each costs, the lens assumed for symmetry with charge, and orbits under each law." />
+<title>ATOM⁴ · Gravity — four.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="geometry.html">1 · geometry</a><a href="force.html">2 · the force</a><a href="light.html">3 · light</a><a href="motion.html">4 · motion and spin</a><a href="gravity.html" class="here">5 · gravity</a><a href="hydrogen.html">6 · hydrogen</a><a href="table.html">7 · the periodic table</a><a href="shapes.html">8 · the shapes</a><a href="darbon.html">9 · darbon</a><a href="forces.html">10 · forces between molecules</a><a href="xater.html">11 · pxygen and xater</a><a href="census.html">12 · which water</a><a href="search.html">13 · ten ways to meet</a><a href="gas.html">14 · gases</a><a href="nuclei.html">15 · nuclei</a><a href="stars.html">16 · stars</a><a href="planets.html">17 · planetary systems</a><a href="methods.html">methods</a></nav>
+  <h2>ATOM⁴ · chapter 5</h2>
+  <h1 class="ch">Gravity</h1>
+  <p class="lede">Gravity meets the same fork as charge: under Gauss's law in 4D no orbit is stable. Six routes, what each costs, the lens assumed for symmetry with charge, and orbits under each law.</p>
+</header>
+<section id="gravity">
+  <h3>Gravity's routes</h3>
+  <p><a href="force.html">Chapter 2</a> pinned the force between charges at 1/r and left gravity open. Gravity hardly matters to atoms, but it makes the stars and holds the planets. Its problem is the same as charge's. A field obeying Gauss's law in four dimensions falls as 1/r², and for 1/r we need a propagator of 1/k³. So the same forks appear (<a href="force.html#maxwell">charge's, for comparison</a>), with gravity's own twists. Gravity pulls on everything alike, it's nonlinear in our world already, and it has waves and black holes of its own.</p>
+  <div class="routes">
+    <div class="route"><h5>1 · Keep 4D gravity as it is: Gauss's law, 1/r²</h5><p>The four-dimensional version of Einstein's gravity, whose slow, weak limit is 1/r². It keeps everything: locality, relativity, the equivalence principle, waves at c.</p><p class="cost">costs: no stable orbit (below), and a star of gas is exactly marginal (<a href="stars.html#hold">chapter 16</a>). Stiff bodies like rock could hold themselves together, but nothing would orbit anything. No solar systems.</p></div>
+    <div class="route"><h5>2 · Keep relativity, give up locality: a graviton with □^(3/2)</h5><p>As for charge, a fractional power of the wave operator gives 1/r statics and keeps relativity.</p><p class="cost">costs: negative probabilities, by the same unitarity bound as charge's route 2.</p></div>
+    <div class="route"><h5>3 · A dispersive vacuum for gravity</h5><p>Give gravity's vacuum a response that grows with wavenumber, as charge's route 3 does.</p><p class="cost">costs: gravitational waves disperse with no speed limit. Long waves outrun short ones without bound.</p></div>
+    <div class="route"><h5>4 · Give up superposition: a nonlinear law</h5><p>Make gravity's Gauss law nonlinear, ∇·(|g|^(1/2) g) ∝ ρ in 4D, the kind of law Bekenstein and Milgrom wrote for our galaxies. A point mass then pulls as 1/r. Gravity is already nonlinear in our world, though not in its weak, everyday limit. This law keeps locality, and in our world such laws have been given relativistic completions.</p><p class="cost">costs: masses don't add. A body's pull grows as its mass to the 2/3 power, so two stars together pull less than twice one, and a planet's motion feels the galaxy it sits in. In exchange the divergence theorem still holds: <b>the shell theorem survives</b>. A round star acts as a point, its outer layers don't press inward, and orbits round it are exactly Kepler's.</p></div>
+    <div class="route"><h5>5 · A small fourth dimension, for gravity only</h5><p>Let gravity see three dimensions while matter sees four.</p><p class="cost">costs: coherence. Gravity pulls on all energy, including motion along w, so it can't ignore a dimension that matter moves in. This route breaks the premise.</p></div>
+    <div class="route chosen"><h5>6 · The lens, as for charge (assumed from here on)</h5><p>Gravity's static pull seen through the same kind of lens, a 1/k³ kernel, so 1/r between masses. Everything still falls alike, and masses add. Gravity's waves can stay as 4D Einstein's.</p><p class="cost">we'd pay: relativity for gravity's pull, an absolute "now" for gravity as for charge, and no black holes as Einstein's are defined. No shell theorem either: a star's outer layers press inward, and orbits round a star slowly precess.</p></div>
+  </div>
+  <p><b>Routes 4 and 6 are the real choice, and they predict different skies.</b> Under the lens, orbits round a star precess and masses add. Under the nonlinear law, orbits close exactly but a cluster of stars pulls less than its parts. Both give bound stars, because both make a star's gravitational energy scale as 1/R. The book assumes the lens from here on, for its symmetry with charge, and marks where route 4 would differ. The choice is open.</p>
+</section>
+<section id="kepler">
+  <h3>Orbits under each law <span class="tag computed">computed</span></h3>
+  <p>What the choice does to orbits decides whether there are planets at all. <b>Under the pinned 1/r, two bodies orbit as Kepler said</b>. A central pull keeps an orbit in one plane, even in 4D, and a 1/r pull closes it into an ellipse in any number of dimensions (<a href="motion.html">chapter 4</a>). Under Gauss's 1/r² no orbit is stable. Give a circular orbit 1% more speed and it runs away:</p>
+  <canvas class="chart" id="cOrbitNudge"></canvas>
+  <p class="read" id="kOrbitNudge"></p>
+</section>
+
+<footer class="pager"><a href="motion.html">← 4 · Motion and spin</a><a href="hydrogen.html">6 · Hydrogen →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen/">Lumen⁴</a> · <a href="../iris/">IRIS⁴</a> · <a href="https://games.mino.mobi/katabasis/">KATABASIS</a> · <a href="../">Four</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

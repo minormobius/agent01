@@ -1,0 +1,1351 @@
+{
+ "runs": [
+  {
+   "id": "imp-01",
+   "note": "First live Imp run: does a typed router lift with 8 examples on these models the way it did on gpt-5.4-mini (Imp R1/R2), and how well does a ReAct agent use six Elixir tools to answer refund-desk questions with exact answers? Baseline only; GEPA on desk comes next.",
+   "files": [
+    "ds4-flash.route.program.json",
+    "ds4-flash.traces.md",
+    "ds4-pro.route.program.json",
+    "ds4-pro.traces.md",
+    "kimi3.route.program.json",
+    "kimi3.traces.md",
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-flash",
+     "model_id": "deepseek-v4-flash",
+     "status": "ran",
+     "seconds": 40,
+     "tasks": {
+      "desk": {
+       "n_test": 16,
+       "arms": {
+        "react": {
+         "seconds": 23,
+         "errors": 0,
+         "score": 1
+        }
+       },
+       "tool_calls": 107,
+       "usage": {
+        "output_tokens": 8126,
+        "input_tokens": 102985,
+        "total_tokens": 111111
+       }
+      },
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "few_shot_k8": {
+         "seconds": 7,
+         "errors": 0,
+         "score": 1
+        },
+        "zero_shot": {
+         "seconds": 9,
+         "errors": 0,
+         "score": 1
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 88,
+     "tasks": {
+      "desk": {
+       "n_test": 16,
+       "arms": {
+        "react": {
+         "seconds": 58,
+         "errors": 0,
+         "score": 1
+        }
+       },
+       "tool_calls": 107,
+       "usage": {
+        "output_tokens": 11438,
+        "input_tokens": 113775,
+        "total_tokens": 125213
+       }
+      },
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "few_shot_k8": {
+         "seconds": 15,
+         "errors": 0,
+         "score": 1
+        },
+        "zero_shot": {
+         "seconds": 13,
+         "errors": 0,
+         "score": 1
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "kimi3",
+     "model_id": "kimi-k3",
+     "status": "ran",
+     "seconds": 5,
+     "tasks": {
+      "desk": {
+       "n_test": 16,
+       "arms": {
+        "react": {
+         "seconds": 2,
+         "errors": 0,
+         "score": 0
+        }
+       },
+       "tool_calls": 0,
+       "usage": {}
+      },
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "few_shot_k8": {
+         "seconds": 1,
+         "errors": 20,
+         "score": 0
+        },
+        "zero_shot": {
+         "seconds": 2,
+         "errors": 20,
+         "score": 0
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-02",
+   "note": "desk_hard baseline on all three models, then GEPA on ds4-flash with ds4-pro as the reflection model: can a rewritten instruction teach the cheap model the policy-version and delivery-window rules it gets wrong? kimi3 retried without temperature and with 16k max_tokens; route re-run for kimi3's sake.",
+   "files": [
+    "ds4-pro.hard.traces.md",
+    "ds4-pro.route.program.json",
+    "kimi3.hard.traces.md",
+    "kimi3.route.program.json",
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 117,
+     "probe": "ok: \"blue\"",
+     "tasks": {
+      "desk_hard": {
+       "n_test": 18,
+       "arms": {
+        "react": {
+         "seconds": 89,
+         "usage": {
+          "output_tokens": 19134,
+          "input_tokens": 149978,
+          "total_tokens": 169112
+         },
+         "errors": 0,
+         "tool_calls": 155,
+         "score": 0.8888888888888888
+        }
+       },
+       "tool_calls": 155,
+       "usage": {
+        "output_tokens": 19134,
+        "input_tokens": 149978,
+        "total_tokens": 169112
+       }
+      },
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "few_shot_k8": {
+         "seconds": 13,
+         "errors": 0,
+         "score": 1
+        },
+        "zero_shot": {
+         "seconds": 12,
+         "errors": 0,
+         "score": 1
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "kimi3",
+     "model_id": "kimi-k3",
+     "status": "ran",
+     "seconds": 453,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "desk_hard": {
+       "n_test": 18,
+       "arms": {
+        "react": {
+         "seconds": 357,
+         "usage": {
+          "output_tokens": 23183,
+          "input_tokens": 129719,
+          "total_tokens": 152902
+         },
+         "errors": 0,
+         "tool_calls": 164,
+         "score": 0.8888888888888888
+        }
+       },
+       "tool_calls": 164,
+       "usage": {
+        "output_tokens": 23183,
+        "input_tokens": 129719,
+        "total_tokens": 152902
+       }
+      },
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "few_shot_k8": {
+         "seconds": 35,
+         "errors": 0,
+         "score": 1
+        },
+        "zero_shot": {
+         "seconds": 57,
+         "errors": 0,
+         "score": 1
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-03",
+   "note": "imp-02 again with its two faults fixed: desk_hard now states that returned orders are not eligible, and GEPA gets 5-minute row/reflection timeouts. Baselines for all three models; GEPA on ds4-flash with ds4-pro reflecting.",
+   "files": [
+    "ds4-flash.hard.traces.md",
+    "ds4-pro.hard.traces.md",
+    "kimi3.hard.traces.md",
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-flash",
+     "model_id": "deepseek-v4-flash",
+     "status": "ran",
+     "seconds": 99,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "desk_hard": {
+       "n_test": 18,
+       "arms": {
+        "react": {
+         "seconds": 39,
+         "usage": {
+          "output_tokens": 14207,
+          "input_tokens": 131595,
+          "total_tokens": 145802
+         },
+         "errors": 0,
+         "tool_calls": 150,
+         "score": 1
+        }
+       },
+       "tool_calls": 150,
+       "usage": {
+        "output_tokens": 14207,
+        "input_tokens": 131595,
+        "total_tokens": 145802
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 150,
+        "error": "Imp.optimize!/4 failed: {:optimizer_failed, Imp.Optimizer.GEPA, %FunctionClauseError{module: Enum, function: :find_value_list, arity: 3, kind: nil, args: nil, clauses: nil}}"
+       }
+      }
+     }
+    },
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 83,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "desk_hard": {
+       "n_test": 18,
+       "arms": {
+        "react": {
+         "seconds": 81,
+         "usage": {
+          "output_tokens": 16273,
+          "input_tokens": 143288,
+          "total_tokens": 159561
+         },
+         "errors": 0,
+         "tool_calls": 160,
+         "score": 1
+        }
+       },
+       "tool_calls": 160,
+       "usage": {
+        "output_tokens": 16273,
+        "input_tokens": 143288,
+        "total_tokens": 159561
+       }
+      }
+     }
+    },
+    {
+     "model": "kimi3",
+     "model_id": "kimi-k3",
+     "status": "ran",
+     "seconds": 265,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "desk_hard": {
+       "n_test": 18,
+       "arms": {
+        "react": {
+         "seconds": 261,
+         "usage": {
+          "output_tokens": 19744,
+          "input_tokens": 127246,
+          "total_tokens": 146990
+         },
+         "errors": 0,
+         "tool_calls": 156,
+         "score": 1
+        }
+       },
+       "tool_calls": 156,
+       "usage": {
+        "output_tokens": 19744,
+        "input_tokens": 127246,
+        "total_tokens": 146990
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-04",
+   "note": "The optimizer test the tool tasks could not give: Imp's matched TREC experiment (two opaque codes, meanings only in train feedback) on all three models, GEPA on each with ds4-pro reflecting, Imp's GEPA improper-list crash patched. Imp's own result for comparison: +0.40 held-out on gpt-5.4-mini.",
+   "files": [
+    "ds4-flash.trec.gepa.program.json",
+    "ds4-pro.trec.gepa.program.json",
+    "kimi3.trec.gepa.program.json",
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-flash",
+     "model_id": "deepseek-v4-flash",
+     "status": "ran",
+     "seconds": 1487,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "baseline": {
+         "seconds": 426,
+         "errors": 64,
+         "score": 0.0625
+        },
+        "gepa": {
+         "seconds": 46,
+         "errors": 0,
+         "score": 0.9375,
+         "optimize_seconds": 1013
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {
+         "\"predictor/main/instruction\"": {
+          "after": "Classify the input question into exactly one opaque route code.\n\nInput format:\n### text\n<question>\n\nOutput format:\n### route\n<opaque code>\n\nRules:\n- Return only the structured route shown above. Do not answer the question, explain the classification, or add any extra text.\n- Choose the route code based on the type of information requested by the question.\n\nKnown route code mapping:\n- K11: Use for questions that ask for a description, definition, reason, cause, explanation, or manner.\n- K47: Use for questions that ask for an entity or thing, such as an animal, product, substance, person, group, object, or other named entity. This includes questions of the form “What are X and Y known as ?” when the expected answer is a name or entity, not a description or explanation.\n\nDisambiguation strategy:\n- If the expected answer is a definition, explanation, cause, reason, or manner, classify as K11.\n- If the expected answer is a name, entity, object, animal, product, substance, person, or group, classify as K47.\n- Do not classify an entity-seeking question as K11 even if it begins with “What is” or “What are”.\n\nExamples:\nInput:\n### text\nWhat is the secret of the universe ?\n\nOutput:\n### route\nK11\n\nInput:\n### text\nWhat caused the division between the Anglicans and the Vatican ?\n\nOutput:\n### route\nK11\n\nInput:\n### text\nWhat are John C. Calhoun and Henry Clay known as ?\n\nOutput:\n### route\nK47",
+          "before": "Route the question to exactly one opaque code. Return only the required structured route."
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 2736,
+     "probe": "ok: \"blue\"",
+     "tasks": {
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "baseline": {
+         "seconds": 665,
+         "errors": 31,
+         "score": 0.2875
+        },
+        "gepa": {
+         "seconds": 83,
+         "errors": 2,
+         "score": 0.8875,
+         "optimize_seconds": 1982
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {
+         "\"predictor/main/instruction\"": {
+          "after": "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nKnown routing rule:\n- Use code `K11` when the question asks for a description, definition, reason, or manner.\n  Examples include:\n  - questions asking how to do something\n  - questions asking why something happens\n  - questions asking what something means\n\nFor any question matching that rule, output exactly:\n\nK11",
+          "before": "Route the question to exactly one opaque code. Return only the required structured route."
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "kimi3",
+     "model_id": "kimi-k3",
+     "status": "ran",
+     "seconds": 3714,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "baseline": {
+         "seconds": 328,
+         "errors": 7,
+         "score": 0.5
+        },
+        "gepa": {
+         "seconds": 245,
+         "errors": 4,
+         "score": 0.9375,
+         "optimize_seconds": 3136
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {
+         "\"predictor/main/instruction\"": {
+          "after": "You are a question router. Given a natural language question in the `text` field, classify it into exactly one of two route categories.\n\nRoute definitions:\n\n- K11: The question asks for a description, definition, reason, or manner. Use this when the expected answer is an explanation, meaning, cause, method, or description.\n- K47: The question asks for an entity such as an animal, product, substance, or other concrete or identifiable thing. Use this when the expected answer is a specific object, being, item, or entity.\n\nStrategy:\n\n- Do not rely only on the question starting with “What”.\n- Determine whether the answer is an entity/thing or a description/explanation.\n- Questions like “What is osmosis ?” or “What is the secret of the universe ?” ask for a definition, description, or explanation, so they should be K11.\n- Questions like “What was George Washington afraid of ?” ask for a specific entity or thing, so they should be K47.\n\nOutput only the route identifier: `K11` or `K47`.\n\nExamples:\n\nInput:\ntext: What is osmosis ?\nOutput:\nroute: K11\n\nInput:\ntext: What is the secret of the universe ?\nOutput:\nroute: K11\n\nInput:\ntext: What was George Washington afraid of ?\nOutput:\nroute: K47",
+          "before": "Route the question to exactly one opaque code. Return only the required structured route."
+         }
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-06",
+   "note": "era: from one of minormobius.bsky.social's posts alone, guess the year (2023–2026). Zero-shot and 16 labelled examples on all three models; GEPA (true year as train feedback) on the DeepSeek models — Kimi K3 reasons too long per post to fit GEPA in the job. imp-05 is this run's failed first attempt: rows killed on time crashed the summary.",
+   "files": [
+    "ds4-flash.era.few_shot.program.json",
+    "ds4-flash.era.gepa.program.json",
+    "ds4-pro.era.few_shot.program.json",
+    "kimi3.era.few_shot.program.json",
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-flash",
+     "model_id": "deepseek-v4-flash",
+     "status": "ran",
+     "seconds": 3792,
+     "probe": "ok: \"blue\"",
+     "tasks": {
+      "era": {
+       "n_test": 120,
+       "arms": {
+        "baseline": {
+         "seconds": 756,
+         "errors": 95,
+         "score": 0.06666666666666667,
+         "within_one": 0.175,
+         "confusion": {
+          "2023": {
+           "2023": 2,
+           "2024": 6,
+           "2025": 0,
+           "2026": 0,
+           "error": 22
+          },
+          "2024": {
+           "2023": 2,
+           "2024": 6,
+           "2025": 0,
+           "2026": 0,
+           "error": 22
+          },
+          "2025": {
+           "2023": 0,
+           "2024": 3,
+           "2025": 0,
+           "2026": 0,
+           "error": 27
+          },
+          "2026": {
+           "2023": 1,
+           "2024": 3,
+           "2025": 2,
+           "2026": 0,
+           "error": 24
+          }
+         }
+        },
+        "few_shot_k16": {
+         "seconds": 275,
+         "errors": 18,
+         "score": 0.20833333333333334,
+         "within_one": 0.425,
+         "confusion": {
+          "2023": {
+           "2023": 25,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 5
+          },
+          "2024": {
+           "2023": 26,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 4
+          },
+          "2025": {
+           "2023": 25,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 5
+          },
+          "2026": {
+           "2023": 26,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 4
+          }
+         }
+        },
+        "gepa": {
+         "seconds": 784,
+         "errors": 95,
+         "score": 0.041666666666666664,
+         "optimize_seconds": 1946,
+         "within_one": 0.15,
+         "confusion": {
+          "2023": {
+           "2023": 1,
+           "2024": 2,
+           "2025": 0,
+           "2026": 0,
+           "error": 27
+          },
+          "2024": {
+           "2023": 4,
+           "2024": 4,
+           "2025": 0,
+           "2026": 0,
+           "error": 22
+          },
+          "2025": {
+           "2023": 1,
+           "2024": 5,
+           "2025": 0,
+           "2026": 0,
+           "error": 24
+          },
+          "2026": {
+           "2023": 2,
+           "2024": 4,
+           "2025": 2,
+           "2026": 0,
+           "error": 22
+          }
+         }
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {}
+       }
+      }
+     }
+    },
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "partial",
+     "seconds": 2553,
+     "probe": "ok: \"blue\"",
+     "tasks": {
+      "era": {
+       "n_test": 120,
+       "arms": {
+        "baseline": {
+         "seconds": 2109,
+         "errors": 89,
+         "score": 0.058333333333333334,
+         "within_one": 0.19166666666666668,
+         "confusion": {
+          "2023": {
+           "2023": 2,
+           "2024": 7,
+           "2025": 2,
+           "2026": 0,
+           "error": 19
+          },
+          "2024": {
+           "2023": 1,
+           "2024": 4,
+           "2025": 2,
+           "2026": 0,
+           "error": 23
+          },
+          "2025": {
+           "2023": 1,
+           "2024": 3,
+           "2025": 1,
+           "2026": 0,
+           "error": 25
+          },
+          "2026": {
+           "2023": 1,
+           "2024": 4,
+           "2025": 3,
+           "2026": 0,
+           "error": 22
+          }
+         }
+        },
+        "few_shot_k16": {
+         "seconds": 432,
+         "errors": 3,
+         "score": 0.25,
+         "within_one": 0.5,
+         "confusion": {
+          "2023": {
+           "2023": 30,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 0
+          },
+          "2024": {
+           "2023": 30,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 0
+          },
+          "2025": {
+           "2023": 28,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 2
+          },
+          "2026": {
+           "2023": 29,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 1
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "kimi3",
+     "model_id": "kimi-k3",
+     "status": "ran",
+     "seconds": 2416,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "era": {
+       "n_test": 120,
+       "arms": {
+        "baseline": {
+         "seconds": 1980,
+         "errors": 2,
+         "score": 0.24166666666666667,
+         "within_one": 0.8166666666666667,
+         "confusion": {
+          "2023": {
+           "2023": 2,
+           "2024": 26,
+           "2025": 1,
+           "2026": 0,
+           "error": 1
+          },
+          "2024": {
+           "2023": 3,
+           "2024": 23,
+           "2025": 4,
+           "2026": 0,
+           "error": 0
+          },
+          "2025": {
+           "2023": 0,
+           "2024": 26,
+           "2025": 4,
+           "2026": 0,
+           "error": 0
+          },
+          "2026": {
+           "2023": 0,
+           "2024": 19,
+           "2025": 10,
+           "2026": 0,
+           "error": 1
+          }
+         }
+        },
+        "few_shot_k16": {
+         "seconds": 419,
+         "errors": 0,
+         "score": 0.31666666666666665,
+         "within_one": 0.65,
+         "confusion": {
+          "2023": {
+           "2023": 29,
+           "2024": 1,
+           "2025": 0,
+           "2026": 0,
+           "error": 0
+          },
+          "2024": {
+           "2023": 25,
+           "2024": 4,
+           "2025": 1,
+           "2026": 0,
+           "error": 0
+          },
+          "2025": {
+           "2023": 23,
+           "2024": 5,
+           "2025": 1,
+           "2026": 1,
+           "error": 0
+          },
+          "2026": {
+           "2023": 17,
+           "2024": 2,
+           "2025": 7,
+           "2026": 4,
+           "error": 0
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-09",
+   "note": "build, third attempt and the first clean one: random scratch dirs (imp-08's builders were scored on the self-test's leftover pages — only Jev's fit score noticed), stalled turns resumed from their history (every imp-08 build ended :empty_tool_calls), a trace per build. Eight of minormobius's build-a-bot requests, scored by the lab factory's smoke test and content gate plus Jev as judge. Baseline only.",
+   "files": [
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-flash",
+     "model_id": "deepseek-v4-flash",
+     "status": "ran",
+     "seconds": 880,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "build": {
+       "n_test": 8,
+       "arms": {
+        "react": {
+         "usage": {
+          "output_tokens": 325263,
+          "input_tokens": 4326794,
+          "total_tokens": 4652057
+         },
+         "errors": 0,
+         "score": 0.33937500000000004,
+         "median_seconds": 297
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 2353,
+     "probe": "ok: \"blue\"",
+     "tasks": {
+      "build": {
+       "n_test": 8,
+       "arms": {
+        "react": {
+         "usage": {
+          "output_tokens": 233531,
+          "input_tokens": 1363782,
+          "total_tokens": 1597313
+         },
+         "errors": 1,
+         "score": 0.6301875000000001,
+         "median_seconds": 808
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-10",
+   "note": "trec and era again with an 8,192-token reply budget. Hypothesis under test: the DeepSeek 'parse errors' (trec baseline 64/80 and 31/80 in imp-04; era 95/120 in imp-06) are not format failures but replies whose whole 2,048-token budget went to hidden reasoning, leaving no answer — the failure mega/jev recorded for Kimi. If errors collapse here, the imp-04 and imp-06 baselines were measuring the budget, not the models.",
+   "files": [
+    "ds4-flash.era.few_shot.program.json",
+    "ds4-flash.era.gepa.program.json",
+    "ds4-flash.trec.gepa.program.json",
+    "ds4-pro.era.few_shot.program.json",
+    "ds4-pro.era.gepa.program.json",
+    "ds4-pro.trec.gepa.program.json",
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-flash",
+     "model_id": "deepseek-v4-flash",
+     "status": "ran",
+     "seconds": 5683,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "era": {
+       "n_test": 120,
+       "arms": {
+        "baseline": {
+         "seconds": 1222,
+         "errors": 11,
+         "score": 0.23333333333333334,
+         "within_one": 0.6416666666666667,
+         "confusion": {
+          "2023": {
+           "2023": 12,
+           "2024": 17,
+           "2025": 1,
+           "2026": 0,
+           "error": 0
+          },
+          "2024": {
+           "2023": 9,
+           "2024": 15,
+           "2025": 0,
+           "2026": 0,
+           "error": 6
+          },
+          "2025": {
+           "2023": 7,
+           "2024": 20,
+           "2025": 1,
+           "2026": 0,
+           "error": 2
+          },
+          "2026": {
+           "2023": 6,
+           "2024": 18,
+           "2025": 3,
+           "2026": 0,
+           "error": 3
+          }
+         }
+        },
+        "few_shot_k16": {
+         "seconds": 477,
+         "errors": 1,
+         "score": 0.2916666666666667,
+         "within_one": 0.5333333333333333,
+         "confusion": {
+          "2023": {
+           "2023": 30,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 0
+          },
+          "2024": {
+           "2023": 27,
+           "2024": 1,
+           "2025": 1,
+           "2026": 0,
+           "error": 1
+          },
+          "2025": {
+           "2023": 29,
+           "2024": 0,
+           "2025": 0,
+           "2026": 1,
+           "error": 0
+          },
+          "2026": {
+           "2023": 26,
+           "2024": 0,
+           "2025": 0,
+           "2026": 4,
+           "error": 0
+          }
+         }
+        },
+        "gepa": {
+         "seconds": 432,
+         "errors": 59,
+         "score": 0.15833333333333333,
+         "optimize_seconds": 2116,
+         "within_one": 0.3,
+         "confusion": {
+          "2023": {
+           "2023": 15,
+           "2024": 1,
+           "2025": 0,
+           "2026": 0,
+           "error": 14
+          },
+          "2024": {
+           "2023": 10,
+           "2024": 3,
+           "2025": 1,
+           "2026": 0,
+           "error": 16
+          },
+          "2025": {
+           "2023": 12,
+           "2024": 2,
+           "2025": 1,
+           "2026": 0,
+           "error": 15
+          },
+          "2026": {
+           "2023": 11,
+           "2024": 2,
+           "2025": 3,
+           "2026": 0,
+           "error": 14
+          }
+         }
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {
+         "\"predictor/main/instruction\"": {
+          "after": "You are an expert at dating Bluesky posts from text alone.\n\nInput: a single post from Bluesky, provided as plain text with no timestamp.\nTask: predict the calendar year the post was written.\n\nOutput: four-digit year only (e.g., 2023).\n\nBackground:\nBluesky (bsky.app) was invite-only during most of 2023. Its early user base was heavily tech/community-focused, and posts often discussed platform mechanics, invite codes, \"skeets,\" missing features, and comparisons to Twitter. The app opened to the public in February 2024, leading to more mainstream topics, media, and celebrities. In mid-to-late 2024, features such as direct messages, starter packs, and video were added, and events like the August 2024 Brazil ban on X drove waves of new users. In 2025, Bluesky grew further, especially after the January 2025 U.S. TikTok shutdown/outage, with an even more mainstream user base and newer discussions about algorithmic reach and platform culture.\n\nDating clues:\n- 2023 markers: invite codes, \"finally got in,\" \"skeet(s),\" early-platform meta-discussion, missing basic features, small-community tone, tech-heavy references.\n- 2024 markers: starter packs, direct messages, video, large news/media presence, election aftermath, Brazil/X ban mentions, poll-style posts using third-party poll tools (e.g., \"📊 Show results\").\n- 2025 markers: TikTok refugee mentions, algorithmic \"bump\" or reach strategy discussions, platform maturity, modern mainstream slang, and features or cultural references that postdate the early-beta era.\n- Use current events, slang, named features, and the cultural maturity of the post to decide.\n\nImportant calibration pitfalls:\n- A question about how Bluesky works is not automatically from 2023. For example, \"Should I reply to posts or quote them? ... bump on bsky rn?\" was from 2025.\n- A poll-style post with \"Show results\" can be from 2024; do not assume native polls or an early date.\n- A mundane personal post with typos or odd phrasing may still be from 2023; do not automatically place it later.\n- When no single strong clue exists, prefer the year that best matches the overall platform era and language style.\n\nIf forced to choose, give the single most likely year and return it as a four-digit integer.",
+          "before": "A post by one Bluesky user. Guess the year they wrote it."
+         }
+        }
+       }
+      },
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "baseline": {
+         "seconds": 674,
+         "errors": 9,
+         "score": 0.4625
+        },
+        "gepa": {
+         "seconds": 21,
+         "errors": 0,
+         "score": 0.95,
+         "optimize_seconds": 695
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {
+         "\"predictor/main/instruction\"": {
+          "after": "You are given a natural language question as plain text.\n\nRoute the question to exactly one opaque code indicating the type of information the question is asking for. Return only the required structured route in this format:\n\n### route\n<CODE>\n\nRouting rules:\n- Use route `K11` if the question asks for a description, definition, reason, or manner.\n  - Example: \"What is a drought ?\" -> `K11`\n- Use route `K47` if the question asks for an entity, such as an animal, product, substance, or other thing.\n  - Example: \"What D.H. Lawrence novel was originally titled Tenderness ?\" -> `K47`\n\nImportant:\n- Do not answer the question.\n- Do not add explanations or extra text.\n- Do not assign `K11` to an entity-seeking question even when it begins with \"What\".",
+          "before": "Route the question to exactly one opaque code. Return only the required structured route."
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 5993,
+     "probe": "ok: \"blue\"",
+     "tasks": {
+      "era": {
+       "n_test": 120,
+       "arms": {
+        "baseline": {
+         "seconds": 3087,
+         "errors": 62,
+         "score": 0.10833333333333334,
+         "within_one": 0.35833333333333334,
+         "confusion": {
+          "2023": {
+           "2023": 4,
+           "2024": 8,
+           "2025": 4,
+           "2026": 0,
+           "error": 14
+          },
+          "2024": {
+           "2023": 4,
+           "2024": 8,
+           "2025": 3,
+           "2026": 0,
+           "error": 15
+          },
+          "2025": {
+           "2023": 1,
+           "2024": 11,
+           "2025": 1,
+           "2026": 0,
+           "error": 17
+          },
+          "2026": {
+           "2023": 3,
+           "2024": 7,
+           "2025": 4,
+           "2026": 0,
+           "error": 16
+          }
+         }
+        },
+        "few_shot_k16": {
+         "seconds": 23,
+         "errors": 120,
+         "score": 0,
+         "within_one": 0,
+         "confusion": {
+          "2023": {
+           "2023": 0,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 30
+          },
+          "2024": {
+           "2023": 0,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 30
+          },
+          "2025": {
+           "2023": 0,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 30
+          },
+          "2026": {
+           "2023": 0,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 30
+          }
+         }
+        },
+        "gepa": {
+         "seconds": 24,
+         "errors": 120,
+         "score": 0,
+         "optimize_seconds": 184,
+         "within_one": 0,
+         "confusion": {
+          "2023": {
+           "2023": 0,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 30
+          },
+          "2024": {
+           "2023": 0,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 30
+          },
+          "2025": {
+           "2023": 0,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 30
+          },
+          "2026": {
+           "2023": 0,
+           "2024": 0,
+           "2025": 0,
+           "2026": 0,
+           "error": 30
+          }
+         }
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {}
+       }
+      },
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "baseline": {
+         "seconds": 1266,
+         "errors": 26,
+         "score": 0.2875
+        },
+        "gepa": {
+         "seconds": 62,
+         "errors": 0,
+         "score": 1,
+         "optimize_seconds": 1320
+        }
+       },
+       "gepa": {
+        "reflection": "ds4-pro",
+        "max_metric_calls": 200,
+        "changed": {
+         "\"predictor/main/instruction\"": {
+          "after": "You are a routing classifier. You will receive a natural-language question as input, typically in a field called `text`. Route the question to exactly one opaque route code based on the type of answer required. Return only the route code.\n\nKnown route codes:\n- K11: Use when the question asks for a description, definition, reason, explanation, comparison, origin, or manner.\n- K47: Use when the question asks for a specific entity or set of entities/things, such as an animal, product, substance, named object/title, method, technique, or other particular thing.\n\nClassification guidance:\n- Determine the expected answer type, not just the surface wording of the question.\n- If the expected answer is an explanation, description, definition, reason, comparison, origin, or account of how something happens, use K11.\n- If the expected answer is a specific named entity or a list/set of specific things, use K47.\n- \"What is X?\" may be K11 if it asks for a definition/description, e.g., \"What is a drought?\"\n- \"What is X?\" may be K47 if it asks for a specific named entity/thing, e.g., \"What D.H. Lawrence novel was originally titled Tenderness?\"\n- \"Why ...\" and \"How come ...\" questions are usually K11.\n- \"How ...\" questions are usually K11 if they ask for a manner/process/explanation, but K47 if they ask for a specific entity/thing.\n- Questions that ask for a particular named thing from a category are usually K47.\n- Questions asking for particular methods, techniques, types, or other specific things/entities are K47, not K11. For example, \"What are common methods used to regulate monopolies ?\" -> K47.\n- Questions asking for differences or origins are K11. For example, \"What is the difference between terry cloth and French terry ?\" -> K11, and \"What is the origin of U.S. Army sergeant 's stripes ?\" -> K11.\n\nExamples:\n- \"How do I increase my biceps ' size ?\" -> K11, because it asks for a manner/process/explanation, not a specific entity.\n- \"What do flatfish eat ?\" -> K47, because it asks for specific food entities.\n- \"What future movie treat was introduced to American colonists in 1603 by Native Americans ?\" -> K47, because it asks for a specific named thing.\n\nOutput only the route code, with no extra text or explanation.",
+          "before": "Route the question to exactly one opaque code. Return only the required structured route."
+         }
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-11",
+   "note": "build with append_file and a ~250-line limit per call. imp-09 (the first clean baseline: Flash 0.34, Pro 0.63) lost five Flash builds and one Pro build to replies cut off while writing a whole file at once; this run measures how much of that the harness change recovers. Same eight requests, same scoring.",
+   "files": [
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "ds4-flash",
+     "model_id": "deepseek-v4-flash",
+     "status": "ran",
+     "seconds": 961,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "build": {
+       "n_test": 8,
+       "arms": {
+        "react": {
+         "usage": {
+          "output_tokens": 357784,
+          "input_tokens": 5815745,
+          "total_tokens": 6173529
+         },
+         "errors": 0,
+         "score": 0.5596875000000001,
+         "median_seconds": 412
+        }
+       }
+      }
+     }
+    },
+    {
+     "model": "ds4-pro",
+     "model_id": "deepseek-v4-pro",
+     "status": "ran",
+     "seconds": 1308,
+     "probe": "ok: \"blue\"",
+     "tasks": {
+      "build": {
+       "n_test": 8,
+       "arms": {
+        "react": {
+         "usage": {
+          "output_tokens": 147178,
+          "input_tokens": 1035752,
+          "total_tokens": 1182930
+         },
+         "errors": 0,
+         "score": 0.4103125000000001,
+         "median_seconds": 445
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-12",
+   "note": "",
+   "files": [
+    "report.md",
+    "results.json"
+   ],
+   "cells": [
+    {
+     "model": "jev",
+     "model_id": "jev-latest",
+     "status": "ran",
+     "seconds": 704,
+     "probe": "ok: blue (confidence 1.0, 411 ms)",
+     "tasks": {
+      "route": {
+       "n_test": 20,
+       "arms": {
+        "jev_bare": {
+         "errors": 0,
+         "input_tokens": 8898,
+         "score": 1,
+         "confident": 19,
+         "confident_accuracy": 1,
+         "median_ms": 171
+        }
+       }
+      },
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "cascade": {
+         "score": 0.975,
+         "escalated": 22,
+         "escalated_accuracy": 0.9545454545454546,
+         "kept_accuracy": 0.9827586206896551,
+         "kept_by_jev": 58,
+         "llm_calls_saved": 58,
+         "escalate_to": "imp-04/ds4-flash"
+        },
+        "jev_bare": {
+         "errors": 0,
+         "input_tokens": 27023,
+         "score": 0.5,
+         "confident": 0,
+         "confident_accuracy": null,
+         "median_ms": 149
+        },
+        "jev_learned": {
+         "errors": 0,
+         "from": "imp-04/kimi3",
+         "input_tokens": 49503,
+         "score": 0.9875,
+         "confident": 64,
+         "confident_accuracy": 0.984375,
+         "median_ms": 147
+        },
+        "jev_optimized": {
+         "errors": 0,
+         "input_tokens": 30623,
+         "score": 0.9375,
+         "program": {
+          "instructions": "Route the question to exactly one opaque code.\n\nUse K47 when the question asks for an entity such as an animal, product, substance, or other thing.\nUse K11 when the question asks for a description, definition, reason, or manner.\n\nReturn only the required structured route.",
+          "option K11": "K11",
+          "option K47": "K47"
+         },
+         "optimize_seconds": 647,
+         "reflection": "ds4-pro",
+         "confident": 58,
+         "confident_accuracy": 0.9827586206896551,
+         "median_ms": 158
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "imp-14",
+   "note": "Claude Sonnet through the Claude Code CLI on the build-a-bot subscription credential: trec zero-shot, then GEPA with Sonnet reflecting on its own failures. Re-run of imp-13, which lost every call to --bare (bare mode never reads the OAuth token); the adapter now runs from an empty temp dir instead, and a failed probe fails the cell.",
+   "files": [
+    "report.md",
+    "results.json",
+    "sonnet.trec.gepa.program.json"
+   ],
+   "cells": [
+    {
+     "model": "sonnet",
+     "model_id": "claude-sonnet-5",
+     "status": "ran",
+     "seconds": 325,
+     "probe": "ok: \"Blue\"",
+     "tasks": {
+      "trec": {
+       "n_test": 80,
+       "arms": {
+        "baseline": {
+         "seconds": 27,
+         "errors": 0,
+         "score": 0.475
+        },
+        "gepa": {
+         "seconds": 30,
+         "errors": 0,
+         "score": 0.9625,
+         "optimize_seconds": 265
+        }
+       },
+       "gepa": {
+        "reflection": "sonnet",
+        "max_metric_calls": 150,
+        "changed": {
+         "\"predictor/main/instruction\"": {
+          "after": "You are performing question routing for a TREC-style question-classification task.\n\nInput: a single question under a field called \"text\".\nOutput: exactly one opaque route code (a short alphanumeric label like \"K11\" or \"K47\") — nothing else. No explanation, no punctuation, no extra fields, no restating the question.\n\nThe route codes are opaque labels that map onto the standard TREC/UIUC coarse question-type taxonomy (ABBREVIATION, DESCRIPTION, ENTITY, HUMAN, LOCATION, NUMERIC). Two mappings have been confirmed through feedback so far — treat these as ground truth and prioritize them whenever a question fits:\n\n- K11 = DESCRIPTION class: the question wants a definition, an explanation of a reason/cause/origin, a comparison or explanation of a difference between two things, a general description, or the manner in which something happens/works.\n  Examples:\n  - \"What is a drought?\" (definition) → K11\n  - \"How come light bulbs go out?\" (reason/cause) → K11\n  - \"What is the difference between terry cloth and French terry?\" (comparison/description) → K11\n  - \"What is the origin of U.S. Army sergeant's stripes?\" (origin/explanation) → K11\n  - \"What is Doegs?\" (asking what an unfamiliar/opaque term means or refers to — a definition, even though the term looks like it could name a concrete thing) → K11\n  - \"What caused the division between the Anglicans and the Vatican?\" (asks for a cause/reason) → K11\n\n- K47 = ENTITY class: the question wants the name/identity of one or more specific \"things\" rather than an explanation. This includes obvious concrete entities (an animal, product, substance, creative work like a book/film/song) but ALSO the more abstract TREC entity subtypes: techniques or methods, events, foods, instruments, languages, plants, sports, symbols, colors, currencies, diseases/medicine, vehicles, religions, body parts, words/terms, or other named \"things.\" A question asking \"what [methods/techniques/ways] are used to do X?\" is ENTITY (it wants a named list of methods), NOT DESCRIPTION — even though it superficially resembles a \"manner\" question.\n  Examples:\n  - \"What D.H. Lawrence novel was originally titled Tenderness?\" (wants the name of a novel) → K47\n  - \"What are common methods used to regulate monopolies?\" (wants named techniques/methods, an ENTITY subtype) → K47\n  - \"What color of Monopoly properties are landed on most often?\" (wants the name of a specific color, an ENTITY subtype) → K47\n\nCritical disambiguation rule: many questions of both types start with the word \"What,\" so never classify by surface wording alone — classify by intent:\n- Plain \"What is X?\" (and \"What is a/an X?\") where X is a single unfamiliar term, word, or concept being asked to be defined or explained — even if X sounds like it could name a concrete object — defaults to K11 (a definition), UNLESS the question is explicitly structured to pick out a specific instance from a category (see below).\n- \"What is the difference between X and Y?\", \"What is the origin/reason/cause for X?\" → asks for an explanation, definition, comparison, or cause → K11.\n- \"What [category noun] ...?\" where the question is structured to pick out one or more named/identifiable things belonging to that category as the answer (an object, work, animal, substance, technique, method, event, color, etc. — e.g. \"What novel...\", \"What color...\", \"What methods...\") → K47.\n- If you're unsure whether an answer would be a short explanatory statement (K11) or a discrete named item/list of items (K47), lean toward K47 only when the question's grammar is asking to pick out \"the name(s) of ___\" from an implied category — not merely \"what is ___\" applied to a single unfamiliar term.\n\nIf a question clearly asks for something outside these two categories — a person's identity, a place, a number/quantity, or the expansion of an abbreviation — it corresponds to one of the other TREC coarse classes (HUMAN, LOCATION, NUMERIC, ABBREVIATION respectively). No opaque code has been confirmed for these yet, so use your best judgment about which route code fits based on this same \"opaque code ↔ TREC coarse class\" pattern (e.g., codes near K11/K47 alphabetically or numerically may correspond to related classes), but always check K11 and K47 first and only fall back to a guessed code for the other four classes when the question clearly does not fit DESCRIPTION or ENTITY.\n\nReturn only the single opaque route code as the final answer.",
+          "before": "Route the question to exactly one opaque code. Return only the required structured route."
+         }
+        }
+       }
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

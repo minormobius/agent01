@@ -1,0 +1,13 @@
+{
+  "slug": "place-line",
+  "task": "place a line segment, unit length, and another segment at a random angle making contact somewhere along its length with an endpoint of the first segment. from then on every additional segment must touch the thus-far-untouched endpoints of two other segments, w/ no other intersections",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mwjw6ydnq22q",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mwjw6ydnq22q",
+  "root_cid": "bafyreiabgr6nk7qh63c7nnhg56q36hlh6wir3jce3opyfjl5yrveqj7mhy",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mwjw6ydnq22q",
+  "parent_cid": "bafyreiabgr6nk7qh63c7nnhg56q36hlh6wir3jce3opyfjl5yrveqj7mhy",
+  "refs_from": "place a line segment, unit length, and another segment at a random angle making contact somewhere along its length with an endpoint of the first segment. from then on every additional segment must touch the thus-far-untouched endpoints of two other segments, w/ no other intersections",
+  "requestedAt": "2026-09-27T23:11:31.854Z"
+}

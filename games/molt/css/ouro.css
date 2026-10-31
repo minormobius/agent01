@@ -1,0 +1,31 @@
+/* Ouroboros lab — on top of molt.css: the log, the word strip, the rules drawer. */
+#actions { flex-wrap: wrap; right: 172px; }
+#log { position: absolute; left: 8px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 3; margin: 0; padding: 0; list-style: none;
+  font-family: var(--mono); font-size: 11px; line-height: 1.5; max-width: min(62%, 420px); pointer-events: none; }
+/* each line dismisses with a tap (anywhere on it, or its ×) */
+#log li { background: rgba(5,6,10,0.72); border-left: 2px solid var(--border); padding: 1px 4px 1px 7px; margin-top: 2px; color: var(--dim);
+  pointer-events: auto; cursor: pointer; display: flex; gap: 2px; align-items: flex-start; transition: opacity .25s; }
+#log li.gone { opacity: 0; }
+#log li .x { flex: none; margin-left: auto; padding: 0 5px; border: 0; background: none; color: var(--dim); font: inherit; font-size: 14px; line-height: 1.2; cursor: pointer; }
+#log li:hover .x { color: var(--text); }
+#log li.cut { border-color: var(--pink); color: var(--text); }
+#log li.dead { border-color: var(--warn); color: var(--warn); }
+#log li.eat { border-color: var(--accent2); }
+#log li b { color: var(--accent); font-weight: 700; margin-right: 4px; }
+body.pad #log { max-width: calc(100% - 190px); }
+/* the head end stays in view at the right; a long word runs off the left */
+#word { font-family: var(--mono); font-size: 11px; padding: 6px 12px calc(6px + env(safe-area-inset-bottom)); white-space: nowrap; overflow: hidden;
+  display: flex; justify-content: flex-end; color: var(--dim); border-top: 1px solid var(--border); min-height: 1.6em; }
+#word span { flex: none; min-width: 1.6ch; text-align: center; }
+#word .b { color: var(--accent); }
+#word .p { color: var(--pink); }
+#word .new { background: rgba(242,184,75,0.18); border-radius: 3px; }
+.rule { display: grid; grid-template-columns: 6.5em 1fr; gap: 6px 12px; align-items: center; max-width: 34em; width: 100%; text-align: left; }
+.rule .rl { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.rule p { grid-column: 1 / -1; font-size: 13px; line-height: 1.55; }
+.seg { display: flex; gap: 0; border: 1px solid rgba(139,147,168,0.35); border-radius: 8px; overflow: hidden; width: max-content; }
+.seg button { font-family: var(--mono); font-size: 12px; font-weight: 700; padding: 7px 12px; border: 0; background: rgba(5,6,10,0.75); color: var(--text); cursor: pointer; }
+.seg button + button { border-left: 1px solid rgba(139,147,168,0.35); }
+.seg button.on { background: var(--accent2); color: var(--bg); }
+#note { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); }
+@media (max-width: 520px) { #actions { right: 128px; } }

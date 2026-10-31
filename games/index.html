@@ -2,251 +2,72 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>games.mino.mobi — party games on Bluesky</title>
-<style>
-  :root {
-    --bg: #0e0e14;
-    --surface: #181822;
-    --border: #262633;
-    --text: #e6e6ee;
-    --dim: #8888a0;
-    --accent: #ff6a3d;
-    --accent2: #5ee8c1;
-    --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
-    --sans: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100%; }
-  body { padding: 32px 20px 80px; max-width: 760px; margin: 0 auto; }
-  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 32px; }
-  h1 { font-family: var(--mono); font-size: 26px; margin: 0; color: var(--accent); letter-spacing: -0.02em; }
-  h1 .dim { color: var(--dim); }
-  .tag { font-family: var(--mono); font-size: 11px; color: var(--dim); }
-  .intro { color: var(--dim); margin: 0 0 32px; line-height: 1.6; }
-  .intro b { color: var(--text); }
-
-  section { margin: 28px 0; }
-  h2 { font-family: var(--mono); font-size: 13px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 16px; }
-
-  .game-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 18px;
-    margin-bottom: 12px;
-    cursor: pointer;
-    transition: border-color 0.15s, transform 0.15s;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .game-card:hover { border-color: var(--accent); transform: translateY(-1px); }
-  .game-name { font-family: var(--mono); font-size: 17px; color: var(--text); }
-  .game-blurb { color: var(--dim); font-size: 14px; margin-top: 4px; line-height: 1.5; }
-  .game-meta { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-top: 6px; }
-  .game-text { flex: 1; }
-  .game-go { font-family: var(--mono); color: var(--accent); font-size: 13px; }
-
-  .join-box {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 18px;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
-  .join-box input {
-    flex: 1;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 18px;
-    padding: 10px 12px;
-    border-radius: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
-  .join-box button {
-    background: var(--accent);
-    color: #1a0a06;
-    border: none;
-    padding: 11px 18px;
-    font-family: var(--mono);
-    font-size: 13px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 700;
-  }
-  .join-box button:hover { background: var(--accent2); }
-  .status { margin-top: 12px; color: var(--dim); font-family: var(--mono); font-size: 12px; min-height: 1.2em; }
-
-  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--dim); font-family: var(--mono); font-size: 11px; line-height: 1.7; }
-  footer a { color: var(--dim); }
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07060d" />
+<meta name="description" content="games.mino.mobi — an arcade of small games: snake on a snake, mines on a sphere, noughts and crosses on a torus, and party games you play from your phone over Bluesky." />
+<title>games.mino.mobi — the arcade</title>
+<link rel="icon" href="data:," />
+<script>
+  // a shared room link (?join=XYZW) goes straight to the room
+  (function () {
+    var j = new URLSearchParams(location.search).get("join");
+    if (j && /^[A-Z0-9]{4}$/i.test(j)) location.replace("/play.html?code=" + j.toUpperCase() + "&role=phone");
+  })();
+</script>
+<link rel="stylesheet" href="arcade/arcade.css" />
 </head>
 <body>
 
-<header>
-  <h1>games<span class="dim">.mino.mobi</span></h1>
-  <span class="tag">v0 · party games on bluesky</span>
+<header class="marquee">
+  <h1 class="logo">GAMES<small>MINO.MOBI ARCADE</small></h1>
+  <div class="coin">
+    <div><span class="blink">FREE PLAY</span></div>
+    <div class="keys">← ↑ → ↓ SELECT · ENTER START</div>
+    <div class="tap">TAP A CABINET</div>
+  </div>
 </header>
 
-<p class="intro">
-  Pick a game. Get a 4-character room code. <b>Post the join link on Bluesky</b> —
-  friends sign in with their Bluesky handle and play from their phone. The TV
-  view shows the shared screen.
-</p>
+<main class="floor">
+  <aside class="monitor" id="monitor" aria-live="polite">
+    <div class="bezel">
+      <div class="screen" id="m-screen"><video id="m-video" muted loop playsinline preload="none" aria-hidden="true"></video></div>
+    </div>
+    <div class="meta"><span id="m-no">NO. 01</span><span class="genre" id="m-genre">ARCADE</span></div>
+    <h2 class="name" id="m-name">MOLT</h2>
+    <p class="blurb" id="m-blurb"></p>
+    <div class="doors" id="m-doors"></div>
+    <a class="start" id="m-play" href="molt/"><span class="blink">▶</span> PRESS START</a>
+  </aside>
 
-<section>
-  <h2>Join a room</h2>
-  <div class="join-box">
-    <input id="code" placeholder="XYZW" maxlength="4" autocomplete="off" />
-    <button id="join-btn">Join</button>
+  <section class="wall" id="wall" aria-label="Games"></section>
+</main>
+
+<section class="party" aria-label="Party rooms">
+  <div class="box">
+    <div>
+      <h2>PARTY ROOMS · 2+ PLAYERS</h2>
+      <p>Start a room and you get a 4-character code. <b>Post the join link on Bluesky</b>: friends sign in with their handle and play from their phones while the TV view shows the shared screen.</p>
+      <div class="slot">
+        <input id="code" placeholder="XYZW" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Room code" />
+        <button id="join-btn" type="button">JOIN</button>
+      </div>
+      <div class="status" id="join-status"></div>
+    </div>
+    <div>
+      <div class="rooms" id="games"></div>
+      <div class="status" id="create-status"></div>
+    </div>
   </div>
-  <div class="status" id="join-status"></div>
-</section>
-
-<section>
-  <h2>Start a new room</h2>
-  <div id="games"></div>
-  <div class="status" id="create-status"></div>
-</section>
-
-<section>
-  <h2>Solo · no room needed</h2>
-  <a class="game-card" href="/pressure/" style="text-decoration:none;border-color:#3a3a4d">
-    <div class="game-text">
-      <div class="game-name">Pressure <span style="color:var(--dim);font-size:12px">— the hub</span></div>
-      <div class="game-blurb">The decisions-under-pressure games in one place, with the argument behind them: pressure is a tax on deliberation, and every game here charges a different one. Includes what's shipped, what each one can measure about your decision, and two more to build.</div>
-      <div class="game-meta">index · design notes</div>
-    </div>
-    <div class="game-go">read →</div>
-  </a>
-  <a class="game-card" href="/gen/" style="text-decoration:none">
-    <div class="game-text">
-      <div class="game-name">The Ludographer</div>
-      <div class="game-blurb">An endless catalogue of procedurally generated board games. Every number resolves to the same complete game — theme, board, mechanics, components, rulebook — for ever.</div>
-      <div class="game-meta">spec-only showcase · deterministic · no sign-in</div>
-    </div>
-    <div class="game-go">browse →</div>
-  </a>
-  <a class="game-card" href="/horde/" style="text-decoration:none">
-    <div class="game-text">
-      <div class="game-name">Hold the Line</div>
-      <div class="game-blurb">You are surrounded from six directions and your gun overheats, so you cannot just stare at the worst one. Clear a wave and you get six seconds to pick an upgrade — freeze, and it picks the worst one for you.</div>
-      <div class="game-meta">one thumb · seeded runs · no sign-in</div>
-    </div>
-    <div class="game-go">play →</div>
-  </a>
-  <a class="game-card" href="/telegraph/" style="text-decoration:none">
-    <div class="game-text">
-      <div class="game-name">Telegraph</div>
-      <div class="game-blurb">Every enemy shows you exactly which tile it will hit, and you never have enough actions to stop all of it. No timer, no dice, nothing hidden — so after each turn the game searches every position you could have reached and tells you how many of them were right.</div>
-      <div class="game-meta">turn-based · perfect information · no sign-in</div>
-    </div>
-    <div class="game-go">play →</div>
-  </a>
-  <a class="game-card" href="/ratchet/" style="text-decoration:none">
-    <div class="game-text">
-      <div class="game-name">The Ratchet</div>
-      <div class="game-blurb">A road you cross once, with tools you can spend once. No clock, no opponent, nothing hidden — every choice just permanently removes an option. When the run ends it names the exact move that killed it, usually several stages before you found out.</div>
-      <div class="game-meta">turn-based · one road · no sign-in</div>
-    </div>
-    <div class="game-go">play →</div>
-  </a>
-  <a class="game-card" href="/outbound/" style="text-decoration:none">
-    <div class="game-text">
-      <div class="game-name">Outbound</div>
-      <div class="game-blurb">A convoy run across the Europan ice in the twenty-fourth century, with a crew you will not get back. Everything outside the shielded core sits in Jupiter's radiation belt, so two trips out is what a person has in them. You spend people by dragging them onto the ice, and the horizon fogs over where dead reckoning says you stop. When the run ends it draws you every decision you made and the exact crossing where the last way through closed.</div>
-      <div class="game-meta">turn-based · named crew · no sign-in</div>
-    </div>
-    <div class="game-go">play →</div>
-  </a>
-  <a class="game-card" href="/switchboard/" style="text-decoration:none">
-    <div class="game-text">
-      <div class="game-name">Switchboard</div>
-      <div class="game-blurb">Six lines, one operator, and a shift you can see in full before the clock starts. Hold a line to work it — and while you are holding it, everything else keeps counting down. When the board clears it tells you exactly how many points your commitments cost.</div>
-      <div class="game-meta">real-time · exact optimum · no sign-in</div>
-    </div>
-    <div class="game-go">play →</div>
-  </a>
 </section>
 
 <footer>
-  Built on Cloudflare Workers + Durable Objects, with Bluesky OAuth via
-  <a href="https://auth.mino.mobi">auth.mino.mobi</a>. Games are markdown files
-  in <code>games/games/</code> — anyone can write one. See the
-  <a href="https://github.com/minormobius/agent01/tree/main/games">repo</a>.
+  Each cabinet is playing a few seconds of the real game. Seven of them are the
+  <a href="pressure/">pressure</a> family: games about deciding under pressure, each of which measures something different
+  about the decision. Party rooms run on Cloudflare Workers + Durable Objects, with Bluesky sign-in via
+  <a href="https://auth.mino.mobi">auth.mino.mobi</a>, and a party game is a markdown file in <code>games/games/</code> that anyone can write.
+  See the <a href="https://github.com/minormobius/agent01/tree/main/games">repo</a>.
 </footer>
 
-<script type="module">
-async function loadGames() {
-  const res = await fetch('/api/games');
-  const { games } = await res.json();
-  const root = document.getElementById('games');
-  if (!games.length) {
-    root.innerHTML = '<p style="color:var(--dim)">No games yet.</p>';
-    return;
-  }
-  root.innerHTML = '';
-  for (const g of games) {
-    const card = document.createElement('div');
-    card.className = 'game-card';
-    card.innerHTML = `
-      <div class="game-text">
-        <div class="game-name">${g.name}</div>
-        <div class="game-blurb">${g.blurb || ''}</div>
-        <div class="game-meta">${g.players || ''} players · template: ${g.template}</div>
-      </div>
-      <div class="game-go">create →</div>
-    `;
-    card.addEventListener('click', () => createRoom(g.id));
-    root.appendChild(card);
-  }
-}
-
-async function createRoom(gameId) {
-  const status = document.getElementById('create-status');
-  status.textContent = 'creating room…';
-  try {
-    const res = await fetch('/api/rooms', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ gameId }),
-    });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || 'failed');
-    status.textContent = `room ${body.code} created — opening TV view…`;
-    setTimeout(() => {
-      location.href = `/play.html?code=${body.code}&role=tv`;
-    }, 250);
-  } catch (e) {
-    status.textContent = `error: ${e.message}`;
-  }
-}
-
-document.getElementById('join-btn').addEventListener('click', () => {
-  const code = document.getElementById('code').value.toUpperCase().trim();
-  if (!/^[A-Z0-9]{4}$/.test(code)) {
-    document.getElementById('join-status').textContent = 'enter a 4-character code';
-    return;
-  }
-  location.href = `/play.html?code=${code}&role=phone`;
-});
-document.getElementById('code').addEventListener('keyup', (e) => {
-  if (e.key === 'Enter') document.getElementById('join-btn').click();
-});
-
-// Auto-jump to /play.html when arriving via a shared link like ?join=XYZW
-const join = new URLSearchParams(location.search).get('join');
-if (join && /^[A-Z0-9]{4}$/i.test(join)) {
-  location.href = `/play.html?code=${join.toUpperCase()}&role=phone`;
-} else {
-  loadGames();
-}
-</script>
+<script type="module" src="arcade/arcade.js"></script>
 </body>
 </html>

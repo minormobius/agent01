@@ -1,0 +1,266 @@
+# whetstone — run the soul lab (packages/whetstone) and commit the scorecard back.
+#
+# Trigger: push a request file to packages/whetstone/requests/*.json on a claude/** branch.
+# That is the only trigger. Editing a soul, a trial or a gate does NOT spend anything; a run
+# happens only when someone writes down that they want one. (workflow_dispatch is here for the
+# day this lives on the default branch; until then the UI button does not exist.)
+#
+# Cost: a full run is ~111 model calls (46 soul turns, 24 dyad turns, 41 judge verdicts),
+# all short. The scorecard records the measured cost of every run, so the second estimate is a
+# number, not a guess.
+#
+# The results commit back to the same branch under packages/whetstone/runs/. That push is made
+# with GITHUB_TOKEN, which never triggers another workflow, so this cannot chain.
+#
+# Work trials give the souls a shell (node and a few read-only commands) in a temp folder. So the
+# checkout keeps no credentials (persist-credentials: false; the push below supplies the token
+# itself, after the souls are done), and run.mjs redacts every byte it writes.
+
+name: whetstone
+
+on:
+  push:
+    branches: ['claude/**']
+    paths: ['packages/whetstone/requests/*.json']
+  workflow_dispatch:
+    inputs:
+      request:
+        description: 'request file, relative to packages/whetstone/'
+        required: true
+
+permissions:
+  contents: write
+  actions: write   # to start deploy-miniphim after publishing the house (a GITHUB_TOKEN push starts nothing)
+
+concurrency:
+  group: whetstone-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  whetstone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Which requests
+        id: req
+        env:
+          INPUT_REQUEST: ${{ github.event.inputs.request }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # Every request added or modified anywhere in the push, not just its last commit.
+          if [ -n "$INPUT_REQUEST" ]; then
+            list="$INPUT_REQUEST"
+          else
+            # The push payload's commits carry no file lists here, so ask git: everything added or
+            # modified between the push's before and after commits (or in HEAD, on a new branch).
+            if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+               && git fetch -q --depth=1 origin "$BEFORE"; then
+              changed=$(git diff --name-only --diff-filter=AM "$BEFORE" HEAD)
+            else
+              changed=$(git diff-tree --no-commit-id --name-only --diff-filter=AM -r HEAD)
+            fi
+            list=$(printf '%s\n' "$changed" | grep -E '^packages/whetstone/requests/[^/]+\.json$' | sort -u | sed 's#^packages/whetstone/##' || true)
+          fi
+          echo "requests: $list"
+          { echo 'list<<EOF'; echo "$list"; echo 'EOF'; } >> "$GITHUB_OUTPUT"
+          # A push that only adds requests (the clock, a summon) changes no code: skip the 3-minute
+          # selftest so a summoned run starts sooner. Any other change, or a manual dispatch, runs it.
+          others=$(printf '%s\n' "${changed:-x}" | grep -v -E '^packages/whetstone/requests/' | grep -c . || true)
+          if [ -z "$INPUT_REQUEST" ] && [ "${others:-1}" = "0" ]; then echo "code_changed=false" >> "$GITHUB_OUTPUT"; else echo "code_changed=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Selftest
+        if: steps.req.outputs.code_changed != 'false'
+        run: node packages/whetstone/whetstone.selftest.mjs
+
+      # SVG → PNG for charts in posts (lib/town-run.mjs renderer). Not fatal: without it, a post with
+      # images is held with the reason, and everything else goes out.
+      - name: Image renderer
+        if: steps.req.outputs.list != ''
+        run: |
+          npm install --no-save --no-package-lock --prefix packages/whetstone @resvg/resvg-js@2 || echo "::warning::resvg did not install; posts with SVG images will be held"
+          # Shaded CAD views (packages/cad/agent/render.mjs): playwright-core drives the runner's Chrome.
+          npm install --no-save --no-package-lock --prefix packages/cad playwright-core@1.56.1 || echo "::warning::playwright-core did not install; CAD renders will fail"
+          ls -la /usr/bin/google-chrome || echo "::warning::no google-chrome on this runner"
+
+      - name: Model credentials
+        if: steps.req.outputs.list != ''
+        env:
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "$API_KEY" ] && [ -z "$OAUTH" ]; then
+            echo "::error::neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set."
+            exit 1
+          fi
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Run
+        if: steps.req.outputs.list != ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Other models wearing the souls, for text trials (request key `provider`).
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          # A town day (kind `town`) reads and publishes as miniphim.delve.town. The lab holds it;
+          # run.mjs strips it, and every other key, from the souls' sessions.
+          MINIPHIM_APP_PASSWORD: ${{ secrets.MINIPHIM_APP_PASSWORD }}
+          # The browser the CAD engine renders with, in the lab and in the souls' sessions.
+          CAD_CHROME: /usr/bin/google-chrome
+          LIST: ${{ steps.req.outputs.list }}
+        working-directory: packages/whetstone
+        run: |
+          status=0
+          while IFS= read -r r; do
+            [ -z "$r" ] && continue
+            echo "::group::$r"
+            set +e
+            node run.mjs --request "$r" > /tmp/scorecard.md
+            code=$?
+            set -e
+            cat /tmp/scorecard.md >> "$GITHUB_STEP_SUMMARY"
+            echo "::endgroup::"
+            # 3 = a gate failed. That is a result, not a broken run; it still commits.
+            if [ "$code" != 0 ] && [ "$code" != 3 ]; then status=$code; fi
+          done <<< "$LIST"
+          exit $status
+
+      # The miniphim's house: the run's commons/www/ becomes miniphim.minomobi.com (miniphim/site/,
+      # packages/whetstone/publish-sites.mjs --home). It goes into this run's commit; a GITHUB_TOKEN
+      # push starts nothing, so the step after the commit dispatches deploy-miniphim.yml. LIVE.md in
+      # the run's commons says what went out. (The factory corner at minomobi.com/miniphim/ is a
+      # redirect until 2027-01-04.)
+      - name: Publish the miniphim's house (miniphim.minomobi.com)
+        id: www
+        if: always() && steps.req.outputs.list != ''
+        run: |
+          target=""
+          for r in $(git ls-files --others --exclude-standard --directory packages/whetstone/runs/ | sed 's#/$##' | sort); do
+            { [ -d "$r/commons/www" ] || [ -d "$r/commons/house" ]; } && target="$r"
+          done
+          if [ -z "$target" ]; then echo "no www/ or house/ in this run's commons"; exit 0; fi
+          out=$(node packages/whetstone/publish-sites.mjs --run "$target" --home miniphim/site)
+          echo "$out"
+          if echo "$out" | grep -q '"changed":true'; then echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Commit the scorecards
+        id: commit
+        if: always() && steps.req.outputs.list != ''
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+        run: |
+          git remote set-url origin "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${{ github.repository }}.git"
+          git config user.name "whetstone"
+          git config user.email "whetstone@mino.mobi"
+          { echo 'dirs<<EOF'; git ls-files --others --exclude-standard --directory packages/whetstone/runs/ | sed 's#/$##'; echo packages/whetstone/letters; echo 'EOF'; } >> "$GITHUB_OUTPUT"
+          node packages/whetstone/chronicle.mjs --write
+          git add packages/whetstone/runs packages/whetstone/chronicle.json packages/whetstone/CHRONICLE.md
+          # Tools the souls chose to publish (shelf/PUBLISH.md), when any run has.
+          if [ -d packages/miniphim-tools ]; then git add packages/miniphim-tools; fi
+          # Their replies, next to the person's letters (packages/whetstone/letters/from-the-miniphim/).
+          if [ -d packages/whetstone/letters ]; then git add packages/whetstone/letters; fi
+          if [ -d miniphim/site ]; then git add -A miniphim/site; fi
+          if [ -d miniphim/api ]; then git add -A miniphim/api; fi
+          if [ -d miniphim/bots ]; then git add -A miniphim/bots; fi
+          if [ -d miniphim/feeds ]; then git add -A miniphim/feeds; fi
+          if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
+          git commit -m "whetstone: run ${{ github.sha }}"
+          # GitHub has answered a push with 500 four times running (2026-10-05, a summon's record lost
+          # with the runner). So: more tries over about four minutes, and the step after this one
+          # keeps the run as an artifact if every try fails.
+          for i in 1 2 3 4 5 6 7 8; do
+            git push origin "HEAD:${GITHUB_REF#refs/heads/}" && exit 0
+            git pull --rebase origin "${GITHUB_REF#refs/heads/}" || true
+            sleep $((i * 8))
+          done
+          exit 1
+
+      - name: Deploy the house
+        if: success() && steps.www.outputs.changed == 'true'
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsS -X POST -H "Authorization: Bearer $GH_PUSH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-miniphim.yml/dispatches" \
+            -d "{\"ref\":\"${GITHUB_REF#refs/heads/}\"}" && echo "✓ deploy-miniphim dispatched" \
+            || echo "::warning::deploy-miniphim could not be dispatched; it ships on the next push to miniphim/"
+
+      # A post that links the house waits for the house (Modulo, 2026-10-13): townAfter held any draft whose
+      # miniphim.minomobi.com link didn't answer 200, because the pages deploy only now. Wait for them (up to
+      # 12 minutes), publish what is ready under the same rules, and commit the record. What still isn't up
+      # waits in the outbox for the next town day.
+      - name: Post what waited for the house
+        if: success() && steps.req.outputs.list != ''
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+          MINIPHIM_APP_PASSWORD: ${{ secrets.MINIPHIM_APP_PASSWORD }}
+          DIRS: ${{ steps.commit.outputs.dirs }}
+          # Only worth waiting when this run dispatched a deploy; otherwise check once.
+          WAIT: ${{ steps.www.outputs.changed == 'true' && '720' || '0' }}
+        run: |
+          changed=0
+          while IFS= read -r d; do
+            [ -f "$d/commons/town/held.json" ] || continue
+            grep -q '"link_wait"' "$d/commons/town/held.json" || continue
+            echo "::group::$d"
+            node packages/whetstone/flush-held.mjs --run "$d" --town "$RUNNER_TEMP/miniphim-town-$(basename "$d").json" --wait "$WAIT" | tee /tmp/flush.json
+            echo "::endgroup::"
+            grep -q '"flushed":[1-9]' /tmp/flush.json && changed=1
+          done <<< "$DIRS"
+          [ "$changed" = 1 ] || { echo "nothing waited, or nothing came up"; exit 0; }
+          git add packages/whetstone/runs
+          git commit -m "whetstone: posted what waited for the house (${{ github.sha }})"
+          for i in 1 2 3 4 5 6 7 8; do
+            git push origin "HEAD:${GITHUB_REF#refs/heads/}" && exit 0
+            git pull --rebase origin "${GITHUB_REF#refs/heads/}" || true
+            sleep $((i * 8))
+          done
+          exit 1
+
+      # The souls' runner (lib/jobs.mjs, miniphim-job.yml): a job whose second signature landed in this
+      # run is queued, one file per job, written with the lab's contents token so the push starts
+      # miniphim-job.yml (a GITHUB_TOKEN push starts nothing). The one-link chain is decided here: a
+      # run that a job woke (request.json woken_by_job) queues its jobs with wake=false.
+      - name: Start the souls' jobs
+        if: success() && steps.req.outputs.list != ''
+        env:
+          TOKEN: ${{ secrets.LAB_DISPATCH_TOKEN }}
+          DIRS: ${{ steps.commit.outputs.dirs }}
+        run: |
+          [ -n "$TOKEN" ] || { echo "no LAB_DISPATCH_TOKEN: jobs can't be queued"; exit 0; }
+          while IFS= read -r d; do
+            [ -d "$d/commons/research/jobs" ] || continue
+            chained=$(node -e "try{const r=JSON.parse(require('fs').readFileSync(process.argv[1]+'/request.json','utf8'));console.log(r.woken_by_job?'yes':'no')}catch{console.log('no')}" "$d")
+            node packages/whetstone/jobs.mjs queue --run "$d" | while IFS= read -r j; do
+              [ -z "$j" ] && continue
+              node -e "
+                const j=JSON.parse(process.argv[1]), run=process.argv[2].split('/').filter(Boolean).pop(), chained=process.argv[3]==='yes';
+                const q={name:j.name,digest:j.digest,by:j.by,run,wake:j.wake&&!chained,queued_at:new Date().toISOString(),...(chained&&j.wake?{wake_refused:'started by a session a job woke: one link'}:{})};
+                const path='packages/whetstone/jobs/queue/'+j.name+'-'+j.digest+'.json';
+                require('fs').writeFileSync('/tmp/q.json',JSON.stringify({message:'whetstone: queue job '+j.name,branch:process.env.GITHUB_REF.replace('refs/heads/',''),content:Buffer.from(JSON.stringify(q,null,2)+'\n').toString('base64')}));
+                console.log(path)" "$j" "$d" "$chained" > /tmp/qpath.txt
+              curl -fsS -X PUT -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ github.repository }}/contents/$(cat /tmp/qpath.txt)" -d @/tmp/q.json > /dev/null \
+                && echo "✓ queued $(cat /tmp/qpath.txt)" || echo "::warning::could not queue $(cat /tmp/qpath.txt)"
+            done
+          done <<< "$DIRS"
+
+      # If the record could not be pushed, it is not lost with the runner: download it from the run
+      # page and commit it by hand (packages/whetstone/runs/<run>/ as it was written).
+      - name: Keep the run if it could not be pushed
+        if: failure() && steps.req.outputs.list != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: whetstone-runs-${{ github.run_id }}
+          path: ${{ steps.commit.outputs.dirs }}
+          retention-days: 30

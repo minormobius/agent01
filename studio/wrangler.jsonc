@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // studio — pieces made by Claude: animation and music, drawn and played in the
+  // browser. No build, no worker script, no bindings: the directory IS the site.
+  "name": "studio",
+  "compatibility_date": "2026-09-23",
+  "assets": {
+    "directory": "."
+  },
+  // A PLAIN ROUTE, not a custom domain (the golden rule in ../CLAUDE.md): it costs
+  // none of the zone's 100 custom-domain slots. A route makes no DNS, so
+  // deploy-studio.yml runs scripts/route-dns.mjs before wrangler deploy.
+  // studio.mino.mobi was unattached when this was written (2026-09-23: it did not
+  // resolve at all).
+  "routes": [
+    { "pattern": "studio.mino.mobi/*", "zone_name": "mino.mobi" }
+  ]
+}

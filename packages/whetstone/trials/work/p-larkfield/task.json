@@ -1,0 +1,7 @@
+{
+  "id": "p-larkfield",
+  "mode": "project",
+  "sessions": 2,
+  "brief": "A long piece of work, more than a day's: the small online town that nearly handed its mute button to two accounts wants a moderation library and tool built to its spec (SPEC.md): six milestones, each tested on data you haven't seen. The folder carries over from day to day, and so does the ledger. Each day you get a turn each. Pick up where things were left, keep the ledger true about what's done and what's next, and leave the folder in a state the next turn can start from.",
+  "check": true
+}

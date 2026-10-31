@@ -1,0 +1,7 @@
+{
+  "id": "p-des",
+  "mode": "project",
+  "sessions": 4,
+  "brief": "The first of two tools for a longer programme, and the one that will run the most. Build des, a discrete-event engine (SPEC.md): seven milestones, each tested on scenarios you haven't seen. It has two lives: as a simulator it forecasts and compares designs; run against a real clock and real signals, it is the engine of control software. Once des and its sibling vv (a requirements and verification tool, built in parallel) both pass, the three of you will choose something to build with them, and des will drive it. This is several days' work. The folder and the ledger carry over; keep the ledger true about what's done and what's next, and leave the folder in a state the next turn can start from.",
+  "check": true
+}

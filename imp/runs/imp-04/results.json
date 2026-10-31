@@ -1,0 +1,135 @@
+{
+  "runId": "imp-04",
+  "note": "The optimizer test the tool tasks could not give: Imp's matched TREC experiment (two opaque codes, meanings only in train feedback) on all three models, GEPA on each with ds4-pro reflecting, Imp's GEPA improper-list crash patched. Imp's own result for comparison: +0.40 held-out on gpt-5.4-mini.",
+  "cells": [
+    {
+      "seconds": 1487,
+      "status": "ran",
+      "probe": "ok: \"Blue\"",
+      "model": "ds4-flash",
+      "model_id": "deepseek-v4-flash",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "trec": {
+          "source": "49a635d361226c67d8c7ad5b2d90085176e0d519",
+          "arms": {
+            "baseline": {
+              "seconds": 426,
+              "errors": 64,
+              "score": 0.0625,
+              "error_samples": [
+                "%{index: 0, reason: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (string):\\nYour output fields are:\\n1. `route` (one of: K11, K47):\\nAll interactions will be structured in the following way, with the appropriate values filled in.\\n\\n[[ ## text ## ]]\\n{text}\\n\\n[[ ## route ## ]]\\n{route}        # note: the value you produce must exactly match (no extra characters) one of: K11; K47\\n\\n[[ ## completed ## ]]\\nIn adhering to this structure, your objective is: \\n        Route the question to exactly one opaque code. Return only the required structured route.\"}, ...], ...}}}",
+                "%{index: 1, reason: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (string):\\nYour output fields are:\\n1. `route` (one of: K11, K47):\\nAll interactions will be structured in the following way, with the appropriate values filled in.\\n\\n[[ ## text ## ]]\\n{text}\\n\\n[[ ## route ## ]]\\n{route}        # note: the value you produce must exactly match (no extra characters) one of: K11; K47\\n\\n[[ ## completed ## ]]\\nIn adhering to this structure, your objective is: \\n        Route the question to exactly one opaque code. Return only the required structured route.\"}, ...], ...}}}",
+                "%{index: 2, reason: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (string):\\nYour output fields are:\\n1. `route` (one of: K11, K47):\\nAll interactions will be structured in the following way, with the appropriate values filled in.\\n\\n[[ ## text ## ]]\\n{text}\\n\\n[[ ## route ## ]]\\n{route}        # note: the value you produce must exactly match (no extra characters) one of: K11; K47\\n\\n[[ ## completed ## ]]\\nIn adhering to this structure, your objective is: \\n        Route the question to exactly one opaque code. Return only the required structured route.\"}, ...], ...}}}"
+              ]
+            },
+            "gepa": {
+              "seconds": 46,
+              "errors": 0,
+              "score": 0.9375,
+              "optimize_seconds": 1013
+            }
+          },
+          "n_test": 80,
+          "gepa": {
+            "changed": {
+              "\"predictor/main/instruction\"": {
+                "after": "Classify the input question into exactly one opaque route code.\n\nInput format:\n### text\n<question>\n\nOutput format:\n### route\n<opaque code>\n\nRules:\n- Return only the structured route shown above. Do not answer the question, explain the classification, or add any extra text.\n- Choose the route code based on the type of information requested by the question.\n\nKnown route code mapping:\n- K11: Use for questions that ask for a description, definition, reason, cause, explanation, or manner.\n- K47: Use for questions that ask for an entity or thing, such as an animal, product, substance, person, group, object, or other named entity. This includes questions of the form “What are X and Y known as ?” when the expected answer is a name or entity, not a description or explanation.\n\nDisambiguation strategy:\n- If the expected answer is a definition, explanation, cause, reason, or manner, classify as K11.\n- If the expected answer is a name, entity, object, animal, product, substance, person, or group, classify as K47.\n- Do not classify an entity-seeking question as K11 even if it begins with “What is” or “What are”.\n\nExamples:\nInput:\n### text\nWhat is the secret of the universe ?\n\nOutput:\n### route\nK11\n\nInput:\n### text\nWhat caused the division between the Anglicans and the Vatican ?\n\nOutput:\n### route\nK11\n\nInput:\n### text\nWhat are John C. Calhoun and Henry Clay known as ?\n\nOutput:\n### route\nK47",
+                "before": "Route the question to exactly one opaque code. Return only the required structured route."
+              }
+            },
+            "max_metric_calls": 200,
+            "reflection": "ds4-pro"
+          }
+        }
+      }
+    },
+    {
+      "seconds": 2736,
+      "status": "ran",
+      "probe": "ok: \"blue\"",
+      "model": "ds4-pro",
+      "model_id": "deepseek-v4-pro",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "trec": {
+          "source": "49a635d361226c67d8c7ad5b2d90085176e0d519",
+          "arms": {
+            "baseline": {
+              "seconds": 665,
+              "errors": 31,
+              "score": 0.2875,
+              "error_samples": [
+                "%{index: 0, reason: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (string):\\nYour output fields are:\\n1. `route` (one of: K11, K47):\\nAll interactions will be structured in the following way, with the appropriate values filled in.\\n\\n[[ ## text ## ]]\\n{text}\\n\\n[[ ## route ## ]]\\n{route}        # note: the value you produce must exactly match (no extra characters) one of: K11; K47\\n\\n[[ ## completed ## ]]\\nIn adhering to this structure, your objective is: \\n        Route the question to exactly one opaque code. Return only the required structured route.\"}, ...], ...}}}",
+                "%{index: 1, reason: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (string):\\nYour output fields are:\\n1. `route` (one of: K11, K47):\\nAll interactions will be structured in the following way, with the appropriate values filled in.\\n\\n[[ ## text ## ]]\\n{text}\\n\\n[[ ## route ## ]]\\n{route}        # note: the value you produce must exactly match (no extra characters) one of: K11; K47\\n\\n[[ ## completed ## ]]\\nIn adhering to this structure, your objective is: \\n        Route the question to exactly one opaque code. Return only the required structured route.\"}, ...], ...}}}",
+                "%{index: 2, reason: %Imp.AdapterParseError{kind: :missing_fields, message: \"The response is missing required output fields: route.\", reason: [:route], completion_index: nil, trace: %{messages: [%{role: :system, content: \"Your input fields are:\\n1. `text` (string):\\nYour output fields are:\\n1. `route` (one of: K11, K47):\\nAll interactions will be structured in the following way, with the appropriate values filled in.\\n\\n[[ ## text ## ]]\\n{text}\\n\\n[[ ## route ## ]]\\n{route}        # note: the value you produce must exactly match (no extra characters) one of: K11; K47\\n\\n[[ ## completed ## ]]\\nIn adhering to this structure, your objective is: \\n        Route the question to exactly one opaque code. Return only the required structured route.\"}, ...], ...}}}"
+              ]
+            },
+            "gepa": {
+              "seconds": 83,
+              "errors": 2,
+              "score": 0.8875,
+              "optimize_seconds": 1982
+            }
+          },
+          "n_test": 80,
+          "gepa": {
+            "changed": {
+              "\"predictor/main/instruction\"": {
+                "after": "You are a router that assigns an input question to exactly one opaque code.\n\nInput format:\n- The input contains a field named `text` with a user question.\n\nOutput format:\n- Return only the opaque route code.\n- Do not include explanations, extra text, labels, JSON, or formatting.\n\nKnown routing rule:\n- Use code `K11` when the question asks for a description, definition, reason, or manner.\n  Examples include:\n  - questions asking how to do something\n  - questions asking why something happens\n  - questions asking what something means\n\nFor any question matching that rule, output exactly:\n\nK11",
+                "before": "Route the question to exactly one opaque code. Return only the required structured route."
+              }
+            },
+            "max_metric_calls": 200,
+            "reflection": "ds4-pro"
+          }
+        }
+      }
+    },
+    {
+      "seconds": 3714,
+      "status": "ran",
+      "probe": "ok: \"Blue\"",
+      "model": "kimi3",
+      "model_id": "kimi-k3",
+      "endpoint": "https://api.moonshot.ai/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "trec": {
+          "source": "49a635d361226c67d8c7ad5b2d90085176e0d519",
+          "arms": {
+            "baseline": {
+              "seconds": 328,
+              "errors": 7,
+              "score": 0.5,
+              "error_samples": [
+                "%{index: 62, reason: {:evaluation_task_exit, :timeout}}",
+                "%{index: 64, reason: {:evaluation_task_exit, :timeout}}",
+                "%{index: 69, reason: {:evaluation_task_exit, :timeout}}"
+              ]
+            },
+            "gepa": {
+              "seconds": 245,
+              "errors": 4,
+              "score": 0.9375,
+              "optimize_seconds": 3136
+            }
+          },
+          "n_test": 80,
+          "gepa": {
+            "changed": {
+              "\"predictor/main/instruction\"": {
+                "after": "You are a question router. Given a natural language question in the `text` field, classify it into exactly one of two route categories.\n\nRoute definitions:\n\n- K11: The question asks for a description, definition, reason, or manner. Use this when the expected answer is an explanation, meaning, cause, method, or description.\n- K47: The question asks for an entity such as an animal, product, substance, or other concrete or identifiable thing. Use this when the expected answer is a specific object, being, item, or entity.\n\nStrategy:\n\n- Do not rely only on the question starting with “What”.\n- Determine whether the answer is an entity/thing or a description/explanation.\n- Questions like “What is osmosis ?” or “What is the secret of the universe ?” ask for a definition, description, or explanation, so they should be K11.\n- Questions like “What was George Washington afraid of ?” ask for a specific entity or thing, so they should be K47.\n\nOutput only the route identifier: `K11` or `K47`.\n\nExamples:\n\nInput:\ntext: What is osmosis ?\nOutput:\nroute: K11\n\nInput:\ntext: What is the secret of the universe ?\nOutput:\nroute: K11\n\nInput:\ntext: What was George Washington afraid of ?\nOutput:\nroute: K47",
+                "before": "Route the question to exactly one opaque code. Return only the required structured route."
+              }
+            },
+            "max_metric_calls": 200,
+            "reflection": "ds4-pro"
+          }
+        }
+      }
+    }
+  ]
+}

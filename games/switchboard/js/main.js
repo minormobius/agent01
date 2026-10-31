@@ -25,10 +25,12 @@
     over: $("over"), overTitle: $("over-title"), overHead: $("over-head"),
     gap: $("gap"), overSeed: $("over-seed"), overBest: $("over-best"),
     onward: $("onward"), again: $("again"), replay: $("replay"),
+    trophy: $("trophy"), post: $("post"), oBoard: $("o-board"),
   };
 
   var state = null, shiftStart = null, running = false, raf = null;
   var acc = 0, last = 0, totals = { shifts: 0, score: 0, optimum: 0 };
+  var posted = false, boardPaused = false;
   var reduced = NS.matchMedia && NS.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var rows = [];   // one persistent element per line
 
@@ -50,6 +52,7 @@
     state = S.newGame(seed || S.randomSeed());
     setUrlSeed(state.seed);
     totals = { shifts: 0, score: 0, optimum: 0 };
+    posted = false;
     el.over.hidden = true;
     beginShift();
   }
@@ -250,6 +253,8 @@
     el.overBest.textContent = best();
     el.onward.hidden = false;
     el.over.hidden = false;
+    posted = false;
+    offerable();
     el.onward.focus();
   }
 
@@ -259,14 +264,62 @@
     beginShift();
   }
 
+  // ----------------------------------------------------------- the boards --
+
+  /* The boards load on their own (js/board.js needs the vendored auth client),
+     so their buttons show only once it is there. A run never ends by itself,
+     so what gets posted is the run as it stands when a shift closes: its
+     points, and its points against the summed optimum of every shift played.
+     Each closed shift can be posted once; the board keeps each player's best. */
+  function board() { return S.board || null; }
+  function offerable() {
+    var b = !!board();
+    el.trophy.hidden = el.oBoard.hidden = !b;
+    el.post.hidden = !b || el.over.hidden || !totals.score;
+    el.post.disabled = posted;
+    el.post.textContent = "post this run · " + totals.shifts + " shift" + (totals.shifts === 1 ? "" : "s");
+  }
+  NS.addEventListener("switchboard-board", function () {
+    offerable();
+    // Opening the board mid-shift stops the clock; closing it starts it again.
+    if (S.boardEl && NS.MutationObserver) {
+      new MutationObserver(function () {
+        if (S.boardEl.hidden && boardPaused) { boardPaused = false; running = true; last = 0; }
+      }).observe(S.boardEl, { attributes: true, attributeFilter: ["hidden"] });
+    }
+  });
+  function boardOpen() { return !!(S.boardEl && !S.boardEl.hidden); }
+  function openBoard() {
+    var b = board(); if (!b) return;
+    if (running && S.boardEl) { if (state.holding !== null) S.release(state); running = false; boardPaused = true; }
+    b.open({ metric: "points" });
+  }
+  function postRun() {
+    var b = board(); if (!b || posted || !totals.score || el.over.hidden) return;
+    posted = true; offerable();
+    b.offer({ sel: { metric: "points" }, value: totals.score, seed: state.seed, shifts: totals.shifts,
+      score: totals.score, optimum: totals.optimum, at: Date.now() });
+  }
+
   // ------------------------------------------------------------------ wire --
 
   el.startBtn.addEventListener("click", function () { el.start.hidden = true; beginShift(); });
   el.onward.addEventListener("click", onward);
   el.again.addEventListener("click", function () { newRun(); });
   el.replay.addEventListener("click", function () { newRun(state.seed); });
+  el.trophy.addEventListener("click", openBoard);
+  el.oBoard.addEventListener("click", openBoard);
+  el.post.addEventListener("click", postRun);
 
+  // Keys typed into a field (the board's handle) belong to the field, and
+  // browser shortcuts are left alone.
+  function notForUs(e) {
+    var t = e.target;
+    return e.ctrlKey || e.metaKey || e.altKey || boardOpen() ||
+      !!(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)));
+  }
   document.addEventListener("keydown", function (e) {
+    if (notForUs(e)) return;
     if (!el.start.hidden) { if (e.key === "Enter" || e.key === " ") { el.start.hidden = true; beginShift(); e.preventDefault(); } return; }
     if (!el.over.hidden) { if (e.key === "Enter") { onward(); e.preventDefault(); } return; }
     // Keyboard: hold 1-6 to work a line.
@@ -277,6 +330,7 @@
     }
   });
   document.addEventListener("keyup", function (e) {
+    if (notForUs(e)) return;
     var n = parseInt(e.key, 10);
     if (n >= 1 && n <= S.CONFIG.LINES && state && state.holding !== null) {
       var j = S.jobById(state, state.holding);

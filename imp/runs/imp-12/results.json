@@ -1,0 +1,1529 @@
+{
+  "runId": "imp-12",
+  "note": "",
+  "cells": [
+    {
+      "seconds": 704,
+      "status": "ran",
+      "probe": "ok: blue (confidence 1.0, 411 ms)",
+      "model": "jev",
+      "model_id": "jev-latest",
+      "endpoint": "https://api.typesafe.ai",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "route": {
+          "arms": {
+            "jev_bare": {
+              "errors": 0,
+              "input_tokens": 8898,
+              "score": 1,
+              "error_samples": [],
+              "confident": 19,
+              "confident_accuracy": 1,
+              "median_ms": 171
+            }
+          },
+          "n_test": 20
+        },
+        "trec": {
+          "rows": {
+            "jev_bare": [
+              {
+                "id": "trec-fine:heldout:0035",
+                "label": "K11",
+                "choice": "K47",
+                "confidence": 0.52
+              },
+              {
+                "id": "trec-fine:heldout:0039",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.19
+              },
+              {
+                "id": "trec-fine:heldout:0046",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.33
+              },
+              {
+                "id": "trec-fine:heldout:0048",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.44
+              },
+              {
+                "id": "trec-fine:heldout:0054",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.22
+              },
+              {
+                "id": "trec-fine:heldout:0056",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.31
+              },
+              {
+                "id": "trec-fine:heldout:0066",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.34
+              },
+              {
+                "id": "trec-fine:heldout:0071",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.21
+              },
+              {
+                "id": "trec-fine:heldout:0073",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.32
+              },
+              {
+                "id": "trec-fine:heldout:0076",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.19
+              },
+              {
+                "id": "trec-fine:heldout:0084",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.07
+              },
+              {
+                "id": "trec-fine:heldout:0091",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.39
+              },
+              {
+                "id": "trec-fine:heldout:0102",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.36
+              },
+              {
+                "id": "trec-fine:heldout:0108",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.24
+              },
+              {
+                "id": "trec-fine:heldout:0110",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.4
+              },
+              {
+                "id": "trec-fine:heldout:0112",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.26
+              },
+              {
+                "id": "trec-fine:heldout:0113",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.25
+              },
+              {
+                "id": "trec-fine:heldout:0119",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.39
+              },
+              {
+                "id": "trec-fine:heldout:0122",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.24
+              },
+              {
+                "id": "trec-fine:heldout:0125",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.29
+              },
+              {
+                "id": "trec-fine:heldout:0004",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.15
+              },
+              {
+                "id": "trec-fine:heldout:0011",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.21
+              },
+              {
+                "id": "trec-fine:heldout:0016",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.21
+              },
+              {
+                "id": "trec-fine:heldout:0018",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.14
+              },
+              {
+                "id": "trec-fine:heldout:0025",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.45
+              },
+              {
+                "id": "trec-fine:heldout:0027",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.15
+              },
+              {
+                "id": "trec-fine:heldout:0029",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.27
+              },
+              {
+                "id": "trec-fine:heldout:0030",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.42
+              },
+              {
+                "id": "trec-fine:heldout:0034",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.33
+              },
+              {
+                "id": "trec-fine:heldout:0038",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.3
+              },
+              {
+                "id": "trec-fine:heldout:0040",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.39
+              },
+              {
+                "id": "trec-fine:heldout:0043",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.29
+              },
+              {
+                "id": "trec-fine:heldout:0047",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.31
+              },
+              {
+                "id": "trec-fine:heldout:0060",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.46
+              },
+              {
+                "id": "trec-fine:heldout:0074",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.44
+              },
+              {
+                "id": "trec-fine:heldout:0075",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.19
+              },
+              {
+                "id": "trec-fine:heldout:0080",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.15
+              },
+              {
+                "id": "trec-fine:heldout:0082",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.39
+              },
+              {
+                "id": "trec-fine:heldout:0088",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.32
+              },
+              {
+                "id": "trec-fine:heldout:0090",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.3
+              },
+              {
+                "id": "trec-fine:heldout:0000",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.27
+              },
+              {
+                "id": "trec-fine:heldout:0001",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.28
+              },
+              {
+                "id": "trec-fine:heldout:0002",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.17
+              },
+              {
+                "id": "trec-fine:heldout:0009",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.26
+              },
+              {
+                "id": "trec-fine:heldout:0010",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.29
+              },
+              {
+                "id": "trec-fine:heldout:0015",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.34
+              },
+              {
+                "id": "trec-fine:heldout:0020",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.34
+              },
+              {
+                "id": "trec-fine:heldout:0021",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.08
+              },
+              {
+                "id": "trec-fine:heldout:0022",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.31
+              },
+              {
+                "id": "trec-fine:heldout:0028",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.41
+              },
+              {
+                "id": "trec-fine:heldout:0053",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.39
+              },
+              {
+                "id": "trec-fine:heldout:0064",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.21
+              },
+              {
+                "id": "trec-fine:heldout:0069",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.06
+              },
+              {
+                "id": "trec-fine:heldout:0077",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.49
+              },
+              {
+                "id": "trec-fine:heldout:0123",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.34
+              },
+              {
+                "id": "trec-fine:heldout:0124",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.39
+              },
+              {
+                "id": "trec-fine:heldout:0131",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.31
+              },
+              {
+                "id": "trec-fine:heldout:0134",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.4
+              },
+              {
+                "id": "trec-fine:heldout:0138",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.41
+              },
+              {
+                "id": "trec-fine:heldout:0139",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.19
+              },
+              {
+                "id": "trec-fine:heldout:0094",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.16
+              },
+              {
+                "id": "trec-fine:heldout:0096",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.42
+              },
+              {
+                "id": "trec-fine:heldout:0097",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.2
+              },
+              {
+                "id": "trec-fine:heldout:0100",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.41
+              },
+              {
+                "id": "trec-fine:heldout:0101",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.27
+              },
+              {
+                "id": "trec-fine:heldout:0104",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.23
+              },
+              {
+                "id": "trec-fine:heldout:0106",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.27
+              },
+              {
+                "id": "trec-fine:heldout:0111",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.15
+              },
+              {
+                "id": "trec-fine:heldout:0115",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.25
+              },
+              {
+                "id": "trec-fine:heldout:0120",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.25
+              },
+              {
+                "id": "trec-fine:heldout:0127",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.14
+              },
+              {
+                "id": "trec-fine:heldout:0129",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.14
+              },
+              {
+                "id": "trec-fine:heldout:0130",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.32
+              },
+              {
+                "id": "trec-fine:heldout:0132",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.3
+              },
+              {
+                "id": "trec-fine:heldout:0143",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.23
+              },
+              {
+                "id": "trec-fine:heldout:0148",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.22
+              },
+              {
+                "id": "trec-fine:heldout:0160",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.33
+              },
+              {
+                "id": "trec-fine:heldout:0168",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.24
+              },
+              {
+                "id": "trec-fine:heldout:0169",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.15
+              },
+              {
+                "id": "trec-fine:heldout:0177",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.52
+              }
+            ],
+            "jev_learned": [
+              {
+                "id": "trec-fine:heldout:0035",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0039",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0046",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.12
+              },
+              {
+                "id": "trec-fine:heldout:0048",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0054",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0056",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.98
+              },
+              {
+                "id": "trec-fine:heldout:0066",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.97
+              },
+              {
+                "id": "trec-fine:heldout:0071",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0073",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.33
+              },
+              {
+                "id": "trec-fine:heldout:0076",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0084",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0091",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.8
+              },
+              {
+                "id": "trec-fine:heldout:0102",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0108",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0110",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0112",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0113",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0119",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0122",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0125",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.86
+              },
+              {
+                "id": "trec-fine:heldout:0004",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.97
+              },
+              {
+                "id": "trec-fine:heldout:0011",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0016",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.82
+              },
+              {
+                "id": "trec-fine:heldout:0018",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.88
+              },
+              {
+                "id": "trec-fine:heldout:0025",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0027",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0029",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.33
+              },
+              {
+                "id": "trec-fine:heldout:0030",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0034",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.94
+              },
+              {
+                "id": "trec-fine:heldout:0038",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.97
+              },
+              {
+                "id": "trec-fine:heldout:0040",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.96
+              },
+              {
+                "id": "trec-fine:heldout:0043",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0047",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0060",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.41
+              },
+              {
+                "id": "trec-fine:heldout:0074",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0075",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0080",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0082",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0088",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.51
+              },
+              {
+                "id": "trec-fine:heldout:0090",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.95
+              },
+              {
+                "id": "trec-fine:heldout:0000",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0001",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.78
+              },
+              {
+                "id": "trec-fine:heldout:0002",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0009",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0010",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0015",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.87
+              },
+              {
+                "id": "trec-fine:heldout:0020",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.83
+              },
+              {
+                "id": "trec-fine:heldout:0021",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0022",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.92
+              },
+              {
+                "id": "trec-fine:heldout:0028",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.73
+              },
+              {
+                "id": "trec-fine:heldout:0053",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0064",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.7
+              },
+              {
+                "id": "trec-fine:heldout:0069",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0077",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0123",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0124",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0131",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.63
+              },
+              {
+                "id": "trec-fine:heldout:0134",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0138",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0139",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0094",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0096",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.85
+              },
+              {
+                "id": "trec-fine:heldout:0097",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0100",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0101",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0104",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0106",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0111",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0115",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0120",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0127",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0129",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0130",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0132",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0143",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0148",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0160",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0168",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0169",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0177",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              }
+            ],
+            "jev_optimized": [
+              {
+                "id": "trec-fine:heldout:0035",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.93
+              },
+              {
+                "id": "trec-fine:heldout:0039",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0046",
+                "label": "K11",
+                "choice": "K47",
+                "confidence": 0
+              },
+              {
+                "id": "trec-fine:heldout:0048",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0054",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0056",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.81
+              },
+              {
+                "id": "trec-fine:heldout:0066",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.86
+              },
+              {
+                "id": "trec-fine:heldout:0071",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0073",
+                "label": "K11",
+                "choice": "K47",
+                "confidence": 0.28
+              },
+              {
+                "id": "trec-fine:heldout:0076",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0084",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.96
+              },
+              {
+                "id": "trec-fine:heldout:0091",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.49
+              },
+              {
+                "id": "trec-fine:heldout:0102",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0108",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.98
+              },
+              {
+                "id": "trec-fine:heldout:0110",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0112",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.9
+              },
+              {
+                "id": "trec-fine:heldout:0113",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.96
+              },
+              {
+                "id": "trec-fine:heldout:0119",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0122",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.79
+              },
+              {
+                "id": "trec-fine:heldout:0125",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.53
+              },
+              {
+                "id": "trec-fine:heldout:0004",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.98
+              },
+              {
+                "id": "trec-fine:heldout:0011",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0016",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.8
+              },
+              {
+                "id": "trec-fine:heldout:0018",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.7
+              },
+              {
+                "id": "trec-fine:heldout:0025",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0027",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0029",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.77
+              },
+              {
+                "id": "trec-fine:heldout:0030",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0034",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.98
+              },
+              {
+                "id": "trec-fine:heldout:0038",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.93
+              },
+              {
+                "id": "trec-fine:heldout:0040",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0043",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0047",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0060",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.23
+              },
+              {
+                "id": "trec-fine:heldout:0074",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0075",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0080",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0082",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.98
+              },
+              {
+                "id": "trec-fine:heldout:0088",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 0.2
+              },
+              {
+                "id": "trec-fine:heldout:0090",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.95
+              },
+              {
+                "id": "trec-fine:heldout:0000",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0001",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.36
+              },
+              {
+                "id": "trec-fine:heldout:0002",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0009",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.91
+              },
+              {
+                "id": "trec-fine:heldout:0010",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0015",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.25
+              },
+              {
+                "id": "trec-fine:heldout:0020",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.42
+              },
+              {
+                "id": "trec-fine:heldout:0021",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0022",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.87
+              },
+              {
+                "id": "trec-fine:heldout:0028",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.07
+              },
+              {
+                "id": "trec-fine:heldout:0053",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.85
+              },
+              {
+                "id": "trec-fine:heldout:0064",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.19
+              },
+              {
+                "id": "trec-fine:heldout:0069",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.94
+              },
+              {
+                "id": "trec-fine:heldout:0077",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.92
+              },
+              {
+                "id": "trec-fine:heldout:0123",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.94
+              },
+              {
+                "id": "trec-fine:heldout:0124",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0131",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.21
+              },
+              {
+                "id": "trec-fine:heldout:0134",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.88
+              },
+              {
+                "id": "trec-fine:heldout:0138",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0139",
+                "label": "K11",
+                "choice": "K11",
+                "confidence": 0.98
+              },
+              {
+                "id": "trec-fine:heldout:0094",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0096",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.58
+              },
+              {
+                "id": "trec-fine:heldout:0097",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0100",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              },
+              {
+                "id": "trec-fine:heldout:0101",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0104",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0106",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0111",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0115",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0120",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0127",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0129",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0130",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0132",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0143",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0148",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0160",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0168",
+                "label": "K47",
+                "choice": "K11",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0169",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 1
+              },
+              {
+                "id": "trec-fine:heldout:0177",
+                "label": "K47",
+                "choice": "K47",
+                "confidence": 0.99
+              }
+            ]
+          },
+          "arms": {
+            "cascade": {
+              "score": 0.975,
+              "escalated": 22,
+              "escalated_accuracy": 0.9545454545454546,
+              "kept_accuracy": 0.9827586206896551,
+              "kept_by_jev": 58,
+              "llm_calls_saved": 58,
+              "escalate_to": "imp-04/ds4-flash"
+            },
+            "jev_bare": {
+              "errors": 0,
+              "input_tokens": 27023,
+              "score": 0.5,
+              "error_samples": [],
+              "confident": 0,
+              "confident_accuracy": null,
+              "median_ms": 149
+            },
+            "jev_learned": {
+              "errors": 0,
+              "from": "imp-04/kimi3",
+              "input_tokens": 49503,
+              "score": 0.9875,
+              "error_samples": [],
+              "confident": 64,
+              "confident_accuracy": 0.984375,
+              "median_ms": 147
+            },
+            "jev_optimized": {
+              "errors": 0,
+              "input_tokens": 30623,
+              "score": 0.9375,
+              "error_samples": [],
+              "program": {
+                "instructions": "Route the question to exactly one opaque code.\n\nUse K47 when the question asks for an entity such as an animal, product, substance, or other thing.\nUse K11 when the question asks for a description, definition, reason, or manner.\n\nReturn only the required structured route.",
+                "option K11": "K11",
+                "option K47": "K47"
+              },
+              "optimize_seconds": 647,
+              "reflection": "ds4-pro",
+              "confident": 58,
+              "confident_accuracy": 0.9827586206896551,
+              "median_ms": 158
+            }
+          },
+          "n_test": 80,
+          "gate": 0.9
+        }
+      }
+    }
+  ]
+}

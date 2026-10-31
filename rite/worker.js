@@ -24,6 +24,12 @@
 //   GET  /api/sharp/tlds            -> the TLD verifier: what is real, what is checkable
 //   GET  /api/sharp/domain          -> is this name taken? (RDAP, per registry)
 //
+// Spooky routes (Treehouse-of-Horror name puns, served at /spooky/):
+//   GET  /api/spooky?name=&seed=&count= -> a handful of spooky puns on a name
+//
+// Pumpkin routes (procedural jack-o'-lanterns, served at /pumpkin/):
+//   GET  /api/pumpkin.svg?seed=&mood=&lit=&stencil= -> one pumpkin, as SVG
+//
 // Cron (every 6h) mines verbose sentences from Project Gutenberg.
 
 import { generateSet, catalog as namesCatalog } from './names/engine.js';
@@ -32,6 +38,8 @@ import { mint, draw, check as sharpCheck, catalog as sharpCatalog } from './shar
 import { hydrate as hydrateSharp, lexiconFrom } from './sharp/corpus.js';
 import { domainHacks, splitDomain, validLabel, VERDICTS } from './sharp/tld.js';
 import { checkMany, LIMITS as RDAP_LIMITS } from './sharp/rdap.js';
+import { spookify } from './spooky/engine.js';
+import { carve as carvePumpkin, render as renderPumpkin } from './pumpkin/engine.js';
 
 const SYLLABLE_RE = /[aeiouy]+/g;
 
@@ -58,7 +66,7 @@ export default {
             '/api/wc/odds',
             '/api/names', '/api/names/cultures',
             '/api/sharp', '/api/sharp/check', '/api/sharp/styles',
-            '/api/sharp/tlds', '/api/sharp/domain',
+            '/api/sharp/tlds', '/api/sharp/domain', '/api/spooky', '/api/pumpkin.svg',
             '/api/org', '/api/org/node', '/api/org/person', '/api/org/verticals',
           ],
           bindings: { ai: !!env.AI, db: !!env.DB, assets: !!env.ASSETS, admin_key_set: !!env.ADMIN_KEY },
@@ -114,6 +122,14 @@ export default {
       if (url.pathname === '/api/sharp/styles')                           return sharpStyles(env);
       if (url.pathname === '/api/sharp/tlds')                             return sharpTlds(env, url);
       if (url.pathname === '/api/sharp/domain')                           return sharpDomain(env, url);
+
+      // Spooky: sound-alike puns on a name (served at /spooky/). Pure compute
+      // over two committed data files; CORS open.
+      if (url.pathname === '/api/spooky')                                 return spookyRoute(url, env);
+
+      // Pumpkin: one jack-o'-lantern as an SVG (served at /pumpkin/). Pure
+      // compute, deterministic, so it caches for a day; CORS open.
+      if (url.pathname === '/api/pumpkin.svg')                            return pumpkinRoute(url);
 
       if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     } catch (e) {
@@ -2314,6 +2330,47 @@ async function loadSharp(env) {
     return _sharp;
   })();
   try { return await _sharpLoading; } finally { _sharpLoading = null; }
+}
+
+// ============================================================
+// Spooky — Treehouse-of-Horror names (rite.mino.mobi/spooky/)
+// ============================================================
+//
+// Engine in spooky/engine.js, shared with the page and the selftest. The
+// letter-to-sound model (~1.2MB) and the vocabulary are fetched from ASSETS
+// once per isolate, like sharp's data.
+
+let _spooky = null;
+
+async function loadSpooky(env) {
+  if (_spooky) return _spooky;
+  const get = async (file) => {
+    const res = await env.ASSETS.fetch(new Request(`https://rite/spooky/data/${file}`));
+    if (!res.ok) throw new Error(`spooky: ${file} missing (${res.status})`);
+    return res.json();
+  };
+  const [model, vocab] = await Promise.all([get('g2p.json'), get('spooks.json')]);
+  _spooky = { model, vocab };
+  return _spooky;
+}
+
+async function spookyRoute(url, env) {
+  const q = url.searchParams;
+  const name = (q.get('name') || '').slice(0, 80);
+  if (!name.trim()) return json({ error: 'name is required' }, 400, NAMES_CORS);
+  const count = Math.max(1, Math.min(12, parseInt(q.get('count') || '6', 10) || 6));
+  const { model, vocab } = await loadSpooky(env);
+  return json(spookify(name, { model, vocab, seed: q.get('seed') || '', count }), 200, NAMES_CORS);
+}
+
+function pumpkinRoute(url) {
+  const q = url.searchParams;
+  const seed = (q.get('seed') || q.get('s') || 'jack').slice(0, 80);
+  const p = carvePumpkin(seed, { mood: q.get('mood') || q.get('m') || undefined });
+  const svg = renderPumpkin(p, { lit: q.get('lit') !== '0', stencil: q.get('stencil') === '1', flicker: q.get('flicker') !== '0' });
+  return new Response(svg, {
+    headers: { 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400', ...NAMES_CORS },
+  });
 }
 
 async function sharpWords(url, env) {

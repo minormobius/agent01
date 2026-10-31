@@ -81,3 +81,4 @@ bsky/lib/vendor/
 # packages/cad — Rust build artefacts. The committed product is packages/cad/cad.wasm,
 # built by packages/cad/engine/build.sh; the target dir is not.
 packages/cad/engine/target/
+.attract-tmp/

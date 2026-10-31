@@ -223,6 +223,13 @@ export function generateWorld(seed, opts={}){
     const noise=(fbm3(p[0]*2.0,p[1]*2.0,p[2]*2.0,seed)-0.5)*(oi?0.30:0.22);
     if(!oi){const craton=pl.buoy*Math.exp(-(gd*gd)/(2*0.5*0.5));elevRaw[i]=0.10+craton+mf[i]*0.6+localF[i]*0.5+noise;}
     else{const sa=sfAge[i]<0?1:Math.sqrt(sfAge[i]/sfMax);elevRaw[i]=-0.20-0.50*sa+mf[i]*0.55+localF[i]*0.55+noise;}}
+  // OPTIONAL LAND MASK — opts.landmask = { field(p) → [-1,1] (>0 land), land:
+  // fraction } (lib/coast-mask.js turns a One Coast world into one). The mask
+  // steers the continents; the tectonic relief stays as texture. Absent, none of
+  // this runs and no rng is drawn, so every seed-only world is bit-identical
+  // (test/climate.selftest.mjs checksums prove it).
+  const landmask=opts.landmask||null;
+  if(landmask){for(let i=0;i<N;i++){const m=landmask.field(V[i]);elevRaw[i]=elevRaw[i]*0.35+Math.tanh(m*2.5)*0.55}}
   // cell areas (true spherical Voronoi area) — for water volume + drainage weight
   const triArea=(a,b,c)=>{const bc=cross(b,c);return 2*Math.atan2(Math.abs(dot(a,bc)),1+dot(a,b)+dot(b,c)+dot(c,a))};
   const area=new Float32Array(N);for(let i=0;i<N;i++){const cc2=cells[i];let s=0;for(let k=0;k<cc2.length;k++)s+=triArea(V[i],cc2[k],cc2[(k+1)%cc2.length]);area[i]=s}
@@ -232,7 +239,10 @@ export function generateWorld(seed, opts={}){
   const seaLevelByVolume=()=>{let eMin=1e9,eMax=-1e9;for(let i=0;i<N;i++){if(elevRaw[i]<eMin)eMin=elevRaw[i];if(elevRaw[i]>eMax)eMax=elevRaw[i]}
     const wv=h=>{let v=0;for(let i=0;i<N;i++){const d=h-elevRaw[i];if(d>0)v+=area[i]*d}return v};
     const Vt=wv(eMax)*waterFrac;let lo=eMin,hi=eMax;for(let it=0;it<40;it++){const m=(lo+hi)/2;if(wv(m)<Vt)lo=m;else hi=m}return (lo+hi)/2};
-  let sl=seaLevelByVolume();
+  // with a mask, sea level is set by the mask's land fraction instead (area quantile)
+  const seaLevelByLand=f=>{const idx=Array.from({length:N},(_,i)=>i).sort((a,b)=>elevRaw[a]-elevRaw[b]);let tot=0;for(let i=0;i<N;i++)tot+=area[i];
+    let acc=0;for(const i of idx){acc+=area[i];if(acc>=tot*(1-f))return elevRaw[i]}return elevRaw[idx[N-1]]};
+  let sl=landmask?seaLevelByLand(landmask.land):seaLevelByVolume();
   // HYDRAULIC EROSION — carve valleys ∝ drainage area, diffuse hillslopes. Gives
   // dendritic drainage networks (texture), sharp continental divides (rivers run
   // in carved valleys and never cross ridges), and eroded coastlines.
@@ -251,7 +261,7 @@ export function generateWorld(seed, opts={}){
      for(let i=0;i<N;i++){if(elevRaw[i]<=sl)continue;let s=0,c=0;for(const j of adj[i]){s+=ne[j];c++}ne[i]+=DIFF*(s/c-ne[i])}
      for(let i=0;i<N;i++)elevRaw[i]=ne[i];
    }}
-  sl=seaLevelByVolume(); // re-settle the sea once over the eroded topography
+  sl=landmask?seaLevelByLand(landmask.land):seaLevelByVolume(); // re-settle the sea once over the eroded topography
   const elev=new Float32Array(N);for(let i=0;i<N;i++)elev[i]=elevRaw[i]-sl; // 0 = shore
   // mild hypsometry compression (erosion already does most of the shaping)
   let landMax=1e-6;for(let i=0;i<N;i++)if(elev[i]>landMax)landMax=elev[i];

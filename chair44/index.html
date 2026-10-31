@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>chair44 — the first 3D einstein</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#1f6f8b">
+<meta name="description" content="Chair44, spinnable: seven unit cubes and 192 tiny square pyramids that tile space only aperiodically. It is the first strongly aperiodic monotile in three dimensions, found in 2026 with an AI model. Every count in the proof's finite census is recomputed live on this page.">
+
+<style>
+:root {
+  --bg: #f8f9f8;
+  --fg: #1f2326;
+  --muted: #6f7679;
+  --rule: #d3d8d8;
+  --accent: #1f6f8b;
+  --accent-faint: rgba(31, 111, 139, 0.13);
+  --accent-tint: rgba(31, 111, 139, 0.06);
+  --panel: #eef1f0;
+  --stage: #e6eaea;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --good: #2a6a4a;
+  --bad: #b04030;
+  --bump: #b8512f;
+  --dent: #2f6fb8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1113;
+    --fg: #dde2e3;
+    --muted: #8a9396;
+    --rule: #2c3538;
+    --accent: #5cc0dd;
+    --accent-faint: rgba(92, 192, 221, 0.16);
+    --accent-tint: rgba(92, 192, 221, 0.07);
+    --panel: #141a1c;
+    --stage: #080b0c;
+    --good: #6ec48f;
+    --bad: #d36a6a;
+    --bump: #e98a67;
+    --dent: #72a8ea;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif); line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* ---- the shell: object in the top two thirds, controls in the bottom third */
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel {
+  flex: 1 1 0; min-height: 0;
+  display: flex; flex-direction: column;
+  background: var(--panel); border-top: 1px solid var(--rule);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.head {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top));
+}
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+.verdict {
+  position: absolute; left: 0.7rem; bottom: 0.6rem;
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  border: 1px solid var(--rule); border-radius: 999px;
+  padding: 0.22rem 0.6rem; pointer-events: none;
+  max-width: calc(100% - 1.4rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.verdict.good { color: var(--good); }
+.verdict.bad { color: var(--bad); }
+.hint {
+  position: absolute; right: 0.7rem; top: 0.5rem;
+  font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.06em;
+  color: var(--muted); pointer-events: none; text-transform: uppercase;
+  transition: opacity 0.6s; opacity: 1;
+}
+.hint.gone { opacity: 0; }
+.nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; text-align: center; font-size: 0.85rem; color: var(--muted); }
+
+nav.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab {
+  flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em;
+  text-transform: uppercase; background: none; border: none;
+  border-bottom: 2px solid transparent; color: var(--muted);
+  padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+
+.modes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.3rem; margin-bottom: 0.5rem; }
+.knob { display: grid; grid-template-columns: 4.6rem 1fr 3.4rem; align-items: center; gap: 0.4rem; margin: 0.18rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.64rem; text-align: right; color: var(--fg); }
+.knob.off { opacity: 0.35; pointer-events: none; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
+button.act {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--rule);
+  border-radius: 5px; padding: 0.42rem 0.45rem; cursor: pointer; min-height: 2rem;
+}
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+button.act:disabled { opacity: 0.35; cursor: default; }
+.note { font-size: 0.78rem; color: var(--muted); margin: 0.5rem 0 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.25rem 0.6rem; font-family: var(--mono); font-size: 0.58rem; color: var(--muted); margin-top: 0.4rem; }
+.legend i { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -0.1rem; margin-right: 0.2rem; }
+
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.64rem; }
+table.facts td, table.facts th { padding: 0.28rem 0.2rem; border-bottom: 1px solid var(--rule); vertical-align: top; text-align: right; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.56rem; }
+table.facts td:first-child, table.facts th:first-child { text-align: left; color: var(--muted); }
+.good { color: var(--good); } .bad { color: var(--bad); }
+
+.recipe { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.7rem; }
+.recipe figure { margin: 0; }
+.recipe figcaption { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
+.recipe svg { width: 100%; height: auto; display: block; }
+.recipe .cell { fill: var(--bg); stroke: var(--rule); }
+.recipe .notch { fill: var(--accent-tint); }
+.recipe .pid { font-family: var(--mono); font-size: 15px; font-weight: 700; fill: var(--muted); text-anchor: middle; dominant-baseline: central; opacity: 0.55; }
+.recipe .c { font-family: var(--mono); font-size: 9.5px; text-anchor: middle; dominant-baseline: central; }
+.recipe .c.p { fill: var(--bump); } .recipe .c.m { fill: var(--dent); }
+
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose a:hover { text-decoration: underline; }
+.prose code { font-family: var(--mono); font-size: 0.8em; background: var(--accent-tint); padding: 0.05em 0.3em; border-radius: 3px; }
+.prose ul { margin: 0.4rem 0; padding-left: 1.1rem; }
+.prose li { margin: 0.25rem 0; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+
+@media (min-width: 860px) {
+  .app { flex-direction: row; }
+  .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 27rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; }
+  .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+@media (max-height: 460px) and (orientation: landscape) and (max-width: 859px) {
+  .app { flex-direction: row; }
+  .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 min(52%, 22rem); border-top: none; border-left: 1px solid var(--rule); }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://math.mino.mobi/">← math</a>
+      <h1>chair44</h1>
+      <span class="tagline">7 cubes · 192 pyramids · one shape</span>
+    </div>
+    <div class="stage">
+      <canvas id="gl"></canvas>
+      <div class="verdict" id="verdict">—</div>
+      <div class="hint" id="hint">drag · pinch · wheel</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-pane="view">view</button>
+      <button class="tab" data-pane="recipe">recipe</button>
+      <button class="tab" data-pane="check">check</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+
+      <div class="pane active" id="pane-view">
+        <div class="modes" id="modes">
+          <button class="act" data-mode="tile">tile</button>
+          <button class="act" data-mode="super">8</button>
+          <button class="act" data-mode="p64">64</button>
+          <button class="act" data-mode="p512">512</button>
+          <button class="act" data-mode="atlas">touch</button>
+        </div>
+        <div class="knob" id="k-height">
+          <label for="height">bumps ×</label>
+          <input type="range" id="height" min="0" max="3" step="0.01" value="1.903">
+          <output id="heightv"></output>
+        </div>
+        <div class="knob" id="k-base">
+          <label for="base">width ×</label>
+          <input type="range" id="base" min="1" max="6" step="0.1" value="5">
+          <output id="basev"></output>
+        </div>
+        <div class="knob" id="k-explode">
+          <label for="explode">explode</label>
+          <input type="range" id="explode" min="0" max="0.8" step="0.01" value="0.25">
+          <output id="explodev"></output>
+        </div>
+        <div class="row" id="atlasRow" hidden>
+          <button class="act" id="prev">◀</button>
+          <button class="act" id="next">▶</button>
+          <button class="act" id="illegal">try an illegal one</button>
+        </div>
+        <div class="row">
+          <button class="act" id="tFeat" aria-pressed="true">pyramids</button>
+          <button class="act" id="tEdges" aria-pressed="true">edges</button>
+          <button class="act" id="tSpin" aria-pressed="true">spin</button>
+          <button class="act" id="tHome">recentre</button>
+        </div>
+        <div class="legend" id="legend"></div>
+        <p class="note" id="modeNote"></p>
+      </div>
+
+      <div class="pane" id="pane-recipe">
+        <p class="note" style="margin-top:0">The whole tile, as published: 24 unit panels, each with eight square pyramids at (±⅛, ±¼) and (±¼, ±⅛) from its centre. The small number is the signed height in units of 1/10000 of a cube edge, <span style="color:var(--bump)">+ a bump</span> or <span style="color:var(--dent)">− a dent</span>; the big grey one is the panel's id. The tinted squares are the three panels inside the notch. Axes are global, so for −x, +y and −z you are looking from inside.</p>
+        <div class="recipe" id="recipe"></div>
+      </div>
+
+      <div class="pane" id="pane-check">
+        <table class="facts"><thead><tr><th>claim</th><th>paper</th><th>here</th></tr></thead><tbody id="checks"><tr><td colspan="3">computing…</td></tr></tbody></table>
+        <p class="note">Everything in the <em>here</em> column is recomputed in your browser, from the 192 numbers in the <em>recipe</em> tab, when you open this tab. No count is copied from the paper. The same module, unchanged, is held to these numbers by <code>tile.selftest.mjs</code>, which also checks the 44 against the paper's own table one pose at a time.</p>
+      </div>
+
+      <div class="pane prose" id="pane-about">
+        <h2>The news</h2>
+        <p>In September 2026 Ioannis Tsiokos, a software developer in Athens, posted <a href="https://arxiv.org/abs/2609.19214">a preprint</a> describing a solid that fills space, but only in patterns that never repeat. He had found it by prompting an AI model, OpenAI's GPT-6 Astra, which also wrote a formal proof in Lean. He calls it <strong>Chair44</strong>. Within days Felix Flicker <a href="https://arxiv.org/abs/2609.23783">reproduced the finite enumerations</a> and found simpler matching rules that force the same tiling. Chaim Goodman-Strauss, one of the four people behind the 2023 “hat”, published <a href="https://arxiv.org/abs/2609.24779">short notes</a> that redraw the tile and give a much cleaner proof. He admired the result and was sharp about the preprint's form.</p>
+
+        <h2>What it is</h2>
+        <p>Take a 2×2×2 block of cubes and remove one corner cube. What's left is the <strong>chair</strong>. Eight chairs fit together into a chair twice the size (the <em>8</em> view), eight of those into one four times the size (<em>64</em>), and so on forever. That alone gives a tiling with no period. But plain chairs can also stack periodically, so the shape by itself proves nothing.</p>
+        <p>Chair44 fixes that with tiny <strong>square pyramids</strong>, eight on each of the 24 unit squares on its surface, 192 in all. Some stick out and some are dents. There are twelve heights, from 1/10000 to 12/10000 of a cube edge. A bump fits only into a dent of exactly the same height, so where two tiles touch, every pyramid across the shared square must pair up. At true scale you could not see them. The <em>bumps ×</em> slider exaggerates them up to 1000 times, and the colours pair each height with its matching dent.</p>
+
+        <h2>Why it cannot repeat</h2>
+        <p>Of the 2,388 ways a second chair can press a face against the first without overlapping, the pyramids allow exactly <strong>44</strong> (the <em>touch</em> view steps through them). Every one of the 44 is a rotation; none is a mirror image. So any tiling uses one handedness only.</p>
+        <p>The proof then shows that those 44 local fits force every tile into a unique doubled chair (the 8-chair cut, in this orientation). The doubled chairs meet each other in exactly the same 44 ways, at twice the scale. That last step is the <em>check</em> tab's 697 → 116 → 44, which equals the atlas at twice the size. So they form doubled-doubled chairs, and so on at every scale. A tiling with a period <em>v</em> would then also have periods <em>v</em>/2, <em>v</em>/4, … which is impossible unless <em>v</em> = 0. Its symmetries are also capped at the 24 rotations of a cube, so no screw motion survives. That makes it <strong>strongly</strong> aperiodic, which is what distinguishes it from earlier 3D tiles like the Schmitt–Conway–Danzer biprism.</p>
+
+        <h2>What this page does and does not check</h2>
+        <p>It recomputes the <em>finite</em> census the proof rests on, from the recipe, with integer arithmetic: 2,388 → 44, the 19 rotations and that they generate all 24, the unique legal cut of the doubled chair, 697 → 116 → 44 for the parents and their halving back to the atlas, no symmetry of the decorated tile but the identity, and every contact inside the 64- and 512-chair patches is one of the 44. It does <em>not</em> check the continuous-geometry part: that pyramids of these exact angles cannot slide into any non-grid position. The paper handles that with its registration lemmas, and Lean checks the rest.</p>
+        <p>The pyramids are placed as the paper places them. The only liberty taken is the drawing exaggeration, and the mesh is checked to stay a closed surface of volume exactly 7 with it on.</p>
+
+        <div class="crossref">
+          sisters ·
+          <a href="https://math.mino.mobi/">geometry</a> ·
+          <a href="https://math.mino.mobi/szilassi/">szilassi</a> ·
+          <a href="https://math.mino.mobi/csaszar/">császár</a> ·
+          <a href="https://math.mino.mobi/voronoi/">voronoi</a> ·
+          <a href="https://math.mino.mobi/conjectures/">conjectures</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as T from './tile.js';
+
+const $ = (id) => document.getElementById(id);
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const hex = (h) => { h = h.replace('#', ''); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); };
+
+// ================================================================= state ===
+const MODES = ['tile', 'super', 'p64', 'p512', 'atlas'];
+const state = {
+  mode: 'tile',
+  height: 1.903,  // log10 of exaggeration: 10^1.903 ≈ 80×, the paper's own figures
+  base: 5,
+  explode: 0.25,
+  features: true,
+  edges: true,
+  spin: true,
+  atlasIndex: 0,
+  illegal: null,  // an illegal pose being shown in the touch view
+};
+const SLOT = ['#d1495b', '#edae49', '#66a182', '#00798c', '#30638e', '#8d6cab', '#c76b98', '#9a9a9a'];
+const SLOT_RGB = SLOT.map(hex);
+const BODY = [0.8, 0.82, 0.83]; // a neutral body, so the pyramids carry the colour
+
+// magnitude j → a hue; bumps and dents of the same j share it
+function featureRGB(a) {
+  const j = Math.abs(a);
+  const h = ((j - 1) / 12) * 330 + 10;
+  const s = 0.7, l = a > 0 ? 0.56 : 0.42;
+  const k = (n) => (n + h / 30) % 12;
+  const f = (n) => l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return [f(0), f(8), f(4)];
+}
+
+// ================================================================ scene ====
+let ATLAS = null, ILLEGAL = null;
+function atlasList() {
+  if (!ATLAS) {
+    const all = T.neighbourPoses();
+    ATLAS = all.filter((x) => x.legal).map((x) => x.P);
+    ILLEGAL = all.filter((x) => !x.legal).map((x) => x.P);
+  }
+  return ATLAS;
+}
+
+/** The tiles to draw for the current mode: [{P, rgb}]. */
+function sceneTiles() {
+  const I = T.pose(T.IDENTITY, [0, 0, 0]);
+  if (state.mode === 'tile') return [{ P: I, rgb: BODY }];
+  if (state.mode === 'super') return T.patch(1).map((t) => ({ P: t.P, rgb: SLOT_RGB[t.path[0]], path: t.path }));
+  if (state.mode === 'p64' || state.mode === 'p512') {
+    const lvl = state.mode === 'p64' ? 2 : 3;
+    return T.patch(lvl).map((t) => ({ ...t, rgb: null })).map((t) => {
+      const c = SLOT_RGB[t.path[0]];
+      const shade = 0.72 + 0.28 * (t.path[1] / 7);
+      return { P: t.P, rgb: c.map((v) => v * shade), path: t.path };
+    });
+  }
+  const A = atlasList();
+  const other = state.illegal || A[state.atlasIndex];
+  return [{ P: I, rgb: BODY }, { P: other, rgb: state.illegal ? hex(css('--bad')) : SLOT_RGB[3] }];
+}
+
+// carrier crease edges in cube units, computed once from the panels
+const CREASES = (() => {
+  const m = new Map();
+  for (const p of T.PANELS) {
+    const c = p.c.map((v) => v / T.E);
+    const corner = (a, b) => c.map((v, i) => v + a * p.e1[i] / 2 + b * p.e2[i] / 2);
+    const cs = [corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1)];
+    for (let k = 0; k < 4; k++) {
+      const a = cs[k], b = cs[(k + 1) % 4];
+      const key = [a.join(), b.join()].sort().join('|');
+      if (!m.has(key)) m.set(key, { a, b, n: [] });
+      m.get(key).n.push(p.n.join());
+    }
+  }
+  return [...m.values()].filter((e) => new Set(e.n).size > 1).map((e) => [e.a, e.b]);
+})();
+const CENTROID = (() => {
+  const s = [0, 0, 0];
+  for (const c of T.CELLS) for (let i = 0; i < 3; i++) s[i] += c[i] + 0.5;
+  return s.map((v) => v / 7);
+})();
+
+let meshCache = { key: '', m: null };
+function baseMesh(features) {
+  const height = Math.pow(10, state.height) * T.TRUE_HEIGHT;
+  const base = state.base * T.TRUE_BASE;
+  const key = features + ':' + height + ':' + base;
+  if (meshCache.key !== key) meshCache = { key, m: T.mesh({ features, height, base }) };
+  return meshCache.m;
+}
+
+function featuresAllowed() { return state.mode !== 'p64' && state.mode !== 'p512'; }
+
+function buildGeometry() {
+  const tiles = sceneTiles();
+  const feats = state.features && featuresAllowed();
+  const m = baseMesh(feats);
+  const nv = m.pos.length / 3;
+  const data = new Float32Array(tiles.length * nv * 9);
+  const lines = new Float32Array(state.edges ? tiles.length * CREASES.length * 2 * 9 : 0);
+  // explode hierarchically: each chair moves away from its parent's centre, each
+  // parent from its grandparent's, and the coarser gaps are the wider ones — so
+  // the nesting reads at a glance instead of as a uniform cloud of chairs
+  const cents = tiles.map((t) => T.place(t.P, CENTROID));
+  const mid = [0, 1, 2].map((i) => cents.reduce((s, c) => s + c[i], 0) / cents.length);
+  const node = new Map();
+  tiles.forEach((t, ti) => {
+    const path = t.path || [];
+    for (let d = 0; d <= path.length; d++) {
+      const k = path.slice(0, d).join('');
+      const e = node.get(k) || { s: [0, 0, 0], n: 0 };
+      for (let i = 0; i < 3; i++) e.s[i] += cents[ti][i];
+      e.n++; node.set(k, e);
+    }
+  });
+  const nodeC = (k) => { const e = node.get(k); return e.s.map((v) => v / e.n); };
+  const offsets = tiles.map((t, ti) => {
+    const path = t.path || [];
+    const L = path.length;
+    if (!L) return cents[ti].map((v, i) => (v - mid[i]) * state.explode);
+    const o = [0, 0, 0];
+    for (let d = 1; d <= L; d++) {
+      const a = nodeC(path.slice(0, d - 1).join('')), b = nodeC(path.slice(0, d).join(''));
+      const w = state.explode * (L - d + 1);
+      for (let i = 0; i < 3; i++) o[i] += (b[i] - a[i]) * w;
+    }
+    return o;
+  });
+  let o = 0, lo = 0;
+  const lineRGB = hex(css('--fg'));
+  tiles.forEach((t, ti) => {
+    const off = offsets[ti];
+    const G = t.P.f;
+    for (let v = 0; v < nv; v++) {
+      const p = T.act(G, [m.pos[3 * v], m.pos[3 * v + 1], m.pos[3 * v + 2]]);
+      const n = T.act(G, [m.nrm[3 * v], m.nrm[3 * v + 1], m.nrm[3 * v + 2]]);
+      const a = m.tag[v];
+      const rgb = a ? featureRGB(a) : t.rgb;
+      data[o++] = p[0] + t.P.t[0] + off[0]; data[o++] = p[1] + t.P.t[1] + off[1]; data[o++] = p[2] + t.P.t[2] + off[2];
+      data[o++] = n[0]; data[o++] = n[1]; data[o++] = n[2];
+      data[o++] = rgb[0]; data[o++] = rgb[1]; data[o++] = rgb[2];
+    }
+    if (state.edges) for (const [a, b] of CREASES) for (const q of [a, b]) {
+      const p = T.place(t.P, q);
+      lines[lo++] = p[0] + off[0]; lines[lo++] = p[1] + off[1]; lines[lo++] = p[2] + off[2];
+      lines[lo++] = 0; lines[lo++] = 0; lines[lo++] = 0;
+      lines[lo++] = lineRGB[0]; lines[lo++] = lineRGB[1]; lines[lo++] = lineRGB[2];
+    }
+  });
+  // bounding radius for framing
+  let r = 0;
+  for (let i = 0; i < data.length; i += 9) r = Math.max(r, Math.hypot(data[i] - mid[0], data[i + 1] - mid[1], data[i + 2] - mid[2]));
+  return { data, lines, mid, r, tris: data.length / 27 };
+}
+
+// ============================================================= renderer ===
+const canvas = $('gl');
+const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
+let prog, loc, buf, lbuf, geo = null;
+const VERT = `
+attribute vec3 aPos; attribute vec3 aNormal; attribute vec3 aColor;
+uniform mat4 uMVP; uniform mat3 uN;
+varying vec3 vN; varying vec3 vC;
+void main() { vN = uN * aNormal; vC = aColor; gl_Position = uMVP * vec4(aPos, 1.0); }`;
+const FRAG = `
+precision mediump float;
+varying vec3 vN; varying vec3 vC; uniform float uFlat;
+void main() {
+  vec3 n = normalize(vN);
+  vec3 L1 = normalize(vec3(0.45, 0.7, 0.55)), L2 = normalize(vec3(-0.6, -0.2, 0.4));
+  float d = abs(dot(n, L1)) * 0.62 + abs(dot(n, L2)) * 0.24 + 0.32;
+  vec3 c = mix(vC * d, vC, uFlat);
+  gl_FragColor = vec4(c, 1.0);
+}`;
+if (!gl) {
+  canvas.remove();
+  const d = document.createElement('div');
+  d.className = 'nogl';
+  d.textContent = 'This page draws the tile with WebGL, which this browser has not offered. The maths still runs: see the check tab.';
+  document.querySelector('.stage').appendChild(d);
+} else {
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  loc = {
+    aPos: gl.getAttribLocation(prog, 'aPos'), aNormal: gl.getAttribLocation(prog, 'aNormal'), aColor: gl.getAttribLocation(prog, 'aColor'),
+    uMVP: gl.getUniformLocation(prog, 'uMVP'), uN: gl.getUniformLocation(prog, 'uN'), uFlat: gl.getUniformLocation(prog, 'uFlat'),
+  };
+  buf = gl.createBuffer(); lbuf = gl.createBuffer();
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.POLYGON_OFFSET_FILL);
+  gl.polygonOffset(1, 1);
+}
+
+const cam = { yaw: -0.75, pitch: 0.5, zoom: 1, pan: [0, 0] };
+const HOME = { yaw: -0.75, pitch: 0.5, zoom: 1 };
+let needDraw = true, needBuild = true;
+
+function mul(a, b) {
+  const r = new Float32Array(16);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; r[i * 4 + j] = s;
+  }
+  return r;
+}
+function persp(fovy, asp, n, f) {
+  const t = 1 / Math.tan(fovy / 2);
+  return new Float32Array([t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1, 0, 0, 2 * f * n / (n - f), 0]);
+}
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; needDraw = true; }
+}
+
+function draw() {
+  if (!gl) return;
+  if (needBuild) { geo = buildGeometry(); needBuild = false; writeVerdict(); }
+  resize();
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  const bg = hex(css('--stage'));
+  gl.clearColor(bg[0], bg[1], bg[2], 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  const asp = canvas.width / canvas.height;
+  const fov = 0.62;
+  const R = geo.r || 1;
+  const dist = (R / Math.sin(fov / 2)) * (asp < 1 ? 1 / asp : 1) * 1.2 / cam.zoom;
+  // rotation: yaw about world z (up), then pitch
+  const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+  // world → view: z-up world, camera looks along −z of view
+  const Rm = [
+    cy, -sy * cp, sy * sp,
+    sy, cy * cp, -cy * sp,
+    0, sp, cp,
+  ];
+  // columns of the rotation (view axes expressed in world)
+  const view = new Float32Array([
+    Rm[0], Rm[1], Rm[2], 0,
+    Rm[3], Rm[4], Rm[5], 0,
+    Rm[6], Rm[7], Rm[8], 0,
+    0, 0, 0, 1,
+  ]);
+  const tr = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -geo.mid[0], -geo.mid[1], -geo.mid[2], 1]);
+  const back = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, cam.pan[0] * R, cam.pan[1] * R, -dist, 1]);
+  const mvp = mul(persp(fov, asp, dist * 0.05, dist + R * 4), mul(back, mul(view, tr)));
+  const nm = new Float32Array([Rm[0], Rm[1], Rm[2], Rm[3], Rm[4], Rm[5], Rm[6], Rm[7], Rm[8]]);
+  gl.uniformMatrix4fv(loc.uMVP, false, mvp);
+  gl.uniformMatrix3fv(loc.uN, false, nm);
+  const bind = (b, d) => {
+    gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    if (d) gl.bufferData(gl.ARRAY_BUFFER, d, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 3, gl.FLOAT, false, 36, 0);
+    gl.enableVertexAttribArray(loc.aNormal); gl.vertexAttribPointer(loc.aNormal, 3, gl.FLOAT, false, 36, 12);
+    gl.enableVertexAttribArray(loc.aColor); gl.vertexAttribPointer(loc.aColor, 3, gl.FLOAT, false, 36, 24);
+  };
+  if (geo.uploaded !== true) { bind(buf, geo.data); bind(lbuf, geo.lines); geo.uploaded = true; }
+  bind(buf);
+  gl.uniform1f(loc.uFlat, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, geo.data.length / 9);
+  if (state.edges && geo.lines.length) {
+    bind(lbuf);
+    gl.uniform1f(loc.uFlat, 0.85);
+    gl.drawArrays(gl.LINES, 0, geo.lines.length / 9);
+  }
+}
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (state.spin && !drag) { cam.yaw += dt * 0.25; needDraw = true; }
+  if (needDraw || needBuild) { draw(); needDraw = false; }
+  requestAnimationFrame(loop);
+}
+
+// ============================================================== gestures ===
+let drag = null;
+const pointers = new Map();
+canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  drag = { x: e.clientX, y: e.clientY };
+  $('hint').classList.add('gone');
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pointers.size === 1) {
+    cam.yaw += (e.clientX - prev[0]) * 0.008;
+    cam.pitch = Math.max(-1.5, Math.min(1.5, cam.pitch + (e.clientY - prev[1]) * 0.008));
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const other = a === pointers.get(e.pointerId) ? b : a;
+    const d0 = Math.hypot(prev[0] - other[0], prev[1] - other[1]);
+    const d1 = Math.hypot(e.clientX - other[0], e.clientY - other[1]);
+    if (d0 > 0) cam.zoom = Math.max(0.3, Math.min(8, cam.zoom * d1 / d0));
+    const h = canvas.clientHeight || 1;
+    cam.pan[0] += (e.clientX - prev[0]) / h / cam.zoom;
+    cam.pan[1] -= (e.clientY - prev[1]) / h / cam.zoom;
+  }
+  needDraw = true;
+});
+const up = (e) => { pointers.delete(e.pointerId); if (!pointers.size) drag = null; };
+canvas.addEventListener('pointerup', up);
+canvas.addEventListener('pointercancel', up);
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); cam.zoom = Math.max(0.3, Math.min(8, cam.zoom * Math.exp(-e.deltaY * 0.0015))); needDraw = true; }, { passive: false });
+canvas.addEventListener('dblclick', () => home());
+function home() { Object.assign(cam, HOME, { pan: [0, 0] }); needDraw = true; }
+
+// ============================================================== controls ===
+const NOTES = {
+  tile: 'One Chair44: a 2×2×2 block with a corner removed, and eight pyramids on each of its 24 unit squares. Slide <em>bumps ×</em> to 0 to see it at true scale, where it is indistinguishable from a plain chair.',
+  super: 'The eight-chair cut of the doubled chair (the paper\'s Table 1). The grey one sits in the notch and touches all seven others. Of the 3⁸ ways to orient the eight pieces, only this cut (up to turning the whole doubled chair) makes every pyramid pair up.',
+  p64: 'Two levels: 64 chairs filling the chair at four times the size. Colour is the level-1 parent, and shade is the slot within it. 183 internal contacts, every one of them one of the 44.',
+  p512: 'Three levels: 512 chairs, 8× the size. All 1,663 contacts inside are legal atlas poses. Pyramids are off at this size. Pull <em>explode</em> apart to see the nesting.',
+  atlas: 'Every legal way a second chair can press a face against the first (grey). There are 44, all rotations and never a mirror. <em>Try an illegal one</em> draws one of the other 2,344 poses in red: the carriers fit perfectly, but the pyramids don\'t.',
+};
+function writeLegend() {
+  const L = $('legend');
+  if (state.mode === 'super' || state.mode === 'p64' || state.mode === 'p512') {
+    L.innerHTML = T.CHILDREN.map((c, i) => `<span><i style="background:${SLOT[i]}"></i>${c.name}</span>`).join('');
+  } else if (state.features) {
+    L.innerHTML = [1, 3, 6, 9, 12].map((j) => {
+      const c = featureRGB(j).map((v) => Math.round(v * 255)).join(',');
+      return `<span><i style="background:rgb(${c})"></i>±${j}</span>`;
+    }).join('') + '<span>· lighter bump, darker dent</span>';
+  } else L.innerHTML = '';
+}
+function writeVerdict() {
+  const V = $('verdict');
+  V.className = 'verdict';
+  const n = geo ? Math.round(geo.tris).toLocaleString() : '—';
+  if (state.mode === 'atlas') {
+    if (state.illegal) {
+      const r = T.contact(T.pose(T.IDENTITY, [0, 0, 0]), state.illegal);
+      V.textContent = `illegal · ${T.frameKey(state.illegal.f)} @ ${state.illegal.t.join(',')} · ${r.shared} shared panel${r.shared > 1 ? 's' : ''}, pyramids clash`;
+      V.classList.add('bad');
+    } else {
+      const P = atlasList()[state.atlasIndex];
+      V.textContent = `contact ${state.atlasIndex + 1} / 44 · frame ${T.frameKey(P.f)} · offset ${P.t.join(',')}`;
+      V.classList.add('good');
+    }
+    return;
+  }
+  const count = { tile: 1, super: 8, p64: 64, p512: 512 }[state.mode];
+  const ex = Math.pow(10, state.height);
+  V.textContent = `${count} chair${count > 1 ? 's' : ''} · ${n} triangles` + (state.features && featuresAllowed() ? ` · pyramids ×${ex < 10 ? ex.toFixed(1) : Math.round(ex)} tall` : '');
+}
+function syncControls() {
+  for (const b of $('modes').children) b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode));
+  $('atlasRow').hidden = state.mode !== 'atlas';
+  $('k-explode').classList.toggle('off', state.mode === 'tile');
+  const fa = featuresAllowed();
+  $('tFeat').disabled = !fa;
+  $('k-height').classList.toggle('off', !fa || !state.features);
+  $('k-base').classList.toggle('off', !fa || !state.features);
+  $('tFeat').setAttribute('aria-pressed', String(state.features && fa));
+  $('tEdges').setAttribute('aria-pressed', String(state.edges));
+  $('tSpin').setAttribute('aria-pressed', String(state.spin));
+  const ex = Math.pow(10, state.height);
+  $('heightv').textContent = state.height === 0 ? 'true' : (ex < 10 ? ex.toFixed(1) : Math.round(ex)) + '×';
+  $('basev').textContent = state.base.toFixed(1) + '×';
+  $('explodev').textContent = state.explode.toFixed(2);
+  $('height').value = state.height; $('base').value = state.base; $('explode').value = state.explode;
+  $('modeNote').innerHTML = NOTES[state.mode];
+  writeLegend();
+}
+function rebuild() { needBuild = true; syncControls(); pushURL(); }
+
+for (const b of $('modes').children) b.addEventListener('click', () => {
+  state.mode = b.dataset.mode; state.illegal = null;
+  rebuild(); home();
+});
+$('height').addEventListener('input', (e) => { state.height = +e.target.value; rebuild(); });
+$('base').addEventListener('input', (e) => { state.base = +e.target.value; rebuild(); });
+$('explode').addEventListener('input', (e) => { state.explode = +e.target.value; rebuild(); });
+$('tFeat').addEventListener('click', () => { state.features = !state.features; rebuild(); });
+$('tEdges').addEventListener('click', () => { state.edges = !state.edges; rebuild(); });
+$('tSpin').addEventListener('click', () => { state.spin = !state.spin; syncControls(); });
+$('tHome').addEventListener('click', home);
+$('prev').addEventListener('click', () => { state.illegal = null; state.atlasIndex = (state.atlasIndex + 43) % 44; rebuild(); });
+$('next').addEventListener('click', () => { state.illegal = null; state.atlasIndex = (state.atlasIndex + 1) % 44; rebuild(); });
+$('illegal').addEventListener('click', () => { atlasList(); state.illegal = ILLEGAL[Math.floor(Math.random() * ILLEGAL.length)]; rebuild(); });
+
+for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => {
+  for (const u of document.querySelectorAll('.tab')) u.classList.toggle('active', u === t);
+  for (const p of document.querySelectorAll('.pane')) p.classList.toggle('active', p.id === 'pane-' + t.dataset.pane);
+  if (t.dataset.pane === 'check') runChecks();
+});
+
+// ================================================================== URL ===
+function pushURL() {
+  const q = new URLSearchParams();
+  if (state.mode !== 'tile') q.set('m', state.mode);
+  if (state.mode === 'atlas') q.set('c', state.atlasIndex + 1);
+  history.replaceState(null, '', q.toString() ? '#' + q : location.pathname);
+}
+function readURL() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (MODES.includes(q.get('m'))) state.mode = q.get('m');
+  const c = +q.get('c');
+  if (c >= 1 && c <= 44) state.atlasIndex = c - 1;
+}
+
+// =============================================================== recipe ===
+function drawRecipe() {
+  const ORDER = ['-x', '+x', '-y', '+y', '-z', '+z'];
+  const AX = { x: ['y', 'z'], y: ['x', 'z'], z: ['x', 'y'] };
+  const S = 100;
+  $('recipe').innerHTML = ORDER.map((nrm) => {
+    const rows = T.RECIPE.filter((r) => r[1] === nrm);
+    const cells = rows.map(([id, , col, row, feats]) => {
+      const x0 = col * S, y0 = (1 - row) * S;
+      const cx = x0 + S / 2, cy = y0 + S / 2;
+      const notch = T.NOTCH.includes(id);
+      return `<rect class="cell${notch ? ' notch' : ''}" x="${x0}" y="${y0}" width="${S}" height="${S}"/>` +
+        `<text class="pid" x="${cx}" y="${cy}">${id}</text>` +
+        feats.map(([u, v, a]) => `<text class="c ${a > 0 ? 'p' : 'm'}" x="${cx + u * S / 8}" y="${cy - v * S / 8}">${a > 0 ? '+' : '−'}${Math.abs(a)}</text>`).join('');
+    }).join('');
+    const [a1, a2] = AX[nrm[1]];
+    return `<figure><figcaption>normal ${nrm.replace('-', '−')} · ${a1} → , ${a2} ↑</figcaption><svg viewBox="-1 -1 ${2 * S + 2} ${2 * S + 2}">${cells}</svg></figure>`;
+  }).join('');
+}
+
+// ================================================================ checks ===
+let checked = false;
+function runChecks() {
+  if (checked) return;
+  checked = true;
+  setTimeout(() => {
+    const t0 = performance.now();
+    const rows = [];
+    const row = (claim, paper, got) => rows.push([claim, paper, got, String(paper) === String(got)]);
+    const all = T.PANELS.flatMap((p) => p.features.map((q) => q.a));
+    row('panels', 24, T.PANELS.length);
+    row('pyramids', 192, all.length);
+    row('Σ signed heights (bumps − dents)', 0, all.reduce((s, a) => s + a, 0));
+    const vol = T.volume(T.mesh().pos);
+    row('volume of the true solid', 7, +vol.toFixed(9));
+    row('grid cells touching it', 22, T.shellCells().length);
+    const N = T.neighbourPoses();
+    const A = N.filter((x) => x.legal);
+    row('face-neighbour poses', '2388', N.length);
+    row('…legal (the atlas)', 44, A.length);
+    row('…legal mirror images', 0, A.filter((x) => !x.proper).length);
+    row('rotations used by the atlas', 19, new Set(A.map((x) => T.frameKey(x.P.f))).size);
+    const D = T.dissections();
+    row('cuts of 2P into 8 bare chairs', 1, D.covers);
+    row('…decorated cuts that fit (Table 1 × its 3 turns)', 3, D.decorated.filter((d) => d.legal).length);
+    const pa = T.parentAtlas(A.map((x) => x.P));
+    row('candidate parent contacts', 697, pa.candidates);
+    row('…with disjoint bodies', 116, pa.disjoint);
+    row('…legal', 44, pa.legal.length);
+    const half = new Set(pa.legal.map((R) => T.poseKey(T.pose(R.f, R.t.map((v) => v / 2)))));
+    row('½ · parent atlas = atlas', 'yes', A.every((x) => half.has(T.poseKey(x.P))) ? 'yes' : 'no');
+    row('symmetries of the bare chair', 6, T.selfSymmetries({ decorated: false }).length);
+    row('symmetries of Chair44', 1, T.selfSymmetries().length);
+    for (const [l, n] of [[2, 64], [3, 512]]) {
+      const cs = T.contactsWithin(T.patch(l));
+      row(`${n}-chair patch: illegal contacts`, 0, cs.filter((c) => !c.ok).length);
+    }
+    const ms = Math.round(performance.now() - t0);
+    $('checks').innerHTML = rows.map(([c, p, g, ok]) => `<tr><td>${c}</td><td>${p}</td><td class="${ok ? 'good' : 'bad'}">${g}</td></tr>`).join('') +
+      `<tr><td>computed in</td><td></td><td>${ms} ms</td></tr>`;
+  }, 30);
+}
+
+// ================================================================= start ===
+readURL();
+drawRecipe();
+syncControls();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { needBuild = true; writeLegend(); });
+window.addEventListener('resize', () => { needDraw = true; });
+setTimeout(() => $('hint').classList.add('gone'), 4000);
+if (gl) requestAnimationFrame(loop);
+</script>
+</body>
+</html>

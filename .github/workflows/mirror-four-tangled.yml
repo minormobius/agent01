@@ -1,0 +1,89 @@
+name: Mirror four's solvers to Tangled
+
+# Publishes four.mino.mobi's solvers as their own small, MIT-licensed repo on tangled, so someone who wants the
+# methods (atoms, Hartree–Fock, molecular dynamics, searches, stars, orbits, nebulae, geometry, all for any number of
+# dimensions) clones a few hundred kilobytes instead of the monorepo, under a licence the monorepo doesn't carry.
+#
+#   git@tangled.org:<TANGLED_HANDLE>/<TANGLED_REPO>
+#
+# What ships is decided by four/mirror/build.mjs: the no-DOM modules at their own paths, a known-answer test assembled
+# from the site's selftest (the blocks that check methods, not baked data), its fixture, README.md and LICENSE (MIT).
+# The staged copy has to pass its own test before anything is pushed.
+#
+# The repo is created once on tangled by its owner (same account and key as mirror-cad-tangled.yml:
+# TANGLED_SSH_KEY_MORPHYX under morphyxmino.bsky.social). Until it exists the push is skipped with a notice, not an
+# error. Force-push: the mirror has no history of its own.
+
+on:
+  push:
+    branches: ['claude/minesweeper-voronoi-mesh-4hc4ir']
+    paths:
+      - 'four/atom/js/**'
+      - 'four/lumen/js/optics.js'
+      - 'four/atom/test/atom4.selftest.mjs'
+      - 'four/atom/test/fixtures/**'
+      - 'four/mirror/**'
+      - '.github/workflows/mirror-four-tangled.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-four-tangled
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      TANGLED_KNOT: tangled.org
+      TANGLED_HANDLE: morphyxmino.bsky.social
+      TANGLED_REPO: four
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Stage the mirror and prove it runs alone
+        run: |
+          set -euo pipefail
+          OUT="$(mktemp -d)/four"
+          node four/mirror/build.mjs "$OUT"
+          ( cd "$OUT" && node atom/test/methods.selftest.mjs | tail -1 )
+          echo "OUT=$OUT" >> "$GITHUB_ENV"
+          echo "staged $(find "$OUT" -type f | wc -l) files, $(du -sh "$OUT" | cut -f1)"
+
+      - name: Set up SSH deploy key
+        run: |
+          test -n "${{ secrets.TANGLED_SSH_KEY_MORPHYX }}" || { echo "✗ secret TANGLED_SSH_KEY_MORPHYX not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.TANGLED_SSH_KEY_MORPHYX }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # IPv4: the knot sits behind Cloudflare and the runner usually has no IPv6 route
+          ssh-keyscan -4 -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Force-push to tangled (skipped until the repo exists)
+        run: |
+          set -euo pipefail
+          export GIT_SSH_COMMAND="ssh -4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519"
+          REMOTE="git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${TANGLED_REPO}"
+          if ! git ls-remote "$REMOTE" >/dev/null 2>&1; then
+            echo "::notice::tangled repo ${TANGLED_HANDLE}/${TANGLED_REPO} not reachable yet: create it on tangled, then push again. Staged and tested; nothing pushed."
+            echo "### four: staged and tested, not pushed (create ${TANGLED_HANDLE}/${TANGLED_REPO} on tangled)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          cd "$OUT"
+          git init -q -b main
+          git add -A
+          git -c user.name='four-mirror' -c user.email='mirror@morphyxmino.bsky.social' \
+            commit -qm "mirror four's solvers — ${GITHUB_SHA::7}, $(date -u +%Y-%m-%d)"
+          git remote add origin "$REMOTE"
+          # the knot rate-limits by address; wait and push again
+          for attempt in 1 2 3 4; do
+            if git push -f origin main; then break; fi
+            [ "$attempt" = 4 ] && { echo "✗ the knot refused the push four times"; exit 1; }
+            echo "  push refused (attempt $attempt); waiting $((attempt * 30)) s"; sleep $((attempt * 30))
+          done
+          echo "✓ mirrored four's solvers → ${TANGLED_HANDLE}/${TANGLED_REPO} on ${TANGLED_KNOT}"
+          echo "### four mirrored" >> "$GITHUB_STEP_SUMMARY"
+          echo "git clone https://tangled.org/${TANGLED_HANDLE}/${TANGLED_REPO}" >> "$GITHUB_STEP_SUMMARY"

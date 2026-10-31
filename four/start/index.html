@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="Where we are: a universe with four dimensions of space, from why it has no atoms to which molecule might be its water, in eleven steps, each with a toy to try and a link to the full working." />
+<title>Four · where we are</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../atom/css/atom4.css" />
+<style>
+  header, section { max-width: 860px; }
+  .step { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 30px; }
+  .step h3 { margin: 10px 0 4px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .step h3 .num { color: var(--dim); font-size: 13px; }
+  .tag { font: 600 10px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; border: 1px solid; }
+  .tag.choice { color: #c79bff; border-color: #c79bff66; } .tag.follows { color: #6fe0ff; border-color: #6fe0ff66; }
+  .tag.computed { color: #7dffb0; border-color: #7dffb066; } .tag.open { color: #ffd166; border-color: #ffd16666; }
+  .toy { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 12px 0 8px; }
+  .toy canvas.chart { height: 240px; margin: 4px 0; background: none; border: none; }
+  .toy .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } @media (max-width: 640px) { .toy .two { grid-template-columns: 1fr; } }
+  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 12px var(--mono); color: var(--dim); }
+  .ctl input[type=range] { flex: 1; min-width: 140px; max-width: 360px; accent-color: var(--d4); }
+  .ctl b { color: var(--text); } .ctl[hidden] { display: none; }
+  .more { font: 12px var(--mono); } .more a { color: var(--text); }
+  .kv { font: 12px/1.6 var(--mono); color: var(--dim); } .kv.small { font-size: 11px; }
+  .read b, .kv b { color: var(--text); } .newt { color: #ffd166 !important; }
+  .costs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 10px 0; }
+  .costs div { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font: 12px/1.45 var(--mono); color: var(--dim); background: var(--panel); }
+  .costs div b { display: block; color: var(--text); margin-bottom: 2px; }
+  .costs div.ours { border-color: #c79bff; } .costs div.ours b { color: #c79bff; }
+  #f8 { display: flex; gap: 22px; flex-wrap: wrap; } #f8 figure { margin: 0; } #f8 figcaption { font: 600 12px var(--mono); margin-bottom: 2px; text-transform: capitalize; }
+  #f8 svg { display: block; max-width: 100%; height: auto; }
+  .fl-h { font: 10px var(--mono); fill: var(--dim); text-anchor: middle; }
+  .fl-c rect:first-child { fill: #0b0d13; fill-opacity: 0.72; stroke: #262833; } .fl-c.ruled rect:first-child { stroke-dasharray: 3 2; } .fl-c.ruled text { opacity: 0.55; }
+  .fl-c.top rect:first-child { stroke: var(--text); stroke-width: 1.5; }
+  .fl-n { font: 700 13px var(--mono); fill: var(--text); } .fl-cap { font: 10px var(--mono); fill: #c9c3b8; } .fl-cap.part { font-size: 8.5px; fill: var(--text); } .fl-z { font: 9.5px var(--mono); fill: var(--dim); text-anchor: middle; }
+  .fl-arrow { stroke: #ffffff8c; stroke-width: 1.3; fill: none; stroke-linecap: round; }
+  .bar { display: grid; grid-template-columns: 200px 1fr 48px; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--text); margin: 6px 0; }
+  .bar .bt { background: #0b0d13; border-radius: 4px; height: 14px; } .bar .bt i { display: block; height: 100%; border-radius: 4px; }
+  .bar .bv { text-align: right; } @media (max-width: 560px) { .bar { grid-template-columns: 1fr 44px; } .bar .bl { grid-column: 1 / -1; } }
+  .gas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .gas canvas { width: 100%; aspect-ratio: 1; display: block; }
+  .gas .kv { margin-top: 4px; } @media (max-width: 640px) { .gas { grid-template-columns: 1fr; } .gas canvas { max-width: 260px; } }
+  canvas#c7 { height: 172px; }
+  ol.map { padding-left: 18px; } ol.map li { margin: 6px 0; color: #c9c3b8; } ol.map a { color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="./" class="here">where we are</a><a href="../table/">the table</a><a href="../fields/">fields</a><a href="../atom/">ATOM⁴</a><a href="../lumen/">Lumen⁴</a></nav>
+  <h2>four.mino.mobi · start here</h2>
+  <h1 class="ch">Where we are</h1>
+  <p class="lede">What would chemistry be like with <b>four dimensions of space</b>? The short answer: there wouldn't be any, unless you change one thing. Here is the argument in eleven steps. Each step has something to try and a link to where it's worked out in full.</p>
+  <p class="kv">Each step is tagged: <span class="tag choice">a choice</span> we made, something that <span class="tag follows">follows</span> from the choices, something <span class="tag computed">computed</span> by our solvers, or still <span class="tag open">open</span>.</p>
+</header>
+
+<section class="step" id="s1">
+  <h3><span class="num">1</span> Big, flat 4D has no atoms <span class="tag follows">follows</span></h3>
+  <p>A charge's field spreads out over the surface around it. In 3D that surface is a sphere, whose area grows as r², so the field falls as 1/r² and the energy of a pull as 1/r. Holding an electron near a nucleus also costs energy, because squeezing it into a region of size r gives it a kinetic energy of about 1/r². That's the uncertainty principle. At small sizes the squeezing wins, at large sizes the pull wins, and in between there's a best size. <b>That balance is an atom.</b></p>
+  <p>In 4D the surface around a charge is a 3-sphere, and it grows as r³. The field falls as 1/r³ and the pull's energy as 1/r², <b>the same power as the squeezing</b>. Nothing picks a size any more. Either the pull wins at every size and the electron falls in, or it loses at every size and the electron leaves. Try it:</p>
+  <div class="toy">
+    <div class="seg" id="w1"><button type="button" data-v="3" class="on">our 3D</button><button type="button" data-v="4g">4D, as Gauss's law says</button><button type="button" data-v="4p">4D, pinned at 1/r (step 2)</button></div>
+    <div class="ctl" id="z1row">scan the elements <input id="z1" type="range" min="1" max="36" step="1" value="3" /> <b id="z1v"></b></div>
+    <div class="ctl" id="g1row" hidden>strength of the pull <input id="g1" type="range" min="0.2" max="2.5" step="0.01" value="1" /> <b id="g1v"></b></div>
+    <canvas class="chart" id="c1"></canvas>
+    <p class="read" id="r1"></p>
+    <p class="kv small">An estimate, not the solver. The outer electron, held to size r, has a kinetic energy of about ν²/2r² (ν is its shell, n, in ours and n + ½ in 4D) and feels a pull of g/r. Each element's g is set so that the energy at the best size is its ionization energy: measured, in ours (to krypton), and our solver's in 4D. The best size that gives is rough, within about a factor of two of where the solver puts the outer electron in ours and three in 4D, but it follows the pattern. Under 4D's Gauss's law there are no elements to scan, so the slider sets the pull's strength instead. The full argument, with real wavefunctions, is the same.</p>
+  </div>
+  <p class="more">In full: <a href="../atom/force.html">the force</a>.</p>
+</section>
+
+<section class="step" id="s2">
+  <h3><span class="num">2</span> So we pin the force at 1/r <span class="tag choice">a choice</span></h3>
+  <p>To keep atoms, we choose a universe whose force between charges gives the same 1/r energy as ours. That means the field has to thin out <b>more slowly</b> than the 3-sphere around a charge grows: as 1/r², where spreading evenly would give 1/r³. It's as if the vacuum gave back some of what spreading takes away. Through every bigger sphere there's more field, not the same amount.</p>
+  <div class="toy"><div class="two"><canvas class="chart" id="c2a"></canvas><canvas class="chart" id="c2b"></canvas></div>
+    <p class="kv small">Left: how strong the field is at distance r. Right: the field times the area it crosses. In 3D, and in 4D spread evenly, that product is the same at every distance: the field lines are conserved. Pinned, it grows with r.</p></div>
+  <p>In the maths, an ordinary field equation becomes one that reaches across space. The potential's Fourier transform goes as 1/k³ instead of 4D's 1/k², so the equation reads (−∇²)<sup>3/2</sup>φ = ρ instead of −∇²φ = ρ.</p>
+  <p class="more">In full: <a href="../atom/force.html">the force</a>.</p>
+</section>
+
+<section class="step" id="s3">
+  <h3><span class="num">3</span> What it costs <span class="tag choice">a choice</span></h3>
+  <p>Maxwell's equations can't give 1/r in 4D as they stand, and every way of changing them costs something we'd like to keep. There are five ways, and each gives up one of these:</p>
+  <div class="costs">
+    <div><b>locality</b>fields reacting only to their surroundings</div>
+    <div><b>linearity</b>two fields simply add</div>
+    <div class="ours"><b>relativity, for the force</b>our choice: the vacuum answers a charge everywhere at once</div>
+    <div><b>positive probabilities</b>no "ghost" states, which would come with negative probabilities</div>
+    <div><b>four big dimensions</b>curl the fourth one up small</div>
+  </div>
+  <p>We give up relativity for the force, and keep the rest. <b>Fields still add, and light still travels at exactly c.</b> Light is ordinary 4D light. What changes is how matter feels it: through a lens that weights long waves more, which reaches across space at once. So a flash is felt faintly <i>before</i> its front arrives. That needs one special frame, an absolute "now". Cause and effect line up in that frame, not in every frame.</p>
+  <p class="more">In full: <a href="../atom/force.html">the force</a> · <a href="../atom/light.html">light</a> · <a href="../lumen/">Lumen⁴</a>.</p>
+</section>
+
+<section class="step" id="s4">
+  <h3><span class="num">4</span> No Faraday cages <span class="tag follows">follows</span></h3>
+  <p>In our world a charged hollow shell pushes nothing inside it: the pulls from all sides cancel exactly (the shell theorem). That's why a metal cage blocks fields. With the force pinned at 1/r in 4D, the cancellation fails. Inside a charged shell there's a hill, and a charge inside is pushed.</p>
+  <div class="toy"><canvas class="chart" id="c4"></canvas></div>
+  <p><b>This isn't just a curiosity: it changes the chemistry.</b> The same failure means inner electrons only partly shield outer ones, so 4D's noble gases hold their electrons about twice as hard as they otherwise would. It also means a neutral atom still pulls on things outside it, so <b>neutral atoms attract each other permanently</b>, as 1/R⁵. 4D's neon would boil somewhere around 400 to 730 K. Its noble gases are barely gases.</p>
+  <p class="more">In full: <a href="../atom/force.html">the force</a> · <a href="../atom/table.html">the periodic table</a> · <a href="../atom/forces.html">forces between molecules</a>.</p>
+</section>
+
+<section class="step" id="s5">
+  <h3><span class="num">5</span> Sorry, Einstein <span class="tag choice">a choice</span> <span class="tag open">open</span></h3>
+  <p>Giving up relativity for the electric force is a real cost, and we accept it knowingly: this vacuum has a preferred frame. Gravity has the same problem as electricity in 4D: its pull would fall too fast, and no orbit would be stable. It's set aside for now. It matters for planets and stars, not atoms, and the same trick looks likely to work there.</p>
+</section>
+
+<section class="step" id="s6">
+  <h3><span class="num">6</span> Spin, and two electrons to an orbital <span class="tag choice">a choice</span> <span class="tag follows">follows</span></h3>
+  <p><b>Electrons are fermions: no two share a state.</b> That's the Pauli exclusion principle. It isn't about energy; it's about how identical particles count. In our world it follows from relativity and spin together, but we gave up relativity for the force, so we can't lean on that. We state it instead, as part of what this universe contains.</p>
+  <p>Spin still makes sense. A rotation in 4D splits into two independent halves (picture two planes turning at once). The electron's simplest spin has two states and turns with one half only: <b>a handed spin</b>. So there are still two electrons to an orbital.</p>
+  <p>Energy enters one step later. Because electrons are fermions, a lump of matter's binding grows only in proportion to how many particles it holds, and matter is stable. Were they bosons, it would grow faster than that, and matter would collapse.</p>
+  <p class="more">In full: <a href="../atom/motion.html">motion and spin</a> · <a href="../atom/force.html">the force</a>.</p>
+</section>
+
+<section class="step" id="s7">
+  <h3><span class="num">7</span> The first row: iydrogen and ielium <span class="tag computed">computed</span></h3>
+  <p>The innermost shell is a single round orbital, s, in any number of dimensions, so it still holds two electrons. 4D's first row is two elements: hydrogen's counterpart and helium's. We name an element that does what one of ours does with our name, its first letter moved on: <b>iydrogen</b>, <b>ielium</b>. 4D's hydrogen is a little different, though:</p>
+  <div class="toy"><canvas id="c7"></canvas><p class="read" id="r7"></p></div>
+  <p class="more">In full: <a href="../atom/hydrogen.html">hydrogen</a>.</p>
+</section>
+
+<section class="step" id="s8">
+  <h3><span class="num">8</span> A fourth p orbital, and longer rows <span class="tag follows">follows</span> <span class="tag computed">computed</span></h3>
+  <p>A p orbital points along one direction, so there's one for each direction: <b>four in 4D</b>, holding 8 electrons instead of 6. The second row is 10 elements long, and neon's counterpart, <b>oeon</b>, is element 12. The d orbitals grow too, from 5 to 9, so later rows run 28 long instead of 18. The order you fill them in is the school diagram's: diagonal after diagonal, the same in both worlds. Only the boxes are bigger. Drag through the elements:</p>
+  <div class="toy">
+    <div class="ctl">element <input id="z8" type="range" min="1" max="78" step="1" value="12" /> <b id="z8v"></b></div>
+    <div id="f8"></div><p class="read" id="r8"></p></div>
+  <p>Our solver confirms the order for all 78 elements it solved. Of those 78, 54 do what one of ours does and take its name. <b class="newt">24 are new</b>, among them elements 6 and 8 either side of darbon: our carbon is both fourth from the start of its row and four short of the end, and in 4D those are two different elements.</p>
+  <p class="more">In full: <a href="../table/">the big table</a> · <a href="../atom/table.html">the periodic table, worked out</a>.</p>
+</section>
+
+<section class="step" id="s9">
+  <h3><span class="num">9</span> Darbon, and a diamond <span class="tag follows">follows</span> <span class="tag open">open</span></h3>
+  <p><b>Darbon</b>, element 7, is 4D's carbon: its outer shell is half full, 5 electrons of 10, as carbon's is 4 of 8. So it makes five bonds, at 104.48° to each other. Its diamond works by geometry: two interlocking lattices, five bonds at every atom, a crystal that can't sit on a 4D grid of cubes. Its energy hasn't been computed. And handedness changes: half a turn through w turns any of our handed molecules into its mirror image, so in 4D they aren't handed at all. Darbon's molecules can be.</p>
+  <p><b>Graphite hasn't been tried.</b> Ours uses three bonds in a plane and leaves one orbital sticking out, shared across the sheet. Darbon's would use four bonds in a 3D layer (each layer would be our diamond's net) and leave its fifth orbital pointing along w. That's the next thing to check.</p>
+  <p class="more">In full: <a href="../atom/darbon.html">darbon</a> · <a href="../atom/shapes.html">the shapes</a>.</p>
+</section>
+
+<section class="step" id="s10">
+  <h3><span class="num">10</span> Which molecule is the water? <span class="tag computed">computed</span> <span class="tag open">open</span></h3>
+  <p>Our water matters because it's polar, holds itself together with hydrogen bonds, and is common. In 4D the strongest candidates are <b>Xater</b> (H₂Px, Pxygen's hydride, our water's counterpart) and <b>bmmonia</b> (element 9's XH₃, our ammonia's counterpart). Searched over every way two of them can sit together, they bind about equally hard at Hartree–Fock, six times our water:</p>
+  <div class="toy" id="b10"></div>
+  <p>Counting correlation too (MP2, the part Hartree–Fock leaves out), <b>bmmonia pulls ahead, by about a tenth</b>. But chemistry is only half of it: <b>which one fills the oceans comes down to which element is commoner</b>. That's a question for stars and their nuclei. <a href="../atom/nuclei.html">Worked out so far</a>: 4D's nuclei need a strong force at least a quarter stronger than ours, and with it stars can burn past helium; how far, and so which element is commoner, is still open. One hint points the other way: count nuclear shells in 4D and they close at 2, 10, 30 and 70 protons. Pxygen-20, with 10 protons and 10 neutrons, would be doubly closed, as our oxygen-16 is. It's a count, not a computation.</p>
+  <p class="more">In full: <a href="../atom/xater.html">Pxygen and Xater</a> · <a href="../atom/census.html">which water</a> · <a href="../atom/search.html">ten ways to meet</a>.</p>
+</section>
+
+<section class="step" id="s11">
+  <h3><span class="num">11</span> Gases, liquids, solids <span class="tag follows">follows</span> <span class="tag computed">computed</span> <span class="tag open">open</span></h3>
+  <p><b>Gases work, exactly.</b> Pressure is the push of atoms on a wall, and the wall is a 3D surface. Count the momentum hitting it and you get <b>PV = NkT in any number of dimensions</b>. What changes is that each direction of motion holds kT/2 of energy, and 4D has four, so an atom carries 2kT instead of 3/2 kT. Here are three boxes of gas, in 2, 3 and 4 dimensions (you see two of their directions), each counting the hits on its gold wall:</p>
+  <div class="toy"><div class="gas"><div><canvas id="g2"></canvas><p class="kv" id="p2"></p></div><div><canvas id="g3"></canvas><p class="kv" id="p3"></p></div><div><canvas id="g4"></canvas><p class="kv" id="p4"></p></div></div></div>
+  <p><b>Real gases are computed.</b> Atoms pull on each other a little, and a gas pushed through a valve from high pressure to low cools, as its atoms climb out of each other's pull. That's how a refrigerator makes its cold. It works only below the gas's <b>inversion temperature</b>. Above it the gas warms instead. Slide the temperature (solid lines are the computed pull, dashed is it divided by 1.8, the method's known overbinding):</p>
+  <div class="toy">
+    <div class="ctl">temperature <input id="t11" type="range" min="1.5" max="5" step="0.01" value="2.48" /> <b id="t11v"></b></div>
+    <canvas class="chart" id="c11"></canvas>
+    <p class="read" id="r11"></p>
+  </div>
+  <p><b>4D's noble gases keep cooling to tens of thousands of kelvin.</b> Their pull falls off so slowly (as R⁻⁵, where the space at distance R grows as R³) that the far atoms add up. A 4D noble gas is held less by its nearest neighbours than by the whole crowd around it. The same crowd makes it condense far hotter than its pair's well suggests. Simulated, with liquid and vapour side by side, element 12 condenses below about 4,700 to 8,900 K, where its pair's well alone would say about 1,000. Put together with how hard crystals are to make in 4D, it suggests <b>a world of liquids</b>: gas only when hot, liquids over a very wide range, glass more often than crystal. That's a hypothesis, being simulated now. Salts, held by their charges, are the likely exception: bluminium pxide, Bl₂Px₃, would be 4D's sapphire.</p>
+  <p><b>Liquids and solids are the work now.</b> The 4D molecular-dynamics engine is checked, but the forces between molecules aren't good enough yet. Our own water comes out with about half its real cohesion until the effects we've left out go in, and the 4D liquid holds together too hard. One thing already shows: <b>clusters of 4D molecules have far more ways to sit than ours</b>. That predicts a freezing point low for how hard the liquid holds together, and a liquid that would rather freeze into a glass than a crystal.</p>
+  <p class="more">In full: <a href="../atom/gas.html">gases</a> · <a href="../atom/search.html">ten ways to meet</a>.</p>
+</section>
+
+<section class="step" id="map">
+  <h3>Reading on</h3>
+  <ol class="map">
+    <li><a href="../table/">The big table</a>: every element, named, beside ours.</li>
+    <li><a href="../atom/">ATOM⁴, the position</a>: the seventeen chapters these steps summarize, with every number computed and checked.</li>
+    <li><a href="../lumen/">Lumen⁴</a> and <a href="../iris/">IRIS⁴</a>: what light does in four dimensions, and a rainbow you can walk under.</li>
+    <li><a href="../atom/LITERATURE.md">The literature register</a>: the sources, gathered for the first paper.</li>
+  </ol>
+  <p class="foot"><a href="../">Four</a> · <a href="../table/">the table</a> · <a href="../atom/">ATOM⁴</a> · <a href="../lumen/">Lumen⁴</a> · <a href="../iris/">IRIS⁴</a></p>
+</section>
+<script type="module" src="start.js"></script>
+</body>
+</html>

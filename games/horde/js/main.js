@@ -27,6 +27,7 @@
     dead: $("dead"), deadStats: $("dead-stats"), deadPath: $("dead-path"),
     deadWave: $("dead-wave"), deadSeed: $("dead-seed"), deadBest: $("dead-best"),
     again: $("again"), replay: $("replay"),
+    post: $("post"), dBoard: $("d-board"), sBoard: $("s-board"),
   };
 
   var renderer = H.createRenderer(el.canvas);
@@ -35,6 +36,7 @@
   var started = false;
   var lastPhase = null;
   var gateBuilt = false;
+  var posted = false;
 
   // ------------------------------------------------------------------ seed --
 
@@ -67,8 +69,31 @@
     gateBuilt = false;
     el.gate.hidden = true;
     el.dead.hidden = true;
+    posted = false;
+    offerable();
     renderer.resize();
   }
+
+  // ----------------------------------------------------------- leaderboard --
+  // The board loads on its own (js/board.js needs the vendored auth client);
+  // its buttons show once it's there, and the game never waits on it. They
+  // live on the start and death screens only: the horde doesn't pause.
+
+  function board() { return NS.HORDE_BOARD || null; }
+  function offerable() {
+    var b = !!board(), dead = !!run && run.phase === "dead";
+    el.dBoard.hidden = el.sBoard.hidden = !b;
+    el.post.hidden = !b || !dead;
+    el.post.disabled = posted;
+  }
+  function postRun() {
+    var b = board();
+    if (!b || !run || run.phase !== "dead" || posted) return;
+    posted = true; el.post.disabled = true;
+    b.offer({ sel: {}, value: run.wave, seed: run.seed, kills: run.stats.kills, leaks: run.stats.leaks, t: run.t, taken: run.taken.length, at: Date.now() });
+  }
+  function openBoard() { var b = board(); if (b) b.open({}); }
+  NS.addEventListener("horde-board", function () { offerable(); });
 
   // ------------------------------------------------------------------ sound --
   // Runs over the event queue *before* the renderer drains it.
@@ -195,6 +220,7 @@
         }).join(" · ")
       : "no upgrades taken";
 
+    offerable();
     el.dead.hidden = false;
     el.again.focus();
   }
@@ -253,6 +279,10 @@
   });
 
   document.addEventListener("keydown", function (e) {
+    // keys typed into a field (the leaderboard's handle) belong to the field; leave browser shortcuts alone
+    var t = e.target;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
     if (!started) {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); start(); }
       return;
@@ -284,6 +314,10 @@
   el.mute.addEventListener("click", function () {
     el.mute.textContent = sfx.toggle() ? "🔇" : "🔊";
   });
+
+  el.post.addEventListener("click", postRun);
+  el.dBoard.addEventListener("click", openBoard);
+  el.sBoard.addEventListener("click", openBoard);
 
   el.again.addEventListener("click", function () { newRun(); });
   el.replay.addEventListener("click", function () { newRun(run.seed); });

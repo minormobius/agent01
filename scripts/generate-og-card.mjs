@@ -98,7 +98,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" 
 <text x="${cx}" y="${cy + 11}" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="#7C8296">${pages} pages</text>
 <g>${labels}</g>
 <text x="64" y="176" font-family="Bricolage Grotesque" font-weight="700" font-size="72" letter-spacing="-2" fill="#161923">minomobi</text>
-<text x="66" y="236" font-family="Bricolage Grotesque" font-weight="700" font-size="30" fill="#161923">Three hundred small</text>
+<text x="66" y="236" font-family="Bricolage Grotesque" font-weight="700" font-size="30" fill="#161923">Four hundred small</text>
 <text x="66" y="272" font-family="Bricolage Grotesque" font-weight="700" font-size="30" fill="#161923">websites, one door.</text>
 <text x="66" y="318" font-family="'Source Sans 3'" font-size="19" fill="#4A5063">Generators, lenses on Bluesky, an O'Neill</text>
 <text x="66" y="344" font-family="'Source Sans 3'" font-size="19" fill="#4A5063">cylinder, medieval tales, math explainers,</text>

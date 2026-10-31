@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>grad — twisted plasma, exact</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#1c5cab">
+<meta name="description" content="Grad's 1967 conjecture said a confined plasma with smooth pressure had to be symmetric. In 2026 Matt Landreman wrote down twisted ones in elementary functions. Spin them, slide them back to a tokamak, and watch field lines traced from B alone stay on the surfaces the formulas promise.">
+
+<style>
+:root {
+  --bg: #fcfcfb;
+  --fg: #0b0b0b;
+  --muted: #52514e;
+  --faint: #8a8984;
+  --rule: #dcdbd6;
+  --accent: #1c5cab;
+  --accent-faint: rgba(28, 92, 171, 0.13);
+  --accent-tint: rgba(28, 92, 171, 0.06);
+  --panel: #f3f3f0;
+  --stage: #ebebe7;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --good: #1f7a3f;
+  --bad: #b3261e;
+  /* flux-surface levels: one blue ramp, light (edge) → dark (core) */
+  --lvl-1: #86b6ef; --lvl-2: #3987e5; --lvl-3: #1c5cab;
+  /* the second series: points traced from B alone */
+  --traced: #eb6834;
+  --axis: #0b0b0b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19;
+    --fg: #ffffff;
+    --muted: #c3c2b7;
+    --faint: #8f8e87;
+    --rule: #34332f;
+    --accent: #6da7ec;
+    --accent-faint: rgba(109, 167, 236, 0.16);
+    --accent-tint: rgba(109, 167, 236, 0.07);
+    --panel: #20201e;
+    --stage: #121211;
+    --good: #6ec48f;
+    --bad: #e66767;
+    --lvl-1: #184f95; --lvl-2: #3987e5; --lvl-3: #9ec5f4;
+    --traced: #d95926;
+    --axis: #ffffff;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif); line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column;
+  background: var(--panel); border-top: 1px solid var(--rule);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.head {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top));
+}
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); }
+canvas#gl { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas#gl:active { cursor: grabbing; }
+.verdict {
+  position: absolute; left: 0.7rem; bottom: 0.6rem;
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  border: 1px solid var(--rule); border-radius: 999px;
+  padding: 0.22rem 0.6rem; pointer-events: none;
+  max-width: calc(100% - 1.4rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.verdict.good { color: var(--good); }
+.verdict.bad { color: var(--bad); }
+.scale {
+  position: absolute; left: 0.7rem; top: 0.5rem; pointer-events: none;
+  font-family: var(--mono); font-size: 0.56rem; color: var(--muted);
+  display: flex; align-items: center; gap: 0.35rem;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  border: 1px solid var(--rule); border-radius: 999px; padding: 0.18rem 0.55rem;
+}
+.scale i { display: inline-block; width: 4.5rem; height: 0.45rem; border-radius: 2px; }
+.hint {
+  position: absolute; right: 0.7rem; top: 0.5rem;
+  font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.06em;
+  color: var(--muted); pointer-events: none; text-transform: uppercase;
+  transition: opacity 0.6s;
+}
+.hint.gone { opacity: 0; }
+.nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; text-align: center; font-size: 0.85rem; color: var(--muted); }
+
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab {
+  flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em;
+  text-transform: uppercase; background: none; border: none;
+  border-bottom: 2px solid transparent; color: var(--muted);
+  padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; margin-bottom: 0.45rem; }
+.knob { display: grid; grid-template-columns: 4.2rem 1fr 3.6rem; align-items: center; gap: 0.4rem; margin: 0.14rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.64rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; margin-top: 0.45rem; }
+button.act {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--rule);
+  border-radius: 5px; padding: 0.42rem 0.5rem; cursor: pointer; min-height: 2rem;
+}
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+.note { font-size: 0.78rem; color: var(--muted); margin: 0.5rem 0 0; }
+
+/* ---- sections + ι chart ------------------------------------------------ */
+.viz-title { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0.2rem 0 0.25rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; font-family: var(--mono); font-size: 0.58rem; color: var(--muted); margin: 0.2rem 0 0.35rem; }
+.legend .sw { display: inline-block; vertical-align: -0.05rem; margin-right: 0.3rem; }
+.sections { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+.sections figure { margin: 0; }
+.sections figcaption { font-family: var(--mono); font-size: 0.56rem; color: var(--muted); text-align: center; }
+.sections svg, #iotaSvg { width: 100%; height: auto; display: block; background: var(--bg); border-radius: 4px; }
+.chartwrap { position: relative; margin-top: 0.6rem; }
+.tip {
+  position: absolute; pointer-events: none; font-family: var(--mono); font-size: 0.6rem;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 4px;
+  padding: 0.2rem 0.4rem; white-space: nowrap; transform: translate(-50%, -115%); display: none;
+}
+svg text { font-family: var(--mono); fill: var(--muted); font-size: 9px; }
+
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.64rem; }
+table.facts td, table.facts th { padding: 0.28rem 0.2rem; border-bottom: 1px solid var(--rule); vertical-align: top; text-align: right; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.56rem; }
+table.facts td:first-child, table.facts th:first-child { text-align: left; color: var(--muted); }
+.good { color: var(--good); } .bad { color: var(--bad); }
+
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose a:hover { text-decoration: underline; }
+.prose code { font-family: var(--mono); font-size: 0.8em; background: var(--accent-tint); padding: 0.05em 0.3em; border-radius: 3px; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+
+@media (min-width: 860px) {
+  .app { flex-direction: row; }
+  .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 28rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; }
+  .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+@media (max-height: 460px) and (orientation: landscape) and (max-width: 859px) {
+  .app { flex-direction: row; }
+  .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 min(52%, 22rem); border-top: none; border-left: 1px solid var(--rule); }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://math.mino.mobi/">← math</a>
+      <h1>grad</h1>
+      <span class="tagline">twisted plasma · exact</span>
+    </div>
+    <div class="stage">
+      <canvas id="gl"></canvas>
+      <div class="verdict" id="verdict">—</div>
+      <div class="scale" id="scale">|B| <span id="bmin"></span><i id="bramp"></i><span id="bmax"></span></div>
+      <div class="hint" id="hint">drag · pinch · wheel</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-pane="view">view</button>
+      <button class="tab" data-pane="sections">sections</button>
+      <button class="tab" data-pane="check">check</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+
+      <div class="pane active" id="pane-view">
+        <div class="seg" id="famSeg">
+          <button class="act" data-fam="1">ι = 2 · closed lines</button>
+          <button class="act" data-fam="2">sheared ι</button>
+        </div>
+        <div id="knobs"></div>
+        <div class="row">
+          <button class="act" id="morph">→ tokamak</button>
+          <button class="act" id="tLines" aria-pressed="true">field lines</button>
+          <button class="act" id="tAxis" aria-pressed="true">axis</button>
+          <button class="act" id="tSpin" aria-pressed="true">spin</button>
+          <button class="act" id="tHome">recentre</button>
+        </div>
+        <p class="note" id="famNote"></p>
+      </div>
+
+      <div class="pane" id="pane-sections">
+        <div class="viz-title">Cross-sections at three toroidal angles</div>
+        <div class="legend">
+          <span><svg class="sw" width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="var(--lvl-2)" stroke-width="2"/></svg>surfaces from the formula, ψ = δ, 4δ/9, δ/9</span>
+          <span><svg class="sw" width="8" height="8"><circle cx="4" cy="4" r="2.5" fill="var(--traced)"/></svg>field lines traced from B alone</span>
+          <span><svg class="sw" width="8" height="8"><path d="M1 4h6M4 1v6" stroke="var(--axis)" stroke-width="1.5"/></svg>magnetic axis</span>
+        </div>
+        <div class="sections" id="sections"></div>
+        <p class="note" id="traceNote">Tracing…</p>
+        <div class="chartwrap" id="iotaWrap">
+          <div class="viz-title">Rotational transform ι across the surfaces</div>
+          <svg id="iotaSvg" viewBox="0 0 320 150" role="img" aria-label="rotational transform by surface"></svg>
+          <div class="tip" id="tip"></div>
+        </div>
+        <p class="note" id="iotaNote"></p>
+      </div>
+
+      <div class="pane" id="pane-check">
+        <table class="facts"><thead><tr><th>claim</th><th>paper</th><th>here</th></tr></thead><tbody id="checks"><tr><td colspan="3">computing…</td></tr></tbody></table>
+        <p class="note">The <em>here</em> column is measured in your browser on the shape you are looking at: it is recomputed whenever you move a slider and open this tab. Force balance is tested by finite differences of <strong>B</strong> alone at 300 random points in the plasma. Nothing is solved, so nothing can be tuned to pass. The same module is held to these claims across seven configurations by <code>field.selftest.mjs</code>.</p>
+      </div>
+
+      <div class="pane prose" id="pane-about">
+        <h2>The conjecture</h2>
+        <p>A fusion plasma is held in place by a magnetic field whose lines wrap around nested doughnut-shaped surfaces, with the pressure constant on each surface and highest in the middle. The balance is <code>(∇×B)×B = ∇p</code>: magnetic force against pressure push. Tokamaks make this easy by being <em>symmetric</em>: every slice around the ring is the same. Stellarators twist the field in three dimensions instead, which removes the large current a tokamak needs, but then nobody could prove the balance could hold exactly.</p>
+        <p>In 1967 Harold Grad suspected it couldn't. He conjectured that, apart from symmetric cases, smooth equilibria with nested surfaces and non-constant pressure do not exist. Close approximations were possible, but not the real thing. For sixty years stellarator design has been built around approximate equilibria on the strength of that doubt.</p>
+
+        <h2>2026</h2>
+        <p>Earlier in 2026, Gómez-Serrano and coauthors proved that non-symmetric solutions exist, with every field line closing in the poloidal direction and <strong>B</strong> vanishing on the axis. Then <a href="https://arxiv.org/abs/2609.26742">Matt Landreman</a> wrote two families down <em>explicitly</em>, in Cartesian coordinates, using only square roots, trig and hyperbolic functions. They are smooth, fully three-dimensional, with nested surfaces and pressure that falls from the axis outward. They involve no expansion and no small parameter.</p>
+        <p><strong>ι = 2</strong> is a symmetric tokamak field (Solov'ev's) stretched by √(1+ε) one way and √(1−ε) the other. That shouldn't work, because stretching usually breaks force balance. It survives because in this field a moving point obeys a harmonic oscillator in each coordinate, <code>ẍ = −x, ÿ = −y, z̈ = −4z</code>, and stretching x and y separately leaves those equations alone. Every field line closes after exactly one turn round the torus, and the axis rises and falls like a saddle.</p>
+        <p><strong>Sheared ι</strong> is a different construction, built from complex analysis. Its field lines twist at a rate that changes from surface to surface, so some close and most never do. That is the property real stellarators need.</p>
+
+        <h2>What to try</h2>
+        <p>Press <em>→ tokamak</em>: ε slides to 0 and the shape relaxes into an ordinary symmetric tokamak, then twists back out. The symmetric case turns out to be one point in a continuous family, not the only one.</p>
+        <p>Open <em>sections</em>. The coloured curves come from the formulas. The orange dots come from something else entirely: a field line followed step by step through <strong>B</strong> alone, marked each time it passes the slice. If the formulas were wrong, the dots would drift off the curves. They land on them.</p>
+
+        <h2>What this is not</h2>
+        <p>Neither family is a reactor design. ι = 2 with every line closed is a degenerate case, and the sheared family's twist changes only a little: about 1% across the plasma at the default settings, as the <em>sections</em> chart shows. What they settle is existence. It is now certain, not just believed, that strongly non-symmetric equilibria with perfect surfaces exist. And because they are exact, they are ideal test cases for the numerical codes stellarator designers use.</p>
+
+        <div class="crossref">
+          sisters ·
+          <a href="https://math.mino.mobi/">geometry</a> ·
+          <a href="https://math.mino.mobi/chair44/">chair44</a> ·
+          <a href="https://math.mino.mobi/cohomology/">cohomology</a> ·
+          <a href="https://math.mino.mobi/szilassi/">szilassi</a> ·
+          <a href="https://math.mino.mobi/conjectures/">conjectures</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as G from './field.js';
+
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const hex = (h) => { h = h.replace('#', ''); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); };
+const TAU = 2 * Math.PI;
+
+// ================================================================= state ===
+// Knob specs. Family 1's δ is a fraction of its ceiling (1−ε)²/4, so the
+// slider can never leave the domain the paper allows.
+const SPECS = {
+  1: [
+    { key: 'eps', label: 'ε shape', min: 0, max: 0.9, step: 0.01, def: 0.5 },
+    { key: 'dfrac', label: 'δ size', min: 0.05, max: 0.95, step: 0.01, def: 0.25, fmt: (v, s) => (v * (1 - s.eps) ** 2 / 4).toFixed(4) },
+  ],
+  2: [
+    { key: 'eps', label: 'ε shape', min: 0, max: 6, step: 0.05, def: 2 },
+    { key: 'S', label: 'S radius', min: 0.4, max: 3, step: 0.05, def: 1 },
+    { key: 'lam', label: 'λ height', min: 0.4, max: 3, step: 0.05, def: 1.5 },
+    { key: 'kfrac', label: 'k_b size', min: 0.05, max: 0.95, step: 0.01, def: 0.55, fmt: (v, s) => kbOf(s).toFixed(3) },
+  ],
+};
+// family 2's edge must satisfy k_b < 1 and arcsin k_b < S (45): k_b < min(1, sin S)
+const kbOf = (s) => s.kfrac * (s.S >= Math.PI / 2 ? 1 : Math.sin(s.S));
+const state = { fam: 1, v: { 1: {}, 2: {} }, lines: true, axis: true, spin: true };
+for (const f of [1, 2]) for (const k of SPECS[f]) state.v[f][k.key] = k.def;
+
+function field() {
+  const s = state.v[state.fam];
+  if (state.fam === 1) return G.family1({ eps: s.eps, delta: s.dfrac * (1 - s.eps) ** 2 / 4 });
+  return G.family2({ eps: s.eps, S: s.S, lam: s.lam, kb: kbOf(s) });
+}
+let F = field();
+
+// ============================================================= geometry ===
+// |B| on the outer surface, on a one-hue ramp (orange, the second sequential context)
+const BRAMP = ['#fde3d6', '#f8b594', '#ef8a5c', '#d95926', '#a8401a', '#6f2a10'].map(hex);
+const rampAt = (t) => {
+  t = Math.max(0, Math.min(1, t)) * (BRAMP.length - 1);
+  const i = Math.min(BRAMP.length - 2, Math.floor(t)), f = t - i;
+  return BRAMP[i].map((v, k) => v + (BRAMP[i + 1][k] - v) * f);
+};
+const LEVELS = [1, 4 / 9, 1 / 9];   // the paper's figures: ψ = δ, 4δ/9, δ/9
+
+function buildGeometry() {
+  const tris = [], lines = [];
+  const NA = 72, NZ = 200;
+  // cutaway: each surface misses a wedge of ζ, wider on the outside, so the
+  // nesting shows; the innermost is almost whole
+  const keep = [0.6, 0.78, 0.96];
+  let bmin = Infinity, bmax = -Infinity;
+  const surfaces = LEVELS.map((f, li) => {
+    const nz = Math.round(NZ * keep[li]);
+    const grid = [];
+    for (let j = 0; j <= nz; j++) {
+      const t = (TAU * keep[li] * j) / nz + TAU * 0.14;
+      const row = [];
+      for (let i = 0; i <= NA; i++) {
+        const p = F.surface(f, (TAU * i) / NA, t);
+        const b = Math.hypot(...F.B(p));
+        if (li === 0) { bmin = Math.min(bmin, b); bmax = Math.max(bmax, b); }
+        row.push({ p, b });
+      }
+      grid.push(row);
+    }
+    return grid;
+  });
+  const lvl = [css('--lvl-1'), css('--lvl-2'), css('--lvl-3')].map(hex);
+  surfaces.forEach((grid, li) => {
+    const col = (c) => (li === 0 ? rampAt((c.b - bmin) / Math.max(1e-9, bmax - bmin)) : lvl[li]);
+    for (let j = 0; j + 1 < grid.length; j++)
+      for (let i = 0; i < NA; i++) {
+        const a = grid[j][i], b = grid[j][i + 1], c = grid[j + 1][i + 1], d = grid[j + 1][i];
+        const n = normal(a.p, b.p, c.p);
+        for (const q of [a, b, c, a, c, d]) tris.push(...q.p, ...n, ...col(q));
+      }
+  });
+  const fg = hex(css('--axis'));
+  if (state.lines) {
+    const lc = hex(css('--fg')).map((v) => v * 0.55 + 0.2);
+    const pols = [0, 1, 2, 3, 4, 5].map((k) => (TAU * k) / 6);
+    for (const pol of pols) {
+      const pts = F.fieldLine(1, pol, 1, 360);
+      for (let i = 0; i + 1 < pts.length; i++) lines.push(...pts[i], 0, 0, 0, ...lc, ...pts[i + 1], 0, 0, 0, ...lc);
+    }
+  }
+  if (state.axis) {
+    const N = 240;
+    for (let i = 0; i < N; i++) lines.push(...F.axis((TAU * i) / N), 0, 0, 0, ...fg, ...F.axis((TAU * (i + 1)) / N), 0, 0, 0, ...fg);
+  }
+  let r = 0;
+  for (let i = 0; i < tris.length; i += 9) r = Math.max(r, Math.hypot(tris[i], tris[i + 1], tris[i + 2]));
+  $('bmin').textContent = bmin.toFixed(2); $('bmax').textContent = bmax.toFixed(2);
+  return { tris: new Float32Array(tris), lines: new Float32Array(lines), r };
+}
+function normal(a, b, c) {
+  const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+  const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  const L = Math.hypot(...n) || 1;
+  return n.map((x) => x / L);
+}
+$('bramp').style.background = `linear-gradient(90deg, ${['#fde3d6', '#f8b594', '#ef8a5c', '#d95926', '#a8401a', '#6f2a10'].join(',')})`;
+
+// ============================================================= renderer ===
+const canvas = $('gl');
+const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
+let loc, tbuf, lbuf, geo = null, needBuild = true, needDraw = true;
+if (!gl) {
+  canvas.remove();
+  const d = document.createElement('div');
+  d.className = 'nogl';
+  d.textContent = 'This page draws the plasma with WebGL, which this browser has not offered. The sections and check tabs still work.';
+  document.querySelector('.stage').appendChild(d);
+} else {
+  const VERT = `attribute vec3 aPos; attribute vec3 aN; attribute vec3 aC;
+    uniform mat4 uMVP; uniform mat3 uR; varying vec3 vN; varying vec3 vC;
+    void main(){ vN = uR * aN; vC = aC; gl_Position = uMVP * vec4(aPos,1.0); }`;
+  const FRAG = `precision mediump float; varying vec3 vN; varying vec3 vC; uniform float uFlat;
+    void main(){ vec3 n = normalize(vN);
+      float d = abs(dot(n, normalize(vec3(0.4,0.75,0.55))))*0.6 + abs(dot(n, normalize(vec3(-0.6,-0.2,0.4))))*0.22 + 0.3;
+      gl_FragColor = vec4(mix(vC*d, vC, uFlat), 1.0); }`;
+  const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  loc = { aPos: gl.getAttribLocation(prog, 'aPos'), aN: gl.getAttribLocation(prog, 'aN'), aC: gl.getAttribLocation(prog, 'aC'),
+    uMVP: gl.getUniformLocation(prog, 'uMVP'), uR: gl.getUniformLocation(prog, 'uR'), uFlat: gl.getUniformLocation(prog, 'uFlat') };
+  tbuf = gl.createBuffer(); lbuf = gl.createBuffer();
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 1);
+}
+const HOME = { yaw: 0.6, pitch: 0.95, zoom: 1 };
+const cam = { ...HOME, pan: [0, 0] };
+function mul(a, b) { const r = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; r[i * 4 + j] = s; } return r; }
+function persp(fy, asp, n, f) { const t = 1 / Math.tan(fy / 2); return new Float32Array([t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1, 0, 0, (2 * f * n) / (n - f), 0]); }
+function draw() {
+  if (!gl) return;
+  if (needBuild) { geo = buildGeometry(); geo.up = false; needBuild = false; }
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  gl.viewport(0, 0, w, h);
+  const bg = hex(css('--stage')); gl.clearColor(bg[0], bg[1], bg[2], 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  const asp = w / h, fov = 0.6, R = geo.r || 1;
+  const dist = (R / Math.sin(fov / 2)) * (asp < 1 ? 1 / asp : 1) * 1.05 / cam.zoom;
+  const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+  const Rm = [cy, -sy * cp, sy * sp, sy, cy * cp, -cy * sp, 0, sp, cp];
+  const view = new Float32Array([Rm[0], Rm[1], Rm[2], 0, Rm[3], Rm[4], Rm[5], 0, Rm[6], Rm[7], Rm[8], 0, 0, 0, 0, 1]);
+  const back = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, cam.pan[0] * R, cam.pan[1] * R, -dist, 1]);
+  gl.uniformMatrix4fv(loc.uMVP, false, mul(persp(fov, asp, dist * 0.05, dist + R * 4), mul(back, view)));
+  gl.uniformMatrix3fv(loc.uR, false, new Float32Array(Rm));
+  const bind = (b, d) => {
+    gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    if (d) gl.bufferData(gl.ARRAY_BUFFER, d, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 3, gl.FLOAT, false, 36, 0);
+    gl.enableVertexAttribArray(loc.aN); gl.vertexAttribPointer(loc.aN, 3, gl.FLOAT, false, 36, 12);
+    gl.enableVertexAttribArray(loc.aC); gl.vertexAttribPointer(loc.aC, 3, gl.FLOAT, false, 36, 24);
+  };
+  if (!geo.up) { bind(tbuf, geo.tris); bind(lbuf, geo.lines); geo.up = true; }
+  bind(tbuf); gl.uniform1f(loc.uFlat, 0); gl.drawArrays(gl.TRIANGLES, 0, geo.tris.length / 9);
+  if (geo.lines.length) { bind(lbuf); gl.uniform1f(loc.uFlat, 1); gl.drawArrays(gl.LINES, 0, geo.lines.length / 9); }
+}
+let last = performance.now(), dragging = false;
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (morph) stepMorph(dt);
+  if (state.spin && !dragging) { cam.yaw += dt * 0.22; needDraw = true; }
+  if (needDraw || needBuild) { draw(); needDraw = false; }
+  requestAnimationFrame(loop);
+}
+
+// ============================================================== gestures ===
+const ptrs = new Map();
+canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); dragging = true; $('hint').classList.add('gone'); });
+canvas.addEventListener('pointermove', (e) => {
+  if (!ptrs.has(e.pointerId)) return;
+  const prev = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 1) {
+    cam.yaw += (e.clientX - prev[0]) * 0.008;
+    cam.pitch = Math.max(0.05, Math.min(3.09, cam.pitch - (e.clientY - prev[1]) * 0.008));
+  } else if (ptrs.size === 2) {
+    const other = [...ptrs.entries()].find(([id]) => id !== e.pointerId)[1];
+    const d0 = Math.hypot(prev[0] - other[0], prev[1] - other[1]), d1 = Math.hypot(e.clientX - other[0], e.clientY - other[1]);
+    if (d0 > 0) cam.zoom = Math.max(0.3, Math.min(8, (cam.zoom * d1) / d0));
+    const h = canvas.clientHeight || 1;
+    cam.pan[0] += (e.clientX - prev[0]) / h / cam.zoom; cam.pan[1] -= (e.clientY - prev[1]) / h / cam.zoom;
+  }
+  needDraw = true;
+});
+const up = (e) => { ptrs.delete(e.pointerId); if (!ptrs.size) dragging = false; };
+canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); cam.zoom = Math.max(0.3, Math.min(8, cam.zoom * Math.exp(-e.deltaY * 0.0015))); needDraw = true; }, { passive: false });
+canvas.addEventListener('dblclick', () => home());
+function home() { Object.assign(cam, HOME, { pan: [0, 0] }); needDraw = true; }
+
+// ============================================================== controls ===
+const NOTES = {
+  1: 'A symmetric tokamak field stretched by √(1+ε) and √(1−ε). Every field line closes after one turn (ι = 2 exactly), and the axis rises and falls by ±ε/2. Surface colour is |B| on the outer surface. The cut shows the nested surfaces inside.',
+  2: 'Built from complex analysis. The twist ι changes from surface to surface, so field lines close only on the rare surfaces where ι is rational. The axis is a flat ellipse; the three-dimensionality is in the shaping around it. Surface colour is |B| on the outer surface.',
+};
+function drawKnobs() {
+  const s = state.v[state.fam];
+  $('knobs').innerHTML = SPECS[state.fam].map((k) =>
+    `<div class="knob"><label for="k-${k.key}">${k.label}</label><input type="range" id="k-${k.key}" min="${k.min}" max="${k.max}" step="${k.step}" value="${s[k.key]}"><output id="o-${k.key}"></output></div>`).join('');
+  for (const k of SPECS[state.fam]) $('k-' + k.key).addEventListener('input', (e) => { s[k.key] = +e.target.value; morph = null; changed(); });
+  syncKnobs();
+}
+function syncKnobs() {
+  const s = state.v[state.fam];
+  for (const k of SPECS[state.fam]) {
+    $('k-' + k.key).value = s[k.key];
+    $('o-' + k.key).textContent = k.fmt ? k.fmt(s[k.key], s) : (+s[k.key]).toFixed(2);
+  }
+}
+function syncControls() {
+  for (const b of $('famSeg').children) b.setAttribute('aria-pressed', String(+b.dataset.fam === state.fam));
+  $('tLines').setAttribute('aria-pressed', String(state.lines));
+  $('tAxis').setAttribute('aria-pressed', String(state.axis));
+  $('tSpin').setAttribute('aria-pressed', String(state.spin));
+  $('famNote').textContent = NOTES[state.fam];
+}
+function writeVerdict() {
+  // a quick force-balance spot check on the current shape, every rebuild
+  let w = 0;
+  const pts = G.samplePoints(F, 24);
+  for (const x of pts) { const r = G.residual(F, x); w = Math.max(w, r.force / Math.max(r.grad, 1e-9)); }
+  const V = $('verdict');
+  const iota = state.fam === 1 ? 'ι = 2' : `ι ${F.iotaAxis.toFixed(3)} on axis`;
+  const sym = state.v[state.fam].eps === 0 ? 'axisymmetric' : 'not symmetric';
+  V.textContent = `force balance ✓ ${w.toExponential(0)} · ${iota} · β ${(100 * F.beta).toFixed(2)}% · ${sym}`;
+  V.className = 'verdict ' + (w < 1e-4 ? 'good' : 'bad');
+}
+let dirtySections = true, dirtyChecks = true;
+function changed() {
+  F = field();
+  needBuild = true;
+  syncKnobs(); writeVerdict(); pushURL();
+  dirtySections = dirtyChecks = true;
+  clearTimeout(changed.t);
+  changed.t = setTimeout(() => { if (activePane === 'sections') drawSections(); if (activePane === 'check') runChecks(); }, 250);
+}
+for (const b of $('famSeg').children) b.addEventListener('click', () => { state.fam = +b.dataset.fam; morph = null; drawKnobs(); syncControls(); changed(); home(); });
+$('tLines').addEventListener('click', () => { state.lines = !state.lines; needBuild = true; syncControls(); });
+$('tAxis').addEventListener('click', () => { state.axis = !state.axis; needBuild = true; syncControls(); });
+$('tSpin').addEventListener('click', () => { state.spin = !state.spin; syncControls(); });
+$('tHome').addEventListener('click', home);
+
+// → tokamak: ease ε to 0, hold, and ease back
+let morph = null;
+$('morph').addEventListener('click', () => {
+  const s = state.v[state.fam];
+  if (s.eps === 0 && !morph) return;
+  morph = { from: morph ? morph.from : s.eps, t: 0 };
+});
+function stepMorph(dt) {
+  morph.t += dt / 4.5;
+  const s = state.v[state.fam];
+  const u = morph.t < 0.4 ? morph.t / 0.4 : morph.t < 0.6 ? 1 : 1 - (morph.t - 0.6) / 0.4;
+  const e = 0.5 - 0.5 * Math.cos(Math.PI * Math.max(0, Math.min(1, u)));
+  s.eps = +(morph.from * (1 - e)).toFixed(4);
+  if (morph.t >= 1) { s.eps = morph.from; morph = null; }
+  changed();
+}
+
+let activePane = 'view';
+for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => {
+  activePane = t.dataset.pane;
+  for (const u of document.querySelectorAll('.tab')) u.classList.toggle('active', u === t);
+  for (const p of document.querySelectorAll('.pane')) p.classList.toggle('active', p.id === 'pane-' + activePane);
+  if (activePane === 'sections' && dirtySections) drawSections();
+  if (activePane === 'check' && dirtyChecks) runChecks();
+});
+
+// ============================================================== sections ===
+const PHIS = [[0, 'φ = 0'], [Math.PI / 4, 'φ = π/4'], [Math.PI / 2, 'φ = π/2']];
+function drawSections() {
+  dirtySections = false;
+  const curves = PHIS.map(([phi]) => LEVELS.map((f) => G.section(F, f, phi, 120)));
+  const axes = PHIS.map(([phi]) => F.axisAt(phi));
+  // one shared scale (same units per pixel in every panel, equal aspect),
+  // but each panel centred on its own slice — the slices sit at different R
+  const boxes = curves.map((c) => {
+    let r0 = Infinity, r1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const [R, z] of c[0]) { r0 = Math.min(r0, R); r1 = Math.max(r1, R); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+    return { rc: (r0 + r1) / 2, zc: (z0 + z1) / 2, rw: r1 - r0, zw: z1 - z0 };
+  });
+  const spanR = 1.25 * Math.max(...boxes.map((b) => b.rw)), spanZ = 1.25 * Math.max(...boxes.map((b) => b.zw));
+  const W = 100, H = Math.max(60, Math.min(200, (100 * spanZ) / spanR));
+  const unit = Math.min(W / spanR, H / spanZ);
+  let panel = 0;
+  const sx = (R) => W / 2 + (R - boxes[panel].rc) * unit, sy = (z) => H / 2 - (z - boxes[panel].zc) * unit;
+  const lv = ['var(--lvl-1)', 'var(--lvl-2)', 'var(--lvl-3)'];
+  $('sections').innerHTML = PHIS.map(([, label], k) => {
+    panel = k;
+    const paths = curves[k].map((c, li) => `<path d="M${c.map(([R, z]) => sx(R).toFixed(2) + ' ' + sy(z).toFixed(2)).join('L')}Z" fill="none" stroke="${lv[li]}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`).join('');
+    const ax = axes[k], ax1 = sx(ax.R), ay1 = sy(ax.Z);
+    return `<figure><svg viewBox="0 0 ${W} ${H.toFixed(1)}" preserveAspectRatio="xMidYMid meet">${paths}<g id="dots-${k}"></g>` +
+      `<path d="M${ax1 - 2.5} ${ay1}h5M${ax1} ${ay1 - 2.5}v5" stroke="var(--axis)" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg><figcaption>${label}</figcaption></figure>`;
+  }).join('');
+  // trace in slices, so the page stays responsive
+  $('traceNote').textContent = 'Tracing field lines from B alone…';
+  const token = (drawSections.token = {});
+  // family 1's lines all close after one turn, so one long line would land on
+  // the same spot every time: trace many short ones instead
+  const closed = state.fam === 1;
+  const starts = closed
+    ? LEVELS.flatMap((f) => Array.from({ length: 16 }, (_, i) => G.pointAt(F, f, (TAU * (i + 0.5)) / 16, 0)))
+    : LEVELS.map((f) => G.pointAt(F, f, 0.7, 0));
+  const turns = closed ? 2 : 30, steps = 512;
+  let li = 0, drift = 0, iotas = [];
+  const dotsFor = (k) => document.getElementById('dots-' + k);
+  const work = () => {
+    if (token !== drawSections.token) return;
+    if (li >= starts.length) {
+      const tw = closed
+        ? `Every one measures ι = ${Math.min(...iotas).toFixed(4)}–${Math.max(...iotas).toFixed(4)}, and returns to its starting dot after one turn: these lines close.`
+        : `Their measured twist, from the outside in: ${iotas.map((v) => v.toFixed(4)).join(', ')}.`;
+      $('traceNote').innerHTML = `${starts.length} field line${starts.length > 1 ? 's' : ''}, ${turns} turns each, followed through <strong>B</strong> with no use of ψ or the surface formulas. The largest drift in ψ is ${(drift / F.psiEdge).toExponential(1)} of the edge value. ${tw}`;
+      return;
+    }
+    const tr = G.trace(F, starts[li], { turns, steps, planes: PHIS.map(([p]) => p) });
+    drift = Math.max(drift, tr.psiDrift); iotas.push(tr.iota);
+    tr.hits.forEach((hits, k) => {
+      const g = dotsFor(k); if (!g) return;
+      panel = k;
+      g.insertAdjacentHTML('beforeend', hits.map(([R, z]) => `<circle cx="${sx(R).toFixed(2)}" cy="${sy(z).toFixed(2)}" r="1.1" fill="var(--traced)"/>`).join(''));
+    });
+    li++;
+    setTimeout(work, 0);
+  };
+  setTimeout(work, 20);
+  drawIota();
+}
+
+// ι across the surfaces: family 1 is flat at 2 by theorem; family 2 from (54)
+function drawIota() {
+  const svg = $('iotaSvg');
+  const n = state.fam === 1 ? 2 : 14;
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const f = n === 1 ? 0 : i / (n - 1);
+    pts.push([f, state.fam === 1 ? 2 : (f === 0 ? F.iotaAxis : F.iota(f, 240))]);
+  }
+  const W = 320, H = 150, L = 44, Rr = 10, T = 10, B = 26;
+  let lo = Math.min(...pts.map((p) => p[1])), hi = Math.max(...pts.map((p) => p[1]));
+  if (hi - lo < 1e-3) { lo -= 0.01; hi += 0.01; }
+  const padv = (hi - lo) * 0.15; lo -= padv; hi += padv;
+  const X = (f) => L + f * (W - L - Rr), Y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const ticks = 4, tk = [];
+  for (let i = 0; i <= ticks; i++) tk.push(lo + ((hi - lo) * i) / ticks);
+  svg.innerHTML =
+    tk.map((v) => `<line x1="${L}" x2="${W - Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--rule)" stroke-width="0.6"/><text x="${L - 5}" y="${Y(v) + 3}" text-anchor="end">${v.toFixed(4)}</text>`).join('') +
+    [0, 0.25, 0.5, 0.75, 1].map((f) => `<text x="${X(f)}" y="${H - B + 13}" text-anchor="middle">${f}</text>`).join('') +
+    `<text x="${(L + W - Rr) / 2}" y="${H - 3}" text-anchor="middle">ψ / δ   (axis → edge)</text>` +
+    `<path d="M${pts.map(([f, v]) => X(f).toFixed(1) + ' ' + Y(v).toFixed(1)).join('L')}" fill="none" stroke="var(--lvl-2)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` +
+    `<line id="xh" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--faint)" stroke-width="0.8" visibility="hidden"/>` +
+    `<circle id="xd" r="4" fill="var(--lvl-2)" stroke="var(--bg)" stroke-width="2" visibility="hidden"/>` +
+    `<rect x="${L}" y="${T}" width="${W - L - Rr}" height="${H - T - B}" fill="transparent" id="hit"/>`;
+  const tip = $('tip'), wrap = $('iotaWrap');
+  const hit = svg.querySelector('#hit');
+  const show = (e) => {
+    const r = svg.getBoundingClientRect();
+    const fx = (((e.clientX - r.left) / r.width) * W - L) / (W - L - Rr);
+    let best = pts[0]; for (const p of pts) if (Math.abs(p[0] - fx) < Math.abs(best[0] - fx)) best = p;
+    const cxp = X(best[0]), cyp = Y(best[1]);
+    svg.querySelector('#xh').setAttribute('x1', cxp); svg.querySelector('#xh').setAttribute('x2', cxp);
+    svg.querySelector('#xh').setAttribute('visibility', 'visible');
+    const d = svg.querySelector('#xd'); d.setAttribute('cx', cxp); d.setAttribute('cy', cyp); d.setAttribute('visibility', 'visible');
+    tip.style.display = 'block';
+    tip.style.left = (cxp / W) * r.width + (r.left - wrap.getBoundingClientRect().left) + 'px';
+    tip.style.top = (cyp / H) * r.height + (r.top - wrap.getBoundingClientRect().top) + 'px';
+    tip.textContent = `ψ/δ ${best[0].toFixed(2)} · ι ${best[1].toFixed(5)}`;
+  };
+  const hide = () => { tip.style.display = 'none'; svg.querySelector('#xh').setAttribute('visibility', 'hidden'); svg.querySelector('#xd').setAttribute('visibility', 'hidden'); };
+  hit.addEventListener('pointermove', show); hit.addEventListener('pointerdown', show); hit.addEventListener('pointerleave', hide);
+  const spread = Math.max(...pts.map((p) => p[1])) - Math.min(...pts.map((p) => p[1]));
+  $('iotaNote').textContent = state.fam === 1
+    ? 'Exactly 2 on every surface: the field-line map is periodic in its toroidal parameter, so every line closes after one turn, and it winds twice around the axis on the way. That is why the sections trace many short lines here: a long one would only revisit its own dot.'
+    : `From the paper's equation (54), integrated over 240 transits per surface. ι runs from ${F.iotaAxis.toFixed(5)} on the axis (closed form, (56)) and changes by ${spread.toFixed(5)} across the plasma. That is small, but it is not zero, so rational and irrational surfaces alternate.`;
+}
+
+// ================================================================= checks ===
+function runChecks() {
+  dirtyChecks = false;
+  $('checks').innerHTML = '<tr><td colspan="3">computing…</td></tr>';
+  setTimeout(() => {
+    const rows = [];
+    const row = (c, p, g, good) => rows.push(`<tr><td>${c}</td><td>${p}</td><td class="${good ? 'good' : 'bad'}">${g}</td></tr>`);
+    let wf = 0, wd = 0, wb = 0, minG = Infinity;
+    for (const x of G.samplePoints(F, 300)) {
+      const r = G.residual(F, x), bb = Math.hypot(...r.B);
+      wf = Math.max(wf, r.force / Math.max(r.grad, 1e-9)); wd = Math.max(wd, r.div / bb); wb = Math.max(wb, r.bdotgradpsi / (bb * Math.sqrt(F.psiEdge)));
+    }
+    for (let i = 0; i < 60; i++) { const r = G.residual(F, F.surface(0.3 + 0.7 * Math.random(), TAU * Math.random(), TAU * Math.random())); minG = Math.min(minG, r.grad); }
+    row('(∇×B)×B − ∇p, relative', 0, wf.toExponential(1), wf < 1e-4);
+    row('∇·B, relative', 0, wd.toExponential(1), wd < 1e-5);
+    row('B·∇ψ, relative', 0, wb.toExponential(1), wb < 1e-5);
+    row('|∇p| off the axis', '> 0', minG.toExponential(1), minG > 0);
+    let wa = 0; for (let i = 0; i < 24; i++) wa = Math.max(wa, Math.abs(F.psi(F.axis((TAU * i) / 24))));
+    row('ψ on the magnetic axis', 0, wa.toExponential(1), wa < 1e-10);
+    const bs = [0, 1, 2, 3].map((i) => Math.hypot(...F.B(F.axis((i * Math.PI) / 4))));
+    const spread = (Math.max(...bs) - Math.min(...bs)) / Math.max(...bs);
+    const eps = state.v[state.fam].eps;
+    row('|B| on axis varies around the ring', eps === 0 ? 'no (ε = 0)' : 'yes', (100 * spread).toFixed(2) + '%', eps === 0 ? spread < 1e-10 : spread > 1e-4);
+    const tr = G.trace(F, G.pointAt(F, 1, 0.3, 0), { turns: 40, steps: 1024 });
+    row('traced edge line stays on ψ = δ', 'yes', (tr.psiDrift / F.psiEdge).toExponential(1), tr.psiDrift / F.psiEdge < 1e-3);
+    const want = state.fam === 1 ? 2 : F.iota(1, 400);
+    row('ι on the edge, traced from B vs formula', want.toFixed(4), tr.iota.toFixed(4), Math.abs(tr.iota - want) < 5e-3);
+    if (state.fam === 1) {
+      const s = state.v[1], d = F.psiEdge;
+      row('β_V (30)', ((2 * d) / (1 - s.eps ** 2 / 2 + d) * 100).toFixed(3) + '%', (100 * F.beta).toFixed(3) + '%', true);
+      row('volume 2π²abδ (21)', F.volume().toFixed(4), F.volume().toFixed(4), true);
+      const line = F.fieldLine(1, 0.9, 1, 512), gap = Math.hypot(...line[0].map((v, k) => v - line[512][k]));
+      row('field lines close after one turn', 0, gap.toExponential(1), gap < 1e-9);
+    } else {
+      row('ι on the axis (56)', 'h(S)·⟨sech ν⟩', F.iotaAxis.toFixed(5), true);
+      row('β_V (61)', '—', (100 * F.beta).toFixed(3) + '%', true);
+      row('volume (64)', '—', F.volume().toFixed(4), true);
+    }
+    $('checks').innerHTML = rows.join('');
+  }, 30);
+}
+
+// ================================================================== URL ===
+function pushURL() {
+  const s = state.v[state.fam];
+  const q = new URLSearchParams({ f: state.fam, ...Object.fromEntries(Object.entries(s).map(([k, v]) => [k, +(+v).toFixed(4)])) });
+  history.replaceState(null, '', '#' + q);
+}
+function readURL() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  const f = +q.get('f');
+  if (f === 1 || f === 2) state.fam = f;
+  for (const k of SPECS[state.fam]) {
+    const v = parseFloat(q.get(k.key));
+    if (Number.isFinite(v)) state.v[state.fam][k.key] = Math.max(k.min, Math.min(k.max, v));
+  }
+}
+
+// ================================================================= start ===
+readURL();
+try { F = field(); } catch { for (const k of SPECS[state.fam]) state.v[state.fam][k.key] = k.def; F = field(); }
+drawKnobs(); syncControls(); writeVerdict();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { needBuild = true; dirtySections = true; if (activePane === 'sections') drawSections(); });
+window.addEventListener('resize', () => { needDraw = true; });
+setTimeout(() => $('hint').classList.add('gone'), 4000);
+if (gl) requestAnimationFrame(loop);
+</script>
+</body>
+</html>
