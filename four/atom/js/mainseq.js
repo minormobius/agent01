@@ -45,11 +45,26 @@ export function rhoOf(d, P, T, comp) {
    4D, through the lens vacuum: a free electron in light of frequency ω scatters σ = (3π³/4) r_e² c/ω (the book's dipole
    rate (3π/8) α ω³ |D|² with the lens's push c/ℓω, ℓ cancelling; r_e our classical radius, α being ours), a 3-volume
    falling as 1/ω; its Rosseland mean over 4D light, ⟨ω⟩ = 6ζ(6)/ζ(5) kT/ħ, so κ ∝ 1/T. Absorption by free electrons
-   (free–free) isn't derived for 4D yet, so a 4D star here is as transparent as scattering allows: its faint end too bright */
+   (free–free) is kappaFF4 below */
 export const kappaOurs = (comp) => (rho, T) => { const r = rho / 1000; return 0.02 * (1 + comp.X) + 0.1 * (3.68e22 * (1 - comp.Z) * (1 + comp.X) * r * T ** -3.5 + 4.34e24 * comp.Z * (1 + comp.X) * r * T ** -3.5); };
 const RE = 2.8179403262e-15, XBAR = (6 * ZETA[6]) / ZETA[5];
 export const sigmaLens = (T) => ((3 * Math.PI ** 3) / 4) * RE * RE * ((SI.hbar * SI.c) / (XBAR * SI.k * T));
 export const kappaLens4 = (comp) => (rho, T) => sigmaLens(T) * ((1 + comp.X) / (2 * SI.mu));
+/* 4D free–free absorption. An electron passing an ion of charge Z on a near-straight line feels the pinned pull Zαħc/r²
+   (ours exactly) and, through the lens vacuum, radiates dW/dω = (3αħ/16c²)|a(ω)|² (the book's dipole rate, 9π/32 of
+   Larmor's for the same motion), |a(ω)|² = (2Zαħc/(m b v))² x²(K₀² + K₁²), x = ωb/v. In 4D the impact parameters fill a
+   3-volume, 4πb² db, so the sum over passes converges with no logarithm: ∫x²(K₀² + K₁²) dx = π²/8. Over 4D's speeds, with
+   a photon no dearer than the electron's energy ((1 + x) e^(−x), x = ħω/kT), and by detailed balance against 4D's
+   blackbody: κ_ω = n_e Σn_iZ² π⁵ α³ ħ² c³ (1 + x)(1 − e^(−x)) / (m² ω⁵) per length. With scattering ∝ 1/ω the
+   Rosseland mean depends only on their ratio, A/B = Σn_iZ² (4π²/3) α (ħc/kT)⁴, tabulated once. The same classical
+   reasoning in 3D gives our free–free at the Sun's centre about half of Kramers' (the photon carries much of the
+   electron's energy where the mean weighs most), so `ff` scales it: 1 classical, the band 0.5–2 */
+const ROSS4 = (() => { const W = (x) => (x ** 5 * Math.exp(x)) / (Math.exp(x) - 1) ** 2, F = (x) => ((1 + x) * (1 - Math.exp(-x))) / x ** 5, E = (x) => 1 / x, xs = [];
+  for (let x = 0.01; x < 45; x += 0.01) xs.push(x); const num = xs.reduce((t, x) => t + W(x), 0), lr = [], g = [];
+  for (let l = -8; l <= 14; l += 0.05) { const r = 10 ** l; lr.push(l); g.push(Math.log(num / xs.reduce((t, x) => t + W(x) / (r * F(x) + E(x)), 0))); }
+  return (r) => { const l = Math.log10(Math.max(r, 1e-8)); if (l >= 14) return Math.exp(g.at(-1)) * r / 1e14; const i = Math.min(lr.length - 2, Math.floor((l + 8) / 0.05)), f = (l - lr[i]) / 0.05; return Math.exp(g[i] * (1 - f) + g[i + 1] * f); }; })();
+export const kappaFF4 = (comp, ff = 1) => (rho, T) => { const nz = (rho / SI.mu) * (comp.X + comp.Y), ne = (rho / SI.mu) * ((1 + comp.X) / 2), x0 = (SI.hbar * SI.c) / (SI.k * T);
+  const B = ne * ((3 * Math.PI ** 3) / 4) * RE * RE * x0, r = ff * nz * ((4 * Math.PI ** 2) / 3) * (1 / 137.035999) * x0 ** 4; return (B * ROSS4(r)) / rho; };
 
 /* integrate y = [ln r, ln P, ln T, L] in m (RK4, step doubling) */
 function integrate(rhs, m0, m1, y0, { tol = 1e-6, h0 } = {}) {
@@ -118,10 +133,11 @@ export function toPinned(opts, s0) {
   }
   return { ...s, ok: false, why: "pinned blend ran out" };
 }
-/* the next star along a sequence, pinned: gravity carried as f(m/M) from the last, settled */
+/* the next star along a sequence, pinned: gravity carried as f(m/M) from the last, settled (damped) */
 export function nextPinned(opts, guess, fq) {
   const { M } = opts; let s = null, f = (m) => fq(m / M);
-  for (let k = 0; k < 12; k++) { const t = star({ ...opts, f }, s ? s.p : guess); if (!t.ok) return s ? { ...s, ok: false, why: t.why } : t;
-    if (s && Math.abs(Math.log(t.L / s.L)) < 1e-3) return { ...t, f, dL: Math.abs(Math.log(t.L / s.L)) }; s = t; f = pinnedF(t.prof); }
+  // each pass's gravity is the mean of the last and the new profile's, which damps the swing a steep opacity gives it
+  for (let k = 0; k < 30; k++) { const t = star({ ...opts, f }, s ? s.p : guess); if (!t.ok) return s ? { ...s, ok: false, why: t.why } : t;
+    if (s && Math.abs(Math.log(t.L / s.L)) < 1e-3) return { ...t, f, dL: Math.abs(Math.log(t.L / s.L)) }; s = t; const fo = f, fn = pinnedF(t.prof); f = (m) => 0.5 * (fo(m) + fn(m)); }
   return { ...s, f, ok: false, why: "gravity didn't settle" };
 }

@@ -1,32 +1,51 @@
 {
- "run": "mainseq-1",
- "why": "The 4D main sequence: zero-age stars from 0.13 to 5 Chandrasekhar masses (js/mainseq.js: shooting fit, Fermi–Dirac electrons, pinned gravity from the whole profile, electron scattering through the lens vacuum, the book's own rates), at gravity 10⁻¹⁴ to 10⁻²⁶ of ours and proton + proton's nuclear size 1 or 4 fm: brightness, size, colour and lifetime against G, ours (0.5–30 M☉) reproduced first.",
+ "run": "mainseq-2",
+ "why": "The 4D main sequence with free–free absorption (js/mainseq.js kappaFF4: classical passes through the lens vacuum, no logarithm in 4D, Kirchhoff, Rosseland-averaged with scattering; the classical estimate is half of Kramers' on ours, so ×0.5 and ×2 are run as the band): G 10⁻¹⁴ to 10⁻²⁶ of ours, proton + proton at 1 or 4 fm.",
  "minutes": 180,
  "groups": [
   {
-   "name": "ms-0",
+   "name": "ms2-0",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs run 1e-14 1",
-    "node four/atom/tools/mainseq.mjs run 1e-14 4",
-    "node four/atom/tools/mainseq.mjs run 1e-17 1",
-    "node four/atom/tools/mainseq.mjs run 1e-17 4"
+    "node four/atom/tools/mainseq.mjs run 1e-14 1 1",
+    "node four/atom/tools/mainseq.mjs run 1e-14 4 1",
+    "node four/atom/tools/mainseq.mjs run 1e-17 1 1",
+    "node four/atom/tools/mainseq.mjs run 1e-17 4 1"
    ]
   },
   {
-   "name": "ms-1",
+   "name": "ms2-1",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs run 1e-20 1",
-    "node four/atom/tools/mainseq.mjs run 1e-20 4",
-    "node four/atom/tools/mainseq.mjs run 1e-23 1",
-    "node four/atom/tools/mainseq.mjs run 1e-23 4"
+    "node four/atom/tools/mainseq.mjs run 1e-20 1 1",
+    "node four/atom/tools/mainseq.mjs run 1e-20 4 1",
+    "node four/atom/tools/mainseq.mjs run 1e-23 1 1",
+    "node four/atom/tools/mainseq.mjs run 1e-23 4 1"
    ]
   },
   {
-   "name": "ms-2",
+   "name": "ms2-2",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs run 1e-26 1",
-    "node four/atom/tools/mainseq.mjs run 1e-26 4",
-    "node four/atom/tools/mainseq.mjs ours"
+    "node four/atom/tools/mainseq.mjs run 1e-26 1 1",
+    "node four/atom/tools/mainseq.mjs run 1e-26 4 1",
+    "node four/atom/tools/mainseq.mjs run 1e-14 1 0.5",
+    "node four/atom/tools/mainseq.mjs run 1e-14 1 2"
+   ]
+  },
+  {
+   "name": "ms2-3",
+   "cmds": [
+    "node four/atom/tools/mainseq.mjs run 1e-17 1 0.5",
+    "node four/atom/tools/mainseq.mjs run 1e-17 1 2",
+    "node four/atom/tools/mainseq.mjs run 1e-20 1 0.5",
+    "node four/atom/tools/mainseq.mjs run 1e-20 1 2"
+   ]
+  },
+  {
+   "name": "ms2-4",
+   "cmds": [
+    "node four/atom/tools/mainseq.mjs run 1e-23 1 0.5",
+    "node four/atom/tools/mainseq.mjs run 1e-23 1 2",
+    "node four/atom/tools/mainseq.mjs run 1e-26 1 0.5",
+    "node four/atom/tools/mainseq.mjs run 1e-26 1 2"
    ]
   }
  ]

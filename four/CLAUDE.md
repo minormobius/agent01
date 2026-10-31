@@ -274,9 +274,10 @@ for games, and this is a modelling programme with publications to come. The game
   `js/mainseq.js` (no DOM) is the main sequence in any d: shooting from centre and surface to a fitting mass (Newton on
   ln P_c, ln T_c, ln R, ln L), Fermi–Dirac electrons (burning.js, tabulated), light u/d, convection at ∇_ad = 2/(d+2), the
   photosphere at τ = 2/3, our opacity (scattering + Kramers) and 4D's (electron scattering through the lens vacuum,
-  σ = (3π³/4) r_e² c/ω, so κ ∝ 1/T; free–free not yet derived), and pinned-4D gravity from the whole profile as
+  σ = (3π³/4) r_e² c/ω, so κ ∝ 1/T; and free–free, `kappaFF4`: classical passes, no Gaunt logarithm in 4D, Kirchhoff,
+  Rosseland with scattering from a one-dimensional table; ×0.5–2 the band, since the same reasoning gives half of Kramers' on ours), and pinned-4D gravity from the whole profile as
   f(m) = g r²/(G m) (`pinnedF`; `toPinned` blends to it from g = G m/r², `nextPinned` carries it along a sequence).
-  `atom/tools/mainseq.mjs` (`ours` the check: our zero-age sequence 0.5–30 M☉; `run <G> <rnp>`, on the runner: 4D from
+  `atom/tools/mainseq.mjs` (`ours` the check: our zero-age sequence 0.5–30 M☉; `run <G> <rnp> [ff]`, on the runner: 4D from
   0.13 to 5 M_Ch at G × ours; `bake` → **generated** `js/mainseqdata.js`, with each star's life, where a 288 K planet sits
   and its year). Cache `$TMPDIR/atom4-mainseq`. Selftest 56.
   **What's computed in a sandbox lives only in the cache and the bake**: if `$TMPDIR/atom4-nuclei` is lost (a container
