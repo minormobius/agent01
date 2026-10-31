@@ -103,30 +103,38 @@ $("go").onclick = go;
    A dynamic bicycle: the linearized Whipple model lifted to 4D (two copies, leaning into y and into w), balanced and
    steered by an LQR rider about the steady turn it's asked for. Something asks it for a lean: the autopilot (pure
    pursuit round the track) or you (the phone's tilt, or the arrow keys). Either steering mechanism. You can walk, or
-   ride along behind it: "follow the bend" turns your slice with the track's bend, "no twist" carries it without
-   twisting, and "you ride" hands you the lean.
+   ride it: the camera follows behind, either carried without twisting ("no twist") or turning your slice with the
+   track's bend ("follow the bend").
    Your hand, on a phone: the stick (the one you walk with), across for your slice, up for ana, down for kata, let go
    for hands off; or the tilt if you turn it on. On a keyboard: ← → in your slice, ↑ ana, ↓ kata. What you ask for is a lean, as a rider asks with their
    body; the rider in the machine steers to get it (a real bike can't be balanced by its handlebar angle alone). */
 const g3 = (v) => [v[0], v[2], v[3]], to4g = (v, y = 0) => [v[0], y, v[1], v[2]];
-const bike = new Bike({ mech: "two-axis", v: V }), RIDES = ["walk", "follow the bend", "no twist", "you ride"];
-let ride = "walk", bhint = 0, fellAt = -1e9, fellWhy = "";
+const bike = new Bike({ mech: "two-axis", v: V });
+/* two modes, each with its own few controls: walk (the stick walks; twist, look into w, square up, face the track) and
+   ride (the stick is the handlebars; the camera, the speed, and ⚙ for the rest). Riding, who holds the bars (pilot) is
+   you, hands on (default), you assisted (you ask for a lean), or the autopilot (you watch) */
+const CAMS = ["no twist", "follow the bend"], PILOTS = ["hands", "assisted", "autopilot"];
+let mode = "walk", cam = "no twist", pilot = "hands", bhint = 0, fellAt = -1e9, fellWhy = "";
+const humanOn = () => mode === "ride" && pilot !== "autopilot";
 const COL = { "two-axis": [0.35, 0.85, 0.95], "one-axis": [1.0, 0.72, 0.25] };
 const nearIdx = (pos, hint, span = 60) => { let best = Infinity, bi = 0; for (let k = -span; k <= span; k++) { const i = (((hint + k) % NS) + NS) % NS, q = PTS[i], d = Math.hypot(pos[0] - q[0], pos[1] - q[1], pos[2] - q[2]); if (d < best) { best = d; bi = i; } } return { i: bi, d: best }; };
 const aheadPt = (i, L) => { let s2 = S[i] + L; s2 = ((s2 % LAP) + LAP) % LAP; let lo = 0, hi = NS; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (S[m] <= s2) lo = m; else hi = m; } return PTS[lo]; };
 function resetBike(i) {
   const f = frenet((2 * Math.PI * i) / NS); bike.place(PTS[i], g3(f.T), g3(f.N)); bhint = i;
-  if (ride !== "you ride") bike.settle(followLean(bike, aheadPt(i, lookahead(bike.v))));
+  if (!humanOn()) bike.settle(followLean(bike, aheadPt(i, lookahead(bike.v))));
 }
 resetBike(80); // a few metres ahead of where you start
-const human = { lc: 0, ld: 0, tilt: null, zero: null, perm: false, hands: true, useTilt: false }; // hands on: you steer, nobody balances for you
+const human = { lc: 0, ld: 0, tilt: null, zero: null, perm: false, useTilt: false }; // hands on: you steer, nobody balances for you
 const T_MAX = 2.5; // N m of steer torque at full tilt
 addEventListener("deviceorientation", (e) => { if (e.beta == null) return; human.tilt = { beta: e.beta, gamma: e.gamma }; });
-function setRide(m) {
-  if (ride !== "walk" && m === "walk") { const p = me.p.slice(); p[1] = ground(p) + EYE; me.p = p; me.pitch = -0.12; tidy(); }
-  if (m === "you ride") { human.zero = null; human.lc = human.ld = 0; }
-  ride = m; $("ride").textContent = m === "walk" ? "🚲 ride" : `🚲 ${m}`; $("ride").classList.toggle("on", m !== "walk");
+function setMode(m) {
+  if (mode === "ride" && m === "walk") { const p = me.p.slice(); p[1] = ground(p) + EYE; me.p = p; me.pitch = -0.12; tidy(); } // step off where the camera was
+  if (m === "ride") { human.zero = null; human.lc = human.ld = 0; }
+  mode = m; document.body.classList.toggle("riding", m === "ride"); document.body.classList.remove("cfg");
+  $("mode").textContent = m === "walk" ? "🚲 ride" : "🚶 walk";
 }
+function setCam(c) { cam = c; $("cam").textContent = `👁 ${c}`; }
+function setPilot(p) { pilot = p; $("hands").textContent = { hands: "✋ hands on", assisted: "🤝 assisted", autopilot: "🤖 autopilot" }[p]; if (p === "autopilot") bike.settle(followLean(bike, aheadPt(bhint, lookahead(bike.v)))); }
 function setMech(m) { bike.setMech(m); $("mech").textContent = `steer: ${m}`; }
 /* the phone's tilt, if you'd rather: off by default (the stick is the control); turning it on asks iOS for permission */
 function setTilt(on) {
@@ -134,18 +142,19 @@ function setTilt(on) {
   if (on) try { if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission && !human.perm) DeviceOrientationEvent.requestPermission().then((r) => { human.perm = r === "granted"; }).catch(() => {}); } catch (e) { /* the stick still works */ }
 }
 $("tiltb").onclick = () => setTilt(!human.useTilt);
-function setHands(on) { human.hands = on; $("hands").textContent = on ? "✋ hands on" : "🤝 assisted"; $("hands").classList.toggle("on", on); }
-$("hands").onclick = () => setHands(!human.hands);
+$("hands").onclick = () => setPilot(PILOTS[(PILOTS.indexOf(pilot) + 1) % PILOTS.length]);
 const SPEEDS = [5, 6, 7, 3, 4];
 function setSpeed(v) { bike.setSpeed(v); $("spd").value = v; $("spdV").textContent = `${v.toFixed(1)} m/s`; $("spdb").textContent = `${v} m/s`; }
 $("spdb").onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(bike.v) + 1) % SPEEDS.length] || 5);
-$("ride").onclick = () => setRide(RIDES[(RIDES.indexOf(ride) + 1) % RIDES.length]);
+$("mode").onclick = () => setMode(mode === "walk" ? "ride" : "walk");
+$("cam").onclick = () => setCam(CAMS[(CAMS.indexOf(cam) + 1) % CAMS.length]);
+$("cfg").onclick = () => document.body.classList.toggle("cfg");
 $("mech").onclick = () => setMech(MECHS[(MECHS.indexOf(bike.mech) + 1) % MECHS.length]);
 const arrows = new Set();
-document.addEventListener("keydown", (e) => { const k = e.key.toLowerCase(), t = e.target; if (e.ctrlKey || e.metaKey || e.altKey || (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; if (k === "r") $("ride").onclick(); if (k === "m") $("mech").onclick(); if (k === "h") $("hands").onclick(); if (e.key.startsWith("Arrow")) { e.preventDefault(); arrows.add(e.key); } });
+document.addEventListener("keydown", (e) => { const k = e.key.toLowerCase(), t = e.target; if (e.ctrlKey || e.metaKey || e.altKey || (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; if (k === "r") $("mode").onclick(); if (k === "v" && mode === "ride") $("cam").onclick(); if (k === "m") $("mech").onclick(); if (k === "h") $("hands").onclick(); if (e.key.startsWith("Arrow")) { e.preventDefault(); arrows.add(e.key); } });
 document.addEventListener("keyup", (e) => arrows.delete(e.key));
 { const sl = $("spd"), lab = () => { $("spdV").textContent = `${(+sl.value).toFixed(1)} m/s`; }; sl.oninput = lab; sl.onchange = () => setSpeed(+sl.value); lab(); }
-setRide("walk"); setMech("two-axis"); setHands(true);
+setMode("walk"); setCam("no twist"); setPilot("hands"); setMech("two-axis");
 /* what you do with your hand, in your riding frame (across your slice, and into w: ana up, kata down), from the stick, the
    keys or (if you turn it on) the tilt: a push on the bars when hands on, a lean asked for when assisted (radians; ×5 N m/rad) */
 function humanLean(dt) {
@@ -159,8 +168,9 @@ function humanLean(dt) {
     tc = cl(dz(roll - human.zero.roll) / 26) * MAX; td = cl(dz(tip - human.zero.tip) / 26) * MAX; // tip the top away: kata
   }
   if (stick) { tc = stick[0] * MAX; td = stick[1] * MAX; } // the stick: across is your slice, up is ana, down kata
-  if (arrows.size) { tc = ((arrows.has("ArrowRight") ? 1 : 0) - (arrows.has("ArrowLeft") ? 1 : 0)) * MAX * 0.8; td = ((arrows.has("ArrowUp") ? 1 : 0) - (arrows.has("ArrowDown") ? 1 : 0)) * MAX * 0.8; }
-  const kk = human.hands ? 1 - Math.exp(-dt * 25) : k; human.lc += (tc - human.lc) * kk; human.ld += (td - human.ld) * kk;
+  const kx = (keys.has("d") || arrows.has("ArrowRight") ? 1 : 0) - (keys.has("a") || arrows.has("ArrowLeft") ? 1 : 0), ky = (keys.has("w") || arrows.has("ArrowUp") ? 1 : 0) - (keys.has("s") || arrows.has("ArrowDown") ? 1 : 0);
+  if (kx || ky) { tc = kx * MAX * 0.8; td = ky * MAX * 0.8; }
+  const kk = pilot === "hands" ? 1 - Math.exp(-dt * 25) : k; human.lc += (tc - human.lc) * kk; human.ld += (td - human.ld) * kk;
   const f = rideFrame(); // in the frame you ride in: across your slice, and ana (+N) or kata (−N)
   return [0, 2, 3].map((j) => f.R[j] * human.lc + f.N[j] * human.ld);
 }
@@ -174,7 +184,7 @@ function bikePose() {
 /* the camera riding along: behind and above the rear wheel, upright, facing along the bike */
 function rideFrame() {
   let R, N; const T = to4g(bike.T);
-  if (ride === "follow the bend") { const f = frenet((2 * Math.PI * bhint) / NS); R = f.N; N = f.Bn; R = unit(add(R, T, -dot(R, T))); N = unit(add(add(N, T, -dot(N, T)), R, -dot(N, R))); }
+  if (cam === "follow the bend") { const f = frenet((2 * Math.PI * bhint) / NS); R = f.N; N = f.Bn; R = unit(add(R, T, -dot(R, T))); N = unit(add(add(N, T, -dot(N, T)), R, -dot(N, R))); }
   else { R = to4g(bike.c); N = to4g(bike.d); }
   if (det(R, T, N) < 0) N = N.map((v) => -v);
   return { R, F: T, N };
@@ -185,7 +195,7 @@ function bikeRead(st, want) {
   const mech = bike.mech === "two-axis"
     ? `Two-axis steering: both copies steer, the frame never twists (round this track it comes home turned ${deg(HOLONOMY)}°), steer torques <b>${bike.torque[0].toFixed(1)}</b> and <b>${bike.torque[1].toFixed(1)}</b> N m.`
     : `One-axis steering: its one steering axis must lie along the steer, so the frame twists, <b>${bike.alphaDot.toFixed(2)}</b> rad/s now, a twisting torque of <b>${bike.twistTorque.toFixed(1)}</b> N m from the rider (nothing on the ground can supply it). Steer torque <b>${Math.hypot(...bike.torque).toFixed(1)}</b> N m.`;
-  const who = ride === "you ride" ? (human.hands ? `Hands on: you push the bars with <b>${(Math.hypot(human.lc, human.ld) * T_MAX / 0.5).toFixed(2)}</b> N m, and nothing balances it but the bike itself${bike.v >= 4.31 && bike.v <= 6.02 ? " (at this speed it does, in both copies)" : " (at this speed it can't: that's on you)"}.` : `You ask for a lean of ${deg(Math.hypot(human.lc, human.ld))}°, and the rider in the machine steers to get it.`) : `The autopilot asks for ${deg(Math.hypot(...want))}°.`;
+  const who = humanOn() ? (pilot === "hands" ? `Hands on: you push the bars with <b>${(Math.hypot(human.lc, human.ld) * T_MAX / 0.5).toFixed(2)}</b> N m, and nothing balances it but the bike itself${bike.v >= 4.31 && bike.v <= 6.02 ? " (at this speed it does, in both copies)" : " (at this speed it can't: that's on you)"}.` : `You ask for a lean of ${deg(Math.hypot(human.lc, human.ld))}°, and the rider in the machine steers to get it.`) : `The autopilot asks for ${deg(Math.hypot(...want))}°.`;
   const txt = `<b>The bike</b> (the dynamics: the linearized Whipple bicycle in two copies, an LQR rider) at ${bike.v.toFixed(1)} m/s: lean <b>${deg(st.phi)}°</b>, <b>${intoW}%</b> of it into the direction you can't see; ` +
     `steer <b>${deg(st.delta)}°</b>, a turn of radius ${kap > 1e-3 ? (1 / kap).toFixed(1) + " m" : "∞"}, for which the calibration says ${deg(cal)}°. ${who} ${mech}`;
   if (txt !== bikeRead.txt) { bikeRead.txt = txt; $("bread").innerHTML = txt; }
@@ -198,8 +208,8 @@ function gauge(g, w, h, st, want) {
   g.beginPath(); g.moveTo(cx - R, cy); g.lineTo(cx + R, cy); g.moveTo(cx, cy - R); g.lineTo(cx, cy + R); g.stroke();
   g.font = "9px ui-monospace, Menlo, monospace"; g.fillStyle = "rgba(255,255,255,0.6)"; g.textAlign = "center"; g.fillText("ana", cx, cy - R - 4); g.fillText("kata", cx, cy + R + 10);
   const L = st.lean.map((x) => x * st.phi), W4 = to4g(want);
-  g.strokeStyle = human.hands && ride === "you ride" ? "#ff8a6a" : "#6fe0ff"; g.lineWidth = 1.6; g.beginPath(); g.arc(X(W4), Y(W4), 6, 0, 2 * Math.PI); g.stroke();
-  if (ride === "you ride") g.fillText(human.hands ? "your push on the bars" : "the lean you ask for", cx, cy + R + 21);
+  g.strokeStyle = pilot === "hands" && humanOn() ? "#ff8a6a" : "#6fe0ff"; g.lineWidth = 1.6; g.beginPath(); g.arc(X(W4), Y(W4), 6, 0, 2 * Math.PI); g.stroke();
+  if (humanOn()) g.fillText(pilot === "hands" ? "your push on the bars" : "the lean you ask for", cx, cy + R + 21);
   g.fillStyle = "#ffd27a"; g.beginPath(); g.arc(X(L), Y(L), 4.5, 0, 2 * Math.PI); g.fill();
 }
 
@@ -218,12 +228,12 @@ function readout(r) {
   const where = r.on ? `on the track · lap ${lap.n} · ${Math.round(r.frac * 100)}%` : `${(r.nt.d - R_TRACK).toFixed(1)} m off the track`;
   const side = r.kR < 0 ? "left" : "right", wdir = r.kN > 0 ? "ana" : "kata";
   const hud = `${where} · bend <b>${Math.round(r.share * 100)}%</b> in your slice`;
-  if (ride === "walk" && hud !== readout.hud) { readout.hud = hud; $("hudT").innerHTML = hud; }
+  if (mode === "walk" && hud !== readout.hud) { readout.hud = hud; $("hudT").innerHTML = hud; }
   const txt = `Here the centreline bends with radius <b>${(1 / r.f.kappa).toFixed(1)} m</b>. In your frame its curvature vector is ` +
     `(κ_F, κ_R, κ_N) = (<b>${r.kF.toFixed(3)}, ${r.kR.toFixed(3)}, ${r.kN.toFixed(3)}</b>) per metre: ` +
     `<b>${Math.round(r.share * 100)}%</b> of the bend is in your slice (to your ${side}), <b>${Math.round((1 - r.share) * 100)}%</b> is into w${1 - r.share > 0.01 ? ` (${wdir})` : ""}, where you can't see it. ` +
     `The plane of the bend turns at τ = <b>${r.f.tau.toFixed(3)}</b> rad/m, so ${Math.abs(r.f.tau) < 0.01 ? "for now it holds still" : `at this rate a bend wholly in your slice would be wholly into w ${Math.min(99, Math.abs(Math.PI / 2 / r.f.tau)).toFixed(0)} m on`}. ` +
-    (ride === "walk" ? `You face ${r.tAngle}° off the track's direction. <b>↦</b> (or <b>T</b>) faces it, with the whole bend in your slice.` : `You're riding behind the bike.`);
+    (mode === "walk" ? `You face ${r.tAngle}° off the track's direction. <b>↦</b> (or <b>T</b>) faces it, with the whole bend in your slice.` : `You're riding behind the bike.`);
   if (txt !== readout.txt) { readout.txt = txt; $("read").innerHTML = txt; }
 }
 /* the map: the ground itself, x, z and w, as a solid you can turn (drag it; double-click resets). The track is drawn
@@ -322,17 +332,17 @@ function step(now) {
     let mv = [0, 0]; if (keys.has("w")) mv[1] += 1; if (keys.has("s")) mv[1] -= 1; if (keys.has("d")) mv[0] += 1; if (keys.has("a")) mv[0] -= 1;
     if (stick) mv = stick; const m = Math.hypot(...mv); if (m > 1) mv = mv.map((v) => v / m);
     const speed = keys.has("shift") ? 8.4 : 4.2, vel = add(me.fr.F.map((v) => v * mv[1] * speed), me.fr.R, mv[0] * speed);
-    if (ride === "walk") me.p = walk(H, me.p, vel, dt, ground);
+    if (mode === "walk") me.p = walk(H, me.p, vel, dt, ground);
   }
   // the bike: who asks for its lean, one step of its dynamics, and back on the track if it falls or reaches the rim
-  const nb = nearIdx(bike.pos, bhint, ride === "you ride" ? 160 : 60); bhint = nb.i;
-  const want = ride === "you ride" ? humanLean(dt) : followLean(bike, aheadPt(nb.i, lookahead(bike.v)));
+  const nb = nearIdx(bike.pos, bhint, humanOn() ? 160 : 60); bhint = nb.i;
+  const want = humanOn() ? humanLean(dt) : followLean(bike, aheadPt(nb.i, lookahead(bike.v)));
   // hands on, what you tilt is the handlebar's torque (the same tilt that asks for a lean when assisted, ×T_MAX/0.5)
-  const hands = ride === "you ride" && human.hands ? [dot(want, bike.c) * (T_MAX / 0.5), dot(want, bike.d) * (T_MAX / 0.5)] : null;
+  const hands = humanOn() && pilot === "hands" ? [dot(want, bike.c) * (T_MAX / 0.5), dot(want, bike.d) * (T_MAX / 0.5)] : null;
   bike.step(dt, want, hands);
   if (bike.crashed || basinE(...bike.pos) > 0.95) { const n2 = nearIdx(bike.pos, bhint, NS / 2); fellWhy = bike.why; resetBike(n2.i); fellAt = now; }
   const st = bikePose();
-  if (ride !== "walk") {
+  if (mode === "ride") {
     me.fr = rideFrame(); easing = null;
     me.p = add(add(st.p, st.T, -3.4), UP, 2.0); if (me.pitch > 0.2) me.pitch = 0.2;
   }
@@ -340,13 +350,13 @@ function step(now) {
   const cp = Math.cos(me.pitch), sp = Math.sin(me.pitch), F = add(me.fr.F.map((v) => v * cp), UP, sp), U = add(UP.map((v) => v * cp), me.fr.F, -sp);
   Rd.draw({ eye: me.p.map((v) => v / VS), R: me.fr.R, U, F, sun: SUN, time: now / 1000, fae: opt.fae ? 1 : 0, tan: TAN, far: 440, vs: VS }, resolution(dt));
   const r = trackRead(), br = bikeRead(st, want); readout(r); mapDraw(st);
-  if (ride !== "walk") { const hud = now - fellAt < 2000 ? (fellWhy === "twist" ? "it fell: the frame couldn't twist fast enough" : "it fell: back on the track") : `${ride} · lean <b>${(st.phi * 180 / Math.PI).toFixed(0)}°</b>, ${br.intoW}% into w · ${(bike.dist / LAP).toFixed(1)} laps`; if (hud !== readout.hud) { readout.hud = hud; $("hudT").innerHTML = hud; } }
+  if (mode === "ride") { const hud = now - fellAt < 2000 ? (fellWhy === "twist" ? "it fell: the frame couldn't twist fast enough" : "it fell: back on the track") : `${{ hands: "hands on", assisted: "assisted", autopilot: "autopilot" }[pilot]} · ${cam} · lean <b>${(st.phi * 180 / Math.PI).toFixed(0)}°</b>, ${br.intoW}% into w · ${(bike.dist / LAP).toFixed(1)} laps`; if (hud !== readout.hud) { readout.hud = hud; $("hudT").innerHTML = hud; } }
   const g = ov.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1); if (ov.width !== Math.round(ov.clientWidth * dpr)) { ov.width = Math.round(ov.clientWidth * dpr); ov.height = Math.round(ov.clientHeight * dpr); }
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, ov.clientWidth, ov.clientHeight); g.fillStyle = "rgba(255,255,255,0.7)"; g.beginPath(); g.arc(ov.clientWidth / 2, ov.clientHeight / 2, 1.6, 0, 2 * Math.PI); g.fill();
-  if (ride !== "walk") gauge(g, ov.clientWidth, ov.clientHeight, st, want);
+  if (mode === "ride") gauge(g, ov.clientWidth, ov.clientHeight, st, want);
   const wn = wName(); if (wn !== step.wn) { step.wn = wn; $("hudW").textContent = `unseen ${wn}`; }
   if (!frames) timing.first = Math.round(performance.now() - T0);
   frames++;
 }
 requestAnimationFrame(step);
-window.LEAN = { timing, me, bike, human, setRide, setMech, resetBike, get ride() { return ride; }, squareUp, faceTrack, get frames() { return frames; }, rot: (i, j, t) => { rotFr(i, j, t); tidy(); }, opt, track: () => trackRead(), lap };
+window.LEAN = { timing, me, bike, human, setMode, setCam, setPilot, setMech, resetBike, get mode() { return mode; }, squareUp, faceTrack, get frames() { return frames; }, rot: (i, j, t) => { rotFr(i, j, t); tidy(); }, opt, track: () => trackRead(), lap };

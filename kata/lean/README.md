@@ -77,27 +77,34 @@ The bike on the page is now a dynamic one. `bike.js` below is still the steady-t
   round faster than the frame can twist (6 rad/s, for more than 0.15 s), it falls. On the track the twist peaks near
   1.2 rad/s at 5 m/s. Swap a lean in y for one in w all at once, and one-axis falls while two-axis rides it out.
 
-## Riding it yourself
+## Two modes
 
-**🚲 ride** (or R) cycles through walk → follow the bend → no twist → **you ride**. Riding it yourself, there are two ways
-to hold it (**✋ / 🤝**, or H):
+Walking and riding are two different games in one world, so each has its own few controls. One button (**🚲 ride / 🚶
+walk**, or R) switches between them.
 
-- **✋ Hands on** is the default and is full control. Your tilt is the **handlebar's torque**, up to 2.5 N m on each
-  copy, and nothing balances the bike but the bike itself. The physics makes that rideable: between its weave and
-  capsize speeds (4.3–6.0 m/s) this bicycle rights itself hands off, in both copies, so at 5 m/s you can let go and it
-  rides straight. You steer it the way a real bike steers, which includes the surprise that holding a turn takes a
-  push the other way. Slower than 4.3 m/s it falls unless you balance it; faster than 6 m/s it slowly capsizes. The
-  **speed** button (or the slider) cycles 5, 6, 7, 3, 4 m/s.
-- **🤝 Assisted:** your tilt asks for a **lean**, and the LQR rider in the machine balances and steers to get it.
+- **Walk:** the stick (or WASD) walks, dragging (or the mouse) looks. The buttons: twist ⟲ ⟳, look ana and kata,
+  square up, face the track.
+- **Ride:** the stick (or WASD, or the arrows) is the **handlebars**: across for your slice, up for ana, down for
+  kata, and let go for hands off. Dragging looks. The buttons: **👁** the camera (no twist, or follow the bend; V),
+  the **speed** (5, 6, 7, 3, 4 m/s), and **⚙** for the rest: who holds the bars, the steering mechanism, and tilt.
+
+Who holds the bars (under ⚙, or H):
+
+- **✋ Hands on** (the default) is full control. The stick is the **handlebar's torque**, up to 2.5 N m on each copy,
+  and nothing balances the bike but the bike itself. The physics makes that rideable: between its weave and capsize
+  speeds (4.3–6.0 m/s) this bicycle rights itself hands off, in both copies, so at 5 m/s you can let go and it rides
+  straight. You steer it the way a real bike steers, which includes the surprise that holding a turn takes a push
+  the other way. Slower than 4.3 m/s it falls unless you balance it; faster than 6 m/s it slowly capsizes.
+- **🤝 Assisted:** the stick asks for a **lean**, and the LQR rider in the machine balances and steers to get it.
+- **🤖 Autopilot:** it rides the track by itself (pure pursuit), and you watch from behind.
 
 The controls:
 
-- **Phone:** the stick (bottom left, the one you walk with) is the handlebars: across for your slice, up for ana,
-  down for kata, and let go for hands off. There are only two controls, so a thumb does it. If you'd rather steer
-  by tilt, turn on **📱 tilt**: roll the phone for your slice and tip its top away for kata, toward you for ana. ±26°
+- **Phone:** the stick (bottom left) is the handlebars. There are only two controls, so a thumb does it. If you'd
+  rather steer by tilt, turn on **📱 tilt** (under ⚙): roll the phone for your slice and tip its top away for kata, toward you for ana. ±26°
   is full scale, with a 2° dead zone, zeroed where you hold it when you turn it on. iOS asks for permission to read
   the motion sensors.
-- **Keyboard:** ← → in your slice, ↑ ana, ↓ kata.
+- **Keyboard:** A/D or ← → in your slice, W or ↑ ana, S or ↓ kata.
 - **The gauge** (bottom of the view): across is your slice, up is ana. The gold dot is the bike's lean. The ring is
   your push on the bars when hands on (orange), or the lean you asked for when assisted (blue).
 
