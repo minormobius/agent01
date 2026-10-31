@@ -31,16 +31,24 @@ IRIS⁴'s engine (`four.mino.mobi/iris/`): a heightfield of 0.25 m tesseract vox
 cells), the two-level ray march (`march()`, the shader's twin, line for line) and walking (eye 1.7 m, step up 0.5 m,
 slide along cliffs). Cut down to the tesseract grid, with no foams and no rainbows, and changed in four ways:
 
-- **The basin.** Inside an ellipsoid over x, z and w (semi-axes 21, 21 and 7.4 m) the land is low and rolling, at most
-  40 voxels, rising to a lip. Outside it stands a rim of at least 50 voxels, filling all six faces of the world's box,
-  so the world's wrap is never reached.
-- **The track,** carved at 22 voxels (5.5 m) wherever the centreline is within 1.5 m, eased into the land over a 1 m
-  shoulder. The polyline has 1536 segments, so the distance is exact to its 6 cm chords.
+- **The basin.** Inside an ellipsoid over x, z and w (semi-axes 21, 21 and 7.4 m) the floor is perfectly flat, every
+  cell at 22 voxels (5.5 m). Outside it stands a rim of at least 50 voxels, a 7 m wall, filling all six faces of the
+  world's box, so the world's wrap is never reached.
+- **The track** is marked on that floor wherever the centreline is within 1.5 m: a closed loop of tarmac with nothing
+  in its way. The polyline has 1536 segments, so the distance is exact to its 6 cm chords.
 - **Materials.** A cell's byte holds its height in bits 0–5 and its material in bits 6–7: ground, tarmac, the centre
   line (within 12 cm of the centreline, a thin tube, so in your slice it's a line or a dot), and kerbs (the outer 25 cm).
 - **Walking in substeps.** `walk()` cuts every move into substeps of under a cell along each axis. However fast you go
   (a vehicle, later), you can only reach a cell next to one you stood on. That's what lets the selftest prove the basin
   closed.
+
+## The map
+
+Below the readout, the whole ground, x, z and w, with w up, as a solid you drag to turn (double-click resets). The
+track is drawn as the tube it is: in an orthographic view a tube's outline is its diameter wide everywhere, so each
+stretch is a stroke of the true 3 m thickness, drawn back to front and coloured by w (key: kata to ana), with the near
+half of a round cross-section every few metres. The basin's three principal ellipses frame it. You're the gold dot,
+with where you face (gold) and the direction you can't see (dashed blue).
 
 ## Controls
 
@@ -57,8 +65,8 @@ node kata/lean/test/lean.selftest.mjs   # ~2 s
 - the land is deterministic;
 - the analytic Frenet frame (κ, τ, T, N, B) agrees with finite differences, the bends really turn into w and the plane
   really turns, and the tube never comes near itself;
-- every track cell is at the track's height and marked, nothing off it is, and track and shoulder lie inside the basin;
-- the rim stands at least 50 voxels everywhere outside, the floor at most 40 inside, and it covers the box's six faces;
+- the basin's whole floor is flat at the track's height; every track cell is marked, nothing off it is, and the track lies inside the basin;
+- the rim stands at least 50 voxels everywhere outside, and it covers the box's six faces;
 - `nearestTrack()` agrees with the carved distance field;
 - every block holds its tallest column, and the two-level march agrees with brute force on 120 rays;
 - **you can't get out:** a flood of every cell reachable from the start, by `walk()`'s own rule (a substep moves at

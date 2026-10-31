@@ -10,8 +10,8 @@
    oval in x and z that rises and falls in w twice a lap, so its bends turn partly in the plane you start in and partly
    into w, and the plane of the bend itself turns as you go round (the curve has torsion: a road on our ground can't).
 
-   THE BASIN. All of it sits in a closed bowl: inside an ellipsoid over x, z and w the land is low and rolling; outside
-   it a cliff stands at least RIM_MIN voxels high, every way including both ways in w. The interior never exceeds
+   THE BASIN. All of it sits in a closed bowl: inside an ellipsoid over x, z and w the floor is perfectly flat, at the
+   track's height, so the track is a loop marked out on level ground with nothing in its way; outside it a cliff stands at least RIM_MIN voxels high, every way including both ways in w. The interior never exceeds
    LAND_MAX, so the step up to the rim is many times the most you can climb. The selftest floods every cell you can
    walk to from the start and checks none of them is the rim: you can't get out.
 
@@ -27,10 +27,10 @@ export const SIZE = [DIM[0] * VS, 0, DIM[1] * VS, DIM[2] * VS]; // metres, in (x
 /* the basin: an ellipsoid over (x, z, w), metres. Its surface stays inside the world's box, so the rim fills the box's
    edges every way and the world's wrap is never reached */
 export const BASIN = { c: [24, 24, 8], a: [21, 21, 7.4] };
-export const RIM_MIN = 50, LAND_MAX = 40; // voxels: the rim's lowest, the interior's highest
+export const RIM_MIN = 50, LAND_MAX = 22; // voxels: the rim's lowest, the interior's highest (the floor is flat, at TRACK_H)
 /* the track */
 export const TRACK_H = 22; // voxels: 5.5 m
-export const R_TRACK = 1.5, SHOULDER = 1.0, KERB = 0.25, LINE = 0.12; // metres
+export const R_TRACK = 1.5, SHOULDER = 1.0, KERB = 0.25, LINE = 0.12; // metres (SHOULDER: how far past the track the distance field reaches)
 export const OVAL = { a: 13, b: 10, c: 3 }; // centreline: x = 24 + a cos t, z = 24 + b sin t, w = 8 + c sin 2t
 export const NS = 1536; // samples along the centreline (a polyline; its segments are ~6 cm)
 
@@ -99,7 +99,6 @@ function octave(scale, seed, out) {
     }
   }
 }
-const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /* the distance from every cell's centre to the centreline, for the cells near it (Infinity elsewhere): blocks far
    from every sample are skipped, and each near block's cells test only the segments near it. Scalar and
    allocation-free, since it runs some 10⁷ times on the page's load */
@@ -124,19 +123,17 @@ export function trackDistance() {
   }
   return D;
 }
-/* the heights and materials: the rim, the rolling floor of the basin rising to a lip, and the track carved through it
-   flat, eased into the land over its shoulder */
+/* the heights and materials: the rim (its noise is only there to give the wall some character), and inside it a flat
+   floor at the track's height, with the track marked on it: tarmac, the centre line, the kerbs */
 export function terrain(seed = 1, D = trackDistance()) {
-  const [X, Z, W] = DIM, n = X * Z * W, n1 = new Float32Array(n), n2 = new Float32Array(n), n3 = new Float32Array(n), H = new Uint8Array(n);
-  octave([24, 24, 16], seed, n1); octave([8, 8, 8], seed + 1, n2); octave([4, 4, 4], seed + 2, n3);
+  const [X, Z, W] = DIM, n = X * Z * W, n1 = new Float32Array(n), n3 = new Float32Array(n), H = new Uint8Array(n);
+  octave([24, 24, 16], seed, n1); octave([4, 4, 4], seed + 2, n3);
   for (let w = 0; w < W; w++) for (let z = 0; z < Z; z++) for (let x = 0; x < X; x++) {
     const i = x + X * (z + Z * w), e = basinE((x + 0.5) * VS, (z + 0.5) * VS, (w + 0.5) * VS);
     if (e >= 1) { H[i] = Math.max(RIM_MIN, Math.min(HMASK, Math.round(RIM_MIN + 10 * n1[i] + 3 * n3[i]))); continue; }
-    const ridge = 1 - Math.abs(2 * n2[i] - 1);
-    let v = 16 + 12 * n1[i] ** 1.3 + 5 * ridge * n1[i] + 2 * n3[i] + 9 * smooth(0.72, 1, e);
     const d = D[i]; let mat = MAT.ground;
-    if (d < R_TRACK) { v = TRACK_H; mat = d < LINE ? MAT.line : d > R_TRACK - KERB ? MAT.kerb : MAT.track; }
-    else if (d < R_TRACK + SHOULDER) v = TRACK_H + (v - TRACK_H) * smooth(0, 1, (d - R_TRACK) / SHOULDER);
+    if (d < R_TRACK) mat = d < LINE ? MAT.line : d > R_TRACK - KERB ? MAT.kerb : MAT.track;
+    const v = TRACK_H; // the whole floor of the basin is flat, at the track's height: the track is the loop painted on it
     H[i] = Math.min(LAND_MAX, Math.round(v)) | (mat << MSHIFT);
   }
   return H;

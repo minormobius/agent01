@@ -47,15 +47,16 @@ ok(H.every((v, i) => v === H2[i]), `the same seed makes the same land (built in 
 
 /* the land: the rim, the floor, the track */
 {
-  let rimLo = 255, inHi = 0, badTrack = 0, badMat = 0, tracks = 0, shoulderOut = 0, eMax = 0;
+  let rimLo = 255, inHi = 0, inLo = 255, badTrack = 0, badMat = 0, tracks = 0, shoulderOut = 0, eMax = 0;
   for (let i = 0; i < H.length; i++) {
     const g = cen(i), e = Wd.basinE(...g), h = H[i] & HMASK, m = H[i] >> MSHIFT;
-    if (e >= 1) rimLo = Math.min(rimLo, h); else inHi = Math.max(inHi, h);
+    if (e >= 1) rimLo = Math.min(rimLo, h); else { inHi = Math.max(inHi, h); inLo = Math.min(inLo, h); }
     if (D[i] < R_TRACK) { tracks++; if (h !== TRACK_H || m === MAT.ground) badTrack++; }
     else if (m !== MAT.ground) badMat++;
     if (D[i] < R_TRACK + SHOULDER) eMax = Math.max(eMax, e);
   }
   ok(rimLo >= RIM_MIN && inHi <= LAND_MAX && rimLo - inHi >= 4 * (Wd.STEP / VS), `the rim stands at least ${rimLo} voxels, the floor at most ${inHi}: a wall of ${((rimLo - inHi) * VS).toFixed(1)} m against a ${Wd.STEP} m step`);
+  ok(inLo === TRACK_H && inHi === TRACK_H, `the basin's whole floor is flat, every cell inside at the track's height (${inLo}–${inHi} voxels): the track is a loop marked on level ground`);
   ok(tracks > 30000 && !badTrack && !badMat, `the track is ${tracks} cells, every one at height ${TRACK_H} (flat over x, z and w) and marked; nothing off it is`);
   ok(eMax < 0.95, `the track and its shoulder lie inside the basin (out to ${eMax.toFixed(3)} of the way to the rim)`);
   // the rim fills the box's faces every way, so the world's wrap is never in reach

@@ -28,9 +28,9 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   simulation, its bullet changes.
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
-  (a closed centreline with analytic Frenet frame, carved flat within `R_TRACK`), the march and walking. `js/render.js`
-  is the shader, `js/main.js` the page and IRIS⁴'s controls, plus "face the track" and the readout of the bend in your
-  frame. See [`lean/README.md`](lean/README.md).
+  (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
+  is the shader, `js/main.js` the page and IRIS⁴'s controls, plus "face the track", the readout of the bend in your
+  frame, and the map: the ground in x, z, w (w up) drawn orthographically, the track as a tube of its true width. See [`lean/README.md`](lean/README.md).
   - A cell's byte is **height in bits 0–5, material in bits 6–7** (IRIS⁴'s is height in 0–6 and a water bit). Heights
     cap at 63 voxels.
   - **The basin must stay closed.** The selftest floods every cell reachable from the start by `walk()`'s own rule and

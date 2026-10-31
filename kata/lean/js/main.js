@@ -116,35 +116,63 @@ function readout(r) {
     `You face ${r.tAngle}° off the track's direction. <b>↦</b> (or <b>T</b>) faces it, with the whole bend in your slice.`;
   if (txt !== readout.txt) { readout.txt = txt; $("read").innerHTML = txt; }
 }
-/* the map: the track from above (x across, z up the page) and from the side into w (x across, w up), coloured by w,
-   with you on both */
-const wCol = (w) => `hsl(${Math.round(170 + ((w - BASIN.c[2]) / 4) * 110)}, 75%, 62%)`;
-function mapDraw(r) {
+/* the map: the ground itself, x, z and w, as a solid you can turn (drag it; double-click resets). The track is drawn
+   as what it is, a tube 2·R_TRACK thick round its centreline: in an orthographic view a tube's outline is that wide
+   everywhere, so each stretch is a stroke of the tube's true width, drawn back to front and coloured by w, with its
+   round cross-sections every few metres. The basin's three principal ellipses frame it, and you're on it: your
+   position, where you face (gold) and the direction you can't see (dashed blue). w is the map's up. */
+const MAPV = { yaw: 0.55, el: 0.62 }, MAP0 = { ...MAPV };
+const wHue = (w) => Math.round(175 + ((w - BASIN.c[2]) / 3) * 115);
+const RINGS = [];
+for (let i = 0; i < NS; i += 48) { const f = frenet((2 * Math.PI * i) / NS), c = [f.p[0], f.p[2], f.p[3]], n = [f.N[0], f.N[2], f.N[3]], bn = [f.Bn[0], f.Bn[2], f.Bn[3]]; RINGS.push({ i, pts: Array.from({ length: 25 }, (_, k) => { const t = (2 * Math.PI * k) / 24; return c.map((v, j) => v + R_TRACK * (Math.cos(t) * n[j] + Math.sin(t) * bn[j])); }) }); }
+{
+  const cv = $("map"); let drag = null;
+  cv.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (err) { /* fine */ } });
+  cv.addEventListener("pointermove", (e) => { if (!drag) return; MAPV.yaw += (e.clientX - drag.x) * 0.012; MAPV.el = Math.max(-0.2, Math.min(1.5, MAPV.el + (e.clientY - drag.y) * 0.012)); drag = { x: e.clientX, y: e.clientY }; });
+  for (const ev of ["pointerup", "pointercancel"]) cv.addEventListener(ev, () => { drag = null; });
+  cv.addEventListener("dblclick", () => Object.assign(MAPV, MAP0));
+}
+function mapDraw() {
   const cv = $("map"), dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
   if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
-  const side = w > h * 1.5, P = 12;
-  // two panels: above (x, z) over a 34 m square; into w (x, w) over 34 × 12 m
-  const pa = side ? { x: P, y: P, w: (w - 3 * P) * 0.62, h: h - 2 * P } : { x: P, y: P, w: w - 2 * P, h: (h - 3 * P) * 0.66 };
-  const pb = side ? { x: pa.x + pa.w + P, y: P, w: w - pa.w - 3 * P, h: h - 2 * P } : { x: P, y: pa.y + pa.h + P, w: w - 2 * P, h: h - pa.h - 3 * P };
-  const fit = (box, sx, sy) => { const k = Math.min(box.w / sx, box.h / sy); return { k, ox: box.x + (box.w - sx * k) / 2, oy: box.y + (box.h - sy * k) / 2 }; };
-  const A = fit(pa, 32, 26), Bf = fit(pb, 32, 10);
-  const toA = (x, z) => [A.ox + (x - 8) * A.k, A.oy + (37 - z) * A.k], toB = (x, wv) => [Bf.ox + (x - 8) * Bf.k, Bf.oy + (13 - wv) * Bf.k];
-  g.lineWidth = Math.max(2, R_TRACK * 2 * A.k * 0.35); g.lineCap = "round";
-  for (const [to, lw] of [[toA, Math.max(2, 2 * R_TRACK * A.k * 0.4)], [toB, Math.max(2, 2 * R_TRACK * Bf.k * 0.4)]]) {
-    g.lineWidth = lw;
-    for (let i = 0; i < NS; i += 8) { const p = PTS[i], q = PTS[(i + 8) % NS]; g.strokeStyle = wCol(p[2]); g.beginPath(); const a = to === toA ? toA(p[0], p[1]) : toB(p[0], p[2]), b = to === toA ? toA(q[0], q[1]) : toB(q[0], q[2]); g.moveTo(...a); g.lineTo(...b); g.stroke(); }
+  const ca = Math.cos(MAPV.yaw), sa = Math.sin(MAPV.yaw), ce = Math.cos(MAPV.el), se = Math.sin(MAPV.el), C = BASIN.c;
+  const k = Math.min(w / (2 * 17.5), h / (2 * (17.5 * se + 7.5 * ce) + 8)), cx = w / 2, cy = h / 2 + 4;
+  // ground (x, z, w) → screen, and depth (bigger is nearer)
+  const P = (q) => { const dx = q[0] - C[0], dz = q[1] - C[1], dw = q[2] - C[2], u = dx * ca - dz * sa, v = dx * sa + dz * ca; return [cx + u * k, cy - (dw * ce - v * se) * k, v * ce + dw * se]; };
+  // the basin: its three principal ellipses
+  g.strokeStyle = "rgba(154,149,140,0.28)"; g.lineWidth = 1;
+  for (const [i, j] of [[0, 1], [0, 2], [1, 2]]) { g.beginPath(); for (let s = 0; s <= 64; s++) { const t = (2 * Math.PI * s) / 64, q = C.slice(); q[i] += BASIN.a[i] * Math.cos(t); q[j] += BASIN.a[j] * Math.sin(t); const p = P(q); s ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); } g.stroke(); }
+  // the tube, back to front: each stretch a stroke the tube's true width, a darker rim under a lighter core
+  const segs = []; for (let i = 0; i < NS; i += 6) { const a = P(PTS[i]), b = P(PTS[(i + 6) % NS]); segs.push({ a, b, d: (a[2] + b[2]) / 2, w: PTS[i][2], i }); }
+  segs.sort((p, q) => p.d - q.d);
+  const dmax = 19, shade = (d) => 0.55 + 0.45 * (d + dmax) / (2 * dmax);
+  g.lineCap = "round";
+  for (const s of segs) {
+    const L = Math.round(30 + 30 * shade(s.d)), hue = wHue(s.w);
+    g.strokeStyle = `hsl(${hue}, 55%, ${L - 14}%)`; g.lineWidth = 2 * R_TRACK * k; g.beginPath(); g.moveTo(s.a[0], s.a[1]); g.lineTo(s.b[0], s.b[1]); g.stroke();
+    g.strokeStyle = `hsl(${hue}, 70%, ${L + 4}%)`; g.lineWidth = Math.max(1, 2 * R_TRACK * k * 0.55); g.beginPath(); g.moveTo(s.a[0], s.a[1]); g.lineTo(s.b[0], s.b[1]); g.stroke();
   }
-  // start line
-  g.fillStyle = "#fff"; { const a = toA(PTS[0][0], PTS[0][1]); g.fillRect(a[0] - 4, a[1] - 1, 8, 2); }
-  // you, and which way you face (F) and the direction you can't see (N), on both
-  const you = (to, i, j) => { const p = to(me.p[i], me.p[j]), F = [me.fr.F[i], me.fr.F[j]], N = [me.fr.N[i], me.fr.N[j]];
-    g.strokeStyle = "#ffd27a"; g.lineWidth = 2; g.beginPath(); g.moveTo(...p); g.lineTo(p[0] + F[0] * 14, p[1] - F[1] * 14); g.stroke();
-    g.strokeStyle = "rgba(111,224,255,0.8)"; g.lineWidth = 1.5; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(...p); g.lineTo(p[0] + N[0] * 10, p[1] - N[1] * 10); g.stroke(); g.setLineDash([]);
-    g.fillStyle = "#ffd27a"; g.beginPath(); g.arc(p[0], p[1], 3.5, 0, 2 * Math.PI); g.fill(); };
-  you(toA, 0, 2); you(toB, 0, 3);
-  g.font = "10px ui-monospace, Menlo, monospace"; g.fillStyle = "#9a958c"; g.textAlign = "left";
-  g.fillText("from above: x, z", pa.x, pa.y + 9); g.fillText("into w: x, w", pb.x, pb.y + 9);
+  // the cross-sections: the half of each ring that faces you, over the tube, so you can see it's round both ways
+  g.strokeStyle = "rgba(255,255,255,0.6)"; g.lineWidth = 1;
+  for (const r of RINGS) { const dc = P(PTS[r.i])[2]; let on = false; g.beginPath(); for (const q of r.pts) { const p = P(q); if (p[2] >= dc - 1e-9) { on ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); on = true; } else on = false; } g.stroke(); }
+  // the start line
+  { const f = frenet(0), c = [f.p[0], f.p[2], f.p[3]], a = P(c.map((v, j) => v + R_TRACK * [f.N[0], f.N[2], f.N[3]][j])), b = P(c.map((v, j) => v - R_TRACK * [f.N[0], f.N[2], f.N[3]][j])); g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+  // you
+  const me3 = [me.p[0], me.p[2], me.p[3]], p = P(me3), arrow = (v, len) => P(me3.map((x, j) => x + v[j] * len));
+  const F3 = [me.fr.F[0], me.fr.F[2], me.fr.F[3]], N3 = [me.fr.N[0], me.fr.N[2], me.fr.N[3]], fa = arrow(F3, 3.5), na = arrow(N3, 2.5);
+  g.strokeStyle = "rgba(111,224,255,0.95)"; g.lineWidth = 1.6; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(na[0], na[1]); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = "#ffd27a"; g.lineWidth = 2.2; g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(fa[0], fa[1]); g.stroke();
+  g.fillStyle = "#ffd27a"; g.strokeStyle = "#07080c"; g.lineWidth = 1.5; g.beginPath(); g.arc(p[0], p[1], 4.5, 0, 2 * Math.PI); g.fill(); g.stroke();
+  // the axes
+  const o = [C[0] - 15, C[1] - 15, C[2] - 6], O = P(o);
+  g.font = "10px ui-monospace, Menlo, monospace"; g.textAlign = "center"; g.textBaseline = "middle";
+  [["x", [1, 0, 0]], ["z", [0, 1, 0]], ["w", [0, 0, 1]]].forEach(([n, v]) => { const e = P(o.map((x, j) => x + v[j] * 3)); g.strokeStyle = n === "w" ? "#b88cff" : "#9a958c"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(O[0], O[1]); g.lineTo(e[0], e[1]); g.stroke(); g.fillStyle = g.strokeStyle; g.fillText(n, O[0] + (e[0] - O[0]) * 1.35, O[1] + (e[1] - O[1]) * 1.35); });
+  g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillStyle = "#9a958c";
+  g.fillText("the ground: x, z, w (w up) · drag to turn", 8, 13);
+  // the colours' key: w, kata to ana
+  const kx = w - 136, ky = h - 16; for (let i = 0; i < 100; i++) { g.fillStyle = `hsl(${wHue(BASIN.c[2] - 3 + (6 * i) / 100)}, 60%, 50%)`; g.fillRect(kx + i, ky, 1, 6); }
+  g.fillStyle = "#9a958c"; g.textAlign = "right"; g.fillText("kata", kx - 4, ky + 6); g.textAlign = "left"; g.fillText("ana", kx + 104, ky + 6);
 }
 function wName() { const N = me.fr.N; let a = 0; for (const i of [2, 3]) if (Math.abs(N[i]) > Math.abs(N[a])) a = i; const off = Math.round((Math.acos(Math.min(1, Math.abs(N[a]))) * 180) / Math.PI); return (N[a] > 0 ? "+" : "−") + "xyzw"[a] + (off >= 2 ? ` ${off}°` : ""); }
 
@@ -179,7 +207,7 @@ function step(now) {
   }
   const cp = Math.cos(me.pitch), sp = Math.sin(me.pitch), F = add(me.fr.F.map((v) => v * cp), UP, sp), U = add(UP.map((v) => v * cp), me.fr.F, -sp);
   Rd.draw({ eye: me.p.map((v) => v / VS), R: me.fr.R, U, F, sun: SUN, time: now / 1000, fae: opt.fae ? 1 : 0, tan: TAN, far: 200, vs: VS }, resolution(dt));
-  const r = trackRead(); readout(r); mapDraw(r);
+  const r = trackRead(); readout(r); mapDraw();
   const g = ov.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1); if (ov.width !== Math.round(ov.clientWidth * dpr)) { ov.width = Math.round(ov.clientWidth * dpr); ov.height = Math.round(ov.clientHeight * dpr); }
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, ov.clientWidth, ov.clientHeight); g.fillStyle = "rgba(255,255,255,0.7)"; g.beginPath(); g.arc(ov.clientWidth / 2, ov.clientHeight / 2, 1.6, 0, 2 * Math.PI); g.fill();
   const wn = wName(); if (wn !== step.wn) { step.wn = wn; $("hudW").textContent = `unseen ${wn}`; }
